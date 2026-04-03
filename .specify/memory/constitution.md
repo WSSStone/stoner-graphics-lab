@@ -1,13 +1,9 @@
 <!--
 Sync Impact Report:
-- Version change: 1.0.0 (Initial)
-- Modified principles:
-  - [PRINCIPLE_1_NAME] -> I. Spec-Driven Development (SSD)
-  - [PRINCIPLE_2_NAME] -> II. Decoupled Architecture (RHI Abstraction)
-  - [PRINCIPLE_3_NAME] -> III. Design Pattern Discipline
-  - [PRINCIPLE_4_NAME] -> IV. Multi-API Support
-  - [PRINCIPLE_5_NAME] -> V. Advanced Graphics Readiness
-- Added sections: None
+- Version change: 1.0.0 -> 1.1.0
+- Modified principles: None
+- Added sections:
+  - VI. Naming Conventions (UE5 Style)
 - Removed sections: None
 - Templates requiring updates:
   - ✅ .specify/templates/plan-template.md
@@ -34,6 +30,9 @@ The RHI MUST be designed to support modern explicit APIs (Vulkan, DX12, Metal) a
 ### V. Advanced Graphics Readiness
 The core architecture MUST anticipate and support advanced rendering techniques including hardware/software Ray Tracing, Nanite-like meshlet optimization, and Lumen-like global illumination. Data structures and pipelines MUST be designed with these paradigms in mind.
 
+### VI. Naming Conventions (UE5 Style)
+The project MUST adopt PascalCase, UnrealEngine5-style naming conventions for all C++ code. This includes using appropriate prefixes (e.g., `U` for objects, `A` for actors, `F` for structs/vectors, `E` for enums, `I` for interfaces, `T` for templates) to ensure consistency and readability across the codebase.
+
 ## Technology Stack & Standards
 
 - **Primary Language**: C++ (Modern C++, e.g., C++20/23).
@@ -51,4 +50,4 @@ The core architecture MUST anticipate and support advanced rendering techniques 
 - Amendments require documentation, approval, and a migration plan.
 - All PRs/reviews MUST verify compliance with the RHI abstraction and design pattern disciplines.
 
-**Version**: 1.0.0 | **Ratified**: 2026-04-03 | **Last Amended**: 2026-04-03
+**Version**: 1.1.0 | **Ratified**: 2026-04-03 | **Last Amended**: 2026-04-03

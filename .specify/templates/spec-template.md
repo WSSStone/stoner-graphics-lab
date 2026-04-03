@@ -84,6 +84,7 @@
 - **RHI Abstraction**: The feature MUST NOT bypass the RHI layer to call Graphics APIs directly.
 - **Design Patterns**: The feature MUST avoid God-classes and utilize Strategy/Composite patterns for orthogonal responsibilities.
 - **Advanced Graphics**: The feature MUST consider compatibility with Ray Tracing, Meshlets, and Global Illumination pipelines.
+- **Naming Conventions**: The feature's code design MUST adhere to PascalCase, UnrealEngine5-style naming conventions.
 
 ## Requirements *(mandatory)*
 

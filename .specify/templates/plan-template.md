@@ -36,6 +36,7 @@
 - [ ] **Design Pattern Discipline**: Does the design avoid God-classes and utilize Strategy/Composite patterns where appropriate?
 - [ ] **Multi-API Support**: Is the feature designed to work across all supported graphics APIs?
 - [ ] **Advanced Graphics Readiness**: Does the feature align with advanced rendering paradigms (Ray Tracing, Meshlets, GI)?
+- [ ] **Naming Conventions**: Does the code follow PascalCase, UnrealEngine5-style naming conventions?
 
 ## Project Structure
 
