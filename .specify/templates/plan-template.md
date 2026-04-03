@@ -31,7 +31,11 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- [ ] **Spec-Driven Development**: Is there a clear specification for this feature?
+- [ ] **Decoupled Architecture**: Does this feature maintain the strict Application <-> RHI <-> Graphics API layering?
+- [ ] **Design Pattern Discipline**: Does the design avoid God-classes and utilize Strategy/Composite patterns where appropriate?
+- [ ] **Multi-API Support**: Is the feature designed to work across all supported graphics APIs?
+- [ ] **Advanced Graphics Readiness**: Does the feature align with advanced rendering paradigms (Ray Tracing, Meshlets, GI)?
 
 ## Project Structure
 

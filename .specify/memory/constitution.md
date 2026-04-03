@@ -1,50 +1,54 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version change: 1.0.0 (Initial)
+- Modified principles:
+  - [PRINCIPLE_1_NAME] -> I. Spec-Driven Development (SSD)
+  - [PRINCIPLE_2_NAME] -> II. Decoupled Architecture (RHI Abstraction)
+  - [PRINCIPLE_3_NAME] -> III. Design Pattern Discipline
+  - [PRINCIPLE_4_NAME] -> IV. Multi-API Support
+  - [PRINCIPLE_5_NAME] -> V. Advanced Graphics Readiness
+- Added sections: None
+- Removed sections: None
+- Templates requiring updates:
+  - ✅ .specify/templates/plan-template.md
+  - ✅ .specify/templates/spec-template.md
+  - ✅ .specify/templates/tasks-template.md
+- Follow-up TODOs: None
+-->
+# Stoner Graphics System Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Spec-Driven Development (SSD)
+Strict adherence to "design before coding". All major features and refactoring MUST begin with updating or creating specification documents and the top-level constitution.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Decoupled Architecture (RHI Abstraction)
+The system MUST maintain a strict `Application <-> RHI (Render Hardware Interface) <-> Graphics API` layered architecture. The Application layer MUST NEVER directly call specific Graphics API functions.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Design Pattern Discipline
+God-classes and giant functions are strictly prohibited. The system MUST heavily utilize the Strategy Pattern and Composite Pattern to decouple orthogonal responsibilities such as rule distribution, spatial constraints, and geometric placement.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Multi-API Support
+The RHI MUST be designed to support modern explicit APIs (Vulkan, DX12, Metal) as first-class citizens, while maintaining compatibility paths for legacy/web APIs (DX11, OpenGL, GLES, WebGL).
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Advanced Graphics Readiness
+The core architecture MUST anticipate and support advanced rendering techniques including hardware/software Ray Tracing, Nanite-like meshlet optimization, and Lumen-like global illumination. Data structures and pipelines MUST be designed with these paradigms in mind.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Technology Stack & Standards
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- **Primary Language**: C++ (Modern C++, e.g., C++20/23).
+- **Graphics APIs**: Vulkan, DirectX 12, DirectX 11, Metal, OpenGL, OpenGL ES, WebGL.
+- **Version Control**: Managed via `ugit`.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Development Workflow
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+- **Design First**: Specifications MUST be written and approved before implementation begins.
+- **Commit Protocol**: Since `ugit` is used, agents MUST provide recommended commit messages at the end of their output.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+- This Constitution supersedes all other practices.
+- Amendments require documentation, approval, and a migration plan.
+- All PRs/reviews MUST verify compliance with the RHI abstraction and design pattern disciplines.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-04-03 | **Last Amended**: 2026-04-03

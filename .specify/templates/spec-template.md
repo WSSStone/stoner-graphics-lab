@@ -75,6 +75,16 @@
 - What happens when [boundary condition]?
 - How does system handle [error scenario]?
 
+## Architecture & Design Constraints *(mandatory)*
+
+<!--
+  ACTION REQUIRED: Ensure the feature aligns with the project constitution.
+-->
+
+- **RHI Abstraction**: The feature MUST NOT bypass the RHI layer to call Graphics APIs directly.
+- **Design Patterns**: The feature MUST avoid God-classes and utilize Strategy/Composite patterns for orthogonal responsibilities.
+- **Advanced Graphics**: The feature MUST consider compatibility with Ray Tracing, Meshlets, and Global Illumination pipelines.
+
 ## Requirements *(mandatory)*
 
 <!--
