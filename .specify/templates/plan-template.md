@@ -37,6 +37,7 @@
 - [ ] **Multi-API Support**: Is the feature designed to work across all supported graphics APIs?
 - [ ] **Advanced Graphics Readiness**: Does the feature align with advanced rendering paradigms (Ray Tracing, Meshlets, GI)?
 - [ ] **Naming Conventions**: Does the code follow PascalCase, UnrealEngine5-style naming conventions?
+- [ ] **Cross-Platform Compatibility**: Does the feature build and run correctly on all supported platforms (Windows, macOS, Linux)?
 
 ## Project Structure
 

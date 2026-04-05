@@ -85,6 +85,7 @@
 - **Design Patterns**: The feature MUST avoid God-classes and utilize Strategy/Composite patterns for orthogonal responsibilities.
 - **Advanced Graphics**: The feature MUST consider compatibility with Ray Tracing, Meshlets, and Global Illumination pipelines.
 - **Naming Conventions**: The feature's code design MUST adhere to PascalCase, UnrealEngine5-style naming conventions.
+- **Cross-Platform Compatibility**: The feature MUST compile and run on all supported platforms (Windows, macOS, Linux). Platform-specific code MUST be isolated behind abstraction layers or conditional compilation guards.
 
 ## Requirements *(mandatory)*
 
