@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-scons-project-skeleton`
 **Created**: 2026-04-06
-**Status**: Draft
+**Status**: Draft (Clarified)
 **Input**: User description: "As we promoted SCons as the compiling utils, we first need a file structure and necessary files for the SCons building-oriented project. This over-the-top files/dirs structure design is essential for the whole coming project as it works as a skeleton."
 
 ## User Scenarios & Testing *(mandatory)*
@@ -19,7 +19,7 @@ A developer clones the repository for the first time and wants to build the enti
 
 1. **Given** a fresh clone of the repository on Windows with MSVC installed, **When** the developer runs `scons` at the project root, **Then** the build completes successfully with zero errors and produces the expected output artifacts.
 2. **Given** a fresh clone of the repository on macOS (Apple Clang) or Linux (GCC/Clang), **When** the developer runs `scons` at the project root, **Then** the build completes successfully with zero errors and produces the expected output artifacts.
-3. **Given** the project root, **When** the developer inspects the directory tree, **Then** they find a clear, well-organized folder hierarchy that separates engine source, platform-specific code, RHI backends, third-party dependencies, build output, and specification documents.
+3. **Given** the project root, **When** the developer inspects the directory tree, **Then** they find a clear, well-organized folder hierarchy with 5 distinct source layers (Core, Application, Renderer, RHI, Backend), plus separate directories for third-party dependencies, build output, tests, and specification documents.
 
 ---
 
@@ -63,9 +63,28 @@ A developer wants to build the project in different configurations (Debug, Relea
 
 ## Architecture & Design Constraints *(mandatory)*
 
-- **RHI Abstraction**: The directory structure MUST enforce the strict `Application <-> RHI <-> Graphics API` layering by physically separating these layers into distinct directory subtrees. No source file in the Application layer directory may include headers from a specific Graphics API backend directory.
+- **5-Layer Architecture**: The project adopts a 5-layer architecture with strict adjacent-only dependencies:
+
+  ```
+  Application  ──→  Renderer  ──→  RHI  ←──  Backend (implements RHI interfaces)
+       │                │            │            │
+       └────────────────┴────────────┴────────────┘
+                         │
+                      Core/Common
+  ```
+
+  - **Core**: Shared utilities (math, containers, logging, platform abstraction). Zero dependencies on any rendering layer. All other layers may depend on Core.
+  - **Application**: Game engine frontend — scene graph, input, physics, high-level orchestration. Depends on Renderer and Core only.
+  - **Renderer**: High-level rendering — materials, lighting, render passes, ray tracing, meshlet processing, global illumination. Depends on RHI and Core only.
+  - **RHI**: Abstract hardware interface — IDevice, ICommandBuffer, IBuffer, IPipeline. Depends on Core only.
+  - **Backend**: API-specific implementations (Vulkan, DX12, DX11, Metal, OpenGL, GLES, WebGL). Implements RHI interfaces. Depends on RHI and Core only.
+
+  Each layer can ONLY depend on its immediate neighbor below (plus Core). Skip-level dependencies (e.g., Application including RHI headers directly) are PROHIBITED.
+
+- **RHI Abstraction**: The directory structure MUST enforce the layered architecture by physically separating all 5 layers into distinct directory subtrees under `Source/`. No source file in a higher layer may include headers from a lower non-adjacent layer or from a specific Backend directory.
+- **Build Artifact Isolation**: Each layer MUST compile into its own static library (`.a`/`.lib`). Each Backend implementation MUST also compile as a separate static library. The final executable links all required layer libraries. This enforces layer boundaries at link time.
 - **Design Patterns**: The build system itself MUST avoid monolithic build scripts. Build logic MUST be decomposed into reusable SCons tool modules and per-directory `SConscript` files following the Composite pattern.
-- **Advanced Graphics**: The directory structure MUST pre-allocate locations for advanced rendering subsystems (Ray Tracing, Meshlet processing, Global Illumination) even if they are initially empty, to signal architectural intent.
+- **Advanced Graphics**: Advanced rendering subsystems (Ray Tracing, Meshlet processing, Global Illumination) MUST reside within the Renderer layer as sub-modules (e.g., `Source/Renderer/RayTracing/`). They are rendering techniques that consume RHI primitives, not RHI-level abstractions.
 - **Naming Conventions**: All directory names and file names MUST follow the project's PascalCase, UE5-style naming conventions where applicable to C++ source. Build script files follow SCons conventions (`SConstruct`, `SConscript`).
 - **Cross-Platform Compatibility**: The build configuration MUST work identically on Windows, macOS, and Linux. Platform-specific compiler flags and toolchain detection MUST be handled by the build system, not by the developer manually editing files.
 
@@ -75,22 +94,56 @@ A developer wants to build the project in different configurations (Debug, Relea
 
 - **FR-001**: The project MUST have a single top-level `SConstruct` file that serves as the entry point for all builds.
 - **FR-002**: Each major module or subsystem MUST have its own `SConscript` file that defines its build targets, source files, and local dependencies.
-- **FR-003**: The directory structure MUST physically separate the following concerns into distinct top-level directories: engine core source, RHI abstraction layer, per-API backend implementations, platform abstraction, third-party dependencies, build output, tests, and specification/documentation.
+- **FR-003**: The directory structure MUST follow a flat `Source/` root layout with 5 distinct layer directories:
+
+  ```
+  stoner-graphics-lab/
+  ├── SConstruct                  # Root build entry point
+  ├── Source/
+  │   ├── Core/                   # Shared utilities (math, containers, logging, platform)
+  │   │   └── SConscript
+  │   ├── Application/            # Game engine frontend (Scene Graph, Input, Physics)
+  │   │   └── SConscript
+  │   ├── Renderer/               # High-level rendering (Materials, Lighting, Passes, RT, Meshlets, GI)
+  │   │   └── SConscript
+  │   ├── RHI/                    # Abstract interface (IDevice, ICommandBuffer, IBuffer)
+  │   │   └── SConscript
+  │   └── Backend/                # API-specific implementations
+  │       ├── Vulkan/
+  │       ├── DX12/
+  │       ├── DX11/
+  │       ├── Metal/
+  │       ├── OpenGL/
+  │       ├── GLES/
+  │       ├── WebGL/
+  │       └── SConscript
+  ├── ThirdParty/                 # External dependencies
+  ├── Tests/                      # Test suites
+  ├── Build/                      # Output (gitignored): Build/<Platform>/<Config>/
+  ├── specs/                      # Feature specifications
+  └── .specify/                   # Spec-kit configuration
+  ```
 - **FR-004**: The build system MUST automatically detect the host operating system and select the appropriate default compiler toolchain (MSVC on Windows, Apple Clang on macOS, GCC or Clang on Linux).
 - **FR-005**: The build system MUST support at least two build configurations (Debug and Release) selectable via a command-line parameter.
 - **FR-006**: The build output MUST be placed in a dedicated output directory (outside the source tree) organized by platform and configuration (e.g., `Build/Win64/Debug/`).
 - **FR-007**: The build system MUST validate that the installed SCons version meets the minimum requirement (4.10.1) and fail with a clear message if not.
-- **FR-008**: The directory structure MUST include placeholder directories for all planned RHI backends (Vulkan, DX12, DX11, Metal, OpenGL, GLES, WebGL) to establish the architectural skeleton.
+- **FR-008**: The directory structure MUST include placeholder directories for all planned Backend implementations (Vulkan, DX12, DX11, Metal, OpenGL, GLES, WebGL) under `Source/Backend/` to establish the architectural skeleton.
+- **FR-011**: Each of the 5 source layers (Core, Application, Renderer, RHI, Backend) MUST compile into its own static library. Each Backend sub-directory (Vulkan, DX12, etc.) MUST also compile as a separate static library.
+- **FR-012**: The Renderer layer MUST include sub-directories for advanced rendering subsystems: `RayTracing/`, `Meshlets/`, and `GI/` (Global Illumination), even if initially empty.
+- **FR-013**: The Core layer MUST provide shared utilities (math types, containers, logging, platform abstraction) that all other layers may depend on. Core MUST have zero dependencies on any rendering layer.
+- **FR-014**: Inter-layer dependencies MUST be strictly adjacent-only (plus Core). The build system MUST enforce this by controlling include paths and link dependencies per layer.
 - **FR-009**: The build system MUST support incremental builds — only recompiling files that have changed since the last build.
 - **FR-010**: The project MUST include a `.gitignore` file that excludes build output directories and SCons cache/database files from version control.
 
 ### Key Entities
 
-- **SConstruct**: The root build definition file. Defines global build environment, platform detection, configuration variants, and delegates to module `SConscript` files.
-- **SConscript**: Per-module build definition files. Each defines the sources, include paths, and build targets for its module.
-- **Build Environment**: The SCons `Environment` object configured with platform-appropriate compiler, flags, and paths. Shared across modules via the hierarchical `SConscript` structure.
-- **Module**: A logical unit of the engine (e.g., Core, RHI, a specific backend, Platform layer) that maps to a directory subtree with its own `SConscript`.
+- **SConstruct**: The root build definition file. Defines global build environment, platform detection, configuration variants, and delegates to layer `SConscript` files.
+- **SConscript**: Per-layer and per-module build definition files. Each defines the sources, include paths, link dependencies, and build targets for its scope.
+- **Build Environment**: The SCons `Environment` object configured with platform-appropriate compiler, flags, and paths. Shared across layers via the hierarchical `SConscript` structure.
+- **Layer**: One of the 5 architectural layers (Core, Application, Renderer, RHI, Backend). Each layer maps to a top-level directory under `Source/` and compiles into a static library.
+- **Module**: A sub-unit within a layer (e.g., `Renderer/Materials`, `Renderer/RayTracing`, `Backend/Vulkan`). Each module has its own `SConscript` and may compile into the layer's library or its own sub-library.
 - **Build Configuration**: A named set of compiler flags and preprocessor definitions (Debug, Release) that can be selected at build time.
+- **Core**: The foundational utility layer providing math types (`FVector`, `FMatrix`), containers, logging, and platform abstraction. Depended upon by all other layers.
 
 ## Success Criteria *(mandatory)*
 
@@ -98,7 +151,7 @@ A developer wants to build the project in different configurations (Debug, Relea
 
 - **SC-001**: A new developer can clone the repository and successfully build the project on any supported platform (Windows, macOS, Linux) within 5 minutes of installing prerequisites (SCons + compiler).
 - **SC-002**: Adding a new engine module requires creating no more than 2 files (a source file and a `SConscript`) and modifying zero existing files.
-- **SC-003**: The directory structure clearly communicates the architectural layering — any developer can identify which layer a file belongs to by its path alone.
+- **SC-003**: The directory structure clearly communicates the 5-layer architecture — any developer can identify which layer (Core, Application, Renderer, RHI, Backend) a file belongs to by its path alone.
 - **SC-004**: Build output is 100% separated from source — no generated files appear in source directories.
 - **SC-005**: Switching between Debug and Release configurations requires only changing a single command-line parameter.
 - **SC-006**: The project skeleton passes all constitution checks (RHI abstraction, design patterns, naming conventions, cross-platform compatibility).
