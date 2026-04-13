@@ -1,23 +1,21 @@
-"""Backend aggregator — delegates to each backend sub-directory's SConscript."""
+"""Backend aggregator — auto-discovers all backend sub-directories with SConscript files.
+
+Uses DiscoverSubModules() to automatically find and delegate to each backend
+implementation (Vulkan, DX12, DX11, Metal, OpenGL, GLES, WebGL, and any future
+backends). No hardcoded backend list — new backends are picked up automatically
+when a directory with a SConscript is added under Source/Backend/.
+
+This SConscript runs in a variant_dir context (Build/<Platform>/<Config>/Backend/).
+Sub-module SConscripts are called without their own variant_dir — they inherit
+this aggregator's variant_dir context, so their StaticLibrary outputs land here.
+"""
 
 Import('env', 'platform', 'config')
-import os
+from LayerBuilder import DiscoverSubModules
 
-# All backend sub-directories
-_BACKENDS = ['Vulkan', 'DX12', 'DX11', 'Metal', 'OpenGL', 'GLES', 'WebGL']
-
-backend_libs = []
-
-for backend in _BACKENDS:
-    sconscript_rel = os.path.join('Source', 'Backend', backend, 'SConscript')
-    # Use '#' prefix to reference project root for file existence check
-    sconscript_abs = File('#' + sconscript_rel).abspath
-    if os.path.exists(sconscript_abs):
-        lib = SConscript(
-            '#' + sconscript_rel,
-            exports={'env': env, 'platform': platform, 'config': config},
-        )
-        if lib is not None:
-            backend_libs.append(lib)
+backend_libs = DiscoverSubModules(
+    'Source/Backend',
+    exports={'env': env, 'platform': platform, 'config': config},
+)
 
 Return('backend_libs')

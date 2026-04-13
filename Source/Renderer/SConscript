@@ -1,7 +1,18 @@
-"""Renderer layer build script — high-level rendering, depends on RHI and Core."""
+"""Renderer layer build script — high-level rendering, depends on RHI and Core.
+
+After building the Renderer core library, auto-discovers sub-modules
+(RayTracing/, Meshlets/, GI/, etc.) that contain their own SConscript files.
+"""
 
 Import('env', 'platform', 'config')
-from LayerBuilder import BuildLayer
+from LayerBuilder import BuildLayer, DiscoverSubModules
 
 lib = BuildLayer(env, 'Renderer', ['RHI', 'Core'])
+
+# Auto-discover sub-modules (e.g., RayTracing, Meshlets, GI)
+sub_libs = DiscoverSubModules(
+    'Source/Renderer',
+    exports={'env': env, 'platform': platform, 'config': config},
+)
+
 Return('lib')

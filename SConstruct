@@ -74,7 +74,7 @@ build_base = os.path.join('Build', platform, config_display)
 # ---------------------------------------------------------------------------
 
 # Export variables for SConscript files
-Export('env', 'platform', 'config')
+Export('env', 'platform', 'config', 'build_base')
 
 # Core layer (no dependencies)
 SConscript(
@@ -104,17 +104,14 @@ SConscript(
     duplicate=0,
 )
 
-# Backend layers — each backend gets its own variant_dir
-# Only Vulkan has source files; others are stubs
-_BACKENDS = ['Vulkan', 'DX12', 'DX11', 'Metal', 'OpenGL', 'GLES', 'WebGL']
-for backend in _BACKENDS:
-    backend_sconscript = os.path.join('Source', 'Backend', backend, 'SConscript')
-    if os.path.exists(backend_sconscript):
-        SConscript(
-            backend_sconscript,
-            variant_dir=os.path.join(build_base, 'Backend', backend),
-            duplicate=0,
-        )
+# Backend layers — auto-discovered via Backend aggregator SConscript.
+# Uses DiscoverSubModules() internally to find all backend implementations.
+# variant_dir is set to Backend/ so all backend .a files land under Build/.
+SConscript(
+    'Source/Backend/SConscript',
+    variant_dir=os.path.join(build_base, 'Backend'),
+    duplicate=0,
+)
 
 # Tests (links against all layers)
 SConscript(

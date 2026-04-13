@@ -92,10 +92,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T029 [US2] Update `site_scons/LayerBuilder.py` to support sub-module auto-discovery — add a `DiscoverSubModules(layer_dir)` function that scans for sub-directories containing `SConscript` files and delegates to them via `SConscript()`. Integrate this into the Renderer layer's `SConscript` to auto-discover `RayTracing/`, `Meshlets/`, `GI/`, and any future sub-modules.
-- [ ] T030 [US2] Update `Source/Renderer/SConscript` to call `DiscoverSubModules()` after building the Renderer core library, so sub-module sources are automatically included
-- [ ] T031 [US2] Update `Source/Backend/SConscript` to use `DiscoverSubModules()` for auto-discovering backend implementations instead of hardcoding each backend path
-- [ ] T032 [US2] Verification: create a temporary test module `Source/Renderer/TestModule/` with a `SConscript` and a minimal `.cpp` file, run `scons`, verify it compiles, then remove the test module. Confirm no changes to `SConstruct` were needed (SC-002).
+- [X] T029 [US2] Update `site_scons/LayerBuilder.py` to support sub-module auto-discovery — add a `DiscoverSubModules(layer_dir)` function that scans for sub-directories containing `SConscript` files and delegates to them via `SConscript()`. Integrate this into the Renderer layer's `SConscript` to auto-discover `RayTracing/`, `Meshlets/`, `GI/`, and any future sub-modules.
+- [X] T030 [US2] Update `Source/Renderer/SConscript` to call `DiscoverSubModules()` after building the Renderer core library, so sub-module sources are automatically included
+- [X] T031 [US2] Update `Source/Backend/SConscript` to use `DiscoverSubModules()` for auto-discovering backend implementations instead of hardcoding each backend path
+- [X] T032 [US2] Verification: create a temporary test module `Source/Renderer/TestModule/` with a `SConscript` and a minimal `.cpp` file, run `scons`, verify it compiles, then remove the test module. Confirm no changes to `SConstruct` were needed (SC-002).
 
 **Checkpoint**: User Story 2 complete. New modules are auto-discovered. Acceptance scenarios (AS-2.1, AS-2.2) are satisfied.
 
