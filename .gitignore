@@ -1,0 +1,29 @@
+# Build output
+Build/
+
+# SCons
+.sconsign.dblite
+.sconf_temp/
+config.log
+
+# Object files
+*.o
+*.obj
+
+# Static libraries
+*.a
+*.lib
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.tmp

@@ -27,10 +27,10 @@
 
 **Purpose**: Create the complete directory skeleton and project-level configuration files
 
-- [ ] T001 Create the full directory tree for all 5 source layers with Public/Private sub-directories per plan.md structure under `Source/`
-- [ ] T002 [P] Create `.gitignore` at project root excluding `Build/`, `.sconsign.dblite`, `*.o`, `*.obj`, `*.a`, `*.lib`, `__pycache__/`
-- [ ] T003 [P] Create `.gitkeep` placeholder files in all empty directories: `Source/Renderer/RayTracing/.gitkeep`, `Source/Renderer/Meshlets/.gitkeep`, `Source/Renderer/GI/.gitkeep`, `Source/Backend/DX12/.gitkeep`, `Source/Backend/DX11/.gitkeep`, `Source/Backend/Metal/.gitkeep`, `Source/Backend/OpenGL/.gitkeep`, `Source/Backend/GLES/.gitkeep`, `Source/Backend/WebGL/.gitkeep`, `ThirdParty/.gitkeep`
-- [ ] T004 [P] Create `site_scons/` directory (lowercase per SCons convention, R-005) with empty `__init__.py`
+- [X] T001 Create the full directory tree for all 5 source layers with Public/Private sub-directories per plan.md structure under `Source/`
+- [X] T002 [P] Create `.gitignore` at project root excluding `Build/`, `.sconsign.dblite`, `*.o`, `*.obj`, `*.a`, `*.lib`, `__pycache__/`
+- [X] T003 [P] Create `.gitkeep` placeholder files in all empty directories: `Source/Renderer/RayTracing/.gitkeep`, `Source/Renderer/Meshlets/.gitkeep`, `Source/Renderer/GI/.gitkeep`, `Source/Backend/DX12/.gitkeep`, `Source/Backend/DX11/.gitkeep`, `Source/Backend/Metal/.gitkeep`, `Source/Backend/OpenGL/.gitkeep`, `Source/Backend/GLES/.gitkeep`, `Source/Backend/WebGL/.gitkeep`, `ThirdParty/.gitkeep`
+- [X] T004 [P] Create `site_scons/` directory (lowercase per SCons convention, R-005) with empty `__init__.py`
 
 **Checkpoint**: Directory skeleton exists. All paths from plan.md are present. No build logic yet.
 
