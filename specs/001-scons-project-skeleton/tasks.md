@@ -109,10 +109,10 @@
 
 ### Implementation for User Story 3
 
-- [ ] T033 [US3] Enhance `site_scons/BuildConfig.py` — ensure `ApplyConfig()` applies the full flag set from data-model.md BuildConfiguration entity: Debug (`/Od /Zi /MDd /W4` on MSVC, `-O0 -g -Wall -Wextra` on GCC/Clang, `_DEBUG` define) and Release (`/O2 /MD /W4` on MSVC, `-O2 -Wall -Wextra` on GCC/Clang, `NDEBUG` define)
-- [ ] T034 [US3] Update `SConstruct` to pass `config` into `variant_dir` path — ensure output goes to `Build/<Platform>/Debug/` or `Build/<Platform>/Release/` based on the `config` parameter (FR-006)
-- [ ] T035 [US3] Implement default config fallback — verify that running `scons` with no `config` parameter defaults to `debug` (AS-3.3)
-- [ ] T036 [US3] Verification: run `scons config=debug` and `scons config=release` sequentially, verify both `Build/<Platform>/Debug/` and `Build/<Platform>/Release/` directories exist with separate artifacts (SC-005)
+- [X] T033 [US3] Enhance `site_scons/BuildConfig.py` — ensure `ApplyConfig()` applies the full flag set from data-model.md BuildConfiguration entity: Debug (`/Od /Zi /MDd /W4` on MSVC, `-O0 -g -Wall -Wextra` on GCC/Clang, `_DEBUG` define) and Release (`/O2 /MD /W4` on MSVC, `-O2 -Wall -Wextra` on GCC/Clang, `NDEBUG` define)
+- [X] T034 [US3] Update `SConstruct` to pass `config` into `variant_dir` path — ensure output goes to `Build/<Platform>/Debug/` or `Build/<Platform>/Release/` based on the `config` parameter (FR-006)
+- [X] T035 [US3] Implement default config fallback — verify that running `scons` with no `config` parameter defaults to `debug` (AS-3.3)
+- [X] T036 [US3] Verification: run `scons config=debug` and `scons config=release` sequentially, verify both `Build/<Platform>/Debug/` and `Build/<Platform>/Release/` directories exist with separate artifacts (SC-005)
 
 **Checkpoint**: User Story 3 complete. Debug/Release configurations work. Acceptance scenarios (AS-3.1, AS-3.2, AS-3.3) are satisfied.
 

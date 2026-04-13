@@ -6,7 +6,7 @@ import os
 test_env = env.Clone()
 
 # Include paths for all layers (to validate the full include chain)
-# Use '#' prefix to reference project root in variant_dir context
+# Use '#' prefix to get absolute paths for compiler -I flags
 _SOURCE_ROOT = 'Source'
 _LAYERS = ['Application', 'Renderer', 'RHI', 'Core']
 _BACKEND_LAYERS = [os.path.join('Backend', 'Vulkan')]
@@ -22,8 +22,11 @@ for backend in _BACKEND_LAYERS:
 
 test_env.Append(CPPPATH=include_paths)
 
-# Source files — Glob relative to this SConscript's source dir
-sources = Glob('#Tests/*.cpp')
+# Source files — use relative path to SConscript source dir for variant_dir compat
+tests_src_dir = Dir('.').srcnode().abspath
+cpp_files = sorted(f for f in os.listdir(tests_src_dir) if f.endswith('.cpp'))
+rel_src_dir = os.path.relpath(tests_src_dir, Dir('.').srcnode().abspath)
+sources = [os.path.join(rel_src_dir, f) for f in cpp_files]
 
 # Build output base
 config_display = 'Debug' if config == 'debug' else 'Release'
