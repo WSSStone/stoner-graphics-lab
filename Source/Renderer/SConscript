@@ -1,0 +1,7 @@
+"""Renderer layer build script — high-level rendering, depends on RHI and Core."""
+
+Import('env', 'platform', 'config')
+from LayerBuilder import BuildLayer
+
+lib = BuildLayer(env, 'Renderer', ['RHI', 'Core'])
+Return('lib')

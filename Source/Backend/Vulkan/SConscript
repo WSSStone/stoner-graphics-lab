@@ -1,0 +1,15 @@
+"""Vulkan backend build script — RHI implementation using Vulkan API, depends on RHI and Core."""
+
+Import('env', 'platform', 'config')
+from LayerBuilder import BuildLayer
+import os
+
+# Vulkan backend uses custom paths under Source/Backend/Vulkan/
+lib = BuildLayer(
+    env,
+    'VulkanRHI',
+    ['RHI', 'Core'],
+    source_dir=os.path.join('Source', 'Backend', 'Vulkan', 'Private'),
+    public_dir=os.path.join('Source', 'Backend', 'Vulkan', 'Public'),
+)
+Return('lib')

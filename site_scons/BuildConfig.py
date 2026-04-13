@@ -5,6 +5,7 @@ Handles Debug/Release configuration selection and compiler flag application.
 """
 
 import logging
+from SCons.Script import ARGUMENTS, Exit
 
 logger = logging.getLogger('StonerBuild.BuildConfig')
 

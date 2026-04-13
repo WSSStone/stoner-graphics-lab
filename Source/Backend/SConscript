@@ -1,0 +1,23 @@
+"""Backend aggregator — delegates to each backend sub-directory's SConscript."""
+
+Import('env', 'platform', 'config')
+import os
+
+# All backend sub-directories
+_BACKENDS = ['Vulkan', 'DX12', 'DX11', 'Metal', 'OpenGL', 'GLES', 'WebGL']
+
+backend_libs = []
+
+for backend in _BACKENDS:
+    sconscript_rel = os.path.join('Source', 'Backend', backend, 'SConscript')
+    # Use '#' prefix to reference project root for file existence check
+    sconscript_abs = File('#' + sconscript_rel).abspath
+    if os.path.exists(sconscript_abs):
+        lib = SConscript(
+            '#' + sconscript_rel,
+            exports={'env': env, 'platform': platform, 'config': config},
+        )
+        if lib is not None:
+            backend_libs.append(lib)
+
+Return('backend_libs')

@@ -1,0 +1,7 @@
+"""Core layer build script — shared utilities, no dependencies."""
+
+Import('env', 'platform', 'config')
+from LayerBuilder import BuildLayer
+
+lib = BuildLayer(env, 'Core', [])
+Return('lib')

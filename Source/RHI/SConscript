@@ -1,0 +1,7 @@
+"""RHI layer build script — abstract hardware interface, depends on Core."""
+
+Import('env', 'platform', 'config')
+from LayerBuilder import BuildLayer
+
+lib = BuildLayer(env, 'RHI', ['Core'])
+Return('lib')

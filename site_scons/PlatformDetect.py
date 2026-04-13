@@ -6,6 +6,7 @@ Detects the host OS and configures the appropriate C++20 compiler toolchain.
 
 import sys
 import logging
+from SCons.Script import Exit
 
 logger = logging.getLogger('StonerBuild.PlatformDetect')
 

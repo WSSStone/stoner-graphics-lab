@@ -1,0 +1,43 @@
+"""Test executable build script — links against all layer static libraries."""
+
+Import('env', 'platform', 'config')
+import os
+
+test_env = env.Clone()
+
+# Include paths for all layers (to validate the full include chain)
+# Use '#' prefix to reference project root in variant_dir context
+_SOURCE_ROOT = 'Source'
+_LAYERS = ['Application', 'Renderer', 'RHI', 'Core']
+_BACKEND_LAYERS = [os.path.join('Backend', 'Vulkan')]
+
+include_paths = []
+for layer in _LAYERS:
+    public_dir = os.path.join(_SOURCE_ROOT, layer, 'Public')
+    include_paths.append(Dir('#' + public_dir).abspath)
+
+for backend in _BACKEND_LAYERS:
+    public_dir = os.path.join(_SOURCE_ROOT, backend, 'Public')
+    include_paths.append(Dir('#' + public_dir).abspath)
+
+test_env.Append(CPPPATH=include_paths)
+
+# Source files — Glob relative to this SConscript's source dir
+sources = Glob('#Tests/*.cpp')
+
+# Build output base
+config_display = 'Debug' if config == 'debug' else 'Release'
+build_base = os.path.join('#Build', platform, config_display)
+
+# Library search paths — point to each layer's variant_dir output
+_LIB_LAYERS = ['Core', 'RHI', 'Renderer', 'Application']
+_BACKEND_LIB_LAYERS = [os.path.join('Backend', 'Vulkan')]
+lib_paths = [Dir(os.path.join(build_base, layer)).abspath for layer in _LIB_LAYERS]
+lib_paths += [Dir(os.path.join(build_base, backend)).abspath for backend in _BACKEND_LIB_LAYERS]
+test_env.Append(LIBPATH=lib_paths)
+
+# Libraries to link (order matters for static linking: dependents first)
+test_env.Append(LIBS=['Application', 'Renderer', 'RHI', 'Core', 'VulkanRHI'])
+
+program = test_env.Program('StonerTest', sources)
+Return('program')

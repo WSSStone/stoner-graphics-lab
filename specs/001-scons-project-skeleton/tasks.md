@@ -59,26 +59,26 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [P] [US1] Create Core layer placeholder header `Source/Core/Public/Core/CoreMinimal.h` — minimal header with include guard and a namespace declaration (`namespace Stoner::Core {}`)
-- [ ] T010 [P] [US1] Create Core layer placeholder source `Source/Core/Private/CoreModule.cpp` — includes `Core/CoreMinimal.h`, contains a placeholder function (e.g., `void CoreInit() {}`)
-- [ ] T011 [P] [US1] Create Core layer `Source/Core/SConscript` — imports `env`, uses `LayerBuilder.BuildLayer(env, 'Core', [])` (no dependencies), returns static library
-- [ ] T012 [P] [US1] Create RHI layer placeholder header `Source/RHI/Public/RHI/RHIMinimal.h` — minimal header with include guard, includes `Core/CoreMinimal.h`, declares namespace `Stoner::RHI`
-- [ ] T013 [P] [US1] Create RHI layer placeholder source `Source/RHI/Private/RHIModule.cpp` — includes `RHI/RHIMinimal.h`, contains placeholder function
-- [ ] T014 [P] [US1] Create RHI layer `Source/RHI/SConscript` — imports `env`, uses `LayerBuilder.BuildLayer(env, 'RHI', ['Core'])`, returns static library
-- [ ] T015 [P] [US1] Create Renderer layer placeholder header `Source/Renderer/Public/Renderer/RendererMinimal.h` — includes `RHI/RHIMinimal.h`, declares namespace `Stoner::Renderer`
-- [ ] T016 [P] [US1] Create Renderer layer placeholder source `Source/Renderer/Private/RendererModule.cpp` — includes `Renderer/RendererMinimal.h`, contains placeholder function
-- [ ] T017 [P] [US1] Create Renderer layer `Source/Renderer/SConscript` — imports `env`, uses `LayerBuilder.BuildLayer(env, 'Renderer', ['RHI', 'Core'])`, returns static library
-- [ ] T018 [P] [US1] Create Application layer placeholder header `Source/Application/Public/Application/ApplicationMinimal.h` — includes `Renderer/RendererMinimal.h`, declares namespace `Stoner::Application`
-- [ ] T019 [P] [US1] Create Application layer placeholder source `Source/Application/Private/ApplicationModule.cpp` — includes `Application/ApplicationMinimal.h`, contains placeholder function
-- [ ] T020 [P] [US1] Create Application layer `Source/Application/SConscript` — imports `env`, uses `LayerBuilder.BuildLayer(env, 'Application', ['Renderer', 'Core'])`, returns static library
-- [ ] T021 [P] [US1] Create Vulkan backend placeholder header `Source/Backend/Vulkan/Public/VulkanRHI/VulkanDevice.h` — includes `RHI/RHIMinimal.h`, declares namespace `Stoner::Backend::Vulkan`
-- [ ] T022 [P] [US1] Create Vulkan backend placeholder source `Source/Backend/Vulkan/Private/VulkanDevice.cpp` — includes `VulkanRHI/VulkanDevice.h`, contains placeholder function
-- [ ] T023 [P] [US1] Create Vulkan backend `Source/Backend/Vulkan/SConscript` — imports `env`, uses `LayerBuilder.BuildLayer(env, 'VulkanRHI', ['RHI', 'Core'])` with custom source path, returns static library
-- [ ] T024 [P] [US1] Create stub `SConscript` files for non-Vulkan backends: `Source/Backend/DX12/SConscript`, `Source/Backend/DX11/SConscript`, `Source/Backend/Metal/SConscript`, `Source/Backend/OpenGL/SConscript`, `Source/Backend/GLES/SConscript`, `Source/Backend/WebGL/SConscript` — each returns an empty source list (no sources to compile yet)
-- [ ] T025 [US1] Create Backend aggregator `Source/Backend/SConscript` — delegates to each backend sub-directory's `SConscript`, collects and returns all backend library targets
-- [ ] T026 [US1] Create test executable source `Tests/Main.cpp` — minimal `int main() { return 0; }` that includes `Application/ApplicationMinimal.h` to validate the full include chain
-- [ ] T027 [US1] Create test `Tests/SConscript` — imports `env`, clones environment, sets include paths for all layers, compiles `Main.cpp` and links against all layer static libraries to produce `StonerTest` executable
-- [ ] T028 [US1] End-to-end verification: run `scons` at project root, verify all expected output artifacts exist in `Build/<Platform>/Debug/` per contracts/build-interface.md output artifacts table
+- [X] T009 [P] [US1] Create Core layer placeholder header `Source/Core/Public/Core/CoreMinimal.h` — minimal header with include guard and a namespace declaration (`namespace Stoner::Core {}`)
+- [X] T010 [P] [US1] Create Core layer placeholder source `Source/Core/Private/CoreModule.cpp` — includes `Core/CoreMinimal.h`, contains a placeholder function (e.g., `void CoreInit() {}`)
+- [X] T011 [P] [US1] Create Core layer `Source/Core/SConscript` — imports `env`, uses `LayerBuilder.BuildLayer(env, 'Core', [])` (no dependencies), returns static library
+- [X] T012 [P] [US1] Create RHI layer placeholder header `Source/RHI/Public/RHI/RHIMinimal.h` — minimal header with include guard, includes `Core/CoreMinimal.h`, declares namespace `Stoner::RHI`
+- [X] T013 [P] [US1] Create RHI layer placeholder source `Source/RHI/Private/RHIModule.cpp` — includes `RHI/RHIMinimal.h`, contains placeholder function
+- [X] T014 [P] [US1] Create RHI layer `Source/RHI/SConscript` — imports `env`, uses `LayerBuilder.BuildLayer(env, 'RHI', ['Core'])`, returns static library
+- [X] T015 [P] [US1] Create Renderer layer placeholder header `Source/Renderer/Public/Renderer/RendererMinimal.h` — includes `RHI/RHIMinimal.h`, declares namespace `Stoner::Renderer`
+- [X] T016 [P] [US1] Create Renderer layer placeholder source `Source/Renderer/Private/RendererModule.cpp` — includes `Renderer/RendererMinimal.h`, contains placeholder function
+- [X] T017 [P] [US1] Create Renderer layer `Source/Renderer/SConscript` — imports `env`, uses `LayerBuilder.BuildLayer(env, 'Renderer', ['RHI', 'Core'])`, returns static library
+- [X] T018 [P] [US1] Create Application layer placeholder header `Source/Application/Public/Application/ApplicationMinimal.h` — includes `Renderer/RendererMinimal.h`, declares namespace `Stoner::Application`
+- [X] T019 [P] [US1] Create Application layer placeholder source `Source/Application/Private/ApplicationModule.cpp` — includes `Application/ApplicationMinimal.h`, contains placeholder function
+- [X] T020 [P] [US1] Create Application layer `Source/Application/SConscript` — imports `env`, uses `LayerBuilder.BuildLayer(env, 'Application', ['Renderer', 'Core'])`, returns static library
+- [X] T021 [P] [US1] Create Vulkan backend placeholder header `Source/Backend/Vulkan/Public/VulkanRHI/VulkanDevice.h` — includes `RHI/RHIMinimal.h`, declares namespace `Stoner::Backend::Vulkan`
+- [X] T022 [P] [US1] Create Vulkan backend placeholder source `Source/Backend/Vulkan/Private/VulkanDevice.cpp` — includes `VulkanRHI/VulkanDevice.h`, contains placeholder function
+- [X] T023 [P] [US1] Create Vulkan backend `Source/Backend/Vulkan/SConscript` — imports `env`, uses `LayerBuilder.BuildLayer(env, 'VulkanRHI', ['RHI', 'Core'])` with custom source path, returns static library
+- [X] T024 [P] [US1] Create stub `SConscript` files for non-Vulkan backends: `Source/Backend/DX12/SConscript`, `Source/Backend/DX11/SConscript`, `Source/Backend/Metal/SConscript`, `Source/Backend/OpenGL/SConscript`, `Source/Backend/GLES/SConscript`, `Source/Backend/WebGL/SConscript` — each returns an empty source list (no sources to compile yet)
+- [X] T025 [US1] Create Backend aggregator `Source/Backend/SConscript` — delegates to each backend sub-directory's `SConscript`, collects and returns all backend library targets
+- [X] T026 [US1] Create test executable source `Tests/Main.cpp` — minimal `int main() { return 0; }` that includes `Application/ApplicationMinimal.h` to validate the full include chain
+- [X] T027 [US1] Create test `Tests/SConscript` — imports `env`, clones environment, sets include paths for all layers, compiles `Main.cpp` and links against all layer static libraries to produce `StonerTest` executable
+- [X] T028 [US1] End-to-end verification: run `scons` at project root, verify all expected output artifacts exist in `Build/<Platform>/Debug/` per contracts/build-interface.md output artifacts table
 
 **Checkpoint**: User Story 1 complete. `scons` builds the entire project from a clean checkout. All acceptance scenarios (AS-1.1, AS-1.2, AS-1.3) are satisfied.
 

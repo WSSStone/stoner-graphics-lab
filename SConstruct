@@ -104,12 +104,17 @@ SConscript(
     duplicate=0,
 )
 
-# Backend layer (aggregator — delegates to per-backend SConscripts)
-SConscript(
-    'Source/Backend/SConscript',
-    variant_dir=os.path.join(build_base, 'Backend'),
-    duplicate=0,
-)
+# Backend layers — each backend gets its own variant_dir
+# Only Vulkan has source files; others are stubs
+_BACKENDS = ['Vulkan', 'DX12', 'DX11', 'Metal', 'OpenGL', 'GLES', 'WebGL']
+for backend in _BACKENDS:
+    backend_sconscript = os.path.join('Source', 'Backend', backend, 'SConscript')
+    if os.path.exists(backend_sconscript):
+        SConscript(
+            backend_sconscript,
+            variant_dir=os.path.join(build_base, 'Backend', backend),
+            duplicate=0,
+        )
 
 # Tests (links against all layers)
 SConscript(

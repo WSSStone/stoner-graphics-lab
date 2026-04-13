@@ -7,6 +7,7 @@ with strict include path enforcement for adjacent-only dependencies.
 
 import os
 import logging
+from SCons.Script import Dir, Glob
 
 logger = logging.getLogger('StonerBuild.LayerBuilder')
 
@@ -50,15 +51,17 @@ def BuildLayer(env, layer_name, dependencies, source_dir=None, public_dir=None):
         source_dir = os.path.join(_SOURCE_ROOT, layer_name, 'Private')
 
     # Build include path list: own public dir + permitted dependency public dirs
-    include_paths = [Dir(public_dir).srcnode().abspath]
+    # Use '#' prefix to reference project root (required for variant_dir context)
+    include_paths = [Dir('#' + public_dir).abspath]
     for dep in dependencies:
         dep_public = _GetPublicIncludePath(dep)
-        include_paths.append(Dir(dep_public).srcnode().abspath)
+        include_paths.append(Dir('#' + dep_public).abspath)
 
     layer_env.Append(CPPPATH=include_paths)
 
     # Glob source files from Private/ directory
-    sources = Glob(os.path.join(source_dir, '*.cpp'))
+    # Use '#' prefix for project-root-relative paths in variant_dir context
+    sources = Glob('#' + os.path.join(source_dir, '*.cpp'))
 
     if not sources:
         logger.warning("Layer '%s': no .cpp files found in %s", layer_name, source_dir)

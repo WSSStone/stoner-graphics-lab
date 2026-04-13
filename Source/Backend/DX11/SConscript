@@ -1,0 +1,5 @@
+"""DX11 backend stub — no sources yet."""
+
+# No source files to compile for this backend yet
+lib = None
+Return('lib')
