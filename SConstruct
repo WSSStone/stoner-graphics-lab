@@ -24,9 +24,19 @@ logger = logging.getLogger('StonerBuild')
 MINIMUM_SCONS_VERSION = '4.10.1'
 
 scons_ver = SCons.__version__
-# Handle version strings with extra components (e.g., '4.10.1.dev0')
-scons_ver_tuple = tuple(int(x) for x in scons_ver.split('.')[:3])
-min_ver_tuple = tuple(int(x) for x in MINIMUM_SCONS_VERSION.split('.'))
+# Handle version strings with extra components (e.g., '4.10.1.dev0', '4.10.1a1')
+# Extract only leading digits from each component to handle pre-release suffixes
+import re
+_VER_DIGIT_RE = re.compile(r'^\d+')
+def _parse_version(ver_str):
+    parts = []
+    for component in ver_str.split('.')[:3]:
+        m = _VER_DIGIT_RE.match(component)
+        parts.append(int(m.group()) if m else 0)
+    return tuple(parts)
+
+scons_ver_tuple = _parse_version(scons_ver)
+min_ver_tuple = _parse_version(MINIMUM_SCONS_VERSION)
 
 if scons_ver_tuple < min_ver_tuple:
     logger.error("SCons %s+ required. Found: %s", MINIMUM_SCONS_VERSION, scons_ver)

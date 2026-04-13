@@ -122,12 +122,12 @@
 
 **Purpose**: Edge cases, validation, and final compliance checks
 
-- [ ] T037 [P] Implement SCons version validation edge case in `SConstruct` — test with a version string that has extra components (e.g., `4.10.1.dev0`) to ensure tuple comparison handles it gracefully (FR-007, edge case from spec)
-- [ ] T038 [P] Implement compiler-not-found error handling in `site_scons/PlatformDetect.py` — if `env.Detect('cl')` (Windows) or `env.Detect('g++')` / `env.Detect('clang++')` (POSIX) fails, print error message per contracts/build-interface.md and `Exit(1)` (spec edge case)
-- [ ] T039 [P] Verify `scons --clean` removes all build artifacts from `Build/` and leaves `Source/`, `specs/`, `.specify/` untouched (spec edge case, SC-004)
-- [ ] T040 Verify layer dependency isolation — attempt to add `#include "RHI/RHIMinimal.h"` in `Source/Application/Private/ApplicationModule.cpp`, run `scons`, confirm compile error. Then revert the include. This validates FR-014 and the include path contract.
-- [ ] T041 Verify PascalCase naming conventions across all C++ directories and source files (Constitution Principle VI, SC-006)
-- [ ] T042 Run full quickstart.md validation — follow every step in `specs/001-scons-project-skeleton/quickstart.md` from scratch and verify all expected outcomes match
+- [X] T037 [P] Implement SCons version validation edge case in `SConstruct` — test with a version string that has extra components (e.g., `4.10.1.dev0`) to ensure tuple comparison handles it gracefully (FR-007, edge case from spec)
+- [X] T038 [P] Implement compiler-not-found error handling in `site_scons/PlatformDetect.py` — if `env.Detect('cl')` (Windows) or `env.Detect('g++')` / `env.Detect('clang++')` (POSIX) fails, print error message per contracts/build-interface.md and `Exit(1)` (spec edge case)
+- [X] T039 [P] Verify `scons --clean` removes all build artifacts from `Build/` and leaves `Source/`, `specs/`, `.specify/` untouched (spec edge case, SC-004)
+- [X] T040 Verify layer dependency isolation — attempt to add `#include "RHI/RHIMinimal.h"` in `Source/Application/Private/ApplicationModule.cpp`, run `scons`, confirm compile error. Then revert the include. This validates FR-014 and the include path contract.
+- [X] T041 Verify PascalCase naming conventions across all C++ directories and source files (Constitution Principle VI, SC-006)
+- [X] T042 Run full quickstart.md validation — follow every step in `specs/001-scons-project-skeleton/quickstart.md` from scratch and verify all expected outcomes match
 
 ---
 

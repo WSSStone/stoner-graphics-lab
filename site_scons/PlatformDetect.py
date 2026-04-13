@@ -46,10 +46,18 @@ def DetectPlatform():
 def ConfigureToolchain(env, platform):
     """Configure the C++20 toolchain for the detected platform.
 
+    Validates that a supported compiler is available, then sets C++20 flags.
+
     Args:
         env: SCons Environment object.
         platform: Platform name from DetectPlatform().
+
+    Raises:
+        SystemExit: If no supported C++ compiler is found.
     """
+    # Verify compiler availability before configuring flags
+    _VerifyCompiler(env, platform)
+
     if platform == 'Win64':
         env.Append(CXXFLAGS=['/std:c++20', '/EHsc'])
     elif platform == 'Mac':
@@ -58,3 +66,30 @@ def ConfigureToolchain(env, platform):
         env.Append(CXXFLAGS=['-std=c++20'])
 
     logger.info("Configured C++20 toolchain for %s", platform)
+
+
+def _VerifyCompiler(env, platform):
+    """Check that a supported C++ compiler is available on the system.
+
+    Args:
+        env: SCons Environment object.
+        platform: Platform name from DetectPlatform().
+
+    Raises:
+        SystemExit: If no supported compiler is detected.
+    """
+    if platform == 'Win64':
+        if not env.Detect('cl'):
+            expected = _EXPECTED_COMPILERS['Win64']
+            logger.error("No supported C++ compiler found for %s.", platform)
+            print(f"ERROR: No supported C++ compiler found for {platform}. Expected: {expected}")
+            Exit(1)
+    else:
+        # macOS / Linux — check for clang++ first, then g++
+        compiler = env.Detect('clang++') or env.Detect('g++')
+        if not compiler:
+            expected = _EXPECTED_COMPILERS[platform]
+            logger.error("No supported C++ compiler found for %s.", platform)
+            print(f"ERROR: No supported C++ compiler found for {platform}. Expected: {expected}")
+            Exit(1)
+        logger.info("Detected compiler: %s", compiler)

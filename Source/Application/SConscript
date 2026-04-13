@@ -1,13 +1,11 @@
 """Application layer build script — game engine frontend, depends on Renderer and Core.
 
-Note: RHI is included as a transitive dependency because Renderer's public headers
-include RHI headers. This is required for C++ compilation (include path resolution).
-The layer isolation contract (FR-014) still holds: Application code should only
-directly use Renderer and Core APIs.
+Layer isolation (FR-014): Application can only depend on Renderer and Core.
+RHI is NOT exposed — Renderer's public headers do not leak RHI includes.
 """
 
 Import('env', 'platform', 'config')
 from LayerBuilder import BuildLayer
 
-lib = BuildLayer(env, 'Application', ['Renderer', 'RHI', 'Core'])
+lib = BuildLayer(env, 'Application', ['Renderer', 'Core'])
 Return('lib')
