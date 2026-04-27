@@ -1,5 +1,9 @@
 # Build output
 Build/
+build/
+bin/
+obj/
+out/
 
 # SCons
 .sconsign.dblite
@@ -13,6 +17,15 @@ config.log
 # Static libraries
 *.a
 *.lib
+
+# Shared libraries and executables
+*.so
+*.dll
+*.exe
+
+# Logs and local environment files
+*.log
+.env*
 
 # Python cache
 __pycache__/

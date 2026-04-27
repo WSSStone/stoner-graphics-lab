@@ -52,6 +52,14 @@ Stoner Graphics Lab is a cross-platform graphics engine built in modern C++20 wi
 - **Incremental value**: Each phase produces testable, demonstrable output
 - **Agent-friendly**: Each phase is self-contained with clear inputs/outputs
 
+### Roadmap-Wide Technology Decisions
+
+- **Learning-oriented core**: Implement foundational systems such as types, containers, memory, math, and logging in this repository instead of wrapping broad third-party libraries.
+- **Traditional C++20 headers/sources**: Use C++20 language features, but do not use C++20 Modules because cross-compiler and SCons support remains immature.
+- **Vulkan-first rendering path**: Build the first real backend on Vulkan, then add native Metal, DX12, and OpenGL/GLES backends as separate RHI implementations.
+- **Render Graph terminology**: Use "Render Graph" and `FRenderGraph` as the canonical dependency-management system for render passes and resources.
+- **GLFW first, native later**: Use GLFW for the initial window/input phase to reach the first-triangle milestone quickly, then add native Win32/Cocoa/X11-Wayland window implementations behind the same abstraction in a later phase.
+
 ### Current State (Post Phase 001)
 
 | Layer | Status | Content |
@@ -104,7 +112,7 @@ These principles (from the [Constitution v1.2.0](../.specify/memory/constitution
 | # | Phase Name | Layer | Dependencies | Complexity | Critical Path | Status |
 |---|-----------|-------|-------------|-----------|--------------|--------|
 | 002 | Core: Types & Memory | Core | 001 | M | ✅ Yes | ⬜ Todo |
-| 003 | Core: Math Library | Core | 002 | M | ✅ Yes | ⬜ Todo |
+| 003 | Core: Math Library | Core | 002 | L | ✅ Yes | ⬜ Todo |
 | 004 | Core: Logging & Assertions | Core | 002 | S | ❌ No | ⬜ Todo |
 | 005 | Core: Platform Abstraction | Core | 002 | M | ✅ Yes | ⬜ Todo |
 | 006 | RHI: Core Interfaces | RHI | 002, 003 | L | ✅ Yes | ⬜ Todo |
@@ -118,7 +126,7 @@ These principles (from the [Constitution v1.2.0](../.specify/memory/constitution
 | 014 | Forward Rendering Pipeline | Renderer | 012, 013 | L | ✅ Yes | ⬜ Todo |
 | 015 | Window & Input System | Application | 005 | M | ✅ Yes | ⬜ Todo |
 | 016 | Scene Graph & ECS | Application | 003 | L | ❌ No | ⬜ Todo |
-| 017 | 🎯 Triangle Demo | All | 011, 014, 015 | M | ✅ Yes | ⬜ Todo |
+| 017 | 🎯 Triangle Demo | Application | 011, 014, 015 | M | ✅ Yes | ⬜ Todo |
 | 018 | Deferred Rendering | Renderer | 014 | L | ❌ No | ⬜ Todo |
 | 019 | Meshlet Pipeline | Renderer | 014 | XL | ❌ No | ⬜ Todo |
 | 020 | Ray Tracing Integration | Renderer | 014 | XL | ❌ No | ⬜ Todo |
@@ -226,7 +234,7 @@ Core foundation types and memory management: fixed-width integer types (FPlatfor
 
 **Layer**: Core  
 **Dependencies**: 002 (Types & Memory)  
-**Complexity**: M (3-5 days)  
+**Complexity**: L (1-2 weeks)  
 **Critical Path**: ✅ Yes — RHI and Renderer need math types
 
 #### Scope
@@ -410,7 +418,7 @@ RHI resource and pipeline interfaces: IRHIBuffer (vertex/index/uniform/storage),
 
 ### Phase 008 — Backend: Vulkan Device & Swapchain
 
-**Layer**: Backend/Vulkan  
+**Layer**: Backend  
 **Dependencies**: 005 (Platform Abstraction), 006 (RHI Core Interfaces)  
 **Complexity**: L (1-2 weeks)  
 **Critical Path**: ✅ Yes — first real graphics API integration
@@ -448,7 +456,7 @@ Vulkan backend device and swapchain: FVulkanInstance (validation layers, extensi
 
 ### Phase 009 — Backend: Vulkan Resource Management
 
-**Layer**: Backend/Vulkan  
+**Layer**: Backend  
 **Dependencies**: 007 (RHI Resources), 008 (Vulkan Device)  
 **Complexity**: L (1-2 weeks)  
 **Critical Path**: ✅ Yes — rendering requires GPU resources
@@ -483,7 +491,7 @@ Vulkan resource management: FVulkanBuffer implementing IRHIBuffer, FVulkanTextur
 
 ### Phase 010 — Backend: Vulkan Command Recording & Submission
 
-**Layer**: Backend/Vulkan  
+**Layer**: Backend  
 **Dependencies**: 009 (Vulkan Resources)  
 **Complexity**: M (3-5 days)  
 **Critical Path**: ✅ Yes — rendering requires command submission
@@ -521,7 +529,7 @@ Vulkan command recording and submission: FVulkanCommandPool, FVulkanCommandBuffe
 
 ### Phase 011 — Backend: Vulkan Pipeline & Shader
 
-**Layer**: Backend/Vulkan  
+**Layer**: Backend  
 **Dependencies**: 009 (Vulkan Resources), 010 (Vulkan Commands)  
 **Complexity**: L (1-2 weeks)  
 **Critical Path**: ✅ Yes — rendering requires pipelines
@@ -755,7 +763,7 @@ Scene graph and ECS foundation: FWorld (entity container), FEntity (ID handle), 
 
 ### Phase 017 — Application: Triangle Demo (Integration Milestone)
 
-**Layer**: All layers  
+**Layer**: Application  
 **Dependencies**: 011 (Vulkan Pipeline), 014 (Forward Rendering), 015 (Window & Input)  
 **Complexity**: M (3-5 days)  
 **Critical Path**: ✅ Yes — first end-to-end validation
@@ -829,7 +837,7 @@ Deferred rendering pipeline: FDeferredRenderer, G-Buffer pass (albedo/normal/met
 
 ### Phase 019 — Renderer: Meshlet Pipeline (Nanite-like)
 
-**Layer**: Renderer (Source/Renderer/Meshlets/)  
+**Layer**: Renderer  
 **Dependencies**: 014 (Forward Rendering)  
 **Complexity**: XL (2-4 weeks)  
 **Critical Path**: ❌ No — advanced feature
@@ -865,7 +873,7 @@ Meshlet rendering pipeline (Nanite-like): FMeshletData structure, FMeshletBuilde
 
 ### Phase 020 — Renderer: Ray Tracing Integration
 
-**Layer**: Renderer (Source/Renderer/RayTracing/)  
+**Layer**: Renderer  
 **Dependencies**: 014 (Forward Rendering)  
 **Complexity**: XL (2-4 weeks)  
 **Critical Path**: ❌ No — advanced feature
@@ -904,7 +912,7 @@ Ray tracing integration: IRHIAccelerationStructure (BLAS/TLAS), IRHIRayTracingPi
 
 ### Phase 021 — Renderer: Global Illumination (Lumen-like)
 
-**Layer**: Renderer (Source/Renderer/GI/)  
+**Layer**: Renderer  
 **Dependencies**: 018 (Deferred Rendering), 020 (Ray Tracing)  
 **Complexity**: XL (2-4 weeks)  
 **Critical Path**: ❌ No — most advanced feature
@@ -943,7 +951,7 @@ Global illumination system (Lumen-like): FGlobalIllumination orchestrator, FScre
 
 ### Phase 022 — Backend: Metal Implementation
 
-**Layer**: Backend/Metal  
+**Layer**: Backend  
 **Dependencies**: 007 (RHI Resource & Pipeline Interfaces)  
 **Complexity**: L (1-2 weeks)  
 **Critical Path**: ❌ No — Vulkan (via MoltenVK) covers macOS initially
@@ -977,7 +985,7 @@ Metal backend: FMetalDevice, FMetalCommandBuffer, FMetalBuffer, FMetalTexture, F
 
 ### Phase 023 — Backend: DX12 Implementation
 
-**Layer**: Backend/DX12  
+**Layer**: Backend  
 **Dependencies**: 007 (RHI Resource & Pipeline Interfaces)  
 **Complexity**: L (1-2 weeks)  
 **Critical Path**: ❌ No — Vulkan covers Windows initially
@@ -1012,7 +1020,7 @@ DX12 backend: FDX12Device, FDX12CommandList, FDX12Buffer, FDX12Texture, FDX12Pip
 
 ### Phase 024 — Backend: OpenGL/GLES Compatibility Layer
 
-**Layer**: Backend/OpenGL, Backend/GLES  
+**Layer**: Backend  
 **Dependencies**: 007 (RHI Resource & Pipeline Interfaces)  
 **Complexity**: L (1-2 weeks)  
 **Critical Path**: ❌ No — legacy/compatibility path
