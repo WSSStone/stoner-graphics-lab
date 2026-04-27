@@ -66,13 +66,13 @@ Examples:
 Build/Win64/Debug/Tests/StonerTest.exe
 
 # macOS Debug example
-Build/macOS/Debug/Tests/StonerTest
+Build/Mac/Debug/Tests/StonerTest
 
 # Linux Debug example
 Build/Linux/Debug/Tests/StonerTest
 ```
 
-The exact platform folder name is determined by the existing platform detection script. On the current Windows environment it is `Win64`.
+The exact platform folder name is determined by the existing platform detection script. On the current macOS environment it is `Mac`.
 
 Expected result:
 
