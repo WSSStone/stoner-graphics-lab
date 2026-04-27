@@ -8,14 +8,16 @@ alwaysApply: true
 Auto-generated from all feature plans. Last updated: 2026-04-27
 
 ## Active Technologies
-
+- C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library only; existing Core Types & Memory primitives; SCons 4.10.1 build system (004-core-math-library)
 - C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library only; SCons 4.10.1 build system (003-core-types-memory)
 
 ## Project Structure
 
 ```text
-src/
-tests/
+Source/Core/Public/Core/
+Source/Core/Private/
+Tests/
+specs/
 ```
 
 ## Commands
@@ -27,7 +29,7 @@ tests/
 C++20 (traditional header/source separation; no C++20 Modules): Follow standard conventions
 
 ## Recent Changes
-
+- 004-core-math-library: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library only; existing Core Types & Memory primitives; SCons 4.10.1 build system
 - 003-core-types-memory: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library only; SCons 4.10.1 build system
 
 <!-- MANUAL ADDITIONS START -->
