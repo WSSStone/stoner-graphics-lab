@@ -1,7 +1,9 @@
-// Minimal test executable — validates the full include chain
+// Minimal test executable - validates the full include chain
 #include "Application/ApplicationMinimal.h"
+#include "CoreFoundationTests.h"
 
 int main()
 {
-    return 0;
+    const FCoreFoundationTestResult CoreResult = RunCoreFoundationTests();
+    return CoreResult.Failed == 0 ? 0 : 1;
 }
