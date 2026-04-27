@@ -1,7 +1,4 @@
 {
-  "integration": "codebuddy",
-  "version": "0.5.1.dev0",
-  "scripts": {
-    "update-context": ".specify/integrations/codebuddy/scripts/update-context.sh"
-  }
+  "integration": "cursor-agent",
+  "version": "0.8.2.dev0"
 }

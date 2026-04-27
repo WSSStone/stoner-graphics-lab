@@ -1,9 +1,10 @@
 {
-  "ai": "codebuddy",
+  "ai": "cursor-agent",
+  "ai_skills": true,
   "branch_numbering": "sequential",
+  "context_file": ".cursor/rules/specify-rules.mdc",
   "here": true,
-  "integration": "codebuddy",
-  "preset": null,
+  "integration": "cursor-agent",
   "script": "sh",
-  "speckit_version": "0.5.1.dev0"
+  "speckit_version": "0.8.2.dev0"
 }
