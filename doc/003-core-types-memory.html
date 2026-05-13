@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>003 — Core Foundation Types &amp; Memory · Stoner Graphics Lab</title>
+    <style>
+        /* ── Reset & Base ─────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:        #0d1117;
+            --bg-card:   #161b22;
+            --bg-code:   #1c2128;
+            --border:    #30363d;
+            --text:      #c9d1d9;
+            --text-dim:  #8b949e;
+            --accent:    #58a6ff;
+            --accent2:   #3fb950;
+            --warn:      #d29922;
+            --error:     #f85149;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', Consolas, monospace;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            font-size: 15px;
+        }
+
+        /* ── Layout ───────────────────────────────────────────────── */
+        .page {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            min-height: 100vh;
+        }
+
+        /* ── Sidebar / TOC ────────────────────────────────────────── */
+        .sidebar {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            font-size: 13px;
+        }
+
+        .sidebar h2 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+        }
+
+        .sidebar .logo {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+
+        .sidebar .subtitle {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toc { list-style: none; }
+        .toc li { margin-bottom: 2px; }
+
+        .toc a {
+            display: block;
+            padding: 5px 10px;
+            border-radius: 6px;
+            color: var(--text-dim);
+            text-decoration: none;
+            transition: all .15s;
+        }
+
+        .toc a:hover, .toc a.active {
+            background: rgba(88, 166, 255, .1);
+            color: var(--accent);
+        }
+
+        .toc .sub { padding-left: 20px; font-size: 12px; }
+
+        /* ── Main Content ─────────────────────────────────────────── */
+        .content {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 48px 40px 120px;
+        }
+
+        .content > section { margin-bottom: 56px; }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        h1 + .meta {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 32px;
+        }
+
+        h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h2 .num {
+            color: var(--accent);
+            margin-right: 6px;
+        }
+
+        h3 {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text);
+            margin: 24px 0 10px;
+        }
+
+        h4 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-dim);
+            margin: 16px 0 8px;
+        }
+
+        p, ul, ol { margin-bottom: 14px; }
+        ul, ol { padding-left: 22px; }
+        li { margin-bottom: 4px; }
+
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        strong { color: #e6edf3; }
+
+        /* ── Cards ────────────────────────────────────────────────── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin-bottom: 16px;
+        }
+
+        .card.highlight {
+            border-left: 3px solid var(--accent);
+        }
+
+        .card h4 { margin-top: 0; }
+
+        /* ── Badge ────────────────────────────────────────────────── */
+        .badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 12px;
+            vertical-align: middle;
+        }
+
+        .badge.status   { background: rgba(63,185,80,.15); color: var(--accent2); }
+        .badge.version  { background: rgba(88,166,255,.15); color: var(--accent); }
+
+        /* ── Tables ───────────────────────────────────────────────── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            color: var(--text-dim);
+            background: var(--bg-card);
+        }
+
+        tr:hover td { background: rgba(88,166,255,.04); }
+
+        /* ── Code ─────────────────────────────────────────────────── */
+        code {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            background: var(--bg-code);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #e6edf3;
+        }
+
+        pre {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            overflow-x: auto;
+            margin-bottom: 16px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+        }
+
+        /* Syntax highlighting */
+        .kw  { color: #ff7b72; }
+        .tp  { color: #79c0ff; }
+        .fn  { color: #d2a8ff; }
+        .str { color: #a5d6ff; }
+        .cm  { color: #8b949e; font-style: italic; }
+        .num { color: #79c0ff; }
+        .pp  { color: #f0883e; }
+        .mc  { color: #ffa657; }
+
+        /* ── Mermaid ──────────────────────────────────────────────── */
+        pre.mermaid {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 16px;
+            text-align: center;
+            font-family: var(--font-sans);
+        }
+
+        /* ── File Tree ────────────────────────────────────────────── */
+        .file-tree {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.8;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        }
+
+        .file-tree .new { color: var(--accent2); }
+        .file-tree .mod { color: var(--warn); }
+        .file-tree .dir { color: var(--accent); }
+
+        /* ── ADR ──────────────────────────────────────────────────── */
+        .adr {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .adr summary {
+            padding: 14px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text);
+            transition: background .15s;
+        }
+
+        .adr summary:hover { background: rgba(88,166,255,.06); }
+
+        .adr .body {
+            padding: 0 20px 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .adr .body p { margin-top: 12px; }
+
+        .adr .rejected {
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+
+        /* ── Checklist ────────────────────────────────────────────── */
+        .check {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .check li {
+            padding: 6px 0;
+            padding-left: 28px;
+            position: relative;
+        }
+
+        .check li::before {
+            content: '✓';
+            position: absolute;
+            left: 4px;
+            color: var(--accent2);
+            font-weight: 700;
+        }
+
+        /* ── Responsive ───────────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .page { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+            .content { padding: 24px 20px 80px; }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SIDEBAR / TABLE OF CONTENTS
+     ═══════════════════════════════════════════════════════════════ -->
+<nav class="sidebar">
+    <div class="logo">Stoner Graphics Lab</div>
+    <div class="subtitle">003 · Core Types &amp; Memory</div>
+
+    <h2>目录</h2>
+    <ul class="toc">
+        <li><a href="#sec1">一、文档与上下文信息</a></li>
+        <li><a href="#sec1-1" class="sub">1. 基础元数据</a></li>
+        <li><a href="#sec1-2" class="sub">2. 本期核心摘要</a></li>
+        <li><a href="#sec1-3" class="sub">3. 上下文与依赖</a></li>
+
+        <li><a href="#sec2">二、目标与边界</a></li>
+        <li><a href="#sec2-1" class="sub">1. 业务与功能目标</a></li>
+        <li><a href="#sec2-2" class="sub">2. 架构目标与定位</a></li>
+        <li><a href="#sec2-3" class="sub">3. 边界与非目标</a></li>
+
+        <li><a href="#sec3">三、交互与产品设计</a></li>
+        <li><a href="#sec3-1" class="sub">1. 用户使用路径</a></li>
+        <li><a href="#sec3-2" class="sub">2. 核心规则与状态机</a></li>
+
+        <li><a href="#sec4">四、技术架构与关键决策</a></li>
+        <li><a href="#sec4-1" class="sub">1. 技术栈与基础设施</a></li>
+        <li><a href="#sec4-2" class="sub">2. 关键信息</a></li>
+        <li><a href="#sec4-3" class="sub">3. 架构决策记录</a></li>
+
+        <li><a href="#sec5">五、实施与验证</a></li>
+        <li><a href="#sec5-1" class="sub">1. 任务拆解清单</a></li>
+        <li><a href="#sec5-2" class="sub">2. 验收标准</a></li>
+
+        <li><a href="#sec6">六、设计巧思与最佳实践</a></li>
+        <li><a href="#sec6-1" class="sub">6.1 业务场景与模型</a></li>
+        <li><a href="#sec6-2" class="sub">6.2 优化方案与收益</a></li>
+
+        <li><a href="#sec7">七、编程语言知识点</a></li>
+        <li><a href="#sec7-1" class="sub">7.1 标准库接口与用法</a></li>
+        <li><a href="#sec7-2" class="sub">7.2 语言特性与惯用法</a></li>
+        <li><a href="#sec7-3" class="sub">7.3 平台相关与编译器行为</a></li>
+
+        <li><a href="#sec8">八、软件工程知识点</a></li>
+        <li><a href="#sec8-1" class="sub">8.1 设计模式与架构模式</a></li>
+        <li><a href="#sec8-2" class="sub">8.2 工程原则与方法论</a></li>
+        <li><a href="#sec8-3" class="sub">8.3 测试策略与质量保障</a></li>
+    </ul>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MAIN CONTENT
+     ═══════════════════════════════════════════════════════════════ -->
+<main class="content">
+
+<!-- Title -->
+<h1>Core Foundation Types &amp; Memory</h1>
+<p class="meta">
+    <span class="badge version">Phase 002</span>
+    <span class="badge status">已交付</span>
+    Feature Branch: <code>003-core-types-memory</code>
+</p>
+
+<!-- ─────────────────────────────────────────────────────────────
+     一、文档与上下文信息
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec1">
+<h2><span class="num">一、</span>文档与上下文信息</h2>
+
+<h3 id="sec1-1">1. 基础元数据</h3>
+<table>
+    <tr><th style="width:160px">字段</th><th>内容</th></tr>
+    <tr><td>文档版本</td><td>v1.0</td></tr>
+    <tr><td>更新日期</td><td>2026-04-27</td></tr>
+    <tr><td>当前状态</td><td><span class="badge status">已交付</span></td></tr>
+    <tr><td>Feature Branch</td><td><code>003-core-types-memory</code></td></tr>
+    <tr><td>Spec 目录</td><td><code>specs/003-core-types-memory/</code></td></tr>
+    <tr><td>Roadmap Phase</td><td>Phase 002 — Core Foundation: Types &amp; Memory</td></tr>
+    <tr><td>验证平台</td><td>Windows / Win64 / Debug / MSVC</td></tr>
+</table>
+
+<h3 id="sec1-2">2. 本期核心摘要</h3>
+<div class="card highlight">
+    <p>
+        把 Phase 001 中的空 Core 骨架推进为可用的 <strong>Core 基础层</strong>，提供固定宽度类型、字符串、名称、智能指针别名、容器别名和内存工具。
+        它是后续 Math、RHI、Backend、Renderer、Application 等阶段共享的<strong>底层词汇表</strong>，目标是让后续代码不再各自发明局部类型和内存接口。
+    </p>
+</div>
+
+<h3 id="sec1-3">3. 上下文与依赖</h3>
+<table>
+    <tr><th>依赖项</th><th>说明</th></tr>
+    <tr><td>Phase 001 / Spec 001</td><td>SCons 项目骨架（<code>Source/Core/</code>、<code>Tests/</code> 与静态库构建）</td></tr>
+    <tr><td>SCons 4.10.1</td><td>构建系统，使用 <code>python -m SCons</code> 调用</td></tr>
+    <tr><td>C++ 标准库</td><td>标准容器、智能指针、内存操作</td></tr>
+</table>
+<p><strong>不依赖</strong>：RHI、Backend、Renderer、Application、图形 API（Vulkan/DX12/Metal/OpenGL）。</p>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+     二、目标与边界
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec2">
+<h2><span class="num">二、</span>目标与边界</h2>
+
+<h3 id="sec2-1">1. 业务与功能目标</h3>
+<p>面向引擎开发者，解决"底层类型、所有权、容器、内存操作没有统一入口"的问题。完成后，开发者可以在 Core 或后续层中直接使用项目统一命名的基础设施：</p>
+<ul>
+    <li><code>FPlatformTypes</code> 以及 <code>int8</code>、<code>uint32</code>、<code>uintptr</code> 等固定宽度与平台相关类型别名</li>
+    <li><code>FString</code> 作为拥有型字符串值</li>
+    <li><code>FName</code> 作为不可变、支持快速比较且碰撞安全的名称值</li>
+    <li><code>TSharedPtr&lt;T&gt;</code>、<code>TUniquePtr&lt;T&gt;</code> 作为统一所有权词汇</li>
+    <li><code>TArray&lt;T&gt;</code>、<code>TMap&lt;K, V&gt;</code> 作为统一容器词汇</li>
+    <li><code>FMemory</code> 作为分配、对齐分配、释放、复制、移动、填充、清零的统一入口</li>
+</ul>
+
+<h3 id="sec2-2">2. 架构目标与定位</h3>
+<p>本阶段定位为整个引擎的 <strong>Core Foundation</strong>。它位于所有后续层之下，只向上提供稳定公共头文件，不向上依赖任何层。</p>
+
+<pre class="mermaid">
+flowchart TD
+    Core["Core: Types / String / Name / Memory / Containers"]
+    RHI["RHI"]
+    Backend["Backend: Vulkan / DX12 / Metal / GL"]
+    Renderer["Renderer"]
+    Application["Application"]
+    Tests["Tests: StonerTest"]
+
+    Core --> RHI
+    Core --> Renderer
+    Core --> Application
+    RHI --> Backend
+    RHI --> Renderer
+    Renderer --> Application
+    Tests --> Core
+</pre>
+
+<p><strong>核心架构规则</strong>：</p>
+<ul>
+    <li>Core 公共头只放在 <code>Source/Core/Public/Core/</code></li>
+    <li>Core 实现文件只放在 <code>Source/Core/Private/</code></li>
+    <li>下游通过 <code>#include "Core/CoreMinimal.h"</code> 或 <code>#include "Core/&lt;Header&gt;.h"</code> 使用</li>
+    <li>Core 不包含 RHI、Renderer、Application、Backend 或图形 API 头文件</li>
+</ul>
+
+<h3 id="sec2-3">3. 边界与非目标（约束）</h3>
+<table>
+    <tr><th>约束</th><th>说明</th></tr>
+    <tr><td>❌ 数学类型</td><td>不实现 <code>FVector3</code>、<code>FMatrix4x4</code>、<code>FQuat</code>、<code>FColor</code></td></tr>
+    <tr><td>❌ 日志/断言</td><td>不实现日志、断言、格式化系统</td></tr>
+    <tr><td>❌ 平台抽象</td><td>不实现平台文件、进程、时间、窗口抽象</td></tr>
+    <tr><td>❌ 全局 Name Table</td><td>不引入全局 <code>FName</code> intern table 或跨进程稳定 Name ID</td></tr>
+    <tr><td>❌ 自研容器</td><td>不实现自研完整容器和自研智能指针，仅建立项目命名词汇</td></tr>
+    <tr><td>❌ 第三方测试框架</td><td>继续使用自有 <code>StonerTest</code></td></tr>
+</table>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+     三、交互与产品设计
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec3">
+<h2><span class="num">三、</span>交互与产品设计</h2>
+
+<h3 id="sec3-1">1. 用户使用路径</h3>
+
+<h4>(1) 聚合式使用</h4>
+<pre><code><span class="pp">#include</span> <span class="str">"Core/CoreMinimal.h"</span>
+
+<span class="cm">// 随后使用 Stoner::Core 命名空间内的所有基础类型</span>
+<span class="kw">using namespace</span> Stoner::Core;
+
+FString Label(<span class="str">"Hello"</span>);
+FName Name(Label);
+TArray&lt;FName&gt; Names;
+TMap&lt;FString, <span class="tp">int32</span>&gt; Values;</code></pre>
+
+<h4>(2) 精准头文件使用</h4>
+<pre><code><span class="pp">#include</span> <span class="str">"Core/FString.h"</span>
+<span class="pp">#include</span> <span class="str">"Core/FName.h"</span>
+<span class="pp">#include</span> <span class="str">"Core/FMemory.h"</span>
+<span class="pp">#include</span> <span class="str">"Core/TArray.h"</span>
+<span class="pp">#include</span> <span class="str">"Core/TMap.h"</span></code></pre>
+
+<h4>(3) 测试验证路径</h4>
+<pre><code>python -m SCons
+Build/Win64/Debug/Tests/StonerTest.exe
+
+<span class="cm"># 输出:</span>
+Core foundation tests passed=55 failed=0</code></pre>
+
+<h3 id="sec3-2">2. 核心规则与状态机</h3>
+
+<h4>(1) FString 状态</h4>
+<pre><code>Empty -> Assigned -> Copied
+Empty -> Assigned -> MovedFromValid
+Assigned -> Cleared -> Empty</code></pre>
+<ul>
+    <li>默认构造为空字符串</li>
+    <li>拷贝后内容相等</li>
+    <li>移动后目标保留原文本，源对象仍可析构、赋值和查询</li>
+    <li><code>Clear()</code> 后重新回到空状态</li>
+</ul>
+
+<h4>(2) FName 比较规则</h4>
+<pre><code>input text -> FString text storage -> hash fast path -> text fallback equality</code></pre>
+<ul>
+    <li>相同文本创建的 <code>FName</code> 必须相等</li>
+    <li>不同文本创建的 <code>FName</code> 必须不相等</li>
+    <li>即使两个名称哈希相同，也必须继续比较文本，保证碰撞安全</li>
+    <li>当前阶段只保证单进程内行为</li>
+</ul>
+
+<h4>(3) FMemory 生命周期</h4>
+<pre><code>Unallocated -> Allocated -> Deallocated
+Unallocated -> AllocationFailed
+Allocated -> Written -> Deallocated</code></pre>
+<ul>
+    <li><code>Allocate(0)</code> 返回 <code>nullptr</code></li>
+    <li>合法对齐请求返回满足对齐要求的地址</li>
+    <li>非法对齐请求返回 <code>nullptr</code>，不破坏已有内存</li>
+    <li><code>Deallocate(nullptr)</code> 和 <code>DeallocateAligned(nullptr)</code> 安全</li>
+</ul>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+     四、技术架构与关键决策
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec4">
+<h2><span class="num">四、</span>技术架构与关键决策</h2>
+
+<h3 id="sec4-1">1. 技术栈与基础设施</h3>
+<table>
+    <tr><th style="width:160px">项目</th><th>选择</th></tr>
+    <tr><td>语言</td><td>C++20（传统 header/source 分离，不使用 C++20 Modules）</td></tr>
+    <tr><td>构建系统</td><td>SCons 4.10.1</td></tr>
+    <tr><td>测试入口</td><td><code>Tests/StonerTest</code> 可执行文件</td></tr>
+    <tr><td>外部依赖</td><td>仅 C++ 标准库</td></tr>
+    <tr><td>目标平台</td><td>Windows、macOS、Linux</td></tr>
+    <tr><td>验证平台</td><td>Windows / Win64 / Debug / MSVC</td></tr>
+</table>
+
+<h4>代码路径</h4>
+<div class="file-tree">
+<span class="dir">Source/Core/</span><br>
+├── <span class="dir">Public/Core/</span><br>
+│   ├── <span class="new">CoreMinimal.h</span><br>
+│   ├── <span class="new">FPlatformTypes.h</span><br>
+│   ├── <span class="new">FString.h</span><br>
+│   ├── <span class="new">FName.h</span><br>
+│   ├── <span class="new">TSharedPtr.h</span><br>
+│   ├── <span class="new">TUniquePtr.h</span><br>
+│   ├── <span class="new">FMemory.h</span><br>
+│   ├── <span class="new">TArray.h</span><br>
+│   └── <span class="new">TMap.h</span><br>
+├── <span class="dir">Private/</span><br>
+│   ├── CoreModule.cpp<br>
+│   └── <span class="new">FMemory.cpp</span><br>
+└── SConscript<br>
+<br>
+<span class="dir">Tests/</span><br>
+├── Main.cpp<br>
+├── <span class="new">CoreFoundationTests.h</span><br>
+└── <span class="new">CoreFoundationTests.cpp</span>
+</div>
+
+<h3 id="sec4-2">2. 关键信息</h3>
+
+<h4>2.1 模块对应关系</h4>
+<table>
+    <tr><th>模块</th><th>文件</th><th>职责</th></tr>
+    <tr><td>平台类型</td><td><code>FPlatformTypes.h</code></td><td>固定宽度整数、size、pointer-size、字符类型别名</td></tr>
+    <tr><td>字符串</td><td><code>FString.h</code></td><td>拥有型字符串值、比较、长度、空值、视图访问</td></tr>
+    <tr><td>名称</td><td><code>FName.h</code></td><td>不可变名称值、哈希快速路径、文本兜底比较</td></tr>
+    <tr><td>共享所有权</td><td><code>TSharedPtr.h</code></td><td>项目命名的 shared ownership 词汇</td></tr>
+    <tr><td>独占所有权</td><td><code>TUniquePtr.h</code></td><td>项目命名的 unique ownership 词汇</td></tr>
+    <tr><td>动态数组</td><td><code>TArray.h</code></td><td>项目命名的动态数组词汇</td></tr>
+    <tr><td>键值映射</td><td><code>TMap.h</code></td><td>项目命名的 key-value map 词汇</td></tr>
+    <tr><td>内存工具</td><td><code>FMemory.h</code> / <code>FMemory.cpp</code></td><td>分配、对齐分配、释放、复制、移动、填充、清零</td></tr>
+    <tr><td>聚合入口</td><td><code>CoreMinimal.h</code></td><td>暴露本阶段稳定 Core foundation 公共头</td></tr>
+    <tr><td>验证入口</td><td><code>CoreFoundationTests.*</code></td><td>覆盖所有 primitive category 的本地验证</td></tr>
+</table>
+
+<h4>2.2 关键测试与输出</h4>
+<p><code>Tests/CoreFoundationTests.cpp</code> 覆盖以下类别：</p>
+<ul>
+    <li>固定宽度类型大小：<code>int8</code>、<code>uint8</code>、<code>int16</code>、<code>uint16</code>、<code>int32</code>、<code>uint32</code>、<code>int64</code>、<code>uint64</code></li>
+    <li>指针大小：<code>uintptr</code>、<code>intptr</code> 与 <code>void*</code> 大小一致</li>
+    <li><code>FString</code>：默认空值、文本构造、长度、视图、拷贝、移动、清空、不等比较</li>
+    <li><code>FName</code>：空值、重复文本相等、不同文本不等、相同文本同 hash、强制 hash 碰撞时仍不等</li>
+    <li>指针别名：<code>TSharedPtr</code> 空值/共享所有权，<code>TUniquePtr</code> 空值/移动/不可拷贝</li>
+    <li>容器别名：<code>TArray</code> 与 <code>TMap</code> 的空值、插入、读取、拷贝、移动</li>
+    <li><code>FMemory</code>：零大小分配、小/大分配、16/64 字节对齐、非法对齐、Copy/Move/Set/Zero</li>
+    <li><code>CoreMinimal.h</code> 聚合暴露能力</li>
+</ul>
+
+<div class="card highlight">
+    <h4>测试结果</h4>
+    <pre><code>[INFO] Core foundation tests passed=55 failed=0</code></pre>
+</div>
+
+<h4>2.3 使用方法</h4>
+<pre><code><span class="pp">#include</span> <span class="str">"Core/CoreMinimal.h"</span>
+
+<span class="kw">using namespace</span> Stoner::Core;
+
+<span class="kw">void</span> <span class="fn">Example</span>()
+{
+    <span class="tp">int32</span> Count = <span class="num">3</span>;
+    FString Label(<span class="str">"Core"</span>);
+    FName Name(Label);
+
+    TArray&lt;FName&gt; Names;
+    Names.push_back(Name);
+
+    TMap&lt;FString, <span class="tp">int32</span>&gt; Values;
+    Values.emplace(FString(<span class="str">"Answer"</span>), <span class="num">42</span>);
+
+    <span class="tp">void</span>* Memory = FMemory::AllocateAligned(<span class="num">128</span>, <span class="num">16</span>);
+    FMemory::DeallocateAligned(Memory);
+}</code></pre>
+
+<h3 id="sec4-3">3. 架构决策记录 (ADR)</h3>
+
+<details class="adr">
+    <summary>ADR-1: 先使用标准库背书的初始实现</summary>
+    <div class="body">
+        <p><strong>决策</strong>：<code>TSharedPtr</code>、<code>TUniquePtr</code>、<code>TArray</code>、<code>TMap</code> 当前阶段使用项目命名别名，底层依托标准库设施。</p>
+        <p><strong>理由</strong>：本阶段目标是建立稳定 vocabulary，而不是一次性实现完整自研容器系统。后续如果需要自研 allocator 或容器，可以保留项目公共命名不变，在内部替换实现。</p>
+        <p class="rejected"><strong>被否决的方案</strong>：从第一阶段就实现完整自研 string/container/smart pointer——范围过大，会拖慢后续核心路线。</p>
+    </div>
+</details>
+
+<details class="adr">
+    <summary>ADR-2: <code>FString</code> 使用 class 而不是纯 alias</summary>
+    <div class="body">
+        <p><strong>决策</strong>：<code>FString</code> 是拥有型 class，而不是 <code>using FString = std::string</code>。</p>
+        <p><strong>理由</strong>：未来可以扩展项目特定行为，而不破坏公共名字。能明确提供 <code>Len()</code>、<code>IsEmpty()</code>、<code>View()</code>、<code>Clear()</code> 等引擎风格接口。与 <code>FName</code> 的输入和比较关系更稳定。</p>
+        <p class="rejected"><strong>被否决的方案</strong>：直接 alias 到标准字符串——短期最简单，但未来改造公共 API 成本更高。</p>
+    </div>
+</details>
+
+<details class="adr">
+    <summary>ADR-3: <code>FName</code> 不做全局 intern table</summary>
+    <div class="body">
+        <p><strong>决策</strong>：<code>FName</code> 当前保存文本和 hash，不引入全局名称池。</p>
+        <p><strong>理由</strong>：满足当前快速比较和碰撞安全需求。避免全局生命周期、线程安全、序列化策略等额外复杂度。更适合第一阶段 Core 基础设施。</p>
+        <p class="rejected"><strong>被否决的方案</strong>：类似生产级引擎的全局 intern table——未来可考虑，但不适合 spec003 范围。</p>
+    </div>
+</details>
+
+<details class="adr">
+    <summary>ADR-4: <code>FMemory</code> 使用手动 aligned allocation 包装</summary>
+    <div class="body">
+        <p><strong>决策</strong>：<code>FMemory::AllocateAligned</code> 自行保存原始指针并返回对齐后的地址。</p>
+        <p><strong>理由</strong>：行为可控，<code>DeallocateAligned</code> 能找到原始分配地址。可以明确规定零大小和非法 alignment 的确定性行为。避免平台 API 分歧在公共接口中泄漏。</p>
+        <p class="rejected"><strong>被否决的方案</strong>：直接把不同平台 allocator 行为暴露给调用方——会导致 zero-size 和 alignment 边界行为不一致。</p>
+    </div>
+</details>
+
+<details class="adr">
+    <summary>ADR-5: 测试继续使用 <code>StonerTest</code></summary>
+    <div class="body">
+        <p><strong>决策</strong>：不引入第三方测试框架，继续扩展现有 <code>StonerTest</code>。</p>
+        <p><strong>理由</strong>：Phase 001 已经建立测试可执行文件。当前验证逻辑简单，手写 <code>Record()</code> 足够。避免为第一批 Core primitives 引入额外依赖。</p>
+        <p class="rejected"><strong>被否决的方案</strong>：引入 Google Test / Catch2——增加外部依赖，不符合学习导向项目的自研原则。</p>
+    </div>
+</details>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+     五、实施与验证
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec5">
+<h2><span class="num">五、</span>实施与验证（任务流）</h2>
+
+<h3 id="sec5-1">1. 任务拆解清单</h3>
+
+<table>
+    <tr><th>阶段</th><th>关键交付物</th></tr>
+    <tr><td>阶段一：基础结构</td><td>测试入口（<code>CoreFoundationTests.h/.cpp</code>、<code>Main.cpp</code> 更新）+ Core 头文件骨架</td></tr>
+    <tr><td>阶段二：Core vocabulary 实现</td><td><code>FPlatformTypes</code>、<code>FString</code>、<code>FName</code>、<code>TSharedPtr</code>、<code>TUniquePtr</code>、<code>TArray</code>、<code>TMap</code></td></tr>
+    <tr><td>阶段三：内存工具</td><td><code>FMemory</code> API 声明与实现（对齐分配、确定性边界行为）</td></tr>
+    <tr><td>阶段四：测试与验收</td><td>构建通过、55 个测试全部通过</td></tr>
+</table>
+
+<p><strong>总计</strong>：44 个任务，全部已完成 ✅</p>
+
+<h3 id="sec5-2">2. 验收标准</h3>
+
+<ul class="check">
+    <li><code>python -m SCons</code> 成功构建 Core、RHI、Renderer、Application、Backend/Vulkan 和 Tests</li>
+    <li><code>Build/Win64/Debug/Tests/StonerTest.exe</code> 返回退出码 0</li>
+    <li>Core foundation 测试输出 <code>passed=55 failed=0</code></li>
+    <li><code>CoreMinimal.h</code> 能暴露所有本阶段公共 Core header</li>
+    <li>Core public header 不包含 RHI、Backend、Renderer、Application 或 graphics API 头</li>
+    <li><code>specs/003-core-types-memory/tasks.md</code> 中 44 个任务全部标记完成</li>
+</ul>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+     六、设计巧思与最佳实践
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec6">
+<h2><span class="num">六、</span>设计巧思与最佳实践</h2>
+
+<h3 id="sec6-1">6.1 当前业务场景与业务模型的最佳实践</h3>
+
+<div class="card">
+    <h4>为什么 FString 是 class 而非 alias</h4>
+    <p>引擎的字符串需求远超标准库 <code>std::string</code>：未来需要 <code>Len()</code>、<code>IsEmpty()</code>、<code>View()</code>、<code>Clear()</code> 等引擎风格接口，以及可能的编码转换、格式化、本地化能力。使用 class 包装可以在不改变公共 API 的前提下逐步扩展内部实现。</p>
+</div>
+
+<div class="card">
+    <h4>为什么 FName 使用 hash + text fallback</h4>
+    <p>名称比较是引擎中极高频的操作（资源查找、类别匹配等）。hash fast path 将大多数比较降为一次整数比较（O(1)），仅在 hash 碰撞时才回退到文本比较。这在不引入全局 intern table 复杂度的前提下，获得了接近 O(1) 的比较性能。</p>
+</div>
+
+<div class="card">
+    <h4>为什么容器和智能指针先用 alias</h4>
+    <p>项目是学习导向 [[memory:9rx96rfq]]，但"先建立词汇表，后替换实现"是工程上的最佳分阶段策略。这样后续阶段可以在不改变调用方代码的前提下，逐步替换为自研容器（如自定义 allocator、内存池、SOA 布局等）。</p>
+</div>
+
+<div class="card">
+    <h4>为什么 FMemory 手动管理对齐</h4>
+    <p>不同平台的 <code>aligned_alloc</code> / <code>_aligned_malloc</code> 行为差异大（零大小、非 2 的幂对齐、释放方式）。手动包装保证了所有平台上的确定性行为：零大小返回 nullptr、非法对齐返回 nullptr、释放 nullptr 安全。这消除了平台差异对上层代码的影响。</p>
+</div>
+
+<h3 id="sec6-2">6.2 优化方案与收益</h3>
+
+<table>
+    <tr><th>优化点</th><th>场景</th><th>收益</th></tr>
+    <tr>
+        <td>FName hash fast path</td>
+        <td>名称比较（资源查找、日志类别匹配）</td>
+        <td>大多数比较降为 1 次整数比较，避免字符串逐字符比较</td>
+    </tr>
+    <tr>
+        <td>FMemory 对齐分配</td>
+        <td>SIMD 数据、缓存行对齐结构</td>
+        <td>未来 SIMD 优化路径可直接使用，无需额外对齐处理</td>
+    </tr>
+    <tr>
+        <td>项目命名词汇表</td>
+        <td>全引擎代码统一性</td>
+        <td>后续替换底层实现时，调用方代码零修改</td>
+    </tr>
+    <tr>
+        <td>CoreMinimal.h 聚合入口</td>
+        <td>日常开发</td>
+        <td>一次 include 获得所有 Core 能力，减少头文件管理负担</td>
+    </tr>
+</table>
+
+<h4>已知限制与后续演进</h4>
+<ul>
+    <li>仅在 Windows / Win64 / Debug / MSVC 环境验证通过，macOS 和 Linux 尚未在本机执行</li>
+    <li><code>TArray</code>、<code>TMap</code>、<code>TSharedPtr</code>、<code>TUniquePtr</code> 当前是项目命名别名，还不是自研容器/智能指针</li>
+    <li><code>FName</code> 当前不是全局 intern table，也不保证跨进程稳定 ID</li>
+    <li><code>FString</code> 还不包含格式化、编码转换、本地化、allocator 注入等能力</li>
+    <li>后续 Math 阶段可直接依赖 <code>FPlatformTypes</code>、<code>FString</code>、<code>TArray</code> 和 <code>FMemory</code></li>
+    <li>当 allocator 体系成熟后，再评估是否替换 <code>TArray</code>、<code>TMap</code> 的底层实现</li>
+</ul>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+     七、编程语言知识点
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec7">
+<h2><span class="num">七、</span>编程语言知识点</h2>
+
+<h3 id="sec7-1">7.1 标准库接口与用法</h3>
+
+<table>
+    <tr><th style="width:220px">接口</th><th>含义与用法</th></tr>
+    <tr>
+        <td><code>std::shared_ptr&lt;T&gt;</code></td>
+        <td>引用计数共享所有权智能指针。多个 <code>shared_ptr</code> 可指向同一对象，最后一个销毁时释放资源。本项目中 <code>TSharedPtr&lt;T&gt;</code> 是其项目命名别名。</td>
+    </tr>
+    <tr>
+        <td><code>std::unique_ptr&lt;T&gt;</code></td>
+        <td>独占所有权智能指针，不可拷贝只可移动。本项目中 <code>TUniquePtr&lt;T&gt;</code> 是其项目命名别名。保证资源在作用域结束时自动释放。</td>
+    </tr>
+    <tr>
+        <td><code>std::make_shared&lt;T&gt;()</code></td>
+        <td>一次分配同时创建对象和控制块，比先 <code>new</code> 再构造 <code>shared_ptr</code> 更高效（减少一次堆分配）。</td>
+    </tr>
+    <tr>
+        <td><code>std::vector&lt;T&gt;</code></td>
+        <td>动态数组，连续内存存储。<code>push_back()</code> 追加元素，<code>size()</code> 查询大小。本项目中 <code>TArray&lt;T&gt;</code> 是其项目命名别名。</td>
+    </tr>
+    <tr>
+        <td><code>std::unordered_map&lt;K,V&gt;</code></td>
+        <td>哈希表实现的键值映射，平均 O(1) 查找。本项目中 <code>TMap&lt;K,V&gt;</code> 是其项目命名别名。</td>
+    </tr>
+    <tr>
+        <td><code>std::string</code></td>
+        <td>标准拥有型字符串。<code>FString</code> 内部使用 <code>std::string</code> 存储文本数据，对外提供引擎风格接口。</td>
+    </tr>
+    <tr>
+        <td><code>std::string_view</code></td>
+        <td>非拥有型字符串视图，零拷贝引用已有字符串。<code>FString::View()</code> 返回此类型，用于高效传递字符串而不复制。</td>
+    </tr>
+    <tr>
+        <td><code>std::hash&lt;T&gt;</code></td>
+        <td>标准哈希函数对象。<code>FName</code> 使用 <code>std::hash&lt;std::string&gt;</code> 计算名称哈希值，用于快速比较路径。</td>
+    </tr>
+    <tr>
+        <td><code>std::malloc / std::free</code></td>
+        <td>C 标准库堆分配/释放。<code>FMemory::Allocate()</code> 内部使用，提供统一的分配入口。</td>
+    </tr>
+    <tr>
+        <td><code>std::memcpy / std::memmove / std::memset</code></td>
+        <td>内存操作原语。<code>FMemory::Copy()</code>、<code>Move()</code>、<code>Set()</code> 分别封装这三个函数，提供类型安全的项目接口。</td>
+    </tr>
+</table>
+
+<h3 id="sec7-2">7.2 语言特性与惯用法</h3>
+
+<div class="card">
+    <h4>using 类型别名</h4>
+    <p><code>using int32 = int32_t;</code> 使用 C++11 的 <code>using</code> 声明创建类型别名，比 <code>typedef</code> 更清晰。本项目用此建立固定宽度类型词汇表（<code>int8</code>、<code>uint32</code>、<code>uintptr</code> 等）。</p>
+</div>
+
+<div class="card">
+    <h4>移动语义 (Move Semantics)</h4>
+    <p><code>FString</code> 支持移动构造和移动赋值。<code>std::move()</code> 将左值转为右值引用，触发移动构造函数，避免深拷贝。移动后源对象处于"有效但未指定"状态——可以析构、赋值和查询，但内容不确定。</p>
+</div>
+
+<div class="card">
+    <h4>模板别名 (Template Alias)</h4>
+    <p><code>template&lt;typename T&gt; using TArray = std::vector&lt;T&gt;;</code> 使用模板别名为标准容器建立项目命名。这保留了模板参数推导能力，同时提供了未来替换底层实现的接缝。</p>
+</div>
+
+<div class="card">
+    <h4>struct 作为纯数据类型容器</h4>
+    <p><code>FPlatformTypes</code> 使用 <code>struct</code> 而非 <code>class</code>，因为它只包含类型别名，没有行为或状态。<code>struct</code> 默认 public 访问，语义上表达"这是一组公开的类型定义"。</p>
+</div>
+
+<div class="card">
+    <h4>指针算术与对齐</h4>
+    <p><code>FMemory::AllocateAligned()</code> 使用 <code>reinterpret_cast&lt;uintptr_t&gt;</code> 将指针转为整数进行对齐计算，再转回指针。<code>uintptr_t</code> 保证能无损保存指针值。对齐公式：<code>(addr + alignment - 1) &amp; ~(alignment - 1)</code>。</p>
+</div>
+
+<h3 id="sec7-3">7.3 平台相关与编译器行为</h3>
+
+<table>
+    <tr><th>平台/编译器</th><th>差异</th><th>处理方式</th></tr>
+    <tr>
+        <td>MSVC (Windows)</td>
+        <td><code>_aligned_malloc</code> / <code>_aligned_free</code> 是平台特有 API</td>
+        <td><code>FMemory</code> 不使用平台 API，自行实现对齐逻辑，保证跨平台一致</td>
+    </tr>
+    <tr>
+        <td>Clang / GCC</td>
+        <td><code>aligned_alloc()</code> 要求 size 是 alignment 的倍数</td>
+        <td>同上，不依赖平台 aligned_alloc，避免此限制</td>
+    </tr>
+    <tr>
+        <td>所有平台</td>
+        <td><code>sizeof(void*)</code> 在 32/64 位系统不同</td>
+        <td><code>uintptr</code> / <code>intptr</code> 类型别名保证与指针大小一致</td>
+    </tr>
+    <tr>
+        <td>C++17 标准</td>
+        <td><code>std::string_view</code> 需要 C++17 或更高</td>
+        <td>项目使用 C++20，此特性可用</td>
+    </tr>
+</table>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+     八、软件工程知识点
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec8">
+<h2><span class="num">八、</span>软件工程知识点</h2>
+
+<h3 id="sec8-1">8.1 设计模式与架构模式</h3>
+
+<div class="card">
+    <h4>Facade 模式 — CoreMinimal.h</h4>
+    <p><code>CoreMinimal.h</code> 是 Core 层的 Facade：一个聚合入口头文件，隐藏了内部多个头文件的组织细节。调用方只需 <code>#include "Core/CoreMinimal.h"</code> 即可获得所有 Core 能力，无需了解内部文件结构。</p>
+</div>
+
+<div class="card">
+    <h4>Vocabulary Type 模式</h4>
+    <p>本阶段的核心模式是建立"词汇类型"——<code>FString</code>、<code>FName</code>、<code>TArray</code>、<code>TMap</code> 等。这些类型是项目中所有代码共享的"语言"，确保不同模块之间的类型兼容性和语义一致性。</p>
+</div>
+
+<div class="card">
+    <h4>Wrapper / Adapter 模式 — FString</h4>
+    <p><code>FString</code> 包装 <code>std::string</code>，对外提供引擎风格接口（<code>Len()</code>、<code>IsEmpty()</code>、<code>View()</code>），对内使用标准库实现。这是 Adapter 模式的应用——将标准库接口适配为项目约定的接口。</p>
+</div>
+
+<h3 id="sec8-2">8.2 工程原则与方法论</h3>
+
+<div class="card">
+    <h4>YAGNI (You Aren't Gonna Need It)</h4>
+    <p>不实现全局 FName intern table、不实现自研容器、不实现 allocator 注入——这些都是"当前不需要"的能力。YAGNI 原则指导我们只实现当前阶段必要的最小功能集，避免过度设计。</p>
+</div>
+
+<div class="card">
+    <h4>接口稳定性优先 (Stable Interface First)</h4>
+    <p>先建立稳定的公共 API（<code>FString</code>、<code>TArray&lt;T&gt;</code> 等命名），再在后续阶段替换内部实现。这保证了上层代码不会因底层重构而修改。这是"面向接口编程"原则的体现。</p>
+</div>
+
+<div class="card">
+    <h4>防御性编程 (Defensive Programming)</h4>
+    <p><code>FMemory::Allocate(0)</code> 返回 nullptr 而非未定义行为；<code>DeallocateAligned(nullptr)</code> 安全无操作；非法对齐返回 nullptr 而非崩溃。每个边界情况都有确定性行为，不依赖平台实现的"恰好正确"。</p>
+</div>
+
+<div class="card">
+    <h4>碰撞安全设计 (Collision Safety)</h4>
+    <p><code>FName</code> 的 hash fast path + text fallback 是"乐观路径 + 安全兜底"的工程方法论：大多数情况走快速路径（hash 比较），极少数碰撞情况走安全路径（文本比较）。这在不牺牲正确性的前提下获得了性能。</p>
+</div>
+
+<h3 id="sec8-3">8.3 测试策略与质量保障</h3>
+
+<div class="card">
+    <h4>分类覆盖测试 (Category Coverage)</h4>
+    <p>测试按类型分类组织：平台类型大小、FString 行为、FName 行为、智能指针行为、容器行为、FMemory 行为。每个类别独立验证，确保每个模块的正确性不依赖其他模块的实现。</p>
+</div>
+
+<div class="card">
+    <h4>边界值测试 (Boundary Testing)</h4>
+    <p>重点测试边界情况：零大小分配、nullptr 释放、非法对齐、空字符串、hash 碰撞、移动后状态。这些边界是 bug 最容易出现的地方，也是平台差异最容易暴露的地方。</p>
+</div>
+
+<div class="card">
+    <h4>确定性行为验证</h4>
+    <p>每个边界情况都有明确的预期行为（而非"未定义"或"实现定义"）。测试验证的是"确定性行为"——相同输入在所有平台上产生相同结果。这消除了"在我机器上能跑"的问题。</p>
+</div>
+</section>
+
+</main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     Mermaid.js (CDN)
+     ═══════════════════════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        securityLevel: 'loose',
+        flowchart: {
+            htmlLabels: true,
+            useMaxWidth: true
+        },
+        themeVariables: {
+            primaryColor: '#1f6feb',
+            primaryTextColor: '#c9d1d9',
+            primaryBorderColor: '#30363d',
+            lineColor: '#58a6ff',
+            secondaryColor: '#161b22',
+            tertiaryColor: '#0d1117',
+            fontFamily: 'Inter, -apple-system, sans-serif',
+            fontSize: '13px'
+        }
+    });
+
+    // Simple TOC active state tracking
+    const tocLinks = document.querySelectorAll('.toc a');
+    const sections = document.querySelectorAll('section[id], h3[id]');
+
+    function updateActiveToc() {
+        let current = '';
+        sections.forEach(section => {
+            const rect = section.getBoundingClientRect();
+            if (rect.top <= 120) current = section.id;
+        });
+        tocLinks.forEach(link => {
+            link.classList.toggle('active', link.getAttribute('href') === '#' + current);
+        });
+    }
+
+    document.querySelector('.content')?.addEventListener('scroll', updateActiveToc);
+    window.addEventListener('scroll', updateActiveToc);
+    updateActiveToc();
+</script>
+</body>
+</html>

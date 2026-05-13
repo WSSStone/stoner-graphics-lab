@@ -389,6 +389,20 @@
         <li><a href="#sec5">五、实施与验证</a></li>
         <li><a href="#sec5-1" class="sub">5.1 任务拆解清单</a></li>
         <li><a href="#sec5-2" class="sub">5.2 验收标准</a></li>
+
+        <li><a href="#sec6">六、设计巧思与最佳实践</a></li>
+        <li><a href="#sec6-1" class="sub">6.1 业务场景与模型</a></li>
+        <li><a href="#sec6-2" class="sub">6.2 优化方案与收益</a></li>
+
+        <li><a href="#sec7">七、编程语言知识点</a></li>
+        <li><a href="#sec7-1" class="sub">7.1 标准库接口与用法</a></li>
+        <li><a href="#sec7-2" class="sub">7.2 语言特性与惯用法</a></li>
+        <li><a href="#sec7-3" class="sub">7.3 平台相关与编译器行为</a></li>
+
+        <li><a href="#sec8">八、软件工程知识点</a></li>
+        <li><a href="#sec8-1" class="sub">8.1 设计模式与架构模式</a></li>
+        <li><a href="#sec8-2" class="sub">8.2 工程原则与方法论</a></li>
+        <li><a href="#sec8-3" class="sub">8.3 测试策略与质量保障</a></li>
     </ul>
 </nav>
 
@@ -918,6 +932,243 @@ std::vsnprintf(UserBuffer, <span class="kw">sizeof</span>(UserBuffer), Format, A
     </table>
 </div>
 
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+     六、设计巧思与最佳实践
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec6">
+<h2><span class="num">六、</span>设计巧思与最佳实践</h2>
+
+<h3 id="sec6-1">6.1 当前业务场景与业务模型的最佳实践</h3>
+
+<div class="card">
+    <h4>为什么使用宏而非模板/函数作为日志入口</h4>
+    <p>宏级别早期过滤是零开销的关键：当消息被过滤时，<strong>不求值格式参数、不调用任何函数</strong>，仅执行一次整数比较。如果使用函数或模板，参数求值（包括可能昂贵的字符串格式化）会在过滤判断之前发生，违反 FR-016 零开销要求。</p>
+</div>
+
+<div class="card">
+    <h4>为什么断言和 Fatal 日志行为分离</h4>
+    <p>断言是"软停止"——开发者在调试器中可以继续执行，用于捕获开发中的 bug。Fatal 日志是"硬停止"——不可恢复错误必须终止进程。两条路径的行为差异是有意的设计，让开发者可以根据场景选择合适的诊断工具。</p>
+</div>
+
+<div class="card">
+    <h4>为什么使用静态自注册而非显式注册</h4>
+    <p>日志类别使用静态自注册模式（构造函数中注册到全局列表），镜像 UE5 的 <code>DECLARE_LOG_CATEGORY_EXTERN</code> / <code>DEFINE_LOG_CATEGORY</code> 模式。这保证了类别在 <code>main()</code> 之前可用，实现零配置启动——开发者无需在任何初始化代码中手动注册类别。</p>
+</div>
+
+<div class="card">
+    <h4>为什么格式化在调用者栈上完成</h4>
+    <p>消息格式化使用 1024 字节栈缓冲区，在获取 mutex 之前完成。这最小化了临界区（仅 Sink 写入时加锁），减少线程竞争。大多数日志消息远小于 1KB，栈分配避免了堆分配的开销和碎片化。</p>
+</div>
+
+<div class="card">
+    <h4>为什么选择 <code>__builtin_debugtrap</code> 而非 <code>__builtin_trap</code></h4>
+    <p><code>__builtin_debugtrap()</code> 是<strong>可恢复的</strong>——开发者可以在调试器中按"继续"跳过断点。而 <code>__builtin_trap()</code> 不可恢复，会直接终止进程。对于断言失败场景，可恢复性让开发者能够检查状态后决定是否继续，极大提升调试效率。</p>
+</div>
+
+<h3 id="sec6-2">6.2 优化方案与收益</h3>
+
+<table>
+    <tr><th>优化点</th><th>场景</th><th>收益</th></tr>
+    <tr>
+        <td>宏级别早期过滤</td>
+        <td>被过滤的日志消息（大多数场景）</td>
+        <td>零开销——仅 1 次整数比较，不格式化、不调用函数、不求值参数</td>
+    </tr>
+    <tr>
+        <td>栈缓冲区格式化</td>
+        <td>所有日志消息</td>
+        <td>避免堆分配，减少内存碎片，对缓存友好</td>
+    </tr>
+    <tr>
+        <td>最小临界区</td>
+        <td>多线程并发日志</td>
+        <td>格式化在锁外完成，仅写入时加锁，减少线程竞争</td>
+    </tr>
+    <tr>
+        <td>SG_CHECK Release 编译移除</td>
+        <td>Release 构建</td>
+        <td>断言检查零运行时开销，不影响发布版本性能</td>
+    </tr>
+    <tr>
+        <td>SG_VERIFY 表达式始终求值</td>
+        <td>依赖副作用的代码</td>
+        <td>保证 Release 中副作用不被移除，同时 Debug 中仍有断言保护</td>
+    </tr>
+    <tr>
+        <td>静态自注册</td>
+        <td>引擎启动</td>
+        <td>零配置启动，无需初始化代码，类别在 main() 前即可用</td>
+    </tr>
+</table>
+
+<h4>已知限制与后续演进</h4>
+<ul>
+    <li>当前仅有控制台 Sink，无文件日志输出</li>
+    <li>无 ANSI 彩色输出（未来增强）</li>
+    <li>无异步/队列日志（当前 mutex 方案足够，等待自研线程库）</li>
+    <li>无性能计时/Profiling 集成</li>
+    <li>线程安全使用 <code>std::mutex</code> 临时方案，未来可替换为自研同步原语</li>
+    <li>后续可扩展：文件 Sink、网络 Sink、结构化 JSON 输出、日志轮转等</li>
+</ul>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+     七、编程语言知识点
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec7">
+<h2><span class="num">七、</span>编程语言知识点</h2>
+
+<h3 id="sec7-1">7.1 标准库接口与用法</h3>
+
+<table>
+    <tr><th style="width:200px">接口</th><th>含义与用法</th></tr>
+    <tr>
+        <td><code>std::mutex</code></td>
+        <td>互斥锁，保护 Sink 列表的并发写入。<code>lock()</code> 获取锁，<code>unlock()</code> 释放锁。本项目中用于保证多线程日志写入的原子性。</td>
+    </tr>
+    <tr>
+        <td><code>std::lock_guard&lt;T&gt;</code></td>
+        <td>RAII 锁守卫，构造时自动 lock，析构时自动 unlock。避免忘记释放锁导致死锁。用于 <code>FLog::LogInternal()</code> 的临界区。</td>
+    </tr>
+    <tr>
+        <td><code>std::vector&lt;T&gt;</code></td>
+        <td>动态数组，用于存储已注册的 Sink 列表和 LogCategory 列表。支持 <code>push_back()</code>、迭代器遍历。</td>
+    </tr>
+    <tr>
+        <td><code>std::vsnprintf()</code></td>
+        <td>格式化字符串到固定大小缓冲区，返回实际需要的字符数（不含 null）。用于在栈缓冲区上完成日志消息格式化，避免堆分配。</td>
+    </tr>
+    <tr>
+        <td><code>std::abort()</code></td>
+        <td>立即终止进程，不执行析构函数。用于 Fatal 级别日志的终止行为——不可恢复错误必须立即停止。</td>
+    </tr>
+    <tr>
+        <td><code>std::strcmp()</code></td>
+        <td>C 风格字符串比较，返回 0 表示相等。用于 LogCategory 名称比较。</td>
+    </tr>
+    <tr>
+        <td><code>va_list / va_start / va_end</code></td>
+        <td>C 可变参数机制。宏将格式参数传递给内部函数，内部函数使用 <code>va_list</code> 解析并调用 <code>vsnprintf</code> 格式化。</td>
+    </tr>
+</table>
+
+<h3 id="sec7-2">7.2 语言特性与惯用法</h3>
+
+<div class="card">
+    <h4>预处理器宏与条件编译</h4>
+    <p><code>SG_LOG</code>、<code>SG_CHECK</code>、<code>SG_VERIFY</code> 使用宏实现零开销过滤。<code>#if SG_BUILD_DEBUG</code> 控制断言在 Release 中完全移除。宏的关键优势：参数在条件不满足时<strong>不求值</strong>，这是函数/模板无法做到的。</p>
+</div>
+
+<div class="card">
+    <h4>可变参数宏 (<code>__VA_ARGS__</code>)</h4>
+    <p><code>SG_LOG(Category, Level, Fmt, ...)</code> 使用 <code>__VA_ARGS__</code> 将格式化参数透传给内部函数。<code>##__VA_ARGS__</code>（GNU 扩展）在无额外参数时移除前导逗号。</p>
+</div>
+
+<div class="card">
+    <h4>静态局部变量与自注册</h4>
+    <p><code>FLogCategory</code> 使用构造函数中的自注册模式：静态局部变量在首次执行时构造（C++11 保证线程安全），构造函数将 <code>this</code> 注册到全局列表。这保证了类别在 <code>main()</code> 之前可用。</p>
+</div>
+
+<div class="card">
+    <h4>do { ... } while(0) 宏惯用法</h4>
+    <p>多语句宏使用 <code>do { ... } while(0)</code> 包裹，确保宏在 <code>if/else</code> 等控制流中行为正确。这是 C/C++ 宏编程的标准惯用法。</p>
+</div>
+
+<div class="card">
+    <h4>栈缓冲区 vs 堆分配</h4>
+    <p><code>char Buffer[1024]</code> 在函数栈帧上分配，生命周期自动管理，无需 <code>new/delete</code>。对于已知上限的短字符串（日志消息），栈分配比堆分配快一个数量级且无碎片化。</p>
+</div>
+
+<h3 id="sec7-3">7.3 平台相关与编译器行为</h3>
+
+<table>
+    <tr><th>平台/编译器</th><th>差异</th><th>处理方式</th></tr>
+    <tr>
+        <td>MSVC</td>
+        <td><code>__debugbreak()</code> 触发调试器断点</td>
+        <td><code>#if _MSC_VER</code> 条件编译选择</td>
+    </tr>
+    <tr>
+        <td>Clang / GCC</td>
+        <td><code>__builtin_debugtrap()</code> 触发可恢复断点</td>
+        <td><code>#elif __clang__ || __GNUC__</code></td>
+    </tr>
+    <tr>
+        <td>其他平台</td>
+        <td>回退到 <code>std::abort()</code></td>
+        <td><code>#else</code> 分支</td>
+    </tr>
+    <tr>
+        <td>Release 构建</td>
+        <td><code>SG_BUILD_DEBUG</code> 未定义</td>
+        <td><code>SG_CHECK</code> 展开为空，<code>SG_VERIFY</code> 仅保留表达式求值</td>
+    </tr>
+</table>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+     八、软件工程知识点
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec8">
+<h2><span class="num">八、</span>软件工程知识点</h2>
+
+<h3 id="sec8-1">8.1 设计模式与架构模式</h3>
+
+<div class="card">
+    <h4>Observer / Sink 模式</h4>
+    <p>日志系统使用 Sink 模式（Observer 变体）：<code>FLog</code> 是 Subject，<code>ILogSink</code> 是 Observer 接口。多个 Sink 可以同时注册（控制台、文件、网络），日志消息广播给所有已注册 Sink。这实现了日志生产者和消费者的解耦。</p>
+</div>
+
+<div class="card">
+    <h4>Facade 模式</h4>
+    <p><code>FLog</code> 作为日志子系统的统一入口（Facade），隐藏了 Category 管理、Level 过滤、格式化、Sink 分发等内部复杂性。调用方只需 <code>SG_LOG(Cat, Level, Fmt, ...)</code> 一行代码。</p>
+</div>
+
+<div class="card">
+    <h4>Self-Registration 模式</h4>
+    <p><code>FLogCategory</code> 在构造时自动注册到全局列表，无需显式初始化代码。这是 UE5 中 <code>DECLARE_LOG_CATEGORY</code> / <code>DEFINE_LOG_CATEGORY</code> 的核心模式——利用静态变量的构造顺序实现"声明即注册"。</p>
+</div>
+
+<h3 id="sec8-2">8.2 工程原则与方法论</h3>
+
+<div class="card">
+    <h4>零开销抽象 (Zero-Overhead Abstraction)</h4>
+    <p>日志宏在消息被过滤时不产生任何运行时开销——不格式化、不调用函数、不求值参数。这体现了 C++ 的核心哲学："你不用的东西，不应该为之付出代价"。</p>
+</div>
+
+<div class="card">
+    <h4>契约式设计 (Design by Contract)</h4>
+    <p><code>SG_CHECK</code> 和 <code>SG_VERIFY</code> 是契约式设计的实现工具。前置条件（precondition）通过断言在开发期强制执行，违反时立即暴露 bug。Release 中移除断言是因为"契约已在开发期验证通过"。</p>
+</div>
+
+<div class="card">
+    <h4>防御性编程 (Defensive Programming)</h4>
+    <p>Fatal 日志路径使用 <code>std::abort()</code> 确保不可恢复错误不会被忽略。<code>SG_VERIFY</code> 保证即使在 Release 中，副作用表达式仍然执行。这些都是防御性编程的体现——假设调用方可能犯错，系统应该安全地处理。</p>
+</div>
+
+<div class="card">
+    <h4>关注点分离 (Separation of Concerns)</h4>
+    <p>日志系统分为三个独立关注点：① Category 管理（谁产生消息）；② Level 过滤（什么消息需要处理）；③ Sink 输出（消息去哪里）。每个关注点可以独立扩展而不影响其他部分。</p>
+</div>
+
+<h3 id="sec8-3">8.3 测试策略与质量保障</h3>
+
+<div class="card">
+    <h4>行为驱动测试 (Behavior-Driven Testing)</h4>
+    <p>测试名称描述行为而非实现（如"filtered message produces zero overhead"而非"macro expands to if-check"）。这样当内部实现变化时，只要行为一致，测试无需修改。</p>
+</div>
+
+<div class="card">
+    <h4>边界值测试 (Boundary Testing)</h4>
+    <p>测试覆盖关键边界：空格式字符串、超长消息（超过栈缓冲区）、所有日志级别的过滤行为、Fatal 后的终止行为、断言在 Debug/Release 的不同表现。</p>
+</div>
+
+<div class="card">
+    <h4>编译期验证</h4>
+    <p>部分正确性通过编译期保证：<code>SG_CHECK</code> 在 Release 中展开为空（编译器验证无副作用警告）；<code>ELogLevel</code> 枚举保证级别值的类型安全；<code>ILogSink</code> 纯虚接口保证 Sink 实现的完整性。</p>
+</div>
 </section>
 
 </main>
