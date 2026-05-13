@@ -2,7 +2,7 @@
 
 **Feature Branch**: `005-core-logging-assertions`  
 **Created**: 2026-05-13  
-**Status**: Draft  
+**Status**: Clarified
 **Input**: User description: "Core logging and assertion system: FLog with severity levels (Verbose/Info/Warning/Error/Fatal), SG_LOG macro with category and printf-style formatting, SG_CHECK/SG_VERIFY/SG_CHECKF assertion macros, category-based filtering. Console output sink. UE5 naming style. Cross-platform. Unit tests."
 
 ## User Scenarios & Testing *(mandatory)*
@@ -73,7 +73,7 @@ An engine developer creating a new subsystem (e.g., a Meshlet renderer) needs to
 
 ### Edge Cases
 
-- What happens when a `Fatal` severity message is logged? The engine should log the message and then terminate the process (or trigger a debugger break in Debug builds).
+- What happens when a `Fatal` severity message is logged? **[Clarified]** In Debug builds: log the message, trigger platform debugger break, then `std::abort()`. In Release builds: log the message, then `std::abort()` immediately. This differs from assertion failure (which only breaks, without aborting).
 - What happens when the format string has mismatched arguments? The system should behave safely (no undefined behavior), ideally producing a best-effort output or a clear error.
 - What happens when logging is called from multiple threads simultaneously? The console output must not produce garbled/interleaved characters within a single log line.
 - What happens when `SG_LOG` is called before the logging system is explicitly initialized? It should still produce output (using a default/fallback configuration).
@@ -83,6 +83,7 @@ An engine developer creating a new subsystem (e.g., a Meshlet renderer) needs to
 - **RHI Abstraction**: This feature is in the Core layer and does not interact with graphics APIs. It MUST NOT have any dependencies on RHI or higher layers.
 - **Design Patterns**: The logging system MUST use a clean separation between the log macro interface, the category registry, and the output sink. No god-classes.
 - **Advanced Graphics**: Not directly applicable, but the logging infrastructure MUST be lightweight enough to be used in performance-sensitive rendering code paths without significant overhead.
+- **Logging Performance**: **[Clarified]** The `SG_LOG` macro MUST perform an early-out severity check at the macro level before any formatting occurs. When a message is filtered out by category or global severity threshold, the only cost MUST be a single integer comparison — no `snprintf`, no function call into the logging subsystem.
 - **Naming Conventions**: All types MUST follow UE5-style naming: `FLog` (struct), `ELogSeverity` (enum), `SG_LOG` / `SG_CHECK` / `SG_VERIFY` / `SG_CHECKF` (macros).
 - **Cross-Platform Compatibility**: The logging and assertion system MUST compile and run identically on Windows, macOS, and Linux. Console output MUST use platform-appropriate mechanisms. Debug break behavior in assertions MUST use platform-specific intrinsics (`__debugbreak()` on MSVC, `__builtin_trap()` on GCC/Clang, etc.) behind conditional compilation.
 
@@ -100,8 +101,9 @@ An engine developer creating a new subsystem (e.g., a Meshlet renderer) needs to
 - **FR-008**: System MUST provide `SG_CHECK(Expr)` — a runtime assertion macro that is active in Debug builds and stripped (zero cost) in Release builds.
 - **FR-009**: System MUST provide `SG_VERIFY(Expr)` — an assertion macro that always evaluates the expression but only checks the result in Debug builds.
 - **FR-010**: System MUST provide `SG_CHECKF(Expr, Format, ...)` — an assertion macro with a printf-style formatted failure message, active in Debug builds.
-- **FR-011**: When an assertion fails (Debug build), the system MUST report the source file, line number, the failed expression text, and any formatted message.
-- **FR-012**: When a `Fatal` severity log message is emitted, the system MUST log the message and then terminate the process.
+- **FR-011**: When an assertion fails (Debug build), the system MUST report the source file, line number, the failed expression text, and any formatted message. **[Clarified]** After logging the failure details, the system MUST trigger a platform debugger break (`__debugbreak()` on MSVC, `__builtin_debugtrap()` on GCC/Clang). The developer can choose to continue execution in the debugger. Assertions do NOT call `std::abort()`.
+- **FR-012**: When a `Fatal` severity log message is emitted, the system MUST log the message and then terminate the process. **[Clarified]** In Debug builds: log → debugger break → `std::abort()`. In Release builds: log → `std::abort()`. Unlike assertion failure, Fatal log always terminates.
+- **FR-016**: The `SG_LOG` macro MUST perform severity filtering at the macro expansion level (early-out). When a message's severity is below the category's or global minimum threshold, the macro MUST short-circuit without evaluating the format string or calling any logging function. The cost of a filtered-out message MUST be at most a single integer comparison.
 - **FR-013**: Log output for a single message MUST be atomic — concurrent logging from multiple threads MUST NOT produce interleaved characters within one log line.
 - **FR-014**: The logging system MUST function with a default configuration even if no explicit initialization call is made (zero-configuration startup).
 - **FR-015**: System MUST provide pre-defined log categories for existing engine layers: `LogCore`, `LogRHI`, `LogRenderer`, `LogBackend`, `LogApplication`.
@@ -135,5 +137,5 @@ An engine developer creating a new subsystem (e.g., a Meshlet renderer) needs to
 - File-based log sinks are explicitly out of scope and will be added in a future enhancement phase.
 - Remote/network logging is out of scope.
 - Profiling and performance timing instrumentation are out of scope (separate future phase).
-- The assertion macros will use platform-specific debug break intrinsics; the exact behavior on assertion failure (break into debugger vs. abort) may vary by platform, which is acceptable.
+- The assertion macros will use platform-specific debug break intrinsics. **[Clarified]** On assertion failure in Debug builds, the system logs failure details then triggers a debugger break (developer can continue). On Fatal log in Debug builds, the system logs, breaks, then aborts. On Fatal log in Release builds, the system logs then aborts immediately.
 - Printf-style formatting is chosen over `std::format` / `<format>` for broader compiler compatibility and familiarity; this may be revisited in a future phase.
