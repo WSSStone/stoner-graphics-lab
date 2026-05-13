@@ -270,13 +270,14 @@
         .sev.fatal   { background: rgba(218,54,51,.2);    color: var(--fatal); }
 
         /* ── Mermaid ──────────────────────────────────────────────── */
-        .mermaid {
+        pre.mermaid {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 8px;
             padding: 24px;
             margin-bottom: 16px;
             text-align: center;
+            font-family: var(--font-sans);
         }
 
         /* ── File Tree ────────────────────────────────────────────── */
@@ -472,15 +473,16 @@
 <h3 id="sec2-2">2. 架构目标与定位</h3>
 <p>日志与断言系统位于引擎的<strong>最底层（Core 层）</strong>，是所有上层模块的基础依赖。它不依赖任何图形 API 或上层模块。</p>
 
-<div class="mermaid">
 <pre class="mermaid">
 graph TB
-    subgraph "Engine Architecture"
+    subgraph Engine Architecture
         APP["Application Layer"]
         REN["Renderer Layer"]
         RHI["RHI Layer"]
-        BACK["Backend Layer<br/>(Vulkan/D3D12/Metal)"]
-        CORE["<strong>Core Layer</strong><br/>Logging &amp; Assertions ✦"]
+        BACK["Backend Layer
+(Vulkan/D3D12/Metal)"]
+        CORE["Core Layer
+Logging and Assertions"]
     end
 
     APP --> REN
@@ -493,7 +495,6 @@ graph TB
 
     style CORE fill:#1f6feb,stroke:#58a6ff,color:#fff
 </pre>
-</div>
 
 <h3 id="sec2-3">3. 边界与非目标（约束）</h3>
 <table>
@@ -554,37 +555,40 @@ graph TB
 <h3 id="sec3-2">2. 核心规则与状态机</h3>
 
 <h4>(1) 日志消息处理流程</h4>
-<div class="mermaid">
 <pre class="mermaid">
 flowchart LR
-    A["SG_LOG 宏调用"] --> B{"宏级别<br/>严重性检查"}
-    B -- "被过滤<br/>(仅1次整数比较)" --> X["❌ 不执行任何操作"]
-    B -- "通过" --> C["格式化消息<br/>(调用者栈上)"]
-    C --> D{"全局严重性<br/>过滤"}
-    D -- "被过滤" --> X
-    D -- "通过" --> E["获取 mutex 锁"]
-    E --> F["写入 Console Sink"]
-    F --> G{"严重性 == Fatal?"}
-    G -- "否" --> H["✅ 完成"]
-    G -- "是" --> I["SG_DEBUG_BREAK<br/>(仅 Debug)"]
-    I --> J["std::abort()"]
+    A["SG_LOG macro"] --> B{"Macro-level
+severity check"}
+    B -- "Filtered
+(1 int compare)" --> X["No-op"]
+    B -- "Pass" --> C["Format message
+(caller stack)"]
+    C --> D{"Global severity
+filter"}
+    D -- "Filtered" --> X
+    D -- "Pass" --> E["Acquire mutex"]
+    E --> F["Write to Console Sink"]
+    F --> G{"Severity == Fatal?"}
+    G -- "No" --> H["Done"]
+    G -- "Yes" --> I["SG_DEBUG_BREAK
+(Debug only)"]
+    I --> J["std::abort"]
 </pre>
-</div>
 
 <h4>(2) 断言失败处理流程</h4>
-<div class="mermaid">
 <pre class="mermaid">
 flowchart LR
-    A["SG_CHECK(Expr)"] --> B{"_DEBUG<br/>已定义?"}
-    B -- "Release" --> X["❌ 完全编译移除"]
+    A["SG_CHECK Expr"] --> B{"_DEBUG
+defined?"}
+    B -- "Release" --> X["Compiled out"]
     B -- "Debug" --> C{"Expr == true?"}
-    C -- "是" --> OK["✅ 继续执行"]
-    C -- "否" --> D["记录 file/line/expr"]
-    D --> E["调用断言处理器"]
-    E --> F["SG_DEBUG_BREAK()"]
-    F --> G["🔄 开发者可在<br/>调试器中继续"]
+    C -- "Yes" --> OK["Continue"]
+    C -- "No" --> D["Log file/line/expr"]
+    D --> E["Call assertion handler"]
+    E --> F["SG_DEBUG_BREAK"]
+    F --> G["Dev can continue
+in debugger"]
 </pre>
-</div>
 
 <h4>(3) 严重性级别</h4>
 <table>
@@ -664,23 +668,35 @@ flowchart LR
 <h4>2.1 模块对应关系</h4>
 <p>日志系统采用<strong>职责分离</strong>设计，共 5 个核心模块：</p>
 
-<div class="mermaid">
 <pre class="mermaid">
 graph TB
-    subgraph "Macro Interface (Header-Only)"
-        SG_LOG["SGLog.h<br/><strong>SG_LOG</strong> 宏<br/>宏级别早期过滤"]
-        SG_ASSERT["SGAssert.h<br/><strong>SG_CHECK / SG_VERIFY / SG_CHECKF</strong><br/>Debug/Release 行为分离"]
-        SG_BREAK["SGPlatformBreak.h<br/><strong>SG_DEBUG_BREAK</strong><br/>跨平台调试器断点"]
+    subgraph Macro_Interface ["Macro Interface - Header Only"]
+        SG_LOG["SGLog.h
+SG_LOG macro
+Early severity filter"]
+        SG_ASSERT["SGAssert.h
+SG_CHECK / SG_VERIFY / SG_CHECKF
+Debug/Release split"]
+        SG_BREAK["SGPlatformBreak.h
+SG_DEBUG_BREAK
+Cross-platform breakpoint"]
     end
 
-    subgraph "Core Entities (.h + .cpp)"
-        CAT["FLogCategory<br/>命名类别 + 严重性过滤<br/>静态自注册"]
-        LOG["FLog<br/>中央协调器<br/>消息分发 + 线程安全"]
-        SINK["FLogConsoleSink<br/>控制台输出<br/>stdout/stderr 路由"]
+    subgraph Core_Entities [".h + .cpp Entities"]
+        CAT["FLogCategory
+Named category + severity filter
+Static self-registration"]
+        LOG["FLog
+Central coordinator
+Dispatch + thread safety"]
+        SINK["FLogConsoleSink
+Console output
+stdout/stderr routing"]
     end
 
-    subgraph "Foundation (Header-Only)"
-        SEV["ELogSeverity<br/>五级严重性枚举"]
+    subgraph Foundation ["Foundation - Header Only"]
+        SEV["ELogSeverity
+5-level severity enum"]
     end
 
     SG_LOG --> CAT
@@ -694,7 +710,6 @@ graph TB
     style SG_LOG fill:#1f6feb,stroke:#58a6ff,color:#fff
     style SG_ASSERT fill:#1f6feb,stroke:#58a6ff,color:#fff
 </pre>
-</div>
 
 <table>
     <tr><th>模块</th><th>职责</th><th>通信方式</th></tr>
@@ -916,6 +931,11 @@ std::vsnprintf(UserBuffer, <span class="kw">sizeof</span>(UserBuffer), Format, A
     mermaid.initialize({
         startOnLoad: true,
         theme: 'dark',
+        securityLevel: 'loose',
+        flowchart: {
+            htmlLabels: true,
+            useMaxWidth: true
+        },
         themeVariables: {
             primaryColor: '#1f6feb',
             primaryTextColor: '#c9d1d9',
