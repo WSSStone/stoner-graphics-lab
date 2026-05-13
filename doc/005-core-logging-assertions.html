@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>005 — Core Logging &amp; Assertions · Stoner Graphics Lab</title>
+    <style>
+        /* ── Reset & Base ─────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:        #0d1117;
+            --bg-card:   #161b22;
+            --bg-code:   #1c2128;
+            --border:    #30363d;
+            --text:      #c9d1d9;
+            --text-dim:  #8b949e;
+            --accent:    #58a6ff;
+            --accent2:   #3fb950;
+            --warn:      #d29922;
+            --error:     #f85149;
+            --fatal:     #da3633;
+            --verbose:   #8b949e;
+            --info:      #58a6ff;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', Consolas, monospace;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            font-size: 15px;
+        }
+
+        /* ── Layout ───────────────────────────────────────────────── */
+        .page {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            min-height: 100vh;
+        }
+
+        /* ── Sidebar / TOC ────────────────────────────────────────── */
+        .sidebar {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            font-size: 13px;
+        }
+
+        .sidebar h2 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+        }
+
+        .sidebar .logo {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+
+        .sidebar .subtitle {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toc { list-style: none; }
+
+        .toc li { margin-bottom: 2px; }
+
+        .toc a {
+            display: block;
+            padding: 5px 10px;
+            border-radius: 6px;
+            color: var(--text-dim);
+            text-decoration: none;
+            transition: all .15s;
+        }
+
+        .toc a:hover, .toc a.active {
+            background: rgba(88, 166, 255, .1);
+            color: var(--accent);
+        }
+
+        .toc .sub { padding-left: 20px; font-size: 12px; }
+
+        /* ── Main Content ─────────────────────────────────────────── */
+        .content {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 48px 40px 120px;
+        }
+
+        .content > section { margin-bottom: 56px; }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        h1 + .meta {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 32px;
+        }
+
+        h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h2 .num {
+            color: var(--accent);
+            margin-right: 6px;
+        }
+
+        h3 {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text);
+            margin: 24px 0 10px;
+        }
+
+        h4 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-dim);
+            margin: 16px 0 8px;
+        }
+
+        p, ul, ol { margin-bottom: 14px; }
+
+        ul, ol { padding-left: 22px; }
+
+        li { margin-bottom: 4px; }
+
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        strong { color: #e6edf3; }
+
+        /* ── Cards ────────────────────────────────────────────────── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin-bottom: 16px;
+        }
+
+        .card.highlight {
+            border-left: 3px solid var(--accent);
+        }
+
+        .card h4 { margin-top: 0; }
+
+        /* ── Badge ────────────────────────────────────────────────── */
+        .badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 12px;
+            vertical-align: middle;
+        }
+
+        .badge.status   { background: rgba(63,185,80,.15); color: var(--accent2); }
+        .badge.version  { background: rgba(88,166,255,.15); color: var(--accent); }
+        .badge.p1       { background: rgba(248,81,73,.15);  color: var(--error); }
+        .badge.p2       { background: rgba(210,153,34,.15); color: var(--warn); }
+
+        /* ── Tables ───────────────────────────────────────────────── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            color: var(--text-dim);
+            background: var(--bg-card);
+        }
+
+        tr:hover td { background: rgba(88,166,255,.04); }
+
+        /* ── Code ─────────────────────────────────────────────────── */
+        code {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            background: var(--bg-code);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #e6edf3;
+        }
+
+        pre {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            overflow-x: auto;
+            margin-bottom: 16px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+        }
+
+        /* Syntax highlighting (minimal) */
+        .kw  { color: #ff7b72; }   /* keywords */
+        .tp  { color: #79c0ff; }   /* types */
+        .fn  { color: #d2a8ff; }   /* functions */
+        .str { color: #a5d6ff; }   /* strings */
+        .cm  { color: #8b949e; font-style: italic; }  /* comments */
+        .num { color: #79c0ff; }   /* numbers */
+        .pp  { color: #f0883e; }   /* preprocessor */
+        .mc  { color: #ffa657; }   /* macros */
+
+        /* ── Severity Chips ───────────────────────────────────────── */
+        .sev {
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            padding: 2px 10px;
+            border-radius: 4px;
+            margin-right: 4px;
+        }
+
+        .sev.verbose { background: rgba(139,148,158,.15); color: var(--verbose); }
+        .sev.info    { background: rgba(88,166,255,.15);  color: var(--info); }
+        .sev.warning { background: rgba(210,153,34,.15);  color: var(--warn); }
+        .sev.error   { background: rgba(248,81,73,.15);   color: var(--error); }
+        .sev.fatal   { background: rgba(218,54,51,.2);    color: var(--fatal); }
+
+        /* ── Mermaid ──────────────────────────────────────────────── */
+        .mermaid {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        /* ── File Tree ────────────────────────────────────────────── */
+        .file-tree {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.8;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        }
+
+        .file-tree .new { color: var(--accent2); }
+        .file-tree .mod { color: var(--warn); }
+        .file-tree .dir { color: var(--accent); }
+
+        /* ── ADR ──────────────────────────────────────────────────── */
+        .adr {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .adr summary {
+            padding: 14px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text);
+            transition: background .15s;
+        }
+
+        .adr summary:hover { background: rgba(88,166,255,.06); }
+
+        .adr .body {
+            padding: 0 20px 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .adr .body p { margin-top: 12px; }
+
+        .adr .rejected {
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+
+        /* ── Checklist ────────────────────────────────────────────── */
+        .check {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .check li {
+            padding: 6px 0;
+            padding-left: 28px;
+            position: relative;
+        }
+
+        .check li::before {
+            content: '✓';
+            position: absolute;
+            left: 4px;
+            color: var(--accent2);
+            font-weight: 700;
+        }
+
+        /* ── Responsive ───────────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .page { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+            .content { padding: 24px 20px 80px; }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SIDEBAR / TABLE OF CONTENTS
+     ═══════════════════════════════════════════════════════════════ -->
+<nav class="sidebar">
+    <div class="logo">Stoner Graphics Lab</div>
+    <div class="subtitle">005 · Core Logging &amp; Assertions</div>
+
+    <h2>目录</h2>
+    <ul class="toc">
+        <li><a href="#sec1">一、文档与上下文信息</a></li>
+        <li><a href="#sec1-1" class="sub">1. 基础元数据</a></li>
+        <li><a href="#sec1-2" class="sub">2. 本期核心摘要</a></li>
+        <li><a href="#sec1-3" class="sub">3. 上下文与依赖</a></li>
+
+        <li><a href="#sec2">二、目标与边界</a></li>
+        <li><a href="#sec2-1" class="sub">1. 业务与功能目标</a></li>
+        <li><a href="#sec2-2" class="sub">2. 架构目标与定位</a></li>
+        <li><a href="#sec2-3" class="sub">3. 边界与非目标</a></li>
+
+        <li><a href="#sec3">三、交互与产品设计</a></li>
+        <li><a href="#sec3-1" class="sub">1. 用户使用路径</a></li>
+        <li><a href="#sec3-2" class="sub">2. 核心规则与状态机</a></li>
+
+        <li><a href="#sec4">四、技术架构与关键决策</a></li>
+        <li><a href="#sec4-1" class="sub">1. 技术栈与基础设施</a></li>
+        <li><a href="#sec4-2" class="sub">2. 关键信息</a></li>
+        <li><a href="#sec4-3" class="sub">3. 架构决策记录</a></li>
+
+        <li><a href="#sec5">五、实施与验证</a></li>
+        <li><a href="#sec5-1" class="sub">5.1 任务拆解清单</a></li>
+        <li><a href="#sec5-2" class="sub">5.2 验收标准</a></li>
+    </ul>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MAIN CONTENT
+     ═══════════════════════════════════════════════════════════════ -->
+<main class="content">
+
+<!-- Title -->
+<h1>Core Logging &amp; Assertions</h1>
+<p class="meta">
+    <span class="badge version">Phase 004</span>
+    <span class="badge status">已交付</span>
+    Feature Branch: <code>005-core-logging-assertions</code>
+</p>
+
+<!-- ─────────────────────────────────────────────────────────────
+     一、文档与上下文信息
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec1">
+<h2><span class="num">一、</span>文档与上下文信息</h2>
+
+<h3 id="sec1-1">1. 基础元数据</h3>
+<table>
+    <tr><th style="width:160px">字段</th><th>内容</th></tr>
+    <tr><td>文档版本</td><td>v1.0</td></tr>
+    <tr><td>更新日期</td><td>2026-05-13</td></tr>
+    <tr><td>当前状态</td><td><span class="badge status">已交付</span></td></tr>
+    <tr><td>Feature Branch</td><td><code>005-core-logging-assertions</code></td></tr>
+    <tr><td>Spec 目录</td><td><code>specs/005-core-logging-assertions/</code></td></tr>
+    <tr><td>Roadmap Phase</td><td>Phase 004 — Core Logging &amp; Assertions</td></tr>
+</table>
+
+<h3 id="sec1-2">2. 本期核心摘要</h3>
+<div class="card highlight">
+    <p>
+        为引擎 Core 层实现<strong>结构化日志系统</strong>和<strong>运行时断言宏</strong>——引擎最基础的可观测性基础设施。
+        日志系统提供五级严重性（Verbose → Fatal）、类别过滤、宏级别零开销早期过滤和线程安全控制台输出；
+        断言宏提供 Debug 构建中的条件检查与调试器断点，Release 构建中完全编译移除。
+    </p>
+</div>
+
+<h3 id="sec1-3">3. 上下文与依赖</h3>
+<table>
+    <tr><th>依赖项</th><th>说明</th></tr>
+    <tr><td>Phase 002 / Spec 003</td><td>Core 基础类型系统（<code>FPlatformTypes.h</code>、<code>uint8</code> 等）</td></tr>
+    <tr><td>Phase 003 / Spec 004</td><td>Core 数学库（<code>TArray</code> 用于类别注册表）</td></tr>
+    <tr><td>SCons 4.10.1</td><td>构建系统（自动发现 <code>.cpp</code> 文件）</td></tr>
+    <tr><td>C++ 标准库</td><td><code>&lt;cstdio&gt;</code>、<code>&lt;mutex&gt;</code>、<code>&lt;chrono&gt;</code>、<code>&lt;cstdarg&gt;</code></td></tr>
+</table>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+     二、目标与边界
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec2">
+<h2><span class="num">二、</span>目标与边界</h2>
+
+<h3 id="sec2-1">1. 业务与功能目标</h3>
+<p>引擎开发者需要在开发和调试过程中<strong>观察引擎行为</strong>、<strong>追踪执行流程</strong>和<strong>诊断问题</strong>。本子系统解决四个核心痛点：</p>
+
+<div class="card">
+    <h4>US1 — 引擎开发者记录诊断消息 <span class="badge p1">P1 MVP</span></h4>
+    <p>使用 <code>SG_LOG</code> 宏在任意引擎层发出带类别和严重性的结构化日志消息，无需任何初始化代码。</p>
+</div>
+
+<div class="card">
+    <h4>US2 — 引擎开发者捕获无效状态 <span class="badge p1">P1</span></h4>
+    <p>使用 <code>SG_CHECK</code> / <code>SG_VERIFY</code> / <code>SG_CHECKF</code> 在运行时验证假设和不变量，Debug 构建中报告失败位置。</p>
+</div>
+
+<div class="card">
+    <h4>US3 — 按类别过滤日志输出 <span class="badge p2">P2</span></h4>
+    <p>配置日志系统仅显示特定类别或特定严重性以上的消息，实现聚焦调试。</p>
+</div>
+
+<div class="card">
+    <h4>US4 — 声明自定义日志类别 <span class="badge p2">P2</span></h4>
+    <p>新子系统开发者可以声明自己的日志类别（如 <code>LogMeshlet</code>），自动注册并可用于过滤。</p>
+</div>
+
+<h3 id="sec2-2">2. 架构目标与定位</h3>
+<p>日志与断言系统位于引擎的<strong>最底层（Core 层）</strong>，是所有上层模块的基础依赖。它不依赖任何图形 API 或上层模块。</p>
+
+<div class="mermaid">
+<pre class="mermaid">
+graph TB
+    subgraph "Engine Architecture"
+        APP["Application Layer"]
+        REN["Renderer Layer"]
+        RHI["RHI Layer"]
+        BACK["Backend Layer<br/>(Vulkan/D3D12/Metal)"]
+        CORE["<strong>Core Layer</strong><br/>Logging &amp; Assertions ✦"]
+    end
+
+    APP --> REN
+    REN --> RHI
+    RHI --> BACK
+    APP --> CORE
+    REN --> CORE
+    RHI --> CORE
+    BACK --> CORE
+
+    style CORE fill:#1f6feb,stroke:#58a6ff,color:#fff
+</pre>
+</div>
+
+<h3 id="sec2-3">3. 边界与非目标（约束）</h3>
+<table>
+    <tr><th>约束</th><th>说明</th></tr>
+    <tr><td>❌ 文件日志 Sink</td><td>本阶段不实现文件输出，仅控制台</td></tr>
+    <tr><td>❌ 远程/网络日志</td><td>不在范围内</td></tr>
+    <tr><td>❌ 异步/队列日志</td><td>不在范围内</td></tr>
+    <tr><td>❌ ANSI 彩色输出</td><td>未来增强</td></tr>
+    <tr><td>❌ 性能计时/Profiling</td><td>独立的未来阶段</td></tr>
+    <tr><td>❌ 自定义内存分配器</td><td>日志缓冲区使用栈分配</td></tr>
+    <tr><td>⚠️ 线程安全</td><td>使用 <code>std::mutex</code> 作为临时方案，等待自研线程库</td></tr>
+    <tr><td>✅ 零依赖</td><td>Core 层不得包含 RHI/Backend/Renderer/Application 头文件</td></tr>
+</table>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+     三、交互与产品设计
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec3">
+<h2><span class="num">三、</span>交互与产品设计</h2>
+
+<h3 id="sec3-1">1. 用户使用路径</h3>
+
+<h4>(1) 日志使用路径</h4>
+<pre><code><span class="cm">// 1. 在任意引擎源文件中包含 CoreMinimal.h（通常已包含）</span>
+<span class="pp">#include</span> <span class="str">"Core/CoreMinimal.h"</span>
+
+<span class="cm">// 2. 直接使用 SG_LOG 宏 —— 无需任何初始化</span>
+<span class="mc">SG_LOG</span>(LogCore, Info, <span class="str">"Engine initialized version %d.%d"</span>, <span class="num">1</span>, <span class="num">0</span>);
+<span class="mc">SG_LOG</span>(LogRHI, Warning, <span class="str">"Buffer size %zu exceeds limit"</span>, size);
+<span class="mc">SG_LOG</span>(LogRenderer, Error, <span class="str">"Failed to compile shader: %s"</span>, name);
+
+<span class="cm">// 3. 声明自定义类别（头文件中）</span>
+<span class="mc">SG_DECLARE_LOG_CATEGORY_EXTERN</span>(LogMeshlet, ELogSeverity::Verbose)
+
+<span class="cm">// 4. 定义自定义类别（源文件中）</span>
+<span class="mc">SG_DEFINE_LOG_CATEGORY</span>(LogMeshlet)
+
+<span class="cm">// 5. 使用自定义类别</span>
+<span class="mc">SG_LOG</span>(LogMeshlet, Info, <span class="str">"Processing cluster %d"</span>, id);</code></pre>
+
+<h4>(2) 断言使用路径</h4>
+<pre><code><span class="cm">// SG_CHECK — Debug 构建中检查，Release 中完全移除</span>
+<span class="mc">SG_CHECK</span>(ptr != <span class="kw">nullptr</span>);
+
+<span class="cm">// SG_VERIFY — 所有构建中都执行表达式，仅 Debug 中检查结果</span>
+<span class="mc">SG_VERIFY</span>(Initialize());
+
+<span class="cm">// SG_CHECKF — 带格式化消息的断言</span>
+<span class="mc">SG_CHECKF</span>(index < count, <span class="str">"Index %d out of range [0, %d)"</span>, index, count);</code></pre>
+
+<h4>(3) 控制台输出格式</h4>
+<pre><code><span class="cm">// 输出格式: [HH:MM:SS.mmm] Category: Severity: Message</span>
+[14:32:07.123] LogCore: Info: Engine initialized version 1.0
+[14:32:07.124] LogRHI: Warning: Buffer size 65536 exceeds limit
+[14:32:07.125] LogRenderer: Error: Failed to compile shader: PBR_Forward</code></pre>
+
+<h3 id="sec3-2">2. 核心规则与状态机</h3>
+
+<h4>(1) 日志消息处理流程</h4>
+<div class="mermaid">
+<pre class="mermaid">
+flowchart LR
+    A["SG_LOG 宏调用"] --> B{"宏级别<br/>严重性检查"}
+    B -- "被过滤<br/>(仅1次整数比较)" --> X["❌ 不执行任何操作"]
+    B -- "通过" --> C["格式化消息<br/>(调用者栈上)"]
+    C --> D{"全局严重性<br/>过滤"}
+    D -- "被过滤" --> X
+    D -- "通过" --> E["获取 mutex 锁"]
+    E --> F["写入 Console Sink"]
+    F --> G{"严重性 == Fatal?"}
+    G -- "否" --> H["✅ 完成"]
+    G -- "是" --> I["SG_DEBUG_BREAK<br/>(仅 Debug)"]
+    I --> J["std::abort()"]
+</pre>
+</div>
+
+<h4>(2) 断言失败处理流程</h4>
+<div class="mermaid">
+<pre class="mermaid">
+flowchart LR
+    A["SG_CHECK(Expr)"] --> B{"_DEBUG<br/>已定义?"}
+    B -- "Release" --> X["❌ 完全编译移除"]
+    B -- "Debug" --> C{"Expr == true?"}
+    C -- "是" --> OK["✅ 继续执行"]
+    C -- "否" --> D["记录 file/line/expr"]
+    D --> E["调用断言处理器"]
+    E --> F["SG_DEBUG_BREAK()"]
+    F --> G["🔄 开发者可在<br/>调试器中继续"]
+</pre>
+</div>
+
+<h4>(3) 严重性级别</h4>
+<table>
+    <tr>
+        <th>级别</th><th>值</th><th>输出流</th><th>用途</th>
+    </tr>
+    <tr>
+        <td><span class="sev verbose">Verbose</span></td>
+        <td>0</td><td>stdout</td>
+        <td>详细诊断输出，深度调试用</td>
+    </tr>
+    <tr>
+        <td><span class="sev info">Info</span></td>
+        <td>1</td><td>stdout</td>
+        <td>一般信息性消息</td>
+    </tr>
+    <tr>
+        <td><span class="sev warning">Warning</span></td>
+        <td>2</td><td>stderr</td>
+        <td>潜在问题，不阻止运行</td>
+    </tr>
+    <tr>
+        <td><span class="sev error">Error</span></td>
+        <td>3</td><td>stderr</td>
+        <td>可恢复的错误</td>
+    </tr>
+    <tr>
+        <td><span class="sev fatal">Fatal</span></td>
+        <td>4</td><td>stderr</td>
+        <td>不可恢复错误，终止进程</td>
+    </tr>
+</table>
+
+<h4>(4) 断言宏行为对比</h4>
+<table>
+    <tr>
+        <th>宏</th><th>Debug 构建</th><th>Release 构建</th><th>表达式求值</th><th>失败行为</th>
+    </tr>
+    <tr>
+        <td><code>SG_CHECK(Expr)</code></td>
+        <td>✅ 活跃</td><td>❌ 编译移除</td>
+        <td>仅 Debug</td><td>日志 + 调试器断点</td>
+    </tr>
+    <tr>
+        <td><code>SG_VERIFY(Expr)</code></td>
+        <td>✅ 活跃</td><td>⚡ 仅求值</td>
+        <td>始终</td><td>日志 + 调试器断点 (Debug)</td>
+    </tr>
+    <tr>
+        <td><code>SG_CHECKF(Expr, Fmt, ...)</code></td>
+        <td>✅ 活跃</td><td>❌ 编译移除</td>
+        <td>仅 Debug</td><td>日志(含消息) + 调试器断点</td>
+    </tr>
+</table>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+     四、技术架构与关键决策
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec4">
+<h2><span class="num">四、</span>技术架构与关键决策</h2>
+
+<h3 id="sec4-1">1. 技术栈与基础设施</h3>
+<table>
+    <tr><th style="width:160px">项目</th><th>选择</th></tr>
+    <tr><td>语言</td><td>C++20（传统头文件/源文件分离，不使用 C++20 Modules）</td></tr>
+    <tr><td>构建系统</td><td>SCons 4.10.1（自动发现 <code>.cpp</code> 文件）</td></tr>
+    <tr><td>外部依赖</td><td>无 —— 仅 C++ 标准库</td></tr>
+    <tr><td>目标平台</td><td>Windows (MSVC)、macOS (Apple Clang)、Linux (GCC/Clang)</td></tr>
+    <tr><td>命名规范</td><td>UE5 风格：<code>E</code> 前缀(枚举)、<code>F</code> 前缀(结构体)、<code>SG_</code> 前缀(宏)</td></tr>
+    <tr><td>格式化方式</td><td>printf 风格（<code>vsnprintf</code>），非 <code>std::format</code></td></tr>
+    <tr><td>线程安全</td><td><code>std::mutex</code>（临时方案）</td></tr>
+</table>
+
+<h3 id="sec4-2">2. 关键信息</h3>
+
+<h4>2.1 模块对应关系</h4>
+<p>日志系统采用<strong>职责分离</strong>设计，共 5 个核心模块：</p>
+
+<div class="mermaid">
+<pre class="mermaid">
+graph TB
+    subgraph "Macro Interface (Header-Only)"
+        SG_LOG["SGLog.h<br/><strong>SG_LOG</strong> 宏<br/>宏级别早期过滤"]
+        SG_ASSERT["SGAssert.h<br/><strong>SG_CHECK / SG_VERIFY / SG_CHECKF</strong><br/>Debug/Release 行为分离"]
+        SG_BREAK["SGPlatformBreak.h<br/><strong>SG_DEBUG_BREAK</strong><br/>跨平台调试器断点"]
+    end
+
+    subgraph "Core Entities (.h + .cpp)"
+        CAT["FLogCategory<br/>命名类别 + 严重性过滤<br/>静态自注册"]
+        LOG["FLog<br/>中央协调器<br/>消息分发 + 线程安全"]
+        SINK["FLogConsoleSink<br/>控制台输出<br/>stdout/stderr 路由"]
+    end
+
+    subgraph "Foundation (Header-Only)"
+        SEV["ELogSeverity<br/>五级严重性枚举"]
+    end
+
+    SG_LOG --> CAT
+    SG_LOG --> LOG
+    SG_ASSERT --> LOG
+    LOG --> SINK
+    LOG --> SG_BREAK
+    CAT --> SEV
+    LOG --> SEV
+
+    style SG_LOG fill:#1f6feb,stroke:#58a6ff,color:#fff
+    style SG_ASSERT fill:#1f6feb,stroke:#58a6ff,color:#fff
+</pre>
+</div>
+
+<table>
+    <tr><th>模块</th><th>职责</th><th>通信方式</th></tr>
+    <tr>
+        <td><code>SG_LOG</code> 宏</td>
+        <td>用户入口点；宏级别严重性过滤（1 次整数比较）</td>
+        <td>直接调用 <code>FLog::LogMessage()</code></td>
+    </tr>
+    <tr>
+        <td><code>FLogCategory</code></td>
+        <td>命名类别管理；存储每类别最低严重性阈值</td>
+        <td>构造时自注册到全局注册表</td>
+    </tr>
+    <tr>
+        <td><code>FLog</code></td>
+        <td>中央协调器；全局过滤、消息格式化、mutex 序列化</td>
+        <td>调用 <code>FLogConsoleSink::Write()</code></td>
+    </tr>
+    <tr>
+        <td><code>FLogConsoleSink</code></td>
+        <td>控制台输出；Verbose/Info → stdout，Warning+ → stderr</td>
+        <td>被 <code>FLog</code> 调用</td>
+    </tr>
+    <tr>
+        <td><code>SG_DEBUG_BREAK</code></td>
+        <td>跨平台调试器断点抽象</td>
+        <td>被断言处理器和 Fatal 日志调用</td>
+    </tr>
+</table>
+
+<h4>2.2 文件结构</h4>
+<div class="file-tree">
+<span class="dir">Source/Core/</span><br>
+├── <span class="dir">Public/Core/</span><br>
+│   ├── <span class="mod">CoreMinimal.h</span> <span style="color:var(--warn)">(更新: 添加日志/断言 includes)</span><br>
+│   ├── <span class="new">ELogSeverity.h</span> <span style="color:var(--accent2)">(新增)</span><br>
+│   ├── <span class="new">FLogCategory.h</span> <span style="color:var(--accent2)">(新增)</span><br>
+│   ├── <span class="new">FLog.h</span> <span style="color:var(--accent2)">(新增)</span><br>
+│   ├── <span class="new">FLogConsoleSink.h</span> <span style="color:var(--accent2)">(新增)</span><br>
+│   ├── <span class="new">SGAssert.h</span> <span style="color:var(--accent2)">(新增)</span><br>
+│   ├── <span class="new">SGLog.h</span> <span style="color:var(--accent2)">(新增)</span><br>
+│   └── <span class="new">SGPlatformBreak.h</span> <span style="color:var(--accent2)">(新增)</span><br>
+├── <span class="dir">Private/</span><br>
+│   ├── <span class="new">FLog.cpp</span> <span style="color:var(--accent2)">(新增)</span><br>
+│   ├── <span class="new">FLogCategory.cpp</span> <span style="color:var(--accent2)">(新增)</span><br>
+│   └── <span class="new">FLogConsoleSink.cpp</span> <span style="color:var(--accent2)">(新增)</span><br>
+└── SConscript <span style="color:var(--text-dim)">(无变更)</span><br>
+<br>
+<span class="dir">Tests/</span><br>
+├── <span class="new">LoggingAssertionTests.h</span> <span style="color:var(--accent2)">(新增)</span><br>
+├── <span class="new">LoggingAssertionTests.cpp</span> <span style="color:var(--accent2)">(新增: 49 个测试)</span><br>
+├── <span class="mod">Main.cpp</span> <span style="color:var(--warn)">(更新: 集成新测试套件)</span><br>
+└── SConscript <span style="color:var(--text-dim)">(无变更)</span>
+</div>
+
+<h4>2.3 关键性能特性</h4>
+<div class="card highlight">
+    <h4>宏级别零开销早期过滤</h4>
+    <p>当消息被过滤时，<code>SG_LOG</code> 宏仅执行<strong>一次整数比较</strong>——不调用任何函数、不格式化字符串、不求值参数：</p>
+<pre><code><span class="pp">#define</span> <span class="mc">SG_LOG</span>(Category, Severity, Format, ...) \
+    <span class="kw">do</span> { \
+        <span class="kw">if</span> (<span class="kw">static_cast</span>&lt;<span class="tp">int</span>&gt;(ELogSeverity::Severity) >= \
+            <span class="kw">static_cast</span>&lt;<span class="tp">int</span>&gt;(Category.GetMinSeverity())) \
+        { \
+            FLog::LogMessage(Category, ELogSeverity::Severity, \
+                __FILE__, __LINE__, Format, ##__VA_ARGS__); \
+        } \
+    } <span class="kw">while</span> (<span class="num">0</span>)</code></pre>
+</div>
+
+<div class="card">
+    <h4>线程安全策略</h4>
+    <p>消息格式化在<strong>调用者栈上</strong>完成（无锁），仅在写入 Sink 时获取 <code>std::mutex</code>，最小化临界区：</p>
+<pre><code><span class="cm">// 1. 格式化 (无锁, 调用者栈上)</span>
+<span class="tp">char</span> UserBuffer[<span class="num">1024</span>];
+std::vsnprintf(UserBuffer, <span class="kw">sizeof</span>(UserBuffer), Format, Args);
+
+<span class="cm">// 2. 写入 (加锁, 最小临界区)</span>
+{
+    std::lock_guard&lt;std::mutex&gt; Lock(GLogMutex);
+    FLogConsoleSink::Write(Severity, FinalBuffer);
+}</code></pre>
+</div>
+
+<h3 id="sec4-3">3. 架构决策记录 (ADR)</h3>
+
+<details class="adr">
+    <summary>ADR-1: 日志消息格式化策略 — 选择 <code>vsnprintf</code> + 1024 字节栈缓冲区</summary>
+    <div class="body">
+        <p><strong>决策</strong>：使用 <code>vsnprintf</code> 配合 1024 字节固定栈缓冲区。超长消息截断并附加 <code>...</code> 指示符。</p>
+        <p><strong>理由</strong>：栈缓冲区避免了常见情况下的堆分配（大多数日志消息远小于 1KB）。截断对诊断消息是可接受的。<code>vsnprintf</code> 是安全的（无缓冲区溢出）且在所有目标平台可用。</p>
+        <p class="rejected"><strong>被否决的方案</strong>：① <code>vasprintf</code> 动态堆分配（不必要的复杂性和堆压力）；② <code>std::format</code>（规范明确选择 printf 风格以获得更广泛的编译器兼容性）；③ <code>fmt::format</code> 第三方库（学习导向项目不引入外部依赖）。</p>
+    </div>
+</details>
+
+<details class="adr">
+    <summary>ADR-2: 宏级别早期过滤 — 选择 <code>if</code> 语句内联检查</summary>
+    <div class="body">
+        <p><strong>决策</strong>：<code>SG_LOG</code> 宏展开为 <code>if</code> 语句，在求值任何格式参数或调用任何函数之前检查类别的当前最低严重性。</p>
+        <p><strong>理由</strong>：规范 FR-016 明确要求——被过滤消息的开销最多为一次整数比较。宏读取类别的 <code>MinSeverity</code> 字段并与消息严重性比较。</p>
+        <p class="rejected"><strong>被否决的方案</strong>：① 在 <code>FLog::LogMessage</code> 内部格式化后过滤（违反 FR-016）；② 编译时剥离 <code>SG_LOG_STRIP_BELOW_WARNING</code>（本阶段不需要）。</p>
+    </div>
+</details>
+
+<details class="adr">
+    <summary>ADR-3: 线程安全日志输出 — 选择 <code>std::mutex</code> 最小临界区</summary>
+    <div class="body">
+        <p><strong>决策</strong>：使用单个 <code>std::mutex</code> 序列化 Sink 写入。格式化在调用者栈上完成（无锁），仅写入时加锁。</p>
+        <p><strong>理由</strong>：规范假设尚无自定义线程库。<code>std::mutex</code> 是最简单的正确方案。格式化在获取锁之前完成，最小化竞争。</p>
+        <p class="rejected"><strong>被否决的方案</strong>：① 无锁环形缓冲区 + 后台写入线程（过度工程化）；② 每 Sink 独立 mutex（仅一个 Sink，不必要的抽象）；③ 无同步（违反 FR-013）。</p>
+    </div>
+</details>
+
+<details class="adr">
+    <summary>ADR-4: 日志类别注册模式 — 选择静态自注册</summary>
+    <div class="body">
+        <p><strong>决策</strong>：每个 <code>FLogCategory</code> 实例在构造函数中自注册到全局类别列表。类别使用声明宏作为全局/静态变量声明。</p>
+        <p><strong>理由</strong>：镜像 UE5 的 <code>DECLARE_LOG_CATEGORY_EXTERN</code> / <code>DEFINE_LOG_CATEGORY</code> 模式。静态初始化确保类别在 <code>main()</code> 之前可用（FR-014 零配置启动）。</p>
+        <p class="rejected"><strong>被否决的方案</strong>：① 显式 <code>FLog::RegisterCategory()</code> 调用（违反 FR-014）；② 编译时模板元编程类别表（过于复杂）。</p>
+    </div>
+</details>
+
+<details class="adr">
+    <summary>ADR-5: 平台调试器断点 — 选择 <code>__builtin_debugtrap()</code></summary>
+    <div class="body">
+        <p><strong>决策</strong>：提供 <code>SG_DEBUG_BREAK()</code> 宏，展开为平台特定的调试器断点内联函数。MSVC 使用 <code>__debugbreak()</code>，GCC/Clang 使用 <code>__builtin_debugtrap()</code>。</p>
+        <p><strong>理由</strong>：使用 <code>__builtin_debugtrap()</code> 而非 <code>__builtin_trap()</code>，因为 <code>debugtrap</code> 是<strong>可恢复的</strong>（开发者可以在调试器中继续），而 <code>trap</code> 不可恢复。</p>
+        <p class="rejected"><strong>被否决的方案</strong>：① <code>raise(SIGTRAP)</code>（Windows 不可用）；② 所有平台 <code>std::abort()</code>（失去调试器断点能力）。</p>
+    </div>
+</details>
+
+<details class="adr">
+    <summary>ADR-6: Fatal 日志 vs 断言失败行为分离</summary>
+    <div class="body">
+        <p><strong>决策</strong>：实现两条不同的终止路径：</p>
+        <ul>
+            <li><strong>断言失败</strong>（<code>SG_CHECK</code>）：日志 → <code>SG_DEBUG_BREAK()</code>（仅 Debug）。不调用 <code>std::abort()</code>。开发者可继续。</li>
+            <li><strong>Fatal 日志</strong>（<code>SG_LOG(Cat, Fatal, ...)</code>）：日志 → <code>SG_DEBUG_BREAK()</code>（仅 Debug）→ <code>std::abort()</code>（始终）。</li>
+        </ul>
+        <p><strong>理由</strong>：断言是"软停止"用于捕获开发中的 bug。Fatal 日志是"硬停止"用于不可恢复错误。行为差异是有意的。</p>
+    </div>
+</details>
+
+<details class="adr">
+    <summary>ADR-7: 控制台输出格式 — 选择 <code>[HH:MM:SS.mmm] Cat: Sev: Msg</code></summary>
+    <div class="body">
+        <p><strong>决策</strong>：使用格式 <code>[HH:MM:SS.mmm] CategoryName: SeverityLabel: Message\n</code>。</p>
+        <p><strong>理由</strong>：紧凑、可扫描。毫秒精度对时间敏感的调试有用。类别和严重性清晰标记，便于 grep/过滤工作流。无日期组件——开发期间日志会话通常短暂。</p>
+        <p class="rejected"><strong>被否决的方案</strong>：① ISO 8601 完整时间戳（控制台输出过于冗长）；② ANSI 彩色代码（不可移植）；③ UE5 风格带日期格式（本阶段不必要）。</p>
+    </div>
+</details>
+
+<details class="adr">
+    <summary>ADR-8: 验证策略 — 选择自定义断言处理器注入</summary>
+    <div class="body">
+        <p><strong>决策</strong>：提供 <code>FLog::SetAssertionHandler()</code> 允许测试拦截断言失败。生产环境使用默认处理器（<code>SG_DEBUG_BREAK()</code>），测试中使用自定义处理器记录失败详情。</p>
+        <p><strong>理由</strong>：避免 fork/exec 子进程测试的复杂性。SC-003 要求 100% 覆盖断言行为。</p>
+        <p class="rejected"><strong>被否决的方案</strong>：① Fork/exec 子进程（复杂且平台依赖）；② 跳过断言失败测试（违反 SC-003）。</p>
+    </div>
+</details>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+     五、实施与验证
+     ───────────────────────────────────────────────────────────── -->
+<section id="sec5">
+<h2><span class="num">五、</span>实施与验证（任务流）</h2>
+
+<h3 id="sec5-1">5.1 任务拆解清单</h3>
+
+<table>
+    <tr><th>阶段</th><th>任务数</th><th>关键交付物</th></tr>
+    <tr><td>Phase 1: Setup</td><td>4</td><td>测试脚手架（<code>LoggingAssertionTests.h/.cpp</code>、<code>Main.cpp</code> 更新）</td></tr>
+    <tr><td>Phase 2: Foundational</td><td>3</td><td><code>ELogSeverity.h</code>、<code>SGPlatformBreak.h</code></td></tr>
+    <tr><td>Phase 3: US1 — Logging</td><td>16</td><td><code>FLogCategory</code>、<code>FLogConsoleSink</code>、<code>FLog</code>、<code>SGLog.h</code>、预定义类别、<code>CoreMinimal.h</code> 更新</td></tr>
+    <tr><td>Phase 4: US2 — Assertions</td><td>7</td><td><code>SGAssert.h</code>（<code>SG_CHECK</code>、<code>SG_VERIFY</code>、<code>SG_CHECKF</code>）</td></tr>
+    <tr><td>Phase 5: US3 — Filtering</td><td>5</td><td>每类别过滤、全局过滤、零开销验证</td></tr>
+    <tr><td>Phase 6: US4 — Custom Categories</td><td>5</td><td>自定义类别声明、自注册验证</td></tr>
+    <tr><td>Phase 7: Polish</td><td>8</td><td>线程安全验证、零配置启动、命名规范审查、跨层依赖检查</td></tr>
+</table>
+
+<p><strong>总计</strong>：48 个任务，全部已完成 ✅</p>
+
+<h3 id="sec5-2">5.2 验收标准</h3>
+
+<ul class="check">
+    <li><strong>SC-001</strong>：开发者可以在任意引擎源文件中添加日志语句，无需额外设置或初始化代码即可在控制台看到格式化输出。</li>
+    <li><strong>SC-002</strong>：五个严重性级别产生视觉可区分的输出（不同标签），开发者可以立即识别警告和错误。</li>
+    <li><strong>SC-003</strong>：断言宏在 Debug 构建中捕获 100% 的违反前置条件，报告每次失败的精确源位置（文件 + 行号）。</li>
+    <li><strong>SC-004</strong>：<code>SG_CHECK</code> 断言在 Release 构建中零可测量运行时开销（完全编译移除）。</li>
+    <li><strong>SC-005</strong>：<code>SG_VERIFY</code> 在所有构建配置中始终执行其表达式，确保依赖副作用的代码不会被静默移除。</li>
+    <li><strong>SC-006</strong>：基于类别的过滤允许开发者在聚焦单个子系统时减少至少 80% 的可见日志输出，无需修改任何日志调用点。</li>
+    <li><strong>SC-007</strong>：多线程并发日志产生正确格式化、非交错的输出行（100% 通过率）。</li>
+    <li><strong>SC-008</strong>：日志和断言系统在 Windows (MSVC)、macOS (Clang) 和 Linux (GCC) 上编译并通过所有单元测试。</li>
+    <li><strong>SC-009</strong>：单元测试套件实现所有公共 API 入口点的 100% 覆盖（每个宏、每个严重性级别、每个过滤路径）。</li>
+</ul>
+
+<div class="card highlight" style="margin-top: 24px;">
+    <h4>测试结果摘要</h4>
+    <table>
+        <tr><th>测试套件</th><th>通过</th><th>失败</th><th>状态</th></tr>
+        <tr><td>Core Foundation</td><td>55</td><td>0</td><td>✅</td></tr>
+        <tr><td>Core Math</td><td>67</td><td>0</td><td>✅</td></tr>
+        <tr><td>Logging &amp; Assertions</td><td>49</td><td>0</td><td>✅</td></tr>
+        <tr><td><strong>总计</strong></td><td><strong>171</strong></td><td><strong>0</strong></td><td><strong>✅ 全部通过</strong></td></tr>
+    </table>
+</div>
+
+</section>
+
+</main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     Mermaid.js (CDN)
+     ═══════════════════════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+            primaryColor: '#1f6feb',
+            primaryTextColor: '#c9d1d9',
+            primaryBorderColor: '#30363d',
+            lineColor: '#58a6ff',
+            secondaryColor: '#161b22',
+            tertiaryColor: '#0d1117',
+            fontFamily: 'Inter, -apple-system, sans-serif',
+            fontSize: '13px'
+        }
+    });
+
+    // Simple TOC active state tracking
+    const tocLinks = document.querySelectorAll('.toc a');
+    const sections = document.querySelectorAll('section[id], h3[id]');
+
+    function updateActiveToc() {
+        let current = '';
+        sections.forEach(section => {
+            const rect = section.getBoundingClientRect();
+            if (rect.top <= 120) current = section.id;
+        });
+        tocLinks.forEach(link => {
+            link.classList.toggle('active', link.getAttribute('href') === '#' + current);
+        });
+    }
+
+    document.querySelector('.content')?.addEventListener('scroll', updateActiveToc);
+    window.addEventListener('scroll', updateActiveToc);
+    updateActiveToc();
+</script>
+</body>
+</html>

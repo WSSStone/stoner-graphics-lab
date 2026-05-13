@@ -26,11 +26,10 @@
 
 **Purpose**: Prepare the logging/assertion test harness and verify existing Core layer is ready.
 
-- [ ] T001 Create `Tests/LoggingAssertionTests.h` with a `RunLoggingAssertionTests()` declaration and shared test result type
-- [ ] T002 Create `Tests/LoggingAssertionTests.cpp` with a minimal logging/assertion test harness scaffold that compiles but contains no passing feature assertions yet
-- [ ] T003 Update `Tests/Main.cpp` to include `LoggingAssertionTests.h` and call `RunLoggingAssertionTests()`, returning nonzero when logging/assertion verification fails
-- [ ] T004 Run `scons` from the repository root and fix any scaffold build errors in `Tests/LoggingAssertionTests.cpp` or `Tests/Main.cpp`
-
+- [x] T001 Create `Tests/LoggingAssertionTests.h` with a `RunLoggingAssertionTests()` declaration and shared test result type
+- [x] T002 Create `Tests/LoggingAssertionTests.cpp` with a minimal logging/assertion test harness scaffold that compiles but contains no passing feature assertions yet
+- [x] T003 Update `Tests/Main.cpp` to include `LoggingAssertionTests.h` and call `RunLoggingAssertionTests()`, returning nonzero when logging/assertion verification fails
+- [x] T004 Run `scons` from the repository root and fix any scaffold build errors in `Tests/LoggingAssertionTests.cpp` or `Tests/Main.cpp`
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
@@ -39,9 +38,9 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T005 [P] Create `Source/Core/Public/Core/ELogSeverity.h` with `enum class ELogSeverity : uint8 { Verbose = 0, Info = 1, Warning = 2, Error = 3, Fatal = 4 }` inside `namespace Stoner::Core`, including a `SeverityToString()` helper function declaration
-- [ ] T006 [P] Create `Source/Core/Public/Core/SGPlatformBreak.h` with `SG_DEBUG_BREAK()` macro using `__debugbreak()` for MSVC, `__builtin_debugtrap()` for GCC/Clang, and `std::abort()` as fallback; guarded by `_DEBUG` (expands to nothing in Release)
-- [ ] T007 Run `scons` from the repository root and fix any foundational build errors in `Source/Core/Public/Core/ELogSeverity.h` or `Source/Core/Public/Core/SGPlatformBreak.h`
+- [x] T005 [P] Create `Source/Core/Public/Core/ELogSeverity.h` with `enum class ELogSeverity : uint8 { Verbose = 0, Info = 1, Warning = 2, Error = 3, Fatal = 4 }` inside `namespace Stoner::Core`, including a `SeverityToString()` helper function declaration
+- [x] T006 [P] Create `Source/Core/Public/Core/SGPlatformBreak.h` with `SG_DEBUG_BREAK()` macro using `__debugbreak()` for MSVC, `__builtin_debugtrap()` for GCC/Clang, and `std::abort()` as fallback; guarded by `_DEBUG` (expands to nothing in Release)
+- [x] T007 Run `scons` from the repository root and fix any foundational build errors in `Source/Core/Public/Core/ELogSeverity.h` or `Source/Core/Public/Core/SGPlatformBreak.h`
 
 **Checkpoint**: Foundational headers build. User story implementation can begin.
 
@@ -55,25 +54,25 @@
 
 ### Tests for User Story 1
 
-- [ ] T008 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `ELogSeverity` enum values: confirm `Verbose < Info < Warning < Error < Fatal` ordering and that `SeverityToString()` returns correct labels for all five levels
-- [ ] T009 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `FLogCategory` construction: confirm `GetName()` returns the category name, `GetMinSeverity()` returns the default, and `SetMinSeverity()` updates the threshold
-- [ ] T010 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `FLogConsoleSink` output format: capture sink output and verify it matches `[HH:MM:SS.mmm] CategoryName: SeverityLabel: Message\n` pattern
-- [ ] T011 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `FLog::LogMessage`: verify all five severity levels produce correctly labeled output, verify stdout vs stderr routing (Verbose/Info → stdout, Warning/Error/Fatal → stderr)
-- [ ] T012 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `SG_LOG` macro: verify macro-level early-out by confirming a side-effect counter is NOT incremented when the message is filtered out
-- [ ] T013 [US1] Add failing verification case in `Tests/LoggingAssertionTests.cpp` for Fatal log behavior: install a custom assertion handler via `FLog::SetAssertionHandler()`, call `SG_LOG(LogCore, Fatal, ...)`, and verify the handler is invoked (do not actually abort in tests)
+- [x] T008 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `ELogSeverity` enum values: confirm `Verbose < Info < Warning < Error < Fatal` ordering and that `SeverityToString()` returns correct labels for all five levels
+- [x] T009 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `FLogCategory` construction: confirm `GetName()` returns the category name, `GetMinSeverity()` returns the default, and `SetMinSeverity()` updates the threshold
+- [x] T010 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `FLogConsoleSink` output format: capture sink output and verify it matches `[HH:MM:SS.mmm] CategoryName: SeverityLabel: Message\n` pattern
+- [x] T011 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `FLog::LogMessage`: verify all five severity levels produce correctly labeled output, verify stdout vs stderr routing (Verbose/Info → stdout, Warning/Error/Fatal → stderr)
+- [x] T012 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `SG_LOG` macro: verify macro-level early-out by confirming a side-effect counter is NOT incremented when the message is filtered out
+- [x] T013 [US1] Add failing verification case in `Tests/LoggingAssertionTests.cpp` for Fatal log behavior: install a custom assertion handler via `FLog::SetAssertionHandler()`, call `SG_LOG(LogCore, Fatal, ...)`, and verify the handler is invoked (do not actually abort in tests)
 
 ### Implementation for User Story 1
 
-- [ ] T014 [P] [US1] Create `Source/Core/Public/Core/FLogCategory.h` with `struct FLogCategory` inside `namespace Stoner::Core`: constructor taking `const char* Name` and `ELogSeverity DefaultMinSeverity`, `GetName()`, `GetMinSeverity()`, `SetMinSeverity()`, self-registration into global category list, and `SG_DECLARE_LOG_CATEGORY_EXTERN` / `SG_DEFINE_LOG_CATEGORY` declaration macros
-- [ ] T015 [P] [US1] Create `Source/Core/Public/Core/FLogConsoleSink.h` with `struct FLogConsoleSink` inside `namespace Stoner::Core`: `Write(ELogSeverity, const char* FormattedMessage)` method that routes to stdout (Verbose/Info) or stderr (Warning/Error/Fatal)
-- [ ] T016 [P] [US1] Create `Source/Core/Public/Core/FLog.h` with `struct FLog` inside `namespace Stoner::Core`: static `LogMessage(FLogCategory&, ELogSeverity, const char* File, int Line, const char* Format, ...)`, `SetGlobalMinSeverity()`, `GetGlobalMinSeverity()`, `SetAssertionHandler()`, and `HandleAssertionFailure()` declarations
-- [ ] T017 [US1] Create `Source/Core/Private/FLogCategory.cpp` implementing `FLogCategory` constructor with self-registration into a static `TArray<FLogCategory*>` global category list, and `SeverityToString()` helper
-- [ ] T018 [US1] Create `Source/Core/Private/FLogConsoleSink.cpp` implementing `FLogConsoleSink::Write()` with `[HH:MM:SS.mmm]` timestamp formatting using `std::chrono::system_clock`, 1024-byte stack buffer via `vsnprintf`, truncation with `...`, and stdout/stderr routing
-- [ ] T019 [US1] Create `Source/Core/Private/FLog.cpp` implementing `FLog::LogMessage()` with `std::mutex` serialization (format on caller stack, lock only for sink write), Fatal severity handling (log → `SG_DEBUG_BREAK()` in Debug → `std::abort()`), global severity filtering, and replaceable assertion handler
-- [ ] T020 [US1] Create `Source/Core/Public/Core/SGLog.h` with `SG_LOG(Category, Severity, Format, ...)` macro: `do { if (static_cast<int>(ELogSeverity::Severity) >= static_cast<int>(Category.GetMinSeverity())) { FLog::LogMessage(...); } } while(0)` pattern with `__FILE__` and `__LINE__` passthrough
-- [ ] T021 [US1] Define pre-defined log categories: declare `LogCore` in `Source/Core/Public/Core/FLogCategory.h` via `SG_DECLARE_LOG_CATEGORY_EXTERN`, define `LogCore` in `Source/Core/Private/FLogCategory.cpp` via `SG_DEFINE_LOG_CATEGORY`; declare `LogRHI`, `LogRenderer`, `LogBackend`, `LogApplication` similarly
-- [ ] T022 [US1] Update `Source/Core/Public/Core/CoreMinimal.h` to include `ELogSeverity.h`, `FLogCategory.h`, `FLog.h`, `FLogConsoleSink.h`, `SGLog.h`, and `SGPlatformBreak.h`
-- [ ] T023 [US1] Run `scons` and `StonerTest` locally, then fix any US1 failures in `Source/Core/Public/Core/`, `Source/Core/Private/`, or `Tests/LoggingAssertionTests.cpp`
+- [x] T014 [P] [US1] Create `Source/Core/Public/Core/FLogCategory.h` with `struct FLogCategory` inside `namespace Stoner::Core`: constructor taking `const char* Name` and `ELogSeverity DefaultMinSeverity`, `GetName()`, `GetMinSeverity()`, `SetMinSeverity()`, self-registration into global category list, and `SG_DECLARE_LOG_CATEGORY_EXTERN` / `SG_DEFINE_LOG_CATEGORY` declaration macros
+- [x] T015 [P] [US1] Create `Source/Core/Public/Core/FLogConsoleSink.h` with `struct FLogConsoleSink` inside `namespace Stoner::Core`: `Write(ELogSeverity, const char* FormattedMessage)` method that routes to stdout (Verbose/Info) or stderr (Warning/Error/Fatal)
+- [x] T016 [P] [US1] Create `Source/Core/Public/Core/FLog.h` with `struct FLog` inside `namespace Stoner::Core`: static `LogMessage(FLogCategory&, ELogSeverity, const char* File, int Line, const char* Format, ...)`, `SetGlobalMinSeverity()`, `GetGlobalMinSeverity()`, `SetAssertionHandler()`, and `HandleAssertionFailure()` declarations
+- [x] T017 [US1] Create `Source/Core/Private/FLogCategory.cpp` implementing `FLogCategory` constructor with self-registration into a static `TArray<FLogCategory*>` global category list, and `SeverityToString()` helper
+- [x] T018 [US1] Create `Source/Core/Private/FLogConsoleSink.cpp` implementing `FLogConsoleSink::Write()` with `[HH:MM:SS.mmm]` timestamp formatting using `std::chrono::system_clock`, 1024-byte stack buffer via `vsnprintf`, truncation with `...`, and stdout/stderr routing
+- [x] T019 [US1] Create `Source/Core/Private/FLog.cpp` implementing `FLog::LogMessage()` with `std::mutex` serialization (format on caller stack, lock only for sink write), Fatal severity handling (log → `SG_DEBUG_BREAK()` in Debug → `std::abort()`), global severity filtering, and replaceable assertion handler
+- [x] T020 [US1] Create `Source/Core/Public/Core/SGLog.h` with `SG_LOG(Category, Severity, Format, ...)` macro: `do { if (static_cast<int>(ELogSeverity::Severity) >= static_cast<int>(Category.GetMinSeverity())) { FLog::LogMessage(...); } } while(0)` pattern with `__FILE__` and `__LINE__` passthrough
+- [x] T021 [US1] Define pre-defined log categories: declare `LogCore` in `Source/Core/Public/Core/FLogCategory.h` via `SG_DECLARE_LOG_CATEGORY_EXTERN`, define `LogCore` in `Source/Core/Private/FLogCategory.cpp` via `SG_DEFINE_LOG_CATEGORY`; declare `LogRHI`, `LogRenderer`, `LogBackend`, `LogApplication` similarly
+- [x] T022 [US1] Update `Source/Core/Public/Core/CoreMinimal.h` to include `ELogSeverity.h`, `FLogCategory.h`, `FLog.h`, `FLogConsoleSink.h`, `SGLog.h`, and `SGPlatformBreak.h`
+- [x] T023 [US1] Run `scons` and `StonerTest` locally, then fix any US1 failures in `Source/Core/Public/Core/`, `Source/Core/Private/`, or `Tests/LoggingAssertionTests.cpp`
 
 **Checkpoint**: User Story 1 should pass — developers can log at all five severity levels with formatted console output.
 
@@ -87,16 +86,16 @@
 
 ### Tests for User Story 2
 
-- [ ] T024 [US2] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `SG_CHECK(Expr)`: install custom assertion handler, trigger `SG_CHECK(false)`, verify handler receives file path, line number, and expression text `"false"`
-- [ ] T025 [US2] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `SG_CHECKF(Expr, Format, ...)`: trigger `SG_CHECKF(false, "Index %d out of range", 42)`, verify handler receives the formatted message in addition to file/line/expression
-- [ ] T026 [US2] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `SG_VERIFY(Expr)`: call `SG_VERIFY(IncrementCounter())` and verify the counter is always incremented (both Debug and Release behavior), and that assertion handler is invoked when expression is falsy (Debug only)
+- [x] T024 [US2] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `SG_CHECK(Expr)`: install custom assertion handler, trigger `SG_CHECK(false)`, verify handler receives file path, line number, and expression text `"false"`
+- [x] T025 [US2] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `SG_CHECKF(Expr, Format, ...)`: trigger `SG_CHECKF(false, "Index %d out of range", 42)`, verify handler receives the formatted message in addition to file/line/expression
+- [x] T026 [US2] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `SG_VERIFY(Expr)`: call `SG_VERIFY(IncrementCounter())` and verify the counter is always incremented (both Debug and Release behavior), and that assertion handler is invoked when expression is falsy (Debug only)
 
 ### Implementation for User Story 2
 
-- [ ] T027 [US2] Create `Source/Core/Public/Core/SGAssert.h` with `SG_CHECK(Expr)`, `SG_VERIFY(Expr)`, and `SG_CHECKF(Expr, Format, ...)` macros: `SG_CHECK` uses `#Expr` stringification and calls `FLog::HandleAssertionFailure()` on failure, guarded by `_DEBUG`; `SG_VERIFY` always evaluates `Expr` but only checks in Debug; `SG_CHECKF` adds printf-formatted message
-- [ ] T028 [US2] Update `FLog::HandleAssertionFailure()` implementation in `Source/Core/Private/FLog.cpp` to log assertion details (file, line, expression, optional message) via the logging system and then invoke the assertion handler (default: `SG_DEBUG_BREAK()`)
-- [ ] T029 [US2] Update `Source/Core/Public/Core/CoreMinimal.h` to include `SGAssert.h`
-- [ ] T030 [US2] Run `scons` and `StonerTest` locally, then fix any US2 failures in `Source/Core/Public/Core/SGAssert.h`, `Source/Core/Private/FLog.cpp`, or `Tests/LoggingAssertionTests.cpp`
+- [x] T027 [US2] Create `Source/Core/Public/Core/SGAssert.h` with `SG_CHECK(Expr)`, `SG_VERIFY(Expr)`, and `SG_CHECKF(Expr, Format, ...)` macros: `SG_CHECK` uses `#Expr` stringification and calls `FLog::HandleAssertionFailure()` on failure, guarded by `_DEBUG`; `SG_VERIFY` always evaluates `Expr` but only checks in Debug; `SG_CHECKF` adds printf-formatted message
+- [x] T028 [US2] Update `FLog::HandleAssertionFailure()` implementation in `Source/Core/Private/FLog.cpp` to log assertion details (file, line, expression, optional message) via the logging system and then invoke the assertion handler (default: `SG_DEBUG_BREAK()`)
+- [x] T029 [US2] Update `Source/Core/Public/Core/CoreMinimal.h` to include `SGAssert.h`
+- [x] T030 [US2] Run `scons` and `StonerTest` locally, then fix any US2 failures in `Source/Core/Public/Core/SGAssert.h`, `Source/Core/Private/FLog.cpp`, or `Tests/LoggingAssertionTests.cpp`
 
 **Checkpoint**: User Stories 1 and 2 should both pass — the minimum viable diagnostic infrastructure is complete.
 
@@ -110,14 +109,14 @@
 
 ### Tests for User Story 3
 
-- [ ] T031 [US3] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for per-category filtering: set `LogCore.SetMinSeverity(ELogSeverity::Warning)`, verify `SG_LOG(LogCore, Info, ...)` is suppressed (no output captured), verify `SG_LOG(LogCore, Error, ...)` still produces output
-- [ ] T032 [US3] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for global severity filtering: set `FLog::SetGlobalMinSeverity(ELogSeverity::Info)`, verify `SG_LOG(LogCore, Verbose, ...)` is suppressed
-- [ ] T033 [US3] Add failing verification case in `Tests/LoggingAssertionTests.cpp` for early-out zero-overhead: use a side-effect counter in the format argument, verify the counter is NOT incremented when the message is filtered by category threshold
+- [x] T031 [US3] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for per-category filtering: set `LogCore.SetMinSeverity(ELogSeverity::Warning)`, verify `SG_LOG(LogCore, Info, ...)` is suppressed (no output captured), verify `SG_LOG(LogCore, Error, ...)` still produces output
+- [x] T032 [US3] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for global severity filtering: set `FLog::SetGlobalMinSeverity(ELogSeverity::Info)`, verify `SG_LOG(LogCore, Verbose, ...)` is suppressed
+- [x] T033 [US3] Add failing verification case in `Tests/LoggingAssertionTests.cpp` for early-out zero-overhead: use a side-effect counter in the format argument, verify the counter is NOT incremented when the message is filtered by category threshold
 
 ### Implementation for User Story 3
 
-- [ ] T034 [US3] Ensure `FLog::LogMessage()` in `Source/Core/Private/FLog.cpp` applies global severity filtering in addition to the macro-level per-category check: if global min severity is higher than the message severity, suppress even if the category allows it
-- [ ] T035 [US3] Run `scons` and `StonerTest` locally, then fix any US3 failures in `Source/Core/Private/FLog.cpp` or `Tests/LoggingAssertionTests.cpp`
+- [x] T034 [US3] Ensure `FLog::LogMessage()` in `Source/Core/Private/FLog.cpp` applies global severity filtering in addition to the macro-level per-category check: if global min severity is higher than the message severity, suppress even if the category allows it
+- [x] T035 [US3] Run `scons` and `StonerTest` locally, then fix any US3 failures in `Source/Core/Private/FLog.cpp` or `Tests/LoggingAssertionTests.cpp`
 
 **Checkpoint**: User Stories 1, 2, and 3 should all pass — filtering is operational.
 
@@ -131,14 +130,14 @@
 
 ### Tests for User Story 4
 
-- [ ] T036 [US4] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for custom category declaration: declare `LogTestCustom` using `SG_DECLARE_LOG_CATEGORY_EXTERN` / `SG_DEFINE_LOG_CATEGORY`, call `SG_LOG(LogTestCustom, Info, "custom test")`, verify output contains "LogTestCustom"
-- [ ] T037 [US4] Add failing verification case in `Tests/LoggingAssertionTests.cpp` for category self-registration: after declaring and defining `LogTestCustom`, verify it appears in the global category registry
+- [x] T036 [US4] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for custom category declaration: declare `LogTestCustom` using `SG_DECLARE_LOG_CATEGORY_EXTERN` / `SG_DEFINE_LOG_CATEGORY`, call `SG_LOG(LogTestCustom, Info, "custom test")`, verify output contains "LogTestCustom"
+- [x] T037 [US4] Add failing verification case in `Tests/LoggingAssertionTests.cpp` for category self-registration: after declaring and defining `LogTestCustom`, verify it appears in the global category registry
 
 ### Implementation for User Story 4
 
-- [ ] T038 [US4] Verify `SG_DECLARE_LOG_CATEGORY_EXTERN` and `SG_DEFINE_LOG_CATEGORY` macros in `Source/Core/Public/Core/FLogCategory.h` work correctly for custom categories declared in test files — fix any cross-TU linkage or registration issues
-- [ ] T039 [US4] Add `FLogCategory::GetAllCategories()` static method in `Source/Core/Public/Core/FLogCategory.h` and `Source/Core/Private/FLogCategory.cpp` that returns a const reference to the global category list for runtime enumeration
-- [ ] T040 [US4] Run `scons` and `StonerTest` locally, then fix any US4 failures in `Source/Core/Public/Core/FLogCategory.h`, `Source/Core/Private/FLogCategory.cpp`, or `Tests/LoggingAssertionTests.cpp`
+- [x] T038 [US4] Verify `SG_DECLARE_LOG_CATEGORY_EXTERN` and `SG_DEFINE_LOG_CATEGORY` macros in `Source/Core/Public/Core/FLogCategory.h` work correctly for custom categories declared in test files — fix any cross-TU linkage or registration issues
+- [x] T039 [US4] Add `FLogCategory::GetAllCategories()` static method in `Source/Core/Public/Core/FLogCategory.h` and `Source/Core/Private/FLogCategory.cpp` that returns a const reference to the global category list for runtime enumeration
+- [x] T040 [US4] Run `scons` and `StonerTest` locally, then fix any US4 failures in `Source/Core/Public/Core/FLogCategory.h`, `Source/Core/Private/FLogCategory.cpp`, or `Tests/LoggingAssertionTests.cpp`
 
 **Checkpoint**: All four user stories should pass — the complete logging and assertion system is functional.
 
@@ -148,14 +147,14 @@
 
 **Purpose**: Final cleanup, contract validation, and cross-platform readiness.
 
-- [ ] T041 [P] Add thread-safety verification in `Tests/LoggingAssertionTests.cpp`: launch multiple threads each logging messages concurrently, verify no interleaved characters within any single log line (FR-013)
-- [ ] T042 [P] Add zero-configuration startup verification in `Tests/LoggingAssertionTests.cpp`: verify `SG_LOG` works without any explicit initialization call (FR-014)
-- [ ] T043 Verify public names follow UE5-style `E`, `F`, and `SG_` prefixes in `Source/Core/Public/Core/`
-- [ ] T044 Verify no Core public header includes RHI, Backend, Renderer, Application, or graphics API headers in `Source/Core/Public/Core/`
-- [ ] T045 Verify `specs/005-core-logging-assertions/contracts/logging-assertions-api.md` is satisfied by the implemented headers in `Source/Core/Public/Core/`
-- [ ] T046 Run the quickstart build and verification flow from `specs/005-core-logging-assertions/quickstart.md`
-- [ ] T047 Run `scons` from the repository root and confirm `Build/<Platform>/<Config>/Tests/StonerTest` exits with code 0
-- [ ] T048 Review `Tests/LoggingAssertionTests.cpp` to ensure every public API entry point from `specs/005-core-logging-assertions/spec.md` has verification coverage (SC-009)
+- [x] T041 [P] Add thread-safety verification in `Tests/LoggingAssertionTests.cpp`: launch multiple threads each logging messages concurrently, verify no interleaved characters within any single log line (FR-013)
+- [x] T042 [P] Add zero-configuration startup verification in `Tests/LoggingAssertionTests.cpp`: verify `SG_LOG` works without any explicit initialization call (FR-014)
+- [x] T043 Verify public names follow UE5-style `E`, `F`, and `SG_` prefixes in `Source/Core/Public/Core/`
+- [x] T044 Verify no Core public header includes RHI, Backend, Renderer, Application, or graphics API headers in `Source/Core/Public/Core/`
+- [x] T045 Verify `specs/005-core-logging-assertions/contracts/logging-assertions-api.md` is satisfied by the implemented headers in `Source/Core/Public/Core/`
+- [x] T046 Run the quickstart build and verification flow from `specs/005-core-logging-assertions/quickstart.md`
+- [x] T047 Run `scons` from the repository root and confirm `Build/<Platform>/<Config>/Tests/StonerTest` exits with code 0
+- [x] T048 Review `Tests/LoggingAssertionTests.cpp` to ensure every public API entry point from `specs/005-core-logging-assertions/spec.md` has verification coverage (SC-009)
 
 ---
 

@@ -20,6 +20,15 @@
 #include "Core/FSphere.h"
 #include "Core/FPlane.h"
 
+// Logging & Assertions
+#include "Core/ELogSeverity.h"
+#include "Core/SGPlatformBreak.h"
+#include "Core/FLogCategory.h"
+#include "Core/FLogConsoleSink.h"
+#include "Core/FLog.h"
+#include "Core/SGLog.h"
+#include "Core/SGAssert.h"
+
 // Core layer minimal header - shared utilities foundation.
 namespace Stoner::Core
 {
