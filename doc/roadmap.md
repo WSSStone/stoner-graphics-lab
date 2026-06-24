@@ -114,7 +114,7 @@ These principles (from the [Constitution v1.2.0](../.specify/memory/constitution
 | 002 | Core: Types & Memory | Core | 001 | M | ✅ Yes | ⬜ Todo |
 | 003 | Core: Math Library | Core | 002 | L | ✅ Yes | ✅ Done |
 | 004 | Core: Logging & Assertions | Core | 002 | S | ❌ No | ⬜ Todo |
-| 005 | Core: Platform Abstraction | Core | 002 | M | ✅ Yes | ⬜ Todo |
+| 005 | Core: Platform Abstraction | Core | 002 | M | ✅ Yes | ✅ Done |
 | 006 | RHI: Core Interfaces | RHI | 002, 003 | L | ✅ Yes | ⬜ Todo |
 | 007 | RHI: Resource & Pipeline | RHI | 006 | L | ✅ Yes | ⬜ Todo |
 | 008 | Vulkan: Device & Swapchain | Backend | 005, 006 | L | ✅ Yes | ⬜ Todo |

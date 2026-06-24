@@ -41,6 +41,8 @@ test_env.Append(LIBPATH=lib_paths)
 
 # Libraries to link (order matters for static linking: dependents first)
 test_env.Append(LIBS=['Application', 'Renderer', 'RHI', 'Core', 'VulkanRHI'])
+if platform == 'Linux':
+    test_env.Append(LIBS=['dl'])
 
 program = test_env.Program('StonerTest', sources)
 Return('program')

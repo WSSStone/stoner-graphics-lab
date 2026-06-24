@@ -29,6 +29,14 @@
 #include "Core/SGLog.h"
 #include "Core/SGAssert.h"
 
+// Platform abstraction
+#include "Core/SGPlatform.h"
+#include "Core/FPlatformMisc.h"
+#include "Core/FPlatformTime.h"
+#include "Core/FPlatformFileSystem.h"
+#include "Core/FPlatformProcess.h"
+#include "Core/FPlatformWindow.h"
+
 // Core layer minimal header - shared utilities foundation.
 namespace Stoner::Core
 {
