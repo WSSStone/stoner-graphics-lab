@@ -40,3 +40,7 @@ Thumbs.db
 .idea/
 *.swp
 *.tmp
+
+# Local agent and code graph state
+.agents/
+.codegraph/
