@@ -1,6 +1,6 @@
 # Tasks: Core Foundation - Platform Abstraction Layer
 
-**Input**: Design documents from `/specs/007-core-platform-abstraction/`
+**Input**: Design documents from `/specs/006-core-platform-abstraction/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/core-platform-api.md, quickstart.md
 
 **Tests**: Test tasks are included because the specification requires unit-test coverage for platform identity, platform information, high-resolution timing, file operations, dynamic module failure handling, and native window handle validity.
@@ -18,7 +18,7 @@
 - Core public headers: `Source/Core/Public/Core/`
 - Core implementation files: `Source/Core/Private/`
 - Verification files: `Tests/`
-- Feature documentation: `specs/007-core-platform-abstraction/`
+- Feature documentation: `specs/006-core-platform-abstraction/`
 
 ## Phase 1: Setup (Shared Infrastructure)
 
@@ -44,11 +44,11 @@
 
 - [X] T010 Implement mutually exclusive `SG_PLATFORM_WINDOWS`, `SG_PLATFORM_MAC`, and `SG_PLATFORM_LINUX` macros in `Source/Core/Public/Core/SGPlatform.h`
 - [X] T011 Add compile-time unsupported-platform failure behavior in `Source/Core/Public/Core/SGPlatform.h`
-- [X] T012 Declare the full `FPlatformMisc` public API in `Source/Core/Public/Core/FPlatformMisc.h` per `specs/007-core-platform-abstraction/contracts/core-platform-api.md`
-- [X] T013 Declare the full `FPlatformTime` public API in `Source/Core/Public/Core/FPlatformTime.h` per `specs/007-core-platform-abstraction/contracts/core-platform-api.md`
-- [X] T014 Declare the full `FPlatformFileSystem` public API in `Source/Core/Public/Core/FPlatformFileSystem.h` per `specs/007-core-platform-abstraction/contracts/core-platform-api.md`
-- [X] T015 Declare the full `FPlatformProcess` public API and opaque module handle type in `Source/Core/Public/Core/FPlatformProcess.h` per `specs/007-core-platform-abstraction/contracts/core-platform-api.md`
-- [X] T016 Declare the full `FPlatformWindow` public API and opaque native handle representation in `Source/Core/Public/Core/FPlatformWindow.h` per `specs/007-core-platform-abstraction/contracts/core-platform-api.md`
+- [X] T012 Declare the full `FPlatformMisc` public API in `Source/Core/Public/Core/FPlatformMisc.h` per `specs/006-core-platform-abstraction/contracts/core-platform-api.md`
+- [X] T013 Declare the full `FPlatformTime` public API in `Source/Core/Public/Core/FPlatformTime.h` per `specs/006-core-platform-abstraction/contracts/core-platform-api.md`
+- [X] T014 Declare the full `FPlatformFileSystem` public API in `Source/Core/Public/Core/FPlatformFileSystem.h` per `specs/006-core-platform-abstraction/contracts/core-platform-api.md`
+- [X] T015 Declare the full `FPlatformProcess` public API and opaque module handle type in `Source/Core/Public/Core/FPlatformProcess.h` per `specs/006-core-platform-abstraction/contracts/core-platform-api.md`
+- [X] T016 Declare the full `FPlatformWindow` public API and opaque native handle representation in `Source/Core/Public/Core/FPlatformWindow.h` per `specs/006-core-platform-abstraction/contracts/core-platform-api.md`
 - [X] T017 Update `Source/Core/Public/Core/CoreMinimal.h` to include `SGPlatform.h`, `FPlatformMisc.h`, `FPlatformTime.h`, `FPlatformFileSystem.h`, `FPlatformProcess.h`, and `FPlatformWindow.h`
 - [X] T018 Run `scons` from the repository root and fix foundational build errors in `Source/Core/Public/Core/` or `Source/Core/Private/`
 
@@ -169,14 +169,14 @@
 
 **Purpose**: Verify contract coverage, constitution compliance, and roadmap readiness.
 
-- [X] T056 Verify `specs/007-core-platform-abstraction/contracts/core-platform-api.md` is satisfied by public headers in `Source/Core/Public/Core/`
+- [X] T056 Verify `specs/006-core-platform-abstraction/contracts/core-platform-api.md` is satisfied by public headers in `Source/Core/Public/Core/`
 - [X] T057 Verify no Core platform public header includes RHI, Backend, Renderer, Application, windowing framework, or graphics API headers in `Source/Core/Public/Core/`
 - [X] T058 Verify public names follow UE5-style `FPlatform*` and `SG_PLATFORM_*` naming in `Source/Core/Public/Core/`
-- [X] T059 Review `Tests/CorePlatformTests.cpp` to ensure every public API entry point from `specs/007-core-platform-abstraction/spec.md` has verification coverage
-- [X] T060 Run the quickstart build and verification flow from `specs/007-core-platform-abstraction/quickstart.md`
+- [X] T059 Review `Tests/CorePlatformTests.cpp` to ensure every public API entry point from `specs/006-core-platform-abstraction/spec.md` has verification coverage
+- [X] T060 Run the quickstart build and verification flow from `specs/006-core-platform-abstraction/quickstart.md`
 - [X] T061 Run `scons` from the repository root and confirm `Build/<Platform>/<Config>/Tests/StonerTest` exits with code 0
 - [X] T062 Update `doc/roadmap.md` Phase 005 status only after implementation and verification are complete
-- [X] T063 Review `specs/007-core-platform-abstraction/tasks.md` for completed task checkboxes and consistency before closing the feature
+- [X] T063 Review `specs/006-core-platform-abstraction/tasks.md` for completed task checkboxes and consistency before closing the feature
 
 ---
 

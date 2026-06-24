@@ -1,6 +1,6 @@
 # Quickstart: Core Foundation - Platform Abstraction Layer
 
-**Feature**: 007-core-platform-abstraction  
+**Feature**: 006-core-platform-abstraction  
 **Date**: 2026-06-24
 
 ## What This Feature Produces
@@ -18,7 +18,7 @@ This feature adds the engine's Core platform abstraction layer. It provides:
 ## Prerequisites
 
 - Core Types & Memory, Core Math, and Core Logging & Assertions are complete.
-- Current branch is `007-core-platform-abstraction`.
+- Current branch is `006-core-platform-abstraction`.
 - A supported C++20 compiler is available.
 - SCons 4.10.1 or newer is available.
 

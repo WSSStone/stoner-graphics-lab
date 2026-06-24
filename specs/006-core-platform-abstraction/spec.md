@@ -1,6 +1,6 @@
 # Feature Specification: Core Foundation - Platform Abstraction Layer
 
-**Feature Branch**: `007-core-platform-abstraction`  
+**Feature Branch**: `006-core-platform-abstraction`  
 **Created**: 2026-06-24  
 **Status**: Draft  
 **Input**: User description: "Core platform abstraction layer: FPlatformProcess (dynamic library loading), FPlatformFileSystem (basic file I/O), FPlatformMisc (OS info queries), FPlatformWindow (native handle types), FPlatformTime (high-res timer). Platform detection macros (SG_PLATFORM_WINDOWS/MAC/LINUX). Conditional compilation. UE5 naming. Cross-platform Win/Mac/Linux. Unit tests."

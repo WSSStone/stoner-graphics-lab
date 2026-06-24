@@ -1,6 +1,6 @@
 # Data Model: Core Foundation - Platform Abstraction Layer
 
-**Feature**: 007-core-platform-abstraction  
+**Feature**: 006-core-platform-abstraction  
 **Date**: 2026-06-24
 
 ## Overview
