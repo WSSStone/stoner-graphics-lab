@@ -1,9 +1,10 @@
 {
-  "ai": "cursor-agent",
+  "ai": "codex",
+  "ai_skills": true,
   "branch_numbering": "sequential",
+  "context_file": "AGENTS.md",
   "here": true,
-  "integration": "cursor-agent",
-  "preset": null,
-  "script": "ps",
-  "speckit_version": "0.5.1.dev0"
+  "integration": "codex",
+  "script": "sh",
+  "speckit_version": "0.8.2.dev0"
 }
