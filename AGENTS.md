@@ -1,15 +1,17 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/006-core-platform-abstraction/plan.md`
+`specs/007-rhi-core-interfaces/plan.md`
 <!-- SPECKIT END -->
 
 ## Active Technologies
 - C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system (006-core-platform-abstraction)
 - Local filesystem only for basic read/write/existence/directory operations; no persistent database or asset catalog (006-core-platform-abstraction)
+- C++20 with traditional header/source separation + Existing Core layer types/math/logging/platform abstractions; SCons 4.10.1; C++ standard library for non-graphics utilities (007-rhi-core-interfaces)
 
 ## Recent Changes
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system
+- 007-rhi-core-interfaces: Planned RHI device, capabilities, command buffer, queue, synchronization, headless swapchain, result/status, and mock-test contracts
 
 ## Git Commit Style
 - Commit messages must start with a conventional type prefix such as `feat`, `docs`, `fix`, `chore`, `refactor`, `test`, or `build`.
