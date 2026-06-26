@@ -115,6 +115,13 @@ hooks:
     description: Auto-commit after task generation
     condition: null
   after_implement:
+  - extension: project-docs
+    command: speckit.docs.implement
+    enabled: true
+    optional: false
+    prompt: Generate delivered feature implementation documentation?
+    description: Create or update doc/[feature].html from SYSTEM_DESIGN.md after implementation
+    condition: null
   - extension: git
     command: speckit.git.commit
     enabled: true

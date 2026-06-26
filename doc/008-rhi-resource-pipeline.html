@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>008 — RHI Resource & Pipeline Interfaces · Stoner Graphics Lab</title>
+    <style>
+        *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+        :root {
+            --bg:#0d1117; --bg-card:#161b22; --bg-code:#1c2128; --border:#30363d;
+            --text:#c9d1d9; --text-dim:#8b949e; --accent:#58a6ff; --accent2:#3fb950;
+            --warn:#d29922; --error:#f85149;
+            --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+            --font-mono:'JetBrains Mono','Fira Code','Cascadia Code','SF Mono',Consolas,monospace;
+        }
+        html { scroll-behavior:smooth; }
+        body { font-family:var(--font-sans); background:var(--bg); color:var(--text); line-height:1.7; font-size:15px; }
+        .page { display:grid; grid-template-columns:260px 1fr; min-height:100vh; }
+        .sidebar { position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--bg-card); border-right:1px solid var(--border); padding:24px 16px; font-size:13px; }
+        .sidebar h2 { font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-dim); margin-bottom:12px; }
+        .logo { font-size:14px; font-weight:700; color:var(--accent); margin-bottom:4px; }
+        .subtitle { font-size:11px; color:var(--text-dim); margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+        .toc { list-style:none; }
+        .toc li { margin-bottom:2px; }
+        .toc a { display:block; padding:5px 10px; border-radius:6px; color:var(--text-dim); text-decoration:none; transition:all .15s; }
+        .toc a:hover { background:rgba(88,166,255,.1); color:var(--accent); }
+        .toc .sub { padding-left:20px; font-size:12px; }
+        .content { max-width:900px; margin:0 auto; padding:48px 40px 120px; }
+        .content > section { margin-bottom:56px; }
+        h1 { font-size:32px; font-weight:800; background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:8px; }
+        h1 + .meta { font-size:13px; color:var(--text-dim); margin-bottom:32px; }
+        h2 { font-size:22px; font-weight:700; margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+        h2 .num { color:var(--accent); margin-right:6px; }
+        h3 { font-size:17px; font-weight:600; margin:24px 0 10px; }
+        h4 { font-size:15px; font-weight:600; color:var(--text-dim); margin:16px 0 8px; }
+        p, ul, ol { margin-bottom:14px; }
+        ul, ol { padding-left:22px; }
+        li { margin-bottom:4px; }
+        a { color:var(--accent); text-decoration:none; }
+        a:hover { text-decoration:underline; }
+        strong { color:#e6edf3; }
+        .card { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:20px 24px; margin-bottom:16px; }
+        .card.highlight { border-left:3px solid var(--accent); }
+        .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px; vertical-align:middle; }
+        .badge.status { background:rgba(63,185,80,.15); color:var(--accent2); }
+        .badge.version { background:rgba(88,166,255,.15); color:var(--accent); }
+        .badge.p1 { background:rgba(248,81,73,.15); color:var(--error); }
+        .badge.p2 { background:rgba(210,153,34,.15); color:var(--warn); }
+        table { width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px; }
+        th, td { text-align:left; padding:10px 14px; border-bottom:1px solid var(--border); vertical-align:top; }
+        th { font-size:12px; text-transform:uppercase; letter-spacing:.8px; color:var(--text-dim); background:var(--bg-card); }
+        tr:hover td { background:rgba(88,166,255,.04); }
+        code { font-family:var(--font-mono); font-size:13px; background:var(--bg-code); padding:2px 6px; border-radius:4px; color:#e6edf3; }
+        pre { background:var(--bg-code); border:1px solid var(--border); border-radius:8px; padding:16px 20px; overflow-x:auto; margin-bottom:16px; font-size:13px; line-height:1.6; }
+        pre.mermaid { background:var(--bg-card); text-align:center; font-family:var(--font-sans); }
+        .file-tree { font-family:var(--font-mono); font-size:13px; line-height:1.8; background:var(--bg-code); border:1px solid var(--border); border-radius:8px; padding:16px 20px; margin-bottom:16px; }
+        .new { color:var(--accent2); } .mod { color:var(--warn); } .dir { color:var(--accent); }
+        .check { list-style:none; padding-left:0; }
+        .check li { padding:6px 0 6px 28px; position:relative; }
+        .check li::before { content:'✓'; position:absolute; left:4px; color:var(--accent2); font-weight:700; }
+        .adr { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; margin-bottom:16px; overflow:hidden; }
+        .adr summary { padding:14px 20px; cursor:pointer; font-weight:600; }
+        .adr .body { padding:0 20px 16px; border-top:1px solid var(--border); }
+        .adr .body p { margin-top:12px; }
+        @media (max-width:900px) { .page{grid-template-columns:1fr;} .sidebar{display:none;} .content{padding:24px 20px 80px;} }
+    </style>
+</head>
+<body>
+<div class="page">
+<nav class="sidebar">
+    <div class="logo">Stoner Graphics Lab</div>
+    <div class="subtitle">008 · RHI Resource & Pipeline</div>
+    <h2>目录</h2>
+    <ul class="toc">
+        <li><a href="#sec1">一、文档与上下文信息</a></li>
+        <li><a href="#sec1-1" class="sub">1. 基础元数据</a></li>
+        <li><a href="#sec1-2" class="sub">2. 本期核心摘要</a></li>
+        <li><a href="#sec1-3" class="sub">3. 上下文与依赖</a></li>
+        <li><a href="#sec2">二、目标与边界</a></li>
+        <li><a href="#sec3">三、交互与产品设计</a></li>
+        <li><a href="#sec4">四、技术架构与关键决策</a></li>
+        <li><a href="#sec5">五、实施与验证</a></li>
+        <li><a href="#sec6">六、设计巧思与最佳实践</a></li>
+        <li><a href="#sec7">七、编程语言知识点</a></li>
+        <li><a href="#sec8">八、软件工程知识点</a></li>
+    </ul>
+</nav>
+<main class="content">
+<h1>RHI Resource &amp; Pipeline Interfaces</h1>
+<p class="meta">
+    <span class="badge version">Spec 008</span>
+    <span class="badge status">已交付</span>
+    Feature Branch: <code>008-rhi-resource-pipeline</code>
+</p>
+
+<section id="sec1">
+<h2><span class="num">一、</span>文档与上下文信息</h2>
+<h3 id="sec1-1">1. 基础元数据</h3>
+<table>
+    <tr><th style="width:160px">字段</th><th>内容</th></tr>
+    <tr><td>文档版本</td><td>v1.0</td></tr>
+    <tr><td>更新日期</td><td>2026-06-26</td></tr>
+    <tr><td>当前状态</td><td><span class="badge status">已交付</span></td></tr>
+    <tr><td>Feature Branch</td><td><code>008-rhi-resource-pipeline</code></td></tr>
+    <tr><td>Spec 目录</td><td><code>specs/008-rhi-resource-pipeline/</code></td></tr>
+    <tr><td>Roadmap Phase</td><td>Phase 007 — RHI: Resource &amp; Pipeline Interfaces</td></tr>
+</table>
+<h3 id="sec1-2">2. 本期核心摘要</h3>
+<div class="card highlight">
+    <p>本阶段完成第二层 RHI 合约：buffer、texture、sampler、shader module、pipeline layout、descriptor set、graphics/compute pipeline、render pass 与 framebuffer。生产代码只增加 public RHI contract headers 和 <code>IRHIDevice</code> 工厂扩展，所有行为验证通过 deterministic mock tests 完成。</p>
+    <p>这让 Vulkan resource/pipeline、Renderer render graph、material system 和 forward pipeline 后续阶段拥有统一语言：资源如何描述、如何绑定、pipeline 如何声明、render target 如何匹配，以及 Valid/Invalidated 生命周期如何被显式拒绝。</p>
+</div>
+<h3 id="sec1-3">3. 上下文与依赖</h3>
+<table>
+    <tr><th>依赖项</th><th>说明</th></tr>
+    <tr><td>RHI Core Interfaces</td><td>复用 <code>ERHIResult</code>、<code>ERHIFormat</code>、<code>IRHIDevice</code>、<code>TRHIObjectResult</code> 和 mock 测试风格。</td></tr>
+    <tr><td>Core 基础类型</td><td>公共头使用 <code>CoreMinimal.h</code>、<code>TArray</code>、<code>TSharedPtr</code>、<code>FString</code>、<code>uint32</code>、<code>uint64</code>。</td></tr>
+    <tr><td>SCons / StonerTest</td><td>通过 <code>conda run -n godot scons</code> 构建，并运行 <code>Build/Mac/Debug/Tests/StonerTest</code>。</td></tr>
+    <tr><td>Spec 编号说明</td><td>Roadmap 为 Phase 007；Speckit 目录使用 008，是因为既有 <code>specs/007-rhi-core-interfaces</code> 已占用。</td></tr>
+</table>
+</section>
+
+<section id="sec2">
+<h2><span class="num">二、</span>目标与边界</h2>
+<h3>1. 业务与功能目标</h3>
+<div class="card"><h4>US1 — 描述并创建 RHI 资源 <span class="badge p1">P1 MVP</span></h4><p>开发者可以用稳定描述对象创建 buffer、texture、sampler，并查询原始描述、usage、format/dimension 和 lifecycle。</p></div>
+<div class="card"><h4>US2 — 通过 layout 与 descriptor set 绑定资源 <span class="badge p1">P1</span></h4><p>支持 multi-set pipeline layout，descriptor binding 使用 set index + binding slot，descriptor set 能验证 buffer、texture、sampler 与 combined texture-sampler 更新。</p></div>
+<div class="card"><h4>US3 — 定义 graphics/compute pipeline <span class="badge p1">P1</span></h4><p>shader module 保存 stage、entry point 和 opaque payload identity；graphics/compute pipeline 验证 shader stage、layout 和 render target 兼容性。</p></div>
+<div class="card"><h4>US4 — 建模 render pass 与 framebuffer <span class="badge p2">P2</span></h4><p>单 subpass render pass 描述 color/depth-stencil attachment、load/store 行为，framebuffer 验证 texture attachment 的 count、format、dimension 和 sample count。</p></div>
+<div class="card"><h4>US5 — 生命周期与聚合 smoke flow <span class="badge p2">P2</span></h4><p>所有新增对象都有 Valid/Invalidated 状态，mock tests 覆盖成功路径、负路径和 renderer-facing 完整串联流程。</p></div>
+<h3>2. 架构目标与定位</h3>
+<p>本阶段仍属于 RHI 层，只定义跨后端的 contract。Renderer 可以依赖这些接口来表达资源和管线意图，Backend 可以在后续阶段实现真实 GPU 对象；测试 mock 则提供当前唯一的行为实现。</p>
+<pre class="mermaid">
+graph TB
+    REN["Renderer / Future Render Graph"]
+    RHI["RHI Resource & Pipeline Contracts"]
+    MOCK["Mock Contract Tests"]
+    VK["Future Vulkan Resources & Pipelines"]
+    CORE["Core"]
+    REN --> RHI
+    MOCK --> RHI
+    VK --> RHI
+    RHI --> CORE
+</pre>
+<h3>3. 边界与非目标（约束）</h3>
+<table>
+    <tr><th>不做什么</th><th>原因</th></tr>
+    <tr><td>真实 GPU memory allocation / resource upload</td><td>属于 Vulkan resource management 阶段。</td></tr>
+    <tr><td>shader bytecode validation / compiler integration</td><td>shader module 只保存 opaque payload identity。</td></tr>
+    <tr><td>真实 backend handles 或 graphics API 头</td><td>public RHI header 必须保持 backend/renderer/application 独立。</td></tr>
+    <tr><td>full multi-subpass render graph</td><td>当前只固定 single-subpass render pass contract。</td></tr>
+    <tr><td>ray tracing / mesh shader pipeline</td><td>枚举预留未来阶段，但当前请求会被显式拒绝。</td></tr>
+</table>
+</section>
+
+<section id="sec3">
+<h2><span class="num">三、</span>交互与产品设计</h2>
+<h3>1. 用户使用路径</h3>
+<pre>
+IRHIDevice
+  -> CreateBuffer / CreateTexture / CreateSampler
+  -> CreatePipelineLayout
+  -> CreateDescriptorSet(layout, set index)
+  -> UpdateBuffer / UpdateTexture / UpdateSampler
+  -> CreateShaderModule
+  -> CreateGraphicsPipeline / CreateComputePipeline
+  -> CreateRenderPass
+  -> CreateFramebuffer
+</pre>
+<h3>2. 核心规则与状态机</h3>
+<table>
+    <tr><th>对象</th><th>状态/规则</th></tr>
+    <tr><td>Resource / Pipeline-family objects</td><td><code>Valid -> Invalidated</code>；Invalidated 后仍可查询状态，但不能用于绑定、pipeline 创建或 framebuffer 创建。</td></tr>
+    <tr><td>Usage flags</td><td>buffer/texture usage 可组合；显式非法组合返回 <code>InvalidState</code> 或 <code>Unsupported</code>。</td></tr>
+    <tr><td>Pipeline layout</td><td>binding 使用 <code>SetIndex + BindingSlot</code>，同一 set 内重复 binding 被拒绝。</td></tr>
+    <tr><td>Descriptor set</td><td>只能更新 layout 中声明过的 binding；descriptor type、array index、resource lifecycle 均要验证。</td></tr>
+    <tr><td>Shader module</td><td>必须有支持的 stage、entry point、payload identity；bytecode 不在本阶段验证。</td></tr>
+    <tr><td>Render pass / framebuffer</td><td>single-subpass；framebuffer attachment 必须匹配 render pass 的 format、count、dimension 和 sample count。</td></tr>
+</table>
+</section>
+
+<section id="sec4">
+<h2><span class="num">四、</span>技术架构与关键决策</h2>
+<h3>1. 技术栈与基础设施</h3>
+<ul>
+    <li>C++20，传统 header/source 分离。</li>
+    <li>public contract 位于 <code>Source/RHI/Public/RHI/</code>。</li>
+    <li>mock validation 位于 <code>Tests/RHICoreTests.cpp</code>，不进入生产 backend。</li>
+    <li>构建与测试：<code>conda run -n godot scons</code> 和 <code>Build/Mac/Debug/Tests/StonerTest</code>。</li>
+</ul>
+<h3>2. 关键信息</h3>
+<div class="file-tree">
+<span class="dir">Source/RHI/Public/RHI/</span><br>
+├── <span class="new">ERHIResourceUsage.h</span> / <span class="new">ERHITextureDimension.h</span> / <span class="new">ERHISamplerMode.h</span><br>
+├── <span class="new">ERHIShaderStage.h</span> / <span class="new">ERHIDescriptorType.h</span> / <span class="new">ERHIPipelineState.h</span><br>
+├── <span class="new">FRHIBufferDesc.h</span> / <span class="new">FRHITextureDesc.h</span> / <span class="new">FRHISamplerDesc.h</span><br>
+├── <span class="new">FRHIShaderModuleDesc.h</span> / <span class="new">FRHIDescriptorBinding.h</span> / <span class="new">FRHIPipelineLayoutDesc.h</span><br>
+├── <span class="new">FRHIGraphicsPipelineDesc.h</span> / <span class="new">FRHIComputePipelineDesc.h</span><br>
+├── <span class="new">FRHIRenderPassDesc.h</span> / <span class="new">FRHIFramebufferDesc.h</span><br>
+├── <span class="new">IRHIBuffer.h</span> / <span class="new">IRHITexture.h</span> / <span class="new">IRHISampler.h</span><br>
+├── <span class="new">IRHIShaderModule.h</span> / <span class="new">IRHIPipelineLayout.h</span> / <span class="new">IRHIDescriptorSet.h</span><br>
+└── <span class="mod">IRHIDevice.h</span> / <span class="mod">RHIMinimal.h</span>
+</div>
+<table>
+    <tr><th>模块</th><th>职责</th><th>关键关系</th></tr>
+    <tr><td>Resource desc + interfaces</td><td>描述 buffer/texture/sampler 并暴露 lifecycle。</td><td>由 <code>IRHIDevice</code> 创建，descriptor/framebuffer/pipeline 流程引用。</td></tr>
+    <tr><td>Descriptor layout/set</td><td>声明 set/binding/type/visibility，并存储 mock 绑定结果。</td><td>连接资源和 pipeline layout。</td></tr>
+    <tr><td>Shader/pipeline contracts</td><td>描述 shader stage、compute pipeline、graphics pipeline fixed state。</td><td>依赖 shader module 和 pipeline layout。</td></tr>
+    <tr><td>Render pass/framebuffer</td><td>描述单 subpass attachment 与 concrete texture attachments。</td><td>为 forward rendering 和 Vulkan planning 提供目标兼容规则。</td></tr>
+</table>
+<h3>3. 架构决策记录（ADR）</h3>
+<details class="adr" open><summary>ADR-008-01：public header 只定义 contract，mock behavior 放测试</summary><div class="body"><p>这保持 RHI 层干净，避免测试替身变成生产 backend。真实 Vulkan/Metal/DX12 后端以后实现同一 contract 即可。</p></div></details>
+<details class="adr"><summary>ADR-008-02：multi-set pipeline layout 一开始就进入 contract</summary><div class="body"><p>set index + binding slot 能表达 global、material、object、pass 等常见资源集合，避免未来 render graph/material system 重写 binding 模型。</p></div></details>
+<details class="adr"><summary>ADR-008-03：shader module 不验证 bytecode</summary><div class="body"><p>当前阶段只需要 stage、entry point、opaque payload identity 来验证 pipeline 组合。编译器、反射和字节码校验留给 shader/backend 阶段。</p></div></details>
+<details class="adr"><summary>ADR-008-04：single-subpass render pass 作为最小稳定模型</summary><div class="body"><p>它足以支持早期 forward rendering 与 framebuffer 兼容性检查，同时避免在 render graph 尚未实现前引入完整 subpass dependency 复杂度。</p></div></details>
+</section>
+
+<section id="sec5">
+<h2><span class="num">五、</span>实施与验证（任务流）</h2>
+<h3>5.1 任务拆解清单</h3>
+<ul class="check">
+    <li>创建 27 个新增 public RHI resource/pipeline headers，并更新 <code>RHIMinimal.h</code> 聚合入口。</li>
+    <li>扩展 <code>IRHIDevice</code>，新增资源、layout、descriptor、shader、pipeline、render pass、framebuffer 工厂。</li>
+    <li>在 <code>Tests/RHICoreTests.cpp</code> 实现 mock resource/pipeline-family objects 和 shared validation helpers。</li>
+    <li>补齐 buffer、texture、sampler、descriptor、pipeline、render pass、framebuffer 的成功与负路径测试。</li>
+    <li>补齐 Valid/Invalidated 生命周期矩阵和 renderer-facing smoke flow。</li>
+    <li>运行 build/test、header isolation scan，并更新 roadmap Phase 007 状态。</li>
+</ul>
+<h3>5.2 验收标准</h3>
+<table>
+    <tr><th>验证项</th><th>结果</th></tr>
+    <tr><td><code>conda run -n godot scons</code></td><td><span class="badge status">通过</span>，Debug build 成功。</td></tr>
+    <tr><td><code>Build/Mac/Debug/Tests/StonerTest</code></td><td><span class="badge status">通过</span>，RHI core tests <code>passed=133 failed=0</code>。</td></tr>
+    <tr><td>Header isolation scan</td><td><span class="badge status">通过</span>，public RHI headers 未命中 Backend/Renderer/Application/API/windowing 依赖关键词。</td></tr>
+    <tr><td>Contract coverage</td><td><span class="badge status">通过</span>，每类新增 public contract 至少有成功路径和负路径。</td></tr>
+    <tr><td>Task completion</td><td><span class="badge status">通过</span>，<code>specs/008-rhi-resource-pipeline/tasks.md</code> 已全部勾选。</td></tr>
+</table>
+</section>
+
+<section id="sec6">
+<h2><span class="num">六、</span>设计巧思与最佳实践</h2>
+<h3>6.1 当前业务场景与业务模型的最佳实践</h3>
+<ul>
+    <li><strong>设备作为唯一工厂</strong>：资源、pipeline、render pass 都由 <code>IRHIDevice</code> 创建，便于未来统一能力检查和 backend ownership。</li>
+    <li><strong>分离描述与对象</strong>：<code>F*Desc</code> 表达意图，<code>I*</code> 对象表达已创建资源，mock tests 可验证描述保真。</li>
+    <li><strong>显式失败值</strong>：invalid desc、unsupported stage/format、Invalidated dependency 都返回 <code>ERHIResult</code>，不依赖异常或断言。</li>
+    <li><strong>Invalidated 可查询但不可使用</strong>：这给 device shutdown、资源释放、descriptor update 和 framebuffer compatibility 提供统一语义。</li>
+</ul>
+<h3>6.2 优化方案与收益</h3>
+<ul>
+    <li>contract header 轻量化降低后续 Backend/Renderer include 成本。</li>
+    <li>mock-only validation 让 feature 在无 GPU、无窗口、无 shader compiler 的环境中稳定测试。</li>
+    <li>multi-set descriptor layout 提前对齐现代显式图形 API 与常见 material/pass/object binding 结构。</li>
+</ul>
+</section>
+
+<section id="sec7">
+<h2><span class="num">七、</span>编程语言知识点</h2>
+<h3>1. 标准库接口与用法</h3>
+<table>
+    <tr><th>接口</th><th>用途</th></tr>
+    <tr><td><code>std::underlying_type_t</code></td><td>实现 enum class bit flags 的 <code>|</code>、<code>&amp;</code> 和 <code>HasRHIFlag</code>。</td></tr>
+    <tr><td><code>std::move</code></td><td>mock 对象保存 descriptor 时避免多余拷贝。</td></tr>
+    <tr><td><code>std::max</code></td><td>从 descriptor bindings 计算 pipeline layout set count。</td></tr>
+</table>
+<h3>2. 语言特性与惯用法</h3>
+<ul>
+    <li><code>enum class</code> 用于强类型结果、usage、stage、descriptor type 和 pipeline state。</li>
+    <li><code>constexpr</code> 用于 flag operator 与轻量描述验证 helper。</li>
+    <li>pure virtual interface 继续保持 RHI contract-first 风格。</li>
+    <li>aggregate initialization 用于紧凑构造 descriptor 和 test case。</li>
+</ul>
+<h3>3. 平台相关与编译器行为</h3>
+<p>本阶段没有新增平台分支；验证在 macOS Debug 路径完成，public headers 不引入平台窗口、surface 或 graphics API include。</p>
+</section>
+
+<section id="sec8">
+<h2><span class="num">八、</span>软件工程知识点</h2>
+<h3>1. 设计模式与架构模式</h3>
+<ul>
+    <li><strong>Abstract Interface</strong>：所有 RHI 对象以 <code>I*</code> 抽象接口暴露，Backend 后续实现同一 contract。</li>
+    <li><strong>Factory Method</strong>：<code>IRHIDevice</code> 作为创建入口，返回 <code>TRHIObjectResult&lt;T&gt;</code>。</li>
+    <li><strong>Value Object</strong>：<code>F*Desc</code> 是可复制、可查询、可测试的描述对象。</li>
+    <li><strong>Mock Object</strong>：测试内 mock 验证 contract，不污染生产层。</li>
+</ul>
+<h3>2. 工程原则与方法论</h3>
+<ul>
+    <li><strong>Spec-driven development</strong>：从 clarified spec 到 plan、tasks，再到实现与交付文档。</li>
+    <li><strong>Layer isolation</strong>：RHI public headers 不依赖 Backend、Renderer、Application 或平台窗口系统。</li>
+    <li><strong>Contract testing</strong>：每个 public contract 都有成功路径和负路径，形成后续 backend 的回归基线。</li>
+    <li><strong>YAGNI</strong>：不提前实现 shader compiler、真实 GPU allocation、multi-subpass graph 或 ray tracing pipeline。</li>
+</ul>
+<h3>3. 测试策略与质量保障</h3>
+<p>测试覆盖 boundary values、invalid combinations、unsupported capability、missing dependency、wrong descriptor type、array out-of-bounds、Invalidated lifecycle 和完整 smoke flow。它们共同保证 008 是可执行的 contract，而不只是头文件声明。</p>
+</section>
+
+</main>
+</div>
+</body>
+</html>

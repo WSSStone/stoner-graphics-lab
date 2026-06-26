@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>006 — Core Platform Abstraction · Stoner Graphics Lab</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg:#0d1117; --bg-card:#161b22; --bg-code:#1c2128; --border:#30363d;
+            --text:#c9d1d9; --text-dim:#8b949e; --accent:#58a6ff; --accent2:#3fb950;
+            --warn:#d29922; --error:#f85149;
+            --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+            --font-mono:'JetBrains Mono','Fira Code','Cascadia Code','SF Mono',Consolas,monospace;
+        }
+        html { scroll-behavior: smooth; }
+        body { font-family:var(--font-sans); background:var(--bg); color:var(--text); line-height:1.7; font-size:15px; }
+        .page { display:grid; grid-template-columns:260px 1fr; min-height:100vh; }
+        .sidebar { position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--bg-card); border-right:1px solid var(--border); padding:24px 16px; font-size:13px; }
+        .sidebar h2 { font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-dim); margin-bottom:12px; }
+        .logo { font-size:14px; font-weight:700; color:var(--accent); margin-bottom:4px; }
+        .subtitle { font-size:11px; color:var(--text-dim); margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+        .toc { list-style:none; }
+        .toc li { margin-bottom:2px; }
+        .toc a { display:block; padding:5px 10px; border-radius:6px; color:var(--text-dim); text-decoration:none; transition:all .15s; }
+        .toc a:hover { background:rgba(88,166,255,.1); color:var(--accent); }
+        .toc .sub { padding-left:20px; font-size:12px; }
+        .content { max-width:900px; margin:0 auto; padding:48px 40px 120px; }
+        .content > section { margin-bottom:56px; }
+        h1 { font-size:32px; font-weight:800; background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:8px; }
+        h1 + .meta { font-size:13px; color:var(--text-dim); margin-bottom:32px; }
+        h2 { font-size:22px; font-weight:700; margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+        h2 .num { color:var(--accent); margin-right:6px; }
+        h3 { font-size:17px; font-weight:600; margin:24px 0 10px; }
+        h4 { font-size:15px; font-weight:600; color:var(--text-dim); margin:16px 0 8px; }
+        p, ul, ol { margin-bottom:14px; }
+        ul, ol { padding-left:22px; }
+        li { margin-bottom:4px; }
+        a { color:var(--accent); text-decoration:none; }
+        a:hover { text-decoration:underline; }
+        strong { color:#e6edf3; }
+        .card { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:20px 24px; margin-bottom:16px; }
+        .card.highlight { border-left:3px solid var(--accent); }
+        .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px; vertical-align:middle; }
+        .badge.status { background:rgba(63,185,80,.15); color:var(--accent2); }
+        .badge.version { background:rgba(88,166,255,.15); color:var(--accent); }
+        .badge.p1 { background:rgba(248,81,73,.15); color:var(--error); }
+        .badge.p2 { background:rgba(210,153,34,.15); color:var(--warn); }
+        table { width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px; }
+        th, td { text-align:left; padding:10px 14px; border-bottom:1px solid var(--border); vertical-align:top; }
+        th { font-size:12px; text-transform:uppercase; letter-spacing:.8px; color:var(--text-dim); background:var(--bg-card); }
+        tr:hover td { background:rgba(88,166,255,.04); }
+        code { font-family:var(--font-mono); font-size:13px; background:var(--bg-code); padding:2px 6px; border-radius:4px; color:#e6edf3; }
+        pre { background:var(--bg-code); border:1px solid var(--border); border-radius:8px; padding:16px 20px; overflow-x:auto; margin-bottom:16px; font-size:13px; line-height:1.6; }
+        pre.mermaid { background:var(--bg-card); text-align:center; font-family:var(--font-sans); }
+        .file-tree { font-family:var(--font-mono); font-size:13px; line-height:1.8; background:var(--bg-code); border:1px solid var(--border); border-radius:8px; padding:16px 20px; margin-bottom:16px; }
+        .new { color:var(--accent2); } .mod { color:var(--warn); } .dir { color:var(--accent); }
+        .check { list-style:none; padding-left:0; }
+        .check li { padding:6px 0 6px 28px; position:relative; }
+        .check li::before { content:'✓'; position:absolute; left:4px; color:var(--accent2); font-weight:700; }
+        .adr { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; margin-bottom:16px; overflow:hidden; }
+        .adr summary { padding:14px 20px; cursor:pointer; font-weight:600; }
+        .adr .body { padding:0 20px 16px; border-top:1px solid var(--border); }
+        .adr .body p { margin-top:12px; }
+        @media (max-width:900px) { .page{grid-template-columns:1fr;} .sidebar{display:none;} .content{padding:24px 20px 80px;} }
+    </style>
+</head>
+<body>
+<div class="page">
+<nav class="sidebar">
+    <div class="logo">Stoner Graphics Lab</div>
+    <div class="subtitle">006 · Core Platform Abstraction</div>
+    <h2>目录</h2>
+    <ul class="toc">
+        <li><a href="#sec1">一、文档与上下文信息</a></li>
+        <li><a href="#sec1-1" class="sub">1. 基础元数据</a></li>
+        <li><a href="#sec1-2" class="sub">2. 本期核心摘要</a></li>
+        <li><a href="#sec1-3" class="sub">3. 上下文与依赖</a></li>
+        <li><a href="#sec2">二、目标与边界</a></li>
+        <li><a href="#sec3">三、交互与产品设计</a></li>
+        <li><a href="#sec4">四、技术架构与关键决策</a></li>
+        <li><a href="#sec5">五、实施与验证</a></li>
+        <li><a href="#sec6">六、设计巧思与最佳实践</a></li>
+        <li><a href="#sec7">七、编程语言知识点</a></li>
+        <li><a href="#sec8">八、软件工程知识点</a></li>
+    </ul>
+</nav>
+<main class="content">
+<h1>Core Platform Abstraction</h1>
+<p class="meta">
+    <span class="badge version">Spec 006</span>
+    <span class="badge status">已交付</span>
+    Feature Branch: <code>006-core-platform-abstraction</code>
+</p>
+
+<section id="sec1">
+<h2><span class="num">一、</span>文档与上下文信息</h2>
+<h3 id="sec1-1">1. 基础元数据</h3>
+<table>
+    <tr><th style="width:160px">字段</th><th>内容</th></tr>
+    <tr><td>文档版本</td><td>v1.0</td></tr>
+    <tr><td>更新日期</td><td>2026-06-25</td></tr>
+    <tr><td>当前状态</td><td><span class="badge status">已交付</span></td></tr>
+    <tr><td>Feature Branch</td><td><code>006-core-platform-abstraction</code></td></tr>
+    <tr><td>Spec 目录</td><td><code>specs/006-core-platform-abstraction/</code></td></tr>
+    <tr><td>Roadmap Phase</td><td>Phase 005 — Core Platform Abstraction</td></tr>
+</table>
+<h3 id="sec1-2">2. 本期核心摘要</h3>
+<div class="card highlight">
+    <p>本阶段为 Core 层补齐跨平台基础能力：平台识别、OS/CPU/内存信息查询、单调高精度时间、本地文件读写、显式路径动态模块加载，以及安全的原生窗口句柄包装。它让后续 RHI、Backend、Renderer 和 Application 不再直接散落操作系统条件编译。</p>
+</div>
+<h3 id="sec1-3">3. 上下文与依赖</h3>
+<table>
+    <tr><th>依赖项</th><th>说明</th></tr>
+    <tr><td>Spec 003 Core Types &amp; Memory</td><td>提供 <code>uint32</code>、<code>uint64</code>、<code>TArray</code>、<code>FString</code> 等基础类型。</td></tr>
+    <tr><td>Spec 005 Logging &amp; Assertions</td><td>保留既有日志/断言行为，平台层不引入上层模块依赖。</td></tr>
+    <tr><td>C++20 标准库</td><td>使用 <code>&lt;chrono&gt;</code>、<code>&lt;filesystem&gt;</code>、<code>&lt;fstream&gt;</code>、<code>&lt;thread&gt;</code> 等便携设施。</td></tr>
+    <tr><td>平台系统库</td><td>动态模块与内存查询在 <code>.cpp</code> 中通过 Windows/macOS/Linux 分支隔离。</td></tr>
+</table>
+</section>
+
+<section id="sec2">
+<h2><span class="num">二、</span>目标与边界</h2>
+<h3>1. 业务与功能目标</h3>
+<div class="card"><h4>US1 — 统一使用平台能力 <span class="badge p1">P1 MVP</span></h4><p>开发者通过 Core API 查询平台身份、OS 名称、CPU 核数、可用内存和高精度时间，不需要在调用点判断操作系统。</p></div>
+<div class="card"><h4>US2 — 便携文件操作 <span class="badge p1">P1</span></h4><p>支持文件/目录存在性检查、递归创建目录、字节级读写文本与二进制 payload，并明确处理缺失路径和目录当文件等失败场景。</p></div>
+<div class="card"><h4>US3 — 可选运行时模块加载 <span class="badge p2">P2</span></h4><p>通过显式文件路径加载动态库、解析符号并释放模块，缺失模块和缺失符号都是可恢复失败。</p></div>
+<div class="card"><h4>US4 — 安全传递原生窗口句柄 <span class="badge p2">P2</span></h4><p>提供 Core 拥有的 <code>FPlatformWindow</code> 句柄包装，为未来 swapchain/surface 集成预留稳定入口。</p></div>
+<h3>2. 架构目标与定位</h3>
+<p>平台抽象位于 Core 层，是上层渲染、后端、应用和测试的基础服务；它只向外暴露引擎风格 API，把系统调用和平台头文件约束在实现文件内部。</p>
+<pre class="mermaid">
+graph TB
+    APP["Application / Future Windowing"]
+    REN["Renderer"]
+    RHI["RHI"]
+    BACK["Backend: Vulkan / Metal / DX12"]
+    CORE["Core Platform Abstraction"]
+    OS["Windows / macOS / Linux"]
+    APP --> CORE
+    REN --> CORE
+    RHI --> CORE
+    BACK --> CORE
+    CORE --> OS
+</pre>
+<h3>3. 边界与非目标（约束）</h3>
+<table>
+    <tr><th>不做什么</th><th>原因</th></tr>
+    <tr><td>完整窗口系统、输入事件、窗口生命周期</td><td>本阶段只提供原生句柄承载类型。</td></tr>
+    <tr><td>线程、网络、进程启动、环境变量</td><td>这些能力会在独立阶段设计，避免平台层过早膨胀。</td></tr>
+    <tr><td>虚拟文件系统、文件监听、权限管理</td><td>当前只覆盖测试、启动和早期工具所需的本地文件能力。</td></tr>
+    <tr><td>插件生命周期管理</td><td><code>FPlatformProcess</code> 只处理显式路径动态模块加载。</td></tr>
+</table>
+</section>
+
+<section id="sec3">
+<h2><span class="num">三、</span>交互与产品设计</h2>
+<h3>1. 用户使用路径</h3>
+<pre>
+include Core/CoreMinimal.h
+  -> query SG_PLATFORM_* / FPlatformMisc
+  -> capture FPlatformTime timestamps
+  -> use FPlatformFileSystem for local files
+  -> optionally LoadDynamicModule(explicit path)
+  -> pass FPlatformWindow to future backend code
+</pre>
+<h3>2. 核心规则与状态机</h3>
+<table>
+    <tr><th>对象</th><th>状态/规则</th></tr>
+    <tr><td><code>SG_PLATFORM_*</code></td><td>Windows、macOS、Linux 三者必须且只能一个为 1，未知平台编译期失败。</td></tr>
+    <tr><td><code>FPlatformTime</code></td><td><code>Now()</code> 返回单调时间点；持续采样不可倒退；差值可转秒、毫秒、微秒。</td></tr>
+    <tr><td><code>FPlatformFileSystem</code></td><td>操作返回 <code>bool</code>；成功必须意味着最终状态可用，失败不能崩溃或伪装成部分成功。</td></tr>
+    <tr><td><code>FDynamicModuleHandle</code></td><td><code>Invalid -> Loaded -> Released</code>；无效句柄释放是安全 no-op。</td></tr>
+    <tr><td><code>FPlatformWindow</code></td><td><code>Empty -> WrappedNativeHandle -> Clear</code>；空句柄可复制、传递、判无效。</td></tr>
+</table>
+</section>
+
+<section id="sec4">
+<h2><span class="num">四、</span>技术架构与关键决策</h2>
+<h3>1. 技术栈与基础设施</h3>
+<ul>
+    <li>C++20，传统 header/source 分离。</li>
+    <li>SCons 4.10.1 自动发现源文件并构建 <code>StonerTest</code>。</li>
+    <li>公共 API 位于 <code>Source/Core/Public/Core/</code>，平台实现位于 <code>Source/Core/Private/</code>。</li>
+</ul>
+<h3>2. 关键信息</h3>
+<div class="file-tree">
+<span class="dir">Source/Core/Public/Core/</span><br>
+├── <span class="new">SGPlatform.h</span>              platform detection macros<br>
+├── <span class="new">FPlatformMisc.h</span>           OS / CPU / memory queries<br>
+├── <span class="new">FPlatformTime.h</span>           monotonic timestamps<br>
+├── <span class="new">FPlatformFileSystem.h</span>     local file operations<br>
+├── <span class="new">FPlatformProcess.h</span>        dynamic modules<br>
+└── <span class="new">FPlatformWindow.h</span>         native handle wrapper<br>
+<span class="dir">Tests/</span><br>
+└── <span class="new">CorePlatformTests.cpp</span>      31 platform tests
+</div>
+<table>
+    <tr><th>模块</th><th>职责</th><th>调用关系</th></tr>
+    <tr><td><code>FPlatformMisc</code></td><td>返回 OS 名称、CPU 核数、可用内存。</td><td>上层只读查询；平台分支在 <code>.cpp</code>。</td></tr>
+    <tr><td><code>FPlatformFileSystem</code></td><td>存在性、递归建目录、读写字节数组。</td><td>使用 Core 类型承接路径和 payload。</td></tr>
+    <tr><td><code>FPlatformProcess</code></td><td>显式路径动态库加载、符号查找、释放。</td><td>返回 opaque handle，不泄漏平台库类型。</td></tr>
+    <tr><td><code>FPlatformWindow</code></td><td>保存 opaque native handle。</td><td>未来 Application 创建，Backend 解读。</td></tr>
+</table>
+<h3>3. 架构决策记录（ADR）</h3>
+<details class="adr" open><summary>ADR-006-01：拆分 FPlatform* 能力，而不是一个总平台类</summary><div class="body"><p>平台能力被拆成 Misc、Time、FileSystem、Process、Window。这样每个调用点只依赖自己需要的概念，也更容易在未来替换单个子能力。</p><p>放弃方案：单一 <code>FPlatform</code> god-class。它短期省文件，长期会把无关职责、平台分支和测试耦合在一起。</p></div></details>
+<details class="adr"><summary>ADR-006-02：动态模块只接受显式路径</summary><div class="body"><p>显式路径避免不同 OS 的搜索路径规则、环境变量和安全策略干扰测试结果。缺失路径、缺失符号都作为可恢复失败处理。</p></div></details>
+<details class="adr"><summary>ADR-006-03：窗口能力只做句柄包装</summary><div class="body"><p>真实窗口创建、事件循环和输入处理被推迟；当前只提供 <code>void*</code> 级 opaque 容器，确保 RHI/Backend 可以先设计 surface/swapchain 接口。</p></div></details>
+</section>
+
+<section id="sec5">
+<h2><span class="num">五、</span>实施与验证（任务流）</h2>
+<h3>5.1 任务拆解清单</h3>
+<ul class="check">
+    <li>建立 <code>CorePlatformTests</code> 测试入口并接入 <code>Tests/Main.cpp</code>。</li>
+    <li>创建平台宏、平台信息、时间、文件系统、动态模块和窗口句柄公共头。</li>
+    <li>实现 <code>SG_PLATFORM_WINDOWS/MAC/LINUX</code> 互斥检测与未知平台失败。</li>
+    <li>实现平台信息、单调时间、递归目录、文件读写和动态模块平台分支。</li>
+    <li>补齐边界测试：1,000 次时间采样、1 MB 二进制 roundtrip、路径空格/非 ASCII、缺失模块/符号、无效窗口句柄。</li>
+    <li>更新 roadmap 并确认所有任务勾选完成。</li>
+</ul>
+<h3>5.2 验收标准</h3>
+<table>
+    <tr><th>验收项</th><th>结果</th></tr>
+    <tr><td>平台身份、OS、CPU、内存、时间可 Core-only 查询</td><td><span class="badge status">通过</span></td></tr>
+    <tr><td>文件写读对文本和二进制 payload 保持 100% 字节一致</td><td><span class="badge status">通过</span></td></tr>
+    <tr><td>缺失文件、目录当文件、缺失模块、缺失符号不崩溃</td><td><span class="badge status">通过</span></td></tr>
+    <tr><td>Core 平台公共头不导入 RHI/Backend/Renderer/Application/图形 API</td><td><span class="badge status">通过</span></td></tr>
+    <tr><td><code>StonerTest</code> 全量测试</td><td><span class="badge status">通过</span> Core Platform: 31 passed, 0 failed</td></tr>
+</table>
+</section>
+
+<section id="sec6">
+<h2><span class="num">六、</span>设计巧思与最佳实践</h2>
+<h3>6.1 当前业务场景与业务模型的最佳实践</h3>
+<p>这个阶段的核心不是“封装所有平台能力”，而是给后续渲染路径提供最小可信平台基座。文件、时间、动态模块、窗口句柄这些能力都以稳定小接口暴露，减少未来 Vulkan、Metal、DX12 和 Application 阶段直接碰平台宏的机会。</p>
+<h3>6.2 优化方案与收益</h3>
+<ul>
+    <li>时间基于单调 clock，适合 frame/startup 诊断，不受系统时间调整影响。</li>
+    <li>文件 API 使用字节数组，天然覆盖文本和二进制资源。</li>
+    <li>动态模块句柄是 opaque 值，平台库生命周期被限制在 Core 实现边界。</li>
+    <li>公共头尽量轻量，降低上层模块 include 链污染。</li>
+</ul>
+</section>
+
+<section id="sec7">
+<h2><span class="num">七、</span>编程语言知识点</h2>
+<h3>1. 标准库接口与用法</h3>
+<table>
+    <tr><th>接口</th><th>用途</th></tr>
+    <tr><td><code>std::chrono::steady_clock</code></td><td>提供不可倒退的进程内时间基准。</td></tr>
+    <tr><td><code>std::filesystem</code></td><td>处理存在性检查和递归目录创建。</td></tr>
+    <tr><td><code>std::ifstream/std::ofstream</code></td><td>二进制模式读写文件，保持 payload 字节一致。</td></tr>
+    <tr><td><code>std::thread::hardware_concurrency</code></td><td>查询 CPU 线程数，并在不可用时回退到至少 1。</td></tr>
+</table>
+<h3>2. 语言特性与惯用法</h3>
+<ul>
+    <li><code>[[nodiscard]]</code> 用于提醒调用者不要忽略结果。</li>
+    <li><code>noexcept</code> 标注基础查询和句柄操作，表达不抛异常契约。</li>
+    <li>条件编译宏集中于 <code>SGPlatform.h</code> 和私有实现，减少散落分支。</li>
+</ul>
+<h3>3. 平台相关与编译器行为</h3>
+<p>Windows 使用 <code>_WIN32</code>，macOS 使用 <code>__APPLE__ && __MACH__</code>，Linux 使用 <code>__linux__</code>。如果三者都不匹配，构建直接失败，避免悄悄产出未知平台行为。</p>
+</section>
+
+<section id="sec8">
+<h2><span class="num">八、</span>软件工程知识点</h2>
+<h3>1. 设计模式与架构模式</h3>
+<p>本阶段主要采用 Facade 和 Port/Adapter 思路：公共 <code>FPlatform*</code> 类型是引擎侧 port，私有 <code>.cpp</code> 中的平台分支是 adapter。它不是复杂模式展示，而是为了保护层级边界。</p>
+<h3>2. 工程原则与方法论</h3>
+<ul>
+    <li>YAGNI：只做未来 roadmap 已明确需要的平台基座。</li>
+    <li>契约式设计：显式路径、互斥平台宏、无效句柄 no-op 都写入测试。</li>
+    <li>依赖倒置：上层模块依赖 Core 抽象，不依赖 OS/windowing/graphics 头。</li>
+</ul>
+<h3>3. 测试策略与质量保障</h3>
+<p>测试覆盖正常路径、负路径和边界路径：单调时间 1,000 样本、文件字节 roundtrip、路径特殊字符、目录当文件、动态模块缺失与符号缺失、窗口句柄 empty/wrapped/clear。这样后续平台扩展有明确回归基线。</p>
+</section>
+</main>
+</div>
+</body>
+</html>

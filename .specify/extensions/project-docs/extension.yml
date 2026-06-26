@@ -1,0 +1,25 @@
+schema_version: "1.0"
+
+extension:
+  id: project-docs
+  name: "Project Implementation Documentation"
+  version: "1.0.0"
+  description: "Generate delivered feature implementation documentation after Spec Kit implementation"
+  author: project
+
+provides:
+  commands:
+    - name: speckit.docs.implement
+      file: commands/speckit.docs.implement.md
+      description: "Create or update the delivered feature implementation document under doc/"
+
+hooks:
+  after_implement:
+    command: speckit.docs.implement
+    optional: false
+    prompt: "Generate delivered feature implementation documentation?"
+    description: "Create or update doc/[feature].html from SYSTEM_DESIGN.md after implementation"
+
+tags:
+  - "documentation"
+  - "after-implement"
