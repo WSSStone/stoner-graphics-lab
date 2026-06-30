@@ -91,4 +91,39 @@ void MarkUploadScheduling(FVulkanDiagnostics& Diagnostics, const char* Reason) n
     Diagnostics.UploadSchedulingReason = Reason ? Reason : "";
 }
 
+void MarkShaderModule(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.ShaderModuleReason = Reason ? Reason : "";
+}
+
+void MarkPipelineLayout(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.PipelineLayoutReason = Reason ? Reason : "";
+}
+
+void MarkGraphicsPipeline(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.GraphicsPipelineReason = Reason ? Reason : "";
+}
+
+void MarkComputePipeline(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.ComputePipelineReason = Reason ? Reason : "";
+}
+
+void MarkPipelineCache(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.PipelineCacheReason = Reason ? Reason : "";
+}
+
+void MarkPipelineBinding(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.PipelineBindingReason = Reason ? Reason : "";
+}
+
+void MarkRuntimeMode(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.RuntimeModeReason = Reason ? Reason : "";
+}
+
 } // namespace Stoner::Backend::Vulkan

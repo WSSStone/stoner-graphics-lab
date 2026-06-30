@@ -24,10 +24,17 @@ Stoner::RHI::ERHIResult FVulkanCommandSubmission::ObserveCompletion(Stoner::Core
         CompletionState = EVulkanCompletionState::Invalidated;
         return Stoner::RHI::ERHIResult::InvalidState;
     }
-    if (Injection.bForceTimeout || TimeoutMicroseconds > 0)
+    if (Injection.bForceTimeout)
     {
         CompletionState = EVulkanCompletionState::Timeout;
         return Stoner::RHI::ERHIResult::Timeout;
+    }
+    if (TimeoutMicroseconds > 0)
+    {
+        // Fallback submissions complete immediately; a non-zero timeout
+        // still resolves to Success because there is no real GPU work.
+        CompletionState = EVulkanCompletionState::Completed;
+        return Stoner::RHI::ERHIResult::Success;
     }
     if (Injection.bForceNotReady)
     {

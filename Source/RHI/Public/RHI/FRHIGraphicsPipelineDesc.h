@@ -3,6 +3,7 @@
 #include "Core/CoreMinimal.h"
 #include "RHI/ERHIFormat.h"
 #include "RHI/ERHIPipelineState.h"
+#include "RHI/FRHIShaderModuleDesc.h"
 
 namespace Stoner::RHI
 {
@@ -45,6 +46,18 @@ struct FRHIDepthStencilState
     ERHICompareOp DepthCompare = ERHICompareOp::LessEqual;
 };
 
+struct FRHIMultisampleState
+{
+    ERHISampleCount SampleCount = ERHISampleCount::One;
+    bool bSampleShadingEnabled = false;
+};
+
+struct FRHIDynamicStateRequirements
+{
+    bool bViewportDynamic = true;
+    bool bScissorDynamic = true;
+};
+
 struct FRHIRenderTargetCompatibility
 {
     Stoner::Core::TArray<ERHIFormat> ColorFormats;
@@ -61,7 +74,59 @@ struct FRHIGraphicsPipelineDesc
     FRHIRasterizerState Rasterizer;
     FRHIBlendState Blend;
     FRHIDepthStencilState DepthStencil;
+    FRHIMultisampleState Multisample;
+    FRHIDynamicStateRequirements DynamicState;
     FRHIRenderTargetCompatibility RenderTargets;
+    ERHIRuntimeObjectMode RuntimeMode = ERHIRuntimeObjectMode::Unknown;
+    ERHIPipelineReuseState ReuseState = ERHIPipelineReuseState::NotReusable;
+    Stoner::Core::FString CompatibilitySummary;
 };
+
+[[nodiscard]] inline bool IsValidRHIVertexInputDesc(const FRHIVertexInputDesc& Desc) noexcept
+{
+    if (Desc.Stride == 0 || Desc.Attributes.empty())
+    {
+        return false;
+    }
+    for (const FRHIVertexAttributeDesc& Attribute : Desc.Attributes)
+    {
+        if (Attribute.Format == ERHIFormat::Unknown || Attribute.Offset >= Desc.Stride)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+[[nodiscard]] constexpr bool IsTriangleReadyRHITopology(ERHIPrimitiveTopology Topology) noexcept
+{
+    return Topology == ERHIPrimitiveTopology::TriangleList || Topology == ERHIPrimitiveTopology::TriangleStrip;
+}
+
+[[nodiscard]] inline bool IsValidRHIRenderTargetCompatibility(const FRHIRenderTargetCompatibility& Desc) noexcept
+{
+    if (Desc.ColorFormats.empty())
+    {
+        return false;
+    }
+    for (ERHIFormat Format : Desc.ColorFormats)
+    {
+        if (Format == ERHIFormat::Unknown || IsDepthStencilFormat(Format))
+        {
+            return false;
+        }
+    }
+    return Desc.DepthStencilFormat == ERHIFormat::Unknown || IsDepthStencilFormat(Desc.DepthStencilFormat);
+}
+
+[[nodiscard]] inline bool IsValidRHIGraphicsPipelineState(const FRHIGraphicsPipelineDesc& Desc) noexcept
+{
+    return Desc.PipelineLayout &&
+        IsValidRHIVertexInputDesc(Desc.VertexInput) &&
+        IsTriangleReadyRHITopology(Desc.Topology) &&
+        Desc.Multisample.SampleCount == Desc.RenderTargets.SampleCount &&
+        Desc.DynamicState.bViewportDynamic && Desc.DynamicState.bScissorDynamic &&
+        IsValidRHIRenderTargetCompatibility(Desc.RenderTargets);
+}
 
 } // namespace Stoner::RHI

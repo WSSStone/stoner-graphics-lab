@@ -22,11 +22,6 @@ struct FRHITextureDesc
     ERHITextureUsage Usage = ERHITextureUsage::None;
 };
 
-[[nodiscard]] constexpr bool IsDepthStencilFormat(ERHIFormat Format) noexcept
-{
-    return Format == ERHIFormat::D24_UNorm_S8_UInt || Format == ERHIFormat::D32_Float || Format == ERHIFormat::S8_UInt;
-}
-
 [[nodiscard]] constexpr bool IsValidRHIUsage(ERHITextureUsage Usage) noexcept
 {
     if (Usage == ERHITextureUsage::None || HasRHIFlag(Usage, ERHITextureUsage::Vertex))

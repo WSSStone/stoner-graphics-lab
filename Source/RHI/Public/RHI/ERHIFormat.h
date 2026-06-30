@@ -16,4 +16,9 @@ enum class ERHIFormat
     S8_UInt
 };
 
+[[nodiscard]] constexpr bool IsDepthStencilFormat(ERHIFormat Format) noexcept
+{
+    return Format == ERHIFormat::D24_UNorm_S8_UInt || Format == ERHIFormat::D32_Float || Format == ERHIFormat::S8_UInt;
+}
+
 } // namespace Stoner::RHI

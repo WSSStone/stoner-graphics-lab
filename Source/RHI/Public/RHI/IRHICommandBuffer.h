@@ -10,7 +10,9 @@ namespace Stoner::RHI
 {
 
 class IRHIBuffer;
+class IRHIComputePipeline;
 class IRHIFramebuffer;
+class IRHIGraphicsPipeline;
 class IRHIRenderPass;
 class IRHITexture;
 
@@ -28,6 +30,8 @@ enum class ERHISymbolicCommandType
     Draw,
     DrawIndexed,
     Dispatch,
+    BindGraphicsPipeline,
+    BindComputePipeline,
     Barrier,
     BufferCopy,
     TextureCopy,
@@ -99,6 +103,8 @@ public:
     virtual ERHIResult RecordDraw(Stoner::Core::uint32 VertexCount, Stoner::Core::uint32 InstanceCount = 1) = 0;
     virtual ERHIResult RecordDrawIndexed(Stoner::Core::uint32 IndexCount, Stoner::Core::uint32 InstanceCount = 1) = 0;
     virtual ERHIResult RecordDispatch(Stoner::Core::uint32 GroupCountX, Stoner::Core::uint32 GroupCountY, Stoner::Core::uint32 GroupCountZ) = 0;
+    virtual ERHIResult BindGraphicsPipeline(const Stoner::Core::TSharedPtr<IRHIGraphicsPipeline>& Pipeline) = 0;
+    virtual ERHIResult BindComputePipeline(const Stoner::Core::TSharedPtr<IRHIComputePipeline>& Pipeline) = 0;
     virtual ERHIResult RecordBarrier() = 0;
     virtual ERHIResult RecordBarrier(const FRHIResourceBarrierDesc& Barrier) = 0;
     virtual ERHIResult RecordBufferCopy(const Stoner::Core::TSharedPtr<IRHIBuffer>& Source, const Stoner::Core::TSharedPtr<IRHIBuffer>& Destination, FRHIBufferCopyRange Range) = 0;

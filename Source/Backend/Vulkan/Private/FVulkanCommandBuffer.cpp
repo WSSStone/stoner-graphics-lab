@@ -1,7 +1,9 @@
 #include "VulkanRHI/FVulkanCommandBuffer.h"
 
+#include "VulkanRHI/FVulkanComputePipeline.h"
 #include "VulkanRHI/FVulkanDiagnostics.h"
 #include "VulkanRHI/FVulkanFramebuffer.h"
+#include "VulkanRHI/FVulkanGraphicsPipeline.h"
 #include "VulkanRHI/FVulkanRenderPass.h"
 #include "VulkanRHI/FVulkanUploadStaging.h"
 
@@ -64,6 +66,8 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::Begin()
     Commands.clear();
     ActiveRenderPass.reset();
     ActiveFramebuffer.reset();
+    BoundGraphicsPipeline.reset();
+    BoundComputePipeline.reset();
     State = Stoner::RHI::ERHICommandBufferState::Recording;
     MarkRecordingDiagnostic("command buffer recording began");
     return Stoner::RHI::ERHIResult::Success;
@@ -91,6 +95,8 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::Reset()
     Commands.clear();
     ActiveRenderPass.reset();
     ActiveFramebuffer.reset();
+    BoundGraphicsPipeline.reset();
+    BoundComputePipeline.reset();
     State = Stoner::RHI::ERHICommandBufferState::Idle;
     MarkRecordingDiagnostic("command buffer reset");
     return Stoner::RHI::ERHIResult::Success;
@@ -103,8 +109,15 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDraw(Stoner::Core::uint32 Ve
         MarkRecordingDiagnostic("draw rejected; requires graphics recording inside render pass");
         return Stoner::RHI::ERHIResult::InvalidState;
     }
+    if (!HasCompatibleGraphicsPipeline())
+    {
+        MarkRecordingDiagnostic("draw recorded with missing or invalid graphics pipeline binding");
+    }
+    else
+    {
+        MarkRecordingDiagnostic("draw recorded with compatible graphics pipeline binding");
+    }
     AppendCommand({Stoner::RHI::ERHISymbolicCommandType::Draw, VertexCount, InstanceCount, 0});
-    MarkRecordingDiagnostic("draw placeholder recorded without bound pipeline");
     return Stoner::RHI::ERHIResult::Success;
 }
 
@@ -115,8 +128,15 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDrawIndexed(Stoner::Core::ui
         MarkRecordingDiagnostic("indexed draw rejected; requires graphics recording inside render pass");
         return Stoner::RHI::ERHIResult::InvalidState;
     }
+    if (!HasCompatibleGraphicsPipeline())
+    {
+        MarkRecordingDiagnostic("indexed draw recorded with missing or invalid graphics pipeline binding");
+    }
+    else
+    {
+        MarkRecordingDiagnostic("indexed draw recorded with compatible graphics pipeline binding");
+    }
     AppendCommand({Stoner::RHI::ERHISymbolicCommandType::DrawIndexed, IndexCount, InstanceCount, 0});
-    MarkRecordingDiagnostic("indexed draw placeholder recorded without bound pipeline");
     return Stoner::RHI::ERHIResult::Success;
 }
 
@@ -127,8 +147,75 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDispatch(Stoner::Core::uint3
         MarkRecordingDiagnostic("dispatch rejected; requires compute-compatible recording state");
         return QueueType == Stoner::RHI::ERHIQueueType::Transfer ? Stoner::RHI::ERHIResult::Unsupported : Stoner::RHI::ERHIResult::InvalidState;
     }
+    if (!HasCompatibleComputePipeline())
+    {
+        MarkRecordingDiagnostic("dispatch recorded with missing or invalid compute pipeline binding");
+    }
+    else
+    {
+        MarkRecordingDiagnostic("dispatch recorded with compatible compute pipeline binding");
+    }
     AppendCommand({Stoner::RHI::ERHISymbolicCommandType::Dispatch, GroupCountX, GroupCountY, GroupCountZ});
-    MarkRecordingDiagnostic("dispatch placeholder recorded without bound pipeline");
+    return Stoner::RHI::ERHIResult::Success;
+}
+
+Stoner::RHI::ERHIResult FVulkanCommandBuffer::BindGraphicsPipeline(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIGraphicsPipeline>& Pipeline)
+{
+    if (ValidateRecordingState() != Stoner::RHI::ERHIResult::Success || QueueType != Stoner::RHI::ERHIQueueType::Graphics || !HasActiveRenderPass())
+    {
+        MarkRecordingDiagnostic("graphics pipeline binding rejected by recording queue or render pass scope");
+        if (Diagnostics)
+        {
+            MarkPipelineBinding(*Diagnostics, "graphics pipeline binding rejected by recording queue or render pass scope");
+        }
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    if (!Pipeline || Pipeline->GetLifecycleState() != Stoner::RHI::ERHIResourceLifecycleState::Valid)
+    {
+        MarkRecordingDiagnostic("graphics pipeline binding rejected by invalidated pipeline");
+        if (Diagnostics)
+        {
+            MarkPipelineBinding(*Diagnostics, "graphics pipeline binding rejected by invalidated pipeline");
+        }
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    BoundGraphicsPipeline = Pipeline;
+    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::BindGraphicsPipeline, 0, 0, 0});
+    MarkRecordingDiagnostic("graphics pipeline bound; deterministic fallback bind performs no real runtime execution");
+    if (Diagnostics)
+    {
+        MarkPipelineBinding(*Diagnostics, "graphics pipeline bound; deterministic fallback bind performs no real runtime execution");
+    }
+    return Stoner::RHI::ERHIResult::Success;
+}
+
+Stoner::RHI::ERHIResult FVulkanCommandBuffer::BindComputePipeline(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIComputePipeline>& Pipeline)
+{
+    if (ValidateRecordingState() != Stoner::RHI::ERHIResult::Success || !IsComputeCompatible())
+    {
+        MarkRecordingDiagnostic("compute pipeline binding rejected by recording queue");
+        if (Diagnostics)
+        {
+            MarkPipelineBinding(*Diagnostics, "compute pipeline binding rejected by recording queue");
+        }
+        return QueueType == Stoner::RHI::ERHIQueueType::Transfer ? Stoner::RHI::ERHIResult::Unsupported : Stoner::RHI::ERHIResult::InvalidState;
+    }
+    if (!Pipeline || Pipeline->GetLifecycleState() != Stoner::RHI::ERHIResourceLifecycleState::Valid)
+    {
+        MarkRecordingDiagnostic("compute pipeline binding rejected by invalidated pipeline");
+        if (Diagnostics)
+        {
+            MarkPipelineBinding(*Diagnostics, "compute pipeline binding rejected by invalidated pipeline");
+        }
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    BoundComputePipeline = Pipeline;
+    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::BindComputePipeline, 0, 0, 0});
+    MarkRecordingDiagnostic("compute pipeline bound; deterministic fallback bind performs no real runtime execution");
+    if (Diagnostics)
+    {
+        MarkPipelineBinding(*Diagnostics, "compute pipeline bound; deterministic fallback bind performs no real runtime execution");
+    }
     return Stoner::RHI::ERHIResult::Success;
 }
 
@@ -252,6 +339,8 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::EndRenderPass()
     }
     ActiveRenderPass.reset();
     ActiveFramebuffer.reset();
+    BoundGraphicsPipeline.reset();
+    BoundComputePipeline.reset();
     AppendCommand({Stoner::RHI::ERHISymbolicCommandType::EndRenderPass, 0, 0, 0});
     MarkRecordingDiagnostic("render pass scope ended");
     return Stoner::RHI::ERHIResult::Success;
@@ -349,6 +438,18 @@ bool FVulkanCommandBuffer::IsTransferCompatible() const noexcept
 bool FVulkanCommandBuffer::IsComputeCompatible() const noexcept
 {
     return QueueType == Stoner::RHI::ERHIQueueType::Graphics || QueueType == Stoner::RHI::ERHIQueueType::Compute;
+}
+
+bool FVulkanCommandBuffer::HasCompatibleGraphicsPipeline() const noexcept
+{
+    const auto Pipeline = BoundGraphicsPipeline.lock();
+    return Pipeline && Pipeline->GetLifecycleState() == Stoner::RHI::ERHIResourceLifecycleState::Valid && HasActiveRenderPass();
+}
+
+bool FVulkanCommandBuffer::HasCompatibleComputePipeline() const noexcept
+{
+    const auto Pipeline = BoundComputePipeline.lock();
+    return Pipeline && Pipeline->GetLifecycleState() == Stoner::RHI::ERHIResourceLifecycleState::Valid && IsComputeCompatible();
 }
 
 Stoner::RHI::ERHIResult FVulkanCommandBuffer::ValidateRecordingState() const noexcept

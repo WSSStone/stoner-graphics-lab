@@ -5,7 +5,10 @@
 // In Release builds, it expands to nothing.
 // On supported platforms, execution can be resumed from the debugger.
 
-#ifdef _DEBUG
+// Support both MSVC's _DEBUG and the standard NDEBUG convention.
+// SCons defines _DEBUG in both Debug and Release (see BuildConfig.py),
+// but standalone builds (Xcode, CMake, IDE) may only define NDEBUG.
+#if !defined(NDEBUG) || defined(_DEBUG)
 
     #if defined(_MSC_VER)
         // MSVC: __debugbreak() is always available

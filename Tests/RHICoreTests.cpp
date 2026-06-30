@@ -125,6 +125,30 @@ public:
         return ERHIResult::Success;
     }
 
+    ERHIResult BindGraphicsPipeline(const TSharedPtr<IRHIGraphicsPipeline>& Pipeline) override
+    {
+        if (State != ERHICommandBufferState::Recording || QueueType != ERHIQueueType::Graphics || !bRenderPassActive ||
+            !Pipeline || Pipeline->GetLifecycleState() != ERHIResourceLifecycleState::Valid)
+        {
+            return ERHIResult::InvalidState;
+        }
+        BoundGraphicsPipeline = Pipeline;
+        Commands.push_back({ERHISymbolicCommandType::BindGraphicsPipeline, 0, 0, 0});
+        return ERHIResult::Success;
+    }
+
+    ERHIResult BindComputePipeline(const TSharedPtr<IRHIComputePipeline>& Pipeline) override
+    {
+        if (State != ERHICommandBufferState::Recording || QueueType == ERHIQueueType::Transfer ||
+            !Pipeline || Pipeline->GetLifecycleState() != ERHIResourceLifecycleState::Valid)
+        {
+            return QueueType == ERHIQueueType::Transfer ? ERHIResult::Unsupported : ERHIResult::InvalidState;
+        }
+        BoundComputePipeline = Pipeline;
+        Commands.push_back({ERHISymbolicCommandType::BindComputePipeline, 0, 0, 0});
+        return ERHIResult::Success;
+    }
+
     ERHIResult RecordBarrier() override
     {
         if (State != ERHICommandBufferState::Recording)
@@ -221,6 +245,8 @@ private:
     ERHIQueueType QueueType = ERHIQueueType::Graphics;
     ERHICommandBufferState State = ERHICommandBufferState::Idle;
     TArray<FSymbolicCommand> Commands;
+    TWeakPtr<IRHIGraphicsPipeline> BoundGraphicsPipeline;
+    TWeakPtr<IRHIComputePipeline> BoundComputePipeline;
     bool bRenderPassActive = false;
 };
 
@@ -761,36 +787,9 @@ private:
     return !HasRHIFlag(Desc.Usage, ERHITextureUsage::DepthStencilAttachment);
 }
 
-[[nodiscard]] bool HasDuplicateBinding(const FRHIPipelineLayoutDesc& Desc)
-{
-    for (std::size_t LeftIndex = 0; LeftIndex < Desc.Bindings.size(); ++LeftIndex)
-    {
-        for (std::size_t RightIndex = LeftIndex + 1; RightIndex < Desc.Bindings.size(); ++RightIndex)
-        {
-            if (Desc.Bindings[LeftIndex].SetIndex == Desc.Bindings[RightIndex].SetIndex &&
-                Desc.Bindings[LeftIndex].BindingSlot == Desc.Bindings[RightIndex].BindingSlot)
-            {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
 [[nodiscard]] bool IsValidPipelineLayoutDesc(const FRHIPipelineLayoutDesc& Desc)
 {
-    if (Desc.Bindings.empty() || HasDuplicateBinding(Desc))
-    {
-        return false;
-    }
-    for (const FRHIDescriptorBinding& Binding : Desc.Bindings)
-    {
-        if (!IsValidRHIDescriptorBinding(Binding))
-        {
-            return false;
-        }
-    }
-    return true;
+    return IsValidRHIPipelineLayoutDesc(Desc);
 }
 
 [[nodiscard]] bool IsValidRenderPassDesc(const FRHIDeviceCapabilities& Capabilities, const FRHIRenderPassDesc& Desc)
@@ -1153,6 +1152,15 @@ public:
             {
                 return {ERHIResult::InvalidState, nullptr};
             }
+            for (const FRHIShaderInterfaceBinding& Required : Shader->GetDesc().InterfaceMetadata.Bindings)
+            {
+                const FRHIDescriptorBinding* Binding = Desc.PipelineLayout->FindBinding(Required.SetIndex, Required.BindingSlot);
+                if (!Binding || Binding->DescriptorType != Required.DescriptorType || Binding->ArrayCount < Required.ArrayCount ||
+                    (Binding->Visibility & Required.Visibility) != Required.Visibility)
+                {
+                    return {ERHIResult::InvalidState, nullptr};
+                }
+            }
             if (Shader->GetStage() == ERHIShaderStage::Vertex)
             {
                 if (bHasVertex)
@@ -1190,6 +1198,10 @@ public:
         {
             return {ERHIResult::Unsupported, nullptr};
         }
+        if (!IsValidRHIGraphicsPipelineState(Desc))
+        {
+            return {ERHIResult::InvalidState, nullptr};
+        }
         return {ERHIResult::Success, MakeShared<FMockGraphicsPipeline>(Desc)};
     }
 
@@ -1211,6 +1223,15 @@ public:
         if (Desc.ShaderModules[0]->GetStage() != ERHIShaderStage::Compute)
         {
             return {ERHIResult::Unsupported, nullptr};
+        }
+        for (const FRHIShaderInterfaceBinding& Required : Desc.ShaderModules[0]->GetDesc().InterfaceMetadata.Bindings)
+        {
+            const FRHIDescriptorBinding* Binding = Desc.PipelineLayout->FindBinding(Required.SetIndex, Required.BindingSlot);
+            if (!Binding || Binding->DescriptorType != Required.DescriptorType || Binding->ArrayCount < Required.ArrayCount ||
+                (Binding->Visibility & Required.Visibility) != Required.Visibility)
+            {
+                return {ERHIResult::InvalidState, nullptr};
+            }
         }
         return {ERHIResult::Success, MakeShared<FMockComputePipeline>(Desc)};
     }
@@ -1451,6 +1472,7 @@ void TestSwapchain(FRHICoreTestResult& Result)
         {0, 2, ERHIDescriptorType::Sampler, 1, ERHIShaderStageFlags::Fragment},
         {1, 0, ERHIDescriptorType::CombinedTextureSampler, 1, ERHIShaderStageFlags::Fragment},
         {1, 1, ERHIDescriptorType::StorageBuffer, 1, ERHIShaderStageFlags::Compute}};
+    Desc.ConstantRanges = {{0, 64, ERHIShaderStageFlags::Vertex | ERHIShaderStageFlags::Fragment | ERHIShaderStageFlags::Compute}};
     return Desc;
 }
 
@@ -1460,6 +1482,22 @@ void TestSwapchain(FRHICoreTestResult& Result)
     Desc.Stage = Stage;
     Desc.EntryPoint = EntryPoint;
     Desc.PayloadIdentity = Payload;
+    Desc.Bytecode.Words = {0x07230203u, 0u, 1u, static_cast<uint32>(Stage)};
+    const ERHIShaderStageFlags Visibility = ToShaderStageFlag(Stage);
+    if (Stage == ERHIShaderStage::Vertex)
+    {
+        Desc.InterfaceMetadata.Bindings = {{0, 0, ERHIDescriptorType::UniformBuffer, 1, Visibility}};
+    }
+    else if (Stage == ERHIShaderStage::Fragment)
+    {
+        Desc.InterfaceMetadata.Bindings = {{0, 1, ERHIDescriptorType::SampledTexture, 1, Visibility}};
+    }
+    else if (Stage == ERHIShaderStage::Compute)
+    {
+        Desc.InterfaceMetadata.Bindings = {{1, 1, ERHIDescriptorType::StorageBuffer, 1, Visibility}};
+    }
+    Desc.InterfaceMetadata.ConstantRanges = {{0, 16, Visibility}};
+    Desc.InterfaceMetadata.DebugName = Payload;
     Desc.DebugName = Payload;
     return Desc;
 }
@@ -1686,8 +1724,11 @@ void TestShaderAndPipelineContracts(FRHICoreTestResult& Result)
     Record(Result, Fragment.Object->Invalidate() == ERHIResult::Success &&
             Device.CreateGraphicsPipeline(GraphicsDesc).Result == ERHIResult::InvalidState,
         "IRHIDevice rejects Invalidated shader module in graphics pipeline");
+    FRHIComputePipelineDesc InvalidatedLayoutComputeDesc;
+    InvalidatedLayoutComputeDesc.ShaderModules = {Compute.Object};
+    InvalidatedLayoutComputeDesc.PipelineLayout = Layout.Object;
     Record(Result, Layout.Object->Invalidate() == ERHIResult::Success &&
-            Device.CreateComputePipeline({{Compute.Object}, Layout.Object}).Result == ERHIResult::InvalidState,
+            Device.CreateComputePipeline(InvalidatedLayoutComputeDesc).Result == ERHIResult::InvalidState,
         "IRHIDevice rejects Invalidated pipeline layout in pipeline creation");
 }
 
@@ -1785,6 +1826,8 @@ void TestResourcePipelineLifecycleAndSmokeFlow(FRHICoreTestResult& Result)
     FRHIGraphicsPipelineDesc PipelineDesc;
     PipelineDesc.PipelineLayout = SmokeLayout.Object;
     PipelineDesc.ShaderModules = {SmokeVS.Object, SmokePS.Object};
+    PipelineDesc.VertexInput.Stride = 12;
+    PipelineDesc.VertexInput.Attributes = {{0, ERHIFormat::R32_Float, 0}};
     PipelineDesc.RenderTargets.ColorFormats = {ERHIFormat::R8G8B8A8_UNorm};
     auto SmokePipeline = SmokeDevice.CreateGraphicsPipeline(PipelineDesc);
     auto SmokePass = SmokeDevice.CreateRenderPass({{{ERHIAttachmentRole::Color, ERHIFormat::R8G8B8A8_UNorm, ERHISampleCount::One}}});

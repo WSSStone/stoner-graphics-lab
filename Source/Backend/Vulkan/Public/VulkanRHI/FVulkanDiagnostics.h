@@ -44,6 +44,13 @@ struct FVulkanDiagnostics
     const char* SubmissionReason = "";
     const char* CompletionReason = "";
     const char* UploadSchedulingReason = "";
+    const char* ShaderModuleReason = "";
+    const char* PipelineLayoutReason = "";
+    const char* GraphicsPipelineReason = "";
+    const char* ComputePipelineReason = "";
+    const char* PipelineCacheReason = "";
+    const char* PipelineBindingReason = "";
+    const char* RuntimeModeReason = "";
 };
 
 void MarkUnsupportedRuntime(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
@@ -63,5 +70,12 @@ void MarkFramebuffer(FVulkanDiagnostics& Diagnostics, const char* Reason) noexce
 void MarkSubmission(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
 void MarkCompletion(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
 void MarkUploadScheduling(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkShaderModule(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkPipelineLayout(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkGraphicsPipeline(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkComputePipeline(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkPipelineCache(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkPipelineBinding(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkRuntimeMode(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
 
 } // namespace Stoner::Backend::Vulkan

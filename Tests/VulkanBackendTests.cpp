@@ -30,6 +30,8 @@ public:
     ERHIResult RecordDraw(uint32, uint32 = 1) override { return ERHIResult::Unsupported; }
     ERHIResult RecordDrawIndexed(uint32, uint32 = 1) override { return ERHIResult::Unsupported; }
     ERHIResult RecordDispatch(uint32, uint32, uint32) override { return ERHIResult::Unsupported; }
+    ERHIResult BindGraphicsPipeline(const TSharedPtr<IRHIGraphicsPipeline>&) override { return ERHIResult::Unsupported; }
+    ERHIResult BindComputePipeline(const TSharedPtr<IRHIComputePipeline>&) override { return ERHIResult::Unsupported; }
     ERHIResult RecordBarrier() override { return ERHIResult::Unsupported; }
     ERHIResult RecordBarrier(const FRHIResourceBarrierDesc&) override { return ERHIResult::Unsupported; }
     ERHIResult RecordBufferCopy(const TSharedPtr<IRHIBuffer>&, const TSharedPtr<IRHIBuffer>&, FRHIBufferCopyRange) override { return ERHIResult::Unsupported; }
@@ -209,7 +211,7 @@ void TestSynchronization(FVulkanBackendTestResult& Result)
         Semaphore.Object->Signal() == ERHIResult::InvalidState, "Vulkan post-shutdown sync rejection");
 }
 
-void TestLifecycleAndUnsupportedFactories(FVulkanBackendTestResult& Result)
+void TestLifecycleAndFactoryState(FVulkanBackendTestResult& Result)
 {
     for (int Index = 0; Index < 3; ++Index)
     {
@@ -219,7 +221,7 @@ void TestLifecycleAndUnsupportedFactories(FVulkanBackendTestResult& Result)
         {
             Record(Result, DeviceResult.Object->CreateCommandBuffer(ERHIQueueType::Graphics).Succeeded() &&
                 DeviceResult.Object->CreateShaderModule({}).Result == ERHIResult::Unsupported &&
-                DeviceResult.Object->CreateGraphicsPipeline({}).Result == ERHIResult::Unsupported, "Vulkan out-of-scope factories return unsupported");
+                DeviceResult.Object->CreateGraphicsPipeline({}).Result == ERHIResult::InvalidState, "Vulkan factories reject invalid descriptions explicitly");
             Record(Result, DeviceResult.Object->Shutdown() == ERHIResult::Success &&
                 DeviceResult.Object->CreateCommandBuffer(ERHIQueueType::Graphics).Result == ERHIResult::InvalidState, "Vulkan shutdown rejects later factories");
         }
@@ -285,8 +287,150 @@ void TestLifecycleAndUnsupportedFactories(FVulkanBackendTestResult& Result)
         {0, 1, ERHIDescriptorType::SampledTexture, 1, ERHIShaderStageFlags::Fragment},
         {0, 2, ERHIDescriptorType::Sampler, 1, ERHIShaderStageFlags::Fragment},
         {0, 3, ERHIDescriptorType::CombinedTextureSampler, 1, ERHIShaderStageFlags::Fragment},
+        {1, 0, ERHIDescriptorType::StorageBuffer, 1, ERHIShaderStageFlags::Compute},
     };
+    Desc.ConstantRanges = {{0, 64, ERHIShaderStageFlags::Vertex | ERHIShaderStageFlags::Fragment | ERHIShaderStageFlags::Compute}};
     return Desc;
+}
+
+[[nodiscard]] FRHIShaderModuleDesc ShaderDesc(ERHIShaderStage Stage, const char* EntryPoint, const char* Payload)
+{
+    FRHIShaderModuleDesc Desc;
+    Desc.Stage = Stage;
+    Desc.EntryPoint = EntryPoint;
+    Desc.PayloadIdentity = Payload;
+    Desc.Bytecode.Words = {0x07230203u, 0u, 1u, static_cast<uint32>(Stage)};
+    const ERHIShaderStageFlags Visibility = ToShaderStageFlag(Stage);
+    if (Stage == ERHIShaderStage::Vertex)
+    {
+        Desc.InterfaceMetadata.Bindings = {{0, 0, ERHIDescriptorType::UniformBuffer, 1, Visibility}};
+    }
+    else if (Stage == ERHIShaderStage::Fragment)
+    {
+        Desc.InterfaceMetadata.Bindings = {{0, 1, ERHIDescriptorType::SampledTexture, 1, Visibility}};
+    }
+    else if (Stage == ERHIShaderStage::Compute)
+    {
+        Desc.InterfaceMetadata.Bindings = {{1, 0, ERHIDescriptorType::StorageBuffer, 1, Visibility}};
+    }
+    Desc.InterfaceMetadata.ConstantRanges = {{0, 16, Visibility}};
+    Desc.InterfaceMetadata.DebugName = Payload;
+    Desc.DebugName = Payload;
+    return Desc;
+}
+
+[[nodiscard]] FRHIGraphicsPipelineDesc GraphicsPipelineDesc(
+    const TSharedPtr<IRHIShaderModule>& Vertex,
+    const TSharedPtr<IRHIShaderModule>& Fragment,
+    const TSharedPtr<IRHIPipelineLayout>& Layout)
+{
+    FRHIGraphicsPipelineDesc Desc;
+    Desc.PipelineLayout = Layout;
+    Desc.ShaderModules = {Vertex, Fragment};
+    Desc.VertexInput.Stride = 12;
+    Desc.VertexInput.Attributes = {{0, ERHIFormat::R32_Float, 0}};
+    Desc.Topology = ERHIPrimitiveTopology::TriangleList;
+    Desc.RenderTargets.ColorFormats = {ERHIFormat::R8G8B8A8_UNorm};
+    Desc.RenderTargets.SampleCount = ERHISampleCount::One;
+    Desc.Multisample.SampleCount = ERHISampleCount::One;
+    return Desc;
+}
+
+[[nodiscard]] FRHIComputePipelineDesc ComputePipelineDesc(
+    const TSharedPtr<IRHIShaderModule>& Compute,
+    const TSharedPtr<IRHIPipelineLayout>& Layout)
+{
+    FRHIComputePipelineDesc Desc;
+    Desc.PipelineLayout = Layout;
+    Desc.ShaderModules = {Compute};
+    return Desc;
+}
+
+void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
+{
+    FVulkanDevice Device;
+    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan shader pipeline fixture device initializes");
+
+    const auto Layout = Device.CreatePipelineLayout(ResourceLayoutDesc());
+    const auto Vertex = Device.CreateShaderModule(ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "vs_payload"));
+    const auto Fragment = Device.CreateShaderModule(ShaderDesc(ERHIShaderStage::Fragment, "MainPS", "ps_payload"));
+    const auto Compute = Device.CreateShaderModule(ShaderDesc(ERHIShaderStage::Compute, "MainCS", "cs_payload"));
+    Record(Result, Layout.Succeeded() && Vertex.Succeeded() && Fragment.Succeeded() && Compute.Succeeded() &&
+        Device.GetDiagnostics().ShaderModuleReason[0] != '\0', "Vulkan shader modules and layout create with diagnostics");
+
+    auto VulkanShader = std::dynamic_pointer_cast<FVulkanShaderModule>(Vertex.Object);
+    Record(Result, VulkanShader && VulkanShader->GetRuntimeMode() == ERHIRuntimeObjectMode::DeterministicFallback &&
+        VulkanShader->GetValidationMode() == ERHIShaderBytecodeValidationMode::StructuralFallback &&
+        Device.GetDiagnostics().RuntimeModeReason[0] != '\0', "Vulkan shader module fallback runtime mode is explicit");
+
+    FRHIShaderModuleDesc BadBytecode = ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "bad");
+    BadBytecode.Bytecode.Words = {1u, 2u, 3u};
+    FRHIShaderModuleDesc BadMetadata = ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "bad_meta");
+    BadMetadata.InterfaceMetadata.Bindings[0].Visibility = ERHIShaderStageFlags::Fragment;
+    Record(Result, Device.CreateShaderModule(BadBytecode).Result == ERHIResult::InvalidState &&
+        Device.CreateShaderModule(BadMetadata).Result == ERHIResult::InvalidState &&
+        Device.CreateShaderModule(ShaderDesc(ERHIShaderStage::Mesh, "MainMS", "mesh")).Result == ERHIResult::Unsupported, "Vulkan shader module rejects malformed unsupported and metadata-incompatible inputs");
+
+    const auto GraphicsPipeline = Device.CreateGraphicsPipeline(GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object));
+    const auto GraphicsPipelineAgain = Device.CreateGraphicsPipeline(GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object));
+    const auto ComputePipeline = Device.CreateComputePipeline(ComputePipelineDesc(Compute.Object, Layout.Object));
+    const auto ComputePipelineAgain = Device.CreateComputePipeline(ComputePipelineDesc(Compute.Object, Layout.Object));
+    auto VulkanGraphics = std::dynamic_pointer_cast<FVulkanGraphicsPipeline>(GraphicsPipeline.Object);
+    auto VulkanCompute = std::dynamic_pointer_cast<FVulkanComputePipeline>(ComputePipeline.Object);
+    Record(Result, GraphicsPipeline.Succeeded() && ComputePipeline.Succeeded() &&
+        VulkanGraphics && VulkanGraphics->GetRuntimeMode() == ERHIRuntimeObjectMode::DeterministicFallback &&
+        VulkanCompute && VulkanCompute->GetRuntimeMode() == ERHIRuntimeObjectMode::DeterministicFallback, "Vulkan graphics and compute pipelines create deterministic fallback objects");
+    Record(Result, GraphicsPipelineAgain.Succeeded() && GraphicsPipelineAgain.Object == GraphicsPipeline.Object &&
+        ComputePipelineAgain.Succeeded() && ComputePipelineAgain.Object == ComputePipeline.Object &&
+        Device.GetDiagnostics().PipelineCacheReason[0] != '\0', "Vulkan pipeline cache reuses equivalent successful requests");
+
+    FRHIGraphicsPipelineDesc MissingFragment = GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object);
+    MissingFragment.ShaderModules = {Vertex.Object};
+    FRHIGraphicsPipelineDesc InvalidVertexInput = GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object);
+    InvalidVertexInput.VertexInput.Stride = 0;
+    Record(Result, Device.CreateGraphicsPipeline(MissingFragment).Result == ERHIResult::InvalidState &&
+        Device.CreateGraphicsPipeline(InvalidVertexInput).Result == ERHIResult::InvalidState, "Vulkan graphics pipeline rejects missing stages and invalid vertex input");
+
+    FRHIComputePipelineDesc WrongCompute = ComputePipelineDesc(Vertex.Object, Layout.Object);
+    Record(Result, Device.CreateComputePipeline(WrongCompute).Result == ERHIResult::Unsupported, "Vulkan compute pipeline rejects wrong-stage shader");
+
+    const auto RenderPass = Device.CreateRenderPass(ValidRenderPassDesc());
+    const auto Texture = Device.CreateTexture(ValidColorAttachmentTextureDesc());
+    const auto Framebuffer = Device.CreateFramebuffer(ValidFramebufferDesc(RenderPass.Object, Texture.Object));
+    const auto GraphicsCommand = Device.CreateCommandBuffer(ERHIQueueType::Graphics);
+    Record(Result, GraphicsCommand.Object->Begin() == ERHIResult::Success &&
+        GraphicsCommand.Object->BeginRenderPass(RenderPass.Object, Framebuffer.Object) == ERHIResult::Success &&
+        GraphicsCommand.Object->BindGraphicsPipeline(GraphicsPipeline.Object) == ERHIResult::Success &&
+        GraphicsCommand.Object->RecordDraw(3, 1) == ERHIResult::Success &&
+        GraphicsCommand.Object->RecordDrawIndexed(3, 1) == ERHIResult::Success &&
+        GraphicsCommand.Object->EndRenderPass() == ERHIResult::Success &&
+        GraphicsCommand.Object->End() == ERHIResult::Success &&
+        Device.GetDiagnostics().PipelineBindingReason[0] != '\0', "Vulkan command buffer binds graphics pipeline and records draw diagnostics");
+
+    const auto ComputeCommand = Device.CreateCommandBuffer(ERHIQueueType::Compute);
+    const auto TransferCommand = Device.CreateCommandBuffer(ERHIQueueType::Transfer);
+    Record(Result, ComputeCommand.Object->Begin() == ERHIResult::Success &&
+        ComputeCommand.Object->BindComputePipeline(ComputePipeline.Object) == ERHIResult::Success &&
+        ComputeCommand.Object->RecordDispatch(1, 1, 1) == ERHIResult::Success &&
+        TransferCommand.Object->Begin() == ERHIResult::Success &&
+        TransferCommand.Object->BindComputePipeline(ComputePipeline.Object) == ERHIResult::Unsupported, "Vulkan command buffer binds compute pipeline and rejects transfer queue binding");
+
+    FVulkanDevice LimitedDevice;
+    Record(Result, LimitedDevice.Initialize() == ERHIResult::Success, "Vulkan pipeline limit fixture initializes");
+    LimitedDevice.ConfigurePipelineCreationLimit(1);
+    const auto LimitedLayout = LimitedDevice.CreatePipelineLayout(ResourceLayoutDesc());
+    const auto LimitedVS = LimitedDevice.CreateShaderModule(ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "limit_vs"));
+    const auto LimitedPS = LimitedDevice.CreateShaderModule(ShaderDesc(ERHIShaderStage::Fragment, "MainPS", "limit_ps"));
+    const auto LimitedCS = LimitedDevice.CreateShaderModule(ShaderDesc(ERHIShaderStage::Compute, "MainCS", "limit_cs"));
+    Record(Result, LimitedDevice.CreateGraphicsPipeline(GraphicsPipelineDesc(LimitedVS.Object, LimitedPS.Object, LimitedLayout.Object)).Succeeded() &&
+        LimitedDevice.CreateComputePipeline(ComputePipelineDesc(LimitedCS.Object, LimitedLayout.Object)).Result == ERHIResult::Unavailable, "Vulkan configured pipeline creation limit is deterministic");
+
+    (void)Device.Shutdown();
+    Record(Result, Vertex.Object->GetLifecycleState() == ERHIResourceLifecycleState::Invalidated &&
+        GraphicsPipeline.Object->GetLifecycleState() == ERHIResourceLifecycleState::Invalidated &&
+        ComputePipeline.Object->GetLifecycleState() == ERHIResourceLifecycleState::Invalidated &&
+        Device.CreateShaderModule(ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "after")).Result == ERHIResult::InvalidState, "Vulkan shutdown invalidates shader and pipeline objects");
+    (void)LimitedDevice.Shutdown();
 }
 
 void TestResourceCreationAndAllocation(FVulkanBackendTestResult& Result)
@@ -540,7 +684,8 @@ FVulkanBackendTestResult RunVulkanBackendTests()
     TestQueues(Result);
     TestSurfaceSwapchain(Result);
     TestSynchronization(Result);
-    TestLifecycleAndUnsupportedFactories(Result);
+    TestLifecycleAndFactoryState(Result);
+    TestShaderPipelineAndBinding(Result);
     TestResourceCreationAndAllocation(Result);
     TestCommandBuffersRecordingAndSubmission(Result);
     TestRenderPassFramebufferRecordingAndUploads(Result);

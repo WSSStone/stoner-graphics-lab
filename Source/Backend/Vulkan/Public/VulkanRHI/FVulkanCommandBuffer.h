@@ -6,6 +6,8 @@ namespace Stoner::Backend::Vulkan
 {
 
 class FVulkanFramebuffer;
+class FVulkanComputePipeline;
+class FVulkanGraphicsPipeline;
 class FVulkanRenderPass;
 class FVulkanUploadRequest;
 struct FVulkanDiagnostics;
@@ -37,6 +39,8 @@ public:
     Stoner::RHI::ERHIResult RecordDraw(Stoner::Core::uint32 VertexCount, Stoner::Core::uint32 InstanceCount = 1) override;
     Stoner::RHI::ERHIResult RecordDrawIndexed(Stoner::Core::uint32 IndexCount, Stoner::Core::uint32 InstanceCount = 1) override;
     Stoner::RHI::ERHIResult RecordDispatch(Stoner::Core::uint32 GroupCountX, Stoner::Core::uint32 GroupCountY, Stoner::Core::uint32 GroupCountZ) override;
+    Stoner::RHI::ERHIResult BindGraphicsPipeline(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIGraphicsPipeline>& Pipeline) override;
+    Stoner::RHI::ERHIResult BindComputePipeline(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIComputePipeline>& Pipeline) override;
     Stoner::RHI::ERHIResult RecordBarrier() override;
     Stoner::RHI::ERHIResult RecordBarrier(const Stoner::RHI::FRHIResourceBarrierDesc& Barrier) override;
     Stoner::RHI::ERHIResult RecordBufferCopy(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Source, const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Destination, Stoner::RHI::FRHIBufferCopyRange Range) override;
@@ -54,6 +58,8 @@ public:
 private:
     [[nodiscard]] bool IsTransferCompatible() const noexcept;
     [[nodiscard]] bool IsComputeCompatible() const noexcept;
+    [[nodiscard]] bool HasCompatibleGraphicsPipeline() const noexcept;
+    [[nodiscard]] bool HasCompatibleComputePipeline() const noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult ValidateRecordingState() const noexcept;
     void AppendCommand(FVulkanRecordedCommand Command);
     void MarkRecordingDiagnostic(const char* Reason) noexcept;
@@ -64,6 +70,8 @@ private:
     FVulkanDiagnostics* Diagnostics = nullptr;
     Stoner::Core::TWeakPtr<Stoner::RHI::IRHIRenderPass> ActiveRenderPass;
     Stoner::Core::TWeakPtr<Stoner::RHI::IRHIFramebuffer> ActiveFramebuffer;
+    Stoner::Core::TWeakPtr<Stoner::RHI::IRHIGraphicsPipeline> BoundGraphicsPipeline;
+    Stoner::Core::TWeakPtr<Stoner::RHI::IRHIComputePipeline> BoundComputePipeline;
     bool bValid = true;
 };
 

@@ -8,12 +8,16 @@
 #include "VulkanRHI/FVulkanDescriptorSet.h"
 #include "VulkanRHI/FVulkanDiagnostics.h"
 #include "VulkanRHI/FVulkanFramebuffer.h"
+#include "VulkanRHI/FVulkanComputePipeline.h"
+#include "VulkanRHI/FVulkanGraphicsPipeline.h"
 #include "VulkanRHI/FVulkanInstance.h"
 #include "VulkanRHI/FVulkanMemoryAllocator.h"
 #include "VulkanRHI/FVulkanPhysicalDevice.h"
+#include "VulkanRHI/FVulkanPipelineCache.h"
 #include "VulkanRHI/FVulkanPipelineLayout.h"
 #include "VulkanRHI/FVulkanRenderPass.h"
 #include "VulkanRHI/FVulkanSampler.h"
+#include "VulkanRHI/FVulkanShaderModule.h"
 #include "VulkanRHI/FVulkanSurface.h"
 #include "VulkanRHI/FVulkanTexture.h"
 #include "VulkanRHI/FVulkanUploadStaging.h"
@@ -48,6 +52,7 @@ public:
     void ConfigureAllocationCountLimit(Stoner::Core::uint32 MaxAllocations) noexcept;
     void ConfigureDescriptorPoolCapacity(Stoner::Core::uint32 Capacity) noexcept;
     void ConfigureCommandBufferCapacity(Stoner::Core::uint32 Capacity) noexcept;
+    void ConfigurePipelineCreationLimit(Stoner::Core::uint32 MaxSuccessfulCreations) noexcept;
     void ConfigureFallbackCompletionInjection(FVulkanCompletionInjectionConfig Injection) noexcept;
     void ResetResourceConfiguration() noexcept;
 
@@ -84,6 +89,7 @@ private:
     [[nodiscard]] bool SupportsBufferDesc(const Stoner::RHI::FRHIBufferDesc& Desc) noexcept;
     [[nodiscard]] bool SupportsTextureDesc(const Stoner::RHI::FRHITextureDesc& Desc) const noexcept;
     [[nodiscard]] bool SupportsSamplerDesc(const Stoner::RHI::FRHISamplerDesc& Desc) noexcept;
+    [[nodiscard]] bool CanCreatePipeline() noexcept;
     void EnsureDescriptorPool() noexcept;
 
     Stoner::RHI::ERHIDeviceState State = Stoner::RHI::ERHIDeviceState::Uninitialized;
@@ -106,9 +112,15 @@ private:
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanRenderPass>> RenderPasses;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanFramebuffer>> Framebuffers;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanPipelineLayout>> PipelineLayouts;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanShaderModule>> ShaderModules;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanGraphicsPipeline>> GraphicsPipelines;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanComputePipeline>> ComputePipelines;
+    FVulkanPipelineCache PipelineCache;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanDescriptorSet>> DescriptorSets;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanUploadRequest>> UploadRequests;
     Stoner::Core::uint32 CommandBufferCapacity = 64;
+    Stoner::Core::uint32 PipelineCreationLimit = 0;
+    Stoner::Core::uint32 SuccessfulPipelineCreations = 0;
     FVulkanCompletionInjectionConfig CompletionInjection;
 };
 
