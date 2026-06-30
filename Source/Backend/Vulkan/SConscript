@@ -4,9 +4,24 @@ Import('env', 'platform', 'config')
 from LayerBuilder import BuildLayer
 import os
 
+vulkan_env = env.Clone()
+vulkan_sdk_available = 0
+
+vulkan_sdk = os.environ.get('VULKAN_SDK')
+if vulkan_sdk:
+    include_dir = os.path.join(vulkan_sdk, 'Include')
+    lib_dir = os.path.join(vulkan_sdk, 'Lib')
+    if os.path.isdir(include_dir):
+        vulkan_env.Prepend(CPPPATH=[include_dir])
+        vulkan_sdk_available = 1
+    if os.path.isdir(lib_dir):
+        vulkan_env.Prepend(LIBPATH=[lib_dir])
+
+vulkan_env.Append(CPPDEFINES=[('STONER_VULKAN_SDK_AVAILABLE', vulkan_sdk_available)])
+
 # Vulkan backend uses custom paths under Source/Backend/Vulkan/
 lib = BuildLayer(
-    env,
+    vulkan_env,
     'VulkanRHI',
     ['RHI', 'Core'],
     source_dir=os.path.join('Source', 'Backend', 'Vulkan', 'Private'),

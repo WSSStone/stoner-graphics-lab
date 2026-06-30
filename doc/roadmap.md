@@ -117,7 +117,7 @@ These principles (from the [Constitution v1.2.0](../.specify/memory/constitution
 | 005 | Core: Platform Abstraction | Core | 002 | M | ✅ Yes | ✅ Done |
 | 006 | RHI: Core Interfaces | RHI | 002, 003 | L | ✅ Yes | ✅ Done |
 | 007 | RHI: Resource & Pipeline | RHI | 006 | L | ✅ Yes | ✅ Done |
-| 008 | Vulkan: Device & Swapchain | Backend | 005, 006 | L | ✅ Yes | ⬜ Todo |
+| 008 | Vulkan: Device & Swapchain | Backend | 005, 006 | L | ✅ Yes | ✅ Done |
 | 009 | Vulkan: Resource Management | Backend | 007, 008 | L | ✅ Yes | ⬜ Todo |
 | 010 | Vulkan: Commands & Submission | Backend | 009 | M | ✅ Yes | ⬜ Todo |
 | 011 | Vulkan: Pipeline & Shader | Backend | 009, 010 | L | ✅ Yes | ⬜ Todo |
@@ -425,20 +425,19 @@ RHI resource and pipeline interfaces: IRHIBuffer (vertex/index/uniform/storage),
 
 #### Scope
 
-Implement the Vulkan backend's device initialization, physical device selection, logical device creation, and swapchain management. This is the first phase that links against the Vulkan SDK.
+Implement the Vulkan backend's device initialization, physical device selection, logical device creation, queue exposure, synchronization objects, Core platform-window-backed surface validation, and swapchain lifecycle. The delivered implementation keeps Vulkan SDK use behind build-time detection and provides deterministic supported-stub or explicit unsupported behavior.
 
 #### Key Deliverables
 
-- `FVulkanInstance` — Vulkan instance creation with validation layers (debug) and extensions
-- `FVulkanPhysicalDevice` — Physical device enumeration and selection (discrete GPU preference)
-- `FVulkanDevice` — Logical device creation implementing `IRHIDevice`
-- `FVulkanQueue` — Queue family discovery and queue retrieval implementing `IRHICommandQueue`
-- `FVulkanSwapchain` — Swapchain creation/recreation implementing `IRHISwapchain`
-- `FVulkanSurface` — Platform-specific surface creation (Win32, macOS/MoltenVK, X11/Wayland)
-- `FVulkanFence`, `FVulkanSemaphore` — Synchronization implementing `IRHIFence`, `IRHISemaphore`
-- Vulkan SDK integration in SCons build (ThirdParty or system SDK)
-- Validation layer integration for debug builds
-- Integration tests (create device, create swapchain, destroy cleanly)
+- `FVulkanInstance` — backend runtime initialization with optional validation diagnostics and explicit unsupported fallback
+- `FVulkanPhysicalDevice` — deterministic synthetic/real-adapter-ready capability gate and scoring model
+- `FVulkanDevice` — `IRHIDevice` implementation for lifecycle, capabilities, queue/sync/swapchain factories, and unsupported out-of-scope factories
+- `FVulkanQueue` — `IRHICommandQueue` implementation for queue metadata, wait-idle, and explicit command submission rejection until command recording exists
+- `FVulkanSurface` — Core `FPlatformWindow` wrapper validation and presentation-skip diagnostics
+- `FVulkanSwapchain` — `IRHISwapchain` frame count, acquire/present, resize-required, unavailable, recreate, and invalidation behavior
+- `FVulkanFence`, `FVulkanSemaphore` — synchronization contracts with invalid-state handling after shutdown
+- Vulkan SDK detection macro in SCons with compile-safe fallback when SDK headers are absent
+- Integration tests for initialization, adapter selection, queues, surface/swapchain, sync objects, unsupported paths, and repeated shutdown
 
 #### What's Excluded
 

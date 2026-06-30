@@ -5,7 +5,7 @@ namespace Stoner::Backend::Vulkan
 
 void VulkanDeviceInit()
 {
-    // Placeholder — Vulkan device initialization
+    (void)CreateVulkanDevice();
 }
 
 } // namespace Stoner::Backend::Vulkan

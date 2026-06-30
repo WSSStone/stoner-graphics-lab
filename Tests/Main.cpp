@@ -5,6 +5,7 @@
 #include "LoggingAssertionTests.h"
 #include "CorePlatformTests.h"
 #include "RHICoreTests.h"
+#include "VulkanBackendTests.h"
 
 int main()
 {
@@ -13,7 +14,8 @@ int main()
     const FLoggingAssertionTestResult LogResult = RunLoggingAssertionTests();
     const FCorePlatformTestResult PlatformResult = RunCorePlatformTests();
     const FRHICoreTestResult RHIResult = RunRHICoreTests();
+    const FVulkanBackendTestResult VulkanResult = RunVulkanBackendTests();
     return CoreResult.Failed == 0 && MathResult.Failed == 0 &&
         LogResult.Failed == 0 && PlatformResult.Failed == 0 &&
-        RHIResult.Failed == 0 ? 0 : 1;
+        RHIResult.Failed == 0 && VulkanResult.Failed == 0 ? 0 : 1;
 }

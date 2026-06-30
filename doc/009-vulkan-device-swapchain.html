@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>009 — Vulkan Device & Swapchain Backend · Stoner Graphics Lab</title>
+    <style>
+        *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+        :root {
+            --bg:#f7f9fc; --bg-card:#ffffff; --bg-code:#f1f5f9; --border:#d8e0ea;
+            --text:#1f2937; --text-dim:#64748b; --accent:#2563eb; --accent2:#059669;
+            --warn:#b45309; --error:#dc2626;
+            --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+            --font-mono:'JetBrains Mono','Fira Code','Cascadia Code','SF Mono',Consolas,monospace;
+        }
+        html { scroll-behavior:smooth; }
+        body { font-family:var(--font-sans); background:var(--bg); color:var(--text); line-height:1.7; font-size:15px; }
+        .page { display:grid; grid-template-columns:260px 1fr; min-height:100vh; }
+        .sidebar { position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--bg-card); border-right:1px solid var(--border); padding:24px 16px; font-size:13px; }
+        .sidebar h2 { font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-dim); margin-bottom:12px; }
+        .logo { font-size:14px; font-weight:700; color:var(--accent); margin-bottom:4px; }
+        .subtitle { font-size:11px; color:var(--text-dim); margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+        .toc { list-style:none; }
+        .toc a { display:block; padding:5px 10px; border-radius:6px; color:var(--text-dim); text-decoration:none; transition:all .15s; }
+        .toc a:hover { background:rgba(37,99,235,.1); color:var(--accent); }
+        .toc .sub { padding-left:20px; font-size:12px; }
+        .content { max-width:900px; margin:0 auto; padding:48px 40px 120px; }
+        .content > section { margin-bottom:56px; }
+        h1 { font-size:32px; font-weight:800; background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:8px; }
+        h1 + .meta { font-size:13px; color:var(--text-dim); margin-bottom:32px; }
+        h2 { font-size:22px; font-weight:700; margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+        h2 .num { color:var(--accent); margin-right:6px; }
+        h3 { font-size:17px; font-weight:600; margin:24px 0 10px; }
+        h4 { font-size:15px; font-weight:600; color:var(--text-dim); margin:16px 0 8px; }
+        p, ul, ol { margin-bottom:14px; }
+        ul, ol { padding-left:22px; }
+        li { margin-bottom:4px; }
+        .card { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:20px 24px; margin-bottom:16px; }
+        .card.highlight { border-left:3px solid var(--accent); }
+        .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px; vertical-align:middle; }
+        .badge.status { background:rgba(5,150,105,.15); color:var(--accent2); }
+        .badge.version { background:rgba(37,99,235,.15); color:var(--accent); }
+        .badge.p1 { background:rgba(220,38,38,.15); color:var(--error); }
+        .badge.p2 { background:rgba(180,83,9,.15); color:var(--warn); }
+        table { width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px; }
+        th, td { text-align:left; padding:10px 14px; border-bottom:1px solid var(--border); vertical-align:top; }
+        th { font-size:12px; text-transform:uppercase; letter-spacing:.8px; color:var(--text-dim); background:var(--bg-card); }
+        code { font-family:var(--font-mono); font-size:13px; background:var(--bg-code); padding:2px 6px; border-radius:4px; color:#111827; }
+        pre { background:var(--bg-code); border:1px solid var(--border); border-radius:8px; padding:16px 20px; overflow-x:auto; margin-bottom:16px; font-size:13px; line-height:1.6; }
+        pre.mermaid { background:var(--bg-card); text-align:center; font-family:var(--font-sans); }
+        .file-tree { font-family:var(--font-mono); font-size:13px; line-height:1.8; background:var(--bg-code); border:1px solid var(--border); border-radius:8px; padding:16px 20px; margin-bottom:16px; }
+        .new { color:var(--accent2); } .mod { color:var(--warn); } .dir { color:var(--accent); }
+        .check { list-style:none; padding-left:0; }
+        .check li { padding:6px 0 6px 28px; position:relative; }
+        .check li::before { content:'✓'; position:absolute; left:4px; color:var(--accent2); font-weight:700; }
+        .adr { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; margin-bottom:16px; overflow:hidden; }
+        .adr summary { padding:14px 20px; cursor:pointer; font-weight:600; }
+        .adr .body { padding:0 20px 16px; border-top:1px solid var(--border); }
+        .adr .body p { margin-top:12px; }
+        @media (max-width:900px) { .page{grid-template-columns:1fr;} .sidebar{display:none;} .content{padding:24px 20px 80px;} }
+    </style>
+</head>
+<body>
+<div class="page">
+<nav class="sidebar">
+    <div class="logo">Stoner Graphics Lab</div>
+    <div class="subtitle">009 · Vulkan Device &amp; Swapchain</div>
+    <h2>目录</h2>
+    <ul class="toc">
+        <li><a href="#sec1">一、文档与上下文信息</a></li>
+        <li><a href="#sec1-1" class="sub">1. 基础元数据</a></li>
+        <li><a href="#sec1-2" class="sub">2. 本期核心摘要</a></li>
+        <li><a href="#sec1-3" class="sub">3. 上下文与依赖</a></li>
+        <li><a href="#sec2">二、目标与边界</a></li>
+        <li><a href="#sec3">三、交互与产品设计</a></li>
+        <li><a href="#sec4">四、技术架构与关键决策</a></li>
+        <li><a href="#sec5">五、实施与验证</a></li>
+        <li><a href="#sec6">六、设计巧思与最佳实践</a></li>
+        <li><a href="#sec7">七、编程语言知识点</a></li>
+        <li><a href="#sec8">八、软件工程知识点</a></li>
+    </ul>
+</nav>
+<main class="content">
+<h1>Vulkan Device &amp; Swapchain Backend</h1>
+<p class="meta">
+    <span class="badge version">Spec 009</span>
+    <span class="badge status">已交付</span>
+    Feature Branch: <code>009-vulkan-backend-device</code>
+</p>
+
+<section id="sec1">
+<h2><span class="num">一、</span>文档与上下文信息</h2>
+<h3 id="sec1-1">1. 基础元数据</h3>
+<table>
+    <tr><th style="width:160px">字段</th><th>内容</th></tr>
+    <tr><td>文档版本</td><td>v1.0</td></tr>
+    <tr><td>更新日期</td><td>2026-06-30</td></tr>
+    <tr><td>当前状态</td><td><span class="badge status">已交付</span></td></tr>
+    <tr><td>Feature Branch</td><td><code>009-vulkan-backend-device</code></td></tr>
+    <tr><td>Spec 目录</td><td><code>specs/009-vulkan-device-swapchain/</code></td></tr>
+    <tr><td>Roadmap Phase</td><td>Phase 008 — Backend: Vulkan Device &amp; Swapchain</td></tr>
+</table>
+<h3 id="sec1-2">2. 本期核心摘要</h3>
+<div class="card highlight">
+    <p>本阶段完成第一个可运行的 Vulkan backend slice：runtime instance、deterministic adapter selection、RHI device、queue、fence/semaphore、Core platform-window-backed surface validation、swapchain acquire/present/recreate，以及 shutdown invalidation。</p>
+    <p>实现没有把 Vulkan SDK 类型泄漏到 RHI 或 Renderer；SCons 会检测 <code>VULKAN_SDK</code> 并定义宏，SDK 不存在时仍能通过 compile-safe fallback 路径跑完 deterministic backend contract tests。</p>
+</div>
+<h3 id="sec1-3">3. 上下文与依赖</h3>
+<table>
+    <tr><th>依赖项</th><th>说明</th></tr>
+    <tr><td>Core Platform Abstraction</td><td>复用 <code>FPlatformWindow</code> 作为 presentation surface 的唯一 canonical input。</td></tr>
+    <tr><td>RHI Core Interfaces</td><td>实现 <code>IRHIDevice</code>、<code>IRHICommandQueue</code>、<code>IRHIFence</code>、<code>IRHISemaphore</code>、<code>IRHISwapchain</code> 合约。</td></tr>
+    <tr><td>RHI Resource/Pipeline Contracts</td><td>设备对 buffer、texture、shader、descriptor、pipeline、render pass 等超出本期范围的 factory 明确返回 <code>Unsupported</code>。</td></tr>
+    <tr><td>SCons / StonerTest</td><td>通过 <code>conda run -n godot scons</code> 构建，并运行 <code>Build/Mac/Debug/Tests/StonerTest</code>。</td></tr>
+    <tr><td>编号说明</td><td>Roadmap 为 Phase 008；Speckit 目录使用 009，因为既有 spec 目录已占用到 008。</td></tr>
+</table>
+</section>
+
+<section id="sec2">
+<h2><span class="num">二、</span>目标与边界</h2>
+<h3>1. 业务与功能目标</h3>
+<div class="card"><h4>US1 — 初始化可用 Vulkan backend device <span class="badge p1">P1 MVP</span></h4><p>开发者可以创建 headless backend device，查询 queue、format、presentation、sync、frames-in-flight 能力；unsupported runtime 和 no-compatible-adapter 都有显式结果。</p></div>
+<div class="card"><h4>US2 — 发现并使用 backend queues <span class="badge p1">P1</span></h4><p>graphics、compute、transfer、present queue 按 selected adapter capability 创建，支持 metadata 查询和 wait-idle；submit 在 command recording phase 前明确拒绝。</p></div>
+<div class="card"><h4>US3 — 创建与重建 presentation swapchain <span class="badge p1">P1</span></h4><p>surface 只接受有效 <code>FPlatformWindow</code>，swapchain 支持 frame count、current frame、acquire、present、resize-required、unavailable 和 recreate。</p></div>
+<div class="card"><h4>US4 — 使用 backend synchronization objects <span class="badge p2">P2</span></h4><p>fence 支持 initially signaled、wait/not-ready/timeout/reset/signal；semaphore 支持 signal/consume/reset 和非法转移拒绝。</p></div>
+<div class="card"><h4>US5 — 干净 shutdown 与 failure recovery <span class="badge p2">P2</span></h4><p>device shutdown invalidates owned queues、sync objects、swapchains，后续创建返回 invalid-state；重复 create/destroy cycle 保持 deterministic。</p></div>
+<h3>2. 架构目标与定位</h3>
+<p>本阶段位于 Backend/Vulkan 层，是 RHI contract 的第一个真实后端实现切片。Renderer/Application 仍然只面对 RHI/Core；Vulkan 运行时细节留在 <code>Source/Backend/Vulkan/</code> 内部。</p>
+<pre class="mermaid">
+graph TB
+    APP["Application / Renderer"]
+    RHI["RHI Contracts"]
+    VK["Backend/Vulkan"]
+    CORE["Core Platform Window"]
+    SDK["Vulkan SDK or fallback"]
+    APP --> RHI
+    VK --> RHI
+    VK --> CORE
+    VK --> SDK
+</pre>
+<h3>3. 边界与非目标（约束）</h3>
+<table>
+    <tr><th>不做什么</th><th>原因</th></tr>
+    <tr><td>真实 buffer/texture allocation</td><td>属于 roadmap Phase 009。</td></tr>
+    <tr><td>真实 command buffer recording/submission</td><td>属于 Phase 010；本期 queue submit 只做显式拒绝。</td></tr>
+    <tr><td>shader module、descriptor、pipeline backend 实现</td><td>属于后续 resource/pipeline backend 阶段。</td></tr>
+    <tr><td>public header 暴露 Vulkan SDK 类型</td><td>会破坏 RHI 抽象与多 API 后端策略。</td></tr>
+    <tr><td>强制所有机器安装 Vulkan SDK</td><td>当前项目需要在无 SDK/无 runtime 环境中仍能编译并报告 unsupported/fallback。</td></tr>
+</table>
+</section>
+
+<section id="sec3">
+<h2><span class="num">三、</span>交互与产品设计</h2>
+<h3>1. 用户使用路径</h3>
+<pre>
+CreateVulkanDevice()
+  -> IRHIDevice::GetCapabilities()
+  -> CreateCommandQueue(Graphics/Compute/Transfer/Present)
+  -> CreateFence / CreateSemaphore
+  -> CreateSurface(FPlatformWindow)
+  -> CreateSwapchainForSurface(surface, frame count)
+  -> AcquireNextFrame -> Present
+  -> Shutdown
+</pre>
+<h3>2. 核心规则与状态机</h3>
+<table>
+    <tr><th>对象</th><th>规则</th></tr>
+    <tr><td>Instance</td><td><code>Uninitialized -> Ready</code> 或 explicit <code>Unsupported</code>；validation unavailable 是 diagnostic，不让初始化失败。</td></tr>
+    <tr><td>Adapter Candidate</td><td>先过 required capability gate，再按 discrete GPU、queue support、presentation、format support 确定性打分。</td></tr>
+    <tr><td>Device</td><td><code>Uninitialized -> Active -> Shutdown</code>；shutdown 后所有 factory 返回 invalid-state。</td></tr>
+    <tr><td>Queue</td><td>支持 type/submitted count/wait-idle；missing 或 completed command buffer submit 都不会伪造执行。</td></tr>
+    <tr><td>Surface</td><td>无效 <code>FPlatformWindow</code> 返回 invalid-state，并写入 presentation skip diagnostic。</td></tr>
+    <tr><td>Swapchain</td><td><code>Ready -> Acquired -> Ready</code>；double acquire、stale present、unavailable、resize-required 都是显式结果。</td></tr>
+    <tr><td>Fence/Semaphore</td><td>状态转换可查询；shutdown invalidation 后操作返回 invalid-state。</td></tr>
+</table>
+</section>
+
+<section id="sec4">
+<h2><span class="num">四、</span>技术架构与关键决策</h2>
+<h3>1. 技术栈与基础设施</h3>
+<ul>
+    <li>C++20，传统 header/source 分离。</li>
+    <li>Backend public headers 位于 <code>Source/Backend/Vulkan/Public/VulkanRHI/</code>。</li>
+    <li>Backend private implementation 位于 <code>Source/Backend/Vulkan/Private/</code>。</li>
+    <li>SCons 检测 <code>VULKAN_SDK</code>，定义 <code>STONER_VULKAN_SDK_AVAILABLE</code>。</li>
+    <li>测试入口：<code>Tests/VulkanBackendTests.cpp</code> 接入 <code>Tests/Main.cpp</code>。</li>
+</ul>
+<h3>2. 关键信息</h3>
+<div class="file-tree">
+<span class="dir">Source/Backend/Vulkan/Public/VulkanRHI/</span><br>
+├── <span class="new">FVulkanDiagnostics.h</span><br>
+├── <span class="new">FVulkanInstance.h</span> / <span class="new">FVulkanPhysicalDevice.h</span><br>
+├── <span class="new">FVulkanDevice.h</span> / <span class="new">FVulkanQueue.h</span><br>
+├── <span class="new">FVulkanSurface.h</span> / <span class="new">FVulkanSwapchain.h</span><br>
+├── <span class="new">FVulkanFence.h</span> / <span class="new">FVulkanSemaphore.h</span><br>
+└── <span class="mod">VulkanDevice.h</span><br>
+<span class="dir">Tests/</span><br>
+├── <span class="new">VulkanBackendTests.h</span><br>
+└── <span class="new">VulkanBackendTests.cpp</span>
+</div>
+<table>
+    <tr><th>模块</th><th>职责</th><th>关键关系</th></tr>
+    <tr><td><code>FVulkanInstance</code></td><td>runtime 初始化、validation 诊断、adapter selection 入口。</td><td>被 <code>FVulkanDevice</code> 拥有。</td></tr>
+    <tr><td><code>FVulkanPhysicalDevice</code></td><td>候选 adapter gate、score、selection。</td><td>向 device capability mapping 提供输入。</td></tr>
+    <tr><td><code>FVulkanDevice</code></td><td>实现 RHI device lifecycle 和本期 factory。</td><td>拥有 queue、fence、semaphore、swapchain 并负责 shutdown invalidation。</td></tr>
+    <tr><td><code>FVulkanSurface</code></td><td>验证 Core platform window wrapper。</td><td>是 surface-backed swapchain 创建的前置条件。</td></tr>
+    <tr><td><code>FVulkanDiagnostics</code></td><td>记录 unsupported runtime、validation unavailable、selected adapter、presentation skip、queue capability。</td><td>不替代 <code>ERHIResult</code>，只解释结果。</td></tr>
+</table>
+<h3>3. 架构决策记录（ADR）</h3>
+<details class="adr" open><summary>ADR-009-01：SDK 检测与 fallback 分离</summary><div class="body"><p>构建系统可以看到 <code>VULKAN_SDK</code> 时定义 SDK available，但代码路径仍能在无 SDK 环境中编译。这样不会让 Backend/Vulkan 成为所有开发机的硬依赖。</p></div></details>
+<details class="adr"><summary>ADR-009-02：adapter selection 先 gate 后 score</summary><div class="body"><p>required capability gate 保证不选缺少 graphics/transfer/color format 的 adapter；score 再负责 discrete GPU、queue、presentation、format 的偏好，避免 driver 枚举顺序导致不稳定。</p></div></details>
+<details class="adr"><summary>ADR-009-03：queue submit 不伪造 command execution</summary><div class="body"><p>真实 command buffer recording 是后续阶段。本阶段 queue 可以创建、查询、wait-idle，但 submit 对 missing/non-executable 或暂未支持的 executable buffer 给出显式状态。</p></div></details>
+<details class="adr"><summary>ADR-009-04：diagnostics 与 result code 分工</summary><div class="body"><p><code>ERHIResult</code> 负责机器可判断的结果；diagnostics 负责解释 selected adapter、validation unavailable、presentation skip 等后端细节。</p></div></details>
+</section>
+
+<section id="sec5">
+<h2><span class="num">五、</span>实施与验证（任务流）</h2>
+<h3>5.1 任务拆解清单</h3>
+<ul class="check">
+    <li>建立 Vulkan backend public/private 文件结构和 SCons SDK detection 宏。</li>
+    <li>实现 diagnostics、adapter candidate、deterministic scoring、instance initialization。</li>
+    <li>实现 <code>FVulkanDevice</code> 的 RHI lifecycle、capability mapping 和 unsupported out-of-scope factories。</li>
+    <li>实现 queue、surface、swapchain、fence、semaphore 对象与 shutdown invalidation。</li>
+    <li>新增 <code>VulkanBackendTests</code>，覆盖 success、unsupported、invalid-state、presentation skip、recreate、repeated lifecycle。</li>
+    <li>更新 roadmap Phase 008 状态与 feature tasks。</li>
+</ul>
+<h3>5.2 验收标准</h3>
+<table>
+    <tr><th>命令</th><th>结果</th></tr>
+    <tr><td><code>conda run -n godot scons</code></td><td>退出码 0，VulkanRHI 与 StonerTest 成功构建。</td></tr>
+    <tr><td><code>Build/Mac/Debug/Tests/StonerTest</code></td><td>退出码 0，既有 Core/RHI tests 与新增 Vulkan tests 全部通过。</td></tr>
+    <tr><td>Checklist</td><td><code>specs/009-vulkan-device-swapchain/checklists/requirements.md</code> 16/16 pass。</td></tr>
+    <tr><td>Tasks</td><td><code>specs/009-vulkan-device-swapchain/tasks.md</code> T001-T108 全部完成。</td></tr>
+</table>
+</section>
+
+<section id="sec6">
+<h2><span class="num">六、</span>设计巧思与最佳实践</h2>
+<h3>6.1 当前业务场景与业务模型的最佳实践</h3>
+<p>本阶段的核心做法是“先把后端生命周期和契约边界钉牢，再接真实 Vulkan handle”。这让后续 resource、command、pipeline 阶段可以复用 device/queue/sync/swapchain 生命周期，而不会一边接 SDK 一边改抽象。</p>
+<h3>6.2 优化方案与收益</h3>
+<ul>
+    <li><strong>Deterministic tests</strong>：用 synthetic candidates 覆盖 multi-adapter selection，不依赖开发机 GPU 枚举顺序。</li>
+    <li><strong>Clear unsupported behavior</strong>：缺 runtime、缺 adapter、缺 queue、无效 window 都有显式结果，避免 silent pass。</li>
+    <li><strong>Owned-object invalidation</strong>：shutdown 后已有 queue/sync/swapchain 对象也不能继续工作，减少 stale object 风险。</li>
+    <li><strong>No Vulkan leakage</strong>：RHI public surface 不需要包含 Vulkan header，保留多后端能力。</li>
+</ul>
+</section>
+
+<section id="sec7">
+<h2><span class="num">七、</span>编程语言知识点</h2>
+<h3>1. 标准库接口与用法</h3>
+<ul>
+    <li><code>std::max_element</code>：在 adapter candidate 列表中选择最高 score 项。</li>
+    <li><code>std::string_view</code>：测试和 tie-break 中比较 adapter name，不拥有字符串。</li>
+    <li><code>std::dynamic_pointer_cast</code>：测试中从 <code>IRHISwapchain</code> 转回 <code>FVulkanSwapchain</code> 以触发 resize/unavailable simulation。</li>
+</ul>
+<h3>2. 语言特性与惯用法</h3>
+<ul>
+    <li>RAII-style shared ownership：通过 <code>TSharedPtr</code> 返回 RHI objects，device 保存 owned object 列表用于 shutdown invalidation。</li>
+    <li>强类型 enum：availability、validation、device type、RHI result/state 都避免魔法数字。</li>
+    <li>默认参数：<code>CreateVulkanDevice()</code> 和 <code>FVulkanInstanceDesc</code> 支持默认 headless happy path。</li>
+</ul>
+<h3>3. 平台相关与编译器行为</h3>
+<p>SCons 从环境变量 <code>VULKAN_SDK</code> 检测 include/lib 目录，并定义 <code>STONER_VULKAN_SDK_AVAILABLE</code>。当前 public headers 不包含 Vulkan SDK，因此 macOS/Linux/Windows 在 SDK 缺失时仍能编译后端 fallback。</p>
+</section>
+
+<section id="sec8">
+<h2><span class="num">八、</span>软件工程知识点</h2>
+<h3>1. 设计模式与架构模式</h3>
+<ul>
+    <li><strong>Facade</strong>：<code>CreateVulkanDevice</code> 和 aggregate <code>VulkanDevice.h</code> 给外部一个简洁入口。</li>
+    <li><strong>Strategy-ready backend</strong>：Vulkan backend 实现同一组 RHI interfaces，为未来 Metal/DX12/OpenGL 后端保留并行策略。</li>
+    <li><strong>State machine</strong>：device、swapchain、fence、semaphore 都用显式状态控制合法操作。</li>
+</ul>
+<h3>2. 工程原则与方法论</h3>
+<ul>
+    <li><strong>Spec-driven delivery</strong>：实现严格对应 spec/plan/tasks 的 user stories 与 success criteria。</li>
+    <li><strong>YAGNI</strong>：不提前实现 buffer/texture/command/pipeline 后端，只返回 explicit unsupported。</li>
+    <li><strong>Dependency inversion</strong>：Renderer/Application 依赖 RHI/Core contract，不依赖 Vulkan 具体类型。</li>
+</ul>
+<h3>3. 测试策略与质量保障</h3>
+<ul>
+    <li>Success path：device init、queue creation、surface/swapchain acquire-present、sync transitions。</li>
+    <li>Negative path：unsupported runtime、no compatible adapter、unsupported queue、invalid window、double acquire、stale present、post-shutdown factory。</li>
+    <li>Regression baseline：完整 <code>StonerTest</code> 同时跑 Core、RHI core/resource/pipeline 和 Vulkan backend tests。</li>
+</ul>
+</section>
+
+</main>
+</div>
+</body>
+</html>
