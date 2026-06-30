@@ -62,6 +62,18 @@ const Stoner::Core::TArray<unsigned char>& FVulkanUploadRequest::GetStagingData(
 FVulkanBufferUploadRange FVulkanUploadRequest::GetBufferRange() const noexcept { return BufferRange; }
 FVulkanTextureUploadRegion FVulkanUploadRequest::GetTextureRegion() const noexcept { return TextureRegion; }
 bool FVulkanUploadRequest::ClaimsExecution() const noexcept { return false; }
+Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> FVulkanUploadRequest::GetBuffer() const noexcept { return Buffer.lock(); }
+Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> FVulkanUploadRequest::GetTexture() const noexcept { return Texture.lock(); }
+
+Stoner::RHI::ERHIResult FVulkanUploadRequest::MarkScheduled() noexcept
+{
+    if (Lifecycle != EVulkanUploadLifecycle::Pending)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    Lifecycle = EVulkanUploadLifecycle::Scheduled;
+    return Stoner::RHI::ERHIResult::Success;
+}
 
 Stoner::RHI::ERHIResult FVulkanUploadRequest::Invalidate() noexcept
 {

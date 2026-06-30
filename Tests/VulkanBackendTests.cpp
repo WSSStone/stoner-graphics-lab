@@ -28,8 +28,15 @@ public:
     ERHIResult End() override { return ERHIResult::Unsupported; }
     ERHIResult Reset() override { return ERHIResult::Unsupported; }
     ERHIResult RecordDraw(uint32, uint32 = 1) override { return ERHIResult::Unsupported; }
+    ERHIResult RecordDrawIndexed(uint32, uint32 = 1) override { return ERHIResult::Unsupported; }
     ERHIResult RecordDispatch(uint32, uint32, uint32) override { return ERHIResult::Unsupported; }
     ERHIResult RecordBarrier() override { return ERHIResult::Unsupported; }
+    ERHIResult RecordBarrier(const FRHIResourceBarrierDesc&) override { return ERHIResult::Unsupported; }
+    ERHIResult RecordBufferCopy(const TSharedPtr<IRHIBuffer>&, const TSharedPtr<IRHIBuffer>&, FRHIBufferCopyRange) override { return ERHIResult::Unsupported; }
+    ERHIResult RecordTextureCopy(const TSharedPtr<IRHITexture>&, const TSharedPtr<IRHITexture>&, FRHITextureCopyRegion) override { return ERHIResult::Unsupported; }
+    ERHIResult RecordLayoutTransition(const FRHIResourceBarrierDesc&) override { return ERHIResult::Unsupported; }
+    ERHIResult BeginRenderPass(const TSharedPtr<IRHIRenderPass>&, const TSharedPtr<IRHIFramebuffer>&) override { return ERHIResult::Unsupported; }
+    ERHIResult EndRenderPass() override { return ERHIResult::Unsupported; }
 
 private:
     ERHICommandBufferState State = ERHICommandBufferState::Completed;
@@ -119,7 +126,7 @@ void TestQueues(FVulkanBackendTestResult& Result)
     Record(Result, GraphicsQueue.Object && GraphicsQueue.Object->Submit(nullptr) == ERHIResult::InvalidState, "Vulkan queue rejects missing command buffer");
 
     auto CompletedCommand = MakeShared<FCompletedCommandBuffer>();
-    Record(Result, GraphicsQueue.Object && GraphicsQueue.Object->Submit(CompletedCommand) == ERHIResult::Unsupported, "Vulkan queue rejects executable command until recording phase");
+    Record(Result, GraphicsQueue.Object && GraphicsQueue.Object->Submit(CompletedCommand) == ERHIResult::InvalidState, "Vulkan queue rejects foreign executable command buffer");
 
     FVulkanInstanceDesc LimitedDesc;
     LimitedDesc.SyntheticCandidates = {
@@ -210,7 +217,7 @@ void TestLifecycleAndUnsupportedFactories(FVulkanBackendTestResult& Result)
         Record(Result, DeviceResult.Succeeded(), "Vulkan repeated create cycle");
         if (DeviceResult.Object)
         {
-            Record(Result, DeviceResult.Object->CreateCommandBuffer(ERHIQueueType::Graphics).Result == ERHIResult::Unsupported &&
+            Record(Result, DeviceResult.Object->CreateCommandBuffer(ERHIQueueType::Graphics).Succeeded() &&
                 DeviceResult.Object->CreateShaderModule({}).Result == ERHIResult::Unsupported &&
                 DeviceResult.Object->CreateGraphicsPipeline({}).Result == ERHIResult::Unsupported, "Vulkan out-of-scope factories return unsupported");
             Record(Result, DeviceResult.Object->Shutdown() == ERHIResult::Success &&
@@ -231,6 +238,37 @@ void TestLifecycleAndUnsupportedFactories(FVulkanBackendTestResult& Result)
     Desc.Height = 8;
     Desc.Format = ERHIFormat::R8G8B8A8_UNorm;
     Desc.Usage = ERHITextureUsage::Sampled | ERHITextureUsage::CopyDestination;
+    return Desc;
+}
+
+[[nodiscard]] FRHITextureDesc ValidColorAttachmentTextureDesc()
+{
+    FRHITextureDesc Desc = ValidTextureDesc();
+    Desc.Usage = ERHITextureUsage::ColorAttachment | ERHITextureUsage::CopyDestination | ERHITextureUsage::CopySource | ERHITextureUsage::Sampled;
+    return Desc;
+}
+
+[[nodiscard]] FRHIBufferDesc ValidCopySourceBufferDesc()
+{
+    return {256, ERHIBufferUsage::CopySource | ERHIBufferUsage::Storage};
+}
+
+[[nodiscard]] FRHIRenderPassDesc ValidRenderPassDesc()
+{
+    FRHIRenderPassDesc Desc;
+    Desc.Attachments = {
+        {ERHIAttachmentRole::Color, ERHIFormat::R8G8B8A8_UNorm, ERHISampleCount::One, ERHIAttachmentLoadOp::Clear, ERHIAttachmentStoreOp::Store},
+    };
+    return Desc;
+}
+
+[[nodiscard]] FRHIFramebufferDesc ValidFramebufferDesc(const TSharedPtr<IRHIRenderPass>& RenderPass, const TSharedPtr<IRHITexture>& Texture)
+{
+    FRHIFramebufferDesc Desc;
+    Desc.RenderPass = RenderPass;
+    Desc.Attachments = {{Texture, 0, 0}};
+    Desc.Width = 8;
+    Desc.Height = 8;
     return Desc;
 }
 
@@ -293,6 +331,146 @@ void TestResourceCreationAndAllocation(FVulkanBackendTestResult& Result)
     Record(Result, Texture.Object && Texture.Object->GetLifecycleState() == ERHIResourceLifecycleState::Invalidated &&
         Device.CreateBuffer(ValidBufferDesc()).Result == ERHIResult::InvalidState, "Vulkan shutdown invalidates resource objects and rejects creation");
     (void)LimitedDevice.Shutdown();
+}
+
+void TestCommandBuffersRecordingAndSubmission(FVulkanBackendTestResult& Result)
+{
+    FVulkanDevice Device;
+    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan command fixture device initializes");
+
+    Device.ConfigureCommandBufferCapacity(2);
+    const auto FirstCommand = Device.CreateCommandBuffer(ERHIQueueType::Graphics);
+    const auto SecondCommand = Device.CreateCommandBuffer(ERHIQueueType::Graphics);
+    const auto ExhaustedCommand = Device.CreateCommandBuffer(ERHIQueueType::Graphics);
+    Record(Result, FirstCommand.Succeeded() && FirstCommand.Object->GetCompatibleQueueType() == ERHIQueueType::Graphics &&
+        FirstCommand.Object->GetRecordedCommandCount() == 0, "Vulkan command buffer allocation succeeds with metadata");
+    Record(Result, SecondCommand.Succeeded() && ExhaustedCommand.Result == ERHIResult::Unavailable &&
+        Device.GetDiagnostics().CommandAllocationReason[0] != '\0', "Vulkan command buffer capacity exhaustion is explicit");
+
+    Record(Result, FirstCommand.Object->Begin() == ERHIResult::Success &&
+        FirstCommand.Object->Begin() == ERHIResult::InvalidState &&
+        FirstCommand.Object->RecordDraw(3) == ERHIResult::InvalidState &&
+        FirstCommand.Object->RecordDispatch(1, 1, 1) == ERHIResult::Success &&
+        FirstCommand.Object->RecordBarrier() == ERHIResult::Success &&
+        FirstCommand.Object->End() == ERHIResult::Success, "Vulkan command lifecycle and compute/barrier recording");
+    Record(Result, FirstCommand.Object->RecordDispatch(1, 1, 1) == ERHIResult::InvalidState &&
+        FirstCommand.Object->Reset() == ERHIResult::Success &&
+        FirstCommand.Object->GetRecordedCommandCount() == 0, "Vulkan reset clears stale recorded commands");
+
+    const auto Queue = Device.CreateCommandQueue(ERHIQueueType::Graphics);
+    Record(Result, Queue.Succeeded(), "Vulkan command submission queue creates");
+    (void)FirstCommand.Object->Begin();
+    (void)FirstCommand.Object->RecordDispatch(1, 1, 1);
+    (void)FirstCommand.Object->End();
+    const auto WaitSemaphore = Device.CreateSemaphore();
+    const auto SignalSemaphore = Device.CreateSemaphore();
+    const auto Fence = Device.CreateFence(false);
+    (void)WaitSemaphore.Object->Signal();
+    Record(Result, Queue.Object->Submit(FirstCommand.Object, {WaitSemaphore.Object}, {SignalSemaphore.Object}, Fence.Object) == ERHIResult::Success &&
+        Queue.Object->GetSubmittedCommandBufferCount() == 1 &&
+        WaitSemaphore.Object->GetState() == ERHISemaphoreState::Consumed &&
+        SignalSemaphore.Object->IsSignaled() &&
+        Fence.Object->IsSignaled() &&
+        FirstCommand.Object->GetState() == ERHICommandBufferState::Submitted &&
+        Device.GetDiagnostics().SubmissionReason[0] != '\0', "Vulkan fallback queue submission consumes/signals sync and marks submitted");
+    Record(Result, FirstCommand.Object->Reset() == ERHIResult::InvalidState &&
+        Queue.Object->WaitIdle() == ERHIResult::Success &&
+        FirstCommand.Object->GetState() == ERHICommandBufferState::Resettable &&
+        FirstCommand.Object->Reset() == ERHIResult::Success, "Vulkan queue wait idle makes submitted command buffer resettable");
+
+    const auto ComputeCommand = Device.CreateCommandBuffer(ERHIQueueType::Compute);
+    (void)ComputeCommand.Object->Begin();
+    (void)ComputeCommand.Object->RecordDispatch(1, 1, 1);
+    (void)ComputeCommand.Object->End();
+    Record(Result, Queue.Object->Submit(ComputeCommand.Object) == ERHIResult::Unsupported, "Vulkan queue rejects incompatible command buffer submission");
+
+    FVulkanDevice InjectionDevice;
+    Record(Result, InjectionDevice.Initialize() == ERHIResult::Success, "Vulkan fallback injection fixture initializes");
+    InjectionDevice.ConfigureFallbackCompletionInjection({true, false});
+    const auto InjectedQueue = InjectionDevice.CreateCommandQueue(ERHIQueueType::Graphics);
+    const auto InjectedCommand = InjectionDevice.CreateCommandBuffer(ERHIQueueType::Graphics);
+    (void)InjectedCommand.Object->Begin();
+    (void)InjectedCommand.Object->RecordDispatch(1, 1, 1);
+    (void)InjectedCommand.Object->End();
+    (void)InjectedQueue.Object->Submit(InjectedCommand.Object);
+    auto VulkanQueue = std::dynamic_pointer_cast<FVulkanQueue>(InjectedQueue.Object);
+    Record(Result, VulkanQueue && VulkanQueue->ObserveLastSubmissionCompletion() == ERHIResult::NotReady &&
+        InjectedCommand.Object->GetState() == ERHICommandBufferState::Submitted, "Vulkan fallback completion can inject not-ready");
+    InjectionDevice.ConfigureFallbackCompletionInjection({false, true});
+    const auto TimeoutCommand = InjectionDevice.CreateCommandBuffer(ERHIQueueType::Graphics);
+    (void)TimeoutCommand.Object->Begin();
+    (void)TimeoutCommand.Object->RecordDispatch(1, 1, 1);
+    (void)TimeoutCommand.Object->End();
+    (void)InjectedQueue.Object->Submit(TimeoutCommand.Object);
+    Record(Result, VulkanQueue && VulkanQueue->ObserveLastSubmissionCompletion() == ERHIResult::Timeout, "Vulkan fallback completion can inject timeout");
+
+    (void)Device.Shutdown();
+    Record(Result, FirstCommand.Object->Begin() == ERHIResult::InvalidState &&
+        Queue.Object->WaitIdle() == ERHIResult::InvalidState, "Vulkan command and queue invalidation on shutdown");
+    (void)InjectionDevice.Shutdown();
+}
+
+void TestRenderPassFramebufferRecordingAndUploads(FVulkanBackendTestResult& Result)
+{
+    FVulkanDevice Device;
+    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan render pass command fixture initializes");
+
+    const auto RenderPass = Device.CreateRenderPass(ValidRenderPassDesc());
+    const auto Texture = Device.CreateTexture(ValidColorAttachmentTextureDesc());
+    const auto Framebuffer = Device.CreateFramebuffer(ValidFramebufferDesc(RenderPass.Object, Texture.Object));
+    Record(Result, RenderPass.Succeeded() && RenderPass.Object->GetAttachmentCount() == 1 &&
+        Framebuffer.Succeeded() && Framebuffer.Object->GetAttachmentCount() == 1, "Vulkan minimal render pass and framebuffer creation succeeds");
+
+    FRHIRenderPassDesc EmptyPass;
+    Record(Result, Device.CreateRenderPass(EmptyPass).Result == ERHIResult::Unsupported, "Vulkan minimal render pass rejects invalid description");
+    FRHIFramebufferDesc BadFramebuffer = ValidFramebufferDesc(RenderPass.Object, Texture.Object);
+    BadFramebuffer.Width = 64;
+    Record(Result, Device.CreateFramebuffer(BadFramebuffer).Result == ERHIResult::Unsupported, "Vulkan framebuffer rejects incompatible attachment dimensions");
+
+    const auto Command = Device.CreateCommandBuffer(ERHIQueueType::Graphics);
+    Record(Result, Command.Succeeded() &&
+        Command.Object->Begin() == ERHIResult::Success &&
+        Command.Object->BeginRenderPass(RenderPass.Object, Framebuffer.Object) == ERHIResult::Success &&
+        Command.Object->BeginRenderPass(RenderPass.Object, Framebuffer.Object) == ERHIResult::InvalidState &&
+        Command.Object->RecordDraw(3, 1) == ERHIResult::Success &&
+        Command.Object->RecordDrawIndexed(3, 1) == ERHIResult::Success &&
+        Command.Object->EndRenderPass() == ERHIResult::Success &&
+        Command.Object->EndRenderPass() == ERHIResult::InvalidState &&
+        Command.Object->End() == ERHIResult::Success &&
+        Command.Object->GetRecordedCommandCount() == 4 &&
+        Device.GetDiagnostics().CommandRecordingReason[0] != '\0', "Vulkan graphics render pass scope records draw placeholders and rejects invalid ordering");
+
+    const auto TransferCommand = Device.CreateCommandBuffer(ERHIQueueType::Transfer);
+    const auto SourceBuffer = Device.CreateBuffer(ValidCopySourceBufferDesc());
+    const auto DestinationBuffer = Device.CreateBuffer(ValidBufferDesc());
+    const auto SourceTexture = Device.CreateTexture(ValidColorAttachmentTextureDesc());
+    const auto DestinationTexture = Device.CreateTexture(ValidColorAttachmentTextureDesc());
+    Record(Result, TransferCommand.Succeeded() && SourceBuffer.Succeeded() && DestinationBuffer.Succeeded() &&
+        SourceTexture.Succeeded() && DestinationTexture.Succeeded(), "Vulkan transfer recording fixture creates resources");
+    (void)TransferCommand.Object->Begin();
+    Record(Result, TransferCommand.Object->RecordBufferCopy(SourceBuffer.Object, DestinationBuffer.Object, {0, 0, 16}) == ERHIResult::Success &&
+        TransferCommand.Object->RecordTextureCopy(SourceTexture.Object, DestinationTexture.Object, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 1}) == ERHIResult::Success &&
+        TransferCommand.Object->RecordLayoutTransition({nullptr, DestinationTexture.Object, ERHIBufferUsage::None, ERHITextureUsage::CopyDestination, ERHIResourceLayout::Undefined, ERHIResourceLayout::CopyDestination}) == ERHIResult::Success, "Vulkan transfer command records copy and declarative layout intent");
+    Record(Result, TransferCommand.Object->RecordDispatch(1, 1, 1) == ERHIResult::Unsupported &&
+        TransferCommand.Object->RecordBufferCopy(SourceBuffer.Object, DestinationBuffer.Object, {900, 0, 16}) == ERHIResult::InvalidState, "Vulkan transfer command rejects incompatible compute and invalid ranges");
+
+    const unsigned char Data[16] = {};
+    const auto BufferUpload = Device.StageBufferUpload(DestinationBuffer.Object, Data, sizeof(Data), {0, sizeof(Data)});
+    const auto TextureUpload = Device.StageTextureUpload(DestinationTexture.Object, Data, sizeof(Data), {0, 0, 0, 0, 0, 4, 4, 1});
+    auto VulkanTransfer = std::dynamic_pointer_cast<FVulkanCommandBuffer>(TransferCommand.Object);
+    Record(Result, VulkanTransfer && BufferUpload.Succeeded() && TextureUpload.Succeeded() &&
+        VulkanTransfer->ScheduleBufferUpload(BufferUpload.Object) == ERHIResult::Success &&
+        VulkanTransfer->ScheduleTextureUpload(TextureUpload.Object) == ERHIResult::Success &&
+        BufferUpload.Object->GetLifecycle() == EVulkanUploadLifecycle::Scheduled &&
+        TextureUpload.Object->GetLifecycle() == EVulkanUploadLifecycle::Scheduled &&
+        !BufferUpload.Object->ClaimsExecution() &&
+        Device.GetDiagnostics().UploadSchedulingReason[0] != '\0', "Vulkan upload scheduling records pending uploads without claiming execution");
+    Record(Result, VulkanTransfer && VulkanTransfer->ScheduleBufferUpload(BufferUpload.Object) == ERHIResult::InvalidState, "Vulkan upload scheduling rejects already scheduled uploads");
+
+    (void)Device.Shutdown();
+    Record(Result, RenderPass.Object->GetLifecycleState() == ERHIResourceLifecycleState::Invalidated &&
+        Framebuffer.Object->GetLifecycleState() == ERHIResourceLifecycleState::Invalidated &&
+        BufferUpload.Object->GetLifecycle() == EVulkanUploadLifecycle::Invalidated, "Vulkan shutdown invalidates render pass framebuffer and upload scheduling records");
 }
 
 void TestSamplersDescriptorsAndUploads(FVulkanBackendTestResult& Result)
@@ -364,6 +542,8 @@ FVulkanBackendTestResult RunVulkanBackendTests()
     TestSynchronization(Result);
     TestLifecycleAndUnsupportedFactories(Result);
     TestResourceCreationAndAllocation(Result);
+    TestCommandBuffersRecordingAndSubmission(Result);
+    TestRenderPassFramebufferRecordingAndUploads(Result);
     TestSamplersDescriptorsAndUploads(Result);
     return Result;
 }

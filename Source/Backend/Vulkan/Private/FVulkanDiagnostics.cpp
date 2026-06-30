@@ -56,4 +56,39 @@ void MarkUploadRejection(FVulkanDiagnostics& Diagnostics, const char* Reason) no
     Diagnostics.UploadRejectionReason = Reason ? Reason : "";
 }
 
+void MarkCommandAllocation(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.CommandAllocationReason = Reason ? Reason : "";
+}
+
+void MarkCommandRecording(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.CommandRecordingReason = Reason ? Reason : "";
+}
+
+void MarkRenderPass(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.RenderPassReason = Reason ? Reason : "";
+}
+
+void MarkFramebuffer(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.FramebufferReason = Reason ? Reason : "";
+}
+
+void MarkSubmission(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.SubmissionReason = Reason ? Reason : "";
+}
+
+void MarkCompletion(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.CompletionReason = Reason ? Reason : "";
+}
+
+void MarkUploadScheduling(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.UploadSchedulingReason = Reason ? Reason : "";
+}
+
 } // namespace Stoner::Backend::Vulkan

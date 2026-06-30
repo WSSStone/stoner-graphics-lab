@@ -1,10 +1,14 @@
 #include "VulkanRHI/FVulkanDevice.h"
 
 #include "VulkanRHI/FVulkanBuffer.h"
+#include "VulkanRHI/FVulkanCommandBuffer.h"
+#include "VulkanRHI/FVulkanCommandPool.h"
 #include "VulkanRHI/FVulkanDescriptorSet.h"
 #include "VulkanRHI/FVulkanFence.h"
+#include "VulkanRHI/FVulkanFramebuffer.h"
 #include "VulkanRHI/FVulkanPipelineLayout.h"
 #include "VulkanRHI/FVulkanQueue.h"
+#include "VulkanRHI/FVulkanRenderPass.h"
 #include "VulkanRHI/FVulkanSampler.h"
 #include "VulkanRHI/FVulkanSemaphore.h"
 #include "VulkanRHI/FVulkanSwapchain.h"
@@ -65,6 +69,11 @@ Stoner::Core::uint32 FVulkanDevice::GetDescriptorPoolAllocatedCount() const noex
     return DescriptorPool ? DescriptorPool->GetAllocatedCount() : 0;
 }
 
+Stoner::Core::uint32 FVulkanDevice::GetCommandBufferCapacity() const noexcept
+{
+    return CommandBufferCapacity;
+}
+
 Stoner::RHI::ERHIResult FVulkanDevice::Initialize(const FVulkanInstanceDesc& Desc)
 {
     if (State != Stoner::RHI::ERHIDeviceState::Uninitialized)
@@ -96,6 +105,8 @@ Stoner::RHI::ERHIResult FVulkanDevice::Initialize(const FVulkanInstanceDesc& Des
     Allocator->SetRuntimeAvailable(!Diagnostics.bUsedRuntimeFallback);
     Allocator->Reset();
     DescriptorPool.reset();
+    CommandPools.clear();
+    CommandBuffers.clear();
     State = Stoner::RHI::ERHIDeviceState::Active;
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -141,6 +152,23 @@ void FVulkanDevice::ConfigureDescriptorPoolCapacity(Stoner::Core::uint32 Capacit
     }
 }
 
+void FVulkanDevice::ConfigureCommandBufferCapacity(Stoner::Core::uint32 Capacity) noexcept
+{
+    CommandBufferCapacity = Capacity;
+}
+
+void FVulkanDevice::ConfigureFallbackCompletionInjection(FVulkanCompletionInjectionConfig Injection) noexcept
+{
+    CompletionInjection = Injection;
+    for (const auto& Queue : Queues)
+    {
+        if (Queue)
+        {
+            Queue->ConfigureCompletionInjection(CompletionInjection);
+        }
+    }
+}
+
 void FVulkanDevice::ResetResourceConfiguration() noexcept
 {
     if (Allocator)
@@ -149,6 +177,8 @@ void FVulkanDevice::ResetResourceConfiguration() noexcept
     }
     DescriptorPoolCapacity = 16;
     DescriptorPool.reset();
+    CommandBufferCapacity = 64;
+    CompletionInjection = {};
 }
 
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHICommandQueue> FVulkanDevice::CreateCommandQueue(Stoner::RHI::ERHIQueueType QueueType)
@@ -163,14 +193,44 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHICommandQueue> FVulkanDevice::Crea
         return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
     }
 
-    auto Queue = Stoner::Core::MakeShared<FVulkanQueue>(QueueType);
+    auto Queue = Stoner::Core::MakeShared<FVulkanQueue>(QueueType, &Diagnostics, CompletionInjection);
     Queues.push_back(Queue);
     return {Stoner::RHI::ERHIResult::Success, Queue};
 }
 
-Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHICommandBuffer> FVulkanDevice::CreateCommandBuffer(Stoner::RHI::ERHIQueueType)
+Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHICommandBuffer> FVulkanDevice::CreateCommandBuffer(Stoner::RHI::ERHIQueueType CompatibleQueueType)
 {
-    return UnsupportedObjectResult<Stoner::RHI::IRHICommandBuffer>();
+    if (!IsActive())
+    {
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    if (!Capabilities.SupportsQueue(CompatibleQueueType))
+    {
+        MarkCommandAllocation(Diagnostics, "requested command buffer queue type is unsupported");
+        return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
+    }
+
+    Stoner::Core::TSharedPtr<FVulkanCommandPool> Pool;
+    for (const auto& ExistingPool : CommandPools)
+    {
+        if (ExistingPool && ExistingPool->IsValid() && ExistingPool->GetQueueType() == CompatibleQueueType)
+        {
+            Pool = ExistingPool;
+            break;
+        }
+    }
+    if (!Pool)
+    {
+        Pool = Stoner::Core::MakeShared<FVulkanCommandPool>(CompatibleQueueType, CommandBufferCapacity);
+        CommandPools.push_back(Pool);
+    }
+
+    auto Result = Pool->Allocate(Diagnostics);
+    if (Result.Succeeded())
+    {
+        CommandBuffers.push_back(Result.Object);
+    }
+    return {Result.Result, Result.Object};
 }
 
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIFence> FVulkanDevice::CreateFence(bool bInitiallySignaled)
@@ -336,14 +396,40 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIComputePipeline> FVulkanDevice::C
     return UnsupportedObjectResult<Stoner::RHI::IRHIComputePipeline>();
 }
 
-Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIRenderPass> FVulkanDevice::CreateRenderPass(const Stoner::RHI::FRHIRenderPassDesc&)
+Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIRenderPass> FVulkanDevice::CreateRenderPass(const Stoner::RHI::FRHIRenderPassDesc& Desc)
 {
-    return UnsupportedObjectResult<Stoner::RHI::IRHIRenderPass>();
+    if (!IsActive())
+    {
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    if (!FVulkanRenderPass::IsSupportedDesc(Desc))
+    {
+        MarkRenderPass(Diagnostics, "invalid or unsupported minimal render pass description");
+        return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
+    }
+
+    auto RenderPass = Stoner::Core::MakeShared<FVulkanRenderPass>(Desc);
+    RenderPasses.push_back(RenderPass);
+    MarkRenderPass(Diagnostics, "minimal single-subpass render pass created");
+    return {Stoner::RHI::ERHIResult::Success, RenderPass};
 }
 
-Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIFramebuffer> FVulkanDevice::CreateFramebuffer(const Stoner::RHI::FRHIFramebufferDesc&)
+Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIFramebuffer> FVulkanDevice::CreateFramebuffer(const Stoner::RHI::FRHIFramebufferDesc& Desc)
 {
-    return UnsupportedObjectResult<Stoner::RHI::IRHIFramebuffer>();
+    if (!IsActive())
+    {
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    if (!FVulkanFramebuffer::IsSupportedDesc(Desc))
+    {
+        MarkFramebuffer(Diagnostics, "invalid or incompatible minimal framebuffer description");
+        return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
+    }
+
+    auto Framebuffer = Stoner::Core::MakeShared<FVulkanFramebuffer>(Desc);
+    Framebuffers.push_back(Framebuffer);
+    MarkFramebuffer(Diagnostics, "minimal framebuffer created");
+    return {Stoner::RHI::ERHIResult::Success, Framebuffer};
 }
 
 Stoner::RHI::TRHIObjectResult<FVulkanUploadRequest> FVulkanDevice::StageBufferUpload(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Buffer, const void* Data, Stoner::Core::uint64 SizeBytes, FVulkanBufferUploadRange Range)
@@ -420,6 +506,20 @@ void FVulkanDevice::InvalidateOwnedObjects() noexcept
             Queue->Invalidate();
         }
     }
+    for (const auto& Pool : CommandPools)
+    {
+        if (Pool)
+        {
+            Pool->Invalidate();
+        }
+    }
+    for (const auto& CommandBuffer : CommandBuffers)
+    {
+        if (CommandBuffer)
+        {
+            CommandBuffer->Invalidate();
+        }
+    }
     for (const auto& Fence : Fences)
     {
         if (Fence)
@@ -471,6 +571,20 @@ void FVulkanDevice::InvalidateOwnedObjects() noexcept
         if (Sampler)
         {
             (void)Sampler->Invalidate();
+        }
+    }
+    for (const auto& Framebuffer : Framebuffers)
+    {
+        if (Framebuffer)
+        {
+            (void)Framebuffer->Invalidate();
+        }
+    }
+    for (const auto& RenderPass : RenderPasses)
+    {
+        if (RenderPass)
+        {
+            (void)RenderPass->Invalidate();
         }
     }
     for (const auto& Texture : Textures)

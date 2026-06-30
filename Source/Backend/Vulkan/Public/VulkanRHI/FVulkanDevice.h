@@ -2,13 +2,17 @@
 
 #include "Core/CoreMinimal.h"
 #include "VulkanRHI/FVulkanBuffer.h"
+#include "VulkanRHI/FVulkanCommandPool.h"
+#include "VulkanRHI/FVulkanCommandSubmission.h"
 #include "VulkanRHI/FVulkanDescriptorPool.h"
 #include "VulkanRHI/FVulkanDescriptorSet.h"
 #include "VulkanRHI/FVulkanDiagnostics.h"
+#include "VulkanRHI/FVulkanFramebuffer.h"
 #include "VulkanRHI/FVulkanInstance.h"
 #include "VulkanRHI/FVulkanMemoryAllocator.h"
 #include "VulkanRHI/FVulkanPhysicalDevice.h"
 #include "VulkanRHI/FVulkanPipelineLayout.h"
+#include "VulkanRHI/FVulkanRenderPass.h"
 #include "VulkanRHI/FVulkanSampler.h"
 #include "VulkanRHI/FVulkanSurface.h"
 #include "VulkanRHI/FVulkanTexture.h"
@@ -36,12 +40,15 @@ public:
     [[nodiscard]] FVulkanAllocationSnapshot GetAllocationSnapshot() const noexcept;
     [[nodiscard]] Stoner::Core::uint32 GetDescriptorPoolCapacity() const noexcept;
     [[nodiscard]] Stoner::Core::uint32 GetDescriptorPoolAllocatedCount() const noexcept;
+    [[nodiscard]] Stoner::Core::uint32 GetCommandBufferCapacity() const noexcept;
 
     Stoner::RHI::ERHIResult Initialize(const FVulkanInstanceDesc& Desc = {});
     Stoner::RHI::ERHIResult Shutdown() override;
     void ConfigureAllocationBudget(Stoner::Core::uint64 MaxBytes) noexcept;
     void ConfigureAllocationCountLimit(Stoner::Core::uint32 MaxAllocations) noexcept;
     void ConfigureDescriptorPoolCapacity(Stoner::Core::uint32 Capacity) noexcept;
+    void ConfigureCommandBufferCapacity(Stoner::Core::uint32 Capacity) noexcept;
+    void ConfigureFallbackCompletionInjection(FVulkanCompletionInjectionConfig Injection) noexcept;
     void ResetResourceConfiguration() noexcept;
 
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHICommandQueue> CreateCommandQueue(Stoner::RHI::ERHIQueueType QueueType) override;
@@ -85,6 +92,8 @@ private:
     FVulkanAdapterCandidate SelectedAdapter;
     FVulkanDiagnostics Diagnostics;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanQueue>> Queues;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandPool>> CommandPools;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandBuffer>> CommandBuffers;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanFence>> Fences;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSemaphore>> Semaphores;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSwapchain>> Swapchains;
@@ -94,9 +103,13 @@ private:
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanBuffer>> Buffers;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanTexture>> Textures;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSampler>> Samplers;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanRenderPass>> RenderPasses;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanFramebuffer>> Framebuffers;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanPipelineLayout>> PipelineLayouts;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanDescriptorSet>> DescriptorSets;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanUploadRequest>> UploadRequests;
+    Stoner::Core::uint32 CommandBufferCapacity = 64;
+    FVulkanCompletionInjectionConfig CompletionInjection;
 };
 
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIDevice> CreateVulkanDevice(const FVulkanInstanceDesc& Desc = {});

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>011 — Vulkan Command Recording &amp; Submission · Stoner Graphics Lab</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #f7f9fc;
+            --card: #ffffff;
+            --code: #f1f5f9;
+            --border: #d8e0ea;
+            --text: #1f2937;
+            --dim: #64748b;
+            --accent: #2563eb;
+            --ok: #059669;
+            --warn: #b45309;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+        }
+        body { font-family: var(--font-sans); background: var(--bg); color: var(--text); line-height: 1.7; font-size: 15px; }
+        .page { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+        .sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--card); border-right: 1px solid var(--border); padding: 24px 16px; }
+        .logo { font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+        .subtitle { font-size: 12px; color: var(--dim); margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+        .toc { list-style: none; }
+        .toc a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--dim); text-decoration: none; font-size: 13px; }
+        .toc a:hover { background: rgba(37, 99, 235, .1); color: var(--accent); }
+        .content { max-width: 960px; margin: 0 auto; padding: 48px 40px 120px; }
+        section { margin-bottom: 52px; }
+        h1 { font-size: 32px; font-weight: 800; color: var(--accent); margin-bottom: 8px; }
+        .meta { color: var(--dim); font-size: 13px; margin-bottom: 28px; }
+        h2 { font-size: 22px; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 16px; }
+        h3 { font-size: 17px; margin: 22px 0 10px; }
+        p, ul, ol { margin-bottom: 14px; }
+        ul, ol { padding-left: 22px; }
+        code { font-family: var(--font-mono); background: var(--code); padding: 2px 5px; border-radius: 4px; font-size: 13px; }
+        pre { background: #111827; color: #e5e7eb; padding: 16px; border-radius: 8px; overflow-x: auto; margin-bottom: 16px; }
+        pre code { background: transparent; color: inherit; padding: 0; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 14px; }
+        th, td { text-align: left; border-bottom: 1px solid var(--border); padding: 10px 12px; }
+        th { color: var(--dim); text-transform: uppercase; font-size: 12px; letter-spacing: .6px; background: var(--card); }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 18px 22px; margin-bottom: 16px; }
+        .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+        .done { background: rgba(5, 150, 105, .14); color: var(--ok); }
+        .warn { background: rgba(180, 83, 9, .14); color: var(--warn); }
+        .diagram { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 18px; font-family: var(--font-mono); font-size: 13px; white-space: pre; overflow-x: auto; }
+        @media (max-width: 820px) { .page { display: block; } .sidebar { position: static; height: auto; } .content { padding: 32px 20px 80px; } }
+    </style>
+</head>
+<body>
+<div class="page">
+    <aside class="sidebar">
+        <div class="logo">Stoner Graphics Lab</div>
+        <div class="subtitle">011 Vulkan Command Recording &amp; Submission</div>
+        <ul class="toc">
+            <li><a href="#context">一、文档与上下文</a></li>
+            <li><a href="#scope">二、目标与边界</a></li>
+            <li><a href="#interaction">三、交互与状态机</a></li>
+            <li><a href="#architecture">四、技术架构</a></li>
+            <li><a href="#validation">五、实施与验证</a></li>
+            <li><a href="#practice">六、设计巧思</a></li>
+            <li><a href="#cpp">七、C++知识点</a></li>
+            <li><a href="#engineering">八、工程知识点</a></li>
+        </ul>
+    </aside>
+    <main class="content">
+        <h1>011 — Vulkan Command Recording &amp; Submission</h1>
+        <div class="meta">版本 1.0 · 更新日期 2026-06-30 · 状态 <span class="badge done">已交付</span> · Spec: <code>specs/011-vulkan-commands-submission</code></div>
+
+        <section id="context">
+            <h2>一、文档与上下文信息</h2>
+            <h3>1. 基础元数据</h3>
+            <table>
+                <tr><th>项目</th><td>Stoner Graphics Lab</td></tr>
+                <tr><th>阶段</th><td>Roadmap Phase 010 / Speckit 011</td></tr>
+                <tr><th>分支</th><td><code>011-vulkan-commands-submission</code></td></tr>
+                <tr><th>验证</th><td><code>conda run -n godot scons</code>, <code>Build/Mac/Debug/Tests/StonerTest</code></td></tr>
+            </table>
+            <h3>2. 本期核心摘要</h3>
+            <p>本阶段把 Vulkan backend 从资源管理推进到可记录、可提交、可观察完成状态的命令系统。实现采用 deterministic fallback，不声称真实 GPU 执行，但完整覆盖命令生命周期、render pass scope、copy/barrier intent、同步对象和 upload scheduling 的行为契约。</p>
+            <h3>3. 上下文与依赖</h3>
+            <ul>
+                <li>依赖 009/010 已实现的 Vulkan device、queue、sync、buffer、texture、upload staging、diagnostics。</li>
+                <li>扩展 RHI neutral command vocabulary，保持 public RHI headers 不包含 Vulkan 类型。</li>
+                <li>后续 Vulkan Pipeline &amp; Shader 阶段将消费本阶段的 command recording surface。</li>
+            </ul>
+        </section>
+
+        <section id="scope">
+            <h2>二、目标与边界</h2>
+            <h3>1. 功能目标</h3>
+            <ul>
+                <li>创建并复用 command buffer，支持 Begin/End/Reset/Submitted/Resettable 状态迁移。</li>
+                <li>记录 draw、indexed draw、dispatch、buffer copy、texture copy、barrier/layout transition、render pass begin/end。</li>
+                <li>提交 executable command buffer 到兼容 queue，并处理 wait semaphore、signal semaphore、optional fence。</li>
+                <li>把 pending upload request schedule 进 command buffer，但不提前标记为 GPU 已执行。</li>
+            </ul>
+            <h3>2. 架构定位</h3>
+            <div class="diagram">RHI command contracts
+        |
+        v
+Vulkan command pool -> Vulkan command buffer -> Vulkan queue submission
+        |                       |                       |
+        v                       v                       v
+ diagnostics           render pass scope          fallback completion</div>
+            <h3>3. 边界与非目标</h3>
+            <p><span class="badge warn">暂不实现</span> shader compilation、pipeline creation、real pipeline binding、full resource state tracking、render graph scheduling、multi-threaded recording、visible rendering。这些内容留给后续 pipeline/render graph 阶段。</p>
+        </section>
+
+        <section id="interaction">
+            <h2>三、交互与产品设计</h2>
+            <h3>1. 使用路径</h3>
+            <ol>
+                <li>通过 <code>FVulkanDevice::CreateCommandBuffer</code> 为目标 queue 创建 command buffer。</li>
+                <li>调用 <code>Begin()</code> 进入 recording，按 queue 能力记录 graphics/compute/transfer 命令。</li>
+                <li>graphics draw 必须包在 <code>BeginRenderPass()</code> 与 <code>EndRenderPass()</code> 内。</li>
+                <li>调用 <code>End()</code> 进入 executable 状态，再通过兼容 <code>FVulkanQueue::Submit()</code> 提交。</li>
+                <li>通过 <code>WaitIdle()</code> 或 backend completion observation 使 command buffer 进入 resettable。</li>
+            </ol>
+            <h3>2. 核心状态机</h3>
+            <pre><code>Idle -> Recording -> Completed -> Submitted -> Resettable -> Idle
+          |             |             |
+          +-- invalid --+-- invalid --+-- shutdown invalidates object</code></pre>
+            <p>Upload request 的核心状态为 <code>Pending -> Scheduled -> Invalidated</code>。Scheduled 只表示命令记录已引用该 upload，不代表 GPU 执行完成。</p>
+        </section>
+
+        <section id="architecture">
+            <h2>四、技术架构与关键决策</h2>
+            <h3>1. 技术栈与基础设施</h3>
+            <ul>
+                <li>C++20 header/source separation，SCons 4.10.1。</li>
+                <li>Core aliases: <code>TSharedPtr</code>, <code>TArray</code>, fixed-width integer types。</li>
+                <li>Vulkan backend public headers 位于 <code>Source/Backend/Vulkan/Public/VulkanRHI</code>。</li>
+            </ul>
+            <h3>2. 模块对应关系</h3>
+            <table>
+                <tr><th>模块</th><th>职责</th></tr>
+                <tr><td><code>FVulkanCommandPool</code></td><td>按 queue type 管理 command buffer allocation 与 capacity exhaustion。</td></tr>
+                <tr><td><code>FVulkanCommandBuffer</code></td><td>实现 RHI command lifecycle、recording validation、render pass scope、upload scheduling。</td></tr>
+                <tr><td><code>FVulkanQueue</code></td><td>验证 executable command buffer，处理 sync，保存 fallback submission。</td></tr>
+                <tr><td><code>FVulkanCommandSubmission</code></td><td>表达 deterministic fallback completion、not-ready、timeout 和 invalidated 结果。</td></tr>
+                <tr><td><code>FVulkanRenderPass</code>/<code>FVulkanFramebuffer</code></td><td>最小 single-subpass/framebuffer validation，用于 command scope。</td></tr>
+                <tr><td><code>FVulkanDiagnostics</code></td><td>记录 allocation、recording、submission、completion、upload scheduling 的最后原因。</td></tr>
+            </table>
+            <h3>3. ADR</h3>
+            <div class="card">
+                <p><strong>ADR-011-01: 使用 deterministic fallback submission。</strong> 当前阶段需要验证 command API 和状态机，但还没有 pipeline/shader/real rendering。fallback path 明确写入 diagnostics，避免把“命令被接受”误读为“真实 GPU 执行”。</p>
+            </div>
+            <div class="card">
+                <p><strong>ADR-011-02: Draw/dispatch 作为 placeholder command。</strong> 允许记录命令并报告缺少 pipeline 的 diagnostics，保持后续 pipeline 阶段可增量接入。</p>
+            </div>
+            <div class="card">
+                <p><strong>ADR-011-03: Barrier/layout 记录 declarative intent。</strong> 本阶段只验证 lifecycle、usage compatibility 和 before/after 基本一致性，不引入完整 resource state tracker。</p>
+            </div>
+        </section>
+
+        <section id="validation">
+            <h2>五、实施与验证</h2>
+            <h3>5.1 任务拆解清单</h3>
+            <ul>
+                <li>扩展 <code>IRHICommandBuffer</code> 的 command vocabulary、copy/layout helper structs 和 render pass methods。</li>
+                <li>新增 command pool/buffer/submission/render pass/framebuffer backend classes。</li>
+                <li>接入 <code>FVulkanDevice</code> factories 与 shutdown invalidation。</li>
+                <li>增强 <code>FVulkanQueue</code> submission、sync handling、completion injection。</li>
+                <li>扩展 upload staging lifecycle，使 pending upload 可 schedule。</li>
+                <li>补充 RHI mock 和 Vulkan backend regression tests。</li>
+            </ul>
+            <h3>5.2 验收标准</h3>
+            <pre><code>conda run -n godot scons
+Build/Mac/Debug/Tests/StonerTest</code></pre>
+            <p>验收结果：完整构建通过，测试可执行文件返回 0。Vulkan 覆盖包含 command allocation/lifecycle、render pass/framebuffer validation、copy/barrier/layout、fallback submission、completion injection、sync signaling、upload scheduling、shutdown invalidation。</p>
+        </section>
+
+        <section id="practice">
+            <h2>六、设计巧思与最佳实践</h2>
+            <h3>6.1 当前场景最佳实践</h3>
+            <p>本阶段把“真实 Vulkan execution”与“backend contract 可验证性”拆开。这样 pipeline/shader 尚未存在时，命令系统仍然能被严格测试，且所有 fallback 行为都通过 diagnostics 公开。</p>
+            <h3>6.2 优化方案与收益</h3>
+            <ul>
+                <li>Command pool capacity 可配置，便于测试资源耗尽路径。</li>
+                <li>Failed recording 不追加 command，避免半失败状态污染提交。</li>
+                <li>Shutdown 统一 invalidates owned objects，降低 dangling lifecycle 行为。</li>
+            </ul>
+        </section>
+
+        <section id="cpp">
+            <h2>七、编程语言知识点</h2>
+            <h3>1. 标准库接口与用法</h3>
+            <ul>
+                <li><code>std::dynamic_pointer_cast</code> 用于测试和 backend queue 识别 Vulkan concrete command buffer。</li>
+                <li><code>std::move</code> 用于保存 render pass/framebuffer desc 和 submission command buffer ownership。</li>
+            </ul>
+            <h3>2. 语言特性与惯用法</h3>
+            <ul>
+                <li>接口继承：<code>FVulkanCommandBuffer final : IRHICommandBuffer</code> 保持 RHI polymorphism。</li>
+                <li>强类型 enum：状态机、command type、layout intent、submission mode 都使用 enum class。</li>
+                <li>RAII-like ownership：device 使用 shared ownership 保存 backend objects，并在 shutdown 统一 invalidation。</li>
+            </ul>
+            <h3>3. 平台相关与编译器行为</h3>
+            <p>实现不依赖平台 Vulkan SDK 执行路径；缺少真实 runtime 时仍走 deterministic fallback。Mac 构建期间的 <code>confstr()</code> warning 不影响 build/test 结果。</p>
+        </section>
+
+        <section id="engineering">
+            <h2>八、软件工程知识点</h2>
+            <h3>1. 设计模式与架构模式</h3>
+            <ul>
+                <li>Facade：<code>FVulkanDevice</code> 对外统一创建 backend objects。</li>
+                <li>State Machine：command buffer、submission、upload request 都以显式状态拒绝非法操作。</li>
+                <li>Strategy-like fallback：queue submission 可表达 real/fallback/failed mode，目前落地 deterministic fallback。</li>
+            </ul>
+            <h3>2. 工程原则与方法论</h3>
+            <ul>
+                <li>契约式设计：所有负路径返回 <code>ERHIResult</code>，并写入 diagnostics reason。</li>
+                <li>边界清晰：RHI header 不包含 Vulkan 类型，backend-specific APIs 留在 <code>VulkanRHI</code>。</li>
+                <li>YAGNI：不提前引入 full resource state tracking 和 pipeline binding。</li>
+            </ul>
+            <h3>3. 测试策略与质量保障</h3>
+            <p>测试覆盖 success path、negative path、capacity exhaustion、invalid ordering、queue incompatibility、fallback completion injection、resource invalidation 和 regression baseline，确保 011 能作为后续 pipeline/shader 阶段的稳定底座。</p>
+        </section>
+    </main>
+</div>
+</body>
+</html>

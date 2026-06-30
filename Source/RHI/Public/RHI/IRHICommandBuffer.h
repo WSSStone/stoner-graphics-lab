@@ -1,11 +1,18 @@
 #pragma once
 
 #include "Core/CoreMinimal.h"
+#include "RHI/ERHIPipelineState.h"
 #include "RHI/ERHIQueueType.h"
+#include "RHI/ERHIResourceUsage.h"
 #include "RHI/ERHIResult.h"
 
 namespace Stoner::RHI
 {
+
+class IRHIBuffer;
+class IRHIFramebuffer;
+class IRHIRenderPass;
+class IRHITexture;
 
 enum class ERHICommandBufferState
 {
@@ -19,8 +26,61 @@ enum class ERHICommandBufferState
 enum class ERHISymbolicCommandType
 {
     Draw,
+    DrawIndexed,
     Dispatch,
-    Barrier
+    Barrier,
+    BufferCopy,
+    TextureCopy,
+    LayoutTransition,
+    BeginRenderPass,
+    EndRenderPass,
+    UploadSchedule
+};
+
+struct FRHIBufferCopyRange
+{
+    Stoner::Core::uint64 SourceOffsetBytes = 0;
+    Stoner::Core::uint64 DestinationOffsetBytes = 0;
+    Stoner::Core::uint64 SizeBytes = 0;
+};
+
+struct FRHITextureCopyRegion
+{
+    Stoner::Core::uint32 SourceMipLevel = 0;
+    Stoner::Core::uint32 SourceArrayLayer = 0;
+    Stoner::Core::uint32 DestinationMipLevel = 0;
+    Stoner::Core::uint32 DestinationArrayLayer = 0;
+    Stoner::Core::uint32 SourceX = 0;
+    Stoner::Core::uint32 SourceY = 0;
+    Stoner::Core::uint32 SourceZ = 0;
+    Stoner::Core::uint32 DestinationX = 0;
+    Stoner::Core::uint32 DestinationY = 0;
+    Stoner::Core::uint32 DestinationZ = 0;
+    Stoner::Core::uint32 Width = 1;
+    Stoner::Core::uint32 Height = 1;
+    Stoner::Core::uint32 Depth = 1;
+};
+
+enum class ERHIResourceLayout
+{
+    Undefined,
+    General,
+    CopySource,
+    CopyDestination,
+    ColorAttachment,
+    DepthStencilAttachment,
+    ShaderReadOnly,
+    Present
+};
+
+struct FRHIResourceBarrierDesc
+{
+    Stoner::Core::TSharedPtr<IRHIBuffer> Buffer;
+    Stoner::Core::TSharedPtr<IRHITexture> Texture;
+    ERHIBufferUsage RequiredBufferUsage = ERHIBufferUsage::None;
+    ERHITextureUsage RequiredTextureUsage = ERHITextureUsage::None;
+    ERHIResourceLayout Before = ERHIResourceLayout::Undefined;
+    ERHIResourceLayout After = ERHIResourceLayout::General;
 };
 
 class IRHICommandBuffer
@@ -37,8 +97,15 @@ public:
     virtual ERHIResult Reset() = 0;
 
     virtual ERHIResult RecordDraw(Stoner::Core::uint32 VertexCount, Stoner::Core::uint32 InstanceCount = 1) = 0;
+    virtual ERHIResult RecordDrawIndexed(Stoner::Core::uint32 IndexCount, Stoner::Core::uint32 InstanceCount = 1) = 0;
     virtual ERHIResult RecordDispatch(Stoner::Core::uint32 GroupCountX, Stoner::Core::uint32 GroupCountY, Stoner::Core::uint32 GroupCountZ) = 0;
     virtual ERHIResult RecordBarrier() = 0;
+    virtual ERHIResult RecordBarrier(const FRHIResourceBarrierDesc& Barrier) = 0;
+    virtual ERHIResult RecordBufferCopy(const Stoner::Core::TSharedPtr<IRHIBuffer>& Source, const Stoner::Core::TSharedPtr<IRHIBuffer>& Destination, FRHIBufferCopyRange Range) = 0;
+    virtual ERHIResult RecordTextureCopy(const Stoner::Core::TSharedPtr<IRHITexture>& Source, const Stoner::Core::TSharedPtr<IRHITexture>& Destination, FRHITextureCopyRegion Region) = 0;
+    virtual ERHIResult RecordLayoutTransition(const FRHIResourceBarrierDesc& Transition) = 0;
+    virtual ERHIResult BeginRenderPass(const Stoner::Core::TSharedPtr<IRHIRenderPass>& RenderPass, const Stoner::Core::TSharedPtr<IRHIFramebuffer>& Framebuffer) = 0;
+    virtual ERHIResult EndRenderPass() = 0;
 };
 
 } // namespace Stoner::RHI

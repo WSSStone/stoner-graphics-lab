@@ -16,6 +16,7 @@ enum class EVulkanUploadKind
 enum class EVulkanUploadLifecycle
 {
     Pending,
+    Scheduled,
     ConsumedByFutureCommandPhase,
     Invalidated
 };
@@ -50,7 +51,10 @@ public:
     [[nodiscard]] FVulkanBufferUploadRange GetBufferRange() const noexcept;
     [[nodiscard]] FVulkanTextureUploadRegion GetTextureRegion() const noexcept;
     [[nodiscard]] bool ClaimsExecution() const noexcept;
+    [[nodiscard]] Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> GetBuffer() const noexcept;
+    [[nodiscard]] Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> GetTexture() const noexcept;
 
+    Stoner::RHI::ERHIResult MarkScheduled() noexcept;
     Stoner::RHI::ERHIResult Invalidate() noexcept;
 
 private:

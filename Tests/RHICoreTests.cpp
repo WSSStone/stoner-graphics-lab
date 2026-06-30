@@ -103,6 +103,17 @@ public:
         return ERHIResult::Success;
     }
 
+    ERHIResult RecordDrawIndexed(uint32 IndexCount, uint32 InstanceCount = 1) override
+    {
+        if (State != ERHICommandBufferState::Recording)
+        {
+            return ERHIResult::InvalidState;
+        }
+
+        Commands.push_back({ERHISymbolicCommandType::DrawIndexed, IndexCount, InstanceCount, 0});
+        return ERHIResult::Success;
+    }
+
     ERHIResult RecordDispatch(uint32 GroupCountX, uint32 GroupCountY, uint32 GroupCountZ) override
     {
         if (State != ERHICommandBufferState::Recording)
@@ -122,6 +133,63 @@ public:
         }
 
         Commands.push_back({ERHISymbolicCommandType::Barrier, 0, 0, 0});
+        return ERHIResult::Success;
+    }
+
+    ERHIResult RecordBarrier(const FRHIResourceBarrierDesc&) override
+    {
+        return RecordBarrier();
+    }
+
+    ERHIResult RecordBufferCopy(const TSharedPtr<IRHIBuffer>& Source, const TSharedPtr<IRHIBuffer>& Destination, FRHIBufferCopyRange Range) override
+    {
+        if (State != ERHICommandBufferState::Recording || !Source || !Destination || Range.SizeBytes == 0)
+        {
+            return ERHIResult::InvalidState;
+        }
+        Commands.push_back({ERHISymbolicCommandType::BufferCopy, static_cast<uint32>(Range.SourceOffsetBytes), static_cast<uint32>(Range.DestinationOffsetBytes), static_cast<uint32>(Range.SizeBytes)});
+        return ERHIResult::Success;
+    }
+
+    ERHIResult RecordTextureCopy(const TSharedPtr<IRHITexture>& Source, const TSharedPtr<IRHITexture>& Destination, FRHITextureCopyRegion Region) override
+    {
+        if (State != ERHICommandBufferState::Recording || !Source || !Destination || Region.Width == 0 || Region.Height == 0 || Region.Depth == 0)
+        {
+            return ERHIResult::InvalidState;
+        }
+        Commands.push_back({ERHISymbolicCommandType::TextureCopy, Region.Width, Region.Height, Region.Depth});
+        return ERHIResult::Success;
+    }
+
+    ERHIResult RecordLayoutTransition(const FRHIResourceBarrierDesc& Transition) override
+    {
+        const ERHIResult Result = RecordBarrier(Transition);
+        if (Result == ERHIResult::Success)
+        {
+            Commands.back().Type = ERHISymbolicCommandType::LayoutTransition;
+        }
+        return Result;
+    }
+
+    ERHIResult BeginRenderPass(const TSharedPtr<IRHIRenderPass>& RenderPass, const TSharedPtr<IRHIFramebuffer>& Framebuffer) override
+    {
+        if (State != ERHICommandBufferState::Recording || QueueType != ERHIQueueType::Graphics || bRenderPassActive || !RenderPass || !Framebuffer)
+        {
+            return ERHIResult::InvalidState;
+        }
+        bRenderPassActive = true;
+        Commands.push_back({ERHISymbolicCommandType::BeginRenderPass, Framebuffer->GetWidth(), Framebuffer->GetHeight(), Framebuffer->GetAttachmentCount()});
+        return ERHIResult::Success;
+    }
+
+    ERHIResult EndRenderPass() override
+    {
+        if (State != ERHICommandBufferState::Recording || !bRenderPassActive)
+        {
+            return ERHIResult::InvalidState;
+        }
+        bRenderPassActive = false;
+        Commands.push_back({ERHISymbolicCommandType::EndRenderPass, 0, 0, 0});
         return ERHIResult::Success;
     }
 
@@ -153,6 +221,7 @@ private:
     ERHIQueueType QueueType = ERHIQueueType::Graphics;
     ERHICommandBufferState State = ERHICommandBufferState::Idle;
     TArray<FSymbolicCommand> Commands;
+    bool bRenderPassActive = false;
 };
 
 class FMockFence final : public IRHIFence

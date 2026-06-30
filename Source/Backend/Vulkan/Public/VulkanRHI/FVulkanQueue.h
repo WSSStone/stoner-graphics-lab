@@ -1,14 +1,17 @@
 #pragma once
 
 #include "RHI/RHIMinimal.h"
+#include "VulkanRHI/FVulkanCommandSubmission.h"
 
 namespace Stoner::Backend::Vulkan
 {
 
+struct FVulkanDiagnostics;
+
 class FVulkanQueue final : public Stoner::RHI::IRHICommandQueue
 {
 public:
-    explicit FVulkanQueue(Stoner::RHI::ERHIQueueType InQueueType) noexcept;
+    explicit FVulkanQueue(Stoner::RHI::ERHIQueueType InQueueType, FVulkanDiagnostics* InDiagnostics = nullptr, FVulkanCompletionInjectionConfig InInjection = {}) noexcept;
 
     [[nodiscard]] Stoner::RHI::ERHIQueueType GetQueueType() const noexcept override;
     [[nodiscard]] Stoner::Core::uint32 GetSubmittedCommandBufferCount() const noexcept override;
@@ -20,11 +23,16 @@ public:
         const Stoner::Core::TArray<Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>>& SignalSemaphores = {},
         const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIFence>& Fence = nullptr) override;
     Stoner::RHI::ERHIResult WaitIdle() override;
+    Stoner::RHI::ERHIResult ObserveLastSubmissionCompletion(Stoner::Core::uint64 TimeoutMicroseconds = 0) noexcept;
+    void ConfigureCompletionInjection(FVulkanCompletionInjectionConfig InInjection) noexcept;
     void Invalidate() noexcept;
 
 private:
     Stoner::RHI::ERHIQueueType QueueType;
     Stoner::Core::uint32 SubmittedCommandBufferCount = 0;
+    FVulkanDiagnostics* Diagnostics = nullptr;
+    FVulkanCompletionInjectionConfig CompletionInjection;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandSubmission>> Submissions;
     bool bValid = true;
 };
 

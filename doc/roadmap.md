@@ -119,7 +119,7 @@ These principles (from the [Constitution v1.2.0](../.specify/memory/constitution
 | 007 | RHI: Resource & Pipeline | RHI | 006 | L | ✅ Yes | ✅ Done |
 | 008 | Vulkan: Device & Swapchain | Backend | 005, 006 | L | ✅ Yes | ✅ Done |
 | 009 | Vulkan: Resource Management | Backend | 007, 008 | L | ✅ Yes | ✅ Done |
-| 010 | Vulkan: Commands & Submission | Backend | 009 | M | ✅ Yes | ⬜ Todo |
+| 010 | Vulkan: Commands & Submission | Backend | 009 | M | ✅ Yes | ✅ Done |
 | 011 | Vulkan: Pipeline & Shader | Backend | 009, 010 | L | ✅ Yes | ⬜ Todo |
 | 012 | Render Graph Foundation | Renderer | 007 | XL | ✅ Yes | ⬜ Todo |
 | 013 | Material & Shader System | Renderer | 007, 012 | L | ✅ Yes | ⬜ Todo |
@@ -501,17 +501,25 @@ Implement Vulkan command buffer allocation, recording, and queue submission. Thi
 
 #### Key Deliverables
 
-- `FVulkanCommandPool` — Command pool per queue family
-- `FVulkanCommandBuffer` — Command buffer implementing `IRHICommandBuffer`
+- ✅ `FVulkanCommandPool` — Command pool per queue family with deterministic capacity validation
+- ✅ `FVulkanCommandBuffer` — Command buffer implementing `IRHICommandBuffer`
   - Begin/End recording
   - Draw/DrawIndexed commands
   - Dispatch compute commands
   - Pipeline barriers and layout transitions
   - Copy buffer/image commands
   - Begin/End render pass
-- `FVulkanCommandQueue` — Enhanced queue submission with fence signaling
-- Command buffer recycling/reset strategy
-- Integration tests (record commands, submit, wait for completion)
+- ✅ `FVulkanQueue` — Enhanced queue submission with deterministic fallback completion, semaphore consumption/signaling, and fence signaling
+- ✅ Command buffer recycling/reset strategy after queue idle or completion observation
+- ✅ Minimal Vulkan backend render pass/framebuffer objects for single-subpass command scope
+- ✅ Upload scheduling from pending staging records without claiming GPU execution
+- ✅ Integration tests for allocation, recording, submission, completion injection, render pass/framebuffer validation, upload scheduling, and shutdown invalidation
+
+#### Implementation Notes
+
+- Spec-kit artifact: [`specs/011-vulkan-commands-submission`](../specs/011-vulkan-commands-submission/spec.md)
+- Summary document: [`doc/011-vulkan-commands-submission.html`](./011-vulkan-commands-submission.html)
+- Verification: `conda run -n godot scons` and `Build/Mac/Debug/Tests/StonerTest`
 
 #### What's Excluded
 

@@ -37,6 +37,13 @@ struct FVulkanDiagnostics
     const char* DescriptorPoolReason = "";
     const char* DescriptorUpdateReason = "";
     const char* UploadRejectionReason = "";
+    const char* CommandAllocationReason = "";
+    const char* CommandRecordingReason = "";
+    const char* RenderPassReason = "";
+    const char* FramebufferReason = "";
+    const char* SubmissionReason = "";
+    const char* CompletionReason = "";
+    const char* UploadSchedulingReason = "";
 };
 
 void MarkUnsupportedRuntime(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
@@ -49,5 +56,12 @@ void MarkAllocationFailure(FVulkanDiagnostics& Diagnostics, const char* Reason) 
 void MarkDescriptorPool(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
 void MarkDescriptorUpdate(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
 void MarkUploadRejection(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkCommandAllocation(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkCommandRecording(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkRenderPass(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkFramebuffer(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkSubmission(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkCompletion(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkUploadScheduling(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
 
 } // namespace Stoner::Backend::Vulkan
