@@ -1,11 +1,21 @@
 #pragma once
 
 #include "Core/CoreMinimal.h"
+#include "VulkanRHI/FVulkanBuffer.h"
+#include "VulkanRHI/FVulkanDescriptorPool.h"
+#include "VulkanRHI/FVulkanDescriptorSet.h"
 #include "VulkanRHI/FVulkanDiagnostics.h"
 #include "VulkanRHI/FVulkanInstance.h"
+#include "VulkanRHI/FVulkanMemoryAllocator.h"
 #include "VulkanRHI/FVulkanPhysicalDevice.h"
+#include "VulkanRHI/FVulkanPipelineLayout.h"
+#include "VulkanRHI/FVulkanSampler.h"
 #include "VulkanRHI/FVulkanSurface.h"
+#include "VulkanRHI/FVulkanTexture.h"
+#include "VulkanRHI/FVulkanUploadStaging.h"
 #include "RHI/RHIMinimal.h"
+
+#include <memory>
 
 namespace Stoner::Backend::Vulkan
 {
@@ -23,9 +33,16 @@ public:
     [[nodiscard]] bool IsActive() const noexcept override;
     [[nodiscard]] const FVulkanDiagnostics& GetDiagnostics() const noexcept;
     [[nodiscard]] const FVulkanAdapterCandidate& GetSelectedAdapter() const noexcept;
+    [[nodiscard]] FVulkanAllocationSnapshot GetAllocationSnapshot() const noexcept;
+    [[nodiscard]] Stoner::Core::uint32 GetDescriptorPoolCapacity() const noexcept;
+    [[nodiscard]] Stoner::Core::uint32 GetDescriptorPoolAllocatedCount() const noexcept;
 
     Stoner::RHI::ERHIResult Initialize(const FVulkanInstanceDesc& Desc = {});
     Stoner::RHI::ERHIResult Shutdown() override;
+    void ConfigureAllocationBudget(Stoner::Core::uint64 MaxBytes) noexcept;
+    void ConfigureAllocationCountLimit(Stoner::Core::uint32 MaxAllocations) noexcept;
+    void ConfigureDescriptorPoolCapacity(Stoner::Core::uint32 Capacity) noexcept;
+    void ResetResourceConfiguration() noexcept;
 
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHICommandQueue> CreateCommandQueue(Stoner::RHI::ERHIQueueType QueueType) override;
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHICommandBuffer> CreateCommandBuffer(Stoner::RHI::ERHIQueueType CompatibleQueueType) override;
@@ -42,6 +59,8 @@ public:
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIComputePipeline> CreateComputePipeline(const Stoner::RHI::FRHIComputePipelineDesc& Desc) override;
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIRenderPass> CreateRenderPass(const Stoner::RHI::FRHIRenderPassDesc& Desc) override;
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIFramebuffer> CreateFramebuffer(const Stoner::RHI::FRHIFramebufferDesc& Desc) override;
+    Stoner::RHI::TRHIObjectResult<FVulkanUploadRequest> StageBufferUpload(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Buffer, const void* Data, Stoner::Core::uint64 SizeBytes, FVulkanBufferUploadRange Range);
+    Stoner::RHI::TRHIObjectResult<FVulkanUploadRequest> StageTextureUpload(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Texture, const void* Data, Stoner::Core::uint64 SizeBytes, FVulkanTextureUploadRegion Region);
 
     [[nodiscard]] Stoner::RHI::ERHIResult CreateSurface(const Stoner::Core::FPlatformWindow& Window, FVulkanSurface& OutSurface);
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> CreateSwapchainForSurface(const FVulkanSurface& Surface, Stoner::Core::uint32 FrameCount);
@@ -55,6 +74,10 @@ private:
 
     void InvalidateOwnedObjects() noexcept;
     void MapCapabilities(const FVulkanAdapterCandidate& Adapter);
+    [[nodiscard]] bool SupportsBufferDesc(const Stoner::RHI::FRHIBufferDesc& Desc) noexcept;
+    [[nodiscard]] bool SupportsTextureDesc(const Stoner::RHI::FRHITextureDesc& Desc) const noexcept;
+    [[nodiscard]] bool SupportsSamplerDesc(const Stoner::RHI::FRHISamplerDesc& Desc) noexcept;
+    void EnsureDescriptorPool() noexcept;
 
     Stoner::RHI::ERHIDeviceState State = Stoner::RHI::ERHIDeviceState::Uninitialized;
     Stoner::RHI::FRHIDeviceCapabilities Capabilities;
@@ -65,6 +88,15 @@ private:
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanFence>> Fences;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSemaphore>> Semaphores;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSwapchain>> Swapchains;
+    std::shared_ptr<FVulkanMemoryAllocator> Allocator = std::make_shared<FVulkanMemoryAllocator>();
+    Stoner::Core::uint32 DescriptorPoolCapacity = 16;
+    std::shared_ptr<FVulkanDescriptorPool> DescriptorPool;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanBuffer>> Buffers;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanTexture>> Textures;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSampler>> Samplers;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanPipelineLayout>> PipelineLayouts;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanDescriptorSet>> DescriptorSets;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanUploadRequest>> UploadRequests;
 };
 
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIDevice> CreateVulkanDevice(const FVulkanInstanceDesc& Desc = {});

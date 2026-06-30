@@ -31,4 +31,29 @@ void MarkQueueCapability(FVulkanDiagnostics& Diagnostics, const char* Reason) no
     Diagnostics.QueueCapabilityReason = Reason ? Reason : "";
 }
 
+void MarkResourceAllocation(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.ResourceAllocationReason = Reason ? Reason : "";
+}
+
+void MarkAllocationFailure(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.AllocationFailureReason = Reason ? Reason : "";
+}
+
+void MarkDescriptorPool(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.DescriptorPoolReason = Reason ? Reason : "";
+}
+
+void MarkDescriptorUpdate(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.DescriptorUpdateReason = Reason ? Reason : "";
+}
+
+void MarkUploadRejection(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
+{
+    Diagnostics.UploadRejectionReason = Reason ? Reason : "";
+}
+
 } // namespace Stoner::Backend::Vulkan

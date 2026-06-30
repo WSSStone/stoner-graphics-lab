@@ -3,6 +3,7 @@
 #include "VulkanRHI/VulkanDevice.h"
 
 #include <iostream>
+#include <memory>
 #include <string_view>
 
 namespace
@@ -210,12 +211,145 @@ void TestLifecycleAndUnsupportedFactories(FVulkanBackendTestResult& Result)
         if (DeviceResult.Object)
         {
             Record(Result, DeviceResult.Object->CreateCommandBuffer(ERHIQueueType::Graphics).Result == ERHIResult::Unsupported &&
-                DeviceResult.Object->CreateBuffer({}).Result == ERHIResult::Unsupported &&
-                DeviceResult.Object->CreateTexture({}).Result == ERHIResult::Unsupported, "Vulkan out-of-scope factories return unsupported");
+                DeviceResult.Object->CreateShaderModule({}).Result == ERHIResult::Unsupported &&
+                DeviceResult.Object->CreateGraphicsPipeline({}).Result == ERHIResult::Unsupported, "Vulkan out-of-scope factories return unsupported");
             Record(Result, DeviceResult.Object->Shutdown() == ERHIResult::Success &&
                 DeviceResult.Object->CreateCommandBuffer(ERHIQueueType::Graphics).Result == ERHIResult::InvalidState, "Vulkan shutdown rejects later factories");
         }
     }
+}
+
+[[nodiscard]] FRHIBufferDesc ValidBufferDesc()
+{
+    return {256, ERHIBufferUsage::Uniform | ERHIBufferUsage::CopyDestination};
+}
+
+[[nodiscard]] FRHITextureDesc ValidTextureDesc()
+{
+    FRHITextureDesc Desc;
+    Desc.Width = 8;
+    Desc.Height = 8;
+    Desc.Format = ERHIFormat::R8G8B8A8_UNorm;
+    Desc.Usage = ERHITextureUsage::Sampled | ERHITextureUsage::CopyDestination;
+    return Desc;
+}
+
+[[nodiscard]] FRHISamplerDesc ValidSamplerDesc()
+{
+    return {};
+}
+
+[[nodiscard]] FRHIPipelineLayoutDesc ResourceLayoutDesc()
+{
+    FRHIPipelineLayoutDesc Desc;
+    Desc.Bindings = {
+        {0, 0, ERHIDescriptorType::UniformBuffer, 1, ERHIShaderStageFlags::Vertex},
+        {0, 1, ERHIDescriptorType::SampledTexture, 1, ERHIShaderStageFlags::Fragment},
+        {0, 2, ERHIDescriptorType::Sampler, 1, ERHIShaderStageFlags::Fragment},
+        {0, 3, ERHIDescriptorType::CombinedTextureSampler, 1, ERHIShaderStageFlags::Fragment},
+    };
+    return Desc;
+}
+
+void TestResourceCreationAndAllocation(FVulkanBackendTestResult& Result)
+{
+    FVulkanDevice Device;
+    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan resource fixture device initializes");
+
+    const auto Buffer = Device.CreateBuffer(ValidBufferDesc());
+    const auto Texture = Device.CreateTexture(ValidTextureDesc());
+    Record(Result, Buffer.Succeeded() && Buffer.Object->GetSizeInBytes() == 256 &&
+        Buffer.Object->GetLifecycleState() == ERHIResourceLifecycleState::Valid, "Vulkan buffer creation preserves description and lifecycle");
+    Record(Result, Texture.Succeeded() && Texture.Object->GetFormat() == ERHIFormat::R8G8B8A8_UNorm &&
+        Texture.Object->GetLifecycleState() == ERHIResourceLifecycleState::Valid, "Vulkan texture creation preserves description and lifecycle");
+
+    auto VulkanBuffer = std::dynamic_pointer_cast<FVulkanBuffer>(Buffer.Object);
+    auto VulkanTexture = std::dynamic_pointer_cast<FVulkanTexture>(Texture.Object);
+    Record(Result, VulkanBuffer && VulkanBuffer->GetAllocation().IsSuccessful() &&
+        VulkanTexture && VulkanTexture->GetAllocation().IsSuccessful() &&
+        Device.GetDiagnostics().ResourceAllocationReason[0] != '\0', "Vulkan resources expose real-or-fallback allocation diagnostics");
+
+    FRHIBufferDesc InvalidBuffer = ValidBufferDesc();
+    InvalidBuffer.SizeInBytes = 0;
+    FRHITextureDesc InvalidTexture = ValidTextureDesc();
+    InvalidTexture.Width = 0;
+    Record(Result, Device.CreateBuffer(InvalidBuffer).Result == ERHIResult::Unsupported &&
+        Device.CreateTexture(InvalidTexture).Result == ERHIResult::Unsupported, "Vulkan invalid buffer and texture descriptions are rejected");
+
+    FVulkanDevice LimitedDevice;
+    Record(Result, LimitedDevice.Initialize() == ERHIResult::Success, "Vulkan allocation-limit fixture initializes");
+    LimitedDevice.ConfigureAllocationBudget(16);
+    Record(Result, LimitedDevice.CreateBuffer(ValidBufferDesc()).Result == ERHIResult::Unavailable &&
+        LimitedDevice.GetAllocationSnapshot().LastFailure == EVulkanAllocationFailure::BudgetExceeded, "Vulkan allocation budget failure is deterministic");
+    LimitedDevice.ResetResourceConfiguration();
+    LimitedDevice.ConfigureAllocationCountLimit(1);
+    Record(Result, LimitedDevice.CreateBuffer(ValidBufferDesc()).Succeeded() &&
+        LimitedDevice.CreateTexture(ValidTextureDesc()).Result == ERHIResult::Unavailable &&
+        LimitedDevice.GetAllocationSnapshot().LastFailure == EVulkanAllocationFailure::AllocationCountExceeded, "Vulkan allocation-count failure is deterministic");
+
+    Record(Result, Buffer.Object && Buffer.Object->Invalidate() == ERHIResult::Success &&
+        Buffer.Object->Invalidate() == ERHIResult::InvalidState, "Vulkan buffer invalidation releases allocation once");
+    (void)Device.Shutdown();
+    Record(Result, Texture.Object && Texture.Object->GetLifecycleState() == ERHIResourceLifecycleState::Invalidated &&
+        Device.CreateBuffer(ValidBufferDesc()).Result == ERHIResult::InvalidState, "Vulkan shutdown invalidates resource objects and rejects creation");
+    (void)LimitedDevice.Shutdown();
+}
+
+void TestSamplersDescriptorsAndUploads(FVulkanBackendTestResult& Result)
+{
+    FVulkanDevice Device;
+    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan descriptor fixture device initializes");
+
+    const auto Buffer = Device.CreateBuffer(ValidBufferDesc());
+    const auto Texture = Device.CreateTexture(ValidTextureDesc());
+    const auto Sampler = Device.CreateSampler(ValidSamplerDesc());
+    Record(Result, Buffer.Succeeded() && Texture.Succeeded() && Sampler.Succeeded() &&
+        Sampler.Object->GetLifecycleState() == ERHIResourceLifecycleState::Valid, "Vulkan sampler creation succeeds and preserves lifecycle");
+
+    FRHISamplerDesc InvalidSampler = ValidSamplerDesc();
+    InvalidSampler.CompareMode = ERHISamplerCompareMode::Less;
+    InvalidSampler.MipFilter = ERHISamplerMipFilter::None;
+    Record(Result, Device.CreateSampler(InvalidSampler).Result == ERHIResult::Unsupported, "Vulkan unsupported sampler modes are rejected");
+
+    Device.ConfigureDescriptorPoolCapacity(1);
+    const auto Layout = Device.CreatePipelineLayout(ResourceLayoutDesc());
+    const auto DescriptorSet = Device.CreateDescriptorSet(Layout.Object, 0);
+    Record(Result, Layout.Succeeded() && DescriptorSet.Succeeded() &&
+        Device.GetDescriptorPoolAllocatedCount() == 1, "Vulkan descriptor set allocates from fixed-capacity pool");
+    Record(Result, Device.CreateDescriptorSet(Layout.Object, 0).Result == ERHIResult::Unavailable &&
+        Device.GetDiagnostics().DescriptorPoolReason[0] != '\0', "Vulkan descriptor pool exhaustion is explicit");
+
+    Record(Result, DescriptorSet.Object->UpdateBuffer(0, 0, Buffer.Object) == ERHIResult::Success &&
+        DescriptorSet.Object->UpdateTexture(1, 0, Texture.Object) == ERHIResult::Success &&
+        DescriptorSet.Object->UpdateSampler(2, 0, Sampler.Object) == ERHIResult::Success &&
+        DescriptorSet.Object->UpdateCombinedTextureSampler(3, 0, Texture.Object, Sampler.Object) == ERHIResult::Success &&
+        DescriptorSet.Object->GetBoundResourceCount() == 4, "Vulkan descriptor updates retain buffer texture sampler and combined records");
+    Record(Result, DescriptorSet.Object->UpdateTexture(0, 0, Texture.Object) == ERHIResult::Unsupported &&
+        DescriptorSet.Object->UpdateBuffer(99, 0, Buffer.Object) == ERHIResult::InvalidState, "Vulkan descriptor update rejects wrong type and missing binding");
+
+    auto ConcreteSet = std::dynamic_pointer_cast<FVulkanDescriptorSet>(DescriptorSet.Object);
+    (void)Texture.Object->Invalidate();
+    Record(Result, DescriptorSet.Object->GetBoundResourceKind(1, 0) == ERHIDescriptorResourceKind::Texture &&
+        ConcreteSet && !ConcreteSet->IsBoundResourceValid(1, 0) &&
+        DescriptorSet.Object->UpdateTexture(1, 0, Texture.Object) == ERHIResult::InvalidState, "Vulkan descriptor retained binding reports invalidated resources");
+
+    const unsigned char Data[16] = {};
+    const auto BufferUpload = Device.StageBufferUpload(Buffer.Object, Data, sizeof(Data), {0, sizeof(Data)});
+    Record(Result, BufferUpload.Succeeded() && BufferUpload.Object->GetLifecycle() == EVulkanUploadLifecycle::Pending &&
+        BufferUpload.Object->GetStagingData().size() == sizeof(Data) && !BufferUpload.Object->ClaimsExecution(), "Vulkan buffer upload staging preserves CPU-visible data without execution");
+    Record(Result, Device.StageBufferUpload(Buffer.Object, nullptr, sizeof(Data), {0, sizeof(Data)}).Result == ERHIResult::InvalidState &&
+        Device.StageBufferUpload(Buffer.Object, Data, sizeof(Data), {512, sizeof(Data)}).Result == ERHIResult::InvalidState, "Vulkan buffer upload staging rejects missing data and out-of-bounds ranges");
+
+    const auto FreshTexture = Device.CreateTexture(ValidTextureDesc());
+    const auto TextureUpload = Device.StageTextureUpload(FreshTexture.Object, Data, sizeof(Data), {0, 0, 0, 0, 0, 4, 4, 1});
+    Record(Result, TextureUpload.Succeeded() && TextureUpload.Object->GetKind() == EVulkanUploadKind::Texture &&
+        TextureUpload.Object->GetTextureRegion().Width == 4, "Vulkan texture upload staging preserves destination region");
+    Record(Result, Device.StageTextureUpload(FreshTexture.Object, Data, sizeof(Data), {0, 0, 7, 0, 0, 4, 4, 1}).Result == ERHIResult::InvalidState, "Vulkan texture upload staging rejects invalid regions");
+
+    (void)Device.Shutdown();
+    Record(Result, DescriptorSet.Object->UpdateBuffer(0, 0, Buffer.Object) == ERHIResult::InvalidState &&
+        BufferUpload.Object->GetLifecycle() == EVulkanUploadLifecycle::Invalidated &&
+        Device.CreateSampler(ValidSamplerDesc()).Result == ERHIResult::InvalidState, "Vulkan shutdown invalidates descriptors uploads and sampler creation");
 }
 
 } // namespace
@@ -229,5 +363,7 @@ FVulkanBackendTestResult RunVulkanBackendTests()
     TestSurfaceSwapchain(Result);
     TestSynchronization(Result);
     TestLifecycleAndUnsupportedFactories(Result);
+    TestResourceCreationAndAllocation(Result);
+    TestSamplersDescriptorsAndUploads(Result);
     return Result;
 }

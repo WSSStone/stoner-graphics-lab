@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RHI/ERHIPipelineState.h"
+#include "RHI/ERHIResult.h"
 #include "RHI/FRHIBufferDesc.h"
 
 namespace Stoner::RHI

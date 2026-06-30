@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>010 — Vulkan Resource Management · Stoner Graphics Lab</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #f7f9fc; --bg-card: #ffffff; --bg-code: #f1f5f9; --border: #d8e0ea;
+            --text: #1f2937; --text-dim: #64748b; --accent: #2563eb; --accent2: #059669;
+            --warn: #b45309; --error: #dc2626;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+        }
+        html { scroll-behavior: smooth; }
+        body { font-family: var(--font-sans); background: var(--bg); color: var(--text); line-height: 1.7; font-size: 15px; }
+        .page { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+        .sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--bg-card); border-right: 1px solid var(--border); padding: 24px 16px; font-size: 13px; }
+        .sidebar .logo { font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+        .sidebar .subtitle { font-size: 11px; color: var(--text-dim); margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+        .sidebar h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-dim); margin-bottom: 12px; }
+        .toc { list-style: none; }
+        .toc a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--text-dim); text-decoration: none; }
+        .toc a:hover { background: rgba(37, 99, 235, .1); color: var(--accent); }
+        .toc .sub { padding-left: 20px; font-size: 12px; }
+        .content { max-width: 920px; margin: 0 auto; padding: 48px 40px 120px; }
+        .content > section { margin-bottom: 56px; }
+        h1 { font-size: 32px; font-weight: 800; color: var(--accent); margin-bottom: 8px; }
+        h1 + .meta { font-size: 13px; color: var(--text-dim); margin-bottom: 32px; }
+        h2 { font-size: 22px; font-weight: 700; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        h2 .num { color: var(--accent); margin-right: 6px; }
+        h3 { font-size: 17px; font-weight: 600; margin: 24px 0 10px; }
+        h4 { font-size: 15px; font-weight: 600; color: var(--text-dim); margin: 16px 0 8px; }
+        p, ul, ol { margin-bottom: 14px; }
+        ul, ol { padding-left: 22px; }
+        li { margin-bottom: 4px; }
+        code { font-family: var(--font-mono); background: var(--bg-code); border: 1px solid var(--border); border-radius: 4px; padding: 2px 5px; font-size: 13px; }
+        pre { background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 16px 18px; overflow-x: auto; margin-bottom: 18px; }
+        pre code { background: transparent; border: 0; color: inherit; padding: 0; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+        th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        th { font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--text-dim); background: var(--bg-card); }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px 24px; margin-bottom: 16px; }
+        .card.highlight { border-left: 3px solid var(--accent); }
+        .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px; vertical-align: middle; }
+        .badge.status { background: rgba(5, 150, 105,.15); color: var(--accent2); }
+        .badge.version { background: rgba(37, 99, 235,.15); color: var(--accent); }
+        .badge.p1 { background: rgba(220, 38, 38,.15); color: var(--error); }
+        .badge.p2 { background: rgba(180, 83, 9,.15); color: var(--warn); }
+        .diagram { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 18px; font-family: var(--font-mono); font-size: 13px; white-space: pre; overflow-x: auto; margin-bottom: 18px; }
+        @media (max-width: 860px) { .page { display: block; } .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); } .content { padding: 32px 20px 80px; } }
+    </style>
+</head>
+<body>
+<div class="page">
+    <aside class="sidebar">
+        <div class="logo">Stoner Graphics Lab</div>
+        <div class="subtitle">Spec 010 · Vulkan Resource Management</div>
+        <h2>目录</h2>
+        <ul class="toc">
+            <li><a href="#s1">一、文档与上下文信息</a></li>
+            <li><a class="sub" href="#s1-1">1. 基础元数据</a></li>
+            <li><a class="sub" href="#s1-2">2. 本期核心摘要</a></li>
+            <li><a href="#s2">二、目标与边界</a></li>
+            <li><a href="#s3">三、交互与产品设计</a></li>
+            <li><a href="#s4">四、技术架构与关键决策</a></li>
+            <li><a href="#s5">五、实施与验证</a></li>
+            <li><a href="#s6">六、设计巧思与最佳实践</a></li>
+            <li><a href="#s7">七、编程语言知识点</a></li>
+            <li><a href="#s8">八、软件工程知识点</a></li>
+        </ul>
+    </aside>
+    <main class="content">
+        <h1>010 — Vulkan Resource Management</h1>
+        <div class="meta">更新日期：2026-06-30 · 状态：<span class="badge status">已交付</span> · 对应 Roadmap Phase 009</div>
+
+        <section id="s1">
+            <h2><span class="num">一、</span>文档与上下文信息</h2>
+            <h3 id="s1-1">1. 基础元数据</h3>
+            <table>
+                <tr><th>项目</th><th>内容</th></tr>
+                <tr><td>Spec</td><td><code>specs/010-vulkan-resource-management</code></td></tr>
+                <tr><td>实现范围</td><td>Vulkan 后端资源管理：buffer、texture、sampler、pipeline layout、descriptor pool/set、upload staging。</td></tr>
+                <tr><td>验证入口</td><td><code>conda run -n godot scons</code> 与 <code>Build/Mac/Debug/Tests/StonerTest</code></td></tr>
+            </table>
+            <h3 id="s1-2">2. 本期核心摘要</h3>
+            <div class="card highlight">
+                <p>本阶段把 Vulkan 后端上一阶段遗留的资源 factory 从显式 unsupported 推进为可用的资源管理切片。实现并验证了确定性 fallback allocation、可配置分配失败、固定容量 descriptor pool、descriptor binding 保留查询，以及只记录 CPU-visible 数据和目标范围的 upload staging。</p>
+            </div>
+            <h3>3. 上下文与依赖</h3>
+            <ul>
+                <li>依赖 007 的 RHI resource/pipeline contracts：资源生命周期、descriptor layout、descriptor set 更新接口。</li>
+                <li>依赖 009 的 Vulkan device/swapchain：device lifecycle、diagnostics、queue/sync/surface/swapchain 基线。</li>
+                <li>当前阶段不要求 Vulkan runtime 存在；SDK 或 runtime 不可用时，资源合约使用 deterministic fallback 路径验证。</li>
+            </ul>
+        </section>
+
+        <section id="s2">
+            <h2><span class="num">二、</span>目标与边界</h2>
+            <h3>1. 业务与功能目标</h3>
+            <p>为后续 command recording、pipeline、shader 和 render graph 阶段提供真实可查询的后端资源对象，而不是继续停留在 unsupported placeholder。</p>
+            <h3>2. 架构目标与定位</h3>
+            <div class="diagram">RHI Interfaces
+    |
+    v
+FVulkanDevice
+    |-- FVulkanMemoryAllocator -> FVulkanResourceAllocation
+    |-- FVulkanBuffer / FVulkanTexture / FVulkanSampler
+    |-- FVulkanPipelineLayout -> FVulkanDescriptorPool -> FVulkanDescriptorSet
+    `-- FVulkanUploadRequest</div>
+            <h3>3. 边界与非目标</h3>
+            <ul>
+                <li>不实现 command buffer recording 或 queue execution。</li>
+                <li>不实现 shader compilation、graphics/compute pipeline、render pass、framebuffer 或 render graph scheduling。</li>
+                <li>不把 Vulkan allocation detail 泄漏到通用 RHI public contracts。</li>
+            </ul>
+        </section>
+
+        <section id="s3">
+            <h2><span class="num">三、</span>交互与产品设计</h2>
+            <h3>1. 用户使用路径</h3>
+            <ol>
+                <li>初始化 <code>FVulkanDevice</code>。</li>
+                <li>通过 RHI factory 创建 buffer、texture、sampler、pipeline layout、descriptor set。</li>
+                <li>通过 descriptor set 更新 buffer/texture/sampler/combined bindings。</li>
+                <li>通过 staging API 创建 pending upload request。</li>
+                <li>shutdown 时所有后端资源统一进入 invalidated 状态。</li>
+            </ol>
+            <h3>2. 核心规则与状态机</h3>
+            <pre><code>Resource: Valid -> Invalidated
+Allocation: RealRuntime | DeterministicFallback | Failed -> Released
+Upload: Pending -> Invalidated</code></pre>
+            <p>Invalidated 对象仍然可查询，但不能参与新的 descriptor update 或 upload staging。</p>
+        </section>
+
+        <section id="s4">
+            <h2><span class="num">四、</span>技术架构与关键决策</h2>
+            <h3>1. 技术栈与基础设施</h3>
+            <ul>
+                <li>C++20，传统 header/source 分离。</li>
+                <li>SCons 4.10.1，Vulkan backend source 自动发现。</li>
+                <li>Core 层 <code>TSharedPtr</code>、<code>TWeakPtr</code>、<code>TArray</code> 作为项目内统一容器/指针入口。</li>
+            </ul>
+            <h3>2. 关键信息</h3>
+            <h4>2.1 模块对应关系</h4>
+            <table>
+                <tr><th>模块</th><th>职责</th></tr>
+                <tr><td><code>FVulkanMemoryAllocator</code></td><td>估算资源字节数、选择 real/fallback mode、执行 budget/count 限制。</td></tr>
+                <tr><td><code>FVulkanBuffer</code> / <code>FVulkanTexture</code></td><td>保存 RHI desc、生命周期和 allocation record。</td></tr>
+                <tr><td><code>FVulkanDescriptorPool</code></td><td>固定容量 descriptor set 分配与 exhaustion 行为。</td></tr>
+                <tr><td><code>FVulkanDescriptorSet</code></td><td>验证 layout binding、保留绑定记录、报告 invalidated resource。</td></tr>
+                <tr><td><code>FVulkanUploadRequest</code></td><td>保存 CPU-visible staging data 与目标 buffer/texture 范围，不声明 GPU 执行。</td></tr>
+            </table>
+            <h4>2.2 关键诊断</h4>
+            <p><code>FVulkanDiagnostics</code> 增加 resource allocation、allocation failure、descriptor pool、descriptor update、upload rejection 等原因字段，便于测试和未来开发者排错。</p>
+            <h3>3. 架构决策记录 (ADR)</h3>
+            <ul>
+                <li><strong>确定性 fallback allocation</strong>：避免开发机缺少 Vulkan runtime 时资源测试全部不可运行。</li>
+                <li><strong>测试可配置分配失败</strong>：使用 budget/count limit 替代真实内存耗尽，结果更稳定。</li>
+                <li><strong>descriptor 记录保留</strong>：资源 invalidated 后保留绑定记录，使错误可诊断而不是被静默清空。</li>
+                <li><strong>upload 只 staging</strong>：尊重 roadmap 边界，把 GPU transfer 留给 command submission 阶段。</li>
+            </ul>
+        </section>
+
+        <section id="s5">
+            <h2><span class="num">五、</span>实施与验证（任务流）</h2>
+            <h3>5.1 任务拆解清单</h3>
+            <ol>
+                <li>新增 resource allocation 与 allocator 基础设施。</li>
+                <li>实现 buffer、texture、sampler 后端对象并接入 device factory。</li>
+                <li>实现轻量 pipeline layout、fixed-capacity descriptor pool、descriptor set validation。</li>
+                <li>实现 buffer/texture upload staging records。</li>
+                <li>扩展 Vulkan backend tests，并更新旧 unsupported factory 断言。</li>
+            </ol>
+            <h3>5.2 验收标准</h3>
+            <table>
+                <tr><th>命令</th><th>结果</th></tr>
+                <tr><td><code>conda run -n godot scons</code></td><td>退出码 0。</td></tr>
+                <tr><td><code>Build/Mac/Debug/Tests/StonerTest</code></td><td>退出码 0，Core/RHI/Vulkan 全部测试通过。</td></tr>
+            </table>
+        </section>
+
+        <section id="s6">
+            <h2><span class="num">六、</span>设计巧思与最佳实践</h2>
+            <h3>6.1 当前业务场景与业务模型的最佳实践</h3>
+            <p>本阶段让资源生命周期和 allocation lifecycle 分离：资源对象负责 RHI 查询与 invalidation，allocator 负责分配统计和可控失败。这让后续真实 Vulkan memory path 可以替换 allocator 内部策略，而不影响 RHI 层调用方式。</p>
+            <h3>6.2 优化方案与收益</h3>
+            <ul>
+                <li>固定容量 descriptor pool 让 exhaustion 测试直接、稳定。</li>
+                <li>weak binding records 避免 descriptor set 强行延长资源生命周期，同时保留诊断能力。</li>
+                <li>upload staging 复制 CPU 数据，为未来 transfer command 生成保留真实输入。</li>
+            </ul>
+        </section>
+
+        <section id="s7">
+            <h2><span class="num">七、</span>编程语言知识点</h2>
+            <h3>1. 标准库接口与用法</h3>
+            <ul>
+                <li><code>std::shared_ptr</code> / <code>std::weak_ptr</code>：用于资源对象与 descriptor/upload 对目标资源的非拥有引用。</li>
+                <li><code>std::map</code>：用 binding slot + array index 作为 descriptor binding record key。</li>
+                <li><code>std::memcpy</code>：复制 upload staging 的 CPU-visible 数据。</li>
+            </ul>
+            <h3>2. 语言特性与惯用法</h3>
+            <ul>
+                <li>RAII 风格的 descriptor set 析构释放 pool allocation。</li>
+                <li>接口继承实现 RHI 多态，同时保持 Vulkan 具体类型可被测试侧 downcast 查询。</li>
+                <li><code>noexcept</code> 用于纯查询和确定性状态转换辅助。</li>
+            </ul>
+            <h3>3. 平台相关与编译器行为</h3>
+            <p>构建中没有新增平台 API 依赖；macOS 下出现的 <code>confstr()</code> 临时目录 warning 不影响构建和测试结果。</p>
+        </section>
+
+        <section id="s8">
+            <h2><span class="num">八、</span>软件工程知识点</h2>
+            <h3>1. 设计模式与架构模式</h3>
+            <ul>
+                <li>Facade：<code>FVulkanDevice</code> 对外集中暴露 resource factory 和 staging API。</li>
+                <li>Strategy-ready allocator：当前 fallback/limit 策略封装在 allocator 内，未来可替换为真实 Vulkan memory allocator。</li>
+                <li>契约式设计：descriptor/update/upload 先验证，再改变状态。</li>
+            </ul>
+            <h3>2. 工程原则与方法论</h3>
+            <ul>
+                <li>YAGNI：不提前实现 command execution 和真实 pipeline。</li>
+                <li>边界隔离：所有 Vulkan resource implementation 保持在 <code>Source/Backend/Vulkan</code>。</li>
+                <li>可诊断失败：失败返回显式 <code>ERHIResult</code>，同时写入 diagnostics reason。</li>
+            </ul>
+            <h3>3. 测试策略与质量保障</h3>
+            <p>测试覆盖成功路径、无效描述、budget/count limit、descriptor pool exhaustion、wrong type/missing binding、retained invalidated binding、upload missing data/out-of-bounds/invalid region，以及 shutdown invalidation 回归。</p>
+        </section>
+    </main>
+</div>
+</body>
+</html>

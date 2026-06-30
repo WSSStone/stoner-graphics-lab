@@ -1,9 +1,14 @@
 #include "VulkanRHI/FVulkanDevice.h"
 
+#include "VulkanRHI/FVulkanBuffer.h"
+#include "VulkanRHI/FVulkanDescriptorSet.h"
 #include "VulkanRHI/FVulkanFence.h"
+#include "VulkanRHI/FVulkanPipelineLayout.h"
 #include "VulkanRHI/FVulkanQueue.h"
+#include "VulkanRHI/FVulkanSampler.h"
 #include "VulkanRHI/FVulkanSemaphore.h"
 #include "VulkanRHI/FVulkanSwapchain.h"
+#include "VulkanRHI/FVulkanTexture.h"
 
 namespace Stoner::Backend::Vulkan
 {
@@ -45,6 +50,21 @@ const FVulkanAdapterCandidate& FVulkanDevice::GetSelectedAdapter() const noexcep
     return SelectedAdapter;
 }
 
+FVulkanAllocationSnapshot FVulkanDevice::GetAllocationSnapshot() const noexcept
+{
+    return Allocator ? Allocator->GetSnapshot() : FVulkanAllocationSnapshot{};
+}
+
+Stoner::Core::uint32 FVulkanDevice::GetDescriptorPoolCapacity() const noexcept
+{
+    return DescriptorPool ? DescriptorPool->GetCapacity() : DescriptorPoolCapacity;
+}
+
+Stoner::Core::uint32 FVulkanDevice::GetDescriptorPoolAllocatedCount() const noexcept
+{
+    return DescriptorPool ? DescriptorPool->GetAllocatedCount() : 0;
+}
+
 Stoner::RHI::ERHIResult FVulkanDevice::Initialize(const FVulkanInstanceDesc& Desc)
 {
     if (State != Stoner::RHI::ERHIDeviceState::Uninitialized)
@@ -69,6 +89,13 @@ Stoner::RHI::ERHIResult FVulkanDevice::Initialize(const FVulkanInstanceDesc& Des
 
     SelectedAdapter = Selection.Selected;
     MapCapabilities(SelectedAdapter);
+    if (!Allocator)
+    {
+        Allocator = std::make_shared<FVulkanMemoryAllocator>();
+    }
+    Allocator->SetRuntimeAvailable(!Diagnostics.bUsedRuntimeFallback);
+    Allocator->Reset();
+    DescriptorPool.reset();
     State = Stoner::RHI::ERHIDeviceState::Active;
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -87,6 +114,41 @@ Stoner::RHI::ERHIResult FVulkanDevice::Shutdown()
     }
     State = Stoner::RHI::ERHIDeviceState::Shutdown;
     return Stoner::RHI::ERHIResult::Success;
+}
+
+void FVulkanDevice::ConfigureAllocationBudget(Stoner::Core::uint64 MaxBytes) noexcept
+{
+    if (Allocator)
+    {
+        Allocator->ConfigureBudgetLimit(MaxBytes);
+    }
+}
+
+void FVulkanDevice::ConfigureAllocationCountLimit(Stoner::Core::uint32 MaxAllocations) noexcept
+{
+    if (Allocator)
+    {
+        Allocator->ConfigureAllocationCountLimit(MaxAllocations);
+    }
+}
+
+void FVulkanDevice::ConfigureDescriptorPoolCapacity(Stoner::Core::uint32 Capacity) noexcept
+{
+    DescriptorPoolCapacity = Capacity;
+    if (!DescriptorPool || DescriptorPool->GetAllocatedCount() == 0)
+    {
+        DescriptorPool = std::make_shared<FVulkanDescriptorPool>(DescriptorPoolCapacity);
+    }
+}
+
+void FVulkanDevice::ResetResourceConfiguration() noexcept
+{
+    if (Allocator)
+    {
+        Allocator->ClearLimits();
+    }
+    DescriptorPoolCapacity = 16;
+    DescriptorPool.reset();
 }
 
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHICommandQueue> FVulkanDevice::CreateCommandQueue(Stoner::RHI::ERHIQueueType QueueType)
@@ -151,19 +213,68 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> FVulkanDevice::CreateS
     return {Stoner::RHI::ERHIResult::Success, Swapchain};
 }
 
-Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIBuffer> FVulkanDevice::CreateBuffer(const Stoner::RHI::FRHIBufferDesc&)
+Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIBuffer> FVulkanDevice::CreateBuffer(const Stoner::RHI::FRHIBufferDesc& Desc)
 {
-    return UnsupportedObjectResult<Stoner::RHI::IRHIBuffer>();
+    if (!IsActive())
+    {
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    if (!SupportsBufferDesc(Desc))
+    {
+        return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
+    }
+
+    FVulkanResourceAllocation Allocation = Allocator->AllocateBuffer(Desc, IsActive());
+    if (!Allocation.IsSuccessful())
+    {
+        MarkAllocationFailure(Diagnostics, Allocation.Reason);
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+
+    auto Buffer = Stoner::Core::MakeShared<FVulkanBuffer>(Desc, Allocation, Allocator);
+    Buffers.push_back(Buffer);
+    MarkResourceAllocation(Diagnostics, Allocation.Reason);
+    return {Stoner::RHI::ERHIResult::Success, Buffer};
 }
 
-Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHITexture> FVulkanDevice::CreateTexture(const Stoner::RHI::FRHITextureDesc&)
+Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHITexture> FVulkanDevice::CreateTexture(const Stoner::RHI::FRHITextureDesc& Desc)
 {
-    return UnsupportedObjectResult<Stoner::RHI::IRHITexture>();
+    if (!IsActive())
+    {
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    if (!SupportsTextureDesc(Desc))
+    {
+        return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
+    }
+
+    FVulkanResourceAllocation Allocation = Allocator->AllocateTexture(Desc, IsActive());
+    if (!Allocation.IsSuccessful())
+    {
+        MarkAllocationFailure(Diagnostics, Allocation.Reason);
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+
+    auto Texture = Stoner::Core::MakeShared<FVulkanTexture>(Desc, Allocation, Allocator);
+    Textures.push_back(Texture);
+    MarkResourceAllocation(Diagnostics, Allocation.Reason);
+    return {Stoner::RHI::ERHIResult::Success, Texture};
 }
 
-Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISampler> FVulkanDevice::CreateSampler(const Stoner::RHI::FRHISamplerDesc&)
+Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISampler> FVulkanDevice::CreateSampler(const Stoner::RHI::FRHISamplerDesc& Desc)
 {
-    return UnsupportedObjectResult<Stoner::RHI::IRHISampler>();
+    if (!IsActive())
+    {
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    if (!SupportsSamplerDesc(Desc))
+    {
+        return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
+    }
+
+    auto Sampler = Stoner::Core::MakeShared<FVulkanSampler>(Desc);
+    Samplers.push_back(Sampler);
+    return {Stoner::RHI::ERHIResult::Success, Sampler};
 }
 
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIShaderModule> FVulkanDevice::CreateShaderModule(const Stoner::RHI::FRHIShaderModuleDesc&)
@@ -171,14 +282,48 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIShaderModule> FVulkanDevice::Crea
     return UnsupportedObjectResult<Stoner::RHI::IRHIShaderModule>();
 }
 
-Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIPipelineLayout> FVulkanDevice::CreatePipelineLayout(const Stoner::RHI::FRHIPipelineLayoutDesc&)
+Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIPipelineLayout> FVulkanDevice::CreatePipelineLayout(const Stoner::RHI::FRHIPipelineLayoutDesc& Desc)
 {
-    return UnsupportedObjectResult<Stoner::RHI::IRHIPipelineLayout>();
+    if (!IsActive())
+    {
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    for (const Stoner::RHI::FRHIDescriptorBinding& Binding : Desc.Bindings)
+    {
+        if (!Stoner::RHI::IsValidRHIDescriptorBinding(Binding))
+        {
+            MarkDescriptorUpdate(Diagnostics, "invalid descriptor binding in pipeline layout");
+            return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+        }
+    }
+    auto Layout = Stoner::Core::MakeShared<FVulkanPipelineLayout>(Desc);
+    PipelineLayouts.push_back(Layout);
+    return {Stoner::RHI::ERHIResult::Success, Layout};
 }
 
-Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIDescriptorSet> FVulkanDevice::CreateDescriptorSet(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPipelineLayout>&, Stoner::Core::uint32)
+Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIDescriptorSet> FVulkanDevice::CreateDescriptorSet(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPipelineLayout>& Layout, Stoner::Core::uint32 SetIndex)
 {
-    return UnsupportedObjectResult<Stoner::RHI::IRHIDescriptorSet>();
+    if (!IsActive())
+    {
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    if (!Layout || Layout->GetLifecycleState() != Stoner::RHI::ERHIResourceLifecycleState::Valid || SetIndex >= Layout->GetSetCount())
+    {
+        MarkDescriptorUpdate(Diagnostics, "missing or invalid descriptor set layout");
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+
+    EnsureDescriptorPool();
+    const Stoner::RHI::ERHIResult PoolResult = DescriptorPool->Allocate();
+    if (PoolResult != Stoner::RHI::ERHIResult::Success)
+    {
+        MarkDescriptorPool(Diagnostics, "descriptor pool capacity exhausted");
+        return {PoolResult, nullptr};
+    }
+
+    auto DescriptorSet = Stoner::Core::MakeShared<FVulkanDescriptorSet>(Layout, SetIndex, DescriptorPool);
+    DescriptorSets.push_back(DescriptorSet);
+    return {Stoner::RHI::ERHIResult::Success, DescriptorSet};
 }
 
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIGraphicsPipeline> FVulkanDevice::CreateGraphicsPipeline(const Stoner::RHI::FRHIGraphicsPipelineDesc&)
@@ -199,6 +344,42 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIRenderPass> FVulkanDevice::Create
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIFramebuffer> FVulkanDevice::CreateFramebuffer(const Stoner::RHI::FRHIFramebufferDesc&)
 {
     return UnsupportedObjectResult<Stoner::RHI::IRHIFramebuffer>();
+}
+
+Stoner::RHI::TRHIObjectResult<FVulkanUploadRequest> FVulkanDevice::StageBufferUpload(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Buffer, const void* Data, Stoner::Core::uint64 SizeBytes, FVulkanBufferUploadRange Range)
+{
+    if (!IsActive())
+    {
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    auto Result = FVulkanUploadRequest::CreateBufferUpload(Buffer, Data, SizeBytes, Range);
+    if (Result.Succeeded())
+    {
+        UploadRequests.push_back(Result.Object);
+    }
+    else
+    {
+        MarkUploadRejection(Diagnostics, "buffer upload staging request rejected");
+    }
+    return Result;
+}
+
+Stoner::RHI::TRHIObjectResult<FVulkanUploadRequest> FVulkanDevice::StageTextureUpload(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Texture, const void* Data, Stoner::Core::uint64 SizeBytes, FVulkanTextureUploadRegion Region)
+{
+    if (!IsActive())
+    {
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    auto Result = FVulkanUploadRequest::CreateTextureUpload(Texture, Data, SizeBytes, Region);
+    if (Result.Succeeded())
+    {
+        UploadRequests.push_back(Result.Object);
+    }
+    else
+    {
+        MarkUploadRejection(Diagnostics, "texture upload staging request rejected");
+    }
+    return Result;
 }
 
 Stoner::RHI::ERHIResult FVulkanDevice::CreateSurface(const Stoner::Core::FPlatformWindow& Window, FVulkanSurface& OutSurface)
@@ -260,6 +441,52 @@ void FVulkanDevice::InvalidateOwnedObjects() noexcept
             Swapchain->Invalidate();
         }
     }
+    for (const auto& Request : UploadRequests)
+    {
+        if (Request)
+        {
+            (void)Request->Invalidate();
+        }
+    }
+    for (const auto& DescriptorSet : DescriptorSets)
+    {
+        if (DescriptorSet)
+        {
+            (void)DescriptorSet->Invalidate();
+        }
+    }
+    if (DescriptorPool)
+    {
+        (void)DescriptorPool->Invalidate();
+    }
+    for (const auto& Layout : PipelineLayouts)
+    {
+        if (Layout)
+        {
+            (void)Layout->Invalidate();
+        }
+    }
+    for (const auto& Sampler : Samplers)
+    {
+        if (Sampler)
+        {
+            (void)Sampler->Invalidate();
+        }
+    }
+    for (const auto& Texture : Textures)
+    {
+        if (Texture)
+        {
+            (void)Texture->Invalidate();
+        }
+    }
+    for (const auto& Buffer : Buffers)
+    {
+        if (Buffer)
+        {
+            (void)Buffer->Invalidate();
+        }
+    }
 }
 
 void FVulkanDevice::MapCapabilities(const FVulkanAdapterCandidate& Adapter)
@@ -275,6 +502,39 @@ void FVulkanDevice::MapCapabilities(const FVulkanAdapterCandidate& Adapter)
     Capabilities.MaxCommandBuffersPerQueue = 0;
     Capabilities.MaxQueuesPerType = 1;
     Capabilities.SupportedFormats = GetDefaultVulkanSupportedFormats();
+}
+
+bool FVulkanDevice::SupportsBufferDesc(const Stoner::RHI::FRHIBufferDesc& Desc) noexcept
+{
+    if (!Stoner::RHI::IsValidRHIBufferDesc(Desc))
+    {
+        MarkResourceAllocation(Diagnostics, "invalid or unsupported buffer description");
+        return false;
+    }
+    return true;
+}
+
+bool FVulkanDevice::SupportsTextureDesc(const Stoner::RHI::FRHITextureDesc& Desc) const noexcept
+{
+    return Stoner::RHI::IsValidRHITextureDesc(Desc) && Capabilities.SupportsFormat(Desc.Format);
+}
+
+bool FVulkanDevice::SupportsSamplerDesc(const Stoner::RHI::FRHISamplerDesc& Desc) noexcept
+{
+    if (!Stoner::RHI::IsValidRHISamplerDesc(Desc))
+    {
+        MarkResourceAllocation(Diagnostics, "invalid or unsupported sampler description");
+        return false;
+    }
+    return true;
+}
+
+void FVulkanDevice::EnsureDescriptorPool() noexcept
+{
+    if (!DescriptorPool)
+    {
+        DescriptorPool = std::make_shared<FVulkanDescriptorPool>(DescriptorPoolCapacity);
+    }
 }
 
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIDevice> CreateVulkanDevice(const FVulkanInstanceDesc& Desc)

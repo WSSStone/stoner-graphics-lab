@@ -118,7 +118,7 @@ These principles (from the [Constitution v1.2.0](../.specify/memory/constitution
 | 006 | RHI: Core Interfaces | RHI | 002, 003 | L | ✅ Yes | ✅ Done |
 | 007 | RHI: Resource & Pipeline | RHI | 006 | L | ✅ Yes | ✅ Done |
 | 008 | Vulkan: Device & Swapchain | Backend | 005, 006 | L | ✅ Yes | ✅ Done |
-| 009 | Vulkan: Resource Management | Backend | 007, 008 | L | ✅ Yes | ⬜ Todo |
+| 009 | Vulkan: Resource Management | Backend | 007, 008 | L | ✅ Yes | ✅ Done |
 | 010 | Vulkan: Commands & Submission | Backend | 009 | M | ✅ Yes | ⬜ Todo |
 | 011 | Vulkan: Pipeline & Shader | Backend | 009, 010 | L | ✅ Yes | ⬜ Todo |
 | 012 | Render Graph Foundation | Renderer | 007 | XL | ✅ Yes | ⬜ Todo |

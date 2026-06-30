@@ -32,6 +32,11 @@ struct FVulkanDiagnostics
     const char* ValidationUnavailableReason = "";
     const char* PresentationSkipReason = "";
     const char* QueueCapabilityReason = "";
+    const char* ResourceAllocationReason = "";
+    const char* AllocationFailureReason = "";
+    const char* DescriptorPoolReason = "";
+    const char* DescriptorUpdateReason = "";
+    const char* UploadRejectionReason = "";
 };
 
 void MarkUnsupportedRuntime(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
@@ -39,5 +44,10 @@ void MarkValidationUnavailable(FVulkanDiagnostics& Diagnostics, const char* Reas
 void MarkSelectedAdapter(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
 void MarkPresentationSkipped(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
 void MarkQueueCapability(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkResourceAllocation(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkAllocationFailure(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkDescriptorPool(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkDescriptorUpdate(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
+void MarkUploadRejection(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;
 
 } // namespace Stoner::Backend::Vulkan
