@@ -119,6 +119,16 @@ struct FRHIGraphicsPipelineDesc
     return Desc.DepthStencilFormat == ERHIFormat::Unknown || IsDepthStencilFormat(Desc.DepthStencilFormat);
 }
 
+// Depth test or write requires a depth/stencil attachment in the render target scope.
+[[nodiscard]] inline bool IsValidRHIDepthStencilCompatibility(const FRHIDepthStencilState& DepthStencil, const FRHIRenderTargetCompatibility& RenderTargets) noexcept
+{
+    if ((DepthStencil.bDepthTestEnabled || DepthStencil.bDepthWriteEnabled) && RenderTargets.DepthStencilFormat == ERHIFormat::Unknown)
+    {
+        return false;
+    }
+    return true;
+}
+
 [[nodiscard]] inline bool IsValidRHIGraphicsPipelineState(const FRHIGraphicsPipelineDesc& Desc) noexcept
 {
     return Desc.PipelineLayout &&
@@ -126,6 +136,7 @@ struct FRHIGraphicsPipelineDesc
         IsTriangleReadyRHITopology(Desc.Topology) &&
         Desc.Multisample.SampleCount == Desc.RenderTargets.SampleCount &&
         Desc.DynamicState.bViewportDynamic && Desc.DynamicState.bScissorDynamic &&
+        IsValidRHIDepthStencilCompatibility(Desc.DepthStencil, Desc.RenderTargets) &&
         IsValidRHIRenderTargetCompatibility(Desc.RenderTargets);
 }
 

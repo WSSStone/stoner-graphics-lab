@@ -433,6 +433,102 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
     (void)LimitedDevice.Shutdown();
 }
 
+void TestDrawDispatchPipelineDiagnostics(FVulkanBackendTestResult& Result)
+{
+    FVulkanDevice Device;
+    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan draw/dispatch diagnostics fixture device initializes");
+
+    const auto Layout = Device.CreatePipelineLayout(ResourceLayoutDesc());
+    const auto Vertex = Device.CreateShaderModule(ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "vs_diag"));
+    const auto Fragment = Device.CreateShaderModule(ShaderDesc(ERHIShaderStage::Fragment, "MainPS", "ps_diag"));
+    const auto Compute = Device.CreateShaderModule(ShaderDesc(ERHIShaderStage::Compute, "MainCS", "cs_diag"));
+    const auto GraphicsPipeline = Device.CreateGraphicsPipeline(GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object));
+    const auto ComputePipeline = Device.CreateComputePipeline(ComputePipelineDesc(Compute.Object, Layout.Object));
+
+    const auto RenderPass = Device.CreateRenderPass(ValidRenderPassDesc());
+    const auto Texture = Device.CreateTexture(ValidColorAttachmentTextureDesc());
+    const auto Framebuffer = Device.CreateFramebuffer(ValidFramebufferDesc(RenderPass.Object, Texture.Object));
+
+    const auto HasReason = [&Device](const char* Needle) {
+        return std::string_view(Device.GetDiagnostics().CommandRecordingReason).find(Needle) != std::string_view::npos;
+    };
+
+    // Draw/indexed draw without a bound graphics pipeline are still recorded, but flag a missing pipeline.
+    const auto GraphicsCommand = Device.CreateCommandBuffer(ERHIQueueType::Graphics);
+    Record(Result, GraphicsCommand.Object->Begin() == ERHIResult::Success &&
+        GraphicsCommand.Object->BeginRenderPass(RenderPass.Object, Framebuffer.Object) == ERHIResult::Success &&
+        GraphicsCommand.Object->RecordDraw(3, 1) == ERHIResult::Success && HasReason("missing") &&
+        GraphicsCommand.Object->RecordDrawIndexed(3, 1) == ERHIResult::Success && HasReason("missing"),
+        "Vulkan draw without bound graphics pipeline reports missing-pipeline diagnostics");
+
+    // Draw/indexed draw with a compatible bound graphics pipeline report compatible binding.
+    Record(Result, GraphicsCommand.Object->BindGraphicsPipeline(GraphicsPipeline.Object) == ERHIResult::Success &&
+        GraphicsCommand.Object->RecordDraw(3, 1) == ERHIResult::Success && HasReason("compatible") &&
+        GraphicsCommand.Object->RecordDrawIndexed(3, 1) == ERHIResult::Success && HasReason("compatible"),
+        "Vulkan draw with bound graphics pipeline reports compatible-pipeline diagnostics");
+
+    // The graphics and compute binding slots are independent: a dispatch here still lacks a compute pipeline.
+    Record(Result, GraphicsCommand.Object->RecordDispatch(1, 1, 1) == ERHIResult::Success && HasReason("missing"),
+        "Vulkan dispatch without bound compute pipeline reports missing-pipeline diagnostics on graphics queue");
+    (void)GraphicsCommand.Object->EndRenderPass();
+    (void)GraphicsCommand.Object->End();
+
+    // Dispatch transitions from missing to compatible once a compute pipeline is bound.
+    const auto ComputeCommand = Device.CreateCommandBuffer(ERHIQueueType::Compute);
+    Record(Result, ComputeCommand.Object->Begin() == ERHIResult::Success &&
+        ComputeCommand.Object->RecordDispatch(1, 1, 1) == ERHIResult::Success && HasReason("missing") &&
+        ComputeCommand.Object->BindComputePipeline(ComputePipeline.Object) == ERHIResult::Success &&
+        ComputeCommand.Object->RecordDispatch(1, 1, 1) == ERHIResult::Success && HasReason("compatible"),
+        "Vulkan dispatch reports missing then compatible compute pipeline diagnostics");
+    (void)ComputeCommand.Object->End();
+
+    // An invalidated pipeline cannot be bound, leaving unrelated state untouched.
+    const auto FreshCompute = Device.CreateCommandBuffer(ERHIQueueType::Compute);
+    Record(Result, ComputePipeline.Object->Invalidate() == ERHIResult::Success &&
+        FreshCompute.Object->Begin() == ERHIResult::Success &&
+        FreshCompute.Object->BindComputePipeline(ComputePipeline.Object) == ERHIResult::InvalidState,
+        "Vulkan binding an invalidated compute pipeline is rejected");
+    (void)Device.Shutdown();
+}
+
+void TestPipelineCacheKeyAndStateValidation(FVulkanBackendTestResult& Result)
+{
+    FVulkanDevice Device;
+    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan pipeline cache/state fixture device initializes");
+
+    const auto Layout = Device.CreatePipelineLayout(ResourceLayoutDesc());
+    const auto Vertex = Device.CreateShaderModule(ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "vs_cache"));
+    const auto Fragment = Device.CreateShaderModule(ShaderDesc(ERHIShaderStage::Fragment, "MainPS", "ps_cache"));
+
+    // Pipelines differing only in fixed-function state must not collide on the same cache key.
+    const FRHIGraphicsPipelineDesc Base = GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object);
+    FRHIGraphicsPipelineDesc BlendVariant = Base;
+    BlendVariant.Blend.bEnabled = true;
+    FRHIGraphicsPipelineDesc CullVariant = Base;
+    CullVariant.Rasterizer.CullMode = ERHICullMode::None;
+
+    const auto P1 = Device.CreateGraphicsPipeline(Base);
+    const auto P2 = Device.CreateGraphicsPipeline(BlendVariant);
+    const auto P3 = Device.CreateGraphicsPipeline(CullVariant);
+    const auto P1Again = Device.CreateGraphicsPipeline(Base);
+    Record(Result, P1.Succeeded() && P2.Succeeded() && P3.Succeeded() &&
+        P1.Object != P2.Object && P1.Object != P3.Object && P2.Object != P3.Object,
+        "Vulkan pipeline cache key distinguishes fixed-function state variants");
+    Record(Result, P1Again.Succeeded() && P1Again.Object == P1.Object,
+        "Vulkan pipeline cache still reuses identical graphics pipeline descriptions");
+
+    // Depth test/write requires a depth-stencil attachment; the same state with a depth format is accepted.
+    FRHIGraphicsPipelineDesc DepthNoFormat = Base;
+    DepthNoFormat.DepthStencil.bDepthTestEnabled = true;
+    FRHIGraphicsPipelineDesc DepthWithFormat = DepthNoFormat;
+    DepthWithFormat.RenderTargets.DepthStencilFormat = ERHIFormat::D24_UNorm_S8_UInt;
+    Record(Result, Device.CreateGraphicsPipeline(DepthNoFormat).Result == ERHIResult::InvalidState,
+        "Vulkan graphics pipeline rejects depth test without a depth-stencil attachment");
+    Record(Result, Device.CreateGraphicsPipeline(DepthWithFormat).Succeeded(),
+        "Vulkan graphics pipeline accepts depth test with a compatible depth-stencil attachment");
+    (void)Device.Shutdown();
+}
+
 void TestResourceCreationAndAllocation(FVulkanBackendTestResult& Result)
 {
     FVulkanDevice Device;
@@ -686,6 +782,8 @@ FVulkanBackendTestResult RunVulkanBackendTests()
     TestSynchronization(Result);
     TestLifecycleAndFactoryState(Result);
     TestShaderPipelineAndBinding(Result);
+    TestDrawDispatchPipelineDiagnostics(Result);
+    TestPipelineCacheKeyAndStateValidation(Result);
     TestResourceCreationAndAllocation(Result);
     TestCommandBuffersRecordingAndSubmission(Result);
     TestRenderPassFramebufferRecordingAndUploads(Result);

@@ -1724,6 +1724,22 @@ void TestShaderAndPipelineContracts(FRHICoreTestResult& Result)
     Record(Result, Fragment.Object->Invalidate() == ERHIResult::Success &&
             Device.CreateGraphicsPipeline(GraphicsDesc).Result == ERHIResult::InvalidState,
         "IRHIDevice rejects Invalidated shader module in graphics pipeline");
+
+    {
+        FRHIGraphicsPipelineDesc DepthDesc;
+        DepthDesc.PipelineLayout = Layout.Object;
+        DepthDesc.VertexInput.Stride = 24;
+        DepthDesc.VertexInput.Attributes = {{0, ERHIFormat::R32_Float, 0}};
+        DepthDesc.Topology = ERHIPrimitiveTopology::TriangleList;
+        DepthDesc.RenderTargets.ColorFormats = {ERHIFormat::R8G8B8A8_UNorm};
+        DepthDesc.DepthStencil.bDepthTestEnabled = true;
+        Record(Result, !IsValidRHIGraphicsPipelineState(DepthDesc),
+            "IsValidRHIGraphicsPipelineState rejects depth test without depth-stencil attachment");
+        DepthDesc.RenderTargets.DepthStencilFormat = ERHIFormat::D24_UNorm_S8_UInt;
+        Record(Result, IsValidRHIGraphicsPipelineState(DepthDesc),
+            "IsValidRHIGraphicsPipelineState accepts depth test with depth-stencil attachment");
+    }
+
     FRHIComputePipelineDesc InvalidatedLayoutComputeDesc;
     InvalidatedLayoutComputeDesc.ShaderModules = {Compute.Object};
     InvalidatedLayoutComputeDesc.PipelineLayout = Layout.Object;

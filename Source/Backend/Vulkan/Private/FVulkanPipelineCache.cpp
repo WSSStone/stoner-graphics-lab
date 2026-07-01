@@ -68,6 +68,11 @@ Stoner::Core::FString FVulkanPipelineCache::BuildGraphicsKey(const Stoner::RHI::
     }
     Stream << "|depth:" << static_cast<int>(Desc.RenderTargets.DepthStencilFormat)
            << "|samples:" << static_cast<int>(Desc.RenderTargets.SampleCount);
+    Stream << "|raster:" << static_cast<int>(Desc.Rasterizer.CullMode) << ',' << static_cast<int>(Desc.Rasterizer.FrontFace) << ',' << (Desc.Rasterizer.bDepthClampEnabled ? 1 : 0);
+    Stream << "|blend:" << (Desc.Blend.bEnabled ? 1 : 0) << ',' << static_cast<int>(Desc.Blend.SourceColor) << ',' << static_cast<int>(Desc.Blend.DestinationColor) << ',' << static_cast<int>(Desc.Blend.ColorOp);
+    Stream << "|ds:" << (Desc.DepthStencil.bDepthTestEnabled ? 1 : 0) << ',' << (Desc.DepthStencil.bDepthWriteEnabled ? 1 : 0) << ',' << static_cast<int>(Desc.DepthStencil.DepthCompare);
+    Stream << "|ms:" << static_cast<int>(Desc.Multisample.SampleCount) << ',' << (Desc.Multisample.bSampleShadingEnabled ? 1 : 0);
+    Stream << "|dyn:" << (Desc.DynamicState.bViewportDynamic ? 1 : 0) << ',' << (Desc.DynamicState.bScissorDynamic ? 1 : 0);
     return Stoner::Core::FString(Stream.str());
 }
 
