@@ -83,6 +83,11 @@ struct FVector4
         return *this / FMath::Sqrt(SquareLength);
     }
 
+    [[nodiscard]] FVector4 Normalized(float Tolerance = FMath::DefaultTolerance) const noexcept
+    {
+        return GetSafeNormal(Tolerance);
+    }
+
     [[nodiscard]] bool NearlyEquals(
         const FVector4& Other,
         float Tolerance = FMath::DefaultTolerance) const noexcept

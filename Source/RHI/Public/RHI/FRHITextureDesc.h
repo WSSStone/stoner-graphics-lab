@@ -24,7 +24,7 @@ struct FRHITextureDesc
 
 [[nodiscard]] constexpr bool IsValidRHIUsage(ERHITextureUsage Usage) noexcept
 {
-    if (Usage == ERHITextureUsage::None || HasRHIFlag(Usage, ERHITextureUsage::Vertex))
+    if (Usage == ERHITextureUsage::None)
     {
         return false;
     }

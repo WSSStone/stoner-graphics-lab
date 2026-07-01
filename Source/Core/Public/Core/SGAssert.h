@@ -15,7 +15,10 @@
 // SG_CHECKF(Expr, Format, ...)
 // Same as SG_CHECK but includes a printf-formatted failure message.
 
-#ifdef _DEBUG
+// Support both MSVC's _DEBUG and the standard NDEBUG convention.
+// SCons defines _DEBUG in both Debug and Release (see BuildConfig.py),
+// but standalone builds (Xcode, CMake, IDE) may only define NDEBUG.
+#if !defined(NDEBUG) || defined(_DEBUG)
 
 #define SG_CHECK(Expr) \
     do { \

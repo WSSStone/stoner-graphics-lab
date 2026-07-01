@@ -61,6 +61,18 @@ struct FVector2
         return X * Other.X + Y * Other.Y;
     }
 
+    // Component-wise multiply (Hadamard product)
+    [[nodiscard]] constexpr FVector2 operator*(const FVector2& Other) const noexcept
+    {
+        return FVector2(X * Other.X, Y * Other.Y);
+    }
+
+    // Scalar cross product (perp-dot): a.x*b.y - a.y*b.x
+    [[nodiscard]] constexpr float Cross(const FVector2& Other) const noexcept
+    {
+        return X * Other.Y - Y * Other.X;
+    }
+
     [[nodiscard]] constexpr float LengthSquared() const noexcept
     {
         return Dot(*this);
