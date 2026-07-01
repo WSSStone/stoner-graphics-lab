@@ -61,7 +61,7 @@ Stoner Graphics Lab is a cross-platform graphics engine built in modern C++20 wi
 - **Render Graph terminology**: Use "Render Graph" and `FRenderGraph` as the canonical dependency-management system for render passes and resources.
 - **GLFW first, native later**: Use GLFW for the initial window/input phase to reach the first-triangle milestone quickly, then add native Win32/Cocoa/X11-Wayland window implementations behind the same abstraction in a later phase.
 
-### Current State (Post Phase 012)
+### Current State (Post Phase 013)
 
 | Layer | Status | Content |
 |-------|--------|---------|
@@ -69,9 +69,9 @@ Stoner Graphics Lab is a cross-platform graphics engine built in modern C++20 wi
 | RHI | 🔷 Interface Complete | Core interfaces (006) and Resource & Pipeline interfaces (007) defined as pure virtual; implementations live in backends |
 | Backend/Vulkan | ✅ Done | Device, swapchain, resources, commands, shader modules, graphics/compute pipelines, command binding, and process-local pipeline reuse implemented |
 | Backend/Others | ⚪ Placeholder | `.gitkeep` files only |
-| Renderer | ✅ Render Graph Foundation Done | Backend-agnostic render graph declaration, deterministic compilation, culling, lifetimes, aliasing diagnostics, transition planning, execution, and text dumps |
+| Renderer | ✅ Material & Shader System Done | Backend-agnostic render graph plus material definitions, material instances, shader library records, deterministic permutations, resource requirement summaries, diagnostics, and text dumps |
 | Application | 🟡 Skeleton | Empty namespace, includes Renderer |
-| Tests | ✅ Done | Core tests, RHI contract tests, Vulkan integration tests all pass |
+| Tests | ✅ Done | Core tests, RHI contract tests, Renderer render graph/material tests, and Vulkan integration tests all pass |
 | Build System | ✅ Complete | SCons with LayerBuilder, PlatformDetect, BuildConfig, Vulkan SDK detection |
 
 > **🔷 Interface Complete** = Pure virtual interfaces and contracts defined; implementations exist in backends, but no mock-based RHI unit tests yet.
@@ -125,7 +125,7 @@ These principles (from the [Constitution v1.2.0](../.specify/memory/constitution
 | 010 | Vulkan: Commands & Submission | Backend | 009 | M | ✅ Yes | ✅ Done |
 | 011 | Vulkan: Pipeline & Shader | Backend | 009, 010 | L | ✅ Yes | ✅ Done |
 | 012 | Render Graph Foundation | Renderer | 007 | XL | ✅ Yes | ✅ Done |
-| 013 | Material & Shader System | Renderer | 007, 012 | L | ✅ Yes | ⬜ Todo |
+| 013 | Material & Shader System | Renderer | 007, 012 | L | ✅ Yes | ✅ Done |
 | 014 | Forward Rendering Pipeline | Renderer | 012, 013 | L | ✅ Yes | ⬜ Todo |
 | 015 | Window & Input System | Application | 005 | M | ✅ Yes | ⬜ Todo |
 | 016 | Scene Graph & ECS | Application | 003 | L | ❌ No | ⬜ Todo |
@@ -649,20 +649,26 @@ Implement the material and shader management system. Materials define how surfac
 
 #### Key Deliverables
 
-- `FMaterial` — Material definition (shader reference, parameter values, render state)
-- `FMaterialInstance` — Per-object material parameter overrides
-- `FShaderLibrary` — Shader loading, caching, and permutation management
-- `FShaderPermutation` — Compile-time shader variant selection (feature flags)
-- `FMaterialParameterSet` — Typed parameter collection (scalars, vectors, textures)
-- `EMaterialDomain` — Surface, PostProcess, UI, Decal
-- `EMaterialBlendMode` — Opaque, Translucent, Additive, Masked
-- Integration with render graph (materials declare their resource requirements)
-- Unit tests
+- `FMaterial` — Material definition with shader reference, render state summary, domain, blend mode, default parameters, validation, invalidation, and deterministic dumps
+- `FMaterialInstance` — Material or instance parent references, per-object overrides, nearest-override resolution, invalidated parent rejection, and deterministic inheritance cycle detection
+- `FShaderLibrary` — Explicit in-memory registration of precompiled shader records, allowed permutation flags, variants, required parameter expectations, invalidation, diagnostics, and deterministic dumps
+- `FShaderPermutation` — Deterministic feature-flag canonicalization and equality independent of input order
+- `FMaterialParameterSet` — Typed parameter collection for scalar, vector, color, and abstract Renderer-level resource references
+- `FMaterialResourceRequirement` — Stable abstract resource requirement summaries that can be consumed by render graph declaration code
+- `FMaterialShaderBinding` — Deterministic material/instance-to-shader-variant resolution with required parameter validation
+- Unit tests in `Tests/RendererMaterialShaderTests.cpp`
+
+#### Implementation Notes
+
+- Spec-kit artifact: [`specs/014-material-shader-system`](../specs/014-material-shader-system/spec.md)
+- Summary document: [`doc/014-material-shader-system.html`](./014-material-shader-system.html)
+- Verification: `conda run -n godot scons`, `Build/Mac/Debug/Tests/StonerTest`, and the Renderer material/backend-boundary grep passed on 2026-07-01.
+- Scope note: Speckit directory number is `014` because `013-render-graph-foundation` already exists in `specs/`; this implements roadmap Phase 013.
 
 #### What's Excluded
 
 - Visual material editor
-- Runtime shader compilation (use pre-compiled shaders)
+- Runtime shader compilation, shader source parsing, and local shader file scanning/loading
 - PBR-specific material models (Phase 014)
 
 #### Speckit Prompt
