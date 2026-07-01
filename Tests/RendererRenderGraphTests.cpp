@@ -102,7 +102,7 @@ void TestDeclarationSchedulingAndNegativeValidation(FRendererRenderGraphTestResu
     Record(Result, Compiled.ScheduledPasses.size() >= 7 && Compiled.ScheduledPasses[0] == 0 && Compiled.ScheduledPasses[1] == 1, "Render graph schedule is deterministic");
     Record(Result, !Compiled.DependencyEdges.empty(), "Render graph dependency edges are recorded");
 
-    std::string FirstDump = Fixture.Graph.Dump();
+    Stoner::Core::FString FirstDump = Fixture.Graph.Dump();
     for (int Index = 0; Index < 20; ++Index)
     {
         FRepresentativeGraph Repeated = BuildRepresentativeGraph();
@@ -204,6 +204,48 @@ void TestLifetimesAliasingAndTransitions(FRendererRenderGraphTestResult& Result)
     Record(Result, Fixture.Graph.GetResources()[1].BackingAllocationId != Fixture.Graph.GetResources()[2].BackingAllocationId, "Render graph keeps alias-eligible resources on separate backing storage");
 }
 
+void TestRedundantTransitionElision(FRendererRenderGraphTestResult& Result)
+{
+    // Producer writes R; two consecutive graphics passes then read R in the same Read
+    // state. The first read needs one ReadAfterWrite transition; the second read is
+    // redundant (same state, same queue kind) and must be elided (FR-010 / SC-006).
+    FRenderGraph Graph{"RedundantElision"};
+    FRenderGraphBuilder Builder = Graph.CreateBuilder();
+    const FRenderGraphResourceHandle R = Builder.CreateResource(FRenderGraphResourceDesc::Texture2D("Shared", 16, 16));
+
+    FRenderGraphPassDesc Producer = Pass("Producer", ERenderGraphPassType::Graphics);
+    Producer.Accesses.push_back({R, ERenderGraphAccessType::Write, ERenderGraphResourceState::Write});
+    (void)Builder.AddPass(Producer);
+
+    FRenderGraphPassDesc ReaderOne = Pass("ReaderOne", ERenderGraphPassType::Graphics);
+    ReaderOne.Accesses.push_back({R, ERenderGraphAccessType::Read, ERenderGraphResourceState::Read});
+    (void)Builder.AddPass(ReaderOne);
+
+    FRenderGraphPassDesc ReaderTwo = Pass("ReaderTwo", ERenderGraphPassType::Graphics);
+    ReaderTwo.Accesses.push_back({R, ERenderGraphAccessType::Read, ERenderGraphResourceState::Read});
+    (void)Builder.AddPass(ReaderTwo);
+
+    (void)Builder.MarkOutput(R);
+    Record(Result, Graph.Compile() == ERenderGraphResult::Success, "Render graph redundant-transition fixture compiles");
+
+    const FCompiledRenderGraph& Compiled = Graph.GetCompiledGraph();
+    uint32 TransitionsForR = 0;
+    bool bSecondReaderTransition = false;
+    for (const FRenderGraphTransitionRecord& Transition : Compiled.TransitionPlan)
+    {
+        if (Transition.Resource == R)
+        {
+            ++TransitionsForR;
+        }
+        if (Transition.AfterPassIndex == 2) // ReaderTwo declared third
+        {
+            bSecondReaderTransition = true;
+        }
+    }
+    Record(Result, TransitionsForR == 1 && !bSecondReaderTransition,
+        "Render graph elides redundant transition for repeated same-state read");
+}
+
 void TestExecutionFailuresAndDebugDump(FRendererRenderGraphTestResult& Result)
 {
     FRepresentativeGraph MissingImport = BuildRepresentativeGraph();
@@ -251,9 +293,9 @@ void TestExecutionFailuresAndDebugDump(FRendererRenderGraphTestResult& Result)
 
     FRepresentativeGraph DumpFixture = BuildRepresentativeGraph();
     Record(Result, DumpFixture.Graph.Compile() == ERenderGraphResult::Success, "Render graph dump fixture compiles");
-    const std::string DumpA = DumpFixture.Graph.Dump();
-    const std::string DumpB = DumpFixture.Graph.Dump();
-    Record(Result, DumpA == DumpB && DumpA.find("Transitions") != std::string::npos && DumpA.find("Aliasing") != std::string::npos, "Render graph debug dump is stable and complete");
+    const Stoner::Core::FString DumpA = DumpFixture.Graph.Dump();
+    const Stoner::Core::FString DumpB = DumpFixture.Graph.Dump();
+    Record(Result, DumpA == DumpB && DumpA.View().find("Transitions") != std::string_view::npos && DumpA.View().find("Aliasing") != std::string_view::npos, "Render graph debug dump is stable and complete");
 }
 
 void TestElapsedTimeScenario(FRendererRenderGraphTestResult& Result)
@@ -262,7 +304,7 @@ void TestElapsedTimeScenario(FRendererRenderGraphTestResult& Result)
     FRepresentativeGraph Fixture = BuildRepresentativeGraph();
     FRenderGraphCommandContext Commands;
     const bool bPassed = Fixture.Graph.Compile() == ERenderGraphResult::Success &&
-        !Fixture.Graph.Dump().empty() &&
+        !Fixture.Graph.Dump().IsEmpty() &&
         Fixture.Graph.Execute({{{Fixture.Imported, 123}}, &Commands, false}) == ERenderGraphResult::Success;
     const auto End = std::chrono::steady_clock::now();
     const auto Elapsed = std::chrono::duration_cast<std::chrono::seconds>(End - Start).count();
@@ -276,6 +318,7 @@ FRendererRenderGraphTestResult RunRendererRenderGraphTests()
     FRendererRenderGraphTestResult Result;
     TestDeclarationSchedulingAndNegativeValidation(Result);
     TestLifetimesAliasingAndTransitions(Result);
+    TestRedundantTransitionElision(Result);
     TestExecutionFailuresAndDebugDump(Result);
     TestElapsedTimeScenario(Result);
     return Result;

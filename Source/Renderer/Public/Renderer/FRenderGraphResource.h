@@ -2,8 +2,6 @@
 
 #include "Core/CoreMinimal.h"
 
-#include <string>
-
 namespace Stoner::Renderer
 {
 
@@ -72,7 +70,7 @@ enum class ERenderGraphResourceState
 
 struct FRenderGraphResourceDesc
 {
-    std::string Name;
+    Stoner::Core::FString Name;
     ERenderGraphResourceKind Kind = ERenderGraphResourceKind::Buffer;
     ERenderGraphResourceOwnership Ownership = ERenderGraphResourceOwnership::Transient;
     ERenderGraphAliasPolicy AliasPolicy = ERenderGraphAliasPolicy::Eligible;
@@ -84,9 +82,9 @@ struct FRenderGraphResourceDesc
     Stoner::Core::uint32 FormatId = 1;
     bool bReadOnlyImported = false;
 
-    [[nodiscard]] static FRenderGraphResourceDesc Buffer(std::string InName, Stoner::Core::uint64 SizeInBytes);
-    [[nodiscard]] static FRenderGraphResourceDesc Texture2D(std::string InName, Stoner::Core::uint32 Width, Stoner::Core::uint32 Height);
-    [[nodiscard]] static FRenderGraphResourceDesc ImportedBuffer(std::string InName, Stoner::Core::uint64 SizeInBytes, bool bReadOnly = true);
+    [[nodiscard]] static FRenderGraphResourceDesc Buffer(Stoner::Core::FString InName, Stoner::Core::uint64 SizeInBytes);
+    [[nodiscard]] static FRenderGraphResourceDesc Texture2D(Stoner::Core::FString InName, Stoner::Core::uint32 Width, Stoner::Core::uint32 Height);
+    [[nodiscard]] static FRenderGraphResourceDesc ImportedBuffer(Stoner::Core::FString InName, Stoner::Core::uint64 SizeInBytes, bool bReadOnly = true);
 };
 
 struct FRenderGraphResourceRecord

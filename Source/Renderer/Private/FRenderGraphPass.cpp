@@ -5,7 +5,7 @@
 namespace Stoner::Renderer
 {
 
-FRenderGraphPassDesc FRenderGraphPassDesc::Make(std::string InName, ERenderGraphPassType InType)
+FRenderGraphPassDesc FRenderGraphPassDesc::Make(Stoner::Core::FString InName, ERenderGraphPassType InType)
 {
     FRenderGraphPassDesc Desc;
     Desc.Name = std::move(InName);

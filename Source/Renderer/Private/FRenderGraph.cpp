@@ -14,7 +14,7 @@ std::atomic<Stoner::Core::uint32> GNextRenderGraphId{1};
 namespace Stoner::Renderer
 {
 
-FRenderGraph::FRenderGraph(std::string InName)
+FRenderGraph::FRenderGraph(Stoner::Core::FString InName)
     : Name(std::move(InName))
     , GraphId(GNextRenderGraphId.fetch_add(1))
 {
@@ -55,7 +55,7 @@ void FRenderGraph::Invalidate()
     State = ERenderGraphState::Invalidated;
 }
 
-const std::string& FRenderGraph::GetName() const noexcept
+const Stoner::Core::FString& FRenderGraph::GetName() const noexcept
 {
     return Name;
 }
@@ -100,7 +100,7 @@ const FRenderGraphDiagnosticLog& FRenderGraph::GetDiagnostics() const noexcept
     return Diagnostics;
 }
 
-std::string FRenderGraph::Dump() const
+Stoner::Core::FString FRenderGraph::Dump() const
 {
     return CompiledGraph.Dump(*this);
 }
@@ -138,7 +138,7 @@ FRenderGraphResourceHandle FRenderGraph::AddResource(const FRenderGraphResourceD
 
 FRenderGraphPassHandle FRenderGraph::AddPass(const FRenderGraphPassDesc& Desc)
 {
-    if (State != ERenderGraphState::Draft || Desc.Name.empty())
+    if (State != ERenderGraphState::Draft || Desc.Name.IsEmpty())
     {
         Diagnostics.Add(ERenderGraphDiagnosticCategory::Validation, ERenderGraphResult::ValidationFailed, "invalid pass declaration");
         return {};

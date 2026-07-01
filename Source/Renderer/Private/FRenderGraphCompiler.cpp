@@ -71,21 +71,21 @@ bool FCompiledRenderGraph::IsExecutable() const noexcept
     return !ScheduledPasses.empty() && !Diagnostics.HasErrors();
 }
 
-std::string FCompiledRenderGraph::Dump(const FRenderGraph& Graph) const
+Stoner::Core::FString FCompiledRenderGraph::Dump(const FRenderGraph& Graph) const
 {
     std::ostringstream Stream;
-    Stream << "RenderGraph " << Graph.GetName() << " state=" << ToString(Graph.GetState()) << '\n';
+    Stream << "RenderGraph " << Graph.GetName().CStr() << " state=" << ToString(Graph.GetState()) << '\n';
 
     Stream << "Passes\n";
     for (const FRenderGraphPassRecord& Pass : Graph.GetPasses())
     {
-        Stream << "  [" << Pass.Handle.Index << "] " << Pass.Desc.Name << " type=" << ToString(Pass.Desc.Type) << " accesses=" << Pass.Desc.Accesses.size() << '\n';
+        Stream << "  [" << Pass.Handle.Index << "] " << Pass.Desc.Name.CStr() << " type=" << ToString(Pass.Desc.Type) << " accesses=" << Pass.Desc.Accesses.size() << '\n';
     }
 
     Stream << "Resources\n";
     for (const FRenderGraphResourceRecord& Resource : Graph.GetResources())
     {
-        Stream << "  [" << Resource.Handle.Index << "] " << Resource.Desc.Name << " kind=" << ToString(Resource.Desc.Kind) <<
+        Stream << "  [" << Resource.Handle.Index << "] " << Resource.Desc.Name.CStr() << " kind=" << ToString(Resource.Desc.Kind) <<
             " ownership=" << ToString(Resource.Desc.Ownership) << " backing=" << Resource.BackingAllocationId << '\n';
     }
 
@@ -129,8 +129,8 @@ std::string FCompiledRenderGraph::Dump(const FRenderGraph& Graph) const
             ':' << ToString(Transition.AfterState) << " reason=" << ToString(Transition.Reason) << '\n';
     }
 
-    Stream << "Diagnostics\n" << Graph.GetDiagnostics().Format() << Diagnostics.Format();
-    return Stream.str();
+    Stream << "Diagnostics\n" << Graph.GetDiagnostics().Format().CStr() << Diagnostics.Format().CStr();
+    return Stoner::Core::FString(Stream.str());
 }
 
 ERenderGraphResult FRenderGraphCompiler::Compile(FRenderGraph& Graph)

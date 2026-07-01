@@ -5,7 +5,7 @@
 namespace Stoner::Renderer
 {
 
-FRenderGraphResourceDesc FRenderGraphResourceDesc::Buffer(std::string InName, Stoner::Core::uint64 SizeInBytes)
+FRenderGraphResourceDesc FRenderGraphResourceDesc::Buffer(Stoner::Core::FString InName, Stoner::Core::uint64 SizeInBytes)
 {
     FRenderGraphResourceDesc Desc;
     Desc.Name = std::move(InName);
@@ -14,7 +14,7 @@ FRenderGraphResourceDesc FRenderGraphResourceDesc::Buffer(std::string InName, St
     return Desc;
 }
 
-FRenderGraphResourceDesc FRenderGraphResourceDesc::Texture2D(std::string InName, Stoner::Core::uint32 Width, Stoner::Core::uint32 Height)
+FRenderGraphResourceDesc FRenderGraphResourceDesc::Texture2D(Stoner::Core::FString InName, Stoner::Core::uint32 Width, Stoner::Core::uint32 Height)
 {
     FRenderGraphResourceDesc Desc;
     Desc.Name = std::move(InName);
@@ -24,7 +24,7 @@ FRenderGraphResourceDesc FRenderGraphResourceDesc::Texture2D(std::string InName,
     return Desc;
 }
 
-FRenderGraphResourceDesc FRenderGraphResourceDesc::ImportedBuffer(std::string InName, Stoner::Core::uint64 SizeInBytes, bool bReadOnly)
+FRenderGraphResourceDesc FRenderGraphResourceDesc::ImportedBuffer(Stoner::Core::FString InName, Stoner::Core::uint64 SizeInBytes, bool bReadOnly)
 {
     FRenderGraphResourceDesc Desc = Buffer(std::move(InName), SizeInBytes);
     Desc.Ownership = ERenderGraphResourceOwnership::Imported;
@@ -36,7 +36,7 @@ FRenderGraphResourceDesc FRenderGraphResourceDesc::ImportedBuffer(std::string In
 
 bool IsValidRenderGraphResourceDesc(const FRenderGraphResourceDesc& Desc) noexcept
 {
-    if (Desc.Name.empty())
+    if (Desc.Name.IsEmpty())
     {
         return false;
     }

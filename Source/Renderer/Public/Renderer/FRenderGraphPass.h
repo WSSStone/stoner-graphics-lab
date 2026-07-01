@@ -4,7 +4,6 @@
 #include "Renderer/FRenderGraphResource.h"
 
 #include <functional>
-#include <string>
 
 namespace Stoner::Renderer
 {
@@ -55,13 +54,13 @@ using FRenderGraphPassCallback = std::function<ERenderGraphResult(FRenderGraphEx
 
 struct FRenderGraphPassDesc
 {
-    std::string Name;
+    Stoner::Core::FString Name;
     ERenderGraphPassType Type = ERenderGraphPassType::Graphics;
     bool bPreserveForSideEffects = false;
     Stoner::Core::TArray<FRenderGraphResourceAccess> Accesses;
     FRenderGraphPassCallback Callback;
 
-    [[nodiscard]] static FRenderGraphPassDesc Make(std::string InName, ERenderGraphPassType InType);
+    [[nodiscard]] static FRenderGraphPassDesc Make(Stoner::Core::FString InName, ERenderGraphPassType InType);
 };
 
 struct FRenderGraphPassRecord

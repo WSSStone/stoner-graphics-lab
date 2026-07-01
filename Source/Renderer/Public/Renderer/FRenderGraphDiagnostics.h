@@ -2,8 +2,6 @@
 
 #include "Core/CoreMinimal.h"
 
-#include <string>
-
 namespace Stoner::Renderer
 {
 
@@ -45,7 +43,7 @@ struct FRenderGraphDiagnostic
     ERenderGraphResult Result = ERenderGraphResult::Success;
     Stoner::Core::uint32 PassIndex = InvalidIndex;
     Stoner::Core::uint32 ResourceIndex = InvalidIndex;
-    std::string Message;
+    Stoner::Core::FString Message;
 
     static constexpr Stoner::Core::uint32 InvalidIndex = 0xFFFFFFFFu;
 };
@@ -54,13 +52,13 @@ class FRenderGraphDiagnosticLog
 {
 public:
     void Clear();
-    void Add(ERenderGraphDiagnosticCategory Category, ERenderGraphResult Result, std::string Message);
-    void AddForPass(ERenderGraphDiagnosticCategory Category, ERenderGraphResult Result, Stoner::Core::uint32 PassIndex, std::string Message);
-    void AddForResource(ERenderGraphDiagnosticCategory Category, ERenderGraphResult Result, Stoner::Core::uint32 ResourceIndex, std::string Message);
+    void Add(ERenderGraphDiagnosticCategory Category, ERenderGraphResult Result, Stoner::Core::FString Message);
+    void AddForPass(ERenderGraphDiagnosticCategory Category, ERenderGraphResult Result, Stoner::Core::uint32 PassIndex, Stoner::Core::FString Message);
+    void AddForResource(ERenderGraphDiagnosticCategory Category, ERenderGraphResult Result, Stoner::Core::uint32 ResourceIndex, Stoner::Core::FString Message);
 
     [[nodiscard]] bool HasErrors() const noexcept;
     [[nodiscard]] const Stoner::Core::TArray<FRenderGraphDiagnostic>& GetRecords() const noexcept;
-    [[nodiscard]] std::string Format() const;
+    [[nodiscard]] Stoner::Core::FString Format() const;
 
 private:
     Stoner::Core::TArray<FRenderGraphDiagnostic> Records;

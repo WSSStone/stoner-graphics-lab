@@ -4,15 +4,13 @@
 #include "Renderer/FRenderGraphCompiler.h"
 #include "Renderer/FRenderGraphExecutor.h"
 
-#include <string>
-
 namespace Stoner::Renderer
 {
 
 class FRenderGraph
 {
 public:
-    explicit FRenderGraph(std::string InName = {});
+    explicit FRenderGraph(Stoner::Core::FString InName = {});
 
     [[nodiscard]] FRenderGraphBuilder CreateBuilder();
     [[nodiscard]] ERenderGraphResult Compile();
@@ -20,7 +18,7 @@ public:
     void Reset();
     void Invalidate();
 
-    [[nodiscard]] const std::string& GetName() const noexcept;
+    [[nodiscard]] const Stoner::Core::FString& GetName() const noexcept;
     [[nodiscard]] Stoner::Core::uint32 GetGraphId() const noexcept;
     [[nodiscard]] ERenderGraphState GetState() const noexcept;
     [[nodiscard]] const Stoner::Core::TArray<FRenderGraphPassRecord>& GetPasses() const noexcept;
@@ -29,7 +27,7 @@ public:
     [[nodiscard]] const FCompiledRenderGraph& GetCompiledGraph() const noexcept;
     [[nodiscard]] FCompiledRenderGraph& GetMutableCompiledGraph() noexcept;
     [[nodiscard]] const FRenderGraphDiagnosticLog& GetDiagnostics() const noexcept;
-    [[nodiscard]] std::string Dump() const;
+    [[nodiscard]] Stoner::Core::FString Dump() const;
 
     [[nodiscard]] const FRenderGraphPassRecord* FindPass(FRenderGraphPassHandle Handle) const noexcept;
     [[nodiscard]] const FRenderGraphResourceRecord* FindResource(FRenderGraphResourceHandle Handle) const noexcept;
@@ -48,7 +46,7 @@ private:
     [[nodiscard]] bool Owns(FRenderGraphResourceHandle Handle) const noexcept;
     void SetState(ERenderGraphState NewState) noexcept;
 
-    std::string Name;
+    Stoner::Core::FString Name;
     Stoner::Core::uint32 GraphId = 0;
     ERenderGraphState State = ERenderGraphState::Draft;
     Stoner::Core::TArray<FRenderGraphPassRecord> Passes;

@@ -104,6 +104,11 @@ ERenderGraphResult FRenderGraphExecutor::Execute(FRenderGraph& Graph, const FRen
         }
     }
 
+    // Foundation-phase execution emits the entire compiled transition plan up front,
+    // before any pass callback runs. This is valid here because passes perform no real
+    // GPU work and the plan order is preserved for inspection. When a real backend records
+    // commands, transitions must instead be interleaved per pass (emitted immediately
+    // before the scheduled pass that requires the new state) — see US4-AC2.
     for (const FRenderGraphTransitionRecord& Transition : Graph.GetCompiledGraph().TransitionPlan)
     {
         const ERenderGraphResult TransitionResult = CommandContext.EmitTransition(Transition);
@@ -127,7 +132,7 @@ ERenderGraphResult FRenderGraphExecutor::Execute(FRenderGraph& Graph, const FRen
         const ERenderGraphResult PassResult = Pass.Desc.Callback(Context);
         if (PassResult != ERenderGraphResult::Success)
         {
-            Graph.Diagnostics.AddForPass(ERenderGraphDiagnosticCategory::Execution, PassResult, PassIndex, "pass execution failed: " + Pass.Desc.Name);
+            Graph.Diagnostics.AddForPass(ERenderGraphDiagnosticCategory::Execution, PassResult, PassIndex, "pass execution failed: " + Pass.Desc.Name.ToStdString());
             Graph.SetState(ERenderGraphState::Failed);
             return PassResult;
         }

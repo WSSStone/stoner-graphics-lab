@@ -10,17 +10,17 @@ void FRenderGraphDiagnosticLog::Clear()
     Records.clear();
 }
 
-void FRenderGraphDiagnosticLog::Add(ERenderGraphDiagnosticCategory Category, ERenderGraphResult Result, std::string Message)
+void FRenderGraphDiagnosticLog::Add(ERenderGraphDiagnosticCategory Category, ERenderGraphResult Result, Stoner::Core::FString Message)
 {
     Records.push_back({Category, Result, FRenderGraphDiagnostic::InvalidIndex, FRenderGraphDiagnostic::InvalidIndex, std::move(Message)});
 }
 
-void FRenderGraphDiagnosticLog::AddForPass(ERenderGraphDiagnosticCategory Category, ERenderGraphResult Result, Stoner::Core::uint32 PassIndex, std::string Message)
+void FRenderGraphDiagnosticLog::AddForPass(ERenderGraphDiagnosticCategory Category, ERenderGraphResult Result, Stoner::Core::uint32 PassIndex, Stoner::Core::FString Message)
 {
     Records.push_back({Category, Result, PassIndex, FRenderGraphDiagnostic::InvalidIndex, std::move(Message)});
 }
 
-void FRenderGraphDiagnosticLog::AddForResource(ERenderGraphDiagnosticCategory Category, ERenderGraphResult Result, Stoner::Core::uint32 ResourceIndex, std::string Message)
+void FRenderGraphDiagnosticLog::AddForResource(ERenderGraphDiagnosticCategory Category, ERenderGraphResult Result, Stoner::Core::uint32 ResourceIndex, Stoner::Core::FString Message)
 {
     Records.push_back({Category, Result, FRenderGraphDiagnostic::InvalidIndex, ResourceIndex, std::move(Message)});
 }
@@ -42,7 +42,7 @@ const Stoner::Core::TArray<FRenderGraphDiagnostic>& FRenderGraphDiagnosticLog::G
     return Records;
 }
 
-std::string FRenderGraphDiagnosticLog::Format() const
+Stoner::Core::FString FRenderGraphDiagnosticLog::Format() const
 {
     std::ostringstream Stream;
     for (const FRenderGraphDiagnostic& Record : Records)
@@ -56,9 +56,9 @@ std::string FRenderGraphDiagnosticLog::Format() const
         {
             Stream << ":resource=" << Record.ResourceIndex;
         }
-        Stream << ':' << Record.Message << '\n';
+        Stream << ':' << Record.Message.CStr() << '\n';
     }
-    return Stream.str();
+    return Stoner::Core::FString(Stream.str());
 }
 
 const char* ToString(ERenderGraphResult Result) noexcept

@@ -2,8 +2,6 @@
 
 #include "Renderer/FRenderGraphCompiler.h"
 
-#include <string>
-
 namespace Stoner::Renderer
 {
 

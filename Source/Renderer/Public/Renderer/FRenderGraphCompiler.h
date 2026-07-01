@@ -3,8 +3,6 @@
 #include "Renderer/FRenderGraphDiagnostics.h"
 #include "Renderer/FRenderGraphPass.h"
 
-#include <string>
-
 namespace Stoner::Renderer
 {
 
@@ -50,7 +48,7 @@ public:
     FRenderGraphDiagnosticLog Diagnostics;
 
     [[nodiscard]] bool IsExecutable() const noexcept;
-    [[nodiscard]] std::string Dump(const FRenderGraph& Graph) const;
+    [[nodiscard]] Stoner::Core::FString Dump(const FRenderGraph& Graph) const;
 };
 
 class FRenderGraphCompiler
