@@ -5,1078 +5,176 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>004 — Core Math Library · Stoner Graphics Lab</title>
     <style>
-        /* ── Reset & Base ─────────────────────────────────────────── */
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+        *, *::before, *::after { box-sizing: border-box; }
         :root {
-            --bg:        #f7f9fc;
-            --bg-card:   #ffffff;
-            --bg-code:   #f1f5f9;
-            --border:    #d8e0ea;
-            --text:      #1f2937;
-            --text-dim:  #64748b;
-            --accent:    #2563eb;
-            --accent2:   #059669;
-            --warn:      #b45309;
-            --error:     #dc2626;
-            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', Consolas, monospace;
+            --bg: #f6f8fb;
+            --paper: #ffffff;
+            --ink: #1f2937;
+            --muted: #64748b;
+            --line: #d9e2ec;
+            --accent: #2563eb;
+            --accent-soft: #e8f0ff;
+            --good: #047857;
+            --warn: #b45309;
+            --code: #eef3f8;
+            --dark: #111827;
+            --mono: "SF Mono", Menlo, Consolas, monospace;
+            --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
         }
+        body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.72; font-size: 15px; }
+        .page { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100vh; }
+        .sidebar { position: sticky; top: 0; height: 100vh; overflow: auto; padding: 24px 18px; background: var(--paper); border-right: 1px solid var(--line); }
+        .brand { font-size: 14px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+        .subtitle { font-size: 12px; color: var(--muted); padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+        .toc { list-style: none; padding: 0; margin: 0; }
+        .toc a { display: block; padding: 6px 8px; color: var(--muted); text-decoration: none; border-radius: 6px; font-size: 13px; }
+        .toc a:hover { color: var(--accent); background: var(--accent-soft); }
+        main { max-width: 1080px; width: 100%; padding: 48px 48px 96px; margin: 0 auto; }
+        h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.2; color: var(--accent); }
+        .meta { color: var(--muted); font-size: 13px; margin-bottom: 30px; }
+        section { margin: 0 0 56px; }
+        h2 { margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 23px; }
+        h3 { margin: 22px 0 10px; font-size: 17px; }
+        h4 { margin: 16px 0 6px; font-size: 15px; }
+        p { margin: 0 0 14px; }
+        ul, ol { margin: 0 0 16px; padding-left: 23px; }
+        li { margin: 4px 0; }
+        code { font-family: var(--mono); font-size: 13px; background: var(--code); padding: 2px 5px; border-radius: 4px; }
+        pre { margin: 14px 0; padding: 16px; overflow: auto; border-radius: 8px; color: #e5e7eb; background: var(--dark); font-size: 13px; line-height: 1.55; }
+        pre code { background: transparent; color: inherit; padding: 0; }
+        table { width: 100%; border-collapse: collapse; margin: 16px 0 20px; font-size: 14px; }
+        th, td { padding: 9px 11px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+        th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; background: #fbfdff; }
+        .note { margin: 14px 0; padding: 14px 16px; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; background: var(--paper); }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: rgba(4,120,87,.13); color: var(--good); font-weight: 700; font-size: 12px; }
+        .warn { background: rgba(180,83,9,.13); color: var(--warn); }
+        @media (max-width: 860px) { .page { display: block; } .sidebar { position: static; height: auto; } main { padding: 32px 22px 72px; } }
 
-        html { scroll-behavior: smooth; }
-
-        body {
-            font-family: var(--font-sans);
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.7;
-            font-size: 15px;
-        }
-
-        /* ── Layout ───────────────────────────────────────────────── */
-        .page {
-            display: grid;
-            grid-template-columns: 260px 1fr;
-            min-height: 100vh;
-        }
-
-        /* ── Sidebar / TOC ────────────────────────────────────────── */
-        .sidebar {
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            overflow-y: auto;
-            background: var(--bg-card);
-            border-right: 1px solid var(--border);
-            padding: 24px 16px;
-            font-size: 13px;
-        }
-
-        .sidebar h2 {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-            color: var(--text-dim);
-            margin-bottom: 12px;
-        }
-
-        .sidebar .logo {
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--accent);
-            margin-bottom: 4px;
-        }
-
-        .sidebar .subtitle {
-            font-size: 11px;
-            color: var(--text-dim);
-            margin-bottom: 24px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .toc { list-style: none; }
-        .toc li { margin-bottom: 2px; }
-
-        .toc a {
-            display: block;
-            padding: 5px 10px;
-            border-radius: 6px;
-            color: var(--text-dim);
-            text-decoration: none;
-            transition: all .15s;
-        }
-
-        .toc a:hover, .toc a.active {
-            background: rgba(37, 99, 235, .1);
-            color: var(--accent);
-        }
-
-        .toc .sub { padding-left: 20px; font-size: 12px; }
-
-        /* ── Main Content ─────────────────────────────────────────── */
-        .content {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 48px 40px 120px;
-        }
-
-        .content > section { margin-bottom: 56px; }
-
-        h1 {
-            font-size: 32px;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--accent), var(--accent2));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 8px;
-        }
-
-        h1 + .meta {
-            font-size: 13px;
-            color: var(--text-dim);
-            margin-bottom: 32px;
-        }
-
-        h2 {
-            font-size: 22px;
-            font-weight: 700;
-            color: var(--text);
-            margin-bottom: 16px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        h2 .num {
-            color: var(--accent);
-            margin-right: 6px;
-        }
-
-        h3 {
-            font-size: 17px;
-            font-weight: 600;
-            color: var(--text);
-            margin: 24px 0 10px;
-        }
-
-        h4 {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text-dim);
-            margin: 16px 0 8px;
-        }
-
-        p, ul, ol { margin-bottom: 14px; }
-        ul, ol { padding-left: 22px; }
-        li { margin-bottom: 4px; }
-
-        a { color: var(--accent); text-decoration: none; }
-        a:hover { text-decoration: underline; }
-
-        strong { color: #111827; }
-
-        /* ── Cards ────────────────────────────────────────────────── */
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 20px 24px;
-            margin-bottom: 16px;
-        }
-
-        .card.highlight {
-            border-left: 3px solid var(--accent);
-        }
-
-        .card h4 { margin-top: 0; }
-
-        /* ── Badge ────────────────────────────────────────────────── */
-        .badge {
-            display: inline-block;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 12px;
-            vertical-align: middle;
-        }
-
-        .badge.status   { background: rgba(5, 150, 105,.15); color: var(--accent2); }
-        .badge.version  { background: rgba(37, 99, 235,.15); color: var(--accent); }
-
-        /* ── Tables ───────────────────────────────────────────────── */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-
-        th, td {
-            text-align: left;
-            padding: 10px 14px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        th {
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: .8px;
-            color: var(--text-dim);
-            background: var(--bg-card);
-        }
-
-        tr:hover td { background: rgba(37, 99, 235,.04); }
-
-        /* ── Code ─────────────────────────────────────────────────── */
-        code {
-            font-family: var(--font-mono);
-            font-size: 13px;
-            background: var(--bg-code);
-            padding: 2px 6px;
-            border-radius: 4px;
-            color: #111827;
-        }
-
-        pre {
-            background: var(--bg-code);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px 20px;
-            overflow-x: auto;
-            margin-bottom: 16px;
-            font-size: 13px;
-            line-height: 1.6;
-        }
-
-        pre code {
-            background: none;
-            padding: 0;
-        }
-
-        /* Syntax highlighting */
-        .kw  { color: #b42318; }
-        .tp  { color: #075985; }
-        .fn  { color: #7c3aed; }
-        .str { color: #047857; }
-        .cm  { color: #64748b; font-style: italic; }
-        .num { color: #075985; }
-        .pp  { color: #c2410c; }
-        .mc  { color: #b45309; }
-
-        /* ── Mermaid ──────────────────────────────────────────────── */
-        pre.mermaid {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 24px;
-            margin-bottom: 16px;
-            text-align: center;
-            font-family: var(--font-sans);
-        }
-
-        /* ── File Tree ────────────────────────────────────────────── */
-        .file-tree {
-            font-family: var(--font-mono);
-            font-size: 13px;
-            line-height: 1.8;
-            background: var(--bg-code);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px 20px;
-            margin-bottom: 16px;
-        }
-
-        .file-tree .new { color: var(--accent2); }
-        .file-tree .mod { color: var(--warn); }
-        .file-tree .dir { color: var(--accent); }
-
-        /* ── ADR ──────────────────────────────────────────────────── */
-        .adr {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            margin-bottom: 16px;
-            overflow: hidden;
-        }
-
-        .adr summary {
-            padding: 14px 20px;
-            cursor: pointer;
-            font-weight: 600;
-            color: var(--text);
-            transition: background .15s;
-        }
-
-        .adr summary:hover { background: rgba(37, 99, 235,.06); }
-
-        .adr .body {
-            padding: 0 20px 16px;
-            border-top: 1px solid var(--border);
-        }
-
-        .adr .body p { margin-top: 12px; }
-
-        .adr .rejected {
-            color: var(--text-dim);
-            font-size: 13px;
-        }
-
-        /* ── Checklist ────────────────────────────────────────────── */
-        .check {
-            list-style: none;
-            padding-left: 0;
-        }
-
-        .check li {
-            padding: 6px 0;
-            padding-left: 28px;
-            position: relative;
-        }
-
-        .check li::before {
-            content: '✓';
-            position: absolute;
-            left: 4px;
-            color: var(--accent2);
-            font-weight: 700;
-        }
-
-        /* ── Responsive ───────────────────────────────────────────── */
-        @media (max-width: 900px) {
-            .page { grid-template-columns: 1fr; }
-            .sidebar { display: none; }
-            .content { padding: 24px 20px 80px; }
-        }
     </style>
 </head>
 <body>
 <div class="page">
+    <aside class="sidebar">
+        <div class="brand">Stoner Graphics Lab</div>
+        <div class="subtitle">004 · Core Math Library</div>
+        <ul class="toc"><li><a href="#s1">一、文档与上下文信息</a></li><li><a href="#s2">二、目标与边界</a></li><li><a href="#s3">三、交互与产品设计</a></li><li><a href="#s4">四、技术架构与关键决策</a></li><li><a href="#s5">五、实施与验证（任务流）</a></li><li><a href="#s6">六、设计巧思与最佳实践</a></li><li><a href="#s7">七、编程语言知识点</a></li><li><a href="#s8">八、软件工程知识点</a></li><li><a href="#s9">九、渲染、引擎与图形 API 学习笔记</a></li></ul>
+    </aside>
+    <main>
+        <h1>004 — Core Math Library</h1>
+        <div class="meta">状态：<span class="badge">已交付</span> · 更新：2026-07-01 · 层级：Core</div>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     SIDEBAR / TABLE OF CONTENTS
-     ═══════════════════════════════════════════════════════════════ -->
-<nav class="sidebar">
-    <div class="logo">Stoner Graphics Lab</div>
-    <div class="subtitle">004 · Core Math Library</div>
+        <section id="s1">
+            <h2>一、文档与上下文信息</h2>
+            <h3>1. 基础元数据</h3>
+            <table><thead><tr><th>项目</th><th>内容</th></tr></thead><tbody><tr><td>Feature</td><td>004 — Core Math Library</td></tr><tr><td>Roadmap</td><td>Phase 003 Core Foundation: Math Library (feature directory 004)</td></tr><tr><td>Spec / Plan / Tasks</td><td><code>specs/004-core-math-library/spec.md</code> · <code>specs/004-core-math-library/plan.md</code> · <code>specs/004-core-math-library/tasks.md</code></td></tr><tr><td>主要源码</td><td>Source/Core/Public/Core/FMath.h, FVector2/3/4.h, FMatrix4x4.h, FQuat.h, FTransform.h, FColor.h, FBox.h, FSphere.h, FPlane.h</td></tr><tr><td>测试文件</td><td>Tests/CoreMathTests.cpp</td></tr><tr><td>验证命令</td><td>scons; Build/Mac/Debug/Tests/StonerTest</td></tr></tbody></table>
+            <h3>2. 本期核心摘要</h3>
+            <p>交付 Core 数学层：标量 helper、向量、矩阵、四元数、Transform、Color、Box、Sphere 和 Plane。所有类型保持 header-only、标准库可移植、确定性测试优先，为渲染空间、相机、裁剪和资源描述中的尺寸/颜色表达提供统一基础。</p>
+            <p>最值得学习的是“数学约定也是 API”：右手坐标、row-major 矩阵、tolerance、inverse failure、safe normalize 都是引擎一致性的根。图形 bug 经常不是算法错，而是矩阵布局、乘法顺序、退化输入处理没有写成契约。</p>
+            <h3>3. 上下文与依赖</h3>
+            <ul><li><strong>前置依赖：</strong>003 Core Foundation Types and Memory</li><li><strong>后续铺路：</strong>camera, transform hierarchy, culling, RHI viewport/scissor, renderer spatial reasoning</li><li><strong>层级边界：</strong>Core 只向下依赖已稳定 contract，不能反向 include 更高层模块。</li><li><strong>编译期依赖：</strong>公共头和 SCons 目标；<strong>概念依赖：</strong>spec/plan/tasks 中定义的 lifecycle、result、diagnostic 与测试替身。</li></ul>
+        </section>
 
-    <h2>目录</h2>
-    <ul class="toc">
-        <li><a href="#sec1">一、文档与上下文信息</a></li>
-        <li><a href="#sec1-1" class="sub">1. 基础元数据</a></li>
-        <li><a href="#sec1-2" class="sub">2. 本期核心摘要</a></li>
-        <li><a href="#sec1-3" class="sub">3. 上下文与依赖</a></li>
+        <section id="s2">
+            <h2>二、目标与边界</h2>
+            <h3>1. 业务与功能目标</h3>
+            <ul><li>开发者能表示 2D/3D/4D 向量、矩阵、旋转、位移缩放组合和基础几何体。</li><li>通过 TryInverse/SafeNormalize 等 API 明确退化输入。</li><li>颜色支持 float 与 byte channel 互转。</li><li>测试输出证明 baseline 行为可供未来 SIMD 优化对照。</li></ul>
+            <h3>2. 架构目标与定位</h3>
+            <pre><code>Application / Tests
+    ↓ 使用 public contract
+Core feature: Core Math Library
+    ↓ 依赖稳定下层能力
+Core vocabulary / diagnostics / platform
+    ↓ 按阶段连接
+RHI contracts / Backend implementations / Renderer systems</code></pre>
+            <p>本阶段的 public contract 是调用方可以依赖的最小稳定面；private implementation、测试替身和 backend-specific helper 都不能反向污染上层 API。</p>
+            <h3>3. 边界与非目标（约束）</h3>
+            <ul><li>不引入 GLM，避免外部依赖掩盖项目约定。</li><li>不实现 SIMD，先用 baseline tests 锁定语义。</li><li>不实现相机、投影矩阵完整工具和物理几何库，这些属于后续 Renderer/Application。</li></ul>
+        </section>
 
-        <li><a href="#sec2">二、目标与边界</a></li>
-        <li><a href="#sec2-1" class="sub">1. 业务与功能目标</a></li>
-        <li><a href="#sec2-2" class="sub">2. 架构目标与定位</a></li>
-        <li><a href="#sec2-3" class="sub">3. 边界与非目标</a></li>
+        <section id="s3">
+            <h2>三、交互与产品设计</h2>
+            <h3>1. 用户使用路径</h3>
+            <p>构造空间值 -&gt; 使用 FMath tolerance 执行运算 -&gt; 对 inverse/normalize 等退化输入返回显式状态 -&gt; CoreMathTests 验证普通、边界和 NaN/Infinity 场景 -&gt; 后续 Renderer 以同一约定解释坐标。</p>
+            <div class="note">学习时建议把这一段当成“最小工作流”：先找到输入对象，再跟踪它如何变成状态、诊断、测试断言或 debug dump。</div>
+            <h3>2. 核心规则与状态机</h3>
+            <pre><code>未创建/空状态
+    -> 描述或 Begin/Declare/Create
+    -> 可验证中间状态
+    -> Success: 可查询、可绑定、可执行或可复用
+    -> Reset/Shutdown/Invalidated
+    -> 任何后续使用必须返回错误结果或诊断</code></pre>
+            <p>这个状态机是本项目底层模块的共同风格：显式创建、显式验证、显式失效。不同 feature 的状态名不同，但测试都围绕“合法转换”和“非法转换可观察”展开。</p>
+            <h3>3. 失败模式与调试入口</h3>
+            <ul><li>矩阵 row/column major 约定不一致，会导致物体位置正确但旋转/位移看似随机。</li><li>Normalize(Zero) 若返回 NaN，会污染整个 transform hierarchy。</li><li>颜色 byte/float 转换如果不 clamp，后续 clear color 或 material 参数会出现越界。</li></ul>
+            <p>调试入口优先看 <code>Tests/CoreMathTests.cpp</code> 中的负路径用例，再看对应 diagnostics、result code 或 debug dump 输出；这些测试比源码更快暴露设计意图。</p>
+        </section>
 
-        <li><a href="#sec3">三、交互与产品设计</a></li>
-        <li><a href="#sec3-1" class="sub">1. 用户使用路径</a></li>
-        <li><a href="#sec3-2" class="sub">2. 核心规则与状态机</a></li>
+        <section id="s4">
+            <h2>四、技术架构与关键决策</h2>
+            <h3>1. 技术栈与基础设施</h3>
+            <ul><li>C++20，传统 header/source 分离；公共 API 遵守项目 UE-style 命名。</li><li>SCons 4.10.1 构建；验证入口保持在单一 StonerTest 可执行文件。</li><li>Core/RHI/Renderer public contract 尽量不泄漏 backend 或平台实现细节。</li><li>headless、fallback 和 mock 测试优先保证无 GPU/无窗口环境仍能验证语义。</li></ul>
+            <h3>2. 关键信息</h3>
+            <h4>2.1 模块对应关系</h4>
+            <table><thead><tr><th>模块或类型</th><th>文件</th><th>拥有状态</th><th>对外能力</th></tr></thead><tbody><tr><td>FMath</td><td><code>Source/Core/Public/Core/FMath.h</code></td><td>常量、Clamp、Lerp、角度/弧度、三角函数、近似比较</td><td>所有数学类型的 tolerance 来源</td></tr><tr><td>FVector/FMatrix/FQuat</td><td><code>Source/Core/Public/Core/FVector*.h, FMatrix4x4.h, FQuat.h</code></td><td>空间值、旋转和矩阵运算</td><td>渲染变换和 shader 常量的基础</td></tr><tr><td>FTransform</td><td><code>Source/Core/Public/Core/FTransform.h</code></td><td>translation/rotation/scale 组合、逆和点/方向变换</td><td>未来 scene node 与 renderer draw data 的桥</td></tr><tr><td>FBox/FSphere/FPlane</td><td><code>Source/Core/Public/Core/FBox.h, FSphere.h, FPlane.h</code></td><td>有效性、包含、分类</td><td>未来 culling、bounds 和 intersection 的底座</td></tr></tbody></table>
+            <h4>2.2 数据流、控制流或资源流</h4>
+            <p>构造空间值 -&gt; 使用 FMath tolerance 执行运算 -&gt; 对 inverse/normalize 等退化输入返回显式状态 -&gt; CoreMathTests 验证普通、边界和 NaN/Infinity 场景 -&gt; 后续 Renderer 以同一约定解释坐标。</p>
+            <h4>2.3 关键日志、诊断与可视化</h4>
+            <p>诊断记录应覆盖失败原因、对象状态、兼容性判断和 deterministic ordering；result code 负责控制流，diagnostic/debug dump 负责解释“为什么”。不记录大块二进制或平台私有句柄，避免输出不可复现。</p>
+            <h3>3. 架构决策记录 (ADR)</h3>
+            <h4>(1) 自研最小数学库而不是 GLM</h4><p><strong>背景：</strong>引擎需要明确自己的坐标、矩阵和 tolerance 约定。</p><p><strong>理由：</strong>早期类型小而可测，便于后续优化。</p><p><strong>被否决方案：</strong>直接使用 GLM：快但项目学习价值和契约清晰度较低。</p><p><strong>后果：</strong>未来可用 SIMD 替换内部实现，但测试必须保持行为一致。</p><h4>(2) TryInverse 返回成功状态</h4><p><strong>背景：</strong>逆矩阵可能不存在，不能假装每个 transform 都可逆。</p><p><strong>理由：</strong>调用方被迫处理失败路径，测试也能覆盖退化输入。</p><p><strong>被否决方案：</strong>抛异常或返回未定义矩阵：不符合当前显式状态风格。</p><p><strong>后果：</strong>调用代码略多，但调试更容易。</p>
+        </section>
 
-        <li><a href="#sec4">四、技术架构与关键决策</a></li>
-        <li><a href="#sec4-1" class="sub">1. 技术栈与基础设施</a></li>
-        <li><a href="#sec4-2" class="sub">2. 关键信息</a></li>
-        <li><a href="#sec4-3" class="sub">3. 架构决策记录</a></li>
+        <section id="s5">
+            <h2>五、实施与验证（任务流）</h2>
+            <h3>1. 任务拆解清单</h3>
+            <ul><li>Setup/Foundation：建立公共头、private source、测试入口和 SCons 发现路径。</li><li>Contract/API：定义描述结构、接口、枚举、状态和 result/diagnostic 语义。</li><li>Core implementation：实现状态机、验证逻辑、数据结构和 deterministic formatting。</li><li>Integration：把本阶段能力接入已有 Core/RHI/Backend/Renderer 边界。</li><li>Diagnostics/debug tooling：补齐负路径记录、dump、fallback marker 或测试可观察输出。</li><li>Tests and validation：覆盖 happy path、failure path、lifecycle、compatibility 和 boundary isolation。</li><li>Documentation/roadmap update：更新 quickstart、roadmap 和本总结文档。</li></ul>
+            <h3>2. 验收标准</h3>
+            <ul><li>构建命令可完成：scons。</li><li>测试命令可完成并覆盖本 feature 对应测试文件：Tests/CoreMathTests.cpp。</li><li>关键成功场景和关键失败场景都有测试，而不是只验证能编译。</li><li>公共头不 include 不该依赖的高层或 backend/API 头。</li><li>deterministic 输出在重复运行中保持稳定，便于 regression diff。</li></ul>
+            <h3>3. 测试矩阵与覆盖意图</h3>
+            <table><thead><tr><th>测试类别</th><th>覆盖风险</th><th>对应位置</th><th>证明了什么</th></tr></thead><tbody><tr><td>Happy path</td><td>主工作流不可用或 API 难以串联</td><td><code>Tests/CoreMathTests.cpp</code></td><td>调用方能完成本阶段声明的核心任务</td></tr><tr><td>Lifecycle / invalidation</td><td>对象被 shutdown/reset 后仍被使用</td><td><code>Tests/CoreMathTests.cpp</code></td><td>非法状态可观察且不会静默成功</td></tr><tr><td>Compatibility / validation</td><td>描述、layout、usage、handle 或状态不匹配</td><td><code>Tests/CoreMathTests.cpp</code></td><td>错误在靠近来源的位置失败</td></tr><tr><td>Determinism</td><td>排序、诊断或 dump 输出漂移</td><td><code>Tests/CoreMathTests.cpp</code></td><td>回归测试和文档示例可复现</td></tr><tr><td>Boundary isolation</td><td>public header 泄漏高层或 backend 依赖</td><td>quickstart / rg include checks</td><td>层级架构没有被实现细节击穿</td></tr></tbody></table>
+        </section>
 
-        <li><a href="#sec5">五、实施与验证</a></li>
-        <li><a href="#sec5-1" class="sub">1. 任务拆解清单</a></li>
-        <li><a href="#sec5-2" class="sub">2. 验收标准</a></li>
+        <section id="s6">
+            <h2>六、设计巧思与最佳实践</h2>
+            <h3>1. 当前业务场景与业务模型的最佳实践</h3>
+            <h4>(1) Coordinate Convention</h4><p><strong>是什么：</strong>坐标系决定矩阵、叉乘、剔除和相机方向。</p><p><strong>项目表达：</strong>FMath/FMatrix4x4 注释固定右手与 row-major 规则。</p><p><strong>真实引擎/API 对应：</strong>Vulkan/DX/Metal 的 clip space 和 NDC 差异都需要从这里接入转换。</p><h4>(2) Tolerance-aware comparison</h4><p><strong>是什么：</strong>浮点数不能像整数一样精确比较。</p><p><strong>项目表达：</strong>NearEqual 与测试容差让行为跨平台更稳定。</p><p><strong>真实引擎/API 对应：</strong>shader 结果验证、CPU culling、physics broadphase 都需要容差思维。</p><h4>(3) Safe operations</h4><p><strong>是什么：</strong>退化输入是常态，不是异常。</p><p><strong>项目表达：</strong>SafeNormalize/TryInverse 防止 NaN 传播。</p><p><strong>真实引擎/API 对应：</strong>真实引擎中 NaN transform 会让 culling、shadow 和 skinning 级联失效。</p>
+            <h3>2. 优化方案与收益</h3>
+            <p>本阶段的优化重点不是追求最终性能，而是建立可替换的语义基线：先让行为被测试锁住，再在未来引入 SIMD、真实 Vulkan runtime、更复杂 allocator、pipeline disk cache、render graph aliasing 或 async compute。</p>
+            <p>这种做法的收益是 migration cost 可控：只要 public contract 和测试矩阵稳定，private implementation 可以逐步从 mock/fallback 演进到真实 GPU 路径。</p>
+        </section>
 
-        <li><a href="#sec6">六、设计巧思与最佳实践</a></li>
-        <li><a href="#sec6-1" class="sub">6.1 业务场景与模型</a></li>
-        <li><a href="#sec6-2" class="sub">6.2 优化方案与收益</a></li>
+        <section id="s7">
+            <h2>七、编程语言知识点</h2>
+            <h3>1. 标准库接口与用法</h3>
+            <p>本项目优先使用标准库可移植能力，例如容器、智能指针、字符串、chrono、filesystem、mutex 和 algorithm。关键不是“用了哪个库”，而是把标准库行为包装进项目自己的 contract，减少跨模块直接耦合。</p>
+            <h3>2. 语言特性与惯用法</h3>
+            <ul><li>RAII/ownership：资源对象在 shutdown/invalidate 时显式失效，避免悬空后继续成功。</li><li>enum class：用强类型枚举表达 result、queue、usage、stage、state，避免整数误传。</li><li>值语义和移动语义：desc、handle、record 适合轻量复制；拥有对象则通过指针或明确 lifecycle 管理。</li><li>宏只用于日志/断言等需要调用点上下文的场景，其余优先函数和类型系统。</li></ul>
+            <h3>3. 平台相关与编译器行为</h3>
+            <p>平台相关代码应留在 Core platform 或 Backend private 边界内。公共头尽量避免平台宏分叉和图形 API 头泄漏，这样 Windows/macOS/Linux 与未来 Vulkan/DX/Metal/OpenGL backend 才能共享上层代码。</p>
+        </section>
 
-        <li><a href="#sec7">七、编程语言知识点</a></li>
-        <li><a href="#sec7-1" class="sub">7.1 标准库接口与用法</a></li>
-        <li><a href="#sec7-2" class="sub">7.2 语言特性与惯用法</a></li>
-        <li><a href="#sec7-3" class="sub">7.3 平台相关与编译器行为</a></li>
+        <section id="s8">
+            <h2>八、软件工程知识点</h2>
+            <h3>1. 设计模式与架构模式</h3>
+            <ul><li>Layered Architecture：Core -> RHI -> Backend/Renderer 的依赖方向必须单向。</li><li>Facade/Aggregate Header：CoreMinimal、RHIMinimal 或 RendererMinimal 提供便利入口，但不能隐藏边界污染。</li><li>Builder/Compiler/Executor：复杂声明式系统先收集意图，再编译计划，最后执行。</li><li>Adapter：Backend/Vulkan 把具体 API 对象适配成 RHI contract。</li></ul>
+            <h3>2. 工程原则与方法论</h3>
+            <ul><li>Contract-first：先定义 public behavior，再实现 backend 或优化。</li><li>Fail fast but diagnosable：错误尽早返回，同时留下能解释原因的记录。</li><li>Determinism：排序、dump、fallback 和测试输出都尽量稳定。</li><li>YAGNI with escape hatch：推迟工业级复杂能力，但保留未来接入点。</li></ul>
+            <h3>3. 测试策略与质量保障</h3>
+            <p>测试不是只证明“代码能跑”，而是把工程假设固化下来：合法路径、非法路径、边界隔离、重复运行稳定性和 fallback/headless 环境都应该被覆盖。对图形工程而言，mock 与 fallback 不是偷懒，而是让 CI 可以在没有真实 GPU 的情况下守住 contract。</p>
+        </section>
 
-        <li><a href="#sec8">八、软件工程知识点</a></li>
-        <li><a href="#sec8-1" class="sub">8.1 设计模式与架构模式</a></li>
-        <li><a href="#sec8-2" class="sub">8.2 工程原则与方法论</a></li>
-        <li><a href="#sec8-3" class="sub">8.3 测试策略与质量保障</a></li>
-    </ul>
-</nav>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     MAIN CONTENT
-     ═══════════════════════════════════════════════════════════════ -->
-<main class="content">
-
-<!-- Title -->
-<h1>Core Math Library</h1>
-<p class="meta">
-    <span class="badge version">Phase 003</span>
-    <span class="badge status">已交付</span>
-    Feature Branch: <code>004-core-math-library</code>
-</p>
-
-<!-- ─────────────────────────────────────────────────────────────
-     一、文档与上下文信息
-     ───────────────────────────────────────────────────────────── -->
-<section id="sec1">
-<h2><span class="num">一、</span>文档与上下文信息</h2>
-
-<h3 id="sec1-1">1. 基础元数据</h3>
-<table>
-    <tr><th style="width:160px">字段</th><th>内容</th></tr>
-    <tr><td>文档版本</td><td>v1.0</td></tr>
-    <tr><td>更新日期</td><td>2026-04-27</td></tr>
-    <tr><td>当前状态</td><td><span class="badge status">已交付</span></td></tr>
-    <tr><td>Feature Branch</td><td><code>004-core-math-library</code></td></tr>
-    <tr><td>Spec 目录</td><td><code>specs/004-core-math-library/</code></td></tr>
-    <tr><td>Roadmap Phase</td><td>Phase 003 — Core Foundation: Math Library</td></tr>
-    <tr><td>验证平台</td><td>macOS / Apple Clang</td></tr>
-    <tr><td>实现提交</td><td><code>d2b765f feat. spec 004 implement core math library</code></td></tr>
-</table>
-
-<h3 id="sec1-2">2. 本期核心摘要</h3>
-<div class="card highlight">
-    <p>
-        把 Core 层从"基础类型与内存工具"推进到<strong>"可表达空间、颜色和几何关系"</strong>的数学基础层。
-        新增向量、矩阵、四元数、变换、颜色、包围盒、球体、平面和标量数学工具，为后续 RHI、Renderer、Application、相机、可见性、Meshlet、Ray Tracing、GI 等系统提供<strong>统一数学词汇</strong>。
-    </p>
-    <p>
-        最大设计取舍：先实现可验证、跨平台、标准库-only 的<strong>标量基线版本</strong>，同时把公开 API 设计成未来可加入 SIMD 优化而不改变调用方代码的形状。
-    </p>
+        <section id="s9">
+            <h2>九、渲染、引擎与图形 API 学习笔记</h2>
+            <h3>1. 核心概念拆解</h3>
+            <h4>(1) Coordinate Convention</h4><p><strong>是什么：</strong>坐标系决定矩阵、叉乘、剔除和相机方向。</p><p><strong>项目表达：</strong>FMath/FMatrix4x4 注释固定右手与 row-major 规则。</p><p><strong>真实引擎/API 对应：</strong>Vulkan/DX/Metal 的 clip space 和 NDC 差异都需要从这里接入转换。</p><h4>(2) Tolerance-aware comparison</h4><p><strong>是什么：</strong>浮点数不能像整数一样精确比较。</p><p><strong>项目表达：</strong>NearEqual 与测试容差让行为跨平台更稳定。</p><p><strong>真实引擎/API 对应：</strong>shader 结果验证、CPU culling、physics broadphase 都需要容差思维。</p><h4>(3) Safe operations</h4><p><strong>是什么：</strong>退化输入是常态，不是异常。</p><p><strong>项目表达：</strong>SafeNormalize/TryInverse 防止 NaN 传播。</p><p><strong>真实引擎/API 对应：</strong>真实引擎中 NaN transform 会让 culling、shadow 和 skinning 级联失效。</p>
+            <h3>2. 跨 API 映射</h3>
+            <table><thead><tr><th>API</th><th>本阶段概念如何映射</th></tr></thead><tbody><tr><td>Vulkan</td><td>矩阵布局要匹配 shader uniform/storage buffer 的解释。</td></tr><tr><td>DX12</td><td>HLSL 默认矩阵约定和 CPU row-major 需要明确转置策略。</td></tr><tr><td>Metal</td><td>MSL 常用 column-major 风格，跨 API 需要清楚 CPU 约定。</td></tr><tr><td>OpenGL</td><td>历史上 column-major 与右手/左手教程混杂，更需要项目内约定。</td></tr></tbody></table>
+            <h3>3. 源码阅读路线</h3>
+            <ol><li>先读 <code>specs/004-core-math-library/plan.md</code> 的 Summary 和 Constraints，确定阶段边界。</li><li>再读公共头：<code>Source/Core/Public/Core/FMath.h, FVector2/3/4.h, FMatrix4x4.h, FQuat.h, FTransform.h, FColor.h, FBox.h, FSphere.h, FPlane.h</code>，理解 public contract。</li><li>然后读测试：<code>Tests/CoreMathTests.cpp</code>，把 happy path 和负路径对应起来。</li><li>最后读 private implementation 或 backend implementation，观察 contract 如何被状态机、诊断和 fallback 兑现。</li></ol>
+            <h3>4. 自测问题</h3>
+            <ol><li>为什么数学库先写 baseline tests 再考虑 SIMD？</li><li>TryInverse 相比 Inverse 有什么工程收益？</li><li>点变换和方向变换为什么不能共用完全相同公式？</li><li>row-major 是内存布局、数学约定，还是两者都相关？</li></ol>
+        </section>
+    </main>
 </div>
-
-<h3 id="sec1-3">3. 上下文与依赖</h3>
-<table>
-    <tr><th>依赖项</th><th>说明</th></tr>
-    <tr><td>Phase 001 / Spec 001</td><td>SCons 项目骨架（<code>Source/Core/</code>、<code>Tests/</code>）</td></tr>
-    <tr><td>Phase 002 / Spec 003</td><td>Core 基础类型系统（<code>FPlatformTypes</code>、<code>FString</code>、<code>TArray</code>、<code>FMemory</code>）</td></tr>
-    <tr><td>SCons 4.10.1</td><td>构建系统</td></tr>
-    <tr><td>C++ 标准库</td><td><code>&lt;cmath&gt;</code>、<code>&lt;cstring&gt;</code>、<code>&lt;cfloat&gt;</code></td></tr>
-</table>
-<p><strong>不依赖</strong>：RHI、Backend、Renderer、Application、图形 API、第三方数学库（GLM 等）。</p>
-</section>
-
-<!-- ─────────────────────────────────────────────────────────────
-     二、目标与边界
-     ───────────────────────────────────────────────────────────── -->
-<section id="sec2">
-<h2><span class="num">二、</span>目标与边界</h2>
-
-<h3 id="sec2-1">1. 业务与功能目标</h3>
-<p>面向引擎开发者，解决"后续引擎层需要空间数学但项目没有统一数学类型"的问题。完成后，开发者可以使用：</p>
-<ul>
-    <li><code>FMath</code>：标量数学常量和工具函数</li>
-    <li><code>FVector2</code>、<code>FVector3</code>、<code>FVector4</code>：2D、3D、4D 浮点向量</li>
-    <li><code>FMatrix4x4</code>：4x4 变换矩阵</li>
-    <li><code>FQuat</code>：四元数旋转</li>
-    <li><code>FTransform</code>：平移、旋转、缩放组合变换</li>
-    <li><code>FColor</code>、<code>FColorBytes</code>：RGBA 浮点颜色和字节颜色转换</li>
-    <li><code>FBox</code>：轴对齐包围盒</li>
-    <li><code>FSphere</code>：包围球</li>
-    <li><code>FPlane</code>、<code>EPlaneClassification</code>：平面和点分类</li>
-</ul>
-
-<h3 id="sec2-2">2. 架构目标与定位</h3>
-<p>定位为 Core Foundation 的第二个能力层：在 Types &amp; Memory 之上提供数学值类型。仍然位于所有图形和应用层之下。</p>
-
-<pre class="mermaid">
-flowchart TD
-    CoreTypes["Core: Types / Memory / Containers"]
-    CoreMath["Core: Math Library"]
-    RHI["RHI"]
-    Backend["Backend: Vulkan / DX12 / Metal / GL"]
-    Renderer["Renderer"]
-    Application["Application"]
-    Tests["Tests: StonerTest"]
-
-    CoreTypes --> CoreMath
-    CoreMath --> RHI
-    CoreMath --> Renderer
-    CoreMath --> Application
-    RHI --> Backend
-    RHI --> Renderer
-    Renderer --> Application
-    Tests --> CoreMath
-</pre>
-
-<p><strong>核心架构规则</strong>：</p>
-<ul>
-    <li>所有公开数学类型放在 <code>Source/Core/Public/Core/</code></li>
-    <li>下游通过 <code>#include "Core/CoreMinimal.h"</code> 或聚焦头文件使用</li>
-    <li>数学类型全部位于 <code>namespace Stoner::Core</code></li>
-    <li>Core Math 公共头不得包含 RHI、Backend、Renderer、Application 头文件</li>
-    <li>当前阶段采用 header-only value type 方式</li>
-</ul>
-
-<h3 id="sec2-3">3. 边界与非目标（约束）</h3>
-<table>
-    <tr><th>约束</th><th>说明</th></tr>
-    <tr><td>❌ 空间加速结构</td><td>不实现 BVH、Octree、Grid</td></tr>
-    <tr><td>❌ 物理数学</td><td>不实现惯性张量、碰撞 manifold、积分器</td></tr>
-    <tr><td>❌ 高层系统</td><td>不实现 Camera、Animation、Scene Graph、ECS</td></tr>
-    <tr><td>❌ SIMD intrinsics</td><td>不引入平台分支，仅保留未来优化空间</td></tr>
-    <tr><td>❌ Double precision</td><td>不引入 double 或 integer vector 家族</td></tr>
-    <tr><td>❌ 第三方数学库</td><td>不引入 GLM 等</td></tr>
-</table>
-</section>
-
-<!-- ─────────────────────────────────────────────────────────────
-     三、交互与产品设计
-     ───────────────────────────────────────────────────────────── -->
-<section id="sec3">
-<h2><span class="num">三、</span>交互与产品设计</h2>
-
-<h3 id="sec3-1">1. 用户使用路径</h3>
-
-<h4>(1) 聚合式使用</h4>
-<pre><code><span class="pp">#include</span> <span class="str">"Core/CoreMinimal.h"</span>
-
-<span class="kw">using namespace</span> Stoner::Core;
-
-FVector3 Position(<span class="num">1.0f</span>, <span class="num">2.0f</span>, <span class="num">3.0f</span>);
-FQuat Rotation = FQuat::FromAxisAngle(FVector3::UnitZ(), FMath::HalfPi);
-FTransform Transform(Position, Rotation);
-FVector3 WorldPoint = Transform.TransformPoint(FVector3::UnitX());</code></pre>
-
-<h4>(2) 精准头文件使用</h4>
-<pre><code><span class="pp">#include</span> <span class="str">"Core/FVector3.h"</span>
-<span class="pp">#include</span> <span class="str">"Core/FMatrix4x4.h"</span>
-<span class="pp">#include</span> <span class="str">"Core/FQuat.h"</span>
-<span class="pp">#include</span> <span class="str">"Core/FTransform.h"</span>
-<span class="pp">#include</span> <span class="str">"Core/FColor.h"</span>
-<span class="pp">#include</span> <span class="str">"Core/FBox.h"</span>
-<span class="pp">#include</span> <span class="str">"Core/FSphere.h"</span>
-<span class="pp">#include</span> <span class="str">"Core/FPlane.h"</span></code></pre>
-
-<h4>(3) 验证路径</h4>
-<pre><code>PYTHONPATH="Build/.tools/python" python3 -m SCons
-Build/Mac/Debug/Tests/StonerTest
-
-<span class="cm"># 输出:</span>
-Core foundation tests passed=55 failed=0
-Core math tests passed=67 failed=0</code></pre>
-
-<h3 id="sec3-2">2. 核心规则与状态机</h3>
-
-<h4>(1) 坐标系与矩阵规则</h4>
-<pre><code>Core Math Convention
-├── right-handed coordinate
-├── row-major FMatrix4x4 storage
-├── point transform: implicit W = 1
-└── direction transform: implicit W = 0</code></pre>
-<ul>
-    <li><code>FVector3::UnitX().Cross(FVector3::UnitY()) == FVector3::UnitZ()</code>（右手叉乘）</li>
-    <li><code>FMatrix4x4</code> 使用 <code>float M[4][4]</code> 保存 row-major 数据</li>
-    <li>平移矩阵将平移值放在最后一列：<code>M[0][3]</code>、<code>M[1][3]</code>、<code>M[2][3]</code></li>
-</ul>
-
-<h4>(2) 浮点比较规则</h4>
-<pre><code>raw float result -> FMath::IsNearlyEqual / IsNearlyZero -> deterministic pass/fail</code></pre>
-<ul>
-    <li><code>FMath::DefaultTolerance = 1.0e-5f</code></li>
-    <li>标量使用 <code>FMath::IsNearlyEqual()</code> 和 <code>FMath::IsNearlyZero()</code></li>
-    <li>向量、矩阵、四元数、颜色提供 <code>NearlyEquals()</code> 风格能力</li>
-    <li>直接构造出的组件值可使用 <code>operator==</code> 做精确比较</li>
-    <li>计算结果必须使用 tolerance</li>
-</ul>
-
-<h4>(3) 向量状态</h4>
-<pre><code>Zero Vector -> SafeNormalize -> Zero Vector
-Finite Vector -> SafeNormalize -> Unit Direction
-Computed Vector -> NearlyEquals -> Tolerance-aware Result</code></pre>
-
-<h4>(4) 矩阵逆状态</h4>
-<pre><code>Invertible Matrix -> TryInverse -> true + inverse matrix
-Singular Matrix -> TryInverse -> false + identity fallback</code></pre>
-
-<h4>(5) 四元数与变换规则</h4>
-<pre><code>Axis + Angle -> FQuat -> RotateVector / ToMatrix
-Translation + Rotation + Scale -> FTransform -> TransformPoint / TransformVector</code></pre>
-<ul>
-    <li><code>FQuat</code> 默认是 identity；零轴时 <code>FromAxisAngle()</code> 返回 identity</li>
-    <li><code>A * B</code> 语义：旋转向量时先应用 B，再应用 A</li>
-    <li><code>FTransform</code> 应用顺序：Scale → Rotation → Translation</li>
-    <li><code>TransformPoint()</code> 应用平移，<code>TransformVector()</code> 不应用平移</li>
-</ul>
-
-<h4>(6) 颜色与几何规则</h4>
-<ul>
-    <li><code>FColor</code> 使用 RGBA 浮点通道，默认 opaque black</li>
-    <li><code>FColor::ToBytes()</code> 将通道 clamp 到 [0, 1]，再四舍五入到 [0, 255]</li>
-    <li><code>FBox</code> 默认 invalid/empty，第一次 <code>AddPoint()</code> 后变为 valid</li>
-    <li><code>FSphere</code> 半径小于 0 时 invalid</li>
-    <li><code>FPlane::ClassifyPoint()</code> 使用 tolerance 将点分为 Front、Back、On</li>
-</ul>
-</section>
-
-<!-- ─────────────────────────────────────────────────────────────
-     四、技术架构与关键决策
-     ───────────────────────────────────────────────────────────── -->
-<section id="sec4">
-<h2><span class="num">四、</span>技术架构与关键决策</h2>
-
-<h3 id="sec4-1">1. 技术栈与基础设施</h3>
-<table>
-    <tr><th style="width:160px">项目</th><th>选择</th></tr>
-    <tr><td>语言</td><td>C++20（传统 header/source 分离，不使用 C++20 Modules）</td></tr>
-    <tr><td>构建系统</td><td>SCons 4.10.1</td></tr>
-    <tr><td>外部依赖</td><td>C++ 标准库 + 已有 Core 基础类型</td></tr>
-    <tr><td>测试</td><td>沿用 <code>Tests/StonerTest</code>，新增 <code>CoreMathTests</code></td></tr>
-    <tr><td>目标平台</td><td>Windows、macOS、Linux</td></tr>
-    <tr><td>验证平台</td><td>macOS（<code>Build/Mac/Debug/</code>）</td></tr>
-</table>
-
-<h4>新增源文件</h4>
-<div class="file-tree">
-<span class="dir">Source/Core/Public/Core/</span><br>
-├── <span class="new">FMath.h</span><br>
-├── <span class="new">FVector2.h</span><br>
-├── <span class="new">FVector3.h</span><br>
-├── <span class="new">FVector4.h</span><br>
-├── <span class="new">FMatrix4x4.h</span><br>
-├── <span class="new">FQuat.h</span><br>
-├── <span class="new">FTransform.h</span><br>
-├── <span class="new">FColor.h</span><br>
-├── <span class="new">FBox.h</span><br>
-├── <span class="new">FSphere.h</span><br>
-└── <span class="new">FPlane.h</span><br>
-<br>
-<span class="dir">Tests/</span><br>
-├── <span class="new">CoreMathTests.h</span><br>
-└── <span class="new">CoreMathTests.cpp</span>
-</div>
-
-<h3 id="sec4-2">2. 关键信息</h3>
-
-<h4>2.1 模块对应关系</h4>
-<table>
-    <tr><th>模块</th><th>文件</th><th>职责</th></tr>
-    <tr><td>标量工具</td><td><code>FMath.h</code></td><td>常量、Clamp、Lerp、角度转换、三角函数、sqrt、tolerance</td></tr>
-    <tr><td>向量</td><td><code>FVector2/3/4.h</code></td><td>组件值、算术、点乘、长度、安全归一化；FVector3 额外提供叉乘</td></tr>
-    <tr><td>矩阵</td><td><code>FMatrix4x4.h</code></td><td>row-major 4x4 矩阵、乘法、转置、点/方向变换、TryInverse</td></tr>
-    <tr><td>四元数</td><td><code>FQuat.h</code></td><td>轴角构造、归一化、逆、旋转向量、矩阵转换</td></tr>
-    <tr><td>变换</td><td><code>FTransform.h</code></td><td>平移、旋转、缩放组合；点/方向变换；组合；TryInverse</td></tr>
-    <tr><td>颜色</td><td><code>FColor.h</code></td><td>RGBA float 与 byte 转换、透明/不透明默认值、近似比较</td></tr>
-    <tr><td>包围盒</td><td><code>FBox.h</code></td><td>invalid 默认状态、添加点、合并盒、包含、中心、extent</td></tr>
-    <tr><td>包围球</td><td><code>FSphere.h</code></td><td>center/radius、valid 判断、包含测试</td></tr>
-    <tr><td>平面</td><td><code>FPlane.h</code></td><td>normal/distance、点法线构造、三点构造、距离、点分类</td></tr>
-    <tr><td>测试</td><td><code>CoreMathTests.cpp</code></td><td>数学模块所有 normal、boundary、invalid 场景验证</td></tr>
-</table>
-
-<h4>2.2 Include 关系</h4>
-<pre class="mermaid">
-flowchart TD
-    CoreMinimal["CoreMinimal.h"]
-    FMath["FMath.h"]
-    FVector["FVector2/3/4.h"]
-    FMatrix["FMatrix4x4.h"]
-    FQuat["FQuat.h"]
-    FTransform["FTransform.h"]
-    FColor["FColor.h"]
-    FGeometry["FBox / FSphere / FPlane"]
-
-    CoreMinimal --> FMath
-    CoreMinimal --> FVector
-    CoreMinimal --> FMatrix
-    CoreMinimal --> FQuat
-    CoreMinimal --> FTransform
-    CoreMinimal --> FColor
-    CoreMinimal --> FGeometry
-
-    FVector --> FMath
-    FMatrix --> FVector
-    FQuat --> FMatrix
-    FTransform --> FQuat
-    FTransform --> FMatrix
-    FColor --> FMath
-    FGeometry --> FVector
-</pre>
-
-<h4>2.3 测试覆盖</h4>
-<p><code>CoreMathTests.cpp</code> 覆盖：</p>
-<ul>
-    <li><code>FMath</code>：常量、Clamp、Min/Max、Abs、Lerp、角度转换、Sin/Cos、Sqrt、near equality</li>
-    <li><code>FVector2/3/4</code>：构造、算术、缩放、点乘、长度、近似比较</li>
-    <li><code>FVector3</code>：右手叉乘、安全归一化、零向量归一化、infinity 查询</li>
-    <li><code>FMatrix4x4</code>：identity、row-major 访问、transpose、乘法、点/方向变换、inverse success/failure</li>
-    <li><code>FQuat</code>：identity、axis-angle、组合、归一化、零四元数、安全矩阵转换</li>
-    <li><code>FTransform</code>：identity、点/方向变换、组合、inverse success/failure</li>
-    <li><code>FColor</code>：默认值、透明值、byte 转 float、float 转 byte、clamp、round、近似比较</li>
-    <li><code>FBox</code>：invalid 默认状态、AddPoint、Combine、Contains、Center、Extent</li>
-    <li><code>FSphere</code>：valid、负半径 invalid、边界包含</li>
-    <li><code>FPlane</code>：signed distance、front/back/on-plane、三点构造、退化构造</li>
-    <li>基线等价：四元数、矩阵、变换三条旋转路径结果一致</li>
-</ul>
-
-<div class="card highlight">
-    <h4>测试结果</h4>
-    <pre><code>Core foundation tests passed=55 failed=0
-Core math tests passed=67 failed=0</code></pre>
-</div>
-
-<h3 id="sec4-3">3. 架构决策记录 (ADR)</h3>
-
-<details class="adr">
-    <summary>ADR-1: 为什么不用 GLM</summary>
-    <div class="body">
-        <p><strong>决策</strong>：不引入 GLM，先自研 Core Math。</p>
-        <p><strong>理由</strong>：项目是学习导向，Core 子系统优先自研。当前需求规模可控，主要是建立 engine vocabulary。自研能显式记录坐标系、矩阵布局、tolerance、invalid behavior。</p>
-        <p class="rejected"><strong>被否决的方案</strong>：GLM——成熟但会隐藏很多底层数学实现细节，不符合本阶段学习目标。</p>
-    </div>
-</details>
-
-<details class="adr">
-    <summary>ADR-2: 为什么先做标量基线而不是 SIMD</summary>
-    <div class="body">
-        <p><strong>决策</strong>：先实现 scalar baseline，后续再加 SIMD。</p>
-        <p><strong>理由</strong>：标量路径跨 MSVC、Clang、GCC 更容易稳定。测试可以作为未来 SIMD 路径的 reference behavior。公开 API 不暴露 SIMD 类型，未来内部优化不影响调用方。</p>
-        <p class="rejected"><strong>被否决的方案</strong>：立即使用 SSE/NEON/AVX——平台分支复杂，会提前引入非业务风险。</p>
-    </div>
-</details>
-
-<details class="adr">
-    <summary>ADR-3: 为什么使用右手坐标系</summary>
-    <div class="body">
-        <p><strong>决策</strong>：Core Math 使用右手坐标系。</p>
-        <p><strong>理由</strong>：<code>X cross Y = Z</code> 的规则直观，测试可明确验证。Vulkan 和大量图形资料中右手约定更常见。具体图形 API 需要不同约定时，可以在 Backend 或 shader 边界转换。</p>
-        <p class="rejected"><strong>被否决的方案</strong>：① 每个 Backend 自定义坐标系（Core 数学不可预测）；② 左手 Core（与 Vulkan-first 学习路径不如右手直观）。</p>
-    </div>
-</details>
-
-<details class="adr">
-    <summary>ADR-4: 为什么矩阵使用 row-major 存储</summary>
-    <div class="body">
-        <p><strong>决策</strong>：<code>FMatrix4x4</code> 使用 row-major 存储，平移放在最后一列。</p>
-        <p><strong>理由</strong>：C++ 中 <code>M[row][column]</code> 的阅读和调试直接。测试可以明确检查 <code>At(0, 1)</code> 等 row-major 访问。存储顺序与 shader 上传约定可以在后续 RHI/Backend 边界处理。</p>
-        <p class="rejected"><strong>被否决的方案</strong>：① Column-major（在 Core C++ 层并不天然更优）；② 不声明布局（测试、序列化、上传和调试都变得模糊）。</p>
-    </div>
-</details>
-
-<details class="adr">
-    <summary>ADR-5: 为什么 inverse 使用 Try 模式</summary>
-    <div class="body">
-        <p><strong>决策</strong>：矩阵和变换逆使用 <code>TryInverse(out)</code> 返回 bool。</p>
-        <p><strong>理由</strong>：奇异矩阵、零 scale transform 是正常边界情况。bool 返回值使调用方必须显式处理失败。失败时输出 identity fallback，避免未初始化输出。</p>
-        <p class="rejected"><strong>被否决的方案</strong>：① 直接返回矩阵（无法区分成功和失败）；② 抛异常（Core 风格偏 deterministic return）。</p>
-    </div>
-</details>
-
-<details class="adr">
-    <summary>ADR-6: 为什么 <code>FBox</code> 默认 invalid</summary>
-    <div class="body">
-        <p><strong>决策</strong>：默认 <code>FBox</code> 是 invalid/empty，而不是零大小 valid box。</p>
-        <p><strong>理由</strong>：空包围盒和位于原点的零大小包围盒语义不同。<code>AddPoint()</code> 第一次调用可以自然初始化 min/max。后续 culling 或 bounds combine 不会误把空 box 当成真实原点 bounds。</p>
-        <p class="rejected"><strong>被否决的方案</strong>：默认 min=max=0 且 valid——会混淆 empty 和 zero-size。</p>
-    </div>
-</details>
-</section>
-
-<!-- ─────────────────────────────────────────────────────────────
-     五、实施与验证
-     ───────────────────────────────────────────────────────────── -->
-<section id="sec5">
-<h2><span class="num">五、</span>实施与验证（任务流）</h2>
-
-<h3 id="sec5-1">1. 任务拆解清单</h3>
-
-<table>
-    <tr><th>阶段</th><th>任务范围</th><th>关键交付物</th></tr>
-    <tr><td>Setup &amp; Foundational</td><td>T001-T010</td><td>测试脚手架、数学公共头骨架、基础约定</td></tr>
-    <tr><td>US1: 核心空间数学</td><td>T011-T025</td><td><code>FMath</code>、向量、矩阵、四元数、变换</td></tr>
-    <tr><td>US2: 颜色与几何基础体</td><td>T026-T035</td><td><code>FColor</code>、<code>FBox</code>、<code>FSphere</code>、<code>FPlane</code></td></tr>
-    <tr><td>US3: 一致性与隔离</td><td>T036-T043</td><td>aggregate include、隔离验证、跨平台诊断、baseline equivalence</td></tr>
-    <tr><td>Polish &amp; 收尾</td><td>T044-T050</td><td>命名审查、依赖隔离、contract 覆盖、roadmap 更新</td></tr>
-</table>
-
-<p><strong>总计</strong>：50 个任务，全部已完成 ✅</p>
-
-<h3 id="sec5-2">2. 验收标准</h3>
-
-<ul class="check">
-    <li><code>Core/CoreMinimal.h</code> 暴露所有数学头</li>
-    <li>聚焦头文件可独立 include</li>
-    <li>公共数学头不依赖 RHI、Backend、Renderer、Application 或图形 API</li>
-    <li>所有公开类型遵循 UE5-style <code>F</code> 前缀</li>
-    <li><code>tasks.md</code> 中 T001-T050 全部完成</li>
-    <li><code>doc/roadmap.md</code> 中 Phase 003 已更新为 Done</li>
-    <li>macOS 本地 SCons 构建通过</li>
-    <li><code>StonerTest</code> 退出码为 0</li>
-</ul>
-
-<div class="card highlight" style="margin-top: 24px;">
-    <h4>验证命令与结果</h4>
-    <pre><code>PYTHONPATH="Build/.tools/python" python3 -m SCons
-Build/Mac/Debug/Tests/StonerTest
-
-<span class="cm"># 输出:</span>
-Core foundation tests passed=55 failed=0
-Core math tests passed=67 failed=0</code></pre>
-</div>
-</section>
-
-<!-- ─────────────────────────────────────────────────────────────
-     六、设计巧思与最佳实践
-     ───────────────────────────────────────────────────────────── -->
-<section id="sec6">
-<h2><span class="num">六、</span>设计巧思与最佳实践</h2>
-
-<h3 id="sec6-1">6.1 当前业务场景与业务模型的最佳实践</h3>
-
-<div class="card">
-    <h4>为什么自研数学库而不用 GLM</h4>
-    <p>项目是学习导向 [[memory:9rx96rfq]]，Core 子系统优先自研。自研数学库让开发者深入理解坐标系约定、矩阵布局、浮点精度、边界行为等底层细节。这些知识在使用任何第三方库时都是必要的基础。</p>
-</div>
-
-<div class="card">
-    <h4>为什么 API 设计为 SIMD-ready 但不实现 SIMD</h4>
-    <p>公开 API 以普通值类型暴露（<code>FVector3</code>、<code>FMatrix4x4</code>），内部实现可以在未来替换为 SIMD 路径。这样调用方代码不需要修改，同时标量基线作为 reference behavior 验证 SIMD 实现的正确性。</p>
-</div>
-
-<div class="card">
-    <h4>为什么使用 TryInverse 模式而非直接返回</h4>
-    <p>奇异矩阵和零 scale 变换是图形引擎中的常见边界情况。<code>TryInverse(out) -> bool</code> 模式强制调用方处理失败路径，避免静默产生错误的逆矩阵导致后续渲染异常。失败时输出 identity fallback 保证输出始终有效。</p>
-</div>
-
-<div class="card">
-    <h4>为什么测试优先验证行为而非实现</h4>
-    <p>测试名称描述行为（如"singular inverse fails deterministically"），而非实现细节（如"Gauss pivot branch works"）。这样当内部实现从标量切换到 SIMD 时，测试无需修改，只要行为一致即可。</p>
-</div>
-
-<div class="card">
-    <h4>为什么坐标系和布局约定在 Core 层固定</h4>
-    <p>Core 选择右手坐标系 + row-major 存储，所有上层系统共享同一约定。Backend 或 shader 需要不同约定时在边界转换。这避免了"每个系统各自约定"导致的 bug 和混乱。</p>
-</div>
-
-<h3 id="sec6-2">6.2 优化方案与收益</h3>
-
-<table>
-    <tr><th>优化点</th><th>场景</th><th>收益</th></tr>
-    <tr>
-        <td>Header-only value types</td>
-        <td>向量/矩阵运算</td>
-        <td>编译器可内联所有数学操作，避免函数调用开销</td>
-    </tr>
-    <tr>
-        <td>SafeNormalize 零向量保护</td>
-        <td>归一化计算</td>
-        <td>避免除零崩溃，返回零向量而非 NaN/Inf</td>
-    </tr>
-    <tr>
-        <td>Tolerance-based comparison</td>
-        <td>浮点计算结果比较</td>
-        <td>消除浮点精度累积导致的假阴性测试失败</td>
-    </tr>
-    <tr>
-        <td>FBox invalid 默认状态</td>
-        <td>包围盒累积计算</td>
-        <td>第一次 AddPoint 自然初始化，无需特殊的"第一个点"逻辑</td>
-    </tr>
-    <tr>
-        <td>FQuat 零轴 identity fallback</td>
-        <td>动画/旋转插值</td>
-        <td>退化输入不产生 NaN，保持系统稳定</td>
-    </tr>
-</table>
-
-<h4>已知限制与后续演进</h4>
-<ul>
-    <li>当前只实现 float 数学类型，无 double precision</li>
-    <li>当前没有 SIMD 优化路径</li>
-    <li>当前没有矩阵分解、look-at、projection、frustum 等相机相关工具</li>
-    <li><code>FMatrix4x4::TryInverse()</code> 是通用高斯-约旦实现，适合正确性基线，不代表最终性能路径</li>
-    <li><code>FBox</code> 仅为轴对齐包围盒，不支持 oriented box</li>
-    <li><code>FPlane</code> 分类只返回 front/back/on，不包含裁剪或相交结果</li>
-    <li>后续应通过新的 spec 逐步扩展，而不是在本阶段继续发散</li>
-</ul>
-</section>
-
-<!-- ─────────────────────────────────────────────────────────────
-     七、编程语言知识点
-     ───────────────────────────────────────────────────────────── -->
-<section id="sec7">
-<h2><span class="num">七、</span>编程语言知识点</h2>
-
-<h3 id="sec7-1">7.1 标准库接口与用法</h3>
-
-<table>
-    <tr><th style="width:200px">接口</th><th>含义与用法</th></tr>
-    <tr>
-        <td><code>std::sqrt()</code></td>
-        <td>平方根函数。<code>FMath::Sqrt()</code> 封装此函数，用于向量长度计算、归一化等。</td>
-    </tr>
-    <tr>
-        <td><code>std::sin() / std::cos()</code></td>
-        <td>三角函数。<code>FMath::Sin()</code>、<code>FMath::Cos()</code> 封装，用于旋转矩阵构造、四元数轴角构造。</td>
-    </tr>
-    <tr>
-        <td><code>std::atan2()</code></td>
-        <td>反正切函数，返回角度范围 [-π, π]。用于从向量计算角度。</td>
-    </tr>
-    <tr>
-        <td><code>std::abs() / std::fabs()</code></td>
-        <td>绝对值。<code>FMath::Abs()</code> 封装，用于 tolerance 比较、行列式计算等。</td>
-    </tr>
-    <tr>
-        <td><code>std::numeric_limits&lt;float&gt;</code></td>
-        <td>提供浮点数的极限值（<code>max()</code>、<code>lowest()</code>、<code>infinity()</code>）。<code>FBox</code> 用 <code>max()</code> 初始化 invalid 状态。</td>
-    </tr>
-    <tr>
-        <td><code>std::isinf() / std::isnan()</code></td>
-        <td>检查浮点数是否为无穷大/NaN。<code>FVector3::HasInfinite()</code> 使用，用于安全检查。</td>
-    </tr>
-    <tr>
-        <td><code>&lt;cstring&gt; / std::memcpy</code></td>
-        <td>内存拷贝。矩阵乘法中用于初始化结果矩阵为零。</td>
-    </tr>
-</table>
-
-<h3 id="sec7-2">7.2 语言特性与惯用法</h3>
-
-<div class="card">
-    <h4>constexpr 常量</h4>
-    <p><code>FMath::Pi</code>、<code>FMath::DefaultTolerance</code> 等使用 <code>static constexpr float</code> 声明。编译期常量避免运行时初始化开销，且可用于模板参数和数组大小。</p>
-</div>
-
-<div class="card">
-    <h4>static 工厂方法</h4>
-    <p><code>FVector3::UnitX()</code>、<code>FQuat::FromAxisAngle()</code>、<code>FMatrix4x4::Identity()</code> 等使用静态方法作为命名构造器。比重载构造函数更清晰地表达意图。</p>
-</div>
-
-<div class="card">
-    <h4>运算符重载</h4>
-    <p>向量、矩阵、四元数重载了 <code>+</code>、<code>-</code>、<code>*</code>、<code>==</code> 等运算符。这让数学表达式可以用自然的数学符号书写（如 <code>A * B</code> 而非 <code>A.Multiply(B)</code>）。</p>
-</div>
-
-<div class="card">
-    <h4>out 参数模式</h4>
-    <p><code>TryInverse(FMatrix4x4&amp; OutResult)</code> 使用引用参数作为输出。返回 <code>bool</code> 表示成功/失败，避免了 <code>std::optional</code> 的拷贝开销（矩阵是 64 字节大对象）。</p>
-</div>
-
-<div class="card">
-    <h4>enum class 类型安全枚举</h4>
-    <p><code>EPlaneClassification { Front, Back, OnPlane }</code> 使用 <code>enum class</code> 而非普通 <code>enum</code>。这防止枚举值隐式转换为整数，避免意外的类型混用。</p>
-</div>
-
-<h3 id="sec7-3">7.3 平台相关与编译器行为</h3>
-
-<table>
-    <tr><th>平台/编译器</th><th>差异</th><th>处理方式</th></tr>
-    <tr>
-        <td>浮点精度</td>
-        <td>不同编译器的浮点计算结果可能微小差异</td>
-        <td>使用 <code>FMath::DefaultTolerance = 1e-5f</code> 做近似比较，不依赖精确相等</td>
-    </tr>
-    <tr>
-        <td>MSVC vs Clang</td>
-        <td>MSVC 默认使用 <code>/fp:precise</code>，Clang 默认使用 <code>-fno-fast-math</code></td>
-        <td>不依赖 fast-math，保证 IEEE 754 合规行为</td>
-    </tr>
-    <tr>
-        <td>Header-only</td>
-        <td>所有数学类型实现在头文件中</td>
-        <td>使用 <code>inline</code> 避免多重定义链接错误，编译器可内联优化</td>
-    </tr>
-    <tr>
-        <td>未来 SIMD</td>
-        <td>SSE (x86) vs NEON (ARM) 指令集不同</td>
-        <td>当前不引入，但 API 设计为值类型，未来可内部替换为 SIMD 实现</td>
-    </tr>
-</table>
-</section>
-
-<!-- ─────────────────────────────────────────────────────────────
-     八、软件工程知识点
-     ───────────────────────────────────────────────────────────── -->
-<section id="sec8">
-<h2><span class="num">八、</span>软件工程知识点</h2>
-
-<h3 id="sec8-1">8.1 设计模式与架构模式</h3>
-
-<div class="card">
-    <h4>Value Object 模式</h4>
-    <p>所有数学类型（<code>FVector3</code>、<code>FMatrix4x4</code>、<code>FQuat</code> 等）都是 Value Object——无身份、仅通过值比较、不可变（或者每次操作返回新值）。这简化了推理：不需要考虑共享状态、别名、生命周期等问题。</p>
-</div>
-
-<div class="card">
-    <h4>Factory Method 模式</h4>
-    <p><code>FQuat::FromAxisAngle()</code>、<code>FMatrix4x4::Translation()</code>、<code>FPlane::FromThreePoints()</code> 等静态工厂方法提供命名构造。比重载构造函数更清晰地表达意图，且可以在工厂内部处理边界情况（如零轴返回 identity）。</p>
-</div>
-
-<div class="card">
-    <h4>Null Object 模式</h4>
-    <p><code>FVector3::Zero()</code>、<code>FQuat::Identity()</code>、<code>FMatrix4x4::Identity()</code> 提供“无操作”默认值。当边界情况发生时（如零向量归一化、奇异矩阵求逆），返回这些安全默认值而非崩溃或产生 NaN。</p>
-</div>
-
-<h3 id="sec8-2">8.2 工程原则与方法论</h3>
-
-<div class="card">
-    <h4>确定性行为 (Deterministic Behavior)</h4>
-    <p>每个边界情况都有明确的预期结果：零向量 SafeNormalize 返回零向量，奇异矩阵 TryInverse 返回 false + identity，零轴 FromAxisAngle 返回 identity。不依赖“未定义行为”或“实现定义”。</p>
-</div>
-
-<div class="card">
-    <h4>分层架构 (Layered Architecture)</h4>
-    <p>Core Math 位于 Core Types 之上、RHI/Renderer 之下。严格的单向依赖：上层可以使用下层，下层不知道上层存在。这保证了 Core Math 可以独立测试、独立演进。</p>
-</div>
-
-<div class="card">
-    <h4>开闭原则 (Open-Closed Principle)</h4>
-    <p>API 对扩展开放（未来可加 SIMD、可加 double 版本），对修改关闭（现有调用方代码不需改变）。这通过值类型 + 隐藏内部实现实现。</p>
-</div>
-
-<div class="card">
-    <h4>约定优于配置 (Convention over Configuration)</h4>
-    <p>右手坐标系、row-major 存储、平移在最后一列——这些约定在 Core 层固定，所有上层系统共享。不需要每个模块各自配置坐标系，减少了混乱和 bug。</p>
-</div>
-
-<h3 id="sec8-3">8.3 测试策略与质量保障</h3>
-
-<div class="card">
-    <h4>Baseline Equivalence Testing</h4>
-    <p>四元数旋转、矩阵旋转、变换旋转三条路径应用相同旋转后结果必须一致。这是“基线等价测试”——多条实现路径交叉验证，确保它们语义一致。</p>
-</div>
-
-<div class="card">
-    <h4>Tolerance-Aware Assertion</h4>
-    <p>浮点测试不使用 <code>==</code> 而使用 <code>NearlyEquals()</code>。这是数值计算测试的标准实践——浮点精度累积是不可避免的，测试应该验证“足够接近”而非“精确相等”。</p>
-</div>
-
-<div class="card">
-    <h4>边界值与退化输入测试</h4>
-    <p>重点测试退化输入：零向量归一化、奇异矩阵求逆、零轴四元数、负半径球体、三点共线平面。这些是数学库最容易出错的地方，也是生产环境中实际会遇到的场景。</p>
-</div>
-
-<div class="card">
-    <h4>行为驱动测试命名</h4>
-    <p>测试名称描述行为而非实现（如“singular matrix inverse fails deterministically”而非“Gauss pivot returns false”）。这样当内部实现从标量切换到 SIMD 时，测试无需修改。</p>
-</div>
-</section>
-
-</main>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     Mermaid.js (CDN)
-     ═══════════════════════════════════════════════════════════════ -->
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-<script>
-    mermaid.initialize({
-        startOnLoad: true,
-        theme: 'base',
-        securityLevel: 'loose',
-        flowchart: {
-            htmlLabels: true,
-            useMaxWidth: true
-        },
-        themeVariables: {
-            primaryColor: '#dbeafe',
-            primaryTextColor: '#1f2937',
-            primaryBorderColor: '#93c5fd',
-            lineColor: '#2563eb',
-            secondaryColor: '#ecfdf5',
-            tertiaryColor: '#f8fafc',
-            fontFamily: 'Inter, -apple-system, sans-serif',
-            fontSize: '13px'
-        }
-    });
-
-    // Simple TOC active state tracking
-    const tocLinks = document.querySelectorAll('.toc a');
-    const sections = document.querySelectorAll('section[id], h3[id]');
-
-    function updateActiveToc() {
-        let current = '';
-        sections.forEach(section => {
-            const rect = section.getBoundingClientRect();
-            if (rect.top <= 120) current = section.id;
-        });
-        tocLinks.forEach(link => {
-            link.classList.toggle('active', link.getAttribute('href') === '#' + current);
-        });
-    }
-
-    document.querySelector('.content')?.addEventListener('scroll', updateActiveToc);
-    window.addEventListener('scroll', updateActiveToc);
-    updateActiveToc();
-</script>
 </body>
 </html>

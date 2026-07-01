@@ -5,283 +5,176 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>007 — RHI Core Interfaces · Stoner Graphics Lab</title>
     <style>
-        *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+        *, *::before, *::after { box-sizing: border-box; }
         :root {
-            --bg:#f7f9fc; --bg-card:#ffffff; --bg-code:#f1f5f9; --border:#d8e0ea;
-            --text:#1f2937; --text-dim:#64748b; --accent:#2563eb; --accent2:#059669;
-            --warn:#b45309; --error:#dc2626;
-            --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-            --font-mono:'JetBrains Mono','Fira Code','Cascadia Code','SF Mono',Consolas,monospace;
+            --bg: #f6f8fb;
+            --paper: #ffffff;
+            --ink: #1f2937;
+            --muted: #64748b;
+            --line: #d9e2ec;
+            --accent: #2563eb;
+            --accent-soft: #e8f0ff;
+            --good: #047857;
+            --warn: #b45309;
+            --code: #eef3f8;
+            --dark: #111827;
+            --mono: "SF Mono", Menlo, Consolas, monospace;
+            --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
         }
-        html { scroll-behavior:smooth; }
-        body { font-family:var(--font-sans); background:var(--bg); color:var(--text); line-height:1.7; font-size:15px; }
-        .page { display:grid; grid-template-columns:260px 1fr; min-height:100vh; }
-        .sidebar { position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--bg-card); border-right:1px solid var(--border); padding:24px 16px; font-size:13px; }
-        .sidebar h2 { font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-dim); margin-bottom:12px; }
-        .logo { font-size:14px; font-weight:700; color:var(--accent); margin-bottom:4px; }
-        .subtitle { font-size:11px; color:var(--text-dim); margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border); }
-        .toc { list-style:none; }
-        .toc li { margin-bottom:2px; }
-        .toc a { display:block; padding:5px 10px; border-radius:6px; color:var(--text-dim); text-decoration:none; transition:all .15s; }
-        .toc a:hover { background:rgba(37, 99, 235,.1); color:var(--accent); }
-        .toc .sub { padding-left:20px; font-size:12px; }
-        .content { max-width:900px; margin:0 auto; padding:48px 40px 120px; }
-        .content > section { margin-bottom:56px; }
-        h1 { font-size:32px; font-weight:800; background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:8px; }
-        h1 + .meta { font-size:13px; color:var(--text-dim); margin-bottom:32px; }
-        h2 { font-size:22px; font-weight:700; margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--border); }
-        h2 .num { color:var(--accent); margin-right:6px; }
-        h3 { font-size:17px; font-weight:600; margin:24px 0 10px; }
-        h4 { font-size:15px; font-weight:600; color:var(--text-dim); margin:16px 0 8px; }
-        p, ul, ol { margin-bottom:14px; }
-        ul, ol { padding-left:22px; }
-        li { margin-bottom:4px; }
-        a { color:var(--accent); text-decoration:none; }
-        a:hover { text-decoration:underline; }
-        strong { color:#111827; }
-        .card { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:20px 24px; margin-bottom:16px; }
-        .card.highlight { border-left:3px solid var(--accent); }
-        .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px; vertical-align:middle; }
-        .badge.status { background:rgba(5, 150, 105,.15); color:var(--accent2); }
-        .badge.version { background:rgba(37, 99, 235,.15); color:var(--accent); }
-        .badge.p1 { background:rgba(220, 38, 38,.15); color:var(--error); }
-        .badge.p2 { background:rgba(180, 83, 9,.15); color:var(--warn); }
-        table { width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px; }
-        th, td { text-align:left; padding:10px 14px; border-bottom:1px solid var(--border); vertical-align:top; }
-        th { font-size:12px; text-transform:uppercase; letter-spacing:.8px; color:var(--text-dim); background:var(--bg-card); }
-        tr:hover td { background:rgba(37, 99, 235,.04); }
-        code { font-family:var(--font-mono); font-size:13px; background:var(--bg-code); padding:2px 6px; border-radius:4px; color:#111827; }
-        pre { background:var(--bg-code); border:1px solid var(--border); border-radius:8px; padding:16px 20px; overflow-x:auto; margin-bottom:16px; font-size:13px; line-height:1.6; }
-        pre.mermaid { background:var(--bg-card); text-align:center; font-family:var(--font-sans); }
-        .file-tree { font-family:var(--font-mono); font-size:13px; line-height:1.8; background:var(--bg-code); border:1px solid var(--border); border-radius:8px; padding:16px 20px; margin-bottom:16px; }
-        .new { color:var(--accent2); } .mod { color:var(--warn); } .dir { color:var(--accent); }
-        .check { list-style:none; padding-left:0; }
-        .check li { padding:6px 0 6px 28px; position:relative; }
-        .check li::before { content:'✓'; position:absolute; left:4px; color:var(--accent2); font-weight:700; }
-        .adr { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; margin-bottom:16px; overflow:hidden; }
-        .adr summary { padding:14px 20px; cursor:pointer; font-weight:600; }
-        .adr .body { padding:0 20px 16px; border-top:1px solid var(--border); }
-        .adr .body p { margin-top:12px; }
-        @media (max-width:900px) { .page{grid-template-columns:1fr;} .sidebar{display:none;} .content{padding:24px 20px 80px;} }
+        body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.72; font-size: 15px; }
+        .page { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100vh; }
+        .sidebar { position: sticky; top: 0; height: 100vh; overflow: auto; padding: 24px 18px; background: var(--paper); border-right: 1px solid var(--line); }
+        .brand { font-size: 14px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+        .subtitle { font-size: 12px; color: var(--muted); padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+        .toc { list-style: none; padding: 0; margin: 0; }
+        .toc a { display: block; padding: 6px 8px; color: var(--muted); text-decoration: none; border-radius: 6px; font-size: 13px; }
+        .toc a:hover { color: var(--accent); background: var(--accent-soft); }
+        main { max-width: 1080px; width: 100%; padding: 48px 48px 96px; margin: 0 auto; }
+        h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.2; color: var(--accent); }
+        .meta { color: var(--muted); font-size: 13px; margin-bottom: 30px; }
+        section { margin: 0 0 56px; }
+        h2 { margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 23px; }
+        h3 { margin: 22px 0 10px; font-size: 17px; }
+        h4 { margin: 16px 0 6px; font-size: 15px; }
+        p { margin: 0 0 14px; }
+        ul, ol { margin: 0 0 16px; padding-left: 23px; }
+        li { margin: 4px 0; }
+        code { font-family: var(--mono); font-size: 13px; background: var(--code); padding: 2px 5px; border-radius: 4px; }
+        pre { margin: 14px 0; padding: 16px; overflow: auto; border-radius: 8px; color: #e5e7eb; background: var(--dark); font-size: 13px; line-height: 1.55; }
+        pre code { background: transparent; color: inherit; padding: 0; }
+        table { width: 100%; border-collapse: collapse; margin: 16px 0 20px; font-size: 14px; }
+        th, td { padding: 9px 11px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+        th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; background: #fbfdff; }
+        .note { margin: 14px 0; padding: 14px 16px; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; background: var(--paper); }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: rgba(4,120,87,.13); color: var(--good); font-weight: 700; font-size: 12px; }
+        .warn { background: rgba(180,83,9,.13); color: var(--warn); }
+        @media (max-width: 860px) { .page { display: block; } .sidebar { position: static; height: auto; } main { padding: 32px 22px 72px; } }
+
     </style>
 </head>
 <body>
 <div class="page">
-<nav class="sidebar">
-    <div class="logo">Stoner Graphics Lab</div>
-    <div class="subtitle">007 · RHI Core Interfaces</div>
-    <h2>目录</h2>
-    <ul class="toc">
-        <li><a href="#sec1">一、文档与上下文信息</a></li>
-        <li><a href="#sec1-1" class="sub">1. 基础元数据</a></li>
-        <li><a href="#sec1-2" class="sub">2. 本期核心摘要</a></li>
-        <li><a href="#sec1-3" class="sub">3. 上下文与依赖</a></li>
-        <li><a href="#sec2">二、目标与边界</a></li>
-        <li><a href="#sec3">三、交互与产品设计</a></li>
-        <li><a href="#sec4">四、技术架构与关键决策</a></li>
-        <li><a href="#sec5">五、实施与验证</a></li>
-        <li><a href="#sec6">六、设计巧思与最佳实践</a></li>
-        <li><a href="#sec7">七、编程语言知识点</a></li>
-        <li><a href="#sec8">八、软件工程知识点</a></li>
-    </ul>
-</nav>
-<main class="content">
-<h1>RHI Core Interfaces</h1>
-<p class="meta">
-    <span class="badge version">Spec 007</span>
-    <span class="badge status">已交付</span>
-    Feature Branch: <code>007-rhi-core-interfaces</code>
-</p>
+    <aside class="sidebar">
+        <div class="brand">Stoner Graphics Lab</div>
+        <div class="subtitle">007 · RHI Core Interfaces</div>
+        <ul class="toc"><li><a href="#s1">一、文档与上下文信息</a></li><li><a href="#s2">二、目标与边界</a></li><li><a href="#s3">三、交互与产品设计</a></li><li><a href="#s4">四、技术架构与关键决策</a></li><li><a href="#s5">五、实施与验证（任务流）</a></li><li><a href="#s6">六、设计巧思与最佳实践</a></li><li><a href="#s7">七、编程语言知识点</a></li><li><a href="#s8">八、软件工程知识点</a></li><li><a href="#s9">九、渲染、引擎与图形 API 学习笔记</a></li></ul>
+    </aside>
+    <main>
+        <h1>007 — RHI Core Interfaces</h1>
+        <div class="meta">状态：<span class="badge">已交付</span> · 更新：2026-07-01 · 层级：RHI</div>
 
-<section id="sec1">
-<h2><span class="num">一、</span>文档与上下文信息</h2>
-<h3 id="sec1-1">1. 基础元数据</h3>
-<table>
-    <tr><th style="width:160px">字段</th><th>内容</th></tr>
-    <tr><td>文档版本</td><td>v1.0</td></tr>
-    <tr><td>更新日期</td><td>2026-06-25</td></tr>
-    <tr><td>当前状态</td><td><span class="badge status">已交付</span></td></tr>
-    <tr><td>Feature Branch</td><td><code>007-rhi-core-interfaces</code></td></tr>
-    <tr><td>Spec 目录</td><td><code>specs/007-rhi-core-interfaces/</code></td></tr>
-    <tr><td>Roadmap Phase</td><td>Phase 006 — RHI: Core Interfaces</td></tr>
-</table>
-<h3 id="sec1-2">2. 本期核心摘要</h3>
-<div class="card highlight">
-    <p>本阶段定义第一层真正的 RHI 合约：设备生命周期与能力查询、队列分类、命令缓冲录制与提交、Fence/Semaphore 同步、headless/mock swapchain、格式枚举和显式结果码。实现策略是 interface-first、mock-test-driven，确保 Renderer 和 Backend 能在没有真实 GPU/窗口/图形 API 的情况下先对齐工作流。</p>
-</div>
-<h3 id="sec1-3">3. 上下文与依赖</h3>
-<table>
-    <tr><th>依赖项</th><th>说明</th></tr>
-    <tr><td>Spec 006 Core Platform Abstraction</td><td>提供跨平台基础和未来 native window/swapchain 集成基础。</td></tr>
-    <tr><td>Core 基础类型</td><td>RHI 公共头使用 <code>CoreMinimal.h</code>、<code>TSharedPtr</code>、<code>TArray</code>、<code>uint32</code>、<code>uint64</code>。</td></tr>
-    <tr><td>SCons / StonerTest</td><td>RHI mock tests 集成到同一个测试可执行文件。</td></tr>
-    <tr><td>未来 Backend / Renderer</td><td>本阶段只定义合约，不引入 Vulkan、Metal、DX12 或 Renderer 头。</td></tr>
-</table>
-</section>
+        <section id="s1">
+            <h2>一、文档与上下文信息</h2>
+            <h3>1. 基础元数据</h3>
+            <table><thead><tr><th>项目</th><th>内容</th></tr></thead><tbody><tr><td>Feature</td><td>007 — RHI Core Interfaces</td></tr><tr><td>Roadmap</td><td>Phase 006 RHI: Core Interfaces (feature directory 007)</td></tr><tr><td>Spec / Plan / Tasks</td><td><code>specs/007-rhi-core-interfaces/spec.md</code> · <code>specs/007-rhi-core-interfaces/plan.md</code> · <code>specs/007-rhi-core-interfaces/tasks.md</code></td></tr><tr><td>主要源码</td><td>Source/RHI/Public/RHI/IRHIDevice.h, IRHICommandBuffer.h, IRHICommandQueue.h, IRHIFence.h, IRHISemaphore.h, IRHISwapchain.h, ERHI*.h, FRHIDeviceCapabilities.h</td></tr><tr><td>测试文件</td><td>Tests/RHICoreTests.cpp</td></tr><tr><td>验证命令</td><td>scons; Build/Mac/Debug/Tests/StonerTest</td></tr></tbody></table>
+            <h3>2. 本期核心摘要</h3>
+            <p>交付第一批 RHI 合约：device lifecycle、capabilities、command buffer、queue、fence/semaphore、headless swapchain、result/status 和 format identities。它先用 mock 测试锁定行为，不绑定任何真实图形 API。</p>
+            <p>最值得学习的是 RHI 的定位：RHI 不是 Vulkan 的薄 wrapper，而是 Renderer 与多个 backend 的契约层。显式 result、lifecycle matrix 和 mock-first 测试让后续 Vulkan/DX/Metal 可以各自实现同一语义。</p>
+            <h3>3. 上下文与依赖</h3>
+            <ul><li><strong>前置依赖：</strong>Core platform/types/logging abstractions</li><li><strong>后续铺路：</strong>RHI resources/pipelines, Vulkan backend device, command submission, Renderer layer</li><li><strong>层级边界：</strong>RHI 只向下依赖已稳定 contract，不能反向 include 更高层模块。</li><li><strong>编译期依赖：</strong>公共头和 SCons 目标；<strong>概念依赖：</strong>spec/plan/tasks 中定义的 lifecycle、result、diagnostic 与测试替身。</li></ul>
+        </section>
 
-<section id="sec2">
-<h2><span class="num">二、</span>目标与边界</h2>
-<h3>1. 业务与功能目标</h3>
-<div class="card"><h4>US1 — 统一查询渲染设备能力 <span class="badge p1">P1 MVP</span></h4><p>通过 <code>IRHIDevice</code> 获取生命周期状态、能力快照、queue 支持和 device-owned 对象创建结果。</p></div>
-<div class="card"><h4>US2 — 录制并提交核心 RHI 工作流 <span class="badge p1">P1</span></h4><p>命令缓冲可录制 symbolic draw/dispatch/barrier，完成后提交到兼容队列，并通过显式状态观测完成。</p></div>
-<div class="card"><h4>US3 — 使用同步原语协调工作 <span class="badge p2">P2</span></h4><p>Fence 表达 CPU/GPU 完成观察，Semaphore 表达队列间顺序，不暴露任何 backend-specific handle。</p></div>
-<div class="card"><h4>US4 — 通过 Swapchain 合约表达呈现 <span class="badge p2">P2</span></h4><p>headless/mock swapchain 覆盖 acquire、present、resize-required、unavailable 与 invalid-state。</p></div>
-<h3>2. 架构目标与定位</h3>
-<p>RHI Core 位于 Renderer 与具体 Backend 之间，负责定义可被 Vulkan、Metal、DX12、OpenGL/GLES/WebGL 和测试 mock 共同实现的最小渲染硬件接口。</p>
-<pre class="mermaid">
-graph TB
-    REN["Renderer"]
-    RHI["RHI Core Interfaces"]
-    MOCK["Mock RHI Tests"]
-    VK["Vulkan Backend"]
-    MT["Metal Backend"]
-    DX["DX12 Backend"]
-    CORE["Core"]
-    REN --> RHI
-    MOCK --> RHI
-    RHI --> CORE
-    VK --> RHI
-    MT --> RHI
-    DX --> RHI
-</pre>
-<h3>3. 边界与非目标（约束）</h3>
-<table>
-    <tr><th>不做什么</th><th>原因</th></tr>
-    <tr><td>真实图形 API 调用</td><td>本阶段只定义接口和 mock 行为。</td></tr>
-    <tr><td>资源、pipeline、descriptor、shader、render pass</td><td>命令录制只保留 symbolic payload，具体资源模型留给下一阶段。</td></tr>
-    <tr><td>真实 native window / surface 绑定</td><td>swapchain 为 headless/mock 合约。</td></tr>
-    <tr><td>Backend 或 Renderer 公共依赖</td><td>保持 RHI 公共头可独立审阅和复用。</td></tr>
-</table>
-</section>
+        <section id="s2">
+            <h2>二、目标与边界</h2>
+            <h3>1. 业务与功能目标</h3>
+            <ul><li>Renderer 或测试替身能查询设备能力。</li><li>命令缓冲可建模 recording/executable/submitted 状态。</li><li>queue submit 能表达成功、错误状态和同步对象协作。</li><li>swapchain contract 可表达 headless/mock 行为。</li></ul>
+            <h3>2. 架构目标与定位</h3>
+            <pre><code>Application / Tests
+    ↓ 使用 public contract
+RHI feature: RHI Core Interfaces
+    ↓ 依赖稳定下层能力
+Core vocabulary / diagnostics / platform
+    ↓ 按阶段连接
+RHI contracts / Backend implementations / Renderer systems</code></pre>
+            <p>本阶段的 public contract 是调用方可以依赖的最小稳定面；private implementation、测试替身和 backend-specific helper 都不能反向污染上层 API。</p>
+            <h3>3. 边界与非目标（约束）</h3>
+            <ul><li>不创建 buffer/texture/shader/pipeline，这些属于 008。</li><li>不引入 Vulkan/Metal/DX headers，保持纯接口。</li><li>不承诺真实 GPU execution，只定义可测试 contract。</li></ul>
+        </section>
 
-<section id="sec3">
-<h2><span class="num">三、</span>交互与产品设计</h2>
-<h3>1. 用户使用路径</h3>
-<pre>
-IRHIDevice
-  -> GetCapabilities()
-  -> CreateCommandQueue(Graphics)
-  -> CreateCommandBuffer(Graphics)
-  -> Begin() / RecordDraw() / RecordDispatch() / RecordBarrier() / End()
-  -> Submit(command buffer, wait semaphores, signal semaphores, fence)
-  -> WaitIdle() / Fence.Wait()
-  -> Swapchain.AcquireNextFrame() / Present()
-</pre>
-<h3>2. 核心规则与状态机</h3>
-<table>
-    <tr><th>对象</th><th>状态/规则</th></tr>
-    <tr><td><code>IRHIDevice</code></td><td><code>Uninitialized -> Active -> Shutdown</code>；shutdown 后创建对象返回 <code>InvalidState</code>。</td></tr>
-    <tr><td><code>IRHICommandBuffer</code></td><td><code>Idle -> Recording -> Completed -> Submitted -> Resettable</code>；double begin、end without begin、record after end 均失败。</td></tr>
-    <tr><td><code>IRHICommandQueue</code></td><td>只接受兼容 queue type 且已 completed 的 command buffer。</td></tr>
-    <tr><td><code>IRHIFence</code></td><td><code>Unsignaled -> Signaled -> Waited</code>；未 signal 时 wait 可返回 <code>NotReady</code>/<code>Timeout</code>。</td></tr>
-    <tr><td><code>IRHISemaphore</code></td><td><code>Unsignaled -> Signaled -> Consumed</code>；用于 submit 依赖，不暴露 backend handle。</td></tr>
-    <tr><td><code>IRHISwapchain</code></td><td><code>Ready -> Acquired -> Ready</code>，也可进入 <code>ResizeRequired</code> 或 <code>Unavailable</code>。</td></tr>
-</table>
-</section>
+        <section id="s3">
+            <h2>三、交互与产品设计</h2>
+            <h3>1. 用户使用路径</h3>
+            <p>Renderer/RHI client 持有 IRHIDevice -&gt; 查询 capabilities -&gt; 创建或取得 command queue/buffer -&gt; Begin/End recording -&gt; Submit -&gt; fence/semaphore/swapchain contract 参与同步或呈现。mock tests 覆盖生命周期和负路径。</p>
+            <div class="note">学习时建议把这一段当成“最小工作流”：先找到输入对象，再跟踪它如何变成状态、诊断、测试断言或 debug dump。</div>
+            <h3>2. 核心规则与状态机</h3>
+            <pre><code>未创建/空状态
+    -> 描述或 Begin/Declare/Create
+    -> 可验证中间状态
+    -> Success: 可查询、可绑定、可执行或可复用
+    -> Reset/Shutdown/Invalidated
+    -> 任何后续使用必须返回错误结果或诊断</code></pre>
+            <p>这个状态机是本项目底层模块的共同风格：显式创建、显式验证、显式失效。不同 feature 的状态名不同，但测试都围绕“合法转换”和“非法转换可观察”展开。</p>
+            <h3>3. 失败模式与调试入口</h3>
+            <ul><li>未 Begin 就 End、未 End 就 Submit 必须返回错误，否则 backend 会收到非法命令状态。</li><li>queue type 不兼容必须被拒绝，否则 compute/transfer/graphics 能力边界失真。</li><li>headless swapchain 必须有定义行为，否则 CI 无 GPU/窗口环境无法测试。</li></ul>
+            <p>调试入口优先看 <code>Tests/RHICoreTests.cpp</code> 中的负路径用例，再看对应 diagnostics、result code 或 debug dump 输出；这些测试比源码更快暴露设计意图。</p>
+        </section>
 
-<section id="sec4">
-<h2><span class="num">四、</span>技术架构与关键决策</h2>
-<h3>1. 技术栈与基础设施</h3>
-<ul>
-    <li>C++20 纯接口头与 UE5-style 命名：<code>I*</code> interface、<code>F*</code> struct、<code>E*</code> enum。</li>
-    <li>公共 RHI 头位于 <code>Source/RHI/Public/RHI/</code>。</li>
-    <li>mock 实现位于 <code>Tests/RHICoreTests.cpp</code>，不污染生产 Backend 层。</li>
-</ul>
-<h3>2. 关键信息</h3>
-<div class="file-tree">
-<span class="dir">Source/RHI/Public/RHI/</span><br>
-├── <span class="new">ERHIResult.h</span>                 explicit operation status<br>
-├── <span class="new">ERHIQueueType.h</span>              graphics / compute / transfer / present<br>
-├── <span class="new">ERHIFormat.h</span>                 portable format identities<br>
-├── <span class="new">FRHIDeviceCapabilities.h</span>     queue support, feature flags, limits<br>
-├── <span class="new">IRHIDevice.h</span>                 lifecycle and object factory<br>
-├── <span class="new">IRHICommandBuffer.h</span>          symbolic command recording<br>
-├── <span class="new">IRHICommandQueue.h</span>           submission and idle wait<br>
-├── <span class="new">IRHIFence.h</span>                  completion observation<br>
-├── <span class="new">IRHISemaphore.h</span>              queue ordering<br>
-└── <span class="new">IRHISwapchain.h</span>              headless presentation contract
-</div>
-<table>
-    <tr><th>模块</th><th>职责</th><th>关键关系</th></tr>
-    <tr><td><code>IRHIDevice</code></td><td>生命周期、能力、队列/命令/同步/swapchain 工厂。</td><td>是 RHI core objects 的权威创建入口。</td></tr>
-    <tr><td><code>FRHIDeviceCapabilities</code></td><td>queue support、feature flags、limits、formats。</td><td>Renderer/Backend 决策输入。</td></tr>
-    <tr><td><code>IRHICommandBuffer</code></td><td>symbolic commands 和 lifecycle。</td><td>提交前必须 <code>Completed</code>。</td></tr>
-    <tr><td><code>IRHICommandQueue</code></td><td>兼容性检查、submit、wait idle。</td><td>观察 semaphore/fence，但不拥有 backend handle。</td></tr>
-    <tr><td><code>IRHISwapchain</code></td><td>acquire/present 与 resize/unavailable 状态。</td><td>为未来 Application/Backend surface 留合同。</td></tr>
-</table>
-<h3>3. 架构决策记录（ADR）</h3>
-<details class="adr" open><summary>ADR-007-01：先定义接口，不引入假 Backend</summary><div class="body"><p>生产代码只增加公共 RHI 合约，mock 行为放在测试里。这样不会把测试替身误当作引擎后端实现，也让真实 Vulkan/Metal/DX12 后端可以独立实现同一接口。</p></div></details>
-<details class="adr"><summary>ADR-007-02：所有可恢复失败使用 ERHIResult</summary><div class="body"><p>生命周期错误、unsupported queue、timeout、resize required、unavailable 等都通过显式状态表达，测试可以稳定断言，不依赖异常或 debug-only assertion。</p></div></details>
-<details class="adr"><summary>ADR-007-03：命令 payload 保持 symbolic</summary><div class="body"><p>本阶段记录 draw/dispatch/barrier 的意图和顺序，不验证具体资源、pipeline 或 shader。这样先固定工作流，避免资源系统还没设计时提前制造错误耦合。</p></div></details>
-</section>
+        <section id="s4">
+            <h2>四、技术架构与关键决策</h2>
+            <h3>1. 技术栈与基础设施</h3>
+            <ul><li>C++20，传统 header/source 分离；公共 API 遵守项目 UE-style 命名。</li><li>SCons 4.10.1 构建；验证入口保持在单一 StonerTest 可执行文件。</li><li>Core/RHI/Renderer public contract 尽量不泄漏 backend 或平台实现细节。</li><li>headless、fallback 和 mock 测试优先保证无 GPU/无窗口环境仍能验证语义。</li></ul>
+            <h3>2. 关键信息</h3>
+            <h4>2.1 模块对应关系</h4>
+            <table><thead><tr><th>模块或类型</th><th>文件</th><th>拥有状态</th><th>对外能力</th></tr></thead><tbody><tr><td>ERHIResult/Enums</td><td><code>Source/RHI/Public/RHI/ERHI*.h</code></td><td>结果码、格式、队列类型</td><td>跨后端共享 vocabulary</td></tr><tr><td>IRHIDevice</td><td><code>Source/RHI/Public/RHI/IRHIDevice.h</code></td><td>lifecycle、capabilities、factory root</td><td>后端设备统一入口</td></tr><tr><td>IRHICommandBuffer/Queue</td><td><code>Source/RHI/Public/RHI/IRHICommandBuffer.h, IRHICommandQueue.h</code></td><td>录制状态、提交入口</td><td>连接 Renderer work 与 backend execution</td></tr><tr><td>IRHIFence/Semaphore/Swapchain</td><td><code>Source/RHI/Public/RHI/IRHIFence.h, IRHISemaphore.h, IRHISwapchain.h</code></td><td>同步与呈现合约</td><td>为 Vulkan/DX/Metal 同步和 presentation 预留接口</td></tr></tbody></table>
+            <h4>2.2 数据流、控制流或资源流</h4>
+            <p>Renderer/RHI client 持有 IRHIDevice -&gt; 查询 capabilities -&gt; 创建或取得 command queue/buffer -&gt; Begin/End recording -&gt; Submit -&gt; fence/semaphore/swapchain contract 参与同步或呈现。mock tests 覆盖生命周期和负路径。</p>
+            <h4>2.3 关键日志、诊断与可视化</h4>
+            <p>诊断记录应覆盖失败原因、对象状态、兼容性判断和 deterministic ordering；result code 负责控制流，diagnostic/debug dump 负责解释“为什么”。不记录大块二进制或平台私有句柄，避免输出不可复现。</p>
+            <h3>3. 架构决策记录 (ADR)</h3>
+            <h4>(1) 接口先于 backend</h4><p><strong>背景：</strong>需要先稳定 Renderer 可依赖的语义。</p><p><strong>理由：</strong>mock tests 能在没有 GPU 的环境覆盖大部分契约。</p><p><strong>被否决方案：</strong>直接先写 Vulkan：容易把 Vulkan 细节固化进 RHI。</p><p><strong>后果：</strong>真实 backend 接入时需要适配已有 result/lifecycle。</p><h4>(2) 显式 ERHIResult 而不是异常</h4><p><strong>背景：</strong>渲染运行时错误常见且需要被调用方处理。</p><p><strong>理由：</strong>结果码与诊断更适合跨 DLL/跨平台。</p><p><strong>被否决方案：</strong>异常：简化代码但不符合后续 GPU API 风格。</p><p><strong>后果：</strong>调用方需要检查返回值。</p>
+        </section>
 
-<section id="sec5">
-<h2><span class="num">五、</span>实施与验证（任务流）</h2>
-<h3>5.1 任务拆解清单</h3>
-<ul class="check">
-    <li>建立 <code>RHICoreTests</code> 测试入口并接入总测试 runner。</li>
-    <li>创建 result、queue、format、capability 与各 RHI interface 头。</li>
-    <li>实现 device-owned mock 对象创建与 shutdown-state rejection。</li>
-    <li>实现 command buffer/queue 生命周期矩阵和 symbolic command 顺序验证。</li>
-    <li>实现 fence/semaphore 状态迁移、submit 中的同步观察。</li>
-    <li>实现 headless swapchain acquire/present/resize/unavailable 负路径。</li>
-    <li>验证公共 RHI 头不包含 Backend/Renderer/Application/graphics API/windowing 依赖。</li>
-</ul>
-<h3>5.2 验收标准</h3>
-<table>
-    <tr><th>验收项</th><th>结果</th></tr>
-    <tr><td>mock device 能查询能力、queue support 和生命周期</td><td><span class="badge status">通过</span></td></tr>
-    <tr><td>public RHI core contracts 均有 mock 测试覆盖</td><td><span class="badge status">通过</span></td></tr>
-    <tr><td>command/fence/semaphore/swapchain 无效状态不崩溃</td><td><span class="badge status">通过</span></td></tr>
-    <tr><td>renderer-facing smoke flow 可录制、结束、提交并观察 mock frame</td><td><span class="badge status">通过</span></td></tr>
-    <tr><td>公共 RHI 行为不引用具体图形 API 或平台 presentation</td><td><span class="badge status">通过</span></td></tr>
-    <tr><td><code>StonerTest</code> 全量测试</td><td><span class="badge status">通过</span> RHI Core: 75 passed, 0 failed</td></tr>
-</table>
-</section>
+        <section id="s5">
+            <h2>五、实施与验证（任务流）</h2>
+            <h3>1. 任务拆解清单</h3>
+            <ul><li>Setup/Foundation：建立公共头、private source、测试入口和 SCons 发现路径。</li><li>Contract/API：定义描述结构、接口、枚举、状态和 result/diagnostic 语义。</li><li>Core implementation：实现状态机、验证逻辑、数据结构和 deterministic formatting。</li><li>Integration：把本阶段能力接入已有 Core/RHI/Backend/Renderer 边界。</li><li>Diagnostics/debug tooling：补齐负路径记录、dump、fallback marker 或测试可观察输出。</li><li>Tests and validation：覆盖 happy path、failure path、lifecycle、compatibility 和 boundary isolation。</li><li>Documentation/roadmap update：更新 quickstart、roadmap 和本总结文档。</li></ul>
+            <h3>2. 验收标准</h3>
+            <ul><li>构建命令可完成：scons。</li><li>测试命令可完成并覆盖本 feature 对应测试文件：Tests/RHICoreTests.cpp。</li><li>关键成功场景和关键失败场景都有测试，而不是只验证能编译。</li><li>公共头不 include 不该依赖的高层或 backend/API 头。</li><li>deterministic 输出在重复运行中保持稳定，便于 regression diff。</li></ul>
+            <h3>3. 测试矩阵与覆盖意图</h3>
+            <table><thead><tr><th>测试类别</th><th>覆盖风险</th><th>对应位置</th><th>证明了什么</th></tr></thead><tbody><tr><td>Happy path</td><td>主工作流不可用或 API 难以串联</td><td><code>Tests/RHICoreTests.cpp</code></td><td>调用方能完成本阶段声明的核心任务</td></tr><tr><td>Lifecycle / invalidation</td><td>对象被 shutdown/reset 后仍被使用</td><td><code>Tests/RHICoreTests.cpp</code></td><td>非法状态可观察且不会静默成功</td></tr><tr><td>Compatibility / validation</td><td>描述、layout、usage、handle 或状态不匹配</td><td><code>Tests/RHICoreTests.cpp</code></td><td>错误在靠近来源的位置失败</td></tr><tr><td>Determinism</td><td>排序、诊断或 dump 输出漂移</td><td><code>Tests/RHICoreTests.cpp</code></td><td>回归测试和文档示例可复现</td></tr><tr><td>Boundary isolation</td><td>public header 泄漏高层或 backend 依赖</td><td>quickstart / rg include checks</td><td>层级架构没有被实现细节击穿</td></tr></tbody></table>
+        </section>
 
-<section id="sec6">
-<h2><span class="num">六、</span>设计巧思与最佳实践</h2>
-<h3>6.1 当前业务场景与业务模型的最佳实践</h3>
-<p>RHI 是 Renderer 和 Backend 的共同语言。这个阶段没有急着写 Vulkan 或真实资源对象，而是先让“设备、队列、命令、同步、呈现”这些概念形成可测试的合同。后续 Backend 只需要证明自己满足合同，Renderer 则可以先面向接口开发。</p>
-<h3>6.2 优化方案与收益</h3>
-<ul>
-    <li>device-owned creation 统一对象生命周期，避免调用者绕过设备能力创建不支持的对象。</li>
-    <li>explicit result/status 让负路径成为一等公民，后续 backend 可以直接映射 API 返回码。</li>
-    <li>mock swapchain 让呈现工作流提前可测，又不绑定窗口和 surface。</li>
-    <li>symbolic commands 降低 MVP 复杂度，同时保留未来资源/pipeline 扩展位置。</li>
-</ul>
-</section>
+        <section id="s6">
+            <h2>六、设计巧思与最佳实践</h2>
+            <h3>1. 当前业务场景与业务模型的最佳实践</h3>
+            <h4>(1) RHI</h4><p><strong>是什么：</strong>Renderer 和具体图形 API 之间的稳定协议。</p><p><strong>项目表达：</strong>IRHI* public headers 只表达能力和生命周期。</p><p><strong>真实引擎/API 对应：</strong>UE RHI、bgfx、Dawn/WebGPU 都是类似抽象层。</p><h4>(2) Lifecycle matrix</h4><p><strong>是什么：</strong>对象状态决定哪些操作合法。</p><p><strong>项目表达：</strong>command buffer/queue/sync tests 覆盖负路径。</p><p><strong>真实引擎/API 对应：</strong>Vulkan/DX12 都强依赖显式状态，隐式容错会掩盖 bug。</p><h4>(3) Mock-first contract</h4><p><strong>是什么：</strong>先证明接口语义，不依赖硬件。</p><p><strong>项目表达：</strong>Tests/RHICoreTests.cpp 用替身验证 Renderer-facing flow。</p><p><strong>真实引擎/API 对应：</strong>真实引擎 CI 通常也需要 null/mock/headless backend。</p>
+            <h3>2. 优化方案与收益</h3>
+            <p>本阶段的优化重点不是追求最终性能，而是建立可替换的语义基线：先让行为被测试锁住，再在未来引入 SIMD、真实 Vulkan runtime、更复杂 allocator、pipeline disk cache、render graph aliasing 或 async compute。</p>
+            <p>这种做法的收益是 migration cost 可控：只要 public contract 和测试矩阵稳定，private implementation 可以逐步从 mock/fallback 演进到真实 GPU 路径。</p>
+        </section>
 
-<section id="sec7">
-<h2><span class="num">七、</span>编程语言知识点</h2>
-<h3>1. 标准库接口与用法</h3>
-<p>本阶段生产 RHI 头几乎不直接依赖复杂标准库，主要通过已有 Core 容器和智能指针表达对象关系：<code>TSharedPtr</code> 用于 device factory 返回对象，<code>TArray</code> 用于 semaphore 列表和 format 支持集。</p>
-<h3>2. 语言特性与惯用法</h3>
-<ul>
-    <li>纯虚接口和虚析构函数定义 backend/mock 可替换边界。</li>
-    <li><code>enum class</code> 表达强类型状态、结果、queue type 和 format。</li>
-    <li>模板结果包装 <code>TRHIObjectResult&lt;T&gt;</code> 同时返回状态和值，避免 null 指针语义不清。</li>
-    <li><code>[[nodiscard]]</code> 和 <code>noexcept</code> 用于查询函数，强调状态结果不可随意忽略。</li>
-</ul>
-<h3>3. 平台相关与编译器行为</h3>
-<p>RHI 公共接口本身不包含平台分支，也不包含图形 API 头。跨平台差异会在未来 Backend 实现中处理，当前合同保持 Windows/macOS/Linux 共同可实现。</p>
-</section>
+        <section id="s7">
+            <h2>七、编程语言知识点</h2>
+            <h3>1. 标准库接口与用法</h3>
+            <p>本项目优先使用标准库可移植能力，例如容器、智能指针、字符串、chrono、filesystem、mutex 和 algorithm。关键不是“用了哪个库”，而是把标准库行为包装进项目自己的 contract，减少跨模块直接耦合。</p>
+            <h3>2. 语言特性与惯用法</h3>
+            <ul><li>RAII/ownership：资源对象在 shutdown/invalidate 时显式失效，避免悬空后继续成功。</li><li>enum class：用强类型枚举表达 result、queue、usage、stage、state，避免整数误传。</li><li>值语义和移动语义：desc、handle、record 适合轻量复制；拥有对象则通过指针或明确 lifecycle 管理。</li><li>宏只用于日志/断言等需要调用点上下文的场景，其余优先函数和类型系统。</li></ul>
+            <h3>3. 平台相关与编译器行为</h3>
+            <p>平台相关代码应留在 Core platform 或 Backend private 边界内。公共头尽量避免平台宏分叉和图形 API 头泄漏，这样 Windows/macOS/Linux 与未来 Vulkan/DX/Metal/OpenGL backend 才能共享上层代码。</p>
+        </section>
 
-<section id="sec8">
-<h2><span class="num">八、</span>软件工程知识点</h2>
-<h3>1. 设计模式与架构模式</h3>
-<p>本阶段体现 Interface Segregation 和 Abstract Factory：<code>IRHIDevice</code> 是对象创建入口，但 queue、command buffer、fence、semaphore、swapchain 的职责彼此独立。mock tests 是 contract test，而不是生产架构的一部分。</p>
-<h3>2. 工程原则与方法论</h3>
-<ul>
-    <li>Spec-driven development：clarification、plan、tasks 到实现逐步收敛。</li>
-    <li>依赖倒置：Renderer 依赖 RHI contract，Backend 实现 RHI contract。</li>
-    <li>最小可行接口：只固定当前 roadmap 需要的核心 RHI 概念。</li>
-    <li>可测试设计：每个生命周期状态和负路径都能由 mock 明确触发。</li>
-</ul>
-<h3>3. 测试策略与质量保障</h3>
-<p>测试采用 lifecycle matrix、negative-path validation 和 renderer-facing smoke flow 三层组合。矩阵测试覆盖状态转换，负路径测试覆盖非法操作，smoke flow 则证明 device、queue、command buffer、sync、swapchain 能按未来渲染帧流程协作。</p>
-</section>
-</main>
+        <section id="s8">
+            <h2>八、软件工程知识点</h2>
+            <h3>1. 设计模式与架构模式</h3>
+            <ul><li>Layered Architecture：Core -> RHI -> Backend/Renderer 的依赖方向必须单向。</li><li>Facade/Aggregate Header：CoreMinimal、RHIMinimal 或 RendererMinimal 提供便利入口，但不能隐藏边界污染。</li><li>Builder/Compiler/Executor：复杂声明式系统先收集意图，再编译计划，最后执行。</li><li>Adapter：Backend/Vulkan 把具体 API 对象适配成 RHI contract。</li></ul>
+            <h3>2. 工程原则与方法论</h3>
+            <ul><li>Contract-first：先定义 public behavior，再实现 backend 或优化。</li><li>Fail fast but diagnosable：错误尽早返回，同时留下能解释原因的记录。</li><li>Determinism：排序、dump、fallback 和测试输出都尽量稳定。</li><li>YAGNI with escape hatch：推迟工业级复杂能力，但保留未来接入点。</li></ul>
+            <h3>3. 测试策略与质量保障</h3>
+            <p>测试不是只证明“代码能跑”，而是把工程假设固化下来：合法路径、非法路径、边界隔离、重复运行稳定性和 fallback/headless 环境都应该被覆盖。对图形工程而言，mock 与 fallback 不是偷懒，而是让 CI 可以在没有真实 GPU 的情况下守住 contract。</p>
+        </section>
+
+        <section id="s9">
+            <h2>九、渲染、引擎与图形 API 学习笔记</h2>
+            <h3>1. 核心概念拆解</h3>
+            <h4>(1) RHI</h4><p><strong>是什么：</strong>Renderer 和具体图形 API 之间的稳定协议。</p><p><strong>项目表达：</strong>IRHI* public headers 只表达能力和生命周期。</p><p><strong>真实引擎/API 对应：</strong>UE RHI、bgfx、Dawn/WebGPU 都是类似抽象层。</p><h4>(2) Lifecycle matrix</h4><p><strong>是什么：</strong>对象状态决定哪些操作合法。</p><p><strong>项目表达：</strong>command buffer/queue/sync tests 覆盖负路径。</p><p><strong>真实引擎/API 对应：</strong>Vulkan/DX12 都强依赖显式状态，隐式容错会掩盖 bug。</p><h4>(3) Mock-first contract</h4><p><strong>是什么：</strong>先证明接口语义，不依赖硬件。</p><p><strong>项目表达：</strong>Tests/RHICoreTests.cpp 用替身验证 Renderer-facing flow。</p><p><strong>真实引擎/API 对应：</strong>真实引擎 CI 通常也需要 null/mock/headless backend。</p>
+            <h3>2. 跨 API 映射</h3>
+            <table><thead><tr><th>API</th><th>本阶段概念如何映射</th></tr></thead><tbody><tr><td>Vulkan</td><td>IRHICommandBuffer 对应 VkCommandBuffer；queue/fence/semaphore 对应 VkQueue/VkFence/VkSemaphore。</td></tr><tr><td>DX12</td><td>命令列表/命令队列/fence 分别映射到 ID3D12GraphicsCommandList/CommandQueue/Fence。</td></tr><tr><td>Metal</td><td>MTLCommandBuffer 与 MTLCommandQueue 语义更高层，但仍可适配 RHI contract。</td></tr><tr><td>OpenGL</td><td>传统 GL 隐式状态多，RHI 需要模拟 command buffer 语义或限制能力。</td></tr></tbody></table>
+            <h3>3. 源码阅读路线</h3>
+            <ol><li>先读 <code>specs/007-rhi-core-interfaces/plan.md</code> 的 Summary 和 Constraints，确定阶段边界。</li><li>再读公共头：<code>Source/RHI/Public/RHI/IRHIDevice.h, IRHICommandBuffer.h, IRHICommandQueue.h, IRHIFence.h, IRHISemaphore.h, IRHISwapchain.h, ERHI*.h, FRHIDeviceCapabilities.h</code>，理解 public contract。</li><li>然后读测试：<code>Tests/RHICoreTests.cpp</code>，把 happy path 和负路径对应起来。</li><li>最后读 private implementation 或 backend implementation，观察 contract 如何被状态机、诊断和 fallback 兑现。</li></ol>
+            <h3>4. 自测问题</h3>
+            <ol><li>RHI 为什么不应该暴露 VkDevice？</li><li>headless swapchain contract 对 CI 有什么价值？</li><li>ERHIResult 和日志诊断分别承担什么职责？</li><li>command buffer 的 recording/executable/submitted 状态为什么重要？</li></ol>
+        </section>
+    </main>
 </div>
 </body>
 </html>

@@ -5,277 +5,176 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>006 — Core Platform Abstraction · Stoner Graphics Lab</title>
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        *, *::before, *::after { box-sizing: border-box; }
         :root {
-            --bg:#f7f9fc; --bg-card:#ffffff; --bg-code:#f1f5f9; --border:#d8e0ea;
-            --text:#1f2937; --text-dim:#64748b; --accent:#2563eb; --accent2:#059669;
-            --warn:#b45309; --error:#dc2626;
-            --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-            --font-mono:'JetBrains Mono','Fira Code','Cascadia Code','SF Mono',Consolas,monospace;
+            --bg: #f6f8fb;
+            --paper: #ffffff;
+            --ink: #1f2937;
+            --muted: #64748b;
+            --line: #d9e2ec;
+            --accent: #2563eb;
+            --accent-soft: #e8f0ff;
+            --good: #047857;
+            --warn: #b45309;
+            --code: #eef3f8;
+            --dark: #111827;
+            --mono: "SF Mono", Menlo, Consolas, monospace;
+            --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
         }
-        html { scroll-behavior: smooth; }
-        body { font-family:var(--font-sans); background:var(--bg); color:var(--text); line-height:1.7; font-size:15px; }
-        .page { display:grid; grid-template-columns:260px 1fr; min-height:100vh; }
-        .sidebar { position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--bg-card); border-right:1px solid var(--border); padding:24px 16px; font-size:13px; }
-        .sidebar h2 { font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-dim); margin-bottom:12px; }
-        .logo { font-size:14px; font-weight:700; color:var(--accent); margin-bottom:4px; }
-        .subtitle { font-size:11px; color:var(--text-dim); margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border); }
-        .toc { list-style:none; }
-        .toc li { margin-bottom:2px; }
-        .toc a { display:block; padding:5px 10px; border-radius:6px; color:var(--text-dim); text-decoration:none; transition:all .15s; }
-        .toc a:hover { background:rgba(37, 99, 235,.1); color:var(--accent); }
-        .toc .sub { padding-left:20px; font-size:12px; }
-        .content { max-width:900px; margin:0 auto; padding:48px 40px 120px; }
-        .content > section { margin-bottom:56px; }
-        h1 { font-size:32px; font-weight:800; background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:8px; }
-        h1 + .meta { font-size:13px; color:var(--text-dim); margin-bottom:32px; }
-        h2 { font-size:22px; font-weight:700; margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--border); }
-        h2 .num { color:var(--accent); margin-right:6px; }
-        h3 { font-size:17px; font-weight:600; margin:24px 0 10px; }
-        h4 { font-size:15px; font-weight:600; color:var(--text-dim); margin:16px 0 8px; }
-        p, ul, ol { margin-bottom:14px; }
-        ul, ol { padding-left:22px; }
-        li { margin-bottom:4px; }
-        a { color:var(--accent); text-decoration:none; }
-        a:hover { text-decoration:underline; }
-        strong { color:#111827; }
-        .card { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:20px 24px; margin-bottom:16px; }
-        .card.highlight { border-left:3px solid var(--accent); }
-        .badge { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px; vertical-align:middle; }
-        .badge.status { background:rgba(5, 150, 105,.15); color:var(--accent2); }
-        .badge.version { background:rgba(37, 99, 235,.15); color:var(--accent); }
-        .badge.p1 { background:rgba(220, 38, 38,.15); color:var(--error); }
-        .badge.p2 { background:rgba(180, 83, 9,.15); color:var(--warn); }
-        table { width:100%; border-collapse:collapse; margin-bottom:20px; font-size:14px; }
-        th, td { text-align:left; padding:10px 14px; border-bottom:1px solid var(--border); vertical-align:top; }
-        th { font-size:12px; text-transform:uppercase; letter-spacing:.8px; color:var(--text-dim); background:var(--bg-card); }
-        tr:hover td { background:rgba(37, 99, 235,.04); }
-        code { font-family:var(--font-mono); font-size:13px; background:var(--bg-code); padding:2px 6px; border-radius:4px; color:#111827; }
-        pre { background:var(--bg-code); border:1px solid var(--border); border-radius:8px; padding:16px 20px; overflow-x:auto; margin-bottom:16px; font-size:13px; line-height:1.6; }
-        pre.mermaid { background:var(--bg-card); text-align:center; font-family:var(--font-sans); }
-        .file-tree { font-family:var(--font-mono); font-size:13px; line-height:1.8; background:var(--bg-code); border:1px solid var(--border); border-radius:8px; padding:16px 20px; margin-bottom:16px; }
-        .new { color:var(--accent2); } .mod { color:var(--warn); } .dir { color:var(--accent); }
-        .check { list-style:none; padding-left:0; }
-        .check li { padding:6px 0 6px 28px; position:relative; }
-        .check li::before { content:'✓'; position:absolute; left:4px; color:var(--accent2); font-weight:700; }
-        .adr { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; margin-bottom:16px; overflow:hidden; }
-        .adr summary { padding:14px 20px; cursor:pointer; font-weight:600; }
-        .adr .body { padding:0 20px 16px; border-top:1px solid var(--border); }
-        .adr .body p { margin-top:12px; }
-        @media (max-width:900px) { .page{grid-template-columns:1fr;} .sidebar{display:none;} .content{padding:24px 20px 80px;} }
+        body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.72; font-size: 15px; }
+        .page { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100vh; }
+        .sidebar { position: sticky; top: 0; height: 100vh; overflow: auto; padding: 24px 18px; background: var(--paper); border-right: 1px solid var(--line); }
+        .brand { font-size: 14px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+        .subtitle { font-size: 12px; color: var(--muted); padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+        .toc { list-style: none; padding: 0; margin: 0; }
+        .toc a { display: block; padding: 6px 8px; color: var(--muted); text-decoration: none; border-radius: 6px; font-size: 13px; }
+        .toc a:hover { color: var(--accent); background: var(--accent-soft); }
+        main { max-width: 1080px; width: 100%; padding: 48px 48px 96px; margin: 0 auto; }
+        h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.2; color: var(--accent); }
+        .meta { color: var(--muted); font-size: 13px; margin-bottom: 30px; }
+        section { margin: 0 0 56px; }
+        h2 { margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 23px; }
+        h3 { margin: 22px 0 10px; font-size: 17px; }
+        h4 { margin: 16px 0 6px; font-size: 15px; }
+        p { margin: 0 0 14px; }
+        ul, ol { margin: 0 0 16px; padding-left: 23px; }
+        li { margin: 4px 0; }
+        code { font-family: var(--mono); font-size: 13px; background: var(--code); padding: 2px 5px; border-radius: 4px; }
+        pre { margin: 14px 0; padding: 16px; overflow: auto; border-radius: 8px; color: #e5e7eb; background: var(--dark); font-size: 13px; line-height: 1.55; }
+        pre code { background: transparent; color: inherit; padding: 0; }
+        table { width: 100%; border-collapse: collapse; margin: 16px 0 20px; font-size: 14px; }
+        th, td { padding: 9px 11px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+        th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; background: #fbfdff; }
+        .note { margin: 14px 0; padding: 14px 16px; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; background: var(--paper); }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: rgba(4,120,87,.13); color: var(--good); font-weight: 700; font-size: 12px; }
+        .warn { background: rgba(180,83,9,.13); color: var(--warn); }
+        @media (max-width: 860px) { .page { display: block; } .sidebar { position: static; height: auto; } main { padding: 32px 22px 72px; } }
+
     </style>
 </head>
 <body>
 <div class="page">
-<nav class="sidebar">
-    <div class="logo">Stoner Graphics Lab</div>
-    <div class="subtitle">006 · Core Platform Abstraction</div>
-    <h2>目录</h2>
-    <ul class="toc">
-        <li><a href="#sec1">一、文档与上下文信息</a></li>
-        <li><a href="#sec1-1" class="sub">1. 基础元数据</a></li>
-        <li><a href="#sec1-2" class="sub">2. 本期核心摘要</a></li>
-        <li><a href="#sec1-3" class="sub">3. 上下文与依赖</a></li>
-        <li><a href="#sec2">二、目标与边界</a></li>
-        <li><a href="#sec3">三、交互与产品设计</a></li>
-        <li><a href="#sec4">四、技术架构与关键决策</a></li>
-        <li><a href="#sec5">五、实施与验证</a></li>
-        <li><a href="#sec6">六、设计巧思与最佳实践</a></li>
-        <li><a href="#sec7">七、编程语言知识点</a></li>
-        <li><a href="#sec8">八、软件工程知识点</a></li>
-    </ul>
-</nav>
-<main class="content">
-<h1>Core Platform Abstraction</h1>
-<p class="meta">
-    <span class="badge version">Spec 006</span>
-    <span class="badge status">已交付</span>
-    Feature Branch: <code>006-core-platform-abstraction</code>
-</p>
+    <aside class="sidebar">
+        <div class="brand">Stoner Graphics Lab</div>
+        <div class="subtitle">006 · Core Platform Abstraction</div>
+        <ul class="toc"><li><a href="#s1">一、文档与上下文信息</a></li><li><a href="#s2">二、目标与边界</a></li><li><a href="#s3">三、交互与产品设计</a></li><li><a href="#s4">四、技术架构与关键决策</a></li><li><a href="#s5">五、实施与验证（任务流）</a></li><li><a href="#s6">六、设计巧思与最佳实践</a></li><li><a href="#s7">七、编程语言知识点</a></li><li><a href="#s8">八、软件工程知识点</a></li><li><a href="#s9">九、渲染、引擎与图形 API 学习笔记</a></li></ul>
+    </aside>
+    <main>
+        <h1>006 — Core Platform Abstraction</h1>
+        <div class="meta">状态：<span class="badge">已交付</span> · 更新：2026-07-01 · 层级：Core</div>
 
-<section id="sec1">
-<h2><span class="num">一、</span>文档与上下文信息</h2>
-<h3 id="sec1-1">1. 基础元数据</h3>
-<table>
-    <tr><th style="width:160px">字段</th><th>内容</th></tr>
-    <tr><td>文档版本</td><td>v1.0</td></tr>
-    <tr><td>更新日期</td><td>2026-06-25</td></tr>
-    <tr><td>当前状态</td><td><span class="badge status">已交付</span></td></tr>
-    <tr><td>Feature Branch</td><td><code>006-core-platform-abstraction</code></td></tr>
-    <tr><td>Spec 目录</td><td><code>specs/006-core-platform-abstraction/</code></td></tr>
-    <tr><td>Roadmap Phase</td><td>Phase 005 — Core Platform Abstraction</td></tr>
-</table>
-<h3 id="sec1-2">2. 本期核心摘要</h3>
-<div class="card highlight">
-    <p>本阶段为 Core 层补齐跨平台基础能力：平台识别、OS/CPU/内存信息查询、单调高精度时间、本地文件读写、显式路径动态模块加载，以及安全的原生窗口句柄包装。它让后续 RHI、Backend、Renderer 和 Application 不再直接散落操作系统条件编译。</p>
-</div>
-<h3 id="sec1-3">3. 上下文与依赖</h3>
-<table>
-    <tr><th>依赖项</th><th>说明</th></tr>
-    <tr><td>Spec 003 Core Types &amp; Memory</td><td>提供 <code>uint32</code>、<code>uint64</code>、<code>TArray</code>、<code>FString</code> 等基础类型。</td></tr>
-    <tr><td>Spec 005 Logging &amp; Assertions</td><td>保留既有日志/断言行为，平台层不引入上层模块依赖。</td></tr>
-    <tr><td>C++20 标准库</td><td>使用 <code>&lt;chrono&gt;</code>、<code>&lt;filesystem&gt;</code>、<code>&lt;fstream&gt;</code>、<code>&lt;thread&gt;</code> 等便携设施。</td></tr>
-    <tr><td>平台系统库</td><td>动态模块与内存查询在 <code>.cpp</code> 中通过 Windows/macOS/Linux 分支隔离。</td></tr>
-</table>
-</section>
+        <section id="s1">
+            <h2>一、文档与上下文信息</h2>
+            <h3>1. 基础元数据</h3>
+            <table><thead><tr><th>项目</th><th>内容</th></tr></thead><tbody><tr><td>Feature</td><td>006 — Core Platform Abstraction</td></tr><tr><td>Roadmap</td><td>Phase 005 Core Foundation: Platform Abstraction Layer (feature directory 006)</td></tr><tr><td>Spec / Plan / Tasks</td><td><code>specs/006-core-platform-abstraction/spec.md</code> · <code>specs/006-core-platform-abstraction/plan.md</code> · <code>specs/006-core-platform-abstraction/tasks.md</code></td></tr><tr><td>主要源码</td><td>Source/Core/Public/Core/SGPlatform.h, FPlatformMisc.h, FPlatformTime.h, FPlatformFileSystem.h, FPlatformProcess.h, FPlatformWindow.h; Source/Core/Private/FPlatform*.cpp</td></tr><tr><td>测试文件</td><td>Tests/CorePlatformTests.cpp</td></tr><tr><td>验证命令</td><td>scons; Build/Mac/Debug/Tests/StonerTest</td></tr></tbody></table>
+            <h3>2. 本期核心摘要</h3>
+            <p>交付 Core 平台抽象：平台身份宏、平台信息查询、单调高精度时间、本地文件/目录操作、显式路径动态模块加载和原生窗口句柄表示。它让后续后端可以消费平台能力，但不直接把操作系统头文件泄漏到高层。</p>
+            <p>最值得学习的是“平台边界是工程防火墙”：Vulkan surface、动态库加载和时间统计都需要平台能力，但这些能力必须被 Core 封装，否则 RHI/Renderer 会被 Windows/macOS/Linux 条件编译撕裂。</p>
+            <h3>3. 上下文与依赖</h3>
+            <ul><li><strong>前置依赖：</strong>Core foundation, math and diagnostics</li><li><strong>后续铺路：</strong>Vulkan surface creation, Application windowing, plugin/module loading, timing measurements</li><li><strong>层级边界：</strong>Core 只向下依赖已稳定 contract，不能反向 include 更高层模块。</li><li><strong>编译期依赖：</strong>公共头和 SCons 目标；<strong>概念依赖：</strong>spec/plan/tasks 中定义的 lifecycle、result、diagnostic 与测试替身。</li></ul>
+        </section>
 
-<section id="sec2">
-<h2><span class="num">二、</span>目标与边界</h2>
-<h3>1. 业务与功能目标</h3>
-<div class="card"><h4>US1 — 统一使用平台能力 <span class="badge p1">P1 MVP</span></h4><p>开发者通过 Core API 查询平台身份、OS 名称、CPU 核数、可用内存和高精度时间，不需要在调用点判断操作系统。</p></div>
-<div class="card"><h4>US2 — 便携文件操作 <span class="badge p1">P1</span></h4><p>支持文件/目录存在性检查、递归创建目录、字节级读写文本与二进制 payload，并明确处理缺失路径和目录当文件等失败场景。</p></div>
-<div class="card"><h4>US3 — 可选运行时模块加载 <span class="badge p2">P2</span></h4><p>通过显式文件路径加载动态库、解析符号并释放模块，缺失模块和缺失符号都是可恢复失败。</p></div>
-<div class="card"><h4>US4 — 安全传递原生窗口句柄 <span class="badge p2">P2</span></h4><p>提供 Core 拥有的 <code>FPlatformWindow</code> 句柄包装，为未来 swapchain/surface 集成预留稳定入口。</p></div>
-<h3>2. 架构目标与定位</h3>
-<p>平台抽象位于 Core 层，是上层渲染、后端、应用和测试的基础服务；它只向外暴露引擎风格 API，把系统调用和平台头文件约束在实现文件内部。</p>
-<pre class="mermaid">
-graph TB
-    APP["Application / Future Windowing"]
-    REN["Renderer"]
-    RHI["RHI"]
-    BACK["Backend: Vulkan / Metal / DX12"]
-    CORE["Core Platform Abstraction"]
-    OS["Windows / macOS / Linux"]
-    APP --> CORE
-    REN --> CORE
-    RHI --> CORE
-    BACK --> CORE
-    CORE --> OS
-</pre>
-<h3>3. 边界与非目标（约束）</h3>
-<table>
-    <tr><th>不做什么</th><th>原因</th></tr>
-    <tr><td>完整窗口系统、输入事件、窗口生命周期</td><td>本阶段只提供原生句柄承载类型。</td></tr>
-    <tr><td>线程、网络、进程启动、环境变量</td><td>这些能力会在独立阶段设计，避免平台层过早膨胀。</td></tr>
-    <tr><td>虚拟文件系统、文件监听、权限管理</td><td>当前只覆盖测试、启动和早期工具所需的本地文件能力。</td></tr>
-    <tr><td>插件生命周期管理</td><td><code>FPlatformProcess</code> 只处理显式路径动态模块加载。</td></tr>
-</table>
-</section>
+        <section id="s2">
+            <h2>二、目标与边界</h2>
+            <h3>1. 业务与功能目标</h3>
+            <ul><li>调用方能查询平台名、CPU/线程信息和高精度时间。</li><li>文件系统提供存在性、读写、目录创建和递归操作。</li><li>FPlatformProcess 支持显式路径动态模块加载/卸载/符号查询。</li><li>FPlatformWindow 只传递 native handle，不拥有窗口生命周期。</li></ul>
+            <h3>2. 架构目标与定位</h3>
+            <pre><code>Application / Tests
+    ↓ 使用 public contract
+Core feature: Core Platform Abstraction
+    ↓ 依赖稳定下层能力
+Core vocabulary / diagnostics / platform
+    ↓ 按阶段连接
+RHI contracts / Backend implementations / Renderer systems</code></pre>
+            <p>本阶段的 public contract 是调用方可以依赖的最小稳定面；private implementation、测试替身和 backend-specific helper 都不能反向污染上层 API。</p>
+            <h3>3. 边界与非目标（约束）</h3>
+            <ul><li>不实现完整窗口系统，因为 Application 层尚未建立。</li><li>不实现虚拟文件系统和 asset catalog，当前只需要本地文件。</li><li>不实现跨平台线程库，后续任务系统再接入。</li></ul>
+        </section>
 
-<section id="sec3">
-<h2><span class="num">三、</span>交互与产品设计</h2>
-<h3>1. 用户使用路径</h3>
-<pre>
-include Core/CoreMinimal.h
-  -> query SG_PLATFORM_* / FPlatformMisc
-  -> capture FPlatformTime timestamps
-  -> use FPlatformFileSystem for local files
-  -> optionally LoadDynamicModule(explicit path)
-  -> pass FPlatformWindow to future backend code
-</pre>
-<h3>2. 核心规则与状态机</h3>
-<table>
-    <tr><th>对象</th><th>状态/规则</th></tr>
-    <tr><td><code>SG_PLATFORM_*</code></td><td>Windows、macOS、Linux 三者必须且只能一个为 1，未知平台编译期失败。</td></tr>
-    <tr><td><code>FPlatformTime</code></td><td><code>Now()</code> 返回单调时间点；持续采样不可倒退；差值可转秒、毫秒、微秒。</td></tr>
-    <tr><td><code>FPlatformFileSystem</code></td><td>操作返回 <code>bool</code>；成功必须意味着最终状态可用，失败不能崩溃或伪装成部分成功。</td></tr>
-    <tr><td><code>FDynamicModuleHandle</code></td><td><code>Invalid -> Loaded -> Released</code>；无效句柄释放是安全 no-op。</td></tr>
-    <tr><td><code>FPlatformWindow</code></td><td><code>Empty -> WrappedNativeHandle -> Clear</code>；空句柄可复制、传递、判无效。</td></tr>
-</table>
-</section>
+        <section id="s3">
+            <h2>三、交互与产品设计</h2>
+            <h3>1. 用户使用路径</h3>
+            <p>调用平台公共头 -&gt; Core private 根据平台/标准库实现 -&gt; 返回显式状态或空 handle -&gt; 测试用临时目录、计时单调性、模块加载负路径和 native handle 包装验证行为。</p>
+            <div class="note">学习时建议把这一段当成“最小工作流”：先找到输入对象，再跟踪它如何变成状态、诊断、测试断言或 debug dump。</div>
+            <h3>2. 核心规则与状态机</h3>
+            <pre><code>未创建/空状态
+    -> 描述或 Begin/Declare/Create
+    -> 可验证中间状态
+    -> Success: 可查询、可绑定、可执行或可复用
+    -> Reset/Shutdown/Invalidated
+    -> 任何后续使用必须返回错误结果或诊断</code></pre>
+            <p>这个状态机是本项目底层模块的共同风格：显式创建、显式验证、显式失效。不同 feature 的状态名不同，但测试都围绕“合法转换”和“非法转换可观察”展开。</p>
+            <h3>3. 失败模式与调试入口</h3>
+            <ul><li>时间源若不是 monotonic，性能统计可能因系统时间调整倒退。</li><li>文件 API 若抛异常穿透，会破坏当前 result/status 风格。</li><li>window handle 若错误拥有生命周期，Vulkan surface 可能持有悬空 native 对象。</li></ul>
+            <p>调试入口优先看 <code>Tests/CorePlatformTests.cpp</code> 中的负路径用例，再看对应 diagnostics、result code 或 debug dump 输出；这些测试比源码更快暴露设计意图。</p>
+        </section>
 
-<section id="sec4">
-<h2><span class="num">四、</span>技术架构与关键决策</h2>
-<h3>1. 技术栈与基础设施</h3>
-<ul>
-    <li>C++20，传统 header/source 分离。</li>
-    <li>SCons 4.10.1 自动发现源文件并构建 <code>StonerTest</code>。</li>
-    <li>公共 API 位于 <code>Source/Core/Public/Core/</code>，平台实现位于 <code>Source/Core/Private/</code>。</li>
-</ul>
-<h3>2. 关键信息</h3>
-<div class="file-tree">
-<span class="dir">Source/Core/Public/Core/</span><br>
-├── <span class="new">SGPlatform.h</span>              platform detection macros<br>
-├── <span class="new">FPlatformMisc.h</span>           OS / CPU / memory queries<br>
-├── <span class="new">FPlatformTime.h</span>           monotonic timestamps<br>
-├── <span class="new">FPlatformFileSystem.h</span>     local file operations<br>
-├── <span class="new">FPlatformProcess.h</span>        dynamic modules<br>
-└── <span class="new">FPlatformWindow.h</span>         native handle wrapper<br>
-<span class="dir">Tests/</span><br>
-└── <span class="new">CorePlatformTests.cpp</span>      31 platform tests
-</div>
-<table>
-    <tr><th>模块</th><th>职责</th><th>调用关系</th></tr>
-    <tr><td><code>FPlatformMisc</code></td><td>返回 OS 名称、CPU 核数、可用内存。</td><td>上层只读查询；平台分支在 <code>.cpp</code>。</td></tr>
-    <tr><td><code>FPlatformFileSystem</code></td><td>存在性、递归建目录、读写字节数组。</td><td>使用 Core 类型承接路径和 payload。</td></tr>
-    <tr><td><code>FPlatformProcess</code></td><td>显式路径动态库加载、符号查找、释放。</td><td>返回 opaque handle，不泄漏平台库类型。</td></tr>
-    <tr><td><code>FPlatformWindow</code></td><td>保存 opaque native handle。</td><td>未来 Application 创建，Backend 解读。</td></tr>
-</table>
-<h3>3. 架构决策记录（ADR）</h3>
-<details class="adr" open><summary>ADR-006-01：拆分 FPlatform* 能力，而不是一个总平台类</summary><div class="body"><p>平台能力被拆成 Misc、Time、FileSystem、Process、Window。这样每个调用点只依赖自己需要的概念，也更容易在未来替换单个子能力。</p><p>放弃方案：单一 <code>FPlatform</code> god-class。它短期省文件，长期会把无关职责、平台分支和测试耦合在一起。</p></div></details>
-<details class="adr"><summary>ADR-006-02：动态模块只接受显式路径</summary><div class="body"><p>显式路径避免不同 OS 的搜索路径规则、环境变量和安全策略干扰测试结果。缺失路径、缺失符号都作为可恢复失败处理。</p></div></details>
-<details class="adr"><summary>ADR-006-03：窗口能力只做句柄包装</summary><div class="body"><p>真实窗口创建、事件循环和输入处理被推迟；当前只提供 <code>void*</code> 级 opaque 容器，确保 RHI/Backend 可以先设计 surface/swapchain 接口。</p></div></details>
-</section>
+        <section id="s4">
+            <h2>四、技术架构与关键决策</h2>
+            <h3>1. 技术栈与基础设施</h3>
+            <ul><li>C++20，传统 header/source 分离；公共 API 遵守项目 UE-style 命名。</li><li>SCons 4.10.1 构建；验证入口保持在单一 StonerTest 可执行文件。</li><li>Core/RHI/Renderer public contract 尽量不泄漏 backend 或平台实现细节。</li><li>headless、fallback 和 mock 测试优先保证无 GPU/无窗口环境仍能验证语义。</li></ul>
+            <h3>2. 关键信息</h3>
+            <h4>2.1 模块对应关系</h4>
+            <table><thead><tr><th>模块或类型</th><th>文件</th><th>拥有状态</th><th>对外能力</th></tr></thead><tbody><tr><td>SGPlatform</td><td><code>Source/Core/Public/Core/SGPlatform.h</code></td><td>编译期平台宏</td><td>隔离操作系统分支</td></tr><tr><td>FPlatformTime</td><td><code>Source/Core/Public/Core/FPlatformTime.h</code></td><td>monotonic timestamp 和 seconds</td><td>构建性能测试和 frame timing 的基础</td></tr><tr><td>FPlatformFileSystem</td><td><code>Source/Core/Public/Core/FPlatformFileSystem.h</code></td><td>文件/目录操作</td><td>shader bytecode、debug dump、测试 fixture 的最小 IO</td></tr><tr><td>FPlatformProcess/FPlatformWindow</td><td><code>Source/Core/Public/Core/FPlatformProcess.h, FPlatformWindow.h</code></td><td>module handle、symbol、native window handle</td><td>后端 runtime loader 和 presentation bridge</td></tr></tbody></table>
+            <h4>2.2 数据流、控制流或资源流</h4>
+            <p>调用平台公共头 -&gt; Core private 根据平台/标准库实现 -&gt; 返回显式状态或空 handle -&gt; 测试用临时目录、计时单调性、模块加载负路径和 native handle 包装验证行为。</p>
+            <h4>2.3 关键日志、诊断与可视化</h4>
+            <p>诊断记录应覆盖失败原因、对象状态、兼容性判断和 deterministic ordering；result code 负责控制流，diagnostic/debug dump 负责解释“为什么”。不记录大块二进制或平台私有句柄，避免输出不可复现。</p>
+            <h3>3. 架构决策记录 (ADR)</h3>
+            <h4>(1) 平台实现藏在 Core private</h4><p><strong>背景：</strong>高层只需要稳定 contract，不需要 OS 头。</p><p><strong>理由：</strong>降低跨平台 include 污染。</p><p><strong>被否决方案：</strong>在 RHI/Vulkan 直接 include windows.h/Cocoa：短期快，长期难维护。</p><p><strong>后果：</strong>部分功能需要 wrapper 传递 opaque native handle。</p><h4>(2) 动态模块加载只接受显式路径</h4><p><strong>背景：</strong>降低搜索路径劫持和环境差异。</p><p><strong>理由：</strong>测试和后端 SDK 检测更可控。</p><p><strong>被否决方案：</strong>自动搜索系统路径：方便但不确定。</p><p><strong>后果：</strong>调用方需要负责定位库文件。</p>
+        </section>
 
-<section id="sec5">
-<h2><span class="num">五、</span>实施与验证（任务流）</h2>
-<h3>5.1 任务拆解清单</h3>
-<ul class="check">
-    <li>建立 <code>CorePlatformTests</code> 测试入口并接入 <code>Tests/Main.cpp</code>。</li>
-    <li>创建平台宏、平台信息、时间、文件系统、动态模块和窗口句柄公共头。</li>
-    <li>实现 <code>SG_PLATFORM_WINDOWS/MAC/LINUX</code> 互斥检测与未知平台失败。</li>
-    <li>实现平台信息、单调时间、递归目录、文件读写和动态模块平台分支。</li>
-    <li>补齐边界测试：1,000 次时间采样、1 MB 二进制 roundtrip、路径空格/非 ASCII、缺失模块/符号、无效窗口句柄。</li>
-    <li>更新 roadmap 并确认所有任务勾选完成。</li>
-</ul>
-<h3>5.2 验收标准</h3>
-<table>
-    <tr><th>验收项</th><th>结果</th></tr>
-    <tr><td>平台身份、OS、CPU、内存、时间可 Core-only 查询</td><td><span class="badge status">通过</span></td></tr>
-    <tr><td>文件写读对文本和二进制 payload 保持 100% 字节一致</td><td><span class="badge status">通过</span></td></tr>
-    <tr><td>缺失文件、目录当文件、缺失模块、缺失符号不崩溃</td><td><span class="badge status">通过</span></td></tr>
-    <tr><td>Core 平台公共头不导入 RHI/Backend/Renderer/Application/图形 API</td><td><span class="badge status">通过</span></td></tr>
-    <tr><td><code>StonerTest</code> 全量测试</td><td><span class="badge status">通过</span> Core Platform: 31 passed, 0 failed</td></tr>
-</table>
-</section>
+        <section id="s5">
+            <h2>五、实施与验证（任务流）</h2>
+            <h3>1. 任务拆解清单</h3>
+            <ul><li>Setup/Foundation：建立公共头、private source、测试入口和 SCons 发现路径。</li><li>Contract/API：定义描述结构、接口、枚举、状态和 result/diagnostic 语义。</li><li>Core implementation：实现状态机、验证逻辑、数据结构和 deterministic formatting。</li><li>Integration：把本阶段能力接入已有 Core/RHI/Backend/Renderer 边界。</li><li>Diagnostics/debug tooling：补齐负路径记录、dump、fallback marker 或测试可观察输出。</li><li>Tests and validation：覆盖 happy path、failure path、lifecycle、compatibility 和 boundary isolation。</li><li>Documentation/roadmap update：更新 quickstart、roadmap 和本总结文档。</li></ul>
+            <h3>2. 验收标准</h3>
+            <ul><li>构建命令可完成：scons。</li><li>测试命令可完成并覆盖本 feature 对应测试文件：Tests/CorePlatformTests.cpp。</li><li>关键成功场景和关键失败场景都有测试，而不是只验证能编译。</li><li>公共头不 include 不该依赖的高层或 backend/API 头。</li><li>deterministic 输出在重复运行中保持稳定，便于 regression diff。</li></ul>
+            <h3>3. 测试矩阵与覆盖意图</h3>
+            <table><thead><tr><th>测试类别</th><th>覆盖风险</th><th>对应位置</th><th>证明了什么</th></tr></thead><tbody><tr><td>Happy path</td><td>主工作流不可用或 API 难以串联</td><td><code>Tests/CorePlatformTests.cpp</code></td><td>调用方能完成本阶段声明的核心任务</td></tr><tr><td>Lifecycle / invalidation</td><td>对象被 shutdown/reset 后仍被使用</td><td><code>Tests/CorePlatformTests.cpp</code></td><td>非法状态可观察且不会静默成功</td></tr><tr><td>Compatibility / validation</td><td>描述、layout、usage、handle 或状态不匹配</td><td><code>Tests/CorePlatformTests.cpp</code></td><td>错误在靠近来源的位置失败</td></tr><tr><td>Determinism</td><td>排序、诊断或 dump 输出漂移</td><td><code>Tests/CorePlatformTests.cpp</code></td><td>回归测试和文档示例可复现</td></tr><tr><td>Boundary isolation</td><td>public header 泄漏高层或 backend 依赖</td><td>quickstart / rg include checks</td><td>层级架构没有被实现细节击穿</td></tr></tbody></table>
+        </section>
 
-<section id="sec6">
-<h2><span class="num">六、</span>设计巧思与最佳实践</h2>
-<h3>6.1 当前业务场景与业务模型的最佳实践</h3>
-<p>这个阶段的核心不是“封装所有平台能力”，而是给后续渲染路径提供最小可信平台基座。文件、时间、动态模块、窗口句柄这些能力都以稳定小接口暴露，减少未来 Vulkan、Metal、DX12 和 Application 阶段直接碰平台宏的机会。</p>
-<h3>6.2 优化方案与收益</h3>
-<ul>
-    <li>时间基于单调 clock，适合 frame/startup 诊断，不受系统时间调整影响。</li>
-    <li>文件 API 使用字节数组，天然覆盖文本和二进制资源。</li>
-    <li>动态模块句柄是 opaque 值，平台库生命周期被限制在 Core 实现边界。</li>
-    <li>公共头尽量轻量，降低上层模块 include 链污染。</li>
-</ul>
-</section>
+        <section id="s6">
+            <h2>六、设计巧思与最佳实践</h2>
+            <h3>1. 当前业务场景与业务模型的最佳实践</h3>
+            <h4>(1) Opaque handle</h4><p><strong>是什么：</strong>传递原生对象身份，但不泄漏具体类型。</p><p><strong>项目表达：</strong>FPlatformWindow 持有 native handle 描述而非创建窗口。</p><p><strong>真实引擎/API 对应：</strong>Vulkan surface、Metal layer、DX HWND 都常用这个模式。</p><h4>(2) Monotonic time</h4><p><strong>是什么：</strong>性能测量必须只前进。</p><p><strong>项目表达：</strong>FPlatformTime 给 quickstart elapsed 和后续 frame timing 使用。</p><p><strong>真实引擎/API 对应：</strong>GPU timestamp 与 CPU monotonic time 是两个世界，但都要求稳定语义。</p><h4>(3) Local filesystem contract</h4><p><strong>是什么：</strong>基础 IO 要表达错误而不是崩溃。</p><p><strong>项目表达：</strong>FPlatformFileSystem 只做本地文件能力。</p><p><strong>真实引擎/API 对应：</strong>shader cache、pipeline cache、asset database 是更高层需求。</p>
+            <h3>2. 优化方案与收益</h3>
+            <p>本阶段的优化重点不是追求最终性能，而是建立可替换的语义基线：先让行为被测试锁住，再在未来引入 SIMD、真实 Vulkan runtime、更复杂 allocator、pipeline disk cache、render graph aliasing 或 async compute。</p>
+            <p>这种做法的收益是 migration cost 可控：只要 public contract 和测试矩阵稳定，private implementation 可以逐步从 mock/fallback 演进到真实 GPU 路径。</p>
+        </section>
 
-<section id="sec7">
-<h2><span class="num">七、</span>编程语言知识点</h2>
-<h3>1. 标准库接口与用法</h3>
-<table>
-    <tr><th>接口</th><th>用途</th></tr>
-    <tr><td><code>std::chrono::steady_clock</code></td><td>提供不可倒退的进程内时间基准。</td></tr>
-    <tr><td><code>std::filesystem</code></td><td>处理存在性检查和递归目录创建。</td></tr>
-    <tr><td><code>std::ifstream/std::ofstream</code></td><td>二进制模式读写文件，保持 payload 字节一致。</td></tr>
-    <tr><td><code>std::thread::hardware_concurrency</code></td><td>查询 CPU 线程数，并在不可用时回退到至少 1。</td></tr>
-</table>
-<h3>2. 语言特性与惯用法</h3>
-<ul>
-    <li><code>[[nodiscard]]</code> 用于提醒调用者不要忽略结果。</li>
-    <li><code>noexcept</code> 标注基础查询和句柄操作，表达不抛异常契约。</li>
-    <li>条件编译宏集中于 <code>SGPlatform.h</code> 和私有实现，减少散落分支。</li>
-</ul>
-<h3>3. 平台相关与编译器行为</h3>
-<p>Windows 使用 <code>_WIN32</code>，macOS 使用 <code>__APPLE__ && __MACH__</code>，Linux 使用 <code>__linux__</code>。如果三者都不匹配，构建直接失败，避免悄悄产出未知平台行为。</p>
-</section>
+        <section id="s7">
+            <h2>七、编程语言知识点</h2>
+            <h3>1. 标准库接口与用法</h3>
+            <p>本项目优先使用标准库可移植能力，例如容器、智能指针、字符串、chrono、filesystem、mutex 和 algorithm。关键不是“用了哪个库”，而是把标准库行为包装进项目自己的 contract，减少跨模块直接耦合。</p>
+            <h3>2. 语言特性与惯用法</h3>
+            <ul><li>RAII/ownership：资源对象在 shutdown/invalidate 时显式失效，避免悬空后继续成功。</li><li>enum class：用强类型枚举表达 result、queue、usage、stage、state，避免整数误传。</li><li>值语义和移动语义：desc、handle、record 适合轻量复制；拥有对象则通过指针或明确 lifecycle 管理。</li><li>宏只用于日志/断言等需要调用点上下文的场景，其余优先函数和类型系统。</li></ul>
+            <h3>3. 平台相关与编译器行为</h3>
+            <p>平台相关代码应留在 Core platform 或 Backend private 边界内。公共头尽量避免平台宏分叉和图形 API 头泄漏，这样 Windows/macOS/Linux 与未来 Vulkan/DX/Metal/OpenGL backend 才能共享上层代码。</p>
+        </section>
 
-<section id="sec8">
-<h2><span class="num">八、</span>软件工程知识点</h2>
-<h3>1. 设计模式与架构模式</h3>
-<p>本阶段主要采用 Facade 和 Port/Adapter 思路：公共 <code>FPlatform*</code> 类型是引擎侧 port，私有 <code>.cpp</code> 中的平台分支是 adapter。它不是复杂模式展示，而是为了保护层级边界。</p>
-<h3>2. 工程原则与方法论</h3>
-<ul>
-    <li>YAGNI：只做未来 roadmap 已明确需要的平台基座。</li>
-    <li>契约式设计：显式路径、互斥平台宏、无效句柄 no-op 都写入测试。</li>
-    <li>依赖倒置：上层模块依赖 Core 抽象，不依赖 OS/windowing/graphics 头。</li>
-</ul>
-<h3>3. 测试策略与质量保障</h3>
-<p>测试覆盖正常路径、负路径和边界路径：单调时间 1,000 样本、文件字节 roundtrip、路径特殊字符、目录当文件、动态模块缺失与符号缺失、窗口句柄 empty/wrapped/clear。这样后续平台扩展有明确回归基线。</p>
-</section>
-</main>
+        <section id="s8">
+            <h2>八、软件工程知识点</h2>
+            <h3>1. 设计模式与架构模式</h3>
+            <ul><li>Layered Architecture：Core -> RHI -> Backend/Renderer 的依赖方向必须单向。</li><li>Facade/Aggregate Header：CoreMinimal、RHIMinimal 或 RendererMinimal 提供便利入口，但不能隐藏边界污染。</li><li>Builder/Compiler/Executor：复杂声明式系统先收集意图，再编译计划，最后执行。</li><li>Adapter：Backend/Vulkan 把具体 API 对象适配成 RHI contract。</li></ul>
+            <h3>2. 工程原则与方法论</h3>
+            <ul><li>Contract-first：先定义 public behavior，再实现 backend 或优化。</li><li>Fail fast but diagnosable：错误尽早返回，同时留下能解释原因的记录。</li><li>Determinism：排序、dump、fallback 和测试输出都尽量稳定。</li><li>YAGNI with escape hatch：推迟工业级复杂能力，但保留未来接入点。</li></ul>
+            <h3>3. 测试策略与质量保障</h3>
+            <p>测试不是只证明“代码能跑”，而是把工程假设固化下来：合法路径、非法路径、边界隔离、重复运行稳定性和 fallback/headless 环境都应该被覆盖。对图形工程而言，mock 与 fallback 不是偷懒，而是让 CI 可以在没有真实 GPU 的情况下守住 contract。</p>
+        </section>
+
+        <section id="s9">
+            <h2>九、渲染、引擎与图形 API 学习笔记</h2>
+            <h3>1. 核心概念拆解</h3>
+            <h4>(1) Opaque handle</h4><p><strong>是什么：</strong>传递原生对象身份，但不泄漏具体类型。</p><p><strong>项目表达：</strong>FPlatformWindow 持有 native handle 描述而非创建窗口。</p><p><strong>真实引擎/API 对应：</strong>Vulkan surface、Metal layer、DX HWND 都常用这个模式。</p><h4>(2) Monotonic time</h4><p><strong>是什么：</strong>性能测量必须只前进。</p><p><strong>项目表达：</strong>FPlatformTime 给 quickstart elapsed 和后续 frame timing 使用。</p><p><strong>真实引擎/API 对应：</strong>GPU timestamp 与 CPU monotonic time 是两个世界，但都要求稳定语义。</p><h4>(3) Local filesystem contract</h4><p><strong>是什么：</strong>基础 IO 要表达错误而不是崩溃。</p><p><strong>项目表达：</strong>FPlatformFileSystem 只做本地文件能力。</p><p><strong>真实引擎/API 对应：</strong>shader cache、pipeline cache、asset database 是更高层需求。</p>
+            <h3>2. 跨 API 映射</h3>
+            <table><thead><tr><th>API</th><th>本阶段概念如何映射</th></tr></thead><tbody><tr><td>Vulkan</td><td>vkCreate*SurfaceKHR 需要平台 window handle；loader 可通过动态模块加载。</td></tr><tr><td>DX12</td><td>swapchain 创建依赖 HWND/CoreWindow 等平台窗口对象。</td></tr><tr><td>Metal</td><td>CAMetalLayer/NSView 桥接应被平台层或 Application 层封装。</td></tr><tr><td>OpenGL</td><td>context 创建高度平台相关，不能污染 Renderer contract。</td></tr></tbody></table>
+            <h3>3. 源码阅读路线</h3>
+            <ol><li>先读 <code>specs/006-core-platform-abstraction/plan.md</code> 的 Summary 和 Constraints，确定阶段边界。</li><li>再读公共头：<code>Source/Core/Public/Core/SGPlatform.h, FPlatformMisc.h, FPlatformTime.h, FPlatformFileSystem.h, FPlatformProcess.h, FPlatformWindow.h</code>，理解 public contract。</li><li>然后读测试：<code>Tests/CorePlatformTests.cpp</code>，把 happy path 和负路径对应起来。</li><li>最后读 private implementation 或 backend implementation，观察 contract 如何被状态机、诊断和 fallback 兑现。</li></ol>
+            <h3>4. 自测问题</h3>
+            <ol><li>为什么 native window handle 不应该拥有窗口生命周期？</li><li>monotonic time 与 wall-clock time 的使用场景有什么不同？</li><li>显式路径动态加载为什么比自动搜索更可控？</li><li>平台头泄漏到 RHI public header 会造成什么问题？</li></ol>
+        </section>
+    </main>
 </div>
 </body>
 </html>
