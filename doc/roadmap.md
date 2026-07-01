@@ -1,6 +1,6 @@
 # Stoner Graphics Lab — Engine Development Roadmap
 
-> **Version**: 1.2.0 | **Created**: 2026-04-21 | **Last Updated**: 2026-06-30 | **Status**: Active
+> **Version**: 1.2.1 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-01 | **Status**: Active
 > **Constitution**: v1.2.0 (comply with Section VII: Cross-Platform Compatibility)
 > **Prerequisite**: [001-scons-project-skeleton](../specs/001-scons-project-skeleton/spec.md) ✅ Complete
 
@@ -61,7 +61,7 @@ Stoner Graphics Lab is a cross-platform graphics engine built in modern C++20 wi
 - **Render Graph terminology**: Use "Render Graph" and `FRenderGraph` as the canonical dependency-management system for render passes and resources.
 - **GLFW first, native later**: Use GLFW for the initial window/input phase to reach the first-triangle milestone quickly, then add native Win32/Cocoa/X11-Wayland window implementations behind the same abstraction in a later phase.
 
-### Current State (Post Phase 011)
+### Current State (Post Phase 012)
 
 | Layer | Status | Content |
 |-------|--------|---------|
@@ -69,7 +69,7 @@ Stoner Graphics Lab is a cross-platform graphics engine built in modern C++20 wi
 | RHI | 🔷 Interface Complete | Core interfaces (006) and Resource & Pipeline interfaces (007) defined as pure virtual; implementations live in backends |
 | Backend/Vulkan | ✅ Done | Device, swapchain, resources, commands, shader modules, graphics/compute pipelines, command binding, and process-local pipeline reuse implemented |
 | Backend/Others | ⚪ Placeholder | `.gitkeep` files only |
-| Renderer | 🟡 Skeleton | Empty namespace, sub-dirs for GI/Meshlets/RayTracing |
+| Renderer | ✅ Render Graph Foundation Done | Backend-agnostic render graph declaration, deterministic compilation, culling, lifetimes, aliasing diagnostics, transition planning, execution, and text dumps |
 | Application | 🟡 Skeleton | Empty namespace, includes Renderer |
 | Tests | ✅ Done | Core tests, RHI contract tests, Vulkan integration tests all pass |
 | Build System | ✅ Complete | SCons with LayerBuilder, PlatformDetect, BuildConfig, Vulkan SDK detection |
@@ -124,7 +124,7 @@ These principles (from the [Constitution v1.2.0](../.specify/memory/constitution
 | 009 | Vulkan: Resource Management | Backend | 007, 008 | L | ✅ Yes | ✅ Done |
 | 010 | Vulkan: Commands & Submission | Backend | 009 | M | ✅ Yes | ✅ Done |
 | 011 | Vulkan: Pipeline & Shader | Backend | 009, 010 | L | ✅ Yes | ✅ Done |
-| 012 | Render Graph Foundation | Renderer | 007 | XL | ✅ Yes | ⬜ Todo |
+| 012 | Render Graph Foundation | Renderer | 007 | XL | ✅ Yes | ✅ Done |
 | 013 | Material & Shader System | Renderer | 007, 012 | L | ✅ Yes | ⬜ Todo |
 | 014 | Forward Rendering Pipeline | Renderer | 012, 013 | L | ✅ Yes | ⬜ Todo |
 | 015 | Window & Input System | Application | 005 | M | ✅ Yes | ⬜ Todo |
@@ -615,6 +615,13 @@ Implement a render graph system that manages render pass ordering, resource life
 - Graph compilation and execution against RHI interfaces
 - Visualization/debug dump of the graph (text-based)
 - Unit tests with mock RHI
+
+#### Implementation Notes
+
+- Spec-kit artifact: [`specs/013-render-graph-foundation`](../specs/013-render-graph-foundation/spec.md)
+- Summary document: [`doc/013-render-graph-foundation.html`](./013-render-graph-foundation.html)
+- Verification: `conda run -n godot scons`, `Build/Mac/Debug/Tests/StonerTest`, and the Renderer backend-boundary grep passed on 2026-07-01.
+- Scope note: Speckit directory number is `013` because repository feature directories already occupied numbers through `012`; this implements roadmap Phase 012.
 
 #### What's Excluded
 
@@ -1217,5 +1224,6 @@ If a phase turns out to be too large during `/speckit.specify`:
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-07-01 | 1.2.1 | Marked Phase 012 Render Graph Foundation as implemented. Added implementation notes, verification commands, and summary document reference for `specs/013-render-graph-foundation`. Updated current Renderer state to reflect delivered render graph foundation. |
 | 2026-06-30 | 1.2.0 | Aligned version with Constitution v1.2.0. Fixed phase status (002-005 ✅ Done, 006-007 🔷 Interface Complete). Added Cross-Platform Compliance Audit section. Added 🔷 status to legend. Updated Current State table to reflect post-Phase 010 reality. Clarified Phase 010 "What's Excluded" to note descriptor infrastructure already in Phase 009. |
 | 2026-04-21 | 1.0.0 | Initial roadmap created |

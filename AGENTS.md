@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/012-vulkan-pipeline-shader/plan.md`
+`specs/013-render-graph-foundation/plan.md`
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -15,6 +15,8 @@ shell commands, and other important information, read the current plan:
 - Process-local backend state only; command records, submission records, diagnostics, render pass/framebuffer objects, and upload scheduling records live in memory (011-vulkan-commands-submission)
 - C++20 with traditional header/source separation; no C++20 Modules + Existing Core/RHI shader, descriptor, pipeline, command, render pass/framebuffer contracts; existing Vulkan backend device, resource, command, diagnostics, runtime fallback patterns, and SCons 4.10.1; Vulkan SDK or platform Vulkan loader/headers where available (012-vulkan-pipeline-shader)
 - Process-local backend state only; shader modules, pipeline compatibility summaries, pipeline objects, command binding state, diagnostics, and pipeline reuse records live in memory; no persistent pipeline disk cache, database, or asset catalog (012-vulkan-pipeline-shader)
+- C++20 with traditional header/source separation; no C++20 Modules + Existing Core types/containers/logging; existing RHI public contracts for resources, command buffers, barriers, queues, and result/lifecycle states; SCons 4.10.1 (013-render-graph-foundation)
+- Process-local in-memory graph declarations, compiled schedules, diagnostics, transient resource records, imported resource bindings, and debug dump strings only (013-render-graph-foundation)
 
 ## Recent Changes
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system
@@ -24,6 +26,7 @@ shell commands, and other important information, read the current plan:
 - 010-vulkan-resource-management: Implemented Vulkan backend buffers, textures, samplers, pipeline layouts, allocation ownership, deterministic fallback allocation, fixed-capacity descriptor pools, descriptor sets, upload staging records, diagnostics, lifecycle invalidation, and deterministic resource tests
 - 011-vulkan-commands-submission: Implemented Vulkan command pools, command buffers, queue submission, deterministic fallback completion, minimal render pass/framebuffer scope, declarative barriers, upload scheduling, diagnostics, and regression tests
 - 012-vulkan-pipeline-shader: Implemented Vulkan shader modules, explicit shader interface metadata, triangle-ready graphics pipelines, compute pipelines, process-local pipeline reuse, command binding validation, runtime/fallback diagnostics, lifecycle invalidation, documentation, and regression tests
+- 013-render-graph-foundation: Implemented Renderer render graph declaration, deterministic compilation, virtual resource lifetime tracking, transition planning/execution, pass culling, transient resource resolution, aliasing eligibility diagnostics, text debug dumps, and mock RHI tests
 
 ## Git Commit Style
 - Commit messages must start with a conventional type prefix such as `feat`, `docs`, `fix`, `chore`, `refactor`, `test`, or `build`.

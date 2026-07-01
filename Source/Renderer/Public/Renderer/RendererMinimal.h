@@ -1,6 +1,13 @@
 #pragma once
 
 #include "Core/CoreMinimal.h"
+#include "Renderer/FRenderGraph.h"
+#include "Renderer/FRenderGraphBuilder.h"
+#include "Renderer/FRenderGraphCompiler.h"
+#include "Renderer/FRenderGraphDiagnostics.h"
+#include "Renderer/FRenderGraphExecutor.h"
+#include "Renderer/FRenderGraphPass.h"
+#include "Renderer/FRenderGraphResource.h"
 
 // Renderer layer minimal header — high-level rendering
 // Note: RHI dependency is used internally (Private/) but not exposed in public API.

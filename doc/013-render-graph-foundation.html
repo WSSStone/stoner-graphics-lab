@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>013 — Render Graph Foundation · Stoner Graphics Lab</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #f7f9fc;
+            --card: #ffffff;
+            --code: #eef3f8;
+            --border: #d8e0ea;
+            --text: #1f2937;
+            --dim: #64748b;
+            --accent: #2563eb;
+            --ok: #059669;
+            --warn: #b45309;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-mono: "SF Mono", Consolas, monospace;
+        }
+        body { font-family: var(--font-sans); background: var(--bg); color: var(--text); line-height: 1.7; font-size: 15px; }
+        .page { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+        .sidebar { position: sticky; top: 0; height: 100vh; overflow: auto; background: var(--card); border-right: 1px solid var(--border); padding: 24px 16px; }
+        .logo { font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+        .subtitle { color: var(--dim); font-size: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+        .toc { list-style: none; }
+        .toc a { display: block; color: var(--dim); text-decoration: none; padding: 5px 8px; border-radius: 6px; font-size: 13px; }
+        .toc a:hover { color: var(--accent); background: rgba(37,99,235,.08); }
+        .content { max-width: 980px; padding: 48px 44px 96px; margin: 0 auto; }
+        section { margin-bottom: 52px; }
+        h1 { font-size: 32px; margin-bottom: 8px; color: var(--accent); }
+        .meta { color: var(--dim); font-size: 13px; margin-bottom: 28px; }
+        h2 { font-size: 22px; margin: 28px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 17px; margin: 20px 0 8px; }
+        p, ul, ol { margin-bottom: 14px; }
+        ul, ol { padding-left: 22px; }
+        li { margin-bottom: 5px; }
+        code { font-family: var(--font-mono); background: var(--code); border-radius: 4px; padding: 2px 5px; font-size: 13px; }
+        pre { background: #111827; color: #e5e7eb; border-radius: 8px; padding: 16px; overflow: auto; margin: 14px 0; font-size: 13px; }
+        pre code { background: transparent; color: inherit; padding: 0; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 18px 22px; margin: 14px 0; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+        .ok { background: rgba(5,150,105,.14); color: var(--ok); }
+        .warn { background: rgba(180,83,9,.14); color: var(--warn); }
+        table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+        th, td { text-align: left; border-bottom: 1px solid var(--border); padding: 9px 12px; vertical-align: top; }
+        th { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; background: var(--card); }
+        @media (max-width: 820px) { .page { display: block; } .sidebar { position: static; height: auto; } .content { padding: 32px 22px 72px; } }
+    </style>
+</head>
+<body>
+<div class="page">
+    <aside class="sidebar">
+        <div class="logo">Stoner Graphics Lab</div>
+        <div class="subtitle">013 · Render Graph Foundation</div>
+        <ul class="toc">
+            <li><a href="#s1">一、文档与上下文信息</a></li>
+            <li><a href="#s2">二、目标与边界</a></li>
+            <li><a href="#s3">三、交互与产品设计</a></li>
+            <li><a href="#s4">四、技术架构与关键决策</a></li>
+            <li><a href="#s5">五、实施与验证</a></li>
+            <li><a href="#s6">六、设计巧思与最佳实践</a></li>
+            <li><a href="#s7">七、编程语言知识点</a></li>
+            <li><a href="#s8">八、软件工程知识点</a></li>
+        </ul>
+    </aside>
+    <main class="content">
+        <h1>013 — Render Graph Foundation</h1>
+        <div class="meta">状态：<span class="badge ok">已交付</span> · 日期：2026-07-01 · 对应 Roadmap Phase 012</div>
+
+        <section id="s1">
+            <h2>一、文档与上下文信息</h2>
+            <h3>1. 基础元数据</h3>
+            <table>
+                <tr><th>项目</th><th>内容</th></tr>
+                <tr><td>Spec</td><td><code>specs/013-render-graph-foundation/spec.md</code></td></tr>
+                <tr><td>实现分支</td><td><code>013-render-graph-foundation</code></td></tr>
+                <tr><td>主要代码</td><td><code>Source/Renderer/Public/Renderer/FRenderGraph*.h</code> 与 <code>Source/Renderer/Private/FRenderGraph*.cpp</code></td></tr>
+                <tr><td>测试</td><td><code>Tests/RendererRenderGraphTests.cpp</code></td></tr>
+            </table>
+            <h3>2. 本期核心摘要</h3>
+            <p>本阶段交付 Renderer 层 Render Graph Foundation：开发者可以声明 passes 与虚拟资源，编译出稳定 schedule、资源生命周期、aliasing 诊断与 transition plan，并通过 mock command context 执行。</p>
+            <h3>3. 上下文与依赖</h3>
+            <p>本功能依赖 Core 基础类型、RHI 公共概念和已完成的 Vulkan backend 回归测试，但 Renderer public API 不暴露后端头文件，也不要求 Application 层获取 RHI include path。</p>
+        </section>
+
+        <section id="s2">
+            <h2>二、目标与边界</h2>
+            <h3>1. 业务与功能目标</h3>
+            <ul>
+                <li>用 <code>FRenderGraphBuilder</code> 声明 graphics、compute、copy 和 side-effect passes。</li>
+                <li>用稳定 handle 管理 transient、imported、exported 资源。</li>
+                <li>编译得到 deterministic schedule、dependency edges、culling、lifetime、aliasing decisions 和 transition plan。</li>
+                <li>执行时解析 transient resources，校验 imported resources，并 fail-fast 处理 pass failure。</li>
+            </ul>
+            <h3>2. 架构目标与定位</h3>
+            <pre><code>Application
+    ↓ includes
+Renderer public Render Graph API
+    ↓ internal concepts
+Renderer compiler / executor / diagnostics
+    ↓ future backend-facing adapters
+RHI contracts and backend implementations</code></pre>
+            <h3>3. 边界与非目标</h3>
+            <p>本阶段不实现材料系统、shader permutation、具体 forward/deferred pass、scene graph、visible presentation、async compute overlap、多线程 compilation，也不真正复用 alias backing storage。</p>
+        </section>
+
+        <section id="s3">
+            <h2>三、交互与产品设计</h2>
+            <h3>1. 用户使用路径</h3>
+            <ol>
+                <li>创建 <code>FRenderGraph</code> 并通过 <code>CreateBuilder()</code> 获得 builder。</li>
+                <li>声明资源、passes、资源访问和 graph outputs。</li>
+                <li>调用 <code>Compile()</code> 获取可检查 metadata。</li>
+                <li>调用 <code>Dump()</code> 查看文本化图结构。</li>
+                <li>调用 <code>Execute()</code> 注入 imported resource bindings 与 command context。</li>
+            </ol>
+            <h3>2. 核心规则与状态机</h3>
+            <pre><code>Draft -> Compile Success -> Compiled -> Execute Success -> Executed
+Draft -> Compile Failure -> Failed
+Compiled -> Execute Failure -> Failed
+Compiled/Failed/Executed -> Invalidate -> Invalidated
+Any terminal state -> Reset -> Draft</code></pre>
+        </section>
+
+        <section id="s4">
+            <h2>四、技术架构与关键决策</h2>
+            <h3>1. 技术栈与基础设施</h3>
+            <p>C++20、传统 header/source 分离、SCons 4.10.1、现有 Core 容器与类型别名。测试仍挂入单一 <code>StonerTest</code> 可执行文件。</p>
+            <h3>2. 关键信息</h3>
+            <table>
+                <tr><th>模块</th><th>职责</th></tr>
+                <tr><td><code>FRenderGraph</code></td><td>拥有 declaration、compiled graph、diagnostics、状态切换与 reset/invalidate。</td></tr>
+                <tr><td><code>FRenderGraphBuilder</code></td><td>提供声明入口，保持 handle 属主校验。</td></tr>
+                <tr><td><code>FRenderGraphCompiler</code></td><td>构建 dependency edges、稳定拓扑排序、culling、lifetimes、alias decisions、transition plan。</td></tr>
+                <tr><td><code>FRenderGraphExecutor</code></td><td>解析 transient/imported resources，emit transitions，按 schedule 调用 callbacks。</td></tr>
+                <tr><td><code>FRenderGraphDiagnosticLog</code></td><td>存储并格式化 deterministic diagnostics。</td></tr>
+            </table>
+            <h3>3. 架构决策记录 (ADR)</h3>
+            <div class="card">
+                <strong>ADR-1：Renderer public API 不直接 include RHI 头。</strong>
+                <p>初版资源描述尝试复用 RHI desc，但 Application 层只允许 include Renderer/Core，构建立即暴露边界问题。最终改为 Renderer 自有抽象字段，让 RHI-facing 行为留在未来适配层或 Renderer private 实现中。</p>
+            </div>
+            <div class="card">
+                <strong>ADR-2：aliasing 只报告 eligibility。</strong>
+                <p>编译器报告 compatible non-overlapping transient resources，但 executor 仍分配独立 backing id，降低 foundation 阶段风险。</p>
+            </div>
+            <div class="card">
+                <strong>ADR-3：transition plan 必须可检查且执行复用同一计划。</strong>
+                <p>执行器逐条 emit compiled transition records，测试直接比较 emitted transitions 与 compiled plan 数量，保证 inspect 与 runtime 行为一致。</p>
+            </div>
+        </section>
+
+        <section id="s5">
+            <h2>五、实施与验证（任务流）</h2>
+            <h3>5.1 任务拆解清单</h3>
+            <ul>
+                <li>建立 Render Graph public/private 文件结构。</li>
+                <li>实现 handles、descriptors、diagnostics、pass/resource records。</li>
+                <li>实现 deterministic compile pipeline。</li>
+                <li>实现 execution context、resource resolution、fail-fast callbacks。</li>
+                <li>接入 <code>RendererMinimal.h</code> 与 <code>Tests/Main.cpp</code>。</li>
+                <li>更新 spec、quickstart、roadmap 与本文档。</li>
+            </ul>
+            <h3>5.2 验收标准</h3>
+            <table>
+                <tr><th>验证项</th><th>结果</th></tr>
+                <tr><td><code>conda run -n godot scons</code></td><td><span class="badge ok">PASS</span></td></tr>
+                <tr><td><code>Build/Mac/Debug/Tests/StonerTest</code></td><td><span class="badge ok">PASS</span></td></tr>
+                <tr><td>Renderer backend-boundary grep</td><td><span class="badge ok">PASS</span> 无匹配</td></tr>
+                <tr><td>SC-001 代表性图 60 秒内 declare/compile/inspect/execute</td><td><span class="badge ok">PASS</span></td></tr>
+            </table>
+        </section>
+
+        <section id="s6">
+            <h2>六、设计巧思与最佳实践</h2>
+            <h3>6.1 当前业务场景与业务模型的最佳实践</h3>
+            <p>Render Graph 把“工作声明”和“执行策略”分开：pass 只声明资源访问与 callback，compiler 负责 schedule 与 metadata，executor 负责 runtime 校验。这让后续 forward/deferred/material 系统可以复用同一调度基础。</p>
+            <h3>6.2 优化方案与收益</h3>
+            <ul>
+                <li>稳定拓扑排序让 debug dump 和测试具备 byte-stable 行为。</li>
+                <li>输出驱动 culling 避免无用 pass 进入 executable schedule。</li>
+                <li>lifetime 和 aliasing metadata 先行，为未来真实 transient allocator 打底。</li>
+            </ul>
+        </section>
+
+        <section id="s7">
+            <h2>七、编程语言知识点</h2>
+            <h3>1. 标准库接口与用法</h3>
+            <ul>
+                <li><code>std::vector</code> 通过 <code>Core::TArray</code> 用于稳定顺序集合。</li>
+                <li><code>std::function</code> 承载 pass callback。</li>
+                <li><code>std::ostringstream</code> 生成 deterministic text dump。</li>
+                <li><code>std::atomic</code> 生成 graph instance id，区分跨图 handles。</li>
+                <li><code>&lt;chrono&gt;</code> 用于 SC-001 代表性流程耗时测试。</li>
+            </ul>
+            <h3>2. 语言特性与惯用法</h3>
+            <ul>
+                <li>强类型 enum 表达 result、state、access、transition reason。</li>
+                <li>friend class 限制 builder/compiler/executor 对 graph 内部状态的访问。</li>
+                <li><code>[[nodiscard]]</code> 用于提醒调用方处理关键 result 和 handles。</li>
+            </ul>
+            <h3>3. 平台相关与编译器行为</h3>
+            <p>实现本身无平台分支。macOS 构建过程中出现的 <code>confstr()</code> 临时目录 warning 来自 toolchain 环境，不影响项目编译或测试结果。</p>
+        </section>
+
+        <section id="s8">
+            <h2>八、软件工程知识点</h2>
+            <h3>1. 设计模式与架构模式</h3>
+            <ul>
+                <li>Builder：<code>FRenderGraphBuilder</code> 负责声明期 API。</li>
+                <li>Compiler pipeline：validation、schedule、lifetime、transition planning 分步产出 metadata。</li>
+                <li>Facade：<code>FRenderGraph</code> 对外提供 compile/execute/reset/dump 的简洁入口。</li>
+            </ul>
+            <h3>2. 工程原则与方法论</h3>
+            <ul>
+                <li>边界优先：Renderer public API 不泄漏后端 API 或 RHI include path 假设。</li>
+                <li>YAGNI：aliasing 先诊断不复用，避免 foundation 阶段过度优化。</li>
+                <li>契约式设计：execution 前置条件、imported resource、invalidated graph 都显式失败。</li>
+            </ul>
+            <h3>3. 测试策略与质量保障</h3>
+            <p>测试覆盖成功路径、负面路径、重复确定性、执行失败、reset/invalidation、debug dump 和后端边界。所有测试并入既有 <code>StonerTest</code>，确保新增 Renderer 能与 Core/RHI/Vulkan 回归一起验证。</p>
+        </section>
+    </main>
+</div>
+</body>
+</html>
