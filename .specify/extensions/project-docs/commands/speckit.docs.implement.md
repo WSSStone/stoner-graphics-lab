@@ -8,7 +8,9 @@ This command is intended to run as a mandatory `after_implement` hook after `/sp
 
 ## Behavior
 
-Create or update a delivered feature document in `doc/` using `doc/SYSTEM_DESIGN.MD` as the structural reference.
+Create or update a delivered feature document in `doc/` using `doc/SYSTEM_DESIGN.MD` as the structural and learning-oriented reference.
+
+The output is not just a delivery memo. It must be an engineering learning summary that helps the reader understand the implemented feature, the design tradeoffs, the relevant C++ techniques, and the rendering/engine/graphics-API concepts behind the code.
 
 ## Execution
 
@@ -34,7 +36,7 @@ Create or update a delivered feature document in `doc/` using `doc/SYSTEM_DESIGN
    - Target path: `doc/[###-feature-slug].html`.
    - Example: `specs/008-rhi-resource-pipeline/` maps to `doc/008-rhi-resource-pipeline.html`.
    - Keep Chinese narrative content.
-   - Follow the structure from `doc/SYSTEM_DESIGN.MD`.
+   - Follow the full structure from `doc/SYSTEM_DESIGN.MD`, including the learning-oriented sections.
    - Use a light theme for the generated HTML.
    - Match the existing `doc/*.html` document structure and layout conventions, but do not copy a dark color palette.
    - Prefer readable light-theme colors: near-white page background, dark body text, subtle gray borders, restrained accent colors, and accessible contrast for code blocks, tables, badges, and navigation.
@@ -43,5 +45,15 @@ Create or update a delivered feature document in `doc/` using `doc/SYSTEM_DESIGN
    - Basic metadata, update date, status, feature branch, and spec directory.
    - One to two paragraph summary of the delivered feature.
    - Goals, boundaries, architecture position, usage path, key lifecycle/state rules, module relationships, ADRs, task flow, acceptance evidence, best practices, C++ language points, and software engineering points.
+   - Failure modes and debugging entry points.
+   - A test matrix that explains what risk each test category covers.
+   - Known limitations and future evolution.
+   - A rendering/engine/graphics API learning notes section with core concept explanations, cross-API mapping when relevant, a source-reading route, and self-test questions.
+   - For graphics-facing features, explicitly connect project concepts to Vulkan/DX12/Metal/OpenGL or explain why no direct mapping exists.
 
-7. Report the generated or updated document path so a later hook, such as `speckit.git.commit`, can include it.
+7. Avoid shallow template filling:
+   - Do not merely list module names or task names.
+   - Explain why important decisions were made, what alternatives were rejected, what bugs the design prevents, and how the implementation relates to real engine or graphics API practice.
+   - Cite actual source files, tests, diagnostics, or debug dumps where they help the reader learn.
+
+8. Report the generated or updated document path so a later hook, such as `speckit.git.commit`, can include it.
