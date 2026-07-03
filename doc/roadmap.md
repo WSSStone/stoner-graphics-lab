@@ -1,6 +1,6 @@
 # Stoner Graphics Lab — Engine Development Roadmap
 
-> **Version**: 1.2.1 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-01 | **Status**: Active
+> **Version**: 1.2.2 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-03 | **Status**: Active
 > **Constitution**: v1.2.0 (comply with Section VII: Cross-Platform Compatibility)
 > **Prerequisite**: [001-scons-project-skeleton](../specs/001-scons-project-skeleton/spec.md) ✅ Complete
 
@@ -61,7 +61,7 @@ Stoner Graphics Lab is a cross-platform graphics engine built in modern C++20 wi
 - **Render Graph terminology**: Use "Render Graph" and `FRenderGraph` as the canonical dependency-management system for render passes and resources.
 - **GLFW first, native later**: Use GLFW for the initial window/input phase to reach the first-triangle milestone quickly, then add native Win32/Cocoa/X11-Wayland window implementations behind the same abstraction in a later phase.
 
-### Current State (Post Phase 013)
+### Current State (Post Phase 014)
 
 | Layer | Status | Content |
 |-------|--------|---------|
@@ -69,9 +69,9 @@ Stoner Graphics Lab is a cross-platform graphics engine built in modern C++20 wi
 | RHI | 🔷 Interface Complete | Core interfaces (006) and Resource & Pipeline interfaces (007) defined as pure virtual; implementations live in backends |
 | Backend/Vulkan | ✅ Done | Device, swapchain, resources, commands, shader modules, graphics/compute pipelines, command binding, and process-local pipeline reuse implemented |
 | Backend/Others | ⚪ Placeholder | `.gitkeep` files only |
-| Renderer | ✅ Material & Shader System Done | Backend-agnostic render graph plus material definitions, material instances, shader library records, deterministic permutations, resource requirement summaries, diagnostics, and text dumps |
+| Renderer | ✅ Forward Planning Done | Backend-agnostic render graph, material/shader system, forward frame planning, validated view/output/light/draw inputs, full PBR-style material checks, sky/transparent ordering, render graph-compatible declarations, diagnostics, and deterministic text dumps |
 | Application | 🟡 Skeleton | Empty namespace, includes Renderer |
-| Tests | ✅ Done | Core tests, RHI contract tests, Renderer render graph/material tests, and Vulkan integration tests all pass |
+| Tests | ✅ Done | Core tests, RHI contract tests, Renderer render graph/material/forward pipeline tests, and Vulkan integration tests all pass |
 | Build System | ✅ Complete | SCons with LayerBuilder, PlatformDetect, BuildConfig, Vulkan SDK detection |
 
 > **🔷 Interface Complete** = Pure virtual interfaces and contracts defined; implementations exist in backends, but no mock-based RHI unit tests yet.
@@ -126,7 +126,7 @@ These principles (from the [Constitution v1.2.0](../.specify/memory/constitution
 | 011 | Vulkan: Pipeline & Shader | Backend | 009, 010 | L | ✅ Yes | ✅ Done |
 | 012 | Render Graph Foundation | Renderer | 007 | XL | ✅ Yes | ✅ Done |
 | 013 | Material & Shader System | Renderer | 007, 012 | L | ✅ Yes | ✅ Done |
-| 014 | Forward Rendering Pipeline | Renderer | 012, 013 | L | ✅ Yes | ⬜ Todo |
+| 014 | Forward Rendering Pipeline | Renderer | 012, 013 | L | ✅ Yes | ✅ Done |
 | 015 | Window & Input System | Application | 005 | M | ✅ Yes | ⬜ Todo |
 | 016 | Scene Graph & ECS | Application | 003 | L | ❌ No | ⬜ Todo |
 | 017 | 🎯 Triangle Demo | Application | 011, 014, 015 | M | ✅ Yes | ⬜ Todo |
@@ -690,26 +690,30 @@ Material and shader system: FMaterial (shader ref, parameters, render state), FM
 
 Implement a basic forward rendering pipeline using the render graph. This produces the first real rendered output — geometry with lighting and materials.
 
+**Implementation status (2026-07-03)**: ✅ Done as Renderer-level headless forward frame planning and render graph-compatible declaration output. The feature intentionally stops before real GPU execution or presentation; those remain connected through the later Application/demo phases.
+
 #### Key Deliverables
 
-- `FForwardRenderer` — Forward rendering pipeline implementation
-- Depth pre-pass
-- Opaque geometry pass (with basic PBR: Metallic-Roughness model)
+- `FForwardRenderer` — deterministic forward frame preparation
+- Depth pre-pass declaration
+- Opaque geometry pass declaration with full PBR-style surface input validation
 - Directional light support
-- Point light support (up to N lights)
-- Sky/environment pass (simple gradient or cubemap)
-- Transparent geometry pass (sorted back-to-front)
-- `FMeshDrawCommand` — Cached draw command for efficient submission
-- `FViewUniformBuffer` — Camera/view data (VP matrix, camera position, etc.)
-- `FLightUniformBuffer` — Light data packing
-- Basic SPIR-V shaders for PBR forward pass
-- Integration tests with render graph
+- Configurable point light support with default limit 4 and deterministic influence ordering
+- Ambient-only fallback diagnostic when valid geometry has no accepted lights
+- Sky/environment declaration and deterministic clear fallback
+- Transparent geometry declaration sorted by camera-space depth, material id, and object id
+- `FMeshDrawCommand` — reusable Renderer-level draw description for future submission
+- `FForwardViewData` — camera/view data and validation
+- `FForwardLightSet` — validated directional and selected point light data
+- Render graph-compatible declaration summaries without backend handles
+- Integration tests with render graph-compatible declarations
 
 #### What's Excluded
 
 - Shadow mapping (future enhancement to forward pipeline)
 - Post-processing (future phase)
 - Deferred rendering (Phase 018)
+- Real GPU execution, presentation, runtime shader compilation, and shader file loading
 
 #### Speckit Prompt
 

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>015 — Forward Rendering Pipeline · Stoner Graphics Lab</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        :root {
+            --bg: #f6f8fb;
+            --paper: #ffffff;
+            --ink: #1f2937;
+            --muted: #64748b;
+            --line: #d9e2ec;
+            --accent: #2563eb;
+            --accent-soft: #e8f0ff;
+            --good: #047857;
+            --warn: #b45309;
+            --code: #eef3f8;
+            --dark: #111827;
+            --mono: "SF Mono", Menlo, Consolas, monospace;
+            --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+        }
+        body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.72; font-size: 15px; }
+        .page { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100vh; }
+        .sidebar { position: sticky; top: 0; height: 100vh; overflow: auto; padding: 24px 18px; background: var(--paper); border-right: 1px solid var(--line); }
+        .brand { font-size: 14px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+        .subtitle { font-size: 12px; color: var(--muted); padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+        .toc { list-style: none; padding: 0; margin: 0; }
+        .toc a { display: block; padding: 6px 8px; color: var(--muted); text-decoration: none; border-radius: 6px; font-size: 13px; }
+        .toc a:hover { color: var(--accent); background: var(--accent-soft); }
+        main { max-width: 1080px; width: 100%; padding: 48px 48px 96px; margin: 0 auto; }
+        h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.2; color: var(--accent); }
+        .meta { color: var(--muted); font-size: 13px; margin-bottom: 30px; }
+        section { margin: 0 0 56px; }
+        h2 { margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 23px; }
+        h3 { margin: 22px 0 10px; font-size: 17px; }
+        h4 { margin: 16px 0 6px; font-size: 15px; }
+        p { margin: 0 0 14px; }
+        ul, ol { margin: 0 0 16px; padding-left: 23px; }
+        li { margin: 4px 0; }
+        code { font-family: var(--mono); font-size: 13px; background: var(--code); padding: 2px 5px; border-radius: 4px; }
+        pre { margin: 14px 0; padding: 16px; overflow: auto; border-radius: 8px; color: #e5e7eb; background: var(--dark); font-size: 13px; line-height: 1.55; }
+        table { width: 100%; border-collapse: collapse; margin: 16px 0 20px; font-size: 14px; }
+        th, td { padding: 9px 11px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+        th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; background: #fbfdff; }
+        .note { margin: 14px 0; padding: 14px 16px; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; background: var(--paper); }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: rgba(4,120,87,.13); color: var(--good); font-weight: 700; font-size: 12px; }
+        @media (max-width: 860px) { .page { display: block; } .sidebar { position: static; height: auto; } main { padding: 32px 22px 72px; } }
+    </style>
+</head>
+<body>
+<div class="page">
+    <aside class="sidebar">
+        <div class="brand">Stoner Graphics Lab</div>
+        <div class="subtitle">015 · Forward Rendering Pipeline</div>
+        <ul class="toc">
+            <li><a href="#s1">一、文档与上下文信息</a></li>
+            <li><a href="#s2">二、目标与边界</a></li>
+            <li><a href="#s3">三、交互与产品设计</a></li>
+            <li><a href="#s4">四、技术架构与关键决策</a></li>
+            <li><a href="#s5">五、实施与验证</a></li>
+            <li><a href="#s6">六、设计巧思与最佳实践</a></li>
+            <li><a href="#s7">七、编程语言知识点</a></li>
+            <li><a href="#s8">八、软件工程知识点</a></li>
+            <li><a href="#s9">九、渲染、引擎与图形 API 学习笔记</a></li>
+        </ul>
+    </aside>
+    <main>
+        <h1>015 — Forward Rendering Pipeline</h1>
+        <div class="meta">状态：<span class="badge">已交付</span> · 更新：2026-07-03 · 层级：Renderer</div>
+
+        <section id="s1">
+            <h2>一、文档与上下文信息</h2>
+            <h3>1. 基础元数据</h3>
+            <table><tbody>
+                <tr><th>Feature</th><td>015 — Forward Rendering Pipeline</td></tr>
+                <tr><th>Roadmap</th><td>Phase 014 — Renderer: Forward Rendering Pipeline。Speckit 目录使用 015，因为 014 已用于 Material &amp; Shader System。</td></tr>
+                <tr><th>Spec / Plan / Tasks</th><td><code>specs/015-forward-rendering-pipeline/spec.md</code> · <code>plan.md</code> · <code>tasks.md</code></td></tr>
+                <tr><th>主要源码</th><td><code>Source/Renderer/Public/Renderer/FForward*.h</code>, <code>FMeshDrawCommand.h</code>, <code>Source/Renderer/Private/FForward*.cpp</code>, <code>FMeshDrawCommand.cpp</code></td></tr>
+                <tr><th>测试文件</th><td><code>Tests/RendererForwardPipelineTests.cpp</code></td></tr>
+                <tr><th>验证命令</th><td><code>conda run -n godot scons</code>；<code>Build/Mac/Debug/Tests/StonerTest</code>；Renderer boundary check</td></tr>
+            </tbody></table>
+            <h3>2. 本期核心摘要</h3>
+            <p>本期交付 Renderer 层第一个 Forward Renderer 规划面：调用方可以提交 view、output、draw candidates、PBR-style material binding、directional/point lights 和 sky/background 输入，得到确定性的 frame plan、pass order、render graph-compatible resource declarations、diagnostics 和 debug dump。它还支持默认 4 个 point light 的可配置裁剪、按影响力排序、透明物体 back-to-front 排序，以及无 accepted light 时的 ambient-only fallback。</p>
+            <p>学习价值在于：这不是“画出一帧”的最终后端，而是把可见渲染前的 frame planning contract 建起来。真实引擎里，Forward/Deferred/Meshlet/RayTracing 都需要先把 view、draw、material、light、resource requirement 组织成可验证计划，再交给 Render Graph 和 backend 执行。本期正是这个中间层。</p>
+            <h3>3. 上下文与依赖</h3>
+            <ul>
+                <li>建立在 Phase 012 Render Graph Foundation 和 Phase 013 Material &amp; Shader System 之上。</li>
+                <li>向后铺路给 Phase 017 Triangle Demo、Phase 018 Deferred Rendering、Phase 019 Meshlet、Phase 020 Ray Tracing。</li>
+                <li>编译期依赖 Core math/container/string 与 Renderer material/resource contracts；概念上依赖 RHI resource/result 语义，但不暴露 backend handle。</li>
+                <li>继续维持 Application/Renderer/RHI/Backend/Core 的层级边界：Renderer forward public contract 不包含具体图形 API 或 presentation 细节。</li>
+            </ul>
+        </section>
+
+        <section id="s2">
+            <h2>二、目标与边界</h2>
+            <h3>1. 业务与功能目标</h3>
+            <p>引擎开发者现在可以在 headless 测试中准备一帧 forward rendering workload：验证 camera/output、筛选 opaque 和 transparent draw、验证完整 PBR-style 输入、选择 light set、声明 depth/opaque/sky/transparent pass，并通过 debug dump 比对确定性。</p>
+            <h3>2. 架构目标与定位</h3>
+            <pre><code>Application / future Scene
+    -> submits frame-like inputs
+Renderer Forward Pipeline
+    -> validates view, output, materials, draws, lights
+    -> emits frame plan + graph-compatible declarations
+Renderer Render Graph / Material System
+    -> consumes pass/resource intent
+RHI / Backend
+    -> future execution path, not owned by this feature
+Core
+    -> math, strings, containers, diagnostics foundation</code></pre>
+            <p>public contract 包括 <code>FForwardRenderer</code>、<code>FForwardFramePlan</code>、<code>FForwardViewData</code>、<code>FForwardLightSet</code>、<code>FMeshDrawCommand</code> 和 <code>FForwardRenderGraphDeclaration</code>。private implementation 负责排序、验证、diagnostic 合并、debug dump 格式和 declaration 组装。</p>
+            <h3>3. 边界与非目标（约束）</h3>
+            <ul>
+                <li>不执行真实 GPU command：本阶段只输出计划和声明，避免把 backend runtime 成败混入 Renderer contract。</li>
+                <li>不做 presentation、display surface、user input：这些属于 Application/demo 集成阶段。</li>
+                <li>不做 shadow mapping、post-processing、deferred rendering：它们需要更多 pass/resource policy，后续独立 feature 接入。</li>
+                <li>不做 runtime shader compilation 或 shader file loading：Material &amp; Shader System 当前使用显式内存记录，forward 只消费 material/resource summary。</li>
+            </ul>
+        </section>
+
+        <section id="s3">
+            <h2>三、交互与产品设计</h2>
+            <h3>1. 用户使用路径</h3>
+            <p>happy path 是创建 <code>FForwardFrameInputs</code>，填入 view、output、draw candidates、lights 和 environment，然后调用 <code>FForwardRenderer::PrepareFrame</code>。成功时得到 <code>FForwardFramePlan</code>，其中包含 pass order、accepted/rejected draws、accepted/rejected lights、graph declaration、diagnostics 和 debug dump。</p>
+            <pre><code>FForwardRenderer Renderer;
+FForwardFramePlan Plan;
+EForwardResult Result = Renderer.PrepareFrame(Inputs, Plan);
+// Result == Success
+// Plan.PassOrder: Depth -> Opaque -> SkyBackground -> Transparent
+// Plan.GraphDeclaration: resources/accesses/outputs
+// Plan.DebugDump: stable text for regression tests</code></pre>
+            <h3>2. 核心规则与状态机</h3>
+            <pre><code>Draft renderer
+    -> PrepareFrame(valid view + output)
+    -> Accepted frame plan
+    -> Reset back to Draft
+    -> Invalidate blocks future trusted state until reset/reconfiguration</code></pre>
+            <p>view/output 是硬门槛，失败时不会继续生成 render-ready plan。draw/material/light 是逐项验证：无效 draw 或 light 会被拒绝并产生 deterministic diagnostic，但只要必要输入仍有效，frame plan 可以继续生成。</p>
+            <h3>3. 失败模式与调试入口</h3>
+            <ul>
+                <li>invalid view：看 <code>FWD-VIEW-*</code> 诊断，例如 extent、camera、matrix。</li>
+                <li>missing output：看 <code>FWD-OUTPUT-*</code>，它会在 pass order 最终化之前失败。</li>
+                <li>incomplete PBR：看 <code>FWD-PBR-*</code>，用于定位 BaseColor/Metallic/Roughness/Normal/Occlusion/Emissive/Alpha 缺项。</li>
+                <li>excess point lights：看 <code>FWD-POINT-LIMIT</code> 和 <code>AcceptedPointLights</code> 排序。</li>
+                <li>transparent sorting：看 <code>Plan.AcceptedTransparentDraws</code> 和 debug dump 中的 depth/material/object key。</li>
+            </ul>
+        </section>
+
+        <section id="s4">
+            <h2>四、技术架构与关键决策</h2>
+            <h3>1. 技术栈与基础设施</h3>
+            <ul>
+                <li>C++20，传统 header/source 分离，无 C++20 Modules。</li>
+                <li>SCons 4.10.1 自动发现 Renderer private source 与 Tests source。</li>
+                <li>无新增外部 SDK；不依赖 Vulkan SDK 或平台 presentation runtime。</li>
+                <li>测试走 headless 单可执行文件 <code>StonerTest</code>，适合 CI 和无显示设备环境。</li>
+            </ul>
+            <h3>2. 关键信息</h3>
+            <h4>2.1 模块对应关系</h4>
+            <table><thead><tr><th>类型</th><th>文件</th><th>职责</th><th>关系</th></tr></thead><tbody>
+                <tr><td><code>FForwardRenderer</code></td><td><code>FForwardRenderer.h/.cpp</code></td><td>协调 frame preparation 主流程</td><td>聚合 view/output/draw/light/env，生成 plan</td></tr>
+                <tr><td><code>FForwardFramePlan</code></td><td><code>FForwardFramePlan.h/.cpp</code></td><td>保存 pass order、accepted lists、fallback、diagnostics</td><td>被 debug dump 与 graph declaration 消费</td></tr>
+                <tr><td><code>FMeshDrawCommand</code></td><td><code>FMeshDrawCommand.h/.cpp</code></td><td>描述可复用 draw，验证 material/pass 兼容</td><td>连接 material summary 与 frame pass</td></tr>
+                <tr><td><code>FForwardLightSet</code></td><td><code>FForwardLightData.h/.cpp</code></td><td>验证 directional/point lights，按影响力裁剪</td><td>为 opaque/transparent pass 提供 light data summary</td></tr>
+                <tr><td><code>FForwardRenderGraphDeclaration</code></td><td><code>FForwardRenderGraphDeclaration.h/.cpp</code></td><td>输出 pass/resource/access/output summary</td><td>对齐 Render Graph，但不执行图</td></tr>
+                <tr><td><code>FForwardDiagnosticLog</code></td><td><code>FForwardDiagnostics.h/.cpp</code></td><td>稳定排序、格式化和 debug dump</td><td>所有负路径共用观察入口</td></tr>
+            </tbody></table>
+            <h4>2.2 数据流、控制流或资源流</h4>
+            <p>数据流为：输入 frame desc -> validate view/output -> validate draw/material -> sort opaque/transparent -> validate/select lights -> decide ambient fallback -> append passes -> declare graph resources/accesses -> sort diagnostics -> build debug dump。每一步都只消费上一阶段确定下来的抽象数据，不持有 backend command buffer 或 live resource。</p>
+            <h4>2.3 关键日志、诊断与可视化</h4>
+            <p>诊断记录 stable code、severity、category、subject 和 message，不记录指针地址、平台 handle 或运行时不可复现值。debug dump 包含 frame summary、view/output、pass order、draw identity、light counts、background、fallback 和 graph declarations，用于 20 次重复准备的 byte-stable 检查。</p>
+            <h3>3. 架构决策记录 (ADR)</h3>
+            <h4>(1) 先做 frame planning，不做真实执行</h4>
+            <p><strong>背景：</strong>Forward Rendering 是 Renderer 与 Render Graph/Material System 的第一个 frame-level 接点。直接接真实 backend 会把 execution、presentation、shader runtime 都混在一起。</p>
+            <p><strong>理由：</strong>frame plan 和 declaration 是后续所有 backend 执行路径的共同输入，先稳定它能减少后续返工。</p>
+            <p><strong>被否决方案：</strong>直接录制 RHI command 或创建真实 graphics pipeline。这样会跳过当前 feature 的 headless 可测边界。</p>
+            <p><strong>后果：</strong>本期还不是可见画面，但 Triangle Demo 可以在更稳定的 frame contract 上继续推进。</p>
+            <h4>(2) Point light default 4 且可配置</h4>
+            <p><strong>背景：</strong>用户明确要求 8 已经偏多，默认 4，并按 distance/effectiveness 排序取前 N。</p>
+            <p><strong>理由：</strong>这逼迫 Renderer 在 planning 阶段建立 light budget 和 deterministic ordering，避免未来 shader/light packing 无边界膨胀。</p>
+            <p><strong>被否决方案：</strong>提交顺序取前 N。它简单但不表达“最有影响力的灯优先”。</p>
+            <p><strong>后果：</strong>测试可以稳定覆盖 accepted/rejected counts、zero-limit fallback 和 tie-breakers。</p>
+            <h4>(3) Transparent sort 不依赖提交顺序</h4>
+            <p><strong>背景：</strong>透明排序天然和 view 相关，提交顺序来自 Application/Scene，不能作为稳定渲染语义。</p>
+            <p><strong>理由：</strong>camera-space depth descending + material id + object id 既满足 back-to-front，又让相等 depth 可复现。</p>
+            <p><strong>被否决方案：</strong>保留 caller order 作为 tie-breaker。它会让 dump 受容器迭代顺序影响。</p>
+            <p><strong>后果：</strong>debug dump 可做 20-run byte-stable 回归测试。</p>
+        </section>
+
+        <section id="s5">
+            <h2>五、实施与验证（任务流）</h2>
+            <h3>1. 任务拆解清单</h3>
+            <ul>
+                <li>Setup/Foundation：新增 7 个 public header、7 个 private source、forward pipeline test header/source，并接入 <code>RendererMinimal.h</code> 与 <code>Tests/Main.cpp</code>。</li>
+                <li>Contract/API：定义 result、validation state、diagnostics、view/output/light/draw/frame/declaration 类型。</li>
+                <li>Core implementation：实现 material/PBR validation、light scoring、draw sorting、pass assembly、graph declaration 和 debug dump。</li>
+                <li>Tests and validation：补充 valid representative frame、invalid inputs、PBR failure、light limit/order、ambient fallback、sky/transparent、determinism、performance 和 boundary checks。</li>
+                <li>Documentation/roadmap update：更新 spec、quickstart、roadmap、AGENTS 与本文档。</li>
+            </ul>
+            <h3>2. 验收标准</h3>
+            <ul>
+                <li><code>conda run -n godot scons</code> 通过，链接 <code>Build/Mac/Debug/Tests/StonerTest</code>。</li>
+                <li><code>Build/Mac/Debug/Tests/StonerTest</code> 通过，新 forward pipeline 测试全部 PASS。</li>
+                <li>representative frame preparation under 1 second 由测试覆盖。</li>
+                <li>20-run deterministic dump stability 由测试覆盖。</li>
+                <li>Renderer public/private boundary check 无 backend/presentation token 命中。</li>
+            </ul>
+            <h3>3. 测试矩阵与覆盖意图</h3>
+            <table><thead><tr><th>测试类别</th><th>覆盖风险</th><th>证明</th></tr></thead><tbody>
+                <tr><td>Representative frame</td><td>主流程无法串联 view/output/draw/light/env</td><td>frame plan、pass order、graph output 能生成</td></tr>
+                <tr><td>Invalid view/output/material</td><td>错误输入被静默接受</td><td>硬失败和逐项拒绝都有 deterministic diagnostic</td></tr>
+                <tr><td>Light limit/order</td><td>point light budget 不稳定或不可配置</td><td>默认 4、override、zero-limit、影响力排序都可验证</td></tr>
+                <tr><td>Sky/transparent</td><td>pass order 或透明排序错误</td><td>sky 在 transparent 前，transparent 按 depth/material/object 排序</td></tr>
+                <tr><td>Determinism/performance</td><td>dump 漂移、准备成本失控</td><td>20 次重复一致，代表帧小于 1 秒</td></tr>
+            </tbody></table>
+        </section>
+
+        <section id="s6">
+            <h2>六、设计巧思与最佳实践</h2>
+            <h3>1. 当前业务场景与业务模型的最佳实践</h3>
+            <h4>(1) Draw command 是 Renderer-level description</h4>
+            <p>本期的 <code>FMeshDrawCommand</code> 不录制 backend command，而是保存 object/mesh/material/pass/sort key/resource requirement。这样 future backend 可以消费它，但当前测试不需要真实设备。</p>
+            <h4>(2) Light selection 是 planning 规则，不是 shader 细节</h4>
+            <p>point light 先在 CPU planning 阶段排序和裁剪，shader 只应看到已经打包好的 light set。否则 shader path 会被输入集合大小和顺序拖入不可控状态。</p>
+            <h4>(3) Diagnostics 是 public behavior</h4>
+            <p>错误码如 <code>FWD-PBR-OCCLUSION</code>、<code>FWD-POINT-LIMIT</code>、<code>FWD-AMBIENT-FALLBACK</code> 是测试和调试入口。它们让 headless feature 也能有可靠“输出”。</p>
+            <h3>2. 优化方案与收益</h3>
+            <p>当前算法偏确定性和清晰性：使用 vector、sort、stable identities 和文本 dump。未来可以引入 draw batching、material pipeline key、light clustering 或 render graph compile-time optimization，但这些优化应该在 contract 不变的前提下替换 private implementation。</p>
+        </section>
+
+        <section id="s7">
+            <h2>七、编程语言知识点</h2>
+            <h3>1. 标准库接口与用法</h3>
+            <p>实现大量使用 <code>std::sort</code>、<code>std::ostringstream</code>、<code>std::any_of</code> 和 value-type records。关键点是排序比较器必须完整定义 tie-breaker，避免 equal keys 导致输出依赖原始提交顺序。</p>
+            <h3>2. 语言特性与惯用法</h3>
+            <ul>
+                <li><code>enum class</code> 用于 result、stage、category、access，避免跨领域整数误传。</li>
+                <li>轻量 struct 使用值语义，frame plan 可以直接复制到 renderer last state。</li>
+                <li>公共头保持抽象类型，不 include backend API，减少编译与平台耦合。</li>
+            </ul>
+            <h3>3. 平台相关与编译器行为</h3>
+            <p>本期新增代码没有平台分支。构建时 macOS 工具链出现临时目录 warning，但不影响编译和测试。Windows/Linux 兼容性依据是 C++20 标准库、SCons 层级自动发现和无平台私有依赖。</p>
+        </section>
+
+        <section id="s8">
+            <h2>八、软件工程知识点</h2>
+            <h3>1. 设计模式与架构模式</h3>
+            <ul>
+                <li>Facade：<code>FForwardRenderer</code> 作为 frame preparation 入口。</li>
+                <li>Data-oriented records：view、light、draw、resource declaration 都是可测试数据。</li>
+                <li>Pipeline staging：Depth -> Opaque -> SkyBackground -> Transparent 是明确 stage contract。</li>
+                <li>Boundary pattern：public contract 保持 backend-agnostic，private implementation 可以迭代。</li>
+            </ul>
+            <h3>2. 工程原则与方法论</h3>
+            <p>本期体现的是 spec-driven 的价值：先澄清 point light budget、execution boundary、PBR input set、transparent ordering 和 no-light fallback，再写 plan/tasks/analyze，最后实现。这样代码里的每个规则都能追溯到 spec，而不是临场拍脑袋。</p>
+            <h3>3. 测试策略与质量保障</h3>
+            <p>forward rendering 还没有真实像素输出，所以测试必须更重视结构输出：pass order、draw order、light accepted/rejected counts、diagnostic codes、graph declaration、debug dump stability。等未来接入真实 presentation 后，这些测试仍能防止 frame planning 退化。</p>
+        </section>
+
+        <section id="s9">
+            <h2>九、渲染、引擎与图形 API 学习笔记</h2>
+            <h3>1. 核心概念拆解</h3>
+            <h4>(1) Forward rendering</h4>
+            <p>Forward path 通常在每个物体 pass 中直接结合 material 与 light。它结构简单、适合透明和小规模灯光，但 light budget 和 material validation 必须清晰，否则 shader permutation 与 draw cost 会膨胀。</p>
+            <h4>(2) Render graph-compatible declarations</h4>
+            <p>本期不执行 Render Graph，而是输出 pass/resource/access summary。真实 Render Graph 后续可以把这些声明编译成 lifetime、barrier 和 execution schedule。</p>
+            <h4>(3) Transparent back-to-front</h4>
+            <p>透明混合通常依赖绘制顺序。camera-space depth descending 是常见近似规则，material/object tie-breaker 则解决回归测试里的稳定性。</p>
+            <h3>2. 跨 API 映射</h3>
+            <table><thead><tr><th>API</th><th>未来映射</th></tr></thead><tbody>
+                <tr><td>Vulkan</td><td>pass/resource/access declaration 可转为 render pass scope、image layouts、descriptor reads 和 command recording。</td></tr>
+                <tr><td>DX12</td><td>同一 plan 可映射到 resource states、root signature/descriptor heap 和 command list。</td></tr>
+                <tr><td>Metal</td><td>可映射到 render command encoder、resource usage 和 argument buffers。</td></tr>
+                <tr><td>OpenGL/GLES</td><td>可用较薄的 state binding layer 消费排序后的 draw descriptions。</td></tr>
+            </tbody></table>
+            <h3>3. 源码阅读路线</h3>
+            <ol>
+                <li>先读 <code>specs/015-forward-rendering-pipeline/spec.md</code> 的 Clarifications，尤其 point light limit 和 execution boundary。</li>
+                <li>读 public headers：<code>FForwardRenderer.h</code>、<code>FForwardFramePlan.h</code>、<code>FMeshDrawCommand.h</code>、<code>FForwardLightData.h</code>。</li>
+                <li>读 <code>FForwardRenderer.cpp</code>，跟踪 <code>PrepareFrame</code> 的阶段顺序。</li>
+                <li>读 <code>Tests/RendererForwardPipelineTests.cpp</code>，把每个 diagnostic code 和排序规则对应到测试。</li>
+            </ol>
+            <h3>4. 自测问题</h3>
+            <ol>
+                <li>为什么 invalid view/output 应该阻止 frame plan，而 invalid draw/light 可以逐项拒绝？</li>
+                <li>为什么 point light sorting 不能只按提交顺序？</li>
+                <li>为什么 transparent equal-depth tie 需要 material id 和 object id？</li>
+                <li>为什么本期不把 <code>FMeshDrawCommand</code> 做成 backend command buffer？</li>
+            </ol>
+        </section>
+    </main>
+</div>
+</body>
+</html>
