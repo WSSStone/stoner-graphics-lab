@@ -13,9 +13,12 @@
     #if defined(_MSC_VER)
         // MSVC: __debugbreak() is always available
         #define SG_DEBUG_BREAK() __debugbreak()
-    #elif defined(__clang__) || defined(__GNUC__)
-        // GCC/Clang: __builtin_debugtrap() is resumable
+    #elif defined(__clang__)
+        // Clang: __builtin_debugtrap() is resumable.
         #define SG_DEBUG_BREAK() __builtin_debugtrap()
+    #elif defined(__GNUC__)
+        // GCC does not provide __builtin_debugtrap(); use its trap intrinsic.
+        #define SG_DEBUG_BREAK() __builtin_trap()
     #else
         // Fallback: abort (not resumable)
         #include <cstdlib>

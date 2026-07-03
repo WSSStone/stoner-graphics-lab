@@ -10,7 +10,12 @@
 #include <vector>
 #include <atomic>
 #include <sstream>
-#include <unistd.h>
+
+#if defined(_WIN32)
+    #include <io.h>
+#else
+    #include <unistd.h>
+#endif
 
 namespace
 {
@@ -43,17 +48,27 @@ struct FOutputCapture
     int SavedStdout = -1;
     int SavedStderr = -1;
     FILE* CaptureFile = nullptr;
+#if !defined(_WIN32)
     char TempPath[256] = {};
+#endif
     bool Active = false;
 
     void Start()
     {
-        // Create a temp file to capture output.
+    #if defined(_WIN32)
+        CaptureFile = std::tmpfile();
+        if (!CaptureFile) return;
+    #else
         std::snprintf(TempPath, sizeof(TempPath), "/tmp/sg_log_test_XXXXXX");
-        int Fd = mkstemp(TempPath);
+        const int Fd = mkstemp(TempPath);
         if (Fd < 0) return;
         CaptureFile = fdopen(Fd, "w+");
-        if (!CaptureFile) { close(Fd); return; }
+        if (!CaptureFile)
+        {
+            close(Fd);
+            return;
+        }
+    #endif
 
         // Flush before redirecting.
         fflush(stdout);
@@ -62,12 +77,25 @@ struct FOutputCapture
         std::cerr.flush();
 
         // Save original file descriptors.
-        SavedStdout = dup(STDOUT_FILENO);
-        SavedStderr = dup(STDERR_FILENO);
+        SavedStdout = Dup(StdoutFileDescriptor());
+        SavedStderr = Dup(StderrFileDescriptor());
+        if (SavedStdout < 0 || SavedStderr < 0)
+        {
+            CloseSavedDescriptors();
+            fclose(CaptureFile);
+            CaptureFile = nullptr;
+            return;
+        }
 
         // Redirect stdout and stderr to the capture file.
-        dup2(fileno(CaptureFile), STDOUT_FILENO);
-        dup2(fileno(CaptureFile), STDERR_FILENO);
+        if (!Dup2(Fileno(CaptureFile), StdoutFileDescriptor()) ||
+            !Dup2(Fileno(CaptureFile), StderrFileDescriptor()))
+        {
+            RestoreSavedDescriptors();
+            fclose(CaptureFile);
+            CaptureFile = nullptr;
+            return;
+        }
         Active = true;
     }
 
@@ -79,12 +107,9 @@ struct FOutputCapture
         fflush(stderr);
 
         // Restore original file descriptors.
-        dup2(SavedStdout, STDOUT_FILENO);
-        dup2(SavedStderr, STDERR_FILENO);
-        close(SavedStdout);
-        close(SavedStderr);
-        SavedStdout = -1;
-        SavedStderr = -1;
+        RestoreSavedDescriptors();
+        std::cout.clear();
+        std::cerr.clear();
         Active = false;
 
         // Read captured content.
@@ -97,9 +122,91 @@ struct FOutputCapture
         fclose(CaptureFile);
         CaptureFile = nullptr;
 
-        // Clean up temp file.
+#if !defined(_WIN32)
         std::remove(TempPath);
+#endif
         return Content;
+    }
+
+    static int StdoutFileDescriptor()
+    {
+    #if defined(_WIN32)
+        return _fileno(stdout);
+    #else
+        return STDOUT_FILENO;
+    #endif
+    }
+
+    static int StderrFileDescriptor()
+    {
+    #if defined(_WIN32)
+        return _fileno(stderr);
+    #else
+        return STDERR_FILENO;
+    #endif
+    }
+
+    static int Fileno(FILE* File)
+    {
+    #if defined(_WIN32)
+        return _fileno(File);
+    #else
+        return fileno(File);
+    #endif
+    }
+
+    static int Dup(int FileDescriptor)
+    {
+    #if defined(_WIN32)
+        return _dup(FileDescriptor);
+    #else
+        return dup(FileDescriptor);
+    #endif
+    }
+
+    static bool Dup2(int SourceFileDescriptor, int TargetFileDescriptor)
+    {
+    #if defined(_WIN32)
+        return _dup2(SourceFileDescriptor, TargetFileDescriptor) == 0;
+    #else
+        return dup2(SourceFileDescriptor, TargetFileDescriptor) >= 0;
+    #endif
+    }
+
+    static void Close(int FileDescriptor)
+    {
+    #if defined(_WIN32)
+        _close(FileDescriptor);
+    #else
+        close(FileDescriptor);
+    #endif
+    }
+
+    void CloseSavedDescriptors()
+    {
+        if (SavedStdout >= 0)
+        {
+            Close(SavedStdout);
+            SavedStdout = -1;
+        }
+        if (SavedStderr >= 0)
+        {
+            Close(SavedStderr);
+            SavedStderr = -1;
+        }
+    }
+
+    void RestoreSavedDescriptors()
+    {
+        if (SavedStdout >= 0)
+        {
+            Dup2(SavedStdout, StdoutFileDescriptor());
+        }
+        if (SavedStderr >= 0)
+        {
+            Dup2(SavedStderr, StderrFileDescriptor());
+        }
+        CloseSavedDescriptors();
     }
 };
 
