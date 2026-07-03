@@ -20,7 +20,7 @@
 **Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
 **Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
 **Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Testing**: [e.g., pytest, XCTest, cargo test, cross-platform CI/equivalent validation or NEEDS CLARIFICATION]  
 **Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
 **Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
 **Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
@@ -38,6 +38,7 @@
 - [ ] **Advanced Graphics Readiness**: Does the feature align with advanced rendering paradigms (Ray Tracing, Meshlets, GI)?
 - [ ] **Naming Conventions**: Does the code follow PascalCase, UnrealEngine5-style naming conventions?
 - [ ] **Cross-Platform Compatibility**: Does the feature build and run correctly on all supported platforms (Windows, macOS, Linux)?
+- [ ] **Automated Cross-Platform Validation**: For platform-sensitive changes, does the plan include or update a GitHub Actions or equivalent CI matrix covering Windows, macOS, and Linux, or document a temporary gap with fallback manual verification and follow-up tasks?
 
 ## Project Structure
 

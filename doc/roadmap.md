@@ -1,7 +1,7 @@
 # Stoner Graphics Lab — Engine Development Roadmap
 
-> **Version**: 1.2.2 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-03 | **Status**: Active
-> **Constitution**: v1.2.0 (comply with Section VII: Cross-Platform Compatibility)
+> **Version**: 1.2.3 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-03 | **Status**: Active
+> **Constitution**: v1.3.0 (comply with Section VII: Cross-Platform Compatibility and automated validation)
 > **Prerequisite**: [001-scons-project-skeleton](../specs/001-scons-project-skeleton/spec.md) ✅ Complete
 
 ---
@@ -80,7 +80,7 @@ Stoner Graphics Lab is a cross-platform graphics engine built in modern C++20 wi
 
 ## Architecture Principles
 
-These principles (from the [Constitution v1.2.0](../.specify/memory/constitution.md)) govern all development ordering:
+These principles (from the [Constitution v1.3.0](../.specify/memory/constitution.md)) govern all development ordering:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -107,6 +107,7 @@ These principles (from the [Constitution v1.2.0](../.specify/memory/constitution
 3. **Strategy/Composite patterns** — no god-classes
 4. **UE5-style naming** — `FVector3`, `IDevice`, `EPixelFormat`, `TArray<T>`
 5. **Cross-platform** — Windows + macOS + Linux at minimum
+6. **Automated cross-platform validation** — platform-sensitive features include or update GitHub Actions or equivalent CI
 
 ---
 
@@ -1166,7 +1167,7 @@ If working alone (or with a single AI agent), follow this linear order:
 
 ## Constitution Compliance Audit
 
-The roadmap and all phase specifications MUST comply with the [Constitution v1.2.0](../.specify/memory/constitution.md). When the constitution is amended, completed phases MUST be re-audited.
+The roadmap and all phase specifications MUST comply with the [Constitution v1.3.0](../.specify/memory/constitution.md). When the constitution is amended, completed phases MUST be re-audited.
 
 ### Section VII: Cross-Platform Compatibility Audit
 
@@ -1186,6 +1187,10 @@ Constitution v1.2.0 added Section VII (Cross-Platform Compatibility) on 2026-04-
 
 **Action**: All completed phases pass the Section VII audit. No remediation needed.
 
+### Section VII: Automated Cross-Platform Validation Audit
+
+Constitution v1.3.0 expanded Section VII on 2026-07-03. Platform-sensitive features planned or modified after this amendment MUST include or update a GitHub Actions or equivalent Windows/macOS/Linux validation path, or document temporary automation gaps with manual fallback commands and follow-up tasks. Completed phases are not retroactively blocked, but any reopened platform-sensitive phase must adopt this validation requirement before being considered complete again.
+
 ### Constitution Version Tracking
 
 | Constitution Version | Roadmap Sections Affected | Audited? |
@@ -1193,6 +1198,7 @@ Constitution v1.2.0 added Section VII (Cross-Platform Compatibility) on 2026-04-
 | v1.0.0 (initial) | All | ✅ |
 | v1.1.0 (amend 1) | Build system, Technology Stack | ✅ |
 | v1.2.0 (amend 2) | Section VII: Cross-Platform | ✅ (this audit) |
+| v1.3.0 (amend 3) | Section VII: Automated Cross-Platform Validation | ✅ (applies to active and future platform-sensitive phases) |
 
 ---
 
@@ -1234,6 +1240,7 @@ If a phase turns out to be too large during `/speckit.specify`:
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-07-03 | 1.2.3 | Aligned roadmap with Constitution v1.3.0. Added automated cross-platform validation rule for platform-sensitive phases using GitHub Actions or equivalent CI, with documented fallback requirements for temporary gaps. |
 | 2026-07-01 | 1.2.1 | Marked Phase 012 Render Graph Foundation as implemented. Added implementation notes, verification commands, and summary document reference for `specs/013-render-graph-foundation`. Updated current Renderer state to reflect delivered render graph foundation. |
 | 2026-06-30 | 1.2.0 | Aligned version with Constitution v1.2.0. Fixed phase status (002-005 ✅ Done, 006-007 🔷 Interface Complete). Added Cross-Platform Compliance Audit section. Added 🔷 status to legend. Updated Current State table to reflect post-Phase 010 reality. Clarified Phase 010 "What's Excluded" to note descriptor infrastructure already in Phase 009. |
 | 2026-04-21 | 1.0.0 | Initial roadmap created |

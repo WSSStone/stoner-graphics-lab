@@ -155,6 +155,8 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX Verify RHI abstraction and design pattern compliance (Strategy/Composite)
 - [ ] TXXX Verify PascalCase, UnrealEngine5-style naming conventions
 - [ ] TXXX Verify cross-platform compatibility (Windows, macOS, Linux build and run)
+- [ ] TXXX Create or update GitHub Actions or equivalent CI matrix for Windows, macOS, and Linux when the feature affects platform-sensitive behavior
+- [ ] TXXX Document any temporary automated validation gaps with fallback manual verification commands and follow-up tasks
 - [ ] TXXX Performance optimization across all stories
 - [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
 - [ ] TXXX Security hardening

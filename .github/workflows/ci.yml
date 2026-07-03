@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  headless-build-test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux headless
+            os: ubuntu-latest
+            test_path: Build/Linux/Debug/Tests/StonerTest
+          - name: macOS headless
+            os: macos-latest
+            test_path: Build/Mac/Debug/Tests/StonerTest
+          - name: Windows headless
+            os: windows-latest
+            test_path: Build/Win64/Debug/Tests/StonerTest.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable MSVC command prompt
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install SCons
+        run: python -m pip install scons==4.10.1
+
+      - name: Build
+        run: scons
+
+      - name: Run deterministic headless tests
+        shell: bash
+        run: ./${{ matrix.test_path }}

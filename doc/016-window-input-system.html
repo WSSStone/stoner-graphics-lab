@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>016 — Application Window &amp; Input System · Stoner Graphics Lab</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        :root {
+            --bg: #f6f8fb;
+            --paper: #ffffff;
+            --ink: #1f2937;
+            --muted: #64748b;
+            --line: #d9e2ec;
+            --accent: #2563eb;
+            --accent-soft: #e8f0ff;
+            --good: #047857;
+            --warn: #b45309;
+            --code: #eef3f8;
+            --dark: #111827;
+            --mono: "SF Mono", Menlo, Consolas, monospace;
+            --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+        }
+        body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.72; font-size: 15px; }
+        .page { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100vh; }
+        .sidebar { position: sticky; top: 0; height: 100vh; overflow: auto; padding: 24px 18px; background: var(--paper); border-right: 1px solid var(--line); }
+        .brand { font-size: 14px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+        .subtitle { font-size: 12px; color: var(--muted); padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+        .toc { list-style: none; padding: 0; margin: 0; }
+        .toc a { display: block; padding: 6px 8px; color: var(--muted); text-decoration: none; border-radius: 6px; font-size: 13px; }
+        .toc a:hover { color: var(--accent); background: var(--accent-soft); }
+        main { max-width: 1080px; width: 100%; padding: 48px 48px 96px; margin: 0 auto; }
+        h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.2; color: var(--accent); }
+        .meta { color: var(--muted); font-size: 13px; margin-bottom: 30px; }
+        section { margin: 0 0 56px; }
+        h2 { margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 23px; }
+        h3 { margin: 22px 0 10px; font-size: 17px; }
+        h4 { margin: 16px 0 6px; font-size: 15px; }
+        p { margin: 0 0 14px; }
+        ul, ol { margin: 0 0 16px; padding-left: 23px; }
+        li { margin: 4px 0; }
+        code { font-family: var(--mono); font-size: 13px; background: var(--code); padding: 2px 5px; border-radius: 4px; }
+        pre { margin: 14px 0; padding: 16px; overflow: auto; border-radius: 8px; color: #e5e7eb; background: var(--dark); font-size: 13px; line-height: 1.55; }
+        pre code { background: transparent; color: inherit; padding: 0; }
+        table { width: 100%; border-collapse: collapse; margin: 16px 0 20px; font-size: 14px; }
+        th, td { padding: 9px 11px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+        th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; background: #fbfdff; }
+        .note { margin: 14px 0; padding: 14px 16px; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; background: var(--paper); }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: rgba(4,120,87,.13); color: var(--good); font-weight: 700; font-size: 12px; }
+        .warn { background: rgba(180,83,9,.13); color: var(--warn); }
+        @media (max-width: 860px) { .page { display: block; } .sidebar { position: static; height: auto; } main { padding: 32px 22px 72px; } }
+    </style>
+</head>
+<body>
+<div class="page">
+    <aside class="sidebar">
+        <div class="brand">Stoner Graphics Lab</div>
+        <div class="subtitle">016 · Window &amp; Input System</div>
+        <ul class="toc">
+            <li><a href="#s1">一、文档与上下文信息</a></li>
+            <li><a href="#s2">二、目标与边界</a></li>
+            <li><a href="#s3">三、交互与产品设计</a></li>
+            <li><a href="#s4">四、技术架构与关键决策</a></li>
+            <li><a href="#s5">五、实施与验证（任务流）</a></li>
+            <li><a href="#s6">六、设计巧思与最佳实践</a></li>
+            <li><a href="#s7">七、编程语言知识点</a></li>
+            <li><a href="#s8">八、软件工程知识点</a></li>
+            <li><a href="#s9">九、渲染、引擎与图形 API 学习笔记</a></li>
+        </ul>
+    </aside>
+    <main>
+        <h1>016 — Application Window &amp; Input System</h1>
+        <div class="meta">状态：<span class="badge">已交付</span> · 更新：2026-07-03 · 层级：Application</div>
+
+        <section id="s1">
+            <h2>一、文档与上下文信息</h2>
+            <h3>1. 基础元数据</h3>
+            <table>
+                <thead><tr><th>项目</th><th>内容</th></tr></thead>
+                <tbody>
+                    <tr><td>Feature</td><td>016 — Window &amp; Input System</td></tr>
+                    <tr><td>Roadmap</td><td>Phase 015 Application: Window &amp; Input System；feature 编号为 016，因为仓库早期 skeleton/roadmap 规格占用了编号偏移。</td></tr>
+                    <tr><td>Spec / Plan / Tasks</td><td><code>specs/016-window-input-system/spec.md</code> · <code>plan.md</code> · <code>tasks.md</code></td></tr>
+                    <tr><td>主要源码</td><td><code>Source/Application/Public/Application/</code> 与 <code>Source/Application/Private/</code></td></tr>
+                    <tr><td>测试文件</td><td><code>Tests/ApplicationWindowInputTests.cpp</code> · <code>Tests/ApplicationWindowInputTests.h</code></td></tr>
+                    <tr><td>验证命令</td><td><code>conda run -n godot scons</code> · <code>Build/Mac/Debug/Tests/StonerTest</code> · public header boundary grep</td></tr>
+                </tbody>
+            </table>
+            <h3>2. 本期核心摘要</h3>
+            <p>本阶段交付了 Application 层的第一套可用运行时接口：单 primary window 的创建、关闭、销毁、尺寸/焦点/显示模式状态，按帧更新的键盘与鼠标输入快照，最小 application loop，以及 deterministic diagnostics/debug dump。真实窗口路径被保留在 private GLFW adapter 入口后方；当前默认用 headless 路径完成自动化验证。</p>
+            <p>最值得学习的是“窗口不是渲染，输入也不是平台事件本身”。Application 层把平台事件翻译成稳定的引擎状态，Renderer/Backend 后续只消费 resize、close、presentation-paused 等抽象信号，而不需要知道 GLFW、NSWindow、HWND、swapchain 或具体图形 API。</p>
+            <h3>3. 上下文与依赖</h3>
+            <ul>
+                <li><strong>前置依赖：</strong>Core platform abstraction、Renderer dependency boundary、SCons layer builder。</li>
+                <li><strong>后续铺路：</strong>Triangle Demo、scene graph/editor input、renderer presentation 与 swapchain resize 处理。</li>
+                <li><strong>新增边界：</strong>Application public contract 不暴露 GLFW、native handle、RHI、swapchain 或 renderer presentation。</li>
+                <li><strong>编译期依赖：</strong>Application 仍只通过 SConscript 依赖 Renderer/Core；测试 executable 链接全层。</li>
+            </ul>
+        </section>
+
+        <section id="s2">
+            <h2>二、目标与边界</h2>
+            <h3>1. 业务与功能目标</h3>
+            <ul>
+                <li>引擎调用方可以用 <code>FWindowDesc</code> 创建一个 primary window，并观察 active/close-requested/destroyed 生命周期。</li>
+                <li>调用方可以用 <code>FInputManager</code> 每帧读取 pressed/held/released、pointer position 和 pointer delta。</li>
+                <li>窗口失焦会立即清空 held key 和 mouse button，避免后续帧出现 stuck input。</li>
+                <li><code>FApplicationLoop</code> 能在 headless 场景运行 300 帧，或在 close requested 时干净退出。</li>
+                <li>无 display/dependency、非法尺寸、非法生命周期、未知输入都会产生稳定 diagnostics，而不是崩溃或静默成功。</li>
+            </ul>
+            <h3>2. 架构目标与定位</h3>
+            <pre><code>Application public API
+  FWindow / FInputManager / FApplicationLoop
+          |
+          v
+Application private drivers
+  Headless driver required for CI
+  GLFW adapter unavailable-safe by default
+          |
+          v
+Future Renderer presentation handoff
+  resize / close / presentation-paused only</code></pre>
+            <p>这里最关键的定位是：Application 负责“用户与窗口的运行时语义”，Renderer 以后负责“如何把 frame 呈现到 drawable/swapchain”。当前不做 swapchain recreation，也不做 triangle rendering。</p>
+            <h3>3. 边界与非目标（约束）</h3>
+            <ul>
+                <li>不做 multi-window：v1 只需要 primary window，避免 API 一开始就过度泛化。</li>
+                <li>不做 text input/IME/layout translation：本阶段只表达物理键位状态，适合游戏控制和 deterministic tests。</li>
+                <li>不做 gamepad/controller：后续输入设备可以复用 frame snapshot 思路单独接入。</li>
+                <li>不做 renderer presentation/swapchain recreation：后续 triangle demo 或 presentation integration 再消费 resize/paused 信号。</li>
+            </ul>
+        </section>
+
+        <section id="s3">
+            <h2>三、交互与产品设计</h2>
+            <h3>1. 用户使用路径</h3>
+            <pre><code>FWindowDesc desc
+FWindow window.Create(desc)
+FInputManager input
+
+while (running):
+    window.PollEvents()
+    input.PollFrame(window.GetLifecycleState(), window.IsFocused())
+    if window.IsPresentationPaused():
+        update only, skip presentation
+    if window.IsCloseRequested():
+        break
+window.Destroy()</code></pre>
+            <p>失败路径也必须是可观察的：例如 real-window dependency 不存在时，<code>CreateRealWindow</code> 返回 <code>RuntimeUnavailable</code>，diagnostics 中包含 <code>APP-WINDOW-RUNTIME</code>，不会留下半激活窗口。</p>
+            <h3>2. 核心规则与状态机</h3>
+            <pre><code>Uncreated -> Active -> CloseRequested -> Destroyed
+Uncreated -> Destroyed
+Active -> Destroyed
+CloseRequested -> Destroyed
+Destroyed -> Destroyed</code></pre>
+            <p>输入状态的核心规则是：pressed/released 是当前帧瞬态，held 跨帧保留直到 release 或 focus lost。focus lost 是一个强制清空点，因为真实桌面环境可能不会在失焦后继续发送 key-up/button-up。</p>
+            <h3>3. 失败模式与调试入口</h3>
+            <ul>
+                <li>尺寸为 0 或超过 16384x16384：看 <code>APP-WINDOW-SIZE-ZERO</code> / <code>APP-WINDOW-SIZE-LIMIT</code>。</li>
+                <li>poll input 发生在 create 前或 destroy 后：看 <code>APP-INPUT-LIFECYCLE</code>。</li>
+                <li>display-mode runtime 不支持：看 <code>APP-WINDOW-MODE-UNSUPPORTED</code>，旧模式必须保持不变。</li>
+                <li>debug dump 必须稳定且不含 native handle/pointer 细节，方便 headless regression diff。</li>
+            </ul>
+        </section>
+
+        <section id="s4">
+            <h2>四、技术架构与关键决策</h2>
+            <h3>1. 技术栈与基础设施</h3>
+            <ul>
+                <li>C++20，传统 header/source 分离，无 C++20 Modules。</li>
+                <li>SCons 4.10.1，<code>BuildLayer</code> 自动发现 <code>Source/Application/Private/*.cpp</code>。</li>
+                <li>GitHub Actions matrix 覆盖 <code>ubuntu-latest</code>、<code>macos-latest</code>、<code>windows-latest</code>。</li>
+                <li>real-window adapter 默认 dependency-unavailable，不阻塞 headless CI。</li>
+            </ul>
+            <h3>2. 关键信息</h3>
+            <h4>2.1 模块对应关系</h4>
+            <table>
+                <thead><tr><th>模块</th><th>文件</th><th>职责</th></tr></thead>
+                <tbody>
+                    <tr><td>FWindowDesc / FWindow</td><td><code>FWindowDesc.h</code>, <code>FWindow.h</code>, <code>FWindow.cpp</code></td><td>窗口描述、生命周期、尺寸、焦点、display-mode、presentation-paused。</td></tr>
+                    <tr><td>EKey / EMouseButton</td><td><code>EKey.h</code>, <code>EMouseButton.h</code></td><td>稳定物理输入词汇，不表达文本字符。</td></tr>
+                    <tr><td>FInputEvent / FInputState / FInputManager</td><td><code>FInput*.h/.cpp</code></td><td>事件队列到 frame snapshot 的确定性转换。</td></tr>
+                    <tr><td>FApplicationLoop</td><td><code>FApplicationLoop.h/.cpp</code></td><td>poll events、update input、观察 window state、决定 continue/exit。</td></tr>
+                    <tr><td>FApplicationDiagnosticLog</td><td><code>FApplicationDiagnostics.h/.cpp</code></td><td>稳定诊断排序、格式化和 debug dump。</td></tr>
+                    <tr><td>IWindowDriver</td><td><code>FWindowDriver.h</code></td><td>private strategy seam，隔离 headless 与 GLFW adapter。</td></tr>
+                </tbody>
+            </table>
+            <h4>2.2 数据流、控制流或资源流</h4>
+            <p>代表性输入流是：driver/test 注入 <code>FInputEvent</code> -> <code>FInputManager::PollFrame</code> 按 sequence 排序 -> <code>FInputState::BeginFrame</code> 清空 transient -> 逐个应用 key/mouse/pointer/focus event -> 调用方读取 frame snapshot。</p>
+            <h4>2.3 关键日志、诊断与可视化</h4>
+            <p>diagnostics 使用稳定 code，例如 <code>APP-WINDOW-CREATED</code>、<code>APP-INPUT-FOCUS-CLEAR</code>、<code>APP-LOOP-CLOSE-EXIT</code>。debug dump 汇总 window/input/loop 状态，但避免 pointer/native handle，这让 headless CI 能用字符串稳定性检测 regressions。</p>
+            <h3>3. 架构决策记录 (ADR)</h3>
+            <h4>(1) Headless driver 是必需路径</h4>
+            <p><strong>背景：</strong>CI 和远程环境经常没有 display server。<strong>理由：</strong>窗口/input 的语义仍必须被测试。<strong>被否决方案：</strong>要求所有测试打开真实窗口，会导致 no-display 环境不可用。<strong>后果：</strong>真实窗口 smoke 变成 opt-in/unavailable-safe，而 headless 是默认 gate。</p>
+            <h4>(2) Public API 不暴露 native handles</h4>
+            <p><strong>背景：</strong>窗口最终会服务 Vulkan、Metal、DX、OpenGL 等多后端。<strong>理由：</strong>public header 泄漏平台句柄会把上层绑死到某个平台或库。<strong>被否决方案：</strong>直接返回 GLFWwindow/HWND/NSWindow。<strong>后果：</strong>后续 presentation handoff 需要一个独立桥接阶段。</p>
+            <h4>(3) Presentation-paused 是 loop 状态而不是 fatal error</h4>
+            <p><strong>背景：</strong>最小化或 zero drawable 是正常桌面状态。<strong>理由：</strong>应用还要处理 restore/close/focus/input。<strong>被否决方案：</strong>暂停整个 loop 或继续 presentation。<strong>后果：</strong>后续 swapchain recreation 可以消费这个明确信号。</p>
+        </section>
+
+        <section id="s5">
+            <h2>五、实施与验证（任务流）</h2>
+            <h3>1. 任务拆解清单</h3>
+            <ul>
+                <li>Setup：更新 Application SConscript 注释、添加测试文件并注册到 <code>Tests/Main.cpp</code>。</li>
+                <li>Foundation：建立 public enums、diagnostics、window/input event/state 和 private driver seam。</li>
+                <li>US1：实现窗口 create/close/destroy、尺寸上限、real-window unavailable-safe。</li>
+                <li>US2：实现 key/mouse/pointer/focus/unknown input frame snapshot。</li>
+                <li>US3：实现 resize coalescing、presentation-paused 和 300-frame loop。</li>
+                <li>US4：实现 lifecycle failure diagnostics、display-mode success/failure、debug dump 稳定性。</li>
+                <li>Polish：添加 CI matrix，更新 quickstart/spec/tasks，并运行 boundary check。</li>
+            </ul>
+            <h3>2. 验收标准</h3>
+            <table>
+                <thead><tr><th>验证项</th><th>结果</th></tr></thead>
+                <tbody>
+                    <tr><td><code>conda run -n godot scons</code></td><td><span class="badge">PASS</span></td></tr>
+                    <tr><td><code>Build/Mac/Debug/Tests/StonerTest</code></td><td><span class="badge">PASS</span></td></tr>
+                    <tr><td>Application tests</td><td>25 个 window/input/loop assertions 全部通过。</td></tr>
+                    <tr><td>Public boundary grep</td><td><span class="badge">PASS</span>，public Application headers 无 GLFW/native/API/swapchain 泄漏。</td></tr>
+                    <tr><td>CI matrix</td><td><code>.github/workflows/ci.yml</code> 覆盖 Linux/macOS/Windows headless build/test。</td></tr>
+                </tbody>
+            </table>
+            <h3>3. 测试矩阵与覆盖意图</h3>
+            <table>
+                <thead><tr><th>测试类别</th><th>覆盖风险</th><th>对应文件</th><th>证明了什么</th></tr></thead>
+                <tbody>
+                    <tr><td>Lifecycle</td><td>窗口半激活、重复 destroy、close 无法观察</td><td><code>ApplicationWindowInputTests.cpp</code></td><td>单窗口生命周期可预测。</td></tr>
+                    <tr><td>Input transition</td><td>pressed/held/released 混淆、pointer delta 错误</td><td><code>ApplicationWindowInputTests.cpp</code></td><td>frame snapshot 语义稳定。</td></tr>
+                    <tr><td>Focus loss</td><td>Alt-Tab 后 stuck input</td><td><code>ApplicationWindowInputTests.cpp</code></td><td>held keys/buttons 会立即清空。</td></tr>
+                    <tr><td>Loop</td><td>zero drawable 时错误停 loop 或继续 presentation</td><td><code>ApplicationWindowInputTests.cpp</code></td><td>update/poll 继续，presentation paused。</td></tr>
+                    <tr><td>Diagnostics/dump</td><td>失败不可解释、输出不可复现</td><td><code>FApplicationDiagnostics.cpp</code></td><td>错误路径和 dump 可回归测试。</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="s6">
+            <h2>六、设计巧思与最佳实践</h2>
+            <h3>1. 当前业务场景与业务模型的最佳实践</h3>
+            <h4>(1) Frame snapshot 而不是实时查询平台状态</h4>
+            <p>每帧统一 poll 并冻结 snapshot，可以让游戏逻辑、camera control 和 editor tool 在同一帧看到一致输入。否则同一帧中前后两次查询可能读到不同平台状态，调试体验会很糟。</p>
+            <h4>(2) Explicit lifecycle states</h4>
+            <p>Uncreated/Active/CloseRequested/Destroyed 让非法调用有落点。比如 close requested 不立刻 destroy，是为了让 loop 在安全点退出，而不是平台事件突然打断资源清理。</p>
+            <h4>(3) Deterministic unavailable runtime</h4>
+            <p>GLFW 没有接入时不是失败崩溃，而是稳定返回 dependency unavailable。这个模式后续也适合 Vulkan SDK/runtime 缺失、Metal/DX 后端不可用等情况。</p>
+            <h3>2. 优化方案与收益</h3>
+            <p>当前优化主要是工程确定性：事件按 sequence 排序，resize 最终状态确定，diagnostics 稳定排序，dump 不含地址。收益不是 FPS，而是 CI 可重复、回归 diff 有意义、未来真实窗口/真实 swapchain 接入时有基线。</p>
+            <h3>3. 已知限制与后续演进</h3>
+            <ul>
+                <li>GLFW adapter 当前是 unavailable-safe skeleton，真实窗口 smoke 需要依赖接入后扩展。</li>
+                <li>没有 text input、IME、gamepad、multi-window；这些应作为独立 feature 增加。</li>
+                <li>presentation handoff 尚未实现；Triangle Demo 将把 window drawable/resize/paused 信号接入 RHI swapchain。</li>
+            </ul>
+        </section>
+
+        <section id="s7">
+            <h2>七、编程语言知识点</h2>
+            <h3>1. 标准库接口与用法</h3>
+            <ul>
+                <li><code>std::stable_sort</code>：用于 deterministic event/diagnostic ordering，避免同 sequence 或同 code 顺序漂移。</li>
+                <li><code>std::ostringstream</code>：用于构建 debug dump 和 diagnostic format，保证输出集中可控。</li>
+                <li><code>std::function</code>：<code>FApplicationLoop</code> 的 update callback 让测试和未来 runtime 都能注入每帧逻辑。</li>
+                <li><code>std::vector</code> via <code>TArray</code>：当前事件队列和状态集合规模小，简单容器足够。</li>
+            </ul>
+            <h3>2. 语言特性与惯用法</h3>
+            <ul>
+                <li><code>enum class</code>：强类型表达 lifecycle、display mode、runtime availability、event type 和 result。</li>
+                <li><code>constexpr</code>：<code>FWindowDesc::MaxClientWidth/Height</code> 固化 v1 尺寸边界。</li>
+                <li><code>[[nodiscard]]</code>：提醒调用方不要忽略 create/destroy/mode change 等 result。</li>
+                <li>头/源分离：public contract 在 <code>Public/Application</code>，private driver seam 在 <code>Private</code>。</li>
+            </ul>
+            <h3>3. 平台相关与编译器行为</h3>
+            <p>CI workflow 使用 GitHub hosted runners 覆盖 Windows/macOS/Linux。Windows job 通过 <code>ilammy/msvc-dev-cmd</code> 进入 MSVC 环境，Linux/macOS 使用默认 Python/SCons 和系统 C++ 工具链。Public Application headers 不使用平台宏或平台对象，减少跨编译器差异。</p>
+        </section>
+
+        <section id="s8">
+            <h2>八、软件工程知识点</h2>
+            <h3>1. 设计模式与架构模式</h3>
+            <ul>
+                <li>Strategy/Adapter：<code>IWindowDriver</code> 隔离 headless 与 GLFW 路径。</li>
+                <li>State Machine：<code>FWindow</code> 显式生命周期状态。</li>
+                <li>Value Object：<code>FWindowDesc</code>、<code>FInputEvent</code>、<code>FWindowEvent</code> 是可复制描述对象。</li>
+                <li>Contract Test：Application tests 只 include public minimal header，验证 public 行为而不是 private 实现。</li>
+            </ul>
+            <h3>2. 工程原则与方法论</h3>
+            <ul>
+                <li>稳定接口优先：真实 GLFW 接入可以晚些做，但 public 行为先稳定。</li>
+                <li>防御性编程：非法尺寸、非法 lifecycle、未知输入都返回 diagnostics。</li>
+                <li>可测试设计：headless path 是第一等验证路径，不依赖 GUI 环境。</li>
+                <li>跨平台治理：constitution v1.3.0 要求平台敏感 feature 更新 CI/equivalent validation。</li>
+            </ul>
+            <h3>3. 测试策略与质量保障</h3>
+            <p>测试覆盖 happy path、negative path、boundary testing、lifecycle matrix、deterministic output 和 dependency boundary grep。最重要的质量门槛是：没有 display 也能证明窗口和输入语义正确；有真实 display 时再补 smoke，而不是把 GUI 环境作为默认前提。</p>
+        </section>
+
+        <section id="s9">
+            <h2>九、渲染、引擎与图形 API 学习笔记</h2>
+            <h3>1. 本期核心概念拆解</h3>
+            <h4>(1) Drawable size 与 client size</h4>
+            <p>Application 当前记录 client size 和 drawable availability。真实图形 API 中，swapchain extent 必须由后续 presentation 层处理；zero drawable 不能继续 present。</p>
+            <h4>(2) Presentation-paused</h4>
+            <p>这是给 Renderer/Backend 的跨层信号：窗口还活着，update/poll 继续，但 presentation/swapchain work 暂停。它避免了 “minimize == fatal error” 这种常见初学者 bug。</p>
+            <h4>(3) Physical input vocabulary</h4>
+            <p>物理键位适合 camera/game controls；文本输入适合 UI/编辑器。把两者混在一起会在键盘布局、IME 和快捷键上制造长期问题。</p>
+            <h3>2. 与 Vulkan / DX12 / Metal / OpenGL 的关系</h3>
+            <table>
+                <thead><tr><th>本项目概念</th><th>Vulkan</th><th>DX12</th><th>Metal/OpenGL</th><th>本期是否真实实现</th></tr></thead>
+                <tbody>
+                    <tr><td>presentation-paused</td><td>暂停 acquire/present 或 swapchain recreation</td><td>暂停 swap chain present</td><td>暂停 drawable/context presentation</td><td>实现 Application 信号，不做 backend work</td></tr>
+                    <tr><td>resize event</td><td>触发 future VkSwapchainKHR recreation</td><td>触发 ResizeBuffers</td><td>触发 CAMetalLayer/GL viewport 更新</td><td>实现事件和 latest-size 状态</td></tr>
+                    <tr><td>native handle</td><td>surface creation 需要平台 handle</td><td>swap chain 需要 HWND</td><td>需要 NSWindow/CAMetalLayer/context</td><td>本期禁止 public 泄漏</td></tr>
+                    <tr><td>headless validation</td><td>类似 fallback/no-surface contract tests</td><td>类似 mock swap chain tests</td><td>类似 no-display CI tests</td><td>实现默认验证路径</td></tr>
+                </tbody>
+            </table>
+            <h3>3. 源码阅读路线</h3>
+            <ol>
+                <li><code>Source/Application/Public/Application/ApplicationMinimal.h</code>：看本阶段 public surface。</li>
+                <li><code>FWindowDesc.h</code> 与 <code>FWindow.h</code>：理解窗口描述、生命周期和 display-mode。</li>
+                <li><code>FInputEvent.h</code>、<code>FInputState.h</code>、<code>FInputManager.h</code>：理解 event 到 frame snapshot。</li>
+                <li><code>FApplicationLoop.h</code>：看最小 loop 如何连接 window/input。</li>
+                <li><code>Tests/ApplicationWindowInputTests.cpp</code>：按用户故事阅读所有行为断言。</li>
+                <li><code>.github/workflows/ci.yml</code>：看跨平台 headless validation 如何落地。</li>
+            </ol>
+            <h3>4. 自测问题</h3>
+            <ol>
+                <li>为什么 close requested 不应该立即 destroy window？</li>
+                <li>为什么 focus lost 必须清空 held keys/buttons？</li>
+                <li>为什么 public Application headers 不能暴露 GLFW 或 native handle？</li>
+                <li>minimized/zero drawable 时，为什么 update 可以继续但 presentation 要暂停？</li>
+                <li>如果 debug dump 包含 pointer address，会破坏哪类测试？</li>
+                <li>未来 Triangle Demo 应该消费哪些 Application 信号？</li>
+            </ol>
+        </section>
+    </main>
+</div>
+</body>
+</html>

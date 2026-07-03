@@ -86,6 +86,7 @@
 - **Advanced Graphics**: The feature MUST consider compatibility with Ray Tracing, Meshlets, and Global Illumination pipelines.
 - **Naming Conventions**: The feature's code design MUST adhere to PascalCase, UnrealEngine5-style naming conventions.
 - **Cross-Platform Compatibility**: The feature MUST compile and run on all supported platforms (Windows, macOS, Linux). Platform-specific code MUST be isolated behind abstraction layers or conditional compilation guards.
+- **Automated Cross-Platform Validation**: Platform-sensitive features MUST include or update a GitHub Actions or equivalent CI validation path for Windows, macOS, and Linux, or explicitly document temporary gaps, fallback manual verification, and follow-up tasks.
 
 ## Requirements *(mandatory)*
 

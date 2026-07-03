@@ -1,16 +1,19 @@
 <!--
 Sync Impact Report:
-- Version change: 1.1.0 -> 1.2.0
-- Modified principles: None
+- Version change: 1.2.0 -> 1.3.0
+- Modified principles:
+  - VII. Cross-Platform Compatibility (expanded with automated validation requirement)
 - Added sections:
-  - VII. Cross-Platform Compatibility
+  - None
 - Added to Technology Stack:
-  - Build System: SCons 4.10.1
+  - None
 - Removed sections: None
 - Templates requiring updates:
-  - ✅ .specify/templates/plan-template.md (Constitution Check updated)
-  - ✅ .specify/templates/spec-template.md (Architecture Constraints updated)
-  - ✅ .specify/templates/tasks-template.md (Polish phase updated)
+  - ✅ .specify/templates/plan-template.md (Constitution Check updated for automated cross-platform validation)
+  - ✅ .specify/templates/spec-template.md (Architecture Constraints updated for automated cross-platform validation)
+  - ✅ .specify/templates/tasks-template.md (Polish phase updated for CI/equivalent validation)
+  - N/A .specify/templates/commands/*.md (directory absent in this project)
+  - ✅ doc/roadmap.md (Constitution version references updated)
 - Follow-up TODOs: None
 -->
 # Stoner Graphics System Constitution
@@ -59,6 +62,16 @@ conditional compilation guards. Build configurations MUST NOT assume a single
 OS, shell, or toolchain. Developers MUST verify that new features compile and
 run correctly on all supported platforms before merging.
 
+Features that affect build scripts, platform abstractions, runtime startup,
+windowing, input, rendering backends, public cross-platform APIs, or other
+platform-sensitive behavior MUST include or update an automated cross-platform
+validation path covering Windows, macOS, and Linux. GitHub Actions is the
+default hosted CI mechanism for this project unless an equivalent documented CI
+system is used. If automated coverage is temporarily unavailable for a supported
+platform, the feature plan MUST document the gap, the fallback manual
+verification command, and a follow-up task before implementation is considered
+complete.
+
 ## Technology Stack & Standards
 
 - **Primary Language**: C++ (Modern C++, e.g., C++20/23).
@@ -71,6 +84,9 @@ run correctly on all supported platforms before merging.
 
 - **Design First**: Specifications MUST be written and approved before
   implementation begins.
+- **Automated Validation**: Platform-sensitive features MUST keep the
+  cross-platform CI or equivalent validation path current with their build and
+  headless test requirements.
 - **Commit Protocol**: Since `ugit` is used, agents MUST provide recommended
   commit messages at the end of their output.
 
@@ -81,4 +97,4 @@ run correctly on all supported platforms before merging.
 - All PRs/reviews MUST verify compliance with the RHI abstraction, design
   pattern disciplines, and cross-platform compatibility.
 
-**Version**: 1.2.0 | **Ratified**: 2026-04-03 | **Last Amended**: 2026-04-05
+**Version**: 1.3.0 | **Ratified**: 2026-04-03 | **Last Amended**: 2026-07-03
