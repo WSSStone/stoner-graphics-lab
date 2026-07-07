@@ -1,5 +1,6 @@
 // Minimal test executable - validates the full include chain
 #include "Application/ApplicationMinimal.h"
+#include "ApplicationSceneEcsTests.h"
 #include "ApplicationWindowInputTests.h"
 #include "CoreFoundationTests.h"
 #include "CoreMathTests.h"
@@ -18,6 +19,7 @@ int main()
     const FLoggingAssertionTestResult LogResult = RunLoggingAssertionTests();
     const FCorePlatformTestResult PlatformResult = RunCorePlatformTests();
     const FApplicationWindowInputTestResult ApplicationResult = RunApplicationWindowInputTests();
+    const FApplicationSceneEcsTestResult SceneResult = RunApplicationSceneEcsTests();
     const FRHICoreTestResult RHIResult = RunRHICoreTests();
     const FRendererForwardPipelineTestResult ForwardPipelineResult = RunRendererForwardPipelineTests();
     const FRendererMaterialShaderTestResult MaterialShaderResult = RunRendererMaterialShaderTests();
@@ -26,6 +28,7 @@ int main()
     return CoreResult.Failed == 0 && MathResult.Failed == 0 &&
         LogResult.Failed == 0 && PlatformResult.Failed == 0 &&
         ApplicationResult.Failed == 0 &&
+        SceneResult.Failed == 0 &&
         RHIResult.Failed == 0 && ForwardPipelineResult.Failed == 0 &&
         MaterialShaderResult.Failed == 0 && RenderGraphResult.Failed == 0 &&
         VulkanResult.Failed == 0 ? 0 : 1;

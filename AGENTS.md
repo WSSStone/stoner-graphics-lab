@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/016-window-input-system/plan.md`
+`specs/017-scene-graph-ecs/plan.md`
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -23,6 +23,8 @@ shell commands, and other important information, read the current plan:
 - Process-local in-memory forward frame inputs, prepared frame plans, view records, light records, mesh draw descriptions, render graph-compatible declaration summaries, diagnostics, and debug dump strings only (015-forward-rendering-pipeline)
 - C++20 with traditional header/source separation; no C++20 Modules + Existing Core types/math/logging/platform abstractions; existing Renderer dependency boundary for future presentation handoff; SCons 4.10.1; GLFW-first real-window adapter behind Application implementation boundaries when available; deterministic headless/null window driver required for tests; GitHub Actions or equivalent Windows/macOS/Linux headless CI validation required for platform-sensitive coverage (016-window-input-system)
 - Process-local in-memory window configuration, lifecycle state, event queues, input frame snapshots, loop state, diagnostics, and debug dump strings only; no persistent database, input recording, or preference storage (016-window-input-system)
+- C++20 with traditional header/source separation; no C++20 Modules + Existing Core types, containers, math, strings, and logging/diagnostic conventions; existing Application window/input public boundary; existing Renderer forward/material public contracts only as abstract future handoff vocabulary; SCons 4.10.1 (017-scene-graph-ecs)
+- Process-local in-memory world state, entity slot records, generation/version counters, component records, parent-child relationships, transform propagation caches, render collection summaries, diagnostics, and debug dump strings only; no persistent database, asset catalog, scene serialization, or live graphics resource ownership (017-scene-graph-ecs)
 
 ## Recent Changes
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system
@@ -36,6 +38,7 @@ shell commands, and other important information, read the current plan:
 - 014-material-shader-system: Implemented Renderer material definitions, instance inheritance with cycle detection, explicit in-memory precompiled shader records, per-shader permutation validation and variant binding, typed material parameters, abstract resource references, render graph resource requirements, deterministic diagnostics, text dumps, documentation, and regression tests
 - 015-forward-rendering-pipeline: Implemented Renderer forward frame preparation, render graph-compatible pass/resource declarations, full PBR-style material input validation, configurable default-4 point light influence selection, transparent camera-space sorting, ambient-only fallback diagnostics, deterministic debug dumps, and headless regression tests
 - 016-window-input-system: Planned Application primary window lifecycle, deterministic physical keyboard/mouse input state, resize/close/focus events, presentation-paused minimized/zero-drawable loop semantics, headless validation, optional real-window smoke validation, GitHub Actions/equivalent cross-platform CI validation, and public Application contracts
+- 017-scene-graph-ecs: Implemented Application single-world scene graph and ECS foundation, generation-safe entity handles, single-instance transform/mesh/light/camera components, recursive hierarchy destruction, explicit component update/replace semantics, deterministic transform/subtree ordering, render collection ordering, diagnostics, documentation, and headless regression tests
 
 ## Git Commit Style
 - Commit messages must start with a conventional type prefix such as `feat`, `docs`, `fix`, `chore`, `refactor`, `test`, or `build`.
