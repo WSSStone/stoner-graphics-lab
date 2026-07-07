@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>017 — Scene Graph &amp; ECS Foundation · Stoner Graphics Lab</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        :root {
+            --bg: #f6f8fb;
+            --paper: #ffffff;
+            --ink: #1f2937;
+            --muted: #64748b;
+            --line: #d9e2ec;
+            --accent: #2563eb;
+            --accent-soft: #e8f0ff;
+            --good: #047857;
+            --warn: #b45309;
+            --code: #eef3f8;
+            --dark: #111827;
+            --mono: "SF Mono", Menlo, Consolas, monospace;
+            --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+        }
+        body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.72; font-size: 15px; }
+        .page { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100vh; }
+        .sidebar { position: sticky; top: 0; height: 100vh; overflow: auto; padding: 24px 18px; background: var(--paper); border-right: 1px solid var(--line); }
+        .brand { font-size: 14px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+        .subtitle { font-size: 12px; color: var(--muted); padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+        .toc { list-style: none; padding: 0; margin: 0; }
+        .toc a { display: block; padding: 6px 8px; color: var(--muted); text-decoration: none; border-radius: 6px; font-size: 13px; }
+        .toc a:hover { color: var(--accent); background: var(--accent-soft); }
+        main { max-width: 1080px; width: 100%; padding: 48px 48px 96px; margin: 0 auto; }
+        h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.2; color: var(--accent); }
+        .meta { color: var(--muted); font-size: 13px; margin-bottom: 30px; }
+        section { margin: 0 0 56px; }
+        h2 { margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 23px; }
+        h3 { margin: 22px 0 10px; font-size: 17px; }
+        h4 { margin: 16px 0 6px; font-size: 15px; }
+        p { margin: 0 0 14px; }
+        ul, ol { margin: 0 0 16px; padding-left: 23px; }
+        li { margin: 4px 0; }
+        code { font-family: var(--mono); font-size: 13px; background: var(--code); padding: 2px 5px; border-radius: 4px; }
+        pre { margin: 14px 0; padding: 16px; overflow: auto; border-radius: 8px; color: #e5e7eb; background: var(--dark); font-size: 13px; line-height: 1.55; }
+        pre code { background: transparent; color: inherit; padding: 0; }
+        table { width: 100%; border-collapse: collapse; margin: 16px 0 20px; font-size: 14px; }
+        th, td { padding: 9px 11px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+        th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; background: #fbfdff; }
+        .note { margin: 14px 0; padding: 14px 16px; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; background: var(--paper); }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: rgba(4,120,87,.13); color: var(--good); font-weight: 700; font-size: 12px; }
+        .warn { background: rgba(180,83,9,.13); color: var(--warn); }
+        @media (max-width: 860px) { .page { display: block; } .sidebar { position: static; height: auto; } main { padding: 32px 22px 72px; } }
+    </style>
+</head>
+<body>
+<div class="page">
+    <aside class="sidebar">
+        <div class="brand">Stoner Graphics Lab</div>
+        <div class="subtitle">017 · Scene Graph &amp; ECS</div>
+        <ul class="toc">
+            <li><a href="#s1">一、文档与上下文信息</a></li>
+            <li><a href="#s2">二、目标与边界</a></li>
+            <li><a href="#s3">三、交互与产品设计</a></li>
+            <li><a href="#s4">四、技术架构与关键决策</a></li>
+            <li><a href="#s5">五、实施与验证（任务流）</a></li>
+            <li><a href="#s6">六、设计巧思与最佳实践</a></li>
+            <li><a href="#s7">七、编程语言知识点</a></li>
+            <li><a href="#s8">八、软件工程知识点</a></li>
+            <li><a href="#s9">九、渲染、引擎与图形 API 学习笔记</a></li>
+        </ul>
+    </aside>
+    <main>
+        <h1>017 — Scene Graph &amp; ECS Foundation</h1>
+        <div class="meta">状态：<span class="badge">已交付</span> · 更新：2026-07-07 · 层级：Application</div>
+
+        <section id="s1">
+            <h2>一、文档与上下文信息</h2>
+            <h3>1. 基础元数据</h3>
+            <table>
+                <tbody>
+                    <tr><td>Feature</td><td>017 — Scene Graph &amp; ECS Foundation</td></tr>
+                    <tr><td>Spec / Plan / Tasks</td><td><code>specs/017-scene-graph-ecs/spec.md</code> · <code>plan.md</code> · <code>tasks.md</code></td></tr>
+                    <tr><td>主要源码</td><td><code>Source/Application/Public/Application/FWorld.h</code>、<code>FEntity.h</code>、<code>FSceneRenderSummary.h</code> 及对应 private 实现</td></tr>
+                    <tr><td>测试文件</td><td><code>Tests/ApplicationSceneEcsTests.cpp</code> · <code>Tests/ApplicationSceneEcsTests.h</code></td></tr>
+                    <tr><td>验证命令</td><td><code>conda run -n godot scons</code> · <code>Build/Mac/Debug/Tests/StonerTest</code> · public header boundary grep</td></tr>
+                </tbody>
+            </table>
+            <h3>2. 本期核心摘要</h3>
+            <p>本阶段交付 Application 层第一套场景组织基础：单 world、generation-safe entity handle、transform/mesh/light/camera 单实例组件、parent-child hierarchy、默认 preserve-world reparent、递归销毁、deterministic render collection summary、stable diagnostics 与 debug dump。</p>
+            <p>学习价值在于把 ECS 的“扁平身份与组件存储”和 scene graph 的“层级变换关系”拆开：entity 不是树状存储，树只是 hierarchy relationship 和 traversal view。render collection 也不是树遍历，而是按 renderables/lights/cameras 分类输出稳定的 frame-facing 数据。</p>
+            <h3>3. 上下文与依赖</h3>
+            <ul>
+                <li>前置依赖：Core math/types/logging、Application window/input public boundary、Renderer forward/material 的抽象词汇。</li>
+                <li>后续铺路：triangle demo scene data、editor/runtime scene inspection、Renderer frame preparation 的 Application 输入。</li>
+                <li>层级边界：public Application 不暴露 RHI resource、Renderer frame plan、backend handle 或 native window。</li>
+                <li>编译期依赖：Application 仍由 SCons layer builder 自动发现 private 源文件，测试进入既有 <code>StonerTest</code>。</li>
+            </ul>
+        </section>
+
+        <section id="s2">
+            <h2>二、目标与边界</h2>
+            <h3>1. 业务与功能目标</h3>
+            <ul>
+                <li>开发者可以创建 <code>FWorld</code>，获得 <code>FEntity</code> 句柄，并在销毁/slot reuse 后安全识别 stale handle。</li>
+                <li>开发者可以 attach/read/update/replace/remove transform、mesh、light、camera 组件；重复 add 会返回 <code>DuplicateComponent</code>。</li>
+                <li>开发者可以组织 parent-child hierarchy，查询 world transform，并在 reparent 时选择 preserve world 或 preserve local。</li>
+                <li>Renderer 后续可以消费 <code>FSceneRenderSummary</code>：renderables、lights、cameras、rejected items 与 diagnostics。</li>
+            </ul>
+            <h3>2. 架构目标与定位</h3>
+            <pre><code>Application scene contracts
+  FWorld / FEntity / Components / Hierarchy
+          |
+          v
+Application render collection
+  FSceneRenderSummary: renderables / lights / cameras
+          |
+          v
+Future Renderer frame preparation
+  no RHI resource ownership exposed by Application</code></pre>
+            <p>本模块向上服务 demo/editor/runtime scene authoring，向下只依赖 Core 的 math/container/string。它不引入 Vulkan、Metal、DX、OpenGL，也不持有 live GPU resource；mesh component 只是抽象 identity。</p>
+            <h3>3. 边界与非目标（约束）</h3>
+            <ul>
+                <li>不做 serialization/asset loading：避免把运行时 scene identity 和持久化格式绑死。</li>
+                <li>不做 physics/animation/scripting/editor UI：这些是不同 domain 的 component/system，需要独立规格。</li>
+                <li>不做 octree/BVH/grid 作为 authoritative storage：空间索引以后可以作为 derived index，而不是 entity 的所有权结构。</li>
+                <li>不做 full archetype query optimization：v1 更重视清晰语义和 deterministic tests。</li>
+            </ul>
+        </section>
+
+        <section id="s3">
+            <h2>三、交互与产品设计</h2>
+            <h3>1. 用户使用路径</h3>
+            <pre><code>FWorld world;
+FEntity mesh = world.CreateEntity();
+world.AddTransform(mesh, FTransformComponent(FTransform(...)));
+world.AddMesh(mesh, FMeshComponent("cube", "mat"));
+
+FEntity camera = world.CreateEntity();
+world.AddTransform(camera, FTransformComponent(...));
+world.AddCamera(camera, FCameraComponent{});
+
+FSceneRenderSummary summary = world.CollectRenderSummary();</code></pre>
+            <p>失败路径同样是 API 的一部分：旧 handle 在 destroy 或 reset 后返回 <code>StaleEntity</code>/<code>InvalidEntity</code>；重复 add 返回 <code>DuplicateComponent</code>；invalid light/camera/mesh 在 render collection 中进入 rejected items。</p>
+            <h3>2. 核心规则与状态机</h3>
+            <pre><code>Invalid/default handle
+  -> CreateEntity -> Live(slot, generation, world)
+  -> DestroyEntity -> Stale(generation mismatch)
+  -> slot reuse -> new Live handle, old handle remains stale
+  -> Reset -> all old handles invalid</code></pre>
+            <p>Hierarchy traversal 使用 topological order：parents before children，roots by creation order，siblings by insertion order。Render collection 使用另一套 ordering key：category 内先 optional sort key，再 entity identity(slot index, generation) tie-break。</p>
+            <h3>3. 失败模式与调试入口</h3>
+            <ul>
+                <li><code>SCENE-COMPONENT-DUPLICATE</code>：调用方误把 add 当 replace，用 update/replace 修正。</li>
+                <li><code>SCENE-HIERARCHY-CYCLE</code>：parent 指向自身或 descendant，旧 hierarchy 保持不变。</li>
+                <li><code>SCENE-RENDER-MISSING-TRANSFORM</code>：mesh/light/camera 缺少 transform，summary 拒绝该项但继续收集其他实体。</li>
+                <li><code>FWorld::BuildDebugDump</code> 与 <code>FSceneRenderSummary::BuildDebugDump</code> 是稳定字符串入口，不包含 pointer/native handle。</li>
+            </ul>
+        </section>
+
+        <section id="s4">
+            <h2>四、技术架构与关键决策</h2>
+            <h3>1. 技术栈与基础设施</h3>
+            <ul>
+                <li>C++20，传统 header/source 分离，UE5-style PascalCase 命名。</li>
+                <li>Core math 使用 <code>FTransform</code>、<code>FQuat</code>、<code>FVector3</code>，避免本阶段重复实现数学库。</li>
+                <li>SCons 4.10.1 自动发现 <code>Source/Application/Private/*.cpp</code>。</li>
+                <li>GitHub Actions 既有 matrix 覆盖 Linux/macOS/Windows headless build/test。</li>
+            </ul>
+            <h3>2. 关键信息</h3>
+            <h4>2.1 模块对应关系</h4>
+            <table>
+                <thead><tr><th>模块</th><th>文件</th><th>职责</th></tr></thead>
+                <tbody>
+                    <tr><td><code>FWorld</code></td><td><code>FWorld.h/.cpp</code></td><td>entity slot、generation、component store、hierarchy、diagnostics、collection entry。</td></tr>
+                    <tr><td><code>FEntity</code></td><td><code>FEntity.h/.cpp</code></td><td>slot index、generation、world id；提供 identity formatting 与 ordering。</td></tr>
+                    <tr><td>Components</td><td><code>FTransformComponent.h</code> 等</td><td>transform/mesh/light/camera 数据，不持有 GPU/RHI resource。</td></tr>
+                    <tr><td><code>FRenderSystem</code></td><td><code>FRenderSystem.h/.cpp</code></td><td>把 world 中的 component 数据收集成 backend-neutral summary。</td></tr>
+                    <tr><td><code>FSceneDiagnostics</code></td><td><code>FSceneDiagnostics.h/.cpp</code></td><td>稳定 result code、subject 和 deterministic formatting。</td></tr>
+                </tbody>
+            </table>
+            <h4>2.2 数据流、控制流或资源流</h4>
+            <pre><code>CreateEntity -> slot/generation/world id
+Add components -> flat component records inside slot
+SetParent -> hierarchy relationship view
+TryGetWorldTransform -> parent chain composition
+CollectRenderSummary -> category summaries + rejected items
+Renderer future work -> consumes abstract scene summary</code></pre>
+            <h4>2.3 关键日志、诊断与可视化</h4>
+            <p>Diagnostics 记录 stable code、severity、category、result、subject 和 deterministic message，不记录 pointer、native handle、platform transient state。result code 表达 API outcome，diagnostic 解释 outcome，debug dump 用于回归测试和人工 inspect。</p>
+            <h3>3. 架构决策记录 (ADR)</h3>
+            <h4>(1) Entity/component authoritative storage 保持扁平</h4>
+            <p><strong>决策：</strong>entity slot 与 component 数据在 world 内扁平存储，hierarchy 是关系数据。<strong>理由：</strong>stale handle、slot reuse、component query 更清晰。<strong>被否决方案：</strong>tree-owned entity node，会让 transform ownership、identity、iteration 混在一起。<strong>后果：</strong>未来可以加 archetype 或 spatial index 而不改变 public identity。</p>
+            <h4>(2) Reparent 默认 preserve world</h4>
+            <p><strong>决策：</strong><code>SetParent</code> 默认保持 world transform，同时提供 preserve local 选项。<strong>理由：</strong>手动编辑场景时避免视觉跳变。<strong>被否决方案：</strong>总是 preserve local，运行时简单但编辑体验差。<strong>后果：</strong>实现需要使用 parent inverse；遇到 zero scale 时保持确定性 fallback。</p>
+            <h4>(3) Render collection 不按 hierarchy 遍历</h4>
+            <p><strong>决策：</strong>summary 分类输出，category 内按 optional sort key 和 entity identity 排序。<strong>理由：</strong>render collection 以后可能来自 flat query 或 spatial index，树顺序不是渲染语义。<strong>被否决方案：</strong>hierarchy pre-order，会把 transform ownership 顺序误当作 render submission 顺序。<strong>后果：</strong>Renderer 后续仍可在 frame preparation 中做自己的 material/depth/light ordering。</p>
+        </section>
+
+        <section id="s5">
+            <h2>五、实施与验证（任务流）</h2>
+            <h3>1. 任务拆解清单</h3>
+            <ul>
+                <li>Setup/Foundation：新增 scene public headers、private implementations、test registration、Application umbrella include。</li>
+                <li>US1：entity lifecycle、slot reuse、component CRUD、duplicate/missing/invalid diagnostics。</li>
+                <li>US2：hierarchy parent/unparent/reparent、cycle rejection、recursive destroy、topological order。</li>
+                <li>US3：renderables/lights/cameras summary、invalid item rejection、optional sort key + identity tie-break。</li>
+                <li>US4：stable diagnostics、world/summary debug dump、invalid operation state preservation。</li>
+            </ul>
+            <h3>2. 验收标准</h3>
+            <table>
+                <thead><tr><th>验证项</th><th>结果</th></tr></thead>
+                <tbody>
+                    <tr><td><code>conda run -n godot scons</code></td><td><span class="badge">PASS</span></td></tr>
+                    <tr><td><code>Build/Mac/Debug/Tests/StonerTest</code></td><td><span class="badge">PASS</span></td></tr>
+                    <tr><td>Scene/ECS tests</td><td>21 个新增 scene lifecycle/hierarchy/render/diagnostic assertions 通过。</td></tr>
+                    <tr><td>Public boundary grep</td><td><span class="badge">PASS</span>，无 Vulkan/RHI/Renderer/native handle 泄漏。</td></tr>
+                </tbody>
+            </table>
+            <h3>3. 测试矩阵与覆盖意图</h3>
+            <table>
+                <thead><tr><th>类别</th><th>覆盖风险</th><th>测试入口</th></tr></thead>
+                <tbody>
+                    <tr><td>Lifecycle</td><td>stale handle 修改新 entity、reset 后旧 handle 复活</td><td><code>TestEntityLifecycle</code></td></tr>
+                    <tr><td>Components</td><td>duplicate add 覆盖旧数据、missing removal 静默成功</td><td><code>TestComponents</code></td></tr>
+                    <tr><td>Hierarchy</td><td>cycle、reparent 跳变、destroy parent 留 orphan</td><td><code>TestHierarchy</code></td></tr>
+                    <tr><td>Render collection</td><td>invalid item 阻塞 valid item、ordering 不稳定</td><td><code>TestRenderCollection</code></td></tr>
+                    <tr><td>Diagnostics/dump</td><td>平台细节或 pointer 导致 dump 不可比</td><td><code>TestDiagnosticsAndCapacity</code></td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="s6">
+            <h2>六、设计巧思与最佳实践</h2>
+            <h3>1. 当前业务场景与业务模型的最佳实践</h3>
+            <ul>
+                <li><strong>Generation-safe handle：</strong>slot reuse 不等于 identity reuse。旧 handle 必须因为 generation mismatch 失败，否则 destroy 后的引用可能修改新对象。</li>
+                <li><strong>Relationship as data：</strong>hierarchy 不拥有 entity，它只表达 parent/children。这样 component iteration 和 transform traversal 可以各自优化。</li>
+                <li><strong>Explicit mutation path：</strong>duplicate add 拒绝，update/replace 才能改组件，避免误把初始化 API 当覆盖 API。</li>
+                <li><strong>Deterministic summaries：</strong>render collection 的输出不依赖 vector 内部布局，而依赖公开排序键，后续存储优化不会改行为。</li>
+                <li><strong>Stable diagnostics：</strong>错误能测试、能 diff、能半年后看懂，比临时 log 更适合 engine foundation。</li>
+            </ul>
+        </section>
+
+        <section id="s7">
+            <h2>七、编程语言知识点</h2>
+            <ul>
+                <li><code>std::atomic&lt;uint32&gt;</code> 用于分配 world id，让跨 world handle 不会误通过验证。</li>
+                <li><code>std::stable_sort</code> 用于 diagnostics 和 render categories，保证 tie-break 之外的相对稳定性。</li>
+                <li>Core <code>FTransform::TryInverse</code> 对 zero scale 明确失败，reparent preserve world 因此需要 deterministic fallback。</li>
+                <li>Public headers 使用轻量值类型和 forward boundary，避免把 implementation-only 细节扩散到调用方。</li>
+            </ul>
+        </section>
+
+        <section id="s8">
+            <h2>八、软件工程知识点</h2>
+            <ul>
+                <li>Spec 中的 clarification 直接落到 tests：destroy descendants、duplicate add、slot reuse、reparent mode、two ordering keys。</li>
+                <li>任务按 user story 组织，但实现把共享核心放在 <code>FWorld</code>，把 render collection 和 diagnostics 分成独立模块，避免单个函数承担全部责任。</li>
+                <li>CI 友好设计来自 headless、process-local、no asset/no GPU/no display 的约束。</li>
+                <li>Boundary grep 是一种低成本架构测试，能早发现 public header 泄漏。</li>
+            </ul>
+        </section>
+
+        <section id="s9">
+            <h2>九、渲染、引擎与图形 API 学习笔记</h2>
+            <p>这一期没有调用图形 API，但它决定后续 Renderer 能拿到什么“场景事实”：mesh identity、world transform、light placement、camera projection。真实引擎中，这一步类似从 game/application scene 抽取 render scene 或 frame input；Renderer 再把这些抽象数据转换为 material sorting、draw command、descriptor binding、render graph pass。</p>
+            <p>把 Application scene summary 保持 backend-neutral，是多 API 架构的关键。Vulkan/DX12/Metal 需要完全不同的 resource binding 和 command recording，但它们都可以消费相同的 mesh/light/camera 抽象。这个边界让后续 Triangle Demo 或更复杂 render path 不必把 ECS 绑到某一个 backend。</p>
+        </section>
+    </main>
+</div>
+</body>
+</html>
