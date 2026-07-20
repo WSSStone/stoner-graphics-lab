@@ -6,10 +6,17 @@
 namespace Stoner::RHI
 {
 
+enum class ERHIMemoryAccess
+{
+    DeviceLocal,
+    HostVisible
+};
+
 struct FRHIBufferDesc
 {
     Stoner::Core::uint64 SizeInBytes = 0;
     ERHIBufferUsage Usage = ERHIBufferUsage::None;
+    ERHIMemoryAccess MemoryAccess = ERHIMemoryAccess::DeviceLocal;
 };
 
 [[nodiscard]] constexpr bool IsValidRHIUsage(ERHIBufferUsage Usage) noexcept

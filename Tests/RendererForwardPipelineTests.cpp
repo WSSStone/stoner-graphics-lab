@@ -1,6 +1,7 @@
 #include "RendererForwardPipelineTests.h"
 
 #include "Renderer/RendererMinimal.h"
+#include "VulkanRHI/FVulkanDevice.h"
 
 #include <chrono>
 #include <iostream>
@@ -299,6 +300,68 @@ void TestRepresentativePerformance(FRendererForwardPipelineTestResult& Result)
         "Forward debug dump includes graph declarations and fallback summary");
 }
 
+void TestForwardFrameExecution(FRendererForwardPipelineTestResult& Result)
+{
+    using namespace Stoner::RHI;
+    using namespace Stoner::Backend::Vulkan;
+
+    FVulkanDevice Device;
+    FVulkanInstanceDesc InstanceDesc;
+    InstanceDesc.bRequestValidation = false;
+    Record(Result, Device.Initialize(InstanceDesc) == ERHIResult::Success,
+        "Forward executor deterministic device initializes");
+
+    FRHITextureDesc TextureDesc;
+    TextureDesc.Width = 1280;
+    TextureDesc.Height = 720;
+    TextureDesc.Format = ERHIFormat::R8G8B8A8_UNorm;
+    TextureDesc.Usage = ERHITextureUsage::ColorAttachment | ERHITextureUsage::Present;
+    auto Texture = Device.CreateTexture(TextureDesc);
+    auto VertexBuffer = Device.CreateBuffer({60, ERHIBufferUsage::Vertex | ERHIBufferUsage::CopyDestination, ERHIMemoryAccess::HostVisible});
+    auto RenderPass = Device.CreateRenderPass({{{ERHIAttachmentRole::Color, ERHIFormat::R8G8B8A8_UNorm, ERHISampleCount::One}}});
+    auto Framebuffer = Device.CreateFramebuffer({RenderPass.Object, {{Texture.Object, 0, 0}}, 1280, 720});
+    FRHIPipelineLayoutDesc LayoutDesc;
+    LayoutDesc.Bindings = {{0, 0, ERHIDescriptorType::UniformBuffer, 1,
+        ERHIShaderStageFlags::Vertex | ERHIShaderStageFlags::Fragment}};
+    auto Layout = Device.CreatePipelineLayout(LayoutDesc);
+
+    FRHIShaderModuleDesc VertexShaderDesc;
+    VertexShaderDesc.Stage = ERHIShaderStage::Vertex;
+    VertexShaderDesc.EntryPoint = "main";
+    VertexShaderDesc.PayloadIdentity = "triangle-vertex";
+    VertexShaderDesc.Bytecode.Words = {0x07230203u, 0x00010000u, 0u, 1u};
+    FRHIShaderModuleDesc FragmentShaderDesc = VertexShaderDesc;
+    FragmentShaderDesc.Stage = ERHIShaderStage::Fragment;
+    FragmentShaderDesc.PayloadIdentity = "triangle-fragment";
+    auto VertexShader = Device.CreateShaderModule(VertexShaderDesc);
+    auto FragmentShader = Device.CreateShaderModule(FragmentShaderDesc);
+
+    FRHIGraphicsPipelineDesc PipelineDesc;
+    PipelineDesc.PipelineLayout = Layout.Object;
+    PipelineDesc.ShaderModules = {VertexShader.Object, FragmentShader.Object};
+    PipelineDesc.VertexInput.Stride = 20;
+    PipelineDesc.VertexInput.Attributes = {{0, ERHIFormat::R32_Float, 0}, {1, ERHIFormat::R32_Float, 8}};
+    PipelineDesc.RenderTargets.ColorFormats = {ERHIFormat::R8G8B8A8_UNorm};
+    auto Pipeline = Device.CreateGraphicsPipeline(PipelineDesc);
+    auto Commands = Device.CreateCommandBuffer(ERHIQueueType::Graphics);
+
+    FForwardFrameExecutionBindings Bindings;
+    Bindings.OutputTexture = Texture.Object;
+    Bindings.VertexBuffer = VertexBuffer.Object;
+    Bindings.GraphicsPipeline = Pipeline.Object;
+    Bindings.RenderPass = RenderPass.Object;
+    Bindings.Framebuffer = Framebuffer.Object;
+    Bindings.CommandBuffer = Commands.Object;
+    const FForwardFrameExecutionResult Execution = FForwardFrameExecutor().Execute(Prepare(RepresentativeInputs()), Bindings);
+    Record(Result, Execution.Succeeded() && Execution.RecordedDrawCount == 1 && Execution.RecordedCommandCount == 9,
+        "Forward executor records transition render bindings three-vertex draw and present transition");
+
+    Bindings.VertexBuffer.reset();
+    Record(Result, FForwardFrameExecutor().Execute(Prepare(RepresentativeInputs()), Bindings).Result == EForwardExecutionResult::InvalidBinding,
+        "Forward executor rejects incomplete resource bindings");
+    (void)Device.Shutdown();
+}
+
 } // namespace
 
 FRendererForwardPipelineTestResult RunRendererForwardPipelineTests()
@@ -309,5 +372,6 @@ FRendererForwardPipelineTestResult RunRendererForwardPipelineTests()
     TestLightingSelectionAndFallback(Result);
     TestSkyTransparentAndDeterminism(Result);
     TestRepresentativePerformance(Result);
+    TestForwardFrameExecution(Result);
     return Result;
 }

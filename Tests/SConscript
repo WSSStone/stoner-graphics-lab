@@ -2,8 +2,10 @@
 
 Import('env', 'platform', 'config')
 import os
+from GraphicsDependencyDetect import DetectGraphicsDependencies
 
 test_env = env.Clone()
+graphics_deps = DetectGraphicsDependencies(platform)
 
 # Include paths for all layers (to validate the full include chain)
 # Use '#' prefix to get absolute paths for compiler -I flags
@@ -21,6 +23,7 @@ for backend in _BACKEND_LAYERS:
     include_paths.append(Dir('#' + public_dir).abspath)
 
 test_env.Append(CPPPATH=include_paths)
+test_env.Append(CPPPATH=[Dir('#Demo/StonerDemo/Private').abspath])
 
 # Source files — use relative path to SConscript source dir for variant_dir compat
 tests_src_dir = Dir('.').srcnode().abspath
@@ -37,12 +40,25 @@ _LIB_LAYERS = ['Core', 'RHI', 'Renderer', 'Application']
 _BACKEND_LIB_LAYERS = [os.path.join('Backend', 'Vulkan')]
 lib_paths = [Dir(os.path.join(build_base, layer)).abspath for layer in _LIB_LAYERS]
 lib_paths += [Dir(os.path.join(build_base, backend)).abspath for backend in _BACKEND_LIB_LAYERS]
+lib_paths.append(Dir(os.path.join(build_base, 'Demo', 'StonerDemo')).abspath)
 test_env.Append(LIBPATH=lib_paths)
 
 # Libraries to link (order matters for static linking: dependents first)
-test_env.Append(LIBS=['Application', 'Renderer', 'RHI', 'Core', 'VulkanRHI'])
+test_env.Append(LIBS=['StonerDemoRuntime', 'Application', 'Renderer', 'RHI', 'Core', 'VulkanRHI'])
 if platform == 'Linux':
     test_env.Append(LIBS=['dl'])
+if platform == 'Win64':
+    test_env.Append(LIBS=['Psapi'])
+if graphics_deps['vulkan_library']:
+    test_env.Append(LINKFLAGS=[graphics_deps['vulkan_library']])
+    if platform in ('Mac', 'Linux'):
+        test_env.Append(LINKFLAGS=['-Wl,-rpath,' + os.path.dirname(graphics_deps['vulkan_library'])])
+if graphics_deps['glfw_library']:
+    test_env.Append(LINKFLAGS=[graphics_deps['glfw_library']])
+    if platform in ('Mac', 'Linux'):
+        test_env.Append(LINKFLAGS=['-Wl,-rpath,' + os.path.dirname(graphics_deps['glfw_library'])])
+if platform == 'Mac' and graphics_deps['glfw_available']:
+    test_env.Append(FRAMEWORKS=['Cocoa', 'IOKit', 'CoreFoundation'])
 
 program = test_env.Program('StonerTest', sources)
 Return('program')

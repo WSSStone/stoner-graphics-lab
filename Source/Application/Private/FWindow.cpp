@@ -1,7 +1,12 @@
 #include "Application/FWindow.h"
 
+#include "FWindowDriver.h"
+
 namespace Stoner::Application
 {
+
+FWindow::FWindow() = default;
+FWindow::~FWindow() { if (Driver) Driver->Destroy(); }
 
 namespace
 {
@@ -90,7 +95,37 @@ EApplicationResult FWindow::Create(const FWindowDesc& InDesc, EWindowRuntimeAvai
 
 EApplicationResult FWindow::CreateRealWindow(const FWindowDesc& InDesc, EWindowRuntimeAvailability RuntimeAvailability)
 {
-    return Create(InDesc, RuntimeAvailability);
+    if (RuntimeAvailability != EWindowRuntimeAvailability::Available)
+        return Create(InDesc, RuntimeAvailability);
+    Driver = CreateGlfwWindowDriver();
+    if (!Driver || Driver->GetRuntimeAvailability() != EWindowRuntimeAvailability::Available)
+    {
+        Driver.reset();
+        return Create(InDesc, EWindowRuntimeAvailability::DependencyUnavailable);
+    }
+    if (!InDesc.IsValid(&Diagnostics)) return EApplicationResult::ValidationFailed;
+    const Stoner::Core::uint32 StableId = NextStableWindowId();
+    const EApplicationResult DriverResult = Driver->Create(InDesc, StableId);
+    if (DriverResult != EApplicationResult::Success)
+    {
+        Driver.reset();
+        return DriverResult;
+    }
+    Desc = InDesc;
+    WindowId = StableId;
+    LifecycleState = EWindowLifecycleState::Active;
+    DisplayMode = InDesc.DisplayMode;
+    ClientWidth = InDesc.ClientWidth;
+    ClientHeight = InDesc.ClientHeight;
+    DrawableWidth = Driver->GetDrawableWidth();
+    DrawableHeight = Driver->GetDrawableHeight();
+    PlatformWindow = Driver->GetPlatformWindow();
+    bVisible = InDesc.bVisible;
+    bFocused = true;
+    bMinimized = DrawableWidth == 0 || DrawableHeight == 0;
+    UpdateDrawableState();
+    QueueEvent(FWindowEvent::Created(WindowId, ClientWidth, ClientHeight, NextSequence++));
+    return EApplicationResult::Success;
 }
 
 EApplicationResult FWindow::RequestClose()
@@ -103,6 +138,7 @@ EApplicationResult FWindow::RequestClose()
         return EApplicationResult::InvalidLifecycle;
     }
     LifecycleState = EWindowLifecycleState::CloseRequested;
+    if (Driver) Driver->RequestClose();
     QueueEvent(FWindowEvent::CloseRequested(NextSequence++));
     return EApplicationResult::Success;
 }
@@ -116,6 +152,9 @@ EApplicationResult FWindow::Destroy()
         Diagnostics.SortStable();
         return EApplicationResult::Success;
     }
+    if (Driver) Driver->Destroy();
+    Driver.reset();
+    PlatformWindow.Clear();
     LifecycleState = EWindowLifecycleState::Destroyed;
     bVisible = false;
     bFocused = false;
@@ -163,6 +202,13 @@ void FWindow::QueueEvent(const FWindowEvent& Event)
 
 Stoner::Core::TArray<FWindowEvent> FWindow::PollEvents()
 {
+    if (Driver)
+    {
+        Driver->Poll();
+        for (const FWindowEvent& Event : Driver->ConsumeWindowEvents()) QueueEvent(Event);
+        DrawableWidth = Driver->GetDrawableWidth();
+        DrawableHeight = Driver->GetDrawableHeight();
+    }
     SortWindowEventsStable(PendingEvents);
     Stoner::Core::TArray<FWindowEvent> Events = PendingEvents;
     PendingEvents.clear();
@@ -171,6 +217,13 @@ Stoner::Core::TArray<FWindowEvent> FWindow::PollEvents()
         ApplyEvent(Event);
     }
     return Events;
+}
+
+Stoner::Core::TArray<FInputEvent> FWindow::PollInputEvents()
+{
+    if (!Driver) return {};
+    Driver->Poll();
+    return Driver->ConsumeInputEvents();
 }
 
 void FWindow::ApplyEvent(const FWindowEvent& Event)
@@ -183,12 +236,16 @@ void FWindow::ApplyEvent(const FWindowEvent& Event)
         ClientWidth = Event.ClientWidth;
         ClientHeight = Event.ClientHeight;
         bMinimized = false;
+        DrawableWidth = Event.ClientWidth;
+        DrawableHeight = Event.ClientHeight;
         UpdateDrawableState();
         break;
     case EWindowEventType::Minimized:
         bMinimized = true;
         ClientWidth = 0;
         ClientHeight = 0;
+        DrawableWidth = 0;
+        DrawableHeight = 0;
         UpdateDrawableState();
         Diagnostics.Add(EApplicationDiagnosticSeverity::Info, EApplicationDiagnosticCategory::Loop,
             EApplicationResult::Success, "APP-WINDOW-PRESENTATION-PAUSED", "Window", "Window has no drawable area");
@@ -197,6 +254,8 @@ void FWindow::ApplyEvent(const FWindowEvent& Event)
         bMinimized = false;
         ClientWidth = Event.ClientWidth;
         ClientHeight = Event.ClientHeight;
+        DrawableWidth = Event.ClientWidth;
+        DrawableHeight = Event.ClientHeight;
         UpdateDrawableState();
         break;
     case EWindowEventType::FocusGained:
@@ -228,7 +287,12 @@ void FWindow::ApplyEvent(const FWindowEvent& Event)
 
 void FWindow::UpdateDrawableState()
 {
-    bDrawable = LifecycleState != EWindowLifecycleState::Destroyed && !bMinimized && ClientWidth > 0 && ClientHeight > 0;
+    if (!Driver)
+    {
+        DrawableWidth = ClientWidth;
+        DrawableHeight = ClientHeight;
+    }
+    bDrawable = LifecycleState != EWindowLifecycleState::Destroyed && !bMinimized && DrawableWidth > 0 && DrawableHeight > 0;
     bPresentationPaused = !bDrawable && LifecycleState != EWindowLifecycleState::Destroyed;
 }
 

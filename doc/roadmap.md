@@ -130,7 +130,7 @@ These principles (from the [Constitution v1.3.0](../.specify/memory/constitution
 | 014 | Forward Rendering Pipeline | Renderer | 012, 013 | L | ✅ Yes | ✅ Done |
 | 015 | Window & Input System | Application | 005 | M | ✅ Yes | ⬜ Todo |
 | 016 | Scene Graph & ECS | Application | 003 | L | ❌ No | ⬜ Todo |
-| 017 | 🎯 Triangle Demo | Application | 011, 014, 015 | M | ✅ Yes | ⬜ Todo |
+| 017 | 🎯 Triangle Demo | Application | 011, 014, 015 | M | ✅ Yes | 🛠️ In Progress |
 | 018 | Deferred Rendering | Renderer | 014 | L | ❌ No | ⬜ Todo |
 | 019 | Meshlet Pipeline | Renderer | 014 | XL | ❌ No | ⬜ Todo |
 | 020 | Ray Tracing Integration | Renderer | 014 | XL | ❌ No | ⬜ Todo |
@@ -807,6 +807,8 @@ Scene graph and ECS foundation: FWorld (entity container), FEntity (ID handle), 
 **Dependencies**: 011 (Vulkan Pipeline), 014 (Forward Rendering), 015 (Window & Input)  
 **Complexity**: M (3-5 days)  
 **Critical Path**: ✅ Yes — first end-to-end validation
+
+> **Status Note (Feature 018)**: 🛠️ **In Progress** — the standalone target, deterministic execution, backend-neutral forward executor, native offscreen Vulkan, real GLFW-backed Vulkan surface/swapchain presentation, endurance diagnostics, and three-platform CI configuration are implemented. A local macOS smoke visibly rendered the interpolated RGB triangle; formal 10,000-frame/20-recovery macOS evidence, equivalent Windows evidence, and identified CI artifacts remain completion gates.
 
 #### Scope
 

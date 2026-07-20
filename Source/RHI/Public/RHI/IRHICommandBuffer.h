@@ -38,7 +38,10 @@ enum class ERHISymbolicCommandType
     LayoutTransition,
     BeginRenderPass,
     EndRenderPass,
-    UploadSchedule
+    UploadSchedule,
+    BindVertexBuffer,
+    SetViewport,
+    SetScissor
 };
 
 struct FRHIBufferCopyRange
@@ -87,6 +90,24 @@ struct FRHIResourceBarrierDesc
     ERHIResourceLayout After = ERHIResourceLayout::General;
 };
 
+struct FRHIViewport
+{
+    float X = 0.0f;
+    float Y = 0.0f;
+    float Width = 0.0f;
+    float Height = 0.0f;
+    float MinDepth = 0.0f;
+    float MaxDepth = 1.0f;
+};
+
+struct FRHIScissorRect
+{
+    Stoner::Core::uint32 X = 0;
+    Stoner::Core::uint32 Y = 0;
+    Stoner::Core::uint32 Width = 0;
+    Stoner::Core::uint32 Height = 0;
+};
+
 class IRHICommandBuffer
 {
 public:
@@ -112,6 +133,12 @@ public:
     virtual ERHIResult RecordLayoutTransition(const FRHIResourceBarrierDesc& Transition) = 0;
     virtual ERHIResult BeginRenderPass(const Stoner::Core::TSharedPtr<IRHIRenderPass>& RenderPass, const Stoner::Core::TSharedPtr<IRHIFramebuffer>& Framebuffer) = 0;
     virtual ERHIResult EndRenderPass() = 0;
+    virtual ERHIResult BindVertexBuffer(const Stoner::Core::TSharedPtr<IRHIBuffer>&, Stoner::Core::uint64 = 0)
+    {
+        return ERHIResult::Unsupported;
+    }
+    virtual ERHIResult SetViewport(const FRHIViewport&) { return ERHIResult::Unsupported; }
+    virtual ERHIResult SetScissor(const FRHIScissorRect&) { return ERHIResult::Unsupported; }
 };
 
 } // namespace Stoner::RHI

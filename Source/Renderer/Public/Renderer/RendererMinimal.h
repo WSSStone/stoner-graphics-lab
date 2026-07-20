@@ -3,6 +3,7 @@
 #include "Core/CoreMinimal.h"
 #include "Renderer/FForwardDiagnostics.h"
 #include "Renderer/FForwardFramePlan.h"
+#include "Renderer/FForwardFrameExecutor.h"
 #include "Renderer/FForwardLightData.h"
 #include "Renderer/FForwardRenderGraphDeclaration.h"
 #include "Renderer/FForwardRenderer.h"

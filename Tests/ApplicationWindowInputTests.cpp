@@ -80,7 +80,7 @@ void TestWindowValidationAndRuntime(FApplicationWindowInputTestResult& Result)
         "Application window rejects dimensions above v1 safe maximum");
 
     FWindow RealWindow;
-    Record(Result, RealWindow.CreateRealWindow(ValidDesc()) == EApplicationResult::RuntimeUnavailable &&
+    Record(Result, RealWindow.CreateRealWindow(ValidDesc(), EWindowRuntimeAvailability::DependencyUnavailable) == EApplicationResult::RuntimeUnavailable &&
             RealWindow.GetDiagnostics().CountByCode("APP-WINDOW-RUNTIME") == 1,
         "Application real-window path reports unavailable dependency safely");
 }

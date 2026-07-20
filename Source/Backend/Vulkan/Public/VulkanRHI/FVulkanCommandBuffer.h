@@ -48,6 +48,9 @@ public:
     Stoner::RHI::ERHIResult RecordLayoutTransition(const Stoner::RHI::FRHIResourceBarrierDesc& Transition) override;
     Stoner::RHI::ERHIResult BeginRenderPass(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIRenderPass>& RenderPass, const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIFramebuffer>& Framebuffer) override;
     Stoner::RHI::ERHIResult EndRenderPass() override;
+    Stoner::RHI::ERHIResult BindVertexBuffer(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Buffer, Stoner::Core::uint64 OffsetBytes = 0) override;
+    Stoner::RHI::ERHIResult SetViewport(const Stoner::RHI::FRHIViewport& Viewport) override;
+    Stoner::RHI::ERHIResult SetScissor(const Stoner::RHI::FRHIScissorRect& Scissor) override;
     Stoner::RHI::ERHIResult ScheduleBufferUpload(const Stoner::Core::TSharedPtr<FVulkanUploadRequest>& Upload);
     Stoner::RHI::ERHIResult ScheduleTextureUpload(const Stoner::Core::TSharedPtr<FVulkanUploadRequest>& Upload);
 
@@ -72,6 +75,7 @@ private:
     Stoner::Core::TWeakPtr<Stoner::RHI::IRHIFramebuffer> ActiveFramebuffer;
     Stoner::Core::TWeakPtr<Stoner::RHI::IRHIGraphicsPipeline> BoundGraphicsPipeline;
     Stoner::Core::TWeakPtr<Stoner::RHI::IRHIComputePipeline> BoundComputePipeline;
+    Stoner::Core::TWeakPtr<Stoner::RHI::IRHIBuffer> BoundVertexBuffer;
     bool bValid = true;
 };
 

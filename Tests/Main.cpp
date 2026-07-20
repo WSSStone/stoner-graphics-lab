@@ -11,6 +11,8 @@
 #include "RendererMaterialShaderTests.h"
 #include "RendererRenderGraphTests.h"
 #include "VulkanBackendTests.h"
+#include "VulkanNativeIntegrationTests.h"
+#include "TriangleDemoIntegrationTests.h"
 
 int main()
 {
@@ -25,11 +27,13 @@ int main()
     const FRendererMaterialShaderTestResult MaterialShaderResult = RunRendererMaterialShaderTests();
     const FRendererRenderGraphTestResult RenderGraphResult = RunRendererRenderGraphTests();
     const FVulkanBackendTestResult VulkanResult = RunVulkanBackendTests();
+    const FVulkanNativeIntegrationTestResult NativeVulkanResult = RunVulkanNativeIntegrationTests();
+    const FTriangleDemoIntegrationTestResult DemoResult = RunTriangleDemoIntegrationTests();
     return CoreResult.Failed == 0 && MathResult.Failed == 0 &&
         LogResult.Failed == 0 && PlatformResult.Failed == 0 &&
         ApplicationResult.Failed == 0 &&
         SceneResult.Failed == 0 &&
         RHIResult.Failed == 0 && ForwardPipelineResult.Failed == 0 &&
         MaterialShaderResult.Failed == 0 && RenderGraphResult.Failed == 0 &&
-        VulkanResult.Failed == 0 ? 0 : 1;
+        VulkanResult.Failed == 0 && NativeVulkanResult.Failed == 0 && DemoResult.Failed == 0 ? 0 : 1;
 }

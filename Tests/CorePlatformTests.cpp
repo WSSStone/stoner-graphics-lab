@@ -188,6 +188,18 @@ void TestPlatformWindow(FCorePlatformTestResult& Result)
     Record(Result, !CopiedWindow.IsValid(), "FPlatformWindow clear invalidates handle");
 }
 
+void TestPlatformMemory(FCorePlatformTestResult& Result)
+{
+    const FProcessMemorySnapshot Snapshot = FPlatformMemory::QueryProcessMemory();
+#if SG_PLATFORM_WINDOWS || SG_PLATFORM_MAC || SG_PLATFORM_LINUX
+    Record(Result, Snapshot.bAvailable, "FPlatformMemory reports supported desktop availability");
+    Record(Result, Snapshot.ResidentBytes > 0, "FPlatformMemory reports positive resident bytes");
+#else
+    Record(Result, !Snapshot.bAvailable && Snapshot.ResidentBytes == 0,
+        "FPlatformMemory unsupported platform result is controlled");
+#endif
+}
+
 void TestAggregateAndIsolation(FCorePlatformTestResult& Result)
 {
     const FString OSName = FPlatformMisc::GetOSName();
@@ -212,6 +224,7 @@ FCorePlatformTestResult RunCorePlatformTests()
     TestPlatformFileSystem(Result);
     TestPlatformProcess(Result);
     TestPlatformWindow(Result);
+    TestPlatformMemory(Result);
     TestAggregateAndIsolation(Result);
 
     std::cout << "[INFO] Core platform tests passed=" << Result.Passed

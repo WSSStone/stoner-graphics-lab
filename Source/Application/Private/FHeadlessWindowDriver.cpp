@@ -35,4 +35,9 @@ private:
     Stoner::Core::TArray<FInputEvent> InputEvents;
 };
 
+std::unique_ptr<IWindowDriver> CreateHeadlessWindowDriver()
+{
+    return std::make_unique<FHeadlessWindowDriver>();
+}
+
 } // namespace Stoner::Application
