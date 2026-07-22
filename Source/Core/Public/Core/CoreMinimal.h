@@ -35,6 +35,7 @@
 #include "Core/FPlatformTime.h"
 #include "Core/FPlatformFileSystem.h"
 #include "Core/FPlatformProcess.h"
+#include "Core/FPlatformMemory.h"
 #include "Core/FPlatformWindow.h"
 
 // Core layer minimal header - shared utilities foundation.

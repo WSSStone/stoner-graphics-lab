@@ -18,6 +18,10 @@ public:
     [[nodiscard]] virtual ERHIResourceLifecycleState GetLifecycleState() const noexcept = 0;
 
     virtual ERHIResult Invalidate() = 0;
+    virtual ERHIResult Upload(const void*, Stoner::Core::uint64, Stoner::Core::uint64 = 0)
+    {
+        return ERHIResult::Unsupported;
+    }
 };
 
 } // namespace Stoner::RHI

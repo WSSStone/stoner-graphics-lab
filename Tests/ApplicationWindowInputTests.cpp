@@ -1,6 +1,7 @@
 #include "ApplicationWindowInputTests.h"
 
 #include "Application/ApplicationMinimal.h"
+#include "FWindowDriver.h"
 
 #include <iostream>
 #include <string>
@@ -9,6 +10,42 @@ namespace
 {
 
 using namespace Stoner::Application;
+
+class FScriptedWindowDriver final : public IWindowDriver
+{
+public:
+    const char* GetDriverName() const noexcept override { return "ScriptedNative"; }
+    EWindowRuntimeAvailability GetRuntimeAvailability() const noexcept override { return Availability; }
+    EApplicationResult Create(const FWindowDesc&, Stoner::Core::uint32) override
+    {
+        bCreated = Availability == EWindowRuntimeAvailability::Available;
+        return bCreated ? EApplicationResult::Success : EApplicationResult::RuntimeUnavailable;
+    }
+    void Destroy() override { bCreated = false; }
+    void RequestClose() override { WindowEvents.push_back(FWindowEvent::CloseRequested(NextSequence++)); }
+    Stoner::Core::FPlatformWindow GetPlatformWindow() const noexcept override
+    { return bCreated ? Stoner::Core::FPlatformWindow(const_cast<int*>(&NativeToken)) : Stoner::Core::FPlatformWindow{}; }
+    Stoner::Core::uint32 GetDrawableWidth() const noexcept override { return DrawableWidth; }
+    Stoner::Core::uint32 GetDrawableHeight() const noexcept override { return DrawableHeight; }
+    Stoner::Core::TArray<FWindowEvent> ConsumeWindowEvents() override
+    { auto Result = WindowEvents; WindowEvents.clear(); return Result; }
+    Stoner::Core::TArray<FInputEvent> ConsumeInputEvents() override
+    { auto Result = InputEvents; InputEvents.clear(); return Result; }
+
+    void QueueWindow(FWindowEvent Event) { WindowEvents.push_back(std::move(Event)); }
+    void QueueInput(FInputEvent Event) { InputEvents.push_back(std::move(Event)); }
+    void SetDrawable(Stoner::Core::uint32 Width, Stoner::Core::uint32 Height)
+    { DrawableWidth = Width; DrawableHeight = Height; }
+
+    EWindowRuntimeAvailability Availability = EWindowRuntimeAvailability::Available;
+    bool bCreated = false;
+    int NativeToken = 7;
+    Stoner::Core::uint32 DrawableWidth = 2560;
+    Stoner::Core::uint32 DrawableHeight = 1440;
+    Stoner::Core::uint64 NextSequence = 100;
+    Stoner::Core::TArray<FWindowEvent> WindowEvents;
+    Stoner::Core::TArray<FInputEvent> InputEvents;
+};
 
 void Record(FApplicationWindowInputTestResult& Result, bool bPassed, const char* Name)
 {
@@ -80,9 +117,50 @@ void TestWindowValidationAndRuntime(FApplicationWindowInputTestResult& Result)
         "Application window rejects dimensions above v1 safe maximum");
 
     FWindow RealWindow;
-    Record(Result, RealWindow.CreateRealWindow(ValidDesc()) == EApplicationResult::RuntimeUnavailable &&
+    Record(Result, RealWindow.CreateRealWindow(ValidDesc(), EWindowRuntimeAvailability::DependencyUnavailable) == EApplicationResult::RuntimeUnavailable &&
             RealWindow.GetDiagnostics().CountByCode("APP-WINDOW-RUNTIME") == 1,
         "Application real-window path reports unavailable dependency safely");
+}
+
+void TestPrivateDriverAndRealWindowEvents(FApplicationWindowInputTestResult& Result)
+{
+    FWindow Window;
+    auto Driver = std::make_unique<FScriptedWindowDriver>();
+    FScriptedWindowDriver* Script = Driver.get();
+    FWindowTestAccess::InstallDriver(Window, std::move(Driver));
+    Record(Result, Window.CreateRealWindow(ValidDesc()) == EApplicationResult::Success && Script->bCreated &&
+            Window.IsRealWindow() && Window.GetPlatformWindow().IsValid() &&
+            Window.GetDrawableWidth() == 2560 && Window.GetDrawableHeight() == 1440,
+        "Application selects injected native driver and exposes opaque handle and framebuffer pixel extent");
+
+    Script->SetDrawable(1800, 1400);
+    Script->QueueWindow(FWindowEvent::DrawableResized(1800, 1400, 102));
+    Script->QueueWindow(FWindowEvent::Resized(900, 700, 101));
+    Stoner::Core::TArray<FWindowEvent> Events = Window.PollEvents();
+    Record(Result, Events.size() >= 3 && Events[Events.size() - 2].EventType == EWindowEventType::Resized &&
+            Events.back().EventType == EWindowEventType::DrawableResized &&
+            Window.GetClientWidth() == 900 && Window.GetClientHeight() == 700 &&
+            Window.GetDrawableWidth() == 1800 && Window.GetDrawableHeight() == 1400,
+        "Application preserves logical and framebuffer sizes and callback sequence independently");
+
+    Script->SetDrawable(0, 0);
+    Script->QueueWindow(FWindowEvent::Minimized(103));
+    (void)Window.PollEvents();
+    Record(Result, Window.IsPresentationPaused() && !Window.HasDrawableArea(),
+        "Application real driver pauses presentation at zero framebuffer extent");
+    Script->SetDrawable(1800, 1400);
+    Script->QueueWindow(FWindowEvent::Restored(1800, 1400, 104));
+    (void)Window.PollEvents();
+    Record(Result, !Window.IsPresentationPaused() && Window.HasDrawableArea(),
+        "Application real driver restores presentation after non-zero framebuffer extent");
+
+    Script->QueueInput(FInputEvent::KeyDown(EKey::Escape, 105));
+    Script->QueueWindow(FWindowEvent::CloseRequested(106));
+    const auto Input = Window.PollInputEvents();
+    Events = Window.PollEvents();
+    Record(Result, !Input.empty() && Input.front().Key == EKey::Escape && Window.IsCloseRequested() && !Events.empty(),
+        "Application translates Escape and close callbacks while the window loop remains pollable");
+    (void)Window.Destroy();
 }
 
 void TestInputTransitions(FApplicationWindowInputTestResult& Result)
@@ -241,6 +319,7 @@ FApplicationWindowInputTestResult RunApplicationWindowInputTests()
     FApplicationWindowInputTestResult Result;
     TestWindowLifecycle(Result);
     TestWindowValidationAndRuntime(Result);
+    TestPrivateDriverAndRealWindowEvents(Result);
     TestInputTransitions(Result);
     TestFocusLossAndUnknownInput(Result);
     TestWindowEventsAndLoop(Result);

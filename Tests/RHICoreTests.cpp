@@ -1311,6 +1311,42 @@ void TestCoreValuesAndCapabilities(FRHICoreTestResult& Result)
     Record(Result, !Capabilities.SupportsFormat(ERHIFormat::S8_UInt), "FRHIDeviceCapabilities rejects unsupported stencil format");
 }
 
+void TestRuntimeAndPresentationContracts(FRHICoreTestResult& Result)
+{
+    FRHIRuntimeSnapshot Snapshot;
+    Snapshot.RequestedMode = ERHIRuntimeMode::Native;
+    Snapshot.ObjectMode = ERHIRuntimeObjectMode::RealRuntime;
+    Snapshot.LiveInstances = 1;
+    Snapshot.LiveDevices = 1;
+    Snapshot.LiveBuffers = 2;
+    Record(Result, Snapshot.ProvesNativeExecution(), "RHI runtime snapshot proves native execution explicitly");
+    Record(Result, Snapshot.GetTotalLiveObjectCount() == 4, "RHI runtime snapshot exposes stable live counts");
+
+    FRHIPresentationSurfaceDesc SurfaceDesc;
+    Record(Result, !SurfaceDesc.IsValid(), "RHI presentation surface rejects missing opaque window");
+    SurfaceDesc.Window = FPlatformWindow(reinterpret_cast<void*>(static_cast<uintptr>(1)));
+    Record(Result, SurfaceDesc.IsValid(), "RHI presentation surface accepts opaque platform window");
+
+    FRHISwapchainDesc SwapchainDesc;
+    SwapchainDesc.Width = 1280;
+    SwapchainDesc.Height = 720;
+    Record(Result, SwapchainDesc.IsValid() && SwapchainDesc.FramesInFlight == 2,
+        "RHI swapchain description defaults to two frames in flight");
+
+    FRHIBufferDesc UploadBuffer{64, ERHIBufferUsage::Vertex | ERHIBufferUsage::CopyDestination, ERHIMemoryAccess::HostVisible};
+    Record(Result, IsValidRHIBufferDesc(UploadBuffer), "RHI host-visible vertex upload description is valid");
+
+    FRHIViewport Viewport{0.0f, 0.0f, 1280.0f, 720.0f, 0.0f, 1.0f};
+    FRHIScissorRect Scissor{0, 0, 1280, 720};
+    Record(Result, Viewport.Width > 0.0f && Viewport.Height > 0.0f && Scissor.Width == 1280,
+        "RHI viewport and scissor contracts preserve pixel extent");
+
+    FRHIRenderPassClearValues ClearValues;
+    ClearValues.Colors.push_back({0.02f, 0.03f, 0.05f, 1.0f});
+    Record(Result, ClearValues.Colors.size() == 1 && ClearValues.Depth == 1.0f,
+        "RHI render pass clear values preserve color and depth defaults");
+}
+
 void TestDeviceLifecycleAndOwnership(FRHICoreTestResult& Result)
 {
     FMockDevice Device;
@@ -1877,6 +1913,7 @@ FRHICoreTestResult RunRHICoreTests()
 
     std::cout << "[INFO] Running RHI core tests\n";
     TestCoreValuesAndCapabilities(Result);
+    TestRuntimeAndPresentationContracts(Result);
     TestDeviceLifecycleAndOwnership(Result);
     TestCommandBufferAndQueue(Result);
     TestSynchronization(Result);

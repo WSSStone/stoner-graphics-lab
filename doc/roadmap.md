@@ -1,6 +1,6 @@
 # Stoner Graphics Lab — Engine Development Roadmap
 
-> **Version**: 1.2.3 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-03 | **Status**: Active
+> **Version**: 1.2.3 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-23 | **Status**: Active
 > **Constitution**: v1.3.0 (comply with Section VII: Cross-Platform Compatibility and automated validation)
 > **Prerequisite**: [001-scons-project-skeleton](../specs/001-scons-project-skeleton/spec.md) ✅ Complete
 
@@ -130,7 +130,7 @@ These principles (from the [Constitution v1.3.0](../.specify/memory/constitution
 | 014 | Forward Rendering Pipeline | Renderer | 012, 013 | L | ✅ Yes | ✅ Done |
 | 015 | Window & Input System | Application | 005 | M | ✅ Yes | ⬜ Todo |
 | 016 | Scene Graph & ECS | Application | 003 | L | ❌ No | ⬜ Todo |
-| 017 | 🎯 Triangle Demo | Application | 011, 014, 015 | M | ✅ Yes | ⬜ Todo |
+| 017 | 🎯 Triangle Demo | Application | 011, 014, 015 | M | ✅ Yes | ✅ Done |
 | 018 | Deferred Rendering | Renderer | 014 | L | ❌ No | ⬜ Todo |
 | 019 | Meshlet Pipeline | Renderer | 014 | XL | ❌ No | ⬜ Todo |
 | 020 | Ray Tracing Integration | Renderer | 014 | XL | ❌ No | ⬜ Todo |
@@ -188,7 +188,7 @@ graph TD
     P007 --> P024[024: OpenGL/GLES]
     
     style P001 fill:#4CAF50,color:#fff
-    style P017 fill:#FF9800,color:#fff
+    style P017 fill:#4CAF50,color:#fff
     style P021 fill:#9C27B0,color:#fff
 ```
 
@@ -807,6 +807,8 @@ Scene graph and ECS foundation: FWorld (entity container), FEntity (ID handle), 
 **Dependencies**: 011 (Vulkan Pipeline), 014 (Forward Rendering), 015 (Window & Input)  
 **Complexity**: M (3-5 days)  
 **Critical Path**: ✅ Yes — first end-to-end validation
+
+> **Status Note (Feature 018)**: ✅ **Complete** — the standalone target, deterministic execution, backend-neutral forward executor, native offscreen Vulkan, real GLFW-backed Vulkan surface/swapchain presentation, and endurance diagnostics are implemented. Formal 10,000-frame Windows/macOS evidence passes, and GitHub Actions run 29935956348 passes all three platforms plus Linux Lavapipe native-headless validation.
 
 #### Scope
 

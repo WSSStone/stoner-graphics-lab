@@ -2,10 +2,12 @@
 
 Import('env', 'platform', 'config')
 from LayerBuilder import BuildLayer
+from GraphicsDependencyDetect import DetectGraphicsDependencies
 import os
 
 vulkan_env = env.Clone()
 vulkan_sdk_available = 0
+graphics_deps = DetectGraphicsDependencies(platform)
 
 vulkan_sdk = os.environ.get('VULKAN_SDK')
 if vulkan_sdk:
@@ -18,6 +20,12 @@ if vulkan_sdk:
         vulkan_env.Prepend(LIBPATH=[lib_dir])
 
 vulkan_env.Append(CPPDEFINES=[('STONER_VULKAN_SDK_AVAILABLE', vulkan_sdk_available)])
+vulkan_env.Append(CPPDEFINES=[('STONER_VULKAN_NATIVE_AVAILABLE', int(graphics_deps['vulkan_available']))])
+vulkan_env.Append(CPPDEFINES=[('STONER_GLFW_AVAILABLE', int(graphics_deps['glfw_available']))])
+if graphics_deps['vulkan_include_dir']:
+    vulkan_env.Append(CPPPATH=[graphics_deps['vulkan_include_dir']])
+if graphics_deps['glfw_include_dir']:
+    vulkan_env.Append(CPPPATH=[graphics_deps['glfw_include_dir']])
 
 # Vulkan backend uses custom paths under Source/Backend/Vulkan/
 lib = BuildLayer(

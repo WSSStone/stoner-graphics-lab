@@ -169,10 +169,27 @@ void TestSurfaceSwapchain(FVulkanBackendTestResult& Result)
         SwapchainResult.Object->GetCurrentFrameIndex() == 1, "Vulkan swapchain present advances frame");
 
     auto ConcreteSwapchain = std::dynamic_pointer_cast<FVulkanSwapchain>(SwapchainResult.Object);
+    const Stoner::Core::uint64 FirstGeneration = ConcreteSwapchain->GetGeneration();
     ConcreteSwapchain->SimulateResizeRequired();
     Record(Result, SwapchainResult.Object->AcquireNextFrame(FrameIndex) == ERHIResult::ResizeRequired &&
         ConcreteSwapchain->Recreate(3) == ERHIResult::Success &&
-        SwapchainResult.Object->GetFrameCount() == 3, "Vulkan swapchain resize-required recreate");
+        SwapchainResult.Object->GetFrameCount() == 3 && ConcreteSwapchain->GetGeneration() == FirstGeneration + 1,
+        "Vulkan swapchain normalizes stale presentation and advances recreation generation");
+    Record(Result, SwapchainResult.Object->AcquireNextFrame(FrameIndex) == ERHIResult::Success && FrameIndex == 0 &&
+        ConcreteSwapchain->Recreate(2) == ERHIResult::Success &&
+        SwapchainResult.Object->Present(FrameIndex) == ERHIResult::InvalidState,
+        "Vulkan swapchain invalidates an acquired image from the old generation");
+    const Stoner::Core::uint64 StableGeneration = ConcreteSwapchain->GetGeneration();
+    const Stoner::Core::uint32 StableFrameCount = ConcreteSwapchain->GetFrameCount();
+    Record(Result, ConcreteSwapchain->Recreate(0) == ERHIResult::InvalidState &&
+        ConcreteSwapchain->GetGeneration() == StableGeneration &&
+        ConcreteSwapchain->GetFrameCount() == StableFrameCount,
+        "Vulkan partial recreation failure preserves the active generation");
+    Record(Result, SwapchainResult.Object->AcquireNextFrame(FrameIndex) == ERHIResult::Success && FrameIndex == 0 &&
+        SwapchainResult.Object->Present(0) == ERHIResult::Success &&
+        SwapchainResult.Object->AcquireNextFrame(FrameIndex) == ERHIResult::Success && FrameIndex == 1 &&
+        SwapchainResult.Object->Present(1) == ERHIResult::Success,
+        "Vulkan swapchain synchronization follows acquired image indices");
     ConcreteSwapchain->SetUnavailable();
     Record(Result, SwapchainResult.Object->Present(0) == ERHIResult::Unavailable, "Vulkan swapchain unavailable state");
 

@@ -3,6 +3,7 @@
 #include "Core/CoreMinimal.h"
 #include "RHI/ERHIDescriptorType.h"
 #include "RHI/ERHIShaderStage.h"
+#include "RHI/ERHIRuntimeMode.h"
 
 #include <cstddef>
 
@@ -13,13 +14,6 @@ enum class ERHIShaderBytecodeValidationMode
 {
     StructuralFallback,
     Runtime
-};
-
-enum class ERHIRuntimeObjectMode
-{
-    Unknown,
-    RealRuntime,
-    DeterministicFallback
 };
 
 enum class ERHIPipelineReuseState

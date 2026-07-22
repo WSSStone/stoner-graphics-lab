@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/017-scene-graph-ecs/plan.md`
+`specs/018-triangle-demo-integration/plan.md`
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -25,6 +25,8 @@ shell commands, and other important information, read the current plan:
 - Process-local in-memory window configuration, lifecycle state, event queues, input frame snapshots, loop state, diagnostics, and debug dump strings only; no persistent database, input recording, or preference storage (016-window-input-system)
 - C++20 with traditional header/source separation; no C++20 Modules + Existing Core types, containers, math, strings, and logging/diagnostic conventions; existing Application window/input public boundary; existing Renderer forward/material public contracts only as abstract future handoff vocabulary; SCons 4.10.1 (017-scene-graph-ecs)
 - Process-local in-memory world state, entity slot records, generation/version counters, component records, parent-child relationships, transform propagation caches, render collection summaries, diagnostics, and debug dump strings only; no persistent database, asset catalog, scene serialization, or live graphics resource ownership (017-scene-graph-ecs)
+- C++20 with traditional header/source separation; no C++20 Modules + Existing Core, Application, Renderer, RHI, and Vulkan backend contracts; SCons 4.10.1; GLFW 3.4-compatible desktop window integration; Vulkan 1.3-compatible headers/loader; MoltenVK portability path on macOS; Mesa Lavapipe software Vulkan path on Linux CI; offline GLSL-to-SPIR-V compiler and SPIR-V validator when available (018-triangle-demo-integration)
+- Repository-owned shader source and checked-in SPIR-V payloads; process-local runtime/frame/diagnostic state; local screenshot and log evidence under `Validation/018/`; no database or asset catalog (018-triangle-demo-integration)
 
 ## Recent Changes
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system
@@ -39,6 +41,7 @@ shell commands, and other important information, read the current plan:
 - 015-forward-rendering-pipeline: Implemented Renderer forward frame preparation, render graph-compatible pass/resource declarations, full PBR-style material input validation, configurable default-4 point light influence selection, transparent camera-space sorting, ambient-only fallback diagnostics, deterministic debug dumps, and headless regression tests
 - 016-window-input-system: Planned Application primary window lifecycle, deterministic physical keyboard/mouse input state, resize/close/focus events, presentation-paused minimized/zero-drawable loop semantics, headless validation, optional real-window smoke validation, GitHub Actions/equivalent cross-platform CI validation, and public Application contracts
 - 017-scene-graph-ecs: Implemented Application single-world scene graph and ECS foundation, generation-safe entity handles, single-instance transform/mesh/light/camera components, recursive hierarchy destruction, explicit component update/replace semantics, deterministic transform/subtree ordering, render collection ordering, diagnostics, documentation, and headless regression tests
+- 018-triangle-demo-integration: Implemented a standalone StonerDemo composition root, explicit deterministic/native runtime modes, real Renderer forward-plan execution through backend-neutral native RHI bindings, two rotating Vulkan frame slots with image-indexed presentation synchronization, native offscreen Vulkan, GLFW surface/swapchain presentation, bounded endurance validation, formal Windows/macOS visible evidence, and passing three-platform CI with Linux Lavapipe native-headless validation
 
 ## Git Commit Style
 - Commit messages must start with a conventional type prefix such as `feat`, `docs`, `fix`, `chore`, `refactor`, `test`, or `build`.

@@ -1,0 +1,68 @@
+"""Build the reusable Feature 018 demo runtime and StonerDemo executable."""
+
+Import('env', 'platform', 'config')
+import os
+from GraphicsDependencyDetect import DetectGraphicsDependencies
+
+demo_env = env.Clone()
+deps = DetectGraphicsDependencies(platform)
+
+include_paths = [
+    Dir('#Source/Core/Public').abspath,
+    Dir('#Source/RHI/Public').abspath,
+    Dir('#Source/Renderer/Public').abspath,
+    Dir('#Source/Application/Public').abspath,
+    Dir('#Source/Backend/Vulkan/Public').abspath,
+    Dir('#Demo/StonerDemo/Private').abspath,
+]
+for key in ('vulkan_include_dir', 'glfw_include_dir'):
+    if deps[key]:
+        include_paths.append(deps[key])
+demo_env.Append(CPPPATH=include_paths)
+demo_env.Append(CPPDEFINES=[
+    ('STONER_VULKAN_RUNTIME_AVAILABLE', int(deps['vulkan_available'])),
+    ('STONER_GLFW_AVAILABLE', int(deps['glfw_available'])),
+])
+
+private_dir = Dir('.').srcnode().Dir('Private').abspath
+sources = sorted(os.path.join('Private', name) for name in os.listdir(private_dir) if name.endswith('.cpp'))
+runtime_sources = [source for source in sources if not source.endswith('Main.cpp')]
+runtime = demo_env.StaticLibrary('StonerDemoRuntime', runtime_sources)
+
+config_name = 'Debug' if config == 'debug' else 'Release'
+build_root = os.path.join('#Build', platform, config_name)
+demo_env.Append(LIBPATH=[Dir(os.path.join(build_root, path)).abspath for path in (
+    'Application', 'Renderer', 'RHI', 'Core', os.path.join('Backend', 'Vulkan'))])
+demo_env.Append(LIBS=[runtime, 'Application', 'Renderer', 'RHI', 'Core', 'VulkanRHI'])
+
+if deps['vulkan_library']:
+    if platform == 'Linux':
+        # Keep Vulkan after the static engine libraries for GNU ld --as-needed.
+        demo_env.Append(LIBS=['vulkan'])
+    else:
+        demo_env.Append(LINKFLAGS=[deps['vulkan_library']])
+    if platform == 'Mac':
+        demo_env.Append(LINKFLAGS=['-Wl,-rpath,' + os.path.dirname(deps['vulkan_library'])])
+if deps['glfw_library']:
+    demo_env.Append(LINKFLAGS=[deps['glfw_library']])
+    if platform in ('Mac', 'Linux'):
+        demo_env.Append(LINKFLAGS=['-Wl,-rpath,' + os.path.dirname(deps['glfw_library'])])
+if platform == 'Mac' and deps['glfw_available']:
+    demo_env.Append(FRAMEWORKS=['Cocoa', 'IOKit', 'CoreFoundation'])
+if platform == 'Linux':
+    demo_env.Append(LIBS=['dl'])
+if platform == 'Win64':
+    demo_env.Append(LIBS=['Psapi'])
+    if deps['glfw_available']:
+        demo_env.Append(LIBS=['User32', 'Gdi32', 'Shell32'])
+
+shader_dir = Dir('.').srcnode().Dir('Shaders').abspath
+shader_targets = []
+for name in ('Triangle.vert.spv', 'Triangle.frag.spv'):
+    source = os.path.join(shader_dir, name)
+    target = os.path.join('Shaders', name)
+    shader_targets.append(demo_env.Command(target, source, Copy('$TARGET', '$SOURCE')))
+
+program = demo_env.Program('StonerDemo', ['Private/Main.cpp'])
+demo_env.Depends(program, shader_targets)
+Return('runtime', 'program')

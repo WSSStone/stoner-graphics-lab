@@ -1,5 +1,7 @@
 #include "VulkanRHI/FVulkanBuffer.h"
 
+#include <cstring>
+
 namespace Stoner::Backend::Vulkan
 {
 
@@ -24,6 +26,20 @@ Stoner::RHI::ERHIResult FVulkanBuffer::Invalidate()
     }
     LifecycleState = Stoner::RHI::ERHIResourceLifecycleState::Invalidated;
     return Allocator ? Allocator->Release(Allocation) : Allocation.Release();
+}
+
+Stoner::RHI::ERHIResult FVulkanBuffer::Upload(const void* Data, Stoner::Core::uint64 SizeBytes, Stoner::Core::uint64 OffsetBytes)
+{
+    if (LifecycleState != Stoner::RHI::ERHIResourceLifecycleState::Valid || Data == nullptr || SizeBytes == 0 ||
+        Desc.MemoryAccess != Stoner::RHI::ERHIMemoryAccess::HostVisible || OffsetBytes > Desc.SizeInBytes ||
+        SizeBytes > Desc.SizeInBytes - OffsetBytes)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    if (UploadedBytes.size() != static_cast<Stoner::Core::usize>(Desc.SizeInBytes))
+        UploadedBytes.resize(static_cast<Stoner::Core::usize>(Desc.SizeInBytes));
+    std::memcpy(UploadedBytes.data() + static_cast<Stoner::Core::usize>(OffsetBytes), Data, static_cast<Stoner::Core::usize>(SizeBytes));
+    return Stoner::RHI::ERHIResult::Success;
 }
 
 } // namespace Stoner::Backend::Vulkan

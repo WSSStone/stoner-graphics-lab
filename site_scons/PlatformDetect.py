@@ -59,7 +59,7 @@ def ConfigureToolchain(env, platform):
     _VerifyCompiler(env, platform)
 
     if platform == 'Win64':
-        env.Append(CXXFLAGS=['/std:c++20', '/EHsc'])
+        env.Append(CXXFLAGS=['/std:c++20', '/EHsc', '/utf-8'])
     elif platform == 'Mac':
         env.Append(CXXFLAGS=['-std=c++20'])
     else:  # Linux

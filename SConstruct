@@ -123,6 +123,13 @@ SConscript(
     duplicate=0,
 )
 
+# Standalone integration demo (depends on all engine layers and Vulkan backend).
+SConscript(
+    'Demo/StonerDemo/SConscript',
+    variant_dir=os.path.join(build_base, 'Demo', 'StonerDemo'),
+    duplicate=0,
+)
+
 # Tests (links against all layers)
 SConscript(
     'Tests/SConscript',

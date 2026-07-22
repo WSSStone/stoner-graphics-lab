@@ -28,6 +28,16 @@ void Record(FCorePlatformTestResult& Result, bool Passed, const char* Name)
 FString MakeTempPath(const char* Suffix)
 {
     const char* TmpDir = std::getenv("TMPDIR");
+#if SG_PLATFORM_WINDOWS
+    if (TmpDir == nullptr || TmpDir[0] == '\0')
+    {
+        TmpDir = std::getenv("TEMP");
+    }
+    if (TmpDir == nullptr || TmpDir[0] == '\0')
+    {
+        TmpDir = std::getenv("TMP");
+    }
+#endif
     if (TmpDir == nullptr || TmpDir[0] == '\0')
     {
         TmpDir = "/tmp";
@@ -188,6 +198,18 @@ void TestPlatformWindow(FCorePlatformTestResult& Result)
     Record(Result, !CopiedWindow.IsValid(), "FPlatformWindow clear invalidates handle");
 }
 
+void TestPlatformMemory(FCorePlatformTestResult& Result)
+{
+    const FProcessMemorySnapshot Snapshot = FPlatformMemory::QueryProcessMemory();
+#if SG_PLATFORM_WINDOWS || SG_PLATFORM_MAC || SG_PLATFORM_LINUX
+    Record(Result, Snapshot.bAvailable, "FPlatformMemory reports supported desktop availability");
+    Record(Result, Snapshot.ResidentBytes > 0, "FPlatformMemory reports positive resident bytes");
+#else
+    Record(Result, !Snapshot.bAvailable && Snapshot.ResidentBytes == 0,
+        "FPlatformMemory unsupported platform result is controlled");
+#endif
+}
+
 void TestAggregateAndIsolation(FCorePlatformTestResult& Result)
 {
     const FString OSName = FPlatformMisc::GetOSName();
@@ -212,6 +234,7 @@ FCorePlatformTestResult RunCorePlatformTests()
     TestPlatformFileSystem(Result);
     TestPlatformProcess(Result);
     TestPlatformWindow(Result);
+    TestPlatformMemory(Result);
     TestAggregateAndIsolation(Result);
 
     std::cout << "[INFO] Core platform tests passed=" << Result.Passed

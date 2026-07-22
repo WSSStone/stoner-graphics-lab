@@ -8,6 +8,13 @@ stubs that remain hidden behind Application implementation boundaries.
 
 Import('env', 'platform', 'config')
 from LayerBuilder import BuildLayer
+from GraphicsDependencyDetect import DetectGraphicsDependencies
 
-lib = BuildLayer(env, 'Application', ['Renderer', 'Core'])
+application_env = env.Clone()
+deps = DetectGraphicsDependencies(platform)
+application_env.Append(CPPDEFINES=[('STONER_GLFW_AVAILABLE', int(deps['glfw_available']))])
+if deps['glfw_include_dir']:
+    application_env.Append(CPPPATH=[deps['glfw_include_dir']])
+
+lib = BuildLayer(application_env, 'Application', ['Renderer', 'Core'])
 Return('lib')

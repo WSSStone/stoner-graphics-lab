@@ -7,6 +7,21 @@
 namespace Stoner::RHI
 {
 
+struct FRHIClearColor
+{
+    float Red = 0.0f;
+    float Green = 0.0f;
+    float Blue = 0.0f;
+    float Alpha = 1.0f;
+};
+
+struct FRHIRenderPassClearValues
+{
+    Stoner::Core::TArray<FRHIClearColor> Colors;
+    float Depth = 1.0f;
+    Stoner::Core::uint32 Stencil = 0;
+};
+
 struct FRHIRenderPassAttachmentDesc
 {
     ERHIAttachmentRole Role = ERHIAttachmentRole::Color;

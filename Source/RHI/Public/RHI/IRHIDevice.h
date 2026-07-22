@@ -4,6 +4,9 @@
 #include "RHI/ERHIQueueType.h"
 #include "RHI/ERHIResult.h"
 #include "RHI/FRHIDeviceCapabilities.h"
+#include "RHI/FRHIRuntimeSnapshot.h"
+#include "RHI/FRHIPresentationSurfaceDesc.h"
+#include "RHI/FRHISwapchainDesc.h"
 
 namespace Stoner::RHI
 {
@@ -17,6 +20,7 @@ class IRHIFence;
 class IRHIFramebuffer;
 class IRHIGraphicsPipeline;
 class IRHIPipelineLayout;
+class IRHIPresentationSurface;
 class IRHIRenderPass;
 class IRHISampler;
 class IRHISemaphore;
@@ -61,6 +65,8 @@ public:
     [[nodiscard]] virtual ERHIDeviceState GetState() const noexcept = 0;
     [[nodiscard]] virtual const FRHIDeviceCapabilities& GetCapabilities() const noexcept = 0;
     [[nodiscard]] virtual bool IsActive() const noexcept = 0;
+    [[nodiscard]] virtual ERHIRuntimeMode GetRuntimeMode() const noexcept { return ERHIRuntimeMode::Deterministic; }
+    [[nodiscard]] virtual FRHIRuntimeSnapshot GetRuntimeSnapshot() const noexcept { return {}; }
 
     virtual ERHIResult Shutdown() = 0;
 
@@ -79,6 +85,16 @@ public:
     virtual TRHIObjectResult<IRHIComputePipeline> CreateComputePipeline(const FRHIComputePipelineDesc& Desc) = 0;
     virtual TRHIObjectResult<IRHIRenderPass> CreateRenderPass(const FRHIRenderPassDesc& Desc) = 0;
     virtual TRHIObjectResult<IRHIFramebuffer> CreateFramebuffer(const FRHIFramebufferDesc& Desc) = 0;
+    virtual TRHIObjectResult<IRHIPresentationSurface> CreatePresentationSurface(const FRHIPresentationSurfaceDesc&)
+    {
+        return {ERHIResult::Unsupported, nullptr};
+    }
+    virtual TRHIObjectResult<IRHISwapchain> CreateSwapchain(
+        const Stoner::Core::TSharedPtr<IRHIPresentationSurface>&,
+        const FRHISwapchainDesc& Desc)
+    {
+        return CreateSwapchain(Desc.FramesInFlight);
+    }
 };
 
 } // namespace Stoner::RHI

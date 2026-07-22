@@ -20,12 +20,15 @@ public:
     [[nodiscard]] const FVulkanResourceAllocation& GetAllocation() const noexcept;
 
     Stoner::RHI::ERHIResult Invalidate() override;
+    Stoner::RHI::ERHIResult Upload(const void* Data, Stoner::Core::uint64 SizeBytes, Stoner::Core::uint64 OffsetBytes = 0) override;
+    [[nodiscard]] const Stoner::Core::TArray<Stoner::Core::uint8>& GetUploadedBytes() const noexcept { return UploadedBytes; }
 
 private:
     Stoner::RHI::FRHIBufferDesc Desc;
     FVulkanResourceAllocation Allocation;
     std::shared_ptr<FVulkanMemoryAllocator> Allocator;
     Stoner::RHI::ERHIResourceLifecycleState LifecycleState = Stoner::RHI::ERHIResourceLifecycleState::Valid;
+    Stoner::Core::TArray<Stoner::Core::uint8> UploadedBytes;
 };
 
 } // namespace Stoner::Backend::Vulkan

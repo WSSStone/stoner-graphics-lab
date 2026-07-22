@@ -68,6 +68,7 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::Begin()
     ActiveFramebuffer.reset();
     BoundGraphicsPipeline.reset();
     BoundComputePipeline.reset();
+    BoundVertexBuffer.reset();
     State = Stoner::RHI::ERHICommandBufferState::Recording;
     MarkRecordingDiagnostic("command buffer recording began");
     return Stoner::RHI::ERHIResult::Success;
@@ -97,6 +98,7 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::Reset()
     ActiveFramebuffer.reset();
     BoundGraphicsPipeline.reset();
     BoundComputePipeline.reset();
+    BoundVertexBuffer.reset();
     State = Stoner::RHI::ERHICommandBufferState::Idle;
     MarkRecordingDiagnostic("command buffer reset");
     return Stoner::RHI::ERHIResult::Success;
@@ -343,6 +345,39 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::EndRenderPass()
     BoundComputePipeline.reset();
     AppendCommand({Stoner::RHI::ERHISymbolicCommandType::EndRenderPass, 0, 0, 0});
     MarkRecordingDiagnostic("render pass scope ended");
+    return Stoner::RHI::ERHIResult::Success;
+}
+
+Stoner::RHI::ERHIResult FVulkanCommandBuffer::BindVertexBuffer(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Buffer, Stoner::Core::uint64 OffsetBytes)
+{
+    if (ValidateRecordingState() != Stoner::RHI::ERHIResult::Success || QueueType != Stoner::RHI::ERHIQueueType::Graphics ||
+        !HasActiveRenderPass() || !IsValidResource(Buffer) || !Stoner::RHI::HasRHIFlag(Buffer->GetUsage(), Stoner::RHI::ERHIBufferUsage::Vertex) ||
+        OffsetBytes >= Buffer->GetSizeInBytes())
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    BoundVertexBuffer = Buffer;
+    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::BindVertexBuffer, OffsetBytes, 0, 0});
+    return Stoner::RHI::ERHIResult::Success;
+}
+
+Stoner::RHI::ERHIResult FVulkanCommandBuffer::SetViewport(const Stoner::RHI::FRHIViewport& Viewport)
+{
+    if (ValidateRecordingState() != Stoner::RHI::ERHIResult::Success || !HasActiveRenderPass() ||
+        !(Viewport.Width > 0.0f) || !(Viewport.Height > 0.0f) || Viewport.MinDepth < 0.0f ||
+        Viewport.MaxDepth > 1.0f || Viewport.MinDepth > Viewport.MaxDepth)
+        return Stoner::RHI::ERHIResult::InvalidState;
+    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::SetViewport,
+        static_cast<Stoner::Core::uint64>(Viewport.Width), static_cast<Stoner::Core::uint64>(Viewport.Height), 0});
+    return Stoner::RHI::ERHIResult::Success;
+}
+
+Stoner::RHI::ERHIResult FVulkanCommandBuffer::SetScissor(const Stoner::RHI::FRHIScissorRect& Scissor)
+{
+    if (ValidateRecordingState() != Stoner::RHI::ERHIResult::Success || !HasActiveRenderPass() || Scissor.Width == 0 || Scissor.Height == 0)
+        return Stoner::RHI::ERHIResult::InvalidState;
+    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::SetScissor, Scissor.Width, Scissor.Height, 0});
     return Stoner::RHI::ERHIResult::Success;
 }
 
