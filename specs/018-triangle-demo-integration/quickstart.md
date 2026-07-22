@@ -255,3 +255,15 @@ and final medians, two configured frame slots, zero final live objects, and a pa
 validation result. Because this change replaces the native visible recording path,
 the earlier Windows screenshot/log pair is historical evidence and Windows/macOS
 formal visible validation must run again before Feature 018 completion.
+
+## Formal macOS Visible Validation (2026-07-22)
+
+Run `macos-018-75f1e38-20260722T232702` completed naturally with exit code 0 on an
+Apple M4 Pro. It completed 10,000 of 10,000 frames through the Renderer/RHI visible
+path, first presented at 335.915 milliseconds, and recorded 22 minimize/restore
+recoveries with a 2.649-millisecond maximum. The 75 post-warm-up RSS samples produced
+baseline/final medians of 99,516,416 and 122,945,536 bytes, remaining within the
+64 MiB/10% configured growth gate. Final live objects were zero and validation passed.
+The matching `Validation/018/macOS/triangle.png` was manually inspected and shows one
+non-degenerate triangle with distinguishable red, green, and blue vertices and smooth
+interpolation, with no unrelated desktop content.
