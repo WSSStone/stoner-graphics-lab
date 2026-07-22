@@ -456,6 +456,8 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Initialize(
     Impl->Snapshot.LiveDevices = 1;
     return Stoner::RHI::ERHIResult::Success;
 #else
+    (void)Mode;
+    (void)PlatformWindow;
     return Stoner::RHI::ERHIResult::Unsupported;
 #endif
 }
@@ -956,11 +958,17 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::DrawVisibleFrame()
 Stoner::RHI::ERHIResult FVulkanNativeContext::RecreateVisiblePresentation(
     Stoner::Core::uint32 Width, Stoner::Core::uint32 Height)
 {
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE && defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
     if (!Impl || Impl->VisibleVertexShaderPath.empty() || Impl->VisibleFragmentShaderPath.empty())
         return Stoner::RHI::ERHIResult::InvalidState;
     const Stoner::Core::FString VertexPath = Impl->VisibleVertexShaderPath.c_str();
     const Stoner::Core::FString FragmentPath = Impl->VisibleFragmentShaderPath.c_str();
     return PrepareVisibleTriangle(VertexPath, FragmentPath, Width, Height);
+#else
+    (void)Width;
+    (void)Height;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
 }
 
 Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()

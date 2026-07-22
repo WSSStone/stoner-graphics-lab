@@ -53,8 +53,12 @@ if platform == 'Win64':
     if graphics_deps['glfw_available']:
         test_env.Append(LIBS=['User32', 'Gdi32', 'Shell32'])
 if graphics_deps['vulkan_library']:
-    test_env.Append(LINKFLAGS=[graphics_deps['vulkan_library']])
-    if platform in ('Mac', 'Linux'):
+    if platform == 'Linux':
+        # Keep Vulkan after the static engine libraries for GNU ld --as-needed.
+        test_env.Append(LIBS=['vulkan'])
+    else:
+        test_env.Append(LINKFLAGS=[graphics_deps['vulkan_library']])
+    if platform == 'Mac':
         test_env.Append(LINKFLAGS=['-Wl,-rpath,' + os.path.dirname(graphics_deps['vulkan_library'])])
 if graphics_deps['glfw_library']:
     test_env.Append(LINKFLAGS=[graphics_deps['glfw_library']])

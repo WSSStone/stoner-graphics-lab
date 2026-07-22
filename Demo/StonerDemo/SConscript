@@ -36,8 +36,12 @@ demo_env.Append(LIBPATH=[Dir(os.path.join(build_root, path)).abspath for path in
 demo_env.Append(LIBS=[runtime, 'Application', 'Renderer', 'RHI', 'Core', 'VulkanRHI'])
 
 if deps['vulkan_library']:
-    demo_env.Append(LINKFLAGS=[deps['vulkan_library']])
-    if platform in ('Mac', 'Linux'):
+    if platform == 'Linux':
+        # Keep Vulkan after the static engine libraries for GNU ld --as-needed.
+        demo_env.Append(LIBS=['vulkan'])
+    else:
+        demo_env.Append(LINKFLAGS=[deps['vulkan_library']])
+    if platform == 'Mac':
         demo_env.Append(LINKFLAGS=['-Wl,-rpath,' + os.path.dirname(deps['vulkan_library'])])
 if deps['glfw_library']:
     demo_env.Append(LINKFLAGS=[deps['glfw_library']])
