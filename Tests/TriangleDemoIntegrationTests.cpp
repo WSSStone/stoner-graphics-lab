@@ -207,6 +207,23 @@ void TestValidationMonitorBoundaries(FTriangleDemoIntegrationTestResult& Result)
     for (int Index = 0; Index < 20; ++Index) Visible.AddRecoveryMilliseconds(2000.0);
     Record(Result, Visible.Evaluate(), "Triangle demo visible timing gates accept exact first-present and recovery boundaries");
 
+    FDemoValidationMonitor AdditionalRecoveries(Config);
+    for (Stoner::Core::uint32 Index = 1; Index <= 10; ++Index) AdditionalRecoveries.AddSyntheticSample(Index * 2, 1000, {});
+    AdditionalRecoveries.SetRequestedFrames(20); AdditionalRecoveries.SetCompletedFrames(20); AdditionalRecoveries.SetRuntimeSnapshot({});
+    AdditionalRecoveries.SetFirstPresentMilliseconds(5000.0);
+    for (int Index = 0; Index < 31; ++Index) AdditionalRecoveries.AddRecoveryMilliseconds(1999.0);
+    Record(Result, AdditionalRecoveries.Evaluate(),
+        "Triangle demo visible timing gates accept more than twenty valid recoveries");
+
+    FDemoValidationMonitor AdditionalSlowRecovery(Config);
+    for (Stoner::Core::uint32 Index = 1; Index <= 10; ++Index) AdditionalSlowRecovery.AddSyntheticSample(Index * 2, 1000, {});
+    AdditionalSlowRecovery.SetRequestedFrames(20); AdditionalSlowRecovery.SetCompletedFrames(20); AdditionalSlowRecovery.SetRuntimeSnapshot({});
+    AdditionalSlowRecovery.SetFirstPresentMilliseconds(5000.0);
+    for (int Index = 0; Index < 30; ++Index) AdditionalSlowRecovery.AddRecoveryMilliseconds(1999.0);
+    AdditionalSlowRecovery.AddRecoveryMilliseconds(2000.001);
+    Record(Result, !AdditionalSlowRecovery.Evaluate(),
+        "Triangle demo visible timing gates reject a slow additional recovery");
+
     FDemoValidationMonitor SlowVisible(Config);
     for (Stoner::Core::uint32 Index = 1; Index <= 10; ++Index) SlowVisible.AddSyntheticSample(Index * 2, 1000, {});
     SlowVisible.SetRequestedFrames(20); SlowVisible.SetCompletedFrames(20); SlowVisible.SetRuntimeSnapshot({});

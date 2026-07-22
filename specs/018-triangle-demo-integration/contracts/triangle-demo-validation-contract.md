@@ -100,7 +100,7 @@ Each matching log must include:
 - process-start-to-first-successful-present duration in milliseconds, no greater than 5,000
 - requested/completed frame counts
 - resize/recovery count
-- ordered per-recovery durations in milliseconds for all 20 required cycles, each no greater than 2,000
+- recovery count of at least 20 and ordered per-recovery durations for every observed cycle, each no greater than 2,000 milliseconds
 - memory baseline, final median, allowed growth, and pass result
 - peak and final resource counts
 - zero error/fatal diagnostics

@@ -39,7 +39,7 @@ bool FDemoValidationMonitor::Sample(Stoner::Core::uint32 CompletedFrame,
         return true;
     }
     const Stoner::Core::FProcessMemorySnapshot Memory = Stoner::Core::FPlatformMemory::QueryProcessMemory();
-    if (!Memory.bAvailable)
+    if (!Memory.bAvailable || Memory.ResidentBytes == 0)
     {
         bMemoryAvailable = false;
         return false;
@@ -68,22 +68,25 @@ bool FDemoValidationMonitor::Evaluate()
         bPassed = false;
         return false;
     }
-    if (Configuration.RunMode == EDemoRunMode::BoundedNative)
-    {
-        if (FirstPresentMilliseconds < 0.0 || FirstPresentMilliseconds > 5000.0 || RecoveryMilliseconds.size() != 20 ||
-            std::any_of(RecoveryMilliseconds.begin(), RecoveryMilliseconds.end(), [](double Value) { return Value < 0.0 || Value > 2000.0; }))
-        {
-            bPassed = false;
-            return false;
-        }
-    }
     BaselineMedianBytes = MedianFive(Samples, true);
     FinalMedianBytes = MedianFive(Samples, false);
     const Stoner::Core::uint64 RelativeLimit = static_cast<Stoner::Core::uint64>(
         static_cast<double>(BaselineMedianBytes) * Configuration.MaxMemoryGrowthPercent / 100.0);
     const Stoner::Core::uint64 AllowedGrowth = std::max(Configuration.MaxMemoryGrowthBytes, RelativeLimit);
     const Stoner::Core::uint64 Growth = FinalMedianBytes > BaselineMedianBytes ? FinalMedianBytes - BaselineMedianBytes : 0;
-    bPassed = Growth <= AllowedGrowth;
+    const bool bMemoryWithinLimit = Growth <= AllowedGrowth;
+    if (Configuration.RunMode == EDemoRunMode::BoundedNative)
+    {
+        const bool bRecoveriesValid = RecoveryMilliseconds.size() >= 20 &&
+            std::none_of(RecoveryMilliseconds.begin(), RecoveryMilliseconds.end(), [](double Value)
+            {
+                return Value < 0.0 || Value > 2000.0;
+            });
+        bPassed = bMemoryWithinLimit && FirstPresentMilliseconds >= 0.0 &&
+            FirstPresentMilliseconds <= 5000.0 && bRecoveriesValid;
+        return bPassed;
+    }
+    bPassed = bMemoryWithinLimit;
     return bPassed;
 }
 
@@ -106,6 +109,7 @@ Stoner::Core::FString FDemoValidationMonitor::BuildReport(const FDemoDiagnostics
            << "memory-final-bytes=" << FinalMedianBytes << '\n'
            << "final-live-objects=" << FinalSnapshot.GetTotalLiveObjectCount() << '\n'
            << "validation-result=" << (bPassed ? "pass" : "fail") << '\n';
+    Stream << "recovery-count=" << RecoveryMilliseconds.size() << '\n';
     for (Stoner::Core::usize Index = 0; Index < RecoveryMilliseconds.size(); ++Index)
         Stream << "recovery-ms[" << Index << "]=" << RecoveryMilliseconds[Index] << '\n';
     Stream << Diagnostics.BuildStableText().CStr();
