@@ -8,6 +8,11 @@ namespace Stoner::Application
 FWindow::FWindow() = default;
 FWindow::~FWindow() { if (Driver) Driver->Destroy(); }
 
+void FWindowTestAccess::InstallDriver(FWindow& Window, std::unique_ptr<IWindowDriver> Driver)
+{
+    Window.Driver = std::move(Driver);
+}
+
 namespace
 {
 
@@ -97,7 +102,7 @@ EApplicationResult FWindow::CreateRealWindow(const FWindowDesc& InDesc, EWindowR
 {
     if (RuntimeAvailability != EWindowRuntimeAvailability::Available)
         return Create(InDesc, RuntimeAvailability);
-    Driver = CreateGlfwWindowDriver();
+    if (!Driver) Driver = CreateGlfwWindowDriver();
     if (!Driver || Driver->GetRuntimeAvailability() != EWindowRuntimeAvailability::Available)
     {
         Driver.reset();
@@ -236,8 +241,17 @@ void FWindow::ApplyEvent(const FWindowEvent& Event)
         ClientWidth = Event.ClientWidth;
         ClientHeight = Event.ClientHeight;
         bMinimized = false;
+        if (!Driver)
+        {
+            DrawableWidth = Event.ClientWidth;
+            DrawableHeight = Event.ClientHeight;
+        }
+        UpdateDrawableState();
+        break;
+    case EWindowEventType::DrawableResized:
         DrawableWidth = Event.ClientWidth;
         DrawableHeight = Event.ClientHeight;
+        bMinimized = DrawableWidth == 0 || DrawableHeight == 0;
         UpdateDrawableState();
         break;
     case EWindowEventType::Minimized:

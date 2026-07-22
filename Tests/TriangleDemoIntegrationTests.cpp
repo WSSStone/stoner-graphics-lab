@@ -5,6 +5,7 @@
 #include "FDemoValidationMonitor.h"
 
 #include <iostream>
+#include <filesystem>
 #include <string_view>
 
 namespace
@@ -77,6 +78,46 @@ void TestNativeFallbackRejection(FTriangleDemoIntegrationTestResult& Result)
     App.SetFailureInjection(EDemoStage::Runtime);
     Record(Result, App.Run() != EDemoExitCode::Success,
         "Triangle demo native-required mode never reports deterministic visible success");
+}
+
+void TestInitializationContractAndShaderStages(FTriangleDemoIntegrationTestResult& Result)
+{
+    FDemoConfiguration Config;
+    Config.RunMode = EDemoRunMode::DeterministicHeadless;
+    Config.FrameBudget = 20;
+    Config.WarmupFrames = 0;
+    Config.MemorySampleInterval = 2;
+    Config.MaxMemoryGrowthBytes = 1024 * 1024;
+    Config.MaxMemoryGrowthPercent = 5.0;
+    FStonerDemoApplication Initialized(Config);
+    const EDemoExitCode InitResult = Initialized.Initialize();
+    const std::string Stable = Initialized.GetDiagnostics().BuildStableText().ToStdString();
+    const std::size_t WindowAt = Stable.find("stage=Window");
+    const std::size_t RuntimeAt = Stable.find("stage=Runtime");
+    const std::size_t ShaderAt = Stable.find("stage=Shader");
+    const std::size_t UploadAt = Stable.find("stage=Upload");
+    const std::size_t PipelineAt = Stable.find("stage=Pipeline");
+    Record(Result, InitResult == EDemoExitCode::Success && Initialized.GetFrameContextCount() == 2 &&
+            WindowAt < RuntimeAt && RuntimeAt < ShaderAt && ShaderAt < UploadAt && UploadAt < PipelineAt,
+        "Triangle demo initializes window runtime shaders upload pipeline and two frame slots in contract order");
+    Record(Result, Initialized.Shutdown() == EDemoExitCode::Success &&
+            Initialized.GetLifecycleState() == EDemoLifecycleState::Stopped,
+        "Triangle demo normal shutdown remains idempotent after initialized state");
+
+    const std::filesystem::path InvalidDirectory = "Build/Tests/invalid-stage-shaders";
+    std::error_code Error;
+    std::filesystem::create_directories(InvalidDirectory, Error);
+    std::filesystem::copy_file("Demo/StonerDemo/Shaders/Triangle.frag.spv", InvalidDirectory / "Triangle.vert.spv",
+        std::filesystem::copy_options::overwrite_existing, Error);
+    Error.clear();
+    std::filesystem::copy_file("Demo/StonerDemo/Shaders/Triangle.vert.spv", InvalidDirectory / "Triangle.frag.spv",
+        std::filesystem::copy_options::overwrite_existing, Error);
+    FDemoConfiguration Invalid = Config;
+    Invalid.ShaderDirectory = InvalidDirectory.string().c_str();
+    FStonerDemoApplication WrongStages(Invalid);
+    Record(Result, WrongStages.Initialize() == EDemoExitCode::InitializationFailed &&
+            WrongStages.GetDiagnostics().GetPrimaryExitCode() == EDemoExitCode::InitializationFailed,
+        "Triangle demo rejects SPIR-V payloads with swapped vertex and fragment stages");
 }
 
 void TestPresentationRecovery(FTriangleDemoIntegrationTestResult& Result)
@@ -223,6 +264,7 @@ FTriangleDemoIntegrationTestResult RunTriangleDemoIntegrationTests()
     TestConfiguration(Result);
     TestDeterministicLifecycle(Result);
     TestNativeFallbackRejection(Result);
+    TestInitializationContractAndShaderStages(Result);
     TestPresentationRecovery(Result);
     TestFailureInjectionAndFirstFailure(Result);
     TestValidationMonitorBoundaries(Result);

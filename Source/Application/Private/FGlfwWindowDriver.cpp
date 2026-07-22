@@ -133,7 +133,14 @@ private:
             Driver->DrawableHeight = Height > 0 ? static_cast<Stoner::Core::uint32>(Height) : 0;
             Driver->WindowEvents.push_back(Width == 0 || Height == 0
                 ? FWindowEvent::Minimized(Driver->NextSequence++)
-                : FWindowEvent::Resized(Driver->DrawableWidth, Driver->DrawableHeight, Driver->NextSequence++));
+                : FWindowEvent::DrawableResized(Driver->DrawableWidth, Driver->DrawableHeight, Driver->NextSequence++));
+        });
+        glfwSetWindowSizeCallback(Window, [](GLFWwindow* Native, int Width, int Height)
+        {
+            auto* Driver = Self(Native);
+            if (Width > 0 && Height > 0)
+                Driver->WindowEvents.push_back(FWindowEvent::Resized(
+                    static_cast<Stoner::Core::uint32>(Width), static_cast<Stoner::Core::uint32>(Height), Driver->NextSequence++));
         });
         glfwSetWindowIconifyCallback(Window, [](GLFWwindow* Native, int Iconified)
         {

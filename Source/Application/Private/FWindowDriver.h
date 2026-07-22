@@ -9,6 +9,8 @@
 namespace Stoner::Application
 {
 
+class FWindow;
+
 class IWindowDriver
 {
 public:
@@ -25,6 +27,12 @@ public:
     [[nodiscard]] virtual Stoner::Core::uint32 GetDrawableHeight() const noexcept { return 0; }
     [[nodiscard]] virtual Stoner::Core::TArray<FWindowEvent> ConsumeWindowEvents() = 0;
     [[nodiscard]] virtual Stoner::Core::TArray<FInputEvent> ConsumeInputEvents() = 0;
+};
+
+class FWindowTestAccess
+{
+public:
+    static void InstallDriver(FWindow& Window, std::unique_ptr<IWindowDriver> Driver);
 };
 
 [[nodiscard]] std::unique_ptr<IWindowDriver> CreateGlfwWindowDriver();

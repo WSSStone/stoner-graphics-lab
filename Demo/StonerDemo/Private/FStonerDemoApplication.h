@@ -51,6 +51,7 @@ public:
     [[nodiscard]] EDemoExitCode Shutdown();
     [[nodiscard]] EDemoLifecycleState GetLifecycleState() const noexcept { return LifecycleState; }
     [[nodiscard]] Stoner::Core::uint32 GetCompletedFrames() const noexcept { return CompletedFrames; }
+    [[nodiscard]] std::size_t GetFrameContextCount() const noexcept { return FrameContexts.size(); }
     [[nodiscard]] const FDemoDiagnostics& GetDiagnostics() const noexcept { return Diagnostics; }
     void SetFailureInjection(EDemoStage Stage) noexcept { bHasFailureInjection = true; FailureInjectionStage = Stage; }
     [[nodiscard]] EDemoExitCode NotifyDrawableExtent(Stoner::Core::uint32 Width, Stoner::Core::uint32 Height, double NowMilliseconds);

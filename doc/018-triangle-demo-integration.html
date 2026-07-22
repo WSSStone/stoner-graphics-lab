@@ -46,7 +46,7 @@
   -> Vulkan private backend: native instance/device/offscreen/presentation
 
 Validation monitor <- runtime snapshot + RSS + timing + diagnostics</code></pre><p>Demo 是跨层集成点，不是新建一套渲染框架。<code>FForwardFrameExecutor</code> 接受 RHI contract；<code>FVulkanNativeContext</code> 封装原生 API；<code>FWindow</code> 只对外提供 opaque platform window。</p>
-<h3>3. 边界与非目标（约束）</h3><ul><li>不引入场景、材质、光照或资产管线：三角形是端到端探针，不是内容 demo。</li><li>不接受 native-headless 作为可见成功：它没有 surface/swapchain/present。</li><li>不做 Android 可见验证：当前支持范围是 Windows/macOS 真实呈现和 Linux CI 软件 Vulkan。</li><li>不实现 pipeline disk cache、shader hot reload 和多帧并行：它们会扩大里程碑的变量。</li></ul></section>
+<h3>3. 边界与非目标（约束）</h3><ul><li>不引入场景、材质、光照或资产管线：三角形是端到端探针，不是内容 demo。</li><li>不接受 native-headless 作为可见成功：它没有 surface/swapchain/present。</li><li>不做 Android 可见验证：当前支持范围是 Windows/macOS 真实呈现和 Linux CI 软件 Vulkan。</li><li>不实现 pipeline disk cache、shader hot reload 或超出两个轮转 frame slot 的调度系统：它们会扩大里程碑的变量。</li></ul></section>
 
 <section id="s3"><h2>三、交互与产品设计</h2>
 <h3>1. 用户使用路径</h3><pre><code># deterministic endurance
@@ -87,7 +87,7 @@ Any active state -> Failing -> ShuttingDown -> Stopped</code></pre><p>可见模�
 <section id="s6"><h2>六、设计巧思与最佳实践</h2>
 <h3>1. 当前业务场景的最佳实践</h3><ul><li><strong>Stable first failure：</strong>清理阶段的次生错误不覆盖根因，对图形初始化的长失败链尤其重要。</li><li><strong>Final-zero snapshot：</strong>不只检查帧内峰值，还在逆序清理后检查每类 live object。</li><li><strong>Median memory gate：</strong>比单点 RSS 更能抵抗 allocator/OS 噪声，同时保留 absolute 和 relative 两类预算。</li><li><strong>Opaque native bridge：</strong>窗口系统能为 backend 提供平台信息，又不迫使 Application 依赖 Vulkan。</li></ul>
 <h3>2. 优化方案与收益</h3><p>已实现的优化主要是工程可验证性：checked-in shader 降低构建环境波动，有界帧数与 watchdog 限制 CI 挂死，稳定 report 减少跨平台差异噪声。未来优化铺垫包括 frame contexts、image-indexed synchronization 和 generation invalidation，它们会在真实 swapchain 完成后转化为 GPU/CPU 并行收益。</p>
-<h3>3. 已知限制与后续演进</h3><p>当前 native context 已完成 GLFW window 到 Vulkan surface/swapchain、FIFO present、semaphore/fence、out-of-date/suboptimal 归一化和 generation-aware recreation。仍有一项代码架构缺口：可见帧目前由 native context 直接记录 Vulkan draw，尚未消费 <code>FForwardFrameExecutor</code> 的 backend-neutral RHI bindings。验证方面，真实 resize/minimize/restore 尚未完成 20-cycle 计时，Windows 仍缺同等运行，macOS/Windows 也未保留正式同 run ID 图像与日志。当前单帧 fence 设计优先保证正确性，未来可扩展为 per-frame/per-image 并行上下文。</p></section>
+<h3>3. 已知限制与后续演进</h3><p>当前 native context 已完成 GLFW window 到 Vulkan surface/swapchain、FIFO present、out-of-date/suboptimal 归一化和 generation-aware recreation。可见帧由 Demo 准备 Renderer forward plan，经 <code>FForwardFrameExecutor</code> 录制到 backend-neutral RHI bindings，再由 Vulkan 提交与呈现；两个 frame slot 分别持有 command buffer、acquire semaphore 与 fence，render-finished semaphore 按 swapchain image 索引。验证方面，这次主路径集成发生在历史 Windows 证据之后，因此 Windows/macOS 均需重新完成 10,000 帧、20-cycle 与同 run ID 图像/日志，CI/Lavapipe run identity 也仍待确认。</p></section>
 
 <section id="s7"><h2>七、编程语言知识点</h2>
 <h3>1. 标准库接口与用法</h3><ul><li><code>std::unique_ptr</code>：<code>FWindow</code> 独占拥有 driver strategy，实现文件外定义析构以允许 incomplete private type。</li><li><code>std::chrono::steady_clock</code>：计算 first-present/recovery，避免系统时钟回拨。</li><li><code>std::filesystem</code>/<code>std::ofstream</code>：report 路径和写入失败可观测。</li><li><code>std::vector</code> + sort/median：保留有界采样，从首末各五个样本计算 median。</li></ul>

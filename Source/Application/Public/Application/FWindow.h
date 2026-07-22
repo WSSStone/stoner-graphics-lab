@@ -10,6 +10,7 @@ namespace Stoner::Application
 {
 
 class IWindowDriver;
+class FWindowTestAccess;
 
 class FWindow
 {
@@ -53,6 +54,7 @@ public:
     [[nodiscard]] FApplicationDiagnosticLog& GetMutableDiagnostics() noexcept { return Diagnostics; }
 
 private:
+    friend class FWindowTestAccess;
     void UpdateDrawableState();
 
     Stoner::Core::uint32 WindowId = 0;

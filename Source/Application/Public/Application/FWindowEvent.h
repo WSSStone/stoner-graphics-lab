@@ -9,6 +9,7 @@ enum class EWindowEventType
 {
     Created,
     Resized,
+    DrawableResized,
     Minimized,
     Restored,
     FocusGained,
@@ -33,6 +34,9 @@ struct FWindowEvent
         Stoner::Core::uint32 Height,
         Stoner::Core::uint64 Sequence = 0);
     [[nodiscard]] static FWindowEvent Resized(Stoner::Core::uint32 Width,
+        Stoner::Core::uint32 Height,
+        Stoner::Core::uint64 Sequence = 0);
+    [[nodiscard]] static FWindowEvent DrawableResized(Stoner::Core::uint32 Width,
         Stoner::Core::uint32 Height,
         Stoner::Core::uint64 Sequence = 0);
     [[nodiscard]] static FWindowEvent Minimized(Stoner::Core::uint64 Sequence = 0);

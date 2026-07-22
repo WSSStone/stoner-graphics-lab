@@ -43,6 +43,7 @@ Stoner::RHI::ERHIResult FVulkanSwapchain::AcquireNextFrame(Stoner::Core::uint32&
     }
 
     OutFrameIndex = CurrentFrameIndex;
+    AcquiredGeneration = Generation;
     State = Stoner::RHI::ERHISwapchainState::Acquired;
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -61,12 +62,13 @@ Stoner::RHI::ERHIResult FVulkanSwapchain::Present(Stoner::Core::uint32 FrameInde
     {
         return Stoner::RHI::ERHIResult::Unavailable;
     }
-    if (State != Stoner::RHI::ERHISwapchainState::Acquired || FrameIndex != CurrentFrameIndex)
+    if (State != Stoner::RHI::ERHISwapchainState::Acquired || FrameIndex != CurrentFrameIndex || AcquiredGeneration != Generation)
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
 
     CurrentFrameIndex = (CurrentFrameIndex + 1) % FrameCount;
+    AcquiredGeneration = 0;
     State = Stoner::RHI::ERHISwapchainState::Ready;
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -84,6 +86,8 @@ Stoner::RHI::ERHIResult FVulkanSwapchain::Recreate(Stoner::Core::uint32 NewFrame
 
     FrameCount = NewFrameCount;
     CurrentFrameIndex = 0;
+    AcquiredGeneration = 0;
+    ++Generation;
     State = Stoner::RHI::ERHISwapchainState::Ready;
     return Stoner::RHI::ERHIResult::Success;
 }

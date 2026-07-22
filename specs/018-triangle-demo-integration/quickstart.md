@@ -230,3 +230,28 @@ zero final live objects, and passed. The normalized log contains no native addre
 The same-run local screenshot was manually inspected and showed one non-degenerate
 triangle with red, green, and blue vertices and smooth interpolation; it is temporary
 local validation evidence and does not add a long-term screenshot archival requirement.
+
+## Renderer/RHI Visible-Path Integration Verification (2026-07-22)
+
+The visible frame coordinator now builds a valid Renderer forward plan, acquires
+backend-neutral native RHI bindings, records the frame through `FForwardFrameExecutor`,
+and submits/presents through two rotating Vulkan frame slots. Logical window size and
+framebuffer pixel size are represented by separate ordered events.
+
+```bash
+conda run -n godot scons -Q
+Build/Mac/Debug/Tests/StonerTest
+python .github/scripts/run_triangle_demo_validation.py \
+  --profile deterministic \
+  --tests Build/Mac/Debug/Tests/StonerTest \
+  --demo Build/Mac/Debug/Demo/StonerDemo/StonerDemo \
+  --report Build/Mac/Debug/Demo/StonerDemo/ci-deterministic-report.txt \
+  --timeout-seconds 1200
+```
+
+The build and complete regression suite passed. The deterministic profile completed
+4,096 of 4,096 frames with 28 post-warm-up RSS samples, equal 9,060,352-byte baseline
+and final medians, two configured frame slots, zero final live objects, and a passing
+validation result. Because this change replaces the native visible recording path,
+the earlier Windows screenshot/log pair is historical evidence and Windows/macOS
+formal visible validation must run again before Feature 018 completion.

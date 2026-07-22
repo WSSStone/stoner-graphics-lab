@@ -2,12 +2,15 @@
 
 #include "Application/FWindow.h"
 #include "RHI/ERHIRuntimeMode.h"
+#include "Renderer/RendererMinimal.h"
 #include "VulkanRHI/FVulkanNativeContext.h"
 
 #include <array>
 #include <chrono>
+#include <cstring>
 #include <fstream>
 #include <string>
+#include <string_view>
 #include <thread>
 
 namespace Stoner::Demo
@@ -32,16 +35,69 @@ double NowMilliseconds()
         std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
-bool ValidateSpirv(const std::string& Path)
+bool ValidateSpirv(const std::string& Path, Stoner::Core::uint32 ExpectedExecutionModel)
 {
     std::ifstream Input(Path, std::ios::binary | std::ios::ate);
     if (!Input) return false;
     const std::streamsize Size = Input.tellg();
     if (Size < 20 || Size % 4 != 0) return false;
     Input.seekg(0);
-    std::array<unsigned char, 4> Magic{};
-    Input.read(reinterpret_cast<char*>(Magic.data()), static_cast<std::streamsize>(Magic.size()));
-    return Input.good() && Magic[0] == 0x03 && Magic[1] == 0x02 && Magic[2] == 0x23 && Magic[3] == 0x07;
+    Stoner::Core::TArray<Stoner::Core::uint32> Words(static_cast<std::size_t>(Size) / sizeof(Stoner::Core::uint32));
+    Input.read(reinterpret_cast<char*>(Words.data()), Size);
+    if (!Input.good() || Words[0] != 0x07230203u) return false;
+    for (std::size_t Index = 5; Index < Words.size();)
+    {
+        const Stoner::Core::uint32 Instruction = Words[Index];
+        const Stoner::Core::uint32 WordCount = Instruction >> 16u;
+        const Stoner::Core::uint32 Opcode = Instruction & 0xffffu;
+        if (WordCount == 0 || Index + WordCount > Words.size()) return false;
+        if (Opcode == 15u && WordCount >= 4 && Words[Index + 1] == ExpectedExecutionModel)
+        {
+            const char* Name = reinterpret_cast<const char*>(&Words[Index + 3]);
+            const std::size_t NameBytes = static_cast<std::size_t>(WordCount - 3) * sizeof(Stoner::Core::uint32);
+            const void* Terminator = std::memchr(Name, '\0', NameBytes);
+            if (Terminator != nullptr && std::string_view(Name, static_cast<const char*>(Terminator) - Name) == "main") return true;
+        }
+        Index += WordCount;
+    }
+    return false;
+}
+
+Stoner::Renderer::FForwardFramePlan BuildTriangleFramePlan(
+    Stoner::Core::uint32 Width, Stoner::Core::uint32 Height)
+{
+    using namespace Stoner::Renderer;
+    FForwardFrameInputs Inputs;
+    Inputs.FrameName = "TriangleDemoFrame";
+    Inputs.View.ViewName = "TriangleDemoView";
+    Inputs.View.Viewport.Extent = {Width, Height};
+    Inputs.Output.ColorTargetName = "PresentationColor";
+    Inputs.Output.FormatSummary = "BGRA8";
+    Inputs.Output.Extent = {Width, Height};
+    Inputs.Environment.Mode = EForwardBackgroundMode::Clear;
+
+    FMeshDrawCandidate Triangle;
+    Triangle.ObjectId = 1;
+    Triangle.MeshId = 1;
+    Triangle.DebugName = "RGBTriangle";
+    Triangle.bWantsOpaque = true;
+    Triangle.MaterialBinding.MaterialId = 1;
+    Triangle.MaterialBinding.MaterialName = "VertexColor";
+    Triangle.MaterialBinding.bHasMaterialBinding = true;
+    Triangle.MaterialBinding.bHasShaderBinding = true;
+    Triangle.MaterialBinding.SurfaceInputs.bHasBaseColor = true;
+    Triangle.MaterialBinding.SurfaceInputs.bHasMetallic = true;
+    Triangle.MaterialBinding.SurfaceInputs.bHasRoughness = true;
+    Triangle.MaterialBinding.SurfaceInputs.bHasNormal = true;
+    Triangle.MaterialBinding.SurfaceInputs.bHasOcclusion = true;
+    Triangle.MaterialBinding.SurfaceInputs.bHasEmissive = true;
+    Triangle.MaterialBinding.SurfaceInputs.bHasAlpha = true;
+    Inputs.DrawCandidates.push_back(std::move(Triangle));
+
+    FForwardFramePlan Plan;
+    FForwardRenderer Renderer;
+    (void)Renderer.PrepareFrame(Inputs, Plan);
+    return Plan;
 }
 
 } // namespace
@@ -59,7 +115,8 @@ FStonerDemoApplication::~FStonerDemoApplication()
 bool FStonerDemoApplication::ValidateShaderPayloads()
 {
     const std::string Directory = Configuration.ShaderDirectory.ToStdString();
-    return ValidateSpirv(Directory + "/Triangle.vert.spv") && ValidateSpirv(Directory + "/Triangle.frag.spv");
+    return ValidateSpirv(Directory + "/Triangle.vert.spv", 0u) &&
+        ValidateSpirv(Directory + "/Triangle.frag.spv", 4u);
 }
 
 bool FStonerDemoApplication::ShouldInject(EDemoStage Stage, EDemoExitCode Code, const char* Subject)
@@ -78,13 +135,6 @@ EDemoExitCode FStonerDemoApplication::Initialize()
     if (ShouldInject(EDemoStage::Window, EDemoExitCode::InitializationFailed, "Window")) return EDemoExitCode::InitializationFailed;
     if (ShouldInject(EDemoStage::Runtime, EDemoExitCode::RuntimeUnavailable, "Runtime")) return EDemoExitCode::RuntimeUnavailable;
     if (ShouldInject(EDemoStage::Shader, EDemoExitCode::InitializationFailed, "TriangleShaders")) return EDemoExitCode::InitializationFailed;
-
-    if (!ValidateShaderPayloads())
-    {
-        Diagnostics.Add(EDemoStage::Shader, EDemoExitCode::InitializationFailed, "TriangleShaders", "invalid or missing checked-in SPIR-V payload");
-        LifecycleState = EDemoLifecycleState::Failed;
-        return EDemoExitCode::InitializationFailed;
-    }
 
     if (Configuration.RequiresNativeRuntime())
     {
@@ -144,6 +194,16 @@ EDemoExitCode FStonerDemoApplication::Initialize()
         }
     }
 
+    Diagnostics.Add(EDemoStage::Window, EDemoExitCode::Success, "Window", Configuration.RequiresVisibleWindow() ? "native window ready" : "window not required");
+    Diagnostics.Add(EDemoStage::Runtime, EDemoExitCode::Success, "Runtime", ToString(Configuration.RunMode));
+    if (!ValidateShaderPayloads())
+    {
+        Diagnostics.Add(EDemoStage::Shader, EDemoExitCode::InitializationFailed, "TriangleShaders", "invalid stage, entry point, or checked-in SPIR-V payload");
+        LifecycleState = EDemoLifecycleState::Failed;
+        return EDemoExitCode::InitializationFailed;
+    }
+    Diagnostics.Add(EDemoStage::Shader, EDemoExitCode::Success, "TriangleShaders", "vertex and fragment main entry points validated");
+
     if (ShouldInject(EDemoStage::Upload, EDemoExitCode::InitializationFailed, "TriangleUpload")) return EDemoExitCode::InitializationFailed;
     if (ShouldInject(EDemoStage::Pipeline, EDemoExitCode::InitializationFailed, "TrianglePipeline")) return EDemoExitCode::InitializationFailed;
 
@@ -162,6 +222,8 @@ EDemoExitCode FStonerDemoApplication::Initialize()
             return EDemoExitCode::InitializationFailed;
         }
     }
+    Diagnostics.Add(EDemoStage::Upload, EDemoExitCode::Success, "TriangleUpload", "three-vertex RGB payload ready");
+    Diagnostics.Add(EDemoStage::Pipeline, EDemoExitCode::Success, "TrianglePipeline", "triangle pipeline ready");
 
     TriangleResources.bInitialized = true;
     if (Configuration.RequiresVisibleWindow())
@@ -173,7 +235,6 @@ EDemoExitCode FStonerDemoApplication::Initialize()
     for (Stoner::Core::uint32 Slot = 0; Slot < Configuration.MaxFramesInFlight; ++Slot)
         FrameContexts.push_back({Slot, false});
     LifecycleState = EDemoLifecycleState::Ready;
-    Diagnostics.Add(EDemoStage::Runtime, EDemoExitCode::Success, "Runtime", ToString(Configuration.RunMode));
     return EDemoExitCode::Success;
 }
 
@@ -277,7 +338,6 @@ EDemoExitCode FStonerDemoApplication::RunVisible()
 {
     if (!NativeContext || !Window) return EDemoExitCode::RuntimeUnavailable;
     LifecycleState = EDemoLifecycleState::Running;
-    RunStartMilliseconds = NowMilliseconds();
     while (!Window->Value.IsCloseRequested() &&
         (!Configuration.IsBounded() || CompletedFrames < Configuration.FrameBudget))
     {
@@ -322,15 +382,45 @@ EDemoExitCode FStonerDemoApplication::RunVisible()
             ShouldInject(EDemoStage::Submit, EDemoExitCode::FrameFailed, "FrameSubmit") ||
             ShouldInject(EDemoStage::Present, EDemoExitCode::FrameFailed, "FramePresent"))
             return EDemoExitCode::FrameFailed;
-        const Stoner::RHI::ERHIResult DrawResult = NativeContext->Context.DrawVisibleFrame();
-        if (DrawResult == Stoner::RHI::ERHIResult::ResizeRequired)
+        Stoner::Backend::Vulkan::FVulkanNativeFrameBindings NativeBindings;
+        const Stoner::RHI::ERHIResult AcquireResult = NativeContext->Context.AcquireVisibleFrame(NativeBindings);
+        if (AcquireResult == Stoner::RHI::ERHIResult::ResizeRequired)
         {
             (void)NotifyDrawableExtent(0, 0, NowMilliseconds());
             continue;
         }
-        if (DrawResult != Stoner::RHI::ERHIResult::Success)
+        if (AcquireResult != Stoner::RHI::ERHIResult::Success)
         {
-            Diagnostics.Add(EDemoStage::Present, EDemoExitCode::FrameFailed, "FramePresent", "native acquire, submit, or present failed");
+            Diagnostics.Add(EDemoStage::Acquire, EDemoExitCode::FrameFailed, "FrameAcquire", "native swapchain image acquire failed");
+            LifecycleState = EDemoLifecycleState::Failed;
+            return EDemoExitCode::FrameFailed;
+        }
+
+        Stoner::Renderer::FForwardFrameExecutionBindings ExecutionBindings;
+        ExecutionBindings.OutputTexture = NativeBindings.OutputTexture;
+        ExecutionBindings.VertexBuffer = NativeBindings.VertexBuffer;
+        ExecutionBindings.GraphicsPipeline = NativeBindings.GraphicsPipeline;
+        ExecutionBindings.RenderPass = NativeBindings.RenderPass;
+        ExecutionBindings.Framebuffer = NativeBindings.Framebuffer;
+        ExecutionBindings.CommandBuffer = NativeBindings.CommandBuffer;
+        const Stoner::Renderer::FForwardFramePlan FramePlan = BuildTriangleFramePlan(Width, Height);
+        const Stoner::Renderer::FForwardFrameExecutionResult RecordResult =
+            Stoner::Renderer::FForwardFrameExecutor().Execute(FramePlan, ExecutionBindings);
+        if (!RecordResult.Succeeded())
+        {
+            Diagnostics.Add(EDemoStage::Record, EDemoExitCode::FrameFailed, "ForwardFrame", "Renderer failed to record native RHI frame bindings");
+            LifecycleState = EDemoLifecycleState::Failed;
+            return EDemoExitCode::FrameFailed;
+        }
+        const Stoner::RHI::ERHIResult PresentResult = NativeContext->Context.SubmitAndPresentVisibleFrame(NativeBindings);
+        if (PresentResult == Stoner::RHI::ERHIResult::ResizeRequired)
+        {
+            (void)NotifyDrawableExtent(0, 0, NowMilliseconds());
+            continue;
+        }
+        if (PresentResult != Stoner::RHI::ERHIResult::Success)
+        {
+            Diagnostics.Add(EDemoStage::Present, EDemoExitCode::FrameFailed, "FramePresent", "native frame submit or present failed");
             LifecycleState = EDemoLifecycleState::Failed;
             return EDemoExitCode::FrameFailed;
         }
@@ -358,6 +448,7 @@ EDemoExitCode FStonerDemoApplication::RunVisible()
 
 EDemoExitCode FStonerDemoApplication::Run()
 {
+    RunStartMilliseconds = NowMilliseconds();
     EDemoExitCode Result = Initialize();
     if (Result == EDemoExitCode::Success)
     {
@@ -398,6 +489,8 @@ EDemoExitCode FStonerDemoApplication::Shutdown()
     LifecycleState = EDemoLifecycleState::Stopping;
     for (auto It = FrameContexts.rbegin(); It != FrameContexts.rend(); ++It) It->bInFlight = false;
     FrameContexts.clear();
+    PresentationState.Reset();
+    TriangleResources.Reset();
     if (NativeContext)
     {
         (void)NativeContext->Context.Shutdown();
@@ -408,8 +501,6 @@ EDemoExitCode FStonerDemoApplication::Shutdown()
         (void)Window->Value.Destroy();
         Window.reset();
     }
-    PresentationState.Reset();
-    TriangleResources.Reset();
     bShutdownComplete = true;
     LifecycleState = EDemoLifecycleState::Stopped;
     Diagnostics.Add(EDemoStage::Shutdown, EDemoExitCode::Success, "DemoComposite", "reverse-order shutdown complete");

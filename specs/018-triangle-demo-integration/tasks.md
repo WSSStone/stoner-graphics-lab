@@ -54,10 +54,10 @@
 
 ### Tests for User Story 1
 
-- [ ] T016 [P] [US1] Add failing private-driver tests for native-window selection, opaque platform handle availability, framebuffer pixel extent, callback translation, Escape, and dependency-unavailable behavior in `Tests/ApplicationWindowInputTests.cpp`
+- [X] T016 [P] [US1] Add failing private-driver tests for native-window selection, opaque platform handle availability, framebuffer pixel extent, callback translation, Escape, and dependency-unavailable behavior in `Tests/ApplicationWindowInputTests.cpp`
 - [X] T017 [P] [US1] Add failing native Vulkan tests for real instance/device selection, runtime proof, buffers, shader modules, graphics pipeline, offscreen target, commands, synchronization, and final-zero snapshots in `Tests/VulkanNativeIntegrationTests.h` and `Tests/VulkanNativeIntegrationTests.cpp`
 - [X] T018 [P] [US1] Add failing Renderer executor tests for imported output resolution, per-pass interleaved transitions, clear/bind/viewport/scissor/three-vertex draw order, and invalid binding rejection in `Tests/RendererForwardPipelineTests.cpp`
-- [ ] T019 [P] [US1] Add failing demo contract tests for native-required rejection of fallback, triangle geometry/shader validation, initialization order, one-frame order, injected-clock 5,000-millisecond first-present boundary, and normal shutdown in `Tests/TriangleDemoIntegrationTests.h` and `Tests/TriangleDemoIntegrationTests.cpp`
+- [X] T019 [P] [US1] Add failing demo contract tests for native-required rejection of fallback, triangle geometry/shader validation, initialization order, one-frame order, injected-clock 5,000-millisecond first-present boundary, and normal shutdown in `Tests/TriangleDemoIntegrationTests.h` and `Tests/TriangleDemoIntegrationTests.cpp`
 - [X] T020 [US1] Register the new test suites in `Tests/Main.cpp` and `Tests/SConscript`, sharing demo runtime sources without linking `Demo/StonerDemo/Private/Main.cpp`
 
 ### Implementation for User Story 1
@@ -75,7 +75,7 @@
 - [X] T031 [P] [US1] Define the backend-neutral forward execution input/result and frame-context binding contract in `Source/Renderer/Public/Renderer/FForwardFrameExecutor.h` and `Source/Renderer/Public/Renderer/RendererMinimal.h`
 - [X] T032 [US1] Implement `FForwardFrameExecutor` to validate the frame plan, resolve the imported output, interleave render-graph transitions per pass, and record the triangle draw through RHI in `Source/Renderer/Private/FForwardFrameExecutor.cpp` and `Source/Renderer/SConscript`
 - [X] T033 [P] [US1] Define demo modes, lifecycle/frame stages, result mapping, immutable configuration defaults, stable diagnostics, and the Demo Application lifecycle Composite over independently owned triangle resources, presentation state, and frame-context children in `Demo/StonerDemo/Private/FDemoConfiguration.h`, `Demo/StonerDemo/Private/FDemoDiagnostics.h`, and `Demo/StonerDemo/Private/FStonerDemoApplication.h`
-- [ ] T034 [US1] Complete strict CLI parsing for interactive/native startup plus triangle payload validation, two-frame default coordination, forward-plan-to-native-RHI binding, native initialization, monotonic first-present measurement, visible frame loop, Escape/close handling, and Composite reverse-order shutdown in `Demo/StonerDemo/Private/FStonerDemoApplication.cpp`
+- [X] T034 [US1] Complete strict CLI parsing for interactive/native startup plus triangle payload validation, two-frame default coordination, forward-plan-to-native-RHI binding, native initialization, monotonic first-present measurement, visible frame loop, Escape/close handling, and Composite reverse-order shutdown in `Demo/StonerDemo/Private/FStonerDemoApplication.cpp`
 - [X] T035 [US1] Add the minimal composition-root entry point, stable exit-code mapping, and no silent native-to-deterministic fallback in `Demo/StonerDemo/Private/Main.cpp`
 - [X] T036 [US1] Run the deterministic US1 suites and a local native macOS interactive smoke build, recording only reproducible observations and unresolved environment limitations in `specs/018-triangle-demo-integration/quickstart.md`
 
@@ -92,8 +92,8 @@
 ### Tests for User Story 2
 
 - [X] T037 [P] [US2] Add deterministic injected-clock tests for zero-extent startup, paused event/exit handling, restore, 20 resize cycles, per-cycle 2,000-millisecond recovery boundaries, generation invalidation, and no draw submission while paused in `Tests/TriangleDemoIntegrationTests.cpp`
-- [ ] T038 [P] [US2] Add Vulkan swapchain tests for out-of-date/suboptimal acquire/present normalization, old-generation invalidation, image-indexed synchronization, and partial recreation failure in `Tests/VulkanBackendTests.cpp`
-- [ ] T039 [P] [US2] Add real-window event tests for logical-size versus framebuffer-size changes, minimize/restore, close while paused, and callback ordering in `Tests/ApplicationWindowInputTests.cpp`
+- [X] T038 [P] [US2] Add Vulkan swapchain tests for out-of-date/suboptimal acquire/present normalization, old-generation invalidation, image-indexed synchronization, and partial recreation failure in `Tests/VulkanBackendTests.cpp`
+- [X] T039 [P] [US2] Add real-window event tests for logical-size versus framebuffer-size changes, minimize/restore, close while paused, and callback ordering in `Tests/ApplicationWindowInputTests.cpp`
 
 ### Implementation for User Story 2
 
@@ -149,7 +149,7 @@
 - [X] T057 [US4] Update the Windows/macOS/Linux GitHub Actions matrix to build `StonerDemo`, run all regressions and deterministic validation, provision Linux Vulkan/Mesa/glslang tools, execute Lavapipe native headless validation, and upload success/failure reports in `.github/workflows/ci.yml`
 - [ ] T058 [US4] Run or inspect the complete GitHub Actions matrix and record the commit/run identity plus deterministic and Linux Lavapipe outcomes in `Validation/018/completion.md`
 - [ ] T059 [US4] Perform the required 10,000-frame macOS real-window validation, confirm first presentation within 5,000 milliseconds, execute 20 resize/minimize/restore cycles each recovering within 2,000 milliseconds, confirm RGB triangle pixels, and retain the same-run screenshot and normalized timing log in `Validation/018/macOS/triangle.png` and `Validation/018/macOS/triangle.log`
-- [X] T060 [US4] Perform the required 10,000-frame Windows real-window validation, confirm first presentation within 5,000 milliseconds, execute 20 resize/minimize/restore cycles each recovering within 2,000 milliseconds, confirm RGB triangle pixels, and retain the same-run screenshot and normalized timing log in `Validation/018/Windows/triangle.png` and `Validation/018/Windows/triangle.log`
+- [ ] T060 [US4] Perform the required 10,000-frame Windows real-window validation, confirm first presentation within 5,000 milliseconds, execute 20 resize/minimize/restore cycles each recovering within 2,000 milliseconds, confirm RGB triangle pixels, and retain the same-run screenshot and normalized timing log in `Validation/018/Windows/triangle.png` and `Validation/018/Windows/triangle.log`
 - [ ] T061 [US4] Verify both visible evidence pairs, Linux report, and CI identity against the validation contract and finalize references with no accepted gaps in `Validation/018/completion.md`
 
 **Checkpoint**: US4 and Feature 018 are complete only after CI is green and both real-window evidence pairs exist and pass manual review.
