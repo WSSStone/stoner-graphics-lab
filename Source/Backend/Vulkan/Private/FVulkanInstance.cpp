@@ -48,10 +48,9 @@ Stoner::RHI::ERHIResult FVulkanInstance::Initialize(const FVulkanInstanceDesc& D
 
     Diagnostics = {};
     Diagnostics.bValidationRequested = Desc.bRequestValidation;
+    Diagnostics.bUsedRuntimeFallback = true;
 #if defined(STONER_VULKAN_SDK_AVAILABLE) && STONER_VULKAN_SDK_AVAILABLE
     Diagnostics.bUsedSdkHeaders = true;
-#else
-    Diagnostics.bUsedRuntimeFallback = true;
 #endif
 
     if (Desc.bForceUnsupportedRuntime)

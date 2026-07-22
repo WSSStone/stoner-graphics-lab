@@ -1,0 +1,37 @@
+feature=018-triangle-demo-integration
+run-id=windows-018-682e236-20260721T112047
+mode=validate
+runtime-object-mode=native
+adapter=NVIDIA GeForce RTX 3080
+software-device=false
+requested-frames=10000
+completed-frames=10000
+frames-in-flight=2
+time-to-first-present-ms=1162.517
+memory-samples=75
+memory-baseline-bytes=142389248
+memory-final-bytes=189550592
+final-live-objects=0
+validation-result=pass
+recovery-ms[0]=43.937
+recovery-ms[1]=46.088
+recovery-ms[2]=48.045
+recovery-ms[3]=45.170
+recovery-ms[4]=47.881
+recovery-ms[5]=47.645
+recovery-ms[6]=50.144
+recovery-ms[7]=44.027
+recovery-ms[8]=45.110
+recovery-ms[9]=48.813
+recovery-ms[10]=47.590
+recovery-ms[11]=48.159
+recovery-ms[12]=44.100
+recovery-ms[13]=55.243
+recovery-ms[14]=46.571
+recovery-ms[15]=43.502
+recovery-ms[16]=50.101
+recovery-ms[17]=44.191
+recovery-ms[18]=47.937
+recovery-ms[19]=58.457
+diagnostic sequence=1 stage=Runtime result=0 subject=Runtime reason=validate
+diagnostic sequence=2 stage=Shutdown result=0 subject=DemoComposite reason=reverse-order shutdown complete

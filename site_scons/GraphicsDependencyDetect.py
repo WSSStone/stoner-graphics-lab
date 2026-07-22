@@ -27,7 +27,11 @@ def DetectGraphicsDependencies(platform):
     roots = _sdk_roots()
     include_dirs = [os.path.join(root, name) for root in roots for name in ('include', 'Include')]
     library_dirs = [os.path.join(root, name) for root in roots for name in ('lib', 'Lib')]
-    library_dirs.extend(path for root in roots for path in glob.glob(os.path.join(root, 'lib-*')))
+    library_dirs.extend(
+        path
+        for root in roots
+        for path in sorted(glob.glob(os.path.join(root, 'lib-*')), reverse=True)
+    )
     library_dirs.extend(glob.glob('/usr/lib/*-linux-gnu'))
     library_dirs.extend(glob.glob('/lib/*-linux-gnu'))
 

@@ -12,7 +12,14 @@ namespace
 
 std::filesystem::path ToPath(const FString& Path)
 {
-    return std::filesystem::path(Path.ToStdString());
+    const std::string Utf8Path = Path.ToStdString();
+    std::u8string NativeUtf8Path;
+    NativeUtf8Path.reserve(Utf8Path.size());
+    for (const unsigned char Byte : Utf8Path)
+    {
+        NativeUtf8Path.push_back(static_cast<char8_t>(Byte));
+    }
+    return std::filesystem::path(NativeUtf8Path);
 }
 
 } // namespace

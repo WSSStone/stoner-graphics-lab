@@ -49,6 +49,8 @@ if platform == 'Linux':
     demo_env.Append(LIBS=['dl'])
 if platform == 'Win64':
     demo_env.Append(LIBS=['Psapi'])
+    if deps['glfw_available']:
+        demo_env.Append(LIBS=['User32', 'Gdi32', 'Shell32'])
 
 shader_dir = Dir('.').srcnode().Dir('Shaders').abspath
 shader_targets = []

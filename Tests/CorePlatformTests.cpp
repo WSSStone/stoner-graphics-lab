@@ -28,6 +28,16 @@ void Record(FCorePlatformTestResult& Result, bool Passed, const char* Name)
 FString MakeTempPath(const char* Suffix)
 {
     const char* TmpDir = std::getenv("TMPDIR");
+#if SG_PLATFORM_WINDOWS
+    if (TmpDir == nullptr || TmpDir[0] == '\0')
+    {
+        TmpDir = std::getenv("TEMP");
+    }
+    if (TmpDir == nullptr || TmpDir[0] == '\0')
+    {
+        TmpDir = std::getenv("TMP");
+    }
+#endif
     if (TmpDir == nullptr || TmpDir[0] == '\0')
     {
         TmpDir = "/tmp";

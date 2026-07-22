@@ -199,3 +199,34 @@ one non-degenerate triangle with red, green, and blue vertices and smooth interp
 The smoke screenshot included unrelated desktop content and the run did not execute
 the formal 10,000-frame/20-recovery profile, so it was inspected but intentionally not
 retained as the required `Validation/018/macOS/triangle.png` evidence pair.
+
+## Local Windows Verification (2026-07-21)
+
+Verified from an x64 MSVC environment using Visual Studio Community 2026
+(MSVC 19.51.36248), Python 3.12.12, SCons 4.10.1, Vulkan SDK 1.4.350.0, and the
+persistent official GLFW 3.4 package at `D:\Programs\glfw-3.4`:
+
+```powershell
+scons -Q
+Build\Win64\Debug\Tests\StonerTest.exe
+python .github\scripts\run_triangle_demo_validation.py `
+  --profile deterministic `
+  --tests Build\Win64\Debug\Tests\StonerTest.exe `
+  --demo Build\Win64\Debug\Demo\StonerDemo\StonerDemo.exe `
+  --report Build\Win64\Debug\Demo\StonerDemo\deterministic-report.txt `
+  --timeout-seconds 1200
+```
+
+The build and complete regression suite passed. Deterministic validation completed
+4,096 of 4,096 frames with 28 memory samples, RSS medians of 9,293,824 and
+9,297,920 bytes, zero final live objects, and `validation-result=pass`.
+
+Formal visible run `windows-018-682e236-20260721T112047` completed naturally with
+exit code 0 on an NVIDIA GeForce RTX 3080 using driver 581.32. It completed 10,000
+of 10,000 frames, presented first at 1,162.517 milliseconds, recorded exactly 20
+minimize/restore recoveries with a maximum of 58.457 milliseconds, recorded 75 RSS
+samples with baseline/final medians of 142,389,248 and 189,550,592 bytes, reported
+zero final live objects, and passed. The normalized log contains no native address.
+The same-run local screenshot was manually inspected and showed one non-degenerate
+triangle with red, green, and blue vertices and smooth interpolation; it is temporary
+local validation evidence and does not add a long-term screenshot archival requirement.
