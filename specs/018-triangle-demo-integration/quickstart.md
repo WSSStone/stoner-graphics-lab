@@ -253,8 +253,8 @@ The build and complete regression suite passed. The deterministic profile comple
 4,096 of 4,096 frames with 28 post-warm-up RSS samples, equal 9,060,352-byte baseline
 and final medians, two configured frame slots, zero final live objects, and a passing
 validation result. Because this change replaces the native visible recording path,
-the earlier Windows screenshot/log pair is historical evidence and Windows/macOS
-formal visible validation must run again before Feature 018 completion.
+the earlier Windows screenshot/log pair is historical evidence; the subsequent formal
+macOS and Windows runs below refresh both platforms on the Renderer/RHI path.
 
 ## Formal macOS Visible Validation (2026-07-22)
 
@@ -267,3 +267,25 @@ baseline/final medians of 99,516,416 and 122,945,536 bytes, remaining within the
 The matching `Validation/018/macOS/triangle.png` was manually inspected and shows one
 non-degenerate triangle with distinguishable red, green, and blue vertices and smooth
 interpolation, with no unrelated desktop content.
+
+## Formal Windows Visible Validation (2026-07-22)
+
+The current `69c404b` Windows build and complete regression suite passed. Its
+deterministic profile completed 4,096 of 4,096 frames with two configured frame slots,
+28 post-warm-up RSS samples, equal 8,519,680-byte baseline/final medians, zero final
+live objects, and a passing validation result.
+
+Run `windows-018-69c404b-20260722T234116` completed naturally with exit code 0 on an
+NVIDIA GeForce RTX 3080 using driver 581.32. It completed 10,000 of 10,000 frames
+through the Renderer/RHI visible path with two frame slots, first presented at
+3,772.743 milliseconds, and recorded 21 valid recoveries after exactly 20
+minimize/restore operations with a 47.526-millisecond maximum. The 75 post-warm-up
+RSS samples produced baseline/final medians of 138,719,232 and 190,373,888 bytes,
+remaining within the 64 MiB/10% configured growth gate. Final live objects were zero,
+validation passed, and the normalized log contains no native address.
+
+The matching `Validation/018/Windows/triangle.png` was captured from the DWM visible
+window bounds and manually inspected. It contains only the StonerDemo window and shows
+one non-degenerate triangle with red, green, and blue vertices, smooth interpolation,
+and no rendering corruption. Temporary same-run client captures confirmed that the
+triangle reappeared correctly after each of the 20 restore operations.
