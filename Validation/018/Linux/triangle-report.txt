@@ -1,0 +1,22 @@
+feature=018-triangle-demo-integration
+run-id=29935956348-fa2ffff6b22b
+mode=headless-vulkan
+runtime-object-mode=native
+adapter=llvmpipe (LLVM 20.1.2, 256 bits)
+software-device=true
+requested-frames=4096
+completed-frames=4096
+frames-in-flight=2
+time-to-first-present-ms=0.000
+memory-samples=28
+memory-baseline-bytes=84000768
+memory-final-bytes=84000768
+final-live-objects=0
+validation-result=pass
+recovery-count=0
+diagnostic sequence=1 stage=Window result=0 subject=Window reason=window not required
+diagnostic sequence=2 stage=Runtime result=0 subject=Runtime reason=headless-vulkan
+diagnostic sequence=3 stage=Shader result=0 subject=TriangleShaders reason=vertex and fragment main entry points validated
+diagnostic sequence=4 stage=Upload result=0 subject=TriangleUpload reason=three-vertex RGB payload ready
+diagnostic sequence=5 stage=Pipeline result=0 subject=TrianglePipeline reason=triangle pipeline ready
+diagnostic sequence=6 stage=Shutdown result=0 subject=DemoComposite reason=reverse-order shutdown complete

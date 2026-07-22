@@ -289,3 +289,17 @@ window bounds and manually inspected. It contains only the StonerDemo window and
 one non-degenerate triangle with red, green, and blue vertices, smooth interpolation,
 and no rendering corruption. Temporary same-run client captures confirmed that the
 triangle reappeared correctly after each of the 20 restore operations.
+
+## Formal Cross-Platform CI Validation (2026-07-23)
+
+GitHub Actions run
+[`29935956348`](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/29935956348)
+completed successfully for commit `fa2ffff6b22baad9e4c8f5137285b8b08517555f`.
+The Windows, macOS, and Linux jobs all built the demo and passed the complete regression
+suite plus deterministic 4,096-frame validation.
+
+The Linux job additionally selected Lavapipe through `VK_DRIVER_FILES` and completed
+4,096 of 4,096 native-headless Vulkan frames on `llvmpipe (LLVM 20.1.2, 256 bits)`.
+The run recorded 28 RSS samples with equal 84,000,768-byte baseline/final medians,
+zero final live objects, and `validation-result=pass`. The downloaded normalized
+artifact is retained at `Validation/018/Linux/triangle-report.txt`.

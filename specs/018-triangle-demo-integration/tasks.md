@@ -147,10 +147,10 @@
 - [X] T055 [US4] Complete `NativeHeadless` offscreen color-target execution and ensure it cannot emit surface, swapchain, screenshot, or visible-success claims in `Demo/StonerDemo/Private/FStonerDemoApplication.cpp` and `Source/Backend/Vulkan/Private/FVulkanDevice.cpp`
 - [X] T056 [P] [US4] Add reusable CI commands for deterministic and native-headless profiles, explicit Lavapipe ICD resolution, and validation-log artifact collection in `.github/scripts/run_triangle_demo_validation.py`
 - [X] T057 [US4] Update the Windows/macOS/Linux GitHub Actions matrix to build `StonerDemo`, run all regressions and deterministic validation, provision Linux Vulkan/Mesa/glslang tools, execute Lavapipe native headless validation, and upload success/failure reports in `.github/workflows/ci.yml`
-- [ ] T058 [US4] Run or inspect the complete GitHub Actions matrix and record the commit/run identity plus deterministic and Linux Lavapipe outcomes in `Validation/018/completion.md`
+- [X] T058 [US4] Run or inspect the complete GitHub Actions matrix and record the commit/run identity plus deterministic and Linux Lavapipe outcomes in `Validation/018/completion.md`
 - [X] T059 [US4] Perform the required 10,000-frame macOS real-window validation, confirm first presentation within 5,000 milliseconds, execute 20 resize/minimize/restore cycles each recovering within 2,000 milliseconds, confirm RGB triangle pixels, and retain the same-run screenshot and normalized timing log in `Validation/018/macOS/triangle.png` and `Validation/018/macOS/triangle.log`
 - [X] T060 [US4] Perform the required 10,000-frame Windows real-window validation, confirm first presentation within 5,000 milliseconds, execute 20 resize/minimize/restore cycles each recovering within 2,000 milliseconds, confirm RGB triangle pixels, and retain the same-run screenshot and normalized timing log in `Validation/018/Windows/triangle.png` and `Validation/018/Windows/triangle.log`
-- [ ] T061 [US4] Verify both visible evidence pairs, Linux report, and CI identity against the validation contract and finalize references with no accepted gaps in `Validation/018/completion.md`
+- [X] T061 [US4] Verify both visible evidence pairs, Linux report, and CI identity against the validation contract and finalize references with no accepted gaps in `Validation/018/completion.md`
 
 **Checkpoint**: US4 and Feature 018 are complete only after CI is green and both real-window evidence pairs exist and pass manual review.
 

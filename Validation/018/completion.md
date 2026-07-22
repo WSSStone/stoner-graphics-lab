@@ -1,6 +1,6 @@
 # Feature 018 Completion Record
 
-Status: In progress
+Status: Complete
 
 ## Verified
 
@@ -17,6 +17,8 @@ Status: In progress
 - The current implementation prepares a real forward frame in Renderer, records it through `FForwardFrameExecutor` into native RHI bindings, and submits/presents it through two rotating frame slots with image-indexed render-finished synchronization.
 - Private-driver, demo orchestration, SPIR-V stage/entry-point, swapchain generation/stale-image, logical/framebuffer-size, minimize/restore, and close/Escape regression tests pass locally.
 - Three-platform deterministic and Linux Lavapipe validation jobs are configured in `.github/workflows/ci.yml`.
+- GitHub Actions CI run [29935956348](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/29935956348) completed successfully for commit `fa2ffff6b22baad9e4c8f5137285b8b08517555f`. Windows, macOS, and Linux builds and deterministic validation all passed; Linux additionally resolved Lavapipe and passed native-headless Vulkan validation.
+- Linux CI run `29935956348-fa2ffff6b22b` completed 4,096 of 4,096 native Vulkan frames on software adapter `llvmpipe (LLVM 20.1.2, 256 bits)`. Its 28 RSS samples produced equal 84,000,768-byte baseline/final medians, final live objects were zero, and validation passed. The normalized `triangle-demo-Linux` artifact report is retained at `Validation/018/Linux/triangle-report.txt`.
 
 ## Requirement Reconciliation
 
@@ -28,15 +30,16 @@ Status: In progress
 | FR-009, FR-010 | Complete on current Windows and macOS | The visible loop polls events, acquires, records through Renderer/RHI, rotates two frame slots, submits with image-indexed synchronization, and presents through the real swapchain. |
 | FR-011 through FR-013 | Complete on current Windows and macOS | Generation-aware recreation and zero-extent pause pass 22 macOS recoveries (2.649-millisecond maximum) and 21 Windows recoveries (47.526-millisecond maximum). |
 | FR-014 through FR-017 | Complete for implemented modes | Strict CLI, bounded validation, reverse shutdown, stable diagnostics, failure injection, deterministic coverage, and interactive visible execution pass. |
-| FR-018 | Partial | Three-platform workflow and Linux Lavapipe job are configured, and both current-path visible evidence pairs pass; green CI identity and Linux artifact inspection remain pending. |
+| FR-018 | Complete | CI run 29935956348 passed Windows/macOS/Linux build and deterministic validation; Linux additionally passed native-headless Vulkan through Lavapipe. Both current-path visible evidence pairs pass. |
 | FR-019 through FR-021 | Complete | Memory/live-object gates, full local regressions, and the hardcoded-triangle scope boundary are covered. |
 | SC-001 | Complete on current Windows and macOS | First presentation passes at 335.915 milliseconds on macOS and 3,772.743 milliseconds on Windows with matching screenshot/log evidence. |
 | SC-002, SC-004 through SC-006, SC-008, SC-009 | Complete for local applicable paths | Deterministic endurance/failure tests pass; native macOS offscreen endurance also passes. |
 | SC-003 | Complete on current Windows and macOS | Deterministic timing boundaries pass; all 22 macOS and 21 Windows observed recoveries are below 2,000 milliseconds. |
-| SC-007 | Pending | Requires a green identified CI matrix, Linux Lavapipe artifact, and both visible platform evidence pairs. |
+| SC-007 | Complete | CI run 29935956348 is green on all three platforms, the retained Linux Lavapipe report passes, and both visible platform evidence pairs pass manual inspection. |
 
-## External Completion Gates
+## Completion Evidence
 
-- GitHub Actions run/commit identity and Linux Lavapipe artifact have not yet been inspected.
+- GitHub Actions run `29935956348` for commit `fa2ffff6b22baad9e4c8f5137285b8b08517555f` passed all required jobs; Linux artifact `triangle-demo-Linux` (artifact ID `8536174078`, SHA-256 `8900a7e6670f8c36d27c272660bca4d138c42943f6fb447097611e355081163e`) was inspected and its Lavapipe report is retained locally.
 - macOS run `macos-018-75f1e38-20260722T232702` has a matching screenshot and normalized passing log; both were manually inspected.
 - Windows run `windows-018-69c404b-20260722T234116` has a matching window-only screenshot and normalized passing log; both were manually inspected against the current Renderer/RHI visible path.
+- No accepted gaps remain for Feature 018.
