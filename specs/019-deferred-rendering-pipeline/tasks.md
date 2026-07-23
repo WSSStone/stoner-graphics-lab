@@ -17,8 +17,8 @@
 
 **Purpose**: Prepare reproducible Renderer-owned shader assets and retained Feature 019 validation locations without changing runtime behavior.
 
-- [ ] T001 Add checked-in deferred GLSL/SPIR-V discovery, optional compile/validation, and asset-copy builders to `Source/Renderer/SConscript`
-- [ ] T002 [P] Document generated-versus-retained evidence rules, required Linux artifact names, and no-screenshot policy in `Validation/019/README.md`
+- [X] T001 Add checked-in deferred GLSL/SPIR-V discovery, optional compile/validation, and asset-copy builders to `Source/Renderer/SConscript`
+- [X] T002 [P] Document generated-versus-retained evidence rules, required Linux artifact names, and no-screenshot policy in `Validation/019/README.md`
 
 ---
 
@@ -28,13 +28,13 @@
 
 **Critical**: No user-story implementation begins until the command contracts compile, deterministic mocks support them, and the new contract tests fail only for intentionally missing deferred behavior.
 
-- [ ] T003 Add failing RHI contract tests for `R32G32_Float`/`R32G32B32_Float` formats, descriptor-set binding, index-buffer binding, explicit render-pass clear values, texture-to-buffer copy validation, and symbolic command records in `Tests/RHICoreTests.cpp`
-- [ ] T004 [P] Add failing Vulkan command tests for descriptor/index binding, clear-value compatibility, copy usages/ranges, lifecycle rejection, and deterministic diagnostics in `Tests/VulkanBackendTests.cpp`
-- [ ] T005 Add explicit `R32G32_Float`/`R32G32B32_Float` vertex formats and define backend-neutral index/copy-region contracts in `Source/RHI/Public/RHI/ERHIFormat.h`, `Source/RHI/Public/RHI/ERHIIndexType.h`, and `Source/RHI/Public/RHI/FRHITextureBufferCopyRegion.h`
-- [ ] T006 Extend symbolic command types and `IRHICommandBuffer` with descriptor-set binding, index-buffer binding, clear-value render-pass begin, and texture-to-buffer copy operations in `Source/RHI/Public/RHI/IRHICommandBuffer.h` and `Source/RHI/Public/RHI/RHIMinimal.h`
-- [ ] T007 Update deterministic test doubles for the new pure-virtual commands and stable validation behavior in `Tests/RHICoreTests.cpp`, `Tests/VulkanBackendTests.cpp`, and `Source/Backend/Vulkan/Private/FVulkanNativeContext.cpp`
-- [ ] T008 Implement deterministic Vulkan descriptor/index/clear/readback command validation and symbolic records in `Source/Backend/Vulkan/Public/VulkanRHI/FVulkanCommandBuffer.h` and `Source/Backend/Vulkan/Private/FVulkanCommandBuffer.cpp`
-- [ ] T009 Run the full local build and `StonerTest` to prove the RHI additions preserve existing contracts, recording any required compatibility adjustment in `specs/019-deferred-rendering-pipeline/quickstart.md`
+- [X] T003 Add failing RHI contract tests for `R32G32_Float`/`R32G32B32_Float` formats, descriptor-set binding, index-buffer binding, explicit render-pass clear values, texture-to-buffer copy validation, and symbolic command records in `Tests/RHICoreTests.cpp`
+- [X] T004 [P] Add failing Vulkan command tests for descriptor/index binding, clear-value compatibility, copy usages/ranges, lifecycle rejection, and deterministic diagnostics in `Tests/VulkanBackendTests.cpp`
+- [X] T005 Add explicit `R32G32_Float`/`R32G32B32_Float` vertex formats and define backend-neutral index/copy-region contracts in `Source/RHI/Public/RHI/ERHIFormat.h`, `Source/RHI/Public/RHI/ERHIIndexType.h`, and `Source/RHI/Public/RHI/FRHITextureBufferCopyRegion.h`
+- [X] T006 Extend symbolic command types and `IRHICommandBuffer` with descriptor-set binding, index-buffer binding, clear-value render-pass begin, and texture-to-buffer copy operations in `Source/RHI/Public/RHI/IRHICommandBuffer.h` and `Source/RHI/Public/RHI/RHIMinimal.h`
+- [X] T007 Update deterministic test doubles for the new pure-virtual commands and stable validation behavior in `Tests/RHICoreTests.cpp`, `Tests/VulkanBackendTests.cpp`, and `Source/Backend/Vulkan/Private/FVulkanNativeContext.cpp`
+- [X] T008 Implement deterministic Vulkan descriptor/index/clear/readback command validation and symbolic records in `Source/Backend/Vulkan/Public/VulkanRHI/FVulkanCommandBuffer.h` and `Source/Backend/Vulkan/Private/FVulkanCommandBuffer.cpp`
+- [X] T009 Run the full local build and `StonerTest` to prove the RHI additions preserve existing contracts, recording any required compatibility adjustment in `specs/019-deferred-rendering-pipeline/quickstart.md`
 
 **Checkpoint**: Shared RHI contracts express every command required by deferred execution, all existing mocks compile, and the pre-019 regression suite remains green.
 
@@ -50,23 +50,23 @@
 
 - [ ] T010 [US1] Add failing world-normal/inverse-view-projection surface-layout, non-uniform-scale inverse-transpose normal, singular-transform rejection, standard-Z/reversed-Z clear/comparison, view/output, opaque/masked material, empty/ambient/emissive, equal/nearly-equal depth, reversed-winding, clipping, off-screen geometry, canonical pass-order, and deterministic plan tests in `Tests/DeferredRenderingTests.h` and `Tests/DeferredRenderingTests.cpp`
 - [ ] T011 [P] [US1] Add failing real-runtime, standard-Z/reversed-Z surface attachment, shader/pipeline, submit/fence, texture-to-buffer readback, at-least-12-probe, LDR `2/255`, depth `1e-4`, world-normal dot `0.999`, metallic/roughness `1e-3`, UNorm8 AO `2e-3`, non-finite rejection, and final-zero tests in `Tests/DeferredNativeIntegrationTests.h` and `Tests/DeferredNativeIntegrationTests.cpp`
-- [ ] T012 [US1] Extend `Tests/DeferredRenderingTests.cpp` with failing canonical set/binding, exact `InverseViewProjection`/inverse-transpose `WorldNormalFromModel` world-space 304/176/64-byte mirrored-record size/offset, convention-matched depth state, surface/fullscreen/volume vertex layout, executor binding, indexed point/spot volume, command-order, composition, and validation-readback cases
-- [ ] T013 [US1] Register the deferred deterministic and native suites in `Tests/Main.cpp` and `Tests/SConscript`
+- [X] T012 [US1] Extend `Tests/DeferredRenderingTests.cpp` with failing canonical set/binding, exact `InverseViewProjection`/inverse-transpose `WorldNormalFromModel` world-space 304/176/64-byte mirrored-record size/offset, convention-matched depth state, surface/fullscreen/volume vertex layout, executor binding, indexed point/spot volume, command-order, composition, and validation-readback cases
+- [X] T013 [US1] Register the deferred deterministic and native suites in `Tests/Main.cpp` and `Tests/SConscript`
 
 ### Implementation for User Story 1
 
-- [ ] T014 [P] [US1] Define stable deferred result, stage, severity, subject, and diagnostic record vocabulary in `Source/Renderer/Public/Renderer/FDeferredDiagnostics.h` and `Source/Renderer/Private/FDeferredDiagnostics.cpp`
-- [ ] T015 [P] [US1] Implement the three-color-plus-depth semantic layout with normalized inverse-transpose world-space normal storage, standard-Z/reversed-Z derived clear/comparison policy, compatibility identity, ranges, and validation in `Source/Renderer/Public/Renderer/FDeferredSurfaceData.h` and `Source/Renderer/Private/FDeferredSurfaceData.cpp`
-- [ ] T016 [P] [US1] Define directional, point, and spot input/acceptance records with finite world-space position/direction, range, explicit radian cone fields, and `0 <= inner <= outer < pi/2` validation in `Source/Renderer/Public/Renderer/FDeferredLightData.h` and `Source/Renderer/Private/FDeferredLightData.cpp`
-- [ ] T017 [US1] Define deferred configuration, frame inputs, draw records, pass records, input fingerprints, and valid/invalid frame-plan state in `Source/Renderer/Public/Renderer/FDeferredFramePlan.h` and `Source/Renderer/Private/FDeferredFramePlan.cpp`
-- [ ] T018 [US1] Implement `FDeferredRenderer` preparation for opaque/masked materials, shared PBR semantics, ambient/emissive/no-light outcomes, one surface sequence, supported light records, and exactly one composition output in `Source/Renderer/Public/Renderer/FDeferredRenderer.h` and `Source/Renderer/Private/FDeferredRenderer.cpp`
-- [ ] T019 [US1] Translate valid deferred plans into explicit surface, lighting, composition, and readback render-graph resources/accesses/dependencies/culling decisions in `Source/Renderer/Public/Renderer/FDeferredRenderGraphDeclaration.h` and `Source/Renderer/Private/FDeferredRenderGraphDeclaration.cpp`
-- [ ] T020 [US1] Implement the canonical set 0-3 descriptor schema, exact world-space 304-byte frame/view, inverse-transpose 176-byte draw/material, and 64-byte light `float32` mirrored records, convention-derived depth clear/comparison validation, surface/fullscreen/sphere/cone vertex layouts, transactional RHI binding validation, interleaved graph transitions, outside/inside volume pipeline selection, indexed stage draws, composition, and readback recording in `Source/Renderer/Public/Renderer/FDeferredFrameExecutor.h` and `Source/Renderer/Private/FDeferredFrameExecutor.cpp`
-- [ ] T021 [US1] Add reviewable surface, fullscreen, directional, point, spot, and composition GLSL matching T020's canonical bindings/layouts, normalizing inverse-transpose world-space normals and reconstructing world-space position via convention-matched `InverseViewProjection`, including exact point-range/spot-cone fragment rejection, plus checked-in matching SPIR-V payloads in `Source/Renderer/Shaders/Deferred/`
+- [X] T014 [P] [US1] Define stable deferred result, stage, severity, subject, and diagnostic record vocabulary in `Source/Renderer/Public/Renderer/FDeferredDiagnostics.h` and `Source/Renderer/Private/FDeferredDiagnostics.cpp`
+- [X] T015 [P] [US1] Implement the three-color-plus-depth semantic layout with normalized inverse-transpose world-space normal storage, standard-Z/reversed-Z derived clear/comparison policy, compatibility identity, ranges, and validation in `Source/Renderer/Public/Renderer/FDeferredSurfaceData.h` and `Source/Renderer/Private/FDeferredSurfaceData.cpp`
+- [X] T016 [P] [US1] Define directional, point, and spot input/acceptance records with finite world-space position/direction, range, explicit radian cone fields, and `0 <= inner <= outer < pi/2` validation in `Source/Renderer/Public/Renderer/FDeferredLightData.h` and `Source/Renderer/Private/FDeferredLightData.cpp`
+- [X] T017 [US1] Define deferred configuration, frame inputs, draw records, pass records, input fingerprints, and valid/invalid frame-plan state in `Source/Renderer/Public/Renderer/FDeferredFramePlan.h` and `Source/Renderer/Private/FDeferredFramePlan.cpp`
+- [X] T018 [US1] Implement `FDeferredRenderer` preparation for opaque/masked materials, shared PBR semantics, ambient/emissive/no-light outcomes, one surface sequence, supported light records, and exactly one composition output in `Source/Renderer/Public/Renderer/FDeferredRenderer.h` and `Source/Renderer/Private/FDeferredRenderer.cpp`
+- [X] T019 [US1] Translate valid deferred plans into explicit surface, lighting, composition, and readback render-graph resources/accesses/dependencies/culling decisions in `Source/Renderer/Public/Renderer/FDeferredRenderGraphDeclaration.h` and `Source/Renderer/Private/FDeferredRenderGraphDeclaration.cpp`
+- [X] T020 [US1] Implement the canonical set 0-3 descriptor schema, exact world-space 304-byte frame/view, inverse-transpose 176-byte draw/material, and 64-byte light `float32` mirrored records, convention-derived depth clear/comparison validation, surface/fullscreen/sphere/cone vertex layouts, transactional RHI binding validation, interleaved graph transitions, outside/inside volume pipeline selection, indexed stage draws, composition, and readback recording in `Source/Renderer/Public/Renderer/FDeferredFrameExecutor.h` and `Source/Renderer/Private/FDeferredFrameExecutor.cpp`
+- [X] T021 [US1] Add reviewable surface, fullscreen, directional, point, spot, and composition GLSL matching T020's canonical bindings/layouts, normalizing inverse-transpose world-space normals and reconstructing world-space position via convention-matched `InverseViewProjection`, including exact point-range/spot-cone fragment rejection, plus checked-in matching SPIR-V payloads in `Source/Renderer/Shaders/Deferred/`
 - [ ] T022 [US1] Implement reusable native offscreen lifecycle ownership for images, surface/fullscreen/sphere/cone vertex and `UInt16` index buffers, descriptors, mirrored uniforms/light storage, shaders, inside/outside pipelines, render passes, framebuffers, commands, fences, and staging readback in `Source/Backend/Vulkan/Private/FVulkanNativeOffscreenSession.h` and `Source/Backend/Vulkan/Private/FVulkanNativeOffscreenSession.cpp`
 - [ ] T023 [US1] Expose backend-neutral offscreen RHI wrappers, runtime proof, submission completion, mapped readback summaries, and reverse-order shutdown through `Source/Backend/Vulkan/Public/VulkanRHI/FVulkanNativeContext.h` and `Source/Backend/Vulkan/Private/FVulkanNativeContext.cpp`
 - [ ] T024 [US1] Build fixed standard-Z and reversed-Z native reference scenes with one directional, one sphere-volume point, and one cone-volume spot light and implement at least 12 named probe decoders/assertions per convention using LDR `2/255`, depth `1e-4`, world-normal dot `0.999`, metallic/roughness `1e-3`, UNorm8 AO `2e-3`, and non-finite failure rules in `Tests/DeferredNativeIntegrationTests.cpp`
-- [ ] T025 [US1] Run the complete local macOS build and deterministic deferred suite, verify the native test is registered and runnable without claiming Linux success, and document the deferred Linux CI execution command for US4 in `specs/019-deferred-rendering-pipeline/quickstart.md`
+- [X] T025 [US1] Run the complete local macOS build and deterministic deferred suite, verify the native test is registered and runnable without claiming Linux success, and document the deferred Linux CI execution command for US4 in `specs/019-deferred-rendering-pipeline/quickstart.md`
 
 **Checkpoint**: US1 implementation is complete when a valid deferred frame is independently preparable, graph-declared, RHI-recordable, and runnable through the native offscreen test with surface/directional/point-volume/spot-volume/composition/readback support. Required Linux Lavapipe execution evidence remains an explicit US4 CI gate.
 
@@ -80,17 +80,17 @@
 
 ### Tests for User Story 2
 
-- [ ] T026 [US2] Add failing no-light-cap, outside-view, boundary-touching, camera-enclosing, near-plane, type-then-ascending-entity ordering, constant-surface-work, exact SC-001 100-draw/1-directional/64-point/16-spot workload repeated 20 times, and consecutive-frame `0 -> 256 -> 0` local-light transition tests with no stale light/culling/command records in `Tests/DeferredRenderingTests.cpp`
-- [ ] T027 [P] [US2] Add failing 0/16/64/256-tier, warm-up, 100-sample, median/p95, workload, fingerprint-mismatch, incomplete-run, and crossover-classification tests in `Tests/RendererComparisonTests.h` and `Tests/RendererComparisonTests.cpp`
-- [ ] T028 [US2] Register the comparison suite in `Tests/Main.cpp` and `Tests/SConscript`
+- [X] T026 [US2] Add failing no-light-cap, outside-view, boundary-touching, camera-enclosing, near-plane, type-then-ascending-entity ordering, constant-surface-work, exact SC-001 100-draw/1-directional/64-point/16-spot workload repeated 20 times, and consecutive-frame `0 -> 256 -> 0` local-light transition tests with no stale light/culling/command records in `Tests/DeferredRenderingTests.cpp`
+- [X] T027 [P] [US2] Add failing 0/16/64/256-tier, warm-up, 100-sample, median/p95, workload, fingerprint-mismatch, incomplete-run, and crossover-classification tests in `Tests/RendererComparisonTests.h` and `Tests/RendererComparisonTests.cpp`
+- [X] T028 [US2] Register the comparison suite in `Tests/Main.cpp` and `Tests/SConscript`
 
 ### Implementation for User Story 2
 
-- [ ] T029 [US2] Implement deterministic frustum intersection, directional/point/spot type ordering, ascending stable entity identity within type, and outside/camera-inside/near-plane volume classification without an influence-order key in `Source/Renderer/Public/Renderer/FDeferredLightVolume.h` and `Source/Renderer/Private/FDeferredLightVolume.cpp`
-- [ ] T030 [US2] Integrate uncapped directional/point/spot acceptance, culling records, canonical type order, and volume classifications into `Source/Renderer/Private/FDeferredLightData.cpp` and `Source/Renderer/Private/FDeferredRenderer.cpp`
+- [X] T029 [US2] Implement deterministic frustum intersection, directional/point/spot type ordering, ascending stable entity identity within type, and outside/camera-inside/near-plane volume classification without an influence-order key in `Source/Renderer/Public/Renderer/FDeferredLightVolume.h` and `Source/Renderer/Private/FDeferredLightVolume.cpp`
+- [X] T030 [US2] Integrate uncapped directional/point/spot acceptance, culling records, canonical type order, and volume classifications into `Source/Renderer/Private/FDeferredLightData.cpp` and `Source/Renderer/Private/FDeferredRenderer.cpp`
 - [ ] T031 [US2] Extend the US1 sphere/cone path with deterministic outside-view omission, bounded scissors, batched/instanced accepted-light records, constant surface geometry work, and scalable additive accumulation in `Source/Renderer/Private/FDeferredFrameExecutor.cpp` and `Source/Renderer/Shaders/Deferred/`
-- [ ] T032 [US2] Define normalized scene/view/material/light fingerprints, workload records, timing samples, tier summaries, validity state, and crossover classification in `Source/Renderer/Public/Renderer/FRendererComparisonReport.h` and `Source/Renderer/Private/FRendererComparisonReport.cpp`
-- [ ] T033 [US2] Implement equivalent-input validation, warm-up exclusion, median/p95 aggregation, four required tiers, and no-speedup-gate reporting in `Tests/RendererComparisonTests.cpp`
+- [X] T032 [US2] Define normalized scene/view/material/light fingerprints, workload records, timing samples, tier summaries, validity state, and crossover classification in `Source/Renderer/Public/Renderer/FRendererComparisonReport.h` and `Source/Renderer/Private/FRendererComparisonReport.cpp`
+- [X] T033 [US2] Implement equivalent-input validation, warm-up exclusion, median/p95 aggregation, four required tiers, and no-speedup-gate reporting in `Tests/RendererComparisonTests.cpp`
 - [ ] T034 [US2] Execute all four comparison tiers and local-light boundary cases, then synchronize exact report fields and interpretation commands in `specs/019-deferred-rendering-pipeline/quickstart.md`
 
 **Checkpoint**: US2 is complete when local-light work is bounded and deterministic at all required edge cases and a valid four-tier comparison report records scaling/crossover without treating timing as a correctness gate.
@@ -105,13 +105,13 @@
 
 ### Tests for User Story 3
 
-- [ ] T035 [US3] Add failing invalid-input diagnostic, accepted/rejected count, graph dump, first-error ownership, native-address exclusion, and 20-run byte-stability tests in `Tests/DeferredRenderingTests.cpp`
+- [X] T035 [US3] Add failing invalid-input diagnostic, accepted/rejected count, graph dump, first-error ownership, native-address exclusion, and 20-run byte-stability tests in `Tests/DeferredRenderingTests.cpp`
 - [ ] T036 [P] [US3] Add failing partial-initialization, record/submit/fence/copy/map/decode/probe failure, no-later-success, idempotent shutdown, and zero-live tests in `Tests/DeferredNativeIntegrationTests.cpp`
 
 ### Implementation for User Story 3
 
-- [ ] T037 [US3] Implement ordered diagnostic aggregation, first-actionable-error ownership, normalized subject/reason formatting, and native-address exclusion in `Source/Renderer/Private/FDeferredDiagnostics.cpp`
-- [ ] T038 [US3] Implement the human-readable deferred frame dump with layout, passes, resources, draw/light decisions, composition, transparent handoff, and stable result categories in `Source/Renderer/Private/FDeferredFramePlan.cpp`
+- [X] T037 [US3] Implement ordered diagnostic aggregation, first-actionable-error ownership, normalized subject/reason formatting, and native-address exclusion in `Source/Renderer/Private/FDeferredDiagnostics.cpp`
+- [X] T038 [US3] Implement the human-readable deferred frame dump with layout, passes, resources, draw/light decisions, composition, transparent handoff, and stable result categories in `Source/Renderer/Private/FDeferredFramePlan.cpp`
 - [ ] T039 [US3] Enforce stop-on-first-failure stage state, no dependent success records, stable command counts, and cleanup diagnostics in `Source/Renderer/Private/FDeferredFrameExecutor.cpp`
 - [ ] T040 [US3] Implement partial-state-safe reverse-order native release, bounded completion wait, readback decode failure ownership, and final live-object snapshots in `Source/Backend/Vulkan/Private/FVulkanNativeOffscreenSession.cpp` and `Source/Backend/Vulkan/Private/FVulkanNativeContext.cpp`
 - [ ] T041 [US3] Run repeated deterministic and runtime-independent injected failure coverage locally, verify the native failure suite is registered and runnable without requiring a local native runtime, and record normalized report examples plus triage guidance in `specs/019-deferred-rendering-pipeline/quickstart.md`
@@ -128,16 +128,16 @@
 
 ### Tests for User Story 4
 
-- [ ] T042 [US4] Add failing forward-default/non-mutation, explicit deferred selection, shared material semantics, post-composition transparent ordering, and no-deferred-resource forward regression tests in `Tests/RendererForwardPipelineTests.cpp`
-- [ ] T043 [P] [US4] Add validation-script tests for profile arguments, missing runtime/report failure, probe/tier parsing, timeout handling, and artifact pass/fail rules in `.github/scripts/test_run_deferred_validation.py`
+- [X] T042 [US4] Add failing forward-default/non-mutation, explicit deferred selection, shared material semantics, post-composition transparent ordering, and no-deferred-resource forward regression tests in `Tests/RendererForwardPipelineTests.cpp`
+- [X] T043 [P] [US4] Add validation-script tests for profile arguments, missing runtime/report failure, probe/tier parsing, timeout handling, and artifact pass/fail rules in `.github/scripts/test_run_deferred_validation.py`
 
 ### Implementation for User Story 4
 
-- [ ] T044 [US4] Implement optional forward-transparent handoff after composition while preserving existing camera-depth/material/object tie-breaking in `Source/Renderer/Private/FDeferredRenderer.cpp` and `Source/Renderer/Private/FDeferredFrameExecutor.cpp`
-- [ ] T045 [US4] Add explicit renderer strategy selection coverage and forward/deferred shared-input adapters without changing the forward default in `Source/Renderer/Public/Renderer/FDeferredRenderer.h` and `Tests/RendererForwardPipelineTests.cpp`
-- [ ] T046 [US4] Implement deterministic, native-Lavapipe, semantic-probe, comparison-tier, timeout, normalized-report, and failure-artifact orchestration in `.github/scripts/run_deferred_validation.py`
-- [ ] T047 [US4] Extend the Windows/macOS/Linux CI matrix with deferred deterministic validation, Linux Lavapipe native readback/comparison, and always-upload Feature 019 artifacts in `.github/workflows/ci.yml`
-- [ ] T048 [US4] Run the full local macOS build, complete `StonerTest`, deterministic deferred profile, shader validation when available, and forward/triangle regressions; record verified results in `specs/019-deferred-rendering-pipeline/quickstart.md`
+- [X] T044 [US4] Implement optional forward-transparent handoff after composition while preserving existing camera-depth/material/object tie-breaking in `Source/Renderer/Private/FDeferredRenderer.cpp` and `Source/Renderer/Private/FDeferredFrameExecutor.cpp`
+- [X] T045 [US4] Add explicit renderer strategy selection coverage and forward/deferred shared-input adapters without changing the forward default in `Source/Renderer/Public/Renderer/FDeferredRenderer.h` and `Tests/RendererForwardPipelineTests.cpp`
+- [X] T046 [US4] Implement deterministic, native-Lavapipe, semantic-probe, comparison-tier, timeout, normalized-report, and failure-artifact orchestration in `.github/scripts/run_deferred_validation.py`
+- [X] T047 [US4] Extend the Windows/macOS/Linux CI matrix with deferred deterministic validation, Linux Lavapipe native readback/comparison, and always-upload Feature 019 artifacts in `.github/workflows/ci.yml`
+- [X] T048 [US4] Run the full local macOS build, complete `StonerTest`, deterministic deferred profile, shader validation when available, and forward/triangle regressions; record verified results in `specs/019-deferred-rendering-pipeline/quickstart.md`
 - [ ] T049 [US4] Trigger the feature-branch CI, verify all three deterministic jobs plus Linux native readback, injected-failure, cleanup, and comparison gates, and download exact Linux reports into `Validation/019/Linux/deferred-readback-report.txt` and `Validation/019/Linux/renderer-comparison-report.txt`
 - [ ] T050 [US4] Verify CI run/commit identity, artifact digests, probe/tier counts, forward regressions, and final-zero resources against the validation contract in `Validation/019/completion.md`
 
@@ -149,12 +149,12 @@
 
 **Purpose**: Close documentation, architecture, naming, reproducibility, and full requirement traceability.
 
-- [ ] T051 Audit Strategy/lifecycle Composite boundaries, Renderer/RHI public headers for raw `Vk*` types or backend downcasts, shader/format contracts for API-specific leakage, native reports for addresses, and UE5-style naming; fix findings in `Source/Renderer/`, `Source/RHI/Public/`, and `Source/Backend/Vulkan/`
-- [ ] T052 Run shader reproducibility checks, the complete local macOS build/test/profile workflow, deterministic boundary scans, and `git diff --check`, then finalize verified commands in `specs/019-deferred-rendering-pipeline/quickstart.md`
+- [X] T051 Audit Strategy/lifecycle Composite boundaries, Renderer/RHI public headers for raw `Vk*` types or backend downcasts, shader/format contracts for API-specific leakage, native reports for addresses, and UE5-style naming; fix findings in `Source/Renderer/`, `Source/RHI/Public/`, and `Source/Backend/Vulkan/`
+- [X] T052 Run shader reproducibility checks, the complete local macOS build/test/profile workflow, deterministic boundary scans, and `git diff --check`, then finalize verified commands in `specs/019-deferred-rendering-pipeline/quickstart.md`
 - [ ] T053 [P] Update Deferred Rendering roadmap status and implementation notes after the US4 and T052 validation gates pass in `doc/roadmap.md`
-- [ ] T054 [P] Create the Feature 019 system-design summary following `doc/SYSTEM_DESIGN.MD` and the established HTML structure in `doc/019-deferred-rendering-pipeline.html`
-- [ ] T055 [P] Update Feature 019 active technology, delivered behavior, CI evidence, and current-plan memory after implementation in `AGENTS.md`
-- [ ] T056 Reconcile FR-001 through FR-025 and SC-001 through SC-010 against implementation, tests, CI, and retained artifacts; mark completed work and document any genuine external blocker in `specs/019-deferred-rendering-pipeline/tasks.md` and `Validation/019/completion.md`
+- [X] T054 [P] Create the Feature 019 system-design summary following `doc/SYSTEM_DESIGN.MD` and the established HTML structure in `doc/019-deferred-rendering-pipeline.html`
+- [X] T055 [P] Update Feature 019 active technology, delivered behavior, CI evidence, and current-plan memory after implementation in `AGENTS.md`
+- [X] T056 Reconcile FR-001 through FR-025 and SC-001 through SC-010 against implementation, tests, CI, and retained artifacts; mark completed work and document any genuine external blocker in `specs/019-deferred-rendering-pipeline/tasks.md` and `Validation/019/completion.md`
 
 ---
 

@@ -157,3 +157,26 @@ Required CI outcomes:
 - `ComparisonInvalid`: compare scene/view/material/light fingerprints and measured frame counts.
 
 Do not convert missing Vulkan/Lavapipe, shader, readback, or probe support into success for the required Linux native profile.
+
+## Local Implementation Checkpoint (2026-07-23)
+
+Verified on macOS:
+
+```bash
+conda run -n godot scons -j8
+Build/Mac/Debug/Tests/StonerTest
+python .github/scripts/test_run_deferred_validation.py
+python .github/scripts/run_deferred_validation.py \
+  --profile deterministic \
+  --tests Build/Mac/Debug/Tests/StonerTest \
+  --output Build/Mac/Debug/Tests/deferred-deterministic-report.txt \
+  --timeout-seconds 1200
+for file in Source/Renderer/Shaders/Deferred/*.spv; do spirv-val "$file"; done
+```
+
+The build, complete deterministic suite, validation-script tests, deterministic
+profile, and shader validation pass. This checkpoint does **not** claim the
+Linux native gate: the current native session proves a Vulkan submission but
+still reports `NativeVulkanSubmission+DeterministicSemanticOracle`. The required
+profile intentionally rejects it until mapped deferred attachment readback is
+implemented.

@@ -1,4 +1,5 @@
 #include "VulkanRHI/FVulkanNativeContext.h"
+#include "FVulkanNativeOffscreenSession.h"
 
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
 #include <vulkan/vulkan.h>
@@ -648,6 +649,16 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     (void)VertexShaderPath; (void)FragmentShaderPath;
     return Stoner::RHI::ERHIResult::Unsupported;
 #endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteDeferredOffscreenValidation(
+    const Stoner::Core::FString& ShaderDirectory,
+    FVulkanDeferredValidationReport& OutReport)
+{
+    FVulkanNativeOffscreenSession Session(*this);
+    const Stoner::RHI::ERHIResult Result = Session.Execute(ShaderDirectory, OutReport);
+    (void)Session.Shutdown();
+    return Result;
 }
 
 Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(

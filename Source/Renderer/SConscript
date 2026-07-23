@@ -5,9 +5,36 @@ After building the Renderer core library, auto-discovers sub-modules
 """
 
 Import('env', 'platform', 'config')
+import os
+import shutil
 from LayerBuilder import BuildLayer, DiscoverSubModules
 
 lib = BuildLayer(env, 'Renderer', ['RHI', 'Core'])
+
+shader_env = env.Clone()
+shader_source_dir = Dir('.').srcnode().Dir('Shaders').Dir('Deferred').abspath
+shader_targets = []
+if os.path.isdir(shader_source_dir):
+    glslc = shutil.which('glslc')
+    spirv_val = shutil.which('spirv-val')
+    for name in sorted(os.listdir(shader_source_dir)):
+        source = os.path.join(shader_source_dir, name)
+        if name.endswith('.spv'):
+            target = os.path.join('Shaders', 'Deferred', name)
+            copied = shader_env.Command(target, source, Copy('$TARGET', '$SOURCE'))
+            shader_targets.append(copied)
+            if spirv_val:
+                shader_targets.append(shader_env.Command(
+                    target + '.validated',
+                    copied,
+                    f'{spirv_val} $SOURCE && {shutil.which("python3") or "python3"} -c "open(r\'$TARGET\', \'w\').write(\'validated\\\\n\')"',
+                ))
+        elif glslc and (name.endswith('.vert') or name.endswith('.frag')):
+            generated = os.path.join('Shaders', 'Deferred', 'Generated', name + '.spv')
+            shader_targets.append(shader_env.Command(generated, source, f'{glslc} $SOURCE -o $TARGET'))
+
+if shader_targets:
+    Depends(lib, shader_targets)
 
 # Auto-discover sub-modules (e.g., RayTracing, Meshlets, GI)
 sub_libs = DiscoverSubModules(

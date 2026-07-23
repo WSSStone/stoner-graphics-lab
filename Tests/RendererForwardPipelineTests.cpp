@@ -1,6 +1,7 @@
 #include "RendererForwardPipelineTests.h"
 
 #include "Renderer/RendererMinimal.h"
+#include "Renderer/FDeferredRenderer.h"
 #include "VulkanRHI/FVulkanDevice.h"
 
 #include <chrono>
@@ -149,6 +150,8 @@ FForwardFramePlan Prepare(const FForwardFrameInputs& Inputs, FForwardRendererCon
 
 void TestOpaqueFramePreparation(FRendererForwardPipelineTestResult& Result)
 {
+    Record(Result, GetDefaultRendererStrategy() == ERendererStrategy::Forward,
+        "Renderer strategy selection preserves forward as the default");
     const FForwardFramePlan Plan = Prepare(RepresentativeInputs());
     Record(Result, Plan.IsValid() && Plan.AcceptedOpaqueDraws.size() == 4 && Plan.AcceptedTransparentDraws.size() == 2,
         "Forward renderer prepares representative opaque and transparent frame");
@@ -163,6 +166,10 @@ void TestOpaqueFramePreparation(FRendererForwardPipelineTestResult& Result)
     Record(Result, Plan.AcceptedOpaqueDraws[0].GetObjectId() == 1 &&
             Plan.AcceptedOpaqueDraws[1].GetObjectId() == 3,
         "Opaque draw ordering is stable by material mesh and object identity");
+    Record(Result, Plan.DebugDump.View().find("Deferred") == std::string_view::npos,
+        "Selecting forward produces no deferred pass or resource requirement");
+    Record(Result, std::string_view(ToString(ERendererStrategy::Deferred)) == "Deferred",
+        "Renderer strategy vocabulary supports explicit deferred selection");
 }
 
 void TestInvalidViewOutputAndMaterials(FRendererForwardPipelineTestResult& Result)

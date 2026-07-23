@@ -131,7 +131,7 @@ These principles (from the [Constitution v1.3.0](../.specify/memory/constitution
 | 015 | Window & Input System | Application | 005 | M | ✅ Yes | ⬜ Todo |
 | 016 | Scene Graph & ECS | Application | 003 | L | ❌ No | ⬜ Todo |
 | 017 | 🎯 Triangle Demo | Application | 011, 014, 015 | M | ✅ Yes | ✅ Done |
-| 018 | Deferred Rendering | Renderer | 014 | L | ❌ No | ⬜ Todo |
+| 018 | Deferred Rendering | Renderer | 014 | L | ❌ No | 🟨 In Progress |
 | 019 | Meshlet Pipeline | Renderer | 014 | XL | ❌ No | ⬜ Todo |
 | 020 | Ray Tracing Integration | Renderer | 014 | XL | ❌ No | ⬜ Todo |
 | 021 | Global Illumination | Renderer | 018, 020 | XL | ❌ No | ⬜ Todo |
@@ -842,6 +842,14 @@ Triangle demo integration milestone: StonerDemo executable, window creation (FWi
 ---
 
 ### Phase 018 — Renderer: Deferred Rendering Pipeline
+
+> **Status Note (Feature 019)**: 🟨 **In Progress** — deterministic deferred
+> surface/light/frame planning, render-graph declaration, backend-neutral RHI
+> recording, checked-in shaders, comparison contracts, forward coexistence, and
+> CI orchestration are implemented. The remaining completion gate is real
+> Linux Lavapipe deferred attachment readback with retained semantic-probe and
+> comparison artifacts; a Vulkan submission plus semantic oracle is explicitly
+> not accepted as equivalent evidence.
 
 **Layer**: Renderer  
 **Dependencies**: 014 (Forward Rendering)  
