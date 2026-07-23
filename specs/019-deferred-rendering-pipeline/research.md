@@ -19,9 +19,9 @@
 | Target | Format | Semantic channels | Clear value |
 |--------|--------|-------------------|-------------|
 | `SurfaceBaseColorAO` | `R8G8B8A8_UNorm` | RGB linear base color, A ambient occlusion | `(0, 0, 0, 1)` |
-| `SurfaceNormalRoughness` | `R16G16B16A16_Float` | XYZ normalized view-space normal, W roughness | `(0, 0, 1, 1)` |
+| `SurfaceNormalRoughness` | `R16G16B16A16_Float` | XYZ normalized world-space normal, W roughness | `(0, 0, 1, 1)` |
 | `SurfaceEmissiveMetallic` | `R16G16B16A16_Float` | RGB linear emissive, A metallic | `(0, 0, 0, 0)` |
-| `SurfaceDepth` | `D32_Float` | normalized device depth used with inverse view-projection reconstruction | `1.0` |
+| `SurfaceDepth` | `D32_Float` | normalized device depth used with inverse-view-projection world-space reconstruction | far depth: `1.0` for standard-Z, `0.0` for reversed-Z |
 
 All targets share extent, sample count one, and one layout compatibility identity. Alpha from a masked material controls coverage and is not stored as a deferred lighting input.
 
@@ -34,21 +34,23 @@ All targets share extent, sample count one, and one layout compatibility identit
 - Store world position: rejected because depth reconstruction avoids a large additional target and is compatible with later screen-space techniques.
 - Use sRGB attachment formats: rejected for the first contract because the RHI does not yet expose sRGB formats and validation is clearer in explicitly linear values.
 
-## Decision: Use view-space lighting inputs and depth reconstruction
+## Decision: Use world-space lighting inputs and depth reconstruction
 
-**Decision**: Store view-space normals and reconstruct view-space position from sampled depth, pixel coordinates, inverse projection, and the active view parameters. The frame plan records one canonical depth convention and rejects an incompatible view or depth target before execution.
+**Decision**: Store normalized world-space normals and reconstruct world-space position from sampled depth, pixel coordinates, inverse view-projection, and the active depth convention. Directional, point, and spot positions/directions remain in world space for lighting. The frame plan rejects an incompatible view, matrix, or depth target before execution.
 
-**Rationale**: View-space data gives stable local-light calculations, avoids storing world position, and keeps camera-relative precision suitable for later SSAO/SSR extensions. An explicit convention prevents silent matrix/depth mismatches.
+**Rationale**: World-space normals remain stable under camera rotation, align with scene and light records, and provide a direct boundary for later ray-tracing/GI consumers. Reconstructing position avoids a separate world-position target. Screen-space consumers can explicitly transform the reconstructed world-space inputs into view space, while one declared convention prevents silent matrix/depth mismatches.
+
+Standard-Z clears depth to `1.0` and uses `ERHICompareOp::LessEqual`; reversed-Z clears depth to `0.0` and uses `ERHICompareOp::GreaterEqual`. Projection, inverse view-projection, clear value, comparison operation, and probe interpretation must all carry the same convention identity.
 
 **Alternatives considered**:
 
-- World-space normals and reconstructed world position: viable, but it carries larger camera-position values into all lighting work and provides no first-version advantage.
-- Store view-space position directly: rejected due to bandwidth and memory cost.
+- View-space normals and reconstructed view-space position: viable and convenient for screen-space effects, but rejected because camera rotation changes the stored normal and all scene light records would require per-view conversion.
+- Store world-space position directly: rejected due to bandwidth and memory cost.
 - Let each shader choose a convention: rejected because surface and lighting stages would no longer have a testable compatibility contract.
 
 ## Decision: Use fullscreen directional lighting and bounded local-light volumes
 
-**Decision**: Directional lights issue one fullscreen-triangle additive lighting draw each. Point lights use reusable sphere volume geometry and spot lights use reusable cone volume geometry. CPU-side view intersection removes lights that cannot affect the active view. Remaining lights are ordered by type, stable influence key, then stable entity identity. Camera-outside volumes use back-face culling; camera-inside or near-plane-intersecting volumes use the complementary cull/depth variant so affected pixels are not lost.
+**Decision**: Directional lights issue one fullscreen-triangle additive lighting draw each. Point lights use reusable sphere volume geometry and spot lights use reusable cone volume geometry. CPU-side view intersection removes lights that cannot affect the active view. Remaining lights are ordered by directional, point, then spot type and by ascending stable entity identity within each type; there is no additional influence-order key because every accepted light executes. Camera-outside volumes use back-face culling; camera-inside or near-plane-intersecting volumes use the complementary cull/depth variant so affected pixels are not lost. Spot inner/outer cone angles use radians with `0 <= inner <= outer < pi/2`.
 
 **Rationale**: This directly satisfies the roadmap's light-volume deliverable while keeping geometry work independent of light count. Shared sphere/cone meshes avoid per-light geometry allocation, and explicit camera-inside handling covers the failure-prone local-volume boundary.
 
@@ -77,6 +79,29 @@ Existing descriptor set updates, texture usages, multiple render-pass attachment
 - Add Vulkan calls inside `FDeferredFrameExecutor`: rejected by the constitution.
 - Add a deferred-specific RHI interface: rejected because binding, indexed geometry, and readback are general graphics capabilities.
 - Put all light data in push constants: rejected because the RHI has no push-constant contract and uniform/storage descriptors scale better for later batching.
+
+## Decision: Fix one canonical deferred shader interface before shader work
+
+**Decision**: Extend `ERHIFormat` with `R32G32_Float` and `R32G32B32_Float`, then use these canonical interfaces:
+
+- Set 0 binding 0: frame/view uniform buffer, visible to vertex and fragment stages.
+- Set 1 binding 0: per-draw/material uniform buffer, visible to vertex and fragment stages.
+- Set 2 bindings 0..4: combined texture samplers for base-color/AO, normal/roughness, emissive/metallic, depth, and lighting accumulation, visible to fragment stages.
+- Set 3 binding 0: ordered light storage buffer, visible to vertex and fragment stages.
+- Mirrored records use column-major `float32` matrices and 16-byte `vec4` slots. Frame/view fields are `View`/`Projection`/`InverseViewProjection`/`ViewProjection` at offsets 0/64/128/192, followed by world-space camera position and extent/depth slots at 256/272/288, for total size 304 bytes. Per-draw/material uses `WorldNormalFromModel = transpose(inverse(mat3(Model)))` embedded as an affine `mat4` with zero translation and bottom-right `1`; non-finite or non-invertible model transforms are rejected before recording, and the shader normalizes the transformed normal. Its offsets are 0/64/128/144/160 with total size 176 bytes. Light positions/directions are world-space and use offsets 0/16/32/48 with stride 64 bytes. Integer-like flags/type/mode values use exactly representable non-negative `float32` codes and reserved components are zero.
+- Surface vertices: position `R32G32B32_Float` at location 0 and normal `R32G32B32_Float` at location 1, stride 24 bytes.
+- Fullscreen vertices: position `R32G32_Float` at location 0, stride 8 bytes.
+- Sphere/cone volume vertices: position `R32G32B32_Float` at location 0, stride 12 bytes, with `UInt16` indices.
+
+Surface pipelines bind sets 0/1; directional, point, and spot pipelines bind sets 0/2/3; composition binds sets 0/2. Mirrored C++/GLSL uniform and storage records use ordered 16-byte slots specified in the execution contract.
+
+**Rationale**: Renderer, shader assets, deterministic mocks, and native Vulkan must agree before they can be implemented independently. Explicit formats and binding slots remove the current triangle path's ambiguous scalar-format shorthand and make interface validation testable.
+
+**Alternatives considered**:
+
+- Let each backend assign bindings: rejected because checked-in SPIR-V and Renderer descriptor layouts would drift.
+- Infer vector widths from offsets: rejected because `ERHIFormat::R32_Float` does not encode two- or three-component vertex inputs.
+- Make shaders depend on executor implementation order: rejected because it invalidates safe parallel work and contract tests.
 
 ## Decision: Execute graph passes through a dedicated deferred executor
 
@@ -116,7 +141,7 @@ Existing descriptor set updates, texture usages, multiple render-pass attachment
 
 ## Decision: Validate native pixels with semantic sample probes
 
-**Decision**: The Linux Lavapipe job renders a fixed small offscreen reference scene, copies required intermediate targets and final LDR output to host-visible staging buffers, and evaluates named sample probes. Validation uses the clarified thresholds: final LDR color error at most `2/255` per channel, normalized depth error at most `1e-4`, decoded-normal dot product at least `0.999`, and metallic/roughness/ambient-occlusion error at most `1e-3`. Any non-finite value fails. At least 12 probes cover background, each material semantic, directional lighting, point lighting, spot lighting, emissive-only, ambient-only, and local-light boundaries.
+**Decision**: The Linux Lavapipe job renders the same fixed small offscreen reference scene under standard-Z and reversed-Z conventions, copies required intermediate targets and final LDR output to host-visible staging buffers, and evaluates named sample probes. Validation uses the clarified thresholds: final LDR color error at most `2/255` per channel, normalized depth error at most `1e-4`, decoded normalized world-normal dot product at least `0.999`, metallic/roughness error at most `1e-3`, and 8-bit UNorm ambient-occlusion error at most `2e-3`. Any non-finite value fails. At least 12 probes per convention cover background/far clear, each material semantic, directional lighting, point lighting, spot lighting, emissive-only, ambient-only, and local-light boundaries.
 
 **Rationale**: Semantic probes are deterministic, cheap, and explain which stage failed. They avoid cross-driver whole-image golden noise while still validating real image, descriptor, pass, lighting, and readback behavior.
 

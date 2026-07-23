@@ -39,7 +39,7 @@ The canonical order follows this enumeration. Empty directional/local/transparen
 ### `EDeferredSurfaceSemantic`
 
 - `BaseColor`
-- `ViewNormal`
+- `WorldNormal`
 - `Metallic`
 - `Roughness`
 - `Emissive`
@@ -83,7 +83,7 @@ Defines immutable planning policy for one renderer instance.
 | `bEnableMaskedGeometry` | boolean | `true` | Alpha controls coverage only |
 | `bEnableForwardTransparencyHandoff` | boolean | `true` | Transparent draws are never accepted into surface data |
 | `bCullLocalLightsOutsideView` | boolean | `true` | Required for deterministic omission records |
-| `LightOrderPolicy` | canonical policy | type/influence/identity | Stable identity is final tie-breaker |
+| `LightOrderPolicy` | canonical policy | type/entity identity | Directional, point, spot; ascending stable identity within type |
 | `SampleCount` | integer | `1` | Exactly one in Feature 019 |
 
 ## Entity: Surface Data Layout
@@ -96,18 +96,53 @@ Defines one compatibility identity shared by the surface, lighting, and validati
 | `Extent` | positive width/height | active output extent | All attachments must match |
 | `SampleCount` | integer | `1` | All attachments must match |
 | `BaseColorAOFormat` | RHI format | `R8G8B8A8_UNorm` | RGB base color; A AO |
-| `NormalRoughnessFormat` | RHI format | `R16G16B16A16_Float` | XYZ view normal; W roughness |
+| `NormalRoughnessFormat` | RHI format | `R16G16B16A16_Float` | XYZ normalized world normal; W roughness |
 | `EmissiveMetallicFormat` | RHI format | `R16G16B16A16_Float` | RGB emissive; A metallic |
 | `DepthFormat` | RHI format | `D32_Float` | Normalized depth |
-| `NormalSpace` | coordinate-space enum | view space | Must match lighting reconstruction |
+| `NormalSpace` | coordinate-space enum | world space | Must match world-space lighting reconstruction |
 | `DepthConvention` | canonical summary | active RHI normalized convention | Must match view matrices |
-| `ClearValues` | semantic values | research table | Empty pixels remain distinguishable |
+| `ClearValues` | semantic values | research table | Depth is far: `1.0` standard-Z, `0.0` reversed-Z |
 
 Relationships:
 
 - One layout owns four ordered attachment declarations.
 - One deferred frame plan references exactly one layout.
 - Every bound surface texture must match the layout identity, extent, sample count, format, and required usage.
+
+## Entity: Deferred Shader Interface
+
+Defines one canonical C++/GLSL/RHI compatibility contract before shader or backend implementation.
+
+Descriptor sets:
+
+| Set | Binding | Resource | Visibility | Consumers |
+|-----|---------|----------|------------|-----------|
+| 0 | 0 | Frame/view uniform buffer | Vertex + Fragment | All deferred pipelines |
+| 1 | 0 | Per-draw/material uniform buffer | Vertex + Fragment | Surface pipeline |
+| 2 | 0 | Base-color/AO combined texture sampler | Fragment | Lighting + composition |
+| 2 | 1 | Normal/roughness combined texture sampler | Fragment | Lighting |
+| 2 | 2 | Emissive/metallic combined texture sampler | Fragment | Lighting + composition |
+| 2 | 3 | Depth combined texture sampler | Fragment | Lighting |
+| 2 | 4 | Lighting-accumulation combined texture sampler | Fragment | Composition |
+| 3 | 0 | Ordered light storage buffer | Vertex + Fragment | Directional + point + spot |
+
+Vertex layouts:
+
+| Geometry | Location 0 | Location 1 | Stride | Index type |
+|----------|------------|------------|--------|------------|
+| Surface | `R32G32B32_Float` position at byte 0 | `R32G32B32_Float` normal at byte 12 | 24 bytes | caller-declared compatible type |
+| Fullscreen | `R32G32_Float` position at byte 0 | none | 8 bytes | none |
+| Sphere/cone volume | `R32G32B32_Float` position at byte 0 | none | 12 bytes | `UInt16` |
+
+Mirrored C++/GLSL records use column-major `float32` matrices and 16-byte `float32 vec4` slots:
+
+- Frame/view is 304 bytes: `View` at 0, `Projection` at 64, `InverseViewProjection` at 128, `ViewProjection` at 192, world-space `CameraPosition` at 256, `OutputExtent` at 272, and `DepthConvention` at 288.
+- Per-draw/material is 176 bytes: `Model` at 0, `WorldNormalFromModel` at 64, `BaseColorAO` at 128, `EmissiveMetallic` at 144, and `RoughnessAlphaCutoffFlags` at 160. `WorldNormalFromModel` embeds `transpose(inverse(mat3(Model)))` in an affine `mat4` with zero translation and bottom-right `1`; non-finite or non-invertible model transforms are rejected, and transformed normals are normalized before storage.
+- Each light record is 64 bytes: world-space `PositionRange` at 0, world-space `DirectionOuterCos` at 16, `ColorIntensity` at 32, and `InnerCosTypeVolumeMode` at 48.
+
+`OutputExtent` stores width, height, inverse width, and inverse height. `DepthConvention` stores near, far, reversed-Z flag, and zero. The flag selects far-depth clear `1.0` plus `ERHICompareOp::LessEqual` for standard-Z, or clear `0.0` plus `ERHICompareOp::GreaterEqual` for reversed-Z; projection, inverse view-projection, clear, comparison, and readback interpretation must agree. Material flags and light type/volume-mode codes are exactly representable non-negative `float32` vocabulary values; every reserved component is zero.
+
+All mirrored records validate byte size, ordered offsets, descriptor type, set/binding, and shader visibility before pipeline creation.
 
 ## Entity: Deferred Frame Inputs
 
@@ -153,19 +188,17 @@ Shared fields:
 | `Color` | finite non-negative linear RGB | At least one positive channel for accepted light |
 | `Intensity` | finite non-negative scalar | Zero may be omitted with a stable reason |
 | `Acceptance` | `EDeferredLightAcceptance` | Exactly one result |
-| `InfluenceKey` | deterministic tuple | No pointer/address components |
 
-Directional fields: normalized non-degenerate direction.
+Directional fields: normalized non-degenerate world-space direction.
 
 Point fields: finite world position and positive finite range; influence shape is a sphere.
 
-Spot fields: finite world position, normalized non-degenerate direction, positive finite range, and finite inner/outer cone angles where `0 <= Inner <= Outer < 90 degrees`; influence shape is a cone.
+Spot fields: finite world position, normalized non-degenerate direction, positive finite range, and explicitly named `InnerConeAngleRadians`/`OuterConeAngleRadians` fields where `0 <= Inner <= Outer < pi/2`; influence shape is a cone.
 
 Ordering:
 
 1. Directional, then point, then spot.
-2. Deterministic influence key within type.
-3. Stable entity identity as final tie-breaker.
+2. Ascending stable entity identity within type; no additional influence key is used.
 
 ## Entity: Deferred Frame Plan
 
@@ -271,8 +304,9 @@ Tolerance policies:
 
 - Final LDR color: absolute error `<= 2/255` per channel.
 - Normalized depth: absolute error `<= 1e-4`.
-- Decoded view normal: normalized dot product `>= 0.999`.
-- Metallic, roughness, ambient occlusion: absolute error `<= 1e-3`.
+- Decoded world normal: normalized dot product `>= 0.999`.
+- Metallic and roughness: absolute error `<= 1e-3`.
+- Ambient occlusion stored in 8-bit UNorm: absolute error `<= 2e-3`.
 - Any non-finite value: fail.
 
 ## Entity: Renderer Comparison Report

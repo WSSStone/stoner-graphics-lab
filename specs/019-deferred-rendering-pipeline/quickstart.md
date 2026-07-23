@@ -83,12 +83,12 @@ python .github/scripts/run_deferred_validation.py \
   --timeout-seconds 1200
 ```
 
-The native profile fails unless it proves real Vulkan through a software adapter, executes the deferred graph through RHI offscreen bindings, validates at least 12 named probes, completes all four comparison tiers, and reports zero final deferred frame-owned objects.
+The native profile fails unless it proves real Vulkan through a software adapter, executes the deferred graph through RHI offscreen bindings under both standard-Z and reversed-Z, validates at least 12 named probes per convention, completes all four comparison tiers, and reports zero final deferred frame-owned objects.
 
 ## Inspect Native Probe Results
 
 ```bash
-rg "^(runtime-mode|adapter|software-device|surface-layout|probe-count|probe |validation-result|final-live-objects)=" \
+rg "^(runtime-mode|adapter|software-device|surface-layout|depth-convention|depth-clear|depth-compare|probe-count|probe |validation-result|final-live-objects)=" \
   Validation/019/Linux/deferred-readback-report.txt
 ```
 
@@ -96,10 +96,13 @@ Expected gates:
 
 - final LDR color error `<= 2/255` per asserted channel;
 - normalized depth error `<= 1e-4`;
-- decoded-normal dot product `>= 0.999`;
-- metallic, roughness, and ambient-occlusion error `<= 1e-3`;
+- decoded world-normal dot product `>= 0.999`;
+- metallic and roughness error `<= 1e-3`;
+- 8-bit UNorm ambient-occlusion error `<= 2e-3`;
 - no non-finite value;
-- at least 12 passing probes;
+- standard-Z uses far clear `1.0` with `ERHICompareOp::LessEqual`;
+- reversed-Z uses far clear `0.0` with `ERHICompareOp::GreaterEqual`;
+- at least 12 passing probes per convention;
 - `validation-result=pass`;
 - `final-live-objects=0`.
 
@@ -146,7 +149,7 @@ Required CI outcomes:
 
 - `InvalidSurfaceLayout`: compare ordered semantic formats, extent, sample count, normal space, and depth convention.
 - `InvalidMaterial`: inspect unsupported blend/domain/extension or missing required surface semantic.
-- `InvalidLight`: inspect finite color/intensity/range/direction and spot cone ordering.
+- `InvalidLight`: inspect finite color/intensity/range/direction and radian spot cone ordering `0 <= inner <= outer < pi/2`.
 - `InvalidBinding`: inspect descriptor layout, attachment order, index/readback usages, and object lifecycle.
 - `RecordFailed`: inspect the first failed graph pass and symbolic command record.
 - `ReadbackFailed`: confirm copy-source transition, destination capacity/host visibility, fence completion, and decode format.

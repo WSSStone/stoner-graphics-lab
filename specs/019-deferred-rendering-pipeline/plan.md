@@ -5,18 +5,18 @@
 
 ## Summary
 
-Deliver deferred rendering as a sibling strategy to the existing forward renderer. The feature prepares a deterministic multi-pass frame plan, declares surface-data, directional-light, point-volume, spot-volume, composition, and optional forward-transparent work through the render graph, and executes it through backend-neutral RHI bindings. The initial surface layout uses three color targets plus depth to retain base color, view-space normal, metallic, roughness, emissive, and ambient occlusion. Windows, macOS, and Linux run deterministic coverage; Linux Lavapipe additionally executes the real Vulkan path offscreen and validates intermediate/final readback probes using the clarified semantic tolerances. A four-tier forward/deferred comparison produces a reproducible baseline without imposing a speedup gate.
+Deliver deferred rendering as a sibling strategy to the existing forward renderer. The feature prepares a deterministic multi-pass frame plan, declares surface-data, directional-light, point-volume, spot-volume, composition, and optional forward-transparent work through the render graph, and executes it through backend-neutral RHI bindings. The initial surface layout uses three color targets plus depth to retain base color, normalized world-space normal, metallic, roughness, emissive, and ambient occlusion; lighting reconstructs world-space position with the inverse view-projection. Windows, macOS, and Linux run deterministic coverage; Linux Lavapipe additionally executes the real Vulkan path offscreen and validates intermediate/final readback probes using the clarified semantic tolerances. A four-tier forward/deferred comparison produces a reproducible baseline without imposing a speedup gate.
 
 ## Technical Context
 
 **Language/Version**: C++20 with traditional header/source separation; no C++20 Modules
-**Primary Dependencies**: Existing Core math/types/logging; Renderer material, forward, render-graph, and scene-identity contracts; RHI textures, buffers, descriptors, pipelines, render passes, command buffers, queues, fences, and runtime-mode contracts; existing Vulkan native offscreen context; SCons 4.10.1; Vulkan 1.3-compatible headers/loader; Mesa Lavapipe for Linux native CI; offline GLSL-to-SPIR-V compiler and validator when available
+**Primary Dependencies**: Existing Core math/types/logging; Renderer material, forward, render-graph, and scene-identity contracts; RHI textures, buffers, descriptors, pipelines, render passes, command buffers, queues, fences, runtime-mode contracts, and explicit two-/three-component float vertex formats; existing Vulkan native offscreen context; SCons 4.10.1; Vulkan 1.3-compatible headers/loader; Mesa Lavapipe for Linux native CI; offline GLSL-to-SPIR-V compiler and validator when available
 **Storage**: Repository-owned deferred GLSL sources and checked-in SPIR-V payloads; process-local frame plans, surface layouts, graph declarations, RHI/native resources, readback probes, diagnostics, and comparison reports; CI report artifacts; no database, scene serialization, runtime shader cache, or asset catalog
 **Testing**: Existing `StonerTest` executable plus deferred planner/graph/executor tests, deterministic mock-RHI command tests, Vulkan native offscreen readback tests, SCons build validation, and GitHub Actions Windows/macOS/Linux matrix with Linux Lavapipe native execution
 **Target Platform**: Deterministic build/test behavior on Windows, macOS, and Linux; required native Vulkan offscreen execution and pixel readback on Linux Lavapipe; Windows/macOS native execution optional and no visible-window requirement; Android excluded
 **Project Type**: Cross-platform C++ graphics-engine libraries with reusable Renderer, RHI, and Vulkan backend layers
 **Performance Goals**: Prepare and compare equivalent workloads at 0, 16, 64, and 256 local-light tiers; collect at least 100 measured frames after warm-up per tier; report median/p95 timings and observed crossover; maintain one surface-data geometry sequence independent of accepted light count; no deferred-faster-than-forward pass gate
-**Constraints**: Forward remains the default unchanged strategy; Renderer cannot call Vulkan; all passes flow through the render graph; no fixed local-light cap; surface targets share extent/sample count; single-sample rendering only; native validation uses at least 12 semantic probes and the specified per-semantic tolerances; transparent blending remains forward-transparent; shutdown leaves zero deferred frame-owned resources
+**Constraints**: Forward remains the default unchanged strategy; Renderer cannot call Vulkan; all passes flow through the render graph; no fixed local-light cap; surface targets share extent/sample count; single-sample rendering only; standard-Z uses far clear `1.0`/`LessEqual` and reversed-Z uses far clear `0.0`/`GreaterEqual`; native validation uses at least 12 semantic probes per depth convention and the specified per-semantic tolerances; transparent blending remains forward-transparent; shutdown leaves zero deferred frame-owned resources
 **Scale/Scope**: One active view and output; representative validation workload of at least 100 opaque draws, 1 directional light, 64 point lights, and 16 spot lights; three color surface targets plus depth; directional fullscreen draws; reusable sphere/cone local-light volumes; tiled/clustered lighting, shadows, SSAO, SSR, temporal effects, anti-aliasing, decals, editor tooling, new backends, and visible demo integration excluded
 
 ## Constitution Check
@@ -57,10 +57,12 @@ specs/019-deferred-rendering-pipeline/
 
 ```text
 Source/Renderer/
+├── SConscript
 ├── Public/Renderer/
 │   ├── FDeferredDiagnostics.h
 │   ├── FDeferredSurfaceData.h
 │   ├── FDeferredLightData.h
+│   ├── FDeferredLightVolume.h
 │   ├── FDeferredFramePlan.h
 │   ├── FDeferredRenderer.h
 │   ├── FDeferredRenderGraphDeclaration.h
@@ -81,31 +83,45 @@ Source/Renderer/
     └── checked-in matching .spv payloads
 
 Source/RHI/Public/RHI/
+├── ERHIFormat.h
 ├── ERHIIndexType.h
 ├── FRHITextureBufferCopyRegion.h
-└── IRHICommandBuffer.h
+├── IRHICommandBuffer.h
+└── RHIMinimal.h
 
 Source/Backend/Vulkan/
-├── Public/VulkanRHI/FVulkanNativeContext.h
+├── Public/VulkanRHI/
+│   ├── FVulkanCommandBuffer.h
+│   └── FVulkanNativeContext.h
 └── Private/
+    ├── FVulkanCommandBuffer.cpp
     ├── FVulkanNativeContext.cpp
     ├── FVulkanNativeOffscreenSession.h
     └── FVulkanNativeOffscreenSession.cpp
 
 Tests/
+├── SConscript
+├── RHICoreTests.cpp
+├── VulkanBackendTests.cpp
+├── RendererForwardPipelineTests.cpp
 ├── DeferredRenderingTests.h
 ├── DeferredRenderingTests.cpp
 ├── DeferredNativeIntegrationTests.h
 ├── DeferredNativeIntegrationTests.cpp
+├── RendererComparisonTests.h
+├── RendererComparisonTests.cpp
 └── Main.cpp
 
 .github/scripts/
-└── run_deferred_validation.py
+├── run_deferred_validation.py
+└── test_run_deferred_validation.py
 
 .github/workflows/
 └── ci.yml
 
 Validation/019/
+├── README.md
+├── completion.md
 └── Linux/
     ├── deferred-readback-report.txt
     └── renderer-comparison-report.txt
@@ -118,10 +134,12 @@ Validation/019/
 Completed in [research.md](./research.md). Key decisions:
 
 - Keep forward and deferred as sibling Renderer strategies; forward remains the default.
-- Use three color surface targets plus `D32_Float` depth, storing direct view-space normals and every clarified material semantic.
-- Reconstruct view-space position from depth and the inverse projection rather than storing position.
-- Use fullscreen directional lighting and indexed reusable sphere/cone volumes for point/spot lights, including explicit camera-inside variants.
+- Use three color surface targets plus `D32_Float` depth, storing direct normalized world-space normals and every clarified material semantic.
+- Reconstruct world-space position from depth and the inverse view-projection rather than storing position.
+- Derive far clear, depth comparison, projection, reconstruction, and probe decode from one standard-Z or reversed-Z convention identity.
+- Use fullscreen directional lighting and indexed reusable sphere/cone volumes for point/spot lights, including explicit camera-inside variants, radian cone fields, and type-then-entity ordering without an influence key.
 - Add backend-neutral descriptor-set binding, index-buffer binding, explicit render-pass clear values, and texture-to-buffer readback commands.
+- Fix one canonical deferred shader interface before shader implementation: explicit set/binding tables, exact 304-byte frame/view, 176-byte draw/material, and 64-byte light-record layouts, `R32G32_Float`/`R32G32B32_Float` vertex formats, and surface/fullscreen/volume vertex layouts.
 - Execute compiled graph passes through `FDeferredFrameExecutor`, with all bindings validated before recording.
 - Generalize the existing native Vulkan offscreen context enough to expose real RHI wrappers without creating a second backend or adding Renderer dependencies to Vulkan.
 - Keep deferred GLSL and checked-in SPIR-V under the Renderer module.

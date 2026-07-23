@@ -31,11 +31,69 @@ Validation rules:
 | Ordered attachment | Format | Required usage |
 |--------------------|--------|----------------|
 | Base color + AO | `R8G8B8A8_UNorm` | color attachment, sampled, copy source |
-| View normal + roughness | `R16G16B16A16_Float` | color attachment, sampled, copy source |
+| World normal + roughness | `R16G16B16A16_Float` | color attachment, sampled, copy source |
 | Emissive + metallic | `R16G16B16A16_Float` | color attachment, sampled, copy source |
 | Depth | `D32_Float` | depth attachment, sampled, copy source |
 
 Lighting accumulation uses `R16G16B16A16_Float` with color-attachment and sampled usage. Final validation output uses `R8G8B8A8_UNorm` with color-attachment and copy-source usage. Every target is 2D, one mip, one layer, sample count one, and shares the active extent.
+
+## Canonical Shader Interface
+
+The RHI adds `R32G32_Float` and `R32G32B32_Float` vertex formats. Deferred pipelines use these fixed descriptor bindings:
+
+| Set | Binding | Descriptor type | Visibility | Meaning |
+|-----|---------|-----------------|------------|---------|
+| 0 | 0 | Uniform buffer | Vertex + Fragment | Frame/view record |
+| 1 | 0 | Uniform buffer | Vertex + Fragment | Per-draw/material record |
+| 2 | 0 | Combined texture sampler | Fragment | Base color + AO |
+| 2 | 1 | Combined texture sampler | Fragment | World normal + roughness |
+| 2 | 2 | Combined texture sampler | Fragment | Emissive + metallic |
+| 2 | 3 | Combined texture sampler | Fragment | Depth |
+| 2 | 4 | Combined texture sampler | Fragment | Lighting accumulation |
+| 3 | 0 | Storage buffer | Vertex + Fragment | Ordered light records |
+
+Pipeline set usage:
+
+- Surface: sets 0 and 1.
+- Directional, point, and spot lighting: sets 0, 2, and 3.
+- Composition: sets 0 and 2.
+
+Mirrored C++/GLSL buffer records use column-major `float32` matrices and 16-byte `float32 vec4` slots at these exact byte offsets:
+
+| Record | Byte offset | Field and representation |
+|--------|-------------|--------------------------|
+| Frame/view | 0 | `View`, `mat4`, 64 bytes |
+| Frame/view | 64 | `Projection`, `mat4`, 64 bytes |
+| Frame/view | 128 | `InverseViewProjection`, `mat4`, 64 bytes |
+| Frame/view | 192 | `ViewProjection`, `mat4`, 64 bytes |
+| Frame/view | 256 | `CameraPosition`, world-space `vec4` (`xyz`, reserved `w`) |
+| Frame/view | 272 | `OutputExtent`, `vec4` (`width`, `height`, inverse width, inverse height) |
+| Frame/view | 288 | `DepthConvention`, `vec4` (near, far, reversed-Z flag, reserved) |
+| Per-draw/material | 0 | `Model`, `mat4`, 64 bytes |
+| Per-draw/material | 64 | `WorldNormalFromModel`, affine `mat4` embedding `transpose(inverse(mat3(Model)))`, 64 bytes |
+| Per-draw/material | 128 | `BaseColorAO`, `vec4` (base-color RGB, AO) |
+| Per-draw/material | 144 | `EmissiveMetallic`, `vec4` (emissive RGB, metallic) |
+| Per-draw/material | 160 | `RoughnessAlphaCutoffFlags`, `vec4` (roughness, alpha cutoff, flags-as-float, reserved) |
+| Light | 0 | `PositionRange`, world-space `vec4` (position XYZ, range) |
+| Light | 16 | `DirectionOuterCos`, world-space `vec4` (direction XYZ, cosine outer angle) |
+| Light | 32 | `ColorIntensity`, `vec4` (linear color RGB, intensity) |
+| Light | 48 | `InnerCosTypeVolumeMode`, `vec4` (cosine inner angle, type code, volume-mode code, reserved) |
+
+The exact record sizes are 304 bytes for frame/view, 176 bytes for per-draw/material, and 64 bytes per light. Integer-like flags/type/mode values use exactly representable non-negative `float32` codes defined by the deferred public vocabulary; reserved values are zero.
+
+`WorldNormalFromModel` has zero translation, bottom-right `1`, and an upper-left inverse-transpose normal matrix. Non-finite or non-invertible model transforms fail before command recording; surface shaders normalize the transformed normal before writing the GBuffer.
+
+Depth state derives from `DepthConvention`: standard-Z uses far clear `1.0` with `ERHICompareOp::LessEqual`, while reversed-Z uses far clear `0.0` with `ERHICompareOp::GreaterEqual`. Projection, `InverseViewProjection`, clear value, pipeline comparison, and readback decode must agree or binding validation fails before recording.
+
+Vertex/index layouts:
+
+| Geometry | Attributes | Stride | Index type |
+|----------|------------|--------|------------|
+| Surface | location 0 `R32G32B32_Float` position at byte 0; location 1 `R32G32B32_Float` normal at byte 12 | 24 | caller-declared compatible type |
+| Fullscreen | location 0 `R32G32_Float` position at byte 0 | 8 | none |
+| Sphere/cone | location 0 `R32G32B32_Float` position at byte 0 | 12 | `UInt16` |
+
+Pipeline creation fails when a descriptor, mirrored record size/offset, visibility, attribute, stride, or index type differs from this schema.
 
 ## Binding Contract
 
@@ -79,7 +137,8 @@ The executor records only; queue submit/fence wait and staging mapping remain wi
 - Directional draws cover the active viewport.
 - Point/spot draws use the accepted volume classification to select cull/depth state.
 - CPU view rejection may omit an entire local light; per-fragment volume and range/cone tests reject pixels outside exact influence.
-- Surface depth and reconstructed position use the one declared convention.
+- Directional, point, and spot arrays execute in that type order and use ascending stable entity identity within type; spot cone values are radians before shader-side cosine conversion.
+- Surface depth and inverse-view-projection reconstructed world-space position use the one declared convention.
 - Emissive is not multiplied by light accumulation; ambient occlusion modulates the declared ambient/indirect contribution, not direct emissive output.
 
 ## Linux Native Offscreen Session
@@ -127,4 +186,3 @@ Cleanup is idempotent after it starts:
 10. Release device and instance ownership.
 
 Partial initialization follows the same dependency order. Final normalized live counts for deferred frame-owned objects must all be zero.
-

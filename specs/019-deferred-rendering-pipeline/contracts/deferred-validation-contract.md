@@ -15,7 +15,7 @@ Android and other mobile targets do not participate in Feature 019.
 Tests cover:
 
 - valid empty, ambient-only, emissive-only, and representative lit frames;
-- surface-layout semantics, format/extent/sample compatibility, and clear values;
+- surface-layout semantics, format/extent/sample compatibility, standard-Z/reversed-Z far clears, and matching depth comparisons;
 - opaque/masked acceptance and transparent forward handoff;
 - invalid view, output, draw, material, shader binding, and surface input cases;
 - valid/invalid directional, point, and spot lights;
@@ -32,7 +32,7 @@ Existing project tests remain in the same run and must pass.
 
 ## Native Reference Scene
 
-The Linux native scene uses a fixed small offscreen extent and deterministic camera, geometry, materials, and lights. It includes:
+The Linux native scene uses a fixed small offscreen extent and deterministic camera, geometry, materials, and lights. The same scene executes once with standard-Z and once with reversed-Z, using convention-matched projection, inverse view-projection, far clear, depth comparison, and probe decode. It includes:
 
 - background pixels;
 - opaque surfaces spanning base-color, normal, metallic, roughness, emissive, and ambient-occlusion values;
@@ -42,7 +42,7 @@ The Linux native scene uses a fixed small offscreen extent and deterministic cam
 - spot lights covering visible, outside-cone, and near-plane-intersecting cases;
 - ambient-only and emissive-only samples.
 
-At least 12 unique named probes must be decoded across intermediate surface targets and final LDR output. The report lists every probe name, semantic, coordinate, expected value, observed value, error measure, threshold, and pass/fail state.
+At least 12 unique named probes per depth convention must be decoded across intermediate surface targets and final LDR output. The report lists each convention identity and every probe name, semantic, coordinate, expected value, observed value, error measure, threshold, and pass/fail state.
 
 ## Semantic Readback Thresholds
 
@@ -50,10 +50,10 @@ At least 12 unique named probes must be decoded across intermediate surface targ
 |----------|----------------|
 | Final LDR RGB(A where asserted) | absolute error `<= 2/255` per asserted channel |
 | Normalized depth | absolute error `<= 1e-4` |
-| Decoded normalized view normal | dot(expected, observed) `>= 0.999` |
+| Decoded normalized world normal | dot(expected, observed) `>= 0.999` |
 | Metallic | absolute error `<= 1e-3` |
 | Roughness | absolute error `<= 1e-3` |
-| Ambient occlusion | absolute error `<= 1e-3` |
+| Ambient occlusion in 8-bit UNorm | absolute error `<= 2e-3` |
 
 Any non-finite expected/observed value, out-of-range coordinate, incompatible decode format, missing probe, duplicate probe identity, or threshold violation fails native validation.
 
@@ -89,6 +89,7 @@ The readback report includes:
 - runtime mode and normalized adapter identity;
 - software-device proof;
 - surface layout/extent;
+- standard-Z/reversed-Z convention identity, far clear, and comparison operation;
 - pass/draw/light counts;
 - every named probe and threshold result;
 - primary diagnostics;

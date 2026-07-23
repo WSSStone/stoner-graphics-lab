@@ -32,12 +32,12 @@ The required semantic values are:
 | Semantic | Range/space |
 |----------|-------------|
 | Base color | finite linear RGB, each channel in `[0, 1]` before lighting |
-| View normal | finite normalized view-space vector |
+| World normal | finite normalized world-space vector |
 | Metallic | finite scalar in `[0, 1]` |
 | Roughness | finite scalar in `[0, 1]` |
 | Emissive | finite non-negative linear RGB |
 | Ambient occlusion | finite scalar in `[0, 1]` |
-| Depth | finite normalized depth compatible with the active inverse projection |
+| Depth | finite normalized depth compatible with the active inverse view-projection and standard-Z/reversed-Z convention |
 
 Masked alpha is finite in `[0, 1]` and controls coverage against the material cutoff. It is not consumed as a lighting semantic. Transparent blend alpha remains in the existing forward-transparent path.
 
@@ -46,6 +46,7 @@ Masked alpha is finite in `[0, 1]` and controls coverage against the material cu
 - Opaque and compatible masked surface materials are accepted when all required semantic inputs and deferred shader bindings are available.
 - Transparent materials are never accepted by the surface-data stage; when transparent handoff is enabled, they are prepared by the existing forward-transparent ordering after deferred composition.
 - Unsupported material domain, blend mode, shader permutation, extension requirement, missing semantic, non-finite value, invalid transform, or invalid bounds produces one stable rejected-draw record.
+- A model transform is invalid for deferred surface work when its upper-left `mat3` is non-finite or non-invertible. Valid world normals use `transpose(inverse(mat3(Model)))` and are normalized before storage.
 - Unsupported extension slots do not silently change meaning between forward and deferred; the material is rejected with the unsupported slot identified.
 - Equivalent accepted draws have deterministic order with stable object/entity identity as the final tie-breaker.
 
@@ -54,19 +55,19 @@ Masked alpha is finite in `[0, 1]` and controls coverage against the material cu
 Directional light requirements:
 
 - finite non-negative color and intensity;
-- finite normalized non-degenerate direction;
+- finite normalized non-degenerate world-space direction;
 - one full-view contribution per accepted light.
 
 Point light requirements:
 
 - directional common fields where applicable;
-- finite position and positive finite range;
+- finite world-space position and positive finite range;
 - spherical influence bounds.
 
 Spot light requirements:
 
-- finite position, positive finite range, and normalized non-degenerate direction;
-- `0 <= InnerConeAngle <= OuterConeAngle < 90 degrees`;
+- finite world-space position, positive finite range, and normalized non-degenerate world-space direction;
+- explicitly named radian fields with `0 <= InnerConeAngleRadians <= OuterConeAngleRadians < pi/2`;
 - conical influence bounds.
 
 Policy:
@@ -74,7 +75,7 @@ Policy:
 - There is no deferred local-light count cap.
 - Invalid lights are rejected; zero-contribution or outside-view lights are omitted with a stable reason.
 - Accepted local lights classify camera-outside, camera-inside, or near-plane-intersecting volume mode.
-- Ordering is directional, point, spot; then deterministic influence key; then stable entity identity.
+- Ordering is directional, point, spot; then ascending stable entity identity within each type. No influence-order key is used because every accepted light executes.
 - Every valid view-affecting submitted light appears exactly once in accepted work.
 
 ## Canonical Pass Contract
@@ -141,4 +142,3 @@ The normalized deferred frame report includes:
 - stable diagnostics.
 
 The report contains no native addresses or backend object handles.
-

@@ -13,7 +13,8 @@
 - Q: 真实 RHI 离屏执行和像素 readback 验证必须在哪些平台通过？ → A: Linux Lavapipe CI 必须执行真实 Vulkan 离屏像素验证；Windows 和 macOS 执行编译及确定性 headless 测试。
 - Q: Forward 与 deferred 性能对比是否必须证明 deferred 更快才能完成本阶段？ → A: 不要求 deferred 必须更快；性能报告作为可复现基线，必须记录各 light-count tier 的结果与 crossover 行为。
 - Q: 现有材质系统的哪些语义必须由首版 deferred opaque 路径保留？ → A: 支持 base color、normal、metallic、roughness、depth、emissive 和 ambient occlusion；alpha 仅用于 masked coverage，透明混合继续使用 forward-transparent。
-- Q: Linux Lavapipe 离屏 readback 与参考结果应采用哪种误差标准？ → A: 使用语义化容差：最终 LDR 颜色每通道误差不超过 2/255，归一化深度误差不超过 1e-4，解码法线点积不低于 0.999，metallic、roughness 和 occlusion 误差不超过 1e-3。
+- Q: Linux Lavapipe 离屏 readback 与参考结果应采用哪种误差标准？ → A: 使用语义化容差：最终 LDR 颜色每通道误差不超过 2/255，归一化深度误差不超过 1e-4，解码法线点积不低于 0.999，metallic 和 roughness 误差不超过 1e-3，8-bit UNorm ambient occlusion 误差不超过 2e-3。
+- Q: GBuffer 中的 normal 使用哪个坐标系？ → A: 存储 normalized world-space normal；lighting 使用 world-space light position/direction，并通过 depth 与 inverse view-projection 重建 world-space position。
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -89,13 +90,14 @@ An engine maintainer can add and validate deferred rendering without changing th
 
 - The active view or output extent is zero, empty, or changes between prepared frames.
 - Required surface-data outputs use incompatible dimensions, sample counts, or semantic layouts.
+- The active depth convention changes between standard-Z and reversed-Z, requiring matching far-depth clear, comparison, projection, and reconstruction behavior.
 - A material omits a required deferred surface input or uses a domain/blend mode that cannot participate in the opaque surface-data stage.
 - Geometry overlaps at equal or nearly equal depth, including reversed winding, clipping, and off-screen bounds.
 - A scene contains no geometry, no lights, only emissive geometry, or only ambient/background contribution.
 - Directional, point, or spot light inputs contain non-finite values, negative intensity, non-positive range, invalid cone angles, or degenerate directions.
 - A point or spot light intersects the camera near plane, encloses the camera, lies entirely behind the view, or touches only the view boundary.
-- Light counts are zero, very large, or change sharply between consecutive frames.
-- Multiple lights have identical influence and identity ordering keys.
+- Light counts are zero, reach at least the 256-local-light validation tier, or change sharply between zero and that tier on consecutive frames.
+- Multiple lights have identical influence parameters but distinct stable entity identities.
 - A surface-data, lighting, or composition stage fails after earlier temporary resources have been accepted.
 - A transparent object is submitted alongside deferred-compatible opaque geometry.
 - Forward and deferred comparison inputs differ in a way that would make the reported measurements misleading.
@@ -118,14 +120,14 @@ An engine maintainer can add and validate deferred rendering without changing th
 
 - **FR-001**: The Renderer MUST offer deferred rendering as an explicit alternative to the existing forward path without changing the established default path.
 - **FR-002**: The deferred path MUST accept a validated active view, output target, opaque draw set, material bindings, and directional, point, and spot light inputs.
-- **FR-003**: The deferred path MUST prepare a deterministic surface-data stage that records, for each visible opaque surface, base color, view-independent normal information, metallic value, roughness value, emissive contribution, ambient occlusion, and depth sufficient for later position reconstruction.
-- **FR-004**: The surface-data contract MUST define each stored semantic, value range, coordinate space, clear value, precision expectation, and compatibility rule while allowing concrete storage formats to be selected during planning.
+- **FR-003**: The deferred path MUST prepare a deterministic surface-data stage that records, for each visible opaque surface, base color, normalized world-space normal, metallic value, roughness value, emissive contribution, ambient occlusion, and depth sufficient for inverse-view-projection world-space position reconstruction.
+- **FR-004**: The surface-data contract MUST define each stored semantic, value range, coordinate space, clear value, precision expectation, and compatibility rule while allowing concrete storage formats to be selected during planning; depth clear and comparison behavior MUST be derived consistently for standard-Z and reversed-Z conventions.
 - **FR-005**: Deferred-compatible materials MUST reuse the existing material and instance authoring data; the renderer MUST report unsupported domains, blend modes, permutations, or missing required surface inputs before execution.
 - **FR-006**: Opaque and compatible masked geometry MUST participate in the surface-data stage, with alpha used only to determine masked coverage; transparent blended geometry MUST be excluded from that stage and remain eligible for the established forward-transparent stage after deferred composition.
 - **FR-007**: Geometry visibility and depth resolution MUST occur once per deferred frame and MUST NOT be repeated independently for every accepted light.
 - **FR-008**: The deferred path MUST prepare a lighting accumulation stage that reads the declared surface data and evaluates every accepted directional, point, and spot light without applying the forward renderer's local-light count limit.
-- **FR-009**: Directional lights MUST contribute across the active view; point and spot lights MUST declare bounded influence regions from validated light shape and range data.
-- **FR-010**: Local lights that cannot affect the active view MUST be omitted before execution, and accepted and omitted lights MUST use stable entity identity as the final ordering tie-breaker when scene entities are available.
+- **FR-009**: Directional lights MUST contribute across the active view; point and spot lights MUST declare bounded influence regions from validated light shape and range data, and spot inner/outer cone angles MUST use radians with `0 <= inner <= outer < pi/2`.
+- **FR-010**: Local lights that cannot affect the active view MUST be omitted before execution; lights MUST be ordered by directional, point, then spot type, and within each type by ascending stable entity identity without an additional influence-order key.
 - **FR-011**: The lighting stage MUST preserve independent diffuse and specular material response using the existing metallic-roughness and ambient-occlusion surface semantics and MUST support deterministic ambient-only, emissive-only, and no-light outcomes.
 - **FR-012**: The deferred path MUST prepare a composition stage that combines accumulated lighting with required surface contributions into exactly one final renderer output suitable for downstream presentation or later post-processing.
 - **FR-013**: Transparent forward work, when present, MUST execute after deferred composition against the same active view and final output, with deterministic cross-path ordering.
@@ -140,7 +142,7 @@ An engine maintainer can add and validate deferred rendering without changing th
 - **FR-022**: Automated validation MUST build and run deterministic deferred headless integration coverage on Windows, macOS, and Linux, while preserving all existing Core, RHI, backend, Renderer, Application, scene/ECS, and triangle demo regression outcomes.
 - **FR-023**: Tiled or clustered deferred rendering, shadows, SSAO, SSR, temporal effects, anti-aliasing, decals, custom post-processing, new material authoring workflows, new graphics backends, scene serialization, and editor tooling MUST remain outside this feature.
 - **FR-024**: Linux CI MUST execute the deferred path through real RHI offscreen resources using the Lavapipe Vulkan runtime and MUST verify resulting pixels through output readback or deterministic reference samples; this native execution coverage complements rather than replaces three-platform deterministic headless tests and is not required on Windows or macOS for feature completion.
-- **FR-025**: Native offscreen validation MUST compare finite readback values by semantic: final LDR color error MUST be no greater than 2/255 per channel, normalized depth error no greater than 1e-4, decoded-normal dot product no less than 0.999, and metallic, roughness, and ambient-occlusion error no greater than 1e-3; values outside these bounds or any non-finite result MUST fail validation.
+- **FR-025**: Native offscreen validation MUST compare finite readback values by semantic: final LDR color error MUST be no greater than 2/255 per channel, normalized depth error no greater than 1e-4, decoded-normal dot product no less than 0.999, metallic and roughness error no greater than 1e-3, and 8-bit UNorm ambient-occlusion error no greater than 2e-3; values outside these bounds or any non-finite result MUST fail validation.
 
 ### Key Entities
 
@@ -158,7 +160,7 @@ An engine maintainer can add and validate deferred rendering without changing th
 ### Measurable Outcomes
 
 - **SC-001**: A representative scene containing at least 100 opaque draws, 1 directional light, 64 point lights, and 16 spot lights prepares a complete deferred frame with one surface-data sequence, deterministic light work, and one composition result in 100% of 20 repeated runs.
-- **SC-002**: For at least 12 readback or reference samples produced by real RHI offscreen execution and spanning distinct base colors, normals, metallic values, roughness values, depths, emissive values, and ambient-occlusion values, 100% of final LDR color channels are within 2/255 of reference, normalized depths are within 1e-4, decoded-normal dot products are at least 0.999, metallic/roughness/occlusion values are within 1e-3, and no compared value is non-finite.
+- **SC-002**: For both standard-Z and reversed-Z native profiles, at least 12 readback or reference samples produced by real RHI offscreen execution and spanning distinct base colors, world-space normals, metallic values, roughness values, depths, emissive values, and ambient-occlusion values achieve the matching far-depth clear/comparison behavior; 100% of final LDR color channels are within 2/255 of reference, normalized depths are within 1e-4, decoded normalized world-space normal dot products are at least 0.999, metallic/roughness values are within 1e-3, 8-bit UNorm ambient-occlusion values are within 2e-3, and no compared value is non-finite.
 - **SC-003**: Local-light boundary tests covering outside-view, boundary-touching, camera-enclosing, near-plane-intersecting, and fully visible point/spot lights produce the expected accepted or culled result in 100% of cases.
 - **SC-004**: Repeating equivalent frame preparation 20 times produces identical pass order, draw order, light order, resource declarations, culling decisions, result categories, and normalized diagnostic output in all 20 runs.
 - **SC-005**: Every tested invalid view, output, material, surface-data layout, directional light, point light, and spot light case identifies the primary rejected subject and reason in the first actionable error diagnostic.
