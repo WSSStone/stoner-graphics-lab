@@ -8,6 +8,9 @@
 namespace Stoner::Backend::Vulkan
 {
 
+struct FVulkanNativeDeviceAccess;
+class FVulkanNativeOffscreenSession;
+
 enum class EVulkanDeferredProbeMetric
 {
     Absolute,
@@ -90,6 +93,9 @@ public:
     [[nodiscard]] bool IsAvailable() const noexcept;
 
 private:
+    friend class FVulkanNativeOffscreenSession;
+    [[nodiscard]] bool GetNativeDeviceAccess(
+        FVulkanNativeDeviceAccess& OutAccess) const noexcept;
     struct FImpl;
     std::unique_ptr<FImpl> Impl;
 };

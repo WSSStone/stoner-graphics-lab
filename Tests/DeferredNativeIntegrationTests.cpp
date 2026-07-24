@@ -3,8 +3,10 @@
 #include "VulkanRHI/FVulkanNativeContext.h"
 
 #include <cstdlib>
+#include <cmath>
 #include <fstream>
 #include <iostream>
+#include <set>
 
 namespace
 {
@@ -60,7 +62,9 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
     FVulkanDeferredValidationReport Report;
     const char* ShaderDirectory = std::getenv("STONER_DEFERRED_NATIVE_SHADER_DIR");
     const Stoner::Core::FString Directory =
-        ShaderDirectory != nullptr ? ShaderDirectory : "Build/Mac/Debug/Demo/StonerDemo/Shaders";
+        ShaderDirectory != nullptr
+            ? ShaderDirectory
+            : "Build/Mac/Debug/Renderer/Shaders/Deferred";
     const ERHIResult ExecutionResult =
         Context.ExecuteDeferredOffscreenValidation(Directory, Report);
     WriteReport(Report);
@@ -68,12 +72,24 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
     Record(Result, ExecutionResult == ERHIResult::Success &&
         Report.bNativeSubmissionCompleted,
         "Deferred native validation completes a real Vulkan submission");
-    Record(Result, !IsRequired() ||
+    Record(Result,
         Report.ReferencePath == Stoner::Core::FString("NativeDeferredReadback"),
-        "Required deferred native validation uses mapped attachment readback");
+        "Deferred native validation uses mapped attachment readback");
     Record(Result, Report.GetProbeCount("StandardZ") >= 12 &&
         Report.GetProbeCount("ReversedZ") >= 12,
         "Deferred native validation reports at least twelve probes per depth convention");
+    std::set<std::string> ProbeIdentities;
+    bool bEveryProbeValid = true;
+    for (const FVulkanDeferredProbe& Probe : Report.Probes)
+    {
+        const std::string Identity =
+            Probe.Convention.ToStdString() + "/" + Probe.Name.ToStdString();
+        bEveryProbeValid = bEveryProbeValid &&
+            ProbeIdentities.insert(Identity).second &&
+            std::isfinite(Probe.ErrorMeasure) && Probe.bPassed;
+    }
+    Record(Result, bEveryProbeValid,
+        "Mapped attachment probes are finite, unique, and within semantic tolerances");
     Record(Result, Report.bPassed && Report.FinalLiveObjects == 0,
         "Deferred native validation passes semantic probes and releases frame-owned objects");
     Record(Result, Context.Shutdown() == ERHIResult::Success &&

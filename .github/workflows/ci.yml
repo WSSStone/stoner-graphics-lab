@@ -95,7 +95,7 @@ jobs:
           python .github/scripts/run_deferred_validation.py
           --profile native-lavapipe
           --tests ${{ matrix.test_path }}
-          --shader-directory Build/Linux/Debug/Demo/StonerDemo/Shaders
+          --shader-directory Build/Linux/Debug/Renderer/Shaders/Deferred
           --readback-output Validation/019/Linux/deferred-readback-report.txt
           --comparison-output Validation/019/Linux/renderer-comparison-report.txt
           --timeout-seconds 1200

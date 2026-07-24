@@ -1,4 +1,5 @@
 #include "VulkanRHI/FVulkanNativeContext.h"
+#include "FVulkanNativeDeviceAccess.h"
 #include "FVulkanNativeOffscreenSession.h"
 
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
@@ -1010,5 +1011,25 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()
 
 const Stoner::RHI::FRHIRuntimeSnapshot& FVulkanNativeContext::GetSnapshot() const noexcept { return Impl->Snapshot; }
 bool FVulkanNativeContext::IsAvailable() const noexcept { return Impl && Impl->Snapshot.ProvesNativeExecution(); }
+
+bool FVulkanNativeContext::GetNativeDeviceAccess(
+    FVulkanNativeDeviceAccess& OutAccess) const noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || Impl->PhysicalDevice == VK_NULL_HANDLE || Impl->Device == VK_NULL_HANDLE ||
+        Impl->GraphicsQueue == VK_NULL_HANDLE)
+    {
+        return false;
+    }
+    OutAccess.PhysicalDevice = Impl->PhysicalDevice;
+    OutAccess.Device = Impl->Device;
+    OutAccess.GraphicsQueue = Impl->GraphicsQueue;
+    OutAccess.GraphicsQueueFamily = Impl->GraphicsQueueFamily;
+    return true;
+#else
+    (void)OutAccess;
+    return false;
+#endif
+}
 
 } // namespace Stoner::Backend::Vulkan

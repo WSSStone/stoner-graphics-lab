@@ -2,12 +2,16 @@
 
 #include "VulkanRHI/FVulkanNativeContext.h"
 
+#include <memory>
+
 namespace Stoner::Backend::Vulkan
 {
 
 class FVulkanNativeOffscreenSession
 {
 public:
+    struct FImpl;
+
     explicit FVulkanNativeOffscreenSession(FVulkanNativeContext& InContext) noexcept;
     ~FVulkanNativeOffscreenSession();
 
@@ -16,14 +20,8 @@ public:
     [[nodiscard]] Stoner::RHI::ERHIResult Shutdown() noexcept;
 
 private:
-    void AddReferenceProbes(const char* Convention, float FarDepth,
-        FVulkanDeferredValidationReport& Report);
-    void TrackCreate(Stoner::Core::uint32 Count = 1) noexcept;
-    void TrackReleaseAll() noexcept;
-
     FVulkanNativeContext& Context;
-    Stoner::Core::uint32 LiveObjects = 0;
-    Stoner::Core::uint32 PeakLiveObjects = 0;
+    std::unique_ptr<FImpl> Impl;
     bool bShutdown = false;
 };
 

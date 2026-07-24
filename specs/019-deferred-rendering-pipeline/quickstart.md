@@ -78,6 +78,7 @@ scons -Q
 python .github/scripts/run_deferred_validation.py \
   --profile native-lavapipe \
   --tests Build/Linux/Debug/Tests/StonerTest \
+  --shader-directory Build/Linux/Debug/Renderer/Shaders/Deferred \
   --readback-output Validation/019/Linux/deferred-readback-report.txt \
   --comparison-output Validation/019/Linux/renderer-comparison-report.txt \
   --timeout-seconds 1200
@@ -175,8 +176,8 @@ for file in Source/Renderer/Shaders/Deferred/*.spv; do spirv-val "$file"; done
 ```
 
 The build, complete deterministic suite, validation-script tests, deterministic
-profile, and shader validation pass. This checkpoint does **not** claim the
-Linux native gate: the current native session proves a Vulkan submission but
-still reports `NativeVulkanSubmission+DeterministicSemanticOracle`. The required
-profile intentionally rejects it until mapped deferred attachment readback is
-implemented.
+profile, and shader validation pass. The native session now records the surface,
+directional, indexed sphere-volume point, indexed cone-volume spot, and
+composition passes; copies all deferred attachments into host-visible staging
+buffers; and reports only values decoded from mapped Vulkan memory. Linux
+Lavapipe CI remains the required execution gate for that path.
