@@ -19,7 +19,7 @@ The primary unit of work in the roadmap. Each Phase maps to exactly one speckit 
 |-------|------|----------|-------------|
 | `number` | Integer (3-digit, zero-padded) | ✅ | Unique identifier, e.g., `002`, `003`. Monotonically increasing. |
 | `name` | String | ✅ | Human-readable name, e.g., "Core: Types & Memory" |
-| `layer` | Layer (enum) | ✅ | Which architectural layer this phase belongs to |
+| `layer` | Layer (enum) | ✅ | Which architectural layer or cross-cutting runtime subsystem owns the phase |
 | `dependencies` | List\<Phase.number\> | ✅ | Phase numbers that must be completed first. Can be empty (only for Phase 001). |
 | `complexity` | Complexity (enum) | ✅ | Estimated effort: S, M, L, XL |
 | `critical_path` | Boolean | ✅ | Whether this phase blocks other phases |
@@ -48,12 +48,16 @@ The primary unit of work in the roadmap. Each Phase maps to exactly one speckit 
 | Value | Description |
 |-------|-------------|
 | `Core` | Foundation utilities (types, math, logging, platform) |
+| `Asset` | CPU-side content identities, metadata, import/cook/load contracts, and runtime asset management |
 | `RHI` | Render Hardware Interface abstractions |
 | `Backend` | Graphics API implementations (Vulkan, Metal, DX12, GL) |
 | `Renderer` | Rendering pipelines and systems |
 | `Application` | Window, input, scene graph, demos |
 
-**Validation**: Every Layer must have at least 2 phases in the roadmap.
+**Validation**: Every phase must use one of these values. Tools are offline
+deliverables, not a runtime Layer value. The Asset layer may depend only on Core;
+Renderer and Application may consume Asset contracts without introducing a
+reverse dependency.
 
 ---
 

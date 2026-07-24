@@ -1,11 +1,15 @@
 # Implementation Plan: Engine Development Roadmap
 
-**Branch**: `002-engine-development-roadmap` | **Date**: 2026-04-21 | **Spec**: [spec.md](./spec.md)
+**Branch**: `002-engine-development-roadmap` | **Date**: 2026-04-21 | **Last Amended**: 2026-07-24 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/002-engine-development-roadmap/spec.md`
 
 ## Summary
 
-Create a comprehensive, phased, modular, agent-friendly development roadmap document (`doc/roadmap.md`) for the Stoner Graphics Lab cross-platform graphics engine. The roadmap organizes 23 development phases across 5 architectural layers (Core → RHI → Backend → Renderer → Application), each scoped as a single speckit feature cycle. A draft roadmap already exists and needs to be updated to reflect all clarification decisions.
+Maintain a comprehensive, phased, modular, agent-friendly development roadmap
+(`doc/roadmap.md`) for the Stoner Graphics Lab cross-platform graphics engine.
+Roadmap 2.0 contains runtime Features 003 through 032 across Core, Asset, RHI,
+Backend, Renderer, and Application ownership areas. Each phase maps to one
+Speckit feature cycle and uses the same number as its feature.
 
 ## Technical Context
 
@@ -17,7 +21,7 @@ Create a comprehensive, phased, modular, agent-friendly development roadmap docu
 **Project Type**: Documentation / planning artifact
 **Performance Goals**: N/A
 **Constraints**: Must be self-contained; must follow all constitution principles in phase ordering; must be agent-parseable for `/speckit.specify` prompts
-**Scale/Scope**: 23 phases across 5 layers, ~1000+ lines of structured Markdown
+**Scale/Scope**: 30 runtime phases across 6 ownership areas, ~1000+ lines of structured Markdown
 
 ## Constitution Check
 
@@ -26,12 +30,12 @@ Create a comprehensive, phased, modular, agent-friendly development roadmap docu
 ### Pre-Phase 0 Check
 
 - [x] **Spec-Driven Development**: Feature spec exists at `specs/002-engine-development-roadmap/spec.md` with full requirements, user stories, and acceptance criteria.
-- [x] **Decoupled Architecture**: The roadmap explicitly enforces the 5-layer architecture (Core → RHI → Backend → Renderer → Application). Phase ordering respects adjacent-only dependencies.
+- [x] **Decoupled Architecture**: The roadmap enforces constitution v1.4.0 dependency directions for Core, Asset, RHI, Backend, Renderer, Application, and offline Tools.
 - [x] **Design Pattern Discipline**: The roadmap notes Strategy/Composite pattern requirements in the Architecture Principles section. No god-classes are planned.
-- [x] **Multi-API Support**: Phases 008-011 (Vulkan), 022 (Metal), 023 (DX12), 024 (OpenGL/GLES) cover all required APIs. RHI abstraction (Phases 006-007) ensures API independence.
-- [x] **Advanced Graphics Readiness**: Phases 019 (Meshlets), 020 (Ray Tracing), 021 (Global Illumination) are explicitly planned.
+- [x] **Multi-API Support**: Vulkan is implemented; Features 030 (Metal), 031 (DX12), and 032 (OpenGL/GLES) remain planned behind RHI.
+- [x] **Advanced Graphics Readiness**: Features 026 (Meshlets), 028 (Ray Tracing), and 029 (Global Illumination) consume the new Asset foundation instead of hard-coded content.
 - [x] **Naming Conventions**: All deliverable names in the roadmap follow UE5-style PascalCase with appropriate prefixes (F, I, E, T).
-- [x] **Cross-Platform Compatibility**: Every phase notes Win/Mac/Linux support. Platform-specific phases (022 Metal, 023 DX12) are clearly marked.
+- [x] **Cross-Platform Compatibility**: Every phase notes Win/Mac/Linux support. Platform-specific phases 030 and 031 are clearly marked.
 
 **GATE RESULT**: ✅ PASS — All constitution principles satisfied.
 
@@ -55,7 +59,9 @@ doc/
 └── roadmap.md           # The single master roadmap document (ALREADY EXISTS as draft)
 ```
 
-**Structure Decision**: This is a documentation-only feature. The sole deliverable is `doc/roadmap.md`. No source code directories are created or modified. The existing draft roadmap will be updated in-place to incorporate all clarification decisions from the spec.
+**Structure Decision**: This remains a documentation-only feature. Roadmap 2.0
+also synchronizes its constitution and Feature 002 contracts. It plans, but does
+not create, `Source/Asset` or `Tools/AssetCooker`.
 
 ## Constitution Re-Check (Post Phase 1 Design)
 
@@ -66,6 +72,7 @@ doc/
 - [x] **Advanced Graphics Readiness**: Research confirms Meshlet, RT, and GI phases are retained with appropriate dependencies.
 - [x] **Naming Conventions**: Contract enforces UE5 naming for all deliverable names.
 - [x] **Cross-Platform Compatibility**: Research confirms GLFW for initial cross-platform windowing, with native backends planned later.
+- [x] **Asset Boundary**: Research separates CPU/content ownership in Asset, GPU realization in Renderer/RHI, and offline processing in Tools.
 
 **POST-DESIGN GATE RESULT**: ✅ PASS — No regressions from Phase 1 design work.
 
@@ -82,4 +89,5 @@ No constitution violations to justify. This is a documentation feature that plan
 | Data Model | `specs/002-engine-development-roadmap/data-model.md` | ✅ Complete |
 | Quickstart | `specs/002-engine-development-roadmap/quickstart.md` | ✅ Complete |
 | Contracts | `specs/002-engine-development-roadmap/contracts/roadmap-phase-schema.md` | ✅ Complete |
-| Agent Context | `CODEBUDDY.md` | ✅ Updated |
+| Constitution | `.specify/memory/constitution.md` | ✅ Amended to v1.4.0 |
+| Master Roadmap | `doc/roadmap.md` | ✅ Updated to v2.0.0 |

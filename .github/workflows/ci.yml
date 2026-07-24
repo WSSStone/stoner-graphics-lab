@@ -17,16 +17,19 @@ jobs:
             test_path: Build/Linux/Debug/Tests/StonerTest
             demo_path: Build/Linux/Debug/Demo/StonerDemo/StonerDemo
             report_path: Build/Linux/Debug/Demo/StonerDemo/deterministic-report.txt
+            deferred_report_path: Build/Linux/Debug/Tests/deferred-deterministic-report.txt
           - name: macOS headless
             os: macos-latest
             test_path: Build/Mac/Debug/Tests/StonerTest
             demo_path: Build/Mac/Debug/Demo/StonerDemo/StonerDemo
             report_path: Build/Mac/Debug/Demo/StonerDemo/deterministic-report.txt
+            deferred_report_path: Build/Mac/Debug/Tests/deferred-deterministic-report.txt
           - name: Windows headless
             os: windows-latest
             test_path: Build/Win64/Debug/Tests/StonerTest.exe
             demo_path: Build/Win64/Debug/Demo/StonerDemo/StonerDemo.exe
             report_path: Build/Win64/Debug/Demo/StonerDemo/deterministic-report.txt
+            deferred_report_path: Build/Win64/Debug/Tests/deferred-deterministic-report.txt
 
     steps:
       - name: Checkout
@@ -47,6 +50,17 @@ jobs:
 
       - name: Build
         run: scons
+
+      - name: Test Feature 019 validation orchestration
+        run: python .github/scripts/test_run_deferred_validation.py
+
+      - name: Run Feature 019 deterministic validation
+        run: >-
+          python .github/scripts/run_deferred_validation.py
+          --profile deterministic
+          --tests ${{ matrix.test_path }}
+          --output ${{ matrix.deferred_report_path }}
+          --timeout-seconds 1200
 
       - name: Run deterministic tests and endurance validation
         run: >-
@@ -75,6 +89,17 @@ jobs:
           --report Build/Linux/Debug/Demo/StonerDemo/lavapipe-report.txt
           --timeout-seconds 1200
 
+      - name: Run Linux Feature 019 native Lavapipe readback
+        if: runner.os == 'Linux'
+        run: >-
+          python .github/scripts/run_deferred_validation.py
+          --profile native-lavapipe
+          --tests ${{ matrix.test_path }}
+          --shader-directory Build/Linux/Debug/Renderer/Shaders/Deferred
+          --readback-output Validation/019/Linux/deferred-readback-report.txt
+          --comparison-output Validation/019/Linux/renderer-comparison-report.txt
+          --timeout-seconds 1200
+
       - name: Upload Feature 018 validation reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -83,4 +108,15 @@ jobs:
           path: |
             ${{ matrix.report_path }}
             Build/Linux/Debug/Demo/StonerDemo/lavapipe-report.txt
+          if-no-files-found: warn
+
+      - name: Upload Feature 019 validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deferred-renderer-${{ runner.os }}
+          path: |
+            ${{ matrix.deferred_report_path }}
+            Validation/019/Linux/deferred-readback-report.txt
+            Validation/019/Linux/renderer-comparison-report.txt
           if-no-files-found: warn

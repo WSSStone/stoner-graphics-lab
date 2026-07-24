@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/018-triangle-demo-integration/plan.md`
+`specs/019-deferred-rendering-pipeline/plan.md`
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -27,6 +27,8 @@ shell commands, and other important information, read the current plan:
 - Process-local in-memory world state, entity slot records, generation/version counters, component records, parent-child relationships, transform propagation caches, render collection summaries, diagnostics, and debug dump strings only; no persistent database, asset catalog, scene serialization, or live graphics resource ownership (017-scene-graph-ecs)
 - C++20 with traditional header/source separation; no C++20 Modules + Existing Core, Application, Renderer, RHI, and Vulkan backend contracts; SCons 4.10.1; GLFW 3.4-compatible desktop window integration; Vulkan 1.3-compatible headers/loader; MoltenVK portability path on macOS; Mesa Lavapipe software Vulkan path on Linux CI; offline GLSL-to-SPIR-V compiler and SPIR-V validator when available (018-triangle-demo-integration)
 - Repository-owned shader source and checked-in SPIR-V payloads; process-local runtime/frame/diagnostic state; local screenshot and log evidence under `Validation/018/`; no database or asset catalog (018-triangle-demo-integration)
+- C++20 with traditional header/source separation; no C++20 Modules + Existing Core math/types/logging; Renderer material, forward, render-graph, and scene-identity contracts; RHI textures, buffers, descriptors, pipelines, render passes, command buffers, queues, fences, and runtime-mode contracts; existing Vulkan native offscreen context; SCons 4.10.1; Vulkan 1.3-compatible headers/loader; Mesa Lavapipe for Linux native CI; offline GLSL-to-SPIR-V compiler and validator when available (019-deferred-rendering-pipeline)
+- Repository-owned deferred GLSL sources and checked-in SPIR-V payloads; process-local frame plans, surface layouts, graph declarations, RHI/native resources, readback probes, diagnostics, and comparison reports; CI report artifacts; no database, scene serialization, runtime shader cache, or asset catalog (019-deferred-rendering-pipeline)
 
 ## Recent Changes
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system
@@ -42,7 +44,11 @@ shell commands, and other important information, read the current plan:
 - 016-window-input-system: Planned Application primary window lifecycle, deterministic physical keyboard/mouse input state, resize/close/focus events, presentation-paused minimized/zero-drawable loop semantics, headless validation, optional real-window smoke validation, GitHub Actions/equivalent cross-platform CI validation, and public Application contracts
 - 017-scene-graph-ecs: Implemented Application single-world scene graph and ECS foundation, generation-safe entity handles, single-instance transform/mesh/light/camera components, recursive hierarchy destruction, explicit component update/replace semantics, deterministic transform/subtree ordering, render collection ordering, diagnostics, documentation, and headless regression tests
 - 018-triangle-demo-integration: Implemented a standalone StonerDemo composition root, explicit deterministic/native runtime modes, real Renderer forward-plan execution through backend-neutral native RHI bindings, two rotating Vulkan frame slots with image-indexed presentation synchronization, native offscreen Vulkan, GLFW surface/swapchain presentation, bounded endurance validation, formal Windows/macOS visible evidence, and passing three-platform CI with Linux Lavapipe native-headless validation
+- 019-deferred-rendering-pipeline: Implemented a sibling deferred Renderer strategy with three color surface targets plus depth, normalized world-space normals, StandardZ/ReversedZ policies, directional/fullscreen and instanced point/spot volumes, render-graph/RHI execution, uncapped deterministic light handling, diagnostics, real mapped Vulkan attachment readback, runtime-independent and native failure injection, four-tier comparison artifacts, forward coexistence, and passing Windows/macOS/Linux CI with Linux Lavapipe evidence
 
 ## Git Commit Style
 - Commit messages must start with a conventional type prefix such as `feat`, `docs`, `fix`, `chore`, `refactor`, `test`, or `build`.
 - Prefer `type(scope): summary` when a clear scope exists, for example `docs(spec-006): align platform abstraction numbering`.
+
+## Speckit Clarification Style
+- During a Speckit Clarify workflow, state each question explicitly and completely before presenting the recommendation and answer options. The user must not have to infer the question from the recommendation or option table.

@@ -1,8 +1,8 @@
 # Feature Specification: Engine Development Roadmap
 
-**Feature Branch**: `002-engine-development-roadmap`  
-**Created**: 2026-04-21  
-**Status**: Draft  
+**Feature Branch**: `002-engine-development-roadmap`
+**Created**: 2026-04-21
+**Status**: Complete (living roadmap; amended 2026-07-24)
 **Input**: User description: "Research and create a comprehensive, phased, modular, agent-friendly development roadmap for the Stoner Graphics Lab cross-platform graphics engine. Create doc/ directory at project root and produce the roadmap as markdown documents."
 
 ## User Scenarios & Testing *(mandatory)*
@@ -62,7 +62,7 @@ A project lead wants to understand the overall scope of the graphics engine and 
 
 ## Architecture & Design Constraints *(mandatory)*
 
-- **RHI Abstraction**: The roadmap MUST respect the 5-layer architecture (Core → RHI → Renderer → Application, with Backend implementing RHI). All phases must be designed to maintain this layered separation.
+- **RHI and Asset Boundaries**: The roadmap MUST preserve the explicit Core, Asset, RHI, Backend, Renderer, and Application dependency directions defined by constitution v1.4.0. Asset remains CPU/content-only; Renderer owns RHI/GPU realization; runtime modules never depend on offline Tools.
 - **Design Patterns**: The roadmap MUST plan for Strategy/Composite pattern usage in each layer, avoiding monolithic designs.
 - **Advanced Graphics**: The roadmap MUST include phases for Ray Tracing, Meshlet optimization, and Global Illumination as specified in the constitution.
 - **Naming Conventions**: All code deliverables referenced in the roadmap MUST follow UE5-style PascalCase naming conventions.
@@ -74,7 +74,7 @@ A project lead wants to understand the overall scope of the graphics engine and 
 
 - **FR-001**: The project MUST contain a `doc/` directory at the project root for all development documentation.
 - **FR-002**: The roadmap MUST be written as `doc/roadmap.md` — a single master document covering all development phases.
-- **FR-003**: The roadmap MUST organize development into clearly defined phases, ordered by dependency (bottom-up, from Core to Application).
+- **FR-003**: The roadmap MUST organize development into clearly defined phases ordered by a valid dependency DAG, including the cross-cutting Asset track.
 - **FR-004**: Each phase MUST include: phase name, scope description, key deliverables, dependencies on prior phases, estimated complexity (S/M/L/XL), and a suggested speckit prompt.
 - **FR-005**: The roadmap MUST include a visual dependency graph (using Mermaid or text-based diagram) showing phase relationships.
 - **FR-006**: The roadmap MUST cover at minimum these areas: Core utilities, RHI abstraction, at least one Backend implementation, Renderer fundamentals, and Application layer basics.
@@ -82,11 +82,14 @@ A project lead wants to understand the overall scope of the graphics engine and 
 - **FR-008**: The roadmap MUST include a phase overview table with columns for: phase number, name, layer, dependencies, complexity, and status.
 - **FR-009**: The roadmap MUST identify which phases are critical path (blocking other phases) vs. which can be developed in parallel.
 - **FR-010**: The roadmap MUST include an "Architecture Principles" section that summarizes the constitution's constraints as they apply to development ordering.
+- **FR-011**: Runtime phase numbers MUST match their Speckit feature numbers; Feature 002 remains the roadmap meta-feature and runtime phases therefore begin at 003.
+- **FR-012**: The roadmap MUST plan separate phases for Asset identity/registry, image/texture ingestion, KTX2 cooking, static mesh/model ingestion, material/shader assets, runtime management, and streaming/residency.
+- **FR-013**: Asset importer and resolver contracts MUST permit later FBX, OBJ, USD, and TGA extensions without changing existing asset identity or runtime payload contracts.
 
 ### Key Entities
 
 - **Phase**: A discrete unit of development work that maps to one speckit feature cycle. Contains scope, deliverables, dependencies, and complexity estimate.
-- **Layer**: One of the 5 architectural layers (Core, RHI, Backend, Renderer, Application) that phases are organized around.
+- **Layer**: One of the runtime ownership areas (Core, Asset, RHI, Backend, Renderer, Application) that phases are organized around.
 - **Dependency**: A relationship between phases where one phase must be completed before another can begin.
 - **Deliverable**: A concrete, verifiable output of a phase (e.g., "IDevice interface with Create/Destroy lifecycle", "FVector3 math type with SIMD support").
 
@@ -94,7 +97,7 @@ A project lead wants to understand the overall scope of the graphics engine and 
 
 ### Measurable Outcomes
 
-- **SC-001**: The roadmap contains at least 12 distinct development phases covering all 5 architectural layers.
+- **SC-001**: The roadmap contains runtime phases 003 through 032 and covers all 6 runtime ownership areas.
 - **SC-002**: Any developer can read a phase description and produce a `/speckit.specify` prompt within 2 minutes.
 - **SC-003**: The dependency graph has zero circular dependencies and forms a valid topological order.
 - **SC-004**: 100% of phases include all required fields (name, scope, deliverables, dependencies, complexity, speckit prompt).
@@ -105,11 +108,18 @@ A project lead wants to understand the overall scope of the graphics engine and 
 
 ### Session 2026-04-21
 
-- Q: What is the relationship between `RenderDependencyGraph` and Phase 012's `FRenderGraph`? → A: They are overlapping concepts. Ignore `RenderDependencyGraph`; retain `FRenderGraph` in Phase 012 as the single render dependency management system.
+- Q: What is the relationship between `RenderDependencyGraph` and Feature 013's `FRenderGraph`? → A: They are overlapping concepts. Ignore `RenderDependencyGraph`; retain `FRenderGraph` in Feature 013 as the single render dependency management system.
 - Q: Should we use "Frame Graph" or "Render Graph" as the canonical term? → A: Unify on **"Render Graph"** throughout the project (consistent with class name `FRenderGraph` and modern engine conventions). Remove "frame graph" references.
-- Q: Math library — use GLM or implement from scratch? → A: **Implement from scratch.** This repository is a learning-oriented project aimed at deepening knowledge and self-improvement. Prefer custom implementations over third-party wrappers wherever feasible. Phase 003 (Math Library) will be a full custom implementation with SIMD optimization (complexity: L).
+- Q: Math library — use GLM or implement from scratch? → A: **Implement from scratch.** This repository is a learning-oriented project aimed at deepening knowledge and self-improvement. Prefer custom implementations over third-party wrappers wherever feasible. Feature 004 (Math Library) is a full custom implementation with SIMD optimization hooks.
 - Q: Should we use C++20 Modules? → A: **No.** Stick with traditional header/source separation (Public/Private directory structure). C++20 Modules have inconsistent cross-compiler support (especially Clang on macOS) and poor SCons integration. Other C++20 features (concepts, constexpr, ranges, `std::span`, `std::format`, etc.) are fully embraced.
-- Q: Window system — use GLFW/SDL or implement native platform wrappers from scratch? → A: **GLFW first, native later.** Use GLFW in Phase 005 to quickly reach the "first triangle" rendering milestone. Add a later Phase 005b for native platform window implementations (Win32/Cocoa/X11-Wayland) behind the same `IWindow` abstraction. This balances learning goals with momentum — the core learning value is in the rendering pipeline, not window creation.
+- Q: Window system — use GLFW/SDL or implement native platform wrappers from scratch? → A: **GLFW first, native later.** Feature 006 provides platform handles and Feature 016 provides the GLFW-backed window system used by Feature 018. Native Win32/Cocoa/X11-Wayland adapters remain a future extension behind the same public boundary. This balances learning goals with momentum — the core learning value is in the rendering pipeline, not window creation.
+
+### Session 2026-07-24
+
+- Q: Should mesh, texture, and other asset handling be added before Meshlets? → A: **Yes.** Add a dedicated Asset layer and six format/responsibility-specific phases before Meshlets, then add streaming/residency after Meshlets.
+- Q: How should source and cooked assets coexist? → A: **Hybrid development/cooked paths.** Both paths share a stable logical-path `FAssetId`; source/content/cook hashes are version and cache keys, not identity.
+- Q: Which initial formats are supported? → A: **glTF/GLB static models plus PNG/JPEG/HDR images.** KTX2/Basis is a separate cooked-texture phase. Importer/resolver registration must allow later FBX, OBJ, USD, and TGA support.
+- Q: Should historical roadmap numbers remain offset from Speckit features? → A: **No.** Normalize all runtime phases to actual feature numbers; Deferred remains Feature 019 and Asset Core becomes Feature 020.
 
 ## Assumptions
 

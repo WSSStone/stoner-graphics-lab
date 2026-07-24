@@ -1,6 +1,7 @@
 #include "VulkanRHI/FVulkanCommandBuffer.h"
 
 #include "VulkanRHI/FVulkanComputePipeline.h"
+#include "RHI/IRHIDescriptorSet.h"
 #include "VulkanRHI/FVulkanDiagnostics.h"
 #include "VulkanRHI/FVulkanFramebuffer.h"
 #include "VulkanRHI/FVulkanGraphicsPipeline.h"
@@ -41,6 +42,50 @@ namespace
         Z <= Desc.Depth && Depth <= Desc.Depth - Z;
 }
 
+[[nodiscard]] Stoner::Core::uint64 FormatSizeBytes(Stoner::RHI::ERHIFormat Format) noexcept
+{
+    using Stoner::RHI::ERHIFormat;
+    switch (Format)
+    {
+    case ERHIFormat::R8_UNorm:
+    case ERHIFormat::S8_UInt: return 1;
+    case ERHIFormat::R8G8B8A8_UNorm:
+    case ERHIFormat::B8G8R8A8_UNorm:
+    case ERHIFormat::R32_Float:
+    case ERHIFormat::D24_UNorm_S8_UInt:
+    case ERHIFormat::D32_Float: return 4;
+    case ERHIFormat::R32G32_Float:
+    case ERHIFormat::R16G16B16A16_Float: return 8;
+    case ERHIFormat::R32G32B32_Float: return 12;
+    case ERHIFormat::Unknown: break;
+    }
+    return 0;
+}
+
+[[nodiscard]] bool ClearValuesMatch(const Stoner::RHI::IRHIRenderPass& RenderPass,
+    const Stoner::RHI::FRHIRenderPassClearValues& ClearValues) noexcept
+{
+    Stoner::Core::uint32 ColorClearCount = 0;
+    bool bNeedsDepthClear = false;
+    for (const Stoner::RHI::FRHIRenderPassAttachmentDesc& Attachment : RenderPass.GetDesc().Attachments)
+    {
+        if (Attachment.LoadOp != Stoner::RHI::ERHIAttachmentLoadOp::Clear)
+        {
+            continue;
+        }
+        if (Attachment.Role == Stoner::RHI::ERHIAttachmentRole::Color)
+        {
+            ++ColorClearCount;
+        }
+        else
+        {
+            bNeedsDepthClear = true;
+        }
+    }
+    return ClearValues.Colors.size() == ColorClearCount &&
+        (!bNeedsDepthClear || (ClearValues.Depth >= 0.0f && ClearValues.Depth <= 1.0f));
+}
+
 } // namespace
 
 FVulkanCommandBuffer::FVulkanCommandBuffer(Stoner::RHI::ERHIQueueType InQueueType, FVulkanDiagnostics* InDiagnostics) noexcept
@@ -69,6 +114,7 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::Begin()
     BoundGraphicsPipeline.reset();
     BoundComputePipeline.reset();
     BoundVertexBuffer.reset();
+    BoundIndexBuffer.reset();
     State = Stoner::RHI::ERHICommandBufferState::Recording;
     MarkRecordingDiagnostic("command buffer recording began");
     return Stoner::RHI::ERHIResult::Success;
@@ -99,6 +145,7 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::Reset()
     BoundGraphicsPipeline.reset();
     BoundComputePipeline.reset();
     BoundVertexBuffer.reset();
+    BoundIndexBuffer.reset();
     State = Stoner::RHI::ERHICommandBufferState::Idle;
     MarkRecordingDiagnostic("command buffer reset");
     return Stoner::RHI::ERHIResult::Success;
@@ -123,7 +170,9 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDraw(Stoner::Core::uint32 Ve
     return Stoner::RHI::ERHIResult::Success;
 }
 
-Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDrawIndexed(Stoner::Core::uint32 IndexCount, Stoner::Core::uint32 InstanceCount)
+Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDrawIndexed(
+    Stoner::Core::uint32 IndexCount, Stoner::Core::uint32 InstanceCount,
+    Stoner::Core::uint32 FirstInstance)
 {
     if (ValidateRecordingState() != Stoner::RHI::ERHIResult::Success || QueueType != Stoner::RHI::ERHIQueueType::Graphics || !HasActiveRenderPass() || IndexCount == 0 || InstanceCount == 0)
     {
@@ -138,7 +187,8 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDrawIndexed(Stoner::Core::ui
     {
         MarkRecordingDiagnostic("indexed draw recorded with compatible graphics pipeline binding");
     }
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::DrawIndexed, IndexCount, InstanceCount, 0});
+    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::DrawIndexed,
+        IndexCount, InstanceCount, FirstInstance});
     return Stoner::RHI::ERHIResult::Success;
 }
 
@@ -305,6 +355,36 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordTextureCopy(const Stoner::Co
     return Stoner::RHI::ERHIResult::Success;
 }
 
+Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordTextureToBufferCopy(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Source,
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Destination,
+    Stoner::RHI::FRHITextureBufferCopyRegion Region)
+{
+    if (ValidateRecordingState() != Stoner::RHI::ERHIResult::Success || !IsTransferCompatible())
+    {
+        MarkRecordingDiagnostic("texture-to-buffer copy rejected by queue capability");
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
+    const Stoner::Core::uint64 TexelSize = Source ? FormatSizeBytes(Source->GetFormat()) : 0;
+    const Stoner::Core::uint64 RowTexels = Region.DestinationRowLengthTexels == 0 ? Region.Width : Region.DestinationRowLengthTexels;
+    const Stoner::Core::uint64 ImageRows = Region.DestinationImageHeightTexels == 0 ? Region.Height : Region.DestinationImageHeightTexels;
+    const Stoner::Core::uint64 RequiredBytes = RowTexels * ImageRows * Region.Depth * TexelSize;
+    if (!TextureRegionFits(Source, Region.SourceMipLevel, Region.SourceArrayLayer, Region.SourceX, Region.SourceY,
+            Region.SourceZ, Region.Width, Region.Height, Region.Depth) ||
+        !BufferRangeFits(Destination, Region.DestinationOffsetBytes, RequiredBytes) ||
+        !Stoner::RHI::HasRHIFlag(Source->GetUsage(), Stoner::RHI::ERHITextureUsage::CopySource) ||
+        !Stoner::RHI::HasRHIFlag(Destination->GetUsage(), Stoner::RHI::ERHIBufferUsage::CopyDestination) ||
+        TexelSize == 0 || RowTexels < Region.Width || ImageRows < Region.Height)
+    {
+        MarkRecordingDiagnostic("texture-to-buffer copy rejected by resource lifecycle region format range or usage");
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::TextureToBufferCopy,
+        Region.DestinationOffsetBytes, RequiredBytes, Region.Width});
+    MarkRecordingDiagnostic("texture-to-buffer copy recorded");
+    return Stoner::RHI::ERHIResult::Success;
+}
+
 Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordLayoutTransition(const Stoner::RHI::FRHIResourceBarrierDesc& Transition)
 {
     const Stoner::RHI::ERHIResult Result = RecordBarrier(Transition);
@@ -332,6 +412,19 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::BeginRenderPass(const Stoner::Core
     return Stoner::RHI::ERHIResult::Success;
 }
 
+Stoner::RHI::ERHIResult FVulkanCommandBuffer::BeginRenderPass(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIRenderPass>& RenderPass,
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIFramebuffer>& Framebuffer,
+    const Stoner::RHI::FRHIRenderPassClearValues& ClearValues)
+{
+    if (!RenderPass || !ClearValuesMatch(*RenderPass, ClearValues))
+    {
+        MarkRecordingDiagnostic("begin render pass rejected by explicit clear-value compatibility");
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    return BeginRenderPass(RenderPass, Framebuffer);
+}
+
 Stoner::RHI::ERHIResult FVulkanCommandBuffer::EndRenderPass()
 {
     if (ValidateRecordingState() != Stoner::RHI::ERHIResult::Success || !HasActiveRenderPass())
@@ -343,6 +436,7 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::EndRenderPass()
     ActiveFramebuffer.reset();
     BoundGraphicsPipeline.reset();
     BoundComputePipeline.reset();
+    BoundIndexBuffer.reset();
     AppendCommand({Stoner::RHI::ERHISymbolicCommandType::EndRenderPass, 0, 0, 0});
     MarkRecordingDiagnostic("render pass scope ended");
     return Stoner::RHI::ERHIResult::Success;
@@ -359,6 +453,41 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::BindVertexBuffer(
     }
     BoundVertexBuffer = Buffer;
     AppendCommand({Stoner::RHI::ERHISymbolicCommandType::BindVertexBuffer, OffsetBytes, 0, 0});
+    return Stoner::RHI::ERHIResult::Success;
+}
+
+Stoner::RHI::ERHIResult FVulkanCommandBuffer::BindIndexBuffer(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Buffer,
+    Stoner::RHI::ERHIIndexType IndexType,
+    Stoner::Core::uint64 OffsetBytes)
+{
+    const Stoner::Core::uint64 Alignment = Stoner::RHI::GetRHIIndexTypeSize(IndexType);
+    if (ValidateRecordingState() != Stoner::RHI::ERHIResult::Success || QueueType != Stoner::RHI::ERHIQueueType::Graphics ||
+        !HasActiveRenderPass() || !IsValidResource(Buffer) ||
+        !Stoner::RHI::HasRHIFlag(Buffer->GetUsage(), Stoner::RHI::ERHIBufferUsage::Index) ||
+        OffsetBytes >= Buffer->GetSizeInBytes() || OffsetBytes % Alignment != 0)
+    {
+        MarkRecordingDiagnostic("index buffer binding rejected by state lifecycle usage range or alignment");
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    BoundIndexBuffer = Buffer;
+    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::BindIndexBuffer, OffsetBytes, Alignment, 0});
+    return Stoner::RHI::ERHIResult::Success;
+}
+
+Stoner::RHI::ERHIResult FVulkanCommandBuffer::BindDescriptorSet(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDescriptorSet>& DescriptorSet)
+{
+    if (ValidateRecordingState() != Stoner::RHI::ERHIResult::Success || QueueType != Stoner::RHI::ERHIQueueType::Graphics ||
+        !HasActiveRenderPass() || !DescriptorSet ||
+        DescriptorSet->GetLifecycleState() != Stoner::RHI::ERHIResourceLifecycleState::Valid ||
+        !DescriptorSet->GetPipelineLayout())
+    {
+        MarkRecordingDiagnostic("descriptor set binding rejected by state lifecycle or layout");
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::BindDescriptorSet,
+        DescriptorSet->GetSetIndex(), DescriptorSet->GetBoundResourceCount(), 0});
     return Stoner::RHI::ERHIResult::Success;
 }
 

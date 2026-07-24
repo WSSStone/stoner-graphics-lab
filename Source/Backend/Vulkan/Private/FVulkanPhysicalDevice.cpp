@@ -97,6 +97,10 @@ Stoner::Core::TArray<Stoner::RHI::ERHIFormat> GetDefaultVulkanSupportedFormats()
     return {
         Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm,
         Stoner::RHI::ERHIFormat::B8G8R8A8_UNorm,
+        Stoner::RHI::ERHIFormat::R16G16B16A16_Float,
+        Stoner::RHI::ERHIFormat::R32_Float,
+        Stoner::RHI::ERHIFormat::R32G32_Float,
+        Stoner::RHI::ERHIFormat::R32G32B32_Float,
         Stoner::RHI::ERHIFormat::D24_UNorm_S8_UInt,
         Stoner::RHI::ERHIFormat::D32_Float,
     };

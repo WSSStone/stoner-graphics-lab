@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>019 — Deferred Rendering Pipeline · Stoner Graphics Lab</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}:root{--bg:#f4f7fa;--paper:#fff;--ink:#17212b;--muted:#617184;--line:#d6e0e8;--accent:#075985;--soft:#e6f3f8;--good:#047857;--warn:#a15c00;--code:#edf2f6;--dark:#17212b;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.72;font-size:15px}.page{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 18px;background:var(--paper);border-right:1px solid var(--line)}.brand{font-size:14px;font-weight:800;color:var(--accent)}.subtitle{font-size:12px;color:var(--muted);padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:18px}.toc{list-style:none;padding:0}.toc a{display:block;padding:6px 8px;color:var(--muted);text-decoration:none;border-radius:6px;font-size:13px}.toc a:hover{color:var(--accent);background:var(--soft)}main{max-width:1080px;width:100%;padding:48px 48px 96px;margin:0 auto}h1{margin:0 0 8px;font-size:34px;line-height:1.2;color:var(--accent)}.meta{color:var(--muted);font-size:13px;margin-bottom:30px}section{margin-bottom:56px}h2{margin:32px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:23px}h3{margin:22px 0 10px;font-size:17px}h4{margin:16px 0 6px;font-size:15px}p{margin:0 0 14px}ul,ol{margin:0 0 16px;padding-left:23px}li{margin:4px 0}code{font-family:var(--mono);font-size:13px;background:var(--code);padding:2px 5px;border-radius:4px}pre{margin:14px 0;padding:16px;overflow:auto;border-radius:8px;color:#e5e7eb;background:var(--dark);font-size:13px;line-height:1.55}pre code{background:transparent;color:inherit;padding:0}table{width:100%;border-collapse:collapse;margin:16px 0 20px;font-size:14px}th,td{padding:9px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted);font-size:12px;background:#f9fbfc}.note{margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:8px;background:var(--paper)}.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#fff1d6;color:var(--warn);font-weight:700;font-size:12px}@media(max-width:860px){.page{display:block}.sidebar{position:static;height:auto}main{padding:32px 22px 72px}}
+</style>
+</head>
+<body><div class="page">
+<aside class="sidebar"><div class="brand">Stoner Graphics Lab</div><div class="subtitle">019 · Deferred Rendering Pipeline</div><ul class="toc">
+<li><a href="#s1">一、文档与上下文信息</a></li><li><a href="#s2">二、目标与边界</a></li><li><a href="#s3">三、交互与产品设计</a></li><li><a href="#s4">四、技术架构与关键决策</a></li><li><a href="#s5">五、实施与验证</a></li><li><a href="#s6">六、设计巧思与最佳实践</a></li><li><a href="#s7">七、编程语言知识点</a></li><li><a href="#s8">八、软件工程知识点</a></li><li><a href="#s9">九、渲染、引擎与图形 API 学习笔记</a></li>
+</ul></aside>
+<main><h1>019 — Deferred Rendering Pipeline</h1><div class="meta">状态：<span class="badge" style="background:#dcfce7;color:#047857">已交付</span> · 更新：2026-07-24 · Roadmap Phase 018 · 层级：Renderer / RHI / Vulkan</div>
+
+<section id="s1"><h2>一、文档与上下文信息</h2>
+<h3>1. 基础元数据</h3><table><tbody>
+<tr><th>Feature</th><td>019 — Deferred Rendering Pipeline；Roadmap 使用 Phase 018，因为 Speckit 编号包含更早的工程阶段。</td></tr>
+<tr><th>设计文档</th><td><code>specs/019-deferred-rendering-pipeline/spec.md</code>、<code>plan.md</code>、<code>tasks.md</code></td></tr>
+<tr><th>主要源码</th><td><code>Source/Renderer/*/FDeferred*</code>、<code>Source/RHI/Public/RHI/IRHICommandBuffer.h</code>、<code>Source/Backend/Vulkan/*/FVulkan*</code></td></tr>
+<tr><th>测试</th><td><code>DeferredRenderingTests.cpp</code>、<code>RendererComparisonTests.cpp</code>、<code>DeferredNativeIntegrationTests.cpp</code></td></tr>
+<tr><th>最终结果</th><td>macOS 本地 deterministic 与 MoltenVK native/failure-injection tests 通过；GitHub Actions run <code>30079550556</code> 在 Windows、macOS、Linux 全绿，Linux Lavapipe 产出 24 个真实 readback probes 与四档 comparison artifact。</td></tr>
+</tbody></table>
+<h3>2. 本期核心摘要</h3><p>本期把 deferred rendering 建成与 forward 并列的 Renderer Strategy：它验证 view、output、opaque/masked draw 和三类灯光，生成三颜色目标加 depth 的 surface layout、确定性 pass plan、Render Graph declaration，并通过新增的 backend-neutral RHI 命令录制 descriptor、index、clear 与 texture-to-buffer copy 意图。</p><p>学习重点是 deferred rendering 不只是“多几张 GBuffer”。真正困难的是跨层契约：法线在哪个空间、depth convention 如何贯穿 clear/compare/reconstruction、资源什么时候读写、局部光怎样限定体积，以及 deterministic test 与真实 GPU readback 的证据边界。</p>
+<h3>3. 上下文与依赖</h3><p>Feature 019 建立在 RHI resource/pipeline、Vulkan command submission、Render Graph、Material System、Forward Renderer、Application window 与 triangle integration 上。它为 meshlet、ray tracing 混合渲染和 GI 铺路，同时保持 Renderer public headers 不依赖 Vulkan。</p></section>
+
+<section id="s2"><h2>二、目标与边界</h2>
+<h3>1. 业务与功能目标</h3><p>引擎开发者提交一个 active view、LDR output、surface draw 与 directional/point/spot lights，即可得到可检查、可重复、可交给 RHI 的 deferred frame。无效 draw/light 被逐项拒绝并给出稳定诊断；view/output/layout 失败则阻止整帧进入执行。</p>
+<h3>2. 架构目标与定位</h3><pre><code>Scene / Application
+  -> frame inputs
+Renderer: FDeferredRenderer -> FramePlan -> RenderGraphDeclaration
+  -> FDeferredFrameExecutor
+RHI: abstract descriptors / index / clear / copy commands
+  -> Vulkan backend: native resources and readback session
+Core: math, containers, strings, diagnostics</code></pre><p>surface semantics、light records、frame plan、diagnostics 和 executor 属于 Renderer contract；真实 VkImage、VkBuffer、fence、mapped memory 与 cleanup 只能位于 Vulkan private implementation。</p>
+<h3>3. 边界与非目标（约束）</h3><ul><li>不做 tiled/clustered lighting：本期先用 sphere/cone volume 建立正确性基线。</li><li>不做 shadows、SSAO、SSR、TAA：这些需要独立 pass 与历史资源策略。</li><li>不改变 forward 默认策略：现有调用方必须保持行为兼容。</li><li>不把 semantic oracle 当像素证据：Linux completion 必须来自实际 attachment copy/map/decode。</li><li>不覆盖 Android：本阶段平台集合为 Windows、macOS、Linux。</li></ul></section>
+
+<section id="s3"><h2>三、交互与产品设计</h2>
+<h3>1. 用户使用路径</h3><pre><code>FDeferredRenderer Renderer;
+FDeferredFramePlan Plan;
+Renderer.PrepareFrame(Inputs, Plan);
+auto Graph = BuildDeferredRenderGraphDeclaration(Plan);
+FDeferredFrameExecutor().Execute(Plan, Graph, Bindings);</code></pre><p>调试时优先阅读 <code>Plan.DebugDump</code> 和 <code>Diagnostics.GetFirstError()</code>。native CI 则运行 <code>run_deferred_validation.py --profile native-lavapipe</code>，并检查 readback report。</p>
+<h3>2. 核心规则与状态机</h3><pre><code>Uninitialized -> BindingsValidated -> Recording -> Recorded
+                                         \-> Failed
+Native session: partial create -> submit/wait -> readback -> reverse release -> zero</code></pre><p>executor 在录制前事务式验证所有必需 binding，避免录到一半才发现 attachment 或 pipeline 不兼容。发生错误后停止后续 stage，第一条 error 的所有权由原始 sequence 决定，不因展示排序改变。</p>
+<h3>3. 失败模式与调试入口</h3><ul><li><code>DEF-VIEW</code>/<code>DEF-OUTPUT</code>：矩阵、extent 或 output 不匹配。</li><li><code>DEF-DRAW-NORMAL-MATRIX</code>：model 上三阶矩阵奇异，无法构造 inverse-transpose。</li><li><code>DEF-EXEC-BINDINGS</code>：RHI texture/buffer usage、format、lifecycle 不兼容。</li><li><code>DEF-EXEC-READBACK</code>：copy-source transition、destination capacity 或 texture-to-buffer copy 不合法；executor 会停止后续 stage 并重置部分 command。</li><li>native failure suite 可注入 PartialInitialization、Record、Submit、Fence、Copy、Map、Decode、Probe，首个 stage、bounded wait 和 final live count 是主要排查入口。</li></ul></section>
+
+<section id="s4"><h2>四、技术架构与关键决策</h2>
+<h3>1. 技术栈与基础设施</h3><p>C++20、SCons 4.10.1、Vulkan 1.3-compatible loader、GLSL 和 checked-in SPIR-V。Windows/macOS/Linux 均跑 deterministic tests；Linux 用 Mesa Lavapipe 承担必需的 native offscreen readback。</p>
+<h3>2. 关键信息</h3><h4>2.1 模块对应关系</h4><table><thead><tr><th>模块</th><th>职责</th><th>关键关系</th></tr></thead><tbody>
+<tr><td><code>FDeferredSurfaceLayout</code></td><td>定义 BaseColor/AO、WorldNormal/Roughness、Emissive/Metallic 与 D32 depth</td><td>同时约束 shader、pipeline 和 readback decoder</td></tr>
+<tr><td><code>FDeferredRenderer</code></td><td>验证并生成 deterministic frame plan</td><td>与 Forward Renderer 并列</td></tr>
+<tr><td><code>FDeferredFrameExecutor</code></td><td>把 graph stage 翻译成 RHI command</td><td>不知道 Vulkan handle</td></tr>
+<tr><td><code>FDeferredLightVolume</code></td><td>frustum/camera-inside/near-plane 分类与 scissor</td><td>控制 point/spot bounded work</td></tr>
+<tr><td><code>FVulkanNativeOffscreenSession</code></td><td>拥有 VkImage/buffer/descriptors/pipelines/commands/fence/staging，并执行 copy/map/decode</td><td>private Vulkan 实现；成功和八类 partial failure 均逆序释放到零</td></tr>
+</tbody></table>
+<h4>2.2 数据流、控制流或资源流</h4><p>输入先被归一化并按 stable entity identity 排序；surface pass 写三个颜色附件与 depth；directional fullscreen 和 point/spot volume 读取 GBuffer 并 additive accumulate；composition 合并 lighting、emissive 与 ambient；transparent draw 在 composition 后交回 forward path；validation stage 将 attachment 转为 copy source 并计划 texture-to-buffer copy。</p>
+<h4>2.3 关键日志、诊断与可视化</h4><p>dump 记录 layout、attachment semantics、accepted/rejected draw、light classification、pass reads/writes、composition output 与 transparent handoff，不记录指针或 native address。相同输入重复 20 次必须 byte-stable。</p>
+<h3>3. 架构决策记录 (ADR)</h3>
+<h4>(1) GBuffer 法线采用 world-space</h4><p><strong>决策：</strong>存 direct normalized world-space normal，model normal 使用 inverse-transpose。<strong>理由：</strong>灯光同样以 world-space 描述，lighting shader 不必随 view 旋转重新解释法线。<strong>被否决：</strong>view-space normal 虽有相机局部数值便利，但会增加跨 pass/view 的转换耦合。<strong>后果：</strong>空间契约清晰，但必须严格测试非均匀缩放与奇异矩阵。</p>
+<h4>(2) Depth convention 是统一 identity</h4><p><strong>决策：</strong>standard-Z 与 reversed-Z 同时派生 clear、compare、projection/reconstruction 和 probe expectation。<strong>被否决：</strong>各 pass 自行配置 depth，它容易产生“几何通过、重建错误”的隐蔽 bug。<strong>后果：</strong>两套 convention 可以共享流程并分别验证。</p>
+<h4>(3) Native 证据必须来自 mapped readback</h4><p><strong>决策：</strong>CI helper 拒绝 semantic oracle。<strong>背景：</strong>CPU 参考值自比较只能证明公式，不能证明 attachment format、shader、pipeline、barrier 与 copy 正确。<strong>结果：</strong>run <code>30079550556</code> 的 llvmpipe artifact 证明两种 depth convention 各 12 个 probe 全通过，<code>final_live_objects=0</code>。</p>
+<h4>(4) Instancing 必须携带 FirstInstance</h4><p><strong>决策：</strong>RHI 的 <code>RecordDrawIndexed</code> 增加 <code>FirstInstance</code>，executor 只合并 pipeline、inside/outside mode 和 scissor 相同的连续 local lights。<strong>背景：</strong>shader 通过 <code>gl_InstanceIndex</code> 索引统一 light storage；若 point 前有 directional records 而 draw 总从零开始，会读取错误灯光。<strong>被否决：</strong>仅减少 draw count 而不表达首实例索引，因为它统计上像 batching，执行上却不正确。</p></section>
+
+<section id="s5"><h2>五、实施与验证（任务流）</h2>
+<h3>1. 任务拆解清单</h3><ol><li>扩展 RHI formats 与 command vocabulary。</li><li>实现 surface/light/frame/graph/executor contracts。</li><li>实现并验证 deferred GLSL/SPIR-V。</li><li>补充 light scaling、comparison、diagnostics 与 forward coexistence。</li><li>加入 native session、CI helper、三平台 matrix 与证据规则。</li></ol>
+<h3>2. 验收标准</h3><p>commit <code>3012b4f500b8496bf69c2089d534a5b56adc6b77</code> 的 CI run <code>30079550556</code> 三平台全绿。Linux llvmpipe report 中 StandardZ/ReversedZ 各 12 probes 全通过、peak/final live objects 为 88/0；comparison 在 0/16/64/256 lights 各执行 warm-up 20 + measured 100 frames，surface draws 恒为 100，记录 crossover 为 64。原始报告和 SHA-256 位于 <code>Validation/019/</code>。</p>
+<h3>3. 测试矩阵与覆盖意图</h3><table><thead><tr><th>测试</th><th>风险</th><th>证明</th></tr></thead><tbody><tr><td>Surface/math</td><td>normal/depth 空间不一致</td><td>inverse-transpose 与双 depth policy</td></tr><tr><td>Planner/graph</td><td>顺序和资源依赖漂移</td><td>canonical pass 与 byte-stable dump</td></tr><tr><td>RHI/Vulkan deterministic</td><td>命令契约不可移植、实例索引错误</td><td>descriptor/index/FirstInstance/clear/copy validation</td></tr><tr><td>Failure injection</td><td>partial creation、GPU wait、mapped ownership 泄漏</td><td>八类 failure 首错停止、幂等 shutdown、zero-live</td></tr><tr><td>Native Lavapipe</td><td>抽象正确但 GPU 路径错误</td><td>真实 attachment copy/map/decode 与 24 semantic probes</td></tr></tbody></table></section>
+
+<section id="s6"><h2>六、设计巧思与最佳实践</h2>
+<h3>1. 当前业务场景与业务模型的最佳实践</h3><ul><li><strong>先冻结 semantic contract：</strong>shader、uniform offset、attachment format 和 decoder 使用同一布局，避免跨层“各自理解”。</li><li><strong>光源不设固定 cap：</strong>所有有效且影响 view 的灯都进入 plan；明确 outside-view 才可 cull，identity 是最终排序键。</li><li><strong>事务式 binding validation：</strong>任何缺失资源在 command begin 前失败，降低 partial recording 清理复杂度。</li><li><strong>真实证据与 deterministic 证据分层：</strong>前者验证 GPU 集成，后者提供跨平台快速回归。</li></ul>
+<h3>2. 优化方案与收益</h3><p>已实现的优化是一次 surface geometry sequence、outside-view local light omission、sphere/cone bounded intent、稳定批次顺序和常量 surface work。未来 tiled/clustered lighting 可复用 GBuffer 和 light record，而无需改变 scene ownership。</p>
+<h3>3. 已知限制与后续演进</h3><p>本期完成的是 classic light-volume deferred baseline，不包含 tiled/clustered assignment、shadows、SSAO/SSR、TAA 或透明 deferred。comparison 使用可重复的工程基线而非产品性能承诺。后续 Meshlet、Ray Tracing 与 GI 可以复用 surface semantics、Render Graph 和 failure-safe native validation，但应各自建立 workload 与平台证据。</p></section>
+
+<section id="s7"><h2>七、编程语言知识点</h2>
+<h3>1. 标准库接口与用法</h3><p><code>std::stable_sort</code> 用于稳定展示诊断；<code>std::ostringstream</code> 生成规范化 dump；<code>std::all_of</code>/<code>std::count_if</code> 聚合 probe；<code>std::unique_ptr</code> 隐藏 Vulkan implementation；<code>std::chrono</code> 支持 comparison statistics。</p>
+<h3>2. 语言特性与惯用法</h3><p><code>enum class</code> 隔离 stage/result/semantic 命名；<code>[[nodiscard]]</code> 防止忽略失败；<code>alignas(16)</code> 与 <code>static_assert(sizeof(...))</code> 固化 CPU/GPU mirrored record ABI；RAII session destructor 提供异常和早退时的释放兜底。</p></section>
+
+<section id="s8"><h2>八、软件工程知识点</h2>
+<h3>1. Contract-first 与可测试边界</h3><p>先扩展 backend-neutral RHI，再实现 Vulkan deterministic validation，最后接 native runtime。这样 Renderer tests 无需显示设备，CI 仍能在 Linux 增加真实证据。</p>
+<h3>2. Evidence-driven completion</h3><p>tasks 的 checkbox 不是完成事实本身。Feature 019 把 build、test、report schema、commit/run identity 与 retained artifacts 都列为 gate，并专门测试“错误证据必须失败”。</p>
+<h3>3. 回归与兼容</h3><p>Forward 仍为默认策略，forward plan 不生成 deferred resource；transparent ordering 在 deferred composition 后复用既有 forward 规则。该约束防止新 renderer 破坏旧调用方。</p></section>
+
+<section id="s9"><h2>九、渲染、引擎与图形 API 学习笔记</h2>
+<h3>1. Deferred Rendering 的本质</h3><p>Deferred 把材质表面求值与光照求值分开：geometry cost 主要发生一次，随后每个 light 只读取屏幕空间 surface data。这适合多灯场景，但会增加 attachment bandwidth、透明处理复杂度和 MSAA 成本。</p>
+<h3>2. 为什么需要 Light Volume</h3><p>Directional light 影响全屏；point light 的 sphere 和 spot light 的 cone 提供保守影响边界。camera 位于 volume 内或 volume 穿 near plane 时，rasterization/cull mode 必须切换，否则会因近裁剪或背面剔除漏光。</p>
+<h3>3. Vulkan Readback 为什么是最终门槛</h3><p>真实 readback 覆盖一整条链：image usage、memory allocation、render pass store、layout transition、pipeline barrier、copy region、fence wait、host mapping、row pitch 与 format decode。任何一步错，CPU 参考算法仍可能全绿；因此 Lavapipe artifact 是架构正确性的必要补充，而不是形式化装饰。</p>
+</section></main></div></body></html>

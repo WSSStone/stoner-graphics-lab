@@ -1,19 +1,19 @@
 <!--
 Sync Impact Report:
-- Version change: 1.2.0 -> 1.3.0
+- Version change: 1.3.0 -> 1.4.0
 - Modified principles:
-  - VII. Cross-Platform Compatibility (expanded with automated validation requirement)
+  - II. Decoupled Architecture (expanded with the Asset layer and offline Tools boundary)
 - Added sections:
   - None
 - Added to Technology Stack:
-  - None
+  - Asset pipeline standards: glTF 2.0/GLB source models and KTX2 cooked textures
 - Removed sections: None
 - Templates requiring updates:
-  - ✅ .specify/templates/plan-template.md (Constitution Check updated for automated cross-platform validation)
-  - ✅ .specify/templates/spec-template.md (Architecture Constraints updated for automated cross-platform validation)
-  - ✅ .specify/templates/tasks-template.md (Polish phase updated for CI/equivalent validation)
-  - N/A .specify/templates/commands/*.md (directory absent in this project)
-  - ✅ doc/roadmap.md (Constitution version references updated)
+  - N/A .specify/templates/plan-template.md (existing decoupled-architecture gate remains generic)
+  - N/A .specify/templates/spec-template.md (existing architecture constraints remain generic)
+  - N/A .specify/templates/tasks-template.md (existing layer/task guidance remains generic)
+  - ✅ specs/002-engine-development-roadmap/* (Asset layer and phase schema synchronized)
+  - ✅ doc/roadmap.md (Roadmap 2.0 architecture and phase graph synchronized)
 - Follow-up TODOs: None
 -->
 # Stoner Graphics System Constitution
@@ -25,11 +25,24 @@ Strict adherence to "design before coding". All major features and refactoring
 MUST begin with updating or creating specification documents and the top-level
 constitution.
 
-### II. Decoupled Architecture (RHI Abstraction)
-The system MUST maintain a strict
-`Application <-> RHI (Render Hardware Interface) <-> Graphics API` layered
-architecture. The Application layer MUST NEVER directly call specific Graphics
-API functions.
+### II. Decoupled Architecture (RHI and Asset Boundaries)
+The runtime system MUST maintain these dependency directions:
+
+- `Asset -> Core`
+- `RHI -> Core`
+- `Backend -> RHI + Core`
+- `Renderer -> Asset + RHI + Core`
+- `Application -> Renderer + Asset + Core`
+
+Offline asset tools MAY depend on `Asset + Core`, but runtime modules MUST NOT
+depend on Tools. The Asset layer owns CPU-side content data, stable identities,
+metadata, dependency records, and import/cook/load contracts. It MUST NOT
+depend on RHI, Renderer, Application, Backend, or a graphics API. Renderer owns
+translation from loaded assets into RHI resources and GPU residency.
+
+Application and Renderer MUST NEVER directly call specific graphics API
+functions. Graphics API objects and calls remain isolated inside Backend
+implementations of RHI contracts.
 
 ### III. Design Pattern Discipline
 God-classes and giant functions are strictly prohibited. The system MUST heavily
@@ -78,6 +91,8 @@ complete.
 - **Build System**: SCons 4.10.1.
 - **Graphics APIs**: Vulkan, DirectX 12, DirectX 11, Metal, OpenGL,
   OpenGL ES, WebGL.
+- **Asset Interchange and Delivery**: glTF 2.0/GLB for the initial static-model
+  source path; KTX2/Basis for cooked cross-platform textures.
 - **Version Control**: Managed via `ugit`.
 
 ## Development Workflow
@@ -94,7 +109,7 @@ complete.
 
 - This Constitution supersedes all other practices.
 - Amendments require documentation, approval, and a migration plan.
-- All PRs/reviews MUST verify compliance with the RHI abstraction, design
-  pattern disciplines, and cross-platform compatibility.
+- All PRs/reviews MUST verify compliance with the RHI and Asset dependency
+  boundaries, design pattern disciplines, and cross-platform compatibility.
 
-**Version**: 1.3.0 | **Ratified**: 2026-04-03 | **Last Amended**: 2026-07-03
+**Version**: 1.4.0 | **Ratified**: 2026-04-03 | **Last Amended**: 2026-07-24

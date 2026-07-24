@@ -103,14 +103,16 @@ public:
         return ERHIResult::Success;
     }
 
-    ERHIResult RecordDrawIndexed(uint32 IndexCount, uint32 InstanceCount = 1) override
+    ERHIResult RecordDrawIndexed(uint32 IndexCount, uint32 InstanceCount = 1,
+        uint32 FirstInstance = 0) override
     {
         if (State != ERHICommandBufferState::Recording)
         {
             return ERHIResult::InvalidState;
         }
 
-        Commands.push_back({ERHISymbolicCommandType::DrawIndexed, IndexCount, InstanceCount, 0});
+        Commands.push_back({ERHISymbolicCommandType::DrawIndexed,
+            IndexCount, InstanceCount, FirstInstance});
         return ERHIResult::Success;
     }
 
@@ -206,6 +208,27 @@ public:
         return ERHIResult::Success;
     }
 
+    ERHIResult BeginRenderPass(const TSharedPtr<IRHIRenderPass>& RenderPass,
+        const TSharedPtr<IRHIFramebuffer>& Framebuffer,
+        const FRHIRenderPassClearValues& ClearValues) override
+    {
+        if (!RenderPass)
+        {
+            return ERHIResult::InvalidState;
+        }
+        uint32 RequiredColors = 0;
+        for (const FRHIRenderPassAttachmentDesc& Attachment : RenderPass->GetDesc().Attachments)
+        {
+            if (Attachment.Role == ERHIAttachmentRole::Color && Attachment.LoadOp == ERHIAttachmentLoadOp::Clear)
+            {
+                ++RequiredColors;
+            }
+        }
+        return ClearValues.Colors.size() == RequiredColors && ClearValues.Depth >= 0.0f && ClearValues.Depth <= 1.0f
+            ? BeginRenderPass(RenderPass, Framebuffer)
+            : ERHIResult::InvalidState;
+    }
+
     ERHIResult EndRenderPass() override
     {
         if (State != ERHICommandBufferState::Recording || !bRenderPassActive)
@@ -214,6 +237,54 @@ public:
         }
         bRenderPassActive = false;
         Commands.push_back({ERHISymbolicCommandType::EndRenderPass, 0, 0, 0});
+        return ERHIResult::Success;
+    }
+
+    ERHIResult BindIndexBuffer(const TSharedPtr<IRHIBuffer>& Buffer,
+        ERHIIndexType IndexType, uint64 OffsetBytes = 0) override
+    {
+        const uint64 Alignment = GetRHIIndexTypeSize(IndexType);
+        if (State != ERHICommandBufferState::Recording || !bRenderPassActive || !Buffer ||
+            Buffer->GetLifecycleState() != ERHIResourceLifecycleState::Valid ||
+            !HasRHIFlag(Buffer->GetUsage(), ERHIBufferUsage::Index) ||
+            OffsetBytes >= Buffer->GetSizeInBytes() || OffsetBytes % Alignment != 0)
+        {
+            return ERHIResult::InvalidState;
+        }
+        Commands.push_back({ERHISymbolicCommandType::BindIndexBuffer,
+            static_cast<uint32>(OffsetBytes), static_cast<uint32>(Alignment), 0});
+        return ERHIResult::Success;
+    }
+
+    ERHIResult BindDescriptorSet(const TSharedPtr<IRHIDescriptorSet>& DescriptorSet) override
+    {
+        if (State != ERHICommandBufferState::Recording || !bRenderPassActive || !DescriptorSet ||
+            DescriptorSet->GetLifecycleState() != ERHIResourceLifecycleState::Valid ||
+            !DescriptorSet->GetPipelineLayout())
+        {
+            return ERHIResult::InvalidState;
+        }
+        Commands.push_back({ERHISymbolicCommandType::BindDescriptorSet,
+            DescriptorSet->GetSetIndex(), DescriptorSet->GetBoundResourceCount(), 0});
+        return ERHIResult::Success;
+    }
+
+    ERHIResult RecordTextureToBufferCopy(const TSharedPtr<IRHITexture>& Source,
+        const TSharedPtr<IRHIBuffer>& Destination, FRHITextureBufferCopyRegion Region) override
+    {
+        if (State != ERHICommandBufferState::Recording || bRenderPassActive || !Source || !Destination ||
+            Source->GetLifecycleState() != ERHIResourceLifecycleState::Valid ||
+            Destination->GetLifecycleState() != ERHIResourceLifecycleState::Valid ||
+            !HasRHIFlag(Source->GetUsage(), ERHITextureUsage::CopySource) ||
+            !HasRHIFlag(Destination->GetUsage(), ERHIBufferUsage::CopyDestination) ||
+            Region.Width == 0 || Region.Height == 0 || Region.Depth == 0 ||
+            Region.SourceX + Region.Width > Source->GetDesc().Width ||
+            Region.SourceY + Region.Height > Source->GetDesc().Height)
+        {
+            return ERHIResult::InvalidState;
+        }
+        Commands.push_back({ERHISymbolicCommandType::TextureToBufferCopy,
+            Region.Width, Region.Height, Region.Depth});
         return ERHIResult::Success;
     }
 
@@ -1842,6 +1913,72 @@ void TestRenderPassesAndFramebuffers(FRHICoreTestResult& Result)
         "IRHIDevice rejects render pass and framebuffer factories after shutdown");
 }
 
+void TestDeferredCommandContracts(FRHICoreTestResult& Result)
+{
+    Record(Result, ERHIFormat::R32G32_Float != ERHIFormat::R32_Float &&
+            ERHIFormat::R32G32B32_Float != ERHIFormat::R32G32_Float &&
+            GetRHIIndexTypeSize(ERHIIndexType::UInt16) == 2 &&
+            GetRHIIndexTypeSize(ERHIIndexType::UInt32) == 4,
+        "RHI deferred vertex formats and index widths are explicit");
+
+    FRHIRenderPassDesc PassDesc;
+    PassDesc.Attachments = {
+        {ERHIAttachmentRole::Color, ERHIFormat::R8G8B8A8_UNorm, ERHISampleCount::One,
+            ERHIAttachmentLoadOp::Clear, ERHIAttachmentStoreOp::Store},
+        {ERHIAttachmentRole::DepthStencil, ERHIFormat::D32_Float, ERHISampleCount::One,
+            ERHIAttachmentLoadOp::Clear, ERHIAttachmentStoreOp::Store}};
+    auto Pass = std::make_shared<FMockRenderPass>(PassDesc);
+
+    FRHITextureDesc ColorDesc;
+    ColorDesc.Width = 4;
+    ColorDesc.Height = 4;
+    ColorDesc.Format = ERHIFormat::R8G8B8A8_UNorm;
+    ColorDesc.Usage = ERHITextureUsage::ColorAttachment | ERHITextureUsage::CopySource;
+    auto Color = std::make_shared<FMockTexture>(ColorDesc);
+    FRHITextureDesc DepthDesc = ColorDesc;
+    DepthDesc.Format = ERHIFormat::D32_Float;
+    DepthDesc.Usage = ERHITextureUsage::DepthStencilAttachment | ERHITextureUsage::CopySource;
+    auto Depth = std::make_shared<FMockTexture>(DepthDesc);
+
+    FRHIFramebufferDesc FramebufferDesc;
+    FramebufferDesc.RenderPass = Pass;
+    FramebufferDesc.Attachments = {{Color, 0, 0}, {Depth, 0, 0}};
+    FramebufferDesc.Width = 4;
+    FramebufferDesc.Height = 4;
+    auto Framebuffer = std::make_shared<FMockFramebuffer>(FramebufferDesc);
+
+    FRHIPipelineLayoutDesc LayoutDesc;
+    LayoutDesc.Bindings = {{0, 0, ERHIDescriptorType::UniformBuffer, 1,
+        ERHIShaderStageFlags::Vertex | ERHIShaderStageFlags::Fragment}};
+    auto Layout = std::make_shared<FMockPipelineLayout>(LayoutDesc);
+    auto DescriptorSet = std::make_shared<FMockDescriptorSet>(Layout, 0);
+    auto UniformBuffer = std::make_shared<FMockBuffer>(FRHIBufferDesc{304, ERHIBufferUsage::Uniform});
+    (void)DescriptorSet->UpdateBuffer(0, 0, UniformBuffer);
+    auto IndexBuffer = std::make_shared<FMockBuffer>(FRHIBufferDesc{64, ERHIBufferUsage::Index});
+    auto ReadbackBuffer = std::make_shared<FMockBuffer>(FRHIBufferDesc{64, ERHIBufferUsage::CopyDestination});
+
+    FMockCommandBuffer Commands(ERHIQueueType::Graphics);
+    FRHIRenderPassClearValues ClearValues;
+    ClearValues.Colors = {{0.0f, 0.0f, 0.0f, 0.0f}};
+    ClearValues.Depth = 0.0f;
+    Record(Result, Commands.Begin() == ERHIResult::Success &&
+            Commands.BeginRenderPass(Pass, Framebuffer, ClearValues) == ERHIResult::Success &&
+            Commands.BindDescriptorSet(DescriptorSet) == ERHIResult::Success &&
+            Commands.BindIndexBuffer(IndexBuffer, ERHIIndexType::UInt16, 0) == ERHIResult::Success &&
+            Commands.BindIndexBuffer(IndexBuffer, ERHIIndexType::UInt32, 2) == ERHIResult::InvalidState &&
+            Commands.EndRenderPass() == ERHIResult::Success &&
+            Commands.RecordTextureToBufferCopy(Color, ReadbackBuffer, {0, 0, 0, 0, 0, 4, 4, 1, 0, 0, 0}) == ERHIResult::Success &&
+            Commands.End() == ERHIResult::Success,
+        "RHI command contract records explicit clears descriptor/index binding and texture readback");
+
+    FMockCommandBuffer InvalidClears(ERHIQueueType::Graphics);
+    FRHIRenderPassClearValues MissingColor;
+    MissingColor.Depth = 1.0f;
+    (void)InvalidClears.Begin();
+    Record(Result, InvalidClears.BeginRenderPass(Pass, Framebuffer, MissingColor) == ERHIResult::InvalidState,
+        "RHI render pass rejects clear values incompatible with cleared attachments");
+}
+
 void TestResourcePipelineLifecycleAndSmokeFlow(FRHICoreTestResult& Result)
 {
     FMockDevice Device;
@@ -1922,6 +2059,7 @@ FRHICoreTestResult RunRHICoreTests()
     TestDescriptorLayoutsAndSets(Result);
     TestShaderAndPipelineContracts(Result);
     TestRenderPassesAndFramebuffers(Result);
+    TestDeferredCommandContracts(Result);
     TestResourcePipelineLifecycleAndSmokeFlow(Result);
     TestAggregateAndIsolation(Result);
 

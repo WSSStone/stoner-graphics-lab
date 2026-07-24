@@ -28,7 +28,10 @@ public:
     ERHIResult End() override { return ERHIResult::Unsupported; }
     ERHIResult Reset() override { return ERHIResult::Unsupported; }
     ERHIResult RecordDraw(uint32, uint32 = 1) override { return ERHIResult::Unsupported; }
-    ERHIResult RecordDrawIndexed(uint32, uint32 = 1) override { return ERHIResult::Unsupported; }
+    ERHIResult RecordDrawIndexed(uint32, uint32 = 1, uint32 = 0) override
+    {
+        return ERHIResult::Unsupported;
+    }
     ERHIResult RecordDispatch(uint32, uint32, uint32) override { return ERHIResult::Unsupported; }
     ERHIResult BindGraphicsPipeline(const TSharedPtr<IRHIGraphicsPipeline>&) override { return ERHIResult::Unsupported; }
     ERHIResult BindComputePipeline(const TSharedPtr<IRHIComputePipeline>&) override { return ERHIResult::Unsupported; }
@@ -697,6 +700,29 @@ void TestRenderPassFramebufferRecordingAndUploads(FVulkanBackendTestResult& Resu
         Command.Object->GetRecordedCommandCount() == 4 &&
         Device.GetDiagnostics().CommandRecordingReason[0] != '\0', "Vulkan graphics render pass scope records draw placeholders and rejects invalid ordering");
 
+    const auto IndexBuffer = Device.CreateBuffer({64, ERHIBufferUsage::Index});
+    const auto DescriptorLayout = Device.CreatePipelineLayout(ResourceLayoutDesc());
+    const auto DescriptorSet = Device.CreateDescriptorSet(DescriptorLayout.Object, 0);
+    const auto UniformBuffer = Device.CreateBuffer(ValidBufferDesc());
+    (void)DescriptorSet.Object->UpdateBuffer(0, 0, UniformBuffer.Object);
+    const auto DeferredCommand = Device.CreateCommandBuffer(ERHIQueueType::Graphics);
+    FRHIRenderPassClearValues ExplicitClears;
+    ExplicitClears.Colors = {{0.0f, 0.0f, 0.0f, 0.0f}};
+    ExplicitClears.Depth = 0.0f;
+    Record(Result, DeferredCommand.Object->Begin() == ERHIResult::Success &&
+        DeferredCommand.Object->BeginRenderPass(RenderPass.Object, Framebuffer.Object, ExplicitClears) == ERHIResult::Success &&
+        DeferredCommand.Object->BindDescriptorSet(DescriptorSet.Object) == ERHIResult::Success &&
+        DeferredCommand.Object->BindIndexBuffer(IndexBuffer.Object, ERHIIndexType::UInt16, 0) == ERHIResult::Success &&
+        DeferredCommand.Object->BindIndexBuffer(IndexBuffer.Object, ERHIIndexType::UInt32, 2) == ERHIResult::InvalidState &&
+        DeferredCommand.Object->EndRenderPass() == ERHIResult::Success &&
+        DeferredCommand.Object->End() == ERHIResult::Success,
+        "Vulkan command buffer validates explicit clears descriptor sets and aligned index binding");
+    FRHIRenderPassClearValues MissingColorClear;
+    const auto InvalidClearCommand = Device.CreateCommandBuffer(ERHIQueueType::Graphics);
+    (void)InvalidClearCommand.Object->Begin();
+    Record(Result, InvalidClearCommand.Object->BeginRenderPass(RenderPass.Object, Framebuffer.Object, MissingColorClear) == ERHIResult::InvalidState,
+        "Vulkan command buffer rejects incompatible explicit render-pass clear values");
+
     const auto TransferCommand = Device.CreateCommandBuffer(ERHIQueueType::Transfer);
     const auto SourceBuffer = Device.CreateBuffer(ValidCopySourceBufferDesc());
     const auto DestinationBuffer = Device.CreateBuffer(ValidBufferDesc());
@@ -707,9 +733,14 @@ void TestRenderPassFramebufferRecordingAndUploads(FVulkanBackendTestResult& Resu
     (void)TransferCommand.Object->Begin();
     Record(Result, TransferCommand.Object->RecordBufferCopy(SourceBuffer.Object, DestinationBuffer.Object, {0, 0, 16}) == ERHIResult::Success &&
         TransferCommand.Object->RecordTextureCopy(SourceTexture.Object, DestinationTexture.Object, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 1}) == ERHIResult::Success &&
+        TransferCommand.Object->RecordTextureToBufferCopy(SourceTexture.Object, DestinationBuffer.Object,
+            {0, 0, 0, 0, 0, 4, 4, 1, 0, 0, 0}) == ERHIResult::Success &&
         TransferCommand.Object->RecordLayoutTransition({nullptr, DestinationTexture.Object, ERHIBufferUsage::None, ERHITextureUsage::CopyDestination, ERHIResourceLayout::Undefined, ERHIResourceLayout::CopyDestination}) == ERHIResult::Success, "Vulkan transfer command records copy and declarative layout intent");
     Record(Result, TransferCommand.Object->RecordDispatch(1, 1, 1) == ERHIResult::Unsupported &&
-        TransferCommand.Object->RecordBufferCopy(SourceBuffer.Object, DestinationBuffer.Object, {900, 0, 16}) == ERHIResult::InvalidState, "Vulkan transfer command rejects incompatible compute and invalid ranges");
+        TransferCommand.Object->RecordBufferCopy(SourceBuffer.Object, DestinationBuffer.Object, {900, 0, 16}) == ERHIResult::InvalidState &&
+        TransferCommand.Object->RecordTextureToBufferCopy(SourceTexture.Object, DestinationBuffer.Object,
+            {0, 0, 7, 0, 0, 4, 4, 1, 0, 0, 0}) == ERHIResult::InvalidState,
+        "Vulkan transfer command rejects incompatible compute and invalid copy ranges");
 
     const unsigned char Data[16] = {};
     const auto BufferUpload = Device.StageBufferUpload(DestinationBuffer.Object, Data, sizeof(Data), {0, sizeof(Data)});

@@ -2,15 +2,19 @@
 
 #include "Core/CoreMinimal.h"
 #include "RHI/ERHIPipelineState.h"
+#include "RHI/ERHIIndexType.h"
 #include "RHI/ERHIQueueType.h"
 #include "RHI/ERHIResourceUsage.h"
 #include "RHI/ERHIResult.h"
+#include "RHI/FRHIRenderPassDesc.h"
+#include "RHI/FRHITextureBufferCopyRegion.h"
 
 namespace Stoner::RHI
 {
 
 class IRHIBuffer;
 class IRHIComputePipeline;
+class IRHIDescriptorSet;
 class IRHIFramebuffer;
 class IRHIGraphicsPipeline;
 class IRHIRenderPass;
@@ -40,6 +44,9 @@ enum class ERHISymbolicCommandType
     EndRenderPass,
     UploadSchedule,
     BindVertexBuffer,
+    BindIndexBuffer,
+    BindDescriptorSet,
+    TextureToBufferCopy,
     SetViewport,
     SetScissor
 };
@@ -122,7 +129,9 @@ public:
     virtual ERHIResult Reset() = 0;
 
     virtual ERHIResult RecordDraw(Stoner::Core::uint32 VertexCount, Stoner::Core::uint32 InstanceCount = 1) = 0;
-    virtual ERHIResult RecordDrawIndexed(Stoner::Core::uint32 IndexCount, Stoner::Core::uint32 InstanceCount = 1) = 0;
+    virtual ERHIResult RecordDrawIndexed(Stoner::Core::uint32 IndexCount,
+        Stoner::Core::uint32 InstanceCount = 1,
+        Stoner::Core::uint32 FirstInstance = 0) = 0;
     virtual ERHIResult RecordDispatch(Stoner::Core::uint32 GroupCountX, Stoner::Core::uint32 GroupCountY, Stoner::Core::uint32 GroupCountZ) = 0;
     virtual ERHIResult BindGraphicsPipeline(const Stoner::Core::TSharedPtr<IRHIGraphicsPipeline>& Pipeline) = 0;
     virtual ERHIResult BindComputePipeline(const Stoner::Core::TSharedPtr<IRHIComputePipeline>& Pipeline) = 0;
@@ -132,8 +141,28 @@ public:
     virtual ERHIResult RecordTextureCopy(const Stoner::Core::TSharedPtr<IRHITexture>& Source, const Stoner::Core::TSharedPtr<IRHITexture>& Destination, FRHITextureCopyRegion Region) = 0;
     virtual ERHIResult RecordLayoutTransition(const FRHIResourceBarrierDesc& Transition) = 0;
     virtual ERHIResult BeginRenderPass(const Stoner::Core::TSharedPtr<IRHIRenderPass>& RenderPass, const Stoner::Core::TSharedPtr<IRHIFramebuffer>& Framebuffer) = 0;
+    virtual ERHIResult BeginRenderPass(const Stoner::Core::TSharedPtr<IRHIRenderPass>& RenderPass,
+        const Stoner::Core::TSharedPtr<IRHIFramebuffer>& Framebuffer,
+        const FRHIRenderPassClearValues&)
+    {
+        return BeginRenderPass(RenderPass, Framebuffer);
+    }
     virtual ERHIResult EndRenderPass() = 0;
     virtual ERHIResult BindVertexBuffer(const Stoner::Core::TSharedPtr<IRHIBuffer>&, Stoner::Core::uint64 = 0)
+    {
+        return ERHIResult::Unsupported;
+    }
+    virtual ERHIResult BindIndexBuffer(const Stoner::Core::TSharedPtr<IRHIBuffer>&,
+        ERHIIndexType, Stoner::Core::uint64 = 0)
+    {
+        return ERHIResult::Unsupported;
+    }
+    virtual ERHIResult BindDescriptorSet(const Stoner::Core::TSharedPtr<IRHIDescriptorSet>&)
+    {
+        return ERHIResult::Unsupported;
+    }
+    virtual ERHIResult RecordTextureToBufferCopy(const Stoner::Core::TSharedPtr<IRHITexture>&,
+        const Stoner::Core::TSharedPtr<IRHIBuffer>&, FRHITextureBufferCopyRegion)
     {
         return ERHIResult::Unsupported;
     }
