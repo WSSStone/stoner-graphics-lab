@@ -28,7 +28,10 @@ public:
     ERHIResult End() override { return ERHIResult::Unsupported; }
     ERHIResult Reset() override { return ERHIResult::Unsupported; }
     ERHIResult RecordDraw(uint32, uint32 = 1) override { return ERHIResult::Unsupported; }
-    ERHIResult RecordDrawIndexed(uint32, uint32 = 1) override { return ERHIResult::Unsupported; }
+    ERHIResult RecordDrawIndexed(uint32, uint32 = 1, uint32 = 0) override
+    {
+        return ERHIResult::Unsupported;
+    }
     ERHIResult RecordDispatch(uint32, uint32, uint32) override { return ERHIResult::Unsupported; }
     ERHIResult BindGraphicsPipeline(const TSharedPtr<IRHIGraphicsPipeline>&) override { return ERHIResult::Unsupported; }
     ERHIResult BindComputePipeline(const TSharedPtr<IRHIComputePipeline>&) override { return ERHIResult::Unsupported; }

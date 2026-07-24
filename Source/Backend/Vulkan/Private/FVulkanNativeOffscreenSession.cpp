@@ -407,7 +407,11 @@ struct FVulkanNativeOffscreenSession::FImpl
         }
         if (bSubmitted)
         {
-            (void)vkDeviceWaitIdle(Access.Device);
+            if (Fence)
+            {
+                (void)vkWaitForFences(Access.Device, 1, &Fence, VK_TRUE,
+                    CompletionTimeoutNanoseconds);
+            }
             bSubmitted = false;
         }
         if (Fence)
@@ -1011,9 +1015,11 @@ Stoner::Core::FVector4 ReadPixel(
 
 Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
     const Stoner::Core::FString& ShaderDirectory,
-    FVulkanDeferredValidationReport& OutReport)
+    FVulkanDeferredValidationReport& OutReport,
+    EVulkanDeferredFailurePoint FailurePoint)
 {
     OutReport = {};
+    OutReport.InjectedFailure = FailurePoint;
     if (bShutdown || !Context.IsAvailable())
     {
         return Stoner::RHI::ERHIResult::Unavailable;
@@ -1031,6 +1037,14 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
     OutReport.AdapterIdentity = Snapshot.AdapterName;
     OutReport.bSoftwareDevice = Snapshot.bSoftwareDevice;
     OutReport.ReferencePath = "NativeDeferredReadback";
+    const auto FailInjected = [&](const char* Stage) {
+        OutReport.PrimaryFailureStage = Stage;
+        OutReport.PeakLiveObjects = Impl->PeakLiveObjects;
+        Impl->ReleaseAll();
+        OutReport.FinalLiveObjects = Impl->LiveObjects;
+        OutReport.bPassed = false;
+        return Stoner::RHI::ERHIResult::Failed;
+    };
 
     const std::string Directory = ShaderDirectory.ToStdString();
     const std::array<const char*, 8> ShaderNames = {
@@ -1053,6 +1067,10 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         return Stoner::RHI::ERHIResult::Failed;
     }
     Impl->Shaders[8] = CompositionShader;
+    if (FailurePoint == EVulkanDeferredFailurePoint::PartialInitialization)
+    {
+        return FailInjected("PartialInitialization");
+    }
 
     const VkImageUsageFlags SampledColor =
         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -1279,6 +1297,11 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
     Impl->TrackCreate();
 
     auto ExecuteConvention = [&](const char* Convention, bool bReversed) {
+        if (FailurePoint == EVulkanDeferredFailurePoint::Record)
+        {
+            OutReport.PrimaryFailureStage = "Record";
+            return false;
+        }
         Frame.DepthConvention = {0.1f, 100.0f, bReversed ? 1.0f : 0.0f, 0.0f};
         void* FrameMapped = nullptr;
         if (vkMapMemory(Impl->Access.Device, Impl->FrameUniform.Memory, 0,
@@ -1376,6 +1399,11 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         vkCmdDraw(Impl->CommandBuffer, 3, 1, 0, 0);
         vkCmdEndRenderPass(Impl->CommandBuffer);
 
+        if (FailurePoint == EVulkanDeferredFailurePoint::Copy)
+        {
+            OutReport.PrimaryFailureStage = "Copy";
+            return false;
+        }
         for (std::size_t Index = 0; Index < Impl->Images.size(); ++Index)
         {
             if (Index != 5)
@@ -1398,17 +1426,32 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         VkSubmitInfo Submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
         Submit.commandBufferCount = 1;
         Submit.pCommandBuffers = &Impl->CommandBuffer;
+        if (FailurePoint == EVulkanDeferredFailurePoint::Submit)
+        {
+            OutReport.PrimaryFailureStage = "Submit";
+            return false;
+        }
         if (vkQueueSubmit(Impl->Access.GraphicsQueue, 1, &Submit, Impl->Fence) != VK_SUCCESS)
         {
             return false;
         }
         Impl->bSubmitted = true;
+        if (FailurePoint == EVulkanDeferredFailurePoint::Fence)
+        {
+            OutReport.PrimaryFailureStage = "Fence";
+            return false;
+        }
         if (vkWaitForFences(Impl->Access.Device, 1, &Impl->Fence, VK_TRUE,
                 CompletionTimeoutNanoseconds) != VK_SUCCESS)
         {
             return false;
         }
         Impl->bSubmitted = false;
+        if (FailurePoint == EVulkanDeferredFailurePoint::Map)
+        {
+            OutReport.PrimaryFailureStage = "Map";
+            return false;
+        }
         for (std::size_t Index = 0; Index < Impl->Readbacks.size(); ++Index)
         {
             if (vkMapMemory(Impl->Access.Device, Impl->Readbacks[Index].Memory, 0,
@@ -1419,6 +1462,11 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
             }
         }
 
+        if (FailurePoint == EVulkanDeferredFailurePoint::Decode)
+        {
+            OutReport.PrimaryFailureStage = "Decode";
+            return false;
+        }
         const Stoner::Core::uint32 CenterX = ValidationWidth / 2;
         const Stoner::Core::uint32 CenterY = ValidationHeight / 2;
         const auto AddProbe = [&](const char* Name, const char* Semantic,
@@ -1487,6 +1535,12 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
             0.1f * Lighting.Z, 1.0f};
         AddProbe("composed-final", "FinalLDR", 5, CenterX, CenterY,
             ExpectedFinal, 2.0f / 255.0f, EVulkanDeferredProbeMetric::Absolute);
+        if (FailurePoint == EVulkanDeferredFailurePoint::Probe)
+        {
+            OutReport.PrimaryFailureStage = "Probe";
+            OutReport.Probes.clear();
+            return false;
+        }
 
         for (FImpl::FBuffer& Buffer : Impl->Readbacks)
         {
@@ -1505,6 +1559,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         return Stoner::RHI::ERHIResult::Failed;
     }
     OutReport.bNativeSubmissionCompleted = true;
+    OutReport.CompletedStageCount = 6;
     OutReport.PeakLiveObjects = Impl->PeakLiveObjects;
     Impl->ReleaseAll();
     OutReport.FinalLiveObjects = Impl->LiveObjects;
@@ -1552,6 +1607,9 @@ Stoner::Core::FString FVulkanDeferredValidationReport::Dump() const
         << "reference_path=" << ReferencePath.CStr() << '\n'
         << "software_device=" << (bSoftwareDevice ? "true" : "false") << '\n'
         << "native_submission=" << (bNativeSubmissionCompleted ? "true" : "false") << '\n'
+        << "injected_failure=" << ToString(InjectedFailure) << '\n'
+        << "primary_failure_stage=" << PrimaryFailureStage.CStr() << '\n'
+        << "completed_stage_count=" << CompletedStageCount << '\n'
         << "surface_extent=" << ValidationWidth << 'x' << ValidationHeight << '\n'
         << "surface_layout=BaseColorAO,NormalRoughness,EmissiveMetallic,Depth,"
             "LightingAccumulation,FinalLDR\n"
@@ -1578,6 +1636,23 @@ Stoner::Core::FString FVulkanDeferredValidationReport::Dump() const
     }
     Stream << "result=" << (bPassed ? "PASS" : "FAIL") << '\n';
     return Stoner::Core::FString(Stream.str());
+}
+
+const char* ToString(EVulkanDeferredFailurePoint FailurePoint) noexcept
+{
+    switch (FailurePoint)
+    {
+    case EVulkanDeferredFailurePoint::None: return "None";
+    case EVulkanDeferredFailurePoint::PartialInitialization: return "PartialInitialization";
+    case EVulkanDeferredFailurePoint::Record: return "Record";
+    case EVulkanDeferredFailurePoint::Submit: return "Submit";
+    case EVulkanDeferredFailurePoint::Fence: return "Fence";
+    case EVulkanDeferredFailurePoint::Copy: return "Copy";
+    case EVulkanDeferredFailurePoint::Map: return "Map";
+    case EVulkanDeferredFailurePoint::Decode: return "Decode";
+    case EVulkanDeferredFailurePoint::Probe: return "Probe";
+    }
+    return "Unknown";
 }
 
 } // namespace Stoner::Backend::Vulkan

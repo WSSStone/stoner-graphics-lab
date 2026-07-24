@@ -71,6 +71,36 @@ class DeferredValidationTests(unittest.TestCase):
             )
             self.assertTrue(MODULE.validate_readback_report(report))
 
+    def test_executed_comparison_report_is_required(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "comparison.txt"
+            lines = [
+                "measurement-source=RendererComparisonTests",
+                "forward-median=1.0",
+                "forward-p95=1.1",
+                "deferred-median=0.9",
+                "deferred-p95=1.0",
+                "crossover=DeferredAt64",
+            ]
+            for tier in MODULE.REQUIRED_TIERS:
+                lines.extend(
+                    (
+                        f"tier={tier}",
+                        "measured-frames=100",
+                        "fingerprint-match=true",
+                    )
+                )
+            lines.append("comparison-result=pass")
+            report.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            self.assertTrue(MODULE.validate_comparison_report(report))
+            report.write_text(
+                report.read_text(encoding="utf-8").replace(
+                    "measured-frames=100", "measured-frames=99", 1
+                ),
+                encoding="utf-8",
+            )
+            self.assertFalse(MODULE.validate_comparison_report(report))
+
 
 if __name__ == "__main__":
     unittest.main()

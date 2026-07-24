@@ -16,7 +16,8 @@ public:
     ~FVulkanNativeOffscreenSession();
 
     [[nodiscard]] Stoner::RHI::ERHIResult Execute(const Stoner::Core::FString& ShaderDirectory,
-        FVulkanDeferredValidationReport& OutReport);
+        FVulkanDeferredValidationReport& OutReport,
+        EVulkanDeferredFailurePoint FailurePoint = EVulkanDeferredFailurePoint::None);
     [[nodiscard]] Stoner::RHI::ERHIResult Shutdown() noexcept;
 
 private:

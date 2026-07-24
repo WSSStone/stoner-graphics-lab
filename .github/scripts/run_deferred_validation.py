@@ -65,23 +65,39 @@ def write_deterministic_report(path, return_code):
     )
 
 
-def write_comparison_contract_report(path):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    lines = [
-        "feature=019-deferred-rendering-pipeline",
-        "measurement-source=RendererComparisonTests",
-    ]
+def validate_comparison_report(path):
+    if not path.is_file():
+        print(f"ERROR: renderer comparison report missing: {path}", file=sys.stderr)
+        return False
+    text = path.read_text(encoding="utf-8")
+    if "comparison-result=pass" not in text:
+        print("ERROR: renderer comparison report did not pass", file=sys.stderr)
+        return False
     for tier in REQUIRED_TIERS:
-        lines.extend(
-            (
-                f"tier={tier}",
-                "measured-frames=100",
-                "fingerprint-match=true",
-                "finite-samples=true",
-            )
-        )
-    lines.extend(("comparison-result=pass", ""))
-    path.write_text("\n".join(lines), encoding="utf-8")
+        if f"tier={tier}\n" not in text:
+            print(f"ERROR: renderer comparison tier {tier} missing", file=sys.stderr)
+            return False
+    if text.count("measured-frames=100\n") != len(REQUIRED_TIERS):
+        print("ERROR: renderer comparison samples are incomplete", file=sys.stderr)
+        return False
+    if text.count("fingerprint-match=true\n") != len(REQUIRED_TIERS):
+        print("ERROR: renderer comparison fingerprints do not match", file=sys.stderr)
+        return False
+    required = (
+        "measurement-source=RendererComparisonTests",
+        "forward-median=",
+        "forward-p95=",
+        "deferred-median=",
+        "deferred-p95=",
+        "crossover=",
+    )
+    if not all(field in text for field in required):
+        print("ERROR: renderer comparison report lacks required fields", file=sys.stderr)
+        return False
+    if "nan" in text.lower() or "inf" in text.lower():
+        print("ERROR: renderer comparison report contains non-finite values", file=sys.stderr)
+        return False
+    return True
 
 
 def parse_args(argv=None):
@@ -120,6 +136,9 @@ def main(argv=None):
         env["STONER_REQUIRE_DEFERRED_NATIVE"] = "1"
         env["STONER_DEFERRED_READBACK_REPORT"] = str(args.readback_output)
         env["STONER_DEFERRED_NATIVE_SHADER_DIR"] = str(args.shader_directory)
+        env["STONER_RENDERER_COMPARISON_REPORT"] = str(args.comparison_output)
+        env["STONER_RUN_DEFERRED_NATIVE_FAILURES"] = "1"
+        args.comparison_output.parent.mkdir(parents=True, exist_ok=True)
 
     result = run([str(args.tests)], args.timeout_seconds, env)
     if args.profile == "deterministic":
@@ -129,8 +148,7 @@ def main(argv=None):
         return result
     if not validate_readback_report(args.readback_output):
         return 1
-    write_comparison_contract_report(args.comparison_output)
-    return 0
+    return 0 if validate_comparison_report(args.comparison_output) else 1
 
 
 if __name__ == "__main__":

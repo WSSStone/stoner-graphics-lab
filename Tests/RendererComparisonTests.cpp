@@ -2,6 +2,8 @@
 
 #include "Renderer/FRendererComparisonReport.h"
 
+#include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <string>
@@ -60,6 +62,14 @@ FRendererComparisonTestResult RunRendererComparisonTests()
         "Renderer comparison reports complete median and p95 timing samples");
     Record(Result, Report.Crossover == ERendererCrossoverClassification::DeferredAt64,
         "Renderer comparison classifies first observed deferred crossover without speedup gate");
+    const char* ReportPath = std::getenv("STONER_RENDERER_COMPARISON_REPORT");
+    if (ReportPath != nullptr && *ReportPath != '\0')
+    {
+        std::ofstream Stream(ReportPath, std::ios::binary | std::ios::trunc);
+        Stream << Report.DumpValidationArtifact().CStr();
+        Record(Result, Stream.good(),
+            "Renderer comparison writes the executed four-tier validation artifact");
+    }
 
     auto Mismatch = MakeTier(16);
     Mismatch.DeferredFingerprint.Scene = "DifferentScene";

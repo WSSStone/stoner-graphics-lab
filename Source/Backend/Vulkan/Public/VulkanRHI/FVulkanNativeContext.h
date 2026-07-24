@@ -17,6 +17,19 @@ enum class EVulkanDeferredProbeMetric
     NormalDot
 };
 
+enum class EVulkanDeferredFailurePoint
+{
+    None,
+    PartialInitialization,
+    Record,
+    Submit,
+    Fence,
+    Copy,
+    Map,
+    Decode,
+    Probe
+};
+
 struct FVulkanDeferredProbe
 {
     Stoner::Core::FString Convention;
@@ -40,6 +53,9 @@ struct FVulkanDeferredValidationReport
     Stoner::Core::TArray<FVulkanDeferredProbe> Probes;
     Stoner::Core::uint32 PeakLiveObjects = 0;
     Stoner::Core::uint32 FinalLiveObjects = 0;
+    EVulkanDeferredFailurePoint InjectedFailure = EVulkanDeferredFailurePoint::None;
+    Stoner::Core::FString PrimaryFailureStage;
+    Stoner::Core::uint32 CompletedStageCount = 0;
     bool bSoftwareDevice = false;
     bool bNativeSubmissionCompleted = false;
     bool bPassed = false;
@@ -76,7 +92,10 @@ public:
         const Stoner::Core::FString& FragmentShaderPath);
     [[nodiscard]] Stoner::RHI::ERHIResult ExecuteDeferredOffscreenValidation(
         const Stoner::Core::FString& ShaderDirectory,
-        FVulkanDeferredValidationReport& OutReport);
+        FVulkanDeferredValidationReport& OutReport,
+        EVulkanDeferredFailurePoint FailurePoint = EVulkanDeferredFailurePoint::None);
+    [[nodiscard]] static FVulkanDeferredValidationReport
+    RunDeferredFailureLifecycleValidation(EVulkanDeferredFailurePoint FailurePoint) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult PrepareVisibleTriangle(
         const Stoner::Core::FString& VertexShaderPath,
         const Stoner::Core::FString& FragmentShaderPath,
@@ -99,5 +118,7 @@ private:
     struct FImpl;
     std::unique_ptr<FImpl> Impl;
 };
+
+[[nodiscard]] const char* ToString(EVulkanDeferredFailurePoint FailurePoint) noexcept;
 
 } // namespace Stoner::Backend::Vulkan

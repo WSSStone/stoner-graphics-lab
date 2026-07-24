@@ -48,8 +48,8 @@
 
 ### Tests for User Story 1
 
-- [ ] T010 [US1] Add failing world-normal/inverse-view-projection surface-layout, non-uniform-scale inverse-transpose normal, singular-transform rejection, standard-Z/reversed-Z clear/comparison, view/output, opaque/masked material, empty/ambient/emissive, equal/nearly-equal depth, reversed-winding, clipping, off-screen geometry, canonical pass-order, and deterministic plan tests in `Tests/DeferredRenderingTests.h` and `Tests/DeferredRenderingTests.cpp`
-- [ ] T011 [P] [US1] Add failing real-runtime, standard-Z/reversed-Z surface attachment, shader/pipeline, submit/fence, texture-to-buffer readback, at-least-12-probe, LDR `2/255`, depth `1e-4`, world-normal dot `0.999`, metallic/roughness `1e-3`, UNorm8 AO `2e-3`, non-finite rejection, and final-zero tests in `Tests/DeferredNativeIntegrationTests.h` and `Tests/DeferredNativeIntegrationTests.cpp`
+- [X] T010 [US1] Add failing world-normal/inverse-view-projection surface-layout, non-uniform-scale inverse-transpose normal, singular-transform rejection, standard-Z/reversed-Z clear/comparison, view/output, opaque/masked material, empty/ambient/emissive, equal/nearly-equal depth, reversed-winding, clipping, off-screen geometry, canonical pass-order, and deterministic plan tests in `Tests/DeferredRenderingTests.h` and `Tests/DeferredRenderingTests.cpp`
+- [X] T011 [P] [US1] Add failing real-runtime, standard-Z/reversed-Z surface attachment, shader/pipeline, submit/fence, texture-to-buffer readback, at-least-12-probe, LDR `2/255`, depth `1e-4`, world-normal dot `0.999`, metallic/roughness `1e-3`, UNorm8 AO `2e-3`, non-finite rejection, and final-zero tests in `Tests/DeferredNativeIntegrationTests.h` and `Tests/DeferredNativeIntegrationTests.cpp`
 - [X] T012 [US1] Extend `Tests/DeferredRenderingTests.cpp` with failing canonical set/binding, exact `InverseViewProjection`/inverse-transpose `WorldNormalFromModel` world-space 304/176/64-byte mirrored-record size/offset, convention-matched depth state, surface/fullscreen/volume vertex layout, executor binding, indexed point/spot volume, command-order, composition, and validation-readback cases
 - [X] T013 [US1] Register the deferred deterministic and native suites in `Tests/Main.cpp` and `Tests/SConscript`
 
@@ -88,10 +88,10 @@
 
 - [X] T029 [US2] Implement deterministic frustum intersection, directional/point/spot type ordering, ascending stable entity identity within type, and outside/camera-inside/near-plane volume classification without an influence-order key in `Source/Renderer/Public/Renderer/FDeferredLightVolume.h` and `Source/Renderer/Private/FDeferredLightVolume.cpp`
 - [X] T030 [US2] Integrate uncapped directional/point/spot acceptance, culling records, canonical type order, and volume classifications into `Source/Renderer/Private/FDeferredLightData.cpp` and `Source/Renderer/Private/FDeferredRenderer.cpp`
-- [ ] T031 [US2] Extend the US1 sphere/cone path with deterministic outside-view omission, bounded scissors, batched/instanced accepted-light records, constant surface geometry work, and scalable additive accumulation in `Source/Renderer/Private/FDeferredFrameExecutor.cpp` and `Source/Renderer/Shaders/Deferred/`
+- [X] T031 [US2] Extend the US1 sphere/cone path with deterministic outside-view omission, bounded scissors, batched/instanced accepted-light records, constant surface geometry work, and scalable additive accumulation in `Source/Renderer/Private/FDeferredFrameExecutor.cpp` and `Source/Renderer/Shaders/Deferred/`
 - [X] T032 [US2] Define normalized scene/view/material/light fingerprints, workload records, timing samples, tier summaries, validity state, and crossover classification in `Source/Renderer/Public/Renderer/FRendererComparisonReport.h` and `Source/Renderer/Private/FRendererComparisonReport.cpp`
 - [X] T033 [US2] Implement equivalent-input validation, warm-up exclusion, median/p95 aggregation, four required tiers, and no-speedup-gate reporting in `Tests/RendererComparisonTests.cpp`
-- [ ] T034 [US2] Execute all four comparison tiers and local-light boundary cases, then synchronize exact report fields and interpretation commands in `specs/019-deferred-rendering-pipeline/quickstart.md`
+- [X] T034 [US2] Execute all four comparison tiers and local-light boundary cases, then synchronize exact report fields and interpretation commands in `specs/019-deferred-rendering-pipeline/quickstart.md`
 
 **Checkpoint**: US2 is complete when local-light work is bounded and deterministic at all required edge cases and a valid four-tier comparison report records scaling/crossover without treating timing as a correctness gate.
 
@@ -106,15 +106,15 @@
 ### Tests for User Story 3
 
 - [X] T035 [US3] Add failing invalid-input diagnostic, accepted/rejected count, graph dump, first-error ownership, native-address exclusion, and 20-run byte-stability tests in `Tests/DeferredRenderingTests.cpp`
-- [ ] T036 [P] [US3] Add failing partial-initialization, record/submit/fence/copy/map/decode/probe failure, no-later-success, idempotent shutdown, and zero-live tests in `Tests/DeferredNativeIntegrationTests.cpp`
+- [X] T036 [P] [US3] Add failing partial-initialization, record/submit/fence/copy/map/decode/probe failure, no-later-success, idempotent shutdown, and zero-live tests in `Tests/DeferredNativeIntegrationTests.cpp`
 
 ### Implementation for User Story 3
 
 - [X] T037 [US3] Implement ordered diagnostic aggregation, first-actionable-error ownership, normalized subject/reason formatting, and native-address exclusion in `Source/Renderer/Private/FDeferredDiagnostics.cpp`
 - [X] T038 [US3] Implement the human-readable deferred frame dump with layout, passes, resources, draw/light decisions, composition, transparent handoff, and stable result categories in `Source/Renderer/Private/FDeferredFramePlan.cpp`
-- [ ] T039 [US3] Enforce stop-on-first-failure stage state, no dependent success records, stable command counts, and cleanup diagnostics in `Source/Renderer/Private/FDeferredFrameExecutor.cpp`
-- [ ] T040 [US3] Implement partial-state-safe reverse-order native release, bounded completion wait, readback decode failure ownership, and final live-object snapshots in `Source/Backend/Vulkan/Private/FVulkanNativeOffscreenSession.cpp` and `Source/Backend/Vulkan/Private/FVulkanNativeContext.cpp`
-- [ ] T041 [US3] Run repeated deterministic and runtime-independent injected failure coverage locally, verify the native failure suite is registered and runnable without requiring a local native runtime, and record normalized report examples plus triage guidance in `specs/019-deferred-rendering-pipeline/quickstart.md`
+- [X] T039 [US3] Enforce stop-on-first-failure stage state, no dependent success records, stable command counts, and cleanup diagnostics in `Source/Renderer/Private/FDeferredFrameExecutor.cpp`
+- [X] T040 [US3] Implement partial-state-safe reverse-order native release, bounded completion wait, readback decode failure ownership, and final live-object snapshots in `Source/Backend/Vulkan/Private/FVulkanNativeOffscreenSession.cpp` and `Source/Backend/Vulkan/Private/FVulkanNativeContext.cpp`
+- [X] T041 [US3] Run repeated deterministic and runtime-independent injected failure coverage locally, verify the native failure suite is registered and runnable without requiring a local native runtime, and record normalized report examples plus triage guidance in `specs/019-deferred-rendering-pipeline/quickstart.md`
 
 **Checkpoint**: US3 is complete when every required failure identifies one primary stage/subject, no dependent stage claims success, equivalent reports are byte-stable, and cleanup leaves zero live deferred objects.
 

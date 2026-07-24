@@ -122,6 +122,9 @@ struct FDeferredFrameExecutionResult
     Stoner::Core::uint32 RecordedPassCount = 0;
     Stoner::Core::uint32 RecordedDrawCount = 0;
     Stoner::Core::uint32 RecordedCommandCount = 0;
+    Stoner::Core::uint32 LocalLightBatchCount = 0;
+    Stoner::Core::uint32 LocalLightInstanceCount = 0;
+    Stoner::Core::uint32 OmittedLocalLightCount = 0;
     FDeferredDiagnosticLog Diagnostics;
 
     [[nodiscard]] bool Succeeded() const noexcept { return Result == EDeferredResult::Success; }

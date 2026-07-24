@@ -129,7 +129,9 @@ public:
     virtual ERHIResult Reset() = 0;
 
     virtual ERHIResult RecordDraw(Stoner::Core::uint32 VertexCount, Stoner::Core::uint32 InstanceCount = 1) = 0;
-    virtual ERHIResult RecordDrawIndexed(Stoner::Core::uint32 IndexCount, Stoner::Core::uint32 InstanceCount = 1) = 0;
+    virtual ERHIResult RecordDrawIndexed(Stoner::Core::uint32 IndexCount,
+        Stoner::Core::uint32 InstanceCount = 1,
+        Stoner::Core::uint32 FirstInstance = 0) = 0;
     virtual ERHIResult RecordDispatch(Stoner::Core::uint32 GroupCountX, Stoner::Core::uint32 GroupCountY, Stoner::Core::uint32 GroupCountZ) = 0;
     virtual ERHIResult BindGraphicsPipeline(const Stoner::Core::TSharedPtr<IRHIGraphicsPipeline>& Pipeline) = 0;
     virtual ERHIResult BindComputePipeline(const Stoner::Core::TSharedPtr<IRHIComputePipeline>& Pipeline) = 0;

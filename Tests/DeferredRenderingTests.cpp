@@ -335,7 +335,10 @@ void TestShaderAndExecutionContracts(FDeferredRenderingTestResult& Result)
     Record(Result, bFixture, "Deferred executor deterministic RHI fixture creates all stage resources");
     Record(Result, Execution.Succeeded() &&
         Execution.RecordedPassCount == Plan.Passes.size() &&
-        Execution.RecordedCommandCount > Execution.RecordedDrawCount,
+        Execution.RecordedCommandCount > Execution.RecordedDrawCount &&
+        Execution.LocalLightBatchCount == 2 &&
+        Execution.LocalLightInstanceCount == 2 &&
+        Execution.OmittedLocalLightCount == 0,
         "Deferred executor records every canonical graph pass");
     Record(Result, bHasIndexed && bHasDescriptorSafeOrder,
         "Deferred executor command sequence includes pipeline binding and indexed light volumes");
@@ -347,6 +350,58 @@ void TestShaderAndExecutionContracts(FDeferredRenderingTestResult& Result)
         InvalidExecution.FinalState == EDeferredExecutionState::Failed &&
         Fixture.Bindings.CommandBuffer->GetRecordedCommandCount() == Execution.RecordedCommandCount,
         "Deferred executor rejects incomplete bindings before recording any new commands");
+
+    FDeferredFrameInputs BatchedInputs = MakeInputs();
+    BatchedInputs.SpotLights.clear();
+    BatchedInputs.PointLights = {
+        {{10, 1}, "BatchA", FVector3(0.0f, 0.0f, 1.0f), FColor::OpaqueWhite(), 1.0f, 5.0f},
+        {{11, 1}, "BatchB", FVector3(0.0f, 0.0f, 1.0f), FColor::OpaqueWhite(), 1.0f, 5.0f},
+        {{12, 1}, "BatchC", FVector3(0.0f, 0.0f, 1.0f), FColor::OpaqueWhite(), 1.0f, 5.0f}};
+    FDeferredFramePlan BatchedPlan;
+    (void)Renderer.PrepareFrame(BatchedInputs, BatchedPlan);
+    FExecutionFixture BatchedFixture;
+    const auto BatchedGraph = BuildDeferredRenderGraphDeclaration(BatchedPlan);
+    const bool bBatchedFixture = BatchedFixture.Initialize(BatchedPlan);
+    const auto BatchedExecution =
+        FDeferredFrameExecutor().Execute(BatchedPlan, BatchedGraph, BatchedFixture.Bindings);
+    auto BatchedCommands =
+        std::dynamic_pointer_cast<FVulkanCommandBuffer>(BatchedFixture.Bindings.CommandBuffer);
+    bool bBatchUsesAcceptedLightOffset = false;
+    if (BatchedCommands)
+    {
+        for (const FVulkanRecordedCommand& Command : BatchedCommands->GetRecordedCommands())
+        {
+            bBatchUsesAcceptedLightOffset = bBatchUsesAcceptedLightOffset ||
+                (Command.Type == ERHISymbolicCommandType::DrawIndexed &&
+                    Command.B == 3 && Command.C == 1);
+        }
+    }
+    Record(Result, bBatchedFixture && BatchedExecution.Succeeded() &&
+        BatchedExecution.LocalLightBatchCount == 1 &&
+        BatchedExecution.LocalLightInstanceCount == 3 &&
+        bBatchUsesAcceptedLightOffset &&
+        BatchedPlan.FindPass(EDeferredPassStage::SurfaceData)->DrawCount == 1,
+        "Deferred executor batches equal-volume lights without increasing surface work");
+
+    FDeferredRenderer ReadbackRenderer({true, true, true, true, ERHISampleCount::One});
+    FDeferredFramePlan ReadbackPlan;
+    (void)ReadbackRenderer.PrepareFrame(Inputs, ReadbackPlan);
+    FExecutionFixture ReadbackFixture;
+    const auto ReadbackGraph = BuildDeferredRenderGraphDeclaration(ReadbackPlan);
+    const bool bReadbackFixture = ReadbackFixture.Initialize(ReadbackPlan);
+    ReadbackFixture.Bindings.Readbacks.push_back(
+        {"InvalidReadback", ReadbackFixture.Bindings.FinalOutput, nullptr, {}});
+    const auto FailedExecution =
+        FDeferredFrameExecutor().Execute(ReadbackPlan, ReadbackGraph, ReadbackFixture.Bindings);
+    const FDeferredDiagnostic* Failure = FailedExecution.Diagnostics.GetFirstError();
+    Record(Result, bReadbackFixture &&
+        FailedExecution.Result == EDeferredResult::ReadbackFailed &&
+        FailedExecution.FinalState == EDeferredExecutionState::Failed &&
+        FailedExecution.LastCompletedStage == EDeferredPassStage::Composition &&
+        FailedExecution.RecordedPassCount + 1 == ReadbackPlan.Passes.size() &&
+        Failure && Failure->Code == "DEF-EXEC-READBACK" &&
+        ReadbackFixture.Bindings.CommandBuffer->GetRecordedCommandCount() == 0,
+        "Deferred executor stops before dependent readback success on the first copy failure");
 }
 
 void TestInvalidInputs(FDeferredRenderingTestResult& Result)

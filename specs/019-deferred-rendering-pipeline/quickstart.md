@@ -32,6 +32,12 @@ Build\Win64\Debug\Tests\StonerTest.exe
 
 The complete test executable must include deferred planner, surface-layout, material, directional/point/spot light, graph declaration, executor binding/command, comparison, and failure/cleanup coverage. Equivalent deterministic frame preparation is repeated 20 times and must produce byte-identical normalized reports.
 
+The native integration suite always runs a runtime-independent lifecycle model
+for partial initialization, record, submit, fence, copy, map, decode, and probe
+failures. A required native profile additionally injects those failures into
+real Vulkan sessions and requires every partial session to stop at its primary
+stage and release to zero live objects.
+
 ## Inspect Deterministic Deferred Output
 
 After implementation, run the deferred validation helper in deterministic mode:
@@ -116,6 +122,15 @@ rg "^(tier|scene-fingerprint|measured-frames|forward-median|forward-p95|deferred
 
 The report must contain `0`, `16`, `64`, and `256` local-light tiers with at least 100 measured frames per strategy after warm-up. Timing does not decide pass/fail; missing tiers, mismatched fingerprints/workloads, incomplete samples, or non-finite timings do.
 
+The report is emitted by `RendererComparisonTests`, not synthesized by the
+validation script. Each tier records:
+
+- `scene-fingerprint`, `warmup-frames`, and `measured-frames`;
+- forward/deferred median and p95 values;
+- forward geometry, deferred surface, deferred local-light, and culled-light counts;
+- `fingerprint-match`; and
+- the final `crossover` and `comparison-result`.
+
 ## Verify Deferred Shader Assets
 
 When `glslangValidator` and `spirv-val` are installed:
@@ -156,6 +171,10 @@ Required CI outcomes:
 - `ReadbackFailed`: confirm copy-source transition, destination capacity/host visibility, fence completion, and decode format.
 - `ValidationFailed`: inspect the first failed named probe and semantic threshold.
 - `ComparisonInvalid`: compare scene/view/material/light fingerprints and measured frame counts.
+- Injected native failures: `PartialInitialization`, `Record`, `Submit`,
+  `Fence`, `Copy`, `Map`, `Decode`, and `Probe` are primary stages. A later
+  success record, a non-zero final live count, or a non-idempotent shutdown is
+  a failure of the cleanup contract.
 
 Do not convert missing Vulkan/Lavapipe, shader, readback, or probe support into success for the required Linux native profile.
 
@@ -181,3 +200,23 @@ directional, indexed sphere-volume point, indexed cone-volume spot, and
 composition passes; copies all deferred attachments into host-visible staging
 buffers; and reports only values decoded from mapped Vulkan memory. Linux
 Lavapipe CI remains the required execution gate for that path.
+
+## Local Implementation Checkpoint (2026-07-24)
+
+Verified on macOS:
+
+```bash
+conda run -n godot scons -j8
+Build/Mac/Debug/Tests/StonerTest
+env STONER_REQUIRE_DEFERRED_NATIVE=1 \
+  STONER_RUN_DEFERRED_NATIVE_FAILURES=1 \
+  STONER_DEFERRED_NATIVE_SHADER_DIR=Build/Mac/Debug/Renderer/Shaders/Deferred \
+  STONER_DEFERRED_READBACK_REPORT=/tmp/stoner-019-mac-readback.txt \
+  STONER_RENDERER_COMPARISON_REPORT=/tmp/stoner-019-mac-comparison.txt \
+  Build/Mac/Debug/Tests/StonerTest
+```
+
+The required native run completed on Apple M4 Pro through MoltenVK. It produced
+24 passing attachment probes, `final_live_objects=0`, all four executed
+comparison tiers, and clean partial-state release for all eight injected native
+failure points.

@@ -103,14 +103,16 @@ public:
         return ERHIResult::Success;
     }
 
-    ERHIResult RecordDrawIndexed(uint32 IndexCount, uint32 InstanceCount = 1) override
+    ERHIResult RecordDrawIndexed(uint32 IndexCount, uint32 InstanceCount = 1,
+        uint32 FirstInstance = 0) override
     {
         if (State != ERHICommandBufferState::Recording)
         {
             return ERHIResult::InvalidState;
         }
 
-        Commands.push_back({ERHISymbolicCommandType::DrawIndexed, IndexCount, InstanceCount, 0});
+        Commands.push_back({ERHISymbolicCommandType::DrawIndexed,
+            IndexCount, InstanceCount, FirstInstance});
         return ERHIResult::Success;
     }
 

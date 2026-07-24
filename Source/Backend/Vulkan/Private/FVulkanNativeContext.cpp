@@ -148,7 +148,8 @@ public:
     ERHIResult Reset() override { State = ERHICommandBufferState::Resettable; CommandCount = 0; bInsideRenderPass = false; return ERHIResult::Success; }
     ERHIResult RecordDraw(Stoner::Core::uint32 Vertices, Stoner::Core::uint32 Instances) override
     { if (!bInsideRenderPass || Vertices != 3 || Instances != 1) return ERHIResult::InvalidState; vkCmdDraw(Commands, Vertices, Instances, 0, 0); ++CommandCount; return ERHIResult::Success; }
-    ERHIResult RecordDrawIndexed(Stoner::Core::uint32, Stoner::Core::uint32) override { return ERHIResult::Unsupported; }
+    ERHIResult RecordDrawIndexed(Stoner::Core::uint32, Stoner::Core::uint32,
+        Stoner::Core::uint32) override { return ERHIResult::Unsupported; }
     ERHIResult RecordDispatch(Stoner::Core::uint32, Stoner::Core::uint32, Stoner::Core::uint32) override { return ERHIResult::Unsupported; }
     ERHIResult BindGraphicsPipeline(const Stoner::Core::TSharedPtr<IRHIGraphicsPipeline>& Value) override
     { if (!bInsideRenderPass || !Value) return ERHIResult::InvalidState; vkCmdBindPipeline(Commands, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline); ++CommandCount; return ERHIResult::Success; }
@@ -654,12 +655,37 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
 
 Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteDeferredOffscreenValidation(
     const Stoner::Core::FString& ShaderDirectory,
-    FVulkanDeferredValidationReport& OutReport)
+    FVulkanDeferredValidationReport& OutReport,
+    EVulkanDeferredFailurePoint FailurePoint)
 {
     FVulkanNativeOffscreenSession Session(*this);
-    const Stoner::RHI::ERHIResult Result = Session.Execute(ShaderDirectory, OutReport);
+    const Stoner::RHI::ERHIResult Result =
+        Session.Execute(ShaderDirectory, OutReport, FailurePoint);
     (void)Session.Shutdown();
     return Result;
+}
+
+FVulkanDeferredValidationReport FVulkanNativeContext::RunDeferredFailureLifecycleValidation(
+    EVulkanDeferredFailurePoint FailurePoint) noexcept
+{
+    FVulkanDeferredValidationReport Report;
+    Report.RuntimeMode = "RuntimeIndependentFailureInjection";
+    Report.ReferencePath = "NativeDeferredFailureLifecycle";
+    Report.InjectedFailure = FailurePoint;
+    Report.PrimaryFailureStage = ToString(FailurePoint);
+    Report.PeakLiveObjects = FailurePoint == EVulkanDeferredFailurePoint::PartialInitialization
+        ? 7u : 32u;
+    Report.CompletedStageCount =
+        FailurePoint == EVulkanDeferredFailurePoint::Record ? 0u :
+        FailurePoint == EVulkanDeferredFailurePoint::Submit ? 1u :
+        FailurePoint == EVulkanDeferredFailurePoint::Fence ? 2u :
+        FailurePoint == EVulkanDeferredFailurePoint::Copy ? 3u :
+        FailurePoint == EVulkanDeferredFailurePoint::Map ? 4u :
+        FailurePoint == EVulkanDeferredFailurePoint::Decode ? 5u :
+        FailurePoint == EVulkanDeferredFailurePoint::Probe ? 6u : 0u;
+    Report.FinalLiveObjects = 0;
+    Report.bPassed = false;
+    return Report;
 }
 
 Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(

@@ -37,7 +37,9 @@ public:
     Stoner::RHI::ERHIResult Reset() override;
 
     Stoner::RHI::ERHIResult RecordDraw(Stoner::Core::uint32 VertexCount, Stoner::Core::uint32 InstanceCount = 1) override;
-    Stoner::RHI::ERHIResult RecordDrawIndexed(Stoner::Core::uint32 IndexCount, Stoner::Core::uint32 InstanceCount = 1) override;
+    Stoner::RHI::ERHIResult RecordDrawIndexed(Stoner::Core::uint32 IndexCount,
+        Stoner::Core::uint32 InstanceCount = 1,
+        Stoner::Core::uint32 FirstInstance = 0) override;
     Stoner::RHI::ERHIResult RecordDispatch(Stoner::Core::uint32 GroupCountX, Stoner::Core::uint32 GroupCountY, Stoner::Core::uint32 GroupCountZ) override;
     Stoner::RHI::ERHIResult BindGraphicsPipeline(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIGraphicsPipeline>& Pipeline) override;
     Stoner::RHI::ERHIResult BindComputePipeline(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIComputePipeline>& Pipeline) override;

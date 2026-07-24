@@ -170,7 +170,9 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDraw(Stoner::Core::uint32 Ve
     return Stoner::RHI::ERHIResult::Success;
 }
 
-Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDrawIndexed(Stoner::Core::uint32 IndexCount, Stoner::Core::uint32 InstanceCount)
+Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDrawIndexed(
+    Stoner::Core::uint32 IndexCount, Stoner::Core::uint32 InstanceCount,
+    Stoner::Core::uint32 FirstInstance)
 {
     if (ValidateRecordingState() != Stoner::RHI::ERHIResult::Success || QueueType != Stoner::RHI::ERHIQueueType::Graphics || !HasActiveRenderPass() || IndexCount == 0 || InstanceCount == 0)
     {
@@ -185,7 +187,8 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDrawIndexed(Stoner::Core::ui
     {
         MarkRecordingDiagnostic("indexed draw recorded with compatible graphics pipeline binding");
     }
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::DrawIndexed, IndexCount, InstanceCount, 0});
+    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::DrawIndexed,
+        IndexCount, InstanceCount, FirstInstance});
     return Stoner::RHI::ERHIResult::Success;
 }
 

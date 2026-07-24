@@ -175,8 +175,19 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
                     Commands.RecordTextureToBufferCopy(Readback.Source, Readback.Destination,
                         Readback.Region) != Stoner::RHI::ERHIResult::Success)
                 {
+                    Out.RecordedCommandCount = Commands.GetRecordedCommandCount();
+                    if (Commands.End() == Stoner::RHI::ERHIResult::Success)
+                    {
+                        (void)Commands.Reset();
+                    }
                     Out.Result = EDeferredResult::ReadbackFailed;
                     Out.FinalState = EDeferredExecutionState::Failed;
+                    Out.Diagnostics.Add(EDeferredDiagnosticSeverity::Error, Pass.Stage,
+                        EDeferredResult::ReadbackFailed, "DEF-EXEC-READBACK", Readback.Name,
+                        "readback recording stopped at the first invalid transition or copy");
+                    Out.Diagnostics.Add(EDeferredDiagnosticSeverity::Info, Pass.Stage,
+                        EDeferredResult::ReadbackFailed, "DEF-EXEC-CLEANUP", Readback.Name,
+                        "partial command recording was closed and reset without later success");
                     return Out;
                 }
             }
@@ -220,6 +231,13 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
         }
         else if (bRecorded && bLocalVolume)
         {
+            struct FLightBatch
+            {
+                const FDeferredStageBindings* Stage = nullptr;
+                Stoner::RHI::FRHIScissorRect Scissor;
+                Stoner::Core::uint32 InstanceCount = 0;
+                Stoner::Core::uint32 FirstInstance = 0;
+            };
             const bool bPoint = Pass.Stage == EDeferredPassStage::PointLightVolumes;
             const auto& Vertex = bPoint ? Bindings.SphereVertexBuffer : Bindings.ConeVertexBuffer;
             const auto& Index = bPoint ? Bindings.SphereIndexBuffer : Bindings.ConeIndexBuffer;
@@ -229,15 +247,23 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
                 Commands.BindVertexBuffer(Vertex) == Stoner::RHI::ERHIResult::Success &&
                 Commands.BindIndexBuffer(Index, Stoner::RHI::ERHIIndexType::UInt16) ==
                     Stoner::RHI::ERHIResult::Success;
-            for (const FDeferredLightRecord& Light : Plan.Lights.Accepted)
+            Stoner::Core::TArray<FLightBatch> Batches;
+            for (std::size_t LightIndex = 0; LightIndex < Plan.Lights.Accepted.size();
+                ++LightIndex)
             {
-                if (!bRecorded || Light.Type != (bPoint
-                    ? EDeferredLightType::Point : EDeferredLightType::Spot))
+                const FDeferredLightRecord& Light = Plan.Lights.Accepted[LightIndex];
+                if (Light.Type != (bPoint ? EDeferredLightType::Point : EDeferredLightType::Spot))
                 {
                     continue;
                 }
                 const FDeferredLightVolumeClassification Classification =
                     ClassifyDeferredLightVolume(Light, Plan.View);
+                if (!Classification.bIntersectsView ||
+                    Classification.Acceptance == EDeferredLightAcceptance::CulledOutsideView)
+                {
+                    ++Out.OmittedLocalLightCount;
+                    continue;
+                }
                 const bool bInside =
                     Classification.Acceptance == EDeferredLightAcceptance::AcceptedVolumeCameraInside ||
                     Classification.Acceptance ==
@@ -248,14 +274,39 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
                 const Stoner::RHI::FRHIScissorRect Scissor{
                     Classification.Scissor.X, Classification.Scissor.Y,
                     Classification.Scissor.Width, Classification.Scissor.Height};
-                bRecorded = IsStageValid(LightStage) &&
-                    LightStage.RenderPass == Stage.RenderPass &&
-                    LightStage.Framebuffer == Stage.Framebuffer &&
-                    Commands.BindGraphicsPipeline(LightStage.Pipeline) ==
+                const bool bCanAppend = !Batches.empty() && Batches.back().Stage == &LightStage &&
+                    Batches.back().Scissor.X == Scissor.X &&
+                    Batches.back().Scissor.Y == Scissor.Y &&
+                    Batches.back().Scissor.Width == Scissor.Width &&
+                    Batches.back().Scissor.Height == Scissor.Height;
+                if (bCanAppend)
+                {
+                    ++Batches.back().InstanceCount;
+                }
+                else
+                {
+                    Batches.push_back({&LightStage, Scissor, 1,
+                        static_cast<Stoner::Core::uint32>(LightIndex)});
+                }
+            }
+            for (const FLightBatch& Batch : Batches)
+            {
+                bRecorded = bRecorded && IsStageValid(*Batch.Stage) &&
+                    Batch.Stage->RenderPass == Stage.RenderPass &&
+                    Batch.Stage->Framebuffer == Stage.Framebuffer &&
+                    Commands.BindGraphicsPipeline(Batch.Stage->Pipeline) ==
                         Stoner::RHI::ERHIResult::Success &&
-                    BindDescriptorSets(Commands, LightStage) &&
-                    Commands.SetScissor(Scissor) == Stoner::RHI::ERHIResult::Success &&
-                    Commands.RecordDrawIndexed(IndexCount, 1) == Stoner::RHI::ERHIResult::Success;
+                    BindDescriptorSets(Commands, *Batch.Stage) &&
+                    Commands.SetScissor(Batch.Scissor) == Stoner::RHI::ERHIResult::Success &&
+                    Commands.RecordDrawIndexed(
+                        IndexCount, Batch.InstanceCount, Batch.FirstInstance) ==
+                        Stoner::RHI::ERHIResult::Success;
+                if (!bRecorded)
+                {
+                    break;
+                }
+                ++Out.LocalLightBatchCount;
+                Out.LocalLightInstanceCount += Batch.InstanceCount;
             }
         }
         else if (bRecorded)
@@ -268,11 +319,20 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
         bRecorded = bRecorded && Commands.EndRenderPass() == Stoner::RHI::ERHIResult::Success;
         if (!bRecorded)
         {
+            Out.RecordedCommandCount = Commands.GetRecordedCommandCount();
+            (void)Commands.EndRenderPass();
+            if (Commands.End() == Stoner::RHI::ERHIResult::Success)
+            {
+                (void)Commands.Reset();
+            }
             Out.Result = EDeferredResult::RecordFailed;
             Out.FinalState = EDeferredExecutionState::Failed;
             Out.Diagnostics.Add(EDeferredDiagnosticSeverity::Error, Pass.Stage,
                 EDeferredResult::RecordFailed, "DEF-EXEC-RECORD", Pass.Name,
                 "command recording stopped at first failed stage");
+            Out.Diagnostics.Add(EDeferredDiagnosticSeverity::Info, Pass.Stage,
+                EDeferredResult::RecordFailed, "DEF-EXEC-CLEANUP", Pass.Name,
+                "partial command recording was closed and reset without dependent stages");
             return Out;
         }
         ++Out.RecordedPassCount;
@@ -281,8 +341,12 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
     }
     if (Commands.End() != Stoner::RHI::ERHIResult::Success)
     {
+        Out.RecordedCommandCount = Commands.GetRecordedCommandCount();
         Out.Result = EDeferredResult::RecordFailed;
         Out.FinalState = EDeferredExecutionState::Failed;
+        Out.Diagnostics.Add(EDeferredDiagnosticSeverity::Error, Out.LastCompletedStage,
+            EDeferredResult::RecordFailed, "DEF-EXEC-END", Plan.FrameId,
+            "command recording finalization failed after the last completed stage");
         return Out;
     }
     Out.Result = EDeferredResult::Success;

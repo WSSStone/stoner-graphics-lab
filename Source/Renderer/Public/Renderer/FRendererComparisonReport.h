@@ -67,6 +67,7 @@ struct FRendererComparisonReport
 
     [[nodiscard]] bool IsValid() const noexcept { return State == ERendererComparisonState::Valid; }
     [[nodiscard]] Stoner::Core::FString Dump() const;
+    [[nodiscard]] Stoner::Core::FString DumpValidationArtifact() const;
 };
 
 [[nodiscard]] bool FinalizeRendererComparisonTier(FRendererComparisonTier& Tier,

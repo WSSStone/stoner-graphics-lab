@@ -166,6 +166,35 @@ Stoner::Core::FString FRendererComparisonReport::Dump() const
     return Stoner::Core::FString(Stream.str());
 }
 
+Stoner::Core::FString FRendererComparisonReport::DumpValidationArtifact() const
+{
+    std::ostringstream Stream;
+    Stream << "feature=019-deferred-rendering-pipeline\n"
+        << "measurement-source=RendererComparisonTests\n";
+    Stream << std::fixed << std::setprecision(6);
+    for (const FRendererComparisonTier& Tier : Tiers)
+    {
+        Stream << "tier=" << Tier.LocalLightCount << '\n'
+            << "scene-fingerprint=" << Tier.ForwardFingerprint.GetIdentity().CStr() << '\n'
+            << "warmup-frames=" << Tier.WarmupFrames << '\n'
+            << "measured-frames=" << Tier.Samples.size() << '\n'
+            << "forward-median=" << Tier.ForwardMedianMilliseconds << '\n'
+            << "forward-p95=" << Tier.ForwardP95Milliseconds << '\n'
+            << "deferred-median=" << Tier.DeferredMedianMilliseconds << '\n'
+            << "deferred-p95=" << Tier.DeferredP95Milliseconds << '\n'
+            << "forward-geometry-draws=" << Tier.ForwardGeometryDrawCount << '\n'
+            << "deferred-surface-draws=" << Tier.DeferredSurfaceDrawCount << '\n'
+            << "deferred-local-light-draws=" << Tier.DeferredLocalLightDrawCount << '\n'
+            << "culled-local-lights=" << Tier.CulledLocalLightCount << '\n'
+            << "fingerprint-match="
+            << (Tier.ForwardFingerprint.IsEquivalent(Tier.DeferredFingerprint) ? "true" : "false")
+            << '\n';
+    }
+    Stream << "crossover=" << ToString(Crossover) << '\n'
+        << "comparison-result=" << (IsValid() ? "pass" : "fail") << '\n';
+    return Stoner::Core::FString(Stream.str());
+}
+
 const char* ToString(ERendererCrossoverClassification Classification) noexcept
 {
     switch (Classification)
