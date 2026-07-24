@@ -1,8 +1,9 @@
-# Stoner Graphics Lab — Engine Development Roadmap
+# Stoner Graphics Lab - Engine Development Roadmap
 
-> **Version**: 1.2.3 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-23 | **Status**: Active
-> **Constitution**: v1.3.0 (comply with Section VII: Cross-Platform Compatibility and automated validation)
-> **Prerequisite**: [001-scons-project-skeleton](../specs/001-scons-project-skeleton/spec.md) ✅ Complete
+> **Version**: 2.0.0 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-24 | **Status**: Active
+> **Constitution**: v1.4.0
+> **Numbering Rule**: Every runtime phase number equals its Speckit feature number. Feature 002 is this roadmap meta-feature.
+> **Completed Baseline**: Features 001 and 003 through 019 are implemented and verified.
 
 ---
 
@@ -10,136 +11,176 @@
 
 1. [Overview](#overview)
 2. [Architecture Principles](#architecture-principles)
-3. [Phase Overview Table](#phase-overview-table)
+3. [Phase Overview](#phase-overview)
 4. [Dependency Graph](#dependency-graph)
 5. [Phase Details](#phase-details)
-   - [Phase 002 — Core Foundation: Types & Memory](#phase-002--core-foundation-types--memory)
-   - [Phase 003 — Core Foundation: Math Library](#phase-003--core-foundation-math-library)
-   - [Phase 004 — Core Foundation: Logging & Assertions](#phase-004--core-foundation-logging--assertions)
-   - [Phase 005 — Core Foundation: Platform Abstraction Layer](#phase-005--core-foundation-platform-abstraction-layer)
-   - [Phase 006 — RHI: Core Interfaces](#phase-006--rhi-core-interfaces)
-   - [Phase 007 — RHI: Resource & Pipeline Interfaces](#phase-007--rhi-resource--pipeline-interfaces)
-   - [Phase 008 — Backend: Vulkan Device & Swapchain](#phase-008--backend-vulkan-device--swapchain)
-   - [Phase 009 — Backend: Vulkan Resource Management](#phase-009--backend-vulkan-resource-management)
-   - [Phase 010 — Backend: Vulkan Command Recording & Submission](#phase-010--backend-vulkan-command-recording--submission)
-   - [Phase 011 — Backend: Vulkan Pipeline & Shader](#phase-011--backend-vulkan-pipeline--shader)
-   - [Phase 012 — Renderer: Render Graph Foundation](#phase-012--renderer-render-graph-foundation)
-   - [Phase 013 — Renderer: Material & Shader System](#phase-013--renderer-material--shader-system)
-   - [Phase 014 — Renderer: Forward Rendering Pipeline](#phase-014--renderer-forward-rendering-pipeline)
-   - [Phase 015 — Application: Window & Input System](#phase-015--application-window--input-system)
-   - [Phase 016 — Application: Scene Graph & ECS Foundation](#phase-016--application-scene-graph--ecs-foundation)
-   - [Phase 017 — Application: Triangle Demo (Integration Milestone)](#phase-017--application-triangle-demo-integration-milestone)
-   - [Phase 018 — Renderer: Deferred Rendering Pipeline](#phase-018--renderer-deferred-rendering-pipeline)
-   - [Phase 019 — Renderer: Meshlet Pipeline (Nanite-like)](#phase-019--renderer-meshlet-pipeline-nanite-like)
-   - [Phase 020 — Renderer: Ray Tracing Integration](#phase-020--renderer-ray-tracing-integration)
-   - [Phase 021 — Renderer: Global Illumination (Lumen-like)](#phase-021--renderer-global-illumination-lumen-like)
-   - [Phase 022 — Backend: Metal Implementation](#phase-022--backend-metal-implementation)
-   - [Phase 023 — Backend: DX12 Implementation](#phase-023--backend-dx12-implementation)
-   - [Phase 024 — Backend: OpenGL/GLES Compatibility Layer](#phase-024--backend-openglgles-compatibility-layer)
+   - [Phase 003 - Core: Types & Memory](#phase-003--core-types--memory)
+   - [Phase 004 - Core: Math Library](#phase-004--core-math-library)
+   - [Phase 005 - Core: Logging & Assertions](#phase-005--core-logging--assertions)
+   - [Phase 006 - Core: Platform Abstraction](#phase-006--core-platform-abstraction)
+   - [Phase 007 - RHI: Core Interfaces](#phase-007--rhi-core-interfaces)
+   - [Phase 008 - RHI: Resource & Pipeline Interfaces](#phase-008--rhi-resource--pipeline-interfaces)
+   - [Phase 009 - Backend: Vulkan Device & Swapchain](#phase-009--backend-vulkan-device--swapchain)
+   - [Phase 010 - Backend: Vulkan Resource Management](#phase-010--backend-vulkan-resource-management)
+   - [Phase 011 - Backend: Vulkan Commands & Submission](#phase-011--backend-vulkan-commands--submission)
+   - [Phase 012 - Backend: Vulkan Pipeline & Shader](#phase-012--backend-vulkan-pipeline--shader)
+   - [Phase 013 - Renderer: Render Graph Foundation](#phase-013--renderer-render-graph-foundation)
+   - [Phase 014 - Renderer: Material & Shader System](#phase-014--renderer-material--shader-system)
+   - [Phase 015 - Renderer: Forward Rendering](#phase-015--renderer-forward-rendering)
+   - [Phase 016 - Application: Window & Input](#phase-016--application-window--input)
+   - [Phase 017 - Application: Scene Graph & ECS](#phase-017--application-scene-graph--ecs)
+   - [Phase 018 - Application: Triangle Demo](#phase-018--application-triangle-demo)
+   - [Phase 019 - Renderer: Deferred Rendering](#phase-019--renderer-deferred-rendering)
+   - [Phase 020 - Asset: Core, Identity & Registry](#phase-020--asset-core-identity--registry)
+   - [Phase 021 - Asset: Image & Texture Foundation](#phase-021--asset-image--texture-foundation)
+   - [Phase 022 - Asset: KTX2 Cooking & Compression](#phase-022--asset-ktx2-cooking--compression)
+   - [Phase 023 - Asset: Static Mesh & Model Pipeline](#phase-023--asset-static-mesh--model-pipeline)
+   - [Phase 024 - Asset: Material & Shader Assets](#phase-024--asset-material--shader-assets)
+   - [Phase 025 - Asset: Cooker & Runtime Manager](#phase-025--asset-cooker--runtime-manager)
+   - [Phase 026 - Renderer: Meshlet Pipeline](#phase-026--renderer-meshlet-pipeline)
+   - [Phase 027 - Asset: Streaming & Residency](#phase-027--asset-streaming--residency)
+   - [Phase 028 - Renderer: Ray Tracing](#phase-028--renderer-ray-tracing)
+   - [Phase 029 - Renderer: Global Illumination](#phase-029--renderer-global-illumination)
+   - [Phase 030 - Backend: Metal](#phase-030--backend-metal)
+   - [Phase 031 - Backend: DirectX 12](#phase-031--backend-directx-12)
+   - [Phase 032 - Backend: OpenGL/GLES](#phase-032--backend-openglgles)
 6. [Parallel Development Tracks](#parallel-development-tracks)
-7. [Risk Register](#risk-register)
-8. [How to Use This Roadmap](#how-to-use-this-roadmap)
+7. [Future Asset Extensions](#future-asset-extensions)
+8. [Risk Register](#risk-register)
+9. [Constitution Compliance](#constitution-compliance)
+10. [How to Use This Roadmap](#how-to-use-this-roadmap)
+11. [Change Log](#change-log)
 
 ---
 
 ## Overview
 
-Stoner Graphics Lab is a cross-platform graphics engine built in modern C++20 with a strict 5-layer architecture. The SCons build skeleton is complete (Phase 001). This roadmap defines the **next 23 development phases** that transform the skeleton into a functional, advanced graphics engine.
+Stoner Graphics Lab is a C++20 cross-platform graphics engine developed through
+one Speckit cycle per roadmap phase. Features 003 through 019 established Core,
+RHI, Vulkan, Renderer, Application, visible presentation, and sibling forward
+and deferred paths. The next critical gap is content flow: the engine can create
+GPU resources and refer to meshes or textures abstractly, but it cannot yet
+turn source files into stable CPU assets, cooked payloads, or managed runtime
+objects.
 
-### Design Philosophy
+Roadmap 2.0 adds Asset as an independent runtime layer. It separates source
+interchange, cooked delivery, runtime management, and GPU realization so that
+Meshlets, Ray Tracing, and GI consume versioned derived data instead of
+hard-coded geometry.
 
-- **Bottom-up construction**: Build from Core upward, never skip layers
-- **Spec-driven development**: Every phase = one `/speckit.specify` cycle
-- **Incremental value**: Each phase produces testable, demonstrable output
-- **Agent-friendly**: Each phase is self-contained with clear inputs/outputs
+### Roadmap-Wide Decisions
 
-### Roadmap-Wide Technology Decisions
+- C++20 uses traditional public/private headers and sources; no C++20 Modules.
+- Vulkan remains the first backend; Metal, DX12, and GL/GLES remain independent RHI implementations.
+- Core learning systems are implemented locally; mature codecs and format parsers may be vendored when reimplementing them has little educational value.
+- Development builds may import source assets; cooked runtime mode consumes manifests and derived payloads without implicit source fallback.
+- Asset identity is a typed canonical logical path plus optional subresource. Source/content/cook hashes version and invalidate data but do not change identity.
+- Initial source formats are glTF 2.0/GLB and PNG/JPEG/HDR. KTX2/Basis is the cooked texture standard.
+- FBX, OBJ, USD, and TGA are future importer/resolver plugins, not initial format commitments.
+- Windows, macOS, and Linux automated validation is mandatory for platform-sensitive features.
 
-- **Learning-oriented core**: Implement foundational systems such as types, containers, memory, math, and logging in this repository instead of wrapping broad third-party libraries.
-- **Traditional C++20 headers/sources**: Use C++20 language features, but do not use C++20 Modules because cross-compiler and SCons support remains immature.
-- **Vulkan-first rendering path**: Build the first real backend on Vulkan, then add native Metal, DX12, and OpenGL/GLES backends as separate RHI implementations.
-- **Render Graph terminology**: Use "Render Graph" and `FRenderGraph` as the canonical dependency-management system for render passes and resources.
-- **GLFW first, native later**: Use GLFW for the initial window/input phase to reach the first-triangle milestone quickly, then add native Win32/Cocoa/X11-Wayland window implementations behind the same abstraction in a later phase.
+### Research Basis
 
-### Current State (Post Phase 018)
+- [glTF 2.0 Specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html) defines the initial runtime-oriented static model interchange boundary.
+- [KTX](https://www.khronos.org/ktx/) defines the cooked texture container and Basis cross-platform compression path.
+- [OpenUSD Asset Resolution](https://openusd.org/release/api/ar_page_front.html) informs logical identifiers and replaceable resolver strategies; USD composition itself remains a later Scene/Prefab concern.
+- [Unreal Asset Management](https://dev.epicgames.com/documentation/en-us/unreal-engine/asset-management-in-unreal-engine) supports separating unloaded metadata, soft references, asynchronous loading, and residency ownership.
 
-| Layer | Status | Content |
-|-------|--------|---------|
-| Core | ✅ Done | Types, memory, math, logging, assertions, platform abstraction all implemented |
-| RHI | 🔷 Interface Complete | Core interfaces (006) and Resource & Pipeline interfaces (007) defined as pure virtual; implementations live in backends |
-| Backend/Vulkan | ✅ Done | Device, swapchain, resources, commands, shader modules, graphics/compute pipelines, command binding, and process-local pipeline reuse implemented |
-| Backend/Others | ⚪ Placeholder | `.gitkeep` files only |
-| Renderer | ✅ Forward + Deferred Done | Backend-agnostic render graph and material/shader system; forward remains default; deferred adds world-space GBuffer data, directional and bounded local-light execution, composition, native Vulkan readback, diagnostics, and comparison evidence |
-| Application | 🟡 Skeleton | Empty namespace, includes Renderer |
-| Tests | ✅ Done | Core tests, RHI contract tests, Renderer render graph/material/forward pipeline tests, and Vulkan integration tests all pass |
-| Build System | ✅ Complete | SCons with LayerBuilder, PlatformDetect, BuildConfig, Vulkan SDK detection |
+### Current State (Post Feature 019)
 
-> **🔷 Interface Complete** = Pure virtual interfaces and contracts defined; implementations exist in backends, but no mock-based RHI unit tests yet.
+| Ownership Area | Status | Current Capability |
+|---|---|---|
+| Core | Done | Types, memory, math, logging, assertions, filesystem/process/time/window handles |
+| Asset | Next | No formal layer yet; Feature 020 creates its contracts |
+| RHI | Done | Device, resources, descriptors, pipelines, render passes, commands, queues, sync |
+| Backend/Vulkan | Done | Native/fallback device, resources, commands, pipelines, presentation, readback |
+| Renderer | Done through Deferred | Render Graph, material/shader records, forward and deferred execution |
+| Application | Done foundation | Window/input, ECS scene organization, visible triangle integration |
+| Additional Backends | Planned | Metal, DX12, and GL/GLES follow the Asset-backed shader path |
 
 ---
 
 ## Architecture Principles
 
-These principles (from the [Constitution v1.3.0](../.specify/memory/constitution.md)) govern all development ordering:
+### Runtime Dependency Directions
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                     Application                         │
-│         (Scene Graph, Input, Physics, Game Loop)        │
-├─────────────────────────────────────────────────────────┤
-│                      Renderer                           │
-│   (Materials, Lighting, Render Passes, RT, Meshlets, GI)│
-├─────────────────────────────────────────────────────────┤
-│                        RHI                              │
-│     (IDevice, ICommandBuffer, IBuffer, IPipeline)       │
-├──────────────┬──────────────┬───────────────────────────┤
-│   Vulkan     │    DX12      │   Metal / GL / GLES / WebGL│
-│  (Backend)   │  (Backend)   │       (Backend)           │
-├──────────────┴──────────────┴───────────────────────────┤
-│                       Core                              │
-│    (Math, Memory, Logging, Platform, Containers)        │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    Core[Core]
+    Asset[Asset: CPU content and lifecycle]
+    RHI[RHI: graphics contracts]
+    Backend[Backend: graphics API implementations]
+    Renderer[Renderer: GPU realization and rendering]
+    Application[Application: world and runtime composition]
+    Tools[Tools: offline import and cooking]
+
+    Core --> Asset
+    Core --> RHI
+    Core --> Backend
+    RHI --> Backend
+    Core --> Renderer
+    Asset --> Renderer
+    RHI --> Renderer
+    Core --> Application
+    Asset --> Application
+    Renderer --> Application
+    Core --> Tools
+    Asset --> Tools
 ```
 
-**Key Rules**:
-1. **Adjacent-only dependencies** — no skip-level includes
-2. **RHI abstraction** — Application/Renderer never touch graphics API directly
-3. **Strategy/Composite patterns** — no god-classes
-4. **UE5-style naming** — `FVector3`, `IDevice`, `EPixelFormat`, `TArray<T>`
-5. **Cross-platform** — Windows + macOS + Linux at minimum
-6. **Automated cross-platform validation** — platform-sensitive features include or update GitHub Actions or equivalent CI
+Arrows point from dependency to consumer. Asset owns CPU-side payloads,
+identities, metadata, dependency records, and import/cook/load contracts. Asset
+does not include RHI, Renderer, Application, Backend, or graphics API headers.
+Renderer creates RHI resources and owns GPU residency. Runtime modules never
+depend on Tools.
+
+### Rules
+
+1. Public Application and Renderer code never calls Vulkan, Metal, DX, GL, or GLES directly.
+2. Importers are registered strategies; one source may emit multiple typed subresources.
+3. Registry, resolver, importer, cooker, manager, and residency policy remain separate responsibilities.
+4. Source assets are authoritative. Meshlets, BLAS, SDF, and compressed textures are versioned derived assets.
+5. Public names use UE5-style prefixes (`F`, `I`, `E`, and `T`).
+6. Each phase is independently specifiable, testable, and status tracked.
 
 ---
 
-## Phase Overview Table
+## Phase Overview
 
-| # | Phase Name | Layer | Dependencies | Complexity | Critical Path | Status |
-|---|-----------|-------|-------------|-----------|--------------|--------|
-| 002 | Core: Types & Memory | Core | 001 | M | ✅ Yes | ✅ Done |
-| 003 | Core: Math Library | Core | 002 | L | ✅ Yes | ✅ Done |
-| 004 | Core: Logging & Assertions | Core | 002 | S | ❌ No | ✅ Done |
-| 005 | Core: Platform Abstraction | Core | 002 | M | ✅ Yes | ✅ Done |
-| 006 | RHI: Core Interfaces | RHI | 002, 003 | L | ✅ Yes | 🔷 Interface Complete |
-| 007 | RHI: Resource & Pipeline | RHI | 006 | L | ✅ Yes | 🔷 Interface Complete |
-| 008 | Vulkan: Device & Swapchain | Backend | 005, 006 | L | ✅ Yes | ✅ Done |
-| 009 | Vulkan: Resource Management | Backend | 007, 008 | L | ✅ Yes | ✅ Done |
-| 010 | Vulkan: Commands & Submission | Backend | 009 | M | ✅ Yes | ✅ Done |
-| 011 | Vulkan: Pipeline & Shader | Backend | 009, 010 | L | ✅ Yes | ✅ Done |
-| 012 | Render Graph Foundation | Renderer | 007 | XL | ✅ Yes | ✅ Done |
-| 013 | Material & Shader System | Renderer | 007, 012 | L | ✅ Yes | ✅ Done |
-| 014 | Forward Rendering Pipeline | Renderer | 012, 013 | L | ✅ Yes | ✅ Done |
-| 015 | Window & Input System | Application | 005 | M | ✅ Yes | ⬜ Todo |
-| 016 | Scene Graph & ECS | Application | 003 | L | ❌ No | ⬜ Todo |
-| 017 | 🎯 Triangle Demo | Application | 011, 014, 015 | M | ✅ Yes | ✅ Done |
-| 018 | Deferred Rendering | Renderer | 014 | L | ❌ No | ✅ Done |
-| 019 | Meshlet Pipeline | Renderer | 014 | XL | ❌ No | ⬜ Todo |
-| 020 | Ray Tracing Integration | Renderer | 014 | XL | ❌ No | ⬜ Todo |
-| 021 | Global Illumination | Renderer | 018, 020 | XL | ❌ No | ⬜ Todo |
-| 022 | Metal Backend | Backend | 007 | L | ❌ No | ⬜ Todo |
-| 023 | DX12 Backend | Backend | 007 | L | ❌ No | ⬜ Todo |
-| 024 | OpenGL/GLES Compatibility | Backend | 007 | L | ❌ No | ⬜ Todo |
+| # | Phase | Layer | Dependencies | Complexity | Critical Path | Status |
+|---|---|---|---|---|---|---|
+| 003 | Types & Memory | Core | 001 | M | Yes | ✅ Done |
+| 004 | Math Library | Core | 003 | L | Yes | ✅ Done |
+| 005 | Logging & Assertions | Core | 003 | S | No | ✅ Done |
+| 006 | Platform Abstraction | Core | 003 | M | Yes | ✅ Done |
+| 007 | RHI Core Interfaces | RHI | 003, 004 | L | Yes | ✅ Done |
+| 008 | RHI Resource & Pipeline | RHI | 007 | L | Yes | ✅ Done |
+| 009 | Vulkan Device & Swapchain | Backend | 006, 007 | L | Yes | ✅ Done |
+| 010 | Vulkan Resource Management | Backend | 008, 009 | L | Yes | ✅ Done |
+| 011 | Vulkan Commands & Submission | Backend | 010 | M | Yes | ✅ Done |
+| 012 | Vulkan Pipeline & Shader | Backend | 010, 011 | L | Yes | ✅ Done |
+| 013 | Render Graph Foundation | Renderer | 008 | XL | Yes | ✅ Done |
+| 014 | Material & Shader System | Renderer | 008, 013 | L | Yes | ✅ Done |
+| 015 | Forward Rendering | Renderer | 013, 014 | L | Yes | ✅ Done |
+| 016 | Window & Input | Application | 006 | M | Yes | ✅ Done |
+| 017 | Scene Graph & ECS | Application | 004, 016 | L | No | ✅ Done |
+| 018 | Triangle Demo | Application | 012, 015, 016, 017 | M | Yes | ✅ Done |
+| 019 | Deferred Rendering | Renderer | 012, 013, 014, 015, 018 | L | No | ✅ Done |
+| 020 | Asset Core, Identity & Registry | Asset | 003, 006 | L | Yes | ⬜ Todo |
+| 021 | Image & Texture Foundation | Asset | 008, 020 | L | Yes | ⬜ Todo |
+| 022 | KTX2 Cooking & Compression | Asset | 010, 021 | L | Yes | ⬜ Todo |
+| 023 | Static Mesh & Model Pipeline | Asset | 004, 008, 020, 021 | XL | Yes | ⬜ Todo |
+| 024 | Material & Shader Assets | Asset | 014, 020, 021 | L | Yes | ⬜ Todo |
+| 025 | Cooker & Runtime Manager | Asset | 021, 022, 023, 024 | XL | Yes | ⬜ Todo |
+| 026 | Meshlet Pipeline | Renderer | 015, 023, 025 | XL | No | ⬜ Todo |
+| 027 | Streaming & Residency | Asset | 022, 025, 026 | XL | No | ⬜ Todo |
+| 028 | Ray Tracing | Renderer | 012, 015, 023, 025 | XL | No | ⬜ Todo |
+| 029 | Global Illumination | Renderer | 019, 027, 028 | XL | No | ⬜ Todo |
+| 030 | Metal Backend | Backend | 008, 024 | L | No | ⬜ Todo |
+| 031 | DirectX 12 Backend | Backend | 008, 024 | L | No | ⬜ Todo |
+| 032 | OpenGL/GLES Backend | Backend | 008, 024 | L | No | ⬜ Todo |
 
-**Complexity Legend**: S = ~1-2 days | M = ~3-5 days | L = ~1-2 weeks | XL = ~2-4 weeks
+Complexity: S = 1-2 days, M = 3-5 days, L = 1-2 weeks, XL = 2-4 weeks.
 
 ---
 
@@ -147,1113 +188,960 @@ These principles (from the [Constitution v1.3.0](../.specify/memory/constitution
 
 ```mermaid
 graph TD
-    P001[001: SCons Skeleton ✅] --> P002[002: Core Types & Memory]
-    P002 --> P003[003: Core Math Library]
-    P002 --> P004[004: Core Logging]
-    P002 --> P005[005: Core Platform Abstraction]
-    
-    P002 --> P006[006: RHI Core Interfaces]
-    P003 --> P006
-    P006 --> P007[007: RHI Resource & Pipeline]
-    
-    P005 --> P008[008: Vulkan Device & Swapchain]
-    P006 --> P008
-    P007 --> P009[009: Vulkan Resources]
-    P008 --> P009
-    P009 --> P010[010: Vulkan Commands]
-    P009 --> P011[011: Vulkan Pipeline & Shader]
-    P010 --> P011
-    
-    P007 --> P012[012: Render Graph]
-    P012 --> P013[013: Material & Shader System]
-    P007 --> P013
-    P012 --> P014[014: Forward Rendering]
+    P001[001 SCons Skeleton] --> P003[003 Types and Memory]
+    P003 --> P004[004 Math]
+    P003 --> P005[005 Logging]
+    P003 --> P006[006 Platform]
+    P003 --> P007[007 RHI Core]
+    P004 --> P007
+    P007 --> P008[008 RHI Resources]
+    P006 --> P009[009 Vulkan Device]
+    P007 --> P009
+    P008 --> P010[010 Vulkan Resources]
+    P009 --> P010
+    P010 --> P011[011 Vulkan Commands]
+    P010 --> P012[012 Vulkan Pipeline]
+    P011 --> P012
+    P008 --> P013[013 Render Graph]
+    P008 --> P014[014 Materials]
     P013 --> P014
-    
-    P005 --> P015[015: Window & Input]
-    P003 --> P016[016: Scene Graph & ECS]
-    
-    P011 --> P017[🎯 017: Triangle Demo]
-    P014 --> P017
-    P015 --> P017
-    
-    P014 --> P018[018: Deferred Rendering]
-    P014 --> P019[019: Meshlet Pipeline]
-    P014 --> P020[020: Ray Tracing]
-    P018 --> P021[021: Global Illumination]
+    P013 --> P015[015 Forward]
+    P014 --> P015
+    P006 --> P016[016 Window and Input]
+    P004 --> P017[017 Scene ECS]
+    P016 --> P017
+    P012 --> P018[018 Triangle Demo]
+    P015 --> P018
+    P016 --> P018
+    P017 --> P018
+    P012 --> P019[019 Deferred]
+    P013 --> P019
+    P014 --> P019
+    P015 --> P019
+    P018 --> P019
+
+    P003 --> P020[020 Asset Core]
+    P006 --> P020
+    P008 --> P021[021 Images and Textures]
     P020 --> P021
-    
-    P007 --> P022[022: Metal Backend]
-    P007 --> P023[023: DX12 Backend]
-    P007 --> P024[024: OpenGL/GLES]
-    
-    style P001 fill:#4CAF50,color:#fff
-    style P017 fill:#4CAF50,color:#fff
-    style P021 fill:#9C27B0,color:#fff
+    P010 --> P022[022 KTX2]
+    P021 --> P022
+    P004 --> P023[023 Static Models]
+    P008 --> P023
+    P020 --> P023
+    P021 --> P023
+    P014 --> P024[024 Material and Shader Assets]
+    P020 --> P024
+    P021 --> P024
+    P021 --> P025[025 Cooker and Manager]
+    P022 --> P025
+    P023 --> P025
+    P024 --> P025
+    P015 --> P026[026 Meshlets]
+    P023 --> P026
+    P025 --> P026
+    P022 --> P027[027 Streaming and Residency]
+    P025 --> P027
+    P026 --> P027
+    P012 --> P028[028 Ray Tracing]
+    P015 --> P028
+    P023 --> P028
+    P025 --> P028
+    P019 --> P029[029 Global Illumination]
+    P027 --> P029
+    P028 --> P029
+    P008 --> P030[030 Metal]
+    P024 --> P030
+    P008 --> P031[031 DX12]
+    P024 --> P031
+    P008 --> P032[032 GL and GLES]
+    P024 --> P032
 ```
 
 ---
 
 ## Phase Details
 
----
+### Phase 003 — Core: Types & Memory
 
-### Phase 002 — Core Foundation: Types & Memory
-
-**Layer**: Core  
-**Dependencies**: 001 (SCons Skeleton)  
-**Complexity**: M (3-5 days)  
-**Critical Path**: ✅ Yes — everything depends on Core types
+**Layer**: Core
+**Dependencies**: 001 (SCons Skeleton)
+**Complexity**: M (3-5 days)
+**Critical Path**: ✅ Yes — all runtime layers use these types
 
 #### Scope
-
-Establish the foundational type system and memory management primitives that all other layers will use. This includes fixed-width integer types, string types, smart pointers, custom allocators, and basic container type aliases.
+Provide fixed-width types, strings, names, containers, smart-pointer aliases,
+and memory utilities.
 
 #### Key Deliverables
-
-- `FPlatformTypes.h` — Fixed-width integer typedefs (`int8`, `uint32`, `int64`, etc.)
-- `FString.h` — Engine string type (wrapping or extending `std::string`)
-- `FName.h` — Hashed immutable name type for fast comparison (like UE5 `FName`)
-- `TSharedPtr<T>`, `TUniquePtr<T>` — Smart pointer aliases/wrappers
-- `FMemory.h` — Memory allocation/deallocation utilities, aligned allocation
-- `TArray<T>` — Dynamic array type alias (wrapping `std::vector` initially)
-- `TMap<K,V>` — Map type alias
-- Unit tests for all types
+- `FPlatformTypes`, `FString`, and collision-safe `FName`
+- `TArray`, `TMap`, `TSharedPtr`, and `TUniquePtr`
+- `FMemory` aligned allocation and tests
 
 #### What's Excluded
-
-- Math types (Phase 003)
-- Logging (Phase 004)
-- Platform-specific file I/O (Phase 005)
+- Math, logging, and platform filesystem behavior
 
 #### Speckit Prompt
-
+```text
+Implement Core types and memory for Stoner Graphics Lab: fixed-width types, FString, collision-safe FName, container and smart-pointer aliases, aligned FMemory utilities, lifecycle tests, UE5 naming, C++20 headers/sources, and Windows/macOS/Linux validation.
 ```
-Core foundation types and memory management: fixed-width integer types (FPlatformTypes), engine string type (FString), hashed name type (FName), smart pointer wrappers (TSharedPtr, TUniquePtr), memory utilities (FMemory with aligned allocation), and container aliases (TArray, TMap). All types follow UE5 naming conventions. Must be cross-platform (Win/Mac/Linux) and include unit tests.
-```
 
----
+### Phase 004 — Core: Math Library
 
-### Phase 003 — Core Foundation: Math Library
-
-**Layer**: Core  
-**Dependencies**: 002 (Types & Memory)  
-**Complexity**: L (1-2 weeks)  
-**Critical Path**: ✅ Yes — RHI and Renderer need math types
+**Layer**: Core
+**Dependencies**: 003
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ✅ Yes — scene and rendering systems require stable math conventions
 
 #### Scope
-
-Implement the core math library with vector, matrix, quaternion, and transform types. These are the fundamental building blocks for all spatial computation in the engine.
+Implement vectors, matrices, quaternions, transforms, colors, and geometric
+primitives with explicit coordinate and matrix conventions.
 
 #### Key Deliverables
-
-- `FVector2`, `FVector3`, `FVector4` — Float vector types with operator overloads
-- `FMatrix4x4` — 4×4 matrix with standard operations (multiply, inverse, transpose)
-- `FQuat` — Quaternion type for rotations
-- `FTransform` — Combined position/rotation/scale
-- `FMath` — Static math utilities (Clamp, Lerp, Sin, Cos, DegToRad, etc.)
-- `FColor` — RGBA color type (both float and uint8 variants)
-- `FBox`, `FSphere`, `FPlane` — Basic geometric primitives
-- SIMD optimization hooks (can be naive implementation initially, with SIMD path planned)
-- Unit tests with edge cases (near-zero, NaN, identity transforms)
+- `FVector2/3/4`, `FMatrix4x4`, `FQuat`, and `FTransform`
+- `FColor`, `FBox`, `FSphere`, `FPlane`, and `FMath`
+- Edge-case and convention tests
 
 #### What's Excluded
-
-- Spatial data structures (BVH, octree) — deferred to Renderer phases
-- Physics-specific math (inertia tensors, etc.)
+- Spatial indexes, physics math, and third-party GLM wrappers
 
 #### Speckit Prompt
-
+```text
+Implement the custom Core math library with vector, matrix, quaternion, transform, color, geometry, explicit coordinate conventions, SIMD-ready layout, numerical edge-case tests, and cross-platform C++20 behavior.
 ```
-Core math library for the graphics engine: FVector2/3/4, FMatrix4x4, FQuat, FTransform, FMath utilities, FColor (float and uint8), and basic geometric primitives (FBox, FSphere, FPlane). UE5 naming conventions. Cross-platform. SIMD-ready design (naive implementation first). Comprehensive unit tests including edge cases.
-```
 
----
+### Phase 005 — Core: Logging & Assertions
 
-### Phase 004 — Core Foundation: Logging & Assertions
-
-**Layer**: Core  
-**Dependencies**: 002 (Types & Memory)  
-**Complexity**: S (1-2 days)  
-**Critical Path**: ❌ No — useful but not blocking
+**Layer**: Core
+**Dependencies**: 003
+**Complexity**: S (1-2 days)
+**Critical Path**: ❌ No — useful diagnostics but not a type dependency
 
 #### Scope
-
-Implement a structured logging system and assertion macros. This provides diagnostic infrastructure for all subsequent development.
+Provide categorized logging, sinks, severity filtering, assertions, and
+platform-safe debug breaks.
 
 #### Key Deliverables
-
-- `FLog` — Logging system with severity levels (Verbose, Info, Warning, Error, Fatal)
-- `SG_LOG(Category, Level, Format, ...)` — Printf-style logging macro
-- `SG_CHECK(Expr)` — Runtime assertion (active in Debug, stripped in Release)
-- `SG_VERIFY(Expr)` — Assertion that always evaluates the expression
-- `SG_CHECKF(Expr, Format, ...)` — Assertion with formatted message
-- Category-based filtering (e.g., `LogCore`, `LogRHI`, `LogRenderer`)
-- Console output sink (file sink deferred)
-- Unit tests
+- `FLog`, categories, severity, and console/file sinks
+- Assertion/check macros and injectable assertion handling
+- Thread-safe and cross-platform tests
 
 #### What's Excluded
-
-- File-based log sinks (future enhancement)
-- Remote/network logging
-- Profiling/timing (separate future phase)
+- Remote telemetry and editor consoles
 
 #### Speckit Prompt
-
+```text
+Implement Core logging and assertions with categories, severities, sinks, thread safety, injectable assertion handling, portable debugger breaks, deterministic tests, and UE5-style C++20 APIs.
 ```
-Core logging and assertion system: FLog with severity levels (Verbose/Info/Warning/Error/Fatal), SG_LOG macro with category and printf-style formatting, SG_CHECK/SG_VERIFY/SG_CHECKF assertion macros, category-based filtering. Console output sink. UE5 naming style. Cross-platform. Unit tests.
-```
 
----
+### Phase 006 — Core: Platform Abstraction
 
-### Phase 005 — Core Foundation: Platform Abstraction Layer
-
-**Layer**: Core  
-**Dependencies**: 002 (Types & Memory)  
-**Complexity**: M (3-5 days)  
-**Critical Path**: ✅ Yes — Vulkan backend and Window system need this
+**Layer**: Core
+**Dependencies**: 003
+**Complexity**: M (3-5 days)
+**Critical Path**: ✅ Yes — filesystem and platform handles underpin Asset and Application
 
 #### Scope
-
-Create the platform abstraction layer (PAL) that isolates OS-specific functionality behind cross-platform interfaces. This covers dynamic library loading, file system access, and platform window handle types.
+Provide portable process, time, memory, filesystem, and native-window-handle
+boundaries.
 
 #### Key Deliverables
-
-- `FPlatformProcess` — Dynamic library loading (LoadLibrary, GetSymbol, FreeLibrary)
-- `FPlatformFileSystem` — Basic file operations (Read, Write, Exists, CreateDirectory)
-- `FPlatformMisc` — Platform info queries (OS name, CPU cores, available memory)
-- `FPlatformWindow` — Native window handle type abstraction (`HWND`, `NSWindow*`, `Window`)
-- `FPlatformTime` — High-resolution timer (QueryPerformanceCounter / clock_gettime / mach_absolute_time)
-- Conditional compilation guards (`#if SG_PLATFORM_WINDOWS`, etc.)
-- Platform detection macros (`SG_PLATFORM_WINDOWS`, `SG_PLATFORM_MAC`, `SG_PLATFORM_LINUX`)
-- Unit tests (platform-conditional where needed)
+- Platform detection and `FPlatform*` APIs
+- Basic filesystem read/write/existence/directory operations
+- Process, time, memory, and window-handle tests
 
 #### What's Excluded
-
-- Threading/concurrency primitives (future phase)
-- Networking
-- Full windowing system (Phase 015 — uses GLFW or similar)
+- Asset semantics, full window lifecycle, and graphics API calls
 
 #### Speckit Prompt
-
+```text
+Implement Core platform abstraction for Windows, macOS, and Linux: process, time, memory, filesystem, and native-window handles behind guarded implementation files, deterministic tests, and no graphics API dependency.
 ```
-Core platform abstraction layer: FPlatformProcess (dynamic library loading), FPlatformFileSystem (basic file I/O), FPlatformMisc (OS info queries), FPlatformWindow (native handle types), FPlatformTime (high-res timer). Platform detection macros (SG_PLATFORM_WINDOWS/MAC/LINUX). Conditional compilation. UE5 naming. Cross-platform Win/Mac/Linux. Unit tests.
-```
 
----
+### Phase 007 — RHI: Core Interfaces
 
-### Phase 006 — RHI: Core Interfaces
-
-**Layer**: RHI  
-**Dependencies**: 002 (Types), 003 (Math)  
-**Complexity**: L (1-2 weeks)  
-**Critical Path**: ✅ Yes — all backends and renderer depend on RHI
+**Layer**: RHI
+**Dependencies**: 003, 004
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ✅ Yes — all backends implement these contracts
 
 #### Scope
-
-Define the abstract RHI (Render Hardware Interface) core interfaces. These are pure virtual classes that backends will implement. This phase focuses on device lifecycle, command buffers, and synchronization primitives.
+Define device, queue, command, synchronization, capabilities, result, and
+headless presentation contracts.
 
 #### Key Deliverables
-
-- `IRHIDevice` — Abstract device interface (Create, Destroy, GetCapabilities)
-- `IRHICommandBuffer` — Command recording interface (Begin, End, Draw, Dispatch, Barriers)
-- `IRHICommandQueue` — Queue submission interface (Submit, WaitIdle)
-- `IRHIFence` — CPU-GPU synchronization primitive
-- `IRHISemaphore` — GPU-GPU synchronization primitive
-- `IRHISwapchain` — Swapchain interface (AcquireNextImage, Present, Resize)
-- `ERHIFormat` — Pixel/vertex format enumeration (R8G8B8A8_UNORM, D32_FLOAT, etc.)
-- `FRHIDeviceCapabilities` — Struct describing device features and limits
-- `ERHIQueueType` — Graphics, Compute, Transfer, Present queue types
-- **Unit tests**: Contract/interface tests exist; mock-based RHI implementations are deferred to a future phase (backends provide real implementations)
-
-> **Status Note**: This phase is marked 🔷 **Interface Complete** — all pure virtual interfaces are defined and implemented by the Vulkan backend. Mock-based unit tests with fake RHI implementations are not yet written.
+- `IRHIDevice`, `IRHIQueue`, `IRHICommandBuffer`, and synchronization interfaces
+- Capabilities, result/status, queue types, and lifecycle rules
+- Mock-based contract tests
 
 #### What's Excluded
-
-- Resource types (buffers, textures) — Phase 007
-- Pipeline state objects — Phase 007
-- Any actual graphics API calls — Backend phases
+- Concrete graphics APIs and resource/pipeline interfaces
 
 #### Speckit Prompt
-
+```text
+Define backend-neutral RHI core interfaces for device, capabilities, queues, command buffers, synchronization, headless presentation, results, lifecycle invalidation, mocks, and contract tests.
 ```
-RHI core interfaces: IRHIDevice (lifecycle, capabilities), IRHICommandBuffer (recording: Begin/End/Draw/Dispatch/Barriers), IRHICommandQueue (Submit/WaitIdle), IRHIFence, IRHISemaphore, IRHISwapchain (AcquireNextImage/Present/Resize), ERHIFormat enum, FRHIDeviceCapabilities, ERHIQueueType. Pure virtual interfaces. UE5 naming with I-prefix for interfaces, E-prefix for enums, F-prefix for structs. Cross-platform. Mock-based unit tests.
-```
 
----
+### Phase 008 — RHI: Resource & Pipeline Interfaces
 
-### Phase 007 — RHI: Resource & Pipeline Interfaces
-
-**Layer**: RHI  
-**Dependencies**: 006 (RHI Core)  
-**Complexity**: L (1-2 weeks)  
-**Critical Path**: ✅ Yes — backends and renderer need resource types
+**Layer**: RHI
+**Dependencies**: 007
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ✅ Yes — Renderer and every backend share these contracts
 
 #### Scope
-
-Define RHI interfaces for GPU resources (buffers, textures, samplers) and pipeline state objects (graphics pipeline, compute pipeline, shader modules). This completes the RHI abstraction layer.
+Define buffers, textures, samplers, descriptors, shaders, pipelines, render
+passes, and framebuffers.
 
 #### Key Deliverables
-
-- `IRHIBuffer` — GPU buffer interface (vertex, index, uniform, storage)
-- `IRHITexture` — Texture interface (1D, 2D, 3D, Cube, Array)
-- `IRHISampler` — Texture sampler interface
-- `IRHIShaderModule` — Compiled shader interface
-- `IRHIGraphicsPipeline` — Graphics pipeline state (vertex input, rasterizer, blend, depth-stencil)
-- `IRHIComputePipeline` — Compute pipeline state
-- `IRHIPipelineLayout` — Descriptor/resource binding layout
-- `IRHIDescriptorSet` — Resource binding set
-- `IRHIRenderPass` — Render pass description (attachments, subpasses)
-- `IRHIFramebuffer` — Framebuffer binding
-- `FRHIBufferDesc`, `FRHITextureDesc`, `FRHIPipelineDesc` — Creation descriptor structs
-- `ERHIBufferUsage`, `ERHITextureUsage`, `ERHIShaderStage` — Usage flag enums
-- **Unit tests**: Contract/interface tests exist; mock-based RHI implementations are deferred to a future phase
-
-> **Status Note**: This phase is marked 🔷 **Interface Complete** — all pure virtual interfaces are defined and implemented by the Vulkan backend. Mock-based unit tests with fake RHI implementations are not yet written.
+- Resource descriptions and `IRHIBuffer`, `IRHITexture`, `IRHISampler`
+- Descriptor, shader, pipeline, render-pass, and framebuffer contracts
+- Compatibility and lifecycle tests
 
 #### What's Excluded
-
-- Ray tracing pipeline interfaces (Phase 020)
-- Mesh shader pipeline interfaces (Phase 019)
+- Concrete allocation and source asset loading
 
 #### Speckit Prompt
-
+```text
+Define RHI resource and pipeline interfaces for buffers, textures, samplers, descriptors, shaders, graphics/compute pipelines, render passes, framebuffers, compatibility validation, lifecycle invalidation, and mock tests.
 ```
-RHI resource and pipeline interfaces: IRHIBuffer (vertex/index/uniform/storage), IRHITexture (1D/2D/3D/Cube/Array), IRHISampler, IRHIShaderModule, IRHIGraphicsPipeline, IRHIComputePipeline, IRHIPipelineLayout, IRHIDescriptorSet, IRHIRenderPass, IRHIFramebuffer. Creation descriptor structs (FRHIBufferDesc, FRHITextureDesc, FRHIPipelineDesc). Usage enums (ERHIBufferUsage, ERHITextureUsage, ERHIShaderStage). UE5 naming. Mock-based unit tests.
-```
 
----
+### Phase 009 — Backend: Vulkan Device & Swapchain
 
-### Phase 008 — Backend: Vulkan Device & Swapchain
-
-**Layer**: Backend  
-**Dependencies**: 005 (Platform Abstraction), 006 (RHI Core Interfaces)  
-**Complexity**: L (1-2 weeks)  
-**Critical Path**: ✅ Yes — first real graphics API integration
+**Layer**: Backend
+**Dependencies**: 006, 007
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ✅ Yes — establishes the first native backend
 
 #### Scope
-
-Implement the Vulkan backend's device initialization, physical device selection, logical device creation, queue exposure, synchronization objects, Core platform-window-backed surface validation, and swapchain lifecycle. The delivered implementation keeps Vulkan SDK use behind build-time detection and provides deterministic supported-stub or explicit unsupported behavior.
+Initialize Vulkan, select adapters deterministically, create device/queues, and
+manage surfaces and swapchains.
 
 #### Key Deliverables
-
-- `FVulkanInstance` — backend runtime initialization with optional validation diagnostics and explicit unsupported fallback
-- `FVulkanPhysicalDevice` — deterministic synthetic/real-adapter-ready capability gate and scoring model
-- `FVulkanDevice` — `IRHIDevice` implementation for lifecycle, capabilities, queue/sync/swapchain factories, and unsupported out-of-scope factories
-- `FVulkanQueue` — `IRHICommandQueue` implementation for queue metadata, wait-idle, and explicit command submission rejection until command recording exists
-- `FVulkanSurface` — Core `FPlatformWindow` wrapper validation and presentation-skip diagnostics
-- `FVulkanSwapchain` — `IRHISwapchain` frame count, acquire/present, resize-required, unavailable, recreate, and invalidation behavior
-- `FVulkanFence`, `FVulkanSemaphore` — synchronization contracts with invalid-state handling after shutdown
-- Vulkan SDK detection macro in SCons with compile-safe fallback when SDK headers are absent
-- Integration tests for initialization, adapter selection, queues, surface/swapchain, sync objects, unsupported paths, and repeated shutdown
+- Vulkan runtime, adapter, device, queue, surface, and swapchain wrappers
+- Capability reporting and unsupported-runtime diagnostics
+- Headless and native lifecycle tests
 
 #### What's Excluded
-
-- Buffer/texture creation (Phase 009)
-- Command buffer recording (Phase 010)
-- Pipeline creation (Phase 011)
+- Resource allocation, commands, and pipelines
 
 #### Speckit Prompt
-
+```text
+Implement the Vulkan RHI device and swapchain path with deterministic adapter selection, queue discovery, surface validation, swapchain lifecycle, diagnostics, fallback behavior, and cross-platform tests.
 ```
-Vulkan backend device and swapchain: FVulkanInstance (validation layers, extensions), FVulkanPhysicalDevice (enumeration, discrete GPU selection), FVulkanDevice implementing IRHIDevice, FVulkanQueue implementing IRHICommandQueue, FVulkanSwapchain implementing IRHISwapchain, FVulkanSurface (Win32/macOS-MoltenVK/X11), FVulkanFence/Semaphore. Vulkan SDK integration in SCons. Validation layers in debug. Integration tests. UE5 naming.
-```
 
----
+### Phase 010 — Backend: Vulkan Resource Management
 
-### Phase 009 — Backend: Vulkan Resource Management
-
-**Layer**: Backend  
-**Dependencies**: 007 (RHI Resources), 008 (Vulkan Device)  
-**Complexity**: L (1-2 weeks)  
-**Critical Path**: ✅ Yes — rendering requires GPU resources
+**Layer**: Backend
+**Dependencies**: 008, 009
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ✅ Yes — rendering and asset realization require resources
 
 #### Scope
-
-Implement Vulkan resource creation and management: buffers, textures, samplers, and memory allocation. Integrate VMA (Vulkan Memory Allocator) or implement a basic memory allocator.
+Implement Vulkan buffers, textures, samplers, descriptor pools/sets,
+allocation ownership, and upload staging.
 
 #### Key Deliverables
-
-- `FVulkanBuffer` — Buffer creation implementing `IRHIBuffer` (vertex, index, uniform, storage)
-- `FVulkanTexture` — Texture/image creation implementing `IRHITexture`
-- `FVulkanSampler` — Sampler creation implementing `IRHISampler`
-- `FVulkanMemoryAllocator` — GPU memory allocation (VMA integration or custom sub-allocator)
-- `FVulkanDescriptorPool` — Descriptor pool management
-- `FVulkanDescriptorSet` — Descriptor set allocation implementing `IRHIDescriptorSet`
-- Staging buffer upload utilities (CPU → GPU transfer)
-- Integration tests (create buffers, upload data, verify)
+- `FVulkanBuffer`, `FVulkanTexture`, and `FVulkanSampler`
+- Allocation, descriptor, and upload-staging collaborators
+- Failure, invalidation, capacity, and cleanup tests
 
 #### What's Excluded
-
-- Command buffer recording (Phase 010)
-- Pipeline/shader compilation (Phase 011)
+- Source image decoding and queue execution
 
 #### Speckit Prompt
-
+```text
+Implement Vulkan RHI resources, allocation ownership, buffers, textures, samplers, descriptor pools/sets, upload staging, deterministic fallback, diagnostics, lifecycle invalidation, and tests.
 ```
-Vulkan resource management: FVulkanBuffer implementing IRHIBuffer, FVulkanTexture implementing IRHITexture, FVulkanSampler implementing IRHISampler, FVulkanMemoryAllocator (VMA integration or custom), FVulkanDescriptorPool, FVulkanDescriptorSet. Staging buffer upload utilities. Integration tests. UE5 naming. Cross-platform.
-```
 
----
+### Phase 011 — Backend: Vulkan Commands & Submission
 
-### Phase 010 — Backend: Vulkan Command Recording & Submission
-
-**Layer**: Backend  
-**Dependencies**: 009 (Vulkan Resources)  
-**Complexity**: M (3-5 days)  
-**Critical Path**: ✅ Yes — rendering requires command submission
+**Layer**: Backend
+**Dependencies**: 010
+**Complexity**: M (3-5 days)
+**Critical Path**: ✅ Yes — native frame execution depends on submission
 
 #### Scope
-
-Implement Vulkan command buffer allocation, recording, and queue submission. This enables the engine to actually issue GPU commands.
+Implement command pools/buffers, barriers, queue submission, synchronization,
+and minimal render-pass/framebuffer execution.
 
 #### Key Deliverables
-
-- ✅ `FVulkanCommandPool` — Command pool per queue family with deterministic capacity validation
-- ✅ `FVulkanCommandBuffer` — Command buffer implementing `IRHICommandBuffer`
-  - Begin/End recording
-  - Draw/DrawIndexed commands
-  - Dispatch compute commands
-  - Pipeline barriers and layout transitions
-  - Copy buffer/image commands
-  - Begin/End render pass
-- ✅ `FVulkanQueue` — Enhanced queue submission with deterministic fallback completion, semaphore consumption/signaling, and fence signaling
-- ✅ Command buffer recycling/reset strategy after queue idle or completion observation
-- ✅ Minimal Vulkan backend render pass/framebuffer objects for single-subpass command scope
-- ✅ Upload scheduling from pending staging records without claiming GPU execution
-- ✅ Integration tests for allocation, recording, submission, completion injection, render pass/framebuffer validation, upload scheduling, and shutdown invalidation
-
-#### Implementation Notes
-
-- Spec-kit artifact: [`specs/011-vulkan-commands-submission`](../specs/011-vulkan-commands-submission/spec.md)
-- Summary document: [`doc/011-vulkan-commands-submission.html`](./011-vulkan-commands-submission.html)
-- Verification: `conda run -n godot scons` and `Build/Mac/Debug/Tests/StonerTest`
+- Vulkan command recording and queue submission
+- Barriers, fences, semaphores, uploads, and deterministic fallback
+- Failure recovery and completion tests
 
 #### What's Excluded
-
-- Pipeline state object (PSO) creation and shader module loading — Phase 011
-- Descriptor set layout and pipeline layout creation — *Infrastructure already in place via Phase 009 (`FVulkanPipelineLayout`, `FVulkanDescriptorPool`, `FVulkanDescriptorSet`)*
-- Multi-threaded command recording (future optimization)
+- Shader and graphics-pipeline creation
 
 #### Speckit Prompt
-
+```text
+Implement Vulkan command allocation, recording, barriers, render-pass scope, queue submission, fences/semaphores, upload scheduling, fallback completion, diagnostics, and regression tests.
 ```
-Vulkan command recording and submission: FVulkanCommandPool, FVulkanCommandBuffer implementing IRHICommandBuffer (Begin/End, Draw/DrawIndexed, Dispatch, Barriers, Copy, BeginRenderPass/EndRenderPass), enhanced FVulkanCommandQueue with fence signaling, command buffer recycling. Integration tests. UE5 naming.
-```
 
----
+### Phase 012 — Backend: Vulkan Pipeline & Shader
 
-### Phase 011 — Backend: Vulkan Pipeline & Shader
-
-**Layer**: Backend  
-**Dependencies**: 009 (Vulkan Resources), 010 (Vulkan Commands)  
-**Complexity**: L (1-2 weeks)  
-**Critical Path**: ✅ Yes — rendering requires pipelines
+**Layer**: Backend
+**Dependencies**: 010, 011
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ✅ Yes — visible rendering requires pipelines and shaders
 
 #### Scope
-
-Implement Vulkan graphics/compute pipeline creation and shader module loading. This is the final Vulkan backend phase needed for basic rendering.
+Implement shader modules, pipeline layouts, graphics/compute pipelines,
+binding validation, and in-process reuse.
 
 #### Key Deliverables
-
-- ✅ `FVulkanShaderModule` — structurally validated SPIR-V-like shader payloads implementing `IRHIShaderModule`
-- ✅ Explicit shader interface metadata and layout compatibility validation
-- ✅ `FVulkanGraphicsPipeline` — triangle-ready graphics pipeline implementing `IRHIGraphicsPipeline`
-  - Vertex input state
-  - Input assembly
-  - Rasterization state
-  - Multisampling
-  - Depth-stencil state
-  - Color blend state
-  - Dynamic state
-- ✅ `FVulkanComputePipeline` — compute pipeline implementing `IRHIComputePipeline`
-- ✅ `FVulkanPipelineLayout` — descriptor binding plus small constant-data range compatibility
-- ✅ `FVulkanPipelineCache` — deterministic process-local graphics/compute reuse records
-- ✅ Command buffer graphics/compute pipeline binding and draw/dispatch diagnostics
-- ✅ Runtime-unavailable fallback diagnostics for shader, pipeline, bind, draw, and dispatch paths
-- ✅ Integration tests for creation success/failure, configured failure limits, reuse, binding, draw/dispatch diagnostics, and shutdown invalidation
+- Vulkan shader modules and interface metadata
+- Graphics/compute pipelines and compatibility keys
+- Binding, cache-key, failure, and lifecycle tests
 
 #### What's Excluded
-
-- Ray tracing pipeline (Phase 020)
-- Mesh shader pipeline (Phase 019)
-- Shader compilation from HLSL/GLSL (use pre-compiled SPIR-V)
-
-#### Implementation Notes
-
-- Spec-kit artifact: [`specs/012-vulkan-pipeline-shader`](../specs/012-vulkan-pipeline-shader/spec.md)
-- Summary document: [`doc/012-vulkan-pipeline-shader.html`](./012-vulkan-pipeline-shader.html)
-- Verification: `conda run -n godot scons` and `Build/Mac/Debug/Tests/StonerTest`
+- Persistent shader assets and disk pipeline caches
 
 #### Speckit Prompt
-
+```text
+Implement Vulkan shader modules, explicit interface metadata, pipeline layouts, graphics/compute pipelines, compatibility validation, process-local reuse, command binding, diagnostics, and tests.
 ```
-Vulkan pipeline and shader: FVulkanShaderModule (SPIR-V loading), FVulkanGraphicsPipeline (full state: vertex input, rasterization, depth-stencil, blend, dynamic state), FVulkanComputePipeline, FVulkanPipelineLayout, FVulkanRenderPass, FVulkanFramebuffer. Pipeline cache. Integration tests including draw-a-triangle validation. UE5 naming.
-```
 
----
+### Phase 013 — Renderer: Render Graph Foundation
 
-### Phase 012 — Renderer: Render Graph Foundation
-
-**Layer**: Renderer  
-**Dependencies**: 007 (RHI Resource & Pipeline Interfaces)  
-**Complexity**: XL (2-4 weeks)  
-**Critical Path**: ✅ Yes — all rendering pipelines use the render graph
+**Layer**: Renderer
+**Dependencies**: 008
+**Complexity**: XL (2-4 weeks)
+**Critical Path**: ✅ Yes — render pipelines schedule work through this graph
 
 #### Scope
-
-Implement a render graph system that manages render pass ordering, resource lifetime, and automatic barrier insertion. This is the backbone of the rendering architecture.
+Declare passes/resources, compile deterministic schedules, plan transitions,
+track lifetimes, cull unused work, and resolve transient resources.
 
 #### Key Deliverables
-
-- `FRenderGraph` — Directed acyclic graph of render passes
-- `FRenderGraphPass` — Individual render pass node (graphics or compute)
-- `FRenderGraphResource` — Virtual resource handle (resolved to real resources at execution)
-- `FRenderGraphBuilder` — Builder API for declaring passes and their resource dependencies
-- Automatic resource lifetime tracking and aliasing
-- Automatic barrier/transition insertion between passes
-- Pass culling (remove unused passes)
-- Graph compilation and execution against RHI interfaces
-- Visualization/debug dump of the graph (text-based)
-- Unit tests with mock RHI
-
-#### Implementation Notes
-
-- Spec-kit artifact: [`specs/013-render-graph-foundation`](../specs/013-render-graph-foundation/spec.md)
-- Summary document: [`doc/013-render-graph-foundation.html`](./013-render-graph-foundation.html)
-- Verification: `conda run -n godot scons`, `Build/Mac/Debug/Tests/StonerTest`, and the Renderer backend-boundary grep passed on 2026-07-01.
-- Scope note: Speckit directory number is `013` because repository feature directories already occupied numbers through `012`; this implements roadmap Phase 012.
+- `FRenderGraph`, builder, compiler, executor, passes, and resources
+- Transition, lifetime, culling, aliasing, and diagnostics
+- Mock-RHI graph tests and text dumps
 
 #### What's Excluded
-
-- Specific render passes (forward, deferred) — Phases 014, 018
-- Async compute scheduling (future optimization)
+- Material semantics and a concrete rendering strategy
 
 #### Speckit Prompt
-
+```text
+Implement the Renderer Render Graph foundation with pass/resource declarations, deterministic compilation, lifetime tracking, transitions, culling, transient resolution, aliasing diagnostics, execution, debug dumps, and mock-RHI tests.
 ```
-Render graph foundation: FRenderGraph (DAG of passes), FRenderGraphPass (graphics/compute), FRenderGraphResource (virtual handles), FRenderGraphBuilder (declare passes and dependencies), automatic resource lifetime and aliasing, automatic barrier insertion, pass culling, graph compilation and execution via RHI interfaces, debug visualization. Unit tests with mock RHI. UE5 naming.
-```
 
----
+### Phase 014 — Renderer: Material & Shader System
 
-### Phase 013 — Renderer: Material & Shader System
-
-**Layer**: Renderer  
-**Dependencies**: 007 (RHI Resource & Pipeline), 012 (Render Graph)  
-**Complexity**: L (1-2 weeks)  
-**Critical Path**: ✅ Yes — rendering needs materials
+**Layer**: Renderer
+**Dependencies**: 008, 013
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ✅ Yes — draw preparation depends on material semantics
 
 #### Scope
-
-Implement the material and shader management system. Materials define how surfaces are rendered; the shader system manages shader permutations and parameter binding.
+Provide in-memory material definitions, inheritance, typed parameters, abstract
+resource references, shader records, and permutations.
 
 #### Key Deliverables
-
-- `FMaterial` — Material definition with shader reference, render state summary, domain, blend mode, default parameters, validation, invalidation, and deterministic dumps
-- `FMaterialInstance` — Material or instance parent references, per-object overrides, nearest-override resolution, invalidated parent rejection, and deterministic inheritance cycle detection
-- `FShaderLibrary` — Explicit in-memory registration of precompiled shader records, allowed permutation flags, variants, required parameter expectations, invalidation, diagnostics, and deterministic dumps
-- `FShaderPermutation` — Deterministic feature-flag canonicalization and equality independent of input order
-- `FMaterialParameterSet` — Typed parameter collection for scalar, vector, color, and abstract Renderer-level resource references
-- `FMaterialResourceRequirement` — Stable abstract resource requirement summaries that can be consumed by render graph declaration code
-- `FMaterialShaderBinding` — Deterministic material/instance-to-shader-variant resolution with required parameter validation
-- Unit tests in `Tests/RendererMaterialShaderTests.cpp`
-
-#### Implementation Notes
-
-- Spec-kit artifact: [`specs/014-material-shader-system`](../specs/014-material-shader-system/spec.md)
-- Summary document: [`doc/014-material-shader-system.html`](./014-material-shader-system.html)
-- Verification: `conda run -n godot scons`, `Build/Mac/Debug/Tests/StonerTest`, and the Renderer material/backend-boundary grep passed on 2026-07-01.
-- Scope note: Speckit directory number is `014` because `013-render-graph-foundation` already exists in `specs/`; this implements roadmap Phase 013.
+- `FMaterial`, `FMaterialInstance`, and parameter sets
+- `FShaderLibrary`, records, permutations, and binding validation
+- Resource requirements, diagnostics, dumps, and tests
 
 #### What's Excluded
-
-- Visual material editor
-- Runtime shader compilation, shader source parsing, and local shader file scanning/loading
-- PBR-specific material models (Phase 014)
+- Persistent material/shader assets and runtime shader compilation
 
 #### Speckit Prompt
-
+```text
+Implement the in-memory Renderer material and shader system with definitions, instances, inheritance, typed parameters, abstract resource references, shader records/permutations, render-graph requirements, diagnostics, and tests.
 ```
-Material and shader system: FMaterial (shader ref, parameters, render state), FMaterialInstance (per-object overrides), FShaderLibrary (loading, caching, permutations), FShaderPermutation (feature flags), FMaterialParameterSet (scalars/vectors/textures), EMaterialDomain, EMaterialBlendMode. Integration with render graph. Unit tests. UE5 naming.
-```
 
----
+### Phase 015 — Renderer: Forward Rendering
 
-### Phase 014 — Renderer: Forward Rendering Pipeline
-
-**Layer**: Renderer  
-**Dependencies**: 012 (Render Graph), 013 (Material System)  
-**Complexity**: L (1-2 weeks)  
-**Critical Path**: ✅ Yes — first visible rendering output
+**Layer**: Renderer
+**Dependencies**: 013, 014
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ✅ Yes — this remains the default renderer
 
 #### Scope
-
-Implement a basic forward rendering pipeline using the render graph. This produces the first real rendered output — geometry with lighting and materials.
-
-**Implementation status (2026-07-03)**: ✅ Done as Renderer-level headless forward frame planning and render graph-compatible declaration output. The feature intentionally stops before real GPU execution or presentation; those remain connected through the later Application/demo phases.
+Prepare deterministic forward frames, material inputs, lights, draw ordering,
+render-graph declarations, and RHI execution.
 
 #### Key Deliverables
-
-- `FForwardRenderer` — deterministic forward frame preparation
-- Depth pre-pass declaration
-- Opaque geometry pass declaration with full PBR-style surface input validation
-- Directional light support
-- Configurable point light support with default limit 4 and deterministic influence ordering
-- Ambient-only fallback diagnostic when valid geometry has no accepted lights
-- Sky/environment declaration and deterministic clear fallback
-- Transparent geometry declaration sorted by camera-space depth, material id, and object id
-- `FMeshDrawCommand` — reusable Renderer-level draw description for future submission
-- `FForwardViewData` — camera/view data and validation
-- `FForwardLightSet` — validated directional and selected point light data
-- Render graph-compatible declaration summaries without backend handles
-- Integration tests with render graph-compatible declarations
+- `FForwardRenderer`, frame plans, views, lights, and draw commands
+- Opaque/transparent ordering and configurable light selection
+- Diagnostics, graph declaration, executor, and tests
 
 #### What's Excluded
-
-- Shadow mapping (future enhancement to forward pipeline)
-- Post-processing (future phase)
-- Deferred rendering (Phase 018)
-- Real GPU execution, presentation, runtime shader compilation, and shader file loading
+- Deferred, shadows, post-processing, and source asset loading
 
 #### Speckit Prompt
-
+```text
+Implement the backend-neutral forward rendering strategy with deterministic frame preparation, PBR material inputs, configurable light selection, opaque/transparent ordering, Render Graph declarations, RHI execution, diagnostics, and tests.
 ```
-Forward rendering pipeline: FForwardRenderer using render graph, depth pre-pass, opaque PBR pass (metallic-roughness), directional and point lights, sky pass, transparent pass (sorted), FMeshDrawCommand, FViewUniformBuffer, FLightUniformBuffer. Basic PBR SPIR-V shaders. Integration tests. UE5 naming.
-```
 
----
+### Phase 016 — Application: Window & Input
 
-### Phase 015 — Application: Window & Input System
-
-**Layer**: Application  
-**Dependencies**: 005 (Platform Abstraction)  
-**Complexity**: M (3-5 days)  
-**Critical Path**: ✅ Yes — rendering needs a window to present to
+**Layer**: Application
+**Dependencies**: 006
+**Complexity**: M (3-5 days)
+**Critical Path**: ✅ Yes — presentation and interaction require a window loop
 
 #### Scope
-
-Implement window creation and input handling. This provides the surface for rendering output and captures user input events.
+Provide primary-window lifecycle, deterministic keyboard/mouse state, events,
+headless behavior, and minimized presentation semantics.
 
 #### Key Deliverables
-
-- `FWindow` — Window creation and management (title, size, fullscreen toggle)
-- `FInputManager` — Input event polling and dispatch
-- `EKey`, `EMouseButton` — Input enumeration types
-- `FInputState` — Current frame input state (key states, mouse position, mouse delta)
-- Window resize event handling (triggers swapchain recreation)
-- Window close event handling
-- GLFW integration (via ThirdParty) or native platform windowing
-- Game loop skeleton (`while (!ShouldClose) { PollInput(); Update(); Render(); Present(); }`)
-- Integration tests (open window, capture input, close)
+- Window configuration, driver boundary, events, and application loop
+- Physical keyboard/mouse frame snapshots
+- GLFW adapter, null driver, CI tests, and smoke validation
 
 #### What's Excluded
-
-- Gamepad/controller input (future enhancement)
-- Multi-window support
-- ImGui integration (future debug UI phase)
+- Native platform-specific replacements and scene ownership
 
 #### Speckit Prompt
-
+```text
+Implement Application window and input with GLFW-first and deterministic null drivers, lifecycle/events, physical keyboard/mouse snapshots, minimized presentation pause, headless tests, optional visible smoke, and three-platform CI.
 ```
-Window and input system: FWindow (creation, resize, fullscreen, close), FInputManager (polling, dispatch), EKey/EMouseButton enums, FInputState (keys, mouse position/delta), window resize/close events, GLFW integration via ThirdParty, game loop skeleton. Integration tests. UE5 naming. Cross-platform.
-```
 
----
+### Phase 017 — Application: Scene Graph & ECS
 
-### Phase 016 — Application: Scene Graph & ECS Foundation
-
-**Layer**: Application  
-**Dependencies**: 003 (Math Library)  
-**Complexity**: L (1-2 weeks)  
-**Critical Path**: ❌ No — Triangle demo can use hardcoded geometry
+**Layer**: Application
+**Dependencies**: 004, 016
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ❌ No — integration can use direct frame inputs
 
 #### Scope
-
-Implement a basic Entity-Component-System (ECS) architecture and scene graph for organizing game objects and their spatial relationships.
+Provide generation-safe entities, flat component ownership, hierarchy views,
+transform propagation, and deterministic render collection.
 
 #### Key Deliverables
-
-- `FWorld` — Top-level container for all entities
-- `FEntity` — Lightweight entity handle (ID-based)
-- `FComponent` — Base component type
-- `FTransformComponent` — Position/rotation/scale component
-- `FMeshComponent` — Static mesh reference component
-- `FLightComponent` — Light parameters component (type, color, intensity, range)
-- `FCameraComponent` — Camera parameters (FOV, near/far, projection type)
-- `FSystem` — Base system type for processing component groups
-- `FRenderSystem` — Collects renderable entities for the renderer
-- Parent-child transform hierarchy
-- Unit tests
+- `FWorld`, `FEntity`, entity slots, and generation validation
+- Transform, mesh, light, and camera components
+- Hierarchy operations, render summaries, diagnostics, and tests
 
 #### What's Excluded
-
-- Physics components
-- Animation components
-- Scripting/behavior components
-- Full ECS query system (archetype-based optimization deferred)
+- Asset loading, scene serialization, physics, animation, and spatial indexes
 
 #### Speckit Prompt
-
+```text
+Implement the Application scene graph and ECS foundation with generation-safe entities, flat component storage, transform hierarchy, reparent/destroy semantics, deterministic render collection, diagnostics, and headless tests.
 ```
-Scene graph and ECS foundation: FWorld (entity container), FEntity (ID handle), FComponent base, FTransformComponent, FMeshComponent, FLightComponent, FCameraComponent, FSystem base, FRenderSystem (collect renderables), parent-child transform hierarchy. Unit tests. UE5 naming.
-```
 
----
+### Phase 018 — Application: Triangle Demo
 
-### Phase 017 — Application: Triangle Demo (Integration Milestone)
-
-**Layer**: Application  
-**Dependencies**: 011 (Vulkan Pipeline), 014 (Forward Rendering), 015 (Window & Input)  
-**Complexity**: M (3-5 days)  
-**Critical Path**: ✅ Yes — first end-to-end validation
-
-> **Status Note (Feature 018)**: ✅ **Complete** — the standalone target, deterministic execution, backend-neutral forward executor, native offscreen Vulkan, real GLFW-backed Vulkan surface/swapchain presentation, and endurance diagnostics are implemented. Formal 10,000-frame Windows/macOS evidence passes, and GitHub Actions run 29935956348 passes all three platforms plus Linux Lavapipe native-headless validation.
+**Layer**: Application
+**Dependencies**: 012, 015, 016, 017
+**Complexity**: M (3-5 days)
+**Critical Path**: ✅ Yes — proves end-to-end native execution
 
 #### Scope
-
-🎯 **MILESTONE**: Create a complete demo application that opens a window and renders a colored triangle using the full engine stack. This validates the entire pipeline from Application through Renderer, RHI, to Vulkan backend.
+Compose Core, Application, Renderer, RHI, and Vulkan into deterministic,
+offscreen, and visible triangle validation modes.
 
 #### Key Deliverables
-
-- `StonerDemo` executable target in SCons
-- Window creation via `FWindow`
-- Vulkan device/swapchain initialization via RHI
-- Vertex buffer with triangle data uploaded via RHI
-- Basic vertex/fragment shaders (SPIR-V)
-- Forward render pass via render graph
-- Frame loop: acquire → record → submit → present
-- Clean shutdown (all resources destroyed, no validation errors)
-- Runs on Windows, macOS (MoltenVK), and Linux
-- Screenshot comparison test (optional)
+- Standalone demo composition root and runtime modes
+- Native offscreen and GLFW swapchain presentation
+- Endurance, screenshot, log, and three-platform CI evidence
 
 #### What's Excluded
-
-- Complex geometry
-- Lighting (just vertex colors)
-- Scene graph usage (hardcoded triangle)
+- General model/texture loading and an editor
 
 #### Speckit Prompt
-
+```text
+Implement an end-to-end triangle demo with deterministic and native runtime modes, Renderer-to-RHI execution, Vulkan offscreen and GLFW presentation, bounded endurance tests, visible Windows/macOS evidence, Linux Lavapipe validation, and CI artifacts.
 ```
-Triangle demo integration milestone: StonerDemo executable, window creation (FWindow), Vulkan init via RHI, vertex buffer with colored triangle, basic SPIR-V shaders, forward render pass via render graph, frame loop (acquire/record/submit/present), clean shutdown with zero validation errors. Cross-platform (Win/Mac-MoltenVK/Linux). UE5 naming.
-```
 
----
+### Phase 019 — Renderer: Deferred Rendering
 
-### Phase 018 — Renderer: Deferred Rendering Pipeline
-
-> **Status Note (Feature 019)**: ✅ **Complete** — the sibling deferred strategy,
-> world-space three-color-plus-depth GBuffer, StandardZ/ReversedZ policies,
-> directional and instanced sphere/cone local-light work, composition,
-> transparent forward handoff, deterministic diagnostics, real Vulkan
-> attachment readback, and four-tier comparison are implemented. GitHub Actions
-> run `30079550556` passes Windows, macOS, and Linux; Linux additionally passes
-> Lavapipe native readback, 24 semantic probes, eight injected native failure
-> paths, and zero-live cleanup. Retained reports and digests are recorded in
-> `Validation/019/completion.md`.
-
-**Layer**: Renderer  
-**Dependencies**: 014 (Forward Rendering)  
-**Complexity**: L (1-2 weeks)  
-**Critical Path**: ❌ No — forward rendering is sufficient for many use cases
+**Layer**: Renderer
+**Dependencies**: 012, 013, 014, 015, 018
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ❌ No — forward remains a complete default path
 
 #### Scope
-
-Implement a deferred rendering pipeline as an alternative to forward rendering. Deferred rendering enables efficient many-light scenarios and is a prerequisite for advanced GI techniques.
+Provide a sibling deferred strategy with world-space GBuffer data, depth
+policies, directional and local lights, composition, and transparent handoff.
 
 #### Key Deliverables
-
-- `FDeferredRenderer` — Deferred rendering pipeline
-- G-Buffer pass (albedo, normal, metallic-roughness, depth)
-- Lighting pass (screen-space, processes all lights)
-- Light volume rendering for point/spot lights
-- G-Buffer format specification and optimization
-- Composition pass (combine lighting with albedo)
-- Integration with render graph
-- Performance comparison with forward renderer
-- Integration tests
+- Deferred planning, surface layout, graph declaration, and RHI execution
+- StandardZ/ReversedZ, instanced local-light volumes, and comparison reports
+- Real Vulkan readback, failure injection, cleanup evidence, and CI artifacts
 
 #### What's Excluded
-
-- Tiled/clustered deferred (future optimization)
-- SSAO, SSR (future post-processing phases)
+- Tiled/clustered lighting, SSAO/SSR, and source asset loading
 
 #### Speckit Prompt
-
+```text
+Implement the sibling deferred Renderer strategy with a world-space GBuffer, depth conventions, directional and instanced local lights, composition, transparent forward handoff, Render Graph/RHI execution, native Vulkan readback, diagnostics, comparison reports, failure injection, and cross-platform CI.
 ```
-Deferred rendering pipeline: FDeferredRenderer, G-Buffer pass (albedo/normal/metallic-roughness/depth), screen-space lighting pass, light volumes for point/spot lights, composition pass. Render graph integration. Performance comparison with forward renderer. Integration tests. UE5 naming.
-```
 
----
+### Phase 020 — Asset: Core, Identity & Registry
 
-### Phase 019 — Renderer: Meshlet Pipeline (Nanite-like)
-
-**Layer**: Renderer  
-**Dependencies**: 014 (Forward Rendering)  
-**Complexity**: XL (2-4 weeks)  
-**Critical Path**: ❌ No — advanced feature
+**Layer**: Asset
+**Dependencies**: 003, 006
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ✅ Yes — every concrete asset phase depends on stable identity and extension contracts
 
 #### Scope
-
-Implement a meshlet-based rendering pipeline inspired by UE5's Nanite. This enables rendering of extremely high-polygon geometry through GPU-driven mesh processing.
+Create `Source/Asset` as a Core-only runtime layer. Define typed canonical
+logical identities, version hashes, metadata, dependency records, registry
+queries, storage resolution, and extension contracts. One source may emit
+multiple typed subresources. Importer selection uses deterministic
+extension/content probing and rejects ambiguous registrations.
 
 #### Key Deliverables
-
-- `FMeshletData` — Meshlet data structure (vertex indices, primitive indices, bounds)
-- `FMeshletBuilder` — Offline meshlet generation from triangle meshes
-- `FMeshletRenderer` — GPU-driven meshlet rendering pipeline
-- Meshlet culling (frustum, occlusion via HZB)
-- LOD selection per meshlet cluster
-- Mesh shader path (if hardware supports) or compute-based fallback
-- Integration with render graph
-- Performance benchmarks
-- Unit and integration tests
+- `FAssetId`, `FAssetVersion`, `FAssetMetadata`, and `FAssetDependency`
+- `FAssetRegistry`, typed soft references, and deterministic inspection dumps
+- `IAssetResolver`, `IAssetImporter`, `IAssetLoader`, and `IAssetCooker`
+- Registration, canonicalization, collision, cycle, failure, and lifecycle tests
 
 #### What's Excluded
-
-- Streaming/virtual geometry (Nanite's full streaming system)
-- Software rasterization fallback
+- Concrete file formats, asynchronous loading, GPU/RHI objects, databases, and editor UI
 
 #### Speckit Prompt
-
+```text
+Add the Asset layer foundation for Stoner Graphics Lab: Source/Asset depends only on Core; typed canonical logical-path FAssetId values with optional subresources; separate FAssetVersion source/content/cook hashes; metadata and dependency records; an in-memory FAssetRegistry; typed soft references; resolver/importer/loader/cooker extension contracts; one-source-to-many-output support; deterministic extension and content-probe dispatch; cycle/collision/error diagnostics; lifecycle tests; UE5 naming; and Windows/macOS/Linux headless CI. Do not add concrete formats, asynchronous loading, RHI objects, databases, or editor UI.
 ```
-Meshlet rendering pipeline (Nanite-like): FMeshletData structure, FMeshletBuilder (offline generation), FMeshletRenderer (GPU-driven), meshlet culling (frustum + HZB occlusion), LOD selection, mesh shader path with compute fallback. Render graph integration. Performance benchmarks. Unit tests. UE5 naming.
-```
 
----
+### Phase 021 — Asset: Image & Texture Foundation
 
-### Phase 020 — Renderer: Ray Tracing Integration
-
-**Layer**: Renderer  
-**Dependencies**: 014 (Forward Rendering)  
-**Complexity**: XL (2-4 weeks)  
-**Critical Path**: ❌ No — advanced feature
+**Layer**: Asset
+**Dependencies**: 008, 020
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ✅ Yes — materials and model packages depend on texture assets
 
 #### Scope
-
-Integrate hardware ray tracing capabilities. This adds acceleration structure management and ray tracing pipeline support for effects like reflections, shadows, and ambient occlusion.
+Import PNG, JPEG, and HDR source images into validated CPU-side image and 2D
+texture assets. Preserve color space and semantic usage, describe mip chains,
+and provide a Renderer adapter that realizes assets through RHI without adding
+an RHI dependency to Asset.
 
 #### Key Deliverables
-
-- `IRHIAccelerationStructure` — RHI interface for BLAS/TLAS (added to RHI layer)
-- `IRHIRayTracingPipeline` — Ray tracing pipeline interface (added to RHI layer)
-- `FVulkanAccelerationStructure` — Vulkan RT acceleration structure
-- `FVulkanRayTracingPipeline` — Vulkan RT pipeline
-- `FRayTracingScene` — Scene-level TLAS management
-- `FRTReflections` — Ray traced reflections render pass
-- `FRTShadows` — Ray traced shadows render pass
-- `FRTAmbientOcclusion` — Ray traced AO render pass
-- Shader Binding Table (SBT) management
-- Integration with render graph
-- Fallback path when RT hardware is unavailable
-- Integration tests
+- `FImageAsset`, `FTextureAsset`, mip records, formats, color spaces, and semantics
+- PNG/JPEG/HDR importer strategies and actionable decoder diagnostics
+- Deterministic mip generation and Renderer-to-RHI upload adapter
+- Fixtures covering color, normal/data, malformed, oversized, and missing images
 
 #### What's Excluded
-
-- Full path tracing
-- Denoising (future enhancement)
+- KTX2, block compression, runtime mip streaming, virtual textures, and initial TGA support
 
 #### Speckit Prompt
-
+```text
+Implement the Image and Texture Asset foundation on Feature 020: PNG, JPEG, and HDR source importers; validated FImageAsset/FTextureAsset CPU payloads; explicit linear/sRGB and color/normal/data semantics; deterministic mip generation; 2D textures; malformed/oversized/missing-input diagnostics; importer registration that permits later TGA/cubemap/array/volume support; and a Renderer adapter that creates RHI textures/uploads without Asset depending on RHI. Include deterministic fixtures and three-platform CI. Exclude KTX2, block compression, streaming, and virtual textures.
 ```
-Ray tracing integration: IRHIAccelerationStructure (BLAS/TLAS), IRHIRayTracingPipeline (RHI interfaces), Vulkan RT implementations, FRayTracingScene (TLAS management), FRTReflections, FRTShadows, FRTAmbientOcclusion render passes, SBT management. Render graph integration. Fallback when no RT hardware. Integration tests. UE5 naming.
-```
 
----
+### Phase 022 — Asset: KTX2 Cooking & Compression
 
-### Phase 021 — Renderer: Global Illumination (Lumen-like)
-
-**Layer**: Renderer  
-**Dependencies**: 018 (Deferred Rendering), 020 (Ray Tracing)  
-**Complexity**: XL (2-4 weeks)  
-**Critical Path**: ❌ No — most advanced feature
+**Layer**: Asset
+**Dependencies**: 010, 021
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ✅ Yes — cooked cross-platform textures need explicit format negotiation
 
 #### Scope
-
-Implement a dynamic global illumination system inspired by UE5's Lumen. Combines software ray tracing (screen-space, SDF) with hardware ray tracing for fully dynamic indirect lighting.
+Adopt KTX2 as the cooked texture container. Support Basis ETC1S and UASTC,
+complete mip chains, deterministic validation, device-capability transcoding,
+and an uncompressed fallback. Extend backend-neutral RHI compressed formats
+and Vulkan mappings without leaking Vulkan enums into Asset.
 
 #### Key Deliverables
-
-- `FGlobalIllumination` — GI system orchestrator
-- `FScreenSpaceGI` — Screen-space global illumination (SSGI)
-- `FVoxelGI` — Voxel-based GI for diffuse indirect lighting
-- `FRadianceCache` — World-space radiance cache for indirect lighting
-- `FSurfaceCache` — Surface cache for material data (Lumen-style)
-- SDF (Signed Distance Field) generation for software ray tracing
-- Hybrid approach: software tracing for diffuse, hardware RT for specular
-- Temporal accumulation and denoising
-- Integration with render graph and deferred pipeline
-- Quality presets (Low/Medium/High/Epic)
-- Performance benchmarks
-- Integration tests
+- KTX2 reader/writer/cooker integration and validation-tool workflow
+- ETC1S/UASTC policy preserving color, normal, and data semantics
+- RHI BC/ETC2/ASTC capability/format contracts and Vulkan realization
+- Deterministic transcode, unsupported-format, corruption, fallback, and CI tests
 
 #### What's Excluded
-
-- Baked lightmaps (this is fully dynamic)
-- Light propagation volumes (superseded by this approach)
+- Runtime mip streaming, virtual textures, and vendor-specific source formats
 
 #### Speckit Prompt
-
+```text
+Implement KTX2 cooked textures on Feature 021: KTX2 container validation, Basis ETC1S and UASTC policies, full mip chains, semantic-safe linear/sRGB handling, deterministic cooking, BC/ETC2/ASTC RHI formats and capability negotiation, Vulkan mappings, runtime transcode selection, uncompressed fallback, corruption and unsupported-device diagnostics, Khronos validation tooling, and Windows/macOS/Linux CI. Exclude runtime mip streaming and virtual textures.
 ```
-Global illumination system (Lumen-like): FGlobalIllumination orchestrator, FScreenSpaceGI, FVoxelGI, FRadianceCache, FSurfaceCache, SDF generation, hybrid software+hardware RT approach, temporal accumulation and denoising. Render graph and deferred pipeline integration. Quality presets. Performance benchmarks. Integration tests. UE5 naming.
-```
 
----
+### Phase 023 — Asset: Static Mesh & Model Pipeline
 
-### Phase 022 — Backend: Metal Implementation
-
-**Layer**: Backend  
-**Dependencies**: 007 (RHI Resource & Pipeline Interfaces)  
-**Complexity**: L (1-2 weeks)  
-**Critical Path**: ❌ No — Vulkan (via MoltenVK) covers macOS initially
+**Layer**: Asset
+**Dependencies**: 004, 008, 020, 021
+**Complexity**: XL (2-4 weeks)
+**Critical Path**: ✅ Yes — Meshlets and Ray Tracing require canonical mesh data
 
 #### Scope
-
-Implement the Metal backend for native macOS/iOS performance. This provides a first-class Metal experience instead of relying on MoltenVK translation.
+Import glTF 2.0/GLB static model packages. Support triangle primitives,
+indices, position, normal, tangent, UV, local node hierarchy, submeshes,
+bounds, material slots, and texture dependencies. A source may produce model,
+mesh, material, and texture subresources with stable identities.
 
 #### Key Deliverables
-
-- `FMetalDevice` implementing `IRHIDevice`
-- `FMetalCommandBuffer` implementing `IRHICommandBuffer`
-- `FMetalBuffer`, `FMetalTexture` implementing resource interfaces
-- `FMetalPipeline` implementing pipeline interfaces
-- `FMetalSwapchain` implementing `IRHISwapchain` (via `CAMetalLayer`)
-- Metal shader compilation (MSL from SPIR-V via SPIRV-Cross, or direct MSL)
-- Integration tests on macOS
+- `FStaticMeshAsset`, `FStaticModelAsset`, primitives, streams, bounds, and slots
+- glTF/GLB importer with explicit coordinate, winding, tangent, and index policies
+- Renderer adapter for RHI vertex/index buffers
+- Khronos-valid fixtures, malformed-data tests, deterministic dumps, and CI
 
 #### What's Excluded
-
-- iOS-specific optimizations
-- Metal 3 mesh shader support (future enhancement)
+- ECS scene instantiation, skinning, animation, cameras, lights, FBX, OBJ, and USD
 
 #### Speckit Prompt
-
+```text
+Implement the Static Mesh and Model Asset pipeline on Features 020-021: glTF 2.0 and GLB static triangle packages; FStaticMeshAsset and FStaticModelAsset; primitives, indices, positions, normals, tangents, UVs, local node hierarchy, submeshes, bounds, material slots, texture dependencies, stable subresource identities, coordinate/winding conversion, missing-attribute policies, malformed and unsupported-feature diagnostics, a Renderer RHI vertex/index-buffer adapter, Khronos-valid fixtures, deterministic tests, and cross-platform CI. Preserve importer extensibility for later OBJ/FBX/USD. Exclude ECS scene creation, skins, animation, cameras, and lights.
 ```
-Metal backend: FMetalDevice, FMetalCommandBuffer, FMetalBuffer, FMetalTexture, FMetalPipeline, FMetalSwapchain (CAMetalLayer), Metal shader compilation (SPIRV-Cross or direct MSL). All implementing corresponding IRHI interfaces. Integration tests on macOS. UE5 naming.
-```
 
----
+### Phase 024 — Asset: Material & Shader Assets
 
-### Phase 023 — Backend: DX12 Implementation
-
-**Layer**: Backend  
-**Dependencies**: 007 (RHI Resource & Pipeline Interfaces)  
-**Complexity**: L (1-2 weeks)  
-**Critical Path**: ❌ No — Vulkan covers Windows initially
+**Layer**: Asset
+**Dependencies**: 014, 020, 021
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ✅ Yes — cooking and future backends require persistent material/shader inputs
 
 #### Scope
-
-Implement the DirectX 12 backend for native Windows performance. DX12 provides the best Windows-native experience and access to Windows-specific features.
+Represent existing materials, instances, shader records, parameters, and
+permutations as serializable assets. Preserve texture/shader/material
+dependencies and backend/profile-tagged cooked shader payloads while keeping
+existing Renderer APIs compatible.
 
 #### Key Deliverables
-
-- `FDX12Device` implementing `IRHIDevice`
-- `FDX12CommandList` implementing `IRHICommandBuffer`
-- `FDX12Buffer`, `FDX12Texture` implementing resource interfaces
-- `FDX12Pipeline` implementing pipeline interfaces
-- `FDX12Swapchain` implementing `IRHISwapchain` (via `IDXGISwapChain`)
-- `FDX12DescriptorHeap` — Descriptor heap management
-- HLSL shader compilation (via DXC) or SPIR-V to DXIL conversion
-- Integration tests on Windows
+- `FMaterialAsset`, `FMaterialInstanceAsset`, and `FShaderAsset`
+- Versioned schema, dependency extraction, and Renderer conversion adapters
+- GLSL source plus SPIR-V cooked payload; extension slots for MSL, DXIL, and GLSL targets
+- Migration of repository shaders, round-trip tests, and diagnostics
 
 #### What's Excluded
-
-- DX12 Ultimate features (mesh shaders, sampler feedback) — future enhancement
-- Xbox-specific extensions
+- Visual material editors, shader graphs, and arbitrary runtime shader compilation
 
 #### Speckit Prompt
-
+```text
+Implement persistent Material and Shader Assets on Features 014, 020, and 021: serializable FMaterialAsset/FMaterialInstanceAsset/FShaderAsset records; typed parameters and inheritance; texture, shader, and material dependencies; backend/profile-tagged cooked shader payloads; current GLSL and SPIR-V support with MSL/DXIL/GLSL extension slots; Renderer conversion adapters preserving existing APIs; repository shader migration; schema/version diagnostics; round-trip and cross-platform tests. Exclude visual editors, shader graphs, and arbitrary runtime shader compilation.
 ```
-DX12 backend: FDX12Device, FDX12CommandList, FDX12Buffer, FDX12Texture, FDX12Pipeline, FDX12Swapchain (IDXGISwapChain), FDX12DescriptorHeap. All implementing IRHI interfaces. HLSL compilation via DXC or SPIR-V to DXIL. Integration tests on Windows. UE5 naming.
-```
 
----
+### Phase 025 — Asset: Cooker & Runtime Manager
 
-### Phase 024 — Backend: OpenGL/GLES Compatibility Layer
-
-**Layer**: Backend  
-**Dependencies**: 007 (RHI Resource & Pipeline Interfaces)  
-**Complexity**: L (1-2 weeks)  
-**Critical Path**: ❌ No — legacy/compatibility path
+**Layer**: Asset
+**Dependencies**: 021, 022, 023, 024
+**Complexity**: XL (2-4 weeks)
+**Critical Path**: ✅ Yes — Meshlets consume managed cooked assets
 
 #### Scope
+Create the offline cooker, deterministic manifests, derived-data keys,
+incremental build behavior, and target profiles. Add asynchronous runtime
+requests, dependency scheduling, duplicate request coalescing, cache ownership,
+cancellation, failure propagation, reference handles, and deterministic unload.
 
-Implement OpenGL 4.5+ and OpenGL ES 3.2+ backends as compatibility layers for older hardware and mobile/web platforms.
+Development mode may import source files. Cooked mode reads only manifests and
+cooked payloads. Both paths produce the same `FAssetId` and typed runtime
+payload contracts.
 
 #### Key Deliverables
-
-- `FOpenGLDevice` implementing `IRHIDevice`
-- `FOpenGLCommandBuffer` — Emulated command buffer (OpenGL is immediate-mode)
-- `FOpenGLBuffer`, `FOpenGLTexture` implementing resource interfaces
-- `FOpenGLPipeline` — Pipeline state emulation via GL state machine
-- `FOpenGLSwapchain` — Context/surface management
-- GLSL shader support
-- `FGLESDevice` — OpenGL ES variant (shared code with OpenGL where possible)
-- Feature capability reporting (what's supported vs. emulated)
-- Integration tests
+- `Tools/AssetCooker`, target profiles, manifests, and incremental derived-data cache
+- Derived keys containing source hash, importer/cooker version, settings, and target
+- `FAssetManager`, `FAssetRequestHandle`, and `TAssetHandle<T>`
+- Async scheduling, dependency DAG, coalescing, cache, cancellation, unload, diagnostics, and stress tests
 
 #### What's Excluded
-
-- WebGL (requires Emscripten toolchain — separate future phase)
-- OpenGL < 4.5 support
+- Budget eviction, chunk streaming, hot reload, network storage, editor database, and GPU residency policy
 
 #### Speckit Prompt
-
+```text
+Implement the Asset Cooker and Runtime Asset Manager on Features 021-024: Tools/AssetCooker; deterministic manifests and target profiles; incremental derived-data keys from source hash, importer/cooker version, settings, and target; hybrid development source import and strict cooked runtime paths sharing FAssetId and payload contracts; FAssetManager, FAssetRequestHandle, and TAssetHandle; asynchronous dependency scheduling, duplicate request coalescing, cache ownership, cancellation, failure propagation, reference retention, deterministic unload, diagnostics, stress tests, and three-platform CI. Runtime modules must not depend on Tools. Exclude budget eviction, chunk streaming, hot reload, network storage, editor databases, and GPU residency policy.
 ```
-OpenGL/GLES compatibility backend: FOpenGLDevice, FOpenGLCommandBuffer (emulated), FOpenGLBuffer, FOpenGLTexture, FOpenGLPipeline (state emulation), FOpenGLSwapchain. GLSL shader support. FGLESDevice (ES 3.2+ variant). Feature capability reporting. Integration tests. UE5 naming.
+
+### Phase 026 — Renderer: Meshlet Pipeline
+
+**Layer**: Renderer
+**Dependencies**: 015, 023, 025
+**Complexity**: XL (2-4 weeks)
+**Critical Path**: ❌ No — conventional indexed rendering remains valid
+
+#### Scope
+Build versioned meshlet derived assets from cooked static meshes and execute
+GPU-driven culling, LOD selection, and drawing. Meshlets are never an
+independent hand-authored source of truth.
+
+#### Key Deliverables
+- `FMeshletData`, `FMeshletBuilder`, and cooker extension
+- Bounds, cone data, hierarchy/LOD records, and deterministic build keys
+- `FMeshletRenderer`, frustum/HZB culling, mesh-shader path, and compute fallback
+- Render Graph integration, benchmarks, fallback behavior, and tests
+
+#### What's Excluded
+- Full Nanite virtual geometry, network streaming, and software rasterization
+
+#### Speckit Prompt
+```text
+Implement the Meshlet Renderer on Features 015, 023, and 025: derive versioned meshlet assets from cooked FStaticMeshAsset data through a cooker extension; meshlet vertices, primitive indices, bounds, cones, hierarchy and LOD data; GPU-driven frustum/HZB culling; mesh-shader execution with compute/indexed fallback; Render Graph integration; deterministic build keys; capability diagnostics; benchmarks; and tests. Meshlets must not become hand-authored source assets. Exclude full virtual geometry and software rasterization.
+```
+
+### Phase 027 — Asset: Streaming & Residency
+
+**Layer**: Asset
+**Dependencies**: 022, 025, 026
+**Complexity**: XL (2-4 weeks)
+**Critical Path**: ❌ No — fully resident assets remain a valid baseline
+
+#### Scope
+Add chunk manifests, priority requests, prefetch, cancellation, CPU/GPU
+budgets, deterministic eviction, and residency telemetry for texture mips and
+meshlet clusters. Asset schedules CPU/cooked payloads; Renderer implements GPU
+realization and residency.
+
+#### Key Deliverables
+- Chunk descriptors and texture-mip/meshlet-cluster streaming records
+- Priority, prefetch, cancellation, budget, and deterministic eviction policies
+- Renderer GPU-residency adapter and synchronization-safe release
+- Telemetry, memory-pressure tests, long-run stress validation, and CI reports
+
+#### What's Excluded
+- CDN/network delivery, virtual texture, virtual geometry, and editor hot reload
+
+#### Speckit Prompt
+```text
+Implement Asset Streaming and Residency on Features 022, 025, and 026: chunk manifests for texture mips and meshlet clusters; priority requests, prefetch, cancellation, CPU/GPU budgets, deterministic eviction, and residency telemetry; Asset-side CPU/cooked scheduling; Renderer-owned RHI/GPU residency and synchronization-safe release; fallback to fully resident assets; memory-pressure and long-run stress tests; normalized CI reports across Windows, macOS, and Linux. Exclude CDN/network delivery, virtual texture, virtual geometry, and editor hot reload.
+```
+
+### Phase 028 — Renderer: Ray Tracing
+
+**Layer**: Renderer
+**Dependencies**: 012, 015, 023, 025
+**Complexity**: XL (2-4 weeks)
+**Critical Path**: ❌ No — raster rendering remains supported
+
+#### Scope
+Extend RHI and Vulkan for acceleration structures, ray-tracing pipelines, SBTs,
+and scene-level tracing. Build BLAS as versioned static-mesh derived data and
+provide fallback behavior when hardware RT is unavailable.
+
+#### Key Deliverables
+- RHI acceleration-structure and ray-tracing-pipeline contracts
+- Vulkan BLAS/TLAS, pipeline, SBT, and synchronization
+- `FRayTracingScene`, reflections, shadows, and ambient occlusion passes
+- Asset-derived BLAS keys, fallback path, diagnostics, and tests
+
+#### What's Excluded
+- Full path tracing and production denoising
+
+#### Speckit Prompt
+```text
+Implement Ray Tracing on Features 012, 015, 023, and 025: backend-neutral acceleration-structure and ray-tracing-pipeline RHI contracts; Vulkan BLAS/TLAS, SBT, pipelines, and synchronization; versioned BLAS derived from cooked static meshes; FRayTracingScene; reflection, shadow, and ambient-occlusion passes; Render Graph integration; hardware capability fallback; diagnostics; and integration tests. Exclude full path tracing and production denoising.
+```
+
+### Phase 029 — Renderer: Global Illumination
+
+**Layer**: Renderer
+**Dependencies**: 019, 027, 028
+**Complexity**: XL (2-4 weeks)
+**Critical Path**: ❌ No — direct lighting paths remain complete
+
+#### Scope
+Combine deferred surfaces, screen-space information, software representations,
+hardware RT, temporal accumulation, and caches for dynamic indirect lighting.
+SDF and surface-cache content uses derived asset/version contracts.
+
+#### Key Deliverables
+- `FGlobalIllumination`, screen-space GI, and radiance/surface caches
+- SDF/voxel derived data and hybrid software/hardware tracing
+- Temporal accumulation, denoising, quality presets, and residency integration
+- Benchmarks, fallback modes, diagnostics, and tests
+
+#### What's Excluded
+- Baked lightmaps and production-scale world partition
+
+#### Speckit Prompt
+```text
+Implement dynamic Global Illumination on Features 019, 027, and 028: screen-space GI, SDF/voxel derived assets, hardware/software tracing, radiance and surface caches, temporal accumulation, denoising, quality presets, streaming/residency integration, Render Graph passes, fallbacks, benchmarks, diagnostics, and tests. Exclude baked lightmaps and production world partition.
+```
+
+### Phase 030 — Backend: Metal
+
+**Layer**: Backend
+**Dependencies**: 008, 024
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ❌ No — MoltenVK remains the initial macOS path
+
+#### Scope
+Implement native Metal RHI resources, commands, pipelines, presentation, and
+shader payload consumption.
+
+#### Key Deliverables
+- Metal device, resources, commands, synchronization, and pipelines
+- `CAMetalLayer` presentation and capability reporting
+- MSL payload cooking/consumption and macOS integration tests
+
+#### What's Excluded
+- iOS optimization and Metal mesh shaders
+
+#### Speckit Prompt
+```text
+Implement a native Metal backend for existing RHI contracts and Feature 024 shader assets: device, resources, descriptors, commands, synchronization, pipelines, CAMetalLayer presentation, capability reporting, MSL payload cooking/consumption, lifecycle diagnostics, and macOS integration tests. Exclude iOS optimization and Metal mesh shaders.
+```
+
+### Phase 031 — Backend: DirectX 12
+
+**Layer**: Backend
+**Dependencies**: 008, 024
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ❌ No — Vulkan remains available on Windows
+
+#### Scope
+Implement DX12 RHI resources, descriptor heaps, command lists, pipelines,
+swapchain presentation, and DXIL shader payload consumption.
+
+#### Key Deliverables
+- DX12 device, resources, descriptors, commands, sync, and pipelines
+- DXGI swapchain and capability reporting
+- DXIL payload cooking/consumption and Windows integration tests
+
+#### What's Excluded
+- Xbox and DX12 Ultimate-only enhancements
+
+#### Speckit Prompt
+```text
+Implement a DirectX 12 backend for existing RHI contracts and Feature 024 shader assets: device, resources, descriptor heaps, command lists, synchronization, pipelines, DXGI presentation, capability reporting, DXIL payload cooking/consumption, lifecycle diagnostics, and Windows integration tests. Exclude Xbox and DX12 Ultimate-only enhancements.
+```
+
+### Phase 032 — Backend: OpenGL/GLES
+
+**Layer**: Backend
+**Dependencies**: 008, 024
+**Complexity**: L (1-2 weeks)
+**Critical Path**: ❌ No — this is a compatibility path
+
+#### Scope
+Implement OpenGL 4.5 and GLES 3.2 compatibility backends with emulated command
+and pipeline state where explicit RHI behavior has no direct equivalent.
+
+#### Key Deliverables
+- GL/GLES devices, resources, commands, pipelines, and presentation
+- Capability/emulation reporting and GLSL payload consumption
+- Desktop GL and GLES-compatible integration tests
+
+#### What's Excluded
+- WebGL, OpenGL below 4.5, and GLES below 3.2
+
+#### Speckit Prompt
+```text
+Implement OpenGL 4.5 and GLES 3.2 compatibility backends for existing RHI contracts and Feature 024 shader assets: resources, emulated command buffers and pipeline state, presentation, capability/emulation reporting, GLSL payload consumption, lifecycle diagnostics, and integration tests. Exclude WebGL and older GL/GLES versions.
 ```
 
 ---
 
 ## Parallel Development Tracks
 
-Some phases can be developed concurrently by different developers or agents:
+### Completed Foundation
 
-### Track A: Core + RHI (Critical Path)
-```
-002 → 003 → 006 → 007
- └→ 004 (parallel)
- └→ 005 (parallel)
-```
-
-### Track B: Vulkan Backend
-```
-008 → 009 → 010 → 011
-```
-*Can start as soon as 005 + 006 are complete*
-
-### Track C: Renderer
-```
-012 → 013 → 014
-```
-*Can start as soon as 007 is complete*
-
-### Track D: Application
-```
-015 (after 005)
-016 (after 003, parallel with everything)
+```text
+003-006 Core
+007-008 RHI
+009-012 Vulkan
+013-015 Renderer foundations
+016-018 Application and integration
+019 Deferred
 ```
 
-### Track E: Integration Milestone
-```
-017 (after 011 + 014 + 015)
+### Asset Critical Path
+
+```text
+020 Asset Core
+  -> 021 Image/Texture
+      -> 022 KTX2
+      -> 023 Static Mesh/Model
+      -> 024 Material/Shader Assets
+  -> 025 Cooker/Runtime Manager
+      -> 026 Meshlets
+      -> 027 Streaming/Residency
 ```
 
-### Track F: Advanced Rendering (Post-Milestone)
-```
-018, 019, 020 (all parallel, after 014)
-021 (after 018 + 020)
+Features 022, 023, and 024 may overlap after 021, but 025 waits for all three.
+
+### Advanced Rendering
+
+```text
+023 + 025 -> 028 Ray Tracing
+019 + 027 + 028 -> 029 Global Illumination
 ```
 
-### Track G: Additional Backends (Post-Milestone)
-```
-022, 023, 024 (all parallel, after 007)
+### Additional Backends
+
+```text
+008 + 024 -> 030 Metal
+008 + 024 -> 031 DX12
+008 + 024 -> 032 OpenGL/GLES
 ```
 
-### Recommended Execution Order for Solo Developer
+These backend phases may run in parallel after shader assets are stable.
 
-If working alone (or with a single AI agent), follow this linear order:
+### Recommended Solo Order
 
+```text
+020 -> 021 -> 022 -> 023 -> 024 -> 025 -> 026 -> 027
+-> 028 -> 029 -> 030 -> 031 -> 032
 ```
-002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011
-→ 012 → 013 → 014 → 015 → 017 → 016 → 018 → 019 → 020 → 021
-→ 022 → 023 → 024
-```
+
+---
+
+## Future Asset Extensions
+
+These are explicit extension tracks, not prerequisites for Feature 020 or
+Meshlets:
+
+- **TGA and additional images**: register another image importer producing the existing `FImageAsset`.
+- **OBJ and FBX**: register model importers producing `FStaticModelAsset` and `FStaticMeshAsset`.
+- **USD and Scene/Prefab assets**: add an Application content phase because USD includes resolver contexts, composition, payloads, and scene semantics beyond mesh interchange.
+- **Skeletal Mesh and Animation**: add typed skeleton, skin, clip, and animation-graph assets after the static model contract stabilizes.
+- **Audio and Font assets**: add independent runtime consumers without changing core identity, registry, cooker, or manager contracts.
+- **Editor hot reload and asset database**: add editor-facing discovery, redirects, source watching, and searchable metadata without making the runtime depend on editor services.
 
 ---
 
 ## Risk Register
 
 | Risk | Impact | Likelihood | Mitigation |
-|------|--------|-----------|------------|
-| Vulkan SDK availability varies across platforms | High | Medium | Document SDK setup per platform; consider bundling headers |
-| MoltenVK limitations on macOS | Medium | Medium | Plan native Metal backend (Phase 022) as fallback |
-| SPIR-V shader toolchain complexity | Medium | High | Start with pre-compiled SPIR-V; add compilation pipeline later |
-| Render graph complexity exceeds single spec | High | Medium | Allow Phase 012 to be split into sub-phases during specification |
-| C++20 feature support varies across compilers | Medium | Low | Test on MSVC, Clang, GCC early; avoid bleeding-edge features |
-| Third-party dependency management | Medium | Medium | Use ThirdParty/ directory with vendored sources initially |
-| Phase scope creep | High | High | Strict adherence to "What's Excluded" sections |
+|---|---|---|---|
+| Asset layer becomes a god-class | High | Medium | Separate registry, resolver, importer, cooker, manager, and residency policies |
+| Logical paths differ across operating systems | High | Medium | Define platform-independent canonicalization and collision tests in Feature 020 |
+| Source and cooked paths diverge | High | Medium | Require identical AssetId and typed payload contracts; test both profiles |
+| Importer output is nondeterministic | High | Medium | Stable subresource naming, sorted manifests, versioned settings, digest tests |
+| Corrupt or hostile source files exhaust memory | High | Medium | Bounds checks, size/count limits, graceful decoder/importer failures |
+| KTX2 target format unsupported | Medium | Medium | Capability negotiation and deterministic uncompressed fallback |
+| Compressed formats expand RHI/backend scope | High | High | Isolate Feature 022 and require per-format backend capability tests |
+| Async cancellation races with unload | High | Medium | Explicit request state machine, retained handles, idempotent cleanup, stress tests |
+| Meshlet/BLAS/SDF data becomes a second authority | High | Medium | Treat all as versioned derived assets from canonical static meshes |
+| Third-party format dependency changes | Medium | Medium | Vendor pinned versions, record licenses, wrap behind importer/cooker contracts |
+| Roadmap number drift returns | High | Low | Enforce feature/phase parity across TOC, table, DAG, and details |
+| Hosted CI lacks a real GPU | Medium | High | Deterministic tests everywhere, Lavapipe native gates, manual visible evidence when required |
 
 ---
 
-## Constitution Compliance Audit
+## Constitution Compliance
 
-The roadmap and all phase specifications MUST comply with the [Constitution v1.3.0](../.specify/memory/constitution.md). When the constitution is amended, completed phases MUST be re-audited.
-
-### Section VII: Cross-Platform Compatibility Audit
-
-Constitution v1.2.0 added Section VII (Cross-Platform Compatibility) on 2026-04-05. Phases completed before this date have been audited:
-
-| Phase | Spec Created | Cross-Platform in Spec? | Code Compliant? | Notes |
-|-------|-------------|-------------------------|-----------------|-------|
-| 002 | 2026-04 | N/A (infrastructure) | ✅ Yes | `SGPlatform.h` defines `SG_PLATFORM_*` macros for Win/Mac/Linux |
-| 003 | 2026-04 | N/A (math) | ✅ Yes | Pure math, no platform dependencies |
-| 004 | 2026-04 | N/A (logging) | ✅ Yes | `FLogConsoleSink` uses `std::cout`, portable |
-| 005 | 2026-04 | ✅ Yes | ✅ Yes | `FPlatformProcess.cpp` etc. use `SG_PLATFORM_*` guards |
-| 006 | 2026-04 | ✅ Yes (template) | ✅ Yes | Pure virtual interfaces, no platform code |
-| 007 | 2026-04 | ✅ Yes (template) | ✅ Yes | Pure virtual interfaces, no platform code |
-| 008 | 2026-04 | ✅ Yes (template) | ✅ Yes | `STONER_VULKAN_SDK_AVAILABLE` guard in SConscript; headless init supported |
-| 009 | 2026-04 | ✅ Yes (template) | ✅ Yes | Vulkan SDK guard; VMA integration behind compile flag |
-| 010 | 2026-04 | ✅ Yes (template) | ✅ Yes | Vulkan SDK guard; command submission portable |
-
-**Action**: All completed phases pass the Section VII audit. No remediation needed.
-
-### Section VII: Automated Cross-Platform Validation Audit
-
-Constitution v1.3.0 expanded Section VII on 2026-07-03. Platform-sensitive features planned or modified after this amendment MUST include or update a GitHub Actions or equivalent Windows/macOS/Linux validation path, or document temporary automation gaps with manual fallback commands and follow-up tasks. Completed phases are not retroactively blocked, but any reopened platform-sensitive phase must adopt this validation requirement before being considered complete again.
-
-### Constitution Version Tracking
-
-| Constitution Version | Roadmap Sections Affected | Audited? |
-|---------------------|--------------------------|----------|
-| v1.0.0 (initial) | All | ✅ |
-| v1.1.0 (amend 1) | Build system, Technology Stack | ✅ |
-| v1.2.0 (amend 2) | Section VII: Cross-Platform | ✅ (this audit) |
-| v1.3.0 (amend 3) | Section VII: Automated Cross-Platform Validation | ✅ (applies to active and future platform-sensitive phases) |
+- **SSD**: Every roadmap phase is one Specify -> Clarify -> Plan -> Tasks -> Analyze -> Implement cycle.
+- **Asset Boundary**: Asset depends only on Core; Renderer realizes GPU resources; runtime never depends on Tools.
+- **RHI Boundary**: Application/Renderer never call graphics APIs; Backend owns API-specific code.
+- **Design Discipline**: Import, registry, cook, load, cache, and residency are separate strategies/collaborators.
+- **Multi-API**: Shader assets and compressed texture capabilities remain backend-neutral.
+- **Advanced Graphics**: Meshlets, BLAS, SDF, and surface caches use derived asset contracts.
+- **Cross-Platform**: Platform-sensitive phases maintain Windows/macOS/Linux CI and document real-device gates.
 
 ---
 
 ## How to Use This Roadmap
 
-### Starting a New Phase
+1. Find the first `⬜ Todo` phase whose dependencies are `✅ Done`.
+2. Copy its complete Speckit Prompt into `/speckit.specify`.
+3. Run `/speckit.clarify`, showing each full question before recommendations and options.
+4. Run `/speckit.plan`, `/speckit.tasks`, and `/speckit.analyze`.
+5. Run `/speckit.implement`, validate locally and in required CI, and retain evidence.
+6. Mark the phase `✅ Done`, update Current State, dependency styling if used, and this change log.
 
-1. **Check prerequisites**: Verify all dependency phases are complete
-2. **Run speckit**: Use the phase's "Speckit Prompt" section:
-   ```
-   /speckit.specify <paste the speckit prompt>
-   ```
-3. **Plan**: `/speckit.plan` to create the technical plan
-4. **Task breakdown**: `/speckit.tasks` to generate implementation tasks
-5. **Implement**: `/speckit.implement` to execute tasks
-6. **Update this roadmap**: Change the phase status from ⬜ Todo to ✅ Done
+The current next phase is **020 Asset: Core, Identity & Registry**. Do not reuse
+Feature 019 or create an offset Phase 019 entry.
 
 ### Status Legend
 
 | Symbol | Meaning |
-|--------|---------|
-| ⬜ | Todo — not yet started |
-| 🔄 | In Progress — spec or implementation underway |
-| ✅ | Done — implemented and verified |
-| 🔷 | Interface Complete — pure virtual interfaces and contracts defined; implementations exist in backends but no mock-based RHI unit tests yet |
-| ⏸️ | Paused — blocked or deferred |
-
-### Splitting Large Phases
-
-If a phase turns out to be too large during `/speckit.specify`:
-1. Split it into sub-phases (e.g., 012a, 012b)
-2. Update this roadmap with the new sub-phases
-3. Ensure dependency graph remains valid
-4. Each sub-phase must still be independently testable
+|---|---|
+| ⬜ | Todo |
+| 🔄 | In Progress |
+| ✅ | Done |
+| ⏸️ | Paused |
 
 ---
 
-## Roadmap Changelog
+## Change Log
 
-| Date | Version | Changes |
-|------|---------|---------|
-| 2026-07-24 | 1.2.4 | Marked Phase 018 Deferred Rendering complete from Feature 019. Recorded real Vulkan GBuffer readback, instanced local lights, failure-safe cleanup, four-tier comparison, retained Linux artifacts, and passing three-platform CI run 30079550556. |
-| 2026-07-03 | 1.2.3 | Aligned roadmap with Constitution v1.3.0. Added automated cross-platform validation rule for platform-sensitive phases using GitHub Actions or equivalent CI, with documented fallback requirements for temporary gaps. |
-| 2026-07-01 | 1.2.1 | Marked Phase 012 Render Graph Foundation as implemented. Added implementation notes, verification commands, and summary document reference for `specs/013-render-graph-foundation`. Updated current Renderer state to reflect delivered render graph foundation. |
-| 2026-06-30 | 1.2.0 | Aligned version with Constitution v1.2.0. Fixed phase status (002-005 ✅ Done, 006-007 🔷 Interface Complete). Added Cross-Platform Compliance Audit section. Added 🔷 status to legend. Updated Current State table to reflect post-Phase 010 reality. Clarified Phase 010 "What's Excluded" to note descriptor infrastructure already in Phase 009. |
-| 2026-04-21 | 1.0.0 | Initial roadmap created |
+| Date | Version | Change |
+|---|---|---|
+| 2026-07-24 | 2.0.0 | Normalized phase/feature numbering, marked 003-019 complete, added Asset as a constitution-governed layer, inserted Features 020-025 and 027, rebased advanced rendering/backends to 026 and 028-032, and added format-extension and derived-asset policy. |
+| 2026-07-24 | 1.2.4 | Recorded Feature 019 Deferred completion and three-platform validation evidence. |
+| 2026-04-21 | 1.0.0 | Created the original engine development roadmap. |

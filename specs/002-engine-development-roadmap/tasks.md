@@ -42,7 +42,7 @@
 
 - [X] T007 Update roadmap title metadata, version, active status, and Phase 001 prerequisite note in `doc/roadmap.md`
 - [X] T008 Update the overview and current-state summary for the post-SCons skeleton repository state in `doc/roadmap.md`
-- [X] T009 Update architecture principles to include the 5-layer structure, adjacent-only dependencies, RHI abstraction, Strategy/Composite discipline, UE5 naming, and cross-platform rules in `doc/roadmap.md`
+- [X] T009 Update architecture principles to include the runtime ownership structure, dependency directions, RHI abstraction, Strategy/Composite discipline, UE5 naming, and cross-platform rules in `doc/roadmap.md`
 - [X] T010 Normalize roadmap terminology to use "Render Graph" and `FRenderGraph`, removing conflicting "Frame Graph" or `RenderDependencyGraph` wording in `doc/roadmap.md`
 - [X] T011 Add roadmap-wide technology decisions for custom Core implementation, no C++20 modules, GLFW-first windowing, Vulkan-first backend, and later native backends in `doc/roadmap.md`
 
@@ -58,11 +58,11 @@
 
 ### Implementation for User Story 1
 
-- [X] T012 [US1] Build or refresh the table of contents with links for all major roadmap sections and phases 002 through 024 in `doc/roadmap.md`
-- [X] T013 [US1] Build or refresh the phase overview table with phases 002 through 024, layer, dependencies, complexity, critical path flag, and status in `doc/roadmap.md`
-- [X] T014 [US1] Build or refresh the Mermaid dependency graph with nodes P001 through P024 and all topological dependency edges in `doc/roadmap.md`
+- [X] T012 [US1] Build or refresh the table of contents with links for all major roadmap sections and runtime Features 003 through 032 in `doc/roadmap.md`
+- [X] T013 [US1] Build or refresh the phase overview table with runtime Features 003 through 032, layer, dependencies, complexity, critical path flag, and status in `doc/roadmap.md`
+- [X] T014 [US1] Build or refresh the Mermaid dependency graph with runtime nodes P003 through P032 and all topological dependency edges in `doc/roadmap.md`
 - [X] T015 [US1] Document parallel development tracks for Core/RHI, Vulkan Backend, Renderer, Application, Integration Milestone, Advanced Rendering, and Additional Backends in `doc/roadmap.md`
-- [X] T016 [US1] Document the recommended solo-developer execution order from phase 002 through phase 024 in `doc/roadmap.md`
+- [X] T016 [US1] Document the recommended solo-developer execution order from Feature 003 through Feature 032 in `doc/roadmap.md`
 - [X] T017 [US1] Document the "How to Use This Roadmap" workflow for choosing a phase, running speckit commands, implementing, and updating status in `doc/roadmap.md`
 - [X] T018 [US1] Validate that every phase listed in the overview table also appears in the dependency graph, table of contents, and execution order in `doc/roadmap.md`
 
@@ -78,13 +78,13 @@
 
 ### Implementation for User Story 2
 
-- [X] T019 [US2] Write or update Core phase detail sections 002 through 005 with required header fields, scope, deliverables, exclusions, and speckit prompts in `doc/roadmap.md`
-- [X] T020 [US2] Write or update RHI phase detail sections 006 through 007 with required header fields, scope, deliverables, exclusions, and speckit prompts in `doc/roadmap.md`
-- [X] T021 [US2] Write or update Vulkan Backend phase detail sections 008 through 011 with required header fields, scope, deliverables, exclusions, and speckit prompts in `doc/roadmap.md`
-- [X] T022 [US2] Write or update Renderer foundation phase detail sections 012 through 014 with required header fields, scope, deliverables, exclusions, and speckit prompts in `doc/roadmap.md`
-- [X] T023 [US2] Write or update Application and integration milestone phase detail sections 015 through 017 with required header fields, scope, deliverables, exclusions, and speckit prompts in `doc/roadmap.md`
-- [X] T024 [US2] Write or update advanced Renderer phase detail sections 018 through 021 with required header fields, scope, deliverables, exclusions, and speckit prompts in `doc/roadmap.md`
-- [X] T025 [US2] Write or update additional Backend phase detail sections 022 through 024 with required header fields, scope, deliverables, exclusions, and speckit prompts in `doc/roadmap.md`
+- [X] T019 [US2] Write or update Core phase detail sections 003 through 006 with required header fields, scope, deliverables, exclusions, and speckit prompts in `doc/roadmap.md`
+- [X] T020 [US2] Write or update RHI phase detail sections 007 through 008 with required header fields, scope, deliverables, exclusions, and speckit prompts in `doc/roadmap.md`
+- [X] T021 [US2] Write or update Vulkan Backend phase detail sections 009 through 012 with required header fields, scope, deliverables, exclusions, and speckit prompts in `doc/roadmap.md`
+- [X] T022 [US2] Write or update Renderer foundation phase detail sections 013 through 015 with required header fields, scope, deliverables, exclusions, and speckit prompts in `doc/roadmap.md`
+- [X] T023 [US2] Write or update Application and integration milestone phase detail sections 016 through 018 with required header fields, scope, deliverables, exclusions, and speckit prompts in `doc/roadmap.md`
+- [X] T024 [US2] Write or update Deferred, Asset, and advanced Renderer phase detail sections 019 through 029 with required header fields, scope, deliverables, exclusions, and speckit prompts in `doc/roadmap.md`
+- [X] T025 [US2] Write or update additional Backend phase detail sections 030 through 032 with required header fields, scope, deliverables, exclusions, and speckit prompts in `doc/roadmap.md`
 - [X] T026 [US2] Validate every phase detail section against `specs/002-engine-development-roadmap/contracts/roadmap-phase-schema.md` and fix missing fields in `doc/roadmap.md`
 - [X] T027 [US2] Validate deliverable names for UE5-style prefixes and document any intentional exceptions in `doc/roadmap.md`
 - [X] T028 [US2] Validate that every speckit prompt is self-contained and does not rely on "see above" or external context in `doc/roadmap.md`
@@ -101,7 +101,7 @@
 
 ### Implementation for User Story 3
 
-- [X] T029 [US3] Ensure the phase overview table includes a status column for every phase 002 through 024 in `doc/roadmap.md`
+- [X] T029 [US3] Ensure the phase overview table includes a status column for every runtime Feature 003 through 032 in `doc/roadmap.md`
 - [X] T030 [US3] Ensure the phase overview table clearly distinguishes critical-path phases from parallelizable phases in `doc/roadmap.md`
 - [X] T031 [US3] Add or update the status legend using the allowed status values from the phase schema contract in `doc/roadmap.md`
 - [X] T032 [US3] Add or update instructions for marking a phase done after implementation and verification in `doc/roadmap.md`
@@ -116,7 +116,7 @@
 
 **Purpose**: Final review across all stories and documentation acceptance criteria.
 
-- [X] T035 Validate that `doc/roadmap.md` satisfies SC-001 by containing at least 12 distinct development phases across all 5 architectural layers
+- [X] T035 Validate that `doc/roadmap.md` satisfies SC-001 by containing runtime Features 003 through 032 across all 6 ownership areas
 - [X] T036 Validate that `doc/roadmap.md` satisfies SC-002 by confirming a developer can produce a `/speckit.specify` prompt from any phase in under 2 minutes
 - [X] T037 Validate that `doc/roadmap.md` satisfies SC-003 by confirming the dependency graph has no circular dependencies and every dependency points to an earlier phase
 - [X] T038 Validate that `doc/roadmap.md` satisfies SC-004 by confirming 100% of phases include name, scope, deliverables, dependencies, complexity, and speckit prompt
@@ -125,6 +125,21 @@
 - [X] T041 Validate Mermaid graph syntax and node consistency in `doc/roadmap.md`
 - [X] T042 Run the quickstart walkthrough from `specs/002-engine-development-roadmap/quickstart.md` against `doc/roadmap.md`
 - [X] T043 Proofread internal anchors, table formatting, terminology consistency, and Markdown readability in `doc/roadmap.md`
+
+---
+
+## Phase 7: Roadmap 2.0 Asset-Layer Amendment
+
+**Purpose**: Normalize roadmap numbering and add the Asset Pipeline and runtime
+management critical path approved on 2026-07-24.
+
+- [X] T044 Amend constitution Principle II to define Asset, Renderer/RHI realization, and offline Tools dependency boundaries in `.specify/memory/constitution.md`
+- [X] T045 Synchronize Asset as a Layer and actual Feature numbering in `specs/002-engine-development-roadmap/spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, and `contracts/roadmap-phase-schema.md`
+- [X] T046 Normalize completed runtime Features 003 through 019 and all future phase references in `doc/roadmap.md`
+- [X] T047 Add detailed Speckit-ready Asset Features 020 through 025 and Asset Streaming Feature 027 to `doc/roadmap.md`
+- [X] T048 Rebase Meshlets, Ray Tracing, Global Illumination, and additional backends to Features 026 and 028 through 032 in `doc/roadmap.md`
+- [X] T049 Update the Roadmap 2.0 architecture diagram, overview table, DAG, tracks, solo order, risks, future asset extensions, and changelog in `doc/roadmap.md`
+- [X] T050 Validate number parity, lower-number dependencies, DAG acyclicity, schema completeness, status accuracy, and removal of deprecated architecture/range wording across active roadmap artifacts
 
 ---
 

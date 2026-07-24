@@ -16,7 +16,7 @@ Every phase in the "Phase Details" section of `doc/roadmap.md` MUST contain the 
 ```markdown
 ### Phase {NNN} — {Layer}: {Name}
 
-**Layer**: {Core|RHI|Backend|Renderer|Application}
+**Layer**: {Core|Asset|RHI|Backend|Renderer|Application}
 **Dependencies**: {comma-separated phase numbers, or "001 (SCons Skeleton)"}
 **Complexity**: {S|M|L|XL} ({duration estimate})
 **Critical Path**: {✅ Yes|❌ No} — {brief reason}
@@ -53,9 +53,11 @@ P{DEP} --> P{NNN}
 
 ## Validation Rules
 
-1. Phase numbers are 3-digit, zero-padded, monotonically increasing
+1. Runtime phase numbers are 3-digit, zero-padded, monotonically increasing and match their Speckit feature numbers
 2. Dependencies only reference lower-numbered phases
 3. No circular dependencies in the graph
 4. Every deliverable name follows UE5 naming conventions
 5. Every speckit prompt is self-contained (no "see above" references)
 6. Status values are one of: ⬜ Todo, 🔄 In Progress, ✅ Done, ⏸️ Paused
+7. Every phase in the table of contents, overview table, dependency graph, and detail sections uses the same number and title
+8. Asset phases MUST preserve `Asset -> Core`; GPU realization belongs to Renderer/RHI and offline executables belong to Tools

@@ -2,10 +2,15 @@
 
 **Feature**: 002-engine-development-roadmap
 **Date**: 2026-04-21
+**Last Amended**: 2026-07-24
 
 ## What This Feature Produces
 
-A single master document — `doc/roadmap.md` — that defines the complete development plan for the Stoner Graphics Lab engine. It contains 23 phases organized across 5 architectural layers, each with enough detail to initiate a `/speckit.specify` cycle.
+A single master document, `doc/roadmap.md`, that defines the complete
+development plan for the Stoner Graphics Lab engine. Roadmap 2.0 contains
+runtime Features 003 through 032 across Core, Asset, RHI, Backend, Renderer,
+and Application ownership areas. Feature 002 is this roadmap meta-feature and
+is not reused as a runtime phase number.
 
 ## Prerequisites
 
@@ -24,8 +29,8 @@ Open `doc/roadmap.md` and look at the **Phase Overview Table**. Find the first p
 Copy the phase's **Speckit Prompt** and run:
 
 ```bash
-# Example for Phase 002
-/speckit.specify Core foundation types and memory management: fixed-width integer types...
+# Example for the current next phase
+/speckit.specify Asset core, identity, and registry foundation...
 ```
 
 ### 3. Follow the Speckit Workflow
@@ -54,10 +59,13 @@ After completing a phase, update its status in `doc/roadmap.md`:
 | `specs/002-engine-development-roadmap/research.md` | Technology decisions |
 | `specs/002-engine-development-roadmap/data-model.md` | Entity model |
 
-## Recommended First Phase
+## Recommended Next Phase
 
-**Phase 002 — Core: Types & Memory** is the recommended starting point. It has no dependencies beyond the completed SCons skeleton and unlocks the most downstream phases.
+**Feature 020 — Asset: Core, Identity & Registry Foundation** is the next
+planned phase. Features 003 through 019 are complete, and 020 establishes the
+identity and extension contracts needed by texture, mesh, material, cooker, and
+runtime-management phases.
 
 ```
-/speckit.specify Core foundation types and memory management: fixed-width integer types (FPlatformTypes), engine string type (FString), hashed name type (FName), smart pointer wrappers (TSharedPtr, TUniquePtr), memory utilities (FMemory with aligned allocation), and container aliases (TArray, TMap). All types follow UE5 naming conventions. Must be cross-platform (Win/Mac/Linux) and include unit tests.
+/speckit.specify Add the Asset layer foundation for Stoner Graphics Lab: typed canonical logical-path FAssetId values with optional subresources, separate FAssetVersion hashes, metadata and dependency records, an in-memory FAssetRegistry, resolver/importer/loader/cooker extension contracts, typed soft references, deterministic format dispatch, diagnostics, lifecycle rules, and Windows/macOS/Linux headless tests. Asset depends only on Core and must not create RHI or graphics API objects.
 ```
