@@ -64,7 +64,7 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
     const Stoner::Core::FString Directory =
         ShaderDirectory != nullptr
             ? ShaderDirectory
-            : "Build/Mac/Debug/Renderer/Shaders/Deferred";
+            : "Source/Renderer/Shaders/Deferred";
     const ERHIResult ExecutionResult =
         Context.ExecuteDeferredOffscreenValidation(Directory, Report);
     WriteReport(Report);
