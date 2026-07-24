@@ -61,7 +61,7 @@ Stoner Graphics Lab is a cross-platform graphics engine built in modern C++20 wi
 - **Render Graph terminology**: Use "Render Graph" and `FRenderGraph` as the canonical dependency-management system for render passes and resources.
 - **GLFW first, native later**: Use GLFW for the initial window/input phase to reach the first-triangle milestone quickly, then add native Win32/Cocoa/X11-Wayland window implementations behind the same abstraction in a later phase.
 
-### Current State (Post Phase 014)
+### Current State (Post Phase 018)
 
 | Layer | Status | Content |
 |-------|--------|---------|
@@ -69,7 +69,7 @@ Stoner Graphics Lab is a cross-platform graphics engine built in modern C++20 wi
 | RHI | 🔷 Interface Complete | Core interfaces (006) and Resource & Pipeline interfaces (007) defined as pure virtual; implementations live in backends |
 | Backend/Vulkan | ✅ Done | Device, swapchain, resources, commands, shader modules, graphics/compute pipelines, command binding, and process-local pipeline reuse implemented |
 | Backend/Others | ⚪ Placeholder | `.gitkeep` files only |
-| Renderer | ✅ Forward Planning Done | Backend-agnostic render graph, material/shader system, forward frame planning, validated view/output/light/draw inputs, full PBR-style material checks, sky/transparent ordering, render graph-compatible declarations, diagnostics, and deterministic text dumps |
+| Renderer | ✅ Forward + Deferred Done | Backend-agnostic render graph and material/shader system; forward remains default; deferred adds world-space GBuffer data, directional and bounded local-light execution, composition, native Vulkan readback, diagnostics, and comparison evidence |
 | Application | 🟡 Skeleton | Empty namespace, includes Renderer |
 | Tests | ✅ Done | Core tests, RHI contract tests, Renderer render graph/material/forward pipeline tests, and Vulkan integration tests all pass |
 | Build System | ✅ Complete | SCons with LayerBuilder, PlatformDetect, BuildConfig, Vulkan SDK detection |
@@ -131,7 +131,7 @@ These principles (from the [Constitution v1.3.0](../.specify/memory/constitution
 | 015 | Window & Input System | Application | 005 | M | ✅ Yes | ⬜ Todo |
 | 016 | Scene Graph & ECS | Application | 003 | L | ❌ No | ⬜ Todo |
 | 017 | 🎯 Triangle Demo | Application | 011, 014, 015 | M | ✅ Yes | ✅ Done |
-| 018 | Deferred Rendering | Renderer | 014 | L | ❌ No | 🟨 In Progress |
+| 018 | Deferred Rendering | Renderer | 014 | L | ❌ No | ✅ Done |
 | 019 | Meshlet Pipeline | Renderer | 014 | XL | ❌ No | ⬜ Todo |
 | 020 | Ray Tracing Integration | Renderer | 014 | XL | ❌ No | ⬜ Todo |
 | 021 | Global Illumination | Renderer | 018, 020 | XL | ❌ No | ⬜ Todo |
@@ -843,13 +843,15 @@ Triangle demo integration milestone: StonerDemo executable, window creation (FWi
 
 ### Phase 018 — Renderer: Deferred Rendering Pipeline
 
-> **Status Note (Feature 019)**: 🟨 **In Progress** — deterministic deferred
-> surface/light/frame planning, render-graph declaration, backend-neutral RHI
-> recording, checked-in shaders, comparison contracts, forward coexistence, and
-> CI orchestration are implemented. The remaining completion gate is real
-> Linux Lavapipe deferred attachment readback with retained semantic-probe and
-> comparison artifacts; a Vulkan submission plus semantic oracle is explicitly
-> not accepted as equivalent evidence.
+> **Status Note (Feature 019)**: ✅ **Complete** — the sibling deferred strategy,
+> world-space three-color-plus-depth GBuffer, StandardZ/ReversedZ policies,
+> directional and instanced sphere/cone local-light work, composition,
+> transparent forward handoff, deterministic diagnostics, real Vulkan
+> attachment readback, and four-tier comparison are implemented. GitHub Actions
+> run `30079550556` passes Windows, macOS, and Linux; Linux additionally passes
+> Lavapipe native readback, 24 semantic probes, eight injected native failure
+> paths, and zero-live cleanup. Retained reports and digests are recorded in
+> `Validation/019/completion.md`.
 
 **Layer**: Renderer  
 **Dependencies**: 014 (Forward Rendering)  
@@ -1250,6 +1252,7 @@ If a phase turns out to be too large during `/speckit.specify`:
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-07-24 | 1.2.4 | Marked Phase 018 Deferred Rendering complete from Feature 019. Recorded real Vulkan GBuffer readback, instanced local lights, failure-safe cleanup, four-tier comparison, retained Linux artifacts, and passing three-platform CI run 30079550556. |
 | 2026-07-03 | 1.2.3 | Aligned roadmap with Constitution v1.3.0. Added automated cross-platform validation rule for platform-sensitive phases using GitHub Actions or equivalent CI, with documented fallback requirements for temporary gaps. |
 | 2026-07-01 | 1.2.1 | Marked Phase 012 Render Graph Foundation as implemented. Added implementation notes, verification commands, and summary document reference for `specs/013-render-graph-foundation`. Updated current Renderer state to reflect delivered render graph foundation. |
 | 2026-06-30 | 1.2.0 | Aligned version with Constitution v1.2.0. Fixed phase status (002-005 ✅ Done, 006-007 🔷 Interface Complete). Added Cross-Platform Compliance Audit section. Added 🔷 status to legend. Updated Current State table to reflect post-Phase 010 reality. Clarified Phase 010 "What's Excluded" to note descriptor infrastructure already in Phase 009. |

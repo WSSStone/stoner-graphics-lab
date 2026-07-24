@@ -138,8 +138,8 @@
 - [X] T046 [US4] Implement deterministic, native-Lavapipe, semantic-probe, comparison-tier, timeout, normalized-report, and failure-artifact orchestration in `.github/scripts/run_deferred_validation.py`
 - [X] T047 [US4] Extend the Windows/macOS/Linux CI matrix with deferred deterministic validation, Linux Lavapipe native readback/comparison, and always-upload Feature 019 artifacts in `.github/workflows/ci.yml`
 - [X] T048 [US4] Run the full local macOS build, complete `StonerTest`, deterministic deferred profile, shader validation when available, and forward/triangle regressions; record verified results in `specs/019-deferred-rendering-pipeline/quickstart.md`
-- [ ] T049 [US4] Trigger the feature-branch CI, verify all three deterministic jobs plus Linux native readback, injected-failure, cleanup, and comparison gates, and download exact Linux reports into `Validation/019/Linux/deferred-readback-report.txt` and `Validation/019/Linux/renderer-comparison-report.txt`
-- [ ] T050 [US4] Verify CI run/commit identity, artifact digests, probe/tier counts, forward regressions, and final-zero resources against the validation contract in `Validation/019/completion.md`
+- [X] T049 [US4] Trigger the feature-branch CI, verify all three deterministic jobs plus Linux native readback, injected-failure, cleanup, and comparison gates, and download exact Linux reports into `Validation/019/Linux/deferred-readback-report.txt` and `Validation/019/Linux/renderer-comparison-report.txt`
+- [X] T050 [US4] Verify CI run/commit identity, artifact digests, probe/tier counts, forward regressions, and final-zero resources against the validation contract in `Validation/019/completion.md`
 
 **Checkpoint**: US4 and the functional feature are complete when forward behavior is unchanged, transparent handoff is correct, the three-platform matrix is green, and retained Linux artifacts satisfy every native and comparison gate.
 
@@ -151,7 +151,7 @@
 
 - [X] T051 Audit Strategy/lifecycle Composite boundaries, Renderer/RHI public headers for raw `Vk*` types or backend downcasts, shader/format contracts for API-specific leakage, native reports for addresses, and UE5-style naming; fix findings in `Source/Renderer/`, `Source/RHI/Public/`, and `Source/Backend/Vulkan/`
 - [X] T052 Run shader reproducibility checks, the complete local macOS build/test/profile workflow, deterministic boundary scans, and `git diff --check`, then finalize verified commands in `specs/019-deferred-rendering-pipeline/quickstart.md`
-- [ ] T053 [P] Update Deferred Rendering roadmap status and implementation notes after the US4 and T052 validation gates pass in `doc/roadmap.md`
+- [X] T053 [P] Update Deferred Rendering roadmap status and implementation notes after the US4 and T052 validation gates pass in `doc/roadmap.md`
 - [X] T054 [P] Create the Feature 019 system-design summary following `doc/SYSTEM_DESIGN.MD` and the established HTML structure in `doc/019-deferred-rendering-pipeline.html`
 - [X] T055 [P] Update Feature 019 active technology, delivered behavior, CI evidence, and current-plan memory after implementation in `AGENTS.md`
 - [X] T056 Reconcile FR-001 through FR-025 and SC-001 through SC-010 against implementation, tests, CI, and retained artifacts; mark completed work and document any genuine external blocker in `specs/019-deferred-rendering-pipeline/tasks.md` and `Validation/019/completion.md`
