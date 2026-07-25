@@ -1,18 +1,21 @@
 {
-  "active_step": "B00-S01",
+  "active_step": "B00-S02",
   "batches": [
     {
       "id": "B00",
       "status": "InProgress",
       "steps": [
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "ec1f85a",
+          "completed_at": "2026-07-25T15:49:48+00:00",
+          "evidence": [
+            "https://github.com/WSSStone/stoner-graphics-lab/pull/4",
+            "CodeReview/Tools/tool-versions.json"
+          ],
           "id": "B00-S01",
-          "note": "",
+          "note": "Created reproducible stoner-cr environment, validated doctor and eight unit tests, pushed framework commit, and opened Draft PR #4.",
           "started_at": "2026-07-25T15:37:16+00:00",
-          "status": "InProgress",
+          "status": "Completed",
           "title": "Framework and Draft PR"
         },
         {
@@ -410,13 +413,18 @@
       "at": "2026-07-25T15:40:47+00:00",
       "detail": "seeded 463 FR/SC records",
       "kind": "trace"
+    },
+    {
+      "at": "2026-07-25T15:49:48+00:00",
+      "detail": "B00-S01",
+      "kind": "complete"
     }
   ],
   "gates": {},
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "9092a97593fb29cffbffdbe534e3dda143f463a5"
+    "last_recorded_head": "ec1f85a33c7659395720b3ee055f6f6677dfb660"
   },
   "policy": {
     "fix_severities": [
@@ -436,5 +444,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-25T15:40:47+00:00"
+  "updated_at": "2026-07-25T15:49:48+00:00"
 }
