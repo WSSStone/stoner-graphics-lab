@@ -1,0 +1,440 @@
+{
+  "active_step": "B00-S01",
+  "batches": [
+    {
+      "id": "B00",
+      "status": "InProgress",
+      "steps": [
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B00-S01",
+          "note": "",
+          "started_at": "2026-07-25T15:37:16+00:00",
+          "status": "InProgress",
+          "title": "Framework and Draft PR"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B00-S02",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Baseline and CodeGraph"
+        }
+      ],
+      "title": "Bootstrap"
+    },
+    {
+      "id": "B01",
+      "status": "Pending",
+      "steps": [
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B01-S01",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B01-S02",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B01-S03",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify"
+        }
+      ],
+      "title": "Build, CI, and Architecture"
+    },
+    {
+      "id": "B02",
+      "status": "Pending",
+      "steps": [
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S01",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S02",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S03",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify"
+        }
+      ],
+      "title": "Core Features 003-006"
+    },
+    {
+      "id": "B03",
+      "status": "Pending",
+      "steps": [
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B03-S01",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B03-S02",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B03-S03",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify"
+        }
+      ],
+      "title": "RHI Features 007-008"
+    },
+    {
+      "id": "B04",
+      "status": "Pending",
+      "steps": [
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B04-S01",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B04-S02",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B04-S03",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify"
+        }
+      ],
+      "title": "Vulkan Foundation 009-010"
+    },
+    {
+      "id": "B05",
+      "status": "Pending",
+      "steps": [
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B05-S01",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B05-S02",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B05-S03",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify"
+        }
+      ],
+      "title": "Vulkan Execution 011-012"
+    },
+    {
+      "id": "B06",
+      "status": "Pending",
+      "steps": [
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S01",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S02",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S03",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify"
+        }
+      ],
+      "title": "Renderer 013-015"
+    },
+    {
+      "id": "B07",
+      "status": "Pending",
+      "steps": [
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B07-S01",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B07-S02",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B07-S03",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify"
+        }
+      ],
+      "title": "Application 016-017"
+    },
+    {
+      "id": "B08",
+      "status": "Pending",
+      "steps": [
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B08-S01",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B08-S02",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B08-S03",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify"
+        }
+      ],
+      "title": "Integration 018-019"
+    },
+    {
+      "id": "B09",
+      "status": "Pending",
+      "steps": [
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B09-S01",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B09-S02",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B09-S03",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify"
+        }
+      ],
+      "title": "Cross-Cutting"
+    },
+    {
+      "id": "B10",
+      "status": "Pending",
+      "steps": [
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B10-S01",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Traceability"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B10-S02",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Final Gates"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B10-S03",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Close"
+        }
+      ],
+      "title": "Closeout"
+    }
+  ],
+  "created_at": "2026-07-25T15:37:16+00:00",
+  "events": [
+    {
+      "at": "2026-07-25T15:37:16+00:00",
+      "detail": "initialized at baseline 9092a97593fb29cffbffdbe534e3dda143f463a5",
+      "kind": "init"
+    },
+    {
+      "at": "2026-07-25T15:40:47+00:00",
+      "detail": "seeded 463 FR/SC records",
+      "kind": "trace"
+    }
+  ],
+  "gates": {},
+  "git": {
+    "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
+    "branch": "codex/review-001-pre-asset-hardening",
+    "last_recorded_head": "9092a97593fb29cffbffdbe534e3dda143f463a5"
+  },
+  "policy": {
+    "fix_severities": [
+      "S0",
+      "S1",
+      "S2"
+    ],
+    "max_fix_findings": 3,
+    "max_inspection_files": 8,
+    "max_inspection_lines": 1500,
+    "s3": "Fix low-risk local issues; defer the remainder explicitly."
+  },
+  "review": {
+    "id": "CR-001",
+    "objective": "Audit and harden Features 003-019 before Feature 020.",
+    "slug": "PreAsset-Hardening",
+    "status": "Active"
+  },
+  "schema_version": 1,
+  "updated_at": "2026-07-25T15:40:47+00:00"
+}

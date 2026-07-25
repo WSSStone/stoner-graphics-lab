@@ -1,0 +1,2 @@
+# The CLI test suite currently uses only Python's standard-library unittest.
+# Add exact pins here before importing any third-party development dependency.
