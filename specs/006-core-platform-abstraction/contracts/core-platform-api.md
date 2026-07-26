@@ -75,6 +75,8 @@ Macros (`SG_PLATFORM_WINDOWS`, `SG_PLATFORM_MAC`, `SG_PLATFORM_LINUX`) are in th
 - Bare module names and implicit platform search path lookup are out of scope.
 - Resolves entry points by symbol name from a valid loaded module.
 - Releases valid loaded modules.
+- Module handles are opaque, move-only owners; moving invalidates the source,
+  and destruction safely releases any still-owned module.
 - Treats missing modules, missing symbols, and invalid handles as recoverable failures.
 - Releasing an invalid handle is a safe no-op.
 

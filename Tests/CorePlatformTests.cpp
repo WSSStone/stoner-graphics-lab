@@ -1,15 +1,25 @@
 #include "CorePlatformTests.h"
 
 #include "Core/CoreMinimal.h"
+#include "FPlatformFileSystemInternal.h"
+#include "FPlatformProcessInternal.h"
 
 #include <cstdlib>
 #include <iostream>
+#include <sstream>
 #include <string>
+#include <type_traits>
+#include <utility>
 
 namespace
 {
 
 using namespace Stoner::Core;
+
+static_assert(!std::is_copy_constructible_v<FDynamicModuleHandle>);
+static_assert(!std::is_copy_assignable_v<FDynamicModuleHandle>);
+static_assert(std::is_nothrow_move_constructible_v<FDynamicModuleHandle>);
+static_assert(std::is_nothrow_move_assignable_v<FDynamicModuleHandle>);
 
 void Record(FCorePlatformTestResult& Result, bool Passed, const char* Name)
 {
@@ -126,9 +136,27 @@ void TestPlatformFileSystem(FCorePlatformTestResult& Result)
     Record(Result, FPlatformFileSystem::ReadFile(BinaryFile, BinaryReadback) && BinaryReadback == BinaryPayload,
         "FPlatformFileSystem reads 1 MB binary payload byte-for-byte");
 
-    TArray<uint8> MissingReadback;
-    Record(Result, !FPlatformFileSystem::ReadFile(MissingFile, MissingReadback), "FPlatformFileSystem missing file read fails");
+    TArray<uint8> MissingReadback = {0x7f};
+    Record(Result, !FPlatformFileSystem::ReadFile(MissingFile, MissingReadback) && MissingReadback.empty(),
+        "FPlatformFileSystem missing file read fails and clears output");
     Record(Result, !FPlatformFileSystem::ReadFile(Root, MissingReadback), "FPlatformFileSystem directory-as-file read fails");
+
+    std::istringstream ExactStream("data", std::ios::in | std::ios::binary);
+    TArray<uint8> ExactReadback;
+    const TArray<uint8> ExactExpected = {'d', 'a', 't', 'a'};
+    Record(Result, Detail::ReadExactBytes(ExactStream, ExactExpected.size(), ExactReadback) &&
+            ExactReadback == ExactExpected,
+        "FPlatformFileSystem exact-read helper preserves complete bytes");
+
+    std::istringstream ShortStream("x", std::ios::in | std::ios::binary);
+    TArray<uint8> ShortReadback = {0x7f};
+    Record(Result, !Detail::ReadExactBytes(ShortStream, 4, ShortReadback) && ShortReadback.empty(),
+        "FPlatformFileSystem short read fails and clears partial output");
+
+    std::istringstream EmptyStream("", std::ios::in | std::ios::binary);
+    TArray<uint8> EmptyReadback = {0x7f};
+    Record(Result, Detail::ReadExactBytes(EmptyStream, 0, EmptyReadback) && EmptyReadback.empty(),
+        "FPlatformFileSystem empty read succeeds with empty output");
 }
 
 FString GetKnownSystemModulePath()
@@ -155,6 +183,20 @@ const char* GetKnownSystemSymbolName()
 
 void TestPlatformProcess(FCorePlatformTestResult& Result)
 {
+    Record(Result, Detail::IsExplicitDynamicModulePath(MakeTempPath("module-under-test")),
+        "FPlatformProcess accepts a relative path with a parent directory");
+    Record(Result, !Detail::IsExplicitDynamicModulePath(FString("module-under-test")),
+        "FPlatformProcess rejects a bare module name");
+#if SG_PLATFORM_WINDOWS
+    Record(Result, Detail::IsExplicitDynamicModulePath(FString("relative\\module-under-test.dll")),
+        "FPlatformProcess accepts a Windows relative path");
+#else
+    Record(Result,
+        !Detail::IsExplicitDynamicModulePath(FString("module\\under-test")) &&
+            !Detail::IsExplicitDynamicModulePath(FString("module:under-test")),
+        "FPlatformProcess rejects POSIX names with non-separator path markers");
+#endif
+
     FDynamicModuleHandle EmptyHandle;
     Record(Result, !EmptyHandle.IsValid(), "FPlatformProcess default module handle is invalid");
     FPlatformProcess::FreeDynamicModule(EmptyHandle);
@@ -169,12 +211,19 @@ void TestPlatformProcess(FCorePlatformTestResult& Result)
     FDynamicModuleHandle Module = FPlatformProcess::LoadDynamicModule(GetKnownSystemModulePath());
     if (Module.IsValid())
     {
-        Record(Result, FPlatformProcess::GetSymbol(Module, GetKnownSystemSymbolName()) != nullptr,
+        FDynamicModuleHandle MovedModule = std::move(Module);
+        Record(Result, !Module.IsValid() && MovedModule.IsValid(),
+            "FPlatformProcess move construction transfers module ownership");
+        FDynamicModuleHandle AssignedModule;
+        AssignedModule = std::move(MovedModule);
+        Record(Result, !MovedModule.IsValid() && AssignedModule.IsValid(),
+            "FPlatformProcess move assignment transfers module ownership");
+        Record(Result, FPlatformProcess::GetSymbol(AssignedModule, GetKnownSystemSymbolName()) != nullptr,
             "FPlatformProcess resolves symbol from explicit module path");
-        Record(Result, FPlatformProcess::GetSymbol(Module, "SymbolThatShouldNotExist_Stoner") == nullptr,
+        Record(Result, FPlatformProcess::GetSymbol(AssignedModule, "SymbolThatShouldNotExist_Stoner") == nullptr,
             "FPlatformProcess missing symbol lookup fails");
-        FPlatformProcess::FreeDynamicModule(Module);
-        Record(Result, !Module.IsValid(), "FPlatformProcess valid module release invalidates handle");
+        FPlatformProcess::FreeDynamicModule(AssignedModule);
+        Record(Result, !AssignedModule.IsValid(), "FPlatformProcess valid module release invalidates handle");
     }
     else
     {

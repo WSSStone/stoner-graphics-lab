@@ -28,6 +28,7 @@ for backend in _BACKEND_LAYERS:
 test_env.Append(CPPPATH=include_paths)
 test_env.Append(CPPPATH=[Dir('#Demo/StonerDemo/Private').abspath])
 test_env.Append(CPPPATH=[Dir('#Source/Application/Private').abspath])
+test_env.Append(CPPPATH=[Dir('#Source/Core/Private').abspath])
 
 # Source files — use relative path to SConscript source dir for variant_dir compat
 tests_src_dir = Dir('.').srcnode().abspath

@@ -1,7 +1,10 @@
 #include "Core/FPlatformFileSystem.h"
 
+#include "FPlatformFileSystemInternal.h"
+
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <system_error>
 
 namespace Stoner::Core
@@ -23,6 +26,41 @@ std::filesystem::path ToPath(const FString& Path)
 }
 
 } // namespace
+
+bool Detail::ReadExactBytes(
+    std::istream& Stream,
+    usize ByteCount,
+    TArray<uint8>& OutData) noexcept
+{
+    OutData.clear();
+    if (ByteCount > static_cast<usize>(std::numeric_limits<std::streamsize>::max()))
+    {
+        return false;
+    }
+
+    try
+    {
+        OutData.resize(ByteCount);
+        if (ByteCount == 0)
+        {
+            return true;
+        }
+
+        const std::streamsize Requested = static_cast<std::streamsize>(ByteCount);
+        Stream.read(reinterpret_cast<char*>(OutData.data()), Requested);
+        if (Stream.gcount() != Requested)
+        {
+            OutData.clear();
+            return false;
+        }
+        return true;
+    }
+    catch (...)
+    {
+        OutData.clear();
+        return false;
+    }
+}
 
 bool FPlatformFileSystem::Exists(const FString& Path)
 {
@@ -59,6 +97,10 @@ bool FPlatformFileSystem::ReadFile(const FString& Path, TArray<uint8>& OutData)
     {
         return false;
     }
+    if (Size > static_cast<std::uintmax_t>(std::numeric_limits<usize>::max()))
+    {
+        return false;
+    }
 
     std::ifstream File(FilePath, std::ios::binary);
     if (!File)
@@ -66,13 +108,7 @@ bool FPlatformFileSystem::ReadFile(const FString& Path, TArray<uint8>& OutData)
         return false;
     }
 
-    OutData.resize(static_cast<usize>(Size));
-    if (!OutData.empty())
-    {
-        File.read(reinterpret_cast<char*>(OutData.data()), static_cast<std::streamsize>(OutData.size()));
-    }
-
-    return File.good() || File.eof();
+    return Detail::ReadExactBytes(File, static_cast<usize>(Size), OutData);
 }
 
 bool FPlatformFileSystem::WriteFile(const FString& Path, const TArray<uint8>& Data)
