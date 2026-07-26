@@ -203,3 +203,39 @@
 - Resolution: The test executable now exposes a dedicated Fatal child mode; POSIX fork/exec and Windows CreateProcess harnesses capture stderr and require abnormal termination before the fallback return. Debug and Release suites pass, and task/contract text now matches the clarified abort behavior.
 - Verification: pending
 - Commit: `8303045d6b977ecc873033a2da3100756f347055`
+
+## CR001-B02-F013: Assertion handler replacement races with assertion dispatch
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 005 replaceable assertion handler contract and Core diagnostic thread-safety
+- Location: `Source/Core/Private/FLog.cpp:17; Source/Core/Private/FLog.cpp:93; Source/Core/Private/FLog.cpp:178`
+- Impact: Replacing the handler while any worker reports an assertion is C++ undefined behavior and can dispatch through a torn or stale function pointer.
+- Evidence: A release ThreadSanitizer probe reports a data race between FLog::SetAssertionHandler and FLog::HandleAssertionFailure on global GAssertionHandler.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B02-F014: Assertion build-mode and default-break contracts lack durable coverage
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 005 FR-008 through FR-011, SC-003 through SC-005, SC-009, and quickstart checks 5-7
+- Location: `Tests/LoggingAssertionTests.cpp:646; Tests/LoggingAssertionTests.cpp:684; Tests/LoggingAssertionTests.cpp:719`
+- Impact: Debugger-break, compile-out, or Release VERIFY regressions can pass the claimed public-entry and build-mode coverage gates on all CI platforms.
+- Evidence: Maintained tests always install a custom handler, never execute SG_DEBUG_BREAK, use no side effect in SG_CHECK/SG_CHECKF Release checks, and omit the Release false-SG_VERIFY no-handler assertion. External probes show Debug SIGTRAP and correct Release stripping, but that evidence is not maintained.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B02-F015: GCC debug break is not resumable as required
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 005 FR-011, cross-platform constraint, contract SG_DEBUG_BREAK, and research Decision 5
+- Location: `Source/Core/Public/Core/SGPlatformBreak.h:19`
+- Impact: Linux GCC assertions stop on a trap instruction that repeats or requires manual instruction-pointer repair, violating the soft-stop assertion contract and differing from MSVC/Clang behavior.
+- Evidence: The GCC branch expands to __builtin_trap even though Feature 005 research explicitly rejects that intrinsic as non-resumable; the clarified contract requires a debugger break from which execution can continue.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`

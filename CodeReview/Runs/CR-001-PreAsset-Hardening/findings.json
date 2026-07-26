@@ -635,6 +635,96 @@
       "status": "Fixed",
       "title": "Fatal logging contract is not exercised by the test suite",
       "verification": ""
+    },
+    {
+      "batch": "B02",
+      "commit": "",
+      "created_at": "2026-07-26T07:36:41+00:00",
+      "deferred_target": "",
+      "evidence": "A release ThreadSanitizer probe reports a data race between FLog::SetAssertionHandler and FLog::HandleAssertionFailure on global GAssertionHandler.",
+      "history": [
+        {
+          "at": "2026-07-26T07:37:17+00:00",
+          "from": "Open",
+          "note": "TSan identifies the exact read/write pair on the process-global handler; make the function pointer atomic and add maintained concurrent dispatch coverage in B02-S17.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T07:37:17+00:00",
+          "from": "Triaged",
+          "note": "TSan identifies the exact read/write pair on the process-global handler; make the function pointer atomic and add maintained concurrent dispatch coverage in B02-S17.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B02-F013",
+      "impact": "Replacing the handler while any worker reports an assertion is C++ undefined behavior and can dispatch through a torn or stale function pointer.",
+      "location": "Source/Core/Private/FLog.cpp:17; Source/Core/Private/FLog.cpp:93; Source/Core/Private/FLog.cpp:178",
+      "requirement": "Feature 005 replaceable assertion handler contract and Core diagnostic thread-safety",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Assertion handler replacement races with assertion dispatch",
+      "verification": ""
+    },
+    {
+      "batch": "B02",
+      "commit": "",
+      "created_at": "2026-07-26T07:36:55+00:00",
+      "deferred_target": "",
+      "evidence": "Maintained tests always install a custom handler, never execute SG_DEBUG_BREAK, use no side effect in SG_CHECK/SG_CHECKF Release checks, and omit the Release false-SG_VERIFY no-handler assertion. External probes show Debug SIGTRAP and correct Release stripping, but that evidence is not maintained.",
+      "history": [
+        {
+          "at": "2026-07-26T07:37:31+00:00",
+          "from": "Open",
+          "note": "SC-009 and the quickstart claim behavior that the maintained suite does not execute; extend the existing cross-platform child harness and add explicit Release side-effect/no-handler assertions in B02-S17.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T07:37:31+00:00",
+          "from": "Triaged",
+          "note": "SC-009 and the quickstart claim behavior that the maintained suite does not execute; extend the existing cross-platform child harness and add explicit Release side-effect/no-handler assertions in B02-S17.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B02-F014",
+      "impact": "Debugger-break, compile-out, or Release VERIFY regressions can pass the claimed public-entry and build-mode coverage gates on all CI platforms.",
+      "location": "Tests/LoggingAssertionTests.cpp:646; Tests/LoggingAssertionTests.cpp:684; Tests/LoggingAssertionTests.cpp:719",
+      "requirement": "Feature 005 FR-008 through FR-011, SC-003 through SC-005, SC-009, and quickstart checks 5-7",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Assertion build-mode and default-break contracts lack durable coverage",
+      "verification": ""
+    },
+    {
+      "batch": "B02",
+      "commit": "",
+      "created_at": "2026-07-26T07:37:06+00:00",
+      "deferred_target": "",
+      "evidence": "The GCC branch expands to __builtin_trap even though Feature 005 research explicitly rejects that intrinsic as non-resumable; the clarified contract requires a debugger break from which execution can continue.",
+      "history": [
+        {
+          "at": "2026-07-26T07:37:50+00:00",
+          "from": "Open",
+          "note": "The implementation contradicts the clarified soft-stop contract and its own research; use a resumable SIGTRAP raise on GCC/POSIX, preserve Clang/MSVC intrinsics, and verify the Linux branch at B02 batch CI.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T07:37:50+00:00",
+          "from": "Triaged",
+          "note": "The implementation contradicts the clarified soft-stop contract and its own research; use a resumable SIGTRAP raise on GCC/POSIX, preserve Clang/MSVC intrinsics, and verify the Linux branch at B02 batch CI.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B02-F015",
+      "impact": "Linux GCC assertions stop on a trap instruction that repeats or requires manual instruction-pointer repair, violating the soft-stop assertion contract and differing from MSVC/Clang behavior.",
+      "location": "Source/Core/Public/Core/SGPlatformBreak.h:19",
+      "requirement": "Feature 005 FR-011, cross-platform constraint, contract SG_DEBUG_BREAK, and research Decision 5",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "GCC debug break is not resumable as required",
+      "verification": ""
     }
   ],
   "schema_version": 1
