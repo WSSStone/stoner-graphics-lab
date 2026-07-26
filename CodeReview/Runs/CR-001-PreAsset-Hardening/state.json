@@ -1,5 +1,5 @@
 {
-  "active_step": "B04-S04",
+  "active_step": "B04-S05",
   "batches": [
     {
       "id": "B00",
@@ -745,12 +745,17 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-26T12:57:14+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B04-surface-swapchain-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b04-surface-swapchain-probes.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/Probes/b04-surface-swapchain-inspection-probe.cpp",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/gate-sanitizers.json"
+          ],
           "id": "B04-S04",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected the bounded surface/swapchain responsibility, reproduced backend-neutral API drift, missing surface provenance/recovery invariants, and non-atomic creation failures under ASan/UBSan, accepted CR001-B04-F004 through F006 as S2, and authorized one coherent B04-S05 presentation API migration. Maintained sanitizer tests remain green with optional B08 deferred-native coverage skipped.",
+          "started_at": "2026-07-26T12:47:18+00:00",
+          "status": "Completed",
           "title": "Inspect: surface and swapchain lifecycle"
         },
         {
@@ -3350,6 +3355,46 @@
       "at": "2026-07-26T12:45:16+00:00",
       "detail": "B04-S03",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-26T12:47:18+00:00",
+      "detail": "B04-S04",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-26T12:53:14+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T12:53:27+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T12:53:39+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T12:54:02+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T12:54:11+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T12:54:21+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T12:57:14+00:00",
+      "detail": "B04-S04",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -3503,7 +3548,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "fac5222723452efbe29c47dcc7fdbecf1f6bf015"
+    "last_recorded_head": "be2596939bea09d2e44b4f1d16a6546a3eec916a"
   },
   "policy": {
     "fix_severities": [
@@ -3523,5 +3568,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T12:45:16+00:00"
+  "updated_at": "2026-07-26T12:57:14+00:00"
 }
