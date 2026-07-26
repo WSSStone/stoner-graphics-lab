@@ -323,3 +323,39 @@
 - Resolution: ProvesNativeExecution now requires an explicit Native or NativeHeadless request in addition to RealRuntime and non-zero instance/device counts. Tests cover both positive native modes and deterministic, fallback, missing-instance, and missing-device negatives.
 - Verification: Independent same-source parent/current probe verified exact behavior: parent accepts the contradictory deterministic/real-runtime snapshot (proof=1, exit 3); current rejects it (proof=0, exit 0). Positive Native and NativeHeadless plus fallback and zero-count negatives pass in the strict 757-line deterministic suite.
 - Commit: `98c97a5`
+
+## CR001-B03-F003: Surface-aware swapchain creation silently falls back to headless
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 018-FR-003; 018-FR-009; 018-T012; triangle-demo-runtime-contract presentation contract
+- Location: `Source/RHI/Public/RHI/IRHIDevice.h:92`
+- Impact: Callers and future backends can receive false presentation support and a successful object that does not satisfy the requested surface, extent, format, or presentation policy, undermining native-versus-headless runtime truth.
+- Evidence: A strict standalone C++20 probe calls CreateSwapchain through IRHIDevice& with a null surface and an invalid zero-extent FRHISwapchainDesc; the default overload returns Success and a non-null headless object. The adapter ignores surface, width, height, preferred format, and VSync, forwarding only FramesInFlight.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B03-F004: Synchronization failures leave partial queue and swapchain transitions
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 007-FR-005; 007-FR-009; 007-SC-003; 018-FR-009; triangle-demo-runtime-contract native frame order
+- Location: `Source/RHI/Public/RHI/IRHISwapchain.h:33; Tests/RHICoreTests.cpp:919`
+- Impact: A caller that follows the returned failure cannot safely retry or recover: an image, dependency, or command buffer may already have changed ownership/state, allowing deadlock, stale acquisition, false submission accounting, or an unsignaled completion path.
+- Evidence: The retained probe shows synchronized acquire returning InvalidState with the swapchain already Acquired; invalid present consumes its wait semaphore; a two-wait mock submission returns NotReady after consuming the first wait; and a failed output signal returns InvalidState after marking the command Submitted and incrementing submission count while its fence remains unsignaled.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B03-F005: Clear-value render-pass overload can report success while discarding clears
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 018-FR-008; 018-T008; 018-T012; triangle-demo-runtime-contract required command capabilities
+- Location: `Source/RHI/Public/RHI/IRHICommandBuffer.h:144`
+- Impact: A legacy or future backend can claim successful frame recording while leaving color/depth attachments uncleared or stale, violating backend-neutral execution semantics and making rendered output nondeterministic.
+- Evidence: A strict standalone legacy command-buffer probe supplies a non-empty FRHIRenderPassClearValues through IRHICommandBuffer&. The default overload returns Success and calls only the old overload, even with null render-pass/framebuffer arguments; no clear value is observed.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`

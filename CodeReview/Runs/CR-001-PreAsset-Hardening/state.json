@@ -1,5 +1,5 @@
 {
-  "active_step": "B03-S04",
+  "active_step": "B03-S05",
   "batches": [
     {
       "id": "B00",
@@ -517,12 +517,19 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-26T09:53:51+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B03-command-sync-swapchain-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b03-command-sync-swapchain-probes.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/Probes/b03-command-sync-swapchain-probe.cpp",
+            "CR001-B03-F003",
+            "CR001-B03-F004",
+            "CR001-B03-F005"
+          ],
           "id": "B03-S04",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected eight RHI command/queue/synchronization/presentation headers (453 LOC); a retained standalone C++20 probe reproduced three S2 contract failures covering silent surface fallback, partial synchronization state transitions, and discarded clear values. All three findings are Accepted for B03-S05; no production or maintained test source changed.",
+          "started_at": "2026-07-26T09:46:39+00:00",
+          "status": "Completed",
           "title": "Inspect: commands, queues, synchronization, and swapchain"
         },
         {
@@ -2744,6 +2751,46 @@
       "at": "2026-07-26T09:45:37+00:00",
       "detail": "B03-S03",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-26T09:46:39+00:00",
+      "detail": "B03-S04",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-26T09:51:56+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T09:52:06+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T09:52:18+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T09:52:27+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T09:52:39+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T09:52:49+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T09:53:51+00:00",
+      "detail": "B03-S04",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -2897,7 +2944,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "e529d6982669ccaddc9e6bb8c8c5655f5aa489e5"
+    "last_recorded_head": "e864a9c46d7cfd65bf7d9d290a2761bdd245283d"
   },
   "policy": {
     "fix_severities": [
@@ -2917,5 +2964,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T09:45:37+00:00"
+  "updated_at": "2026-07-26T09:53:51+00:00"
 }
