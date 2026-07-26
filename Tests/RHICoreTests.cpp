@@ -322,6 +322,52 @@ private:
     bool bRenderPassActive = false;
 };
 
+class FLegacyCommandBuffer final : public IRHICommandBuffer
+{
+public:
+    [[nodiscard]] ERHICommandBufferState GetState() const noexcept override
+    {
+        return ERHICommandBufferState::Recording;
+    }
+
+    [[nodiscard]] ERHIQueueType GetCompatibleQueueType() const noexcept override
+    {
+        return ERHIQueueType::Graphics;
+    }
+
+    [[nodiscard]] uint32 GetRecordedCommandCount() const noexcept override { return 0; }
+    ERHIResult Begin() override { return ERHIResult::Success; }
+    ERHIResult End() override { return ERHIResult::Success; }
+    ERHIResult Reset() override { return ERHIResult::Success; }
+    ERHIResult RecordDraw(uint32, uint32) override { return ERHIResult::Unsupported; }
+    ERHIResult RecordDrawIndexed(uint32, uint32, uint32) override { return ERHIResult::Unsupported; }
+    ERHIResult RecordDispatch(uint32, uint32, uint32) override { return ERHIResult::Unsupported; }
+    ERHIResult BindGraphicsPipeline(const TSharedPtr<IRHIGraphicsPipeline>&) override { return ERHIResult::Unsupported; }
+    ERHIResult BindComputePipeline(const TSharedPtr<IRHIComputePipeline>&) override { return ERHIResult::Unsupported; }
+    ERHIResult RecordBarrier() override { return ERHIResult::Unsupported; }
+    ERHIResult RecordBarrier(const FRHIResourceBarrierDesc&) override { return ERHIResult::Unsupported; }
+    ERHIResult RecordBufferCopy(const TSharedPtr<IRHIBuffer>&, const TSharedPtr<IRHIBuffer>&, FRHIBufferCopyRange) override
+    {
+        return ERHIResult::Unsupported;
+    }
+    ERHIResult RecordTextureCopy(const TSharedPtr<IRHITexture>&, const TSharedPtr<IRHITexture>&, FRHITextureCopyRegion) override
+    {
+        return ERHIResult::Unsupported;
+    }
+    ERHIResult RecordLayoutTransition(const FRHIResourceBarrierDesc&) override { return ERHIResult::Unsupported; }
+    ERHIResult BeginRenderPass(const TSharedPtr<IRHIRenderPass>&, const TSharedPtr<IRHIFramebuffer>&) override
+    {
+        bLegacyBeginCalled = true;
+        return ERHIResult::Success;
+    }
+    ERHIResult EndRenderPass() override { return ERHIResult::Success; }
+
+    [[nodiscard]] bool WasLegacyBeginCalled() const noexcept { return bLegacyBeginCalled; }
+
+private:
+    bool bLegacyBeginCalled = false;
+};
+
 class FMockFence final : public IRHIFence
 {
 public:
@@ -412,6 +458,37 @@ private:
     ERHISemaphoreState State = ERHISemaphoreState::Unsignaled;
 };
 
+class FLegacySwapchain final : public IRHISwapchain
+{
+public:
+    [[nodiscard]] ERHISwapchainState GetState() const noexcept override { return State; }
+    [[nodiscard]] uint32 GetFrameCount() const noexcept override { return 2; }
+    [[nodiscard]] uint32 GetCurrentFrameIndex() const noexcept override { return 0; }
+
+    ERHIResult AcquireNextFrame(uint32& OutFrameIndex) override
+    {
+        bLegacyAcquireCalled = true;
+        OutFrameIndex = 0;
+        State = ERHISwapchainState::Acquired;
+        return ERHIResult::Success;
+    }
+
+    ERHIResult Present(uint32) override
+    {
+        bLegacyPresentCalled = true;
+        State = ERHISwapchainState::Ready;
+        return ERHIResult::Success;
+    }
+
+    [[nodiscard]] bool WasLegacyAcquireCalled() const noexcept { return bLegacyAcquireCalled; }
+    [[nodiscard]] bool WasLegacyPresentCalled() const noexcept { return bLegacyPresentCalled; }
+
+private:
+    ERHISwapchainState State = ERHISwapchainState::Ready;
+    bool bLegacyAcquireCalled = false;
+    bool bLegacyPresentCalled = false;
+};
+
 class FMockSwapchain final : public IRHISwapchain
 {
 public:
@@ -455,6 +532,42 @@ public:
         return ERHIResult::Success;
     }
 
+    ERHIResult AcquireNextFrame(uint32& OutFrameIndex, const TSharedPtr<IRHISemaphore>& SignalSemaphore) override
+    {
+        if (!SignalSemaphore)
+        {
+            return AcquireNextFrame(OutFrameIndex);
+        }
+
+        const TSharedPtr<FMockSemaphore> MockSemaphore =
+            std::dynamic_pointer_cast<FMockSemaphore>(SignalSemaphore);
+        if (!MockSemaphore)
+        {
+            return ERHIResult::Unsupported;
+        }
+        if (MockSemaphore->IsSignaled())
+        {
+            return ERHIResult::InvalidState;
+        }
+
+        uint32 AcquiredIndex = 0;
+        const ERHIResult AcquireResult = AcquireNextFrame(AcquiredIndex);
+        if (AcquireResult != ERHIResult::Success)
+        {
+            return AcquireResult;
+        }
+
+        const ERHIResult SignalResult = MockSemaphore->Signal();
+        if (SignalResult != ERHIResult::Success)
+        {
+            State = ERHISwapchainState::Ready;
+            return SignalResult;
+        }
+
+        OutFrameIndex = AcquiredIndex;
+        return ERHIResult::Success;
+    }
+
     ERHIResult Present(uint32 FrameIndex) override
     {
         if (State == ERHISwapchainState::ResizeRequired)
@@ -473,6 +586,44 @@ public:
         CurrentFrameIndex = (CurrentFrameIndex + 1) % FrameCount;
         State = ERHISwapchainState::Ready;
         return ERHIResult::Success;
+    }
+
+    ERHIResult Present(uint32 FrameIndex, const TSharedPtr<IRHISemaphore>& WaitSemaphore) override
+    {
+        if (State == ERHISwapchainState::ResizeRequired)
+        {
+            return ERHIResult::ResizeRequired;
+        }
+        if (State == ERHISwapchainState::Unavailable)
+        {
+            return ERHIResult::Unavailable;
+        }
+        if (State != ERHISwapchainState::Acquired || FrameIndex != CurrentFrameIndex)
+        {
+            return ERHIResult::InvalidState;
+        }
+        if (!WaitSemaphore)
+        {
+            return Present(FrameIndex);
+        }
+
+        const TSharedPtr<FMockSemaphore> MockSemaphore =
+            std::dynamic_pointer_cast<FMockSemaphore>(WaitSemaphore);
+        if (!MockSemaphore)
+        {
+            return ERHIResult::Unsupported;
+        }
+        if (!MockSemaphore->IsSignaled())
+        {
+            return ERHIResult::NotReady;
+        }
+
+        const ERHIResult ConsumeResult = MockSemaphore->Consume();
+        if (ConsumeResult != ERHIResult::Success)
+        {
+            return ConsumeResult;
+        }
+        return Present(FrameIndex);
     }
 
     void SimulateResizeRequired()
@@ -935,6 +1086,15 @@ public:
             return ERHIResult::InvalidState;
         }
 
+        const TSharedPtr<FMockCommandBuffer> MockCommandBuffer =
+            std::dynamic_pointer_cast<FMockCommandBuffer>(CommandBuffer);
+        if (!MockCommandBuffer)
+        {
+            return ERHIResult::Unsupported;
+        }
+
+        TArray<TSharedPtr<FMockSemaphore>> MockWaitSemaphores;
+        TArray<TSharedPtr<FMockSemaphore>> MockSignalSemaphores;
         for (const TSharedPtr<IRHISemaphore>& Semaphore : WaitSemaphores)
         {
             if (!Semaphore)
@@ -942,20 +1102,23 @@ public:
                 return ERHIResult::InvalidState;
             }
 
-            const ERHIResult ConsumeResult = Semaphore->Consume();
-            if (ConsumeResult != ERHIResult::Success)
+            const TSharedPtr<FMockSemaphore> MockSemaphore =
+                std::dynamic_pointer_cast<FMockSemaphore>(Semaphore);
+            if (!MockSemaphore)
             {
-                return ConsumeResult;
+                return ERHIResult::Unsupported;
             }
+            if (!MockSemaphore->IsSignaled())
+            {
+                return ERHIResult::NotReady;
+            }
+            if (std::find(MockWaitSemaphores.begin(), MockWaitSemaphores.end(), MockSemaphore) !=
+                MockWaitSemaphores.end())
+            {
+                return ERHIResult::InvalidState;
+            }
+            MockWaitSemaphores.push_back(MockSemaphore);
         }
-
-        TSharedPtr<FMockCommandBuffer> MockCommandBuffer = std::dynamic_pointer_cast<FMockCommandBuffer>(CommandBuffer);
-        if (MockCommandBuffer && MockCommandBuffer->MarkSubmitted() != ERHIResult::Success)
-        {
-            return ERHIResult::InvalidState;
-        }
-
-        SubmittedBuffers.push_back(CommandBuffer);
 
         for (const TSharedPtr<IRHISemaphore>& Semaphore : SignalSemaphores)
         {
@@ -964,14 +1127,60 @@ public:
                 return ERHIResult::InvalidState;
             }
 
-            const ERHIResult SignalResult = Semaphore->Signal();
-            if (SignalResult != ERHIResult::Success)
+            const TSharedPtr<FMockSemaphore> MockSemaphore =
+                std::dynamic_pointer_cast<FMockSemaphore>(Semaphore);
+            if (!MockSemaphore)
             {
-                return SignalResult;
+                return ERHIResult::Unsupported;
+            }
+            if (MockSemaphore->IsSignaled() ||
+                std::find(MockWaitSemaphores.begin(), MockWaitSemaphores.end(), MockSemaphore) !=
+                    MockWaitSemaphores.end() ||
+                std::find(MockSignalSemaphores.begin(), MockSignalSemaphores.end(), MockSemaphore) !=
+                    MockSignalSemaphores.end())
+            {
+                return ERHIResult::InvalidState;
+            }
+            MockSignalSemaphores.push_back(MockSemaphore);
+        }
+
+        TSharedPtr<FMockFence> MockFence;
+        if (Fence)
+        {
+            MockFence = std::dynamic_pointer_cast<FMockFence>(Fence);
+            if (!MockFence)
+            {
+                return ERHIResult::Unsupported;
+            }
+            if (MockFence->IsSignaled())
+            {
+                return ERHIResult::InvalidState;
             }
         }
 
-        if (Fence && Fence->Signal() != ERHIResult::Success)
+        for (const TSharedPtr<FMockSemaphore>& Semaphore : MockWaitSemaphores)
+        {
+            if (Semaphore->Consume() != ERHIResult::Success)
+            {
+                return ERHIResult::Failed;
+            }
+        }
+
+        if (MockCommandBuffer->MarkSubmitted() != ERHIResult::Success)
+        {
+            return ERHIResult::Failed;
+        }
+        SubmittedBuffers.push_back(CommandBuffer);
+
+        for (const TSharedPtr<FMockSemaphore>& Semaphore : MockSignalSemaphores)
+        {
+            if (Semaphore->Signal() != ERHIResult::Success)
+            {
+                return ERHIResult::Failed;
+            }
+        }
+
+        if (MockFence && MockFence->Signal() != ERHIResult::Success)
         {
             return ERHIResult::Failed;
         }
@@ -1449,6 +1658,25 @@ void TestRuntimeAndPresentationContracts(FRHICoreTestResult& Result)
     ClearValues.Colors.push_back({0.02f, 0.03f, 0.05f, 1.0f});
     Record(Result, ClearValues.Colors.size() == 1 && ClearValues.Depth == 1.0f,
         "RHI render pass clear values preserve color and depth defaults");
+
+    FMockDevice Device;
+    IRHIDevice& BaseDevice = Device;
+    const auto UnsupportedSurfaceSwapchain = BaseDevice.CreateSwapchain(nullptr, SwapchainDesc);
+    FRHISwapchainDesc InvalidSwapchainDesc;
+    const auto InvalidSurfaceSwapchain = BaseDevice.CreateSwapchain(nullptr, InvalidSwapchainDesc);
+    Record(Result,
+        UnsupportedSurfaceSwapchain.Result == ERHIResult::Unsupported &&
+            !UnsupportedSurfaceSwapchain.Object &&
+            InvalidSurfaceSwapchain.Result == ERHIResult::Unsupported &&
+            !InvalidSurfaceSwapchain.Object,
+        "IRHIDevice surface-aware swapchain compatibility path fails closed");
+
+    FLegacyCommandBuffer LegacyCommands;
+    IRHICommandBuffer& BaseCommands = LegacyCommands;
+    Record(Result,
+        BaseCommands.BeginRenderPass(nullptr, nullptr, ClearValues) == ERHIResult::Unsupported &&
+            !LegacyCommands.WasLegacyBeginCalled(),
+        "IRHICommandBuffer explicit clear compatibility path fails closed");
 }
 
 void TestDeviceLifecycleAndOwnership(FRHICoreTestResult& Result)
@@ -1565,6 +1793,48 @@ void TestSynchronization(FRHICoreTestResult& Result)
     Record(Result, WaitSemaphore->GetState() == ERHISemaphoreState::Consumed, "IRHICommandQueue consumes wait semaphore");
     Record(Result, SignalSemaphore->IsSignaled(), "IRHICommandQueue signals output semaphore");
     Record(Result, Fence->IsSignaled(), "IRHICommandQueue signals fence");
+
+    TSharedPtr<IRHICommandQueue> PartialWaitQueue =
+        Device.CreateCommandQueue(ERHIQueueType::Graphics).Object;
+    TSharedPtr<IRHICommandBuffer> PartialWaitBuffer =
+        Device.CreateCommandBuffer(ERHIQueueType::Graphics).Object;
+    TSharedPtr<IRHISemaphore> FirstWait = Device.CreateSemaphore().Object;
+    TSharedPtr<IRHISemaphore> SecondWait = Device.CreateSemaphore().Object;
+    Record(Result,
+        PartialWaitBuffer->Begin() == ERHIResult::Success &&
+            PartialWaitBuffer->RecordDraw(3) == ERHIResult::Success &&
+            PartialWaitBuffer->End() == ERHIResult::Success &&
+            FirstWait->Signal() == ERHIResult::Success,
+        "RHI sync failure test prepares a partial wait set");
+    Record(Result,
+        PartialWaitQueue->Submit(PartialWaitBuffer, {FirstWait, SecondWait}) == ERHIResult::NotReady &&
+            FirstWait->IsSignaled() &&
+            SecondWait->GetState() == ERHISemaphoreState::Unsignaled &&
+            PartialWaitBuffer->GetState() == ERHICommandBufferState::Completed &&
+            PartialWaitQueue->GetSubmittedCommandBufferCount() == 0,
+        "IRHICommandQueue wait preflight fails without partial state transition");
+
+    TSharedPtr<IRHICommandQueue> FailedSignalQueue =
+        Device.CreateCommandQueue(ERHIQueueType::Graphics).Object;
+    TSharedPtr<IRHICommandBuffer> FailedSignalBuffer =
+        Device.CreateCommandBuffer(ERHIQueueType::Graphics).Object;
+    TSharedPtr<IRHISemaphore> AlreadySignaledOutput = Device.CreateSemaphore().Object;
+    TSharedPtr<IRHIFence> FailedSignalFence = Device.CreateFence().Object;
+    Record(Result,
+        FailedSignalBuffer->Begin() == ERHIResult::Success &&
+            FailedSignalBuffer->RecordDraw(3) == ERHIResult::Success &&
+            FailedSignalBuffer->End() == ERHIResult::Success &&
+            AlreadySignaledOutput->Signal() == ERHIResult::Success,
+        "RHI sync failure test prepares an invalid signal set");
+    Record(Result,
+        FailedSignalQueue->Submit(
+            FailedSignalBuffer, {}, {AlreadySignaledOutput}, FailedSignalFence) ==
+                ERHIResult::InvalidState &&
+            AlreadySignaledOutput->IsSignaled() &&
+            FailedSignalBuffer->GetState() == ERHICommandBufferState::Completed &&
+            FailedSignalQueue->GetSubmittedCommandBufferCount() == 0 &&
+            !FailedSignalFence->IsSignaled(),
+        "IRHICommandQueue signal preflight fails without partial submission");
 }
 
 void TestSwapchain(FRHICoreTestResult& Result)
@@ -1601,6 +1871,53 @@ void TestSwapchain(FRHICoreTestResult& Result)
     Record(Result, Device.CreateSwapchain(0).Result == ERHIResult::InvalidState,
         "IRHIDevice rejects zero-frame swapchain");
     Record(Result, true, "IRHISwapchain tests require no native window or backend surface");
+
+    TSharedPtr<FLegacySwapchain> LegacySwapchain = MakeShared<FLegacySwapchain>();
+    TSharedPtr<IRHISwapchain> BaseLegacySwapchain = LegacySwapchain;
+    TSharedPtr<IRHISemaphore> LegacySignal = Device.CreateSemaphore().Object;
+    uint32 LegacyFrameIndex = 99;
+    Record(Result,
+        BaseLegacySwapchain->AcquireNextFrame(LegacyFrameIndex, LegacySignal) == ERHIResult::Unsupported &&
+            LegacyFrameIndex == 99 &&
+            !LegacySwapchain->WasLegacyAcquireCalled() &&
+            LegacySwapchain->GetState() == ERHISwapchainState::Ready &&
+            !LegacySignal->IsSignaled(),
+        "IRHISwapchain synchronized acquire compatibility path fails closed");
+    Record(Result,
+        BaseLegacySwapchain->Present(0, LegacySignal) == ERHIResult::Unsupported &&
+            !LegacySwapchain->WasLegacyPresentCalled() &&
+            LegacySwapchain->GetState() == ERHISwapchainState::Ready &&
+            !LegacySignal->IsSignaled(),
+        "IRHISwapchain synchronized present compatibility path fails closed");
+
+    TSharedPtr<IRHISwapchain> AtomicSwapchain = Device.CreateSwapchain(2).Object;
+    TSharedPtr<IRHISemaphore> AtomicSignal = Device.CreateSemaphore().Object;
+    uint32 AtomicFrameIndex = 99;
+    Record(Result, AtomicSignal->Signal() == ERHIResult::Success,
+        "RHI swapchain failure test prepares an already-signaled semaphore");
+    Record(Result,
+        AtomicSwapchain->AcquireNextFrame(AtomicFrameIndex, AtomicSignal) == ERHIResult::InvalidState &&
+            AtomicFrameIndex == 99 &&
+            AtomicSwapchain->GetState() == ERHISwapchainState::Ready &&
+            AtomicSignal->IsSignaled(),
+        "IRHISwapchain failed synchronized acquire preserves all states");
+
+    Record(Result, AtomicSignal->Reset() == ERHIResult::Success &&
+            AtomicSwapchain->AcquireNextFrame(AtomicFrameIndex, AtomicSignal) == ERHIResult::Success &&
+            AtomicFrameIndex == 0 &&
+            AtomicSwapchain->GetState() == ERHISwapchainState::Acquired &&
+            AtomicSignal->IsSignaled(),
+        "IRHISwapchain synchronized acquire commits image and signal together");
+    Record(Result,
+        AtomicSwapchain->Present(AtomicFrameIndex + 1, AtomicSignal) == ERHIResult::InvalidState &&
+            AtomicSwapchain->GetState() == ERHISwapchainState::Acquired &&
+            AtomicSignal->IsSignaled(),
+        "IRHISwapchain failed synchronized present preserves wait signal");
+    Record(Result,
+        AtomicSwapchain->Present(AtomicFrameIndex, AtomicSignal) == ERHIResult::Success &&
+            AtomicSwapchain->GetState() == ERHISwapchainState::Ready &&
+            AtomicSignal->GetState() == ERHISemaphoreState::Consumed,
+        "IRHISwapchain synchronized present commits wait and frame together");
 }
 
 [[nodiscard]] FRHIPipelineLayoutDesc MakePipelineLayoutDesc()

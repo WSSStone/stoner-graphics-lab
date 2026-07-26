@@ -141,11 +141,11 @@ public:
     virtual ERHIResult RecordTextureCopy(const Stoner::Core::TSharedPtr<IRHITexture>& Source, const Stoner::Core::TSharedPtr<IRHITexture>& Destination, FRHITextureCopyRegion Region) = 0;
     virtual ERHIResult RecordLayoutTransition(const FRHIResourceBarrierDesc& Transition) = 0;
     virtual ERHIResult BeginRenderPass(const Stoner::Core::TSharedPtr<IRHIRenderPass>& RenderPass, const Stoner::Core::TSharedPtr<IRHIFramebuffer>& Framebuffer) = 0;
-    virtual ERHIResult BeginRenderPass(const Stoner::Core::TSharedPtr<IRHIRenderPass>& RenderPass,
-        const Stoner::Core::TSharedPtr<IRHIFramebuffer>& Framebuffer,
+    virtual ERHIResult BeginRenderPass(const Stoner::Core::TSharedPtr<IRHIRenderPass>&,
+        const Stoner::Core::TSharedPtr<IRHIFramebuffer>&,
         const FRHIRenderPassClearValues&)
     {
-        return BeginRenderPass(RenderPass, Framebuffer);
+        return ERHIResult::Unsupported;
     }
     virtual ERHIResult EndRenderPass() = 0;
     virtual ERHIResult BindVertexBuffer(const Stoner::Core::TSharedPtr<IRHIBuffer>&, Stoner::Core::uint64 = 0)
