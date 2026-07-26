@@ -7,11 +7,9 @@
 
 #if SG_PLATFORM_MAC
 #include <mach/mach.h>
-#endif
 
 namespace
 {
-
 void Record(FCorePlatformOwnershipTestResult& Result, bool Passed, const char* Name)
 {
     if (Passed)
@@ -27,6 +25,7 @@ void Record(FCorePlatformOwnershipTestResult& Result, bool Passed, const char* N
 }
 
 } // namespace
+#endif
 
 FCorePlatformOwnershipTestResult RunCorePlatformOwnershipTests()
 {
