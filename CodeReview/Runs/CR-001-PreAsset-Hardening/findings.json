@@ -59,6 +59,96 @@
       "status": "Accepted",
       "title": "Feature 019 native deferred validation is intermittent on local MoltenVK",
       "verification": ""
+    },
+    {
+      "batch": "B01",
+      "commit": "",
+      "created_at": "2026-07-26T02:57:45+00:00",
+      "deferred_target": "",
+      "evidence": "BuildConfig exposes only debug/release flags without sanitizer or strict-warning options; CI line 51 runs only default Debug.",
+      "history": [
+        {
+          "at": "2026-07-26T02:57:59+00:00",
+          "from": "Open",
+          "note": "Confirmed from BuildConfig and CI definitions; repair in B01-S02 with opt-in flags and targeted CI jobs.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T02:57:59+00:00",
+          "from": "Triaged",
+          "note": "Confirmed from BuildConfig and CI definitions; repair in B01-S02 with opt-in flags and targeted CI jobs.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B01-F002",
+      "impact": "Undefined behavior and Release-only defects can merge undetected, and the planned clean-warning policy is not mechanically enforced.",
+      "location": "site_scons/BuildConfig.py:12",
+      "requirement": "CR-001 completion requires Debug, Release, ASan/UBSan, clean warnings, and three-platform CI evidence",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Build and CI lack Release, sanitizer, and warning-as-error gates",
+      "verification": ""
+    },
+    {
+      "batch": "B01",
+      "commit": "",
+      "created_at": "2026-07-26T02:58:00+00:00",
+      "deferred_target": "",
+      "evidence": "The workflow subscribes unconditionally to both push and pull_request; PR #4 produced two Linux, two macOS, and two Windows jobs for the same update.",
+      "history": [
+        {
+          "at": "2026-07-26T02:58:09+00:00",
+          "from": "Open",
+          "note": "Low-risk local workflow correction assigned to B01-S02.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T02:58:09+00:00",
+          "from": "Triaged",
+          "note": "Low-risk local workflow correction assigned to B01-S02.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B01-F003",
+      "impact": "Every review push doubles hosted CI time, delays feedback, and makes check evidence harder to associate with the current head.",
+      "location": ".github/workflows/ci.yml:3",
+      "requirement": "CR-001 Git and validation protocol requires meaningful batch-boundary evidence without redundant jobs",
+      "resolution": "",
+      "severity": "S3",
+      "status": "Accepted",
+      "title": "CI runs duplicate three-platform matrices for pull-request branch pushes",
+      "verification": ""
+    },
+    {
+      "batch": "B09",
+      "commit": "",
+      "created_at": "2026-07-26T02:58:10+00:00",
+      "deferred_target": "",
+      "evidence": "The single test target globally exposes Demo/StonerDemo/Private and Source/Application/Private; current tests directly include FWindowDriver.h and three demo-private headers.",
+      "history": [
+        {
+          "at": "2026-07-26T02:58:24+00:00",
+          "from": "Open",
+          "note": "Confirmed by test build include paths and active includes; design a TestSupport/internal-test boundary during B09 rather than changing application APIs in B01.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T02:58:24+00:00",
+          "from": "Triaged",
+          "note": "Confirmed by test build include paths and active includes; design a TestSupport/internal-test boundary during B09 rather than changing application APIs in B01.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B09-F001",
+      "impact": "Tests can normalize dependencies on implementation details, weaken compile-time boundary enforcement, and make later refactors unnecessarily broad.",
+      "location": "Tests/SConscript:25",
+      "requirement": "Constitution Principle II and roadmap public/private API boundary discipline",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Tests bypass Public/Private boundaries through global private include paths",
+      "verification": ""
     }
   ],
   "schema_version": 1

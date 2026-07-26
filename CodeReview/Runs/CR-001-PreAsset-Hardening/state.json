@@ -37,7 +37,7 @@
     },
     {
       "id": "B01",
-      "status": "Pending",
+      "status": "InProgress",
       "steps": [
         {
           "commit": null,
@@ -45,8 +45,8 @@
           "evidence": [],
           "id": "B01-S01",
           "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "started_at": "2026-07-26T02:56:52+00:00",
+          "status": "InProgress",
           "title": "Inspect"
         },
         {
@@ -472,6 +472,41 @@
       "at": "2026-07-26T02:49:43+00:00",
       "detail": "B00-S02",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-26T02:56:52+00:00",
+      "detail": "B01-S01",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-26T02:57:45+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T02:57:59+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T02:58:00+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T02:58:09+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T02:58:10+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T02:58:24+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
     }
   ],
   "gates": {
@@ -535,7 +570,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "57073e1996fa29e150706e82e76b2477b8a3a149"
+    "last_recorded_head": "abd0b5bae846b5c0119833f812e496b843ca2e1c"
   },
   "policy": {
     "fix_severities": [
@@ -555,5 +590,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T02:49:43+00:00"
+  "updated_at": "2026-07-26T02:58:24+00:00"
 }

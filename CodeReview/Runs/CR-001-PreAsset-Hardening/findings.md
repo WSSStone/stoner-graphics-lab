@@ -23,3 +23,39 @@
 - Resolution: pending
 - Verification: pending
 - Commit: `pending`
+
+## CR001-B01-F002: Build and CI lack Release, sanitizer, and warning-as-error gates
+
+- Severity: S2
+- Status: Accepted
+- Requirement: CR-001 completion requires Debug, Release, ASan/UBSan, clean warnings, and three-platform CI evidence
+- Location: `site_scons/BuildConfig.py:12`
+- Impact: Undefined behavior and Release-only defects can merge undetected, and the planned clean-warning policy is not mechanically enforced.
+- Evidence: BuildConfig exposes only debug/release flags without sanitizer or strict-warning options; CI line 51 runs only default Debug.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B01-F003: CI runs duplicate three-platform matrices for pull-request branch pushes
+
+- Severity: S3
+- Status: Accepted
+- Requirement: CR-001 Git and validation protocol requires meaningful batch-boundary evidence without redundant jobs
+- Location: `.github/workflows/ci.yml:3`
+- Impact: Every review push doubles hosted CI time, delays feedback, and makes check evidence harder to associate with the current head.
+- Evidence: The workflow subscribes unconditionally to both push and pull_request; PR #4 produced two Linux, two macOS, and two Windows jobs for the same update.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B09-F001: Tests bypass Public/Private boundaries through global private include paths
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Constitution Principle II and roadmap public/private API boundary discipline
+- Location: `Tests/SConscript:25`
+- Impact: Tests can normalize dependencies on implementation details, weaken compile-time boundary enforcement, and make later refactors unnecessarily broad.
+- Evidence: The single test target globally exposes Demo/StonerDemo/Private and Source/Application/Private; current tests directly include FWindowDriver.h and three demo-private headers.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
