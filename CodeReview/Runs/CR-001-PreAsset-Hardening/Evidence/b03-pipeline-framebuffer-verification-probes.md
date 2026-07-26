@@ -111,3 +111,20 @@ only. No production bypass or duplicate competing policy was found.
 
 The S11 strict Debug, strict Release, and sanitizer gate records remain valid
 because `Source` and `Tests` exactly match fix commit `09d1a1b`.
+
+## Hosted Batch Gate
+
+The batch-boundary push of verification commit `4ce090e` produced:
+
+```text
+CI run 30200859411: success
+Code Review Tools run 30200859409: success
+head: 4ce090efc430e501081f19a0869b623084ff2b1f
+checks: 8/8 success
+```
+
+The eight checks were Linux/macOS/Windows headless,
+Linux/macOS/Windows Release, Linux ASan + UBSan, and `cr-tools`.
+Full job steps are retained in `remote-ci-b03.json` and
+`remote-tools-b03.json`; the terminal aggregate is retained in
+`remote-pr-checks-b03.json`.

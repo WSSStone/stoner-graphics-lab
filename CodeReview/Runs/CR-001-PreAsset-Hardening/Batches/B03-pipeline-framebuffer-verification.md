@@ -73,6 +73,29 @@ records remain applicable because no `Source` or `Tests` file changed after
 Detailed commands and outputs are retained in
 `Evidence/b03-pipeline-framebuffer-verification-probes.md`.
 
+## Hosted Batch Gate
+
+The completed B03 evidence commit `4ce090e` was pushed once at the batch
+boundary. GitHub Actions ran on exact head
+`4ce090efc430e501081f19a0869b623084ff2b1f`:
+
+- CI run `30200859411`: success;
+- Code Review Tools run `30200859409`: success;
+- Linux, macOS, and Windows headless jobs: success;
+- Linux, macOS, and Windows strict Release jobs: success;
+- Linux ASan + UBSan: success;
+- CR CLI unit tests and CR-001 state validation: success.
+
+Machine-readable run and check records are retained in:
+
+- `Evidence/remote-ci-b03.json`;
+- `Evidence/remote-tools-b03.json`;
+- `Evidence/remote-pr-checks-b03.json`.
+
+The evidence-only follow-up commit is intentionally held locally until the
+next batch boundary so recording a successful workflow does not trigger a
+redundant workflow by itself.
+
 ## Finding Decisions
 
 - `CR001-B03-F009`: Verified.
