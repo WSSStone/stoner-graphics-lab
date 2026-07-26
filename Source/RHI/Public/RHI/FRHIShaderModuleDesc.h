@@ -6,6 +6,7 @@
 #include "RHI/ERHIRuntimeMode.h"
 
 #include <cstddef>
+#include <limits>
 
 namespace Stoner::RHI
 {
@@ -113,12 +114,44 @@ struct FRHIShaderModuleDesc
 
 [[nodiscard]] inline bool IsValidRHIShaderInterfaceBinding(const FRHIShaderInterfaceBinding& Binding) noexcept
 {
-    return Binding.ArrayCount > 0 && Binding.Visibility != ERHIShaderStageFlags::None;
+    return IsValidRHIDescriptorType(Binding.DescriptorType) &&
+        Binding.ArrayCount > 0 &&
+        IsValidRHIShaderStageFlags(Binding.Visibility);
 }
 
 [[nodiscard]] inline bool IsValidRHIShaderConstantRange(const FRHIShaderConstantRange& Range) noexcept
 {
-    return Range.SizeBytes > 0 && Range.Visibility != ERHIShaderStageFlags::None;
+    return Range.SizeBytes > 0 &&
+        Range.SizeBytes <= std::numeric_limits<Stoner::Core::uint32>::max() - Range.OffsetBytes &&
+        IsValidRHIShaderStageFlags(Range.Visibility);
+}
+
+[[nodiscard]] inline bool DoRHIShaderConstantRangesOverlap(
+    const FRHIShaderConstantRange& Left,
+    const FRHIShaderConstantRange& Right) noexcept
+{
+    const Stoner::Core::uint64 LeftEnd =
+        static_cast<Stoner::Core::uint64>(Left.OffsetBytes) + Left.SizeBytes;
+    const Stoner::Core::uint64 RightEnd =
+        static_cast<Stoner::Core::uint64>(Right.OffsetBytes) + Right.SizeBytes;
+    return Left.OffsetBytes < RightEnd && Right.OffsetBytes < LeftEnd;
+}
+
+[[nodiscard]] inline bool HasIncompatibleRHIShaderConstantRangeOverlap(
+    const Stoner::Core::TArray<FRHIShaderConstantRange>& Ranges) noexcept
+{
+    for (std::size_t LeftIndex = 0; LeftIndex < Ranges.size(); ++LeftIndex)
+    {
+        for (std::size_t RightIndex = LeftIndex + 1; RightIndex < Ranges.size(); ++RightIndex)
+        {
+            if (DoRHIShaderConstantRangesOverlap(Ranges[LeftIndex], Ranges[RightIndex]) &&
+                (Ranges[LeftIndex].Visibility & Ranges[RightIndex].Visibility) != ERHIShaderStageFlags::None)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 [[nodiscard]] inline bool HasDuplicateRHIShaderInterfaceBinding(const FRHIShaderInterfaceMetadata& Metadata) noexcept
@@ -140,7 +173,9 @@ struct FRHIShaderModuleDesc
 [[nodiscard]] inline bool IsValidRHIShaderInterfaceMetadata(const FRHIShaderInterfaceMetadata& Metadata, ERHIShaderStage Stage) noexcept
 {
     const ERHIShaderStageFlags StageFlag = ToShaderStageFlag(Stage);
-    if (StageFlag == ERHIShaderStageFlags::None || HasDuplicateRHIShaderInterfaceBinding(Metadata))
+    if (StageFlag == ERHIShaderStageFlags::None ||
+        HasDuplicateRHIShaderInterfaceBinding(Metadata) ||
+        HasIncompatibleRHIShaderConstantRangeOverlap(Metadata.ConstantRanges))
     {
         return false;
     }

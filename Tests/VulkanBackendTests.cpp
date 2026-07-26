@@ -390,6 +390,16 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
     Record(Result, Device.CreateShaderModule(BadBytecode).Result == ERHIResult::InvalidState &&
         Device.CreateShaderModule(BadMetadata).Result == ERHIResult::InvalidState &&
         Device.CreateShaderModule(ShaderDesc(ERHIShaderStage::Mesh, "MainMS", "mesh")).Result == ERHIResult::Unsupported, "Vulkan shader module rejects malformed unsupported and metadata-incompatible inputs");
+    FRHIPipelineLayoutDesc OverlappingLayout = ResourceLayoutDesc();
+    OverlappingLayout.ConstantRanges.push_back({8, 16, ERHIShaderStageFlags::Compute});
+    Record(Result, Device.CreatePipelineLayout(OverlappingLayout).Result == ERHIResult::InvalidState,
+        "Vulkan pipeline layout rejects incompatible overlapping constant ranges");
+    FRHIPipelineLayoutDesc MissingRangeLayoutDesc = ResourceLayoutDesc();
+    MissingRangeLayoutDesc.ConstantRanges.clear();
+    const auto MissingRangeLayout = Device.CreatePipelineLayout(MissingRangeLayoutDesc);
+    Record(Result, MissingRangeLayout.Succeeded() &&
+            Device.CreateComputePipeline(ComputePipelineDesc(Compute.Object, MissingRangeLayout.Object)).Result == ERHIResult::InvalidState,
+        "Vulkan compute pipeline rejects shader constant ranges absent from its layout");
 
     const auto GraphicsPipeline = Device.CreateGraphicsPipeline(GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object));
     const auto GraphicsPipelineAgain = Device.CreateGraphicsPipeline(GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object));
@@ -400,6 +410,11 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
     Record(Result, GraphicsPipeline.Succeeded() && ComputePipeline.Succeeded() &&
         VulkanGraphics && VulkanGraphics->GetRuntimeMode() == ERHIRuntimeObjectMode::DeterministicFallback &&
         VulkanCompute && VulkanCompute->GetRuntimeMode() == ERHIRuntimeObjectMode::DeterministicFallback, "Vulkan graphics and compute pipelines create deterministic fallback objects");
+    FRHIGraphicsPipelineDesc InvalidFixedFunction =
+        GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object);
+    InvalidFixedFunction.Rasterizer.CullMode = static_cast<ERHICullMode>(255);
+    Record(Result, Device.CreateGraphicsPipeline(InvalidFixedFunction).Result == ERHIResult::InvalidState,
+        "Vulkan graphics pipeline rejects undefined fixed-function state");
     Record(Result, GraphicsPipelineAgain.Succeeded() && GraphicsPipelineAgain.Object == GraphicsPipeline.Object &&
         ComputePipelineAgain.Succeeded() && ComputePipelineAgain.Object == ComputePipeline.Object &&
         Device.GetDiagnostics().PipelineCacheReason[0] != '\0', "Vulkan pipeline cache reuses equivalent successful requests");
@@ -683,9 +698,38 @@ void TestRenderPassFramebufferRecordingAndUploads(FVulkanBackendTestResult& Resu
 
     FRHIRenderPassDesc EmptyPass;
     Record(Result, Device.CreateRenderPass(EmptyPass).Result == ERHIResult::Unsupported, "Vulkan minimal render pass rejects invalid description");
+    FRHIRenderPassDesc InvalidStatePass = ValidRenderPassDesc();
+    InvalidStatePass.Attachments[0].Role = static_cast<ERHIAttachmentRole>(255);
+    InvalidStatePass.Attachments[0].SampleCount = static_cast<ERHISampleCount>(3);
+    InvalidStatePass.Attachments[0].LoadOp = static_cast<ERHIAttachmentLoadOp>(255);
+    InvalidStatePass.Attachments[0].StoreOp = static_cast<ERHIAttachmentStoreOp>(255);
+    Record(Result, Device.CreateRenderPass(InvalidStatePass).Result == ERHIResult::Unsupported,
+        "Vulkan minimal render pass rejects undefined attachment state");
     FRHIFramebufferDesc BadFramebuffer = ValidFramebufferDesc(RenderPass.Object, Texture.Object);
     BadFramebuffer.Width = 64;
     Record(Result, Device.CreateFramebuffer(BadFramebuffer).Result == ERHIResult::Unsupported, "Vulkan framebuffer rejects incompatible attachment dimensions");
+
+    FRHITextureDesc ArrayTextureDesc = ValidColorAttachmentTextureDesc();
+    ArrayTextureDesc.Dimension = ERHITextureDimension::Texture2DArray;
+    ArrayTextureDesc.ArrayLayers = 2;
+    ArrayTextureDesc.MipLevels = 2;
+    const auto ArrayTexture = Device.CreateTexture(ArrayTextureDesc);
+    FRHIFramebufferDesc MipFramebuffer =
+        ValidFramebufferDesc(RenderPass.Object, ArrayTexture.Object);
+    MipFramebuffer.Attachments[0] = {ArrayTexture.Object, 1, 1};
+    MipFramebuffer.Width = 4;
+    MipFramebuffer.Height = 4;
+    Record(Result, ArrayTexture.Succeeded() &&
+            Device.CreateFramebuffer(MipFramebuffer).Succeeded(),
+        "Vulkan framebuffer accepts valid nonzero mip and array-layer extent");
+    FRHIFramebufferDesc InvalidSubresource = MipFramebuffer;
+    InvalidSubresource.Attachments[0].ArrayLayer = 2;
+    Record(Result, Device.CreateFramebuffer(InvalidSubresource).Result == ERHIResult::Unsupported,
+        "Vulkan framebuffer rejects array layer at the layer count");
+    InvalidSubresource = MipFramebuffer;
+    InvalidSubresource.Attachments[0].MipLevel = 2;
+    Record(Result, Device.CreateFramebuffer(InvalidSubresource).Result == ERHIResult::Unsupported,
+        "Vulkan framebuffer rejects mip level at the mip count");
 
     const auto Command = Device.CreateCommandBuffer(ERHIQueueType::Graphics);
     Record(Result, Command.Succeeded() &&

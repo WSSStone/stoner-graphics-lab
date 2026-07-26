@@ -85,4 +85,91 @@ enum class ERHISampleCount
     Eight = 8
 };
 
+[[nodiscard]] constexpr bool IsValidRHIPrimitiveTopology(ERHIPrimitiveTopology Value) noexcept
+{
+    switch (Value)
+    {
+    case ERHIPrimitiveTopology::TriangleList:
+    case ERHIPrimitiveTopology::TriangleStrip:
+    case ERHIPrimitiveTopology::LineList:
+    case ERHIPrimitiveTopology::LineStrip:
+    case ERHIPrimitiveTopology::PointList:
+        return true;
+    }
+    return false;
+}
+
+[[nodiscard]] constexpr bool IsValidRHICullMode(ERHICullMode Value) noexcept
+{
+    return Value == ERHICullMode::None || Value == ERHICullMode::Front || Value == ERHICullMode::Back;
+}
+
+[[nodiscard]] constexpr bool IsValidRHIFrontFace(ERHIFrontFace Value) noexcept
+{
+    return Value == ERHIFrontFace::CounterClockwise || Value == ERHIFrontFace::Clockwise;
+}
+
+[[nodiscard]] constexpr bool IsValidRHIBlendFactor(ERHIBlendFactor Value) noexcept
+{
+    switch (Value)
+    {
+    case ERHIBlendFactor::Zero:
+    case ERHIBlendFactor::One:
+    case ERHIBlendFactor::SourceAlpha:
+    case ERHIBlendFactor::OneMinusSourceAlpha:
+        return true;
+    }
+    return false;
+}
+
+[[nodiscard]] constexpr bool IsValidRHIBlendOp(ERHIBlendOp Value) noexcept
+{
+    return Value == ERHIBlendOp::Add || Value == ERHIBlendOp::Subtract || Value == ERHIBlendOp::ReverseSubtract;
+}
+
+[[nodiscard]] constexpr bool IsValidRHICompareOp(ERHICompareOp Value) noexcept
+{
+    switch (Value)
+    {
+    case ERHICompareOp::Never:
+    case ERHICompareOp::Less:
+    case ERHICompareOp::LessEqual:
+    case ERHICompareOp::Equal:
+    case ERHICompareOp::GreaterEqual:
+    case ERHICompareOp::Greater:
+    case ERHICompareOp::NotEqual:
+    case ERHICompareOp::Always:
+        return true;
+    }
+    return false;
+}
+
+[[nodiscard]] constexpr bool IsValidRHIAttachmentRole(ERHIAttachmentRole Value) noexcept
+{
+    return Value == ERHIAttachmentRole::Color || Value == ERHIAttachmentRole::DepthStencil;
+}
+
+[[nodiscard]] constexpr bool IsValidRHIAttachmentLoadOp(ERHIAttachmentLoadOp Value) noexcept
+{
+    return Value == ERHIAttachmentLoadOp::Load || Value == ERHIAttachmentLoadOp::Clear || Value == ERHIAttachmentLoadOp::DontCare;
+}
+
+[[nodiscard]] constexpr bool IsValidRHIAttachmentStoreOp(ERHIAttachmentStoreOp Value) noexcept
+{
+    return Value == ERHIAttachmentStoreOp::Store || Value == ERHIAttachmentStoreOp::DontCare;
+}
+
+[[nodiscard]] constexpr bool IsValidRHISampleCount(ERHISampleCount Value) noexcept
+{
+    switch (Value)
+    {
+    case ERHISampleCount::One:
+    case ERHISampleCount::Two:
+    case ERHISampleCount::Four:
+    case ERHISampleCount::Eight:
+        return true;
+    }
+    return false;
+}
+
 } // namespace Stoner::RHI

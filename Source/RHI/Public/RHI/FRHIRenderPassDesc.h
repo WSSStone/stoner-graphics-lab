@@ -36,4 +36,48 @@ struct FRHIRenderPassDesc
     Stoner::Core::TArray<FRHIRenderPassAttachmentDesc> Attachments;
 };
 
+[[nodiscard]] constexpr bool IsValidRHIRenderPassAttachmentDesc(
+    const FRHIRenderPassAttachmentDesc& Desc) noexcept
+{
+    if (!IsValidRHIAttachmentRole(Desc.Role) ||
+        !IsValidRHIFormat(Desc.Format) ||
+        !IsValidRHISampleCount(Desc.SampleCount) ||
+        !IsValidRHIAttachmentLoadOp(Desc.LoadOp) ||
+        !IsValidRHIAttachmentStoreOp(Desc.StoreOp))
+    {
+        return false;
+    }
+    return Desc.Role == ERHIAttachmentRole::Color
+        ? !IsDepthStencilFormat(Desc.Format)
+        : IsDepthStencilFormat(Desc.Format);
+}
+
+[[nodiscard]] inline bool IsValidRHIRenderPassDesc(const FRHIRenderPassDesc& Desc) noexcept
+{
+    if (Desc.Attachments.empty())
+    {
+        return false;
+    }
+
+    bool bHasDepthStencil = false;
+    const ERHISampleCount SampleCount = Desc.Attachments.front().SampleCount;
+    for (const FRHIRenderPassAttachmentDesc& Attachment : Desc.Attachments)
+    {
+        if (!IsValidRHIRenderPassAttachmentDesc(Attachment) ||
+            Attachment.SampleCount != SampleCount)
+        {
+            return false;
+        }
+        if (Attachment.Role == ERHIAttachmentRole::DepthStencil)
+        {
+            if (bHasDepthStencil)
+            {
+                return false;
+            }
+            bHasDepthStencil = true;
+        }
+    }
+    return true;
+}
+
 } // namespace Stoner::RHI

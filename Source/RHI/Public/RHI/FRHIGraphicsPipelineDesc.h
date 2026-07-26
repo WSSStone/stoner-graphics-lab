@@ -90,7 +90,9 @@ struct FRHIGraphicsPipelineDesc
     }
     for (const FRHIVertexAttributeDesc& Attribute : Desc.Attributes)
     {
-        if (Attribute.Format == ERHIFormat::Unknown || Attribute.Offset >= Desc.Stride)
+        if (!IsValidRHIFormat(Attribute.Format) ||
+            IsDepthStencilFormat(Attribute.Format) ||
+            Attribute.Offset >= Desc.Stride)
         {
             return false;
         }
@@ -111,12 +113,14 @@ struct FRHIGraphicsPipelineDesc
     }
     for (ERHIFormat Format : Desc.ColorFormats)
     {
-        if (Format == ERHIFormat::Unknown || IsDepthStencilFormat(Format))
+        if (!IsValidRHIFormat(Format) || IsDepthStencilFormat(Format))
         {
             return false;
         }
     }
-    return Desc.DepthStencilFormat == ERHIFormat::Unknown || IsDepthStencilFormat(Desc.DepthStencilFormat);
+    return IsValidRHISampleCount(Desc.SampleCount) &&
+        (Desc.DepthStencilFormat == ERHIFormat::Unknown ||
+            (IsValidRHIFormat(Desc.DepthStencilFormat) && IsDepthStencilFormat(Desc.DepthStencilFormat)));
 }
 
 // Depth test or write requires a depth/stencil attachment in the render target scope.
@@ -134,6 +138,13 @@ struct FRHIGraphicsPipelineDesc
     return Desc.PipelineLayout &&
         IsValidRHIVertexInputDesc(Desc.VertexInput) &&
         IsTriangleReadyRHITopology(Desc.Topology) &&
+        IsValidRHICullMode(Desc.Rasterizer.CullMode) &&
+        IsValidRHIFrontFace(Desc.Rasterizer.FrontFace) &&
+        IsValidRHIBlendFactor(Desc.Blend.SourceColor) &&
+        IsValidRHIBlendFactor(Desc.Blend.DestinationColor) &&
+        IsValidRHIBlendOp(Desc.Blend.ColorOp) &&
+        IsValidRHICompareOp(Desc.DepthStencil.DepthCompare) &&
+        IsValidRHISampleCount(Desc.Multisample.SampleCount) &&
         Desc.Multisample.SampleCount == Desc.RenderTargets.SampleCount &&
         Desc.DynamicState.bViewportDynamic && Desc.DynamicState.bScissorDynamic &&
         IsValidRHIDepthStencilCompatibility(Desc.DepthStencil, Desc.RenderTargets) &&

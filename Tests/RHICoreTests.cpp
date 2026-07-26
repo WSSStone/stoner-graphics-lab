@@ -1009,36 +1009,18 @@ private:
 
 [[nodiscard]] bool IsValidRenderPassDesc(const FRHIDeviceCapabilities& Capabilities, const FRHIRenderPassDesc& Desc)
 {
-    if (Desc.Attachments.empty())
+    if (!Stoner::RHI::IsValidRHIRenderPassDesc(Desc))
     {
         return false;
     }
-    bool bHasColor = false;
-    bool bHasDepthStencil = false;
     for (const FRHIRenderPassAttachmentDesc& Attachment : Desc.Attachments)
     {
         if (!IsSupportedFormat(Capabilities, Attachment.Format))
         {
             return false;
         }
-        if (Attachment.Role == ERHIAttachmentRole::Color)
-        {
-            if (IsDepthStencilFormat(Attachment.Format))
-            {
-                return false;
-            }
-            bHasColor = true;
-        }
-        else
-        {
-            if (!IsDepthStencilFormat(Attachment.Format) || bHasDepthStencil)
-            {
-                return false;
-            }
-            bHasDepthStencil = true;
-        }
     }
-    return bHasColor || bHasDepthStencil;
+    return true;
 }
 
 class FMockCommandQueue final : public IRHICommandQueue
@@ -1425,14 +1407,11 @@ public:
             {
                 return {ERHIResult::InvalidState, nullptr};
             }
-            for (const FRHIShaderInterfaceBinding& Required : Shader->GetDesc().InterfaceMetadata.Bindings)
+            if (!IsRHIShaderInterfaceCompatibleWithPipelineLayout(
+                    Shader->GetDesc().InterfaceMetadata,
+                    Desc.PipelineLayout->GetDesc()))
             {
-                const FRHIDescriptorBinding* Binding = Desc.PipelineLayout->FindBinding(Required.SetIndex, Required.BindingSlot);
-                if (!Binding || Binding->DescriptorType != Required.DescriptorType || Binding->ArrayCount < Required.ArrayCount ||
-                    (Binding->Visibility & Required.Visibility) != Required.Visibility)
-                {
-                    return {ERHIResult::InvalidState, nullptr};
-                }
+                return {ERHIResult::InvalidState, nullptr};
             }
             if (Shader->GetStage() == ERHIShaderStage::Vertex)
             {
@@ -1497,14 +1476,11 @@ public:
         {
             return {ERHIResult::Unsupported, nullptr};
         }
-        for (const FRHIShaderInterfaceBinding& Required : Desc.ShaderModules[0]->GetDesc().InterfaceMetadata.Bindings)
+        if (!IsRHIShaderInterfaceCompatibleWithPipelineLayout(
+                Desc.ShaderModules[0]->GetDesc().InterfaceMetadata,
+                Desc.PipelineLayout->GetDesc()))
         {
-            const FRHIDescriptorBinding* Binding = Desc.PipelineLayout->FindBinding(Required.SetIndex, Required.BindingSlot);
-            if (!Binding || Binding->DescriptorType != Required.DescriptorType || Binding->ArrayCount < Required.ArrayCount ||
-                (Binding->Visibility & Required.Visibility) != Required.Visibility)
-            {
-                return {ERHIResult::InvalidState, nullptr};
-            }
+            return {ERHIResult::InvalidState, nullptr};
         }
         return {ERHIResult::Success, MakeShared<FMockComputePipeline>(Desc)};
     }
@@ -1536,14 +1512,18 @@ public:
         for (uint32 AttachmentIndex = 0; AttachmentIndex < Desc.Attachments.size(); ++AttachmentIndex)
         {
             const FRHIRenderPassAttachmentDesc* AttachmentDesc = Desc.RenderPass->GetAttachment(AttachmentIndex);
-            const TSharedPtr<IRHITexture>& Texture = Desc.Attachments[AttachmentIndex].Texture;
+            const FRHIFramebufferAttachment& Attachment = Desc.Attachments[AttachmentIndex];
+            const TSharedPtr<IRHITexture>& Texture = Attachment.Texture;
             if (!AttachmentDesc || !Texture || Texture->GetLifecycleState() != ERHIResourceLifecycleState::Valid)
             {
                 return {ERHIResult::InvalidState, nullptr};
             }
             const FRHITextureDesc& TextureDesc = Texture->GetDesc();
+            const uint32 MipWidth = GetRHIMipExtent(TextureDesc.Width, Attachment.MipLevel);
+            const uint32 MipHeight = GetRHIMipExtent(TextureDesc.Height, Attachment.MipLevel);
             if (TextureDesc.Format != AttachmentDesc->Format || TextureDesc.SampleCount != AttachmentDesc->SampleCount ||
-                TextureDesc.Width != Desc.Width || TextureDesc.Height != Desc.Height)
+                Attachment.MipLevel >= TextureDesc.MipLevels || Attachment.ArrayLayer >= TextureDesc.ArrayLayers ||
+                MipWidth != Desc.Width || MipHeight != Desc.Height)
             {
                 return {ERHIResult::InvalidState, nullptr};
             }
@@ -2175,6 +2155,31 @@ void TestDescriptorLayoutsAndSets(FRHICoreTestResult& Result)
     InvalidDesc.Bindings[0].ArrayCount = 0;
     Record(Result, Device.CreatePipelineLayout(InvalidDesc).Result == ERHIResult::InvalidState,
         "IRHIPipelineLayout rejects invalid descriptor array count");
+    InvalidDesc = MakePipelineLayoutDesc();
+    InvalidDesc.Bindings[0].DescriptorType = static_cast<ERHIDescriptorType>(255);
+    Record(Result, Device.CreatePipelineLayout(InvalidDesc).Result == ERHIResult::InvalidState,
+        "IRHIPipelineLayout rejects undefined descriptor types");
+    InvalidDesc = MakePipelineLayoutDesc();
+    InvalidDesc.Bindings[0].Visibility = static_cast<ERHIShaderStageFlags>(1u << 31);
+    Record(Result, Device.CreatePipelineLayout(InvalidDesc).Result == ERHIResult::InvalidState,
+        "IRHIPipelineLayout rejects undefined shader visibility bits");
+    InvalidDesc = MakePipelineLayoutDesc();
+    InvalidDesc.ConstantRanges.push_back({16, 16, ERHIShaderStageFlags::Compute});
+    Record(Result, Device.CreatePipelineLayout(InvalidDesc).Result == ERHIResult::InvalidState,
+        "IRHIPipelineLayout rejects overlapping constant ranges with shared stage visibility");
+    InvalidDesc = MakePipelineLayoutDesc();
+    InvalidDesc.ConstantRanges = {
+        {0, 16, ERHIShaderStageFlags::Vertex},
+        {0, 16, ERHIShaderStageFlags::Fragment}};
+    Record(Result, Device.CreatePipelineLayout(InvalidDesc).Succeeded(),
+        "IRHIPipelineLayout permits overlapping constant ranges with disjoint stage visibility");
+    InvalidDesc = MakePipelineLayoutDesc();
+    InvalidDesc.ConstantRanges = {{
+        std::numeric_limits<uint32>::max() - 3u,
+        8,
+        ERHIShaderStageFlags::Vertex}};
+    Record(Result, Device.CreatePipelineLayout(InvalidDesc).Result == ERHIResult::InvalidState,
+        "IRHIPipelineLayout rejects overflowing constant ranges");
 
     const auto DescriptorSet = Device.CreateDescriptorSet(Layout.Object, 0);
     Record(Result, DescriptorSet.Succeeded() && DescriptorSet.Object->GetSetIndex() == 0,
@@ -2232,6 +2237,20 @@ void TestShaderAndPipelineContracts(FRHICoreTestResult& Result)
         "IRHIShaderModule rejects missing entry point");
     Record(Result, Device.CreateShaderModule(MakeShaderDesc(ERHIShaderStage::Mesh, "Main", "payload")).Result == ERHIResult::Unsupported,
         "IRHIShaderModule rejects unsupported future shader stage");
+    FRHIShaderModuleDesc InvalidShader = MakeShaderDesc(ERHIShaderStage::Vertex, "Main", "invalid_type");
+    InvalidShader.InterfaceMetadata.Bindings[0].DescriptorType = static_cast<ERHIDescriptorType>(255);
+    Record(Result, Device.CreateShaderModule(InvalidShader).Result == ERHIResult::InvalidState,
+        "IRHIShaderModule rejects undefined descriptor types");
+    InvalidShader = MakeShaderDesc(ERHIShaderStage::Vertex, "Main", "invalid_visibility");
+    InvalidShader.InterfaceMetadata.Bindings[0].Visibility =
+        ERHIShaderStageFlags::Vertex | static_cast<ERHIShaderStageFlags>(1u << 31);
+    Record(Result, Device.CreateShaderModule(InvalidShader).Result == ERHIResult::InvalidState,
+        "IRHIShaderModule rejects undefined visibility bits");
+    InvalidShader = MakeShaderDesc(ERHIShaderStage::Compute, "Main", "overlapping_ranges");
+    InvalidShader.InterfaceMetadata.ConstantRanges.push_back(
+        {8, 16, ERHIShaderStageFlags::Compute});
+    Record(Result, Device.CreateShaderModule(InvalidShader).Result == ERHIResult::InvalidState,
+        "IRHIShaderModule rejects overlapping same-stage constant ranges");
 
     FRHIComputePipelineDesc ComputeDesc;
     ComputeDesc.PipelineLayout = Layout.Object;
@@ -2239,6 +2258,15 @@ void TestShaderAndPipelineContracts(FRHICoreTestResult& Result)
     const auto ComputePipeline = Device.CreateComputePipeline(ComputeDesc);
     Record(Result, ComputePipeline.Succeeded() && ComputePipeline.Object->GetPipelineLayout() == Layout.Object,
         "IRHIDevice creates compute pipeline with exactly one compute shader");
+    FRHIPipelineLayoutDesc MissingRangeDesc = MakePipelineLayoutDesc();
+    MissingRangeDesc.ConstantRanges.clear();
+    const auto MissingRangeLayout = Device.CreatePipelineLayout(MissingRangeDesc);
+    FRHIComputePipelineDesc MissingRangeComputeDesc;
+    MissingRangeComputeDesc.PipelineLayout = MissingRangeLayout.Object;
+    MissingRangeComputeDesc.ShaderModules = {Compute.Object};
+    Record(Result, MissingRangeLayout.Succeeded() &&
+            Device.CreateComputePipeline(MissingRangeComputeDesc).Result == ERHIResult::InvalidState,
+        "IRHIDevice rejects compute shader constant ranges missing from the pipeline layout");
     ComputeDesc.ShaderModules = {Vertex.Object};
     Record(Result, Device.CreateComputePipeline(ComputeDesc).Result == ERHIResult::Unsupported,
         "IRHIDevice rejects non-compute shader for compute pipeline");
@@ -2263,6 +2291,42 @@ void TestShaderAndPipelineContracts(FRHICoreTestResult& Result)
     const auto GraphicsPipeline = Device.CreateGraphicsPipeline(GraphicsDesc);
     Record(Result, GraphicsPipeline.Succeeded() && GraphicsPipeline.Object->GetDesc().VertexInput.Stride == 24,
         "IRHIDevice creates graphics pipeline and preserves fixed function state");
+    FRHIGraphicsPipelineDesc InvalidGraphicsState = GraphicsDesc;
+    InvalidGraphicsState.Rasterizer.CullMode = static_cast<ERHICullMode>(255);
+    Record(Result, !IsValidRHIGraphicsPipelineState(InvalidGraphicsState) &&
+            Device.CreateGraphicsPipeline(InvalidGraphicsState).Result == ERHIResult::InvalidState,
+        "graphics helper and factory reject undefined cull modes");
+    InvalidGraphicsState = GraphicsDesc;
+    InvalidGraphicsState.Rasterizer.FrontFace = static_cast<ERHIFrontFace>(255);
+    Record(Result, !IsValidRHIGraphicsPipelineState(InvalidGraphicsState) &&
+            Device.CreateGraphicsPipeline(InvalidGraphicsState).Result == ERHIResult::InvalidState,
+        "graphics helper and factory reject undefined front-face modes");
+    InvalidGraphicsState = GraphicsDesc;
+    InvalidGraphicsState.Blend.SourceColor = static_cast<ERHIBlendFactor>(255);
+    Record(Result, !IsValidRHIGraphicsPipelineState(InvalidGraphicsState) &&
+            Device.CreateGraphicsPipeline(InvalidGraphicsState).Result == ERHIResult::InvalidState,
+        "graphics helper and factory reject undefined blend factors");
+    InvalidGraphicsState = GraphicsDesc;
+    InvalidGraphicsState.Blend.ColorOp = static_cast<ERHIBlendOp>(255);
+    Record(Result, !IsValidRHIGraphicsPipelineState(InvalidGraphicsState) &&
+            Device.CreateGraphicsPipeline(InvalidGraphicsState).Result == ERHIResult::InvalidState,
+        "graphics helper and factory reject undefined blend operations");
+    InvalidGraphicsState = GraphicsDesc;
+    InvalidGraphicsState.DepthStencil.DepthCompare = static_cast<ERHICompareOp>(255);
+    Record(Result, !IsValidRHIGraphicsPipelineState(InvalidGraphicsState) &&
+            Device.CreateGraphicsPipeline(InvalidGraphicsState).Result == ERHIResult::InvalidState,
+        "graphics helper and factory reject undefined depth comparisons");
+    InvalidGraphicsState = GraphicsDesc;
+    InvalidGraphicsState.Multisample.SampleCount = static_cast<ERHISampleCount>(3);
+    InvalidGraphicsState.RenderTargets.SampleCount = static_cast<ERHISampleCount>(3);
+    Record(Result, !IsValidRHIGraphicsPipelineState(InvalidGraphicsState) &&
+            Device.CreateGraphicsPipeline(InvalidGraphicsState).Result == ERHIResult::InvalidState,
+        "graphics helper and factory reject matching undefined sample counts");
+    InvalidGraphicsState = GraphicsDesc;
+    InvalidGraphicsState.VertexInput.Attributes[0].Format = static_cast<ERHIFormat>(255);
+    Record(Result, !IsValidRHIGraphicsPipelineState(InvalidGraphicsState) &&
+            Device.CreateGraphicsPipeline(InvalidGraphicsState).Result == ERHIResult::InvalidState,
+        "graphics helper and factory reject undefined vertex formats");
     GraphicsDesc.ShaderModules = {Vertex.Object};
     Record(Result, Device.CreateGraphicsPipeline(GraphicsDesc).Result == ERHIResult::InvalidState,
         "IRHIDevice rejects graphics pipeline missing required fragment stage");
@@ -2322,6 +2386,31 @@ void TestRenderPassesAndFramebuffers(FRHICoreTestResult& Result)
     InvalidDepthPass.Attachments.push_back({ERHIAttachmentRole::DepthStencil, ERHIFormat::D32_Float, ERHISampleCount::One});
     Record(Result, Device.CreateRenderPass(InvalidDepthPass).Result == ERHIResult::InvalidState,
         "IRHIDevice rejects multi-depth attachment render pass in single-subpass scope");
+    FRHIRenderPassDesc InvalidRenderPass = RenderPassDesc;
+    InvalidRenderPass.Attachments[0].Role = static_cast<ERHIAttachmentRole>(255);
+    Record(Result, !Stoner::RHI::IsValidRHIRenderPassDesc(InvalidRenderPass) &&
+            Device.CreateRenderPass(InvalidRenderPass).Result == ERHIResult::InvalidState,
+        "render pass helper and factory reject undefined attachment roles");
+    InvalidRenderPass = RenderPassDesc;
+    InvalidRenderPass.Attachments[0].SampleCount = static_cast<ERHISampleCount>(3);
+    Record(Result, !Stoner::RHI::IsValidRHIRenderPassDesc(InvalidRenderPass) &&
+            Device.CreateRenderPass(InvalidRenderPass).Result == ERHIResult::InvalidState,
+        "render pass helper and factory reject undefined sample counts");
+    InvalidRenderPass = RenderPassDesc;
+    InvalidRenderPass.Attachments[0].LoadOp = static_cast<ERHIAttachmentLoadOp>(255);
+    Record(Result, !Stoner::RHI::IsValidRHIRenderPassDesc(InvalidRenderPass) &&
+            Device.CreateRenderPass(InvalidRenderPass).Result == ERHIResult::InvalidState,
+        "render pass helper and factory reject undefined load operations");
+    InvalidRenderPass = RenderPassDesc;
+    InvalidRenderPass.Attachments[0].StoreOp = static_cast<ERHIAttachmentStoreOp>(255);
+    Record(Result, !Stoner::RHI::IsValidRHIRenderPassDesc(InvalidRenderPass) &&
+            Device.CreateRenderPass(InvalidRenderPass).Result == ERHIResult::InvalidState,
+        "render pass helper and factory reject undefined store operations");
+    InvalidRenderPass = RenderPassDesc;
+    InvalidRenderPass.Attachments[1].SampleCount = ERHISampleCount::Two;
+    Record(Result, !Stoner::RHI::IsValidRHIRenderPassDesc(InvalidRenderPass) &&
+            Device.CreateRenderPass(InvalidRenderPass).Result == ERHIResult::InvalidState,
+        "render pass helper and factory reject mixed attachment sample counts");
 
     const auto ColorTexture = Device.CreateTexture(MakeColorTextureDesc());
     const auto DepthTexture = Device.CreateTexture(MakeDepthTextureDesc());
@@ -2333,6 +2422,39 @@ void TestRenderPassesAndFramebuffers(FRHICoreTestResult& Result)
     const auto Framebuffer = Device.CreateFramebuffer(FramebufferDesc);
     Record(Result, Framebuffer.Succeeded() && Framebuffer.Object->GetWidth() == 64 && Framebuffer.Object->GetAttachmentCount() == 2,
         "IRHIDevice creates framebuffer with compatible texture attachments");
+
+    FRHIRenderPassDesc ColorOnlyPassDesc;
+    ColorOnlyPassDesc.Attachments = {{
+        ERHIAttachmentRole::Color,
+        ERHIFormat::R8G8B8A8_UNorm,
+        ERHISampleCount::One}};
+    const auto ColorOnlyPass = Device.CreateRenderPass(ColorOnlyPassDesc);
+    FRHITextureDesc ArrayTextureDesc = MakeColorTextureDesc();
+    ArrayTextureDesc.Dimension = ERHITextureDimension::Texture2DArray;
+    ArrayTextureDesc.ArrayLayers = 2;
+    ArrayTextureDesc.MipLevels = 2;
+    const auto ArrayTexture = Device.CreateTexture(ArrayTextureDesc);
+    FRHIFramebufferDesc SubresourceFramebuffer;
+    SubresourceFramebuffer.RenderPass = ColorOnlyPass.Object;
+    SubresourceFramebuffer.Attachments = {{ArrayTexture.Object, 1, 1}};
+    SubresourceFramebuffer.Width = 32;
+    SubresourceFramebuffer.Height = 32;
+    Record(Result, ColorOnlyPass.Succeeded() && ArrayTexture.Succeeded() &&
+            Device.CreateFramebuffer(SubresourceFramebuffer).Succeeded(),
+        "IRHIDevice creates framebuffer for a valid nonzero mip and array layer");
+    FRHIFramebufferDesc InvalidSubresource = SubresourceFramebuffer;
+    InvalidSubresource.Attachments[0].ArrayLayer = 2;
+    Record(Result, Device.CreateFramebuffer(InvalidSubresource).Result == ERHIResult::InvalidState,
+        "IRHIDevice rejects framebuffer array layer at the layer count");
+    InvalidSubresource = SubresourceFramebuffer;
+    InvalidSubresource.Attachments[0].MipLevel = 2;
+    Record(Result, Device.CreateFramebuffer(InvalidSubresource).Result == ERHIResult::InvalidState,
+        "IRHIDevice rejects framebuffer mip level at the mip count");
+    InvalidSubresource = SubresourceFramebuffer;
+    InvalidSubresource.Width = 64;
+    InvalidSubresource.Height = 64;
+    Record(Result, Device.CreateFramebuffer(InvalidSubresource).Result == ERHIResult::InvalidState,
+        "IRHIDevice rejects framebuffer extent that does not match the selected mip");
 
     FRHIFramebufferDesc InvalidFramebuffer = FramebufferDesc;
     InvalidFramebuffer.Attachments.pop_back();

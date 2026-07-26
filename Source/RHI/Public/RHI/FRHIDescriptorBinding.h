@@ -18,7 +18,9 @@ struct FRHIDescriptorBinding
 
 [[nodiscard]] constexpr bool IsValidRHIDescriptorBinding(const FRHIDescriptorBinding& Binding) noexcept
 {
-    return Binding.ArrayCount > 0 && Binding.Visibility != ERHIShaderStageFlags::None;
+    return IsValidRHIDescriptorType(Binding.DescriptorType) &&
+        Binding.ArrayCount > 0 &&
+        IsValidRHIShaderStageFlags(Binding.Visibility);
 }
 
 } // namespace Stoner::RHI

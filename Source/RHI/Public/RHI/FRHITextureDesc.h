@@ -31,19 +31,6 @@ struct FRHITextureDesc
     return !(HasRHIFlag(Usage, ERHITextureUsage::ColorAttachment) && HasRHIFlag(Usage, ERHITextureUsage::DepthStencilAttachment));
 }
 
-[[nodiscard]] constexpr bool IsValidRHISampleCount(ERHISampleCount SampleCount) noexcept
-{
-    switch (SampleCount)
-    {
-    case ERHISampleCount::One:
-    case ERHISampleCount::Two:
-    case ERHISampleCount::Four:
-    case ERHISampleCount::Eight:
-        return true;
-    }
-    return false;
-}
-
 [[nodiscard]] constexpr Stoner::Core::uint32 GetRHIMaxMipLevels(
     Stoner::Core::uint32 Width,
     Stoner::Core::uint32 Height,
@@ -68,9 +55,21 @@ struct FRHITextureDesc
     return MipLevels;
 }
 
+[[nodiscard]] constexpr Stoner::Core::uint32 GetRHIMipExtent(
+    Stoner::Core::uint32 BaseExtent,
+    Stoner::Core::uint32 MipLevel) noexcept
+{
+    if (BaseExtent == 0 || MipLevel >= 32)
+    {
+        return 0;
+    }
+    const Stoner::Core::uint32 Shifted = BaseExtent >> MipLevel;
+    return Shifted > 0 ? Shifted : 1;
+}
+
 [[nodiscard]] constexpr bool IsValidRHITextureDesc(const FRHITextureDesc& Desc) noexcept
 {
-    if (Desc.Format == ERHIFormat::Unknown ||
+    if (!IsValidRHIFormat(Desc.Format) ||
         !IsValidRHIUsage(Desc.Usage) ||
         !IsValidRHISampleCount(Desc.SampleCount) ||
         Desc.MipLevels == 0 ||
