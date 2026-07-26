@@ -1764,6 +1764,12 @@
           "from": "Accepted",
           "note": "Checked byte/count arithmetic rejects overflow before mutation and preserves later budget enforcement; maintained and independent probes cover UINT64_MAX accounting.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T14:15:45+00:00",
+          "from": "Fixed",
+          "note": "Exact parent reproduced unsigned wrap and budget bypass; current independent verifier proves overflow/count failures preserve counters and later budgets, with all fresh strict and sanitizer gates passing.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B04-F007",
@@ -1772,9 +1778,9 @@
       "requirement": "010-FR-008, FR-008a, FR-019, SC-003, the allocation contract, and the oversized-resource edge case",
       "resolution": "Checked byte/count arithmetic rejects overflow before mutation and preserves later budget enforcement; maintained and independent probes cover UINT64_MAX accounting.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Allocation accounting can overflow and bypass configured budgets",
-      "verification": ""
+      "verification": "Exact parent reproduced unsigned wrap and budget bypass; current independent verifier proves overflow/count failures preserve counters and later budgets, with all fresh strict and sanitizer gates passing."
     },
     {
       "batch": "B04",
@@ -1800,6 +1806,12 @@
           "from": "Accepted",
           "note": "Allocation records are no-allocation move-only ownership tickets bound to stable allocator identity and reset epoch; foreign, stale, moved-from, and repeated releases cannot mutate counters.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T14:16:01+00:00",
+          "from": "Fixed",
+          "note": "Exact parent reproduced copied-ticket double release; current API rejects copying/fabrication, and independent move, foreign, stale-epoch, and same-address allocator-lifetime checks preserve one release authority.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B04-F008",
@@ -1808,9 +1820,9 @@
       "requirement": "010-FR-007, FR-009, SC-003, T046, T050, and the allocation ownership/repeated-cleanup contract",
       "resolution": "Allocation records are no-allocation move-only ownership tickets bound to stable allocator identity and reset epoch; foreign, stale, moved-from, and repeated releases cannot mutate counters.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Copyable allocation records permit duplicate release accounting",
-      "verification": ""
+      "verification": "Exact parent reproduced copied-ticket double release; current API rejects copying/fabrication, and independent move, foreign, stale-epoch, and same-address allocator-lifetime checks preserve one release authority."
     },
     {
       "batch": "B04",
@@ -1836,6 +1848,12 @@
           "from": "Accepted",
           "note": "Texture footprint estimation now checks every multiplication/addition and sums exact per-mip extents, format widths, layers, depth, and sample count.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T14:16:11+00:00",
+          "from": "Fixed",
+          "note": "Exact parent reproduced format/sample undercount and mip overcount; current independent matrix verifies every current format, dimension, layer, mip, sample count, and both multiplication and mip-total overflow.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B04-F009",
@@ -1844,9 +1862,9 @@
       "requirement": "010-FR-003, FR-008, FR-008a, T053, SC-003, and the texture allocation/budget contract",
       "resolution": "Texture footprint estimation now checks every multiplication/addition and sums exact per-mip extents, format widths, layers, depth, and sample count.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Texture footprint estimation misaccounts formats samples and mip chains",
-      "verification": ""
+      "verification": "Exact parent reproduced format/sample undercount and mip overcount; current independent matrix verifies every current format, dimension, layer, mip, sample count, and both multiplication and mip-total overflow."
     },
     {
       "batch": "B04",
@@ -1872,6 +1890,12 @@
           "from": "Accepted",
           "note": "Buffer/texture wrappers are device-factory-only with rollback-safe tracking; host buffer mirrors grow only to uploaded ranges and translate storage failures to Unavailable.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T14:16:23+00:00",
+          "from": "Fixed",
+          "note": "Exact parent reproduced usable failed wrappers and throwing huge upload; current negative compile closes those constructors, allocation-failure injection proves all factory rollbacks, and host upload failure preserves prior bytes with explicit results.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B04-F010",
@@ -1880,9 +1904,9 @@
       "requirement": "010-FR-002, FR-004, FR-007, FR-008, SC-002, T035, and the no-usable-partial-resource contract",
       "resolution": "Buffer/texture wrappers are device-factory-only with rollback-safe tracking; host buffer mirrors grow only to uploaded ranges and translate storage failures to Unavailable.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Resource wrappers expose failed allocations and unbounded host storage",
-      "verification": ""
+      "verification": "Exact parent reproduced usable failed wrappers and throwing huge upload; current negative compile closes those constructors, allocation-failure injection proves all factory rollbacks, and host upload failure preserves prior bytes with explicit results."
     }
   ],
   "schema_version": 1
