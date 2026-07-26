@@ -100,7 +100,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Inspect"
+          "title": "Inspect: value identity and containers"
         },
         {
           "commit": null,
@@ -110,7 +110,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Fix"
+          "title": "Fix: value identity and containers"
         },
         {
           "commit": null,
@@ -120,7 +120,217 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Verify"
+          "title": "Verify: value identity and containers"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S04",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: memory allocation and module lifecycle"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S05",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: memory allocation and module lifecycle"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S06",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: memory allocation and module lifecycle"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S07",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: scalar, vector, and color math"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S08",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: scalar, vector, and color math"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S09",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: scalar, vector, and color math"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S10",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: matrix, quaternion, transform, and geometry math"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S11",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: matrix, quaternion, transform, and geometry math"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S12",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: matrix, quaternion, transform, and geometry math"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S13",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: logging system"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S14",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: logging system"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S15",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: logging system"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S16",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: assertion and platform-break macros"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S17",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: assertion and platform-break macros"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S18",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: assertion and platform-break macros"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S19",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: platform selection, window, misc, and memory"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S20",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: platform selection, window, misc, and memory"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S21",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: platform selection, window, misc, and memory"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S22",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: platform time, filesystem, and process"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S23",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: platform time, filesystem, and process"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B02-S24",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: platform time, filesystem, and process"
         }
       ],
       "title": "Core Features 003-006"
@@ -137,7 +347,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Inspect"
+          "title": "Inspect: device, capabilities, runtime, and results"
         },
         {
           "commit": null,
@@ -147,7 +357,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Fix"
+          "title": "Fix: device, capabilities, runtime, and results"
         },
         {
           "commit": null,
@@ -157,7 +367,97 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Verify"
+          "title": "Verify: device, capabilities, runtime, and results"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B03-S04",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: commands, queues, synchronization, and swapchain"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B03-S05",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: commands, queues, synchronization, and swapchain"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B03-S06",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: commands, queues, synchronization, and swapchain"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B03-S07",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: buffer, texture, and sampler resources"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B03-S08",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: buffer, texture, and sampler resources"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B03-S09",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: buffer, texture, and sampler resources"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B03-S10",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: shaders, descriptors, pipelines, render passes, and framebuffers"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B03-S11",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: shaders, descriptors, pipelines, render passes, and framebuffers"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B03-S12",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: shaders, descriptors, pipelines, render passes, and framebuffers"
         }
       ],
       "title": "RHI Features 007-008"
@@ -174,7 +474,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Inspect"
+          "title": "Inspect: instance, adapter, device, and capabilities"
         },
         {
           "commit": null,
@@ -184,7 +484,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Fix"
+          "title": "Fix: instance, adapter, device, and capabilities"
         },
         {
           "commit": null,
@@ -194,7 +494,97 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Verify"
+          "title": "Verify: instance, adapter, device, and capabilities"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B04-S04",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: surface and swapchain lifecycle"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B04-S05",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: surface and swapchain lifecycle"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B04-S06",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: surface and swapchain lifecycle"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B04-S07",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: memory allocation, buffers, and textures"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B04-S08",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: memory allocation, buffers, and textures"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B04-S09",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: memory allocation, buffers, and textures"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B04-S10",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: descriptors, samplers, and upload staging"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B04-S11",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: descriptors, samplers, and upload staging"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B04-S12",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: descriptors, samplers, and upload staging"
         }
       ],
       "title": "Vulkan Foundation 009-010"
@@ -211,7 +601,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Inspect"
+          "title": "Inspect: command pools, buffers, barriers, and render scope"
         },
         {
           "commit": null,
@@ -221,7 +611,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Fix"
+          "title": "Fix: command pools, buffers, barriers, and render scope"
         },
         {
           "commit": null,
@@ -231,7 +621,127 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Verify"
+          "title": "Verify: command pools, buffers, barriers, and render scope"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B05-S04",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: queues, submission, and synchronization"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B05-S05",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: queues, submission, and synchronization"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B05-S06",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: queues, submission, and synchronization"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B05-S07",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: shader modules and interfaces"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B05-S08",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: shader modules and interfaces"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B05-S09",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: shader modules and interfaces"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B05-S10",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: graphics and compute pipelines and cache"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B05-S11",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: graphics and compute pipelines and cache"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B05-S12",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: graphics and compute pipelines and cache"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B05-S13",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: native context execution"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B05-S14",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: native context execution"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B05-S15",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: native context execution"
         }
       ],
       "title": "Vulkan Execution 011-012"
@@ -248,7 +758,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Inspect"
+          "title": "Inspect: render graph declaration, compilation, and lifetimes"
         },
         {
           "commit": null,
@@ -258,7 +768,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Fix"
+          "title": "Fix: render graph declaration, compilation, and lifetimes"
         },
         {
           "commit": null,
@@ -268,7 +778,157 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Verify"
+          "title": "Verify: render graph declaration, compilation, and lifetimes"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S04",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: render graph execution, resources, and diagnostics"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S05",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: render graph execution, resources, and diagnostics"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S06",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: render graph execution, resources, and diagnostics"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S07",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: shader library and permutations"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S08",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: shader library and permutations"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S09",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: shader library and permutations"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S10",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: material definitions, instances, and parameters"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S11",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: material definitions, instances, and parameters"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S12",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: material definitions, instances, and parameters"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S13",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: forward frame planning, lights, views, and sorting"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S14",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: forward frame planning, lights, views, and sorting"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S15",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: forward frame planning, lights, views, and sorting"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S16",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: forward execution, graph declaration, and diagnostics"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S17",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: forward execution, graph declaration, and diagnostics"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B06-S18",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: forward execution, graph declaration, and diagnostics"
         }
       ],
       "title": "Renderer 013-015"
@@ -285,7 +945,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Inspect"
+          "title": "Inspect: window lifecycle, drivers, and loop"
         },
         {
           "commit": null,
@@ -295,7 +955,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Fix"
+          "title": "Fix: window lifecycle, drivers, and loop"
         },
         {
           "commit": null,
@@ -305,7 +965,127 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Verify"
+          "title": "Verify: window lifecycle, drivers, and loop"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B07-S04",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: input mapping, events, and snapshots"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B07-S05",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: input mapping, events, and snapshots"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B07-S06",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: input mapping, events, and snapshots"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B07-S07",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: entity slots and components"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B07-S08",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: entity slots and components"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B07-S09",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: entity slots and components"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B07-S10",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: hierarchy, reparenting, and destruction"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B07-S11",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: hierarchy, reparenting, and destruction"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B07-S12",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: hierarchy, reparenting, and destruction"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B07-S13",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: transforms and render collection"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B07-S14",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: transforms and render collection"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B07-S15",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: transforms and render collection"
         }
       ],
       "title": "Application 016-017"
@@ -322,7 +1102,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Inspect"
+          "title": "Inspect: triangle demo configuration and lifecycle"
         },
         {
           "commit": null,
@@ -332,7 +1112,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Fix"
+          "title": "Fix: triangle demo configuration and lifecycle"
         },
         {
           "commit": null,
@@ -342,7 +1122,127 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Verify"
+          "title": "Verify: triangle demo configuration and lifecycle"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B08-S04",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: triangle native session, presentation, and synchronization"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B08-S05",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: triangle native session, presentation, and synchronization"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B08-S06",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: triangle native session, presentation, and synchronization"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B08-S07",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: deferred frame plan, surfaces, and graph"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B08-S08",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: deferred frame plan, surfaces, and graph"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B08-S09",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: deferred frame plan, surfaces, and graph"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B08-S10",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: deferred native execution and readback"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B08-S11",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: deferred native execution and readback"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B08-S12",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: deferred native execution and readback"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B08-S13",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: validation, failure injection, and artifacts"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B08-S14",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: validation, failure injection, and artifacts"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B08-S15",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: validation, failure injection, and artifacts"
         }
       ],
       "title": "Integration 018-019"
@@ -359,7 +1259,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Inspect"
+          "title": "Inspect: test target architecture and private boundaries"
         },
         {
           "commit": null,
@@ -369,7 +1269,7 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Fix"
+          "title": "Fix: test target architecture and private boundaries"
         },
         {
           "commit": null,
@@ -379,7 +1279,127 @@
           "note": "",
           "started_at": null,
           "status": "Pending",
-          "title": "Verify"
+          "title": "Verify: test target architecture and private boundaries"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B09-S04",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: diagnostics, determinism, and failure semantics"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B09-S05",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: diagnostics, determinism, and failure semantics"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B09-S06",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: diagnostics, determinism, and failure semantics"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B09-S07",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: concurrency, lifetime, and ownership duplication"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B09-S08",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: concurrency, lifetime, and ownership duplication"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B09-S09",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: concurrency, lifetime, and ownership duplication"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B09-S10",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: performance hotspots and large functions"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B09-S11",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: performance hotspots and large functions"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B09-S12",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: performance hotspots and large functions"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B09-S13",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Inspect: documentation, specification drift, and traceability"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B09-S14",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Fix: documentation, specification drift, and traceability"
+        },
+        {
+          "commit": null,
+          "completed_at": null,
+          "evidence": [],
+          "id": "B09-S15",
+          "note": "",
+          "started_at": null,
+          "status": "Pending",
+          "title": "Verify: documentation, specification drift, and traceability"
         }
       ],
       "title": "Cross-Cutting"
@@ -638,6 +1658,11 @@
       "at": "2026-07-26T03:57:32+00:00",
       "detail": "B01-S03",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-26T04:02:59+00:00",
+      "detail": "refined pending batches: B02, B03, B04, B05, B06, B07, B08, B09",
+      "kind": "refine"
     }
   ],
   "gates": {
@@ -811,5 +1836,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T03:57:32+00:00"
+  "updated_at": "2026-07-26T04:02:59+00:00"
 }
