@@ -87,8 +87,8 @@ policy rather than expanded into an unsupported B04 finding.
 
 Fresh maintained ASan/UBSan tests pass while the focused sanitizer probe
 reproduces every defect signal. Existing tests cover only device-mediated
-sampler creation, ordinary capacity exhaustion, base-mip region bounds, and a
-16-byte upload whose byte count happens to match a 4x4 one-byte format fixture.
+sampler creation, ordinary capacity exhaustion, and base-mip region bounds;
+they also codify a 16-byte upload into a 4x4 four-byte RGBA region as success.
 
 These gaps matter before the Asset roadmap introduces image formats, mips,
 compressed payloads, and asynchronous manager bookkeeping. Invalid upload

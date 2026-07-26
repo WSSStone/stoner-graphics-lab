@@ -1910,7 +1910,7 @@
     },
     {
       "batch": "B04",
-      "commit": "",
+      "commit": "5830901",
       "created_at": "2026-07-26T14:28:38+00:00",
       "deferred_target": "",
       "evidence": "The B04-S10 sanitizer probe constructs an unallocated public descriptor set whose destructor releases another set's reservation, then re-allocates the supposedly full slot; FVulkanDevice::CreateDescriptorSet also increments the pool before two throwing allocations without rollback.",
@@ -1926,21 +1926,27 @@
           "from": "Triaged",
           "note": "Executable evidence proves quota corruption through the public construction path, and source inspection proves missing rollback after reservation; repair in the next B04 fix packet.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T14:50:23+00:00",
+          "from": "Accepted",
+          "note": "Replaced public scalar Allocate/Release with a move-only pool-issued RAII reservation, made pool/set construction device-only, and added rollback for pool, wrapper, control-block, and tracking allocation failures.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B04-F011",
       "impact": "Callers can overcommit configured descriptor capacity, while allocation failure can leak a pool slot and escape the explicit-result API, eventually making valid descriptor allocation permanently unavailable.",
       "location": "Source/Backend/Vulkan/Private/FVulkanDescriptorSet.cpp:47",
       "requirement": "010-FR-011, 010-FR-011a, and the Descriptor Pool Contract require sets to allocate only from fixed available capacity with explicit failure",
-      "resolution": "",
+      "resolution": "Replaced public scalar Allocate/Release with a move-only pool-issued RAII reservation, made pool/set construction device-only, and added rollback for pool, wrapper, control-block, and tracking allocation failures.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Descriptor reservations are forgeable and allocation is not failure-atomic",
       "verification": ""
     },
     {
       "batch": "B04",
-      "commit": "",
+      "commit": "5830901",
       "created_at": "2026-07-26T14:29:07+00:00",
       "deferred_target": "",
       "evidence": "The B04-S10 sanitizer probe passes the same invalid compare-plus-no-mip-filter description rejected by FVulkanDevice to the public FVulkanSampler constructor and receives a sampler reporting Valid lifecycle.",
@@ -1956,21 +1962,27 @@
           "from": "Triaged",
           "note": "The public constructor contradicts the established device-factory invariant and reproduces a usable invalid sampler; close construction and verify the negative compile path in B04.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T14:50:24+00:00",
+          "from": "Accepted",
+          "note": "Made sampler construction device-only, preserved validation at the factory boundary, and mapped wrapper/control-block/tracking failures to Unavailable without exposing a usable object.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B04-F012",
       "impact": "Backend-facing callers can inject unsupported sampler state into descriptor records, making device capability checks optional and leaving later native translation to handle an object that should never exist.",
       "location": "Source/Backend/Vulkan/Public/VulkanRHI/FVulkanSampler.h:11",
       "requirement": "010-FR-005 and the RHI device-owned creation contract require unsupported sampler descriptions to return explicit failure without a usable sampler",
-      "resolution": "",
+      "resolution": "Made sampler construction device-only, preserved validation at the factory boundary, and mapped wrapper/control-block/tracking failures to Unavailable without exposing a usable object.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Sampler construction bypasses device validation",
       "verification": ""
     },
     {
       "batch": "B04",
-      "commit": "",
+      "commit": "5830901",
       "created_at": "2026-07-26T14:29:33+00:00",
       "deferred_target": "",
       "evidence": "The B04-S10 sanitizer probe accepts an 8x8 upload into mip 1 of an 8x8 two-mip texture, whose mip extent is 4x4, and accepts one staging byte for a 4x4 R8G8B8A8_UNorm region requiring 64 bytes.",
@@ -1986,15 +1998,21 @@
           "from": "Triaged",
           "note": "The request-creation boundary demonstrably omits both mip extent and format byte-footprint checks required by Feature 010; repair and add maintained edge coverage in B04.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T14:50:24+00:00",
+          "from": "Accepted",
+          "note": "Added shared exact RHI format widths, selected-mip region checks, checked exact byte footprints, copy-usage and single-sample validation, factory-only upload records, and explicit allocation-failure mapping with maintained regressions.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B04-F013",
       "impact": "Invalid pending records escape the validation boundary; the mip case violates explicit rejection, while an underfilled record can be scheduled and gives future execution code insufficient source bytes, risking corrupt transfer or out-of-bounds reads.",
       "location": "Source/Backend/Vulkan/Private/FVulkanUploadStaging.cpp:41",
       "requirement": "010-FR-016, 010-FR-017, T099, and the Upload Staging Contract require mip-aware destination-region and format-compatibility validation when the request is created",
-      "resolution": "",
+      "resolution": "Added shared exact RHI format widths, selected-mip region checks, checked exact byte footprints, copy-usage and single-sample validation, factory-only upload records, and explicit allocation-failure mapping with maintained regressions.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Texture upload staging accepts invalid subresources and byte footprints",
       "verification": ""
     }
