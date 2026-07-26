@@ -1,5 +1,5 @@
 {
-  "active_step": "B03-S11",
+  "active_step": "B03-S12",
   "batches": [
     {
       "id": "B00",
@@ -648,13 +648,15 @@
           "title": "Inspect: shaders, descriptors, pipelines, render passes, and framebuffers"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "09d1a1b",
+          "completed_at": "2026-07-26T11:09:37+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b03-pipeline-framebuffer-fix-probes.md"
+          ],
           "id": "B03-S11",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Fixed CR001-B03-F009, F010, and F011 with shared fail-closed RHI validation, mock/Vulkan parity, selected-subresource framebuffer semantics, maintained regressions, four passing local gates, and passing standalone sanitizer probes.",
+          "started_at": "2026-07-26T10:39:48+00:00",
+          "status": "Completed",
           "title": "Fix: shaders, descriptors, pipelines, render passes, and framebuffers"
         },
         {
@@ -3076,6 +3078,51 @@
       "at": "2026-07-26T10:38:39+00:00",
       "detail": "B03-S10",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-26T10:39:48+00:00",
+      "detail": "B03-S11",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-26T11:02:03+00:00",
+      "detail": "fallback-strict: pass",
+      "kind": "gate"
+    },
+    {
+      "at": "2026-07-26T11:02:38+00:00",
+      "detail": "strict-debug: pass",
+      "kind": "gate"
+    },
+    {
+      "at": "2026-07-26T11:03:11+00:00",
+      "detail": "strict-release: pass",
+      "kind": "gate"
+    },
+    {
+      "at": "2026-07-26T11:04:26+00:00",
+      "detail": "sanitizers: pass",
+      "kind": "gate"
+    },
+    {
+      "at": "2026-07-26T11:08:22+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T11:08:31+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T11:08:42+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T11:09:37+00:00",
+      "detail": "B03-S11",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -3106,7 +3153,7 @@
           ],
           "returncode": 0,
           "stderr_tail": "[StonerBuild.PlatformDetect] INFO: Detected platform: Mac\n[StonerBuild.BuildConfig] INFO: Build configuration: debug\n[StonerBuild.PlatformDetect] INFO: Detected compiler: clang++\n[StonerBuild.PlatformDetect] INFO: Configured C++20 toolchain for Mac\n[StonerBuild.BuildConfig] INFO: Applied debug flags for Mac (strict=True, sanitizers=none)\n[StonerBuild] INFO: Stoner Graphics Lab\n[StonerBuild] INFO:   Platform : Mac\n[StonerBuild] INFO:   Config   : Debug\n[StonerBuild] INFO:   SCons    : 4.10.1\n[StonerBuild.LayerBuilder] INFO: Layer 'Core': building from 10 source file(s)\n[StonerBuild.LayerBuilder] INFO: Layer 'RHI': building from 1 source file(s)\n[StonerBuild.LayerBuilder] INFO: Layer 'Renderer': building from 33 source file(s)\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: discovered 0 sub-module(s) in 'Source/Renderer'\n[StonerBuild.LayerBuilder] INFO: Layer 'Application': building from 23 source file(s)\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'DX11' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'DX12' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'GLES' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'Metal' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'OpenGL' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'Vulkan' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: Layer 'VulkanRHI': building from 30 source file(s)\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'WebGL' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: discovered 1 sub-module(s) in 'Source/Backend'\n",
-          "stdout_tail": "reTests.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -D_DEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/RHICoreTests.cpp\ng++ -o Build/Mac/Debug/Tests/RendererComparisonTests.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -D_DEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/RendererComparisonTests.cpp\ng++ -o Build/Mac/Debug/Tests/RendererForwardPipelineTests.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -D_DEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/RendererForwardPipelineTests.cpp\ng++ -o Build/Mac/Debug/Tests/RendererMaterialShaderTests.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -D_DEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/RendererMaterialShaderTests.cpp\ng++ -o Build/Mac/Debug/Tests/RendererRenderGraphTests.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -D_DEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/RendererRenderGraphTests.cpp\ng++ -o Build/Mac/Debug/Tests/TriangleDemoIntegrationTests.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -D_DEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/TriangleDemoIntegrationTests.cpp\ng++ -o Build/Mac/Debug/Tests/VulkanBackendTests.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -D_DEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/VulkanBackendTests.cpp\ng++ -o Build/Mac/Debug/Tests/VulkanNativeIntegrationTests.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -D_DEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/VulkanNativeIntegrationTests.cpp\ng++ -o Build/Mac/Debug/Tests/StonerTest Build/Mac/Debug/Tests/ApplicationSceneEcsTests.o Build/Mac/Debug/Tests/ApplicationWindowInputTests.o Build/Mac/Debug/Tests/CoreFoundationTests.o Build/Mac/Debug/Tests/CoreMathTests.o Build/Mac/Debug/Tests/CorePlatformOwnershipTests.o Build/Mac/Debug/Tests/CorePlatformTests.o Build/Mac/Debug/Tests/DeferredNativeIntegrationTests.o Build/Mac/Debug/Tests/DeferredRenderingTests.o Build/Mac/Debug/Tests/LoggingAssertionTests.o Build/Mac/Debug/Tests/Main.o Build/Mac/Debug/Tests/RHICoreTests.o Build/Mac/Debug/Tests/RendererComparisonTests.o Build/Mac/Debug/Tests/RendererForwardPipelineTests.o Build/Mac/Debug/Tests/RendererMaterialShaderTests.o Build/Mac/Debug/Tests/RendererRenderGraphTests.o Build/Mac/Debug/Tests/TriangleDemoIntegrationTests.o Build/Mac/Debug/Tests/VulkanBackendTests.o Build/Mac/Debug/Tests/VulkanNativeIntegrationTests.o -LBuild/Mac/Debug/Core -LSource/Core -LBuild/Mac/Debug/RHI -LSource/RHI -LBuild/Mac/Debug/Renderer -LSource/Renderer -LBuild/Mac/Debug/Application -LSource/Application -LBuild/Mac/Debug/Backend/Vulkan -LSource/Backend/Vulkan -LSource/Backend/Vulkan -LBuild/Mac/Debug/Demo/StonerDemo -LDemo/StonerDemo -lStonerDemoRuntime -lApplication -lRenderer -lRHI -lCore -lVulkanRHI\nscons: done building targets.\n"
+          "stdout_tail": "scons: Reading SConscript files ...\nscons: done reading SConscript files.\nscons: Building targets ...\nscons: `.' is up to date.\nscons: done building targets.\n"
         },
         {
           "args": [
@@ -3114,12 +3161,12 @@
           ],
           "returncode": 0,
           "stderr_tail": "",
-          "stdout_tail": "can inject not-ready\n[PASS] Vulkan fallback completion can inject timeout\n[PASS] Vulkan command and queue invalidation on shutdown\n[PASS] Vulkan render pass command fixture initializes\n[PASS] Vulkan minimal render pass and framebuffer creation succeeds\n[PASS] Vulkan minimal render pass rejects invalid description\n[PASS] Vulkan framebuffer rejects incompatible attachment dimensions\n[PASS] Vulkan graphics render pass scope records draw placeholders and rejects invalid ordering\n[PASS] Vulkan command buffer validates explicit clears descriptor sets and aligned index binding\n[PASS] Vulkan command buffer rejects incompatible explicit render-pass clear values\n[PASS] Vulkan transfer recording fixture creates resources\n[PASS] Vulkan transfer command records copy and declarative layout intent\n[PASS] Vulkan transfer command rejects incompatible compute and invalid copy ranges\n[PASS] Vulkan upload scheduling records pending uploads without claiming execution\n[PASS] Vulkan upload scheduling rejects already scheduled uploads\n[PASS] Vulkan shutdown invalidates render pass framebuffer and upload scheduling records\n[PASS] Vulkan descriptor fixture device initializes\n[PASS] Vulkan sampler creation succeeds and preserves lifecycle\n[PASS] Vulkan unsupported sampler modes are rejected\n[PASS] Vulkan descriptor set allocates from fixed-capacity pool\n[PASS] Vulkan descriptor pool exhaustion is explicit\n[PASS] Vulkan descriptor updates retain buffer texture sampler and combined records\n[PASS] Vulkan descriptor update rejects wrong type and missing binding\n[PASS] Vulkan descriptor retained binding reports invalidated resources\n[PASS] Vulkan buffer upload staging preserves CPU-visible data without execution\n[PASS] Vulkan buffer upload staging rejects missing data and out-of-bounds ranges\n[PASS] Vulkan texture upload staging preserves destination region\n[PASS] Vulkan texture upload staging rejects invalid regions\n[PASS] Vulkan shutdown invalidates descriptors uploads and sampler creation\n[PASS] Vulkan native integration reports unavailable runtime explicitly\n[PASS] Triangle demo headless defaults match endurance profile\n[PASS] Triangle demo rejects zero bounded frame budget\n[PASS] Triangle demo rejects unknown options\n[PASS] Triangle demo requires ten post-warmup memory samples\n[PASS] Triangle demo parses every canonical CLI option\n[PASS] Triangle demo rejects malformed numeric values\n[PASS] Triangle demo deterministic lifecycle completes exact frame budget and shutdown\n[PASS] Triangle demo diagnostics are stable and omit native addresses\n[PASS] Triangle demo interactive configuration parses\n[PASS] Triangle demo native-required mode never reports deterministic visible success\n[PASS] Triangle demo initializes window runtime shaders upload pipeline and two frame slots in contract order\n[PASS] Triangle demo normal shutdown remains idempotent after initialized state\n[PASS] Triangle demo rejects SPIR-V payloads with swapped vertex and fragment stages\n[PASS] Triangle demo recovery fixture initializes\n[PASS] Triangle demo recovers twenty presentation generations at exact 2000ms boundary\n[PASS] Triangle demo rejects presentation recovery beyond 2000ms boundary\n[PASS] Triangle demo injected failures preserve first-stage exit ownership\n[PASS] Triangle demo validation monitor accepts exact absolute growth boundary\n[PASS] Triangle demo validation monitor rejects growth above configured boundary\n[PASS] Triangle demo visible timing gates accept exact first-present and recovery boundaries\n[PASS] Triangle demo visible timing gates accept more than twenty valid recoveries\n[PASS] Triangle demo visible timing gates reject a slow additional recovery\n[PASS] Triangle demo visible timing gates reject first present above 5000ms\n[PASS] Triangle demo normalized failure diagnostics are byte-stable across twenty runs\n[PASS] Triangle demo validation reports are byte-stable across twenty synthetic runs\n[PASS] Triangle demo maps an unwritable validation output path to exit code seven\n"
+          "stdout_tail": "imal render pass rejects invalid description\n[PASS] Vulkan minimal render pass rejects undefined attachment state\n[PASS] Vulkan framebuffer rejects incompatible attachment dimensions\n[PASS] Vulkan framebuffer accepts valid nonzero mip and array-layer extent\n[PASS] Vulkan framebuffer rejects array layer at the layer count\n[PASS] Vulkan framebuffer rejects mip level at the mip count\n[PASS] Vulkan graphics render pass scope records draw placeholders and rejects invalid ordering\n[PASS] Vulkan command buffer validates explicit clears descriptor sets and aligned index binding\n[PASS] Vulkan command buffer rejects incompatible explicit render-pass clear values\n[PASS] Vulkan transfer recording fixture creates resources\n[PASS] Vulkan transfer command records copy and declarative layout intent\n[PASS] Vulkan transfer command rejects incompatible compute and invalid copy ranges\n[PASS] Vulkan upload scheduling records pending uploads without claiming execution\n[PASS] Vulkan upload scheduling rejects already scheduled uploads\n[PASS] Vulkan shutdown invalidates render pass framebuffer and upload scheduling records\n[PASS] Vulkan descriptor fixture device initializes\n[PASS] Vulkan sampler creation succeeds and preserves lifecycle\n[PASS] Vulkan unsupported sampler modes are rejected\n[PASS] Vulkan descriptor set allocates from fixed-capacity pool\n[PASS] Vulkan descriptor pool exhaustion is explicit\n[PASS] Vulkan descriptor updates retain buffer texture sampler and combined records\n[PASS] Vulkan descriptor update rejects wrong type and missing binding\n[PASS] Vulkan descriptor retained binding reports invalidated resources\n[PASS] Vulkan buffer upload staging preserves CPU-visible data without execution\n[PASS] Vulkan buffer upload staging rejects missing data and out-of-bounds ranges\n[PASS] Vulkan texture upload staging preserves destination region\n[PASS] Vulkan texture upload staging rejects invalid regions\n[PASS] Vulkan shutdown invalidates descriptors uploads and sampler creation\n[PASS] Vulkan native integration reports unavailable runtime explicitly\n[PASS] Triangle demo headless defaults match endurance profile\n[PASS] Triangle demo rejects zero bounded frame budget\n[PASS] Triangle demo rejects unknown options\n[PASS] Triangle demo requires ten post-warmup memory samples\n[PASS] Triangle demo parses every canonical CLI option\n[PASS] Triangle demo rejects malformed numeric values\n[PASS] Triangle demo deterministic lifecycle completes exact frame budget and shutdown\n[PASS] Triangle demo diagnostics are stable and omit native addresses\n[PASS] Triangle demo interactive configuration parses\n[PASS] Triangle demo native-required mode never reports deterministic visible success\n[PASS] Triangle demo initializes window runtime shaders upload pipeline and two frame slots in contract order\n[PASS] Triangle demo normal shutdown remains idempotent after initialized state\n[PASS] Triangle demo rejects SPIR-V payloads with swapped vertex and fragment stages\n[PASS] Triangle demo recovery fixture initializes\n[PASS] Triangle demo recovers twenty presentation generations at exact 2000ms boundary\n[PASS] Triangle demo rejects presentation recovery beyond 2000ms boundary\n[PASS] Triangle demo injected failures preserve first-stage exit ownership\n[PASS] Triangle demo validation monitor accepts exact absolute growth boundary\n[PASS] Triangle demo validation monitor rejects growth above configured boundary\n[PASS] Triangle demo visible timing gates accept exact first-present and recovery boundaries\n[PASS] Triangle demo visible timing gates accept more than twenty valid recoveries\n[PASS] Triangle demo visible timing gates reject a slow additional recovery\n[PASS] Triangle demo visible timing gates reject first present above 5000ms\n[PASS] Triangle demo normalized failure diagnostics are byte-stable across twenty runs\n[PASS] Triangle demo validation reports are byte-stable across twenty synthetic runs\n[PASS] Triangle demo maps an unwritable validation output path to exit code seven\n"
         }
       ],
       "passed": true,
       "profile": "fallback-strict",
-      "recorded_at": "2026-07-26T10:27:35+00:00"
+      "recorded_at": "2026-07-26T11:02:03+00:00"
     },
     "release": {
       "commands": [
@@ -3160,12 +3207,12 @@
           ],
           "returncode": 0,
           "stderr_tail": "",
-          "stdout_tail": "ramebuffer creation succeeds\n[PASS] Vulkan minimal render pass rejects invalid description\n[PASS] Vulkan framebuffer rejects incompatible attachment dimensions\n[PASS] Vulkan graphics render pass scope records draw placeholders and rejects invalid ordering\n[PASS] Vulkan command buffer validates explicit clears descriptor sets and aligned index binding\n[PASS] Vulkan command buffer rejects incompatible explicit render-pass clear values\n[PASS] Vulkan transfer recording fixture creates resources\n[PASS] Vulkan transfer command records copy and declarative layout intent\n[PASS] Vulkan transfer command rejects incompatible compute and invalid copy ranges\n[PASS] Vulkan upload scheduling records pending uploads without claiming execution\n[PASS] Vulkan upload scheduling rejects already scheduled uploads\n[PASS] Vulkan shutdown invalidates render pass framebuffer and upload scheduling records\n[PASS] Vulkan descriptor fixture device initializes\n[PASS] Vulkan sampler creation succeeds and preserves lifecycle\n[PASS] Vulkan unsupported sampler modes are rejected\n[PASS] Vulkan descriptor set allocates from fixed-capacity pool\n[PASS] Vulkan descriptor pool exhaustion is explicit\n[PASS] Vulkan descriptor updates retain buffer texture sampler and combined records\n[PASS] Vulkan descriptor update rejects wrong type and missing binding\n[PASS] Vulkan descriptor retained binding reports invalidated resources\n[PASS] Vulkan buffer upload staging preserves CPU-visible data without execution\n[PASS] Vulkan buffer upload staging rejects missing data and out-of-bounds ranges\n[PASS] Vulkan texture upload staging preserves destination region\n[PASS] Vulkan texture upload staging rejects invalid regions\n[PASS] Vulkan shutdown invalidates descriptors uploads and sampler creation\n[PASS] Vulkan native integration creates real instance and device\n[PASS] Vulkan native integration uploads vertices and submits offscreen triangle\n[PASS] Vulkan native integration releases frame-local resources after completion\n[PASS] Vulkan native integration shutdown reaches zero live objects\n[PASS] Triangle demo headless defaults match endurance profile\n[PASS] Triangle demo rejects zero bounded frame budget\n[PASS] Triangle demo rejects unknown options\n[PASS] Triangle demo requires ten post-warmup memory samples\n[PASS] Triangle demo parses every canonical CLI option\n[PASS] Triangle demo rejects malformed numeric values\n[PASS] Triangle demo deterministic lifecycle completes exact frame budget and shutdown\n[PASS] Triangle demo diagnostics are stable and omit native addresses\n[PASS] Triangle demo interactive configuration parses\n[PASS] Triangle demo native-required mode never reports deterministic visible success\n[PASS] Triangle demo initializes window runtime shaders upload pipeline and two frame slots in contract order\n[PASS] Triangle demo normal shutdown remains idempotent after initialized state\n[PASS] Triangle demo rejects SPIR-V payloads with swapped vertex and fragment stages\n[PASS] Triangle demo recovery fixture initializes\n[PASS] Triangle demo recovers twenty presentation generations at exact 2000ms boundary\n[PASS] Triangle demo rejects presentation recovery beyond 2000ms boundary\n[PASS] Triangle demo injected failures preserve first-stage exit ownership\n[PASS] Triangle demo validation monitor accepts exact absolute growth boundary\n[PASS] Triangle demo validation monitor rejects growth above configured boundary\n[PASS] Triangle demo visible timing gates accept exact first-present and recovery boundaries\n[PASS] Triangle demo visible timing gates accept more than twenty valid recoveries\n[PASS] Triangle demo visible timing gates reject a slow additional recovery\n[PASS] Triangle demo visible timing gates reject first present above 5000ms\n[PASS] Triangle demo normalized failure diagnostics are byte-stable across twenty runs\n[PASS] Triangle demo validation reports are byte-stable across twenty synthetic runs\n[PASS] Triangle demo maps an unwritable validation output path to exit code seven\n"
+          "stdout_tail": "onzero mip and array-layer extent\n[PASS] Vulkan framebuffer rejects array layer at the layer count\n[PASS] Vulkan framebuffer rejects mip level at the mip count\n[PASS] Vulkan graphics render pass scope records draw placeholders and rejects invalid ordering\n[PASS] Vulkan command buffer validates explicit clears descriptor sets and aligned index binding\n[PASS] Vulkan command buffer rejects incompatible explicit render-pass clear values\n[PASS] Vulkan transfer recording fixture creates resources\n[PASS] Vulkan transfer command records copy and declarative layout intent\n[PASS] Vulkan transfer command rejects incompatible compute and invalid copy ranges\n[PASS] Vulkan upload scheduling records pending uploads without claiming execution\n[PASS] Vulkan upload scheduling rejects already scheduled uploads\n[PASS] Vulkan shutdown invalidates render pass framebuffer and upload scheduling records\n[PASS] Vulkan descriptor fixture device initializes\n[PASS] Vulkan sampler creation succeeds and preserves lifecycle\n[PASS] Vulkan unsupported sampler modes are rejected\n[PASS] Vulkan descriptor set allocates from fixed-capacity pool\n[PASS] Vulkan descriptor pool exhaustion is explicit\n[PASS] Vulkan descriptor updates retain buffer texture sampler and combined records\n[PASS] Vulkan descriptor update rejects wrong type and missing binding\n[PASS] Vulkan descriptor retained binding reports invalidated resources\n[PASS] Vulkan buffer upload staging preserves CPU-visible data without execution\n[PASS] Vulkan buffer upload staging rejects missing data and out-of-bounds ranges\n[PASS] Vulkan texture upload staging preserves destination region\n[PASS] Vulkan texture upload staging rejects invalid regions\n[PASS] Vulkan shutdown invalidates descriptors uploads and sampler creation\n[PASS] Vulkan native integration creates real instance and device\n[PASS] Vulkan native integration uploads vertices and submits offscreen triangle\n[PASS] Vulkan native integration releases frame-local resources after completion\n[PASS] Vulkan native integration shutdown reaches zero live objects\n[PASS] Triangle demo headless defaults match endurance profile\n[PASS] Triangle demo rejects zero bounded frame budget\n[PASS] Triangle demo rejects unknown options\n[PASS] Triangle demo requires ten post-warmup memory samples\n[PASS] Triangle demo parses every canonical CLI option\n[PASS] Triangle demo rejects malformed numeric values\n[PASS] Triangle demo deterministic lifecycle completes exact frame budget and shutdown\n[PASS] Triangle demo diagnostics are stable and omit native addresses\n[PASS] Triangle demo interactive configuration parses\n[PASS] Triangle demo native-required mode never reports deterministic visible success\n[PASS] Triangle demo initializes window runtime shaders upload pipeline and two frame slots in contract order\n[PASS] Triangle demo normal shutdown remains idempotent after initialized state\n[PASS] Triangle demo rejects SPIR-V payloads with swapped vertex and fragment stages\n[PASS] Triangle demo recovery fixture initializes\n[PASS] Triangle demo recovers twenty presentation generations at exact 2000ms boundary\n[PASS] Triangle demo rejects presentation recovery beyond 2000ms boundary\n[PASS] Triangle demo injected failures preserve first-stage exit ownership\n[PASS] Triangle demo validation monitor accepts exact absolute growth boundary\n[PASS] Triangle demo validation monitor rejects growth above configured boundary\n[PASS] Triangle demo visible timing gates accept exact first-present and recovery boundaries\n[PASS] Triangle demo visible timing gates accept more than twenty valid recoveries\n[PASS] Triangle demo visible timing gates reject a slow additional recovery\n[PASS] Triangle demo visible timing gates reject first present above 5000ms\n[PASS] Triangle demo normalized failure diagnostics are byte-stable across twenty runs\n[PASS] Triangle demo validation reports are byte-stable across twenty synthetic runs\n[PASS] Triangle demo maps an unwritable validation output path to exit code seven\n"
         }
       ],
       "passed": true,
       "profile": "sanitizers",
-      "recorded_at": "2026-07-26T10:20:31+00:00"
+      "recorded_at": "2026-07-26T11:04:26+00:00"
     },
     "strict-debug": {
       "commands": [
@@ -3182,7 +3229,7 @@
       ],
       "passed": true,
       "profile": "strict-debug",
-      "recorded_at": "2026-07-26T10:19:05+00:00"
+      "recorded_at": "2026-07-26T11:02:38+00:00"
     },
     "strict-release": {
       "commands": [
@@ -3199,7 +3246,7 @@
       ],
       "passed": true,
       "profile": "strict-release",
-      "recorded_at": "2026-07-26T10:19:28+00:00"
+      "recorded_at": "2026-07-26T11:03:11+00:00"
     },
     "tests": {
       "commands": [
@@ -3229,7 +3276,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "b0662fb910363679689a6c7bec8ec4629b90e756"
+    "last_recorded_head": "09d1a1b6d68393d05b7f75b0d3c3864463dc6757"
   },
   "policy": {
     "fix_severities": [
@@ -3249,5 +3296,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T10:38:39+00:00"
+  "updated_at": "2026-07-26T11:09:37+00:00"
 }
