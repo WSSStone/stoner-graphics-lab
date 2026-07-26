@@ -31,9 +31,33 @@ public:
     {
     }
 
-    [[nodiscard]] static FName FromTextAndHashForTesting(FString Text, uint64 Hash)
+    FName(const FName&) = default;
+    FName& operator=(const FName&) = default;
+
+    FName(FName&& Other) noexcept
+        : Text_(std::move(Other.Text_))
+        , Hash_(HashString(Text_.View()))
     {
-        return FName(std::move(Text), Hash);
+        Other.Hash_ = HashString(Other.Text_.View());
+    }
+
+    FName& operator=(FName&& Other) noexcept
+    {
+        if (this != &Other)
+        {
+            Text_ = std::move(Other.Text_);
+            Hash_ = HashString(Text_.View());
+            Other.Hash_ = HashString(Other.Text_.View());
+        }
+        return *this;
+    }
+
+    [[nodiscard]] static bool CompareWithForcedCommonHashForTesting(
+        const FString& LeftText,
+        const FString& RightText,
+        uint64 CommonHash) noexcept
+    {
+        return AreEqual(LeftText, CommonHash, RightText, CommonHash);
     }
 
     [[nodiscard]] const FString& ToString() const noexcept
@@ -58,7 +82,7 @@ public:
 
     friend bool operator==(const FName& Left, const FName& Right) noexcept
     {
-        return Left.Hash_ == Right.Hash_ && Left.Text_ == Right.Text_;
+        return AreEqual(Left.Text_, Left.Hash_, Right.Text_, Right.Hash_);
     }
 
     friend bool operator!=(const FName& Left, const FName& Right) noexcept
@@ -67,10 +91,13 @@ public:
     }
 
 private:
-    FName(FString Text, uint64 Hash)
-        : Text_(std::move(Text))
-        , Hash_(Hash)
+    [[nodiscard]] static bool AreEqual(
+        const FString& LeftText,
+        uint64 LeftHash,
+        const FString& RightText,
+        uint64 RightHash) noexcept
     {
+        return LeftHash == RightHash && LeftText == RightText;
     }
 
     [[nodiscard]] static uint64 HashString(std::string_view Text) noexcept
