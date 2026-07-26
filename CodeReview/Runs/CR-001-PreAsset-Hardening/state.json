@@ -1,5 +1,5 @@
 {
-  "active_step": "B02-S10",
+  "active_step": "B02-S11",
   "batches": [
     {
       "id": "B00",
@@ -229,12 +229,15 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-26T06:18:04+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B02-spatial-math-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b02-spatial-math-probe.md"
+          ],
           "id": "B02-S10",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Accepted F007 (S2 quaternion), F008 (S1 spatial transform), and F009 (S2 geometry); all reproduce identically in Debug and optimized Release. No production code changed.",
+          "started_at": "2026-07-26T06:09:15+00:00",
+          "status": "Completed",
           "title": "Inspect: matrix, quaternion, transform, and geometry math"
         },
         {
@@ -1968,6 +1971,46 @@
       "at": "2026-07-26T06:07:30+00:00",
       "detail": "B02-S09",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-26T06:09:15+00:00",
+      "detail": "B02-S10",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-26T06:15:50+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T06:16:07+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T06:16:19+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T06:16:29+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T06:16:41+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T06:16:50+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T06:18:04+00:00",
+      "detail": "B02-S10",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -2121,7 +2164,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "3b87102d8eaf84648a2985cf9b1ded2626e49827"
+    "last_recorded_head": "fdf4f22cd2bc92c373b0b67480c397476e50c779"
   },
   "policy": {
     "fix_severities": [
@@ -2141,5 +2184,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T06:07:30+00:00"
+  "updated_at": "2026-07-26T06:18:04+00:00"
 }
