@@ -36,6 +36,12 @@ class FVulkanSwapchain;
 class FVulkanDevice final : public Stoner::RHI::IRHIDevice
 {
 public:
+    FVulkanDevice() = default;
+    FVulkanDevice(const FVulkanDevice&) = delete;
+    FVulkanDevice& operator=(const FVulkanDevice&) = delete;
+    FVulkanDevice(FVulkanDevice&&) = delete;
+    FVulkanDevice& operator=(FVulkanDevice&&) = delete;
+
     [[nodiscard]] Stoner::RHI::ERHIDeviceState GetState() const noexcept override;
     [[nodiscard]] const Stoner::RHI::FRHIDeviceCapabilities& GetCapabilities() const noexcept override;
     [[nodiscard]] bool IsActive() const noexcept override;
@@ -71,6 +77,11 @@ public:
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIComputePipeline> CreateComputePipeline(const Stoner::RHI::FRHIComputePipelineDesc& Desc) override;
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIRenderPass> CreateRenderPass(const Stoner::RHI::FRHIRenderPassDesc& Desc) override;
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIFramebuffer> CreateFramebuffer(const Stoner::RHI::FRHIFramebufferDesc& Desc) override;
+    Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIPresentationSurface> CreatePresentationSurface(
+        const Stoner::RHI::FRHIPresentationSurfaceDesc& Desc) override;
+    Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> CreateSwapchain(
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPresentationSurface>& Surface,
+        const Stoner::RHI::FRHISwapchainDesc& Desc) override;
     Stoner::RHI::TRHIObjectResult<FVulkanUploadRequest> StageBufferUpload(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Buffer, const void* Data, Stoner::Core::uint64 SizeBytes, FVulkanBufferUploadRange Range);
     Stoner::RHI::TRHIObjectResult<FVulkanUploadRequest> StageTextureUpload(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Texture, const void* Data, Stoner::Core::uint64 SizeBytes, FVulkanTextureUploadRegion Region);
 
@@ -91,6 +102,9 @@ private:
     [[nodiscard]] bool SupportsSamplerDesc(const Stoner::RHI::FRHISamplerDesc& Desc) noexcept;
     [[nodiscard]] bool CanCreatePipeline() noexcept;
     void EnsureDescriptorPool() noexcept;
+    Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> CreateSurfaceBackedSwapchain(
+        const Stoner::Core::TSharedPtr<FVulkanSurface>& Surface,
+        const Stoner::RHI::FRHISwapchainDesc& Desc);
 
     Stoner::RHI::ERHIDeviceState State = Stoner::RHI::ERHIDeviceState::Uninitialized;
     Stoner::RHI::FRHIDeviceCapabilities Capabilities;
@@ -102,7 +116,10 @@ private:
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandBuffer>> CommandBuffers;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanFence>> Fences;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSemaphore>> Semaphores;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSurface>> Surfaces;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSwapchain>> Swapchains;
+    std::shared_ptr<FVulkanPresentationOwnerState> PresentationOwner =
+        std::make_shared<FVulkanPresentationOwnerState>();
     std::shared_ptr<FVulkanMemoryAllocator> Allocator = std::make_shared<FVulkanMemoryAllocator>();
     Stoner::Core::uint32 DescriptorPoolCapacity = 16;
     std::shared_ptr<FVulkanDescriptorPool> DescriptorPool;

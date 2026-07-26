@@ -212,19 +212,57 @@ void TestQueues(FVulkanBackendTestResult& Result)
 void TestSurfaceSwapchain(FVulkanBackendTestResult& Result)
 {
     FVulkanDevice Device;
-    Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan swapchain fixture device initializes");
+    FVulkanDevice ForeignDevice;
+    Record(Result,
+        InitializeDeterministic(Device) == ERHIResult::Success &&
+            InitializeDeterministic(ForeignDevice) == ERHIResult::Success,
+        "Vulkan swapchain fixtures initialize");
 
     FVulkanSurface Surface;
     FPlatformWindow InvalidWindow;
     Record(Result, Device.CreateSurface(InvalidWindow, Surface) == ERHIResult::InvalidState &&
-        Device.GetDiagnostics().PresentationSkipReason[0] != '\0', "Vulkan invalid platform window rejection and presentation skip");
+        !Surface.IsValid() && Device.GetDiagnostics().PresentationSkipReason[0] != '\0',
+        "Vulkan invalid platform window rejection clears surface output");
 
     int NativeToken = 7;
     FPlatformWindow Window(&NativeToken);
-    Record(Result, Device.CreateSurface(Window, Surface) == ERHIResult::Success && Surface.IsValid(), "Vulkan surface creation with Core platform window wrapper");
+    Record(Result,
+        Device.CreateSurface(Window, Surface) == ERHIResult::Success &&
+            Surface.IsValid(),
+        "Vulkan surface creation with Core platform window wrapper");
+
+    FVulkanSurface PreservedOutput = Surface;
+    FVulkanDevice InactiveDevice;
+    Record(Result,
+        InactiveDevice.CreateSurface(InvalidWindow, PreservedOutput) ==
+                ERHIResult::InvalidState &&
+            !PreservedOutput.IsValid(),
+        "Vulkan inactive surface creation clears a prior usable output");
 
     const auto SwapchainResult = Device.CreateSwapchainForSurface(Surface, 2);
-    Record(Result, SwapchainResult.Succeeded(), "Vulkan swapchain creation success");
+    Record(Result,
+        SwapchainResult.Succeeded() && SwapchainResult.Object->GetImage(0) &&
+            SwapchainResult.Object->GetImage(1) &&
+            !SwapchainResult.Object->GetImage(2),
+        "Vulkan legacy surface adapter creates surface-backed images");
+    Record(Result,
+        ForeignDevice.CreateSwapchainForSurface(Surface, 2).Result ==
+            ERHIResult::InvalidState,
+        "Vulkan legacy surface adapter rejects foreign device provenance");
+    Record(Result,
+        Device.CreateSwapchainForSurface(Surface, 0).Result ==
+                ERHIResult::InvalidState &&
+            Device.CreateSwapchain(0).Result == ERHIResult::InvalidState,
+        "Vulkan zero-frame swapchain requests are invalid input");
+
+    FVulkanSwapchain InvalidConcreteSwapchain(0);
+    uint32 InvalidFrameIndex = 99;
+    Record(Result,
+        InvalidConcreteSwapchain.GetState() == ERHISwapchainState::Unavailable &&
+            InvalidConcreteSwapchain.AcquireNextFrame(InvalidFrameIndex) ==
+                ERHIResult::InvalidState &&
+            InvalidFrameIndex == 99,
+        "Vulkan concrete swapchain rejects a zero-frame constructor");
 
     uint32 FrameIndex = 99;
     Record(Result, SwapchainResult.Object && SwapchainResult.Object->AcquireNextFrame(FrameIndex) == ERHIResult::Success &&
@@ -236,11 +274,16 @@ void TestSurfaceSwapchain(FVulkanBackendTestResult& Result)
 
     auto ConcreteSwapchain = std::dynamic_pointer_cast<FVulkanSwapchain>(SwapchainResult.Object);
     const Stoner::Core::uint64 FirstGeneration = ConcreteSwapchain->GetGeneration();
+    const auto FirstImage = SwapchainResult.Object->GetImage(0);
     ConcreteSwapchain->SimulateResizeRequired();
     Record(Result, SwapchainResult.Object->AcquireNextFrame(FrameIndex) == ERHIResult::ResizeRequired &&
         ConcreteSwapchain->Recreate(3) == ERHIResult::Success &&
-        SwapchainResult.Object->GetFrameCount() == 3 && ConcreteSwapchain->GetGeneration() == FirstGeneration + 1,
-        "Vulkan swapchain normalizes stale presentation and advances recreation generation");
+        SwapchainResult.Object->GetFrameCount() == 3 &&
+        ConcreteSwapchain->GetGeneration() == FirstGeneration + 1 &&
+        FirstImage->GetLifecycleState() ==
+            ERHIResourceLifecycleState::Invalidated &&
+        SwapchainResult.Object->GetImage(2),
+        "Vulkan recreation replaces imported images and advances generation");
     Record(Result, SwapchainResult.Object->AcquireNextFrame(FrameIndex) == ERHIResult::Success && FrameIndex == 0 &&
         ConcreteSwapchain->Recreate(2) == ERHIResult::Success &&
         SwapchainResult.Object->Present(FrameIndex) == ERHIResult::InvalidState,
@@ -259,9 +302,145 @@ void TestSurfaceSwapchain(FVulkanBackendTestResult& Result)
     ConcreteSwapchain->SetUnavailable();
     Record(Result, SwapchainResult.Object->Present(0) == ERHIResult::Unavailable, "Vulkan swapchain unavailable state");
 
+    IRHIDevice& BaseDevice = Device;
+    FRHIPresentationSurfaceDesc SurfaceDesc;
+    SurfaceDesc.Window = Window;
+    SurfaceDesc.DebugName = "BackendNeutralSurface";
+    const auto NeutralSurfaceResult =
+        BaseDevice.CreatePresentationSurface(SurfaceDesc);
+    Record(Result,
+        NeutralSurfaceResult.Succeeded() &&
+            NeutralSurfaceResult.Object->IsValid() &&
+            NeutralSurfaceResult.Object->GetDesc().DebugName.View() ==
+                "BackendNeutralSurface",
+        "Vulkan backend-neutral presentation surface creation succeeds");
+    Record(Result,
+        BaseDevice.CreatePresentationSurface({}).Result ==
+            ERHIResult::InvalidState,
+        "Vulkan backend-neutral surface rejects an invalid description");
+
+    FRHISwapchainDesc NeutralDesc;
+    NeutralDesc.Width = 64;
+    NeutralDesc.Height = 32;
+    NeutralDesc.FramesInFlight = 2;
+    NeutralDesc.PreferredFormat = ERHIFormat::B8G8R8A8_UNorm;
+    const auto NeutralSwapchainResult =
+        BaseDevice.CreateSwapchain(NeutralSurfaceResult.Object, NeutralDesc);
+    const auto NeutralImage = NeutralSwapchainResult.Object
+        ? NeutralSwapchainResult.Object->GetImage(0)
+        : nullptr;
+    Record(Result,
+        NeutralSwapchainResult.Succeeded() && NeutralImage &&
+            NeutralImage->GetDesc().Width == NeutralDesc.Width &&
+            NeutralImage->GetDesc().Height == NeutralDesc.Height &&
+            NeutralImage->GetFormat() == NeutralDesc.PreferredFormat &&
+            HasRHIFlag(NeutralImage->GetUsage(), ERHITextureUsage::Present),
+        "Vulkan backend-neutral swapchain exposes imported presentation images");
+
+    FRHISwapchainDesc InvalidNeutralDesc = NeutralDesc;
+    InvalidNeutralDesc.FramesInFlight = 0;
+    FRHISwapchainDesc UnsupportedNeutralDesc = NeutralDesc;
+    UnsupportedNeutralDesc.FramesInFlight =
+        Device.GetCapabilities().MaxInFlightFrames + 1;
+    FRHISwapchainDesc DepthNeutralDesc = NeutralDesc;
+    DepthNeutralDesc.PreferredFormat = ERHIFormat::D32_Float;
+    Record(Result,
+        BaseDevice.CreateSwapchain(
+            NeutralSurfaceResult.Object, InvalidNeutralDesc).Result ==
+                ERHIResult::InvalidState &&
+            BaseDevice.CreateSwapchain(
+                NeutralSurfaceResult.Object, UnsupportedNeutralDesc).Result ==
+                ERHIResult::Unsupported &&
+            BaseDevice.CreateSwapchain(
+                NeutralSurfaceResult.Object, DepthNeutralDesc).Result ==
+                ERHIResult::InvalidState,
+        "Vulkan swapchain distinguishes invalid descriptions from unsupported capability");
+    Record(Result,
+        ForeignDevice.CreateSwapchain(
+            NeutralSurfaceResult.Object, NeutralDesc).Result ==
+            ERHIResult::InvalidState,
+        "Vulkan backend-neutral swapchain rejects a foreign surface");
+
+    const auto AcquireSignal = Device.CreateSemaphore();
+    uint32 NeutralFrameIndex = 99;
+    Record(Result,
+        AcquireSignal.Succeeded() &&
+            NeutralSwapchainResult.Object->AcquireNextFrame(
+                NeutralFrameIndex, AcquireSignal.Object) ==
+                ERHIResult::Success &&
+            NeutralFrameIndex == 0 && AcquireSignal.Object->IsSignaled(),
+        "Vulkan synchronized acquire commits image and signal together");
+    Record(Result,
+        NeutralSwapchainResult.Object->Present(
+            NeutralFrameIndex + 1, AcquireSignal.Object) ==
+                ERHIResult::InvalidState &&
+            AcquireSignal.Object->IsSignaled() &&
+            NeutralSwapchainResult.Object->GetState() ==
+                ERHISwapchainState::Acquired,
+        "Vulkan failed synchronized present preserves frame and signal");
+    Record(Result,
+        NeutralSwapchainResult.Object->Present(
+            NeutralFrameIndex, AcquireSignal.Object) ==
+                ERHIResult::Success &&
+            AcquireSignal.Object->GetState() ==
+                ERHISemaphoreState::Consumed &&
+            NeutralSwapchainResult.Object->GetState() ==
+                ERHISwapchainState::Ready,
+        "Vulkan synchronized present consumes signal and advances atomically");
+
+    const auto AlreadySignaled = Device.CreateSemaphore();
+    uint32 PreservedFrameIndex = 99;
+    Record(Result,
+        AlreadySignaled.Succeeded() &&
+            AlreadySignaled.Object->Signal() == ERHIResult::Success &&
+            NeutralSwapchainResult.Object->AcquireNextFrame(
+                PreservedFrameIndex, AlreadySignaled.Object) ==
+                ERHIResult::InvalidState &&
+            PreservedFrameIndex == 99 &&
+            NeutralSwapchainResult.Object->GetState() ==
+                ERHISwapchainState::Ready &&
+            AlreadySignaled.Object->IsSignaled(),
+        "Vulkan failed synchronized acquire preserves all states");
+
+    auto NeutralSurface =
+        std::dynamic_pointer_cast<FVulkanSurface>(
+            NeutralSurfaceResult.Object);
+    auto NeutralSwapchain =
+        std::dynamic_pointer_cast<FVulkanSwapchain>(
+            NeutralSwapchainResult.Object);
+    Record(Result,
+        NeutralSurface && NeutralSwapchain &&
+            NeutralSurface->Invalidate() == ERHIResult::Success &&
+            NeutralSwapchain->GetState() ==
+                ERHISwapchainState::Unavailable &&
+            NeutralSwapchain->AcquireNextFrame(PreservedFrameIndex) ==
+                ERHIResult::Unavailable &&
+            NeutralSwapchain->Recreate(2) == ERHIResult::Unavailable &&
+            !NeutralSwapchain->GetImage(0),
+        "Vulkan surface loss blocks acquire image access and recreation");
+
+    const auto ShutdownSurface =
+        BaseDevice.CreatePresentationSurface(SurfaceDesc);
+    const auto ShutdownSwapchain =
+        BaseDevice.CreateSwapchain(ShutdownSurface.Object, NeutralDesc);
+    const auto ShutdownImage = ShutdownSwapchain.Object
+        ? ShutdownSwapchain.Object->GetImage(0)
+        : nullptr;
     (void)Device.Shutdown();
-    Record(Result, Device.CreateSwapchain(2).Result == ERHIResult::InvalidState &&
-        SwapchainResult.Object->AcquireNextFrame(FrameIndex) == ERHIResult::InvalidState, "Vulkan post-shutdown swapchain invalidation");
+    Record(Result,
+        Device.CreateSwapchain(2).Result == ERHIResult::InvalidState &&
+            SwapchainResult.Object->AcquireNextFrame(FrameIndex) ==
+                ERHIResult::InvalidState &&
+            ShutdownSurface.Succeeded() &&
+            !ShutdownSurface.Object->IsValid() &&
+            ShutdownSwapchain.Succeeded() &&
+            ShutdownSwapchain.Object->AcquireNextFrame(FrameIndex) ==
+                ERHIResult::InvalidState &&
+            ShutdownImage &&
+            ShutdownImage->GetLifecycleState() ==
+                ERHIResourceLifecycleState::Invalidated,
+        "Vulkan shutdown invalidates surfaces swapchains and imported images");
+    (void)ForeignDevice.Shutdown();
 }
 
 void TestSynchronization(FVulkanBackendTestResult& Result)

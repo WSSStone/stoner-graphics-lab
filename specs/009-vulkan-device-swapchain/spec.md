@@ -20,6 +20,9 @@
 - Runtime truthfulness: `FVulkanDevice` defaults to a real-runtime request. Until it owns native Vulkan instance/device resources, that request MUST return explicit unsupported status; deterministic fallback is test-only, requires explicit opt-in, and MUST be distinguishable in diagnostics and backend availability.
 - Adapter identity: candidate names, rejection reasons, and the selected identity MUST be owned values. Empty or null source identities MUST be rejected before deterministic ordering.
 - Format truthfulness: every adapter candidate MUST carry a concrete supported-format set. Device capability queries and resource factories MUST consume the selected candidate's same set rather than a backend-wide default.
+- Presentation abstraction: after Feature 018 introduced the current backend-neutral presentation contracts, `FVulkanDevice` MUST implement `IRHIPresentationSurface`, descriptor-based swapchain creation, imported swapchain image access, and semaphore-aware acquire/present behavior. Backend-specific surface helpers may remain only as compatibility adapters.
+- Presentation provenance: every surface MUST retain shared device-owned lifecycle and provenance. Stale, invalid, or foreign-device surfaces MUST be rejected, device shutdown MUST invalidate its surfaces and dependent swapchains, and surface loss MUST prevent image access, acquire/present, or successful recreation.
+- Failure atomicity: failed surface creation MUST clear the output. Malformed descriptors and zero frame counts return invalid-state; valid requests exceeding a supported capability return unsupported. Deterministic imported images MUST remain explicit fallback objects and MUST NOT count as native presentation proof.
 
 ## User Scenarios & Testing *(mandatory)*
 

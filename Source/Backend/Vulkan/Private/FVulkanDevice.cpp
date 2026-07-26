@@ -103,6 +103,20 @@ namespace
         IsShaderLayoutCompatible(Desc.ShaderModules[0], Desc.PipelineLayout);
 }
 
+[[nodiscard]] Stoner::RHI::ERHIFormat SelectPresentationFormat(
+    const Stoner::RHI::FRHIDeviceCapabilities& Capabilities) noexcept
+{
+    if (Capabilities.SupportsFormat(Stoner::RHI::ERHIFormat::B8G8R8A8_UNorm))
+    {
+        return Stoner::RHI::ERHIFormat::B8G8R8A8_UNorm;
+    }
+    if (Capabilities.SupportsFormat(Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm))
+    {
+        return Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm;
+    }
+    return Stoner::RHI::ERHIFormat::Unknown;
+}
+
 } // namespace
 
 Stoner::RHI::ERHIDeviceState FVulkanDevice::GetState() const noexcept
@@ -188,6 +202,8 @@ Stoner::RHI::ERHIResult FVulkanDevice::Initialize(const FVulkanInstanceDesc& Des
     ComputePipelines.clear();
     PipelineCache.Invalidate();
     SuccessfulPipelineCreations = 0;
+    PresentationOwner = std::make_shared<FVulkanPresentationOwnerState>();
+    PresentationOwner->bActive = true;
     State = Stoner::RHI::ERHIDeviceState::Active;
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -353,12 +369,18 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> FVulkanDevice::CreateS
     {
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
-    if (!Capabilities.bSupportsPresentation || !Capabilities.bSupportsPresentQueue || FrameCount == 0 || FrameCount > Capabilities.MaxInFlightFrames)
+    if (FrameCount == 0)
+    {
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    if (!Capabilities.bSupportsPresentation || !Capabilities.bSupportsPresentQueue ||
+        FrameCount > Capabilities.MaxInFlightFrames)
     {
         return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
     }
 
-    auto Swapchain = Stoner::Core::MakeShared<FVulkanSwapchain>(FrameCount);
+    auto Swapchain = Stoner::Core::MakeShared<FVulkanSwapchain>(
+        FrameCount, Capabilities.MaxInFlightFrames);
     Swapchains.push_back(Swapchain);
     return {Stoner::RHI::ERHIResult::Success, Swapchain};
 }
@@ -681,17 +703,103 @@ Stoner::RHI::TRHIObjectResult<FVulkanUploadRequest> FVulkanDevice::StageTextureU
 
 Stoner::RHI::ERHIResult FVulkanDevice::CreateSurface(const Stoner::Core::FPlatformWindow& Window, FVulkanSurface& OutSurface)
 {
+    OutSurface = FVulkanSurface{};
     if (!IsActive())
     {
+        MarkPresentationSkipped(Diagnostics, "inactive Vulkan device");
         return Stoner::RHI::ERHIResult::InvalidState;
     }
 
-    const Stoner::RHI::ERHIResult Result = FVulkanSurface::Create(Window, OutSurface);
+    Stoner::RHI::FRHIPresentationSurfaceDesc Desc;
+    Desc.Window = Window;
+    Desc.DebugName = "LegacyVulkanSurface";
+    const Stoner::RHI::ERHIResult Result =
+        FVulkanSurface::Create(Desc, PresentationOwner, OutSurface);
     if (Result != Stoner::RHI::ERHIResult::Success)
     {
         MarkPresentationSkipped(Diagnostics, OutSurface.GetDiagnosticReason());
+        return Result;
     }
-    return Result;
+
+    Surfaces.push_back(Stoner::Core::MakeShared<FVulkanSurface>(OutSurface));
+    return Stoner::RHI::ERHIResult::Success;
+}
+
+Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIPresentationSurface>
+FVulkanDevice::CreatePresentationSurface(
+    const Stoner::RHI::FRHIPresentationSurfaceDesc& Desc)
+{
+    if (!IsActive())
+    {
+        MarkPresentationSkipped(Diagnostics, "inactive Vulkan device");
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+
+    auto Surface = Stoner::Core::MakeShared<FVulkanSurface>();
+    const Stoner::RHI::ERHIResult Result =
+        FVulkanSurface::Create(Desc, PresentationOwner, *Surface);
+    if (Result != Stoner::RHI::ERHIResult::Success)
+    {
+        MarkPresentationSkipped(Diagnostics, Surface->GetDiagnosticReason());
+        return {Result, nullptr};
+    }
+
+    Surfaces.push_back(Surface);
+    return {Stoner::RHI::ERHIResult::Success, Surface};
+}
+
+Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain>
+FVulkanDevice::CreateSurfaceBackedSwapchain(
+    const Stoner::Core::TSharedPtr<FVulkanSurface>& Surface,
+    const Stoner::RHI::FRHISwapchainDesc& Desc)
+{
+    if (!IsActive())
+    {
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    if (!Surface || !Surface->IsValid() ||
+        !Surface->BelongsTo(PresentationOwner))
+    {
+        MarkPresentationSkipped(
+            Diagnostics, "missing, stale, or foreign presentation surface");
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    if (!Desc.IsValid() ||
+        !Stoner::RHI::IsValidRHIFormat(Desc.PreferredFormat) ||
+        Stoner::RHI::IsDepthStencilFormat(Desc.PreferredFormat))
+    {
+        MarkPresentationSkipped(Diagnostics, "invalid swapchain description");
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    if (!Capabilities.bSupportsPresentation ||
+        !Capabilities.bSupportsPresentQueue ||
+        Desc.FramesInFlight > Capabilities.MaxInFlightFrames ||
+        !Capabilities.SupportsFormat(Desc.PreferredFormat))
+    {
+        MarkPresentationSkipped(
+            Diagnostics, "unsupported swapchain capability request");
+        return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
+    }
+
+    auto Swapchain = Stoner::Core::MakeShared<FVulkanSwapchain>(
+        Surface, Desc, Capabilities.MaxInFlightFrames);
+    if (Swapchain->GetState() != Stoner::RHI::ERHISwapchainState::Ready ||
+        !Swapchain->GetImage(0))
+    {
+        return {Stoner::RHI::ERHIResult::Failed, nullptr};
+    }
+
+    Swapchains.push_back(Swapchain);
+    return {Stoner::RHI::ERHIResult::Success, Swapchain};
+}
+
+Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain>
+FVulkanDevice::CreateSwapchain(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPresentationSurface>& Surface,
+    const Stoner::RHI::FRHISwapchainDesc& Desc)
+{
+    return CreateSurfaceBackedSwapchain(
+        std::dynamic_pointer_cast<FVulkanSurface>(Surface), Desc);
 }
 
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> FVulkanDevice::CreateSwapchainForSurface(const FVulkanSurface& Surface, Stoner::Core::uint32 FrameCount)
@@ -700,12 +808,24 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> FVulkanDevice::CreateS
     {
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
-    if (!Surface.IsValid())
+    if (FrameCount == 0)
     {
-        MarkPresentationSkipped(Diagnostics, "missing or invalid presentation surface");
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
-    return CreateSwapchain(FrameCount);
+    if (!Surface.IsValid() || !Surface.BelongsTo(PresentationOwner))
+    {
+        MarkPresentationSkipped(
+            Diagnostics, "missing, stale, or foreign presentation surface");
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+
+    Stoner::RHI::FRHISwapchainDesc Desc;
+    Desc.Width = 1;
+    Desc.Height = 1;
+    Desc.FramesInFlight = FrameCount;
+    Desc.PreferredFormat = SelectPresentationFormat(Capabilities);
+    return CreateSurfaceBackedSwapchain(
+        Stoner::Core::MakeShared<FVulkanSurface>(Surface), Desc);
 }
 
 void FVulkanDevice::InvalidateOwnedObjects() noexcept
@@ -751,6 +871,17 @@ void FVulkanDevice::InvalidateOwnedObjects() noexcept
         {
             Swapchain->Invalidate();
         }
+    }
+    for (const auto& Surface : Surfaces)
+    {
+        if (Surface)
+        {
+            (void)Surface->Invalidate();
+        }
+    }
+    if (PresentationOwner)
+    {
+        PresentationOwner->bActive = false;
     }
     for (const auto& Request : UploadRequests)
     {
