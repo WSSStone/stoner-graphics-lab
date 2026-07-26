@@ -435,35 +435,35 @@
 ## CR001-B04-F001: Synthetic fallback is reported as an available Vulkan runtime
 
 - Severity: S1
-- Status: Fixed
+- Status: Verified
 - Requirement: 009-FR-001, 009-FR-004, 009-FR-005, 009-SC-001, 009-SC-002, and the Backend Initialization Contract
 - Location: `Source/Backend/Vulkan/Private/FVulkanInstance.cpp:42`
 - Impact: Missing or broken Vulkan runtime support is indistinguishable from a usable backend through the primary factory, so callers can receive a false active device and CI can report contract success without proving runtime initialization.
 - Evidence: The retained B04-S01 probe shows default initialization returns Success and Active, marks Availability=Available, and selects the invented Stoner adapter while bUsedRuntimeFallback=true. Focused source search finds no Vulkan loader, physical-device enumeration, or FVulkanNativeContext integration in the inspected RHI device path.
 - Resolution: Introduced an explicit RealRuntime versus DeterministicFallback instance mode. RealRuntime is the production default and returns Unsupported because FVulkanDevice does not own native Vulkan resources; real execution remains owned and proven by FVulkanNativeContext. Deterministic fallback now requires explicit opt-in and reports distinct availability plus runtime-mode diagnostics, and all deterministic test callers were migrated.
-- Verification: pending
+- Verification: Exact-parent probe reproduced false Available/Active fallback; the independent ASan/UBSan verifier confirms the default factory now returns Unsupported/null while explicit fallback remains successful and observably distinct. Fresh fallback-strict and sanitizer maintained gates passed.
 - Commit: `c603f8a`
 
 ## CR001-B04-F002: Adapter selection retains unsafe non-owned identity pointers
 
 - Severity: S1
-- Status: Fixed
+- Status: Verified
 - Requirement: 009-FR-002, 009-FR-019, 009-SC-003, and the Adapter Selection Contract
 - Location: `Source/Backend/Vulkan/Public/VulkanRHI/FVulkanPhysicalDevice.h:32`
 - Impact: Adapter identity and rejection diagnostics can mutate or dangle after selection, and a malformed public candidate can crash deterministic selection instead of producing an explicit rejection.
 - Evidence: The retained probe shows Selected.Name aliases caller-owned mutable std::string storage. A minimal ASan/UBSan probe passing two equal-score candidates with one null Name aborts in std::string_view construction from SelectBestAdapter's deterministic tie-break.
 - Resolution: Replaced borrowed candidate names, rejection reasons, and selection reasons with owned FString values. Empty/null source identities now fail the required gate with owned diagnostics before ordering, while deterministic tie-breaking uses the normalized owned name. Added mutable-storage and null-identity regressions.
-- Verification: pending
+- Verification: The exact-parent summary reproduced caller-storage aliasing and the parent ASan probe crashed on null identity. The independent current ASan/UBSan verifier preserves a temporary identity, safely rejects empty/null identity with an owned reason, and selects the same lexical winner across 20 tie runs; maintained gates passed.
 - Commit: `c603f8a`
 
 ## CR001-B04-F003: Device format capabilities ignore the selected adapter
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 009-FR-002, 009-FR-003, 009-FR-004, and the Device Contract
 - Location: `Source/Backend/Vulkan/Private/FVulkanDevice.cpp:839`
 - Impact: RHI capability queries and resource factories can claim formats rejected by the selected adapter summary, undermining capability-gated selection and deferring failure to a later backend path.
 - Evidence: The retained B04-S01 probe initializes from a candidate whose Formats.bDepth is false, then observes D32_Float in RHI SupportedFormats and successfully creates a depth texture. MapCapabilities unconditionally installs GetDefaultVulkanSupportedFormats instead of deriving formats from the selected adapter.
 - Resolution: Replaced the two-boolean adapter format summary with a normalized, encapsulated concrete ERHIFormat set. MapCapabilities copies the selected adapter's exact set and texture factory validation consumes that capability snapshot. Removed the unused backend-wide default-format helper and added a color-only adapter regression that rejects D32 publication and creation.
-- Verification: pending
+- Verification: The exact-parent probe reproduced depth capability overclaim. The independent current verifier normalizes an exact one-format candidate, publishes only that format, accepts its texture, and rejects unsupported color and depth textures; source review confirms MapCapabilities uses the selected set and maintained gates passed.
 - Commit: `c603f8a`

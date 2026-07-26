@@ -1512,6 +1512,12 @@
           "from": "Accepted",
           "note": "Introduced an explicit RealRuntime versus DeterministicFallback instance mode. RealRuntime is the production default and returns Unsupported because FVulkanDevice does not own native Vulkan resources; real execution remains owned and proven by FVulkanNativeContext. Deterministic fallback now requires explicit opt-in and reports distinct availability plus runtime-mode diagnostics, and all deterministic test callers were migrated.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T12:44:16+00:00",
+          "from": "Fixed",
+          "note": "Exact-parent probe reproduced false Available/Active fallback; the independent ASan/UBSan verifier confirms the default factory now returns Unsupported/null while explicit fallback remains successful and observably distinct. Fresh fallback-strict and sanitizer maintained gates passed.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B04-F001",
@@ -1520,9 +1526,9 @@
       "requirement": "009-FR-001, 009-FR-004, 009-FR-005, 009-SC-001, 009-SC-002, and the Backend Initialization Contract",
       "resolution": "Introduced an explicit RealRuntime versus DeterministicFallback instance mode. RealRuntime is the production default and returns Unsupported because FVulkanDevice does not own native Vulkan resources; real execution remains owned and proven by FVulkanNativeContext. Deterministic fallback now requires explicit opt-in and reports distinct availability plus runtime-mode diagnostics, and all deterministic test callers were migrated.",
       "severity": "S1",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Synthetic fallback is reported as an available Vulkan runtime",
-      "verification": ""
+      "verification": "Exact-parent probe reproduced false Available/Active fallback; the independent ASan/UBSan verifier confirms the default factory now returns Unsupported/null while explicit fallback remains successful and observably distinct. Fresh fallback-strict and sanitizer maintained gates passed."
     },
     {
       "batch": "B04",
@@ -1548,6 +1554,12 @@
           "from": "Accepted",
           "note": "Replaced borrowed candidate names, rejection reasons, and selection reasons with owned FString values. Empty/null source identities now fail the required gate with owned diagnostics before ordering, while deterministic tie-breaking uses the normalized owned name. Added mutable-storage and null-identity regressions.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T12:44:26+00:00",
+          "from": "Fixed",
+          "note": "The exact-parent summary reproduced caller-storage aliasing and the parent ASan probe crashed on null identity. The independent current ASan/UBSan verifier preserves a temporary identity, safely rejects empty/null identity with an owned reason, and selects the same lexical winner across 20 tie runs; maintained gates passed.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B04-F002",
@@ -1556,9 +1568,9 @@
       "requirement": "009-FR-002, 009-FR-019, 009-SC-003, and the Adapter Selection Contract",
       "resolution": "Replaced borrowed candidate names, rejection reasons, and selection reasons with owned FString values. Empty/null source identities now fail the required gate with owned diagnostics before ordering, while deterministic tie-breaking uses the normalized owned name. Added mutable-storage and null-identity regressions.",
       "severity": "S1",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Adapter selection retains unsafe non-owned identity pointers",
-      "verification": ""
+      "verification": "The exact-parent summary reproduced caller-storage aliasing and the parent ASan probe crashed on null identity. The independent current ASan/UBSan verifier preserves a temporary identity, safely rejects empty/null identity with an owned reason, and selects the same lexical winner across 20 tie runs; maintained gates passed."
     },
     {
       "batch": "B04",
@@ -1584,6 +1596,12 @@
           "from": "Accepted",
           "note": "Replaced the two-boolean adapter format summary with a normalized, encapsulated concrete ERHIFormat set. MapCapabilities copies the selected adapter's exact set and texture factory validation consumes that capability snapshot. Removed the unused backend-wide default-format helper and added a color-only adapter regression that rejects D32 publication and creation.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T12:44:34+00:00",
+          "from": "Fixed",
+          "note": "The exact-parent probe reproduced depth capability overclaim. The independent current verifier normalizes an exact one-format candidate, publishes only that format, accepts its texture, and rejects unsupported color and depth textures; source review confirms MapCapabilities uses the selected set and maintained gates passed.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B04-F003",
@@ -1592,9 +1610,9 @@
       "requirement": "009-FR-002, 009-FR-003, 009-FR-004, and the Device Contract",
       "resolution": "Replaced the two-boolean adapter format summary with a normalized, encapsulated concrete ERHIFormat set. MapCapabilities copies the selected adapter's exact set and texture factory validation consumes that capability snapshot. Removed the unused backend-wide default-format helper and added a color-only adapter regression that rejects D32 publication and creation.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Device format capabilities ignore the selected adapter",
-      "verification": ""
+      "verification": "The exact-parent probe reproduced depth capability overclaim. The independent current verifier normalizes an exact one-format candidate, publishes only that format, accepts its texture, and rejects unsupported color and depth textures; source review confirms MapCapabilities uses the selected set and maintained gates passed."
     }
   ],
   "schema_version": 1
