@@ -1638,6 +1638,12 @@
           "from": "Accepted",
           "note": "FVulkanDevice now overrides the backend-neutral presentation-surface and descriptor-based swapchain factories. Surface-backed deterministic swapchains expose imported image wrappers and implement semaphore-aware acquire/present with preflight-before-commit semantics; backend-specific helpers now adapt into the same path without claiming native execution.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T13:26:31+00:00",
+          "from": "Fixed",
+          "note": "Exact-parent 7c9a3df reproduced unsupported backend-neutral presentation. The independent current ASan/UBSan verifier dispatches through IRHIDevice, validates imported images and generation replacement, and confirms synchronized acquire/present failure atomicity; fresh fallback-strict and sanitizer gates passed without claiming native execution.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B04-F004",
@@ -1646,9 +1652,9 @@
       "requirement": "009-FR-011 through FR-016, 009-SC-006, 018-FR-003, and the Feature 018 RHI Presentation Contract",
       "resolution": "FVulkanDevice now overrides the backend-neutral presentation-surface and descriptor-based swapchain factories. Surface-backed deterministic swapchains expose imported image wrappers and implement semaphore-aware acquire/present with preflight-before-commit semantics; backend-specific helpers now adapt into the same path without claiming native execution.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Vulkan presentation bypasses the backend-neutral RHI contract",
-      "verification": ""
+      "verification": "Exact-parent 7c9a3df reproduced unsupported backend-neutral presentation. The independent current ASan/UBSan verifier dispatches through IRHIDevice, validates imported images and generation replacement, and confirms synchronized acquire/present failure atomicity; fresh fallback-strict and sanitizer gates passed without claiming native execution."
     },
     {
       "batch": "B04",
@@ -1674,6 +1680,12 @@
           "from": "Accepted",
           "note": "Surfaces now share one validity record tied to a non-copyable device owner token. Surface-backed swapchains retain that surface, reject stale or foreign provenance, expose Unavailable after surface loss, block recreation against lost input, and are invalidated with surfaces and imported images during device shutdown.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T13:26:31+00:00",
+          "from": "Fixed",
+          "note": "Exact-parent 7c9a3df reproduced owner-shutdown survival, cross-device stale-surface acceptance, and recovery after surface loss. The independent current verifier rejects foreign provenance, observes shared invalidation through a copied surface, blocks dependent work after loss, and confirms shutdown cascades through retained surface, swapchain, and image references under ASan/UBSan.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B04-F005",
@@ -1682,9 +1694,9 @@
       "requirement": "009-FR-013, FR-016, FR-017, the Surface and Swapchain Contracts, and 007-FR-002a",
       "resolution": "Surfaces now share one validity record tied to a non-copyable device owner token. Surface-backed swapchains retain that surface, reject stale or foreign provenance, expose Unavailable after surface loss, block recreation against lost input, and are invalidated with surfaces and imported images during device shutdown.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Presentation surfaces have no device provenance or lifecycle ownership",
-      "verification": ""
+      "verification": "Exact-parent 7c9a3df reproduced owner-shutdown survival, cross-device stale-surface acceptance, and recovery after surface loss. The independent current verifier rejects foreign provenance, observes shared invalidation through a copied surface, blocks dependent work after loss, and confirms shutdown cascades through retained surface, swapchain, and image references under ASan/UBSan."
     },
     {
       "batch": "B04",
@@ -1710,6 +1722,12 @@
           "from": "Accepted",
           "note": "CreateSurface now resets the output before every device-state check. Zero frame count, zero extent, invalid format, and depth presentation format return InvalidState; valid requests beyond device capability return Unsupported. The concrete zero-frame constructor is terminal rather than silently normalizing to one.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T13:26:32+00:00",
+          "from": "Fixed",
+          "note": "Exact-parent 7c9a3df reproduced preserved usable factory output and zero-frame Unsupported classification. The independent current verifier confirms output clearing, malformed/depth InvalidState, capability-limit Unsupported, unchanged output/state on synchronized failures, and passing fresh maintained gates.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B04-F006",
@@ -1718,9 +1736,9 @@
       "requirement": "009-FR-001, FR-010, FR-012, FR-013, FR-015, and the Backend Initialization and Surface Contracts",
       "resolution": "CreateSurface now resets the output before every device-state check. Zero frame count, zero extent, invalid format, and depth presentation format return InvalidState; valid requests beyond device capability return Unsupported. The concrete zero-frame constructor is terminal rather than silently normalizing to one.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Surface and swapchain creation failures do not fail atomically",
-      "verification": ""
+      "verification": "Exact-parent 7c9a3df reproduced preserved usable factory output and zero-frame Unsupported classification. The independent current verifier confirms output clearing, malformed/depth InvalidState, capability-limit Unsupported, unchanged output/state on synchronized failures, and passing fresh maintained gates."
     }
   ],
   "schema_version": 1
