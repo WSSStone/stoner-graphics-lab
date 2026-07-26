@@ -24,6 +24,12 @@
           "from": "Accepted",
           "note": "Replaced partial Vulkan aggregate initialization with zero-initializing typed helpers and cleared project-owned cross-platform warnings; strict local Debug and Release builds pass.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T03:56:37+00:00",
+          "from": "Fixed",
+          "note": "Verified at 8a328387: Windows, macOS, and Linux strict Debug jobs passed; all three strict Release jobs passed; no project compiler warnings escaped the error policy.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B01-F001",
@@ -32,9 +38,9 @@
       "requirement": "CR-001 completion criterion: no unexplained compiler warnings before enabling -Werror or /WX",
       "resolution": "Replaced partial Vulkan aggregate initialization with zero-initializing typed helpers and cleared project-owned cross-platform warnings; strict local Debug and Release builds pass.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "macOS builds emit 33 Vulkan aggregate-initialization warnings",
-      "verification": ""
+      "verification": "Verified at 8a328387: Windows, macOS, and Linux strict Debug jobs passed; all three strict Release jobs passed; no project compiler warnings escaped the error policy."
     },
     {
       "batch": "B08",
@@ -90,6 +96,12 @@
           "from": "Accepted",
           "note": "Added validated strict and ASan/UBSan build controls, allow-listed CR gates, three-platform strict Release CI, and Linux sanitizer CI; all local profiles pass.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T03:56:45+00:00",
+          "from": "Fixed",
+          "note": "Verified at 8a328387: three-platform strict Debug and Release builds, Linux ASan+UBSan tests, and mandatory Linux Lavapipe native validation all passed in CI run 30186757383.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B01-F002",
@@ -98,9 +110,9 @@
       "requirement": "CR-001 completion requires Debug, Release, ASan/UBSan, clean warnings, and three-platform CI evidence",
       "resolution": "Added validated strict and ASan/UBSan build controls, allow-listed CR gates, three-platform strict Release CI, and Linux sanitizer CI; all local profiles pass.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Build and CI lack Release, sanitizer, and warning-as-error gates",
-      "verification": ""
+      "verification": "Verified at 8a328387: three-platform strict Debug and Release builds, Linux ASan+UBSan tests, and mandatory Linux Lavapipe native validation all passed in CI run 30186757383."
     },
     {
       "batch": "B01",
@@ -126,6 +138,12 @@
           "from": "Accepted",
           "note": "Restricted branch push validation to master, retained pull-request validation, and ignored pure CodeReview/Runs state changes while preserving tool and engine CI.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T03:56:54+00:00",
+          "from": "Fixed",
+          "note": "Verified at 8a328387: the head produced exactly one pull_request CI run and one pull_request Code Review Tools run, with no push-triggered duplicate matrix.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B01-F003",
@@ -134,9 +152,9 @@
       "requirement": "CR-001 Git and validation protocol requires meaningful batch-boundary evidence without redundant jobs",
       "resolution": "Restricted branch push validation to master, retained pull-request validation, and ignored pure CodeReview/Runs state changes while preserving tool and engine CI.",
       "severity": "S3",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "CI runs duplicate three-platform matrices for pull-request branch pushes",
-      "verification": ""
+      "verification": "Verified at 8a328387: the head produced exactly one pull_request CI run and one pull_request Code Review Tools run, with no push-triggered duplicate matrix."
     },
     {
       "batch": "B09",
