@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <limits>
 #include <utility>
 
 namespace
@@ -1392,6 +1393,38 @@ void TestRuntimeAndPresentationContracts(FRHICoreTestResult& Result)
     Snapshot.LiveBuffers = 2;
     Record(Result, Snapshot.ProvesNativeExecution(), "RHI runtime snapshot proves native execution explicitly");
     Record(Result, Snapshot.GetTotalLiveObjectCount() == 4, "RHI runtime snapshot exposes stable live counts");
+
+    FRHIRuntimeSnapshot OverflowSnapshot;
+    OverflowSnapshot.LiveInstances = std::numeric_limits<uint32>::max();
+    OverflowSnapshot.LiveDevices = 1;
+    Record(Result,
+        OverflowSnapshot.GetTotalLiveObjectCount() == static_cast<uint64>(std::numeric_limits<uint32>::max()) + 1,
+        "RHI runtime snapshot aggregates live counts without wrapping to zero");
+
+    FRHIRuntimeSnapshot NativeHeadlessSnapshot = Snapshot;
+    NativeHeadlessSnapshot.RequestedMode = ERHIRuntimeMode::NativeHeadless;
+    Record(Result, NativeHeadlessSnapshot.ProvesNativeExecution(),
+        "RHI runtime snapshot accepts native-headless execution proof");
+
+    FRHIRuntimeSnapshot ContradictorySnapshot = Snapshot;
+    ContradictorySnapshot.RequestedMode = ERHIRuntimeMode::Deterministic;
+    Record(Result, !ContradictorySnapshot.ProvesNativeExecution(),
+        "RHI runtime snapshot rejects native proof for a deterministic request");
+
+    FRHIRuntimeSnapshot FallbackSnapshot = Snapshot;
+    FallbackSnapshot.ObjectMode = ERHIRuntimeObjectMode::DeterministicFallback;
+    Record(Result, !FallbackSnapshot.ProvesNativeExecution(),
+        "RHI runtime snapshot rejects deterministic fallback as native proof");
+
+    FRHIRuntimeSnapshot MissingInstanceSnapshot = Snapshot;
+    MissingInstanceSnapshot.LiveInstances = 0;
+    Record(Result, !MissingInstanceSnapshot.ProvesNativeExecution(),
+        "RHI runtime snapshot requires a live native instance");
+
+    FRHIRuntimeSnapshot MissingDeviceSnapshot = Snapshot;
+    MissingDeviceSnapshot.LiveDevices = 0;
+    Record(Result, !MissingDeviceSnapshot.ProvesNativeExecution(),
+        "RHI runtime snapshot requires a live native device");
 
     FRHIPresentationSurfaceDesc SurfaceDesc;
     Record(Result, !SurfaceDesc.IsValid(), "RHI presentation surface rejects missing opaque window");

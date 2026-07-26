@@ -23,15 +23,18 @@ struct FRHIRuntimeSnapshot
     Stoner::Core::uint32 LiveCommandBuffers = 0;
     Stoner::Core::uint32 LiveSynchronizationObjects = 0;
 
-    [[nodiscard]] Stoner::Core::uint32 GetTotalLiveObjectCount() const noexcept
+    [[nodiscard]] Stoner::Core::uint64 GetTotalLiveObjectCount() const noexcept
     {
-        return LiveInstances + LiveDevices + LiveSurfaces + LiveSwapchains + LiveBuffers + LiveTextures +
+        return static_cast<Stoner::Core::uint64>(LiveInstances) + LiveDevices + LiveSurfaces + LiveSwapchains + LiveBuffers + LiveTextures +
             LiveShaderModules + LivePipelines + LiveCommandBuffers + LiveSynchronizationObjects;
     }
 
     [[nodiscard]] bool ProvesNativeExecution() const noexcept
     {
-        return ObjectMode == ERHIRuntimeObjectMode::RealRuntime && LiveInstances > 0 && LiveDevices > 0;
+        const bool bNativeRequested =
+            RequestedMode == ERHIRuntimeMode::Native || RequestedMode == ERHIRuntimeMode::NativeHeadless;
+        return bNativeRequested && ObjectMode == ERHIRuntimeObjectMode::RealRuntime &&
+            LiveInstances > 0 && LiveDevices > 0;
     }
 };
 
