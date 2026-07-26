@@ -1,5 +1,5 @@
 {
-  "active_step": "B04-S12",
+  "active_step": "B05-S01",
   "batches": [
     {
       "id": "B00",
@@ -685,7 +685,7 @@
     },
     {
       "id": "B04",
-      "status": "InProgress",
+      "status": "Completed",
       "steps": [
         {
           "commit": null,
@@ -867,13 +867,15 @@
           "title": "Fix: descriptors, samplers, and upload staging"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "5488528e635e88e2b59db7d7adb0d8550769c068",
+          "completed_at": "2026-07-26T15:13:13+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B04-descriptor-sampler-upload-verification.md"
+          ],
           "id": "B04-S12",
-          "note": "",
+          "note": "Exact-parent reproduction, independent ASan/UBSan verifier, negative API closure, four local gates, current CodeGraph, three-platform CI 30207463089, and CR tools 30207463088 passed; F011-F013 verified and B04 closed.",
           "started_at": "2026-07-26T14:53:13+00:00",
-          "status": "InProgress",
+          "status": "Completed",
           "title": "Verify: descriptors, samplers, and upload staging"
         }
       ],
@@ -3783,6 +3785,26 @@
       "at": "2026-07-26T15:02:56+00:00",
       "detail": "sanitizers: pass",
       "kind": "gate"
+    },
+    {
+      "at": "2026-07-26T15:12:37+00:00",
+      "detail": "verify finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T15:12:49+00:00",
+      "detail": "verify finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T15:12:57+00:00",
+      "detail": "verify finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T15:13:13+00:00",
+      "detail": "B04-S12",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -3936,7 +3958,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "c4a476c85396e39c22c0bbdbdf7f08c0e087eec5"
+    "last_recorded_head": "5488528e635e88e2b59db7d7adb0d8550769c068"
   },
   "policy": {
     "fix_severities": [
@@ -3956,5 +3978,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T15:02:56+00:00"
+  "updated_at": "2026-07-26T15:13:13+00:00"
 }

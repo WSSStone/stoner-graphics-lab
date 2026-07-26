@@ -94,5 +94,16 @@ ownership chain. No contradictory production path was found.
 
 ## Remote Evidence
 
-Three-platform GitHub Actions verification is pending at this local evidence
-commit. Findings remain Fixed until that run passes.
+GitHub Actions validated exact HEAD
+`5488528e635e88e2b59db7d7adb0d8550769c068`:
+
+- CI run `30207463089` passed Linux, macOS, and Windows headless jobs;
+- the same run passed Linux, macOS, and Windows strict Release jobs;
+- Linux ASan/UBSan build and complete sanitized tests passed;
+- Code Review Tools run `30207463088` passed CLI unit tests and CR state lint.
+
+The run metadata and job-level steps are retained in
+`remote-ci-b04-descriptor-sampler-upload.json` and
+`remote-cr-tools-b04-descriptor-sampler-upload.json`. The Node 20 deprecation
+annotations are GitHub action-runtime notices; no project warning or failed
+check was reported.

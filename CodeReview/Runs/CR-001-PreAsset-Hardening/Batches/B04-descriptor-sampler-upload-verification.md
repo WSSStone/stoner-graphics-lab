@@ -49,12 +49,17 @@ strict Debug, strict Release, and strict ASan/UBSan with full tests. The final
 independent verifier was rebuilt against the sanitizer gate artifacts and
 passed again.
 
-## Pending Boundary Evidence
+## Remote Boundary Evidence
 
-Three-platform GitHub Actions remains pending. Until it passes:
+CI run `30207463089` passed at exact HEAD `5488528`: Windows, macOS, and Linux
+headless; Windows, macOS, and Linux strict Release; and Linux ASan/UBSan.
+Code Review Tools run `30207463088` passed CLI tests and CR state lint. No
+project warning or failed check was reported.
 
-- `CR001-B04-F011`: Fixed;
-- `CR001-B04-F012`: Fixed;
-- `CR001-B04-F013`: Fixed.
+## Finding Decisions
 
-The packet and B04 batch must not close before remote evidence is recorded.
+- `CR001-B04-F011`: Verified.
+- `CR001-B04-F012`: Verified.
+- `CR001-B04-F013`: Verified.
+
+No new finding was opened. B04 is complete and B05-S01 is the next packet.
