@@ -395,3 +395,39 @@
 - Resolution: Portable depth/color attachment compatibility now lives in IsValidRHITextureDesc, while the mock device retains only format capability checks; helper/factory parity regressions and the standalone probe pass.
 - Verification: The same-source verifier compiled against exact parent reports 0/2 shared format/usage rejections while current reports 2/2; the mock and Vulkan paths share public portable validity with separate capability checks, and fresh strict tests pass.
 - Commit: `ca68ed4`
+
+## CR001-B03-F009: Shader and layout validation omits constant-range and closed-domain checks
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 012-FR-004, 012-FR-005, 012-FR-007, 012-FR-009, and the Feature 012 shader-interface contract
+- Location: `Source/RHI/Public/RHI/FRHIPipelineLayoutDesc.h:34`
+- Impact: Malformed interfaces can become usable layouts and pipelines, while mock and Vulkan implementations disagree about shader-layout compatibility.
+- Evidence: The retained B03-S10 strict probe creates a layout with undefined descriptor/visibility values, accepts overlapping compute ranges, and creates a mock compute pipeline whose shader requires a constant range absent from its layout.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B03-F010: Pipeline and render-pass validators accept undefined fixed-function state
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 008-FR-013, 008-FR-014, 008-FR-019, 012-FR-007, and 012-SC-004
+- Location: `Source/RHI/Public/RHI/FRHIGraphicsPipelineDesc.h:132`
+- Impact: Undefined state can cross public validation and become usable objects, producing backend-dependent behavior and invalidating claimed negative-path coverage.
+- Evidence: The retained B03-S10 strict probe creates a mock graphics pipeline with undefined raster/blend/depth and sample values and a render pass with undefined role/load/store/sample values.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B03-F011: Framebuffer validation ignores selected mip and array-layer semantics
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 008-FR-015, 008-FR-016, and 008-FR-019
+- Location: `Tests/RHICoreTests.cpp:1525`
+- Impact: Callers can receive usable framebuffers for nonexistent subresources and cannot reliably target valid nonzero mips through the cross-backend contract.
+- Evidence: The retained B03-S10 strict probe accepts mip and layer indices equal to their counts, then rejects valid mip one at its 32x32 extent because the factory compares only against the 64x64 base texture.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`

@@ -1361,6 +1361,96 @@
       "status": "Verified",
       "title": "Texture validity contradicts format and attachment usage compatibility",
       "verification": "The same-source verifier compiled against exact parent reports 0/2 shared format/usage rejections while current reports 2/2; the mock and Vulkan paths share public portable validity with separate capability checks, and fresh strict tests pass."
+    },
+    {
+      "batch": "B03",
+      "commit": "",
+      "created_at": "2026-07-26T10:37:43+00:00",
+      "deferred_target": "",
+      "evidence": "The retained B03-S10 strict probe creates a layout with undefined descriptor/visibility values, accepts overlapping compute ranges, and creates a mock compute pipeline whose shader requires a constant range absent from its layout.",
+      "history": [
+        {
+          "at": "2026-07-26T10:37:49+00:00",
+          "from": "Open",
+          "note": "Strict helper-plus-factory reproduction confirms contract failure; assign the three related declaration and compatibility repairs to B03-S11.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T10:37:49+00:00",
+          "from": "Triaged",
+          "note": "Strict helper-plus-factory reproduction confirms contract failure; assign the three related declaration and compatibility repairs to B03-S11.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B03-F009",
+      "impact": "Malformed interfaces can become usable layouts and pipelines, while mock and Vulkan implementations disagree about shader-layout compatibility.",
+      "location": "Source/RHI/Public/RHI/FRHIPipelineLayoutDesc.h:34",
+      "requirement": "012-FR-004, 012-FR-005, 012-FR-007, 012-FR-009, and the Feature 012 shader-interface contract",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Shader and layout validation omits constant-range and closed-domain checks",
+      "verification": ""
+    },
+    {
+      "batch": "B03",
+      "commit": "",
+      "created_at": "2026-07-26T10:37:58+00:00",
+      "deferred_target": "",
+      "evidence": "The retained B03-S10 strict probe creates a mock graphics pipeline with undefined raster/blend/depth and sample values and a render pass with undefined role/load/store/sample values.",
+      "history": [
+        {
+          "at": "2026-07-26T10:38:05+00:00",
+          "from": "Open",
+          "note": "Strict helper-plus-factory reproduction confirms undefined fixed-function and render-pass domains; repair with shared recognized-value predicates in B03-S11.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T10:38:05+00:00",
+          "from": "Triaged",
+          "note": "Strict helper-plus-factory reproduction confirms undefined fixed-function and render-pass domains; repair with shared recognized-value predicates in B03-S11.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B03-F010",
+      "impact": "Undefined state can cross public validation and become usable objects, producing backend-dependent behavior and invalidating claimed negative-path coverage.",
+      "location": "Source/RHI/Public/RHI/FRHIGraphicsPipelineDesc.h:132",
+      "requirement": "008-FR-013, 008-FR-014, 008-FR-019, 012-FR-007, and 012-SC-004",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Pipeline and render-pass validators accept undefined fixed-function state",
+      "verification": ""
+    },
+    {
+      "batch": "B03",
+      "commit": "",
+      "created_at": "2026-07-26T10:38:14+00:00",
+      "deferred_target": "",
+      "evidence": "The retained B03-S10 strict probe accepts mip and layer indices equal to their counts, then rejects valid mip one at its 32x32 extent because the factory compares only against the 64x64 base texture.",
+      "history": [
+        {
+          "at": "2026-07-26T10:38:21+00:00",
+          "from": "Open",
+          "note": "Strict factory reproduction confirms both false acceptance and false rejection around explicit framebuffer subresources; repair mock and Vulkan helper parity in B03-S11.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T10:38:21+00:00",
+          "from": "Triaged",
+          "note": "Strict factory reproduction confirms both false acceptance and false rejection around explicit framebuffer subresources; repair mock and Vulkan helper parity in B03-S11.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B03-F011",
+      "impact": "Callers can receive usable framebuffers for nonexistent subresources and cannot reliably target valid nonzero mips through the cross-backend contract.",
+      "location": "Tests/RHICoreTests.cpp:1525",
+      "requirement": "008-FR-015, 008-FR-016, and 008-FR-019",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Framebuffer validation ignores selected mip and array-layer semantics",
+      "verification": ""
     }
   ],
   "schema_version": 1
