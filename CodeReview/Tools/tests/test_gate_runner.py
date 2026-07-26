@@ -22,6 +22,16 @@ class GateRunnerTests(unittest.TestCase):
         self.assertEqual(commands[1], ["Build/Mac/Debug/Tests/StonerTest"])
 
     @patch("gate_runner.platform.system", return_value="Linux")
+    def test_fallback_profile_disables_graphics_dependencies(self, _system):
+        self.assertEqual(
+            gate_runner.commands_for("fallback-strict"),
+            [
+                ["scons", "config=debug", "strict=1", "graphics=disabled"],
+                ["Build/Linux/Debug/Tests/StonerTest"],
+            ],
+        )
+
+    @patch("gate_runner.platform.system", return_value="Linux")
     def test_sanitizer_profile_is_strict_and_allow_listed(self, _system):
         commands = gate_runner.commands_for("sanitizers")
         self.assertEqual(

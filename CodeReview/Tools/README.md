@@ -32,13 +32,17 @@ assume Conda is present.
 No command accepts an arbitrary shell string. Child processes use argument
 arrays with `shell=False`.
 
-Project build gates include `strict-debug`, `strict-release`, and `sanitizers`.
-The sanitizer profile combines ASan and UBSan on Clang/GCC and intentionally
-rejects MSVC, where the same combined profile is unavailable:
+Project build gates include `strict-debug`, `strict-release`,
+`fallback-strict`, and `sanitizers`. The fallback profile deliberately
+disables Vulkan and GLFW discovery so an SDK-equipped development machine can
+compile the same dependency-free path used by hosted runners. The sanitizer
+profile combines ASan and UBSan on Clang/GCC and intentionally rejects MSVC,
+where the same combined profile is unavailable:
 
 ```sh
 python CodeReview/Tools/crctl.py gate --id CR-001 strict-debug
 python CodeReview/Tools/crctl.py gate --id CR-001 strict-release
+python CodeReview/Tools/crctl.py gate --id CR-001 fallback-strict
 python CodeReview/Tools/crctl.py gate --id CR-001 sanitizers
 ```
 

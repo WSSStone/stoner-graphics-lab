@@ -27,6 +27,9 @@ scons config=release
 scons config=debug strict=1
 scons config=release strict=1
 
+# Reproduce the no-Vulkan/no-GLFW fallback path even when SDKs are installed
+scons config=debug strict=1 graphics=disabled
+
 # Run ASan and UBSan on a Clang/GCC Debug build
 scons config=debug strict=1 sanitizers=address,undefined
 Build/Mac/Debug/Tests/StonerTest       # macOS

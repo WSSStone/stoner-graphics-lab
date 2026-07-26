@@ -18,10 +18,11 @@ namespace Stoner::Backend::Vulkan
 namespace
 {
 
-#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
-
 constexpr Stoner::Core::uint32 ValidationWidth = 32;
 constexpr Stoner::Core::uint32 ValidationHeight = 32;
+
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+
 constexpr Stoner::Core::uint64 CompletionTimeoutNanoseconds = 5'000'000'000ull;
 
 float MaxAbsoluteError(const Stoner::Core::FVector4& Expected,

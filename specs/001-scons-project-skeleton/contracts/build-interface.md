@@ -14,6 +14,7 @@ The SCons build system exposes a command-line interface as its primary contract.
 
 ```bash
 scons [config=<debug|release>] [strict=<0|1>] \
+  [graphics=<auto|disabled>] \
   [sanitizers=<none|address|undefined|address,undefined>]
 ```
 
@@ -21,6 +22,7 @@ scons [config=<debug|release>] [strict=<0|1>] \
 |-----------|------|---------|--------|-------------|
 | `config` | string | `debug` | `debug`, `release` | Build configuration |
 | `strict` | boolean | `0` | `0`, `1`, `false`, `true`, `no`, `yes`, `off`, `on` | Promote project compiler warnings to errors |
+| `graphics` | string | `auto` | `auto`, `disabled` | Auto-detect Vulkan/GLFW or force the dependency-free fallback path |
 | `sanitizers` | string | `none` | `none`, `address`, `undefined`, `address,undefined` | Enable Clang/GCC sanitizer instrumentation |
 
 Sanitizers require `config=debug` and a Clang/GCC toolchain on macOS or Linux.
@@ -107,6 +109,7 @@ Each layer's `SConscript` receives the build environment from the parent and MUS
 | SCons version too old | `ERROR: SCons {MINIMUM}+ required. Found: {actual}` |
 | Unknown config | `ERROR: Unknown config '{value}'. Use 'debug' or 'release'.` |
 | Invalid strict value | `ERROR: strict must be one of: ...` |
+| Unknown graphics mode | `ERROR: graphics must be one of: auto, disabled.` |
 | Unknown sanitizer profile | `ERROR: sanitizers must be one of: ...` |
 | Unsupported sanitizer combination | `ERROR: sanitizers require config=debug.` or platform-specific diagnostic |
 | No compiler found | `ERROR: No supported C++ compiler found for {platform}. Expected: {list}` |

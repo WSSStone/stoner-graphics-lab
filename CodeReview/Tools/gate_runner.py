@@ -29,7 +29,7 @@ PROFILES: dict[str, list[list[str]]] = {
 
 
 def available_profiles() -> list[str]:
-    return sorted([*PROFILES, "tests", "sanitizers"])
+    return sorted([*PROFILES, "tests", "fallback-strict", "sanitizers"])
 
 
 def _test_executable() -> str:
@@ -47,6 +47,11 @@ def _test_executable() -> str:
 def commands_for(profile: str) -> list[list[str]]:
     if profile == "tests":
         return [["scons", "config=debug"], [_test_executable()]]
+    if profile == "fallback-strict":
+        return [
+            ["scons", "config=debug", "strict=1", "graphics=disabled"],
+            [_test_executable()],
+        ]
     if profile == "sanitizers":
         if platform.system() == "Windows":
             raise ReviewError("the ASan/UBSan profile requires Clang or GCC")
