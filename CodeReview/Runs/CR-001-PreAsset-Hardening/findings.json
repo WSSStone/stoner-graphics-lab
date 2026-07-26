@@ -530,7 +530,7 @@
     },
     {
       "batch": "B02",
-      "commit": "",
+      "commit": "8303045d6b977ecc873033a2da3100756f347055",
       "created_at": "2026-07-26T07:08:48+00:00",
       "deferred_target": "",
       "evidence": "Debug and Release probes set global=Warning/category=Verbose then issue Info with ++sideEffect; both print side_effect_count=1 and exit 1.",
@@ -546,21 +546,27 @@
           "from": "Triaged",
           "note": "Direct FR-016 contradiction reproduced in both Debug and Release; repair macro-level effective-threshold filtering and add a side-effect regression test in B02-S14.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T07:23:43+00:00",
+          "from": "Accepted",
+          "note": "SG_LOG now intersects atomic category/global severity masks before one final bit comparison; Debug and optimized Release probes preserve side_effect_count=0 and maintained coverage asserts the global path.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B02-F010",
       "impact": "Globally filtered logs still execute arbitrary argument expressions and enter FLog::LogMessage, violating the zero-side-effect and single-comparison contract.",
       "location": "Source/Core/Public/Core/SGLog.h:18",
       "requirement": "Feature 005 FR-016 macro-level early-out",
-      "resolution": "",
+      "resolution": "SG_LOG now intersects atomic category/global severity masks before one final bit comparison; Debug and optimized Release probes preserve side_effect_count=0 and maintained coverage asserts the global path.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Global severity filtering evaluates suppressed log arguments",
       "verification": ""
     },
     {
       "batch": "B02",
-      "commit": "",
+      "commit": "8303045d6b977ecc873033a2da3100756f347055",
       "created_at": "2026-07-26T07:09:01+00:00",
       "deferred_target": "",
       "evidence": "macOS ThreadSanitizer independently reports races between FLogCategory::Set/GetMinSeverity on LogCore and FLog::Set/GetGlobalMinSeverity on GGlobalMinSeverity.",
@@ -576,21 +582,27 @@
           "from": "Triaged",
           "note": "Both mutable thresholds are accessed without synchronization and TSan independently reproduces each race; use atomic state with explicit low-cost memory ordering and concurrent regression coverage in B02-S14.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T07:23:56+00:00",
+          "from": "Accepted",
+          "note": "Category and global thresholds now use relaxed std::atomic storage; maintained concurrent access coverage passes and both independent pre-fix TSan reproducers now exit 0 without reports.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B02-F011",
       "impact": "Concurrent threshold reconfiguration and logging causes C++ undefined behavior, so filtering and diagnostics may be corrupted or optimized unpredictably.",
       "location": "Source/Core/Public/Core/FLogCategory.h:50; Source/Core/Private/FLog.cpp:17",
       "requirement": "Feature 005 runtime-mutable category/global filtering, FR-013 concurrency safety, and research atomic-threshold decision",
-      "resolution": "",
+      "resolution": "Category and global thresholds now use relaxed std::atomic storage; maintained concurrent access coverage passes and both independent pre-fix TSan reproducers now exit 0 without reports.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Runtime logging thresholds contain unsynchronized data races",
       "verification": ""
     },
     {
       "batch": "B02",
-      "commit": "",
+      "commit": "8303045d6b977ecc873033a2da3100756f347055",
       "created_at": "2026-07-26T07:09:50+00:00",
       "deferred_target": "",
       "evidence": "Routing loop explicitly skips Fatal, and TestFatalLogBehavior emits Error instead. A release child probe shows actual Fatal writes to stderr and aborts with exit 134, behavior absent from the suite.",
@@ -606,15 +618,21 @@
           "from": "Triaged",
           "note": "Checked-complete tasks and SC-009 claim coverage that is absent; add a portable subprocess/child-mode test proving stderr routing and nonzero abort termination in B02-S14.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T07:24:07+00:00",
+          "from": "Accepted",
+          "note": "The test executable now exposes a dedicated Fatal child mode; POSIX fork/exec and Windows CreateProcess harnesses capture stderr and require abnormal termination before the fallback return. Debug and Release suites pass, and task/contract text now matches the clarified abort behavior.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B02-F012",
       "impact": "Fatal routing or termination can regress while the checked-complete tasks and public-entry coverage gate continue to pass.",
       "location": "Tests/LoggingAssertionTests.cpp:360; Tests/LoggingAssertionTests.cpp:432",
       "requirement": "Feature 005 FR-004, FR-012, SC-009, T011, T013, and quickstart isolated termination validation",
-      "resolution": "",
+      "resolution": "The test executable now exposes a dedicated Fatal child mode; POSIX fork/exec and Windows CreateProcess harnesses capture stderr and require abnormal termination before the fallback return. Debug and Release suites pass, and task/contract text now matches the clarified abort behavior.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Fatal logging contract is not exercised by the test suite",
       "verification": ""
     }
