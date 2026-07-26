@@ -1,5 +1,5 @@
 {
-  "active_step": "B04-S07",
+  "active_step": "B04-S08",
   "batches": [
     {
       "id": "B00",
@@ -794,12 +794,17 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-26T13:35:26+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B04-allocation-buffer-texture-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b04-allocation-buffer-texture-probes.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/Probes/b04-allocation-buffer-texture-inspection-probe.cpp",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/gate-sanitizers.json"
+          ],
           "id": "B04-S07",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected the bounded Feature 010 allocation/buffer/texture domain, reproduced checked-accounting overflow and budget bypass, copy-token duplicate release, format/sample/mip footprint errors, usable failed-allocation wrappers, and exception-throwing oversized host upload under ASan/UBSan, accepted CR001-B04-F007 through F010 as S2, and authorized one coherent allocation ownership/resource-construction API migration for B04-S08. Fresh maintained sanitizer tests remain green with optional B08 deferred-native coverage skipped.",
+          "started_at": "2026-07-26T13:27:52+00:00",
+          "status": "Completed",
           "title": "Inspect: memory allocation, buffers, and textures"
         },
         {
@@ -3489,6 +3494,61 @@
       "at": "2026-07-26T13:26:51+00:00",
       "detail": "B04-S06",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-26T13:27:52+00:00",
+      "detail": "B04-S07",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-26T13:32:57+00:00",
+      "detail": "sanitizers: pass",
+      "kind": "gate"
+    },
+    {
+      "at": "2026-07-26T13:34:05+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T13:34:06+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T13:34:06+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T13:34:07+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T13:34:24+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T13:34:24+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T13:34:25+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T13:34:26+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T13:35:26+00:00",
+      "detail": "B04-S07",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -3561,7 +3621,7 @@
           ],
           "returncode": 0,
           "stderr_tail": "[StonerBuild.PlatformDetect] INFO: Detected platform: Mac\n[StonerBuild.BuildConfig] INFO: Build configuration: debug\n[StonerBuild.PlatformDetect] INFO: Detected compiler: clang++\n[StonerBuild.PlatformDetect] INFO: Configured C++20 toolchain for Mac\n[StonerBuild.BuildConfig] INFO: Applied debug flags for Mac (strict=True, sanitizers=address,undefined)\n[StonerBuild] INFO: Stoner Graphics Lab\n[StonerBuild] INFO:   Platform : Mac\n[StonerBuild] INFO:   Config   : Debug\n[StonerBuild] INFO:   SCons    : 4.10.1\n[StonerBuild.LayerBuilder] INFO: Layer 'Core': building from 10 source file(s)\n[StonerBuild.LayerBuilder] INFO: Layer 'RHI': building from 1 source file(s)\n[StonerBuild.LayerBuilder] INFO: Layer 'Renderer': building from 33 source file(s)\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: discovered 0 sub-module(s) in 'Source/Renderer'\n[StonerBuild.LayerBuilder] INFO: Layer 'Application': building from 23 source file(s)\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'DX11' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'DX12' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'GLES' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'Metal' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'OpenGL' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'Vulkan' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: Layer 'VulkanRHI': building from 30 source file(s)\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'WebGL' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: discovered 1 sub-module(s) in 'Source/Backend'\n",
-          "stdout_tail": "nitize-recover=all -D_DEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/RendererForwardPipelineTests.cpp\ng++ -o Build/Mac/Debug/Tests/RendererMaterialShaderTests.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all -D_DEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/RendererMaterialShaderTests.cpp\ng++ -o Build/Mac/Debug/Tests/RendererRenderGraphTests.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all -D_DEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/RendererRenderGraphTests.cpp\ng++ -o Build/Mac/Debug/Tests/TriangleDemoIntegrationTests.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all -D_DEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/TriangleDemoIntegrationTests.cpp\ng++ -o Build/Mac/Debug/Tests/VulkanBackendTests.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all -D_DEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/VulkanBackendTests.cpp\ng++ -o Build/Mac/Debug/Tests/VulkanNativeIntegrationTests.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all -D_DEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/VulkanNativeIntegrationTests.cpp\ng++ -o Build/Mac/Debug/Tests/StonerTest -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all /Users/wangshi/VulkanSDK/1.4.341.1/macOS/lib/libvulkan.dylib -Wl,-rpath,/Users/wangshi/VulkanSDK/1.4.341.1/macOS/lib /opt/homebrew/lib/libglfw.3.dylib -Wl,-rpath,/opt/homebrew/lib Build/Mac/Debug/Tests/ApplicationSceneEcsTests.o Build/Mac/Debug/Tests/ApplicationWindowInputTests.o Build/Mac/Debug/Tests/CoreFoundationTests.o Build/Mac/Debug/Tests/CoreMathTests.o Build/Mac/Debug/Tests/CorePlatformOwnershipTests.o Build/Mac/Debug/Tests/CorePlatformTests.o Build/Mac/Debug/Tests/DeferredNativeIntegrationTests.o Build/Mac/Debug/Tests/DeferredRenderingTests.o Build/Mac/Debug/Tests/LoggingAssertionTests.o Build/Mac/Debug/Tests/Main.o Build/Mac/Debug/Tests/RHICoreTests.o Build/Mac/Debug/Tests/RendererComparisonTests.o Build/Mac/Debug/Tests/RendererForwardPipelineTests.o Build/Mac/Debug/Tests/RendererMaterialShaderTests.o Build/Mac/Debug/Tests/RendererRenderGraphTests.o Build/Mac/Debug/Tests/TriangleDemoIntegrationTests.o Build/Mac/Debug/Tests/VulkanBackendTests.o Build/Mac/Debug/Tests/VulkanNativeIntegrationTests.o -LBuild/Mac/Debug/Core -LSource/Core -LBuild/Mac/Debug/RHI -LSource/RHI -LBuild/Mac/Debug/Renderer -LSource/Renderer -LBuild/Mac/Debug/Application -LSource/Application -LBuild/Mac/Debug/Backend/Vulkan -LSource/Backend/Vulkan -LSource/Backend/Vulkan -LBuild/Mac/Debug/Demo/StonerDemo -LDemo/StonerDemo -lStonerDemoRuntime -lApplication -lRenderer -lRHI -lCore -lVulkanRHI -framework Cocoa -framework IOKit -framework CoreFoundation\nscons: done building targets.\n"
+          "stdout_tail": "scons: Reading SConscript files ...\nscons: done reading SConscript files.\nscons: Building targets ...\nscons: `.' is up to date.\nscons: done building targets.\n"
         },
         {
           "args": [
@@ -3578,7 +3638,7 @@
       ],
       "passed": true,
       "profile": "sanitizers",
-      "recorded_at": "2026-07-26T13:24:45+00:00"
+      "recorded_at": "2026-07-26T13:32:57+00:00"
     },
     "strict-debug": {
       "commands": [
@@ -3642,7 +3702,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "fbc1d103622ec70c6374745f872cfacc109de369"
+    "last_recorded_head": "0046dc65b2fb36ef67c1d0dbe5a1b5490bacc83e"
   },
   "policy": {
     "fix_severities": [
@@ -3662,5 +3722,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T13:26:51+00:00"
+  "updated_at": "2026-07-26T13:35:26+00:00"
 }
