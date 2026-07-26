@@ -743,6 +743,66 @@
       "status": "Fixed",
       "title": "GCC debug break is not resumable as required",
       "verification": ""
+    },
+    {
+      "batch": "B02",
+      "commit": "",
+      "created_at": "2026-07-26T08:04:42+00:00",
+      "deferred_target": "",
+      "evidence": "B02-S19 compile probes classified __ANDROID__ as SG_PLATFORM_LINUX and TARGET_OS_IPHONE as SG_PLATFORM_MAC, while a generic unknown target correctly failed compilation",
+      "history": [
+        {
+          "at": "2026-07-26T08:05:04+00:00",
+          "from": "Open",
+          "note": "Confirmed by compiler-macro simulations against the maintained header; fix in B02-S20 with an explicit supported-desktop target matrix and regression coverage.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T08:05:04+00:00",
+          "from": "Triaged",
+          "note": "Confirmed by compiler-macro simulations against the maintained header; fix in B02-S20 with an explicit supported-desktop target matrix and regression coverage.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B02-F016",
+      "impact": "Android and non-macOS Apple builds can enter desktop platform branches and compile against incorrect APIs while advertising a supported desktop identity",
+      "location": "Source/Core/Public/Core/SGPlatform.h:3",
+      "requirement": "Feature 006 FR-001 and FR-002 require exactly one supported Windows/macOS/Linux identity and a clear failure for unsupported platforms",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Mobile targets are silently classified as supported desktop platforms",
+      "verification": ""
+    },
+    {
+      "batch": "B02",
+      "commit": "",
+      "created_at": "2026-07-26T08:04:54+00:00",
+      "deferred_target": "",
+      "evidence": "B02-S19 macOS ownership probe called GetAvailableMemoryBytes 1024 times and observed host send urefs grow from 1 to 1025 (delta 1024)",
+      "history": [
+        {
+          "at": "2026-07-26T08:05:16+00:00",
+          "from": "Open",
+          "note": "Confirmed by direct Mach port reference accounting against the production implementation; fix in B02-S20 with balanced deallocation and repeated-query regression coverage.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T08:05:16+00:00",
+          "from": "Triaged",
+          "note": "Confirmed by direct Mach port reference accounting against the production implementation; fix in B02-S20 with balanced deallocation and repeated-query regression coverage.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B02-F017",
+      "impact": "Long-running repeated queries consume Mach port user references and can eventually exhaust or saturate the process right-reference count",
+      "location": "Source/Core/Private/FPlatformMisc.cpp:53",
+      "requirement": "Feature 006 FR-003 requires safe available-memory reporting through the Core platform boundary",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "macOS available-memory query leaks a Mach host send-right reference",
+      "verification": ""
     }
   ],
   "schema_version": 1
