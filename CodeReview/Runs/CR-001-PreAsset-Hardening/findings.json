@@ -1028,7 +1028,7 @@
     },
     {
       "batch": "B03",
-      "commit": "",
+      "commit": "98c97a5",
       "created_at": "2026-07-26T09:24:32+00:00",
       "deferred_target": "",
       "evidence": "A strict standalone C++20 probe sets LiveInstances=UINT32_MAX and LiveDevices=1; GetTotalLiveObjectCount() returns 0 (probe exit 3), while successful endurance validation treats zero as proof that no demo-owned resources remain.",
@@ -1044,21 +1044,27 @@
           "from": "Triaged",
           "note": "Accepted for B03-S02. Widen the aggregate result and accumulation expression without inflating the individual diagnostic counters, then add overflow/non-zero gate regression coverage.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T09:40:26+00:00",
+          "from": "Accepted",
+          "note": "GetTotalLiveObjectCount now returns uint64 and promotes the first operand before summation; per-category uint32 diagnostics remain unchanged. Regression coverage proves UINT32_MAX+1 equals 4294967296 instead of zero.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B03-F001",
       "impact": "Unsigned 32-bit aggregation can falsely certify leak-free shutdown when non-zero category counts wrap modulo 2^32, weakening the stable runtime snapshot and final-zero resource gate.",
       "location": "Source/RHI/Public/RHI/FRHIRuntimeSnapshot.h:15",
       "requirement": "018-FR-019; 018-SC-009; 018-T006",
-      "resolution": "",
+      "resolution": "GetTotalLiveObjectCount now returns uint64 and promotes the first operand before summation; per-category uint32 diagnostics remain unchanged. Regression coverage proves UINT32_MAX+1 equals 4294967296 instead of zero.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Runtime snapshot live-object total can wrap to zero",
       "verification": ""
     },
     {
       "batch": "B03",
-      "commit": "",
+      "commit": "98c97a5",
       "created_at": "2026-07-26T09:24:44+00:00",
       "deferred_target": "",
       "evidence": "A strict standalone C++20 probe sets RequestedMode=Deterministic, ObjectMode=RealRuntime, LiveInstances=1, and LiveDevices=1; ProvesNativeExecution() returns true (probe exit 3). The validation contract requires native-required runs to fail when proof reports deterministic mode.",
@@ -1074,15 +1080,21 @@
           "from": "Triaged",
           "note": "Accepted for B03-S02. Require a native request in ProvesNativeExecution(), define negative combinations explicitly, and add deterministic/fallback/zero-count regression cases.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T09:40:26+00:00",
+          "from": "Accepted",
+          "note": "ProvesNativeExecution now requires an explicit Native or NativeHeadless request in addition to RealRuntime and non-zero instance/device counts. Tests cover both positive native modes and deterministic, fallback, missing-instance, and missing-device negatives.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B03-F002",
       "impact": "A contradictory snapshot can falsely satisfy backend-neutral native proof, allowing a deterministic request to be represented as successful native execution and undermining the no-silent-fallback milestone gate.",
       "location": "Source/RHI/Public/RHI/FRHIRuntimeSnapshot.h:32",
       "requirement": "018-FR-003; 018-T006; 018-T009; triangle-demo-validation-contract native-required gate",
-      "resolution": "",
+      "resolution": "ProvesNativeExecution now requires an explicit Native or NativeHeadless request in addition to RealRuntime and non-zero instance/device counts. Tests cover both positive native modes and deterministic, fallback, missing-instance, and missing-device negatives.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Native execution proof accepts a deterministic request",
       "verification": ""
     }
