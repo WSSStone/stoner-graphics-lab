@@ -207,35 +207,35 @@
 ## CR001-B02-F013: Assertion handler replacement races with assertion dispatch
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: Feature 005 replaceable assertion handler contract and Core diagnostic thread-safety
 - Location: `Source/Core/Private/FLog.cpp:17; Source/Core/Private/FLog.cpp:93; Source/Core/Private/FLog.cpp:178`
 - Impact: Replacing the handler while any worker reports an assertion is C++ undefined behavior and can dispatch through a torn or stale function pointer.
 - Evidence: A release ThreadSanitizer probe reports a data race between FLog::SetAssertionHandler and FLog::HandleAssertionFailure on global GAssertionHandler.
-- Resolution: pending
+- Resolution: Assertion handler selection now uses relaxed atomic function-pointer loads/stores; maintained concurrent dispatch coverage passes and the original post-fix TSan probe exits 0 without a race report.
 - Verification: pending
-- Commit: `pending`
+- Commit: `76063b27d6f3cbbb79fbcd488897af33a9504054`
 
 ## CR001-B02-F014: Assertion build-mode and default-break contracts lack durable coverage
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: Feature 005 FR-008 through FR-011, SC-003 through SC-005, SC-009, and quickstart checks 5-7
 - Location: `Tests/LoggingAssertionTests.cpp:646; Tests/LoggingAssertionTests.cpp:684; Tests/LoggingAssertionTests.cpp:719`
 - Impact: Debugger-break, compile-out, or Release VERIFY regressions can pass the claimed public-entry and build-mode coverage gates on all CI platforms.
 - Evidence: Maintained tests always install a custom handler, never execute SG_DEBUG_BREAK, use no side effect in SG_CHECK/SG_CHECKF Release checks, and omit the Release false-SG_VERIFY no-handler assertion. External probes show Debug SIGTRAP and correct Release stripping, but that evidence is not maintained.
-- Resolution: pending
+- Resolution: The maintained child harness now exercises the default assertion handler in Debug and Release; side-effect counters prove SG_CHECK/SG_CHECKF stripping and false SG_VERIFY non-dispatch in Release.
 - Verification: pending
-- Commit: `pending`
+- Commit: `76063b27d6f3cbbb79fbcd488897af33a9504054`
 
 ## CR001-B02-F015: GCC debug break is not resumable as required
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: Feature 005 FR-011, cross-platform constraint, contract SG_DEBUG_BREAK, and research Decision 5
 - Location: `Source/Core/Public/Core/SGPlatformBreak.h:19`
 - Impact: Linux GCC assertions stop on a trap instruction that repeats or requires manual instruction-pointer repair, violating the soft-stop assertion contract and differing from MSVC/Clang behavior.
 - Evidence: The GCC branch expands to __builtin_trap even though Feature 005 research explicitly rejects that intrinsic as non-resumable; the clarified contract requires a debugger break from which execution can continue.
-- Resolution: pending
+- Resolution: GCC/POSIX now raises SIGTRAP instead of using __builtin_trap; Clang and MSVC retain resumable debugger intrinsics, and Feature 005 artifacts document the corrected platform mapping.
 - Verification: pending
-- Commit: `pending`
+- Commit: `76063b27d6f3cbbb79fbcd488897af33a9504054`
