@@ -352,7 +352,10 @@ def cmd_baseline(repo: Path, run_dir: Path, state: dict[str, Any]) -> None:
             "requirements": len(trace_rows),
         },
         "architecture_scan": {"violation_count": len(violations), "violations": violations},
-        "codegraph": codegraph_adapter.status(repo),
+        "codegraph": {
+            "status": codegraph_adapter.status(repo),
+            "cpp_coverage": codegraph_adapter.cpp_coverage(repo),
+        },
     }
     write_json(run_dir / "Evidence" / "baseline.json", baseline)
     append_event(state, "baseline", "captured repository baseline")
@@ -641,7 +644,7 @@ def render_all(repo: Path, run_dir: Path, state: dict[str, Any]) -> None:
                 "",
             ]
         )
-    atomic_write(run_dir / "findings.md", "\n".join(finding_lines) + "\n")
+    atomic_write(run_dir / "findings.md", "\n".join(finding_lines))
 
     snapshot = git_snapshot(repo)
     handoff = [

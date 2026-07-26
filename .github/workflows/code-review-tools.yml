@@ -3,13 +3,7 @@ name: Code Review Tools
 on:
   pull_request:
     paths:
-      - "CodeReview/**"
-      - ".github/workflows/code-review-tools.yml"
-  push:
-    branches:
-      - "codex/review-*"
-    paths:
-      - "CodeReview/**"
+      - "CodeReview/Tools/**"
       - ".github/workflows/code-review-tools.yml"
 
 jobs:
