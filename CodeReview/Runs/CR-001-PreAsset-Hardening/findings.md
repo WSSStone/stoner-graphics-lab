@@ -59,3 +59,27 @@
 - Resolution: pending
 - Verification: pending
 - Commit: `pending`
+
+## CR001-B02-F001: FName public states violate text/hash identity invariants
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 003-FR-003 and Engine Name validation rules require text-derived identity and correct equality
+- Location: `Source/Core/Public/Core/FName.h:34`
+- Impact: Valid constructible or moved-from FName values can violate equality consistency, making identifier comparisons and future hashed lookup behavior depend on stale or caller-forged hash state.
+- Evidence: A focused C++20 probe prints '1 0 0': a moved-from FName reports empty but is unequal to the default empty name, and two public synthetic names with identical text but different supplied hashes compare unequal.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B02-F002: Core foundation tests do not validate moved-from value invariants
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 003-FR-008 and the feature edge cases require meaningful move and boundary verification
+- Location: `Tests/CoreFoundationTests.cpp:64`
+- Impact: The required boundary coverage reports success without checking behavior and cannot detect identity invariant regressions in a foundational value type.
+- Evidence: The only moved-from FString assertion is 'IsEmpty() || !IsEmpty()', which is tautologically true; FName copy/move behavior is not tested, allowing the reproduced stale-hash equality defect to pass all gates.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`

@@ -185,6 +185,66 @@
       "status": "Accepted",
       "title": "Tests bypass Public/Private boundaries through global private include paths",
       "verification": ""
+    },
+    {
+      "batch": "B02",
+      "commit": "",
+      "created_at": "2026-07-26T04:06:03+00:00",
+      "deferred_target": "",
+      "evidence": "A focused C++20 probe prints '1 0 0': a moved-from FName reports empty but is unequal to the default empty name, and two public synthetic names with identical text but different supplied hashes compare unequal.",
+      "history": [
+        {
+          "at": "2026-07-26T04:06:04+00:00",
+          "from": "Open",
+          "note": "The minimal probe reproduces two public paths that break the documented FName equality invariant; repair in B02-S02.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T04:06:04+00:00",
+          "from": "Triaged",
+          "note": "The minimal probe reproduces two public paths that break the documented FName equality invariant; repair in B02-S02.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B02-F001",
+      "impact": "Valid constructible or moved-from FName values can violate equality consistency, making identifier comparisons and future hashed lookup behavior depend on stale or caller-forged hash state.",
+      "location": "Source/Core/Public/Core/FName.h:34",
+      "requirement": "003-FR-003 and Engine Name validation rules require text-derived identity and correct equality",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "FName public states violate text/hash identity invariants",
+      "verification": ""
+    },
+    {
+      "batch": "B02",
+      "commit": "",
+      "created_at": "2026-07-26T04:06:04+00:00",
+      "deferred_target": "",
+      "evidence": "The only moved-from FString assertion is 'IsEmpty() || !IsEmpty()', which is tautologically true; FName copy/move behavior is not tested, allowing the reproduced stale-hash equality defect to pass all gates.",
+      "history": [
+        {
+          "at": "2026-07-26T04:06:05+00:00",
+          "from": "Open",
+          "note": "The assertion is mechanically vacuous and the missing FName move law directly masks CR001-B02-F001; repair together in B02-S02.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T04:06:05+00:00",
+          "from": "Triaged",
+          "note": "The assertion is mechanically vacuous and the missing FName move law directly masks CR001-B02-F001; repair together in B02-S02.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B02-F002",
+      "impact": "The required boundary coverage reports success without checking behavior and cannot detect identity invariant regressions in a foundational value type.",
+      "location": "Tests/CoreFoundationTests.cpp:64",
+      "requirement": "003-FR-008 and the feature edge cases require meaningful move and boundary verification",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Core foundation tests do not validate moved-from value invariants",
+      "verification": ""
     }
   ],
   "schema_version": 1
