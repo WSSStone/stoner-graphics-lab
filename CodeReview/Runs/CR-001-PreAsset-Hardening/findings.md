@@ -243,23 +243,23 @@
 ## CR001-B02-F016: Mobile targets are silently classified as supported desktop platforms
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: Feature 006 FR-001 and FR-002 require exactly one supported Windows/macOS/Linux identity and a clear failure for unsupported platforms
 - Location: `Source/Core/Public/Core/SGPlatform.h:3`
 - Impact: Android and non-macOS Apple builds can enter desktop platform branches and compile against incorrect APIs while advertising a supported desktop identity
 - Evidence: B02-S19 compile probes classified __ANDROID__ as SG_PLATFORM_LINUX and TARGET_OS_IPHONE as SG_PLATFORM_MAC, while a generic unknown target correctly failed compilation
-- Resolution: pending
+- Resolution: SGPlatform now rejects Android before Linux and accepts only TARGET_OS_OSX within the Apple/Mach family. The SCons test target runs a maintained compiler matrix proving Windows/macOS/Linux success and Android/iOS/unknown diagnostic failure.
 - Verification: pending
-- Commit: `pending`
+- Commit: `7a78cc6db8ed80c4b6d373cd932677850f58abbe`
 
 ## CR001-B02-F017: macOS available-memory query leaks a Mach host send-right reference
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: Feature 006 FR-003 requires safe available-memory reporting through the Core platform boundary
 - Location: `Source/Core/Private/FPlatformMisc.cpp:53`
 - Impact: Long-running repeated queries consume Mach port user references and can eventually exhaust or saturate the process right-reference count
 - Evidence: B02-S19 macOS ownership probe called GetAvailableMemoryBytes 1024 times and observed host send urefs grow from 1 to 1025 (delta 1024)
-- Resolution: pending
+- Resolution: The macOS available-memory path now balances mach_host_self with mach_port_deallocate before every later return. A maintained 1,024-query Mach uref regression and the original focused probe both preserve the reference count.
 - Verification: pending
-- Commit: `pending`
+- Commit: `7a78cc6db8ed80c4b6d373cd932677850f58abbe`

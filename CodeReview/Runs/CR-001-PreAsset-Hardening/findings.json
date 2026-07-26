@@ -746,7 +746,7 @@
     },
     {
       "batch": "B02",
-      "commit": "",
+      "commit": "7a78cc6db8ed80c4b6d373cd932677850f58abbe",
       "created_at": "2026-07-26T08:04:42+00:00",
       "deferred_target": "",
       "evidence": "B02-S19 compile probes classified __ANDROID__ as SG_PLATFORM_LINUX and TARGET_OS_IPHONE as SG_PLATFORM_MAC, while a generic unknown target correctly failed compilation",
@@ -762,21 +762,27 @@
           "from": "Triaged",
           "note": "Confirmed by compiler-macro simulations against the maintained header; fix in B02-S20 with an explicit supported-desktop target matrix and regression coverage.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T08:16:20+00:00",
+          "from": "Accepted",
+          "note": "SGPlatform now rejects Android before Linux and accepts only TARGET_OS_OSX within the Apple/Mach family. The SCons test target runs a maintained compiler matrix proving Windows/macOS/Linux success and Android/iOS/unknown diagnostic failure.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B02-F016",
       "impact": "Android and non-macOS Apple builds can enter desktop platform branches and compile against incorrect APIs while advertising a supported desktop identity",
       "location": "Source/Core/Public/Core/SGPlatform.h:3",
       "requirement": "Feature 006 FR-001 and FR-002 require exactly one supported Windows/macOS/Linux identity and a clear failure for unsupported platforms",
-      "resolution": "",
+      "resolution": "SGPlatform now rejects Android before Linux and accepts only TARGET_OS_OSX within the Apple/Mach family. The SCons test target runs a maintained compiler matrix proving Windows/macOS/Linux success and Android/iOS/unknown diagnostic failure.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Mobile targets are silently classified as supported desktop platforms",
       "verification": ""
     },
     {
       "batch": "B02",
-      "commit": "",
+      "commit": "7a78cc6db8ed80c4b6d373cd932677850f58abbe",
       "created_at": "2026-07-26T08:04:54+00:00",
       "deferred_target": "",
       "evidence": "B02-S19 macOS ownership probe called GetAvailableMemoryBytes 1024 times and observed host send urefs grow from 1 to 1025 (delta 1024)",
@@ -792,15 +798,21 @@
           "from": "Triaged",
           "note": "Confirmed by direct Mach port reference accounting against the production implementation; fix in B02-S20 with balanced deallocation and repeated-query regression coverage.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T08:16:38+00:00",
+          "from": "Accepted",
+          "note": "The macOS available-memory path now balances mach_host_self with mach_port_deallocate before every later return. A maintained 1,024-query Mach uref regression and the original focused probe both preserve the reference count.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B02-F017",
       "impact": "Long-running repeated queries consume Mach port user references and can eventually exhaust or saturate the process right-reference count",
       "location": "Source/Core/Private/FPlatformMisc.cpp:53",
       "requirement": "Feature 006 FR-003 requires safe available-memory reporting through the Core platform boundary",
-      "resolution": "",
+      "resolution": "The macOS available-memory path now balances mach_host_self with mach_port_deallocate before every later return. A maintained 1,024-query Mach uref regression and the original focused probe both preserve the reference count.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "macOS available-memory query leaks a Mach host send-right reference",
       "verification": ""
     }
