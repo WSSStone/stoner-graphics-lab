@@ -471,35 +471,35 @@
 ## CR001-B04-F004: Vulkan presentation bypasses the backend-neutral RHI contract
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 009-FR-011 through FR-016, 009-SC-006, 018-FR-003, and the Feature 018 RHI Presentation Contract
 - Location: `Source/Backend/Vulkan/Public/VulkanRHI/FVulkanDevice.h:77`
 - Impact: Renderer/Application code cannot use Vulkan presentation through the current backend-neutral RHI surface, descriptor, image, and synchronization contracts. Real visible presentation is therefore forced into a separate native facade, duplicating lifecycle ownership and blocking interchangeable backend execution.
 - Evidence: FVulkanDevice overrides only the legacy frame-count swapchain factory and exposes FVulkanSurface/CreateSwapchainForSurface as backend-specific methods. Through an active IRHIDevice reference, CreatePresentationSurface and descriptor-based CreateSwapchain both return Unsupported, while the backend-specific deterministic path succeeds. FVulkanSwapchain also inherits null GetImage and Unsupported synchronized acquire/present defaults.
-- Resolution: pending
+- Resolution: FVulkanDevice now overrides the backend-neutral presentation-surface and descriptor-based swapchain factories. Surface-backed deterministic swapchains expose imported image wrappers and implement semaphore-aware acquire/present with preflight-before-commit semantics; backend-specific helpers now adapt into the same path without claiming native execution.
 - Verification: pending
-- Commit: `pending`
+- Commit: `6119322`
 
 ## CR001-B04-F005: Presentation surfaces have no device provenance or lifecycle ownership
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 009-FR-013, FR-016, FR-017, the Surface and Swapchain Contracts, and 007-FR-002a
 - Location: `Source/Backend/Vulkan/Private/FVulkanDevice.cpp:697`
 - Impact: Surface/device compatibility is not enforceable, stale or cross-device presentation inputs are accepted, and successful recreation does not prove that a usable presentation target exists. Native ownership added behind this contract could dereference stale handles or publish a ready swapchain detached from its parent surface.
 - Evidence: FVulkanSurface stores only a borrowed opaque pointer; FVulkanDevice tracks swapchains but no surfaces. The sanitizer probe creates a surface on Device A, shuts A down, observes the surface still valid, and successfully creates a swapchain from it on Device B. Invalidating that surface does not affect the swapchain, which can transition from Unavailable back to Ready through Recreate without restored presentation input.
-- Resolution: pending
+- Resolution: Surfaces now share one validity record tied to a non-copyable device owner token. Surface-backed swapchains retain that surface, reject stale or foreign provenance, expose Unavailable after surface loss, block recreation against lost input, and are invalidated with surfaces and imported images during device shutdown.
 - Verification: pending
-- Commit: `pending`
+- Commit: `6119322`
 
 ## CR001-B04-F006: Surface and swapchain creation failures do not fail atomically
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 009-FR-001, FR-010, FR-012, FR-013, FR-015, and the Backend Initialization and Surface Contracts
 - Location: `Source/Backend/Vulkan/Private/FVulkanDevice.cpp:682`
 - Impact: Callers can retain a usable output after a failed factory call and cannot distinguish malformed input from an unsupported capability. The public constructor also permits bypassing the device factory's validation, making negative-path behavior dependent on entry point.
 - Evidence: CreateSurface returns early when the device is inactive without resetting OutSurface, so the probe receives InvalidState while a previously valid surface remains usable. CreateSwapchain groups zero FrameCount with unsupported device capability and returns Unsupported, while the public FVulkanSwapchain constructor silently normalizes zero to one; generic RHI coverage classifies a zero-frame request as InvalidState.
-- Resolution: pending
+- Resolution: CreateSurface now resets the output before every device-state check. Zero frame count, zero extent, invalid format, and depth presentation format return InvalidState; valid requests beyond device capability return Unsupported. The concrete zero-frame constructor is terminal rather than silently normalizing to one.
 - Verification: pending
-- Commit: `pending`
+- Commit: `6119322`
