@@ -294,6 +294,12 @@
           "from": "Accepted",
           "note": "Added a representability guard before aligned-allocation overhead arithmetic, retained checked padding in address alignment, documented public alignment/pairing rules, and added overflow-boundary regressions.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T05:44:34+00:00",
+          "from": "Fixed",
+          "note": "Verified at remote head 365fdb9: Windows/macOS/Linux strict headless tests, three-platform strict Release, Linux ASan+UBSan, Linux Lavapipe native/readback, and CR tools all pass; local Core is 62/0 and the focused probe changed from non-null/1 to null/0.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F003",
@@ -302,9 +308,9 @@
       "requirement": "003-FR-005, 003-FR-008, User Story 2 scenario 3, and Memory Utility validation require invalid or unsupported requests to fail deterministically without corruption",
       "resolution": "Added a representability guard before aligned-allocation overhead arithmetic, retained checked padding in address alignment, documented public alignment/pairing rules, and added overflow-boundary regressions.",
       "severity": "S1",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Aligned allocation size arithmetic wraps into undersized success",
-      "verification": ""
+      "verification": "Verified at remote head 365fdb9: Windows/macOS/Linux strict headless tests, three-platform strict Release, Linux ASan+UBSan, Linux Lavapipe native/readback, and CR tools all pass; local Core is 62/0 and the focused probe changed from non-null/1 to null/0."
     }
   ],
   "schema_version": 1
