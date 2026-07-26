@@ -1907,6 +1907,96 @@
       "status": "Verified",
       "title": "Resource wrappers expose failed allocations and unbounded host storage",
       "verification": "Exact parent reproduced usable failed wrappers and throwing huge upload; current negative compile closes those constructors, allocation-failure injection proves all factory rollbacks, and host upload failure preserves prior bytes with explicit results."
+    },
+    {
+      "batch": "B04",
+      "commit": "",
+      "created_at": "2026-07-26T14:28:38+00:00",
+      "deferred_target": "",
+      "evidence": "The B04-S10 sanitizer probe constructs an unallocated public descriptor set whose destructor releases another set's reservation, then re-allocates the supposedly full slot; FVulkanDevice::CreateDescriptorSet also increments the pool before two throwing allocations without rollback.",
+      "history": [
+        {
+          "at": "2026-07-26T14:28:53+00:00",
+          "from": "Open",
+          "note": "Executable evidence proves quota corruption through the public construction path, and source inspection proves missing rollback after reservation; repair in the next B04 fix packet.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T14:28:53+00:00",
+          "from": "Triaged",
+          "note": "Executable evidence proves quota corruption through the public construction path, and source inspection proves missing rollback after reservation; repair in the next B04 fix packet.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B04-F011",
+      "impact": "Callers can overcommit configured descriptor capacity, while allocation failure can leak a pool slot and escape the explicit-result API, eventually making valid descriptor allocation permanently unavailable.",
+      "location": "Source/Backend/Vulkan/Private/FVulkanDescriptorSet.cpp:47",
+      "requirement": "010-FR-011, 010-FR-011a, and the Descriptor Pool Contract require sets to allocate only from fixed available capacity with explicit failure",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Descriptor reservations are forgeable and allocation is not failure-atomic",
+      "verification": ""
+    },
+    {
+      "batch": "B04",
+      "commit": "",
+      "created_at": "2026-07-26T14:29:07+00:00",
+      "deferred_target": "",
+      "evidence": "The B04-S10 sanitizer probe passes the same invalid compare-plus-no-mip-filter description rejected by FVulkanDevice to the public FVulkanSampler constructor and receives a sampler reporting Valid lifecycle.",
+      "history": [
+        {
+          "at": "2026-07-26T14:29:21+00:00",
+          "from": "Open",
+          "note": "The public constructor contradicts the established device-factory invariant and reproduces a usable invalid sampler; close construction and verify the negative compile path in B04.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T14:29:21+00:00",
+          "from": "Triaged",
+          "note": "The public constructor contradicts the established device-factory invariant and reproduces a usable invalid sampler; close construction and verify the negative compile path in B04.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B04-F012",
+      "impact": "Backend-facing callers can inject unsupported sampler state into descriptor records, making device capability checks optional and leaving later native translation to handle an object that should never exist.",
+      "location": "Source/Backend/Vulkan/Public/VulkanRHI/FVulkanSampler.h:11",
+      "requirement": "010-FR-005 and the RHI device-owned creation contract require unsupported sampler descriptions to return explicit failure without a usable sampler",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Sampler construction bypasses device validation",
+      "verification": ""
+    },
+    {
+      "batch": "B04",
+      "commit": "",
+      "created_at": "2026-07-26T14:29:33+00:00",
+      "deferred_target": "",
+      "evidence": "The B04-S10 sanitizer probe accepts an 8x8 upload into mip 1 of an 8x8 two-mip texture, whose mip extent is 4x4, and accepts one staging byte for a 4x4 R8G8B8A8_UNorm region requiring 64 bytes.",
+      "history": [
+        {
+          "at": "2026-07-26T14:29:45+00:00",
+          "from": "Open",
+          "note": "The request-creation boundary demonstrably omits both mip extent and format byte-footprint checks required by Feature 010; repair and add maintained edge coverage in B04.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T14:29:45+00:00",
+          "from": "Triaged",
+          "note": "The request-creation boundary demonstrably omits both mip extent and format byte-footprint checks required by Feature 010; repair and add maintained edge coverage in B04.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B04-F013",
+      "impact": "Invalid pending records escape the validation boundary; the mip case violates explicit rejection, while an underfilled record can be scheduled and gives future execution code insufficient source bytes, risking corrupt transfer or out-of-bounds reads.",
+      "location": "Source/Backend/Vulkan/Private/FVulkanUploadStaging.cpp:41",
+      "requirement": "010-FR-016, 010-FR-017, T099, and the Upload Staging Contract require mip-aware destination-region and format-compatibility validation when the request is created",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Texture upload staging accepts invalid subresources and byte footprints",
+      "verification": ""
     }
   ],
   "schema_version": 1
