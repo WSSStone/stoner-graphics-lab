@@ -1,5 +1,5 @@
 {
-  "active_step": "B02-S04",
+  "active_step": "B02-S05",
   "batches": [
     {
       "id": "B00",
@@ -143,13 +143,16 @@
           "title": "Verify: value identity and containers"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "a7e6c2863d4ac66c720761637fa01d21eb2e4e86",
+          "completed_at": "2026-07-26T05:29:31+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B02-memory-lifecycle-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b02-memory-lifecycle-probe.md"
+          ],
           "id": "B02-S04",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected FMemory and the Core skeleton module; accepted CR001-B02-F003 for aligned-allocation size overflow and prepared the bounded B02-S05 repair packet.",
+          "started_at": "2026-07-26T05:17:26+00:00",
+          "status": "Completed",
           "title": "Inspect: memory allocation and module lifecycle"
         },
         {
@@ -1773,6 +1776,26 @@
       "at": "2026-07-26T05:15:38+00:00",
       "detail": "B02-S03",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-26T05:17:26+00:00",
+      "detail": "B02-S04",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-26T05:19:38+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T05:19:39+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T05:29:31+00:00",
+      "detail": "B02-S04",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -1926,7 +1949,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "2a97649d67d4197851b7e41b86e0e707dc4a2326"
+    "last_recorded_head": "a7e6c2863d4ac66c720761637fa01d21eb2e4e86"
   },
   "policy": {
     "fix_severities": [
@@ -1946,5 +1969,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T05:15:38+00:00"
+  "updated_at": "2026-07-26T05:29:31+00:00"
 }
