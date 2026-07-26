@@ -1,5 +1,5 @@
 {
-  "active_step": "B02-S03",
+  "active_step": "B02-S04",
   "batches": [
     {
       "id": "B00",
@@ -124,13 +124,22 @@
           "title": "Fix: value identity and containers"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "2a97649",
+          "completed_at": "2026-07-26T05:15:38+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B02-value-identity-verification.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/remote-ci-b02-value-identity.json",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/remote-tools-b02-value-identity.json",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/remote-pr-checks-b02-value-identity.json",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/gate-strict-debug.json",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b02-fix-local.md",
+            "CR001-B02-F001",
+            "CR001-B02-F002"
+          ],
           "id": "B02-S03",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Verified value identity fixes at remote head 2a97649 across all eight hosted checks plus local invariant, Core 60/0, deterministic suite, and stale-API searches; both B02 findings are Verified.",
+          "started_at": "2026-07-26T05:08:27+00:00",
+          "status": "Completed",
           "title": "Verify: value identity and containers"
         },
         {
@@ -1744,6 +1753,26 @@
       "at": "2026-07-26T05:06:53+00:00",
       "detail": "B02-S02",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-26T05:08:27+00:00",
+      "detail": "B02-S03",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-26T05:15:20+00:00",
+      "detail": "verify finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T05:15:21+00:00",
+      "detail": "verify finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T05:15:38+00:00",
+      "detail": "B02-S03",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -1897,7 +1926,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "0bfcdec76013c302616cfc0c7cfdb4af5a6fd5b2"
+    "last_recorded_head": "2a97649d67d4197851b7e41b86e0e707dc4a2326"
   },
   "policy": {
     "fix_severities": [
@@ -1917,5 +1946,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T05:06:53+00:00"
+  "updated_at": "2026-07-26T05:15:38+00:00"
 }

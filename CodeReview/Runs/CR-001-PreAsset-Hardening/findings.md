@@ -63,23 +63,23 @@
 ## CR001-B02-F001: FName public states violate text/hash identity invariants
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 003-FR-003 and Engine Name validation rules require text-derived identity and correct equality
 - Location: `Source/Core/Public/Core/FName.h:34`
 - Impact: Valid constructible or moved-from FName values can violate equality consistency, making identifier comparisons and future hashed lookup behavior depend on stale or caller-forged hash state.
 - Evidence: A focused C++20 probe prints '1 0 0': a moved-from FName reports empty but is unequal to the default empty name, and two public synthetic names with identical text but different supplied hashes compare unequal.
 - Resolution: Added explicit FName move construction and assignment that re-derive hashes for destination and moved-from source text; replaced the escaping forged-hash factory with a non-escaping common-hash comparator.
-- Verification: pending
+- Verification: Verified at remote head 2a97649: Windows/macOS/Linux strict Debug and deterministic tests, three-platform strict Release, Linux ASan+UBSan, Linux Lavapipe native validation, and local Core 60/0 all pass; focused move/collision probe is 1 1 1 and no forged FName factory remains.
 - Commit: `0bfcdec`
 
 ## CR001-B02-F002: Core foundation tests do not validate moved-from value invariants
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 003-FR-008 and the feature edge cases require meaningful move and boundary verification
 - Location: `Tests/CoreFoundationTests.cpp:64`
 - Impact: The required boundary coverage reports success without checking behavior and cannot detect identity invariant regressions in a foundational value type.
 - Evidence: The only moved-from FString assertion is 'IsEmpty() || !IsEmpty()', which is tautologically true; FName copy/move behavior is not tested, allowing the reproduced stale-hash equality defect to pass all gates.
 - Resolution: Replaced the tautological moved-from FString assertion and added collision, copy, equality-law, move-construction, and move-assignment invariant coverage for FName.
-- Verification: pending
+- Verification: Verified at remote head 2a97649: all hosted test/build checks pass; local Core 60/0 exercises meaningful FString reassignment plus FName collision, equality-law, copy, move-construction, and move-assignment invariants, and the tautological assertion is absent.
 - Commit: `0bfcdec`

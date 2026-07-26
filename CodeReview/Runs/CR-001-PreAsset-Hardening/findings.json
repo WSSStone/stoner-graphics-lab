@@ -210,6 +210,12 @@
           "from": "Accepted",
           "note": "Added explicit FName move construction and assignment that re-derive hashes for destination and moved-from source text; replaced the escaping forged-hash factory with a non-escaping common-hash comparator.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T05:15:20+00:00",
+          "from": "Fixed",
+          "note": "Verified at remote head 2a97649: Windows/macOS/Linux strict Debug and deterministic tests, three-platform strict Release, Linux ASan+UBSan, Linux Lavapipe native validation, and local Core 60/0 all pass; focused move/collision probe is 1 1 1 and no forged FName factory remains.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F001",
@@ -218,9 +224,9 @@
       "requirement": "003-FR-003 and Engine Name validation rules require text-derived identity and correct equality",
       "resolution": "Added explicit FName move construction and assignment that re-derive hashes for destination and moved-from source text; replaced the escaping forged-hash factory with a non-escaping common-hash comparator.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "FName public states violate text/hash identity invariants",
-      "verification": ""
+      "verification": "Verified at remote head 2a97649: Windows/macOS/Linux strict Debug and deterministic tests, three-platform strict Release, Linux ASan+UBSan, Linux Lavapipe native validation, and local Core 60/0 all pass; focused move/collision probe is 1 1 1 and no forged FName factory remains."
     },
     {
       "batch": "B02",
@@ -246,6 +252,12 @@
           "from": "Accepted",
           "note": "Replaced the tautological moved-from FString assertion and added collision, copy, equality-law, move-construction, and move-assignment invariant coverage for FName.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T05:15:21+00:00",
+          "from": "Fixed",
+          "note": "Verified at remote head 2a97649: all hosted test/build checks pass; local Core 60/0 exercises meaningful FString reassignment plus FName collision, equality-law, copy, move-construction, and move-assignment invariants, and the tautological assertion is absent.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F002",
@@ -254,9 +266,9 @@
       "requirement": "003-FR-008 and the feature edge cases require meaningful move and boundary verification",
       "resolution": "Replaced the tautological moved-from FString assertion and added collision, copy, equality-law, move-construction, and move-assignment invariant coverage for FName.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Core foundation tests do not validate moved-from value invariants",
-      "verification": ""
+      "verification": "Verified at remote head 2a97649: all hosted test/build checks pass; local Core 60/0 exercises meaningful FString reassignment plus FName collision, equality-law, copy, move-construction, and move-assignment invariants, and the tautological assertion is absent."
     }
   ],
   "schema_version": 1
