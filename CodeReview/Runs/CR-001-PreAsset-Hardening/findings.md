@@ -263,3 +263,39 @@
 - Resolution: The macOS available-memory path now balances mach_host_self with mach_port_deallocate before every later return. A maintained 1,024-query Mach uref regression and the original focused probe both preserve the reference count.
 - Verification: pending
 - Commit: `7a78cc6db8ed80c4b6d373cd932677850f58abbe`
+
+## CR001-B02-F018: Concurrent file truncation is reported as a successful full read
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 006 FR-009; data-model file failure rules; core-platform API verification contract
+- Location: `Source/Core/Private/FPlatformFileSystem.cpp:69`
+- Impact: A caller can accept a partial read padded by value-initialized bytes as a complete payload, violating byte preservation and failure reporting
+- Evidence: ASan/UBSan probe truncated a 256 MiB regular file to one byte after sizing; ReadFile returned true with a 268435456-byte output while the final file size was 1
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B02-F019: POSIX module validation permits loader-search bypass
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 006 FR-010; explicit-path clarification; core-platform API contract
+- Location: `Source/Core/Private/FPlatformProcess.cpp:20`
+- Impact: Callers that expect explicit-path-only loading can instead resolve a module through mutable platform loader search paths
+- Evidence: On macOS, a module name containing only a backslash passed HasExplicitPathMarker and loaded from DYLD_LIBRARY_PATH without any slash in the supplied name
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B02-F020: Dynamic module handle copies permit stale use and repeated release
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 006 data-model dynamic module validation and state transitions; FR-011 managed invalid-handle behavior
+- Location: `Source/Core/Public/Core/FPlatformProcess.h:8`
+- Impact: The public ownership type cannot enforce release exactly once and exposes stale symbol lookup and platform-dependent repeated-close behavior
+- Evidence: ASan/UBSan probe reports copyable=1; after freeing the original handle, its copy still reports valid and FreeDynamicModule invokes a second dlclose on the stale native handle
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`

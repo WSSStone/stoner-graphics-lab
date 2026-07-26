@@ -815,6 +815,96 @@
       "status": "Fixed",
       "title": "macOS available-memory query leaks a Mach host send-right reference",
       "verification": ""
+    },
+    {
+      "batch": "B02",
+      "commit": "",
+      "created_at": "2026-07-26T08:29:53+00:00",
+      "deferred_target": "",
+      "evidence": "ASan/UBSan probe truncated a 256 MiB regular file to one byte after sizing; ReadFile returned true with a 268435456-byte output while the final file size was 1",
+      "history": [
+        {
+          "at": "2026-07-26T08:30:30+00:00",
+          "from": "Open",
+          "note": "S2 correctness defect: ReadFile's eof acceptance masks short reads; fix requires exact byte-count validation and regression coverage.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T08:30:30+00:00",
+          "from": "Triaged",
+          "note": "S2 correctness defect: ReadFile's eof acceptance masks short reads; fix requires exact byte-count validation and regression coverage.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B02-F018",
+      "impact": "A caller can accept a partial read padded by value-initialized bytes as a complete payload, violating byte preservation and failure reporting",
+      "location": "Source/Core/Private/FPlatformFileSystem.cpp:69",
+      "requirement": "006 FR-009; data-model file failure rules; core-platform API verification contract",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Concurrent file truncation is reported as a successful full read",
+      "verification": ""
+    },
+    {
+      "batch": "B02",
+      "commit": "",
+      "created_at": "2026-07-26T08:30:05+00:00",
+      "deferred_target": "",
+      "evidence": "On macOS, a module name containing only a backslash passed HasExplicitPathMarker and loaded from DYLD_LIBRARY_PATH without any slash in the supplied name",
+      "history": [
+        {
+          "at": "2026-07-26T08:30:43+00:00",
+          "from": "Open",
+          "note": "S2 contract defect: explicit-path validation must follow native path grammar and reject names that still invoke POSIX loader search.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T08:30:43+00:00",
+          "from": "Triaged",
+          "note": "S2 contract defect: explicit-path validation must follow native path grammar and reject names that still invoke POSIX loader search.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B02-F019",
+      "impact": "Callers that expect explicit-path-only loading can instead resolve a module through mutable platform loader search paths",
+      "location": "Source/Core/Private/FPlatformProcess.cpp:20",
+      "requirement": "006 FR-010; explicit-path clarification; core-platform API contract",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "POSIX module validation permits loader-search bypass",
+      "verification": ""
+    },
+    {
+      "batch": "B02",
+      "commit": "",
+      "created_at": "2026-07-26T08:30:17+00:00",
+      "deferred_target": "",
+      "evidence": "ASan/UBSan probe reports copyable=1; after freeing the original handle, its copy still reports valid and FreeDynamicModule invokes a second dlclose on the stale native handle",
+      "history": [
+        {
+          "at": "2026-07-26T08:30:57+00:00",
+          "from": "Open",
+          "note": "S2 lifecycle defect: make the native module handle single-owner/move-only and make lookup/release operate without creating aliases.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T08:30:57+00:00",
+          "from": "Triaged",
+          "note": "S2 lifecycle defect: make the native module handle single-owner/move-only and make lookup/release operate without creating aliases.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B02-F020",
+      "impact": "The public ownership type cannot enforce release exactly once and exposes stale symbol lookup and platform-dependent repeated-close behavior",
+      "location": "Source/Core/Public/Core/FPlatformProcess.h:8",
+      "requirement": "006 data-model dynamic module validation and state transitions; FR-011 managed invalid-handle behavior",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Dynamic module handle copies permit stale use and repeated release",
+      "verification": ""
     }
   ],
   "schema_version": 1
