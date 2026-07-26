@@ -1386,6 +1386,12 @@
           "from": "Accepted",
           "note": "Closed descriptor, visibility, and constant-range domains; centralized shader-interface compatibility for mock and Vulkan pipeline layouts; added maintained and standalone regression coverage.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T11:46:09+00:00",
+          "from": "Fixed",
+          "note": "Independent same-source verifier reproduced 0/7 interface rejections on exact parent f7aa909 and 7/7 on current source while preserving 2/2 valid paths; fresh full suite and shared mock/Vulkan call-site audit passed.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B03-F009",
@@ -1394,9 +1400,9 @@
       "requirement": "012-FR-004, 012-FR-005, 012-FR-007, 012-FR-009, and the Feature 012 shader-interface contract",
       "resolution": "Closed descriptor, visibility, and constant-range domains; centralized shader-interface compatibility for mock and Vulkan pipeline layouts; added maintained and standalone regression coverage.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Shader and layout validation omits constant-range and closed-domain checks",
-      "verification": ""
+      "verification": "Independent same-source verifier reproduced 0/7 interface rejections on exact parent f7aa909 and 7/7 on current source while preserving 2/2 valid paths; fresh full suite and shared mock/Vulkan call-site audit passed."
     },
     {
       "batch": "B03",
@@ -1422,6 +1428,12 @@
           "from": "Accepted",
           "note": "Closed graphics fixed-function, format, sample, attachment-role, load, and store domains; shared render-pass validation across mock and Vulkan paths with negative regressions.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T11:46:21+00:00",
+          "from": "Fixed",
+          "note": "Independent same-source verifier reproduced 0/12 fixed-function/render-pass rejections on exact parent and 12/12 on current source while preserving 2/2 valid state paths; sanitizer verifier and fresh full suite passed.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B03-F010",
@@ -1430,9 +1442,9 @@
       "requirement": "008-FR-013, 008-FR-014, 008-FR-019, 012-FR-007, and 012-SC-004",
       "resolution": "Closed graphics fixed-function, format, sample, attachment-role, load, and store domains; shared render-pass validation across mock and Vulkan paths with negative regressions.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Pipeline and render-pass validators accept undefined fixed-function state",
-      "verification": ""
+      "verification": "Independent same-source verifier reproduced 0/12 fixed-function/render-pass rejections on exact parent and 12/12 on current source while preserving 2/2 valid state paths; sanitizer verifier and fresh full suite passed."
     },
     {
       "batch": "B03",
@@ -1458,6 +1470,12 @@
           "from": "Accepted",
           "note": "Validated framebuffer mip and array-layer bounds and exact selected-mip extents in mock and Vulkan helpers; added positive nonzero-subresource and negative boundary regressions.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T11:46:36+00:00",
+          "from": "Fixed",
+          "note": "Independent same-source verifier reproduced 0/3 invalid-subresource rejections plus valid-mip rejection on exact parent, then 3/3 rejections and valid-mip acceptance on current source while preserving 2/2 baseline paths; mock/Vulkan regressions passed.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B03-F011",
@@ -1466,9 +1484,9 @@
       "requirement": "008-FR-015, 008-FR-016, and 008-FR-019",
       "resolution": "Validated framebuffer mip and array-layer bounds and exact selected-mip extents in mock and Vulkan helpers; added positive nonzero-subresource and negative boundary regressions.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Framebuffer validation ignores selected mip and array-layer semantics",
-      "verification": ""
+      "verification": "Independent same-source verifier reproduced 0/3 invalid-subresource rejections plus valid-mip rejection on exact parent, then 3/3 rejections and valid-mip acceptance on current source while preserving 2/2 baseline paths; mock/Vulkan regressions passed."
     }
   ],
   "schema_version": 1

@@ -399,35 +399,35 @@
 ## CR001-B03-F009: Shader and layout validation omits constant-range and closed-domain checks
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 012-FR-004, 012-FR-005, 012-FR-007, 012-FR-009, and the Feature 012 shader-interface contract
 - Location: `Source/RHI/Public/RHI/FRHIPipelineLayoutDesc.h:34`
 - Impact: Malformed interfaces can become usable layouts and pipelines, while mock and Vulkan implementations disagree about shader-layout compatibility.
 - Evidence: The retained B03-S10 strict probe creates a layout with undefined descriptor/visibility values, accepts overlapping compute ranges, and creates a mock compute pipeline whose shader requires a constant range absent from its layout.
 - Resolution: Closed descriptor, visibility, and constant-range domains; centralized shader-interface compatibility for mock and Vulkan pipeline layouts; added maintained and standalone regression coverage.
-- Verification: pending
+- Verification: Independent same-source verifier reproduced 0/7 interface rejections on exact parent f7aa909 and 7/7 on current source while preserving 2/2 valid paths; fresh full suite and shared mock/Vulkan call-site audit passed.
 - Commit: `09d1a1b`
 
 ## CR001-B03-F010: Pipeline and render-pass validators accept undefined fixed-function state
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 008-FR-013, 008-FR-014, 008-FR-019, 012-FR-007, and 012-SC-004
 - Location: `Source/RHI/Public/RHI/FRHIGraphicsPipelineDesc.h:132`
 - Impact: Undefined state can cross public validation and become usable objects, producing backend-dependent behavior and invalidating claimed negative-path coverage.
 - Evidence: The retained B03-S10 strict probe creates a mock graphics pipeline with undefined raster/blend/depth and sample values and a render pass with undefined role/load/store/sample values.
 - Resolution: Closed graphics fixed-function, format, sample, attachment-role, load, and store domains; shared render-pass validation across mock and Vulkan paths with negative regressions.
-- Verification: pending
+- Verification: Independent same-source verifier reproduced 0/12 fixed-function/render-pass rejections on exact parent and 12/12 on current source while preserving 2/2 valid state paths; sanitizer verifier and fresh full suite passed.
 - Commit: `09d1a1b`
 
 ## CR001-B03-F011: Framebuffer validation ignores selected mip and array-layer semantics
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 008-FR-015, 008-FR-016, and 008-FR-019
 - Location: `Tests/RHICoreTests.cpp:1525`
 - Impact: Callers can receive usable framebuffers for nonexistent subresources and cannot reliably target valid nonzero mips through the cross-backend contract.
 - Evidence: The retained B03-S10 strict probe accepts mip and layer indices equal to their counts, then rejects valid mip one at its 32x32 extent because the factory compares only against the 64x64 base texture.
 - Resolution: Validated framebuffer mip and array-layer bounds and exact selected-mip extents in mock and Vulkan helpers; added positive nonzero-subresource and negative boundary regressions.
-- Verification: pending
+- Verification: Independent same-source verifier reproduced 0/3 invalid-subresource rejections plus valid-mip rejection on exact parent, then 3/3 rejections and valid-mip acceptance on current source while preserving 2/2 baseline paths; mock/Vulkan regressions passed.
 - Commit: `09d1a1b`
