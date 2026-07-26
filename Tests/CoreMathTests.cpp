@@ -46,11 +46,27 @@ void TestFMath(FCoreMathTestResult& Result)
     Record(Result, FMath::Min(2, 7) == 2 && FMath::Max(2, 7) == 7, "FMath Min and Max select bounds");
     Record(Result, Near(FMath::Abs(-4.0f), 4.0f), "FMath Abs handles negative values");
     Record(Result, Near(FMath::Lerp(10.0f, 20.0f, 0.25f), 12.5f), "FMath Lerp interpolates values");
+    const float MaxFloat = std::numeric_limits<float>::max();
+    Record(
+        Result,
+        FMath::Lerp(MaxFloat, -MaxFloat, 0.0f) == MaxFloat &&
+            FMath::Lerp(MaxFloat, -MaxFloat, 1.0f) == -MaxFloat &&
+            Near(FMath::Lerp(MaxFloat, -MaxFloat, 0.5f), 0.0f),
+        "FMath Lerp preserves extreme finite endpoints and midpoint");
     Record(Result, Near(FMath::Sin(FMath::HalfPi), 1.0f), "FMath Sin handles half pi");
     Record(Result, Near(FMath::Cos(0.0f), 1.0f), "FMath Cos handles zero");
     Record(Result, Near(FMath::Sqrt(25.0f), 5.0f), "FMath Sqrt computes square root");
     Record(Result, FMath::IsNearlyEqual(1.0f, 1.0f + 0.5f * FMath::DefaultTolerance), "FMath near equality accepts tolerance");
     Record(Result, FMath::IsNearlyZero(0.5f * FMath::DefaultTolerance), "FMath near zero accepts tolerance");
+    Record(
+        Result,
+        !FMath::IsNearlyEqual(1.0f, 1.0f, -1.0f) &&
+            !FMath::IsNearlyEqual(1.0f, 1.0f, std::numeric_limits<float>::infinity()) &&
+            !FMath::IsNearlyEqual(
+                std::numeric_limits<float>::infinity(),
+                std::numeric_limits<float>::infinity()) &&
+            !FMath::IsNearlyZero(std::numeric_limits<float>::quiet_NaN()),
+        "FMath near comparisons reject invalid numeric inputs");
 }
 
 void TestVectors(FCoreMathTestResult& Result)
@@ -63,6 +79,14 @@ void TestVectors(FCoreMathTestResult& Result)
     Record(Result, Near(V2A.Dot(V2B), 11.0f), "FVector2 dot product works");
     Record(Result, Near(FVector2(3.0f, 4.0f).Length(), 5.0f), "FVector2 length works");
     Record(Result, FVector2(1.0f, 1.0f).NearlyEquals(FVector2(1.0f, 1.0f + 0.5f * FMath::DefaultTolerance)), "FVector2 near equality works");
+    const float MaxFloat = std::numeric_limits<float>::max();
+    Record(Result, FVector2(MaxFloat, 0.0f).Length() == MaxFloat, "FVector2 length resists finite square overflow");
+    Record(Result, FVector2(MaxFloat, 0.0f).GetSafeNormal() == FVector2::UnitX(), "FVector2 normalizes large finite axis");
+    Record(
+        Result,
+        FVector2(std::numeric_limits<float>::infinity(), 0.0f).GetSafeNormal() ==
+            FVector2::Zero(),
+        "FVector2 safe normalization rejects non-finite components");
 
     const FVector3 V3A(1.0f, 0.0f, 0.0f);
     const FVector3 V3B(0.0f, 1.0f, 0.0f);
@@ -71,15 +95,42 @@ void TestVectors(FCoreMathTestResult& Result)
     Record(Result, Near(FVector3(0.0f, 3.0f, 4.0f).Length(), 5.0f), "FVector3 length works");
     Record(Result, Near(FVector3(0.0f, 3.0f, 4.0f).GetSafeNormal(), FVector3(0.0f, 0.6f, 0.8f)), "FVector3 safe normalization works");
     Record(Result, FVector3::Zero().GetSafeNormal() == FVector3::Zero(), "FVector3 zero safe normalization returns zero");
+    Record(Result, FVector3(MaxFloat, 0.0f, 0.0f).GetSafeNormal() == FVector3::UnitX(), "FVector3 normalizes large finite axis");
+    const float InvSqrt3 = 1.0f / FMath::Sqrt(3.0f);
+    Record(
+        Result,
+        Near(
+            FVector3(MaxFloat, MaxFloat, MaxFloat).GetSafeNormal(),
+            FVector3(InvSqrt3, InvSqrt3, InvSqrt3)),
+        "FVector3 normalizes large finite diagonal");
 
     const FVector3 Infinite(std::numeric_limits<float>::infinity(), 0.0f, 0.0f);
-    Record(Result, !FMath::IsFinite(Infinite.X), "FVector3 infinity input remains queryable");
+    const FVector3 NotANumber(std::numeric_limits<float>::quiet_NaN(), 0.0f, 0.0f);
+    Record(
+        Result,
+        Infinite.GetSafeNormal() == FVector3::Zero() &&
+            NotANumber.GetSafeNormal() == FVector3::Zero() &&
+            FVector3::UnitX().GetSafeNormal(-1.0f) == FVector3::Zero(),
+        "FVector3 safe normalization rejects non-finite inputs and invalid tolerance");
 
     const FVector4 V4A(1.0f, 2.0f, 3.0f, 4.0f);
     const FVector4 V4B(4.0f, 3.0f, 2.0f, 1.0f);
     Record(Result, (V4A + V4B) == FVector4(5.0f, 5.0f, 5.0f, 5.0f), "FVector4 adds components");
     Record(Result, Near(V4A.Dot(V4B), 20.0f), "FVector4 dot product works");
     Record(Result, Near(FVector4(1.0f, 2.0f, 2.0f, 0.0f).Length(), 3.0f), "FVector4 length works");
+    Record(
+        Result,
+        FVector4(MaxFloat, 0.0f, 0.0f, 0.0f).GetSafeNormal() ==
+            FVector4(1.0f, 0.0f, 0.0f, 0.0f),
+        "FVector4 normalizes large finite axis");
+    Record(
+        Result,
+        FVector4(
+            0.0f,
+            0.0f,
+            std::numeric_limits<float>::quiet_NaN(),
+            0.0f).GetSafeNormal() == FVector4::Zero(),
+        "FVector4 safe normalization rejects non-finite components");
 }
 
 void TestMatrix(FCoreMathTestResult& Result)
@@ -161,6 +212,18 @@ void TestColorAndGeometry(FCoreMathTestResult& Result)
 
     const FColorBytes Converted = FColor(1.2f, -1.0f, 0.5f, 1.0f).ToBytes();
     Record(Result, Converted.R == 255 && Converted.G == 0 && Converted.B == 128 && Converted.A == 255, "FColor float to byte clamps and rounds channels");
+    const FColorBytes InvalidConverted = FColor(
+        std::numeric_limits<float>::quiet_NaN(),
+        std::numeric_limits<float>::infinity(),
+        -std::numeric_limits<float>::infinity(),
+        std::numeric_limits<float>::quiet_NaN()).ToBytes();
+    Record(
+        Result,
+        InvalidConverted.R == 0 &&
+            InvalidConverted.G == 255 &&
+            InvalidConverted.B == 0 &&
+            InvalidConverted.A == 0,
+        "FColor byte conversion handles non-finite channels deterministically");
     Record(Result, FColor(0.1f, 0.2f, 0.3f, 1.0f).NearlyEquals(FColor(0.1f, 0.2f, 0.3f + 0.5f * FMath::DefaultTolerance, 1.0f)), "FColor near equality works");
 
     FBox Box;

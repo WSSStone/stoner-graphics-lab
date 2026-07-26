@@ -17,7 +17,8 @@ struct FColorBytes
 };
 
 // RGBA color with normalized float channels. Byte conversion clamps to [0, 1]
-// and rounds to the nearest byte value.
+// and rounds to the nearest byte value. NaN converts to zero; infinities clamp
+// to the endpoint selected by their sign.
 struct FColor
 {
     float R = 0.0f;
@@ -83,6 +84,11 @@ struct FColor
 private:
     [[nodiscard]] static uint8 ToByte(float Value) noexcept
     {
+        if (std::isnan(Value))
+        {
+            return 0;
+        }
+
         const float Clamped = FMath::Clamp(Value, 0.0f, 1.0f);
         return static_cast<uint8>(std::lround(Clamped * 255.0f));
     }
