@@ -82,7 +82,9 @@ def DetectGraphicsDependencies(platform):
         glfw_names = ('libglfw.3.dylib', 'libglfw.dylib', 'libglfw3.a')
         molten_names = ('libMoltenVK.dylib', 'libMoltenVK.a')
     else:
-        vulkan_names = ('libvulkan.so', 'libvulkan.so.1')
+        # The build links with -lvulkan, which requires the unversioned
+        # development symlink rather than only the runtime loader SONAME.
+        vulkan_names = ('libvulkan.so',)
         glfw_names = ('libglfw.so', 'libglfw.so.3', 'libglfw3.a')
         molten_names = ()
 
