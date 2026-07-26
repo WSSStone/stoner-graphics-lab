@@ -65,7 +65,9 @@ void TestPlatformMisc(FCorePlatformTestResult& Result)
     const FString OSName = FPlatformMisc::GetOSName();
     Record(Result, !OSName.IsEmpty(), "FPlatformMisc OS name is non-empty");
     Record(Result, FPlatformMisc::GetCPUCoreCount() >= 1, "FPlatformMisc CPU core count is at least one");
-    Record(Result, FPlatformMisc::GetAvailableMemoryBytes() >= 0, "FPlatformMisc available memory result is safe");
+    const uint64 AvailableMemoryBytes = FPlatformMisc::GetAvailableMemoryBytes();
+    Record(Result, AvailableMemoryBytes == 0 || AvailableMemoryBytes >= 1024,
+        "FPlatformMisc available memory result is unavailable or plausible");
 }
 
 void TestPlatformTime(FCorePlatformTestResult& Result)

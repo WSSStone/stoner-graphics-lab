@@ -38,6 +38,12 @@ bool RunNativeFailureInjection()
     return Value != nullptr && std::string_view(Value) == "1";
 }
 
+bool SkipOptionalNative()
+{
+    const char* Value = std::getenv("STONER_SKIP_OPTIONAL_DEFERRED_NATIVE");
+    return Value != nullptr && std::string_view(Value) == "1";
+}
+
 void WriteReport(const Stoner::Backend::Vulkan::FVulkanDeferredValidationReport& Report)
 {
     const char* Path = std::getenv("STONER_DEFERRED_READBACK_REPORT");
@@ -81,6 +87,13 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
     }
     Record(Result, bLifecycleFailuresStable,
         "Deferred native failure lifecycle is runtime-independent stable and zero-live");
+
+    if (SkipOptionalNative() && !IsRequired())
+    {
+        Record(Result, true,
+            "Deferred native validation skips optional driver execution when explicitly requested");
+        return Result;
+    }
 
     FVulkanNativeContext Context;
     const ERHIResult InitializeResult = Context.Initialize(ERHIRuntimeMode::NativeHeadless);

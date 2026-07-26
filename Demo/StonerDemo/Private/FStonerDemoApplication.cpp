@@ -142,8 +142,7 @@ EDemoExitCode FStonerDemoApplication::Initialize()
         Diagnostics.Add(EDemoStage::Runtime, EDemoExitCode::RuntimeUnavailable, "Vulkan", "native Vulkan dependency unavailable");
         LifecycleState = EDemoLifecycleState::Failed;
         return EDemoExitCode::RuntimeUnavailable;
-#endif
-#if !defined(STONER_GLFW_AVAILABLE) || !STONER_GLFW_AVAILABLE
+#elif !defined(STONER_GLFW_AVAILABLE) || !STONER_GLFW_AVAILABLE
         if (Configuration.RequiresVisibleWindow())
         {
             Diagnostics.Add(EDemoStage::Window, EDemoExitCode::RuntimeUnavailable, "GLFW", "native window dependency unavailable");

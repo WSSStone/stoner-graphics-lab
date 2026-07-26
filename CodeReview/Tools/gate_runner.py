@@ -12,6 +12,8 @@ from reviewlib import ReviewError, run, utc_now
 PROFILES: dict[str, list[list[str]]] = {
     "debug": [["scons", "config=debug"]],
     "release": [["scons", "config=release"]],
+    "strict-debug": [["scons", "config=debug", "strict=1"]],
+    "strict-release": [["scons", "config=release", "strict=1"]],
     "cli-tests": [
         [
             "python",
@@ -27,22 +29,47 @@ PROFILES: dict[str, list[list[str]]] = {
 
 
 def available_profiles() -> list[str]:
-    return sorted([*PROFILES, "tests"])
+    return sorted([*PROFILES, "tests", "sanitizers"])
+
+
+def _test_executable() -> str:
+    platform_name = {
+        "Darwin": "Mac",
+        "Linux": "Linux",
+        "Windows": "Win64",
+    }.get(platform.system())
+    if not platform_name:
+        raise ReviewError(f"unsupported test platform: {platform.system()}")
+    executable = f"Build/{platform_name}/Debug/Tests/StonerTest"
+    return executable + ".exe" if platform_name == "Win64" else executable
 
 
 def commands_for(profile: str) -> list[list[str]]:
     if profile == "tests":
-        platform_name = {
-            "Darwin": "Mac",
-            "Linux": "Linux",
-            "Windows": "Win64",
-        }.get(platform.system())
-        if not platform_name:
-            raise ReviewError(f"unsupported test platform: {platform.system()}")
-        executable = f"Build/{platform_name}/Debug/Tests/StonerTest"
-        if platform_name == "Win64":
-            executable += ".exe"
-        return [["scons", "config=debug"], [executable]]
+        return [["scons", "config=debug"], [_test_executable()]]
+    if profile == "sanitizers":
+        if platform.system() == "Windows":
+            raise ReviewError("the ASan/UBSan profile requires Clang or GCC")
+        asan_options = (
+            "detect_leaks=1:halt_on_error=1"
+            if platform.system() == "Linux"
+            else "halt_on_error=1"
+        )
+        return [
+            [
+                "scons",
+                "config=debug",
+                "strict=1",
+                "sanitizers=address,undefined",
+            ],
+            [
+                "env",
+                f"ASAN_OPTIONS={asan_options}",
+                "STONER_SKIP_OPTIONAL_DEFERRED_NATIVE=1",
+                "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1",
+                _test_executable(),
+            ],
+        ]
     if profile not in PROFILES:
         raise ReviewError(
             f"unknown gate profile {profile!r}; choose from {', '.join(available_profiles())}"

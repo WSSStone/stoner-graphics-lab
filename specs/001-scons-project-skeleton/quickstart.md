@@ -22,6 +22,15 @@ scons
 
 # Build with Release configuration
 scons config=release
+
+# Enforce a warning-clean build
+scons config=debug strict=1
+scons config=release strict=1
+
+# Run ASan and UBSan on a Clang/GCC Debug build
+scons config=debug strict=1 sanitizers=address,undefined
+Build/Mac/Debug/Tests/StonerTest       # macOS
+# Build/Linux/Debug/Tests/StonerTest   # Linux
 ```
 
 **Expected output**: Static libraries for each layer in `Build/<Platform>/Debug/` (or `Release/`).

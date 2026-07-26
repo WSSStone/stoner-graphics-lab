@@ -32,6 +32,21 @@ assume Conda is present.
 No command accepts an arbitrary shell string. Child processes use argument
 arrays with `shell=False`.
 
+Project build gates include `strict-debug`, `strict-release`, and `sanitizers`.
+The sanitizer profile combines ASan and UBSan on Clang/GCC and intentionally
+rejects MSVC, where the same combined profile is unavailable:
+
+```sh
+python CodeReview/Tools/crctl.py gate --id CR-001 strict-debug
+python CodeReview/Tools/crctl.py gate --id CR-001 strict-release
+python CodeReview/Tools/crctl.py gate --id CR-001 sanitizers
+```
+
+The sanitizer test run explicitly skips optional deferred driver execution.
+The regular Linux Lavapipe native gate remains mandatory and cannot be skipped
+when `STONER_REQUIRE_DEFERRED_NATIVE=1`; this keeps driver timing outside the
+instrumented deterministic gate without weakening native validation.
+
 ## Tests
 
 ```sh
