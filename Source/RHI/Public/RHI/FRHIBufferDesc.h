@@ -19,14 +19,27 @@ struct FRHIBufferDesc
     ERHIMemoryAccess MemoryAccess = ERHIMemoryAccess::DeviceLocal;
 };
 
+[[nodiscard]] constexpr bool IsValidRHIMemoryAccess(ERHIMemoryAccess MemoryAccess) noexcept
+{
+    switch (MemoryAccess)
+    {
+    case ERHIMemoryAccess::DeviceLocal:
+    case ERHIMemoryAccess::HostVisible:
+        return true;
+    }
+    return false;
+}
+
 [[nodiscard]] constexpr bool IsValidRHIUsage(ERHIBufferUsage Usage) noexcept
 {
-    return Usage != ERHIBufferUsage::None && !HasRHIFlag(Usage, ERHIBufferUsage::ReservedPresent);
+    return Usage != ERHIBufferUsage::None && HasOnlyRHIFlags(Usage, RHIBufferUsageValidMask);
 }
 
 [[nodiscard]] constexpr bool IsValidRHIBufferDesc(const FRHIBufferDesc& Desc) noexcept
 {
-    return Desc.SizeInBytes > 0 && IsValidRHIUsage(Desc.Usage);
+    return Desc.SizeInBytes > 0 &&
+        IsValidRHIUsage(Desc.Usage) &&
+        IsValidRHIMemoryAccess(Desc.MemoryAccess);
 }
 
 } // namespace Stoner::RHI

@@ -18,7 +18,15 @@ struct FRHISamplerDesc
 
 [[nodiscard]] constexpr bool IsValidRHISamplerDesc(const FRHISamplerDesc& Desc) noexcept
 {
-    return !(Desc.CompareMode != ERHISamplerCompareMode::None && Desc.MipFilter == ERHISamplerMipFilter::None);
+    return IsValidRHISamplerFilter(Desc.MinFilter) &&
+        IsValidRHISamplerFilter(Desc.MagFilter) &&
+        IsValidRHISamplerMipFilter(Desc.MipFilter) &&
+        IsValidRHISamplerAddressMode(Desc.AddressU) &&
+        IsValidRHISamplerAddressMode(Desc.AddressV) &&
+        IsValidRHISamplerAddressMode(Desc.AddressW) &&
+        IsValidRHISamplerCompareMode(Desc.CompareMode) &&
+        !(Desc.CompareMode != ERHISamplerCompareMode::None &&
+            Desc.MipFilter == ERHISamplerMipFilter::None);
 }
 
 } // namespace Stoner::RHI

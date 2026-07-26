@@ -999,15 +999,7 @@ private:
 
 [[nodiscard]] bool IsSupportedTextureDesc(const FRHIDeviceCapabilities& Capabilities, const FRHITextureDesc& Desc)
 {
-    if (!IsValidRHITextureDesc(Desc) || !IsSupportedFormat(Capabilities, Desc.Format))
-    {
-        return false;
-    }
-    if (IsDepthStencilFormat(Desc.Format))
-    {
-        return HasRHIFlag(Desc.Usage, ERHITextureUsage::DepthStencilAttachment) || HasRHIFlag(Desc.Usage, ERHITextureUsage::Sampled);
-    }
-    return !HasRHIFlag(Desc.Usage, ERHITextureUsage::DepthStencilAttachment);
+    return IsValidRHITextureDesc(Desc) && IsSupportedFormat(Capabilities, Desc.Format);
 }
 
 [[nodiscard]] bool IsValidPipelineLayoutDesc(const FRHIPipelineLayoutDesc& Desc)
@@ -2002,6 +1994,16 @@ void TestResourceDescriptionsAndFactories(FRHICoreTestResult& Result)
     IncompatibleBuffer.Usage = ERHIBufferUsage::Uniform | ERHIBufferUsage::ReservedPresent;
     Record(Result, Device.CreateBuffer(IncompatibleBuffer).Result == ERHIResult::InvalidState,
         "IRHIDevice rejects explicitly incompatible buffer usage");
+    FRHIBufferDesc UnknownBufferUsage = BufferDesc;
+    UnknownBufferUsage.Usage = static_cast<ERHIBufferUsage>(1u << 31);
+    Record(Result, !IsValidRHIBufferDesc(UnknownBufferUsage) &&
+            Device.CreateBuffer(UnknownBufferUsage).Result == ERHIResult::InvalidState,
+        "buffer helper and factory reject undefined usage bits");
+    FRHIBufferDesc UnknownMemoryAccess = BufferDesc;
+    UnknownMemoryAccess.MemoryAccess = static_cast<ERHIMemoryAccess>(255);
+    Record(Result, !IsValidRHIBufferDesc(UnknownMemoryAccess) &&
+            Device.CreateBuffer(UnknownMemoryAccess).Result == ERHIResult::InvalidState,
+        "buffer helper and factory reject undefined memory access");
 
     FRHITextureDesc Texture1D = MakeColorTextureDesc();
     Texture1D.Dimension = ERHITextureDimension::Texture1D;
@@ -2044,6 +2046,65 @@ void TestResourceDescriptionsAndFactories(FRHICoreTestResult& Result)
     InvalidTexture.Usage = ERHITextureUsage::ColorAttachment | ERHITextureUsage::DepthStencilAttachment;
     Record(Result, Device.CreateTexture(InvalidTexture).Result == ERHIResult::InvalidState,
         "IRHIDevice rejects incompatible texture usage combination");
+    InvalidTexture = MakeColorTextureDesc();
+    InvalidTexture.Usage = static_cast<ERHITextureUsage>(1u << 31);
+    Record(Result, !IsValidRHITextureDesc(InvalidTexture) &&
+            Device.CreateTexture(InvalidTexture).Result == ERHIResult::InvalidState,
+        "texture helper and factory reject undefined usage bits");
+    InvalidTexture = MakeColorTextureDesc();
+    InvalidTexture.Usage = ERHITextureUsage::Vertex;
+    Record(Result, !IsValidRHITextureDesc(InvalidTexture) &&
+            Device.CreateTexture(InvalidTexture).Result == ERHIResult::InvalidState,
+        "texture helper and factory reject non-texture vertex usage");
+    InvalidTexture = MakeColorTextureDesc();
+    InvalidTexture.SampleCount = static_cast<ERHISampleCount>(3);
+    Record(Result, !IsValidRHITextureDesc(InvalidTexture) &&
+            Device.CreateTexture(InvalidTexture).Result == ERHIResult::InvalidState,
+        "texture helper and factory reject undefined sample counts");
+
+    FRHITextureDesc OnePixelMip = MakeColorTextureDesc(1, 1);
+    Record(Result, IsValidRHITextureDesc(OnePixelMip) &&
+            Device.CreateTexture(OnePixelMip).Succeeded(),
+        "texture helper and factory accept the one-level 1x1 mip chain");
+    OnePixelMip.MipLevels = 2;
+    Record(Result, !IsValidRHITextureDesc(OnePixelMip) &&
+            Device.CreateTexture(OnePixelMip).Result == ERHIResult::InvalidState,
+        "texture helper and factory reject a 1x1 texture with two mip levels");
+
+    FRHITextureDesc ExactMipChain = MakeColorTextureDesc();
+    ExactMipChain.MipLevels = 7;
+    Record(Result, IsValidRHITextureDesc(ExactMipChain) &&
+            Device.CreateTexture(ExactMipChain).Succeeded(),
+        "texture helper and factory accept the exact 64x64 mip-chain limit");
+    ExactMipChain.MipLevels = 8;
+    Record(Result, !IsValidRHITextureDesc(ExactMipChain) &&
+            Device.CreateTexture(ExactMipChain).Result == ERHIResult::InvalidState,
+        "texture helper and factory reject the first mip level above the geometric limit");
+    ExactMipChain.MipLevels = std::numeric_limits<uint32>::max();
+    Record(Result, !IsValidRHITextureDesc(ExactMipChain) &&
+            Device.CreateTexture(ExactMipChain).Result == ERHIResult::InvalidState,
+        "texture helper and factory reject an unbounded mip count");
+
+    FRHITextureDesc MultisampledTexture = MakeColorTextureDesc();
+    MultisampledTexture.SampleCount = ERHISampleCount::Two;
+    Record(Result, IsValidRHITextureDesc(MultisampledTexture) &&
+            Device.CreateTexture(MultisampledTexture).Succeeded(),
+        "texture helper and factory accept a single-level multisampled texture");
+    MultisampledTexture.MipLevels = 2;
+    Record(Result, !IsValidRHITextureDesc(MultisampledTexture) &&
+            Device.CreateTexture(MultisampledTexture).Result == ERHIResult::InvalidState,
+        "texture helper and factory reject multisampled mip chains");
+
+    FRHITextureDesc ColorAsDepth = MakeColorTextureDesc();
+    ColorAsDepth.Usage = ERHITextureUsage::DepthStencilAttachment;
+    Record(Result, !IsValidRHITextureDesc(ColorAsDepth) &&
+            Device.CreateTexture(ColorAsDepth).Result == ERHIResult::InvalidState,
+        "texture helper and factory reject color formats used as depth attachments");
+    FRHITextureDesc DepthAsColor = MakeDepthTextureDesc();
+    DepthAsColor.Usage = ERHITextureUsage::ColorAttachment;
+    Record(Result, !IsValidRHITextureDesc(DepthAsColor) &&
+            Device.CreateTexture(DepthAsColor).Result == ERHIResult::InvalidState,
+        "texture helper and factory reject depth formats used as color attachments");
 
     FRHISamplerDesc SamplerDesc;
     const auto Sampler = Device.CreateSampler(SamplerDesc);
@@ -2053,6 +2114,41 @@ void TestResourceDescriptionsAndFactories(FRHICoreTestResult& Result)
     SamplerDesc.MipFilter = ERHISamplerMipFilter::None;
     Record(Result, Device.CreateSampler(SamplerDesc).Result == ERHIResult::Unsupported,
         "IRHIDevice rejects unsupported sampler mode combination");
+    FRHISamplerDesc InvalidSampler;
+    InvalidSampler.MinFilter = static_cast<ERHISamplerFilter>(255);
+    Record(Result, !IsValidRHISamplerDesc(InvalidSampler) &&
+            Device.CreateSampler(InvalidSampler).Result == ERHIResult::Unsupported,
+        "sampler helper and factory reject undefined min filters");
+    InvalidSampler = {};
+    InvalidSampler.MagFilter = static_cast<ERHISamplerFilter>(255);
+    Record(Result, !IsValidRHISamplerDesc(InvalidSampler) &&
+            Device.CreateSampler(InvalidSampler).Result == ERHIResult::Unsupported,
+        "sampler helper and factory reject undefined mag filters");
+    InvalidSampler = {};
+    InvalidSampler.MipFilter = static_cast<ERHISamplerMipFilter>(255);
+    Record(Result, !IsValidRHISamplerDesc(InvalidSampler) &&
+            Device.CreateSampler(InvalidSampler).Result == ERHIResult::Unsupported,
+        "sampler helper and factory reject undefined mip filters");
+    InvalidSampler = {};
+    InvalidSampler.AddressU = static_cast<ERHISamplerAddressMode>(255);
+    Record(Result, !IsValidRHISamplerDesc(InvalidSampler) &&
+            Device.CreateSampler(InvalidSampler).Result == ERHIResult::Unsupported,
+        "sampler helper and factory reject undefined U address modes");
+    InvalidSampler = {};
+    InvalidSampler.AddressV = static_cast<ERHISamplerAddressMode>(255);
+    Record(Result, !IsValidRHISamplerDesc(InvalidSampler) &&
+            Device.CreateSampler(InvalidSampler).Result == ERHIResult::Unsupported,
+        "sampler helper and factory reject undefined V address modes");
+    InvalidSampler = {};
+    InvalidSampler.AddressW = static_cast<ERHISamplerAddressMode>(255);
+    Record(Result, !IsValidRHISamplerDesc(InvalidSampler) &&
+            Device.CreateSampler(InvalidSampler).Result == ERHIResult::Unsupported,
+        "sampler helper and factory reject undefined W address modes");
+    InvalidSampler = {};
+    InvalidSampler.CompareMode = static_cast<ERHISamplerCompareMode>(255);
+    Record(Result, !IsValidRHISamplerDesc(InvalidSampler) &&
+            Device.CreateSampler(InvalidSampler).Result == ERHIResult::Unsupported,
+        "sampler helper and factory reject undefined compare modes");
 
     Record(Result, Device.Shutdown() == ERHIResult::Success &&
             Device.CreateBuffer(BufferDesc).Result == ERHIResult::InvalidState &&

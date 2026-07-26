@@ -79,4 +79,28 @@ constexpr ERHITextureUsage& operator|=(ERHITextureUsage& Left, ERHITextureUsage 
     return (Value & Flag) != ERHITextureUsage::None;
 }
 
+template <typename TEnum>
+[[nodiscard]] constexpr bool HasOnlyRHIFlags(TEnum Value, TEnum ValidMask) noexcept
+{
+    return (RHIToUnderlying(Value) & ~RHIToUnderlying(ValidMask)) == 0;
+}
+
+inline constexpr ERHIBufferUsage RHIBufferUsageValidMask =
+    ERHIBufferUsage::Vertex |
+    ERHIBufferUsage::Index |
+    ERHIBufferUsage::Uniform |
+    ERHIBufferUsage::Storage |
+    ERHIBufferUsage::CopySource |
+    ERHIBufferUsage::CopyDestination |
+    ERHIBufferUsage::Indirect;
+
+inline constexpr ERHITextureUsage RHITextureUsageValidMask =
+    ERHITextureUsage::Sampled |
+    ERHITextureUsage::Storage |
+    ERHITextureUsage::ColorAttachment |
+    ERHITextureUsage::DepthStencilAttachment |
+    ERHITextureUsage::CopySource |
+    ERHITextureUsage::CopyDestination |
+    ERHITextureUsage::Present;
+
 } // namespace Stoner::RHI
