@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <type_traits>
 
@@ -199,6 +200,18 @@ void TestFMemory(FCoreFoundationTestResult& Result)
     void* InvalidAlignment = FMemory::AllocateAligned(128, 3);
     Record(Result, InvalidAlignment == nullptr, "FMemory invalid alignment fails deterministically");
     FMemory::DeallocateAligned(InvalidAlignment);
+
+    constexpr std::size_t TestAlignment = 16;
+    constexpr std::size_t AllocationOverhead = sizeof(void*) + TestAlignment - 1;
+    constexpr std::size_t MaxRepresentableSize =
+        std::numeric_limits<std::size_t>::max() - AllocationOverhead;
+    void* OverflowBoundary = FMemory::AllocateAligned(MaxRepresentableSize + 1, TestAlignment);
+    Record(Result, OverflowBoundary == nullptr, "FMemory rejects aligned allocation overhead overflow");
+    FMemory::DeallocateAligned(OverflowBoundary);
+
+    void* MaxSize = FMemory::AllocateAligned(std::numeric_limits<std::size_t>::max(), TestAlignment);
+    Record(Result, MaxSize == nullptr, "FMemory rejects maximum aligned allocation size");
+    FMemory::DeallocateAligned(MaxSize);
 
     unsigned char Source[8] = {1, 2, 3, 4, 5, 6, 7, 8};
     unsigned char Destination[8] = {};

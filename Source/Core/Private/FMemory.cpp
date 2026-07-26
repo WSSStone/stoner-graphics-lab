@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 
 namespace Stoner::Core
 {
@@ -40,7 +41,13 @@ void* FMemory::AllocateAligned(std::size_t Size, std::size_t Alignment) noexcept
     }
 
     const std::size_t HeaderSize = sizeof(void*);
-    const std::size_t TotalSize = Size + Alignment - 1 + HeaderSize;
+    const std::size_t PaddingSize = Alignment - 1;
+    if (Size > std::numeric_limits<std::size_t>::max() - HeaderSize - PaddingSize)
+    {
+        return nullptr;
+    }
+
+    const std::size_t TotalSize = Size + PaddingSize + HeaderSize;
     void* Raw = std::malloc(TotalSize);
     if (Raw == nullptr)
     {
@@ -48,7 +55,7 @@ void* FMemory::AllocateAligned(std::size_t Size, std::size_t Alignment) noexcept
     }
 
     const auto RawAddress = reinterpret_cast<std::uintptr_t>(Raw) + HeaderSize;
-    const auto AlignedAddress = (RawAddress + Alignment - 1) & ~(static_cast<std::uintptr_t>(Alignment) - 1);
+    const auto AlignedAddress = (RawAddress + PaddingSize) & ~(static_cast<std::uintptr_t>(Alignment) - 1);
     auto* Aligned = reinterpret_cast<void*>(AlignedAddress);
 
     reinterpret_cast<void**>(Aligned)[-1] = Raw;
