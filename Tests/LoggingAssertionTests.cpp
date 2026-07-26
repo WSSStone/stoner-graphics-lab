@@ -113,12 +113,18 @@ struct FOutputCapture
         Active = false;
 
         // Read captured content.
-        fseek(CaptureFile, 0, SEEK_END);
-        long Size = ftell(CaptureFile);
-        fseek(CaptureFile, 0, SEEK_SET);
-
-        std::string Content(static_cast<size_t>(Size), '\0');
-        fread(&Content[0], 1, static_cast<size_t>(Size), CaptureFile);
+        std::string Content;
+        if (fseek(CaptureFile, 0, SEEK_END) == 0)
+        {
+            const long Size = ftell(CaptureFile);
+            if (Size > 0 && fseek(CaptureFile, 0, SEEK_SET) == 0)
+            {
+                Content.resize(static_cast<size_t>(Size));
+                const size_t BytesRead =
+                    fread(Content.data(), 1, Content.size(), CaptureFile);
+                Content.resize(BytesRead);
+            }
+        }
         fclose(CaptureFile);
         CaptureFile = nullptr;
 
