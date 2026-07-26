@@ -87,11 +87,11 @@
 ## CR001-B02-F003: Aligned allocation size arithmetic wraps into undersized success
 
 - Severity: S1
-- Status: Accepted
+- Status: Fixed
 - Requirement: 003-FR-005, 003-FR-008, User Story 2 scenario 3, and Memory Utility validation require invalid or unsupported requests to fail deterministically without corruption
 - Location: `Source/Core/Private/FMemory.cpp:43`
 - Impact: A caller receives a tiny allocation for a near-SIZE_MAX request and may write the promised byte count, causing immediate out-of-bounds memory corruption.
 - Evidence: A focused C++20 probe calls AllocateAligned(SIZE_MAX, 16); on macOS arm64 it returns non-null because Size + Alignment - 1 + sizeof(void*) wraps to 22 before malloc.
-- Resolution: pending
+- Resolution: Added a representability guard before aligned-allocation overhead arithmetic, retained checked padding in address alignment, documented public alignment/pairing rules, and added overflow-boundary regressions.
 - Verification: pending
-- Commit: `pending`
+- Commit: `60689e1`
