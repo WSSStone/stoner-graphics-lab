@@ -222,7 +222,7 @@ struct FOutputCapture
     }
 };
 
-struct FFatalChildResult
+struct FLoggingChildResult
 {
     bool Started = false;
     bool Completed = false;
@@ -251,9 +251,11 @@ std::string ReadCaptureFile(FILE* CaptureFile)
     return Content;
 }
 
-FFatalChildResult RunFatalLoggingChild(const char* TestExecutablePath)
+FLoggingChildResult RunLoggingChild(
+    const char* TestExecutablePath,
+    const char* ChildArgument)
 {
-    FFatalChildResult Result;
+    FLoggingChildResult Result;
     if (TestExecutablePath == nullptr || TestExecutablePath[0] == '\0')
     {
         return Result;
@@ -304,7 +306,7 @@ FFatalChildResult RunFatalLoggingChild(const char* TestExecutablePath)
         PROCESS_INFORMATION Process{};
         std::string CommandLine =
             "\"" + std::string(TestExecutablePath) + "\" " +
-            GLoggingFatalChildArgument;
+            ChildArgument;
         std::vector<char> MutableCommandLine(CommandLine.begin(), CommandLine.end());
         MutableCommandLine.push_back('\0');
 
@@ -368,7 +370,7 @@ FFatalChildResult RunFatalLoggingChild(const char* TestExecutablePath)
         execl(
             TestExecutablePath,
             TestExecutablePath,
-            GLoggingFatalChildArgument,
+            ChildArgument,
             static_cast<char*>(nullptr));
         _exit(127);
     }
@@ -442,6 +444,20 @@ static void TestAssertionHandler(const char* File, int Line,
     GAssertionCapture.Line = Line;
     GAssertionCapture.Expression = Expression ? Expression : "";
     GAssertionCapture.Message = Message ? Message : "";
+}
+
+static std::atomic<int> GConcurrentAssertionCalls{0};
+
+static void ConcurrentAssertionHandlerA(
+    const char*, int, const char*, const char*)
+{
+    GConcurrentAssertionCalls.fetch_add(1, std::memory_order_relaxed);
+}
+
+static void ConcurrentAssertionHandlerB(
+    const char*, int, const char*, const char*)
+{
+    GConcurrentAssertionCalls.fetch_add(1, std::memory_order_relaxed);
 }
 
 // ============================================================================
@@ -627,7 +643,9 @@ void TestFatalLogBehavior(
     FLoggingAssertionTestResult& Result,
     const char* TestExecutablePath)
 {
-    const FFatalChildResult Child = RunFatalLoggingChild(TestExecutablePath);
+    const FLoggingChildResult Child = RunLoggingChild(
+        TestExecutablePath,
+        GLoggingFatalChildArgument);
     Record(Result, Child.Started && Child.Completed,
            "Fatal log child process starts and completes");
     Record(Result,
@@ -645,33 +663,38 @@ void TestFatalLogBehavior(
 
 void TestSGCheck(FLoggingAssertionTestResult& Result)
 {
+    int ExpressionEvaluations = 0;
     GAssertionCapture.Reset();
     FLog::SetAssertionHandler(TestAssertionHandler);
 
     FOutputCapture Capture;
     Capture.Start();
 
-    SG_CHECK(false);
+    SG_CHECK((++ExpressionEvaluations, false));
 
     Capture.Stop();
 
-#ifdef _DEBUG
+#if !defined(NDEBUG) || defined(_DEBUG)
     Record(Result,
            GAssertionCapture.WasCalled,
-           "SG_CHECK(false) triggers assertion handler in Debug");
+           "SG_CHECK(false-expression) triggers assertion handler in Debug");
     Record(Result,
-           GAssertionCapture.Expression.find("false") != std::string::npos,
-           "SG_CHECK(false) reports expression text 'false'");
+           GAssertionCapture.Expression.find("ExpressionEvaluations") !=
+               std::string::npos,
+           "SG_CHECK reports the failed expression text");
     Record(Result,
            !GAssertionCapture.File.empty(),
-           "SG_CHECK(false) reports file path");
+           "SG_CHECK reports file path");
     Record(Result,
            GAssertionCapture.Line > 0,
-           "SG_CHECK(false) reports line number");
+           "SG_CHECK reports line number");
+    Record(Result,
+           ExpressionEvaluations == 1,
+           "SG_CHECK evaluates its expression once in Debug");
 #else
     Record(Result,
-           !GAssertionCapture.WasCalled,
-           "SG_CHECK(false) is stripped in Release build");
+           ExpressionEvaluations == 0 && !GAssertionCapture.WasCalled,
+           "SG_CHECK strips expression evaluation and dispatch in Release");
 #endif
 
     FLog::SetAssertionHandler(nullptr);
@@ -683,30 +706,41 @@ void TestSGCheck(FLoggingAssertionTestResult& Result)
 
 void TestSGCheckF(FLoggingAssertionTestResult& Result)
 {
+    int ExpressionEvaluations = 0;
+    int FormatEvaluations = 0;
     GAssertionCapture.Reset();
     FLog::SetAssertionHandler(TestAssertionHandler);
 
     FOutputCapture Capture;
     Capture.Start();
 
-    SG_CHECKF(false, "Index %d out of range", 42);
+    SG_CHECKF(
+        (++ExpressionEvaluations, false),
+        "Index %d out of range",
+        ++FormatEvaluations);
 
     Capture.Stop();
 
-#ifdef _DEBUG
+#if !defined(NDEBUG) || defined(_DEBUG)
     Record(Result,
            GAssertionCapture.WasCalled,
-           "SG_CHECKF(false, ...) triggers assertion handler in Debug");
+           "SG_CHECKF(false-expression, ...) triggers handler in Debug");
     Record(Result,
-           GAssertionCapture.Expression.find("false") != std::string::npos,
-           "SG_CHECKF(false, ...) reports expression text");
+           GAssertionCapture.Expression.find("ExpressionEvaluations") !=
+               std::string::npos,
+           "SG_CHECKF reports expression text");
     Record(Result,
-           GAssertionCapture.Message.find("42") != std::string::npos,
-           "SG_CHECKF(false, ...) reports formatted message with args");
+           GAssertionCapture.Message.find("1") != std::string::npos,
+           "SG_CHECKF reports formatted message with evaluated args");
+    Record(Result,
+           ExpressionEvaluations == 1 && FormatEvaluations == 1,
+           "SG_CHECKF evaluates expression and format args once in Debug");
 #else
     Record(Result,
-           !GAssertionCapture.WasCalled,
-           "SG_CHECKF(false, ...) is stripped in Release build");
+           ExpressionEvaluations == 0 &&
+               FormatEvaluations == 0 &&
+               !GAssertionCapture.WasCalled,
+           "SG_CHECKF strips expression, format args, and dispatch in Release");
 #endif
 
     FLog::SetAssertionHandler(nullptr);
@@ -746,13 +780,90 @@ void TestSGVerify(FLoggingAssertionTestResult& Result)
            Counter == 2,
            "SG_VERIFY always evaluates expression (false case)");
 
-#ifdef _DEBUG
+#if !defined(NDEBUG) || defined(_DEBUG)
     Record(Result,
            GAssertionCapture.WasCalled,
            "SG_VERIFY triggers assertion handler on false in Debug");
+#else
+    Record(Result,
+           !GAssertionCapture.WasCalled,
+           "SG_VERIFY false result does not dispatch in Release");
 #endif
 
     FLog::SetAssertionHandler(nullptr);
+}
+
+void TestDefaultAssertionHandler(
+    FLoggingAssertionTestResult& Result,
+    const char* TestExecutablePath)
+{
+    const FLoggingChildResult Child = RunLoggingChild(
+        TestExecutablePath,
+        GLoggingAssertionChildArgument);
+    Record(Result, Child.Started && Child.Completed,
+           "Default assertion child process starts and completes");
+
+#if !defined(NDEBUG) || defined(_DEBUG)
+    Record(Result,
+           Child.Stderr.find("Assertion failed: false") != std::string::npos,
+           "Default assertion handler logs failure before Debug break");
+    Record(Result,
+           Child.TerminatedBeforeFallback,
+           "Default assertion handler triggers Debug break before fallback");
+#else
+    Record(Result,
+           Child.Stderr.find("Assertion failed:") == std::string::npos,
+           "Release assertion child emits no assertion report");
+    Record(Result,
+           Child.ExitCode == 42 && !Child.TerminatedBeforeFallback,
+           "Release assertion child reaches fallback after SG_CHECK stripping");
+#endif
+}
+
+void TestAssertionHandlerThreadSafety(FLoggingAssertionTestResult& Result)
+{
+    constexpr int Iterations = 256;
+    std::atomic<bool> Start{false};
+    GConcurrentAssertionCalls.store(0, std::memory_order_relaxed);
+    FLog::SetAssertionHandler(ConcurrentAssertionHandlerA);
+
+    FOutputCapture Capture;
+    Capture.Start();
+
+    std::thread Setter([&Start]()
+    {
+        while (!Start.load(std::memory_order_acquire))
+        {
+        }
+        for (int Iteration = 0; Iteration < Iterations; ++Iteration)
+        {
+            FLog::SetAssertionHandler((Iteration & 1) == 0
+                ? ConcurrentAssertionHandlerA
+                : ConcurrentAssertionHandlerB);
+        }
+    });
+
+    std::thread Dispatcher([&Start]()
+    {
+        Start.store(true, std::memory_order_release);
+        for (int Iteration = 0; Iteration < Iterations; ++Iteration)
+        {
+            FLog::HandleAssertionFailure(
+                __FILE__,
+                __LINE__,
+                "concurrent assertion handler probe");
+        }
+    });
+
+    Setter.join();
+    Dispatcher.join();
+    Capture.Stop();
+    FLog::SetAssertionHandler(nullptr);
+
+    Record(Result,
+           GConcurrentAssertionCalls.load(std::memory_order_relaxed) ==
+               Iterations,
+           "Assertion handler replacement is safe during concurrent dispatch");
 }
 
 // ============================================================================
@@ -1046,6 +1157,7 @@ FLoggingAssertionTestResult RunLoggingAssertionTests(
     TestSGCheck(Result);                       // T024
     TestSGCheckF(Result);                      // T025
     TestSGVerify(Result);                      // T026
+    TestDefaultAssertionHandler(Result, TestExecutablePath); // CR001-B02-F014
 
     // Phase 5: User Story 3
     TestPerCategoryFiltering(Result);          // T031
@@ -1059,6 +1171,7 @@ FLoggingAssertionTestResult RunLoggingAssertionTests(
     // Phase 7: Polish
     TestThreadSafety(Result);                  // T041
     TestThresholdThreadSafety(Result);         // CR001-B02-F011
+    TestAssertionHandlerThreadSafety(Result);  // CR001-B02-F013
     TestZeroConfigStartup(Result);             // T042
 
     std::cout << "[INFO] Logging & Assertion tests passed=" << Result.Passed

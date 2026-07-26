@@ -104,9 +104,10 @@ Macros (`SG_LOG`, `SG_CHECK`, `SG_VERIFY`, `SG_CHECKF`, `SG_DEBUG_BREAK`) are in
 
 ### `SG_DEBUG_BREAK()`
 
-- **Debug build** (`_DEBUG` defined):
+- **Debug/assert-enabled build** (`_DEBUG` defined or `NDEBUG` absent):
   - MSVC: `__debugbreak()`
-  - GCC/Clang: `__builtin_debugtrap()`
+  - Clang: `__builtin_debugtrap()`
+  - GCC/POSIX: `raise(SIGTRAP)`
   - Fallback: `std::abort()`
 - **Release build** (`NDEBUG` defined): Expands to nothing.
 - Resumable on supported platforms (developer can continue in debugger).

@@ -4,6 +4,7 @@
 #include "Core/FLogConsoleSink.h"
 #include "Core/SGPlatformBreak.h"
 
+#include <atomic>
 #include <chrono>
 #include <cstdarg>
 #include <cstdio>
@@ -14,7 +15,7 @@ namespace Stoner::Core
 {
 
 // Internal state — file-scoped statics for zero-configuration startup.
-static FAssertionHandler GAssertionHandler = nullptr;
+static std::atomic<FAssertionHandler> GAssertionHandler{nullptr};
 static std::mutex GLogMutex;
 
 // Default assertion handler: triggers platform debug break.
@@ -92,7 +93,7 @@ void FLog::LogMessage(FLogCategory& Category, ELogSeverity Severity,
 
 void FLog::SetAssertionHandler(FAssertionHandler Handler)
 {
-    GAssertionHandler = Handler;
+    GAssertionHandler.store(Handler, std::memory_order_relaxed);
 }
 
 void FLog::HandleAssertionFailure(const char* File, int Line,
@@ -175,7 +176,8 @@ void FLog::HandleAssertionFailure(const char* File, int Line,
     }
 
     // Invoke the assertion handler (custom or default).
-    FAssertionHandler Handler = GAssertionHandler;
+    const FAssertionHandler Handler =
+        GAssertionHandler.load(std::memory_order_relaxed);
     if (Handler != nullptr)
     {
         Handler(File, Line, Expression, MessageBuffer[0] != '\0' ? MessageBuffer : nullptr);

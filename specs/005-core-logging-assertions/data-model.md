@@ -134,12 +134,13 @@ Platform-abstracted macro for triggering a debugger break point.
 | Platform | Intrinsic |
 |----------|-----------|
 | MSVC (`_MSC_VER`) | `__debugbreak()` |
-| GCC/Clang (`__GNUC__` or `__clang__`) | `__builtin_debugtrap()` |
+| Clang (`__clang__`) | `__builtin_debugtrap()` |
+| GCC on POSIX (`__GNUC__`) | `raise(SIGTRAP)` |
 | Fallback | `std::abort()` |
 
 **Validation Rules**:
 
-- Only active in Debug builds (`_DEBUG` defined).
+- Active when assertions are enabled (`_DEBUG` defined or `NDEBUG` absent).
 - In Release builds (`NDEBUG` defined), `SG_DEBUG_BREAK()` expands to nothing.
 - Must be resumable on platforms that support it (developer can continue after break).
 

@@ -27,6 +27,12 @@ int main(int ArgCount, char* Arguments[])
         SG_LOG(Stoner::Core::LogCore, Fatal, "isolated fatal logging probe");
         return 42;
     }
+    if (ArgCount == 2 &&
+        std::strcmp(Arguments[1], GLoggingAssertionChildArgument) == 0)
+    {
+        SG_CHECK(false);
+        return 42;
+    }
 
     const FCoreFoundationTestResult CoreResult = RunCoreFoundationTests();
     const FCoreMathTestResult MathResult = RunCoreMathTests();

@@ -39,7 +39,7 @@ struct FLog
         return GlobalMinSeverity.load(std::memory_order_relaxed);
     }
 
-    // Set a custom assertion handler (for testing).
+    // Atomically replace the assertion handler; safe during concurrent dispatch.
     // Pass nullptr to restore the default handler (SG_DEBUG_BREAK).
     static void SetAssertionHandler(FAssertionHandler Handler);
 
