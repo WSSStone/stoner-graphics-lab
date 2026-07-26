@@ -2033,6 +2033,96 @@
       "status": "Verified",
       "title": "Texture upload staging accepts invalid subresources and byte footprints",
       "verification": "Exact parent reproduced oversized nonzero-mip and underfilled RGBA uploads; all-format footprint, subresource, unsupported/overflow and allocation-failure matrices, full local gates, and CI run 30207463089 at 5488528 all passed."
+    },
+    {
+      "batch": "B05",
+      "commit": "",
+      "created_at": "2026-07-26T15:33:49+00:00",
+      "deferred_target": "",
+      "evidence": "FVulkanDevice has no destructor that calls Shutdown; CreateCommandBuffer returns shared ownership while FVulkanCommandBuffer stores a raw pointer to the device Diagnostics member. Invalidate leaves that pointer intact, and every failed or successful recording transition may dereference it through MarkRecordingDiagnostic.",
+      "history": [
+        {
+          "at": "2026-07-26T15:33:58+00:00",
+          "from": "Open",
+          "note": "The ownership chain is reachable through the public shared command-buffer result and contradicts deterministic use-after-shutdown behavior. Repair in B05-S02 by tying diagnostics lifetime to shared owner state or detaching it during invalidation and by making device destruction perform shutdown semantics.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T15:33:58+00:00",
+          "from": "Triaged",
+          "note": "The ownership chain is reachable through the public shared command-buffer result and contradicts deterministic use-after-shutdown behavior. Repair in B05-S02 by tying diagnostics lifetime to shared owner state or detaching it during invalidation and by making device destruction perform shutdown semantics.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B05-F001",
+      "impact": "A retained command buffer can access diagnostics after its owning device object has been destroyed, turning required post-shutdown rejection into undefined behavior instead of a deterministic result.",
+      "location": "Source/Backend/Vulkan/Public/VulkanRHI/FVulkanCommandBuffer.h:84",
+      "requirement": "011-FR-016, 011-FR-017, and 011-SC-002 require shutdown invalidation and post-shutdown rejection without crashes",
+      "resolution": "",
+      "severity": "S1",
+      "status": "Accepted",
+      "title": "Command buffers retain device-owned diagnostics beyond device lifetime",
+      "verification": ""
+    },
+    {
+      "batch": "B05",
+      "commit": "",
+      "created_at": "2026-07-26T15:34:10+00:00",
+      "deferred_target": "",
+      "evidence": "The B05 inspection probe directly constructs a Present command pool that allocates successfully, directly constructs empty render-pass and framebuffer descriptions that report Valid, and advances an ended command buffer through Submitted and Resettable without a queue or completion object. Device factories also leave wrapper and tracking allocations outside explicit-result failure handling.",
+      "history": [
+        {
+          "at": "2026-07-26T15:34:22+00:00",
+          "from": "Open",
+          "note": "The probe establishes four independent validation and authority bypasses at public backend APIs. B05-S02 should close construction to device/pool factories, restrict submission/completion transitions to queue/submission collaborators, and make command/render factory bookkeeping failure-atomic.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T15:34:22+00:00",
+          "from": "Triaged",
+          "note": "The probe establishes four independent validation and authority bypasses at public backend APIs. B05-S02 should close construction to device/pool factories, restrict submission/completion transitions to queue/submission collaborators, and make command/render factory bookkeeping failure-atomic.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B05-F002",
+      "impact": "Backend callers can bypass capability and description validation, forge in-flight completion state, or receive exceptions and partial tracking instead of the required explicit failure with no usable object.",
+      "location": "Source/Backend/Vulkan/Public/VulkanRHI/FVulkanCommandBuffer.h:26",
+      "requirement": "011-FR-001 through 011-FR-006, 011-FR-011, and 011-FR-013 require device-mediated allocation, valid render objects, and queue/completion-owned lifecycle transitions",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Command and render objects bypass device ownership and state authority",
+      "verification": ""
+    },
+    {
+      "batch": "B05",
+      "commit": "",
+      "created_at": "2026-07-26T15:34:36+00:00",
+      "deferred_target": "",
+      "evidence": "The B05 inspection probe accepts an 8x8 copy and readback from mip 1 of an 8x8 texture whose selected extent is 4x4, and accepts a texture copy from R8G8B8A8_UNorm to R8_UNorm. The readback byte calculation at line 371 uses unchecked multiplication and a private duplicated format-width table.",
+      "history": [
+        {
+          "at": "2026-07-26T15:34:48+00:00",
+          "from": "Open",
+          "note": "The exact nonzero-mip and format-compatibility failures are reproducible through maintained public RHI inputs. B05-S02 should reuse shared format/checked-footprint helpers, validate selected mip extents and copy compatibility, and add maintained edge regressions.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T15:34:48+00:00",
+          "from": "Triaged",
+          "note": "The exact nonzero-mip and format-compatibility failures are reproducible through maintained public RHI inputs. B05-S02 should reuse shared format/checked-footprint helpers, validate selected mip extents and copy compatibility, and add maintained edge regressions.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B05-F003",
+      "impact": "Invalid transfer records enter executable command buffers; native execution can address outside the selected subresource, misinterpret formats, or understate destination byte requirements after arithmetic wraparound.",
+      "location": "Source/Backend/Vulkan/Private/FVulkanCommandBuffer.cpp:32",
+      "requirement": "011-FR-009, 011-FR-020, and 011-SC-003 require valid texture-copy regions, resource compatibility, and upload/readback bounds",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Texture transfer validation accepts invalid subresources and compatibility",
+      "verification": ""
     }
   ],
   "schema_version": 1
