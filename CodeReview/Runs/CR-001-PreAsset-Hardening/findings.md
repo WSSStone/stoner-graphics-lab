@@ -167,3 +167,39 @@
 - Resolution: Added finite-safe box/sphere/plane construction and queries, overflow-resistant bounds and containment, normalized plane equation coefficients together, and deterministic invalid tolerance behavior with regressions.
 - Verification: pending
 - Commit: `70cacb7`
+
+## CR001-B02-F010: Global severity filtering evaluates suppressed log arguments
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 005 FR-016 macro-level early-out
+- Location: `Source/Core/Public/Core/SGLog.h:18`
+- Impact: Globally filtered logs still execute arbitrary argument expressions and enter FLog::LogMessage, violating the zero-side-effect and single-comparison contract.
+- Evidence: Debug and Release probes set global=Warning/category=Verbose then issue Info with ++sideEffect; both print side_effect_count=1 and exit 1.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B02-F011: Runtime logging thresholds contain unsynchronized data races
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 005 runtime-mutable category/global filtering, FR-013 concurrency safety, and research atomic-threshold decision
+- Location: `Source/Core/Public/Core/FLogCategory.h:50; Source/Core/Private/FLog.cpp:17`
+- Impact: Concurrent threshold reconfiguration and logging causes C++ undefined behavior, so filtering and diagnostics may be corrupted or optimized unpredictably.
+- Evidence: macOS ThreadSanitizer independently reports races between FLogCategory::Set/GetMinSeverity on LogCore and FLog::Set/GetGlobalMinSeverity on GGlobalMinSeverity.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B02-F012: Fatal logging contract is not exercised by the test suite
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 005 FR-004, FR-012, SC-009, T011, T013, and quickstart isolated termination validation
+- Location: `Tests/LoggingAssertionTests.cpp:360; Tests/LoggingAssertionTests.cpp:432`
+- Impact: Fatal routing or termination can regress while the checked-complete tasks and public-entry coverage gate continue to pass.
+- Evidence: Routing loop explicitly skips Fatal, and TestFatalLogBehavior emits Error instead. A release child probe shows actual Fatal writes to stderr and aborts with exit 134, behavior absent from the suite.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
