@@ -2,7 +2,7 @@
   "findings": [
     {
       "batch": "B01",
-      "commit": "",
+      "commit": "54e2599",
       "created_at": "2026-07-26T02:48:02+00:00",
       "deferred_target": "",
       "evidence": "Both clean Debug and Release gates pass but end with 33 -Wmissing-field-initializers warnings; see Evidence/gate-debug.json and gate-release.json.",
@@ -18,15 +18,21 @@
           "from": "Triaged",
           "note": "Reproduced in clean Debug and Release builds; assigned to B01 warning cleanup and warning-as-error enablement.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T03:18:33+00:00",
+          "from": "Accepted",
+          "note": "Replaced partial Vulkan aggregate initialization with zero-initializing typed helpers and cleared project-owned cross-platform warnings; strict local Debug and Release builds pass.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B01-F001",
       "impact": "Warning noise prevents warning-as-error enforcement and can hide newly introduced initialization defects.",
       "location": "Source/Backend/Vulkan/Private/FVulkanNativeOffscreenSession.cpp:240",
       "requirement": "CR-001 completion criterion: no unexplained compiler warnings before enabling -Werror or /WX",
-      "resolution": "",
+      "resolution": "Replaced partial Vulkan aggregate initialization with zero-initializing typed helpers and cleared project-owned cross-platform warnings; strict local Debug and Release builds pass.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "macOS builds emit 33 Vulkan aggregate-initialization warnings",
       "verification": ""
     },
@@ -62,7 +68,7 @@
     },
     {
       "batch": "B01",
-      "commit": "",
+      "commit": "54e2599",
       "created_at": "2026-07-26T02:57:45+00:00",
       "deferred_target": "",
       "evidence": "BuildConfig exposes only debug/release flags without sanitizer or strict-warning options; CI line 51 runs only default Debug.",
@@ -78,21 +84,27 @@
           "from": "Triaged",
           "note": "Confirmed from BuildConfig and CI definitions; repair in B01-S02 with opt-in flags and targeted CI jobs.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T03:18:48+00:00",
+          "from": "Accepted",
+          "note": "Added validated strict and ASan/UBSan build controls, allow-listed CR gates, three-platform strict Release CI, and Linux sanitizer CI; all local profiles pass.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B01-F002",
       "impact": "Undefined behavior and Release-only defects can merge undetected, and the planned clean-warning policy is not mechanically enforced.",
       "location": "site_scons/BuildConfig.py:12",
       "requirement": "CR-001 completion requires Debug, Release, ASan/UBSan, clean warnings, and three-platform CI evidence",
-      "resolution": "",
+      "resolution": "Added validated strict and ASan/UBSan build controls, allow-listed CR gates, three-platform strict Release CI, and Linux sanitizer CI; all local profiles pass.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Build and CI lack Release, sanitizer, and warning-as-error gates",
       "verification": ""
     },
     {
       "batch": "B01",
-      "commit": "",
+      "commit": "54e2599",
       "created_at": "2026-07-26T02:58:00+00:00",
       "deferred_target": "",
       "evidence": "The workflow subscribes unconditionally to both push and pull_request; PR #4 produced two Linux, two macOS, and two Windows jobs for the same update.",
@@ -108,15 +120,21 @@
           "from": "Triaged",
           "note": "Low-risk local workflow correction assigned to B01-S02.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T03:19:05+00:00",
+          "from": "Accepted",
+          "note": "Restricted branch push validation to master, retained pull-request validation, and ignored pure CodeReview/Runs state changes while preserving tool and engine CI.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B01-F003",
       "impact": "Every review push doubles hosted CI time, delays feedback, and makes check evidence harder to associate with the current head.",
       "location": ".github/workflows/ci.yml:3",
       "requirement": "CR-001 Git and validation protocol requires meaningful batch-boundary evidence without redundant jobs",
-      "resolution": "",
+      "resolution": "Restricted branch push validation to master, retained pull-request validation, and ignored pure CodeReview/Runs state changes while preserving tool and engine CI.",
       "severity": "S3",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "CI runs duplicate three-platform matrices for pull-request branch pushes",
       "verification": ""
     },
