@@ -507,47 +507,47 @@
 ## CR001-B04-F007: Allocation accounting can overflow and bypass configured budgets
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 010-FR-008, FR-008a, FR-019, SC-003, the allocation contract, and the oversized-resource edge case
 - Location: `Source/Backend/Vulkan/Private/FVulkanMemoryAllocator.cpp:121`
 - Impact: Configured budgets and allocation telemetry cease to bound or describe live resources after unsigned wraparound. A future real allocator or streaming/residency policy could overcommit memory while deterministic validation reports success, and shutdown accounting cannot recover the lost total.
 - Evidence: The ASan/UBSan probe creates a UINT64_MAX-byte buffer and a 2-byte buffer through FVulkanDevice; AllocatedBytes wraps to 1 while two allocations remain live. After configuring a 2-byte budget, a third 1-byte buffer succeeds and the snapshot reports only 2 bytes for three live resources. Neither RHI capabilities nor the Vulkan factory publishes/enforces a maximum buffer size.
-- Resolution: pending
+- Resolution: Checked byte/count arithmetic rejects overflow before mutation and preserves later budget enforcement; maintained and independent probes cover UINT64_MAX accounting.
 - Verification: pending
-- Commit: `pending`
+- Commit: `f1a3329`
 
 ## CR001-B04-F008: Copyable allocation records permit duplicate release accounting
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 010-FR-007, FR-009, SC-003, T046, T050, and the allocation ownership/repeated-cleanup contract
 - Location: `Source/Backend/Vulkan/Public/VulkanRHI/FVulkanResourceAllocation.h:32`
 - Impact: Allocation ownership is not unique and repeated cleanup is only idempotent for one value instance. Copied or fabricated records can decrement unrelated live accounting, bypass budget/count limits, and make resource lifecycle diagnostics contradict actual ownership.
 - Evidence: FVulkanResourceAllocation is a public copyable value whose Released flag is local to each copy. The probe allocates two 32-byte records under a 64-byte budget, copies the first token, and releases both copies successfully. The allocator reaches zero bytes/count while the second allocation is still successful, then accepts a new 64-byte allocation.
-- Resolution: pending
+- Resolution: Allocation records are no-allocation move-only ownership tickets bound to stable allocator identity and reset epoch; foreign, stale, moved-from, and repeated releases cannot mutate counters.
 - Verification: pending
-- Commit: `pending`
+- Commit: `f1a3329`
 
 ## CR001-B04-F009: Texture footprint estimation misaccounts formats samples and mip chains
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 010-FR-003, FR-008, FR-008a, T053, SC-003, and the texture allocation/budget contract
 - Location: `Source/Backend/Vulkan/Private/FVulkanMemoryAllocator.cpp:79`
 - Impact: Deterministic texture budgets both admit over-budget resources and reject in-budget resources based on format, multisampling, and mip count. This undermines current allocation tests and would feed incorrect costs into planned texture assets, compression fallback, and residency management.
 - Evidence: EstimateTextureBytes defaults R32G32B32_Float to four bytes, ignores SampleCount, and multiplies every mip by the base extent. Under a 64-byte budget, the probe accepts a 4x4 RGBA8 four-sample texture and a 4x4 RGB32F texture despite logical footprints of 256 and 192 bytes. It rejects an 8x8 RGBA8 four-mip chain under its exact 340-byte texel footprint because it estimates 1024 bytes.
-- Resolution: pending
+- Resolution: Texture footprint estimation now checks every multiplication/addition and sums exact per-mip extents, format widths, layers, depth, and sample count.
 - Verification: pending
-- Commit: `pending`
+- Commit: `f1a3329`
 
 ## CR001-B04-F010: Resource wrappers expose failed allocations and unbounded host storage
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 010-FR-002, FR-004, FR-007, FR-008, SC-002, T035, and the no-usable-partial-resource contract
 - Location: `Source/Backend/Vulkan/Private/FVulkanBuffer.cpp:8`
 - Impact: Backend callers can create usable partial resources detached from successful allocation ownership, and a valid RHI upload request can escape the result contract as an exception. The public constructors bypass the device factory's no-partial-object invariant and oversized input can terminate exception-free engine call paths.
 - Evidence: FVulkanBuffer and FVulkanTexture have public constructors that unconditionally begin Valid even when given a Failed allocation. The probe constructs both from injected BudgetExceeded records; the buffer accepts Upload successfully. Separately, FVulkanDevice accepts a UINT64_MAX host-visible buffer and FVulkanBuffer::Upload calls vector::resize for that full size, throwing std::length_error instead of returning an explicit RHI failure.
-- Resolution: pending
+- Resolution: Buffer/texture wrappers are device-factory-only with rollback-safe tracking; host buffer mirrors grow only to uploaded ranges and translate storage failures to Unavailable.
 - Verification: pending
-- Commit: `pending`
+- Commit: `f1a3329`
