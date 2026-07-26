@@ -1,5 +1,5 @@
 {
-  "active_step": "B03-S01",
+  "active_step": "B03-S02",
   "batches": [
     {
       "id": "B00",
@@ -462,16 +462,21 @@
     },
     {
       "id": "B03",
-      "status": "Pending",
+      "status": "InProgress",
       "steps": [
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-26T09:26:06+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B03-device-runtime-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b03-device-runtime-probes.md",
+            "CR001-B03-F001",
+            "CR001-B03-F002"
+          ],
           "id": "B03-S01",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected eight RHI device/runtime/results production headers (338 LOC); a strict standalone probe reproduced two S2 runtime-snapshot correctness failures; both findings are Accepted for B03-S02 and no production code changed.",
+          "started_at": "2026-07-26T09:21:04+00:00",
+          "status": "Completed",
           "title": "Inspect: device, capabilities, runtime, and results"
         },
         {
@@ -2628,6 +2633,36 @@
       "at": "2026-07-26T09:12:34+00:00",
       "detail": "verify finding",
       "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T09:21:04+00:00",
+      "detail": "B03-S01",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-26T09:24:32+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T09:24:43+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T09:24:44+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T09:24:55+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T09:26:06+00:00",
+      "detail": "B03-S01",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -2781,7 +2816,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "c2427ea166764cacb3b3da9d25bded25e02d1380"
+    "last_recorded_head": "68c4075992ac351b9725b6900c198d448e6753be"
   },
   "policy": {
     "fix_severities": [
@@ -2801,5 +2836,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T09:12:34+00:00"
+  "updated_at": "2026-07-26T09:26:06+00:00"
 }

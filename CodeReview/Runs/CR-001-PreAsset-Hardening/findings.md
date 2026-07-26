@@ -299,3 +299,27 @@
 - Resolution: FDynamicModuleHandle is now an opaque move-only owner with noexcept transfer, RAII destruction, private native state, const-reference symbol lookup, and idempotent explicit release; compile-time traits and runtime transfer tests preserve exactly-once ownership.
 - Verification: Independent parent/current probe proves the public handle changed from copyable aliasing to move-only ownership with transfer, symbol lookup, and idempotent release; compile-time/runtime tests passed on all supported hosts in CI 30195707555.
 - Commit: `1a3c4de2a8bd2e45c22777c778f087ed82192fa4`
+
+## CR001-B03-F001: Runtime snapshot live-object total can wrap to zero
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 018-FR-019; 018-SC-009; 018-T006
+- Location: `Source/RHI/Public/RHI/FRHIRuntimeSnapshot.h:15`
+- Impact: Unsigned 32-bit aggregation can falsely certify leak-free shutdown when non-zero category counts wrap modulo 2^32, weakening the stable runtime snapshot and final-zero resource gate.
+- Evidence: A strict standalone C++20 probe sets LiveInstances=UINT32_MAX and LiveDevices=1; GetTotalLiveObjectCount() returns 0 (probe exit 3), while successful endurance validation treats zero as proof that no demo-owned resources remain.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B03-F002: Native execution proof accepts a deterministic request
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 018-FR-003; 018-T006; 018-T009; triangle-demo-validation-contract native-required gate
+- Location: `Source/RHI/Public/RHI/FRHIRuntimeSnapshot.h:32`
+- Impact: A contradictory snapshot can falsely satisfy backend-neutral native proof, allowing a deterministic request to be represented as successful native execution and undermining the no-silent-fallback milestone gate.
+- Evidence: A strict standalone C++20 probe sets RequestedMode=Deterministic, ObjectMode=RealRuntime, LiveInstances=1, and LiveDevices=1; ProvesNativeExecution() returns true (probe exit 3). The validation contract requires native-required runs to fail when proof reports deterministic mode.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`

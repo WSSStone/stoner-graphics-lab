@@ -1,18 +1,18 @@
 # CR-001 Progress
 
 - Status: Active
-- Completed steps: 29/134
+- Completed steps: 30/134
 - Baseline: `9092a97593fb29cffbffdbe534e3dda143f463a5`
-- Recorded HEAD: `c2427ea166764cacb3b3da9d25bded25e02d1380`
-- Active step: B03-S01
-- Open findings: 2
+- Recorded HEAD: `68c4075992ac351b9725b6900c198d448e6753be`
+- Active step: B03-S02
+- Open findings: 4
 
 ## Batches
 
 - B00 Bootstrap: Completed
 - B01 Build, CI, and Architecture: Completed
 - B02 Core Features 003-006: Completed
-- B03 RHI Features 007-008: Pending
+- B03 RHI Features 007-008: InProgress
 - B04 Vulkan Foundation 009-010: Pending
 - B05 Vulkan Execution 011-012: Pending
 - B06 Renderer 013-015: Pending
