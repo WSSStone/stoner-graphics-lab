@@ -336,6 +336,12 @@
           "from": "Accepted",
           "note": "Replaced overflow-prone interpolation arithmetic with C++20 std::lerp and added opposite-FLT_MAX endpoint and midpoint regressions.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:10:55+00:00",
+          "from": "Fixed",
+          "note": "Independent scalar/vector/color parent-current probes and local strict/sanitizer gates passed in B02-S09; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F004",
@@ -344,9 +350,9 @@
       "requirement": "004 data-model interpolation endpoints, FR-005, FR-011, and User Story 1 require predictable interpolation and boundary coverage",
       "resolution": "Replaced overflow-prone interpolation arithmetic with C++20 std::lerp and added opposite-FLT_MAX endpoint and midpoint regressions.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Lerp violates finite endpoint guarantees through intermediate overflow",
-      "verification": ""
+      "verification": "Independent scalar/vector/color parent-current probes and local strict/sanitizer gates passed in B02-S09; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary."
     },
     {
       "batch": "B02",
@@ -372,6 +378,12 @@
           "from": "Accepted",
           "note": "Changed vector length to overflow-resistant hypot and safe normalization to finite-validated, scale-resistant normalization across FVector2/3/4, with large-axis and diagonal tests.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:11:03+00:00",
+          "from": "Fixed",
+          "note": "Independent scalar/vector/color parent-current probes and local strict/sanitizer gates passed in B02-S09; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F005",
@@ -380,9 +392,9 @@
       "requirement": "004-FR-001, FR-011, Vector validation rules, and T013 require correct safe normalization for finite vectors and boundary inputs",
       "resolution": "Changed vector length to overflow-resistant hypot and safe normalization to finite-validated, scale-resistant normalization across FVector2/3/4, with large-axis and diagonal tests.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Safe vector normalization collapses large finite directions to zero",
-      "verification": ""
+      "verification": "Independent scalar/vector/color parent-current probes and local strict/sanitizer gates passed in B02-S09; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary."
     },
     {
       "batch": "B02",
@@ -408,6 +420,12 @@
           "from": "Accepted",
           "note": "Documented and enforced finite non-negative near tolerances, Zero fallback for invalid vector normalization, and deterministic NaN/infinity color conversion; replaced nominal checks with behavioral coverage.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:11:19+00:00",
+          "from": "Fixed",
+          "note": "Independent scalar/vector/color parent-current probes and local strict/sanitizer gates passed in B02-S09; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F006",
@@ -416,9 +434,9 @@
       "requirement": "004 edge case 68, FR-011, FR-012, T013, and T040 require documented and verified NaN/infinity and invalid-input behavior",
       "resolution": "Documented and enforced finite non-negative near tolerances, Zero fallback for invalid vector normalization, and deterministic NaN/infinity color conversion; replaced nominal checks with behavioral coverage.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Invalid numeric math contract and verification are missing",
-      "verification": ""
+      "verification": "Independent scalar/vector/color parent-current probes and local strict/sanitizer gates passed in B02-S09; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary."
     },
     {
       "batch": "B02",
@@ -444,6 +462,12 @@
           "from": "Accepted",
           "note": "Made quaternion length/normalization/inverse scale-resistant, defined invalid-input identity fallback, and made NearlyEquals accept q/-q rotation equivalence; added direct Debug/Release regressions.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:11:25+00:00",
+          "from": "Fixed",
+          "note": "Independent spatial-math parent-current probes and local strict/sanitizer gates passed in B02-S12; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F007",
@@ -452,9 +476,9 @@
       "requirement": "004-FR-003, FR-009, FR-011, data-model quaternion validation, and SC-006",
       "resolution": "Made quaternion length/normalization/inverse scale-resistant, defined invalid-input identity fallback, and made NearlyEquals accept q/-q rotation equivalence; added direct Debug/Release regressions.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Quaternion normalization and equivalence break the public rotation contract",
-      "verification": ""
+      "verification": "Independent spatial-math parent-current probes and local strict/sanitizer gates passed in B02-S12; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary."
     },
     {
       "batch": "B02",
@@ -480,6 +504,12 @@
           "from": "Accepted",
           "note": "Replaced infallible TRS composition with exact matrix-checked TryCompose/TryInverse/TryRelativeTo, added orthogonal TRS decomposition, rejected shear truthfully, and made Scene hierarchy validation transactional with stable InvalidHierarchyOperation diagnostics.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:11:29+00:00",
+          "from": "Fixed",
+          "note": "Independent spatial-math parent-current probes and local strict/sanitizer gates passed in B02-S12; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F008",
@@ -488,9 +518,9 @@
       "requirement": "004-FR-002, FR-004, FR-009, FR-011; data-model matrix/transform validation; 017 preserve-world reparent contract",
       "resolution": "Replaced infallible TRS composition with exact matrix-checked TryCompose/TryInverse/TryRelativeTo, added orthogonal TRS decomposition, rejected shear truthfully, and made Scene hierarchy validation transactional with stable InvalidHierarchyOperation diagnostics.",
       "severity": "S1",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Spatial transform composition and inversion report incorrect success for valid and invalid inputs",
-      "verification": ""
+      "verification": "Independent spatial-math parent-current probes and local strict/sanitizer gates passed in B02-S12; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary."
     },
     {
       "batch": "B02",
@@ -516,6 +546,12 @@
           "from": "Accepted",
           "note": "Added finite-safe box/sphere/plane construction and queries, overflow-resistant bounds and containment, normalized plane equation coefficients together, and deterministic invalid tolerance behavior with regressions.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:11:34+00:00",
+          "from": "Fixed",
+          "note": "Independent spatial-math parent-current probes and local strict/sanitizer gates passed in B02-S12; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F009",
@@ -524,9 +560,9 @@
       "requirement": "004-FR-007, FR-009, FR-011, FR-012; data-model box/sphere/plane validation",
       "resolution": "Added finite-safe box/sphere/plane construction and queries, overflow-resistant bounds and containment, normalized plane equation coefficients together, and deterministic invalid tolerance behavior with regressions.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Geometry primitives lack finite-safe construction, tolerance, and extreme-bound behavior",
-      "verification": ""
+      "verification": "Independent spatial-math parent-current probes and local strict/sanitizer gates passed in B02-S12; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary."
     },
     {
       "batch": "B02",
@@ -552,6 +588,12 @@
           "from": "Accepted",
           "note": "SG_LOG now intersects atomic category/global severity masks before one final bit comparison; Debug and optimized Release probes preserve side_effect_count=0 and maintained coverage asserts the global path.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:11:39+00:00",
+          "from": "Fixed",
+          "note": "Independent logging probes and local strict/sanitizer gates passed in B02-S15; final CI 30195707555 passed maintained logging coverage on Windows, macOS, Linux and Linux ASan/UBSan at the batch boundary.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F010",
@@ -560,9 +602,9 @@
       "requirement": "Feature 005 FR-016 macro-level early-out",
       "resolution": "SG_LOG now intersects atomic category/global severity masks before one final bit comparison; Debug and optimized Release probes preserve side_effect_count=0 and maintained coverage asserts the global path.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Global severity filtering evaluates suppressed log arguments",
-      "verification": ""
+      "verification": "Independent logging probes and local strict/sanitizer gates passed in B02-S15; final CI 30195707555 passed maintained logging coverage on Windows, macOS, Linux and Linux ASan/UBSan at the batch boundary."
     },
     {
       "batch": "B02",
@@ -588,6 +630,12 @@
           "from": "Accepted",
           "note": "Category and global thresholds now use relaxed std::atomic storage; maintained concurrent access coverage passes and both independent pre-fix TSan reproducers now exit 0 without reports.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:11:51+00:00",
+          "from": "Fixed",
+          "note": "Independent logging probes and local strict/sanitizer gates passed in B02-S15; final CI 30195707555 passed maintained logging coverage on Windows, macOS, Linux and Linux ASan/UBSan at the batch boundary.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F011",
@@ -596,9 +644,9 @@
       "requirement": "Feature 005 runtime-mutable category/global filtering, FR-013 concurrency safety, and research atomic-threshold decision",
       "resolution": "Category and global thresholds now use relaxed std::atomic storage; maintained concurrent access coverage passes and both independent pre-fix TSan reproducers now exit 0 without reports.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Runtime logging thresholds contain unsynchronized data races",
-      "verification": ""
+      "verification": "Independent logging probes and local strict/sanitizer gates passed in B02-S15; final CI 30195707555 passed maintained logging coverage on Windows, macOS, Linux and Linux ASan/UBSan at the batch boundary."
     },
     {
       "batch": "B02",
@@ -624,6 +672,12 @@
           "from": "Accepted",
           "note": "The test executable now exposes a dedicated Fatal child mode; POSIX fork/exec and Windows CreateProcess harnesses capture stderr and require abnormal termination before the fallback return. Debug and Release suites pass, and task/contract text now matches the clarified abort behavior.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:11:59+00:00",
+          "from": "Fixed",
+          "note": "Independent logging probes and local strict/sanitizer gates passed in B02-S15; final CI 30195707555 passed maintained logging coverage on Windows, macOS, Linux and Linux ASan/UBSan at the batch boundary.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F012",
@@ -632,9 +686,9 @@
       "requirement": "Feature 005 FR-004, FR-012, SC-009, T011, T013, and quickstart isolated termination validation",
       "resolution": "The test executable now exposes a dedicated Fatal child mode; POSIX fork/exec and Windows CreateProcess harnesses capture stderr and require abnormal termination before the fallback return. Debug and Release suites pass, and task/contract text now matches the clarified abort behavior.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Fatal logging contract is not exercised by the test suite",
-      "verification": ""
+      "verification": "Independent logging probes and local strict/sanitizer gates passed in B02-S15; final CI 30195707555 passed maintained logging coverage on Windows, macOS, Linux and Linux ASan/UBSan at the batch boundary."
     },
     {
       "batch": "B02",
@@ -660,6 +714,12 @@
           "from": "Accepted",
           "note": "Assertion handler selection now uses relaxed atomic function-pointer loads/stores; maintained concurrent dispatch coverage passes and the original post-fix TSan probe exits 0 without a race report.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:12:10+00:00",
+          "from": "Fixed",
+          "note": "Independent assertion parent-current probes and local strict/sanitizer gates passed in B02-S18; final CI 30195707555 passed maintained assertion coverage on MSVC, Apple Clang, GCC and Linux ASan/UBSan at the batch boundary.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F013",
@@ -668,9 +728,9 @@
       "requirement": "Feature 005 replaceable assertion handler contract and Core diagnostic thread-safety",
       "resolution": "Assertion handler selection now uses relaxed atomic function-pointer loads/stores; maintained concurrent dispatch coverage passes and the original post-fix TSan probe exits 0 without a race report.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Assertion handler replacement races with assertion dispatch",
-      "verification": ""
+      "verification": "Independent assertion parent-current probes and local strict/sanitizer gates passed in B02-S18; final CI 30195707555 passed maintained assertion coverage on MSVC, Apple Clang, GCC and Linux ASan/UBSan at the batch boundary."
     },
     {
       "batch": "B02",
@@ -696,6 +756,12 @@
           "from": "Accepted",
           "note": "The maintained child harness now exercises the default assertion handler in Debug and Release; side-effect counters prove SG_CHECK/SG_CHECKF stripping and false SG_VERIFY non-dispatch in Release.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:12:16+00:00",
+          "from": "Fixed",
+          "note": "Independent assertion parent-current probes and local strict/sanitizer gates passed in B02-S18; final CI 30195707555 passed maintained assertion coverage on MSVC, Apple Clang, GCC and Linux ASan/UBSan at the batch boundary.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F014",
@@ -704,9 +770,9 @@
       "requirement": "Feature 005 FR-008 through FR-011, SC-003 through SC-005, SC-009, and quickstart checks 5-7",
       "resolution": "The maintained child harness now exercises the default assertion handler in Debug and Release; side-effect counters prove SG_CHECK/SG_CHECKF stripping and false SG_VERIFY non-dispatch in Release.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Assertion build-mode and default-break contracts lack durable coverage",
-      "verification": ""
+      "verification": "Independent assertion parent-current probes and local strict/sanitizer gates passed in B02-S18; final CI 30195707555 passed maintained assertion coverage on MSVC, Apple Clang, GCC and Linux ASan/UBSan at the batch boundary."
     },
     {
       "batch": "B02",
@@ -732,6 +798,12 @@
           "from": "Accepted",
           "note": "GCC/POSIX now raises SIGTRAP instead of using __builtin_trap; Clang and MSVC retain resumable debugger intrinsics, and Feature 005 artifacts document the corrected platform mapping.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:12:21+00:00",
+          "from": "Fixed",
+          "note": "Independent assertion parent-current probes and local strict/sanitizer gates passed in B02-S18; final CI 30195707555 passed maintained assertion coverage on MSVC, Apple Clang, GCC and Linux ASan/UBSan at the batch boundary.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F015",
@@ -740,9 +812,9 @@
       "requirement": "Feature 005 FR-011, cross-platform constraint, contract SG_DEBUG_BREAK, and research Decision 5",
       "resolution": "GCC/POSIX now raises SIGTRAP instead of using __builtin_trap; Clang and MSVC retain resumable debugger intrinsics, and Feature 005 artifacts document the corrected platform mapping.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "GCC debug break is not resumable as required",
-      "verification": ""
+      "verification": "Independent assertion parent-current probes and local strict/sanitizer gates passed in B02-S18; final CI 30195707555 passed maintained assertion coverage on MSVC, Apple Clang, GCC and Linux ASan/UBSan at the batch boundary."
     },
     {
       "batch": "B02",
@@ -768,6 +840,12 @@
           "from": "Accepted",
           "note": "SGPlatform now rejects Android before Linux and accepts only TARGET_OS_OSX within the Apple/Mach family. The SCons test target runs a maintained compiler matrix proving Windows/macOS/Linux success and Android/iOS/unknown diagnostic failure.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:12:29+00:00",
+          "from": "Fixed",
+          "note": "Independent platform-matrix and Mach ownership parent-current probes passed in B02-S21; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F016",
@@ -776,9 +854,9 @@
       "requirement": "Feature 006 FR-001 and FR-002 require exactly one supported Windows/macOS/Linux identity and a clear failure for unsupported platforms",
       "resolution": "SGPlatform now rejects Android before Linux and accepts only TARGET_OS_OSX within the Apple/Mach family. The SCons test target runs a maintained compiler matrix proving Windows/macOS/Linux success and Android/iOS/unknown diagnostic failure.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Mobile targets are silently classified as supported desktop platforms",
-      "verification": ""
+      "verification": "Independent platform-matrix and Mach ownership parent-current probes passed in B02-S21; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary."
     },
     {
       "batch": "B02",
@@ -804,6 +882,12 @@
           "from": "Accepted",
           "note": "The macOS available-memory path now balances mach_host_self with mach_port_deallocate before every later return. A maintained 1,024-query Mach uref regression and the original focused probe both preserve the reference count.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:12:34+00:00",
+          "from": "Fixed",
+          "note": "Independent platform-matrix and Mach ownership parent-current probes passed in B02-S21; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F017",
@@ -812,9 +896,9 @@
       "requirement": "Feature 006 FR-003 requires safe available-memory reporting through the Core platform boundary",
       "resolution": "The macOS available-memory path now balances mach_host_self with mach_port_deallocate before every later return. A maintained 1,024-query Mach uref regression and the original focused probe both preserve the reference count.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "macOS available-memory query leaks a Mach host send-right reference",
-      "verification": ""
+      "verification": "Independent platform-matrix and Mach ownership parent-current probes passed in B02-S21; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary."
     },
     {
       "batch": "B02",
@@ -840,6 +924,12 @@
           "from": "Accepted",
           "note": "ReadFile now delegates to a bounded exact-read helper that catches allocation/stream exceptions, requires gcount to equal the requested size, and clears output on every failure; maintained exact, short, empty, and stale-output tests cover the contract.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:08:46+00:00",
+          "from": "Fixed",
+          "note": "Independent parent/current truncation probe changed from false success with 268435456 bytes to 12/12 clean failures with cleared output; strict local gates and CI 30195707555 including Linux ASan/UBSan passed.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F018",
@@ -848,9 +938,9 @@
       "requirement": "006 FR-009; data-model file failure rules; core-platform API verification contract",
       "resolution": "ReadFile now delegates to a bounded exact-read helper that catches allocation/stream exceptions, requires gcount to equal the requested size, and clears output on every failure; maintained exact, short, empty, and stale-output tests cover the contract.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Concurrent file truncation is reported as a successful full read",
-      "verification": ""
+      "verification": "Independent parent/current truncation probe changed from false success with 268435456 bytes to 12/12 clean failures with cleared output; strict local gates and CI 30195707555 including Linux ASan/UBSan passed."
     },
     {
       "batch": "B02",
@@ -876,6 +966,12 @@
           "from": "Accepted",
           "note": "Dynamic module validation now uses native std::filesystem path grammar; POSIX requires a real parent path, Windows accepts native parent/root syntax, and LoadLibraryW preserves the UTF-8 engine path through the native wide path.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:08:58+00:00",
+          "from": "Fixed",
+          "note": "Independent parent/current module probe changed from POSIX loader-search success to explicit-path rejection; maintained native-path tests compiled and passed on Windows, macOS, and Linux in CI 30195707555.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F019",
@@ -884,9 +980,9 @@
       "requirement": "006 FR-010; explicit-path clarification; core-platform API contract",
       "resolution": "Dynamic module validation now uses native std::filesystem path grammar; POSIX requires a real parent path, Windows accepts native parent/root syntax, and LoadLibraryW preserves the UTF-8 engine path through the native wide path.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "POSIX module validation permits loader-search bypass",
-      "verification": ""
+      "verification": "Independent parent/current module probe changed from POSIX loader-search success to explicit-path rejection; maintained native-path tests compiled and passed on Windows, macOS, and Linux in CI 30195707555."
     },
     {
       "batch": "B02",
@@ -912,6 +1008,12 @@
           "from": "Accepted",
           "note": "FDynamicModuleHandle is now an opaque move-only owner with noexcept transfer, RAII destruction, private native state, const-reference symbol lookup, and idempotent explicit release; compile-time traits and runtime transfer tests preserve exactly-once ownership.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:09:13+00:00",
+          "from": "Fixed",
+          "note": "Independent parent/current probe proves the public handle changed from copyable aliasing to move-only ownership with transfer, symbol lookup, and idempotent release; compile-time/runtime tests passed on all supported hosts in CI 30195707555.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B02-F020",
@@ -920,9 +1022,9 @@
       "requirement": "006 data-model dynamic module validation and state transitions; FR-011 managed invalid-handle behavior",
       "resolution": "FDynamicModuleHandle is now an opaque move-only owner with noexcept transfer, RAII destruction, private native state, const-reference symbol lookup, and idempotent explicit release; compile-time traits and runtime transfer tests preserve exactly-once ownership.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Dynamic module handle copies permit stale use and repeated release",
-      "verification": ""
+      "verification": "Independent parent/current probe proves the public handle changed from copyable aliasing to move-only ownership with transfer, symbol lookup, and idempotent release; compile-time/runtime tests passed on all supported hosts in CI 30195707555."
     }
   ],
   "schema_version": 1

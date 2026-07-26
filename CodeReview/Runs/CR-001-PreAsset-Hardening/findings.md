@@ -99,203 +99,203 @@
 ## CR001-B02-F004: Lerp violates finite endpoint guarantees through intermediate overflow
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 004 data-model interpolation endpoints, FR-005, FR-011, and User Story 1 require predictable interpolation and boundary coverage
 - Location: `Source/Core/Public/Core/FMath.h:44`
 - Impact: Endpoint interpolation can turn valid finite values into non-finite results, breaking the documented scalar invariant and propagating invalid values into future animation, color, and rendering interpolation.
 - Evidence: A C++20 Debug and Release probe with finite A=FLT_MAX and B=-FLT_MAX produces NaN at Alpha=0 and -infinity at Alpha=1 instead of A and B.
 - Resolution: Replaced overflow-prone interpolation arithmetic with C++20 std::lerp and added opposite-FLT_MAX endpoint and midpoint regressions.
-- Verification: pending
+- Verification: Independent scalar/vector/color parent-current probes and local strict/sanitizer gates passed in B02-S09; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.
 - Commit: `e077419`
 
 ## CR001-B02-F005: Safe vector normalization collapses large finite directions to zero
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 004-FR-001, FR-011, Vector validation rules, and T013 require correct safe normalization for finite vectors and boundary inputs
 - Location: `Source/Core/Public/Core/FVector2.h:86`
 - Impact: Valid finite directions can be erased, corrupting planes, light directions, camera-facing data, and any downstream operation that relies on normalized vectors.
 - Evidence: Debug and Release probes normalize axis vectors with FLT_MAX components; FVector2, FVector3, and FVector4 all return zero vectors because LengthSquared overflows before division.
 - Resolution: Changed vector length to overflow-resistant hypot and safe normalization to finite-validated, scale-resistant normalization across FVector2/3/4, with large-axis and diagonal tests.
-- Verification: pending
+- Verification: Independent scalar/vector/color parent-current probes and local strict/sanitizer gates passed in B02-S09; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.
 - Commit: `e077419`
 
 ## CR001-B02-F006: Invalid numeric math contract and verification are missing
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 004 edge case 68, FR-011, FR-012, T013, and T040 require documented and verified NaN/infinity and invalid-input behavior
 - Location: `Tests/CoreMathTests.cpp:75`
 - Impact: Callers and optimized implementations have no stable invalid-input contract, and the green suite cannot detect non-finite propagation or cross-platform policy drift.
 - Evidence: The claimed infinity test only queries IsFinite on one component; public normalization emits NaN, negative tolerance rejects self-equality, and NaN color channels silently convert to 255, while public comments define none of these policies.
 - Resolution: Documented and enforced finite non-negative near tolerances, Zero fallback for invalid vector normalization, and deterministic NaN/infinity color conversion; replaced nominal checks with behavioral coverage.
-- Verification: pending
+- Verification: Independent scalar/vector/color parent-current probes and local strict/sanitizer gates passed in B02-S09; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.
 - Commit: `e077419`
 
 ## CR001-B02-F007: Quaternion normalization and equivalence break the public rotation contract
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 004-FR-003, FR-009, FR-011, data-model quaternion validation, and SC-006
 - Location: `Source/Core/Public/Core/FQuat.h:59`
 - Impact: Finite orientations can be silently erased, invalid input can reach render-facing directions, and equivalent rotations cannot be compared with the documented tolerance-aware behavior.
 - Evidence: Debug and Release probe: FQuat(FLT_MAX,0,0,FLT_MAX).GetSafeNormal() returns identity; an infinite component propagates non-finite RotateVector output; a unit quaternion and its negation return false from NearlyEquals.
 - Resolution: Made quaternion length/normalization/inverse scale-resistant, defined invalid-input identity fallback, and made NearlyEquals accept q/-q rotation equivalence; added direct Debug/Release regressions.
-- Verification: pending
+- Verification: Independent spatial-math parent-current probes and local strict/sanitizer gates passed in B02-S12; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.
 - Commit: `70cacb7`
 
 ## CR001-B02-F008: Spatial transform composition and inversion report incorrect success for valid and invalid inputs
 
 - Severity: S1
-- Status: Fixed
+- Status: Verified
 - Requirement: 004-FR-002, FR-004, FR-009, FR-011; data-model matrix/transform validation; 017 preserve-world reparent contract
 - Location: `Source/Core/Public/Core/FTransform.h:44; Source/Core/Public/Core/FMatrix4x4.h:161`
 - Impact: Scene hierarchy PreserveWorld reparent uses FTransform::TryInverse and operator*, so ordinary rotated non-uniform parent transforms can corrupt local/world state; callers can also treat NaN inverses as valid.
 - Evidence: Debug and Release probe: parent non-uniform scale plus child rotation makes sequential and operator* point transforms disagree; TryInverse then fails round-trip. Zero matrix with negative tolerance and a matrix containing NaN both return success and emit NaN. Zero-scale FTransform with negative tolerance also returns success.
 - Resolution: Replaced infallible TRS composition with exact matrix-checked TryCompose/TryInverse/TryRelativeTo, added orthogonal TRS decomposition, rejected shear truthfully, and made Scene hierarchy validation transactional with stable InvalidHierarchyOperation diagnostics.
-- Verification: pending
+- Verification: Independent spatial-math parent-current probes and local strict/sanitizer gates passed in B02-S12; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.
 - Commit: `70cacb7`
 
 ## CR001-B02-F009: Geometry primitives lack finite-safe construction, tolerance, and extreme-bound behavior
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 004-FR-007, FR-009, FR-011, FR-012; data-model box/sphere/plane validation
 - Location: `Source/Core/Public/Core/FBox.h:75; Source/Core/Public/Core/FSphere.h:18; Source/Core/Public/Core/FPlane.h:23`
 - Impact: Bounds/culling and spatial classification can become mathematically wrong or non-finite from finite source data, while invalid numeric input is accepted without a documented deterministic policy.
 - Evidence: Debug and Release probe: FPlane((0,0,2),2) reports signed distance -1 at z=1 because normal normalization does not rescale Distance; FBox(FLT_MAX,FLT_MAX) center is non-finite; +infinity radius sphere is valid and a finite large sphere reports FLT_MAX point contained after squared-distance overflow; negative plane tolerance changes an on-plane result to Front.
 - Resolution: Added finite-safe box/sphere/plane construction and queries, overflow-resistant bounds and containment, normalized plane equation coefficients together, and deterministic invalid tolerance behavior with regressions.
-- Verification: pending
+- Verification: Independent spatial-math parent-current probes and local strict/sanitizer gates passed in B02-S12; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.
 - Commit: `70cacb7`
 
 ## CR001-B02-F010: Global severity filtering evaluates suppressed log arguments
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 005 FR-016 macro-level early-out
 - Location: `Source/Core/Public/Core/SGLog.h:18`
 - Impact: Globally filtered logs still execute arbitrary argument expressions and enter FLog::LogMessage, violating the zero-side-effect and single-comparison contract.
 - Evidence: Debug and Release probes set global=Warning/category=Verbose then issue Info with ++sideEffect; both print side_effect_count=1 and exit 1.
 - Resolution: SG_LOG now intersects atomic category/global severity masks before one final bit comparison; Debug and optimized Release probes preserve side_effect_count=0 and maintained coverage asserts the global path.
-- Verification: pending
+- Verification: Independent logging probes and local strict/sanitizer gates passed in B02-S15; final CI 30195707555 passed maintained logging coverage on Windows, macOS, Linux and Linux ASan/UBSan at the batch boundary.
 - Commit: `8303045d6b977ecc873033a2da3100756f347055`
 
 ## CR001-B02-F011: Runtime logging thresholds contain unsynchronized data races
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 005 runtime-mutable category/global filtering, FR-013 concurrency safety, and research atomic-threshold decision
 - Location: `Source/Core/Public/Core/FLogCategory.h:50; Source/Core/Private/FLog.cpp:17`
 - Impact: Concurrent threshold reconfiguration and logging causes C++ undefined behavior, so filtering and diagnostics may be corrupted or optimized unpredictably.
 - Evidence: macOS ThreadSanitizer independently reports races between FLogCategory::Set/GetMinSeverity on LogCore and FLog::Set/GetGlobalMinSeverity on GGlobalMinSeverity.
 - Resolution: Category and global thresholds now use relaxed std::atomic storage; maintained concurrent access coverage passes and both independent pre-fix TSan reproducers now exit 0 without reports.
-- Verification: pending
+- Verification: Independent logging probes and local strict/sanitizer gates passed in B02-S15; final CI 30195707555 passed maintained logging coverage on Windows, macOS, Linux and Linux ASan/UBSan at the batch boundary.
 - Commit: `8303045d6b977ecc873033a2da3100756f347055`
 
 ## CR001-B02-F012: Fatal logging contract is not exercised by the test suite
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 005 FR-004, FR-012, SC-009, T011, T013, and quickstart isolated termination validation
 - Location: `Tests/LoggingAssertionTests.cpp:360; Tests/LoggingAssertionTests.cpp:432`
 - Impact: Fatal routing or termination can regress while the checked-complete tasks and public-entry coverage gate continue to pass.
 - Evidence: Routing loop explicitly skips Fatal, and TestFatalLogBehavior emits Error instead. A release child probe shows actual Fatal writes to stderr and aborts with exit 134, behavior absent from the suite.
 - Resolution: The test executable now exposes a dedicated Fatal child mode; POSIX fork/exec and Windows CreateProcess harnesses capture stderr and require abnormal termination before the fallback return. Debug and Release suites pass, and task/contract text now matches the clarified abort behavior.
-- Verification: pending
+- Verification: Independent logging probes and local strict/sanitizer gates passed in B02-S15; final CI 30195707555 passed maintained logging coverage on Windows, macOS, Linux and Linux ASan/UBSan at the batch boundary.
 - Commit: `8303045d6b977ecc873033a2da3100756f347055`
 
 ## CR001-B02-F013: Assertion handler replacement races with assertion dispatch
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 005 replaceable assertion handler contract and Core diagnostic thread-safety
 - Location: `Source/Core/Private/FLog.cpp:17; Source/Core/Private/FLog.cpp:93; Source/Core/Private/FLog.cpp:178`
 - Impact: Replacing the handler while any worker reports an assertion is C++ undefined behavior and can dispatch through a torn or stale function pointer.
 - Evidence: A release ThreadSanitizer probe reports a data race between FLog::SetAssertionHandler and FLog::HandleAssertionFailure on global GAssertionHandler.
 - Resolution: Assertion handler selection now uses relaxed atomic function-pointer loads/stores; maintained concurrent dispatch coverage passes and the original post-fix TSan probe exits 0 without a race report.
-- Verification: pending
+- Verification: Independent assertion parent-current probes and local strict/sanitizer gates passed in B02-S18; final CI 30195707555 passed maintained assertion coverage on MSVC, Apple Clang, GCC and Linux ASan/UBSan at the batch boundary.
 - Commit: `76063b27d6f3cbbb79fbcd488897af33a9504054`
 
 ## CR001-B02-F014: Assertion build-mode and default-break contracts lack durable coverage
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 005 FR-008 through FR-011, SC-003 through SC-005, SC-009, and quickstart checks 5-7
 - Location: `Tests/LoggingAssertionTests.cpp:646; Tests/LoggingAssertionTests.cpp:684; Tests/LoggingAssertionTests.cpp:719`
 - Impact: Debugger-break, compile-out, or Release VERIFY regressions can pass the claimed public-entry and build-mode coverage gates on all CI platforms.
 - Evidence: Maintained tests always install a custom handler, never execute SG_DEBUG_BREAK, use no side effect in SG_CHECK/SG_CHECKF Release checks, and omit the Release false-SG_VERIFY no-handler assertion. External probes show Debug SIGTRAP and correct Release stripping, but that evidence is not maintained.
 - Resolution: The maintained child harness now exercises the default assertion handler in Debug and Release; side-effect counters prove SG_CHECK/SG_CHECKF stripping and false SG_VERIFY non-dispatch in Release.
-- Verification: pending
+- Verification: Independent assertion parent-current probes and local strict/sanitizer gates passed in B02-S18; final CI 30195707555 passed maintained assertion coverage on MSVC, Apple Clang, GCC and Linux ASan/UBSan at the batch boundary.
 - Commit: `76063b27d6f3cbbb79fbcd488897af33a9504054`
 
 ## CR001-B02-F015: GCC debug break is not resumable as required
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 005 FR-011, cross-platform constraint, contract SG_DEBUG_BREAK, and research Decision 5
 - Location: `Source/Core/Public/Core/SGPlatformBreak.h:19`
 - Impact: Linux GCC assertions stop on a trap instruction that repeats or requires manual instruction-pointer repair, violating the soft-stop assertion contract and differing from MSVC/Clang behavior.
 - Evidence: The GCC branch expands to __builtin_trap even though Feature 005 research explicitly rejects that intrinsic as non-resumable; the clarified contract requires a debugger break from which execution can continue.
 - Resolution: GCC/POSIX now raises SIGTRAP instead of using __builtin_trap; Clang and MSVC retain resumable debugger intrinsics, and Feature 005 artifacts document the corrected platform mapping.
-- Verification: pending
+- Verification: Independent assertion parent-current probes and local strict/sanitizer gates passed in B02-S18; final CI 30195707555 passed maintained assertion coverage on MSVC, Apple Clang, GCC and Linux ASan/UBSan at the batch boundary.
 - Commit: `76063b27d6f3cbbb79fbcd488897af33a9504054`
 
 ## CR001-B02-F016: Mobile targets are silently classified as supported desktop platforms
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 006 FR-001 and FR-002 require exactly one supported Windows/macOS/Linux identity and a clear failure for unsupported platforms
 - Location: `Source/Core/Public/Core/SGPlatform.h:3`
 - Impact: Android and non-macOS Apple builds can enter desktop platform branches and compile against incorrect APIs while advertising a supported desktop identity
 - Evidence: B02-S19 compile probes classified __ANDROID__ as SG_PLATFORM_LINUX and TARGET_OS_IPHONE as SG_PLATFORM_MAC, while a generic unknown target correctly failed compilation
 - Resolution: SGPlatform now rejects Android before Linux and accepts only TARGET_OS_OSX within the Apple/Mach family. The SCons test target runs a maintained compiler matrix proving Windows/macOS/Linux success and Android/iOS/unknown diagnostic failure.
-- Verification: pending
+- Verification: Independent platform-matrix and Mach ownership parent-current probes passed in B02-S21; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.
 - Commit: `7a78cc6db8ed80c4b6d373cd932677850f58abbe`
 
 ## CR001-B02-F017: macOS available-memory query leaks a Mach host send-right reference
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 006 FR-003 requires safe available-memory reporting through the Core platform boundary
 - Location: `Source/Core/Private/FPlatformMisc.cpp:53`
 - Impact: Long-running repeated queries consume Mach port user references and can eventually exhaust or saturate the process right-reference count
 - Evidence: B02-S19 macOS ownership probe called GetAvailableMemoryBytes 1024 times and observed host send urefs grow from 1 to 1025 (delta 1024)
 - Resolution: The macOS available-memory path now balances mach_host_self with mach_port_deallocate before every later return. A maintained 1,024-query Mach uref regression and the original focused probe both preserve the reference count.
-- Verification: pending
+- Verification: Independent platform-matrix and Mach ownership parent-current probes passed in B02-S21; final CI 30195707555 passed Windows, macOS, Linux Debug/Release and Linux ASan/UBSan at the batch boundary.
 - Commit: `7a78cc6db8ed80c4b6d373cd932677850f58abbe`
 
 ## CR001-B02-F018: Concurrent file truncation is reported as a successful full read
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 006 FR-009; data-model file failure rules; core-platform API verification contract
 - Location: `Source/Core/Private/FPlatformFileSystem.cpp:69`
 - Impact: A caller can accept a partial read padded by value-initialized bytes as a complete payload, violating byte preservation and failure reporting
 - Evidence: ASan/UBSan probe truncated a 256 MiB regular file to one byte after sizing; ReadFile returned true with a 268435456-byte output while the final file size was 1
 - Resolution: ReadFile now delegates to a bounded exact-read helper that catches allocation/stream exceptions, requires gcount to equal the requested size, and clears output on every failure; maintained exact, short, empty, and stale-output tests cover the contract.
-- Verification: pending
+- Verification: Independent parent/current truncation probe changed from false success with 268435456 bytes to 12/12 clean failures with cleared output; strict local gates and CI 30195707555 including Linux ASan/UBSan passed.
 - Commit: `1a3c4de2a8bd2e45c22777c778f087ed82192fa4`
 
 ## CR001-B02-F019: POSIX module validation permits loader-search bypass
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 006 FR-010; explicit-path clarification; core-platform API contract
 - Location: `Source/Core/Private/FPlatformProcess.cpp:20`
 - Impact: Callers that expect explicit-path-only loading can instead resolve a module through mutable platform loader search paths
 - Evidence: On macOS, a module name containing only a backslash passed HasExplicitPathMarker and loaded from DYLD_LIBRARY_PATH without any slash in the supplied name
 - Resolution: Dynamic module validation now uses native std::filesystem path grammar; POSIX requires a real parent path, Windows accepts native parent/root syntax, and LoadLibraryW preserves the UTF-8 engine path through the native wide path.
-- Verification: pending
+- Verification: Independent parent/current module probe changed from POSIX loader-search success to explicit-path rejection; maintained native-path tests compiled and passed on Windows, macOS, and Linux in CI 30195707555.
 - Commit: `1a3c4de2a8bd2e45c22777c778f087ed82192fa4`
 
 ## CR001-B02-F020: Dynamic module handle copies permit stale use and repeated release
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 006 data-model dynamic module validation and state transitions; FR-011 managed invalid-handle behavior
 - Location: `Source/Core/Public/Core/FPlatformProcess.h:8`
 - Impact: The public ownership type cannot enforce release exactly once and exposes stale symbol lookup and platform-dependent repeated-close behavior
 - Evidence: ASan/UBSan probe reports copyable=1; after freeing the original handle, its copy still reports valid and FreeDynamicModule invokes a second dlclose on the stale native handle
 - Resolution: FDynamicModuleHandle is now an opaque move-only owner with noexcept transfer, RAII destruction, private native state, const-reference symbol lookup, and idempotent explicit release; compile-time traits and runtime transfer tests preserve exactly-once ownership.
-- Verification: pending
+- Verification: Independent parent/current probe proves the public handle changed from copyable aliasing to move-only ownership with transfer, symbol lookup, and idempotent release; compile-time/runtime tests passed on all supported hosts in CI 30195707555.
 - Commit: `1a3c4de2a8bd2e45c22777c778f087ed82192fa4`
