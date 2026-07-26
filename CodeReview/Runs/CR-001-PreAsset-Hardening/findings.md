@@ -267,35 +267,35 @@
 ## CR001-B02-F018: Concurrent file truncation is reported as a successful full read
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 006 FR-009; data-model file failure rules; core-platform API verification contract
 - Location: `Source/Core/Private/FPlatformFileSystem.cpp:69`
 - Impact: A caller can accept a partial read padded by value-initialized bytes as a complete payload, violating byte preservation and failure reporting
 - Evidence: ASan/UBSan probe truncated a 256 MiB regular file to one byte after sizing; ReadFile returned true with a 268435456-byte output while the final file size was 1
-- Resolution: pending
+- Resolution: ReadFile now delegates to a bounded exact-read helper that catches allocation/stream exceptions, requires gcount to equal the requested size, and clears output on every failure; maintained exact, short, empty, and stale-output tests cover the contract.
 - Verification: pending
-- Commit: `pending`
+- Commit: `1a3c4de2a8bd2e45c22777c778f087ed82192fa4`
 
 ## CR001-B02-F019: POSIX module validation permits loader-search bypass
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 006 FR-010; explicit-path clarification; core-platform API contract
 - Location: `Source/Core/Private/FPlatformProcess.cpp:20`
 - Impact: Callers that expect explicit-path-only loading can instead resolve a module through mutable platform loader search paths
 - Evidence: On macOS, a module name containing only a backslash passed HasExplicitPathMarker and loaded from DYLD_LIBRARY_PATH without any slash in the supplied name
-- Resolution: pending
+- Resolution: Dynamic module validation now uses native std::filesystem path grammar; POSIX requires a real parent path, Windows accepts native parent/root syntax, and LoadLibraryW preserves the UTF-8 engine path through the native wide path.
 - Verification: pending
-- Commit: `pending`
+- Commit: `1a3c4de2a8bd2e45c22777c778f087ed82192fa4`
 
 ## CR001-B02-F020: Dynamic module handle copies permit stale use and repeated release
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 006 data-model dynamic module validation and state transitions; FR-011 managed invalid-handle behavior
 - Location: `Source/Core/Public/Core/FPlatformProcess.h:8`
 - Impact: The public ownership type cannot enforce release exactly once and exposes stale symbol lookup and platform-dependent repeated-close behavior
 - Evidence: ASan/UBSan probe reports copyable=1; after freeing the original handle, its copy still reports valid and FreeDynamicModule invokes a second dlclose on the stale native handle
-- Resolution: pending
+- Resolution: FDynamicModuleHandle is now an opaque move-only owner with noexcept transfer, RAII destruction, private native state, const-reference symbol lookup, and idempotent explicit release; compile-time traits and runtime transfer tests preserve exactly-once ownership.
 - Verification: pending
-- Commit: `pending`
+- Commit: `1a3c4de2a8bd2e45c22777c778f087ed82192fa4`
