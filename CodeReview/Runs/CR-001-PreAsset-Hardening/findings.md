@@ -303,23 +303,23 @@
 ## CR001-B03-F001: Runtime snapshot live-object total can wrap to zero
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 018-FR-019; 018-SC-009; 018-T006
 - Location: `Source/RHI/Public/RHI/FRHIRuntimeSnapshot.h:15`
 - Impact: Unsigned 32-bit aggregation can falsely certify leak-free shutdown when non-zero category counts wrap modulo 2^32, weakening the stable runtime snapshot and final-zero resource gate.
 - Evidence: A strict standalone C++20 probe sets LiveInstances=UINT32_MAX and LiveDevices=1; GetTotalLiveObjectCount() returns 0 (probe exit 3), while successful endurance validation treats zero as proof that no demo-owned resources remain.
 - Resolution: GetTotalLiveObjectCount now returns uint64 and promotes the first operand before summation; per-category uint32 diagnostics remain unchanged. Regression coverage proves UINT32_MAX+1 equals 4294967296 instead of zero.
-- Verification: pending
+- Verification: Independent same-source parent/current probe verified exact behavior: parent blob dabb110 returns total=0 and exit 3 for UINT32_MAX+1; current returns 4294967296 and exit 0. Strict fallback, strict Release, and ASan/UBSan records pass; repository call sites perform comparison or stream output with no uint32 truncating assignment.
 - Commit: `98c97a5`
 
 ## CR001-B03-F002: Native execution proof accepts a deterministic request
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 018-FR-003; 018-T006; 018-T009; triangle-demo-validation-contract native-required gate
 - Location: `Source/RHI/Public/RHI/FRHIRuntimeSnapshot.h:32`
 - Impact: A contradictory snapshot can falsely satisfy backend-neutral native proof, allowing a deterministic request to be represented as successful native execution and undermining the no-silent-fallback milestone gate.
 - Evidence: A strict standalone C++20 probe sets RequestedMode=Deterministic, ObjectMode=RealRuntime, LiveInstances=1, and LiveDevices=1; ProvesNativeExecution() returns true (probe exit 3). The validation contract requires native-required runs to fail when proof reports deterministic mode.
 - Resolution: ProvesNativeExecution now requires an explicit Native or NativeHeadless request in addition to RealRuntime and non-zero instance/device counts. Tests cover both positive native modes and deterministic, fallback, missing-instance, and missing-device negatives.
-- Verification: pending
+- Verification: Independent same-source parent/current probe verified exact behavior: parent accepts the contradictory deterministic/real-runtime snapshot (proof=1, exit 3); current rejects it (proof=0, exit 0). Positive Native and NativeHeadless plus fallback and zero-count negatives pass in the strict 757-line deterministic suite.
 - Commit: `98c97a5`

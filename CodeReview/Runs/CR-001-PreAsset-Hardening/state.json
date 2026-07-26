@@ -1,5 +1,5 @@
 {
-  "active_step": "B03-S03",
+  "active_step": "B03-S04",
   "batches": [
     {
       "id": "B00",
@@ -498,13 +498,21 @@
           "title": "Fix: device, capabilities, runtime, and results"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "98c97a5",
+          "completed_at": "2026-07-26T09:45:37+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B03-device-runtime-verification.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b03-device-runtime-verification-probes.md",
+            "CR001-B03-F001",
+            "CR001-B03-F002",
+            "gate-fallback-strict",
+            "gate-strict-release",
+            "gate-sanitizers"
+          ],
           "id": "B03-S03",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Independently reproduced both parent defects from the exact 2856823 header blob, verified current fixed behavior with the same strict probe, audited all downstream call sites for truncation, and passed fresh fallback-strict plus retained current-code Release and ASan/UBSan gates; both S2 findings are Verified.",
+          "started_at": "2026-07-26T09:42:21+00:00",
+          "status": "Completed",
           "title": "Verify: device, capabilities, runtime, and results"
         },
         {
@@ -2711,6 +2719,31 @@
       "at": "2026-07-26T09:41:23+00:00",
       "detail": "B03-S02",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-26T09:42:21+00:00",
+      "detail": "B03-S03",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-26T09:44:14+00:00",
+      "detail": "fallback-strict: pass",
+      "kind": "gate"
+    },
+    {
+      "at": "2026-07-26T09:44:55+00:00",
+      "detail": "verify finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T09:44:56+00:00",
+      "detail": "verify finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T09:45:37+00:00",
+      "detail": "B03-S03",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -2754,7 +2787,7 @@
       ],
       "passed": true,
       "profile": "fallback-strict",
-      "recorded_at": "2026-07-26T08:51:54+00:00"
+      "recorded_at": "2026-07-26T09:44:14+00:00"
     },
     "release": {
       "commands": [
@@ -2864,7 +2897,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "98c97a57ec6ec066dec68bc9f788da290841da5b"
+    "last_recorded_head": "e529d6982669ccaddc9e6bb8c8c5655f5aa489e5"
   },
   "policy": {
     "fix_severities": [
@@ -2884,5 +2917,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T09:41:23+00:00"
+  "updated_at": "2026-07-26T09:45:37+00:00"
 }

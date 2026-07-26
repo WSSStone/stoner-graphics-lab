@@ -1050,6 +1050,12 @@
           "from": "Accepted",
           "note": "GetTotalLiveObjectCount now returns uint64 and promotes the first operand before summation; per-category uint32 diagnostics remain unchanged. Regression coverage proves UINT32_MAX+1 equals 4294967296 instead of zero.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:44:55+00:00",
+          "from": "Fixed",
+          "note": "Independent same-source parent/current probe verified exact behavior: parent blob dabb110 returns total=0 and exit 3 for UINT32_MAX+1; current returns 4294967296 and exit 0. Strict fallback, strict Release, and ASan/UBSan records pass; repository call sites perform comparison or stream output with no uint32 truncating assignment.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B03-F001",
@@ -1058,9 +1064,9 @@
       "requirement": "018-FR-019; 018-SC-009; 018-T006",
       "resolution": "GetTotalLiveObjectCount now returns uint64 and promotes the first operand before summation; per-category uint32 diagnostics remain unchanged. Regression coverage proves UINT32_MAX+1 equals 4294967296 instead of zero.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Runtime snapshot live-object total can wrap to zero",
-      "verification": ""
+      "verification": "Independent same-source parent/current probe verified exact behavior: parent blob dabb110 returns total=0 and exit 3 for UINT32_MAX+1; current returns 4294967296 and exit 0. Strict fallback, strict Release, and ASan/UBSan records pass; repository call sites perform comparison or stream output with no uint32 truncating assignment."
     },
     {
       "batch": "B03",
@@ -1086,6 +1092,12 @@
           "from": "Accepted",
           "note": "ProvesNativeExecution now requires an explicit Native or NativeHeadless request in addition to RealRuntime and non-zero instance/device counts. Tests cover both positive native modes and deterministic, fallback, missing-instance, and missing-device negatives.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T09:44:56+00:00",
+          "from": "Fixed",
+          "note": "Independent same-source parent/current probe verified exact behavior: parent accepts the contradictory deterministic/real-runtime snapshot (proof=1, exit 3); current rejects it (proof=0, exit 0). Positive Native and NativeHeadless plus fallback and zero-count negatives pass in the strict 757-line deterministic suite.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B03-F002",
@@ -1094,9 +1106,9 @@
       "requirement": "018-FR-003; 018-T006; 018-T009; triangle-demo-validation-contract native-required gate",
       "resolution": "ProvesNativeExecution now requires an explicit Native or NativeHeadless request in addition to RealRuntime and non-zero instance/device counts. Tests cover both positive native modes and deterministic, fallback, missing-instance, and missing-device negatives.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Native execution proof accepts a deterministic request",
-      "verification": ""
+      "verification": "Independent same-source parent/current probe verified exact behavior: parent accepts the contradictory deterministic/real-runtime snapshot (proof=1, exit 3); current rejects it (proof=0, exit 0). Positive Native and NativeHeadless plus fallback and zero-count negatives pass in the strict 757-line deterministic suite."
     }
   ],
   "schema_version": 1
