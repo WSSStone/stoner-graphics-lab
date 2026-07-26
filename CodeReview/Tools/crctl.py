@@ -40,17 +40,108 @@ from reviewlib import (
 )
 
 
+def review_steps(*domains: str) -> list[str]:
+    """Create bounded inspect/fix/verify packets for responsibility domains."""
+    return [
+        f"{action}: {domain}"
+        for domain in domains
+        for action in ("Inspect", "Fix", "Verify")
+    ]
+
+
 BATCHES = [
     ("B00", "Bootstrap", ["Framework and Draft PR", "Baseline and CodeGraph"]),
     ("B01", "Build, CI, and Architecture", ["Inspect", "Fix", "Verify"]),
-    ("B02", "Core Features 003-006", ["Inspect", "Fix", "Verify"]),
-    ("B03", "RHI Features 007-008", ["Inspect", "Fix", "Verify"]),
-    ("B04", "Vulkan Foundation 009-010", ["Inspect", "Fix", "Verify"]),
-    ("B05", "Vulkan Execution 011-012", ["Inspect", "Fix", "Verify"]),
-    ("B06", "Renderer 013-015", ["Inspect", "Fix", "Verify"]),
-    ("B07", "Application 016-017", ["Inspect", "Fix", "Verify"]),
-    ("B08", "Integration 018-019", ["Inspect", "Fix", "Verify"]),
-    ("B09", "Cross-Cutting", ["Inspect", "Fix", "Verify"]),
+    (
+        "B02",
+        "Core Features 003-006",
+        review_steps(
+            "value identity and containers",
+            "memory allocation and module lifecycle",
+            "scalar, vector, and color math",
+            "matrix, quaternion, transform, and geometry math",
+            "logging system",
+            "assertion and platform-break macros",
+            "platform selection, window, misc, and memory",
+            "platform time, filesystem, and process",
+        ),
+    ),
+    (
+        "B03",
+        "RHI Features 007-008",
+        review_steps(
+            "device, capabilities, runtime, and results",
+            "commands, queues, synchronization, and swapchain",
+            "buffer, texture, and sampler resources",
+            "shaders, descriptors, pipelines, render passes, and framebuffers",
+        ),
+    ),
+    (
+        "B04",
+        "Vulkan Foundation 009-010",
+        review_steps(
+            "instance, adapter, device, and capabilities",
+            "surface and swapchain lifecycle",
+            "memory allocation, buffers, and textures",
+            "descriptors, samplers, and upload staging",
+        ),
+    ),
+    (
+        "B05",
+        "Vulkan Execution 011-012",
+        review_steps(
+            "command pools, buffers, barriers, and render scope",
+            "queues, submission, and synchronization",
+            "shader modules and interfaces",
+            "graphics and compute pipelines and cache",
+            "native context execution",
+        ),
+    ),
+    (
+        "B06",
+        "Renderer 013-015",
+        review_steps(
+            "render graph declaration, compilation, and lifetimes",
+            "render graph execution, resources, and diagnostics",
+            "shader library and permutations",
+            "material definitions, instances, and parameters",
+            "forward frame planning, lights, views, and sorting",
+            "forward execution, graph declaration, and diagnostics",
+        ),
+    ),
+    (
+        "B07",
+        "Application 016-017",
+        review_steps(
+            "window lifecycle, drivers, and loop",
+            "input mapping, events, and snapshots",
+            "entity slots and components",
+            "hierarchy, reparenting, and destruction",
+            "transforms and render collection",
+        ),
+    ),
+    (
+        "B08",
+        "Integration 018-019",
+        review_steps(
+            "triangle demo configuration and lifecycle",
+            "triangle native session, presentation, and synchronization",
+            "deferred frame plan, surfaces, and graph",
+            "deferred native execution and readback",
+            "validation, failure injection, and artifacts",
+        ),
+    ),
+    (
+        "B09",
+        "Cross-Cutting",
+        review_steps(
+            "test target architecture and private boundaries",
+            "diagnostics, determinism, and failure semantics",
+            "concurrency, lifetime, and ownership duplication",
+            "performance hotspots and large functions",
+            "documentation, specification drift, and traceability",
+        ),
+    ),
     ("B10", "Closeout", ["Traceability", "Final Gates", "Close"]),
 ]
 
@@ -76,7 +167,17 @@ def parse_args() -> argparse.Namespace:
     init_parser.add_argument("--baseline", required=True)
     init_parser.add_argument("--branch")
 
-    for command in ("doctor", "baseline", "status", "next", "recover", "render", "lint", "close"):
+    for command in (
+        "doctor",
+        "baseline",
+        "status",
+        "next",
+        "recover",
+        "refine",
+        "render",
+        "lint",
+        "close",
+    ):
         child = subparsers.add_parser(command)
         child.add_argument("--id")
 
@@ -156,6 +257,28 @@ def make_batches() -> list[dict[str, Any]]:
             {"id": batch_id, "title": title, "status": "Pending", "steps": steps}
         )
     return batches
+
+
+def refine_pending_batches(state: dict[str, Any]) -> list[str]:
+    """Replace only pristine pending batches with the current packet definitions."""
+    definitions = {batch["id"]: batch for batch in make_batches()}
+    refined: list[str] = []
+    for index, batch in enumerate(state["batches"]):
+        replacement = definitions.get(batch["id"])
+        if replacement is None:
+            continue
+        pristine = batch["status"] == "Pending" and all(
+            step["status"] == "Pending" and step["started_at"] is None
+            for step in batch["steps"]
+        )
+        if not pristine:
+            continue
+        if batch != replacement:
+            state["batches"][index] = replacement
+            refined.append(batch["id"])
+    pending = next_pending(state)
+    state["active_step"] = pending[1]["id"] if pending else None
+    return refined
 
 
 def find_step(state: dict[str, Any], step_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -277,11 +400,12 @@ temporary CR-002 initialization succeeds.
 """
 
 
-def execution_text() -> str:
+def execution_text(batches: list[dict[str, Any]] | None = None) -> str:
     lines = ["# Execution", "", "Execute one `crctl next` packet per session.", ""]
-    for batch_id, title, steps in BATCHES:
-        lines.append(f"## {batch_id}: {title}")
-        lines.extend(f"- {batch_id}-S{index:02d}: {step}" for index, step in enumerate(steps, 1))
+    rendered_batches = batches or make_batches()
+    for batch in rendered_batches:
+        lines.append(f"## {batch['id']}: {batch['title']}")
+        lines.extend(f"- {step['id']}: {step['title']}" for step in batch["steps"])
         lines.append("")
     lines.extend(
         [
@@ -485,6 +609,23 @@ def cmd_recover(repo: Path, state: dict[str, Any]) -> None:
     print(json.dumps(report, indent=2, ensure_ascii=False))
     if snapshot["dirty"]:
         raise ReviewError("recovery blocked by unrecorded working tree changes")
+
+
+def cmd_refine(repo: Path, run_dir: Path, state: dict[str, Any]) -> None:
+    snapshot = git_snapshot(repo)
+    if snapshot["dirty"]:
+        raise ReviewError("cannot refine packets with unrecorded working tree changes")
+    refined = refine_pending_batches(state)
+    if refined:
+        append_event(state, "refine", f"refined pending batches: {', '.join(refined)}")
+        atomic_write(run_dir / "execution.md", execution_text(state["batches"]))
+        save_state(run_dir, state)
+        render_all(repo, run_dir, state)
+    print(
+        "refined pending batches: " + ", ".join(refined)
+        if refined
+        else "no pristine pending batches required refinement"
+    )
 
 
 def cmd_trace(repo: Path, run_dir: Path, state: dict[str, Any]) -> None:
@@ -784,6 +925,8 @@ def main() -> int:
             cmd_fail(run_dir, state, args.reason)
         elif args.command == "recover":
             cmd_recover(repo, state)
+        elif args.command == "refine":
+            cmd_refine(repo, run_dir, state)
         elif args.command == "trace":
             cmd_trace(repo, run_dir, state)
         elif args.command == "finding":

@@ -20,6 +20,9 @@ notes are updated in the same fix cluster.
 
 One Codex session executes exactly one step returned by `crctl next`.
 
+- Each implementation batch is divided into responsibility-domain
+  `Inspect -> Fix -> Verify` triplets; a batch-wide three-step packet is invalid
+  when its scope exceeds an inspection limit.
 - Inspection: at most one responsibility domain, eight production files, or
   1,500 production lines, whichever limit is reached first.
 - Fix: at most three tightly related findings or one public API migration.

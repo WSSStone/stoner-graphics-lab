@@ -22,6 +22,7 @@ assume Conda is present.
 - `baseline`: record repository and specification inventory.
 - `status`, `next`: report state and issue one bounded step.
 - `start`, `complete`, `fail`, `recover`: manage durable execution.
+- `refine`: replace only pristine pending batches with current responsibility-domain packets.
 - `trace`: seed FR/SC traceability.
 - `finding`: maintain finding lifecycle.
 - `render`: regenerate Markdown views from JSON.
@@ -31,6 +32,11 @@ assume Conda is present.
 
 No command accepts an arbitrary shell string. Child processes use argument
 arrays with `shell=False`.
+
+Review batches are decomposed into responsibility-domain
+`Inspect -> Fix -> Verify` triplets. `refine` is a forward-only migration:
+completed, failed, or in-progress batches are preserved byte-for-byte, while
+never-started pending batches adopt the current reusable definitions.
 
 Project build gates include `strict-debug`, `strict-release`,
 `fallback-strict`, and `sanitizers`. The fallback profile deliberately
