@@ -50,31 +50,6 @@ std::atomic<Stoner::Core::uint64> GNextAllocatorIdentity{1};
     return true;
 }
 
-[[nodiscard]] Stoner::Core::uint64 GetFormatByteSize(
-    Stoner::RHI::ERHIFormat Format) noexcept
-{
-    switch (Format)
-    {
-    case Stoner::RHI::ERHIFormat::R8_UNorm:
-    case Stoner::RHI::ERHIFormat::S8_UInt:
-        return 1;
-    case Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm:
-    case Stoner::RHI::ERHIFormat::B8G8R8A8_UNorm:
-    case Stoner::RHI::ERHIFormat::R32_Float:
-    case Stoner::RHI::ERHIFormat::D24_UNorm_S8_UInt:
-    case Stoner::RHI::ERHIFormat::D32_Float:
-        return 4;
-    case Stoner::RHI::ERHIFormat::R16G16B16A16_Float:
-    case Stoner::RHI::ERHIFormat::R32G32_Float:
-        return 8;
-    case Stoner::RHI::ERHIFormat::R32G32B32_Float:
-        return 12;
-    case Stoner::RHI::ERHIFormat::Unknown:
-        return 0;
-    }
-    return 0;
-}
-
 } // namespace
 
 FVulkanMemoryAllocator::FVulkanMemoryAllocator() noexcept
@@ -201,7 +176,8 @@ bool FVulkanMemoryAllocator::TryEstimateTextureBytes(
         return false;
     }
 
-    const Stoner::Core::uint64 FormatBytes = GetFormatByteSize(Desc.Format);
+    const Stoner::Core::uint64 FormatBytes =
+        Stoner::RHI::GetRHIFormatByteSize(Desc.Format);
     const Stoner::Core::uint64 Samples =
         static_cast<Stoner::Core::uint64>(Desc.SampleCount);
     if (FormatBytes == 0 || Samples == 0)

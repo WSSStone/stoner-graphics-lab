@@ -130,3 +130,15 @@ Required coverage:
   storage allocation failure to `Unavailable` without throwing through `Upload`.
 - Shutdown after successful extreme-size fallback allocation reports zero live
   allocations and zero allocated bytes.
+- Descriptor capacity is carried by an unforgeable move-only reservation.
+  Factory failures, set invalidation, and destruction return that reservation
+  exactly once; no public scalar `Allocate`/`Release` authority remains.
+- Descriptor set and sampler wrappers are device-factory-only, and upload
+  records cannot be default-constructed into an unvalidated pending state.
+- Buffer uploads require exact source/range byte equality and
+  copy-destination usage.
+- Texture uploads require copy-destination usage, one-sample destinations,
+  selected-mip bounds, exact shared RHI format width, checked region
+  arithmetic, and exact source byte equality.
+- Pool/set/sampler/upload allocation and tracking failures return
+  `Unavailable`, expose no partial object, and leak no descriptor reservation.

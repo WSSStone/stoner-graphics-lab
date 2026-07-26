@@ -101,7 +101,7 @@ private:
     [[nodiscard]] bool SupportsTextureDesc(const Stoner::RHI::FRHITextureDesc& Desc) const noexcept;
     [[nodiscard]] bool SupportsSamplerDesc(const Stoner::RHI::FRHISamplerDesc& Desc) noexcept;
     [[nodiscard]] bool CanCreatePipeline() noexcept;
-    void EnsureDescriptorPool() noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult EnsureDescriptorPool() noexcept;
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> CreateSurfaceBackedSwapchain(
         const Stoner::Core::TSharedPtr<FVulkanSurface>& Surface,
         const Stoner::RHI::FRHISwapchainDesc& Desc);

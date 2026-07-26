@@ -204,3 +204,18 @@ the original feature scope:
 - Maintained tests MUST cover arithmetic overflow, budget integrity, unique and
   foreign ownership rejection, exact texture footprints, sparse host upload,
   and zero allocation accounting after shutdown.
+- Descriptor pool capacity MUST be represented by a move-only reservation
+  issued only by the device-owned pool. A descriptor set MUST own exactly one
+  reservation, and invalidation, destruction, wrapper allocation failure, or
+  tracking failure MUST return it exactly once.
+- Backend descriptor sets and samplers, plus empty upload records, MUST NOT be
+  directly constructible outside their validating factories.
+- Buffer upload source bytes MUST exactly match the destination range and the
+  destination MUST declare copy-destination usage.
+- Texture upload validation MUST use the selected mip extent, one selected
+  array layer, exact format byte width, and checked region arithmetic. Source
+  bytes MUST exactly match that footprint. Multisampled or non-copy-destination
+  textures MUST fail as unsupported transfer paths.
+- Descriptor, sampler, and upload wrapper/control-block/tracking allocation
+  failures MUST return `Unavailable` without throwing through the result API or
+  leaking descriptor capacity.

@@ -3,7 +3,8 @@
 namespace Stoner::Backend::Vulkan
 {
 
-FVulkanSampler::FVulkanSampler(const Stoner::RHI::FRHISamplerDesc& InDesc)
+FVulkanSampler::FVulkanSampler(
+    const Stoner::RHI::FRHISamplerDesc& InDesc) noexcept
     : Desc(InDesc)
 {
 }

@@ -247,9 +247,9 @@ void FVulkanDevice::ConfigureAllocationCountLimit(Stoner::Core::uint32 MaxAlloca
 void FVulkanDevice::ConfigureDescriptorPoolCapacity(Stoner::Core::uint32 Capacity) noexcept
 {
     DescriptorPoolCapacity = Capacity;
-    if (!DescriptorPool || DescriptorPool->GetAllocatedCount() == 0)
+    if (DescriptorPool && DescriptorPool->GetAllocatedCount() == 0)
     {
-        DescriptorPool = std::make_shared<FVulkanDescriptorPool>(DescriptorPoolCapacity);
+        DescriptorPool.reset();
     }
 }
 
@@ -516,8 +516,35 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISampler> FVulkanDevice::CreateSam
         return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
     }
 
-    auto Sampler = Stoner::Core::MakeShared<FVulkanSampler>(Desc);
-    Samplers.push_back(Sampler);
+    Stoner::Core::TSharedPtr<FVulkanSampler> Sampler;
+    try
+    {
+        Sampler.reset(new FVulkanSampler(Desc));
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkResourceAllocation(
+            Diagnostics, "sampler wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        Samplers.push_back(Sampler);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Sampler->Invalidate();
+        MarkResourceAllocation(
+            Diagnostics, "sampler resource tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)Sampler->Invalidate();
+        MarkResourceAllocation(
+            Diagnostics, "sampler resource tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     return {Stoner::RHI::ERHIResult::Success, Sampler};
 }
 
@@ -584,16 +611,53 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIDescriptorSet> FVulkanDevice::Cre
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
 
-    EnsureDescriptorPool();
-    const Stoner::RHI::ERHIResult PoolResult = DescriptorPool->Allocate();
+    const Stoner::RHI::ERHIResult PoolReady = EnsureDescriptorPool();
+    if (PoolReady != Stoner::RHI::ERHIResult::Success)
+    {
+        MarkDescriptorPool(
+            Diagnostics, "descriptor pool allocation failed");
+        return {PoolReady, nullptr};
+    }
+
+    FVulkanDescriptorReservation Reservation;
+    const Stoner::RHI::ERHIResult PoolResult =
+        DescriptorPool->Acquire(DescriptorPool, Reservation);
     if (PoolResult != Stoner::RHI::ERHIResult::Success)
     {
         MarkDescriptorPool(Diagnostics, "descriptor pool capacity exhausted");
         return {PoolResult, nullptr};
     }
 
-    auto DescriptorSet = Stoner::Core::MakeShared<FVulkanDescriptorSet>(Layout, SetIndex, DescriptorPool);
-    DescriptorSets.push_back(DescriptorSet);
+    Stoner::Core::TSharedPtr<FVulkanDescriptorSet> DescriptorSet;
+    try
+    {
+        DescriptorSet.reset(new FVulkanDescriptorSet(
+            Layout, SetIndex, std::move(Reservation)));
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkDescriptorPool(
+            Diagnostics, "descriptor set wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        DescriptorSets.push_back(DescriptorSet);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)DescriptorSet->Invalidate();
+        MarkDescriptorPool(
+            Diagnostics, "descriptor set tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)DescriptorSet->Invalidate();
+        MarkDescriptorPool(
+            Diagnostics, "descriptor set tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     return {Stoner::RHI::ERHIResult::Success, DescriptorSet};
 }
 
@@ -746,7 +810,24 @@ Stoner::RHI::TRHIObjectResult<FVulkanUploadRequest> FVulkanDevice::StageBufferUp
     auto Result = FVulkanUploadRequest::CreateBufferUpload(Buffer, Data, SizeBytes, Range);
     if (Result.Succeeded())
     {
-        UploadRequests.push_back(Result.Object);
+        try
+        {
+            UploadRequests.push_back(Result.Object);
+        }
+        catch (const std::bad_alloc&)
+        {
+            (void)Result.Object->Invalidate();
+            MarkUploadRejection(
+                Diagnostics, "buffer upload tracking allocation failed");
+            return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+        }
+        catch (const std::length_error&)
+        {
+            (void)Result.Object->Invalidate();
+            MarkUploadRejection(
+                Diagnostics, "buffer upload tracking capacity exceeded");
+            return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+        }
     }
     else
     {
@@ -764,7 +845,24 @@ Stoner::RHI::TRHIObjectResult<FVulkanUploadRequest> FVulkanDevice::StageTextureU
     auto Result = FVulkanUploadRequest::CreateTextureUpload(Texture, Data, SizeBytes, Region);
     if (Result.Succeeded())
     {
-        UploadRequests.push_back(Result.Object);
+        try
+        {
+            UploadRequests.push_back(Result.Object);
+        }
+        catch (const std::bad_alloc&)
+        {
+            (void)Result.Object->Invalidate();
+            MarkUploadRejection(
+                Diagnostics, "texture upload tracking allocation failed");
+            return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+        }
+        catch (const std::length_error&)
+        {
+            (void)Result.Object->Invalidate();
+            MarkUploadRejection(
+                Diagnostics, "texture upload tracking capacity exceeded");
+            return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+        }
     }
     else
     {
@@ -1084,12 +1182,25 @@ bool FVulkanDevice::CanCreatePipeline() noexcept
     return PipelineCreationLimit == 0 || SuccessfulPipelineCreations < PipelineCreationLimit;
 }
 
-void FVulkanDevice::EnsureDescriptorPool() noexcept
+Stoner::RHI::ERHIResult FVulkanDevice::EnsureDescriptorPool() noexcept
 {
-    if (!DescriptorPool)
+    if (DescriptorPool)
     {
-        DescriptorPool = std::make_shared<FVulkanDescriptorPool>(DescriptorPoolCapacity);
+        return DescriptorPool->GetLifecycleState() ==
+                Stoner::RHI::ERHIResourceLifecycleState::Valid
+            ? Stoner::RHI::ERHIResult::Success
+            : Stoner::RHI::ERHIResult::InvalidState;
     }
+    try
+    {
+        DescriptorPool.reset(
+            new FVulkanDescriptorPool(DescriptorPoolCapacity));
+    }
+    catch (const std::bad_alloc&)
+    {
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    return Stoner::RHI::ERHIResult::Success;
 }
 
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIDevice> CreateVulkanDevice(const FVulkanInstanceDesc& Desc)

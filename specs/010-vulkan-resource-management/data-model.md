@@ -163,6 +163,7 @@ Pending -> Invalidated
 - Current allocated descriptor set count.
 - Exhaustion state.
 - Lifecycle state.
+- Move-only active reservation count; reservations are not publicly forgeable.
 
 **Relationships**:
 - Owned by backend device.
@@ -172,6 +173,8 @@ Pending -> Invalidated
 - Allocating beyond capacity returns explicit failure.
 - Exhaustion must not invalidate existing descriptor sets.
 - Shutdown invalidates the pool and its descriptor sets.
+- Every successful set owns exactly one reservation. Move transfers authority;
+  invalidation, destruction, and failed factory bookkeeping release it once.
 
 ### 7. Descriptor Set
 
@@ -232,10 +235,27 @@ Pending -> Invalidated
 
 **Validation Rules**:
 - Source data must be present.
-- Buffer upload ranges must fit within destination bounds.
-- Texture upload regions must fit dimensions and format compatibility expectations.
+- Buffer upload ranges must fit within destination bounds, declare
+  copy-destination usage, and exactly match the staged source byte count.
+- Texture upload regions must fit the selected mip extent and array layer.
+  Their exact source footprint is checked as width times height times depth
+  times the shared RHI format byte width.
+- Multisampled textures and resources without copy-destination usage are
+  unsupported transfer paths in this staging contract.
 - Invalidated destinations reject upload requests.
 - Creating an upload request does not imply GPU execution.
+
+### CR-001 Descriptor And Upload Ownership Amendment (2026-07-26)
+
+- Descriptor pool reservations, descriptor sets, samplers, and upload records
+  are created only through their owning validation boundary.
+- Reservation state performs no secondary allocation after pool creation and
+  is move-only. Pool object/control-block, set wrapper/control-block, and device
+  tracking failures preserve a zero-net reservation count.
+- Upload request wrapper, control-block, staging storage, and device tracking
+  failures map to `Unavailable`; no partially usable request escapes.
+- Exact format byte widths live in the RHI format contract and are shared by
+  full texture allocation and subresource upload validation.
 
 ### 10. Resource Diagnostics
 

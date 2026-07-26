@@ -57,7 +57,14 @@ public:
     Stoner::RHI::ERHIResult MarkScheduled() noexcept;
     Stoner::RHI::ERHIResult Invalidate() noexcept;
 
+    FVulkanUploadRequest(const FVulkanUploadRequest&) = delete;
+    FVulkanUploadRequest& operator=(const FVulkanUploadRequest&) = delete;
+    FVulkanUploadRequest(FVulkanUploadRequest&&) = delete;
+    FVulkanUploadRequest& operator=(FVulkanUploadRequest&&) = delete;
+
 private:
+    FVulkanUploadRequest() noexcept = default;
+
     EVulkanUploadKind Kind = EVulkanUploadKind::Buffer;
     EVulkanUploadLifecycle Lifecycle = EVulkanUploadLifecycle::Pending;
     Stoner::Core::TArray<unsigned char> StagingData;

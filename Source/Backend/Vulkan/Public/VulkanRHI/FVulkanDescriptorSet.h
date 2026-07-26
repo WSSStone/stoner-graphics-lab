@@ -29,8 +29,9 @@ struct FVulkanBoundResourceRecord
 class FVulkanDescriptorSet final : public Stoner::RHI::IRHIDescriptorSet
 {
 public:
-    FVulkanDescriptorSet(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPipelineLayout>& InLayout, Stoner::Core::uint32 InSetIndex, std::shared_ptr<FVulkanDescriptorPool> InPool);
     ~FVulkanDescriptorSet() override;
+    FVulkanDescriptorSet(const FVulkanDescriptorSet&) = delete;
+    FVulkanDescriptorSet& operator=(const FVulkanDescriptorSet&) = delete;
 
     [[nodiscard]] Stoner::Core::uint32 GetSetIndex() const noexcept override;
     [[nodiscard]] Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPipelineLayout> GetPipelineLayout() const noexcept override;
@@ -46,14 +47,19 @@ public:
     Stoner::RHI::ERHIResult Invalidate() override;
 
 private:
+    friend class FVulkanDevice;
+
+    FVulkanDescriptorSet(
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPipelineLayout>& InLayout,
+        Stoner::Core::uint32 InSetIndex,
+        FVulkanDescriptorReservation&& InReservation) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult ValidateBinding(Stoner::Core::uint32 BindingSlot, Stoner::Core::uint32 ArrayIndex, Stoner::RHI::ERHIDescriptorType ExpectedType) const noexcept;
 
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPipelineLayout> Layout;
     Stoner::Core::uint32 SetIndex = 0;
-    std::shared_ptr<FVulkanDescriptorPool> Pool;
+    FVulkanDescriptorReservation Reservation;
     std::map<FVulkanDescriptorBindingKey, FVulkanBoundResourceRecord> Records;
     Stoner::RHI::ERHIResourceLifecycleState LifecycleState = Stoner::RHI::ERHIResourceLifecycleState::Valid;
-    bool bPoolReleased = false;
 };
 
 } // namespace Stoner::Backend::Vulkan

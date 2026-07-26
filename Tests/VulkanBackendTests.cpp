@@ -1181,8 +1181,9 @@ void TestRenderPassFramebufferRecordingAndUploads(FVulkanBackendTestResult& Resu
         "Vulkan transfer command rejects incompatible compute and invalid copy ranges");
 
     const unsigned char Data[16] = {};
+    const unsigned char TextureData[64] = {};
     const auto BufferUpload = Device.StageBufferUpload(DestinationBuffer.Object, Data, sizeof(Data), {0, sizeof(Data)});
-    const auto TextureUpload = Device.StageTextureUpload(DestinationTexture.Object, Data, sizeof(Data), {0, 0, 0, 0, 0, 4, 4, 1});
+    const auto TextureUpload = Device.StageTextureUpload(DestinationTexture.Object, TextureData, sizeof(TextureData), {0, 0, 0, 0, 0, 4, 4, 1});
     auto VulkanTransfer = std::dynamic_pointer_cast<FVulkanCommandBuffer>(TransferCommand.Object);
     Record(Result, VulkanTransfer && BufferUpload.Succeeded() && TextureUpload.Succeeded() &&
         VulkanTransfer->ScheduleBufferUpload(BufferUpload.Object) == ERHIResult::Success &&
@@ -1201,6 +1202,32 @@ void TestRenderPassFramebufferRecordingAndUploads(FVulkanBackendTestResult& Resu
 
 void TestSamplersDescriptorsAndUploads(FVulkanBackendTestResult& Result)
 {
+    static_assert(
+        !std::is_constructible_v<FVulkanDescriptorPool, uint32> &&
+        !std::is_constructible_v<FVulkanDescriptorSet,
+            const TSharedPtr<IRHIPipelineLayout>&,
+            uint32,
+            FVulkanDescriptorReservation&&> &&
+        !std::is_constructible_v<FVulkanSampler,
+            const FRHISamplerDesc&> &&
+        !std::is_default_constructible_v<FVulkanUploadRequest> &&
+        !std::is_copy_constructible_v<FVulkanDescriptorReservation>,
+        "Vulkan descriptor, sampler, and upload invariants must be factory-only");
+
+    Record(Result,
+        GetRHIFormatByteSize(ERHIFormat::Unknown) == 0 &&
+        GetRHIFormatByteSize(ERHIFormat::R8_UNorm) == 1 &&
+        GetRHIFormatByteSize(ERHIFormat::R8G8B8A8_UNorm) == 4 &&
+        GetRHIFormatByteSize(ERHIFormat::B8G8R8A8_UNorm) == 4 &&
+        GetRHIFormatByteSize(ERHIFormat::R16G16B16A16_Float) == 8 &&
+        GetRHIFormatByteSize(ERHIFormat::R32_Float) == 4 &&
+        GetRHIFormatByteSize(ERHIFormat::R32G32_Float) == 8 &&
+        GetRHIFormatByteSize(ERHIFormat::R32G32B32_Float) == 12 &&
+        GetRHIFormatByteSize(ERHIFormat::D24_UNorm_S8_UInt) == 4 &&
+        GetRHIFormatByteSize(ERHIFormat::D32_Float) == 4 &&
+        GetRHIFormatByteSize(ERHIFormat::S8_UInt) == 1,
+        "RHI format byte widths cover every declared format exactly");
+
     FVulkanDevice Device;
     Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan descriptor fixture device initializes");
 
@@ -1237,22 +1264,83 @@ void TestSamplersDescriptorsAndUploads(FVulkanBackendTestResult& Result)
         ConcreteSet && !ConcreteSet->IsBoundResourceValid(1, 0) &&
         DescriptorSet.Object->UpdateTexture(1, 0, Texture.Object) == ERHIResult::InvalidState, "Vulkan descriptor retained binding reports invalidated resources");
 
+    Record(Result,
+        DescriptorSet.Object->Invalidate() == ERHIResult::Success &&
+        Device.GetDescriptorPoolAllocatedCount() == 0,
+        "Vulkan descriptor invalidation returns exactly one pool reservation");
+    const auto ReplacementSet = Device.CreateDescriptorSet(Layout.Object, 0);
+    Record(Result,
+        ReplacementSet.Succeeded() &&
+        Device.GetDescriptorPoolAllocatedCount() == 1,
+        "Vulkan descriptor capacity is reusable after reservation release");
+
     const unsigned char Data[16] = {};
     const auto BufferUpload = Device.StageBufferUpload(Buffer.Object, Data, sizeof(Data), {0, sizeof(Data)});
     Record(Result, BufferUpload.Succeeded() && BufferUpload.Object->GetLifecycle() == EVulkanUploadLifecycle::Pending &&
         BufferUpload.Object->GetStagingData().size() == sizeof(Data) && !BufferUpload.Object->ClaimsExecution(), "Vulkan buffer upload staging preserves CPU-visible data without execution");
     Record(Result, Device.StageBufferUpload(Buffer.Object, nullptr, sizeof(Data), {0, sizeof(Data)}).Result == ERHIResult::InvalidState &&
-        Device.StageBufferUpload(Buffer.Object, Data, sizeof(Data), {512, sizeof(Data)}).Result == ERHIResult::InvalidState, "Vulkan buffer upload staging rejects missing data and out-of-bounds ranges");
+        Device.StageBufferUpload(Buffer.Object, Data, sizeof(Data), {512, sizeof(Data)}).Result == ERHIResult::InvalidState &&
+        Device.StageBufferUpload(Buffer.Object, Data, sizeof(Data), {0, 8}).Result == ERHIResult::InvalidState,
+        "Vulkan buffer upload staging rejects missing, mismatched, and out-of-bounds ranges");
+    const auto NonCopyBuffer = Device.CreateBuffer(
+        {64, ERHIBufferUsage::Uniform});
+    Record(Result,
+        NonCopyBuffer.Succeeded() &&
+        Device.StageBufferUpload(NonCopyBuffer.Object, Data, sizeof(Data),
+            {0, sizeof(Data)}).Result == ERHIResult::Unsupported,
+        "Vulkan buffer upload staging rejects destinations without copy usage");
 
     const auto FreshTexture = Device.CreateTexture(ValidTextureDesc());
-    const auto TextureUpload = Device.StageTextureUpload(FreshTexture.Object, Data, sizeof(Data), {0, 0, 0, 0, 0, 4, 4, 1});
+    const unsigned char TextureData[64] = {};
+    const auto TextureUpload = Device.StageTextureUpload(FreshTexture.Object,
+        TextureData, sizeof(TextureData), {0, 0, 0, 0, 0, 4, 4, 1});
     Record(Result, TextureUpload.Succeeded() && TextureUpload.Object->GetKind() == EVulkanUploadKind::Texture &&
         TextureUpload.Object->GetTextureRegion().Width == 4, "Vulkan texture upload staging preserves destination region");
-    Record(Result, Device.StageTextureUpload(FreshTexture.Object, Data, sizeof(Data), {0, 0, 7, 0, 0, 4, 4, 1}).Result == ERHIResult::InvalidState, "Vulkan texture upload staging rejects invalid regions");
+    Record(Result,
+        Device.StageTextureUpload(FreshTexture.Object, TextureData,
+            sizeof(TextureData), {0, 0, 7, 0, 0, 4, 4, 1}).Result ==
+                ERHIResult::InvalidState &&
+        Device.StageTextureUpload(FreshTexture.Object, Data, sizeof(Data),
+            {0, 0, 0, 0, 0, 4, 4, 1}).Result ==
+                ERHIResult::InvalidState,
+        "Vulkan texture upload staging rejects invalid regions and byte footprints");
+
+    FRHITextureDesc MippedDesc = ValidTextureDesc();
+    MippedDesc.MipLevels = 2;
+    const auto MippedTexture = Device.CreateTexture(MippedDesc);
+    const unsigned char OversizedMipData[256] = {};
+    Record(Result,
+        MippedTexture.Succeeded() &&
+        Device.StageTextureUpload(MippedTexture.Object, TextureData,
+            sizeof(TextureData), {1, 0, 0, 0, 0, 4, 4, 1}).Succeeded() &&
+        Device.StageTextureUpload(MippedTexture.Object, OversizedMipData,
+            sizeof(OversizedMipData), {1, 0, 0, 0, 0, 8, 8, 1}).Result ==
+                ERHIResult::InvalidState,
+        "Vulkan texture upload validation uses the selected mip extent");
+
+    FRHITextureDesc NonCopyTextureDesc = ValidTextureDesc();
+    NonCopyTextureDesc.Usage = ERHITextureUsage::Sampled;
+    const auto NonCopyTexture = Device.CreateTexture(NonCopyTextureDesc);
+    FRHITextureDesc MultisampledDesc = ValidTextureDesc();
+    MultisampledDesc.Width = 4;
+    MultisampledDesc.Height = 4;
+    MultisampledDesc.SampleCount = ERHISampleCount::Four;
+    const auto MultisampledTexture = Device.CreateTexture(MultisampledDesc);
+    Record(Result,
+        NonCopyTexture.Succeeded() && MultisampledTexture.Succeeded() &&
+        Device.StageTextureUpload(NonCopyTexture.Object, TextureData,
+            sizeof(TextureData), {0, 0, 0, 0, 0, 4, 4, 1}).Result ==
+                ERHIResult::Unsupported &&
+        Device.StageTextureUpload(MultisampledTexture.Object,
+            OversizedMipData, sizeof(OversizedMipData),
+            {0, 0, 0, 0, 0, 4, 4, 1}).Result ==
+                ERHIResult::Unsupported,
+        "Vulkan texture upload staging rejects unsupported transfer paths");
 
     (void)Device.Shutdown();
     Record(Result, DescriptorSet.Object->UpdateBuffer(0, 0, Buffer.Object) == ERHIResult::InvalidState &&
         BufferUpload.Object->GetLifecycle() == EVulkanUploadLifecycle::Invalidated &&
+        ReplacementSet.Object->GetLifecycleState() == ERHIResourceLifecycleState::Invalidated &&
         Device.CreateSampler(ValidSamplerDesc()).Result == ERHIResult::InvalidState, "Vulkan shutdown invalidates descriptors uploads and sampler creation");
 }
 

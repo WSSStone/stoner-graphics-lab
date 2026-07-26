@@ -37,21 +37,22 @@ bool FVulkanDescriptorBindingKey::operator<(const FVulkanDescriptorBindingKey& O
     return ArrayIndex < Other.ArrayIndex;
 }
 
-FVulkanDescriptorSet::FVulkanDescriptorSet(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPipelineLayout>& InLayout, Stoner::Core::uint32 InSetIndex, std::shared_ptr<FVulkanDescriptorPool> InPool)
+FVulkanDescriptorSet::FVulkanDescriptorSet(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPipelineLayout>& InLayout,
+    Stoner::Core::uint32 InSetIndex,
+    FVulkanDescriptorReservation&& InReservation) noexcept
     : Layout(InLayout)
     , SetIndex(InSetIndex)
-    , Pool(std::move(InPool))
+    , Reservation(std::move(InReservation))
 {
-}
-
-FVulkanDescriptorSet::~FVulkanDescriptorSet()
-{
-    if (!bPoolReleased && Pool)
+    if (!Reservation.IsActive())
     {
-        (void)Pool->Release();
-        bPoolReleased = true;
+        LifecycleState =
+            Stoner::RHI::ERHIResourceLifecycleState::Invalidated;
     }
 }
+
+FVulkanDescriptorSet::~FVulkanDescriptorSet() = default;
 
 Stoner::Core::uint32 FVulkanDescriptorSet::GetSetIndex() const noexcept { return SetIndex; }
 Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPipelineLayout> FVulkanDescriptorSet::GetPipelineLayout() const noexcept { return Layout; }
@@ -147,11 +148,7 @@ Stoner::RHI::ERHIResult FVulkanDescriptorSet::Invalidate()
         return Stoner::RHI::ERHIResult::InvalidState;
     }
     LifecycleState = Stoner::RHI::ERHIResourceLifecycleState::Invalidated;
-    if (!bPoolReleased && Pool)
-    {
-        (void)Pool->Release();
-        bPoolReleased = true;
-    }
+    Reservation.Reset();
     return Stoner::RHI::ERHIResult::Success;
 }
 
