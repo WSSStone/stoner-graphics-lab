@@ -363,35 +363,35 @@
 ## CR001-B03-F006: Resource validators accept undefined usage and enum domains
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 008-FR-003; 008-FR-004; 008-FR-005; 008-FR-005a; 008-FR-019; rhi-resource-pipeline-api unsupported status contract
 - Location: `Source/RHI/Public/RHI/ERHIResourceUsage.h:8; Source/RHI/Public/RHI/FRHIBufferDesc.h:27; Source/RHI/Public/RHI/FRHITextureDesc.h:34; Source/RHI/Public/RHI/FRHISamplerDesc.h:19`
 - Impact: Undefined or contract-incompatible values cross the authoritative device boundary as successful resources, allowing backend conversion code to receive states with no portable meaning and defeating explicit Unsupported/InvalidState reporting.
 - Evidence: A strict standalone probe shows public validators and FMockDevice factories accept a buffer with bit 31 usage, a buffer with ERHIMemoryAccess(255), a texture with bit 31 usage, TextureUsage::Vertex, ERHISampleCount(3), and a sampler with filter/address value 255; each returns a usable object.
 - Resolution: Closed buffer/texture usage masks and recognized memory, sample, and sampler enum domains now reject undefined values; maintained helper/factory parity tests and the positive probe pass.
-- Verification: pending
+- Verification: A same-source strict verifier compiled against exact parent d8c59b7 reports 0/12 closed-domain rejections while current reports 12/12; parent export blobs match Git, invalid casts remain test-only, Vulkan consumes the public validators, and fresh fallback-strict passes.
 - Commit: `ca68ed4`
 
 ## CR001-B03-F007: Texture validation accepts impossible mip chains
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 008-FR-002; 008-FR-005; 008-T033; texture resource contract invalid mip/layer counts
 - Location: `Source/RHI/Public/RHI/FRHITextureDesc.h:34`
 - Impact: The RHI certifies descriptions that cannot represent a finite geometric mip chain or portable multisample image, shifting deterministic validation failures into backend allocation/creation and exposing later code to unbounded level counts.
 - Evidence: A strict probe shows IsValidRHITextureDesc and FMockDevice accept a 1x1 texture with two mip levels, a 64x64 texture with UINT32_MAX mip levels, and a two-sample texture with multiple mip levels; every request returns a usable texture.
 - Resolution: Exact overflow-safe geometric mip limits now accept the boundary, reject over-limit and UINT32_MAX counts, and require one mip for multisampled textures; maintained and standalone tests pass.
-- Verification: pending
+- Verification: The same-source verifier preserves 3/3 valid mip boundaries on parent and current, while exact parent rejects 0/4 invalid chains and current rejects 4/4; Source/Tests match ca68ed4 and fresh maintained coverage passes RHI 186/0.
 - Commit: `ca68ed4`
 
 ## CR001-B03-F008: Texture validity contradicts format and attachment usage compatibility
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: 008-FR-002; 008-FR-005; 008-FR-005a; texture resource contract format/usage compatibility
 - Location: `Source/RHI/Public/RHI/FRHITextureDesc.h:25`
 - Impact: Callers and backends cannot treat the public validity helper as authoritative; implementations that add ad hoc checks reject descriptions that other helper consumers may accept, causing backend divergence and false portable-validity claims.
 - Evidence: The public IsValidRHITextureDesc returns true for an R8G8B8A8 color format declared only as DepthStencilAttachment and for D32_Float declared only as ColorAttachment. The same mock factory rejects both through a separate test-local helper, proving contradictory validity decisions for identical descriptions.
 - Resolution: Portable depth/color attachment compatibility now lives in IsValidRHITextureDesc, while the mock device retains only format capability checks; helper/factory parity regressions and the standalone probe pass.
-- Verification: pending
+- Verification: The same-source verifier compiled against exact parent reports 0/2 shared format/usage rejections while current reports 2/2; the mock and Vulkan paths share public portable validity with separate capability checks, and fresh strict tests pass.
 - Commit: `ca68ed4`

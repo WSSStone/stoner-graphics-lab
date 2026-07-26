@@ -1260,6 +1260,12 @@
           "from": "Accepted",
           "note": "Closed buffer/texture usage masks and recognized memory, sample, and sampler enum domains now reject undefined values; maintained helper/factory parity tests and the positive probe pass.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T10:30:05+00:00",
+          "from": "Fixed",
+          "note": "A same-source strict verifier compiled against exact parent d8c59b7 reports 0/12 closed-domain rejections while current reports 12/12; parent export blobs match Git, invalid casts remain test-only, Vulkan consumes the public validators, and fresh fallback-strict passes.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B03-F006",
@@ -1268,9 +1274,9 @@
       "requirement": "008-FR-003; 008-FR-004; 008-FR-005; 008-FR-005a; 008-FR-019; rhi-resource-pipeline-api unsupported status contract",
       "resolution": "Closed buffer/texture usage masks and recognized memory, sample, and sampler enum domains now reject undefined values; maintained helper/factory parity tests and the positive probe pass.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Resource validators accept undefined usage and enum domains",
-      "verification": ""
+      "verification": "A same-source strict verifier compiled against exact parent d8c59b7 reports 0/12 closed-domain rejections while current reports 12/12; parent export blobs match Git, invalid casts remain test-only, Vulkan consumes the public validators, and fresh fallback-strict passes."
     },
     {
       "batch": "B03",
@@ -1296,6 +1302,12 @@
           "from": "Accepted",
           "note": "Exact overflow-safe geometric mip limits now accept the boundary, reject over-limit and UINT32_MAX counts, and require one mip for multisampled textures; maintained and standalone tests pass.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T10:30:15+00:00",
+          "from": "Fixed",
+          "note": "The same-source verifier preserves 3/3 valid mip boundaries on parent and current, while exact parent rejects 0/4 invalid chains and current rejects 4/4; Source/Tests match ca68ed4 and fresh maintained coverage passes RHI 186/0.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B03-F007",
@@ -1304,9 +1316,9 @@
       "requirement": "008-FR-002; 008-FR-005; 008-T033; texture resource contract invalid mip/layer counts",
       "resolution": "Exact overflow-safe geometric mip limits now accept the boundary, reject over-limit and UINT32_MAX counts, and require one mip for multisampled textures; maintained and standalone tests pass.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Texture validation accepts impossible mip chains",
-      "verification": ""
+      "verification": "The same-source verifier preserves 3/3 valid mip boundaries on parent and current, while exact parent rejects 0/4 invalid chains and current rejects 4/4; Source/Tests match ca68ed4 and fresh maintained coverage passes RHI 186/0."
     },
     {
       "batch": "B03",
@@ -1332,6 +1344,12 @@
           "from": "Accepted",
           "note": "Portable depth/color attachment compatibility now lives in IsValidRHITextureDesc, while the mock device retains only format capability checks; helper/factory parity regressions and the standalone probe pass.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T10:30:26+00:00",
+          "from": "Fixed",
+          "note": "The same-source verifier compiled against exact parent reports 0/2 shared format/usage rejections while current reports 2/2; the mock and Vulkan paths share public portable validity with separate capability checks, and fresh strict tests pass.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B03-F008",
@@ -1340,9 +1358,9 @@
       "requirement": "008-FR-002; 008-FR-005; 008-FR-005a; texture resource contract format/usage compatibility",
       "resolution": "Portable depth/color attachment compatibility now lives in IsValidRHITextureDesc, while the mock device retains only format capability checks; helper/factory parity regressions and the standalone probe pass.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Texture validity contradicts format and attachment usage compatibility",
-      "verification": ""
+      "verification": "The same-source verifier compiled against exact parent reports 0/2 shared format/usage rejections while current reports 2/2; the mock and Vulkan paths share public portable validity with separate capability checks, and fresh strict tests pass."
     }
   ],
   "schema_version": 1
