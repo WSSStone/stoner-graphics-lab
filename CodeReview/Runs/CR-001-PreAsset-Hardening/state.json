@@ -1,5 +1,5 @@
 {
-  "active_step": "B03-S07",
+  "active_step": "B03-S08",
   "batches": [
     {
       "id": "B00",
@@ -576,12 +576,19 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-26T10:14:03+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B03-resource-contract-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b03-resource-contract-probes.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/Probes/b03-resource-contract-probe.cpp",
+            "CR001-B03-F006",
+            "CR001-B03-F007",
+            "CR001-B03-F008"
+          ],
           "id": "B03-S07",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected eight RHI buffer/texture/sampler public headers (311 LOC). A retained strict probe reproduced three S2 contract failures: undefined value domains create usable resources, impossible mip chains are accepted, and public texture format/usage validity contradicts the mock factory. All three findings are Accepted for B03-S08; no production or maintained test source changed.",
+          "started_at": "2026-07-26T10:09:18+00:00",
+          "status": "Completed",
           "title": "Inspect: buffer, texture, and sampler resources"
         },
         {
@@ -2888,6 +2895,46 @@
       "at": "2026-07-26T10:08:27+00:00",
       "detail": "B03-S06",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-26T10:09:18+00:00",
+      "detail": "B03-S07",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-26T10:12:03+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T10:12:12+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T10:12:22+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T10:12:35+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T10:12:46+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T10:12:55+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T10:14:03+00:00",
+      "detail": "B03-S07",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -3041,7 +3088,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "2dad59af87e64fd851162d0340d3ae8258d44fd1"
+    "last_recorded_head": "e30feb0b7919dcaa41fbbedbf5fc956085f1f84c"
   },
   "policy": {
     "fix_severities": [
@@ -3061,5 +3108,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T10:08:27+00:00"
+  "updated_at": "2026-07-26T10:14:03+00:00"
 }

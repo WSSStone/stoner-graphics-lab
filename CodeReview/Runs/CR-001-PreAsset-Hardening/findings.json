@@ -1235,6 +1235,96 @@
       "status": "Verified",
       "title": "Clear-value render-pass overload can report success while discarding clears",
       "verification": "The same legacy command-buffer verifier shows the exact parent delegates non-empty clear values and reports success (clear_fixed=0), while current code returns Unsupported without invoking the legacy method (clear_fixed=1). Production clear callers resolve to the Vulkan override, strict Debug/Release compile, and fresh deterministic coverage passes."
+    },
+    {
+      "batch": "B03",
+      "commit": "",
+      "created_at": "2026-07-26T10:12:03+00:00",
+      "deferred_target": "",
+      "evidence": "A strict standalone probe shows public validators and FMockDevice factories accept a buffer with bit 31 usage, a buffer with ERHIMemoryAccess(255), a texture with bit 31 usage, TextureUsage::Vertex, ERHISampleCount(3), and a sampler with filter/address value 255; each returns a usable object.",
+      "history": [
+        {
+          "at": "2026-07-26T10:12:12+00:00",
+          "from": "Open",
+          "note": "Accepted for B03-S08. Define closed valid masks and recognized enum predicates for buffer usage, texture usage, memory access, sample count, and every sampler mode. Reject TextureUsage::Vertex and all unnamed bit patterns while preserving documented composable combinations.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T10:12:12+00:00",
+          "from": "Triaged",
+          "note": "Accepted for B03-S08. Define closed valid masks and recognized enum predicates for buffer usage, texture usage, memory access, sample count, and every sampler mode. Reject TextureUsage::Vertex and all unnamed bit patterns while preserving documented composable combinations.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B03-F006",
+      "impact": "Undefined or contract-incompatible values cross the authoritative device boundary as successful resources, allowing backend conversion code to receive states with no portable meaning and defeating explicit Unsupported/InvalidState reporting.",
+      "location": "Source/RHI/Public/RHI/ERHIResourceUsage.h:8; Source/RHI/Public/RHI/FRHIBufferDesc.h:27; Source/RHI/Public/RHI/FRHITextureDesc.h:34; Source/RHI/Public/RHI/FRHISamplerDesc.h:19",
+      "requirement": "008-FR-003; 008-FR-004; 008-FR-005; 008-FR-005a; 008-FR-019; rhi-resource-pipeline-api unsupported status contract",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Resource validators accept undefined usage and enum domains",
+      "verification": ""
+    },
+    {
+      "batch": "B03",
+      "commit": "",
+      "created_at": "2026-07-26T10:12:22+00:00",
+      "deferred_target": "",
+      "evidence": "A strict probe shows IsValidRHITextureDesc and FMockDevice accept a 1x1 texture with two mip levels, a 64x64 texture with UINT32_MAX mip levels, and a two-sample texture with multiple mip levels; every request returns a usable texture.",
+      "history": [
+        {
+          "at": "2026-07-26T10:12:35+00:00",
+          "from": "Open",
+          "note": "Accepted for B03-S08. Bound MipLevels by floor(log2(max dimension))+1 using overflow-safe constexpr arithmetic and require one mip for multisampled textures. Add 1x1, exact maximum, first-over-limit, UINT32_MAX, and multisample regression cases.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T10:12:35+00:00",
+          "from": "Triaged",
+          "note": "Accepted for B03-S08. Bound MipLevels by floor(log2(max dimension))+1 using overflow-safe constexpr arithmetic and require one mip for multisampled textures. Add 1x1, exact maximum, first-over-limit, UINT32_MAX, and multisample regression cases.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B03-F007",
+      "impact": "The RHI certifies descriptions that cannot represent a finite geometric mip chain or portable multisample image, shifting deterministic validation failures into backend allocation/creation and exposing later code to unbounded level counts.",
+      "location": "Source/RHI/Public/RHI/FRHITextureDesc.h:34",
+      "requirement": "008-FR-002; 008-FR-005; 008-T033; texture resource contract invalid mip/layer counts",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Texture validation accepts impossible mip chains",
+      "verification": ""
+    },
+    {
+      "batch": "B03",
+      "commit": "",
+      "created_at": "2026-07-26T10:12:46+00:00",
+      "deferred_target": "",
+      "evidence": "The public IsValidRHITextureDesc returns true for an R8G8B8A8 color format declared only as DepthStencilAttachment and for D32_Float declared only as ColorAttachment. The same mock factory rejects both through a separate test-local helper, proving contradictory validity decisions for identical descriptions.",
+      "history": [
+        {
+          "at": "2026-07-26T10:12:55+00:00",
+          "from": "Open",
+          "note": "Accepted for B03-S08. Move backend-neutral depth/color attachment compatibility into IsValidRHITextureDesc so every device consumes one authoritative decision; retain capability-specific format support checks in devices and add public-helper plus factory parity tests.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T10:12:55+00:00",
+          "from": "Triaged",
+          "note": "Accepted for B03-S08. Move backend-neutral depth/color attachment compatibility into IsValidRHITextureDesc so every device consumes one authoritative decision; retain capability-specific format support checks in devices and add public-helper plus factory parity tests.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B03-F008",
+      "impact": "Callers and backends cannot treat the public validity helper as authoritative; implementations that add ad hoc checks reject descriptions that other helper consumers may accept, causing backend divergence and false portable-validity claims.",
+      "location": "Source/RHI/Public/RHI/FRHITextureDesc.h:25",
+      "requirement": "008-FR-002; 008-FR-005; 008-FR-005a; texture resource contract format/usage compatibility",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Texture validity contradicts format and attachment usage compatibility",
+      "verification": ""
     }
   ],
   "schema_version": 1
