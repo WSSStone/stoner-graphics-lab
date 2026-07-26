@@ -135,35 +135,35 @@
 ## CR001-B02-F007: Quaternion normalization and equivalence break the public rotation contract
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 004-FR-003, FR-009, FR-011, data-model quaternion validation, and SC-006
 - Location: `Source/Core/Public/Core/FQuat.h:59`
 - Impact: Finite orientations can be silently erased, invalid input can reach render-facing directions, and equivalent rotations cannot be compared with the documented tolerance-aware behavior.
 - Evidence: Debug and Release probe: FQuat(FLT_MAX,0,0,FLT_MAX).GetSafeNormal() returns identity; an infinite component propagates non-finite RotateVector output; a unit quaternion and its negation return false from NearlyEquals.
-- Resolution: pending
+- Resolution: Made quaternion length/normalization/inverse scale-resistant, defined invalid-input identity fallback, and made NearlyEquals accept q/-q rotation equivalence; added direct Debug/Release regressions.
 - Verification: pending
-- Commit: `pending`
+- Commit: `70cacb7`
 
 ## CR001-B02-F008: Spatial transform composition and inversion report incorrect success for valid and invalid inputs
 
 - Severity: S1
-- Status: Accepted
+- Status: Fixed
 - Requirement: 004-FR-002, FR-004, FR-009, FR-011; data-model matrix/transform validation; 017 preserve-world reparent contract
 - Location: `Source/Core/Public/Core/FTransform.h:44; Source/Core/Public/Core/FMatrix4x4.h:161`
 - Impact: Scene hierarchy PreserveWorld reparent uses FTransform::TryInverse and operator*, so ordinary rotated non-uniform parent transforms can corrupt local/world state; callers can also treat NaN inverses as valid.
 - Evidence: Debug and Release probe: parent non-uniform scale plus child rotation makes sequential and operator* point transforms disagree; TryInverse then fails round-trip. Zero matrix with negative tolerance and a matrix containing NaN both return success and emit NaN. Zero-scale FTransform with negative tolerance also returns success.
-- Resolution: pending
+- Resolution: Replaced infallible TRS composition with exact matrix-checked TryCompose/TryInverse/TryRelativeTo, added orthogonal TRS decomposition, rejected shear truthfully, and made Scene hierarchy validation transactional with stable InvalidHierarchyOperation diagnostics.
 - Verification: pending
-- Commit: `pending`
+- Commit: `70cacb7`
 
 ## CR001-B02-F009: Geometry primitives lack finite-safe construction, tolerance, and extreme-bound behavior
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 004-FR-007, FR-009, FR-011, FR-012; data-model box/sphere/plane validation
 - Location: `Source/Core/Public/Core/FBox.h:75; Source/Core/Public/Core/FSphere.h:18; Source/Core/Public/Core/FPlane.h:23`
 - Impact: Bounds/culling and spatial classification can become mathematically wrong or non-finite from finite source data, while invalid numeric input is accepted without a documented deterministic policy.
 - Evidence: Debug and Release probe: FPlane((0,0,2),2) reports signed distance -1 at z=1 because normal normalization does not rescale Distance; FBox(FLT_MAX,FLT_MAX) center is non-finite; +infinity radius sphere is valid and a finite large sphere reports FLT_MAX point contained after squared-distance overflow; negative plane tolerance changes an on-plane result to Front.
-- Resolution: pending
+- Resolution: Added finite-safe box/sphere/plane construction and queries, overflow-resistant bounds and containment, normalized plane equation coefficients together, and deterministic invalid tolerance behavior with regressions.
 - Verification: pending
-- Commit: `pending`
+- Commit: `70cacb7`

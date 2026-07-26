@@ -14,6 +14,10 @@
 - Consequence: Findings may remain Fixed after local gates and become Verified
   when the batch-boundary remote evidence is available. Handoffs must distinguish
   local commits from the last pushed remote HEAD.
+- Amendment: The repository was subsequently made public, so hosted-minute
+  scarcity is no longer treated as a blocker. Batch-boundary CI remains the
+  default because it produces one coherent cross-platform evidence set per
+  review batch.
 
 ## D002 - Reject Unrepresentable TRS Operations
 
