@@ -431,3 +431,39 @@
 - Resolution: Validated framebuffer mip and array-layer bounds and exact selected-mip extents in mock and Vulkan helpers; added positive nonzero-subresource and negative boundary regressions.
 - Verification: Independent same-source verifier reproduced 0/3 invalid-subresource rejections plus valid-mip rejection on exact parent, then 3/3 rejections and valid-mip acceptance on current source while preserving 2/2 baseline paths; mock/Vulkan regressions passed.
 - Commit: `09d1a1b`
+
+## CR001-B04-F001: Synthetic fallback is reported as an available Vulkan runtime
+
+- Severity: S1
+- Status: Accepted
+- Requirement: 009-FR-001, 009-FR-004, 009-FR-005, 009-SC-001, 009-SC-002, and the Backend Initialization Contract
+- Location: `Source/Backend/Vulkan/Private/FVulkanInstance.cpp:42`
+- Impact: Missing or broken Vulkan runtime support is indistinguishable from a usable backend through the primary factory, so callers can receive a false active device and CI can report contract success without proving runtime initialization.
+- Evidence: The retained B04-S01 probe shows default initialization returns Success and Active, marks Availability=Available, and selects the invented Stoner adapter while bUsedRuntimeFallback=true. Focused source search finds no Vulkan loader, physical-device enumeration, or FVulkanNativeContext integration in the inspected RHI device path.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B04-F002: Adapter selection retains unsafe non-owned identity pointers
+
+- Severity: S1
+- Status: Accepted
+- Requirement: 009-FR-002, 009-FR-019, 009-SC-003, and the Adapter Selection Contract
+- Location: `Source/Backend/Vulkan/Public/VulkanRHI/FVulkanPhysicalDevice.h:32`
+- Impact: Adapter identity and rejection diagnostics can mutate or dangle after selection, and a malformed public candidate can crash deterministic selection instead of producing an explicit rejection.
+- Evidence: The retained probe shows Selected.Name aliases caller-owned mutable std::string storage. A minimal ASan/UBSan probe passing two equal-score candidates with one null Name aborts in std::string_view construction from SelectBestAdapter's deterministic tie-break.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B04-F003: Device format capabilities ignore the selected adapter
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 009-FR-002, 009-FR-003, 009-FR-004, and the Device Contract
+- Location: `Source/Backend/Vulkan/Private/FVulkanDevice.cpp:839`
+- Impact: RHI capability queries and resource factories can claim formats rejected by the selected adapter summary, undermining capability-gated selection and deferring failure to a later backend path.
+- Evidence: The retained B04-S01 probe initializes from a candidate whose Formats.bDepth is false, then observes D32_Float in RHI SupportedFormats and successfully creates a depth texture. MapCapabilities unconditionally installs GetDefaultVulkanSupportedFormats instead of deriving formats from the selected adapter.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
