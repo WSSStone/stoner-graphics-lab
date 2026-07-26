@@ -36,3 +36,22 @@
   The Feature 004 and 017 contracts record this mathematical boundary; a future
   affine/shear transform type may broaden representability without changing the
   truthfulness of current APIs.
+
+## D003 - Combine Atomic Logging Thresholds As Severity Masks
+
+- Date: 2026-07-26
+- Status: Accepted
+- Context: Feature 005 requires category and global filtering to suppress macro
+  arguments with at most one integer comparison, while both thresholds remain
+  runtime-mutable. Plain enum storage caused data races, and applying the global
+  threshold inside `FLog::LogMessage` evaluated already-suppressed arguments.
+- Decision: Store category and global thresholds as relaxed atomics. `SG_LOG`
+  converts each threshold to an enabled-severity mask, intersects the masks, and
+  performs one final bit test before evaluating the format expression. Keep the
+  internal `FLog::LogMessage` global check as a defensive direct-call and
+  concurrent-reconfiguration guard.
+- Consequence: Filter reads are race-free and do not need a registry-wide cached
+  effective threshold. A concurrently changing configuration has snapshot
+  semantics, while each individual threshold load/store remains atomic. Fatal
+  behavior is verified in a native child process because assertion handlers do
+  not and must not bypass process termination.

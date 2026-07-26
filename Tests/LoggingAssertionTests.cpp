@@ -2,18 +2,24 @@
 
 #include "Core/CoreMinimal.h"
 
+#include <atomic>
+#include <cerrno>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
-#include <atomic>
-#include <sstream>
 
 #if defined(_WIN32)
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
     #include <io.h>
+    #include <windows.h>
 #else
+    #include <sys/wait.h>
     #include <unistd.h>
 #endif
 
@@ -215,6 +221,194 @@ struct FOutputCapture
         CloseSavedDescriptors();
     }
 };
+
+struct FFatalChildResult
+{
+    bool Started = false;
+    bool Completed = false;
+    bool TerminatedBeforeFallback = false;
+    int ExitCode = 0;
+    std::string Stderr;
+};
+
+std::string ReadCaptureFile(FILE* CaptureFile)
+{
+    std::string Content;
+    if (CaptureFile == nullptr || fseek(CaptureFile, 0, SEEK_END) != 0)
+    {
+        return Content;
+    }
+
+    const long Size = ftell(CaptureFile);
+    if (Size <= 0 || fseek(CaptureFile, 0, SEEK_SET) != 0)
+    {
+        return Content;
+    }
+
+    Content.resize(static_cast<size_t>(Size));
+    const size_t BytesRead = fread(Content.data(), 1, Content.size(), CaptureFile);
+    Content.resize(BytesRead);
+    return Content;
+}
+
+FFatalChildResult RunFatalLoggingChild(const char* TestExecutablePath)
+{
+    FFatalChildResult Result;
+    if (TestExecutablePath == nullptr || TestExecutablePath[0] == '\0')
+    {
+        return Result;
+    }
+
+    FILE* CaptureFile = std::tmpfile();
+    if (CaptureFile == nullptr)
+    {
+        return Result;
+    }
+
+#if defined(_WIN32)
+    const intptr_t CaptureOsHandle = _get_osfhandle(_fileno(CaptureFile));
+    HANDLE ChildStderr = INVALID_HANDLE_VALUE;
+    if (CaptureOsHandle != -1)
+    {
+        DuplicateHandle(
+            GetCurrentProcess(),
+            reinterpret_cast<HANDLE>(CaptureOsHandle),
+            GetCurrentProcess(),
+            &ChildStderr,
+            0,
+            TRUE,
+            DUPLICATE_SAME_ACCESS);
+    }
+
+    SECURITY_ATTRIBUTES Security{};
+    Security.nLength = sizeof(Security);
+    Security.bInheritHandle = TRUE;
+    HANDLE ChildStdin = CreateFileA(
+        "NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+        &Security, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    HANDLE ChildStdout = CreateFileA(
+        "NUL", GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+        &Security, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+
+    if (ChildStderr != INVALID_HANDLE_VALUE &&
+        ChildStdin != INVALID_HANDLE_VALUE &&
+        ChildStdout != INVALID_HANDLE_VALUE)
+    {
+        STARTUPINFOA Startup{};
+        Startup.cb = sizeof(Startup);
+        Startup.dwFlags = STARTF_USESTDHANDLES;
+        Startup.hStdInput = ChildStdin;
+        Startup.hStdOutput = ChildStdout;
+        Startup.hStdError = ChildStderr;
+
+        PROCESS_INFORMATION Process{};
+        std::string CommandLine =
+            "\"" + std::string(TestExecutablePath) + "\" " +
+            GLoggingFatalChildArgument;
+        std::vector<char> MutableCommandLine(CommandLine.begin(), CommandLine.end());
+        MutableCommandLine.push_back('\0');
+
+        const BOOL Created = CreateProcessA(
+            TestExecutablePath,
+            MutableCommandLine.data(),
+            nullptr,
+            nullptr,
+            TRUE,
+            0,
+            nullptr,
+            nullptr,
+            &Startup,
+            &Process);
+        Result.Started = Created != FALSE;
+
+        if (Created != FALSE)
+        {
+            const DWORD WaitResult = WaitForSingleObject(Process.hProcess, 30000);
+            DWORD ChildExitCode = STILL_ACTIVE;
+            if (WaitResult == WAIT_OBJECT_0 &&
+                GetExitCodeProcess(Process.hProcess, &ChildExitCode) != FALSE)
+            {
+                Result.Completed = true;
+                Result.ExitCode = static_cast<int>(ChildExitCode);
+                Result.TerminatedBeforeFallback =
+                    ChildExitCode != 0u && ChildExitCode != 42u;
+            }
+            else if (WaitResult == WAIT_TIMEOUT)
+            {
+                TerminateProcess(Process.hProcess, 124u);
+                WaitForSingleObject(Process.hProcess, 5000);
+            }
+
+            CloseHandle(Process.hThread);
+            CloseHandle(Process.hProcess);
+        }
+    }
+
+    if (ChildStderr != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(ChildStderr);
+    }
+    if (ChildStdin != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(ChildStdin);
+    }
+    if (ChildStdout != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(ChildStdout);
+    }
+#else
+    const pid_t ChildProcess = fork();
+    if (ChildProcess == 0)
+    {
+        if (dup2(fileno(CaptureFile), STDERR_FILENO) < 0)
+        {
+            _exit(126);
+        }
+
+        execl(
+            TestExecutablePath,
+            TestExecutablePath,
+            GLoggingFatalChildArgument,
+            static_cast<char*>(nullptr));
+        _exit(127);
+    }
+
+    if (ChildProcess > 0)
+    {
+        Result.Started = true;
+        int WaitStatus = 0;
+        pid_t WaitResult = -1;
+        do
+        {
+            WaitResult = waitpid(ChildProcess, &WaitStatus, 0);
+        }
+        while (WaitResult < 0 && errno == EINTR);
+
+        if (WaitResult == ChildProcess)
+        {
+            Result.Completed = true;
+            if (WIFSIGNALED(WaitStatus))
+            {
+                Result.ExitCode = 128 + WTERMSIG(WaitStatus);
+                Result.TerminatedBeforeFallback = true;
+            }
+            else if (WIFEXITED(WaitStatus))
+            {
+                Result.ExitCode = WEXITSTATUS(WaitStatus);
+                Result.TerminatedBeforeFallback =
+                    Result.ExitCode != 0 &&
+                    Result.ExitCode != 42 &&
+                    Result.ExitCode != 126 &&
+                    Result.ExitCode != 127;
+            }
+        }
+    }
+#endif
+
+    Result.Stderr = ReadCaptureFile(CaptureFile);
+    fclose(CaptureFile);
+    return Result;
+}
 
 // ============================================================================
 // Assertion handler capture for testing.
@@ -429,38 +623,20 @@ void TestSGLogMacroEarlyOut(FLoggingAssertionTestResult& Result)
 // T013: Fatal log behavior test
 // ============================================================================
 
-void TestFatalLogBehavior(FLoggingAssertionTestResult& Result)
+void TestFatalLogBehavior(
+    FLoggingAssertionTestResult& Result,
+    const char* TestExecutablePath)
 {
-    // Install custom assertion handler to intercept Fatal without aborting.
-    // Note: Fatal log calls SG_DEBUG_BREAK() then std::abort().
-    // We can't easily test the actual abort, but we can test that
-    // the logging system formats Fatal messages correctly.
-    // For this test, we verify Fatal output format only (without actually calling Fatal).
-
-    FOutputCapture Capture;
-    Capture.Start();
-    SG_LOG(LogCore, Error, "Simulated fatal condition: %s", "out of memory");
-    std::string Output = Capture.Stop();
-
+    const FFatalChildResult Child = RunFatalLoggingChild(TestExecutablePath);
+    Record(Result, Child.Started && Child.Completed,
+           "Fatal log child process starts and completes");
     Record(Result,
-           Output.find("Error") != std::string::npos &&
-           Output.find("out of memory") != std::string::npos,
-           "Fatal-like log produces formatted output with message");
-
-    // Test that assertion handler is invokable via HandleAssertionFailure.
-    GAssertionCapture.Reset();
-    FLog::SetAssertionHandler(TestAssertionHandler);
-
-    FLog::HandleAssertionFailure("test.cpp", 42, "false", nullptr);
-
+           Child.Stderr.find("LogCore: Fatal: isolated fatal logging probe") !=
+               std::string::npos,
+           "Fatal log routes the labeled message to stderr");
     Record(Result,
-           GAssertionCapture.WasCalled,
-           "FLog::HandleAssertionFailure invokes custom assertion handler");
-    Record(Result,
-           GAssertionCapture.Line == 42,
-           "FLog::HandleAssertionFailure passes correct line number");
-
-    FLog::SetAssertionHandler(nullptr);
+           Child.TerminatedBeforeFallback,
+           "Fatal log terminates before returning from SG_LOG");
 }
 
 // ============================================================================
@@ -621,22 +797,33 @@ void TestPerCategoryFiltering(FLoggingAssertionTestResult& Result)
 
 void TestGlobalSeverityFiltering(FLoggingAssertionTestResult& Result)
 {
-    ELogSeverity OrigGlobal = FLog::GetGlobalMinSeverity();
+    const ELogSeverity OrigGlobal = FLog::GetGlobalMinSeverity();
+    const ELogSeverity OrigCategory = LogCore.GetMinSeverity();
 
+    LogCore.SetMinSeverity(ELogSeverity::Verbose);
     FLog::SetGlobalMinSeverity(ELogSeverity::Info);
 
     {
         FOutputCapture Capture;
         Capture.Start();
-        SG_LOG(LogCore, Verbose, "should be suppressed by global");
+        int SideEffectCounter = 0;
+        SG_LOG(
+            LogCore,
+            Verbose,
+            "should be suppressed by global %d",
+            ++SideEffectCounter);
         std::string Output = Capture.Stop();
 
         Record(Result,
                Output.find("should be suppressed by global") == std::string::npos,
                "Global severity filter suppresses Verbose when min is Info");
+        Record(Result,
+               SideEffectCounter == 0,
+               "Global severity early-out does not evaluate format arguments");
     }
 
     FLog::SetGlobalMinSeverity(OrigGlobal);
+    LogCore.SetMinSeverity(OrigCategory);
 }
 
 // ============================================================================
@@ -767,6 +954,57 @@ void TestThreadSafety(FLoggingAssertionTestResult& Result)
            "Thread-safety: no interleaved/corrupted log lines");
 }
 
+void TestThresholdThreadSafety(FLoggingAssertionTestResult& Result)
+{
+    const ELogSeverity OrigCategory = LogCore.GetMinSeverity();
+    const ELogSeverity OrigGlobal = FLog::GetGlobalMinSeverity();
+    constexpr int Iterations = 10000;
+    std::atomic<bool> Start{false};
+    std::atomic<int> ValidReads{0};
+
+    std::thread Writer([&Start]()
+    {
+        while (!Start.load(std::memory_order_acquire))
+        {
+        }
+
+        for (int Iteration = 0; Iteration < Iterations; ++Iteration)
+        {
+            const ELogSeverity Severity = (Iteration & 1) == 0
+                ? ELogSeverity::Verbose
+                : ELogSeverity::Error;
+            LogCore.SetMinSeverity(Severity);
+            FLog::SetGlobalMinSeverity(Severity);
+        }
+    });
+
+    std::thread Reader([&Start, &ValidReads]()
+    {
+        Start.store(true, std::memory_order_release);
+        for (int Iteration = 0; Iteration < Iterations; ++Iteration)
+        {
+            const auto Category = static_cast<int>(LogCore.GetMinSeverity());
+            const auto Global = static_cast<int>(FLog::GetGlobalMinSeverity());
+            if (Category >= static_cast<int>(ELogSeverity::Verbose) &&
+                Category <= static_cast<int>(ELogSeverity::Fatal) &&
+                Global >= static_cast<int>(ELogSeverity::Verbose) &&
+                Global <= static_cast<int>(ELogSeverity::Fatal))
+            {
+                ValidReads.fetch_add(1, std::memory_order_relaxed);
+            }
+        }
+    });
+
+    Writer.join();
+    Reader.join();
+    LogCore.SetMinSeverity(OrigCategory);
+    FLog::SetGlobalMinSeverity(OrigGlobal);
+
+    Record(Result,
+           ValidReads.load(std::memory_order_relaxed) == Iterations,
+           "Runtime logging thresholds remain valid under concurrent access");
+}
+
 // ============================================================================
 // T042: Zero-configuration startup verification
 // ============================================================================
@@ -787,7 +1025,8 @@ void TestZeroConfigStartup(FLoggingAssertionTestResult& Result)
 
 } // namespace
 
-FLoggingAssertionTestResult RunLoggingAssertionTests()
+FLoggingAssertionTestResult RunLoggingAssertionTests(
+    const char* TestExecutablePath)
 {
     FLoggingAssertionTestResult Result;
 
@@ -801,7 +1040,7 @@ FLoggingAssertionTestResult RunLoggingAssertionTests()
     TestFLogConsoleSinkFormat(Result);         // T010
     TestFLogMessageSeverityRouting(Result);    // T011
     TestSGLogMacroEarlyOut(Result);            // T012
-    TestFatalLogBehavior(Result);              // T013
+    TestFatalLogBehavior(Result, TestExecutablePath); // T013
 
     // Phase 4: User Story 2
     TestSGCheck(Result);                       // T024
@@ -819,6 +1058,7 @@ FLoggingAssertionTestResult RunLoggingAssertionTests()
 
     // Phase 7: Polish
     TestThreadSafety(Result);                  // T041
+    TestThresholdThreadSafety(Result);         // CR001-B02-F011
     TestZeroConfigStartup(Result);             // T042
 
     std::cout << "[INFO] Logging & Assertion tests passed=" << Result.Passed

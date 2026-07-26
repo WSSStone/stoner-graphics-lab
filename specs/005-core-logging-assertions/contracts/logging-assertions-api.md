@@ -119,11 +119,13 @@ The logging and assertion verification suite must cover:
 - Category-based filtering suppresses messages below threshold.
 - Global severity filtering works when no per-category override is set.
 - `SG_LOG` early-out does not evaluate format arguments for filtered messages.
-- Fatal log triggers process termination (tested via assertion handler override).
+- Fatal log writes the labeled message to `stderr` and terminates the process
+  (tested in an isolated child process so the test runner survives).
 - `SG_CHECK` reports file, line, and expression on failure.
 - `SG_CHECKF` includes formatted message in failure report.
 - `SG_VERIFY` always evaluates its expression regardless of build configuration.
 - Concurrent logging from multiple threads produces non-interleaved output.
+- Runtime category and global threshold reads/writes are free of data races.
 - Custom category declaration and usage across translation units.
 - Console output format matches the specified pattern.
 - Logging works without explicit initialization (zero-configuration startup).

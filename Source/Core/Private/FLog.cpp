@@ -14,7 +14,6 @@ namespace Stoner::Core
 {
 
 // Internal state — file-scoped statics for zero-configuration startup.
-static ELogSeverity GGlobalMinSeverity = ELogSeverity::Verbose;
 static FAssertionHandler GAssertionHandler = nullptr;
 static std::mutex GLogMutex;
 
@@ -30,7 +29,7 @@ void FLog::LogMessage(FLogCategory& Category, ELogSeverity Severity,
                       const char* Format, ...)
 {
     // Global severity filter (in addition to macro-level per-category check).
-    if (static_cast<int>(Severity) < static_cast<int>(GGlobalMinSeverity))
+    if (static_cast<int>(Severity) < static_cast<int>(GetGlobalMinSeverity()))
     {
         return;
     }
@@ -89,16 +88,6 @@ void FLog::LogMessage(FLogCategory& Category, ELogSeverity Severity,
 
     (void)File;
     (void)Line;
-}
-
-void FLog::SetGlobalMinSeverity(ELogSeverity Severity)
-{
-    GGlobalMinSeverity = Severity;
-}
-
-ELogSeverity FLog::GetGlobalMinSeverity()
-{
-    return GGlobalMinSeverity;
 }
 
 void FLog::SetAssertionHandler(FAssertionHandler Handler)

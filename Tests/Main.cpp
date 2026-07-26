@@ -17,11 +17,21 @@
 #include "VulkanNativeIntegrationTests.h"
 #include "TriangleDemoIntegrationTests.h"
 
-int main()
+#include <cstring>
+
+int main(int ArgCount, char* Arguments[])
 {
+    if (ArgCount == 2 &&
+        std::strcmp(Arguments[1], GLoggingFatalChildArgument) == 0)
+    {
+        SG_LOG(Stoner::Core::LogCore, Fatal, "isolated fatal logging probe");
+        return 42;
+    }
+
     const FCoreFoundationTestResult CoreResult = RunCoreFoundationTests();
     const FCoreMathTestResult MathResult = RunCoreMathTests();
-    const FLoggingAssertionTestResult LogResult = RunLoggingAssertionTests();
+    const FLoggingAssertionTestResult LogResult =
+        RunLoggingAssertionTests(Arguments[0]);
     const FCorePlatformTestResult PlatformResult = RunCorePlatformTests();
     const FApplicationWindowInputTestResult ApplicationResult = RunApplicationWindowInputTests();
     const FApplicationSceneEcsTestResult SceneResult = RunApplicationSceneEcsTests();
