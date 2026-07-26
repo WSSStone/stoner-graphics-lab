@@ -1112,7 +1112,7 @@
     },
     {
       "batch": "B03",
-      "commit": "",
+      "commit": "b29f466",
       "created_at": "2026-07-26T09:51:56+00:00",
       "deferred_target": "",
       "evidence": "A strict standalone C++20 probe calls CreateSwapchain through IRHIDevice& with a null surface and an invalid zero-extent FRHISwapchainDesc; the default overload returns Success and a non-null headless object. The adapter ignores surface, width, height, preferred format, and VSync, forwarding only FramesInFlight.",
@@ -1128,21 +1128,27 @@
           "from": "Triaged",
           "note": "Accepted for B03-S05. The surface-aware overload must fail closed unless an implementation explicitly validates and supports the complete surface/descriptor contract; add base-reference negative coverage without implementing Feature 020 or refactoring backend presentation internals.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T10:02:26+00:00",
+          "from": "Accepted",
+          "note": "The surface-aware device compatibility overload now returns Unsupported with no object instead of forwarding only FramesInFlight to the headless factory. Base-reference tests cover valid and invalid descriptors and prove no false presentation object is created.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B03-F003",
       "impact": "Callers and future backends can receive false presentation support and a successful object that does not satisfy the requested surface, extent, format, or presentation policy, undermining native-versus-headless runtime truth.",
       "location": "Source/RHI/Public/RHI/IRHIDevice.h:92",
       "requirement": "018-FR-003; 018-FR-009; 018-T012; triangle-demo-runtime-contract presentation contract",
-      "resolution": "",
+      "resolution": "The surface-aware device compatibility overload now returns Unsupported with no object instead of forwarding only FramesInFlight to the headless factory. Base-reference tests cover valid and invalid descriptors and prove no false presentation object is created.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Surface-aware swapchain creation silently falls back to headless",
       "verification": ""
     },
     {
       "batch": "B03",
-      "commit": "",
+      "commit": "b29f466",
       "created_at": "2026-07-26T09:52:18+00:00",
       "deferred_target": "",
       "evidence": "The retained probe shows synchronized acquire returning InvalidState with the swapchain already Acquired; invalid present consumes its wait semaphore; a two-wait mock submission returns NotReady after consuming the first wait; and a failed output signal returns InvalidState after marking the command Submitted and incrementing submission count while its fence remains unsignaled.",
@@ -1158,21 +1164,27 @@
           "from": "Triaged",
           "note": "Accepted for B03-S05 as one synchronization atomicity cluster. Prevalidate every mock queue dependency before mutation and make base swapchain synchronization fail closed where generic composition cannot guarantee coherent success/failure state. Add exact post-failure state assertions.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T10:02:36+00:00",
+          "from": "Accepted",
+          "note": "Synchronized swapchain compatibility defaults now fail closed; the mock swapchain explicitly validates before commit, and the mock queue preflights the complete wait/signal/fence set before any mutation. Regression tests prove failed acquire, present, wait, and signal paths preserve all observable states.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B03-F004",
       "impact": "A caller that follows the returned failure cannot safely retry or recover: an image, dependency, or command buffer may already have changed ownership/state, allowing deadlock, stale acquisition, false submission accounting, or an unsignaled completion path.",
       "location": "Source/RHI/Public/RHI/IRHISwapchain.h:33; Tests/RHICoreTests.cpp:919",
       "requirement": "007-FR-005; 007-FR-009; 007-SC-003; 018-FR-009; triangle-demo-runtime-contract native frame order",
-      "resolution": "",
+      "resolution": "Synchronized swapchain compatibility defaults now fail closed; the mock swapchain explicitly validates before commit, and the mock queue preflights the complete wait/signal/fence set before any mutation. Regression tests prove failed acquire, present, wait, and signal paths preserve all observable states.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Synchronization failures leave partial queue and swapchain transitions",
       "verification": ""
     },
     {
       "batch": "B03",
-      "commit": "",
+      "commit": "b29f466",
       "created_at": "2026-07-26T09:52:39+00:00",
       "deferred_target": "",
       "evidence": "A strict standalone legacy command-buffer probe supplies a non-empty FRHIRenderPassClearValues through IRHICommandBuffer&. The default overload returns Success and calls only the old overload, even with null render-pass/framebuffer arguments; no clear value is observed.",
@@ -1188,15 +1200,21 @@
           "from": "Triaged",
           "note": "Accepted for B03-S05. The compatibility overload must return Unsupported unless an implementation explicitly handles clear values. Existing overriding mock and Vulkan implementations should retain their behavior, with a regression proving legacy implementations cannot return false success.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T10:02:48+00:00",
+          "from": "Accepted",
+          "note": "The explicit-clear command-buffer compatibility overload now returns Unsupported without delegating to a legacy render-pass method. A base-reference regression proves non-empty clears cannot return false success or invoke the legacy path; existing explicit-clear overrides continue to compile and pass.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B03-F005",
       "impact": "A legacy or future backend can claim successful frame recording while leaving color/depth attachments uncleared or stale, violating backend-neutral execution semantics and making rendered output nondeterministic.",
       "location": "Source/RHI/Public/RHI/IRHICommandBuffer.h:144",
       "requirement": "018-FR-008; 018-T008; 018-T012; triangle-demo-runtime-contract required command capabilities",
-      "resolution": "",
+      "resolution": "The explicit-clear command-buffer compatibility overload now returns Unsupported without delegating to a legacy render-pass method. A base-reference regression proves non-empty clears cannot return false success or invoke the legacy path; existing explicit-clear overrides continue to compile and pass.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Clear-value render-pass overload can report success while discarding clears",
       "verification": ""
     }

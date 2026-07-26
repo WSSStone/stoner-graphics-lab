@@ -327,35 +327,35 @@
 ## CR001-B03-F003: Surface-aware swapchain creation silently falls back to headless
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 018-FR-003; 018-FR-009; 018-T012; triangle-demo-runtime-contract presentation contract
 - Location: `Source/RHI/Public/RHI/IRHIDevice.h:92`
 - Impact: Callers and future backends can receive false presentation support and a successful object that does not satisfy the requested surface, extent, format, or presentation policy, undermining native-versus-headless runtime truth.
 - Evidence: A strict standalone C++20 probe calls CreateSwapchain through IRHIDevice& with a null surface and an invalid zero-extent FRHISwapchainDesc; the default overload returns Success and a non-null headless object. The adapter ignores surface, width, height, preferred format, and VSync, forwarding only FramesInFlight.
-- Resolution: pending
+- Resolution: The surface-aware device compatibility overload now returns Unsupported with no object instead of forwarding only FramesInFlight to the headless factory. Base-reference tests cover valid and invalid descriptors and prove no false presentation object is created.
 - Verification: pending
-- Commit: `pending`
+- Commit: `b29f466`
 
 ## CR001-B03-F004: Synchronization failures leave partial queue and swapchain transitions
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 007-FR-005; 007-FR-009; 007-SC-003; 018-FR-009; triangle-demo-runtime-contract native frame order
 - Location: `Source/RHI/Public/RHI/IRHISwapchain.h:33; Tests/RHICoreTests.cpp:919`
 - Impact: A caller that follows the returned failure cannot safely retry or recover: an image, dependency, or command buffer may already have changed ownership/state, allowing deadlock, stale acquisition, false submission accounting, or an unsignaled completion path.
 - Evidence: The retained probe shows synchronized acquire returning InvalidState with the swapchain already Acquired; invalid present consumes its wait semaphore; a two-wait mock submission returns NotReady after consuming the first wait; and a failed output signal returns InvalidState after marking the command Submitted and incrementing submission count while its fence remains unsignaled.
-- Resolution: pending
+- Resolution: Synchronized swapchain compatibility defaults now fail closed; the mock swapchain explicitly validates before commit, and the mock queue preflights the complete wait/signal/fence set before any mutation. Regression tests prove failed acquire, present, wait, and signal paths preserve all observable states.
 - Verification: pending
-- Commit: `pending`
+- Commit: `b29f466`
 
 ## CR001-B03-F005: Clear-value render-pass overload can report success while discarding clears
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 018-FR-008; 018-T008; 018-T012; triangle-demo-runtime-contract required command capabilities
 - Location: `Source/RHI/Public/RHI/IRHICommandBuffer.h:144`
 - Impact: A legacy or future backend can claim successful frame recording while leaving color/depth attachments uncleared or stale, violating backend-neutral execution semantics and making rendered output nondeterministic.
 - Evidence: A strict standalone legacy command-buffer probe supplies a non-empty FRHIRenderPassClearValues through IRHICommandBuffer&. The default overload returns Success and calls only the old overload, even with null render-pass/framebuffer arguments; no clear value is observed.
-- Resolution: pending
+- Resolution: The explicit-clear command-buffer compatibility overload now returns Unsupported without delegating to a legacy render-pass method. A base-reference regression proves non-empty clears cannot return false success or invoke the legacy path; existing explicit-clear overrides continue to compile and pass.
 - Verification: pending
-- Commit: `pending`
+- Commit: `b29f466`
