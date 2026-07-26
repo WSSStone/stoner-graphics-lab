@@ -3,9 +3,9 @@
 - Status: Active
 - Completed steps: 1/32
 - Baseline: `9092a97593fb29cffbffdbe534e3dda143f463a5`
-- Recorded HEAD: `ec1f85a33c7659395720b3ee055f6f6677dfb660`
+- Recorded HEAD: `e5bd56c9d83f09944fd69561bc97c480b69cd152`
 - Active step: B00-S02
-- Open findings: 0
+- Open findings: 2
 
 ## Batches
 

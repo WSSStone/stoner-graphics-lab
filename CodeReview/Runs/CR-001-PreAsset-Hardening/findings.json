@@ -1,4 +1,65 @@
 {
-  "findings": [],
+  "findings": [
+    {
+      "batch": "B01",
+      "commit": "",
+      "created_at": "2026-07-26T02:48:02+00:00",
+      "deferred_target": "",
+      "evidence": "Both clean Debug and Release gates pass but end with 33 -Wmissing-field-initializers warnings; see Evidence/gate-debug.json and gate-release.json.",
+      "history": [
+        {
+          "at": "2026-07-26T02:48:12+00:00",
+          "from": "Open",
+          "note": "Reproduced in clean Debug and Release builds; assigned to B01 warning cleanup and warning-as-error enablement.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T02:48:12+00:00",
+          "from": "Triaged",
+          "note": "Reproduced in clean Debug and Release builds; assigned to B01 warning cleanup and warning-as-error enablement.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B01-F001",
+      "impact": "Warning noise prevents warning-as-error enforcement and can hide newly introduced initialization defects.",
+      "location": "Source/Backend/Vulkan/Private/FVulkanNativeOffscreenSession.cpp:240",
+      "requirement": "CR-001 completion criterion: no unexplained compiler warnings before enabling -Werror or /WX",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "macOS builds emit 33 Vulkan aggregate-initialization warnings",
+      "verification": ""
+    },
+    {
+      "batch": "B08",
+      "commit": "",
+      "created_at": "2026-07-26T02:48:12+00:00",
+      "deferred_target": "",
+      "evidence": "The first post-build Debug test run failed native submission, probe validity, and report pass checks; two immediate repeats passed with 24 valid probes and zero live objects.",
+      "history": [
+        {
+          "at": "2026-07-26T02:48:23+00:00",
+          "from": "Open",
+          "note": "Reproduced as one failure followed by two passes; defer root-cause inspection and repair to B08, but retain as an accepted S2 finding.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-26T02:48:23+00:00",
+          "from": "Triaged",
+          "note": "Reproduced as one failure followed by two passes; defer root-cause inspection and repair to B08, but retain as an accepted S2 finding.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B08-F001",
+      "impact": "A nondeterministic native gate can conceal a synchronization or initialization defect and makes local validation evidence unreliable.",
+      "location": "Tests/DeferredNativeIntegrationTests.cpp:104",
+      "requirement": "019-FR-025 and 019-SC-002 semantic readback tolerances and deterministic validation evidence",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Feature 019 native deferred validation is intermittent on local MoltenVK",
+      "verification": ""
+    }
+  ],
   "schema_version": 1
 }
