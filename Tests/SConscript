@@ -2,6 +2,9 @@
 
 Import('env', 'platform', 'config')
 import os
+import subprocess
+import sys
+from SCons.Script import Action
 from GraphicsDependencyDetect import DetectGraphicsDependencies
 
 test_env = env.Clone()
@@ -68,4 +71,30 @@ if platform == 'Mac' and graphics_deps['glfw_available']:
     test_env.Append(FRAMEWORKS=['Cocoa', 'IOKit', 'CoreFoundation'])
 
 program = test_env.Program('StonerTest', sources)
+
+platform_matrix_script = File('#Tests/verify_platform_identity.py')
+platform_header = File('#Source/Core/Public/Core/SGPlatform.h')
+platform_matrix_stamp = File('PlatformIdentityMatrix.stamp')
+
+def _verify_platform_identity(target, source, env):
+    command = [
+        sys.executable,
+        source[0].srcnode().abspath,
+        '--compiler',
+        env.subst('$CXX'),
+        '--style',
+        'msvc' if platform == 'Win64' else 'posix',
+        '--include',
+        Dir('#Source/Core/Public').abspath,
+        '--stamp',
+        target[0].abspath,
+    ]
+    return subprocess.run(command, check=False).returncode
+
+platform_matrix = test_env.Command(
+    platform_matrix_stamp,
+    [platform_matrix_script, platform_header],
+    Action(_verify_platform_identity, 'Verifying desktop platform identity matrix'),
+)
+test_env.Depends(program, platform_matrix)
 Return('program')

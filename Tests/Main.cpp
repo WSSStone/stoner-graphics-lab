@@ -4,6 +4,7 @@
 #include "ApplicationWindowInputTests.h"
 #include "CoreFoundationTests.h"
 #include "CoreMathTests.h"
+#include "CorePlatformOwnershipTests.h"
 #include "LoggingAssertionTests.h"
 #include "CorePlatformTests.h"
 #include "DeferredRenderingTests.h"
@@ -39,6 +40,8 @@ int main(int ArgCount, char* Arguments[])
     const FLoggingAssertionTestResult LogResult =
         RunLoggingAssertionTests(Arguments[0]);
     const FCorePlatformTestResult PlatformResult = RunCorePlatformTests();
+    const FCorePlatformOwnershipTestResult PlatformOwnershipResult =
+        RunCorePlatformOwnershipTests();
     const FApplicationWindowInputTestResult ApplicationResult = RunApplicationWindowInputTests();
     const FApplicationSceneEcsTestResult SceneResult = RunApplicationSceneEcsTests();
     const FRHICoreTestResult RHIResult = RunRHICoreTests();
@@ -54,6 +57,7 @@ int main(int ArgCount, char* Arguments[])
     const FTriangleDemoIntegrationTestResult DemoResult = RunTriangleDemoIntegrationTests();
     return CoreResult.Failed == 0 && MathResult.Failed == 0 &&
         LogResult.Failed == 0 && PlatformResult.Failed == 0 &&
+        PlatformOwnershipResult.Failed == 0 &&
         ApplicationResult.Failed == 0 &&
         SceneResult.Failed == 0 &&
         RHIResult.Failed == 0 && DeferredResult.Failed == 0 &&
