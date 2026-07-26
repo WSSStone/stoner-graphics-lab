@@ -1,5 +1,5 @@
 {
-  "active_step": "B02-S21",
+  "active_step": "B02-S22",
   "batches": [
     {
       "id": "B00",
@@ -404,13 +404,21 @@
           "title": "Fix: platform selection, window, misc, and memory"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "7a78cc6db8ed80c4b6d373cd932677850f58abbe",
+          "completed_at": "2026-07-26T08:22:55+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B02-platform-memory-verification.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b02-platform-memory-verification-probes.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/gate-strict-debug.json",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/gate-strict-release.json",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/gate-sanitizers.json",
+            "CR001-B02-F016",
+            "CR001-B02-F017"
+          ],
           "id": "B02-S21",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Independently proved the platform matrix fails on the parent Android/iOS behavior and passes current code; reproduced Mach uref delta 1024 on the parent and 0 on current code; deterministic suite passed. Findings remain Fixed pending batch-boundary Windows/Linux hosted evidence.",
+          "started_at": "2026-07-26T08:20:31+00:00",
+          "status": "Completed",
           "title": "Verify: platform selection, window, misc, and memory"
         },
         {
@@ -2419,6 +2427,16 @@
       "at": "2026-07-26T08:18:45+00:00",
       "detail": "B02-S20",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-26T08:20:31+00:00",
+      "detail": "B02-S21",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-26T08:22:55+00:00",
+      "detail": "B02-S21",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -2572,7 +2590,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "7a78cc6db8ed80c4b6d373cd932677850f58abbe"
+    "last_recorded_head": "21b2253fb350099340ac4cca40e8b94fed3ce94a"
   },
   "policy": {
     "fix_severities": [
@@ -2592,5 +2610,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T08:18:45+00:00"
+  "updated_at": "2026-07-26T08:22:55+00:00"
 }
