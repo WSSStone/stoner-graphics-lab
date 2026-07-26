@@ -18,6 +18,10 @@
 #include "VulkanRHI/FVulkanSwapchain.h"
 #include "VulkanRHI/FVulkanTexture.h"
 
+#include <new>
+#include <stdexcept>
+#include <utility>
+
 namespace Stoner::Backend::Vulkan
 {
 
@@ -399,13 +403,47 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIBuffer> FVulkanDevice::CreateBuff
     FVulkanResourceAllocation Allocation = Allocator->AllocateBuffer(Desc, IsActive());
     if (!Allocation.IsSuccessful())
     {
-        MarkAllocationFailure(Diagnostics, Allocation.Reason);
+        MarkAllocationFailure(Diagnostics, Allocation.GetReason());
         return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
     }
 
-    auto Buffer = Stoner::Core::MakeShared<FVulkanBuffer>(Desc, Allocation, Allocator);
-    Buffers.push_back(Buffer);
-    MarkResourceAllocation(Diagnostics, Allocation.Reason);
+    Stoner::Core::TSharedPtr<FVulkanBuffer> Buffer;
+    try
+    {
+        Buffer.reset(new FVulkanBuffer(
+            Desc, std::move(Allocation), Allocator));
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Allocator->Release(Allocation);
+        MarkAllocationFailure(Diagnostics, "buffer wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    if (Buffer->GetLifecycleState() !=
+        Stoner::RHI::ERHIResourceLifecycleState::Valid)
+    {
+        (void)Allocator->Release(Allocation);
+        MarkAllocationFailure(Diagnostics, "buffer allocation ownership rejected");
+        return {Stoner::RHI::ERHIResult::Failed, nullptr};
+    }
+    try
+    {
+        Buffers.push_back(Buffer);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Buffer->Invalidate();
+        MarkAllocationFailure(Diagnostics, "buffer resource tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)Buffer->Invalidate();
+        MarkAllocationFailure(Diagnostics, "buffer resource tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    MarkResourceAllocation(
+        Diagnostics, Buffer->GetAllocation().GetReason());
     return {Stoner::RHI::ERHIResult::Success, Buffer};
 }
 
@@ -423,13 +461,47 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHITexture> FVulkanDevice::CreateTex
     FVulkanResourceAllocation Allocation = Allocator->AllocateTexture(Desc, IsActive());
     if (!Allocation.IsSuccessful())
     {
-        MarkAllocationFailure(Diagnostics, Allocation.Reason);
+        MarkAllocationFailure(Diagnostics, Allocation.GetReason());
         return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
     }
 
-    auto Texture = Stoner::Core::MakeShared<FVulkanTexture>(Desc, Allocation, Allocator);
-    Textures.push_back(Texture);
-    MarkResourceAllocation(Diagnostics, Allocation.Reason);
+    Stoner::Core::TSharedPtr<FVulkanTexture> Texture;
+    try
+    {
+        Texture.reset(new FVulkanTexture(
+            Desc, std::move(Allocation), Allocator));
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Allocator->Release(Allocation);
+        MarkAllocationFailure(Diagnostics, "texture wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    if (Texture->GetLifecycleState() !=
+        Stoner::RHI::ERHIResourceLifecycleState::Valid)
+    {
+        (void)Allocator->Release(Allocation);
+        MarkAllocationFailure(Diagnostics, "texture allocation ownership rejected");
+        return {Stoner::RHI::ERHIResult::Failed, nullptr};
+    }
+    try
+    {
+        Textures.push_back(Texture);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Texture->Invalidate();
+        MarkAllocationFailure(Diagnostics, "texture resource tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)Texture->Invalidate();
+        MarkAllocationFailure(Diagnostics, "texture resource tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    MarkResourceAllocation(
+        Diagnostics, Texture->GetAllocation().GetReason());
     return {Stoner::RHI::ERHIResult::Success, Texture};
 }
 

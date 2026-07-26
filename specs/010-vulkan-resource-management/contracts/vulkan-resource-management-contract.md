@@ -114,3 +114,19 @@ Required coverage:
 - Buffer upload staging success and out-of-bounds/missing-data/invalidated-destination failures.
 - Texture upload staging success and invalid-region/incompatible-format/invalidated-destination failures.
 - Existing Core, RHI, and Vulkan backend tests remain passing.
+
+## CR-001 Hardening Addendum (2026-07-26)
+
+- Allocation accounting and texture footprint arithmetic are checked before
+  state mutation. Overflow returns an explicit unavailable allocation result.
+- Allocation records are move-only, allocator- and epoch-bound release tickets.
+  Cross-allocator, stale, moved-from, and repeated release attempts fail without
+  changing counters.
+- Buffer and texture implementation wrappers are device-factory-only. Factory
+  bookkeeping failure rolls ownership back before returning.
+- Texture footprint includes exact format width, every mip extent, depth, array
+  layers, and sample count.
+- Host-visible fallback upload storage grows only to the uploaded range and maps
+  storage allocation failure to `Unavailable` without throwing through `Upload`.
+- Shutdown after successful extreme-size fallback allocation reports zero live
+  allocations and zero allocated bytes.

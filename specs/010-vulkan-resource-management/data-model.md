@@ -257,3 +257,32 @@ Pending -> Invalidated
 **Validation Rules**:
 - Diagnostics explain outcomes but do not replace explicit result codes.
 - Missing runtime can be diagnostic when deterministic fallback allocation succeeds.
+
+## CR-001 Allocation Model Amendment (2026-07-26)
+
+### Resource Allocation Ownership Ticket
+
+- The ticket is move-only and contains kind, mode, failure, checked byte size,
+  limits observed at creation, static diagnostic reason, allocator identity,
+  allocator epoch, allocation ID, and released state.
+- Moving transfers the only release authority and leaves the source inert.
+- Release succeeds only when allocator identity and epoch match and the ticket
+  remains live. Foreign, stale, moved-from, and repeated release attempts do not
+  alter allocator counters.
+- Ticket creation performs no secondary heap allocation, preserving the
+  allocator's non-throwing failure contract.
+
+### Checked Texture Footprint
+
+- Each mip contributes `width * height * depth * arrayLayers * formatBytes *
+  sampleCount`, with every multiplication and total addition checked before
+  mutation.
+- Format width is exact for every currently supported RHI format. Overflow or
+  an unknown width produces an explicit allocation failure and a zero estimate.
+
+### Fallback Buffer Mirror
+
+- Logical buffer size and resident CPU mirror size are independent. The mirror
+  grows only through the end of the largest successful upload.
+- Unrepresentable or unavailable mirror growth returns `Unavailable`; existing
+  mirrored bytes and resource lifecycle remain unchanged.

@@ -120,3 +120,13 @@ Design artifacts:
 - [x] **Advanced Graphics Readiness**: Descriptor binding records, lifecycle invalidation, staging records, and allocation diagnostics support later render graph/material/resource evolution.
 - [x] **Naming Conventions**: Planned source artifacts follow project naming conventions.
 - [x] **Cross-Platform Compatibility**: Quickstart and tests define supported runtime, unsupported runtime, and deterministic fallback allocation paths across desktop platforms.
+
+## CR-001 Design Amendment (2026-07-26)
+
+The reviewed allocation boundary uses a no-allocation, move-only ownership
+ticket instead of a copyable record. The allocator binds each ticket to its
+object identity and reset epoch, performs checked counter and texture-footprint
+arithmetic, and mutates counters only after all gates pass. `FVulkanDevice` is
+the sole constructor of buffer and texture wrappers and rolls ownership back if
+wrapper creation or device tracking fails. Fallback host buffers keep sparse CPU
+mirrors and translate mirror growth failures to explicit RHI results.

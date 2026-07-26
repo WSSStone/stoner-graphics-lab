@@ -8,10 +8,14 @@
 namespace Stoner::Backend::Vulkan
 {
 
+class FVulkanDevice;
+
 class FVulkanTexture final : public Stoner::RHI::IRHITexture
 {
 public:
-    FVulkanTexture(const Stoner::RHI::FRHITextureDesc& InDesc, const FVulkanResourceAllocation& InAllocation, std::shared_ptr<FVulkanMemoryAllocator> InAllocator);
+    ~FVulkanTexture() override;
+    FVulkanTexture(const FVulkanTexture&) = delete;
+    FVulkanTexture& operator=(const FVulkanTexture&) = delete;
 
     [[nodiscard]] const Stoner::RHI::FRHITextureDesc& GetDesc() const noexcept override;
     [[nodiscard]] Stoner::RHI::ERHITextureDimension GetDimension() const noexcept override;
@@ -23,6 +27,13 @@ public:
     Stoner::RHI::ERHIResult Invalidate() override;
 
 private:
+    friend class FVulkanDevice;
+
+    FVulkanTexture(
+        const Stoner::RHI::FRHITextureDesc& InDesc,
+        FVulkanResourceAllocation&& InAllocation,
+        std::shared_ptr<FVulkanMemoryAllocator> InAllocator);
+
     Stoner::RHI::FRHITextureDesc Desc;
     FVulkanResourceAllocation Allocation;
     std::shared_ptr<FVulkanMemoryAllocator> Allocator;

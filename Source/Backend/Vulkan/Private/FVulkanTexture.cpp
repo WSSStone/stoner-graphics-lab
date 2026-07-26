@@ -3,11 +3,45 @@
 namespace Stoner::Backend::Vulkan
 {
 
-FVulkanTexture::FVulkanTexture(const Stoner::RHI::FRHITextureDesc& InDesc, const FVulkanResourceAllocation& InAllocation, std::shared_ptr<FVulkanMemoryAllocator> InAllocator)
+namespace
+{
+
+[[nodiscard]] bool IsCompatibleAllocation(
+    const Stoner::RHI::FRHITextureDesc& Desc,
+    const FVulkanResourceAllocation& Allocation,
+    const std::shared_ptr<FVulkanMemoryAllocator>& Allocator) noexcept
+{
+    Stoner::Core::uint64 ExpectedByteSize = 0;
+    return Allocator &&
+        FVulkanMemoryAllocator::TryEstimateTextureBytes(
+            Desc, ExpectedByteSize) &&
+        Allocation.IsSuccessful() &&
+        Allocation.GetKind() == EVulkanResourceKind::Texture &&
+        Allocation.GetByteSize() == ExpectedByteSize;
+}
+
+} // namespace
+
+FVulkanTexture::FVulkanTexture(const Stoner::RHI::FRHITextureDesc& InDesc, FVulkanResourceAllocation&& InAllocation, std::shared_ptr<FVulkanMemoryAllocator> InAllocator)
     : Desc(InDesc)
-    , Allocation(InAllocation)
+    , Allocation(IsCompatibleAllocation(InDesc, InAllocation, InAllocator)
+              ? std::move(InAllocation)
+              : FVulkanResourceAllocation{})
     , Allocator(std::move(InAllocator))
 {
+    if (!Allocation.IsSuccessful())
+    {
+        LifecycleState =
+            Stoner::RHI::ERHIResourceLifecycleState::Invalidated;
+    }
+}
+
+FVulkanTexture::~FVulkanTexture()
+{
+    if (LifecycleState == Stoner::RHI::ERHIResourceLifecycleState::Valid)
+    {
+        (void)Invalidate();
+    }
 }
 
 const Stoner::RHI::FRHITextureDesc& FVulkanTexture::GetDesc() const noexcept { return Desc; }
@@ -24,7 +58,9 @@ Stoner::RHI::ERHIResult FVulkanTexture::Invalidate()
         return Stoner::RHI::ERHIResult::InvalidState;
     }
     LifecycleState = Stoner::RHI::ERHIResourceLifecycleState::Invalidated;
-    return Allocator ? Allocator->Release(Allocation) : Allocation.Release();
+    return Allocator
+        ? Allocator->Release(Allocation)
+        : Stoner::RHI::ERHIResult::InvalidState;
 }
 
 } // namespace Stoner::Backend::Vulkan

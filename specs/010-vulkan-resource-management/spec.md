@@ -180,3 +180,27 @@ An engine developer can prepare upload requests for buffers and textures and rec
 - Resource creation is expected to use real backend allocation in supported runtime environments and deterministic fallback allocation with diagnostics where runtime support is absent but the resource contract can still be validated.
 - Upload requests are validated and recorded as pending work with CPU-visible staging data in this phase; actual transfer command recording and queue execution are deferred to the command submission phase.
 - Shader modules, graphics pipelines, compute pipelines, render passes, framebuffers, and render graph scheduling remain outside this feature except where existing tests must continue to pass.
+
+## CR-001 Review Amendment (2026-07-26)
+
+This amendment clarifies FR-007, FR-008, FR-009, FR-015, and FR-019 after
+the pre-Asset hardening review. It records stricter behavior without changing
+the original feature scope:
+
+- Allocation byte and live-count accounting MUST use checked arithmetic.
+  An unrepresentable request MUST fail explicitly and MUST NOT mutate counters
+  or allow a later budget check to be bypassed.
+- A successful allocation record is a move-only ownership ticket bound to one
+  allocator epoch. It MUST NOT be copyable, released by a different allocator,
+  released twice, or released after its allocator has reset.
+- Texture allocation size MUST be the checked sum of every mip extent,
+  multiplied by depth, array layers, exact format byte width, and sample count.
+- Backend buffer and texture wrappers MUST be constructed through the device
+  factory. Failed allocation or wrapper bookkeeping MUST NOT expose a usable
+  partial resource and MUST roll back temporary allocation ownership.
+- Host-visible fallback buffers MUST allocate CPU mirror storage only for the
+  uploaded range. Storage growth failure MUST return an explicit unavailable
+  result without throwing through the RHI call or corrupting earlier bytes.
+- Maintained tests MUST cover arithmetic overflow, budget integrity, unique and
+  foreign ownership rejection, exact texture footprints, sparse host upload,
+  and zero allocation accounting after shutdown.

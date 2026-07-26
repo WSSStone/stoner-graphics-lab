@@ -3,9 +3,11 @@
 #include "VulkanRHI/VulkanDevice.h"
 
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 namespace
 {
@@ -850,6 +852,156 @@ void TestResourceCreationAndAllocation(FVulkanBackendTestResult& Result)
     (void)LimitedDevice.Shutdown();
 }
 
+void TestAllocationOwnershipAndFootprints(
+    FVulkanBackendTestResult& Result)
+{
+    static_assert(
+        !std::is_copy_constructible_v<FVulkanResourceAllocation> &&
+        !std::is_copy_assignable_v<FVulkanResourceAllocation>,
+        "allocation ownership records must not be duplicated");
+    static_assert(
+        !std::is_copy_constructible_v<FVulkanMemoryAllocator> &&
+        !std::is_move_constructible_v<FVulkanMemoryAllocator>,
+        "allocator identity must remain stable for its full lifetime");
+    static_assert(!std::is_constructible_v<FVulkanBuffer,
+        const FRHIBufferDesc&, FVulkanResourceAllocation&&,
+        std::shared_ptr<FVulkanMemoryAllocator>>,
+        "buffers must be created through FVulkanDevice");
+    static_assert(!std::is_constructible_v<FVulkanTexture,
+        const FRHITextureDesc&, FVulkanResourceAllocation&&,
+        std::shared_ptr<FVulkanMemoryAllocator>>,
+        "textures must be created through FVulkanDevice");
+
+    FVulkanMemoryAllocator Owner;
+    FVulkanMemoryAllocator ForeignOwner;
+    const FRHIBufferDesc ThirtyTwoBytes = {
+        32, ERHIBufferUsage::Storage};
+    auto Owned = Owner.AllocateBuffer(ThirtyTwoBytes, true);
+    Record(Result, Owned.IsSuccessful() &&
+        ForeignOwner.Release(Owned) == ERHIResult::InvalidState &&
+        Owner.GetSnapshot().AllocatedBytes == 32 &&
+        Owner.GetSnapshot().LiveAllocationCount == 1,
+        "Vulkan allocation release rejects foreign allocator ownership");
+    Record(Result, Owner.Release(Owned) == ERHIResult::Success &&
+        Owner.Release(Owned) == ERHIResult::InvalidState &&
+        Owner.GetSnapshot().AllocatedBytes == 0 &&
+        Owner.GetSnapshot().LiveAllocationCount == 0,
+        "Vulkan move-only allocation ownership releases accounting once");
+
+    auto Stale = Owner.AllocateBuffer(ThirtyTwoBytes, true);
+    Owner.Reset();
+    Record(Result, Owner.Release(Stale) == ERHIResult::InvalidState &&
+        Owner.GetSnapshot().AllocatedBytes == 0 &&
+        Owner.GetSnapshot().LiveAllocationCount == 0,
+        "Vulkan allocator reset rejects stale ownership epochs");
+
+    FRHITextureDesc Multisampled = ValidTextureDesc();
+    Multisampled.Width = 4;
+    Multisampled.Height = 4;
+    Multisampled.SampleCount = ERHISampleCount::Four;
+    FRHITextureDesc WideFormat = Multisampled;
+    WideFormat.SampleCount = ERHISampleCount::One;
+    WideFormat.Format = ERHIFormat::R32G32B32_Float;
+    FRHITextureDesc MipChain = ValidTextureDesc();
+    MipChain.MipLevels = 4;
+
+    uint64 MultisampledBytes = 0;
+    uint64 WideFormatBytes = 0;
+    uint64 MipChainBytes = 0;
+    Record(Result,
+        FVulkanMemoryAllocator::TryEstimateTextureBytes(
+            Multisampled, MultisampledBytes) &&
+        FVulkanMemoryAllocator::TryEstimateTextureBytes(
+            WideFormat, WideFormatBytes) &&
+        FVulkanMemoryAllocator::TryEstimateTextureBytes(
+            MipChain, MipChainBytes) &&
+        MultisampledBytes == 256 && WideFormatBytes == 192 &&
+        MipChainBytes == 340,
+        "Vulkan texture footprints include format samples and mip extents");
+
+    FVulkanMemoryAllocator TextureBudget;
+    TextureBudget.ConfigureBudgetLimit(255);
+    auto RejectedMultisample =
+        TextureBudget.AllocateTexture(Multisampled, true);
+    TextureBudget.ConfigureBudgetLimit(256);
+    auto AcceptedMultisample =
+        TextureBudget.AllocateTexture(Multisampled, true);
+    Record(Result,
+        !RejectedMultisample.IsSuccessful() &&
+        RejectedMultisample.GetFailure() ==
+            EVulkanAllocationFailure::BudgetExceeded &&
+        AcceptedMultisample.IsSuccessful() &&
+        TextureBudget.GetSnapshot().AllocatedBytes == 256,
+        "Vulkan texture budget uses the checked physical footprint");
+    (void)TextureBudget.Release(AcceptedMultisample);
+
+    FRHITextureDesc Unrepresentable = ValidTextureDesc();
+    Unrepresentable.Dimension = ERHITextureDimension::Texture2DArray;
+    Unrepresentable.Width = std::numeric_limits<uint32>::max();
+    Unrepresentable.Height = std::numeric_limits<uint32>::max();
+    Unrepresentable.ArrayLayers = 2;
+    Unrepresentable.Format = ERHIFormat::R32G32B32_Float;
+    uint64 UnrepresentableBytes = 1;
+    auto RejectedTexture =
+        TextureBudget.AllocateTexture(Unrepresentable, true);
+    Record(Result,
+        !FVulkanMemoryAllocator::TryEstimateTextureBytes(
+            Unrepresentable, UnrepresentableBytes) &&
+        UnrepresentableBytes == 0 &&
+        !RejectedTexture.IsSuccessful() &&
+        RejectedTexture.GetFailure() ==
+            EVulkanAllocationFailure::ArithmeticOverflow,
+        "Vulkan texture footprint overflow is explicit and non-mutating");
+
+    FVulkanDevice OverflowDevice;
+    Record(Result,
+        InitializeDeterministic(OverflowDevice) == ERHIResult::Success,
+        "Vulkan allocation-overflow fixture initializes");
+    FRHIBufferDesc HugeBuffer = ValidBufferDesc();
+    HugeBuffer.SizeInBytes = std::numeric_limits<uint64>::max();
+    HugeBuffer.MemoryAccess = ERHIMemoryAccess::HostVisible;
+    const auto Huge = OverflowDevice.CreateBuffer(HugeBuffer);
+    FRHIBufferDesc TwoBytes = ValidBufferDesc();
+    TwoBytes.SizeInBytes = 2;
+    const auto Overflowed = OverflowDevice.CreateBuffer(TwoBytes);
+    Record(Result, Huge.Succeeded() &&
+        Overflowed.Result == ERHIResult::Unavailable &&
+        OverflowDevice.GetAllocationSnapshot().LastFailure ==
+            EVulkanAllocationFailure::ArithmeticOverflow &&
+        OverflowDevice.GetAllocationSnapshot().AllocatedBytes ==
+            std::numeric_limits<uint64>::max() &&
+        OverflowDevice.GetAllocationSnapshot().LiveAllocationCount == 1,
+        "Vulkan allocation accounting rejects overflow without mutation");
+
+    OverflowDevice.ConfigureAllocationBudget(2);
+    FRHIBufferDesc OneByte = ValidBufferDesc();
+    OneByte.SizeInBytes = 1;
+    Record(Result,
+        OverflowDevice.CreateBuffer(OneByte).Result ==
+            ERHIResult::Unavailable &&
+        OverflowDevice.GetAllocationSnapshot().LastFailure ==
+            EVulkanAllocationFailure::BudgetExceeded &&
+        OverflowDevice.GetAllocationSnapshot().AllocatedBytes ==
+            std::numeric_limits<uint64>::max(),
+        "Vulkan post-overflow budget checks cannot be bypassed");
+
+    auto HugeVulkanBuffer =
+        std::dynamic_pointer_cast<FVulkanBuffer>(Huge.Object);
+    const uint8 Byte = 0x5a;
+    Record(Result, HugeVulkanBuffer &&
+        HugeVulkanBuffer->Upload(&Byte, 1, 0) == ERHIResult::Success &&
+        HugeVulkanBuffer->GetUploadedBytes().size() == 1 &&
+        HugeVulkanBuffer->Upload(&Byte, 1,
+            std::numeric_limits<uint64>::max() - 1) ==
+            ERHIResult::Unavailable,
+        "Vulkan host upload grows sparsely and reports impossible storage");
+    (void)OverflowDevice.Shutdown();
+    Record(Result,
+        OverflowDevice.GetAllocationSnapshot().AllocatedBytes == 0 &&
+        OverflowDevice.GetAllocationSnapshot().LiveAllocationCount == 0,
+        "Vulkan shutdown releases extreme-size allocation accounting");
+}
+
 void TestCommandBuffersRecordingAndSubmission(FVulkanBackendTestResult& Result)
 {
     FVulkanDevice Device;
@@ -1119,6 +1271,7 @@ FVulkanBackendTestResult RunVulkanBackendTests()
     TestDrawDispatchPipelineDiagnostics(Result);
     TestPipelineCacheKeyAndStateValidation(Result);
     TestResourceCreationAndAllocation(Result);
+    TestAllocationOwnershipAndFootprints(Result);
     TestCommandBuffersRecordingAndSubmission(Result);
     TestRenderPassFramebufferRecordingAndUploads(Result);
     TestSamplersDescriptorsAndUploads(Result);
