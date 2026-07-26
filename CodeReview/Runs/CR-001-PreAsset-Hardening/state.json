@@ -93,7 +93,7 @@
       "status": "InProgress",
       "steps": [
         {
-          "commit": null,
+          "commit": "f1a8419",
           "completed_at": "2026-07-26T04:52:11+00:00",
           "evidence": [
             "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B02-value-identity-inspection.md",
@@ -1850,7 +1850,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "79be39b9b99df829bb787a45700f4d1763092ea5"
+    "last_recorded_head": "f1a841995fc1e55867494656c5b73588aea9a8b7"
   },
   "policy": {
     "fix_severities": [
