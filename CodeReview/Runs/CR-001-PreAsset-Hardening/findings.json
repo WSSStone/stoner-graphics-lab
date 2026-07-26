@@ -1134,6 +1134,12 @@
           "from": "Accepted",
           "note": "The surface-aware device compatibility overload now returns Unsupported with no object instead of forwarding only FramesInFlight to the headless factory. Base-reference tests cover valid and invalid descriptors and prove no false presentation object is created.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T10:07:41+00:00",
+          "from": "Fixed",
+          "note": "A same-source strict verifier compiled against exact parent 0e1ccf1 reproduces false surface-aware success (surface_fixed=0), while current code returns Unsupported with no object (surface_fixed=1). Parent header/test exports match Git blobs, fix scope is four expected files, no production call relies on the fallback, and fresh fallback-strict passes.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B03-F003",
@@ -1142,9 +1148,9 @@
       "requirement": "018-FR-003; 018-FR-009; 018-T012; triangle-demo-runtime-contract presentation contract",
       "resolution": "The surface-aware device compatibility overload now returns Unsupported with no object instead of forwarding only FramesInFlight to the headless factory. Base-reference tests cover valid and invalid descriptors and prove no false presentation object is created.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Surface-aware swapchain creation silently falls back to headless",
-      "verification": ""
+      "verification": "A same-source strict verifier compiled against exact parent 0e1ccf1 reproduces false surface-aware success (surface_fixed=0), while current code returns Unsupported with no object (surface_fixed=1). Parent header/test exports match Git blobs, fix scope is four expected files, no production call relies on the fallback, and fresh fallback-strict passes."
     },
     {
       "batch": "B03",
@@ -1170,6 +1176,12 @@
           "from": "Accepted",
           "note": "Synchronized swapchain compatibility defaults now fail closed; the mock swapchain explicitly validates before commit, and the mock queue preflights the complete wait/signal/fence set before any mutation. Regression tests prove failed acquire, present, wait, and signal paths preserve all observable states.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T10:07:50+00:00",
+          "from": "Fixed",
+          "note": "The same strict verifier reproduces all four parent partial-transition failures for compatibility acquire/present and mock queue wait/signal paths, then proves all four current operations preserve state on failure. Current Source/Tests match b29f466, 10 maintained assertions pass in a fresh 770-line strict suite, and retained ASan/UBSan evidence passes.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B03-F004",
@@ -1178,9 +1190,9 @@
       "requirement": "007-FR-005; 007-FR-009; 007-SC-003; 018-FR-009; triangle-demo-runtime-contract native frame order",
       "resolution": "Synchronized swapchain compatibility defaults now fail closed; the mock swapchain explicitly validates before commit, and the mock queue preflights the complete wait/signal/fence set before any mutation. Regression tests prove failed acquire, present, wait, and signal paths preserve all observable states.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Synchronization failures leave partial queue and swapchain transitions",
-      "verification": ""
+      "verification": "The same strict verifier reproduces all four parent partial-transition failures for compatibility acquire/present and mock queue wait/signal paths, then proves all four current operations preserve state on failure. Current Source/Tests match b29f466, 10 maintained assertions pass in a fresh 770-line strict suite, and retained ASan/UBSan evidence passes."
     },
     {
       "batch": "B03",
@@ -1206,6 +1218,12 @@
           "from": "Accepted",
           "note": "The explicit-clear command-buffer compatibility overload now returns Unsupported without delegating to a legacy render-pass method. A base-reference regression proves non-empty clears cannot return false success or invoke the legacy path; existing explicit-clear overrides continue to compile and pass.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-26T10:07:59+00:00",
+          "from": "Fixed",
+          "note": "The same legacy command-buffer verifier shows the exact parent delegates non-empty clear values and reports success (clear_fixed=0), while current code returns Unsupported without invoking the legacy method (clear_fixed=1). Production clear callers resolve to the Vulkan override, strict Debug/Release compile, and fresh deterministic coverage passes.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B03-F005",
@@ -1214,9 +1232,9 @@
       "requirement": "018-FR-008; 018-T008; 018-T012; triangle-demo-runtime-contract required command capabilities",
       "resolution": "The explicit-clear command-buffer compatibility overload now returns Unsupported without delegating to a legacy render-pass method. A base-reference regression proves non-empty clears cannot return false success or invoke the legacy path; existing explicit-clear overrides continue to compile and pass.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Clear-value render-pass overload can report success while discarding clears",
-      "verification": ""
+      "verification": "The same legacy command-buffer verifier shows the exact parent delegates non-empty clear values and reports success (clear_fixed=0), while current code returns Unsupported without invoking the legacy method (clear_fixed=1). Production clear callers resolve to the Vulkan override, strict Debug/Release compile, and fresh deterministic coverage passes."
     }
   ],
   "schema_version": 1
