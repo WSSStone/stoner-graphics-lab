@@ -158,6 +158,15 @@ void TestMatrix(FCoreMathTestResult& Result)
 
     FMatrix4x4 SingularInverse;
     Record(Result, !FMatrix4x4::Zero().TryInverse(SingularInverse), "FMatrix4x4 singular inverse fails deterministically");
+    FMatrix4x4 NonFiniteMatrix = FMatrix4x4::Identity();
+    NonFiniteMatrix.M[0][0] = std::numeric_limits<float>::quiet_NaN();
+    Record(
+        Result,
+        !FMatrix4x4::Zero().TryInverse(SingularInverse, -1.0f) &&
+            SingularInverse == FMatrix4x4::Identity() &&
+            !NonFiniteMatrix.TryInverse(SingularInverse) &&
+            SingularInverse == FMatrix4x4::Identity(),
+        "FMatrix4x4 inverse rejects invalid tolerance and non-finite input");
 }
 
 void TestQuat(FCoreMathTestResult& Result)
@@ -174,6 +183,32 @@ void TestQuat(FCoreMathTestResult& Result)
     const FQuat Scaled(0.0f, 0.0f, 2.0f, 0.0f);
     Record(Result, Near(Scaled.GetSafeNormal().Length(), 1.0f), "FQuat safe normalization produces unit quaternion");
     Record(Result, FQuat(0.0f, 0.0f, 0.0f, 0.0f).GetSafeNormal() == FQuat::Identity(), "FQuat zero safe normalization returns identity");
+    const float MaxFloat = std::numeric_limits<float>::max();
+    const FQuat Huge(MaxFloat, 0.0f, 0.0f, MaxFloat);
+    Record(
+        Result,
+        Near(Huge.GetSafeNormal().Length(), 1.0f) &&
+            !(Huge.GetSafeNormal() == FQuat::Identity()),
+        "FQuat safe normalization preserves large finite rotations");
+    Record(
+        Result,
+        (Huge * Huge.Inversed()).GetSafeNormal().NearlyEquals(FQuat::Identity()),
+        "FQuat inverse remains stable for large finite components");
+    const FQuat NegativeQuarterTurn(
+        -QuarterTurn.X,
+        -QuarterTurn.Y,
+        -QuarterTurn.Z,
+        -QuarterTurn.W);
+    Record(Result, QuarterTurn.NearlyEquals(NegativeQuarterTurn), "FQuat near equality accepts equivalent negated rotations");
+    Record(
+        Result,
+        FQuat(std::numeric_limits<float>::infinity(), 0.0f, 0.0f, 1.0f)
+                .RotateVector(FVector3::UnitX()) == FVector3::UnitX() &&
+            FQuat::Identity().GetSafeNormal(-1.0f) == FQuat::Identity() &&
+            FQuat::FromAxisAngle(
+                FVector3::UnitZ(),
+                std::numeric_limits<float>::infinity()) == FQuat::Identity(),
+        "FQuat invalid numeric inputs use deterministic identity fallback");
 
     const FVector3 MatrixRotated = QuarterTurn.ToMatrix().TransformVector(UnitX);
     Record(Result, Near(MatrixRotated, QuarterTurn.RotateVector(UnitX)), "FQuat matrix-compatible rotation matches quaternion rotation");
@@ -190,7 +225,12 @@ void TestTransform(FCoreMathTestResult& Result)
         FVector3(2.0f, 2.0f, 2.0f));
     Record(Result, Near(Transform.TransformPoint(Point), FVector3(10.0f, 2.0f, 0.0f)), "FTransform transforms points with scale rotation translation");
     Record(Result, Near(Transform.TransformVector(Point), FVector3(0.0f, 2.0f, 0.0f)), "FTransform transforms directions without translation");
-    Record(Result, Near((Transform * FTransform::Identity()).TransformPoint(Point), Transform.TransformPoint(Point)), "FTransform composition with identity preserves transform");
+    FTransform Composed;
+    Record(
+        Result,
+        Transform.TryCompose(FTransform::Identity(), Composed) &&
+            Near(Composed.TransformPoint(Point), Transform.TransformPoint(Point)),
+        "FTransform exact composition with identity preserves transform");
 
     FTransform Inverse;
     const bool bInvertible = Transform.TryInverse(Inverse);
@@ -199,6 +239,44 @@ void TestTransform(FCoreMathTestResult& Result)
     FTransform InvalidInverse;
     const FTransform NonInvertible(FVector3::Zero(), FQuat::Identity(), FVector3(0.0f, 1.0f, 1.0f));
     Record(Result, !NonInvertible.TryInverse(InvalidInverse), "FTransform zero scale inverse fails deterministically");
+    Record(
+        Result,
+        !NonInvertible.TryInverse(InvalidInverse, -1.0f) &&
+            InvalidInverse.Translation == FVector3::Zero(),
+        "FTransform inverse rejects invalid tolerance without non-finite output");
+
+    const FTransform NonUniform(
+        FVector3(2.0f, -1.0f, 3.0f),
+        FQuat::FromAxisAngle(FVector3::UnitZ(), 0.7f),
+        FVector3(2.0f, 3.0f, 4.0f));
+    const FTransform RotatedChild(
+        FVector3(1.0f, 2.0f, -1.0f),
+        FQuat::FromAxisAngle(FVector3::UnitY(), -0.4f),
+        FVector3(1.5f, 0.5f, 2.0f));
+    Record(
+        Result,
+        !NonUniform.TryCompose(RotatedChild, Composed) &&
+            !NonUniform.TryInverse(InvalidInverse),
+        "FTransform rejects affine shear that editable TRS cannot represent");
+
+    const FTransform AxisAlignedNonUniform(
+        FVector3(2.0f, -1.0f, 3.0f),
+        FQuat::Identity(),
+        FVector3(2.0f, 3.0f, 4.0f));
+    Record(
+        Result,
+        AxisAlignedNonUniform.TryInverse(Inverse) &&
+            Near(Inverse.TransformPoint(AxisAlignedNonUniform.TransformPoint(Point)), Point),
+        "FTransform preserves exact axis-aligned non-uniform inverse");
+    const FTransform AxisSwapNonUniform(
+        FVector3::Zero(),
+        FQuat::FromAxisAngle(FVector3::UnitZ(), FMath::HalfPi),
+        FVector3(2.0f, 3.0f, 4.0f));
+    Record(
+        Result,
+        AxisSwapNonUniform.TryInverse(Inverse) &&
+            Near(Inverse.TransformPoint(AxisSwapNonUniform.TransformPoint(Point)), Point),
+        "FTransform accepts representable rotated non-uniform inverse");
 }
 
 void TestColorAndGeometry(FCoreMathTestResult& Result)
@@ -235,11 +313,27 @@ void TestColorAndGeometry(FCoreMathTestResult& Result)
     FBox OtherBox(FVector3(10.0f, 0.0f, 0.0f), FVector3(11.0f, 1.0f, 1.0f));
     Box.Combine(OtherBox);
     Record(Result, Box.Contains(FVector3(11.0f, 1.0f, 1.0f)), "FBox combines another valid box");
+    const float MaxFloat = std::numeric_limits<float>::max();
+    FBox ExtremeBox(FVector3(MaxFloat, MaxFloat, MaxFloat), FVector3(MaxFloat, MaxFloat, MaxFloat));
+    Record(
+        Result,
+        ExtremeBox.GetCenter() == FVector3(MaxFloat, MaxFloat, MaxFloat) &&
+            ExtremeBox.GetExtent() == FVector3::Zero(),
+        "FBox center and extent remain finite at float extrema");
+    FBox InvalidPointBox;
+    InvalidPointBox.AddPoint(FVector3(std::numeric_limits<float>::infinity(), 0.0f, 0.0f));
+    Record(Result, !InvalidPointBox.IsValid(), "FBox rejects non-finite points");
 
     const FSphere Sphere(FVector3::Zero(), 2.0f);
     Record(Result, Sphere.IsValid() && Sphere.Contains(FVector3(2.0f, 0.0f, 0.0f)), "FSphere contains boundary point");
     Record(Result, !FSphere(FVector3::Zero(), -1.0f).IsValid(), "FSphere negative radius is invalid");
     Record(Result, !Sphere.Contains(FVector3(3.0f, 0.0f, 0.0f)), "FSphere rejects outside point");
+    Record(
+        Result,
+        !FSphere(FVector3::Zero(), std::numeric_limits<float>::infinity()).IsValid() &&
+            !FSphere(FVector3::Zero(), 1.0e20f).Contains(FVector3(MaxFloat, 0.0f, 0.0f)) &&
+            !Sphere.Contains(FVector3::Zero(), -1.0f),
+        "FSphere rejects non-finite radius invalid tolerance and overflow-prone far points");
 
     const FPlane Plane = FPlane::FromPointNormal(FVector3(0.0f, 0.0f, 2.0f), FVector3::UnitZ());
     Record(Result, Plane.IsValid() && Near(Plane.SignedDistanceTo(FVector3(0.0f, 0.0f, 5.0f)), 3.0f), "FPlane signed distance works");
@@ -248,6 +342,20 @@ void TestColorAndGeometry(FCoreMathTestResult& Result)
     Record(Result, Plane.ClassifyPoint(FVector3(0.0f, 0.0f, 2.0f + 0.5f * FMath::DefaultTolerance)) == EPlaneClassification::On, "FPlane classifies near-plane point as on plane");
     Record(Result, FPlane::FromPoints(FVector3::Zero(), FVector3::UnitX(), FVector3::UnitY()).IsValid(), "FPlane constructs from non-degenerate points");
     Record(Result, !FPlane::FromPoints(FVector3::Zero(), FVector3::UnitX(), FVector3(2.0f, 0.0f, 0.0f)).IsValid(), "FPlane degenerate point construction fails deterministically");
+    const FPlane ScaledEquation(FVector3(0.0f, 0.0f, 2.0f), 2.0f);
+    Record(
+        Result,
+        ScaledEquation.IsValid() &&
+            Near(ScaledEquation.SignedDistanceTo(FVector3(0.0f, 0.0f, 1.0f)), 0.0f),
+        "FPlane normalizes normal and distance equation coefficients together");
+    Record(
+        Result,
+        ScaledEquation.ClassifyPoint(FVector3(0.0f, 0.0f, 2.0f), -1.0f) ==
+                EPlaneClassification::On &&
+            !FPlane(
+                FVector3::UnitZ(),
+                std::numeric_limits<float>::infinity()).IsValid(),
+        "FPlane rejects invalid tolerance and non-finite coefficients deterministically");
 }
 
 void TestAggregateIsolationAndDiagnostics(FCoreMathTestResult& Result)

@@ -8,6 +8,9 @@ namespace Stoner::Core
 
 // Unit quaternions represent right-handed rotations. Composition follows the
 // Hamilton product; `A * B` applies B first, then A, when rotating vectors.
+// Safe normalization and inversion return Identity for non-finite components,
+// invalid tolerances, or near-zero magnitudes. A quaternion and its negation
+// compare as the same rotation through NearlyEquals.
 struct FQuat
 {
     float X = 0.0f;
@@ -31,6 +34,11 @@ struct FQuat
 
     [[nodiscard]] static FQuat FromAxisAngle(const FVector3& Axis, float Radians) noexcept
     {
+        if (!FMath::IsFinite(Radians))
+        {
+            return Identity();
+        }
+
         const FVector3 NormalizedAxis = Axis.GetSafeNormal();
         if (NormalizedAxis == FVector3::Zero())
         {
@@ -67,19 +75,35 @@ struct FQuat
 
     [[nodiscard]] float Length() const noexcept
     {
-        return FMath::Sqrt(LengthSquared());
+        return std::hypot(std::hypot(X, Y), std::hypot(Z, W));
     }
 
     [[nodiscard]] FQuat GetSafeNormal(float Tolerance = FMath::DefaultTolerance) const noexcept
     {
-        const float SquareLength = LengthSquared();
-        if (SquareLength <= Tolerance * Tolerance)
+        if (!IsFinite() || !FMath::IsFinite(Tolerance) || Tolerance < 0.0f)
         {
             return Identity();
         }
 
-        const float InvLength = 1.0f / FMath::Sqrt(SquareLength);
-        return FQuat(X * InvLength, Y * InvLength, Z * InvLength, W * InvLength);
+        const float Scale = FMath::Max(
+            FMath::Max(FMath::Abs(X), FMath::Abs(Y)),
+            FMath::Max(FMath::Abs(Z), FMath::Abs(W)));
+        if (Scale == 0.0f)
+        {
+            return Identity();
+        }
+
+        const FQuat Scaled(X / Scale, Y / Scale, Z / Scale, W / Scale);
+        const float ScaledLength = Scaled.Length();
+        if (Scale <= Tolerance / ScaledLength)
+        {
+            return Identity();
+        }
+        return FQuat(
+            Scaled.X / ScaledLength,
+            Scaled.Y / ScaledLength,
+            Scaled.Z / ScaledLength,
+            Scaled.W / ScaledLength);
     }
 
     [[nodiscard]] FQuat Normalized(float Tolerance = FMath::DefaultTolerance) const noexcept
@@ -94,25 +118,41 @@ struct FQuat
 
     [[nodiscard]] FQuat Inversed(float Tolerance = FMath::DefaultTolerance) const noexcept
     {
-        const float SquareLength = LengthSquared();
-        if (SquareLength <= Tolerance * Tolerance)
+        if (!IsFinite() || !FMath::IsFinite(Tolerance) || Tolerance < 0.0f)
         {
             return Identity();
         }
 
-        const FQuat Conjugate = Conjugated();
+        const float Scale = FMath::Max(
+            FMath::Max(FMath::Abs(X), FMath::Abs(Y)),
+            FMath::Max(FMath::Abs(Z), FMath::Abs(W)));
+        if (Scale == 0.0f)
+        {
+            return Identity();
+        }
+
+        const FQuat Scaled(X / Scale, Y / Scale, Z / Scale, W / Scale);
+        const float ScaledSquareLength = Scaled.LengthSquared();
+        const float ScaledLength = FMath::Sqrt(ScaledSquareLength);
+        if (Scale <= Tolerance / ScaledLength)
+        {
+            return Identity();
+        }
+
+        const float InverseFactor = (1.0f / Scale) / ScaledSquareLength;
+        const FQuat Conjugate = Scaled.Conjugated();
         return FQuat(
-            Conjugate.X / SquareLength,
-            Conjugate.Y / SquareLength,
-            Conjugate.Z / SquareLength,
-            Conjugate.W / SquareLength);
+            Conjugate.X * InverseFactor,
+            Conjugate.Y * InverseFactor,
+            Conjugate.Z * InverseFactor,
+            Conjugate.W * InverseFactor);
     }
 
     [[nodiscard]] FVector3 RotateVector(const FVector3& Vector) const noexcept
     {
         const FQuat NormalizedSelf = GetSafeNormal();
         const FQuat VectorQuat(Vector.X, Vector.Y, Vector.Z, 0.0f);
-        const FQuat Rotated = NormalizedSelf * VectorQuat * NormalizedSelf.Inversed();
+        const FQuat Rotated = NormalizedSelf * VectorQuat * NormalizedSelf.Conjugated();
         return FVector3(Rotated.X, Rotated.Y, Rotated.Z);
     }
 
@@ -140,10 +180,23 @@ struct FQuat
         const FQuat& Other,
         float Tolerance = FMath::DefaultTolerance) const noexcept
     {
-        return FMath::IsNearlyEqual(X, Other.X, Tolerance) &&
+        const bool bDirect = FMath::IsNearlyEqual(X, Other.X, Tolerance) &&
             FMath::IsNearlyEqual(Y, Other.Y, Tolerance) &&
             FMath::IsNearlyEqual(Z, Other.Z, Tolerance) &&
             FMath::IsNearlyEqual(W, Other.W, Tolerance);
+        const bool bNegated = FMath::IsNearlyEqual(X, -Other.X, Tolerance) &&
+            FMath::IsNearlyEqual(Y, -Other.Y, Tolerance) &&
+            FMath::IsNearlyEqual(Z, -Other.Z, Tolerance) &&
+            FMath::IsNearlyEqual(W, -Other.W, Tolerance);
+        return bDirect || bNegated;
+    }
+
+    [[nodiscard]] bool IsFinite() const noexcept
+    {
+        return FMath::IsFinite(X) &&
+            FMath::IsFinite(Y) &&
+            FMath::IsFinite(Z) &&
+            FMath::IsFinite(W);
     }
 };
 

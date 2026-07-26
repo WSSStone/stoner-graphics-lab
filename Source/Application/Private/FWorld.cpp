@@ -25,13 +25,6 @@ std::atomic<Stoner::Core::uint32> GNextSceneWorldId{1};
     return std::find(Entities.begin(), Entities.end(), Entity) != Entities.end();
 }
 
-[[nodiscard]] bool IsZeroScale(const Stoner::Core::FTransform& Transform)
-{
-    return Stoner::Core::FMath::IsNearlyZero(Transform.Scale.X) ||
-        Stoner::Core::FMath::IsNearlyZero(Transform.Scale.Y) ||
-        Stoner::Core::FMath::IsNearlyZero(Transform.Scale.Z);
-}
-
 void AppendTransform(std::ostringstream& Stream, const Stoner::Core::FTransform& Transform)
 {
     Stream << std::fixed << std::setprecision(3)
@@ -341,6 +334,40 @@ ESceneResult FWorld::SetParent(FEntity Child, FEntity Parent, EReparentTransform
 
     Stoner::Core::FTransform OriginalWorld = Stoner::Core::FTransform::Identity();
     const bool bHasOriginalWorld = ComputeWorldTransform(Child, OriginalWorld);
+    Stoner::Core::FTransform ParentWorld = Stoner::Core::FTransform::Identity();
+    const bool bHasParentWorld = ComputeWorldTransform(Parent, ParentWorld);
+    Stoner::Core::FTransform ProspectiveLocal = ChildSlot->bHasTransform
+        ? ChildSlot->Transform.LocalTransform
+        : Stoner::Core::FTransform::Identity();
+
+    if (ChildSlot->bHasTransform)
+    {
+        bool bTransformRepresentable =
+            !ParentSlot->bHasTransform || bHasParentWorld;
+        if (Preservation == EReparentTransformPreservation::PreserveWorld)
+        {
+            bTransformRepresentable = bTransformRepresentable &&
+                bHasOriginalWorld &&
+                (!bHasParentWorld || OriginalWorld.TryRelativeTo(ParentWorld, ProspectiveLocal));
+        }
+        else if (bTransformRepresentable && bHasParentWorld)
+        {
+            Stoner::Core::FTransform ProspectiveWorld;
+            bTransformRepresentable =
+                ParentWorld.TryCompose(ChildSlot->Transform.LocalTransform, ProspectiveWorld);
+        }
+
+        if (!bTransformRepresentable)
+        {
+            AddDiagnostic(ESceneDiagnosticSeverity::Error,
+                ESceneDiagnosticCategory::Hierarchy,
+                ESceneResult::InvalidHierarchyOperation,
+                "SCENE-HIERARCHY-TRANSFORM-UNREPRESENTABLE",
+                Child,
+                "Hierarchy change would require shear that editable TRS cannot represent");
+            return ESceneResult::InvalidHierarchyOperation;
+        }
+    }
 
     if (ChildSlot->Parent.IsSet())
     {
@@ -354,19 +381,9 @@ ESceneResult FWorld::SetParent(FEntity Child, FEntity Parent, EReparentTransform
     ChildSlot->Parent = Parent;
     Slots[Parent.SlotIndex].Children.push_back(Child);
 
-    if (Preservation == EReparentTransformPreservation::PreserveWorld && ChildSlot->bHasTransform && bHasOriginalWorld)
+    if (Preservation == EReparentTransformPreservation::PreserveWorld && ChildSlot->bHasTransform)
     {
-        Stoner::Core::FTransform ParentWorld = Stoner::Core::FTransform::Identity();
-        (void)ComputeWorldTransform(Parent, ParentWorld);
-        Stoner::Core::FTransform ParentInverse;
-        if (!IsZeroScale(ParentWorld) && ParentWorld.TryInverse(ParentInverse))
-        {
-            ChildSlot->Transform.LocalTransform = ParentInverse * OriginalWorld;
-        }
-        else
-        {
-            ChildSlot->Transform.LocalTransform = OriginalWorld;
-        }
+        ChildSlot->Transform.LocalTransform = ProspectiveLocal;
         ChildSlot->Transform.bWorldTransformValid = false;
     }
     return ESceneResult::Success;
@@ -393,6 +410,19 @@ ESceneResult FWorld::Unparent(FEntity Child, EReparentTransformPreservation Pres
 
     Stoner::Core::FTransform OriginalWorld = Stoner::Core::FTransform::Identity();
     const bool bHasOriginalWorld = ComputeWorldTransform(Child, OriginalWorld);
+    if (Preservation == EReparentTransformPreservation::PreserveWorld &&
+        ChildSlot->bHasTransform &&
+        !bHasOriginalWorld)
+    {
+        AddDiagnostic(ESceneDiagnosticSeverity::Error,
+            ESceneDiagnosticCategory::Hierarchy,
+            ESceneResult::InvalidHierarchyOperation,
+            "SCENE-HIERARCHY-TRANSFORM-UNREPRESENTABLE",
+            Child,
+            "Unparent would require an unavailable exact world transform");
+        return ESceneResult::InvalidHierarchyOperation;
+    }
+
     RemoveChildReference(ChildSlot->Parent, Child);
     ChildSlot->Parent = FEntity::Invalid();
     InsertRootSorted(Child);
@@ -546,12 +576,20 @@ bool FWorld::ComputeWorldTransform(FEntity Entity, Stoner::Core::FTransform& Out
 
     if (Slot->Parent.IsSet())
     {
-        Stoner::Core::FTransform ParentWorld = Stoner::Core::FTransform::Identity();
-        if (ComputeWorldTransform(Slot->Parent, ParentWorld))
+        const FEntitySlot* ParentSlot = GetSlot(Slot->Parent);
+        if (ParentSlot != nullptr && !ParentSlot->bHasTransform)
         {
-            OutWorldTransform = ParentWorld * Slot->Transform.LocalTransform;
+            OutWorldTransform = Slot->Transform.LocalTransform;
             return true;
         }
+
+        Stoner::Core::FTransform ParentWorld = Stoner::Core::FTransform::Identity();
+        if (!ComputeWorldTransform(Slot->Parent, ParentWorld))
+        {
+            OutWorldTransform = Stoner::Core::FTransform::Identity();
+            return false;
+        }
+        return ParentWorld.TryCompose(Slot->Transform.LocalTransform, OutWorldTransform);
     }
 
     OutWorldTransform = Slot->Transform.LocalTransform;

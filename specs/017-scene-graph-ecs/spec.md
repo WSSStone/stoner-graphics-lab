@@ -16,6 +16,14 @@
 - Q: What ordering key should transform propagation and subtree operations use? → A: Topological ordering: parents before children, roots in creation order, siblings in insertion order; world transforms and recursive destroy/reparent walks follow this order.
 - Q: What ordering key should render collection use? → A: Within each category, renderables, lights, and cameras are emitted in ascending entity identity order by slot index then generation; optional sort keys may reorder, but entity identity is the final tie-breaker.
 
+### CR Amendment 2026-07-26
+
+- A translation/rotation/scale value cannot represent affine shear introduced
+  by some rotated non-uniform-scale hierarchies. A hierarchy mutation that
+  would require such an exact result returns `InvalidHierarchyOperation` and
+  leaves the prior hierarchy and local transform unchanged; it MUST NOT report
+  success with an approximate transform.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Create and Manage Scene Entities (Priority: P1)
@@ -50,6 +58,7 @@ An application developer can organize entities into parent-child relationships a
 3. **Given** an existing hierarchy, **When** an entity is reparented to another valid parent with the default behavior, **Then** the entity preserves its world transform and its local transform is recalculated relative to the new parent.
 4. **Given** an existing hierarchy, **When** an entity is reparented with local-transform preservation requested, **Then** the local transform remains unchanged and the world transform is recomputed from the new parent chain.
 5. **Given** a request that would create a parent cycle, **When** the hierarchy change is attempted, **Then** the request is rejected and the previous hierarchy remains intact.
+6. **Given** a hierarchy change whose exact world or local result would require affine shear, **When** the change is attempted, **Then** it fails with `InvalidHierarchyOperation` and leaves hierarchy and transform state unchanged.
 
 ---
 
@@ -96,6 +105,7 @@ An application developer receives stable diagnostics for invalid entities, dupli
 - Reparenting is requested with default world-transform preservation and with explicit local-transform preservation.
 - A hierarchy operation attempts to parent an entity to itself or to one of its descendants.
 - Local transforms contain zero or non-uniform scale.
+- Rotated non-uniform-scale composition would require shear outside the editable TRS representation.
 - Render collection encounters an entity with a mesh component but no transform component.
 - Render collection encounters invalid light range, negative intensity, invalid camera near/far relationship, or missing mesh identity.
 - Multiple renderable entities, lights, or cameras have identical optional sort keys or names; ascending entity identity remains the final tie-breaker.
@@ -121,7 +131,7 @@ An application developer receives stable diagnostics for invalid entities, dupli
 - **FR-004**: System MUST support attaching, reading, explicitly updating, explicitly replacing, and removing transform, mesh, light, and camera components on live entities.
 - **FR-005**: System MUST reject duplicate component add requests for single-instance component types, preserve the existing component unchanged, and report invalid entity, missing component, duplicate component, invalid component data, and unsupported operation outcomes with stable result statuses or diagnostics.
 - **FR-006**: System MUST support local transforms for entities and world transforms derived from parent-child relationships.
-- **FR-007**: System MUST allow entities to be parented, unparented, and reparented while preserving a deterministic hierarchy state; reparenting MUST preserve world transform by default and MUST provide an explicit option to preserve local transform instead.
+- **FR-007**: System MUST allow entities to be parented, unparented, and reparented while preserving a deterministic hierarchy state; reparenting MUST preserve world transform by default and MUST provide an explicit option to preserve local transform instead. If exact preservation or propagation would require affine shear outside the editable TRS representation, the operation MUST return `InvalidHierarchyOperation` without hierarchy or transform mutation.
 - **FR-008**: System MUST reject hierarchy changes that would create cycles, self-parenting, or references to invalid parent or child entities.
 - **FR-009**: System MUST define deterministic transform propagation and subtree operation ordering as topological order: parents before children, roots in creation order, and siblings in insertion order, independent of the internal storage layout.
 - **FR-010**: System MUST provide mesh scene data that can identify renderable objects without requiring ownership of live graphics resources.

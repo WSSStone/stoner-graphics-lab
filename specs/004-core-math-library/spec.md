@@ -60,6 +60,7 @@ A maintainer needs confidence that math behavior remains consistent across Windo
 - Zero vectors must behave predictably when length, normalization, and near-equality are queried.
 - Matrix and transform identity values must preserve input points, vectors, colors, and orientations where applicable.
 - Singular or non-invertible matrices must fail or report invalid inverse operations deterministically without corrupting unrelated values.
+- TRS composition, inverse, or relative conversion that would require shear MUST report failure without returning an approximate transform.
 - Quaternion operations must handle identity rotations, near-zero length inputs, repeated composition, and equivalent rotations consistently.
 - Floating-point comparisons must account for tiny precision differences without hiding meaningful errors.
 - Colors with out-of-range channels, transparent values, opaque values, and byte/float conversion boundaries must be handled consistently.
@@ -82,7 +83,7 @@ A maintainer needs confidence that math behavior remains consistent across Windo
 - **FR-001**: The system MUST provide Core vector values for 2D, 3D, and 4D floating-point quantities with arithmetic, component access, comparison, length, normalization, dot product, and cross product behavior where mathematically applicable.
 - **FR-002**: The system MUST provide a 4x4 matrix value that supports identity construction, multiplication, transpose, inverse handling, and point/vector transformation.
 - **FR-003**: The system MUST provide a quaternion value for rotations, including identity rotation, construction from common rotation inputs, normalization, multiplication/composition, and conversion to or from matrix-compatible rotation behavior.
-- **FR-004**: The system MUST provide a transform value that combines translation, rotation, and scale and can transform points and directions predictably.
+- **FR-004**: The system MUST provide a transform value that combines translation, rotation, and scale and can transform points and directions predictably; composition, inverse, and relative conversion MUST expose deterministic failure when the exact affine result cannot be represented by translation, rotation, and scale alone.
 - **FR-005**: The system MUST provide math utilities for common scalar operations, including clamp, min, max, absolute value, interpolation, degree/radian conversion, trigonometric helpers, square root, and near-equality comparison.
 - **FR-006**: The system MUST provide color values for floating-point and byte channel use cases with predictable channel ordering, construction, comparison, and conversion behavior.
 - **FR-007**: The system MUST provide basic geometric primitives for boxes, spheres, and planes with construction, validity, containment, combination, and classification behavior appropriate to each primitive.

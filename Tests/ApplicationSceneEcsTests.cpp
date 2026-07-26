@@ -145,6 +145,46 @@ void TestHierarchy(FApplicationSceneEcsTestResult& Result)
             NearTransformPosition(WorldTransform, 27.0f, 0.0f, 0.0f),
         "Scene reparent can preserve local transform explicitly");
 
+    const FEntity NonUniformParent = World.CreateEntity();
+    const FEntity RotatedChild = World.CreateEntity();
+    const FTransform NonUniformParentTransform(
+        FVector3::Zero(),
+        FQuat::FromAxisAngle(FVector3::UnitZ(), 0.7f),
+        FVector3(2.0f, 3.0f, 4.0f));
+    const FTransform RotatedChildTransform(
+        FVector3(1.0f, 2.0f, -1.0f),
+        FQuat::FromAxisAngle(FVector3::UnitY(), -0.4f),
+        FVector3(1.5f, 0.5f, 2.0f));
+    (void)World.AddTransform(NonUniformParent, FTransformComponent(NonUniformParentTransform));
+    (void)World.AddTransform(RotatedChild, FTransformComponent(RotatedChildTransform));
+    Record(
+        Result,
+        World.SetParent(RotatedChild, NonUniformParent) ==
+                ESceneResult::InvalidHierarchyOperation &&
+            World.GetParent(RotatedChild) == FEntity::Invalid() &&
+            World.GetTransform(RotatedChild)->LocalTransform.Translation ==
+                RotatedChildTransform.Translation,
+        "Scene rejects unrepresentable preserve-world reparent without hierarchy mutation");
+
+    const FEntity AxisAlignedParent = World.CreateEntity();
+    const FEntity AxisAlignedChild = World.CreateEntity();
+    (void)World.AddTransform(
+        AxisAlignedParent,
+        FTransformComponent(FTransform(
+            FVector3::Zero(),
+            FQuat::Identity(),
+            FVector3(2.0f, 3.0f, 4.0f))));
+    (void)World.AddTransform(AxisAlignedChild, TransformAt(1.0f, 1.0f, 1.0f));
+    Record(
+        Result,
+        World.SetParent(
+            AxisAlignedChild,
+            AxisAlignedParent,
+            EReparentTransformPreservation::PreserveLocal) == ESceneResult::Success &&
+            World.TryGetWorldTransform(AxisAlignedChild, WorldTransform) &&
+            NearTransformPosition(WorldTransform, 2.0f, 3.0f, 4.0f),
+        "Scene supports representable axis-aligned non-uniform hierarchy transforms");
+
     const FEntity Parent = World.CreateEntity();
     const FEntity Leaf = World.CreateEntity();
     (void)World.SetParent(Leaf, Parent, EReparentTransformPreservation::PreserveLocal);
