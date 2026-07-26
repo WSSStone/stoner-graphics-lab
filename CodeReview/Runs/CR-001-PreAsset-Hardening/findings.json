@@ -314,7 +314,7 @@
     },
     {
       "batch": "B02",
-      "commit": "",
+      "commit": "e077419",
       "created_at": "2026-07-26T05:47:18+00:00",
       "deferred_target": "",
       "evidence": "A C++20 Debug and Release probe with finite A=FLT_MAX and B=-FLT_MAX produces NaN at Alpha=0 and -infinity at Alpha=1 instead of A and B.",
@@ -330,21 +330,27 @@
           "from": "Triaged",
           "note": "The data model explicitly requires endpoint preservation; use an overflow-resistant C++20 interpolation primitive and add extreme finite endpoint tests in B02-S08.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T05:59:17+00:00",
+          "from": "Accepted",
+          "note": "Replaced overflow-prone interpolation arithmetic with C++20 std::lerp and added opposite-FLT_MAX endpoint and midpoint regressions.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B02-F004",
       "impact": "Endpoint interpolation can turn valid finite values into non-finite results, breaking the documented scalar invariant and propagating invalid values into future animation, color, and rendering interpolation.",
       "location": "Source/Core/Public/Core/FMath.h:44",
       "requirement": "004 data-model interpolation endpoints, FR-005, FR-011, and User Story 1 require predictable interpolation and boundary coverage",
-      "resolution": "",
+      "resolution": "Replaced overflow-prone interpolation arithmetic with C++20 std::lerp and added opposite-FLT_MAX endpoint and midpoint regressions.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Lerp violates finite endpoint guarantees through intermediate overflow",
       "verification": ""
     },
     {
       "batch": "B02",
-      "commit": "",
+      "commit": "e077419",
       "created_at": "2026-07-26T05:47:19+00:00",
       "deferred_target": "",
       "evidence": "Debug and Release probes normalize axis vectors with FLT_MAX components; FVector2, FVector3, and FVector4 all return zero vectors because LengthSquared overflows before division.",
@@ -360,21 +366,27 @@
           "from": "Triaged",
           "note": "Repair all three vector dimensions with scale-resistant normalization and verify large finite axis/diagonal cases in B02-S08.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T05:59:17+00:00",
+          "from": "Accepted",
+          "note": "Changed vector length to overflow-resistant hypot and safe normalization to finite-validated, scale-resistant normalization across FVector2/3/4, with large-axis and diagonal tests.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B02-F005",
       "impact": "Valid finite directions can be erased, corrupting planes, light directions, camera-facing data, and any downstream operation that relies on normalized vectors.",
       "location": "Source/Core/Public/Core/FVector2.h:86",
       "requirement": "004-FR-001, FR-011, Vector validation rules, and T013 require correct safe normalization for finite vectors and boundary inputs",
-      "resolution": "",
+      "resolution": "Changed vector length to overflow-resistant hypot and safe normalization to finite-validated, scale-resistant normalization across FVector2/3/4, with large-axis and diagonal tests.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Safe vector normalization collapses large finite directions to zero",
       "verification": ""
     },
     {
       "batch": "B02",
-      "commit": "",
+      "commit": "e077419",
       "created_at": "2026-07-26T05:47:20+00:00",
       "deferred_target": "",
       "evidence": "The claimed infinity test only queries IsFinite on one component; public normalization emits NaN, negative tolerance rejects self-equality, and NaN color channels silently convert to 255, while public comments define none of these policies.",
@@ -390,15 +402,21 @@
           "from": "Triaged",
           "note": "Define deterministic invalid tolerance, non-finite normalization, and non-finite color conversion policies in public comments and replace the vacuous test with behavioral coverage in B02-S08.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-26T05:59:18+00:00",
+          "from": "Accepted",
+          "note": "Documented and enforced finite non-negative near tolerances, Zero fallback for invalid vector normalization, and deterministic NaN/infinity color conversion; replaced nominal checks with behavioral coverage.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B02-F006",
       "impact": "Callers and optimized implementations have no stable invalid-input contract, and the green suite cannot detect non-finite propagation or cross-platform policy drift.",
       "location": "Tests/CoreMathTests.cpp:75",
       "requirement": "004 edge case 68, FR-011, FR-012, T013, and T040 require documented and verified NaN/infinity and invalid-input behavior",
-      "resolution": "",
+      "resolution": "Documented and enforced finite non-negative near tolerances, Zero fallback for invalid vector normalization, and deterministic NaN/infinity color conversion; replaced nominal checks with behavioral coverage.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Invalid numeric math contract and verification are missing",
       "verification": ""
     }
