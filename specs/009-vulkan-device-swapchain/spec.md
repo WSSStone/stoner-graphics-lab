@@ -15,6 +15,12 @@
 - Q: How much queue submission behavior belongs in this phase before real command buffer recording exists? → A: Implement queue creation and wait-idle; submission must explicitly reject missing or non-executable command buffers until the command recording phase.
 - Q: What should be the canonical presentation input for surface and swapchain creation? → A: Use the existing Core platform window wrapper as the canonical presentation input; null or invalid handles must be rejected explicitly.
 
+### CR-001 Amendment 2026-07-26
+
+- Runtime truthfulness: `FVulkanDevice` defaults to a real-runtime request. Until it owns native Vulkan instance/device resources, that request MUST return explicit unsupported status; deterministic fallback is test-only, requires explicit opt-in, and MUST be distinguishable in diagnostics and backend availability.
+- Adapter identity: candidate names, rejection reasons, and the selected identity MUST be owned values. Empty or null source identities MUST be rejected before deterministic ordering.
+- Format truthfulness: every adapter candidate MUST carry a concrete supported-format set. Device capability queries and resource factories MUST consume the selected candidate's same set rather than a backend-wide default.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Initialize a Usable Vulkan Backend Device (Priority: P1)
@@ -124,8 +130,11 @@ An engine developer can repeatedly create and destroy the Vulkan backend device 
 
 - **FR-001**: System MUST allow a developer to request initialization of the Vulkan backend and receive an explicit success, unsupported, invalid-state, or failed result.
 - **FR-002**: System MUST discover available graphics adapters, reject candidates that fail required capability gates, and select one compatible adapter using deterministic scoring that prefers discrete GPUs, stronger queue support, presentation support, and required formats.
+- **FR-002a**: System MUST own adapter identity and rejection data, reject empty identities before scoring, and keep selection deterministic without borrowing caller storage.
 - **FR-003**: System MUST expose selected device capabilities through the existing RHI capability model, including queue support, presentation support, synchronization support, supported frame count limits, and supported formats.
+- **FR-003a**: System MUST derive public supported formats and format-gated resource creation from the same concrete format set retained by the selected adapter.
 - **FR-004**: System MUST create an active backend device only when all required initialization steps complete successfully.
+- **FR-004a**: System MUST require explicit opt-in for deterministic fallback and MUST NOT report that fallback as an available real Vulkan runtime.
 - **FR-005**: System MUST reject or cleanly fail initialization when required runtime support, required extensions, compatible adapters, or required queue capabilities are unavailable.
 - **FR-005a**: System MUST request validation support in debug/development environments when available, and MUST report missing validation support diagnostically without failing backend device initialization.
 - **FR-006**: System MUST expose graphics, compute, transfer, and present queue availability according to the selected device capabilities.

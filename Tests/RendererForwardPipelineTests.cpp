@@ -314,6 +314,7 @@ void TestForwardFrameExecution(FRendererForwardPipelineTestResult& Result)
 
     FVulkanDevice Device;
     FVulkanInstanceDesc InstanceDesc;
+    InstanceDesc.RuntimeMode = EVulkanInstanceRuntimeMode::DeterministicFallback;
     InstanceDesc.bRequestValidation = false;
     Record(Result, Device.Initialize(InstanceDesc) == ERHIResult::Success,
         "Forward executor deterministic device initializes");

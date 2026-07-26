@@ -5,6 +5,20 @@
 
 This contract describes the expected behavior of the Vulkan backend device and swapchain slice. Exact function signatures are finalized during implementation while preserving these observable behaviors and keeping Renderer/Application-facing interactions on RHI/Core abstractions.
 
+## CR-001 Runtime Truthfulness Amendment
+
+- The default `FVulkanDevice` request means real runtime ownership. It returns
+  explicit unsupported status until this abstraction owns native Vulkan
+  instance/device resources; native execution remains proven by
+  `FVulkanNativeContext` in the current architecture.
+- Deterministic fallback is an explicit opt-in test mode. It may expose an
+  active deterministic device, but its availability and runtime diagnostics
+  must never equal those of a real runtime.
+- Adapter names, rejection reasons, and selected identity are owned values.
+  Empty identities fail the required gate before deterministic ordering.
+- Each adapter carries a concrete supported-format set. Public device
+  capabilities and format-gated factories use that exact selected set.
+
 ## Backend Initialization Contract
 
 Required behavior:
@@ -14,6 +28,7 @@ Required behavior:
 - Unsupported environments return explicit unsupported or failed status within the success criteria window.
 - Partial initialization failures leave no usable backend instance, device, queue, surface, sync object, or swapchain.
 - Diagnostics expose whether optional development validation was enabled, unavailable, or disabled.
+- Diagnostics distinguish real runtime, deterministic fallback, and unsupported real-runtime requests.
 
 Negative-path requirements:
 
@@ -31,6 +46,7 @@ Required behavior:
 - Compatible candidates receive deterministic scores.
 - Selection prefers discrete GPUs, stronger queue support, presentation support, and required formats.
 - The selected adapter identity and reason are available for diagnostics.
+- Selected identity and rejection data remain stable after caller-owned discovery storage changes or is destroyed.
 
 Negative-path requirements:
 
@@ -42,6 +58,7 @@ Negative-path requirements:
 Required behavior:
 
 - Device exposes RHI-visible capabilities for queue support, presentation support, synchronization support, frame count limits, and supported formats.
+- Device format capabilities and resource acceptance are derived from the same selected-adapter format set.
 - Device creates supported queues, fences, semaphores, and swapchains.
 - Device can shut down cleanly.
 - Device rejects new creation requests after shutdown with invalid-state.
@@ -120,6 +137,8 @@ Negative-path requirements:
 Required coverage:
 
 - Supported headless backend initialization, capability query, and shutdown.
+- Default real-runtime rejection until `FVulkanDevice` owns native resources, plus explicit deterministic-fallback initialization and diagnostics.
+- Owned/null-safe adapter identity and selected-adapter-specific format acceptance/rejection.
 - Unsupported runtime or no compatible adapter.
 - Deterministic adapter selection with at least one rejected candidate and one selected candidate.
 - Queue creation success and unsupported queue rejection.

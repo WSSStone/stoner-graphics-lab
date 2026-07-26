@@ -110,7 +110,9 @@ struct FExecutionFixture
 
     bool Initialize(const FDeferredFramePlan& Plan)
     {
-        if (Device.Initialize() != ERHIResult::Success)
+        FVulkanInstanceDesc InstanceDesc;
+        InstanceDesc.RuntimeMode = EVulkanInstanceRuntimeMode::DeterministicFallback;
+        if (Device.Initialize(InstanceDesc) != ERHIResult::Success)
         {
             return false;
         }

@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <memory>
+#include <string>
 #include <string_view>
 
 namespace
@@ -72,6 +73,18 @@ void Record(FVulkanBackendTestResult& Result, bool bPassed, const char* Name)
     return {Name, Type, bGate, Queues, bPresentation, Formats, 0, ""};
 }
 
+[[nodiscard]] FVulkanInstanceDesc MakeDeterministicInstanceDesc()
+{
+    FVulkanInstanceDesc Desc;
+    Desc.RuntimeMode = EVulkanInstanceRuntimeMode::DeterministicFallback;
+    return Desc;
+}
+
+[[nodiscard]] ERHIResult InitializeDeterministic(FVulkanDevice& Device)
+{
+    return Device.Initialize(MakeDeterministicInstanceDesc());
+}
+
 void TestAdapterSelection(FVulkanBackendTestResult& Result)
 {
     TArray<FVulkanAdapterCandidate> Candidates = {
@@ -81,15 +94,48 @@ void TestAdapterSelection(FVulkanBackendTestResult& Result)
     };
 
     const FVulkanAdapterSelection Selection = SelectBestAdapter(Candidates);
-    Record(Result, Selection.bSucceeded && std::string_view(Selection.Selected.Name) == "Discrete", "Vulkan deterministic adapter selection");
-    Record(Result, !Selection.Candidates[1].bPassesRequiredGate && Selection.Candidates[1].Score < 0 && Selection.Candidates[1].RejectionReason[0] != '\0', "Vulkan rejected adapter diagnostics");
+    Record(Result, Selection.bSucceeded && Selection.Selected.Name.View() == "Discrete", "Vulkan deterministic adapter selection");
+    Record(Result, !Selection.Candidates[1].bPassesRequiredGate && Selection.Candidates[1].Score < 0 &&
+        !Selection.Candidates[1].RejectionReason.IsEmpty(), "Vulkan rejected adapter diagnostics");
+
+    std::string MutableName = "CallerOwnedName";
+    const FVulkanAdapterSelection OwnedSelection = SelectBestAdapter({
+        MakeCandidate(MutableName.c_str(), EVulkanPhysicalDeviceType::Discrete, true,
+            {true, true, true, false}, false, {true, true}),
+    });
+    MutableName[0] = 'X';
+    Record(Result, OwnedSelection.bSucceeded && OwnedSelection.Selected.Name.View() == "CallerOwnedName",
+        "Vulkan selected adapter identity owns its storage");
+
+    const FVulkanAdapterSelection NullSafeSelection = SelectBestAdapter({
+        MakeCandidate(nullptr, EVulkanPhysicalDeviceType::Discrete, true,
+            {true, true, true, false}, false, {true, true}),
+        MakeCandidate("Named", EVulkanPhysicalDeviceType::Discrete, true,
+            {true, true, true, false}, false, {true, true}),
+    });
+    Record(Result, NullSafeSelection.bSucceeded && NullSafeSelection.Selected.Name.View() == "Named" &&
+        NullSafeSelection.Candidates[0].Score < 0 &&
+        !NullSafeSelection.Candidates[0].RejectionReason.IsEmpty(),
+        "Vulkan null adapter identity is rejected without crashing");
 }
 
 void TestInitialization(FVulkanBackendTestResult& Result)
 {
+    FVulkanDevice RealDevice;
+    const ERHIResult RealResult = RealDevice.Initialize();
+    Record(Result, RealResult == ERHIResult::Unsupported && !RealDevice.IsActive() &&
+        !RealDevice.GetDiagnostics().bUsedRuntimeFallback &&
+        RealDevice.GetDiagnostics().Availability == EVulkanBackendAvailability::UnsupportedRuntime &&
+        RealDevice.GetDiagnostics().RuntimeModeReason[0] != '\0',
+        "Vulkan default device requires an integrated real runtime");
+
     FVulkanDevice Device;
-    const ERHIResult InitResult = Device.Initialize();
-    Record(Result, InitResult == ERHIResult::Success && Device.IsActive(), "Vulkan headless backend initialization");
+    const ERHIResult InitResult = InitializeDeterministic(Device);
+    Record(Result, InitResult == ERHIResult::Success && Device.IsActive() &&
+        Device.GetDiagnostics().bUsedRuntimeFallback &&
+        Device.GetDiagnostics().Availability == EVulkanBackendAvailability::DeterministicFallback &&
+        Device.GetDiagnostics().RuntimeModeReason[0] != '\0',
+        "Vulkan explicit deterministic backend initialization");
     Record(Result, Device.GetCapabilities().bSupportsGraphicsQueue && Device.GetCapabilities().bSupportsSynchronization &&
         Device.GetCapabilities().SupportsFormat(ERHIFormat::B8G8R8A8_UNorm), "Vulkan selected device capabilities");
 
@@ -98,27 +144,44 @@ void TestInitialization(FVulkanBackendTestResult& Result)
     FVulkanDevice UnsupportedDevice;
     Record(Result, UnsupportedDevice.Initialize(UnsupportedDesc) == ERHIResult::Unsupported && !UnsupportedDevice.IsActive(), "Vulkan unsupported runtime is explicit");
 
-    FVulkanInstanceDesc NoAdapterDesc;
+    FVulkanInstanceDesc NoAdapterDesc = MakeDeterministicInstanceDesc();
     NoAdapterDesc.SyntheticCandidates = {
         MakeCandidate("NoGraphics", EVulkanPhysicalDeviceType::Integrated, true, {false, true, true, false}, false, {true, true}),
     };
     FVulkanDevice NoAdapterDevice;
     Record(Result, NoAdapterDevice.Initialize(NoAdapterDesc) == ERHIResult::Unsupported && !NoAdapterDevice.IsActive(), "Vulkan no-compatible-adapter unsupported result");
 
-    FVulkanInstanceDesc ValidationDesc;
+    FVulkanInstanceDesc ValidationDesc = MakeDeterministicInstanceDesc();
     ValidationDesc.bForceValidationUnavailable = true;
     FVulkanDevice ValidationDevice;
     Record(Result, ValidationDevice.Initialize(ValidationDesc) == ERHIResult::Success &&
         ValidationDevice.GetDiagnostics().Validation == EVulkanValidationState::RequestedUnavailable, "Vulkan validation unavailable is diagnostic");
 
+    FVulkanInstanceDesc ColorOnlyDesc = MakeDeterministicInstanceDesc();
+    ColorOnlyDesc.SyntheticCandidates = {
+        MakeCandidate("ColorOnly", EVulkanPhysicalDeviceType::Integrated, true,
+            {true, true, true, false}, false, {true, false}),
+    };
+    FVulkanDevice ColorOnlyDevice;
+    FRHITextureDesc DepthTexture;
+    DepthTexture.Width = 4;
+    DepthTexture.Height = 4;
+    DepthTexture.Format = ERHIFormat::D32_Float;
+    DepthTexture.Usage = ERHITextureUsage::DepthStencilAttachment;
+    Record(Result, ColorOnlyDevice.Initialize(ColorOnlyDesc) == ERHIResult::Success &&
+        !ColorOnlyDevice.GetCapabilities().SupportsFormat(ERHIFormat::D32_Float) &&
+        ColorOnlyDevice.CreateTexture(DepthTexture).Result == ERHIResult::Unsupported,
+        "Vulkan selected adapter formats constrain capabilities and factories");
+
     (void)Device.Shutdown();
     (void)ValidationDevice.Shutdown();
+    (void)ColorOnlyDevice.Shutdown();
 }
 
 void TestQueues(FVulkanBackendTestResult& Result)
 {
     FVulkanDevice Device;
-    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan queue fixture device initializes");
+    Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan queue fixture device initializes");
 
     const auto GraphicsQueue = Device.CreateCommandQueue(ERHIQueueType::Graphics);
     const auto ComputeQueue = Device.CreateCommandQueue(ERHIQueueType::Compute);
@@ -133,7 +196,7 @@ void TestQueues(FVulkanBackendTestResult& Result)
     auto CompletedCommand = MakeShared<FCompletedCommandBuffer>();
     Record(Result, GraphicsQueue.Object && GraphicsQueue.Object->Submit(CompletedCommand) == ERHIResult::InvalidState, "Vulkan queue rejects foreign executable command buffer");
 
-    FVulkanInstanceDesc LimitedDesc;
+    FVulkanInstanceDesc LimitedDesc = MakeDeterministicInstanceDesc();
     LimitedDesc.SyntheticCandidates = {
         MakeCandidate("Limited", EVulkanPhysicalDeviceType::Integrated, true, {true, false, true, false}, false, {true, true}),
     };
@@ -149,7 +212,7 @@ void TestQueues(FVulkanBackendTestResult& Result)
 void TestSurfaceSwapchain(FVulkanBackendTestResult& Result)
 {
     FVulkanDevice Device;
-    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan swapchain fixture device initializes");
+    Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan swapchain fixture device initializes");
 
     FVulkanSurface Surface;
     FPlatformWindow InvalidWindow;
@@ -204,7 +267,7 @@ void TestSurfaceSwapchain(FVulkanBackendTestResult& Result)
 void TestSynchronization(FVulkanBackendTestResult& Result)
 {
     FVulkanDevice Device;
-    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan sync fixture device initializes");
+    Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan sync fixture device initializes");
 
     const auto UnsignaledFence = Device.CreateFence(false);
     const auto SignaledFence = Device.CreateFence(true);
@@ -235,7 +298,7 @@ void TestLifecycleAndFactoryState(FVulkanBackendTestResult& Result)
 {
     for (int Index = 0; Index < 3; ++Index)
     {
-        const auto DeviceResult = CreateVulkanDevice();
+        const auto DeviceResult = CreateVulkanDevice(MakeDeterministicInstanceDesc());
         Record(Result, DeviceResult.Succeeded(), "Vulkan repeated create cycle");
         if (DeviceResult.Object)
         {
@@ -369,7 +432,7 @@ void TestLifecycleAndFactoryState(FVulkanBackendTestResult& Result)
 void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
 {
     FVulkanDevice Device;
-    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan shader pipeline fixture device initializes");
+    Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan shader pipeline fixture device initializes");
 
     const auto Layout = Device.CreatePipelineLayout(ResourceLayoutDesc());
     const auto Vertex = Device.CreateShaderModule(ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "vs_payload"));
@@ -451,7 +514,7 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
         TransferCommand.Object->BindComputePipeline(ComputePipeline.Object) == ERHIResult::Unsupported, "Vulkan command buffer binds compute pipeline and rejects transfer queue binding");
 
     FVulkanDevice LimitedDevice;
-    Record(Result, LimitedDevice.Initialize() == ERHIResult::Success, "Vulkan pipeline limit fixture initializes");
+    Record(Result, InitializeDeterministic(LimitedDevice) == ERHIResult::Success, "Vulkan pipeline limit fixture initializes");
     LimitedDevice.ConfigurePipelineCreationLimit(1);
     const auto LimitedLayout = LimitedDevice.CreatePipelineLayout(ResourceLayoutDesc());
     const auto LimitedVS = LimitedDevice.CreateShaderModule(ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "limit_vs"));
@@ -471,7 +534,7 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
 void TestDrawDispatchPipelineDiagnostics(FVulkanBackendTestResult& Result)
 {
     FVulkanDevice Device;
-    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan draw/dispatch diagnostics fixture device initializes");
+    Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan draw/dispatch diagnostics fixture device initializes");
 
     const auto Layout = Device.CreatePipelineLayout(ResourceLayoutDesc());
     const auto Vertex = Device.CreateShaderModule(ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "vs_diag"));
@@ -529,7 +592,7 @@ void TestDrawDispatchPipelineDiagnostics(FVulkanBackendTestResult& Result)
 void TestPipelineCacheKeyAndStateValidation(FVulkanBackendTestResult& Result)
 {
     FVulkanDevice Device;
-    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan pipeline cache/state fixture device initializes");
+    Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan pipeline cache/state fixture device initializes");
 
     const auto Layout = Device.CreatePipelineLayout(ResourceLayoutDesc());
     const auto Vertex = Device.CreateShaderModule(ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "vs_cache"));
@@ -567,7 +630,7 @@ void TestPipelineCacheKeyAndStateValidation(FVulkanBackendTestResult& Result)
 void TestResourceCreationAndAllocation(FVulkanBackendTestResult& Result)
 {
     FVulkanDevice Device;
-    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan resource fixture device initializes");
+    Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan resource fixture device initializes");
 
     const auto Buffer = Device.CreateBuffer(ValidBufferDesc());
     const auto Texture = Device.CreateTexture(ValidTextureDesc());
@@ -590,7 +653,7 @@ void TestResourceCreationAndAllocation(FVulkanBackendTestResult& Result)
         Device.CreateTexture(InvalidTexture).Result == ERHIResult::Unsupported, "Vulkan invalid buffer and texture descriptions are rejected");
 
     FVulkanDevice LimitedDevice;
-    Record(Result, LimitedDevice.Initialize() == ERHIResult::Success, "Vulkan allocation-limit fixture initializes");
+    Record(Result, InitializeDeterministic(LimitedDevice) == ERHIResult::Success, "Vulkan allocation-limit fixture initializes");
     LimitedDevice.ConfigureAllocationBudget(16);
     Record(Result, LimitedDevice.CreateBuffer(ValidBufferDesc()).Result == ERHIResult::Unavailable &&
         LimitedDevice.GetAllocationSnapshot().LastFailure == EVulkanAllocationFailure::BudgetExceeded, "Vulkan allocation budget failure is deterministic");
@@ -611,7 +674,7 @@ void TestResourceCreationAndAllocation(FVulkanBackendTestResult& Result)
 void TestCommandBuffersRecordingAndSubmission(FVulkanBackendTestResult& Result)
 {
     FVulkanDevice Device;
-    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan command fixture device initializes");
+    Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan command fixture device initializes");
 
     Device.ConfigureCommandBufferCapacity(2);
     const auto FirstCommand = Device.CreateCommandBuffer(ERHIQueueType::Graphics);
@@ -660,7 +723,7 @@ void TestCommandBuffersRecordingAndSubmission(FVulkanBackendTestResult& Result)
     Record(Result, Queue.Object->Submit(ComputeCommand.Object) == ERHIResult::Unsupported, "Vulkan queue rejects incompatible command buffer submission");
 
     FVulkanDevice InjectionDevice;
-    Record(Result, InjectionDevice.Initialize() == ERHIResult::Success, "Vulkan fallback injection fixture initializes");
+    Record(Result, InitializeDeterministic(InjectionDevice) == ERHIResult::Success, "Vulkan fallback injection fixture initializes");
     InjectionDevice.ConfigureFallbackCompletionInjection({true, false});
     const auto InjectedQueue = InjectionDevice.CreateCommandQueue(ERHIQueueType::Graphics);
     const auto InjectedCommand = InjectionDevice.CreateCommandBuffer(ERHIQueueType::Graphics);
@@ -688,7 +751,7 @@ void TestCommandBuffersRecordingAndSubmission(FVulkanBackendTestResult& Result)
 void TestRenderPassFramebufferRecordingAndUploads(FVulkanBackendTestResult& Result)
 {
     FVulkanDevice Device;
-    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan render pass command fixture initializes");
+    Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan render pass command fixture initializes");
 
     const auto RenderPass = Device.CreateRenderPass(ValidRenderPassDesc());
     const auto Texture = Device.CreateTexture(ValidColorAttachmentTextureDesc());
@@ -808,7 +871,7 @@ void TestRenderPassFramebufferRecordingAndUploads(FVulkanBackendTestResult& Resu
 void TestSamplersDescriptorsAndUploads(FVulkanBackendTestResult& Result)
 {
     FVulkanDevice Device;
-    Record(Result, Device.Initialize() == ERHIResult::Success, "Vulkan descriptor fixture device initializes");
+    Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan descriptor fixture device initializes");
 
     const auto Buffer = Device.CreateBuffer(ValidBufferDesc());
     const auto Texture = Device.CreateTexture(ValidTextureDesc());

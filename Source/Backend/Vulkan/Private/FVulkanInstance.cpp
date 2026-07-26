@@ -48,7 +48,6 @@ Stoner::RHI::ERHIResult FVulkanInstance::Initialize(const FVulkanInstanceDesc& D
 
     Diagnostics = {};
     Diagnostics.bValidationRequested = Desc.bRequestValidation;
-    Diagnostics.bUsedRuntimeFallback = true;
 #if defined(STONER_VULKAN_SDK_AVAILABLE) && STONER_VULKAN_SDK_AVAILABLE
     Diagnostics.bUsedSdkHeaders = true;
 #endif
@@ -59,6 +58,19 @@ Stoner::RHI::ERHIResult FVulkanInstance::Initialize(const FVulkanInstanceDesc& D
         AdapterSelection = {};
         return Stoner::RHI::ERHIResult::Unsupported;
     }
+
+    if (Desc.RuntimeMode == EVulkanInstanceRuntimeMode::RealRuntime)
+    {
+        MarkRuntimeMode(Diagnostics,
+            "FVulkanDevice does not own a native Vulkan runtime; use FVulkanNativeContext");
+        MarkUnsupportedRuntime(Diagnostics,
+            "real Vulkan runtime is not integrated with FVulkanDevice");
+        AdapterSelection = {};
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
+
+    Diagnostics.bUsedRuntimeFallback = true;
+    MarkRuntimeMode(Diagnostics, "explicit deterministic Vulkan fallback selected");
 
     if (Desc.bRequestValidation)
     {
@@ -79,12 +91,12 @@ Stoner::RHI::ERHIResult FVulkanInstance::Initialize(const FVulkanInstanceDesc& D
     if (!AdapterSelection.bSucceeded)
     {
         Diagnostics.Availability = EVulkanBackendAvailability::MissingRequiredCapability;
-        Diagnostics.UnsupportedRuntimeReason = AdapterSelection.Reason;
+        Diagnostics.UnsupportedRuntimeReason = AdapterSelection.Reason.CStr();
         return Stoner::RHI::ERHIResult::Unsupported;
     }
 
     bInitialized = true;
-    MarkSelectedAdapter(Diagnostics, AdapterSelection.Reason);
+    MarkSelectedAdapter(Diagnostics, AdapterSelection.Reason.CStr());
     return Stoner::RHI::ERHIResult::Success;
 }
 

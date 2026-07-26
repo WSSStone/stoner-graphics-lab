@@ -848,7 +848,7 @@ void FVulkanDevice::MapCapabilities(const FVulkanAdapterCandidate& Adapter)
     Capabilities.MaxInFlightFrames = 3;
     Capabilities.MaxCommandBuffersPerQueue = 0;
     Capabilities.MaxQueuesPerType = 1;
-    Capabilities.SupportedFormats = GetDefaultVulkanSupportedFormats();
+    Capabilities.SupportedFormats = Adapter.Formats.GetSupportedFormats();
 }
 
 bool FVulkanDevice::SupportsBufferDesc(const Stoner::RHI::FRHIBufferDesc& Desc) noexcept

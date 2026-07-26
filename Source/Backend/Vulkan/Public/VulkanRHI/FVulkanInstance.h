@@ -7,8 +7,15 @@
 namespace Stoner::Backend::Vulkan
 {
 
+enum class EVulkanInstanceRuntimeMode
+{
+    RealRuntime,
+    DeterministicFallback
+};
+
 struct FVulkanInstanceDesc
 {
+    EVulkanInstanceRuntimeMode RuntimeMode = EVulkanInstanceRuntimeMode::RealRuntime;
     bool bRequestValidation = true;
     bool bForceUnsupportedRuntime = false;
     bool bForceValidationUnavailable = false;

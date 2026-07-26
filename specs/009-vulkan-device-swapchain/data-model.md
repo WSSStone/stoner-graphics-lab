@@ -13,11 +13,14 @@ This feature introduces Vulkan backend runtime entities that implement existing 
 
 **Values**:
 - Available
+- DeterministicFallback
 - UnsupportedRuntime
 - MissingRequiredCapability
 - FailedInitialization
 
 **Rules**:
+- Available means native runtime ownership has actually been established.
+- DeterministicFallback requires explicit caller opt-in and is never equivalent to Available.
 - Unsupported runtime is a valid test outcome on machines without Vulkan or presentation support.
 - Failed partial initialization must leave no usable backend device.
 
@@ -43,6 +46,7 @@ Ready -> ResizeRequired
 **Purpose**: Represents initialized backend runtime state needed before device selection.
 
 **Fields / Properties**:
+- Requested runtime mode: RealRuntime or DeterministicFallback.
 - Runtime availability.
 - Requested validation state.
 - Enabled validation state.
@@ -54,6 +58,8 @@ Ready -> ResizeRequired
 - Precedes backend device creation.
 
 **Validation Rules**:
+- RealRuntime is the default request and cannot become Ready through synthetic adapter data.
+- DeterministicFallback is test-only, explicit, and observable in availability and diagnostics.
 - Required runtime support must be available before adapter selection can produce a usable device.
 - Missing validation support is diagnostic, not fatal.
 
@@ -62,12 +68,12 @@ Ready -> ResizeRequired
 **Purpose**: Represents one discoverable graphics adapter before selection.
 
 **Fields / Properties**:
-- Adapter identity for diagnostics.
+- Owned, non-empty adapter identity for diagnostics.
 - Device type classification.
 - Required capability gate result.
 - Queue support summary.
 - Presentation support summary.
-- Format support summary.
+- Concrete supported-format set.
 - Deterministic suitability score.
 - Rejection reason when unsuitable.
 
@@ -76,6 +82,8 @@ Ready -> ResizeRequired
 - One selected candidate becomes the backend device source.
 
 **Validation Rules**:
+- Empty adapter identity fails the required capability gate before ordering.
+- Candidate and selected identity/rejection values never borrow caller storage.
 - Candidates that fail required capability gates cannot be selected.
 - Compatible candidates are sorted deterministically by score, with discrete GPU preference and queue/presentation/format support considered.
 
@@ -99,6 +107,7 @@ Ready -> ResizeRequired
 
 **Validation Rules**:
 - Device is Ready only after all required initialization steps complete.
+- Public format capabilities and format-gated factories consume the selected adapter's same concrete format set.
 - Device shutdown invalidates or releases owned backend objects.
 - Creation requests after shutdown return invalid-state.
 
