@@ -95,3 +95,39 @@
 - Resolution: Added a representability guard before aligned-allocation overhead arithmetic, retained checked padding in address alignment, documented public alignment/pairing rules, and added overflow-boundary regressions.
 - Verification: Verified at remote head 365fdb9: Windows/macOS/Linux strict headless tests, three-platform strict Release, Linux ASan+UBSan, Linux Lavapipe native/readback, and CR tools all pass; local Core is 62/0 and the focused probe changed from non-null/1 to null/0.
 - Commit: `60689e1`
+
+## CR001-B02-F004: Lerp violates finite endpoint guarantees through intermediate overflow
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 004 data-model interpolation endpoints, FR-005, FR-011, and User Story 1 require predictable interpolation and boundary coverage
+- Location: `Source/Core/Public/Core/FMath.h:44`
+- Impact: Endpoint interpolation can turn valid finite values into non-finite results, breaking the documented scalar invariant and propagating invalid values into future animation, color, and rendering interpolation.
+- Evidence: A C++20 Debug and Release probe with finite A=FLT_MAX and B=-FLT_MAX produces NaN at Alpha=0 and -infinity at Alpha=1 instead of A and B.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B02-F005: Safe vector normalization collapses large finite directions to zero
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 004-FR-001, FR-011, Vector validation rules, and T013 require correct safe normalization for finite vectors and boundary inputs
+- Location: `Source/Core/Public/Core/FVector2.h:86`
+- Impact: Valid finite directions can be erased, corrupting planes, light directions, camera-facing data, and any downstream operation that relies on normalized vectors.
+- Evidence: Debug and Release probes normalize axis vectors with FLT_MAX components; FVector2, FVector3, and FVector4 all return zero vectors because LengthSquared overflows before division.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B02-F006: Invalid numeric math contract and verification are missing
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 004 edge case 68, FR-011, FR-012, T013, and T040 require documented and verified NaN/infinity and invalid-input behavior
+- Location: `Tests/CoreMathTests.cpp:75`
+- Impact: Callers and optimized implementations have no stable invalid-input contract, and the green suite cannot detect non-finite propagation or cross-platform policy drift.
+- Evidence: The claimed infinity test only queries IsFinite on one component; public normalization emits NaN, negative tolerance rejects self-equality, and NaN color channels silently convert to 255, while public comments define none of these policies.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
