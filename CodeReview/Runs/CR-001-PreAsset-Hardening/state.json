@@ -1,9 +1,9 @@
 {
-  "active_step": "B00-S02",
+  "active_step": "B01-S01",
   "batches": [
     {
       "id": "B00",
-      "status": "InProgress",
+      "status": "Completed",
       "steps": [
         {
           "commit": "ec1f85a",
@@ -19,13 +19,17 @@
           "title": "Framework and Draft PR"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "57073e1",
+          "completed_at": "2026-07-26T02:49:43+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/baseline-summary.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/baseline.json",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/remote-ci-bootstrap.json"
+          ],
           "id": "B00-S02",
-          "note": "",
+          "note": "Rebuilt CodeGraph to 100% coverage of 308 project C/C++ files; captured Debug/Release and remote CI baselines; retained 33 warnings and intermittent Feature 019 native validation as accepted findings.",
           "started_at": "2026-07-25T15:56:34+00:00",
-          "status": "InProgress",
+          "status": "Completed",
           "title": "Baseline and CodeGraph"
         }
       ],
@@ -463,6 +467,11 @@
       "at": "2026-07-26T02:48:23+00:00",
       "detail": "triage finding",
       "kind": "finding"
+    },
+    {
+      "at": "2026-07-26T02:49:43+00:00",
+      "detail": "B00-S02",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -526,7 +535,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "e5bd56c9d83f09944fd69561bc97c480b69cd152"
+    "last_recorded_head": "57073e1996fa29e150706e82e76b2477b8a3a149"
   },
   "policy": {
     "fix_severities": [
@@ -546,5 +555,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T02:48:23+00:00"
+  "updated_at": "2026-07-26T02:49:43+00:00"
 }

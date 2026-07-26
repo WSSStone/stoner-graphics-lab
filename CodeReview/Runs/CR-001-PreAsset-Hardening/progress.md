@@ -1,15 +1,15 @@
 # CR-001 Progress
 
 - Status: Active
-- Completed steps: 1/32
+- Completed steps: 2/32
 - Baseline: `9092a97593fb29cffbffdbe534e3dda143f463a5`
-- Recorded HEAD: `e5bd56c9d83f09944fd69561bc97c480b69cd152`
-- Active step: B00-S02
+- Recorded HEAD: `57073e1996fa29e150706e82e76b2477b8a3a149`
+- Active step: B01-S01
 - Open findings: 2
 
 ## Batches
 
-- B00 Bootstrap: InProgress
+- B00 Bootstrap: Completed
 - B01 Build, CI, and Architecture: Pending
 - B02 Core Features 003-006: Pending
 - B03 RHI Features 007-008: Pending
