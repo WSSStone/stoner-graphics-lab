@@ -2792,7 +2792,7 @@
     },
     {
       "batch": "B06",
-      "commit": "",
+      "commit": "10c3c5c",
       "created_at": "2026-07-27T07:10:06+00:00",
       "deferred_target": "",
       "evidence": "BuildForwardRenderGraphDeclaration adds every accepted draw's material ResourceRequirements to the resource list, but the pass loop never emits read accesses from opaque or transparent passes to those material resources. Existing tests only assert the final output exists and do not verify AlbedoTexture/material resource access declarations.",
@@ -2808,15 +2808,21 @@
           "from": "Triaged",
           "note": "Accepted S2: material resources are declared but no opaque/transparent pass read access edges are emitted, so graph-compatible declarations do not fully represent material dependencies.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T07:19:17+00:00",
+          "from": "Accepted",
+          "note": "BuildForwardRenderGraphDeclaration now emits deduplicated Read access declarations for material resource requirements consumed by opaque and transparent forward passes; RendererForwardPipelineTests covers both pass categories. Debug build passed, the new regression passed in graphics-enabled StonerTest, and fallback-strict gate passed.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B06-F006",
       "impact": "A valid forward frame can claim material textures/resources exist in the declaration while giving graph consumers no pass/resource dependency edge, allowing future execution/culling/import validation to miss required material reads.",
       "location": "Source/Renderer/Private/FForwardRenderGraphDeclaration.cpp:139; Tests/RendererForwardPipelineTests.cpp:164",
       "requirement": "Feature 015 FR-013, data model, and forward rendering contract require material resource requirements to be represented as render graph-compatible declarations with access declarations matching pass/resource relationships.",
-      "resolution": "",
+      "resolution": "BuildForwardRenderGraphDeclaration now emits deduplicated Read access declarations for material resource requirements consumed by opaque and transparent forward passes; RendererForwardPipelineTests covers both pass categories. Debug build passed, the new regression passed in graphics-enabled StonerTest, and fallback-strict gate passed.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Forward graph declarations omit material resource access edges",
       "verification": ""
     }
