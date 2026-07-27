@@ -2834,7 +2834,7 @@
     },
     {
       "batch": "B07",
-      "commit": "",
+      "commit": "89c8e0e",
       "created_at": "2026-07-27T07:27:10+00:00",
       "deferred_target": "",
       "evidence": "FApplicationLoop::Run calls Window.PollEvents() and then InputManager.PollFrame(...), but never queues Window.PollInputEvents() into the input manager. GLFW callbacks append keyboard, mouse, pointer, scroll, and focus-loss records to driver InputEvents, and those records are only exposed through ConsumeInputEvents()/FWindow::PollInputEvents().",
@@ -2850,21 +2850,27 @@
           "from": "Triaged",
           "note": "Accepted for B07 fix. The normal application loop must bridge driver input events into FInputManager before PollFrame; current tests only cover manual PollInputEvents, leaving the loop contract unverified for real driver input.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T07:36:04+00:00",
+          "from": "Accepted",
+          "note": "FApplicationLoop now queues Window.PollInputEvents() into FInputManager before PollFrame so driver input participates in the normal loop input derivation. Added regression coverage for scripted native key input through FApplicationLoop. Debug build passed, the new regression passed, and fallback-strict gate passed.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B07-F001",
       "impact": "Native window keyboard and mouse input can be lost during the normal application loop, so real-window demos or tools may observe empty input state despite driver callbacks firing.",
       "location": "Source/Application/Private/FApplicationLoop.cpp:16",
       "requirement": "Feature 016 FR-014 and the Application Loop Contract require the loop to poll events, derive input state, observe window state, and decide whether to continue in that order.",
-      "resolution": "",
+      "resolution": "FApplicationLoop now queues Window.PollInputEvents() into FInputManager before PollFrame so driver input participates in the normal loop input derivation. Added regression coverage for scripted native key input through FApplicationLoop. Debug build passed, the new regression passed, and fallback-strict gate passed.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Application loop ignores driver input events",
       "verification": ""
     },
     {
       "batch": "B07",
-      "commit": "",
+      "commit": "89c8e0e",
       "created_at": "2026-07-27T07:27:13+00:00",
       "deferred_target": "",
       "evidence": "FWindow::CreateRealWindow does not clear diagnostics or pending events at entry, returns ValidationFailed at line 111 without resetting LifecycleState or WindowId, and returns driver Create failures at lines 114-117 after resetting the driver but without restoring window state. A reused FWindow that was previously Active can therefore report a failed create while remaining Active.",
@@ -2880,15 +2886,21 @@
           "from": "Triaged",
           "note": "Accepted for B07 fix. CreateRealWindow failure paths must match the headless Create failure contract by clearing transient state and leaving no active stale window after validation/runtime failure.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T07:36:02+00:00",
+          "from": "Accepted",
+          "note": "FWindow::CreateRealWindow now clears transient state at entry and resets runtime lifecycle/platform/drawable state on validation and driver creation failure paths. Added regression coverage for failed real-window validation after a prior successful real-window create. Debug build passed, the new regression passed, and fallback-strict gate passed.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B07-F002",
       "impact": "Application code can treat a failed real-window create as an active valid window, exposing stale platform/client state and making downstream presentation and input loop decisions unsafe.",
       "location": "Source/Application/Private/FWindow.cpp:101",
       "requirement": "Feature 016 Window Lifecycle Contract requires validation or runtime failures to produce diagnostics with no partially active window, and FR-007 requires failures to preserve only the previous valid display-mode state rather than stale create lifecycle state.",
-      "resolution": "",
+      "resolution": "FWindow::CreateRealWindow now clears transient state at entry and resets runtime lifecycle/platform/drawable state on validation and driver creation failure paths. Added regression coverage for failed real-window validation after a prior successful real-window create. Debug build passed, the new regression passed, and fallback-strict gate passed.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Real-window create failure can preserve stale active window state",
       "verification": ""
     }
