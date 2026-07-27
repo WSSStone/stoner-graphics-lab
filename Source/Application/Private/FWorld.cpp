@@ -247,6 +247,11 @@ FTransformComponent* FWorld::GetMutableTransform(FEntity Entity)
             AddDiagnostic(ESceneDiagnosticSeverity::Warning, ESceneDiagnosticCategory::Component, ESceneResult::DuplicateComponent, "SCENE-COMPONENT-DUPLICATE", Entity, ComponentLabel " component already exists; update or replace explicitly"); \
             return ESceneResult::DuplicateComponent; \
         } \
+        if (!Component.IsValid()) \
+        { \
+            AddDiagnostic(ESceneDiagnosticSeverity::Error, ESceneDiagnosticCategory::Component, ESceneResult::InvalidComponentData, "SCENE-COMPONENT-INVALID-DATA", Entity, ComponentLabel " component data is invalid"); \
+            return ESceneResult::InvalidComponentData; \
+        } \
         Slot->Member = Component; \
         Slot->Flag = true; \
         return ESceneResult::Success; \
@@ -268,6 +273,11 @@ FTransformComponent* FWorld::GetMutableTransform(FEntity Entity)
         { \
             AddDiagnostic(ESceneDiagnosticSeverity::Warning, ESceneDiagnosticCategory::Component, ESceneResult::MissingComponent, "SCENE-COMPONENT-MISSING", Entity, ComponentLabel " component is missing"); \
             return ESceneResult::MissingComponent; \
+        } \
+        if (!Component.IsValid()) \
+        { \
+            AddDiagnostic(ESceneDiagnosticSeverity::Error, ESceneDiagnosticCategory::Component, ESceneResult::InvalidComponentData, "SCENE-COMPONENT-INVALID-DATA", Entity, ComponentLabel " component data is invalid"); \
+            return ESceneResult::InvalidComponentData; \
         } \
         Slot->Member = Component; \
         return ESceneResult::Success; \

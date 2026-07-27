@@ -101,6 +101,25 @@ void TestComponents(FApplicationSceneEcsTestResult& Result)
             World.GetLight(Entity) != nullptr &&
             World.GetCamera(Entity) != nullptr,
         "Scene mesh, light, and camera components attach to live entity");
+
+    const FEntity InvalidMeshEntity = World.CreateEntity();
+    Record(Result, World.AddMesh(InvalidMeshEntity, FMeshComponent()) == ESceneResult::InvalidComponentData &&
+            World.GetMesh(InvalidMeshEntity) == nullptr,
+        "Scene mesh add rejects invalid component data without storing it");
+
+    FLightComponent InvalidLight;
+    InvalidLight.Intensity = -1.0f;
+    Record(Result, World.ReplaceLight(Entity, InvalidLight) == ESceneResult::InvalidComponentData &&
+            World.GetLight(Entity) != nullptr &&
+            World.GetLight(Entity)->Intensity == 1.0f,
+        "Scene light replace rejects invalid component data without mutating existing component");
+
+    FCameraComponent InvalidCamera;
+    InvalidCamera.FarPlane = InvalidCamera.NearPlane;
+    Record(Result, World.ReplaceCamera(Entity, InvalidCamera) == ESceneResult::InvalidComponentData &&
+            World.GetCamera(Entity) != nullptr &&
+            World.GetCamera(Entity)->FarPlane > World.GetCamera(Entity)->NearPlane,
+        "Scene camera replace rejects invalid component data without mutating existing component");
 }
 
 void TestHierarchy(FApplicationSceneEcsTestResult& Result)
@@ -234,24 +253,12 @@ void TestRenderCollection(FApplicationSceneEcsTestResult& Result)
 
     const FEntity MissingTransform = World.CreateEntity();
     (void)World.AddMesh(MissingTransform, FMeshComponent("bad-mesh"));
-    const FEntity InvalidLight = World.CreateEntity();
-    (void)World.AddTransform(InvalidLight, TransformAt(0.0f));
-    FLightComponent BadLight;
-    BadLight.LightType = ESceneLightType::Point;
-    BadLight.Range = -1.0f;
-    (void)World.AddLight(InvalidLight, BadLight);
-    const FEntity InvalidCamera = World.CreateEntity();
-    (void)World.AddTransform(InvalidCamera, TransformAt(0.0f));
-    FCameraComponent BadCamera;
-    BadCamera.NearPlane = 10.0f;
-    BadCamera.FarPlane = 1.0f;
-    (void)World.AddCamera(InvalidCamera, BadCamera);
 
     const FSceneRenderSummary Summary = World.CollectRenderSummary();
     const bool bCountsMatch = Summary.GetRenderables().size() == 10 &&
         Summary.GetLights().size() == 4 &&
         Summary.GetCameras().size() == 2 &&
-        Summary.GetRejectedItems().size() == 3;
+        Summary.GetRejectedItems().size() == 1;
     const bool bSortKeyFirst = Summary.GetRenderables()[0].Entity == MeshEntities[8] &&
         Summary.GetRenderables()[1].Entity == MeshEntities[9];
     const bool bIdentityTie = Summary.GetRenderables()[2].Entity == MeshEntities[0] &&
@@ -270,9 +277,7 @@ void TestRenderCollection(FApplicationSceneEcsTestResult& Result)
     }
     Record(Result, bStable &&
             FirstDump.find("0x") == std::string::npos &&
-            Summary.GetDiagnostics().CountByCode("SCENE-RENDER-MISSING-TRANSFORM") == 1 &&
-            Summary.GetDiagnostics().CountByCode("SCENE-RENDER-INVALID-LIGHT") == 1 &&
-            Summary.GetDiagnostics().CountByCode("SCENE-RENDER-INVALID-CAMERA") == 1,
+            Summary.GetDiagnostics().CountByCode("SCENE-RENDER-MISSING-TRANSFORM") == 1,
         "Scene render collection diagnostics and dumps are byte-stable across repeated runs");
 }
 
