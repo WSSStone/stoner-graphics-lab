@@ -1,5 +1,5 @@
 {
-  "active_step": "B08-S11",
+  "active_step": "B08-S12",
   "batches": [
     {
       "id": "B00",
@@ -1509,7 +1509,7 @@
     },
     {
       "id": "B08",
-      "status": "Blocked",
+      "status": "InProgress",
       "steps": [
         {
           "commit": null,
@@ -1642,13 +1642,16 @@
           "title": "Inspect: deferred native execution and readback"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "c963246",
+          "completed_at": "2026-07-27T10:16:30+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b08-deferred-native-readback-f005-verified.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b08-deferred-native-readback-f005-final-report.txt"
+          ],
           "id": "B08-S11",
-          "note": "Attempted CR001-B08-F005 native local-volume coverage fix regressed local macOS StandardZ native readback; reverted code/test edits and recorded evidence for redesign.",
-          "started_at": "2026-07-27T09:40:43+00:00",
-          "status": "Failed",
+          "note": "Resolved CR001-B08-F005 with real Vulkan deferred local-light readback coverage and passing native/fallback gates.",
+          "started_at": "2026-07-27T10:16:30+00:00",
+          "status": "Completed",
           "title": "Fix: deferred native execution and readback"
         },
         {
@@ -5485,6 +5488,16 @@
       "at": "2026-07-27T10:15:41+00:00",
       "detail": "verify finding",
       "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T10:16:30+00:00",
+      "detail": "B08-S11",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T10:16:30+00:00",
+      "detail": "B08-S11",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5638,7 +5651,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "7ecb6023c93b55f0deec684ea311c8ac368eab0c"
+    "last_recorded_head": "f1cfeed01bc8f0e15d4eb5a2819b3588b51ae434"
   },
   "policy": {
     "fix_severities": [
@@ -5658,5 +5671,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T10:15:41+00:00"
+  "updated_at": "2026-07-27T10:16:30+00:00"
 }
