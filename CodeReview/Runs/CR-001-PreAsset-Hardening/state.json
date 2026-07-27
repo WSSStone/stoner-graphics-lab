@@ -1,5 +1,5 @@
 {
-  "active_step": "B06-S08",
+  "active_step": "B06-S09",
   "batches": [
     {
       "id": "B00",
@@ -1169,13 +1169,15 @@
           "title": "Inspect: shader library and permutations"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "0daa334",
+          "completed_at": "2026-07-27T06:27:23+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b06-shader-library-permutations-fix.md"
+          ],
           "id": "B06-S08",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Fixed CR001-B06-F002 by rejecting invalid shader variant metadata at registration, adding focused registration tests, and passing fallback-strict, strict-release, and sanitizer gates.",
+          "started_at": "2026-07-27T06:20:10+00:00",
+          "status": "Completed",
           "title": "Fix: shader library and permutations"
         },
         {
@@ -4606,6 +4608,36 @@
       "at": "2026-07-27T06:18:57+00:00",
       "detail": "B06-S07",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T06:20:10+00:00",
+      "detail": "B06-S08",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T06:24:18+00:00",
+      "detail": "fallback-strict: pass",
+      "kind": "gate"
+    },
+    {
+      "at": "2026-07-27T06:24:35+00:00",
+      "detail": "strict-release: pass",
+      "kind": "gate"
+    },
+    {
+      "at": "2026-07-27T06:25:57+00:00",
+      "detail": "sanitizers: pass",
+      "kind": "gate"
+    },
+    {
+      "at": "2026-07-27T06:26:43+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T06:27:23+00:00",
+      "detail": "B06-S08",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -4649,7 +4681,7 @@
       ],
       "passed": true,
       "profile": "fallback-strict",
-      "recorded_at": "2026-07-27T06:04:23+00:00"
+      "recorded_at": "2026-07-27T06:24:18+00:00"
     },
     "release": {
       "commands": [
@@ -4695,7 +4727,7 @@
       ],
       "passed": true,
       "profile": "sanitizers",
-      "recorded_at": "2026-07-27T06:05:44+00:00"
+      "recorded_at": "2026-07-27T06:25:57+00:00"
     },
     "strict-debug": {
       "commands": [
@@ -4724,12 +4756,12 @@
           ],
           "returncode": 0,
           "stderr_tail": "[StonerBuild.PlatformDetect] INFO: Detected platform: Mac\n[StonerBuild.BuildConfig] INFO: Build configuration: release\n[StonerBuild.PlatformDetect] INFO: Detected compiler: clang++\n[StonerBuild.PlatformDetect] INFO: Configured C++20 toolchain for Mac\n[StonerBuild.BuildConfig] INFO: Applied release flags for Mac (strict=True, sanitizers=none)\n[StonerBuild] INFO: Stoner Graphics Lab\n[StonerBuild] INFO:   Platform : Mac\n[StonerBuild] INFO:   Config   : Release\n[StonerBuild] INFO:   SCons    : 4.10.1\n[StonerBuild.LayerBuilder] INFO: Layer 'Core': building from 10 source file(s)\n[StonerBuild.LayerBuilder] INFO: Layer 'RHI': building from 1 source file(s)\n[StonerBuild.LayerBuilder] INFO: Layer 'Renderer': building from 33 source file(s)\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: discovered 0 sub-module(s) in 'Source/Renderer'\n[StonerBuild.LayerBuilder] INFO: Layer 'Application': building from 23 source file(s)\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'DX11' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'DX12' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'GLES' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'Metal' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'OpenGL' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'Vulkan' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: Layer 'VulkanRHI': building from 30 source file(s)\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'WebGL' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: discovered 1 sub-module(s) in 'Source/Backend'\n",
-          "stdout_tail": "/FForwardFrameExecutor.o Build/Mac/Release/Renderer/Private/FForwardFramePlan.o Build/Mac/Release/Renderer/Private/FForwardLightData.o Build/Mac/Release/Renderer/Private/FForwardRenderGraphDeclaration.o Build/Mac/Release/Renderer/Private/FForwardRenderer.o Build/Mac/Release/Renderer/Private/FForwardViewData.o Build/Mac/Release/Renderer/Private/FMaterial.o Build/Mac/Release/Renderer/Private/FMaterialDiagnostics.o Build/Mac/Release/Renderer/Private/FMaterialInstance.o Build/Mac/Release/Renderer/Private/FMaterialParameterSet.o Build/Mac/Release/Renderer/Private/FMaterialResourceRequirement.o Build/Mac/Release/Renderer/Private/FMaterialShaderBinding.o Build/Mac/Release/Renderer/Private/FMeshDrawCommand.o Build/Mac/Release/Renderer/Private/FRenderGraph.o Build/Mac/Release/Renderer/Private/FRenderGraphBuilder.o Build/Mac/Release/Renderer/Private/FRenderGraphCompiler.o Build/Mac/Release/Renderer/Private/FRenderGraphDiagnostics.o Build/Mac/Release/Renderer/Private/FRenderGraphExecutor.o Build/Mac/Release/Renderer/Private/FRenderGraphPass.o Build/Mac/Release/Renderer/Private/FRenderGraphResource.o Build/Mac/Release/Renderer/Private/FRendererComparisonReport.o Build/Mac/Release/Renderer/Private/FShaderLibrary.o Build/Mac/Release/Renderer/Private/FShaderPermutation.o Build/Mac/Release/Renderer/Private/RendererModule.o\nranlib Build/Mac/Release/Renderer/libRenderer.a\ng++ -o Build/Mac/Release/Demo/StonerDemo/StonerDemo /Users/wangshi/VulkanSDK/1.4.341.1/macOS/lib/libvulkan.dylib -Wl,-rpath,/Users/wangshi/VulkanSDK/1.4.341.1/macOS/lib /opt/homebrew/lib/libglfw.3.dylib -Wl,-rpath,/opt/homebrew/lib Build/Mac/Release/Demo/StonerDemo/Private/Main.o -LBuild/Mac/Release/Application -LSource/Application -LBuild/Mac/Release/Renderer -LSource/Renderer -LBuild/Mac/Release/RHI -LSource/RHI -LBuild/Mac/Release/Core -LSource/Core -LBuild/Mac/Release/Backend/Vulkan -LSource/Backend/Vulkan -LSource/Backend/Vulkan Build/Mac/Release/Demo/StonerDemo/libStonerDemoRuntime.a -lApplication -lRenderer -lRHI -lCore -lVulkanRHI -framework Cocoa -framework IOKit -framework CoreFoundation\ng++ -o Build/Mac/Release/Tests/RendererRenderGraphTests.o -c -std=c++20 -O2 -Wall -Wextra -Werror -DNDEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/RendererRenderGraphTests.cpp\ng++ -o Build/Mac/Release/Tests/StonerTest /Users/wangshi/VulkanSDK/1.4.341.1/macOS/lib/libvulkan.dylib -Wl,-rpath,/Users/wangshi/VulkanSDK/1.4.341.1/macOS/lib /opt/homebrew/lib/libglfw.3.dylib -Wl,-rpath,/opt/homebrew/lib Build/Mac/Release/Tests/ApplicationSceneEcsTests.o Build/Mac/Release/Tests/ApplicationWindowInputTests.o Build/Mac/Release/Tests/CoreFoundationTests.o Build/Mac/Release/Tests/CoreMathTests.o Build/Mac/Release/Tests/CorePlatformOwnershipTests.o Build/Mac/Release/Tests/CorePlatformTests.o Build/Mac/Release/Tests/DeferredNativeIntegrationTests.o Build/Mac/Release/Tests/DeferredRenderingTests.o Build/Mac/Release/Tests/LoggingAssertionTests.o Build/Mac/Release/Tests/Main.o Build/Mac/Release/Tests/RHICoreTests.o Build/Mac/Release/Tests/RendererComparisonTests.o Build/Mac/Release/Tests/RendererForwardPipelineTests.o Build/Mac/Release/Tests/RendererMaterialShaderTests.o Build/Mac/Release/Tests/RendererRenderGraphTests.o Build/Mac/Release/Tests/TriangleDemoIntegrationTests.o Build/Mac/Release/Tests/VulkanBackendTests.o Build/Mac/Release/Tests/VulkanNativeIntegrationTests.o -LBuild/Mac/Release/Core -LSource/Core -LBuild/Mac/Release/RHI -LSource/RHI -LBuild/Mac/Release/Renderer -LSource/Renderer -LBuild/Mac/Release/Application -LSource/Application -LBuild/Mac/Release/Backend/Vulkan -LSource/Backend/Vulkan -LSource/Backend/Vulkan -LBuild/Mac/Release/Demo/StonerDemo -LDemo/StonerDemo -lStonerDemoRuntime -lApplication -lRenderer -lRHI -lCore -lVulkanRHI -framework Cocoa -framework IOKit -framework CoreFoundation\nscons: done building targets.\n"
+          "stdout_tail": "ardFrameExecutor.o Build/Mac/Release/Renderer/Private/FForwardFramePlan.o Build/Mac/Release/Renderer/Private/FForwardLightData.o Build/Mac/Release/Renderer/Private/FForwardRenderGraphDeclaration.o Build/Mac/Release/Renderer/Private/FForwardRenderer.o Build/Mac/Release/Renderer/Private/FForwardViewData.o Build/Mac/Release/Renderer/Private/FMaterial.o Build/Mac/Release/Renderer/Private/FMaterialDiagnostics.o Build/Mac/Release/Renderer/Private/FMaterialInstance.o Build/Mac/Release/Renderer/Private/FMaterialParameterSet.o Build/Mac/Release/Renderer/Private/FMaterialResourceRequirement.o Build/Mac/Release/Renderer/Private/FMaterialShaderBinding.o Build/Mac/Release/Renderer/Private/FMeshDrawCommand.o Build/Mac/Release/Renderer/Private/FRenderGraph.o Build/Mac/Release/Renderer/Private/FRenderGraphBuilder.o Build/Mac/Release/Renderer/Private/FRenderGraphCompiler.o Build/Mac/Release/Renderer/Private/FRenderGraphDiagnostics.o Build/Mac/Release/Renderer/Private/FRenderGraphExecutor.o Build/Mac/Release/Renderer/Private/FRenderGraphPass.o Build/Mac/Release/Renderer/Private/FRenderGraphResource.o Build/Mac/Release/Renderer/Private/FRendererComparisonReport.o Build/Mac/Release/Renderer/Private/FShaderLibrary.o Build/Mac/Release/Renderer/Private/FShaderPermutation.o Build/Mac/Release/Renderer/Private/RendererModule.o\nranlib Build/Mac/Release/Renderer/libRenderer.a\ng++ -o Build/Mac/Release/Demo/StonerDemo/StonerDemo /Users/wangshi/VulkanSDK/1.4.341.1/macOS/lib/libvulkan.dylib -Wl,-rpath,/Users/wangshi/VulkanSDK/1.4.341.1/macOS/lib /opt/homebrew/lib/libglfw.3.dylib -Wl,-rpath,/opt/homebrew/lib Build/Mac/Release/Demo/StonerDemo/Private/Main.o -LBuild/Mac/Release/Application -LSource/Application -LBuild/Mac/Release/Renderer -LSource/Renderer -LBuild/Mac/Release/RHI -LSource/RHI -LBuild/Mac/Release/Core -LSource/Core -LBuild/Mac/Release/Backend/Vulkan -LSource/Backend/Vulkan -LSource/Backend/Vulkan Build/Mac/Release/Demo/StonerDemo/libStonerDemoRuntime.a -lApplication -lRenderer -lRHI -lCore -lVulkanRHI -framework Cocoa -framework IOKit -framework CoreFoundation\ng++ -o Build/Mac/Release/Tests/RendererMaterialShaderTests.o -c -std=c++20 -O2 -Wall -Wextra -Werror -DNDEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/RendererMaterialShaderTests.cpp\ng++ -o Build/Mac/Release/Tests/StonerTest /Users/wangshi/VulkanSDK/1.4.341.1/macOS/lib/libvulkan.dylib -Wl,-rpath,/Users/wangshi/VulkanSDK/1.4.341.1/macOS/lib /opt/homebrew/lib/libglfw.3.dylib -Wl,-rpath,/opt/homebrew/lib Build/Mac/Release/Tests/ApplicationSceneEcsTests.o Build/Mac/Release/Tests/ApplicationWindowInputTests.o Build/Mac/Release/Tests/CoreFoundationTests.o Build/Mac/Release/Tests/CoreMathTests.o Build/Mac/Release/Tests/CorePlatformOwnershipTests.o Build/Mac/Release/Tests/CorePlatformTests.o Build/Mac/Release/Tests/DeferredNativeIntegrationTests.o Build/Mac/Release/Tests/DeferredRenderingTests.o Build/Mac/Release/Tests/LoggingAssertionTests.o Build/Mac/Release/Tests/Main.o Build/Mac/Release/Tests/RHICoreTests.o Build/Mac/Release/Tests/RendererComparisonTests.o Build/Mac/Release/Tests/RendererForwardPipelineTests.o Build/Mac/Release/Tests/RendererMaterialShaderTests.o Build/Mac/Release/Tests/RendererRenderGraphTests.o Build/Mac/Release/Tests/TriangleDemoIntegrationTests.o Build/Mac/Release/Tests/VulkanBackendTests.o Build/Mac/Release/Tests/VulkanNativeIntegrationTests.o -LBuild/Mac/Release/Core -LSource/Core -LBuild/Mac/Release/RHI -LSource/RHI -LBuild/Mac/Release/Renderer -LSource/Renderer -LBuild/Mac/Release/Application -LSource/Application -LBuild/Mac/Release/Backend/Vulkan -LSource/Backend/Vulkan -LSource/Backend/Vulkan -LBuild/Mac/Release/Demo/StonerDemo -LDemo/StonerDemo -lStonerDemoRuntime -lApplication -lRenderer -lRHI -lCore -lVulkanRHI -framework Cocoa -framework IOKit -framework CoreFoundation\nscons: done building targets.\n"
         }
       ],
       "passed": true,
       "profile": "strict-release",
-      "recorded_at": "2026-07-27T06:04:34+00:00"
+      "recorded_at": "2026-07-27T06:24:35+00:00"
     },
     "tests": {
       "commands": [
@@ -4759,7 +4791,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "6aa472ea04c01d2f28a5a731662ee40c38f7fb95"
+    "last_recorded_head": "0daa3341b603b2608465d5c6f3f86c8b483ff94a"
   },
   "policy": {
     "fix_severities": [
@@ -4779,5 +4811,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T06:18:57+00:00"
+  "updated_at": "2026-07-27T06:27:23+00:00"
 }
