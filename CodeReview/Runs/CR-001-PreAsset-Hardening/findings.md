@@ -771,11 +771,11 @@
 ## CR001-B06-F003: Material instance binding and resource paths can use invalidated parents
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 014 contract and data model require material instances to reject invalidated parents; binding exists only for valid materials or valid material instances.
 - Location: `Source/Renderer/Private/FMaterialInstance.cpp:102; Source/Renderer/Private/FMaterialShaderBinding.cpp:77; Source/Renderer/Private/FMaterialResourceRequirement.cpp:116`
 - Impact: A parent material can be invalidated after instance validation, yet instance binding/resource extraction can still emit render-ready shader bindings and resource requirements from stale material data.
 - Evidence: ResolveEffectiveParameters copies Root->GetParameters without checking Root->GetValidationState, while ResolveMaterialShaderBinding(const FMaterialInstance&) and ExtractMaterialResourceRequirements(const FMaterialInstance&) call that resolver directly after an instance may have been validated earlier. Existing tests only cover Validate() on an already-invalidated parent.
 - Resolution: Fixed by routing Validate() and ResolveEffectiveParameters() through a shared usable-parent-chain gate that rejects invalidated current instances, invalidated parent instances, and invalidated root materials; added binding/resource/regression coverage.
-- Verification: pending
+- Verification: Verified at 7f525af/2888c50: ResolveEffectiveParameters now gates parent-chain usability before copying root parameters; regressions cover parent instance, binding, and resource extraction invalidation after validation; Debug tests and fallback-strict pass.
 - Commit: `7f525af`

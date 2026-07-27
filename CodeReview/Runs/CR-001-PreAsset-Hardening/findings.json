@@ -2688,6 +2688,12 @@
           "from": "Accepted",
           "note": "Fixed by routing Validate() and ResolveEffectiveParameters() through a shared usable-parent-chain gate that rejects invalidated current instances, invalidated parent instances, and invalidated root materials; added binding/resource/regression coverage.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T06:50:25+00:00",
+          "from": "Fixed",
+          "note": "Verified at 7f525af/2888c50: ResolveEffectiveParameters now gates parent-chain usability before copying root parameters; regressions cover parent instance, binding, and resource extraction invalidation after validation; Debug tests and fallback-strict pass.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B06-F003",
@@ -2696,9 +2702,9 @@
       "requirement": "Feature 014 contract and data model require material instances to reject invalidated parents; binding exists only for valid materials or valid material instances.",
       "resolution": "Fixed by routing Validate() and ResolveEffectiveParameters() through a shared usable-parent-chain gate that rejects invalidated current instances, invalidated parent instances, and invalidated root materials; added binding/resource/regression coverage.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Material instance binding and resource paths can use invalidated parents",
-      "verification": ""
+      "verification": "Verified at 7f525af/2888c50: ResolveEffectiveParameters now gates parent-chain usability before copying root parameters; regressions cover parent instance, binding, and resource extraction invalidation after validation; Debug tests and fallback-strict pass."
     }
   ],
   "schema_version": 1
