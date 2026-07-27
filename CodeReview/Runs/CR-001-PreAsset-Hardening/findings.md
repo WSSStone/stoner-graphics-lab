@@ -767,3 +767,15 @@
 - Resolution: Fixed by validating shader records during RegisterShaderRecord: duplicate/empty allowed flags, empty/duplicate variant ids, duplicate canonical variant keys, and variant flags outside the record's allowed flag set now fail with deterministic diagnostics. Added focused registration-time regression tests.
 - Verification: Verified parent/current shader registration behavior: parent only sorted allowed flags/variants before insertion, current rejects duplicate/empty flags, empty/duplicate variant ids, duplicate canonical variant keys, and undeclared variant flags before insertion. Registration-time regression tests are present and fallback-strict, strict-release, and sanitizer gates pass.
 - Commit: `0daa334`
+
+## CR001-B06-F003: Material instance binding and resource paths can use invalidated parents
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 014 contract and data model require material instances to reject invalidated parents; binding exists only for valid materials or valid material instances.
+- Location: `Source/Renderer/Private/FMaterialInstance.cpp:102; Source/Renderer/Private/FMaterialShaderBinding.cpp:77; Source/Renderer/Private/FMaterialResourceRequirement.cpp:116`
+- Impact: A parent material can be invalidated after instance validation, yet instance binding/resource extraction can still emit render-ready shader bindings and resource requirements from stale material data.
+- Evidence: ResolveEffectiveParameters copies Root->GetParameters without checking Root->GetValidationState, while ResolveMaterialShaderBinding(const FMaterialInstance&) and ExtractMaterialResourceRequirements(const FMaterialInstance&) call that resolver directly after an instance may have been validated earlier. Existing tests only cover Validate() on an already-invalidated parent.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
