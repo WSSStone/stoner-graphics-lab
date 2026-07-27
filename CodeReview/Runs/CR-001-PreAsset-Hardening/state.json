@@ -1,5 +1,5 @@
 {
-  "active_step": "B08-S13",
+  "active_step": "B08-S14",
   "batches": [
     {
       "id": "B00",
@@ -1668,13 +1668,15 @@
           "title": "Verify: deferred native execution and readback"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "4d532d94df0fd55dd36c8241da01340729cd40ab",
+          "completed_at": "2026-07-27T10:25:11+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B08-validation-failure-injection-artifacts-inspection.md"
+          ],
           "id": "B08-S13",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected Feature 019 validation/failure-injection artifacts; accepted CR001-B08-F006 for stale retained readback evidence and weak wrapper-level local-light probe validation.",
+          "started_at": "2026-07-27T10:20:40+00:00",
+          "status": "Completed",
           "title": "Inspect: validation, failure injection, and artifacts"
         },
         {
@@ -5516,6 +5518,21 @@
       "at": "2026-07-27T10:19:36+00:00",
       "detail": "B08-S12",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T10:20:40+00:00",
+      "detail": "B08-S13",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T10:24:30+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T10:25:11+00:00",
+      "detail": "B08-S13",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5669,7 +5686,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "f0b82a55fd5f475a12201fa7b701434f1f2a5f2d"
+    "last_recorded_head": "4d532d94df0fd55dd36c8241da01340729cd40ab"
   },
   "policy": {
     "fix_severities": [
@@ -5689,5 +5706,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T10:19:36+00:00"
+  "updated_at": "2026-07-27T10:25:11+00:00"
 }

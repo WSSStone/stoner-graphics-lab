@@ -935,3 +935,15 @@
 - Resolution: Native deferred readback now submits 7 lights and 20 draws, records 36 probes, and includes point/spot local-light edge cases for StandardZ and ReversedZ.
 - Verification: Verified by required macOS native Vulkan run with b08-deferred-native-readback-f005-final-report.txt result PASS and fallback-strict gate at 2026-07-27T10:13:54+00:00.
 - Commit: `c963246`
+
+## CR001-B08-F006: Deferred validation artifacts and wrapper under-check local light readback coverage
+
+- Severity: S2
+- Status: Open
+- Requirement: Feature 019 validation contract: native Lavapipe readback must prove current deferred reference-scene probes and local-light coverage without semantic-oracle substitution.
+- Location: `Validation/019/Linux/deferred-readback-report.txt; Validation/019/completion.md; .github/scripts/run_deferred_validation.py; .github/scripts/test_run_deferred_validation.py`
+- Impact: A passing wrapper-level report validation can no longer independently prove the current native deferred coverage expected after CR001-B08-F005. CI still runs the executable test first, but retained Feature 019 evidence and wrapper tests can drift behind the real gate and weaken audit traceability.
+- Evidence: Retained Linux report still records draw_count=12, light_count=3, and 12 probes per convention, with no point-visible, point-outside-view, point-camera-inside, spot-visible, spot-outside-cone, or spot-near-plane probes. completion.md cites that old 12/12 run, while current DeferredNativeIntegrationTests requires 18 probes per convention and those six local-light cases. run_deferred_validation.py validate_readback_report and its unit test still accept only >=12 probes and do not validate the required local-light probe names.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
