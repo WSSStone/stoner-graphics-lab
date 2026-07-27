@@ -1,5 +1,5 @@
 {
-  "active_step": "B08-S01",
+  "active_step": "B08-S02",
   "batches": [
     {
       "id": "B00",
@@ -1509,16 +1509,19 @@
     },
     {
       "id": "B08",
-      "status": "Pending",
+      "status": "InProgress",
       "steps": [
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T08:44:39+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B08-triangle-demo-configuration-lifecycle-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b08-triangle-demo-configuration-lifecycle-inspection.md"
+          ],
           "id": "B08-S01",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected triangle demo configuration and lifecycle; accepted CR001-B08-F002 for public Initialize partial cleanup.",
+          "started_at": "2026-07-27T08:41:43+00:00",
+          "status": "Completed",
           "title": "Inspect: triangle demo configuration and lifecycle"
         },
         {
@@ -5225,6 +5228,26 @@
       "at": "2026-07-27T08:39:42+00:00",
       "detail": "B07-S15",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T08:41:43+00:00",
+      "detail": "B08-S01",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T08:43:34+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T08:43:48+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T08:44:39+00:00",
+      "detail": "B08-S01",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5378,7 +5401,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "dcea5c2aca11d224145635112ae9cee43f1539f1"
+    "last_recorded_head": "828509832c02d749f1a304ee75d29bb0ef3b1579"
   },
   "policy": {
     "fix_severities": [
@@ -5398,5 +5421,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T08:39:42+00:00"
+  "updated_at": "2026-07-27T08:44:39+00:00"
 }

@@ -1,11 +1,11 @@
 # CR-001 Progress
 
 - Status: Active
-- Completed steps: 101/134
+- Completed steps: 102/134
 - Baseline: `9092a97593fb29cffbffdbe534e3dda143f463a5`
-- Recorded HEAD: `dcea5c2aca11d224145635112ae9cee43f1539f1`
-- Active step: B08-S01
-- Open findings: 2
+- Recorded HEAD: `828509832c02d749f1a304ee75d29bb0ef3b1579`
+- Active step: B08-S02
+- Open findings: 3
 
 ## Batches
 
@@ -17,7 +17,7 @@
 - B05 Vulkan Execution 011-012: Completed
 - B06 Renderer 013-015: Completed
 - B07 Application 016-017: Completed
-- B08 Integration 018-019: Pending
+- B08 Integration 018-019: InProgress
 - B09 Cross-Cutting: Pending
 - B10 Closeout: Pending
 
