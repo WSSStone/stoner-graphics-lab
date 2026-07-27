@@ -2666,7 +2666,7 @@
     },
     {
       "batch": "B06",
-      "commit": "",
+      "commit": "7f525af",
       "created_at": "2026-07-27T06:35:14+00:00",
       "deferred_target": "",
       "evidence": "ResolveEffectiveParameters copies Root->GetParameters without checking Root->GetValidationState, while ResolveMaterialShaderBinding(const FMaterialInstance&) and ExtractMaterialResourceRequirements(const FMaterialInstance&) call that resolver directly after an instance may have been validated earlier. Existing tests only cover Validate() on an already-invalidated parent.",
@@ -2682,15 +2682,21 @@
           "from": "Triaged",
           "note": "Accepted S2: Feature 014 requires invalidated parents to be rejected, but instance binding/resource extraction can bypass the explicit Validate() path after a parent material is invalidated.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T06:46:34+00:00",
+          "from": "Accepted",
+          "note": "Fixed by routing Validate() and ResolveEffectiveParameters() through a shared usable-parent-chain gate that rejects invalidated current instances, invalidated parent instances, and invalidated root materials; added binding/resource/regression coverage.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B06-F003",
       "impact": "A parent material can be invalidated after instance validation, yet instance binding/resource extraction can still emit render-ready shader bindings and resource requirements from stale material data.",
       "location": "Source/Renderer/Private/FMaterialInstance.cpp:102; Source/Renderer/Private/FMaterialShaderBinding.cpp:77; Source/Renderer/Private/FMaterialResourceRequirement.cpp:116",
       "requirement": "Feature 014 contract and data model require material instances to reject invalidated parents; binding exists only for valid materials or valid material instances.",
-      "resolution": "",
+      "resolution": "Fixed by routing Validate() and ResolveEffectiveParameters() through a shared usable-parent-chain gate that rejects invalidated current instances, invalidated parent instances, and invalidated root materials; added binding/resource/regression coverage.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Material instance binding and resource paths can use invalidated parents",
       "verification": ""
     }
