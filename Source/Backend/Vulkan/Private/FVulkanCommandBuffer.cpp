@@ -1,6 +1,7 @@
 #include "VulkanRHI/FVulkanCommandBuffer.h"
 
 #include "VulkanRHI/FVulkanComputePipeline.h"
+#include "VulkanRHI/FVulkanDeviceOwnerState.h"
 #include "RHI/IRHIDescriptorSet.h"
 #include "VulkanRHI/FVulkanDiagnostics.h"
 #include "VulkanRHI/FVulkanFramebuffer.h"
@@ -73,8 +74,12 @@ namespace
 
 } // namespace
 
-FVulkanCommandBuffer::FVulkanCommandBuffer(Stoner::RHI::ERHIQueueType InQueueType, FVulkanDiagnostics* InDiagnostics) noexcept
+FVulkanCommandBuffer::FVulkanCommandBuffer(
+    Stoner::RHI::ERHIQueueType InQueueType,
+    FVulkanDiagnostics* InDiagnostics,
+    Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> InOwner) noexcept
     : QueueType(InQueueType)
+    , Owner(std::move(InOwner))
     , Diagnostics(InDiagnostics)
 {
 }
@@ -83,7 +88,16 @@ Stoner::RHI::ERHICommandBufferState FVulkanCommandBuffer::GetState() const noexc
 Stoner::RHI::ERHIQueueType FVulkanCommandBuffer::GetCompatibleQueueType() const noexcept { return QueueType; }
 Stoner::Core::uint32 FVulkanCommandBuffer::GetRecordedCommandCount() const noexcept { return static_cast<Stoner::Core::uint32>(Commands.size()); }
 const Stoner::Core::TArray<FVulkanRecordedCommand>& FVulkanCommandBuffer::GetRecordedCommands() const noexcept { return Commands; }
-bool FVulkanCommandBuffer::IsValid() const noexcept { return bValid; }
+bool FVulkanCommandBuffer::IsValid() const noexcept
+{
+    return bValid && Owner && Owner->bActive;
+}
+
+bool FVulkanCommandBuffer::BelongsTo(
+    const Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState>& InOwner) const noexcept
+{
+    return IsValid() && InOwner && Owner == InOwner;
+}
 bool FVulkanCommandBuffer::HasActiveRenderPass() const noexcept { return !ActiveRenderPass.expired(); }
 
 Stoner::RHI::ERHIResult FVulkanCommandBuffer::Begin()

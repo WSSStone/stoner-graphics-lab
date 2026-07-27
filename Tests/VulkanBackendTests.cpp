@@ -1025,9 +1025,12 @@ void TestCommandBuffersRecordingAndSubmission(FVulkanBackendTestResult& Result)
             TSharedPtr<FVulkanCommandBuffer>,
             EVulkanSubmissionMode,
             FVulkanCompletionInjectionConfig> &&
+        !std::is_constructible_v<FVulkanQueue, ERHIQueueType> &&
+        !std::is_constructible_v<FVulkanFence, bool> &&
+        !std::is_default_constructible_v<FVulkanSemaphore> &&
         !CHasPublicMarkSubmitted<FVulkanCommandBuffer> &&
         !CHasPublicMarkCompletedOrResettable<FVulkanCommandBuffer>,
-        "Vulkan command allocation and submission transitions must be owner-only");
+        "Vulkan command, queue, and synchronization objects must be owner-only");
 
     TSharedPtr<IRHICommandBuffer> RetainedCommand;
     {
@@ -1096,6 +1099,93 @@ void TestCommandBuffersRecordingAndSubmission(FVulkanBackendTestResult& Result)
         FirstCommand.Object->GetState() == ERHICommandBufferState::Resettable &&
         FirstCommand.Object->Reset() == ERHIResult::Success, "Vulkan queue wait idle makes submitted command buffer resettable");
 
+    const auto FirstAtomicWait = Device.CreateSemaphore();
+    const auto SecondAtomicWait = Device.CreateSemaphore();
+    (void)FirstAtomicWait.Object->Signal();
+    (void)SecondCommand.Object->Begin();
+    (void)SecondCommand.Object->RecordDispatch(1, 1, 1);
+    (void)SecondCommand.Object->End();
+    Record(Result,
+        Queue.Object->Submit(
+            SecondCommand.Object,
+            {FirstAtomicWait.Object, SecondAtomicWait.Object}) ==
+                ERHIResult::NotReady &&
+            FirstAtomicWait.Object->IsSignaled() &&
+            SecondAtomicWait.Object->GetState() ==
+                ERHISemaphoreState::Unsignaled &&
+            SecondCommand.Object->GetState() ==
+                ERHICommandBufferState::Completed &&
+            Queue.Object->GetSubmittedCommandBufferCount() == 1,
+        "Vulkan queue wait preflight preserves all state on failure");
+
+    const auto AlreadySignaledOutput = Device.CreateSemaphore();
+    const auto AtomicFailureFence = Device.CreateFence(false);
+    (void)AlreadySignaledOutput.Object->Signal();
+    Record(Result,
+        Queue.Object->Submit(
+            SecondCommand.Object,
+            {},
+            {AlreadySignaledOutput.Object},
+            AtomicFailureFence.Object) == ERHIResult::InvalidState &&
+            AlreadySignaledOutput.Object->IsSignaled() &&
+            !AtomicFailureFence.Object->IsSignaled() &&
+            SecondCommand.Object->GetState() ==
+                ERHICommandBufferState::Completed &&
+            Queue.Object->GetSubmittedCommandBufferCount() == 1,
+        "Vulkan queue signal preflight preserves all state on failure");
+
+    const auto DuplicateWait = Device.CreateSemaphore();
+    (void)DuplicateWait.Object->Signal();
+    Record(Result,
+        Queue.Object->Submit(
+            SecondCommand.Object,
+            {DuplicateWait.Object, DuplicateWait.Object}) ==
+                ERHIResult::InvalidState &&
+            DuplicateWait.Object->IsSignaled() &&
+            Queue.Object->Submit(
+                SecondCommand.Object,
+                {DuplicateWait.Object},
+                {DuplicateWait.Object}) == ERHIResult::InvalidState &&
+            DuplicateWait.Object->IsSignaled() &&
+            SecondCommand.Object->GetState() ==
+                ERHICommandBufferState::Completed &&
+            Queue.Object->GetSubmittedCommandBufferCount() == 1,
+        "Vulkan queue rejects duplicate and overlapping semaphores atomically");
+
+    FVulkanDevice ForeignDevice;
+    Record(Result,
+        InitializeDeterministic(ForeignDevice) == ERHIResult::Success,
+        "Vulkan foreign-owner fixture initializes");
+    const auto ForeignQueue =
+        ForeignDevice.CreateCommandQueue(ERHIQueueType::Graphics);
+    const auto ForeignCommand =
+        ForeignDevice.CreateCommandBuffer(ERHIQueueType::Graphics);
+    (void)ForeignCommand.Object->Begin();
+    (void)ForeignCommand.Object->RecordDispatch(1, 1, 1);
+    (void)ForeignCommand.Object->End();
+    Record(Result,
+        ForeignQueue.Object->Submit(SecondCommand.Object) ==
+                ERHIResult::InvalidState &&
+            ForeignQueue.Object->Submit(
+                ForeignCommand.Object, {DuplicateWait.Object}) ==
+                ERHIResult::InvalidState &&
+            ForeignCommand.Object->GetState() ==
+                ERHICommandBufferState::Completed &&
+            DuplicateWait.Object->IsSignaled() &&
+            ForeignQueue.Object->GetSubmittedCommandBufferCount() == 0,
+        "Vulkan queue rejects foreign command and synchronization ownership");
+
+    auto VulkanQueue = std::dynamic_pointer_cast<FVulkanQueue>(Queue.Object);
+    Record(Result,
+        Queue.Object->Submit(SecondCommand.Object) == ERHIResult::Success &&
+            VulkanQueue &&
+            VulkanQueue->ObserveLastSubmissionCompletion(1) ==
+                ERHIResult::Success &&
+            SecondCommand.Object->GetState() ==
+                ERHICommandBufferState::Resettable &&
+            SecondCommand.Object->Reset() == ERHIResult::Success,
+        "Vulkan nonzero completion timeout makes command resettable");
+
     const auto ComputeCommand = Device.CreateCommandBuffer(ERHIQueueType::Compute);
     (void)ComputeCommand.Object->Begin();
     (void)ComputeCommand.Object->RecordDispatch(1, 1, 1);
@@ -1111,20 +1201,43 @@ void TestCommandBuffersRecordingAndSubmission(FVulkanBackendTestResult& Result)
     (void)InjectedCommand.Object->RecordDispatch(1, 1, 1);
     (void)InjectedCommand.Object->End();
     (void)InjectedQueue.Object->Submit(InjectedCommand.Object);
-    auto VulkanQueue = std::dynamic_pointer_cast<FVulkanQueue>(InjectedQueue.Object);
-    Record(Result, VulkanQueue && VulkanQueue->ObserveLastSubmissionCompletion() == ERHIResult::NotReady &&
-        InjectedCommand.Object->GetState() == ERHICommandBufferState::Submitted, "Vulkan fallback completion can inject not-ready");
+    auto InjectedVulkanQueue =
+        std::dynamic_pointer_cast<FVulkanQueue>(InjectedQueue.Object);
+    Record(Result,
+        InjectedVulkanQueue &&
+            InjectedVulkanQueue->ObserveLastSubmissionCompletion() ==
+                ERHIResult::NotReady &&
+            InjectedCommand.Object->GetState() ==
+                ERHICommandBufferState::Submitted &&
+            InjectedQueue.Object->WaitIdle() == ERHIResult::Success &&
+            InjectedCommand.Object->GetState() ==
+                ERHICommandBufferState::Resettable &&
+            InjectedVulkanQueue->ObserveLastSubmissionCompletion() ==
+                ERHIResult::Success,
+        "Vulkan fallback not-ready completion remains recoverable by wait idle");
     InjectionDevice.ConfigureFallbackCompletionInjection({false, true});
     const auto TimeoutCommand = InjectionDevice.CreateCommandBuffer(ERHIQueueType::Graphics);
     (void)TimeoutCommand.Object->Begin();
     (void)TimeoutCommand.Object->RecordDispatch(1, 1, 1);
     (void)TimeoutCommand.Object->End();
     (void)InjectedQueue.Object->Submit(TimeoutCommand.Object);
-    Record(Result, VulkanQueue && VulkanQueue->ObserveLastSubmissionCompletion() == ERHIResult::Timeout, "Vulkan fallback completion can inject timeout");
+    Record(Result,
+        InjectedVulkanQueue &&
+            InjectedVulkanQueue->ObserveLastSubmissionCompletion() ==
+                ERHIResult::Timeout &&
+            TimeoutCommand.Object->GetState() ==
+                ERHICommandBufferState::Submitted &&
+            InjectedQueue.Object->WaitIdle() == ERHIResult::Success &&
+            TimeoutCommand.Object->GetState() ==
+                ERHICommandBufferState::Resettable &&
+            InjectedVulkanQueue->ObserveLastSubmissionCompletion() ==
+                ERHIResult::Success,
+        "Vulkan fallback timeout completion remains recoverable by wait idle");
 
     (void)Device.Shutdown();
     Record(Result, FirstCommand.Object->Begin() == ERHIResult::InvalidState &&
         Queue.Object->WaitIdle() == ERHIResult::InvalidState, "Vulkan command and queue invalidation on shutdown");
+    (void)ForeignDevice.Shutdown();
     (void)InjectionDevice.Shutdown();
 }
 

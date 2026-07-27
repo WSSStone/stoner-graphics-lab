@@ -10,6 +10,7 @@ namespace Stoner::Backend::Vulkan
 
 class FVulkanCommandBuffer;
 class FVulkanDevice;
+struct FVulkanDeviceOwnerState;
 struct FVulkanDiagnostics;
 
 class FVulkanCommandPool final
@@ -28,13 +29,15 @@ private:
     friend class FVulkanDevice;
 
     FVulkanCommandPool(Stoner::RHI::ERHIQueueType InQueueType,
-        Stoner::Core::uint32 InCapacity) noexcept;
+        Stoner::Core::uint32 InCapacity,
+        Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> InOwner) noexcept;
     Stoner::RHI::TRHIObjectResult<FVulkanCommandBuffer> Allocate(
         FVulkanDiagnostics& Diagnostics);
     void Invalidate() noexcept;
 
     Stoner::RHI::ERHIQueueType QueueType = Stoner::RHI::ERHIQueueType::Graphics;
     Stoner::Core::uint32 Capacity = 0;
+    Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> Owner;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandBuffer>> CommandBuffers;
     bool bValid = true;
 };

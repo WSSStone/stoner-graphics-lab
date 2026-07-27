@@ -7,11 +7,12 @@ namespace Stoner::Backend::Vulkan
 {
 
 struct FVulkanDiagnostics;
+struct FVulkanDeviceOwnerState;
 
 class FVulkanQueue final : public Stoner::RHI::IRHICommandQueue
 {
 public:
-    explicit FVulkanQueue(Stoner::RHI::ERHIQueueType InQueueType, FVulkanDiagnostics* InDiagnostics = nullptr, FVulkanCompletionInjectionConfig InInjection = {}) noexcept;
+    ~FVulkanQueue() override = default;
 
     [[nodiscard]] Stoner::RHI::ERHIQueueType GetQueueType() const noexcept override;
     [[nodiscard]] Stoner::Core::uint32 GetSubmittedCommandBufferCount() const noexcept override;
@@ -25,11 +26,20 @@ public:
     Stoner::RHI::ERHIResult WaitIdle() override;
     Stoner::RHI::ERHIResult ObserveLastSubmissionCompletion(Stoner::Core::uint64 TimeoutMicroseconds = 0) noexcept;
     void ConfigureCompletionInjection(FVulkanCompletionInjectionConfig InInjection) noexcept;
-    void Invalidate() noexcept;
 
 private:
+    friend class FVulkanDevice;
+
+    FVulkanQueue(
+        Stoner::RHI::ERHIQueueType InQueueType,
+        Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> InOwner,
+        FVulkanDiagnostics* InDiagnostics,
+        FVulkanCompletionInjectionConfig InInjection) noexcept;
+    void Invalidate() noexcept;
+
     Stoner::RHI::ERHIQueueType QueueType;
     Stoner::Core::uint32 SubmittedCommandBufferCount = 0;
+    Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> Owner;
     FVulkanDiagnostics* Diagnostics = nullptr;
     FVulkanCompletionInjectionConfig CompletionInjection;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandSubmission>> Submissions;

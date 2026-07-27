@@ -14,6 +14,7 @@ class FVulkanGraphicsPipeline;
 class FVulkanQueue;
 class FVulkanRenderPass;
 class FVulkanUploadRequest;
+struct FVulkanDeviceOwnerState;
 struct FVulkanDiagnostics;
 
 struct FVulkanRecordedCommand
@@ -78,7 +79,10 @@ private:
     friend class FVulkanQueue;
 
     FVulkanCommandBuffer(Stoner::RHI::ERHIQueueType InQueueType,
-        FVulkanDiagnostics* InDiagnostics) noexcept;
+        FVulkanDiagnostics* InDiagnostics,
+        Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> InOwner) noexcept;
+    [[nodiscard]] bool BelongsTo(
+        const Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState>& InOwner) const noexcept;
     Stoner::RHI::ERHIResult MarkSubmitted() noexcept;
     Stoner::RHI::ERHIResult MarkCompletedOrResettable() noexcept;
     void Invalidate() noexcept;
@@ -93,6 +97,7 @@ private:
 
     Stoner::RHI::ERHIQueueType QueueType = Stoner::RHI::ERHIQueueType::Graphics;
     Stoner::RHI::ERHICommandBufferState State = Stoner::RHI::ERHICommandBufferState::Idle;
+    Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> Owner;
     Stoner::Core::TArray<FVulkanRecordedCommand> Commands;
     FVulkanDiagnostics* Diagnostics = nullptr;
     Stoner::Core::TWeakPtr<Stoner::RHI::IRHIRenderPass> ActiveRenderPass;

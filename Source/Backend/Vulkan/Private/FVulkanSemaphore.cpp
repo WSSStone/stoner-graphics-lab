@@ -1,7 +1,15 @@
 #include "VulkanRHI/FVulkanSemaphore.h"
 
+#include "VulkanRHI/FVulkanDeviceOwnerState.h"
+
 namespace Stoner::Backend::Vulkan
 {
+
+FVulkanSemaphore::FVulkanSemaphore(
+    Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> InOwner) noexcept
+    : Owner(std::move(InOwner))
+{
+}
 
 Stoner::RHI::ERHISemaphoreState FVulkanSemaphore::GetState() const noexcept
 {
@@ -15,7 +23,7 @@ bool FVulkanSemaphore::IsSignaled() const noexcept
 
 Stoner::RHI::ERHIResult FVulkanSemaphore::Signal()
 {
-    if (!bValid)
+    if (!bValid || !Owner || !Owner->bActive)
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
@@ -30,7 +38,7 @@ Stoner::RHI::ERHIResult FVulkanSemaphore::Signal()
 
 Stoner::RHI::ERHIResult FVulkanSemaphore::Consume()
 {
-    if (!bValid)
+    if (!bValid || !Owner || !Owner->bActive)
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
@@ -45,7 +53,7 @@ Stoner::RHI::ERHIResult FVulkanSemaphore::Consume()
 
 Stoner::RHI::ERHIResult FVulkanSemaphore::Reset()
 {
-    if (!bValid)
+    if (!bValid || !Owner || !Owner->bActive)
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
@@ -54,9 +62,38 @@ Stoner::RHI::ERHIResult FVulkanSemaphore::Reset()
     return Stoner::RHI::ERHIResult::Success;
 }
 
+bool FVulkanSemaphore::BelongsTo(
+    const Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState>& InOwner) const noexcept
+{
+    return bValid && Owner && Owner->bActive && InOwner && Owner == InOwner;
+}
+
+bool FVulkanSemaphore::CanConsumeForSubmission() const noexcept
+{
+    return bValid && Owner && Owner->bActive &&
+        State == Stoner::RHI::ERHISemaphoreState::Signaled;
+}
+
+bool FVulkanSemaphore::CanSignalForSubmission() const noexcept
+{
+    return bValid && Owner && Owner->bActive &&
+        State != Stoner::RHI::ERHISemaphoreState::Signaled;
+}
+
+void FVulkanSemaphore::CommitConsumeForSubmission() noexcept
+{
+    State = Stoner::RHI::ERHISemaphoreState::Consumed;
+}
+
+void FVulkanSemaphore::CommitSignalForSubmission() noexcept
+{
+    State = Stoner::RHI::ERHISemaphoreState::Signaled;
+}
+
 void FVulkanSemaphore::Invalidate() noexcept
 {
     bValid = false;
+    Owner.reset();
 }
 
 } // namespace Stoner::Backend::Vulkan

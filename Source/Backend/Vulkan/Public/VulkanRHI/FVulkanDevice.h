@@ -7,6 +7,7 @@
 #include "VulkanRHI/FVulkanDescriptorPool.h"
 #include "VulkanRHI/FVulkanDescriptorSet.h"
 #include "VulkanRHI/FVulkanDiagnostics.h"
+#include "VulkanRHI/FVulkanDeviceOwnerState.h"
 #include "VulkanRHI/FVulkanFramebuffer.h"
 #include "VulkanRHI/FVulkanComputePipeline.h"
 #include "VulkanRHI/FVulkanGraphicsPipeline.h"
@@ -118,6 +119,8 @@ private:
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSemaphore>> Semaphores;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSurface>> Surfaces;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSwapchain>> Swapchains;
+    std::shared_ptr<FVulkanDeviceOwnerState> DeviceOwner =
+        std::make_shared<FVulkanDeviceOwnerState>();
     std::shared_ptr<FVulkanPresentationOwnerState> PresentationOwner =
         std::make_shared<FVulkanPresentationOwnerState>();
     std::shared_ptr<FVulkanMemoryAllocator> Allocator = std::make_shared<FVulkanMemoryAllocator>();

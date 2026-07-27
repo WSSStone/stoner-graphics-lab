@@ -215,6 +215,7 @@ Stoner::RHI::ERHIResult FVulkanDevice::Initialize(const FVulkanInstanceDesc& Des
     SuccessfulPipelineCreations = 0;
     PresentationOwner = std::make_shared<FVulkanPresentationOwnerState>();
     PresentationOwner->bActive = true;
+    DeviceOwner->bActive = true;
     State = Stoner::RHI::ERHIDeviceState::Active;
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -310,8 +311,31 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHICommandQueue> FVulkanDevice::Crea
         return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
     }
 
-    auto Queue = Stoner::Core::MakeShared<FVulkanQueue>(QueueType, &Diagnostics, CompletionInjection);
-    Queues.push_back(Queue);
+    Stoner::Core::TSharedPtr<FVulkanQueue> Queue;
+    try
+    {
+        Queue.reset(new FVulkanQueue(
+            QueueType, DeviceOwner, &Diagnostics, CompletionInjection));
+        Queues.push_back(Queue);
+    }
+    catch (const std::bad_alloc&)
+    {
+        if (Queue)
+        {
+            Queue->Invalidate();
+        }
+        MarkQueueCapability(Diagnostics, "command queue allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        if (Queue)
+        {
+            Queue->Invalidate();
+        }
+        MarkQueueCapability(Diagnostics, "command queue tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     return {Stoner::RHI::ERHIResult::Success, Queue};
 }
 
@@ -341,7 +365,7 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHICommandBuffer> FVulkanDevice::Cre
         try
         {
             Pool.reset(new FVulkanCommandPool(
-                CompatibleQueueType, CommandBufferCapacity));
+                CompatibleQueueType, CommandBufferCapacity, DeviceOwner));
             CommandPools.push_back(Pool);
         }
         catch (const std::bad_alloc&)
@@ -367,8 +391,28 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIFence> FVulkanDevice::CreateFence
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
 
-    auto Fence = Stoner::Core::MakeShared<FVulkanFence>(bInitiallySignaled);
-    Fences.push_back(Fence);
+    Stoner::Core::TSharedPtr<FVulkanFence> Fence;
+    try
+    {
+        Fence.reset(new FVulkanFence(bInitiallySignaled, DeviceOwner));
+        Fences.push_back(Fence);
+    }
+    catch (const std::bad_alloc&)
+    {
+        if (Fence)
+        {
+            Fence->Invalidate();
+        }
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        if (Fence)
+        {
+            Fence->Invalidate();
+        }
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     return {Stoner::RHI::ERHIResult::Success, Fence};
 }
 
@@ -379,8 +423,28 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISemaphore> FVulkanDevice::CreateS
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
 
-    auto Semaphore = Stoner::Core::MakeShared<FVulkanSemaphore>();
-    Semaphores.push_back(Semaphore);
+    Stoner::Core::TSharedPtr<FVulkanSemaphore> Semaphore;
+    try
+    {
+        Semaphore.reset(new FVulkanSemaphore(DeviceOwner));
+        Semaphores.push_back(Semaphore);
+    }
+    catch (const std::bad_alloc&)
+    {
+        if (Semaphore)
+        {
+            Semaphore->Invalidate();
+        }
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        if (Semaphore)
+        {
+            Semaphore->Invalidate();
+        }
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     return {Stoner::RHI::ERHIResult::Success, Semaphore};
 }
 
@@ -1065,6 +1129,10 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> FVulkanDevice::CreateS
 
 void FVulkanDevice::InvalidateOwnedObjects() noexcept
 {
+    if (DeviceOwner)
+    {
+        DeviceOwner->bActive = false;
+    }
     for (const auto& Queue : Queues)
     {
         if (Queue)
