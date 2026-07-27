@@ -3002,7 +3002,7 @@
     },
     {
       "batch": "B07",
-      "commit": "",
+      "commit": "c6dd0a6",
       "created_at": "2026-07-27T08:00:23+00:00",
       "deferred_target": "",
       "evidence": "FTransformComponent add/replace paths call Component.IsValid() and return InvalidComponentData, but the SG_SCENE_COMPONENT_METHODS macro for Mesh, Light, and Camera assigns Slot->Member directly on add and replace without checking Type::IsValid(). FMeshComponent::IsValid rejects empty mesh ids, FLightComponent::IsValid rejects non-finite/negative light data, and FCameraComponent::IsValid rejects invalid near/far/projection parameters.",
@@ -3018,15 +3018,21 @@
           "from": "Triaged",
           "note": "Accepted for B07 fix. Transform already validates at mutation time, and mesh/light/camera expose IsValid methods, so the macro component paths should reject invalid data consistently instead of admitting invalid live component state.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T08:10:39+00:00",
+          "from": "Accepted",
+          "note": "Mesh, light, and camera add/replace paths now reject invalid component payloads before storage; regression tests cover invalid mesh add and invalid light/camera replace without mutating existing state.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B07-F005",
       "impact": "Invalid mesh, light, and camera components can be stored in live world state, so component operations report Success instead of InvalidComponentData and defer rejection to render collection or downstream users.",
       "location": "Source/Application/Private/FWorld.cpp:235",
       "requirement": "Feature 017 FR-005 and the Component Contract require invalid component data outcomes with stable statuses or diagnostics for component operations, and FR-010 through FR-012 define valid mesh, light, and camera scene data.",
-      "resolution": "",
+      "resolution": "Mesh, light, and camera add/replace paths now reject invalid component payloads before storage; regression tests cover invalid mesh add and invalid light/camera replace without mutating existing state.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Mesh light and camera component mutation bypasses data validation",
       "verification": ""
     }
