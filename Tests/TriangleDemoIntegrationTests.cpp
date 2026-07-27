@@ -116,8 +116,10 @@ void TestInitializationContractAndShaderStages(FTriangleDemoIntegrationTestResul
     Invalid.ShaderDirectory = InvalidDirectory.string().c_str();
     FStonerDemoApplication WrongStages(Invalid);
     Record(Result, WrongStages.Initialize() == EDemoExitCode::InitializationFailed &&
-            WrongStages.GetDiagnostics().GetPrimaryExitCode() == EDemoExitCode::InitializationFailed,
-        "Triangle demo rejects SPIR-V payloads with swapped vertex and fragment stages");
+            WrongStages.GetDiagnostics().GetPrimaryExitCode() == EDemoExitCode::InitializationFailed &&
+            WrongStages.GetLifecycleState() == EDemoLifecycleState::Stopped &&
+            WrongStages.Shutdown() == EDemoExitCode::Success,
+        "Triangle demo rejects swapped shader stages and cleans partial initialization");
 }
 
 void TestPresentationRecovery(FTriangleDemoIntegrationTestResult& Result)

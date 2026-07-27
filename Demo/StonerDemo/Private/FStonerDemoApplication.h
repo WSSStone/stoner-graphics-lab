@@ -65,6 +65,10 @@ private:
     [[nodiscard]] EDemoExitCode RunNativeHeadless();
     [[nodiscard]] EDemoExitCode RunVisible();
     [[nodiscard]] bool ShouldInject(EDemoStage Stage, EDemoExitCode Code, const char* Subject);
+    [[nodiscard]] EDemoExitCode FailInitialize(EDemoStage Stage,
+        EDemoExitCode Code,
+        const char* Subject,
+        const char* Reason);
 
     FDemoConfiguration Configuration;
     EDemoLifecycleState LifecycleState = EDemoLifecycleState::Uninitialized;

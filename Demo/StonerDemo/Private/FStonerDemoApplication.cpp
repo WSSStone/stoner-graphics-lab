@@ -127,6 +127,18 @@ bool FStonerDemoApplication::ShouldInject(EDemoStage Stage, EDemoExitCode Code, 
     return true;
 }
 
+EDemoExitCode FStonerDemoApplication::FailInitialize(
+    EDemoStage Stage,
+    EDemoExitCode Code,
+    const char* Subject,
+    const char* Reason)
+{
+    Diagnostics.Add(Stage, Code, Subject, Reason);
+    LifecycleState = EDemoLifecycleState::Failed;
+    (void)Shutdown();
+    return Code;
+}
+
 EDemoExitCode FStonerDemoApplication::Initialize()
 {
     if (LifecycleState != EDemoLifecycleState::Uninitialized) return EDemoExitCode::InitializationFailed;
@@ -197,14 +209,24 @@ EDemoExitCode FStonerDemoApplication::Initialize()
     Diagnostics.Add(EDemoStage::Runtime, EDemoExitCode::Success, "Runtime", ToString(Configuration.RunMode));
     if (!ValidateShaderPayloads())
     {
-        Diagnostics.Add(EDemoStage::Shader, EDemoExitCode::InitializationFailed, "TriangleShaders", "invalid stage, entry point, or checked-in SPIR-V payload");
-        LifecycleState = EDemoLifecycleState::Failed;
-        return EDemoExitCode::InitializationFailed;
+        return FailInitialize(
+            EDemoStage::Shader,
+            EDemoExitCode::InitializationFailed,
+            "TriangleShaders",
+            "invalid stage, entry point, or checked-in SPIR-V payload");
     }
     Diagnostics.Add(EDemoStage::Shader, EDemoExitCode::Success, "TriangleShaders", "vertex and fragment main entry points validated");
 
-    if (ShouldInject(EDemoStage::Upload, EDemoExitCode::InitializationFailed, "TriangleUpload")) return EDemoExitCode::InitializationFailed;
-    if (ShouldInject(EDemoStage::Pipeline, EDemoExitCode::InitializationFailed, "TrianglePipeline")) return EDemoExitCode::InitializationFailed;
+    if (ShouldInject(EDemoStage::Upload, EDemoExitCode::InitializationFailed, "TriangleUpload"))
+    {
+        (void)Shutdown();
+        return EDemoExitCode::InitializationFailed;
+    }
+    if (ShouldInject(EDemoStage::Pipeline, EDemoExitCode::InitializationFailed, "TrianglePipeline"))
+    {
+        (void)Shutdown();
+        return EDemoExitCode::InitializationFailed;
+    }
 
     if (Configuration.RequiresVisibleWindow())
     {
@@ -216,9 +238,11 @@ EDemoExitCode FStonerDemoApplication::Initialize()
                 (Directory + "/Triangle.vert.spv").c_str(), (Directory + "/Triangle.frag.spv").c_str(),
                 CurrentDrawableWidth, CurrentDrawableHeight) != Stoner::RHI::ERHIResult::Success)
         {
-            Diagnostics.Add(EDemoStage::Pipeline, EDemoExitCode::InitializationFailed, "VisibleTriangle", "native presentation resources failed");
-            LifecycleState = EDemoLifecycleState::Failed;
-            return EDemoExitCode::InitializationFailed;
+            return FailInitialize(
+                EDemoStage::Pipeline,
+                EDemoExitCode::InitializationFailed,
+                "VisibleTriangle",
+                "native presentation resources failed");
         }
     }
     Diagnostics.Add(EDemoStage::Upload, EDemoExitCode::Success, "TriangleUpload", "three-vertex RGB payload ready");
