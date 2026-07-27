@@ -14,6 +14,12 @@ bool ContainsString(const Stoner::Core::TArray<Stoner::Core::FString>& Values, c
     return std::find(Values.begin(), Values.end(), Value) != Values.end();
 }
 
+bool HasDuplicateString(Stoner::Core::TArray<Stoner::Core::FString> Values)
+{
+    std::sort(Values.begin(), Values.end());
+    return std::adjacent_find(Values.begin(), Values.end()) != Values.end();
+}
+
 void SortUniqueStrings(Stoner::Core::TArray<Stoner::Core::FString>& Values)
 {
     std::sort(Values.begin(), Values.end());
@@ -43,7 +49,82 @@ EMaterialResult FShaderLibrary::RegisterShaderRecord(FShaderRecord Record, FMate
         return EMaterialResult::DuplicateName;
     }
 
+    if (HasDuplicateString(Record.AllowedPermutationFlags))
+    {
+        if (Diagnostics != nullptr)
+        {
+            Diagnostics->Add(EMaterialDiagnosticSeverity::Error, EMaterialDiagnosticCategory::Permutation,
+                EMaterialResult::DuplicateName, "MAT-SHADER-FLAG-DUPLICATE", Record.ShaderId,
+                "duplicate allowed permutation flag");
+        }
+        return EMaterialResult::DuplicateName;
+    }
+    for (const Stoner::Core::FString& Flag : Record.AllowedPermutationFlags)
+    {
+        if (Flag.IsEmpty())
+        {
+            if (Diagnostics != nullptr)
+            {
+                Diagnostics->Add(EMaterialDiagnosticSeverity::Error, EMaterialDiagnosticCategory::Permutation,
+                    EMaterialResult::ValidationFailed, "MAT-SHADER-FLAG-EMPTY", Record.ShaderId,
+                    "allowed permutation flag cannot be empty");
+            }
+            return EMaterialResult::ValidationFailed;
+        }
+    }
+
     SortUniqueStrings(Record.AllowedPermutationFlags);
+    Stoner::Core::TArray<Stoner::Core::FString> VariantIds;
+    Stoner::Core::TArray<Stoner::Core::FString> VariantKeys;
+    for (const FShaderVariant& Variant : Record.Variants)
+    {
+        if (Variant.VariantId.IsEmpty())
+        {
+            if (Diagnostics != nullptr)
+            {
+                Diagnostics->Add(EMaterialDiagnosticSeverity::Error, EMaterialDiagnosticCategory::ShaderLibrary,
+                    EMaterialResult::ValidationFailed, "MAT-SHADER-VARIANT-ID-EMPTY", Record.ShaderId,
+                    "shader variant id is required");
+            }
+            return EMaterialResult::ValidationFailed;
+        }
+        for (const Stoner::Core::FString& Flag : Variant.Permutation.GetFlags())
+        {
+            if (!ContainsString(Record.AllowedPermutationFlags, Flag))
+            {
+                if (Diagnostics != nullptr)
+                {
+                    Diagnostics->Add(EMaterialDiagnosticSeverity::Error, EMaterialDiagnosticCategory::Permutation,
+                        EMaterialResult::ValidationFailed, "MAT-SHADER-VARIANT-FLAG", Record.ShaderId,
+                        Stoner::Core::FString(std::string("variant uses undeclared permutation flag: ") + Flag.ToStdString()));
+                }
+                return EMaterialResult::ValidationFailed;
+            }
+        }
+        VariantIds.push_back(Variant.VariantId);
+        VariantKeys.push_back(Variant.Permutation.GetCanonicalKey());
+    }
+    if (HasDuplicateString(VariantIds))
+    {
+        if (Diagnostics != nullptr)
+        {
+            Diagnostics->Add(EMaterialDiagnosticSeverity::Error, EMaterialDiagnosticCategory::ShaderLibrary,
+                EMaterialResult::DuplicateName, "MAT-SHADER-VARIANT-DUPLICATE", Record.ShaderId,
+                "duplicate shader variant id");
+        }
+        return EMaterialResult::DuplicateName;
+    }
+    if (HasDuplicateString(VariantKeys))
+    {
+        if (Diagnostics != nullptr)
+        {
+            Diagnostics->Add(EMaterialDiagnosticSeverity::Error, EMaterialDiagnosticCategory::Permutation,
+                EMaterialResult::DuplicateName, "MAT-SHADER-VARIANT-KEY-DUPLICATE", Record.ShaderId,
+                "duplicate shader variant permutation key");
+        }
+        return EMaterialResult::DuplicateName;
+    }
+
     std::sort(Record.Variants.begin(), Record.Variants.end(), [](const FShaderVariant& Left, const FShaderVariant& Right) {
         if (Left.Permutation.GetCanonicalKey() == Right.Permutation.GetCanonicalKey())
         {

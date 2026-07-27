@@ -231,6 +231,52 @@ void TestShaderLibraryAndBinding(FRendererMaterialShaderTestResult& Result)
     }
     Record(Result, bPermutationStable, "Shader permutation canonical key is stable across reordered flags and repeated resolutions");
 
+    FShaderRecord DuplicateAllowedFlag;
+    DuplicateAllowedFlag.ShaderId = "DuplicateAllowedFlag";
+    DuplicateAllowedFlag.AllowedPermutationFlags = {"USE_TEXTURE", "USE_TEXTURE"};
+    DuplicateAllowedFlag.Variants = {{"Default", FShaderPermutation{}, "VS+PS"}};
+    FMaterialDiagnosticLog DuplicateAllowedFlagDiagnostics;
+    Record(Result,
+        Library.RegisterShaderRecord(DuplicateAllowedFlag, &DuplicateAllowedFlagDiagnostics) == EMaterialResult::DuplicateName &&
+        DuplicateAllowedFlagDiagnostics.Format().View().find("MAT-SHADER-FLAG-DUPLICATE") != std::string_view::npos,
+        "Shader library rejects duplicate allowed permutation flags at registration");
+
+    FShaderRecord UndeclaredVariantFlag;
+    UndeclaredVariantFlag.ShaderId = "UndeclaredVariantFlag";
+    UndeclaredVariantFlag.AllowedPermutationFlags = {"USE_TEXTURE"};
+    UndeclaredVariantFlag.Variants = {{"InvalidVariant", FShaderPermutation{{"NO_SUCH_FLAG"}}, "VS+PS"}};
+    FMaterialDiagnosticLog UndeclaredVariantFlagDiagnostics;
+    Record(Result,
+        Library.RegisterShaderRecord(UndeclaredVariantFlag, &UndeclaredVariantFlagDiagnostics) == EMaterialResult::ValidationFailed &&
+        UndeclaredVariantFlagDiagnostics.Format().View().find("MAT-SHADER-VARIANT-FLAG") != std::string_view::npos,
+        "Shader library rejects variant permutation flags not declared by the record");
+
+    FShaderRecord DuplicateVariantId;
+    DuplicateVariantId.ShaderId = "DuplicateVariantId";
+    DuplicateVariantId.AllowedPermutationFlags = {"USE_TEXTURE"};
+    DuplicateVariantId.Variants = {
+        {"Duplicated", FShaderPermutation{}, "VS+PS"},
+        {"Duplicated", FShaderPermutation{{"USE_TEXTURE"}}, "VS+PS"},
+    };
+    FMaterialDiagnosticLog DuplicateVariantIdDiagnostics;
+    Record(Result,
+        Library.RegisterShaderRecord(DuplicateVariantId, &DuplicateVariantIdDiagnostics) == EMaterialResult::DuplicateName &&
+        DuplicateVariantIdDiagnostics.Format().View().find("MAT-SHADER-VARIANT-DUPLICATE") != std::string_view::npos,
+        "Shader library rejects duplicate shader variant ids at registration");
+
+    FShaderRecord DuplicateVariantKey;
+    DuplicateVariantKey.ShaderId = "DuplicateVariantKey";
+    DuplicateVariantKey.AllowedPermutationFlags = {"USE_TEXTURE"};
+    DuplicateVariantKey.Variants = {
+        {"DefaultA", FShaderPermutation{}, "VS+PS"},
+        {"DefaultB", FShaderPermutation{}, "VS+PS"},
+    };
+    FMaterialDiagnosticLog DuplicateVariantKeyDiagnostics;
+    Record(Result,
+        Library.RegisterShaderRecord(DuplicateVariantKey, &DuplicateVariantKeyDiagnostics) == EMaterialResult::DuplicateName &&
+        DuplicateVariantKeyDiagnostics.Format().View().find("MAT-SHADER-VARIANT-KEY-DUPLICATE") != std::string_view::npos,
+        "Shader library rejects duplicate shader variant permutation keys at registration");
+
     FMaterial UnknownFlag(MakeMaterialDesc("UnknownFlag", EMaterialDomain::Surface, EMaterialBlendMode::Opaque, FShaderPermutation{{"NO_SUCH_FLAG"}}));
     FMaterialShaderBinding UnknownFlagBinding;
     FMaterialDiagnosticLog UnknownFlagDiagnostics;
