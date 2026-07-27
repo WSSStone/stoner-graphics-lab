@@ -1,5 +1,5 @@
 {
-  "active_step": "B08-S04",
+  "active_step": "B08-S05",
   "batches": [
     {
       "id": "B00",
@@ -1552,12 +1552,15 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T09:04:26+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B08-triangle-native-presentation-sync-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b08-triangle-native-presentation-sync-inspection.md"
+          ],
           "id": "B08-S04",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected Feature 018 visible native presentation ordering and synchronization; accepted CR001-B08-F003 for startup-zero visible recovery selecting recreate before first prepare.",
+          "started_at": "2026-07-27T08:56:30+00:00",
+          "status": "Completed",
           "title": "Inspect: triangle native session, presentation, and synchronization"
         },
         {
@@ -5294,6 +5297,26 @@
       "at": "2026-07-27T08:54:12+00:00",
       "detail": "B08-S03",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T08:56:30+00:00",
+      "detail": "B08-S04",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T09:01:43+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T09:02:21+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T09:04:26+00:00",
+      "detail": "B08-S04",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5447,7 +5470,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "642cefb2a02368fb33fbb23ea06ae1cdfba7f2a7"
+    "last_recorded_head": "2a9c5092b6b32abaf5e240076b5a375e4b8a27b5"
   },
   "policy": {
     "fix_severities": [
@@ -5467,5 +5490,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T08:54:12+00:00"
+  "updated_at": "2026-07-27T09:04:26+00:00"
 }
