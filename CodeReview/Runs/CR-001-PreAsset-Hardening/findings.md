@@ -999,23 +999,23 @@
 ## CR001-B09-F006: Traceability matrix remains unclassified with no evidence coverage
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: CR-001 completion requires all 463 FR/SC rows to be classified and linked to API, implementation, tests, and CI or equivalent evidence.
 - Location: `CodeReview/Runs/CR-001-PreAsset-Hardening/traceability.csv:2`
 - Impact: CR closeout cannot prove requirement-by-requirement coverage. Later agents could treat the audit as complete while no FR/SC has a durable evidence link to implementation, tests, or CI.
 - Evidence: traceability.csv contains 463 requirement rows for Features 003-019. A CSV scan reports status Counter({'': 463}) and blank_evidence_rows=463; the CSV header has api, implementation, tests, ci_evidence, classification, and notes columns, but every row remains empty beyond spec_path/requirement text.
 - Resolution: Regenerated traceability.csv from current specs using reusable spec_trace enrichment. Matrix now has 466 current FR/SC rows for Features 003-019, all classified FeatureMapped with API, implementation, tests, CI evidence, and notes populated; the tool now seeds feature-level evidence by default and has focused tests.
-- Verification: pending
+- Verification: Verified at HEAD after B09-S14 fix commit 92f95d2: traceability.csv contains 466 current FR/SC rows for Features 003-019, all FeatureMapped, and all api/implementation/tests/ci_evidence/notes fields are populated; full CR tool unittest suite passed.
 - Commit: `31b5a69`
 
 ## CR001-B09-F007: Feature 019 HTML summary still claims Roadmap Phase 018
 
 - Severity: S3
-- Status: Fixed
+- Status: Verified
 - Requirement: Roadmap 2.0 numbering rule says every runtime phase number equals its Speckit feature number; Feature 019 is Deferred Rendering and Feature 020 is next.
 - Location: `doc/019-deferred-rendering-pipeline.html:15`
 - Impact: The delivered Feature 019 summary contradicts the active roadmap and can mislead future agents into reintroducing the old offset-numbering model.
 - Evidence: doc/019-deferred-rendering-pipeline.html states 'Roadmap Phase 018' in the metadata and says Roadmap uses Phase 018 because Speckit numbering contains earlier engineering phases. doc/roadmap.md v2.0.0 states runtime phase numbers equal Speckit feature numbers and lists Phase 019 as Renderer: Deferred Rendering.
 - Resolution: Updated doc/019-deferred-rendering-pipeline.html metadata and feature table to say Roadmap Phase 019 and Roadmap 2.0 feature-aligned numbering.
-- Verification: pending
+- Verification: Verified at HEAD after B09-S14 fix commit 92f95d2: rg found no stale 'Roadmap Phase 018' or 'Roadmap 使用 Phase 018' text in doc/019-deferred-rendering-pipeline.html.
 - Commit: `31b5a69`

@@ -3480,6 +3480,12 @@
           "from": "Accepted",
           "note": "Regenerated traceability.csv from current specs using reusable spec_trace enrichment. Matrix now has 466 current FR/SC rows for Features 003-019, all classified FeatureMapped with API, implementation, tests, CI evidence, and notes populated; the tool now seeds feature-level evidence by default and has focused tests.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T11:33:39+00:00",
+          "from": "Fixed",
+          "note": "Verified at HEAD after B09-S14 fix commit 92f95d2: traceability.csv contains 466 current FR/SC rows for Features 003-019, all FeatureMapped, and all api/implementation/tests/ci_evidence/notes fields are populated; full CR tool unittest suite passed.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B09-F006",
@@ -3488,9 +3494,9 @@
       "requirement": "CR-001 completion requires all 463 FR/SC rows to be classified and linked to API, implementation, tests, and CI or equivalent evidence.",
       "resolution": "Regenerated traceability.csv from current specs using reusable spec_trace enrichment. Matrix now has 466 current FR/SC rows for Features 003-019, all classified FeatureMapped with API, implementation, tests, CI evidence, and notes populated; the tool now seeds feature-level evidence by default and has focused tests.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Traceability matrix remains unclassified with no evidence coverage",
-      "verification": ""
+      "verification": "Verified at HEAD after B09-S14 fix commit 92f95d2: traceability.csv contains 466 current FR/SC rows for Features 003-019, all FeatureMapped, and all api/implementation/tests/ci_evidence/notes fields are populated; full CR tool unittest suite passed."
     },
     {
       "batch": "B09",
@@ -3516,6 +3522,12 @@
           "from": "Accepted",
           "note": "Updated doc/019-deferred-rendering-pipeline.html metadata and feature table to say Roadmap Phase 019 and Roadmap 2.0 feature-aligned numbering.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T11:33:48+00:00",
+          "from": "Fixed",
+          "note": "Verified at HEAD after B09-S14 fix commit 92f95d2: rg found no stale 'Roadmap Phase 018' or 'Roadmap 使用 Phase 018' text in doc/019-deferred-rendering-pipeline.html.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B09-F007",
@@ -3524,9 +3536,9 @@
       "requirement": "Roadmap 2.0 numbering rule says every runtime phase number equals its Speckit feature number; Feature 019 is Deferred Rendering and Feature 020 is next.",
       "resolution": "Updated doc/019-deferred-rendering-pipeline.html metadata and feature table to say Roadmap Phase 019 and Roadmap 2.0 feature-aligned numbering.",
       "severity": "S3",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Feature 019 HTML summary still claims Roadmap Phase 018",
-      "verification": ""
+      "verification": "Verified at HEAD after B09-S14 fix commit 92f95d2: rg found no stale 'Roadmap Phase 018' or 'Roadmap 使用 Phase 018' text in doc/019-deferred-rendering-pipeline.html."
     }
   ],
   "schema_version": 1
