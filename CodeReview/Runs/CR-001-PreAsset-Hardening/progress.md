@@ -5,7 +5,7 @@
 - Baseline: `9092a97593fb29cffbffdbe534e3dda143f463a5`
 - Recorded HEAD: `fe34023eb69189c3ea9719e0e881a85fc1dd017a`
 - Active step: B10-S02
-- Open findings: 2
+- Open findings: 0
 
 ## Batches
 

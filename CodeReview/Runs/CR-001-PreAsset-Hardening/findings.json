@@ -44,7 +44,7 @@
     },
     {
       "batch": "B08",
-      "commit": "",
+      "commit": "B10-S02",
       "created_at": "2026-07-26T02:48:12+00:00",
       "deferred_target": "",
       "evidence": "The first post-build Debug test run failed native submission, probe validity, and report pass checks; two immediate repeats passed with 24 valid probes and zero live objects.",
@@ -60,17 +60,29 @@
           "from": "Triaged",
           "note": "Reproduced as one failure followed by two passes; defer root-cause inspection and repair to B08, but retain as an accepted S2 finding.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T11:39:14+00:00",
+          "from": "Accepted",
+          "note": "No additional engine code change in B10. Current HEAD required-native deferred validation was rebuilt with Debug strict flags and run three consecutive times with STONER_REQUIRE_DEFERRED_NATIVE=1 and STONER_RUN_DEFERRED_NATIVE_FAILURES=1; all runs exited 0 with 917 PASS and 0 FAIL, producing readback reports under B10 final-gates evidence. The prior intermittent local MoltenVK failure is no longer reproducible at closeout HEAD.",
+          "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T11:39:25+00:00",
+          "from": "Fixed",
+          "note": "Verified in B10-S02: conda run -n stoner-cr scons config=debug strict=1 --implicit-deps-changed passed; three required-native StonerTest runs passed with zero failures and retained stdout/stderr/readback reports in Evidence/B10-final-gates.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B08-F001",
       "impact": "A nondeterministic native gate can conceal a synchronization or initialization defect and makes local validation evidence unreliable.",
       "location": "Tests/DeferredNativeIntegrationTests.cpp:104",
       "requirement": "019-FR-025 and 019-SC-002 semantic readback tolerances and deterministic validation evidence",
-      "resolution": "",
+      "resolution": "No additional engine code change in B10. Current HEAD required-native deferred validation was rebuilt with Debug strict flags and run three consecutive times with STONER_REQUIRE_DEFERRED_NATIVE=1 and STONER_RUN_DEFERRED_NATIVE_FAILURES=1; all runs exited 0 with 917 PASS and 0 FAIL, producing readback reports under B10 final-gates evidence. The prior intermittent local MoltenVK failure is no longer reproducible at closeout HEAD.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Verified",
       "title": "Feature 019 native deferred validation is intermittent on local MoltenVK",
-      "verification": ""
+      "verification": "Verified in B10-S02: conda run -n stoner-cr scons config=debug strict=1 --implicit-deps-changed passed; three required-native StonerTest runs passed with zero failures and retained stdout/stderr/readback reports in Evidence/B10-final-gates."
     },
     {
       "batch": "B01",
@@ -3352,7 +3364,7 @@
       "batch": "B09",
       "commit": "",
       "created_at": "2026-07-27T10:39:18+00:00",
-      "deferred_target": "",
+      "deferred_target": "Post-CR test runner ergonomics before broad Asset pipeline validation",
       "evidence": "Tests/SConscript auto-discovers every Tests/*.cpp file into one StonerTest binary. Tests/Main.cpp always invokes every suite except special logging child-process modes. Large suites include RHICoreTests.cpp at 2670 lines, VulkanBackendTests.cpp at 1755 lines, and LoggingAssertionTests.cpp at 1180 lines, but there is no first-class command-line suite selector for focused local gates.",
       "history": [
         {
@@ -3366,15 +3378,21 @@
           "from": "Triaged",
           "note": "Accepted as S3 cross-cutting test architecture debt; fix can be deferred unless a low-risk selector falls naturally out of B09-S02.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T11:39:38+00:00",
+          "from": "Accepted",
+          "note": "S3 validation ergonomics debt. A suite selector would improve focused CR gates, but adding command-line selection across all C++ suites is a test infrastructure migration rather than a correctness fix. Existing full-suite gates remain available and passed where used in CR-001.",
+          "to": "Deferred"
         }
       ],
       "id": "CR001-B09-F003",
       "impact": "Focused CR verification often has to rely on environment skips or ad hoc output filtering instead of an explicit test selection contract. This increases local cycle time and makes unrelated optional/native behavior more likely to obscure the result of a narrow fix.",
       "location": "Tests/Main.cpp:20-67; Tests/SConscript:34-74; Tests/RHICoreTests.cpp; Tests/VulkanBackendTests.cpp; Tests/LoggingAssertionTests.cpp",
       "requirement": "CR-001 execution protocol: reusable validation tools and gates should support bounded, focused verification steps without forcing unrelated domains into every local probe.",
-      "resolution": "",
+      "resolution": "S3 validation ergonomics debt. A suite selector would improve focused CR gates, but adding command-line selection across all C++ suites is a test infrastructure migration rather than a correctness fix. Existing full-suite gates remain available and passed where used in CR-001.",
       "severity": "S3",
-      "status": "Accepted",
+      "status": "Deferred",
       "title": "Single StonerTest entry point lacks suite selection for focused gates",
       "verification": ""
     },

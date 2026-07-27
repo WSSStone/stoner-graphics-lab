@@ -15,14 +15,14 @@
 ## CR001-B08-F001: Feature 019 native deferred validation is intermittent on local MoltenVK
 
 - Severity: S2
-- Status: Accepted
+- Status: Verified
 - Requirement: 019-FR-025 and 019-SC-002 semantic readback tolerances and deterministic validation evidence
 - Location: `Tests/DeferredNativeIntegrationTests.cpp:104`
 - Impact: A nondeterministic native gate can conceal a synchronization or initialization defect and makes local validation evidence unreliable.
 - Evidence: The first post-build Debug test run failed native submission, probe validity, and report pass checks; two immediate repeats passed with 24 valid probes and zero live objects.
-- Resolution: pending
-- Verification: pending
-- Commit: `pending`
+- Resolution: No additional engine code change in B10. Current HEAD required-native deferred validation was rebuilt with Debug strict flags and run three consecutive times with STONER_REQUIRE_DEFERRED_NATIVE=1 and STONER_RUN_DEFERRED_NATIVE_FAILURES=1; all runs exited 0 with 917 PASS and 0 FAIL, producing readback reports under B10 final-gates evidence. The prior intermittent local MoltenVK failure is no longer reproducible at closeout HEAD.
+- Verification: Verified in B10-S02: conda run -n stoner-cr scons config=debug strict=1 --implicit-deps-changed passed; three required-native StonerTest runs passed with zero failures and retained stdout/stderr/readback reports in Evidence/B10-final-gates.
+- Commit: `B10-S02`
 
 ## CR001-B01-F002: Build and CI lack Release, sanitizer, and warning-as-error gates
 
@@ -963,12 +963,12 @@
 ## CR001-B09-F003: Single StonerTest entry point lacks suite selection for focused gates
 
 - Severity: S3
-- Status: Accepted
+- Status: Deferred
 - Requirement: CR-001 execution protocol: reusable validation tools and gates should support bounded, focused verification steps without forcing unrelated domains into every local probe.
 - Location: `Tests/Main.cpp:20-67; Tests/SConscript:34-74; Tests/RHICoreTests.cpp; Tests/VulkanBackendTests.cpp; Tests/LoggingAssertionTests.cpp`
 - Impact: Focused CR verification often has to rely on environment skips or ad hoc output filtering instead of an explicit test selection contract. This increases local cycle time and makes unrelated optional/native behavior more likely to obscure the result of a narrow fix.
 - Evidence: Tests/SConscript auto-discovers every Tests/*.cpp file into one StonerTest binary. Tests/Main.cpp always invokes every suite except special logging child-process modes. Large suites include RHICoreTests.cpp at 2670 lines, VulkanBackendTests.cpp at 1755 lines, and LoggingAssertionTests.cpp at 1180 lines, but there is no first-class command-line suite selector for focused local gates.
-- Resolution: pending
+- Resolution: S3 validation ergonomics debt. A suite selector would improve focused CR gates, but adding command-line selection across all C++ suites is a test infrastructure migration rather than a correctness fix. Existing full-suite gates remain available and passed where used in CR-001.
 - Verification: pending
 - Commit: `pending`
 

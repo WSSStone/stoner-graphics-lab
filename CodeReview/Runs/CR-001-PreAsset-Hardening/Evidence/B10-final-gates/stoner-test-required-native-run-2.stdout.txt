@@ -1,0 +1,931 @@
+[INFO] Running Core foundation tests
+[PASS] int8 is 1 byte
+[PASS] uint8 is 1 byte
+[PASS] int16 is 2 bytes
+[PASS] uint16 is 2 bytes
+[PASS] int32 is 4 bytes
+[PASS] uint32 is 4 bytes
+[PASS] int64 is 8 bytes
+[PASS] uint64 is 8 bytes
+[PASS] uintptr matches pointer size
+[PASS] intptr matches pointer size
+[INFO] sizeof(void*)=8 alignof(std::max_align_t)=8
+[PASS] FString default is empty
+[PASS] FString default length is zero
+[PASS] FString text construction is non-empty
+[PASS] FString length reflects text
+[PASS] FString view preserves text
+[PASS] FString copy preserves equality
+[PASS] FString move transfers text
+[PASS] FString moved-from value remains assignable
+[PASS] FString Clear creates empty string
+[PASS] FString inequality compares text
+[PASS] FName default is empty
+[PASS] FName duplicate text compares equal
+[PASS] FName different text compares unequal
+[PASS] FName duplicate text shares hash
+[PASS] FName equality remains collision-safe
+[PASS] FName copy preserves equality
+[PASS] FName equality is reflexive symmetric and transitive
+[PASS] FName move preserves destination identity
+[PASS] FName move preserves source text/hash invariant
+[PASS] FName move assignment preserves destination identity
+[PASS] FName move assignment preserves source text/hash invariant
+[PASS] TSharedPtr null is valid
+[PASS] TSharedPtr copy shares ownership
+[PASS] TSharedPtr copy preserves value
+[PASS] TUniquePtr null is valid
+[PASS] TUniquePtr move clears source
+[PASS] TUniquePtr move transfers value
+[PASS] TUniquePtr is not copy constructible
+[PASS] TArray default is empty
+[PASS] TArray tracks inserted count
+[PASS] TArray retrieves inserted values
+[PASS] TArray copy preserves values
+[PASS] TArray move preserves destination values
+[PASS] TMap default is empty
+[PASS] TMap tracks inserted count
+[PASS] TMap retrieves inserted values
+[PASS] TMap copy preserves values
+[PASS] TMap move preserves destination values
+[PASS] FMemory zero-size allocation is null
+[PASS] FMemory small allocation succeeds
+[PASS] FMemory large allocation succeeds
+[PASS] FMemory 16-byte aligned allocation succeeds
+[PASS] FMemory 64-byte aligned allocation succeeds
+[PASS] FMemory invalid alignment fails deterministically
+[PASS] FMemory rejects aligned allocation overhead overflow
+[PASS] FMemory rejects maximum aligned allocation size
+[PASS] FMemory Copy copies byte range
+[PASS] FMemory Move handles overlapping byte range
+[PASS] FMemory Set fills byte range
+[PASS] FMemory Zero clears byte range
+[PASS] CoreMinimal exposes Core foundation headers
+[PASS] CoreFoundationTests.cpp includes only Core foundation headers
+[INFO] Core foundation tests passed=62 failed=0
+[INFO] Running Core math tests
+[PASS] FMath Pi converts to 180 degrees
+[PASS] FMath degrees convert to radians
+[PASS] FMath Clamp clamps high values
+[PASS] FMath Clamp clamps low values
+[PASS] FMath Min and Max select bounds
+[PASS] FMath Abs handles negative values
+[PASS] FMath Lerp interpolates values
+[PASS] FMath Lerp preserves extreme finite endpoints and midpoint
+[PASS] FMath Sin handles half pi
+[PASS] FMath Cos handles zero
+[PASS] FMath Sqrt computes square root
+[PASS] FMath near equality accepts tolerance
+[PASS] FMath near zero accepts tolerance
+[PASS] FMath near comparisons reject invalid numeric inputs
+[PASS] FVector2 adds components
+[PASS] FVector2 subtracts components
+[PASS] FVector2 scales by scalar
+[PASS] FVector2 dot product works
+[PASS] FVector2 length works
+[PASS] FVector2 near equality works
+[PASS] FVector2 length resists finite square overflow
+[PASS] FVector2 normalizes large finite axis
+[PASS] FVector2 safe normalization rejects non-finite components
+[PASS] FVector3 right-handed cross product works
+[PASS] FVector3 dot product works
+[PASS] FVector3 length works
+[PASS] FVector3 safe normalization works
+[PASS] FVector3 zero safe normalization returns zero
+[PASS] FVector3 normalizes large finite axis
+[PASS] FVector3 normalizes large finite diagonal
+[PASS] FVector3 safe normalization rejects non-finite inputs and invalid tolerance
+[PASS] FVector4 adds components
+[PASS] FVector4 dot product works
+[PASS] FVector4 length works
+[PASS] FVector4 normalizes large finite axis
+[PASS] FVector4 safe normalization rejects non-finite components
+[PASS] FMatrix4x4 identity preserves points
+[PASS] FMatrix4x4 row-major component access works
+[PASS] FMatrix4x4 transpose swaps rows and columns
+[PASS] FMatrix4x4 multiplication transforms points
+[PASS] FMatrix4x4 direction transform ignores translation
+[PASS] FMatrix4x4 inverse recovers transformed point
+[PASS] FMatrix4x4 singular inverse fails deterministically
+[PASS] FMatrix4x4 inverse rejects invalid tolerance and non-finite input
+[PASS] FQuat identity preserves vectors
+[PASS] FQuat axis-angle rotation is right-handed
+[PASS] FQuat multiplication composes rotations
+[PASS] FQuat safe normalization produces unit quaternion
+[PASS] FQuat zero safe normalization returns identity
+[PASS] FQuat safe normalization preserves large finite rotations
+[PASS] FQuat inverse remains stable for large finite components
+[PASS] FQuat near equality accepts equivalent negated rotations
+[PASS] FQuat invalid numeric inputs use deterministic identity fallback
+[PASS] FQuat matrix-compatible rotation matches quaternion rotation
+[PASS] FTransform identity preserves points
+[PASS] FTransform transforms points with scale rotation translation
+[PASS] FTransform transforms directions without translation
+[PASS] FTransform exact composition with identity preserves transform
+[PASS] FTransform inverse recovers transformed point
+[PASS] FTransform zero scale inverse fails deterministically
+[PASS] FTransform inverse rejects invalid tolerance without non-finite output
+[PASS] FTransform rejects affine shear that editable TRS cannot represent
+[PASS] FTransform preserves exact axis-aligned non-uniform inverse
+[PASS] FTransform accepts representable rotated non-uniform inverse
+[PASS] FColor default is opaque black
+[PASS] FColor transparent default has zero alpha
+[PASS] FColor byte construction normalizes channels
+[PASS] FColor float to byte clamps and rounds channels
+[PASS] FColor byte conversion handles non-finite channels deterministically
+[PASS] FColor near equality works
+[PASS] FBox default is invalid and queryable
+[PASS] FBox contains interior point
+[PASS] FBox center and extent are correct
+[PASS] FBox combines another valid box
+[PASS] FBox center and extent remain finite at float extrema
+[PASS] FBox rejects non-finite points
+[PASS] FSphere contains boundary point
+[PASS] FSphere negative radius is invalid
+[PASS] FSphere rejects outside point
+[PASS] FSphere rejects non-finite radius invalid tolerance and overflow-prone far points
+[PASS] FPlane signed distance works
+[PASS] FPlane classifies front point
+[PASS] FPlane classifies back point
+[PASS] FPlane classifies near-plane point as on plane
+[PASS] FPlane constructs from non-degenerate points
+[PASS] FPlane degenerate point construction fails deterministically
+[PASS] FPlane normalizes normal and distance equation coefficients together
+[PASS] FPlane rejects invalid tolerance and non-finite coefficients deterministically
+[PASS] CoreMinimal exposes Core math headers
+[PASS] CoreMathTests.cpp includes only Core math headers
+[INFO] Core math convention=right-handed matrix_layout=row-major tolerance=1e-05 sizeof(void*)=8
+[PASS] Core math baseline paths produce equivalent rotation results
+[INFO] Core math tests passed=91 failed=0
+[INFO] Running Logging & Assertion tests
+[PASS] ELogSeverity Verbose < Info
+[PASS] ELogSeverity Info < Warning
+[PASS] ELogSeverity Warning < Error
+[PASS] ELogSeverity Error < Fatal
+[PASS] SeverityToString Verbose
+[PASS] SeverityToString Info
+[PASS] SeverityToString Warning
+[PASS] SeverityToString Error
+[PASS] SeverityToString Fatal
+[PASS] FLogCategory LogCore name is 'LogCore'
+[PASS] FLogCategory LogCore default severity is Verbose
+[PASS] FLogCategory LogCore initial min severity is Verbose
+[PASS] FLogCategory SetMinSeverity updates threshold
+[PASS] FLogConsoleSink output contains category name
+[PASS] FLogConsoleSink output contains severity label
+[PASS] FLogConsoleSink output contains formatted message
+[PASS] FLogConsoleSink output starts with timestamp bracket
+[PASS] FLogConsoleSink output ends with newline
+[PASS] FLogConsoleSink output has [HH:MM:SS.mmm] timestamp
+[PASS] FLog::LogMessage Verbose produces labeled output
+[PASS] FLog::LogMessage Info produces labeled output
+[PASS] FLog::LogMessage Warning produces labeled output
+[PASS] FLog::LogMessage Error produces labeled output
+[PASS] SG_LOG macro early-out does not evaluate format args when filtered
+[PASS] SG_LOG macro evaluates format args when not filtered
+[PASS] Fatal log child process starts and completes
+[PASS] Fatal log routes the labeled message to stderr
+[PASS] Fatal log terminates before returning from SG_LOG
+[PASS] SG_CHECK(false-expression) triggers assertion handler in Debug
+[PASS] SG_CHECK reports the failed expression text
+[PASS] SG_CHECK reports file path
+[PASS] SG_CHECK reports line number
+[PASS] SG_CHECK evaluates its expression once in Debug
+[PASS] SG_CHECKF(false-expression, ...) triggers handler in Debug
+[PASS] SG_CHECKF reports expression text
+[PASS] SG_CHECKF reports formatted message with evaluated args
+[PASS] SG_CHECKF evaluates expression and format args once in Debug
+[PASS] SG_VERIFY always evaluates expression (true case)
+[PASS] SG_VERIFY always evaluates expression (false case)
+[PASS] SG_VERIFY triggers assertion handler on false in Debug
+[PASS] Default assertion child process starts and completes
+[PASS] Default assertion handler logs failure before Debug break
+[PASS] Default assertion handler triggers Debug break before fallback
+[PASS] Per-category filter suppresses Info when min is Warning
+[PASS] Per-category filter allows Error when min is Warning
+[PASS] Global severity filter suppresses Verbose when min is Info
+[PASS] Global severity early-out does not evaluate format arguments
+[PASS] Early-out zero-overhead: side-effect counter not incremented when filtered
+[PASS] Custom category LogTestCustom appears in output
+[PASS] Custom category message content is correct
+[PASS] LogCore is in global category registry
+[PASS] LogTestCustom is in global category registry
+[PASS] Thread-safety: all log lines produced
+[PASS] Thread-safety: no interleaved/corrupted log lines
+[PASS] Runtime logging thresholds remain valid under concurrent access
+[PASS] Assertion handler replacement is safe during concurrent dispatch
+[PASS] SG_LOG works without explicit initialization (zero-config startup)
+[INFO] Logging & Assertion tests passed=57 failed=0
+[INFO] Running Core platform tests
+[PASS] Exactly one SG_PLATFORM macro is active
+[PASS] FPlatformMisc OS name is non-empty
+[PASS] FPlatformMisc CPU core count is at least one
+[PASS] FPlatformMisc available memory result is unavailable or plausible
+[PASS] FPlatformTime 1000 samples never move backward
+[PASS] FPlatformTime seconds conversion is non-negative
+[PASS] FPlatformTime milliseconds conversion is non-negative
+[PASS] FPlatformTime microseconds conversion is non-negative
+[PASS] FPlatformFileSystem recursively creates nested directory
+[PASS] FPlatformFileSystem directory exists after create
+[PASS] FPlatformFileSystem writes text payload
+[PASS] FPlatformFileSystem reads text payload byte-for-byte
+[PASS] FPlatformFileSystem file exists after write
+[PASS] FPlatformFileSystem writes 1 MB binary payload
+[PASS] FPlatformFileSystem reads 1 MB binary payload byte-for-byte
+[PASS] FPlatformFileSystem missing file read fails and clears output
+[PASS] FPlatformFileSystem directory-as-file read fails
+[PASS] FPlatformFileSystem exact-read helper preserves complete bytes
+[PASS] FPlatformFileSystem short read fails and clears partial output
+[PASS] FPlatformFileSystem empty read succeeds with empty output
+[PASS] FPlatformProcess accepts a relative path with a parent directory
+[PASS] FPlatformProcess rejects a bare module name
+[PASS] FPlatformProcess rejects POSIX names with non-separator path markers
+[PASS] FPlatformProcess default module handle is invalid
+[PASS] FPlatformProcess invalid module release is safe
+[PASS] FPlatformProcess missing explicit module path fails
+[PASS] FPlatformProcess bare module name is rejected
+[PASS] FPlatformProcess move construction transfers module ownership
+[PASS] FPlatformProcess move assignment transfers module ownership
+[PASS] FPlatformProcess resolves symbol from explicit module path
+[PASS] FPlatformProcess missing symbol lookup fails
+[PASS] FPlatformProcess valid module release invalidates handle
+[PASS] FPlatformWindow default handle is invalid
+[PASS] FPlatformWindow wrapped handle is valid
+[PASS] FPlatformWindow preserves wrapped handle value
+[PASS] FPlatformWindow copy preserves handle value
+[PASS] FPlatformWindow clear invalidates handle
+[PASS] FPlatformMemory reports supported desktop availability
+[PASS] FPlatformMemory reports positive resident bytes
+[PASS] CoreMinimal exposes Core platform headers
+[PASS] CorePlatformTests.cpp includes only Core platform headers
+[INFO] Core platform tests passed=41 failed=0
+[INFO] Running Core platform ownership tests
+[PASS] FPlatformMisc ownership probe reads Mach host send-right references
+[PASS] FPlatformMisc repeated available-memory queries preserve Mach host send-right references
+[PASS] FPlatformMisc ownership probe releases its Mach host send right
+[INFO] Core platform ownership tests passed=3 failed=0
+[PASS] Application window creates active primary window from valid desc
+[PASS] Application window exposes creation event on next poll
+[PASS] Application window supports observable close request
+[PASS] Application window destroy is safe and idempotent
+[PASS] Application window rejects zero dimensions without partial active state
+[PASS] Application window accepts v1 maximum safe dimensions
+[PASS] Application window rejects dimensions above v1 safe maximum
+[PASS] Application real-window path reports unavailable dependency safely
+[PASS] Application real-window reused fixture starts from an active native state
+[PASS] Application real-window validation failure clears stale active runtime state
+[PASS] Application selects injected native driver and exposes opaque handle and framebuffer pixel extent
+[PASS] Application preserves logical and framebuffer sizes and callback sequence independently
+[PASS] Application real driver pauses presentation at zero framebuffer extent
+[PASS] Application real driver restores presentation after non-zero framebuffer extent
+[PASS] Application translates Escape and close callbacks while the window loop remains pollable
+[PASS] Application input reports key pressed and held on key down frame
+[PASS] Application input preserves held key without repeating pressed
+[PASS] Application input reports key released and clears held state
+[PASS] Application input reports mouse button and deterministic pointer delta
+[PASS] Application input reports mouse release and clears held button
+[PASS] Application input clears held keyboard and mouse state on focus loss
+[PASS] Application input restores focused snapshot state on focused frame
+[PASS] Application input records pointer position before reset coverage
+[PASS] Application input invalid lifecycle clears stale pointer and focus snapshot state
+[PASS] Application input reports unknown identifiers without corrupting known state
+[PASS] Application GLFW input mapping covers declared navigation modifier function and extra mouse vocabulary when available
+[PASS] Application window coalesces final resize state deterministically
+[PASS] Application window exposes presentation-paused state for minimized windows
+[PASS] Application window restores drawable state deterministically
+[PASS] Application loop runs representative 300-frame headless scenario
+[PASS] Application loop exits cleanly at close decision point
+[PASS] Application loop ingests native driver input events before deriving frame state
+[PASS] Application input returns safe empty state before window creation
+[PASS] Application window supports successful display-mode transition
+[PASS] Application window preserves prior display mode when transition is unsupported
+[PASS] Application input returns safe empty state after window destruction
+[PASS] Application debug dump is deterministic and omits native handle details
+[PASS] Scene world creates at least 100 live entities
+[PASS] Scene entity destroy invalidates original handle by generation
+[PASS] Scene world reuses destroyed slots without reviving stale handles
+[PASS] Scene world reset clears state and invalidates old handles
+[PASS] Scene transform add/read stores requested values
+[PASS] Scene duplicate component add is rejected without overwrite
+[PASS] Scene transform update explicitly mutates existing component
+[PASS] Scene component removal reports missing component deterministically
+[PASS] Scene transform rejects non-finite component data
+[PASS] Scene mesh, light, and camera components attach to live entity
+[PASS] Scene mesh add rejects invalid component data without storing it
+[PASS] Scene light replace rejects invalid component data without mutating existing component
+[PASS] Scene camera replace rejects invalid component data without mutating existing component
+[PASS] Scene hierarchy composes parent and child world transforms
+[PASS] Scene hierarchy uses parent-before-child order with creation/insertion ties
+[PASS] Scene hierarchy rejects descendant cycles without state mutation
+[PASS] Scene reparent preserves world transform by default
+[PASS] Scene reparent can preserve local transform explicitly
+[PASS] Scene transformless hierarchy groups inherit ancestor world transforms
+[PASS] Scene preserve-world reparent works through transformless hierarchy groups
+[PASS] Scene rejects unrepresentable preserve-world reparent without hierarchy mutation
+[PASS] Scene supports representable axis-aligned non-uniform hierarchy transforms
+[PASS] Scene parent destruction recursively invalidates descendants
+[PASS] Scene render collection produces deterministic accepted/rejected category ordering
+[PASS] Scene render collection diagnostics and dumps are byte-stable across repeated runs
+[PASS] Scene world reports configured capacity exhaustion
+[PASS] Scene world rejects handles from another world
+[PASS] Scene world debug dump is deterministic and omits native details
+[INFO] Running RHI core tests
+[PASS] ERHIResult exposes distinct success and invalid-state values
+[PASS] RHISucceeded accepts Success
+[PASS] RHIFailed accepts Unsupported
+[PASS] FRHIDeviceCapabilities reports supported graphics queue
+[PASS] FRHIDeviceCapabilities reports supported compute queue
+[PASS] FRHIDeviceCapabilities rejects unsupported transfer queue
+[PASS] FRHIDeviceCapabilities reports supported color format
+[PASS] FRHIDeviceCapabilities rejects unsupported stencil format
+[PASS] RHI runtime snapshot proves native execution explicitly
+[PASS] RHI runtime snapshot exposes stable live counts
+[PASS] RHI runtime snapshot aggregates live counts without wrapping to zero
+[PASS] RHI runtime snapshot accepts native-headless execution proof
+[PASS] RHI runtime snapshot rejects native proof for a deterministic request
+[PASS] RHI runtime snapshot rejects deterministic fallback as native proof
+[PASS] RHI runtime snapshot requires a live native instance
+[PASS] RHI runtime snapshot requires a live native device
+[PASS] RHI presentation surface rejects missing opaque window
+[PASS] RHI presentation surface accepts opaque platform window
+[PASS] RHI swapchain description defaults to two frames in flight
+[PASS] RHI host-visible vertex upload description is valid
+[PASS] RHI viewport and scissor contracts preserve pixel extent
+[PASS] RHI render pass clear values preserve color and depth defaults
+[PASS] IRHIDevice surface-aware swapchain compatibility path fails closed
+[PASS] IRHICommandBuffer explicit clear compatibility path fails closed
+[PASS] IRHIDevice mock starts active
+[PASS] IRHIDevice exposes graphics queue capability
+[PASS] IRHIDevice exposes present queue capability
+[PASS] IRHIDevice creates supported command queue
+[PASS] IRHIDevice creates supported command buffer
+[PASS] IRHIDevice creates fence
+[PASS] IRHIDevice creates semaphore
+[PASS] IRHIDevice creates headless swapchain
+[PASS] IRHIDevice rejects unsupported queue creation
+[PASS] IRHIDevice shutdown succeeds
+[PASS] IRHIDevice reports shutdown state
+[PASS] IRHIDevice rejects queue creation after shutdown
+[PASS] IRHIDevice rejects command buffer creation after shutdown
+[PASS] IRHICommandBuffer begins recording
+[PASS] IRHICommandBuffer rejects double begin
+[PASS] IRHICommandBuffer records symbolic draw
+[PASS] IRHICommandBuffer records symbolic dispatch
+[PASS] IRHICommandBuffer records symbolic barrier
+[PASS] IRHICommandBuffer preserves symbolic command count
+[PASS] IRHICommandBuffer ends recording
+[PASS] IRHICommandBuffer rejects record after end
+[PASS] IRHICommandBuffer preserves symbolic command ordering
+[PASS] IRHICommandBuffer second buffer begins recording
+[PASS] IRHICommandQueue rejects submit while recording
+[PASS] IRHICommandBuffer rejects end without begin
+[PASS] IRHICommandQueue rejects incomplete submit
+[PASS] IRHICommandQueue rejects incompatible queue submit
+[PASS] IRHICommandQueue submits compatible completed command buffer
+[PASS] IRHICommandQueue tracks submitted command buffers
+[PASS] IRHICommandBuffer rejects reset while submitted
+[PASS] IRHICommandQueue wait idle succeeds
+[PASS] IRHICommandQueue wait idle makes submitted buffer resettable
+[PASS] IRHICommandBuffer resets after queue idle
+[PASS] IRHIFence starts unsignaled
+[PASS] IRHIFence wait on unsignaled returns not-ready
+[PASS] IRHIFence wait on unsignaled with timeout returns timeout
+[PASS] IRHIFence wait on signaled succeeds
+[PASS] IRHIFence records waited state
+[PASS] IRHIFence reset clears signal
+[PASS] IRHISemaphore starts unsignaled
+[PASS] IRHISemaphore rejects consuming unsignaled state
+[PASS] IRHISemaphore signal succeeds
+[PASS] IRHISemaphore rejects double signal
+[PASS] IRHISemaphore consume succeeds after signal
+[PASS] IRHISemaphore records consumed state
+[PASS] IRHISemaphore reset succeeds
+[PASS] RHI sync test prepares completed command buffer
+[PASS] RHI sync test prepares wait semaphore
+[PASS] IRHICommandQueue submit observes semaphore and fence contracts
+[PASS] IRHICommandQueue consumes wait semaphore
+[PASS] IRHICommandQueue signals output semaphore
+[PASS] IRHICommandQueue signals fence
+[PASS] RHI sync failure test prepares a partial wait set
+[PASS] IRHICommandQueue wait preflight fails without partial state transition
+[PASS] RHI sync failure test prepares an invalid signal set
+[PASS] IRHICommandQueue signal preflight fails without partial submission
+[PASS] IRHISwapchain reports frame count
+[PASS] IRHISwapchain starts at frame zero
+[PASS] IRHISwapchain acquires first frame
+[PASS] IRHISwapchain rejects acquire while frame is acquired
+[PASS] IRHISwapchain presents acquired frame
+[PASS] IRHISwapchain advances current frame after present
+[PASS] IRHISwapchain rejects repeated present
+[PASS] IRHISwapchain rejects present without acquire
+[PASS] IRHISwapchain acquire reports resize required
+[PASS] IRHISwapchain present reports resize required
+[PASS] IRHISwapchain acquire reports unavailable
+[PASS] IRHIDevice rejects zero-frame swapchain
+[PASS] IRHISwapchain tests require no native window or backend surface
+[PASS] IRHISwapchain synchronized acquire compatibility path fails closed
+[PASS] IRHISwapchain synchronized present compatibility path fails closed
+[PASS] RHI swapchain failure test prepares an already-signaled semaphore
+[PASS] IRHISwapchain failed synchronized acquire preserves all states
+[PASS] IRHISwapchain synchronized acquire commits image and signal together
+[PASS] IRHISwapchain failed synchronized present preserves wait signal
+[PASS] IRHISwapchain synchronized present commits wait and frame together
+[PASS] IRHIDevice creates valid buffer and preserves size
+[PASS] IRHIBuffer preserves composable usage flags
+[PASS] IRHIDevice rejects zero-size buffer
+[PASS] IRHIDevice rejects explicitly incompatible buffer usage
+[PASS] buffer helper and factory reject undefined usage bits
+[PASS] buffer helper and factory reject undefined memory access
+[PASS] IRHIDevice accepts 1D, 2D, 3D, cube, and array texture descriptions
+[PASS] IRHIDevice rejects texture with required zero dimension
+[PASS] IRHIDevice rejects non-square cube texture
+[PASS] IRHIDevice rejects invalid texture mip count
+[PASS] IRHIDevice rejects unsupported texture format
+[PASS] IRHIDevice rejects incompatible texture usage combination
+[PASS] texture helper and factory reject undefined usage bits
+[PASS] texture helper and factory reject non-texture vertex usage
+[PASS] texture helper and factory reject undefined sample counts
+[PASS] texture helper and factory accept the one-level 1x1 mip chain
+[PASS] texture helper and factory reject a 1x1 texture with two mip levels
+[PASS] texture helper and factory accept the exact 64x64 mip-chain limit
+[PASS] texture helper and factory reject the first mip level above the geometric limit
+[PASS] texture helper and factory reject an unbounded mip count
+[PASS] texture helper and factory accept a single-level multisampled texture
+[PASS] texture helper and factory reject multisampled mip chains
+[PASS] texture helper and factory reject color formats used as depth attachments
+[PASS] texture helper and factory reject depth formats used as color attachments
+[PASS] IRHIDevice creates valid sampler
+[PASS] IRHIDevice rejects unsupported sampler mode combination
+[PASS] sampler helper and factory reject undefined min filters
+[PASS] sampler helper and factory reject undefined mag filters
+[PASS] sampler helper and factory reject undefined mip filters
+[PASS] sampler helper and factory reject undefined U address modes
+[PASS] sampler helper and factory reject undefined V address modes
+[PASS] sampler helper and factory reject undefined W address modes
+[PASS] sampler helper and factory reject undefined compare modes
+[PASS] IRHIDevice rejects resource factories after shutdown
+[PASS] IRHIPipelineLayout supports multi-set descriptor layouts
+[PASS] IRHIPipelineLayout finds binding by set index and binding slot
+[PASS] IRHIPipelineLayout rejects duplicate binding slots within a set
+[PASS] IRHIPipelineLayout rejects invalid descriptor array count
+[PASS] IRHIPipelineLayout rejects undefined descriptor types
+[PASS] IRHIPipelineLayout rejects undefined shader visibility bits
+[PASS] IRHIPipelineLayout rejects overlapping constant ranges with shared stage visibility
+[PASS] IRHIPipelineLayout permits overlapping constant ranges with disjoint stage visibility
+[PASS] IRHIPipelineLayout rejects overflowing constant ranges
+[PASS] IRHIDevice creates descriptor set for declared set index
+[PASS] IRHIDevice rejects descriptor set for missing set index
+[PASS] IRHIDescriptorSet updates buffer, texture, and sampler descriptors
+[PASS] IRHIDescriptorSet updates combined texture-sampler and storage buffer descriptors
+[PASS] IRHIDescriptorSet exposes bound resource kind for verification
+[PASS] IRHIDescriptorSet rejects wrong descriptor type
+[PASS] IRHIDescriptorSet rejects missing binding
+[PASS] IRHIDescriptorSet rejects invalid descriptor array index
+[PASS] IRHIDescriptorSet rejects Invalidated texture update
+[PASS] IRHIDevice rejects layout and descriptor set factories after shutdown
+[PASS] IRHIShaderModule preserves stage, entry point, and opaque payload identity
+[PASS] IRHIShaderModule rejects missing stage
+[PASS] IRHIShaderModule rejects missing entry point
+[PASS] IRHIShaderModule rejects unsupported future shader stage
+[PASS] IRHIShaderModule rejects a truncated four-word SPIR-V header
+[PASS] IRHIShaderModule rejects an instruction that overruns the payload
+[PASS] IRHIShaderModule rejects a mismatched SPIR-V execution model
+[PASS] IRHIShaderModule rejects a missing declared SPIR-V entry point
+[PASS] IRHIShaderModule rejects undefined descriptor types
+[PASS] IRHIShaderModule rejects undefined visibility bits
+[PASS] IRHIShaderModule rejects overlapping same-stage constant ranges
+[PASS] IRHIDevice creates compute pipeline with exactly one compute shader
+[PASS] IRHIDevice rejects compute shader constant ranges missing from the pipeline layout
+[PASS] IRHIDevice rejects non-compute shader for compute pipeline
+[PASS] IRHIDevice rejects missing compute shader
+[PASS] IRHIDevice rejects multiple compute shader stages
+[PASS] IRHIDevice creates graphics pipeline and preserves fixed function state
+[PASS] graphics helper and factory reject undefined cull modes
+[PASS] graphics helper and factory reject undefined front-face modes
+[PASS] graphics helper and factory reject undefined blend factors
+[PASS] graphics helper and factory reject undefined blend operations
+[PASS] graphics helper and factory reject undefined depth comparisons
+[PASS] graphics helper and factory reject matching undefined sample counts
+[PASS] graphics helper and factory reject undefined vertex formats
+[PASS] IRHIDevice rejects graphics pipeline missing required fragment stage
+[PASS] IRHIDevice rejects compute shader in graphics pipeline
+[PASS] IRHIDevice rejects unsupported graphics attachment format
+[PASS] IRHIDevice rejects Invalidated shader module in graphics pipeline
+[PASS] IsValidRHIGraphicsPipelineState rejects depth test without depth-stencil attachment
+[PASS] IsValidRHIGraphicsPipelineState accepts depth test with depth-stencil attachment
+[PASS] IRHIDevice rejects Invalidated pipeline layout in pipeline creation
+[PASS] IRHIDevice creates single-subpass render pass with color and depth-stencil attachments
+[PASS] IRHIDevice rejects empty render pass attachment list
+[PASS] IRHIDevice rejects unsupported render pass attachment format
+[PASS] IRHIDevice rejects multi-depth attachment render pass in single-subpass scope
+[PASS] render pass helper and factory reject undefined attachment roles
+[PASS] render pass helper and factory reject undefined sample counts
+[PASS] render pass helper and factory reject undefined load operations
+[PASS] render pass helper and factory reject undefined store operations
+[PASS] render pass helper and factory reject mixed attachment sample counts
+[PASS] IRHIDevice creates framebuffer with compatible texture attachments
+[PASS] IRHIDevice creates framebuffer for a valid nonzero mip and array layer
+[PASS] IRHIDevice rejects framebuffer array layer at the layer count
+[PASS] IRHIDevice rejects framebuffer mip level at the mip count
+[PASS] IRHIDevice rejects framebuffer extent that does not match the selected mip
+[PASS] IRHIDevice rejects framebuffer attachment count mismatch
+[PASS] IRHIDevice rejects framebuffer dimension mismatch
+[PASS] IRHIDevice rejects framebuffer attachment format mismatch
+[PASS] IRHIDevice rejects Invalidated texture framebuffer attachment
+[PASS] IRHIDevice rejects Invalidated render pass framebuffer dependency
+[PASS] IRHIDevice rejects render pass and framebuffer factories after shutdown
+[PASS] RHI deferred vertex formats and index widths are explicit
+[PASS] RHI command contract records explicit clears descriptor/index binding and texture readback
+[PASS] RHI render pass rejects clear values incompatible with cleared attachments
+[PASS] Resource and pipeline-family mocks transition from Valid to Invalidated
+[PASS] Invalidated objects remain safe to query for lifecycle state
+[PASS] Renderer-facing smoke flow creates resources, binds descriptors, and creates pipeline/frame targets
+[PASS] Every public RHI resource/pipeline contract has success and negative mock coverage
+[PASS] RHIMinimal exposes RHI core contracts
+[PASS] RHIMinimal exposes resource contracts
+[PASS] RHIMinimal exposes pipeline shader contracts
+[PASS] RHICoreTests.cpp includes only RHI/Core public headers
+[INFO] RHI core tests passed=215 failed=0
+[PASS] Deferred surface layout derives clear and comparison from depth convention
+[PASS] Deferred surface layout stores normalized world normal and UNorm8 ambient occlusion
+[PASS] Deferred world normal transform is affine inverse-transpose under non-uniform scale
+[PASS] Deferred draw rejects singular model transforms
+[PASS] Deferred renderer accepts opaque geometry and all three supported light types
+[PASS] Deferred renderer emits canonical surface light and composition order
+[PASS] Deferred graph ownership keeps lighting accumulation out of surface writes
+[PASS] Deferred frame plan declares complete render graph resources accesses and output
+[PASS] Deferred renderer accepts empty and ambient-only frame with one composition output
+[PASS] Deferred empty frame graph keeps accumulation as composition input only
+[PASS] Deferred renderer accepts masked geometry and hands transparency to forward ordering
+[PASS] Deferred frame plan and diagnostics are byte-stable across twenty runs
+[PASS] Deferred shader contract exposes canonical set zero through three bindings
+[PASS] Deferred mirrored records preserve exact sizes and offsets
+[PASS] Deferred surface fullscreen and volume vertex layouts match canonical contract
+[PASS] Deferred executor fixture creates surface pass and framebuffer
+[PASS] Deferred executor fixture creates canonical surface pipeline
+[PASS] Deferred executor fixture creates composition pipeline
+[PASS] Deferred executor deterministic RHI fixture creates all stage resources
+[PASS] Deferred executor records every canonical graph pass
+[PASS] Deferred executor command sequence includes pipeline binding and indexed light volumes
+[PASS] Deferred executor rejects incomplete bindings before recording any new commands
+[PASS] Deferred executor batches equal-volume lights without increasing surface work
+[PASS] Deferred executor stops before dependent readback success on the first copy failure
+[PASS] Deferred renderer rejects mismatched inverse view-projection
+[PASS] Deferred renderer records singular-transform draw rejection without corrupting frame
+[PASS] Deferred renderer rejects invalid spot cone radians while preserving valid lights
+[PASS] Deferred diagnostics preserve first occurrence ownership after display sorting
+[PASS] Deferred diagnostics are normalized and omit native addresses
+[PASS] Deferred renderer has no local-light cap and clears stale records across 0-256-0 frames
+[PASS] Deferred surface geometry work remains constant as local-light count changes
+[PASS] Deferred light volumes classify outside boundary camera-inside and near-plane cases
+[PASS] Deferred representative light-tier report is byte-stable across twenty runs
+[PASS] Deferred SC-001 workload is complete and deterministic across twenty runs
+[PASS] Deferred native failure lifecycle is runtime-independent stable and zero-live
+[PASS] Deferred native validation completes a real Vulkan submission
+[PASS] Deferred native validation uses mapped attachment readback
+[PASS] Deferred native validation reports extended probes per depth convention
+[PASS] Mapped attachment probes are finite, unique, and within semantic tolerances
+[PASS] Deferred native validation covers point and spot local-light edge cases
+[PASS] Deferred native validation passes semantic probes and releases frame-owned objects
+[PASS] Injected native failures stop at their primary stage and release partial state
+[PASS] Deferred native context shutdown is idempotent and reaches zero live objects
+[PASS] Renderer strategy selection preserves forward as the default
+[PASS] Forward renderer prepares representative opaque and transparent frame
+[PASS] Forward frame declares depth before opaque work
+[PASS] Forward frame declares final color output
+[PASS] Forward graph declaration includes material resource read accesses for opaque and transparent passes
+[PASS] Opaque draw ordering is stable by material mesh and object identity
+[PASS] Selecting forward produces no deferred pass or resource requirement
+[PASS] Renderer strategy vocabulary supports explicit deferred selection
+[PASS] Forward renderer rejects invalid view data with deterministic diagnostic
+[PASS] Forward renderer rejects missing output target
+[PASS] Forward renderer rejects incomplete opaque material binding
+[PASS] Forward renderer rejects missing full PBR-style surface input
+[PASS] Forward renderer applies default point light limit of 4
+[PASS] Forward renderer applies configurable point light limit override
+[PASS] Forward renderer sorts point lights by influence and stable identity
+[PASS] Forward renderer supports zero point light limit with ambient-only fallback
+[PASS] Forward renderer preserves required ambient fallback diagnostics when fallback config is disabled
+[PASS] Forward renderer reports multiple primary directional lights
+[PASS] Forward renderer reports invalid point light identity intensity and range
+[PASS] Forward renderer places sky before transparent work
+[PASS] Forward renderer sorts transparent draws by camera-space depth descending
+[PASS] Forward renderer breaks equal-depth transparent ties by material id
+[PASS] Forward renderer breaks final transparent ties without relying on caller order
+[PASS] Forward renderer rejects incompatible transparent material
+[PASS] Forward renderer prepares no-geometry clear or background frame
+[PASS] Forward frame plan diagnostics ordering and dump are stable across 20 runs
+[PASS] Representative forward frame preparation completes under one second
+[PASS] Forward debug dump includes graph declarations and fallback summary
+[PASS] Forward executor deterministic device initializes
+[PASS] Forward executor records transition render bindings three-vertex draw and present transition
+[PASS] Forward executor rejects incomplete resource bindings
+[PASS] Renderer comparison normalizes all four required local-light tiers
+[PASS] Renderer comparison reports complete median and p95 timing samples
+[PASS] Renderer comparison classifies first observed deferred crossover without speedup gate
+[PASS] Renderer comparison reports missing tier count diagnostics
+[PASS] Renderer comparison reports extra tier count diagnostics
+[PASS] Renderer comparison rejects mismatched normalized fingerprints
+[PASS] Renderer comparison rejects incomplete measured frame set
+[PASS] Renderer comparison rejects non-finite timing samples
+[PASS] Material definitions cover supported domains and blends
+[PASS] Material rejects unsupported domain and blend mode
+[PASS] Material parameter set rejects duplicate names with stable diagnostics
+[PASS] Material inspection dump is byte-stable
+[PASS] Material instance inherits parent parameters without overrides
+[PASS] Material instance applies nearest override precedence across parameter types
+[PASS] Material instance rejects overrides not defined by the root material
+[PASS] Material instance rejects override type mismatch
+[PASS] Material instance detects inheritance cycles
+[PASS] Material instance rejects invalidated parent material
+[PASS] Material instance resolution rejects invalidated parent instances after validation
+[PASS] Material shader binding selects registered shader variant
+[PASS] Shader permutation canonical key is stable across reordered flags and repeated resolutions
+[PASS] Shader library rejects duplicate allowed permutation flags at registration
+[PASS] Shader library rejects variant permutation flags not declared by the record
+[PASS] Shader library rejects duplicate shader variant ids at registration
+[PASS] Shader library rejects duplicate shader variant permutation keys at registration
+[PASS] Shader library rejects unknown permutation flags before variant lookup
+[PASS] Shader library reports missing shader records
+[PASS] Shader library reports missing variants
+[PASS] Material shader binding rejects missing required parameters
+[PASS] Material shader binding rejects instances whose parent material is invalidated after validation
+[PASS] Material shader binding rejects invalidated shader records
+[PASS] Material extracts abstract resource requirements from resource parameters
+[PASS] Material instance resource requirements reflect resource-reference overrides
+[PASS] Material instance resource requirements reject invalidated parents after validation
+[PASS] Material resource extraction succeeds with an empty requirement list
+[PASS] Material resource extraction rejects live resource references
+[PASS] Material resource requirements can be consumed by render graph declaration flow
+[PASS] Representative material validation inspection and resource summary is under 60 seconds
+[PASS] Render graph declaration compile succeeds
+[PASS] Render graph schedule is deterministic
+[PASS] Render graph dependency edges are recorded
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph repeated compilation is stable
+[PASS] Render graph rejects transient read before write
+[PASS] Render graph rejects cross-graph resource handle
+[PASS] Render graph rejects explicit dependency cycle
+[PASS] Render graph rejects writes to read-only imported resources
+[PASS] Render graph rejects zero-output graph without side effects
+[PASS] Render graph accepts zero-output side-effect graph
+[PASS] Render graph lifetime fixture compiles
+[PASS] Render graph tracks imported and exported lifetimes
+[PASS] Render graph reports aliasing eligibility and rejection
+[PASS] Render graph produces required transition reasons
+[PASS] Render graph executes representative graph
+[PASS] Render graph emits compiled transition plan
+[PASS] Render graph keeps alias-eligible resources on separate backing storage
+[PASS] Render graph redundant-transition fixture compiles
+[PASS] Render graph elides redundant transition for repeated same-state read
+[PASS] Render graph missing import fixture compiles
+[PASS] Render graph rejects missing imported resources
+[PASS] Render graph culled-import fixture compiles
+[PASS] Render graph ignores missing imports used only by culled passes
+[PASS] Render graph culled-transient fixture compiles
+[PASS] Render graph ignores transient resolution failures used only by culled passes
+[PASS] Render graph transient failure fixture compiles
+[PASS] Render graph reports transient resolution failure
+[PASS] Render graph fail-fast fixture compiles
+[PASS] Render graph stops on first pass failure
+[PASS] Render graph invalidation fixture compiles
+[PASS] Render graph rejects execution after invalidation
+[PASS] Render graph reset clears declarations and schedules
+[PASS] Render graph dump fixture compiles
+[PASS] Render graph debug dump is stable and complete
+[PASS] Render graph representative declare compile inspect execute is under 60 seconds
+[PASS] Vulkan deterministic adapter selection
+[PASS] Vulkan rejected adapter diagnostics
+[PASS] Vulkan selected adapter identity owns its storage
+[PASS] Vulkan null adapter identity is rejected without crashing
+[PASS] Vulkan default device requires an integrated real runtime
+[PASS] Vulkan explicit deterministic backend initialization
+[PASS] Vulkan selected device capabilities
+[PASS] Vulkan unsupported runtime is explicit
+[PASS] Vulkan no-compatible-adapter unsupported result
+[PASS] Vulkan validation unavailable is diagnostic
+[PASS] Vulkan selected adapter formats constrain capabilities and factories
+[PASS] Vulkan queue fixture device initializes
+[PASS] Vulkan queue creation success paths
+[PASS] Vulkan queue metadata
+[PASS] Vulkan queue wait idle
+[PASS] Vulkan queue rejects missing command buffer
+[PASS] Vulkan queue rejects foreign executable command buffer
+[PASS] Vulkan unsupported queue request
+[PASS] Vulkan post-shutdown queue creation rejection
+[PASS] Vulkan swapchain fixtures initialize
+[PASS] Vulkan invalid platform window rejection clears surface output
+[PASS] Vulkan surface creation with Core platform window wrapper
+[PASS] Vulkan inactive surface creation clears a prior usable output
+[PASS] Vulkan legacy surface adapter creates surface-backed images
+[PASS] Vulkan legacy surface adapter rejects foreign device provenance
+[PASS] Vulkan zero-frame swapchain requests are invalid input
+[PASS] Vulkan concrete swapchain rejects a zero-frame constructor
+[PASS] Vulkan swapchain acquire next frame
+[PASS] Vulkan swapchain rejects double acquire
+[PASS] Vulkan swapchain rejects stale frame
+[PASS] Vulkan swapchain present advances frame
+[PASS] Vulkan recreation replaces imported images and advances generation
+[PASS] Vulkan swapchain invalidates an acquired image from the old generation
+[PASS] Vulkan partial recreation failure preserves the active generation
+[PASS] Vulkan swapchain synchronization follows acquired image indices
+[PASS] Vulkan swapchain unavailable state
+[PASS] Vulkan backend-neutral presentation surface creation succeeds
+[PASS] Vulkan backend-neutral surface rejects an invalid description
+[PASS] Vulkan backend-neutral swapchain exposes imported presentation images
+[PASS] Vulkan swapchain distinguishes invalid descriptions from unsupported capability
+[PASS] Vulkan backend-neutral swapchain rejects a foreign surface
+[PASS] Vulkan synchronized acquire commits image and signal together
+[PASS] Vulkan failed synchronized present preserves frame and signal
+[PASS] Vulkan synchronized present consumes signal and advances atomically
+[PASS] Vulkan failed synchronized acquire preserves all states
+[PASS] Vulkan surface loss blocks acquire image access and recreation
+[PASS] Vulkan shutdown invalidates surfaces swapchains and imported images
+[PASS] Vulkan sync fixture device initializes
+[PASS] Vulkan fence initial states
+[PASS] Vulkan fence wait signal reset transitions
+[PASS] Vulkan semaphore transitions
+[PASS] Vulkan post-shutdown sync rejection
+[PASS] Vulkan repeated create cycle
+[PASS] Vulkan factories reject invalid descriptions explicitly
+[PASS] Vulkan shutdown rejects later factories
+[PASS] Vulkan repeated create cycle
+[PASS] Vulkan factories reject invalid descriptions explicitly
+[PASS] Vulkan shutdown rejects later factories
+[PASS] Vulkan repeated create cycle
+[PASS] Vulkan factories reject invalid descriptions explicitly
+[PASS] Vulkan shutdown rejects later factories
+[PASS] Vulkan shader pipeline fixture device initializes
+[PASS] Vulkan shader modules and layout create with diagnostics
+[PASS] Vulkan shader module fallback runtime mode is explicit
+[PASS] Vulkan shader module rejects malformed unsupported and metadata-incompatible inputs
+[PASS] Vulkan pipeline layout rejects incompatible overlapping constant ranges
+[PASS] Vulkan compute pipeline rejects shader constant ranges absent from its layout
+[PASS] Vulkan foreign shader fixture device initializes
+[PASS] Vulkan pipeline and descriptor factories reject foreign shader and layout provenance
+[PASS] Vulkan graphics and compute pipelines create deterministic fallback objects
+[PASS] Vulkan graphics pipeline rejects undefined fixed-function state
+[PASS] Vulkan pipeline cache reuses equivalent successful requests
+[PASS] Vulkan graphics pipeline rejects missing stages and invalid vertex input
+[PASS] Vulkan compute pipeline rejects wrong-stage shader
+[PASS] Vulkan command buffer binds graphics pipeline and records draw diagnostics
+[PASS] Vulkan command buffer binds compute pipeline and rejects transfer queue binding
+[PASS] Vulkan pipeline limit fixture initializes
+[PASS] Vulkan configured pipeline creation limit is deterministic
+[PASS] Vulkan shutdown invalidates shader and pipeline objects
+[PASS] Vulkan draw/dispatch diagnostics fixture device initializes
+[PASS] Vulkan draw without bound graphics pipeline reports missing-pipeline diagnostics
+[PASS] Vulkan draw with bound graphics pipeline reports compatible-pipeline diagnostics
+[PASS] Vulkan dispatch without bound compute pipeline reports missing-pipeline diagnostics on graphics queue
+[PASS] Vulkan dispatch reports missing then compatible compute pipeline diagnostics
+[PASS] Vulkan binding an invalidated compute pipeline is rejected
+[PASS] Vulkan pipeline cache/state fixture device initializes
+[PASS] Vulkan pipeline cache key distinguishes fixed-function state variants
+[PASS] Vulkan pipeline cache still reuses identical graphics pipeline descriptions
+[PASS] Vulkan pipeline cache key includes complete shader interface metadata
+[PASS] Vulkan pipeline cache key length-prefixes shader identities and entry points
+[PASS] Vulkan graphics pipeline rejects depth test without a depth-stencil attachment
+[PASS] Vulkan graphics pipeline accepts depth test with a compatible depth-stencil attachment
+[PASS] Vulkan pipeline cache stale-dependency fixture invalidates the original shader
+[PASS] Vulkan pipeline cache rejects entries with invalidated retained dependencies
+[PASS] Vulkan pipeline format-capability fixture initializes
+[PASS] Vulkan graphics pipeline rejects attachment formats absent from device capabilities
+[PASS] Vulkan resource fixture device initializes
+[PASS] Vulkan buffer creation preserves description and lifecycle
+[PASS] Vulkan texture creation preserves description and lifecycle
+[PASS] Vulkan resources expose real-or-fallback allocation diagnostics
+[PASS] Vulkan invalid buffer and texture descriptions are rejected
+[PASS] Vulkan allocation-limit fixture initializes
+[PASS] Vulkan allocation budget failure is deterministic
+[PASS] Vulkan allocation-count failure is deterministic
+[PASS] Vulkan buffer invalidation releases allocation once
+[PASS] Vulkan shutdown invalidates resource objects and rejects creation
+[PASS] Vulkan allocation release rejects foreign allocator ownership
+[PASS] Vulkan move-only allocation ownership releases accounting once
+[PASS] Vulkan allocator reset rejects stale ownership epochs
+[PASS] Vulkan texture footprints include format samples and mip extents
+[PASS] Vulkan texture budget uses the checked physical footprint
+[PASS] Vulkan texture footprint overflow is explicit and non-mutating
+[PASS] Vulkan allocation-overflow fixture initializes
+[PASS] Vulkan allocation accounting rejects overflow without mutation
+[PASS] Vulkan post-overflow budget checks cannot be bypassed
+[PASS] Vulkan host upload grows sparsely and reports impossible storage
+[PASS] Vulkan shutdown releases extreme-size allocation accounting
+[PASS] Vulkan retained-command fixture initializes
+[PASS] Vulkan device destruction invalidates retained command buffers
+[PASS] Vulkan zero-capacity command fixture initializes
+[PASS] Vulkan zero command-buffer capacity rejects allocation
+[PASS] Vulkan command fixture device initializes
+[PASS] Vulkan command buffer allocation succeeds with metadata
+[PASS] Vulkan command buffer capacity exhaustion is explicit
+[PASS] Vulkan command lifecycle and compute/barrier recording
+[PASS] Vulkan reset clears stale recorded commands
+[PASS] Vulkan command submission queue creates
+[PASS] Vulkan fallback queue submission consumes/signals sync and marks submitted
+[PASS] Vulkan queue wait idle makes submitted command buffer resettable
+[PASS] Vulkan queue wait preflight preserves all state on failure
+[PASS] Vulkan queue signal preflight preserves all state on failure
+[PASS] Vulkan queue rejects duplicate and overlapping semaphores atomically
+[PASS] Vulkan foreign-owner fixture initializes
+[PASS] Vulkan queue rejects foreign command and synchronization ownership
+[PASS] Vulkan nonzero completion timeout makes command resettable
+[PASS] Vulkan queue rejects incompatible command buffer submission
+[PASS] Vulkan fallback injection fixture initializes
+[PASS] Vulkan fallback not-ready completion remains recoverable by wait idle
+[PASS] Vulkan fallback timeout completion remains recoverable by wait idle
+[PASS] Vulkan command and queue invalidation on shutdown
+[PASS] Vulkan render pass command fixture initializes
+[PASS] Vulkan minimal render pass and framebuffer creation succeeds
+[PASS] Vulkan minimal render pass rejects invalid description
+[PASS] Vulkan minimal render pass rejects undefined attachment state
+[PASS] Vulkan framebuffer rejects incompatible attachment dimensions
+[PASS] Vulkan framebuffer accepts valid nonzero mip and array-layer extent
+[PASS] Vulkan framebuffer rejects array layer at the layer count
+[PASS] Vulkan framebuffer rejects mip level at the mip count
+[PASS] Vulkan graphics render pass scope records draw placeholders and rejects invalid ordering
+[PASS] Vulkan command buffer validates explicit clears descriptor sets and aligned index binding
+[PASS] Vulkan command buffer rejects incompatible explicit render-pass clear values
+[PASS] Vulkan transfer recording fixture creates resources
+[PASS] Vulkan transfer command records copy and declarative layout intent
+[PASS] Vulkan transfer command rejects incompatible compute and invalid copy ranges
+[PASS] Vulkan transfer validation uses selected mip extents
+[PASS] Vulkan texture copy rejects incompatible formats
+[PASS] RHI texture readback footprint is exact and overflow-safe
+[PASS] Vulkan upload scheduling records pending uploads without claiming execution
+[PASS] Vulkan upload scheduling rejects already scheduled uploads
+[PASS] Vulkan shutdown invalidates render pass framebuffer and upload scheduling records
+[PASS] RHI format byte widths cover every declared format exactly
+[PASS] Vulkan descriptor fixture device initializes
+[PASS] Vulkan sampler creation succeeds and preserves lifecycle
+[PASS] Vulkan unsupported sampler modes are rejected
+[PASS] Vulkan descriptor set allocates from fixed-capacity pool
+[PASS] Vulkan descriptor pool exhaustion is explicit
+[PASS] Vulkan descriptor updates retain buffer texture sampler and combined records
+[PASS] Vulkan descriptor update rejects wrong type and missing binding
+[PASS] Vulkan descriptor retained binding reports invalidated resources
+[PASS] Vulkan descriptor invalidation returns exactly one pool reservation
+[PASS] Vulkan descriptor capacity is reusable after reservation release
+[PASS] Vulkan buffer upload staging preserves CPU-visible data without execution
+[PASS] Vulkan buffer upload staging rejects missing, mismatched, and out-of-bounds ranges
+[PASS] Vulkan buffer upload staging rejects destinations without copy usage
+[PASS] Vulkan texture upload staging preserves destination region
+[PASS] Vulkan texture upload staging rejects invalid regions and byte footprints
+[PASS] Vulkan texture upload validation uses the selected mip extent
+[PASS] Vulkan texture upload staging rejects unsupported transfer paths
+[PASS] Vulkan shutdown invalidates descriptors uploads and sampler creation
+[PASS] Vulkan visible frame failure lifecycle releases acquired state and reusable fences
+[PASS] Vulkan native integration creates real instance and device
+[PASS] Vulkan native integration uploads vertices and submits offscreen triangle
+[PASS] Vulkan native integration releases frame-local resources after completion
+[PASS] Vulkan native integration shutdown reaches zero live objects
+[PASS] Vulkan RHI device enables an owner-safe native shader runtime
+[PASS] Vulkan RHI shader factory retains a real native shader module
+[PASS] Vulkan native shader factory rejects execution-model mismatch before runtime creation
+[PASS] Vulkan RHI pipeline factories retain real native graphics and compute pipelines
+[PASS] Vulkan RHI device destroys native shader and pipeline ownership on explicit invalidation and shutdown
+[PASS] Triangle demo headless defaults match endurance profile
+[PASS] Triangle demo rejects zero bounded frame budget
+[PASS] Triangle demo rejects unknown options
+[PASS] Triangle demo requires ten post-warmup memory samples
+[PASS] Triangle demo parses every canonical CLI option
+[PASS] Triangle demo rejects malformed numeric values
+[PASS] Triangle demo deterministic lifecycle completes exact frame budget and shutdown
+[PASS] Triangle demo diagnostics are stable and omit native addresses
+[PASS] Triangle demo interactive configuration parses
+[PASS] Triangle demo native-required mode never reports deterministic visible success
+[PASS] Triangle demo initializes window runtime shaders upload pipeline and two frame slots in contract order
+[PASS] Triangle demo normal shutdown remains idempotent after initialized state
+[PASS] Triangle demo rejects swapped shader stages and cleans partial initialization
+[PASS] Triangle demo recovery fixture initializes
+[PASS] Triangle demo deterministic recovery fixture has no presentation resources
+[PASS] Triangle demo recovers twenty presentation generations at exact 2000ms boundary
+[PASS] Triangle demo presentation recovery does not mark resources initialized before prepare succeeds
+[PASS] Triangle demo rejects presentation recovery beyond 2000ms boundary
+[PASS] Triangle demo injected failures preserve first-stage exit ownership
+[PASS] Triangle demo validation monitor accepts exact absolute growth boundary
+[PASS] Triangle demo validation monitor rejects growth above configured boundary
+[PASS] Triangle demo visible timing gates accept exact first-present and recovery boundaries
+[PASS] Triangle demo visible timing gates accept more than twenty valid recoveries
+[PASS] Triangle demo visible timing gates reject a slow additional recovery
+[PASS] Triangle demo visible timing gates reject first present above 5000ms
+[PASS] Triangle demo normalized failure diagnostics are byte-stable across twenty runs
+[PASS] Triangle demo validation reports are byte-stable across twenty synthetic runs
+[PASS] Triangle demo maps an unwritable validation output path to exit code seven
