@@ -975,11 +975,11 @@
 ## CR001-B09-F004: Renderer comparison report omits diagnostics for missing or extra tiers
 
 - Severity: S3
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 019 comparison artifacts and CR-001 failure-semantics protocol should provide stable machine-readable failure reasons for invalid validation reports.
 - Location: `Source/Renderer/Private/FRendererComparisonReport.cpp:96-101; Tests/RendererComparisonTests.cpp:54-84`
 - Impact: A failed four-tier comparison caused by a missing or duplicate tier can produce comparison-result=fail without a stable diagnostic code explaining the cause. This weakens failure triage and makes validation artifacts less useful, although it does not currently allow an invalid report to pass.
 - Evidence: BuildRendererComparisonReport sorts input tiers and validates the required 0/16/64/256 set. Most invalid tier/sample/surface-work cases add DEF-COMPARE-* diagnostics, but the Tiers.size() != 4 path sets Report.State=Invalid and returns without preserving tiers or adding any diagnostic. RendererComparisonTests cover valid tier normalization and per-tier failure helpers, but do not cover missing or extra tier diagnostics.
 - Resolution: BuildRendererComparisonReport now emits DEF-COMPARE-TIER-COUNT diagnostics and preserves received tiers when the four required tier count is missing or extra; RendererComparisonTests cover missing and extra tier diagnostics.
-- Verification: pending
+- Verification: Verified in B09-S06 from current HEAD: Release strict graphics-disabled build passes, Release StonerTest exits 0 with missing/extra tier diagnostic PASS lines, and static scan confirms DEF-COMPARE-TIER-COUNT plus preserved tier lists.
 - Commit: `715dba2`

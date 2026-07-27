@@ -3402,6 +3402,12 @@
           "from": "Accepted",
           "note": "BuildRendererComparisonReport now emits DEF-COMPARE-TIER-COUNT diagnostics and preserves received tiers when the four required tier count is missing or extra; RendererComparisonTests cover missing and extra tier diagnostics.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T10:57:29+00:00",
+          "from": "Fixed",
+          "note": "Verified in B09-S06 from current HEAD: Release strict graphics-disabled build passes, Release StonerTest exits 0 with missing/extra tier diagnostic PASS lines, and static scan confirms DEF-COMPARE-TIER-COUNT plus preserved tier lists.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B09-F004",
@@ -3410,9 +3416,9 @@
       "requirement": "Feature 019 comparison artifacts and CR-001 failure-semantics protocol should provide stable machine-readable failure reasons for invalid validation reports.",
       "resolution": "BuildRendererComparisonReport now emits DEF-COMPARE-TIER-COUNT diagnostics and preserves received tiers when the four required tier count is missing or extra; RendererComparisonTests cover missing and extra tier diagnostics.",
       "severity": "S3",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Renderer comparison report omits diagnostics for missing or extra tiers",
-      "verification": ""
+      "verification": "Verified in B09-S06 from current HEAD: Release strict graphics-disabled build passes, Release StonerTest exits 0 with missing/extra tier diagnostic PASS lines, and static scan confirms DEF-COMPARE-TIER-COUNT plus preserved tier lists."
     }
   ],
   "schema_version": 1
