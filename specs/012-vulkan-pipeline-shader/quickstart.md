@@ -12,17 +12,27 @@
 ## Expected Developer Flow
 
 1. Create an active Vulkan backend device.
-2. Create shader modules for vertex, fragment, and compute stages using structurally valid precompiled bytecode payloads and explicit shader interface metadata.
-3. Create a pipeline layout whose descriptor bindings and small constant-data ranges match the shader interface metadata.
-4. Create a triangle-ready graphics pipeline with compatible render target, vertex input, primitive topology, rasterization, depth/stencil, blend, multisample, and dynamic viewport/scissor requirements.
-5. Create a compute pipeline with a compatible compute shader module and pipeline layout.
-6. Allocate command buffers and verify graphics/compute binding behavior:
+2. Optionally call `FVulkanDevice::EnableNativeShaderRuntime` when native
+   shader validation is required. Success enables real `VkShaderModule`
+   ownership for the same RHI shader factory without claiming that unrelated
+   `FVulkanDevice` resource or pipeline objects are native. Unsupported or
+   unavailable environments remain explicit.
+3. Create shader modules for vertex, fragment, and compute stages using
+   structurally valid precompiled bytecode payloads whose SPIR-V execution
+   model and entry-point name match the declared stage and entry point, plus
+   explicit shader interface metadata.
+4. Create a pipeline layout whose descriptor bindings and small constant-data ranges match the shader interface metadata.
+5. Create a triangle-ready graphics pipeline with compatible render target, vertex input, primitive topology, rasterization, depth/stencil, blend, multisample, and dynamic viewport/scissor requirements.
+6. Create a compute pipeline with a compatible compute shader module and pipeline layout.
+7. Allocate command buffers and verify graphics/compute binding behavior:
    - Draw and indexed draw without a graphics pipeline keep missing-pipeline diagnostics.
    - Draw and indexed draw with a compatible bound graphics pipeline report compatible binding diagnostics.
    - Dispatch without a compute pipeline keeps missing-pipeline diagnostics.
    - Dispatch with a compatible bound compute pipeline reports compatible binding diagnostics.
-7. Repeat equivalent pipeline creation requests in the same process and confirm deterministic reuse diagnostics.
-8. Shut down the device and confirm shader modules, layouts, pipelines, binding state, and reuse records reject further use.
+8. Repeat equivalent pipeline creation requests in the same process and confirm deterministic reuse diagnostics.
+9. Shut down the device and confirm native shader handles, shader modules,
+   layouts, pipelines, binding state, and reuse records are released or reject
+   further use.
 
 ## Validation Commands
 
@@ -43,8 +53,12 @@ Validated on 2026-06-30 in the `godot` conda environment.
 ## Required Verification Coverage
 
 - Shader module success and rejection paths.
+- Complete SPIR-V header/instruction bounds plus declared execution-model and
+  entry-point matching.
+- Device-owned construction, cross-device dependency rejection, and
+  failure-atomic shader/layout factories.
 - Explicit shader interface metadata validation against pipeline layouts.
-- Real-runtime and deterministic fallback diagnostics.
+- Real-runtime native shader ownership and deterministic fallback diagnostics.
 - Triangle-ready graphics pipeline creation and negative paths.
 - Compute pipeline creation and negative paths.
 - Process-local cache/reuse behavior.

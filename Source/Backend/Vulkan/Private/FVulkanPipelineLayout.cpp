@@ -1,10 +1,15 @@
 #include "VulkanRHI/FVulkanPipelineLayout.h"
 
+#include "VulkanRHI/FVulkanDeviceOwnerState.h"
+
 namespace Stoner::Backend::Vulkan
 {
 
-FVulkanPipelineLayout::FVulkanPipelineLayout(const Stoner::RHI::FRHIPipelineLayoutDesc& InDesc)
+FVulkanPipelineLayout::FVulkanPipelineLayout(
+    const Stoner::RHI::FRHIPipelineLayoutDesc& InDesc,
+    Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> InOwner)
     : Desc(InDesc)
+    , Owner(std::move(InOwner))
 {
 }
 
@@ -46,7 +51,15 @@ const Stoner::Core::TArray<Stoner::RHI::FRHIShaderConstantRange>& FVulkanPipelin
 bool FVulkanPipelineLayout::IsCompatibleWithShaderInterface(const Stoner::RHI::FRHIShaderInterfaceMetadata& Metadata) const noexcept
 {
     return LifecycleState == Stoner::RHI::ERHIResourceLifecycleState::Valid &&
+        Owner && Owner->bActive &&
         Stoner::RHI::IsRHIShaderInterfaceCompatibleWithPipelineLayout(Metadata, Desc);
+}
+
+bool FVulkanPipelineLayout::BelongsTo(
+    const Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState>& InOwner) const noexcept
+{
+    return LifecycleState == Stoner::RHI::ERHIResourceLifecycleState::Valid &&
+        Owner && Owner->bActive && InOwner && Owner == InOwner;
 }
 
 Stoner::RHI::ERHIResourceLifecycleState FVulkanPipelineLayout::GetLifecycleState() const noexcept
@@ -60,6 +73,7 @@ Stoner::RHI::ERHIResult FVulkanPipelineLayout::Invalidate()
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
+    Owner.reset();
     LifecycleState = Stoner::RHI::ERHIResourceLifecycleState::Invalidated;
     return Stoner::RHI::ERHIResult::Success;
 }

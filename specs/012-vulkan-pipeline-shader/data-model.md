@@ -16,6 +16,10 @@ Fields:
 - `InterfaceMetadata`: declared resource binding and small constant-data requirements.
 - `ValidationMode`: real-runtime validation or fallback structural validation.
 - `RuntimeMode`: real-runtime object or deterministic fallback object.
+- `OwnerIdentity`: creating-device identity used to reject cross-device
+  shader/layout composition.
+- `NativeToken`: backend-private ownership token, non-zero only while a real
+  runtime shader module is alive.
 - `LifecycleState`: valid or invalidated.
 - `Diagnostics`: latest creation, validation, unsupported, or invalidation reason.
 
@@ -23,8 +27,15 @@ Validation rules:
 
 - Stage must be supported for this phase.
 - Entry point and payload identity must be non-empty.
-- Bytecode must pass lightweight structural checks in fallback mode.
+- Bytecode must contain a complete SPIR-V header, bounded non-zero instruction
+  word counts, at least one terminated entry-point declaration, and an
+  execution model/name matching `Stage` and `EntryPoint`.
 - Interface metadata must be internally valid and compatible with the declared shader stage.
+- Construction is device-owned; foreign-device shaders and layouts cannot be
+  composed into a pipeline or descriptor factory.
+- Optional native shader runtime creation must succeed before a module reports
+  `RealRuntime`; otherwise creation returns an explicit failure or remains an
+  explicit deterministic fallback.
 - Creation after device shutdown returns invalid-state.
 
 State transitions:
@@ -64,6 +75,7 @@ Fields:
 - `Bindings`: descriptor layout entries grouped by set index.
 - `ConstantRanges`: small constant-data ranges accepted by the layout.
 - `SetCount`: number of declared descriptor sets.
+- `OwnerIdentity`: creating-device identity.
 - `LifecycleState`: valid or invalidated.
 
 Validation rules:
@@ -71,6 +83,7 @@ Validation rules:
 - Descriptor bindings must be valid and non-duplicated.
 - Constant ranges must match shader interface metadata requirements.
 - Invalidated layouts cannot create pipelines or accept descriptor sets.
+- Foreign-device layouts cannot create pipelines or descriptor sets.
 
 Relationships:
 

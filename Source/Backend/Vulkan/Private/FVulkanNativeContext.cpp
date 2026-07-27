@@ -16,7 +16,10 @@
 #include <cctype>
 #include <cstring>
 #include <fstream>
+#include <new>
+#include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #endif
 
@@ -219,6 +222,8 @@ struct FVulkanNativeContext::FImpl
     VkSemaphore RenderFinished = VK_NULL_HANDLE;
     std::string VisibleVertexShaderPath;
     std::string VisibleFragmentShaderPath;
+    Stoner::Core::uint64 NextOwnedShaderToken = 1;
+    std::unordered_map<Stoner::Core::uint64, VkShaderModule> OwnedShaderModules;
 
     VkBuffer VertexBuffer = VK_NULL_HANDLE;
     VkDeviceMemory VertexMemory = VK_NULL_HANDLE;
@@ -262,6 +267,13 @@ struct FVulkanNativeContext::FImpl
         Input.read(reinterpret_cast<char*>(Words.data()), Size);
         if (!Input.good() || Words[0] != 0x07230203u) return {};
         return Words;
+    }
+
+    [[nodiscard]] Stoner::Core::uint32 GetLiveShaderModuleCount() const noexcept
+    {
+        return static_cast<Stoner::Core::uint32>(OwnedShaderModules.size()) +
+            (VertexShader != VK_NULL_HANDLE ? 1u : 0u) +
+            (FragmentShader != VK_NULL_HANDLE ? 1u : 0u);
     }
 
     Stoner::Core::uint32 FindMemoryType(Stoner::Core::uint32 TypeBits, VkMemoryPropertyFlags Required) const
@@ -310,7 +322,7 @@ struct FVulkanNativeContext::FImpl
         CurrentFrameSlot = 0; AcquiredImageIndex = 0; AcquiredFrameSlot = 0; bFrameAcquired = false;
         Snapshot.LiveBuffers = 0;
         Snapshot.LiveTextures = 0;
-        Snapshot.LiveShaderModules = 0;
+        Snapshot.LiveShaderModules = GetLiveShaderModuleCount();
         Snapshot.LivePipelines = 0;
         Snapshot.LiveCommandBuffers = 0;
         Snapshot.LiveSynchronizationObjects = 0;
@@ -569,7 +581,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
         return vkCreateShaderModule(Impl->Device, &Info, nullptr, &Out) == VK_SUCCESS;
     };
     if (!CreateShader(VertexWords, Impl->VertexShader) || !CreateShader(FragmentWords, Impl->FragmentShader)) return Fail();
-    Impl->Snapshot.LiveShaderModules = 2;
+    Impl->Snapshot.LiveShaderModules = Impl->GetLiveShaderModuleCount();
     VkPipelineLayoutCreateInfo LayoutInfo = MakeVulkanStruct<VkPipelineLayoutCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
     if (vkCreatePipelineLayout(Impl->Device, &LayoutInfo, nullptr, &Impl->PipelineLayout) != VK_SUCCESS) return Fail();
 
@@ -879,7 +891,8 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
         if (vkCreateFence(Impl->Device, &FenceInfo, nullptr, &Fence) != VK_SUCCESS) return Fail();
     Impl->Snapshot.LiveBuffers = 1;
     Impl->Snapshot.LiveTextures = static_cast<Stoner::Core::uint32>(Impl->SwapchainImages.size());
-    Impl->Snapshot.LiveShaderModules = 2; Impl->Snapshot.LivePipelines = 1;
+    Impl->Snapshot.LiveShaderModules = Impl->GetLiveShaderModuleCount();
+    Impl->Snapshot.LivePipelines = 1;
     Impl->Snapshot.LiveCommandBuffers = VisibleFrameSlotCount;
     Impl->Snapshot.LiveSynchronizationObjects = static_cast<Stoner::Core::uint32>(
         Impl->VisibleFences.size() + Impl->VisibleImageAvailable.size() + Impl->VisibleRenderFinished.size());
@@ -1018,6 +1031,13 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()
     {
         vkDeviceWaitIdle(Impl->Device);
         Impl->DestroyFrameResources();
+        for (const auto& [Token, ShaderModule] : Impl->OwnedShaderModules)
+        {
+            (void)Token;
+            vkDestroyShaderModule(Impl->Device, ShaderModule, nullptr);
+        }
+        Impl->OwnedShaderModules.clear();
+        Impl->NextOwnedShaderToken = 1;
         vkDestroyDevice(Impl->Device, nullptr);
         Impl->Device = VK_NULL_HANDLE;
     }
@@ -1038,6 +1058,86 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()
 
 const Stoner::RHI::FRHIRuntimeSnapshot& FVulkanNativeContext::GetSnapshot() const noexcept { return Impl->Snapshot; }
 bool FVulkanNativeContext::IsAvailable() const noexcept { return Impl && Impl->Snapshot.ProvesNativeExecution(); }
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::CreateOwnedShaderModule(
+    const Stoner::Core::TArray<Stoner::Core::uint32>& Words,
+    Stoner::Core::uint64& OutToken) noexcept
+{
+    OutToken = 0;
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || Impl->Device == VK_NULL_HANDLE || Words.empty())
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+
+    VkShaderModuleCreateInfo Info =
+        MakeVulkanStruct<VkShaderModuleCreateInfo>(
+            VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
+    Info.codeSize = Words.size() * sizeof(Stoner::Core::uint32);
+    Info.pCode = Words.data();
+    VkShaderModule ShaderModule = VK_NULL_HANDLE;
+    const VkResult CreateResult =
+        vkCreateShaderModule(Impl->Device, &Info, nullptr, &ShaderModule);
+    if (CreateResult != VK_SUCCESS)
+    {
+        return CreateResult == VK_ERROR_OUT_OF_HOST_MEMORY ||
+                CreateResult == VK_ERROR_OUT_OF_DEVICE_MEMORY
+            ? Stoner::RHI::ERHIResult::Unavailable
+            : Stoner::RHI::ERHIResult::Failed;
+    }
+
+    if (Impl->NextOwnedShaderToken == 0)
+    {
+        vkDestroyShaderModule(Impl->Device, ShaderModule, nullptr);
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    const Stoner::Core::uint64 Token = Impl->NextOwnedShaderToken++;
+    try
+    {
+        Impl->OwnedShaderModules.emplace(Token, ShaderModule);
+    }
+    catch (const std::bad_alloc&)
+    {
+        vkDestroyShaderModule(Impl->Device, ShaderModule, nullptr);
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        vkDestroyShaderModule(Impl->Device, ShaderModule, nullptr);
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    Impl->Snapshot.LiveShaderModules = Impl->GetLiveShaderModuleCount();
+    OutToken = Token;
+    return Stoner::RHI::ERHIResult::Success;
+#else
+    (void)Words;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+void FVulkanNativeContext::DestroyOwnedShaderModule(
+    Stoner::Core::uint64 Token) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || Token == 0)
+    {
+        return;
+    }
+    const auto Found = Impl->OwnedShaderModules.find(Token);
+    if (Found == Impl->OwnedShaderModules.end())
+    {
+        return;
+    }
+    if (Impl->Device != VK_NULL_HANDLE)
+    {
+        vkDestroyShaderModule(Impl->Device, Found->second, nullptr);
+    }
+    Impl->OwnedShaderModules.erase(Found);
+    Impl->Snapshot.LiveShaderModules = Impl->GetLiveShaderModuleCount();
+#else
+    (void)Token;
+#endif
+}
 
 bool FVulkanNativeContext::GetNativeDeviceAccess(
     FVulkanNativeDeviceAccess& OutAccess) const noexcept

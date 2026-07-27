@@ -1,4 +1,5 @@
 #include "RHICoreTests.h"
+#include "ShaderTestFixtures.h"
 
 #include "RHI/RHIMinimal.h"
 
@@ -1911,7 +1912,8 @@ void TestSwapchain(FRHICoreTestResult& Result)
     Desc.Stage = Stage;
     Desc.EntryPoint = EntryPoint;
     Desc.PayloadIdentity = Payload;
-    Desc.Bytecode.Words = {0x07230203u, 0u, 1u, static_cast<uint32>(Stage)};
+    Desc.Bytecode.Words =
+        Stoner::Tests::MakeMinimalShaderBytecode(Stage, EntryPoint);
     const ERHIShaderStageFlags Visibility = ToShaderStageFlag(Stage);
     if (Stage == ERHIShaderStage::Vertex)
     {
@@ -2237,6 +2239,37 @@ void TestShaderAndPipelineContracts(FRHICoreTestResult& Result)
         "IRHIShaderModule rejects missing entry point");
     Record(Result, Device.CreateShaderModule(MakeShaderDesc(ERHIShaderStage::Mesh, "Main", "payload")).Result == ERHIResult::Unsupported,
         "IRHIShaderModule rejects unsupported future shader stage");
+    FRHIShaderModuleDesc TruncatedHeader =
+        MakeShaderDesc(ERHIShaderStage::Vertex, "MainVS", "truncated_header");
+    TruncatedHeader.Bytecode.Words = {
+        0x07230203u, 0x00010000u, 0u, 1u};
+    Record(Result,
+        Device.CreateShaderModule(TruncatedHeader).Result ==
+            ERHIResult::InvalidState,
+        "IRHIShaderModule rejects a truncated four-word SPIR-V header");
+    FRHIShaderModuleDesc MalformedInstruction =
+        MakeShaderDesc(ERHIShaderStage::Vertex, "MainVS", "bad_instruction");
+    MalformedInstruction.Bytecode.Words.back() = (2u << 16u) | 56u;
+    Record(Result,
+        Device.CreateShaderModule(MalformedInstruction).Result ==
+            ERHIResult::InvalidState,
+        "IRHIShaderModule rejects an instruction that overruns the payload");
+    FRHIShaderModuleDesc WrongStage =
+        MakeShaderDesc(ERHIShaderStage::Fragment, "MainVS", "wrong_stage");
+    WrongStage.Bytecode.Words =
+        Stoner::Tests::MakeMinimalShaderBytecode(
+            ERHIShaderStage::Vertex, "MainVS");
+    Record(Result,
+        Device.CreateShaderModule(WrongStage).Result ==
+            ERHIResult::InvalidState,
+        "IRHIShaderModule rejects a mismatched SPIR-V execution model");
+    FRHIShaderModuleDesc WrongEntryPoint =
+        MakeShaderDesc(ERHIShaderStage::Vertex, "MainVS", "wrong_entry");
+    WrongEntryPoint.EntryPoint = "MissingVS";
+    Record(Result,
+        Device.CreateShaderModule(WrongEntryPoint).Result ==
+            ERHIResult::InvalidState,
+        "IRHIShaderModule rejects a missing declared SPIR-V entry point");
     FRHIShaderModuleDesc InvalidShader = MakeShaderDesc(ERHIShaderStage::Vertex, "Main", "invalid_type");
     InvalidShader.InterfaceMetadata.Bindings[0].DescriptorType = static_cast<ERHIDescriptorType>(255);
     Record(Result, Device.CreateShaderModule(InvalidShader).Result == ERHIResult::InvalidState,

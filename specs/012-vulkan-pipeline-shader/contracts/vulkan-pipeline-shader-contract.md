@@ -11,13 +11,24 @@ Required behavior:
 
 - A caller can create shader modules from structurally valid precompiled bytecode, a supported declared stage, a non-empty entry point, a deterministic payload identity, and explicit shader interface metadata.
 - Real runtime shader module creation is used when the backend runtime is available.
+- The backend may enable native shader ownership independently of other
+  still-deterministic `FVulkanDevice` objects, but only a retained native
+  shader handle may report `RealRuntime`; this must not relabel buffers,
+  layouts, or pipelines as native.
 - Deterministic fallback shader modules are allowed when runtime creation is unavailable and diagnostics clearly report fallback validation.
 - Shader modules expose stage, entry point, payload identity, interface summary, validation mode, runtime mode, lifecycle state, and diagnostics.
+- Shader modules and layouts retain creating-device provenance and reject
+  cross-device pipeline or descriptor composition.
 
 Negative-path requirements:
 
-- Empty bytecode, structurally malformed bytecode, unsupported stages, wrong-stage metadata, missing entry point, missing payload identity, invalid interface metadata, and post-shutdown creation return explicit failure.
+- Empty bytecode, incomplete SPIR-V headers, malformed instruction bounds,
+  missing or wrong-stage SPIR-V entry points, unsupported stages, wrong-stage
+  metadata, missing payload identity, invalid interface metadata, foreign
+  dependencies, and post-shutdown creation return explicit failure.
 - Failed creation does not expose a usable partial shader module.
+- Wrapper, native-object, and tracking allocation failures return explicit
+  results and release any partial native shader object.
 - Invalidated shader modules cannot be used for pipeline creation.
 
 ## Shader Interface Metadata Contract

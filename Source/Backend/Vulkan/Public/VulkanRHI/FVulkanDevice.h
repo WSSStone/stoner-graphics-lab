@@ -33,6 +33,7 @@ class FVulkanFence;
 class FVulkanQueue;
 class FVulkanSemaphore;
 class FVulkanSwapchain;
+class FVulkanNativeContext;
 
 class FVulkanDevice final : public Stoner::RHI::IRHIDevice
 {
@@ -50,6 +51,8 @@ public:
     [[nodiscard]] const FVulkanDiagnostics& GetDiagnostics() const noexcept;
     [[nodiscard]] const FVulkanAdapterCandidate& GetSelectedAdapter() const noexcept;
     [[nodiscard]] FVulkanAllocationSnapshot GetAllocationSnapshot() const noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult EnableNativeShaderRuntime();
+    [[nodiscard]] bool HasNativeShaderRuntime() const noexcept;
     [[nodiscard]] Stoner::Core::uint32 GetDescriptorPoolCapacity() const noexcept;
     [[nodiscard]] Stoner::Core::uint32 GetDescriptorPoolAllocatedCount() const noexcept;
     [[nodiscard]] Stoner::Core::uint32 GetCommandBufferCapacity() const noexcept;
@@ -113,6 +116,7 @@ private:
     FVulkanInstance Instance;
     FVulkanAdapterCandidate SelectedAdapter;
     FVulkanDiagnostics Diagnostics;
+    Stoner::Core::TSharedPtr<FVulkanNativeContext> NativeShaderContext;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanQueue>> Queues;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandPool>> CommandPools;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanFence>> Fences;

@@ -1,4 +1,5 @@
 #include "VulkanBackendTests.h"
+#include "ShaderTestFixtures.h"
 
 #include "VulkanRHI/VulkanDevice.h"
 
@@ -575,7 +576,8 @@ void TestLifecycleAndFactoryState(FVulkanBackendTestResult& Result)
     Desc.Stage = Stage;
     Desc.EntryPoint = EntryPoint;
     Desc.PayloadIdentity = Payload;
-    Desc.Bytecode.Words = {0x07230203u, 0u, 1u, static_cast<uint32>(Stage)};
+    Desc.Bytecode.Words =
+        Stoner::Tests::MakeMinimalShaderBytecode(Stage, EntryPoint);
     const ERHIShaderStageFlags Visibility = ToShaderStageFlag(Stage);
     if (Stage == ERHIShaderStage::Vertex)
     {
@@ -624,6 +626,13 @@ void TestLifecycleAndFactoryState(FVulkanBackendTestResult& Result)
 
 void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
 {
+    static_assert(
+        !std::is_constructible_v<
+            FVulkanShaderModule, FRHIShaderModuleDesc, const char*> &&
+        !std::is_constructible_v<
+            FVulkanPipelineLayout, const FRHIPipelineLayoutDesc&>,
+        "Vulkan shader and layout construction must remain device-owned");
+
     FVulkanDevice Device;
     Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan shader pipeline fixture device initializes");
 
@@ -641,9 +650,20 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
 
     FRHIShaderModuleDesc BadBytecode = ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "bad");
     BadBytecode.Bytecode.Words = {1u, 2u, 3u};
+    FRHIShaderModuleDesc TruncatedHeader =
+        ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "truncated");
+    TruncatedHeader.Bytecode.Words = {
+        0x07230203u, 0x00010000u, 0u, 1u};
+    FRHIShaderModuleDesc WrongStage =
+        ShaderDesc(ERHIShaderStage::Fragment, "MainVS", "wrong_stage");
+    WrongStage.Bytecode.Words =
+        Stoner::Tests::MakeMinimalShaderBytecode(
+            ERHIShaderStage::Vertex, "MainVS");
     FRHIShaderModuleDesc BadMetadata = ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "bad_meta");
     BadMetadata.InterfaceMetadata.Bindings[0].Visibility = ERHIShaderStageFlags::Fragment;
     Record(Result, Device.CreateShaderModule(BadBytecode).Result == ERHIResult::InvalidState &&
+        Device.CreateShaderModule(TruncatedHeader).Result == ERHIResult::InvalidState &&
+        Device.CreateShaderModule(WrongStage).Result == ERHIResult::InvalidState &&
         Device.CreateShaderModule(BadMetadata).Result == ERHIResult::InvalidState &&
         Device.CreateShaderModule(ShaderDesc(ERHIShaderStage::Mesh, "MainMS", "mesh")).Result == ERHIResult::Unsupported, "Vulkan shader module rejects malformed unsupported and metadata-incompatible inputs");
     FRHIPipelineLayoutDesc OverlappingLayout = ResourceLayoutDesc();
@@ -661,6 +681,30 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
     const auto GraphicsPipelineAgain = Device.CreateGraphicsPipeline(GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object));
     const auto ComputePipeline = Device.CreateComputePipeline(ComputePipelineDesc(Compute.Object, Layout.Object));
     const auto ComputePipelineAgain = Device.CreateComputePipeline(ComputePipelineDesc(Compute.Object, Layout.Object));
+    FVulkanDevice ForeignDevice;
+    Record(Result,
+        InitializeDeterministic(ForeignDevice) == ERHIResult::Success,
+        "Vulkan foreign shader fixture device initializes");
+    const auto ForeignLayout =
+        ForeignDevice.CreatePipelineLayout(ResourceLayoutDesc());
+    const auto ForeignVertex = ForeignDevice.CreateShaderModule(
+        ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "foreign_vs"));
+    const auto ForeignFragment = ForeignDevice.CreateShaderModule(
+        ShaderDesc(ERHIShaderStage::Fragment, "MainPS", "foreign_ps"));
+    Record(Result,
+        ForeignLayout.Succeeded() && ForeignVertex.Succeeded() &&
+            ForeignFragment.Succeeded() &&
+            Device.CreateGraphicsPipeline(GraphicsPipelineDesc(
+                ForeignVertex.Object,
+                ForeignFragment.Object,
+                ForeignLayout.Object)).Result == ERHIResult::InvalidState &&
+            Device.CreateGraphicsPipeline(GraphicsPipelineDesc(
+                ForeignVertex.Object,
+                ForeignFragment.Object,
+                Layout.Object)).Result == ERHIResult::InvalidState &&
+            Device.CreateDescriptorSet(
+                ForeignLayout.Object, 0).Result == ERHIResult::InvalidState,
+        "Vulkan pipeline and descriptor factories reject foreign shader and layout provenance");
     auto VulkanGraphics = std::dynamic_pointer_cast<FVulkanGraphicsPipeline>(GraphicsPipeline.Object);
     auto VulkanCompute = std::dynamic_pointer_cast<FVulkanComputePipeline>(ComputePipeline.Object);
     Record(Result, GraphicsPipeline.Succeeded() && ComputePipeline.Succeeded() &&
@@ -717,6 +761,7 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
         LimitedDevice.CreateComputePipeline(ComputePipelineDesc(LimitedCS.Object, LimitedLayout.Object)).Result == ERHIResult::Unavailable, "Vulkan configured pipeline creation limit is deterministic");
 
     (void)Device.Shutdown();
+    (void)ForeignDevice.Shutdown();
     Record(Result, Vertex.Object->GetLifecycleState() == ERHIResourceLifecycleState::Invalidated &&
         GraphicsPipeline.Object->GetLifecycleState() == ERHIResourceLifecycleState::Invalidated &&
         ComputePipeline.Object->GetLifecycleState() == ERHIResourceLifecycleState::Invalidated &&

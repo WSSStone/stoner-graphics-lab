@@ -1,4 +1,5 @@
 #include "DeferredRenderingTests.h"
+#include "ShaderTestFixtures.h"
 
 #include "Renderer/FDeferredFrameExecutor.h"
 #include "Renderer/FDeferredLightVolume.h"
@@ -79,7 +80,8 @@ FRHIShaderModuleDesc MakeShader(ERHIShaderStage Stage)
     Desc.Stage = Stage;
     Desc.EntryPoint = "main";
     Desc.PayloadIdentity = Stage == ERHIShaderStage::Vertex ? "DeferredTestVS" : "DeferredTestFS";
-    Desc.Bytecode.Words = {0x07230203u, 0u, 1u, static_cast<uint32>(Stage)};
+    Desc.Bytecode.Words =
+        Stoner::Tests::MakeMinimalShaderBytecode(Stage, Desc.EntryPoint.View());
     return Desc;
 }
 

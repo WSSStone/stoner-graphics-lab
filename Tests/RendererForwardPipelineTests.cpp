@@ -1,4 +1,5 @@
 #include "RendererForwardPipelineTests.h"
+#include "ShaderTestFixtures.h"
 
 #include "Renderer/RendererMinimal.h"
 #include "Renderer/FDeferredRenderer.h"
@@ -337,10 +338,15 @@ void TestForwardFrameExecution(FRendererForwardPipelineTestResult& Result)
     VertexShaderDesc.Stage = ERHIShaderStage::Vertex;
     VertexShaderDesc.EntryPoint = "main";
     VertexShaderDesc.PayloadIdentity = "triangle-vertex";
-    VertexShaderDesc.Bytecode.Words = {0x07230203u, 0x00010000u, 0u, 1u};
+    VertexShaderDesc.Bytecode.Words =
+        Stoner::Tests::MakeMinimalShaderBytecode(
+            ERHIShaderStage::Vertex, "main");
     FRHIShaderModuleDesc FragmentShaderDesc = VertexShaderDesc;
     FragmentShaderDesc.Stage = ERHIShaderStage::Fragment;
     FragmentShaderDesc.PayloadIdentity = "triangle-fragment";
+    FragmentShaderDesc.Bytecode.Words =
+        Stoner::Tests::MakeMinimalShaderBytecode(
+            ERHIShaderStage::Fragment, "main");
     auto VertexShader = Device.CreateShaderModule(VertexShaderDesc);
     auto FragmentShader = Device.CreateShaderModule(FragmentShaderDesc);
 

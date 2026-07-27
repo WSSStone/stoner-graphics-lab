@@ -8,6 +8,8 @@
 namespace Stoner::Backend::Vulkan
 {
 
+class FVulkanDevice;
+class FVulkanShaderModule;
 struct FVulkanNativeDeviceAccess;
 class FVulkanNativeOffscreenSession;
 
@@ -112,9 +114,15 @@ public:
     [[nodiscard]] bool IsAvailable() const noexcept;
 
 private:
+    friend class FVulkanDevice;
+    friend class FVulkanShaderModule;
     friend class FVulkanNativeOffscreenSession;
     [[nodiscard]] bool GetNativeDeviceAccess(
         FVulkanNativeDeviceAccess& OutAccess) const noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult CreateOwnedShaderModule(
+        const Stoner::Core::TArray<Stoner::Core::uint32>& Words,
+        Stoner::Core::uint64& OutToken) noexcept;
+    void DestroyOwnedShaderModule(Stoner::Core::uint64 Token) noexcept;
     struct FImpl;
     std::unique_ptr<FImpl> Impl;
 };
