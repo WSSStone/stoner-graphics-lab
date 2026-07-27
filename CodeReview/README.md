@@ -46,9 +46,13 @@ traceability, failed required gates, or unfinished batches. After close:
 
 1. Write a self-contained final report under `doc/code-reviews/`.
 2. Remove the completed run snapshot from the branch's final file tree.
-3. Keep the review's fix and checkpoint commits, then merge the PR with a merge
-   commit so detailed execution history remains recoverable without occupying
-   the development working tree.
+3. Squash Merge the PR by default so the development mainline receives one
+   coherent review change without checkpoint commits or deleted run data.
+
+The PR and review branch carry detailed process history while the review is
+active; the final report carries the durable conclusion. Use a merge commit only
+when an explicit regulatory, contractual, or forensic requirement demands
+permanent per-commit history.
 
 See [PROCESS.md](PROCESS.md) for the protocol and
 [Tools/README.md](Tools/README.md) for CLI and environment details.

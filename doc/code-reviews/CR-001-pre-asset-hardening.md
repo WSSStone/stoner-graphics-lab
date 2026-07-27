@@ -16,8 +16,9 @@ and two S3 maintainability items explicitly deferred.
 - Baseline inventory: 24,078 production lines and 7,445 test lines
 
 This report is the durable mainline record. The completed `CodeReview/Runs`
-snapshot was removed from the final file tree; its detailed checkpoint history
-remains available through the review commits and pull request.
+snapshot was removed from the final file tree. The PR and review branch carried
+the detailed checkpoint history during execution; the mainline intentionally
+retains the reviewed net changes and this report rather than the run journal.
 
 ## Findings
 

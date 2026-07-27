@@ -60,7 +60,14 @@ Every deferred finding names a future roadmap phase or an explicit debt owner.
   only the checkpoints needed for durable recovery; raw output remains ignored.
 - At closeout, archive the durable result under `doc/code-reviews/` and remove
   the run snapshot from the final tree.
-- Preserve the audit chain with a merge commit; do not squash.
+- Default to Squash Merge so the development mainline receives the reviewed net
+  code changes, reusable CR infrastructure, and final report without importing
+  checkpoint commits or deleted run data into its history.
+- Use the PR and review branch as the execution-time audit trail. The final
+  report is the durable mainline authority for findings, decisions, gates, and
+  deferred debt.
+- Use a merge commit only when an explicit regulatory, contractual, or forensic
+  requirement demands permanent per-commit history.
 
 ## Evidence
 
@@ -71,8 +78,9 @@ impact, repair, verification, and commit.
 
 The final report records the frozen baseline and audited head, scope, finding
 counts, verified gates, material decisions, and deferred debt. Step state,
-handoffs, batch journals, and raw evidence remain available from review branch
-history or external artifacts but are not permanent mainline content.
+handoffs, batch journals, and raw evidence are execution-time records in the
+review branch, PR, or external artifacts; they are not permanent mainline
+content unless a stronger audit policy explicitly requires it.
 
 ## Completion
 

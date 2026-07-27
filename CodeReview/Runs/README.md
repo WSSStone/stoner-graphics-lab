@@ -11,4 +11,6 @@ untracked or publish them as CI artifacts.
 
 When a review closes, publish a self-contained report under
 `doc/code-reviews/` and remove its run snapshot from the branch's final file
-tree. The merge commit preserves the detailed checkpoint history.
+tree. Squash Merge is the default: the development mainline keeps the reviewed
+net result and final report without importing checkpoint history or deleted run
+data. Use a merge commit only for an explicit stronger audit requirement.
