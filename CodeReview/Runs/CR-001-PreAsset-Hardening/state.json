@@ -1,5 +1,5 @@
 {
-  "active_step": "B09-S11",
+  "active_step": "B09-S12",
   "batches": [
     {
       "id": "B00",
@@ -1832,12 +1832,14 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T11:17:07+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B09-performance-hotspots-large-functions-fix.md"
+          ],
           "id": "B09-S11",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Deferred CR001-B09-F005 as S3 and fixed crctl to permit Accepted S3 deferral.",
+          "started_at": "2026-07-27T11:14:39+00:00",
+          "status": "Completed",
           "title": "Fix: performance hotspots and large functions"
         },
         {
@@ -5762,6 +5764,21 @@
       "at": "2026-07-27T11:13:09+00:00",
       "detail": "B09-S10",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T11:14:39+00:00",
+      "detail": "B09-S11",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T11:16:33+00:00",
+      "detail": "defer finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T11:17:07+00:00",
+      "detail": "B09-S11",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5915,7 +5932,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "853502aa7b75b81d7117e142233e0ec9c09d4b2b"
+    "last_recorded_head": "4dd6e42eebf6e0f2057acfa10ab020068e0815eb"
   },
   "policy": {
     "fix_severities": [
@@ -5935,5 +5952,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T11:13:09+00:00"
+  "updated_at": "2026-07-27T11:17:07+00:00"
 }

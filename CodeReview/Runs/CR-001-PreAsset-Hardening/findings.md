@@ -987,11 +987,11 @@
 ## CR001-B09-F005: Native deferred validation is concentrated in oversized execution functions
 
 - Severity: S3
-- Status: Accepted
+- Status: Deferred
 - Requirement: CR-001 B09 Cross-Cutting requires inspection of performance hotspots, large functions, duplicated code, and maintainability debt before Feature 020.
 - Location: `Source/Backend/Vulkan/Private/FVulkanNativeOffscreenSession.cpp:1047`
 - Impact: Future deferred, asset, streaming, and backend validation changes must edit a monolithic native path where unrelated lifecycle, rendering, readback, and oracle concerns are coupled, increasing regression risk and making targeted performance instrumentation difficult.
 - Evidence: FVulkanNativeOffscreenSession::Execute spans roughly 608 lines, embeds resource creation, descriptor/pipeline setup, command recording, readback mapping, probe decoding, and final oracle composition; the nested ExecuteConvention lambda spans roughly 289 lines. The largest production files are FVulkanNativeContext.cpp (2129 LOC), FVulkanDevice.cpp (1756 LOC), and FVulkanNativeOffscreenSession.cpp (1737 LOC).
-- Resolution: pending
+- Resolution: S3 maintainability debt with existing behavioral coverage. Splitting the 600-line native deferred validation execution path is worthwhile, but it is a high-touch refactor across resource setup, pipelines, command recording, readback, and probe oracle code; doing it inside B09-S11 would exceed the low-risk S3 fix policy.
 - Verification: pending
 - Commit: `pending`

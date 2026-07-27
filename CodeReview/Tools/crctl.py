@@ -148,7 +148,7 @@ BATCHES = [
 FINDING_TRANSITIONS = {
     "Open": {"Triaged"},
     "Triaged": {"Accepted", "Deferred", "Rejected"},
-    "Accepted": {"Fixed"},
+    "Accepted": {"Fixed", "Deferred"},
     "Fixed": {"Verified"},
     "Deferred": set(),
     "Rejected": set(),

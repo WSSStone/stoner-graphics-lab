@@ -19,6 +19,14 @@ class FindingStateTests(unittest.TestCase):
         self.assertEqual(finding["status"], "Verified")
         self.assertEqual(len(finding["history"]), 4)
 
+    def test_accepted_s3_debt_can_be_deferred(self):
+        finding = {"status": "Open", "history": []}
+        crctl.transition(finding, "Triaged", "reviewed")
+        crctl.transition(finding, "Accepted", "confirmed")
+        crctl.transition(finding, "Deferred", "defer low-risk S3 debt")
+        self.assertEqual(finding["status"], "Deferred")
+        self.assertEqual(len(finding["history"]), 3)
+
     def test_cannot_verify_an_open_finding(self):
         with self.assertRaises(ReviewError):
             crctl.transition({"status": "Open"}, "Verified", "skipped protocol")
