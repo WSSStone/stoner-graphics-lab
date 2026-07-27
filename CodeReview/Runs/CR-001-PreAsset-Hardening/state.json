@@ -1,5 +1,5 @@
 {
-  "active_step": "B09-S05",
+  "active_step": "B09-S06",
   "batches": [
     {
       "id": "B00",
@@ -1759,13 +1759,15 @@
           "title": "Inspect: diagnostics, determinism, and failure semantics"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "715dba2",
+          "completed_at": "2026-07-27T10:55:47+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B09-diagnostics-determinism-failure-semantics-fix.md"
+          ],
           "id": "B09-S05",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Fixed CR001-B09-F004 with stable renderer comparison tier-count diagnostics and focused missing/extra tier tests; debug strict fallback build and StonerTest passed.",
+          "started_at": "2026-07-27T10:53:57+00:00",
+          "status": "Completed",
           "title": "Fix: diagnostics, determinism, and failure semantics"
         },
         {
@@ -5670,6 +5672,21 @@
       "at": "2026-07-27T10:52:52+00:00",
       "detail": "B09-S04",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T10:53:57+00:00",
+      "detail": "B09-S05",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T10:55:18+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T10:55:47+00:00",
+      "detail": "B09-S05",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5823,7 +5840,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "de73e696b9b56f8b76d6684fd5072e140067cfe0"
+    "last_recorded_head": "715dba26c691fc97efd7d44a70a892b32aea0115"
   },
   "policy": {
     "fix_severities": [
@@ -5843,5 +5860,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T10:52:52+00:00"
+  "updated_at": "2026-07-27T10:55:47+00:00"
 }
