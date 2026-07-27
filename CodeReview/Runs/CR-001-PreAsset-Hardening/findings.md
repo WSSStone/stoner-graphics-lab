@@ -659,3 +659,39 @@
 - Resolution: Queue, command pool/buffer, fence, and semaphore wrappers now share an active device owner identity, close construction to FVulkanDevice, reject cross-device composition, invalidate through owner shutdown, and map queue/fence/semaphore wrapper or tracking allocation failures to explicit Unavailable results without publishing partial objects.
 - Verification: Independent B05-S06 review confirmed device-owned construction and shared owner provenance for queue, pool, command buffer, fence, and semaphore; foreign/stale objects reject composition, shutdown invalidates the owner first, factory failures do not publish partial wrappers, maintained tests cover provenance and shutdown, and fresh strict-debug, fallback-strict, and strict-release gates pass.
 - Commit: `3dbfed0`
+
+## CR001-B05-F007: Shader validation accepts malformed and wrong-stage SPIR-V
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 012-FR-001, 012-FR-002, 012-FR-003a, 012-SC-002, and the Shader Module Contract
+- Location: `Source/RHI/Public/RHI/FRHIShaderModuleDesc.h:106`
+- Impact: Deterministic fallback can publish Valid shader modules and pipelines from unusable or wrong-stage payloads, so failures move from the documented creation boundary into later native pipeline creation or asset consumption and SC-002's malformed/wrong-stage rejection claim is unsupported.
+- Evidence: IsValidRHIShaderBytecode checks only size >= 4, format text, and the magic word; it neither validates the complete SPIR-V header/instruction stream nor finds the declared entry point and execution model. Maintained MakeShaderDesc/ShaderDesc fixtures contain only four words, no complete five-word header or OpEntryPoint, yet device and mock factories accept them as valid vertex, fragment, and compute modules.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B05-F008: Shader and layout objects bypass device ownership and provenance
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 008-FR-017, 012-FR-002, 012-FR-018, T034-T035, and the Shader Module Contract
+- Location: `Source/Backend/Vulkan/Public/VulkanRHI/FVulkanShaderModule.h:11`
+- Impact: Callers can bypass the authoritative device factory and compose cross-device dependencies; a future native handle would then be consumed by the wrong device. Allocation failure can also escape the RHI result contract, while factory publication and shutdown ownership cannot prove one authoritative device.
+- Evidence: FVulkanShaderModule and FVulkanPipelineLayout expose public constructors and carry no device owner identity. Graphics and compute pipeline validation checks only dynamic type, lifecycle, stage, and metadata compatibility, so valid wrappers created directly or by another active FVulkanDevice are accepted. FVulkanDevice::CreateShaderModule also performs throwing MakeShared and vector insertion without mapping allocation or tracking failure to an explicit result.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B05-F009: The RHI real-runtime shader contract is unreachable
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 012-FR-001, 012-FR-003a, 012-SC-001, the Feature 012 clarification on runtime objects, and the Shader Module Contract
+- Location: `Source/Backend/Vulkan/Private/FVulkanInstance.cpp:62`
+- Impact: Renderer/RHI consumers can never obtain the documented real-runtime shader module or pipeline path, forcing actual rendering through duplicated backend-private contexts and leaving Feature 012's runtime validation and abstraction promise unfulfilled despite native Vulkan availability elsewhere in the process.
+- Evidence: FVulkanInstance rejects every RealRuntime request as Unsupported because FVulkanDevice owns no native Vulkan device; the only active FVulkanDevice mode is explicit deterministic fallback. FVulkanDevice::CreateShaderModule contains no vkCreateShaderModule path and therefore its Runtime validation branch is unreachable. Native contexts create VkShaderModule separately but do not return IRHIShaderModule objects or satisfy the RHI factory contract.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
