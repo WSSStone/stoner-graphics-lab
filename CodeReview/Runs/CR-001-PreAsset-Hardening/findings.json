@@ -3128,7 +3128,7 @@
     },
     {
       "batch": "B08",
-      "commit": "",
+      "commit": "71b5fed",
       "created_at": "2026-07-27T09:01:43+00:00",
       "deferred_target": "",
       "evidence": "Initialize leaves PresentationState.bInitialized=false when the initial visible drawable width or height is zero. RunVisible later observes a non-zero extent after PresentationPaused, calls NotifyDrawableExtent(Width, Height) before deciding whether to prepare or recreate presentation resources, and NotifyDrawableExtent sets PresentationState.bInitialized=true. The following branch therefore calls RecreateVisiblePresentation, but FVulkanNativeContext::RecreateVisiblePresentation requires VisibleVertexShaderPath and VisibleFragmentShaderPath already saved by PrepareVisibleTriangle, so a startup-zero visible window resumes through InvalidState instead of first preparing presentation resources.",
@@ -3144,15 +3144,21 @@
           "from": "Triaged",
           "note": "Accepted for B08 fix: the visible loop mutates PresentationState.bInitialized during recovery notification before selecting first-prepare versus recreate, so the startup-zero native presentation path can resume through InvalidState.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T09:08:43+00:00",
+          "from": "Accepted",
+          "note": "NotifyDrawableExtent no longer marks presentation resources initialized before native prepare/recreate succeeds. Added IsPresentationInitialized diagnostic getter and deterministic recovery coverage proving pause-to-recreate timing does not claim presentation resource readiness before prepare success.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B08-F003",
       "impact": "A visible demo launched while minimized or with a zero drawable surface can fail recovery after the drawable becomes valid, violating the pause/resume contract and leaving the real-window validation path dependent on startup window timing.",
       "location": "Demo/StonerDemo/Private/FStonerDemoApplication.cpp:299",
       "requirement": "Feature 018 FR-011, FR-012, FR-013 and the runtime contract require zero drawable extents to pause without creating swapchain resources, then resume rendering after a valid non-zero drawable size returns without retaining invalid presentation-dependent resources.",
-      "resolution": "",
+      "resolution": "NotifyDrawableExtent no longer marks presentation resources initialized before native prepare/recreate succeeds. Added IsPresentationInitialized diagnostic getter and deterministic recovery coverage proving pause-to-recreate timing does not claim presentation resource readiness before prepare success.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Visible startup-zero recovery selects recreate before first presentation prepare",
       "verification": ""
     }
