@@ -743,3 +743,15 @@
 - Resolution: Fixed by suboptimal-acquire handoff through submit/present, acquired-frame abandon cleanup on record/reset/submit failure, signaled fence recreation after post-reset submit failure, and maintained visible failure lifecycle regression.
 - Verification: Verified parent/current visible native frame failure lifecycle: suboptimal acquire continues through cleanup, record failure uses shared abandon path, submit failure recreates a signaled frame-slot fence, lifecycle regression passes, and strict/fallback/release/sanitizer gates pass. Refreshed tests gate failure is limited to current Mac MoltenVK/Metal environment boundary.
 - Commit: `d5b83ac`
+
+## CR001-B06-F001: Render graph execution resolves resources from culled branches
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 013 FR-012, FR-014, FR-015 and SC-007/SC-008 require output-based pass culling, execution of the compiled scheduled pass sequence, and rejection only for missing or invalid required imported resources.
+- Location: `Source/Renderer/Private/FRenderGraphExecutor.cpp:76`
+- Impact: A graph can compile with an unused branch correctly culled, yet still fail execution because a resource that cannot affect requested outputs is missing or transient resolution is simulated to fail. This makes culling incomplete at execution time and weakens render graph composition for optional debug/post-processing branches.
+- Evidence: FRenderGraphCompiler culls unused passes by replacing ScheduledPasses with the required-only CulledSchedule, but FRenderGraphExecutor::Execute iterates Graph.Resources instead of resources reachable from Graph.GetCompiledGraph().ScheduledPasses. Missing imported bindings or transient resolution failure from a culled branch can therefore fail execution before any scheduled pass callback runs.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`

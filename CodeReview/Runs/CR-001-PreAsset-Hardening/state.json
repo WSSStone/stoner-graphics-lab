@@ -1,5 +1,5 @@
 {
-  "active_step": "B06-S01",
+  "active_step": "B06-S02",
   "batches": [
     {
       "id": "B00",
@@ -1082,16 +1082,18 @@
     },
     {
       "id": "B06",
-      "status": "Pending",
+      "status": "InProgress",
       "steps": [
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T05:59:38+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b06-render-graph-declaration-compilation-lifetimes-inspection.md"
+          ],
           "id": "B06-S01",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected render graph declaration/compiler/executor boundaries for Feature 013. Accepted CR001-B06-F001: executor resolves all graph resources, including culled branch resources, instead of only resources required by compiled scheduled passes. No production or test source changed.",
+          "started_at": "2026-07-27T05:57:17+00:00",
+          "status": "Completed",
           "title": "Inspect: render graph declaration, compilation, and lifetimes"
         },
         {
@@ -4477,6 +4479,26 @@
       "at": "2026-07-27T05:56:03+00:00",
       "detail": "B05-S15",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T05:57:17+00:00",
+      "detail": "B06-S01",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T05:58:38+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T05:58:52+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T05:59:38+00:00",
+      "detail": "B06-S01",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -4630,7 +4652,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "9cacd5e976495a00809af10df32bea516ae29aa3"
+    "last_recorded_head": "c1bf8218345741ba8c96f891fe03d71aae7663e4"
   },
   "policy": {
     "fix_severities": [
@@ -4650,5 +4672,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T05:56:03+00:00"
+  "updated_at": "2026-07-27T05:59:38+00:00"
 }
