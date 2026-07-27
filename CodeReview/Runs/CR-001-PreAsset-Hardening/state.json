@@ -1,5 +1,5 @@
 {
-  "active_step": "B09-S10",
+  "active_step": "B09-S11",
   "batches": [
     {
       "id": "B00",
@@ -1820,12 +1820,14 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T11:13:09+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B09-performance-hotspots-large-functions-inspection.md"
+          ],
           "id": "B09-S10",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Accepted CR001-B09-F005 as S3 native validation large-function debt; no S0-S2 correctness issue found.",
+          "started_at": "2026-07-27T11:09:47+00:00",
+          "status": "Completed",
           "title": "Inspect: performance hotspots and large functions"
         },
         {
@@ -5740,6 +5742,26 @@
       "at": "2026-07-27T11:08:27+00:00",
       "detail": "B09-S09",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T11:09:47+00:00",
+      "detail": "B09-S10",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T11:12:01+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T11:12:27+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T11:13:09+00:00",
+      "detail": "B09-S10",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5893,7 +5915,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "ec47f5c627e1e5df8bbf444a6c0ea7b05bdcec70"
+    "last_recorded_head": "853502aa7b75b81d7117e142233e0ec9c09d4b2b"
   },
   "policy": {
     "fix_severities": [
@@ -5913,5 +5935,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T11:08:27+00:00"
+  "updated_at": "2026-07-27T11:13:09+00:00"
 }

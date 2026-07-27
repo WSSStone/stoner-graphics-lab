@@ -3419,6 +3419,36 @@
       "status": "Verified",
       "title": "Renderer comparison report omits diagnostics for missing or extra tiers",
       "verification": "Verified in B09-S06 from current HEAD: Release strict graphics-disabled build passes, Release StonerTest exits 0 with missing/extra tier diagnostic PASS lines, and static scan confirms DEF-COMPARE-TIER-COUNT plus preserved tier lists."
+    },
+    {
+      "batch": "B09",
+      "commit": "",
+      "created_at": "2026-07-27T11:12:01+00:00",
+      "deferred_target": "",
+      "evidence": "FVulkanNativeOffscreenSession::Execute spans roughly 608 lines, embeds resource creation, descriptor/pipeline setup, command recording, readback mapping, probe decoding, and final oracle composition; the nested ExecuteConvention lambda spans roughly 289 lines. The largest production files are FVulkanNativeContext.cpp (2129 LOC), FVulkanDevice.cpp (1756 LOC), and FVulkanNativeOffscreenSession.cpp (1737 LOC).",
+      "history": [
+        {
+          "at": "2026-07-27T11:12:27+00:00",
+          "from": "Open",
+          "note": "Accepted as S3 maintainability debt. Existing native gates cover current behavior; defer or fix in a later test/native validation architecture slice.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-27T11:12:27+00:00",
+          "from": "Triaged",
+          "note": "Accepted as S3 maintainability debt. Existing native gates cover current behavior; defer or fix in a later test/native validation architecture slice.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B09-F005",
+      "impact": "Future deferred, asset, streaming, and backend validation changes must edit a monolithic native path where unrelated lifecycle, rendering, readback, and oracle concerns are coupled, increasing regression risk and making targeted performance instrumentation difficult.",
+      "location": "Source/Backend/Vulkan/Private/FVulkanNativeOffscreenSession.cpp:1047",
+      "requirement": "CR-001 B09 Cross-Cutting requires inspection of performance hotspots, large functions, duplicated code, and maintainability debt before Feature 020.",
+      "resolution": "",
+      "severity": "S3",
+      "status": "Accepted",
+      "title": "Native deferred validation is concentrated in oversized execution functions",
+      "verification": ""
     }
   ],
   "schema_version": 1

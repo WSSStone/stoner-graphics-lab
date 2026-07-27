@@ -983,3 +983,15 @@
 - Resolution: BuildRendererComparisonReport now emits DEF-COMPARE-TIER-COUNT diagnostics and preserves received tiers when the four required tier count is missing or extra; RendererComparisonTests cover missing and extra tier diagnostics.
 - Verification: Verified in B09-S06 from current HEAD: Release strict graphics-disabled build passes, Release StonerTest exits 0 with missing/extra tier diagnostic PASS lines, and static scan confirms DEF-COMPARE-TIER-COUNT plus preserved tier lists.
 - Commit: `715dba2`
+
+## CR001-B09-F005: Native deferred validation is concentrated in oversized execution functions
+
+- Severity: S3
+- Status: Accepted
+- Requirement: CR-001 B09 Cross-Cutting requires inspection of performance hotspots, large functions, duplicated code, and maintainability debt before Feature 020.
+- Location: `Source/Backend/Vulkan/Private/FVulkanNativeOffscreenSession.cpp:1047`
+- Impact: Future deferred, asset, streaming, and backend validation changes must edit a monolithic native path where unrelated lifecycle, rendering, readback, and oracle concerns are coupled, increasing regression risk and making targeted performance instrumentation difficult.
+- Evidence: FVulkanNativeOffscreenSession::Execute spans roughly 608 lines, embeds resource creation, descriptor/pipeline setup, command recording, readback mapping, probe decoding, and final oracle composition; the nested ExecuteConvention lambda spans roughly 289 lines. The largest production files are FVulkanNativeContext.cpp (2129 LOC), FVulkanDevice.cpp (1756 LOC), and FVulkanNativeOffscreenSession.cpp (1737 LOC).
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
