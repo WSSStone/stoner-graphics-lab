@@ -71,9 +71,9 @@ characterization and must not be used to claim B05 verification.
 
 ## Finding State
 
-- `CR001-B05-F010`: Fixed at `a62e0f1`, pending B05-S12 verification.
-- `CR001-B05-F011`: Fixed at `a62e0f1`, pending B05-S12 verification.
-- `CR001-B05-F012`: Fixed at `a62e0f1`, pending B05-S12 verification.
+- `CR001-B05-F010`: Fixed at `00751c7`, pending B05-S12 verification.
+- `CR001-B05-F011`: Fixed at `00751c7`, pending B05-S12 verification.
+- `CR001-B05-F012`: Fixed at `00751c7`, pending B05-S12 verification.
 
 B05-S12 must independently verify parent/current behavior and gate evidence
 before transitioning these findings to Verified.

@@ -1,7 +1,7 @@
 # CR-001 Handoff
 
 - Base: `9092a97593fb29cffbffdbe534e3dda143f463a5`
-- Current HEAD: `a62e0f1ded9d56baf8f59acba96a5c078540fb19`
+- Current HEAD: `00751c7ded9d56baf8f59acba96a5c078540fb19`
 - Branch: `codex/review-001-pre-asset-hardening`
 - Worktree: `/Users/wangshi/Documents/UGit/stoner-graphics-lab-cr-001`
 - Active batch/step: `B05` / `B05-S12`

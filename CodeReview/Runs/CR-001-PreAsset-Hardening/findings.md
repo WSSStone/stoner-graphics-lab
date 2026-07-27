@@ -706,7 +706,7 @@
 - Evidence: FVulkanGraphicsPipeline and FVulkanComputePipeline have public constructors and no creating-device identity. FVulkanCommandBuffer::BindGraphicsPipeline and BindComputePipeline accept any valid-lifecycle RHI pipeline without backend type or owner checks. FVulkanDevice validates shader/layout provenance but CreateGraphicsPipeline never checks each color/depth attachment format against selected device capabilities; the existing ColorOnly adapter test constrains texture creation only.
 - Resolution: Fixed by device-authoritative pipeline wrappers, selected-device attachment format validation, foreign-device binding rejection, and maintained regressions.
 - Verification: pending
-- Commit: `a62e0f1`
+- Commit: `00751c7`
 
 ## CR001-B05-F011: Pipeline cache can reuse non-equivalent or stale pipelines
 
@@ -718,7 +718,7 @@
 - Evidence: AppendShaderKey serializes only stage, unescaped payload identity, and entry point, omitting shader interface metadata required by the contract and allowing delimiter collisions. FindGraphics and FindCompute validate only the cached pipeline lifecycle, not the lifecycle of its retained shader/layout dependencies. A replacement valid request with the same textual key can therefore return an old valid wrapper whose dependencies were invalidated.
 - Resolution: Fixed by collision-safe complete cache serialization, interface metadata coverage, delimiter-safe identity encoding, stale dependency rejection, and maintained regressions.
 - Verification: pending
-- Commit: `a62e0f1`
+- Commit: `00751c7`
 
 ## CR001-B05-F012: Pipeline factories neither create native objects nor publish atomically
 
@@ -730,4 +730,4 @@
 - Evidence: The RHI pipeline wrappers retain only descriptions and contain no native context or VkPipeline ownership. FVulkanDevice RealRuntime initialization remains Unsupported and native contexts create VkPipeline through separate non-RHI paths, so real-runtime pipeline factory branches are unreachable. Both factories also build allocating text keys, copy descriptions, allocate wrappers, append tracking, and insert cache entries without catches or rollback; cache insertion occurs after device tracking publication.
 - Resolution: Fixed by native graphics/compute pipeline ownership in FVulkanNativeContext plus failure-atomic device publication and maintained native integration regressions.
 - Verification: pending
-- Commit: `a62e0f1`
+- Commit: `00751c7`
