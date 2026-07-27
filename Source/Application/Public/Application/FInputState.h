@@ -11,6 +11,7 @@ class FInputState
 public:
     void BeginFrame();
     void ClearAll();
+    void SetFocused(bool bInFocused) noexcept;
     void ApplyEvent(const FInputEvent& Event, FApplicationDiagnosticLog* Diagnostics = nullptr);
 
     [[nodiscard]] bool IsKeyHeld(EKey Key) const;
@@ -35,6 +36,8 @@ public:
     [[nodiscard]] const Stoner::Core::TArray<EMouseButton>& GetReleasedMouseButtons() const noexcept { return ReleasedMouseButtons; }
 
 private:
+    void ClearKeyAndMouseState();
+
     Stoner::Core::TArray<EKey> HeldKeys;
     Stoner::Core::TArray<EKey> PressedKeys;
     Stoner::Core::TArray<EKey> ReleasedKeys;

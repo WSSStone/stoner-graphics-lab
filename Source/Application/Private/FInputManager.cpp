@@ -34,6 +34,7 @@ void FInputManager::PollFrame(EWindowLifecycleState WindowState, bool bWindowFoc
         return;
     }
 
+    CurrentState.SetFocused(bWindowFocused);
     if (!bWindowFocused)
     {
         CurrentState.ApplyEvent(FInputEvent::FocusLost(), &Diagnostics);

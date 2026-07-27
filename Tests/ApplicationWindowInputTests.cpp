@@ -227,6 +227,22 @@ void TestFocusLossAndUnknownInput(FApplicationWindowInputTestResult& Result)
             Input.GetDiagnostics().CountByCode("APP-INPUT-FOCUS-CLEAR") == 1,
         "Application input clears held keyboard and mouse state on focus loss");
 
+    Input.PollFrame(EWindowLifecycleState::Active, true);
+    Record(Result, Input.GetState().IsFocused(),
+        "Application input restores focused snapshot state on focused frame");
+
+    Input.Clear();
+    Input.QueueEvent(FInputEvent::PointerMove(32.0f, 48.0f, 1));
+    Input.PollFrame(EWindowLifecycleState::Active, true);
+    Record(Result, Input.GetState().HasPointerPosition(),
+        "Application input records pointer position before reset coverage");
+    Input.PollFrame(EWindowLifecycleState::Destroyed, true);
+    Record(Result, !Input.GetState().HasPointerPosition() &&
+            Input.GetState().GetPointerX() == 0.0f &&
+            Input.GetState().GetPointerY() == 0.0f &&
+            !Input.GetState().IsFocused(),
+        "Application input invalid lifecycle clears stale pointer and focus snapshot state");
+
     Input.Clear();
     Input.QueueEvent(FInputEvent::KeyDown(EKey::Unknown, 1));
     Input.QueueEvent(FInputEvent::MouseDown(EMouseButton::Unknown, 2));
@@ -238,6 +254,30 @@ void TestFocusLossAndUnknownInput(FApplicationWindowInputTestResult& Result)
             Input.GetDiagnostics().CountByCode("APP-INPUT-UNKNOWN-MOUSE") == 1 &&
             Input.GetDiagnostics().CountByCode("APP-INPUT-UNKNOWN-EVENT") == 1,
         "Application input reports unknown identifiers without corrupting known state");
+}
+
+void TestPlatformInputMapping(FApplicationWindowInputTestResult& Result)
+{
+    constexpr int GlfwKeyHome = 268;
+    constexpr int GlfwKeyPageDown = 267;
+    constexpr int GlfwKeyLeftShift = 340;
+    constexpr int GlfwKeyRightControl = 345;
+    constexpr int GlfwKeyF12 = 301;
+    constexpr int GlfwMouseButton4 = 3;
+    constexpr int GlfwMouseButton5 = 4;
+
+    const bool bPassed = IsGlfwInputMappingAvailable()
+        ? TranslateGlfwKeyCode(GlfwKeyHome) == EKey::Home &&
+            TranslateGlfwKeyCode(GlfwKeyPageDown) == EKey::PageDown &&
+            TranslateGlfwKeyCode(GlfwKeyLeftShift) == EKey::LeftShift &&
+            TranslateGlfwKeyCode(GlfwKeyRightControl) == EKey::RightControl &&
+            TranslateGlfwKeyCode(GlfwKeyF12) == EKey::F12 &&
+            TranslateGlfwMouseButtonCode(GlfwMouseButton4) == EMouseButton::X1 &&
+            TranslateGlfwMouseButtonCode(GlfwMouseButton5) == EMouseButton::X2
+        : TranslateGlfwKeyCode(GlfwKeyHome) == EKey::Unknown &&
+            TranslateGlfwMouseButtonCode(GlfwMouseButton4) == EMouseButton::Unknown;
+    Record(Result, bPassed,
+        "Application GLFW input mapping covers declared navigation modifier function and extra mouse vocabulary when available");
 }
 
 void TestWindowEventsAndLoop(FApplicationWindowInputTestResult& Result)
@@ -350,6 +390,7 @@ FApplicationWindowInputTestResult RunApplicationWindowInputTests()
     TestPrivateDriverAndRealWindowEvents(Result);
     TestInputTransitions(Result);
     TestFocusLossAndUnknownInput(Result);
+    TestPlatformInputMapping(Result);
     TestWindowEventsAndLoop(Result);
     TestFailureModesAndDebugDump(Result);
     return Result;
