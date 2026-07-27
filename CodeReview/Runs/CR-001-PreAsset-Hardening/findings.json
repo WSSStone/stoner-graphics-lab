@@ -2708,7 +2708,7 @@
     },
     {
       "batch": "B06",
-      "commit": "",
+      "commit": "9dcd4ea",
       "created_at": "2026-07-27T06:55:14+00:00",
       "deferred_target": "",
       "evidence": "SortForwardTransparentDraws compares camera-space depth, material id, then object id only. If one object submits multiple transparent mesh draw commands with the same material at the same depth, the comparator reports equivalence and std::sort may preserve or reorder according to caller/input arrangement. Existing tests cover material-id ties but not object-id/final ties or same-object multi-mesh transparent draws.",
@@ -2724,21 +2724,27 @@
           "from": "Triaged",
           "note": "Accepted S2: transparent sort lacks a final stable key for equal depth/material/object draws, so same-object multi-mesh transparent work can depend on caller order despite the no-caller-order contract.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T07:02:01+00:00",
+          "from": "Accepted",
+          "note": "Fixed by adding mesh id as the final transparent sort key after depth, material id, and object id, with reversed-submission same-object multi-mesh regressions.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B06-F004",
       "impact": "Transparent draw order and debug dump output for valid repeated-equivalent mesh/material/view work can depend on submission order, weakening regression evidence and future scene/submesh integration.",
       "location": "Source/Renderer/Private/FMeshDrawCommand.cpp:192",
       "requirement": "Feature 015 transparent sorting contract requires depth descending, material id, object id tie-breakers, identical repeated output, and no reliance on caller submission order for final ties; FMeshDrawCommand also stores mesh id as part of stable draw identity.",
-      "resolution": "",
+      "resolution": "Fixed by adding mesh id as the final transparent sort key after depth, material id, and object id, with reversed-submission same-object multi-mesh regressions.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Transparent draw ordering can fall back to caller order for equal depth material and object keys",
       "verification": ""
     },
     {
       "batch": "B06",
-      "commit": "",
+      "commit": "9dcd4ea",
       "created_at": "2026-07-27T06:55:14+00:00",
       "deferred_target": "",
       "evidence": "PrepareFrame only activates FWD-AMBIENT-FALLBACK when Configuration.bEnableAmbientFallback is true. The public configuration exposes bEnableAmbientFallback=false, allowing a valid plan with accepted geometry, no accepted lights, AmbientFallback inactive, and no fallback diagnostic. Tests only cover zero point light limit with the default fallback enabled.",
@@ -2754,15 +2760,21 @@
           "from": "Triaged",
           "note": "Accepted S2: disabling ambient fallback allows valid no-light geometry plans without the required fallback record and diagnostic.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T07:02:00+00:00",
+          "from": "Accepted",
+          "note": "Fixed by always activating the required ambient-only fallback diagnostic for valid geometry with no accepted lights, including when the legacy fallback config flag is false.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B06-F005",
       "impact": "Authors can receive a render-ready forward frame plan whose valid geometry has no lighting and no diagnostic explaining the ambient-only fallback required by the feature contract.",
       "location": "Source/Renderer/Private/FForwardRenderer.cpp:74; Source/Renderer/Public/Renderer/FForwardRenderer.h:17",
       "requirement": "Feature 015 FR-018, SC-007, data model, and forward rendering contract require geometry with no accepted lights to prepare only with exactly one ambient-only fallback diagnostic.",
-      "resolution": "",
+      "resolution": "Fixed by always activating the required ambient-only fallback diagnostic for valid geometry with no accepted lights, including when the legacy fallback config flag is false.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Forward renderer can prepare no-light geometry without the required ambient fallback",
       "verification": ""
     }

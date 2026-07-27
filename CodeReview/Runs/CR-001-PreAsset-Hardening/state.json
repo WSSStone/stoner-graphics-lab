@@ -1,5 +1,5 @@
 {
-  "active_step": "B06-S14",
+  "active_step": "B06-S15",
   "batches": [
     {
       "id": "B00",
@@ -1242,12 +1242,14 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T07:02:46+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b06-forward-frame-planning-lights-views-sorting-fix.md"
+          ],
           "id": "B06-S14",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Fixed CR001-B06-F004 and CR001-B06-F005; Debug build passed, forward regressions passed, fallback-strict passed.",
+          "started_at": "2026-07-27T06:57:47+00:00",
+          "status": "Completed",
           "title": "Fix: forward frame planning, lights, views, and sorting"
         },
         {
@@ -4748,6 +4750,31 @@
       "at": "2026-07-27T06:56:20+00:00",
       "detail": "B06-S13",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T06:57:47+00:00",
+      "detail": "B06-S14",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T07:00:55+00:00",
+      "detail": "fallback-strict: pass",
+      "kind": "gate"
+    },
+    {
+      "at": "2026-07-27T07:02:00+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T07:02:01+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T07:02:46+00:00",
+      "detail": "B06-S14",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -4791,7 +4818,7 @@
       ],
       "passed": true,
       "profile": "fallback-strict",
-      "recorded_at": "2026-07-27T06:44:30+00:00"
+      "recorded_at": "2026-07-27T07:00:55+00:00"
     },
     "release": {
       "commands": [
@@ -4901,7 +4928,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "3de7fa0b16d9ed181c13570975ddbff443c7852f"
+    "last_recorded_head": "9dcd4ea9d58917229396008086b9b3ef8e4ac65d"
   },
   "policy": {
     "fix_severities": [
@@ -4921,5 +4948,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T06:56:20+00:00"
+  "updated_at": "2026-07-27T07:02:46+00:00"
 }
