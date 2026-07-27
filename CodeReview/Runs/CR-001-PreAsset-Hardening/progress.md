@@ -3,7 +3,7 @@
 - Status: Active
 - Completed steps: 111/134
 - Baseline: `9092a97593fb29cffbffdbe534e3dda143f463a5`
-- Recorded HEAD: `ded73cc7a270c6555c4f1f34c194c013d27356f2`
+- Recorded HEAD: `7ecb6023c93b55f0deec684ea311c8ac368eab0c`
 - Active step: B08-S11
 - Open findings: 3
 
@@ -17,7 +17,7 @@
 - B05 Vulkan Execution 011-012: Completed
 - B06 Renderer 013-015: Completed
 - B07 Application 016-017: Completed
-- B08 Integration 018-019: InProgress
+- B08 Integration 018-019: Blocked
 - B09 Cross-Cutting: Pending
 - B10 Closeout: Pending
 
