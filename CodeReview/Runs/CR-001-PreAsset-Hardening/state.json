@@ -1,5 +1,5 @@
 {
-  "active_step": "B06-S06",
+  "active_step": "B06-S07",
   "batches": [
     {
       "id": "B00",
@@ -1146,12 +1146,14 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T06:15:19+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b06-render-graph-execution-resources-diagnostics-verification.md"
+          ],
           "id": "B06-S06",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "No-op verification slot: B06-S04 accepted no S0-S2 finding, B06-S05 made no source/test change, and CR001-B06-F001 remains Verified.",
+          "started_at": "2026-07-27T06:14:50+00:00",
+          "status": "Completed",
           "title": "Verify: render graph execution, resources, and diagnostics"
         },
         {
@@ -4572,6 +4574,16 @@
       "at": "2026-07-27T06:13:46+00:00",
       "detail": "B06-S05",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T06:14:50+00:00",
+      "detail": "B06-S06",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T06:15:19+00:00",
+      "detail": "B06-S06",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -4725,7 +4737,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "b294e04b633cfb2d5cea98a6837e83ae1458bb19"
+    "last_recorded_head": "dc94b7cc81404ef74b640f5f9874b826b5d6aa1d"
   },
   "policy": {
     "fix_severities": [
@@ -4745,5 +4757,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T06:13:46+00:00"
+  "updated_at": "2026-07-27T06:15:19+00:00"
 }
