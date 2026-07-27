@@ -2814,6 +2814,12 @@
           "from": "Accepted",
           "note": "BuildForwardRenderGraphDeclaration now emits deduplicated Read access declarations for material resource requirements consumed by opaque and transparent forward passes; RendererForwardPipelineTests covers both pass categories. Debug build passed, the new regression passed in graphics-enabled StonerTest, and fallback-strict gate passed.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T07:22:28+00:00",
+          "from": "Fixed",
+          "note": "Verified on B06-S18: source evidence shows BuildForwardRenderGraphDeclaration emits material read accesses for accepted opaque and transparent draw resources, the regression asserts both ForwardOpaqueLighting and ForwardTransparent reads, and fallback-strict gate passed at 2026-07-27T07:22:11+00:00.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B06-F006",
@@ -2822,9 +2828,9 @@
       "requirement": "Feature 015 FR-013, data model, and forward rendering contract require material resource requirements to be represented as render graph-compatible declarations with access declarations matching pass/resource relationships.",
       "resolution": "BuildForwardRenderGraphDeclaration now emits deduplicated Read access declarations for material resource requirements consumed by opaque and transparent forward passes; RendererForwardPipelineTests covers both pass categories. Debug build passed, the new regression passed in graphics-enabled StonerTest, and fallback-strict gate passed.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Forward graph declarations omit material resource access edges",
-      "verification": ""
+      "verification": "Verified on B06-S18: source evidence shows BuildForwardRenderGraphDeclaration emits material read accesses for accepted opaque and transparent draw resources, the regression asserts both ForwardOpaqueLighting and ForwardTransparent reads, and fallback-strict gate passed at 2026-07-27T07:22:11+00:00."
     }
   ],
   "schema_version": 1

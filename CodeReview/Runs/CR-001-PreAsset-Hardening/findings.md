@@ -807,11 +807,11 @@
 ## CR001-B06-F006: Forward graph declarations omit material resource access edges
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 015 FR-013, data model, and forward rendering contract require material resource requirements to be represented as render graph-compatible declarations with access declarations matching pass/resource relationships.
 - Location: `Source/Renderer/Private/FForwardRenderGraphDeclaration.cpp:139; Tests/RendererForwardPipelineTests.cpp:164`
 - Impact: A valid forward frame can claim material textures/resources exist in the declaration while giving graph consumers no pass/resource dependency edge, allowing future execution/culling/import validation to miss required material reads.
 - Evidence: BuildForwardRenderGraphDeclaration adds every accepted draw's material ResourceRequirements to the resource list, but the pass loop never emits read accesses from opaque or transparent passes to those material resources. Existing tests only assert the final output exists and do not verify AlbedoTexture/material resource access declarations.
 - Resolution: BuildForwardRenderGraphDeclaration now emits deduplicated Read access declarations for material resource requirements consumed by opaque and transparent forward passes; RendererForwardPipelineTests covers both pass categories. Debug build passed, the new regression passed in graphics-enabled StonerTest, and fallback-strict gate passed.
-- Verification: pending
+- Verification: Verified on B06-S18: source evidence shows BuildForwardRenderGraphDeclaration emits material read accesses for accepted opaque and transparent draw resources, the regression asserts both ForwardOpaqueLighting and ForwardTransparent reads, and fallback-strict gate passed at 2026-07-27T07:22:11+00:00.
 - Commit: `10c3c5c`
