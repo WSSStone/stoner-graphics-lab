@@ -19,6 +19,14 @@ bool HasResource(const Stoner::Core::TArray<FForwardResourceDeclaration>& Resour
     });
 }
 
+bool HasName(const Stoner::Core::TArray<Stoner::Core::FString>& Names,
+    const Stoner::Core::FString& Name)
+{
+    return std::any_of(Names.begin(), Names.end(), [&Name](const Stoner::Core::FString& Existing) {
+        return Existing == Name;
+    });
+}
+
 void AddUniqueResource(FForwardRenderGraphDeclaration& Declaration,
     Stoner::Core::TArray<FForwardResourceDeclaration>& KnownResources,
     FForwardResourceDeclaration Resource)
@@ -27,6 +35,26 @@ void AddUniqueResource(FForwardRenderGraphDeclaration& Declaration,
     {
         KnownResources.push_back(Resource);
         Declaration.AddResource(std::move(Resource));
+    }
+}
+
+void AddMaterialResourceAccesses(FForwardRenderGraphDeclaration& Declaration,
+    const Stoner::Core::FString& PassName,
+    const Stoner::Core::TArray<FMeshDrawCommand>& Draws)
+{
+    Stoner::Core::TArray<Stoner::Core::FString> KnownAccesses;
+    for (const FMeshDrawCommand& Draw : Draws)
+    {
+        for (const FMaterialResourceRequirement& Requirement : Draw.GetMaterialBinding().ResourceRequirements)
+        {
+            const Stoner::Core::FString& ResourceName = Requirement.Reference.ReferenceId;
+            if (ResourceName.IsEmpty() || HasName(KnownAccesses, ResourceName))
+            {
+                continue;
+            }
+            KnownAccesses.push_back(ResourceName);
+            Declaration.AddAccess({PassName, ResourceName, EForwardGraphAccess::Read});
+        }
     }
 }
 
@@ -166,6 +194,7 @@ FForwardRenderGraphDeclaration BuildForwardRenderGraphDeclaration(const FForward
             {
                 Declaration.AddAccess({Pass.Name, "ForwardLightData", EForwardGraphAccess::Read});
             }
+            AddMaterialResourceAccesses(Declaration, Pass.Name, Plan.AcceptedOpaqueDraws);
         }
         else if (Pass.Stage == EForwardPassStage::SkyBackground)
         {
@@ -186,6 +215,7 @@ FForwardRenderGraphDeclaration BuildForwardRenderGraphDeclaration(const FForward
             {
                 Declaration.AddAccess({Pass.Name, "ForwardLightData", EForwardGraphAccess::Read});
             }
+            AddMaterialResourceAccesses(Declaration, Pass.Name, Plan.AcceptedTransparentDraws);
         }
     }
 

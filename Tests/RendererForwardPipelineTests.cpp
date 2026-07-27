@@ -149,6 +149,23 @@ FForwardFramePlan Prepare(const FForwardFrameInputs& Inputs, FForwardRendererCon
     return Plan;
 }
 
+bool HasGraphAccess(const FForwardFramePlan& Plan,
+    const char* PassName,
+    const char* ResourceName,
+    EForwardGraphAccess Access)
+{
+    for (const FForwardAccessDeclaration& Declaration : Plan.GraphDeclaration.GetAccesses())
+    {
+        if (Declaration.PassName == PassName &&
+            Declaration.ResourceName == ResourceName &&
+            Declaration.Access == Access)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void TestOpaqueFramePreparation(FRendererForwardPipelineTestResult& Result)
 {
     Record(Result, GetDefaultRendererStrategy() == ERendererStrategy::Forward,
@@ -164,6 +181,10 @@ void TestOpaqueFramePreparation(FRendererForwardPipelineTestResult& Result)
     Record(Result, !Plan.GraphDeclaration.GetOutputs().empty() &&
             Plan.GraphDeclaration.GetOutputs()[0].ColorTargetName == "SceneColor",
         "Forward frame declares final color output");
+    Record(Result,
+        HasGraphAccess(Plan, "ForwardOpaqueLighting", "Textures/OpaqueA", EForwardGraphAccess::Read) &&
+        HasGraphAccess(Plan, "ForwardTransparent", "Textures/GlassFar", EForwardGraphAccess::Read),
+        "Forward graph declaration includes material resource read accesses for opaque and transparent passes");
     Record(Result, Plan.AcceptedOpaqueDraws[0].GetObjectId() == 1 &&
             Plan.AcceptedOpaqueDraws[1].GetObjectId() == 3,
         "Opaque draw ordering is stable by material mesh and object identity");
