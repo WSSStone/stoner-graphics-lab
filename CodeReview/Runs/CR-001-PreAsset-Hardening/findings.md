@@ -995,3 +995,27 @@
 - Resolution: S3 maintainability debt with existing behavioral coverage. Splitting the 600-line native deferred validation execution path is worthwhile, but it is a high-touch refactor across resource setup, pipelines, command recording, readback, and probe oracle code; doing it inside B09-S11 would exceed the low-risk S3 fix policy.
 - Verification: pending
 - Commit: `pending`
+
+## CR001-B09-F006: Traceability matrix remains unclassified with no evidence coverage
+
+- Severity: S2
+- Status: Accepted
+- Requirement: CR-001 completion requires all 463 FR/SC rows to be classified and linked to API, implementation, tests, and CI or equivalent evidence.
+- Location: `CodeReview/Runs/CR-001-PreAsset-Hardening/traceability.csv:2`
+- Impact: CR closeout cannot prove requirement-by-requirement coverage. Later agents could treat the audit as complete while no FR/SC has a durable evidence link to implementation, tests, or CI.
+- Evidence: traceability.csv contains 463 requirement rows for Features 003-019. A CSV scan reports status Counter({'': 463}) and blank_evidence_rows=463; the CSV header has api, implementation, tests, ci_evidence, classification, and notes columns, but every row remains empty beyond spec_path/requirement text.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B09-F007: Feature 019 HTML summary still claims Roadmap Phase 018
+
+- Severity: S3
+- Status: Accepted
+- Requirement: Roadmap 2.0 numbering rule says every runtime phase number equals its Speckit feature number; Feature 019 is Deferred Rendering and Feature 020 is next.
+- Location: `doc/019-deferred-rendering-pipeline.html:15`
+- Impact: The delivered Feature 019 summary contradicts the active roadmap and can mislead future agents into reintroducing the old offset-numbering model.
+- Evidence: doc/019-deferred-rendering-pipeline.html states 'Roadmap Phase 018' in the metadata and says Roadmap uses Phase 018 because Speckit numbering contains earlier engineering phases. doc/roadmap.md v2.0.0 states runtime phase numbers equal Speckit feature numbers and lists Phase 019 as Renderer: Deferred Rendering.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`

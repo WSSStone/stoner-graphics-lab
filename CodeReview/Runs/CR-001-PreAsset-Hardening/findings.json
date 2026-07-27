@@ -3455,6 +3455,66 @@
       "status": "Deferred",
       "title": "Native deferred validation is concentrated in oversized execution functions",
       "verification": ""
+    },
+    {
+      "batch": "B09",
+      "commit": "",
+      "created_at": "2026-07-27T11:23:59+00:00",
+      "deferred_target": "",
+      "evidence": "traceability.csv contains 463 requirement rows for Features 003-019. A CSV scan reports status Counter({'': 463}) and blank_evidence_rows=463; the CSV header has api, implementation, tests, ci_evidence, classification, and notes columns, but every row remains empty beyond spec_path/requirement text.",
+      "history": [
+        {
+          "at": "2026-07-27T11:24:12+00:00",
+          "from": "Open",
+          "note": "Accepted as S2 CR closeout blocker: the traceability artifact exists but currently proves no FR/SC coverage.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-27T11:24:12+00:00",
+          "from": "Triaged",
+          "note": "Accepted as S2 CR closeout blocker: the traceability artifact exists but currently proves no FR/SC coverage.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B09-F006",
+      "impact": "CR closeout cannot prove requirement-by-requirement coverage. Later agents could treat the audit as complete while no FR/SC has a durable evidence link to implementation, tests, or CI.",
+      "location": "CodeReview/Runs/CR-001-PreAsset-Hardening/traceability.csv:2",
+      "requirement": "CR-001 completion requires all 463 FR/SC rows to be classified and linked to API, implementation, tests, and CI or equivalent evidence.",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Traceability matrix remains unclassified with no evidence coverage",
+      "verification": ""
+    },
+    {
+      "batch": "B09",
+      "commit": "",
+      "created_at": "2026-07-27T11:24:25+00:00",
+      "deferred_target": "",
+      "evidence": "doc/019-deferred-rendering-pipeline.html states 'Roadmap Phase 018' in the metadata and says Roadmap uses Phase 018 because Speckit numbering contains earlier engineering phases. doc/roadmap.md v2.0.0 states runtime phase numbers equal Speckit feature numbers and lists Phase 019 as Renderer: Deferred Rendering.",
+      "history": [
+        {
+          "at": "2026-07-27T11:24:35+00:00",
+          "from": "Open",
+          "note": "Accepted as S3 documentation drift in an active feature summary; fix can be a narrow text correction.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-27T11:24:35+00:00",
+          "from": "Triaged",
+          "note": "Accepted as S3 documentation drift in an active feature summary; fix can be a narrow text correction.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B09-F007",
+      "impact": "The delivered Feature 019 summary contradicts the active roadmap and can mislead future agents into reintroducing the old offset-numbering model.",
+      "location": "doc/019-deferred-rendering-pipeline.html:15",
+      "requirement": "Roadmap 2.0 numbering rule says every runtime phase number equals its Speckit feature number; Feature 019 is Deferred Rendering and Feature 020 is next.",
+      "resolution": "",
+      "severity": "S3",
+      "status": "Accepted",
+      "title": "Feature 019 HTML summary still claims Roadmap Phase 018",
+      "verification": ""
     }
   ],
   "schema_version": 1
