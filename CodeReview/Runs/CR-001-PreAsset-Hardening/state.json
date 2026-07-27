@@ -1,5 +1,5 @@
 {
-  "active_step": "B09-S04",
+  "active_step": "B09-S05",
   "batches": [
     {
       "id": "B00",
@@ -1747,13 +1747,15 @@
           "title": "Verify: test target architecture and private boundaries"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "de73e69",
+          "completed_at": "2026-07-27T10:52:52+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B09-diagnostics-determinism-failure-semantics-inspection.md"
+          ],
           "id": "B09-S04",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected cross-cutting diagnostics/determinism/failure semantics; accepted CR001-B09-F004 for missing renderer-comparison tier-count diagnostics.",
+          "started_at": "2026-07-27T10:50:57+00:00",
+          "status": "Completed",
           "title": "Inspect: diagnostics, determinism, and failure semantics"
         },
         {
@@ -5648,6 +5650,26 @@
       "at": "2026-07-27T10:49:25+00:00",
       "detail": "B09-S03",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T10:50:57+00:00",
+      "detail": "B09-S04",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T10:52:11+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T10:52:21+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T10:52:52+00:00",
+      "detail": "B09-S04",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5801,7 +5823,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "be2c37d3f18c97989b69b08e897e516d2c5da184"
+    "last_recorded_head": "de73e696b9b56f8b76d6684fd5072e140067cfe0"
   },
   "policy": {
     "fix_severities": [
@@ -5821,5 +5843,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T10:49:25+00:00"
+  "updated_at": "2026-07-27T10:52:52+00:00"
 }
