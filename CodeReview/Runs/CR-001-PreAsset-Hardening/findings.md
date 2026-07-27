@@ -911,3 +911,15 @@
 - Resolution: NotifyDrawableExtent no longer marks presentation resources initialized before native prepare/recreate succeeds. Added IsPresentationInitialized diagnostic getter and deterministic recovery coverage proving pause-to-recreate timing does not claim presentation resource readiness before prepare success.
 - Verification: Verified at B08-S06: fallback-strict gate passed at 2026-07-27T09:12:06+00:00; TriangleDemoIntegrationTests include PASS lines proving deterministic recovery starts without presentation resources and does not mark them initialized before prepare succeeds.
 - Commit: `71b5fed`
+
+## CR001-B08-F004: Deferred surface pass declares lighting accumulation writes
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 019 FR-003, FR-014, FR-015 and the deferred graph data model require the surface-data stage to write surface semantics/depth, lighting stages to write lighting accumulation, and graph resource accesses to represent real reads/writes and lifetimes before execution.
+- Location: `Source/Renderer/Private/FDeferredRenderer.cpp:130`
+- Impact: The deferred render graph and debug report can claim the surface-data pass writes the lighting accumulation target that it does not bind, corrupting lifetime/access diagnostics and hiding real producer/consumer mistakes for no-light or lighting-stage scenarios.
+- Evidence: PrepareFrame adds the SurfaceData pass with writes {BaseColorAO, NormalRoughness, EmissiveMetallic, Depth, LightingAccumulation}. The executor surface stage records only the surface render pass/framebuffer, while lighting stages bind the LightingAccumulation target separately and composition reads it. DeferredRenderingTests only assert graph validity/resource count/final output, not that SurfaceData excludes LightingAccumulation from its writes.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`

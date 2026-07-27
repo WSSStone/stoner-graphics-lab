@@ -1,5 +1,5 @@
 {
-  "active_step": "B08-S07",
+  "active_step": "B08-S08",
   "batches": [
     {
       "id": "B00",
@@ -1591,12 +1591,15 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T09:19:13+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B08-deferred-frame-plan-surfaces-graph-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b08-deferred-frame-plan-surfaces-graph-inspection.md"
+          ],
           "id": "B08-S07",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected deferred frame plan, surface layout, and render graph declaration; accepted CR001-B08-F004 for SurfaceData declaring LightingAccumulation writes.",
+          "started_at": "2026-07-27T09:15:24+00:00",
+          "status": "Completed",
           "title": "Inspect: deferred frame plan, surfaces, and graph"
         },
         {
@@ -5363,6 +5366,26 @@
       "at": "2026-07-27T09:13:24+00:00",
       "detail": "B08-S06",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T09:15:24+00:00",
+      "detail": "B08-S07",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T09:17:45+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T09:17:57+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T09:19:13+00:00",
+      "detail": "B08-S07",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5516,7 +5539,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "6d7a73b3ce8de835b646a72d3dac11edab54c4e8"
+    "last_recorded_head": "6a1fc0fe27fd8c1de650d38e6ac1f2aa16c83fc8"
   },
   "policy": {
     "fix_severities": [
@@ -5536,5 +5559,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T09:13:24+00:00"
+  "updated_at": "2026-07-27T09:19:13+00:00"
 }
