@@ -2604,6 +2604,12 @@
           "from": "Accepted",
           "note": "Fixed by deriving the execution resource set from compiled ScheduledPasses, skipping culled-branch resources during imported validation/transient resolution, and adding regression coverage for missing imports and transient resolution failures used only by culled passes.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T06:09:09+00:00",
+          "from": "Fixed",
+          "note": "Verified parent/current executor behavior: parent resolved all Graph.Resources before scheduled pass execution, current derives RequiredResources from compiled ScheduledPasses and leaves culled resources unresolved. Regression tests cover culled missing import and culled transient resolution failure; fallback-strict, strict-release, and sanitizer gates pass.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B06-F001",
@@ -2612,9 +2618,9 @@
       "requirement": "Feature 013 FR-012, FR-014, FR-015 and SC-007/SC-008 require output-based pass culling, execution of the compiled scheduled pass sequence, and rejection only for missing or invalid required imported resources.",
       "resolution": "Fixed by deriving the execution resource set from compiled ScheduledPasses, skipping culled-branch resources during imported validation/transient resolution, and adding regression coverage for missing imports and transient resolution failures used only by culled passes.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Render graph execution resolves resources from culled branches",
-      "verification": ""
+      "verification": "Verified parent/current executor behavior: parent resolved all Graph.Resources before scheduled pass execution, current derives RequiredResources from compiled ScheduledPasses and leaves culled resources unresolved. Regression tests cover culled missing import and culled transient resolution failure; fallback-strict, strict-release, and sanitizer gates pass."
     }
   ],
   "schema_version": 1
