@@ -3209,6 +3209,36 @@
       "status": "Verified",
       "title": "Deferred surface pass declares lighting accumulation writes",
       "verification": "Verified at B08-S09: fallback-strict gate passed at 2026-07-27T09:27:29+00:00 and focused StonerTest output includes PASS lines for lit and empty-frame accumulation ownership regression coverage."
+    },
+    {
+      "batch": "B08",
+      "commit": "",
+      "created_at": "2026-07-27T09:37:05+00:00",
+      "deferred_target": "",
+      "evidence": "The native session creates one point light and one spot light at lines 1174-1182 and records center/background probes at lines 1489-1530; no native probe or geometry setup represents point outside-view/camera-inside or spot outside-cone/near-plane-intersecting coverage required by specs/019-deferred-rendering-pipeline/contracts/deferred-validation-contract.md:41-43.",
+      "history": [
+        {
+          "at": "2026-07-27T09:37:15+00:00",
+          "from": "Open",
+          "note": "Accepted for B08 because the native readback implementation satisfies the minimum 12-probe count but does not exercise the contract's local light volume edge cases in the real Vulkan reference scene.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-27T09:37:15+00:00",
+          "from": "Triaged",
+          "note": "Accepted for B08 because the native readback implementation satisfies the minimum 12-probe count but does not exercise the contract's local light volume edge cases in the real Vulkan reference scene.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B08-F005",
+      "impact": "Linux native Vulkan pixel validation can pass while missing required real-runtime coverage for local light volume edge cases, leaving those cases covered only by deterministic planning tests instead of the contracted offscreen readback path.",
+      "location": "Source/Backend/Vulkan/Private/FVulkanNativeOffscreenSession.cpp:1174",
+      "requirement": "Feature 019 deferred-validation contract requires the native reference scene to include point lights covering visible, outside-view, and camera-inside cases plus spot lights covering visible, outside-cone, and near-plane-intersecting cases.",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Native deferred reference scene under-covers local light volume cases",
+      "verification": ""
     }
   ],
   "schema_version": 1
