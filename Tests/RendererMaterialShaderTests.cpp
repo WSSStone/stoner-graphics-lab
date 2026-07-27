@@ -206,6 +206,21 @@ void TestMaterialInstances(FRendererMaterialShaderTestResult& Result)
     Base.Invalidate();
     FMaterialInstance InvalidParent({ "InvalidParent", &Base, nullptr, {} });
     Record(Result, InvalidParent.Validate() == EMaterialResult::Invalidated, "Material instance rejects invalidated parent material");
+
+    FMaterial InstanceBase(MakeMaterialDesc("InstanceBase", EMaterialDomain::Surface, EMaterialBlendMode::Opaque));
+    (void)InstanceBase.Validate();
+    FMaterialInstance ParentToInvalidate({ "ParentToInvalidate", &InstanceBase, nullptr, {} });
+    (void)ParentToInvalidate.Validate();
+    FMaterialInstance ChildOfInvalidatedParent({ "ChildOfInvalidatedParent", nullptr, &ParentToInvalidate, {} });
+    (void)ChildOfInvalidatedParent.Validate();
+    ParentToInvalidate.Invalidate();
+    FMaterialParameterSet InvalidatedParentInstanceParameters;
+    FMaterialDiagnosticLog InvalidatedParentInstanceDiagnostics;
+    Record(Result,
+        ChildOfInvalidatedParent.ResolveEffectiveParameters(InvalidatedParentInstanceParameters, &InvalidatedParentInstanceDiagnostics) ==
+            EMaterialResult::Invalidated &&
+        InvalidatedParentInstanceDiagnostics.Format().View().find("MAT-INSTANCE-PARENT-INVALIDATED") != std::string_view::npos,
+        "Material instance resolution rejects invalidated parent instances after validation");
 }
 
 void TestShaderLibraryAndBinding(FRendererMaterialShaderTestResult& Result)
@@ -306,6 +321,19 @@ void TestShaderLibraryAndBinding(FRendererMaterialShaderTestResult& Result)
     Record(Result, ResolveMaterialShaderBinding(MissingParam, Library, MissingParamBinding) == EMaterialResult::NotFound,
         "Material shader binding rejects missing required parameters");
 
+    FMaterial InvalidatedParent(MakeMaterialDesc("InvalidatedParent", EMaterialDomain::Surface, EMaterialBlendMode::Opaque));
+    (void)InvalidatedParent.Validate();
+    FMaterialInstance InstanceWithInvalidatedParent({ "InstanceWithInvalidatedParent", &InvalidatedParent, nullptr, {} });
+    (void)InstanceWithInvalidatedParent.Validate();
+    InvalidatedParent.Invalidate();
+    FMaterialShaderBinding InvalidatedParentBinding;
+    FMaterialDiagnosticLog InvalidatedParentDiagnostics;
+    Record(Result,
+        ResolveMaterialShaderBinding(InstanceWithInvalidatedParent, Library, InvalidatedParentBinding, &InvalidatedParentDiagnostics) ==
+            EMaterialResult::Invalidated &&
+        InvalidatedParentDiagnostics.Format().View().find("MAT-INSTANCE-PARENT-INVALIDATED") != std::string_view::npos,
+        "Material shader binding rejects instances whose parent material is invalidated after validation");
+
     Library.InvalidateRecord("SurfaceShader");
     FMaterialShaderBinding InvalidatedBinding;
     Record(Result, ResolveMaterialShaderBinding(Textured, Library, InvalidatedBinding) == EMaterialResult::Invalidated,
@@ -332,6 +360,19 @@ void TestResourceRequirementsAndRenderGraphSmoke(FRendererMaterialShaderTestResu
             InstanceRequirements.size() == 1 &&
             InstanceRequirements[0].Reference.ReferenceId == "Textures/Override",
         "Material instance resource requirements reflect resource-reference overrides");
+
+    FMaterial InvalidatedResourceBase(MakeMaterialDesc("InvalidatedResourceBase", EMaterialDomain::Surface, EMaterialBlendMode::Opaque));
+    (void)InvalidatedResourceBase.Validate();
+    FMaterialInstance ResourceInstance({ "InvalidatedResourceInstance", &InvalidatedResourceBase, nullptr, Overrides });
+    (void)ResourceInstance.Validate();
+    InvalidatedResourceBase.Invalidate();
+    Stoner::Core::TArray<FMaterialResourceRequirement> InvalidatedInstanceRequirements;
+    FMaterialDiagnosticLog InvalidatedResourceDiagnostics;
+    Record(Result,
+        ExtractMaterialResourceRequirements(ResourceInstance, InvalidatedInstanceRequirements, &InvalidatedResourceDiagnostics) ==
+            EMaterialResult::Invalidated &&
+        InvalidatedResourceDiagnostics.Format().View().find("MAT-INSTANCE-PARENT-INVALIDATED") != std::string_view::npos,
+        "Material instance resource requirements reject invalidated parents after validation");
 
     FMaterialDesc EmptyDesc = MakeMaterialDesc("NoResources", EMaterialDomain::Surface, EMaterialBlendMode::Opaque);
     EmptyDesc.Parameters.Clear();
