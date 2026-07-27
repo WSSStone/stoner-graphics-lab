@@ -867,11 +867,11 @@
 ## CR001-B07-F005: Mesh light and camera component mutation bypasses data validation
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 017 FR-005 and the Component Contract require invalid component data outcomes with stable statuses or diagnostics for component operations, and FR-010 through FR-012 define valid mesh, light, and camera scene data.
 - Location: `Source/Application/Private/FWorld.cpp:235`
 - Impact: Invalid mesh, light, and camera components can be stored in live world state, so component operations report Success instead of InvalidComponentData and defer rejection to render collection or downstream users.
 - Evidence: FTransformComponent add/replace paths call Component.IsValid() and return InvalidComponentData, but the SG_SCENE_COMPONENT_METHODS macro for Mesh, Light, and Camera assigns Slot->Member directly on add and replace without checking Type::IsValid(). FMeshComponent::IsValid rejects empty mesh ids, FLightComponent::IsValid rejects non-finite/negative light data, and FCameraComponent::IsValid rejects invalid near/far/projection parameters.
 - Resolution: Mesh, light, and camera add/replace paths now reject invalid component payloads before storage; regression tests cover invalid mesh add and invalid light/camera replace without mutating existing state.
-- Verification: pending
+- Verification: Verified at B07-S09: mesh/light/camera add and replace share IsValid checks before slot mutation, regressions pass, and fallback-strict gate passed at 2026-07-27T08:14:50+00:00.
 - Commit: `c6dd0a6`
