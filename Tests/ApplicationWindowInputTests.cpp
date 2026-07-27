@@ -120,6 +120,21 @@ void TestWindowValidationAndRuntime(FApplicationWindowInputTestResult& Result)
     Record(Result, RealWindow.CreateRealWindow(ValidDesc(), EWindowRuntimeAvailability::DependencyUnavailable) == EApplicationResult::RuntimeUnavailable &&
             RealWindow.GetDiagnostics().CountByCode("APP-WINDOW-RUNTIME") == 1,
         "Application real-window path reports unavailable dependency safely");
+
+    auto Driver = std::make_unique<FScriptedWindowDriver>();
+    FWindow ReusedRealWindow;
+    FWindowTestAccess::InstallDriver(ReusedRealWindow, std::move(Driver));
+    Record(Result, ReusedRealWindow.CreateRealWindow(ValidDesc()) == EApplicationResult::Success &&
+            ReusedRealWindow.IsActive() &&
+            ReusedRealWindow.IsRealWindow(),
+        "Application real-window reused fixture starts from an active native state");
+    Desc = ValidDesc();
+    Desc.ClientWidth = 0;
+    Record(Result, ReusedRealWindow.CreateRealWindow(Desc) == EApplicationResult::ValidationFailed &&
+            ReusedRealWindow.GetLifecycleState() == EWindowLifecycleState::Uncreated &&
+            !ReusedRealWindow.IsRealWindow() &&
+            !ReusedRealWindow.HasDrawableArea(),
+        "Application real-window validation failure clears stale active runtime state");
 }
 
 void TestPrivateDriverAndRealWindowEvents(FApplicationWindowInputTestResult& Result)
@@ -264,6 +279,19 @@ void TestWindowEventsAndLoop(FApplicationWindowInputTestResult& Result)
             !State.bShouldContinue &&
             State.Diagnostics.CountByCode("APP-LOOP-CLOSE-EXIT") == 1,
         "Application loop exits cleanly at close decision point");
+
+    FWindow DriverWindow;
+    auto Driver = std::make_unique<FScriptedWindowDriver>();
+    FScriptedWindowDriver* Script = Driver.get();
+    FWindowTestAccess::InstallDriver(DriverWindow, std::move(Driver));
+    (void)DriverWindow.CreateRealWindow(ValidDesc());
+    Script->QueueInput(FInputEvent::KeyDown(EKey::Space, 201));
+    Config.MaxFrames = 1;
+    FInputManager DriverInput;
+    State = Loop.Run(DriverWindow, DriverInput, Config);
+    Record(Result, State.LastInputState.WasKeyPressed(EKey::Space) &&
+            State.LastInputState.IsKeyHeld(EKey::Space),
+        "Application loop ingests native driver input events before deriving frame state");
 }
 
 void TestFailureModesAndDebugDump(FApplicationWindowInputTestResult& Result)
