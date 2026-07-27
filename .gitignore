@@ -45,5 +45,6 @@ Thumbs.db
 .agents/
 .codegraph/
 
-# Code review raw evidence (compact summaries remain tracked)
-CodeReview/Runs/*/Evidence/output/
+# Code review execution state is branch-local and archived as a final report.
+CodeReview/Runs/*
+!CodeReview/Runs/README.md

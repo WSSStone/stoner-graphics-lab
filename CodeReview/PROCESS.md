@@ -56,6 +56,10 @@ Every deferred finding names a future roadmap phase or an explicit debt owner.
 - After the Draft PR exists, do not rebase or force-push.
 - Merge upstream `master` only at batch boundaries, then rebuild CodeGraph and
   rerun affected gates.
+- Treat `CodeReview/Runs/<id>-<slug>/` as branch-local execution state. Force-add
+  only the checkpoints needed for durable recovery; raw output remains ignored.
+- At closeout, archive the durable result under `doc/code-reviews/` and remove
+  the run snapshot from the final tree.
 - Preserve the audit chain with a merge commit; do not squash.
 
 ## Evidence
@@ -64,6 +68,11 @@ Commit summaries, hashes, versions, structured findings, decisions, and compact
 reports. Large raw logs belong in ignored `Evidence/output/` directories or CI
 artifacts. Every accepted finding identifies a requirement, code location,
 impact, repair, verification, and commit.
+
+The final report records the frozen baseline and audited head, scope, finding
+counts, verified gates, material decisions, and deferred debt. Step state,
+handoffs, batch journals, and raw evidence remain available from review branch
+history or external artifacts but are not permanent mainline content.
 
 ## Completion
 

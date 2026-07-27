@@ -13,7 +13,9 @@ conda env update -n stoner-cr -f CodeReview/Tools/environment.yml --prune
 ```
 
 CI must create a clean Python environment from `requirements.txt`; it must not
-assume Conda is present.
+assume Conda is present. The permanent CI job validates reusable tool tests and
+the CLI entry point only; it must not depend on a particular review run or
+closed review ID.
 
 ## Commands
 
@@ -66,3 +68,7 @@ python -m unittest discover -s CodeReview/Tools/tests -v
 Reusable scripts used by two or more batches belong here with documentation and
 tests. One-off probes belong in a run's `Evidence/output/` directory and must be
 removed or justified during closeout.
+
+Completed run state is not a permanent tool fixture. Regression coverage for a
+behavior discovered during a review belongs in `Tools/tests/`, using temporary
+directories and synthetic state.

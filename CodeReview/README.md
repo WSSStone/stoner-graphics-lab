@@ -2,6 +2,10 @@
 
 This directory contains the reusable whole-project audit process. Reviews are
 independent of Speckit feature numbering and do not consume roadmap feature IDs.
+Reusable tools, templates, and process documentation live on the development
+mainline. Per-review execution state under `Runs/` is temporary branch-local
+working data; a closed review contributes a compact report under
+`doc/code-reviews/` instead.
 
 ## Start A Review
 
@@ -24,6 +28,11 @@ independent of Speckit feature numbering and do not consume roadmap feature IDs.
 4. Execute one issued step packet per Codex session. End every step with
    `complete`, `render`, `lint`, evidence, and a conventional commit.
 
+`CodeReview/Runs/*` is ignored on the development mainline. A review branch that
+needs durable cross-machine checkpoints may explicitly stage selected run files
+with `git add -f`. Do not force-add raw build logs, screenshots, or generated
+output.
+
 ## Resume
 
 Run `crctl recover` before reading chat history. It reports the authoritative
@@ -33,8 +42,13 @@ run-local `handoff.md` is the human-readable recovery document.
 ## Close
 
 `crctl close` refuses to close a review with open accepted findings, incomplete
-traceability, failed required gates, or unfinished batches. Keep batch commits
-and merge the review PR with a merge commit.
+traceability, failed required gates, or unfinished batches. After close:
+
+1. Write a self-contained final report under `doc/code-reviews/`.
+2. Remove the completed run snapshot from the branch's final file tree.
+3. Keep the review's fix and checkpoint commits, then merge the PR with a merge
+   commit so detailed execution history remains recoverable without occupying
+   the development working tree.
 
 See [PROCESS.md](PROCESS.md) for the protocol and
 [Tools/README.md](Tools/README.md) for CLI and environment details.
