@@ -3170,7 +3170,7 @@
     },
     {
       "batch": "B08",
-      "commit": "",
+      "commit": "d42714b",
       "created_at": "2026-07-27T09:17:45+00:00",
       "deferred_target": "",
       "evidence": "PrepareFrame adds the SurfaceData pass with writes {BaseColorAO, NormalRoughness, EmissiveMetallic, Depth, LightingAccumulation}. The executor surface stage records only the surface render pass/framebuffer, while lighting stages bind the LightingAccumulation target separately and composition reads it. DeferredRenderingTests only assert graph validity/resource count/final output, not that SurfaceData excludes LightingAccumulation from its writes.",
@@ -3186,15 +3186,21 @@
           "from": "Triaged",
           "note": "Accepted for B08 fix: SurfaceData declares LightingAccumulation as a write even though execution binds that texture only for lighting/composition stages, so render graph access/lifetime diagnostics do not match real pass ownership.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T09:24:50+00:00",
+          "from": "Accepted",
+          "note": "Removed LightingAccumulation from the SurfaceData pass write set and added DeferredRenderingTests coverage proving lit and empty-frame planning keep accumulation out of surface writes while preserving lighting/composition access intent.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B08-F004",
       "impact": "The deferred render graph and debug report can claim the surface-data pass writes the lighting accumulation target that it does not bind, corrupting lifetime/access diagnostics and hiding real producer/consumer mistakes for no-light or lighting-stage scenarios.",
       "location": "Source/Renderer/Private/FDeferredRenderer.cpp:130",
       "requirement": "Feature 019 FR-003, FR-014, FR-015 and the deferred graph data model require the surface-data stage to write surface semantics/depth, lighting stages to write lighting accumulation, and graph resource accesses to represent real reads/writes and lifetimes before execution.",
-      "resolution": "",
+      "resolution": "Removed LightingAccumulation from the SurfaceData pass write set and added DeferredRenderingTests coverage proving lit and empty-frame planning keep accumulation out of surface writes while preserving lighting/composition access intent.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Deferred surface pass declares lighting accumulation writes",
       "verification": ""
     }

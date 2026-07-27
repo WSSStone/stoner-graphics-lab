@@ -1,5 +1,5 @@
 {
-  "active_step": "B08-S08",
+  "active_step": "B08-S09",
   "batches": [
     {
       "id": "B00",
@@ -1603,13 +1603,16 @@
           "title": "Inspect: deferred frame plan, surfaces, and graph"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "d42714b",
+          "completed_at": "2026-07-27T09:25:41+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B08-deferred-frame-plan-surfaces-graph-fix.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b08-deferred-frame-plan-surfaces-graph-fix.md"
+          ],
           "id": "B08-S08",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Fixed CR001-B08-F004 by removing LightingAccumulation from SurfaceData writes and adding exact deferred graph ownership regression coverage; fallback-strict gate passed.",
+          "started_at": "2026-07-27T09:20:53+00:00",
+          "status": "Completed",
           "title": "Fix: deferred frame plan, surfaces, and graph"
         },
         {
@@ -5386,6 +5389,26 @@
       "at": "2026-07-27T09:19:13+00:00",
       "detail": "B08-S07",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T09:20:53+00:00",
+      "detail": "B08-S08",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T09:23:16+00:00",
+      "detail": "fallback-strict: pass",
+      "kind": "gate"
+    },
+    {
+      "at": "2026-07-27T09:24:50+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T09:25:41+00:00",
+      "detail": "B08-S08",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5416,7 +5439,7 @@
           ],
           "returncode": 0,
           "stderr_tail": "[StonerBuild.PlatformDetect] INFO: Detected platform: Mac\n[StonerBuild.BuildConfig] INFO: Build configuration: debug\n[StonerBuild.PlatformDetect] INFO: Detected compiler: clang++\n[StonerBuild.PlatformDetect] INFO: Configured C++20 toolchain for Mac\n[StonerBuild.BuildConfig] INFO: Applied debug flags for Mac (strict=True, sanitizers=none)\n[StonerBuild] INFO: Stoner Graphics Lab\n[StonerBuild] INFO:   Platform : Mac\n[StonerBuild] INFO:   Config   : Debug\n[StonerBuild] INFO:   SCons    : 4.10.1\n[StonerBuild.LayerBuilder] INFO: Layer 'Core': building from 10 source file(s)\n[StonerBuild.LayerBuilder] INFO: Layer 'RHI': building from 1 source file(s)\n[StonerBuild.LayerBuilder] INFO: Layer 'Renderer': building from 33 source file(s)\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: discovered 0 sub-module(s) in 'Source/Renderer'\n[StonerBuild.LayerBuilder] INFO: Layer 'Application': building from 23 source file(s)\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'DX11' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'DX12' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'GLES' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'Metal' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'OpenGL' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'Vulkan' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: Layer 'VulkanRHI': building from 30 source file(s)\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'WebGL' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: discovered 1 sub-module(s) in 'Source/Backend'\n",
-          "stdout_tail": "scons: Reading SConscript files ...\nscons: done reading SConscript files.\nscons: Building targets ...\nscons: `.' is up to date.\nscons: done building targets.\n"
+          "stdout_tail": "nderer.cpp\nar rc Build/Mac/Debug/Renderer/libRenderer.a Build/Mac/Debug/Renderer/Private/FDeferredDiagnostics.o Build/Mac/Debug/Renderer/Private/FDeferredFrameExecutor.o Build/Mac/Debug/Renderer/Private/FDeferredFramePlan.o Build/Mac/Debug/Renderer/Private/FDeferredLightData.o Build/Mac/Debug/Renderer/Private/FDeferredLightVolume.o Build/Mac/Debug/Renderer/Private/FDeferredRenderGraphDeclaration.o Build/Mac/Debug/Renderer/Private/FDeferredRenderer.o Build/Mac/Debug/Renderer/Private/FDeferredSurfaceData.o Build/Mac/Debug/Renderer/Private/FForwardDiagnostics.o Build/Mac/Debug/Renderer/Private/FForwardFrameExecutor.o Build/Mac/Debug/Renderer/Private/FForwardFramePlan.o Build/Mac/Debug/Renderer/Private/FForwardLightData.o Build/Mac/Debug/Renderer/Private/FForwardRenderGraphDeclaration.o Build/Mac/Debug/Renderer/Private/FForwardRenderer.o Build/Mac/Debug/Renderer/Private/FForwardViewData.o Build/Mac/Debug/Renderer/Private/FMaterial.o Build/Mac/Debug/Renderer/Private/FMaterialDiagnostics.o Build/Mac/Debug/Renderer/Private/FMaterialInstance.o Build/Mac/Debug/Renderer/Private/FMaterialParameterSet.o Build/Mac/Debug/Renderer/Private/FMaterialResourceRequirement.o Build/Mac/Debug/Renderer/Private/FMaterialShaderBinding.o Build/Mac/Debug/Renderer/Private/FMeshDrawCommand.o Build/Mac/Debug/Renderer/Private/FRenderGraph.o Build/Mac/Debug/Renderer/Private/FRenderGraphBuilder.o Build/Mac/Debug/Renderer/Private/FRenderGraphCompiler.o Build/Mac/Debug/Renderer/Private/FRenderGraphDiagnostics.o Build/Mac/Debug/Renderer/Private/FRenderGraphExecutor.o Build/Mac/Debug/Renderer/Private/FRenderGraphPass.o Build/Mac/Debug/Renderer/Private/FRenderGraphResource.o Build/Mac/Debug/Renderer/Private/FRendererComparisonReport.o Build/Mac/Debug/Renderer/Private/FShaderLibrary.o Build/Mac/Debug/Renderer/Private/FShaderPermutation.o Build/Mac/Debug/Renderer/Private/RendererModule.o\nranlib Build/Mac/Debug/Renderer/libRenderer.a\ng++ -o Build/Mac/Debug/Demo/StonerDemo/StonerDemo Build/Mac/Debug/Demo/StonerDemo/Private/Main.o -LBuild/Mac/Debug/Application -LSource/Application -LBuild/Mac/Debug/Renderer -LSource/Renderer -LBuild/Mac/Debug/RHI -LSource/RHI -LBuild/Mac/Debug/Core -LSource/Core -LBuild/Mac/Debug/Backend/Vulkan -LSource/Backend/Vulkan -LSource/Backend/Vulkan Build/Mac/Debug/Demo/StonerDemo/libStonerDemoRuntime.a -lApplication -lRenderer -lRHI -lCore -lVulkanRHI\ng++ -o Build/Mac/Debug/Tests/DeferredRenderingTests.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -D_DEBUG -ISource/Application/Public -ISource/Renderer/Public -ISource/RHI/Public -ISource/Core/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -ISource/Application/Private -ISource/Core/Private Tests/DeferredRenderingTests.cpp\ng++ -o Build/Mac/Debug/Tests/StonerTest Build/Mac/Debug/Tests/ApplicationSceneEcsTests.o Build/Mac/Debug/Tests/ApplicationWindowInputTests.o Build/Mac/Debug/Tests/CoreFoundationTests.o Build/Mac/Debug/Tests/CoreMathTests.o Build/Mac/Debug/Tests/CorePlatformOwnershipTests.o Build/Mac/Debug/Tests/CorePlatformTests.o Build/Mac/Debug/Tests/DeferredNativeIntegrationTests.o Build/Mac/Debug/Tests/DeferredRenderingTests.o Build/Mac/Debug/Tests/LoggingAssertionTests.o Build/Mac/Debug/Tests/Main.o Build/Mac/Debug/Tests/RHICoreTests.o Build/Mac/Debug/Tests/RendererComparisonTests.o Build/Mac/Debug/Tests/RendererForwardPipelineTests.o Build/Mac/Debug/Tests/RendererMaterialShaderTests.o Build/Mac/Debug/Tests/RendererRenderGraphTests.o Build/Mac/Debug/Tests/TriangleDemoIntegrationTests.o Build/Mac/Debug/Tests/VulkanBackendTests.o Build/Mac/Debug/Tests/VulkanNativeIntegrationTests.o -LBuild/Mac/Debug/Core -LSource/Core -LBuild/Mac/Debug/RHI -LSource/RHI -LBuild/Mac/Debug/Renderer -LSource/Renderer -LBuild/Mac/Debug/Application -LSource/Application -LBuild/Mac/Debug/Backend/Vulkan -LSource/Backend/Vulkan -LSource/Backend/Vulkan -LBuild/Mac/Debug/Demo/StonerDemo -LDemo/StonerDemo -lStonerDemoRuntime -lApplication -lRenderer -lRHI -lCore -lVulkanRHI\nscons: done building targets.\n"
         },
         {
           "args": [
@@ -5429,7 +5452,7 @@
       ],
       "passed": true,
       "profile": "fallback-strict",
-      "recorded_at": "2026-07-27T09:12:06+00:00"
+      "recorded_at": "2026-07-27T09:23:16+00:00"
     },
     "release": {
       "commands": [
@@ -5539,7 +5562,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "6a1fc0fe27fd8c1de650d38e6ac1f2aa16c83fc8"
+    "last_recorded_head": "d42714bb325da49ab7d2b657a362c8ba5bcabebd"
   },
   "policy": {
     "fix_severities": [
@@ -5559,5 +5582,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T09:19:13+00:00"
+  "updated_at": "2026-07-27T09:25:41+00:00"
 }
