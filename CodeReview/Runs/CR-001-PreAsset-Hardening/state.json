@@ -1,5 +1,5 @@
 {
-  "active_step": "B05-S04",
+  "active_step": "B05-S05",
   "batches": [
     {
       "id": "B00",
@@ -928,12 +928,15 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T02:35:03+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B05-queue-submission-sync-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b05-queue-submission-sync-inspection.md"
+          ],
           "id": "B05-S04",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected the bounded queue, submission, fence, and semaphore domain using static source, authority, and maintained-test comparison only; recorded and accepted CR001-B05-F004 through F006. No production or maintained-test source changed, and no custom executable, fault trigger, debugger, sanitizer, remote CI, or network activity was used.",
+          "started_at": "2026-07-27T02:25:26+00:00",
+          "status": "Completed",
           "title": "Inspect: queues, submission, and synchronization"
         },
         {
@@ -3921,6 +3924,46 @@
       "at": "2026-07-27T02:23:01+00:00",
       "detail": "B05-S03",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T02:25:26+00:00",
+      "detail": "B05-S04",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T02:32:02+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T02:32:12+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T02:32:22+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T02:32:34+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T02:32:46+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T02:32:55+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T02:35:03+00:00",
+      "detail": "B05-S04",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -4074,7 +4117,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "84d4fb548c3402b945f11ce5a5f05e3f0274a46b"
+    "last_recorded_head": "065c385422960d3b34ae5d65ad5168a1a5b3a4e6"
   },
   "policy": {
     "fix_severities": [
@@ -4094,5 +4137,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T02:23:01+00:00"
+  "updated_at": "2026-07-27T02:35:03+00:00"
 }

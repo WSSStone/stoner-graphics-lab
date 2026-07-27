@@ -623,3 +623,39 @@
 - Resolution: Texture transfers now validate selected mip extents, compatible dimensions/formats/sample counts, valid destination resources, and checked exact buffer footprints through shared RHI helpers.
 - Verification: Parent/current comparison confirms base-mip and unchecked-size paths were replaced; maintained selected-mip, incompatible-format, padded-footprint, overflow, and deferred null-readback regressions pass in the full Debug gate.
 - Commit: `7e92de1`
+
+## CR001-B05-F004: Vulkan queue submission is not failure-atomic
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 011-FR-014 and the Feature 011 Submission Batch contract require failed validation to preserve submission observability and accept only consumable/signalable synchronization sets
+- Location: `Source/Backend/Vulkan/Private/FVulkanQueue.cpp:93`
+- Impact: A rejected submission can consume a producer signal, strand a command as submitted, increment successful submission statistics, or partially signal dependents, making frame ordering and recovery nondeterministic.
+- Evidence: Submit consumes wait semaphores sequentially before validating the full set, then marks the command submitted and increments the count before validating all signal semaphores and the fence. A later wait or signal failure therefore leaves earlier synchronization objects or the command/count mutated; maintained RHI tests at RHICoreTests.cpp:1769-1809 require preflight failure without partial transition.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B05-F005: Submission completion can diverge from command lifecycle
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 011-FR-015, 011-FR-015a, and the Feature 011 completion contract require completed work to make submitted command buffers resettable and wait-idle to complete fallback submissions
+- Location: `Source/Backend/Vulkan/Private/FVulkanCommandSubmission.cpp:20`
+- Impact: Callers can observe successful completion while reset remains invalid, or permanently strand fallback command buffers after a transient not-ready/timeout observation, preventing deterministic reuse.
+- Evidence: ObserveCompletion with any nonzero timeout sets Completed and returns Success without calling MarkCompletedOrResettable. Forced NotReady or Timeout changes the submission state away from Pending, while FVulkanQueue::WaitIdle only completes Pending entries, so those commands remain Submitted with no recovery path through queue wait-idle.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B05-F006: Queue and synchronization wrappers bypass device ownership
+
+- Severity: S2
+- Status: Accepted
+- Requirement: 009-FR-009, 009-FR-017, and the Feature 009 data model require queues, fences, and semaphores to be device-created, device-owned, and invalidated on shutdown
+- Location: `Source/Backend/Vulkan/Public/VulkanRHI/FVulkanQueue.h:14`
+- Impact: Callers can bypass capability checks and shutdown invalidation or mix objects from different devices, allowing otherwise invalid work to appear accepted and remain usable after the owning device closes.
+- Evidence: FVulkanQueue and FVulkanFence expose public constructors and FVulkanSemaphore is publicly default-constructible. None carries a device owner identity, and Submit accepts any concrete FVulkan command/synchronization wrapper, including objects created by another device; directly constructed objects are absent from device shutdown tracking.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
