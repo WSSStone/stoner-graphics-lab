@@ -2310,6 +2310,12 @@
           "from": "Accepted",
           "note": "Added bounded SPIR-V header and instruction validation plus exact execution-model and entry-point matching; maintained fixtures now use valid modules and cover truncated, overrun, wrong-stage, and missing-entry cases.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T03:48:55+00:00",
+          "from": "Fixed",
+          "note": "Independent B05-S09 review confirmed complete bounded SPIR-V header/instruction traversal and exact stage/entry-point matching; strict fallback tests passed truncated-header, instruction-overrun, wrong-stage, and missing-entry regressions.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B05-F007",
@@ -2318,9 +2324,9 @@
       "requirement": "012-FR-001, 012-FR-002, 012-FR-003a, 012-SC-002, and the Shader Module Contract",
       "resolution": "Added bounded SPIR-V header and instruction validation plus exact execution-model and entry-point matching; maintained fixtures now use valid modules and cover truncated, overrun, wrong-stage, and missing-entry cases.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Shader validation accepts malformed and wrong-stage SPIR-V",
-      "verification": ""
+      "verification": "Independent B05-S09 review confirmed complete bounded SPIR-V header/instruction traversal and exact stage/entry-point matching; strict fallback tests passed truncated-header, instruction-overrun, wrong-stage, and missing-entry regressions."
     },
     {
       "batch": "B05",
@@ -2346,6 +2352,12 @@
           "from": "Accepted",
           "note": "Made Vulkan shader modules and pipeline layouts device-owned, retained owner identity, rejected cross-device composition, and made native/wrapper/tracking allocation failures rollback atomically.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T03:49:07+00:00",
+          "from": "Fixed",
+          "note": "Independent B05-S09 review found device factories as the only shader/layout construction sites, owner checks on graphics/compute/descriptor composition, rollback on native/wrapper/tracking publication failure, and passing direct-construction/provenance/lifecycle regressions.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B05-F008",
@@ -2354,9 +2366,9 @@
       "requirement": "008-FR-017, 012-FR-002, 012-FR-018, T034-T035, and the Shader Module Contract",
       "resolution": "Made Vulkan shader modules and pipeline layouts device-owned, retained owner identity, rejected cross-device composition, and made native/wrapper/tracking allocation failures rollback atomically.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Shader and layout objects bypass device ownership and provenance",
-      "verification": ""
+      "verification": "Independent B05-S09 review found device factories as the only shader/layout construction sites, owner checks on graphics/compute/descriptor composition, rollback on native/wrapper/tracking publication failure, and passing direct-construction/provenance/lifecycle regressions."
     },
     {
       "batch": "B05",
@@ -2382,6 +2394,12 @@
           "from": "Accepted",
           "note": "Added an opt-in owner-safe native shader context used by the RHI factory; only wrappers retaining a real VkShaderModule report RealRuntime, while default device resources remain explicit deterministic fallback.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T03:49:18+00:00",
+          "from": "Fixed",
+          "note": "Independent B05-S09 review traced actual vkCreateShaderModule ownership through the RHI factory and destruction on invalidation/shutdown; native-enabled maintained tests passed all four shader assertions while unrelated deterministic objects retained fallback truthfulness.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B05-F009",
@@ -2390,9 +2408,9 @@
       "requirement": "012-FR-001, 012-FR-003a, 012-SC-001, the Feature 012 clarification on runtime objects, and the Shader Module Contract",
       "resolution": "Added an opt-in owner-safe native shader context used by the RHI factory; only wrappers retaining a real VkShaderModule report RealRuntime, while default device resources remain explicit deterministic fallback.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "The RHI real-runtime shader contract is unreachable",
-      "verification": ""
+      "verification": "Independent B05-S09 review traced actual vkCreateShaderModule ownership through the RHI factory and destruction on invalidation/shutdown; native-enabled maintained tests passed all four shader assertions while unrelated deterministic objects retained fallback truthfulness."
     }
   ],
   "schema_version": 1
