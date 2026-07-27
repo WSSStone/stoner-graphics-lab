@@ -129,7 +129,7 @@ EDeferredResult FDeferredRenderer::PrepareFrame(const FDeferredFrameInputs& Inpu
         Configuration.bCullLocalLightsOutsideView);
     OutPlan.AddPass(EDeferredPassStage::SurfaceData, "DeferredSurfaceData",
         static_cast<Stoner::Core::uint32>(OutPlan.AcceptedDraws.size()), 0, {},
-        {"BaseColorAO", "NormalRoughness", "EmissiveMetallic", "Depth", "LightingAccumulation"});
+        {"BaseColorAO", "NormalRoughness", "EmissiveMetallic", "Depth"});
     const Stoner::Core::uint32 DirectionalCount =
         OutPlan.Lights.GetAcceptedCount(EDeferredLightType::Directional);
     const Stoner::Core::uint32 PointCount =

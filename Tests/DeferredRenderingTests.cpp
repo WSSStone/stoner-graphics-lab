@@ -33,6 +33,11 @@ void Record(FDeferredRenderingTestResult& Result, bool bPassed, const char* Name
     }
 }
 
+bool ContainsResourceName(const TArray<FString>& Values, const char* Name)
+{
+    return std::find(Values.begin(), Values.end(), FString(Name)) != Values.end();
+}
+
 FDeferredViewData MakeView(EDeferredDepthConvention Convention = EDeferredDepthConvention::StandardZ)
 {
     FDeferredViewData View;
@@ -252,6 +257,10 @@ void TestPlanningAndGraph(FDeferredRenderingTestResult& Result)
         Plan.Passes[3].Stage == EDeferredPassStage::SpotLightVolumes &&
         Plan.Passes[4].Stage == EDeferredPassStage::Composition,
         "Deferred renderer emits canonical surface light and composition order");
+    Record(Result, !ContainsResourceName(Plan.Passes[0].Writes, "LightingAccumulation") &&
+        ContainsResourceName(Plan.Passes[1].Writes, "LightingAccumulation") &&
+        ContainsResourceName(Plan.Passes[4].Reads, "LightingAccumulation"),
+        "Deferred graph ownership keeps lighting accumulation out of surface writes");
     FDeferredDiagnosticLog GraphDiagnostics;
     const auto Graph = BuildDeferredRenderGraphDeclaration(Plan, &GraphDiagnostics);
     Record(Result, Graph.bValid && Graph.Resources.size() == 6 &&
@@ -266,6 +275,9 @@ void TestPlanningAndGraph(FDeferredRenderingTestResult& Result)
     Record(Result, Renderer.PrepareFrame(Empty, Plan) == EDeferredResult::Success &&
         Plan.Passes.size() == 2 && Plan.Passes.back().Stage == EDeferredPassStage::Composition,
         "Deferred renderer accepts empty and ambient-only frame with one composition output");
+    Record(Result, !ContainsResourceName(Plan.Passes[0].Writes, "LightingAccumulation") &&
+        ContainsResourceName(Plan.Passes.back().Reads, "LightingAccumulation"),
+        "Deferred empty frame graph keeps accumulation as composition input only");
 
     FDeferredFrameInputs Masked = MakeInputs(EDeferredDepthConvention::ReversedZ);
     Masked.DrawCandidates[0].BlendMode = EMaterialBlendMode::Masked;
