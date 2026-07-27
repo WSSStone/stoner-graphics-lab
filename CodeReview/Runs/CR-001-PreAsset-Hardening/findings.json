@@ -2058,6 +2058,12 @@
           "from": "Accepted",
           "note": "Device destruction now performs shutdown, command pools solely own command-buffer invalidation, and invalidated command buffers detach device diagnostics; retained command buffers deterministically reject later recording.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T02:19:50+00:00",
+          "from": "Fixed",
+          "note": "Parent/current comparison confirms the diagnostics lifetime assumption was removed; the maintained retained-command regression passes through the full Debug test gate, and strict Debug/Release builds pass.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B05-F001",
@@ -2066,9 +2072,9 @@
       "requirement": "011-FR-016, 011-FR-017, and 011-SC-002 require shutdown invalidation and post-shutdown rejection without crashes",
       "resolution": "Device destruction now performs shutdown, command pools solely own command-buffer invalidation, and invalidated command buffers detach device diagnostics; retained command buffers deterministically reject later recording.",
       "severity": "S1",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Command buffers retain device-owned diagnostics beyond device lifetime",
-      "verification": ""
+      "verification": "Parent/current comparison confirms the diagnostics lifetime assumption was removed; the maintained retained-command regression passes through the full Debug test gate, and strict Debug/Release builds pass."
     },
     {
       "batch": "B05",
@@ -2094,6 +2100,12 @@
           "from": "Accepted",
           "note": "Command, submission, render-pass, and framebuffer construction or lifecycle transitions are owner-only; device, pool, and queue factories map wrapper or tracking allocation failure to Unavailable without publishing partial objects.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T02:20:04+00:00",
+          "from": "Fixed",
+          "note": "Current headers close direct construction and state-transition access, maintained compile-time assertions pass in strict Debug and Release, and factory control-flow maps wrapper/tracking failures without publishing partial objects.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B05-F002",
@@ -2102,9 +2114,9 @@
       "requirement": "011-FR-001 through 011-FR-006, 011-FR-011, and 011-FR-013 require device-mediated allocation, valid render objects, and queue/completion-owned lifecycle transitions",
       "resolution": "Command, submission, render-pass, and framebuffer construction or lifecycle transitions are owner-only; device, pool, and queue factories map wrapper or tracking allocation failure to Unavailable without publishing partial objects.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Command and render objects bypass device ownership and state authority",
-      "verification": ""
+      "verification": "Current headers close direct construction and state-transition access, maintained compile-time assertions pass in strict Debug and Release, and factory control-flow maps wrapper/tracking failures without publishing partial objects."
     },
     {
       "batch": "B05",
@@ -2130,6 +2142,12 @@
           "from": "Accepted",
           "note": "Texture transfers now validate selected mip extents, compatible dimensions/formats/sample counts, valid destination resources, and checked exact buffer footprints through shared RHI helpers.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T02:20:16+00:00",
+          "from": "Fixed",
+          "note": "Parent/current comparison confirms base-mip and unchecked-size paths were replaced; maintained selected-mip, incompatible-format, padded-footprint, overflow, and deferred null-readback regressions pass in the full Debug gate.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B05-F003",
@@ -2138,9 +2156,9 @@
       "requirement": "011-FR-009, 011-FR-020, and 011-SC-003 require valid texture-copy regions, resource compatibility, and upload/readback bounds",
       "resolution": "Texture transfers now validate selected mip extents, compatible dimensions/formats/sample counts, valid destination resources, and checked exact buffer footprints through shared RHI helpers.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Texture transfer validation accepts invalid subresources and compatibility",
-      "verification": ""
+      "verification": "Parent/current comparison confirms base-mip and unchecked-size paths were replaced; maintained selected-mip, incompatible-format, padded-footprint, overflow, and deferred null-readback regressions pass in the full Debug gate."
     }
   ],
   "schema_version": 1

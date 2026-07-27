@@ -1,5 +1,5 @@
 {
-  "active_step": "B05-S03",
+  "active_step": "B05-S04",
   "batches": [
     {
       "id": "B00",
@@ -912,12 +912,18 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T02:23:01+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B05-command-render-scope-verification.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b05-command-render-scope-verification.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/gate-strict-debug.json",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/gate-tests.json",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/gate-strict-release.json"
+          ],
           "id": "B05-S03",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Independent parent/current review, maintained API-closure and behavior coverage, and fresh strict Debug, full Debug tests, and strict Release gates passed; F001-F003 are Verified with no new finding.",
+          "started_at": "2026-07-27T02:16:12+00:00",
+          "status": "Completed",
           "title": "Verify: command pools, buffers, barriers, and render scope"
         },
         {
@@ -3875,6 +3881,46 @@
       "at": "2026-07-27T02:13:54+00:00",
       "detail": "B05-S02",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T02:16:12+00:00",
+      "detail": "B05-S03",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T02:17:58+00:00",
+      "detail": "strict-debug: pass",
+      "kind": "gate"
+    },
+    {
+      "at": "2026-07-27T02:19:09+00:00",
+      "detail": "tests: pass",
+      "kind": "gate"
+    },
+    {
+      "at": "2026-07-27T02:19:21+00:00",
+      "detail": "strict-release: pass",
+      "kind": "gate"
+    },
+    {
+      "at": "2026-07-27T02:19:50+00:00",
+      "detail": "verify finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T02:20:04+00:00",
+      "detail": "verify finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T02:20:16+00:00",
+      "detail": "verify finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T02:23:01+00:00",
+      "detail": "B05-S03",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -3976,12 +4022,12 @@
           ],
           "returncode": 0,
           "stderr_tail": "[StonerBuild.PlatformDetect] INFO: Detected platform: Mac\n[StonerBuild.BuildConfig] INFO: Build configuration: debug\n[StonerBuild.PlatformDetect] INFO: Detected compiler: clang++\n[StonerBuild.PlatformDetect] INFO: Configured C++20 toolchain for Mac\n[StonerBuild.BuildConfig] INFO: Applied debug flags for Mac (strict=True, sanitizers=none)\n[StonerBuild] INFO: Stoner Graphics Lab\n[StonerBuild] INFO:   Platform : Mac\n[StonerBuild] INFO:   Config   : Debug\n[StonerBuild] INFO:   SCons    : 4.10.1\n[StonerBuild.LayerBuilder] INFO: Layer 'Core': building from 10 source file(s)\n[StonerBuild.LayerBuilder] INFO: Layer 'RHI': building from 1 source file(s)\n[StonerBuild.LayerBuilder] INFO: Layer 'Renderer': building from 33 source file(s)\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: discovered 0 sub-module(s) in 'Source/Renderer'\n[StonerBuild.LayerBuilder] INFO: Layer 'Application': building from 23 source file(s)\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'DX11' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'DX12' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'GLES' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'Metal' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'OpenGL' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'Vulkan' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: Layer 'VulkanRHI': building from 30 source file(s)\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: found sub-module 'WebGL' in Source/Backend\n[StonerBuild.LayerBuilder] INFO: DiscoverSubModules: discovered 1 sub-module(s) in 'Source/Backend'\n",
-          "stdout_tail": "omebrew/include Demo/StonerDemo/Private/FDemoDiagnostics.cpp\ng++ -o Build/Mac/Debug/Demo/StonerDemo/Private/FDemoValidationMonitor.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -D_DEBUG -DSTONER_VULKAN_RUNTIME_AVAILABLE=1 -DSTONER_GLFW_AVAILABLE=1 -ISource/Core/Public -ISource/RHI/Public -ISource/Renderer/Public -ISource/Application/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -I/Users/wangshi/VulkanSDK/1.4.341.1/macOS/include -I/opt/homebrew/include Demo/StonerDemo/Private/FDemoValidationMonitor.cpp\ng++ -o Build/Mac/Debug/Demo/StonerDemo/Private/FStonerDemoApplication.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -D_DEBUG -DSTONER_VULKAN_RUNTIME_AVAILABLE=1 -DSTONER_GLFW_AVAILABLE=1 -ISource/Core/Public -ISource/RHI/Public -ISource/Renderer/Public -ISource/Application/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -I/Users/wangshi/VulkanSDK/1.4.341.1/macOS/include -I/opt/homebrew/include Demo/StonerDemo/Private/FStonerDemoApplication.cpp\ng++ -o Build/Mac/Debug/Demo/StonerDemo/Private/Main.o -c -std=c++20 -O0 -g -Wall -Wextra -Werror -D_DEBUG -DSTONER_VULKAN_RUNTIME_AVAILABLE=1 -DSTONER_GLFW_AVAILABLE=1 -ISource/Core/Public -ISource/RHI/Public -ISource/Renderer/Public -ISource/Application/Public -ISource/Backend/Vulkan/Public -IDemo/StonerDemo/Private -I/Users/wangshi/VulkanSDK/1.4.341.1/macOS/include -I/opt/homebrew/include Demo/StonerDemo/Private/Main.cpp\nar rc Build/Mac/Debug/Demo/StonerDemo/libStonerDemoRuntime.a Build/Mac/Debug/Demo/StonerDemo/Private/FDemoConfiguration.o Build/Mac/Debug/Demo/StonerDemo/Private/FDemoDiagnostics.o Build/Mac/Debug/Demo/StonerDemo/Private/FDemoValidationMonitor.o Build/Mac/Debug/Demo/StonerDemo/Private/FStonerDemoApplication.o\nranlib Build/Mac/Debug/Demo/StonerDemo/libStonerDemoRuntime.a\ng++ -o Build/Mac/Debug/Demo/StonerDemo/StonerDemo /Users/wangshi/VulkanSDK/1.4.341.1/macOS/lib/libvulkan.dylib -Wl,-rpath,/Users/wangshi/VulkanSDK/1.4.341.1/macOS/lib /opt/homebrew/lib/libglfw.3.dylib -Wl,-rpath,/opt/homebrew/lib Build/Mac/Debug/Demo/StonerDemo/Private/Main.o -LBuild/Mac/Debug/Application -LSource/Application -LBuild/Mac/Debug/Renderer -LSource/Renderer -LBuild/Mac/Debug/RHI -LSource/RHI -LBuild/Mac/Debug/Core -LSource/Core -LBuild/Mac/Debug/Backend/Vulkan -LSource/Backend/Vulkan -LSource/Backend/Vulkan Build/Mac/Debug/Demo/StonerDemo/libStonerDemoRuntime.a -lApplication -lRenderer -lRHI -lCore -lVulkanRHI -framework Cocoa -framework IOKit -framework CoreFoundation\ng++ -o Build/Mac/Debug/Tests/StonerTest /Users/wangshi/VulkanSDK/1.4.341.1/macOS/lib/libvulkan.dylib -Wl,-rpath,/Users/wangshi/VulkanSDK/1.4.341.1/macOS/lib /opt/homebrew/lib/libglfw.3.dylib -Wl,-rpath,/opt/homebrew/lib Build/Mac/Debug/Tests/ApplicationSceneEcsTests.o Build/Mac/Debug/Tests/ApplicationWindowInputTests.o Build/Mac/Debug/Tests/CoreFoundationTests.o Build/Mac/Debug/Tests/CoreMathTests.o Build/Mac/Debug/Tests/CorePlatformOwnershipTests.o Build/Mac/Debug/Tests/CorePlatformTests.o Build/Mac/Debug/Tests/DeferredNativeIntegrationTests.o Build/Mac/Debug/Tests/DeferredRenderingTests.o Build/Mac/Debug/Tests/LoggingAssertionTests.o Build/Mac/Debug/Tests/Main.o Build/Mac/Debug/Tests/RHICoreTests.o Build/Mac/Debug/Tests/RendererComparisonTests.o Build/Mac/Debug/Tests/RendererForwardPipelineTests.o Build/Mac/Debug/Tests/RendererMaterialShaderTests.o Build/Mac/Debug/Tests/RendererRenderGraphTests.o Build/Mac/Debug/Tests/TriangleDemoIntegrationTests.o Build/Mac/Debug/Tests/VulkanBackendTests.o Build/Mac/Debug/Tests/VulkanNativeIntegrationTests.o -LBuild/Mac/Debug/Core -LSource/Core -LBuild/Mac/Debug/RHI -LSource/RHI -LBuild/Mac/Debug/Renderer -LSource/Renderer -LBuild/Mac/Debug/Application -LSource/Application -LBuild/Mac/Debug/Backend/Vulkan -LSource/Backend/Vulkan -LSource/Backend/Vulkan -LBuild/Mac/Debug/Demo/StonerDemo -LDemo/StonerDemo -lStonerDemoRuntime -lApplication -lRenderer -lRHI -lCore -lVulkanRHI -framework Cocoa -framework IOKit -framework CoreFoundation\nscons: done building targets.\n"
+          "stdout_tail": "scons: Reading SConscript files ...\nscons: done reading SConscript files.\nscons: Building targets ...\nscons: `.' is up to date.\nscons: done building targets.\n"
         }
       ],
       "passed": true,
       "profile": "strict-debug",
-      "recorded_at": "2026-07-26T15:00:36+00:00"
+      "recorded_at": "2026-07-27T02:17:58+00:00"
     },
     "strict-release": {
       "commands": [
@@ -3998,7 +4044,7 @@
       ],
       "passed": true,
       "profile": "strict-release",
-      "recorded_at": "2026-07-26T15:01:43+00:00"
+      "recorded_at": "2026-07-27T02:19:21+00:00"
     },
     "tests": {
       "commands": [
@@ -4015,20 +4061,20 @@
           "args": [
             "Build/Mac/Debug/Tests/StonerTest"
           ],
-          "returncode": 1,
+          "returncode": 0,
           "stderr_tail": "",
-          "stdout_tail": "ramebuffer creation succeeds\n[PASS] Vulkan minimal render pass rejects invalid description\n[PASS] Vulkan framebuffer rejects incompatible attachment dimensions\n[PASS] Vulkan graphics render pass scope records draw placeholders and rejects invalid ordering\n[PASS] Vulkan command buffer validates explicit clears descriptor sets and aligned index binding\n[PASS] Vulkan command buffer rejects incompatible explicit render-pass clear values\n[PASS] Vulkan transfer recording fixture creates resources\n[PASS] Vulkan transfer command records copy and declarative layout intent\n[PASS] Vulkan transfer command rejects incompatible compute and invalid copy ranges\n[PASS] Vulkan upload scheduling records pending uploads without claiming execution\n[PASS] Vulkan upload scheduling rejects already scheduled uploads\n[PASS] Vulkan shutdown invalidates render pass framebuffer and upload scheduling records\n[PASS] Vulkan descriptor fixture device initializes\n[PASS] Vulkan sampler creation succeeds and preserves lifecycle\n[PASS] Vulkan unsupported sampler modes are rejected\n[PASS] Vulkan descriptor set allocates from fixed-capacity pool\n[PASS] Vulkan descriptor pool exhaustion is explicit\n[PASS] Vulkan descriptor updates retain buffer texture sampler and combined records\n[PASS] Vulkan descriptor update rejects wrong type and missing binding\n[PASS] Vulkan descriptor retained binding reports invalidated resources\n[PASS] Vulkan buffer upload staging preserves CPU-visible data without execution\n[PASS] Vulkan buffer upload staging rejects missing data and out-of-bounds ranges\n[PASS] Vulkan texture upload staging preserves destination region\n[PASS] Vulkan texture upload staging rejects invalid regions\n[PASS] Vulkan shutdown invalidates descriptors uploads and sampler creation\n[PASS] Vulkan native integration creates real instance and device\n[PASS] Vulkan native integration uploads vertices and submits offscreen triangle\n[PASS] Vulkan native integration releases frame-local resources after completion\n[PASS] Vulkan native integration shutdown reaches zero live objects\n[PASS] Triangle demo headless defaults match endurance profile\n[PASS] Triangle demo rejects zero bounded frame budget\n[PASS] Triangle demo rejects unknown options\n[PASS] Triangle demo requires ten post-warmup memory samples\n[PASS] Triangle demo parses every canonical CLI option\n[PASS] Triangle demo rejects malformed numeric values\n[PASS] Triangle demo deterministic lifecycle completes exact frame budget and shutdown\n[PASS] Triangle demo diagnostics are stable and omit native addresses\n[PASS] Triangle demo interactive configuration parses\n[PASS] Triangle demo native-required mode never reports deterministic visible success\n[PASS] Triangle demo initializes window runtime shaders upload pipeline and two frame slots in contract order\n[PASS] Triangle demo normal shutdown remains idempotent after initialized state\n[PASS] Triangle demo rejects SPIR-V payloads with swapped vertex and fragment stages\n[PASS] Triangle demo recovery fixture initializes\n[PASS] Triangle demo recovers twenty presentation generations at exact 2000ms boundary\n[PASS] Triangle demo rejects presentation recovery beyond 2000ms boundary\n[PASS] Triangle demo injected failures preserve first-stage exit ownership\n[PASS] Triangle demo validation monitor accepts exact absolute growth boundary\n[PASS] Triangle demo validation monitor rejects growth above configured boundary\n[PASS] Triangle demo visible timing gates accept exact first-present and recovery boundaries\n[PASS] Triangle demo visible timing gates accept more than twenty valid recoveries\n[PASS] Triangle demo visible timing gates reject a slow additional recovery\n[PASS] Triangle demo visible timing gates reject first present above 5000ms\n[PASS] Triangle demo normalized failure diagnostics are byte-stable across twenty runs\n[PASS] Triangle demo validation reports are byte-stable across twenty synthetic runs\n[PASS] Triangle demo maps an unwritable validation output path to exit code seven\n"
+          "stdout_tail": "id copy ranges\n[PASS] Vulkan transfer validation uses selected mip extents\n[PASS] Vulkan texture copy rejects incompatible formats\n[PASS] RHI texture readback footprint is exact and overflow-safe\n[PASS] Vulkan upload scheduling records pending uploads without claiming execution\n[PASS] Vulkan upload scheduling rejects already scheduled uploads\n[PASS] Vulkan shutdown invalidates render pass framebuffer and upload scheduling records\n[PASS] RHI format byte widths cover every declared format exactly\n[PASS] Vulkan descriptor fixture device initializes\n[PASS] Vulkan sampler creation succeeds and preserves lifecycle\n[PASS] Vulkan unsupported sampler modes are rejected\n[PASS] Vulkan descriptor set allocates from fixed-capacity pool\n[PASS] Vulkan descriptor pool exhaustion is explicit\n[PASS] Vulkan descriptor updates retain buffer texture sampler and combined records\n[PASS] Vulkan descriptor update rejects wrong type and missing binding\n[PASS] Vulkan descriptor retained binding reports invalidated resources\n[PASS] Vulkan descriptor invalidation returns exactly one pool reservation\n[PASS] Vulkan descriptor capacity is reusable after reservation release\n[PASS] Vulkan buffer upload staging preserves CPU-visible data without execution\n[PASS] Vulkan buffer upload staging rejects missing, mismatched, and out-of-bounds ranges\n[PASS] Vulkan buffer upload staging rejects destinations without copy usage\n[PASS] Vulkan texture upload staging preserves destination region\n[PASS] Vulkan texture upload staging rejects invalid regions and byte footprints\n[PASS] Vulkan texture upload validation uses the selected mip extent\n[PASS] Vulkan texture upload staging rejects unsupported transfer paths\n[PASS] Vulkan shutdown invalidates descriptors uploads and sampler creation\n[PASS] Vulkan native integration creates real instance and device\n[PASS] Vulkan native integration uploads vertices and submits offscreen triangle\n[PASS] Vulkan native integration releases frame-local resources after completion\n[PASS] Vulkan native integration shutdown reaches zero live objects\n[PASS] Triangle demo headless defaults match endurance profile\n[PASS] Triangle demo rejects zero bounded frame budget\n[PASS] Triangle demo rejects unknown options\n[PASS] Triangle demo requires ten post-warmup memory samples\n[PASS] Triangle demo parses every canonical CLI option\n[PASS] Triangle demo rejects malformed numeric values\n[PASS] Triangle demo deterministic lifecycle completes exact frame budget and shutdown\n[PASS] Triangle demo diagnostics are stable and omit native addresses\n[PASS] Triangle demo interactive configuration parses\n[PASS] Triangle demo native-required mode never reports deterministic visible success\n[PASS] Triangle demo initializes window runtime shaders upload pipeline and two frame slots in contract order\n[PASS] Triangle demo normal shutdown remains idempotent after initialized state\n[PASS] Triangle demo rejects SPIR-V payloads with swapped vertex and fragment stages\n[PASS] Triangle demo recovery fixture initializes\n[PASS] Triangle demo recovers twenty presentation generations at exact 2000ms boundary\n[PASS] Triangle demo rejects presentation recovery beyond 2000ms boundary\n[PASS] Triangle demo injected failures preserve first-stage exit ownership\n[PASS] Triangle demo validation monitor accepts exact absolute growth boundary\n[PASS] Triangle demo validation monitor rejects growth above configured boundary\n[PASS] Triangle demo visible timing gates accept exact first-present and recovery boundaries\n[PASS] Triangle demo visible timing gates accept more than twenty valid recoveries\n[PASS] Triangle demo visible timing gates reject a slow additional recovery\n[PASS] Triangle demo visible timing gates reject first present above 5000ms\n[PASS] Triangle demo normalized failure diagnostics are byte-stable across twenty runs\n[PASS] Triangle demo validation reports are byte-stable across twenty synthetic runs\n[PASS] Triangle demo maps an unwritable validation output path to exit code seven\n"
         }
       ],
-      "passed": false,
+      "passed": true,
       "profile": "tests",
-      "recorded_at": "2026-07-26T09:29:20+00:00"
+      "recorded_at": "2026-07-27T02:19:09+00:00"
     }
   },
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "7e92de1266d5ed252c9ff9c347525b16a5b340b4"
+    "last_recorded_head": "84d4fb548c3402b945f11ce5a5f05e3f0274a46b"
   },
   "policy": {
     "fix_severities": [
@@ -4048,5 +4094,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T02:13:54+00:00"
+  "updated_at": "2026-07-27T02:23:01+00:00"
 }
