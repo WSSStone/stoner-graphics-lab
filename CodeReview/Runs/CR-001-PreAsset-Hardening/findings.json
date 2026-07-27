@@ -2856,6 +2856,12 @@
           "from": "Accepted",
           "note": "FApplicationLoop now queues Window.PollInputEvents() into FInputManager before PollFrame so driver input participates in the normal loop input derivation. Added regression coverage for scripted native key input through FApplicationLoop. Debug build passed, the new regression passed, and fallback-strict gate passed.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T07:38:24+00:00",
+          "from": "Fixed",
+          "note": "Verified on B07-S03: FApplicationLoop queues Window.PollInputEvents() before InputManager.PollFrame, the scripted native input regression passes, and fallback-strict gate passed at 2026-07-27T07:38:08+00:00.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B07-F001",
@@ -2864,9 +2870,9 @@
       "requirement": "Feature 016 FR-014 and the Application Loop Contract require the loop to poll events, derive input state, observe window state, and decide whether to continue in that order.",
       "resolution": "FApplicationLoop now queues Window.PollInputEvents() into FInputManager before PollFrame so driver input participates in the normal loop input derivation. Added regression coverage for scripted native key input through FApplicationLoop. Debug build passed, the new regression passed, and fallback-strict gate passed.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Application loop ignores driver input events",
-      "verification": ""
+      "verification": "Verified on B07-S03: FApplicationLoop queues Window.PollInputEvents() before InputManager.PollFrame, the scripted native input regression passes, and fallback-strict gate passed at 2026-07-27T07:38:08+00:00."
     },
     {
       "batch": "B07",
@@ -2892,6 +2898,12 @@
           "from": "Accepted",
           "note": "FWindow::CreateRealWindow now clears transient state at entry and resets runtime lifecycle/platform/drawable state on validation and driver creation failure paths. Added regression coverage for failed real-window validation after a prior successful real-window create. Debug build passed, the new regression passed, and fallback-strict gate passed.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T07:38:25+00:00",
+          "from": "Fixed",
+          "note": "Verified on B07-S03: CreateRealWindow failure paths call ResetRuntimeState, the stale active real-window validation regression passes, and fallback-strict gate passed at 2026-07-27T07:38:08+00:00.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B07-F002",
@@ -2900,9 +2912,9 @@
       "requirement": "Feature 016 Window Lifecycle Contract requires validation or runtime failures to produce diagnostics with no partially active window, and FR-007 requires failures to preserve only the previous valid display-mode state rather than stale create lifecycle state.",
       "resolution": "FWindow::CreateRealWindow now clears transient state at entry and resets runtime lifecycle/platform/drawable state on validation and driver creation failure paths. Added regression coverage for failed real-window validation after a prior successful real-window create. Debug build passed, the new regression passed, and fallback-strict gate passed.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Real-window create failure can preserve stale active window state",
-      "verification": ""
+      "verification": "Verified on B07-S03: CreateRealWindow failure paths call ResetRuntimeState, the stale active real-window validation regression passes, and fallback-strict gate passed at 2026-07-27T07:38:08+00:00."
     }
   ],
   "schema_version": 1

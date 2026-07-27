@@ -1,11 +1,11 @@
 # CR-001 Progress
 
 - Status: Active
-- Completed steps: 88/134
+- Completed steps: 89/134
 - Baseline: `9092a97593fb29cffbffdbe534e3dda143f463a5`
-- Recorded HEAD: `89c8e0ec623bbf23346ed7021bc5c70850853e9a`
-- Active step: B07-S03
-- Open findings: 4
+- Recorded HEAD: `719177c2202ee1f5d1a5860a78f14a0fb965ef2e`
+- Active step: B07-S04
+- Open findings: 2
 
 ## Batches
 
