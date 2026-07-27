@@ -1,5 +1,5 @@
 {
-  "active_step": "B06-S13",
+  "active_step": "B06-S14",
   "batches": [
     {
       "id": "B00",
@@ -1230,12 +1230,14 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T06:56:20+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b06-forward-frame-planning-lights-views-sorting-inspection.md"
+          ],
           "id": "B06-S13",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected forward planning, lights, views, and sorting; accepted CR001-B06-F004 and CR001-B06-F005.",
+          "started_at": "2026-07-27T06:52:26+00:00",
+          "status": "Completed",
           "title": "Inspect: forward frame planning, lights, views, and sorting"
         },
         {
@@ -4716,6 +4718,36 @@
       "at": "2026-07-27T06:50:35+00:00",
       "detail": "B06-S12",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T06:52:26+00:00",
+      "detail": "B06-S13",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T06:55:14+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T06:55:14+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T06:55:33+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T06:55:34+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T06:56:20+00:00",
+      "detail": "B06-S13",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -4869,7 +4901,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "2888c506e7ad87a4aa554236574020cf2009a6ca"
+    "last_recorded_head": "3de7fa0b16d9ed181c13570975ddbff443c7852f"
   },
   "policy": {
     "fix_severities": [
@@ -4889,5 +4921,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T06:50:35+00:00"
+  "updated_at": "2026-07-27T06:56:20+00:00"
 }
