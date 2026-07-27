@@ -91,18 +91,19 @@ SG_DEFINE_LOG_CATEGORY(LogCore)
 
 ## Decision 5: Platform Debug Break Abstraction
 
-**Decision**: Provide a `SG_DEBUG_BREAK()` macro that expands to the platform-appropriate debugger break intrinsic, guarded by `_DEBUG`.
+**Decision**: Provide a `SG_DEBUG_BREAK()` macro that expands to a resumable platform debugger break in Debug builds.
 
 **Platform Mapping**:
 - MSVC (`_MSC_VER`): `__debugbreak()`
-- GCC/Clang (`__GNUC__` or `__clang__`): `__builtin_debugtrap()`
+- Clang (`__clang__`): `__builtin_debugtrap()`
+- GCC on POSIX (`__GNUC__`): `raise(SIGTRAP)`
 - Fallback: `std::abort()`
 
-**Rationale**: The spec requires platform-specific debug break for assertions (FR-011) and Fatal logs (FR-012). Isolating this behind a single macro keeps all platform-conditional code in one header (`SGPlatformBreak.h`). Using `__builtin_debugtrap()` instead of `__builtin_trap()` because `debugtrap` is resumable (the developer can continue in the debugger), while `trap` is not — this matches the Q1 clarification decision.
+**Rationale**: The spec requires platform-specific debug break for assertions (FR-011) and Fatal logs (FR-012). Isolating this behind a single macro keeps all platform-conditional code in one header (`SGPlatformBreak.h`). Clang's `__builtin_debugtrap()` and GCC/POSIX `raise(SIGTRAP)` are resumable under a debugger; GCC's `__builtin_trap()` is not. This matches the Q1 clarification decision.
 
 **Alternatives Considered**:
 
-- `raise(SIGTRAP)` on Unix (rejected — not available on Windows; `__builtin_debugtrap()` is more portable across GCC/Clang).
+- `__builtin_trap()` on GCC (rejected — terminates with an illegal-instruction trap and is not resumable).
 - `std::abort()` everywhere (rejected — loses the debugger break capability that was explicitly clarified).
 
 ---

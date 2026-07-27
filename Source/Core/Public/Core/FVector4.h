@@ -70,17 +70,39 @@ struct FVector4
 
     [[nodiscard]] float Length() const noexcept
     {
-        return FMath::Sqrt(LengthSquared());
+        return std::hypot(std::hypot(X, Y), std::hypot(Z, W));
     }
 
+    // Returns Zero for near-zero vectors, non-finite components, or invalid
+    // tolerances. Finite large components are normalized without squaring
+    // overflow.
     [[nodiscard]] FVector4 GetSafeNormal(float Tolerance = FMath::DefaultTolerance) const noexcept
     {
-        const float SquareLength = LengthSquared();
-        if (SquareLength <= Tolerance * Tolerance)
+        if (!FMath::IsFinite(X) ||
+            !FMath::IsFinite(Y) ||
+            !FMath::IsFinite(Z) ||
+            !FMath::IsFinite(W) ||
+            !FMath::IsFinite(Tolerance) ||
+            Tolerance < 0.0f)
         {
             return Zero();
         }
-        return *this / FMath::Sqrt(SquareLength);
+
+        const float Scale = FMath::Max(
+            FMath::Max(FMath::Abs(X), FMath::Abs(Y)),
+            FMath::Max(FMath::Abs(Z), FMath::Abs(W)));
+        if (Scale == 0.0f)
+        {
+            return Zero();
+        }
+
+        const FVector4 Scaled = *this / Scale;
+        const float ScaledLength = Scaled.Length();
+        if (Scale * ScaledLength <= Tolerance)
+        {
+            return Zero();
+        }
+        return Scaled / ScaledLength;
     }
 
     [[nodiscard]] FVector4 Normalized(float Tolerance = FMath::DefaultTolerance) const noexcept

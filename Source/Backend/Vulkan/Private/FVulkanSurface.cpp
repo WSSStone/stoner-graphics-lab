@@ -3,38 +3,81 @@
 namespace Stoner::Backend::Vulkan
 {
 
-Stoner::RHI::ERHIResult FVulkanSurface::Create(const Stoner::Core::FPlatformWindow& Window, FVulkanSurface& OutSurface) noexcept
+struct FVulkanSurface::FState
 {
-    OutSurface = {};
-    if (!Window.IsValid())
+    Stoner::RHI::FRHIPresentationSurfaceDesc Desc;
+    std::weak_ptr<FVulkanPresentationOwnerState> Owner;
+    Stoner::Core::FString DiagnosticReason;
+    bool bValid = false;
+};
+
+FVulkanSurface::FVulkanSurface()
+    : State(std::make_shared<FState>())
+{
+}
+
+Stoner::RHI::ERHIResult FVulkanSurface::Create(
+    const Stoner::RHI::FRHIPresentationSurfaceDesc& Desc,
+    const std::shared_ptr<FVulkanPresentationOwnerState>& Owner,
+    FVulkanSurface& OutSurface)
+{
+    OutSurface = FVulkanSurface{};
+    if (!Desc.IsValid())
     {
-        OutSurface.DiagnosticReason = "invalid Core platform window wrapper";
+        OutSurface.State->DiagnosticReason = "invalid Core platform window wrapper";
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    if (!Owner || !Owner->bActive)
+    {
+        OutSurface.State->DiagnosticReason = "inactive Vulkan presentation owner";
         return Stoner::RHI::ERHIResult::InvalidState;
     }
 
-    OutSurface.NativeHandle = Window.GetNativeHandle();
+    OutSurface.State->Desc = Desc;
+    OutSurface.State->Owner = Owner;
+    OutSurface.State->bValid = true;
     return Stoner::RHI::ERHIResult::Success;
+}
+
+const Stoner::RHI::FRHIPresentationSurfaceDesc& FVulkanSurface::GetDesc() const noexcept
+{
+    return State->Desc;
 }
 
 bool FVulkanSurface::IsValid() const noexcept
 {
-    return NativeHandle != nullptr;
+    const auto Owner = State->Owner.lock();
+    return State->bValid && State->Desc.IsValid() && Owner && Owner->bActive;
 }
 
 void* FVulkanSurface::GetNativeHandle() const noexcept
 {
-    return NativeHandle;
+    return IsValid() ? State->Desc.Window.GetNativeHandle() : nullptr;
 }
 
 const char* FVulkanSurface::GetDiagnosticReason() const noexcept
 {
-    return DiagnosticReason;
+    return State->DiagnosticReason.CStr();
 }
 
-void FVulkanSurface::Invalidate() noexcept
+bool FVulkanSurface::BelongsTo(
+    const std::shared_ptr<FVulkanPresentationOwnerState>& Owner) const noexcept
 {
-    NativeHandle = nullptr;
-    DiagnosticReason = "surface invalidated";
+    const auto CurrentOwner = State->Owner.lock();
+    return Owner && CurrentOwner && Owner == CurrentOwner;
+}
+
+Stoner::RHI::ERHIResult FVulkanSurface::Invalidate()
+{
+    if (!State->bValid)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+
+    State->bValid = false;
+    State->Desc.Window.Clear();
+    State->DiagnosticReason = "surface invalidated";
+    return Stoner::RHI::ERHIResult::Success;
 }
 
 } // namespace Stoner::Backend::Vulkan

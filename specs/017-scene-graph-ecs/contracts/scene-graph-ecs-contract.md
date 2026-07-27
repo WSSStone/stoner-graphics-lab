@@ -15,7 +15,9 @@ All mutating and validation-heavy operations return or expose deterministic scen
 - `MissingComponent`: read, update, replace, or remove was requested for an absent component.
 - `InvalidComponentData`: component values are invalid for the requested operation or collection path.
 - `HierarchyCycle`: requested parent relationship would create a cycle.
-- `InvalidHierarchyOperation`: parent, child, or reparent operation is not valid.
+- `InvalidHierarchyOperation`: parent, child, or reparent operation is not valid,
+  including an exact result that would require affine shear outside the editable
+  translation/rotation/scale representation.
 - `CapacityExceeded`: v1 configured entity capacity is exhausted.
 - `Unsupported`: operation is intentionally out of v1 scope.
 
@@ -79,11 +81,18 @@ All mutating and validation-heavy operations return or expose deterministic scen
 **When** no preservation option is specified  
 **Then** the entity preserves world transform, recalculates local transform relative to the new parent, and future world transform queries remain stable.
 
+If the exact relative transform would require affine shear, the operation
+returns `InvalidHierarchyOperation` and leaves the previous parent and local
+transform unchanged.
+
 ### Reparent Preserve Local
 
 **Given** a valid child entity is reparented with local-preserve requested  
 **When** the operation succeeds  
 **Then** local transform remains unchanged and world transform is recomputed from the new parent chain.
+
+If the resulting world transform would require affine shear, the operation
+returns `InvalidHierarchyOperation` before changing the hierarchy.
 
 ### Cycle Rejection
 

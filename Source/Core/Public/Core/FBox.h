@@ -3,6 +3,7 @@
 #include "Core/FVector3.h"
 
 #include <limits>
+#include <numeric>
 
 namespace Stoner::Core
 {
@@ -27,6 +28,8 @@ struct FBox
         : Min(InMin)
         , Max(InMax)
         , bValid(
+            IsFiniteVector(InMin) &&
+            IsFiniteVector(InMax) &&
             InMin.X <= InMax.X &&
             InMin.Y <= InMax.Y &&
             InMin.Z <= InMax.Z)
@@ -35,12 +38,22 @@ struct FBox
 
     [[nodiscard]] bool IsValid() const noexcept
     {
-        return bValid;
+        return bValid &&
+            IsFiniteVector(Min) &&
+            IsFiniteVector(Max) &&
+            Min.X <= Max.X &&
+            Min.Y <= Max.Y &&
+            Min.Z <= Max.Z;
     }
 
     void AddPoint(const FVector3& Point) noexcept
     {
-        if (!bValid)
+        if (!IsFiniteVector(Point))
+        {
+            return;
+        }
+
+        if (!IsValid())
         {
             Min = Point;
             Max = Point;
@@ -60,7 +73,7 @@ struct FBox
 
     void Combine(const FBox& Other) noexcept
     {
-        if (!Other.bValid)
+        if (!Other.IsValid())
         {
             return;
         }
@@ -71,7 +84,8 @@ struct FBox
 
     [[nodiscard]] bool Contains(const FVector3& Point) const noexcept
     {
-        return bValid &&
+        return IsValid() &&
+            IsFiniteVector(Point) &&
             Point.X >= Min.X && Point.X <= Max.X &&
             Point.Y >= Min.Y && Point.Y <= Max.Y &&
             Point.Z >= Min.Z && Point.Z <= Max.Z;
@@ -79,20 +93,31 @@ struct FBox
 
     [[nodiscard]] FVector3 GetCenter() const noexcept
     {
-        if (!bValid)
+        if (!IsValid())
         {
             return FVector3::Zero();
         }
-        return (Min + Max) * 0.5f;
+        return FVector3(
+            std::midpoint(Min.X, Max.X),
+            std::midpoint(Min.Y, Max.Y),
+            std::midpoint(Min.Z, Max.Z));
     }
 
     [[nodiscard]] FVector3 GetExtent() const noexcept
     {
-        if (!bValid)
+        if (!IsValid())
         {
             return FVector3::Zero();
         }
-        return (Max - Min) * 0.5f;
+        return Max * 0.5f - Min * 0.5f;
+    }
+
+private:
+    [[nodiscard]] static bool IsFiniteVector(const FVector3& Value) noexcept
+    {
+        return FMath::IsFinite(Value.X) &&
+            FMath::IsFinite(Value.Y) &&
+            FMath::IsFinite(Value.Z);
     }
 };
 

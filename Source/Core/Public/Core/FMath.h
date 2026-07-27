@@ -10,6 +10,8 @@ namespace Stoner::Core
 // Core math uses a right-handed coordinate convention. Matrix values are stored
 // in row-major memory order, and computed floating-point results should be
 // compared through the tolerance helpers below instead of exact equality.
+// Near-comparison tolerances must be finite and non-negative; invalid
+// tolerances or non-finite compared values return false.
 class FMath
 {
 public:
@@ -43,7 +45,7 @@ public:
 
     [[nodiscard]] static constexpr float Lerp(float A, float B, float Alpha) noexcept
     {
-        return A + (B - A) * Alpha;
+        return std::lerp(A, B, Alpha);
     }
 
     [[nodiscard]] static constexpr float DegreesToRadians(float Degrees) noexcept
@@ -81,14 +83,21 @@ public:
         float B,
         float Tolerance = DefaultTolerance) noexcept
     {
-        return Abs(A - B) <= Tolerance;
+        return IsFinite(A) &&
+            IsFinite(B) &&
+            IsFinite(Tolerance) &&
+            Tolerance >= 0.0f &&
+            Abs(A - B) <= Tolerance;
     }
 
     [[nodiscard]] static bool IsNearlyZero(
         float Value,
         float Tolerance = DefaultTolerance) noexcept
     {
-        return Abs(Value) <= Tolerance;
+        return IsFinite(Value) &&
+            IsFinite(Tolerance) &&
+            Tolerance >= 0.0f &&
+            Abs(Value) <= Tolerance;
     }
 
     [[nodiscard]] static bool IsFinite(float Value) noexcept

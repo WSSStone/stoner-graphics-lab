@@ -105,6 +105,21 @@ struct FMatrix4x4
         return true;
     }
 
+    [[nodiscard]] bool IsFinite() const noexcept
+    {
+        for (int Row = 0; Row < 4; ++Row)
+        {
+            for (int Column = 0; Column < 4; ++Column)
+            {
+                if (!FMath::IsFinite(M[Row][Column]))
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     [[nodiscard]] FMatrix4x4 operator*(const FMatrix4x4& Other) const noexcept
     {
         FMatrix4x4 Result = Zero();
@@ -161,6 +176,12 @@ struct FMatrix4x4
 
     [[nodiscard]] bool TryInverse(FMatrix4x4& OutInverse, float Tolerance = FMath::DefaultTolerance) const noexcept
     {
+        OutInverse = Identity();
+        if (!IsFinite() || !FMath::IsFinite(Tolerance) || Tolerance < 0.0f)
+        {
+            return false;
+        }
+
         float Augmented[4][8] = {};
         for (int Row = 0; Row < 4; ++Row)
         {
@@ -185,9 +206,8 @@ struct FMatrix4x4
                 }
             }
 
-            if (PivotAbs <= Tolerance)
+            if (!FMath::IsFinite(PivotAbs) || PivotAbs <= Tolerance)
             {
-                OutInverse = Identity();
                 return false;
             }
 
@@ -203,6 +223,10 @@ struct FMatrix4x4
             for (int Column = 0; Column < 8; ++Column)
             {
                 Augmented[PivotColumn][Column] /= Pivot;
+                if (!FMath::IsFinite(Augmented[PivotColumn][Column]))
+                {
+                    return false;
+                }
             }
 
             for (int Row = 0; Row < 4; ++Row)
@@ -216,6 +240,10 @@ struct FMatrix4x4
                 for (int Column = 0; Column < 8; ++Column)
                 {
                     Augmented[Row][Column] -= Factor * Augmented[PivotColumn][Column];
+                    if (!FMath::IsFinite(Augmented[Row][Column]))
+                    {
+                        return false;
+                    }
                 }
             }
         }
@@ -226,6 +254,11 @@ struct FMatrix4x4
             {
                 OutInverse.M[Row][Column] = Augmented[Row][Column + 4];
             }
+        }
+        if (!OutInverse.IsFinite())
+        {
+            OutInverse = Identity();
+            return false;
         }
         return true;
     }

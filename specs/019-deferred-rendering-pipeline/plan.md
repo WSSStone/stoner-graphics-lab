@@ -16,7 +16,7 @@ Deliver deferred rendering as a sibling strategy to the existing forward rendere
 **Target Platform**: Deterministic build/test behavior on Windows, macOS, and Linux; required native Vulkan offscreen execution and pixel readback on Linux Lavapipe; Windows/macOS native execution optional and no visible-window requirement; Android excluded
 **Project Type**: Cross-platform C++ graphics-engine libraries with reusable Renderer, RHI, and Vulkan backend layers
 **Performance Goals**: Prepare and compare equivalent workloads at 0, 16, 64, and 256 local-light tiers; collect at least 100 measured frames after warm-up per tier; report median/p95 timings and observed crossover; maintain one surface-data geometry sequence independent of accepted light count; no deferred-faster-than-forward pass gate
-**Constraints**: Forward remains the default unchanged strategy; Renderer cannot call Vulkan; all passes flow through the render graph; no fixed local-light cap; surface targets share extent/sample count; single-sample rendering only; standard-Z uses far clear `1.0`/`LessEqual` and reversed-Z uses far clear `0.0`/`GreaterEqual`; native validation uses at least 12 semantic probes per depth convention and the specified per-semantic tolerances; transparent blending remains forward-transparent; shutdown leaves zero deferred frame-owned resources
+**Constraints**: Forward remains the default unchanged strategy; Renderer cannot call Vulkan; all passes flow through the render graph; no fixed local-light cap; surface targets share extent/sample count; single-sample rendering only; standard-Z uses far clear `1.0`/`LessEqual` and reversed-Z uses far clear `0.0`/`GreaterEqual`; native validation uses at least 18 semantic probes per depth convention, including the six required point/spot local-light edge probes, and the specified per-semantic tolerances; transparent blending remains forward-transparent; shutdown leaves zero deferred frame-owned resources
 **Scale/Scope**: One active view and output; representative validation workload of at least 100 opaque draws, 1 directional light, 64 point lights, and 16 spot lights; three color surface targets plus depth; directional fullscreen draws; reusable sphere/cone local-light volumes; tiled/clustered lighting, shadows, SSAO, SSR, temporal effects, anti-aliasing, decals, editor tooling, new backends, and visible demo integration excluded
 
 ## Constitution Check
@@ -143,7 +143,7 @@ Completed in [research.md](./research.md). Key decisions:
 - Execute compiled graph passes through `FDeferredFrameExecutor`, with all bindings validated before recording.
 - Generalize the existing native Vulkan offscreen context enough to expose real RHI wrappers without creating a second backend or adding Renderer dependencies to Vulkan.
 - Keep deferred GLSL and checked-in SPIR-V under the Renderer module.
-- Validate at least 12 named intermediate/final sample probes using semantic tolerances.
+- Validate at least 18 named intermediate/final sample probes per depth convention, including the six required point/spot local-light edge probes, using semantic tolerances.
 - Produce a four-tier, fingerprinted forward/deferred timing baseline with no speedup completion gate.
 - Preserve three-platform deterministic CI and require native Vulkan readback only on Linux Lavapipe.
 

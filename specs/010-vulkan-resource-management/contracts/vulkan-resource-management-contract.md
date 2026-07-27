@@ -114,3 +114,31 @@ Required coverage:
 - Buffer upload staging success and out-of-bounds/missing-data/invalidated-destination failures.
 - Texture upload staging success and invalid-region/incompatible-format/invalidated-destination failures.
 - Existing Core, RHI, and Vulkan backend tests remain passing.
+
+## CR-001 Hardening Addendum (2026-07-26)
+
+- Allocation accounting and texture footprint arithmetic are checked before
+  state mutation. Overflow returns an explicit unavailable allocation result.
+- Allocation records are move-only, allocator- and epoch-bound release tickets.
+  Cross-allocator, stale, moved-from, and repeated release attempts fail without
+  changing counters.
+- Buffer and texture implementation wrappers are device-factory-only. Factory
+  bookkeeping failure rolls ownership back before returning.
+- Texture footprint includes exact format width, every mip extent, depth, array
+  layers, and sample count.
+- Host-visible fallback upload storage grows only to the uploaded range and maps
+  storage allocation failure to `Unavailable` without throwing through `Upload`.
+- Shutdown after successful extreme-size fallback allocation reports zero live
+  allocations and zero allocated bytes.
+- Descriptor capacity is carried by an unforgeable move-only reservation.
+  Factory failures, set invalidation, and destruction return that reservation
+  exactly once; no public scalar `Allocate`/`Release` authority remains.
+- Descriptor set and sampler wrappers are device-factory-only, and upload
+  records cannot be default-constructed into an unvalidated pending state.
+- Buffer uploads require exact source/range byte equality and
+  copy-destination usage.
+- Texture uploads require copy-destination usage, one-sample destinations,
+  selected-mip bounds, exact shared RHI format width, checked region
+  arithmetic, and exact source byte equality.
+- Pool/set/sampler/upload allocation and tracking failures return
+  `Unavailable`, expose no partial object, and leak no descriptor reservation.

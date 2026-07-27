@@ -7,6 +7,7 @@ namespace Stoner::Backend::Vulkan
 {
 
 class FVulkanCommandBuffer;
+class FVulkanQueue;
 
 enum class EVulkanSubmissionMode
 {
@@ -34,7 +35,7 @@ struct FVulkanCompletionInjectionConfig
 class FVulkanCommandSubmission final
 {
 public:
-    FVulkanCommandSubmission(Stoner::Core::TSharedPtr<FVulkanCommandBuffer> InCommandBuffer, EVulkanSubmissionMode InMode, FVulkanCompletionInjectionConfig InInjection = {}) noexcept;
+    ~FVulkanCommandSubmission() = default;
 
     [[nodiscard]] EVulkanSubmissionMode GetMode() const noexcept;
     [[nodiscard]] EVulkanCompletionState GetCompletionState() const noexcept;
@@ -46,6 +47,13 @@ public:
     void Invalidate() noexcept;
 
 private:
+    friend class FVulkanQueue;
+
+    FVulkanCommandSubmission(
+        Stoner::Core::TSharedPtr<FVulkanCommandBuffer> InCommandBuffer,
+        EVulkanSubmissionMode InMode,
+        FVulkanCompletionInjectionConfig InInjection = {}) noexcept;
+
     Stoner::Core::TSharedPtr<FVulkanCommandBuffer> CommandBuffer;
     EVulkanSubmissionMode Mode = EVulkanSubmissionMode::DeterministicFallback;
     EVulkanCompletionState CompletionState = EVulkanCompletionState::Pending;

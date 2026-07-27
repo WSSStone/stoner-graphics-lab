@@ -91,9 +91,9 @@ public:
     }
     virtual TRHIObjectResult<IRHISwapchain> CreateSwapchain(
         const Stoner::Core::TSharedPtr<IRHIPresentationSurface>&,
-        const FRHISwapchainDesc& Desc)
+        const FRHISwapchainDesc&)
     {
-        return CreateSwapchain(Desc.FramesInFlight);
+        return {ERHIResult::Unsupported, nullptr};
     }
 };
 

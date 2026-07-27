@@ -71,7 +71,7 @@ EForwardResult FForwardRenderer::PrepareFrame(const FForwardFrameInputs& Inputs,
 
     OutPlan.LightSet = PrepareForwardLightSet(Inputs.DirectionalLights, Inputs.PointLights, Inputs.View,
         Configuration.PointLightLimit, &LocalDiagnostics);
-    if (OutPlan.HasRenderableGeometry() && !OutPlan.LightSet.HasAcceptedLights() && Configuration.bEnableAmbientFallback)
+    if (OutPlan.HasRenderableGeometry() && !OutPlan.LightSet.HasAcceptedLights())
     {
         OutPlan.AmbientFallback.bActive = true;
         LocalDiagnostics.Add(EForwardDiagnosticSeverity::Warning, EForwardDiagnosticCategory::Fallback,

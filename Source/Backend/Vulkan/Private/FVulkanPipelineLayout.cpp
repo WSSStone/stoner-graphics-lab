@@ -1,10 +1,15 @@
 #include "VulkanRHI/FVulkanPipelineLayout.h"
 
+#include "VulkanRHI/FVulkanDeviceOwnerState.h"
+
 namespace Stoner::Backend::Vulkan
 {
 
-FVulkanPipelineLayout::FVulkanPipelineLayout(const Stoner::RHI::FRHIPipelineLayoutDesc& InDesc)
+FVulkanPipelineLayout::FVulkanPipelineLayout(
+    const Stoner::RHI::FRHIPipelineLayoutDesc& InDesc,
+    Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> InOwner)
     : Desc(InDesc)
+    , Owner(std::move(InOwner))
 {
 }
 
@@ -45,39 +50,16 @@ const Stoner::Core::TArray<Stoner::RHI::FRHIShaderConstantRange>& FVulkanPipelin
 
 bool FVulkanPipelineLayout::IsCompatibleWithShaderInterface(const Stoner::RHI::FRHIShaderInterfaceMetadata& Metadata) const noexcept
 {
-    if (LifecycleState != Stoner::RHI::ERHIResourceLifecycleState::Valid)
-    {
-        return false;
-    }
-    for (const Stoner::RHI::FRHIShaderInterfaceBinding& Required : Metadata.Bindings)
-    {
-        const Stoner::RHI::FRHIDescriptorBinding* Binding = FindBinding(Required.SetIndex, Required.BindingSlot);
-        if (!Binding || Binding->DescriptorType != Required.DescriptorType || Binding->ArrayCount < Required.ArrayCount ||
-            (Binding->Visibility & Required.Visibility) != Required.Visibility)
-        {
-            return false;
-        }
-    }
-    for (const Stoner::RHI::FRHIShaderConstantRange& Required : Metadata.ConstantRanges)
-    {
-        bool bMatched = false;
-        for (const Stoner::RHI::FRHIShaderConstantRange& Range : Desc.ConstantRanges)
-        {
-            if (Required.OffsetBytes >= Range.OffsetBytes &&
-                Required.SizeBytes <= Range.SizeBytes &&
-                Required.OffsetBytes - Range.OffsetBytes <= Range.SizeBytes - Required.SizeBytes &&
-                (Range.Visibility & Required.Visibility) == Required.Visibility)
-            {
-                bMatched = true;
-                break;
-            }
-        }
-        if (!bMatched)
-        {
-            return false;
-        }
-    }
-    return true;
+    return LifecycleState == Stoner::RHI::ERHIResourceLifecycleState::Valid &&
+        Owner && Owner->bActive &&
+        Stoner::RHI::IsRHIShaderInterfaceCompatibleWithPipelineLayout(Metadata, Desc);
+}
+
+bool FVulkanPipelineLayout::BelongsTo(
+    const Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState>& InOwner) const noexcept
+{
+    return LifecycleState == Stoner::RHI::ERHIResourceLifecycleState::Valid &&
+        Owner && Owner->bActive && InOwner && Owner == InOwner;
 }
 
 Stoner::RHI::ERHIResourceLifecycleState FVulkanPipelineLayout::GetLifecycleState() const noexcept
@@ -91,6 +73,7 @@ Stoner::RHI::ERHIResult FVulkanPipelineLayout::Invalidate()
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
+    Owner.reset();
     LifecycleState = Stoner::RHI::ERHIResourceLifecycleState::Invalidated;
     return Stoner::RHI::ERHIResult::Success;
 }

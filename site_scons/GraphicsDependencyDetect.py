@@ -3,6 +3,13 @@
 import os
 import shutil
 import glob
+import logging
+
+from SCons.Script import ARGUMENTS, Exit
+
+
+logger = logging.getLogger('StonerBuild.GraphicsDependencyDetect')
+_VALID_GRAPHICS_MODES = ('auto', 'disabled')
 
 
 def _first_existing(paths, predicate=os.path.exists):
@@ -22,8 +29,30 @@ def _sdk_roots():
     return [root for root in roots if root]
 
 
+def _graphics_mode():
+    mode = ARGUMENTS.get('graphics', 'auto').lower()
+    if mode not in _VALID_GRAPHICS_MODES:
+        logger.error("Unknown graphics dependency mode '%s'.", mode)
+        print(f"ERROR: graphics must be one of: {', '.join(_VALID_GRAPHICS_MODES)}.")
+        Exit(1)
+    return mode
+
+
 def DetectGraphicsDependencies(platform):
     """Return paths and availability flags without making dependencies mandatory."""
+    if _graphics_mode() == 'disabled':
+        return {
+            'vulkan_include_dir': None,
+            'vulkan_library': None,
+            'glfw_include_dir': None,
+            'glfw_library': None,
+            'moltenvk_library': None,
+            'glslang_validator': shutil.which('glslangValidator'),
+            'spirv_validator': shutil.which('spirv-val'),
+            'vulkan_available': False,
+            'glfw_available': False,
+        }
+
     roots = _sdk_roots()
     include_dirs = [os.path.join(root, name) for root in roots for name in ('include', 'Include')]
     library_dirs = [os.path.join(root, name) for root in roots for name in ('lib', 'Lib')]
@@ -53,7 +82,9 @@ def DetectGraphicsDependencies(platform):
         glfw_names = ('libglfw.3.dylib', 'libglfw.dylib', 'libglfw3.a')
         molten_names = ('libMoltenVK.dylib', 'libMoltenVK.a')
     else:
-        vulkan_names = ('libvulkan.so', 'libvulkan.so.1')
+        # The build links with -lvulkan, which requires the unversioned
+        # development symlink rather than only the runtime loader SONAME.
+        vulkan_names = ('libvulkan.so',)
         glfw_names = ('libglfw.so', 'libglfw.so.3', 'libglfw3.a')
         molten_names = ()
 

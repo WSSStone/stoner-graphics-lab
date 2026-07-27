@@ -2,18 +2,24 @@
 
 #include "Core/CoreMinimal.h"
 
+#include <atomic>
+#include <cerrno>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
-#include <atomic>
-#include <sstream>
 
 #if defined(_WIN32)
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
     #include <io.h>
+    #include <windows.h>
 #else
+    #include <sys/wait.h>
     #include <unistd.h>
 #endif
 
@@ -113,12 +119,18 @@ struct FOutputCapture
         Active = false;
 
         // Read captured content.
-        fseek(CaptureFile, 0, SEEK_END);
-        long Size = ftell(CaptureFile);
-        fseek(CaptureFile, 0, SEEK_SET);
-
-        std::string Content(static_cast<size_t>(Size), '\0');
-        fread(&Content[0], 1, static_cast<size_t>(Size), CaptureFile);
+        std::string Content;
+        if (fseek(CaptureFile, 0, SEEK_END) == 0)
+        {
+            const long Size = ftell(CaptureFile);
+            if (Size > 0 && fseek(CaptureFile, 0, SEEK_SET) == 0)
+            {
+                Content.resize(static_cast<size_t>(Size));
+                const size_t BytesRead =
+                    fread(Content.data(), 1, Content.size(), CaptureFile);
+                Content.resize(BytesRead);
+            }
+        }
         fclose(CaptureFile);
         CaptureFile = nullptr;
 
@@ -210,6 +222,196 @@ struct FOutputCapture
     }
 };
 
+struct FLoggingChildResult
+{
+    bool Started = false;
+    bool Completed = false;
+    bool TerminatedBeforeFallback = false;
+    int ExitCode = 0;
+    std::string Stderr;
+};
+
+std::string ReadCaptureFile(FILE* CaptureFile)
+{
+    std::string Content;
+    if (CaptureFile == nullptr || fseek(CaptureFile, 0, SEEK_END) != 0)
+    {
+        return Content;
+    }
+
+    const long Size = ftell(CaptureFile);
+    if (Size <= 0 || fseek(CaptureFile, 0, SEEK_SET) != 0)
+    {
+        return Content;
+    }
+
+    Content.resize(static_cast<size_t>(Size));
+    const size_t BytesRead = fread(Content.data(), 1, Content.size(), CaptureFile);
+    Content.resize(BytesRead);
+    return Content;
+}
+
+FLoggingChildResult RunLoggingChild(
+    const char* TestExecutablePath,
+    const char* ChildArgument)
+{
+    FLoggingChildResult Result;
+    if (TestExecutablePath == nullptr || TestExecutablePath[0] == '\0')
+    {
+        return Result;
+    }
+
+    FILE* CaptureFile = std::tmpfile();
+    if (CaptureFile == nullptr)
+    {
+        return Result;
+    }
+
+#if defined(_WIN32)
+    const intptr_t CaptureOsHandle = _get_osfhandle(_fileno(CaptureFile));
+    HANDLE ChildStderr = INVALID_HANDLE_VALUE;
+    if (CaptureOsHandle != -1)
+    {
+        DuplicateHandle(
+            GetCurrentProcess(),
+            reinterpret_cast<HANDLE>(CaptureOsHandle),
+            GetCurrentProcess(),
+            &ChildStderr,
+            0,
+            TRUE,
+            DUPLICATE_SAME_ACCESS);
+    }
+
+    SECURITY_ATTRIBUTES Security{};
+    Security.nLength = sizeof(Security);
+    Security.bInheritHandle = TRUE;
+    HANDLE ChildStdin = CreateFileA(
+        "NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+        &Security, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    HANDLE ChildStdout = CreateFileA(
+        "NUL", GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+        &Security, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+
+    if (ChildStderr != INVALID_HANDLE_VALUE &&
+        ChildStdin != INVALID_HANDLE_VALUE &&
+        ChildStdout != INVALID_HANDLE_VALUE)
+    {
+        STARTUPINFOA Startup{};
+        Startup.cb = sizeof(Startup);
+        Startup.dwFlags = STARTF_USESTDHANDLES;
+        Startup.hStdInput = ChildStdin;
+        Startup.hStdOutput = ChildStdout;
+        Startup.hStdError = ChildStderr;
+
+        PROCESS_INFORMATION Process{};
+        std::string CommandLine =
+            "\"" + std::string(TestExecutablePath) + "\" " +
+            ChildArgument;
+        std::vector<char> MutableCommandLine(CommandLine.begin(), CommandLine.end());
+        MutableCommandLine.push_back('\0');
+
+        const BOOL Created = CreateProcessA(
+            TestExecutablePath,
+            MutableCommandLine.data(),
+            nullptr,
+            nullptr,
+            TRUE,
+            0,
+            nullptr,
+            nullptr,
+            &Startup,
+            &Process);
+        Result.Started = Created != FALSE;
+
+        if (Created != FALSE)
+        {
+            const DWORD WaitResult = WaitForSingleObject(Process.hProcess, 30000);
+            DWORD ChildExitCode = STILL_ACTIVE;
+            if (WaitResult == WAIT_OBJECT_0 &&
+                GetExitCodeProcess(Process.hProcess, &ChildExitCode) != FALSE)
+            {
+                Result.Completed = true;
+                Result.ExitCode = static_cast<int>(ChildExitCode);
+                Result.TerminatedBeforeFallback =
+                    ChildExitCode != 0u && ChildExitCode != 42u;
+            }
+            else if (WaitResult == WAIT_TIMEOUT)
+            {
+                TerminateProcess(Process.hProcess, 124u);
+                WaitForSingleObject(Process.hProcess, 5000);
+            }
+
+            CloseHandle(Process.hThread);
+            CloseHandle(Process.hProcess);
+        }
+    }
+
+    if (ChildStderr != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(ChildStderr);
+    }
+    if (ChildStdin != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(ChildStdin);
+    }
+    if (ChildStdout != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(ChildStdout);
+    }
+#else
+    const pid_t ChildProcess = fork();
+    if (ChildProcess == 0)
+    {
+        if (dup2(fileno(CaptureFile), STDERR_FILENO) < 0)
+        {
+            _exit(126);
+        }
+
+        execl(
+            TestExecutablePath,
+            TestExecutablePath,
+            ChildArgument,
+            static_cast<char*>(nullptr));
+        _exit(127);
+    }
+
+    if (ChildProcess > 0)
+    {
+        Result.Started = true;
+        int WaitStatus = 0;
+        pid_t WaitResult = -1;
+        do
+        {
+            WaitResult = waitpid(ChildProcess, &WaitStatus, 0);
+        }
+        while (WaitResult < 0 && errno == EINTR);
+
+        if (WaitResult == ChildProcess)
+        {
+            Result.Completed = true;
+            if (WIFSIGNALED(WaitStatus))
+            {
+                Result.ExitCode = 128 + WTERMSIG(WaitStatus);
+                Result.TerminatedBeforeFallback = true;
+            }
+            else if (WIFEXITED(WaitStatus))
+            {
+                Result.ExitCode = WEXITSTATUS(WaitStatus);
+                Result.TerminatedBeforeFallback =
+                    Result.ExitCode != 0 &&
+                    Result.ExitCode != 42 &&
+                    Result.ExitCode != 126 &&
+                    Result.ExitCode != 127;
+            }
+        }
+    }
+#endif
+
+    Result.Stderr = ReadCaptureFile(CaptureFile);
+    fclose(CaptureFile);
+    return Result;
+}
+
 // ============================================================================
 // Assertion handler capture for testing.
 // ============================================================================
@@ -242,6 +444,20 @@ static void TestAssertionHandler(const char* File, int Line,
     GAssertionCapture.Line = Line;
     GAssertionCapture.Expression = Expression ? Expression : "";
     GAssertionCapture.Message = Message ? Message : "";
+}
+
+static std::atomic<int> GConcurrentAssertionCalls{0};
+
+static void ConcurrentAssertionHandlerA(
+    const char*, int, const char*, const char*)
+{
+    GConcurrentAssertionCalls.fetch_add(1, std::memory_order_relaxed);
+}
+
+static void ConcurrentAssertionHandlerB(
+    const char*, int, const char*, const char*)
+{
+    GConcurrentAssertionCalls.fetch_add(1, std::memory_order_relaxed);
 }
 
 // ============================================================================
@@ -423,38 +639,22 @@ void TestSGLogMacroEarlyOut(FLoggingAssertionTestResult& Result)
 // T013: Fatal log behavior test
 // ============================================================================
 
-void TestFatalLogBehavior(FLoggingAssertionTestResult& Result)
+void TestFatalLogBehavior(
+    FLoggingAssertionTestResult& Result,
+    const char* TestExecutablePath)
 {
-    // Install custom assertion handler to intercept Fatal without aborting.
-    // Note: Fatal log calls SG_DEBUG_BREAK() then std::abort().
-    // We can't easily test the actual abort, but we can test that
-    // the logging system formats Fatal messages correctly.
-    // For this test, we verify Fatal output format only (without actually calling Fatal).
-
-    FOutputCapture Capture;
-    Capture.Start();
-    SG_LOG(LogCore, Error, "Simulated fatal condition: %s", "out of memory");
-    std::string Output = Capture.Stop();
-
+    const FLoggingChildResult Child = RunLoggingChild(
+        TestExecutablePath,
+        GLoggingFatalChildArgument);
+    Record(Result, Child.Started && Child.Completed,
+           "Fatal log child process starts and completes");
     Record(Result,
-           Output.find("Error") != std::string::npos &&
-           Output.find("out of memory") != std::string::npos,
-           "Fatal-like log produces formatted output with message");
-
-    // Test that assertion handler is invokable via HandleAssertionFailure.
-    GAssertionCapture.Reset();
-    FLog::SetAssertionHandler(TestAssertionHandler);
-
-    FLog::HandleAssertionFailure("test.cpp", 42, "false", nullptr);
-
+           Child.Stderr.find("LogCore: Fatal: isolated fatal logging probe") !=
+               std::string::npos,
+           "Fatal log routes the labeled message to stderr");
     Record(Result,
-           GAssertionCapture.WasCalled,
-           "FLog::HandleAssertionFailure invokes custom assertion handler");
-    Record(Result,
-           GAssertionCapture.Line == 42,
-           "FLog::HandleAssertionFailure passes correct line number");
-
-    FLog::SetAssertionHandler(nullptr);
+           Child.TerminatedBeforeFallback,
+           "Fatal log terminates before returning from SG_LOG");
 }
 
 // ============================================================================
@@ -463,33 +663,38 @@ void TestFatalLogBehavior(FLoggingAssertionTestResult& Result)
 
 void TestSGCheck(FLoggingAssertionTestResult& Result)
 {
+    int ExpressionEvaluations = 0;
     GAssertionCapture.Reset();
     FLog::SetAssertionHandler(TestAssertionHandler);
 
     FOutputCapture Capture;
     Capture.Start();
 
-    SG_CHECK(false);
+    SG_CHECK((++ExpressionEvaluations, false));
 
     Capture.Stop();
 
-#ifdef _DEBUG
+#if !defined(NDEBUG) || defined(_DEBUG)
     Record(Result,
            GAssertionCapture.WasCalled,
-           "SG_CHECK(false) triggers assertion handler in Debug");
+           "SG_CHECK(false-expression) triggers assertion handler in Debug");
     Record(Result,
-           GAssertionCapture.Expression.find("false") != std::string::npos,
-           "SG_CHECK(false) reports expression text 'false'");
+           GAssertionCapture.Expression.find("ExpressionEvaluations") !=
+               std::string::npos,
+           "SG_CHECK reports the failed expression text");
     Record(Result,
            !GAssertionCapture.File.empty(),
-           "SG_CHECK(false) reports file path");
+           "SG_CHECK reports file path");
     Record(Result,
            GAssertionCapture.Line > 0,
-           "SG_CHECK(false) reports line number");
+           "SG_CHECK reports line number");
+    Record(Result,
+           ExpressionEvaluations == 1,
+           "SG_CHECK evaluates its expression once in Debug");
 #else
     Record(Result,
-           !GAssertionCapture.WasCalled,
-           "SG_CHECK(false) is stripped in Release build");
+           ExpressionEvaluations == 0 && !GAssertionCapture.WasCalled,
+           "SG_CHECK strips expression evaluation and dispatch in Release");
 #endif
 
     FLog::SetAssertionHandler(nullptr);
@@ -501,30 +706,41 @@ void TestSGCheck(FLoggingAssertionTestResult& Result)
 
 void TestSGCheckF(FLoggingAssertionTestResult& Result)
 {
+    int ExpressionEvaluations = 0;
+    int FormatEvaluations = 0;
     GAssertionCapture.Reset();
     FLog::SetAssertionHandler(TestAssertionHandler);
 
     FOutputCapture Capture;
     Capture.Start();
 
-    SG_CHECKF(false, "Index %d out of range", 42);
+    SG_CHECKF(
+        (++ExpressionEvaluations, false),
+        "Index %d out of range",
+        ++FormatEvaluations);
 
     Capture.Stop();
 
-#ifdef _DEBUG
+#if !defined(NDEBUG) || defined(_DEBUG)
     Record(Result,
            GAssertionCapture.WasCalled,
-           "SG_CHECKF(false, ...) triggers assertion handler in Debug");
+           "SG_CHECKF(false-expression, ...) triggers handler in Debug");
     Record(Result,
-           GAssertionCapture.Expression.find("false") != std::string::npos,
-           "SG_CHECKF(false, ...) reports expression text");
+           GAssertionCapture.Expression.find("ExpressionEvaluations") !=
+               std::string::npos,
+           "SG_CHECKF reports expression text");
     Record(Result,
-           GAssertionCapture.Message.find("42") != std::string::npos,
-           "SG_CHECKF(false, ...) reports formatted message with args");
+           GAssertionCapture.Message.find("1") != std::string::npos,
+           "SG_CHECKF reports formatted message with evaluated args");
+    Record(Result,
+           ExpressionEvaluations == 1 && FormatEvaluations == 1,
+           "SG_CHECKF evaluates expression and format args once in Debug");
 #else
     Record(Result,
-           !GAssertionCapture.WasCalled,
-           "SG_CHECKF(false, ...) is stripped in Release build");
+           ExpressionEvaluations == 0 &&
+               FormatEvaluations == 0 &&
+               !GAssertionCapture.WasCalled,
+           "SG_CHECKF strips expression, format args, and dispatch in Release");
 #endif
 
     FLog::SetAssertionHandler(nullptr);
@@ -564,13 +780,90 @@ void TestSGVerify(FLoggingAssertionTestResult& Result)
            Counter == 2,
            "SG_VERIFY always evaluates expression (false case)");
 
-#ifdef _DEBUG
+#if !defined(NDEBUG) || defined(_DEBUG)
     Record(Result,
            GAssertionCapture.WasCalled,
            "SG_VERIFY triggers assertion handler on false in Debug");
+#else
+    Record(Result,
+           !GAssertionCapture.WasCalled,
+           "SG_VERIFY false result does not dispatch in Release");
 #endif
 
     FLog::SetAssertionHandler(nullptr);
+}
+
+void TestDefaultAssertionHandler(
+    FLoggingAssertionTestResult& Result,
+    const char* TestExecutablePath)
+{
+    const FLoggingChildResult Child = RunLoggingChild(
+        TestExecutablePath,
+        GLoggingAssertionChildArgument);
+    Record(Result, Child.Started && Child.Completed,
+           "Default assertion child process starts and completes");
+
+#if !defined(NDEBUG) || defined(_DEBUG)
+    Record(Result,
+           Child.Stderr.find("Assertion failed: false") != std::string::npos,
+           "Default assertion handler logs failure before Debug break");
+    Record(Result,
+           Child.TerminatedBeforeFallback,
+           "Default assertion handler triggers Debug break before fallback");
+#else
+    Record(Result,
+           Child.Stderr.find("Assertion failed:") == std::string::npos,
+           "Release assertion child emits no assertion report");
+    Record(Result,
+           Child.ExitCode == 42 && !Child.TerminatedBeforeFallback,
+           "Release assertion child reaches fallback after SG_CHECK stripping");
+#endif
+}
+
+void TestAssertionHandlerThreadSafety(FLoggingAssertionTestResult& Result)
+{
+    constexpr int Iterations = 256;
+    std::atomic<bool> Start{false};
+    GConcurrentAssertionCalls.store(0, std::memory_order_relaxed);
+    FLog::SetAssertionHandler(ConcurrentAssertionHandlerA);
+
+    FOutputCapture Capture;
+    Capture.Start();
+
+    std::thread Setter([&Start]()
+    {
+        while (!Start.load(std::memory_order_acquire))
+        {
+        }
+        for (int Iteration = 0; Iteration < Iterations; ++Iteration)
+        {
+            FLog::SetAssertionHandler((Iteration & 1) == 0
+                ? ConcurrentAssertionHandlerA
+                : ConcurrentAssertionHandlerB);
+        }
+    });
+
+    std::thread Dispatcher([&Start]()
+    {
+        Start.store(true, std::memory_order_release);
+        for (int Iteration = 0; Iteration < Iterations; ++Iteration)
+        {
+            FLog::HandleAssertionFailure(
+                __FILE__,
+                __LINE__,
+                "concurrent assertion handler probe");
+        }
+    });
+
+    Setter.join();
+    Dispatcher.join();
+    Capture.Stop();
+    FLog::SetAssertionHandler(nullptr);
+
+    Record(Result,
+           GConcurrentAssertionCalls.load(std::memory_order_relaxed) ==
+               Iterations,
+           "Assertion handler replacement is safe during concurrent dispatch");
 }
 
 // ============================================================================
@@ -615,22 +908,33 @@ void TestPerCategoryFiltering(FLoggingAssertionTestResult& Result)
 
 void TestGlobalSeverityFiltering(FLoggingAssertionTestResult& Result)
 {
-    ELogSeverity OrigGlobal = FLog::GetGlobalMinSeverity();
+    const ELogSeverity OrigGlobal = FLog::GetGlobalMinSeverity();
+    const ELogSeverity OrigCategory = LogCore.GetMinSeverity();
 
+    LogCore.SetMinSeverity(ELogSeverity::Verbose);
     FLog::SetGlobalMinSeverity(ELogSeverity::Info);
 
     {
         FOutputCapture Capture;
         Capture.Start();
-        SG_LOG(LogCore, Verbose, "should be suppressed by global");
+        int SideEffectCounter = 0;
+        SG_LOG(
+            LogCore,
+            Verbose,
+            "should be suppressed by global %d",
+            ++SideEffectCounter);
         std::string Output = Capture.Stop();
 
         Record(Result,
                Output.find("should be suppressed by global") == std::string::npos,
                "Global severity filter suppresses Verbose when min is Info");
+        Record(Result,
+               SideEffectCounter == 0,
+               "Global severity early-out does not evaluate format arguments");
     }
 
     FLog::SetGlobalMinSeverity(OrigGlobal);
+    LogCore.SetMinSeverity(OrigCategory);
 }
 
 // ============================================================================
@@ -761,6 +1065,57 @@ void TestThreadSafety(FLoggingAssertionTestResult& Result)
            "Thread-safety: no interleaved/corrupted log lines");
 }
 
+void TestThresholdThreadSafety(FLoggingAssertionTestResult& Result)
+{
+    const ELogSeverity OrigCategory = LogCore.GetMinSeverity();
+    const ELogSeverity OrigGlobal = FLog::GetGlobalMinSeverity();
+    constexpr int Iterations = 10000;
+    std::atomic<bool> Start{false};
+    std::atomic<int> ValidReads{0};
+
+    std::thread Writer([&Start]()
+    {
+        while (!Start.load(std::memory_order_acquire))
+        {
+        }
+
+        for (int Iteration = 0; Iteration < Iterations; ++Iteration)
+        {
+            const ELogSeverity Severity = (Iteration & 1) == 0
+                ? ELogSeverity::Verbose
+                : ELogSeverity::Error;
+            LogCore.SetMinSeverity(Severity);
+            FLog::SetGlobalMinSeverity(Severity);
+        }
+    });
+
+    std::thread Reader([&Start, &ValidReads]()
+    {
+        Start.store(true, std::memory_order_release);
+        for (int Iteration = 0; Iteration < Iterations; ++Iteration)
+        {
+            const auto Category = static_cast<int>(LogCore.GetMinSeverity());
+            const auto Global = static_cast<int>(FLog::GetGlobalMinSeverity());
+            if (Category >= static_cast<int>(ELogSeverity::Verbose) &&
+                Category <= static_cast<int>(ELogSeverity::Fatal) &&
+                Global >= static_cast<int>(ELogSeverity::Verbose) &&
+                Global <= static_cast<int>(ELogSeverity::Fatal))
+            {
+                ValidReads.fetch_add(1, std::memory_order_relaxed);
+            }
+        }
+    });
+
+    Writer.join();
+    Reader.join();
+    LogCore.SetMinSeverity(OrigCategory);
+    FLog::SetGlobalMinSeverity(OrigGlobal);
+
+    Record(Result,
+           ValidReads.load(std::memory_order_relaxed) == Iterations,
+           "Runtime logging thresholds remain valid under concurrent access");
+}
+
 // ============================================================================
 // T042: Zero-configuration startup verification
 // ============================================================================
@@ -781,7 +1136,8 @@ void TestZeroConfigStartup(FLoggingAssertionTestResult& Result)
 
 } // namespace
 
-FLoggingAssertionTestResult RunLoggingAssertionTests()
+FLoggingAssertionTestResult RunLoggingAssertionTests(
+    const char* TestExecutablePath)
 {
     FLoggingAssertionTestResult Result;
 
@@ -795,12 +1151,13 @@ FLoggingAssertionTestResult RunLoggingAssertionTests()
     TestFLogConsoleSinkFormat(Result);         // T010
     TestFLogMessageSeverityRouting(Result);    // T011
     TestSGLogMacroEarlyOut(Result);            // T012
-    TestFatalLogBehavior(Result);              // T013
+    TestFatalLogBehavior(Result, TestExecutablePath); // T013
 
     // Phase 4: User Story 2
     TestSGCheck(Result);                       // T024
     TestSGCheckF(Result);                      // T025
     TestSGVerify(Result);                      // T026
+    TestDefaultAssertionHandler(Result, TestExecutablePath); // CR001-B02-F014
 
     // Phase 5: User Story 3
     TestPerCategoryFiltering(Result);          // T031
@@ -813,6 +1170,8 @@ FLoggingAssertionTestResult RunLoggingAssertionTests()
 
     // Phase 7: Polish
     TestThreadSafety(Result);                  // T041
+    TestThresholdThreadSafety(Result);         // CR001-B02-F011
+    TestAssertionHandlerThreadSafety(Result);  // CR001-B02-F013
     TestZeroConfigStartup(Result);             // T042
 
     std::cout << "[INFO] Logging & Assertion tests passed=" << Result.Passed

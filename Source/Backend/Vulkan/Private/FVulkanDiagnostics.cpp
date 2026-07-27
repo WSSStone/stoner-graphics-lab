@@ -17,7 +17,9 @@ void MarkValidationUnavailable(FVulkanDiagnostics& Diagnostics, const char* Reas
 
 void MarkSelectedAdapter(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept
 {
-    Diagnostics.Availability = EVulkanBackendAvailability::Available;
+    Diagnostics.Availability = Diagnostics.bUsedRuntimeFallback
+        ? EVulkanBackendAvailability::DeterministicFallback
+        : EVulkanBackendAvailability::Available;
     Diagnostics.SelectedAdapterReason = Reason ? Reason : "";
 }
 

@@ -4,6 +4,7 @@
 #include "Core/FLogConsoleSink.h"
 #include "Core/SGPlatformBreak.h"
 
+#include <atomic>
 #include <chrono>
 #include <cstdarg>
 #include <cstdio>
@@ -14,8 +15,7 @@ namespace Stoner::Core
 {
 
 // Internal state — file-scoped statics for zero-configuration startup.
-static ELogSeverity GGlobalMinSeverity = ELogSeverity::Verbose;
-static FAssertionHandler GAssertionHandler = nullptr;
+static std::atomic<FAssertionHandler> GAssertionHandler{nullptr};
 static std::mutex GLogMutex;
 
 // Default assertion handler: triggers platform debug break.
@@ -30,7 +30,7 @@ void FLog::LogMessage(FLogCategory& Category, ELogSeverity Severity,
                       const char* Format, ...)
 {
     // Global severity filter (in addition to macro-level per-category check).
-    if (static_cast<int>(Severity) < static_cast<int>(GGlobalMinSeverity))
+    if (static_cast<int>(Severity) < static_cast<int>(GetGlobalMinSeverity()))
     {
         return;
     }
@@ -91,19 +91,9 @@ void FLog::LogMessage(FLogCategory& Category, ELogSeverity Severity,
     (void)Line;
 }
 
-void FLog::SetGlobalMinSeverity(ELogSeverity Severity)
-{
-    GGlobalMinSeverity = Severity;
-}
-
-ELogSeverity FLog::GetGlobalMinSeverity()
-{
-    return GGlobalMinSeverity;
-}
-
 void FLog::SetAssertionHandler(FAssertionHandler Handler)
 {
-    GAssertionHandler = Handler;
+    GAssertionHandler.store(Handler, std::memory_order_relaxed);
 }
 
 void FLog::HandleAssertionFailure(const char* File, int Line,
@@ -186,7 +176,8 @@ void FLog::HandleAssertionFailure(const char* File, int Line,
     }
 
     // Invoke the assertion handler (custom or default).
-    FAssertionHandler Handler = GAssertionHandler;
+    const FAssertionHandler Handler =
+        GAssertionHandler.load(std::memory_order_relaxed);
     if (Handler != nullptr)
     {
         Handler(File, Line, Expression, MessageBuffer[0] != '\0' ? MessageBuffer : nullptr);

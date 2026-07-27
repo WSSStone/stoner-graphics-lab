@@ -31,8 +31,12 @@ bool FVulkanFramebuffer::IsSupportedDesc(const Stoner::RHI::FRHIFramebufferDesc&
         }
 
         const Stoner::RHI::FRHITextureDesc& TextureDesc = Attachment.Texture->GetDesc();
+        const Stoner::Core::uint32 MipWidth =
+            Stoner::RHI::GetRHIMipExtent(TextureDesc.Width, Attachment.MipLevel);
+        const Stoner::Core::uint32 MipHeight =
+            Stoner::RHI::GetRHIMipExtent(TextureDesc.Height, Attachment.MipLevel);
         if (Attachment.MipLevel >= TextureDesc.MipLevels || Attachment.ArrayLayer >= TextureDesc.ArrayLayers ||
-            Desc.Width > TextureDesc.Width || Desc.Height > TextureDesc.Height ||
+            Desc.Width != MipWidth || Desc.Height != MipHeight ||
             TextureDesc.SampleCount != RenderAttachment->SampleCount)
         {
             return false;
@@ -42,8 +46,12 @@ bool FVulkanFramebuffer::IsSupportedDesc(const Stoner::RHI::FRHIFramebufferDesc&
         {
             return false;
         }
-        if (RenderAttachment->Role != Stoner::RHI::ERHIAttachmentRole::Color &&
+        if (RenderAttachment->Role == Stoner::RHI::ERHIAttachmentRole::DepthStencil &&
             !Stoner::RHI::HasRHIFlag(TextureDesc.Usage, Stoner::RHI::ERHITextureUsage::DepthStencilAttachment))
+        {
+            return false;
+        }
+        if (!Stoner::RHI::IsValidRHIAttachmentRole(RenderAttachment->Role))
         {
             return false;
         }

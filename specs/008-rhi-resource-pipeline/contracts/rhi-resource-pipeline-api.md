@@ -64,6 +64,8 @@ Required behavior:
 
 - Describes dimension type, width, height, depth, mip levels, array layers, sample count, format, and usage intent.
 - Supports 1D, 2D, 3D, cube, and array texture descriptions.
+- Exposes one exact byte width for every uncompressed RHI format; `Unknown`
+  reports zero so allocation and upload validators share one format contract.
 - Exposes original description and lifecycle state.
 - Rejects zero dimensions required by the texture type.
 - Rejects non-square cube face descriptions.

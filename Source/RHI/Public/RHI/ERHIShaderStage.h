@@ -63,4 +63,12 @@ constexpr ERHIShaderStageFlags& operator|=(ERHIShaderStageFlags& Left, ERHIShade
     return (Value & Flag) != ERHIShaderStageFlags::None;
 }
 
+[[nodiscard]] constexpr bool IsValidRHIShaderStageFlags(ERHIShaderStageFlags Value) noexcept
+{
+    using Underlying = std::underlying_type_t<ERHIShaderStageFlags>;
+    const Underlying RawValue = static_cast<Underlying>(Value);
+    const Underlying ValidMask = static_cast<Underlying>(ERHIShaderStageFlags::All);
+    return RawValue != 0 && (RawValue & ~ValidMask) == 0;
+}
+
 } // namespace Stoner::RHI

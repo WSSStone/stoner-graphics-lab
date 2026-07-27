@@ -44,3 +44,7 @@ Thumbs.db
 # Local agent and code graph state
 .agents/
 .codegraph/
+
+# Code review execution state is branch-local and archived as a final report.
+CodeReview/Runs/*
+!CodeReview/Runs/README.md

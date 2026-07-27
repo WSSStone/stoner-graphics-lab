@@ -102,8 +102,11 @@ Must support:
 - Construction from translation, rotation, and scale
 - Point transformation
 - Direction/vector transformation without translation
-- Composition
-- Deterministic inverse behavior for valid and non-invertible transforms
+- Try-based composition that returns failure rather than an approximation when
+  the exact affine result contains shear
+- Deterministic Try-based inverse and relative-transform behavior for valid,
+  non-invertible, invalid-numeric, and non-representable transforms
+- Identity output on failed composition, inverse, or relative conversion
 
 ### `FColor`
 

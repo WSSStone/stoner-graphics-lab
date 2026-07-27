@@ -26,6 +26,13 @@ struct FVulkanAllocationSnapshot
 class FVulkanMemoryAllocator
 {
 public:
+    FVulkanMemoryAllocator() noexcept;
+    FVulkanMemoryAllocator(const FVulkanMemoryAllocator&) = delete;
+    FVulkanMemoryAllocator& operator=(
+        const FVulkanMemoryAllocator&) = delete;
+    FVulkanMemoryAllocator(FVulkanMemoryAllocator&&) = delete;
+    FVulkanMemoryAllocator& operator=(FVulkanMemoryAllocator&&) = delete;
+
     void Reset() noexcept;
     void SetRuntimeAvailable(bool bInRuntimeAvailable) noexcept;
     void ConfigureBudgetLimit(Stoner::Core::uint64 MaxBytes) noexcept;
@@ -39,9 +46,17 @@ public:
     [[nodiscard]] FVulkanAllocationSnapshot GetSnapshot() const noexcept;
     [[nodiscard]] static Stoner::Core::uint64 EstimateBufferBytes(const Stoner::RHI::FRHIBufferDesc& Desc) noexcept;
     [[nodiscard]] static Stoner::Core::uint64 EstimateTextureBytes(const Stoner::RHI::FRHITextureDesc& Desc) noexcept;
+    [[nodiscard]] static bool TryEstimateTextureBytes(
+        const Stoner::RHI::FRHITextureDesc& Desc,
+        Stoner::Core::uint64& OutByteSize) noexcept;
 
 private:
     [[nodiscard]] FVulkanResourceAllocation Allocate(EVulkanResourceKind Kind, Stoner::Core::uint64 ByteSize, bool bDeviceActive) noexcept;
+    [[nodiscard]] FVulkanResourceAllocation Fail(
+        EVulkanResourceKind Kind,
+        EVulkanAllocationFailure Failure,
+        Stoner::Core::uint64 ByteSize,
+        const char* Reason) noexcept;
 
     bool bRuntimeAvailable = false;
     Stoner::Core::uint64 AllocatedBytes = 0;
@@ -50,6 +65,9 @@ private:
     EVulkanAllocationFailure LastFailure = EVulkanAllocationFailure::None;
     EVulkanAllocationMode LastMode = EVulkanAllocationMode::Failed;
     const char* LastReason = "";
+    Stoner::Core::uint64 OwnerIdentity = 0;
+    Stoner::Core::uint64 OwnerEpoch = 1;
+    Stoner::Core::uint64 NextAllocationId = 1;
 };
 
 } // namespace Stoner::Backend::Vulkan

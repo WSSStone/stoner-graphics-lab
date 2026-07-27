@@ -52,23 +52,45 @@ class DeferredValidationTests(unittest.TestCase):
             )
             self.assertFalse(MODULE.validate_readback_report(report))
 
+    def write_native_report(self, report, extra_probes_per_convention=12, omit_local=None):
+        omit_local = set(omit_local or ())
+        probes = []
+        for convention in MODULE.REQUIRED_CONVENTIONS:
+            probes.extend(
+                f"probe convention={convention} name=p{index} semantic=Surface passed=true"
+                for index in range(extra_probes_per_convention)
+            )
+            probes.extend(
+                f"probe convention={convention} name={name} "
+                "semantic=LocalLightCase passed=true"
+                for name in MODULE.REQUIRED_LOCAL_LIGHT_PROBES
+                if name not in omit_local
+            )
+        report.write_text(
+            "runtime=RealRuntime\nreference_path=NativeDeferredReadback\n"
+            "software_device=true\nnative_submission=true\n"
+            "final_live_objects=0\n"
+            + "\n".join(probes)
+            + "\nresult=PASS\n",
+            encoding="utf-8",
+        )
+
+    def test_twelve_probe_native_report_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "report.txt"
+            self.write_native_report(report, extra_probes_per_convention=6)
+            self.assertFalse(MODULE.validate_readback_report(report))
+
+    def test_missing_local_light_probe_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "report.txt"
+            self.write_native_report(report, omit_local={"spot-near-plane"})
+            self.assertFalse(MODULE.validate_readback_report(report))
+
     def test_complete_native_report_is_accepted(self):
         with tempfile.TemporaryDirectory() as directory:
             report = Path(directory) / "report.txt"
-            probes = []
-            for convention in MODULE.REQUIRED_CONVENTIONS:
-                probes.extend(
-                    f"probe convention={convention} name=p{index} passed=true"
-                    for index in range(12)
-                )
-            report.write_text(
-                "runtime=RealRuntime\nreference_path=NativeDeferredReadback\n"
-                "software_device=true\nnative_submission=true\n"
-                "final_live_objects=0\n"
-                + "\n".join(probes)
-                + "\nresult=PASS\n",
-                encoding="utf-8",
-            )
+            self.write_native_report(report)
             self.assertTrue(MODULE.validate_readback_report(report))
 
     def test_executed_comparison_report_is_required(self):

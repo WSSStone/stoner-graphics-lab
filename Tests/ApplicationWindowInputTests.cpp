@@ -120,6 +120,21 @@ void TestWindowValidationAndRuntime(FApplicationWindowInputTestResult& Result)
     Record(Result, RealWindow.CreateRealWindow(ValidDesc(), EWindowRuntimeAvailability::DependencyUnavailable) == EApplicationResult::RuntimeUnavailable &&
             RealWindow.GetDiagnostics().CountByCode("APP-WINDOW-RUNTIME") == 1,
         "Application real-window path reports unavailable dependency safely");
+
+    auto Driver = std::make_unique<FScriptedWindowDriver>();
+    FWindow ReusedRealWindow;
+    FWindowTestAccess::InstallDriver(ReusedRealWindow, std::move(Driver));
+    Record(Result, ReusedRealWindow.CreateRealWindow(ValidDesc()) == EApplicationResult::Success &&
+            ReusedRealWindow.IsActive() &&
+            ReusedRealWindow.IsRealWindow(),
+        "Application real-window reused fixture starts from an active native state");
+    Desc = ValidDesc();
+    Desc.ClientWidth = 0;
+    Record(Result, ReusedRealWindow.CreateRealWindow(Desc) == EApplicationResult::ValidationFailed &&
+            ReusedRealWindow.GetLifecycleState() == EWindowLifecycleState::Uncreated &&
+            !ReusedRealWindow.IsRealWindow() &&
+            !ReusedRealWindow.HasDrawableArea(),
+        "Application real-window validation failure clears stale active runtime state");
 }
 
 void TestPrivateDriverAndRealWindowEvents(FApplicationWindowInputTestResult& Result)
@@ -212,6 +227,22 @@ void TestFocusLossAndUnknownInput(FApplicationWindowInputTestResult& Result)
             Input.GetDiagnostics().CountByCode("APP-INPUT-FOCUS-CLEAR") == 1,
         "Application input clears held keyboard and mouse state on focus loss");
 
+    Input.PollFrame(EWindowLifecycleState::Active, true);
+    Record(Result, Input.GetState().IsFocused(),
+        "Application input restores focused snapshot state on focused frame");
+
+    Input.Clear();
+    Input.QueueEvent(FInputEvent::PointerMove(32.0f, 48.0f, 1));
+    Input.PollFrame(EWindowLifecycleState::Active, true);
+    Record(Result, Input.GetState().HasPointerPosition(),
+        "Application input records pointer position before reset coverage");
+    Input.PollFrame(EWindowLifecycleState::Destroyed, true);
+    Record(Result, !Input.GetState().HasPointerPosition() &&
+            Input.GetState().GetPointerX() == 0.0f &&
+            Input.GetState().GetPointerY() == 0.0f &&
+            !Input.GetState().IsFocused(),
+        "Application input invalid lifecycle clears stale pointer and focus snapshot state");
+
     Input.Clear();
     Input.QueueEvent(FInputEvent::KeyDown(EKey::Unknown, 1));
     Input.QueueEvent(FInputEvent::MouseDown(EMouseButton::Unknown, 2));
@@ -223,6 +254,30 @@ void TestFocusLossAndUnknownInput(FApplicationWindowInputTestResult& Result)
             Input.GetDiagnostics().CountByCode("APP-INPUT-UNKNOWN-MOUSE") == 1 &&
             Input.GetDiagnostics().CountByCode("APP-INPUT-UNKNOWN-EVENT") == 1,
         "Application input reports unknown identifiers without corrupting known state");
+}
+
+void TestPlatformInputMapping(FApplicationWindowInputTestResult& Result)
+{
+    constexpr int GlfwKeyHome = 268;
+    constexpr int GlfwKeyPageDown = 267;
+    constexpr int GlfwKeyLeftShift = 340;
+    constexpr int GlfwKeyRightControl = 345;
+    constexpr int GlfwKeyF12 = 301;
+    constexpr int GlfwMouseButton4 = 3;
+    constexpr int GlfwMouseButton5 = 4;
+
+    const bool bPassed = IsGlfwInputMappingAvailable()
+        ? TranslateGlfwKeyCode(GlfwKeyHome) == EKey::Home &&
+            TranslateGlfwKeyCode(GlfwKeyPageDown) == EKey::PageDown &&
+            TranslateGlfwKeyCode(GlfwKeyLeftShift) == EKey::LeftShift &&
+            TranslateGlfwKeyCode(GlfwKeyRightControl) == EKey::RightControl &&
+            TranslateGlfwKeyCode(GlfwKeyF12) == EKey::F12 &&
+            TranslateGlfwMouseButtonCode(GlfwMouseButton4) == EMouseButton::X1 &&
+            TranslateGlfwMouseButtonCode(GlfwMouseButton5) == EMouseButton::X2
+        : TranslateGlfwKeyCode(GlfwKeyHome) == EKey::Unknown &&
+            TranslateGlfwMouseButtonCode(GlfwMouseButton4) == EMouseButton::Unknown;
+    Record(Result, bPassed,
+        "Application GLFW input mapping covers declared navigation modifier function and extra mouse vocabulary when available");
 }
 
 void TestWindowEventsAndLoop(FApplicationWindowInputTestResult& Result)
@@ -264,6 +319,19 @@ void TestWindowEventsAndLoop(FApplicationWindowInputTestResult& Result)
             !State.bShouldContinue &&
             State.Diagnostics.CountByCode("APP-LOOP-CLOSE-EXIT") == 1,
         "Application loop exits cleanly at close decision point");
+
+    FWindow DriverWindow;
+    auto Driver = std::make_unique<FScriptedWindowDriver>();
+    FScriptedWindowDriver* Script = Driver.get();
+    FWindowTestAccess::InstallDriver(DriverWindow, std::move(Driver));
+    (void)DriverWindow.CreateRealWindow(ValidDesc());
+    Script->QueueInput(FInputEvent::KeyDown(EKey::Space, 201));
+    Config.MaxFrames = 1;
+    FInputManager DriverInput;
+    State = Loop.Run(DriverWindow, DriverInput, Config);
+    Record(Result, State.LastInputState.WasKeyPressed(EKey::Space) &&
+            State.LastInputState.IsKeyHeld(EKey::Space),
+        "Application loop ingests native driver input events before deriving frame state");
 }
 
 void TestFailureModesAndDebugDump(FApplicationWindowInputTestResult& Result)
@@ -322,6 +390,7 @@ FApplicationWindowInputTestResult RunApplicationWindowInputTests()
     TestPrivateDriverAndRealWindowEvents(Result);
     TestInputTransitions(Result);
     TestFocusLossAndUnknownInput(Result);
+    TestPlatformInputMapping(Result);
     TestWindowEventsAndLoop(Result);
     TestFailureModesAndDebugDump(Result);
     return Result;

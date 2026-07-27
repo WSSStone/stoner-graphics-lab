@@ -252,6 +252,52 @@ void TestExecutionFailuresAndDebugDump(FRendererRenderGraphTestResult& Result)
     Record(Result, MissingImport.Graph.Compile() == ERenderGraphResult::Success, "Render graph missing import fixture compiles");
     Record(Result, MissingImport.Graph.Execute({}) == ERenderGraphResult::ResourceUnavailable, "Render graph rejects missing imported resources");
 
+    FRenderGraph CulledImport{"CulledImport"};
+    FRenderGraphBuilder CulledImportBuilder = CulledImport.CreateBuilder();
+    const FRenderGraphResourceHandle CulledImported = CulledImportBuilder.ImportResource(FRenderGraphResourceDesc::ImportedBuffer("DebugImport", 64, true));
+    const FRenderGraphResourceHandle CulledImportOutput = CulledImportBuilder.CreateResource(FRenderGraphResourceDesc::Buffer("Output", 64));
+    int CulledImportInvoked = 0;
+    FRenderGraphPassDesc CulledImportProducer = Pass("Producer", ERenderGraphPassType::Graphics);
+    CulledImportProducer.Accesses.push_back({CulledImportOutput, ERenderGraphAccessType::Write, ERenderGraphResourceState::Write});
+    CulledImportProducer.Callback = [&CulledImportInvoked](FRenderGraphExecutionContext&) {
+        ++CulledImportInvoked;
+        return ERenderGraphResult::Success;
+    };
+    (void)CulledImportBuilder.AddPass(CulledImportProducer);
+    FRenderGraphPassDesc CulledImportDebug = Pass("UnusedDebugImport", ERenderGraphPassType::Graphics);
+    CulledImportDebug.Accesses.push_back({CulledImported, ERenderGraphAccessType::Read, ERenderGraphResourceState::Read});
+    (void)CulledImportBuilder.AddPass(CulledImportDebug);
+    (void)CulledImportBuilder.MarkOutput(CulledImportOutput);
+    Record(Result, CulledImport.Compile() == ERenderGraphResult::Success, "Render graph culled-import fixture compiles");
+    Record(Result,
+        CulledImport.GetCompiledGraph().CulledPasses.size() == 1 &&
+        CulledImport.Execute({}) == ERenderGraphResult::Success &&
+        CulledImportInvoked == 1 &&
+        !CulledImport.GetResources()[CulledImported.Index].bResolvedDuringExecution,
+        "Render graph ignores missing imports used only by culled passes");
+
+    FRenderGraph CulledTransient{"CulledTransient"};
+    FRenderGraphBuilder CulledTransientBuilder = CulledTransient.CreateBuilder();
+    const FRenderGraphResourceHandle CulledScratch = CulledTransientBuilder.CreateResource(FRenderGraphResourceDesc::Buffer("CulledScratch", 64));
+    int SideEffectInvoked = 0;
+    FRenderGraphPassDesc RequiredSideEffect = Pass("RequiredSideEffect", ERenderGraphPassType::SideEffect);
+    RequiredSideEffect.bPreserveForSideEffects = true;
+    RequiredSideEffect.Callback = [&SideEffectInvoked](FRenderGraphExecutionContext&) {
+        ++SideEffectInvoked;
+        return ERenderGraphResult::Success;
+    };
+    (void)CulledTransientBuilder.AddPass(RequiredSideEffect);
+    FRenderGraphPassDesc CulledScratchWriter = Pass("UnusedScratchWriter", ERenderGraphPassType::Graphics);
+    CulledScratchWriter.Accesses.push_back({CulledScratch, ERenderGraphAccessType::Write, ERenderGraphResourceState::Write});
+    (void)CulledTransientBuilder.AddPass(CulledScratchWriter);
+    Record(Result, CulledTransient.Compile() == ERenderGraphResult::Success, "Render graph culled-transient fixture compiles");
+    Record(Result,
+        CulledTransient.GetCompiledGraph().CulledPasses.size() == 1 &&
+        CulledTransient.Execute({{}, nullptr, true}) == ERenderGraphResult::Success &&
+        SideEffectInvoked == 1 &&
+        !CulledTransient.GetResources()[CulledScratch.Index].bResolvedDuringExecution,
+        "Render graph ignores transient resolution failures used only by culled passes");
+
     FRepresentativeGraph TransientFailure = BuildRepresentativeGraph();
     Record(Result, TransientFailure.Graph.Compile() == ERenderGraphResult::Success, "Render graph transient failure fixture compiles");
     Record(Result, TransientFailure.Graph.Execute({{{TransientFailure.Imported, 10}}, nullptr, true}) == ERenderGraphResult::ResourceUnavailable, "Render graph reports transient resolution failure");

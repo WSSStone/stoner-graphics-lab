@@ -1,4 +1,5 @@
 #include "RendererForwardPipelineTests.h"
+#include "ShaderTestFixtures.h"
 
 #include "Renderer/RendererMinimal.h"
 #include "Renderer/FDeferredRenderer.h"
@@ -148,6 +149,23 @@ FForwardFramePlan Prepare(const FForwardFrameInputs& Inputs, FForwardRendererCon
     return Plan;
 }
 
+bool HasGraphAccess(const FForwardFramePlan& Plan,
+    const char* PassName,
+    const char* ResourceName,
+    EForwardGraphAccess Access)
+{
+    for (const FForwardAccessDeclaration& Declaration : Plan.GraphDeclaration.GetAccesses())
+    {
+        if (Declaration.PassName == PassName &&
+            Declaration.ResourceName == ResourceName &&
+            Declaration.Access == Access)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void TestOpaqueFramePreparation(FRendererForwardPipelineTestResult& Result)
 {
     Record(Result, GetDefaultRendererStrategy() == ERendererStrategy::Forward,
@@ -163,6 +181,10 @@ void TestOpaqueFramePreparation(FRendererForwardPipelineTestResult& Result)
     Record(Result, !Plan.GraphDeclaration.GetOutputs().empty() &&
             Plan.GraphDeclaration.GetOutputs()[0].ColorTargetName == "SceneColor",
         "Forward frame declares final color output");
+    Record(Result,
+        HasGraphAccess(Plan, "ForwardOpaqueLighting", "Textures/OpaqueA", EForwardGraphAccess::Read) &&
+        HasGraphAccess(Plan, "ForwardTransparent", "Textures/GlassFar", EForwardGraphAccess::Read),
+        "Forward graph declaration includes material resource read accesses for opaque and transparent passes");
     Record(Result, Plan.AcceptedOpaqueDraws[0].GetObjectId() == 1 &&
             Plan.AcceptedOpaqueDraws[1].GetObjectId() == 3,
         "Opaque draw ordering is stable by material mesh and object identity");
@@ -230,6 +252,13 @@ void TestLightingSelectionAndFallback(FRendererForwardPipelineTestResult& Result
             Plan.Diagnostics.CountByCode("FWD-AMBIENT-FALLBACK") == 1,
         "Forward renderer supports zero point light limit with ambient-only fallback");
 
+    Config.bEnableAmbientFallback = false;
+    Plan = Prepare(Inputs, Config);
+    Record(Result, Plan.LightSet.AcceptedPointLights.empty() &&
+            Plan.AmbientFallback.bActive &&
+            Plan.Diagnostics.CountByCode("FWD-AMBIENT-FALLBACK") == 1,
+        "Forward renderer preserves required ambient fallback diagnostics when fallback config is disabled");
+
     Inputs = RepresentativeInputs();
     Inputs.DirectionalLights.push_back(Directional(2, "SecondSun"));
     Plan = Prepare(Inputs);
@@ -267,6 +296,24 @@ void TestSkyTransparentAndDeterminism(FRendererForwardPipelineTestResult& Result
     Record(Result, Plan.AcceptedTransparentDraws[0].GetMaterialId() == 11 &&
             Plan.AcceptedTransparentDraws[1].GetMaterialId() == 12,
         "Forward renderer breaks equal-depth transparent ties by material id");
+
+    Inputs.DrawCandidates.clear();
+    Inputs.DrawCandidates.push_back(Draw(20, 41, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 7.0f}, false, true));
+    Inputs.DrawCandidates.push_back(Draw(20, 40, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 7.0f}, false, true));
+    Plan = Prepare(Inputs);
+    const bool bForwardOrderUsesMeshTie =
+        Plan.AcceptedTransparentDraws.size() == 2 &&
+        Plan.AcceptedTransparentDraws[0].GetMeshId() == 40 &&
+        Plan.AcceptedTransparentDraws[1].GetMeshId() == 41;
+    Inputs.DrawCandidates.clear();
+    Inputs.DrawCandidates.push_back(Draw(20, 40, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 7.0f}, false, true));
+    Inputs.DrawCandidates.push_back(Draw(20, 41, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 7.0f}, false, true));
+    const FForwardFramePlan ReversedTiePlan = Prepare(Inputs);
+    Record(Result, bForwardOrderUsesMeshTie &&
+            ReversedTiePlan.AcceptedTransparentDraws.size() == 2 &&
+            ReversedTiePlan.AcceptedTransparentDraws[0].GetMeshId() == 40 &&
+            ReversedTiePlan.AcceptedTransparentDraws[1].GetMeshId() == 41,
+        "Forward renderer breaks final transparent ties without relying on caller order");
 
     Inputs.DrawCandidates.clear();
     FForwardMaterialBinding OpaqueOnly = Binding(50, "OpaqueOnly", EMaterialBlendMode::Opaque);
@@ -314,6 +361,7 @@ void TestForwardFrameExecution(FRendererForwardPipelineTestResult& Result)
 
     FVulkanDevice Device;
     FVulkanInstanceDesc InstanceDesc;
+    InstanceDesc.RuntimeMode = EVulkanInstanceRuntimeMode::DeterministicFallback;
     InstanceDesc.bRequestValidation = false;
     Record(Result, Device.Initialize(InstanceDesc) == ERHIResult::Success,
         "Forward executor deterministic device initializes");
@@ -336,10 +384,15 @@ void TestForwardFrameExecution(FRendererForwardPipelineTestResult& Result)
     VertexShaderDesc.Stage = ERHIShaderStage::Vertex;
     VertexShaderDesc.EntryPoint = "main";
     VertexShaderDesc.PayloadIdentity = "triangle-vertex";
-    VertexShaderDesc.Bytecode.Words = {0x07230203u, 0x00010000u, 0u, 1u};
+    VertexShaderDesc.Bytecode.Words =
+        Stoner::Tests::MakeMinimalShaderBytecode(
+            ERHIShaderStage::Vertex, "main");
     FRHIShaderModuleDesc FragmentShaderDesc = VertexShaderDesc;
     FragmentShaderDesc.Stage = ERHIShaderStage::Fragment;
     FragmentShaderDesc.PayloadIdentity = "triangle-fragment";
+    FragmentShaderDesc.Bytecode.Words =
+        Stoner::Tests::MakeMinimalShaderBytecode(
+            ERHIShaderStage::Fragment, "main");
     auto VertexShader = Device.CreateShaderModule(VertexShaderDesc);
     auto FragmentShader = Device.CreateShaderModule(FragmentShaderDesc);
 

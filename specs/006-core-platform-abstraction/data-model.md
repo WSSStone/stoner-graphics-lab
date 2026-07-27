@@ -126,7 +126,9 @@ Represents an optional runtime module loaded by explicit file path.
 - Bare module names and implicit platform search paths are not supported.
 - Missing modules, missing symbols, and invalid handles are recoverable failures.
 - Releasing an invalid handle is a safe no-op.
-- A valid loaded handle can be released exactly once by the caller without leaking resources.
+- A valid loaded handle has single ownership, cannot be copied, can transfer
+  ownership through move operations, and is released exactly once either
+  explicitly or when its owner is destroyed.
 
 **State Transitions**:
 
@@ -134,6 +136,7 @@ Represents an optional runtime module loaded by explicit file path.
 Invalid -> LoadAttempted -> Loaded -> SymbolResolved -> Released
 Invalid -> LoadAttempted -> LoadFailed
 Loaded -> SymbolLookupFailed -> Loaded
+Loaded -> OwnerDestroyed -> Released
 Invalid -> ReleaseNoOp
 ```
 

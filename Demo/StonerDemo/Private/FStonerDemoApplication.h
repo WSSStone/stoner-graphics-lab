@@ -56,6 +56,7 @@ public:
     void SetFailureInjection(EDemoStage Stage) noexcept { bHasFailureInjection = true; FailureInjectionStage = Stage; }
     [[nodiscard]] EDemoExitCode NotifyDrawableExtent(Stoner::Core::uint32 Width, Stoner::Core::uint32 Height, double NowMilliseconds);
     [[nodiscard]] EDemoExitCode NotifyPresentSuccess(double NowMilliseconds);
+    [[nodiscard]] bool IsPresentationInitialized() const noexcept { return PresentationState.bInitialized; }
     [[nodiscard]] Stoner::Core::uint64 GetPresentationGeneration() const noexcept { return PresentationState.Generation; }
     [[nodiscard]] const Stoner::Core::TArray<double>& GetRecoveryDurationsMilliseconds() const noexcept { return RecoveryDurationsMilliseconds; }
 
@@ -65,6 +66,10 @@ private:
     [[nodiscard]] EDemoExitCode RunNativeHeadless();
     [[nodiscard]] EDemoExitCode RunVisible();
     [[nodiscard]] bool ShouldInject(EDemoStage Stage, EDemoExitCode Code, const char* Subject);
+    [[nodiscard]] EDemoExitCode FailInitialize(EDemoStage Stage,
+        EDemoExitCode Code,
+        const char* Subject,
+        const char* Reason);
 
     FDemoConfiguration Configuration;
     EDemoLifecycleState LifecycleState = EDemoLifecycleState::Uninitialized;

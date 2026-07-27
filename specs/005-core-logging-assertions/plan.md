@@ -31,7 +31,7 @@ Implement the Core layer's diagnostic infrastructure: a severity-based logging s
 - [x] **Multi-API Support**: Feature is graphics-API independent and therefore usable by all future RHI and Backend implementations.
 - [x] **Advanced Graphics Readiness**: Macro-level early-out ensures logging can be placed in performance-sensitive rendering paths. Assertion macros compile out in Release for zero overhead in hot loops.
 - [x] **Naming Conventions**: Public deliverables use UE5-style names: `ELogSeverity` (enum), `FLogCategory` / `FLog` / `FLogConsoleSink` (structs), `SG_LOG` / `SG_CHECK` / `SG_VERIFY` / `SG_CHECKF` (macros).
-- [x] **Cross-Platform Compatibility**: Platform-specific debug break intrinsics (`__debugbreak()` on MSVC, `__builtin_debugtrap()` on GCC/Clang) are isolated behind `SG_DEBUG_BREAK()` macro. Console output uses `stdout`/`stderr`. Build and tests target Windows, macOS, and Linux.
+- [x] **Cross-Platform Compatibility**: Platform-specific resumable debug breaks (`__debugbreak()` on MSVC, `__builtin_debugtrap()` on Clang, and `raise(SIGTRAP)` on GCC/POSIX) are isolated behind `SG_DEBUG_BREAK()` macro. Console output uses `stdout`/`stderr`. Build and tests target Windows, macOS, and Linux.
 
 **GATE RESULT**: PASS — no constitution violations.
 
@@ -85,7 +85,7 @@ Research decisions are recorded in [research.md](./research.md):
 - Use a macro-level severity check for early-out filtering (single integer comparison, no function call for filtered messages).
 - Use `snprintf` for printf-style formatting with a fixed stack buffer (1024 bytes) to avoid heap allocation in the common case.
 - Use `std::mutex` for thread-safe log output as an interim solution (no custom threading library yet).
-- Use platform-conditional `SG_DEBUG_BREAK()` macro wrapping `__debugbreak()` / `__builtin_debugtrap()`.
+- Use platform-conditional `SG_DEBUG_BREAK()` macro wrapping `__debugbreak()`, `__builtin_debugtrap()`, or `raise(SIGTRAP)`.
 - Use static self-registration pattern for log categories (constructor-based auto-registration into a global registry).
 - Use `_DEBUG` / `NDEBUG` defines (already set by BuildConfig.py) to control assertion compilation.
 - Console sink writes to `stdout` for Verbose/Info and `stderr` for Warning/Error/Fatal.

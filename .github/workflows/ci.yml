@@ -2,7 +2,13 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - "CodeReview/Runs/**"
   push:
+    branches:
+      - master
+    paths-ignore:
+      - "CodeReview/Runs/**"
 
 jobs:
   headless-build-test:
@@ -49,7 +55,7 @@ jobs:
           sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers vulkan-tools glslang-tools
 
       - name: Build
-        run: scons
+        run: scons config=debug strict=1
 
       - name: Test Feature 019 validation orchestration
         run: python .github/scripts/test_run_deferred_validation.py
@@ -120,3 +126,54 @@ jobs:
             Validation/019/Linux/deferred-readback-report.txt
             Validation/019/Linux/renderer-comparison-report.txt
           if-no-files-found: warn
+
+  release-build:
+    name: ${{ matrix.name }} Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+          - name: macOS
+            os: macos-latest
+          - name: Windows
+            os: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable MSVC command prompt
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install SCons
+        run: python -m pip install scons==4.10.1
+
+      - name: Build Release with strict warnings
+        run: scons config=release strict=1
+
+  linux-sanitizers:
+    name: Linux ASan + UBSan
+    runs-on: ubuntu-latest
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      STONER_SKIP_OPTIONAL_DEFERRED_NATIVE: "1"
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install SCons
+        run: python -m pip install scons==4.10.1
+
+      - name: Build with sanitizers and strict warnings
+        run: >-
+          scons config=debug strict=1
+          sanitizers=address,undefined
+
+      - name: Run sanitized test suite
+        run: Build/Linux/Debug/Tests/StonerTest

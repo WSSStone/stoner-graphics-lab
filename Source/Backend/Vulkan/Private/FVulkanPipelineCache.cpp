@@ -6,7 +6,10 @@
 #include "RHI/IRHIPipelineLayout.h"
 #include "RHI/IRHIShaderModule.h"
 
+#include <algorithm>
 #include <sstream>
+#include <tuple>
+#include <vector>
 
 namespace Stoner::Backend::Vulkan
 {
@@ -14,14 +17,102 @@ namespace Stoner::Backend::Vulkan
 namespace
 {
 
-void AppendShaderKey(std::ostringstream& Stream, const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIShaderModule>& Shader)
+void AppendText(std::ostringstream& Stream, const Stoner::Core::FString& Value)
+{
+    const std::string_view View = Value.View();
+    Stream << View.size() << ':';
+    Stream.write(View.data(), static_cast<std::streamsize>(View.size()));
+}
+
+template <typename TBinding>
+[[nodiscard]] auto BindingOrderKey(const TBinding& Binding) noexcept
+{
+    return std::tuple{
+        Binding.SetIndex,
+        Binding.BindingSlot,
+        static_cast<int>(Binding.DescriptorType),
+        Binding.ArrayCount,
+        static_cast<unsigned int>(Binding.Visibility)};
+}
+
+[[nodiscard]] auto RangeOrderKey(
+    const Stoner::RHI::FRHIShaderConstantRange& Range) noexcept
+{
+    return std::tuple{
+        Range.OffsetBytes,
+        Range.SizeBytes,
+        static_cast<unsigned int>(Range.Visibility)};
+}
+
+template <typename TBinding>
+void AppendBindings(
+    std::ostringstream& Stream,
+    const Stoner::Core::TArray<TBinding>& Bindings)
+{
+    std::vector<TBinding> Sorted(Bindings.begin(), Bindings.end());
+    std::sort(
+        Sorted.begin(), Sorted.end(),
+        [](const TBinding& Left, const TBinding& Right)
+        {
+            return BindingOrderKey(Left) < BindingOrderKey(Right);
+        });
+    Stream << Sorted.size() << ':';
+    for (const TBinding& Binding : Sorted)
+    {
+        Stream << Binding.SetIndex << ','
+               << Binding.BindingSlot << ','
+               << static_cast<int>(Binding.DescriptorType) << ','
+               << Binding.ArrayCount << ','
+               << static_cast<unsigned int>(Binding.Visibility) << ';';
+    }
+}
+
+void AppendRanges(
+    std::ostringstream& Stream,
+    const Stoner::Core::TArray<Stoner::RHI::FRHIShaderConstantRange>& Ranges)
+{
+    auto Sorted = Ranges;
+    std::sort(
+        Sorted.begin(), Sorted.end(),
+        [](const Stoner::RHI::FRHIShaderConstantRange& Left,
+           const Stoner::RHI::FRHIShaderConstantRange& Right)
+        {
+            return RangeOrderKey(Left) < RangeOrderKey(Right);
+        });
+    Stream << Sorted.size() << ':';
+    for (const Stoner::RHI::FRHIShaderConstantRange& Range : Sorted)
+    {
+        Stream << Range.OffsetBytes << ','
+               << Range.SizeBytes << ','
+               << static_cast<unsigned int>(Range.Visibility) << ';';
+    }
+}
+
+void AppendShaderKey(
+    std::ostringstream& Stream,
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIShaderModule>& Shader)
 {
     if (!Shader)
     {
-        Stream << "null";
+        Stream << "shader:null;";
         return;
     }
-    Stream << static_cast<int>(Shader->GetStage()) << ':' << Shader->GetDesc().PayloadIdentity.CStr() << ':' << Shader->GetDesc().EntryPoint.CStr();
+    const Stoner::RHI::FRHIShaderModuleDesc& Desc = Shader->GetDesc();
+    Stream << "shader:" << static_cast<int>(Shader->GetStage()) << ','
+           << static_cast<int>(Desc.ValidationMode) << ','
+           << static_cast<int>(Desc.RuntimeMode) << ',';
+    AppendText(Stream, Desc.PayloadIdentity);
+    AppendText(Stream, Desc.EntryPoint);
+    AppendText(Stream, Desc.Bytecode.Format);
+    Stream << Desc.Bytecode.Words.size() << ':';
+    for (Stoner::Core::uint32 Word : Desc.Bytecode.Words)
+    {
+        Stream << Word << ',';
+    }
+    Stream << "interface:";
+    AppendBindings(Stream, Desc.InterfaceMetadata.Bindings);
+    AppendRanges(Stream, Desc.InterfaceMetadata.ConstantRanges);
+    Stream << ';';
 }
 
 void AppendLayoutKey(std::ostringstream& Stream, const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPipelineLayout>& Layout)
@@ -32,14 +123,34 @@ void AppendLayoutKey(std::ostringstream& Stream, const Stoner::Core::TSharedPtr<
         return;
     }
     Stream << "|layout:";
-    for (const Stoner::RHI::FRHIDescriptorBinding& Binding : Layout->GetDesc().Bindings)
-    {
-        Stream << Binding.SetIndex << ',' << Binding.BindingSlot << ',' << static_cast<int>(Binding.DescriptorType) << ',' << Binding.ArrayCount << ',' << static_cast<unsigned int>(Binding.Visibility) << ';';
-    }
+    AppendBindings(Stream, Layout->GetDesc().Bindings);
     Stream << "|ranges:";
-    for (const Stoner::RHI::FRHIShaderConstantRange& Range : Layout->GetDesc().ConstantRanges)
+    AppendRanges(Stream, Layout->GetDesc().ConstantRanges);
+}
+
+template <typename TPipelineDesc>
+void AppendShaderList(
+    std::ostringstream& Stream,
+    const TPipelineDesc& Desc)
+{
+    auto Shaders = Desc.ShaderModules;
+    std::sort(
+        Shaders.begin(), Shaders.end(),
+        [](const auto& Left, const auto& Right)
+        {
+            const int LeftStage = Left
+                ? static_cast<int>(Left->GetStage())
+                : -1;
+            const int RightStage = Right
+                ? static_cast<int>(Right->GetStage())
+                : -1;
+            return LeftStage < RightStage;
+        });
+    Stream << "mode:" << static_cast<int>(Desc.RuntimeMode)
+           << "|shaders:" << Shaders.size() << ':';
+    for (const auto& Shader : Shaders)
     {
-        Stream << Range.OffsetBytes << ',' << Range.SizeBytes << ',' << static_cast<unsigned int>(Range.Visibility) << ';';
+        AppendShaderKey(Stream, Shader);
     }
 }
 
@@ -49,11 +160,7 @@ Stoner::Core::FString FVulkanPipelineCache::BuildGraphicsKey(const Stoner::RHI::
 {
     std::ostringstream Stream;
     Stream << "graphics|";
-    for (const auto& Shader : Desc.ShaderModules)
-    {
-        AppendShaderKey(Stream, Shader);
-        Stream << '|';
-    }
+    AppendShaderList(Stream, Desc);
     AppendLayoutKey(Stream, Desc.PipelineLayout);
     Stream << "|stride:" << Desc.VertexInput.Stride << "|attrs:";
     for (const Stoner::RHI::FRHIVertexAttributeDesc& Attribute : Desc.VertexInput.Attributes)
@@ -80,11 +187,7 @@ Stoner::Core::FString FVulkanPipelineCache::BuildComputeKey(const Stoner::RHI::F
 {
     std::ostringstream Stream;
     Stream << "compute|";
-    for (const auto& Shader : Desc.ShaderModules)
-    {
-        AppendShaderKey(Stream, Shader);
-        Stream << '|';
-    }
+    AppendShaderList(Stream, Desc);
     AppendLayoutKey(Stream, Desc.PipelineLayout);
     return Stoner::Core::FString(Stream.str());
 }
@@ -96,7 +199,7 @@ Stoner::Core::TSharedPtr<FVulkanGraphicsPipeline> FVulkanPipelineCache::FindGrap
         if (Entry.first == Key)
         {
             auto Pipeline = Entry.second.lock();
-            if (Pipeline && Pipeline->GetLifecycleState() == Stoner::RHI::ERHIResourceLifecycleState::Valid)
+            if (Pipeline && Pipeline->HasValidDependencies())
             {
                 return Pipeline;
             }
@@ -112,7 +215,7 @@ Stoner::Core::TSharedPtr<FVulkanComputePipeline> FVulkanPipelineCache::FindCompu
         if (Entry.first == Key)
         {
             auto Pipeline = Entry.second.lock();
-            if (Pipeline && Pipeline->GetLifecycleState() == Stoner::RHI::ERHIResourceLifecycleState::Valid)
+            if (Pipeline && Pipeline->HasValidDependencies())
             {
                 return Pipeline;
             }

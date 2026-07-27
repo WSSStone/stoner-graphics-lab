@@ -8,6 +8,10 @@
 namespace Stoner::Backend::Vulkan
 {
 
+class FVulkanDevice;
+class FVulkanComputePipeline;
+class FVulkanGraphicsPipeline;
+class FVulkanShaderModule;
 struct FVulkanNativeDeviceAccess;
 class FVulkanNativeOffscreenSession;
 
@@ -28,6 +32,14 @@ enum class EVulkanDeferredFailurePoint
     Map,
     Decode,
     Probe
+};
+
+enum class EVulkanVisibleFrameFailurePoint
+{
+    None,
+    AcquireSuboptimal,
+    Record,
+    SubmitAfterFenceReset
 };
 
 struct FVulkanDeferredProbe
@@ -77,6 +89,17 @@ struct FVulkanNativeFrameBindings
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHICommandBuffer> CommandBuffer;
 };
 
+struct FVulkanVisibleFrameFailureReport
+{
+    EVulkanVisibleFrameFailurePoint InjectedFailure =
+        EVulkanVisibleFrameFailurePoint::None;
+    Stoner::RHI::ERHIResult FirstResult = Stoner::RHI::ERHIResult::Success;
+    Stoner::RHI::ERHIResult NextAcquireResult = Stoner::RHI::ERHIResult::Success;
+    bool bAcquiredStateReleased = false;
+    bool bFenceReadyForReuse = false;
+    bool bPassed = false;
+};
+
 class FVulkanNativeContext
 {
 public:
@@ -96,6 +119,9 @@ public:
         EVulkanDeferredFailurePoint FailurePoint = EVulkanDeferredFailurePoint::None);
     [[nodiscard]] static FVulkanDeferredValidationReport
     RunDeferredFailureLifecycleValidation(EVulkanDeferredFailurePoint FailurePoint) noexcept;
+    [[nodiscard]] static FVulkanVisibleFrameFailureReport
+    RunVisibleFrameFailureLifecycleValidation(
+        EVulkanVisibleFrameFailurePoint FailurePoint) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult PrepareVisibleTriangle(
         const Stoner::Core::FString& VertexShaderPath,
         const Stoner::Core::FString& FragmentShaderPath,
@@ -112,13 +138,32 @@ public:
     [[nodiscard]] bool IsAvailable() const noexcept;
 
 private:
+    friend class FVulkanDevice;
+    friend class FVulkanComputePipeline;
+    friend class FVulkanGraphicsPipeline;
+    friend class FVulkanShaderModule;
     friend class FVulkanNativeOffscreenSession;
     [[nodiscard]] bool GetNativeDeviceAccess(
         FVulkanNativeDeviceAccess& OutAccess) const noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult CreateOwnedShaderModule(
+        const Stoner::Core::TArray<Stoner::Core::uint32>& Words,
+        Stoner::Core::uint64& OutToken) noexcept;
+    void DestroyOwnedShaderModule(Stoner::Core::uint64 Token) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult CreateOwnedGraphicsPipeline(
+        const Stoner::RHI::FRHIGraphicsPipelineDesc& Desc,
+        Stoner::Core::uint64 VertexShaderToken,
+        Stoner::Core::uint64 FragmentShaderToken,
+        Stoner::Core::uint64& OutToken) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult CreateOwnedComputePipeline(
+        const Stoner::RHI::FRHIComputePipelineDesc& Desc,
+        Stoner::Core::uint64 ComputeShaderToken,
+        Stoner::Core::uint64& OutToken) noexcept;
+    void DestroyOwnedPipeline(Stoner::Core::uint64 Token) noexcept;
     struct FImpl;
     std::unique_ptr<FImpl> Impl;
 };
 
 [[nodiscard]] const char* ToString(EVulkanDeferredFailurePoint FailurePoint) noexcept;
+[[nodiscard]] const char* ToString(EVulkanVisibleFrameFailurePoint FailurePoint) noexcept;
 
 } // namespace Stoner::Backend::Vulkan

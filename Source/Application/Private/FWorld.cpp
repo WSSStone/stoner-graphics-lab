@@ -25,13 +25,6 @@ std::atomic<Stoner::Core::uint32> GNextSceneWorldId{1};
     return std::find(Entities.begin(), Entities.end(), Entity) != Entities.end();
 }
 
-[[nodiscard]] bool IsZeroScale(const Stoner::Core::FTransform& Transform)
-{
-    return Stoner::Core::FMath::IsNearlyZero(Transform.Scale.X) ||
-        Stoner::Core::FMath::IsNearlyZero(Transform.Scale.Y) ||
-        Stoner::Core::FMath::IsNearlyZero(Transform.Scale.Z);
-}
-
 void AppendTransform(std::ostringstream& Stream, const Stoner::Core::FTransform& Transform)
 {
     Stream << std::fixed << std::setprecision(3)
@@ -254,6 +247,11 @@ FTransformComponent* FWorld::GetMutableTransform(FEntity Entity)
             AddDiagnostic(ESceneDiagnosticSeverity::Warning, ESceneDiagnosticCategory::Component, ESceneResult::DuplicateComponent, "SCENE-COMPONENT-DUPLICATE", Entity, ComponentLabel " component already exists; update or replace explicitly"); \
             return ESceneResult::DuplicateComponent; \
         } \
+        if (!Component.IsValid()) \
+        { \
+            AddDiagnostic(ESceneDiagnosticSeverity::Error, ESceneDiagnosticCategory::Component, ESceneResult::InvalidComponentData, "SCENE-COMPONENT-INVALID-DATA", Entity, ComponentLabel " component data is invalid"); \
+            return ESceneResult::InvalidComponentData; \
+        } \
         Slot->Member = Component; \
         Slot->Flag = true; \
         return ESceneResult::Success; \
@@ -275,6 +273,11 @@ FTransformComponent* FWorld::GetMutableTransform(FEntity Entity)
         { \
             AddDiagnostic(ESceneDiagnosticSeverity::Warning, ESceneDiagnosticCategory::Component, ESceneResult::MissingComponent, "SCENE-COMPONENT-MISSING", Entity, ComponentLabel " component is missing"); \
             return ESceneResult::MissingComponent; \
+        } \
+        if (!Component.IsValid()) \
+        { \
+            AddDiagnostic(ESceneDiagnosticSeverity::Error, ESceneDiagnosticCategory::Component, ESceneResult::InvalidComponentData, "SCENE-COMPONENT-INVALID-DATA", Entity, ComponentLabel " component data is invalid"); \
+            return ESceneResult::InvalidComponentData; \
         } \
         Slot->Member = Component; \
         return ESceneResult::Success; \
@@ -341,6 +344,40 @@ ESceneResult FWorld::SetParent(FEntity Child, FEntity Parent, EReparentTransform
 
     Stoner::Core::FTransform OriginalWorld = Stoner::Core::FTransform::Identity();
     const bool bHasOriginalWorld = ComputeWorldTransform(Child, OriginalWorld);
+    Stoner::Core::FTransform ParentWorld = Stoner::Core::FTransform::Identity();
+    const bool bParentHierarchyHasTransform = HasTransformInHierarchy(Parent);
+    const bool bHasParentWorld = ComputeHierarchyWorldTransform(Parent, ParentWorld);
+    Stoner::Core::FTransform ProspectiveLocal = ChildSlot->bHasTransform
+        ? ChildSlot->Transform.LocalTransform
+        : Stoner::Core::FTransform::Identity();
+
+    if (ChildSlot->bHasTransform)
+    {
+        bool bTransformRepresentable = !bParentHierarchyHasTransform || bHasParentWorld;
+        if (Preservation == EReparentTransformPreservation::PreserveWorld)
+        {
+            bTransformRepresentable = bTransformRepresentable &&
+                bHasOriginalWorld &&
+                (!bHasParentWorld || OriginalWorld.TryRelativeTo(ParentWorld, ProspectiveLocal));
+        }
+        else if (bTransformRepresentable && bHasParentWorld)
+        {
+            Stoner::Core::FTransform ProspectiveWorld;
+            bTransformRepresentable =
+                ParentWorld.TryCompose(ChildSlot->Transform.LocalTransform, ProspectiveWorld);
+        }
+
+        if (!bTransformRepresentable)
+        {
+            AddDiagnostic(ESceneDiagnosticSeverity::Error,
+                ESceneDiagnosticCategory::Hierarchy,
+                ESceneResult::InvalidHierarchyOperation,
+                "SCENE-HIERARCHY-TRANSFORM-UNREPRESENTABLE",
+                Child,
+                "Hierarchy change would require shear that editable TRS cannot represent");
+            return ESceneResult::InvalidHierarchyOperation;
+        }
+    }
 
     if (ChildSlot->Parent.IsSet())
     {
@@ -354,19 +391,9 @@ ESceneResult FWorld::SetParent(FEntity Child, FEntity Parent, EReparentTransform
     ChildSlot->Parent = Parent;
     Slots[Parent.SlotIndex].Children.push_back(Child);
 
-    if (Preservation == EReparentTransformPreservation::PreserveWorld && ChildSlot->bHasTransform && bHasOriginalWorld)
+    if (Preservation == EReparentTransformPreservation::PreserveWorld && ChildSlot->bHasTransform)
     {
-        Stoner::Core::FTransform ParentWorld = Stoner::Core::FTransform::Identity();
-        (void)ComputeWorldTransform(Parent, ParentWorld);
-        Stoner::Core::FTransform ParentInverse;
-        if (!IsZeroScale(ParentWorld) && ParentWorld.TryInverse(ParentInverse))
-        {
-            ChildSlot->Transform.LocalTransform = ParentInverse * OriginalWorld;
-        }
-        else
-        {
-            ChildSlot->Transform.LocalTransform = OriginalWorld;
-        }
+        ChildSlot->Transform.LocalTransform = ProspectiveLocal;
         ChildSlot->Transform.bWorldTransformValid = false;
     }
     return ESceneResult::Success;
@@ -393,6 +420,19 @@ ESceneResult FWorld::Unparent(FEntity Child, EReparentTransformPreservation Pres
 
     Stoner::Core::FTransform OriginalWorld = Stoner::Core::FTransform::Identity();
     const bool bHasOriginalWorld = ComputeWorldTransform(Child, OriginalWorld);
+    if (Preservation == EReparentTransformPreservation::PreserveWorld &&
+        ChildSlot->bHasTransform &&
+        !bHasOriginalWorld)
+    {
+        AddDiagnostic(ESceneDiagnosticSeverity::Error,
+            ESceneDiagnosticCategory::Hierarchy,
+            ESceneResult::InvalidHierarchyOperation,
+            "SCENE-HIERARCHY-TRANSFORM-UNREPRESENTABLE",
+            Child,
+            "Unparent would require an unavailable exact world transform");
+        return ESceneResult::InvalidHierarchyOperation;
+    }
+
     RemoveChildReference(ChildSlot->Parent, Child);
     ChildSlot->Parent = FEntity::Invalid();
     InsertRootSorted(Child);
@@ -535,6 +575,25 @@ bool FWorld::WouldCreateCycle(FEntity Child, FEntity Parent) const
     return false;
 }
 
+bool FWorld::HasTransformInHierarchy(FEntity Entity) const
+{
+    FEntity Current = Entity;
+    while (Current.IsSet())
+    {
+        const FEntitySlot* Slot = GetSlot(Current);
+        if (Slot == nullptr)
+        {
+            return false;
+        }
+        if (Slot->bHasTransform)
+        {
+            return true;
+        }
+        Current = Slot->Parent;
+    }
+    return false;
+}
+
 bool FWorld::ComputeWorldTransform(FEntity Entity, Stoner::Core::FTransform& OutWorldTransform) const
 {
     const FEntitySlot* Slot = GetSlot(Entity);
@@ -547,15 +606,70 @@ bool FWorld::ComputeWorldTransform(FEntity Entity, Stoner::Core::FTransform& Out
     if (Slot->Parent.IsSet())
     {
         Stoner::Core::FTransform ParentWorld = Stoner::Core::FTransform::Identity();
-        if (ComputeWorldTransform(Slot->Parent, ParentWorld))
+        const bool bParentHierarchyHasTransform = HasTransformInHierarchy(Slot->Parent);
+        if (!ComputeHierarchyWorldTransform(Slot->Parent, ParentWorld))
         {
-            OutWorldTransform = ParentWorld * Slot->Transform.LocalTransform;
+            if (bParentHierarchyHasTransform)
+            {
+                OutWorldTransform = Stoner::Core::FTransform::Identity();
+                return false;
+            }
+            OutWorldTransform = Slot->Transform.LocalTransform;
             return true;
         }
+        return ParentWorld.TryCompose(Slot->Transform.LocalTransform, OutWorldTransform);
     }
 
     OutWorldTransform = Slot->Transform.LocalTransform;
     return true;
+}
+
+bool FWorld::ComputeHierarchyWorldTransform(FEntity Entity, Stoner::Core::FTransform& OutWorldTransform) const
+{
+    const FEntitySlot* Slot = GetSlot(Entity);
+    if (Slot == nullptr)
+    {
+        OutWorldTransform = Stoner::Core::FTransform::Identity();
+        return false;
+    }
+
+    const bool bHasTransform = Slot->bHasTransform;
+    if (!Slot->Parent.IsSet())
+    {
+        if (!bHasTransform)
+        {
+            OutWorldTransform = Stoner::Core::FTransform::Identity();
+            return false;
+        }
+        OutWorldTransform = Slot->Transform.LocalTransform;
+        return true;
+    }
+
+    Stoner::Core::FTransform ParentWorld = Stoner::Core::FTransform::Identity();
+    const bool bParentHierarchyHasTransform = HasTransformInHierarchy(Slot->Parent);
+    const bool bHasParentWorld = ComputeHierarchyWorldTransform(Slot->Parent, ParentWorld);
+    if (!bHasParentWorld)
+    {
+        if (bParentHierarchyHasTransform)
+        {
+            OutWorldTransform = Stoner::Core::FTransform::Identity();
+            return false;
+        }
+        if (!bHasTransform)
+        {
+            OutWorldTransform = Stoner::Core::FTransform::Identity();
+            return false;
+        }
+        OutWorldTransform = Slot->Transform.LocalTransform;
+        return true;
+    }
+
+    if (!bHasTransform)
+    {
+        OutWorldTransform = ParentWorld;
+        return true;
+    }
+    return ParentWorld.TryCompose(Slot->Transform.LocalTransform, OutWorldTransform);
 }
 
 void FWorld::InsertRootSorted(FEntity Entity)

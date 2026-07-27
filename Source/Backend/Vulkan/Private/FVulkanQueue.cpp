@@ -1,13 +1,24 @@
 #include "VulkanRHI/FVulkanQueue.h"
 
 #include "VulkanRHI/FVulkanCommandBuffer.h"
+#include "VulkanRHI/FVulkanDeviceOwnerState.h"
 #include "VulkanRHI/FVulkanDiagnostics.h"
+#include "VulkanRHI/FVulkanFence.h"
+#include "VulkanRHI/FVulkanSemaphore.h"
+
+#include <new>
+#include <stdexcept>
 
 namespace Stoner::Backend::Vulkan
 {
 
-FVulkanQueue::FVulkanQueue(Stoner::RHI::ERHIQueueType InQueueType, FVulkanDiagnostics* InDiagnostics, FVulkanCompletionInjectionConfig InInjection) noexcept
+FVulkanQueue::FVulkanQueue(
+    Stoner::RHI::ERHIQueueType InQueueType,
+    Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> InOwner,
+    FVulkanDiagnostics* InDiagnostics,
+    FVulkanCompletionInjectionConfig InInjection) noexcept
     : QueueType(InQueueType)
+    , Owner(std::move(InOwner))
     , Diagnostics(InDiagnostics)
     , CompletionInjection(InInjection)
 {
@@ -25,7 +36,7 @@ Stoner::Core::uint32 FVulkanQueue::GetSubmittedCommandBufferCount() const noexce
 
 bool FVulkanQueue::IsValid() const noexcept
 {
-    return bValid;
+    return bValid && Owner && Owner->bActive;
 }
 
 Stoner::RHI::ERHIResult FVulkanQueue::Submit(
@@ -34,7 +45,7 @@ Stoner::RHI::ERHIResult FVulkanQueue::Submit(
     const Stoner::Core::TArray<Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>>& SignalSemaphores,
     const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIFence>& Fence)
 {
-    if (!bValid)
+    if (!IsValid())
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
@@ -55,49 +66,116 @@ Stoner::RHI::ERHIResult FVulkanQueue::Submit(
         return Stoner::RHI::ERHIResult::Unsupported;
     }
 
-    for (const auto& Semaphore : WaitSemaphores)
-    {
-        if (!Semaphore)
-        {
-            return Stoner::RHI::ERHIResult::InvalidState;
-        }
-        const Stoner::RHI::ERHIResult ConsumeResult = Semaphore->Consume();
-        if (ConsumeResult != Stoner::RHI::ERHIResult::Success)
-        {
-            return ConsumeResult;
-        }
-    }
-
     auto VulkanCommandBuffer = std::dynamic_pointer_cast<FVulkanCommandBuffer>(CommandBuffer);
-    if (!VulkanCommandBuffer || VulkanCommandBuffer->MarkSubmitted() != Stoner::RHI::ERHIResult::Success)
+    if (!VulkanCommandBuffer || !VulkanCommandBuffer->BelongsTo(Owner))
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
 
-    auto Submission = Stoner::Core::MakeShared<FVulkanCommandSubmission>(VulkanCommandBuffer, EVulkanSubmissionMode::DeterministicFallback, CompletionInjection);
-    Submissions.push_back(Submission);
-    ++SubmittedCommandBufferCount;
-
-    for (const auto& Semaphore : SignalSemaphores)
+    for (std::size_t Index = 0; Index < WaitSemaphores.size(); ++Index)
     {
-        if (!Semaphore)
+        const auto VulkanSemaphore =
+            std::dynamic_pointer_cast<FVulkanSemaphore>(WaitSemaphores[Index]);
+        if (!VulkanSemaphore || !VulkanSemaphore->BelongsTo(Owner))
         {
             return Stoner::RHI::ERHIResult::InvalidState;
         }
-        const Stoner::RHI::ERHIResult SignalResult = Semaphore->Signal();
-        if (SignalResult != Stoner::RHI::ERHIResult::Success)
+        if (!VulkanSemaphore->CanConsumeForSubmission())
         {
-            return SignalResult;
+            return Stoner::RHI::ERHIResult::NotReady;
+        }
+        for (std::size_t Previous = 0; Previous < Index; ++Previous)
+        {
+            if (WaitSemaphores[Previous].get() == WaitSemaphores[Index].get())
+            {
+                return Stoner::RHI::ERHIResult::InvalidState;
+            }
         }
     }
+
+    for (std::size_t Index = 0; Index < SignalSemaphores.size(); ++Index)
+    {
+        const auto VulkanSemaphore =
+            std::dynamic_pointer_cast<FVulkanSemaphore>(SignalSemaphores[Index]);
+        if (!VulkanSemaphore || !VulkanSemaphore->BelongsTo(Owner) ||
+            !VulkanSemaphore->CanSignalForSubmission())
+        {
+            return Stoner::RHI::ERHIResult::InvalidState;
+        }
+        for (const auto& WaitSemaphore : WaitSemaphores)
+        {
+            if (WaitSemaphore.get() == SignalSemaphores[Index].get())
+            {
+                return Stoner::RHI::ERHIResult::InvalidState;
+            }
+        }
+        for (std::size_t Previous = 0; Previous < Index; ++Previous)
+        {
+            if (SignalSemaphores[Previous].get() ==
+                SignalSemaphores[Index].get())
+            {
+                return Stoner::RHI::ERHIResult::InvalidState;
+            }
+        }
+    }
+
+    Stoner::Core::TSharedPtr<FVulkanFence> VulkanFence;
     if (Fence)
     {
-        const Stoner::RHI::ERHIResult FenceResult = Fence->Signal();
-        if (FenceResult != Stoner::RHI::ERHIResult::Success)
+        VulkanFence = std::dynamic_pointer_cast<FVulkanFence>(Fence);
+        if (!VulkanFence || !VulkanFence->BelongsTo(Owner) ||
+            !VulkanFence->CanSignalForSubmission())
         {
-            return FenceResult;
+            return Stoner::RHI::ERHIResult::InvalidState;
         }
     }
+
+    Stoner::Core::TSharedPtr<FVulkanCommandSubmission> Submission;
+    try
+    {
+        Submission.reset(new FVulkanCommandSubmission(
+            VulkanCommandBuffer,
+            EVulkanSubmissionMode::DeterministicFallback,
+            CompletionInjection));
+        Submissions.push_back(Submission);
+    }
+    catch (const std::bad_alloc&)
+    {
+        if (Diagnostics)
+        {
+            MarkSubmission(*Diagnostics, "submission tracking allocation failed");
+        }
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        if (Diagnostics)
+        {
+            MarkSubmission(*Diagnostics, "submission tracking capacity exceeded");
+        }
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+
+    if (VulkanCommandBuffer->MarkSubmitted() != Stoner::RHI::ERHIResult::Success)
+    {
+        Submissions.pop_back();
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    for (const auto& Semaphore : WaitSemaphores)
+    {
+        std::dynamic_pointer_cast<FVulkanSemaphore>(Semaphore)
+            ->CommitConsumeForSubmission();
+    }
+    for (const auto& Semaphore : SignalSemaphores)
+    {
+        std::dynamic_pointer_cast<FVulkanSemaphore>(Semaphore)
+            ->CommitSignalForSubmission();
+    }
+    if (VulkanFence)
+    {
+        VulkanFence->CommitSignalForSubmission();
+    }
+    ++SubmittedCommandBufferCount;
 
     if (Diagnostics)
     {
@@ -108,13 +186,15 @@ Stoner::RHI::ERHIResult FVulkanQueue::Submit(
 
 Stoner::RHI::ERHIResult FVulkanQueue::WaitIdle()
 {
-    if (!bValid)
+    if (!IsValid())
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
     for (const auto& Submission : Submissions)
     {
-        if (Submission && Submission->GetCompletionState() == EVulkanCompletionState::Pending)
+        if (Submission &&
+            Submission->GetCompletionState() != EVulkanCompletionState::Completed &&
+            Submission->GetCompletionState() != EVulkanCompletionState::Invalidated)
         {
             const Stoner::RHI::ERHIResult Result = Submission->CompleteForWaitIdle();
             if (Result != Stoner::RHI::ERHIResult::Success)
@@ -132,7 +212,7 @@ Stoner::RHI::ERHIResult FVulkanQueue::WaitIdle()
 
 Stoner::RHI::ERHIResult FVulkanQueue::ObserveLastSubmissionCompletion(Stoner::Core::uint64 TimeoutMicroseconds) noexcept
 {
-    if (!bValid || Submissions.empty() || !Submissions.back())
+    if (!IsValid() || Submissions.empty() || !Submissions.back())
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
@@ -159,6 +239,8 @@ void FVulkanQueue::Invalidate() noexcept
             Submission->Invalidate();
         }
     }
+    Owner.reset();
+    Diagnostics = nullptr;
 }
 
 } // namespace Stoner::Backend::Vulkan

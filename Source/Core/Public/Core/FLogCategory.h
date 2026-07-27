@@ -4,27 +4,16 @@
 #include "Core/ELogSeverity.h"
 #include "Core/TArray.h"
 
+#include <atomic>
+
 namespace Stoner::Core
 {
 
 // Forward declaration for the global category list.
 struct FLogCategory;
 
-// Macro to declare an extern log category in a header (cross-TU).
-// Usage: SG_DECLARE_LOG_CATEGORY_EXTERN(LogCore, ELogSeverity::Verbose)
-#define SG_DECLARE_LOG_CATEGORY_EXTERN(CategoryName, DefaultSeverity) \
-    extern ::Stoner::Core::FLogCategory CategoryName;
-
-// Macro to define a log category in a source file.
-// Usage: SG_DEFINE_LOG_CATEGORY(LogCore)
-#define SG_DEFINE_LOG_CATEGORY(CategoryName) \
-    ::Stoner::Core::FLogCategory CategoryName(#CategoryName, DefaultSeverity_##CategoryName);
-
 // Helper macro to pair declaration default severity with definition.
 // The EXTERN macro stores the default severity in a constexpr for the DEFINE macro.
-#undef SG_DECLARE_LOG_CATEGORY_EXTERN
-#undef SG_DEFINE_LOG_CATEGORY
-
 #define SG_DECLARE_LOG_CATEGORY_EXTERN(CategoryName, DefaultSeverity) \
     inline constexpr ::Stoner::Core::ELogSeverity DefaultSeverity_##CategoryName = DefaultSeverity; \
     extern ::Stoner::Core::FLogCategory CategoryName;
@@ -47,10 +36,16 @@ struct FLogCategory
     [[nodiscard]] const char* GetName() const { return Name; }
 
     // Get the current minimum severity threshold.
-    [[nodiscard]] ELogSeverity GetMinSeverity() const { return MinSeverity; }
+    [[nodiscard]] ELogSeverity GetMinSeverity() const noexcept
+    {
+        return MinSeverity.load(std::memory_order_relaxed);
+    }
 
     // Update the per-category severity threshold at runtime.
-    void SetMinSeverity(ELogSeverity NewSeverity) { MinSeverity = NewSeverity; }
+    void SetMinSeverity(ELogSeverity NewSeverity) noexcept
+    {
+        MinSeverity.store(NewSeverity, std::memory_order_relaxed);
+    }
 
     // Get the immutable default severity set at declaration time.
     [[nodiscard]] ELogSeverity GetDefaultMinSeverity() const { return DefaultMinSeverity; }
@@ -60,7 +55,7 @@ struct FLogCategory
 
 private:
     const char* Name;
-    ELogSeverity MinSeverity;
+    std::atomic<ELogSeverity> MinSeverity;
     ELogSeverity DefaultMinSeverity;
 };
 

@@ -1,6 +1,7 @@
 #include "VulkanRHI/FVulkanNativeContext.h"
 #include "FVulkanNativeDeviceAccess.h"
 #include "FVulkanNativeOffscreenSession.h"
+#include "FVulkanStruct.h"
 
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
 #include <vulkan/vulkan.h>
@@ -15,7 +16,11 @@
 #include <cctype>
 #include <cstring>
 #include <fstream>
+#include <limits>
+#include <new>
+#include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #endif
 
@@ -27,6 +32,169 @@ namespace
 {
 
 using namespace Stoner::RHI;
+
+[[nodiscard]] ERHIResult MapVulkanCreationResult(VkResult Result) noexcept
+{
+    if (Result == VK_SUCCESS)
+    {
+        return ERHIResult::Success;
+    }
+    return Result == VK_ERROR_OUT_OF_HOST_MEMORY ||
+            Result == VK_ERROR_OUT_OF_DEVICE_MEMORY
+        ? ERHIResult::Unavailable
+        : ERHIResult::Failed;
+}
+
+[[nodiscard]] VkFormat ToVulkanFormat(ERHIFormat Format) noexcept
+{
+    switch (Format)
+    {
+    case ERHIFormat::R8_UNorm: return VK_FORMAT_R8_UNORM;
+    case ERHIFormat::R8G8B8A8_UNorm: return VK_FORMAT_R8G8B8A8_UNORM;
+    case ERHIFormat::B8G8R8A8_UNorm: return VK_FORMAT_B8G8R8A8_UNORM;
+    case ERHIFormat::R16G16B16A16_Float: return VK_FORMAT_R16G16B16A16_SFLOAT;
+    case ERHIFormat::R32_Float: return VK_FORMAT_R32_SFLOAT;
+    case ERHIFormat::R32G32_Float: return VK_FORMAT_R32G32_SFLOAT;
+    case ERHIFormat::R32G32B32_Float: return VK_FORMAT_R32G32B32_SFLOAT;
+    case ERHIFormat::D24_UNorm_S8_UInt: return VK_FORMAT_D24_UNORM_S8_UINT;
+    case ERHIFormat::D32_Float: return VK_FORMAT_D32_SFLOAT;
+    case ERHIFormat::S8_UInt: return VK_FORMAT_S8_UINT;
+    case ERHIFormat::Unknown: return VK_FORMAT_UNDEFINED;
+    }
+    return VK_FORMAT_UNDEFINED;
+}
+
+[[nodiscard]] VkDescriptorType ToVulkanDescriptorType(
+    ERHIDescriptorType Type) noexcept
+{
+    switch (Type)
+    {
+    case ERHIDescriptorType::UniformBuffer: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    case ERHIDescriptorType::StorageBuffer: return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    case ERHIDescriptorType::SampledTexture: return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    case ERHIDescriptorType::StorageTexture: return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    case ERHIDescriptorType::Sampler: return VK_DESCRIPTOR_TYPE_SAMPLER;
+    case ERHIDescriptorType::CombinedTextureSampler:
+        return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    }
+    return VK_DESCRIPTOR_TYPE_MAX_ENUM;
+}
+
+[[nodiscard]] VkShaderStageFlags ToVulkanShaderStageFlags(
+    ERHIShaderStageFlags Flags) noexcept
+{
+    VkShaderStageFlags Result = 0;
+    if (HasRHIFlag(Flags, ERHIShaderStageFlags::Vertex))
+        Result |= VK_SHADER_STAGE_VERTEX_BIT;
+    if (HasRHIFlag(Flags, ERHIShaderStageFlags::Fragment))
+        Result |= VK_SHADER_STAGE_FRAGMENT_BIT;
+    if (HasRHIFlag(Flags, ERHIShaderStageFlags::Compute))
+        Result |= VK_SHADER_STAGE_COMPUTE_BIT;
+    if (HasRHIFlag(Flags, ERHIShaderStageFlags::Geometry))
+        Result |= VK_SHADER_STAGE_GEOMETRY_BIT;
+    if (HasRHIFlag(Flags, ERHIShaderStageFlags::TessellationControl))
+        Result |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+    if (HasRHIFlag(Flags, ERHIShaderStageFlags::TessellationEvaluation))
+        Result |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+
+    constexpr unsigned int Supported =
+        static_cast<unsigned int>(ERHIShaderStageFlags::Vertex) |
+        static_cast<unsigned int>(ERHIShaderStageFlags::Fragment) |
+        static_cast<unsigned int>(ERHIShaderStageFlags::Compute) |
+        static_cast<unsigned int>(ERHIShaderStageFlags::Geometry) |
+        static_cast<unsigned int>(ERHIShaderStageFlags::TessellationControl) |
+        static_cast<unsigned int>(ERHIShaderStageFlags::TessellationEvaluation);
+    return (static_cast<unsigned int>(Flags) & ~Supported) == 0 ? Result : 0;
+}
+
+[[nodiscard]] VkShaderStageFlagBits ToVulkanShaderStage(
+    ERHIShaderStage Stage) noexcept
+{
+    switch (Stage)
+    {
+    case ERHIShaderStage::Vertex: return VK_SHADER_STAGE_VERTEX_BIT;
+    case ERHIShaderStage::Fragment: return VK_SHADER_STAGE_FRAGMENT_BIT;
+    case ERHIShaderStage::Compute: return VK_SHADER_STAGE_COMPUTE_BIT;
+    case ERHIShaderStage::Geometry: return VK_SHADER_STAGE_GEOMETRY_BIT;
+    case ERHIShaderStage::TessellationControl:
+        return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+    case ERHIShaderStage::TessellationEvaluation:
+        return VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+    default: return static_cast<VkShaderStageFlagBits>(0);
+    }
+}
+
+[[nodiscard]] VkSampleCountFlagBits ToVulkanSampleCount(
+    ERHISampleCount Count) noexcept
+{
+    switch (Count)
+    {
+    case ERHISampleCount::One: return VK_SAMPLE_COUNT_1_BIT;
+    case ERHISampleCount::Two: return VK_SAMPLE_COUNT_2_BIT;
+    case ERHISampleCount::Four: return VK_SAMPLE_COUNT_4_BIT;
+    case ERHISampleCount::Eight: return VK_SAMPLE_COUNT_8_BIT;
+    }
+    return static_cast<VkSampleCountFlagBits>(0);
+}
+
+[[nodiscard]] VkPrimitiveTopology ToVulkanTopology(
+    ERHIPrimitiveTopology Topology) noexcept
+{
+    return Topology == ERHIPrimitiveTopology::TriangleStrip
+        ? VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP
+        : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+}
+
+[[nodiscard]] VkCullModeFlags ToVulkanCullMode(ERHICullMode Mode) noexcept
+{
+    if (Mode == ERHICullMode::Front) return VK_CULL_MODE_FRONT_BIT;
+    if (Mode == ERHICullMode::Back) return VK_CULL_MODE_BACK_BIT;
+    return VK_CULL_MODE_NONE;
+}
+
+[[nodiscard]] VkFrontFace ToVulkanFrontFace(ERHIFrontFace Face) noexcept
+{
+    return Face == ERHIFrontFace::Clockwise
+        ? VK_FRONT_FACE_CLOCKWISE
+        : VK_FRONT_FACE_COUNTER_CLOCKWISE;
+}
+
+[[nodiscard]] VkBlendFactor ToVulkanBlendFactor(
+    ERHIBlendFactor Factor) noexcept
+{
+    switch (Factor)
+    {
+    case ERHIBlendFactor::Zero: return VK_BLEND_FACTOR_ZERO;
+    case ERHIBlendFactor::One: return VK_BLEND_FACTOR_ONE;
+    case ERHIBlendFactor::SourceAlpha: return VK_BLEND_FACTOR_SRC_ALPHA;
+    case ERHIBlendFactor::OneMinusSourceAlpha:
+        return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    }
+    return VK_BLEND_FACTOR_ZERO;
+}
+
+[[nodiscard]] VkBlendOp ToVulkanBlendOp(ERHIBlendOp Op) noexcept
+{
+    if (Op == ERHIBlendOp::Subtract) return VK_BLEND_OP_SUBTRACT;
+    if (Op == ERHIBlendOp::ReverseSubtract) return VK_BLEND_OP_REVERSE_SUBTRACT;
+    return VK_BLEND_OP_ADD;
+}
+
+[[nodiscard]] VkCompareOp ToVulkanCompareOp(ERHICompareOp Op) noexcept
+{
+    switch (Op)
+    {
+    case ERHICompareOp::Never: return VK_COMPARE_OP_NEVER;
+    case ERHICompareOp::Less: return VK_COMPARE_OP_LESS;
+    case ERHICompareOp::LessEqual: return VK_COMPARE_OP_LESS_OR_EQUAL;
+    case ERHICompareOp::Equal: return VK_COMPARE_OP_EQUAL;
+    case ERHICompareOp::GreaterEqual: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+    case ERHICompareOp::Greater: return VK_COMPARE_OP_GREATER;
+    case ERHICompareOp::NotEqual: return VK_COMPARE_OP_NOT_EQUAL;
+    case ERHICompareOp::Always: return VK_COMPARE_OP_ALWAYS;
+    }
+    return VK_COMPARE_OP_NEVER;
+}
 
 class FNativeTextureBinding final : public IRHITexture
 {
@@ -135,7 +303,7 @@ public:
     {
         if (State != ERHICommandBufferState::Idle && State != ERHICommandBufferState::Resettable) return ERHIResult::InvalidState;
         if (vkResetCommandBuffer(Commands, 0) != VK_SUCCESS) return ERHIResult::Failed;
-        VkCommandBufferBeginInfo Info{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        VkCommandBufferBeginInfo Info = MakeVulkanStruct<VkCommandBufferBeginInfo>(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO);
         if (vkBeginCommandBuffer(Commands, &Info) != VK_SUCCESS) return ERHIResult::Failed;
         State = ERHICommandBufferState::Recording; CommandCount = 0; return ERHIResult::Success;
     }
@@ -164,7 +332,7 @@ public:
     {
         if (State != ERHICommandBufferState::Recording || bInsideRenderPass || !Pass || !Target) return ERHIResult::InvalidState;
         VkClearValue Clear{}; Clear.color = {{0.02f, 0.03f, 0.05f, 1.0f}};
-        VkRenderPassBeginInfo Info{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+        VkRenderPassBeginInfo Info = MakeVulkanStruct<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
         Info.renderPass = RenderPass; Info.framebuffer = Framebuffer; Info.renderArea.extent = Extent;
         Info.clearValueCount = 1; Info.pClearValues = &Clear;
         vkCmdBeginRenderPass(Commands, &Info, VK_SUBPASS_CONTENTS_INLINE); bInsideRenderPass = true; ++CommandCount; return ERHIResult::Success;
@@ -189,7 +357,7 @@ private:
     bool bInsideRenderPass = false;
 };
 
-ERHIFormat ToRHIFormat(VkFormat Format)
+[[maybe_unused]] ERHIFormat ToRHIFormat(VkFormat Format)
 {
     return Format == VK_FORMAT_B8G8R8A8_UNORM || Format == VK_FORMAT_B8G8R8A8_SRGB
         ? ERHIFormat::B8G8R8A8_UNorm : ERHIFormat::R8G8B8A8_UNorm;
@@ -202,6 +370,11 @@ struct FVulkanNativeContext::FImpl
 {
     Stoner::RHI::FRHIRuntimeSnapshot Snapshot;
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    using ERHIResult = Stoner::RHI::ERHIResult;
+    using FRHIDescriptorBinding = Stoner::RHI::FRHIDescriptorBinding;
+    using FRHIPipelineLayoutDesc = Stoner::RHI::FRHIPipelineLayoutDesc;
+    using FRHIShaderConstantRange = Stoner::RHI::FRHIShaderConstantRange;
+
     VkInstance Instance = VK_NULL_HANDLE;
     VkPhysicalDevice PhysicalDevice = VK_NULL_HANDLE;
     VkDevice Device = VK_NULL_HANDLE;
@@ -218,6 +391,18 @@ struct FVulkanNativeContext::FImpl
     VkSemaphore RenderFinished = VK_NULL_HANDLE;
     std::string VisibleVertexShaderPath;
     std::string VisibleFragmentShaderPath;
+    Stoner::Core::uint64 NextOwnedShaderToken = 1;
+    std::unordered_map<Stoner::Core::uint64, VkShaderModule> OwnedShaderModules;
+    struct FOwnedPipelineResources
+    {
+        VkPipeline Pipeline = VK_NULL_HANDLE;
+        VkPipelineLayout PipelineLayout = VK_NULL_HANDLE;
+        VkRenderPass RenderPass = VK_NULL_HANDLE;
+        std::vector<VkDescriptorSetLayout> DescriptorSetLayouts;
+    };
+    Stoner::Core::uint64 NextOwnedPipelineToken = 1;
+    std::unordered_map<Stoner::Core::uint64, FOwnedPipelineResources>
+        OwnedPipelines;
 
     VkBuffer VertexBuffer = VK_NULL_HANDLE;
     VkDeviceMemory VertexMemory = VK_NULL_HANDLE;
@@ -241,6 +426,7 @@ struct FVulkanNativeContext::FImpl
     Stoner::Core::uint32 AcquiredImageIndex = 0;
     Stoner::Core::uint32 AcquiredFrameSlot = 0;
     bool bFrameAcquired = false;
+    bool bAcquiredSuboptimal = false;
 
     static bool HasName(const std::vector<VkExtensionProperties>& Properties, const char* Name)
     {
@@ -261,6 +447,219 @@ struct FVulkanNativeContext::FImpl
         Input.read(reinterpret_cast<char*>(Words.data()), Size);
         if (!Input.good() || Words[0] != 0x07230203u) return {};
         return Words;
+    }
+
+    [[nodiscard]] Stoner::Core::uint32 GetLiveShaderModuleCount() const noexcept
+    {
+        return static_cast<Stoner::Core::uint32>(OwnedShaderModules.size()) +
+            (VertexShader != VK_NULL_HANDLE ? 1u : 0u) +
+            (FragmentShader != VK_NULL_HANDLE ? 1u : 0u);
+    }
+
+    [[nodiscard]] Stoner::Core::uint32 GetLivePipelineCount() const noexcept
+    {
+        return static_cast<Stoner::Core::uint32>(OwnedPipelines.size()) +
+            (Pipeline != VK_NULL_HANDLE ? 1u : 0u);
+    }
+
+    void DestroyOwnedPipelineResources(
+        FOwnedPipelineResources& Resources) noexcept
+    {
+        if (Device != VK_NULL_HANDLE)
+        {
+            if (Resources.Pipeline != VK_NULL_HANDLE)
+                vkDestroyPipeline(Device, Resources.Pipeline, nullptr);
+            if (Resources.PipelineLayout != VK_NULL_HANDLE)
+                vkDestroyPipelineLayout(Device, Resources.PipelineLayout, nullptr);
+            if (Resources.RenderPass != VK_NULL_HANDLE)
+                vkDestroyRenderPass(Device, Resources.RenderPass, nullptr);
+            for (VkDescriptorSetLayout Layout : Resources.DescriptorSetLayouts)
+            {
+                if (Layout != VK_NULL_HANDLE)
+                    vkDestroyDescriptorSetLayout(Device, Layout, nullptr);
+            }
+        }
+        Resources = {};
+    }
+
+    void DestroyAllOwnedPipelines() noexcept
+    {
+        for (auto& [Token, Resources] : OwnedPipelines)
+        {
+            (void)Token;
+            DestroyOwnedPipelineResources(Resources);
+        }
+        OwnedPipelines.clear();
+        NextOwnedPipelineToken = 1;
+        Snapshot.LivePipelines = GetLivePipelineCount();
+    }
+
+    [[nodiscard]] ERHIResult CreateOwnedPipelineLayout(
+        const FRHIPipelineLayoutDesc& Desc,
+        FOwnedPipelineResources& OutResources) noexcept
+    {
+        try
+        {
+            Stoner::Core::uint32 MaxSetIndex = 0;
+            for (const FRHIDescriptorBinding& Binding : Desc.Bindings)
+            {
+                MaxSetIndex = std::max(MaxSetIndex, Binding.SetIndex);
+            }
+            const Stoner::Core::uint64 SetCount64 =
+                static_cast<Stoner::Core::uint64>(MaxSetIndex) + 1u;
+            VkPhysicalDeviceProperties Properties{};
+            vkGetPhysicalDeviceProperties(PhysicalDevice, &Properties);
+            if (SetCount64 > Properties.limits.maxBoundDescriptorSets ||
+                SetCount64 > std::numeric_limits<Stoner::Core::uint32>::max())
+            {
+                return ERHIResult::Unsupported;
+            }
+            const Stoner::Core::uint32 SetCount =
+                static_cast<Stoner::Core::uint32>(SetCount64);
+            std::vector<std::vector<VkDescriptorSetLayoutBinding>> BindingsBySet(
+                SetCount);
+            for (const FRHIDescriptorBinding& Binding : Desc.Bindings)
+            {
+                const VkDescriptorType DescriptorType =
+                    ToVulkanDescriptorType(Binding.DescriptorType);
+                const VkShaderStageFlags StageFlags =
+                    ToVulkanShaderStageFlags(Binding.Visibility);
+                if (DescriptorType == VK_DESCRIPTOR_TYPE_MAX_ENUM ||
+                    StageFlags == 0)
+                {
+                    return ERHIResult::Unsupported;
+                }
+                VkDescriptorSetLayoutBinding NativeBinding{};
+                NativeBinding.binding = Binding.BindingSlot;
+                NativeBinding.descriptorType = DescriptorType;
+                NativeBinding.descriptorCount = Binding.ArrayCount;
+                NativeBinding.stageFlags = StageFlags;
+                BindingsBySet[Binding.SetIndex].push_back(NativeBinding);
+            }
+
+            OutResources.DescriptorSetLayouts.assign(
+                SetCount, VK_NULL_HANDLE);
+            for (Stoner::Core::uint32 SetIndex = 0;
+                 SetIndex < SetCount;
+                 ++SetIndex)
+            {
+                auto& SetBindings = BindingsBySet[SetIndex];
+                std::sort(
+                    SetBindings.begin(), SetBindings.end(),
+                    [](const VkDescriptorSetLayoutBinding& Left,
+                       const VkDescriptorSetLayoutBinding& Right)
+                    {
+                        return Left.binding < Right.binding;
+                    });
+                VkDescriptorSetLayoutCreateInfo LayoutInfo =
+                    MakeVulkanStruct<VkDescriptorSetLayoutCreateInfo>(
+                        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO);
+                LayoutInfo.bindingCount =
+                    static_cast<Stoner::Core::uint32>(SetBindings.size());
+                LayoutInfo.pBindings =
+                    SetBindings.empty() ? nullptr : SetBindings.data();
+                const VkResult LayoutResult = vkCreateDescriptorSetLayout(
+                    Device, &LayoutInfo, nullptr,
+                    &OutResources.DescriptorSetLayouts[SetIndex]);
+                if (LayoutResult != VK_SUCCESS)
+                {
+                    const ERHIResult Result =
+                        MapVulkanCreationResult(LayoutResult);
+                    DestroyOwnedPipelineResources(OutResources);
+                    return Result;
+                }
+            }
+
+            std::vector<VkPushConstantRange> PushRanges;
+            PushRanges.reserve(Desc.ConstantRanges.size());
+            for (const FRHIShaderConstantRange& Range : Desc.ConstantRanges)
+            {
+                const VkShaderStageFlags StageFlags =
+                    ToVulkanShaderStageFlags(Range.Visibility);
+                if (StageFlags == 0 ||
+                    (Range.OffsetBytes % 4u) != 0 ||
+                    (Range.SizeBytes % 4u) != 0)
+                {
+                    DestroyOwnedPipelineResources(OutResources);
+                    return ERHIResult::Unsupported;
+                }
+                PushRanges.push_back(
+                    {StageFlags, Range.OffsetBytes, Range.SizeBytes});
+            }
+
+            VkPipelineLayoutCreateInfo PipelineLayoutInfo =
+                MakeVulkanStruct<VkPipelineLayoutCreateInfo>(
+                    VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
+            PipelineLayoutInfo.setLayoutCount = static_cast<Stoner::Core::uint32>(
+                OutResources.DescriptorSetLayouts.size());
+            PipelineLayoutInfo.pSetLayouts =
+                OutResources.DescriptorSetLayouts.empty()
+                ? nullptr
+                : OutResources.DescriptorSetLayouts.data();
+            PipelineLayoutInfo.pushConstantRangeCount =
+                static_cast<Stoner::Core::uint32>(PushRanges.size());
+            PipelineLayoutInfo.pPushConstantRanges =
+                PushRanges.empty() ? nullptr : PushRanges.data();
+            const VkResult PipelineLayoutResult = vkCreatePipelineLayout(
+                Device, &PipelineLayoutInfo, nullptr,
+                &OutResources.PipelineLayout);
+            if (PipelineLayoutResult != VK_SUCCESS)
+            {
+                const ERHIResult Result =
+                    MapVulkanCreationResult(PipelineLayoutResult);
+                DestroyOwnedPipelineResources(OutResources);
+                return Result;
+            }
+            return ERHIResult::Success;
+        }
+        catch (const std::bad_alloc&)
+        {
+            DestroyOwnedPipelineResources(OutResources);
+            return ERHIResult::Unavailable;
+        }
+        catch (const std::length_error&)
+        {
+            DestroyOwnedPipelineResources(OutResources);
+            return ERHIResult::Unavailable;
+        }
+    }
+
+    [[nodiscard]] ERHIResult PublishOwnedPipeline(
+        FOwnedPipelineResources& Resources,
+        Stoner::Core::uint64& OutToken) noexcept
+    {
+        OutToken = 0;
+        if (NextOwnedPipelineToken == 0)
+        {
+            DestroyOwnedPipelineResources(Resources);
+            return ERHIResult::Unavailable;
+        }
+        const Stoner::Core::uint64 Token = NextOwnedPipelineToken++;
+        try
+        {
+            const auto [Iterator, bInserted] =
+                OwnedPipelines.emplace(Token, std::move(Resources));
+            (void)Iterator;
+            if (!bInserted)
+            {
+                DestroyOwnedPipelineResources(Resources);
+                return ERHIResult::Unavailable;
+            }
+        }
+        catch (const std::bad_alloc&)
+        {
+            DestroyOwnedPipelineResources(Resources);
+            return ERHIResult::Unavailable;
+        }
+        catch (const std::length_error&)
+        {
+            DestroyOwnedPipelineResources(Resources);
+            return ERHIResult::Unavailable;
+        }
+        Snapshot.LivePipelines = GetLivePipelineCount();
+        OutToken = Token;
+        Resources = {};
+        return ERHIResult::Success;
     }
 
     Stoner::Core::uint32 FindMemoryType(Stoner::Core::uint32 TypeBits, VkMemoryPropertyFlags Required) const
@@ -306,13 +705,67 @@ struct FVulkanNativeContext::FImpl
         VertexBuffer = VK_NULL_HANDLE; VertexMemory = VK_NULL_HANDLE;
         Swapchain = VK_NULL_HANDLE; SwapchainFormat = VK_FORMAT_UNDEFINED; SwapchainExtent = {};
         SwapchainImages.clear(); SwapchainViews.clear(); SwapchainFramebuffers.clear();
-        CurrentFrameSlot = 0; AcquiredImageIndex = 0; AcquiredFrameSlot = 0; bFrameAcquired = false;
+        CurrentFrameSlot = 0; AcquiredImageIndex = 0; AcquiredFrameSlot = 0;
+        bFrameAcquired = false; bAcquiredSuboptimal = false;
         Snapshot.LiveBuffers = 0;
         Snapshot.LiveTextures = 0;
-        Snapshot.LiveShaderModules = 0;
-        Snapshot.LivePipelines = 0;
+        Snapshot.LiveShaderModules = GetLiveShaderModuleCount();
+        Snapshot.LivePipelines = GetLivePipelineCount();
         Snapshot.LiveCommandBuffers = 0;
         Snapshot.LiveSynchronizationObjects = 0;
+    }
+
+    bool RecreateVisibleFenceSignaled(Stoner::Core::uint32 FrameSlot) noexcept
+    {
+        if (Device == VK_NULL_HANDLE || FrameSlot >= VisibleFences.size())
+        {
+            return false;
+        }
+        if (VisibleFences[FrameSlot] != VK_NULL_HANDLE)
+        {
+            vkDestroyFence(Device, VisibleFences[FrameSlot], nullptr);
+            VisibleFences[FrameSlot] = VK_NULL_HANDLE;
+        }
+        VkFenceCreateInfo FenceInfo =
+            MakeVulkanStruct<VkFenceCreateInfo>(
+                VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
+        FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        return vkCreateFence(
+            Device, &FenceInfo, nullptr, &VisibleFences[FrameSlot]) ==
+            VK_SUCCESS;
+    }
+
+    void AbandonAcquiredVisibleFrame() noexcept
+    {
+        if (!bFrameAcquired)
+        {
+            return;
+        }
+        if (Device != VK_NULL_HANDLE && GraphicsQueue != VK_NULL_HANDLE &&
+            Swapchain != VK_NULL_HANDLE &&
+            AcquiredFrameSlot < VisibleImageAvailable.size())
+        {
+            VkPresentInfoKHR Present =
+                MakeVulkanStruct<VkPresentInfoKHR>(
+                    VK_STRUCTURE_TYPE_PRESENT_INFO_KHR);
+            const VkSemaphore WaitSemaphore =
+                VisibleImageAvailable[AcquiredFrameSlot];
+            Present.waitSemaphoreCount = WaitSemaphore != VK_NULL_HANDLE ? 1u : 0u;
+            Present.pWaitSemaphores =
+                WaitSemaphore != VK_NULL_HANDLE ? &WaitSemaphore : nullptr;
+            Present.swapchainCount = 1;
+            Present.pSwapchains = &Swapchain;
+            Present.pImageIndices = &AcquiredImageIndex;
+            (void)vkQueuePresentKHR(GraphicsQueue, &Present);
+        }
+        if (!VisibleFences.empty())
+        {
+            CurrentFrameSlot =
+                (AcquiredFrameSlot + 1u) %
+                static_cast<Stoner::Core::uint32>(VisibleFences.size());
+        }
+        bFrameAcquired = false;
+        bAcquiredSuboptimal = false;
     }
 #endif
 };
@@ -359,10 +812,10 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Initialize(
     if (Mode == Stoner::RHI::ERHIRuntimeMode::Native) return Stoner::RHI::ERHIResult::Unsupported;
     (void)PlatformWindow;
 #endif
-    VkApplicationInfo AppInfo{VK_STRUCTURE_TYPE_APPLICATION_INFO};
+    VkApplicationInfo AppInfo = MakeVulkanStruct<VkApplicationInfo>(VK_STRUCTURE_TYPE_APPLICATION_INFO);
     AppInfo.pApplicationName = "StonerDemo";
     AppInfo.apiVersion = VK_API_VERSION_1_0;
-    VkInstanceCreateInfo InstanceInfo{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+    VkInstanceCreateInfo InstanceInfo = MakeVulkanStruct<VkInstanceCreateInfo>(VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
     InstanceInfo.flags = InstanceFlags;
     InstanceInfo.pApplicationInfo = &AppInfo;
     InstanceInfo.enabledExtensionCount = static_cast<Stoner::Core::uint32>(EnabledExtensions.size());
@@ -432,11 +885,11 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Initialize(
         EnabledDeviceExtensions.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
 #endif
     const float Priority = 1.0f;
-    VkDeviceQueueCreateInfo QueueInfo{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
+    VkDeviceQueueCreateInfo QueueInfo = MakeVulkanStruct<VkDeviceQueueCreateInfo>(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO);
     QueueInfo.queueFamilyIndex = Impl->GraphicsQueueFamily;
     QueueInfo.queueCount = 1;
     QueueInfo.pQueuePriorities = &Priority;
-    VkDeviceCreateInfo DeviceInfo{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+    VkDeviceCreateInfo DeviceInfo = MakeVulkanStruct<VkDeviceCreateInfo>(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO);
     DeviceInfo.queueCreateInfoCount = 1;
     DeviceInfo.pQueueCreateInfos = &QueueInfo;
     DeviceInfo.enabledExtensionCount = static_cast<Stoner::Core::uint32>(EnabledDeviceExtensions.size());
@@ -481,7 +934,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
          0.6f,  0.6f, 0.0f, 1.0f, 0.0f,
         -0.6f,  0.6f, 0.0f, 0.0f, 1.0f,
     };
-    VkBufferCreateInfo BufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    VkBufferCreateInfo BufferInfo = MakeVulkanStruct<VkBufferCreateInfo>(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
     BufferInfo.size = sizeof(Vertices);
     BufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     BufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -490,7 +943,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     vkGetBufferMemoryRequirements(Impl->Device, Impl->VertexBuffer, &BufferRequirements);
     const auto BufferMemoryType = Impl->FindMemoryType(BufferRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     if (BufferMemoryType == UINT32_MAX) return Fail();
-    VkMemoryAllocateInfo BufferAllocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    VkMemoryAllocateInfo BufferAllocation = MakeVulkanStruct<VkMemoryAllocateInfo>(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO);
     BufferAllocation.allocationSize = BufferRequirements.size;
     BufferAllocation.memoryTypeIndex = BufferMemoryType;
     if (vkAllocateMemory(Impl->Device, &BufferAllocation, nullptr, &Impl->VertexMemory) != VK_SUCCESS ||
@@ -501,7 +954,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     vkUnmapMemory(Impl->Device, Impl->VertexMemory);
     Impl->Snapshot.LiveBuffers = 1;
 
-    VkImageCreateInfo ImageInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    VkImageCreateInfo ImageInfo = MakeVulkanStruct<VkImageCreateInfo>(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO);
     ImageInfo.imageType = VK_IMAGE_TYPE_2D;
     ImageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
     ImageInfo.extent = {64, 64, 1};
@@ -517,14 +970,14 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     vkGetImageMemoryRequirements(Impl->Device, Impl->ColorImage, &ImageRequirements);
     const auto ImageMemoryType = Impl->FindMemoryType(ImageRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     if (ImageMemoryType == UINT32_MAX) return Fail();
-    VkMemoryAllocateInfo ImageAllocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    VkMemoryAllocateInfo ImageAllocation = MakeVulkanStruct<VkMemoryAllocateInfo>(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO);
     ImageAllocation.allocationSize = ImageRequirements.size;
     ImageAllocation.memoryTypeIndex = ImageMemoryType;
     if (vkAllocateMemory(Impl->Device, &ImageAllocation, nullptr, &Impl->ColorMemory) != VK_SUCCESS ||
         vkBindImageMemory(Impl->Device, Impl->ColorImage, Impl->ColorMemory, 0) != VK_SUCCESS) return Fail();
     Impl->Snapshot.LiveTextures = 1;
 
-    VkImageViewCreateInfo ViewInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    VkImageViewCreateInfo ViewInfo = MakeVulkanStruct<VkImageViewCreateInfo>(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO);
     ViewInfo.image = Impl->ColorImage;
     ViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     ViewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -545,13 +998,13 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     Subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     Subpass.colorAttachmentCount = 1;
     Subpass.pColorAttachments = &AttachmentReference;
-    VkRenderPassCreateInfo RenderPassInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+    VkRenderPassCreateInfo RenderPassInfo = MakeVulkanStruct<VkRenderPassCreateInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
     RenderPassInfo.attachmentCount = 1;
     RenderPassInfo.pAttachments = &Attachment;
     RenderPassInfo.subpassCount = 1;
     RenderPassInfo.pSubpasses = &Subpass;
     if (vkCreateRenderPass(Impl->Device, &RenderPassInfo, nullptr, &Impl->RenderPass) != VK_SUCCESS) return Fail();
-    VkFramebufferCreateInfo FramebufferInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+    VkFramebufferCreateInfo FramebufferInfo = MakeVulkanStruct<VkFramebufferCreateInfo>(VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO);
     FramebufferInfo.renderPass = Impl->RenderPass;
     FramebufferInfo.attachmentCount = 1;
     FramebufferInfo.pAttachments = &Impl->ColorView;
@@ -562,14 +1015,14 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
 
     const auto CreateShader = [this](const std::vector<Stoner::Core::uint32>& Words, VkShaderModule& Out)
     {
-        VkShaderModuleCreateInfo Info{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+        VkShaderModuleCreateInfo Info = MakeVulkanStruct<VkShaderModuleCreateInfo>(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
         Info.codeSize = Words.size() * sizeof(Stoner::Core::uint32);
         Info.pCode = Words.data();
         return vkCreateShaderModule(Impl->Device, &Info, nullptr, &Out) == VK_SUCCESS;
     };
     if (!CreateShader(VertexWords, Impl->VertexShader) || !CreateShader(FragmentWords, Impl->FragmentShader)) return Fail();
-    Impl->Snapshot.LiveShaderModules = 2;
-    VkPipelineLayoutCreateInfo LayoutInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    Impl->Snapshot.LiveShaderModules = Impl->GetLiveShaderModuleCount();
+    VkPipelineLayoutCreateInfo LayoutInfo = MakeVulkanStruct<VkPipelineLayoutCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
     if (vkCreatePipelineLayout(Impl->Device, &LayoutInfo, nullptr, &Impl->PipelineLayout) != VK_SUCCESS) return Fail();
 
     VkPipelineShaderStageCreateInfo ShaderStages[2]{};
@@ -585,26 +1038,26 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
         {0, 0, VK_FORMAT_R32G32_SFLOAT, 0},
         {1, 0, VK_FORMAT_R32G32B32_SFLOAT, sizeof(float) * 2},
     };
-    VkPipelineVertexInputStateCreateInfo VertexInput{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+    VkPipelineVertexInputStateCreateInfo VertexInput = MakeVulkanStruct<VkPipelineVertexInputStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO);
     VertexInput.vertexBindingDescriptionCount = 1; VertexInput.pVertexBindingDescriptions = &Binding;
     VertexInput.vertexAttributeDescriptionCount = 2; VertexInput.pVertexAttributeDescriptions = Attributes;
-    VkPipelineInputAssemblyStateCreateInfo Assembly{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
+    VkPipelineInputAssemblyStateCreateInfo Assembly = MakeVulkanStruct<VkPipelineInputAssemblyStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO);
     Assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    VkPipelineViewportStateCreateInfo ViewportState{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
+    VkPipelineViewportStateCreateInfo ViewportState = MakeVulkanStruct<VkPipelineViewportStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO);
     ViewportState.viewportCount = 1; ViewportState.scissorCount = 1;
-    VkPipelineRasterizationStateCreateInfo Rasterizer{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
+    VkPipelineRasterizationStateCreateInfo Rasterizer = MakeVulkanStruct<VkPipelineRasterizationStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO);
     Rasterizer.polygonMode = VK_POLYGON_MODE_FILL; Rasterizer.cullMode = VK_CULL_MODE_NONE;
     Rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE; Rasterizer.lineWidth = 1.0f;
-    VkPipelineMultisampleStateCreateInfo Multisample{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
+    VkPipelineMultisampleStateCreateInfo Multisample = MakeVulkanStruct<VkPipelineMultisampleStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
     Multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
     VkPipelineColorBlendAttachmentState BlendAttachment{};
     BlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    VkPipelineColorBlendStateCreateInfo Blend{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
+    VkPipelineColorBlendStateCreateInfo Blend = MakeVulkanStruct<VkPipelineColorBlendStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO);
     Blend.attachmentCount = 1; Blend.pAttachments = &BlendAttachment;
     const VkDynamicState DynamicStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-    VkPipelineDynamicStateCreateInfo Dynamic{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
+    VkPipelineDynamicStateCreateInfo Dynamic = MakeVulkanStruct<VkPipelineDynamicStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO);
     Dynamic.dynamicStateCount = 2; Dynamic.pDynamicStates = DynamicStates;
-    VkGraphicsPipelineCreateInfo PipelineInfo{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+    VkGraphicsPipelineCreateInfo PipelineInfo = MakeVulkanStruct<VkGraphicsPipelineCreateInfo>(VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO);
     PipelineInfo.stageCount = 2; PipelineInfo.pStages = ShaderStages;
     PipelineInfo.pVertexInputState = &VertexInput; PipelineInfo.pInputAssemblyState = &Assembly;
     PipelineInfo.pViewportState = &ViewportState; PipelineInfo.pRasterizationState = &Rasterizer;
@@ -612,19 +1065,19 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     PipelineInfo.pDynamicState = &Dynamic; PipelineInfo.layout = Impl->PipelineLayout;
     PipelineInfo.renderPass = Impl->RenderPass;
     if (vkCreateGraphicsPipelines(Impl->Device, VK_NULL_HANDLE, 1, &PipelineInfo, nullptr, &Impl->Pipeline) != VK_SUCCESS) return Fail();
-    Impl->Snapshot.LivePipelines = 1;
+    Impl->Snapshot.LivePipelines = Impl->GetLivePipelineCount();
 
-    VkCommandPoolCreateInfo PoolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    VkCommandPoolCreateInfo PoolInfo = MakeVulkanStruct<VkCommandPoolCreateInfo>(VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO);
     PoolInfo.queueFamilyIndex = Impl->GraphicsQueueFamily;
     if (vkCreateCommandPool(Impl->Device, &PoolInfo, nullptr, &Impl->CommandPool) != VK_SUCCESS) return Fail();
-    VkCommandBufferAllocateInfo CommandInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    VkCommandBufferAllocateInfo CommandInfo = MakeVulkanStruct<VkCommandBufferAllocateInfo>(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO);
     CommandInfo.commandPool = Impl->CommandPool; CommandInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY; CommandInfo.commandBufferCount = 1;
     if (vkAllocateCommandBuffers(Impl->Device, &CommandInfo, &Impl->CommandBuffer) != VK_SUCCESS) return Fail();
     Impl->Snapshot.LiveCommandBuffers = 1;
-    VkCommandBufferBeginInfo BeginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    VkCommandBufferBeginInfo BeginInfo = MakeVulkanStruct<VkCommandBufferBeginInfo>(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO);
     if (vkBeginCommandBuffer(Impl->CommandBuffer, &BeginInfo) != VK_SUCCESS) return Fail();
     VkClearValue Clear{}; Clear.color = {{0.02f, 0.03f, 0.05f, 1.0f}};
-    VkRenderPassBeginInfo BeginPass{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+    VkRenderPassBeginInfo BeginPass = MakeVulkanStruct<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
     BeginPass.renderPass = Impl->RenderPass; BeginPass.framebuffer = Impl->Framebuffer;
     BeginPass.renderArea.extent = {64, 64}; BeginPass.clearValueCount = 1; BeginPass.pClearValues = &Clear;
     vkCmdBeginRenderPass(Impl->CommandBuffer, &BeginPass, VK_SUBPASS_CONTENTS_INLINE);
@@ -638,10 +1091,10 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     vkCmdDraw(Impl->CommandBuffer, 3, 1, 0, 0);
     vkCmdEndRenderPass(Impl->CommandBuffer);
     if (vkEndCommandBuffer(Impl->CommandBuffer) != VK_SUCCESS) return Fail();
-    VkFenceCreateInfo FenceInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+    VkFenceCreateInfo FenceInfo = MakeVulkanStruct<VkFenceCreateInfo>(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
     if (vkCreateFence(Impl->Device, &FenceInfo, nullptr, &Impl->Fence) != VK_SUCCESS) return Fail();
     Impl->Snapshot.LiveSynchronizationObjects = 1;
-    VkSubmitInfo Submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    VkSubmitInfo Submit = MakeVulkanStruct<VkSubmitInfo>(VK_STRUCTURE_TYPE_SUBMIT_INFO);
     Submit.commandBufferCount = 1; Submit.pCommandBuffers = &Impl->CommandBuffer;
     if (vkQueueSubmit(Impl->GraphicsQueue, 1, &Submit, Impl->Fence) != VK_SUCCESS ||
         vkWaitForFences(Impl->Device, 1, &Impl->Fence, VK_TRUE, 30ull * 1000ull * 1000ull * 1000ull) != VK_SUCCESS) return Fail();
@@ -688,6 +1141,76 @@ FVulkanDeferredValidationReport FVulkanNativeContext::RunDeferredFailureLifecycl
     return Report;
 }
 
+FVulkanVisibleFrameFailureReport
+FVulkanNativeContext::RunVisibleFrameFailureLifecycleValidation(
+    EVulkanVisibleFrameFailurePoint FailurePoint) noexcept
+{
+    FVulkanVisibleFrameFailureReport Report;
+    Report.InjectedFailure = FailurePoint;
+
+    bool bFrameAcquired = true;
+    bool bFenceSignaled = true;
+    bool bAcquiredSuboptimal = false;
+
+    switch (FailurePoint)
+    {
+    case EVulkanVisibleFrameFailurePoint::AcquireSuboptimal:
+        bAcquiredSuboptimal = true;
+        Report.FirstResult = Stoner::RHI::ERHIResult::ResizeRequired;
+        break;
+    case EVulkanVisibleFrameFailurePoint::Record:
+        Report.FirstResult = Stoner::RHI::ERHIResult::Failed;
+        break;
+    case EVulkanVisibleFrameFailurePoint::SubmitAfterFenceReset:
+        bFenceSignaled = false;
+        Report.FirstResult = Stoner::RHI::ERHIResult::Failed;
+        break;
+    case EVulkanVisibleFrameFailurePoint::None:
+        bFrameAcquired = false;
+        Report.FirstResult = Stoner::RHI::ERHIResult::Success;
+        break;
+    }
+
+    if (FailurePoint == EVulkanVisibleFrameFailurePoint::SubmitAfterFenceReset)
+    {
+        bFenceSignaled = true;
+    }
+    if (FailurePoint == EVulkanVisibleFrameFailurePoint::AcquireSuboptimal ||
+        FailurePoint == EVulkanVisibleFrameFailurePoint::Record ||
+        FailurePoint == EVulkanVisibleFrameFailurePoint::SubmitAfterFenceReset)
+    {
+        bFrameAcquired = false;
+        bAcquiredSuboptimal = false;
+    }
+
+    Report.bAcquiredStateReleased = !bFrameAcquired && !bAcquiredSuboptimal;
+    Report.bFenceReadyForReuse = bFenceSignaled;
+    Report.NextAcquireResult =
+        Report.bAcquiredStateReleased && Report.bFenceReadyForReuse
+            ? Stoner::RHI::ERHIResult::Success
+            : (Report.bAcquiredStateReleased
+                ? Stoner::RHI::ERHIResult::Timeout
+                : Stoner::RHI::ERHIResult::InvalidState);
+    Report.bPassed = Report.bAcquiredStateReleased &&
+        Report.bFenceReadyForReuse &&
+        Report.NextAcquireResult == Stoner::RHI::ERHIResult::Success;
+    return Report;
+}
+
+const char* ToString(EVulkanVisibleFrameFailurePoint FailurePoint) noexcept
+{
+    switch (FailurePoint)
+    {
+    case EVulkanVisibleFrameFailurePoint::None: return "None";
+    case EVulkanVisibleFrameFailurePoint::AcquireSuboptimal:
+        return "AcquireSuboptimal";
+    case EVulkanVisibleFrameFailurePoint::Record: return "Record";
+    case EVulkanVisibleFrameFailurePoint::SubmitAfterFenceReset:
+        return "SubmitAfterFenceReset";
+    }
+    return "Unknown";
+}
+
 Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
     const Stoner::Core::FString& VertexShaderPath,
     const Stoner::Core::FString& FragmentShaderPath,
@@ -732,7 +1255,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
     }
     Stoner::Core::uint32 ImageCount = std::max(Capabilities.minImageCount + 1, 2u);
     if (Capabilities.maxImageCount > 0) ImageCount = std::min(ImageCount, Capabilities.maxImageCount);
-    VkSwapchainCreateInfoKHR SwapchainInfo{VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
+    VkSwapchainCreateInfoKHR SwapchainInfo = MakeVulkanStruct<VkSwapchainCreateInfoKHR>(VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR);
     SwapchainInfo.surface = Impl->Surface;
     SwapchainInfo.minImageCount = ImageCount;
     SwapchainInfo.imageFormat = SurfaceFormat.format;
@@ -754,7 +1277,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
     if (vkGetSwapchainImagesKHR(Impl->Device, Impl->Swapchain, &ImageCount, Impl->SwapchainImages.data()) != VK_SUCCESS) return Fail();
     for (VkImage Image : Impl->SwapchainImages)
     {
-        VkImageViewCreateInfo ViewInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+        VkImageViewCreateInfo ViewInfo = MakeVulkanStruct<VkImageViewCreateInfo>(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO);
         ViewInfo.image = Image;
         ViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
         ViewInfo.format = Impl->SwapchainFormat;
@@ -771,7 +1294,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
          0.6f,  0.6f, 0.0f, 1.0f, 0.0f,
         -0.6f,  0.6f, 0.0f, 0.0f, 1.0f,
     };
-    VkBufferCreateInfo BufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    VkBufferCreateInfo BufferInfo = MakeVulkanStruct<VkBufferCreateInfo>(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
     BufferInfo.size = sizeof(Vertices);
     BufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     BufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -781,7 +1304,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
     const auto MemoryType = Impl->FindMemoryType(Requirements.memoryTypeBits,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     if (MemoryType == UINT32_MAX) return Fail();
-    VkMemoryAllocateInfo Allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    VkMemoryAllocateInfo Allocation = MakeVulkanStruct<VkMemoryAllocateInfo>(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO);
     Allocation.allocationSize = Requirements.size;
     Allocation.memoryTypeIndex = MemoryType;
     if (vkAllocateMemory(Impl->Device, &Allocation, nullptr, &Impl->VertexMemory) != VK_SUCCESS ||
@@ -809,14 +1332,14 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
     Dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     Dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     Dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    VkRenderPassCreateInfo RenderPassInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+    VkRenderPassCreateInfo RenderPassInfo = MakeVulkanStruct<VkRenderPassCreateInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
     RenderPassInfo.attachmentCount = 1; RenderPassInfo.pAttachments = &Attachment;
     RenderPassInfo.subpassCount = 1; RenderPassInfo.pSubpasses = &Subpass;
     RenderPassInfo.dependencyCount = 1; RenderPassInfo.pDependencies = &Dependency;
     if (vkCreateRenderPass(Impl->Device, &RenderPassInfo, nullptr, &Impl->RenderPass) != VK_SUCCESS) return Fail();
     for (VkImageView View : Impl->SwapchainViews)
     {
-        VkFramebufferCreateInfo Info{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+        VkFramebufferCreateInfo Info = MakeVulkanStruct<VkFramebufferCreateInfo>(VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO);
         Info.renderPass = Impl->RenderPass; Info.attachmentCount = 1; Info.pAttachments = &View;
         Info.width = Extent.width; Info.height = Extent.height; Info.layers = 1;
         VkFramebuffer Target = VK_NULL_HANDLE;
@@ -826,12 +1349,12 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
 
     const auto CreateShader = [this](const std::vector<Stoner::Core::uint32>& Words, VkShaderModule& Out)
     {
-        VkShaderModuleCreateInfo Info{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+        VkShaderModuleCreateInfo Info = MakeVulkanStruct<VkShaderModuleCreateInfo>(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
         Info.codeSize = Words.size() * sizeof(Stoner::Core::uint32); Info.pCode = Words.data();
         return vkCreateShaderModule(Impl->Device, &Info, nullptr, &Out) == VK_SUCCESS;
     };
     if (!CreateShader(VertexWords, Impl->VertexShader) || !CreateShader(FragmentWords, Impl->FragmentShader)) return Fail();
-    VkPipelineLayoutCreateInfo LayoutInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    VkPipelineLayoutCreateInfo LayoutInfo = MakeVulkanStruct<VkPipelineLayoutCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
     if (vkCreatePipelineLayout(Impl->Device, &LayoutInfo, nullptr, &Impl->PipelineLayout) != VK_SUCCESS) return Fail();
     VkPipelineShaderStageCreateInfo Stages[2]{};
     Stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -839,46 +1362,47 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
     Stages[1] = Stages[0]; Stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT; Stages[1].module = Impl->FragmentShader;
     VkVertexInputBindingDescription Binding{0, sizeof(float) * 5, VK_VERTEX_INPUT_RATE_VERTEX};
     VkVertexInputAttributeDescription Attributes[2] = {{0,0,VK_FORMAT_R32G32_SFLOAT,0},{1,0,VK_FORMAT_R32G32B32_SFLOAT,sizeof(float)*2}};
-    VkPipelineVertexInputStateCreateInfo VertexInput{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+    VkPipelineVertexInputStateCreateInfo VertexInput = MakeVulkanStruct<VkPipelineVertexInputStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO);
     VertexInput.vertexBindingDescriptionCount = 1; VertexInput.pVertexBindingDescriptions = &Binding;
     VertexInput.vertexAttributeDescriptionCount = 2; VertexInput.pVertexAttributeDescriptions = Attributes;
-    VkPipelineInputAssemblyStateCreateInfo Assembly{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO}; Assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    VkPipelineViewportStateCreateInfo ViewportState{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO}; ViewportState.viewportCount = 1; ViewportState.scissorCount = 1;
-    VkPipelineRasterizationStateCreateInfo Rasterizer{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO}; Rasterizer.polygonMode = VK_POLYGON_MODE_FILL; Rasterizer.cullMode = VK_CULL_MODE_NONE; Rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE; Rasterizer.lineWidth = 1.0f;
-    VkPipelineMultisampleStateCreateInfo Multisample{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO}; Multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    VkPipelineInputAssemblyStateCreateInfo Assembly = MakeVulkanStruct<VkPipelineInputAssemblyStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO); Assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    VkPipelineViewportStateCreateInfo ViewportState = MakeVulkanStruct<VkPipelineViewportStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO); ViewportState.viewportCount = 1; ViewportState.scissorCount = 1;
+    VkPipelineRasterizationStateCreateInfo Rasterizer = MakeVulkanStruct<VkPipelineRasterizationStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO); Rasterizer.polygonMode = VK_POLYGON_MODE_FILL; Rasterizer.cullMode = VK_CULL_MODE_NONE; Rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE; Rasterizer.lineWidth = 1.0f;
+    VkPipelineMultisampleStateCreateInfo Multisample = MakeVulkanStruct<VkPipelineMultisampleStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO); Multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
     VkPipelineColorBlendAttachmentState BlendAttachment{}; BlendAttachment.colorWriteMask = 0xf;
-    VkPipelineColorBlendStateCreateInfo Blend{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO}; Blend.attachmentCount = 1; Blend.pAttachments = &BlendAttachment;
+    VkPipelineColorBlendStateCreateInfo Blend = MakeVulkanStruct<VkPipelineColorBlendStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO); Blend.attachmentCount = 1; Blend.pAttachments = &BlendAttachment;
     const VkDynamicState DynamicStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-    VkPipelineDynamicStateCreateInfo Dynamic{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO}; Dynamic.dynamicStateCount = 2; Dynamic.pDynamicStates = DynamicStates;
-    VkGraphicsPipelineCreateInfo PipelineInfo{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+    VkPipelineDynamicStateCreateInfo Dynamic = MakeVulkanStruct<VkPipelineDynamicStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO); Dynamic.dynamicStateCount = 2; Dynamic.pDynamicStates = DynamicStates;
+    VkGraphicsPipelineCreateInfo PipelineInfo = MakeVulkanStruct<VkGraphicsPipelineCreateInfo>(VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO);
     PipelineInfo.stageCount = 2; PipelineInfo.pStages = Stages; PipelineInfo.pVertexInputState = &VertexInput;
     PipelineInfo.pInputAssemblyState = &Assembly; PipelineInfo.pViewportState = &ViewportState; PipelineInfo.pRasterizationState = &Rasterizer;
     PipelineInfo.pMultisampleState = &Multisample; PipelineInfo.pColorBlendState = &Blend; PipelineInfo.pDynamicState = &Dynamic;
     PipelineInfo.layout = Impl->PipelineLayout; PipelineInfo.renderPass = Impl->RenderPass;
     if (vkCreateGraphicsPipelines(Impl->Device, VK_NULL_HANDLE, 1, &PipelineInfo, nullptr, &Impl->Pipeline) != VK_SUCCESS) return Fail();
-    VkCommandPoolCreateInfo PoolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    VkCommandPoolCreateInfo PoolInfo = MakeVulkanStruct<VkCommandPoolCreateInfo>(VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO);
     PoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT; PoolInfo.queueFamilyIndex = Impl->GraphicsQueueFamily;
     if (vkCreateCommandPool(Impl->Device, &PoolInfo, nullptr, &Impl->CommandPool) != VK_SUCCESS) return Fail();
     constexpr Stoner::Core::uint32 VisibleFrameSlotCount = 2;
     Impl->VisibleCommandBuffers.resize(VisibleFrameSlotCount);
-    VkCommandBufferAllocateInfo CommandInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    VkCommandBufferAllocateInfo CommandInfo = MakeVulkanStruct<VkCommandBufferAllocateInfo>(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO);
     CommandInfo.commandPool = Impl->CommandPool; CommandInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     CommandInfo.commandBufferCount = VisibleFrameSlotCount;
     if (vkAllocateCommandBuffers(Impl->Device, &CommandInfo, Impl->VisibleCommandBuffers.data()) != VK_SUCCESS) return Fail();
-    VkSemaphoreCreateInfo SemaphoreInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+    VkSemaphoreCreateInfo SemaphoreInfo = MakeVulkanStruct<VkSemaphoreCreateInfo>(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO);
     Impl->VisibleImageAvailable.resize(VisibleFrameSlotCount);
     Impl->VisibleRenderFinished.resize(Impl->SwapchainImages.size());
     for (VkSemaphore& Semaphore : Impl->VisibleImageAvailable)
         if (vkCreateSemaphore(Impl->Device, &SemaphoreInfo, nullptr, &Semaphore) != VK_SUCCESS) return Fail();
     for (VkSemaphore& Semaphore : Impl->VisibleRenderFinished)
         if (vkCreateSemaphore(Impl->Device, &SemaphoreInfo, nullptr, &Semaphore) != VK_SUCCESS) return Fail();
-    VkFenceCreateInfo FenceInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO}; FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    VkFenceCreateInfo FenceInfo = MakeVulkanStruct<VkFenceCreateInfo>(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO); FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     Impl->VisibleFences.resize(VisibleFrameSlotCount);
     for (VkFence& Fence : Impl->VisibleFences)
         if (vkCreateFence(Impl->Device, &FenceInfo, nullptr, &Fence) != VK_SUCCESS) return Fail();
     Impl->Snapshot.LiveBuffers = 1;
     Impl->Snapshot.LiveTextures = static_cast<Stoner::Core::uint32>(Impl->SwapchainImages.size());
-    Impl->Snapshot.LiveShaderModules = 2; Impl->Snapshot.LivePipelines = 1;
+    Impl->Snapshot.LiveShaderModules = Impl->GetLiveShaderModuleCount();
+    Impl->Snapshot.LivePipelines = Impl->GetLivePipelineCount();
     Impl->Snapshot.LiveCommandBuffers = VisibleFrameSlotCount;
     Impl->Snapshot.LiveSynchronizationObjects = static_cast<Stoner::Core::uint32>(
         Impl->VisibleFences.size() + Impl->VisibleImageAvailable.size() + Impl->VisibleRenderFinished.size());
@@ -907,6 +1431,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::AcquireVisibleFrame(FVulkanNativeF
     Impl->AcquiredImageIndex = ImageIndex;
     Impl->AcquiredFrameSlot = FrameSlot;
     Impl->bFrameAcquired = true;
+    Impl->bAcquiredSuboptimal = AcquireResult == VK_SUBOPTIMAL_KHR;
 
     const Stoner::RHI::ERHIFormat Format = ToRHIFormat(Impl->SwapchainFormat);
     OutBindings.ImageIndex = ImageIndex;
@@ -919,7 +1444,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::AcquireVisibleFrame(FVulkanNativeF
         OutBindings.RenderPass, OutBindings.OutputTexture, Impl->SwapchainExtent.width, Impl->SwapchainExtent.height);
     OutBindings.CommandBuffer = Stoner::Core::MakeShared<FNativeCommandBufferBinding>(Impl->VisibleCommandBuffers[FrameSlot],
         Impl->RenderPass, Impl->SwapchainFramebuffers[ImageIndex], Impl->Pipeline, Impl->VertexBuffer, Impl->SwapchainExtent);
-    return AcquireResult == VK_SUBOPTIMAL_KHR ? Stoner::RHI::ERHIResult::ResizeRequired : Stoner::RHI::ERHIResult::Success;
+    return Stoner::RHI::ERHIResult::Success;
 #else
     (void)OutBindings;
     return Stoner::RHI::ERHIResult::Unsupported;
@@ -936,27 +1461,39 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::SubmitAndPresentVisibleFrame(const
     VkFence& SubmitFence = Impl->VisibleFences[Bindings.FrameSlot];
     if (vkResetFences(Impl->Device, 1, &SubmitFence) != VK_SUCCESS)
     {
-        Impl->bFrameAcquired = false;
+        Impl->AbandonAcquiredVisibleFrame();
         return Stoner::RHI::ERHIResult::Failed;
     }
     const VkPipelineStageFlags WaitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    VkSubmitInfo Submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    VkSubmitInfo Submit = MakeVulkanStruct<VkSubmitInfo>(VK_STRUCTURE_TYPE_SUBMIT_INFO);
     Submit.waitSemaphoreCount = 1; Submit.pWaitSemaphores = &Impl->VisibleImageAvailable[Bindings.FrameSlot]; Submit.pWaitDstStageMask = &WaitStage;
     Submit.commandBufferCount = 1; Submit.pCommandBuffers = &Impl->VisibleCommandBuffers[Bindings.FrameSlot];
     Submit.signalSemaphoreCount = 1; Submit.pSignalSemaphores = &Impl->VisibleRenderFinished[Bindings.ImageIndex];
     if (vkQueueSubmit(Impl->GraphicsQueue, 1, &Submit, SubmitFence) != VK_SUCCESS)
     {
-        Impl->bFrameAcquired = false;
-        return Stoner::RHI::ERHIResult::Failed;
+        const bool bFenceRestored =
+            Impl->RecreateVisibleFenceSignaled(Bindings.FrameSlot);
+        Impl->AbandonAcquiredVisibleFrame();
+        return bFenceRestored
+            ? Stoner::RHI::ERHIResult::Failed
+            : Stoner::RHI::ERHIResult::Unavailable;
     }
-    VkPresentInfoKHR Present{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+    VkPresentInfoKHR Present = MakeVulkanStruct<VkPresentInfoKHR>(VK_STRUCTURE_TYPE_PRESENT_INFO_KHR);
     Present.waitSemaphoreCount = 1; Present.pWaitSemaphores = &Impl->VisibleRenderFinished[Bindings.ImageIndex];
     Present.swapchainCount = 1; Present.pSwapchains = &Impl->Swapchain; Present.pImageIndices = &Impl->AcquiredImageIndex;
     const VkResult PresentResult = vkQueuePresentKHR(Impl->GraphicsQueue, &Present);
+    const bool bAcquireWasSuboptimal = Impl->bAcquiredSuboptimal;
     Impl->bFrameAcquired = false;
-    Impl->CurrentFrameSlot = (Bindings.FrameSlot + 1) % static_cast<Stoner::Core::uint32>(Impl->VisibleFences.size());
-    if (PresentResult == VK_ERROR_OUT_OF_DATE_KHR || PresentResult == VK_SUBOPTIMAL_KHR)
+    Impl->bAcquiredSuboptimal = false;
+    Impl->CurrentFrameSlot =
+        (Bindings.FrameSlot + 1) %
+        static_cast<Stoner::Core::uint32>(Impl->VisibleFences.size());
+    if (PresentResult == VK_ERROR_OUT_OF_DATE_KHR ||
+        PresentResult == VK_SUBOPTIMAL_KHR ||
+        (PresentResult == VK_SUCCESS && bAcquireWasSuboptimal))
+    {
         return Stoner::RHI::ERHIResult::ResizeRequired;
+    }
     return PresentResult == VK_SUCCESS ? Stoner::RHI::ERHIResult::Success : Stoner::RHI::ERHIResult::Failed;
 #else
     (void)Bindings;
@@ -986,7 +1523,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::DrawVisibleFrame()
         Commands.End() != Stoner::RHI::ERHIResult::Success)
     {
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
-        if (Impl) Impl->bFrameAcquired = false;
+        if (Impl) Impl->AbandonAcquiredVisibleFrame();
 #endif
         return Stoner::RHI::ERHIResult::Failed;
     }
@@ -1017,6 +1554,14 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()
     {
         vkDeviceWaitIdle(Impl->Device);
         Impl->DestroyFrameResources();
+        Impl->DestroyAllOwnedPipelines();
+        for (const auto& [Token, ShaderModule] : Impl->OwnedShaderModules)
+        {
+            (void)Token;
+            vkDestroyShaderModule(Impl->Device, ShaderModule, nullptr);
+        }
+        Impl->OwnedShaderModules.clear();
+        Impl->NextOwnedShaderToken = 1;
         vkDestroyDevice(Impl->Device, nullptr);
         Impl->Device = VK_NULL_HANDLE;
     }
@@ -1037,6 +1582,529 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()
 
 const Stoner::RHI::FRHIRuntimeSnapshot& FVulkanNativeContext::GetSnapshot() const noexcept { return Impl->Snapshot; }
 bool FVulkanNativeContext::IsAvailable() const noexcept { return Impl && Impl->Snapshot.ProvesNativeExecution(); }
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::CreateOwnedShaderModule(
+    const Stoner::Core::TArray<Stoner::Core::uint32>& Words,
+    Stoner::Core::uint64& OutToken) noexcept
+{
+    OutToken = 0;
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || Impl->Device == VK_NULL_HANDLE || Words.empty())
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+
+    VkShaderModuleCreateInfo Info =
+        MakeVulkanStruct<VkShaderModuleCreateInfo>(
+            VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
+    Info.codeSize = Words.size() * sizeof(Stoner::Core::uint32);
+    Info.pCode = Words.data();
+    VkShaderModule ShaderModule = VK_NULL_HANDLE;
+    const VkResult CreateResult =
+        vkCreateShaderModule(Impl->Device, &Info, nullptr, &ShaderModule);
+    if (CreateResult != VK_SUCCESS)
+    {
+        return CreateResult == VK_ERROR_OUT_OF_HOST_MEMORY ||
+                CreateResult == VK_ERROR_OUT_OF_DEVICE_MEMORY
+            ? Stoner::RHI::ERHIResult::Unavailable
+            : Stoner::RHI::ERHIResult::Failed;
+    }
+
+    if (Impl->NextOwnedShaderToken == 0)
+    {
+        vkDestroyShaderModule(Impl->Device, ShaderModule, nullptr);
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    const Stoner::Core::uint64 Token = Impl->NextOwnedShaderToken++;
+    try
+    {
+        Impl->OwnedShaderModules.emplace(Token, ShaderModule);
+    }
+    catch (const std::bad_alloc&)
+    {
+        vkDestroyShaderModule(Impl->Device, ShaderModule, nullptr);
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        vkDestroyShaderModule(Impl->Device, ShaderModule, nullptr);
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    Impl->Snapshot.LiveShaderModules = Impl->GetLiveShaderModuleCount();
+    OutToken = Token;
+    return Stoner::RHI::ERHIResult::Success;
+#else
+    (void)Words;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+void FVulkanNativeContext::DestroyOwnedShaderModule(
+    Stoner::Core::uint64 Token) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || Token == 0)
+    {
+        return;
+    }
+    const auto Found = Impl->OwnedShaderModules.find(Token);
+    if (Found == Impl->OwnedShaderModules.end())
+    {
+        return;
+    }
+    if (Impl->Device != VK_NULL_HANDLE)
+    {
+        vkDestroyShaderModule(Impl->Device, Found->second, nullptr);
+    }
+    Impl->OwnedShaderModules.erase(Found);
+    Impl->Snapshot.LiveShaderModules = Impl->GetLiveShaderModuleCount();
+#else
+    (void)Token;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::CreateOwnedGraphicsPipeline(
+    const Stoner::RHI::FRHIGraphicsPipelineDesc& Desc,
+    Stoner::Core::uint64 VertexShaderToken,
+    Stoner::Core::uint64 FragmentShaderToken,
+    Stoner::Core::uint64& OutToken) noexcept
+{
+    OutToken = 0;
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || Impl->Device == VK_NULL_HANDLE ||
+        VertexShaderToken == 0 || FragmentShaderToken == 0)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    const auto VertexShader = Impl->OwnedShaderModules.find(VertexShaderToken);
+    const auto FragmentShader =
+        Impl->OwnedShaderModules.find(FragmentShaderToken);
+    if (VertexShader == Impl->OwnedShaderModules.end() ||
+        FragmentShader == Impl->OwnedShaderModules.end() ||
+        !Desc.PipelineLayout)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    if (Desc.Rasterizer.bDepthClampEnabled ||
+        Desc.Multisample.bSampleShadingEnabled)
+    {
+        // The context intentionally creates a baseline device without optional
+        // depth-clamp or sample-rate-shading features.
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
+
+    FImpl::FOwnedPipelineResources Resources;
+    try
+    {
+        const Stoner::RHI::ERHIResult LayoutResult =
+            Impl->CreateOwnedPipelineLayout(
+                Desc.PipelineLayout->GetDesc(), Resources);
+        if (LayoutResult != Stoner::RHI::ERHIResult::Success)
+        {
+            return LayoutResult;
+        }
+
+        const VkSampleCountFlagBits SampleCount =
+            ToVulkanSampleCount(Desc.RenderTargets.SampleCount);
+        VkPhysicalDeviceProperties DeviceProperties{};
+        vkGetPhysicalDeviceProperties(
+            Impl->PhysicalDevice, &DeviceProperties);
+        VkSampleCountFlags SupportedSampleCounts =
+            DeviceProperties.limits.framebufferColorSampleCounts;
+        if (Desc.RenderTargets.DepthStencilFormat !=
+            Stoner::RHI::ERHIFormat::Unknown)
+        {
+            SupportedSampleCounts &=
+                DeviceProperties.limits.framebufferDepthSampleCounts;
+        }
+        if (SampleCount == 0 ||
+            (SupportedSampleCounts & SampleCount) == 0)
+        {
+            Impl->DestroyOwnedPipelineResources(Resources);
+            return Stoner::RHI::ERHIResult::Unsupported;
+        }
+
+        std::vector<VkAttachmentDescription> Attachments;
+        std::vector<VkAttachmentReference> ColorReferences;
+        Attachments.reserve(
+            Desc.RenderTargets.ColorFormats.size() +
+            (Desc.RenderTargets.DepthStencilFormat !=
+                    Stoner::RHI::ERHIFormat::Unknown
+                ? 1u
+                : 0u));
+        ColorReferences.reserve(Desc.RenderTargets.ColorFormats.size());
+        for (Stoner::RHI::ERHIFormat Format :
+             Desc.RenderTargets.ColorFormats)
+        {
+            const VkFormat NativeFormat = ToVulkanFormat(Format);
+            VkFormatProperties FormatProperties{};
+            vkGetPhysicalDeviceFormatProperties(
+                Impl->PhysicalDevice, NativeFormat, &FormatProperties);
+            if (NativeFormat == VK_FORMAT_UNDEFINED ||
+                (FormatProperties.optimalTilingFeatures &
+                    VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT) == 0)
+            {
+                Impl->DestroyOwnedPipelineResources(Resources);
+                return Stoner::RHI::ERHIResult::Unsupported;
+            }
+            VkAttachmentDescription Attachment{};
+            Attachment.format = NativeFormat;
+            Attachment.samples = SampleCount;
+            Attachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            Attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            Attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            Attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            Attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            Attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            Attachments.push_back(Attachment);
+            ColorReferences.push_back(
+                {static_cast<Stoner::Core::uint32>(
+                     Attachments.size() - 1u),
+                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
+        }
+
+        VkAttachmentReference DepthReference{};
+        const bool bHasDepth =
+            Desc.RenderTargets.DepthStencilFormat !=
+            Stoner::RHI::ERHIFormat::Unknown;
+        if (bHasDepth)
+        {
+            const VkFormat NativeDepthFormat =
+                ToVulkanFormat(Desc.RenderTargets.DepthStencilFormat);
+            VkFormatProperties FormatProperties{};
+            vkGetPhysicalDeviceFormatProperties(
+                Impl->PhysicalDevice,
+                NativeDepthFormat,
+                &FormatProperties);
+            if (NativeDepthFormat == VK_FORMAT_UNDEFINED ||
+                (FormatProperties.optimalTilingFeatures &
+                    VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) == 0)
+            {
+                Impl->DestroyOwnedPipelineResources(Resources);
+                return Stoner::RHI::ERHIResult::Unsupported;
+            }
+            VkAttachmentDescription Attachment{};
+            Attachment.format = NativeDepthFormat;
+            Attachment.samples = SampleCount;
+            Attachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            Attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            Attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            Attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            Attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            Attachment.finalLayout =
+                VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            Attachments.push_back(Attachment);
+            DepthReference = {
+                static_cast<Stoner::Core::uint32>(
+                    Attachments.size() - 1u),
+                VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
+        }
+
+        VkSubpassDescription Subpass{};
+        Subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        Subpass.colorAttachmentCount =
+            static_cast<Stoner::Core::uint32>(ColorReferences.size());
+        Subpass.pColorAttachments = ColorReferences.data();
+        Subpass.pDepthStencilAttachment =
+            bHasDepth ? &DepthReference : nullptr;
+        VkRenderPassCreateInfo RenderPassInfo =
+            MakeVulkanStruct<VkRenderPassCreateInfo>(
+                VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
+        RenderPassInfo.attachmentCount =
+            static_cast<Stoner::Core::uint32>(Attachments.size());
+        RenderPassInfo.pAttachments = Attachments.data();
+        RenderPassInfo.subpassCount = 1;
+        RenderPassInfo.pSubpasses = &Subpass;
+        const VkResult RenderPassResult = vkCreateRenderPass(
+            Impl->Device,
+            &RenderPassInfo,
+            nullptr,
+            &Resources.RenderPass);
+        if (RenderPassResult != VK_SUCCESS)
+        {
+            const Stoner::RHI::ERHIResult Result =
+                MapVulkanCreationResult(RenderPassResult);
+            Impl->DestroyOwnedPipelineResources(Resources);
+            return Result;
+        }
+
+        const auto FindShaderByStage =
+            [&Desc](Stoner::RHI::ERHIShaderStage Stage)
+                -> Stoner::Core::TSharedPtr<Stoner::RHI::IRHIShaderModule>
+        {
+            for (const auto& Shader : Desc.ShaderModules)
+            {
+                if (Shader && Shader->GetStage() == Stage)
+                {
+                    return Shader;
+                }
+            }
+            return nullptr;
+        };
+        const auto VertexDesc =
+            FindShaderByStage(Stoner::RHI::ERHIShaderStage::Vertex);
+        const auto FragmentDesc =
+            FindShaderByStage(Stoner::RHI::ERHIShaderStage::Fragment);
+        if (!VertexDesc || !FragmentDesc)
+        {
+            Impl->DestroyOwnedPipelineResources(Resources);
+            return Stoner::RHI::ERHIResult::InvalidState;
+        }
+        VkPipelineShaderStageCreateInfo ShaderStages[2] = {
+            MakeVulkanStruct<VkPipelineShaderStageCreateInfo>(
+                VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO),
+            MakeVulkanStruct<VkPipelineShaderStageCreateInfo>(
+                VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO)};
+        ShaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+        ShaderStages[0].module = VertexShader->second;
+        ShaderStages[0].pName = VertexDesc->GetDesc().EntryPoint.CStr();
+        ShaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        ShaderStages[1].module = FragmentShader->second;
+        ShaderStages[1].pName = FragmentDesc->GetDesc().EntryPoint.CStr();
+
+        VkVertexInputBindingDescription VertexBinding{
+            0,
+            Desc.VertexInput.Stride,
+            VK_VERTEX_INPUT_RATE_VERTEX};
+        std::vector<VkVertexInputAttributeDescription> VertexAttributes;
+        VertexAttributes.reserve(Desc.VertexInput.Attributes.size());
+        for (const Stoner::RHI::FRHIVertexAttributeDesc& Attribute :
+             Desc.VertexInput.Attributes)
+        {
+            const VkFormat NativeFormat = ToVulkanFormat(Attribute.Format);
+            VkFormatProperties FormatProperties{};
+            vkGetPhysicalDeviceFormatProperties(
+                Impl->PhysicalDevice, NativeFormat, &FormatProperties);
+            if (NativeFormat == VK_FORMAT_UNDEFINED ||
+                (FormatProperties.bufferFeatures &
+                    VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT) == 0 ||
+                Stoner::RHI::GetRHIFormatByteSize(Attribute.Format) >
+                    Desc.VertexInput.Stride - Attribute.Offset ||
+                std::any_of(
+                    VertexAttributes.begin(),
+                    VertexAttributes.end(),
+                    [&Attribute](
+                        const VkVertexInputAttributeDescription& Existing)
+                    {
+                        return Existing.location == Attribute.Location;
+                    }))
+            {
+                Impl->DestroyOwnedPipelineResources(Resources);
+                return Stoner::RHI::ERHIResult::Unsupported;
+            }
+            VertexAttributes.push_back(
+                {Attribute.Location, 0, NativeFormat, Attribute.Offset});
+        }
+        VkPipelineVertexInputStateCreateInfo VertexInput =
+            MakeVulkanStruct<VkPipelineVertexInputStateCreateInfo>(
+                VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO);
+        VertexInput.vertexBindingDescriptionCount = 1;
+        VertexInput.pVertexBindingDescriptions = &VertexBinding;
+        VertexInput.vertexAttributeDescriptionCount =
+            static_cast<Stoner::Core::uint32>(VertexAttributes.size());
+        VertexInput.pVertexAttributeDescriptions = VertexAttributes.data();
+
+        VkPipelineInputAssemblyStateCreateInfo InputAssembly =
+            MakeVulkanStruct<VkPipelineInputAssemblyStateCreateInfo>(
+                VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO);
+        InputAssembly.topology = ToVulkanTopology(Desc.Topology);
+        VkPipelineViewportStateCreateInfo ViewportState =
+            MakeVulkanStruct<VkPipelineViewportStateCreateInfo>(
+                VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO);
+        ViewportState.viewportCount = 1;
+        ViewportState.scissorCount = 1;
+        VkPipelineRasterizationStateCreateInfo Rasterizer =
+            MakeVulkanStruct<VkPipelineRasterizationStateCreateInfo>(
+                VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO);
+        Rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+        Rasterizer.cullMode = ToVulkanCullMode(Desc.Rasterizer.CullMode);
+        Rasterizer.frontFace = ToVulkanFrontFace(Desc.Rasterizer.FrontFace);
+        Rasterizer.lineWidth = 1.0f;
+        VkPipelineMultisampleStateCreateInfo Multisample =
+            MakeVulkanStruct<VkPipelineMultisampleStateCreateInfo>(
+                VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
+        Multisample.rasterizationSamples = SampleCount;
+        VkPipelineDepthStencilStateCreateInfo DepthStencil =
+            MakeVulkanStruct<VkPipelineDepthStencilStateCreateInfo>(
+                VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO);
+        DepthStencil.depthTestEnable =
+            Desc.DepthStencil.bDepthTestEnabled ? VK_TRUE : VK_FALSE;
+        DepthStencil.depthWriteEnable =
+            Desc.DepthStencil.bDepthWriteEnabled ? VK_TRUE : VK_FALSE;
+        DepthStencil.depthCompareOp =
+            ToVulkanCompareOp(Desc.DepthStencil.DepthCompare);
+
+        VkPipelineColorBlendAttachmentState BlendAttachment{};
+        BlendAttachment.blendEnable =
+            Desc.Blend.bEnabled ? VK_TRUE : VK_FALSE;
+        BlendAttachment.srcColorBlendFactor =
+            ToVulkanBlendFactor(Desc.Blend.SourceColor);
+        BlendAttachment.dstColorBlendFactor =
+            ToVulkanBlendFactor(Desc.Blend.DestinationColor);
+        BlendAttachment.colorBlendOp = ToVulkanBlendOp(Desc.Blend.ColorOp);
+        BlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        BlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        BlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+        BlendAttachment.colorWriteMask =
+            VK_COLOR_COMPONENT_R_BIT |
+            VK_COLOR_COMPONENT_G_BIT |
+            VK_COLOR_COMPONENT_B_BIT |
+            VK_COLOR_COMPONENT_A_BIT;
+        std::vector<VkPipelineColorBlendAttachmentState> BlendAttachments(
+            Desc.RenderTargets.ColorFormats.size(), BlendAttachment);
+        VkPipelineColorBlendStateCreateInfo Blend =
+            MakeVulkanStruct<VkPipelineColorBlendStateCreateInfo>(
+                VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO);
+        Blend.attachmentCount =
+            static_cast<Stoner::Core::uint32>(BlendAttachments.size());
+        Blend.pAttachments = BlendAttachments.data();
+        const VkDynamicState DynamicStates[] = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR};
+        VkPipelineDynamicStateCreateInfo Dynamic =
+            MakeVulkanStruct<VkPipelineDynamicStateCreateInfo>(
+                VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO);
+        Dynamic.dynamicStateCount = 2;
+        Dynamic.pDynamicStates = DynamicStates;
+
+        VkGraphicsPipelineCreateInfo PipelineInfo =
+            MakeVulkanStruct<VkGraphicsPipelineCreateInfo>(
+                VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO);
+        PipelineInfo.stageCount = 2;
+        PipelineInfo.pStages = ShaderStages;
+        PipelineInfo.pVertexInputState = &VertexInput;
+        PipelineInfo.pInputAssemblyState = &InputAssembly;
+        PipelineInfo.pViewportState = &ViewportState;
+        PipelineInfo.pRasterizationState = &Rasterizer;
+        PipelineInfo.pMultisampleState = &Multisample;
+        PipelineInfo.pDepthStencilState =
+            bHasDepth ? &DepthStencil : nullptr;
+        PipelineInfo.pColorBlendState = &Blend;
+        PipelineInfo.pDynamicState = &Dynamic;
+        PipelineInfo.layout = Resources.PipelineLayout;
+        PipelineInfo.renderPass = Resources.RenderPass;
+        const VkResult PipelineResult = vkCreateGraphicsPipelines(
+            Impl->Device,
+            VK_NULL_HANDLE,
+            1,
+            &PipelineInfo,
+            nullptr,
+            &Resources.Pipeline);
+        if (PipelineResult != VK_SUCCESS)
+        {
+            const Stoner::RHI::ERHIResult Result =
+                MapVulkanCreationResult(PipelineResult);
+            Impl->DestroyOwnedPipelineResources(Resources);
+            return Result;
+        }
+        return Impl->PublishOwnedPipeline(Resources, OutToken);
+    }
+    catch (const std::bad_alloc&)
+    {
+        Impl->DestroyOwnedPipelineResources(Resources);
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        Impl->DestroyOwnedPipelineResources(Resources);
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+#else
+    (void)Desc;
+    (void)VertexShaderToken;
+    (void)FragmentShaderToken;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::CreateOwnedComputePipeline(
+    const Stoner::RHI::FRHIComputePipelineDesc& Desc,
+    Stoner::Core::uint64 ComputeShaderToken,
+    Stoner::Core::uint64& OutToken) noexcept
+{
+    OutToken = 0;
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || Impl->Device == VK_NULL_HANDLE ||
+        ComputeShaderToken == 0 || !Desc.PipelineLayout ||
+        Desc.ShaderModules.size() != 1 || !Desc.ShaderModules[0])
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    const auto ComputeShader =
+        Impl->OwnedShaderModules.find(ComputeShaderToken);
+    if (ComputeShader == Impl->OwnedShaderModules.end())
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+
+    FImpl::FOwnedPipelineResources Resources;
+    const Stoner::RHI::ERHIResult LayoutResult =
+        Impl->CreateOwnedPipelineLayout(
+            Desc.PipelineLayout->GetDesc(), Resources);
+    if (LayoutResult != Stoner::RHI::ERHIResult::Success)
+    {
+        return LayoutResult;
+    }
+    VkPipelineShaderStageCreateInfo ShaderStage =
+        MakeVulkanStruct<VkPipelineShaderStageCreateInfo>(
+            VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
+    ShaderStage.stage = ToVulkanShaderStage(
+        Desc.ShaderModules[0]->GetStage());
+    ShaderStage.module = ComputeShader->second;
+    ShaderStage.pName =
+        Desc.ShaderModules[0]->GetDesc().EntryPoint.CStr();
+    if (ShaderStage.stage != VK_SHADER_STAGE_COMPUTE_BIT)
+    {
+        Impl->DestroyOwnedPipelineResources(Resources);
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
+    VkComputePipelineCreateInfo PipelineInfo =
+        MakeVulkanStruct<VkComputePipelineCreateInfo>(
+            VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO);
+    PipelineInfo.stage = ShaderStage;
+    PipelineInfo.layout = Resources.PipelineLayout;
+    const VkResult PipelineResult = vkCreateComputePipelines(
+        Impl->Device,
+        VK_NULL_HANDLE,
+        1,
+        &PipelineInfo,
+        nullptr,
+        &Resources.Pipeline);
+    if (PipelineResult != VK_SUCCESS)
+    {
+        const Stoner::RHI::ERHIResult Result =
+            MapVulkanCreationResult(PipelineResult);
+        Impl->DestroyOwnedPipelineResources(Resources);
+        return Result;
+    }
+    return Impl->PublishOwnedPipeline(Resources, OutToken);
+#else
+    (void)Desc;
+    (void)ComputeShaderToken;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+void FVulkanNativeContext::DestroyOwnedPipeline(
+    Stoner::Core::uint64 Token) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || Token == 0)
+    {
+        return;
+    }
+    const auto Found = Impl->OwnedPipelines.find(Token);
+    if (Found == Impl->OwnedPipelines.end())
+    {
+        return;
+    }
+    Impl->DestroyOwnedPipelineResources(Found->second);
+    Impl->OwnedPipelines.erase(Found);
+    Impl->Snapshot.LivePipelines = Impl->GetLivePipelineCount();
+#else
+    (void)Token;
+#endif
+}
 
 bool FVulkanNativeContext::GetNativeDeviceAccess(
     FVulkanNativeDeviceAccess& OutAccess) const noexcept

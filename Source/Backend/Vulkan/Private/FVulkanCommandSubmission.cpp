@@ -24,25 +24,22 @@ Stoner::RHI::ERHIResult FVulkanCommandSubmission::ObserveCompletion(Stoner::Core
         CompletionState = EVulkanCompletionState::Invalidated;
         return Stoner::RHI::ERHIResult::InvalidState;
     }
+    if (CompletionState == EVulkanCompletionState::Completed)
+    {
+        return Stoner::RHI::ERHIResult::Success;
+    }
     if (Injection.bForceTimeout)
     {
         CompletionState = EVulkanCompletionState::Timeout;
         return Stoner::RHI::ERHIResult::Timeout;
-    }
-    if (TimeoutMicroseconds > 0)
-    {
-        // Fallback submissions complete immediately; a non-zero timeout
-        // still resolves to Success because there is no real GPU work.
-        CompletionState = EVulkanCompletionState::Completed;
-        return Stoner::RHI::ERHIResult::Success;
     }
     if (Injection.bForceNotReady)
     {
         CompletionState = EVulkanCompletionState::NotReady;
         return Stoner::RHI::ERHIResult::NotReady;
     }
-    CompletionState = EVulkanCompletionState::Completed;
-    return CommandBuffer->MarkCompletedOrResettable();
+    (void)TimeoutMicroseconds;
+    return CompleteForWaitIdle();
 }
 
 Stoner::RHI::ERHIResult FVulkanCommandSubmission::CompleteForWaitIdle() noexcept
@@ -52,8 +49,17 @@ Stoner::RHI::ERHIResult FVulkanCommandSubmission::CompleteForWaitIdle() noexcept
         CompletionState = EVulkanCompletionState::Invalidated;
         return Stoner::RHI::ERHIResult::InvalidState;
     }
-    CompletionState = EVulkanCompletionState::Completed;
-    return CommandBuffer->MarkCompletedOrResettable();
+    if (CompletionState == EVulkanCompletionState::Completed)
+    {
+        return Stoner::RHI::ERHIResult::Success;
+    }
+
+    const Stoner::RHI::ERHIResult Result =
+        CommandBuffer->MarkCompletedOrResettable();
+    CompletionState = Result == Stoner::RHI::ERHIResult::Success
+        ? EVulkanCompletionState::Completed
+        : EVulkanCompletionState::Failed;
+    return Result;
 }
 
 void FVulkanCommandSubmission::Invalidate() noexcept

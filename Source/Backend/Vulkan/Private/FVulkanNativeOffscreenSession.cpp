@@ -1,5 +1,6 @@
 #include "FVulkanNativeOffscreenSession.h"
 #include "FVulkanNativeDeviceAccess.h"
+#include "FVulkanStruct.h"
 
 #include <algorithm>
 #include <array>
@@ -19,6 +20,9 @@ namespace
 
 constexpr Stoner::Core::uint32 ValidationWidth = 32;
 constexpr Stoner::Core::uint32 ValidationHeight = 32;
+
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+
 constexpr Stoner::Core::uint64 CompletionTimeoutNanoseconds = 5'000'000'000ull;
 
 float MaxAbsoluteError(const Stoner::Core::FVector4& Expected,
@@ -45,8 +49,6 @@ bool IsFinite(const Stoner::Core::FVector4& Value) noexcept
         Stoner::Core::FMath::IsFinite(Value.Z) &&
         Stoner::Core::FMath::IsFinite(Value.W);
 }
-
-#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
 
 struct alignas(16) FNativeFrameUniform
 {
@@ -199,7 +201,7 @@ struct FVulkanNativeOffscreenSession::FImpl
     VkFramebuffer SurfaceFramebuffer = VK_NULL_HANDLE;
     VkFramebuffer LightingFramebuffer = VK_NULL_HANDLE;
     VkFramebuffer CompositionFramebuffer = VK_NULL_HANDLE;
-    std::array<VkPipeline, 8> Pipelines{};
+    std::array<VkPipeline, 9> Pipelines{};
     VkCommandPool CommandPool = VK_NULL_HANDLE;
     VkCommandBuffer CommandBuffer = VK_NULL_HANDLE;
     VkFence Fence = VK_NULL_HANDLE;
@@ -237,7 +239,7 @@ struct FVulkanNativeOffscreenSession::FImpl
     bool CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage,
         VkMemoryPropertyFlags Properties, const void* InitialData, FBuffer& Out)
     {
-        VkBufferCreateInfo Info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        VkBufferCreateInfo Info = MakeVulkanStruct<VkBufferCreateInfo>(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
         Info.size = Size;
         Info.usage = Usage;
         Info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -254,7 +256,7 @@ struct FVulkanNativeOffscreenSession::FImpl
         {
             return false;
         }
-        VkMemoryAllocateInfo Allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+        VkMemoryAllocateInfo Allocation = MakeVulkanStruct<VkMemoryAllocateInfo>(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO);
         Allocation.allocationSize = Requirements.size;
         Allocation.memoryTypeIndex = MemoryType;
         if (vkAllocateMemory(Access.Device, &Allocation, nullptr, &Out.Memory) != VK_SUCCESS)
@@ -284,7 +286,7 @@ struct FVulkanNativeOffscreenSession::FImpl
         VkImageAspectFlags Aspect, VkImageLayout ReadLayout,
         Stoner::Core::uint32 BytesPerPixel, FImage& Out)
     {
-        VkImageCreateInfo Info{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+        VkImageCreateInfo Info = MakeVulkanStruct<VkImageCreateInfo>(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO);
         Info.imageType = VK_IMAGE_TYPE_2D;
         Info.format = Format;
         Info.extent = {ValidationWidth, ValidationHeight, 1};
@@ -308,7 +310,7 @@ struct FVulkanNativeOffscreenSession::FImpl
         {
             return false;
         }
-        VkMemoryAllocateInfo Allocation{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+        VkMemoryAllocateInfo Allocation = MakeVulkanStruct<VkMemoryAllocateInfo>(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO);
         Allocation.allocationSize = Requirements.size;
         Allocation.memoryTypeIndex = MemoryType;
         if (vkAllocateMemory(Access.Device, &Allocation, nullptr, &Out.Memory) != VK_SUCCESS ||
@@ -317,7 +319,7 @@ struct FVulkanNativeOffscreenSession::FImpl
             return false;
         }
         TrackCreate();
-        VkImageViewCreateInfo ViewInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+        VkImageViewCreateInfo ViewInfo = MakeVulkanStruct<VkImageViewCreateInfo>(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO);
         ViewInfo.image = Out.Image;
         ViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
         ViewInfo.format = Format;
@@ -343,7 +345,7 @@ struct FVulkanNativeOffscreenSession::FImpl
         {
             return false;
         }
-        VkShaderModuleCreateInfo Info{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+        VkShaderModuleCreateInfo Info = MakeVulkanStruct<VkShaderModuleCreateInfo>(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
         Info.codeSize = Words.size() * sizeof(Stoner::Core::uint32);
         Info.pCode = Words.data();
         if (vkCreateShaderModule(Access.Device, &Info, nullptr, &Out) != VK_SUCCESS)
@@ -556,8 +558,7 @@ bool CreateDescriptorState(FVulkanNativeOffscreenSession::FImpl& State)
     const std::array<VkDescriptorSetLayoutBinding, 1> Set3 = {{
         {0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, Both, nullptr}}};
     const auto CreateLayout = [&State](const auto& Bindings, VkDescriptorSetLayout& Out) {
-        VkDescriptorSetLayoutCreateInfo Info{
-            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+        VkDescriptorSetLayoutCreateInfo Info = MakeVulkanStruct<VkDescriptorSetLayoutCreateInfo>(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO);
         Info.bindingCount = static_cast<Stoner::Core::uint32>(Bindings.size());
         Info.pBindings = Bindings.data();
         if (vkCreateDescriptorSetLayout(State.Access.Device, &Info, nullptr, &Out) != VK_SUCCESS)
@@ -579,7 +580,7 @@ bool CreateDescriptorState(FVulkanNativeOffscreenSession::FImpl& State)
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5},
         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1}}};
-    VkDescriptorPoolCreateInfo PoolInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    VkDescriptorPoolCreateInfo PoolInfo = MakeVulkanStruct<VkDescriptorPoolCreateInfo>(VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO);
     PoolInfo.maxSets = 5;
     PoolInfo.poolSizeCount = static_cast<Stoner::Core::uint32>(PoolSizes.size());
     PoolInfo.pPoolSizes = PoolSizes.data();
@@ -589,7 +590,7 @@ bool CreateDescriptorState(FVulkanNativeOffscreenSession::FImpl& State)
         return false;
     }
     State.TrackCreate();
-    VkDescriptorSetAllocateInfo Allocate{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    VkDescriptorSetAllocateInfo Allocate = MakeVulkanStruct<VkDescriptorSetAllocateInfo>(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO);
     Allocate.descriptorPool = State.DescriptorPool;
     Allocate.descriptorSetCount = 4;
     Allocate.pSetLayouts = State.SetLayouts.data();
@@ -608,7 +609,7 @@ bool CreateDescriptorState(FVulkanNativeOffscreenSession::FImpl& State)
     }
     State.TrackCreate();
 
-    VkPipelineLayoutCreateInfo PipelineInfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    VkPipelineLayoutCreateInfo PipelineInfo = MakeVulkanStruct<VkPipelineLayoutCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
     PipelineInfo.setLayoutCount = 4;
     PipelineInfo.pSetLayouts = State.SetLayouts.data();
     if (vkCreatePipelineLayout(State.Access.Device, &PipelineInfo, nullptr,
@@ -661,12 +662,13 @@ bool CreateRenderPasses(FVulkanNativeOffscreenSession::FImpl& State, bool bRever
     SurfaceDependencies[1].srcSubpass = 0;
     SurfaceDependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
     SurfaceDependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
         VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
     SurfaceDependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     SurfaceDependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
         VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     SurfaceDependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    VkRenderPassCreateInfo SurfaceInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+    VkRenderPassCreateInfo SurfaceInfo = MakeVulkanStruct<VkRenderPassCreateInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
     SurfaceInfo.attachmentCount = 4;
     SurfaceInfo.pAttachments = SurfaceAttachments.data();
     SurfaceInfo.subpassCount = 1;
@@ -686,7 +688,7 @@ bool CreateRenderPasses(FVulkanNativeOffscreenSession::FImpl& State, bool bRever
     LightingAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     LightingAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     LightingAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    LightingAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    LightingAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     LightingAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     const VkAttachmentReference LightingColor{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
     VkSubpassDescription LightingSubpass{};
@@ -699,18 +701,21 @@ bool CreateRenderPasses(FVulkanNativeOffscreenSession::FImpl& State, bool bRever
     LightingDependencies[0].srcStageMask =
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
         VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    LightingDependencies[0].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    LightingDependencies[0].dstStageMask =
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     LightingDependencies[0].srcAccessMask =
         VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
         VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    LightingDependencies[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    LightingDependencies[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT |
+        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     LightingDependencies[1].srcSubpass = 0;
     LightingDependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
     LightingDependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     LightingDependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     LightingDependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     LightingDependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    VkRenderPassCreateInfo LightingInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+    VkRenderPassCreateInfo LightingInfo = MakeVulkanStruct<VkRenderPassCreateInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
     LightingInfo.attachmentCount = 1;
     LightingInfo.pAttachments = &LightingAttachment;
     LightingInfo.subpassCount = 1;
@@ -742,9 +747,12 @@ bool CreateRenderPasses(FVulkanNativeOffscreenSession::FImpl& State, bool bRever
     CompositionDependencies[0].dstSubpass = 0;
     CompositionDependencies[0].srcStageMask =
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    CompositionDependencies[0].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    CompositionDependencies[0].dstStageMask =
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     CompositionDependencies[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    CompositionDependencies[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    CompositionDependencies[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT |
+        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     CompositionDependencies[1].srcSubpass = 0;
     CompositionDependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
     CompositionDependencies[1].srcStageMask =
@@ -752,7 +760,7 @@ bool CreateRenderPasses(FVulkanNativeOffscreenSession::FImpl& State, bool bRever
     CompositionDependencies[1].dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
     CompositionDependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     CompositionDependencies[1].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    VkRenderPassCreateInfo CompositionInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+    VkRenderPassCreateInfo CompositionInfo = MakeVulkanStruct<VkRenderPassCreateInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
     CompositionInfo.attachmentCount = 1;
     CompositionInfo.pAttachments = &CompositionAttachment;
     CompositionInfo.subpassCount = 1;
@@ -775,7 +783,7 @@ bool CreateFramebuffers(FVulkanNativeOffscreenSession::FImpl& State)
     const std::array<VkImageView, 4> SurfaceViews = {
         State.Images[0].View, State.Images[1].View, State.Images[2].View,
         State.Images[3].View};
-    VkFramebufferCreateInfo Info{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+    VkFramebufferCreateInfo Info = MakeVulkanStruct<VkFramebufferCreateInfo>(VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO);
     Info.renderPass = State.SurfacePass;
     Info.attachmentCount = 4;
     Info.pAttachments = SurfaceViews.data();
@@ -820,8 +828,7 @@ bool CreateGraphicsPipeline(FVulkanNativeOffscreenSession::FImpl& State,
             VK_SHADER_STAGE_VERTEX_BIT, Vertex, "main", nullptr},
         {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0,
             VK_SHADER_STAGE_FRAGMENT_BIT, Fragment, "main", nullptr}}};
-    VkPipelineVertexInputStateCreateInfo VertexInput{
-        VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+    VkPipelineVertexInputStateCreateInfo VertexInput = MakeVulkanStruct<VkPipelineVertexInputStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO);
     if (Binding)
     {
         VertexInput.vertexBindingDescriptionCount = 1;
@@ -829,24 +836,19 @@ bool CreateGraphicsPipeline(FVulkanNativeOffscreenSession::FImpl& State,
     }
     VertexInput.vertexAttributeDescriptionCount = AttributeCount;
     VertexInput.pVertexAttributeDescriptions = Attributes;
-    VkPipelineInputAssemblyStateCreateInfo Assembly{
-        VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
+    VkPipelineInputAssemblyStateCreateInfo Assembly = MakeVulkanStruct<VkPipelineInputAssemblyStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO);
     Assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    VkPipelineViewportStateCreateInfo Viewport{
-        VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
+    VkPipelineViewportStateCreateInfo Viewport = MakeVulkanStruct<VkPipelineViewportStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO);
     Viewport.viewportCount = 1;
     Viewport.scissorCount = 1;
-    VkPipelineRasterizationStateCreateInfo Rasterizer{
-        VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
+    VkPipelineRasterizationStateCreateInfo Rasterizer = MakeVulkanStruct<VkPipelineRasterizationStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO);
     Rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     Rasterizer.cullMode = CullMode;
     Rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     Rasterizer.lineWidth = 1.0f;
-    VkPipelineMultisampleStateCreateInfo Multisample{
-        VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
+    VkPipelineMultisampleStateCreateInfo Multisample = MakeVulkanStruct<VkPipelineMultisampleStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
     Multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-    VkPipelineDepthStencilStateCreateInfo Depth{
-        VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
+    VkPipelineDepthStencilStateCreateInfo Depth = MakeVulkanStruct<VkPipelineDepthStencilStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO);
     Depth.depthTestEnable = bDepth ? VK_TRUE : VK_FALSE;
     Depth.depthWriteEnable = bDepth ? VK_TRUE : VK_FALSE;
     Depth.depthCompareOp = bReversed ? VK_COMPARE_OP_GREATER_OR_EQUAL
@@ -866,17 +868,15 @@ bool CreateGraphicsPipeline(FVulkanNativeOffscreenSession::FImpl& State,
         BlendAttachments[Index].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         BlendAttachments[Index].alphaBlendOp = VK_BLEND_OP_ADD;
     }
-    VkPipelineColorBlendStateCreateInfo Blend{
-        VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
+    VkPipelineColorBlendStateCreateInfo Blend = MakeVulkanStruct<VkPipelineColorBlendStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO);
     Blend.attachmentCount = ColorCount;
     Blend.pAttachments = BlendAttachments.data();
     const std::array<VkDynamicState, 2> Dynamics = {
         VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-    VkPipelineDynamicStateCreateInfo Dynamic{
-        VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
+    VkPipelineDynamicStateCreateInfo Dynamic = MakeVulkanStruct<VkPipelineDynamicStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO);
     Dynamic.dynamicStateCount = 2;
     Dynamic.pDynamicStates = Dynamics.data();
-    VkGraphicsPipelineCreateInfo Info{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+    VkGraphicsPipelineCreateInfo Info = MakeVulkanStruct<VkGraphicsPipelineCreateInfo>(VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO);
     Info.stageCount = 2;
     Info.pStages = Stages.data();
     Info.pVertexInputState = &VertexInput;
@@ -956,7 +956,7 @@ void TransitionForCopy(VkCommandBuffer Commands,
     const FVulkanNativeOffscreenSession::FImpl::FImage& Image,
     VkImageLayout OldLayout)
 {
-    VkImageMemoryBarrier Barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    VkImageMemoryBarrier Barrier = MakeVulkanStruct<VkImageMemoryBarrier>(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
     Barrier.srcAccessMask = OldLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
         ? VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT
         : VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT;
@@ -974,6 +974,33 @@ void TransitionForCopy(VkCommandBuffer Commands,
             VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
         VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &Barrier);
+}
+
+void TransitionToColorAttachment(VkCommandBuffer Commands,
+    const FVulkanNativeOffscreenSession::FImpl::FImage& Image,
+    VkImageLayout OldLayout)
+{
+    VkImageMemoryBarrier Barrier = MakeVulkanStruct<VkImageMemoryBarrier>(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
+    Barrier.srcAccessMask = OldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+        ? VK_ACCESS_TRANSFER_READ_BIT
+        : 0;
+    Barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    Barrier.oldLayout = OldLayout;
+    Barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    Barrier.image = Image.Image;
+    Barrier.subresourceRange.aspectMask = Image.Aspect;
+    Barrier.subresourceRange.levelCount = 1;
+    Barrier.subresourceRange.layerCount = 1;
+    const VkPipelineStageFlags SrcStage =
+        OldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+            ? VK_PIPELINE_STAGE_TRANSFER_BIT
+            : VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    vkCmdPipelineBarrier(Commands, SrcStage,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0,
+        nullptr, 1, &Barrier);
 }
 
 Stoner::Core::FVector4 ReadPixel(
@@ -1162,7 +1189,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
     SetIdentity(Frame.Projection);
     SetIdentity(Frame.InverseViewProjection);
     SetIdentity(Frame.ViewProjection);
-    Frame.CameraPosition = {0.0f, 0.0f, -2.0f, 0.0f};
+    Frame.CameraPosition = {0.0f, 0.0f, 0.75f, 0.0f};
     Frame.OutputExtent = {static_cast<float>(ValidationWidth),
         static_cast<float>(ValidationHeight), 1.0f / ValidationWidth,
         1.0f / ValidationHeight};
@@ -1178,7 +1205,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
     MaskedDraw.Model[12] = 0.65f;
     MaskedDraw.Model[13] = 0.65f;
     MaskedDraw.RoughnessAlphaCutoffFlags = {0.42f, 0.25f, 0.5f, 1.0f};
-    std::array<FNativeLightUniform, 3> Lights{};
+    std::array<FNativeLightUniform, 7> Lights{};
     Lights[0].DirectionOuterCos = {0.0f, 0.0f, -1.0f, 0.0f};
     Lights[0].ColorIntensity = {1.0f, 1.0f, 1.0f, 0.25f};
     Lights[1].PositionRange = {0.0f, 0.0f, 0.75f, 0.75f};
@@ -1187,6 +1214,18 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
     Lights[2].DirectionOuterCos = {0.0f, 0.0f, -1.0f, std::cos(0.5f)};
     Lights[2].ColorIntensity = {0.0f, 1.0f, 0.0f, 0.4f};
     Lights[2].InnerCosTypeVolumeMode = {std::cos(0.35f), 2.0f, 0.0f, 0.0f};
+    Lights[3].PositionRange = {4.0f, 0.0f, 0.75f, 0.5f};
+    Lights[3].ColorIntensity = {1.0f, 1.0f, 0.0f, 0.3f};
+    Lights[4].PositionRange = {0.0f, 0.0f, 0.75f, 0.75f};
+    Lights[4].ColorIntensity = {0.0f, 0.0f, 1.0f, 0.15f};
+    Lights[5].PositionRange = {0.0f, 0.0f, 0.75f, 0.75f};
+    Lights[5].DirectionOuterCos = {0.0f, 0.0f, 1.0f, std::cos(0.5f)};
+    Lights[5].ColorIntensity = {1.0f, 1.0f, 0.0f, 0.4f};
+    Lights[5].InnerCosTypeVolumeMode = {std::cos(0.35f), 2.0f, 0.0f, 0.0f};
+    Lights[6].PositionRange = {0.0f, 0.0f, 0.75f, 3.0f};
+    Lights[6].DirectionOuterCos = {0.0f, 0.0f, -1.0f, std::cos(0.5f)};
+    Lights[6].ColorIntensity = {1.0f, 0.0f, 1.0f, 0.12f};
+    Lights[6].InnerCosTypeVolumeMode = {std::cos(0.35f), 2.0f, 0.0f, 0.0f};
     if (!Impl->CreateBuffer(sizeof(Frame), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
             &Frame, Impl->FrameUniform) ||
@@ -1204,7 +1243,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         return Stoner::RHI::ERHIResult::Failed;
     }
 
-    VkSamplerCreateInfo SamplerInfo{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+    VkSamplerCreateInfo SamplerInfo = MakeVulkanStruct<VkSamplerCreateInfo>(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO);
     SamplerInfo.magFilter = VK_FILTER_NEAREST;
     SamplerInfo.minFilter = VK_FILTER_NEAREST;
     SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
@@ -1250,6 +1289,9 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         !CreateGraphicsPipeline(*Impl, Impl->Shaders[4], Impl->Shaders[5],
             Impl->LightingPass, &VolumeBinding, &VolumeAttribute, 1,
             false, false, true, VK_CULL_MODE_FRONT_BIT, Impl->Pipelines[3]) ||
+        !CreateGraphicsPipeline(*Impl, Impl->Shaders[4], Impl->Shaders[5],
+            Impl->LightingPass, &VolumeBinding, &VolumeAttribute, 1,
+            false, false, true, VK_CULL_MODE_NONE, Impl->Pipelines[8]) ||
         !CreateGraphicsPipeline(*Impl, Impl->Shaders[6], Impl->Shaders[7],
             Impl->LightingPass, &VolumeBinding, &VolumeAttribute, 1,
             false, false, true, VK_CULL_MODE_BACK_BIT, Impl->Pipelines[4]) ||
@@ -1267,7 +1309,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         return Stoner::RHI::ERHIResult::Failed;
     }
 
-    VkCommandPoolCreateInfo PoolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    VkCommandPoolCreateInfo PoolInfo = MakeVulkanStruct<VkCommandPoolCreateInfo>(VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO);
     PoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     PoolInfo.queueFamilyIndex = Impl->Access.GraphicsQueueFamily;
     if (vkCreateCommandPool(Impl->Access.Device, &PoolInfo, nullptr,
@@ -1277,7 +1319,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         return Stoner::RHI::ERHIResult::Failed;
     }
     Impl->TrackCreate();
-    VkCommandBufferAllocateInfo Allocate{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    VkCommandBufferAllocateInfo Allocate = MakeVulkanStruct<VkCommandBufferAllocateInfo>(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO);
     Allocate.commandPool = Impl->CommandPool;
     Allocate.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     Allocate.commandBufferCount = 1;
@@ -1288,7 +1330,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         return Stoner::RHI::ERHIResult::Failed;
     }
     Impl->TrackCreate();
-    VkFenceCreateInfo FenceInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+    VkFenceCreateInfo FenceInfo = MakeVulkanStruct<VkFenceCreateInfo>(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
     if (vkCreateFence(Impl->Access.Device, &FenceInfo, nullptr, &Impl->Fence) != VK_SUCCESS)
     {
         Impl->ReleaseAll();
@@ -1296,6 +1338,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
     }
     Impl->TrackCreate();
 
+    VkImageLayout LightingImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     auto ExecuteConvention = [&](const char* Convention, bool bReversed) {
         if (FailurePoint == EVulkanDeferredFailurePoint::Record)
         {
@@ -1316,7 +1359,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         {
             return false;
         }
-        VkCommandBufferBeginInfo Begin{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        VkCommandBufferBeginInfo Begin = MakeVulkanStruct<VkCommandBufferBeginInfo>(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO);
         if (vkBeginCommandBuffer(Impl->CommandBuffer, &Begin) != VK_SUCCESS)
         {
             return false;
@@ -1327,7 +1370,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         const VkRect2D Scissor{{0, 0}, {ValidationWidth, ValidationHeight}};
         std::array<VkClearValue, 4> SurfaceClears{};
         SurfaceClears[3].depthStencil.depth = bReversed ? 0.0f : 1.0f;
-        VkRenderPassBeginInfo PassBegin{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+        VkRenderPassBeginInfo PassBegin = MakeVulkanStruct<VkRenderPassBeginInfo>(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
         PassBegin.renderPass = Impl->SurfacePass;
         PassBegin.framebuffer = Impl->SurfaceFramebuffer;
         PassBegin.renderArea.extent = {ValidationWidth, ValidationHeight};
@@ -1351,6 +1394,8 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         vkCmdEndRenderPass(Impl->CommandBuffer);
 
         VkClearValue LightingClear{};
+        TransitionToColorAttachment(Impl->CommandBuffer, Impl->Images[4],
+            LightingImageLayout);
         PassBegin.renderPass = Impl->LightingPass;
         PassBegin.framebuffer = Impl->LightingFramebuffer;
         PassBegin.clearValueCount = 1;
@@ -1374,6 +1419,12 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
             VK_INDEX_TYPE_UINT16);
         vkCmdDrawIndexed(Impl->CommandBuffer,
             static_cast<Stoner::Core::uint32>(SphereIndices.size()), 1, 0, 0, 1);
+        vkCmdDrawIndexed(Impl->CommandBuffer,
+            static_cast<Stoner::Core::uint32>(SphereIndices.size()), 1, 0, 0, 3);
+        vkCmdBindPipeline(Impl->CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+            Impl->Pipelines[8]);
+        vkCmdDrawIndexed(Impl->CommandBuffer,
+            static_cast<Stoner::Core::uint32>(SphereIndices.size()), 1, 0, 0, 4);
         vkCmdBindPipeline(Impl->CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
             Impl->Pipelines[4]);
         vkCmdBindVertexBuffers(Impl->CommandBuffer, 0, 1,
@@ -1382,6 +1433,12 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
             VK_INDEX_TYPE_UINT16);
         vkCmdDrawIndexed(Impl->CommandBuffer,
             static_cast<Stoner::Core::uint32>(ConeIndices.size()), 1, 0, 0, 2);
+        vkCmdDrawIndexed(Impl->CommandBuffer,
+            static_cast<Stoner::Core::uint32>(ConeIndices.size()), 1, 0, 0, 5);
+        vkCmdBindPipeline(Impl->CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+            Impl->Pipelines[5]);
+        vkCmdDrawIndexed(Impl->CommandBuffer,
+            static_cast<Stoner::Core::uint32>(ConeIndices.size()), 1, 0, 0, 6);
         vkCmdEndRenderPass(Impl->CommandBuffer);
 
         PassBegin.renderPass = Impl->CompositionPass;
@@ -1419,11 +1476,12 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                 Impl->Readbacks[Index].Buffer, 1, &Copy);
         }
+        LightingImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
         if (vkEndCommandBuffer(Impl->CommandBuffer) != VK_SUCCESS)
         {
             return false;
         }
-        VkSubmitInfo Submit{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+        VkSubmitInfo Submit = MakeVulkanStruct<VkSubmitInfo>(VK_STRUCTURE_TYPE_SUBMIT_INFO);
         Submit.commandBufferCount = 1;
         Submit.pCommandBuffers = &Impl->CommandBuffer;
         if (FailurePoint == EVulkanDeferredFailurePoint::Submit)
@@ -1525,9 +1583,30 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
             std::pow(std::max(1.0f - LightDistance / 0.75f, 0.0f), 2.0f);
         const float Diffuse = 0.25f / LightDistance;
         const float LocalContribution = 0.4f * Attenuation * Diffuse;
+        const float WideRangeAttenuation =
+            std::pow(std::max(1.0f - LightDistance / 3.0f, 0.0f), 2.0f);
+        const float CameraInsidePointContribution =
+            LocalContribution * (0.15f / 0.4f);
+        const float NearPlaneSpotContribution =
+            0.12f * WideRangeAttenuation * Diffuse;
         const Stoner::Core::FVector4 Lighting{
-            0.25f + LocalContribution, 0.25f + LocalContribution, 0.25f, 0.0f};
+            0.25f + LocalContribution + NearPlaneSpotContribution,
+            0.25f + LocalContribution,
+            0.25f + CameraInsidePointContribution + NearPlaneSpotContribution,
+            0.0f};
         AddProbe("lighting-accumulation", "Lighting", 4, CenterX, CenterY,
+            Lighting, 1.0e-3f, EVulkanDeferredProbeMetric::Absolute);
+        AddProbe("point-visible", "LocalLightCase", 4, CenterX, CenterY,
+            Lighting, 1.0e-3f, EVulkanDeferredProbeMetric::Absolute);
+        AddProbe("point-outside-view", "LocalLightCase", 4, 1, 1,
+            {0, 0, 0, 0}, 1.0e-3f, EVulkanDeferredProbeMetric::Absolute);
+        AddProbe("point-camera-inside", "LocalLightCase", 4, CenterX, CenterY,
+            Lighting, 1.0e-3f, EVulkanDeferredProbeMetric::Absolute);
+        AddProbe("spot-visible", "LocalLightCase", 4, CenterX, CenterY,
+            Lighting, 1.0e-3f, EVulkanDeferredProbeMetric::Absolute);
+        AddProbe("spot-outside-cone", "LocalLightCase", 4, CenterX, CenterY,
+            Lighting, 1.0e-3f, EVulkanDeferredProbeMetric::Absolute);
+        AddProbe("spot-near-plane", "LocalLightCase", 4, CenterX, CenterY,
             Lighting, 1.0e-3f, EVulkanDeferredProbeMetric::Absolute);
         const Stoner::Core::FVector4 ExpectedFinal{
             0.8f * Lighting.X + 0.3f,
@@ -1563,9 +1642,9 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
     OutReport.PeakLiveObjects = Impl->PeakLiveObjects;
     Impl->ReleaseAll();
     OutReport.FinalLiveObjects = Impl->LiveObjects;
-    OutReport.bPassed = OutReport.Probes.size() == 24 &&
-        OutReport.GetProbeCount("StandardZ") == 12 &&
-        OutReport.GetProbeCount("ReversedZ") == 12 &&
+    OutReport.bPassed = OutReport.Probes.size() == 36 &&
+        OutReport.GetProbeCount("StandardZ") == 18 &&
+        OutReport.GetProbeCount("ReversedZ") == 18 &&
         std::all_of(OutReport.Probes.begin(), OutReport.Probes.end(),
             [](const FVulkanDeferredProbe& Probe) { return Probe.bPassed; }) &&
         OutReport.FinalLiveObjects == 0 && OutReport.bNativeSubmissionCompleted;
@@ -1616,8 +1695,8 @@ Stoner::Core::FString FVulkanDeferredValidationReport::Dump() const
         << "depth_convention=StandardZ far_clear=1 compare=LessEqual\n"
         << "depth_convention=ReversedZ far_clear=0 compare=GreaterEqual\n"
         << "pass_count=6\n"
-        << "draw_count=12\n"
-        << "light_count=3\n"
+        << "draw_count=20\n"
+        << "light_count=7\n"
         << "peak_live_objects=" << PeakLiveObjects << '\n'
         << "final_live_objects=" << FinalLiveObjects << '\n';
     for (const FVulkanDeferredProbe& Probe : Probes)

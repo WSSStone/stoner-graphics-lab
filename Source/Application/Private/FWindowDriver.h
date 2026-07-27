@@ -37,5 +37,8 @@ public:
 
 [[nodiscard]] std::unique_ptr<IWindowDriver> CreateGlfwWindowDriver();
 [[nodiscard]] std::unique_ptr<IWindowDriver> CreateHeadlessWindowDriver();
+[[nodiscard]] bool IsGlfwInputMappingAvailable() noexcept;
+[[nodiscard]] EKey TranslateGlfwKeyCode(int Key) noexcept;
+[[nodiscard]] EMouseButton TranslateGlfwMouseButtonCode(int Button) noexcept;
 
 } // namespace Stoner::Application

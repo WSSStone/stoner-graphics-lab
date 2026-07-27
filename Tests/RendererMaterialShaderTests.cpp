@@ -206,6 +206,21 @@ void TestMaterialInstances(FRendererMaterialShaderTestResult& Result)
     Base.Invalidate();
     FMaterialInstance InvalidParent({ "InvalidParent", &Base, nullptr, {} });
     Record(Result, InvalidParent.Validate() == EMaterialResult::Invalidated, "Material instance rejects invalidated parent material");
+
+    FMaterial InstanceBase(MakeMaterialDesc("InstanceBase", EMaterialDomain::Surface, EMaterialBlendMode::Opaque));
+    (void)InstanceBase.Validate();
+    FMaterialInstance ParentToInvalidate({ "ParentToInvalidate", &InstanceBase, nullptr, {} });
+    (void)ParentToInvalidate.Validate();
+    FMaterialInstance ChildOfInvalidatedParent({ "ChildOfInvalidatedParent", nullptr, &ParentToInvalidate, {} });
+    (void)ChildOfInvalidatedParent.Validate();
+    ParentToInvalidate.Invalidate();
+    FMaterialParameterSet InvalidatedParentInstanceParameters;
+    FMaterialDiagnosticLog InvalidatedParentInstanceDiagnostics;
+    Record(Result,
+        ChildOfInvalidatedParent.ResolveEffectiveParameters(InvalidatedParentInstanceParameters, &InvalidatedParentInstanceDiagnostics) ==
+            EMaterialResult::Invalidated &&
+        InvalidatedParentInstanceDiagnostics.Format().View().find("MAT-INSTANCE-PARENT-INVALIDATED") != std::string_view::npos,
+        "Material instance resolution rejects invalidated parent instances after validation");
 }
 
 void TestShaderLibraryAndBinding(FRendererMaterialShaderTestResult& Result)
@@ -230,6 +245,52 @@ void TestShaderLibraryAndBinding(FRendererMaterialShaderTestResult& Result)
             Variant != nullptr && Variant->VariantId == "SurfaceMaskedTextured";
     }
     Record(Result, bPermutationStable, "Shader permutation canonical key is stable across reordered flags and repeated resolutions");
+
+    FShaderRecord DuplicateAllowedFlag;
+    DuplicateAllowedFlag.ShaderId = "DuplicateAllowedFlag";
+    DuplicateAllowedFlag.AllowedPermutationFlags = {"USE_TEXTURE", "USE_TEXTURE"};
+    DuplicateAllowedFlag.Variants = {{"Default", FShaderPermutation{}, "VS+PS"}};
+    FMaterialDiagnosticLog DuplicateAllowedFlagDiagnostics;
+    Record(Result,
+        Library.RegisterShaderRecord(DuplicateAllowedFlag, &DuplicateAllowedFlagDiagnostics) == EMaterialResult::DuplicateName &&
+        DuplicateAllowedFlagDiagnostics.Format().View().find("MAT-SHADER-FLAG-DUPLICATE") != std::string_view::npos,
+        "Shader library rejects duplicate allowed permutation flags at registration");
+
+    FShaderRecord UndeclaredVariantFlag;
+    UndeclaredVariantFlag.ShaderId = "UndeclaredVariantFlag";
+    UndeclaredVariantFlag.AllowedPermutationFlags = {"USE_TEXTURE"};
+    UndeclaredVariantFlag.Variants = {{"InvalidVariant", FShaderPermutation{{"NO_SUCH_FLAG"}}, "VS+PS"}};
+    FMaterialDiagnosticLog UndeclaredVariantFlagDiagnostics;
+    Record(Result,
+        Library.RegisterShaderRecord(UndeclaredVariantFlag, &UndeclaredVariantFlagDiagnostics) == EMaterialResult::ValidationFailed &&
+        UndeclaredVariantFlagDiagnostics.Format().View().find("MAT-SHADER-VARIANT-FLAG") != std::string_view::npos,
+        "Shader library rejects variant permutation flags not declared by the record");
+
+    FShaderRecord DuplicateVariantId;
+    DuplicateVariantId.ShaderId = "DuplicateVariantId";
+    DuplicateVariantId.AllowedPermutationFlags = {"USE_TEXTURE"};
+    DuplicateVariantId.Variants = {
+        {"Duplicated", FShaderPermutation{}, "VS+PS"},
+        {"Duplicated", FShaderPermutation{{"USE_TEXTURE"}}, "VS+PS"},
+    };
+    FMaterialDiagnosticLog DuplicateVariantIdDiagnostics;
+    Record(Result,
+        Library.RegisterShaderRecord(DuplicateVariantId, &DuplicateVariantIdDiagnostics) == EMaterialResult::DuplicateName &&
+        DuplicateVariantIdDiagnostics.Format().View().find("MAT-SHADER-VARIANT-DUPLICATE") != std::string_view::npos,
+        "Shader library rejects duplicate shader variant ids at registration");
+
+    FShaderRecord DuplicateVariantKey;
+    DuplicateVariantKey.ShaderId = "DuplicateVariantKey";
+    DuplicateVariantKey.AllowedPermutationFlags = {"USE_TEXTURE"};
+    DuplicateVariantKey.Variants = {
+        {"DefaultA", FShaderPermutation{}, "VS+PS"},
+        {"DefaultB", FShaderPermutation{}, "VS+PS"},
+    };
+    FMaterialDiagnosticLog DuplicateVariantKeyDiagnostics;
+    Record(Result,
+        Library.RegisterShaderRecord(DuplicateVariantKey, &DuplicateVariantKeyDiagnostics) == EMaterialResult::DuplicateName &&
+        DuplicateVariantKeyDiagnostics.Format().View().find("MAT-SHADER-VARIANT-KEY-DUPLICATE") != std::string_view::npos,
+        "Shader library rejects duplicate shader variant permutation keys at registration");
 
     FMaterial UnknownFlag(MakeMaterialDesc("UnknownFlag", EMaterialDomain::Surface, EMaterialBlendMode::Opaque, FShaderPermutation{{"NO_SUCH_FLAG"}}));
     FMaterialShaderBinding UnknownFlagBinding;
@@ -260,6 +321,19 @@ void TestShaderLibraryAndBinding(FRendererMaterialShaderTestResult& Result)
     Record(Result, ResolveMaterialShaderBinding(MissingParam, Library, MissingParamBinding) == EMaterialResult::NotFound,
         "Material shader binding rejects missing required parameters");
 
+    FMaterial InvalidatedParent(MakeMaterialDesc("InvalidatedParent", EMaterialDomain::Surface, EMaterialBlendMode::Opaque));
+    (void)InvalidatedParent.Validate();
+    FMaterialInstance InstanceWithInvalidatedParent({ "InstanceWithInvalidatedParent", &InvalidatedParent, nullptr, {} });
+    (void)InstanceWithInvalidatedParent.Validate();
+    InvalidatedParent.Invalidate();
+    FMaterialShaderBinding InvalidatedParentBinding;
+    FMaterialDiagnosticLog InvalidatedParentDiagnostics;
+    Record(Result,
+        ResolveMaterialShaderBinding(InstanceWithInvalidatedParent, Library, InvalidatedParentBinding, &InvalidatedParentDiagnostics) ==
+            EMaterialResult::Invalidated &&
+        InvalidatedParentDiagnostics.Format().View().find("MAT-INSTANCE-PARENT-INVALIDATED") != std::string_view::npos,
+        "Material shader binding rejects instances whose parent material is invalidated after validation");
+
     Library.InvalidateRecord("SurfaceShader");
     FMaterialShaderBinding InvalidatedBinding;
     Record(Result, ResolveMaterialShaderBinding(Textured, Library, InvalidatedBinding) == EMaterialResult::Invalidated,
@@ -286,6 +360,19 @@ void TestResourceRequirementsAndRenderGraphSmoke(FRendererMaterialShaderTestResu
             InstanceRequirements.size() == 1 &&
             InstanceRequirements[0].Reference.ReferenceId == "Textures/Override",
         "Material instance resource requirements reflect resource-reference overrides");
+
+    FMaterial InvalidatedResourceBase(MakeMaterialDesc("InvalidatedResourceBase", EMaterialDomain::Surface, EMaterialBlendMode::Opaque));
+    (void)InvalidatedResourceBase.Validate();
+    FMaterialInstance ResourceInstance({ "InvalidatedResourceInstance", &InvalidatedResourceBase, nullptr, Overrides });
+    (void)ResourceInstance.Validate();
+    InvalidatedResourceBase.Invalidate();
+    Stoner::Core::TArray<FMaterialResourceRequirement> InvalidatedInstanceRequirements;
+    FMaterialDiagnosticLog InvalidatedResourceDiagnostics;
+    Record(Result,
+        ExtractMaterialResourceRequirements(ResourceInstance, InvalidatedInstanceRequirements, &InvalidatedResourceDiagnostics) ==
+            EMaterialResult::Invalidated &&
+        InvalidatedResourceDiagnostics.Format().View().find("MAT-INSTANCE-PARENT-INVALIDATED") != std::string_view::npos,
+        "Material instance resource requirements reject invalidated parents after validation");
 
     FMaterialDesc EmptyDesc = MakeMaterialDesc("NoResources", EMaterialDomain::Surface, EMaterialBlendMode::Opaque);
     EmptyDesc.Parameters.Clear();

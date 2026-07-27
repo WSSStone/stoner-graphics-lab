@@ -100,20 +100,26 @@ EApplicationResult FWindow::Create(const FWindowDesc& InDesc, EWindowRuntimeAvai
 
 EApplicationResult FWindow::CreateRealWindow(const FWindowDesc& InDesc, EWindowRuntimeAvailability RuntimeAvailability)
 {
+    Diagnostics.Clear();
+    PendingEvents.clear();
     if (RuntimeAvailability != EWindowRuntimeAvailability::Available)
         return Create(InDesc, RuntimeAvailability);
     if (!Driver) Driver = CreateGlfwWindowDriver();
     if (!Driver || Driver->GetRuntimeAvailability() != EWindowRuntimeAvailability::Available)
     {
-        Driver.reset();
+        ResetRuntimeState();
         return Create(InDesc, EWindowRuntimeAvailability::DependencyUnavailable);
     }
-    if (!InDesc.IsValid(&Diagnostics)) return EApplicationResult::ValidationFailed;
+    if (!InDesc.IsValid(&Diagnostics))
+    {
+        ResetRuntimeState();
+        return EApplicationResult::ValidationFailed;
+    }
     const Stoner::Core::uint32 StableId = NextStableWindowId();
     const EApplicationResult DriverResult = Driver->Create(InDesc, StableId);
     if (DriverResult != EApplicationResult::Success)
     {
-        Driver.reset();
+        ResetRuntimeState();
         return DriverResult;
     }
     Desc = InDesc;
@@ -297,6 +303,28 @@ void FWindow::ApplyEvent(const FWindowEvent& Event)
         break;
     }
     Diagnostics.SortStable();
+}
+
+void FWindow::ResetRuntimeState()
+{
+    if (Driver)
+    {
+        Driver->Destroy();
+    }
+    Driver.reset();
+    PlatformWindow.Clear();
+    WindowId = 0;
+    LifecycleState = EWindowLifecycleState::Uncreated;
+    DisplayMode = EWindowDisplayMode::Windowed;
+    ClientWidth = 0;
+    ClientHeight = 0;
+    DrawableWidth = 0;
+    DrawableHeight = 0;
+    bVisible = false;
+    bFocused = false;
+    bMinimized = false;
+    bDrawable = false;
+    bPresentationPaused = false;
 }
 
 void FWindow::UpdateDrawableState()

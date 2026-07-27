@@ -14,40 +14,6 @@ namespace Stoner::Application
 namespace
 {
 
-EKey TranslateKey(int Key)
-{
-    if (Key >= GLFW_KEY_A && Key <= GLFW_KEY_Z)
-        return static_cast<EKey>(static_cast<int>(EKey::A) + Key - GLFW_KEY_A);
-    if (Key >= GLFW_KEY_0 && Key <= GLFW_KEY_9)
-        return static_cast<EKey>(static_cast<int>(EKey::Num0) + Key - GLFW_KEY_0);
-    switch (Key)
-    {
-    case GLFW_KEY_ESCAPE: return EKey::Escape;
-    case GLFW_KEY_SPACE: return EKey::Space;
-    case GLFW_KEY_ENTER: return EKey::Enter;
-    case GLFW_KEY_TAB: return EKey::Tab;
-    case GLFW_KEY_BACKSPACE: return EKey::Backspace;
-    case GLFW_KEY_LEFT: return EKey::Left;
-    case GLFW_KEY_RIGHT: return EKey::Right;
-    case GLFW_KEY_UP: return EKey::Up;
-    case GLFW_KEY_DOWN: return EKey::Down;
-    default: return EKey::Unknown;
-    }
-}
-
-EMouseButton TranslateMouseButton(int Button)
-{
-    switch (Button)
-    {
-    case GLFW_MOUSE_BUTTON_LEFT: return EMouseButton::Left;
-    case GLFW_MOUSE_BUTTON_RIGHT: return EMouseButton::Right;
-    case GLFW_MOUSE_BUTTON_MIDDLE: return EMouseButton::Middle;
-    default: return EMouseButton::Unknown;
-    }
-}
-
-} // namespace
-
 class FGlfwWindowDriver final : public IWindowDriver
 {
 public:
@@ -161,7 +127,7 @@ private:
         glfwSetKeyCallback(Window, [](GLFWwindow* Native, int Key, int, int Action, int)
         {
             auto* Driver = Self(Native);
-            const EKey Translated = TranslateKey(Key);
+            const EKey Translated = TranslateGlfwKeyCode(Key);
             if (Action == GLFW_PRESS)
             {
                 Driver->InputEvents.push_back(FInputEvent::KeyDown(Translated, Driver->NextSequence++));
@@ -172,7 +138,7 @@ private:
         glfwSetMouseButtonCallback(Window, [](GLFWwindow* Native, int Button, int Action, int)
         {
             auto* Driver = Self(Native);
-            const EMouseButton Translated = TranslateMouseButton(Button);
+            const EMouseButton Translated = TranslateGlfwMouseButtonCode(Button);
             Driver->InputEvents.push_back(Action == GLFW_PRESS
                 ? FInputEvent::MouseDown(Translated, Driver->NextSequence++)
                 : FInputEvent::MouseUp(Translated, Driver->NextSequence++));
@@ -209,6 +175,8 @@ private:
     Stoner::Core::TArray<FInputEvent> InputEvents;
 };
 
+} // namespace
+
 #else
 
 class FGlfwWindowDriver final : public IWindowDriver
@@ -224,6 +192,73 @@ public:
 };
 
 #endif
+
+EKey TranslateGlfwKeyCode(int Key) noexcept
+{
+#if defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
+    if (Key >= GLFW_KEY_A && Key <= GLFW_KEY_Z)
+        return static_cast<EKey>(static_cast<int>(EKey::A) + Key - GLFW_KEY_A);
+    if (Key >= GLFW_KEY_0 && Key <= GLFW_KEY_9)
+        return static_cast<EKey>(static_cast<int>(EKey::Num0) + Key - GLFW_KEY_0);
+    if (Key >= GLFW_KEY_F1 && Key <= GLFW_KEY_F12)
+        return static_cast<EKey>(static_cast<int>(EKey::F1) + Key - GLFW_KEY_F1);
+    switch (Key)
+    {
+    case GLFW_KEY_ESCAPE: return EKey::Escape;
+    case GLFW_KEY_SPACE: return EKey::Space;
+    case GLFW_KEY_ENTER: return EKey::Enter;
+    case GLFW_KEY_TAB: return EKey::Tab;
+    case GLFW_KEY_BACKSPACE: return EKey::Backspace;
+    case GLFW_KEY_LEFT: return EKey::Left;
+    case GLFW_KEY_RIGHT: return EKey::Right;
+    case GLFW_KEY_UP: return EKey::Up;
+    case GLFW_KEY_DOWN: return EKey::Down;
+    case GLFW_KEY_HOME: return EKey::Home;
+    case GLFW_KEY_END: return EKey::End;
+    case GLFW_KEY_PAGE_UP: return EKey::PageUp;
+    case GLFW_KEY_PAGE_DOWN: return EKey::PageDown;
+    case GLFW_KEY_INSERT: return EKey::Insert;
+    case GLFW_KEY_DELETE: return EKey::Delete;
+    case GLFW_KEY_LEFT_SHIFT: return EKey::LeftShift;
+    case GLFW_KEY_RIGHT_SHIFT: return EKey::RightShift;
+    case GLFW_KEY_LEFT_CONTROL: return EKey::LeftControl;
+    case GLFW_KEY_RIGHT_CONTROL: return EKey::RightControl;
+    case GLFW_KEY_LEFT_ALT: return EKey::LeftAlt;
+    case GLFW_KEY_RIGHT_ALT: return EKey::RightAlt;
+    default: return EKey::Unknown;
+    }
+#else
+    (void)Key;
+    return EKey::Unknown;
+#endif
+}
+
+bool IsGlfwInputMappingAvailable() noexcept
+{
+#if defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
+    return true;
+#else
+    return false;
+#endif
+}
+
+EMouseButton TranslateGlfwMouseButtonCode(int Button) noexcept
+{
+#if defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
+    switch (Button)
+    {
+    case GLFW_MOUSE_BUTTON_LEFT: return EMouseButton::Left;
+    case GLFW_MOUSE_BUTTON_RIGHT: return EMouseButton::Right;
+    case GLFW_MOUSE_BUTTON_MIDDLE: return EMouseButton::Middle;
+    case GLFW_MOUSE_BUTTON_4: return EMouseButton::X1;
+    case GLFW_MOUSE_BUTTON_5: return EMouseButton::X2;
+    default: return EMouseButton::Unknown;
+    }
+#else
+    (void)Button;
+    return EMouseButton::Unknown;
+#endif
+}
 
 std::unique_ptr<IWindowDriver> CreateGlfwWindowDriver()
 {

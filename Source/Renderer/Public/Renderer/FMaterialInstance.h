@@ -38,6 +38,8 @@ public:
 
 private:
     [[nodiscard]] EMaterialResult ValidateAcyclic(FMaterialDiagnosticLog* Diagnostics) const;
+    [[nodiscard]] EMaterialResult ValidateUsableParentChain(const FMaterial*& OutRoot,
+        FMaterialDiagnosticLog* Diagnostics) const;
 
     FMaterialInstanceDesc Desc;
     EMaterialValidationState ValidationState = EMaterialValidationState::Draft;

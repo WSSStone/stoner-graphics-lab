@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <type_traits>
 
@@ -61,7 +62,8 @@ void TestFString(FCoreFoundationTestResult& Result)
     FString Movable("move-me");
     FString Moved = std::move(Movable);
     Record(Result, Moved.View() == "move-me", "FString move transfers text");
-    Record(Result, Movable.IsEmpty() || !Movable.IsEmpty(), "FString moved-from value remains queryable");
+    Movable = FString("reused");
+    Record(Result, Movable.View() == "reused", "FString moved-from value remains assignable");
 
     FString Clearable("clear");
     Clearable.Clear();
@@ -81,10 +83,41 @@ void TestFName(FCoreFoundationTestResult& Result)
     Record(Result, First != Third, "FName different text compares unequal");
     Record(Result, First.GetHash() == Second.GetHash(), "FName duplicate text shares hash");
 
-    const FName CollisionA = FName::FromTextAndHashForTesting(FString("Alpha"), 42);
-    const FName CollisionB = FName::FromTextAndHashForTesting(FString("Beta"), 42);
-    Record(Result, CollisionA != CollisionB, "FName equality remains collision-safe");
-    Record(Result, CollisionA == CollisionA, "FName equality is reflexive");
+    Record(Result,
+        !FName::CompareWithForcedCommonHashForTesting(
+            FString("Alpha"), FString("Beta"), 42) &&
+            FName::CompareWithForcedCommonHashForTesting(
+                FString("Alpha"), FString("Alpha"), 42),
+        "FName equality remains collision-safe");
+
+    FName CopySource("Copy");
+    FName Copied = CopySource;
+    Record(Result, Copied == CopySource, "FName copy preserves equality");
+
+    const FName LawA("EqualityLaw");
+    const FName LawB("EqualityLaw");
+    const FName LawC("EqualityLaw");
+    Record(Result,
+        LawA == LawA && LawA == LawB && LawB == LawA &&
+            LawB == LawC && LawA == LawC,
+        "FName equality is reflexive symmetric and transitive");
+
+    FName MoveSource("Move");
+    FName Moved = std::move(MoveSource);
+    Record(Result, Moved == FName("Move"), "FName move preserves destination identity");
+    Record(Result,
+        MoveSource == FName(MoveSource.View()),
+        "FName move preserves source text/hash invariant");
+
+    FName MoveAssignedSource("Assigned");
+    FName MoveAssignedDestination("Previous");
+    MoveAssignedDestination = std::move(MoveAssignedSource);
+    Record(Result,
+        MoveAssignedDestination == FName("Assigned"),
+        "FName move assignment preserves destination identity");
+    Record(Result,
+        MoveAssignedSource == FName(MoveAssignedSource.View()),
+        "FName move assignment preserves source text/hash invariant");
 }
 
 void TestOwnershipPointers(FCoreFoundationTestResult& Result)
@@ -167,6 +200,18 @@ void TestFMemory(FCoreFoundationTestResult& Result)
     void* InvalidAlignment = FMemory::AllocateAligned(128, 3);
     Record(Result, InvalidAlignment == nullptr, "FMemory invalid alignment fails deterministically");
     FMemory::DeallocateAligned(InvalidAlignment);
+
+    constexpr std::size_t TestAlignment = 16;
+    constexpr std::size_t AllocationOverhead = sizeof(void*) + TestAlignment - 1;
+    constexpr std::size_t MaxRepresentableSize =
+        std::numeric_limits<std::size_t>::max() - AllocationOverhead;
+    void* OverflowBoundary = FMemory::AllocateAligned(MaxRepresentableSize + 1, TestAlignment);
+    Record(Result, OverflowBoundary == nullptr, "FMemory rejects aligned allocation overhead overflow");
+    FMemory::DeallocateAligned(OverflowBoundary);
+
+    void* MaxSize = FMemory::AllocateAligned(std::numeric_limits<std::size_t>::max(), TestAlignment);
+    Record(Result, MaxSize == nullptr, "FMemory rejects maximum aligned allocation size");
+    FMemory::DeallocateAligned(MaxSize);
 
     unsigned char Source[8] = {1, 2, 3, 4, 5, 6, 7, 8};
     unsigned char Destination[8] = {};

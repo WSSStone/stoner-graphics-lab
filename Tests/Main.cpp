@@ -4,6 +4,7 @@
 #include "ApplicationWindowInputTests.h"
 #include "CoreFoundationTests.h"
 #include "CoreMathTests.h"
+#include "CorePlatformOwnershipTests.h"
 #include "LoggingAssertionTests.h"
 #include "CorePlatformTests.h"
 #include "DeferredRenderingTests.h"
@@ -17,12 +18,30 @@
 #include "VulkanNativeIntegrationTests.h"
 #include "TriangleDemoIntegrationTests.h"
 
-int main()
+#include <cstring>
+
+int main(int ArgCount, char* Arguments[])
 {
+    if (ArgCount == 2 &&
+        std::strcmp(Arguments[1], GLoggingFatalChildArgument) == 0)
+    {
+        SG_LOG(Stoner::Core::LogCore, Fatal, "isolated fatal logging probe");
+        return 42;
+    }
+    if (ArgCount == 2 &&
+        std::strcmp(Arguments[1], GLoggingAssertionChildArgument) == 0)
+    {
+        SG_CHECK(false);
+        return 42;
+    }
+
     const FCoreFoundationTestResult CoreResult = RunCoreFoundationTests();
     const FCoreMathTestResult MathResult = RunCoreMathTests();
-    const FLoggingAssertionTestResult LogResult = RunLoggingAssertionTests();
+    const FLoggingAssertionTestResult LogResult =
+        RunLoggingAssertionTests(Arguments[0]);
     const FCorePlatformTestResult PlatformResult = RunCorePlatformTests();
+    const FCorePlatformOwnershipTestResult PlatformOwnershipResult =
+        RunCorePlatformOwnershipTests();
     const FApplicationWindowInputTestResult ApplicationResult = RunApplicationWindowInputTests();
     const FApplicationSceneEcsTestResult SceneResult = RunApplicationSceneEcsTests();
     const FRHICoreTestResult RHIResult = RunRHICoreTests();
@@ -38,6 +57,7 @@ int main()
     const FTriangleDemoIntegrationTestResult DemoResult = RunTriangleDemoIntegrationTests();
     return CoreResult.Failed == 0 && MathResult.Failed == 0 &&
         LogResult.Failed == 0 && PlatformResult.Failed == 0 &&
+        PlatformOwnershipResult.Failed == 0 &&
         ApplicationResult.Failed == 0 &&
         SceneResult.Failed == 0 &&
         RHIResult.Failed == 0 && DeferredResult.Failed == 0 &&

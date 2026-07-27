@@ -5,9 +5,8 @@
 // In Release builds, it expands to nothing.
 // On supported platforms, execution can be resumed from the debugger.
 
-// Support both MSVC's _DEBUG and the standard NDEBUG convention.
-// SCons defines _DEBUG in both Debug and Release (see BuildConfig.py),
-// but standalone builds (Xcode, CMake, IDE) may only define NDEBUG.
+// SCons defines _DEBUG for Debug and NDEBUG for Release. Supporting both
+// conventions also keeps standalone compiler and IDE builds predictable.
 #if !defined(NDEBUG) || defined(_DEBUG)
 
     #if defined(_MSC_VER)
@@ -16,9 +15,10 @@
     #elif defined(__clang__)
         // Clang: __builtin_debugtrap() is resumable.
         #define SG_DEBUG_BREAK() __builtin_debugtrap()
-    #elif defined(__GNUC__)
-        // GCC does not provide __builtin_debugtrap(); use its trap intrinsic.
-        #define SG_DEBUG_BREAK() __builtin_trap()
+    #elif defined(__GNUC__) && (defined(__unix__) || defined(__APPLE__))
+        // GCC has no debugtrap intrinsic; SIGTRAP is resumable by a debugger.
+        #include <csignal>
+        #define SG_DEBUG_BREAK() std::raise(SIGTRAP)
     #else
         // Fallback: abort (not resumable)
         #include <cstdlib>

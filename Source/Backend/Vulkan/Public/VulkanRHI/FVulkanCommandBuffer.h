@@ -7,9 +7,14 @@ namespace Stoner::Backend::Vulkan
 
 class FVulkanFramebuffer;
 class FVulkanComputePipeline;
+class FVulkanCommandPool;
+class FVulkanCommandSubmission;
+class FVulkanDevice;
 class FVulkanGraphicsPipeline;
+class FVulkanQueue;
 class FVulkanRenderPass;
 class FVulkanUploadRequest;
+struct FVulkanDeviceOwnerState;
 struct FVulkanDiagnostics;
 
 struct FVulkanRecordedCommand
@@ -23,7 +28,9 @@ struct FVulkanRecordedCommand
 class FVulkanCommandBuffer final : public Stoner::RHI::IRHICommandBuffer
 {
 public:
-    FVulkanCommandBuffer(Stoner::RHI::ERHIQueueType InQueueType, FVulkanDiagnostics* InDiagnostics) noexcept;
+    ~FVulkanCommandBuffer() override = default;
+    FVulkanCommandBuffer(const FVulkanCommandBuffer&) = delete;
+    FVulkanCommandBuffer& operator=(const FVulkanCommandBuffer&) = delete;
 
     [[nodiscard]] Stoner::RHI::ERHICommandBufferState GetState() const noexcept override;
     [[nodiscard]] Stoner::RHI::ERHIQueueType GetCompatibleQueueType() const noexcept override;
@@ -65,11 +72,21 @@ public:
     Stoner::RHI::ERHIResult ScheduleBufferUpload(const Stoner::Core::TSharedPtr<FVulkanUploadRequest>& Upload);
     Stoner::RHI::ERHIResult ScheduleTextureUpload(const Stoner::Core::TSharedPtr<FVulkanUploadRequest>& Upload);
 
+private:
+    friend class FVulkanCommandPool;
+    friend class FVulkanCommandSubmission;
+    friend class FVulkanDevice;
+    friend class FVulkanQueue;
+
+    FVulkanCommandBuffer(Stoner::RHI::ERHIQueueType InQueueType,
+        FVulkanDiagnostics* InDiagnostics,
+        Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> InOwner) noexcept;
+    [[nodiscard]] bool BelongsTo(
+        const Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState>& InOwner) const noexcept;
     Stoner::RHI::ERHIResult MarkSubmitted() noexcept;
     Stoner::RHI::ERHIResult MarkCompletedOrResettable() noexcept;
     void Invalidate() noexcept;
 
-private:
     [[nodiscard]] bool IsTransferCompatible() const noexcept;
     [[nodiscard]] bool IsComputeCompatible() const noexcept;
     [[nodiscard]] bool HasCompatibleGraphicsPipeline() const noexcept;
@@ -80,6 +97,7 @@ private:
 
     Stoner::RHI::ERHIQueueType QueueType = Stoner::RHI::ERHIQueueType::Graphics;
     Stoner::RHI::ERHICommandBufferState State = Stoner::RHI::ERHICommandBufferState::Idle;
+    Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> Owner;
     Stoner::Core::TArray<FVulkanRecordedCommand> Commands;
     FVulkanDiagnostics* Diagnostics = nullptr;
     Stoner::Core::TWeakPtr<Stoner::RHI::IRHIRenderPass> ActiveRenderPass;

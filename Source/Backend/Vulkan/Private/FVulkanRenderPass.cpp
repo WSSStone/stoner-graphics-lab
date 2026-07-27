@@ -12,32 +12,7 @@ FVulkanRenderPass::FVulkanRenderPass(Stoner::RHI::FRHIRenderPassDesc InDesc)
 
 bool FVulkanRenderPass::IsSupportedDesc(const Stoner::RHI::FRHIRenderPassDesc& Desc) noexcept
 {
-    if (Desc.Attachments.empty())
-    {
-        return false;
-    }
-
-    bool bHasDepthStencil = false;
-    for (const Stoner::RHI::FRHIRenderPassAttachmentDesc& Attachment : Desc.Attachments)
-    {
-        if (Attachment.Format == Stoner::RHI::ERHIFormat::Unknown)
-        {
-            return false;
-        }
-        if (Attachment.Role == Stoner::RHI::ERHIAttachmentRole::Color && Stoner::RHI::IsDepthStencilFormat(Attachment.Format))
-        {
-            return false;
-        }
-        if (Attachment.Role != Stoner::RHI::ERHIAttachmentRole::Color)
-        {
-            if (!Stoner::RHI::IsDepthStencilFormat(Attachment.Format) || bHasDepthStencil)
-            {
-                return false;
-            }
-            bHasDepthStencil = true;
-        }
-    }
-    return true;
+    return Stoner::RHI::IsValidRHIRenderPassDesc(Desc);
 }
 
 const Stoner::RHI::FRHIRenderPassDesc& FVulkanRenderPass::GetDesc() const noexcept { return Desc; }

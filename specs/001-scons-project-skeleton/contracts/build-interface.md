@@ -13,20 +13,29 @@ The SCons build system exposes a command-line interface as its primary contract.
 ### Build (Default)
 
 ```bash
-scons [config=<debug|release>]
+scons [config=<debug|release>] [strict=<0|1>] \
+  [graphics=<auto|disabled>] \
+  [sanitizers=<none|address|undefined|address,undefined>]
 ```
 
 | Parameter | Type | Default | Values | Description |
 |-----------|------|---------|--------|-------------|
 | `config` | string | `debug` | `debug`, `release` | Build configuration |
+| `strict` | boolean | `0` | `0`, `1`, `false`, `true`, `no`, `yes`, `off`, `on` | Promote project compiler warnings to errors |
+| `graphics` | string | `auto` | `auto`, `disabled` | Auto-detect Vulkan/GLFW or force the dependency-free fallback path |
+| `sanitizers` | string | `none` | `none`, `address`, `undefined`, `address,undefined` | Enable Clang/GCC sanitizer instrumentation |
+
+Sanitizers require `config=debug` and a Clang/GCC toolchain on macOS or Linux.
+Unsupported combinations fail explicitly instead of silently dropping a gate.
 
 **Behavior**:
 1. Validates SCons version ≥ 4.10.1
 2. Detects host platform (Win64/Mac/Linux)
 3. Selects default toolchain for platform
 4. Applies config-specific compiler flags
-5. Delegates to each layer's `SConscript`
-6. Produces static libraries in `Build/<Platform>/<Config>/`
+5. Applies optional strict-warning and sanitizer instrumentation
+6. Delegates to each layer's `SConscript`
+7. Produces static libraries in `Build/<Platform>/<Config>/`
 
 **Output Artifacts**:
 
@@ -99,5 +108,9 @@ Each layer's `SConscript` receives the build environment from the parent and MUS
 |-----------|---------------|
 | SCons version too old | `ERROR: SCons {MINIMUM}+ required. Found: {actual}` |
 | Unknown config | `ERROR: Unknown config '{value}'. Use 'debug' or 'release'.` |
+| Invalid strict value | `ERROR: strict must be one of: ...` |
+| Unknown graphics mode | `ERROR: graphics must be one of: auto, disabled.` |
+| Unknown sanitizer profile | `ERROR: sanitizers must be one of: ...` |
+| Unsupported sanitizer combination | `ERROR: sanitizers require config=debug.` or platform-specific diagnostic |
 | No compiler found | `ERROR: No supported C++ compiler found for {platform}. Expected: {list}` |
 | Unknown platform | `ERROR: Unsupported platform '{sys.platform}'.` |

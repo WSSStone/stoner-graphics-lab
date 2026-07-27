@@ -5,10 +5,14 @@
 namespace Stoner::Backend::Vulkan
 {
 
+class FVulkanDevice;
+
 class FVulkanFramebuffer final : public Stoner::RHI::IRHIFramebuffer
 {
 public:
-    explicit FVulkanFramebuffer(Stoner::RHI::FRHIFramebufferDesc InDesc);
+    ~FVulkanFramebuffer() override = default;
+    FVulkanFramebuffer(const FVulkanFramebuffer&) = delete;
+    FVulkanFramebuffer& operator=(const FVulkanFramebuffer&) = delete;
 
     [[nodiscard]] static bool IsSupportedDesc(const Stoner::RHI::FRHIFramebufferDesc& Desc) noexcept;
     [[nodiscard]] const Stoner::RHI::FRHIFramebufferDesc& GetDesc() const noexcept override;
@@ -21,6 +25,10 @@ public:
     Stoner::RHI::ERHIResult Invalidate() override;
 
 private:
+    friend class FVulkanDevice;
+
+    explicit FVulkanFramebuffer(Stoner::RHI::FRHIFramebufferDesc InDesc);
+
     Stoner::RHI::FRHIFramebufferDesc Desc;
     Stoner::RHI::ERHIResourceLifecycleState LifecycleState = Stoner::RHI::ERHIResourceLifecycleState::Valid;
 };

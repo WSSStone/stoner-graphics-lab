@@ -96,7 +96,12 @@ FRendererComparisonReport BuildRendererComparisonReport(
     const Stoner::Core::uint32 Required[] = {0, 16, 64, 256};
     if (Tiers.size() != 4)
     {
+        Report.Diagnostics.Add(EDeferredDiagnosticSeverity::Error,
+            EDeferredPassStage::Composition, EDeferredResult::ComparisonInvalid,
+            "DEF-COMPARE-TIER-COUNT", "RendererComparison",
+            "comparison report requires exactly four local-light tiers");
         Report.State = ERendererComparisonState::Invalid;
+        Report.Tiers = std::move(Tiers);
         return Report;
     }
     Stoner::Core::uint32 ConstantSurfaceDraws = 0;

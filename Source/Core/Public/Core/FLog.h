@@ -3,6 +3,7 @@
 
 #include "Core/ELogSeverity.h"
 
+#include <atomic>
 #include <cstdarg>
 
 namespace Stoner::Core
@@ -27,12 +28,18 @@ struct FLog
 
     // Set the global minimum severity threshold.
     // Messages below this threshold are suppressed even if the category allows them.
-    static void SetGlobalMinSeverity(ELogSeverity Severity);
+    static void SetGlobalMinSeverity(ELogSeverity Severity) noexcept
+    {
+        GlobalMinSeverity.store(Severity, std::memory_order_relaxed);
+    }
 
     // Get the current global minimum severity threshold.
-    [[nodiscard]] static ELogSeverity GetGlobalMinSeverity();
+    [[nodiscard]] static ELogSeverity GetGlobalMinSeverity() noexcept
+    {
+        return GlobalMinSeverity.load(std::memory_order_relaxed);
+    }
 
-    // Set a custom assertion handler (for testing).
+    // Atomically replace the assertion handler; safe during concurrent dispatch.
     // Pass nullptr to restore the default handler (SG_DEBUG_BREAK).
     static void SetAssertionHandler(FAssertionHandler Handler);
 
@@ -41,6 +48,9 @@ struct FLog
     static void HandleAssertionFailure(const char* File, int Line,
                                        const char* Expression,
                                        const char* Format = nullptr, ...);
+
+private:
+    inline static std::atomic<ELogSeverity> GlobalMinSeverity{ELogSeverity::Verbose};
 };
 
 } // namespace Stoner::Core

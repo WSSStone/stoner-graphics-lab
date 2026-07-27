@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "required": {
+    "python": "3.12",
+    "conda_environment": "stoner-cr",
+    "scons": "4.10.1"
+  },
+  "recorded_at_bootstrap": {
+    "codegraph": "1.5.0",
+    "conda": "26.1.0",
+    "compiler": "Apple clang 21.0.0 (arm64-apple-darwin25.5.0)"
+  },
+  "optional_adapters": {
+    "clang-tidy": null,
+    "cppcheck": null,
+    "include-what-you-use": null
+  }
+}

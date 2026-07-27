@@ -9,6 +9,15 @@ import sys
 
 
 REQUIRED_CONVENTIONS = ("StandardZ", "ReversedZ")
+REQUIRED_PROBES_PER_CONVENTION = 18
+REQUIRED_LOCAL_LIGHT_PROBES = (
+    "point-visible",
+    "point-outside-view",
+    "point-camera-inside",
+    "spot-visible",
+    "spot-outside-cone",
+    "spot-near-plane",
+)
 REQUIRED_TIERS = (0, 16, 64, 256)
 
 
@@ -43,9 +52,24 @@ def validate_readback_report(path):
         print("ERROR: deferred report contains an address or non-finite value", file=sys.stderr)
         return False
     for convention in REQUIRED_CONVENTIONS:
-        if text.count(f"probe convention={convention} ") < 12:
-            print(f"ERROR: fewer than twelve {convention} probes", file=sys.stderr)
+        if text.count(f"probe convention={convention} ") < REQUIRED_PROBES_PER_CONVENTION:
+            print(
+                f"ERROR: fewer than {REQUIRED_PROBES_PER_CONVENTION} "
+                f"{convention} probes",
+                file=sys.stderr,
+            )
             return False
+        for probe in REQUIRED_LOCAL_LIGHT_PROBES:
+            required_probe = (
+                f"probe convention={convention} name={probe} "
+                "semantic=LocalLightCase "
+            )
+            if required_probe not in text:
+                print(
+                    f"ERROR: missing {convention} local-light probe {probe}",
+                    file=sys.stderr,
+                )
+                return False
     return True
 
 

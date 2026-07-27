@@ -6,4 +6,10 @@ struct FLoggingAssertionTestResult
     int Failed = 0;
 };
 
-[[nodiscard]] FLoggingAssertionTestResult RunLoggingAssertionTests();
+inline constexpr const char* GLoggingFatalChildArgument =
+    "--stoner-test-logging-fatal-child";
+inline constexpr const char* GLoggingAssertionChildArgument =
+    "--stoner-test-logging-assertion-child";
+
+[[nodiscard]] FLoggingAssertionTestResult RunLoggingAssertionTests(
+    const char* TestExecutablePath);

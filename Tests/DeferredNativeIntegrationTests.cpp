@@ -38,6 +38,12 @@ bool RunNativeFailureInjection()
     return Value != nullptr && std::string_view(Value) == "1";
 }
 
+bool SkipOptionalNative()
+{
+    const char* Value = std::getenv("STONER_SKIP_OPTIONAL_DEFERRED_NATIVE");
+    return Value != nullptr && std::string_view(Value) == "1";
+}
+
 void WriteReport(const Stoner::Backend::Vulkan::FVulkanDeferredValidationReport& Report)
 {
     const char* Path = std::getenv("STONER_DEFERRED_READBACK_REPORT");
@@ -82,6 +88,13 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
     Record(Result, bLifecycleFailuresStable,
         "Deferred native failure lifecycle is runtime-independent stable and zero-live");
 
+    if (SkipOptionalNative() && !IsRequired())
+    {
+        Record(Result, true,
+            "Deferred native validation skips optional driver execution when explicitly requested");
+        return Result;
+    }
+
     FVulkanNativeContext Context;
     const ERHIResult InitializeResult = Context.Initialize(ERHIRuntimeMode::NativeHeadless);
     if (InitializeResult == ERHIResult::Unsupported || InitializeResult == ERHIResult::Unavailable)
@@ -107,10 +120,11 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
     Record(Result,
         Report.ReferencePath == Stoner::Core::FString("NativeDeferredReadback"),
         "Deferred native validation uses mapped attachment readback");
-    Record(Result, Report.GetProbeCount("StandardZ") >= 12 &&
-        Report.GetProbeCount("ReversedZ") >= 12,
-        "Deferred native validation reports at least twelve probes per depth convention");
+    Record(Result, Report.GetProbeCount("StandardZ") >= 18 &&
+        Report.GetProbeCount("ReversedZ") >= 18,
+        "Deferred native validation reports extended probes per depth convention");
     std::set<std::string> ProbeIdentities;
+    std::set<std::string> LocalLightCases;
     bool bEveryProbeValid = true;
     for (const FVulkanDeferredProbe& Probe : Report.Probes)
     {
@@ -119,9 +133,26 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
         bEveryProbeValid = bEveryProbeValid &&
             ProbeIdentities.insert(Identity).second &&
             std::isfinite(Probe.ErrorMeasure) && Probe.bPassed;
+        if (Probe.Semantic == Stoner::Core::FString("LocalLightCase"))
+        {
+            LocalLightCases.insert(Identity);
+        }
     }
     Record(Result, bEveryProbeValid,
         "Mapped attachment probes are finite, unique, and within semantic tolerances");
+    bool bLocalLightCoverage = true;
+    for (const char* Convention : {"StandardZ", "ReversedZ"})
+    {
+        for (const char* Name : {"point-visible", "point-outside-view",
+                 "point-camera-inside", "spot-visible", "spot-outside-cone",
+                 "spot-near-plane"})
+        {
+            bLocalLightCoverage = bLocalLightCoverage &&
+                LocalLightCases.count(std::string(Convention) + "/" + Name) == 1;
+        }
+    }
+    Record(Result, bLocalLightCoverage,
+        "Deferred native validation covers point and spot local-light edge cases");
     Record(Result, Report.bPassed && Report.FinalLiveObjects == 0,
         "Deferred native validation passes semantic probes and releases frame-owned objects");
     if (RunNativeFailureInjection())

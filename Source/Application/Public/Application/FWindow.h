@@ -55,6 +55,7 @@ public:
 
 private:
     friend class FWindowTestAccess;
+    void ResetRuntimeState();
     void UpdateDrawableState();
 
     Stoner::Core::uint32 WindowId = 0;

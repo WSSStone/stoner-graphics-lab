@@ -101,6 +101,25 @@ void TestComponents(FApplicationSceneEcsTestResult& Result)
             World.GetLight(Entity) != nullptr &&
             World.GetCamera(Entity) != nullptr,
         "Scene mesh, light, and camera components attach to live entity");
+
+    const FEntity InvalidMeshEntity = World.CreateEntity();
+    Record(Result, World.AddMesh(InvalidMeshEntity, FMeshComponent()) == ESceneResult::InvalidComponentData &&
+            World.GetMesh(InvalidMeshEntity) == nullptr,
+        "Scene mesh add rejects invalid component data without storing it");
+
+    FLightComponent InvalidLight;
+    InvalidLight.Intensity = -1.0f;
+    Record(Result, World.ReplaceLight(Entity, InvalidLight) == ESceneResult::InvalidComponentData &&
+            World.GetLight(Entity) != nullptr &&
+            World.GetLight(Entity)->Intensity == 1.0f,
+        "Scene light replace rejects invalid component data without mutating existing component");
+
+    FCameraComponent InvalidCamera;
+    InvalidCamera.FarPlane = InvalidCamera.NearPlane;
+    Record(Result, World.ReplaceCamera(Entity, InvalidCamera) == ESceneResult::InvalidComponentData &&
+            World.GetCamera(Entity) != nullptr &&
+            World.GetCamera(Entity)->FarPlane > World.GetCamera(Entity)->NearPlane,
+        "Scene camera replace rejects invalid component data without mutating existing component");
 }
 
 void TestHierarchy(FApplicationSceneEcsTestResult& Result)
@@ -144,6 +163,63 @@ void TestHierarchy(FApplicationSceneEcsTestResult& Result)
     Record(Result, World.TryGetWorldTransform(ChildA, WorldTransform) &&
             NearTransformPosition(WorldTransform, 27.0f, 0.0f, 0.0f),
         "Scene reparent can preserve local transform explicitly");
+
+    const FEntity TransformlessGroupA = World.CreateEntity();
+    const FEntity TransformlessGroupB = World.CreateEntity();
+    const FEntity GroupChild = World.CreateEntity();
+    (void)World.SetParent(TransformlessGroupA, RootA, EReparentTransformPreservation::PreserveLocal);
+    (void)World.SetParent(TransformlessGroupB, RootB, EReparentTransformPreservation::PreserveLocal);
+    (void)World.AddTransform(GroupChild, TransformAt(2.0f));
+    (void)World.SetParent(GroupChild, TransformlessGroupA, EReparentTransformPreservation::PreserveLocal);
+    Record(Result, World.TryGetWorldTransform(GroupChild, WorldTransform) &&
+            NearTransformPosition(WorldTransform, 12.0f, 0.0f, 0.0f),
+        "Scene transformless hierarchy groups inherit ancestor world transforms");
+
+    Record(Result, World.SetParent(GroupChild, TransformlessGroupB) == ESceneResult::Success &&
+            World.TryGetWorldTransform(GroupChild, WorldTransform) &&
+            NearTransformPosition(WorldTransform, 12.0f, 0.0f, 0.0f) &&
+            World.GetTransform(GroupChild)->LocalTransform.Translation.NearlyEquals(FVector3(17.0f, 0.0f, 0.0f)),
+        "Scene preserve-world reparent works through transformless hierarchy groups");
+
+    const FEntity NonUniformParent = World.CreateEntity();
+    const FEntity RotatedChild = World.CreateEntity();
+    const FTransform NonUniformParentTransform(
+        FVector3::Zero(),
+        FQuat::FromAxisAngle(FVector3::UnitZ(), 0.7f),
+        FVector3(2.0f, 3.0f, 4.0f));
+    const FTransform RotatedChildTransform(
+        FVector3(1.0f, 2.0f, -1.0f),
+        FQuat::FromAxisAngle(FVector3::UnitY(), -0.4f),
+        FVector3(1.5f, 0.5f, 2.0f));
+    (void)World.AddTransform(NonUniformParent, FTransformComponent(NonUniformParentTransform));
+    (void)World.AddTransform(RotatedChild, FTransformComponent(RotatedChildTransform));
+    Record(
+        Result,
+        World.SetParent(RotatedChild, NonUniformParent) ==
+                ESceneResult::InvalidHierarchyOperation &&
+            World.GetParent(RotatedChild) == FEntity::Invalid() &&
+            World.GetTransform(RotatedChild)->LocalTransform.Translation ==
+                RotatedChildTransform.Translation,
+        "Scene rejects unrepresentable preserve-world reparent without hierarchy mutation");
+
+    const FEntity AxisAlignedParent = World.CreateEntity();
+    const FEntity AxisAlignedChild = World.CreateEntity();
+    (void)World.AddTransform(
+        AxisAlignedParent,
+        FTransformComponent(FTransform(
+            FVector3::Zero(),
+            FQuat::Identity(),
+            FVector3(2.0f, 3.0f, 4.0f))));
+    (void)World.AddTransform(AxisAlignedChild, TransformAt(1.0f, 1.0f, 1.0f));
+    Record(
+        Result,
+        World.SetParent(
+            AxisAlignedChild,
+            AxisAlignedParent,
+            EReparentTransformPreservation::PreserveLocal) == ESceneResult::Success &&
+            World.TryGetWorldTransform(AxisAlignedChild, WorldTransform) &&
+            NearTransformPosition(WorldTransform, 2.0f, 3.0f, 4.0f),
+        "Scene supports representable axis-aligned non-uniform hierarchy transforms");
 
     const FEntity Parent = World.CreateEntity();
     const FEntity Leaf = World.CreateEntity();
@@ -194,24 +270,12 @@ void TestRenderCollection(FApplicationSceneEcsTestResult& Result)
 
     const FEntity MissingTransform = World.CreateEntity();
     (void)World.AddMesh(MissingTransform, FMeshComponent("bad-mesh"));
-    const FEntity InvalidLight = World.CreateEntity();
-    (void)World.AddTransform(InvalidLight, TransformAt(0.0f));
-    FLightComponent BadLight;
-    BadLight.LightType = ESceneLightType::Point;
-    BadLight.Range = -1.0f;
-    (void)World.AddLight(InvalidLight, BadLight);
-    const FEntity InvalidCamera = World.CreateEntity();
-    (void)World.AddTransform(InvalidCamera, TransformAt(0.0f));
-    FCameraComponent BadCamera;
-    BadCamera.NearPlane = 10.0f;
-    BadCamera.FarPlane = 1.0f;
-    (void)World.AddCamera(InvalidCamera, BadCamera);
 
     const FSceneRenderSummary Summary = World.CollectRenderSummary();
     const bool bCountsMatch = Summary.GetRenderables().size() == 10 &&
         Summary.GetLights().size() == 4 &&
         Summary.GetCameras().size() == 2 &&
-        Summary.GetRejectedItems().size() == 3;
+        Summary.GetRejectedItems().size() == 1;
     const bool bSortKeyFirst = Summary.GetRenderables()[0].Entity == MeshEntities[8] &&
         Summary.GetRenderables()[1].Entity == MeshEntities[9];
     const bool bIdentityTie = Summary.GetRenderables()[2].Entity == MeshEntities[0] &&
@@ -230,9 +294,7 @@ void TestRenderCollection(FApplicationSceneEcsTestResult& Result)
     }
     Record(Result, bStable &&
             FirstDump.find("0x") == std::string::npos &&
-            Summary.GetDiagnostics().CountByCode("SCENE-RENDER-MISSING-TRANSFORM") == 1 &&
-            Summary.GetDiagnostics().CountByCode("SCENE-RENDER-INVALID-LIGHT") == 1 &&
-            Summary.GetDiagnostics().CountByCode("SCENE-RENDER-INVALID-CAMERA") == 1,
+            Summary.GetDiagnostics().CountByCode("SCENE-RENDER-MISSING-TRANSFORM") == 1,
         "Scene render collection diagnostics and dumps are byte-stable across repeated runs");
 }
 

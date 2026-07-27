@@ -43,6 +43,22 @@ void FInputState::BeginFrame()
 
 void FInputState::ClearAll()
 {
+    ClearKeyAndMouseState();
+    PointerX = 0.0f;
+    PointerY = 0.0f;
+    PointerDeltaX = 0.0f;
+    PointerDeltaY = 0.0f;
+    bHasPointerPosition = false;
+    bFocused = false;
+}
+
+void FInputState::SetFocused(bool bInFocused) noexcept
+{
+    bFocused = bInFocused;
+}
+
+void FInputState::ClearKeyAndMouseState()
+{
     HeldKeys.clear();
     PressedKeys.clear();
     ReleasedKeys.clear();
@@ -138,7 +154,7 @@ void FInputState::ApplyEvent(const FInputEvent& Event, FApplicationDiagnosticLog
         break;
     case EInputEventType::FocusLost:
         bFocused = false;
-        ClearAll();
+        ClearKeyAndMouseState();
         if (Diagnostics != nullptr)
         {
             Diagnostics->Add(EApplicationDiagnosticSeverity::Info, EApplicationDiagnosticCategory::Input,

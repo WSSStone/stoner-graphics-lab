@@ -62,6 +62,17 @@ FRendererComparisonTestResult RunRendererComparisonTests()
         "Renderer comparison reports complete median and p95 timing samples");
     Record(Result, Report.Crossover == ERendererCrossoverClassification::DeferredAt64,
         "Renderer comparison classifies first observed deferred crossover without speedup gate");
+
+    auto MissingTierReport = BuildRendererComparisonReport({MakeTier(0), MakeTier(16), MakeTier(64)});
+    Record(Result, !MissingTierReport.IsValid() && MissingTierReport.Tiers.size() == 3 &&
+            MissingTierReport.Diagnostics.Dump().View().find("DEF-COMPARE-TIER-COUNT") != std::string_view::npos,
+        "Renderer comparison reports missing tier count diagnostics");
+
+    auto ExtraTierReport = BuildRendererComparisonReport({
+        MakeTier(0), MakeTier(16), MakeTier(64), MakeTier(256), MakeTier(32)});
+    Record(Result, !ExtraTierReport.IsValid() && ExtraTierReport.Tiers.size() == 5 &&
+            ExtraTierReport.Diagnostics.Dump().View().find("DEF-COMPARE-TIER-COUNT") != std::string_view::npos,
+        "Renderer comparison reports extra tier count diagnostics");
     const char* ReportPath = std::getenv("STONER_RENDERER_COMPARISON_REPORT");
     if (ReportPath != nullptr && *ReportPath != '\0')
     {

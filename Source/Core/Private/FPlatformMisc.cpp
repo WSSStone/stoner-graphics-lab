@@ -52,7 +52,15 @@ uint64 FPlatformMisc::GetAvailableMemoryBytes() noexcept
 #elif SG_PLATFORM_MAC
     vm_statistics64_data_t Stats;
     mach_msg_type_number_t Count = HOST_VM_INFO64_COUNT;
-    if (host_statistics64(mach_host_self(), HOST_VM_INFO64, reinterpret_cast<host_info64_t>(&Stats), &Count) != KERN_SUCCESS)
+    const mach_port_t Host = mach_host_self();
+    if (Host == MACH_PORT_NULL)
+    {
+        return 0;
+    }
+    const kern_return_t StatisticsResult =
+        host_statistics64(Host, HOST_VM_INFO64, reinterpret_cast<host_info64_t>(&Stats), &Count);
+    const kern_return_t DeallocateResult = mach_port_deallocate(mach_task_self(), Host);
+    if (StatisticsResult != KERN_SUCCESS || DeallocateResult != KERN_SUCCESS)
     {
         return 0;
     }

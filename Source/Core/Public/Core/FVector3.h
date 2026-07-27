@@ -84,17 +84,36 @@ struct FVector3
 
     [[nodiscard]] float Length() const noexcept
     {
-        return FMath::Sqrt(LengthSquared());
+        return std::hypot(X, Y, Z);
     }
 
+    // Returns Zero for near-zero vectors, non-finite components, or invalid
+    // tolerances. Finite large components are normalized without squaring
+    // overflow.
     [[nodiscard]] FVector3 GetSafeNormal(float Tolerance = FMath::DefaultTolerance) const noexcept
     {
-        const float SquareLength = LengthSquared();
-        if (SquareLength <= Tolerance * Tolerance)
+        if (!FMath::IsFinite(X) ||
+            !FMath::IsFinite(Y) ||
+            !FMath::IsFinite(Z) ||
+            !FMath::IsFinite(Tolerance) ||
+            Tolerance < 0.0f)
         {
             return Zero();
         }
-        return *this / FMath::Sqrt(SquareLength);
+
+        const float Scale = FMath::Max(FMath::Max(FMath::Abs(X), FMath::Abs(Y)), FMath::Abs(Z));
+        if (Scale == 0.0f)
+        {
+            return Zero();
+        }
+
+        const FVector3 Scaled = *this / Scale;
+        const float ScaledLength = Scaled.Length();
+        if (Scale * ScaledLength <= Tolerance)
+        {
+            return Zero();
+        }
+        return Scaled / ScaledLength;
     }
 
     [[nodiscard]] FVector3 Normalized(float Tolerance = FMath::DefaultTolerance) const noexcept

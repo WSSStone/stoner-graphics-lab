@@ -8,10 +8,14 @@
 namespace Stoner::Backend::Vulkan
 {
 
+class FVulkanDevice;
+
 class FVulkanBuffer final : public Stoner::RHI::IRHIBuffer
 {
 public:
-    FVulkanBuffer(const Stoner::RHI::FRHIBufferDesc& InDesc, const FVulkanResourceAllocation& InAllocation, std::shared_ptr<FVulkanMemoryAllocator> InAllocator);
+    ~FVulkanBuffer() override;
+    FVulkanBuffer(const FVulkanBuffer&) = delete;
+    FVulkanBuffer& operator=(const FVulkanBuffer&) = delete;
 
     [[nodiscard]] const Stoner::RHI::FRHIBufferDesc& GetDesc() const noexcept override;
     [[nodiscard]] Stoner::Core::uint64 GetSizeInBytes() const noexcept override;
@@ -24,6 +28,13 @@ public:
     [[nodiscard]] const Stoner::Core::TArray<Stoner::Core::uint8>& GetUploadedBytes() const noexcept { return UploadedBytes; }
 
 private:
+    friend class FVulkanDevice;
+
+    FVulkanBuffer(
+        const Stoner::RHI::FRHIBufferDesc& InDesc,
+        FVulkanResourceAllocation&& InAllocation,
+        std::shared_ptr<FVulkanMemoryAllocator> InAllocator);
+
     Stoner::RHI::FRHIBufferDesc Desc;
     FVulkanResourceAllocation Allocation;
     std::shared_ptr<FVulkanMemoryAllocator> Allocator;

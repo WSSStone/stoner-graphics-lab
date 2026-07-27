@@ -14,6 +14,7 @@ FApplicationLoopState FApplicationLoop::Run(FWindow& Window,
     {
         State.FrameIndex = Frame;
         (void)Window.PollEvents();
+        InputManager.QueueEvents(Window.PollInputEvents());
         InputManager.PollFrame(Window.GetLifecycleState(), Window.IsFocused());
         State.LastWindowState = Window.GetLifecycleState();
         State.LastInputState = InputManager.GetState();

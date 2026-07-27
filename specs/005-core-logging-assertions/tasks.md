@@ -39,7 +39,7 @@
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
 - [x] T005 [P] Create `Source/Core/Public/Core/ELogSeverity.h` with `enum class ELogSeverity : uint8 { Verbose = 0, Info = 1, Warning = 2, Error = 3, Fatal = 4 }` inside `namespace Stoner::Core`, including a `SeverityToString()` helper function declaration
-- [x] T006 [P] Create `Source/Core/Public/Core/SGPlatformBreak.h` with `SG_DEBUG_BREAK()` macro using `__debugbreak()` for MSVC, `__builtin_debugtrap()` for GCC/Clang, and `std::abort()` as fallback; guarded by `_DEBUG` (expands to nothing in Release)
+- [x] T006 [P] Create `Source/Core/Public/Core/SGPlatformBreak.h` with `SG_DEBUG_BREAK()` using `__debugbreak()` for MSVC, `__builtin_debugtrap()` for Clang, `raise(SIGTRAP)` for GCC/POSIX, and `std::abort()` as fallback; enabled for Debug assertions and expanded to nothing in Release (amended by CR001-B02-F015)
 - [x] T007 Run `scons` from the repository root and fix any foundational build errors in `Source/Core/Public/Core/ELogSeverity.h` or `Source/Core/Public/Core/SGPlatformBreak.h`
 
 **Checkpoint**: Foundational headers build. User story implementation can begin.
@@ -57,9 +57,9 @@
 - [x] T008 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `ELogSeverity` enum values: confirm `Verbose < Info < Warning < Error < Fatal` ordering and that `SeverityToString()` returns correct labels for all five levels
 - [x] T009 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `FLogCategory` construction: confirm `GetName()` returns the category name, `GetMinSeverity()` returns the default, and `SetMinSeverity()` updates the threshold
 - [x] T010 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `FLogConsoleSink` output format: capture sink output and verify it matches `[HH:MM:SS.mmm] CategoryName: SeverityLabel: Message\n` pattern
-- [x] T011 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `FLog::LogMessage`: verify all five severity levels produce correctly labeled output, verify stdout vs stderr routing (Verbose/Info → stdout, Warning/Error/Fatal → stderr)
+- [x] T011 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `FLog::LogMessage`: verify the four non-terminating severity levels produce correctly labeled output and verify stdout vs stderr routing (Verbose/Info → stdout, Warning/Error → stderr); Fatal labeling and stderr routing are covered by the isolated T013 child
 - [x] T012 [US1] Add failing verification cases in `Tests/LoggingAssertionTests.cpp` for `SG_LOG` macro: verify macro-level early-out by confirming a side-effect counter is NOT incremented when the message is filtered out
-- [x] T013 [US1] Add failing verification case in `Tests/LoggingAssertionTests.cpp` for Fatal log behavior: install a custom assertion handler via `FLog::SetAssertionHandler()`, call `SG_LOG(LogCore, Fatal, ...)`, and verify the handler is invoked (do not actually abort in tests)
+- [x] T013 [US1] Add an isolated child-process verification case in `Tests/LoggingAssertionTests.cpp` for Fatal log behavior: invoke the test executable in Fatal child mode, capture `stderr`, and verify the correctly labeled message is emitted before the child terminates abnormally without reaching the post-log fallback
 
 ### Implementation for User Story 1
 

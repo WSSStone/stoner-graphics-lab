@@ -1,10 +1,15 @@
 #include "VulkanRHI/FVulkanFence.h"
 
+#include "VulkanRHI/FVulkanDeviceOwnerState.h"
+
 namespace Stoner::Backend::Vulkan
 {
 
-FVulkanFence::FVulkanFence(bool bInitiallySignaled) noexcept
+FVulkanFence::FVulkanFence(
+    bool bInitiallySignaled,
+    Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> InOwner) noexcept
     : State(bInitiallySignaled ? Stoner::RHI::ERHIFenceState::Signaled : Stoner::RHI::ERHIFenceState::Unsignaled)
+    , Owner(std::move(InOwner))
 {
 }
 
@@ -20,7 +25,7 @@ bool FVulkanFence::IsSignaled() const noexcept
 
 Stoner::RHI::ERHIResult FVulkanFence::Wait(Stoner::Core::uint64 TimeoutMicroseconds)
 {
-    if (!bValid)
+    if (!bValid || !Owner || !Owner->bActive)
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
@@ -35,7 +40,7 @@ Stoner::RHI::ERHIResult FVulkanFence::Wait(Stoner::Core::uint64 TimeoutMicroseco
 
 Stoner::RHI::ERHIResult FVulkanFence::Reset()
 {
-    if (!bValid)
+    if (!bValid || !Owner || !Owner->bActive)
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
@@ -46,7 +51,7 @@ Stoner::RHI::ERHIResult FVulkanFence::Reset()
 
 Stoner::RHI::ERHIResult FVulkanFence::Signal()
 {
-    if (!bValid)
+    if (!bValid || !Owner || !Owner->bActive)
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
@@ -55,9 +60,26 @@ Stoner::RHI::ERHIResult FVulkanFence::Signal()
     return Stoner::RHI::ERHIResult::Success;
 }
 
+bool FVulkanFence::BelongsTo(
+    const Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState>& InOwner) const noexcept
+{
+    return bValid && Owner && Owner->bActive && InOwner && Owner == InOwner;
+}
+
+bool FVulkanFence::CanSignalForSubmission() const noexcept
+{
+    return bValid && Owner && Owner->bActive && !IsSignaled();
+}
+
+void FVulkanFence::CommitSignalForSubmission() noexcept
+{
+    State = Stoner::RHI::ERHIFenceState::Signaled;
+}
+
 void FVulkanFence::Invalidate() noexcept
 {
     bValid = false;
+    Owner.reset();
 }
 
 } // namespace Stoner::Backend::Vulkan

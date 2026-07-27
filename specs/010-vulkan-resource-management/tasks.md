@@ -355,3 +355,13 @@ After Foundation:
 - Real runtime and deterministic fallback allocation are both valid explicit test outcomes.
 - Keep all Vulkan-specific resource allocation detail inside `Source/Backend/Vulkan/`.
 - Do not implement real command recording, queue execution of uploads, shader compilation, graphics pipelines, compute pipelines, render passes, framebuffers, or render graph scheduling in this feature.
+
+---
+
+## CR-001 Pre-Asset Hardening Amendment (2026-07-26)
+
+- [X] T116 Add checked allocation counters and exact checked texture-footprint calculation in `Source/Backend/Vulkan/Private/FVulkanMemoryAllocator.cpp`
+- [X] T117 Replace copyable allocation records with move-only allocator/epoch-bound ownership tickets and restrict buffer/texture construction to `FVulkanDevice`
+- [X] T118 Make wrapper tracking rollback-safe and make host-visible fallback upload storage sparse with explicit allocation-failure results
+- [X] T119 Add maintained ownership, overflow, footprint, upload, and shutdown accounting regressions in `Tests/VulkanBackendTests.cpp`
+- [X] T120 Synchronize the Feature 010 spec, plan, data model, contract, and task history with the CR-001 amendment and pass strict local build/tests

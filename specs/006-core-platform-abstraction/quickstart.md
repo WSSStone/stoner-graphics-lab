@@ -101,7 +101,7 @@ Expected behavior:
 ### Dynamic Module Loading
 
 ```cpp
-const auto Module = FPlatformProcess::LoadDynamicModule("explicit/path/to/module");
+auto Module = FPlatformProcess::LoadDynamicModule("explicit/path/to/module");
 const auto Symbol = FPlatformProcess::GetSymbol(Module, "EntryPointName");
 FPlatformProcess::FreeDynamicModule(Module);
 ```
@@ -111,7 +111,9 @@ Expected behavior:
 - The module path must be explicit.
 - Bare module names and implicit platform search paths are not supported.
 - Missing modules and missing symbols fail cleanly.
-- Releasing invalid handles is safe.
+- Module handles are move-only single owners. Explicit release is optional
+  because destruction releases remaining ownership; releasing invalid handles
+  is safe.
 
 ### Native Window Handles
 

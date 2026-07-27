@@ -35,29 +35,14 @@ EMaterialResult FMaterialInstance::Validate(FMaterialDiagnosticLog* Diagnostics)
         return EMaterialResult::ValidationFailed;
     }
 
-    const EMaterialResult CycleResult = ValidateAcyclic(Diagnostics);
-    if (CycleResult != EMaterialResult::Success)
+    const FMaterial* Root = nullptr;
+    const EMaterialResult ParentResult = ValidateUsableParentChain(Root, Diagnostics);
+    if (ParentResult != EMaterialResult::Success)
     {
-        ValidationState = EMaterialValidationState::CycleDetected;
-        return CycleResult;
-    }
-
-    const FMaterial* Root = FindRootMaterial(Diagnostics);
-    if (Root == nullptr)
-    {
-        ValidationState = EMaterialValidationState::Invalid;
-        return EMaterialResult::NotFound;
-    }
-    if (Root->GetValidationState() == EMaterialValidationState::Invalidated)
-    {
-        ValidationState = EMaterialValidationState::Invalid;
-        if (Diagnostics != nullptr)
-        {
-            Diagnostics->Add(EMaterialDiagnosticSeverity::Error, EMaterialDiagnosticCategory::Invalidation,
-                EMaterialResult::Invalidated, "MAT-INSTANCE-PARENT-INVALIDATED", Desc.Name,
-                "parent material is invalidated");
-        }
-        return EMaterialResult::Invalidated;
+        ValidationState = ParentResult == EMaterialResult::CycleDetected
+            ? EMaterialValidationState::CycleDetected
+            : EMaterialValidationState::Invalid;
+        return ParentResult;
     }
 
     for (const FMaterialParameter& Override : Desc.Overrides.GetParameters())
@@ -108,10 +93,11 @@ EMaterialResult FMaterialInstance::ResolveEffectiveParameters(FMaterialParameter
         return CycleResult;
     }
 
-    const FMaterial* Root = FindRootMaterial(Diagnostics);
-    if (Root == nullptr)
+    const FMaterial* Root = nullptr;
+    const EMaterialResult ParentResult = ValidateUsableParentChain(Root, Diagnostics);
+    if (ParentResult != EMaterialResult::Success)
     {
-        return EMaterialResult::NotFound;
+        return ParentResult;
     }
     OutParameters = Root->GetParameters();
 
@@ -257,6 +243,75 @@ EMaterialResult FMaterialInstance::ValidateAcyclic(FMaterialDiagnosticLog* Diagn
         Seen.push_back(Current);
         Current = Current->Desc.ParentInstance;
     }
+    return EMaterialResult::Success;
+}
+
+EMaterialResult FMaterialInstance::ValidateUsableParentChain(const FMaterial*& OutRoot,
+    FMaterialDiagnosticLog* Diagnostics) const
+{
+    OutRoot = nullptr;
+
+    if (ValidationState == EMaterialValidationState::Invalidated)
+    {
+        if (Diagnostics != nullptr)
+        {
+            Diagnostics->Add(EMaterialDiagnosticSeverity::Error, EMaterialDiagnosticCategory::Invalidation,
+                EMaterialResult::Invalidated, "MAT-INSTANCE-INVALIDATED", Desc.Name,
+                "invalidated material instance cannot be resolved");
+        }
+        return EMaterialResult::Invalidated;
+    }
+
+    const EMaterialResult CycleResult = ValidateAcyclic(Diagnostics);
+    if (CycleResult != EMaterialResult::Success)
+    {
+        return CycleResult;
+    }
+
+    const FMaterialInstance* Current = this;
+    while (Current != nullptr)
+    {
+        if (Current != this && Current->ValidationState == EMaterialValidationState::Invalidated)
+        {
+            if (Diagnostics != nullptr)
+            {
+                Diagnostics->Add(EMaterialDiagnosticSeverity::Error, EMaterialDiagnosticCategory::Invalidation,
+                    EMaterialResult::Invalidated, "MAT-INSTANCE-PARENT-INVALIDATED", Current->GetName(),
+                    "parent material instance is invalidated");
+            }
+            return EMaterialResult::Invalidated;
+        }
+
+        if (Current->Desc.ParentMaterial != nullptr)
+        {
+            OutRoot = Current->Desc.ParentMaterial;
+            break;
+        }
+        Current = Current->Desc.ParentInstance;
+    }
+
+    if (OutRoot == nullptr)
+    {
+        if (Diagnostics != nullptr)
+        {
+            Diagnostics->Add(EMaterialDiagnosticSeverity::Error, EMaterialDiagnosticCategory::Instance,
+                EMaterialResult::NotFound, "MAT-INSTANCE-PARENT-MISSING", Desc.Name,
+                "material instance requires a parent material or instance");
+        }
+        return EMaterialResult::NotFound;
+    }
+
+    if (OutRoot->GetValidationState() == EMaterialValidationState::Invalidated)
+    {
+        if (Diagnostics != nullptr)
+        {
+            Diagnostics->Add(EMaterialDiagnosticSeverity::Error, EMaterialDiagnosticCategory::Invalidation,
+                EMaterialResult::Invalidated, "MAT-INSTANCE-PARENT-INVALIDATED", Desc.Name,
+                "parent material is invalidated");
+        }
+        return EMaterialResult::Invalidated;
+    }
+
     return EMaterialResult::Success;
 }
 

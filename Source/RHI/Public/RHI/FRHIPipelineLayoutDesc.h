@@ -33,7 +33,9 @@ struct FRHIPipelineLayoutDesc
 
 [[nodiscard]] inline bool IsValidRHIPipelineLayoutDesc(const FRHIPipelineLayoutDesc& Desc) noexcept
 {
-    if (Desc.Bindings.empty() || HasDuplicateRHIPipelineLayoutBinding(Desc))
+    if (Desc.Bindings.empty() ||
+        HasDuplicateRHIPipelineLayoutBinding(Desc) ||
+        HasIncompatibleRHIShaderConstantRangeOverlap(Desc.ConstantRanges))
     {
         return false;
     }
@@ -47,6 +49,88 @@ struct FRHIPipelineLayoutDesc
     for (const FRHIShaderConstantRange& Range : Desc.ConstantRanges)
     {
         if (!IsValidRHIShaderConstantRange(Range))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+[[nodiscard]] inline const FRHIDescriptorBinding* FindRHIPipelineLayoutBinding(
+    const FRHIPipelineLayoutDesc& Desc,
+    Stoner::Core::uint32 SetIndex,
+    Stoner::Core::uint32 BindingSlot) noexcept
+{
+    for (const FRHIDescriptorBinding& Binding : Desc.Bindings)
+    {
+        if (Binding.SetIndex == SetIndex && Binding.BindingSlot == BindingSlot)
+        {
+            return &Binding;
+        }
+    }
+    return nullptr;
+}
+
+[[nodiscard]] inline bool DoesRHIShaderConstantRangeContain(
+    const FRHIShaderConstantRange& Available,
+    const FRHIShaderConstantRange& Required) noexcept
+{
+    if (!IsValidRHIShaderConstantRange(Available) || !IsValidRHIShaderConstantRange(Required))
+    {
+        return false;
+    }
+    const Stoner::Core::uint64 AvailableEnd =
+        static_cast<Stoner::Core::uint64>(Available.OffsetBytes) + Available.SizeBytes;
+    const Stoner::Core::uint64 RequiredEnd =
+        static_cast<Stoner::Core::uint64>(Required.OffsetBytes) + Required.SizeBytes;
+    return Required.OffsetBytes >= Available.OffsetBytes &&
+        RequiredEnd <= AvailableEnd &&
+        (Available.Visibility & Required.Visibility) == Required.Visibility;
+}
+
+[[nodiscard]] inline bool IsRHIShaderInterfaceCompatibleWithPipelineLayout(
+    const FRHIShaderInterfaceMetadata& Metadata,
+    const FRHIPipelineLayoutDesc& Layout) noexcept
+{
+    if (!IsValidRHIPipelineLayoutDesc(Layout) ||
+        HasDuplicateRHIShaderInterfaceBinding(Metadata) ||
+        HasIncompatibleRHIShaderConstantRangeOverlap(Metadata.ConstantRanges))
+    {
+        return false;
+    }
+    for (const FRHIShaderInterfaceBinding& Required : Metadata.Bindings)
+    {
+        if (!IsValidRHIShaderInterfaceBinding(Required))
+        {
+            return false;
+        }
+        const FRHIDescriptorBinding* Binding =
+            FindRHIPipelineLayoutBinding(Layout, Required.SetIndex, Required.BindingSlot);
+        if (!Binding ||
+            Binding->DescriptorType != Required.DescriptorType ||
+            Binding->ArrayCount < Required.ArrayCount ||
+            (Binding->Visibility & Required.Visibility) != Required.Visibility)
+        {
+            return false;
+        }
+    }
+
+    for (const FRHIShaderConstantRange& Required : Metadata.ConstantRanges)
+    {
+        if (!IsValidRHIShaderConstantRange(Required))
+        {
+            return false;
+        }
+        bool bMatched = false;
+        for (const FRHIShaderConstantRange& Available : Layout.ConstantRanges)
+        {
+            if (DoesRHIShaderConstantRangeContain(Available, Required))
+            {
+                bMatched = true;
+                break;
+            }
+        }
+        if (!bMatched)
         {
             return false;
         }

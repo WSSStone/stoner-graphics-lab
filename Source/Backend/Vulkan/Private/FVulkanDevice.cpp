@@ -8,6 +8,7 @@
 #include "VulkanRHI/FVulkanFence.h"
 #include "VulkanRHI/FVulkanFramebuffer.h"
 #include "VulkanRHI/FVulkanGraphicsPipeline.h"
+#include "VulkanRHI/FVulkanNativeContext.h"
 #include "VulkanRHI/FVulkanPipelineCache.h"
 #include "VulkanRHI/FVulkanPipelineLayout.h"
 #include "VulkanRHI/FVulkanQueue.h"
@@ -17,6 +18,10 @@
 #include "VulkanRHI/FVulkanShaderModule.h"
 #include "VulkanRHI/FVulkanSwapchain.h"
 #include "VulkanRHI/FVulkanTexture.h"
+
+#include <new>
+#include <stdexcept>
+#include <utility>
 
 namespace Stoner::Backend::Vulkan
 {
@@ -31,32 +36,27 @@ namespace
         : Stoner::RHI::ERHIResult::InvalidState;
 }
 
-[[nodiscard]] bool IsRuntimeFallback(const FVulkanDiagnostics& Diagnostics) noexcept
-{
-    return Diagnostics.bUsedRuntimeFallback || Diagnostics.Availability != EVulkanBackendAvailability::Available;
-}
-
-[[nodiscard]] Stoner::RHI::ERHIRuntimeObjectMode RuntimeModeForDiagnostics(const FVulkanDiagnostics& Diagnostics) noexcept
-{
-    return IsRuntimeFallback(Diagnostics)
-        ? Stoner::RHI::ERHIRuntimeObjectMode::DeterministicFallback
-        : Stoner::RHI::ERHIRuntimeObjectMode::RealRuntime;
-}
-
 [[nodiscard]] bool IsShaderLayoutCompatible(
     const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIShaderModule>& Shader,
-    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPipelineLayout>& Layout) noexcept
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPipelineLayout>& Layout,
+    const Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState>& Owner) noexcept
 {
     if (!Shader || !Layout || Shader->GetLifecycleState() != Stoner::RHI::ERHIResourceLifecycleState::Valid ||
         Layout->GetLifecycleState() != Stoner::RHI::ERHIResourceLifecycleState::Valid)
     {
         return false;
     }
+    auto VulkanShader = std::dynamic_pointer_cast<FVulkanShaderModule>(Shader);
     auto VulkanLayout = std::dynamic_pointer_cast<FVulkanPipelineLayout>(Layout);
-    return VulkanLayout && VulkanLayout->IsCompatibleWithShaderInterface(Shader->GetDesc().InterfaceMetadata);
+    return VulkanShader && VulkanLayout &&
+        VulkanShader->BelongsTo(Owner) && VulkanLayout->BelongsTo(Owner) &&
+        VulkanLayout->IsCompatibleWithShaderInterface(
+            Shader->GetDesc().InterfaceMetadata);
 }
 
-[[nodiscard]] bool HasValidGraphicsShaderStages(const Stoner::RHI::FRHIGraphicsPipelineDesc& Desc) noexcept
+[[nodiscard]] bool HasValidGraphicsShaderStages(
+    const Stoner::RHI::FRHIGraphicsPipelineDesc& Desc,
+    const Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState>& Owner) noexcept
 {
     bool bHasVertex = false;
     bool bHasFragment = false;
@@ -66,7 +66,7 @@ namespace
         {
             return false;
         }
-        if (!IsShaderLayoutCompatible(Shader, Desc.PipelineLayout))
+        if (!IsShaderLayoutCompatible(Shader, Desc.PipelineLayout, Owner))
         {
             return false;
         }
@@ -94,16 +94,41 @@ namespace
     return bHasVertex && bHasFragment;
 }
 
-[[nodiscard]] bool HasValidComputeShaderStage(const Stoner::RHI::FRHIComputePipelineDesc& Desc) noexcept
+[[nodiscard]] bool HasValidComputeShaderStage(
+    const Stoner::RHI::FRHIComputePipelineDesc& Desc,
+    const Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState>& Owner) noexcept
 {
     return Desc.ShaderModules.size() == 1 &&
         Desc.ShaderModules[0] &&
         Desc.ShaderModules[0]->GetLifecycleState() == Stoner::RHI::ERHIResourceLifecycleState::Valid &&
         Desc.ShaderModules[0]->GetStage() == Stoner::RHI::ERHIShaderStage::Compute &&
-        IsShaderLayoutCompatible(Desc.ShaderModules[0], Desc.PipelineLayout);
+        IsShaderLayoutCompatible(
+            Desc.ShaderModules[0], Desc.PipelineLayout, Owner);
+}
+
+[[nodiscard]] Stoner::RHI::ERHIFormat SelectPresentationFormat(
+    const Stoner::RHI::FRHIDeviceCapabilities& Capabilities) noexcept
+{
+    if (Capabilities.SupportsFormat(Stoner::RHI::ERHIFormat::B8G8R8A8_UNorm))
+    {
+        return Stoner::RHI::ERHIFormat::B8G8R8A8_UNorm;
+    }
+    if (Capabilities.SupportsFormat(Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm))
+    {
+        return Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm;
+    }
+    return Stoner::RHI::ERHIFormat::Unknown;
 }
 
 } // namespace
+
+FVulkanDevice::~FVulkanDevice()
+{
+    if (State != Stoner::RHI::ERHIDeviceState::Shutdown)
+    {
+        (void)Shutdown();
+    }
+}
 
 Stoner::RHI::ERHIDeviceState FVulkanDevice::GetState() const noexcept
 {
@@ -133,6 +158,48 @@ const FVulkanAdapterCandidate& FVulkanDevice::GetSelectedAdapter() const noexcep
 FVulkanAllocationSnapshot FVulkanDevice::GetAllocationSnapshot() const noexcept
 {
     return Allocator ? Allocator->GetSnapshot() : FVulkanAllocationSnapshot{};
+}
+
+Stoner::RHI::ERHIResult FVulkanDevice::EnableNativeShaderRuntime()
+{
+    if (!IsActive())
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    if (HasNativeShaderRuntime())
+    {
+        return Stoner::RHI::ERHIResult::Success;
+    }
+
+    Stoner::Core::TSharedPtr<FVulkanNativeContext> Context;
+    try
+    {
+        Context = Stoner::Core::MakeShared<FVulkanNativeContext>();
+        const Stoner::RHI::ERHIResult InitializeResult =
+            Context->Initialize(Stoner::RHI::ERHIRuntimeMode::NativeHeadless);
+        if (InitializeResult != Stoner::RHI::ERHIResult::Success)
+        {
+            return InitializeResult;
+        }
+        NativeShaderContext = std::move(Context);
+    }
+    catch (const std::bad_alloc&)
+    {
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    MarkRuntimeMode(
+        Diagnostics,
+        "native shader runtime enabled; other FVulkanDevice objects remain explicit deterministic fallback");
+    return Stoner::RHI::ERHIResult::Success;
+}
+
+bool FVulkanDevice::HasNativeShaderRuntime() const noexcept
+{
+    return NativeShaderContext && NativeShaderContext->IsAvailable();
 }
 
 Stoner::Core::uint32 FVulkanDevice::GetDescriptorPoolCapacity() const noexcept
@@ -182,12 +249,14 @@ Stoner::RHI::ERHIResult FVulkanDevice::Initialize(const FVulkanInstanceDesc& Des
     Allocator->Reset();
     DescriptorPool.reset();
     CommandPools.clear();
-    CommandBuffers.clear();
     ShaderModules.clear();
     GraphicsPipelines.clear();
     ComputePipelines.clear();
     PipelineCache.Invalidate();
     SuccessfulPipelineCreations = 0;
+    PresentationOwner = std::make_shared<FVulkanPresentationOwnerState>();
+    PresentationOwner->bActive = true;
+    DeviceOwner->bActive = true;
     State = Stoner::RHI::ERHIDeviceState::Active;
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -200,6 +269,11 @@ Stoner::RHI::ERHIResult FVulkanDevice::Shutdown()
     }
 
     InvalidateOwnedObjects();
+    if (NativeShaderContext)
+    {
+        (void)NativeShaderContext->Shutdown();
+        NativeShaderContext.reset();
+    }
     if (Instance.IsInitialized())
     {
         (void)Instance.Shutdown();
@@ -227,9 +301,9 @@ void FVulkanDevice::ConfigureAllocationCountLimit(Stoner::Core::uint32 MaxAlloca
 void FVulkanDevice::ConfigureDescriptorPoolCapacity(Stoner::Core::uint32 Capacity) noexcept
 {
     DescriptorPoolCapacity = Capacity;
-    if (!DescriptorPool || DescriptorPool->GetAllocatedCount() == 0)
+    if (DescriptorPool && DescriptorPool->GetAllocatedCount() == 0)
     {
-        DescriptorPool = std::make_shared<FVulkanDescriptorPool>(DescriptorPoolCapacity);
+        DescriptorPool.reset();
     }
 }
 
@@ -283,8 +357,31 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHICommandQueue> FVulkanDevice::Crea
         return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
     }
 
-    auto Queue = Stoner::Core::MakeShared<FVulkanQueue>(QueueType, &Diagnostics, CompletionInjection);
-    Queues.push_back(Queue);
+    Stoner::Core::TSharedPtr<FVulkanQueue> Queue;
+    try
+    {
+        Queue.reset(new FVulkanQueue(
+            QueueType, DeviceOwner, &Diagnostics, CompletionInjection));
+        Queues.push_back(Queue);
+    }
+    catch (const std::bad_alloc&)
+    {
+        if (Queue)
+        {
+            Queue->Invalidate();
+        }
+        MarkQueueCapability(Diagnostics, "command queue allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        if (Queue)
+        {
+            Queue->Invalidate();
+        }
+        MarkQueueCapability(Diagnostics, "command queue tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     return {Stoner::RHI::ERHIResult::Success, Queue};
 }
 
@@ -311,15 +408,25 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHICommandBuffer> FVulkanDevice::Cre
     }
     if (!Pool)
     {
-        Pool = Stoner::Core::MakeShared<FVulkanCommandPool>(CompatibleQueueType, CommandBufferCapacity);
-        CommandPools.push_back(Pool);
+        try
+        {
+            Pool.reset(new FVulkanCommandPool(
+                CompatibleQueueType, CommandBufferCapacity, DeviceOwner));
+            CommandPools.push_back(Pool);
+        }
+        catch (const std::bad_alloc&)
+        {
+            MarkCommandAllocation(Diagnostics, "command pool allocation failed");
+            return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+        }
+        catch (const std::length_error&)
+        {
+            MarkCommandAllocation(Diagnostics, "command pool tracking capacity exceeded");
+            return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+        }
     }
 
     auto Result = Pool->Allocate(Diagnostics);
-    if (Result.Succeeded())
-    {
-        CommandBuffers.push_back(Result.Object);
-    }
     return {Result.Result, Result.Object};
 }
 
@@ -330,8 +437,28 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIFence> FVulkanDevice::CreateFence
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
 
-    auto Fence = Stoner::Core::MakeShared<FVulkanFence>(bInitiallySignaled);
-    Fences.push_back(Fence);
+    Stoner::Core::TSharedPtr<FVulkanFence> Fence;
+    try
+    {
+        Fence.reset(new FVulkanFence(bInitiallySignaled, DeviceOwner));
+        Fences.push_back(Fence);
+    }
+    catch (const std::bad_alloc&)
+    {
+        if (Fence)
+        {
+            Fence->Invalidate();
+        }
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        if (Fence)
+        {
+            Fence->Invalidate();
+        }
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     return {Stoner::RHI::ERHIResult::Success, Fence};
 }
 
@@ -342,8 +469,28 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISemaphore> FVulkanDevice::CreateS
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
 
-    auto Semaphore = Stoner::Core::MakeShared<FVulkanSemaphore>();
-    Semaphores.push_back(Semaphore);
+    Stoner::Core::TSharedPtr<FVulkanSemaphore> Semaphore;
+    try
+    {
+        Semaphore.reset(new FVulkanSemaphore(DeviceOwner));
+        Semaphores.push_back(Semaphore);
+    }
+    catch (const std::bad_alloc&)
+    {
+        if (Semaphore)
+        {
+            Semaphore->Invalidate();
+        }
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        if (Semaphore)
+        {
+            Semaphore->Invalidate();
+        }
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     return {Stoner::RHI::ERHIResult::Success, Semaphore};
 }
 
@@ -353,12 +500,18 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> FVulkanDevice::CreateS
     {
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
-    if (!Capabilities.bSupportsPresentation || !Capabilities.bSupportsPresentQueue || FrameCount == 0 || FrameCount > Capabilities.MaxInFlightFrames)
+    if (FrameCount == 0)
+    {
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    if (!Capabilities.bSupportsPresentation || !Capabilities.bSupportsPresentQueue ||
+        FrameCount > Capabilities.MaxInFlightFrames)
     {
         return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
     }
 
-    auto Swapchain = Stoner::Core::MakeShared<FVulkanSwapchain>(FrameCount);
+    auto Swapchain = Stoner::Core::MakeShared<FVulkanSwapchain>(
+        FrameCount, Capabilities.MaxInFlightFrames);
     Swapchains.push_back(Swapchain);
     return {Stoner::RHI::ERHIResult::Success, Swapchain};
 }
@@ -377,13 +530,47 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIBuffer> FVulkanDevice::CreateBuff
     FVulkanResourceAllocation Allocation = Allocator->AllocateBuffer(Desc, IsActive());
     if (!Allocation.IsSuccessful())
     {
-        MarkAllocationFailure(Diagnostics, Allocation.Reason);
+        MarkAllocationFailure(Diagnostics, Allocation.GetReason());
         return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
     }
 
-    auto Buffer = Stoner::Core::MakeShared<FVulkanBuffer>(Desc, Allocation, Allocator);
-    Buffers.push_back(Buffer);
-    MarkResourceAllocation(Diagnostics, Allocation.Reason);
+    Stoner::Core::TSharedPtr<FVulkanBuffer> Buffer;
+    try
+    {
+        Buffer.reset(new FVulkanBuffer(
+            Desc, std::move(Allocation), Allocator));
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Allocator->Release(Allocation);
+        MarkAllocationFailure(Diagnostics, "buffer wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    if (Buffer->GetLifecycleState() !=
+        Stoner::RHI::ERHIResourceLifecycleState::Valid)
+    {
+        (void)Allocator->Release(Allocation);
+        MarkAllocationFailure(Diagnostics, "buffer allocation ownership rejected");
+        return {Stoner::RHI::ERHIResult::Failed, nullptr};
+    }
+    try
+    {
+        Buffers.push_back(Buffer);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Buffer->Invalidate();
+        MarkAllocationFailure(Diagnostics, "buffer resource tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)Buffer->Invalidate();
+        MarkAllocationFailure(Diagnostics, "buffer resource tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    MarkResourceAllocation(
+        Diagnostics, Buffer->GetAllocation().GetReason());
     return {Stoner::RHI::ERHIResult::Success, Buffer};
 }
 
@@ -401,13 +588,47 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHITexture> FVulkanDevice::CreateTex
     FVulkanResourceAllocation Allocation = Allocator->AllocateTexture(Desc, IsActive());
     if (!Allocation.IsSuccessful())
     {
-        MarkAllocationFailure(Diagnostics, Allocation.Reason);
+        MarkAllocationFailure(Diagnostics, Allocation.GetReason());
         return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
     }
 
-    auto Texture = Stoner::Core::MakeShared<FVulkanTexture>(Desc, Allocation, Allocator);
-    Textures.push_back(Texture);
-    MarkResourceAllocation(Diagnostics, Allocation.Reason);
+    Stoner::Core::TSharedPtr<FVulkanTexture> Texture;
+    try
+    {
+        Texture.reset(new FVulkanTexture(
+            Desc, std::move(Allocation), Allocator));
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Allocator->Release(Allocation);
+        MarkAllocationFailure(Diagnostics, "texture wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    if (Texture->GetLifecycleState() !=
+        Stoner::RHI::ERHIResourceLifecycleState::Valid)
+    {
+        (void)Allocator->Release(Allocation);
+        MarkAllocationFailure(Diagnostics, "texture allocation ownership rejected");
+        return {Stoner::RHI::ERHIResult::Failed, nullptr};
+    }
+    try
+    {
+        Textures.push_back(Texture);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Texture->Invalidate();
+        MarkAllocationFailure(Diagnostics, "texture resource tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)Texture->Invalidate();
+        MarkAllocationFailure(Diagnostics, "texture resource tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    MarkResourceAllocation(
+        Diagnostics, Texture->GetAllocation().GetReason());
     return {Stoner::RHI::ERHIResult::Success, Texture};
 }
 
@@ -422,8 +643,35 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISampler> FVulkanDevice::CreateSam
         return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
     }
 
-    auto Sampler = Stoner::Core::MakeShared<FVulkanSampler>(Desc);
-    Samplers.push_back(Sampler);
+    Stoner::Core::TSharedPtr<FVulkanSampler> Sampler;
+    try
+    {
+        Sampler.reset(new FVulkanSampler(Desc));
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkResourceAllocation(
+            Diagnostics, "sampler wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        Samplers.push_back(Sampler);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Sampler->Invalidate();
+        MarkResourceAllocation(
+            Diagnostics, "sampler resource tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)Sampler->Invalidate();
+        MarkResourceAllocation(
+            Diagnostics, "sampler resource tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     return {Stoner::RHI::ERHIResult::Success, Sampler};
 }
 
@@ -445,16 +693,80 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIShaderModule> FVulkanDevice::Crea
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
 
-    Stoner::RHI::FRHIShaderModuleDesc RuntimeDesc = Desc;
-    RuntimeDesc.RuntimeMode = RuntimeModeForDiagnostics(Diagnostics);
-    RuntimeDesc.ValidationMode = IsRuntimeFallback(Diagnostics)
-        ? Stoner::RHI::ERHIShaderBytecodeValidationMode::StructuralFallback
-        : Stoner::RHI::ERHIShaderBytecodeValidationMode::Runtime;
-    const char* Reason = IsRuntimeFallback(Diagnostics)
-        ? "shader module created as deterministic fallback; no real runtime execution occurred"
-        : "shader module created with runtime validation";
-    auto ShaderModule = Stoner::Core::MakeShared<FVulkanShaderModule>(RuntimeDesc, Reason);
-    ShaderModules.push_back(ShaderModule);
+    Stoner::RHI::FRHIShaderModuleDesc RuntimeDesc;
+    try
+    {
+        RuntimeDesc = Desc;
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkShaderModule(Diagnostics, "shader module description allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        MarkShaderModule(Diagnostics, "shader module description capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    Stoner::Core::uint64 NativeToken = 0;
+    const bool bUseNativeRuntime = HasNativeShaderRuntime();
+    if (bUseNativeRuntime)
+    {
+        const Stoner::RHI::ERHIResult NativeResult =
+            NativeShaderContext->CreateOwnedShaderModule(
+                Desc.Bytecode.Words, NativeToken);
+        if (NativeResult != Stoner::RHI::ERHIResult::Success)
+        {
+            MarkShaderModule(
+                Diagnostics, "native shader module creation rejected by Vulkan runtime");
+            return {NativeResult, nullptr};
+        }
+    }
+    RuntimeDesc.RuntimeMode = bUseNativeRuntime
+        ? Stoner::RHI::ERHIRuntimeObjectMode::RealRuntime
+        : Stoner::RHI::ERHIRuntimeObjectMode::DeterministicFallback;
+    RuntimeDesc.ValidationMode = bUseNativeRuntime
+        ? Stoner::RHI::ERHIShaderBytecodeValidationMode::Runtime
+        : Stoner::RHI::ERHIShaderBytecodeValidationMode::StructuralFallback;
+    const char* Reason = bUseNativeRuntime
+        ? "shader module created and retained by native Vulkan runtime"
+        : "shader module created as deterministic fallback; no real runtime execution occurred";
+
+    Stoner::Core::TSharedPtr<FVulkanShaderModule> ShaderModule;
+    try
+    {
+        ShaderModule.reset(new FVulkanShaderModule(
+            std::move(RuntimeDesc),
+            DeviceOwner,
+            bUseNativeRuntime ? NativeShaderContext : nullptr,
+            NativeToken,
+            Reason));
+    }
+    catch (const std::bad_alloc&)
+    {
+        if (bUseNativeRuntime)
+        {
+            NativeShaderContext->DestroyOwnedShaderModule(NativeToken);
+        }
+        MarkShaderModule(Diagnostics, "shader module wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        ShaderModules.push_back(ShaderModule);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)ShaderModule->Invalidate();
+        MarkShaderModule(Diagnostics, "shader module tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)ShaderModule->Invalidate();
+        MarkShaderModule(Diagnostics, "shader module tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     MarkShaderModule(Diagnostics, Reason);
     MarkRuntimeMode(Diagnostics, Reason);
     return {Stoner::RHI::ERHIResult::Success, ShaderModule};
@@ -472,8 +784,30 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIPipelineLayout> FVulkanDevice::Cr
         MarkPipelineLayout(Diagnostics, "invalid descriptor binding or constant range in pipeline layout");
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
-    auto Layout = Stoner::Core::MakeShared<FVulkanPipelineLayout>(Desc);
-    PipelineLayouts.push_back(Layout);
+    Stoner::Core::TSharedPtr<FVulkanPipelineLayout> Layout;
+    try
+    {
+        Layout.reset(new FVulkanPipelineLayout(Desc, DeviceOwner));
+        PipelineLayouts.push_back(Layout);
+    }
+    catch (const std::bad_alloc&)
+    {
+        if (Layout)
+        {
+            (void)Layout->Invalidate();
+        }
+        MarkPipelineLayout(Diagnostics, "pipeline layout allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        if (Layout)
+        {
+            (void)Layout->Invalidate();
+        }
+        MarkPipelineLayout(Diagnostics, "pipeline layout tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     MarkPipelineLayout(Diagnostics, "pipeline layout created with descriptor bindings and constant ranges");
     return {Stoner::RHI::ERHIResult::Success, Layout};
 }
@@ -484,22 +818,61 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIDescriptorSet> FVulkanDevice::Cre
     {
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
-    if (!Layout || Layout->GetLifecycleState() != Stoner::RHI::ERHIResourceLifecycleState::Valid || SetIndex >= Layout->GetSetCount())
+    auto VulkanLayout = std::dynamic_pointer_cast<FVulkanPipelineLayout>(Layout);
+    if (!VulkanLayout || !VulkanLayout->BelongsTo(DeviceOwner) ||
+        SetIndex >= Layout->GetSetCount())
     {
         MarkDescriptorUpdate(Diagnostics, "missing or invalid descriptor set layout");
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
 
-    EnsureDescriptorPool();
-    const Stoner::RHI::ERHIResult PoolResult = DescriptorPool->Allocate();
+    const Stoner::RHI::ERHIResult PoolReady = EnsureDescriptorPool();
+    if (PoolReady != Stoner::RHI::ERHIResult::Success)
+    {
+        MarkDescriptorPool(
+            Diagnostics, "descriptor pool allocation failed");
+        return {PoolReady, nullptr};
+    }
+
+    FVulkanDescriptorReservation Reservation;
+    const Stoner::RHI::ERHIResult PoolResult =
+        DescriptorPool->Acquire(DescriptorPool, Reservation);
     if (PoolResult != Stoner::RHI::ERHIResult::Success)
     {
         MarkDescriptorPool(Diagnostics, "descriptor pool capacity exhausted");
         return {PoolResult, nullptr};
     }
 
-    auto DescriptorSet = Stoner::Core::MakeShared<FVulkanDescriptorSet>(Layout, SetIndex, DescriptorPool);
-    DescriptorSets.push_back(DescriptorSet);
+    Stoner::Core::TSharedPtr<FVulkanDescriptorSet> DescriptorSet;
+    try
+    {
+        DescriptorSet.reset(new FVulkanDescriptorSet(
+            Layout, SetIndex, std::move(Reservation)));
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkDescriptorPool(
+            Diagnostics, "descriptor set wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        DescriptorSets.push_back(DescriptorSet);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)DescriptorSet->Invalidate();
+        MarkDescriptorPool(
+            Diagnostics, "descriptor set tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)DescriptorSet->Invalidate();
+        MarkDescriptorPool(
+            Diagnostics, "descriptor set tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     return {Stoner::RHI::ERHIResult::Success, DescriptorSet};
 }
 
@@ -510,13 +883,89 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIGraphicsPipeline> FVulkanDevice::
         MarkGraphicsPipeline(Diagnostics, "graphics pipeline creation rejected after device shutdown");
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
-    if (!Stoner::RHI::IsValidRHIGraphicsPipelineState(Desc) || !HasValidGraphicsShaderStages(Desc))
+    if (!Stoner::RHI::IsValidRHIGraphicsPipelineState(Desc) ||
+        !HasValidGraphicsShaderStages(Desc, DeviceOwner))
     {
         MarkGraphicsPipeline(Diagnostics, "graphics pipeline creation rejected by shader layout or triangle-ready state validation");
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
+    if (!SupportsGraphicsPipelineDesc(Desc))
+    {
+        MarkGraphicsPipeline(
+            Diagnostics,
+            "graphics pipeline creation rejected by device format capabilities");
+        return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
+    }
 
-    const Stoner::Core::FString Key = PipelineCache.BuildGraphicsKey(Desc);
+    Stoner::RHI::FRHIGraphicsPipelineDesc RuntimeDesc;
+    try
+    {
+        RuntimeDesc = Desc;
+        RuntimeDesc.ReuseState =
+            Stoner::RHI::ERHIPipelineReuseState::Created;
+        RuntimeDesc.CompatibilitySummary =
+            "graphics pipeline compatible";
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkGraphicsPipeline(
+            Diagnostics, "graphics pipeline description allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        MarkGraphicsPipeline(
+            Diagnostics, "graphics pipeline description capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+
+    Stoner::Core::TSharedPtr<FVulkanShaderModule> VertexShader;
+    Stoner::Core::TSharedPtr<FVulkanShaderModule> FragmentShader;
+    for (const auto& Shader : RuntimeDesc.ShaderModules)
+    {
+        auto VulkanShader =
+            std::dynamic_pointer_cast<FVulkanShaderModule>(Shader);
+        if (VulkanShader &&
+            VulkanShader->GetStage() ==
+                Stoner::RHI::ERHIShaderStage::Vertex)
+        {
+            VertexShader = std::move(VulkanShader);
+        }
+        else if (VulkanShader &&
+            VulkanShader->GetStage() ==
+                Stoner::RHI::ERHIShaderStage::Fragment)
+        {
+            FragmentShader = std::move(VulkanShader);
+        }
+    }
+    const bool bUseNativeRuntime =
+        HasNativeShaderRuntime() &&
+        VertexShader && FragmentShader &&
+        VertexShader->HasNativeObject() &&
+        FragmentShader->HasNativeObject() &&
+        VertexShader->NativeContext == NativeShaderContext &&
+        FragmentShader->NativeContext == NativeShaderContext;
+    RuntimeDesc.RuntimeMode = bUseNativeRuntime
+        ? Stoner::RHI::ERHIRuntimeObjectMode::RealRuntime
+        : Stoner::RHI::ERHIRuntimeObjectMode::DeterministicFallback;
+
+    Stoner::Core::FString Key;
+    try
+    {
+        Key = PipelineCache.BuildGraphicsKey(RuntimeDesc);
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkPipelineCache(
+            Diagnostics, "graphics pipeline cache key allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        MarkPipelineCache(
+            Diagnostics, "graphics pipeline cache key capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     if (auto Existing = PipelineCache.FindGraphics(Key))
     {
         Existing->SetReuseState(Stoner::RHI::ERHIPipelineReuseState::Reused);
@@ -530,16 +979,84 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIGraphicsPipeline> FVulkanDevice::
         return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
     }
 
-    Stoner::RHI::FRHIGraphicsPipelineDesc RuntimeDesc = Desc;
-    RuntimeDesc.RuntimeMode = RuntimeModeForDiagnostics(Diagnostics);
-    RuntimeDesc.ReuseState = Stoner::RHI::ERHIPipelineReuseState::Created;
-    RuntimeDesc.CompatibilitySummary = "graphics pipeline compatible";
-    const char* Reason = IsRuntimeFallback(Diagnostics)
-        ? "graphics pipeline created as deterministic fallback; no real runtime execution occurred"
-        : "graphics pipeline created with runtime object";
-    auto Pipeline = Stoner::Core::MakeShared<FVulkanGraphicsPipeline>(RuntimeDesc, Reason);
-    GraphicsPipelines.push_back(Pipeline);
-    PipelineCache.InsertGraphics(Key, Pipeline);
+    Stoner::Core::uint64 NativeToken = 0;
+    if (bUseNativeRuntime)
+    {
+        const Stoner::RHI::ERHIResult NativeResult =
+            NativeShaderContext->CreateOwnedGraphicsPipeline(
+                RuntimeDesc,
+                VertexShader->NativeToken,
+                FragmentShader->NativeToken,
+                NativeToken);
+        if (NativeResult != Stoner::RHI::ERHIResult::Success)
+        {
+            MarkGraphicsPipeline(
+                Diagnostics,
+                "native graphics pipeline creation rejected by Vulkan runtime");
+            return {NativeResult, nullptr};
+        }
+    }
+    const char* Reason = bUseNativeRuntime
+        ? "graphics pipeline created and retained by native Vulkan runtime"
+        : "graphics pipeline created as deterministic fallback; no real runtime execution occurred";
+    Stoner::Core::TSharedPtr<FVulkanGraphicsPipeline> Pipeline;
+    try
+    {
+        Pipeline.reset(new FVulkanGraphicsPipeline(
+            std::move(RuntimeDesc),
+            DeviceOwner,
+            bUseNativeRuntime ? NativeShaderContext : nullptr,
+            NativeToken,
+            Reason));
+    }
+    catch (const std::bad_alloc&)
+    {
+        if (bUseNativeRuntime)
+        {
+            NativeShaderContext->DestroyOwnedPipeline(NativeToken);
+        }
+        MarkGraphicsPipeline(
+            Diagnostics, "graphics pipeline wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        GraphicsPipelines.push_back(Pipeline);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Pipeline->Invalidate();
+        MarkGraphicsPipeline(
+            Diagnostics, "graphics pipeline tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)Pipeline->Invalidate();
+        MarkGraphicsPipeline(
+            Diagnostics, "graphics pipeline tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        PipelineCache.InsertGraphics(Key, Pipeline);
+    }
+    catch (const std::bad_alloc&)
+    {
+        GraphicsPipelines.pop_back();
+        (void)Pipeline->Invalidate();
+        MarkPipelineCache(
+            Diagnostics, "graphics pipeline cache insertion failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        GraphicsPipelines.pop_back();
+        (void)Pipeline->Invalidate();
+        MarkPipelineCache(
+            Diagnostics, "graphics pipeline cache capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     ++SuccessfulPipelineCreations;
     MarkGraphicsPipeline(Diagnostics, Reason);
     MarkRuntimeMode(Diagnostics, Reason);
@@ -570,13 +1087,64 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIComputePipeline> FVulkanDevice::C
         MarkComputePipeline(Diagnostics, "compute pipeline creation rejected non-compute shader");
         return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
     }
-    if (!HasValidComputeShaderStage(Desc))
+    if (!HasValidComputeShaderStage(Desc, DeviceOwner))
     {
         MarkComputePipeline(Diagnostics, "compute pipeline creation rejected by shader interface and layout mismatch");
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
 
-    const Stoner::Core::FString Key = PipelineCache.BuildComputeKey(Desc);
+    Stoner::RHI::FRHIComputePipelineDesc RuntimeDesc;
+    try
+    {
+        RuntimeDesc = Desc;
+        RuntimeDesc.RuntimeMode =
+            Stoner::RHI::ERHIRuntimeObjectMode::Unknown;
+        RuntimeDesc.ReuseState =
+            Stoner::RHI::ERHIPipelineReuseState::Created;
+        RuntimeDesc.CompatibilitySummary =
+            "compute pipeline compatible";
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkComputePipeline(
+            Diagnostics, "compute pipeline description allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        MarkComputePipeline(
+            Diagnostics, "compute pipeline description capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+
+    auto ComputeShader =
+        std::dynamic_pointer_cast<FVulkanShaderModule>(
+            RuntimeDesc.ShaderModules[0]);
+    const bool bUseNativeRuntime =
+        HasNativeShaderRuntime() &&
+        ComputeShader && ComputeShader->HasNativeObject() &&
+        ComputeShader->NativeContext == NativeShaderContext;
+    RuntimeDesc.RuntimeMode = bUseNativeRuntime
+        ? Stoner::RHI::ERHIRuntimeObjectMode::RealRuntime
+        : Stoner::RHI::ERHIRuntimeObjectMode::DeterministicFallback;
+
+    Stoner::Core::FString Key;
+    try
+    {
+        Key = PipelineCache.BuildComputeKey(RuntimeDesc);
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkPipelineCache(
+            Diagnostics, "compute pipeline cache key allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        MarkPipelineCache(
+            Diagnostics, "compute pipeline cache key capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     if (auto Existing = PipelineCache.FindCompute(Key))
     {
         Existing->SetReuseState(Stoner::RHI::ERHIPipelineReuseState::Reused);
@@ -590,16 +1158,83 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIComputePipeline> FVulkanDevice::C
         return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
     }
 
-    Stoner::RHI::FRHIComputePipelineDesc RuntimeDesc = Desc;
-    RuntimeDesc.RuntimeMode = RuntimeModeForDiagnostics(Diagnostics);
-    RuntimeDesc.ReuseState = Stoner::RHI::ERHIPipelineReuseState::Created;
-    RuntimeDesc.CompatibilitySummary = "compute pipeline compatible";
-    const char* Reason = IsRuntimeFallback(Diagnostics)
-        ? "compute pipeline created as deterministic fallback; no real runtime execution occurred"
-        : "compute pipeline created with runtime object";
-    auto Pipeline = Stoner::Core::MakeShared<FVulkanComputePipeline>(RuntimeDesc, Reason);
-    ComputePipelines.push_back(Pipeline);
-    PipelineCache.InsertCompute(Key, Pipeline);
+    Stoner::Core::uint64 NativeToken = 0;
+    if (bUseNativeRuntime)
+    {
+        const Stoner::RHI::ERHIResult NativeResult =
+            NativeShaderContext->CreateOwnedComputePipeline(
+                RuntimeDesc,
+                ComputeShader->NativeToken,
+                NativeToken);
+        if (NativeResult != Stoner::RHI::ERHIResult::Success)
+        {
+            MarkComputePipeline(
+                Diagnostics,
+                "native compute pipeline creation rejected by Vulkan runtime");
+            return {NativeResult, nullptr};
+        }
+    }
+    const char* Reason = bUseNativeRuntime
+        ? "compute pipeline created and retained by native Vulkan runtime"
+        : "compute pipeline created as deterministic fallback; no real runtime execution occurred";
+    Stoner::Core::TSharedPtr<FVulkanComputePipeline> Pipeline;
+    try
+    {
+        Pipeline.reset(new FVulkanComputePipeline(
+            std::move(RuntimeDesc),
+            DeviceOwner,
+            bUseNativeRuntime ? NativeShaderContext : nullptr,
+            NativeToken,
+            Reason));
+    }
+    catch (const std::bad_alloc&)
+    {
+        if (bUseNativeRuntime)
+        {
+            NativeShaderContext->DestroyOwnedPipeline(NativeToken);
+        }
+        MarkComputePipeline(
+            Diagnostics, "compute pipeline wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        ComputePipelines.push_back(Pipeline);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Pipeline->Invalidate();
+        MarkComputePipeline(
+            Diagnostics, "compute pipeline tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)Pipeline->Invalidate();
+        MarkComputePipeline(
+            Diagnostics, "compute pipeline tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        PipelineCache.InsertCompute(Key, Pipeline);
+    }
+    catch (const std::bad_alloc&)
+    {
+        ComputePipelines.pop_back();
+        (void)Pipeline->Invalidate();
+        MarkPipelineCache(
+            Diagnostics, "compute pipeline cache insertion failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        ComputePipelines.pop_back();
+        (void)Pipeline->Invalidate();
+        MarkPipelineCache(
+            Diagnostics, "compute pipeline cache capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     ++SuccessfulPipelineCreations;
     MarkComputePipeline(Diagnostics, Reason);
     MarkRuntimeMode(Diagnostics, Reason);
@@ -619,8 +1254,32 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIRenderPass> FVulkanDevice::Create
         return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
     }
 
-    auto RenderPass = Stoner::Core::MakeShared<FVulkanRenderPass>(Desc);
-    RenderPasses.push_back(RenderPass);
+    Stoner::Core::TSharedPtr<FVulkanRenderPass> RenderPass;
+    try
+    {
+        RenderPass.reset(new FVulkanRenderPass(Desc));
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkRenderPass(Diagnostics, "render pass wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        RenderPasses.push_back(RenderPass);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)RenderPass->Invalidate();
+        MarkRenderPass(Diagnostics, "render pass tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)RenderPass->Invalidate();
+        MarkRenderPass(Diagnostics, "render pass tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     MarkRenderPass(Diagnostics, "minimal single-subpass render pass created");
     return {Stoner::RHI::ERHIResult::Success, RenderPass};
 }
@@ -637,8 +1296,32 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIFramebuffer> FVulkanDevice::Creat
         return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
     }
 
-    auto Framebuffer = Stoner::Core::MakeShared<FVulkanFramebuffer>(Desc);
-    Framebuffers.push_back(Framebuffer);
+    Stoner::Core::TSharedPtr<FVulkanFramebuffer> Framebuffer;
+    try
+    {
+        Framebuffer.reset(new FVulkanFramebuffer(Desc));
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkFramebuffer(Diagnostics, "framebuffer wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        Framebuffers.push_back(Framebuffer);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Framebuffer->Invalidate();
+        MarkFramebuffer(Diagnostics, "framebuffer tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)Framebuffer->Invalidate();
+        MarkFramebuffer(Diagnostics, "framebuffer tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     MarkFramebuffer(Diagnostics, "minimal framebuffer created");
     return {Stoner::RHI::ERHIResult::Success, Framebuffer};
 }
@@ -652,7 +1335,24 @@ Stoner::RHI::TRHIObjectResult<FVulkanUploadRequest> FVulkanDevice::StageBufferUp
     auto Result = FVulkanUploadRequest::CreateBufferUpload(Buffer, Data, SizeBytes, Range);
     if (Result.Succeeded())
     {
-        UploadRequests.push_back(Result.Object);
+        try
+        {
+            UploadRequests.push_back(Result.Object);
+        }
+        catch (const std::bad_alloc&)
+        {
+            (void)Result.Object->Invalidate();
+            MarkUploadRejection(
+                Diagnostics, "buffer upload tracking allocation failed");
+            return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+        }
+        catch (const std::length_error&)
+        {
+            (void)Result.Object->Invalidate();
+            MarkUploadRejection(
+                Diagnostics, "buffer upload tracking capacity exceeded");
+            return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+        }
     }
     else
     {
@@ -670,7 +1370,24 @@ Stoner::RHI::TRHIObjectResult<FVulkanUploadRequest> FVulkanDevice::StageTextureU
     auto Result = FVulkanUploadRequest::CreateTextureUpload(Texture, Data, SizeBytes, Region);
     if (Result.Succeeded())
     {
-        UploadRequests.push_back(Result.Object);
+        try
+        {
+            UploadRequests.push_back(Result.Object);
+        }
+        catch (const std::bad_alloc&)
+        {
+            (void)Result.Object->Invalidate();
+            MarkUploadRejection(
+                Diagnostics, "texture upload tracking allocation failed");
+            return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+        }
+        catch (const std::length_error&)
+        {
+            (void)Result.Object->Invalidate();
+            MarkUploadRejection(
+                Diagnostics, "texture upload tracking capacity exceeded");
+            return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+        }
     }
     else
     {
@@ -681,17 +1398,103 @@ Stoner::RHI::TRHIObjectResult<FVulkanUploadRequest> FVulkanDevice::StageTextureU
 
 Stoner::RHI::ERHIResult FVulkanDevice::CreateSurface(const Stoner::Core::FPlatformWindow& Window, FVulkanSurface& OutSurface)
 {
+    OutSurface = FVulkanSurface{};
     if (!IsActive())
     {
+        MarkPresentationSkipped(Diagnostics, "inactive Vulkan device");
         return Stoner::RHI::ERHIResult::InvalidState;
     }
 
-    const Stoner::RHI::ERHIResult Result = FVulkanSurface::Create(Window, OutSurface);
+    Stoner::RHI::FRHIPresentationSurfaceDesc Desc;
+    Desc.Window = Window;
+    Desc.DebugName = "LegacyVulkanSurface";
+    const Stoner::RHI::ERHIResult Result =
+        FVulkanSurface::Create(Desc, PresentationOwner, OutSurface);
     if (Result != Stoner::RHI::ERHIResult::Success)
     {
         MarkPresentationSkipped(Diagnostics, OutSurface.GetDiagnosticReason());
+        return Result;
     }
-    return Result;
+
+    Surfaces.push_back(Stoner::Core::MakeShared<FVulkanSurface>(OutSurface));
+    return Stoner::RHI::ERHIResult::Success;
+}
+
+Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIPresentationSurface>
+FVulkanDevice::CreatePresentationSurface(
+    const Stoner::RHI::FRHIPresentationSurfaceDesc& Desc)
+{
+    if (!IsActive())
+    {
+        MarkPresentationSkipped(Diagnostics, "inactive Vulkan device");
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+
+    auto Surface = Stoner::Core::MakeShared<FVulkanSurface>();
+    const Stoner::RHI::ERHIResult Result =
+        FVulkanSurface::Create(Desc, PresentationOwner, *Surface);
+    if (Result != Stoner::RHI::ERHIResult::Success)
+    {
+        MarkPresentationSkipped(Diagnostics, Surface->GetDiagnosticReason());
+        return {Result, nullptr};
+    }
+
+    Surfaces.push_back(Surface);
+    return {Stoner::RHI::ERHIResult::Success, Surface};
+}
+
+Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain>
+FVulkanDevice::CreateSurfaceBackedSwapchain(
+    const Stoner::Core::TSharedPtr<FVulkanSurface>& Surface,
+    const Stoner::RHI::FRHISwapchainDesc& Desc)
+{
+    if (!IsActive())
+    {
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    if (!Surface || !Surface->IsValid() ||
+        !Surface->BelongsTo(PresentationOwner))
+    {
+        MarkPresentationSkipped(
+            Diagnostics, "missing, stale, or foreign presentation surface");
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    if (!Desc.IsValid() ||
+        !Stoner::RHI::IsValidRHIFormat(Desc.PreferredFormat) ||
+        Stoner::RHI::IsDepthStencilFormat(Desc.PreferredFormat))
+    {
+        MarkPresentationSkipped(Diagnostics, "invalid swapchain description");
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    if (!Capabilities.bSupportsPresentation ||
+        !Capabilities.bSupportsPresentQueue ||
+        Desc.FramesInFlight > Capabilities.MaxInFlightFrames ||
+        !Capabilities.SupportsFormat(Desc.PreferredFormat))
+    {
+        MarkPresentationSkipped(
+            Diagnostics, "unsupported swapchain capability request");
+        return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
+    }
+
+    auto Swapchain = Stoner::Core::MakeShared<FVulkanSwapchain>(
+        Surface, Desc, Capabilities.MaxInFlightFrames);
+    if (Swapchain->GetState() != Stoner::RHI::ERHISwapchainState::Ready ||
+        !Swapchain->GetImage(0))
+    {
+        return {Stoner::RHI::ERHIResult::Failed, nullptr};
+    }
+
+    Swapchains.push_back(Swapchain);
+    return {Stoner::RHI::ERHIResult::Success, Swapchain};
+}
+
+Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain>
+FVulkanDevice::CreateSwapchain(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPresentationSurface>& Surface,
+    const Stoner::RHI::FRHISwapchainDesc& Desc)
+{
+    return CreateSurfaceBackedSwapchain(
+        std::dynamic_pointer_cast<FVulkanSurface>(Surface), Desc);
 }
 
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> FVulkanDevice::CreateSwapchainForSurface(const FVulkanSurface& Surface, Stoner::Core::uint32 FrameCount)
@@ -700,16 +1503,32 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> FVulkanDevice::CreateS
     {
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
-    if (!Surface.IsValid())
+    if (FrameCount == 0)
     {
-        MarkPresentationSkipped(Diagnostics, "missing or invalid presentation surface");
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
-    return CreateSwapchain(FrameCount);
+    if (!Surface.IsValid() || !Surface.BelongsTo(PresentationOwner))
+    {
+        MarkPresentationSkipped(
+            Diagnostics, "missing, stale, or foreign presentation surface");
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+
+    Stoner::RHI::FRHISwapchainDesc Desc;
+    Desc.Width = 1;
+    Desc.Height = 1;
+    Desc.FramesInFlight = FrameCount;
+    Desc.PreferredFormat = SelectPresentationFormat(Capabilities);
+    return CreateSurfaceBackedSwapchain(
+        Stoner::Core::MakeShared<FVulkanSurface>(Surface), Desc);
 }
 
 void FVulkanDevice::InvalidateOwnedObjects() noexcept
 {
+    if (DeviceOwner)
+    {
+        DeviceOwner->bActive = false;
+    }
     for (const auto& Queue : Queues)
     {
         if (Queue)
@@ -722,13 +1541,6 @@ void FVulkanDevice::InvalidateOwnedObjects() noexcept
         if (Pool)
         {
             Pool->Invalidate();
-        }
-    }
-    for (const auto& CommandBuffer : CommandBuffers)
-    {
-        if (CommandBuffer)
-        {
-            CommandBuffer->Invalidate();
         }
     }
     for (const auto& Fence : Fences)
@@ -751,6 +1563,17 @@ void FVulkanDevice::InvalidateOwnedObjects() noexcept
         {
             Swapchain->Invalidate();
         }
+    }
+    for (const auto& Surface : Surfaces)
+    {
+        if (Surface)
+        {
+            (void)Surface->Invalidate();
+        }
+    }
+    if (PresentationOwner)
+    {
+        PresentationOwner->bActive = false;
     }
     for (const auto& Request : UploadRequests)
     {
@@ -848,7 +1671,7 @@ void FVulkanDevice::MapCapabilities(const FVulkanAdapterCandidate& Adapter)
     Capabilities.MaxInFlightFrames = 3;
     Capabilities.MaxCommandBuffersPerQueue = 0;
     Capabilities.MaxQueuesPerType = 1;
-    Capabilities.SupportedFormats = GetDefaultVulkanSupportedFormats();
+    Capabilities.SupportedFormats = Adapter.Formats.GetSupportedFormats();
 }
 
 bool FVulkanDevice::SupportsBufferDesc(const Stoner::RHI::FRHIBufferDesc& Desc) noexcept
@@ -876,17 +1699,47 @@ bool FVulkanDevice::SupportsSamplerDesc(const Stoner::RHI::FRHISamplerDesc& Desc
     return true;
 }
 
+bool FVulkanDevice::SupportsGraphicsPipelineDesc(
+    const Stoner::RHI::FRHIGraphicsPipelineDesc& Desc) const noexcept
+{
+    for (Stoner::RHI::ERHIFormat Format :
+         Desc.RenderTargets.ColorFormats)
+    {
+        if (!Capabilities.SupportsFormat(Format))
+        {
+            return false;
+        }
+    }
+    return Desc.RenderTargets.DepthStencilFormat ==
+            Stoner::RHI::ERHIFormat::Unknown ||
+        Capabilities.SupportsFormat(
+            Desc.RenderTargets.DepthStencilFormat);
+}
+
 bool FVulkanDevice::CanCreatePipeline() noexcept
 {
     return PipelineCreationLimit == 0 || SuccessfulPipelineCreations < PipelineCreationLimit;
 }
 
-void FVulkanDevice::EnsureDescriptorPool() noexcept
+Stoner::RHI::ERHIResult FVulkanDevice::EnsureDescriptorPool() noexcept
 {
-    if (!DescriptorPool)
+    if (DescriptorPool)
     {
-        DescriptorPool = std::make_shared<FVulkanDescriptorPool>(DescriptorPoolCapacity);
+        return DescriptorPool->GetLifecycleState() ==
+                Stoner::RHI::ERHIResourceLifecycleState::Valid
+            ? Stoner::RHI::ERHIResult::Success
+            : Stoner::RHI::ERHIResult::InvalidState;
     }
+    try
+    {
+        DescriptorPool.reset(
+            new FVulkanDescriptorPool(DescriptorPoolCapacity));
+    }
+    catch (const std::bad_alloc&)
+    {
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    return Stoner::RHI::ERHIResult::Success;
 }
 
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIDevice> CreateVulkanDevice(const FVulkanInstanceDesc& Desc)

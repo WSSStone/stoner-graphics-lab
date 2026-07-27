@@ -42,7 +42,7 @@ The Linux native scene uses a fixed small offscreen extent and deterministic cam
 - spot lights covering visible, outside-cone, and near-plane-intersecting cases;
 - ambient-only and emissive-only samples.
 
-At least 12 unique named probes per depth convention must be decoded across intermediate surface targets and final LDR output. The report lists each convention identity and every probe name, semantic, coordinate, expected value, observed value, error measure, threshold, and pass/fail state.
+At least 18 unique named probes per depth convention must be decoded across intermediate surface targets and final LDR output, including the local-light probes `point-visible`, `point-outside-view`, `point-camera-inside`, `spot-visible`, `spot-outside-cone`, and `spot-near-plane`. The report lists each convention identity and every probe name, semantic, coordinate, expected value, observed value, error measure, threshold, and pass/fail state.
 
 ## Semantic Readback Thresholds
 
@@ -103,7 +103,7 @@ The comparison report includes all profile fields defined above. Neither report 
 - Windows, macOS, and Linux builds pass.
 - All three jobs run the complete deterministic regression suite.
 - Linux resolves and explicitly selects Lavapipe, then passes native offscreen deferred execution and semantic readback.
-- At least 12 native probes pass every clarified tolerance.
+- At least 18 native probes per convention pass every clarified tolerance, including the six required local-light probe names.
 - The four-tier comparison report is complete and input-equivalent; deferred need not be faster.
 - Existing Core, RHI, Vulkan, Renderer, Application, scene/ECS, and triangle demo regressions remain passing.
 - No required native run becomes success because a dependency/runtime is unavailable.

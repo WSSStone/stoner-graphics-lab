@@ -8,6 +8,7 @@ namespace Stoner::Backend::Vulkan
 enum class EVulkanBackendAvailability
 {
     Available,
+    DeterministicFallback,
     UnsupportedRuntime,
     MissingRequiredCapability,
     FailedInitialization
