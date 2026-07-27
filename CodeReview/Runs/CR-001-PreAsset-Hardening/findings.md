@@ -891,11 +891,11 @@
 ## CR001-B08-F002: Public demo Initialize can leave partial native resources after late startup failure
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: Feature 018 FR-015 and the runtime shutdown contract require partial initialization failure to release owned resources in dependency-safe order, with every shutdown step tolerating partially initialized prior steps.
 - Location: `Demo/StonerDemo/Private/FStonerDemoApplication.cpp:198`
 - Impact: A caller using the public Initialize API can observe Failed lifecycle state with Window/NativeContext still owned until an explicit Shutdown or destructor. This weakens the partial-startup-failure cleanup contract and can hide resource lifetime bugs from focused initialization tests.
 - Evidence: Initialize creates a visible/native context before shader validation at lines 155-193, then returns InitializationFailed on invalid shader payloads at lines 198-202 or presentation resource failure at lines 214-221 without invoking Shutdown or a local cleanup path. Run calls Shutdown afterward at lines 451-464, but Initialize is public and tests call it directly at Tests/TriangleDemoIntegrationTests.cpp:93 and 118; the swapped-shader failure test checks the exit code but not cleanup or stopped lifecycle.
-- Resolution: pending
+- Resolution: Initialize late startup failures now route through cleanup or call Shutdown after injected upload/pipeline failures; direct swapped-shader Initialize regression proves stopped lifecycle and idempotent shutdown.
 - Verification: pending
-- Commit: `pending`
+- Commit: `3cb5420`
