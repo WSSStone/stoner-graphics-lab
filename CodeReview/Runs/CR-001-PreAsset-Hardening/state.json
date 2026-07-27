@@ -1,5 +1,5 @@
 {
-  "active_step": "B10-S02",
+  "active_step": "B10-S03",
   "batches": [
     {
       "id": "B00",
@@ -1910,13 +1910,15 @@
           "title": "Traceability"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "1fa35b9c79345cacddf010923cce83aba335cbf8",
+          "completed_at": "2026-07-27T11:48:19+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B10-final-gates.md"
+          ],
           "id": "B10-S02",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Final local gates passed: cli-tests, strict-debug, strict-release, sanitizers, and three required-native deferred validation runs.",
+          "started_at": "2026-07-27T11:48:18+00:00",
+          "status": "Completed",
           "title": "Final Gates"
         },
         {
@@ -5919,6 +5921,16 @@
       "at": "2026-07-27T11:42:14+00:00",
       "detail": "sanitizers: pass",
       "kind": "gate"
+    },
+    {
+      "at": "2026-07-27T11:48:18+00:00",
+      "detail": "B10-S02",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T11:48:19+00:00",
+      "detail": "B10-S02",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -6093,7 +6105,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "fe34023eb69189c3ea9719e0e881a85fc1dd017a"
+    "last_recorded_head": "1fa35b9c79345cacddf010923cce83aba335cbf8"
   },
   "policy": {
     "fix_severities": [
@@ -6113,5 +6125,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T11:42:14+00:00"
+  "updated_at": "2026-07-27T11:48:19+00:00"
 }
