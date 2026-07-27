@@ -1,5 +1,5 @@
 {
-  "active_step": "B08-S14",
+  "active_step": "B08-S15",
   "batches": [
     {
       "id": "B00",
@@ -1680,13 +1680,15 @@
           "title": "Inspect: validation, failure injection, and artifacts"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "3fe5a6d",
+          "completed_at": "2026-07-27T10:32:02+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B08-validation-failure-injection-artifacts-fix.md"
+          ],
           "id": "B08-S14",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Fixed CR001-B08-F006 by tightening deferred readback artifact validation to 18 probes per convention plus six local-light probe names, expanding wrapper tests, and aligning active Feature 019 validation docs.",
+          "started_at": "2026-07-27T10:26:20+00:00",
+          "status": "Completed",
           "title": "Fix: validation, failure injection, and artifacts"
         },
         {
@@ -5533,6 +5535,26 @@
       "at": "2026-07-27T10:25:11+00:00",
       "detail": "B08-S13",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T10:26:20+00:00",
+      "detail": "B08-S14",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T10:31:27+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T10:31:30+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T10:32:02+00:00",
+      "detail": "B08-S14",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5686,7 +5708,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "4d532d94df0fd55dd36c8241da01340729cd40ab"
+    "last_recorded_head": "3fe5a6d5d4f44f6a5a48aed97b37953d39d74789"
   },
   "policy": {
     "fix_severities": [
@@ -5706,5 +5728,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T10:25:11+00:00"
+  "updated_at": "2026-07-27T10:32:02+00:00"
 }

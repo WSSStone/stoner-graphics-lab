@@ -3254,18 +3254,37 @@
     },
     {
       "batch": "B08",
-      "commit": "",
+      "commit": "3fe5a6d",
       "created_at": "2026-07-27T10:24:30+00:00",
       "deferred_target": "",
       "evidence": "Retained Linux report still records draw_count=12, light_count=3, and 12 probes per convention, with no point-visible, point-outside-view, point-camera-inside, spot-visible, spot-outside-cone, or spot-near-plane probes. completion.md cites that old 12/12 run, while current DeferredNativeIntegrationTests requires 18 probes per convention and those six local-light cases. run_deferred_validation.py validate_readback_report and its unit test still accept only >=12 probes and do not validate the required local-light probe names.",
-      "history": [],
+      "history": [
+        {
+          "at": "2026-07-27T10:31:27+00:00",
+          "from": "Open",
+          "note": "Accepted during B08-S14 because wrapper-level artifact validation and active Feature 019 documentation lagged the current native local-light readback coverage.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-27T10:31:27+00:00",
+          "from": "Triaged",
+          "note": "Accepted during B08-S14 because wrapper-level artifact validation and active Feature 019 documentation lagged the current native local-light readback coverage.",
+          "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T10:31:30+00:00",
+          "from": "Accepted",
+          "note": "Tightened run_deferred_validation.py to require 18 probes per convention and all six point/spot LocalLightCase probes, expanded wrapper tests to reject stale reports, and aligned Feature 019 validation docs while preserving old completion artifacts as historical evidence only.",
+          "to": "Fixed"
+        }
+      ],
       "id": "CR001-B08-F006",
       "impact": "A passing wrapper-level report validation can no longer independently prove the current native deferred coverage expected after CR001-B08-F005. CI still runs the executable test first, but retained Feature 019 evidence and wrapper tests can drift behind the real gate and weaken audit traceability.",
       "location": "Validation/019/Linux/deferred-readback-report.txt; Validation/019/completion.md; .github/scripts/run_deferred_validation.py; .github/scripts/test_run_deferred_validation.py",
       "requirement": "Feature 019 validation contract: native Lavapipe readback must prove current deferred reference-scene probes and local-light coverage without semantic-oracle substitution.",
-      "resolution": "",
+      "resolution": "Tightened run_deferred_validation.py to require 18 probes per convention and all six point/spot LocalLightCase probes, expanded wrapper tests to reject stale reports, and aligned Feature 019 validation docs while preserving old completion artifacts as historical evidence only.",
       "severity": "S2",
-      "status": "Open",
+      "status": "Fixed",
       "title": "Deferred validation artifacts and wrapper under-check local light readback coverage",
       "verification": ""
     }
