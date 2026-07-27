@@ -915,11 +915,11 @@
 ## CR001-B08-F004: Deferred surface pass declares lighting accumulation writes
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 019 FR-003, FR-014, FR-015 and the deferred graph data model require the surface-data stage to write surface semantics/depth, lighting stages to write lighting accumulation, and graph resource accesses to represent real reads/writes and lifetimes before execution.
 - Location: `Source/Renderer/Private/FDeferredRenderer.cpp:130`
 - Impact: The deferred render graph and debug report can claim the surface-data pass writes the lighting accumulation target that it does not bind, corrupting lifetime/access diagnostics and hiding real producer/consumer mistakes for no-light or lighting-stage scenarios.
 - Evidence: PrepareFrame adds the SurfaceData pass with writes {BaseColorAO, NormalRoughness, EmissiveMetallic, Depth, LightingAccumulation}. The executor surface stage records only the surface render pass/framebuffer, while lighting stages bind the LightingAccumulation target separately and composition reads it. DeferredRenderingTests only assert graph validity/resource count/final output, not that SurfaceData excludes LightingAccumulation from its writes.
 - Resolution: Removed LightingAccumulation from the SurfaceData pass write set and added DeferredRenderingTests coverage proving lit and empty-frame planning keep accumulation out of surface writes while preserving lighting/composition access intent.
-- Verification: pending
+- Verification: Verified at B08-S09: fallback-strict gate passed at 2026-07-27T09:27:29+00:00 and focused StonerTest output includes PASS lines for lit and empty-frame accumulation ownership regression coverage.
 - Commit: `d42714b`

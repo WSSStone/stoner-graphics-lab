@@ -3192,6 +3192,12 @@
           "from": "Accepted",
           "note": "Removed LightingAccumulation from the SurfaceData pass write set and added DeferredRenderingTests coverage proving lit and empty-frame planning keep accumulation out of surface writes while preserving lighting/composition access intent.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T09:27:55+00:00",
+          "from": "Fixed",
+          "note": "Verified at B08-S09: fallback-strict gate passed at 2026-07-27T09:27:29+00:00 and focused StonerTest output includes PASS lines for lit and empty-frame accumulation ownership regression coverage.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B08-F004",
@@ -3200,9 +3206,9 @@
       "requirement": "Feature 019 FR-003, FR-014, FR-015 and the deferred graph data model require the surface-data stage to write surface semantics/depth, lighting stages to write lighting accumulation, and graph resource accesses to represent real reads/writes and lifetimes before execution.",
       "resolution": "Removed LightingAccumulation from the SurfaceData pass write set and added DeferredRenderingTests coverage proving lit and empty-frame planning keep accumulation out of surface writes while preserving lighting/composition access intent.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Deferred surface pass declares lighting accumulation writes",
-      "verification": ""
+      "verification": "Verified at B08-S09: fallback-strict gate passed at 2026-07-27T09:27:29+00:00 and focused StonerTest output includes PASS lines for lit and empty-frame accumulation ownership regression coverage."
     }
   ],
   "schema_version": 1
