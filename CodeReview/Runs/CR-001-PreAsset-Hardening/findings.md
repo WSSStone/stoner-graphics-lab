@@ -839,3 +839,27 @@
 - Resolution: FWindow::CreateRealWindow now clears transient state at entry and resets runtime lifecycle/platform/drawable state on validation and driver creation failure paths. Added regression coverage for failed real-window validation after a prior successful real-window create. Debug build passed, the new regression passed, and fallback-strict gate passed.
 - Verification: Verified on B07-S03: CreateRealWindow failure paths call ResetRuntimeState, the stale active real-window validation regression passes, and fallback-strict gate passed at 2026-07-27T07:38:08+00:00.
 - Commit: `89c8e0e`
+
+## CR001-B07-F003: GLFW input mapping omits declared key and mouse vocabulary
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 016 FR-011 and the data model define a stable physical input vocabulary covering navigation keys, function keys, modifier keys, and common mouse buttons.
+- Location: `Source/Application/Private/FGlfwWindowDriver.cpp:17`
+- Impact: Real-window users cannot rely on the declared physical vocabulary for common navigation, function, modifier, or extra mouse controls; affected input is reported as unknown and ignored by FInputState.
+- Evidence: The public EKey enum declares Home/End/PageUp/PageDown/Insert/Delete, left/right Shift/Control/Alt, and F1-F12, and EMouseButton declares X1/X2. GLFW TranslateKey maps only letters, digits, Escape, Space, Enter, Tab, Backspace, and arrows; TranslateMouseButton maps only left/right/middle. Declared controls therefore become Unknown in real-window input while the headless tests can still exercise the enum directly.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B07-F004: Input snapshot focus and reset paths can preserve stale state
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 016 data model defines Input Frame State bFocused as the owning window focus and requires polling before creation or after destruction to return a safe empty state with diagnostics.
+- Location: `Source/Application/Private/FInputState.cpp:44`
+- Impact: Application debug dumps and loop snapshots can report stale focus or pointer metadata after focus restoration, manager clear, or invalid lifecycle polling, making input state non-authoritative despite no pending valid input.
+- Evidence: FInputState::ApplyEvent(FocusLost) sets bFocused=false, but FInputManager::PollFrame never restores bFocused=true on later focused frames. FInputState::ClearAll clears key/button sets only, leaving pointer position, has-pointer flag, deltas, and focused state untouched when FInputManager::Clear or invalid lifecycle polling claims an empty state.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`

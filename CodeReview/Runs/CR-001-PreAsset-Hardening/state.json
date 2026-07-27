@@ -1,5 +1,5 @@
 {
-  "active_step": "B07-S04",
+  "active_step": "B07-S05",
   "batches": [
     {
       "id": "B00",
@@ -1350,12 +1350,15 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T07:43:59+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B07-input-mapping-events-snapshots-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b07-input-mapping-events-snapshots-inspection.md"
+          ],
           "id": "B07-S04",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected Feature 016 input mapping, events, and snapshots. Opened and accepted CR001-B07-F003 for incomplete GLFW mapping of declared vocabulary and CR001-B07-F004 for stale focus/pointer snapshot reset paths.",
+          "started_at": "2026-07-27T07:40:43+00:00",
+          "status": "Completed",
           "title": "Inspect: input mapping, events, and snapshots"
         },
         {
@@ -4954,6 +4957,36 @@
       "at": "2026-07-27T07:38:58+00:00",
       "detail": "B07-S03",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T07:40:43+00:00",
+      "detail": "B07-S04",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T07:42:54+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T07:42:56+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T07:43:10+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T07:43:12+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T07:43:59+00:00",
+      "detail": "B07-S04",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5107,7 +5140,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "719177c2202ee1f5d1a5860a78f14a0fb965ef2e"
+    "last_recorded_head": "fb719a08fc0db8169a51bcc0293f4775a6130279"
   },
   "policy": {
     "fix_severities": [
@@ -5127,5 +5160,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T07:38:58+00:00"
+  "updated_at": "2026-07-27T07:43:59+00:00"
 }
