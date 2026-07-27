@@ -9,6 +9,8 @@ namespace Stoner::Backend::Vulkan
 {
 
 class FVulkanDevice;
+class FVulkanComputePipeline;
+class FVulkanGraphicsPipeline;
 class FVulkanShaderModule;
 struct FVulkanNativeDeviceAccess;
 class FVulkanNativeOffscreenSession;
@@ -115,6 +117,8 @@ public:
 
 private:
     friend class FVulkanDevice;
+    friend class FVulkanComputePipeline;
+    friend class FVulkanGraphicsPipeline;
     friend class FVulkanShaderModule;
     friend class FVulkanNativeOffscreenSession;
     [[nodiscard]] bool GetNativeDeviceAccess(
@@ -123,6 +127,16 @@ private:
         const Stoner::Core::TArray<Stoner::Core::uint32>& Words,
         Stoner::Core::uint64& OutToken) noexcept;
     void DestroyOwnedShaderModule(Stoner::Core::uint64 Token) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult CreateOwnedGraphicsPipeline(
+        const Stoner::RHI::FRHIGraphicsPipelineDesc& Desc,
+        Stoner::Core::uint64 VertexShaderToken,
+        Stoner::Core::uint64 FragmentShaderToken,
+        Stoner::Core::uint64& OutToken) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult CreateOwnedComputePipeline(
+        const Stoner::RHI::FRHIComputePipelineDesc& Desc,
+        Stoner::Core::uint64 ComputeShaderToken,
+        Stoner::Core::uint64& OutToken) noexcept;
+    void DestroyOwnedPipeline(Stoner::Core::uint64 Token) noexcept;
     struct FImpl;
     std::unique_ptr<FImpl> Impl;
 };

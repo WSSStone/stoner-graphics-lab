@@ -105,6 +105,8 @@ private:
     [[nodiscard]] bool SupportsBufferDesc(const Stoner::RHI::FRHIBufferDesc& Desc) noexcept;
     [[nodiscard]] bool SupportsTextureDesc(const Stoner::RHI::FRHITextureDesc& Desc) const noexcept;
     [[nodiscard]] bool SupportsSamplerDesc(const Stoner::RHI::FRHISamplerDesc& Desc) noexcept;
+    [[nodiscard]] bool SupportsGraphicsPipelineDesc(
+        const Stoner::RHI::FRHIGraphicsPipelineDesc& Desc) const noexcept;
     [[nodiscard]] bool CanCreatePipeline() noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult EnsureDescriptorPool() noexcept;
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> CreateSurfaceBackedSwapchain(

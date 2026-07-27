@@ -2,6 +2,7 @@
 
 **Feature**: 012-vulkan-pipeline-shader  
 **Date**: 2026-06-30
+**CR-001 Amendment**: 2026-07-27
 
 ## Shader Module
 
@@ -106,6 +107,10 @@ Fields:
 - `MultisampleState`: supported sample-count compatibility.
 - `DynamicStateRequirements`: viewport and scissor requirements.
 - `RuntimeMode`: real-runtime object or deterministic fallback object.
+- `OwnerIdentity`: creating-device identity.
+- `NativeContext`: shared backend-private native object authority when this is
+  a real-runtime pipeline.
+- `NativeToken`: non-zero token for the retained native pipeline bundle.
 - `ReuseRecord`: newly created, reused, rejected, invalidated, or unavailable.
 - `LifecycleState`: valid or invalidated.
 - `Diagnostics`: latest creation, compatibility, reuse, or invalidation reason.
@@ -115,6 +120,10 @@ Validation rules:
 - Required vertex and fragment stages must be present exactly once.
 - Shader interface metadata must match the pipeline layout.
 - Vertex input formats, stride, topology, raster/depth/blend/multisample/dynamic state, and render target compatibility must be valid.
+- Attachment formats must be supported by the selected device.
+- Native pipeline creation must complete before wrapper, tracking, and cache
+  state are published; later publication failure releases the native bundle.
+- Foreign-device dependencies reject creation and binding.
 - Invalidated dependencies reject creation and binding.
 
 State transitions:
@@ -133,6 +142,10 @@ Fields:
 - `ShaderModule`: valid compute shader module.
 - `PipelineLayout`: valid compatible layout.
 - `RuntimeMode`: real-runtime object or deterministic fallback object.
+- `OwnerIdentity`: creating-device identity.
+- `NativeContext`: shared backend-private native object authority when this is
+  a real-runtime pipeline.
+- `NativeToken`: non-zero token for the retained native pipeline bundle.
 - `ReuseRecord`: newly created, reused, rejected, invalidated, or unavailable.
 - `LifecycleState`: valid or invalidated.
 - `Diagnostics`: latest creation, compatibility, reuse, or invalidation reason.
@@ -142,6 +155,9 @@ Validation rules:
 - Exactly one compute shader module is required.
 - Non-compute shader modules are rejected.
 - Shader interface metadata must match the pipeline layout.
+- Native pipeline creation must complete before wrapper, tracking, and cache
+  state are published; later publication failure releases the native bundle.
+- Foreign-device dependencies reject creation and binding.
 - Invalidated dependencies reject creation and binding.
 
 ## Pipeline Cache Record
@@ -150,7 +166,9 @@ Represents process-local reuse state for successful pipeline descriptions.
 
 Fields:
 
-- `StableKey`: deterministic identity derived from shader identities, layout summary, compatibility state, and relevant pipeline state.
+- `StableKey`: collision-safe deterministic serialization of runtime mode,
+  shader bytecode/identity/entry point/interface metadata, canonical layout
+  declarations, compatibility state, and relevant pipeline state.
 - `PipelineKind`: graphics or compute.
 - `RuntimeMode`: real-runtime or deterministic fallback.
 - `ReuseState`: created, reused, rejected, invalidated, or unavailable.
@@ -160,6 +178,8 @@ Validation rules:
 
 - Only successful pipeline creation requests enter reusable state.
 - Failed, unsupported, and invalidated requests are never reused as successful entries.
+- A cache record is usable only while every retained shader and layout
+  dependency remains valid.
 - Device shutdown invalidates cache records.
 - Persistent disk load/save/versioning is out of scope.
 
@@ -179,6 +199,8 @@ Validation rules:
 
 - Graphics binding requires a recording graphics command buffer and compatible active render pass scope.
 - Compute binding requires a recording compute-compatible command buffer.
+- Both bindings require a concrete pipeline owned by the command buffer's
+  device with valid retained dependencies.
 - Draw and indexed draw require a compatible valid graphics pipeline to remove missing-pipeline diagnostics.
 - Dispatch requires a compatible valid compute pipeline to remove missing-pipeline diagnostics.
 - Failed bindings do not mutate unrelated recorded commands.

@@ -630,8 +630,16 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
         !std::is_constructible_v<
             FVulkanShaderModule, FRHIShaderModuleDesc, const char*> &&
         !std::is_constructible_v<
-            FVulkanPipelineLayout, const FRHIPipelineLayoutDesc&>,
-        "Vulkan shader and layout construction must remain device-owned");
+            FVulkanPipelineLayout, const FRHIPipelineLayoutDesc&> &&
+        !std::is_constructible_v<
+            FVulkanGraphicsPipeline,
+            FRHIGraphicsPipelineDesc,
+            const char*> &&
+        !std::is_constructible_v<
+            FVulkanComputePipeline,
+            FRHIComputePipelineDesc,
+            const char*>,
+        "Vulkan shader, layout, and pipeline construction must remain device-owned");
 
     FVulkanDevice Device;
     Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan shader pipeline fixture device initializes");
@@ -691,9 +699,22 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
         ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "foreign_vs"));
     const auto ForeignFragment = ForeignDevice.CreateShaderModule(
         ShaderDesc(ERHIShaderStage::Fragment, "MainPS", "foreign_ps"));
+    const auto ForeignCompute = ForeignDevice.CreateShaderModule(
+        ShaderDesc(ERHIShaderStage::Compute, "MainCS", "foreign_cs"));
+    const auto ForeignGraphicsPipeline =
+        ForeignDevice.CreateGraphicsPipeline(GraphicsPipelineDesc(
+            ForeignVertex.Object,
+            ForeignFragment.Object,
+            ForeignLayout.Object));
+    const auto ForeignComputePipeline =
+        ForeignDevice.CreateComputePipeline(ComputePipelineDesc(
+            ForeignCompute.Object,
+            ForeignLayout.Object));
     Record(Result,
         ForeignLayout.Succeeded() && ForeignVertex.Succeeded() &&
-            ForeignFragment.Succeeded() &&
+            ForeignFragment.Succeeded() && ForeignCompute.Succeeded() &&
+            ForeignGraphicsPipeline.Succeeded() &&
+            ForeignComputePipeline.Succeeded() &&
             Device.CreateGraphicsPipeline(GraphicsPipelineDesc(
                 ForeignVertex.Object,
                 ForeignFragment.Object,
@@ -735,6 +756,8 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
     const auto GraphicsCommand = Device.CreateCommandBuffer(ERHIQueueType::Graphics);
     Record(Result, GraphicsCommand.Object->Begin() == ERHIResult::Success &&
         GraphicsCommand.Object->BeginRenderPass(RenderPass.Object, Framebuffer.Object) == ERHIResult::Success &&
+        GraphicsCommand.Object->BindGraphicsPipeline(
+            ForeignGraphicsPipeline.Object) == ERHIResult::InvalidState &&
         GraphicsCommand.Object->BindGraphicsPipeline(GraphicsPipeline.Object) == ERHIResult::Success &&
         GraphicsCommand.Object->RecordDraw(3, 1) == ERHIResult::Success &&
         GraphicsCommand.Object->RecordDrawIndexed(3, 1) == ERHIResult::Success &&
@@ -745,6 +768,8 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
     const auto ComputeCommand = Device.CreateCommandBuffer(ERHIQueueType::Compute);
     const auto TransferCommand = Device.CreateCommandBuffer(ERHIQueueType::Transfer);
     Record(Result, ComputeCommand.Object->Begin() == ERHIResult::Success &&
+        ComputeCommand.Object->BindComputePipeline(
+            ForeignComputePipeline.Object) == ERHIResult::InvalidState &&
         ComputeCommand.Object->BindComputePipeline(ComputePipeline.Object) == ERHIResult::Success &&
         ComputeCommand.Object->RecordDispatch(1, 1, 1) == ERHIResult::Success &&
         TransferCommand.Object->Begin() == ERHIResult::Success &&
@@ -853,6 +878,39 @@ void TestPipelineCacheKeyAndStateValidation(FVulkanBackendTestResult& Result)
     Record(Result, P1Again.Succeeded() && P1Again.Object == P1.Object,
         "Vulkan pipeline cache still reuses identical graphics pipeline descriptions");
 
+    FRHIShaderModuleDesc InterfaceVariantDesc =
+        ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "vs_cache");
+    InterfaceVariantDesc.InterfaceMetadata.Bindings.clear();
+    InterfaceVariantDesc.InterfaceMetadata.ConstantRanges.clear();
+    const auto InterfaceVariantShader =
+        Device.CreateShaderModule(InterfaceVariantDesc);
+    const auto InterfaceVariantPipeline =
+        Device.CreateGraphicsPipeline(GraphicsPipelineDesc(
+            InterfaceVariantShader.Object,
+            Fragment.Object,
+            Layout.Object));
+    Record(Result,
+        InterfaceVariantShader.Succeeded() &&
+            InterfaceVariantPipeline.Succeeded() &&
+            InterfaceVariantPipeline.Object != P1.Object,
+        "Vulkan pipeline cache key includes complete shader interface metadata");
+
+    const auto DelimiterVertexA = Device.CreateShaderModule(
+        ShaderDesc(ERHIShaderStage::Vertex, "c", "a:b"));
+    const auto DelimiterVertexB = Device.CreateShaderModule(
+        ShaderDesc(ERHIShaderStage::Vertex, "b:c", "a"));
+    const auto DelimiterPipelineA =
+        Device.CreateGraphicsPipeline(GraphicsPipelineDesc(
+            DelimiterVertexA.Object, Fragment.Object, Layout.Object));
+    const auto DelimiterPipelineB =
+        Device.CreateGraphicsPipeline(GraphicsPipelineDesc(
+            DelimiterVertexB.Object, Fragment.Object, Layout.Object));
+    Record(Result,
+        DelimiterPipelineA.Succeeded() &&
+            DelimiterPipelineB.Succeeded() &&
+            DelimiterPipelineA.Object != DelimiterPipelineB.Object,
+        "Vulkan pipeline cache key length-prefixes shader identities and entry points");
+
     // Depth test/write requires a depth-stencil attachment; the same state with a depth format is accepted.
     FRHIGraphicsPipelineDesc DepthNoFormat = Base;
     DepthNoFormat.DepthStencil.bDepthTestEnabled = true;
@@ -862,6 +920,59 @@ void TestPipelineCacheKeyAndStateValidation(FVulkanBackendTestResult& Result)
         "Vulkan graphics pipeline rejects depth test without a depth-stencil attachment");
     Record(Result, Device.CreateGraphicsPipeline(DepthWithFormat).Succeeded(),
         "Vulkan graphics pipeline accepts depth test with a compatible depth-stencil attachment");
+
+    const FRHIShaderModuleDesc ReplacementVertexDesc = Vertex.Object->GetDesc();
+    Record(Result,
+        Vertex.Object->Invalidate() == ERHIResult::Success,
+        "Vulkan pipeline cache stale-dependency fixture invalidates the original shader");
+    const auto ReplacementVertex =
+        Device.CreateShaderModule(ReplacementVertexDesc);
+    const auto ReplacementPipeline =
+        Device.CreateGraphicsPipeline(GraphicsPipelineDesc(
+            ReplacementVertex.Object,
+            Fragment.Object,
+            Layout.Object));
+    const auto ConcreteP1 =
+        std::dynamic_pointer_cast<FVulkanGraphicsPipeline>(P1.Object);
+    Record(Result,
+        ReplacementVertex.Succeeded() &&
+            ReplacementPipeline.Succeeded() &&
+            ReplacementPipeline.Object != P1.Object &&
+            ConcreteP1 && !ConcreteP1->HasValidDependencies(),
+        "Vulkan pipeline cache rejects entries with invalidated retained dependencies");
+    (void)Device.Shutdown();
+}
+
+void TestPipelineFormatCapabilities(FVulkanBackendTestResult& Result)
+{
+    FVulkanInstanceDesc ColorOnlyDesc = MakeDeterministicInstanceDesc();
+    ColorOnlyDesc.SyntheticCandidates = {
+        MakeCandidate(
+            "PipelineColorOnly",
+            EVulkanPhysicalDeviceType::Integrated,
+            true,
+            {true, true, true, false},
+            false,
+            {true, false}),
+    };
+    FVulkanDevice Device;
+    Record(Result,
+        Device.Initialize(ColorOnlyDesc) == ERHIResult::Success,
+        "Vulkan pipeline format-capability fixture initializes");
+    const auto Layout = Device.CreatePipelineLayout(ResourceLayoutDesc());
+    const auto Vertex = Device.CreateShaderModule(
+        ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "format_vs"));
+    const auto Fragment = Device.CreateShaderModule(
+        ShaderDesc(ERHIShaderStage::Fragment, "MainPS", "format_ps"));
+    FRHIGraphicsPipelineDesc UnsupportedDepth =
+        GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object);
+    UnsupportedDepth.RenderTargets.DepthStencilFormat =
+        ERHIFormat::D32_Float;
+    UnsupportedDepth.DepthStencil.bDepthTestEnabled = true;
+    Record(Result,
+        Device.CreateGraphicsPipeline(UnsupportedDepth).Result ==
+            ERHIResult::Unsupported,
+        "Vulkan graphics pipeline rejects attachment formats absent from device capabilities");
     (void)Device.Shutdown();
 }
 
@@ -1634,6 +1745,7 @@ FVulkanBackendTestResult RunVulkanBackendTests()
     TestShaderPipelineAndBinding(Result);
     TestDrawDispatchPipelineDiagnostics(Result);
     TestPipelineCacheKeyAndStateValidation(Result);
+    TestPipelineFormatCapabilities(Result);
     TestResourceCreationAndAllocation(Result);
     TestAllocationOwnershipAndFootprints(Result);
     TestCommandBuffersRecordingAndSubmission(Result);

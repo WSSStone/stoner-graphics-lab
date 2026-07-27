@@ -699,35 +699,35 @@
 ## CR001-B05-F010: Pipeline wrappers bypass device authority and capability checks
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 008-FR-017; 012-FR-006, FR-007, FR-013, FR-018, SC-004, and SC-006
 - Location: `Source/Backend/Vulkan/Public/VulkanRHI/FVulkanGraphicsPipeline.h:11`
 - Impact: A caller can directly construct an unvalidated pipeline or bind a pipeline from another device/backend, bypassing the authoritative factory and shutdown ownership. A valid-enum but unsupported render-target format can also produce a nominally compatible pipeline, moving failure beyond the documented creation boundary.
 - Evidence: FVulkanGraphicsPipeline and FVulkanComputePipeline have public constructors and no creating-device identity. FVulkanCommandBuffer::BindGraphicsPipeline and BindComputePipeline accept any valid-lifecycle RHI pipeline without backend type or owner checks. FVulkanDevice validates shader/layout provenance but CreateGraphicsPipeline never checks each color/depth attachment format against selected device capabilities; the existing ColorOnly adapter test constrains texture creation only.
-- Resolution: pending
+- Resolution: Fixed by device-authoritative pipeline wrappers, selected-device attachment format validation, foreign-device binding rejection, and maintained regressions.
 - Verification: pending
-- Commit: `pending`
+- Commit: `a62e0f1`
 
 ## CR001-B05-F011: Pipeline cache can reuse non-equivalent or stale pipelines
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 012-FR-016, FR-017, SC-007, Pipeline Cache and Reuse Contract
 - Location: `Source/Backend/Vulkan/Private/FVulkanPipelineCache.cpp:17`
 - Impact: Semantically different shader requests can collide, and corrected requests after dependency invalidation can be reported as successful cache hits while returning a pipeline tied to stale dependencies. This violates deterministic equivalence and the prohibition on reusing invalidated state.
 - Evidence: AppendShaderKey serializes only stage, unescaped payload identity, and entry point, omitting shader interface metadata required by the contract and allowing delimiter collisions. FindGraphics and FindCompute validate only the cached pipeline lifecycle, not the lifecycle of its retained shader/layout dependencies. A replacement valid request with the same textual key can therefore return an old valid wrapper whose dependencies were invalidated.
-- Resolution: pending
+- Resolution: Fixed by collision-safe complete cache serialization, interface metadata coverage, delimiter-safe identity encoding, stale dependency rejection, and maintained regressions.
 - Verification: pending
-- Commit: `pending`
+- Commit: `a62e0f1`
 
 ## CR001-B05-F012: Pipeline factories neither create native objects nor publish atomically
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: 012-FR-006, FR-008, FR-010, FR-017, SC-001, SC-008, and the Graphics/Compute Pipeline Contracts
 - Location: `Source/Backend/Vulkan/Private/FVulkanDevice.cpp:891`
 - Impact: RHI consumers cannot obtain the documented real graphics or compute pipeline even when Vulkan is available. Allocation or cache-publication failure can escape the explicit ERHIResult contract and leave a retained valid pipeline without a returned success, corrupting creation-limit and cache authority.
 - Evidence: The RHI pipeline wrappers retain only descriptions and contain no native context or VkPipeline ownership. FVulkanDevice RealRuntime initialization remains Unsupported and native contexts create VkPipeline through separate non-RHI paths, so real-runtime pipeline factory branches are unreachable. Both factories also build allocating text keys, copy descriptions, allocate wrappers, append tracking, and insert cache entries without catches or rollback; cache insertion occurs after device tracking publication.
-- Resolution: pending
+- Resolution: Fixed by native graphics/compute pipeline ownership in FVulkanNativeContext plus failure-atomic device publication and maintained native integration regressions.
 - Verification: pending
-- Commit: `pending`
+- Commit: `a62e0f1`

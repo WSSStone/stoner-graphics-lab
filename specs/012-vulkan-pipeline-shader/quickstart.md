@@ -2,6 +2,7 @@
 
 **Feature**: 012-vulkan-pipeline-shader  
 **Date**: 2026-06-30
+**CR-001 Amendment**: 2026-07-27
 
 ## Prerequisites
 
@@ -13,10 +14,11 @@
 
 1. Create an active Vulkan backend device.
 2. Optionally call `FVulkanDevice::EnableNativeShaderRuntime` when native
-   shader validation is required. Success enables real `VkShaderModule`
-   ownership for the same RHI shader factory without claiming that unrelated
-   `FVulkanDevice` resource or pipeline objects are native. Unsupported or
-   unavailable environments remain explicit.
+   shader and pipeline validation is required. Success enables one
+   device-owned native object context for `VkShaderModule`, graphics pipeline,
+   and compute pipeline ownership. Only wrappers with retained native tokens
+   report `RealRuntime`; unrelated resources remain deterministic. Unsupported
+   or unavailable environments remain explicit.
 3. Create shader modules for vertex, fragment, and compute stages using
    structurally valid precompiled bytecode payloads whose SPIR-V execution
    model and entry-point name match the declared stage and entry point, plus
@@ -29,10 +31,13 @@
    - Draw and indexed draw with a compatible bound graphics pipeline report compatible binding diagnostics.
    - Dispatch without a compute pipeline keeps missing-pipeline diagnostics.
    - Dispatch with a compatible bound compute pipeline reports compatible binding diagnostics.
-8. Repeat equivalent pipeline creation requests in the same process and confirm deterministic reuse diagnostics.
-9. Shut down the device and confirm native shader handles, shader modules,
-   layouts, pipelines, binding state, and reuse records are released or reject
-   further use.
+8. Repeat equivalent pipeline creation requests in the same process and
+   confirm deterministic reuse diagnostics; invalidate a retained shader or
+   layout and confirm a corrected request does not reuse the stale pipeline.
+9. Confirm a command buffer rejects pipelines created by another device.
+10. Shut down the device and confirm native shader/pipeline handles, shader
+    modules, layouts, pipelines, binding state, and reuse records are released
+    or reject further use.
 
 ## Validation Commands
 
@@ -58,11 +63,14 @@ Validated on 2026-06-30 in the `godot` conda environment.
 - Device-owned construction, cross-device dependency rejection, and
   failure-atomic shader/layout factories.
 - Explicit shader interface metadata validation against pipeline layouts.
-- Real-runtime native shader ownership and deterministic fallback diagnostics.
+- Real-runtime native shader, graphics pipeline, and compute pipeline ownership
+  with deterministic fallback diagnostics.
 - Triangle-ready graphics pipeline creation and negative paths.
 - Compute pipeline creation and negative paths.
-- Process-local cache/reuse behavior.
+- Collision-safe process-local cache/reuse behavior and stale-dependency
+  rejection.
 - Command buffer graphics/compute pipeline binding behavior.
+- Cross-device pipeline binding rejection.
 - Draw/indexed draw/dispatch diagnostics after binding.
 - Device shutdown invalidation.
 - Existing regression tests remain passing.

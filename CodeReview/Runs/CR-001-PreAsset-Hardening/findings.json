@@ -2414,7 +2414,7 @@
     },
     {
       "batch": "B05",
-      "commit": "",
+      "commit": "a62e0f1",
       "created_at": "2026-07-27T03:56:29+00:00",
       "deferred_target": "",
       "evidence": "FVulkanGraphicsPipeline and FVulkanComputePipeline have public constructors and no creating-device identity. FVulkanCommandBuffer::BindGraphicsPipeline and BindComputePipeline accept any valid-lifecycle RHI pipeline without backend type or owner checks. FVulkanDevice validates shader/layout provenance but CreateGraphicsPipeline never checks each color/depth attachment format against selected device capabilities; the existing ColorOnly adapter test constrains texture creation only.",
@@ -2430,21 +2430,27 @@
           "from": "Triaged",
           "note": "Feature 012 requires device-authoritative creation, compatible attachment capabilities, and binding rejection for incompatible pipelines. B05-S11 should close construction, attach shared owner provenance, validate command-buffer ownership and selected-device formats, and add direct/foreign/unsupported-format regressions.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T05:23:23+00:00",
+          "from": "Accepted",
+          "note": "Fixed by device-authoritative pipeline wrappers, selected-device attachment format validation, foreign-device binding rejection, and maintained regressions.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B05-F010",
       "impact": "A caller can directly construct an unvalidated pipeline or bind a pipeline from another device/backend, bypassing the authoritative factory and shutdown ownership. A valid-enum but unsupported render-target format can also produce a nominally compatible pipeline, moving failure beyond the documented creation boundary.",
       "location": "Source/Backend/Vulkan/Public/VulkanRHI/FVulkanGraphicsPipeline.h:11",
       "requirement": "008-FR-017; 012-FR-006, FR-007, FR-013, FR-018, SC-004, and SC-006",
-      "resolution": "",
+      "resolution": "Fixed by device-authoritative pipeline wrappers, selected-device attachment format validation, foreign-device binding rejection, and maintained regressions.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Pipeline wrappers bypass device authority and capability checks",
       "verification": ""
     },
     {
       "batch": "B05",
-      "commit": "",
+      "commit": "a62e0f1",
       "created_at": "2026-07-27T03:56:44+00:00",
       "deferred_target": "",
       "evidence": "AppendShaderKey serializes only stage, unescaped payload identity, and entry point, omitting shader interface metadata required by the contract and allowing delimiter collisions. FindGraphics and FindCompute validate only the cached pipeline lifecycle, not the lifecycle of its retained shader/layout dependencies. A replacement valid request with the same textual key can therefore return an old valid wrapper whose dependencies were invalidated.",
@@ -2460,21 +2466,27 @@
           "from": "Triaged",
           "note": "The cache contract requires deterministic semantic equivalence and no reuse of invalidated state. B05-S11 should use collision-safe complete keys including interface metadata, validate retained dependency lifecycle/ownership on hits, remove stale entries as appropriate, and add collision plus replacement-after-invalidation regressions.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T05:23:24+00:00",
+          "from": "Accepted",
+          "note": "Fixed by collision-safe complete cache serialization, interface metadata coverage, delimiter-safe identity encoding, stale dependency rejection, and maintained regressions.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B05-F011",
       "impact": "Semantically different shader requests can collide, and corrected requests after dependency invalidation can be reported as successful cache hits while returning a pipeline tied to stale dependencies. This violates deterministic equivalence and the prohibition on reusing invalidated state.",
       "location": "Source/Backend/Vulkan/Private/FVulkanPipelineCache.cpp:17",
       "requirement": "012-FR-016, FR-017, SC-007, Pipeline Cache and Reuse Contract",
-      "resolution": "",
+      "resolution": "Fixed by collision-safe complete cache serialization, interface metadata coverage, delimiter-safe identity encoding, stale dependency rejection, and maintained regressions.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Pipeline cache can reuse non-equivalent or stale pipelines",
       "verification": ""
     },
     {
       "batch": "B05",
-      "commit": "",
+      "commit": "a62e0f1",
       "created_at": "2026-07-27T03:56:59+00:00",
       "deferred_target": "",
       "evidence": "The RHI pipeline wrappers retain only descriptions and contain no native context or VkPipeline ownership. FVulkanDevice RealRuntime initialization remains Unsupported and native contexts create VkPipeline through separate non-RHI paths, so real-runtime pipeline factory branches are unreachable. Both factories also build allocating text keys, copy descriptions, allocate wrappers, append tracking, and insert cache entries without catches or rollback; cache insertion occurs after device tracking publication.",
@@ -2490,15 +2502,21 @@
           "from": "Triaged",
           "note": "The explicit result and real-runtime contracts are unmet by description-only throwing factories. B05-S11 should make graphics/compute publication failure-atomic and connect RHI pipeline wrappers to actual owner-safe native pipeline handles when native support is enabled, without relabeling deterministic objects or duplicating native authority.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T05:23:24+00:00",
+          "from": "Accepted",
+          "note": "Fixed by native graphics/compute pipeline ownership in FVulkanNativeContext plus failure-atomic device publication and maintained native integration regressions.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B05-F012",
       "impact": "RHI consumers cannot obtain the documented real graphics or compute pipeline even when Vulkan is available. Allocation or cache-publication failure can escape the explicit ERHIResult contract and leave a retained valid pipeline without a returned success, corrupting creation-limit and cache authority.",
       "location": "Source/Backend/Vulkan/Private/FVulkanDevice.cpp:891",
       "requirement": "012-FR-006, FR-008, FR-010, FR-017, SC-001, SC-008, and the Graphics/Compute Pipeline Contracts",
-      "resolution": "",
+      "resolution": "Fixed by native graphics/compute pipeline ownership in FVulkanNativeContext plus failure-atomic device publication and maintained native integration regressions.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Pipeline factories neither create native objects nor publish atomically",
       "verification": ""
     }

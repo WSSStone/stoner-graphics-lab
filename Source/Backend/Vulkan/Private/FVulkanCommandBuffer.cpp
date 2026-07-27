@@ -221,12 +221,19 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::BindGraphicsPipeline(const Stoner:
         }
         return Stoner::RHI::ERHIResult::InvalidState;
     }
-    if (!Pipeline || Pipeline->GetLifecycleState() != Stoner::RHI::ERHIResourceLifecycleState::Valid)
+    const auto VulkanPipeline =
+        std::dynamic_pointer_cast<FVulkanGraphicsPipeline>(Pipeline);
+    if (!VulkanPipeline ||
+        !VulkanPipeline->BelongsTo(Owner) ||
+        !VulkanPipeline->HasValidDependencies())
     {
-        MarkRecordingDiagnostic("graphics pipeline binding rejected by invalidated pipeline");
+        MarkRecordingDiagnostic(
+            "graphics pipeline binding rejected by ownership, lifecycle, or dependency state");
         if (Diagnostics)
         {
-            MarkPipelineBinding(*Diagnostics, "graphics pipeline binding rejected by invalidated pipeline");
+            MarkPipelineBinding(
+                *Diagnostics,
+                "graphics pipeline binding rejected by ownership, lifecycle, or dependency state");
         }
         return Stoner::RHI::ERHIResult::InvalidState;
     }
@@ -251,12 +258,19 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::BindComputePipeline(const Stoner::
         }
         return QueueType == Stoner::RHI::ERHIQueueType::Transfer ? Stoner::RHI::ERHIResult::Unsupported : Stoner::RHI::ERHIResult::InvalidState;
     }
-    if (!Pipeline || Pipeline->GetLifecycleState() != Stoner::RHI::ERHIResourceLifecycleState::Valid)
+    const auto VulkanPipeline =
+        std::dynamic_pointer_cast<FVulkanComputePipeline>(Pipeline);
+    if (!VulkanPipeline ||
+        !VulkanPipeline->BelongsTo(Owner) ||
+        !VulkanPipeline->HasValidDependencies())
     {
-        MarkRecordingDiagnostic("compute pipeline binding rejected by invalidated pipeline");
+        MarkRecordingDiagnostic(
+            "compute pipeline binding rejected by ownership, lifecycle, or dependency state");
         if (Diagnostics)
         {
-            MarkPipelineBinding(*Diagnostics, "compute pipeline binding rejected by invalidated pipeline");
+            MarkPipelineBinding(
+                *Diagnostics,
+                "compute pipeline binding rejected by ownership, lifecycle, or dependency state");
         }
         return Stoner::RHI::ERHIResult::InvalidState;
     }
@@ -622,6 +636,8 @@ void FVulkanCommandBuffer::Invalidate() noexcept
     Commands.clear();
     ActiveRenderPass.reset();
     ActiveFramebuffer.reset();
+    BoundGraphicsPipeline.reset();
+    BoundComputePipeline.reset();
     Diagnostics = nullptr;
 }
 
@@ -637,14 +653,24 @@ bool FVulkanCommandBuffer::IsComputeCompatible() const noexcept
 
 bool FVulkanCommandBuffer::HasCompatibleGraphicsPipeline() const noexcept
 {
-    const auto Pipeline = BoundGraphicsPipeline.lock();
-    return Pipeline && Pipeline->GetLifecycleState() == Stoner::RHI::ERHIResourceLifecycleState::Valid && HasActiveRenderPass();
+    const auto Pipeline =
+        std::dynamic_pointer_cast<FVulkanGraphicsPipeline>(
+            BoundGraphicsPipeline.lock());
+    return Pipeline &&
+        Pipeline->BelongsTo(Owner) &&
+        Pipeline->HasValidDependencies() &&
+        HasActiveRenderPass();
 }
 
 bool FVulkanCommandBuffer::HasCompatibleComputePipeline() const noexcept
 {
-    const auto Pipeline = BoundComputePipeline.lock();
-    return Pipeline && Pipeline->GetLifecycleState() == Stoner::RHI::ERHIResourceLifecycleState::Valid && IsComputeCompatible();
+    const auto Pipeline =
+        std::dynamic_pointer_cast<FVulkanComputePipeline>(
+            BoundComputePipeline.lock());
+    return Pipeline &&
+        Pipeline->BelongsTo(Owner) &&
+        Pipeline->HasValidDependencies() &&
+        IsComputeCompatible();
 }
 
 Stoner::RHI::ERHIResult FVulkanCommandBuffer::ValidateRecordingState() const noexcept

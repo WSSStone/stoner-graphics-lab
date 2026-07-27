@@ -36,18 +36,6 @@ namespace
         : Stoner::RHI::ERHIResult::InvalidState;
 }
 
-[[nodiscard]] bool IsRuntimeFallback(const FVulkanDiagnostics& Diagnostics) noexcept
-{
-    return Diagnostics.bUsedRuntimeFallback || Diagnostics.Availability != EVulkanBackendAvailability::Available;
-}
-
-[[nodiscard]] Stoner::RHI::ERHIRuntimeObjectMode RuntimeModeForDiagnostics(const FVulkanDiagnostics& Diagnostics) noexcept
-{
-    return IsRuntimeFallback(Diagnostics)
-        ? Stoner::RHI::ERHIRuntimeObjectMode::DeterministicFallback
-        : Stoner::RHI::ERHIRuntimeObjectMode::RealRuntime;
-}
-
 [[nodiscard]] bool IsShaderLayoutCompatible(
     const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIShaderModule>& Shader,
     const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPipelineLayout>& Layout,
@@ -901,8 +889,83 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIGraphicsPipeline> FVulkanDevice::
         MarkGraphicsPipeline(Diagnostics, "graphics pipeline creation rejected by shader layout or triangle-ready state validation");
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
+    if (!SupportsGraphicsPipelineDesc(Desc))
+    {
+        MarkGraphicsPipeline(
+            Diagnostics,
+            "graphics pipeline creation rejected by device format capabilities");
+        return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
+    }
 
-    const Stoner::Core::FString Key = PipelineCache.BuildGraphicsKey(Desc);
+    Stoner::RHI::FRHIGraphicsPipelineDesc RuntimeDesc;
+    try
+    {
+        RuntimeDesc = Desc;
+        RuntimeDesc.ReuseState =
+            Stoner::RHI::ERHIPipelineReuseState::Created;
+        RuntimeDesc.CompatibilitySummary =
+            "graphics pipeline compatible";
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkGraphicsPipeline(
+            Diagnostics, "graphics pipeline description allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        MarkGraphicsPipeline(
+            Diagnostics, "graphics pipeline description capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+
+    Stoner::Core::TSharedPtr<FVulkanShaderModule> VertexShader;
+    Stoner::Core::TSharedPtr<FVulkanShaderModule> FragmentShader;
+    for (const auto& Shader : RuntimeDesc.ShaderModules)
+    {
+        auto VulkanShader =
+            std::dynamic_pointer_cast<FVulkanShaderModule>(Shader);
+        if (VulkanShader &&
+            VulkanShader->GetStage() ==
+                Stoner::RHI::ERHIShaderStage::Vertex)
+        {
+            VertexShader = std::move(VulkanShader);
+        }
+        else if (VulkanShader &&
+            VulkanShader->GetStage() ==
+                Stoner::RHI::ERHIShaderStage::Fragment)
+        {
+            FragmentShader = std::move(VulkanShader);
+        }
+    }
+    const bool bUseNativeRuntime =
+        HasNativeShaderRuntime() &&
+        VertexShader && FragmentShader &&
+        VertexShader->HasNativeObject() &&
+        FragmentShader->HasNativeObject() &&
+        VertexShader->NativeContext == NativeShaderContext &&
+        FragmentShader->NativeContext == NativeShaderContext;
+    RuntimeDesc.RuntimeMode = bUseNativeRuntime
+        ? Stoner::RHI::ERHIRuntimeObjectMode::RealRuntime
+        : Stoner::RHI::ERHIRuntimeObjectMode::DeterministicFallback;
+
+    Stoner::Core::FString Key;
+    try
+    {
+        Key = PipelineCache.BuildGraphicsKey(RuntimeDesc);
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkPipelineCache(
+            Diagnostics, "graphics pipeline cache key allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        MarkPipelineCache(
+            Diagnostics, "graphics pipeline cache key capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     if (auto Existing = PipelineCache.FindGraphics(Key))
     {
         Existing->SetReuseState(Stoner::RHI::ERHIPipelineReuseState::Reused);
@@ -916,16 +979,84 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIGraphicsPipeline> FVulkanDevice::
         return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
     }
 
-    Stoner::RHI::FRHIGraphicsPipelineDesc RuntimeDesc = Desc;
-    RuntimeDesc.RuntimeMode = RuntimeModeForDiagnostics(Diagnostics);
-    RuntimeDesc.ReuseState = Stoner::RHI::ERHIPipelineReuseState::Created;
-    RuntimeDesc.CompatibilitySummary = "graphics pipeline compatible";
-    const char* Reason = IsRuntimeFallback(Diagnostics)
-        ? "graphics pipeline created as deterministic fallback; no real runtime execution occurred"
-        : "graphics pipeline created with runtime object";
-    auto Pipeline = Stoner::Core::MakeShared<FVulkanGraphicsPipeline>(RuntimeDesc, Reason);
-    GraphicsPipelines.push_back(Pipeline);
-    PipelineCache.InsertGraphics(Key, Pipeline);
+    Stoner::Core::uint64 NativeToken = 0;
+    if (bUseNativeRuntime)
+    {
+        const Stoner::RHI::ERHIResult NativeResult =
+            NativeShaderContext->CreateOwnedGraphicsPipeline(
+                RuntimeDesc,
+                VertexShader->NativeToken,
+                FragmentShader->NativeToken,
+                NativeToken);
+        if (NativeResult != Stoner::RHI::ERHIResult::Success)
+        {
+            MarkGraphicsPipeline(
+                Diagnostics,
+                "native graphics pipeline creation rejected by Vulkan runtime");
+            return {NativeResult, nullptr};
+        }
+    }
+    const char* Reason = bUseNativeRuntime
+        ? "graphics pipeline created and retained by native Vulkan runtime"
+        : "graphics pipeline created as deterministic fallback; no real runtime execution occurred";
+    Stoner::Core::TSharedPtr<FVulkanGraphicsPipeline> Pipeline;
+    try
+    {
+        Pipeline.reset(new FVulkanGraphicsPipeline(
+            std::move(RuntimeDesc),
+            DeviceOwner,
+            bUseNativeRuntime ? NativeShaderContext : nullptr,
+            NativeToken,
+            Reason));
+    }
+    catch (const std::bad_alloc&)
+    {
+        if (bUseNativeRuntime)
+        {
+            NativeShaderContext->DestroyOwnedPipeline(NativeToken);
+        }
+        MarkGraphicsPipeline(
+            Diagnostics, "graphics pipeline wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        GraphicsPipelines.push_back(Pipeline);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Pipeline->Invalidate();
+        MarkGraphicsPipeline(
+            Diagnostics, "graphics pipeline tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)Pipeline->Invalidate();
+        MarkGraphicsPipeline(
+            Diagnostics, "graphics pipeline tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        PipelineCache.InsertGraphics(Key, Pipeline);
+    }
+    catch (const std::bad_alloc&)
+    {
+        GraphicsPipelines.pop_back();
+        (void)Pipeline->Invalidate();
+        MarkPipelineCache(
+            Diagnostics, "graphics pipeline cache insertion failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        GraphicsPipelines.pop_back();
+        (void)Pipeline->Invalidate();
+        MarkPipelineCache(
+            Diagnostics, "graphics pipeline cache capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     ++SuccessfulPipelineCreations;
     MarkGraphicsPipeline(Diagnostics, Reason);
     MarkRuntimeMode(Diagnostics, Reason);
@@ -962,7 +1093,58 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIComputePipeline> FVulkanDevice::C
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
 
-    const Stoner::Core::FString Key = PipelineCache.BuildComputeKey(Desc);
+    Stoner::RHI::FRHIComputePipelineDesc RuntimeDesc;
+    try
+    {
+        RuntimeDesc = Desc;
+        RuntimeDesc.RuntimeMode =
+            Stoner::RHI::ERHIRuntimeObjectMode::Unknown;
+        RuntimeDesc.ReuseState =
+            Stoner::RHI::ERHIPipelineReuseState::Created;
+        RuntimeDesc.CompatibilitySummary =
+            "compute pipeline compatible";
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkComputePipeline(
+            Diagnostics, "compute pipeline description allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        MarkComputePipeline(
+            Diagnostics, "compute pipeline description capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+
+    auto ComputeShader =
+        std::dynamic_pointer_cast<FVulkanShaderModule>(
+            RuntimeDesc.ShaderModules[0]);
+    const bool bUseNativeRuntime =
+        HasNativeShaderRuntime() &&
+        ComputeShader && ComputeShader->HasNativeObject() &&
+        ComputeShader->NativeContext == NativeShaderContext;
+    RuntimeDesc.RuntimeMode = bUseNativeRuntime
+        ? Stoner::RHI::ERHIRuntimeObjectMode::RealRuntime
+        : Stoner::RHI::ERHIRuntimeObjectMode::DeterministicFallback;
+
+    Stoner::Core::FString Key;
+    try
+    {
+        Key = PipelineCache.BuildComputeKey(RuntimeDesc);
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkPipelineCache(
+            Diagnostics, "compute pipeline cache key allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        MarkPipelineCache(
+            Diagnostics, "compute pipeline cache key capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     if (auto Existing = PipelineCache.FindCompute(Key))
     {
         Existing->SetReuseState(Stoner::RHI::ERHIPipelineReuseState::Reused);
@@ -976,16 +1158,83 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIComputePipeline> FVulkanDevice::C
         return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
     }
 
-    Stoner::RHI::FRHIComputePipelineDesc RuntimeDesc = Desc;
-    RuntimeDesc.RuntimeMode = RuntimeModeForDiagnostics(Diagnostics);
-    RuntimeDesc.ReuseState = Stoner::RHI::ERHIPipelineReuseState::Created;
-    RuntimeDesc.CompatibilitySummary = "compute pipeline compatible";
-    const char* Reason = IsRuntimeFallback(Diagnostics)
-        ? "compute pipeline created as deterministic fallback; no real runtime execution occurred"
-        : "compute pipeline created with runtime object";
-    auto Pipeline = Stoner::Core::MakeShared<FVulkanComputePipeline>(RuntimeDesc, Reason);
-    ComputePipelines.push_back(Pipeline);
-    PipelineCache.InsertCompute(Key, Pipeline);
+    Stoner::Core::uint64 NativeToken = 0;
+    if (bUseNativeRuntime)
+    {
+        const Stoner::RHI::ERHIResult NativeResult =
+            NativeShaderContext->CreateOwnedComputePipeline(
+                RuntimeDesc,
+                ComputeShader->NativeToken,
+                NativeToken);
+        if (NativeResult != Stoner::RHI::ERHIResult::Success)
+        {
+            MarkComputePipeline(
+                Diagnostics,
+                "native compute pipeline creation rejected by Vulkan runtime");
+            return {NativeResult, nullptr};
+        }
+    }
+    const char* Reason = bUseNativeRuntime
+        ? "compute pipeline created and retained by native Vulkan runtime"
+        : "compute pipeline created as deterministic fallback; no real runtime execution occurred";
+    Stoner::Core::TSharedPtr<FVulkanComputePipeline> Pipeline;
+    try
+    {
+        Pipeline.reset(new FVulkanComputePipeline(
+            std::move(RuntimeDesc),
+            DeviceOwner,
+            bUseNativeRuntime ? NativeShaderContext : nullptr,
+            NativeToken,
+            Reason));
+    }
+    catch (const std::bad_alloc&)
+    {
+        if (bUseNativeRuntime)
+        {
+            NativeShaderContext->DestroyOwnedPipeline(NativeToken);
+        }
+        MarkComputePipeline(
+            Diagnostics, "compute pipeline wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        ComputePipelines.push_back(Pipeline);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Pipeline->Invalidate();
+        MarkComputePipeline(
+            Diagnostics, "compute pipeline tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)Pipeline->Invalidate();
+        MarkComputePipeline(
+            Diagnostics, "compute pipeline tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        PipelineCache.InsertCompute(Key, Pipeline);
+    }
+    catch (const std::bad_alloc&)
+    {
+        ComputePipelines.pop_back();
+        (void)Pipeline->Invalidate();
+        MarkPipelineCache(
+            Diagnostics, "compute pipeline cache insertion failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        ComputePipelines.pop_back();
+        (void)Pipeline->Invalidate();
+        MarkPipelineCache(
+            Diagnostics, "compute pipeline cache capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     ++SuccessfulPipelineCreations;
     MarkComputePipeline(Diagnostics, Reason);
     MarkRuntimeMode(Diagnostics, Reason);
@@ -1448,6 +1697,23 @@ bool FVulkanDevice::SupportsSamplerDesc(const Stoner::RHI::FRHISamplerDesc& Desc
         return false;
     }
     return true;
+}
+
+bool FVulkanDevice::SupportsGraphicsPipelineDesc(
+    const Stoner::RHI::FRHIGraphicsPipelineDesc& Desc) const noexcept
+{
+    for (Stoner::RHI::ERHIFormat Format :
+         Desc.RenderTargets.ColorFormats)
+    {
+        if (!Capabilities.SupportsFormat(Format))
+        {
+            return false;
+        }
+    }
+    return Desc.RenderTargets.DepthStencilFormat ==
+            Stoner::RHI::ERHIFormat::Unknown ||
+        Capabilities.SupportsFormat(
+            Desc.RenderTargets.DepthStencilFormat);
 }
 
 bool FVulkanDevice::CanCreatePipeline() noexcept
