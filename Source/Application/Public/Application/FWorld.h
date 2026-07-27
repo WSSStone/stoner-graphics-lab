@@ -90,7 +90,9 @@ private:
     [[nodiscard]] const FEntitySlot* GetSlot(FEntity Entity) const;
     [[nodiscard]] FEntity MakeEntity(Stoner::Core::uint32 SlotIndex) const;
     [[nodiscard]] bool WouldCreateCycle(FEntity Child, FEntity Parent) const;
+    [[nodiscard]] bool HasTransformInHierarchy(FEntity Entity) const;
     [[nodiscard]] bool ComputeWorldTransform(FEntity Entity, Stoner::Core::FTransform& OutWorldTransform) const;
+    [[nodiscard]] bool ComputeHierarchyWorldTransform(FEntity Entity, Stoner::Core::FTransform& OutWorldTransform) const;
     void InsertRootSorted(FEntity Entity);
     void RemoveRoot(FEntity Entity);
     void RemoveChildReference(FEntity Parent, FEntity Child);

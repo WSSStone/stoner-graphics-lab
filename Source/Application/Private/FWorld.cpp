@@ -345,15 +345,15 @@ ESceneResult FWorld::SetParent(FEntity Child, FEntity Parent, EReparentTransform
     Stoner::Core::FTransform OriginalWorld = Stoner::Core::FTransform::Identity();
     const bool bHasOriginalWorld = ComputeWorldTransform(Child, OriginalWorld);
     Stoner::Core::FTransform ParentWorld = Stoner::Core::FTransform::Identity();
-    const bool bHasParentWorld = ComputeWorldTransform(Parent, ParentWorld);
+    const bool bParentHierarchyHasTransform = HasTransformInHierarchy(Parent);
+    const bool bHasParentWorld = ComputeHierarchyWorldTransform(Parent, ParentWorld);
     Stoner::Core::FTransform ProspectiveLocal = ChildSlot->bHasTransform
         ? ChildSlot->Transform.LocalTransform
         : Stoner::Core::FTransform::Identity();
 
     if (ChildSlot->bHasTransform)
     {
-        bool bTransformRepresentable =
-            !ParentSlot->bHasTransform || bHasParentWorld;
+        bool bTransformRepresentable = !bParentHierarchyHasTransform || bHasParentWorld;
         if (Preservation == EReparentTransformPreservation::PreserveWorld)
         {
             bTransformRepresentable = bTransformRepresentable &&
@@ -575,6 +575,25 @@ bool FWorld::WouldCreateCycle(FEntity Child, FEntity Parent) const
     return false;
 }
 
+bool FWorld::HasTransformInHierarchy(FEntity Entity) const
+{
+    FEntity Current = Entity;
+    while (Current.IsSet())
+    {
+        const FEntitySlot* Slot = GetSlot(Current);
+        if (Slot == nullptr)
+        {
+            return false;
+        }
+        if (Slot->bHasTransform)
+        {
+            return true;
+        }
+        Current = Slot->Parent;
+    }
+    return false;
+}
+
 bool FWorld::ComputeWorldTransform(FEntity Entity, Stoner::Core::FTransform& OutWorldTransform) const
 {
     const FEntitySlot* Slot = GetSlot(Entity);
@@ -586,24 +605,71 @@ bool FWorld::ComputeWorldTransform(FEntity Entity, Stoner::Core::FTransform& Out
 
     if (Slot->Parent.IsSet())
     {
-        const FEntitySlot* ParentSlot = GetSlot(Slot->Parent);
-        if (ParentSlot != nullptr && !ParentSlot->bHasTransform)
+        Stoner::Core::FTransform ParentWorld = Stoner::Core::FTransform::Identity();
+        const bool bParentHierarchyHasTransform = HasTransformInHierarchy(Slot->Parent);
+        if (!ComputeHierarchyWorldTransform(Slot->Parent, ParentWorld))
         {
+            if (bParentHierarchyHasTransform)
+            {
+                OutWorldTransform = Stoner::Core::FTransform::Identity();
+                return false;
+            }
             OutWorldTransform = Slot->Transform.LocalTransform;
             return true;
-        }
-
-        Stoner::Core::FTransform ParentWorld = Stoner::Core::FTransform::Identity();
-        if (!ComputeWorldTransform(Slot->Parent, ParentWorld))
-        {
-            OutWorldTransform = Stoner::Core::FTransform::Identity();
-            return false;
         }
         return ParentWorld.TryCompose(Slot->Transform.LocalTransform, OutWorldTransform);
     }
 
     OutWorldTransform = Slot->Transform.LocalTransform;
     return true;
+}
+
+bool FWorld::ComputeHierarchyWorldTransform(FEntity Entity, Stoner::Core::FTransform& OutWorldTransform) const
+{
+    const FEntitySlot* Slot = GetSlot(Entity);
+    if (Slot == nullptr)
+    {
+        OutWorldTransform = Stoner::Core::FTransform::Identity();
+        return false;
+    }
+
+    const bool bHasTransform = Slot->bHasTransform;
+    if (!Slot->Parent.IsSet())
+    {
+        if (!bHasTransform)
+        {
+            OutWorldTransform = Stoner::Core::FTransform::Identity();
+            return false;
+        }
+        OutWorldTransform = Slot->Transform.LocalTransform;
+        return true;
+    }
+
+    Stoner::Core::FTransform ParentWorld = Stoner::Core::FTransform::Identity();
+    const bool bParentHierarchyHasTransform = HasTransformInHierarchy(Slot->Parent);
+    const bool bHasParentWorld = ComputeHierarchyWorldTransform(Slot->Parent, ParentWorld);
+    if (!bHasParentWorld)
+    {
+        if (bParentHierarchyHasTransform)
+        {
+            OutWorldTransform = Stoner::Core::FTransform::Identity();
+            return false;
+        }
+        if (!bHasTransform)
+        {
+            OutWorldTransform = Stoner::Core::FTransform::Identity();
+            return false;
+        }
+        OutWorldTransform = Slot->Transform.LocalTransform;
+        return true;
+    }
+
+    if (!bHasTransform)
+    {
+        OutWorldTransform = ParentWorld;
+        return true;
+    }
+    return ParentWorld.TryCompose(Slot->Transform.LocalTransform, OutWorldTransform);
 }
 
 void FWorld::InsertRootSorted(FEntity Entity)

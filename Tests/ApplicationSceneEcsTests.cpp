@@ -164,6 +164,23 @@ void TestHierarchy(FApplicationSceneEcsTestResult& Result)
             NearTransformPosition(WorldTransform, 27.0f, 0.0f, 0.0f),
         "Scene reparent can preserve local transform explicitly");
 
+    const FEntity TransformlessGroupA = World.CreateEntity();
+    const FEntity TransformlessGroupB = World.CreateEntity();
+    const FEntity GroupChild = World.CreateEntity();
+    (void)World.SetParent(TransformlessGroupA, RootA, EReparentTransformPreservation::PreserveLocal);
+    (void)World.SetParent(TransformlessGroupB, RootB, EReparentTransformPreservation::PreserveLocal);
+    (void)World.AddTransform(GroupChild, TransformAt(2.0f));
+    (void)World.SetParent(GroupChild, TransformlessGroupA, EReparentTransformPreservation::PreserveLocal);
+    Record(Result, World.TryGetWorldTransform(GroupChild, WorldTransform) &&
+            NearTransformPosition(WorldTransform, 12.0f, 0.0f, 0.0f),
+        "Scene transformless hierarchy groups inherit ancestor world transforms");
+
+    Record(Result, World.SetParent(GroupChild, TransformlessGroupB) == ESceneResult::Success &&
+            World.TryGetWorldTransform(GroupChild, WorldTransform) &&
+            NearTransformPosition(WorldTransform, 12.0f, 0.0f, 0.0f) &&
+            World.GetTransform(GroupChild)->LocalTransform.Translation.NearlyEquals(FVector3(17.0f, 0.0f, 0.0f)),
+        "Scene preserve-world reparent works through transformless hierarchy groups");
+
     const FEntity NonUniformParent = World.CreateEntity();
     const FEntity RotatedChild = World.CreateEntity();
     const FTransform NonUniformParentTransform(
