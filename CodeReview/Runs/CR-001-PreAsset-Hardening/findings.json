@@ -2999,6 +2999,36 @@
       "status": "Verified",
       "title": "Input snapshot focus and reset paths can preserve stale state",
       "verification": "Verified on B07-S06: PollFrame restores focused snapshot state, full reset clears pointer/focus metadata, regressions cover focus restoration and invalid lifecycle pointer reset, and fallback-strict gate passed at 2026-07-27T07:54:38+00:00."
+    },
+    {
+      "batch": "B07",
+      "commit": "",
+      "created_at": "2026-07-27T08:00:23+00:00",
+      "deferred_target": "",
+      "evidence": "FTransformComponent add/replace paths call Component.IsValid() and return InvalidComponentData, but the SG_SCENE_COMPONENT_METHODS macro for Mesh, Light, and Camera assigns Slot->Member directly on add and replace without checking Type::IsValid(). FMeshComponent::IsValid rejects empty mesh ids, FLightComponent::IsValid rejects non-finite/negative light data, and FCameraComponent::IsValid rejects invalid near/far/projection parameters.",
+      "history": [
+        {
+          "at": "2026-07-27T08:00:37+00:00",
+          "from": "Open",
+          "note": "Accepted for B07 fix. Transform already validates at mutation time, and mesh/light/camera expose IsValid methods, so the macro component paths should reject invalid data consistently instead of admitting invalid live component state.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-27T08:00:37+00:00",
+          "from": "Triaged",
+          "note": "Accepted for B07 fix. Transform already validates at mutation time, and mesh/light/camera expose IsValid methods, so the macro component paths should reject invalid data consistently instead of admitting invalid live component state.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B07-F005",
+      "impact": "Invalid mesh, light, and camera components can be stored in live world state, so component operations report Success instead of InvalidComponentData and defer rejection to render collection or downstream users.",
+      "location": "Source/Application/Private/FWorld.cpp:235",
+      "requirement": "Feature 017 FR-005 and the Component Contract require invalid component data outcomes with stable statuses or diagnostics for component operations, and FR-010 through FR-012 define valid mesh, light, and camera scene data.",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Mesh light and camera component mutation bypasses data validation",
+      "verification": ""
     }
   ],
   "schema_version": 1

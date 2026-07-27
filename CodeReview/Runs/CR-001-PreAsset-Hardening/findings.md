@@ -863,3 +863,15 @@
 - Resolution: Input state now restores focused snapshots on focused PollFrame, separates key/mouse clearing from full snapshot reset, and clears pointer/focus state for ClearAll and invalid lifecycle paths. Debug build passed, new snapshot regressions passed, and fallback-strict gate passed.
 - Verification: Verified on B07-S06: PollFrame restores focused snapshot state, full reset clears pointer/focus metadata, regressions cover focus restoration and invalid lifecycle pointer reset, and fallback-strict gate passed at 2026-07-27T07:54:38+00:00.
 - Commit: `21629d7`
+
+## CR001-B07-F005: Mesh light and camera component mutation bypasses data validation
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 017 FR-005 and the Component Contract require invalid component data outcomes with stable statuses or diagnostics for component operations, and FR-010 through FR-012 define valid mesh, light, and camera scene data.
+- Location: `Source/Application/Private/FWorld.cpp:235`
+- Impact: Invalid mesh, light, and camera components can be stored in live world state, so component operations report Success instead of InvalidComponentData and defer rejection to render collection or downstream users.
+- Evidence: FTransformComponent add/replace paths call Component.IsValid() and return InvalidComponentData, but the SG_SCENE_COMPONENT_METHODS macro for Mesh, Light, and Camera assigns Slot->Member directly on add and replace without checking Type::IsValid(). FMeshComponent::IsValid rejects empty mesh ids, FLightComponent::IsValid rejects non-finite/negative light data, and FCameraComponent::IsValid rejects invalid near/far/projection parameters.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`

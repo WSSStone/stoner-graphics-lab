@@ -1,5 +1,5 @@
 {
-  "active_step": "B07-S07",
+  "active_step": "B07-S08",
   "batches": [
     {
       "id": "B00",
@@ -1389,12 +1389,15 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T08:01:30+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B07-entity-slots-components-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b07-entity-slots-components-inspection.md"
+          ],
           "id": "B07-S07",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected Feature 017 entity slots and components. Opened and accepted CR001-B07-F005 for mesh/light/camera component mutation bypassing component IsValid validation.",
+          "started_at": "2026-07-27T07:57:31+00:00",
+          "status": "Completed",
           "title": "Inspect: entity slots and components"
         },
         {
@@ -5043,6 +5046,26 @@
       "at": "2026-07-27T07:55:29+00:00",
       "detail": "B07-S06",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T07:57:31+00:00",
+      "detail": "B07-S07",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T08:00:23+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T08:00:37+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T08:01:30+00:00",
+      "detail": "B07-S07",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5196,7 +5219,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "4e3199d4842f5caa0e62b6b0e131ed07b9d4810f"
+    "last_recorded_head": "3efaf89713c257c1ffa2ae6bddf3ab28f6541616"
   },
   "policy": {
     "fix_severities": [
@@ -5216,5 +5239,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T07:55:29+00:00"
+  "updated_at": "2026-07-27T08:01:30+00:00"
 }
