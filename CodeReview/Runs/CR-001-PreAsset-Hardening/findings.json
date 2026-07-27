@@ -2540,7 +2540,7 @@
     },
     {
       "batch": "B05",
-      "commit": "",
+      "commit": "d5b83ac",
       "created_at": "2026-07-27T05:35:21+00:00",
       "deferred_target": "",
       "evidence": "AcquireVisibleFrame returns ResizeRequired for VK_SUBOPTIMAL_KHR after setting bFrameAcquired=true; DrawVisibleFrame returns immediately for non-success acquire results. SubmitAndPresentVisibleFrame resets the frame-slot fence before vkQueueSubmit and clears bFrameAcquired on submit failure without restoring a signaled fence.",
@@ -2556,15 +2556,21 @@
           "from": "Triaged",
           "note": "Accepted for B05-S14. The issue is confined to visible native context frame-state recovery and should be repaired with deterministic injectable coverage for suboptimal acquire and post-reset submit failure.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T05:47:09+00:00",
+          "from": "Accepted",
+          "note": "Fixed by suboptimal-acquire handoff through submit/present, acquired-frame abandon cleanup on record/reset/submit failure, signaled fence recreation after post-reset submit failure, and maintained visible failure lifecycle regression.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B05-F013",
       "impact": "A suboptimal acquire can permanently block the visible frame state behind bFrameAcquired, and a submit failure after fence reset can make the next frame-slot acquire wait until timeout. The visible native runtime can therefore convert recoverable resize/submit failures into persistent invalid-state or timeout behavior.",
       "location": "Source/Backend/Vulkan/Private/FVulkanNativeContext.cpp:1291",
       "requirement": "Feature 011 FR-013 through FR-015 and SC-002/SC-004 require failed submissions and invalid transitions to avoid usable partial state and preserve consistent completion observation.",
-      "resolution": "",
+      "resolution": "Fixed by suboptimal-acquire handoff through submit/present, acquired-frame abandon cleanup on record/reset/submit failure, signaled fence recreation after post-reset submit failure, and maintained visible failure lifecycle regression.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Visible native frame failure paths leave acquired image or unsignaled fence state",
       "verification": ""
     }
