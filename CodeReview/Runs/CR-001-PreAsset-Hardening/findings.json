@@ -2562,6 +2562,12 @@
           "from": "Accepted",
           "note": "Fixed by suboptimal-acquire handoff through submit/present, acquired-frame abandon cleanup on record/reset/submit failure, signaled fence recreation after post-reset submit failure, and maintained visible failure lifecycle regression.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T05:55:49+00:00",
+          "from": "Fixed",
+          "note": "Verified parent/current visible native frame failure lifecycle: suboptimal acquire continues through cleanup, record failure uses shared abandon path, submit failure recreates a signaled frame-slot fence, lifecycle regression passes, and strict/fallback/release/sanitizer gates pass. Refreshed tests gate failure is limited to current Mac MoltenVK/Metal environment boundary.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B05-F013",
@@ -2570,9 +2576,9 @@
       "requirement": "Feature 011 FR-013 through FR-015 and SC-002/SC-004 require failed submissions and invalid transitions to avoid usable partial state and preserve consistent completion observation.",
       "resolution": "Fixed by suboptimal-acquire handoff through submit/present, acquired-frame abandon cleanup on record/reset/submit failure, signaled fence recreation after post-reset submit failure, and maintained visible failure lifecycle regression.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Visible native frame failure paths leave acquired image or unsignaled fence state",
-      "verification": ""
+      "verification": "Verified parent/current visible native frame failure lifecycle: suboptimal acquire continues through cleanup, record failure uses shared abandon path, submit failure recreates a signaled frame-slot fence, lifecycle regression passes, and strict/fallback/release/sanitizer gates pass. Refreshed tests gate failure is limited to current Mac MoltenVK/Metal environment boundary."
     }
   ],
   "schema_version": 1
