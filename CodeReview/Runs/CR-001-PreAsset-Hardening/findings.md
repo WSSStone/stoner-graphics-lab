@@ -903,11 +903,11 @@
 ## CR001-B08-F003: Visible startup-zero recovery selects recreate before first presentation prepare
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 018 FR-011, FR-012, FR-013 and the runtime contract require zero drawable extents to pause without creating swapchain resources, then resume rendering after a valid non-zero drawable size returns without retaining invalid presentation-dependent resources.
 - Location: `Demo/StonerDemo/Private/FStonerDemoApplication.cpp:299`
 - Impact: A visible demo launched while minimized or with a zero drawable surface can fail recovery after the drawable becomes valid, violating the pause/resume contract and leaving the real-window validation path dependent on startup window timing.
 - Evidence: Initialize leaves PresentationState.bInitialized=false when the initial visible drawable width or height is zero. RunVisible later observes a non-zero extent after PresentationPaused, calls NotifyDrawableExtent(Width, Height) before deciding whether to prepare or recreate presentation resources, and NotifyDrawableExtent sets PresentationState.bInitialized=true. The following branch therefore calls RecreateVisiblePresentation, but FVulkanNativeContext::RecreateVisiblePresentation requires VisibleVertexShaderPath and VisibleFragmentShaderPath already saved by PrepareVisibleTriangle, so a startup-zero visible window resumes through InvalidState instead of first preparing presentation resources.
 - Resolution: NotifyDrawableExtent no longer marks presentation resources initialized before native prepare/recreate succeeds. Added IsPresentationInitialized diagnostic getter and deterministic recovery coverage proving pause-to-recreate timing does not claim presentation resource readiness before prepare success.
-- Verification: pending
+- Verification: Verified at B08-S06: fallback-strict gate passed at 2026-07-27T09:12:06+00:00; TriangleDemoIntegrationTests include PASS lines proving deterministic recovery starts without presentation resources and does not mark them initialized before prepare succeeds.
 - Commit: `71b5fed`
