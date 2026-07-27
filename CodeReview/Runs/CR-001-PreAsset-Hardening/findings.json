@@ -180,6 +180,12 @@
           "from": "Accepted",
           "note": "Tests/SConscript now compiles ordinary test sources with public include paths only and gives Private include paths only to the three test sources that explicitly exercise internals.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T10:47:58+00:00",
+          "from": "Fixed",
+          "note": "Verified in B09-S03 from current HEAD: Release strict graphics-disabled build passes, Release StonerTest exits 0, static verifier rejects global Private include appends, and SConscript links StonerTest from scoped objects.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B09-F001",
@@ -188,9 +194,9 @@
       "requirement": "Constitution Principle II and roadmap public/private API boundary discipline",
       "resolution": "Tests/SConscript now compiles ordinary test sources with public include paths only and gives Private include paths only to the three test sources that explicitly exercise internals.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Tests bypass Public/Private boundaries through global private include paths",
-      "verification": ""
+      "verification": "Verified in B09-S03 from current HEAD: Release strict graphics-disabled build passes, Release StonerTest exits 0, static verifier rejects global Private include appends, and SConscript links StonerTest from scoped objects."
     },
     {
       "batch": "B02",
@@ -3324,6 +3330,12 @@
           "from": "Accepted",
           "note": "Scoped private include paths by source file: ApplicationWindowInputTests gets Application/Private, CorePlatformTests gets Core/Private, TriangleDemoIntegrationTests gets Demo/StonerDemo/Private; all other Tests/*.cpp compile public-only.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T10:48:05+00:00",
+          "from": "Fixed",
+          "note": "Verified in B09-S03: per-source mapping is the only remaining Private include access in Tests/SConscript, ordinary tests compile public-only, and the three internal-test sources are explicitly scoped.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B09-F002",
@@ -3332,9 +3344,9 @@
       "requirement": "Constitution and CR-001 architecture protocol: production Public/Private boundaries should be enforced by build structure, and tests that need internals should be explicitly scoped instead of globally bypassing layer boundaries.",
       "resolution": "Scoped private include paths by source file: ApplicationWindowInputTests gets Application/Private, CorePlatformTests gets Core/Private, TriangleDemoIntegrationTests gets Demo/StonerDemo/Private; all other Tests/*.cpp compile public-only.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Test target exposes Private include paths to every test source",
-      "verification": ""
+      "verification": "Verified in B09-S03: per-source mapping is the only remaining Private include access in Tests/SConscript, ordinary tests compile public-only, and the three internal-test sources are explicitly scoped."
     },
     {
       "batch": "B09",
