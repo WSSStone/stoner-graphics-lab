@@ -1,5 +1,5 @@
 {
-  "active_step": "B05-S10",
+  "active_step": "B05-S11",
   "batches": [
     {
       "id": "B00",
@@ -1005,13 +1005,16 @@
           "title": "Verify: shader modules and interfaces"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "b60df60",
+          "completed_at": "2026-07-27T03:58:48+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B05-pipeline-cache-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b05-pipeline-cache-inspection.md"
+          ],
           "id": "B05-S10",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected the bounded graphics/compute pipeline and process-local cache domain; accepted F010-F012 for missing pipeline ownership/capability authority, unsound semantic/stale cache reuse, and unreachable non-atomic native pipeline factories. No production/test changes or remote activity.",
+          "started_at": "2026-07-27T03:52:44+00:00",
+          "status": "Completed",
           "title": "Inspect: graphics and compute pipelines and cache"
         },
         {
@@ -4229,6 +4232,46 @@
       "at": "2026-07-27T03:50:28+00:00",
       "detail": "B05-S09",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T03:52:44+00:00",
+      "detail": "B05-S10",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T03:56:29+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T03:56:44+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T03:56:59+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T03:57:20+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T03:57:32+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T03:57:41+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T03:58:48+00:00",
+      "detail": "B05-S10",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -4382,7 +4425,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "a4454e5d6217d21563d2eacc347331cc9037ebd2"
+    "last_recorded_head": "b60df60b41d323902a7902e7c976ceb2218392bf"
   },
   "policy": {
     "fix_severities": [
@@ -4402,5 +4445,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T03:50:28+00:00"
+  "updated_at": "2026-07-27T03:58:48+00:00"
 }
