@@ -1,5 +1,5 @@
 {
-  "active_step": "B05-S02",
+  "active_step": "B05-S03",
   "batches": [
     {
       "id": "B00",
@@ -898,13 +898,16 @@
           "title": "Inspect: command pools, buffers, barriers, and render scope"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "7e92de1",
+          "completed_at": "2026-07-27T02:13:54+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B05-command-render-scope-fix.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b05-command-render-scope-fix.md"
+          ],
           "id": "B05-S02",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Fixed three accepted command/render ownership and transfer-validation findings; independent verification remains B05-S03.",
+          "started_at": "2026-07-26T15:38:53+00:00",
+          "status": "Completed",
           "title": "Fix: command pools, buffers, barriers, and render scope"
         },
         {
@@ -3847,6 +3850,31 @@
       "at": "2026-07-26T15:36:18+00:00",
       "detail": "B05-S01",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-26T15:38:53+00:00",
+      "detail": "B05-S02",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T02:12:10+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T02:12:22+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T02:12:32+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T02:13:54+00:00",
+      "detail": "B05-S02",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -4000,7 +4028,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "4aab41efa87bc846362ffdd39dfe761337afd3f4"
+    "last_recorded_head": "7e92de1266d5ed252c9ff9c347525b16a5b340b4"
   },
   "policy": {
     "fix_severities": [
@@ -4020,5 +4048,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-26T15:36:18+00:00"
+  "updated_at": "2026-07-27T02:13:54+00:00"
 }
