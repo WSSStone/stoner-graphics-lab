@@ -2940,6 +2940,12 @@
           "from": "Accepted",
           "note": "GLFW key/mouse translation now covers declared navigation, modifier, function, and extra mouse vocabulary, with a private runtime mapping helper and regression coverage. Debug build passed, new mapping regression passed, and fallback-strict gate passed.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T07:54:52+00:00",
+          "from": "Fixed",
+          "note": "Verified on B07-S06: GLFW mapping helpers cover representative navigation, modifier, function, and extra mouse controls; regression coverage passes and fallback-strict gate passed at 2026-07-27T07:54:38+00:00.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B07-F003",
@@ -2948,9 +2954,9 @@
       "requirement": "Feature 016 FR-011 and the data model define a stable physical input vocabulary covering navigation keys, function keys, modifier keys, and common mouse buttons.",
       "resolution": "GLFW key/mouse translation now covers declared navigation, modifier, function, and extra mouse vocabulary, with a private runtime mapping helper and regression coverage. Debug build passed, new mapping regression passed, and fallback-strict gate passed.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "GLFW input mapping omits declared key and mouse vocabulary",
-      "verification": ""
+      "verification": "Verified on B07-S06: GLFW mapping helpers cover representative navigation, modifier, function, and extra mouse controls; regression coverage passes and fallback-strict gate passed at 2026-07-27T07:54:38+00:00."
     },
     {
       "batch": "B07",
@@ -2976,6 +2982,12 @@
           "from": "Accepted",
           "note": "Input state now restores focused snapshots on focused PollFrame, separates key/mouse clearing from full snapshot reset, and clears pointer/focus state for ClearAll and invalid lifecycle paths. Debug build passed, new snapshot regressions passed, and fallback-strict gate passed.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T07:54:55+00:00",
+          "from": "Fixed",
+          "note": "Verified on B07-S06: PollFrame restores focused snapshot state, full reset clears pointer/focus metadata, regressions cover focus restoration and invalid lifecycle pointer reset, and fallback-strict gate passed at 2026-07-27T07:54:38+00:00.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B07-F004",
@@ -2984,9 +2996,9 @@
       "requirement": "Feature 016 data model defines Input Frame State bFocused as the owning window focus and requires polling before creation or after destruction to return a safe empty state with diagnostics.",
       "resolution": "Input state now restores focused snapshots on focused PollFrame, separates key/mouse clearing from full snapshot reset, and clears pointer/focus state for ClearAll and invalid lifecycle paths. Debug build passed, new snapshot regressions passed, and fallback-strict gate passed.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Input snapshot focus and reset paths can preserve stale state",
-      "verification": ""
+      "verification": "Verified on B07-S06: PollFrame restores focused snapshot state, full reset clears pointer/focus metadata, regressions cover focus restoration and invalid lifecycle pointer reset, and fallback-strict gate passed at 2026-07-27T07:54:38+00:00."
     }
   ],
   "schema_version": 1
