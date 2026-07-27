@@ -51,6 +51,16 @@ regressions ran inside the same `StonerTest`/CI workflow and passed.
 - Recorded crossover: `DeferredAt64`
 - Result: pass; timing was evidence, not a speedup gate
 
+
+## CR-001 Evidence Refresh Note
+
+The retained Linux readback report above is the original Feature 019 closeout
+evidence for implementation commit `3012b4f500b8496bf69c2089d534a5b56adc6b77`.
+CR-001 subsequently strengthened native deferred validation to require 18 probes
+per depth convention and the six point/spot local-light edge probes introduced
+by `CR001-B08-F005`. Use this document as historical closeout evidence only
+until a fresh post-CR Linux CI artifact is recorded with the stricter validator.
+
 ## Failure And Cleanup Gates
 
 The deferred native suite always runs the runtime-independent lifecycle model.

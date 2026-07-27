@@ -90,7 +90,7 @@ python .github/scripts/run_deferred_validation.py \
   --timeout-seconds 1200
 ```
 
-The native profile fails unless it proves real Vulkan through a software adapter, executes the deferred graph through RHI offscreen bindings under both standard-Z and reversed-Z, validates at least 12 named probes per convention, completes all four comparison tiers, and reports zero final deferred frame-owned objects.
+The native profile fails unless it proves real Vulkan through a software adapter, executes the deferred graph through RHI offscreen bindings under both standard-Z and reversed-Z, validates at least 18 named probes per convention including the six required point/spot local-light edge probes, completes all four comparison tiers, and reports zero final deferred frame-owned objects.
 
 ## Inspect Native Probe Results
 
@@ -109,7 +109,7 @@ Expected gates:
 - no non-finite value;
 - standard-Z uses far clear `1.0` with `ERHICompareOp::LessEqual`;
 - reversed-Z uses far clear `0.0` with `ERHICompareOp::GreaterEqual`;
-- at least 12 passing probes per convention;
+- at least 18 passing probes per convention, including the six required point/spot local-light edge probes;
 - `validation-result=pass`;
 - `final-live-objects=0`.
 
