@@ -3276,6 +3276,12 @@
           "from": "Accepted",
           "note": "Tightened run_deferred_validation.py to require 18 probes per convention and all six point/spot LocalLightCase probes, expanded wrapper tests to reject stale reports, and aligned Feature 019 validation docs while preserving old completion artifacts as historical evidence only.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T10:34:21+00:00",
+          "from": "Fixed",
+          "note": "Verified in B08-S15 from current HEAD: wrapper unit tests pass, stale retained Linux report is rejected for fewer than 18 probes, active docs contain 18/local-light requirements, and old current-threshold phrases are absent.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B08-F006",
@@ -3284,9 +3290,9 @@
       "requirement": "Feature 019 validation contract: native Lavapipe readback must prove current deferred reference-scene probes and local-light coverage without semantic-oracle substitution.",
       "resolution": "Tightened run_deferred_validation.py to require 18 probes per convention and all six point/spot LocalLightCase probes, expanded wrapper tests to reject stale reports, and aligned Feature 019 validation docs while preserving old completion artifacts as historical evidence only.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Deferred validation artifacts and wrapper under-check local light readback coverage",
-      "verification": ""
+      "verification": "Verified in B08-S15 from current HEAD: wrapper unit tests pass, stale retained Linux report is rejected for fewer than 18 probes, active docs contain 18/local-light requirements, and old current-threshold phrases are absent."
     }
   ],
   "schema_version": 1
