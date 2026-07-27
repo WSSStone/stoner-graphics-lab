@@ -51,14 +51,14 @@
 ## CR001-B09-F001: Tests bypass Public/Private boundaries through global private include paths
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: Constitution Principle II and roadmap public/private API boundary discipline
 - Location: `Tests/SConscript:25`
 - Impact: Tests can normalize dependencies on implementation details, weaken compile-time boundary enforcement, and make later refactors unnecessarily broad.
 - Evidence: The single test target globally exposes Demo/StonerDemo/Private and Source/Application/Private; current tests directly include FWindowDriver.h and three demo-private headers.
-- Resolution: pending
+- Resolution: Tests/SConscript now compiles ordinary test sources with public include paths only and gives Private include paths only to the three test sources that explicitly exercise internals.
 - Verification: pending
-- Commit: `pending`
+- Commit: `cefe65f`
 
 ## CR001-B02-F001: FName public states violate text/hash identity invariants
 
@@ -951,14 +951,14 @@
 ## CR001-B09-F002: Test target exposes Private include paths to every test source
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: Constitution and CR-001 architecture protocol: production Public/Private boundaries should be enforced by build structure, and tests that need internals should be explicitly scoped instead of globally bypassing layer boundaries.
 - Location: `Tests/SConscript:28-31; Tests/TriangleDemoIntegrationTests.cpp:3-5; Tests/ApplicationWindowInputTests.cpp:4; Tests/CorePlatformTests.cpp:4-5`
 - Impact: Future tests can accidentally include private implementation headers or resolve an ambiguous basename through a Private directory while still compiling in CI. This weakens the layer-boundary proof that production BuildLayer enforces and makes architecture drift harder to detect before Feature 020 adds the Asset layer.
 - Evidence: Tests/SConscript appends Demo/StonerDemo/Private, Source/Application/Private, and Source/Core/Private to the shared test_env CPPPATH before compiling every Tests/*.cpp file. Only three test files include private headers: TriangleDemoIntegrationTests.cpp uses demo private runtime headers, ApplicationWindowInputTests.cpp uses FWindowDriver.h, and CorePlatformTests.cpp uses Core internal platform helpers. All other test sources inherit the same private search paths unnecessarily.
-- Resolution: pending
+- Resolution: Scoped private include paths by source file: ApplicationWindowInputTests gets Application/Private, CorePlatformTests gets Core/Private, TriangleDemoIntegrationTests gets Demo/StonerDemo/Private; all other Tests/*.cpp compile public-only.
 - Verification: pending
-- Commit: `pending`
+- Commit: `cefe65f`
 
 ## CR001-B09-F003: Single StonerTest entry point lacks suite selection for focused gates
 

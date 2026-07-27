@@ -158,7 +158,7 @@
     },
     {
       "batch": "B09",
-      "commit": "",
+      "commit": "cefe65f",
       "created_at": "2026-07-26T02:58:10+00:00",
       "deferred_target": "",
       "evidence": "The single test target globally exposes Demo/StonerDemo/Private and Source/Application/Private; current tests directly include FWindowDriver.h and three demo-private headers.",
@@ -174,15 +174,21 @@
           "from": "Triaged",
           "note": "Confirmed by test build include paths and active includes; design a TestSupport/internal-test boundary during B09 rather than changing application APIs in B01.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T10:44:39+00:00",
+          "from": "Accepted",
+          "note": "Tests/SConscript now compiles ordinary test sources with public include paths only and gives Private include paths only to the three test sources that explicitly exercise internals.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B09-F001",
       "impact": "Tests can normalize dependencies on implementation details, weaken compile-time boundary enforcement, and make later refactors unnecessarily broad.",
       "location": "Tests/SConscript:25",
       "requirement": "Constitution Principle II and roadmap public/private API boundary discipline",
-      "resolution": "",
+      "resolution": "Tests/SConscript now compiles ordinary test sources with public include paths only and gives Private include paths only to the three test sources that explicitly exercise internals.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Tests bypass Public/Private boundaries through global private include paths",
       "verification": ""
     },
@@ -3296,7 +3302,7 @@
     },
     {
       "batch": "B09",
-      "commit": "",
+      "commit": "cefe65f",
       "created_at": "2026-07-27T10:39:17+00:00",
       "deferred_target": "",
       "evidence": "Tests/SConscript appends Demo/StonerDemo/Private, Source/Application/Private, and Source/Core/Private to the shared test_env CPPPATH before compiling every Tests/*.cpp file. Only three test files include private headers: TriangleDemoIntegrationTests.cpp uses demo private runtime headers, ApplicationWindowInputTests.cpp uses FWindowDriver.h, and CorePlatformTests.cpp uses Core internal platform helpers. All other test sources inherit the same private search paths unnecessarily.",
@@ -3312,15 +3318,21 @@
           "from": "Triaged",
           "note": "Accepted for B09-S02: tests needing private headers should receive scoped private include paths or dedicated objects instead of exposing Private directories to every test translation unit.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T10:44:45+00:00",
+          "from": "Accepted",
+          "note": "Scoped private include paths by source file: ApplicationWindowInputTests gets Application/Private, CorePlatformTests gets Core/Private, TriangleDemoIntegrationTests gets Demo/StonerDemo/Private; all other Tests/*.cpp compile public-only.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B09-F002",
       "impact": "Future tests can accidentally include private implementation headers or resolve an ambiguous basename through a Private directory while still compiling in CI. This weakens the layer-boundary proof that production BuildLayer enforces and makes architecture drift harder to detect before Feature 020 adds the Asset layer.",
       "location": "Tests/SConscript:28-31; Tests/TriangleDemoIntegrationTests.cpp:3-5; Tests/ApplicationWindowInputTests.cpp:4; Tests/CorePlatformTests.cpp:4-5",
       "requirement": "Constitution and CR-001 architecture protocol: production Public/Private boundaries should be enforced by build structure, and tests that need internals should be explicitly scoped instead of globally bypassing layer boundaries.",
-      "resolution": "",
+      "resolution": "Scoped private include paths by source file: ApplicationWindowInputTests gets Application/Private, CorePlatformTests gets Core/Private, TriangleDemoIntegrationTests gets Demo/StonerDemo/Private; all other Tests/*.cpp compile public-only.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Test target exposes Private include paths to every test source",
       "verification": ""
     },

@@ -1,5 +1,5 @@
 {
-  "active_step": "B09-S02",
+  "active_step": "B09-S03",
   "batches": [
     {
       "id": "B00",
@@ -1723,13 +1723,15 @@
           "title": "Inspect: test target architecture and private boundaries"
         },
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "cefe65f",
+          "completed_at": "2026-07-27T10:45:22+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B09-test-target-private-boundaries-fix.md"
+          ],
           "id": "B09-S02",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Fixed B09 private include boundary findings by compiling test sources as explicit objects with Private include paths scoped only to the three internal-test translation units; strict fallback build and test executable passed.",
+          "started_at": "2026-07-27T10:41:36+00:00",
+          "status": "Completed",
           "title": "Fix: test target architecture and private boundaries"
         },
         {
@@ -5604,6 +5606,26 @@
       "at": "2026-07-27T10:40:33+00:00",
       "detail": "B09-S01",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T10:41:36+00:00",
+      "detail": "B09-S02",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T10:44:39+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T10:44:45+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T10:45:22+00:00",
+      "detail": "B09-S02",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5757,7 +5779,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "8b674691cde1ec0e625d1550c5328979acef1810"
+    "last_recorded_head": "cefe65f70b61373234c2a93122337458222e22a9"
   },
   "policy": {
     "fix_severities": [
@@ -5777,5 +5799,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T10:40:33+00:00"
+  "updated_at": "2026-07-27T10:45:22+00:00"
 }
