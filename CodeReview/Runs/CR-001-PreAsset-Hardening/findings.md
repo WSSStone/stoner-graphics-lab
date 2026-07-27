@@ -747,11 +747,11 @@
 ## CR001-B06-F001: Render graph execution resolves resources from culled branches
 
 - Severity: S2
-- Status: Accepted
+- Status: Fixed
 - Requirement: Feature 013 FR-012, FR-014, FR-015 and SC-007/SC-008 require output-based pass culling, execution of the compiled scheduled pass sequence, and rejection only for missing or invalid required imported resources.
 - Location: `Source/Renderer/Private/FRenderGraphExecutor.cpp:76`
 - Impact: A graph can compile with an unused branch correctly culled, yet still fail execution because a resource that cannot affect requested outputs is missing or transient resolution is simulated to fail. This makes culling incomplete at execution time and weakens render graph composition for optional debug/post-processing branches.
 - Evidence: FRenderGraphCompiler culls unused passes by replacing ScheduledPasses with the required-only CulledSchedule, but FRenderGraphExecutor::Execute iterates Graph.Resources instead of resources reachable from Graph.GetCompiledGraph().ScheduledPasses. Missing imported bindings or transient resolution failure from a culled branch can therefore fail execution before any scheduled pass callback runs.
-- Resolution: pending
+- Resolution: Fixed by deriving the execution resource set from compiled ScheduledPasses, skipping culled-branch resources during imported validation/transient resolution, and adding regression coverage for missing imports and transient resolution failures used only by culled passes.
 - Verification: pending
-- Commit: `pending`
+- Commit: `7292a65`

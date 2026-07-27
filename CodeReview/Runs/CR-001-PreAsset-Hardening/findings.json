@@ -2582,7 +2582,7 @@
     },
     {
       "batch": "B06",
-      "commit": "",
+      "commit": "7292a65",
       "created_at": "2026-07-27T05:58:38+00:00",
       "deferred_target": "",
       "evidence": "FRenderGraphCompiler culls unused passes by replacing ScheduledPasses with the required-only CulledSchedule, but FRenderGraphExecutor::Execute iterates Graph.Resources instead of resources reachable from Graph.GetCompiledGraph().ScheduledPasses. Missing imported bindings or transient resolution failure from a culled branch can therefore fail execution before any scheduled pass callback runs.",
@@ -2598,15 +2598,21 @@
           "from": "Triaged",
           "note": "Accepted for B06 fix scope. Executor should validate/resolve only resources required by the compiled executable schedule, while preserving diagnostics for genuinely required imported/transient resources. Existing tests cover required missing imports but not culled-branch resource isolation.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T06:06:59+00:00",
+          "from": "Accepted",
+          "note": "Fixed by deriving the execution resource set from compiled ScheduledPasses, skipping culled-branch resources during imported validation/transient resolution, and adding regression coverage for missing imports and transient resolution failures used only by culled passes.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B06-F001",
       "impact": "A graph can compile with an unused branch correctly culled, yet still fail execution because a resource that cannot affect requested outputs is missing or transient resolution is simulated to fail. This makes culling incomplete at execution time and weakens render graph composition for optional debug/post-processing branches.",
       "location": "Source/Renderer/Private/FRenderGraphExecutor.cpp:76",
       "requirement": "Feature 013 FR-012, FR-014, FR-015 and SC-007/SC-008 require output-based pass culling, execution of the compiled scheduled pass sequence, and rejection only for missing or invalid required imported resources.",
-      "resolution": "",
+      "resolution": "Fixed by deriving the execution resource set from compiled ScheduledPasses, skipping culled-branch resources during imported validation/transient resolution, and adding regression coverage for missing imports and transient resolution failures used only by culled passes.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Render graph execution resolves resources from culled branches",
       "verification": ""
     }
