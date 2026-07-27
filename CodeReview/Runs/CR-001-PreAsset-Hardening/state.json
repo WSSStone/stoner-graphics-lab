@@ -1,5 +1,5 @@
 {
-  "active_step": "B06-S16",
+  "active_step": "B06-S17",
   "batches": [
     {
       "id": "B00",
@@ -1266,12 +1266,14 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T07:11:08+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b06-forward-execution-graph-diagnostics-inspection.md"
+          ],
           "id": "B06-S16",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected forward execution, graph declaration, and diagnostics; accepted CR001-B06-F006 for missing material resource access edges.",
+          "started_at": "2026-07-27T07:07:54+00:00",
+          "status": "Completed",
           "title": "Inspect: forward execution, graph declaration, and diagnostics"
         },
         {
@@ -4797,6 +4799,26 @@
       "at": "2026-07-27T07:05:49+00:00",
       "detail": "B06-S15",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T07:07:54+00:00",
+      "detail": "B06-S16",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T07:10:06+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T07:10:18+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T07:11:08+00:00",
+      "detail": "B06-S16",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -4950,7 +4972,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "57827b3cfd2d50938ba24f8d435a2ff896204fc7"
+    "last_recorded_head": "1cdce302425c3db3edb3480565c1b124932fb0b8"
   },
   "policy": {
     "fix_severities": [
@@ -4970,5 +4992,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T07:05:49+00:00"
+  "updated_at": "2026-07-27T07:11:08+00:00"
 }
