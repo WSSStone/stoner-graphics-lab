@@ -815,3 +815,27 @@
 - Resolution: BuildForwardRenderGraphDeclaration now emits deduplicated Read access declarations for material resource requirements consumed by opaque and transparent forward passes; RendererForwardPipelineTests covers both pass categories. Debug build passed, the new regression passed in graphics-enabled StonerTest, and fallback-strict gate passed.
 - Verification: Verified on B06-S18: source evidence shows BuildForwardRenderGraphDeclaration emits material read accesses for accepted opaque and transparent draw resources, the regression asserts both ForwardOpaqueLighting and ForwardTransparent reads, and fallback-strict gate passed at 2026-07-27T07:22:11+00:00.
 - Commit: `10c3c5c`
+
+## CR001-B07-F001: Application loop ignores driver input events
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 016 FR-014 and the Application Loop Contract require the loop to poll events, derive input state, observe window state, and decide whether to continue in that order.
+- Location: `Source/Application/Private/FApplicationLoop.cpp:16`
+- Impact: Native window keyboard and mouse input can be lost during the normal application loop, so real-window demos or tools may observe empty input state despite driver callbacks firing.
+- Evidence: FApplicationLoop::Run calls Window.PollEvents() and then InputManager.PollFrame(...), but never queues Window.PollInputEvents() into the input manager. GLFW callbacks append keyboard, mouse, pointer, scroll, and focus-loss records to driver InputEvents, and those records are only exposed through ConsumeInputEvents()/FWindow::PollInputEvents().
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B07-F002: Real-window create failure can preserve stale active window state
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 016 Window Lifecycle Contract requires validation or runtime failures to produce diagnostics with no partially active window, and FR-007 requires failures to preserve only the previous valid display-mode state rather than stale create lifecycle state.
+- Location: `Source/Application/Private/FWindow.cpp:101`
+- Impact: Application code can treat a failed real-window create as an active valid window, exposing stale platform/client state and making downstream presentation and input loop decisions unsafe.
+- Evidence: FWindow::CreateRealWindow does not clear diagnostics or pending events at entry, returns ValidationFailed at line 111 without resetting LifecycleState or WindowId, and returns driver Create failures at lines 114-117 after resetting the driver but without restoring window state. A reused FWindow that was previously Active can therefore report a failed create while remaining Active.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`

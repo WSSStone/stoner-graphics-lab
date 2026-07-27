@@ -1,5 +1,5 @@
 {
-  "active_step": "B07-S01",
+  "active_step": "B07-S02",
   "batches": [
     {
       "id": "B00",
@@ -1307,16 +1307,19 @@
     },
     {
       "id": "B07",
-      "status": "Pending",
+      "status": "InProgress",
       "steps": [
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T07:28:30+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B07-window-lifecycle-drivers-loop-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b07-window-lifecycle-drivers-loop-inspection.md"
+          ],
           "id": "B07-S01",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected Feature 016 window lifecycle, drivers, and loop. Opened and accepted CR001-B07-F001 for missing driver input ingestion in the application loop and CR001-B07-F002 for stale active state after real-window create failure paths.",
+          "started_at": "2026-07-27T07:24:36+00:00",
+          "status": "Completed",
           "title": "Inspect: window lifecycle, drivers, and loop"
         },
         {
@@ -4865,6 +4868,36 @@
       "at": "2026-07-27T07:23:06+00:00",
       "detail": "B06-S18",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T07:24:36+00:00",
+      "detail": "B07-S01",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T07:27:10+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T07:27:13+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T07:27:39+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T07:27:43+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T07:28:30+00:00",
+      "detail": "B07-S01",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5018,7 +5051,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "5e06cbc2d27ed42991179249ec8d4c72db4b58c0"
+    "last_recorded_head": "5a0b4a78a87f6d8888f568802d7c0e0063d7a34b"
   },
   "policy": {
     "fix_severities": [
@@ -5038,5 +5071,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T07:23:06+00:00"
+  "updated_at": "2026-07-27T07:28:30+00:00"
 }

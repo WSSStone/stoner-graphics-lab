@@ -2831,6 +2831,66 @@
       "status": "Verified",
       "title": "Forward graph declarations omit material resource access edges",
       "verification": "Verified on B06-S18: source evidence shows BuildForwardRenderGraphDeclaration emits material read accesses for accepted opaque and transparent draw resources, the regression asserts both ForwardOpaqueLighting and ForwardTransparent reads, and fallback-strict gate passed at 2026-07-27T07:22:11+00:00."
+    },
+    {
+      "batch": "B07",
+      "commit": "",
+      "created_at": "2026-07-27T07:27:10+00:00",
+      "deferred_target": "",
+      "evidence": "FApplicationLoop::Run calls Window.PollEvents() and then InputManager.PollFrame(...), but never queues Window.PollInputEvents() into the input manager. GLFW callbacks append keyboard, mouse, pointer, scroll, and focus-loss records to driver InputEvents, and those records are only exposed through ConsumeInputEvents()/FWindow::PollInputEvents().",
+      "history": [
+        {
+          "at": "2026-07-27T07:27:39+00:00",
+          "from": "Open",
+          "note": "Accepted for B07 fix. The normal application loop must bridge driver input events into FInputManager before PollFrame; current tests only cover manual PollInputEvents, leaving the loop contract unverified for real driver input.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-27T07:27:39+00:00",
+          "from": "Triaged",
+          "note": "Accepted for B07 fix. The normal application loop must bridge driver input events into FInputManager before PollFrame; current tests only cover manual PollInputEvents, leaving the loop contract unverified for real driver input.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B07-F001",
+      "impact": "Native window keyboard and mouse input can be lost during the normal application loop, so real-window demos or tools may observe empty input state despite driver callbacks firing.",
+      "location": "Source/Application/Private/FApplicationLoop.cpp:16",
+      "requirement": "Feature 016 FR-014 and the Application Loop Contract require the loop to poll events, derive input state, observe window state, and decide whether to continue in that order.",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Application loop ignores driver input events",
+      "verification": ""
+    },
+    {
+      "batch": "B07",
+      "commit": "",
+      "created_at": "2026-07-27T07:27:13+00:00",
+      "deferred_target": "",
+      "evidence": "FWindow::CreateRealWindow does not clear diagnostics or pending events at entry, returns ValidationFailed at line 111 without resetting LifecycleState or WindowId, and returns driver Create failures at lines 114-117 after resetting the driver but without restoring window state. A reused FWindow that was previously Active can therefore report a failed create while remaining Active.",
+      "history": [
+        {
+          "at": "2026-07-27T07:27:43+00:00",
+          "from": "Open",
+          "note": "Accepted for B07 fix. CreateRealWindow failure paths must match the headless Create failure contract by clearing transient state and leaving no active stale window after validation/runtime failure.",
+          "to": "Triaged"
+        },
+        {
+          "at": "2026-07-27T07:27:43+00:00",
+          "from": "Triaged",
+          "note": "Accepted for B07 fix. CreateRealWindow failure paths must match the headless Create failure contract by clearing transient state and leaving no active stale window after validation/runtime failure.",
+          "to": "Accepted"
+        }
+      ],
+      "id": "CR001-B07-F002",
+      "impact": "Application code can treat a failed real-window create as an active valid window, exposing stale platform/client state and making downstream presentation and input loop decisions unsafe.",
+      "location": "Source/Application/Private/FWindow.cpp:101",
+      "requirement": "Feature 016 Window Lifecycle Contract requires validation or runtime failures to produce diagnostics with no partially active window, and FR-007 requires failures to preserve only the previous valid display-mode state rather than stale create lifecycle state.",
+      "resolution": "",
+      "severity": "S2",
+      "status": "Accepted",
+      "title": "Real-window create failure can preserve stale active window state",
+      "verification": ""
     }
   ],
   "schema_version": 1
