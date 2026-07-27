@@ -2288,7 +2288,7 @@
     },
     {
       "batch": "B05",
-      "commit": "",
+      "commit": "d5f1714",
       "created_at": "2026-07-27T03:11:38+00:00",
       "deferred_target": "",
       "evidence": "IsValidRHIShaderBytecode checks only size >= 4, format text, and the magic word; it neither validates the complete SPIR-V header/instruction stream nor finds the declared entry point and execution model. Maintained MakeShaderDesc/ShaderDesc fixtures contain only four words, no complete five-word header or OpEntryPoint, yet device and mock factories accept them as valid vertex, fragment, and compute modules.",
@@ -2304,21 +2304,27 @@
           "from": "Triaged",
           "note": "The four-word maintained fixtures and magic-only helper directly contradict Feature 012's structural and wrong-stage rejection requirements. B05-S08 should introduce bounded SPIR-V structural/entry-point validation and replace all synthetic valid fixtures with genuine minimal or repository-owned validated payloads.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T03:38:44+00:00",
+          "from": "Accepted",
+          "note": "Added bounded SPIR-V header and instruction validation plus exact execution-model and entry-point matching; maintained fixtures now use valid modules and cover truncated, overrun, wrong-stage, and missing-entry cases.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B05-F007",
       "impact": "Deterministic fallback can publish Valid shader modules and pipelines from unusable or wrong-stage payloads, so failures move from the documented creation boundary into later native pipeline creation or asset consumption and SC-002's malformed/wrong-stage rejection claim is unsupported.",
       "location": "Source/RHI/Public/RHI/FRHIShaderModuleDesc.h:106",
       "requirement": "012-FR-001, 012-FR-002, 012-FR-003a, 012-SC-002, and the Shader Module Contract",
-      "resolution": "",
+      "resolution": "Added bounded SPIR-V header and instruction validation plus exact execution-model and entry-point matching; maintained fixtures now use valid modules and cover truncated, overrun, wrong-stage, and missing-entry cases.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Shader validation accepts malformed and wrong-stage SPIR-V",
       "verification": ""
     },
     {
       "batch": "B05",
-      "commit": "",
+      "commit": "d5f1714",
       "created_at": "2026-07-27T03:11:53+00:00",
       "deferred_target": "",
       "evidence": "FVulkanShaderModule and FVulkanPipelineLayout expose public constructors and carry no device owner identity. Graphics and compute pipeline validation checks only dynamic type, lifecycle, stage, and metadata compatibility, so valid wrappers created directly or by another active FVulkanDevice are accepted. FVulkanDevice::CreateShaderModule also performs throwing MakeShared and vector insertion without mapping allocation or tracking failure to an explicit result.",
@@ -2334,21 +2340,27 @@
           "from": "Triaged",
           "note": "Feature 008 makes the device authoritative for shader and layout creation, but the current public constructors, absent owner identity, cross-device pipeline acceptance, and uncaught factory allocations bypass that boundary. B05-S08 should close construction, attach shared provenance, validate dependencies, and make factories failure-atomic.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T03:38:56+00:00",
+          "from": "Accepted",
+          "note": "Made Vulkan shader modules and pipeline layouts device-owned, retained owner identity, rejected cross-device composition, and made native/wrapper/tracking allocation failures rollback atomically.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B05-F008",
       "impact": "Callers can bypass the authoritative device factory and compose cross-device dependencies; a future native handle would then be consumed by the wrong device. Allocation failure can also escape the RHI result contract, while factory publication and shutdown ownership cannot prove one authoritative device.",
       "location": "Source/Backend/Vulkan/Public/VulkanRHI/FVulkanShaderModule.h:11",
       "requirement": "008-FR-017, 012-FR-002, 012-FR-018, T034-T035, and the Shader Module Contract",
-      "resolution": "",
+      "resolution": "Made Vulkan shader modules and pipeline layouts device-owned, retained owner identity, rejected cross-device composition, and made native/wrapper/tracking allocation failures rollback atomically.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "Shader and layout objects bypass device ownership and provenance",
       "verification": ""
     },
     {
       "batch": "B05",
-      "commit": "",
+      "commit": "d5f1714",
       "created_at": "2026-07-27T03:12:08+00:00",
       "deferred_target": "",
       "evidence": "FVulkanInstance rejects every RealRuntime request as Unsupported because FVulkanDevice owns no native Vulkan device; the only active FVulkanDevice mode is explicit deterministic fallback. FVulkanDevice::CreateShaderModule contains no vkCreateShaderModule path and therefore its Runtime validation branch is unreachable. Native contexts create VkShaderModule separately but do not return IRHIShaderModule objects or satisfy the RHI factory contract.",
@@ -2364,15 +2376,21 @@
           "from": "Triaged",
           "note": "B04-F001 correctly stopped deterministic fallback from masquerading as a real runtime; this finding records the remaining Feature 012 gap exposed by that fix. B05-S08 must establish an owner-safe RHI integration with the existing native context or explicitly return a non-success mode without unreachable Runtime claims, while preserving real native shader proof and avoiding duplicated authority.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T03:39:07+00:00",
+          "from": "Accepted",
+          "note": "Added an opt-in owner-safe native shader context used by the RHI factory; only wrappers retaining a real VkShaderModule report RealRuntime, while default device resources remain explicit deterministic fallback.",
+          "to": "Fixed"
         }
       ],
       "id": "CR001-B05-F009",
       "impact": "Renderer/RHI consumers can never obtain the documented real-runtime shader module or pipeline path, forcing actual rendering through duplicated backend-private contexts and leaving Feature 012's runtime validation and abstraction promise unfulfilled despite native Vulkan availability elsewhere in the process.",
       "location": "Source/Backend/Vulkan/Private/FVulkanInstance.cpp:62",
       "requirement": "012-FR-001, 012-FR-003a, 012-SC-001, the Feature 012 clarification on runtime objects, and the Shader Module Contract",
-      "resolution": "",
+      "resolution": "Added an opt-in owner-safe native shader context used by the RHI factory; only wrappers retaining a real VkShaderModule report RealRuntime, while default device resources remain explicit deterministic fallback.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Fixed",
       "title": "The RHI real-runtime shader contract is unreachable",
       "verification": ""
     }
