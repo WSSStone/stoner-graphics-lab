@@ -1,5 +1,5 @@
 {
-  "active_step": "B06-S04",
+  "active_step": "B06-S05",
   "batches": [
     {
       "id": "B00",
@@ -1122,12 +1122,14 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T06:12:06+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b06-render-graph-execution-resources-diagnostics-inspection.md"
+          ],
           "id": "B06-S04",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected render graph execution/resource/diagnostic boundaries after B06-S02. No new S0-S2 finding accepted; recorded watch item for future real-backend transition interleaving.",
+          "started_at": "2026-07-27T06:11:07+00:00",
+          "status": "Completed",
           "title": "Inspect: render graph execution, resources, and diagnostics"
         },
         {
@@ -4548,6 +4550,16 @@
       "at": "2026-07-27T06:09:56+00:00",
       "detail": "B06-S03",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T06:11:07+00:00",
+      "detail": "B06-S04",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T06:12:06+00:00",
+      "detail": "B06-S04",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -4701,7 +4713,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "14afa4cfab8590ca7e21638737010855bfb9bf1e"
+    "last_recorded_head": "1778acea954f1ee85e453ffface92340550bd440"
   },
   "policy": {
     "fix_severities": [
@@ -4721,5 +4733,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T06:09:56+00:00"
+  "updated_at": "2026-07-27T06:12:06+00:00"
 }
