@@ -1,5 +1,5 @@
 {
-  "active_step": "B06-S09",
+  "active_step": "B06-S10",
   "batches": [
     {
       "id": "B00",
@@ -1182,12 +1182,14 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T06:30:04+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b06-shader-library-permutations-verification.md"
+          ],
           "id": "B06-S09",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Verified CR001-B06-F002 with parent/current registration audit, registration-time regression evidence, and passing fallback-strict, strict-release, and sanitizer gates.",
+          "started_at": "2026-07-27T06:28:40+00:00",
+          "status": "Completed",
           "title": "Verify: shader library and permutations"
         },
         {
@@ -4638,6 +4640,21 @@
       "at": "2026-07-27T06:27:23+00:00",
       "detail": "B06-S08",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T06:28:40+00:00",
+      "detail": "B06-S09",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T06:29:14+00:00",
+      "detail": "verify finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T06:30:04+00:00",
+      "detail": "B06-S09",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -4791,7 +4808,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "0daa3341b603b2608465d5c6f3f86c8b483ff94a"
+    "last_recorded_head": "925b4191d8deb5b0053d117168c10f9cba15ea13"
   },
   "policy": {
     "fix_severities": [
@@ -4811,5 +4828,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T06:27:23+00:00"
+  "updated_at": "2026-07-27T06:30:04+00:00"
 }

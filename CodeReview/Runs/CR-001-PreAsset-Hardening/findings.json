@@ -2646,6 +2646,12 @@
           "from": "Accepted",
           "note": "Fixed by validating shader records during RegisterShaderRecord: duplicate/empty allowed flags, empty/duplicate variant ids, duplicate canonical variant keys, and variant flags outside the record's allowed flag set now fail with deterministic diagnostics. Added focused registration-time regression tests.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T06:29:14+00:00",
+          "from": "Fixed",
+          "note": "Verified parent/current shader registration behavior: parent only sorted allowed flags/variants before insertion, current rejects duplicate/empty flags, empty/duplicate variant ids, duplicate canonical variant keys, and undeclared variant flags before insertion. Registration-time regression tests are present and fallback-strict, strict-release, and sanitizer gates pass.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B06-F002",
@@ -2654,9 +2660,9 @@
       "requirement": "Feature 014 FR-011, FR-012, FR-014, FR-018 and data-model rules require shader records to declare valid allowed permutation flags, unique variant identities, variants whose permutation keys use only declared flags, and deterministic rejection of unavailable/invalid shader variants.",
       "resolution": "Fixed by validating shader records during RegisterShaderRecord: duplicate/empty allowed flags, empty/duplicate variant ids, duplicate canonical variant keys, and variant flags outside the record's allowed flag set now fail with deterministic diagnostics. Added focused registration-time regression tests.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Shader library registration accepts invalid variant metadata",
-      "verification": ""
+      "verification": "Verified parent/current shader registration behavior: parent only sorted allowed flags/variants before insertion, current rejects duplicate/empty flags, empty/duplicate variant ids, duplicate canonical variant keys, and undeclared variant flags before insertion. Registration-time regression tests are present and fallback-strict, strict-release, and sanitizer gates pass."
     }
   ],
   "schema_version": 1

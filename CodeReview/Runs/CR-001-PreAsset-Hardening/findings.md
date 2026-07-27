@@ -759,11 +759,11 @@
 ## CR001-B06-F002: Shader library registration accepts invalid variant metadata
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 014 FR-011, FR-012, FR-014, FR-018 and data-model rules require shader records to declare valid allowed permutation flags, unique variant identities, variants whose permutation keys use only declared flags, and deterministic rejection of unavailable/invalid shader variants.
 - Location: `Source/Renderer/Private/FShaderLibrary.cpp:46`
 - Impact: A malformed precompiled shader record can enter the library and later participate in material binding or dumps. This weakens the registry contract needed before asset-backed shader records in Feature 024/Asset work, and can make missing/ambiguous variant failures depend on registration order rather than deterministic validation.
 - Evidence: RegisterShaderRecord sorts allowed flags and variants but does not reject duplicate allowed flag declarations with diagnostics, duplicate variant ids, duplicate canonical variant permutation keys, empty variant ids, or variant permutations containing flags outside AllowedPermutationFlags. Tests cover unknown flags during ResolveVariant but not invalid records at registration time.
 - Resolution: Fixed by validating shader records during RegisterShaderRecord: duplicate/empty allowed flags, empty/duplicate variant ids, duplicate canonical variant keys, and variant flags outside the record's allowed flag set now fail with deterministic diagnostics. Added focused registration-time regression tests.
-- Verification: pending
+- Verification: Verified parent/current shader registration behavior: parent only sorted allowed flags/variants before insertion, current rejects duplicate/empty flags, empty/duplicate variant ids, duplicate canonical variant keys, and undeclared variant flags before insertion. Registration-time regression tests are present and fallback-strict, strict-release, and sanitizer gates pass.
 - Commit: `0daa334`
