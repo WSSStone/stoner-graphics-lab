@@ -2,13 +2,14 @@
 
 ## Scope
 
-Closeout gate evidence for CR-001 B10-S02. This step validates the current CR head after B10 traceability closeout and records the final local gates that do not require remote CI quota.
+Closeout gate evidence for CR-001 B10-S02 and final completion audit. This step validates the current CR head after B10 traceability closeout and records the final local gates that do not require remote CI quota.
 
 ## Gate Results
 
 | Gate | Result | Recorded At | Evidence |
 | --- | --- | --- | --- |
 | `cli-tests` | PASS | 2026-07-27T11:40:42+00:00 | `CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/gate-cli-tests.json` |
+| `tests` | PASS | 2026-07-27T11:51:43+00:00 | `CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/gate-tests.json` |
 | `strict-debug` | PASS | 2026-07-27T11:40:45+00:00 | `CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/gate-strict-debug.json` |
 | `strict-release` | PASS | 2026-07-27T11:41:27+00:00 | `CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/gate-strict-release.json` |
 | `sanitizers` | PASS | 2026-07-27T11:42:14+00:00 | `CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/gate-sanitizers.json` |
@@ -31,4 +32,5 @@ Closeout gate evidence for CR-001 B10-S02. This step validates the current CR he
 ## Notes
 
 - Initial bare-system Python invocations of `crctl gate` were discarded as environment mistakes: they failed because the active interpreter lacked the CR requirements and `scons` executable path. The same profiles were rerun through `conda run -n stoner-cr python ...` and passed.
-- Remote GitHub CI was not rerun in this closeout step to avoid unnecessary external quota use. The local gates above are the authoritative B10-S02 evidence.
+- `tests` was rerun after closeout to overwrite the stale pre-close failed record; the final state records it as PASS.
+- Remote GitHub CI was not rerun in this closeout step to avoid unnecessary external quota use. The local gates above are the authoritative B10-S02/B10-S03 evidence.
