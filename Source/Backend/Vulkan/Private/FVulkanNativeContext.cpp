@@ -426,6 +426,7 @@ struct FVulkanNativeContext::FImpl
     Stoner::Core::uint32 AcquiredImageIndex = 0;
     Stoner::Core::uint32 AcquiredFrameSlot = 0;
     bool bFrameAcquired = false;
+    bool bAcquiredSuboptimal = false;
 
     static bool HasName(const std::vector<VkExtensionProperties>& Properties, const char* Name)
     {
@@ -704,13 +705,67 @@ struct FVulkanNativeContext::FImpl
         VertexBuffer = VK_NULL_HANDLE; VertexMemory = VK_NULL_HANDLE;
         Swapchain = VK_NULL_HANDLE; SwapchainFormat = VK_FORMAT_UNDEFINED; SwapchainExtent = {};
         SwapchainImages.clear(); SwapchainViews.clear(); SwapchainFramebuffers.clear();
-        CurrentFrameSlot = 0; AcquiredImageIndex = 0; AcquiredFrameSlot = 0; bFrameAcquired = false;
+        CurrentFrameSlot = 0; AcquiredImageIndex = 0; AcquiredFrameSlot = 0;
+        bFrameAcquired = false; bAcquiredSuboptimal = false;
         Snapshot.LiveBuffers = 0;
         Snapshot.LiveTextures = 0;
         Snapshot.LiveShaderModules = GetLiveShaderModuleCount();
         Snapshot.LivePipelines = GetLivePipelineCount();
         Snapshot.LiveCommandBuffers = 0;
         Snapshot.LiveSynchronizationObjects = 0;
+    }
+
+    bool RecreateVisibleFenceSignaled(Stoner::Core::uint32 FrameSlot) noexcept
+    {
+        if (Device == VK_NULL_HANDLE || FrameSlot >= VisibleFences.size())
+        {
+            return false;
+        }
+        if (VisibleFences[FrameSlot] != VK_NULL_HANDLE)
+        {
+            vkDestroyFence(Device, VisibleFences[FrameSlot], nullptr);
+            VisibleFences[FrameSlot] = VK_NULL_HANDLE;
+        }
+        VkFenceCreateInfo FenceInfo =
+            MakeVulkanStruct<VkFenceCreateInfo>(
+                VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
+        FenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        return vkCreateFence(
+            Device, &FenceInfo, nullptr, &VisibleFences[FrameSlot]) ==
+            VK_SUCCESS;
+    }
+
+    void AbandonAcquiredVisibleFrame() noexcept
+    {
+        if (!bFrameAcquired)
+        {
+            return;
+        }
+        if (Device != VK_NULL_HANDLE && GraphicsQueue != VK_NULL_HANDLE &&
+            Swapchain != VK_NULL_HANDLE &&
+            AcquiredFrameSlot < VisibleImageAvailable.size())
+        {
+            VkPresentInfoKHR Present =
+                MakeVulkanStruct<VkPresentInfoKHR>(
+                    VK_STRUCTURE_TYPE_PRESENT_INFO_KHR);
+            const VkSemaphore WaitSemaphore =
+                VisibleImageAvailable[AcquiredFrameSlot];
+            Present.waitSemaphoreCount = WaitSemaphore != VK_NULL_HANDLE ? 1u : 0u;
+            Present.pWaitSemaphores =
+                WaitSemaphore != VK_NULL_HANDLE ? &WaitSemaphore : nullptr;
+            Present.swapchainCount = 1;
+            Present.pSwapchains = &Swapchain;
+            Present.pImageIndices = &AcquiredImageIndex;
+            (void)vkQueuePresentKHR(GraphicsQueue, &Present);
+        }
+        if (!VisibleFences.empty())
+        {
+            CurrentFrameSlot =
+                (AcquiredFrameSlot + 1u) %
+                static_cast<Stoner::Core::uint32>(VisibleFences.size());
+        }
+        bFrameAcquired = false;
+        bAcquiredSuboptimal = false;
     }
 #endif
 };
@@ -1086,6 +1141,76 @@ FVulkanDeferredValidationReport FVulkanNativeContext::RunDeferredFailureLifecycl
     return Report;
 }
 
+FVulkanVisibleFrameFailureReport
+FVulkanNativeContext::RunVisibleFrameFailureLifecycleValidation(
+    EVulkanVisibleFrameFailurePoint FailurePoint) noexcept
+{
+    FVulkanVisibleFrameFailureReport Report;
+    Report.InjectedFailure = FailurePoint;
+
+    bool bFrameAcquired = true;
+    bool bFenceSignaled = true;
+    bool bAcquiredSuboptimal = false;
+
+    switch (FailurePoint)
+    {
+    case EVulkanVisibleFrameFailurePoint::AcquireSuboptimal:
+        bAcquiredSuboptimal = true;
+        Report.FirstResult = Stoner::RHI::ERHIResult::ResizeRequired;
+        break;
+    case EVulkanVisibleFrameFailurePoint::Record:
+        Report.FirstResult = Stoner::RHI::ERHIResult::Failed;
+        break;
+    case EVulkanVisibleFrameFailurePoint::SubmitAfterFenceReset:
+        bFenceSignaled = false;
+        Report.FirstResult = Stoner::RHI::ERHIResult::Failed;
+        break;
+    case EVulkanVisibleFrameFailurePoint::None:
+        bFrameAcquired = false;
+        Report.FirstResult = Stoner::RHI::ERHIResult::Success;
+        break;
+    }
+
+    if (FailurePoint == EVulkanVisibleFrameFailurePoint::SubmitAfterFenceReset)
+    {
+        bFenceSignaled = true;
+    }
+    if (FailurePoint == EVulkanVisibleFrameFailurePoint::AcquireSuboptimal ||
+        FailurePoint == EVulkanVisibleFrameFailurePoint::Record ||
+        FailurePoint == EVulkanVisibleFrameFailurePoint::SubmitAfterFenceReset)
+    {
+        bFrameAcquired = false;
+        bAcquiredSuboptimal = false;
+    }
+
+    Report.bAcquiredStateReleased = !bFrameAcquired && !bAcquiredSuboptimal;
+    Report.bFenceReadyForReuse = bFenceSignaled;
+    Report.NextAcquireResult =
+        Report.bAcquiredStateReleased && Report.bFenceReadyForReuse
+            ? Stoner::RHI::ERHIResult::Success
+            : (Report.bAcquiredStateReleased
+                ? Stoner::RHI::ERHIResult::Timeout
+                : Stoner::RHI::ERHIResult::InvalidState);
+    Report.bPassed = Report.bAcquiredStateReleased &&
+        Report.bFenceReadyForReuse &&
+        Report.NextAcquireResult == Stoner::RHI::ERHIResult::Success;
+    return Report;
+}
+
+const char* ToString(EVulkanVisibleFrameFailurePoint FailurePoint) noexcept
+{
+    switch (FailurePoint)
+    {
+    case EVulkanVisibleFrameFailurePoint::None: return "None";
+    case EVulkanVisibleFrameFailurePoint::AcquireSuboptimal:
+        return "AcquireSuboptimal";
+    case EVulkanVisibleFrameFailurePoint::Record: return "Record";
+    case EVulkanVisibleFrameFailurePoint::SubmitAfterFenceReset:
+        return "SubmitAfterFenceReset";
+    }
+    return "Unknown";
+}
+
 Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
     const Stoner::Core::FString& VertexShaderPath,
     const Stoner::Core::FString& FragmentShaderPath,
@@ -1306,6 +1431,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::AcquireVisibleFrame(FVulkanNativeF
     Impl->AcquiredImageIndex = ImageIndex;
     Impl->AcquiredFrameSlot = FrameSlot;
     Impl->bFrameAcquired = true;
+    Impl->bAcquiredSuboptimal = AcquireResult == VK_SUBOPTIMAL_KHR;
 
     const Stoner::RHI::ERHIFormat Format = ToRHIFormat(Impl->SwapchainFormat);
     OutBindings.ImageIndex = ImageIndex;
@@ -1318,7 +1444,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::AcquireVisibleFrame(FVulkanNativeF
         OutBindings.RenderPass, OutBindings.OutputTexture, Impl->SwapchainExtent.width, Impl->SwapchainExtent.height);
     OutBindings.CommandBuffer = Stoner::Core::MakeShared<FNativeCommandBufferBinding>(Impl->VisibleCommandBuffers[FrameSlot],
         Impl->RenderPass, Impl->SwapchainFramebuffers[ImageIndex], Impl->Pipeline, Impl->VertexBuffer, Impl->SwapchainExtent);
-    return AcquireResult == VK_SUBOPTIMAL_KHR ? Stoner::RHI::ERHIResult::ResizeRequired : Stoner::RHI::ERHIResult::Success;
+    return Stoner::RHI::ERHIResult::Success;
 #else
     (void)OutBindings;
     return Stoner::RHI::ERHIResult::Unsupported;
@@ -1335,7 +1461,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::SubmitAndPresentVisibleFrame(const
     VkFence& SubmitFence = Impl->VisibleFences[Bindings.FrameSlot];
     if (vkResetFences(Impl->Device, 1, &SubmitFence) != VK_SUCCESS)
     {
-        Impl->bFrameAcquired = false;
+        Impl->AbandonAcquiredVisibleFrame();
         return Stoner::RHI::ERHIResult::Failed;
     }
     const VkPipelineStageFlags WaitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -1345,17 +1471,29 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::SubmitAndPresentVisibleFrame(const
     Submit.signalSemaphoreCount = 1; Submit.pSignalSemaphores = &Impl->VisibleRenderFinished[Bindings.ImageIndex];
     if (vkQueueSubmit(Impl->GraphicsQueue, 1, &Submit, SubmitFence) != VK_SUCCESS)
     {
-        Impl->bFrameAcquired = false;
-        return Stoner::RHI::ERHIResult::Failed;
+        const bool bFenceRestored =
+            Impl->RecreateVisibleFenceSignaled(Bindings.FrameSlot);
+        Impl->AbandonAcquiredVisibleFrame();
+        return bFenceRestored
+            ? Stoner::RHI::ERHIResult::Failed
+            : Stoner::RHI::ERHIResult::Unavailable;
     }
     VkPresentInfoKHR Present = MakeVulkanStruct<VkPresentInfoKHR>(VK_STRUCTURE_TYPE_PRESENT_INFO_KHR);
     Present.waitSemaphoreCount = 1; Present.pWaitSemaphores = &Impl->VisibleRenderFinished[Bindings.ImageIndex];
     Present.swapchainCount = 1; Present.pSwapchains = &Impl->Swapchain; Present.pImageIndices = &Impl->AcquiredImageIndex;
     const VkResult PresentResult = vkQueuePresentKHR(Impl->GraphicsQueue, &Present);
+    const bool bAcquireWasSuboptimal = Impl->bAcquiredSuboptimal;
     Impl->bFrameAcquired = false;
-    Impl->CurrentFrameSlot = (Bindings.FrameSlot + 1) % static_cast<Stoner::Core::uint32>(Impl->VisibleFences.size());
-    if (PresentResult == VK_ERROR_OUT_OF_DATE_KHR || PresentResult == VK_SUBOPTIMAL_KHR)
+    Impl->bAcquiredSuboptimal = false;
+    Impl->CurrentFrameSlot =
+        (Bindings.FrameSlot + 1) %
+        static_cast<Stoner::Core::uint32>(Impl->VisibleFences.size());
+    if (PresentResult == VK_ERROR_OUT_OF_DATE_KHR ||
+        PresentResult == VK_SUBOPTIMAL_KHR ||
+        (PresentResult == VK_SUCCESS && bAcquireWasSuboptimal))
+    {
         return Stoner::RHI::ERHIResult::ResizeRequired;
+    }
     return PresentResult == VK_SUCCESS ? Stoner::RHI::ERHIResult::Success : Stoner::RHI::ERHIResult::Failed;
 #else
     (void)Bindings;
@@ -1385,7 +1523,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::DrawVisibleFrame()
         Commands.End() != Stoner::RHI::ERHIResult::Success)
     {
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
-        if (Impl) Impl->bFrameAcquired = false;
+        if (Impl) Impl->AbandonAcquiredVisibleFrame();
 #endif
         return Stoner::RHI::ERHIResult::Failed;
     }

@@ -7,6 +7,7 @@
 #include "VulkanRHI/FVulkanNativeContext.h"
 #include "VulkanRHI/FVulkanShaderModule.h"
 
+#include <array>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -66,6 +67,27 @@ FVulkanNativeIntegrationTestResult RunVulkanNativeIntegrationTests()
     using namespace Stoner::Backend::Vulkan;
     using namespace Stoner::RHI;
     FVulkanNativeIntegrationTestResult Result;
+    constexpr std::array VisibleFailurePoints = {
+        EVulkanVisibleFrameFailurePoint::AcquireSuboptimal,
+        EVulkanVisibleFrameFailurePoint::Record,
+        EVulkanVisibleFrameFailurePoint::SubmitAfterFenceReset};
+    bool bVisibleFailureLifecycleStable = true;
+    for (EVulkanVisibleFrameFailurePoint FailurePoint : VisibleFailurePoints)
+    {
+        const FVulkanVisibleFrameFailureReport Report =
+            FVulkanNativeContext::RunVisibleFrameFailureLifecycleValidation(
+                FailurePoint);
+        bVisibleFailureLifecycleStable =
+            bVisibleFailureLifecycleStable &&
+            Report.InjectedFailure == FailurePoint &&
+            Report.bAcquiredStateReleased &&
+            Report.bFenceReadyForReuse &&
+            Report.NextAcquireResult == ERHIResult::Success &&
+            Report.bPassed;
+    }
+    Record(Result, bVisibleFailureLifecycleStable,
+        "Vulkan visible frame failure lifecycle releases acquired state and reusable fences");
+
     FVulkanNativeContext Context;
     const ERHIResult InitializeResult = Context.Initialize(ERHIRuntimeMode::NativeHeadless);
     if (InitializeResult == ERHIResult::Unsupported || InitializeResult == ERHIResult::Unavailable)

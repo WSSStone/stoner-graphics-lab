@@ -34,6 +34,14 @@ enum class EVulkanDeferredFailurePoint
     Probe
 };
 
+enum class EVulkanVisibleFrameFailurePoint
+{
+    None,
+    AcquireSuboptimal,
+    Record,
+    SubmitAfterFenceReset
+};
+
 struct FVulkanDeferredProbe
 {
     Stoner::Core::FString Convention;
@@ -81,6 +89,17 @@ struct FVulkanNativeFrameBindings
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHICommandBuffer> CommandBuffer;
 };
 
+struct FVulkanVisibleFrameFailureReport
+{
+    EVulkanVisibleFrameFailurePoint InjectedFailure =
+        EVulkanVisibleFrameFailurePoint::None;
+    Stoner::RHI::ERHIResult FirstResult = Stoner::RHI::ERHIResult::Success;
+    Stoner::RHI::ERHIResult NextAcquireResult = Stoner::RHI::ERHIResult::Success;
+    bool bAcquiredStateReleased = false;
+    bool bFenceReadyForReuse = false;
+    bool bPassed = false;
+};
+
 class FVulkanNativeContext
 {
 public:
@@ -100,6 +119,9 @@ public:
         EVulkanDeferredFailurePoint FailurePoint = EVulkanDeferredFailurePoint::None);
     [[nodiscard]] static FVulkanDeferredValidationReport
     RunDeferredFailureLifecycleValidation(EVulkanDeferredFailurePoint FailurePoint) noexcept;
+    [[nodiscard]] static FVulkanVisibleFrameFailureReport
+    RunVisibleFrameFailureLifecycleValidation(
+        EVulkanVisibleFrameFailurePoint FailurePoint) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult PrepareVisibleTriangle(
         const Stoner::Core::FString& VertexShaderPath,
         const Stoner::Core::FString& FragmentShaderPath,
@@ -142,5 +164,6 @@ private:
 };
 
 [[nodiscard]] const char* ToString(EVulkanDeferredFailurePoint FailurePoint) noexcept;
+[[nodiscard]] const char* ToString(EVulkanVisibleFrameFailurePoint FailurePoint) noexcept;
 
 } // namespace Stoner::Backend::Vulkan
