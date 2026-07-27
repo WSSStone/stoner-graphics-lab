@@ -2730,6 +2730,12 @@
           "from": "Accepted",
           "note": "Fixed by adding mesh id as the final transparent sort key after depth, material id, and object id, with reversed-submission same-object multi-mesh regressions.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T07:04:51+00:00",
+          "from": "Fixed",
+          "note": "Verified at 9dcd4ea/57827b3: transparent sorting now uses mesh id as final stable fallback after depth/material/object; regression proves reversed same-object multi-mesh input produces stable output; fallback-strict passed.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B06-F004",
@@ -2738,9 +2744,9 @@
       "requirement": "Feature 015 transparent sorting contract requires depth descending, material id, object id tie-breakers, identical repeated output, and no reliance on caller submission order for final ties; FMeshDrawCommand also stores mesh id as part of stable draw identity.",
       "resolution": "Fixed by adding mesh id as the final transparent sort key after depth, material id, and object id, with reversed-submission same-object multi-mesh regressions.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Transparent draw ordering can fall back to caller order for equal depth material and object keys",
-      "verification": ""
+      "verification": "Verified at 9dcd4ea/57827b3: transparent sorting now uses mesh id as final stable fallback after depth/material/object; regression proves reversed same-object multi-mesh input produces stable output; fallback-strict passed."
     },
     {
       "batch": "B06",
@@ -2766,6 +2772,12 @@
           "from": "Accepted",
           "note": "Fixed by always activating the required ambient-only fallback diagnostic for valid geometry with no accepted lights, including when the legacy fallback config flag is false.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T07:04:52+00:00",
+          "from": "Fixed",
+          "note": "Verified at 9dcd4ea/57827b3: PrepareFrame now always emits the ambient fallback record and diagnostic for renderable geometry with no accepted lights; disabled-config regression passes; fallback-strict passed.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B06-F005",
@@ -2774,9 +2786,9 @@
       "requirement": "Feature 015 FR-018, SC-007, data model, and forward rendering contract require geometry with no accepted lights to prepare only with exactly one ambient-only fallback diagnostic.",
       "resolution": "Fixed by always activating the required ambient-only fallback diagnostic for valid geometry with no accepted lights, including when the legacy fallback config flag is false.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Forward renderer can prepare no-light geometry without the required ambient fallback",
-      "verification": ""
+      "verification": "Verified at 9dcd4ea/57827b3: PrepareFrame now always emits the ambient fallback record and diagnostic for renderable geometry with no accepted lights; disabled-config regression passes; fallback-strict passed."
     }
   ],
   "schema_version": 1

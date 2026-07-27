@@ -783,23 +783,23 @@
 ## CR001-B06-F004: Transparent draw ordering can fall back to caller order for equal depth material and object keys
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 015 transparent sorting contract requires depth descending, material id, object id tie-breakers, identical repeated output, and no reliance on caller submission order for final ties; FMeshDrawCommand also stores mesh id as part of stable draw identity.
 - Location: `Source/Renderer/Private/FMeshDrawCommand.cpp:192`
 - Impact: Transparent draw order and debug dump output for valid repeated-equivalent mesh/material/view work can depend on submission order, weakening regression evidence and future scene/submesh integration.
 - Evidence: SortForwardTransparentDraws compares camera-space depth, material id, then object id only. If one object submits multiple transparent mesh draw commands with the same material at the same depth, the comparator reports equivalence and std::sort may preserve or reorder according to caller/input arrangement. Existing tests cover material-id ties but not object-id/final ties or same-object multi-mesh transparent draws.
 - Resolution: Fixed by adding mesh id as the final transparent sort key after depth, material id, and object id, with reversed-submission same-object multi-mesh regressions.
-- Verification: pending
+- Verification: Verified at 9dcd4ea/57827b3: transparent sorting now uses mesh id as final stable fallback after depth/material/object; regression proves reversed same-object multi-mesh input produces stable output; fallback-strict passed.
 - Commit: `9dcd4ea`
 
 ## CR001-B06-F005: Forward renderer can prepare no-light geometry without the required ambient fallback
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 015 FR-018, SC-007, data model, and forward rendering contract require geometry with no accepted lights to prepare only with exactly one ambient-only fallback diagnostic.
 - Location: `Source/Renderer/Private/FForwardRenderer.cpp:74; Source/Renderer/Public/Renderer/FForwardRenderer.h:17`
 - Impact: Authors can receive a render-ready forward frame plan whose valid geometry has no lighting and no diagnostic explaining the ambient-only fallback required by the feature contract.
 - Evidence: PrepareFrame only activates FWD-AMBIENT-FALLBACK when Configuration.bEnableAmbientFallback is true. The public configuration exposes bEnableAmbientFallback=false, allowing a valid plan with accepted geometry, no accepted lights, AmbientFallback inactive, and no fallback diagnostic. Tests only cover zero point light limit with the default fallback enabled.
 - Resolution: Fixed by always activating the required ambient-only fallback diagnostic for valid geometry with no accepted lights, including when the legacy fallback config flag is false.
-- Verification: pending
+- Verification: Verified at 9dcd4ea/57827b3: PrepareFrame now always emits the ambient fallback record and diagnostic for renderable geometry with no accepted lights; disabled-config regression passes; fallback-strict passed.
 - Commit: `9dcd4ea`
