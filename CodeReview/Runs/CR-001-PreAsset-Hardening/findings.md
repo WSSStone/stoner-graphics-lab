@@ -927,11 +927,11 @@
 ## CR001-B08-F005: Native deferred reference scene under-covers local light volume cases
 
 - Severity: S2
-- Status: Accepted
+- Status: Verified
 - Requirement: Feature 019 deferred-validation contract requires the native reference scene to include point lights covering visible, outside-view, and camera-inside cases plus spot lights covering visible, outside-cone, and near-plane-intersecting cases.
 - Location: `Source/Backend/Vulkan/Private/FVulkanNativeOffscreenSession.cpp:1174`
 - Impact: Linux native Vulkan pixel validation can pass while missing required real-runtime coverage for local light volume edge cases, leaving those cases covered only by deterministic planning tests instead of the contracted offscreen readback path.
 - Evidence: The native session creates one point light and one spot light at lines 1174-1182 and records center/background probes at lines 1489-1530; no native probe or geometry setup represents point outside-view/camera-inside or spot outside-cone/near-plane-intersecting coverage required by specs/019-deferred-rendering-pipeline/contracts/deferred-validation-contract.md:41-43.
-- Resolution: pending
-- Verification: pending
-- Commit: `pending`
+- Resolution: Native deferred readback now submits 7 lights and 20 draws, records 36 probes, and includes point/spot local-light edge cases for StandardZ and ReversedZ.
+- Verification: Verified by required macOS native Vulkan run with b08-deferred-native-readback-f005-final-report.txt result PASS and fallback-strict gate at 2026-07-27T10:13:54+00:00.
+- Commit: `c963246`

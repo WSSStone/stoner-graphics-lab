@@ -3212,7 +3212,7 @@
     },
     {
       "batch": "B08",
-      "commit": "",
+      "commit": "c963246",
       "created_at": "2026-07-27T09:37:05+00:00",
       "deferred_target": "",
       "evidence": "The native session creates one point light and one spot light at lines 1174-1182 and records center/background probes at lines 1489-1530; no native probe or geometry setup represents point outside-view/camera-inside or spot outside-cone/near-plane-intersecting coverage required by specs/019-deferred-rendering-pipeline/contracts/deferred-validation-contract.md:41-43.",
@@ -3228,17 +3228,29 @@
           "from": "Triaged",
           "note": "Accepted for B08 because the native readback implementation satisfies the minimum 12-probe count but does not exercise the contract's local light volume edge cases in the real Vulkan reference scene.",
           "to": "Accepted"
+        },
+        {
+          "at": "2026-07-27T10:15:41+00:00",
+          "from": "Accepted",
+          "note": "Native deferred readback now submits 7 lights and 20 draws, records 36 probes, and includes point/spot local-light edge cases for StandardZ and ReversedZ.",
+          "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T10:15:41+00:00",
+          "from": "Fixed",
+          "note": "Verified by required macOS native Vulkan run with b08-deferred-native-readback-f005-final-report.txt result PASS and fallback-strict gate at 2026-07-27T10:13:54+00:00.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B08-F005",
       "impact": "Linux native Vulkan pixel validation can pass while missing required real-runtime coverage for local light volume edge cases, leaving those cases covered only by deterministic planning tests instead of the contracted offscreen readback path.",
       "location": "Source/Backend/Vulkan/Private/FVulkanNativeOffscreenSession.cpp:1174",
       "requirement": "Feature 019 deferred-validation contract requires the native reference scene to include point lights covering visible, outside-view, and camera-inside cases plus spot lights covering visible, outside-cone, and near-plane-intersecting cases.",
-      "resolution": "",
+      "resolution": "Native deferred readback now submits 7 lights and 20 draws, records 36 probes, and includes point/spot local-light edge cases for StandardZ and ReversedZ.",
       "severity": "S2",
-      "status": "Accepted",
+      "status": "Verified",
       "title": "Native deferred reference scene under-covers local light volume cases",
-      "verification": ""
+      "verification": "Verified by required macOS native Vulkan run with b08-deferred-native-readback-f005-final-report.txt result PASS and fallback-strict gate at 2026-07-27T10:13:54+00:00."
     }
   ],
   "schema_version": 1
