@@ -133,18 +133,27 @@ void TestPresentationRecovery(FTriangleDemoIntegrationTestResult& Result)
     Config.MaxMemoryGrowthPercent = 5.0;
     FStonerDemoApplication App(Config);
     Record(Result, App.Initialize() == EDemoExitCode::Success, "Triangle demo recovery fixture initializes");
+    Record(Result, !App.IsPresentationInitialized(),
+        "Triangle demo deterministic recovery fixture has no presentation resources");
     bool bRecovered = true;
+    bool bRecoveryDoesNotClaimResources = true;
     for (int Cycle = 0; Cycle < 20; ++Cycle)
     {
         const double Start = static_cast<double>(Cycle) * 3000.0;
         bRecovered = bRecovered && App.NotifyDrawableExtent(0, 0, Start) == EDemoExitCode::Success &&
             App.GetLifecycleState() == EDemoLifecycleState::PresentationPaused &&
-            App.NotifyDrawableExtent(1280, 720, Start + 10.0) == EDemoExitCode::Success &&
+            App.NotifyDrawableExtent(1280, 720, Start + 10.0) == EDemoExitCode::Success;
+        bRecoveryDoesNotClaimResources = bRecoveryDoesNotClaimResources &&
+            App.GetLifecycleState() == EDemoLifecycleState::RecreatingPresentation &&
+            !App.IsPresentationInitialized();
+        bRecovered = bRecovered &&
             App.NotifyPresentSuccess(Start + 2010.0) == EDemoExitCode::Success;
     }
     Record(Result, bRecovered && App.GetPresentationGeneration() == 20 &&
         App.GetRecoveryDurationsMilliseconds().size() == 20,
         "Triangle demo recovers twenty presentation generations at exact 2000ms boundary");
+    Record(Result, bRecoveryDoesNotClaimResources,
+        "Triangle demo presentation recovery does not mark resources initialized before prepare succeeds");
     (void)App.NotifyDrawableExtent(0, 0, 70000.0);
     (void)App.NotifyDrawableExtent(1280, 720, 70010.0);
     Record(Result, App.NotifyPresentSuccess(72011.0) == EDemoExitCode::ValidationFailed,

@@ -308,7 +308,6 @@ EDemoExitCode FStonerDemoApplication::NotifyDrawableExtent(
     {
         LifecycleState = EDemoLifecycleState::RecreatingPresentation;
         RecoveryStartMilliseconds = NowMilliseconds;
-        PresentationState.bInitialized = true;
         ++PresentationState.Generation;
     }
     return EDemoExitCode::Success;
