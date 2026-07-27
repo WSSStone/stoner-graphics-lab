@@ -123,6 +123,14 @@ namespace
 
 } // namespace
 
+FVulkanDevice::~FVulkanDevice()
+{
+    if (State != Stoner::RHI::ERHIDeviceState::Shutdown)
+    {
+        (void)Shutdown();
+    }
+}
+
 Stoner::RHI::ERHIDeviceState FVulkanDevice::GetState() const noexcept
 {
     return State;
@@ -200,7 +208,6 @@ Stoner::RHI::ERHIResult FVulkanDevice::Initialize(const FVulkanInstanceDesc& Des
     Allocator->Reset();
     DescriptorPool.reset();
     CommandPools.clear();
-    CommandBuffers.clear();
     ShaderModules.clear();
     GraphicsPipelines.clear();
     ComputePipelines.clear();
@@ -331,15 +338,25 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHICommandBuffer> FVulkanDevice::Cre
     }
     if (!Pool)
     {
-        Pool = Stoner::Core::MakeShared<FVulkanCommandPool>(CompatibleQueueType, CommandBufferCapacity);
-        CommandPools.push_back(Pool);
+        try
+        {
+            Pool.reset(new FVulkanCommandPool(
+                CompatibleQueueType, CommandBufferCapacity));
+            CommandPools.push_back(Pool);
+        }
+        catch (const std::bad_alloc&)
+        {
+            MarkCommandAllocation(Diagnostics, "command pool allocation failed");
+            return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+        }
+        catch (const std::length_error&)
+        {
+            MarkCommandAllocation(Diagnostics, "command pool tracking capacity exceeded");
+            return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+        }
     }
 
     auto Result = Pool->Allocate(Diagnostics);
-    if (Result.Succeeded())
-    {
-        CommandBuffers.push_back(Result.Object);
-    }
     return {Result.Result, Result.Object};
 }
 
@@ -777,8 +794,32 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIRenderPass> FVulkanDevice::Create
         return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
     }
 
-    auto RenderPass = Stoner::Core::MakeShared<FVulkanRenderPass>(Desc);
-    RenderPasses.push_back(RenderPass);
+    Stoner::Core::TSharedPtr<FVulkanRenderPass> RenderPass;
+    try
+    {
+        RenderPass.reset(new FVulkanRenderPass(Desc));
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkRenderPass(Diagnostics, "render pass wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        RenderPasses.push_back(RenderPass);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)RenderPass->Invalidate();
+        MarkRenderPass(Diagnostics, "render pass tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)RenderPass->Invalidate();
+        MarkRenderPass(Diagnostics, "render pass tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     MarkRenderPass(Diagnostics, "minimal single-subpass render pass created");
     return {Stoner::RHI::ERHIResult::Success, RenderPass};
 }
@@ -795,8 +836,32 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIFramebuffer> FVulkanDevice::Creat
         return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
     }
 
-    auto Framebuffer = Stoner::Core::MakeShared<FVulkanFramebuffer>(Desc);
-    Framebuffers.push_back(Framebuffer);
+    Stoner::Core::TSharedPtr<FVulkanFramebuffer> Framebuffer;
+    try
+    {
+        Framebuffer.reset(new FVulkanFramebuffer(Desc));
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkFramebuffer(Diagnostics, "framebuffer wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        Framebuffers.push_back(Framebuffer);
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Framebuffer->Invalidate();
+        MarkFramebuffer(Diagnostics, "framebuffer tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        (void)Framebuffer->Invalidate();
+        MarkFramebuffer(Diagnostics, "framebuffer tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     MarkFramebuffer(Diagnostics, "minimal framebuffer created");
     return {Stoner::RHI::ERHIResult::Success, Framebuffer};
 }
@@ -1012,13 +1077,6 @@ void FVulkanDevice::InvalidateOwnedObjects() noexcept
         if (Pool)
         {
             Pool->Invalidate();
-        }
-    }
-    for (const auto& CommandBuffer : CommandBuffers)
-    {
-        if (CommandBuffer)
-        {
-            CommandBuffer->Invalidate();
         }
     }
     for (const auto& Fence : Fences)

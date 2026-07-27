@@ -31,35 +31,20 @@ namespace
 
 [[nodiscard]] bool TextureRegionFits(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Texture, Stoner::Core::uint32 MipLevel, Stoner::Core::uint32 ArrayLayer, Stoner::Core::uint32 X, Stoner::Core::uint32 Y, Stoner::Core::uint32 Z, Stoner::Core::uint32 Width, Stoner::Core::uint32 Height, Stoner::Core::uint32 Depth) noexcept
 {
-    if (!IsValidResource(Texture) || Width == 0 || Height == 0 || Depth == 0)
-    {
-        return false;
-    }
-    const Stoner::RHI::FRHITextureDesc& Desc = Texture->GetDesc();
-    return MipLevel < Desc.MipLevels && ArrayLayer < Desc.ArrayLayers &&
-        X <= Desc.Width && Width <= Desc.Width - X &&
-        Y <= Desc.Height && Height <= Desc.Height - Y &&
-        Z <= Desc.Depth && Depth <= Desc.Depth - Z;
+    return IsValidResource(Texture) &&
+        Stoner::RHI::IsRHITextureRegionValid(Texture->GetDesc(),
+            MipLevel, ArrayLayer, X, Y, Z, Width, Height, Depth);
 }
 
-[[nodiscard]] Stoner::Core::uint64 FormatSizeBytes(Stoner::RHI::ERHIFormat Format) noexcept
+[[nodiscard]] bool TexturesAreCopyCompatible(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Source,
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Destination) noexcept
 {
-    using Stoner::RHI::ERHIFormat;
-    switch (Format)
-    {
-    case ERHIFormat::R8_UNorm:
-    case ERHIFormat::S8_UInt: return 1;
-    case ERHIFormat::R8G8B8A8_UNorm:
-    case ERHIFormat::B8G8R8A8_UNorm:
-    case ERHIFormat::R32_Float:
-    case ERHIFormat::D24_UNorm_S8_UInt:
-    case ERHIFormat::D32_Float: return 4;
-    case ERHIFormat::R32G32_Float:
-    case ERHIFormat::R16G16B16A16_Float: return 8;
-    case ERHIFormat::R32G32B32_Float: return 12;
-    case ERHIFormat::Unknown: break;
-    }
-    return 0;
+    return Source && Destination &&
+        Source->GetDimension() == Destination->GetDimension() &&
+        Source->GetFormat() == Destination->GetFormat() &&
+        Source->GetDesc().SampleCount == Stoner::RHI::ERHISampleCount::One &&
+        Destination->GetDesc().SampleCount == Stoner::RHI::ERHISampleCount::One;
 }
 
 [[nodiscard]] bool ClearValuesMatch(const Stoner::RHI::IRHIRenderPass& RenderPass,
@@ -342,6 +327,11 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordTextureCopy(const Stoner::Co
         MarkRecordingDiagnostic("texture copy rejected by queue capability");
         return Stoner::RHI::ERHIResult::Unsupported;
     }
+    if (!TexturesAreCopyCompatible(Source, Destination))
+    {
+        MarkRecordingDiagnostic("texture copy rejected by incompatible dimension format or sample count");
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
     if (!TextureRegionFits(Source, Region.SourceMipLevel, Region.SourceArrayLayer, Region.SourceX, Region.SourceY, Region.SourceZ, Region.Width, Region.Height, Region.Depth) ||
         !TextureRegionFits(Destination, Region.DestinationMipLevel, Region.DestinationArrayLayer, Region.DestinationX, Region.DestinationY, Region.DestinationZ, Region.Width, Region.Height, Region.Depth) ||
         !Stoner::RHI::HasRHIFlag(Source->GetUsage(), Stoner::RHI::ERHITextureUsage::CopySource) ||
@@ -365,18 +355,44 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordTextureToBufferCopy(
         MarkRecordingDiagnostic("texture-to-buffer copy rejected by queue capability");
         return Stoner::RHI::ERHIResult::Unsupported;
     }
-    const Stoner::Core::uint64 TexelSize = Source ? FormatSizeBytes(Source->GetFormat()) : 0;
-    const Stoner::Core::uint64 RowTexels = Region.DestinationRowLengthTexels == 0 ? Region.Width : Region.DestinationRowLengthTexels;
-    const Stoner::Core::uint64 ImageRows = Region.DestinationImageHeightTexels == 0 ? Region.Height : Region.DestinationImageHeightTexels;
-    const Stoner::Core::uint64 RequiredBytes = RowTexels * ImageRows * Region.Depth * TexelSize;
     if (!TextureRegionFits(Source, Region.SourceMipLevel, Region.SourceArrayLayer, Region.SourceX, Region.SourceY,
             Region.SourceZ, Region.Width, Region.Height, Region.Depth) ||
-        !BufferRangeFits(Destination, Region.DestinationOffsetBytes, RequiredBytes) ||
+        !IsValidResource(Destination) ||
         !Stoner::RHI::HasRHIFlag(Source->GetUsage(), Stoner::RHI::ERHITextureUsage::CopySource) ||
-        !Stoner::RHI::HasRHIFlag(Destination->GetUsage(), Stoner::RHI::ERHIBufferUsage::CopyDestination) ||
-        TexelSize == 0 || RowTexels < Region.Width || ImageRows < Region.Height)
+        !Stoner::RHI::HasRHIFlag(Destination->GetUsage(), Stoner::RHI::ERHIBufferUsage::CopyDestination))
     {
-        MarkRecordingDiagnostic("texture-to-buffer copy rejected by resource lifecycle region format range or usage");
+        MarkRecordingDiagnostic("texture-to-buffer copy rejected by resource lifecycle region or usage");
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    if (Source->GetDesc().SampleCount != Stoner::RHI::ERHISampleCount::One ||
+        Stoner::RHI::GetRHIFormatByteSize(Source->GetFormat()) == 0)
+    {
+        MarkRecordingDiagnostic("texture-to-buffer copy rejected by format or sample count");
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
+    const Stoner::Core::uint64 RowTexels =
+        Region.DestinationRowLengthTexels == 0
+        ? Region.Width
+        : Region.DestinationRowLengthTexels;
+    const Stoner::Core::uint64 ImageRows =
+        Region.DestinationImageHeightTexels == 0
+        ? Region.Height
+        : Region.DestinationImageHeightTexels;
+    if (RowTexels < Region.Width || ImageRows < Region.Height)
+    {
+        MarkRecordingDiagnostic("texture-to-buffer copy rejected by destination strides");
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    Stoner::Core::uint64 RequiredBytes = 0;
+    if (!Stoner::RHI::TryGetRHITextureBufferCopyByteSize(
+            Region, Source->GetFormat(), RequiredBytes))
+    {
+        MarkRecordingDiagnostic("texture-to-buffer copy footprint is not representable");
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    if (!BufferRangeFits(Destination, Region.DestinationOffsetBytes, RequiredBytes))
+    {
+        MarkRecordingDiagnostic("texture-to-buffer copy rejected by destination range");
         return Stoner::RHI::ERHIResult::InvalidState;
     }
     AppendCommand({Stoner::RHI::ERHISymbolicCommandType::TextureToBufferCopy,
@@ -592,6 +608,7 @@ void FVulkanCommandBuffer::Invalidate() noexcept
     Commands.clear();
     ActiveRenderPass.reset();
     ActiveFramebuffer.reset();
+    Diagnostics = nullptr;
 }
 
 bool FVulkanCommandBuffer::IsTransferCompatible() const noexcept

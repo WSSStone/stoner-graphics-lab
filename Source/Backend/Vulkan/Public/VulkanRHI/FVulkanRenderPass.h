@@ -5,10 +5,14 @@
 namespace Stoner::Backend::Vulkan
 {
 
+class FVulkanDevice;
+
 class FVulkanRenderPass final : public Stoner::RHI::IRHIRenderPass
 {
 public:
-    explicit FVulkanRenderPass(Stoner::RHI::FRHIRenderPassDesc InDesc);
+    ~FVulkanRenderPass() override = default;
+    FVulkanRenderPass(const FVulkanRenderPass&) = delete;
+    FVulkanRenderPass& operator=(const FVulkanRenderPass&) = delete;
 
     [[nodiscard]] static bool IsSupportedDesc(const Stoner::RHI::FRHIRenderPassDesc& Desc) noexcept;
     [[nodiscard]] const Stoner::RHI::FRHIRenderPassDesc& GetDesc() const noexcept override;
@@ -19,6 +23,10 @@ public:
     Stoner::RHI::ERHIResult Invalidate() override;
 
 private:
+    friend class FVulkanDevice;
+
+    explicit FVulkanRenderPass(Stoner::RHI::FRHIRenderPassDesc InDesc);
+
     Stoner::RHI::FRHIRenderPassDesc Desc;
     Stoner::RHI::ERHIResourceLifecycleState LifecycleState = Stoner::RHI::ERHIResourceLifecycleState::Valid;
 };

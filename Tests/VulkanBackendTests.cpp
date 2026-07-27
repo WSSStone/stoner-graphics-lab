@@ -50,6 +50,18 @@ private:
     ERHICommandBufferState State = ERHICommandBufferState::Completed;
 };
 
+template <typename T>
+concept CHasPublicMarkSubmitted = requires(T& Value)
+{
+    Value.MarkSubmitted();
+};
+
+template <typename T>
+concept CHasPublicMarkCompletedOrResettable = requires(T& Value)
+{
+    Value.MarkCompletedOrResettable();
+};
+
 void Record(FVulkanBackendTestResult& Result, bool bPassed, const char* Name)
 {
     if (bPassed)
@@ -1004,6 +1016,43 @@ void TestAllocationOwnershipAndFootprints(
 
 void TestCommandBuffersRecordingAndSubmission(FVulkanBackendTestResult& Result)
 {
+    static_assert(
+        !std::is_constructible_v<FVulkanCommandPool,
+            ERHIQueueType, uint32> &&
+        !std::is_constructible_v<FVulkanCommandBuffer,
+            ERHIQueueType, FVulkanDiagnostics*> &&
+        !std::is_constructible_v<FVulkanCommandSubmission,
+            TSharedPtr<FVulkanCommandBuffer>,
+            EVulkanSubmissionMode,
+            FVulkanCompletionInjectionConfig> &&
+        !CHasPublicMarkSubmitted<FVulkanCommandBuffer> &&
+        !CHasPublicMarkCompletedOrResettable<FVulkanCommandBuffer>,
+        "Vulkan command allocation and submission transitions must be owner-only");
+
+    TSharedPtr<IRHICommandBuffer> RetainedCommand;
+    {
+        auto OwnedDevice = std::make_unique<FVulkanDevice>();
+        Record(Result,
+            InitializeDeterministic(*OwnedDevice) == ERHIResult::Success,
+            "Vulkan retained-command fixture initializes");
+        RetainedCommand =
+            OwnedDevice->CreateCommandBuffer(ERHIQueueType::Graphics).Object;
+    }
+    Record(Result, RetainedCommand &&
+        RetainedCommand->Begin() == ERHIResult::InvalidState,
+        "Vulkan device destruction invalidates retained command buffers");
+
+    FVulkanDevice ZeroCapacityDevice;
+    Record(Result,
+        InitializeDeterministic(ZeroCapacityDevice) == ERHIResult::Success,
+        "Vulkan zero-capacity command fixture initializes");
+    ZeroCapacityDevice.ConfigureCommandBufferCapacity(0);
+    Record(Result,
+        ZeroCapacityDevice.CreateCommandBuffer(ERHIQueueType::Graphics).Result ==
+            ERHIResult::Unavailable,
+        "Vulkan zero command-buffer capacity rejects allocation");
+    (void)ZeroCapacityDevice.Shutdown();
+
     FVulkanDevice Device;
     Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan command fixture device initializes");
 
@@ -1081,6 +1130,13 @@ void TestCommandBuffersRecordingAndSubmission(FVulkanBackendTestResult& Result)
 
 void TestRenderPassFramebufferRecordingAndUploads(FVulkanBackendTestResult& Result)
 {
+    static_assert(
+        !std::is_constructible_v<FVulkanRenderPass,
+            FRHIRenderPassDesc> &&
+        !std::is_constructible_v<FVulkanFramebuffer,
+            FRHIFramebufferDesc>,
+        "Vulkan render-pass and framebuffer wrappers must be device-only");
+
     FVulkanDevice Device;
     Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan render pass command fixture initializes");
 
@@ -1179,6 +1235,68 @@ void TestRenderPassFramebufferRecordingAndUploads(FVulkanBackendTestResult& Resu
         TransferCommand.Object->RecordTextureToBufferCopy(SourceTexture.Object, DestinationBuffer.Object,
             {0, 0, 7, 0, 0, 4, 4, 1, 0, 0, 0}) == ERHIResult::InvalidState,
         "Vulkan transfer command rejects incompatible compute and invalid copy ranges");
+
+    FRHITextureDesc MipTransferDesc = ValidColorAttachmentTextureDesc();
+    MipTransferDesc.MipLevels = 2;
+    const auto MipSource = Device.CreateTexture(MipTransferDesc);
+    const auto MipDestination = Device.CreateTexture(MipTransferDesc);
+    FRHITextureCopyRegion OversizedMipCopy;
+    OversizedMipCopy.SourceMipLevel = 1;
+    OversizedMipCopy.DestinationMipLevel = 1;
+    OversizedMipCopy.Width = 8;
+    OversizedMipCopy.Height = 8;
+    FRHITextureCopyRegion ValidMipCopy = OversizedMipCopy;
+    ValidMipCopy.Width = 4;
+    ValidMipCopy.Height = 4;
+    Record(Result, MipSource.Succeeded() && MipDestination.Succeeded() &&
+        TransferCommand.Object->RecordTextureCopy(
+            MipSource.Object, MipDestination.Object, OversizedMipCopy) ==
+            ERHIResult::InvalidState &&
+        TransferCommand.Object->RecordTextureCopy(
+            MipSource.Object, MipDestination.Object, ValidMipCopy) ==
+            ERHIResult::Success &&
+        TransferCommand.Object->RecordTextureToBufferCopy(
+            MipSource.Object, DestinationBuffer.Object,
+            {1, 0, 0, 0, 0, 8, 8, 1, 0, 0, 0}) ==
+            ERHIResult::InvalidState,
+        "Vulkan transfer validation uses selected mip extents");
+
+    FRHITextureDesc DifferentFormatDesc = MipTransferDesc;
+    DifferentFormatDesc.Format = ERHIFormat::B8G8R8A8_UNorm;
+    const auto DifferentFormatDestination =
+        Device.CreateTexture(DifferentFormatDesc);
+    Record(Result, DifferentFormatDestination.Succeeded() &&
+        TransferCommand.Object->RecordTextureCopy(
+            MipSource.Object, DifferentFormatDestination.Object,
+            ValidMipCopy) == ERHIResult::Unsupported,
+        "Vulkan texture copy rejects incompatible formats");
+
+    FRHITextureBufferCopyRegion PaddedReadback;
+    PaddedReadback.Width = 2;
+    PaddedReadback.Height = 2;
+    PaddedReadback.Depth = 2;
+    PaddedReadback.DestinationRowLengthTexels = 4;
+    PaddedReadback.DestinationImageHeightTexels = 3;
+    uint64 PaddedBytes = 0;
+    FRHITextureBufferCopyRegion OverflowedReadback;
+    OverflowedReadback.Width = 1;
+    OverflowedReadback.Height = std::numeric_limits<uint32>::max();
+    OverflowedReadback.Depth = std::numeric_limits<uint32>::max();
+    OverflowedReadback.DestinationRowLengthTexels =
+        std::numeric_limits<uint32>::max();
+    OverflowedReadback.DestinationImageHeightTexels =
+        std::numeric_limits<uint32>::max();
+    uint64 OverflowedBytes = 1;
+    Record(Result,
+        TryGetRHITextureBufferCopyByteSize(
+            PaddedReadback, ERHIFormat::R8G8B8A8_UNorm, PaddedBytes) &&
+        PaddedBytes == 72 &&
+        !TryGetRHITextureBufferCopyByteSize(
+            OverflowedReadback,
+            ERHIFormat::R8G8B8A8_UNorm,
+            OverflowedBytes) &&
+        OverflowedBytes == 0,
+        "RHI texture readback footprint is exact and overflow-safe");
 
     const unsigned char Data[16] = {};
     const unsigned char TextureData[64] = {};

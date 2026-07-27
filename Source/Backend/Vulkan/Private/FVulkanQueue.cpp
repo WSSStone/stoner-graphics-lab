@@ -3,6 +3,9 @@
 #include "VulkanRHI/FVulkanCommandBuffer.h"
 #include "VulkanRHI/FVulkanDiagnostics.h"
 
+#include <new>
+#include <stdexcept>
+
 namespace Stoner::Backend::Vulkan
 {
 
@@ -55,27 +58,58 @@ Stoner::RHI::ERHIResult FVulkanQueue::Submit(
         return Stoner::RHI::ERHIResult::Unsupported;
     }
 
+    auto VulkanCommandBuffer = std::dynamic_pointer_cast<FVulkanCommandBuffer>(CommandBuffer);
+    if (!VulkanCommandBuffer)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+
+    Stoner::Core::TSharedPtr<FVulkanCommandSubmission> Submission;
+    try
+    {
+        Submission.reset(new FVulkanCommandSubmission(
+            VulkanCommandBuffer,
+            EVulkanSubmissionMode::DeterministicFallback,
+            CompletionInjection));
+        Submissions.push_back(Submission);
+    }
+    catch (const std::bad_alloc&)
+    {
+        if (Diagnostics)
+        {
+            MarkSubmission(*Diagnostics, "submission tracking allocation failed");
+        }
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        if (Diagnostics)
+        {
+            MarkSubmission(*Diagnostics, "submission tracking capacity exceeded");
+        }
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+
     for (const auto& Semaphore : WaitSemaphores)
     {
         if (!Semaphore)
         {
+            Submissions.pop_back();
             return Stoner::RHI::ERHIResult::InvalidState;
         }
         const Stoner::RHI::ERHIResult ConsumeResult = Semaphore->Consume();
         if (ConsumeResult != Stoner::RHI::ERHIResult::Success)
         {
+            Submissions.pop_back();
             return ConsumeResult;
         }
     }
 
-    auto VulkanCommandBuffer = std::dynamic_pointer_cast<FVulkanCommandBuffer>(CommandBuffer);
-    if (!VulkanCommandBuffer || VulkanCommandBuffer->MarkSubmitted() != Stoner::RHI::ERHIResult::Success)
+    if (VulkanCommandBuffer->MarkSubmitted() != Stoner::RHI::ERHIResult::Success)
     {
+        Submissions.pop_back();
         return Stoner::RHI::ERHIResult::InvalidState;
     }
-
-    auto Submission = Stoner::Core::MakeShared<FVulkanCommandSubmission>(VulkanCommandBuffer, EVulkanSubmissionMode::DeterministicFallback, CompletionInjection);
-    Submissions.push_back(Submission);
     ++SubmittedCommandBufferCount;
 
     for (const auto& Semaphore : SignalSemaphores)
@@ -159,6 +193,7 @@ void FVulkanQueue::Invalidate() noexcept
             Submission->Invalidate();
         }
     }
+    Diagnostics = nullptr;
 }
 
 } // namespace Stoner::Backend::Vulkan

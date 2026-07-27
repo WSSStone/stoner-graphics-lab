@@ -3,6 +3,9 @@
 #include "VulkanRHI/FVulkanCommandBuffer.h"
 #include "VulkanRHI/FVulkanDiagnostics.h"
 
+#include <new>
+#include <stdexcept>
+
 namespace Stoner::Backend::Vulkan
 {
 
@@ -24,14 +27,38 @@ Stoner::RHI::TRHIObjectResult<FVulkanCommandBuffer> FVulkanCommandPool::Allocate
         MarkCommandAllocation(Diagnostics, "command pool is invalidated");
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
-    if (Capacity > 0 && CommandBuffers.size() >= Capacity)
+    if (CommandBuffers.size() >= Capacity)
     {
         MarkCommandAllocation(Diagnostics, "command buffer capacity exhausted");
         return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
     }
 
-    auto CommandBuffer = Stoner::Core::MakeShared<FVulkanCommandBuffer>(QueueType, &Diagnostics);
-    CommandBuffers.push_back(CommandBuffer);
+    Stoner::Core::TSharedPtr<FVulkanCommandBuffer> CommandBuffer;
+    try
+    {
+        CommandBuffer.reset(new FVulkanCommandBuffer(QueueType, &Diagnostics));
+    }
+    catch (const std::bad_alloc&)
+    {
+        MarkCommandAllocation(Diagnostics, "command buffer wrapper allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    try
+    {
+        CommandBuffers.push_back(CommandBuffer);
+    }
+    catch (const std::bad_alloc&)
+    {
+        CommandBuffer->Invalidate();
+        MarkCommandAllocation(Diagnostics, "command pool tracking allocation failed");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
+    catch (const std::length_error&)
+    {
+        CommandBuffer->Invalidate();
+        MarkCommandAllocation(Diagnostics, "command pool tracking capacity exceeded");
+        return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+    }
     MarkCommandAllocation(Diagnostics, "command buffer allocated");
     return {Stoner::RHI::ERHIResult::Success, CommandBuffer};
 }

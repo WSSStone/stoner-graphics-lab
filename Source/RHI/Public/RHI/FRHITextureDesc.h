@@ -67,6 +67,34 @@ struct FRHITextureDesc
     return Shifted > 0 ? Shifted : 1;
 }
 
+[[nodiscard]] constexpr bool IsRHITextureRegionValid(
+    const FRHITextureDesc& Desc,
+    Stoner::Core::uint32 MipLevel,
+    Stoner::Core::uint32 ArrayLayer,
+    Stoner::Core::uint32 X,
+    Stoner::Core::uint32 Y,
+    Stoner::Core::uint32 Z,
+    Stoner::Core::uint32 Width,
+    Stoner::Core::uint32 Height,
+    Stoner::Core::uint32 Depth) noexcept
+{
+    if (Width == 0 || Height == 0 || Depth == 0 ||
+        MipLevel >= Desc.MipLevels || ArrayLayer >= Desc.ArrayLayers)
+    {
+        return false;
+    }
+
+    const Stoner::Core::uint32 MipWidth =
+        GetRHIMipExtent(Desc.Width, MipLevel);
+    const Stoner::Core::uint32 MipHeight =
+        GetRHIMipExtent(Desc.Height, MipLevel);
+    const Stoner::Core::uint32 MipDepth =
+        GetRHIMipExtent(Desc.Depth, MipLevel);
+    return X <= MipWidth && Width <= MipWidth - X &&
+        Y <= MipHeight && Height <= MipHeight - Y &&
+        Z <= MipDepth && Depth <= MipDepth - Z;
+}
+
 [[nodiscard]] constexpr bool IsValidRHITextureDesc(const FRHITextureDesc& Desc) noexcept
 {
     if (!IsValidRHIFormat(Desc.Format) ||

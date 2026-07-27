@@ -37,6 +37,7 @@ class FVulkanDevice final : public Stoner::RHI::IRHIDevice
 {
 public:
     FVulkanDevice() = default;
+    ~FVulkanDevice() override;
     FVulkanDevice(const FVulkanDevice&) = delete;
     FVulkanDevice& operator=(const FVulkanDevice&) = delete;
     FVulkanDevice(FVulkanDevice&&) = delete;
@@ -113,7 +114,6 @@ private:
     FVulkanDiagnostics Diagnostics;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanQueue>> Queues;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandPool>> CommandPools;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandBuffer>> CommandBuffers;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanFence>> Fences;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSemaphore>> Semaphores;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSurface>> Surfaces;
