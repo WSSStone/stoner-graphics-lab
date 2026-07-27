@@ -1,5 +1,5 @@
 {
-  "active_step": "B06-S05",
+  "active_step": "B06-S06",
   "batches": [
     {
       "id": "B00",
@@ -1134,12 +1134,14 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T06:13:46+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b06-render-graph-execution-resources-diagnostics-fix.md"
+          ],
           "id": "B06-S05",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "No-op fix slot: B06-S04 accepted no new S0-S2 finding; no source/test change required. Watch item remains for future real-backend transition interleaving.",
+          "started_at": "2026-07-27T06:13:14+00:00",
+          "status": "Completed",
           "title": "Fix: render graph execution, resources, and diagnostics"
         },
         {
@@ -4560,6 +4562,16 @@
       "at": "2026-07-27T06:12:06+00:00",
       "detail": "B06-S04",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T06:13:14+00:00",
+      "detail": "B06-S05",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T06:13:46+00:00",
+      "detail": "B06-S05",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -4713,7 +4725,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "1778acea954f1ee85e453ffface92340550bd440"
+    "last_recorded_head": "b294e04b633cfb2d5cea98a6837e83ae1458bb19"
   },
   "policy": {
     "fix_severities": [
@@ -4733,5 +4745,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T06:12:06+00:00"
+  "updated_at": "2026-07-27T06:13:46+00:00"
 }
