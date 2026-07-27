@@ -2184,6 +2184,12 @@
           "from": "Accepted",
           "note": "FVulkanQueue now preflights the complete command, wait, signal, and fence set, including validity, device provenance, duplicates, overlap, readiness, and signalability, before allocating tracking or mutating any object; accepted submission commits only no-fail internal transitions and increments the count last.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T03:03:07+00:00",
+          "from": "Fixed",
+          "note": "Independent B05-S06 review confirmed full submission preflight precedes allocation and mutation, commit transitions are no-fail, maintained rejection tests preserve all inputs and the success counter, and fresh strict-debug, fallback-strict, and strict-release gates pass.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B05-F004",
@@ -2192,9 +2198,9 @@
       "requirement": "011-FR-014 and the Feature 011 Submission Batch contract require failed validation to preserve submission observability and accept only consumable/signalable synchronization sets",
       "resolution": "FVulkanQueue now preflights the complete command, wait, signal, and fence set, including validity, device provenance, duplicates, overlap, readiness, and signalability, before allocating tracking or mutating any object; accepted submission commits only no-fail internal transitions and increments the count last.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Vulkan queue submission is not failure-atomic",
-      "verification": ""
+      "verification": "Independent B05-S06 review confirmed full submission preflight precedes allocation and mutation, commit transitions are no-fail, maintained rejection tests preserve all inputs and the success counter, and fresh strict-debug, fallback-strict, and strict-release gates pass."
     },
     {
       "batch": "B05",
@@ -2220,6 +2226,12 @@
           "from": "Accepted",
           "note": "Completion observation and queue wait-idle now share one transition that marks the command Resettable before publishing Completed; retryable outcomes remain recoverable, nonzero timeout success completes the command, and later observation of an already completed submission is idempotently successful.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T03:03:19+00:00",
+          "from": "Fixed",
+          "note": "Independent B05-S06 review confirmed completion publishes command-buffer Resettable state before Completed, retryable NotReady and Timeout outcomes remain recoverable through WaitIdle, observation is idempotent, maintained tests cover each transition, and fresh strict-debug, fallback-strict, and strict-release gates pass.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B05-F005",
@@ -2228,9 +2240,9 @@
       "requirement": "011-FR-015, 011-FR-015a, and the Feature 011 completion contract require completed work to make submitted command buffers resettable and wait-idle to complete fallback submissions",
       "resolution": "Completion observation and queue wait-idle now share one transition that marks the command Resettable before publishing Completed; retryable outcomes remain recoverable, nonzero timeout success completes the command, and later observation of an already completed submission is idempotently successful.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Submission completion can diverge from command lifecycle",
-      "verification": ""
+      "verification": "Independent B05-S06 review confirmed completion publishes command-buffer Resettable state before Completed, retryable NotReady and Timeout outcomes remain recoverable through WaitIdle, observation is idempotent, maintained tests cover each transition, and fresh strict-debug, fallback-strict, and strict-release gates pass."
     },
     {
       "batch": "B05",
@@ -2256,6 +2268,12 @@
           "from": "Accepted",
           "note": "Queue, command pool/buffer, fence, and semaphore wrappers now share an active device owner identity, close construction to FVulkanDevice, reject cross-device composition, invalidate through owner shutdown, and map queue/fence/semaphore wrapper or tracking allocation failures to explicit Unavailable results without publishing partial objects.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T03:04:28+00:00",
+          "from": "Fixed",
+          "note": "Independent B05-S06 review confirmed device-owned construction and shared owner provenance for queue, pool, command buffer, fence, and semaphore; foreign/stale objects reject composition, shutdown invalidates the owner first, factory failures do not publish partial wrappers, maintained tests cover provenance and shutdown, and fresh strict-debug, fallback-strict, and strict-release gates pass.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B05-F006",
@@ -2264,9 +2282,9 @@
       "requirement": "009-FR-009, 009-FR-017, and the Feature 009 data model require queues, fences, and semaphores to be device-created, device-owned, and invalidated on shutdown",
       "resolution": "Queue, command pool/buffer, fence, and semaphore wrappers now share an active device owner identity, close construction to FVulkanDevice, reject cross-device composition, invalidate through owner shutdown, and map queue/fence/semaphore wrapper or tracking allocation failures to explicit Unavailable results without publishing partial objects.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Queue and synchronization wrappers bypass device ownership",
-      "verification": ""
+      "verification": "Independent B05-S06 review confirmed device-owned construction and shared owner provenance for queue, pool, command buffer, fence, and semaphore; foreign/stale objects reject composition, shutdown invalidates the owner first, factory failures do not publish partial wrappers, maintained tests cover provenance and shutdown, and fresh strict-debug, fallback-strict, and strict-release gates pass."
     }
   ],
   "schema_version": 1
