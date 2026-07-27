@@ -1,5 +1,5 @@
 {
-  "active_step": "B07-S15",
+  "active_step": "B08-S01",
   "batches": [
     {
       "id": "B00",
@@ -1307,7 +1307,7 @@
     },
     {
       "id": "B07",
-      "status": "InProgress",
+      "status": "Completed",
       "steps": [
         {
           "commit": null,
@@ -1493,12 +1493,15 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T08:39:42+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B07-transforms-render-collection-verification.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b07-transforms-render-collection-verification.md"
+          ],
           "id": "B07-S15",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Verified B07 transforms/render collection inspection remained no-finding; fallback-strict gate passed.",
+          "started_at": "2026-07-27T08:38:49+00:00",
+          "status": "Completed",
           "title": "Verify: transforms and render collection"
         }
       ],
@@ -5207,6 +5210,21 @@
       "at": "2026-07-27T08:37:36+00:00",
       "detail": "B07-S14",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T08:38:49+00:00",
+      "detail": "B07-S15",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T08:39:09+00:00",
+      "detail": "fallback-strict: pass",
+      "kind": "gate"
+    },
+    {
+      "at": "2026-07-27T08:39:42+00:00",
+      "detail": "B07-S15",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5250,7 +5268,7 @@
       ],
       "passed": true,
       "profile": "fallback-strict",
-      "recorded_at": "2026-07-27T08:31:12+00:00"
+      "recorded_at": "2026-07-27T08:39:09+00:00"
     },
     "release": {
       "commands": [
@@ -5360,7 +5378,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "33df547197ef52bdcbac21cafe35dc44ee9e975a"
+    "last_recorded_head": "dcea5c2aca11d224145635112ae9cee43f1539f1"
   },
   "policy": {
     "fix_severities": [
@@ -5380,5 +5398,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T08:37:36+00:00"
+  "updated_at": "2026-07-27T08:39:42+00:00"
 }
