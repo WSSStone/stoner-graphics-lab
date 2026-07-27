@@ -1,5 +1,5 @@
 {
-  "active_step": "B09-S01",
+  "active_step": "B09-S02",
   "batches": [
     {
       "id": "B00",
@@ -1708,16 +1708,18 @@
     },
     {
       "id": "B09",
-      "status": "Pending",
+      "status": "InProgress",
       "steps": [
         {
-          "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "commit": "8b6746978cedca88571c3ad1a49b6bd5c387429b",
+          "completed_at": "2026-07-27T10:40:33+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B09-test-target-private-boundaries-inspection.md"
+          ],
           "id": "B09-S01",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected test target architecture and private include boundaries; accepted CR001-B09-F002 as a detailed S2 refinement of existing private-include leakage and CR001-B09-F003 as S3 focused-suite selector debt.",
+          "started_at": "2026-07-27T10:37:29+00:00",
+          "status": "Completed",
           "title": "Inspect: test target architecture and private boundaries"
         },
         {
@@ -5572,6 +5574,36 @@
       "at": "2026-07-27T10:34:55+00:00",
       "detail": "B08-S15",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T10:37:29+00:00",
+      "detail": "B09-S01",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T10:39:17+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T10:39:18+00:00",
+      "detail": "add finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T10:39:35+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T10:39:37+00:00",
+      "detail": "triage finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T10:40:33+00:00",
+      "detail": "B09-S01",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5725,7 +5757,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "43a0e6f227b4f559d621577eeec203a92f3ba99e"
+    "last_recorded_head": "8b674691cde1ec0e625d1550c5328979acef1810"
   },
   "policy": {
     "fix_severities": [
@@ -5745,5 +5777,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T10:34:55+00:00"
+  "updated_at": "2026-07-27T10:40:33+00:00"
 }

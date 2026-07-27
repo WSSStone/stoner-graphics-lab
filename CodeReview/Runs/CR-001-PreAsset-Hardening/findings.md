@@ -947,3 +947,27 @@
 - Resolution: Tightened run_deferred_validation.py to require 18 probes per convention and all six point/spot LocalLightCase probes, expanded wrapper tests to reject stale reports, and aligned Feature 019 validation docs while preserving old completion artifacts as historical evidence only.
 - Verification: Verified in B08-S15 from current HEAD: wrapper unit tests pass, stale retained Linux report is rejected for fewer than 18 probes, active docs contain 18/local-light requirements, and old current-threshold phrases are absent.
 - Commit: `3fe5a6d`
+
+## CR001-B09-F002: Test target exposes Private include paths to every test source
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Constitution and CR-001 architecture protocol: production Public/Private boundaries should be enforced by build structure, and tests that need internals should be explicitly scoped instead of globally bypassing layer boundaries.
+- Location: `Tests/SConscript:28-31; Tests/TriangleDemoIntegrationTests.cpp:3-5; Tests/ApplicationWindowInputTests.cpp:4; Tests/CorePlatformTests.cpp:4-5`
+- Impact: Future tests can accidentally include private implementation headers or resolve an ambiguous basename through a Private directory while still compiling in CI. This weakens the layer-boundary proof that production BuildLayer enforces and makes architecture drift harder to detect before Feature 020 adds the Asset layer.
+- Evidence: Tests/SConscript appends Demo/StonerDemo/Private, Source/Application/Private, and Source/Core/Private to the shared test_env CPPPATH before compiling every Tests/*.cpp file. Only three test files include private headers: TriangleDemoIntegrationTests.cpp uses demo private runtime headers, ApplicationWindowInputTests.cpp uses FWindowDriver.h, and CorePlatformTests.cpp uses Core internal platform helpers. All other test sources inherit the same private search paths unnecessarily.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
+
+## CR001-B09-F003: Single StonerTest entry point lacks suite selection for focused gates
+
+- Severity: S3
+- Status: Accepted
+- Requirement: CR-001 execution protocol: reusable validation tools and gates should support bounded, focused verification steps without forcing unrelated domains into every local probe.
+- Location: `Tests/Main.cpp:20-67; Tests/SConscript:34-74; Tests/RHICoreTests.cpp; Tests/VulkanBackendTests.cpp; Tests/LoggingAssertionTests.cpp`
+- Impact: Focused CR verification often has to rely on environment skips or ad hoc output filtering instead of an explicit test selection contract. This increases local cycle time and makes unrelated optional/native behavior more likely to obscure the result of a narrow fix.
+- Evidence: Tests/SConscript auto-discovers every Tests/*.cpp file into one StonerTest binary. Tests/Main.cpp always invokes every suite except special logging child-process modes. Large suites include RHICoreTests.cpp at 2670 lines, VulkanBackendTests.cpp at 1755 lines, and LoggingAssertionTests.cpp at 1180 lines, but there is no first-class command-line suite selector for focused local gates.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`

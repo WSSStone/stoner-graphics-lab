@@ -1,11 +1,11 @@
 # CR-001 Progress
 
 - Status: Active
-- Completed steps: 116/134
+- Completed steps: 117/134
 - Baseline: `9092a97593fb29cffbffdbe534e3dda143f463a5`
-- Recorded HEAD: `43a0e6f227b4f559d621577eeec203a92f3ba99e`
-- Active step: B09-S01
-- Open findings: 2
+- Recorded HEAD: `8b674691cde1ec0e625d1550c5328979acef1810`
+- Active step: B09-S02
+- Open findings: 4
 
 ## Batches
 
@@ -18,7 +18,7 @@
 - B06 Renderer 013-015: Completed
 - B07 Application 016-017: Completed
 - B08 Integration 018-019: Completed
-- B09 Cross-Cutting: Pending
+- B09 Cross-Cutting: InProgress
 - B10 Closeout: Pending
 
 ## Next Command
