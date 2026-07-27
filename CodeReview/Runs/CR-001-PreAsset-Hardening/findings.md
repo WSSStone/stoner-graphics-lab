@@ -755,3 +755,15 @@
 - Resolution: Fixed by deriving the execution resource set from compiled ScheduledPasses, skipping culled-branch resources during imported validation/transient resolution, and adding regression coverage for missing imports and transient resolution failures used only by culled passes.
 - Verification: Verified parent/current executor behavior: parent resolved all Graph.Resources before scheduled pass execution, current derives RequiredResources from compiled ScheduledPasses and leaves culled resources unresolved. Regression tests cover culled missing import and culled transient resolution failure; fallback-strict, strict-release, and sanitizer gates pass.
 - Commit: `7292a65`
+
+## CR001-B06-F002: Shader library registration accepts invalid variant metadata
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 014 FR-011, FR-012, FR-014, FR-018 and data-model rules require shader records to declare valid allowed permutation flags, unique variant identities, variants whose permutation keys use only declared flags, and deterministic rejection of unavailable/invalid shader variants.
+- Location: `Source/Renderer/Private/FShaderLibrary.cpp:46`
+- Impact: A malformed precompiled shader record can enter the library and later participate in material binding or dumps. This weakens the registry contract needed before asset-backed shader records in Feature 024/Asset work, and can make missing/ambiguous variant failures depend on registration order rather than deterministic validation.
+- Evidence: RegisterShaderRecord sorts allowed flags and variants but does not reject duplicate allowed flag declarations with diagnostics, duplicate variant ids, duplicate canonical variant permutation keys, empty variant ids, or variant permutations containing flags outside AllowedPermutationFlags. Tests cover unknown flags during ResolveVariant but not invalid records at registration time.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
