@@ -120,10 +120,11 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
     Record(Result,
         Report.ReferencePath == Stoner::Core::FString("NativeDeferredReadback"),
         "Deferred native validation uses mapped attachment readback");
-    Record(Result, Report.GetProbeCount("StandardZ") >= 12 &&
-        Report.GetProbeCount("ReversedZ") >= 12,
-        "Deferred native validation reports at least twelve probes per depth convention");
+    Record(Result, Report.GetProbeCount("StandardZ") >= 18 &&
+        Report.GetProbeCount("ReversedZ") >= 18,
+        "Deferred native validation reports extended probes per depth convention");
     std::set<std::string> ProbeIdentities;
+    std::set<std::string> LocalLightCases;
     bool bEveryProbeValid = true;
     for (const FVulkanDeferredProbe& Probe : Report.Probes)
     {
@@ -132,9 +133,26 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
         bEveryProbeValid = bEveryProbeValid &&
             ProbeIdentities.insert(Identity).second &&
             std::isfinite(Probe.ErrorMeasure) && Probe.bPassed;
+        if (Probe.Semantic == Stoner::Core::FString("LocalLightCase"))
+        {
+            LocalLightCases.insert(Identity);
+        }
     }
     Record(Result, bEveryProbeValid,
         "Mapped attachment probes are finite, unique, and within semantic tolerances");
+    bool bLocalLightCoverage = true;
+    for (const char* Convention : {"StandardZ", "ReversedZ"})
+    {
+        for (const char* Name : {"point-visible", "point-outside-view",
+                 "point-camera-inside", "spot-visible", "spot-outside-cone",
+                 "spot-near-plane"})
+        {
+            bLocalLightCoverage = bLocalLightCoverage &&
+                LocalLightCases.count(std::string(Convention) + "/" + Name) == 1;
+        }
+    }
+    Record(Result, bLocalLightCoverage,
+        "Deferred native validation covers point and spot local-light edge cases");
     Record(Result, Report.bPassed && Report.FinalLiveObjects == 0,
         "Deferred native validation passes semantic probes and releases frame-owned objects");
     if (RunNativeFailureInjection())
