@@ -3108,6 +3108,12 @@
           "from": "Accepted",
           "note": "Initialize late startup failures now route through cleanup or call Shutdown after injected upload/pipeline failures; direct swapped-shader Initialize regression proves stopped lifecycle and idempotent shutdown.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T08:53:33+00:00",
+          "from": "Fixed",
+          "note": "Verified at B08-S03: FailInitialize and late upload/pipeline injection cleanup call Shutdown, swapped-shader direct Initialize leaves lifecycle Stopped with idempotent Shutdown, and fallback-strict gate passed at 2026-07-27T08:53:13+00:00.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B08-F002",
@@ -3116,9 +3122,9 @@
       "requirement": "Feature 018 FR-015 and the runtime shutdown contract require partial initialization failure to release owned resources in dependency-safe order, with every shutdown step tolerating partially initialized prior steps.",
       "resolution": "Initialize late startup failures now route through cleanup or call Shutdown after injected upload/pipeline failures; direct swapped-shader Initialize regression proves stopped lifecycle and idempotent shutdown.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Public demo Initialize can leave partial native resources after late startup failure",
-      "verification": ""
+      "verification": "Verified at B08-S03: FailInitialize and late upload/pipeline injection cleanup call Shutdown, swapped-shader direct Initialize leaves lifecycle Stopped with idempotent Shutdown, and fallback-strict gate passed at 2026-07-27T08:53:13+00:00."
     }
   ],
   "schema_version": 1
