@@ -26,15 +26,34 @@ for backend in _BACKEND_LAYERS:
     include_paths.append(Dir('#' + public_dir).abspath)
 
 test_env.Append(CPPPATH=include_paths)
-test_env.Append(CPPPATH=[Dir('#Demo/StonerDemo/Private').abspath])
-test_env.Append(CPPPATH=[Dir('#Source/Application/Private').abspath])
-test_env.Append(CPPPATH=[Dir('#Source/Core/Private').abspath])
 
 # Source files — use relative path to SConscript source dir for variant_dir compat
 tests_src_dir = Dir('.').srcnode().abspath
 cpp_files = sorted(f for f in os.listdir(tests_src_dir) if f.endswith('.cpp'))
 rel_src_dir = os.path.relpath(tests_src_dir, Dir('.').srcnode().abspath)
-sources = [os.path.join(rel_src_dir, f) for f in cpp_files]
+
+private_include_paths_by_source = {
+    'ApplicationWindowInputTests.cpp': [
+        Dir('#Source/Application/Private').abspath,
+    ],
+    'CorePlatformTests.cpp': [
+        Dir('#Source/Core/Private').abspath,
+    ],
+    'TriangleDemoIntegrationTests.cpp': [
+        Dir('#Demo/StonerDemo/Private').abspath,
+    ],
+}
+
+objects = []
+for cpp_file in cpp_files:
+    source = os.path.join(rel_src_dir, cpp_file)
+    extra_private_paths = private_include_paths_by_source.get(cpp_file)
+    if extra_private_paths:
+        source_env = test_env.Clone()
+        source_env.Append(CPPPATH=extra_private_paths)
+    else:
+        source_env = test_env
+    objects.extend(source_env.Object(source))
 
 # Build output base
 config_display = 'Debug' if config == 'debug' else 'Release'
@@ -71,7 +90,7 @@ if graphics_deps['glfw_library']:
 if platform == 'Mac' and graphics_deps['glfw_available']:
     test_env.Append(FRAMEWORKS=['Cocoa', 'IOKit', 'CoreFoundation'])
 
-program = test_env.Program('StonerTest', sources)
+program = test_env.Program('StonerTest', objects)
 
 platform_matrix_script = File('#Tests/verify_platform_identity.py')
 platform_header = File('#Source/Core/Public/Core/SGPlatform.h')
