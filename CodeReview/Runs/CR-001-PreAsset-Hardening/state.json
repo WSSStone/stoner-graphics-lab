@@ -1,5 +1,5 @@
 {
-  "active_step": "B09-S08",
+  "active_step": "B09-S09",
   "batches": [
     {
       "id": "B00",
@@ -1796,12 +1796,14 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T11:06:25+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B09-concurrency-lifetime-ownership-fix.md"
+          ],
           "id": "B09-S08",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "No-op fix: B09-S07 accepted no new finding.",
+          "started_at": "2026-07-27T11:05:49+00:00",
+          "status": "Completed",
           "title": "Fix: concurrency, lifetime, and ownership duplication"
         },
         {
@@ -5716,6 +5718,16 @@
       "at": "2026-07-27T11:04:28+00:00",
       "detail": "B09-S07",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T11:05:49+00:00",
+      "detail": "B09-S08",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T11:06:25+00:00",
+      "detail": "B09-S08",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5869,7 +5881,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "76094168590b574932555b35e0c04a0c42058d11"
+    "last_recorded_head": "12044a11889ddc94a72285856f4e48a61bb32a8b"
   },
   "policy": {
     "fix_severities": [
@@ -5889,5 +5901,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T11:04:28+00:00"
+  "updated_at": "2026-07-27T11:06:25+00:00"
 }
