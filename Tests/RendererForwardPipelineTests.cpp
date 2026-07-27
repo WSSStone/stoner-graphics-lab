@@ -231,6 +231,13 @@ void TestLightingSelectionAndFallback(FRendererForwardPipelineTestResult& Result
             Plan.Diagnostics.CountByCode("FWD-AMBIENT-FALLBACK") == 1,
         "Forward renderer supports zero point light limit with ambient-only fallback");
 
+    Config.bEnableAmbientFallback = false;
+    Plan = Prepare(Inputs, Config);
+    Record(Result, Plan.LightSet.AcceptedPointLights.empty() &&
+            Plan.AmbientFallback.bActive &&
+            Plan.Diagnostics.CountByCode("FWD-AMBIENT-FALLBACK") == 1,
+        "Forward renderer preserves required ambient fallback diagnostics when fallback config is disabled");
+
     Inputs = RepresentativeInputs();
     Inputs.DirectionalLights.push_back(Directional(2, "SecondSun"));
     Plan = Prepare(Inputs);
@@ -268,6 +275,24 @@ void TestSkyTransparentAndDeterminism(FRendererForwardPipelineTestResult& Result
     Record(Result, Plan.AcceptedTransparentDraws[0].GetMaterialId() == 11 &&
             Plan.AcceptedTransparentDraws[1].GetMaterialId() == 12,
         "Forward renderer breaks equal-depth transparent ties by material id");
+
+    Inputs.DrawCandidates.clear();
+    Inputs.DrawCandidates.push_back(Draw(20, 41, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 7.0f}, false, true));
+    Inputs.DrawCandidates.push_back(Draw(20, 40, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 7.0f}, false, true));
+    Plan = Prepare(Inputs);
+    const bool bForwardOrderUsesMeshTie =
+        Plan.AcceptedTransparentDraws.size() == 2 &&
+        Plan.AcceptedTransparentDraws[0].GetMeshId() == 40 &&
+        Plan.AcceptedTransparentDraws[1].GetMeshId() == 41;
+    Inputs.DrawCandidates.clear();
+    Inputs.DrawCandidates.push_back(Draw(20, 40, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 7.0f}, false, true));
+    Inputs.DrawCandidates.push_back(Draw(20, 41, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 7.0f}, false, true));
+    const FForwardFramePlan ReversedTiePlan = Prepare(Inputs);
+    Record(Result, bForwardOrderUsesMeshTie &&
+            ReversedTiePlan.AcceptedTransparentDraws.size() == 2 &&
+            ReversedTiePlan.AcceptedTransparentDraws[0].GetMeshId() == 40 &&
+            ReversedTiePlan.AcceptedTransparentDraws[1].GetMeshId() == 41,
+        "Forward renderer breaks final transparent ties without relying on caller order");
 
     Inputs.DrawCandidates.clear();
     FForwardMaterialBinding OpaqueOnly = Binding(50, "OpaqueOnly", EMaterialBlendMode::Opaque);

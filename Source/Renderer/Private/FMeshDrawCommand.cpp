@@ -234,7 +234,11 @@ void SortForwardTransparentDraws(Stoner::Core::TArray<FMeshDrawCommand>& Draws)
         {
             return Left.GetMaterialId() < Right.GetMaterialId();
         }
-        return Left.GetObjectId() < Right.GetObjectId();
+        if (Left.GetObjectId() != Right.GetObjectId())
+        {
+            return Left.GetObjectId() < Right.GetObjectId();
+        }
+        return Left.GetMeshId() < Right.GetMeshId();
     });
 }
 
