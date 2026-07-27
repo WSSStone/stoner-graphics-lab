@@ -879,11 +879,11 @@
 ## CR001-B07-F006: Transform propagation stops at transformless intermediate parents
 
 - Severity: S2
-- Status: Fixed
+- Status: Verified
 - Requirement: Feature 017 FR-006/FR-007/FR-009 and the hierarchy contract require world transforms to be derived from parent-child relationships in topological order, with reparent operations preserving world or local transform according to the requested option.
 - Location: `Source/Application/Private/FWorld.cpp:578`
 - Impact: Valid grouping entities without transform components can hide ancestor transforms from descendants, producing incorrect world transforms and renderer-facing scene summaries; preserve-world reparenting through such groups can silently preserve the wrong world state.
 - Evidence: ComputeWorldTransform returns the child local transform when the immediate parent exists but lacks a transform at lines 589-594, instead of continuing through the parent chain. SetParent also treats a transformless parent as having no parent-world transform at lines 347-361, so preserve-world/local calculations can ignore a transformed ancestor. Current hierarchy tests cover direct transformed parent-child chains but not Root(transform) -> Group(no transform) -> Child(transform).
 - Resolution: Transform propagation now uses an internal hierarchy-world helper so transformless grouping entities inherit transformed ancestors while public TryGetWorldTransform still requires the queried entity to own a transform; regressions cover propagation and preserve-world reparenting through transformless groups.
-- Verification: pending
+- Verification: Verified at B07-S12: internal hierarchy-world propagation covers transformless groups, public TryGetWorldTransform still requires the queried entity transform, regressions pass, and fallback-strict gate passed at 2026-07-27T08:31:12+00:00.
 - Commit: `00d3ffc`

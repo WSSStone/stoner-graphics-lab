@@ -3066,6 +3066,12 @@
           "from": "Accepted",
           "note": "Transform propagation now uses an internal hierarchy-world helper so transformless grouping entities inherit transformed ancestors while public TryGetWorldTransform still requires the queried entity to own a transform; regressions cover propagation and preserve-world reparenting through transformless groups.",
           "to": "Fixed"
+        },
+        {
+          "at": "2026-07-27T08:31:29+00:00",
+          "from": "Fixed",
+          "note": "Verified at B07-S12: internal hierarchy-world propagation covers transformless groups, public TryGetWorldTransform still requires the queried entity transform, regressions pass, and fallback-strict gate passed at 2026-07-27T08:31:12+00:00.",
+          "to": "Verified"
         }
       ],
       "id": "CR001-B07-F006",
@@ -3074,9 +3080,9 @@
       "requirement": "Feature 017 FR-006/FR-007/FR-009 and the hierarchy contract require world transforms to be derived from parent-child relationships in topological order, with reparent operations preserving world or local transform according to the requested option.",
       "resolution": "Transform propagation now uses an internal hierarchy-world helper so transformless grouping entities inherit transformed ancestors while public TryGetWorldTransform still requires the queried entity to own a transform; regressions cover propagation and preserve-world reparenting through transformless groups.",
       "severity": "S2",
-      "status": "Fixed",
+      "status": "Verified",
       "title": "Transform propagation stops at transformless intermediate parents",
-      "verification": ""
+      "verification": "Verified at B07-S12: internal hierarchy-world propagation covers transformless groups, public TryGetWorldTransform still requires the queried entity transform, regressions pass, and fallback-strict gate passed at 2026-07-27T08:31:12+00:00."
     }
   ],
   "schema_version": 1
