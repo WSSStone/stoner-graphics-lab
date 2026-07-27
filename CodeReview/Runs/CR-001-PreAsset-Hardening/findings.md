@@ -731,3 +731,15 @@
 - Resolution: Fixed by native graphics/compute pipeline ownership in FVulkanNativeContext plus failure-atomic device publication and maintained native integration regressions.
 - Verification: Verified by parent/current native ownership audit, real RHI graphics and compute pipeline native tokens, cleanup on invalidation/shutdown, strict/fallback/sanitizer gates, and maintained native integration regressions.
 - Commit: `00751c7`
+
+## CR001-B05-F013: Visible native frame failure paths leave acquired image or unsignaled fence state
+
+- Severity: S2
+- Status: Accepted
+- Requirement: Feature 011 FR-013 through FR-015 and SC-002/SC-004 require failed submissions and invalid transitions to avoid usable partial state and preserve consistent completion observation.
+- Location: `Source/Backend/Vulkan/Private/FVulkanNativeContext.cpp:1291`
+- Impact: A suboptimal acquire can permanently block the visible frame state behind bFrameAcquired, and a submit failure after fence reset can make the next frame-slot acquire wait until timeout. The visible native runtime can therefore convert recoverable resize/submit failures into persistent invalid-state or timeout behavior.
+- Evidence: AcquireVisibleFrame returns ResizeRequired for VK_SUBOPTIMAL_KHR after setting bFrameAcquired=true; DrawVisibleFrame returns immediately for non-success acquire results. SubmitAndPresentVisibleFrame resets the frame-slot fence before vkQueueSubmit and clears bFrameAcquired on submit failure without restoring a signaled fence.
+- Resolution: pending
+- Verification: pending
+- Commit: `pending`
