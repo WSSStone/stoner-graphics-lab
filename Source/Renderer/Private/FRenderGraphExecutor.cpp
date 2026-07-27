@@ -71,10 +71,30 @@ ERenderGraphResult FRenderGraphExecutor::Execute(FRenderGraph& Graph, const FRen
     FRenderGraphCommandContext LocalCommandContext;
     FRenderGraphCommandContext& CommandContext = Desc.CommandContext ? *Desc.CommandContext : LocalCommandContext;
 
+    Stoner::Core::TArray<bool> RequiredResources(Graph.Resources.size(), false);
+    for (Stoner::Core::uint32 PassIndex : Graph.GetCompiledGraph().ScheduledPasses)
+    {
+        const FRenderGraphPassRecord& Pass = Graph.Passes[PassIndex];
+        for (const FRenderGraphResourceAccess& Access : Pass.Desc.Accesses)
+        {
+            if (Access.Resource.Index < RequiredResources.size())
+            {
+                RequiredResources[Access.Resource.Index] = true;
+            }
+        }
+    }
+
     Stoner::Core::TArray<FRenderGraphResolvedResource> ResolvedResources;
     Stoner::Core::uint32 NextBackingId = 1;
     for (FRenderGraphResourceRecord& Resource : Graph.Resources)
     {
+        if (!RequiredResources[Resource.Handle.Index])
+        {
+            Resource.BackingAllocationId = 0;
+            Resource.bResolvedDuringExecution = false;
+            continue;
+        }
+
         if (Resource.Desc.Ownership == ERenderGraphResourceOwnership::Imported)
         {
             const auto Binding = std::find_if(Desc.ImportedResources.begin(), Desc.ImportedResources.end(), [Resource](const FRenderGraphImportedResourceBinding& Candidate) {
