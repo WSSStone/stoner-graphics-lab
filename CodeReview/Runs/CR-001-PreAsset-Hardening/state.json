@@ -1,5 +1,5 @@
 {
-  "active_step": "B07-S13",
+  "active_step": "B07-S14",
   "batches": [
     {
       "id": "B00",
@@ -1467,12 +1467,15 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T08:35:42+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B07-transforms-render-collection-inspection.md",
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Evidence/b07-transforms-render-collection-inspection.md"
+          ],
           "id": "B07-S13",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Inspected transforms and render collection; no new findings.",
+          "started_at": "2026-07-27T08:33:48+00:00",
+          "status": "Completed",
           "title": "Inspect: transforms and render collection"
         },
         {
@@ -5181,6 +5184,16 @@
       "at": "2026-07-27T08:32:09+00:00",
       "detail": "B07-S12",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T08:33:48+00:00",
+      "detail": "B07-S13",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T08:35:42+00:00",
+      "detail": "B07-S13",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5334,7 +5347,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "844a7c8b2ccf70a44448a4d5df1c1dbcedb66af7"
+    "last_recorded_head": "ec09b4d194fc6de48ee91fcef674a6535baf0dfb"
   },
   "policy": {
     "fix_severities": [
@@ -5354,5 +5367,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T08:32:09+00:00"
+  "updated_at": "2026-07-27T08:35:42+00:00"
 }
