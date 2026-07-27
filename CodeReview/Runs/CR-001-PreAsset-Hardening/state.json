@@ -1,5 +1,5 @@
 {
-  "active_step": "B09-S14",
+  "active_step": "B09-S15",
   "batches": [
     {
       "id": "B00",
@@ -1868,12 +1868,14 @@
         },
         {
           "commit": null,
-          "completed_at": null,
-          "evidence": [],
+          "completed_at": "2026-07-27T11:30:49+00:00",
+          "evidence": [
+            "CodeReview/Runs/CR-001-PreAsset-Hardening/Batches/B09-documentation-spec-drift-traceability-fix.md"
+          ],
           "id": "B09-S14",
-          "note": "",
-          "started_at": null,
-          "status": "Pending",
+          "note": "Fixed traceability evidence seeding and Feature 019 HTML numbering drift.",
+          "started_at": "2026-07-27T11:27:18+00:00",
+          "status": "Completed",
           "title": "Fix: documentation, specification drift, and traceability"
         },
         {
@@ -5823,6 +5825,31 @@
       "at": "2026-07-27T11:25:15+00:00",
       "detail": "B09-S13",
       "kind": "complete"
+    },
+    {
+      "at": "2026-07-27T11:27:18+00:00",
+      "detail": "B09-S14",
+      "kind": "start"
+    },
+    {
+      "at": "2026-07-27T11:29:08+00:00",
+      "detail": "seeded 466 FR/SC records",
+      "kind": "trace"
+    },
+    {
+      "at": "2026-07-27T11:29:58+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T11:30:09+00:00",
+      "detail": "fix finding",
+      "kind": "finding"
+    },
+    {
+      "at": "2026-07-27T11:30:49+00:00",
+      "detail": "B09-S14",
+      "kind": "complete"
     }
   ],
   "gates": {
@@ -5976,7 +6003,7 @@
   "git": {
     "baseline": "9092a97593fb29cffbffdbe534e3dda143f463a5",
     "branch": "codex/review-001-pre-asset-hardening",
-    "last_recorded_head": "fb465f6edd31ef223fedc5acf1ebf81ecd155d40"
+    "last_recorded_head": "345ecb39a2965085729a3bfd2007abfd7357e3c0"
   },
   "policy": {
     "fix_severities": [
@@ -5996,5 +6023,5 @@
     "status": "Active"
   },
   "schema_version": 1,
-  "updated_at": "2026-07-27T11:25:15+00:00"
+  "updated_at": "2026-07-27T11:30:49+00:00"
 }

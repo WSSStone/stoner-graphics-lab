@@ -31,6 +31,22 @@ class SpecTraceTests(unittest.TestCase):
             )
             self.assertTrue(all(item["classification"] == "Unclassified" for item in records))
 
+    def test_write_seed_enriches_known_feature_evidence(self):
+        with TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            spec = repo / "specs" / "003-example" / "spec.md"
+            spec.parent.mkdir(parents=True)
+            spec.write_text("- **FR-001**: Required behavior.\n", encoding="utf-8")
+            output = repo / "traceability.csv"
+
+            count = spec_trace.write_seed(repo, output)
+
+            self.assertEqual(count, 1)
+            written = output.read_text(encoding="utf-8")
+            self.assertIn("FeatureMapped", written)
+            self.assertIn("Tests/CoreFoundationTests.cpp", written)
+            self.assertIn("Source/Core/Public/Core", written)
+
 
 if __name__ == "__main__":
     unittest.main()
