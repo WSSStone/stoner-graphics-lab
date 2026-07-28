@@ -185,9 +185,9 @@ runtime asset management.
 - [X] T049 Audit the public aggregate, include hygiene, ownership semantics, `noexcept` usage, PascalCase naming, and comments for all exported contracts in `Source/Asset/Public/Asset/AssetMinimal.h`
 - [X] T050 Run forbidden-dependency and private-third-party leakage scans over `Source/Asset`, `Source/Core/Public`, `Source/Core/Private/FUnicode.cpp`, and `Source/Asset/SConscript`, then encode any missing invariant in `Tests/verify_asset_layer.py`
 - [X] T051 Run strict Debug and Release builds plus focused and full regression using `scons config=debug strict=1`, `scons config=release strict=1`, `Build/Mac/Debug/Tests/StonerTest --suite asset`, and `Build/Mac/Debug/Tests/StonerTest`
-- [ ] T052 Run Linux ASan/UBSan focused and full suites through the sanitizer commands documented in `specs/020-asset-core/quickstart.md` and preserve the commands in `.github/workflows/ci.yml`
+- [X] T052 Run Linux ASan/UBSan focused and full suites through the sanitizer commands documented in `specs/020-asset-core/quickstart.md` and preserve the commands in `.github/workflows/ci.yml`
 - [X] T053 Update delivered architecture, API, validation, and exclusions documentation from `doc/SYSTEM_DESIGN.MD` into `doc/020-asset-core.html` and reconcile final commands and outcomes in `specs/020-asset-core/quickstart.md`
-- [ ] T054 Verify all 30 functional requirements and 12 success criteria against tests and CI, mark completed implementation tasks in `specs/020-asset-core/tasks.md`, and confirm Windows/macOS/Linux gates in `.github/workflows/ci.yml`
+- [X] T054 Verify all 30 functional requirements and 12 success criteria against tests and CI, mark completed implementation tasks in `specs/020-asset-core/tasks.md`, and confirm Windows/macOS/Linux gates in `.github/workflows/ci.yml`
 
 ---
 

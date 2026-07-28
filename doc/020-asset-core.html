@@ -13,7 +13,7 @@
 <li><a href="#s1">一、文档与上下文信息</a></li><li><a href="#s2">二、目标与边界</a></li><li><a href="#s3">三、交互与产品设计</a></li><li><a href="#s4">四、技术架构与关键决策</a></li><li><a href="#s5">五、实施与验证</a></li><li><a href="#s6">六、设计巧思与最佳实践</a></li><li><a href="#s7">七、编程语言知识点</a></li><li><a href="#s8">八、软件工程知识点</a></li><li><a href="#s9">九、引擎与图形 API 学习笔记</a></li>
 </ul></aside>
 <main><h1>020 - Asset Core, Identity &amp; Registry</h1>
-<div class="meta">状态：<span class="badge">本地实现完成，三平台 CI 待验证</span> · 更新：2026-07-28 · Roadmap Phase 020 · 层级：Asset / Core</div>
+<div class="meta">状态：<span class="badge">Feature 020 已完成，三平台 CI 通过</span> · 更新：2026-07-28 · Roadmap Phase 020 · 层级：Asset / Core</div>
 
 <section id="s1"><h2>一、文档与上下文信息</h2>
 <h3>1. 基础元数据</h3><table><tbody>
@@ -87,7 +87,7 @@ extension: Active -> token reset -> Inactive for new selection
 
 <section id="s5"><h2>五、实施与验证（任务流）</h2>
 <h3>1. 任务拆解清单</h3><ol><li>建立 Asset layer、私有 C source build 与 reusable suite registry。</li><li>实现 Unicode、identity、digest、version、payload 与 typed soft reference。</li><li>实现 source、metadata、dependency graph、atomic registry 与 inspection。</li><li>实现 resolver/importer/loader/cooker contracts、registration lease 和 dispatch。</li><li>补充 diagnostics、architecture scanner、CI focused gate 和 opt-in benchmark。</li></ol>
-<h3>2. 验收标准</h3><p>本地已通过 <code>scons config=debug strict=1</code>、<code>scons config=release strict=1</code>、focused/full <code>StonerTest</code>、macOS ASan/UBSan 与 <code>python3 Tests/verify_asset_layer.py</code>。Linux sanitizer 和 Windows/macOS/Linux CI 需要在分支提交并触发远程 workflow 后补齐，当前不宣称通过。</p>
+<h3>2. 验收标准</h3><p>本地已通过 <code>scons config=debug strict=1</code>、<code>scons config=release strict=1</code>、focused/full <code>StonerTest</code>、macOS ASan/UBSan 与 <code>python3 Tests/verify_asset_layer.py</code>。GitHub Actions run <code>30347149237</code> 进一步通过 Windows、macOS、Linux Debug 与 strict Release、三平台 focused Asset suite、Linux ASan/UBSan 及 Lavapipe native validation。</p>
 <h3>3. 测试矩阵与覆盖意图</h3><table><thead><tr><th>类别</th><th>风险</th><th>证据</th></tr></thead><tbody>
 <tr><td>Identity/Unicode</td><td>跨平台 ID 漂移、invalid UTF-8</td><td>NFC pair 20-run、unsafe path、collision-safe equality</td></tr>
 <tr><td>Digest/version</td><td>derived-data key 不稳定</td><td>NIST SHA-256 vectors、lowercase round-trip</td></tr>
@@ -113,7 +113,7 @@ extension: Active -> token reset -> Inactive for new selection
 <section id="s8"><h2>八、软件工程知识点</h2>
 <h3>1. Contract-first 与边界测试</h3><p>架构 scanner 不检查运行结果，而检查“错误依赖根本不能进入 production boundary”。suite registry 则把未来 feature 的 focused tests 变成一张表，而不是继续在 <code>Main.cpp</code> 增加 parser 分支或环境变量 skip。</p>
 <h3>2. Determinism 与诊断责任</h3><p>result code 用于程序分支，diagnostic 用于定位，inspection 用于完整状态学习。三者分开后，测试可以断言稳定 category，同时允许内部实现和人类可读说明演进。</p>
-<h3>3. Evidence-driven completion</h3><p>本地 Debug/Release/sanitizer 与 remote CI 是不同证据。Feature 020 在远程 workflow 尚未运行前保留 pending gate，避免 checkbox 取代事实；CI 成功后再把任务与文档状态更新为已交付。</p></section>
+<h3>3. Evidence-driven completion</h3><p>本地 Debug/Release/sanitizer 与 remote CI 是不同证据。Feature 020 在远程 workflow 成功后才关闭 T052/T054：这样 checkbox 记录的是已经发生的 Windows/macOS/Linux 与 Linux sanitizer 验证，而不是实现者的预期。</p></section>
 
 <section id="s9"><h2>九、引擎与图形 API 学习笔记</h2>
 <h3>1. Asset 层为什么不属于 Renderer</h3><p>Texture、mesh 会进入 GPU，但 identity、source provenance、dependency 和 cook version 同样服务 Tools、scene、audio/font 等系统。把 Asset 放在 Renderer 下会迫使离线工具依赖渲染运行时，也会阻碍 server/headless 使用。</p>
