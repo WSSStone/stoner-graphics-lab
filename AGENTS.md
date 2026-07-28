@@ -1,7 +1,8 @@
 <!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan:
-`specs/019-deferred-rendering-pipeline/plan.md`
+Feature 020 Asset: Core, Identity & Registry is active. Read
+`specs/020-asset-core/plan.md` for the current implementation plan,
+`specs/020-asset-core/spec.md` for requirements, and `doc/roadmap.md` for
+program context.
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -29,6 +30,8 @@ shell commands, and other important information, read the current plan:
 - Repository-owned shader source and checked-in SPIR-V payloads; process-local runtime/frame/diagnostic state; local screenshot and log evidence under `Validation/018/`; no database or asset catalog (018-triangle-demo-integration)
 - C++20 with traditional header/source separation; no C++20 Modules + Existing Core math/types/logging; Renderer material, forward, render-graph, and scene-identity contracts; RHI textures, buffers, descriptors, pipelines, render passes, command buffers, queues, fences, and runtime-mode contracts; existing Vulkan native offscreen context; SCons 4.10.1; Vulkan 1.3-compatible headers/loader; Mesa Lavapipe for Linux native CI; offline GLSL-to-SPIR-V compiler and validator when available (019-deferred-rendering-pipeline)
 - Repository-owned deferred GLSL sources and checked-in SPIR-V payloads; process-local frame plans, surface layouts, graph declarations, RHI/native resources, readback probes, diagnostics, and comparison reports; CI report artifacts; no database, scene serialization, runtime shader cache, or asset catalog (019-deferred-rendering-pipeline)
+- Process-local in-memory identities, metadata, dependency indexes, extension registrations, execution leases, diagnostics, and synthetic CPU payloads only; no persistent registry, database, manifest, cooked cache, or asset catalog (020-asset-core)
+- C++20 with traditional header/source separation; no C++20 Modules + Existing Core types, containers, strings, logging, ownership, and platform conventions; new Core `FUnicode` NFC wrapper; C++ standard library concurrency and value facilities (`<array>`, `<atomic>`, `<mutex>`, `<optional>`, `<shared_mutex>`, `<span>`); Core-private vendored `utf8proc 2.11.3` for Unicode 17 normalization; SCons 4.10.1 (020-asset-core)
 
 ## Recent Changes
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system
@@ -45,6 +48,7 @@ shell commands, and other important information, read the current plan:
 - 017-scene-graph-ecs: Implemented Application single-world scene graph and ECS foundation, generation-safe entity handles, single-instance transform/mesh/light/camera components, recursive hierarchy destruction, explicit component update/replace semantics, deterministic transform/subtree ordering, render collection ordering, diagnostics, documentation, and headless regression tests
 - 018-triangle-demo-integration: Implemented a standalone StonerDemo composition root, explicit deterministic/native runtime modes, real Renderer forward-plan execution through backend-neutral native RHI bindings, two rotating Vulkan frame slots with image-indexed presentation synchronization, native offscreen Vulkan, GLFW surface/swapchain presentation, bounded endurance validation, formal Windows/macOS visible evidence, and passing three-platform CI with Linux Lavapipe native-headless validation
 - 019-deferred-rendering-pipeline: Implemented a sibling deferred Renderer strategy with three color surface targets plus depth, normalized world-space normals, StandardZ/ReversedZ policies, directional/fullscreen and instanced point/spot volumes, render-graph/RHI execution, uncapped deterministic light handling, diagnostics, real mapped Vulkan attachment readback, runtime-independent and native failure injection, four-tier comparison artifacts, forward coexistence, and passing Windows/macOS/Linux CI with Linux Lavapipe evidence
+- 020-asset-core: Implemented the Core-only Asset layer, NFC logical identity, SHA-256 version evidence, metadata/dependency registry with atomic batches and concurrent snapshots, deterministic resolver/importer dispatch, scoped extension registrations with execution leases, focused test-suite selection, architecture enforcement, diagnostics, inspection, and opt-in registry benchmark; Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan passed in CI run 30347149237
 
 ## Git Commit Style
 - Commit messages must start with a conventional type prefix such as `feat`, `docs`, `fix`, `chore`, `refactor`, `test`, or `build`.

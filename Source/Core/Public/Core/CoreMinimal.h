@@ -37,6 +37,7 @@
 #include "Core/FPlatformProcess.h"
 #include "Core/FPlatformMemory.h"
 #include "Core/FPlatformWindow.h"
+#include "Core/FUnicode.h"
 
 // Core layer minimal header - shared utilities foundation.
 namespace Stoner::Core

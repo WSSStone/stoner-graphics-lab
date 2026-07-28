@@ -3,7 +3,7 @@
 **Feature**: 002-engine-development-roadmap
 **Date**: 2026-04-21
 **Status**: Complete
-**Last Amended**: 2026-07-24
+**Last Amended**: 2026-07-28
 
 ## Research Tasks
 
@@ -116,9 +116,9 @@ have no formal path to decoded CPU data or GPU resources. Placing importers in
 Renderer would couple generic content management to rendering, while placing
 GPU objects in Asset would reverse the RHI boundary.
 
-**Impact on Roadmap**: Features 020 through 025 establish the Asset foundation
-before Meshlets. Feature 027 adds budget-driven streaming after Meshlets expose
-the required chunk and residency behavior.
+**Impact on Roadmap**: Features 020 through 026 establish the Asset delivery
+foundation before Meshlets. Feature 030 adds budget-driven streaming after
+meshlet-derived data and GPU visibility expose chunk and residency behavior.
 
 ---
 
@@ -156,6 +156,40 @@ than the initial static-mesh importer.
 
 ---
 
+## Decision 9: Material/Model Ordering and Asset Delivery Split
+
+**Decision**: Persistent material and shader assets precede static model
+ingestion. Offline cooking/manifests and runtime asset management are separate
+features.
+
+**Rationale**: A glTF importer can emit stable material subresources only after
+their schema and shader dependencies exist. The offline cooker is a deterministic
+build tool, while the runtime manager is a concurrent lifecycle service; joining
+them would combine unrelated failure modes and exceed one bounded feature.
+
+**Impact on Roadmap**: Feature 023 defines material/shader assets, Feature 024
+imports static models, Feature 025 cooks manifests and derived payloads, and
+Feature 026 manages runtime requests and handles.
+
+---
+
+## Decision 10: Advanced Rendering and Native Backend Granularity
+
+**Decision**: Split meshlet data construction from GPU visibility, split
+ray-tracing RHI/backend support from renderer effects, and split GI into
+screen-space, SDF/surface-cache, and hybrid integration phases. Native Metal is
+scheduled immediately after Asset delivery, with DX12, desktop OpenGL, and GLES
+as separate later phases.
+
+**Rationale**: Each split creates a testable fallback boundary and prevents a
+single feature from simultaneously changing asset formats, RHI contracts,
+backend execution, and renderer policy. Early Metal validates that RHI and
+shader assets are genuinely backend-neutral on the project's primary Apple
+hardware. OpenGL and GLES have different platform, capability, and lifecycle
+constraints; Android application packaging is not a GLES backend responsibility.
+
+---
+
 ## Dependency & Technology Summary
 
 | Technology | Usage | Phase | Third-Party? |
@@ -165,8 +199,8 @@ than the initial static-mesh importer.
 | Vulkan SDK | First graphics API | 009-012 | Yes |
 | GLFW | Initial windowing | 016 | Yes |
 | VMA | Vulkan memory allocation | 010 | Yes (optional) |
-| SPIRV-Cross | Shader cross-compilation | 012, 030 | Yes |
-| glTF 2.0/GLB | Initial static-model source interchange | 023 | Standard |
+| SPIRV-Cross | Shader cross-compilation | 012, 027, 031-033 | Yes |
+| glTF 2.0/GLB | Initial static-model source interchange | 024 | Standard |
 | PNG/JPEG/HDR | Initial image source formats | 021 | Codec library selected during feature research |
 | KTX2/Basis | Cooked cross-platform textures | 022 | Khronos standard/tooling |
 | Custom Math | FVector, FMatrix, etc. | 004 | No |

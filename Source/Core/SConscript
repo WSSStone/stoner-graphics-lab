@@ -3,5 +3,14 @@
 Import('env', 'platform', 'config')
 from LayerBuilder import BuildLayer
 
-lib = BuildLayer(env, 'Core', [])
+core_env = env.Clone()
+core_env.Append(CPPDEFINES=['UTF8PROC_STATIC'])
+third_party_cflags = ['/w'] if platform == 'Win64' else ['-w']
+lib = BuildLayer(
+    core_env,
+    'Core',
+    [],
+    private_c_sources=['ThirdParty/utf8proc/utf8proc.c'],
+    third_party_cflags=third_party_cflags,
+)
 Return('lib')

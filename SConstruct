@@ -93,6 +93,13 @@ SConscript(
     duplicate=0,
 )
 
+# Asset layer (depends on Core)
+SConscript(
+    'Source/Asset/SConscript',
+    variant_dir=os.path.join(build_base, 'Asset'),
+    duplicate=0,
+)
+
 # RHI layer (depends on Core)
 SConscript(
     'Source/RHI/SConscript',
