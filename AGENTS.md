@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
-No Speckit feature is currently active. For program context and the next
-planned phase, read `doc/roadmap.md`. The next feature is 020 Asset: Core,
-Identity & Registry.
+Feature 020 Asset: Core, Identity & Registry is active. Read
+`specs/020-asset-core/spec.md` for the current requirements and
+`doc/roadmap.md` for program context. No implementation plan exists yet.
 <!-- SPECKIT END -->
 
 ## Active Technologies
