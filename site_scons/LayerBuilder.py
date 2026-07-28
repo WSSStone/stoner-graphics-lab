@@ -60,7 +60,15 @@ def _MakeRelativeToSConscriptDir(abs_path):
     return os.path.relpath(abs_path, sconscript_src_dir)
 
 
-def BuildLayer(env, layer_name, dependencies, source_dir=None, public_dir=None):
+def BuildLayer(
+    env,
+    layer_name,
+    dependencies,
+    source_dir=None,
+    public_dir=None,
+    private_c_sources=None,
+    third_party_cflags=None,
+):
     """Build a source layer as a static library with dependency-controlled include paths.
 
     Clones the environment, sets CPPPATH to only the permitted dependencies'
@@ -79,6 +87,9 @@ def BuildLayer(env, layer_name, dependencies, source_dir=None, public_dir=None):
                     Must be relative to project root.
         public_dir: Override public include directory (default: Source/{layer_name}/Public).
                     Must be relative to project root.
+        private_c_sources: Project-root-relative C sources compiled privately
+                           into the layer.
+        third_party_cflags: C-only flags applied to private C sources.
 
     Returns:
         SCons StaticLibrary node, or None if no source files found.
@@ -103,7 +114,8 @@ def BuildLayer(env, layer_name, dependencies, source_dir=None, public_dir=None):
     source_dir_abs = Dir('#' + source_dir).abspath
     cpp_files = _FindCppFiles(source_dir_abs)
 
-    if not cpp_files:
+    private_c_sources = private_c_sources or []
+    if not cpp_files and not private_c_sources:
         logger.warning("Layer '%s': no .cpp files found in %s", layer_name, source_dir)
         return None
 
@@ -112,9 +124,20 @@ def BuildLayer(env, layer_name, dependencies, source_dir=None, public_dir=None):
     # place .o files in variant_dir/<relative_path>/ and the .a file in variant_dir/.
     rel_source_dir = _MakeRelativeToSConscriptDir(source_dir_abs)
     sources = [os.path.join(rel_source_dir, f) for f in cpp_files]
+    for c_source in private_c_sources:
+        c_source_node = File('#' + c_source)
+        c_env = layer_env.Clone()
+        if third_party_cflags:
+            c_env.Append(CFLAGS=third_party_cflags)
+        sources.append(c_env.Object(c_source_node))
 
     lib = layer_env.StaticLibrary(layer_name, sources)
-    logger.info("Layer '%s': building from %d source file(s)", layer_name, len(sources))
+    logger.info(
+        "Layer '%s': building from %d C++ and %d private C source file(s)",
+        layer_name,
+        len(cpp_files),
+        len(private_c_sources),
+    )
     return lib
 
 

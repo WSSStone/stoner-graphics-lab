@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>020 - Asset Core, Identity &amp; Registry - Stoner Graphics Lab</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}:root{--bg:#f4f7f8;--paper:#fff;--ink:#17212b;--muted:#617184;--line:#d5e0e5;--accent:#0f766e;--soft:#e7f5f2;--good:#047857;--warn:#a15c00;--code:#edf2f4;--dark:#17212b;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.72 var(--sans)}.page{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 18px;background:var(--paper);border-right:1px solid var(--line)}.brand{font-size:14px;font-weight:800;color:var(--accent)}.subtitle{font-size:12px;color:var(--muted);padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:18px}.toc{list-style:none;padding:0}.toc a{display:block;padding:6px 8px;color:var(--muted);text-decoration:none;border-radius:6px;font-size:13px}.toc a:hover{color:var(--accent);background:var(--soft)}main{max-width:1080px;width:100%;padding:48px 48px 96px;margin:0 auto}h1{margin:0 0 8px;font-size:34px;line-height:1.2;color:var(--accent)}.meta{color:var(--muted);font-size:13px;margin-bottom:30px}section{margin-bottom:56px}h2{margin:32px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:23px}h3{margin:22px 0 10px;font-size:17px}h4{margin:16px 0 6px;font-size:15px}p{margin:0 0 14px}ul,ol{margin:0 0 16px;padding-left:23px}li{margin:4px 0}code{font-family:var(--mono);font-size:13px;background:var(--code);padding:2px 5px;border-radius:4px}pre{margin:14px 0;padding:16px;overflow:auto;border-radius:8px;color:#e5e7eb;background:var(--dark);font-size:13px;line-height:1.55}pre code{background:transparent;color:inherit;padding:0}table{width:100%;border-collapse:collapse;margin:16px 0 20px;font-size:14px}th,td{padding:9px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted);font-size:12px;background:#f9fbfc}.note{margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:8px;background:var(--paper)}.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#fff1d6;color:var(--warn);font-weight:700;font-size:12px}@media(max-width:860px){.page{display:block}.sidebar{position:static;height:auto}main{padding:32px 22px 72px}}
+</style>
+</head>
+<body><div class="page">
+<aside class="sidebar"><div class="brand">Stoner Graphics Lab</div><div class="subtitle">020 - Asset Core, Identity &amp; Registry</div><ul class="toc">
+<li><a href="#s1">一、文档与上下文信息</a></li><li><a href="#s2">二、目标与边界</a></li><li><a href="#s3">三、交互与产品设计</a></li><li><a href="#s4">四、技术架构与关键决策</a></li><li><a href="#s5">五、实施与验证</a></li><li><a href="#s6">六、设计巧思与最佳实践</a></li><li><a href="#s7">七、编程语言知识点</a></li><li><a href="#s8">八、软件工程知识点</a></li><li><a href="#s9">九、引擎与图形 API 学习笔记</a></li>
+</ul></aside>
+<main><h1>020 - Asset Core, Identity &amp; Registry</h1>
+<div class="meta">状态：<span class="badge">本地实现完成，三平台 CI 待验证</span> · 更新：2026-07-28 · Roadmap Phase 020 · 层级：Asset / Core</div>
+
+<section id="s1"><h2>一、文档与上下文信息</h2>
+<h3>1. 基础元数据</h3><table><tbody>
+<tr><th>Feature</th><td>020 - Asset Core, Identity &amp; Registry；Speckit 与 Roadmap 编号一致。</td></tr>
+<tr><th>设计文档</th><td><code>specs/020-asset-core/spec.md</code>、<code>plan.md</code>、<code>tasks.md</code>、<code>contracts/</code></td></tr>
+<tr><th>分支与源码</th><td><code>020-asset-core</code>；<code>Source/Asset/</code>、<code>Source/Core/*/FUnicode.*</code>、<code>ThirdParty/utf8proc/</code></td></tr>
+<tr><th>测试入口</th><td><code>Tests/AssetCoreTests.cpp</code>、<code>Tests/TestSuiteRegistryTests.cpp</code>、<code>Tests/verify_asset_layer.py</code></td></tr>
+<tr><th>本地验证</th><td>macOS strict Debug/Release、focused/full regression、ASan/UBSan、architecture scan 均通过；opt-in benchmark 完成 10,000 records / 50,000 edges。</td></tr>
+</tbody></table>
+<h3>2. 本期核心摘要</h3><p>本期新增独立 Asset 静态库，为引擎提供与物理文件位置、GPU 对象和内容版本分离的稳定资产身份；同时交付 metadata/dependency registry、resolver/importer/loader/cooker strategy contracts、原子批处理、并发查询、确定性诊断与 inspection。</p><p>最值得学习的是“身份、版本、发现、处理、生命周期”必须拆开。把文件路径当身份、把插件注册当执行所有权、或让 Renderer 拥有 importer，短期都能工作，长期却会让 cook cache、hot reload、跨平台格式和 streaming 无法独立演进。</p>
+<h3>3. 上下文与依赖</h3><p>Feature 020 只编译依赖 Core，并通过 Core 私有的 <code>FUnicode</code> 使用 utf8proc 2.11.3。它不依赖 RHI、Renderer、Application、Backend 或 Tools。后续 021 image/texture、022 KTX2、023 material/shader、024 mesh/model 和 025/026 cooker/runtime manager 将复用这里的 identity、metadata、extension 与 version contracts。</p></section>
+
+<section id="s2"><h2>二、目标与边界</h2>
+<h3>1. 业务与功能目标</h3><p>引擎开发者可以创建 <code>Texture:UI/Icons/Play#Preview</code> 这样的 typed logical ID，独立记录 source/content/cook SHA-256 evidence，把 metadata 以 atomic batch 写入 registry，并查询 type、source、direct dependency 与 reverse dependent。格式模块可注册 resolver/importer/loader/cooker；dispatch 对 priority、confidence、capacity 和 ambiguity 给出稳定结果。</p>
+<h3>2. 架构目标与定位</h3><pre><code>Tools/AssetCooker (future) ---> Asset ---> Core ---> private utf8proc
+Renderer (future) -----------> Asset
+Application (future) --------> Asset
+
+Asset -X-> RHI / Renderer / Application / Backend / Tools / graphics API</code></pre><p>Public contract 位于 <code>Source/Asset/Public/Asset</code>；dependency graph、registry indexes、dispatch selection 和 lease retirement 位于 Private。Asset 只拥有 CPU-side values 和 payload contract；未来 GPU texture/buffer residency 仍属于 Renderer/RHI adapter。</p>
+<h3>3. 边界与非目标（约束）</h3><ul>
+<li>不实现 PNG、KTX2、glTF 等 concrete formats：它们分别进入后续 format feature。</li>
+<li>不实现数据库、manifest 或 persistent catalog：本期先固定 process-local 语义。</li>
+<li>不实现 async request、cancel、coalescing、eviction 或 streaming：这些属于 runtime manager/residency。</li>
+<li>不创建 GPU handle：防止 Asset 反向依赖 RHI/Backend。</li>
+<li>不把 benchmark timing 作为 CI gate：共享 runner 的时序波动不代表 correctness。</li>
+</ul></section>
+
+<section id="s3"><h2>三、交互与产品设计</h2>
+<h3>1. 用户使用路径</h3><pre><code>FAssetId Id;
+FAssetId::Create("Texture", "UI/Icons/Play", {}, Id);
+
+FAssetMutationBatch Batch;
+Batch.Register(Metadata);
+Registry.Apply(Batch);
+
+auto Snapshot = Registry.Find(Id);
+auto Text = FAssetInspection::Format(*Snapshot);</code></pre><p>扩展路径先用 scoped token 注册 participant；dispatch 捕获 active capabilities、应用 hint/priority/confidence 规则、获得 execution lease 后才调用 callback。失败时查看 <code>EAssetResult</code>、<code>FAssetDiagnostics::FormatNormalized</code> 和 registry/extension inspection。</p>
+<h3>2. 核心规则与状态机</h3><pre><code>raw ID -> UTF-8 validate -> NFC -> path grammar -> immutable FAssetId
+
+batch: Building -> Validating -> Graph Check -> Committed
+                                  \-> Rejected (revision/index unchanged)
+
+extension: Active -> token reset -> Inactive for new selection
+                  existing execution lease -> callback completes -> destroy once</code></pre><p>Required edge 指向缺失 target 时保留为 Unresolved；target 出现后原子变为 Resolved；若新 target 闭合 required cycle，则整批拒绝。Soft edge 不参与 required DAG cycle gate。</p>
+<h3>3. 失败模式与调试入口</h3><ul>
+<li><code>InvalidIdentity</code>/<code>InvalidUtf8</code>：检查 type grammar、NFC、root、<code>..</code>、reserved delimiters 和 byte limits。</li>
+<li><code>DependencyCycle</code>：检查 proposed batch 与现有 required graph；失败不会留下半更新 index。</li>
+<li><code>AmbiguousResolver</code>/<code>AmbiguousImporter</code>：participant ID 只排序诊断，不偷偷打破功能 tie。</li>
+<li><code>CapacityExceeded</code>：hint filtering 后超过 64 importers，必须在 source read/probe 前失败。</li>
+<li><code>RegistrationInactive</code>：token 已释放且 dispatch 尚未获得 lease；已获得的 lease 不受影响。</li>
+</ul></section>
+
+<section id="s4"><h2>四、技术架构与关键决策</h2>
+<h3>1. 技术栈与基础设施</h3><p>C++20、SCons 4.10.1、<code>std::shared_mutex</code>、<code>std::optional</code>、<code>std::span</code>、RAII token/lease，以及 Core-private utf8proc 2.11.3。Feature 020 完全 headless，不需要 Vulkan SDK、display server 或 GPU。</p>
+<h3>2. 关键信息</h3>
+<h4>2.1 模块对应关系</h4><table><thead><tr><th>模块</th><th>职责</th><th>防止的问题</th></tr></thead><tbody>
+<tr><td><code>FUnicode / FAssetId</code></td><td>统一 UTF-8 NFC 与逻辑 identity grammar</td><td>不同 OS 文件语义导致 ID 漂移</td></tr>
+<tr><td><code>FAssetDigest / FAssetVersion</code></td><td>独立 source/content/cook evidence</td><td>内容变化污染稳定引用</td></tr>
+<tr><td><code>FAssetRegistry</code></td><td>atomic mutation、indexes、shared-reader snapshots</td><td>读者观察 partial batch</td></tr>
+<tr><td><code>FAssetDependencyGraph</code></td><td>resolution transition 与 required DAG gate</td><td>导入顺序耦合和隐藏 cycle</td></tr>
+<tr><td><code>FAssetExtensionRegistry</code></td><td>scoped registration 与 retained execution lease</td><td>unregister 后 stale raw callback</td></tr>
+<tr><td><code>FAssetDispatch</code></td><td>bounded deterministic resolver/importer selection</td><td>registration order 成为隐式策略</td></tr>
+</tbody></table>
+<h4>2.2 数据流与控制流</h4><p>source locator 先选 unique-priority resolver；resolver 返回 descriptor 与 bounded source lease；format hint 缩小 importer candidates；每个 importer 最多读取 64 KiB，并给出 0-100 confidence；唯一最高非零者获得 import lease；全部 multi-output metadata、payload type 和 dependency graph 验证通过后，调用方才能提交 registry batch。</p>
+<h4>2.3 诊断与可视化</h4><p>normalized diagnostic 固定 severity、stage、result、code、subject、participant、reason；不记录 address、thread ID、native error text 或 timing。<code>FAssetInspection</code> 对 identity、digest、version、metadata、registry snapshot、capability 和 ambiguity candidates 产生 owned deterministic text。</p>
+<h3>3. 架构决策记录 (ADR)</h3>
+<h4>(1) 逻辑身份不包含 hash</h4><p><strong>决策：</strong><code>FAssetId</code> 只由 type/path/subresource 构成。<strong>理由：</strong>内容改变不应让 scene soft reference 失效。<strong>否决：</strong>把 source hash 放进路径；这会让每次 reimport 都变成新资产。<strong>后果：</strong>版本失效必须显式比较 <code>FAssetVersion</code>。</p>
+<h4>(2) Unicode 由 Core 私有封装</h4><p><strong>决策：</strong>utf8proc 只编进 Core，Asset 只见 <code>FUnicode</code>。<strong>否决：</strong>平台 API 会产生跨平台差异，手写 NFC 表风险过高。<strong>后果：</strong>新增一份 pinned third-party source，但 public ABI 保持干净。</p>
+<h4>(3) Registry 采用 staged copy + serialized commit</h4><p><strong>决策：</strong>batch 在 exclusive writer boundary 中复制 proposed records、验证并一次替换，同时重建 indexes。<strong>理由：</strong>Feature 020 优先 correctness 和简单快照语义。<strong>否决：</strong>细粒度 lock-free mutation；复杂度不适合当前阶段。<strong>后果：</strong>大型批次有复制成本，后续可在不改变 public contract 的情况下优化。</p>
+<h4>(4) Token 与 Lease 分离</h4><p><strong>决策：</strong>token 控制未来 eligibility，lease 控制 in-flight ownership。<strong>否决：</strong>token 析构阻塞等待 callback，可能因 callback re-entry 死锁。<strong>后果：</strong>unregister 是非阻塞的，instance 在最后 lease 释放后恰好销毁一次。</p></section>
+
+<section id="s5"><h2>五、实施与验证（任务流）</h2>
+<h3>1. 任务拆解清单</h3><ol><li>建立 Asset layer、私有 C source build 与 reusable suite registry。</li><li>实现 Unicode、identity、digest、version、payload 与 typed soft reference。</li><li>实现 source、metadata、dependency graph、atomic registry 与 inspection。</li><li>实现 resolver/importer/loader/cooker contracts、registration lease 和 dispatch。</li><li>补充 diagnostics、architecture scanner、CI focused gate 和 opt-in benchmark。</li></ol>
+<h3>2. 验收标准</h3><p>本地已通过 <code>scons config=debug strict=1</code>、<code>scons config=release strict=1</code>、focused/full <code>StonerTest</code>、macOS ASan/UBSan 与 <code>python3 Tests/verify_asset_layer.py</code>。Linux sanitizer 和 Windows/macOS/Linux CI 需要在分支提交并触发远程 workflow 后补齐，当前不宣称通过。</p>
+<h3>3. 测试矩阵与覆盖意图</h3><table><thead><tr><th>类别</th><th>风险</th><th>证据</th></tr></thead><tbody>
+<tr><td>Identity/Unicode</td><td>跨平台 ID 漂移、invalid UTF-8</td><td>NFC pair 20-run、unsafe path、collision-safe equality</td></tr>
+<tr><td>Digest/version</td><td>derived-data key 不稳定</td><td>NIST SHA-256 vectors、lowercase round-trip</td></tr>
+<tr><td>Registry/graph</td><td>partial batch、cycle、stale resolution</td><td>rollback、remove/restore、8 readers + 100 writes</td></tr>
+<tr><td>Dispatch/lifetime</td><td>隐式 tie、unbounded probe、use-after-free</td><td>65-candidate zero-read、64 KiB cap、100 unregister races</td></tr>
+<tr><td>Architecture/CLI</td><td>层级泄漏、focused suite 伪选择</td><td>Python scanner、真实 child-process exit codes</td></tr>
+</tbody></table></section>
+
+<section id="s6"><h2>六、设计巧思与最佳实践</h2>
+<h3>1. 当前业务场景与业务模型的最佳实践</h3><ul>
+<li><strong>Hash 只做 lookup optimization：</strong>equality 永远比较完整值，测试可强制内部 hash collision。</li>
+<li><strong>Unresolved 是显式状态：</strong>允许任意导入顺序，同时不伪造 placeholder metadata。</li>
+<li><strong>Functional tie 必须失败：</strong>participant 名称只能稳定展示，不能掩盖 resolver/importer 配置冲突。</li>
+<li><strong>Probe 先限 candidate 再读 source：</strong>避免恶意或错误配置把一次发现扩大为无界 I/O。</li>
+</ul>
+<h3>2. 优化方案与收益</h3><p>已实现 exact-ID unordered lookup、type/source/reverse indexes 和 proportional dependency query；deterministic dump 在边界统一排序。benchmark 样本用于观察 registry 规模变化，不承诺产品级 SLA。未来可把 staged full copy 换成 journal/delta commit，而不改变 reader snapshot contract。</p>
+<h3>3. 已知限制与后续演进</h3><p>当前 payload 只有抽象 CPU base，source 只有 contract，registry 不持久化，dispatch 同步执行。021-024 将加入具体 texture/material/mesh payload，025/026 将加入 cooker 与 async runtime manager，028 streaming/residency 再处理 budgets、chunks 和 eviction。</p></section>
+
+<section id="s7"><h2>七、编程语言知识点</h2>
+<h3>1. 标准库接口与用法</h3><p><code>std::optional</code> 表达 subresource 与 unavailable evidence；<code>std::span</code> 传递 bounded bytes；<code>std::shared_mutex</code> 区分多 reader 与 serialized writer；<code>std::shared_ptr/weak_ptr</code> 让 token 不反向延长 registry、lease 延长 extension；<code>std::atomic</code> 固化 active flag 与 stress counters。</p>
+<h3>2. 语言特性与惯用法</h3><p>move-only registration token 用 RAII 表达 scoped registration；<code>enum class</code> 防止 result/stage/role 混用；<code>concept</code> 约束 typed soft reference 必须有稳定 asset type trait；PImpl 隐藏 mutex、indexes 和 extension records。带分配的 factory 不误标 <code>noexcept</code>，避免 allocation failure 直接终止进程。</p></section>
+
+<section id="s8"><h2>八、软件工程知识点</h2>
+<h3>1. Contract-first 与边界测试</h3><p>架构 scanner 不检查运行结果，而检查“错误依赖根本不能进入 production boundary”。suite registry 则把未来 feature 的 focused tests 变成一张表，而不是继续在 <code>Main.cpp</code> 增加 parser 分支或环境变量 skip。</p>
+<h3>2. Determinism 与诊断责任</h3><p>result code 用于程序分支，diagnostic 用于定位，inspection 用于完整状态学习。三者分开后，测试可以断言稳定 category，同时允许内部实现和人类可读说明演进。</p>
+<h3>3. Evidence-driven completion</h3><p>本地 Debug/Release/sanitizer 与 remote CI 是不同证据。Feature 020 在远程 workflow 尚未运行前保留 pending gate，避免 checkbox 取代事实；CI 成功后再把任务与文档状态更新为已交付。</p></section>
+
+<section id="s9"><h2>九、引擎与图形 API 学习笔记</h2>
+<h3>1. Asset 层为什么不属于 Renderer</h3><p>Texture、mesh 会进入 GPU，但 identity、source provenance、dependency 和 cook version 同样服务 Tools、scene、audio/font 等系统。把 Asset 放在 Renderer 下会迫使离线工具依赖渲染运行时，也会阻碍 server/headless 使用。</p>
+<h3>2. 与图形 API 的映射</h3><p>本期没有 Vulkan/DX12/Metal/OpenGL 类型，这是刻意的。后续 Renderer adapter 才把 <code>FTextureAsset</code> 转成 VkImage、ID3D12Resource、MTLTexture 或 GL texture；相同 <code>FAssetId</code> 可对应不同 target-profile cook payload，而不改变逻辑引用。</p>
+<h3>3. 推荐源码阅读路线</h3><ol><li><code>FAssetId.*</code> 与 <code>FUnicode.*</code>：理解稳定身份。</li><li><code>FAssetMetadata.*</code>、<code>FAssetDependencyGraph.cpp</code>、<code>FAssetRegistry.cpp</code>：理解原子状态。</li><li><code>FAssetExtensionRegistry.cpp</code> 与 <code>FAssetDispatch.cpp</code>：理解 eligibility 和 execution ownership。</li><li><code>AssetCoreTests.cpp</code>：从失败边界反推 contract。</li></ol>
+<h3>4. 自测问题</h3><ul><li>为什么 source hash 改变时 <code>FAssetId</code> 不应改变？</li><li>为什么 participant ID 不能作为 confidence tie-breaker？</li><li>token reset 后 callback 还能安全完成，靠的是什么所有权？</li><li>未来 GPU residency 为什么应该由 Renderer 实现，而不是 Asset registry？</li></ul>
+</section></main></div></body></html>

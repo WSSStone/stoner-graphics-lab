@@ -1,0 +1,7 @@
+"""Asset layer build script - CPU-side asset contracts, Core dependency only."""
+
+Import('env', 'platform', 'config')
+from LayerBuilder import BuildLayer
+
+lib = BuildLayer(env, 'Asset', ['Core'])
+Return('lib')

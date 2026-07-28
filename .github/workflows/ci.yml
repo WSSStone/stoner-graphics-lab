@@ -57,6 +57,9 @@ jobs:
       - name: Build
         run: scons config=debug strict=1
 
+      - name: Run Feature 020 Asset suite
+        run: ${{ matrix.test_path }} --suite asset
+
       - name: Test Feature 019 validation orchestration
         run: python .github/scripts/test_run_deferred_validation.py
 
@@ -177,3 +180,6 @@ jobs:
 
       - name: Run sanitized test suite
         run: Build/Linux/Debug/Tests/StonerTest
+
+      - name: Run sanitized Feature 020 Asset suite
+        run: Build/Linux/Debug/Tests/StonerTest --suite asset

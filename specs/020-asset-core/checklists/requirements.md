@@ -1,7 +1,7 @@
 # Specification Quality Checklist: Asset Core, Identity & Registry
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning  
-**Created**: 2026-07-28  
+**Purpose**: Validate specification completeness and quality before proceeding to planning
+**Created**: 2026-07-28
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -32,8 +32,10 @@
 ## Notes
 
 - Validation iteration 1 passed all checklist items.
+- Clarification pass completed with 5 accepted answers; the specification was
+  revalidated after dependency, resolver, concurrency, Unicode, and extension
+  lifetime decisions were integrated.
 - Public concept names from the approved roadmap are retained as domain
   vocabulary; concrete representation and implementation choices are deferred
   to planning.
 - No clarification marker blocks `/speckit-clarify` or `/speckit-plan`.
-

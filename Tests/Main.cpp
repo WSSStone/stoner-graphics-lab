@@ -17,8 +17,14 @@
 #include "VulkanBackendTests.h"
 #include "VulkanNativeIntegrationTests.h"
 #include "TriangleDemoIntegrationTests.h"
+#include "AssetCoreTests.h"
+#include "TestSuiteRegistry.h"
+#include "TestSuiteRegistryTests.h"
 
 #include <cstring>
+#include <iostream>
+#include <string>
+#include <vector>
 
 int main(int ArgCount, char* Arguments[])
 {
@@ -35,34 +41,35 @@ int main(int ArgCount, char* Arguments[])
         return 42;
     }
 
-    const FCoreFoundationTestResult CoreResult = RunCoreFoundationTests();
-    const FCoreMathTestResult MathResult = RunCoreMathTests();
-    const FLoggingAssertionTestResult LogResult =
-        RunLoggingAssertionTests(Arguments[0]);
-    const FCorePlatformTestResult PlatformResult = RunCorePlatformTests();
-    const FCorePlatformOwnershipTestResult PlatformOwnershipResult =
-        RunCorePlatformOwnershipTests();
-    const FApplicationWindowInputTestResult ApplicationResult = RunApplicationWindowInputTests();
-    const FApplicationSceneEcsTestResult SceneResult = RunApplicationSceneEcsTests();
-    const FRHICoreTestResult RHIResult = RunRHICoreTests();
-    const FDeferredRenderingTestResult DeferredResult = RunDeferredRenderingTests();
-    const FDeferredNativeIntegrationTestResult DeferredNativeResult =
-        RunDeferredNativeIntegrationTests();
-    const FRendererForwardPipelineTestResult ForwardPipelineResult = RunRendererForwardPipelineTests();
-    const FRendererComparisonTestResult ComparisonResult = RunRendererComparisonTests();
-    const FRendererMaterialShaderTestResult MaterialShaderResult = RunRendererMaterialShaderTests();
-    const FRendererRenderGraphTestResult RenderGraphResult = RunRendererRenderGraphTests();
-    const FVulkanBackendTestResult VulkanResult = RunVulkanBackendTests();
-    const FVulkanNativeIntegrationTestResult NativeVulkanResult = RunVulkanNativeIntegrationTests();
-    const FTriangleDemoIntegrationTestResult DemoResult = RunTriangleDemoIntegrationTests();
-    return CoreResult.Failed == 0 && MathResult.Failed == 0 &&
-        LogResult.Failed == 0 && PlatformResult.Failed == 0 &&
-        PlatformOwnershipResult.Failed == 0 &&
-        ApplicationResult.Failed == 0 &&
-        SceneResult.Failed == 0 &&
-        RHIResult.Failed == 0 && DeferredResult.Failed == 0 &&
-        DeferredNativeResult.Failed == 0 &&
-        ForwardPipelineResult.Failed == 0 && ComparisonResult.Failed == 0 &&
-        MaterialShaderResult.Failed == 0 && RenderGraphResult.Failed == 0 &&
-        VulkanResult.Failed == 0 && NativeVulkanResult.Failed == 0 && DemoResult.Failed == 0 ? 0 : 1;
+    FTestSuiteRegistry Registry;
+    Registry.Register("application-scene", [] { return RunApplicationSceneEcsTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("application-window", [] { return RunApplicationWindowInputTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("asset", [] { return RunAssetCoreTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("core-foundation", [] { return RunCoreFoundationTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("core-math", [] { return RunCoreMathTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("core-platform", [] { return RunCorePlatformTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("core-platform-ownership", [] { return RunCorePlatformOwnershipTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("deferred-native", [] { return RunDeferredNativeIntegrationTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("deferred-renderer", [] { return RunDeferredRenderingTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("logging", [Executable = std::string(Arguments[0])] {
+        return RunLoggingAssertionTests(Executable.c_str()).Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("renderer-comparison", [] { return RunRendererComparisonTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("renderer-forward", [] { return RunRendererForwardPipelineTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("renderer-material", [] { return RunRendererMaterialShaderTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("renderer-render-graph", [] { return RunRendererRenderGraphTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("rhi", [] { return RunRHICoreTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("test-runner", [Executable = std::string(Arguments[0])] {
+        return RunTestSuiteRegistryTests(Executable.c_str()).Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("triangle-demo", [] { return RunTriangleDemoIntegrationTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("vulkan", [] { return RunVulkanBackendTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("vulkan-native", [] { return RunVulkanNativeIntegrationTests().Failed == 0 ? 0 : 1; });
+
+    std::vector<std::string> ParsedArguments;
+    for (int Index = 1; Index < ArgCount; ++Index)
+    {
+        ParsedArguments.emplace_back(Arguments[Index]);
+    }
+    return Registry.Execute(ParsedArguments, std::cout, std::cerr);
 }
