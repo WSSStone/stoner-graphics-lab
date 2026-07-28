@@ -2,7 +2,7 @@
 
 **Feature Branch**: `002-engine-development-roadmap`
 **Created**: 2026-04-21
-**Status**: Complete (living roadmap; amended 2026-07-24)
+**Status**: Complete (living roadmap; amended 2026-07-28)
 **Input**: User description: "Research and create a comprehensive, phased, modular, agent-friendly development roadmap for the Stoner Graphics Lab cross-platform graphics engine. Create doc/ directory at project root and produce the roadmap as markdown documents."
 
 ## User Scenarios & Testing *(mandatory)*
@@ -83,8 +83,11 @@ A project lead wants to understand the overall scope of the graphics engine and 
 - **FR-009**: The roadmap MUST identify which phases are critical path (blocking other phases) vs. which can be developed in parallel.
 - **FR-010**: The roadmap MUST include an "Architecture Principles" section that summarizes the constitution's constraints as they apply to development ordering.
 - **FR-011**: Runtime phase numbers MUST match their Speckit feature numbers; Feature 002 remains the roadmap meta-feature and runtime phases therefore begin at 003.
-- **FR-012**: The roadmap MUST plan separate phases for Asset identity/registry, image/texture ingestion, KTX2 cooking, static mesh/model ingestion, material/shader assets, runtime management, and streaming/residency.
+- **FR-012**: The roadmap MUST plan separate phases for Asset identity/registry, image/texture ingestion, KTX2 cooking, material/shader assets, static mesh/model ingestion, offline cooking/manifests, runtime asset management, and streaming/residency.
 - **FR-013**: Asset importer and resolver contracts MUST permit later FBX, OBJ, USD, and TGA extensions without changing existing asset identity or runtime payload contracts.
+- **FR-014**: Material and shader asset contracts MUST precede static model ingestion so glTF material subresources target an established schema.
+- **FR-015**: Advanced rendering MUST separate derived meshlet data from GPU visibility, ray-tracing backend infrastructure from renderer effects, and screen-space GI from SDF/surface-cache data and final hybrid integration.
+- **FR-016**: Native Backend phases MUST be independently scoped by graphics API, appear early enough to validate backend-neutral contracts, and keep Android application lifecycle/packaging outside the GLES backend phase.
 
 ### Key Entities
 
@@ -97,7 +100,7 @@ A project lead wants to understand the overall scope of the graphics engine and 
 
 ### Measurable Outcomes
 
-- **SC-001**: The roadmap contains runtime phases 003 through 032 and covers all 6 runtime ownership areas.
+- **SC-001**: The roadmap contains runtime phases 003 through 038 and covers all 6 runtime ownership areas.
 - **SC-002**: Any developer can read a phase description and produce a `/speckit.specify` prompt within 2 minutes.
 - **SC-003**: The dependency graph has zero circular dependencies and forms a valid topological order.
 - **SC-004**: 100% of phases include all required fields (name, scope, deliverables, dependencies, complexity, speckit prompt).
@@ -120,6 +123,13 @@ A project lead wants to understand the overall scope of the graphics engine and 
 - Q: How should source and cooked assets coexist? → A: **Hybrid development/cooked paths.** Both paths share a stable logical-path `FAssetId`; source/content/cook hashes are version and cache keys, not identity.
 - Q: Which initial formats are supported? → A: **glTF/GLB static models plus PNG/JPEG/HDR images.** KTX2/Basis is a separate cooked-texture phase. Importer/resolver registration must allow later FBX, OBJ, USD, and TGA support.
 - Q: Should historical roadmap numbers remain offset from Speckit features? → A: **No.** Normalize all runtime phases to actual feature numbers; Deferred remains Feature 019 and Asset Core becomes Feature 020.
+
+### Session 2026-07-28
+
+- Q: Should glTF model ingestion precede persistent material/shader assets? → A: **No.** Material and shader assets move to Feature 023; static mesh/model ingestion moves to Feature 024 and consumes that schema.
+- Q: Should offline cooking and runtime asset management share one feature? → A: **No.** Feature 025 owns the offline cooker, manifests, target profiles, and derived-data cache; Feature 026 owns asynchronous runtime requests, dependency scheduling, handles, caching, cancellation, and unload.
+- Q: How should advanced rendering be sized? → A: Split meshlet derived data from GPU visibility, split ray-tracing RHI/backend work from renderer effects, and split GI into screen-space, SDF/surface-cache, and hybrid integration phases.
+- Q: When should additional native backends be developed? → A: Bring native Metal forward immediately after the Asset delivery foundation, then add DX12, desktop OpenGL, and GLES as independent phases before ray tracing and GI integration. GLES excludes Android lifecycle and packaging.
 
 ## Assumptions
 

@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan:
-`specs/019-deferred-rendering-pipeline/plan.md`
+No Speckit feature is currently active. For program context and the next
+planned phase, read `doc/roadmap.md`. The next feature is 020 Asset: Core,
+Identity & Registry.
 <!-- SPECKIT END -->
 
 ## Active Technologies

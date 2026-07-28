@@ -2,6 +2,7 @@
 
 **Feature**: 002-engine-development-roadmap
 **Date**: 2026-04-21
+**Last Amended**: 2026-07-28
 
 ## Overview
 
@@ -61,3 +62,5 @@ P{DEP} --> P{NNN}
 6. Status values are one of: ⬜ Todo, 🔄 In Progress, ✅ Done, ⏸️ Paused
 7. Every phase in the table of contents, overview table, dependency graph, and detail sections uses the same number and title
 8. Asset phases MUST preserve `Asset -> Core`; GPU realization belongs to Renderer/RHI and offline executables belong to Tools
+9. A phase MUST own one primary responsibility boundary; offline build tools and runtime lifecycle services require separate phases
+10. Graphics API backends MUST use separate phases when their platform, capability, or lifecycle validation differs

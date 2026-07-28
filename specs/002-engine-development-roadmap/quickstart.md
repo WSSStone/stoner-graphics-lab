@@ -2,13 +2,13 @@
 
 **Feature**: 002-engine-development-roadmap
 **Date**: 2026-04-21
-**Last Amended**: 2026-07-24
+**Last Amended**: 2026-07-28
 
 ## What This Feature Produces
 
 A single master document, `doc/roadmap.md`, that defines the complete
-development plan for the Stoner Graphics Lab engine. Roadmap 2.0 contains
-runtime Features 003 through 032 across Core, Asset, RHI, Backend, Renderer,
+development plan for the Stoner Graphics Lab engine. Roadmap 2.1 contains
+runtime Features 003 through 038 across Core, Asset, RHI, Backend, Renderer,
 and Application ownership areas. Feature 002 is this roadmap meta-feature and
 is not reused as a runtime phase number.
 
