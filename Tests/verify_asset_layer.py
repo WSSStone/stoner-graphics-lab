@@ -52,6 +52,12 @@ def verify(root: pathlib.Path) -> list[str]:
     if "ThirdParty" in sconscript or "utf8proc" in sconscript.lower():
         errors.append("Source/Asset/SConscript: Asset must not compile third-party Unicode sources")
 
+    core_sconscript = (root / "Source" / "Core" / "SConscript").read_text(encoding="utf-8")
+    if "ThirdParty/utf8proc/utf8proc.c" not in core_sconscript:
+        errors.append("Source/Core/SConscript: Core must compile utf8proc privately")
+    if "UTF8PROC_STATIC" not in core_sconscript:
+        errors.append("Source/Core/SConscript: utf8proc declarations must use static linkage")
+
     return errors
 
 
