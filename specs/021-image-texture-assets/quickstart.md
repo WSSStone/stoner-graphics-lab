@@ -132,6 +132,23 @@ Local macOS validation at the current Feature 021 implementation HEAD:
   the local MoltenVK environment has no usable Metal device; no fallback result
   was accepted as native evidence.
 
-Windows/Linux, Linux ASan/UBSan, Linux ThreadSanitizer, and native Lavapipe
-results remain remote CI evidence and must be recorded after the branch is
-pushed.
+GitHub Actions validation for PR #6 at
+`3b506bf8523fcb8a99c508872de11b562f8ad393`:
+
+- [CI run 30436673168](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/30436673168)
+  completed successfully with all eight jobs passing.
+- Windows, macOS, and Linux strict Debug jobs passed the focused Asset suite
+  and the existing full regression suite.
+- Windows, macOS, and Linux strict Release builds passed.
+- Linux ASan/UBSan passed the focused Asset suite and full regression without a
+  sanitizer report.
+- Linux ThreadSanitizer passed the focused concurrent Asset gate without a
+  sanitizer report, hang, or output divergence.
+- Linux Lavapipe native-headless and deferred native-readback validation passed
+  as supplementary graphics evidence. macOS native Vulkan remains explicitly
+  unavailable on the local MoltenVK environment described above; no fallback
+  result was counted as native evidence.
+
+The final quickstart reconciliation found no conflict between the implemented
+behavior, `spec.md`, `plan.md`, and `tasks.md`. All Feature 021 requirements and
+success criteria have corresponding local or cross-platform CI evidence.

@@ -208,11 +208,11 @@ cross-platform gates, and feature documentation after all stories are complete.
 - [x] T073 Remove unexplained strict-warning regressions in `Source/Asset/SConscript`, `Source/RHI/SConscript`, `Source/Renderer/SConscript`, and `Source/Backend/Vulkan/SConscript`
 - [x] T074 Run the documented Debug Asset suite and full regression on macOS using `specs/021-image-texture-assets/quickstart.md`
 - [x] T075 Run the documented strict Release build and `Tests/verify_asset_layer.py` on macOS using `specs/021-image-texture-assets/quickstart.md`
-- [ ] T076 Run the documented Windows and Linux focused Asset suite plus full regression and record platform-specific outcomes in `specs/021-image-texture-assets/quickstart.md`
-- [ ] T077 Run Linux ASan/UBSan focused Asset and full regression gates plus the focused ThreadSanitizer concurrency gate using `specs/021-image-texture-assets/quickstart.md`
-- [ ] T078 Run GitHub Actions Windows/macOS/Linux Debug and strict Release gates, confirm native Vulkan evidence remains supplementary, and record any unsupported native environment in `specs/021-image-texture-assets/quickstart.md`
+- [x] T076 Run the documented Windows and Linux focused Asset suite plus full regression and record platform-specific outcomes in `specs/021-image-texture-assets/quickstart.md`
+- [x] T077 Run Linux ASan/UBSan focused Asset and full regression gates plus the focused ThreadSanitizer concurrency gate using `specs/021-image-texture-assets/quickstart.md`
+- [x] T078 Run GitHub Actions Windows/macOS/Linux Debug and strict Release gates, confirm native Vulkan evidence remains supplementary, and record any unsupported native environment in `specs/021-image-texture-assets/quickstart.md`
 - [x] T079 Update delivered-feature documentation, validation evidence, and architecture notes in `doc/021-image-texture-assets.html` and `doc/SYSTEM_DESIGN.MD`
-- [ ] T080 Re-run all quickstart commands and reconcile final status against `specs/021-image-texture-assets/spec.md`, `specs/021-image-texture-assets/plan.md`, and `specs/021-image-texture-assets/tasks.md`
+- [x] T080 Re-run all quickstart commands and reconcile final status against `specs/021-image-texture-assets/spec.md`, `specs/021-image-texture-assets/plan.md`, and `specs/021-image-texture-assets/tasks.md`
 
 ---
 
