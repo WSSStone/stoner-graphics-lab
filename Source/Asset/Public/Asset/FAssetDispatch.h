@@ -24,6 +24,12 @@ public:
         Core::TArray<FAssetImportOutput>& OutOutputs,
         FAssetDiagnosticList* Diagnostics = nullptr);
 
+    [[nodiscard]] static EAssetResult Import(
+        const FAssetExtensionRegistry& Registry,
+        const FAssetImportRequest& Request,
+        Core::TArray<FAssetImportOutput>& OutOutputs,
+        FAssetDiagnosticList* Diagnostics = nullptr);
+
     [[nodiscard]] static FAssetLoadResult Load(
         const FAssetExtensionRegistry& Registry,
         const FAssetParticipantId& Participant,

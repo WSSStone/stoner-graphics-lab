@@ -7,6 +7,7 @@
 #include "RHI/FRHIRuntimeSnapshot.h"
 #include "RHI/FRHIPresentationSurfaceDesc.h"
 #include "RHI/FRHISwapchainDesc.h"
+#include "RHI/FRHITextureUploadDesc.h"
 
 namespace Stoner::RHI
 {
@@ -77,6 +78,12 @@ public:
     virtual TRHIObjectResult<IRHISwapchain> CreateSwapchain(Stoner::Core::uint32 FrameCount) = 0;
     virtual TRHIObjectResult<IRHIBuffer> CreateBuffer(const FRHIBufferDesc& Desc) = 0;
     virtual TRHIObjectResult<IRHITexture> CreateTexture(const FRHITextureDesc& Desc) = 0;
+    virtual ERHIResult UploadTexture(
+        const Stoner::Core::TSharedPtr<IRHITexture>&,
+        const FRHITextureUploadDesc&)
+    {
+        return ERHIResult::Unsupported;
+    }
     virtual TRHIObjectResult<IRHISampler> CreateSampler(const FRHISamplerDesc& Desc) = 0;
     virtual TRHIObjectResult<IRHIShaderModule> CreateShaderModule(const FRHIShaderModuleDesc& Desc) = 0;
     virtual TRHIObjectResult<IRHIPipelineLayout> CreatePipelineLayout(const FRHIPipelineLayoutDesc& Desc) = 0;

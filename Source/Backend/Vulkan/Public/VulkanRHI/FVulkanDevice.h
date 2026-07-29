@@ -56,6 +56,10 @@ public:
     [[nodiscard]] Stoner::Core::uint32 GetDescriptorPoolCapacity() const noexcept;
     [[nodiscard]] Stoner::Core::uint32 GetDescriptorPoolAllocatedCount() const noexcept;
     [[nodiscard]] Stoner::Core::uint32 GetCommandBufferCapacity() const noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult ReadbackTextureForTesting(
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Texture,
+        Stoner::Core::uint32 MipLevel,
+        Stoner::Core::TArray<Stoner::Core::uint8>& OutBytes);
 
     Stoner::RHI::ERHIResult Initialize(const FVulkanInstanceDesc& Desc = {});
     Stoner::RHI::ERHIResult Shutdown() override;
@@ -74,6 +78,9 @@ public:
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> CreateSwapchain(Stoner::Core::uint32 FrameCount) override;
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIBuffer> CreateBuffer(const Stoner::RHI::FRHIBufferDesc& Desc) override;
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHITexture> CreateTexture(const Stoner::RHI::FRHITextureDesc& Desc) override;
+    Stoner::RHI::ERHIResult UploadTexture(
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Texture,
+        const Stoner::RHI::FRHITextureUploadDesc& Upload) override;
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISampler> CreateSampler(const Stoner::RHI::FRHISamplerDesc& Desc) override;
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIShaderModule> CreateShaderModule(const Stoner::RHI::FRHIShaderModuleDesc& Desc) override;
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIPipelineLayout> CreatePipelineLayout(const Stoner::RHI::FRHIPipelineLayoutDesc& Desc) override;

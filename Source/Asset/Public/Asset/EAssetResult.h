@@ -30,7 +30,12 @@ enum class EAssetResult : Core::uint8
     DependencyFailure,
     ProcessingFailure,
     RegistrationInactive,
-    CapacityExceeded
+    CapacityExceeded,
+    TruncatedSource,
+    ImageLimitExceeded,
+    UnsupportedColorProfile,
+    NonFiniteImageData,
+    HDRPrecisionRangeExceeded
 };
 
 enum class EAssetStage : Core::uint8
@@ -42,7 +47,10 @@ enum class EAssetStage : Core::uint8
     Import,
     Load,
     Cook,
-    Inspect
+    Inspect,
+    Decode,
+    Validate,
+    Mip
 };
 
 enum class EAssetDiagnosticSeverity : Core::uint8

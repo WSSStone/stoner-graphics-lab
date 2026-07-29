@@ -124,20 +124,23 @@ EAssetResult FAssetDispatch::Import(
     Core::TArray<FAssetImportOutput>& OutOutputs,
     FAssetDiagnosticList* Diagnostics)
 {
+    return Import(
+        Registry,
+        FAssetImportRequest{Descriptor, Source, {}},
+        OutOutputs,
+        Diagnostics);
+}
+
+EAssetResult FAssetDispatch::Import(
+    const FAssetExtensionRegistry& Registry,
+    const FAssetImportRequest& Request,
+    Core::TArray<FAssetImportOutput>& OutOutputs,
+    FAssetDiagnosticList* Diagnostics)
+{
     OutOutputs.clear();
     auto Candidates = Registry.Snapshot(EAssetExtensionKind::Importer);
-    if (Descriptor.FormatHint)
-    {
-        Candidates.erase(
-            std::remove_if(
-                Candidates.begin(),
-                Candidates.end(),
-                [&Descriptor](const FAssetExtensionCapability& Capability)
-                {
-                    return !Contains(Capability.FormatHints, *Descriptor.FormatHint);
-                }),
-            Candidates.end());
-    }
+    // Format hints are advisory. Every registered importer still receives a
+    // bounded probe so misleading or absent extensions cannot override content.
     if (Candidates.size() > 64)
     {
         return EAssetResult::CapacityExceeded;
@@ -165,12 +168,13 @@ EAssetResult FAssetDispatch::Import(
         }
         Core::TArray<Core::uint8> Prefix;
         const EAssetResult ReadResult =
-            Source.ReadPrefix(Capability.ProbeByteLimit, Prefix);
+            Request.Source.ReadPrefix(Capability.ProbeByteLimit, Prefix);
         if (ReadResult != EAssetResult::Success)
         {
             return ReadResult;
         }
-        FAssetProbeResult Probe = Importer->Probe(Descriptor, Prefix);
+        FAssetProbeResult Probe =
+            Importer->Probe(Request.Descriptor, Prefix);
         if (Probe.Result != EAssetResult::Success ||
             Probe.Confidence < 0 || Probe.Confidence > 100)
         {
@@ -204,7 +208,8 @@ EAssetResult FAssetDispatch::Import(
     }
 
     const auto Importer = Best->Lease.Get<IAssetImporter>();
-    EAssetResult Result = Importer->Import(Descriptor, Source, OutOutputs);
+    EAssetResult Result =
+        Importer->Import(Request, OutOutputs, Diagnostics);
     if (Result == EAssetResult::Success && !ValidateImportOutputs(OutOutputs))
     {
         OutOutputs.clear();

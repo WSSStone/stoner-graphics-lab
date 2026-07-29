@@ -15,6 +15,8 @@ struct FAssetDiagnostic
     Core::FString Code;
     Core::FString Subject;
     Core::FString Participant;
+    Core::FString Field;
+    Core::FString Limit;
     Core::FString Reason;
 
     [[nodiscard]] bool operator==(const FAssetDiagnostic&) const = default;
