@@ -1604,12 +1604,15 @@ void TestSamplersDescriptorsAndUploads(FVulkanBackendTestResult& Result)
     Record(Result,
         GetRHIFormatByteSize(ERHIFormat::Unknown) == 0 &&
         GetRHIFormatByteSize(ERHIFormat::R8_UNorm) == 1 &&
+        GetRHIFormatByteSize(ERHIFormat::R8G8_UNorm) == 2 &&
         GetRHIFormatByteSize(ERHIFormat::R8G8B8A8_UNorm) == 4 &&
+        GetRHIFormatByteSize(ERHIFormat::R8G8B8A8_sRGB) == 4 &&
         GetRHIFormatByteSize(ERHIFormat::B8G8R8A8_UNorm) == 4 &&
         GetRHIFormatByteSize(ERHIFormat::R16G16B16A16_Float) == 8 &&
         GetRHIFormatByteSize(ERHIFormat::R32_Float) == 4 &&
         GetRHIFormatByteSize(ERHIFormat::R32G32_Float) == 8 &&
         GetRHIFormatByteSize(ERHIFormat::R32G32B32_Float) == 12 &&
+        GetRHIFormatByteSize(ERHIFormat::R32G32B32A32_Float) == 16 &&
         GetRHIFormatByteSize(ERHIFormat::D24_UNorm_S8_UInt) == 4 &&
         GetRHIFormatByteSize(ERHIFormat::D32_Float) == 4 &&
         GetRHIFormatByteSize(ERHIFormat::S8_UInt) == 1,
@@ -1683,6 +1686,50 @@ void TestSamplersDescriptorsAndUploads(FVulkanBackendTestResult& Result)
         TextureData, sizeof(TextureData), {0, 0, 0, 0, 0, 4, 4, 1});
     Record(Result, TextureUpload.Succeeded() && TextureUpload.Object->GetKind() == EVulkanUploadKind::Texture &&
         TextureUpload.Object->GetTextureRegion().Width == 4, "Vulkan texture upload staging preserves destination region");
+
+    FRHITextureDesc SynchronousTextureDesc = ValidTextureDesc();
+    SynchronousTextureDesc.Width = 4;
+    SynchronousTextureDesc.Height = 4;
+    const auto SynchronousTexture =
+        Device.CreateTexture(SynchronousTextureDesc);
+    auto ConcreteSynchronousTexture =
+        std::dynamic_pointer_cast<FVulkanTexture>(
+            SynchronousTexture.Object);
+    const unsigned char PaddedTextureData[80] = {
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 99, 99, 99, 99,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 99, 99, 99, 99,
+        33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 99, 99, 99, 99,
+        49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 99, 99, 99, 99};
+    FRHITextureUploadDesc SynchronousUpload;
+    SynchronousUpload.Width = 4;
+    SynchronousUpload.Height = 4;
+    SynchronousUpload.RowPitchBytes = 20;
+    SynchronousUpload.Data = PaddedTextureData;
+    SynchronousUpload.DataSizeBytes = sizeof(PaddedTextureData);
+    const ERHIResult SynchronousResult =
+        Device.UploadTexture(
+            SynchronousTexture.Object, SynchronousUpload);
+    const auto UploadedBase = ConcreteSynchronousTexture
+        ? ConcreteSynchronousTexture->GetUploadedMipData(0)
+        : std::span<const unsigned char>{};
+    Record(Result,
+        SynchronousResult == ERHIResult::Success &&
+            ConcreteSynchronousTexture &&
+            ConcreteSynchronousTexture->HasUploadedMip(0) &&
+            UploadedBase.size() == 64 &&
+            UploadedBase.front() == 1 &&
+            UploadedBase[16] == 17 &&
+            UploadedBase.back() == 64,
+        "Vulkan synchronous upload strips row padding and records a sample-ready mip");
+
+    FRHITextureUploadDesc InvalidSynchronousUpload =
+        SynchronousUpload;
+    InvalidSynchronousUpload.RowPitchBytes = 15;
+    Record(Result,
+        Device.UploadTexture(
+            SynchronousTexture.Object,
+            InvalidSynchronousUpload) == ERHIResult::InvalidState,
+        "Vulkan synchronous upload rejects an invalid row pitch without replacing the mip");
     Record(Result,
         Device.StageTextureUpload(FreshTexture.Object, TextureData,
             sizeof(TextureData), {0, 0, 7, 0, 0, 4, 4, 1}).Result ==
@@ -1705,6 +1752,19 @@ void TestSamplersDescriptorsAndUploads(FVulkanBackendTestResult& Result)
                 ERHIResult::InvalidState,
         "Vulkan texture upload validation uses the selected mip extent");
 
+    const unsigned char OnePixelMip[4] = {7, 8, 9, 10};
+    FRHITextureUploadDesc OnePixelUpload;
+    OnePixelUpload.MipLevel = 1;
+    OnePixelUpload.Width = 2;
+    OnePixelUpload.Height = 2;
+    OnePixelUpload.RowPitchBytes = 8;
+    OnePixelUpload.Data = OnePixelMip;
+    OnePixelUpload.DataSizeBytes = sizeof(OnePixelMip);
+    Record(Result,
+        Device.UploadTexture(MippedTexture.Object, OnePixelUpload) ==
+            ERHIResult::InvalidState,
+        "Vulkan synchronous upload rejects insufficient selected-mip data");
+
     FRHITextureDesc NonCopyTextureDesc = ValidTextureDesc();
     NonCopyTextureDesc.Usage = ERHITextureUsage::Sampled;
     const auto NonCopyTexture = Device.CreateTexture(NonCopyTextureDesc);
@@ -1723,6 +1783,14 @@ void TestSamplersDescriptorsAndUploads(FVulkanBackendTestResult& Result)
             {0, 0, 0, 0, 0, 4, 4, 1}).Result ==
                 ERHIResult::Unsupported,
         "Vulkan texture upload staging rejects unsupported transfer paths");
+
+    Record(Result,
+        Device.UploadTexture(NonCopyTexture.Object, SynchronousUpload) ==
+                ERHIResult::Unsupported &&
+            Device.UploadTexture(
+                MultisampledTexture.Object,
+                SynchronousUpload) == ERHIResult::Unsupported,
+        "Vulkan synchronous upload rejects missing copy usage and multisampling");
 
     (void)Device.Shutdown();
     Record(Result, DescriptorSet.Object->UpdateBuffer(0, 0, Buffer.Object) == ERHIResult::InvalidState &&

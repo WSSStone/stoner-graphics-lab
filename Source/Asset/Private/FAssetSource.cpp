@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <limits>
 
 namespace Stoner::Asset
 {
@@ -97,6 +98,75 @@ Core::FString FAssetSourceLocator::ToString() const
 bool FAssetSourceLocator::operator<(const FAssetSourceLocator& Other) const noexcept
 {
     return Scheme_ != Other.Scheme_ ? Scheme_ < Other.Scheme_ : Locator_ < Other.Locator_;
+}
+
+EAssetResult FAssetSourceLease::ReadRange(
+    Core::uint64 Offset,
+    Core::usize MaximumBytes,
+    Core::TArray<Core::uint8>& OutBytes) const
+{
+    OutBytes.clear();
+    if (!Source_)
+    {
+        return EAssetResult::NotFound;
+    }
+    const EAssetResult Result = Source_->Read(Offset, MaximumBytes, OutBytes);
+    if (Result != EAssetResult::Success)
+    {
+        OutBytes.clear();
+        return Result;
+    }
+    if (OutBytes.size() > MaximumBytes)
+    {
+        OutBytes.clear();
+        return EAssetResult::MalformedSource;
+    }
+    return EAssetResult::Success;
+}
+
+EAssetResult FAssetSourceLease::ReadBounded(
+    Core::uint64 MaximumBytes,
+    const std::optional<Core::uint64>& ExpectedSize,
+    Core::TArray<Core::uint8>& OutBytes) const
+{
+    OutBytes.clear();
+    if (MaximumBytes == 0 ||
+        MaximumBytes > static_cast<Core::uint64>(
+            std::numeric_limits<Core::usize>::max()))
+    {
+        return EAssetResult::InvalidInput;
+    }
+    if (ExpectedSize && *ExpectedSize > MaximumBytes)
+    {
+        return EAssetResult::ImageLimitExceeded;
+    }
+
+    const Core::uint64 Requested64 = ExpectedSize
+        ? *ExpectedSize
+        : MaximumBytes + (MaximumBytes <
+                static_cast<Core::uint64>(
+                    std::numeric_limits<Core::usize>::max())
+            ? 1U
+            : 0U);
+    const EAssetResult Result = ReadRange(
+        0,
+        static_cast<Core::usize>(Requested64),
+        OutBytes);
+    if (Result != EAssetResult::Success)
+    {
+        return Result;
+    }
+    if (ExpectedSize && OutBytes.size() != *ExpectedSize)
+    {
+        OutBytes.clear();
+        return EAssetResult::TruncatedSource;
+    }
+    if (OutBytes.size() > MaximumBytes)
+    {
+        OutBytes.clear();
+        return EAssetResult::ImageLimitExceeded;
+    }
+    return EAssetResult::Success;
 }
 
 } // namespace Stoner::Asset

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>021 - Image &amp; Texture Asset Foundation - Stoner Graphics Lab</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}:root{--bg:#f4f7f8;--paper:#fff;--ink:#17212b;--muted:#617184;--line:#d5e0e5;--accent:#0f766e;--soft:#e7f5f2;--good:#047857;--warn:#a15c00;--code:#edf2f4;--dark:#17212b;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.72 var(--sans)}.page{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 18px;background:var(--paper);border-right:1px solid var(--line)}.brand{font-size:14px;font-weight:800;color:var(--accent)}.subtitle{font-size:12px;color:var(--muted);padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:18px}.toc{list-style:none;padding:0}.toc a{display:block;padding:6px 8px;color:var(--muted);text-decoration:none;border-radius:6px;font-size:13px}.toc a:hover{color:var(--accent);background:var(--soft)}main{max-width:1080px;width:100%;padding:48px 48px 96px;margin:0 auto}h1{margin:0 0 8px;font-size:34px;line-height:1.2;color:var(--accent)}.meta{color:var(--muted);font-size:13px;margin-bottom:30px}section{margin-bottom:56px}h2{margin:32px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:23px}h3{margin:22px 0 10px;font-size:17px}h4{margin:16px 0 6px;font-size:15px}p{margin:0 0 14px}ul,ol{margin:0 0 16px;padding-left:23px}li{margin:4px 0}code{font-family:var(--mono);font-size:13px;background:var(--code);padding:2px 5px;border-radius:4px}pre{margin:14px 0;padding:16px;overflow:auto;border-radius:8px;color:#e5e7eb;background:var(--dark);font-size:13px;line-height:1.55}pre code{background:transparent;color:inherit;padding:0}table{width:100%;border-collapse:collapse;margin:16px 0 20px;font-size:14px}th,td{padding:9px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted);font-size:12px;background:#f9fbfc}.note{margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:8px;background:var(--paper)}.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#fff1d6;color:var(--warn);font-weight:700;font-size:12px}@media(max-width:860px){.page{display:block}.sidebar{position:static;height:auto}main{padding:32px 22px 72px}}
+</style>
+</head>
+<body><div class="page">
+<aside class="sidebar"><div class="brand">Stoner Graphics Lab</div><div class="subtitle">021 - Image &amp; Texture Asset Foundation</div><ul class="toc">
+<li><a href="#s1">一、文档与上下文信息</a></li><li><a href="#s2">二、目标与边界</a></li><li><a href="#s3">三、交互与产品设计</a></li><li><a href="#s4">四、技术架构与关键决策</a></li><li><a href="#s5">五、实施与验证</a></li><li><a href="#s6">六、设计巧思与最佳实践</a></li><li><a href="#s7">七、编程语言知识点</a></li><li><a href="#s8">八、软件工程知识点</a></li><li><a href="#s9">九、渲染、引擎与图形 API</a></li>
+</ul></aside>
+<main><h1>021 - Image &amp; Texture Asset Foundation</h1>
+<div class="meta">状态：<span class="badge">实现完成，本地 gate 通过，三平台 CI 待远程运行</span> · 更新：2026-07-29 · Roadmap Phase 021 · 层级：Asset / Renderer / RHI / Vulkan</div>
+
+<section id="s1"><h2>一、文档与上下文信息</h2>
+<h3>1. 基础元数据</h3><table><tbody>
+<tr><th>Feature</th><td>021 - Asset: Image &amp; Texture Foundation；Roadmap 与 Speckit 编号一致。</td></tr>
+<tr><th>设计文档</th><td><code>specs/021-image-texture-assets/spec.md</code>、<code>plan.md</code>、<code>tasks.md</code>、<code>contracts/</code></td></tr>
+<tr><th>分支与源码</th><td><code>021-image-texture-assets</code>；<code>Source/Asset/</code>、<code>Source/Renderer/*/FTextureAssetRealization.*</code>、<code>Source/RHI/</code>、<code>Source/Backend/Vulkan/</code></td></tr>
+<tr><th>测试入口</th><td><code>Tests/AssetImageTextureTests.cpp</code>、<code>RendererTextureAssetTests.cpp</code>、<code>RHICoreTests.cpp</code>、<code>VulkanBackendTests.cpp</code>、<code>VulkanNativeIntegrationTests.cpp</code></td></tr>
+<tr><th>依赖</th><td>C++20、SCons 4.10.1、Asset/Core、Renderer/RHI、Vulkan；Asset-private stb_image 2.30。</td></tr>
+</tbody></table>
+<h3>2. 本期核心摘要</h3><p>本期把 PNG、JPEG 与 Radiance HDR 源文件转换为 immutable CPU <code>FImageAsset</code> 和 <code>FTextureAsset</code>，固定 top-left 方向、straight alpha、显式 semantic/color space、完整 mip chain、版本证据与原子 registry publication。Renderer 再通过独立 adapter 把 CPU 资产映射为 RHI texture，并由 Vulkan fallback 或 native staging path 同步上传。</p><p>最值得学习的是 texture 不只是“一串像素”。Color、normal 与 generic data 的下采样数学不同；source RGB 与 GPU format capability 也不同。把 source interpretation、semantic filtering、portable RHI upload 和 native API ownership 分层，才能同时获得正确性、可测试性与未来 KTX2/streaming 的扩展空间。</p>
+<h3>3. 上下文与依赖</h3><p>021 复用 020 的 <code>FAssetId</code>、digest、metadata、dependency、importer dispatch 与 execution lease；复用 008 的 texture contract、009-012 的 Vulkan device/resource/command 基础。它为 022 KTX2 cooking、023 material/shader assets、024 static mesh/model 和后续 runtime asset manager 提供第一种真实 payload。stb 只在 Asset private wrapper 中编译，public Asset contract 不接触 RHI 或 Vulkan。</p></section>
+
+<section id="s2"><h2>二、目标与边界</h2>
+<h3>1. 业务与功能目标</h3><p>引擎开发者提供 source lease、稳定 Image/Texture ID 和显式 semantic。成功时得到两个不可变 payload 及一批原子 metadata；失败时得到稳定 result、stage、subject、participant、field/limit。Renderer 调用方可把 Texture asset 同步 realization 成 sample-ready RHI texture，失败不会留下半成品 GPU resource。</p>
+<h3>2. 架构目标与定位</h3><pre><code>source bytes
+    |
+    v
+Asset: inspect -> decode -> orient -> semantic mips -> Image + Texture
+    |                                                  |
+    +---------------- registry metadata ---------------+
+                                                       v
+Renderer: format plan -> temporary RGB/RG expansion -> RHI upload plan
+                                                       |
+                                                       v
+RHI contract -> Vulkan fallback / native image + staging + barriers
+
+Asset ---> Core
+Asset -X-> RHI / Renderer / Backend / graphics API</code></pre><p>CPU interpretation、identity、semantic 与 mips 属于 Asset public contract；stb、container parser、transfer LUT 与 mip generator 属于 Asset private。GPU-compatible expansion 属于 Renderer，因为它理解“资产含义”和“RHI capability”两侧；native image/memory/command/fence 则只属于 Vulkan Backend。</p>
+<h3>3. 边界与非目标（约束）</h3><ul>
+<li>不做 KTX2、Basis、BC/ASTC/ETC compression：由 022 处理，避免 source import 与 platform cook 混为一体。</li>
+<li>不做 async request、cache、cancel 与 residency：它们需要 runtime asset manager 的生命周期模型。</li>
+<li>不做 cubemap、array、volume、sparse/virtual texture：021 先固定 2D contract 与 correctness baseline。</li>
+<li>不在 Asset 中创建 GPU handle：否则离线 cooker 与 headless tools 会被迫依赖 graphics runtime。</li>
+<li>native Vulkan readback 是补充证据；CPU exact bytes 与 mock-RHI contract 才是三平台必需 gate。</li>
+</ul></section>
+
+<section id="s3"><h2>三、交互与产品设计</h2>
+<h3>1. 用户使用路径</h3><pre><code>FImageImportParameters P;
+P.ImageId = ...;
+P.TextureId = ...;
+P.Settings.Semantic = ETextureSemantic::Color;
+
+auto Imported = FAssetImportService::ImportAndRegister(
+    Extensions, Registry, Request);
+
+auto GPU = FTextureAssetRealizer::Realize({
+    Device, Imported.Texture
+});</code></pre><p>happy path 先 bounded probe，再完成 container inspection、decode、top-left normalization 和 semantic mip，最后一次 registry batch 发布 Image/Texture。失败路径可查看 <code>FAssetDiagnostics::FormatNormalized</code>；GPU 失败则查看 realization stage 与 mip index，CPU asset 始终仍可 inspection。</p>
+<h3>2. 核心规则与状态机</h3><pre><code>request
+  -> Probe
+  -> Inspect
+  -> Decode
+  -> Validate Image
+  -> Generate Mips
+  -> Validate Texture
+  -> Registry Commit
+
+realization
+  -> Plan Format
+  -> Create Texture
+  -> Upload mip 0..N
+  -> Publish resource
+  any failure -> invalidate request-owned texture -> return no resource</code></pre><p>Semantic 必须显式填写。Color 可为 linear/sRGB；Normal/Data 只能 linear。FullChain 默认按 <code>max(1,floor(previous/2))</code> 到 1x1，BaseOnly 必须显式选择。未知 enum、零 limit、错误 row pitch、越界 mip 或 source/chain budget 都 fail closed。</p>
+<h3>3. 失败模式与调试入口</h3><ul>
+<li><code>TruncatedSource</code>/<code>MalformedSource</code>：看 Inspect/Decode stage 与 fixture mutation；PNG CRC 会报告 <code>field=crc</code>。</li>
+<li><code>UnsupportedColorProfile</code>：输入 transfer/ICC 无法精确表达为 linear 或 sRGB，禁止静默近似。</li>
+<li><code>ImageLimitExceeded</code>：检查 source、dimension、mip 或 chain limit；失败发生在对应 allocation 前。</li>
+<li><code>InvalidInput</code>：优先检查缺失 semantic、Normal/Data+sRGB、未知 enum 或 chain layout。</li>
+<li>RHI realization 失败：检查 format plan、device capability、CopyDestination usage、row pitch 和失败 mip。</li>
+</ul></section>
+
+<section id="s4"><h2>四、技术架构与关键决策</h2>
+<h3>1. 技术栈与基础设施</h3><p>C++20、传统 header/source、SCons 4.10.1；<code>std::span</code> 传递 bounded bytes，<code>shared_ptr&lt;const T&gt;</code> 持有 immutable payload，<code>std::optional</code> 表达 source metadata 与请求覆盖。stb_image 2.30 使用 <code>STBI_NO_STDIO</code>、<code>STBI_NO_SIMD</code> 且仅开启 PNG/JPEG/HDR；第三方 warning 只在 wrapper translation unit 隔离。</p>
+<h3>2. 关键信息</h3>
+<h4>2.1 模块对应关系</h4><table><thead><tr><th>模块</th><th>职责</th><th>关键边界</th></tr></thead><tbody>
+<tr><td><code>FImageContainerInspector</code></td><td>签名、PNG chunk/CRC、JPEG marker、HDR header、orientation/profile/limit</td><td>decode 前 bounded policy</td></tr>
+<tr><td><code>FImageAsset / FTextureAsset</code></td><td>immutable base/mips、semantic、dependency、content digest</td><td>不含 GPU handle</td></tr>
+<tr><td><code>FImageMipGenerator</code></td><td>sRGB linear-light、linear data、normal vector filtering</td><td>固定访问顺序与 transfer LUT</td></tr>
+<tr><td><code>FAssetImportService</code></td><td>dispatch、two-output validation、atomic publication</td><td>失败清空 payload outputs</td></tr>
+<tr><td><code>FTextureAssetRealizer</code></td><td>Asset-to-RHI format plan、RGB/RG expansion、rollback</td><td>唯一跨 Asset/RHI adapter</td></tr>
+<tr><td><code>IRHIDevice::UploadTexture</code></td><td>portable synchronous single-mip upload contract</td><td>不暴露 staging/native handles</td></tr>
+<tr><td><code>FVulkanNativeContext</code></td><td>VkImage/memory、staging copy、layout barriers、fence/readback</td><td>native ownership 全在 Backend</td></tr>
+</tbody></table>
+<h4>2.2 数据流与资源流</h4><p>Source bytes 的 SHA-256 成为 provenance；canonical top-left base bytes 与 interpretation 生成 Image content digest；Texture digest 再加入 semantic、color、mip policy、limits 和每级 bytes。Realizer 不改这些 bytes：仅在目标 RHI 不支持 RGB/RG color layout 时建立临时 RGBA buffer，按 mip 升序调用同步 upload。Vulkan native path 用 host-visible staging buffer，执行 Undefined/ShaderRead 到 TransferDst、copy、再到 ShaderReadOnly 的 barrier，并等待 fence 后才返回 success。</p>
+<h4>2.3 关键诊断与可视化</h4><p>Result 用于程序分支；diagnostic 补充 stage/code/subject/participant/field/limit；inspection 汇总 metadata 与 payload facts。它们不记录 address、thread ID、timing 或任意 native error text，因此 20 次重复和三平台可以做 exact compare。Fixture manifest 固定 source digest、decoded facts 与 mutation provenance。</p>
+<h3>3. 架构决策记录 (ADR)</h3>
+<h4>(1) CPU RGB 保留，GPU expansion 后移</h4><p><strong>决策：</strong>Asset 保留 RGB8/RGB32F；Renderer 必要时扩成 RGBA。<strong>背景：</strong>很多 GPU portable formats 不保证三通道支持。<strong>否决：</strong>import 时统一 RGBA，会改变 source-class payload、浪费 CPU/cook 空间。<strong>后果：</strong>Asset evidence 更忠实，但 realization 有短生命周期转换成本。</p>
+<h4>(2) sRGB 使用 checked literal LUT</h4><p><strong>决策：</strong>8-bit sRGB 转 linear 使用 Q0.24 table，inverse 取确定性最近项；alpha 独立算术平均。<strong>否决：</strong>运行时 <code>pow</code> 可能因 libm/编译器产生边界字节差异。<strong>后果：</strong>跨平台 exact bytes 可验证，代价是固定 256-entry table。</p>
+<h4>(3) Native upload 服从 RHI 同步语义</h4><p><strong>决策：</strong>native staging/copy/barrier/fence 全部完成后再返回。<strong>否决：</strong>先返回 pending 再由隐式 queue 追踪，这会提前引入 async handle 与 cancellation。<strong>后果：</strong>当前接口简单可靠；Feature 026 再以新 lifecycle contract 引入异步。</p>
+<h4>(4) Import publication 是最后一步</h4><p><strong>决策：</strong>Image 与 Texture 全部验证后才提交一个 registry batch。<strong>否决：</strong>先注册 Image 再生成 Texture，mip 失败会留下孤儿记录。<strong>后果：</strong>峰值临时内存稍高，但 registry reader 永远只观察完整状态。</p></section>
+
+<section id="s5"><h2>五、实施与验证（任务流）</h2>
+<h3>1. 任务拆解清单</h3><ol><li>固定 stb provenance、12-file corpus、32-case negative matrix 与 Asset boundary。</li><li>建立 image/texture immutable types、inspection、decode、orientation、diagnostics 和 atomic import。</li><li>实现 color/normal/data semantic mip 与 checked chain limits。</li><li>扩展 RHI format/upload contract，完成 Renderer format adapter 与 rollback。</li><li>实现 Vulkan fallback footprint 与 native staging/readback，补 contract/integration tests。</li><li>接入 strict Debug/Release、ASan/UBSan、TSan、三平台 CI 和交付文档。</li></ol>
+<h3>2. 验收标准</h3><p>本地 strict Debug、Asset 52-point aggregate、Renderer texture 6/6、RHI 220/220、Vulkan fallback 与 Asset boundary 已通过。Release、full regression 与 sanitizer 在收尾 gate 中执行；Windows/Linux 与 native-capable Vulkan 由 GitHub Actions 在推送后给出最终证据。macOS 当前 native runtime 明确报告 MoltenVK/Metal unavailable，不以 deterministic fallback 冒充 native success。</p>
+<h3>3. 测试矩阵与覆盖意图</h3><table><thead><tr><th>类别</th><th>覆盖风险</th><th>证据</th></tr></thead><tbody>
+<tr><td>Fixture import</td><td>格式、channel、orientation、HDR layout 漂移</td><td>12 files、20 repeats、exact metadata/payload/mips/digests/diagnostics</td></tr>
+<tr><td>Semantic mips</td><td>sRGB gamma 错误、alpha premultiply、normal/data 混用</td><td>checked exact bytes、+Z fallback、odd and 1x1 chains</td></tr>
+<tr><td>Unsafe input</td><td>越界、overflow、partial registry</td><td>32 mutations、limits、non-finite、conflict rollback</td></tr>
+<tr><td>Mock RHI/Renderer</td><td>format plan、row pitch、partial GPU resource</td><td>descriptor/upload records、injected failure、CPU survival</td></tr>
+<tr><td>Vulkan</td><td>native format、copy、barrier、completion</td><td>fallback exact footprint；native readback tolerance when available</td></tr>
+<tr><td>Architecture/concurrency</td><td>层级泄漏、decoder global state、lease race</td><td>boundary scanner、8 requests、Linux TSan gate</td></tr>
+</tbody></table></section>
+
+<section id="s6"><h2>六、设计巧思与最佳实践</h2>
+<h3>1. 当前业务场景与业务模型的最佳实践</h3><ul>
+<li><strong>Semantic 是数据 contract：</strong>同一 source 可成为 Color、Normal 或 Data，不允许 importer 猜测文件用途。</li>
+<li><strong>方向只规范化一次：</strong>Asset 固定 top-left，Renderer 禁止 source-format V flip，避免 PNG/JPEG/HDR 各走一套坐标约定。</li>
+<li><strong>Capability mismatch 在 adapter 解决：</strong>RGB 扩展不是 codec 责任，也不是 RHI 对资产含义的猜测。</li>
+<li><strong>先 checked arithmetic 再 allocation：</strong>dimension、row、mip、chain 全部以 uint64 检查，恶意 header 不能诱导 wraparound。</li>
+<li><strong>Native proof 不可伪造：</strong>runtime unavailable 是有效结果，但 deterministic fallback 不能满足 native readback gate。</li>
+</ul>
+<h3>2. 优化方案与收益</h3><p>已实现的优化包括 &lt;=64 KiB probe、只读 immutable source/payload、RGB 保留、按需短期 expansion、紧凑 row upload、mip 顺序复用以及 deterministic fallback。它们分别控制 I/O、并发共享、CPU/cook 占用、转换峰值与调试成本。后续 KTX2 可在不改 <code>FAssetId</code> 的前提下用 target profile 选择压缩 payload。</p>
+<h3>3. 已知限制与后续演进</h3><p>stb decode 仍是 source-time 路径；没有 compression、streaming、hot reload 或 async manager。Native upload 当前为同步测试友好的路径，不是高吞吐 upload queue。021 的 exact CPU corpus、RHI upload contract 与 rollback tests 将成为 022 KTX2、026 runtime manager 和 028 residency 重构时的回归基线。</p></section>
+
+<section id="s7"><h2>七、编程语言知识点</h2>
+<h3>1. 标准库接口与用法</h3><p><code>std::span</code> 让 parser 在不复制的情况下获得有界视图；<code>std::optional</code> 区分 source 未声明 transfer 与明确设置；<code>std::shared_ptr&lt;const T&gt;</code> 共享 immutable mip storage；<code>std::bit_cast</code> 明确 float 字节编码；<code>std::lower_bound</code> 对 Q0.24 LUT 做确定性 inverse；<code>std::numeric_limits</code> 驱动 overflow 与 non-finite 边界测试。</p>
+<h3>2. 语言特性与惯用法</h3><p><code>enum class</code> 表达 format/semantic/stage，并对未知 cast 值 fail closed；<code>constexpr std::array</code> 固定 transfer evidence；<code>[[nodiscard]]</code> 迫使调用方处理 result；move-only temporary arrays 降低 payload copy；virtual overload 的默认实现保持 Feature 020 importer 源兼容，同时为 021 增加 diagnostic sink。</p>
+<h3>3. 平台相关与编译器行为</h3><p>MSVC、Clang、GCC 使用相同 scalar decode/mip contract；禁用 stb SIMD 可减少不同 ISA decode path。sRGB 不调用平台 libm。Vulkan native 代码由 SDK/runtime capability 守卫；Windows/Linux/macOS 都必须编译，只有真实 runtime 可用时才要求 readback success。ThreadSanitizer 独立于 ASan/UBSan 构建，因为这些 sanitizer 不可组合。</p></section>
+
+<section id="s8"><h2>八、软件工程知识点</h2>
+<h3>1. 设计模式与架构模式</h3><p><code>IAssetImporter</code> 是 Strategy；<code>FAssetImportService</code> 是 orchestration service；<code>FTextureAssetRealizer</code> 是跨层 Adapter；<code>FImageAsset/FTextureAsset</code> 是 immutable Value Object；RHI mock 与 Vulkan fallback/native 共享 Contract Test。每个模式都对应所有权边界，而不是只为命名增加类。</p>
+<h3>2. 工程原则与方法论</h3><p>Dependency Inversion 让 Renderer 依赖 RHI interface，而 Asset 不知道 GPU；YAGNI 把 compression/async/streaming 留给明确 feature；Design by Contract 把 semantic、layout、limit 与 lifecycle 前置验证；deterministic evidence 让跨平台 CI 比较事实而非日志措辞。</p>
+<h3>3. 测试策略与质量保障</h3><p>lossless fixture 检查 exact bytes，JPEG 检查固定 canonical decode evidence；合成 2x2/3x1 mip 用等价类直接证明数学；mutation/limit 属于 negative 与 boundary testing；mock RHI 证明 portable contract，native Vulkan 证明 API mapping；architecture scanner 则证明错误依赖没有进入生产边界。</p></section>
+
+<section id="s9"><h2>九、渲染、引擎与图形 API 学习笔记</h2>
+<h3>1. 本期核心概念拆解</h3><ul>
+<li><strong>sRGB 是解释而非不同像素结构：</strong>存储仍是 8-bit channel，但过滤必须先映射到 linear light。</li>
+<li><strong>Normal map 是向量场：</strong>channel 平均后必须重新归一化；近零向量使用稳定 +Z。</li>
+<li><strong>Image layout 是 GPU 状态：</strong>Asset top-left origin 与 Vulkan <code>VkImageLayout</code> 是完全不同的两个“layout”概念。</li>
+<li><strong>Upload success 是可见性承诺：</strong>同步 RHI API 返回后，命名 mip 必须 sample-ready，不能只表示 staging 已排队。</li>
+</ul>
+<h3>2. 与 Vulkan / DX12 / Metal / OpenGL 的关系</h3><table><thead><tr><th>本项目</th><th>Vulkan</th><th>DX12</th><th>Metal / OpenGL</th></tr></thead><tbody>
+<tr><td>RHI texture format</td><td><code>VkFormat</code></td><td><code>DXGI_FORMAT</code></td><td><code>MTLPixelFormat</code> / internal format</td></tr>
+<tr><td>CopyDestination upload</td><td>staging buffer + <code>vkCmdCopyBufferToImage</code></td><td>upload heap + <code>CopyTextureRegion</code></td><td>blit encoder / texture upload</td></tr>
+<tr><td>Sample-ready transition</td><td>image memory barrier to shader-read</td><td>resource barrier to pixel/non-pixel shader resource</td><td>encoder/resource synchronization / implicit GL state</td></tr>
+<tr><td>Completion</td><td>fence wait</td><td>command queue fence</td><td>command buffer completion / GL sync</td></tr>
+</tbody></table>
+<h3>3. 源码阅读路线</h3><ol><li><code>FImageTypes.h</code>、<code>FImageAsset.h</code>、<code>FTextureAsset.h</code>：先理解 CPU contract。</li><li><code>FImageImport.cpp</code>：看完整 orchestration、diagnostics 与 atomic publication。</li><li><code>FImageMipGenerator.cpp</code>：比较 color/normal/data 三种数学。</li><li><code>FTextureAssetRealization.cpp</code>：理解为什么格式 expansion 属于 Renderer。</li><li><code>FRHITextureUploadDesc.h</code> 与 <code>FVulkanDevice.cpp</code>：从 portable validation 走到 Backend。</li><li><code>AssetImageTextureTests.cpp</code> 与 native tests：从 observable evidence 反推设计。</li></ol>
+<h3>4. 自测问题</h3><ul><li>为什么 normal map 不能使用 sRGB texture interpretation？</li><li>为什么 RGB-to-RGBA expansion 不应发生在 Asset importer？</li><li>source top-left 与 Vulkan image layout 有什么本质区别？</li><li>为什么 registry commit 必须在 mip 生成之后？</li><li>为什么 runtime unavailable 不能用 fallback 结果满足 native gate？</li><li>未来异步 manager 如何复用当前同步 upload contract，又不破坏取消语义？</li></ul>
+</section></main></div></body></html>

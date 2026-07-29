@@ -24,10 +24,11 @@
 #include "Renderer/FRenderGraphResource.h"
 #include "Renderer/FShaderLibrary.h"
 #include "Renderer/FShaderPermutation.h"
+#include "Renderer/FTextureAssetRealization.h"
 
 // Renderer layer minimal header — high-level rendering
-// Note: RHI dependency is used internally (Private/) but not exposed in public API.
-// This enforces the adjacent-only dependency contract at the include path level.
+// Texture realization intentionally exposes the Asset-to-RHI bridge owned by
+// Renderer; native backend types remain private to their backend.
 namespace Stoner::Renderer
 {
 } // namespace Stoner::Renderer

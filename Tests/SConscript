@@ -42,6 +42,9 @@ private_include_paths_by_source = {
     'CorePlatformTests.cpp': [
         Dir('#Source/Core/Private').abspath,
     ],
+    'AssetImageTextureTests.cpp': [
+        Dir('#Source/Asset/Private').abspath,
+    ],
     'TriangleDemoIntegrationTests.cpp': [
         Dir('#Demo/StonerDemo/Private').abspath,
     ],

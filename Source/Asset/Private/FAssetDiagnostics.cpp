@@ -21,6 +21,9 @@ const char* ToText(EAssetStage Stage)
     case EAssetStage::Load: return "load";
     case EAssetStage::Cook: return "cook";
     case EAssetStage::Inspect: return "inspect";
+    case EAssetStage::Decode: return "decode";
+    case EAssetStage::Validate: return "validate";
+    case EAssetStage::Mip: return "mip";
     }
     return "unknown";
 }
@@ -52,6 +55,14 @@ Core::FString FAssetDiagnostics::Format(const FAssetDiagnostic& Diagnostic)
     {
         Text += "|participant=" + Diagnostic.Participant.ToStdString();
     }
+    if (!Diagnostic.Field.IsEmpty())
+    {
+        Text += "|field=" + Diagnostic.Field.ToStdString();
+    }
+    if (!Diagnostic.Limit.IsEmpty())
+    {
+        Text += "|limit=" + Diagnostic.Limit.ToStdString();
+    }
     if (!Diagnostic.Reason.IsEmpty())
     {
         Text += "|reason=" + Diagnostic.Reason.ToStdString();
@@ -72,6 +83,8 @@ Core::FString FAssetDiagnostics::FormatNormalized(FAssetDiagnosticList Diagnosti
                 Left.Code,
                 Left.Subject,
                 Left.Participant,
+                Left.Field,
+                Left.Limit,
                 Left.Reason) <
                 std::tuple(
                     Right.Severity,
@@ -79,6 +92,8 @@ Core::FString FAssetDiagnostics::FormatNormalized(FAssetDiagnosticList Diagnosti
                     Right.Code,
                     Right.Subject,
                     Right.Participant,
+                    Right.Field,
+                    Right.Limit,
                     Right.Reason);
         });
     std::string Text;

@@ -19,6 +19,11 @@ FORBIDDEN_PREFIXES = (
     "GLFW/",
 )
 
+APPROVED_THIRD_PARTY_INCLUDE = (
+    "Source/Asset/Private/FStbImageDecode.cpp",
+    "../../../ThirdParty/stb/stb_image.h",
+)
+
 
 def verify(root: pathlib.Path) -> list[str]:
     errors: list[str] = []
@@ -28,10 +33,19 @@ def verify(root: pathlib.Path) -> list[str]:
             continue
         text = path.read_text(encoding="utf-8")
         for include in re.findall(r'^\s*#\s*include\s*[<"]([^>"]+)[>"]', text, re.MULTILINE):
+            relative = path.relative_to(root).as_posix()
             if include.startswith(FORBIDDEN_PREFIXES):
                 errors.append(f"{path.relative_to(root)}: forbidden include {include}")
             if "utf8proc" in include.lower():
                 errors.append(f"{path.relative_to(root)}: utf8proc leaks into Asset")
+            if "stb" in include.lower() and (
+                relative,
+                include,
+            ) != APPROVED_THIRD_PARTY_INCLUDE:
+                errors.append(
+                    f"{relative}: stb may only be included by "
+                    "FStbImageDecode.cpp"
+                )
 
     core_public = root / "Source" / "Core" / "Public"
     for path in sorted(core_public.rglob("*.h")):
@@ -47,10 +61,19 @@ def verify(root: pathlib.Path) -> list[str]:
                 errors.append(f"{relative}: utf8proc may only be used by FUnicode.cpp")
 
     sconscript = (asset_root / "SConscript").read_text(encoding="utf-8")
-    if not re.search(r"BuildLayer\s*\(\s*env\s*,\s*['\"]Asset['\"]\s*,\s*\[['\"]Core['\"]\]\s*\)", sconscript):
+    if not re.search(
+        r"BuildLayer\s*\(\s*env\s*,\s*['\"]Asset['\"]\s*,\s*\[['\"]Core['\"]\]",
+        sconscript,
+    ):
         errors.append("Source/Asset/SConscript: Asset must declare Core as its only dependency")
-    if "ThirdParty" in sconscript or "utf8proc" in sconscript.lower():
+    if "utf8proc" in sconscript.lower():
         errors.append("Source/Asset/SConscript: Asset must not compile third-party Unicode sources")
+    if "'ThirdParty/stb'" in sconscript:
+        errors.append(
+            "Source/Asset/SConscript: do not expose the stb directory as an "
+            "include search path because VERSION shadows standard <version> "
+            "on case-insensitive filesystems"
+        )
 
     core_sconscript = (root / "Source" / "Core" / "SConscript").read_text(encoding="utf-8")
     if "ThirdParty/utf8proc/utf8proc.c" not in core_sconscript:
@@ -75,7 +98,10 @@ def main() -> int:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
-    print("Asset architecture boundary passed: Asset -> Core; utf8proc remains Core-private")
+    print(
+        "Asset architecture boundary passed: Asset -> Core; "
+        "stb remains wrapper-private; utf8proc remains Core-private"
+    )
     if args.stamp:
         args.stamp.parent.mkdir(parents=True, exist_ok=True)
         args.stamp.write_text("passed\n", encoding="utf-8")

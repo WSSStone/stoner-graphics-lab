@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <optional>
+#include <limits>
 #include <span>
 #include <string>
 #include <utility>
@@ -77,6 +78,16 @@ public:
         constexpr Core::usize MaximumProbeBytes = 64U * 1024U;
         return Source_->Read(0, std::min(RequestedBytes, MaximumProbeBytes), OutBytes);
     }
+
+    [[nodiscard]] EAssetResult ReadRange(
+        Core::uint64 Offset,
+        Core::usize MaximumBytes,
+        Core::TArray<Core::uint8>& OutBytes) const;
+
+    [[nodiscard]] EAssetResult ReadBounded(
+        Core::uint64 MaximumBytes,
+        const std::optional<Core::uint64>& ExpectedSize,
+        Core::TArray<Core::uint8>& OutBytes) const;
 
 private:
     Core::TSharedPtr<const IAssetSource> Source_;

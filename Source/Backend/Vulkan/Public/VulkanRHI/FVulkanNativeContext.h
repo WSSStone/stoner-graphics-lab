@@ -12,6 +12,7 @@ class FVulkanDevice;
 class FVulkanComputePipeline;
 class FVulkanGraphicsPipeline;
 class FVulkanShaderModule;
+class FVulkanTexture;
 struct FVulkanNativeDeviceAccess;
 class FVulkanNativeOffscreenSession;
 
@@ -142,6 +143,7 @@ private:
     friend class FVulkanComputePipeline;
     friend class FVulkanGraphicsPipeline;
     friend class FVulkanShaderModule;
+    friend class FVulkanTexture;
     friend class FVulkanNativeOffscreenSession;
     [[nodiscard]] bool GetNativeDeviceAccess(
         FVulkanNativeDeviceAccess& OutAccess) const noexcept;
@@ -159,6 +161,17 @@ private:
         Stoner::Core::uint64 ComputeShaderToken,
         Stoner::Core::uint64& OutToken) noexcept;
     void DestroyOwnedPipeline(Stoner::Core::uint64 Token) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult CreateOwnedTexture(
+        const Stoner::RHI::FRHITextureDesc& Desc,
+        Stoner::Core::uint64& OutToken) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult UploadOwnedTexture(
+        Stoner::Core::uint64 Token,
+        const Stoner::RHI::FRHITextureUploadDesc& Upload) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult ReadbackOwnedTexture(
+        Stoner::Core::uint64 Token,
+        Stoner::Core::uint32 MipLevel,
+        Stoner::Core::TArray<Stoner::Core::uint8>& OutBytes) noexcept;
+    void DestroyOwnedTexture(Stoner::Core::uint64 Token) noexcept;
     struct FImpl;
     std::unique_ptr<FImpl> Impl;
 };

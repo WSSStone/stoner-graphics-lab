@@ -68,6 +68,7 @@ def BuildLayer(
     public_dir=None,
     private_c_sources=None,
     third_party_cflags=None,
+    private_cpp_settings=None,
 ):
     """Build a source layer as a static library with dependency-controlled include paths.
 
@@ -90,6 +91,8 @@ def BuildLayer(
         private_c_sources: Project-root-relative C sources compiled privately
                            into the layer.
         third_party_cflags: C-only flags applied to private C sources.
+        private_cpp_settings: Optional mapping from a private C++ basename to
+                              isolated include_paths and ccflags.
 
     Returns:
         SCons StaticLibrary node, or None if no source files found.
@@ -123,7 +126,23 @@ def BuildLayer(
     # directory. This ensures variant_dir mapping works correctly — SCons will
     # place .o files in variant_dir/<relative_path>/ and the .a file in variant_dir/.
     rel_source_dir = _MakeRelativeToSConscriptDir(source_dir_abs)
-    sources = [os.path.join(rel_source_dir, f) for f in cpp_files]
+    sources = []
+    private_cpp_settings = private_cpp_settings or {}
+    for cpp_file in cpp_files:
+        source = os.path.join(rel_source_dir, cpp_file)
+        settings = private_cpp_settings.get(cpp_file)
+        if not settings:
+            sources.append(source)
+            continue
+        source_env = layer_env.Clone()
+        source_env.Append(
+            CPPPATH=[
+                Dir('#' + path).abspath
+                for path in settings.get('include_paths', [])
+            ],
+        )
+        source_env.Append(CCFLAGS=settings.get('ccflags', []))
+        sources.append(source_env.Object(source))
     for c_source in private_c_sources:
         c_source_node = File('#' + c_source)
         c_env = layer_env.Clone()

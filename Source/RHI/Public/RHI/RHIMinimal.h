@@ -27,6 +27,7 @@
 #include "RHI/FRHISamplerDesc.h"
 #include "RHI/FRHIShaderModuleDesc.h"
 #include "RHI/FRHITextureDesc.h"
+#include "RHI/FRHITextureUploadDesc.h"
 #include "RHI/FRHITextureBufferCopyRegion.h"
 #include "RHI/IRHIBuffer.h"
 #include "RHI/IRHICommandBuffer.h"

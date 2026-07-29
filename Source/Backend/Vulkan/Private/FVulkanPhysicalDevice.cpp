@@ -36,12 +36,16 @@ FVulkanFormatSupport::FVulkanFormatSupport(
     if (bIncludeColorFormats)
     {
         SupportedFormats = {
+            Stoner::RHI::ERHIFormat::R8_UNorm,
+            Stoner::RHI::ERHIFormat::R8G8_UNorm,
             Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm,
+            Stoner::RHI::ERHIFormat::R8G8B8A8_sRGB,
             Stoner::RHI::ERHIFormat::B8G8R8A8_UNorm,
             Stoner::RHI::ERHIFormat::R16G16B16A16_Float,
             Stoner::RHI::ERHIFormat::R32_Float,
             Stoner::RHI::ERHIFormat::R32G32_Float,
             Stoner::RHI::ERHIFormat::R32G32B32_Float,
+            Stoner::RHI::ERHIFormat::R32G32B32A32_Float,
         };
     }
     if (bIncludeDepthFormats)

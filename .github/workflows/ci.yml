@@ -57,8 +57,11 @@ jobs:
       - name: Build
         run: scons config=debug strict=1
 
-      - name: Run Feature 020 Asset suite
+      - name: Run Feature 021 Asset and texture suite
         run: ${{ matrix.test_path }} --suite asset
+
+      - name: Run full regression suite
+        run: ${{ matrix.test_path }}
 
       - name: Test Feature 019 validation orchestration
         run: python .github/scripts/test_run_deferred_validation.py
@@ -181,5 +184,24 @@ jobs:
       - name: Run sanitized test suite
         run: Build/Linux/Debug/Tests/StonerTest
 
-      - name: Run sanitized Feature 020 Asset suite
+      - name: Run sanitized Feature 021 Asset and texture suite
+        run: Build/Linux/Debug/Tests/StonerTest --suite asset
+
+  linux-thread-sanitizer:
+    name: Linux ThreadSanitizer Asset
+    runs-on: ubuntu-latest
+    env:
+      TSAN_OPTIONS: halt_on_error=1:history_size=7
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install SCons
+        run: python -m pip install scons==4.10.1
+
+      - name: Build focused tests with ThreadSanitizer
+        run: scons config=debug strict=1 sanitizers=thread
+
+      - name: Run Feature 021 concurrent Asset gate
         run: Build/Linux/Debug/Tests/StonerTest --suite asset

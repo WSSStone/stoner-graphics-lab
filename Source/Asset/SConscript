@@ -3,5 +3,15 @@
 Import('env', 'platform', 'config')
 from LayerBuilder import BuildLayer
 
-lib = BuildLayer(env, 'Asset', ['Core'])
+stb_warning_flags = ['/w'] if platform == 'Win64' else ['-w']
+lib = BuildLayer(
+    env,
+    'Asset',
+    ['Core'],
+    private_cpp_settings={
+        'FStbImageDecode.cpp': {
+            'ccflags': stb_warning_flags,
+        },
+    },
+)
 Return('lib')

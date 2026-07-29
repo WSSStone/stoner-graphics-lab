@@ -4,6 +4,7 @@
 #include "RHI/RHIMinimal.h"
 
 #include <algorithm>
+#include <cstring>
 #include <iostream>
 #include <limits>
 #include <utility>
@@ -1183,6 +1184,12 @@ private:
 class FMockDevice final : public IRHIDevice
 {
 public:
+    struct FTextureUploadRecord
+    {
+        FRHITextureUploadDesc Desc;
+        TArray<uint8> Bytes;
+    };
+
     FMockDevice()
     {
         Capabilities.bSupportsGraphicsQueue = true;
@@ -1195,8 +1202,13 @@ public:
         Capabilities.MaxCommandBuffersPerQueue = 64;
         Capabilities.MaxQueuesPerType = 1;
         Capabilities.SupportedFormats = {
+            ERHIFormat::R8_UNorm,
+            ERHIFormat::R8G8_UNorm,
             ERHIFormat::R8G8B8A8_UNorm,
+            ERHIFormat::R8G8B8A8_sRGB,
             ERHIFormat::B8G8R8A8_UNorm,
+            ERHIFormat::R16G16B16A16_Float,
+            ERHIFormat::R32G32B32A32_Float,
             ERHIFormat::D24_UNorm_S8_UInt,
             ERHIFormat::D32_Float,
             ERHIFormat::S8_UInt};
@@ -1326,6 +1338,85 @@ public:
             return {Desc.Format == ERHIFormat::Unknown || !Capabilities.SupportsFormat(Desc.Format) ? ERHIResult::Unsupported : ERHIResult::InvalidState, nullptr};
         }
         return {ERHIResult::Success, MakeShared<FMockTexture>(Desc)};
+    }
+
+    ERHIResult UploadTexture(
+        const TSharedPtr<IRHITexture>& Texture,
+        const FRHITextureUploadDesc& Upload) override
+    {
+        if (!IsActive() || !Texture ||
+            Texture->GetLifecycleState() !=
+                ERHIResourceLifecycleState::Valid)
+        {
+            return ERHIResult::InvalidState;
+        }
+        if (!Capabilities.SupportsFormat(Texture->GetFormat()) ||
+            !HasRHIFlag(
+                Texture->GetUsage(),
+                ERHITextureUsage::CopyDestination))
+        {
+            return ERHIResult::Unsupported;
+        }
+        const auto MockTexture =
+            std::dynamic_pointer_cast<FMockTexture>(Texture);
+        if (!MockTexture ||
+            !IsValidRHITextureUploadDesc(
+                Texture->GetDesc(), Upload))
+        {
+            return ERHIResult::InvalidState;
+        }
+        const uint32 MipWidth = GetRHIMipExtent(
+            Texture->GetDesc().Width, Upload.MipLevel);
+        const uint32 MipHeight = GetRHIMipExtent(
+            Texture->GetDesc().Height, Upload.MipLevel);
+        const uint32 MipDepth = GetRHIMipExtent(
+            Texture->GetDesc().Depth, Upload.MipLevel);
+        if (Upload.X != 0 || Upload.Y != 0 || Upload.Z != 0 ||
+            Upload.Width != MipWidth ||
+            Upload.Height != MipHeight ||
+            Upload.Depth != MipDepth)
+        {
+            return ERHIResult::InvalidState;
+        }
+        if (Uploads.size() == FailUploadIndex)
+        {
+            return ERHIResult::Failed;
+        }
+
+        const uint64 TightRow =
+            static_cast<uint64>(Upload.Width) *
+            GetRHIFormatByteSize(Texture->GetFormat());
+        const uint64 RowCount =
+            static_cast<uint64>(Upload.Height) * Upload.Depth;
+        FTextureUploadRecord RecordValue;
+        RecordValue.Desc = Upload;
+        RecordValue.Desc.Data = nullptr;
+        RecordValue.Bytes.resize(
+            static_cast<usize>(TightRow * RowCount));
+        const auto* Source =
+            static_cast<const uint8*>(Upload.Data);
+        for (uint64 Row = 0; Row < RowCount; ++Row)
+        {
+            std::memcpy(
+                RecordValue.Bytes.data() +
+                    static_cast<usize>(Row * TightRow),
+                Source +
+                    static_cast<usize>(Row * Upload.RowPitchBytes),
+                static_cast<usize>(TightRow));
+        }
+        Uploads.push_back(std::move(RecordValue));
+        return ERHIResult::Success;
+    }
+
+    void SetFailUploadIndex(usize Index) noexcept
+    {
+        FailUploadIndex = Index;
+    }
+
+    [[nodiscard]] const TArray<FTextureUploadRecord>&
+        GetUploads() const noexcept
+    {
+        return Uploads;
     }
 
     TRHIObjectResult<IRHISampler> CreateSampler(const FRHISamplerDesc& Desc) override
@@ -1543,6 +1634,8 @@ public:
 private:
     ERHIDeviceState State = ERHIDeviceState::Active;
     FRHIDeviceCapabilities Capabilities;
+    TArray<FTextureUploadRecord> Uploads;
+    usize FailUploadIndex = std::numeric_limits<usize>::max();
 };
 
 void TestCoreValuesAndCapabilities(FRHICoreTestResult& Result)
@@ -2021,7 +2114,7 @@ void TestResourceDescriptionsAndFactories(FRHICoreTestResult& Result)
     Record(Result, Device.CreateTexture(InvalidTexture).Result == ERHIResult::InvalidState,
         "IRHIDevice rejects invalid texture mip count");
     InvalidTexture = MakeColorTextureDesc();
-    InvalidTexture.Format = ERHIFormat::R16G16B16A16_Float;
+    InvalidTexture.Format = ERHIFormat::R32G32B32_Float;
     Record(Result, Device.CreateTexture(InvalidTexture).Result == ERHIResult::Unsupported,
         "IRHIDevice rejects unsupported texture format");
     InvalidTexture = MakeColorTextureDesc();
@@ -2137,6 +2230,91 @@ void TestResourceDescriptionsAndFactories(FRHICoreTestResult& Result)
             Device.CreateTexture(Texture2D).Result == ERHIResult::InvalidState &&
             Device.CreateSampler({}).Result == ERHIResult::InvalidState,
         "IRHIDevice rejects resource factories after shutdown");
+}
+
+void TestTextureUploadContract(FRHICoreTestResult& Result)
+{
+    Record(
+        Result,
+        GetRHIFormatByteSize(ERHIFormat::R8G8_UNorm) == 2 &&
+            GetRHIFormatByteSize(
+                ERHIFormat::R8G8B8A8_sRGB) == 4 &&
+            GetRHIFormatByteSize(
+                ERHIFormat::R32G32B32A32_Float) == 16,
+        "RHI image-texture formats expose exact byte widths");
+
+    FMockDevice Device;
+    FRHITextureDesc TextureDesc;
+    TextureDesc.Width = 3;
+    TextureDesc.Height = 2;
+    TextureDesc.MipLevels = 2;
+    TextureDesc.Format = ERHIFormat::R8G8_UNorm;
+    TextureDesc.Usage =
+        ERHITextureUsage::Sampled |
+        ERHITextureUsage::CopyDestination;
+    const auto Texture = Device.CreateTexture(TextureDesc);
+
+    const uint8 PaddedRows[] = {
+        1, 2, 3, 4, 5, 6, 99, 99,
+        7, 8, 9, 10, 11, 12, 99, 99};
+    FRHITextureUploadDesc Upload;
+    Upload.Width = 3;
+    Upload.Height = 2;
+    Upload.RowPitchBytes = 8;
+    Upload.Data = PaddedRows;
+    Upload.DataSizeBytes = sizeof(PaddedRows);
+    const ERHIResult UploadResult =
+        Device.UploadTexture(Texture.Object, Upload);
+    const TArray<uint8> Expected{
+        1, 2, 3, 4, 5, 6,
+        7, 8, 9, 10, 11, 12};
+    Record(
+        Result,
+        Texture.Succeeded() &&
+            UploadResult == ERHIResult::Success &&
+            Device.GetUploads().size() == 1 &&
+            Device.GetUploads()[0].Bytes == Expected,
+        "RHI synchronous upload validates and tightens row-pitched data");
+
+    FRHITextureUploadDesc InvalidPitch = Upload;
+    InvalidPitch.RowPitchBytes = 5;
+    FRHITextureUploadDesc Insufficient = Upload;
+    Insufficient.DataSizeBytes = 10;
+    FRHITextureUploadDesc Partial = Upload;
+    Partial.Width = 2;
+    Record(
+        Result,
+        Device.UploadTexture(Texture.Object, InvalidPitch) ==
+                ERHIResult::InvalidState &&
+            Device.UploadTexture(Texture.Object, Insufficient) ==
+                ERHIResult::InvalidState &&
+            Device.UploadTexture(Texture.Object, Partial) ==
+                ERHIResult::InvalidState,
+        "RHI synchronous upload rejects invalid pitch, footprint, and partial mip");
+
+    FRHITextureDesc UnsupportedDesc = TextureDesc;
+    UnsupportedDesc.Format = ERHIFormat::R32G32B32_Float;
+    Record(
+        Result,
+        Device.CreateTexture(UnsupportedDesc).Result ==
+            ERHIResult::Unsupported,
+        "RHI texture creation rejects an unreported upload format");
+
+    const uint8 MipData[] = {21, 22};
+    FRHITextureUploadDesc MipUpload;
+    MipUpload.MipLevel = 1;
+    MipUpload.Width = 1;
+    MipUpload.Height = 1;
+    MipUpload.RowPitchBytes = 2;
+    MipUpload.Data = MipData;
+    MipUpload.DataSizeBytes = sizeof(MipData);
+    Device.SetFailUploadIndex(1);
+    Record(
+        Result,
+        Device.UploadTexture(Texture.Object, MipUpload) ==
+                ERHIResult::Failed &&
+            Device.GetUploads().size() == 1,
+        "RHI mock upload injection leaves no partial footprint record");
 }
 
 void TestDescriptorLayoutsAndSets(FRHICoreTestResult& Result)
@@ -2367,7 +2545,7 @@ void TestShaderAndPipelineContracts(FRHICoreTestResult& Result)
     Record(Result, Device.CreateGraphicsPipeline(GraphicsDesc).Result == ERHIResult::Unsupported,
         "IRHIDevice rejects compute shader in graphics pipeline");
     GraphicsDesc.ShaderModules = {Vertex.Object, Fragment.Object};
-    GraphicsDesc.RenderTargets.ColorFormats = {ERHIFormat::R16G16B16A16_Float};
+    GraphicsDesc.RenderTargets.ColorFormats = {ERHIFormat::R32G32B32_Float};
     Record(Result, Device.CreateGraphicsPipeline(GraphicsDesc).Result == ERHIResult::Unsupported,
         "IRHIDevice rejects unsupported graphics attachment format");
 
@@ -2412,7 +2590,7 @@ void TestRenderPassesAndFramebuffers(FRHICoreTestResult& Result)
     Record(Result, Device.CreateRenderPass({}).Result == ERHIResult::InvalidState,
         "IRHIDevice rejects empty render pass attachment list");
     FRHIRenderPassDesc UnsupportedRenderPass = RenderPassDesc;
-    UnsupportedRenderPass.Attachments[0].Format = ERHIFormat::R16G16B16A16_Float;
+    UnsupportedRenderPass.Attachments[0].Format = ERHIFormat::R32G32B32_Float;
     Record(Result, Device.CreateRenderPass(UnsupportedRenderPass).Result == ERHIResult::InvalidState,
         "IRHIDevice rejects unsupported render pass attachment format");
     FRHIRenderPassDesc InvalidDepthPass = RenderPassDesc;
@@ -2657,6 +2835,7 @@ FRHICoreTestResult RunRHICoreTests()
     TestSynchronization(Result);
     TestSwapchain(Result);
     TestResourceDescriptionsAndFactories(Result);
+    TestTextureUploadContract(Result);
     TestDescriptorLayoutsAndSets(Result);
     TestShaderAndPipelineContracts(Result);
     TestRenderPassesAndFramebuffers(Result);

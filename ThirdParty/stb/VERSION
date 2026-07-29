@@ -1,0 +1,5 @@
+stb_image 2.30
+Upstream: https://github.com/nothings/stb
+Commit: 31c1ad37456438565541f4919958214b6e762fb4
+File: stb_image.h
+SHA-256: 594c2fe35d49488b4382dbfaec8f98366defca819d916ac95becf3e75f4200b3

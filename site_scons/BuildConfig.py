@@ -25,6 +25,7 @@ _SANITIZER_FLAGS = {
     'address': ['address'],
     'undefined': ['undefined'],
     'address,undefined': ['address', 'undefined'],
+    'thread': ['thread'],
 }
 
 

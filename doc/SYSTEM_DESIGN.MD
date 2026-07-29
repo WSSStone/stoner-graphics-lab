@@ -7,6 +7,11 @@
 生成目标：
 本文档不是普通交付备忘录，而是“实现完成后的工程学习总结”。生成 `doc/[feature].html` 时，既要记录做了什么，也要帮助读者学习工程、渲染、引擎和图形 API 知识。
 
+当前架构事实（生成后续文档时保持一致）：
+- Feature 020 建立 Asset -> Core 的 CPU-only identity/registry/extension 层。
+- Feature 021 在 Asset 内建立 Image/Texture CPU payload、source import 和 semantic mip；Renderer 是 Asset-to-RHI texture realization 的唯一适配层；RHI 只定义 portable format/upload contract；Vulkan Backend 独占 native image、memory、staging、barrier、fence 与 readback。
+- Asset production code不得依赖 RHI、Renderer、Application、Backend、Tools、图形 API 或第三方 decoder public header。RGB/RG GPU format expansion 属于 Renderer，不得回流到 Asset payload。
+
 总体写作要求：
 - 使用中文叙述，允许保留必要英文术语，例如 Render Graph、RHI、pipeline barrier、descriptor set。
 - 每章都要结合本次实际实现、实际源码、实际测试和实际取舍，避免空泛套话。

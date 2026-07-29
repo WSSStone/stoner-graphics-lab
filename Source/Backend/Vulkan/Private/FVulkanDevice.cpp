@@ -19,6 +19,9 @@
 #include "VulkanRHI/FVulkanSwapchain.h"
 #include "VulkanRHI/FVulkanTexture.h"
 
+#include <algorithm>
+#include <cstring>
+#include <limits>
 #include <new>
 #include <stdexcept>
 #include <utility>
@@ -592,14 +595,37 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHITexture> FVulkanDevice::CreateTex
         return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
     }
 
+    Stoner::Core::TSharedPtr<FVulkanNativeContext> TextureNativeContext;
+    Stoner::Core::uint64 NativeToken = 0;
+    if (HasNativeShaderRuntime())
+    {
+        const Stoner::RHI::ERHIResult NativeResult =
+            NativeShaderContext->CreateOwnedTexture(
+                Desc, NativeToken);
+        if (NativeResult != Stoner::RHI::ERHIResult::Success)
+        {
+            (void)Allocator->Release(Allocation);
+            return {NativeResult, nullptr};
+        }
+        TextureNativeContext = NativeShaderContext;
+    }
+
     Stoner::Core::TSharedPtr<FVulkanTexture> Texture;
     try
     {
         Texture.reset(new FVulkanTexture(
-            Desc, std::move(Allocation), Allocator));
+            Desc,
+            std::move(Allocation),
+            Allocator,
+            TextureNativeContext,
+            NativeToken));
     }
     catch (const std::bad_alloc&)
     {
+        if (TextureNativeContext && NativeToken != 0)
+        {
+            TextureNativeContext->DestroyOwnedTexture(NativeToken);
+        }
         (void)Allocator->Release(Allocation);
         MarkAllocationFailure(Diagnostics, "texture wrapper allocation failed");
         return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
@@ -630,6 +656,194 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHITexture> FVulkanDevice::CreateTex
     MarkResourceAllocation(
         Diagnostics, Texture->GetAllocation().GetReason());
     return {Stoner::RHI::ERHIResult::Success, Texture};
+}
+
+Stoner::RHI::ERHIResult FVulkanDevice::UploadTexture(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Texture,
+    const Stoner::RHI::FRHITextureUploadDesc& Upload)
+{
+    using namespace Stoner::RHI;
+    if (!IsActive() || !Texture ||
+        Texture->GetLifecycleState() !=
+            ERHIResourceLifecycleState::Valid)
+    {
+        return ERHIResult::InvalidState;
+    }
+
+    const auto VulkanTexture =
+        std::dynamic_pointer_cast<FVulkanTexture>(Texture);
+    const bool bOwned =
+        VulkanTexture &&
+        std::find(Textures.begin(), Textures.end(), VulkanTexture) !=
+            Textures.end();
+    if (!bOwned)
+    {
+        return ERHIResult::InvalidState;
+    }
+
+    const FRHITextureDesc& TextureDesc = Texture->GetDesc();
+    if (!Capabilities.SupportsFormat(TextureDesc.Format) ||
+        !HasRHIFlag(
+            TextureDesc.Usage, ERHITextureUsage::CopyDestination) ||
+        TextureDesc.SampleCount != ERHISampleCount::One)
+    {
+        return ERHIResult::Unsupported;
+    }
+    if (!IsValidRHITextureUploadDesc(TextureDesc, Upload))
+    {
+        return ERHIResult::InvalidState;
+    }
+
+    const Stoner::Core::uint32 MipWidth =
+        GetRHIMipExtent(TextureDesc.Width, Upload.MipLevel);
+    const Stoner::Core::uint32 MipHeight =
+        GetRHIMipExtent(TextureDesc.Height, Upload.MipLevel);
+    const Stoner::Core::uint32 MipDepth =
+        GetRHIMipExtent(TextureDesc.Depth, Upload.MipLevel);
+    if (Upload.X != 0 || Upload.Y != 0 || Upload.Z != 0 ||
+        Upload.Width != MipWidth || Upload.Height != MipHeight ||
+        Upload.Depth != MipDepth)
+    {
+        return ERHIResult::InvalidState;
+    }
+
+    const Stoner::Core::uint64 TightRowBytes =
+        static_cast<Stoner::Core::uint64>(Upload.Width) *
+        GetRHIFormatByteSize(TextureDesc.Format);
+    const Stoner::Core::uint64 RowCount =
+        static_cast<Stoner::Core::uint64>(Upload.Height) *
+        Upload.Depth;
+    if (TightRowBytes != 0 &&
+        RowCount >
+            static_cast<Stoner::Core::uint64>(
+                std::numeric_limits<Stoner::Core::usize>::max()) /
+                TightRowBytes)
+    {
+        return ERHIResult::Unavailable;
+    }
+
+    Stoner::Core::TArray<Stoner::Core::uint8> TightBytes;
+    try
+    {
+        TightBytes.resize(static_cast<Stoner::Core::usize>(
+            TightRowBytes * RowCount));
+        const auto* Source =
+            static_cast<const Stoner::Core::uint8*>(Upload.Data);
+        for (Stoner::Core::uint64 Row = 0; Row < RowCount; ++Row)
+        {
+            std::memcpy(
+                TightBytes.data() +
+                    static_cast<Stoner::Core::usize>(
+                        Row * TightRowBytes),
+                Source +
+                    static_cast<Stoner::Core::usize>(
+                        Row * Upload.RowPitchBytes),
+                static_cast<Stoner::Core::usize>(TightRowBytes));
+        }
+    }
+    catch (const std::bad_alloc&)
+    {
+        return ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        return ERHIResult::Unavailable;
+    }
+
+    const FVulkanTextureUploadRegion Region{
+        Upload.MipLevel,
+        Upload.ArrayLayer,
+        Upload.X,
+        Upload.Y,
+        Upload.Z,
+        Upload.Width,
+        Upload.Height,
+        Upload.Depth};
+    const auto Staging = StageTextureUpload(
+        Texture,
+        TightBytes.data(),
+        TightBytes.size(),
+        Region);
+    if (!Staging.Succeeded())
+    {
+        return Staging.Result;
+    }
+    if (VulkanTexture->NativeContext &&
+        VulkanTexture->NativeToken != 0)
+    {
+        const ERHIResult NativeResult =
+            VulkanTexture->NativeContext->UploadOwnedTexture(
+                VulkanTexture->NativeToken,
+                FRHITextureUploadDesc{
+                    Upload.MipLevel,
+                    Upload.ArrayLayer,
+                    Upload.X,
+                    Upload.Y,
+                    Upload.Z,
+                    Upload.Width,
+                    Upload.Height,
+                    Upload.Depth,
+                    TightRowBytes,
+                    TightBytes.data(),
+                    TightBytes.size()});
+        if (NativeResult != ERHIResult::Success)
+        {
+            (void)Staging.Object->Invalidate();
+            return NativeResult;
+        }
+    }
+    if (Staging.Object->MarkScheduled() != ERHIResult::Success)
+    {
+        return ERHIResult::Failed;
+    }
+    return VulkanTexture->RecordUploadedMip(
+        Upload.MipLevel, std::move(TightBytes));
+}
+
+Stoner::RHI::ERHIResult FVulkanDevice::ReadbackTextureForTesting(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Texture,
+    Stoner::Core::uint32 MipLevel,
+    Stoner::Core::TArray<Stoner::Core::uint8>& OutBytes)
+{
+    OutBytes.clear();
+    if (!IsActive() || !Texture)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    const auto VulkanTexture =
+        std::dynamic_pointer_cast<FVulkanTexture>(Texture);
+    if (!VulkanTexture ||
+        std::find(Textures.begin(), Textures.end(), VulkanTexture) ==
+            Textures.end() ||
+        MipLevel >= VulkanTexture->GetDesc().MipLevels)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    if (VulkanTexture->NativeContext &&
+        VulkanTexture->NativeToken != 0)
+    {
+        return VulkanTexture->NativeContext->ReadbackOwnedTexture(
+            VulkanTexture->NativeToken, MipLevel, OutBytes);
+    }
+    const auto Uploaded =
+        VulkanTexture->GetUploadedMipData(MipLevel);
+    if (Uploaded.empty())
+    {
+        return Stoner::RHI::ERHIResult::NotReady;
+    }
+    try
+    {
+        OutBytes.assign(Uploaded.begin(), Uploaded.end());
+    }
+    catch (const std::bad_alloc&)
+    {
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    return Stoner::RHI::ERHIResult::Success;
 }
 
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISampler> FVulkanDevice::CreateSampler(const Stoner::RHI::FRHISamplerDesc& Desc)

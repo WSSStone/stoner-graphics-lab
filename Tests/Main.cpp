@@ -14,10 +14,11 @@
 #include "RendererComparisonTests.h"
 #include "RendererMaterialShaderTests.h"
 #include "RendererRenderGraphTests.h"
+#include "RendererTextureAssetTests.h"
 #include "VulkanBackendTests.h"
 #include "VulkanNativeIntegrationTests.h"
 #include "TriangleDemoIntegrationTests.h"
-#include "AssetCoreTests.h"
+#include "AssetTests.h"
 #include "TestSuiteRegistry.h"
 #include "TestSuiteRegistryTests.h"
 
@@ -44,7 +45,7 @@ int main(int ArgCount, char* Arguments[])
     FTestSuiteRegistry Registry;
     Registry.Register("application-scene", [] { return RunApplicationSceneEcsTests().Failed == 0 ? 0 : 1; });
     Registry.Register("application-window", [] { return RunApplicationWindowInputTests().Failed == 0 ? 0 : 1; });
-    Registry.Register("asset", [] { return RunAssetCoreTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("asset", [] { return RunAssetTests().Failed == 0 ? 0 : 1; });
     Registry.Register("core-foundation", [] { return RunCoreFoundationTests().Failed == 0 ? 0 : 1; });
     Registry.Register("core-math", [] { return RunCoreMathTests().Failed == 0 ? 0 : 1; });
     Registry.Register("core-platform", [] { return RunCorePlatformTests().Failed == 0 ? 0 : 1; });
@@ -58,6 +59,7 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("renderer-forward", [] { return RunRendererForwardPipelineTests().Failed == 0 ? 0 : 1; });
     Registry.Register("renderer-material", [] { return RunRendererMaterialShaderTests().Failed == 0 ? 0 : 1; });
     Registry.Register("renderer-render-graph", [] { return RunRendererRenderGraphTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("renderer-texture", [] { return RunRendererTextureAssetTests().Failed == 0 ? 0 : 1; });
     Registry.Register("rhi", [] { return RunRHICoreTests().Failed == 0 ? 0 : 1; });
     Registry.Register("test-runner", [Executable = std::string(Arguments[0])] {
         return RunTestSuiteRegistryTests(Executable.c_str()).Failed == 0 ? 0 : 1;

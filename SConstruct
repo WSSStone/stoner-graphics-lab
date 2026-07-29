@@ -107,7 +107,7 @@ SConscript(
     duplicate=0,
 )
 
-# Renderer layer (depends on RHI, Core)
+# Renderer layer (depends on Asset, RHI, Core)
 SConscript(
     'Source/Renderer/SConscript',
     variant_dir=os.path.join(build_base, 'Renderer'),
