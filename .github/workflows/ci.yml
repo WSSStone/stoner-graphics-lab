@@ -60,6 +60,9 @@ jobs:
       - name: Run Feature 021 Asset and texture suite
         run: ${{ matrix.test_path }} --suite asset
 
+      - name: Run full regression suite
+        run: ${{ matrix.test_path }}
+
       - name: Test Feature 019 validation orchestration
         run: python .github/scripts/test_run_deferred_validation.py
 
