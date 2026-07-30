@@ -16,6 +16,7 @@ message("-- WAMR version: ${WAMR_VERSION_MAJOR}.${WAMR_VERSION_MINOR}.${WAMR_VER
 configure_file(
   ${WAMR_ROOT_DIR}/core/version.h.in
   ${WAMR_ROOT_DIR}/core/version.h
+  NEWLINE_STYLE LF
 )
 
 # Set the library version and SOVERSION
