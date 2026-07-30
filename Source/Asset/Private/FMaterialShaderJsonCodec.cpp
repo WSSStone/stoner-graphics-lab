@@ -777,11 +777,11 @@ bool ParseShader(yyjson_val* Root, FShaderAssetDesc& Out)
             return false;
         }
         FShaderInterfaceBinding Binding;
-        Core::FString Kind;
+        Core::FString ResourceKindText;
         if (!Unsigned(Element, "set", Binding.SetIndex) ||
             !Unsigned(Element, "binding", Binding.BindingIndex) ||
-            !String(Element, "kind", Kind) ||
-            !ResourceKind(Kind.View()) ||
+            !String(Element, "kind", ResourceKindText) ||
+            !ResourceKind(ResourceKindText.View()) ||
             !Unsigned(Element, "arrayCount", Binding.ArrayCount) ||
             !ParseVisibility(
                 yyjson_obj_get(Element, "visibility"),
@@ -790,7 +790,7 @@ bool ParseShader(yyjson_val* Root, FShaderAssetDesc& Out)
         {
             return false;
         }
-        Binding.Kind = *ResourceKind(Kind.View());
+        Binding.Kind = *ResourceKind(ResourceKindText.View());
         Out.InterfaceBindings.push_back(std::move(Binding));
     }
     yyjson_arr_foreach(Ranges, Index, Maximum, Element)
