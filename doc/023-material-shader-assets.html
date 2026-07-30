@@ -13,7 +13,7 @@
 <li><a href="#s1">一、文档与上下文信息</a></li><li><a href="#s2">二、目标与边界</a></li><li><a href="#s3">三、交互与产品设计</a></li><li><a href="#s4">四、技术架构与关键决策</a></li><li><a href="#s5">五、实施与验证</a></li><li><a href="#s6">六、设计巧思与最佳实践</a></li><li><a href="#s7">七、编程语言知识点</a></li><li><a href="#s8">八、软件工程知识点</a></li><li><a href="#s9">九、渲染、引擎与图形 API</a></li>
 </ul></aside>
 <main><h1>023 - Material &amp; Shader Assets</h1>
-<div class="meta">状态：<span class="badge">本地实现完成，等待三平台 CI</span> · 更新：2026-07-30 · Roadmap Phase 023 · 层级：Asset / Renderer / Application / Vulkan</div>
+<div class="meta">状态：<span class="badge" style="background:var(--soft);color:var(--accent)">已交付</span> · 更新：2026-07-30 · Roadmap Phase 023 · 层级：Asset / Renderer / Application / Vulkan</div>
 
 <section id="s1"><h2>一、文档与上下文信息</h2>
 <h3>1. 基础元数据</h3><table><tbody>
@@ -109,7 +109,7 @@ leaf -> pre-visit parent chain -> root
 
 <section id="s5"><h2>五、实施与验证（任务流）</h2>
 <h3>1. 任务拆解清单</h3><ol><li>固定 yyjson provenance、pre-migration shader digests 与 40/40 corpus。</li><li>建立 immutable models、finite limits、strict codec、schema/semantic validator 和 importer transaction。</li><li>实现 Program dependency load、SPIR-V validation、profile selection 与 complete manifest。</li><li>实现 Material/Instance dependency、inheritance、flattening 和 source versions。</li><li>实现 Renderer snapshots、ShaderLibrary batch transaction 与 Feature 014 compatibility。</li><li>迁移六个 repository programs、22 个 dependencies、Demo/native bytecode boundary。</li><li>补齐 deterministic report、architecture/repository verifiers、strict build、sanitizers 和 CI。</li></ol>
-<h3>2. 验收状态</h3><p>macOS strict Debug/Release、完整 Debug regression、focused Asset/Renderer suites、20-run Release determinism、八读者并发、yyjson provenance、Asset architecture、repository inventory 与 19 个 Python unit tests通过。Canonical corpus digest 为 <code>d9b2...cd64b</code>，failure corpus digest 为 <code>1ae4...ad606</code>。三平台 CI、Linux sanitizers 与 applicable native gates 尚待 branch push 后执行，因此 roadmap 暂保持 In Progress。</p>
+<h3>2. 验收状态</h3><p>macOS strict Debug/Release、完整 Debug regression、focused Asset/Renderer suites、20-run Release determinism、八读者并发、yyjson provenance、Asset architecture、repository inventory 与 19 个 Python unit tests 通过。GitHub Actions run <a href="https://github.com/WSSStone/stoner-graphics-lab/actions/runs/30553736883">30553736883</a> 的 Windows、macOS、Linux Debug/Release、Linux ASan/UBSan、ThreadSanitizer 与 applicable Lavapipe native gates 全部通过；六份跨平台报告均得到 canonical corpus <code>d9b2...cd64b</code> 与 failure corpus <code>1ae4...ad606</code>，三平台 repository inventory 均为 6 programs、11 GLSL sources、11 SPIR-V payloads。Roadmap 状态为 Done。</p>
 <h3>3. 测试矩阵与覆盖意图</h3><table><thead><tr><th>类别</th><th>风险</th><th>证据</th></tr></thead><tbody>
 <tr><td>Schema/canonical</td><td>parser 宽松、字段顺序或平台改变版本</td><td>40 valid、40 invalid、golden digest/failure、20 runs</td></tr>
 <tr><td>Dependency</td><td>路径穿越、stale digest、wrong type/stage/entry</td><td>request resolver tests、repository verifier</td></tr>

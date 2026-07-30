@@ -1,9 +1,9 @@
 # Stoner Graphics Lab - Engine Development Roadmap
 
-> **Version**: 2.1.4 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-30 | **Status**: Active
+> **Version**: 2.1.5 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-30 | **Status**: Active
 > **Constitution**: v1.4.0
 > **Numbering Rule**: Every runtime phase number equals its Speckit feature number. Feature 002 is this roadmap meta-feature.
-> **Completed Baseline**: Features 001 and 003 through 022 are implemented and verified. Feature 023 is locally implemented and awaiting cross-platform CI closeout.
+> **Completed Baseline**: Features 001 and 003 through 023 are implemented and verified.
 
 ---
 
@@ -99,15 +99,15 @@ through screen-space, derived-data, and hybrid integration milestones.
 - [OpenUSD Asset Resolution](https://openusd.org/release/api/ar_page_front.html) informs logical identifiers and replaceable resolver strategies; USD composition itself remains a later Scene/Prefab concern.
 - [Unreal Asset Management](https://dev.epicgames.com/documentation/en-us/unreal-engine/asset-management-in-unreal-engine) supports separating unloaded metadata, soft references, asynchronous loading, and residency ownership.
 
-### Current State (Feature 023 Local Implementation Complete)
+### Current State (Feature 023 Complete)
 
 | Ownership Area | Status | Current Capability |
 |---|---|---|
 | Core | Done | Types, memory, math, logging, assertions, filesystem/process/time/window handles |
-| Asset | Feature 023 awaiting CI | Identity, registry, image/texture/KTX2 data, versioned Material/Shader definitions, typed dependencies, deterministic target selection, and bounded canonical loading |
+| Asset | Done through Material/Shader Assets | Identity, registry, image/texture/KTX2 data, versioned Material/Shader definitions, typed dependencies, deterministic target selection, and bounded canonical loading |
 | RHI | KTX2 extension done | Device/resources plus total compressed-format, block-footprint, upload, and per-format usage contracts |
 | Backend/Vulkan | KTX2 extension done | Native/fallback resources plus compressed format queries, image creation, upload, and readback |
-| Renderer | Feature 023 adapter complete locally | Render Graph, forward/deferred execution, immutable Asset-to-Renderer material/shader snapshots, and transactional shader registration |
+| Renderer | Feature 023 adapter done | Render Graph, forward/deferred execution, immutable Asset-to-Renderer material/shader snapshots, and transactional shader registration |
 | Application | Done foundation | Window/input, ECS scene organization, visible triangle integration |
 | Additional Backends | Planned | Metal, DX12, desktop OpenGL, and GLES follow the Asset-backed shader path |
 
@@ -182,7 +182,7 @@ depend on Tools.
 | 020 | Asset Core, Identity & Registry | Asset | 003, 006 | L | Yes | ✅ Done |
 | 021 | Image & Texture Foundation | Asset | 008, 020 | L | Yes | ✅ Done |
 | 022 | KTX2 Cooking & Compression | Asset | 010, 021 | XL | Yes | ✅ Done |
-| 023 | Material & Shader Assets | Asset | 014, 020, 021 | XL | Yes | 🔄 In Progress |
+| 023 | Material & Shader Assets | Asset | 014, 020, 021 | XL | Yes | ✅ Done |
 | 024 | Static Mesh & Model Pipeline | Asset | 004, 008, 020, 021, 023 | XL | Yes | ⬜ Todo |
 | 025 | Cooker, Manifest & Derived Data | Asset | 021, 022, 023, 024 | XL | Yes | ⬜ Todo |
 | 026 | Runtime Asset Manager | Asset | 020, 025 | XL | Yes | ⬜ Todo |
@@ -1352,13 +1352,12 @@ Meshlets:
 5. Run `/speckit.implement`, validate locally and in required CI, and retain evidence.
 6. Mark the phase `✅ Done`, update Current State, dependency styling if used, and this change log.
 
-Feature 023 Asset: Material & Shader Assets is locally implemented. Strict
-macOS Debug/Release, full regression, 40-valid/40-invalid deterministic corpus,
-six-program repository migration, exact 22 dependency digests, Renderer
-snapshot conversion, and architecture/provenance verifiers pass. It remains
-In Progress until Windows/macOS/Linux CI, sanitizers, and applicable native
-gates pass. Phase 024 Static Mesh & Model Pipeline is queued next and must not
-start before that closeout.
+Feature 023 Asset: Material & Shader Assets is complete. Local macOS validation
+and GitHub Actions run 30553736883 passed Windows/macOS/Linux Debug and strict
+Release, full regression, identical 40-valid/40-invalid corpus digests, the
+six-program and 22-dependency repository inventory, Linux ASan/UBSan,
+ThreadSanitizer, and applicable Lavapipe native gates. The next phase is
+**024 Asset: Static Mesh & Model Pipeline**.
 
 ### Status Legend
 
@@ -1375,6 +1374,7 @@ start before that closeout.
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-07-30 | 2.1.5 | Marked Feature 023 complete after GitHub Actions run 30553736883 passed Windows/macOS/Linux Debug and Release, exact cross-platform corpus/repository evidence, full regression, Linux sanitizers, and applicable Lavapipe native gates; activated Phase 024 as the next roadmap target. |
 | 2026-07-30 | 2.1.4 | Recorded Feature 023 local implementation, shader-content migration, deterministic schema/Renderer evidence, and configured cross-platform gates; retained In Progress status pending remote CI. |
 | 2026-07-30 | 2.1.3 | Marked Feature 022 complete after GitHub Actions run 30509436643 passed Windows/macOS/Linux Debug and Release, Linux sanitizers, deterministic digest comparison, independent validation, and conditional Lavapipe native evidence; activated Phase 023 as the next roadmap target. |
 | 2026-07-29 | 2.1.2 | Recorded Feature 022 implementation and local macOS validation without marking the phase complete before Windows/Linux, sanitizer, and Linux native CI evidence. |

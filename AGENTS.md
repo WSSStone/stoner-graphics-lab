@@ -1,10 +1,9 @@
 <!-- SPECKIT START -->
-Feature 023 Asset: Material & Shader Assets is locally implemented and awaiting
-cross-platform CI closeout. Read
-`specs/023-material-shader-assets/spec.md` for current requirements,
-`specs/023-material-shader-assets/plan.md` for the accepted design, and
-`Validation/023/README.md` for current evidence. Do not start Feature 024 until
-Feature 023 CI passes and roadmap closeout marks 023 complete.
+Feature 023 Asset: Material & Shader Assets is complete. The next roadmap phase
+is Feature 024 Asset: Static Mesh & Model Pipeline; no Feature 024 spec exists
+until the next Speckit Specify workflow creates it. Read `doc/roadmap.md` for
+program context and `specs/023-material-shader-assets/` plus
+`Validation/023/` for the latest completed feature evidence.
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -57,7 +56,7 @@ Feature 023 CI passes and roadmap closeout marks 023 complete.
 - 018-triangle-demo-integration: Implemented a standalone StonerDemo composition root, explicit deterministic/native runtime modes, real Renderer forward-plan execution through backend-neutral native RHI bindings, two rotating Vulkan frame slots with image-indexed presentation synchronization, native offscreen Vulkan, GLFW surface/swapchain presentation, bounded endurance validation, formal Windows/macOS visible evidence, and passing three-platform CI with Linux Lavapipe native-headless validation
 - 019-deferred-rendering-pipeline: Implemented a sibling deferred Renderer strategy with three color surface targets plus depth, normalized world-space normals, StandardZ/ReversedZ policies, directional/fullscreen and instanced point/spot volumes, render-graph/RHI execution, uncapped deterministic light handling, diagnostics, real mapped Vulkan attachment readback, runtime-independent and native failure injection, four-tier comparison artifacts, forward coexistence, and passing Windows/macOS/Linux CI with Linux Lavapipe evidence
 - 020-asset-core: Implemented the Core-only Asset layer, NFC logical identity, SHA-256 version evidence, metadata/dependency registry with atomic batches and concurrent snapshots, deterministic resolver/importer dispatch, scoped extension registrations with execution leases, focused test-suite selection, architecture enforcement, diagnostics, inspection, and opt-in registry benchmark; Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan passed in CI run 30347149237
-- 023-material-shader-assets: Locally implemented versioned Material/Shader/Instance Assets, bounded canonical JSON, typed GLSL/SPIR-V dependencies, ordered target selection, complete source-version manifests, immutable Renderer snapshots, repository shader migration, bytecode-only native boundaries, deterministic corpus evidence, and cross-platform CI configuration; remote CI closeout remains pending
+- 023-material-shader-assets: Implemented versioned Material/Shader/Instance Assets, bounded canonical JSON, typed GLSL/SPIR-V dependencies, ordered target selection, complete source-version manifests, immutable Renderer snapshots, repository shader migration, bytecode-only native boundaries, deterministic corpus evidence, and passing Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan validation in CI run 30553736883
 
 ## Git Commit Style
 - Commit messages must start with a conventional type prefix such as `feat`, `docs`, `fix`, `chore`, `refactor`, `test`, or `build`.

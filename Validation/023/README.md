@@ -37,9 +37,40 @@ success is unavailable here. Runtime-independent lifecycle, failure, cleanup,
 and explicit-unavailable contracts pass. Linux Lavapipe and supported
 Windows/macOS runners remain the native-success authorities.
 
-## CI Status
+## Cross-Platform CI Evidence
 
-Windows, macOS, Linux, ASan/UBSan, ThreadSanitizer, and applicable native gates
-are configured in `.github/workflows/ci.yml` but have not yet run for the
-current uncommitted implementation. Feature 023 remains In Progress until that
-remote evidence passes and is recorded here.
+GitHub Actions run
+[30553736883](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/30553736883)
+passed on 2026-07-30 for branch head
+`f0e60cb3ec7a5a5cc7b07b1befcf8a48616fa870`.
+
+All eight required jobs passed:
+
+- Windows, macOS, and Linux headless Debug builds, architecture/provenance
+  checks, focused Feature 023 suites, full regression, and applicable native
+  availability/lifecycle gates;
+- Windows, macOS, and Linux strict Release builds and 20-run determinism gates;
+- Linux ASan/UBSan malformed-input, dependency, conversion, Renderer, and
+  native lifecycle coverage;
+- Linux ThreadSanitizer eight-reader immutable Asset and Renderer conversion
+  coverage;
+- Linux Lavapipe Vulkan, visible headless, and deferred native readback gates.
+
+Debug and Release reports on all three platforms agree on 40 valid and 40
+invalid definitions, 20 repetitions, eight immutable readers, and these exact
+digests:
+
+- canonical corpus:
+  `d9b2dbc96de3986c59752f8c3f99af452d48157805e5660c220cd212503cd64b`;
+- failure corpus:
+  `1ae4d6d742d5b0a52f62a16fe974dd2afdd751a99d83d49ccac6f12c4e7ad606`.
+
+The repository reports agree on six Shader Programs, 11 GLSL sources, and 11
+SPIR-V payloads with exact-byte digest validation. The local focused
+Asset/Renderer compatibility run contains 42 passed assertions and zero
+failures; the same suites passed in every hosted Debug and Release job.
+
+The normalized closeout summary is
+`Validation/023/ci-run-30553736883.txt`. Hosted per-platform reports remain
+available as run artifacts. All required local and hosted gates are complete.
+Feature 023 is Done.
