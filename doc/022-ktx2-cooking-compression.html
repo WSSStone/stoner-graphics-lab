@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>022 - KTX2 Cooking &amp; Compression - Stoner Graphics Lab</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}:root{--bg:#f4f7f8;--paper:#fff;--ink:#17212b;--muted:#617184;--line:#d5e0e5;--accent:#0f766e;--soft:#e7f5f2;--warn:#a15c00;--code:#edf2f4;--dark:#17212b;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.72 var(--sans)}.page{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 18px;background:var(--paper);border-right:1px solid var(--line)}.brand{font-size:14px;font-weight:800;color:var(--accent)}.subtitle{font-size:12px;color:var(--muted);padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:18px}.toc{list-style:none;padding:0}.toc a{display:block;padding:6px 8px;color:var(--muted);text-decoration:none;border-radius:6px;font-size:13px}.toc a:hover{color:var(--accent);background:var(--soft)}main{max-width:1080px;width:100%;padding:48px 48px 96px;margin:0 auto}h1{margin:0 0 8px;font-size:34px;line-height:1.2;color:var(--accent)}.meta{color:var(--muted);font-size:13px;margin-bottom:30px}section{margin-bottom:56px}h2{margin:32px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:23px}h3{margin:22px 0 10px;font-size:17px}h4{margin:16px 0 6px;font-size:15px}p{margin:0 0 14px}ul,ol{margin:0 0 16px;padding-left:23px}li{margin:4px 0}code{font-family:var(--mono);font-size:13px;background:var(--code);padding:2px 5px;border-radius:4px}pre{margin:14px 0;padding:16px;overflow:auto;border-radius:8px;color:#e5e7eb;background:var(--dark);font-size:13px;line-height:1.55}pre code{background:transparent;color:inherit;padding:0}table{width:100%;border-collapse:collapse;margin:16px 0 20px;font-size:14px}th,td{padding:9px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted);font-size:12px;background:#f9fbfc}.note{margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:8px;background:var(--paper)}.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#fff1d6;color:var(--warn);font-weight:700;font-size:12px}@media(max-width:860px){.page{display:block}.sidebar{position:static;height:auto}main{padding:32px 22px 72px}}
+</style>
+</head>
+<body><div class="page">
+<aside class="sidebar"><div class="brand">Stoner Graphics Lab</div><div class="subtitle">022 - KTX2 Cooking &amp; Compression</div><ul class="toc">
+<li><a href="#s1">一、文档与上下文信息</a></li><li><a href="#s2">二、目标与边界</a></li><li><a href="#s3">三、交互与产品设计</a></li><li><a href="#s4">四、技术架构与关键决策</a></li><li><a href="#s5">五、实施与验证</a></li><li><a href="#s6">六、设计巧思与最佳实践</a></li><li><a href="#s7">七、编程语言知识点</a></li><li><a href="#s8">八、软件工程知识点</a></li><li><a href="#s9">九、渲染、引擎与图形 API</a></li>
+</ul></aside>
+<main><h1>022 - KTX2 Cooking &amp; Compression</h1>
+<div class="meta">状态：<span class="badge">实现与 macOS gate 完成，三平台 CI 待运行</span> · 更新：2026-07-29 · Roadmap Phase 022 · 层级：Asset / Renderer / RHI / Vulkan</div>
+
+<section id="s1"><h2>一、文档与上下文信息</h2>
+<h3>1. 基础元数据</h3><table><tbody>
+<tr><th>Feature</th><td>022 - Asset: KTX2 Cooking &amp; Compression；Roadmap 与 Speckit 编号一致。</td></tr>
+<tr><th>设计文档</th><td><code>specs/022-ktx2-cooking-compression/spec.md</code>、<code>plan.md</code>、<code>tasks.md</code>、<code>research.md</code>、<code>contracts/</code></td></tr>
+<tr><th>分支与源码</th><td><code>022-ktx2-cooking-compression</code>；<code>Source/Asset/</code>、<code>Source/Renderer/</code>、<code>Source/RHI/</code>、<code>Source/Backend/Vulkan/</code></td></tr>
+<tr><th>第三方</th><td>KTX-Software 4.4.2、WAMR 2.4.5、wasi-sdk 33.0 生成的仓库内 authoritative encoder module。</td></tr>
+<tr><th>测试与证据</th><td><code>Tests/AssetKTX2Tests.cpp</code>、<code>RendererKTX2TextureTests.cpp</code>、RHI/Vulkan tests、<code>Validation/022/</code></td></tr>
+</tbody></table>
+<h3>2. 本期核心摘要</h3><p>本期把 Feature 021 的 immutable texture mip chain cook 为标准 KTX2。ETC1S 与 UASTC 通过版本固定的 WebAssembly encoder 产生跨主机 canonical bytes；uncompressed LDR/HDR 由私有 container codec 写入。Asset 能 bounded inspect、load、transcode，Renderer 根据设备 capability 选择 BC、ETC2/EAC、ASTC 4x4 或 uncompressed fallback，RHI 和 Vulkan 再完成 block-aware texture realization。</p><p>本期最值得学习的是“存储格式”和“设备格式”必须解耦。KTX2/Basis 是 portable artifact，BC7、ETC2、ASTC 才是某台 GPU 的运行时表示。只有把身份、压缩、选择、footprint、上传分别放在正确层，才能避免 cook 结果依赖开发机 GPU，也避免 Asset 层反向依赖图形 API。</p>
+<h3>3. 上下文与依赖</h3><p>022 依赖 021 的 Image/Texture payload、semantic mip 与 Renderer realization 模式，也复用 020 的 AssetId、digest、extension registry 和 execution lease。它扩展 008/010 的 RHI 与 Vulkan resource contract，并为 025 Cooker/Manifest、026 runtime Asset Manager、030 Streaming/Residency 提供 portable cooked texture。KTX、Basis 与 WAMR 是 Asset-private 编译依赖；Vulkan 只在 Backend 编译。</p></section>
+
+<section id="s2"><h2>二、目标与边界</h2>
+<h3>1. 业务与功能目标</h3><p>离线或开发期调用方给出 <code>FTextureAsset</code>、typed cook settings 与 limits，成功后获得保持同一 <code>FAssetId</code> 的 immutable <code>FKTX2TextureArtifact</code>。运行时调用方可 inspect/load artifact，并根据 Renderer target profile 生成一次请求范围内的完整 mip payload。成功才发布 artifact、transcode payload 或 RHI texture；任何阶段失败都返回稳定 result 与 diagnostic，不留下半成品。</p>
+<h3>2. 架构目标与定位</h3><pre><code>Feature 021 FTextureAsset
+        |
+        v
+Asset: policy -> canonical WASM encoder / uncompressed codec
+        -> KTX2 artifact -> bounded open/load -> request transcode
+                                         |
+                                         v
+Renderer: ordered target profile + device capability -> realization
+                                         |
+                                         v
+RHI: format info + block footprint + usage + upload contract
+                                         |
+                                         v
+Vulkan: VkFormat query -> image -> staging -> copy -> readback
+
+Asset ---> Core
+Asset -X-> Renderer / RHI / Backend / Vulkan</code></pre><p>Cook policy、artifact identity、KTX2 facts 和 CPU transcode 属于 Asset public contract。libktx handle、WAMR runtime 与 encoder ABI 都是 private implementation。Renderer 同时理解 Asset semantic 与 RHI capability，因此拥有 target selection。RHI 只表达 portable block facts；Backend 才能查询并执行具体 API。</p>
+<h3>3. 边界与非目标（约束）</h3><ul>
+<li>不做 persistent derived-data cache、manifest 或 package：由 025 建立 key 与离线输出协议。</li>
+<li>不做 async loading、request coalescing、cancel：由 026 的 runtime manager 建模生命周期。</li>
+<li>不做 mip streaming、budget eviction、virtual texture：由 030 负责 residency。</li>
+<li>不做 cubemap、array、volume texture：本期只固定 2D complete-mip contract。</li>
+<li>不把 native Basis encoder 当权威输出：host toolchain 差异会破坏跨平台 byte identity。</li>
+<li>不让 fallback 冒充 native evidence：真实 Vulkan capability 与行为必须单独验证。</li>
+</ul></section>
+
+<section id="s3"><h2>三、交互与产品设计</h2>
+<h3>1. 用户使用路径</h3><pre><code>FTextureCookParameters Cook;
+Cook.Texture = SourceTexture;
+Cook.Settings.Compression = ETextureCompressionPolicy::ETC1S;
+auto Artifact = Cooker.Cook(Cook);
+
+auto Info = FKTX2TextureCodec::Inspect(Artifact.Bytes);
+auto Profile = FTextureTargetProfile::DesktopDefault(Info);
+auto GPU = FKTX2TextureRealizer::Realize({
+    Device, Artifact.Payload, Profile
+});</code></pre><p>happy path 先 resolve semantic policy，再按 canonical mip 顺序编码并写 metadata，随后立即 reopen 比对 source facts。运行时先按 profile 顺序筛选 capability，再 transcode 全部 mips、交叉校验 RHI footprint、创建 texture 并升序 upload。失败路径从 diagnostic 的 stage、field、level 和 limit 定位。</p>
+<h3>2. 核心规则与状态机</h3><pre><code>cook:
+Validate -> Resolve Policy -> Encode/Write -> Preflight -> Reopen -> Publish
+
+load:
+Lease Source -> Bounded Read -> Preflight -> Open -> Identity Check -> Publish
+
+realize:
+Validate Artifact -> Select Target -> Transcode All Mips
+-> Create RHI Texture -> Upload mip 0..N -> Publish
+any failure -> discard request state -> release texture exactly once</code></pre><p>Color 可以是 linear 或 sRGB；Normal/Data 必须 linear。Data 使用 lossy UASTC 必须显式 opt-in。ETC1S、UASTC、Uncompressed 与 Balanced/High 都进入 cook revision，但 runtime target profile 不得改变 AssetId 或触发 recook。Compressed mip 即使小于 4x4 仍占一个完整 block。</p>
+<h3>3. 失败模式与调试入口</h3><ul>
+<li><code>MalformedContainer</code>：先看 <code>FKTX2Preflight</code> 的 identifier/range/alignment/overlap 诊断。</li>
+<li><code>KTX2LimitExceeded</code>：检查 dimension、artifact、metadata、pair、level、mip 或 target payload limit。</li>
+<li><code>CorruptPayload</code>：结构有效但 Basis global data 或 level bitstream 无法 transcode，结果不得含部分 mip。</li>
+<li>target selection unsupported：查看每个 candidate 的 usage、semantic、channel、alpha 与 fallback rejection reason。</li>
+<li>RHI upload 失败：检查 block origin、edge extent、row pitch、required bytes 和失败 mip。</li>
+<li>第三方漂移：运行 <code>Tests/verify_ktx2_provenance.py</code> 与 encoder digest suite。</li>
+</ul></section>
+
+<section id="s4"><h2>四、技术架构与关键决策</h2>
+<h3>1. 技术栈与基础设施</h3><p>C++20、传统 header/source、SCons 4.10.1。KTX-Software 4.4.2 只编入 Asset private adapter；WAMR 2.4.5 采用 interpreter-only 最小配置；encoder 由 wasi-sdk 33.0 构建并以内嵌 byte array 进入测试与引擎。Khronos <code>ktx validate</code> 是独立 oracle，不与引擎链接同一 libktx。</p>
+<h3>2. 关键信息</h3>
+<h4>2.1 模块对应关系</h4><table><thead><tr><th>模块</th><th>职责</th><th>关键边界</th></tr></thead><tbody>
+<tr><td><code>FTextureCookPolicy</code></td><td>semantic、quality、lossy opt-in、profile、revision、metadata</td><td>不查询设备</td></tr>
+<tr><td><code>FCanonicalBasisEncoder</code></td><td>序列化 canonical request，调用 encoder Strategy</td><td>host 不重写 module 输出</td></tr>
+<tr><td><code>FWamrEncoderRuntime</code></td><td>module hash/version、request-owned instance、linear memory、trap translation</td><td>无共享 encoder state</td></tr>
+<tr><td><code>FKTX2Preflight</code></td><td>80-byte header、index、range、alignment、overlap、budget</td><td>libktx allocation 前失败</td></tr>
+<tr><td><code>FKTX2TextureCodec/Loader</code></td><td>normalize DFD/KVD/SGD/levels，bounded source publication</td><td>稳定诊断，不泄露 native text</td></tr>
+<tr><td><code>FTextureTranscoder</code></td><td>完整 mip 的 BC/ETC2/EAC/ASTC/fallback CPU payload</td><td>request-scoped，无静态 cache</td></tr>
+<tr><td><code>FTextureTargetProfile</code></td><td>显式候选顺序与稳定 rejection diagnostics</td><td>Renderer-owned policy</td></tr>
+<tr><td><code>FRHIFormatInfo</code></td><td>block geometry、bytes、sRGB/depth facts 与 checked footprint</td><td>portable source of truth</td></tr>
+<tr><td><code>FVulkanPhysicalDevice/NativeContext</code></td><td>VkFormat feature、compressed image、upload、readback</td><td>native API ownership</td></tr>
+</tbody></table>
+<h4>2.2 数据流与资源流</h4><p>Feature 021 mip bytes 与 typed settings 被序列化为稳定 request。ETC1S/UASTC module 返回完整 KTX2，Uncompressed codec 则写 DFD、KVD 和 level payload。Cooker 先做结构 preflight，再用私有 libktx reopen，并逐项核对 identity、source/content digest、cook revision、semantic、transfer、alpha、orientation 与 levels。运行时 transcode 只产生临时 CPU blocks；Renderer 用相同 RHI footprint 校验后才交给 Vulkan。</p>
+<h4>2.3 关键日志、诊断与验证</h4><p>Diagnostic 记录稳定 stage/code/field/level/limit，不记录 pointer、thread ID、绝对路径或任意 third-party text。20-run JSON 固定 artifact 顺序、digest、source digest、quality 与 size。独立 validator report 使用 <code>input-NN/relative/path</code> 标签，屏蔽主机路径。九个自定义 <code>stoner.*</code> key 的 7010 集合必须完整且无重复，任何其他消息失败。</p>
+<h3>3. 架构决策记录 (ADR)</h3>
+<h4>(1) WebAssembly encoder 是唯一 canonical producer</h4><p><strong>决策：</strong>固定 module bytes、ABI、toolchain 与整数路径。<strong>背景：</strong>native Basis encoder 可能因编译器、SIMD、线程调度产生不同 bytes。<strong>否决：</strong>各平台本地编译后只比较视觉质量，无法满足 exact derived-data key。<strong>后果：</strong>cook 更慢，但可复现性强；未来 cooker farm 可用独立进程扩展吞吐。</p>
+<h4>(2) KTX2 artifact 与 GPU target 分离</h4><p><strong>决策：</strong>artifact 保持 ETC1S/UASTC，Renderer 按设备选择 BC/ETC2/ASTC。<strong>否决：</strong>为每台 GPU cook 独立 Asset，会让 identity、cache 和 package 数量爆炸。<strong>后果：</strong>启动时有 transcode 成本，但同一 cooked artifact 可跨 API 和平台使用。</p>
+<h4>(3) RHI 统一 block footprint</h4><p><strong>决策：</strong><code>FRHIFormatInfo</code> 是 Renderer、mock 与 Vulkan 的唯一 footprint 定义。<strong>否决：</strong>Backend 各自计算会在 odd extent、terminal mip 与 row pitch 上产生分歧。<strong>后果：</strong>portable tests 可精确预测 native upload；后续 backend 只负责映射。</p>
+<h4>(4) 自定义 metadata 使用窄 validator 例外</h4><p><strong>决策：</strong>继续 warnings-as-errors，但只接受九项完整 7010 集合。<strong>否决：</strong>移除 identity metadata 会降低 artifact 可诊断性；忽略全部 warning 会掩盖真实格式错误。<strong>后果：</strong>规则稍复杂，但 validator 仍然 fail closed。</p>
+</section>
+
+<section id="s5"><h2>五、实施与验证（任务流）</h2>
+<h3>1. 任务拆解清单</h3><ol><li>固定 KTX/WAMR/encoder provenance、19-artifact corpus 与 malformed seeds。</li><li>扩展 Asset generic cook/load contract，建立 policy、artifact、preflight 与 codec。</li><li>实现 canonical ETC1S/UASTC、uncompressed LDR/HDR 和 immediate reopen。</li><li>实现 request-scoped transcode、Renderer selection 与 realization rollback。</li><li>扩展 RHI compressed formats、capabilities、footprints 与 Vulkan native path。</li><li>补齐 corruption、limits、eight-way concurrency、independent validator、CI 与文档。</li></ol>
+<h3>2. 验收标准</h3><p>macOS strict Debug/Release、完整 regression、Asset/Renderer/RHI/Vulkan focused suites、architecture/provenance、13 个 validator adapter unit tests均已通过。19 个 artifact 连续 cook 20 次 byte-identical；38 个 generated/golden 输入通过 KTX 4.4.2 独立验证。Windows/Linux、ASan/UBSan、TSan 与 Lavapipe native gate 在推送后由 CI 完成，因此当前 roadmap 仍标记 In Progress。</p>
+<h3>3. 测试矩阵与覆盖意图</h3><table><thead><tr><th>类别</th><th>覆盖风险</th><th>实际证据</th></tr></thead><tbody>
+<tr><td>Canonical cook</td><td>host/toolchain nondeterminism</td><td>19 artifacts × 20 runs；module digest gate</td></tr>
+<tr><td>Quality/size</td><td>压缩可用但失真或不减小</td><td>ETC1S 45.449316 dB、194/21844；UASTC exact、5488/21844</td></tr>
+<tr><td>Container safety</td><td>overflow、overlap、truncation、allocation amplification</td><td>40+ mutations、exact/first-above limits</td></tr>
+<tr><td>Transcode/selection</td><td>channel、alpha、transfer、order 与 fallback 错误</td><td>全部 20 target formats、36+ capability matrix</td></tr>
+<tr><td>RHI/Vulkan</td><td>sub-block mip、row pitch、capability disagreement、rollback</td><td>mock exact records、fallback tests、conditional native readback</td></tr>
+<tr><td>Independent oracle</td><td>私有 reader 与 writer 共同犯错</td><td>KTX 4.4.2 对 38 inputs 的独立 report</td></tr>
+<tr><td>Concurrency</td><td>WAMR/libktx shared state 与 lease race</td><td>至少 8 路 cook/open/load/transcode，TSan CI gate</td></tr>
+</tbody></table></section>
+
+<section id="s6"><h2>六、设计巧思与最佳实践</h2>
+<h3>1. 当前业务场景与业务模型的最佳实践</h3><ul>
+<li><strong>AssetId 与 cook revision 分离：</strong>quality 或 compression 改变 derived bytes，但逻辑 texture identity 不变。</li>
+<li><strong>先 preflight 再 third-party parse：</strong>恶意 offset/size 在任何大 allocation 前被项目 limit 拦截。</li>
+<li><strong>全 mip 或无结果：</strong>transcode/upload 在任一级失败时都清空请求状态，避免混合新旧 texture。</li>
+<li><strong>候选顺序显式：</strong>Desktop profile 以 BC、ASTC、ETC2/EAC、fallback 表达政策，enum 和 capability 容器顺序不参与决策。</li>
+<li><strong>小 mip 仍按 block 计算：</strong>1x1 BC7 依然需要 16 bytes，这是 compressed texture 最常见的边界错误之一。</li>
+<li><strong>Capability 是 usage tuple：</strong>格式存在不等于可 sampled 和 copy destination，二者必须同时满足。</li>
+</ul>
+<h3>2. 优化方案与收益</h3><p>已实现 request-owned WAMR instance、只读 artifact、无跨请求 transcode cache、完整 mip 一次 publication、profile early rejection 和 block-tight upload，优先优化确定性、并发隔离与峰值可解释性。ETC1S 获得更小传输体积，UASTC 提供更高质量和更快 transcode。未来优化可在 025/026 引入 derived cache 和请求合并，在 030 引入按 mip residency，而不修改本期 artifact contract。</p>
+<h3>3. 已知限制与后续演进</h3><p>当前 WebAssembly encoder 是单线程解释执行，适合确定性基线而非大规模离线吞吐；没有 package、cache、async manager 或 streaming。只支持 2D 与 ASTC 4x4。macOS 本机 native Vulkan 因 MoltenVK/Metal unavailable 只验证显式 unavailable 分支；Linux CI 的 Lavapipe 承担真实 compressed create/upload/readback 证据。</p></section>
+
+<section id="s7"><h2>七、编程语言知识点</h2>
+<h3>1. 标准库接口与用法</h3><p><code>std::span</code> 传递不拥有的 bounded KTX2/module bytes；<code>std::shared_ptr&lt;const T&gt;</code> 共享 immutable artifact 与 payload；<code>std::optional</code> 表达可选 identity/expected facts；<code>std::numeric_limits</code> 配合 checked add/multiply 防 overflow；<code>std::mutex</code> 和 thread-local WAMR environment 隔离初始化与请求；<code>std::sort</code> 固定 metadata 和 diagnostics 输出顺序。</p>
+<h3>2. 语言特性与惯用法</h3><p><code>enum class</code> 用于 policy、quality、format、stage 并对未知 cast fail closed；RAII wrapper 管理 libktx object、WAMR runtime/instance 与 registration lease；move-only result 降低大 payload copy；Strategy <code>IKTX2Encoder</code> 让 canonical runtime 与测试替身共享 contract；<code>[[nodiscard]]</code> 防止调用方忽略失败结果。</p>
+<h3>3. 平台相关与编译器行为</h3><p>MSVC、Clang、GCC 都编译同一 public contract。Canonical encoder 禁用线程、SIMD、OpenCL 与 RDO，避免 host ISA 差异。Windows/MSVC 与 Unix path 不进入 normalized report。Vulkan SDK/runtime 缺失可走 deterministic backend tests；只有 native-capable host 才满足真实 image/upload/readback gate。</p></section>
+
+<section id="s8"><h2>八、软件工程知识点</h2>
+<h3>1. 设计模式与架构模式</h3><p><code>IKTX2Encoder</code> 是 Strategy；<code>FWamrEncoderRuntime</code> 与 libktx wrapper 是 Adapter；<code>FKTX2TextureArtifact</code> 是 immutable Value Object；<code>FKTX2TextureRealizer</code> 是跨 Asset/RHI Adapter；target profile 是显式 Policy Object；mock RHI 与 Vulkan 使用 Contract Test；preflight/open/transcode/realize 构成 compiler-like pipeline。</p>
+<h3>2. 工程原则与方法论</h3><p>Dependency Inversion 保持 Asset 只依赖 Core；Interface Segregation 让 RHI 只表达 block/capability 而不理解 KTX2；Design by Contract 对 semantic、metadata、range、footprint 与 usage 逐层检查；YAGNI 暂不加入 cache/streaming；deterministic output 与 pinned provenance 让 derived data 可审计；防御性编程确保 untrusted local file 不放大资源消耗。</p>
+<h3>3. 测试策略与质量保障</h3><p>Golden exact-byte test 防编码漂移；quality/size test 防“稳定但不可用”；mutation 与 first-above-limit 属于 boundary/negative testing；36+ capability cases属于 equivalence partitioning；failure injection 检查 transaction rollback；eight-way request 与 TSan 检查并发；independent KTX CLI 避免 writer/reader 共用 bug；architecture scanner 防依赖边界回归。</p></section>
+
+<section id="s9"><h2>九、渲染、引擎与图形 API 学习笔记</h2>
+<h3>1. 本期核心概念拆解</h3><ul>
+<li><strong>Basis universal representation：</strong>它不是最终 GPU format，而是可快速转为多种 block format 的中间表示。</li>
+<li><strong>ETC1S 与 UASTC：</strong>ETC1S 更偏体积，UASTC 更偏质量与 transcode 直接性；semantic policy 决定是否允许有损。</li>
+<li><strong>Block compression：</strong>footprint 按 block 向上取整，logical extent 与 storage extent 不相同。</li>
+<li><strong>Format capability：</strong>设备支持某 VkFormat 仍需分别查询 sampled image 与 transfer destination feature。</li>
+<li><strong>Cooked artifact：</strong>它是可缓存、可验证、跨设备的资产证据，不是 GPU object。</li>
+</ul>
+<h3>2. 与 Vulkan / DX12 / Metal / OpenGL 的关系</h3><table><thead><tr><th>本项目</th><th>Vulkan</th><th>DX12</th><th>Metal / OpenGL</th></tr></thead><tbody>
+<tr><td>RHI compressed format</td><td><code>VkFormat</code> BC/ETC2/EAC/ASTC</td><td><code>DXGI_FORMAT_BC*</code></td><td><code>MTLPixelFormat</code> / compressed internal format</td></tr>
+<tr><td>Usage capability</td><td><code>vkGetPhysicalDeviceFormatProperties</code></td><td>format support feature queries</td><td>device family tables / extension queries</td></tr>
+<tr><td>Block upload</td><td><code>vkCmdCopyBufferToImage</code></td><td><code>CopyTextureRegion</code></td><td>blit encoder / compressed texture upload</td></tr>
+<tr><td>Portable artifact</td><td colspan="3">KTX2/Basis 在 API 之外；Renderer 为目标 API/device 选择 runtime representation。</td></tr>
+</tbody></table>
+<h3>3. 源码阅读路线</h3><ol><li><code>FTextureCook.h</code> 与 <code>FKTX2TextureArtifact.h</code>：理解 identity、policy 与 artifact facts。</li><li><code>FTextureCookPolicy.cpp</code>：看 semantic rules、revision 和 metadata。</li><li><code>FCanonicalBasisEncoder.cpp</code>、<code>FWamrEncoderRuntime.cpp</code>：看 canonical boundary。</li><li><code>FKTX2Preflight.cpp</code> 与 <code>FKTX2TextureCodec.cpp</code>：看 untrusted bytes 如何被约束。</li><li><code>FTextureTargetSelection.cpp</code> 与 <code>FKTX2TextureRealization.cpp</code>：看 Asset facts 如何进入 RHI。</li><li><code>FRHIFormatInfo.h</code> 与 Vulkan physical device/native context：从 block contract 走到 API。</li><li><code>AssetKTX2Tests.cpp</code> 和 validator scripts：从 evidence 反推设计。</li></ol>
+<h3>4. 自测问题</h3><ul><li>为什么 runtime target profile 不应进入 AssetId？</li><li>为什么 1x1 BC7 mip 不是 4 bytes？</li><li>为什么 format 枚举存在不等于 device 可上传并采样？</li><li>为什么 host 不能修补 canonical encoder 输出后仍称 byte-identical？</li><li>为什么 independent validator 必须与引擎私有 libktx 分离？</li><li>为什么 target selection 属于 Renderer 而不是 Asset 或 RHI？</li><li>如果第 N 个 mip upload 失败，哪些对象必须被释放，哪些资产必须保留？</li><li>Streaming 阶段如何复用当前 complete artifact 与 block footprint contract？</li></ul>
+</section></main></div></body></html>

@@ -9,7 +9,9 @@ contain their own SConscript files.
 
 import os
 import logging
+import subprocess
 from SCons.Script import Dir, File, Glob, SConscript as _SConscript
+from SCons.Script import Action
 
 logger = logging.getLogger('StonerBuild.LayerBuilder')
 
@@ -69,6 +71,7 @@ def BuildLayer(
     private_c_sources=None,
     third_party_cflags=None,
     private_cpp_settings=None,
+    private_objects=None,
 ):
     """Build a source layer as a static library with dependency-controlled include paths.
 
@@ -92,7 +95,8 @@ def BuildLayer(
                            into the layer.
         third_party_cflags: C-only flags applied to private C sources.
         private_cpp_settings: Optional mapping from a private C++ basename to
-                              isolated include_paths and ccflags.
+                              isolated include_paths, cppdefines, and ccflags.
+        private_objects: Optional prebuilt object nodes to append to the layer.
 
     Returns:
         SCons StaticLibrary node, or None if no source files found.
@@ -141,6 +145,7 @@ def BuildLayer(
                 for path in settings.get('include_paths', [])
             ],
         )
+        source_env.Append(CPPDEFINES=settings.get('cppdefines', []))
         source_env.Append(CCFLAGS=settings.get('ccflags', []))
         sources.append(source_env.Object(source))
     for c_source in private_c_sources:
@@ -149,6 +154,7 @@ def BuildLayer(
         if third_party_cflags:
             c_env.Append(CFLAGS=third_party_cflags)
         sources.append(c_env.Object(c_source_node))
+    sources.extend(private_objects or [])
 
     lib = layer_env.StaticLibrary(layer_name, sources)
     logger.info(
@@ -158,6 +164,67 @@ def BuildLayer(
         len(private_c_sources),
     )
     return lib
+
+
+def BuildPrivateCMakeLibrary(
+    env,
+    target_name,
+    source_dir,
+    build_dir,
+    library_relative_path,
+    config,
+):
+    """Build a vendored static library without leaking its includes globally."""
+    source_root = Dir('#' + source_dir).abspath
+    build_root = Dir('#' + build_dir).abspath
+    target = File('#' + os.path.join(build_dir, library_relative_path))
+
+    sources = []
+    for root, directories, files in os.walk(source_root):
+        directories[:] = sorted(
+            entry for entry in directories
+            if entry not in ('.git', '__pycache__')
+        )
+        for filename in sorted(files):
+            if filename != 'SHA256SUMS':
+                sources.append(File(os.path.join(root, filename)))
+
+    cmake_config = 'Debug' if config == 'debug' else 'Release'
+
+    def _build_private_library(target, source, env):
+        del target, source, env
+        configure = [
+            'cmake',
+            '-S',
+            source_root,
+            '-B',
+            build_root,
+            '-DCMAKE_BUILD_TYPE=' + cmake_config,
+            '-DBUILD_SHARED_LIBS=OFF',
+        ]
+        result = subprocess.run(configure, check=False)
+        if result.returncode != 0:
+            return result.returncode
+        build = [
+            'cmake',
+            '--build',
+            build_root,
+            '--config',
+            cmake_config,
+            '--target',
+            target_name,
+            '--parallel',
+        ]
+        return subprocess.run(build, check=False).returncode
+
+    return env.Command(
+        target,
+        sources,
+        Action(
+            _build_private_library,
+            'Building private third-party library ' + target_name,
+        ),
+    )
 
 
 def DiscoverSubModules(layer_dir, exports):

@@ -1,0 +1,5 @@
+The encoder wrapper is licensed under the Apache License, Version 2.0.
+The vendored Basis Universal implementation is covered by
+`ThirdParty/ktx/external/basisu/LICENSE`.
+
+https://www.apache.org/licenses/LICENSE-2.0

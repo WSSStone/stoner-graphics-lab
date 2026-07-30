@@ -1,8 +1,8 @@
 <!-- SPECKIT START -->
-Feature 021 Asset: Image & Texture Foundation is active. Read
-`specs/021-image-texture-assets/plan.md` for the current implementation plan,
-`specs/021-image-texture-assets/spec.md` for requirements, and `doc/roadmap.md`
-for program context.
+Feature 022 Asset: KTX2 Cooking & Compression is active. Read
+`specs/022-ktx2-cooking-compression/spec.md` for current requirements,
+`specs/022-ktx2-cooking-compression/plan.md` for the implementation design, and
+`doc/roadmap.md` for program context.
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -34,6 +34,8 @@ for program context.
 - C++20 with traditional header/source separation; no C++20 Modules + Existing Core types, containers, strings, logging, ownership, and platform conventions; new Core `FUnicode` NFC wrapper; C++ standard library concurrency and value facilities (`<array>`, `<atomic>`, `<mutex>`, `<optional>`, `<shared_mutex>`, `<span>`); Core-private vendored `utf8proc 2.11.3` for Unicode 17 normalization; SCons 4.10.1 (020-asset-core)
 - C++20, traditional public/private headers and sources; no Modules + Existing Core, Asset, RHI, Renderer; C++ standard library; pinned private stb_image 2.30; SCons 4.10.1 (021-image-texture-assets)
 - Process-local immutable CPU image/texture payloads, mip chains, diagnostics, and checked-in fixtures; no database, manifest, cooked cache, or GPU handle in Asset (021-image-texture-assets)
+- C++20 with traditional public/private headers and sources; C for private WAMR integration; no C++20 Modules + Existing Core, Asset, RHI, Renderer, Vulkan Backend; pinned private KTX-Software 4.4.2; pinned WAMR 2.4.5 interpreter; checked-in versioned encoder `.wasm`; SCons 4.10.1 (022-ktx2-cooking-compression)
+- Immutable in-memory KTX2 bytes and request-scoped transcode payloads; checked-in fixtures and golden digests; no manifest, derived-data cache, package, database, or cross-request cache (022-ktx2-cooking-compression)
 
 ## Recent Changes
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system

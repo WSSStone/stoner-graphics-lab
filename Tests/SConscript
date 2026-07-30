@@ -45,18 +45,28 @@ private_include_paths_by_source = {
     'AssetImageTextureTests.cpp': [
         Dir('#Source/Asset/Private').abspath,
     ],
+    'AssetKTX2Tests.cpp': [
+        Dir('#Source/Asset/Private').abspath,
+        Dir('#ThirdParty/ktx/include').abspath,
+    ],
     'TriangleDemoIntegrationTests.cpp': [
         Dir('#Demo/StonerDemo/Private').abspath,
     ],
+}
+
+private_defines_by_source = {
+    'AssetKTX2Tests.cpp': ['KHRONOS_STATIC'],
 }
 
 objects = []
 for cpp_file in cpp_files:
     source = os.path.join(rel_src_dir, cpp_file)
     extra_private_paths = private_include_paths_by_source.get(cpp_file)
-    if extra_private_paths:
+    extra_private_defines = private_defines_by_source.get(cpp_file)
+    if extra_private_paths or extra_private_defines:
         source_env = test_env.Clone()
-        source_env.Append(CPPPATH=extra_private_paths)
+        source_env.Append(CPPPATH=extra_private_paths or [])
+        source_env.Append(CPPDEFINES=extra_private_defines or [])
     else:
         source_env = test_env
     objects.extend(source_env.Object(source))
@@ -75,6 +85,7 @@ test_env.Append(LIBPATH=lib_paths)
 
 # Libraries to link (order matters for static linking: dependents first)
 test_env.Append(LIBS=['StonerDemoRuntime', 'Application', 'Renderer', 'RHI', 'Asset', 'Core', 'VulkanRHI'])
+test_env.Append(LIBS=env.get('STONER_ASSET_THIRD_PARTY_LIBS', []))
 if platform == 'Linux':
     test_env.Append(LIBS=['dl'])
 if platform == 'Win64':

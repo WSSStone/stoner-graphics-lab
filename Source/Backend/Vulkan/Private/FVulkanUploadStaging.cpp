@@ -16,20 +16,6 @@ namespace
     return Data != nullptr && SizeBytes > 0;
 }
 
-[[nodiscard]] bool TryMultiply(
-    Stoner::Core::uint64 Left,
-    Stoner::Core::uint64 Right,
-    Stoner::Core::uint64& OutValue) noexcept
-{
-    if (Left != 0 &&
-        Right > std::numeric_limits<Stoner::Core::uint64>::max() / Left)
-    {
-        return false;
-    }
-    OutValue = Left * Right;
-    return true;
-}
-
 [[nodiscard]] bool TextureRegionFits(
     const Stoner::RHI::FRHITextureDesc& Desc,
     const FVulkanTextureUploadRegion& Region) noexcept
@@ -57,13 +43,29 @@ namespace
     const FVulkanTextureUploadRegion& Region,
     Stoner::Core::uint64& OutByteSize) noexcept
 {
-    OutByteSize = Region.Width;
-    const Stoner::Core::uint64 FormatBytes =
-        Stoner::RHI::GetRHIFormatByteSize(Desc.Format);
-    return FormatBytes > 0 &&
-        TryMultiply(OutByteSize, Region.Height, OutByteSize) &&
-        TryMultiply(OutByteSize, Region.Depth, OutByteSize) &&
-        TryMultiply(OutByteSize, FormatBytes, OutByteSize);
+    Stoner::RHI::FRHITextureFootprint Footprint;
+    if (!Stoner::RHI::TryGetRHITextureFootprint(
+            Desc.Format,
+            Region.Width,
+            Region.Height,
+            Region.Depth,
+            Footprint))
+    {
+        OutByteSize = 0;
+        return false;
+    }
+    Stoner::RHI::FRHITextureUploadDesc Upload;
+    Upload.MipLevel = Region.MipLevel;
+    Upload.ArrayLayer = Region.ArrayLayer;
+    Upload.X = Region.X;
+    Upload.Y = Region.Y;
+    Upload.Z = Region.Z;
+    Upload.Width = Region.Width;
+    Upload.Height = Region.Height;
+    Upload.Depth = Region.Depth;
+    Upload.RowPitchBytes = Footprint.TightRowBytes;
+    return Stoner::RHI::TryGetRHITextureUploadRequiredBytes(
+        Desc, Upload, OutByteSize);
 }
 
 [[nodiscard]] bool IsRepresentableStagingSize(

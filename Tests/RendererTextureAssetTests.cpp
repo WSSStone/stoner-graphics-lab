@@ -82,13 +82,17 @@ public:
 
     FRealizationDevice()
     {
-        Capabilities.SupportedFormats = {
-            ERHIFormat::R8_UNorm,
-            ERHIFormat::R8G8_UNorm,
-            ERHIFormat::R8G8B8A8_UNorm,
-            ERHIFormat::R8G8B8A8_sRGB,
-            ERHIFormat::R16G16B16A16_Float,
-            ERHIFormat::R32G32B32A32_Float};
+        Capabilities.Formats = {
+            MakeRHIFormatCapabilities(ERHIFormat::R8_UNorm),
+            MakeRHIFormatCapabilities(ERHIFormat::R8G8_UNorm),
+            MakeRHIFormatCapabilities(
+                ERHIFormat::R8G8B8A8_UNorm),
+            MakeRHIFormatCapabilities(
+                ERHIFormat::R8G8B8A8_sRGB),
+            MakeRHIFormatCapabilities(
+                ERHIFormat::R16G16B16A16_Float),
+            MakeRHIFormatCapabilities(
+                ERHIFormat::R32G32B32A32_Float)};
     }
 
     [[nodiscard]] ERHIDeviceState GetState() const noexcept override
@@ -144,17 +148,27 @@ public:
         {
             return ERHIResult::Failed;
         }
-        const uint64 TightRow =
-            static_cast<uint64>(Upload.Width) *
-            GetRHIFormatByteSize(Texture->GetFormat());
+        FRHITextureFootprint Footprint;
+        if (!TryGetRHITextureFootprint(
+                Texture->GetFormat(),
+                Upload.Width,
+                Upload.Height,
+                Upload.Depth,
+                Footprint))
+        {
+            return ERHIResult::InvalidState;
+        }
+        const uint64 TightRow = Footprint.TightRowBytes;
+        const uint64 RowCount =
+            Footprint.BlockCountY * Footprint.BlockCountZ;
         FUpload RecordValue;
         RecordValue.MipLevel = Upload.MipLevel;
         RecordValue.RowPitchBytes = Upload.RowPitchBytes;
         RecordValue.Bytes.resize(
-            static_cast<usize>(TightRow * Upload.Height));
+            static_cast<usize>(TightRow * RowCount));
         const auto* Source =
             static_cast<const uint8*>(Upload.Data);
-        for (uint32 Row = 0; Row < Upload.Height; ++Row)
+        for (uint64 Row = 0; Row < RowCount; ++Row)
         {
             std::memcpy(
                 RecordValue.Bytes.data() +
@@ -174,7 +188,11 @@ public:
     }
     void RemoveFormat(ERHIFormat Format)
     {
-        std::erase(Capabilities.SupportedFormats, Format);
+        std::erase_if(
+            Capabilities.Formats,
+            [Format](const FRHIFormatCapabilities& Record) {
+                return Record.Format == Format;
+            });
     }
     [[nodiscard]] const TArray<FUpload>&
         GetUploads() const noexcept

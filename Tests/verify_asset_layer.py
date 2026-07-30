@@ -19,10 +19,28 @@ FORBIDDEN_PREFIXES = (
     "GLFW/",
 )
 
-APPROVED_THIRD_PARTY_INCLUDE = (
-    "Source/Asset/Private/FStbImageDecode.cpp",
-    "../../../ThirdParty/stb/stb_image.h",
-)
+APPROVED_THIRD_PARTY_INCLUDES = {
+    (
+        "Source/Asset/Private/FStbImageDecode.cpp",
+        "../../../ThirdParty/stb/stb_image.h",
+    ),
+    (
+        "Source/Asset/Private/FWamrEncoderRuntime.cpp",
+        "wasm_export.h",
+    ),
+    (
+        "Source/Asset/Private/FKTX2ContainerCodec.cpp",
+        "ktx.h",
+    ),
+    (
+        "Source/Asset/Private/FKTX2TextureCodec.cpp",
+        "ktx.h",
+    ),
+    (
+        "Source/Asset/Private/FBasisTextureTranscoder.cpp",
+        "ktx.h",
+    ),
+}
 
 
 def verify(root: pathlib.Path) -> list[str]:
@@ -41,10 +59,19 @@ def verify(root: pathlib.Path) -> list[str]:
             if "stb" in include.lower() and (
                 relative,
                 include,
-            ) != APPROVED_THIRD_PARTY_INCLUDE:
+            ) not in APPROVED_THIRD_PARTY_INCLUDES:
                 errors.append(
                     f"{relative}: stb may only be included by "
                     "FStbImageDecode.cpp"
+                )
+            if (
+                include in {"ktx.h", "wasm_export.h"}
+                and (relative, include)
+                not in APPROVED_THIRD_PARTY_INCLUDES
+            ):
+                errors.append(
+                    f"{relative}: {include} may only be included by an "
+                    "approved private adapter"
                 )
 
     core_public = root / "Source" / "Core" / "Public"
@@ -100,7 +127,8 @@ def main() -> int:
         return 1
     print(
         "Asset architecture boundary passed: Asset -> Core; "
-        "stb remains wrapper-private; utf8proc remains Core-private"
+        "stb, libktx, and WAMR remain adapter-private; "
+        "utf8proc remains Core-private"
     )
     if args.stamp:
         args.stamp.parent.mkdir(parents=True, exist_ok=True)

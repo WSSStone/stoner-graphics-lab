@@ -59,12 +59,90 @@ using namespace Stoner::RHI;
     case ERHIFormat::R32G32_Float: return VK_FORMAT_R32G32_SFLOAT;
     case ERHIFormat::R32G32B32_Float: return VK_FORMAT_R32G32B32_SFLOAT;
     case ERHIFormat::R32G32B32A32_Float: return VK_FORMAT_R32G32B32A32_SFLOAT;
+    case ERHIFormat::BC1_RGBA_UNorm: return VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
+    case ERHIFormat::BC1_RGBA_sRGB: return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
+    case ERHIFormat::BC3_RGBA_UNorm: return VK_FORMAT_BC3_UNORM_BLOCK;
+    case ERHIFormat::BC3_RGBA_sRGB: return VK_FORMAT_BC3_SRGB_BLOCK;
+    case ERHIFormat::BC4_R_UNorm: return VK_FORMAT_BC4_UNORM_BLOCK;
+    case ERHIFormat::BC5_RG_UNorm: return VK_FORMAT_BC5_UNORM_BLOCK;
+    case ERHIFormat::BC7_RGBA_UNorm: return VK_FORMAT_BC7_UNORM_BLOCK;
+    case ERHIFormat::BC7_RGBA_sRGB: return VK_FORMAT_BC7_SRGB_BLOCK;
+    case ERHIFormat::ETC2_RGB8_UNorm: return VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK;
+    case ERHIFormat::ETC2_RGB8_sRGB: return VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK;
+    case ERHIFormat::ETC2_RGBA8_UNorm: return VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK;
+    case ERHIFormat::ETC2_RGBA8_sRGB: return VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK;
+    case ERHIFormat::EAC_R11_UNorm: return VK_FORMAT_EAC_R11_UNORM_BLOCK;
+    case ERHIFormat::EAC_RG11_UNorm: return VK_FORMAT_EAC_R11G11_UNORM_BLOCK;
+    case ERHIFormat::ASTC_4x4_RGBA_UNorm: return VK_FORMAT_ASTC_4x4_UNORM_BLOCK;
+    case ERHIFormat::ASTC_4x4_RGBA_sRGB: return VK_FORMAT_ASTC_4x4_SRGB_BLOCK;
     case ERHIFormat::D24_UNorm_S8_UInt: return VK_FORMAT_D24_UNORM_S8_UINT;
     case ERHIFormat::D32_Float: return VK_FORMAT_D32_SFLOAT;
     case ERHIFormat::S8_UInt: return VK_FORMAT_S8_UINT;
     case ERHIFormat::Unknown: return VK_FORMAT_UNDEFINED;
+    case ERHIFormat::Count: return VK_FORMAT_UNDEFINED;
     }
     return VK_FORMAT_UNDEFINED;
+}
+
+[[nodiscard]] ERHIFormatCapability ToRHIFormatCapabilities(
+    VkFormatFeatureFlags Features) noexcept
+{
+    ERHIFormatCapability Capabilities =
+        ERHIFormatCapability::None;
+    if ((Features & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0)
+        Capabilities |= ERHIFormatCapability::SampledImage;
+    if ((Features & VK_FORMAT_FEATURE_TRANSFER_SRC_BIT) != 0)
+        Capabilities |= ERHIFormatCapability::CopySource;
+    if ((Features & VK_FORMAT_FEATURE_TRANSFER_DST_BIT) != 0)
+        Capabilities |= ERHIFormatCapability::CopyDestination;
+    if ((Features & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT) != 0)
+        Capabilities |= ERHIFormatCapability::ColorAttachment;
+    if ((Features &
+         VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0)
+        Capabilities |=
+            ERHIFormatCapability::DepthStencilAttachment;
+    return Capabilities;
+}
+
+[[nodiscard]] VkFormatFeatureFlags RequiredTextureFeatures(
+    ERHITextureUsage Usage) noexcept
+{
+    VkFormatFeatureFlags Features = 0;
+    if (HasRHIFlag(Usage, ERHITextureUsage::Sampled))
+        Features |= VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT;
+    if (HasRHIFlag(Usage, ERHITextureUsage::Storage))
+        Features |= VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT;
+    if (HasRHIFlag(Usage, ERHITextureUsage::ColorAttachment))
+        Features |= VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT;
+    if (HasRHIFlag(
+            Usage, ERHITextureUsage::DepthStencilAttachment))
+        Features |=
+            VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    if (HasRHIFlag(Usage, ERHITextureUsage::CopySource))
+        Features |= VK_FORMAT_FEATURE_TRANSFER_SRC_BIT;
+    if (HasRHIFlag(Usage, ERHITextureUsage::CopyDestination))
+        Features |= VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
+    return Features;
+}
+
+[[nodiscard]] VkImageUsageFlags ToVulkanImageUsage(
+    ERHITextureUsage Usage) noexcept
+{
+    VkImageUsageFlags Result = 0;
+    if (HasRHIFlag(Usage, ERHITextureUsage::Sampled))
+        Result |= VK_IMAGE_USAGE_SAMPLED_BIT;
+    if (HasRHIFlag(Usage, ERHITextureUsage::Storage))
+        Result |= VK_IMAGE_USAGE_STORAGE_BIT;
+    if (HasRHIFlag(Usage, ERHITextureUsage::ColorAttachment))
+        Result |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    if (HasRHIFlag(
+            Usage, ERHITextureUsage::DepthStencilAttachment))
+        Result |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    if (HasRHIFlag(Usage, ERHITextureUsage::CopySource))
+        Result |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    if (HasRHIFlag(Usage, ERHITextureUsage::CopyDestination))
+        Result |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    return Result;
 }
 
 [[nodiscard]] VkDescriptorType ToVulkanDescriptorType(
@@ -2158,6 +2236,48 @@ void FVulkanNativeContext::DestroyOwnedPipeline(
 #endif
 }
 
+Stoner::Core::TArray<Stoner::RHI::FRHIFormatCapabilities>
+FVulkanNativeContext::QueryTextureFormatCapabilities() const
+{
+    Stoner::Core::TArray<
+        Stoner::RHI::FRHIFormatCapabilities> Records;
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || Impl->PhysicalDevice == VK_NULL_HANDLE)
+    {
+        return Records;
+    }
+    const auto Count = static_cast<Stoner::Core::uint32>(
+        Stoner::RHI::ERHIFormat::Count);
+    Records.reserve(Count > 0 ? Count - 1 : 0);
+    for (Stoner::Core::uint32 Value = 1;
+         Value < Count;
+         ++Value)
+    {
+        const auto Format =
+            static_cast<Stoner::RHI::ERHIFormat>(Value);
+        const VkFormat NativeFormat = ToVulkanFormat(Format);
+        if (NativeFormat == VK_FORMAT_UNDEFINED)
+        {
+            continue;
+        }
+        VkFormatProperties Properties{};
+        vkGetPhysicalDeviceFormatProperties(
+            Impl->PhysicalDevice,
+            NativeFormat,
+            &Properties);
+        const auto Capabilities = ToRHIFormatCapabilities(
+            Properties.optimalTilingFeatures);
+        const Stoner::RHI::FRHIFormatCapabilities Record{
+            Format, Capabilities};
+        if (Record.IsValid())
+        {
+            Records.push_back(Record);
+        }
+    }
+#endif
+    return Records;
+}
+
 Stoner::RHI::ERHIResult FVulkanNativeContext::CreateOwnedTexture(
     const Stoner::RHI::FRHITextureDesc& Desc,
     Stoner::Core::uint64& OutToken) noexcept
@@ -2172,26 +2292,25 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::CreateOwnedTexture(
     }
     if (Desc.Dimension != ERHITextureDimension::Texture2D ||
         Desc.ArrayLayers != 1 ||
-        Desc.SampleCount != ERHISampleCount::One ||
-        !HasRHIFlag(Desc.Usage, ERHITextureUsage::Sampled) ||
-        !HasRHIFlag(
-            Desc.Usage, ERHITextureUsage::CopyDestination))
+        Desc.SampleCount != ERHISampleCount::One)
     {
         return ERHIResult::Unsupported;
     }
 
     const VkFormat Format = ToVulkanFormat(Desc.Format);
+    const VkFormatFeatureFlags RequiredFeatures =
+        RequiredTextureFeatures(Desc.Usage);
+    const VkImageUsageFlags ImageUsage =
+        ToVulkanImageUsage(Desc.Usage);
     VkFormatProperties Properties{};
-    if (Format == VK_FORMAT_UNDEFINED)
+    if (Format == VK_FORMAT_UNDEFINED ||
+        RequiredFeatures == 0 ||
+        ImageUsage == 0)
     {
         return ERHIResult::Unsupported;
     }
     vkGetPhysicalDeviceFormatProperties(
         Impl->PhysicalDevice, Format, &Properties);
-    constexpr VkFormatFeatureFlags RequiredFeatures =
-        VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT |
-        VK_FORMAT_FEATURE_TRANSFER_DST_BIT |
-        VK_FORMAT_FEATURE_TRANSFER_SRC_BIT;
     if ((Properties.optimalTilingFeatures & RequiredFeatures) !=
         RequiredFeatures)
     {
@@ -2224,10 +2343,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::CreateOwnedTexture(
     ImageInfo.arrayLayers = 1;
     ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    ImageInfo.usage =
-        VK_IMAGE_USAGE_SAMPLED_BIT |
-        VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-        VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    ImageInfo.usage = ImageUsage;
     ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     VkResult NativeResult = vkCreateImage(
@@ -2327,13 +2443,17 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::UploadOwnedTexture(
     }
     FImpl::FOwnedTextureResources& Texture = Found->second;
     Stoner::Core::uint64 RequiredBytes = 0;
-    const Stoner::Core::uint64 TightRowBytes =
-        static_cast<Stoner::Core::uint64>(Upload.Width) *
-        GetRHIFormatByteSize(Texture.Desc.Format);
+    FRHITextureFootprint Footprint;
     if (!IsValidRHITextureUploadDesc(Texture.Desc, Upload) ||
+        !TryGetRHITextureFootprint(
+            Texture.Desc.Format,
+            Upload.Width,
+            Upload.Height,
+            Upload.Depth,
+            Footprint) ||
         !TryGetRHITextureUploadRequiredBytes(
             Texture.Desc, Upload, RequiredBytes) ||
-        Upload.RowPitchBytes != TightRowBytes ||
+        Upload.RowPitchBytes != Footprint.TightRowBytes ||
         Upload.DataSizeBytes != RequiredBytes ||
         Upload.MipLevel >= Texture.MipLayouts.size())
     {
@@ -2615,28 +2735,35 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ReadbackOwnedTexture(
         return ERHIResult::InvalidState;
     }
     FImpl::FOwnedTextureResources& Texture = Found->second;
+    if (!HasRHIFlag(
+            Texture.Desc.Usage,
+            ERHITextureUsage::CopySource))
+    {
+        return ERHIResult::Unsupported;
+    }
     if (Texture.MipLayouts[MipLevel] !=
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
     {
         return ERHIResult::NotReady;
     }
-    const Stoner::Core::uint64 Width =
+    const Stoner::Core::uint32 Width =
         GetRHIMipExtent(Texture.Desc.Width, MipLevel);
-    const Stoner::Core::uint64 Height =
+    const Stoner::Core::uint32 Height =
         GetRHIMipExtent(Texture.Desc.Height, MipLevel);
-    const Stoner::Core::uint64 BytesPerTexel =
-        GetRHIFormatByteSize(Texture.Desc.Format);
-    if (BytesPerTexel == 0 ||
-        Width > std::numeric_limits<Stoner::Core::uint64>::max() /
-            Height ||
-        Width * Height >
-            std::numeric_limits<Stoner::Core::uint64>::max() /
-                BytesPerTexel)
+    const Stoner::Core::uint32 Depth =
+        GetRHIMipExtent(Texture.Desc.Depth, MipLevel);
+    FRHITextureFootprint Footprint;
+    if (!TryGetRHITextureFootprint(
+            Texture.Desc.Format,
+            Width,
+            Height,
+            Depth,
+            Footprint))
     {
         return ERHIResult::Unavailable;
     }
     const Stoner::Core::uint64 ByteSize =
-        Width * Height * BytesPerTexel;
+        Footprint.TotalBytes;
     if (ByteSize >
         static_cast<Stoner::Core::uint64>(
             std::numeric_limits<Stoner::Core::usize>::max()))
@@ -2790,9 +2917,9 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ReadbackOwnedTexture(
     Copy.imageSubresource.mipLevel = MipLevel;
     Copy.imageSubresource.layerCount = 1;
     Copy.imageExtent = {
-        static_cast<Stoner::Core::uint32>(Width),
-        static_cast<Stoner::Core::uint32>(Height),
-        1};
+        Width,
+        Height,
+        Depth};
     vkCmdCopyImageToBuffer(
         CommandBuffer,
         Texture.Image,

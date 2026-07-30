@@ -35,7 +35,13 @@ enum class EAssetResult : Core::uint8
     ImageLimitExceeded,
     UnsupportedColorProfile,
     NonFiniteImageData,
-    HDRPrecisionRangeExceeded
+    HDRPrecisionRangeExceeded,
+    KTX2LimitExceeded,
+    MalformedContainer,
+    CorruptPayload,
+    CookFailure,
+    TranscodeFailure,
+    UnsupportedCompression
 };
 
 enum class EAssetStage : Core::uint8
@@ -50,7 +56,9 @@ enum class EAssetStage : Core::uint8
     Inspect,
     Decode,
     Validate,
-    Mip
+    Mip,
+    Container,
+    Transcode
 };
 
 enum class EAssetDiagnosticSeverity : Core::uint8

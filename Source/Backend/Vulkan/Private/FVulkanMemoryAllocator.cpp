@@ -1,5 +1,7 @@
 #include "VulkanRHI/FVulkanMemoryAllocator.h"
 
+#include "RHI/FRHIFormatInfo.h"
+
 #include <atomic>
 #include <limits>
 
@@ -176,11 +178,9 @@ bool FVulkanMemoryAllocator::TryEstimateTextureBytes(
         return false;
     }
 
-    const Stoner::Core::uint64 FormatBytes =
-        Stoner::RHI::GetRHIFormatByteSize(Desc.Format);
     const Stoner::Core::uint64 Samples =
         static_cast<Stoner::Core::uint64>(Desc.SampleCount);
-    if (FormatBytes == 0 || Samples == 0)
+    if (Samples == 0)
     {
         return false;
     }
@@ -188,16 +188,18 @@ bool FVulkanMemoryAllocator::TryEstimateTextureBytes(
     Stoner::Core::uint64 TotalBytes = 0;
     for (Stoner::Core::uint32 Mip = 0; Mip < Desc.MipLevels; ++Mip)
     {
-        Stoner::Core::uint64 MipBytes =
-            Stoner::RHI::GetRHIMipExtent(Desc.Width, Mip);
-        const Stoner::Core::uint64 Height =
-            Stoner::RHI::GetRHIMipExtent(Desc.Height, Mip);
-        const Stoner::Core::uint64 Depth =
-            Stoner::RHI::GetRHIMipExtent(Desc.Depth, Mip);
-        if (!TryMultiply(MipBytes, Height, MipBytes) ||
-            !TryMultiply(MipBytes, Depth, MipBytes) ||
-            !TryMultiply(MipBytes, Desc.ArrayLayers, MipBytes) ||
-            !TryMultiply(MipBytes, FormatBytes, MipBytes) ||
+        Stoner::RHI::FRHITextureFootprint Footprint;
+        if (!Stoner::RHI::TryGetRHITextureFootprint(
+                Desc.Format,
+                Stoner::RHI::GetRHIMipExtent(Desc.Width, Mip),
+                Stoner::RHI::GetRHIMipExtent(Desc.Height, Mip),
+                Stoner::RHI::GetRHIMipExtent(Desc.Depth, Mip),
+                Footprint))
+        {
+            return false;
+        }
+        Stoner::Core::uint64 MipBytes = Footprint.TotalBytes;
+        if (!TryMultiply(MipBytes, Desc.ArrayLayers, MipBytes) ||
             !TryMultiply(MipBytes, Samples, MipBytes) ||
             !TryAdd(TotalBytes, MipBytes, TotalBytes))
         {

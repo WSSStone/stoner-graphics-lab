@@ -1201,17 +1201,23 @@ public:
         Capabilities.MaxInFlightFrames = 3;
         Capabilities.MaxCommandBuffersPerQueue = 64;
         Capabilities.MaxQueuesPerType = 1;
-        Capabilities.SupportedFormats = {
-            ERHIFormat::R8_UNorm,
-            ERHIFormat::R8G8_UNorm,
-            ERHIFormat::R8G8B8A8_UNorm,
-            ERHIFormat::R8G8B8A8_sRGB,
-            ERHIFormat::B8G8R8A8_UNorm,
-            ERHIFormat::R16G16B16A16_Float,
-            ERHIFormat::R32G32B32A32_Float,
-            ERHIFormat::D24_UNorm_S8_UInt,
-            ERHIFormat::D32_Float,
-            ERHIFormat::S8_UInt};
+        Capabilities.Formats = {
+            MakeRHIFormatCapabilities(ERHIFormat::R8_UNorm),
+            MakeRHIFormatCapabilities(ERHIFormat::R8G8_UNorm),
+            MakeRHIFormatCapabilities(
+                ERHIFormat::R8G8B8A8_UNorm),
+            MakeRHIFormatCapabilities(
+                ERHIFormat::R8G8B8A8_sRGB),
+            MakeRHIFormatCapabilities(
+                ERHIFormat::B8G8R8A8_UNorm),
+            MakeRHIFormatCapabilities(
+                ERHIFormat::R16G16B16A16_Float),
+            MakeRHIFormatCapabilities(
+                ERHIFormat::R32G32B32A32_Float),
+            MakeRHIFormatCapabilities(
+                ERHIFormat::D24_UNorm_S8_UInt),
+            MakeRHIFormatCapabilities(ERHIFormat::D32_Float),
+            MakeRHIFormatCapabilities(ERHIFormat::S8_UInt)};
     }
 
     explicit FMockDevice(const FRHIDeviceCapabilities& InCapabilities)
@@ -1383,11 +1389,19 @@ public:
             return ERHIResult::Failed;
         }
 
-        const uint64 TightRow =
-            static_cast<uint64>(Upload.Width) *
-            GetRHIFormatByteSize(Texture->GetFormat());
+        FRHITextureFootprint Footprint;
+        if (!TryGetRHITextureFootprint(
+                Texture->GetFormat(),
+                Upload.Width,
+                Upload.Height,
+                Upload.Depth,
+                Footprint))
+        {
+            return ERHIResult::InvalidState;
+        }
+        const uint64 TightRow = Footprint.TightRowBytes;
         const uint64 RowCount =
-            static_cast<uint64>(Upload.Height) * Upload.Depth;
+            Footprint.BlockCountY * Footprint.BlockCountZ;
         FTextureUploadRecord RecordValue;
         RecordValue.Desc = Upload;
         RecordValue.Desc.Data = nullptr;
@@ -1649,7 +1663,10 @@ void TestCoreValuesAndCapabilities(FRHICoreTestResult& Result)
     Capabilities.bSupportsComputeQueue = true;
     Capabilities.bSupportsTransferQueue = false;
     Capabilities.bSupportsPresentQueue = false;
-    Capabilities.SupportedFormats = {ERHIFormat::R8G8B8A8_UNorm, ERHIFormat::D32_Float};
+    Capabilities.Formats = {
+        MakeRHIFormatCapabilities(
+            ERHIFormat::R8G8B8A8_UNorm),
+        MakeRHIFormatCapabilities(ERHIFormat::D32_Float)};
 
     Record(Result, Capabilities.SupportsQueue(ERHIQueueType::Graphics), "FRHIDeviceCapabilities reports supported graphics queue");
     Record(Result, Capabilities.SupportsQueue(ERHIQueueType::Compute), "FRHIDeviceCapabilities reports supported compute queue");
@@ -2317,6 +2334,231 @@ void TestTextureUploadContract(FRHICoreTestResult& Result)
         "RHI mock upload injection leaves no partial footprint record");
 }
 
+void TestCompressedFormatAndUploadContracts(
+    FRHICoreTestResult& Result)
+{
+    uint32 ValidFormatCount = 0;
+    bool bTotalFormatTable = true;
+    for (uint32 Value = 1;
+         Value < static_cast<uint32>(ERHIFormat::Count);
+         ++Value)
+    {
+        const ERHIFormat Format =
+            static_cast<ERHIFormat>(Value);
+        const FRHIFormatInfo Info = GetRHIFormatInfo(Format);
+        bTotalFormatTable =
+            bTotalFormatTable &&
+            IsValidRHIFormat(Format) &&
+            Info.IsValid() &&
+            Info.Format == Format &&
+            Info.BlockWidth > 0 &&
+            Info.BlockHeight > 0 &&
+            Info.BlockDepth > 0 &&
+            Info.BytesPerBlock > 0 &&
+            Info.bDepthStencil ==
+                IsDepthStencilFormat(Format);
+        ++ValidFormatCount;
+    }
+    Record(
+        Result,
+        bTotalFormatTable &&
+            ValidFormatCount == 29 &&
+            !GetRHIFormatInfo(ERHIFormat::Unknown).IsValid() &&
+            !GetRHIFormatInfo(
+                static_cast<ERHIFormat>(255)).IsValid(),
+        "RHI format information is total for every valid format");
+
+    const FRHIFormatInfo BC1 =
+        GetRHIFormatInfo(ERHIFormat::BC1_RGBA_UNorm);
+    const FRHIFormatInfo BC7SRGB =
+        GetRHIFormatInfo(ERHIFormat::BC7_RGBA_sRGB);
+    const FRHIFormatInfo EACRG =
+        GetRHIFormatInfo(ERHIFormat::EAC_RG11_UNorm);
+    Record(
+        Result,
+        BC1.bCompressed && !BC1.bSRGB &&
+            BC1.BlockWidth == 4 &&
+            BC1.BlockHeight == 4 &&
+            BC1.BlockDepth == 1 &&
+            BC1.BytesPerBlock == 8 &&
+            BC7SRGB.bCompressed && BC7SRGB.bSRGB &&
+            BC7SRGB.BytesPerBlock == 16 &&
+            EACRG.bCompressed && !EACRG.bSRGB &&
+            EACRG.BytesPerBlock == 16 &&
+            !BC1.bDepthStencil &&
+            GetRHIFormatByteSize(
+                ERHIFormat::BC1_RGBA_UNorm) == 0,
+        "RHI compressed formats expose exact block and transfer facts");
+
+    FRHITextureFootprint OddFootprint;
+    FRHITextureFootprint TerminalFootprint;
+    FRHITextureFootprint OverflowFootprint;
+    Record(
+        Result,
+        TryGetRHITextureFootprint(
+            ERHIFormat::BC7_RGBA_UNorm,
+            7, 5, 1, OddFootprint) &&
+            OddFootprint.BlockCountX == 2 &&
+            OddFootprint.BlockCountY == 2 &&
+            OddFootprint.BlockCountZ == 1 &&
+            OddFootprint.TightRowBytes == 32 &&
+            OddFootprint.SliceBytes == 64 &&
+            OddFootprint.TotalBytes == 64 &&
+        TryGetRHITextureFootprint(
+            ERHIFormat::BC7_RGBA_UNorm,
+            1, 1, 1, TerminalFootprint) &&
+            TerminalFootprint.BlockCountX == 1 &&
+            TerminalFootprint.BlockCountY == 1 &&
+            TerminalFootprint.TotalBytes == 16 &&
+        !TryGetRHITextureFootprint(
+            ERHIFormat::BC7_RGBA_UNorm,
+            std::numeric_limits<uint32>::max(),
+            std::numeric_limits<uint32>::max(),
+            1,
+            OverflowFootprint) &&
+            OverflowFootprint.TotalBytes == 0,
+        "RHI block footprints round odd extents and reject overflow");
+
+    FRHIDeviceCapabilities Capabilities;
+    Capabilities.Formats = {
+        {
+            ERHIFormat::BC7_RGBA_sRGB,
+            ERHIFormatCapability::SampledImage |
+                ERHIFormatCapability::CopyDestination
+        },
+        {
+            ERHIFormat::R8G8B8A8_sRGB,
+            ERHIFormatCapability::SampledImage
+        }};
+    Record(
+        Result,
+        Capabilities.HasValidFormatCapabilities() &&
+            Capabilities.SupportsFormat(
+                ERHIFormat::BC7_RGBA_sRGB) &&
+            Capabilities.SupportsFormatUsage(
+                ERHIFormat::BC7_RGBA_sRGB,
+                ERHIFormatCapability::SampledImage |
+                    ERHIFormatCapability::CopyDestination) &&
+            !Capabilities.SupportsFormatUsage(
+                ERHIFormat::R8G8B8A8_sRGB,
+                ERHIFormatCapability::CopyDestination),
+        "RHI device capabilities advertise per-format usages");
+    Capabilities.Formats.push_back(
+        Capabilities.Formats.front());
+    Record(
+        Result,
+        !Capabilities.HasValidFormatCapabilities() &&
+            !Capabilities.SupportsFormat(
+                ERHIFormat::BC7_RGBA_sRGB),
+        "RHI device capabilities reject duplicate format records");
+
+    FRHITextureDesc Texture;
+    Texture.Width = 7;
+    Texture.Height = 5;
+    Texture.Format = ERHIFormat::BC7_RGBA_UNorm;
+    Texture.Usage =
+        ERHITextureUsage::Sampled |
+        ERHITextureUsage::CopyDestination;
+    uint8 Bytes[128] = {};
+
+    FRHITextureUploadDesc FullUpload;
+    FullUpload.Width = 7;
+    FullUpload.Height = 5;
+    FullUpload.RowPitchBytes = 32;
+    FullUpload.Data = Bytes;
+    FullUpload.DataSizeBytes = 64;
+    uint64 RequiredBytes = 0;
+    Record(
+        Result,
+        TryGetRHITextureUploadRequiredBytes(
+            Texture, FullUpload, RequiredBytes) &&
+            RequiredBytes == 64 &&
+            IsValidRHITextureUploadDesc(
+                Texture, FullUpload),
+        "RHI compressed full-mip upload uses rounded block rows");
+
+    FRHITextureUploadDesc EdgeUpload = FullUpload;
+    EdgeUpload.X = 4;
+    EdgeUpload.Width = 3;
+    EdgeUpload.Height = 4;
+    EdgeUpload.RowPitchBytes = 16;
+    EdgeUpload.DataSizeBytes = 16;
+    FRHITextureUploadDesc MisalignedOrigin = EdgeUpload;
+    MisalignedOrigin.X = 2;
+    FRHITextureUploadDesc NonEdgeExtent = FullUpload;
+    NonEdgeExtent.Width = 3;
+    NonEdgeExtent.Height = 4;
+    NonEdgeExtent.RowPitchBytes = 16;
+    NonEdgeExtent.DataSizeBytes = 16;
+    FRHITextureUploadDesc InvalidPaddedRow = FullUpload;
+    InvalidPaddedRow.RowPitchBytes = 40;
+    FRHITextureUploadDesc ValidPaddedRow = FullUpload;
+    ValidPaddedRow.RowPitchBytes = 48;
+    ValidPaddedRow.DataSizeBytes = 80;
+    FRHITextureUploadDesc Insufficient = FullUpload;
+    Insufficient.DataSizeBytes = 63;
+    Record(
+        Result,
+        IsValidRHITextureUploadDesc(Texture, EdgeUpload) &&
+            !IsValidRHITextureUploadDesc(
+                Texture, MisalignedOrigin) &&
+            !IsValidRHITextureUploadDesc(
+                Texture, NonEdgeExtent) &&
+            !IsValidRHITextureUploadDesc(
+                Texture, InvalidPaddedRow) &&
+            IsValidRHITextureUploadDesc(
+                Texture, ValidPaddedRow) &&
+            TryGetRHITextureUploadRequiredBytes(
+                Texture, ValidPaddedRow, RequiredBytes) &&
+            RequiredBytes == 80 &&
+            !IsValidRHITextureUploadDesc(
+                Texture, Insufficient),
+        "RHI compressed uploads enforce block origins edge extents rows and bytes");
+
+    bool bTerminalMipsValid = true;
+    for (uint32 Extent = 1; Extent <= 3; ++Extent)
+    {
+        FRHITextureDesc TerminalTexture = Texture;
+        TerminalTexture.Width = Extent;
+        TerminalTexture.Height = Extent;
+        FRHITextureUploadDesc TerminalUpload;
+        TerminalUpload.Width = Extent;
+        TerminalUpload.Height = Extent;
+        TerminalUpload.RowPitchBytes = 16;
+        TerminalUpload.Data = Bytes;
+        TerminalUpload.DataSizeBytes = 16;
+        bTerminalMipsValid =
+            bTerminalMipsValid &&
+            IsValidRHITextureUploadDesc(
+                TerminalTexture, TerminalUpload);
+    }
+    Record(
+        Result,
+        bTerminalMipsValid,
+        "RHI compressed 1x1 through 3x3 terminal mips occupy one block");
+
+    FRHITextureBufferCopyRegion CopyRegion;
+    CopyRegion.Width = 7;
+    CopyRegion.Height = 5;
+    CopyRegion.DestinationRowLengthTexels = 8;
+    CopyRegion.DestinationImageHeightTexels = 8;
+    uint64 CopyBytes = 0;
+    FRHITextureBufferCopyRegion InvalidCopy = CopyRegion;
+    InvalidCopy.DestinationRowLengthTexels = 7;
+    Record(
+        Result,
+        TryGetRHITextureBufferCopyByteSize(
+            CopyRegion,
+            ERHIFormat::BC7_RGBA_UNorm,
+            CopyBytes) &&
+            CopyBytes == 64 &&
+            !TryGetRHITextureBufferCopyByteSize(
+                InvalidCopy,
+                ERHIFormat::BC7_RGBA_UNorm,
+                CopyBytes),
+        "RHI compressed buffer copies use block-aware destination strides");
+}
+
 void TestDescriptorLayoutsAndSets(FRHICoreTestResult& Result)
 {
     FMockDevice Device;
@@ -2836,6 +3078,7 @@ FRHICoreTestResult RunRHICoreTests()
     TestSwapchain(Result);
     TestResourceDescriptionsAndFactories(Result);
     TestTextureUploadContract(Result);
+    TestCompressedFormatAndUploadContracts(Result);
     TestDescriptorLayoutsAndSets(Result);
     TestShaderAndPipelineContracts(Result);
     TestRenderPassesAndFramebuffers(Result);

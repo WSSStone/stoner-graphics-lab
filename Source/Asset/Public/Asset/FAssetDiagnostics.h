@@ -4,6 +4,8 @@
 #include "Core/FString.h"
 #include "Core/TArray.h"
 
+#include <optional>
+
 namespace Stoner::Asset
 {
 
@@ -16,8 +18,10 @@ struct FAssetDiagnostic
     Core::FString Subject;
     Core::FString Participant;
     Core::FString Field;
+    Core::FString Actual;
     Core::FString Limit;
     Core::FString Reason;
+    std::optional<Core::uint32> Level;
 
     [[nodiscard]] bool operator==(const FAssetDiagnostic&) const = default;
 };

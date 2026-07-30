@@ -184,6 +184,14 @@ Stoner::RHI::ERHIResult FVulkanDevice::EnableNativeShaderRuntime()
         {
             return InitializeResult;
         }
+        auto NativeFormats =
+            Context->QueryTextureFormatCapabilities();
+        if (NativeFormats.empty())
+        {
+            (void)Context->Shutdown();
+            return Stoner::RHI::ERHIResult::Unsupported;
+        }
+        Capabilities.Formats = std::move(NativeFormats);
         NativeShaderContext = std::move(Context);
     }
     catch (const std::bad_alloc&)
@@ -707,20 +715,23 @@ Stoner::RHI::ERHIResult FVulkanDevice::UploadTexture(
         return ERHIResult::InvalidState;
     }
 
-    const Stoner::Core::uint64 TightRowBytes =
-        static_cast<Stoner::Core::uint64>(Upload.Width) *
-        GetRHIFormatByteSize(TextureDesc.Format);
-    const Stoner::Core::uint64 RowCount =
-        static_cast<Stoner::Core::uint64>(Upload.Height) *
-        Upload.Depth;
-    if (TightRowBytes != 0 &&
-        RowCount >
+    FRHITextureFootprint Footprint;
+    if (!TryGetRHITextureFootprint(
+            TextureDesc.Format,
+            Upload.Width,
+            Upload.Height,
+            Upload.Depth,
+            Footprint) ||
+        Footprint.TotalBytes >
             static_cast<Stoner::Core::uint64>(
-                std::numeric_limits<Stoner::Core::usize>::max()) /
-                TightRowBytes)
+                std::numeric_limits<Stoner::Core::usize>::max()))
     {
         return ERHIResult::Unavailable;
     }
+    const Stoner::Core::uint64 TightRowBytes =
+        Footprint.TightRowBytes;
+    const Stoner::Core::uint64 RowCount =
+        Footprint.BlockCountY * Footprint.BlockCountZ;
 
     Stoner::Core::TArray<Stoner::Core::uint8> TightBytes;
     try
@@ -1885,7 +1896,8 @@ void FVulkanDevice::MapCapabilities(const FVulkanAdapterCandidate& Adapter)
     Capabilities.MaxInFlightFrames = 3;
     Capabilities.MaxCommandBuffersPerQueue = 0;
     Capabilities.MaxQueuesPerType = 1;
-    Capabilities.SupportedFormats = Adapter.Formats.GetSupportedFormats();
+    Capabilities.Formats =
+        Adapter.Formats.GetFormatCapabilities();
 }
 
 bool FVulkanDevice::SupportsBufferDesc(const Stoner::RHI::FRHIBufferDesc& Desc) noexcept
@@ -1900,7 +1912,32 @@ bool FVulkanDevice::SupportsBufferDesc(const Stoner::RHI::FRHIBufferDesc& Desc) 
 
 bool FVulkanDevice::SupportsTextureDesc(const Stoner::RHI::FRHITextureDesc& Desc) const noexcept
 {
-    return Stoner::RHI::IsValidRHITextureDesc(Desc) && Capabilities.SupportsFormat(Desc.Format);
+    using namespace Stoner::RHI;
+    if (!IsValidRHITextureDesc(Desc))
+    {
+        return false;
+    }
+    ERHIFormatCapability Required =
+        ERHIFormatCapability::None;
+    if (HasRHIFlag(Desc.Usage, ERHITextureUsage::Sampled))
+        Required |= ERHIFormatCapability::SampledImage;
+    if (HasRHIFlag(Desc.Usage, ERHITextureUsage::CopySource))
+        Required |= ERHIFormatCapability::CopySource;
+    if (HasRHIFlag(
+            Desc.Usage, ERHITextureUsage::CopyDestination))
+        Required |= ERHIFormatCapability::CopyDestination;
+    if (HasRHIFlag(
+            Desc.Usage, ERHITextureUsage::ColorAttachment))
+        Required |= ERHIFormatCapability::ColorAttachment;
+    if (HasRHIFlag(
+            Desc.Usage,
+            ERHITextureUsage::DepthStencilAttachment))
+        Required |=
+            ERHIFormatCapability::DepthStencilAttachment;
+    return Required == ERHIFormatCapability::None
+        ? Capabilities.SupportsFormat(Desc.Format)
+        : Capabilities.SupportsFormatUsage(
+              Desc.Format, Required);
 }
 
 bool FVulkanDevice::SupportsSamplerDesc(const Stoner::RHI::FRHISamplerDesc& Desc) noexcept

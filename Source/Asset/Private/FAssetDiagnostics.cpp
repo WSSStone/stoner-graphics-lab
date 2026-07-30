@@ -1,6 +1,7 @@
 #include "Asset/FAssetDiagnostics.h"
 
 #include <algorithm>
+#include <cctype>
 #include <string>
 #include <tuple>
 
@@ -24,6 +25,8 @@ const char* ToText(EAssetStage Stage)
     case EAssetStage::Decode: return "decode";
     case EAssetStage::Validate: return "validate";
     case EAssetStage::Mip: return "mip";
+    case EAssetStage::Container: return "container";
+    case EAssetStage::Transcode: return "transcode";
     }
     return "unknown";
 }
@@ -39,6 +42,29 @@ const char* ToText(EAssetDiagnosticSeverity Severity)
     return "unknown";
 }
 
+bool ContainsNativeDetail(std::string_view Text)
+{
+    if (Text.find("0x") != std::string_view::npos ||
+        Text.find("/Users/") != std::string_view::npos ||
+        Text.find("/home/") != std::string_view::npos ||
+        Text.find("\\Users\\") != std::string_view::npos ||
+        Text.find("VK_") != std::string_view::npos ||
+        Text.find("HRESULT") != std::string_view::npos)
+    {
+        return true;
+    }
+    return Text.size() >= 3 &&
+        std::isalpha(static_cast<unsigned char>(Text[0])) &&
+        Text[1] == ':' && (Text[2] == '\\' || Text[2] == '/');
+}
+
+std::string StableText(const Core::FString& Text)
+{
+    return ContainsNativeDetail(Text.View())
+        ? "[redacted]"
+        : Text.ToStdString();
+}
+
 } // namespace
 
 Core::FString FAssetDiagnostics::Format(const FAssetDiagnostic& Diagnostic)
@@ -49,23 +75,31 @@ Core::FString FAssetDiagnostics::Format(const FAssetDiagnostic& Diagnostic)
         Diagnostic.Code.ToStdString();
     if (!Diagnostic.Subject.IsEmpty())
     {
-        Text += "|subject=" + Diagnostic.Subject.ToStdString();
+        Text += "|subject=" + StableText(Diagnostic.Subject);
     }
     if (!Diagnostic.Participant.IsEmpty())
     {
-        Text += "|participant=" + Diagnostic.Participant.ToStdString();
+        Text += "|participant=" + StableText(Diagnostic.Participant);
     }
     if (!Diagnostic.Field.IsEmpty())
     {
-        Text += "|field=" + Diagnostic.Field.ToStdString();
+        Text += "|field=" + StableText(Diagnostic.Field);
+    }
+    if (!Diagnostic.Actual.IsEmpty())
+    {
+        Text += "|actual=" + StableText(Diagnostic.Actual);
     }
     if (!Diagnostic.Limit.IsEmpty())
     {
-        Text += "|limit=" + Diagnostic.Limit.ToStdString();
+        Text += "|limit=" + StableText(Diagnostic.Limit);
+    }
+    if (Diagnostic.Level.has_value())
+    {
+        Text += "|level=" + std::to_string(*Diagnostic.Level);
     }
     if (!Diagnostic.Reason.IsEmpty())
     {
-        Text += "|reason=" + Diagnostic.Reason.ToStdString();
+        Text += "|reason=" + StableText(Diagnostic.Reason);
     }
     return Core::FString(std::move(Text));
 }
@@ -84,7 +118,9 @@ Core::FString FAssetDiagnostics::FormatNormalized(FAssetDiagnosticList Diagnosti
                 Left.Subject,
                 Left.Participant,
                 Left.Field,
+                Left.Actual,
                 Left.Limit,
+                Left.Level,
                 Left.Reason) <
                 std::tuple(
                     Right.Severity,
@@ -93,7 +129,9 @@ Core::FString FAssetDiagnostics::FormatNormalized(FAssetDiagnosticList Diagnosti
                     Right.Subject,
                     Right.Participant,
                     Right.Field,
+                    Right.Actual,
                     Right.Limit,
+                    Right.Level,
                     Right.Reason);
         });
     std::string Text;

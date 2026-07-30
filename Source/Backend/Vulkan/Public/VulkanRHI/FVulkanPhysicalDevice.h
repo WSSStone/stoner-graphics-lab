@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Core/CoreMinimal.h"
-#include "RHI/ERHIFormat.h"
+#include "RHI/FRHIDeviceCapabilities.h"
 
 namespace Stoner::Backend::Vulkan
 {
@@ -28,14 +28,23 @@ struct FVulkanFormatSupport
     FVulkanFormatSupport() = default;
     FVulkanFormatSupport(bool bIncludeColorFormats, bool bIncludeDepthFormats);
     explicit FVulkanFormatSupport(Stoner::Core::TArray<Stoner::RHI::ERHIFormat> InSupportedFormats);
+    explicit FVulkanFormatSupport(
+        Stoner::Core::TArray<Stoner::RHI::FRHIFormatCapabilities>
+            InFormatCapabilities);
 
     [[nodiscard]] bool SupportsFormat(Stoner::RHI::ERHIFormat Format) const noexcept;
+    [[nodiscard]] bool SupportsFormatUsage(
+        Stoner::RHI::ERHIFormat Format,
+        Stoner::RHI::ERHIFormatCapability Required) const noexcept;
     [[nodiscard]] bool SupportsColor() const noexcept;
     [[nodiscard]] bool SupportsDepth() const noexcept;
-    [[nodiscard]] const Stoner::Core::TArray<Stoner::RHI::ERHIFormat>& GetSupportedFormats() const noexcept;
+    [[nodiscard]] const Stoner::Core::TArray<
+        Stoner::RHI::FRHIFormatCapabilities>&
+        GetFormatCapabilities() const noexcept;
 
 private:
-    Stoner::Core::TArray<Stoner::RHI::ERHIFormat> SupportedFormats;
+    Stoner::Core::TArray<Stoner::RHI::FRHIFormatCapabilities>
+        FormatCapabilities;
 };
 
 struct FVulkanAdapterCandidate

@@ -1,0 +1,2859 @@
+{
+  "artifactCount": 38,
+  "artifacts": [
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/etc1s-alpha-balanced-odd.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/etc1s-alpha-high-base.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/etc1s-color-balanced-full.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/etc1s-color-high-full.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/etc1s-terminal-1x1.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/uastc-color-balanced-full.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/uastc-color-high-full.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/uastc-data-optin-odd.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/uastc-normal-balanced-full.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/uastc-normal-high-full.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/uncompressed-data-full.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/uncompressed-r8.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/uncompressed-rg8.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/uncompressed-rgb32f.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/uncompressed-rgb8-srgb.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/uncompressed-rgba16f.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/uncompressed-rgba32f.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/uncompressed-rgba8-alpha.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-00/uncompressed-terminal-1x1.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/etc1s-alpha-balanced-odd.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/etc1s-alpha-high-base.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/etc1s-color-balanced-full.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/etc1s-color-high-full.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/etc1s-terminal-1x1.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/uastc-color-balanced-full.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/uastc-color-high-full.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/uastc-data-optin-odd.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/uastc-normal-balanced-full.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/uastc-normal-high-full.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/uncompressed-data-full.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/uncompressed-r8.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/uncompressed-rg8.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/uncompressed-rgb32f.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/uncompressed-rgb8-srgb.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/uncompressed-rgba16f.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/uncompressed-rgba32f.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/uncompressed-rgba8-alpha.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    },
+    {
+      "acceptedCustomMetadataWarnings": [
+        "stoner.alphaMode",
+        "stoner.assetId",
+        "stoner.channelCount",
+        "stoner.contentDigest",
+        "stoner.cookRevision",
+        "stoner.mipPolicy",
+        "stoner.portableProfile",
+        "stoner.semantic",
+        "stoner.sourceDigest"
+      ],
+      "artifact": "input-01/uncompressed-terminal-1x1.ktx2",
+      "exitCode": 3,
+      "validator": {
+        "$schema": "https://schema.khronos.org/ktx/validate_v0.json",
+        "messages": [
+          {
+            "details": "Custom key \"stoner.alphaMode\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.assetId\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.channelCount\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.contentDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.cookRevision\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.mipPolicy\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.portableProfile\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.semantic\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          },
+          {
+            "details": "Custom key \"stoner.sourceDigest\" found in Key/Value Data.",
+            "id": 7010,
+            "message": "Custom key in Key/Value Data.",
+            "type": "error"
+          }
+        ],
+        "valid": false
+      }
+    }
+  ],
+  "expectedVersion": "4.4.2",
+  "schema": "stoner.ktx2.validation.v1",
+  "status": "passed",
+  "toolVersion": "ktx version: v4.4.2"
+}

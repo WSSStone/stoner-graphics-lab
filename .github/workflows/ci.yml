@@ -24,18 +24,27 @@ jobs:
             demo_path: Build/Linux/Debug/Demo/StonerDemo/StonerDemo
             report_path: Build/Linux/Debug/Demo/StonerDemo/deterministic-report.txt
             deferred_report_path: Build/Linux/Debug/Tests/deferred-deterministic-report.txt
+            ktx2_generated_path: Validation/022/Linux/generated
+            ktx2_report_path: Validation/022/Linux/determinism.json
+            ktx2_validator_report_path: Validation/022/Linux/ktx-validate.json
           - name: macOS headless
             os: macos-latest
             test_path: Build/Mac/Debug/Tests/StonerTest
             demo_path: Build/Mac/Debug/Demo/StonerDemo/StonerDemo
             report_path: Build/Mac/Debug/Demo/StonerDemo/deterministic-report.txt
             deferred_report_path: Build/Mac/Debug/Tests/deferred-deterministic-report.txt
+            ktx2_generated_path: Validation/022/macOS/generated
+            ktx2_report_path: Validation/022/macOS/determinism.json
+            ktx2_validator_report_path: Validation/022/macOS/ktx-validate.json
           - name: Windows headless
             os: windows-latest
             test_path: Build/Win64/Debug/Tests/StonerTest.exe
             demo_path: Build/Win64/Debug/Demo/StonerDemo/StonerDemo.exe
             report_path: Build/Win64/Debug/Demo/StonerDemo/deterministic-report.txt
             deferred_report_path: Build/Win64/Debug/Tests/deferred-deterministic-report.txt
+            ktx2_generated_path: Validation/022/Windows/generated
+            ktx2_report_path: Validation/022/Windows/determinism.json
+            ktx2_validator_report_path: Validation/022/Windows/ktx-validate.json
 
     steps:
       - name: Checkout
@@ -57,8 +66,52 @@ jobs:
       - name: Build
         run: scons config=debug strict=1
 
-      - name: Run Feature 021 Asset and texture suite
-        run: ${{ matrix.test_path }} --suite asset
+      - name: Verify Feature 022 dependency provenance
+        run: python Tests/verify_ktx2_provenance.py
+
+      - name: Rebuild canonical encoder when pinned WASI SDK is available
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          if [[ -z "${WASI_SDK_PATH:-}" || \
+                ! -f "$WASI_SDK_PATH/share/cmake/wasi-sdk.cmake" ]]; then
+            echo "Pinned wasi-sdk 33.0 is unavailable; checked-in module provenance remains authoritative."
+            exit 0
+          fi
+          cmake -S ThirdParty/stoner-basis-encoder \
+            -B "$RUNNER_TEMP/stoner-encoder-wasm" \
+            -DCMAKE_TOOLCHAIN_FILE="$WASI_SDK_PATH/share/cmake/wasi-sdk.cmake" \
+            -DWASI_SDK_PREFIX="$WASI_SDK_PATH" \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build "$RUNNER_TEMP/stoner-encoder-wasm" --config Release
+          echo "d394459dc8f85d2e133045c421b61ef6e080f5890c77f7f048a7258ee77e0b98  $RUNNER_TEMP/stoner-encoder-wasm/bin/stoner_basis_encoder.wasm" \
+            | sha256sum --check --strict
+
+      - name: Verify Feature 022 Asset boundary
+        run: python Tests/verify_asset_layer.py
+
+      - name: Test Feature 022 validator adapter
+        run: python -m unittest Tests/test_verify_ktx2_artifacts.py
+
+      - name: Run Feature 022 canonical encoder digest gate
+        run: ${{ matrix.test_path }} --suite asset-ktx2-encoder
+
+      - name: Run Feature 020-022 Asset suite and 20-run report
+        run: >-
+          ${{ matrix.test_path }}
+          --suite asset
+          --emit-ktx2-dir ${{ matrix.ktx2_generated_path }}
+          --ktx2-determinism-runs 20
+          --report ${{ matrix.ktx2_report_path }}
+
+      - name: Run Feature 021-022 Renderer texture suite
+        run: ${{ matrix.test_path }} --suite renderer-texture
+
+      - name: Run Feature 022 RHI compressed format suite
+        run: ${{ matrix.test_path }} --suite rhi
+
+      - name: Run Feature 022 Vulkan compressed format suite
+        run: ${{ matrix.test_path }} --suite vulkan
 
       - name: Run full regression suite
         run: ${{ matrix.test_path }}
@@ -90,6 +143,36 @@ jobs:
           LVP_ICD=$(find /usr/share/vulkan/icd.d -name 'lvp_icd*.json' -print -quit)
           test -n "$LVP_ICD"
           echo "VK_DRIVER_FILES=$LVP_ICD" >> "$GITHUB_ENV"
+
+      - name: Provision pinned independent KTX 4.4.2 validator
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          archive="$RUNNER_TEMP/KTX-Software-4.4.2-Linux-x86_64.tar.bz2"
+          destination="$RUNNER_TEMP/ktx-4.4.2"
+          curl -L --fail --retry 3 \
+            -o "$archive" \
+            "https://github.com/KhronosGroup/KTX-Software/releases/download/v4.4.2/KTX-Software-4.4.2-Linux-x86_64.tar.bz2"
+          echo "a8781bad05f9624edbf910b7f258cd0a4ba7d3e63b49ecc0a0ab440bf6a0a245  $archive" \
+            | sha256sum --check --strict
+          mkdir -p "$destination"
+          tar -xjf "$archive" -C "$destination"
+          echo "$destination/KTX-Software-4.4.2-Linux-x86_64/bin" \
+            >> "$GITHUB_PATH"
+
+      - name: Validate generated and golden KTX2 artifacts independently
+        if: runner.os == 'Linux'
+        run: >-
+          python Tests/verify_ktx2_artifacts.py
+          --ktx ktx
+          --expected-version 4.4.2
+          --input ${{ matrix.ktx2_generated_path }}
+          --input Tests/Fixtures/KTX2/Golden
+          --report ${{ matrix.ktx2_validator_report_path }}
+
+      - name: Run Linux Feature 022 native compressed-format evidence
+        if: runner.os == 'Linux'
+        run: ${{ matrix.test_path }} --suite vulkan-native
 
       - name: Run Linux native-headless Lavapipe validation
         if: runner.os == 'Linux'
@@ -131,6 +214,16 @@ jobs:
             ${{ matrix.deferred_report_path }}
             Validation/019/Linux/deferred-readback-report.txt
             Validation/019/Linux/renderer-comparison-report.txt
+          if-no-files-found: warn
+
+      - name: Upload Feature 022 validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ktx2-cooking-${{ runner.os }}
+          path: |
+            ${{ matrix.ktx2_report_path }}
+            ${{ matrix.ktx2_validator_report_path }}
           if-no-files-found: warn
 
   release-build:
@@ -184,8 +277,17 @@ jobs:
       - name: Run sanitized test suite
         run: Build/Linux/Debug/Tests/StonerTest
 
-      - name: Run sanitized Feature 021 Asset and texture suite
+      - name: Run sanitized Feature 020-022 Asset suite
         run: Build/Linux/Debug/Tests/StonerTest --suite asset
+
+      - name: Run sanitized Feature 022 Renderer texture suite
+        run: Build/Linux/Debug/Tests/StonerTest --suite renderer-texture
+
+      - name: Run sanitized Feature 022 RHI suite
+        run: Build/Linux/Debug/Tests/StonerTest --suite rhi
+
+      - name: Run sanitized Feature 022 Vulkan suite
+        run: Build/Linux/Debug/Tests/StonerTest --suite vulkan
 
   linux-thread-sanitizer:
     name: Linux ThreadSanitizer Asset
@@ -203,5 +305,5 @@ jobs:
       - name: Build focused tests with ThreadSanitizer
         run: scons config=debug strict=1 sanitizers=thread
 
-      - name: Run Feature 021 concurrent Asset gate
+      - name: Run Feature 022 malformed and eight-way concurrent Asset gate
         run: Build/Linux/Debug/Tests/StonerTest --suite asset
