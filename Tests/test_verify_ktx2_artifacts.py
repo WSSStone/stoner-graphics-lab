@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import pathlib
 import subprocess
 import sys
@@ -129,7 +130,13 @@ class ValidatorTests(unittest.TestCase):
         run.return_value = subprocess.CompletedProcess(
             ["ktx"],
             0,
-            '{"messages":["/host/build/sample.ktx2: valid"]}',
+            json.dumps(
+                {
+                    "messages": [
+                        f"{artifact.resolve().as_posix()}: valid"
+                    ]
+                }
+            ),
             "",
         )
         records, passed = validator.validate(

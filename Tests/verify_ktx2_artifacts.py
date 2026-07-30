@@ -164,7 +164,10 @@ def validate(
 ) -> tuple[list[dict[str, object]], bool]:
     records: list[dict[str, object]] = []
     passed = True
-    resolved_labels = labels or {}
+    resolved_labels = {
+        artifact.resolve(): label
+        for artifact, label in (labels or {}).items()
+    }
     ordered_artifacts = sorted(
         (artifact.resolve() for artifact in artifacts),
         key=lambda artifact: resolved_labels.get(
