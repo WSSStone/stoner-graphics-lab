@@ -16,9 +16,26 @@ enum class ERHIFormat
     R32G32_Float,
     R32G32B32_Float,
     R32G32B32A32_Float,
+    BC1_RGBA_UNorm,
+    BC1_RGBA_sRGB,
+    BC3_RGBA_UNorm,
+    BC3_RGBA_sRGB,
+    BC4_R_UNorm,
+    BC5_RG_UNorm,
+    BC7_RGBA_UNorm,
+    BC7_RGBA_sRGB,
+    ETC2_RGB8_UNorm,
+    ETC2_RGB8_sRGB,
+    ETC2_RGBA8_UNorm,
+    ETC2_RGBA8_sRGB,
+    EAC_R11_UNorm,
+    EAC_RG11_UNorm,
+    ASTC_4x4_RGBA_UNorm,
+    ASTC_4x4_RGBA_sRGB,
     D24_UNorm_S8_UInt,
     D32_Float,
-    S8_UInt
+    S8_UInt,
+    Count
 };
 
 [[nodiscard]] constexpr unsigned int GetRHIFormatByteSize(
@@ -45,7 +62,24 @@ enum class ERHIFormat
         return 12;
     case ERHIFormat::R32G32B32A32_Float:
         return 16;
+    case ERHIFormat::BC1_RGBA_UNorm:
+    case ERHIFormat::BC1_RGBA_sRGB:
+    case ERHIFormat::BC3_RGBA_UNorm:
+    case ERHIFormat::BC3_RGBA_sRGB:
+    case ERHIFormat::BC4_R_UNorm:
+    case ERHIFormat::BC5_RG_UNorm:
+    case ERHIFormat::BC7_RGBA_UNorm:
+    case ERHIFormat::BC7_RGBA_sRGB:
+    case ERHIFormat::ETC2_RGB8_UNorm:
+    case ERHIFormat::ETC2_RGB8_sRGB:
+    case ERHIFormat::ETC2_RGBA8_UNorm:
+    case ERHIFormat::ETC2_RGBA8_sRGB:
+    case ERHIFormat::EAC_R11_UNorm:
+    case ERHIFormat::EAC_RG11_UNorm:
+    case ERHIFormat::ASTC_4x4_RGBA_UNorm:
+    case ERHIFormat::ASTC_4x4_RGBA_sRGB:
     case ERHIFormat::Unknown:
+    case ERHIFormat::Count:
         return 0;
     }
     return 0;
@@ -65,11 +99,28 @@ enum class ERHIFormat
     case ERHIFormat::R32G32_Float:
     case ERHIFormat::R32G32B32_Float:
     case ERHIFormat::R32G32B32A32_Float:
+    case ERHIFormat::BC1_RGBA_UNorm:
+    case ERHIFormat::BC1_RGBA_sRGB:
+    case ERHIFormat::BC3_RGBA_UNorm:
+    case ERHIFormat::BC3_RGBA_sRGB:
+    case ERHIFormat::BC4_R_UNorm:
+    case ERHIFormat::BC5_RG_UNorm:
+    case ERHIFormat::BC7_RGBA_UNorm:
+    case ERHIFormat::BC7_RGBA_sRGB:
+    case ERHIFormat::ETC2_RGB8_UNorm:
+    case ERHIFormat::ETC2_RGB8_sRGB:
+    case ERHIFormat::ETC2_RGBA8_UNorm:
+    case ERHIFormat::ETC2_RGBA8_sRGB:
+    case ERHIFormat::EAC_R11_UNorm:
+    case ERHIFormat::EAC_RG11_UNorm:
+    case ERHIFormat::ASTC_4x4_RGBA_UNorm:
+    case ERHIFormat::ASTC_4x4_RGBA_sRGB:
     case ERHIFormat::D24_UNorm_S8_UInt:
     case ERHIFormat::D32_Float:
     case ERHIFormat::S8_UInt:
         return true;
     case ERHIFormat::Unknown:
+    case ERHIFormat::Count:
         return false;
     }
     return false;

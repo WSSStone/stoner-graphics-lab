@@ -264,6 +264,7 @@ FVulkanNativeIntegrationTestResult RunVulkanNativeIntegrationTests()
     UNormDesc.Format = ERHIFormat::R8G8B8A8_sRGB;
     UNormDesc.Usage =
         ERHITextureUsage::Sampled |
+        ERHITextureUsage::CopySource |
         ERHITextureUsage::CopyDestination;
     const auto NativeUNormTexture =
         ShaderDevice.CreateTexture(UNormDesc);
@@ -391,6 +392,101 @@ FVulkanNativeIntegrationTestResult RunVulkanNativeIntegrationTests()
     }
     Record(Result, bFP32WithinTolerance,
         "Vulkan native RGBA32F upload and readback meets FP32 tolerance");
+
+    constexpr std::array CompressedCandidates = {
+        ERHIFormat::BC7_RGBA_UNorm,
+        ERHIFormat::BC3_RGBA_UNorm,
+        ERHIFormat::ASTC_4x4_RGBA_UNorm,
+        ERHIFormat::ETC2_RGBA8_UNorm};
+    constexpr auto RequiredCompressedUsage =
+        ERHIFormatCapability::SampledImage |
+        ERHIFormatCapability::CopySource |
+        ERHIFormatCapability::CopyDestination;
+    ERHIFormat NativeCompressedFormat = ERHIFormat::Unknown;
+    for (ERHIFormat Candidate : CompressedCandidates)
+    {
+        if (ShaderDevice.GetCapabilities().SupportsFormatUsage(
+                Candidate, RequiredCompressedUsage))
+        {
+            NativeCompressedFormat = Candidate;
+            break;
+        }
+    }
+
+    bool bCompressedCapabilityAgrees = false;
+    if (NativeCompressedFormat == ERHIFormat::Unknown)
+    {
+        FRHITextureDesc UnsupportedCompressedDesc = UNormDesc;
+        UnsupportedCompressedDesc.Width = 7;
+        UnsupportedCompressedDesc.Height = 5;
+        UnsupportedCompressedDesc.Format =
+            ERHIFormat::BC7_RGBA_UNorm;
+        bCompressedCapabilityAgrees =
+            !ShaderDevice.GetCapabilities().SupportsFormatUsage(
+                UnsupportedCompressedDesc.Format,
+                RequiredCompressedUsage) &&
+            ShaderDevice.CreateTexture(
+                UnsupportedCompressedDesc).Result ==
+                ERHIResult::Unsupported;
+    }
+    else
+    {
+        FRHITextureDesc CompressedDesc = UNormDesc;
+        CompressedDesc.Width = 7;
+        CompressedDesc.Height = 5;
+        CompressedDesc.Format = NativeCompressedFormat;
+        FRHITextureFootprint CompressedFootprint;
+        const bool bFootprintValid =
+            TryGetRHITextureFootprint(
+                CompressedDesc.Format,
+                CompressedDesc.Width,
+                CompressedDesc.Height,
+                CompressedDesc.Depth,
+                CompressedFootprint);
+        Stoner::Core::TArray<Stoner::Core::uint8>
+            CompressedBlocks;
+        if (bFootprintValid)
+        {
+            CompressedBlocks.resize(
+                static_cast<std::size_t>(
+                    CompressedFootprint.TotalBytes));
+            for (std::size_t Index = 0;
+                 Index < CompressedBlocks.size();
+                 ++Index)
+            {
+                CompressedBlocks[Index] =
+                    static_cast<unsigned char>(
+                        (Index * 17U + 3U) & 0xffU);
+            }
+        }
+        const auto CompressedTexture =
+            ShaderDevice.CreateTexture(CompressedDesc);
+        FRHITextureUploadDesc CompressedUpload;
+        CompressedUpload.Width = CompressedDesc.Width;
+        CompressedUpload.Height = CompressedDesc.Height;
+        CompressedUpload.RowPitchBytes =
+            CompressedFootprint.TightRowBytes;
+        CompressedUpload.Data = CompressedBlocks.data();
+        CompressedUpload.DataSizeBytes =
+            CompressedBlocks.size();
+        Stoner::Core::TArray<Stoner::Core::uint8>
+            CompressedReadback;
+        bCompressedCapabilityAgrees =
+            bFootprintValid &&
+            CompressedTexture.Succeeded() &&
+            ShaderDevice.UploadTexture(
+                CompressedTexture.Object,
+                CompressedUpload) == ERHIResult::Success &&
+            ShaderDevice.ReadbackTextureForTesting(
+                CompressedTexture.Object,
+                0,
+                CompressedReadback) == ERHIResult::Success &&
+            CompressedReadback == CompressedBlocks;
+    }
+    Record(
+        Result,
+        bCompressedCapabilityAgrees,
+        "Vulkan native compressed capability agrees with create upload and raw-block readback");
 
     const auto ShutdownShader = ShaderDevice.CreateShaderModule(ShaderDesc);
     Record(Result,

@@ -20,6 +20,7 @@
 #include "RHI/FRHIComputePipelineDesc.h"
 #include "RHI/FRHIDescriptorBinding.h"
 #include "RHI/FRHIDeviceCapabilities.h"
+#include "RHI/FRHIFormatInfo.h"
 #include "RHI/FRHIFramebufferDesc.h"
 #include "RHI/FRHIGraphicsPipelineDesc.h"
 #include "RHI/FRHIPipelineLayoutDesc.h"

@@ -1,17 +1,109 @@
 """Asset layer build script - CPU-side asset contracts, Core dependency only."""
 
-Import('env', 'platform', 'config')
-from LayerBuilder import BuildLayer
+Import('env', 'platform', 'config', 'build_base')
+import os
+from LayerBuilder import BuildLayer, BuildPrivateCMakeLibrary
+from SCons.Script import Action, File
+
+library_extension = '.lib' if platform == 'Win64' else '.a'
+library_prefix = '' if platform == 'Win64' else 'lib'
+third_party_build_dir = os.path.join(build_base, 'Asset', 'ThirdParty')
+
+ktx_library = BuildPrivateCMakeLibrary(
+    env,
+    'stoner_ktx',
+    'ThirdParty/ktx',
+    os.path.join(third_party_build_dir, 'ktx'),
+    os.path.join('lib', library_prefix + 'stoner_ktx' + library_extension),
+    config,
+)
+wamr_library = BuildPrivateCMakeLibrary(
+    env,
+    'stoner_wamr',
+    'ThirdParty/wamr',
+    os.path.join(third_party_build_dir, 'wamr'),
+    os.path.join('lib', library_prefix + 'stoner_wamr' + library_extension),
+    config,
+)
+env['STONER_ASSET_THIRD_PARTY_LIBS'] = ktx_library + wamr_library
 
 stb_warning_flags = ['/w'] if platform == 'Win64' else ['-w']
+encoder_module = File(
+    '#ThirdParty/stoner-basis-encoder/stoner_basis_encoder.wasm'
+)
+embedded_source = File(
+    '#' + os.path.join(
+        build_base,
+        'Asset',
+        'Generated',
+        'FEmbeddedBasisEncoder.cpp',
+    )
+)
+
+def _embed_encoder_module(target, source, env):
+    del env
+    data = source[0].get_contents()
+    output_path = target[0].abspath
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, 'w', encoding='ascii', newline='\n') as output:
+        output.write('#include <cstddef>\n#include <cstdint>\n\n')
+        output.write('namespace Stoner::Asset::Private\n{\n')
+        output.write(
+            'alignas(16) extern const std::uint8_t '
+            'GStonerBasisEncoderModule[] = {\n'
+        )
+        for offset in range(0, len(data), 16):
+            chunk = data[offset:offset + 16]
+            output.write('    ')
+            output.write(', '.join('0x%02x' % byte for byte in chunk))
+            output.write(',\n')
+        output.write('};\n')
+        output.write(
+            'extern const std::size_t GStonerBasisEncoderModuleSize = '
+            'sizeof(GStonerBasisEncoderModule);\n'
+        )
+        output.write('} // namespace Stoner::Asset::Private\n')
+    return 0
+
+embedded_module_source = env.Command(
+    embedded_source,
+    [encoder_module],
+    Action(_embed_encoder_module, 'Embedding canonical Basis encoder module'),
+)
+embedded_module_object = env.Object(embedded_module_source)
+
 lib = BuildLayer(
     env,
     'Asset',
     ['Core'],
     private_cpp_settings={
+        'FWamrEncoderRuntime.cpp': {
+            'include_paths': [
+                'ThirdParty/wamr/core/iwasm/include',
+            ],
+        },
+        'FKTX2ContainerCodec.cpp': {
+            'include_paths': [
+                'ThirdParty/ktx/include',
+                'ThirdParty/ktx/lib',
+            ],
+        },
+        'FKTX2TextureCodec.cpp': {
+            'include_paths': [
+                'ThirdParty/ktx/include',
+                'ThirdParty/ktx/lib',
+            ],
+        },
+        'FBasisTextureTranscoder.cpp': {
+            'include_paths': [
+                'ThirdParty/ktx/include',
+                'ThirdParty/ktx/lib',
+            ],
+        },
         'FStbImageDecode.cpp': {
             'ccflags': stb_warning_flags,
         },
     },
+    private_objects=embedded_module_object,
 )
 Return('lib')

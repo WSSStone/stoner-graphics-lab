@@ -188,7 +188,10 @@ public:
     FAssetLoadResult Load(const FAssetLoadRequest& Request) override
     {
         (void)Request;
-        return {EAssetResult::Success, MakeShared<FTexturePayload>()};
+        return {
+            EAssetResult::Success,
+            MakeShared<FTexturePayload>(),
+            {}};
     }
 
 private:
@@ -215,14 +218,22 @@ public:
     {
         if (Request.TargetProfile.IsEmpty() || !Request.Payload)
         {
-            return {EAssetResult::InvalidInput, {}, {}, {}};
+            return {
+                EAssetResult::InvalidInput,
+                {},
+                {},
+                {},
+                {},
+                {}};
         }
         const TArray<uint8> Bytes = {1, 2, 3, 4};
         return {
             EAssetResult::Success,
             Request.TargetProfile,
             Bytes,
-            FAssetDigest::FromBytes(Bytes)};
+            FAssetDigest::FromBytes(Bytes),
+            {},
+            {}};
     }
 
 private:
@@ -701,11 +712,19 @@ void TestLoaderAndCooker(FAssetCoreTestResult& Result)
         FAssetDispatch::Cook(Registry, CookerId, CookRequest);
     Record(
         Result,
-        Registered && Loaded.Result == EAssetResult::Success && Loaded.Payload &&
+        Registered &&
+            !LoadRequest.Parameters &&
+            !CookRequest.Parameters &&
+            Loaded.Result == EAssetResult::Success &&
+            Loaded.Payload &&
+            Loaded.Diagnostics.empty() &&
             Cooked.Result == EAssetResult::Success &&
             Cooked.TargetProfile == FString("mac-arm64") &&
-            !Cooked.Artifact.empty() && Cooked.CookDigest.IsAvailable(),
-        "synthetic loader and cooker preserve payload and cook digest contract");
+            !Cooked.Artifact.empty() &&
+            Cooked.CookDigest.IsAvailable() &&
+            !Cooked.Payload &&
+            Cooked.Diagnostics.empty(),
+        "legacy loader and cooker preserve null-parameter behavior");
 }
 
 void TestDiagnosticsAndInspection(FAssetCoreTestResult& Result)

@@ -8,6 +8,7 @@
 #include "Renderer/FForwardRenderGraphDeclaration.h"
 #include "Renderer/FForwardRenderer.h"
 #include "Renderer/FForwardViewData.h"
+#include "Renderer/FKTX2TextureRealization.h"
 #include "Renderer/FMaterial.h"
 #include "Renderer/FMaterialDiagnostics.h"
 #include "Renderer/FMaterialInstance.h"
@@ -25,6 +26,7 @@
 #include "Renderer/FShaderLibrary.h"
 #include "Renderer/FShaderPermutation.h"
 #include "Renderer/FTextureAssetRealization.h"
+#include "Renderer/FTextureTargetProfile.h"
 
 // Renderer layer minimal header — high-level rendering
 // Texture realization intentionally exposes the Asset-to-RHI bridge owned by

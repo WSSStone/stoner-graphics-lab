@@ -232,7 +232,8 @@ FAssetLoadResult FAssetDispatch::Load(
     const auto Loader =
         Registry.Acquire(EAssetExtensionKind::Loader, Participant).Get<IAssetLoader>();
     return Loader ? Loader->Load(Request)
-                  : FAssetLoadResult{EAssetResult::RegistrationInactive, {}};
+                  : FAssetLoadResult{
+                        EAssetResult::RegistrationInactive, {}, {}};
 }
 
 FAssetCookResult FAssetDispatch::Cook(
@@ -243,7 +244,13 @@ FAssetCookResult FAssetDispatch::Cook(
     const auto Cooker =
         Registry.Acquire(EAssetExtensionKind::Cooker, Participant).Get<IAssetCooker>();
     return Cooker ? Cooker->Cook(Request)
-                  : FAssetCookResult{EAssetResult::RegistrationInactive, {}, {}, {}};
+                  : FAssetCookResult{
+                        EAssetResult::RegistrationInactive,
+                        {},
+                        {},
+                        {},
+                        {},
+                        {}};
 }
 
 } // namespace Stoner::Asset

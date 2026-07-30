@@ -3,6 +3,7 @@
 
 #include "VulkanRHI/VulkanDevice.h"
 
+#include <array>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -1799,6 +1800,135 @@ void TestSamplersDescriptorsAndUploads(FVulkanBackendTestResult& Result)
         Device.CreateSampler(ValidSamplerDesc()).Result == ERHIResult::InvalidState, "Vulkan shutdown invalidates descriptors uploads and sampler creation");
 }
 
+void TestCompressedTextureFormatsAndUploads(
+    FVulkanBackendTestResult& Result)
+{
+    FVulkanDevice Device;
+    Record(
+        Result,
+        InitializeDeterministic(Device) == ERHIResult::Success,
+        "Vulkan compressed texture fixture initializes");
+
+    constexpr auto Required =
+        ERHIFormatCapability::SampledImage |
+        ERHIFormatCapability::CopySource |
+        ERHIFormatCapability::CopyDestination;
+    Record(
+        Result,
+        Device.GetCapabilities().SupportsFormatUsage(
+            ERHIFormat::BC7_RGBA_UNorm, Required) &&
+            Device.GetCapabilities().SupportsFormatUsage(
+                ERHIFormat::ETC2_RGBA8_UNorm, Required) &&
+            Device.GetCapabilities().SupportsFormatUsage(
+                ERHIFormat::ASTC_4x4_RGBA_UNorm, Required) &&
+            !Device.GetCapabilities().SupportsFormatUsage(
+                ERHIFormat::BC7_RGBA_UNorm,
+                ERHIFormatCapability::ColorAttachment),
+        "Vulkan synthetic capabilities expose compressed sampled transfer usage only");
+
+    FRHITextureDesc Desc;
+    Desc.Width = 7;
+    Desc.Height = 5;
+    Desc.MipLevels = 3;
+    Desc.Format = ERHIFormat::BC7_RGBA_UNorm;
+    Desc.Usage =
+        ERHITextureUsage::Sampled |
+        ERHITextureUsage::CopySource |
+        ERHITextureUsage::CopyDestination;
+    const auto Texture = Device.CreateTexture(Desc);
+    const auto AfterCreate = Device.GetAllocationSnapshot();
+    Record(
+        Result,
+        Texture.Succeeded() &&
+            AfterCreate.LiveAllocationCount == 1 &&
+            AfterCreate.AllocatedBytes == 96,
+        "Vulkan compressed allocation sums rounded blocks and terminal mips");
+
+    std::array<unsigned char, 80> PaddedBase{};
+    for (std::size_t Index = 0; Index < PaddedBase.size(); ++Index)
+    {
+        PaddedBase[Index] =
+            static_cast<unsigned char>(Index + 1);
+    }
+    FRHITextureUploadDesc BaseUpload;
+    BaseUpload.Width = 7;
+    BaseUpload.Height = 5;
+    BaseUpload.RowPitchBytes = 48;
+    BaseUpload.Data = PaddedBase.data();
+    BaseUpload.DataSizeBytes = PaddedBase.size();
+    const ERHIResult BaseResult =
+        Device.UploadTexture(Texture.Object, BaseUpload);
+    Stoner::Core::TArray<Stoner::Core::uint8> BaseReadback;
+    const ERHIResult ReadbackResult =
+        Device.ReadbackTextureForTesting(
+            Texture.Object, 0, BaseReadback);
+    bool bBaseMatches =
+        BaseReadback.size() == 64;
+    if (bBaseMatches)
+    {
+        bBaseMatches =
+            std::equal(
+                BaseReadback.begin(),
+                BaseReadback.begin() + 32,
+                PaddedBase.begin()) &&
+            std::equal(
+                BaseReadback.begin() + 32,
+                BaseReadback.end(),
+                PaddedBase.begin() + 48);
+    }
+    Record(
+        Result,
+        BaseResult == ERHIResult::Success &&
+            ReadbackResult == ERHIResult::Success &&
+            bBaseMatches,
+        "Vulkan compressed upload strips block-row padding to the exact footprint");
+
+    const std::array<unsigned char, 16> TerminalBlock = {
+        0, 1, 2, 3, 4, 5, 6, 7,
+        8, 9, 10, 11, 12, 13, 14, 15};
+    FRHITextureUploadDesc TerminalUpload;
+    TerminalUpload.MipLevel = 2;
+    TerminalUpload.Width = 1;
+    TerminalUpload.Height = 1;
+    TerminalUpload.RowPitchBytes = TerminalBlock.size();
+    TerminalUpload.Data = TerminalBlock.data();
+    TerminalUpload.DataSizeBytes = TerminalBlock.size();
+    Record(
+        Result,
+        Device.UploadTexture(
+            Texture.Object, TerminalUpload) ==
+                ERHIResult::Success,
+        "Vulkan compressed terminal mip uploads one complete block");
+
+    FRHITextureUploadDesc InvalidUpload = TerminalUpload;
+    InvalidUpload.DataSizeBytes = TerminalBlock.size() - 1;
+    Record(
+        Result,
+        Device.UploadTexture(Texture.Object, InvalidUpload) ==
+                ERHIResult::InvalidState &&
+            Device.GetAllocationSnapshot().LiveAllocationCount == 1,
+        "Vulkan compressed upload failure preserves the prior resource");
+
+    FVulkanDevice LimitedDevice;
+    const bool bLimitedInitialized =
+        InitializeDeterministic(LimitedDevice) ==
+        ERHIResult::Success;
+    LimitedDevice.ConfigureAllocationBudget(95);
+    const auto Rejected = LimitedDevice.CreateTexture(Desc);
+    const auto RejectedSnapshot =
+        LimitedDevice.GetAllocationSnapshot();
+    Record(
+        Result,
+        bLimitedInitialized &&
+            Rejected.Result == ERHIResult::Unavailable &&
+            RejectedSnapshot.LiveAllocationCount == 0 &&
+            RejectedSnapshot.AllocatedBytes == 0,
+        "Vulkan compressed allocation failure publishes no resource or accounting");
+
+    (void)Device.Shutdown();
+    (void)LimitedDevice.Shutdown();
+}
+
 } // namespace
 
 FVulkanBackendTestResult RunVulkanBackendTests()
@@ -1819,5 +1949,6 @@ FVulkanBackendTestResult RunVulkanBackendTests()
     TestCommandBuffersRecordingAndSubmission(Result);
     TestRenderPassFramebufferRecordingAndUploads(Result);
     TestSamplersDescriptorsAndUploads(Result);
+    TestCompressedTextureFormatsAndUploads(Result);
     return Result;
 }

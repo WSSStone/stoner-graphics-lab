@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Core/CoreMinimal.h"
-#include "RHI/ERHIFormat.h"
+#include "RHI/FRHIFormatInfo.h"
 
 #include <limits>
 
@@ -42,10 +42,33 @@ struct FRHITextureBufferCopyRegion
         Region.DestinationImageHeightTexels == 0
         ? Region.Height
         : Region.DestinationImageHeightTexels;
-    const Stoner::Core::uint64 FormatBytes =
-        GetRHIFormatByteSize(Format);
-    if (RowTexels < Region.Width || ImageRows < Region.Height ||
-        FormatBytes == 0)
+    const FRHIFormatInfo Info = GetRHIFormatInfo(Format);
+    if (!Info.IsValid() ||
+        RowTexels < Region.Width ||
+        ImageRows < Region.Height ||
+        (Info.bCompressed &&
+            ((Region.DestinationRowLengthTexels != 0 &&
+                RowTexels % Info.BlockWidth != 0) ||
+             (Region.DestinationImageHeightTexels != 0 &&
+                ImageRows % Info.BlockHeight != 0))))
+    {
+        return false;
+    }
+
+    FRHITextureFootprint RegionFootprint;
+    FRHITextureFootprint DestinationFootprint;
+    if (!TryGetRHITextureFootprint(
+            Format,
+            Region.Width,
+            Region.Height,
+            Region.Depth,
+            RegionFootprint) ||
+        !TryGetRHITextureFootprint(
+            Format,
+            static_cast<Stoner::Core::uint32>(RowTexels),
+            static_cast<Stoner::Core::uint32>(ImageRows),
+            1,
+            DestinationFootprint))
     {
         return false;
     }
@@ -75,16 +98,34 @@ struct FRHITextureBufferCopyRegion
         return true;
     };
 
-    Stoner::Core::uint64 SliceStride = 0;
+    Stoner::Core::uint64 SliceStrideBlocks = 0;
     Stoner::Core::uint64 LastSliceOffset = 0;
     Stoner::Core::uint64 LastRowOffset = 0;
-    Stoner::Core::uint64 LastTexelEnd = 0;
-    return TryMultiply(RowTexels, ImageRows, SliceStride) &&
-        TryMultiply(SliceStride, Region.Depth - 1, LastSliceOffset) &&
-        TryMultiply(RowTexels, Region.Height - 1, LastRowOffset) &&
-        TryAdd(LastSliceOffset, LastRowOffset, LastTexelEnd) &&
-        TryAdd(LastTexelEnd, Region.Width, LastTexelEnd) &&
-        TryMultiply(LastTexelEnd, FormatBytes, OutByteSize);
+    Stoner::Core::uint64 LastBlockEnd = 0;
+    return TryMultiply(
+            DestinationFootprint.BlockCountX,
+            DestinationFootprint.BlockCountY,
+            SliceStrideBlocks) &&
+        TryMultiply(
+            SliceStrideBlocks,
+            RegionFootprint.BlockCountZ - 1,
+            LastSliceOffset) &&
+        TryMultiply(
+            DestinationFootprint.BlockCountX,
+            RegionFootprint.BlockCountY - 1,
+            LastRowOffset) &&
+        TryAdd(
+            LastSliceOffset,
+            LastRowOffset,
+            LastBlockEnd) &&
+        TryAdd(
+            LastBlockEnd,
+            RegionFootprint.BlockCountX,
+            LastBlockEnd) &&
+        TryMultiply(
+            LastBlockEnd,
+            Info.BytesPerBlock,
+            OutByteSize);
 }
 
 } // namespace Stoner::RHI

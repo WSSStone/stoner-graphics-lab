@@ -1,5 +1,7 @@
 #include "VulkanRHI/FVulkanPhysicalDevice.h"
 
+#include "RHI/FRHIFormatInfo.h"
+
 #include <algorithm>
 #include <utility>
 
@@ -27,6 +29,65 @@ namespace
     return 0;
 }
 
+[[nodiscard]] Stoner::RHI::FRHIFormatCapabilities
+MakeSyntheticFormatCapabilities(
+    Stoner::RHI::ERHIFormat Format) noexcept
+{
+    using namespace Stoner::RHI;
+    ERHIFormatCapability Capabilities =
+        ERHIFormatCapability::SampledImage |
+        ERHIFormatCapability::CopySource |
+        ERHIFormatCapability::CopyDestination;
+    if (IsDepthStencilFormat(Format))
+    {
+        Capabilities |=
+            ERHIFormatCapability::DepthStencilAttachment;
+    }
+    else if (!GetRHIFormatInfo(Format).bCompressed)
+    {
+        Capabilities |=
+            ERHIFormatCapability::ColorAttachment;
+    }
+    return {Format, Capabilities};
+}
+
+void NormalizeFormatCapabilities(
+    Stoner::Core::TArray<
+        Stoner::RHI::FRHIFormatCapabilities>& Records)
+{
+    Records.erase(
+        std::remove_if(
+            Records.begin(),
+            Records.end(),
+            [](const Stoner::RHI::FRHIFormatCapabilities& Record) {
+                return !Record.IsValid();
+            }),
+        Records.end());
+    std::sort(
+        Records.begin(),
+        Records.end(),
+        [](const auto& Left, const auto& Right) {
+            return Left.Format < Right.Format;
+        });
+    Stoner::Core::TArray<
+        Stoner::RHI::FRHIFormatCapabilities> Normalized;
+    Normalized.reserve(Records.size());
+    for (const auto& Record : Records)
+    {
+        if (!Normalized.empty() &&
+            Normalized.back().Format == Record.Format)
+        {
+            Normalized.back().Capabilities |=
+                Record.Capabilities;
+        }
+        else
+        {
+            Normalized.push_back(Record);
+        }
+    }
+    Records = std::move(Normalized);
+}
+
 } // namespace
 
 FVulkanFormatSupport::FVulkanFormatSupport(
@@ -35,7 +96,7 @@ FVulkanFormatSupport::FVulkanFormatSupport(
 {
     if (bIncludeColorFormats)
     {
-        SupportedFormats = {
+        const Stoner::RHI::ERHIFormat ColorFormats[] = {
             Stoner::RHI::ERHIFormat::R8_UNorm,
             Stoner::RHI::ERHIFormat::R8G8_UNorm,
             Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm,
@@ -46,52 +107,115 @@ FVulkanFormatSupport::FVulkanFormatSupport(
             Stoner::RHI::ERHIFormat::R32G32_Float,
             Stoner::RHI::ERHIFormat::R32G32B32_Float,
             Stoner::RHI::ERHIFormat::R32G32B32A32_Float,
+            Stoner::RHI::ERHIFormat::BC1_RGBA_UNorm,
+            Stoner::RHI::ERHIFormat::BC1_RGBA_sRGB,
+            Stoner::RHI::ERHIFormat::BC3_RGBA_UNorm,
+            Stoner::RHI::ERHIFormat::BC3_RGBA_sRGB,
+            Stoner::RHI::ERHIFormat::BC4_R_UNorm,
+            Stoner::RHI::ERHIFormat::BC5_RG_UNorm,
+            Stoner::RHI::ERHIFormat::BC7_RGBA_UNorm,
+            Stoner::RHI::ERHIFormat::BC7_RGBA_sRGB,
+            Stoner::RHI::ERHIFormat::ETC2_RGB8_UNorm,
+            Stoner::RHI::ERHIFormat::ETC2_RGB8_sRGB,
+            Stoner::RHI::ERHIFormat::ETC2_RGBA8_UNorm,
+            Stoner::RHI::ERHIFormat::ETC2_RGBA8_sRGB,
+            Stoner::RHI::ERHIFormat::EAC_R11_UNorm,
+            Stoner::RHI::ERHIFormat::EAC_RG11_UNorm,
+            Stoner::RHI::ERHIFormat::ASTC_4x4_RGBA_UNorm,
+            Stoner::RHI::ERHIFormat::ASTC_4x4_RGBA_sRGB,
         };
+        for (Stoner::RHI::ERHIFormat Format : ColorFormats)
+        {
+            FormatCapabilities.push_back(
+                MakeSyntheticFormatCapabilities(Format));
+        }
     }
     if (bIncludeDepthFormats)
     {
-        SupportedFormats.push_back(Stoner::RHI::ERHIFormat::D24_UNorm_S8_UInt);
-        SupportedFormats.push_back(Stoner::RHI::ERHIFormat::D32_Float);
+        FormatCapabilities.push_back(
+            MakeSyntheticFormatCapabilities(
+                Stoner::RHI::ERHIFormat::D24_UNorm_S8_UInt));
+        FormatCapabilities.push_back(
+            MakeSyntheticFormatCapabilities(
+                Stoner::RHI::ERHIFormat::D32_Float));
     }
+    NormalizeFormatCapabilities(FormatCapabilities);
 }
 
 FVulkanFormatSupport::FVulkanFormatSupport(
     Stoner::Core::TArray<Stoner::RHI::ERHIFormat> InSupportedFormats)
-    : SupportedFormats(std::move(InSupportedFormats))
 {
-    SupportedFormats.erase(
-        std::remove_if(SupportedFormats.begin(), SupportedFormats.end(), [](Stoner::RHI::ERHIFormat Format) {
-            return !Stoner::RHI::IsValidRHIFormat(Format);
-        }),
-        SupportedFormats.end());
-    std::sort(SupportedFormats.begin(), SupportedFormats.end());
-    SupportedFormats.erase(
-        std::unique(SupportedFormats.begin(), SupportedFormats.end()),
-        SupportedFormats.end());
+    FormatCapabilities.reserve(InSupportedFormats.size());
+    for (Stoner::RHI::ERHIFormat Format : InSupportedFormats)
+    {
+        if (Stoner::RHI::IsValidRHIFormat(Format))
+        {
+            FormatCapabilities.push_back(
+                MakeSyntheticFormatCapabilities(Format));
+        }
+    }
+    NormalizeFormatCapabilities(FormatCapabilities);
+}
+
+FVulkanFormatSupport::FVulkanFormatSupport(
+    Stoner::Core::TArray<
+        Stoner::RHI::FRHIFormatCapabilities>
+        InFormatCapabilities)
+    : FormatCapabilities(std::move(InFormatCapabilities))
+{
+    NormalizeFormatCapabilities(FormatCapabilities);
 }
 
 bool FVulkanFormatSupport::SupportsFormat(Stoner::RHI::ERHIFormat Format) const noexcept
 {
     return Stoner::RHI::IsValidRHIFormat(Format) &&
-        std::find(SupportedFormats.begin(), SupportedFormats.end(), Format) != SupportedFormats.end();
+        std::any_of(
+            FormatCapabilities.begin(),
+            FormatCapabilities.end(),
+            [Format](const auto& Record) {
+                return Record.Format == Format;
+            });
+}
+
+bool FVulkanFormatSupport::SupportsFormatUsage(
+    Stoner::RHI::ERHIFormat Format,
+    Stoner::RHI::ERHIFormatCapability Required) const noexcept
+{
+    const auto Found = std::find_if(
+        FormatCapabilities.begin(),
+        FormatCapabilities.end(),
+        [Format](const auto& Record) {
+            return Record.Format == Format;
+        });
+    return Found != FormatCapabilities.end() &&
+        Required !=
+            Stoner::RHI::ERHIFormatCapability::None &&
+        (Found->Capabilities & Required) == Required;
 }
 
 bool FVulkanFormatSupport::SupportsColor() const noexcept
 {
-    return std::any_of(SupportedFormats.begin(), SupportedFormats.end(), [](Stoner::RHI::ERHIFormat Format) {
-        return Stoner::RHI::IsValidRHIFormat(Format) && !Stoner::RHI::IsDepthStencilFormat(Format);
+    return std::any_of(FormatCapabilities.begin(), FormatCapabilities.end(), [](const auto& Record) {
+        return Stoner::RHI::IsValidRHIFormat(Record.Format) && !Stoner::RHI::IsDepthStencilFormat(Record.Format);
     });
 }
 
 bool FVulkanFormatSupport::SupportsDepth() const noexcept
 {
-    return std::any_of(SupportedFormats.begin(), SupportedFormats.end(), Stoner::RHI::IsDepthStencilFormat);
+    return std::any_of(
+        FormatCapabilities.begin(),
+        FormatCapabilities.end(),
+        [](const auto& Record) {
+            return Stoner::RHI::IsDepthStencilFormat(
+                Record.Format);
+        });
 }
 
-const Stoner::Core::TArray<Stoner::RHI::ERHIFormat>&
-FVulkanFormatSupport::GetSupportedFormats() const noexcept
+const Stoner::Core::TArray<
+    Stoner::RHI::FRHIFormatCapabilities>&
+FVulkanFormatSupport::GetFormatCapabilities() const noexcept
 {
-    return SupportedFormats;
+    return FormatCapabilities;
 }
 
 bool PassesRequiredCapabilityGate(const FVulkanAdapterCandidate& Candidate) noexcept

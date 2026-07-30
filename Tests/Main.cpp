@@ -14,6 +14,7 @@
 #include "RendererComparisonTests.h"
 #include "RendererMaterialShaderTests.h"
 #include "RendererRenderGraphTests.h"
+#include "RendererKTX2TextureTests.h"
 #include "RendererTextureAssetTests.h"
 #include "VulkanBackendTests.h"
 #include "VulkanNativeIntegrationTests.h"
@@ -23,6 +24,7 @@
 #include "TestSuiteRegistryTests.h"
 
 #include <cstring>
+#include <charconv>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -42,10 +44,63 @@ int main(int ArgCount, char* Arguments[])
         return 42;
     }
 
+    FAssetKTX2TestOptions KTX2Options;
+    std::vector<std::string> ParsedArguments;
+    for (int Index = 1; Index < ArgCount; ++Index)
+    {
+        const std::string Argument = Arguments[Index];
+        if (Argument == "--emit-ktx2-dir" ||
+            Argument == "--emit-ktx2-source-dir" ||
+            Argument == "--report" ||
+            Argument == "--ktx2-determinism-runs")
+        {
+            if (Index + 1 >= ArgCount)
+            {
+                std::cerr << "Missing value after " << Argument << '\n';
+                return 2;
+            }
+            const std::string Value = Arguments[++Index];
+            if (Argument == "--emit-ktx2-dir")
+            {
+                KTX2Options.EmitDirectory = Value;
+            }
+            else if (Argument == "--emit-ktx2-source-dir")
+            {
+                KTX2Options.EmitSourceDirectory = Value;
+            }
+            else if (Argument == "--report")
+            {
+                KTX2Options.ReportPath = Value;
+            }
+            else
+            {
+                int Runs = 0;
+                const auto Parsed = std::from_chars(
+                    Value.data(), Value.data() + Value.size(), Runs);
+                if (Parsed.ec != std::errc{} ||
+                    Parsed.ptr != Value.data() + Value.size() ||
+                    Runs <= 0 || Runs > 1000)
+                {
+                    std::cerr
+                        << "Invalid --ktx2-determinism-runs value\n";
+                    return 2;
+                }
+                KTX2Options.DeterminismRuns = Runs;
+            }
+            continue;
+        }
+        ParsedArguments.push_back(Argument);
+    }
+
     FTestSuiteRegistry Registry;
     Registry.Register("application-scene", [] { return RunApplicationSceneEcsTests().Failed == 0 ? 0 : 1; });
     Registry.Register("application-window", [] { return RunApplicationWindowInputTests().Failed == 0 ? 0 : 1; });
-    Registry.Register("asset", [] { return RunAssetTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("asset", [KTX2Options] {
+        return RunAssetTests(KTX2Options).Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-ktx2-encoder", [] {
+        return RunAssetKTX2EncoderTests().Failed == 0 ? 0 : 1;
+    });
     Registry.Register("core-foundation", [] { return RunCoreFoundationTests().Failed == 0 ? 0 : 1; });
     Registry.Register("core-math", [] { return RunCoreMathTests().Failed == 0 ? 0 : 1; });
     Registry.Register("core-platform", [] { return RunCorePlatformTests().Failed == 0 ? 0 : 1; });
@@ -59,7 +114,13 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("renderer-forward", [] { return RunRendererForwardPipelineTests().Failed == 0 ? 0 : 1; });
     Registry.Register("renderer-material", [] { return RunRendererMaterialShaderTests().Failed == 0 ? 0 : 1; });
     Registry.Register("renderer-render-graph", [] { return RunRendererRenderGraphTests().Failed == 0 ? 0 : 1; });
-    Registry.Register("renderer-texture", [] { return RunRendererTextureAssetTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("renderer-texture", [] {
+        const auto AssetResult = RunRendererTextureAssetTests();
+        const auto KTX2Result = RunRendererKTX2TextureTests();
+        return AssetResult.Failed == 0 && KTX2Result.Failed == 0
+            ? 0
+            : 1;
+    });
     Registry.Register("rhi", [] { return RunRHICoreTests().Failed == 0 ? 0 : 1; });
     Registry.Register("test-runner", [Executable = std::string(Arguments[0])] {
         return RunTestSuiteRegistryTests(Executable.c_str()).Failed == 0 ? 0 : 1;
@@ -68,10 +129,5 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("vulkan", [] { return RunVulkanBackendTests().Failed == 0 ? 0 : 1; });
     Registry.Register("vulkan-native", [] { return RunVulkanNativeIntegrationTests().Failed == 0 ? 0 : 1; });
 
-    std::vector<std::string> ParsedArguments;
-    for (int Index = 1; Index < ArgCount; ++Index)
-    {
-        ParsedArguments.emplace_back(Arguments[Index]);
-    }
     return Registry.Execute(ParsedArguments, std::cout, std::cerr);
 }

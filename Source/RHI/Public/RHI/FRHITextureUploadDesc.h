@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/CoreMinimal.h"
+#include "RHI/FRHIFormatInfo.h"
 #include "RHI/FRHITextureDesc.h"
 
 #include <limits>
@@ -29,47 +30,8 @@ struct FRHITextureUploadDesc
     Stoner::Core::uint64& OutRequiredBytes) noexcept
 {
     OutRequiredBytes = 0;
-    const Stoner::Core::uint64 BytesPerTexel =
-        GetRHIFormatByteSize(Texture.Format);
-    if (BytesPerTexel == 0 || Upload.Width == 0 ||
-        Upload.Height == 0 || Upload.Depth == 0 ||
-        Upload.Width >
-            std::numeric_limits<Stoner::Core::uint64>::max() /
-                BytesPerTexel)
-    {
-        return false;
-    }
-
-    const Stoner::Core::uint64 TightRowBytes =
-        static_cast<Stoner::Core::uint64>(Upload.Width) * BytesPerTexel;
-    if (Upload.RowPitchBytes < TightRowBytes)
-    {
-        return false;
-    }
-
-    const Stoner::Core::uint64 RowCount =
-        static_cast<Stoner::Core::uint64>(Upload.Height) * Upload.Depth;
-    if (RowCount == 0 ||
-        RowCount - 1 >
-            (std::numeric_limits<Stoner::Core::uint64>::max() -
-                TightRowBytes) /
-                Upload.RowPitchBytes)
-    {
-        return false;
-    }
-    OutRequiredBytes =
-        (RowCount - 1) * Upload.RowPitchBytes + TightRowBytes;
-    return true;
-}
-
-[[nodiscard]] constexpr bool IsValidRHITextureUploadDesc(
-    const FRHITextureDesc& Texture,
-    const FRHITextureUploadDesc& Upload) noexcept
-{
-    Stoner::Core::uint64 RequiredBytes = 0;
-    return IsValidRHITextureDesc(Texture) &&
-        Upload.Data != nullptr &&
-        IsRHITextureRegionValid(
+    if (!IsValidRHITextureDesc(Texture) ||
+        !IsRHITextureRegionValid(
             Texture,
             Upload.MipLevel,
             Upload.ArrayLayer,
@@ -78,7 +40,81 @@ struct FRHITextureUploadDesc
             Upload.Z,
             Upload.Width,
             Upload.Height,
-            Upload.Depth) &&
+            Upload.Depth))
+    {
+        return false;
+    }
+
+    const FRHIFormatInfo Info =
+        GetRHIFormatInfo(Texture.Format);
+    if (!Info.IsValid())
+    {
+        return false;
+    }
+
+    if (Info.bCompressed)
+    {
+        const Stoner::Core::uint32 MipWidth =
+            GetRHIMipExtent(Texture.Width, Upload.MipLevel);
+        const Stoner::Core::uint32 MipHeight =
+            GetRHIMipExtent(Texture.Height, Upload.MipLevel);
+        const Stoner::Core::uint32 MipDepth =
+            GetRHIMipExtent(Texture.Depth, Upload.MipLevel);
+        if (Upload.X % Info.BlockWidth != 0 ||
+            Upload.Y % Info.BlockHeight != 0 ||
+            Upload.Z % Info.BlockDepth != 0 ||
+            (Upload.Width % Info.BlockWidth != 0 &&
+                Upload.X + Upload.Width != MipWidth) ||
+            (Upload.Height % Info.BlockHeight != 0 &&
+                Upload.Y + Upload.Height != MipHeight) ||
+            (Upload.Depth % Info.BlockDepth != 0 &&
+                Upload.Z + Upload.Depth != MipDepth))
+        {
+            return false;
+        }
+    }
+
+    FRHITextureFootprint Footprint;
+    if (!TryGetRHITextureFootprint(
+            Texture.Format,
+            Upload.Width,
+            Upload.Height,
+            Upload.Depth,
+            Footprint) ||
+        Upload.RowPitchBytes < Footprint.TightRowBytes ||
+        Upload.RowPitchBytes % Info.BytesPerBlock != 0)
+    {
+        return false;
+    }
+
+    constexpr Stoner::Core::uint64 MaxValue =
+        std::numeric_limits<Stoner::Core::uint64>::max();
+    if (Footprint.BlockCountY >
+            MaxValue / Footprint.BlockCountZ)
+    {
+        return false;
+    }
+    const Stoner::Core::uint64 RowCount =
+        Footprint.BlockCountY * Footprint.BlockCountZ;
+    if (RowCount - 1 >
+            (std::numeric_limits<Stoner::Core::uint64>::max() -
+                Footprint.TightRowBytes) /
+                Upload.RowPitchBytes)
+    {
+        return false;
+    }
+    OutRequiredBytes =
+        (RowCount - 1) * Upload.RowPitchBytes +
+        Footprint.TightRowBytes;
+    return true;
+}
+
+[[nodiscard]] constexpr bool IsValidRHITextureUploadDesc(
+    const FRHITextureDesc& Texture,
+    const FRHITextureUploadDesc& Upload) noexcept
+{
+    Stoner::Core::uint64 RequiredBytes = 0;
+    return Upload.Data != nullptr &&
         TryGetRHITextureUploadRequiredBytes(
             Texture, Upload, RequiredBytes) &&
         Upload.DataSizeBytes >= RequiredBytes;

@@ -45,6 +45,10 @@ private_include_paths_by_source = {
     'AssetImageTextureTests.cpp': [
         Dir('#Source/Asset/Private').abspath,
     ],
+    'AssetKTX2Tests.cpp': [
+        Dir('#Source/Asset/Private').abspath,
+        Dir('#ThirdParty/ktx/include').abspath,
+    ],
     'TriangleDemoIntegrationTests.cpp': [
         Dir('#Demo/StonerDemo/Private').abspath,
     ],
@@ -75,6 +79,7 @@ test_env.Append(LIBPATH=lib_paths)
 
 # Libraries to link (order matters for static linking: dependents first)
 test_env.Append(LIBS=['StonerDemoRuntime', 'Application', 'Renderer', 'RHI', 'Asset', 'Core', 'VulkanRHI'])
+test_env.Append(LIBS=env.get('STONER_ASSET_THIRD_PARTY_LIBS', []))
 if platform == 'Linux':
     test_env.Append(LIBS=['dl'])
 if platform == 'Win64':

@@ -392,8 +392,10 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordTextureToBufferCopy(
         MarkRecordingDiagnostic("texture-to-buffer copy rejected by resource lifecycle region or usage");
         return Stoner::RHI::ERHIResult::InvalidState;
     }
-    if (Source->GetDesc().SampleCount != Stoner::RHI::ERHISampleCount::One ||
-        Stoner::RHI::GetRHIFormatByteSize(Source->GetFormat()) == 0)
+    if (Source->GetDesc().SampleCount !=
+            Stoner::RHI::ERHISampleCount::One ||
+        !Stoner::RHI::GetRHIFormatInfo(
+             Source->GetFormat()).IsValid())
     {
         MarkRecordingDiagnostic("texture-to-buffer copy rejected by format or sample count");
         return Stoner::RHI::ERHIResult::Unsupported;

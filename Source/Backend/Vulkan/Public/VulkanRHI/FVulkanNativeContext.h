@@ -147,6 +147,9 @@ private:
     friend class FVulkanNativeOffscreenSession;
     [[nodiscard]] bool GetNativeDeviceAccess(
         FVulkanNativeDeviceAccess& OutAccess) const noexcept;
+    [[nodiscard]] Stoner::Core::TArray<
+        Stoner::RHI::FRHIFormatCapabilities>
+        QueryTextureFormatCapabilities() const;
     [[nodiscard]] Stoner::RHI::ERHIResult CreateOwnedShaderModule(
         const Stoner::Core::TArray<Stoner::Core::uint32>& Words,
         Stoner::Core::uint64& OutToken) noexcept;

@@ -344,9 +344,24 @@ FTextureAssetRealizationResult FTextureAssetRealizer::Realize(
         Upload.Width = Mip.GetExtent().Width;
         Upload.Height = Mip.GetExtent().Height;
         Upload.Depth = 1;
-        Upload.RowPitchBytes =
-            static_cast<Stoner::Core::uint64>(Upload.Width) *
-            GetRHIFormatByteSize(FormatPlan.Format);
+        FRHITextureFootprint Footprint;
+        if (!TryGetRHITextureFootprint(
+                FormatPlan.Format,
+                Upload.Width,
+                Upload.Height,
+                Upload.Depth,
+                Footprint))
+        {
+            (void)Created.Object->Invalidate();
+            return Failure(
+                ETextureAssetRealizationStage::Upload,
+                ERHIResult::Unavailable,
+                Identity,
+                "TextureRealization.FootprintFailed",
+                "RHI upload footprint is not representable",
+                MipLevel);
+        }
+        Upload.RowPitchBytes = Footprint.TightRowBytes;
         Upload.Data = SourceBytes.data();
         Upload.DataSizeBytes = SourceBytes.size();
         const ERHIResult UploadResult =
