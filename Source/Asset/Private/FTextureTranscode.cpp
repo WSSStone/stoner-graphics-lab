@@ -113,8 +113,9 @@ FTextureTranscodeResult FTextureTranscoder::Transcode(
             "targetPayload",
             "target payload length exceeds the host container limit");
     }
-    return Fail(
-        Diagnostics.back().Result, std::move(Diagnostics));
+    const EAssetResult FailureResult =
+        Diagnostics.back().Result;
+    return Fail(FailureResult, std::move(Diagnostics));
 }
 
 } // namespace Stoner::Asset

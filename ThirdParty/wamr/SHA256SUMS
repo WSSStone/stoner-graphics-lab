@@ -65,8 +65,8 @@ cbe7cb516564a5da1fd8a6095c4f522b546a263c7d9d83225e68f604dca0f540  ./core/iwasm/c
 112160993033fbeeca8c107e90251d1dd40de32aabc65f38099813df6470aee7  ./core/iwasm/common/arch/invokeNative_general.c
 4a678ba5e01480965ce2a31fcdb874235284001f3de6c68fc85501d6ea22a0b2  ./core/iwasm/common/arch/invokeNative_ia32.asm
 58d7d6da598703042c6b9fc298cda42c19579d251ecef5cf90846a0c25d1186f  ./core/iwasm/common/arch/invokeNative_ia32.s
-28a596e36784746a81b52995859cdea8ab8ecf88e42e4506b800fb209dafa996  ./core/iwasm/common/arch/invokeNative_mingw_x64.s
-e74f199b4b1345b57238dd33f499fc3f678ed79b3edb871ca5ee1318847740a9  ./core/iwasm/common/arch/invokeNative_mingw_x64_simd.s
+6967cf6fa837a6d84bce346e921062a8b8e767dd26fb964638bf2d6fcb5cddc3  ./core/iwasm/common/arch/invokeNative_mingw_x64.s
+769dde9fb30559a79c68bb3349a2115c6e53fa6e6fa05e0c47dadd880c37a158  ./core/iwasm/common/arch/invokeNative_mingw_x64_simd.s
 7357ec1963595efe2bac4784be7cb206eee445d2feea54204b4a391ffa85b8dd  ./core/iwasm/common/arch/invokeNative_mips.s
 8533aa80ea459eb2eed3e11cca3b414d8757eec4774fb921032058f6da4d8d0e  ./core/iwasm/common/arch/invokeNative_osx_universal.s
 8e6e4d38424363e4369a098ed03e03f5fa39b01ef77468c102ed644d26ff3943  ./core/iwasm/common/arch/invokeNative_riscv.S
@@ -434,11 +434,11 @@ c50bae3278f0f6e83d42c85c275e15c3945013d409f5507204851d559918160c  ./core/shared/
 446e151ce5a0473e9205d6cd2ad0a444021143db5d89d603638ee19e6c99e02a  ./core/shared/platform/common/libc-util/platform_common_libc_util.cmake
 c989005a04f71cc6dd356f61cc7bfdbb2cfc2ced4be5ebcda3c9cd7d161fc190  ./core/shared/platform/common/math/COPYRIGHT
 28a9a1154dfebee234b8743684ade8cecc7bb8af63f1a79c781ce294a19c651a  ./core/shared/platform/common/math/math.c
-b89f8421d1997024b894c77da6cac93716bdee377a97d198bda41f0124016052  ./core/shared/platform/common/math/platform_api_math.cmake
+369b6e174298820bed679c8e2297e94f73ac8c4a96f1b427e457f9cda04be3e6  ./core/shared/platform/common/math/platform_api_math.cmake
 2a4f7bbe37bb8cf379619ad8e7b2c06fc0c70a10cbd32122596353f489c3d535  ./core/shared/platform/common/memory/mremap.c
 024f5aa51fa959f4313c0c2b55fbde87d7fed69ffcc20504ab7ff0e4ffb8e813  ./core/shared/platform/common/memory/platform_api_memory.cmake
 029d12c79eff415a57a55b2658c5ee4bbf7cccbcb383a73662611467b1632b04  ./core/shared/platform/common/posix/SConscript
-7d70e64f6ca1c49803c7d042b29a71835754963573bbaa047e5532a4ec356ad4  ./core/shared/platform/common/posix/platform_api_posix.cmake
+bc437be3ab5f9507d97cb2691ef33df335c102b2048ddb3ac4c011587fe09a0e  ./core/shared/platform/common/posix/platform_api_posix.cmake
 90f188f99e2f4bb7941a04e41cd3d021f6484b360f58fe45a90be3fb90d7cd9c  ./core/shared/platform/common/posix/posix_blocking_op.c
 65d924f720db9cd8da5f4d2437044b4e9487d5b6eb3c6905704ab0c0d12d057c  ./core/shared/platform/common/posix/posix_clock.c
 14efa4224c74c4496a8d62c19b61fb57c8b2757f40d5f78ef54494e1c8febbe4  ./core/shared/platform/common/posix/posix_file.c

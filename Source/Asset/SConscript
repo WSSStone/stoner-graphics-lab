@@ -81,24 +81,30 @@ lib = BuildLayer(
             'include_paths': [
                 'ThirdParty/wamr/core/iwasm/include',
             ],
+            'cppdefines': [
+                ('WASM_RUNTIME_API_EXTERN', ''),
+            ],
         },
         'FKTX2ContainerCodec.cpp': {
             'include_paths': [
                 'ThirdParty/ktx/include',
                 'ThirdParty/ktx/lib',
             ],
+            'cppdefines': ['KHRONOS_STATIC'],
         },
         'FKTX2TextureCodec.cpp': {
             'include_paths': [
                 'ThirdParty/ktx/include',
                 'ThirdParty/ktx/lib',
             ],
+            'cppdefines': ['KHRONOS_STATIC'],
         },
         'FBasisTextureTranscoder.cpp': {
             'include_paths': [
                 'ThirdParty/ktx/include',
                 'ThirdParty/ktx/lib',
             ],
+            'cppdefines': ['KHRONOS_STATIC'],
         },
         'FStbImageDecode.cpp': {
             'ccflags': stb_warning_flags,

@@ -54,13 +54,19 @@ private_include_paths_by_source = {
     ],
 }
 
+private_defines_by_source = {
+    'AssetKTX2Tests.cpp': ['KHRONOS_STATIC'],
+}
+
 objects = []
 for cpp_file in cpp_files:
     source = os.path.join(rel_src_dir, cpp_file)
     extra_private_paths = private_include_paths_by_source.get(cpp_file)
-    if extra_private_paths:
+    extra_private_defines = private_defines_by_source.get(cpp_file)
+    if extra_private_paths or extra_private_defines:
         source_env = test_env.Clone()
-        source_env.Append(CPPPATH=extra_private_paths)
+        source_env.Append(CPPPATH=extra_private_paths or [])
+        source_env.Append(CPPDEFINES=extra_private_defines or [])
     else:
         source_env = test_env
     objects.extend(source_env.Object(source))

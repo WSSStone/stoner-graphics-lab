@@ -95,7 +95,7 @@ def BuildLayer(
                            into the layer.
         third_party_cflags: C-only flags applied to private C sources.
         private_cpp_settings: Optional mapping from a private C++ basename to
-                              isolated include_paths and ccflags.
+                              isolated include_paths, cppdefines, and ccflags.
         private_objects: Optional prebuilt object nodes to append to the layer.
 
     Returns:
@@ -145,6 +145,7 @@ def BuildLayer(
                 for path in settings.get('include_paths', [])
             ],
         )
+        source_env.Append(CPPDEFINES=settings.get('cppdefines', []))
         source_env.Append(CCFLAGS=settings.get('ccflags', []))
         sources.append(source_env.Object(source))
     for c_source in private_c_sources:
