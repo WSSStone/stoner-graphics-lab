@@ -28,7 +28,36 @@ void SortUniqueStrings(Stoner::Core::TArray<Stoner::Core::FString>& Values)
 
 } // namespace
 
-EMaterialResult FShaderLibrary::RegisterShaderRecord(FShaderRecord Record, FMaterialDiagnosticLog* Diagnostics)
+EMaterialResult FShaderLibrary::RegisterShaderRecord(
+    FShaderRecord Record,
+    FMaterialDiagnosticLog* Diagnostics)
+{
+    return RegisterShaderRecords(
+        std::span<const FShaderRecord>(&Record, 1),
+        Diagnostics);
+}
+
+EMaterialResult FShaderLibrary::RegisterShaderRecords(
+    std::span<const FShaderRecord> RecordsToRegister,
+    FMaterialDiagnosticLog* Diagnostics)
+{
+    FShaderLibrary Candidate = *this;
+    for (const FShaderRecord& Record : RecordsToRegister)
+    {
+        const EMaterialResult Result =
+            Candidate.RegisterShaderRecordValidated(Record, Diagnostics);
+        if (Result != EMaterialResult::Success)
+        {
+            return Result;
+        }
+    }
+    *this = std::move(Candidate);
+    return EMaterialResult::Success;
+}
+
+EMaterialResult FShaderLibrary::RegisterShaderRecordValidated(
+    FShaderRecord Record,
+    FMaterialDiagnosticLog* Diagnostics)
 {
     if (Record.ShaderId.IsEmpty())
     {

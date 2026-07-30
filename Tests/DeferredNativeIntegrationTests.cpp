@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <set>
+#include <string>
 
 namespace
 {
@@ -53,6 +54,52 @@ void WriteReport(const Stoner::Backend::Vulkan::FVulkanDeferredValidationReport&
     }
     std::ofstream Stream(Path, std::ios::binary | std::ios::trunc);
     Stream << Report.Dump().CStr();
+}
+
+Stoner::Core::TArray<Stoner::Core::uint32> ReadWords(
+    const std::string& Path)
+{
+    std::ifstream Stream(Path, std::ios::binary | std::ios::ate);
+    if (!Stream) return {};
+    const std::streamsize Size = Stream.tellg();
+    if (Size < 20 || Size % 4 != 0) return {};
+    Stoner::Core::TArray<Stoner::Core::uint32> Words(
+        static_cast<std::size_t>(Size) / 4);
+    Stream.seekg(0);
+    Stream.read(reinterpret_cast<char*>(Words.data()), Size);
+    return Stream.good()
+        ? Words
+        : Stoner::Core::TArray<Stoner::Core::uint32>{};
+}
+
+Stoner::RHI::FRHIShaderModuleDesc Shader(
+    const std::string& Directory,
+    const char* File,
+    Stoner::RHI::ERHIShaderStage Stage)
+{
+    Stoner::RHI::FRHIShaderModuleDesc Desc;
+    Desc.Stage = Stage;
+    Desc.EntryPoint = "main";
+    Desc.PayloadIdentity =
+        Stoner::Core::FString(std::string("Content/") + File);
+    Desc.Bytecode.Words = ReadWords(Directory + "/" + File);
+    return Desc;
+}
+
+std::array<Stoner::RHI::FRHIShaderModuleDesc, 9> DeferredShaders(
+    const std::string& Directory)
+{
+    using Stoner::RHI::ERHIShaderStage;
+    return {
+        Shader(Directory, "Surface.vert.spv", ERHIShaderStage::Vertex),
+        Shader(Directory, "Surface.frag.spv", ERHIShaderStage::Fragment),
+        Shader(Directory, "Fullscreen.vert.spv", ERHIShaderStage::Vertex),
+        Shader(Directory, "DirectionalLight.frag.spv", ERHIShaderStage::Fragment),
+        Shader(Directory, "PointLight.vert.spv", ERHIShaderStage::Vertex),
+        Shader(Directory, "PointLight.frag.spv", ERHIShaderStage::Fragment),
+        Shader(Directory, "SpotLight.vert.spv", ERHIShaderStage::Vertex),
+        Shader(Directory, "SpotLight.frag.spv", ERHIShaderStage::Fragment),
+        Shader(Directory, "Composition.frag.spv", ERHIShaderStage::Fragment)};
 }
 
 } // namespace
@@ -106,12 +153,13 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
 
     FVulkanDeferredValidationReport Report;
     const char* ShaderDirectory = std::getenv("STONER_DEFERRED_NATIVE_SHADER_DIR");
-    const Stoner::Core::FString Directory =
+    const std::string Directory =
         ShaderDirectory != nullptr
             ? ShaderDirectory
-            : "Source/Renderer/Shaders/Deferred";
+            : "Content/Shaders/Deferred";
+    const auto Shaders = DeferredShaders(Directory);
     const ERHIResult ExecutionResult =
-        Context.ExecuteDeferredOffscreenValidation(Directory, Report);
+        Context.ExecuteDeferredOffscreenValidation(Shaders, Report);
     WriteReport(Report);
 
     Record(Result, ExecutionResult == ERHIResult::Success &&
@@ -162,7 +210,8 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
         {
             FVulkanDeferredValidationReport FailureReport;
             const ERHIResult FailureResult =
-                Context.ExecuteDeferredOffscreenValidation(Directory, FailureReport, FailurePoint);
+                Context.ExecuteDeferredOffscreenValidation(
+                    Shaders, FailureReport, FailurePoint);
             bInjectedFailuresClean = bInjectedFailuresClean &&
                 FailureResult == ERHIResult::Failed &&
                 FailureReport.InjectedFailure == FailurePoint &&

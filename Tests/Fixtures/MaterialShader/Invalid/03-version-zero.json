@@ -1,0 +1,47 @@
+{
+  "schema": "stoner.material",
+  "version": 0,
+  "id": {
+    "type": "Material",
+    "path": "Tests/Materials/M00"
+  },
+  "requiredExtensions": [],
+  "domain": "surface",
+  "blendMode": "opaque",
+  "renderState": {
+    "depthTest": true,
+    "depthWrite": false,
+    "twoSided": true
+  },
+  "shader": {
+    "type": "ShaderProgram",
+    "path": "Tests/Shaders/Program00"
+  },
+  "permutationFlags": [],
+  "parameters": [
+    {
+      "name": "Roughness",
+      "type": "scalar",
+      "value": 0.0
+    },
+    {
+      "name": "Tint",
+      "type": "color",
+      "value": [
+        1,
+        0.5,
+        0.25,
+        1
+      ]
+    },
+    {
+      "name": "Albedo",
+      "type": "texture",
+      "value": {
+        "type": "Texture",
+        "path": "Tests/Textures/T00"
+      }
+    }
+  ],
+  "extensions": {}
+}

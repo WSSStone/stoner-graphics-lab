@@ -1,7 +1,7 @@
-"""Application layer build script — game engine frontend, depends on Renderer and Core.
+"""Application layer build script — frontend, depends on Renderer, Asset, and Core.
 
-Layer isolation (FR-014): Application can only depend on Renderer and Core.
-RHI is NOT exposed — Renderer's public headers do not leak RHI includes.
+Application owns composition-time Asset loading but does not depend on RHI or
+Backend implementation headers.
 BuildLayer auto-discovers Private/*.cpp, including optional real-window adapter
 stubs that remain hidden behind Application implementation boundaries.
 """
@@ -16,5 +16,5 @@ application_env.Append(CPPDEFINES=[('STONER_GLFW_AVAILABLE', int(deps['glfw_avai
 if deps['glfw_include_dir']:
     application_env.Append(CPPPATH=[deps['glfw_include_dir']])
 
-lib = BuildLayer(application_env, 'Application', ['Renderer', 'Core'])
+lib = BuildLayer(application_env, 'Application', ['Renderer', 'Asset', 'Core'])
 Return('lib')

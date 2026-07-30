@@ -27,6 +27,8 @@ jobs:
             ktx2_generated_path: Validation/022/Linux/generated
             ktx2_report_path: Validation/022/Linux/determinism.json
             ktx2_validator_report_path: Validation/022/Linux/ktx-validate.json
+            material_shader_report_path: Validation/023/Linux/determinism.txt
+            material_shader_repository_report_path: Validation/023/Linux/repository.txt
           - name: macOS headless
             os: macos-latest
             test_path: Build/Mac/Debug/Tests/StonerTest
@@ -36,6 +38,8 @@ jobs:
             ktx2_generated_path: Validation/022/macOS/generated
             ktx2_report_path: Validation/022/macOS/determinism.json
             ktx2_validator_report_path: Validation/022/macOS/ktx-validate.json
+            material_shader_report_path: Validation/023/macOS/determinism.txt
+            material_shader_repository_report_path: Validation/023/macOS/repository.txt
           - name: Windows headless
             os: windows-latest
             test_path: Build/Win64/Debug/Tests/StonerTest.exe
@@ -45,6 +49,8 @@ jobs:
             ktx2_generated_path: Validation/022/Windows/generated
             ktx2_report_path: Validation/022/Windows/determinism.json
             ktx2_validator_report_path: Validation/022/Windows/ktx-validate.json
+            material_shader_report_path: Validation/023/Windows/determinism.txt
+            material_shader_repository_report_path: Validation/023/Windows/repository.txt
 
     steps:
       - name: Checkout
@@ -68,6 +74,12 @@ jobs:
 
       - name: Verify Feature 022 dependency provenance
         run: python Tests/verify_ktx2_provenance.py
+
+      - name: Verify Feature 023 parser and repository provenance
+        run: |
+          python Tests/verify_material_shader_provenance.py
+          python Tests/verify_repository_shader_assets.py --report ${{ matrix.material_shader_repository_report_path }}
+          python -m unittest Tests/test_verify_material_shader_provenance.py Tests/test_verify_repository_shader_assets.py
 
       - name: Rebuild canonical encoder when pinned WASI SDK is available
         if: runner.os == 'Linux'
@@ -106,6 +118,14 @@ jobs:
 
       - name: Run Feature 021-022 Renderer texture suite
         run: ${{ matrix.test_path }} --suite renderer-texture
+
+      - name: Run Feature 023 Asset determinism and Renderer conversion
+        run: >-
+          ${{ matrix.test_path }}
+          --suite asset-material-shader
+          --suite renderer-material-asset
+          --material-shader-determinism-runs 20
+          --material-shader-report ${{ matrix.material_shader_report_path }}
 
       - name: Run Feature 022 RHI compressed format suite
         run: ${{ matrix.test_path }} --suite rhi
@@ -190,7 +210,7 @@ jobs:
           python .github/scripts/run_deferred_validation.py
           --profile native-lavapipe
           --tests ${{ matrix.test_path }}
-          --shader-directory Build/Linux/Debug/Renderer/Shaders/Deferred
+          --shader-directory Content/Shaders/Deferred
           --readback-output Validation/019/Linux/deferred-readback-report.txt
           --comparison-output Validation/019/Linux/renderer-comparison-report.txt
           --timeout-seconds 1200
@@ -226,6 +246,16 @@ jobs:
             ${{ matrix.ktx2_validator_report_path }}
           if-no-files-found: warn
 
+      - name: Upload Feature 023 validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: material-shader-assets-${{ runner.os }}
+          path: |
+            ${{ matrix.material_shader_report_path }}
+            ${{ matrix.material_shader_repository_report_path }}
+          if-no-files-found: error
+
   release-build:
     name: ${{ matrix.name }} Release
     runs-on: ${{ matrix.os }}
@@ -235,10 +265,16 @@ jobs:
         include:
           - name: Linux
             os: ubuntu-latest
+            test_path: Build/Linux/Release/Tests/StonerTest
+            report_path: Validation/023/Linux/release-determinism.txt
           - name: macOS
             os: macos-latest
+            test_path: Build/Mac/Release/Tests/StonerTest
+            report_path: Validation/023/macOS/release-determinism.txt
           - name: Windows
             os: windows-latest
+            test_path: Build/Win64/Release/Tests/StonerTest.exe
+            report_path: Validation/023/Windows/release-determinism.txt
 
     steps:
       - name: Checkout
@@ -253,6 +289,22 @@ jobs:
 
       - name: Build Release with strict warnings
         run: scons config=release strict=1
+
+      - name: Run Feature 023 strict Release determinism
+        run: >-
+          ${{ matrix.test_path }}
+          --suite asset-material-shader
+          --suite renderer-material-asset
+          --material-shader-determinism-runs 20
+          --material-shader-report ${{ matrix.report_path }}
+
+      - name: Upload Feature 023 strict Release report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: material-shader-assets-release-${{ runner.os }}
+          path: ${{ matrix.report_path }}
+          if-no-files-found: error
 
   linux-sanitizers:
     name: Linux ASan + UBSan
@@ -280,6 +332,14 @@ jobs:
       - name: Run sanitized Feature 020-022 Asset suite
         run: Build/Linux/Debug/Tests/StonerTest --suite asset
 
+      - name: Run sanitized Feature 023 malformed and conversion paths
+        run: >-
+          Build/Linux/Debug/Tests/StonerTest
+          --suite asset-material-shader
+          --suite renderer-material-asset
+          --suite triangle-demo
+          --suite deferred-native
+
       - name: Run sanitized Feature 022 Renderer texture suite
         run: Build/Linux/Debug/Tests/StonerTest --suite renderer-texture
 
@@ -305,5 +365,8 @@ jobs:
       - name: Build focused tests with ThreadSanitizer
         run: scons config=debug strict=1 sanitizers=thread
 
-      - name: Run Feature 022 malformed and eight-way concurrent Asset gate
-        run: Build/Linux/Debug/Tests/StonerTest --suite asset
+      - name: Run Feature 023 eight-way immutable Asset and Renderer gate
+        run: >-
+          Build/Linux/Debug/Tests/StonerTest
+          --suite asset-material-shader
+          --suite renderer-material-asset

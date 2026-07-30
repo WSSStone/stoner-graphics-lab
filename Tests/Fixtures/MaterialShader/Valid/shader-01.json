@@ -1,0 +1,48 @@
+{
+  "schema": "stoner.shader-program",
+  "version": 1,
+  "id": {
+    "type": "ShaderProgram",
+    "path": "Tests/Shaders/Program01"
+  },
+  "requiredExtensions": [],
+  "programKind": "graphics",
+  "stages": [
+    {
+      "stage": "vertex",
+      "entryPoint": "main",
+      "language": "glsl",
+      "source": {
+        "asset": {
+          "type": "ShaderSource",
+          "path": "Tests/Shaders/Program01",
+          "subresource": "source.primary"
+        },
+        "locator": "Program01.glsl",
+        "digest": "sha256:c8d0a574dd74dcedb701e53712408459c96063275c766805bcfc16aa91ed8446"
+      }
+    },
+    {
+      "stage": "fragment",
+      "entryPoint": "main",
+      "language": "glsl",
+      "source": {
+        "asset": {
+          "type": "ShaderSource",
+          "path": "Tests/Shaders/Program01",
+          "subresource": "source.fragment"
+        },
+        "locator": "Program01.frag",
+        "digest": "sha256:c8d0a574dd74dcedb701e53712408459c96063275c766805bcfc16aa91ed8446"
+      }
+    }
+  ],
+  "allowedPermutationFlags": [],
+  "requiredParameters": [],
+  "interface": {
+    "bindings": [],
+    "constantRanges": []
+  },
+  "variants": [],
+  "extensions": {}
+}

@@ -1,0 +1,37 @@
+{
+  "schema": "stoner.material",
+  "version": 1,
+  "id": {
+    "type": "Material",
+    "path": "Engine/Materials/DeferredSurface"
+  },
+  "requiredExtensions": [],
+  "domain": "surface",
+  "blendMode": "opaque",
+  "renderState": {
+    "depthTest": true,
+    "depthWrite": true,
+    "twoSided": false
+  },
+  "shader": {
+    "type": "ShaderProgram",
+    "path": "Engine/Shaders/Deferred/Surface"
+  },
+  "permutationFlags": [],
+  "parameters": [
+    {
+      "name": "BaseColor",
+      "type": "texture",
+      "value": {
+        "type": "Texture",
+        "path": "Engine/Textures/DefaultWhite"
+      }
+    },
+    {
+      "name": "Roughness",
+      "type": "scalar",
+      "value": 0.5
+    }
+  ],
+  "extensions": {}
+}

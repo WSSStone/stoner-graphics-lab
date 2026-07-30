@@ -1,0 +1,60 @@
+{
+  "schema": "stoner.shader-program",
+  "version": 1,
+  "id": {
+    "type": "ShaderProgram",
+    "path": "Tests/Shaders/Program08"
+  },
+  "requiredExtensions": [],
+  "programKind": "graphics",
+  "stages": [
+    {
+      "stage": "vertex",
+      "entryPoint": "main",
+      "language": "glsl",
+      "source": {
+        "asset": {
+          "type": "ShaderSource",
+          "path": "Tests/Shaders/Program08",
+          "subresource": "source.primary"
+        },
+        "locator": "Program08.glsl",
+        "digest": "sha256:aa29a9720394bd1644d1d2c0c938dad15432593ab6125bb85c207c3e381b620e"
+      }
+    },
+    {
+      "stage": "fragment",
+      "entryPoint": "main",
+      "language": "glsl",
+      "source": {
+        "asset": {
+          "type": "ShaderSource",
+          "path": "Tests/Shaders/Program08",
+          "subresource": "source.fragment"
+        },
+        "locator": "Program08.frag",
+        "digest": "sha256:aa29a9720394bd1644d1d2c0c938dad15432593ab6125bb85c207c3e381b620e"
+      }
+    }
+  ],
+  "allowedPermutationFlags": [],
+  "requiredParameters": [],
+  "interface": {
+    "bindings": [
+      {
+        "set": 0,
+        "binding": 0,
+        "kind": "uniformBuffer",
+        "arrayCount": 1,
+        "visibility": [
+          "vertex",
+          "fragment"
+        ],
+        "name": "Frame"
+      }
+    ],
+    "constantRanges": []
+  },
+  "variants": [],
+  "extensions": {}
+}

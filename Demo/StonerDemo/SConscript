@@ -3,12 +3,14 @@
 Import('env', 'platform', 'config')
 import os
 from GraphicsDependencyDetect import DetectGraphicsDependencies
+from ContentStaging import StageContent
 
 demo_env = env.Clone()
 deps = DetectGraphicsDependencies(platform)
 
 include_paths = [
     Dir('#Source/Core/Public').abspath,
+    Dir('#Source/Asset/Public').abspath,
     Dir('#Source/RHI/Public').abspath,
     Dir('#Source/Renderer/Public').abspath,
     Dir('#Source/Application/Public').abspath,
@@ -32,8 +34,8 @@ runtime = demo_env.StaticLibrary('StonerDemoRuntime', runtime_sources)
 config_name = 'Debug' if config == 'debug' else 'Release'
 build_root = os.path.join('#Build', platform, config_name)
 demo_env.Append(LIBPATH=[Dir(os.path.join(build_root, path)).abspath for path in (
-    'Application', 'Renderer', 'RHI', 'Core', os.path.join('Backend', 'Vulkan'))])
-demo_env.Append(LIBS=[runtime, 'Application', 'Renderer', 'RHI', 'Core', 'VulkanRHI'])
+    'Application', 'Renderer', 'RHI', 'Asset', 'Core', os.path.join('Backend', 'Vulkan'))])
+demo_env.Append(LIBS=[runtime, 'Application', 'Renderer', 'RHI', 'Asset', 'Core', 'VulkanRHI'])
 
 if deps['vulkan_library']:
     if platform == 'Linux':
@@ -56,12 +58,16 @@ if platform == 'Win64':
     if deps['glfw_available']:
         demo_env.Append(LIBS=['User32', 'Gdi32', 'Shell32'])
 
-shader_dir = Dir('.').srcnode().Dir('Shaders').abspath
-shader_targets = []
-for name in ('Triangle.vert.spv', 'Triangle.frag.spv'):
-    source = os.path.join(shader_dir, name)
-    target = os.path.join('Shaders', name)
-    shader_targets.append(demo_env.Command(target, source, Copy('$TARGET', '$SOURCE')))
+shader_targets = StageContent(
+    demo_env,
+    [
+        'Content/Shaders/Triangle/Triangle.frag',
+        'Content/Shaders/Triangle/Triangle.frag.spv',
+        'Content/Shaders/Triangle/Triangle.shader.json',
+        'Content/Shaders/Triangle/Triangle.vert',
+        'Content/Shaders/Triangle/Triangle.vert.spv',
+    ],
+)
 
 program = demo_env.Program('StonerDemo', ['Private/Main.cpp'])
 demo_env.Depends(program, shader_targets)

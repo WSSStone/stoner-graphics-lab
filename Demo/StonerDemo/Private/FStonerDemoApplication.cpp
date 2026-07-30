@@ -1,6 +1,8 @@
 #include "FStonerDemoApplication.h"
 
 #include "Application/FWindow.h"
+#include "Asset/AssetMinimal.h"
+#include "Core/FPlatformFileSystem.h"
 #include "RHI/ERHIRuntimeMode.h"
 #include "Renderer/RendererMinimal.h"
 #include "VulkanRHI/FVulkanNativeContext.h"
@@ -8,7 +10,7 @@
 #include <array>
 #include <chrono>
 #include <cstring>
-#include <fstream>
+#include <filesystem>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -35,33 +37,133 @@ double NowMilliseconds()
         std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
-bool ValidateSpirv(const std::string& Path, Stoner::Core::uint32 ExpectedExecutionModel)
+class FMountedFileSource final : public Stoner::Asset::IAssetSource
 {
-    std::ifstream Input(Path, std::ios::binary | std::ios::ate);
-    if (!Input) return false;
-    const std::streamsize Size = Input.tellg();
-    if (Size < 20 || Size % 4 != 0) return false;
-    Input.seekg(0);
-    Stoner::Core::TArray<Stoner::Core::uint32> Words(static_cast<std::size_t>(Size) / sizeof(Stoner::Core::uint32));
-    Input.read(reinterpret_cast<char*>(Words.data()), Size);
-    if (!Input.good() || Words[0] != 0x07230203u) return false;
-    for (std::size_t Index = 5; Index < Words.size();)
+public:
+    explicit FMountedFileSource(Stoner::Core::TArray<Stoner::Core::uint8> Bytes)
+        : Bytes_(std::move(Bytes))
     {
-        const Stoner::Core::uint32 Instruction = Words[Index];
-        const Stoner::Core::uint32 WordCount = Instruction >> 16u;
-        const Stoner::Core::uint32 Opcode = Instruction & 0xffffu;
-        if (WordCount == 0 || Index + WordCount > Words.size()) return false;
-        if (Opcode == 15u && WordCount >= 4 && Words[Index + 1] == ExpectedExecutionModel)
-        {
-            const char* Name = reinterpret_cast<const char*>(&Words[Index + 3]);
-            const std::size_t NameBytes = static_cast<std::size_t>(WordCount - 3) * sizeof(Stoner::Core::uint32);
-            const void* Terminator = std::memchr(Name, '\0', NameBytes);
-            if (Terminator != nullptr && std::string_view(Name, static_cast<const char*>(Terminator) - Name) == "main") return true;
-        }
-        Index += WordCount;
     }
-    return false;
-}
+
+    Stoner::Asset::EAssetResult Read(
+        Stoner::Core::uint64 Offset,
+        Stoner::Core::usize MaximumBytes,
+        Stoner::Core::TArray<Stoner::Core::uint8>& OutBytes) const override
+    {
+        OutBytes.clear();
+        if (Offset > Bytes_.size())
+        {
+            return Stoner::Asset::EAssetResult::MalformedSource;
+        }
+        const auto Count = std::min(
+            MaximumBytes,
+            Bytes_.size() - static_cast<Stoner::Core::usize>(Offset));
+        OutBytes.assign(
+            Bytes_.begin() + static_cast<std::ptrdiff_t>(Offset),
+            Bytes_.begin() + static_cast<std::ptrdiff_t>(Offset + Count));
+        return Stoner::Asset::EAssetResult::Success;
+    }
+
+    [[nodiscard]] std::size_t Size() const noexcept { return Bytes_.size(); }
+
+private:
+    Stoner::Core::TArray<Stoner::Core::uint8> Bytes_;
+};
+
+class FMountedFileResolver final : public Stoner::Asset::IAssetResolver
+{
+public:
+    explicit FMountedFileResolver(Stoner::Core::FString Root)
+        : Root_(std::move(Root))
+    {
+    }
+
+    Stoner::Asset::FAssetExtensionCapability GetCapability() const override
+    {
+        Stoner::Asset::FAssetParticipantId Participant;
+        Stoner::Asset::FAssetProducerVersion Version;
+        (void)Stoner::Asset::FAssetParticipantId::Create(
+            "stoner.demo.content-resolver", Participant);
+        (void)Stoner::Asset::FAssetProducerVersion::Create("023-v1", Version);
+        return {
+            Stoner::Asset::EAssetExtensionKind::Resolver,
+            Participant,
+            Version,
+            100,
+            {"content"},
+            {},
+            0};
+    }
+
+    Stoner::Asset::FAssetResolveResult Resolve(
+        const Stoner::Asset::FAssetResolveRequest& Request) override
+    {
+        Stoner::Asset::FAssetResolveResult Result;
+        Result.Descriptor.Location = Request.Location;
+        if (Request.Location.GetScheme() != "content")
+        {
+            return Result;
+        }
+        const std::filesystem::path Relative(
+            Request.Location.GetLocator().ToStdString());
+        if (Relative.is_absolute() ||
+            std::find(Relative.begin(), Relative.end(), "..") != Relative.end())
+        {
+            Result.Result = Stoner::Asset::EAssetResult::AccessDenied;
+            return Result;
+        }
+        Stoner::Core::TArray<Stoner::Core::uint8> Bytes;
+        const std::filesystem::path Path =
+            std::filesystem::path(Root_.ToStdString()) / Relative;
+        if (!Stoner::Core::FPlatformFileSystem::ReadFile(
+                Path.generic_string().c_str(), Bytes))
+        {
+            Result.Result = Stoner::Asset::EAssetResult::NotFound;
+            return Result;
+        }
+        auto Source =
+            Stoner::Core::MakeShared<FMountedFileSource>(std::move(Bytes));
+        Result.Descriptor.Size = Source->Size();
+        Result.Source = Stoner::Asset::FAssetSourceLease(std::move(Source));
+        Result.Result = Stoner::Asset::EAssetResult::Success;
+        return Result;
+    }
+
+private:
+    Stoner::Core::FString Root_;
+};
+
+class FPayloadLookup final : public Stoner::Asset::IShaderPayloadLookup
+{
+public:
+    explicit FPayloadLookup(
+        const Stoner::Core::TArray<
+            Stoner::Core::TSharedPtr<const Stoner::Asset::FAssetPayload>>&
+            Payloads)
+        : Payloads_(Payloads)
+    {
+    }
+
+    Stoner::Core::TSharedPtr<const Stoner::Asset::FShaderPayloadAsset> Find(
+        const Stoner::Asset::FAssetId& Id) const override
+    {
+        for (const auto& Payload : Payloads_)
+        {
+            auto ShaderPayload = std::dynamic_pointer_cast<
+                const Stoner::Asset::FShaderPayloadAsset>(Payload);
+            if (ShaderPayload && ShaderPayload->GetId() == Id)
+            {
+                return ShaderPayload;
+            }
+        }
+        return {};
+    }
+
+private:
+    const Stoner::Core::TArray<
+        Stoner::Core::TSharedPtr<const Stoner::Asset::FAssetPayload>>&
+        Payloads_;
+};
 
 Stoner::Renderer::FForwardFramePlan BuildTriangleFramePlan(
     Stoner::Core::uint32 Width, Stoner::Core::uint32 Height)
@@ -114,9 +216,92 @@ FStonerDemoApplication::~FStonerDemoApplication()
 
 bool FStonerDemoApplication::ValidateShaderPayloads()
 {
-    const std::string Directory = Configuration.ShaderDirectory.ToStdString();
-    return ValidateSpirv(Directory + "/Triangle.vert.spv", 0u) &&
-        ValidateSpirv(Directory + "/Triangle.frag.spv", 4u);
+    using namespace Stoner;
+    Asset::FAssetExtensionRegistry Extensions;
+    Asset::FAssetRegistrationToken ResolverToken;
+    if (Extensions.Register(
+            Core::MakeShared<FMountedFileResolver>(
+                Configuration.ShaderDirectory),
+            ResolverToken) != Asset::EAssetResult::Success)
+    {
+        return false;
+    }
+    Asset::FAssetSourceLocator DefinitionLocation;
+    if (Asset::FAssetSourceLocator::Create(
+            "content",
+            "Triangle.shader.json",
+            DefinitionLocation) != Asset::EAssetResult::Success)
+    {
+        return false;
+    }
+    const Asset::FAssetResolveResult Definition =
+        Asset::FAssetDispatch::Resolve(
+            Extensions,
+            {DefinitionLocation});
+    if (Definition.Result != Asset::EAssetResult::Success)
+    {
+        return false;
+    }
+    Asset::FAssetId ShaderId;
+    (void)Asset::FAssetId::Create(
+        "ShaderProgram",
+        "Engine/Shaders/Triangle",
+        std::nullopt,
+        ShaderId);
+    Asset::FMaterialShaderLoadRequest Request;
+    Request.ExpectedId = ShaderId;
+    Request.Extensions = &Extensions;
+    Request.Descriptor = Definition.Descriptor;
+    Request.Source = Definition.Source;
+    const Asset::FMaterialShaderLoadResult Loaded =
+        Asset::FMaterialShaderSourceLoader::Load(Request);
+    if (!Loaded.Succeeded())
+    {
+        return false;
+    }
+    Core::TSharedPtr<const Asset::FShaderAsset> Program;
+    for (const auto& Payload : Loaded.Payloads)
+    {
+        Program = std::dynamic_pointer_cast<
+            const Asset::FShaderAsset>(Payload);
+        if (Program) break;
+    }
+    if (!Program)
+    {
+        return false;
+    }
+    FPayloadLookup Lookup(Loaded.Payloads);
+    Asset::FSelectedShaderProgram Selected;
+    Asset::FShaderTargetRequest Target;
+    Target.Backend = Asset::EShaderBackendFamily::Vulkan;
+    Target.AcceptableProfiles = {"vulkan-1.3"};
+    if (Asset::SelectShaderProgram(
+            *Program,
+            Target,
+            Lookup,
+            Selected) != Asset::EAssetResult::Success)
+    {
+        return false;
+    }
+    Renderer::FShaderAssetSnapshot Snapshot;
+    if (Renderer::ConvertShaderAsset(
+            {&Selected},
+            Snapshot) != Renderer::EMaterialResult::Success ||
+        Snapshot.ModuleDescriptions.size() != 2)
+    {
+        return false;
+    }
+    for (const auto& Module : Snapshot.ModuleDescriptions)
+    {
+        if (Module.Stage == RHI::ERHIShaderStage::Vertex)
+            TriangleVertexShader = Module;
+        else if (Module.Stage == RHI::ERHIShaderStage::Fragment)
+            TriangleFragmentShader = Module;
+    }
+    bTriangleShadersLoaded =
+        RHI::IsValidRHIShaderModuleDesc(TriangleVertexShader) &&
+        RHI::IsValidRHIShaderModuleDesc(TriangleFragmentShader);
+    return bTriangleShadersLoaded;
 }
 
 bool FStonerDemoApplication::ShouldInject(EDemoStage Stage, EDemoExitCode Code, const char* Subject)
@@ -230,12 +415,11 @@ EDemoExitCode FStonerDemoApplication::Initialize()
 
     if (Configuration.RequiresVisibleWindow())
     {
-        const std::string Directory = Configuration.ShaderDirectory.ToStdString();
         CurrentDrawableWidth = Window->Value.GetDrawableWidth();
         CurrentDrawableHeight = Window->Value.GetDrawableHeight();
         if (CurrentDrawableWidth > 0 && CurrentDrawableHeight > 0 &&
             NativeContext->Context.PrepareVisibleTriangle(
-                (Directory + "/Triangle.vert.spv").c_str(), (Directory + "/Triangle.frag.spv").c_str(),
+                TriangleVertexShader, TriangleFragmentShader,
                 CurrentDrawableWidth, CurrentDrawableHeight) != Stoner::RHI::ERHIResult::Success)
         {
             return FailInitialize(
@@ -333,9 +517,9 @@ EDemoExitCode FStonerDemoApplication::RunNativeHeadless()
 {
     if (!NativeContext) return EDemoExitCode::RuntimeUnavailable;
     LifecycleState = EDemoLifecycleState::Running;
-    const std::string Directory = Configuration.ShaderDirectory.ToStdString();
     if (NativeContext->Context.ExecuteOffscreenTriangle(
-        (Directory + "/Triangle.vert.spv").c_str(), (Directory + "/Triangle.frag.spv").c_str()) != Stoner::RHI::ERHIResult::Success)
+        TriangleVertexShader,
+        TriangleFragmentShader) != Stoner::RHI::ERHIResult::Success)
     {
         Diagnostics.Add(EDemoStage::Submit, EDemoExitCode::FrameFailed, "NativeOffscreenTriangle", "native offscreen command submission failed");
         LifecycleState = EDemoLifecycleState::Failed;
@@ -384,9 +568,11 @@ EDemoExitCode FStonerDemoApplication::RunVisible()
             Stoner::RHI::ERHIResult RecreateResult = Stoner::RHI::ERHIResult::Failed;
             if (!PresentationState.bInitialized)
             {
-                const std::string Directory = Configuration.ShaderDirectory.ToStdString();
                 RecreateResult = NativeContext->Context.PrepareVisibleTriangle(
-                    (Directory + "/Triangle.vert.spv").c_str(), (Directory + "/Triangle.frag.spv").c_str(), Width, Height);
+                    TriangleVertexShader,
+                    TriangleFragmentShader,
+                    Width,
+                    Height);
                 if (RecreateResult == Stoner::RHI::ERHIResult::Success) PresentationState.bInitialized = true;
             }
             else RecreateResult = NativeContext->Context.RecreateVisiblePresentation(Width, Height);

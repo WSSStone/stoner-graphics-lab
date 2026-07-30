@@ -4,6 +4,8 @@
 #include "Renderer/FMaterialParameterSet.h"
 #include "Renderer/FShaderPermutation.h"
 
+#include <span>
+
 namespace Stoner::Renderer
 {
 
@@ -34,6 +36,9 @@ class FShaderLibrary
 {
 public:
     [[nodiscard]] EMaterialResult RegisterShaderRecord(FShaderRecord Record, FMaterialDiagnosticLog* Diagnostics = nullptr);
+    [[nodiscard]] EMaterialResult RegisterShaderRecords(
+        std::span<const FShaderRecord> Records,
+        FMaterialDiagnosticLog* Diagnostics = nullptr);
     [[nodiscard]] const FShaderRecord* FindRecord(const Stoner::Core::FString& ShaderId) const noexcept;
     [[nodiscard]] EMaterialResult ResolveVariant(const Stoner::Core::FString& ShaderId, const FShaderPermutation& Permutation,
         const FShaderVariant*& OutVariant, FMaterialDiagnosticLog* Diagnostics = nullptr) const;
@@ -46,6 +51,10 @@ public:
     [[nodiscard]] Stoner::Core::FString Dump() const;
 
 private:
+    [[nodiscard]] EMaterialResult RegisterShaderRecordValidated(
+        FShaderRecord Record,
+        FMaterialDiagnosticLog* Diagnostics);
+
     Stoner::Core::TArray<FShaderRecord> Records;
 };
 

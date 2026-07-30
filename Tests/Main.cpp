@@ -20,6 +20,8 @@
 #include "VulkanNativeIntegrationTests.h"
 #include "TriangleDemoIntegrationTests.h"
 #include "AssetTests.h"
+#include "AssetMaterialShaderTests.h"
+#include "RendererMaterialShaderAssetTests.h"
 #include "TestSuiteRegistry.h"
 #include "TestSuiteRegistryTests.h"
 
@@ -45,6 +47,7 @@ int main(int ArgCount, char* Arguments[])
     }
 
     FAssetKTX2TestOptions KTX2Options;
+    FAssetMaterialShaderTestOptions MaterialShaderOptions;
     std::vector<std::string> ParsedArguments;
     for (int Index = 1; Index < ArgCount; ++Index)
     {
@@ -52,7 +55,9 @@ int main(int ArgCount, char* Arguments[])
         if (Argument == "--emit-ktx2-dir" ||
             Argument == "--emit-ktx2-source-dir" ||
             Argument == "--report" ||
-            Argument == "--ktx2-determinism-runs")
+            Argument == "--ktx2-determinism-runs" ||
+            Argument == "--material-shader-report" ||
+            Argument == "--material-shader-determinism-runs")
         {
             if (Index + 1 >= ArgCount)
             {
@@ -60,7 +65,11 @@ int main(int ArgCount, char* Arguments[])
                 return 2;
             }
             const std::string Value = Arguments[++Index];
-            if (Argument == "--emit-ktx2-dir")
+            if (Argument == "--material-shader-report")
+            {
+                MaterialShaderOptions.ReportPath = Value.c_str();
+            }
+            else if (Argument == "--emit-ktx2-dir")
             {
                 KTX2Options.EmitDirectory = Value;
             }
@@ -72,7 +81,7 @@ int main(int ArgCount, char* Arguments[])
             {
                 KTX2Options.ReportPath = Value;
             }
-            else
+            else if (Argument == "--ktx2-determinism-runs")
             {
                 int Runs = 0;
                 const auto Parsed = std::from_chars(
@@ -87,6 +96,21 @@ int main(int ArgCount, char* Arguments[])
                 }
                 KTX2Options.DeterminismRuns = Runs;
             }
+            else
+            {
+                int Runs = 0;
+                const auto Parsed = std::from_chars(
+                    Value.data(), Value.data() + Value.size(), Runs);
+                if (Parsed.ec != std::errc{} ||
+                    Parsed.ptr != Value.data() + Value.size() ||
+                    Runs <= 0 || Runs > 1000)
+                {
+                    std::cerr
+                        << "Invalid --material-shader-determinism-runs value\n";
+                    return 2;
+                }
+                MaterialShaderOptions.DeterminismRuns = Runs;
+            }
             continue;
         }
         ParsedArguments.push_back(Argument);
@@ -95,8 +119,11 @@ int main(int ArgCount, char* Arguments[])
     FTestSuiteRegistry Registry;
     Registry.Register("application-scene", [] { return RunApplicationSceneEcsTests().Failed == 0 ? 0 : 1; });
     Registry.Register("application-window", [] { return RunApplicationWindowInputTests().Failed == 0 ? 0 : 1; });
-    Registry.Register("asset", [KTX2Options] {
-        return RunAssetTests(KTX2Options).Failed == 0 ? 0 : 1;
+    Registry.Register("asset", [KTX2Options, MaterialShaderOptions] {
+        return RunAssetTests(KTX2Options, MaterialShaderOptions).Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-material-shader", [MaterialShaderOptions] {
+        return RunAssetMaterialShaderTests(MaterialShaderOptions).Failed == 0 ? 0 : 1;
     });
     Registry.Register("asset-ktx2-encoder", [] {
         return RunAssetKTX2EncoderTests().Failed == 0 ? 0 : 1;
@@ -113,6 +140,9 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("renderer-comparison", [] { return RunRendererComparisonTests().Failed == 0 ? 0 : 1; });
     Registry.Register("renderer-forward", [] { return RunRendererForwardPipelineTests().Failed == 0 ? 0 : 1; });
     Registry.Register("renderer-material", [] { return RunRendererMaterialShaderTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("renderer-material-asset", [] {
+        return RunRendererMaterialShaderAssetTests().Failed == 0 ? 0 : 1;
+    });
     Registry.Register("renderer-render-graph", [] { return RunRendererRenderGraphTests().Failed == 0 ? 0 : 1; });
     Registry.Register("renderer-texture", [] {
         const auto AssetResult = RunRendererTextureAssetTests();

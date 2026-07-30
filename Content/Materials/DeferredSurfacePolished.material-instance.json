@@ -1,0 +1,21 @@
+{
+  "schema": "stoner.material-instance",
+  "version": 1,
+  "id": {
+    "type": "MaterialInstance",
+    "path": "Engine/Materials/DeferredSurfacePolished"
+  },
+  "requiredExtensions": [],
+  "parent": {
+    "type": "Material",
+    "path": "Engine/Materials/DeferredSurface"
+  },
+  "overrides": [
+    {
+      "name": "Roughness",
+      "type": "scalar",
+      "value": 0.125
+    }
+  ],
+  "extensions": {}
+}

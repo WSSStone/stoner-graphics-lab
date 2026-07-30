@@ -6,7 +6,6 @@
 #include <array>
 #include <cmath>
 #include <cstring>
-#include <fstream>
 #include <limits>
 #include <sstream>
 #include <string>
@@ -86,28 +85,6 @@ void SetIdentity(std::array<float, 16>& Matrix)
 {
     Matrix = {};
     Matrix[0] = Matrix[5] = Matrix[10] = Matrix[15] = 1.0f;
-}
-
-std::vector<Stoner::Core::uint32> ReadSpirv(const std::string& Path)
-{
-    std::ifstream Input(Path, std::ios::binary | std::ios::ate);
-    if (!Input)
-    {
-        return {};
-    }
-    const std::streamsize Size = Input.tellg();
-    if (Size < 20 || Size % 4 != 0)
-    {
-        return {};
-    }
-    std::vector<Stoner::Core::uint32> Words(static_cast<std::size_t>(Size) / 4);
-    Input.seekg(0);
-    Input.read(reinterpret_cast<char*>(Words.data()), Size);
-    if (!Input.good() || Words.front() != 0x07230203u)
-    {
-        return {};
-    }
-    return Words;
 }
 
 float DecodeHalf(Stoner::Core::uint16 Value) noexcept
@@ -338,16 +315,17 @@ struct FVulkanNativeOffscreenSession::FImpl
         return true;
     }
 
-    bool CreateShader(const std::string& Path, VkShaderModule& Out)
+    bool CreateShader(
+        const Stoner::RHI::FRHIShaderModuleDesc& Desc,
+        VkShaderModule& Out)
     {
-        const std::vector<Stoner::Core::uint32> Words = ReadSpirv(Path);
-        if (Words.empty())
+        if (!Stoner::RHI::IsValidRHIShaderModuleDesc(Desc))
         {
             return false;
         }
         VkShaderModuleCreateInfo Info = MakeVulkanStruct<VkShaderModuleCreateInfo>(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
-        Info.codeSize = Words.size() * sizeof(Stoner::Core::uint32);
-        Info.pCode = Words.data();
+        Info.codeSize = Desc.Bytecode.Words.size() * sizeof(Stoner::Core::uint32);
+        Info.pCode = Desc.Bytecode.Words.data();
         if (vkCreateShaderModule(Access.Device, &Info, nullptr, &Out) != VK_SUCCESS)
         {
             return false;
@@ -1041,7 +1019,7 @@ Stoner::Core::FVector4 ReadPixel(
 #endif
 
 Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
-    const Stoner::Core::FString& ShaderDirectory,
+    const FVulkanDeferredShaderSet& Shaders,
     FVulkanDeferredValidationReport& OutReport,
     EVulkanDeferredFailurePoint FailurePoint)
 {
@@ -1052,7 +1030,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         return Stoner::RHI::ERHIResult::Unavailable;
     }
 #if !defined(STONER_VULKAN_NATIVE_AVAILABLE) || !STONER_VULKAN_NATIVE_AVAILABLE
-    (void)ShaderDirectory;
+    (void)Shaders;
     return Stoner::RHI::ERHIResult::Unsupported;
 #else
     if (!Context.GetNativeDeviceAccess(Impl->Access))
@@ -1073,27 +1051,28 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         return Stoner::RHI::ERHIResult::Failed;
     };
 
-    const std::string Directory = ShaderDirectory.ToStdString();
-    const std::array<const char*, 8> ShaderNames = {
-        "Surface.vert.spv", "Surface.frag.spv", "Fullscreen.vert.spv",
-        "DirectionalLight.frag.spv", "PointLight.vert.spv",
-        "PointLight.frag.spv", "SpotLight.vert.spv", "SpotLight.frag.spv"};
-    for (std::size_t Index = 0; Index < ShaderNames.size(); ++Index)
+    const std::array<const Stoner::RHI::FRHIShaderModuleDesc*, 9>
+        ShaderDescriptions = {
+            &Shaders.SurfaceVertex,
+            &Shaders.SurfaceFragment,
+            &Shaders.FullscreenVertex,
+            &Shaders.DirectionalFragment,
+            &Shaders.PointVertex,
+            &Shaders.PointFragment,
+            &Shaders.SpotVertex,
+            &Shaders.SpotFragment,
+            &Shaders.CompositionFragment};
+    for (std::size_t Index = 0;
+         Index < ShaderDescriptions.size();
+         ++Index)
     {
-        if (!Impl->CreateShader(Directory + "/" + ShaderNames[Index],
+        if (!Impl->CreateShader(*ShaderDescriptions[Index],
                 Impl->Shaders[Index]))
         {
             Impl->ReleaseAll();
             return Stoner::RHI::ERHIResult::Failed;
         }
     }
-    VkShaderModule CompositionShader = VK_NULL_HANDLE;
-    if (!Impl->CreateShader(Directory + "/Composition.frag.spv", CompositionShader))
-    {
-        Impl->ReleaseAll();
-        return Stoner::RHI::ERHIResult::Failed;
-    }
-    Impl->Shaders[8] = CompositionShader;
     if (FailurePoint == EVulkanDeferredFailurePoint::PartialInitialization)
     {
         return FailInjected("PartialInitialization");
@@ -1298,7 +1277,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         !CreateGraphicsPipeline(*Impl, Impl->Shaders[6], Impl->Shaders[7],
             Impl->LightingPass, &VolumeBinding, &VolumeAttribute, 1,
             false, false, true, VK_CULL_MODE_FRONT_BIT, Impl->Pipelines[5]) ||
-        !CreateGraphicsPipeline(*Impl, Impl->Shaders[2], CompositionShader,
+        !CreateGraphicsPipeline(*Impl, Impl->Shaders[2], Impl->Shaders[8],
             Impl->CompositionPass, &FullscreenBinding, &FullscreenAttribute, 1,
             false, false, false, VK_CULL_MODE_NONE, Impl->Pipelines[6]) ||
         !CreateGraphicsPipeline(*Impl, Impl->Shaders[0], Impl->Shaders[1],

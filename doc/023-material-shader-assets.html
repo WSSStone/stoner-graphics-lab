@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>023 - Material &amp; Shader Assets - Stoner Graphics Lab</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}:root{--bg:#f4f7f8;--paper:#fff;--ink:#17212b;--muted:#617184;--line:#d5e0e5;--accent:#0f766e;--soft:#e7f5f2;--warn:#a15c00;--code:#edf2f4;--dark:#17212b;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.72 var(--sans)}.page{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 18px;background:var(--paper);border-right:1px solid var(--line)}.brand{font-size:14px;font-weight:800;color:var(--accent)}.subtitle{font-size:12px;color:var(--muted);padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:18px}.toc{list-style:none;padding:0}.toc a{display:block;padding:6px 8px;color:var(--muted);text-decoration:none;border-radius:6px;font-size:13px}.toc a:hover{color:var(--accent);background:var(--soft)}main{max-width:1080px;width:100%;padding:48px 48px 96px;margin:0 auto}h1{margin:0 0 8px;font-size:34px;line-height:1.2;color:var(--accent)}.meta{color:var(--muted);font-size:13px;margin-bottom:30px}section{margin-bottom:56px}h2{margin:32px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:23px}h3{margin:22px 0 10px;font-size:17px}h4{margin:16px 0 6px;font-size:15px}p{margin:0 0 14px}ul,ol{margin:0 0 16px;padding-left:23px}li{margin:4px 0}code{font-family:var(--mono);font-size:13px;background:var(--code);padding:2px 5px;border-radius:4px}pre{margin:14px 0;padding:16px;overflow:auto;border-radius:8px;color:#e5e7eb;background:var(--dark);font-size:13px;line-height:1.55}pre code{background:transparent;color:inherit;padding:0}table{width:100%;border-collapse:collapse;margin:16px 0 20px;font-size:14px}th,td{padding:9px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted);font-size:12px;background:#f9fbfc}.note{margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:8px;background:var(--paper)}.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#fff1d6;color:var(--warn);font-weight:700;font-size:12px}@media(max-width:860px){.page{display:block}.sidebar{position:static;height:auto}main{padding:32px 22px 72px}}
+</style>
+</head>
+<body><div class="page">
+<aside class="sidebar"><div class="brand">Stoner Graphics Lab</div><div class="subtitle">023 - Material &amp; Shader Assets</div><ul class="toc">
+<li><a href="#s1">一、文档与上下文信息</a></li><li><a href="#s2">二、目标与边界</a></li><li><a href="#s3">三、交互与产品设计</a></li><li><a href="#s4">四、技术架构与关键决策</a></li><li><a href="#s5">五、实施与验证</a></li><li><a href="#s6">六、设计巧思与最佳实践</a></li><li><a href="#s7">七、编程语言知识点</a></li><li><a href="#s8">八、软件工程知识点</a></li><li><a href="#s9">九、渲染、引擎与图形 API</a></li>
+</ul></aside>
+<main><h1>023 - Material &amp; Shader Assets</h1>
+<div class="meta">状态：<span class="badge">本地实现完成，等待三平台 CI</span> · 更新：2026-07-30 · Roadmap Phase 023 · 层级：Asset / Renderer / Application / Vulkan</div>
+
+<section id="s1"><h2>一、文档与上下文信息</h2>
+<h3>1. 基础元数据</h3><table><tbody>
+<tr><th>Feature</th><td>023 - Asset: Material &amp; Shader Assets；Roadmap 与 Speckit 编号一致。</td></tr>
+<tr><th>设计文档</th><td><code>specs/023-material-shader-assets/spec.md</code>、<code>plan.md</code>、<code>tasks.md</code>、<code>data-model.md</code>、<code>contracts/</code></td></tr>
+<tr><th>核心源码</th><td><code>Source/Asset/</code> 的 schema/model/loader/selector/resolver；<code>Source/Renderer/</code> 的 conversion snapshot；<code>Content/</code> 的仓库资产。</td></tr>
+<tr><th>第三方</th><td>私有 yyjson 0.12.0 C translation unit；没有第三方类型进入 Asset public header。</td></tr>
+<tr><th>验证</th><td><code>AssetMaterialShaderTests.cpp</code>、<code>RendererMaterialShaderAssetTests.cpp</code>、repository/provenance/architecture verifier、<code>Validation/023/</code>。</td></tr>
+</tbody></table>
+<h3>2. 本期核心摘要</h3><p>本期把 Feature 014 的进程内 Material/Shader 记录升级为稳定 Asset：一个 <code>FShaderAsset</code> 表示完整逻辑 Program，包含 stages、permutations、interface 和 backend/profile payload；<code>FMaterialAsset</code> 与 <code>FMaterialInstanceAsset</code> 用 typed soft reference 表达 shader、texture 和 parent。三个 JSON schema 均可 bounded parse、canonical write、round trip，并以 canonical bytes 生成版本证据。</p><p>最值得学习的是“身份、内容、运行时对象”三者不能混为一谈。AssetId 表达逻辑对象，digest 表达某次 source/payload bytes，Renderer snapshot 表达某次显式转换。即使 Point 与 Spot 的 vertex SPIR-V 完全相同，它们仍拥有不同 identity；即使 Registry 中资产被替换，旧 snapshot 仍代表原 source manifest。</p>
+<h3>3. 上下文与依赖</h3><p>023 依赖 020 的 identity、registry、resolver/importer 与 execution lease，依赖 021 的 Texture typed reference，并保持 014 的 material/shader 行为。本期为 024 glTF material slots、025 cooker/manifest 和 027/031/032/033 backend-tagged shader payload 奠定 contract。Asset production 只编译依赖 Core；Renderer/Application/Demo 是组合与适配层，Backend 只理解 Core/RHI bytecode。</p></section>
+
+<section id="s2"><h2>二、目标与边界</h2>
+<h3>1. 业务与功能目标</h3><p>开发者可编写版本 1 的 <code>.shader.json</code>、<code>.material.json</code> 与 <code>.material-instance.json</code>。Loader 在成功时发布 immutable payload、metadata、canonical definition 与 source versions；失败时返回稳定 <code>EAssetResult</code> 与归一化 diagnostic。渲染调用方显式选择 backend/profile，再把 selected program 与 flattened material 转为自包含 Renderer snapshot。</p>
+<h3>2. 架构目标与定位</h3><pre><code>authoring JSON + GLSL/SPIR-V
+              |
+              v
+Asset: bounded parse -> typed model -> dependency load
+       -> validation -> selection/resolution -> source manifest
+              |
+              v
+Renderer: immutable material/shader snapshot
+              |
+              v
+RHI shader module descriptions
+              |
+              v
+Backend: native module/pipeline creation
+
+Asset ---> Core
+Asset -X-> Renderer / RHI / Backend / filesystem paths in native code</code></pre><p>Schema、logical identity、typed dependency、payload bytes、target tags 和 inheritance 属于 Asset contract。yyjson、文件 resolver 与 repository layout 是 private/composition concern。Renderer 拥有 Feature 014/RHI 映射；Backend 只接收 owned bytecode description。</p>
+<h3>3. 边界与非目标（约束）</h3><ul>
+<li>不做 runtime shader compilation 或 shader graph：本期只选择预编译 payload。</li>
+<li>不做 cooked binary、manifest、DDC 或 package：由 025 统一解决发布期产物。</li>
+<li>不做 async manager、cache、hot reload 或自动 snapshot 更新：由 026 管理请求与版本替换。</li>
+<li>不做 MSL/DXIL producer：schema 已保留 backend/profile slot，027/031 再提供真实 payload。</li>
+<li>不让 Asset 创建 GPU module：保持 CPU-only boundary，并避免 Vulkan 假设污染未来 backend。</li>
+</ul></section>
+
+<section id="s3"><h2>三、交互与产品设计</h2>
+<h3>1. 用户使用路径</h3><pre><code>Load(definition, resolver) -> FShaderAsset + dependencies
+Select(shader, backend=Vulkan, profiles=[vulkan-1.3])
+    -> FSelectedShaderProgram + complete source manifest
+ConvertShaderAsset(selected) -> FShaderAssetSnapshot
+
+Load(material/instance) -> ResolveMaterial(lookup)
+    -> flattened FResolvedMaterialAsset
+ConvertMaterialAsset(resolved, shader snapshot)
+    -> FMaterialAssetSnapshot</code></pre><p>失败路径不会留下半个 output：digest mismatch、wrong stage、ambiguous profile、missing parent、cycle、type-changing override 或 manifest version conflict 都在 destination replacement 前失败。调试优先查看 stable result、stage、subject 与 JSON pointer，再运行 focused suite。</p>
+<h3>2. 核心规则与状态机</h3><pre><code>definition:
+Read -> Parse -> Schema -> Normalize -> Semantic Validate
+-> Optional Dependency Load -> Runtime-ready Validate -> Publish
+
+shader target:
+validate request -> profile[0..N] in caller order
+-> first complete unique set wins
+-> ambiguity at current profile fails; no cross-backend fallback
+
+material instance:
+leaf -> pre-visit parent chain -> root
+-> validate depth/cycle/types -> apply overrides root-to-leaf
+-> merge chain + shader + texture versions -> publish</code></pre><p>Program 必须是合法 graphics 或 compute stage set。Source-only program 可 inspect/serialize，但不能冒充 runtime-ready。Material parent 是 Material 或 MaterialInstance 的精确 tagged union；最近 override 获胜，缺失 dependency version 使 render-ready resolution 失败。</p>
+<h3>3. 失败模式与调试入口</h3><ul>
+<li><code>InvalidDefinition</code>：closed schema、duplicate decoded key、invalid token/type；看 JSON pointer。</li>
+<li><code>DefinitionLimitExceeded</code>：definition、depth、value、text、array 或 schema count 在 model allocation 前超限。</li>
+<li><code>DependencyMismatch</code>：typed identity、locator、digest、producer、stage 或 entry 与 bytes 不一致。</li>
+<li><code>TargetUnavailable/AmbiguousTarget</code>：检查 request profile 顺序和完整 stage set，不会自动评分或跨 backend fallback。</li>
+<li><code>UnresolvedDependency/ParentCycle</code>：检查 source manifest 的 chain、shader 与 texture version。</li>
+<li>仓库漂移：运行 <code>verify_repository_shader_assets.py</code>，输出使用逻辑相对路径且稳定排序。</li>
+</ul></section>
+
+<section id="s4"><h2>四、技术架构与关键决策</h2>
+<h3>1. 技术栈与基础设施</h3><p>C++20、传统 public/private header/source、SCons 4.10.1。yyjson 0.12.0 作为带 checksum/license/upstream 证据的 private C dependency。Repository shader 为 checked-in GLSL 与 SPIR-V；没有运行时编译器。macOS 本地可运行 strict Debug/Release 与 fallback/native-unavailable contract，真实 native 证据由支持的 CI runner 提供。</p>
+<h3>2. 关键信息</h3>
+<h4>2.1 模块对应关系</h4><table><thead><tr><th>模块</th><th>职责</th><th>边界</th></tr></thead><tbody>
+<tr><td><code>FMaterialShaderJsonCodec</code></td><td>strict parse、preflight、typed decode、canonical writer</td><td>yyjson 只在 private implementation</td></tr>
+<tr><td><code>FShaderProgramValidator</code></td><td>stage、permutation、interface、required parameter</td><td>不加载文件、不选择 backend</td></tr>
+<tr><td><code>FShaderDependencyLoader</code></td><td>resolver lease、typed ID/locator/digest、UTF-8/SPIR-V validation、byte budget</td><td>request-scoped，无全局 payload cache</td></tr>
+<tr><td><code>FShaderPayloadSelector</code></td><td>caller-ordered profile、完整 stage set、source manifest</td><td>无隐式 capability scoring</td></tr>
+<tr><td><code>FMaterialInstanceResolver</code></td><td>cycle/depth、nearest override、dependency versions</td><td>不向 Renderer 暴露 parent pointer</td></tr>
+<tr><td><code>FShaderAssetConversion</code></td><td>selected Asset program 转 owned RHI/Feature 014 snapshot</td><td>Renderer-owned adapter</td></tr>
+<tr><td><code>FMaterialAssetConversion</code></td><td>flattened material 转 owned Feature 014 material/requirements</td><td>transactional destination replacement</td></tr>
+<tr><td><code>ContentStaging.py</code></td><td>显式、排序、保留相对布局的 content staging</td><td>不 compile/cook/生成 manifest</td></tr>
+</tbody></table>
+<h4>2.2 数据与版本流</h4><p>Canonical definition digest 产生 Program/Material/Instance version；GLSL 与 SPIR-V 各自以 exact bytes 产生 dependency version。Selection 输出 Program、sources 与 selected payloads 的完整 manifest。Material resolution 输出完整 parent chain、shader 与 texture versions。Renderer conversion 合并 manifest，若同一 AssetId 出现不同 version 则原子失败；成功 snapshot 深拷贝 bytecode、string 与 parameter value。</p>
+<h4>2.3 关键日志、诊断与验证</h4><p>Diagnostic 记录稳定 stage/result/code/subject/reason，但会 redaction 绝对路径、地址、timing、payload text 与 yyjson raw error。Canonical writer固定字段次序、collection ordering、UTF-8/LF、两空格和末尾换行。Release report 记录 40/40 corpus、每文件 digest、首个 failure category、八读者结果和非门禁 elapsed telemetry。</p>
+<h3>3. 架构决策记录 (ADR)</h3>
+<h4>(1) 一个 Shader Asset 表示完整 Program</h4><p><strong>决策：</strong>stage 是 Program 内部 record/dependency，不是独立顶层 program。<strong>理由：</strong>permutation、interface 与 backend target 只有在完整 stage set 上才可验证。<strong>否决：</strong>每 stage 一个 Asset 会把组合正确性推给调用方。<strong>后果：</strong>Program schema 更丰富，但 selection 能正确构造 pipeline-ready snapshot。</p>
+<h4>(2) Profile 顺序由调用方提供</h4><p><strong>决策：</strong>同 backend 内按 request 顺序取第一个唯一完整匹配。<strong>否决：</strong>隐式评分会让新 profile 改变旧设备选择结果。<strong>后果：</strong>策略显式且确定；能力协商仍可由上层构造 profile list。</p>
+<h4>(3) Immutable snapshot 不监听 Registry</h4><p><strong>决策：</strong>转换深拷贝并记录 source versions。<strong>否决：</strong>live pointer/callback 会引入跨层生命周期竞态。<strong>后果：</strong>旧 snapshot 稳定；026 必须显式调度新转换与 handle swap。</p>
+<h4>(4) Backend 不拥有 shader 路径</h4><p><strong>决策：</strong>Application/Demo mount resolver，Renderer 产出 RHI description，Backend 只创建 native module。<strong>否决：</strong>Backend path concatenation 绑定 repository layout 且绕过 Asset digest。<strong>后果：</strong>Vulkan、未来 Metal/DX12 可消费同一 identity/selection contract。</p>
+</section>
+
+<section id="s5"><h2>五、实施与验证（任务流）</h2>
+<h3>1. 任务拆解清单</h3><ol><li>固定 yyjson provenance、pre-migration shader digests 与 40/40 corpus。</li><li>建立 immutable models、finite limits、strict codec、schema/semantic validator 和 importer transaction。</li><li>实现 Program dependency load、SPIR-V validation、profile selection 与 complete manifest。</li><li>实现 Material/Instance dependency、inheritance、flattening 和 source versions。</li><li>实现 Renderer snapshots、ShaderLibrary batch transaction 与 Feature 014 compatibility。</li><li>迁移六个 repository programs、22 个 dependencies、Demo/native bytecode boundary。</li><li>补齐 deterministic report、architecture/repository verifiers、strict build、sanitizers 和 CI。</li></ol>
+<h3>2. 验收状态</h3><p>macOS strict Debug/Release、完整 Debug regression、focused Asset/Renderer suites、20-run Release determinism、八读者并发、yyjson provenance、Asset architecture、repository inventory 与 19 个 Python unit tests通过。Canonical corpus digest 为 <code>d9b2...cd64b</code>，failure corpus digest 为 <code>1ae4...ad606</code>。三平台 CI、Linux sanitizers 与 applicable native gates 尚待 branch push 后执行，因此 roadmap 暂保持 In Progress。</p>
+<h3>3. 测试矩阵与覆盖意图</h3><table><thead><tr><th>类别</th><th>风险</th><th>证据</th></tr></thead><tbody>
+<tr><td>Schema/canonical</td><td>parser 宽松、字段顺序或平台改变版本</td><td>40 valid、40 invalid、golden digest/failure、20 runs</td></tr>
+<tr><td>Dependency</td><td>路径穿越、stale digest、wrong type/stage/entry</td><td>request resolver tests、repository verifier</td></tr>
+<tr><td>Selection</td><td>profile ambiguity、stage mixing、backend fallback</td><td>ordered profile 与 duplicate/no-fallback tests</td></tr>
+<tr><td>Inheritance</td><td>cycle、missing version、type-changing override</td><td>nearest override、complete manifest、negative tests</td></tr>
+<tr><td>Snapshot</td><td>borrowed lifetime、partial replacement、version conflict</td><td>deep ownership、batch rollback、eight conversions</td></tr>
+<tr><td>Repository/native</td><td>迁移 bytes 漂移、Backend 重获文件路径</td><td>6/11/11 inventory、exact digests、native regressions</td></tr>
+</tbody></table></section>
+
+<section id="s6"><h2>六、设计巧思与最佳实践</h2>
+<h3>1. 当前业务场景与业务模型的最佳实践</h3><ul>
+<li><strong>逻辑身份不等于内容去重：</strong>相同 payload digest 可用于 cache，但不得抹掉不同 Program/stage identity。</li>
+<li><strong>先 preflight 后 model allocation：</strong>untrusted local JSON 的 depth/count/text 在建立复杂 C++ object 前受限。</li>
+<li><strong>Manifest 是 snapshot 的 provenance：</strong>它同时证明 program、source、payload、parent、shader 与 texture 的精确版本。</li>
+<li><strong>Source-only 是合法 authoring state：</strong>inspect 与 round-trip 不要求 runtime payload；render-ready validation 单独负责。</li>
+<li><strong>全部发布操作是 transaction：</strong>loader/importer/library/conversion 都先构造临时结果，最后一次替换 destination。</li>
+</ul>
+<h3>2. 优化方案与收益</h3><p>已实现 immutable shared payload、request-local dependency dedup、排序 manifest、一次性 ShaderLibrary batch validation、无 Registry callback snapshot 和无全局 parser/cache，主要收益是确定性、线程隔离、调试性和 API 稳定性。未来 025 可用 digest/manifest 建 DDC，026 可合并 async request；这些优化不要求修改当前 identity 与 snapshot contract。</p>
+<h3>3. 已知限制与后续演进</h3><p>当前只有 JSON source definition、GLSL source 与 Vulkan SPIR-V payload；没有 cooker package、reflection tool、runtime compile、hot reload 或 shader cache。Native deferred execution虽然移除了 path ownership并集中 shader module rollback，但其大函数仍包含资源、pipeline、command、readback 与 probe 职责，应在 027 Metal 前继续拆分。</p></section>
+
+<section id="s7"><h2>七、编程语言知识点</h2>
+<h3>1. 标准库接口与用法</h3><p><code>std::span</code> 传递不拥有的 definition/payload view；<code>std::shared_ptr&lt;const T&gt;</code> 保存 immutable Asset payload；<code>std::variant</code> 表达 typed material parameter；<code>std::optional</code> 表达可选 subresource/parent；<code>std::filesystem</code> 只在 composition/test resolver 处理物理文件；<code>std::thread</code> 验证八路 immutable reader；<code>std::sort</code> 固定 manifest 与 diagnostic 顺序。</p>
+<h3>2. 语言特性与惯用法</h3><p>RAII registration token/execution lease 防止 importer/resolver 执行期间被卸载；move semantics 发布 canonical bytes 与 payload；<code>enum class</code> 对 stage/backend/format/result fail closed；<code>[[nodiscard]]</code> 强制处理 validation/transaction 结果；typed soft reference 以模板约束 Asset type 而不持有 live object。</p>
+<h3>3. 平台相关与编译器行为</h3><p>Canonical output 不使用 locale-dependent stream formatting，路径不进入 identity/report。MSVC、Clang、GCC 共享相同 schema/model contract；yyjson warning 只在其 C translation unit 隔离。SPIR-V validation 直接检查 word/header/OpEntryPoint，因此不依赖某平台是否安装 Vulkan runtime。</p></section>
+
+<section id="s8"><h2>八、软件工程知识点</h2>
+<h3>1. 设计模式与架构模式</h3><p>Resolver/Importer 是 Strategy；yyjson 与 Renderer conversion 是 Adapter；AssetId/version/snapshot 是 Value Object；load/validate/select/convert 是 compiler pipeline；Registry batch 与 destination swap 是 Unit of Work/transaction；repository verifier 与 native suites形成 Contract Test。</p>
+<h3>2. 工程原则与方法论</h3><p>Dependency Inversion 让 Asset 只依赖 Core；Interface Segregation 使 Backend 只接收 RHI bytecode；YAGNI 推迟 cooker/cache/hot reload；Design by Contract 对 type、stage、entry、digest、profile 与 version 逐项验证；deterministic output 使 schema 可作为未来 DDC key；defensive parsing 限制损坏输入的时间与空间成本。</p>
+<h3>3. 测试策略与质量保障</h3><p>Valid/invalid corpus 做 equivalence partitioning；exact/first-above 做 boundary testing；golden digest 防 canonical 漂移；failure category 防 first-error 漂移；rollback tests覆盖 transaction；八路 reader 与 TSan 配合检查共享状态；repository verifier 是独立 Python inventory oracle；full regression 确保迁移没有改变 triangle/deferred 行为。</p></section>
+
+<section id="s9"><h2>九、渲染、引擎与图形 API 学习笔记</h2>
+<h3>1. 本期核心概念拆解</h3><ul>
+<li><strong>Shader Program Asset：</strong>pipeline 所需完整 stage/interface/permutation，而不是一个文件。</li>
+<li><strong>Target profile：</strong>比 backend 更窄的编译目标；同 Vulkan 仍可有不同 capability/profile。</li>
+<li><strong>Source manifest：</strong>类似 build provenance，证明 snapshot 精确消费了哪些版本。</li>
+<li><strong>Material flattening：</strong>把 authoring inheritance 转为 Renderer 可直接验证的单值对象。</li>
+<li><strong>Native bytecode boundary：</strong>Backend 创建 API module，但不决定 Asset identity、文件位置或 fallback policy。</li>
+</ul>
+<h3>2. 与 Vulkan / DX12 / Metal / OpenGL 的关系</h3><table><thead><tr><th>本项目概念</th><th>Vulkan</th><th>DX12</th><th>Metal / OpenGL</th></tr></thead><tbody>
+<tr><td>Shader payload</td><td>SPIR-V</td><td>DXIL</td><td>MSL/metallib 或 GLSL/program binary</td></tr>
+<tr><td>Program stage</td><td><code>VkPipelineShaderStageCreateInfo</code></td><td>pipeline state bytecode slots</td><td>MTLFunction / shader stage</td></tr>
+<tr><td>Interface binding</td><td>descriptor set/binding</td><td>root signature/register</td><td>argument index / binding point</td></tr>
+<tr><td>Renderer snapshot</td><td colspan="3">API-independent selected program/material facts；Backend adapter 才映射 native object。</td></tr>
+</tbody></table>
+<h3>3. 源码阅读路线</h3><ol><li><code>FShaderAsset.h</code>、<code>FMaterialAsset.h</code>、<code>FMaterialInstanceAsset.h</code>：先理解 public value model。</li><li><code>FMaterialShaderJsonCodec.cpp</code>：看 strict preflight 与 canonical publication。</li><li><code>FShaderProgramValidator.cpp</code> 与 <code>FShaderDependencyLoader.cpp</code>：看 Program 与 bytes 如何交叉验证。</li><li><code>FShaderPayloadSelector.cpp</code> 与 <code>FMaterialInstanceResolver.cpp</code>：看 selection 与 flattening。</li><li><code>FShaderAssetConversion.cpp</code>、<code>FMaterialAssetConversion.cpp</code>：看 Asset 如何进入 Renderer。</li><li><code>FStonerDemoApplication.cpp</code> 与 Vulkan native context：看 composition 如何消除 Backend path。</li><li><code>AssetMaterialShaderTests.cpp</code> 与 repository verifier：从 evidence 反推 contract。</li></ol>
+<h3>4. 自测问题</h3><ul><li>为什么 Shader Asset 应代表完整 Program 而不是单个 stage 文件？</li><li>为什么两个 digest 相同的 payload 仍可能需要不同 AssetId？</li><li>为什么 profile ambiguity 不应继续尝试低优先级 profile？</li><li>为什么 Registry replacement 不自动修改 Renderer snapshot？</li><li>为什么 source-only Program 是合法 Asset 却不是 render-ready？</li><li>为什么 complete manifest 必须包含 shader 与 texture dependency version？</li><li>如果 Backend 再次接收 shader path，会破坏哪些层级和验证？</li><li>Feature 025 如何利用本期 canonical bytes 与 manifest 建 derived key？</li></ul>
+</section></main></div></body></html>

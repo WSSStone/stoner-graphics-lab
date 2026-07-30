@@ -4,6 +4,7 @@
 #include "FDemoConfiguration.h"
 #include "FDemoDiagnostics.h"
 #include "FDemoValidationMonitor.h"
+#include "RHI/FRHIShaderModuleDesc.h"
 
 namespace Stoner::Demo
 {
@@ -92,6 +93,9 @@ private:
     Stoner::Core::uint32 CurrentDrawableHeight = 0;
     bool bFirstPresentRecorded = false;
     Stoner::Core::TArray<double> RecoveryDurationsMilliseconds;
+    Stoner::RHI::FRHIShaderModuleDesc TriangleVertexShader;
+    Stoner::RHI::FRHIShaderModuleDesc TriangleFragmentShader;
+    bool bTriangleShadersLoaded = false;
 };
 
 } // namespace Stoner::Demo

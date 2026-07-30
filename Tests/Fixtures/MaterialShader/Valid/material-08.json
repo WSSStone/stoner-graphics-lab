@@ -1,0 +1,39 @@
+{
+  "schema": "stoner.material",
+  "version": 1,
+  "id": {
+    "type": "Material",
+    "path": "Tests/Materials/M08"
+  },
+  "requiredExtensions": [],
+  "domain": "ui",
+  "blendMode": "additive",
+  "renderState": {
+    "depthTest": true,
+    "depthWrite": true,
+    "twoSided": true
+  },
+  "shader": {
+    "type": "ShaderProgram",
+    "path": "Tests/Shaders/Program08"
+  },
+  "permutationFlags": [],
+  "parameters": [
+    {
+      "name": "Roughness",
+      "type": "scalar",
+      "value": 0.5
+    },
+    {
+      "name": "Tint",
+      "type": "color",
+      "value": [
+        1,
+        0.5,
+        0.25,
+        1
+      ]
+    }
+  ],
+  "extensions": {}
+}

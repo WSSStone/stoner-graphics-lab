@@ -1,0 +1,21 @@
+{
+  "schema": "stoner.material-instance",
+  "version": 1,
+  "id": {
+    "type": "MaterialInstance",
+    "path": "Tests/Instances/I08"
+  },
+  "requiredExtensions": [],
+  "parent": {
+    "type": "MaterialInstance",
+    "path": "Tests/Instances/I00"
+  },
+  "overrides": [
+    {
+      "name": "Roughness",
+      "type": "scalar",
+      "value": 0.25
+    }
+  ],
+  "extensions": {}
+}

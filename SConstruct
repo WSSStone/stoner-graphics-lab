@@ -114,7 +114,7 @@ SConscript(
     duplicate=0,
 )
 
-# Application layer (depends on Renderer, Core)
+# Application layer (depends on Renderer, Asset, Core)
 SConscript(
     'Source/Application/SConscript',
     variant_dir=os.path.join(build_base, 'Application'),

@@ -1,0 +1,53 @@
+{
+  "schema": "stoner.shader-program",
+  "version": 1,
+  "id": {
+    "type": "ShaderProgram",
+    "path": "Tests/Shaders/Program09"
+  },
+  "requiredExtensions": [],
+  "programKind": "graphics",
+  "stages": [
+    {
+      "stage": "vertex",
+      "entryPoint": "main",
+      "language": "glsl",
+      "source": {
+        "asset": {
+          "type": "ShaderSource",
+          "path": "Tests/Shaders/Program09",
+          "subresource": "source.primary"
+        },
+        "locator": "Program09.glsl",
+        "digest": "sha256:166c4afb55b29b7d6ddb49d1716566d8eaefe0987abaf2d2ba29cb61afbe6d89"
+      }
+    },
+    {
+      "stage": "fragment",
+      "entryPoint": "main",
+      "language": "glsl",
+      "source": {
+        "asset": {
+          "type": "ShaderSource",
+          "path": "Tests/Shaders/Program09",
+          "subresource": "source.fragment"
+        },
+        "locator": "Program09.frag",
+        "digest": "sha256:166c4afb55b29b7d6ddb49d1716566d8eaefe0987abaf2d2ba29cb61afbe6d89"
+      }
+    }
+  ],
+  "allowedPermutationFlags": [],
+  "requiredParameters": [
+    {
+      "name": "BaseColor",
+      "type": "color"
+    }
+  ],
+  "interface": {
+    "bindings": [],
+    "constantRanges": []
+  },
+  "variants": [],
+  "extensions": {}
+}

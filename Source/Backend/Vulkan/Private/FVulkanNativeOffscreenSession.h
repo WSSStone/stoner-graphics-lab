@@ -7,6 +7,19 @@
 namespace Stoner::Backend::Vulkan
 {
 
+struct FVulkanDeferredShaderSet
+{
+    Stoner::RHI::FRHIShaderModuleDesc SurfaceVertex;
+    Stoner::RHI::FRHIShaderModuleDesc SurfaceFragment;
+    Stoner::RHI::FRHIShaderModuleDesc FullscreenVertex;
+    Stoner::RHI::FRHIShaderModuleDesc DirectionalFragment;
+    Stoner::RHI::FRHIShaderModuleDesc PointVertex;
+    Stoner::RHI::FRHIShaderModuleDesc PointFragment;
+    Stoner::RHI::FRHIShaderModuleDesc SpotVertex;
+    Stoner::RHI::FRHIShaderModuleDesc SpotFragment;
+    Stoner::RHI::FRHIShaderModuleDesc CompositionFragment;
+};
+
 class FVulkanNativeOffscreenSession
 {
 public:
@@ -15,7 +28,8 @@ public:
     explicit FVulkanNativeOffscreenSession(FVulkanNativeContext& InContext) noexcept;
     ~FVulkanNativeOffscreenSession();
 
-    [[nodiscard]] Stoner::RHI::ERHIResult Execute(const Stoner::Core::FString& ShaderDirectory,
+    [[nodiscard]] Stoner::RHI::ERHIResult Execute(
+        const FVulkanDeferredShaderSet& Shaders,
         FVulkanDeferredValidationReport& OutReport,
         EVulkanDeferredFailurePoint FailurePoint = EVulkanDeferredFailurePoint::None);
     [[nodiscard]] Stoner::RHI::ERHIResult Shutdown() noexcept;

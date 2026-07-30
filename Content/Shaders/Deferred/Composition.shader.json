@@ -1,0 +1,19 @@
+{
+  "schema": "stoner.shader-program",
+  "version": 1,
+  "id": {"type": "ShaderProgram", "path": "Engine/Shaders/Deferred/Composition"},
+  "requiredExtensions": [],
+  "programKind": "graphics",
+  "stages": [
+    {"stage": "vertex", "entryPoint": "main", "language": "glsl", "source": {"asset": {"type": "ShaderSource", "path": "Engine/Shaders/Deferred/Fullscreen", "subresource": "source.vertex"}, "locator": "Fullscreen.vert", "digest": "sha256:dbc18587f05c7e04946f302019d40fc5e625ba9474f4a5dd295169aa5f0ac21a"}},
+    {"stage": "fragment", "entryPoint": "main", "language": "glsl", "source": {"asset": {"type": "ShaderSource", "path": "Engine/Shaders/Deferred/Composition", "subresource": "source.fragment"}, "locator": "Composition.frag", "digest": "sha256:317fce7c7155fc59ea3823e3b32a5ccc7b36fd083e48cdf286a6e8ba6e8b3910"}}
+  ],
+  "allowedPermutationFlags": [],
+  "requiredParameters": [],
+  "interface": {"bindings": [], "constantRanges": []},
+  "variants": [{"name": "default", "flags": [], "payloads": [
+    {"backend": "vulkan", "profile": "vulkan-1.3", "format": "spirv", "stage": "vertex", "entryPoint": "main", "asset": {"type": "ShaderPayload", "path": "Engine/Shaders/Deferred/Fullscreen", "subresource": "payload.vulkan.vertex"}, "locator": "Fullscreen.vert.spv", "digest": "sha256:443542d79eaac5c1466cd7feb339696ee70e77e467c8adb9897d9d7d3d1ebe6d", "producer": "Stoner.CheckedInSpirv", "producerVersion": "023-v1"},
+    {"backend": "vulkan", "profile": "vulkan-1.3", "format": "spirv", "stage": "fragment", "entryPoint": "main", "asset": {"type": "ShaderPayload", "path": "Engine/Shaders/Deferred/Composition", "subresource": "payload.vulkan.fragment"}, "locator": "Composition.frag.spv", "digest": "sha256:2483304cd3160a94f4bb1dd55ecbf33359646c8913edcdcfac902d7d33d45a96", "producer": "Stoner.CheckedInSpirv", "producerVersion": "023-v1"}
+  ]}],
+  "extensions": {}
+}

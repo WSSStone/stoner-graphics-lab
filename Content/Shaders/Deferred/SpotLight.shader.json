@@ -1,0 +1,19 @@
+{
+  "schema": "stoner.shader-program",
+  "version": 1,
+  "id": {"type": "ShaderProgram", "path": "Engine/Shaders/Deferred/SpotLight"},
+  "requiredExtensions": [],
+  "programKind": "graphics",
+  "stages": [
+    {"stage": "vertex", "entryPoint": "main", "language": "glsl", "source": {"asset": {"type": "ShaderSource", "path": "Engine/Shaders/Deferred/SpotLight", "subresource": "source.vertex"}, "locator": "SpotLight.vert", "digest": "sha256:09d49a826367a74a4f7ddb6a3fd91f991872760bb0da00ec7fef10996887489b"}},
+    {"stage": "fragment", "entryPoint": "main", "language": "glsl", "source": {"asset": {"type": "ShaderSource", "path": "Engine/Shaders/Deferred/SpotLight", "subresource": "source.fragment"}, "locator": "SpotLight.frag", "digest": "sha256:3cbd61b343fba5b65338f570e24fe0cad4cae256a54d072c60ff6243715dfbc6"}}
+  ],
+  "allowedPermutationFlags": [],
+  "requiredParameters": [],
+  "interface": {"bindings": [], "constantRanges": []},
+  "variants": [{"name": "default", "flags": [], "payloads": [
+    {"backend": "vulkan", "profile": "vulkan-1.3", "format": "spirv", "stage": "vertex", "entryPoint": "main", "asset": {"type": "ShaderPayload", "path": "Engine/Shaders/Deferred/SpotLight", "subresource": "payload.vulkan.vertex"}, "locator": "SpotLight.vert.spv", "digest": "sha256:4bd91aa8469b7c02f2185e792a91e231cb970dbff3ce17adf95f81b202ee24ef", "producer": "Stoner.CheckedInSpirv", "producerVersion": "023-v1"},
+    {"backend": "vulkan", "profile": "vulkan-1.3", "format": "spirv", "stage": "fragment", "entryPoint": "main", "asset": {"type": "ShaderPayload", "path": "Engine/Shaders/Deferred/SpotLight", "subresource": "payload.vulkan.fragment"}, "locator": "SpotLight.frag.spv", "digest": "sha256:3d8d2d5462e004579dbf9d2a9f20a12176a0af8e6738642d60bb3773d98011f1", "producer": "Stoner.CheckedInSpirv", "producerVersion": "023-v1"}
+  ]}],
+  "extensions": {}
+}

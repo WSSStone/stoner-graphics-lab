@@ -36,7 +36,7 @@ struct FDemoConfiguration
     double MaxMemoryGrowthPercent = 0.0;
     Stoner::Core::uint32 MaxFramesInFlight = 2;
     bool bEnableValidationLayers = false;
-    Stoner::Core::FString ShaderDirectory = "Demo/StonerDemo/Shaders";
+    Stoner::Core::FString ShaderDirectory = "Content/Shaders/Triangle";
     Stoner::Core::FString ValidationOutputPath = "Build/triangle-demo-validation.txt";
     Stoner::Core::FString EvidenceRunId = "local";
 
