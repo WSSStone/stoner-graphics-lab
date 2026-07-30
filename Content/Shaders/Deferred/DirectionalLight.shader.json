@@ -1,0 +1,19 @@
+{
+  "schema": "stoner.shader-program",
+  "version": 1,
+  "id": {"type": "ShaderProgram", "path": "Engine/Shaders/Deferred/DirectionalLight"},
+  "requiredExtensions": [],
+  "programKind": "graphics",
+  "stages": [
+    {"stage": "vertex", "entryPoint": "main", "language": "glsl", "source": {"asset": {"type": "ShaderSource", "path": "Engine/Shaders/Deferred/Fullscreen", "subresource": "source.vertex"}, "locator": "Fullscreen.vert", "digest": "sha256:dbc18587f05c7e04946f302019d40fc5e625ba9474f4a5dd295169aa5f0ac21a"}},
+    {"stage": "fragment", "entryPoint": "main", "language": "glsl", "source": {"asset": {"type": "ShaderSource", "path": "Engine/Shaders/Deferred/DirectionalLight", "subresource": "source.fragment"}, "locator": "DirectionalLight.frag", "digest": "sha256:92b46466464f0d0d36e97b27c67f69ab8bf961faebfe81b20d5f357a508b16c9"}}
+  ],
+  "allowedPermutationFlags": [],
+  "requiredParameters": [],
+  "interface": {"bindings": [], "constantRanges": []},
+  "variants": [{"name": "default", "flags": [], "payloads": [
+    {"backend": "vulkan", "profile": "vulkan-1.3", "format": "spirv", "stage": "vertex", "entryPoint": "main", "asset": {"type": "ShaderPayload", "path": "Engine/Shaders/Deferred/Fullscreen", "subresource": "payload.vulkan.vertex"}, "locator": "Fullscreen.vert.spv", "digest": "sha256:443542d79eaac5c1466cd7feb339696ee70e77e467c8adb9897d9d7d3d1ebe6d", "producer": "Stoner.CheckedInSpirv", "producerVersion": "023-v1"},
+    {"backend": "vulkan", "profile": "vulkan-1.3", "format": "spirv", "stage": "fragment", "entryPoint": "main", "asset": {"type": "ShaderPayload", "path": "Engine/Shaders/Deferred/DirectionalLight", "subresource": "payload.vulkan.fragment"}, "locator": "DirectionalLight.frag.spv", "digest": "sha256:d9e41d68001282655a8d1c595d40d1b819e2bba2ec619689346e35d4cd3574ec", "producer": "Stoner.CheckedInSpirv", "producerVersion": "023-v1"}
+  ]}],
+  "extensions": {}
+}

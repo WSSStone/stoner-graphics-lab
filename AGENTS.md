@@ -1,9 +1,9 @@
 <!-- SPECKIT START -->
-Feature 022 Asset: KTX2 Cooking & Compression is complete. The next roadmap
-phase is Feature 023 Asset: Material & Shader Assets; no Feature 023 spec exists
+Feature 023 Asset: Material & Shader Assets is complete. The next roadmap phase
+is Feature 024 Asset: Static Mesh & Model Pipeline; no Feature 024 spec exists
 until the next Speckit Specify workflow creates it. Read `doc/roadmap.md` for
-program context and `specs/022-ktx2-cooking-compression/` for the latest
-completed feature evidence.
+program context and `specs/023-material-shader-assets/` plus
+`Validation/023/` for the latest completed feature evidence.
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -37,6 +37,8 @@ completed feature evidence.
 - Process-local immutable CPU image/texture payloads, mip chains, diagnostics, and checked-in fixtures; no database, manifest, cooked cache, or GPU handle in Asset (021-image-texture-assets)
 - C++20 with traditional public/private headers and sources; C for private WAMR integration; no C++20 Modules + Existing Core, Asset, RHI, Renderer, Vulkan Backend; pinned private KTX-Software 4.4.2; pinned WAMR 2.4.5 interpreter; checked-in versioned encoder `.wasm`; SCons 4.10.1 (022-ktx2-cooking-compression)
 - Immutable in-memory KTX2 bytes and request-scoped transcode payloads; checked-in fixtures and golden digests; no manifest, derived-data cache, package, database, or cross-request cache (022-ktx2-cooking-compression)
+- C++20 with traditional public/private headers and sources; C for the private yyjson translation unit; no C++20 Modules + Existing Core and Asset contracts; Renderer/RHI/Application/Demo/Vulkan integration boundaries; pinned private yyjson 0.12.0; existing checked-in GLSL/SPIR-V; SCons 4.10.1 (023-material-shader-assets)
+- Versioned canonical UTF-8 JSON authoring definitions plus separate repository-owned GLSL/SPIR-V dependency files under `Content/`; immutable in-memory Asset payloads and Renderer snapshots; no cooked binary, manifest, DDC, package, database, or runtime cache (023-material-shader-assets)
 
 ## Recent Changes
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system
@@ -54,6 +56,7 @@ completed feature evidence.
 - 018-triangle-demo-integration: Implemented a standalone StonerDemo composition root, explicit deterministic/native runtime modes, real Renderer forward-plan execution through backend-neutral native RHI bindings, two rotating Vulkan frame slots with image-indexed presentation synchronization, native offscreen Vulkan, GLFW surface/swapchain presentation, bounded endurance validation, formal Windows/macOS visible evidence, and passing three-platform CI with Linux Lavapipe native-headless validation
 - 019-deferred-rendering-pipeline: Implemented a sibling deferred Renderer strategy with three color surface targets plus depth, normalized world-space normals, StandardZ/ReversedZ policies, directional/fullscreen and instanced point/spot volumes, render-graph/RHI execution, uncapped deterministic light handling, diagnostics, real mapped Vulkan attachment readback, runtime-independent and native failure injection, four-tier comparison artifacts, forward coexistence, and passing Windows/macOS/Linux CI with Linux Lavapipe evidence
 - 020-asset-core: Implemented the Core-only Asset layer, NFC logical identity, SHA-256 version evidence, metadata/dependency registry with atomic batches and concurrent snapshots, deterministic resolver/importer dispatch, scoped extension registrations with execution leases, focused test-suite selection, architecture enforcement, diagnostics, inspection, and opt-in registry benchmark; Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan passed in CI run 30347149237
+- 023-material-shader-assets: Implemented versioned Material/Shader/Instance Assets, bounded canonical JSON, typed GLSL/SPIR-V dependencies, ordered target selection, complete source-version manifests, immutable Renderer snapshots, repository shader migration, bytecode-only native boundaries, deterministic corpus evidence, and passing Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan validation in CI run 30553736883
 
 ## Git Commit Style
 - Commit messages must start with a conventional type prefix such as `feat`, `docs`, `fix`, `chore`, `refactor`, `test`, or `build`.

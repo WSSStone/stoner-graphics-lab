@@ -95,6 +95,16 @@ FKTX2TextureRealizationResult Failure(
     case EAssetResult::CorruptPayload:
     case EAssetResult::CookFailure:
     case EAssetResult::TranscodeFailure:
+    case EAssetResult::InvalidDefinition:
+    case EAssetResult::UnsupportedSchema:
+    case EAssetResult::UnknownRequiredExtension:
+    case EAssetResult::DefinitionLimitExceeded:
+    case EAssetResult::DependencyMismatch:
+    case EAssetResult::InvalidShaderProgram:
+    case EAssetResult::TargetUnavailable:
+    case EAssetResult::AmbiguousTarget:
+    case EAssetResult::InvalidMaterialAsset:
+    case EAssetResult::InvalidInstanceChain:
         return ERHIResult::Failed;
     }
     return ERHIResult::Failed;

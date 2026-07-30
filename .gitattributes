@@ -1,1 +1,8 @@
 ThirdParty/** text=auto eol=lf
+Content/Materials/**/*.json text eol=lf
+Content/Shaders/**/*.json text eol=lf
+Content/Shaders/**/*.vert text eol=lf
+Content/Shaders/**/*.frag text eol=lf
+Content/Shaders/**/*.spv binary
+Tests/Fixtures/MaterialShader/Golden/*.json text eol=lf
+Tests/Fixtures/MaterialShader/Golden/*.txt text eol=lf

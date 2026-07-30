@@ -4,6 +4,7 @@
 #include "Core/FPlatformWindow.h"
 
 #include <memory>
+#include <span>
 
 namespace Stoner::Backend::Vulkan
 {
@@ -112,10 +113,10 @@ public:
     [[nodiscard]] Stoner::RHI::ERHIResult Initialize(Stoner::RHI::ERHIRuntimeMode Mode,
         const Stoner::Core::FPlatformWindow& PlatformWindow = {});
     [[nodiscard]] Stoner::RHI::ERHIResult ExecuteOffscreenTriangle(
-        const Stoner::Core::FString& VertexShaderPath,
-        const Stoner::Core::FString& FragmentShaderPath);
+        const Stoner::RHI::FRHIShaderModuleDesc& VertexShader,
+        const Stoner::RHI::FRHIShaderModuleDesc& FragmentShader);
     [[nodiscard]] Stoner::RHI::ERHIResult ExecuteDeferredOffscreenValidation(
-        const Stoner::Core::FString& ShaderDirectory,
+        std::span<const Stoner::RHI::FRHIShaderModuleDesc> Shaders,
         FVulkanDeferredValidationReport& OutReport,
         EVulkanDeferredFailurePoint FailurePoint = EVulkanDeferredFailurePoint::None);
     [[nodiscard]] static FVulkanDeferredValidationReport
@@ -124,8 +125,8 @@ public:
     RunVisibleFrameFailureLifecycleValidation(
         EVulkanVisibleFrameFailurePoint FailurePoint) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult PrepareVisibleTriangle(
-        const Stoner::Core::FString& VertexShaderPath,
-        const Stoner::Core::FString& FragmentShaderPath,
+        const Stoner::RHI::FRHIShaderModuleDesc& VertexShader,
+        const Stoner::RHI::FRHIShaderModuleDesc& FragmentShader,
         Stoner::Core::uint32 Width,
         Stoner::Core::uint32 Height);
     [[nodiscard]] Stoner::RHI::ERHIResult AcquireVisibleFrame(FVulkanNativeFrameBindings& OutBindings);

@@ -1,0 +1,21 @@
+{
+  "schema": "stoner.shader-program",
+  "version": 1,
+  "id": {"type": "ShaderProgram", "path": "Engine/Shaders/Triangle"},
+  "requiredExtensions": [],
+  "programKind": "graphics",
+  "stages": [
+    {"stage": "vertex", "entryPoint": "main", "language": "glsl", "source": {"asset": {"type": "ShaderSource", "path": "Engine/Shaders/Triangle", "subresource": "source.vertex"}, "locator": "Triangle.vert", "digest": "sha256:18659d56aadbd6c69eec5a11b32ff0de7741384de284eea3e627fe83f23a094c"}},
+    {"stage": "fragment", "entryPoint": "main", "language": "glsl", "source": {"asset": {"type": "ShaderSource", "path": "Engine/Shaders/Triangle", "subresource": "source.fragment"}, "locator": "Triangle.frag", "digest": "sha256:127dff83a3f59330f8e15438ffdff64196f896705311b8991d0966f896422f84"}}
+  ],
+  "allowedPermutationFlags": [],
+  "requiredParameters": [],
+  "interface": {"bindings": [], "constantRanges": []},
+  "variants": [
+    {"name": "default", "flags": [], "payloads": [
+      {"backend": "vulkan", "profile": "vulkan-1.3", "format": "spirv", "stage": "vertex", "entryPoint": "main", "asset": {"type": "ShaderPayload", "path": "Engine/Shaders/Triangle", "subresource": "payload.vulkan.vertex"}, "locator": "Triangle.vert.spv", "digest": "sha256:1f26aeab6dfbb2414f62c6be313fd9b6d37b7e6b142ef02fd863a3b3e901cda1", "producer": "Stoner.CheckedInSpirv", "producerVersion": "023-v1"},
+      {"backend": "vulkan", "profile": "vulkan-1.3", "format": "spirv", "stage": "fragment", "entryPoint": "main", "asset": {"type": "ShaderPayload", "path": "Engine/Shaders/Triangle", "subresource": "payload.vulkan.fragment"}, "locator": "Triangle.frag.spv", "digest": "sha256:68b4535277d4f77dfccd32de133084b73be7e41c5b554ed19633b41a6a60c85c", "producer": "Stoner.CheckedInSpirv", "producerVersion": "023-v1"}
+    ]}
+  ],
+  "extensions": {}
+}

@@ -4,8 +4,9 @@
 #include "FStonerDemoApplication.h"
 #include "FDemoValidationMonitor.h"
 
-#include <iostream>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
 #include <string_view>
 
 namespace
@@ -39,7 +40,7 @@ void TestConfiguration(FTriangleDemoIntegrationTestResult& Result)
         "Triangle demo requires ten post-warmup memory samples");
     Record(Result, Parse({"StonerDemo", "--mode", "headless", "--frames", "40", "--warmup-frames", "0",
         "--memory-sample-interval", "4", "--max-memory-growth-mib", "32", "--max-memory-growth-percent", "7.5",
-        "--width", "800", "--height", "600", "--frames-in-flight", "3", "--shader-dir", "Demo/StonerDemo/Shaders",
+        "--width", "800", "--height", "600", "--frames-in-flight", "3", "--shader-dir", "Content/Shaders/Triangle",
         "--validation-output", "Build/custom-report.txt", "--enable-validation"}, Config, Reason) == EDemoExitCode::Success &&
         Config.ClientWidth == 800 && Config.ClientHeight == 600 && Config.MaxFramesInFlight == 3 && Config.bEnableValidationLayers,
         "Triangle demo parses every canonical CLI option");
@@ -107,11 +108,52 @@ void TestInitializationContractAndShaderStages(FTriangleDemoIntegrationTestResul
     const std::filesystem::path InvalidDirectory = "Build/Tests/invalid-stage-shaders";
     std::error_code Error;
     std::filesystem::create_directories(InvalidDirectory, Error);
-    std::filesystem::copy_file("Demo/StonerDemo/Shaders/Triangle.frag.spv", InvalidDirectory / "Triangle.vert.spv",
+    for (const char* File : {
+             "Triangle.shader.json",
+             "Triangle.vert",
+             "Triangle.frag"})
+    {
+        std::filesystem::copy_file(
+            std::filesystem::path("Content/Shaders/Triangle") / File,
+            InvalidDirectory / File,
+            std::filesystem::copy_options::overwrite_existing,
+            Error);
+        Error.clear();
+    }
+    std::filesystem::copy_file("Content/Shaders/Triangle/Triangle.frag.spv", InvalidDirectory / "Triangle.vert.spv",
         std::filesystem::copy_options::overwrite_existing, Error);
     Error.clear();
-    std::filesystem::copy_file("Demo/StonerDemo/Shaders/Triangle.vert.spv", InvalidDirectory / "Triangle.frag.spv",
+    std::filesystem::copy_file("Content/Shaders/Triangle/Triangle.vert.spv", InvalidDirectory / "Triangle.frag.spv",
         std::filesystem::copy_options::overwrite_existing, Error);
+    {
+        std::ifstream Input(
+            InvalidDirectory / "Triangle.shader.json",
+            std::ios::binary);
+        std::string Definition{
+            std::istreambuf_iterator<char>(Input),
+            std::istreambuf_iterator<char>()};
+        const std::string VertexDigest =
+            "1f26aeab6dfbb2414f62c6be313fd9b6d37b7e6b142ef02fd863a3b3e901cda1";
+        const std::string FragmentDigest =
+            "68b4535277d4f77dfccd32de133084b73be7e41c5b554ed19633b41a6a60c85c";
+        const std::string Marker(VertexDigest.size(), 'x');
+        Definition.replace(
+            Definition.find(VertexDigest),
+            VertexDigest.size(),
+            Marker);
+        Definition.replace(
+            Definition.find(FragmentDigest),
+            FragmentDigest.size(),
+            VertexDigest);
+        Definition.replace(
+            Definition.find(Marker),
+            Marker.size(),
+            FragmentDigest);
+        std::ofstream Output(
+            InvalidDirectory / "Triangle.shader.json",
+            std::ios::binary | std::ios::trunc);
+        Output << Definition;
+    }
     FDemoConfiguration Invalid = Config;
     Invalid.ShaderDirectory = InvalidDirectory.string().c_str();
     FStonerDemoApplication WrongStages(Invalid);

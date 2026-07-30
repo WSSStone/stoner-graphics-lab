@@ -40,6 +40,10 @@ APPROVED_THIRD_PARTY_INCLUDES = {
         "Source/Asset/Private/FBasisTextureTranscoder.cpp",
         "ktx.h",
     ),
+    (
+        "Source/Asset/Private/FMaterialShaderJsonCodec.cpp",
+        "../../../ThirdParty/yyjson/yyjson.h",
+    ),
 }
 
 
@@ -73,6 +77,14 @@ def verify(root: pathlib.Path) -> list[str]:
                     f"{relative}: {include} may only be included by an "
                     "approved private adapter"
                 )
+            if "yyjson" in include.lower() and (
+                relative,
+                include,
+            ) not in APPROVED_THIRD_PARTY_INCLUDES:
+                errors.append(
+                    f"{relative}: yyjson may only be included by "
+                    "FMaterialShaderJsonCodec.cpp"
+                )
 
     core_public = root / "Source" / "Core" / "Public"
     for path in sorted(core_public.rglob("*.h")):
@@ -101,6 +113,29 @@ def verify(root: pathlib.Path) -> list[str]:
             "include search path because VERSION shadows standard <version> "
             "on case-insensitive filesystems"
         )
+    if "'ThirdParty/yyjson'" in sconscript:
+        errors.append(
+            "Source/Asset/SConscript: do not expose the yyjson directory as "
+            "an include path because VERSION shadows standard <version>"
+        )
+    if "ThirdParty/yyjson/yyjson.c" not in sconscript:
+        errors.append(
+            "Source/Asset/SConscript: yyjson must compile as a private C source"
+        )
+
+    backend_root = root / "Source" / "Backend"
+    for path in sorted(backend_root.rglob("*")):
+        if not path.is_file() or path.suffix not in {".h", ".cpp"}:
+            continue
+        for include in re.findall(
+            r'^\s*#\s*include\s*[<"]([^>"]+)[>"]',
+            path.read_text(encoding="utf-8"),
+            re.MULTILINE,
+        ):
+            if include.startswith("Asset/"):
+                errors.append(
+                    f"{path.relative_to(root)}: Backend must not include Asset"
+                )
 
     core_sconscript = (root / "Source" / "Core" / "SConscript").read_text(encoding="utf-8")
     if "ThirdParty/utf8proc/utf8proc.c" not in core_sconscript:

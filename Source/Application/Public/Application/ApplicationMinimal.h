@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Renderer/RendererMinimal.h"
-
 #include "Application/EKey.h"
 #include "Application/EMouseButton.h"
 #include "Application/ESceneComponentType.h"

@@ -1,9 +1,9 @@
 # Stoner Graphics Lab - Engine Development Roadmap
 
-> **Version**: 2.1.3 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-30 | **Status**: Active
+> **Version**: 2.1.5 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-30 | **Status**: Active
 > **Constitution**: v1.4.0
 > **Numbering Rule**: Every runtime phase number equals its Speckit feature number. Feature 002 is this roadmap meta-feature.
-> **Completed Baseline**: Features 001 and 003 through 022 are implemented and verified.
+> **Completed Baseline**: Features 001 and 003 through 023 are implemented and verified.
 
 ---
 
@@ -64,10 +64,11 @@
 Stoner Graphics Lab is a C++20 cross-platform graphics engine developed through
 one Speckit cycle per roadmap phase. Features 003 through 019 established Core,
 RHI, Vulkan, Renderer, Application, visible presentation, and sibling forward
-and deferred paths. The next critical gap is content flow: the engine can create
-GPU resources and refer to meshes or textures abstractly, but it cannot yet
-turn source files into stable CPU assets, cooked payloads, or managed runtime
-objects.
+and deferred paths. Features 020 through 023 establish the CPU Asset foundation:
+stable identity/registry, source images and textures, KTX2 cooking, and
+versioned Material/Shader definitions with Renderer snapshots. The next
+critical gap is canonical static mesh/model ingestion before offline packaging
+and managed runtime loading.
 
 Roadmap 2.1 adds Asset as an independent runtime layer. It separates source
 interchange, cooked delivery, runtime management, and GPU realization so that
@@ -98,15 +99,15 @@ through screen-space, derived-data, and hybrid integration milestones.
 - [OpenUSD Asset Resolution](https://openusd.org/release/api/ar_page_front.html) informs logical identifiers and replaceable resolver strategies; USD composition itself remains a later Scene/Prefab concern.
 - [Unreal Asset Management](https://dev.epicgames.com/documentation/en-us/unreal-engine/asset-management-in-unreal-engine) supports separating unloaded metadata, soft references, asynchronous loading, and residency ownership.
 
-### Current State (Feature 022 Complete)
+### Current State (Feature 023 Complete)
 
 | Ownership Area | Status | Current Capability |
 |---|---|---|
 | Core | Done | Types, memory, math, logging, assertions, filesystem/process/time/window handles |
-| Asset | Done through KTX2 | Identity, registry, source images, semantic mips, deterministic KTX2 ETC1S/UASTC cook, bounded load, and request-scoped transcode |
+| Asset | Done through Material/Shader Assets | Identity, registry, image/texture/KTX2 data, versioned Material/Shader definitions, typed dependencies, deterministic target selection, and bounded canonical loading |
 | RHI | KTX2 extension done | Device/resources plus total compressed-format, block-footprint, upload, and per-format usage contracts |
 | Backend/Vulkan | KTX2 extension done | Native/fallback resources plus compressed format queries, image creation, upload, and readback |
-| Renderer | Done through Deferred | Render Graph, material/shader records, forward and deferred execution |
+| Renderer | Feature 023 adapter done | Render Graph, forward/deferred execution, immutable Asset-to-Renderer material/shader snapshots, and transactional shader registration |
 | Application | Done foundation | Window/input, ECS scene organization, visible triangle integration |
 | Additional Backends | Planned | Metal, DX12, desktop OpenGL, and GLES follow the Asset-backed shader path |
 
@@ -181,7 +182,7 @@ depend on Tools.
 | 020 | Asset Core, Identity & Registry | Asset | 003, 006 | L | Yes | ✅ Done |
 | 021 | Image & Texture Foundation | Asset | 008, 020 | L | Yes | ✅ Done |
 | 022 | KTX2 Cooking & Compression | Asset | 010, 021 | XL | Yes | ✅ Done |
-| 023 | Material & Shader Assets | Asset | 014, 020, 021 | XL | Yes | ⬜ Todo |
+| 023 | Material & Shader Assets | Asset | 014, 020, 021 | XL | Yes | ✅ Done |
 | 024 | Static Mesh & Model Pipeline | Asset | 004, 008, 020, 021, 023 | XL | Yes | ⬜ Todo |
 | 025 | Cooker, Manifest & Derived Data | Asset | 021, 022, 023, 024 | XL | Yes | ⬜ Todo |
 | 026 | Runtime Asset Manager | Asset | 020, 025 | XL | Yes | ⬜ Todo |
@@ -1351,11 +1352,12 @@ Meshlets:
 5. Run `/speckit.implement`, validate locally and in required CI, and retain evidence.
 6. Mark the phase `✅ Done`, update Current State, dependency styling if used, and this change log.
 
-Feature 022 Asset: KTX2 Cooking & Compression is complete. Its local macOS
-evidence and GitHub Actions Windows/macOS/Linux Debug, strict Release,
-ASan/UBSan, ThreadSanitizer, independent-validator, digest-comparison, and
-conditional Lavapipe native gates passed. The next phase is **023 Asset:
-Material & Shader Assets**.
+Feature 023 Asset: Material & Shader Assets is complete. Local macOS validation
+and GitHub Actions run 30553736883 passed Windows/macOS/Linux Debug and strict
+Release, full regression, identical 40-valid/40-invalid corpus digests, the
+six-program and 22-dependency repository inventory, Linux ASan/UBSan,
+ThreadSanitizer, and applicable Lavapipe native gates. The next phase is
+**024 Asset: Static Mesh & Model Pipeline**.
 
 ### Status Legend
 
@@ -1372,6 +1374,8 @@ Material & Shader Assets**.
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-07-30 | 2.1.5 | Marked Feature 023 complete after GitHub Actions run 30553736883 passed Windows/macOS/Linux Debug and Release, exact cross-platform corpus/repository evidence, full regression, Linux sanitizers, and applicable Lavapipe native gates; activated Phase 024 as the next roadmap target. |
+| 2026-07-30 | 2.1.4 | Recorded Feature 023 local implementation, shader-content migration, deterministic schema/Renderer evidence, and configured cross-platform gates; retained In Progress status pending remote CI. |
 | 2026-07-30 | 2.1.3 | Marked Feature 022 complete after GitHub Actions run 30509436643 passed Windows/macOS/Linux Debug and Release, Linux sanitizers, deterministic digest comparison, independent validation, and conditional Lavapipe native evidence; activated Phase 023 as the next roadmap target. |
 | 2026-07-29 | 2.1.2 | Recorded Feature 022 implementation and local macOS validation without marking the phase complete before Windows/Linux, sanitizer, and Linux native CI evidence. |
 | 2026-07-29 | 2.1.1 | Marked Features 020 and 021 complete, activated Feature 022, and synchronized the current Asset capability summary after Feature 021 validation. |

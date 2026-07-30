@@ -11,7 +11,10 @@
 - Feature 020 建立 Asset -> Core 的 CPU-only identity/registry/extension 层。
 - Feature 021 在 Asset 内建立 Image/Texture CPU payload、source import 和 semantic mip；Renderer 是 Asset-to-RHI texture realization 的唯一适配层；RHI 只定义 portable format/upload contract；Vulkan Backend 独占 native image、memory、staging、barrier、fence 与 readback。
 - Feature 022 在 Asset 内建立 immutable KTX2 artifact、确定性 ETC1S/UASTC cook、bounded inspect/load 和 request-scoped transcode；Renderer 独占 target profile selection 与 Asset-to-RHI compressed texture realization；RHI 是 block geometry、footprint 和 per-format usage capability 的唯一 portable source of truth；Vulkan Backend 负责查询真实 format feature，并独占 compressed image、upload 与 readback。
+- Feature 023 在 Asset 内建立版本化 `FShaderAsset`、`FMaterialAsset`、`FMaterialInstanceAsset`、typed source/payload dependency、bounded canonical JSON 与完整 source-version manifest；Renderer 只接收已解析 Asset value 并生成深拷贝 immutable snapshot；Backend 只接收 RHI shader module bytecode description，不读取路径，也不依赖 Asset。
+- Feature 023 将仓库 Shader 统一迁移到 `Content/Shaders`：六个完整 Program definition 管理 11 个 GLSL source 与 11 个 SPIR-V payload。Program identity、stage identity 与 payload digest 分离；相同 bytes 不会合并不同逻辑 AssetId。
 - KTX-Software、Basis encoder 和 WAMR 都是 Asset-private implementation dependency。Authoritative encoder 是仓库内固定版本的 WebAssembly module；host 侧不得用 native encoder 输出替代 canonical bytes。独立 Khronos validator 仍启用 warnings-as-errors，只允许完整且无重复的九个 `stoner.*` metadata key 对应 diagnostic 7010，其他 warning/error 一律失败。
+- yyjson 0.12.0 是 Feature 023 的 Asset-private C translation unit。public header 不暴露 yyjson 类型；JSON 在 publication 前被复制为项目拥有的 immutable C++ value，所有 schema count、text、depth 与 dependency byte budget 都先受 `FMaterialShaderAssetLimits` 约束。
 - Asset production code不得依赖 RHI、Renderer、Application、Backend、Tools、图形 API 或第三方 decoder public header。RGB/RG GPU format expansion 属于 Renderer，不得回流到 Asset payload。
 
 总体写作要求：

@@ -1,0 +1,9 @@
+feature=023
+valid=40
+invalid=40
+determinism_runs=20
+reader_count=8
+canonical_sha256=52928a4e1908b35c0e2e468fb623d7fb569b57f9727a4c169338cdc7001a7177
+elapsed_ms_non_gating=13
+os=macos
+compiler=clang

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AssetKTX2Tests.h"
+#include "AssetMaterialShaderTests.h"
 
 struct FAssetTestResult
 {
@@ -9,4 +10,5 @@ struct FAssetTestResult
 };
 
 [[nodiscard]] FAssetTestResult RunAssetTests(
-    const FAssetKTX2TestOptions& Options = {});
+    const FAssetKTX2TestOptions& Options = {},
+    const FAssetMaterialShaderTestOptions& MaterialShaderOptions = {});

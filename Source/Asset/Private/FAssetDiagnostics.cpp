@@ -27,6 +27,10 @@ const char* ToText(EAssetStage Stage)
     case EAssetStage::Mip: return "mip";
     case EAssetStage::Container: return "container";
     case EAssetStage::Transcode: return "transcode";
+    case EAssetStage::Parse: return "parse";
+    case EAssetStage::Normalize: return "normalize";
+    case EAssetStage::Dependency: return "dependency";
+    case EAssetStage::Select: return "select";
     }
     return "unknown";
 }
@@ -49,7 +53,10 @@ bool ContainsNativeDetail(std::string_view Text)
         Text.find("/home/") != std::string_view::npos ||
         Text.find("\\Users\\") != std::string_view::npos ||
         Text.find("VK_") != std::string_view::npos ||
-        Text.find("HRESULT") != std::string_view::npos)
+        Text.find("HRESULT") != std::string_view::npos ||
+        Text.find("yyjson") != std::string_view::npos ||
+        Text.find(" ms") != std::string_view::npos ||
+        Text.find("thread") != std::string_view::npos)
     {
         return true;
     }

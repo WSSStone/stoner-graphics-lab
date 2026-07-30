@@ -142,8 +142,18 @@ FVulkanNativeIntegrationTestResult RunVulkanNativeIntegrationTests()
     }
     Record(Result, InitializeResult == ERHIResult::Success && Context.GetSnapshot().ProvesNativeExecution(),
         "Vulkan native integration creates real instance and device");
-    Record(Result, Context.ExecuteOffscreenTriangle("Demo/StonerDemo/Shaders/Triangle.vert.spv",
-        "Demo/StonerDemo/Shaders/Triangle.frag.spv") == ERHIResult::Success,
+    const FRHIShaderModuleDesc TriangleVertex = NativeShaderDesc(
+        ERHIShaderStage::Vertex,
+        "main",
+        "ShaderPayload:Engine/Shaders/Triangle#payload.vulkan.vertex",
+        ReadShaderWords("Content/Shaders/Triangle/Triangle.vert.spv"));
+    const FRHIShaderModuleDesc TriangleFragment = NativeShaderDesc(
+        ERHIShaderStage::Fragment,
+        "main",
+        "ShaderPayload:Engine/Shaders/Triangle#payload.vulkan.fragment",
+        ReadShaderWords("Content/Shaders/Triangle/Triangle.frag.spv"));
+    Record(Result, Context.ExecuteOffscreenTriangle(
+        TriangleVertex, TriangleFragment) == ERHIResult::Success,
         "Vulkan native integration uploads vertices and submits offscreen triangle");
     Record(Result, Context.GetSnapshot().GetTotalLiveObjectCount() == 2,
         "Vulkan native integration releases frame-local resources after completion");
@@ -203,14 +213,14 @@ FVulkanNativeIntegrationTestResult RunVulkanNativeIntegrationTests()
             "main",
             "native-pipeline-vs",
             ReadShaderWords(
-                "Demo/StonerDemo/Shaders/Triangle.vert.spv")));
+                "Content/Shaders/Triangle/Triangle.vert.spv")));
     const auto NativeFragment = ShaderDevice.CreateShaderModule(
         NativeShaderDesc(
             ERHIShaderStage::Fragment,
             "main",
             "native-pipeline-fs",
             ReadShaderWords(
-                "Demo/StonerDemo/Shaders/Triangle.frag.spv")));
+                "Content/Shaders/Triangle/Triangle.frag.spv")));
     const auto NativeCompute = ShaderDevice.CreateShaderModule(
         NativeShaderDesc(
             ERHIShaderStage::Compute,

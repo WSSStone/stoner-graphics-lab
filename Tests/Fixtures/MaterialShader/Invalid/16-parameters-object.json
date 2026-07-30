@@ -1,0 +1,23 @@
+{
+  "schema": "stoner.material",
+  "version": 1,
+  "id": {
+    "type": "Material",
+    "path": "Tests/Materials/M00"
+  },
+  "requiredExtensions": [],
+  "domain": "surface",
+  "blendMode": "opaque",
+  "renderState": {
+    "depthTest": true,
+    "depthWrite": false,
+    "twoSided": true
+  },
+  "shader": {
+    "type": "ShaderProgram",
+    "path": "Tests/Shaders/Program00"
+  },
+  "permutationFlags": [],
+  "parameters": {},
+  "extensions": {}
+}

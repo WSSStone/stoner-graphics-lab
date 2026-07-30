@@ -1,0 +1,206 @@
+{
+  "valid": [
+    "shader-00.json",
+    "material-00.json",
+    "shader-01.json",
+    "material-01.json",
+    "shader-02.json",
+    "material-02.json",
+    "shader-03.json",
+    "material-03.json",
+    "shader-04.json",
+    "material-04.json",
+    "shader-05.json",
+    "material-05.json",
+    "shader-06.json",
+    "material-06.json",
+    "shader-07.json",
+    "material-07.json",
+    "shader-08.json",
+    "material-08.json",
+    "shader-09.json",
+    "material-09.json",
+    "shader-10.json",
+    "material-10.json",
+    "shader-11.json",
+    "material-11.json",
+    "instance-00.json",
+    "instance-01.json",
+    "instance-02.json",
+    "instance-03.json",
+    "instance-04.json",
+    "instance-05.json",
+    "instance-06.json",
+    "instance-07.json",
+    "instance-08.json",
+    "instance-09.json",
+    "instance-10.json",
+    "instance-11.json",
+    "instance-12.json",
+    "instance-13.json",
+    "instance-14.json",
+    "instance-15.json"
+  ],
+  "invalid": [
+    {
+      "file": "00-root-array.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "01-missing-schema.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "02-unknown-schema.json",
+      "expected": "UnsupportedSchema"
+    },
+    {
+      "file": "03-version-zero.json",
+      "expected": "UnsupportedSchema"
+    },
+    {
+      "file": "04-version-two.json",
+      "expected": "UnsupportedSchema"
+    },
+    {
+      "file": "05-required-extension.json",
+      "expected": "UnknownRequiredExtension"
+    },
+    {
+      "file": "06-missing-required-body.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "07-extensions-array.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "08-unknown-field.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "09-wrong-id-type.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "10-empty-path.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "11-unknown-domain.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "12-unknown-blend.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "13-state-array.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "14-shader-wrong-type.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "15-flags-object.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "16-parameters-object.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "17-duplicate-parameter.json",
+      "expected": "InvalidMaterialAsset"
+    },
+    {
+      "file": "18-nan-string.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "19-vector-short.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "20-texture-wrong-type.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "21-parameter-unknown-field.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "22-empty.json",
+      "expected": "DefinitionLimitExceeded"
+    },
+    {
+      "file": "23-truncated-object.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "24-trailing-comma.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "25-comment.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "26-trailing-data.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "27-root-string.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "28-leading-zero.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "29-plus-number.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "30-infinity.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "31-nul-escape-key.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "32-duplicate-key.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "33-escaped-duplicate-key.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "34-bom.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "35-lone-surrogate.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "36-unterminated-string.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "37-array-root.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "38-boolean-root.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "39-number-root.json",
+      "expected": "InvalidDefinition"
+    }
+  ]
+}

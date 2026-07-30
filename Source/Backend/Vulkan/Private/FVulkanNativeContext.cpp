@@ -15,7 +15,6 @@
 #include <array>
 #include <cctype>
 #include <cstring>
-#include <fstream>
 #include <limits>
 #include <new>
 #include <stdexcept>
@@ -470,8 +469,9 @@ struct FVulkanNativeContext::FImpl
     std::vector<VkFramebuffer> SwapchainFramebuffers;
     VkSemaphore ImageAvailable = VK_NULL_HANDLE;
     VkSemaphore RenderFinished = VK_NULL_HANDLE;
-    std::string VisibleVertexShaderPath;
-    std::string VisibleFragmentShaderPath;
+    Stoner::RHI::FRHIShaderModuleDesc VisibleVertexShader;
+    Stoner::RHI::FRHIShaderModuleDesc VisibleFragmentShader;
+    bool bHasVisibleShaders = false;
     Stoner::Core::uint64 NextOwnedShaderToken = 1;
     std::unordered_map<Stoner::Core::uint64, VkShaderModule> OwnedShaderModules;
     struct FOwnedPipelineResources
@@ -525,19 +525,6 @@ struct FVulkanNativeContext::FImpl
         {
             return std::strcmp(Item.extensionName, Name) == 0;
         });
-    }
-
-    static std::vector<Stoner::Core::uint32> ReadSpirv(const Stoner::Core::FString& Path)
-    {
-        std::ifstream Input(Path.CStr(), std::ios::binary | std::ios::ate);
-        if (!Input) return {};
-        const std::streamsize Size = Input.tellg();
-        if (Size < 20 || Size % 4 != 0) return {};
-        std::vector<Stoner::Core::uint32> Words(static_cast<std::size_t>(Size) / 4);
-        Input.seekg(0);
-        Input.read(reinterpret_cast<char*>(Words.data()), Size);
-        if (!Input.good() || Words[0] != 0x07230203u) return {};
-        return Words;
     }
 
     [[nodiscard]] Stoner::Core::uint32 GetLiveShaderModuleCount() const noexcept
@@ -1048,15 +1035,20 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Initialize(
 }
 
 Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
-    const Stoner::Core::FString& VertexShaderPath, const Stoner::Core::FString& FragmentShaderPath)
+    const Stoner::RHI::FRHIShaderModuleDesc& VertexShader,
+    const Stoner::RHI::FRHIShaderModuleDesc& FragmentShader)
 {
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
     if (!Impl || Impl->Device == VK_NULL_HANDLE) return Stoner::RHI::ERHIResult::InvalidState;
     Impl->DestroyFrameResources();
     const auto Fail = [this]() { Impl->DestroyFrameResources(); return Stoner::RHI::ERHIResult::Failed; };
-    const std::vector<Stoner::Core::uint32> VertexWords = FImpl::ReadSpirv(VertexShaderPath);
-    const std::vector<Stoner::Core::uint32> FragmentWords = FImpl::ReadSpirv(FragmentShaderPath);
-    if (VertexWords.empty() || FragmentWords.empty()) return Fail();
+    if (!Stoner::RHI::IsValidRHIShaderModuleDesc(VertexShader) ||
+        !Stoner::RHI::IsValidRHIShaderModuleDesc(FragmentShader) ||
+        VertexShader.Stage != Stoner::RHI::ERHIShaderStage::Vertex ||
+        FragmentShader.Stage != Stoner::RHI::ERHIShaderStage::Fragment)
+        return Fail();
+    const auto& VertexWords = VertexShader.Bytecode.Words;
+    const auto& FragmentWords = FragmentShader.Bytecode.Words;
 
     constexpr std::array<float, 15> Vertices = {
          0.0f, -0.6f, 1.0f, 0.0f, 0.0f,
@@ -1142,7 +1134,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     FramebufferInfo.layers = 1;
     if (vkCreateFramebuffer(Impl->Device, &FramebufferInfo, nullptr, &Impl->Framebuffer) != VK_SUCCESS) return Fail();
 
-    const auto CreateShader = [this](const std::vector<Stoner::Core::uint32>& Words, VkShaderModule& Out)
+    const auto CreateShader = [this](const Stoner::Core::TArray<Stoner::Core::uint32>& Words, VkShaderModule& Out)
     {
         VkShaderModuleCreateInfo Info = MakeVulkanStruct<VkShaderModuleCreateInfo>(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
         Info.codeSize = Words.size() * sizeof(Stoner::Core::uint32);
@@ -1230,19 +1222,28 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     Impl->DestroyFrameResources();
     return Stoner::RHI::ERHIResult::Success;
 #else
-    (void)VertexShaderPath; (void)FragmentShaderPath;
+    (void)VertexShader; (void)FragmentShader;
     return Stoner::RHI::ERHIResult::Unsupported;
 #endif
 }
 
 Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteDeferredOffscreenValidation(
-    const Stoner::Core::FString& ShaderDirectory,
+    std::span<const Stoner::RHI::FRHIShaderModuleDesc> Shaders,
     FVulkanDeferredValidationReport& OutReport,
     EVulkanDeferredFailurePoint FailurePoint)
 {
+    if (Shaders.size() != 9)
+    {
+        OutReport = {};
+        return Stoner::RHI::ERHIResult::Failed;
+    }
+    const FVulkanDeferredShaderSet ShaderSet{
+        Shaders[0], Shaders[1], Shaders[2],
+        Shaders[3], Shaders[4], Shaders[5],
+        Shaders[6], Shaders[7], Shaders[8]};
     FVulkanNativeOffscreenSession Session(*this);
     const Stoner::RHI::ERHIResult Result =
-        Session.Execute(ShaderDirectory, OutReport, FailurePoint);
+        Session.Execute(ShaderSet, OutReport, FailurePoint);
     (void)Session.Shutdown();
     return Result;
 }
@@ -1341,8 +1342,8 @@ const char* ToString(EVulkanVisibleFrameFailurePoint FailurePoint) noexcept
 }
 
 Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
-    const Stoner::Core::FString& VertexShaderPath,
-    const Stoner::Core::FString& FragmentShaderPath,
+    const Stoner::RHI::FRHIShaderModuleDesc& VertexShader,
+    const Stoner::RHI::FRHIShaderModuleDesc& FragmentShader,
     Stoner::Core::uint32 Width,
     Stoner::Core::uint32 Height)
 {
@@ -1350,11 +1351,16 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
     if (!Impl || Impl->Device == VK_NULL_HANDLE || Impl->Surface == VK_NULL_HANDLE)
         return Stoner::RHI::ERHIResult::InvalidState;
     if (Width == 0 || Height == 0) return Stoner::RHI::ERHIResult::Unavailable;
-    const std::vector<Stoner::Core::uint32> VertexWords = FImpl::ReadSpirv(VertexShaderPath);
-    const std::vector<Stoner::Core::uint32> FragmentWords = FImpl::ReadSpirv(FragmentShaderPath);
-    if (VertexWords.empty() || FragmentWords.empty()) return Stoner::RHI::ERHIResult::Failed;
-    Impl->VisibleVertexShaderPath = VertexShaderPath.CStr();
-    Impl->VisibleFragmentShaderPath = FragmentShaderPath.CStr();
+    if (!Stoner::RHI::IsValidRHIShaderModuleDesc(VertexShader) ||
+        !Stoner::RHI::IsValidRHIShaderModuleDesc(FragmentShader) ||
+        VertexShader.Stage != Stoner::RHI::ERHIShaderStage::Vertex ||
+        FragmentShader.Stage != Stoner::RHI::ERHIShaderStage::Fragment)
+        return Stoner::RHI::ERHIResult::Failed;
+    const auto& VertexWords = VertexShader.Bytecode.Words;
+    const auto& FragmentWords = FragmentShader.Bytecode.Words;
+    Impl->VisibleVertexShader = VertexShader;
+    Impl->VisibleFragmentShader = FragmentShader;
+    Impl->bHasVisibleShaders = true;
     vkDeviceWaitIdle(Impl->Device);
     Impl->DestroyFrameResources();
     const auto Fail = [this]() { Impl->DestroyFrameResources(); return Stoner::RHI::ERHIResult::Failed; };
@@ -1476,7 +1482,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
         Impl->SwapchainFramebuffers.push_back(Target);
     }
 
-    const auto CreateShader = [this](const std::vector<Stoner::Core::uint32>& Words, VkShaderModule& Out)
+    const auto CreateShader = [this](const Stoner::Core::TArray<Stoner::Core::uint32>& Words, VkShaderModule& Out)
     {
         VkShaderModuleCreateInfo Info = MakeVulkanStruct<VkShaderModuleCreateInfo>(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
         Info.codeSize = Words.size() * sizeof(Stoner::Core::uint32); Info.pCode = Words.data();
@@ -1537,7 +1543,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
         Impl->VisibleFences.size() + Impl->VisibleImageAvailable.size() + Impl->VisibleRenderFinished.size());
     return Stoner::RHI::ERHIResult::Success;
 #else
-    (void)VertexShaderPath; (void)FragmentShaderPath; (void)Width; (void)Height;
+    (void)VertexShader; (void)FragmentShader; (void)Width; (void)Height;
     return Stoner::RHI::ERHIResult::Unsupported;
 #endif
 }
@@ -1663,11 +1669,13 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::RecreateVisiblePresentation(
     Stoner::Core::uint32 Width, Stoner::Core::uint32 Height)
 {
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE && defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
-    if (!Impl || Impl->VisibleVertexShaderPath.empty() || Impl->VisibleFragmentShaderPath.empty())
+    if (!Impl || !Impl->bHasVisibleShaders)
         return Stoner::RHI::ERHIResult::InvalidState;
-    const Stoner::Core::FString VertexPath = Impl->VisibleVertexShaderPath.c_str();
-    const Stoner::Core::FString FragmentPath = Impl->VisibleFragmentShaderPath.c_str();
-    return PrepareVisibleTriangle(VertexPath, FragmentPath, Width, Height);
+    return PrepareVisibleTriangle(
+        Impl->VisibleVertexShader,
+        Impl->VisibleFragmentShader,
+        Width,
+        Height);
 #else
     (void)Width;
     (void)Height;

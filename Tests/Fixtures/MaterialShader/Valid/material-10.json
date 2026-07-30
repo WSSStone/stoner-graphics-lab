@@ -1,0 +1,39 @@
+{
+  "schema": "stoner.material",
+  "version": 1,
+  "id": {
+    "type": "Material",
+    "path": "Tests/Materials/M10"
+  },
+  "requiredExtensions": [],
+  "domain": "decal",
+  "blendMode": "masked",
+  "renderState": {
+    "depthTest": true,
+    "depthWrite": true,
+    "twoSided": false
+  },
+  "shader": {
+    "type": "ShaderProgram",
+    "path": "Tests/Shaders/Program10"
+  },
+  "permutationFlags": [],
+  "parameters": [
+    {
+      "name": "Roughness",
+      "type": "scalar",
+      "value": 0.625
+    },
+    {
+      "name": "Tint",
+      "type": "color",
+      "value": [
+        1,
+        0.5,
+        0.25,
+        1
+      ]
+    }
+  ],
+  "extensions": {}
+}

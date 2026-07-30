@@ -69,8 +69,16 @@ composition in a large native validation path. Existing behavior is covered,
 but future backend and asset validation changes would benefit from a dedicated
 decomposition.
 
-Target: native validation refactor before or alongside Feature 020/021
-validation work.
+Feature 023 removed direct shader-file acquisition from this path, changed the
+native boundary to owned RHI bytecode descriptions, grouped the nine deferred
+modules in `FVulkanDeferredShaderSet`, and centralized shader-module rollback.
+This closes the shader ownership and partial-module portion of the finding.
+Resource setup, pipeline construction, command recording, readback, and probe
+composition remain concentrated in the large execution function.
+
+Target: finish responsibility decomposition before or alongside Feature 027
+Metal so the second native backend does not copy the oversized validation
+structure.
 
 ## Traceability
 

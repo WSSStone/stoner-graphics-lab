@@ -41,7 +41,17 @@ enum class EAssetResult : Core::uint8
     CorruptPayload,
     CookFailure,
     TranscodeFailure,
-    UnsupportedCompression
+    UnsupportedCompression,
+    InvalidDefinition,
+    UnsupportedSchema,
+    UnknownRequiredExtension,
+    DefinitionLimitExceeded,
+    DependencyMismatch,
+    InvalidShaderProgram,
+    TargetUnavailable,
+    AmbiguousTarget,
+    InvalidMaterialAsset,
+    InvalidInstanceChain
 };
 
 enum class EAssetStage : Core::uint8
@@ -58,7 +68,11 @@ enum class EAssetStage : Core::uint8
     Validate,
     Mip,
     Container,
-    Transcode
+    Transcode,
+    Parse,
+    Normalize,
+    Dependency,
+    Select
 };
 
 enum class EAssetDiagnosticSeverity : Core::uint8
