@@ -1,9 +1,9 @@
 # Stoner Graphics Lab - Engine Development Roadmap
 
-> **Version**: 2.1.2 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-29 | **Status**: Active
+> **Version**: 2.1.3 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-30 | **Status**: Active
 > **Constitution**: v1.4.0
 > **Numbering Rule**: Every runtime phase number equals its Speckit feature number. Feature 002 is this roadmap meta-feature.
-> **Completed Baseline**: Features 001 and 003 through 019 are implemented and verified.
+> **Completed Baseline**: Features 001 and 003 through 022 are implemented and verified.
 
 ---
 
@@ -98,14 +98,14 @@ through screen-space, derived-data, and hybrid integration milestones.
 - [OpenUSD Asset Resolution](https://openusd.org/release/api/ar_page_front.html) informs logical identifiers and replaceable resolver strategies; USD composition itself remains a later Scene/Prefab concern.
 - [Unreal Asset Management](https://dev.epicgames.com/documentation/en-us/unreal-engine/asset-management-in-unreal-engine) supports separating unloaded metadata, soft references, asynchronous loading, and residency ownership.
 
-### Current State (Feature 022 Specification)
+### Current State (Feature 022 Complete)
 
 | Ownership Area | Status | Current Capability |
 |---|---|---|
 | Core | Done | Types, memory, math, logging, assertions, filesystem/process/time/window handles |
-| Asset | KTX2 implemented; cross-platform validation pending | Identity, registry, source images, semantic mips, deterministic KTX2 ETC1S/UASTC cook, bounded load, and request-scoped transcode |
-| RHI | KTX2 extension implemented; cross-platform validation pending | Device/resources plus total compressed-format, block-footprint, upload, and per-format usage contracts |
-| Backend/Vulkan | KTX2 extension implemented; cross-platform validation pending | Native/fallback resources plus compressed format queries, image creation, upload, and readback |
+| Asset | Done through KTX2 | Identity, registry, source images, semantic mips, deterministic KTX2 ETC1S/UASTC cook, bounded load, and request-scoped transcode |
+| RHI | KTX2 extension done | Device/resources plus total compressed-format, block-footprint, upload, and per-format usage contracts |
+| Backend/Vulkan | KTX2 extension done | Native/fallback resources plus compressed format queries, image creation, upload, and readback |
 | Renderer | Done through Deferred | Render Graph, material/shader records, forward and deferred execution |
 | Application | Done foundation | Window/input, ECS scene organization, visible triangle integration |
 | Additional Backends | Planned | Metal, DX12, desktop OpenGL, and GLES follow the Asset-backed shader path |
@@ -180,7 +180,7 @@ depend on Tools.
 | 019 | Deferred Rendering | Renderer | 012, 013, 014, 015, 018 | L | No | ✅ Done |
 | 020 | Asset Core, Identity & Registry | Asset | 003, 006 | L | Yes | ✅ Done |
 | 021 | Image & Texture Foundation | Asset | 008, 020 | L | Yes | ✅ Done |
-| 022 | KTX2 Cooking & Compression | Asset | 010, 021 | XL | Yes | 🔄 In Progress |
+| 022 | KTX2 Cooking & Compression | Asset | 010, 021 | XL | Yes | ✅ Done |
 | 023 | Material & Shader Assets | Asset | 014, 020, 021 | XL | Yes | ⬜ Todo |
 | 024 | Static Mesh & Model Pipeline | Asset | 004, 008, 020, 021, 023 | XL | Yes | ⬜ Todo |
 | 025 | Cooker, Manifest & Derived Data | Asset | 021, 022, 023, 024 | XL | Yes | ⬜ Todo |
@@ -1284,9 +1284,10 @@ packaging, input, and deployment require a future Application/platform phase.
 ```
 
 At each batch boundary, address accepted S0-S2 debt that affects the next
-feature. In particular, close CR001-B09-F003 before broad Asset test selection
-depends on it, and decompose CR001-B09-F005 before new native execution paths
-would duplicate the same oversized Vulkan session responsibility.
+feature. Feature 020 closed CR001-B09-F003 with the reusable test-suite
+registry. Decompose CR001-B09-F005 before Feature 027 or another new native
+execution path would duplicate the same oversized Vulkan session
+responsibility.
 
 ---
 
@@ -1322,7 +1323,7 @@ Meshlets:
 | Vulkan assumptions leak before a second backend | High | Medium | Implement native Metal at 027 before advanced rendering expands |
 | Advanced rendering phases become multi-subsystem rewrites | High | High | Separate data, backend contracts, renderer effects, temporal methods, and final integration |
 | Desktop GL and GLES capability policy diverges | Medium | High | Separate phases and explicit fallback tables; keep Android app concerns outside GLES |
-| Deferred CR debt propagates into Asset/native validation | High | Medium | Gate affected work on CR001-B09-F003/F005 instead of copying existing test/session structure |
+| Oversized Vulkan validation responsibility propagates into another native backend | High | Medium | Decompose CR001-B09-F005 before Feature 027; CR001-B09-F003 was closed by Feature 020 |
 | Third-party format dependency changes | Medium | Medium | Vendor pinned versions, record licenses, wrap behind importer/cooker contracts |
 | Roadmap number drift returns | High | Low | Enforce feature/phase parity across TOC, table, DAG, and details |
 | Hosted CI lacks a real GPU | Medium | High | Deterministic tests everywhere, Lavapipe native gates, manual visible evidence when required |
@@ -1350,10 +1351,11 @@ Meshlets:
 5. Run `/speckit.implement`, validate locally and in required CI, and retain evidence.
 6. Mark the phase `✅ Done`, update Current State, dependency styling if used, and this change log.
 
-The current phase is **022 Asset: KTX2 Cooking & Compression**. Features 020 and
-021 are complete. Feature 022 implementation and local macOS gates are complete,
-while Windows/Linux, sanitizer, and Linux native evidence remain pending in
-GitHub Actions. The next new feature after 022 remains Phase 023.
+Feature 022 Asset: KTX2 Cooking & Compression is complete. Its local macOS
+evidence and GitHub Actions Windows/macOS/Linux Debug, strict Release,
+ASan/UBSan, ThreadSanitizer, independent-validator, digest-comparison, and
+conditional Lavapipe native gates passed. The next phase is **023 Asset:
+Material & Shader Assets**.
 
 ### Status Legend
 
@@ -1370,6 +1372,7 @@ GitHub Actions. The next new feature after 022 remains Phase 023.
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-07-30 | 2.1.3 | Marked Feature 022 complete after GitHub Actions run 30509436643 passed Windows/macOS/Linux Debug and Release, Linux sanitizers, deterministic digest comparison, independent validation, and conditional Lavapipe native evidence; activated Phase 023 as the next roadmap target. |
 | 2026-07-29 | 2.1.2 | Recorded Feature 022 implementation and local macOS validation without marking the phase complete before Windows/Linux, sanitizer, and Linux native CI evidence. |
 | 2026-07-29 | 2.1.1 | Marked Features 020 and 021 complete, activated Feature 022, and synchronized the current Asset capability summary after Feature 021 validation. |
 | 2026-07-28 | 2.1.0 | Reordered Material/Shader Assets before Static Models, split offline cooking from runtime management, moved Metal forward as an early portability gate, split Meshlet data from GPU visibility, separated desktop GL from GLES, and decomposed Ray Tracing and GI into bounded backend/data/effect/integration phases through Feature 038. |

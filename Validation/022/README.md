@@ -23,9 +23,21 @@ The local M4 Pro host reports MoltenVK/Metal unavailable, so its native Vulkan
 suite records the explicit unavailable branch. This is not counted as native
 compressed-format success.
 
-## Pending Cross-Platform Evidence
+## Cross-Platform CI Evidence
 
-Windows/Linux strict builds, focused/full tests, Linux ASan/UBSan,
-ThreadSanitizer, independent validation, digest comparison, and Lavapipe native
-compressed upload/readback remain GitHub Actions gates. Feature 022 stays
-In Progress until those jobs pass.
+GitHub Actions run
+[30509436643](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/30509436643)
+passed on 2026-07-30 for merge commit
+`e8d430dde5e17253374af889eb84dd7255e987b3`.
+
+The successful matrix covered:
+
+- Windows, macOS, and Linux headless Debug builds, focused suites, full
+  regression, independent validation, and 20-run digest comparison;
+- Windows, macOS, and Linux strict Release builds;
+- Linux ASan/UBSan focused and full validation;
+- Linux ThreadSanitizer Asset concurrency validation;
+- conditional Linux Lavapipe compressed upload/readback with capability and
+  behavior agreement.
+
+All required local and hosted gates are complete. Feature 022 is Done.

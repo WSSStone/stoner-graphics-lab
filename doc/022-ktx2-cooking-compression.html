@@ -13,7 +13,7 @@
 <li><a href="#s1">一、文档与上下文信息</a></li><li><a href="#s2">二、目标与边界</a></li><li><a href="#s3">三、交互与产品设计</a></li><li><a href="#s4">四、技术架构与关键决策</a></li><li><a href="#s5">五、实施与验证</a></li><li><a href="#s6">六、设计巧思与最佳实践</a></li><li><a href="#s7">七、编程语言知识点</a></li><li><a href="#s8">八、软件工程知识点</a></li><li><a href="#s9">九、渲染、引擎与图形 API</a></li>
 </ul></aside>
 <main><h1>022 - KTX2 Cooking &amp; Compression</h1>
-<div class="meta">状态：<span class="badge">实现与 macOS gate 完成，三平台 CI 待运行</span> · 更新：2026-07-29 · Roadmap Phase 022 · 层级：Asset / Renderer / RHI / Vulkan</div>
+<div class="meta">状态：<span class="badge">完成，三平台 CI 全部通过</span> · 更新：2026-07-30 · Roadmap Phase 022 · 层级：Asset / Renderer / RHI / Vulkan</div>
 
 <section id="s1"><h2>一、文档与上下文信息</h2>
 <h3>1. 基础元数据</h3><table><tbody>
@@ -109,7 +109,7 @@ any failure -> discard request state -> release texture exactly once</code></pre
 
 <section id="s5"><h2>五、实施与验证（任务流）</h2>
 <h3>1. 任务拆解清单</h3><ol><li>固定 KTX/WAMR/encoder provenance、19-artifact corpus 与 malformed seeds。</li><li>扩展 Asset generic cook/load contract，建立 policy、artifact、preflight 与 codec。</li><li>实现 canonical ETC1S/UASTC、uncompressed LDR/HDR 和 immediate reopen。</li><li>实现 request-scoped transcode、Renderer selection 与 realization rollback。</li><li>扩展 RHI compressed formats、capabilities、footprints 与 Vulkan native path。</li><li>补齐 corruption、limits、eight-way concurrency、independent validator、CI 与文档。</li></ol>
-<h3>2. 验收标准</h3><p>macOS strict Debug/Release、完整 regression、Asset/Renderer/RHI/Vulkan focused suites、architecture/provenance、13 个 validator adapter unit tests均已通过。19 个 artifact 连续 cook 20 次 byte-identical；38 个 generated/golden 输入通过 KTX 4.4.2 独立验证。Windows/Linux、ASan/UBSan、TSan 与 Lavapipe native gate 在推送后由 CI 完成，因此当前 roadmap 仍标记 In Progress。</p>
+<h3>2. 验收标准</h3><p>macOS strict Debug/Release、完整 regression、Asset/Renderer/RHI/Vulkan focused suites、architecture/provenance、13 个 validator adapter unit tests均已通过。19 个 artifact 连续 cook 20 次 byte-identical；38 个 generated/golden 输入通过 KTX 4.4.2 独立验证。GitHub Actions run 30509436643 的 Windows、macOS、Linux Debug/Release、ASan/UBSan、TSan 与 Lavapipe native gate 全部通过；Feature 022 标记为 Done。</p>
 <h3>3. 测试矩阵与覆盖意图</h3><table><thead><tr><th>类别</th><th>覆盖风险</th><th>实际证据</th></tr></thead><tbody>
 <tr><td>Canonical cook</td><td>host/toolchain nondeterminism</td><td>19 artifacts × 20 runs；module digest gate</td></tr>
 <tr><td>Quality/size</td><td>压缩可用但失真或不减小</td><td>ETC1S 45.449316 dB、194/21844；UASTC exact、5488/21844</td></tr>

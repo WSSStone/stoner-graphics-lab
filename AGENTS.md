@@ -1,8 +1,9 @@
 <!-- SPECKIT START -->
-Feature 022 Asset: KTX2 Cooking & Compression is active. Read
-`specs/022-ktx2-cooking-compression/spec.md` for current requirements,
-`specs/022-ktx2-cooking-compression/plan.md` for the implementation design, and
-`doc/roadmap.md` for program context.
+Feature 022 Asset: KTX2 Cooking & Compression is complete. The next roadmap
+phase is Feature 023 Asset: Material & Shader Assets; no Feature 023 spec exists
+until the next Speckit Specify workflow creates it. Read `doc/roadmap.md` for
+program context and `specs/022-ktx2-cooking-compression/` for the latest
+completed feature evidence.
 <!-- SPECKIT END -->
 
 ## Active Technologies

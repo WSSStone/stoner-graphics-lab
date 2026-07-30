@@ -242,10 +242,10 @@ feature documentation.
 - [X] T094 Run the documented strict Debug build, Asset/Renderer-texture/RHI/Vulkan suites, architecture/provenance checks, and full regression on macOS using `specs/022-ktx2-cooking-compression/quickstart.md`
 - [X] T095 Run the documented strict Release build, 20-run deterministic report, and available native Vulkan evidence on macOS using `specs/022-ktx2-cooking-compression/quickstart.md`
 - [X] T096 Run the pinned independent validator over generated and golden artifacts and record normalized local evidence under `Validation/022/`
-- [ ] T097 Run Windows and Linux focused suites, full regression, strict Release, and compare 20-run golden digests with macOS through the CI matrix in `.github/workflows/ci.yml`
-- [ ] T098 Run Linux ASan/UBSan focused/full suites and focused ThreadSanitizer concurrency validation through `.github/workflows/ci.yml`
+- [X] T097 Run Windows and Linux focused suites, full regression, strict Release, and compare 20-run golden digests with macOS through the CI matrix in `.github/workflows/ci.yml`
+- [X] T098 Run Linux ASan/UBSan focused/full suites and focused ThreadSanitizer concurrency validation through `.github/workflows/ci.yml`
 - [X] T099 Update delivered-feature architecture, dependency provenance, validation evidence, exclusions, and roadmap status in `doc/022-ktx2-cooking-compression.html`, `doc/SYSTEM_DESIGN.MD`, and `doc/roadmap.md`
-- [ ] T100 Re-run every applicable command in `specs/022-ktx2-cooking-compression/quickstart.md` and reconcile final implementation status against `specs/022-ktx2-cooking-compression/spec.md`, `specs/022-ktx2-cooking-compression/plan.md`, and `specs/022-ktx2-cooking-compression/tasks.md`
+- [X] T100 Re-run every applicable command in `specs/022-ktx2-cooking-compression/quickstart.md` and reconcile final implementation status against `specs/022-ktx2-cooking-compression/spec.md`, `specs/022-ktx2-cooking-compression/plan.md`, and `specs/022-ktx2-cooking-compression/tasks.md`
 
 ---
 
