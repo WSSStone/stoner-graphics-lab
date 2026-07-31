@@ -216,12 +216,23 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
 
     Stoner::Renderer::FDeferredViewData ProbeView;
     ProbeView.Extent = {32, 32};
+    ProbeView.CameraPosition = {0.0f, 0.0f, 0.75f};
     ProbeView.DepthPolicy = Stoner::Renderer::MakeDeferredDepthPolicy(
         Stoner::Renderer::EDeferredDepthConvention::StandardZ, 0.1f, 100.0f);
     Stoner::Renderer::FDeferredDrawRecord ProbeDraw;
     ProbeDraw.Candidate.Model = Stoner::Core::FMatrix4x4::Identity();
+    // Translation occupies a different row/column in CPU and GLSL layouts.
+    // Keeping the center sample covered lets the same attachment reference
+    // prove the Renderer-to-Vulkan packed path without relaxing its checks.
     ProbeDraw.Candidate.Model.M[0][3] = 0.05f;
     ProbeDraw.WorldNormalFromModel = Stoner::Core::FMatrix4x4::Identity();
+    ProbeDraw.Candidate.Surface.BaseColor = {0.8f, 0.2f, 0.1f};
+    ProbeDraw.Candidate.Surface.AmbientOcclusion = 0.75f;
+    ProbeDraw.Candidate.Surface.Normal = {0.0f, 0.0f, 1.0f};
+    ProbeDraw.Candidate.Surface.Roughness = 0.42f;
+    ProbeDraw.Candidate.Surface.Emissive = {0.3f, 0.05f, 0.0f};
+    ProbeDraw.Candidate.Surface.Metallic = 0.65f;
+    ProbeDraw.Candidate.Surface.Alpha = 0.5f;
     const Stoner::Renderer::FDeferredFrameViewUniform PackedFrame =
         Stoner::Renderer::BuildDeferredFrameViewUniform(ProbeView);
     const Stoner::Renderer::FDeferredDrawMaterialUniform PackedDraw =

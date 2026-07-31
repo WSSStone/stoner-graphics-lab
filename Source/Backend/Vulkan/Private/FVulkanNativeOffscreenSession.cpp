@@ -1129,8 +1129,8 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
          0.0f,  1.0f,  0.0f,  0.0f, -1.0f,  0.0f,
          0.0f,  0.0f,  1.0f,  0.0f,  0.0f, -1.0f};
     const std::array<Stoner::Core::uint16, 24> SphereIndices = {
-        4, 0, 2, 4, 2, 1, 4, 1, 3, 4, 3, 0,
-        5, 2, 0, 5, 1, 2, 5, 3, 1, 5, 0, 3};
+        4, 2, 0, 4, 1, 2, 4, 3, 1, 4, 0, 3,
+        5, 0, 2, 5, 2, 1, 5, 1, 3, 5, 3, 0};
     constexpr float ConeRadius = 0.5463025f;
     const std::array<float, 15> ConeVertices = {
         0.0f, 0.0f, 0.0f,
@@ -1139,8 +1139,8 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
          ConeRadius,  ConeRadius, -1.0f,
         -ConeRadius,  ConeRadius, -1.0f};
     const std::array<Stoner::Core::uint16, 18> ConeIndices = {
-        0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 1,
-        1, 4, 3, 1, 3, 2};
+        0, 2, 1, 0, 3, 2, 0, 4, 3, 0, 1, 4,
+        1, 3, 4, 1, 2, 3};
     if (!Impl->CreateBuffer(sizeof(SurfaceVertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
             SurfaceVertices.data(), Impl->SurfaceVertices) ||
