@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstring>
+#include <filesystem>
 #include <set>
 #include <string>
 
@@ -54,7 +55,14 @@ void WriteReport(const Stoner::Backend::Vulkan::FVulkanDeferredValidationReport&
     {
         return;
     }
-    std::ofstream Stream(Path, std::ios::binary | std::ios::trunc);
+    const std::filesystem::path ReportPath(Path);
+    std::error_code Error;
+    std::filesystem::create_directories(ReportPath.parent_path(), Error);
+    if (Error)
+    {
+        return;
+    }
+    std::ofstream Stream(ReportPath, std::ios::binary | std::ios::trunc);
     Stream << Report.Dump().CStr();
 }
 
