@@ -57,6 +57,20 @@ Stoner::Core::FString FormatForwardVector(Stoner::Core::FVector3 Value)
     return Stoner::Core::FString(Stream.str());
 }
 
+Stoner::Core::FVector3 TransformWorldPositionToView(
+    const Stoner::Core::FMatrix4x4& ViewMatrix,
+    Stoner::Core::FVector3 WorldPosition) noexcept
+{
+    return ViewMatrix.TransformPoint(WorldPosition);
+}
+
+float ComputeViewSpaceForwardDepth(
+    const Stoner::Core::FMatrix4x4& ViewMatrix,
+    Stoner::Core::FVector3 WorldPosition) noexcept
+{
+    return TransformWorldPositionToView(ViewMatrix, WorldPosition).X;
+}
+
 bool FForwardViewData::IsValid(FForwardDiagnosticLog* Diagnostics) const
 {
     bool bValid = true;
@@ -101,7 +115,7 @@ bool FForwardViewData::IsValid(FForwardDiagnosticLog* Diagnostics) const
 
 float FForwardViewData::ComputeCameraSpaceDepth(Stoner::Core::FVector3 WorldPosition) const noexcept
 {
-    return ViewMatrix.TransformPoint(WorldPosition).Z;
+    return ComputeViewSpaceForwardDepth(ViewMatrix, WorldPosition);
 }
 
 } // namespace Stoner::Renderer

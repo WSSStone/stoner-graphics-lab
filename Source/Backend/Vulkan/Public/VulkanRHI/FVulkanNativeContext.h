@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include "RHI/RHIMinimal.h"
 #include "Core/FPlatformWindow.h"
 
@@ -79,6 +81,15 @@ struct FVulkanDeferredValidationReport
     [[nodiscard]] Stoner::Core::FString Dump() const;
 };
 
+// Backend-neutral bytes produced by the Renderer packing contract for the
+// native deferred validation path. The Vulkan backend never includes Renderer
+// headers or interprets CPU matrix layout.
+struct FVulkanDeferredUniformPayload
+{
+    std::array<Stoner::Core::uint8, 304> FrameBytes{};
+    std::array<Stoner::Core::uint8, 176> DrawBytes{};
+};
+
 struct FVulkanNativeFrameBindings
 {
     Stoner::Core::uint32 ImageIndex = 0;
@@ -118,7 +129,8 @@ public:
     [[nodiscard]] Stoner::RHI::ERHIResult ExecuteDeferredOffscreenValidation(
         std::span<const Stoner::RHI::FRHIShaderModuleDesc> Shaders,
         FVulkanDeferredValidationReport& OutReport,
-        EVulkanDeferredFailurePoint FailurePoint = EVulkanDeferredFailurePoint::None);
+        EVulkanDeferredFailurePoint FailurePoint = EVulkanDeferredFailurePoint::None,
+        const FVulkanDeferredUniformPayload* UniformPayload = nullptr);
     [[nodiscard]] static FVulkanDeferredValidationReport
     RunDeferredFailureLifecycleValidation(EVulkanDeferredFailurePoint FailurePoint) noexcept;
     [[nodiscard]] static FVulkanVisibleFrameFailureReport

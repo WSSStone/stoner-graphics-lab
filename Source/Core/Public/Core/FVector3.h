@@ -69,6 +69,8 @@ struct FVector3
         return X * Other.X + Y * Other.Y + Z * Other.Z;
     }
 
+    // Component cross-product algebra is convention-neutral; named world axes
+    // are defined by FCoordinateConvention.
     [[nodiscard]] constexpr FVector3 Cross(const FVector3& Other) const noexcept
     {
         return FVector3(

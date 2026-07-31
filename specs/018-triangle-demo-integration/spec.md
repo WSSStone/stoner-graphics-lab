@@ -174,3 +174,11 @@ An engine maintainer can validate the demo integration on Windows, macOS, and Li
 - The existing window/input policy continues polling while minimized, clears held input on focus loss, and exposes a physical keyboard action suitable for exit.
 - Scene/ECS data is intentionally not required for the triangle; the milestone uses fixed demo geometry so integration failures are isolated from scene authoring concerns.
 - Manual screenshots and matching run logs are required evidence for Windows and macOS visible smoke validation; automated screenshot capture and golden-image comparison are optional for this phase.
+
+## Feature 024 Coordinate Convention Amendment (2026-07-31)
+
+This historical demo contract is preserved. The active engine-world convention
+is `UnrealLH_ZUp_XForward_YRight_Meters_CW` (+X forward, +Y right, +Z up,
+meters, clockwise default front faces). The deterministic and native validation
+orchestration now requires the Feature 024 coordinate-convention suite before
+the broader demo suites. Explicit pipeline overrides remain supported.

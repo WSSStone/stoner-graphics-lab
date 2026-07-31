@@ -29,11 +29,11 @@ FDeferredLightVolumeClassification ClassifyDeferredLightVolume(
     }
 
     const float CameraDistance = (Light.Position - View.CameraPosition).Length();
-    const Stoner::Core::FVector3 ViewPosition = View.View.TransformPoint(Light.Position);
     const float BoundingRadius = Light.Range;
     const bool bCameraInside = CameraDistance <= BoundingRadius;
     const bool bNearPlane = Stoner::Core::FMath::Abs(
-        Stoner::Core::FMath::Abs(ViewPosition.Z) - View.DepthPolicy.NearPlane) <= BoundingRadius;
+        Stoner::Core::FMath::Abs(ComputeViewSpaceForwardDepth(View.View, Light.Position)) -
+            View.DepthPolicy.NearPlane) <= BoundingRadius;
 
     const Stoner::Core::FVector4 Clip = View.ViewProjection.TransformVector4(
         {Light.Position.X, Light.Position.Y, Light.Position.Z, 1.0f});

@@ -1,5 +1,6 @@
 #include "DeferredNativeIntegrationTests.h"
 
+#include "Renderer/FDeferredFrameExecutor.h"
 #include "VulkanRHI/FVulkanNativeContext.h"
 
 #include <array>
@@ -7,6 +8,7 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <cstring>
 #include <set>
 #include <string>
 
@@ -203,6 +205,33 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
         "Deferred native validation covers point and spot local-light edge cases");
     Record(Result, Report.bPassed && Report.FinalLiveObjects == 0,
         "Deferred native validation passes semantic probes and releases frame-owned objects");
+
+    Stoner::Renderer::FDeferredViewData ProbeView;
+    ProbeView.Extent = {32, 32};
+    ProbeView.DepthPolicy = Stoner::Renderer::MakeDeferredDepthPolicy(
+        Stoner::Renderer::EDeferredDepthConvention::StandardZ, 0.1f, 100.0f);
+    Stoner::Renderer::FDeferredDrawRecord ProbeDraw;
+    ProbeDraw.Candidate.Model = Stoner::Core::FMatrix4x4::Identity();
+    ProbeDraw.Candidate.Model.M[0][3] = 0.05f;
+    ProbeDraw.WorldNormalFromModel = Stoner::Core::FMatrix4x4::Identity();
+    const Stoner::Renderer::FDeferredFrameViewUniform PackedFrame =
+        Stoner::Renderer::BuildDeferredFrameViewUniform(ProbeView);
+    const Stoner::Renderer::FDeferredDrawMaterialUniform PackedDraw =
+        Stoner::Renderer::BuildDeferredDrawMaterialUniform(ProbeDraw);
+    FVulkanDeferredUniformPayload PackedPayload;
+    std::memcpy(PackedPayload.FrameBytes.data(), &PackedFrame, sizeof(PackedFrame));
+    std::memcpy(PackedPayload.DrawBytes.data(), &PackedDraw, sizeof(PackedDraw));
+    FVulkanDeferredValidationReport PackedReport;
+    const ERHIResult PackedExecutionResult = Context.ExecuteDeferredOffscreenValidation(
+        Shaders, PackedReport, EVulkanDeferredFailurePoint::None, &PackedPayload);
+    bool bPackedProbePassed = PackedExecutionResult == ERHIResult::Success &&
+        PackedReport.bNativeSubmissionCompleted && PackedReport.bPassed;
+    for (const FVulkanDeferredProbe& Probe : PackedReport.Probes)
+    {
+        bPackedProbePassed = bPackedProbePassed && Probe.bPassed;
+    }
+    Record(Result, bPackedProbePassed,
+        "Renderer-packed non-symmetric matrix survives Vulkan native attachment readback");
     if (RunNativeFailureInjection())
     {
         bool bInjectedFailuresClean = true;

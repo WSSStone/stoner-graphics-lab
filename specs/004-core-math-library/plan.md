@@ -113,3 +113,12 @@ Design artifacts:
 ## Complexity Tracking
 
 No constitution violations to justify.
+
+## Feature 024 Coordinate Convention Amendment (2026-07-31)
+
+This historical plan records the original Core math delivery and is not
+rewritten. Feature 024 defines the active engine-world convention as
+`UnrealLH_ZUp_XForward_YRight_Meters_CW`: +X forward, +Y right, +Z up, meters,
+and clockwise default front faces. Component vector algebra, Hamilton
+quaternions, and SRT matrix composition remain unchanged. Renderer uploads
+pack CPU row-major matrices into GLSL column-major storage explicitly.

@@ -56,6 +56,8 @@ def main():
 
     env = os.environ.copy()
     env.setdefault('STONER_DEMO_RUN_ID', env.get('GITHUB_RUN_ID', 'local-ci') + '-' + env.get('GITHUB_SHA', 'working-tree')[:12])
+    if run([str(args.tests), '--suite', 'coordinate-convention'], args.timeout_seconds, env) != 0:
+        return 1
     if run([str(args.tests)], args.timeout_seconds, env) != 0:
         return 1
     mode = 'headless' if args.profile == 'deterministic' else 'headless-vulkan'

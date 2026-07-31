@@ -62,3 +62,12 @@
 
 - Only float colors: insufficient for byte resource and packed color workflows.
 - Only byte colors: insufficient for linear math and interpolation workflows.
+
+## Feature 024 Coordinate Convention Amendment (2026-07-31)
+
+This historical research remains evidence for Feature 004. The active engine
+world convention is now `UnrealLH_ZUp_XForward_YRight_Meters_CW` (+X forward,
++Y right, +Z up, meters, clockwise default front faces). This changes named
+world axes and graphics-boundary defaults, not component vector algebra,
+Hamilton quaternion multiplication, or SRT composition. CPU row-major
+matrices are packed explicitly into GLSL column-major shader storage.

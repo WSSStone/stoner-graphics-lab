@@ -28,7 +28,7 @@ struct FSceneLightItem
     float Intensity = 1.0f;
     float Range = 1.0f;
     Stoner::Core::FVector3 WorldPosition = Stoner::Core::FVector3::Zero();
-    Stoner::Core::FVector3 WorldDirection = Stoner::Core::FVector3(0.0f, 0.0f, -1.0f);
+    Stoner::Core::FVector3 WorldDirection = Stoner::Core::FCoordinateConvention::Forward();
     Stoner::Core::int32 SortKey = 0;
     bool bHasSortKey = false;
 };

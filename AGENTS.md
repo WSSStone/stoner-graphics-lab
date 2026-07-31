@@ -1,9 +1,9 @@
 <!-- SPECKIT START -->
-Feature 023 Asset: Material & Shader Assets is complete. The next roadmap phase
-is Feature 024 Asset: Static Mesh & Model Pipeline; no Feature 024 spec exists
-until the next Speckit Specify workflow creates it. Read `doc/roadmap.md` for
-program context and `specs/023-material-shader-assets/` plus
-`Validation/023/` for the latest completed feature evidence.
+Feature 024 Asset: Static Mesh & Model Pipeline is in planning. Read
+`doc/roadmap.md` for program context, `specs/024-static-mesh-model/spec.md` and
+`specs/024-static-mesh-model/plan.md` for the active feature contract/design,
+and `specs/023-material-shader-assets/` plus `Validation/023/` for the latest
+completed feature evidence.
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -39,6 +39,8 @@ program context and `specs/023-material-shader-assets/` plus
 - Immutable in-memory KTX2 bytes and request-scoped transcode payloads; checked-in fixtures and golden digests; no manifest, derived-data cache, package, database, or cross-request cache (022-ktx2-cooking-compression)
 - C++20 with traditional public/private headers and sources; C for the private yyjson translation unit; no C++20 Modules + Existing Core and Asset contracts; Renderer/RHI/Application/Demo/Vulkan integration boundaries; pinned private yyjson 0.12.0; existing checked-in GLSL/SPIR-V; SCons 4.10.1 (023-material-shader-assets)
 - Versioned canonical UTF-8 JSON authoring definitions plus separate repository-owned GLSL/SPIR-V dependency files under `Content/`; immutable in-memory Asset payloads and Renderer snapshots; no cooked binary, manifest, DDC, package, database, or runtime cache (023-material-shader-assets)
+- C++20 with traditional public/private headers and sources; C99 for private cgltf and MikkTSpace translation units; no C++20 Modules + Existing Core, Asset, RHI, Renderer, Application, and Vulkan Backend contracts; pinned private cgltf v1.15 with accessor-overflow backport; pinned private MikkTSpace at `3e895b49d05ea07e4c2133156cfa94369e19e409`; existing yyjson 0.12.0 and stb_image 2.30; SCons 4.10.1 (024-static-mesh-model)
+- Source `.gltf`, `.glb`, external buffer, and image files resolved through `IAssetResolver`; immutable process-local CPU mesh/model payloads and Renderer RHI snapshots; checked-in fixtures and validation evidence; no database, manifest, DDC, package, or persistent runtime cache (024-static-mesh-model)
 
 ## Recent Changes
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system

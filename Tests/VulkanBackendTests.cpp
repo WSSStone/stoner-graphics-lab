@@ -688,6 +688,10 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
 
     const auto GraphicsPipeline = Device.CreateGraphicsPipeline(GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object));
     const auto GraphicsPipelineAgain = Device.CreateGraphicsPipeline(GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object));
+    FRHIGraphicsPipelineDesc CounterClockwiseDesc =
+        GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object);
+    CounterClockwiseDesc.Rasterizer.FrontFace = ERHIFrontFace::CounterClockwise;
+    const auto CounterClockwisePipeline = Device.CreateGraphicsPipeline(CounterClockwiseDesc);
     const auto ComputePipeline = Device.CreateComputePipeline(ComputePipelineDesc(Compute.Object, Layout.Object));
     const auto ComputePipelineAgain = Device.CreateComputePipeline(ComputePipelineDesc(Compute.Object, Layout.Object));
     FVulkanDevice ForeignDevice;
@@ -731,7 +735,11 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
     auto VulkanCompute = std::dynamic_pointer_cast<FVulkanComputePipeline>(ComputePipeline.Object);
     Record(Result, GraphicsPipeline.Succeeded() && ComputePipeline.Succeeded() &&
         VulkanGraphics && VulkanGraphics->GetRuntimeMode() == ERHIRuntimeObjectMode::DeterministicFallback &&
-        VulkanCompute && VulkanCompute->GetRuntimeMode() == ERHIRuntimeObjectMode::DeterministicFallback, "Vulkan graphics and compute pipelines create deterministic fallback objects");
+        VulkanCompute && VulkanCompute->GetRuntimeMode() == ERHIRuntimeObjectMode::DeterministicFallback &&
+        VulkanGraphics->GetDesc().Rasterizer.FrontFace == ERHIFrontFace::Clockwise &&
+        CounterClockwisePipeline.Succeeded() &&
+        CounterClockwisePipeline.Object->GetDesc().Rasterizer.FrontFace == ERHIFrontFace::CounterClockwise,
+        "Vulkan pipelines preserve clockwise defaults and explicit front-face overrides");
     FRHIGraphicsPipelineDesc InvalidFixedFunction =
         GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object);
     InvalidFixedFunction.Rasterizer.CullMode = static_cast<ERHICullMode>(255);

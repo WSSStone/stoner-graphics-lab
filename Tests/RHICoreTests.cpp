@@ -2731,6 +2731,13 @@ void TestShaderAndPipelineContracts(FRHICoreTestResult& Result)
         "IRHIDevice rejects multiple compute shader stages");
 
     FRHIGraphicsPipelineDesc GraphicsDesc;
+    Record(Result, GraphicsDesc.Rasterizer.FrontFace == ERHIFrontFace::Clockwise,
+        "RHI graphics pipelines default to clockwise front faces");
+    GraphicsDesc.Rasterizer.FrontFace = ERHIFrontFace::CounterClockwise;
+    Record(Result, GraphicsDesc.Rasterizer.FrontFace == ERHIFrontFace::CounterClockwise &&
+            IsValidRHIFrontFace(GraphicsDesc.Rasterizer.FrontFace),
+        "RHI graphics pipelines retain an explicit counter-clockwise override");
+    GraphicsDesc.Rasterizer.FrontFace = ERHIFrontFace::Clockwise;
     GraphicsDesc.PipelineLayout = Layout.Object;
     GraphicsDesc.ShaderModules = {Vertex.Object, Fragment.Object};
     GraphicsDesc.VertexInput.Stride = 24;

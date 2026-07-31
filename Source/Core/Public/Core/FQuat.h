@@ -6,8 +6,8 @@
 namespace Stoner::Core
 {
 
-// Unit quaternions represent right-handed rotations. Composition follows the
-// Hamilton product; `A * B` applies B first, then A, when rotating vectors.
+// Unit quaternions use Hamilton-product component algebra; `A * B` applies B
+// first, then A, when rotating vectors in the engine's named world convention.
 // Safe normalization and inversion return Identity for non-finite components,
 // invalid tolerances, or near-zero magnitudes. A quaternion and its negation
 // compare as the same rotation through NearlyEquals.

@@ -509,7 +509,7 @@ void TestLocalLightScaling(FDeferredRenderingTestResult& Result)
     Outside.Position = FVector3::Zero();
     Outside.Range = 1.0f;
     const auto InsideClassification = ClassifyDeferredLightVolume(Outside, View);
-    Outside.Position = FVector3(0.0f, 0.0f, 0.2f);
+    Outside.Position = FVector3(0.2f, 0.0f, 0.0f);
     Outside.Range = 0.1f;
     const auto NearClassification = ClassifyDeferredLightVolume(Outside, View);
     Record(Result,
