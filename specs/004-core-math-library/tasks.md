@@ -241,3 +241,11 @@ Work sequentially by task ID except for explicitly marked parallel header implem
 - Do not add dependencies outside the C++ standard library for this feature.
 - Do not implement spatial acceleration structures, physics-specific math, camera systems, animation systems, or renderer-owned scene data.
 - Mark tasks complete in this file only after the implementation and relevant verification for that task are done.
+
+## Feature 024 Coordinate Convention Amendment (2026-07-31)
+
+This completed historical task list is preserved. The active coordinate policy
+is `UnrealLH_ZUp_XForward_YRight_Meters_CW`: +X forward, +Y right, +Z up,
+meters, with clockwise default graphics front faces. It does not alter Core
+component algebra, Hamilton quaternions, or SRT composition; shader uploads
+perform the required row-major to GLSL column-major packing at the boundary.

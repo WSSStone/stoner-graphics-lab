@@ -31,7 +31,8 @@ public:
     [[nodiscard]] Stoner::RHI::ERHIResult Execute(
         const FVulkanDeferredShaderSet& Shaders,
         FVulkanDeferredValidationReport& OutReport,
-        EVulkanDeferredFailurePoint FailurePoint = EVulkanDeferredFailurePoint::None);
+        EVulkanDeferredFailurePoint FailurePoint = EVulkanDeferredFailurePoint::None,
+        const FVulkanDeferredUniformPayload* UniformPayload = nullptr);
     [[nodiscard]] Stoner::RHI::ERHIResult Shutdown() noexcept;
 
 private:

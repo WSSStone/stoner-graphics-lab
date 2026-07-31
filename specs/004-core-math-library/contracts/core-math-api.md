@@ -178,3 +178,12 @@ The `StonerTest` executable must verify:
 - Color channel ordering, conversion, and boundary cases
 - Box, sphere, and plane validity, containment, combination, and classification
 - Cross-platform deterministic behavior within documented tolerances
+
+## Feature 024 Coordinate Convention Amendment (2026-07-31)
+
+This historical API contract remains valid for component math. The active
+engine-world naming policy is `UnrealLH_ZUp_XForward_YRight_Meters_CW`: +X
+forward, +Y right, +Z up, meters, and clockwise default graphics front faces.
+It neither changes vector/quaternion/matrix component operations nor imports a
+graphics dependency into Core. Renderer boundary code explicitly packs
+row-major CPU matrices for GLSL column-major storage.

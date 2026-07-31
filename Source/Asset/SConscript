@@ -28,7 +28,7 @@ wamr_library = BuildPrivateCMakeLibrary(
 env['STONER_ASSET_THIRD_PARTY_LIBS'] = ktx_library + wamr_library
 
 stb_warning_flags = ['/w'] if platform == 'Win64' else ['-w']
-yyjson_warning_flags = ['/w'] if platform == 'Win64' else ['-w']
+third_party_c_warning_flags = ['/w'] if platform == 'Win64' else ['-w']
 encoder_module = File(
     '#ThirdParty/stoner-basis-encoder/stoner_basis_encoder.wasm'
 )
@@ -112,9 +112,11 @@ lib = BuildLayer(
         },
     },
     private_c_sources=[
+        'ThirdParty/cgltf/cgltf.c',
+        'ThirdParty/mikktspace/mikktspace.c',
         'ThirdParty/yyjson/yyjson.c',
     ],
-    third_party_cflags=yyjson_warning_flags,
+    third_party_cflags=third_party_c_warning_flags,
     private_objects=embedded_module_object,
 )
 Return('lib')

@@ -39,5 +39,12 @@ struct FForwardViewData
 [[nodiscard]] bool IsPositiveForwardExtent(FForwardExtent2D Extent) noexcept;
 [[nodiscard]] bool IsStableForwardId(Stoner::Core::uint32 Id) noexcept;
 [[nodiscard]] Stoner::Core::FString FormatForwardVector(Stoner::Core::FVector3 Value);
+[[nodiscard]] Stoner::Core::FVector3 TransformWorldPositionToView(
+    const Stoner::Core::FMatrix4x4& ViewMatrix,
+    Stoner::Core::FVector3 WorldPosition) noexcept;
+// The active world convention defines forward depth as view-space +X.
+[[nodiscard]] float ComputeViewSpaceForwardDepth(
+    const Stoner::Core::FMatrix4x4& ViewMatrix,
+    Stoner::Core::FVector3 WorldPosition) noexcept;
 
 } // namespace Stoner::Renderer

@@ -90,7 +90,7 @@ void TestVectors(FCoreMathTestResult& Result)
 
     const FVector3 V3A(1.0f, 0.0f, 0.0f);
     const FVector3 V3B(0.0f, 1.0f, 0.0f);
-    Record(Result, V3A.Cross(V3B) == FVector3(0.0f, 0.0f, 1.0f), "FVector3 right-handed cross product works");
+    Record(Result, V3A.Cross(V3B) == FVector3(0.0f, 0.0f, 1.0f), "FVector3 component cross product works");
     Record(Result, Near(FVector3(2.0f, 3.0f, 4.0f).Dot(FVector3(5.0f, 6.0f, 7.0f)), 56.0f), "FVector3 dot product works");
     Record(Result, Near(FVector3(0.0f, 3.0f, 4.0f).Length(), 5.0f), "FVector3 length works");
     Record(Result, Near(FVector3(0.0f, 3.0f, 4.0f).GetSafeNormal(), FVector3(0.0f, 0.6f, 0.8f)), "FVector3 safe normalization works");
@@ -175,7 +175,7 @@ void TestQuat(FCoreMathTestResult& Result)
     Record(Result, Near(FQuat::Identity().RotateVector(UnitX), UnitX), "FQuat identity preserves vectors");
 
     const FQuat QuarterTurn = FQuat::FromAxisAngle(FVector3::UnitZ(), FMath::HalfPi);
-    Record(Result, Near(QuarterTurn.RotateVector(UnitX), FVector3::UnitY()), "FQuat axis-angle rotation is right-handed");
+    Record(Result, Near(QuarterTurn.RotateVector(UnitX), FVector3::UnitY()), "FQuat axis-angle rotation preserves Hamilton algebra");
 
     const FQuat FullHalfTurn = (QuarterTurn * QuarterTurn).GetSafeNormal();
     Record(Result, Near(FullHalfTurn.RotateVector(UnitX), FVector3(-1.0f, 0.0f, 0.0f)), "FQuat multiplication composes rotations");
@@ -368,7 +368,7 @@ void TestAggregateIsolationAndDiagnostics(FCoreMathTestResult& Result)
     Record(Result, AggregateBox.IsValid() && AggregateColor.A == 1.0f, "CoreMinimal exposes Core math headers");
     Record(Result, true, "CoreMathTests.cpp includes only Core math headers");
 
-    std::cout << "[INFO] Core math convention=right-handed matrix_layout=row-major"
+    std::cout << "[INFO] Core math convention=UnrealLH_ZUp_XForward_YRight_Meters_CW matrix_layout=row-major"
               << " tolerance=" << FMath::DefaultTolerance
               << " sizeof(void*)=" << sizeof(void*) << '\n';
 
@@ -377,6 +377,13 @@ void TestAggregateIsolationAndDiagnostics(FCoreMathTestResult& Result)
     const FVector3 MatrixResult = QuarterTurn.ToMatrix().TransformVector(FVector3::UnitX());
     const FVector3 TransformResult = FTransform(FVector3::Zero(), QuarterTurn).TransformVector(FVector3::UnitX());
     Record(Result, Near(QuaternionResult, MatrixResult) && Near(MatrixResult, TransformResult), "Core math baseline paths produce equivalent rotation results");
+    Record(Result,
+        FCoordinateConvention::Forward() == FVector3::UnitX() &&
+            FCoordinateConvention::Right() == FVector3::UnitY() &&
+            FCoordinateConvention::Up() == FVector3::UnitZ() &&
+            Near(QuarterTurn.RotateVector(FCoordinateConvention::Forward()),
+                FCoordinateConvention::Right()),
+        "Core math names Unreal-style axes without changing Hamilton yaw algebra");
 }
 
 } // namespace

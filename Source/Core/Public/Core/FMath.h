@@ -7,7 +7,7 @@
 namespace Stoner::Core
 {
 
-// Core math uses a right-handed coordinate convention. Matrix values are stored
+// Core world semantics use UnrealLH_ZUp_XForward_YRight_Meters_CW. Matrix values are stored
 // in row-major memory order, and computed floating-point results should be
 // compared through the tolerance helpers below instead of exact equality.
 // Near-comparison tolerances must be finite and non-negative; invalid

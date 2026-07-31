@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Renderer/FDeferredRenderGraphDeclaration.h"
+#include "Renderer/FShaderMatrixPacking.h"
 #include "RHI/RHIMinimal.h"
 
 namespace Stoner::Renderer
@@ -8,10 +9,10 @@ namespace Stoner::Renderer
 
 struct alignas(16) FDeferredFrameViewUniform
 {
-    Stoner::Core::FMatrix4x4 View;
-    Stoner::Core::FMatrix4x4 Projection;
-    Stoner::Core::FMatrix4x4 InverseViewProjection;
-    Stoner::Core::FMatrix4x4 ViewProjection;
+    FShaderMatrix4x4 View;
+    FShaderMatrix4x4 Projection;
+    FShaderMatrix4x4 InverseViewProjection;
+    FShaderMatrix4x4 ViewProjection;
     Stoner::Core::FVector4 CameraPosition;
     Stoner::Core::FVector4 OutputExtent;
     Stoner::Core::FVector4 DepthConvention;
@@ -19,8 +20,8 @@ struct alignas(16) FDeferredFrameViewUniform
 
 struct alignas(16) FDeferredDrawMaterialUniform
 {
-    Stoner::Core::FMatrix4x4 Model;
-    Stoner::Core::FMatrix4x4 WorldNormalFromModel;
+    FShaderMatrix4x4 Model;
+    FShaderMatrix4x4 WorldNormalFromModel;
     Stoner::Core::FVector4 BaseColorAO;
     Stoner::Core::FVector4 EmissiveMetallic;
     Stoner::Core::FVector4 RoughnessAlphaCutoffFlags;

@@ -27,7 +27,7 @@ struct FRHIVertexInputDesc
 struct FRHIRasterizerState
 {
     ERHICullMode CullMode = ERHICullMode::Back;
-    ERHIFrontFace FrontFace = ERHIFrontFace::CounterClockwise;
+    ERHIFrontFace FrontFace = ERHIFrontFace::Clockwise;
     bool bDepthClampEnabled = false;
 };
 

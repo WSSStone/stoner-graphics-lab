@@ -1,5 +1,8 @@
 #version 450
 
+// Frame and draw matrices are supplied as GLSL column-major payloads by the
+// Renderer row-major packing contract.
+
 layout(location = 0) in vec3 InPosition;
 layout(location = 1) in vec3 InNormal;
 

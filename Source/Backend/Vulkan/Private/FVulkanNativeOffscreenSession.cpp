@@ -822,7 +822,7 @@ bool CreateGraphicsPipeline(FVulkanNativeOffscreenSession::FImpl& State,
     VkPipelineRasterizationStateCreateInfo Rasterizer = MakeVulkanStruct<VkPipelineRasterizationStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO);
     Rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     Rasterizer.cullMode = CullMode;
-    Rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    Rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
     Rasterizer.lineWidth = 1.0f;
     VkPipelineMultisampleStateCreateInfo Multisample = MakeVulkanStruct<VkPipelineMultisampleStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
     Multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -1021,7 +1021,8 @@ Stoner::Core::FVector4 ReadPixel(
 Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
     const FVulkanDeferredShaderSet& Shaders,
     FVulkanDeferredValidationReport& OutReport,
-    EVulkanDeferredFailurePoint FailurePoint)
+    EVulkanDeferredFailurePoint FailurePoint,
+    const FVulkanDeferredUniformPayload* UniformPayload)
 {
     OutReport = {};
     OutReport.InjectedFailure = FailurePoint;
@@ -1178,6 +1179,11 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
     Draw.BaseColorAO = {0.8f, 0.2f, 0.1f, 0.75f};
     Draw.EmissiveMetallic = {0.3f, 0.05f, 0.0f, 0.65f};
     Draw.RoughnessAlphaCutoffFlags = {0.42f, 0.5f, 0.0f, 0.0f};
+    if (UniformPayload != nullptr)
+    {
+        std::memcpy(&Frame, UniformPayload->FrameBytes.data(), sizeof(Frame));
+        std::memcpy(&Draw, UniformPayload->DrawBytes.data(), sizeof(Draw));
+    }
     FNativeDrawUniform MaskedDraw = Draw;
     MaskedDraw.Model[0] = 0.25f;
     MaskedDraw.Model[5] = 0.25f;

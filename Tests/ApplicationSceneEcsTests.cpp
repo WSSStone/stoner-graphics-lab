@@ -282,6 +282,9 @@ void TestRenderCollection(FApplicationSceneEcsTestResult& Result)
         Summary.GetRenderables()[9].Entity == MeshEntities[7];
     Record(Result, bCountsMatch && bSortKeyFirst && bIdentityTie,
         "Scene render collection produces deterministic accepted/rejected category ordering");
+    Record(Result,
+        Summary.GetLights().front().WorldDirection == FCoordinateConvention::Forward(),
+        "Scene render collection uses +X as the default directional-light forward axis");
 
     const std::string FirstDump = Summary.BuildDebugDump().ToStdString();
     bool bStable = true;

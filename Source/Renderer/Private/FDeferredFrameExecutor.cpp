@@ -393,10 +393,10 @@ FDeferredVertexLayoutContract GetDeferredVolumeVertexLayout()
 FDeferredFrameViewUniform BuildDeferredFrameViewUniform(const FDeferredViewData& View)
 {
     FDeferredFrameViewUniform Uniform;
-    Uniform.View = View.View;
-    Uniform.Projection = View.Projection;
-    Uniform.InverseViewProjection = View.InverseViewProjection;
-    Uniform.ViewProjection = View.ViewProjection;
+    Uniform.View = PackRowMajorMatrixForShader(View.View);
+    Uniform.Projection = PackRowMajorMatrixForShader(View.Projection);
+    Uniform.InverseViewProjection = PackRowMajorMatrixForShader(View.InverseViewProjection);
+    Uniform.ViewProjection = PackRowMajorMatrixForShader(View.ViewProjection);
     Uniform.CameraPosition = {View.CameraPosition.X, View.CameraPosition.Y, View.CameraPosition.Z, 1.0f};
     Uniform.OutputExtent = {static_cast<float>(View.Extent.Width), static_cast<float>(View.Extent.Height),
         1.0f / static_cast<float>(View.Extent.Width), 1.0f / static_cast<float>(View.Extent.Height)};
@@ -408,8 +408,8 @@ FDeferredFrameViewUniform BuildDeferredFrameViewUniform(const FDeferredViewData&
 FDeferredDrawMaterialUniform BuildDeferredDrawMaterialUniform(const FDeferredDrawRecord& Draw)
 {
     FDeferredDrawMaterialUniform Uniform;
-    Uniform.Model = Draw.Candidate.Model;
-    Uniform.WorldNormalFromModel = Draw.WorldNormalFromModel;
+    Uniform.Model = PackRowMajorMatrixForShader(Draw.Candidate.Model);
+    Uniform.WorldNormalFromModel = PackRowMajorMatrixForShader(Draw.WorldNormalFromModel);
     const auto& Surface = Draw.Candidate.Surface;
     Uniform.BaseColorAO = {Surface.BaseColor.R, Surface.BaseColor.G, Surface.BaseColor.B,
         Surface.AmbientOcclusion};

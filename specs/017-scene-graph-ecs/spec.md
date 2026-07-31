@@ -173,3 +173,11 @@ An application developer receives stable diagnostics for invalid entities, dupli
 - Basic component storage and deterministic traversal are more important than high-performance archetype queries in this phase.
 - Mesh components identify renderable content abstractly; loading mesh assets, owning graphics buffers, and binding live backend resources remain outside this feature.
 - Transform, mesh, light, and camera components are enough for the first scene foundation; physics, animation, behavior scripting, audio, UI, and editor gizmos are deferred.
+
+## Feature 024 Coordinate Convention Amendment (2026-07-31)
+
+This historical scene contract is preserved. Scene transforms now interpret
+engine-world axes as `UnrealLH_ZUp_XForward_YRight_Meters_CW`: +X forward, +Y
+right, +Z up, and meters. Hierarchy ordering, entity identity, transform
+composition, and component algebra remain as specified; the amendment only
+defines their world meaning and the clockwise default at graphics boundaries.

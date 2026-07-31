@@ -11,6 +11,7 @@
 #include "Core/FMath.h"
 #include "Core/FVector2.h"
 #include "Core/FVector3.h"
+#include "Core/FCoordinateConvention.h"
 #include "Core/FVector4.h"
 #include "Core/FMatrix4x4.h"
 #include "Core/FQuat.h"

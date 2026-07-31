@@ -164,6 +164,13 @@ def main(argv=None):
         env["STONER_RUN_DEFERRED_NATIVE_FAILURES"] = "1"
         args.comparison_output.parent.mkdir(parents=True, exist_ok=True)
 
+    coordinate_result = run(
+        [str(args.tests), "--suite", "coordinate-convention"],
+        args.timeout_seconds,
+        env,
+    )
+    if coordinate_result != 0:
+        return coordinate_result
     result = run([str(args.tests)], args.timeout_seconds, env)
     if args.profile == "deterministic":
         write_deterministic_report(args.output, result)

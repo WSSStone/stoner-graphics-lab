@@ -101,18 +101,18 @@ FForwardDirectionalLight Directional(Stoner::Core::uint32 Id = 1, const char* Na
     FForwardDirectionalLight Light;
     Light.LightId = Id;
     Light.Name = Name;
-    Light.Direction = Stoner::Core::FVector3(0.0f, -1.0f, -1.0f);
+    Light.Direction = Stoner::Core::FVector3(-1.0f, 0.0f, 0.0f);
     Light.Color = Stoner::Core::FColor::OpaqueWhite();
     Light.Intensity = 2.0f;
     return Light;
 }
 
-FForwardPointLight Point(Stoner::Core::uint32 Id, float Z, float Intensity = 1.0f, float Range = 100.0f)
+FForwardPointLight Point(Stoner::Core::uint32 Id, float ForwardX, float Intensity = 1.0f, float Range = 100.0f)
 {
     FForwardPointLight Light;
     Light.LightId = Id;
     Light.Name = std::string("Point") + std::to_string(Id);
-    Light.Position = Stoner::Core::FVector3(0.0f, 0.0f, Z);
+    Light.Position = Stoner::Core::FVector3(ForwardX, 0.0f, 0.0f);
     Light.Color = Stoner::Core::FColor::OpaqueWhite();
     Light.Intensity = Intensity;
     Light.Range = Range;
@@ -132,12 +132,12 @@ FForwardFrameInputs RepresentativeInputs()
     {
         Inputs.PointLights.push_back(Point(static_cast<Stoner::Core::uint32>(10 + Index), 5.0f + static_cast<float>(Index), 2.0f));
     }
-    Inputs.DrawCandidates.push_back(Draw(4, 1, Binding(2, "OpaqueB", EMaterialBlendMode::Opaque), {0.0f, 0.0f, 2.0f}, true, false));
-    Inputs.DrawCandidates.push_back(Draw(1, 1, Binding(1, "OpaqueA", EMaterialBlendMode::Opaque), {0.0f, 0.0f, 1.0f}, true, false));
-    Inputs.DrawCandidates.push_back(Draw(3, 2, Binding(1, "OpaqueA2", EMaterialBlendMode::Opaque), {0.0f, 0.0f, 3.0f}, true, false));
-    Inputs.DrawCandidates.push_back(Draw(2, 1, Binding(3, "OpaqueC", EMaterialBlendMode::Masked), {0.0f, 0.0f, 4.0f}, true, false));
-    Inputs.DrawCandidates.push_back(Draw(6, 3, Binding(4, "GlassFar", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 10.0f}, false, true));
-    Inputs.DrawCandidates.push_back(Draw(5, 3, Binding(5, "GlassNear", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 2.0f}, false, true));
+    Inputs.DrawCandidates.push_back(Draw(4, 1, Binding(2, "OpaqueB", EMaterialBlendMode::Opaque), {2.0f, 0.0f, 0.0f}, true, false));
+    Inputs.DrawCandidates.push_back(Draw(1, 1, Binding(1, "OpaqueA", EMaterialBlendMode::Opaque), {1.0f, 0.0f, 0.0f}, true, false));
+    Inputs.DrawCandidates.push_back(Draw(3, 2, Binding(1, "OpaqueA2", EMaterialBlendMode::Opaque), {3.0f, 0.0f, 0.0f}, true, false));
+    Inputs.DrawCandidates.push_back(Draw(2, 1, Binding(3, "OpaqueC", EMaterialBlendMode::Masked), {4.0f, 0.0f, 0.0f}, true, false));
+    Inputs.DrawCandidates.push_back(Draw(6, 3, Binding(4, "GlassFar", EMaterialBlendMode::Translucent), {10.0f, 0.0f, 0.0f}, false, true));
+    Inputs.DrawCandidates.push_back(Draw(5, 3, Binding(5, "GlassNear", EMaterialBlendMode::Translucent), {2.0f, 0.0f, 0.0f}, false, true));
     return Inputs;
 }
 
@@ -290,24 +290,24 @@ void TestSkyTransparentAndDeterminism(FRendererForwardPipelineTestResult& Result
         "Forward renderer sorts transparent draws by camera-space depth descending");
 
     Inputs.DrawCandidates.clear();
-    Inputs.DrawCandidates.push_back(Draw(12, 4, Binding(12, "TieB", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 7.0f}, false, true));
-    Inputs.DrawCandidates.push_back(Draw(11, 4, Binding(11, "TieA", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 7.0f}, false, true));
+    Inputs.DrawCandidates.push_back(Draw(12, 4, Binding(12, "TieB", EMaterialBlendMode::Translucent), {7.0f, 0.0f, 0.0f}, false, true));
+    Inputs.DrawCandidates.push_back(Draw(11, 4, Binding(11, "TieA", EMaterialBlendMode::Translucent), {7.0f, 0.0f, 0.0f}, false, true));
     Plan = Prepare(Inputs);
     Record(Result, Plan.AcceptedTransparentDraws[0].GetMaterialId() == 11 &&
             Plan.AcceptedTransparentDraws[1].GetMaterialId() == 12,
         "Forward renderer breaks equal-depth transparent ties by material id");
 
     Inputs.DrawCandidates.clear();
-    Inputs.DrawCandidates.push_back(Draw(20, 41, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 7.0f}, false, true));
-    Inputs.DrawCandidates.push_back(Draw(20, 40, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 7.0f}, false, true));
+    Inputs.DrawCandidates.push_back(Draw(20, 41, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {7.0f, 0.0f, 0.0f}, false, true));
+    Inputs.DrawCandidates.push_back(Draw(20, 40, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {7.0f, 0.0f, 0.0f}, false, true));
     Plan = Prepare(Inputs);
     const bool bForwardOrderUsesMeshTie =
         Plan.AcceptedTransparentDraws.size() == 2 &&
         Plan.AcceptedTransparentDraws[0].GetMeshId() == 40 &&
         Plan.AcceptedTransparentDraws[1].GetMeshId() == 41;
     Inputs.DrawCandidates.clear();
-    Inputs.DrawCandidates.push_back(Draw(20, 40, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 7.0f}, false, true));
-    Inputs.DrawCandidates.push_back(Draw(20, 41, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {0.0f, 0.0f, 7.0f}, false, true));
+    Inputs.DrawCandidates.push_back(Draw(20, 40, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {7.0f, 0.0f, 0.0f}, false, true));
+    Inputs.DrawCandidates.push_back(Draw(20, 41, Binding(20, "SameObjectGlass", EMaterialBlendMode::Translucent), {7.0f, 0.0f, 0.0f}, false, true));
     const FForwardFramePlan ReversedTiePlan = Prepare(Inputs);
     Record(Result, bForwardOrderUsesMeshTie &&
             ReversedTiePlan.AcceptedTransparentDraws.size() == 2 &&
@@ -317,7 +317,7 @@ void TestSkyTransparentAndDeterminism(FRendererForwardPipelineTestResult& Result
 
     Inputs.DrawCandidates.clear();
     FForwardMaterialBinding OpaqueOnly = Binding(50, "OpaqueOnly", EMaterialBlendMode::Opaque);
-    Inputs.DrawCandidates.push_back(Draw(50, 50, OpaqueOnly, {0.0f, 0.0f, 5.0f}, false, true));
+    Inputs.DrawCandidates.push_back(Draw(50, 50, OpaqueOnly, {5.0f, 0.0f, 0.0f}, false, true));
     Plan = Prepare(Inputs);
     Record(Result, Plan.AcceptedTransparentDraws.empty() &&
             Plan.Diagnostics.CountByCode("FWD-MAT-TRANSPARENT-BLEND") == 1,

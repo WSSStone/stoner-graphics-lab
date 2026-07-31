@@ -1,5 +1,8 @@
 #version 450
 
+// Frame matrices are supplied as GLSL column-major payloads by the Renderer
+// row-major packing contract.
+
 layout(location = 0) flat in uint LightIndex;
 
 layout(set = 0, binding = 0, std140) uniform FrameView

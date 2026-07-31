@@ -183,3 +183,12 @@ An engine maintainer can add and validate deferred rendering without changing th
 - The performance comparison is an engineering baseline artifact, not a universal frame-rate guarantee or a requirement that deferred rendering outperform forward rendering in this feature. It uses equivalent inputs, fixed warm-up and sampling rules, and reports per-tier workload counts, timing statistics, and observed crossover behavior.
 - Deterministic headless validation is required on Windows, macOS, and Linux. Linux Lavapipe CI is the required real RHI offscreen execution and pixel-validation environment; native execution on Windows/macOS, visible-window integration, and screenshot evidence remain outside this feature's completion gates.
 - Android and other mobile platforms are outside the currently supported platform set for this feature.
+
+## Feature 024 Coordinate Convention Amendment (2026-07-31)
+
+This historical deferred contract is preserved. Deferred world-space values use
+`UnrealLH_ZUp_XForward_YRight_Meters_CW`: +X forward, +Y right, +Z up, meters,
+and clockwise default graphics front faces. Existing component math and
+deferred algorithms remain unchanged; the renderer explicitly packs row-major
+CPU view, projection, model, and normal matrices into GLSL column-major
+storage before native execution.

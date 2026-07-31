@@ -76,7 +76,7 @@ FSceneRenderSummary FRenderSystem::Collect(const FWorld& World)
                     Light->Intensity,
                     Light->Range,
                     WorldTransform.Translation,
-                    WorldTransform.Rotation.RotateVector(Stoner::Core::FVector3(0.0f, 0.0f, -1.0f)).GetSafeNormal(),
+                    WorldTransform.Rotation.RotateVector(Stoner::Core::FCoordinateConvention::Forward()).GetSafeNormal(),
                     Light->OptionalSortKey,
                     Light->bHasSortKey,
                 });

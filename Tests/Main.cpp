@@ -4,6 +4,7 @@
 #include "ApplicationWindowInputTests.h"
 #include "CoreFoundationTests.h"
 #include "CoreMathTests.h"
+#include "CoordinateConventionTests.h"
 #include "CorePlatformOwnershipTests.h"
 #include "LoggingAssertionTests.h"
 #include "CorePlatformTests.h"
@@ -130,6 +131,7 @@ int main(int ArgCount, char* Arguments[])
     });
     Registry.Register("core-foundation", [] { return RunCoreFoundationTests().Failed == 0 ? 0 : 1; });
     Registry.Register("core-math", [] { return RunCoreMathTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("coordinate-convention", [] { return RunCoordinateConventionTests().Failed == 0 ? 0 : 1; });
     Registry.Register("core-platform", [] { return RunCorePlatformTests().Failed == 0 ? 0 : 1; });
     Registry.Register("core-platform-ownership", [] { return RunCorePlatformOwnershipTests().Failed == 0 ? 0 : 1; });
     Registry.Register("deferred-native", [] { return RunDeferredNativeIntegrationTests().Failed == 0 ? 0 : 1; });

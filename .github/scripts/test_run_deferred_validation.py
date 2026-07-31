@@ -13,6 +13,30 @@ SPEC.loader.exec_module(MODULE)
 
 
 class DeferredValidationTests(unittest.TestCase):
+    def test_coordinate_suite_is_required_before_deferred_validation(self):
+        calls = []
+
+        def record(command, timeout_seconds, env):
+            del timeout_seconds, env
+            calls.append(command)
+            return 7
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "report.txt"
+            original = MODULE.run
+            MODULE.run = record
+            try:
+                result = MODULE.main(
+                    [
+                        "--profile", "deterministic", "--tests", "StonerTest",
+                        "--output", str(output),
+                    ]
+                )
+            finally:
+                MODULE.run = original
+        self.assertEqual(7, result)
+        self.assertEqual([["StonerTest", "--suite", "coordinate-convention"]], calls)
+
     def test_deterministic_profile_requires_output(self):
         with self.assertRaises(SystemExit):
             MODULE.parse_args(
