@@ -55,7 +55,7 @@ all three. No canonical mesh/model payload may be accepted before T037.
 - [X] T009 [P] Add failing +X-forward light, hierarchy composition, and preserve-world reparent probes in `Tests/ApplicationSceneEcsTests.cpp`
 - [ ] T010 [P] Add failing +X view-depth, transparency ordering, deferred reconstruction, and normal-transform probes in `Tests/RendererForwardPipelineTests.cpp` and `Tests/DeferredRenderingTests.cpp`
 - [ ] T011 [P] Add failing clockwise-default, negative-determinant, and backend front-face mapping probes in `Tests/RHICoreTests.cpp` and `Tests/VulkanBackendTests.cpp`
-- [ ] T012 [P] Add a failing native non-symmetric CPU-to-GLSL matrix readback and clockwise-culling probe in `Tests/VulkanNativeIntegrationTests.cpp`
+- [X] T012 [P] Add a native non-symmetric CPU-to-GLSL matrix readback and clockwise-culling probe in `Tests/DeferredNativeIntegrationTests.cpp`
 - [X] T013 Define `UnrealLH_ZUp_XForward_YRight_Meters_CW`, preserve component cross/Hamilton/S-R-T algebra, and update public convention comments in `Source/Core/Public/Core/FCoordinateConvention.h`, `Source/Core/Public/Core/FMath.h`, `Source/Core/Public/Core/FQuat.h`, and `Source/Core/Public/Core/FVector3.h`
 - [X] T014 Migrate default world directions and Scene render summaries to +X forward, +Y right, +Z up in `Source/Application/Private/FRenderSystem.cpp`, `Source/Application/Public/Application/FSceneRenderSummary.h`, and `Source/Application/Private/FSceneRenderSummary.cpp`
 - [X] T015 Centralize world-to-view and named view-depth construction for forward/deferred consumers in `Source/Renderer/Public/Renderer/FForwardViewData.h`, `Source/Renderer/Private/FForwardViewData.cpp`, `Source/Renderer/Private/FMeshDrawCommand.cpp`, and `Source/Renderer/Private/FDeferredLightVolume.cpp`
