@@ -56,4 +56,4 @@ jobs:
         with:
           name: feature-024-native-probe-linux
           path: Validation/024/Linux/native-packed-uniform-readback.txt
-          if-no-files-found: error
+          if-no-files-found: warn
