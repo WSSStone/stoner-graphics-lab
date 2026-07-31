@@ -31,6 +31,20 @@ enum class ERHIFrontFace
     Clockwise
 };
 
+// Draw submission resolves negative-determinant transform parity once before
+// creating or selecting its backend pipeline state.
+[[nodiscard]] constexpr ERHIFrontFace ResolveRHIFrontFaceForTransform(
+    ERHIFrontFace FrontFace, bool bNegativeDeterminant) noexcept
+{
+    if (!bNegativeDeterminant)
+    {
+        return FrontFace;
+    }
+    return FrontFace == ERHIFrontFace::Clockwise
+        ? ERHIFrontFace::CounterClockwise
+        : ERHIFrontFace::Clockwise;
+}
+
 enum class ERHIBlendFactor
 {
     Zero,

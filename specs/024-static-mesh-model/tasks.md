@@ -50,11 +50,11 @@ all three. No canonical mesh/model payload may be accepted before T037.
 
 ### Coordinate Convention Migration
 
-- [ ] T007 Add failing convention identity, basis, yaw, camera-depth, culling, negative-scale, and non-symmetric shader-matrix tests in `Tests/CoordinateConventionTests.cpp` and `Tests/CoordinateConventionTests.h`
+- [X] T007 Add convention identity, basis, yaw, camera-depth, culling, negative-scale, and non-symmetric shader-matrix tests in `Tests/CoordinateConventionTests.cpp` and `Tests/CoordinateConventionTests.h`
 - [X] T008 [P] Replace historical right-handed assertions with failing Unreal-convention algebra and TRS probes in `Tests/CoreMathTests.cpp`
 - [X] T009 [P] Add failing +X-forward light, hierarchy composition, and preserve-world reparent probes in `Tests/ApplicationSceneEcsTests.cpp`
-- [ ] T010 [P] Add failing +X view-depth, transparency ordering, deferred reconstruction, and normal-transform probes in `Tests/RendererForwardPipelineTests.cpp` and `Tests/DeferredRenderingTests.cpp`
-- [ ] T011 [P] Add failing clockwise-default, negative-determinant, and backend front-face mapping probes in `Tests/RHICoreTests.cpp` and `Tests/VulkanBackendTests.cpp`
+- [X] T010 [P] Add +X view-depth, transparency ordering, deferred reconstruction, and normal-transform probes in `Tests/RendererForwardPipelineTests.cpp` and `Tests/DeferredRenderingTests.cpp`
+- [X] T011 [P] Add clockwise-default, negative-determinant, and backend front-face mapping probes in `Tests/RHICoreTests.cpp` and `Tests/VulkanBackendTests.cpp`
 - [X] T012 [P] Add a native non-symmetric CPU-to-GLSL matrix readback and clockwise-culling probe in `Tests/DeferredNativeIntegrationTests.cpp`
 - [X] T013 Define `UnrealLH_ZUp_XForward_YRight_Meters_CW`, preserve component cross/Hamilton/S-R-T algebra, and update public convention comments in `Source/Core/Public/Core/FCoordinateConvention.h`, `Source/Core/Public/Core/FMath.h`, `Source/Core/Public/Core/FQuat.h`, and `Source/Core/Public/Core/FVector3.h`
 - [X] T014 Migrate default world directions and Scene render summaries to +X forward, +Y right, +Z up in `Source/Application/Private/FRenderSystem.cpp`, `Source/Application/Public/Application/FSceneRenderSummary.h`, and `Source/Application/Private/FSceneRenderSummary.cpp`

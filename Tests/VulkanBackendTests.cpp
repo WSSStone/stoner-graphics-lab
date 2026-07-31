@@ -692,6 +692,11 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
         GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object);
     CounterClockwiseDesc.Rasterizer.FrontFace = ERHIFrontFace::CounterClockwise;
     const auto CounterClockwisePipeline = Device.CreateGraphicsPipeline(CounterClockwiseDesc);
+    FRHIGraphicsPipelineDesc MirroredDesc =
+        GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object);
+    MirroredDesc.Rasterizer.FrontFace = ResolveRHIFrontFaceForTransform(
+        MirroredDesc.Rasterizer.FrontFace, true);
+    const auto MirroredPipeline = Device.CreateGraphicsPipeline(MirroredDesc);
     const auto ComputePipeline = Device.CreateComputePipeline(ComputePipelineDesc(Compute.Object, Layout.Object));
     const auto ComputePipelineAgain = Device.CreateComputePipeline(ComputePipelineDesc(Compute.Object, Layout.Object));
     FVulkanDevice ForeignDevice;
@@ -738,8 +743,11 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
         VulkanCompute && VulkanCompute->GetRuntimeMode() == ERHIRuntimeObjectMode::DeterministicFallback &&
         VulkanGraphics->GetDesc().Rasterizer.FrontFace == ERHIFrontFace::Clockwise &&
         CounterClockwisePipeline.Succeeded() &&
-        CounterClockwisePipeline.Object->GetDesc().Rasterizer.FrontFace == ERHIFrontFace::CounterClockwise,
-        "Vulkan pipelines preserve clockwise defaults and explicit front-face overrides");
+        CounterClockwisePipeline.Object->GetDesc().Rasterizer.FrontFace == ERHIFrontFace::CounterClockwise &&
+        MirroredPipeline.Succeeded() &&
+        MirroredPipeline.Object->GetDesc().Rasterizer.FrontFace == ERHIFrontFace::CounterClockwise &&
+        MirroredPipeline.Object != GraphicsPipeline.Object,
+        "Vulkan pipelines preserve clockwise defaults and resolved mirrored front-face overrides");
     FRHIGraphicsPipelineDesc InvalidFixedFunction =
         GraphicsPipelineDesc(Vertex.Object, Fragment.Object, Layout.Object);
     InvalidFixedFunction.Rasterizer.CullMode = static_cast<ERHICullMode>(255);

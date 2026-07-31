@@ -289,6 +289,26 @@ void TestSkyTransparentAndDeterminism(FRendererForwardPipelineTestResult& Result
             Plan.AcceptedTransparentDraws[1].GetObjectId() == 5,
         "Forward renderer sorts transparent draws by camera-space depth descending");
 
+    Inputs = RepresentativeInputs();
+    Inputs.View.ViewMatrix = Stoner::Core::FMatrix4x4(
+        0.0f, 1.0f, 0.0f, 0.0f,
+        -1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f);
+    Inputs.DrawCandidates.clear();
+    Inputs.DrawCandidates.push_back(Draw(31, 1,
+        Binding(31, "ViewDepthNear", EMaterialBlendMode::Translucent),
+        {100.0f, 1.0f, 0.0f}, false, true));
+    Inputs.DrawCandidates.push_back(Draw(32, 1,
+        Binding(32, "ViewDepthFar", EMaterialBlendMode::Translucent),
+        {1.0f, 2.0f, 0.0f}, false, true));
+    Plan = Prepare(Inputs);
+    Record(Result, Plan.AcceptedTransparentDraws.size() == 2 &&
+            Plan.AcceptedTransparentDraws[0].GetObjectId() == 32 &&
+            Plan.AcceptedTransparentDraws[0].GetCameraSpaceDepth() == 2.0f &&
+            Plan.AcceptedTransparentDraws[1].GetCameraSpaceDepth() == 1.0f,
+        "Forward transparency uses named view-space +X depth rather than world storage order");
+
     Inputs.DrawCandidates.clear();
     Inputs.DrawCandidates.push_back(Draw(12, 4, Binding(12, "TieB", EMaterialBlendMode::Translucent), {7.0f, 0.0f, 0.0f}, false, true));
     Inputs.DrawCandidates.push_back(Draw(11, 4, Binding(11, "TieA", EMaterialBlendMode::Translucent), {7.0f, 0.0f, 0.0f}, false, true));

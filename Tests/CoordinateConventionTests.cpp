@@ -43,6 +43,12 @@ FCoordinateConventionTestResult RunCoordinateConventionTests()
     Record(Result,
         FQuat::FromAxisAngle(Up, FMath::HalfPi).RotateVector(Forward).NearlyEquals(Right),
         "Positive yaw maps forward to right");
+    const FTransform Srt(FVector3(2.0f, 3.0f, 4.0f),
+        FQuat::FromAxisAngle(Up, FMath::HalfPi), FVector3(2.0f, 1.0f, 1.0f));
+    Record(Result,
+        Srt.TransformPoint(Forward).NearlyEquals(FVector3(2.0f, 5.0f, 4.0f)) &&
+            Srt.ToMatrix().TransformPoint(Forward).NearlyEquals(FVector3(2.0f, 5.0f, 4.0f)),
+        "Coordinate convention preserves scale-rotate-translate composition");
     Record(Result,
         Stoner::RHI::FRHIGraphicsPipelineDesc().Rasterizer.FrontFace ==
             Stoner::RHI::ERHIFrontFace::Clockwise,
