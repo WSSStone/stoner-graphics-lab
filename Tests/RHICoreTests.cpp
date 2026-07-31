@@ -1657,6 +1657,15 @@ void TestCoreValuesAndCapabilities(FRHICoreTestResult& Result)
     Record(Result, ERHIResult::Success != ERHIResult::InvalidState, "ERHIResult exposes distinct success and invalid-state values");
     Record(Result, RHISucceeded(ERHIResult::Success), "RHISucceeded accepts Success");
     Record(Result, RHIFailed(ERHIResult::Unsupported), "RHIFailed accepts Unsupported");
+    Record(Result,
+        FRHIRasterizerState().FrontFace == ERHIFrontFace::Clockwise &&
+            ResolveRHIFrontFaceForTransform(ERHIFrontFace::Clockwise, false) ==
+                ERHIFrontFace::Clockwise &&
+            ResolveRHIFrontFaceForTransform(ERHIFrontFace::Clockwise, true) ==
+                ERHIFrontFace::CounterClockwise &&
+            ResolveRHIFrontFaceForTransform(ERHIFrontFace::CounterClockwise, true) ==
+                ERHIFrontFace::Clockwise,
+        "RHI applies negative-determinant front-face parity exactly once");
 
     FRHIDeviceCapabilities Capabilities;
     Capabilities.bSupportsGraphicsQueue = true;

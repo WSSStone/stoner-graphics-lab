@@ -240,6 +240,17 @@ void TestSurfaceAndNormalContracts(FDeferredRenderingTestResult& Result)
     Record(Result, !TryBuildWorldNormalFromModel(
         FMatrix4x4::Scale(FVector3(1.0f, 0.0f, 1.0f)), NormalMatrix),
         "Deferred draw rejects singular model transforms");
+
+    FDeferredViewData ReconstructedView = MakeView();
+    ReconstructedView.ViewProjection = FMatrix4x4::Translation(
+        FVector3(-3.0f, 2.0f, -1.0f));
+    const bool bHasInverse = ReconstructedView.ViewProjection.TryInverse(
+        ReconstructedView.InverseViewProjection);
+    const FVector3 WorldPoint(8.0f, -4.0f, 0.5f);
+    Record(Result, bHasInverse && ReconstructedView.IsValid() &&
+        ReconstructedView.InverseViewProjection.TransformPoint(
+            ReconstructedView.ViewProjection.TransformPoint(WorldPoint)).NearlyEquals(WorldPoint),
+        "Deferred view keeps an explicit inverse view-projection reconstruction contract");
 }
 
 void TestPlanningAndGraph(FDeferredRenderingTestResult& Result)

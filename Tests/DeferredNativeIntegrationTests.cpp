@@ -220,12 +220,16 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
     ProbeView.DepthPolicy = Stoner::Renderer::MakeDeferredDepthPolicy(
         Stoner::Renderer::EDeferredDepthConvention::StandardZ, 0.1f, 100.0f);
     Stoner::Renderer::FDeferredDrawRecord ProbeDraw;
-    ProbeDraw.Candidate.Model = Stoner::Core::FMatrix4x4::Identity();
     // Translation occupies a different row/column in CPU and GLSL layouts.
-    // Keeping the center sample covered lets the same attachment reference
-    // prove the Renderer-to-Vulkan packed path without relaxing its checks.
-    ProbeDraw.Candidate.Model.M[0][3] = 0.05f;
-    ProbeDraw.WorldNormalFromModel = Stoner::Core::FMatrix4x4::Identity();
+    // The affine probe also exercises an XY rotation and non-uniform scale
+    // while keeping the center sample covered by the native attachment oracle.
+    ProbeDraw.Candidate.Model = Stoner::Core::FMatrix4x4(
+        0.69282f, -0.45f, 0.0f, 0.05f,
+        0.4f, 0.779423f, 0.0f, -0.04f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f);
+    const bool bPackedNormalMatrix = Stoner::Renderer::TryBuildWorldNormalFromModel(
+        ProbeDraw.Candidate.Model, ProbeDraw.WorldNormalFromModel);
     ProbeDraw.Candidate.Surface.BaseColor = {0.8f, 0.2f, 0.1f};
     ProbeDraw.Candidate.Surface.AmbientOcclusion = 0.75f;
     ProbeDraw.Candidate.Surface.Normal = {0.0f, 0.0f, 1.0f};
@@ -243,7 +247,8 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
     FVulkanDeferredValidationReport PackedReport;
     const ERHIResult PackedExecutionResult = Context.ExecuteDeferredOffscreenValidation(
         Shaders, PackedReport, EVulkanDeferredFailurePoint::None, &PackedPayload);
-    bool bPackedProbePassed = PackedExecutionResult == ERHIResult::Success &&
+    bool bPackedProbePassed = bPackedNormalMatrix &&
+        PackedExecutionResult == ERHIResult::Success &&
         PackedReport.bNativeSubmissionCompleted && PackedReport.bPassed;
     for (const FVulkanDeferredProbe& Probe : PackedReport.Probes)
     {
