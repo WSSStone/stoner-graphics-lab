@@ -21,7 +21,10 @@
 #include "VulkanNativeIntegrationTests.h"
 #include "TriangleDemoIntegrationTests.h"
 #include "AssetTests.h"
+#include "AssetGLTFContainerTests.h"
+#include "AssetGLTFPolicyTests.h"
 #include "AssetMaterialShaderTests.h"
+#include "AssetStaticMeshGeometryTests.h"
 #include "RendererMaterialShaderAssetTests.h"
 #include "TestSuiteRegistry.h"
 #include "TestSuiteRegistryTests.h"
@@ -125,6 +128,13 @@ int main(int ArgCount, char* Arguments[])
     });
     Registry.Register("asset-material-shader", [MaterialShaderOptions] {
         return RunAssetMaterialShaderTests(MaterialShaderOptions).Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-static-mesh", [] {
+        const auto Geometry = RunAssetStaticMeshGeometryTests();
+        const auto Policy = RunAssetGLTFPolicyTests();
+        const auto Container = RunAssetGLTFContainerTests();
+        return Geometry.Failed == 0 && Policy.Failed == 0 &&
+            Container.Failed == 0 ? 0 : 1;
     });
     Registry.Register("asset-ktx2-encoder", [] {
         return RunAssetKTX2EncoderTests().Failed == 0 ? 0 : 1;

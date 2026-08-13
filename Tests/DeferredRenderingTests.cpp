@@ -400,7 +400,8 @@ void TestShaderAndExecutionContracts(FDeferredRenderingTestResult& Result)
         {
             bBatchUsesAcceptedLightOffset = bBatchUsesAcceptedLightOffset ||
                 (Command.Type == ERHISymbolicCommandType::DrawIndexed &&
-                    Command.B == 3 && Command.C == 1);
+                    Command.B == 3 && Command.C == 0 &&
+                    Command.D == 0 && Command.E == 1);
         }
     }
     Record(Result, bBatchedFixture && BatchedExecution.Succeeded() &&

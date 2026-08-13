@@ -65,6 +65,21 @@ EMaterialResult AddParameter(
                     std::get<Asset::FAssetId>(
                         Parameter.Value.Value).ToString())),
             Diagnostics);
+    case Asset::EMaterialAssetParameterType::TextureBinding:
+    {
+        const auto& Binding = std::get<Asset::FMaterialTextureBinding>(
+            Parameter.Value.Value);
+        if (!Binding.Texture.GetId())
+        {
+            return EMaterialResult::ValidationFailed;
+        }
+        return Parameters.AddParameter(
+            Parameter.Name,
+            FMaterialParameterValue::FromResourceReference(
+                FMaterialResourceReference::Texture(
+                    Binding.Texture.GetId()->ToString())),
+            Diagnostics);
+    }
     }
     return EMaterialResult::ValidationFailed;
 }
@@ -84,6 +99,62 @@ void Diagnose(FMaterialDiagnosticLog* Diagnostics, const char* Code)
 }
 
 } // namespace
+
+EMaterialResult ConvertMaterialSamplerIntent(
+    const Asset::FMaterialSamplerIntent& Intent,
+    RHI::FRHISamplerDesc& OutSampler)
+{
+    if (!Asset::IsValidAssetSamplerFilter(Intent.MinFilter) ||
+        !Asset::IsValidAssetSamplerFilter(Intent.MagFilter) ||
+        !Asset::IsValidAssetSamplerMipFilter(Intent.MipFilter) ||
+        !Asset::IsValidAssetSamplerAddressMode(Intent.AddressU) ||
+        !Asset::IsValidAssetSamplerAddressMode(Intent.AddressV))
+    {
+        return EMaterialResult::ValidationFailed;
+    }
+    const auto Filter = [](Asset::EAssetSamplerFilter Value)
+    {
+        return Value == Asset::EAssetSamplerFilter::Nearest
+            ? RHI::ERHISamplerFilter::Nearest
+            : RHI::ERHISamplerFilter::Linear;
+    };
+    const auto Mip = [](Asset::EAssetSamplerMipFilter Value)
+    {
+        switch (Value)
+        {
+        case Asset::EAssetSamplerMipFilter::None:
+            return RHI::ERHISamplerMipFilter::None;
+        case Asset::EAssetSamplerMipFilter::Nearest:
+            return RHI::ERHISamplerMipFilter::Nearest;
+        case Asset::EAssetSamplerMipFilter::Linear:
+        case Asset::EAssetSamplerMipFilter::Automatic:
+            return RHI::ERHISamplerMipFilter::Linear;
+        }
+        return RHI::ERHISamplerMipFilter::Linear;
+    };
+    const auto Address = [](Asset::EAssetSamplerAddressMode Value)
+    {
+        switch (Value)
+        {
+        case Asset::EAssetSamplerAddressMode::Repeat:
+            return RHI::ERHISamplerAddressMode::Repeat;
+        case Asset::EAssetSamplerAddressMode::MirroredRepeat:
+            return RHI::ERHISamplerAddressMode::MirroredRepeat;
+        case Asset::EAssetSamplerAddressMode::ClampToEdge:
+            return RHI::ERHISamplerAddressMode::ClampToEdge;
+        }
+        return RHI::ERHISamplerAddressMode::Repeat;
+    };
+    OutSampler = {};
+    OutSampler.MinFilter = Filter(Intent.MinFilter);
+    OutSampler.MagFilter = Filter(Intent.MagFilter);
+    OutSampler.MipFilter = Mip(Intent.MipFilter);
+    OutSampler.AddressU = Address(Intent.AddressU);
+    OutSampler.AddressV = Address(Intent.AddressV);
+    return RHI::IsValidRHISamplerDesc(OutSampler)
+        ? EMaterialResult::Success
+        : EMaterialResult::UnsupportedCombination;
+}
 
 EMaterialResult ConvertMaterialAsset(
     const FMaterialAssetConversionRequest& Request,
@@ -128,6 +199,7 @@ EMaterialResult ConvertMaterialAsset(
         Resolved.RenderState.bTwoSided};
     Desc.PermutationRequest =
         FShaderPermutation(Resolved.PermutationRequest.Flags);
+    Core::TArray<FMaterialAssetSnapshot::FTextureBinding> TextureBindings;
     for (const Asset::FMaterialAssetParameter& Parameter :
          Resolved.EffectiveParameters)
     {
@@ -136,6 +208,23 @@ EMaterialResult ConvertMaterialAsset(
         if (Result != EMaterialResult::Success)
         {
             return Result;
+        }
+        if (Parameter.Value.Type ==
+                Asset::EMaterialAssetParameterType::TextureBinding)
+        {
+            const auto& Binding = std::get<Asset::FMaterialTextureBinding>(
+                Parameter.Value.Value);
+            FMaterialAssetSnapshot::FTextureBinding SnapshotBinding;
+            SnapshotBinding.ParameterName = Parameter.Name;
+            SnapshotBinding.TextureId = *Binding.Texture.GetId();
+            SnapshotBinding.TexCoordSet = Binding.TexCoordSet;
+            const EMaterialResult SamplerResult = ConvertMaterialSamplerIntent(
+                Binding.Sampler, SnapshotBinding.Sampler);
+            if (SamplerResult != EMaterialResult::Success)
+            {
+                return SamplerResult;
+            }
+            TextureBindings.push_back(std::move(SnapshotBinding));
         }
     }
 
@@ -159,6 +248,14 @@ EMaterialResult ConvertMaterialAsset(
 
     FMaterialAssetSnapshot Candidate;
     Candidate.Material = FMaterial(std::move(Desc));
+    Candidate.TextureBindings = std::move(TextureBindings);
+    std::sort(
+        Candidate.TextureBindings.begin(),
+        Candidate.TextureBindings.end(),
+        [](const auto& Left, const auto& Right)
+        {
+            return Left.ParameterName < Right.ParameterName;
+        });
     Result = Candidate.Material.Validate(Diagnostics);
     if (Result != EMaterialResult::Success)
     {

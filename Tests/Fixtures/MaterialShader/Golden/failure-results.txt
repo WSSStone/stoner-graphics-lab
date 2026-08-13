@@ -2,7 +2,7 @@
 01-missing-schema.json=35
 02-unknown-schema.json=36
 03-version-zero.json=36
-04-version-two.json=36
+04-version-two.json=35
 05-required-extension.json=37
 06-missing-required-body.json=35
 07-extensions-array.json=35
@@ -38,3 +38,4 @@
 37-array-root.json=35
 38-boolean-root.json=35
 39-number-root.json=35
+40-v2-texcoord.json=35

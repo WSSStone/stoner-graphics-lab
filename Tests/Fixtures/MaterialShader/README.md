@@ -9,6 +9,8 @@ Feature 023 owns deterministic source-definition fixtures here.
   cases.
 - 12 Material definitions spanning every domain, blend mode, render-state
   boolean, scalar/vector/color/texture parameter, and permutation category.
+- One schema-v2 Material definition covering typed texture identity, UV1, and
+  non-default sampler intent.
 - 16 MaterialInstance definitions spanning Material and MaterialInstance
   parents, root-to-leaf overrides, exact depth, unresolved soft references,
   and deterministic insertion orders.

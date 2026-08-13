@@ -782,6 +782,29 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
         GraphicsCommand.Object->End() == ERHIResult::Success &&
         Device.GetDiagnostics().PipelineBindingReason[0] != '\0', "Vulkan command buffer binds graphics pipeline and records draw diagnostics");
 
+    const auto FullArgumentCommand =
+        Device.CreateCommandBuffer(ERHIQueueType::Graphics);
+    const auto ConcreteFullArgumentCommand =
+        std::dynamic_pointer_cast<FVulkanCommandBuffer>(
+            FullArgumentCommand.Object);
+    const FRHIIndexedDrawArguments FullArguments{36, 4, 12, -7, 9};
+    Record(Result,
+        FullArgumentCommand.Succeeded() &&
+            FullArgumentCommand.Object->Begin() == ERHIResult::Success &&
+            FullArgumentCommand.Object->BeginRenderPass(
+                RenderPass.Object, Framebuffer.Object) == ERHIResult::Success &&
+            FullArgumentCommand.Object->RecordDrawIndexed(FullArguments) ==
+                ERHIResult::Success &&
+            ConcreteFullArgumentCommand &&
+            ConcreteFullArgumentCommand->GetRecordedCommands().back().A == 36 &&
+            ConcreteFullArgumentCommand->GetRecordedCommands().back().B == 4 &&
+            ConcreteFullArgumentCommand->GetRecordedCommands().back().C == 12 &&
+            ConcreteFullArgumentCommand->GetRecordedCommands().back().D == -7 &&
+            ConcreteFullArgumentCommand->GetRecordedCommands().back().E == 9 &&
+            FullArgumentCommand.Object->RecordDrawIndexed(
+                {0, 1, 0, 0, 0}) == ERHIResult::InvalidState,
+        "Vulkan indexed draw records all backend-neutral fields without reinterpretation");
+
     const auto ComputeCommand = Device.CreateCommandBuffer(ERHIQueueType::Compute);
     const auto TransferCommand = Device.CreateCommandBuffer(ERHIQueueType::Transfer);
     Record(Result, ComputeCommand.Object->Begin() == ERHIResult::Success &&
@@ -1808,6 +1831,44 @@ void TestSamplersDescriptorsAndUploads(FVulkanBackendTestResult& Result)
                 MultisampledTexture.Object,
                 SynchronousUpload) == ERHIResult::Unsupported,
         "Vulkan synchronous upload rejects missing copy usage and multisampling");
+
+    FRHIBufferDesc HostVisibleBufferDesc{64,
+        ERHIBufferUsage::Vertex | ERHIBufferUsage::CopyDestination,
+        ERHIMemoryAccess::HostVisible};
+    FRHIBufferDesc DeviceLocalBufferDesc = HostVisibleBufferDesc;
+    DeviceLocalBufferDesc.MemoryAccess = ERHIMemoryAccess::DeviceLocal;
+    const auto HostVisibleBuffer = Device.CreateBuffer(HostVisibleBufferDesc);
+    const auto DeviceLocalBuffer = Device.CreateBuffer(DeviceLocalBufferDesc);
+    const unsigned char BufferBytes[4] = {9, 8, 7, 6};
+    const auto ConcreteHostBuffer =
+        std::dynamic_pointer_cast<FVulkanBuffer>(HostVisibleBuffer.Object);
+    const Stoner::Core::uint32 UploadCountBefore =
+        Device.GetTrackedUploadRequestCount();
+    Record(Result,
+        HostVisibleBuffer.Succeeded() && DeviceLocalBuffer.Succeeded() &&
+            Device.UploadBuffer(HostVisibleBuffer.Object,
+                {4, BufferBytes, sizeof(BufferBytes)}) ==
+                ERHIResult::Success &&
+            ConcreteHostBuffer &&
+            ConcreteHostBuffer->GetUploadedBytes().size() == 8 &&
+            ConcreteHostBuffer->GetUploadedBytes()[4] == 9 &&
+            Device.UploadBuffer(DeviceLocalBuffer.Object,
+                {0, BufferBytes, sizeof(BufferBytes)}) ==
+                ERHIResult::Success &&
+            Device.GetTrackedUploadRequestCount() == UploadCountBefore + 1,
+        "Vulkan buffer upload uses direct host writes and tracked device-local staging");
+    const auto DeviceLocalNonCopyBuffer = Device.CreateBuffer({64,
+        ERHIBufferUsage::Vertex, ERHIMemoryAccess::DeviceLocal});
+    (void)DeviceLocalBuffer.Object->Invalidate();
+    Record(Result,
+        DeviceLocalNonCopyBuffer.Succeeded() &&
+            Device.UploadBuffer(DeviceLocalNonCopyBuffer.Object,
+                {0, BufferBytes, sizeof(BufferBytes)}) ==
+                ERHIResult::Unsupported &&
+            Device.UploadBuffer(DeviceLocalBuffer.Object,
+                {0, BufferBytes, sizeof(BufferBytes)}) ==
+                ERHIResult::InvalidState,
+        "Vulkan buffer upload rejects missing transfer usage and invalidated buffers");
 
     (void)Device.Shutdown();
     Record(Result, DescriptorSet.Object->UpdateBuffer(0, 0, Buffer.Object) == ERHIResult::InvalidState &&

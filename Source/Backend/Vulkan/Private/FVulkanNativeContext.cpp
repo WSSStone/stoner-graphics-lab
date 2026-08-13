@@ -298,10 +298,11 @@ private:
 class FNativeBufferBinding final : public IRHIBuffer
 {
 public:
-    FNativeBufferBinding()
+    FNativeBufferBinding(Stoner::Core::uint64 SizeInBytes,
+        ERHIBufferUsage Usage)
     {
-        Desc.SizeInBytes = sizeof(float) * 15;
-        Desc.Usage = ERHIBufferUsage::Vertex;
+        Desc.SizeInBytes = SizeInBytes;
+        Desc.Usage = Usage;
         Desc.MemoryAccess = ERHIMemoryAccess::HostVisible;
     }
     const FRHIBufferDesc& GetDesc() const noexcept override { return Desc; }
@@ -373,9 +374,10 @@ class FNativeCommandBufferBinding final : public IRHICommandBuffer
 {
 public:
     FNativeCommandBufferBinding(VkCommandBuffer InCommands, VkRenderPass InRenderPass, VkFramebuffer InFramebuffer,
-        VkPipeline InPipeline, VkBuffer InVertexBuffer, VkExtent2D InExtent)
+        VkPipeline InPipeline, VkBuffer InVertexBuffer, VkBuffer InIndexBuffer,
+        VkExtent2D InExtent)
         : Commands(InCommands), RenderPass(InRenderPass), Framebuffer(InFramebuffer), Pipeline(InPipeline),
-          VertexBuffer(InVertexBuffer), Extent(InExtent) {}
+          VertexBuffer(InVertexBuffer), IndexBuffer(InIndexBuffer), Extent(InExtent) {}
     ERHICommandBufferState GetState() const noexcept override { return State; }
     ERHIQueueType GetCompatibleQueueType() const noexcept override { return ERHIQueueType::Graphics; }
     Stoner::Core::uint32 GetRecordedCommandCount() const noexcept override { return CommandCount; }
@@ -385,7 +387,9 @@ public:
         if (vkResetCommandBuffer(Commands, 0) != VK_SUCCESS) return ERHIResult::Failed;
         VkCommandBufferBeginInfo Info = MakeVulkanStruct<VkCommandBufferBeginInfo>(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO);
         if (vkBeginCommandBuffer(Commands, &Info) != VK_SUCCESS) return ERHIResult::Failed;
-        State = ERHICommandBufferState::Recording; CommandCount = 0; return ERHIResult::Success;
+        State = ERHICommandBufferState::Recording; CommandCount = 0;
+        bIndexBufferBound = false;
+        return ERHIResult::Success;
     }
     ERHIResult End() override
     {
@@ -393,11 +397,30 @@ public:
         if (vkEndCommandBuffer(Commands) != VK_SUCCESS) return ERHIResult::Failed;
         State = ERHICommandBufferState::Completed; return ERHIResult::Success;
     }
-    ERHIResult Reset() override { State = ERHICommandBufferState::Resettable; CommandCount = 0; bInsideRenderPass = false; return ERHIResult::Success; }
+    ERHIResult Reset() override { State = ERHICommandBufferState::Resettable; CommandCount = 0; bInsideRenderPass = false; bIndexBufferBound = false; return ERHIResult::Success; }
     ERHIResult RecordDraw(Stoner::Core::uint32 Vertices, Stoner::Core::uint32 Instances) override
     { if (!bInsideRenderPass || Vertices != 3 || Instances != 1) return ERHIResult::InvalidState; vkCmdDraw(Commands, Vertices, Instances, 0, 0); ++CommandCount; return ERHIResult::Success; }
-    ERHIResult RecordDrawIndexed(Stoner::Core::uint32, Stoner::Core::uint32,
-        Stoner::Core::uint32) override { return ERHIResult::Unsupported; }
+    ERHIResult RecordDrawIndexed(
+        const FRHIIndexedDrawArguments& Arguments) override
+    {
+        if (!bInsideRenderPass || !bIndexBufferBound ||
+            !IsValidRHIIndexedDrawArguments(Arguments))
+        {
+            return ERHIResult::InvalidState;
+        }
+        vkCmdDrawIndexed(Commands, Arguments.IndexCount,
+            Arguments.InstanceCount, Arguments.FirstIndex,
+            Arguments.VertexOffset, Arguments.FirstInstance);
+        ++CommandCount;
+        return ERHIResult::Success;
+    }
+    ERHIResult RecordDrawIndexed(Stoner::Core::uint32 IndexCount,
+        Stoner::Core::uint32 InstanceCount,
+        Stoner::Core::uint32 FirstInstance) override
+    {
+        return RecordDrawIndexed(
+            {IndexCount, InstanceCount, 0, 0, FirstInstance});
+    }
     ERHIResult RecordDispatch(Stoner::Core::uint32, Stoner::Core::uint32, Stoner::Core::uint32) override { return ERHIResult::Unsupported; }
     ERHIResult BindGraphicsPipeline(const Stoner::Core::TSharedPtr<IRHIGraphicsPipeline>& Value) override
     { if (!bInsideRenderPass || !Value) return ERHIResult::InvalidState; vkCmdBindPipeline(Commands, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline); ++CommandCount; return ERHIResult::Success; }
@@ -421,6 +444,25 @@ public:
     { if (!bInsideRenderPass) return ERHIResult::InvalidState; vkCmdEndRenderPass(Commands); bInsideRenderPass = false; ++CommandCount; return ERHIResult::Success; }
     ERHIResult BindVertexBuffer(const Stoner::Core::TSharedPtr<IRHIBuffer>& Value, Stoner::Core::uint64 Offset) override
     { if (!bInsideRenderPass || !Value) return ERHIResult::InvalidState; const VkDeviceSize NativeOffset = Offset; vkCmdBindVertexBuffers(Commands, 0, 1, &VertexBuffer, &NativeOffset); ++CommandCount; return ERHIResult::Success; }
+    ERHIResult BindIndexBuffer(const Stoner::Core::TSharedPtr<IRHIBuffer>& Value,
+        ERHIIndexType IndexType, Stoner::Core::uint64 Offset) override
+    {
+        const Stoner::Core::uint64 IndexSize = GetRHIIndexTypeSize(IndexType);
+        if (!bInsideRenderPass || !Value ||
+            Value->GetLifecycleState() != ERHIResourceLifecycleState::Valid ||
+            !HasRHIFlag(Value->GetUsage(), ERHIBufferUsage::Index) ||
+            IndexSize == 0 || Offset >= Value->GetSizeInBytes() ||
+            Offset % IndexSize != 0 || IndexBuffer == VK_NULL_HANDLE)
+        {
+            return ERHIResult::InvalidState;
+        }
+        vkCmdBindIndexBuffer(Commands, IndexBuffer, Offset,
+            IndexType == ERHIIndexType::UInt16 ? VK_INDEX_TYPE_UINT16 :
+                VK_INDEX_TYPE_UINT32);
+        bIndexBufferBound = true;
+        ++CommandCount;
+        return ERHIResult::Success;
+    }
     ERHIResult SetViewport(const FRHIViewport& Value) override
     { if (!bInsideRenderPass) return ERHIResult::InvalidState; VkViewport Native{Value.X, Value.Y, Value.Width, Value.Height, Value.MinDepth, Value.MaxDepth}; vkCmdSetViewport(Commands, 0, 1, &Native); ++CommandCount; return ERHIResult::Success; }
     ERHIResult SetScissor(const FRHIScissorRect& Value) override
@@ -431,10 +473,12 @@ private:
     VkFramebuffer Framebuffer = VK_NULL_HANDLE;
     VkPipeline Pipeline = VK_NULL_HANDLE;
     VkBuffer VertexBuffer = VK_NULL_HANDLE;
+    VkBuffer IndexBuffer = VK_NULL_HANDLE;
     VkExtent2D Extent{};
     ERHICommandBufferState State = ERHICommandBufferState::Idle;
     Stoner::Core::uint32 CommandCount = 0;
     bool bInsideRenderPass = false;
+    bool bIndexBufferBound = false;
 };
 
 [[maybe_unused]] ERHIFormat ToRHIFormat(VkFormat Format)
@@ -497,6 +541,8 @@ struct FVulkanNativeContext::FImpl
 
     VkBuffer VertexBuffer = VK_NULL_HANDLE;
     VkDeviceMemory VertexMemory = VK_NULL_HANDLE;
+    VkBuffer IndexBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory IndexMemory = VK_NULL_HANDLE;
     VkImage ColorImage = VK_NULL_HANDLE;
     VkDeviceMemory ColorMemory = VK_NULL_HANDLE;
     VkImageView ColorView = VK_NULL_HANDLE;
@@ -811,6 +857,8 @@ struct FVulkanNativeContext::FImpl
         if (ColorMemory) vkFreeMemory(Device, ColorMemory, nullptr);
         if (VertexBuffer) vkDestroyBuffer(Device, VertexBuffer, nullptr);
         if (VertexMemory) vkFreeMemory(Device, VertexMemory, nullptr);
+        if (IndexBuffer) vkDestroyBuffer(Device, IndexBuffer, nullptr);
+        if (IndexMemory) vkFreeMemory(Device, IndexMemory, nullptr);
         Fence = VK_NULL_HANDLE; ImageAvailable = VK_NULL_HANDLE; RenderFinished = VK_NULL_HANDLE;
         VisibleCommandBuffers.clear(); VisibleFences.clear(); VisibleImageAvailable.clear(); VisibleRenderFinished.clear();
         CommandPool = VK_NULL_HANDLE; CommandBuffer = VK_NULL_HANDLE;
@@ -819,6 +867,7 @@ struct FVulkanNativeContext::FImpl
         Framebuffer = VK_NULL_HANDLE; RenderPass = VK_NULL_HANDLE;
         ColorView = VK_NULL_HANDLE; ColorImage = VK_NULL_HANDLE; ColorMemory = VK_NULL_HANDLE;
         VertexBuffer = VK_NULL_HANDLE; VertexMemory = VK_NULL_HANDLE;
+        IndexBuffer = VK_NULL_HANDLE; IndexMemory = VK_NULL_HANDLE;
         Swapchain = VK_NULL_HANDLE; SwapchainFormat = VK_FORMAT_UNDEFINED; SwapchainExtent = {};
         SwapchainImages.clear(); SwapchainViews.clear(); SwapchainFramebuffers.clear();
         CurrentFrameSlot = 0; AcquiredImageIndex = 0; AcquiredFrameSlot = 0;
@@ -1073,7 +1122,48 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     if (vkMapMemory(Impl->Device, Impl->VertexMemory, 0, sizeof(Vertices), 0, &Mapped) != VK_SUCCESS) return Fail();
     std::memcpy(Mapped, Vertices.data(), sizeof(Vertices));
     vkUnmapMemory(Impl->Device, Impl->VertexMemory);
-    Impl->Snapshot.LiveBuffers = 1;
+
+    constexpr std::array<Stoner::Core::uint16, 3> Indices = {0, 1, 2};
+    VkBufferCreateInfo IndexBufferInfo =
+        MakeVulkanStruct<VkBufferCreateInfo>(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
+    IndexBufferInfo.size = sizeof(Indices);
+    IndexBufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    IndexBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    if (vkCreateBuffer(Impl->Device, &IndexBufferInfo, nullptr,
+            &Impl->IndexBuffer) != VK_SUCCESS)
+    {
+        return Fail();
+    }
+    VkMemoryRequirements IndexRequirements{};
+    vkGetBufferMemoryRequirements(Impl->Device, Impl->IndexBuffer,
+        &IndexRequirements);
+    const auto IndexMemoryType = Impl->FindMemoryType(
+        IndexRequirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (IndexMemoryType == UINT32_MAX)
+    {
+        return Fail();
+    }
+    VkMemoryAllocateInfo IndexAllocation =
+        MakeVulkanStruct<VkMemoryAllocateInfo>(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO);
+    IndexAllocation.allocationSize = IndexRequirements.size;
+    IndexAllocation.memoryTypeIndex = IndexMemoryType;
+    if (vkAllocateMemory(Impl->Device, &IndexAllocation, nullptr,
+            &Impl->IndexMemory) != VK_SUCCESS ||
+        vkBindBufferMemory(Impl->Device, Impl->IndexBuffer,
+            Impl->IndexMemory, 0) != VK_SUCCESS)
+    {
+        return Fail();
+    }
+    Mapped = nullptr;
+    if (vkMapMemory(Impl->Device, Impl->IndexMemory, 0, sizeof(Indices), 0,
+            &Mapped) != VK_SUCCESS)
+    {
+        return Fail();
+    }
+    std::memcpy(Mapped, Indices.data(), sizeof(Indices));
+    vkUnmapMemory(Impl->Device, Impl->IndexMemory);
+    Impl->Snapshot.LiveBuffers = 2;
 
     VkImageCreateInfo ImageInfo = MakeVulkanStruct<VkImageCreateInfo>(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO);
     ImageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -1450,6 +1540,47 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
     std::memcpy(Mapped, Vertices.data(), sizeof(Vertices));
     vkUnmapMemory(Impl->Device, Impl->VertexMemory);
 
+    constexpr std::array<Stoner::Core::uint16, 3> Indices = {0, 1, 2};
+    VkBufferCreateInfo IndexBufferInfo =
+        MakeVulkanStruct<VkBufferCreateInfo>(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
+    IndexBufferInfo.size = sizeof(Indices);
+    IndexBufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    IndexBufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    if (vkCreateBuffer(Impl->Device, &IndexBufferInfo, nullptr,
+            &Impl->IndexBuffer) != VK_SUCCESS)
+    {
+        return Fail();
+    }
+    VkMemoryRequirements IndexRequirements{};
+    vkGetBufferMemoryRequirements(Impl->Device, Impl->IndexBuffer,
+        &IndexRequirements);
+    const auto IndexMemoryType = Impl->FindMemoryType(
+        IndexRequirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (IndexMemoryType == UINT32_MAX)
+    {
+        return Fail();
+    }
+    VkMemoryAllocateInfo IndexAllocation =
+        MakeVulkanStruct<VkMemoryAllocateInfo>(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO);
+    IndexAllocation.allocationSize = IndexRequirements.size;
+    IndexAllocation.memoryTypeIndex = IndexMemoryType;
+    if (vkAllocateMemory(Impl->Device, &IndexAllocation, nullptr,
+            &Impl->IndexMemory) != VK_SUCCESS ||
+        vkBindBufferMemory(Impl->Device, Impl->IndexBuffer,
+            Impl->IndexMemory, 0) != VK_SUCCESS)
+    {
+        return Fail();
+    }
+    Mapped = nullptr;
+    if (vkMapMemory(Impl->Device, Impl->IndexMemory, 0, sizeof(Indices), 0,
+            &Mapped) != VK_SUCCESS)
+    {
+        return Fail();
+    }
+    std::memcpy(Mapped, Indices.data(), sizeof(Indices));
+    vkUnmapMemory(Impl->Device, Impl->IndexMemory);
+
     VkAttachmentDescription Attachment{};
     Attachment.format = Impl->SwapchainFormat;
     Attachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -1535,7 +1666,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
     Impl->VisibleFences.resize(VisibleFrameSlotCount);
     for (VkFence& Fence : Impl->VisibleFences)
         if (vkCreateFence(Impl->Device, &FenceInfo, nullptr, &Fence) != VK_SUCCESS) return Fail();
-    Impl->Snapshot.LiveBuffers = 1;
+    Impl->Snapshot.LiveBuffers = 2;
     Impl->Snapshot.LiveTextures = Impl->GetLiveTextureCount();
     Impl->Snapshot.LiveShaderModules = Impl->GetLiveShaderModuleCount();
     Impl->Snapshot.LivePipelines = Impl->GetLivePipelineCount();
@@ -1573,13 +1704,18 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::AcquireVisibleFrame(FVulkanNativeF
     OutBindings.ImageIndex = ImageIndex;
     OutBindings.FrameSlot = FrameSlot;
     OutBindings.OutputTexture = Stoner::Core::MakeShared<FNativeTextureBinding>(Impl->SwapchainExtent.width, Impl->SwapchainExtent.height, Format);
-    OutBindings.VertexBuffer = Stoner::Core::MakeShared<FNativeBufferBinding>();
+    OutBindings.VertexBuffer = Stoner::Core::MakeShared<FNativeBufferBinding>(
+        sizeof(float) * 15, Stoner::RHI::ERHIBufferUsage::Vertex);
+    OutBindings.IndexBuffer = Stoner::Core::MakeShared<FNativeBufferBinding>(
+        sizeof(Stoner::Core::uint16) * 3,
+        Stoner::RHI::ERHIBufferUsage::Index);
     OutBindings.GraphicsPipeline = Stoner::Core::MakeShared<FNativePipelineBinding>(Format);
     OutBindings.RenderPass = Stoner::Core::MakeShared<FNativeRenderPassBinding>(Format);
     OutBindings.Framebuffer = Stoner::Core::MakeShared<FNativeFramebufferBinding>(
         OutBindings.RenderPass, OutBindings.OutputTexture, Impl->SwapchainExtent.width, Impl->SwapchainExtent.height);
     OutBindings.CommandBuffer = Stoner::Core::MakeShared<FNativeCommandBufferBinding>(Impl->VisibleCommandBuffers[FrameSlot],
-        Impl->RenderPass, Impl->SwapchainFramebuffers[ImageIndex], Impl->Pipeline, Impl->VertexBuffer, Impl->SwapchainExtent);
+        Impl->RenderPass, Impl->SwapchainFramebuffers[ImageIndex], Impl->Pipeline,
+        Impl->VertexBuffer, Impl->IndexBuffer, Impl->SwapchainExtent);
     return Stoner::RHI::ERHIResult::Success;
 #else
     (void)OutBindings;
@@ -1651,9 +1787,10 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::DrawVisibleFrame()
         Commands.BeginRenderPass(Bindings.RenderPass, Bindings.Framebuffer) != Stoner::RHI::ERHIResult::Success ||
         Commands.BindGraphicsPipeline(Bindings.GraphicsPipeline) != Stoner::RHI::ERHIResult::Success ||
         Commands.BindVertexBuffer(Bindings.VertexBuffer) != Stoner::RHI::ERHIResult::Success ||
+        Commands.BindIndexBuffer(Bindings.IndexBuffer, Stoner::RHI::ERHIIndexType::UInt16) != Stoner::RHI::ERHIResult::Success ||
         Commands.SetViewport({0, 0, static_cast<float>(Bindings.Framebuffer->GetWidth()), static_cast<float>(Bindings.Framebuffer->GetHeight()), 0, 1}) != Stoner::RHI::ERHIResult::Success ||
         Commands.SetScissor({0, 0, Bindings.Framebuffer->GetWidth(), Bindings.Framebuffer->GetHeight()}) != Stoner::RHI::ERHIResult::Success ||
-        Commands.RecordDraw(3, 1) != Stoner::RHI::ERHIResult::Success ||
+        Commands.RecordDrawIndexed({3, 1, 0, 0, 0}) != Stoner::RHI::ERHIResult::Success ||
         Commands.EndRenderPass() != Stoner::RHI::ERHIResult::Success ||
         Commands.RecordLayoutTransition(Transition) != Stoner::RHI::ERHIResult::Success ||
         Commands.End() != Stoner::RHI::ERHIResult::Success)

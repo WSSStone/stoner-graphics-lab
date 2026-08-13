@@ -1,7 +1,10 @@
 #pragma once
 
 #include "AssetKTX2Tests.h"
+#include "AssetGLTFContainerTests.h"
+#include "AssetGLTFPolicyTests.h"
 #include "AssetMaterialShaderTests.h"
+#include "AssetStaticMeshGeometryTests.h"
 
 struct FAssetTestResult
 {

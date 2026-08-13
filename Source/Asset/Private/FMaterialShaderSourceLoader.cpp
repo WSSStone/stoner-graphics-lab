@@ -27,7 +27,9 @@ FAssetParticipantId MaterialShaderParticipant()
 FAssetProducerVersion MaterialShaderProducerVersion()
 {
     FAssetProducerVersion Version;
-    (void)FAssetProducerVersion::Create(Core::FString("023-v1"), Version);
+    (void)FAssetProducerVersion::Create(
+        Core::FString("024-material-v2"),
+        Version);
     return Version;
 }
 

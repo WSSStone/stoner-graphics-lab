@@ -3,6 +3,7 @@
 #include "Core/CoreMinimal.h"
 #include "RHI/ERHIPipelineState.h"
 #include "RHI/ERHIIndexType.h"
+#include "RHI/FRHIIndexedDrawArguments.h"
 #include "RHI/ERHIQueueType.h"
 #include "RHI/ERHIResourceUsage.h"
 #include "RHI/ERHIResult.h"
@@ -129,9 +130,27 @@ public:
     virtual ERHIResult Reset() = 0;
 
     virtual ERHIResult RecordDraw(Stoner::Core::uint32 VertexCount, Stoner::Core::uint32 InstanceCount = 1) = 0;
-    virtual ERHIResult RecordDrawIndexed(Stoner::Core::uint32 IndexCount,
+    virtual ERHIResult RecordDrawIndexed(
+        const FRHIIndexedDrawArguments& Arguments)
+    {
+        if (!IsValidRHIIndexedDrawArguments(Arguments))
+        {
+            return ERHIResult::InvalidState;
+        }
+        return RecordDrawIndexed(
+            Arguments.IndexCount, Arguments.InstanceCount,
+            Arguments.FirstInstance);
+    }
+    virtual ERHIResult RecordDrawIndexed(
+        Stoner::Core::uint32 IndexCount,
         Stoner::Core::uint32 InstanceCount = 1,
-        Stoner::Core::uint32 FirstInstance = 0) = 0;
+        Stoner::Core::uint32 FirstInstance = 0)
+    {
+        (void)IndexCount;
+        (void)InstanceCount;
+        (void)FirstInstance;
+        return ERHIResult::Unsupported;
+    }
     virtual ERHIResult RecordDispatch(Stoner::Core::uint32 GroupCountX, Stoner::Core::uint32 GroupCountY, Stoner::Core::uint32 GroupCountZ) = 0;
     virtual ERHIResult BindGraphicsPipeline(const Stoner::Core::TSharedPtr<IRHIGraphicsPipeline>& Pipeline) = 0;
     virtual ERHIResult BindComputePipeline(const Stoner::Core::TSharedPtr<IRHIComputePipeline>& Pipeline) = 0;

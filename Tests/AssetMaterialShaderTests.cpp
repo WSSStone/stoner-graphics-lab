@@ -1,6 +1,7 @@
 #include "AssetMaterialShaderTests.h"
 
 #include "Asset/AssetMinimal.h"
+#include "FMaterialShaderJsonCodec.h"
 #include "FShaderPayloadValidation.h"
 
 #include <algorithm>
@@ -580,12 +581,12 @@ void TestSchemaCategoriesAndInterfaceRoundTrip(
     Version.replace(
         Version.find(R"("version": 1)"),
         std::string(R"("version": 1)").size(),
-        R"("version": 2)");
+        R"("version": 3)");
     Record(
         Result,
         FMaterialShaderSourceLoader::Load(MakeRequest(Version)).Result ==
             EAssetResult::UnsupportedSchema,
-        "Unsupported schema version reports its stable result category");
+        "Unknown future schema version reports its stable result category");
 
     const std::filesystem::path InterfacePath =
         "Tests/Fixtures/MaterialShader/Valid/shader-08.json";
@@ -607,6 +608,193 @@ void TestSchemaCategoriesAndInterfaceRoundTrip(
             Reparsed.Succeeded() &&
             Reparsed.CanonicalDefinition == Loaded.CanonicalDefinition,
         "Shader interface survives canonical parse-write-parse");
+}
+
+void TestMaterialSchemaV2(FAssetMaterialShaderTestResult& Result)
+{
+    const std::filesystem::path V1Path =
+        "Tests/Fixtures/MaterialShader/Valid/material-00.json";
+    const auto V1 = FMaterialShaderSourceLoader::Load(
+        MakeCorpusRequest(ReadText(V1Path), V1Path));
+    const auto V1Material = V1.Succeeded()
+        ? std::dynamic_pointer_cast<const FMaterialAsset>(V1.Payloads.front())
+        : nullptr;
+    bool bV1Defaults = false;
+    if (V1Material)
+    {
+        const auto V1Texture = std::find_if(
+            V1Material->GetDesc().Parameters.begin(),
+            V1Material->GetDesc().Parameters.end(),
+            [](const FMaterialAssetParameter& Parameter)
+            {
+                return Parameter.Name == FString("Albedo");
+            });
+        bV1Defaults =
+            V1Texture != V1Material->GetDesc().Parameters.end() &&
+            V1Texture->Value.Type ==
+                EMaterialAssetParameterType::TextureBinding &&
+            std::holds_alternative<FMaterialTextureBinding>(
+                V1Texture->Value.Value) &&
+            std::get<FMaterialTextureBinding>(V1Texture->Value.Value)
+                    .TexCoordSet == 0 &&
+            std::get<FMaterialTextureBinding>(V1Texture->Value.Value)
+                    .Sampler == FMaterialSamplerIntent{} &&
+            FMaterialShaderSourceLoader::Load(
+                MakeCorpusRequest(
+                    V1.CanonicalDefinition.ToStdString(),
+                    V1Path)).CanonicalDefinition == V1.CanonicalDefinition;
+    }
+    Record(
+        Result,
+        bV1Defaults,
+        "Schema v1 texture references upgrade to default structured bindings without changing canonical bytes");
+
+    const std::filesystem::path V2Path =
+        "Tests/Fixtures/MaterialShader/Valid/material-v2.json";
+    const auto V2Loaded = FMaterialShaderSourceLoader::Load(
+        MakeCorpusRequest(ReadText(V2Path), V2Path));
+    const auto V2Material = V2Loaded.Succeeded()
+        ? std::dynamic_pointer_cast<const FMaterialAsset>(
+              V2Loaded.Payloads.front())
+        : nullptr;
+    const bool bV2Binding = V2Material &&
+        V2Material->GetDesc().SchemaVersion == 2 &&
+        V2Material->GetDesc().Parameters.size() == 1 &&
+        V2Material->GetDesc().Parameters.front().Value.Type ==
+            EMaterialAssetParameterType::TextureBinding &&
+        V2Loaded.Dependencies.size() == 2 &&
+        V2Loaded.CanonicalDefinition.View().find(
+            "\"textureBinding\"") != std::string_view::npos &&
+        V2Loaded.CanonicalDefinition.View().find(
+            "\"texCoord\": 1") != std::string_view::npos &&
+        FMaterialShaderSourceLoader::Load(
+            MakeCorpusRequest(
+                V2Loaded.CanonicalDefinition.ToStdString(),
+                V2Path)).CanonicalDefinition == V2Loaded.CanonicalDefinition;
+    Record(
+        Result,
+        bV2Binding,
+        "Schema v2 texture bindings preserve typed texture UV sampler dependencies and canonical JSON");
+
+    const std::string V2Instance = R"({
+  "schema": "stoner.material-instance",
+  "version": 2,
+  "id": { "type": "MaterialInstance", "path": "Tests/Instances/V2" },
+  "requiredExtensions": [],
+  "parent": { "type": "Material", "path": "Tests/Materials/V2" },
+  "overrides": [{
+    "name": "BaseColorTexture",
+    "type": "textureBinding",
+    "value": {
+      "texture": "Texture:Tests/Textures/V2#base-color",
+      "texCoord": 0,
+      "sampler": {
+        "min": "automatic",
+        "mag": "linear",
+        "mip": "automatic",
+        "addressU": "repeat",
+        "addressV": "repeat"
+      }
+    }
+  }],
+  "extensions": {}
+}
+)";
+    const std::filesystem::path V2InstancePath =
+        "Tests/Fixtures/MaterialShader/Valid/instance-v2.json";
+    const auto V2InstanceLoaded = FMaterialShaderSourceLoader::Load(
+        MakeCorpusRequest(V2Instance, V2InstancePath));
+    FMaterialLookup V2Lookup;
+    if (V2Loaded.Succeeded()) V2Lookup.Add(V2Loaded.Payloads.front());
+    if (V2InstanceLoaded.Succeeded())
+        V2Lookup.Add(V2InstanceLoaded.Payloads.front());
+    V2Lookup.AddDependency(
+        MakeId("ShaderProgram", "Tests/Shaders/Foundation"),
+        MakeVersion("v2-shader"));
+    FAssetId V2Texture;
+    (void)FAssetId::Create(
+        FString("Texture"),
+        FString("Tests/Textures/V2"),
+        std::optional<FString>(FString("base-color")),
+        V2Texture);
+    V2Lookup.AddDependency(V2Texture, MakeVersion("v2-texture"));
+    FResolvedMaterialAsset ResolvedV2;
+    const EAssetResult ResolveV2 = ResolveMaterial(
+        MakeId("MaterialInstance", "Tests/Instances/V2"),
+        V2Lookup,
+        FMaterialShaderAssetLimits{},
+        ResolvedV2);
+    const bool bInstanceBinding =
+        ResolveV2 == EAssetResult::Success &&
+        V2InstanceLoaded.Dependencies.size() == 2 &&
+        ResolvedV2.EffectiveParameters.size() == 1 &&
+        ResolvedV2.EffectiveParameters.front().Value.Type ==
+            EMaterialAssetParameterType::TextureBinding &&
+        std::get<FMaterialTextureBinding>(
+            ResolvedV2.EffectiveParameters.front().Value.Value).TexCoordSet ==
+            0;
+    Record(
+        Result,
+        bInstanceBinding,
+        "Schema v2 MaterialInstance overrides retain complete texture bindings through resolution");
+
+    const std::filesystem::path InvalidV2Path =
+        "Tests/Fixtures/MaterialShader/Invalid/40-v2-texcoord.json";
+    std::string LegacyInV2 = ReadText(V2Path);
+    LegacyInV2.replace(
+        LegacyInV2.find("\"textureBinding\""),
+        std::string("\"textureBinding\"").size(),
+        "\"texture\"");
+    Record(
+        Result,
+        FMaterialShaderSourceLoader::Load(
+            MakeCorpusRequest(ReadText(InvalidV2Path), InvalidV2Path)).Result ==
+            EAssetResult::InvalidDefinition &&
+        FMaterialShaderSourceLoader::Load(
+            MakeCorpusRequest(LegacyInV2, V2Path)).Result ==
+            EAssetResult::InvalidDefinition,
+        "Schema v2 rejects out-of-range UV sets and legacy unstructured texture values");
+
+    FMaterialTextureBinding LossyBinding;
+    const FAssetId Texture = MakeId("Texture", "Tests/Textures/Lossy");
+    const bool bMadeBinding = FMaterialTextureBinding::Create(
+        Texture,
+        1,
+        {EAssetSamplerFilter::Nearest,
+         EAssetSamplerFilter::Linear,
+         EAssetSamplerMipFilter::None,
+         EAssetSamplerAddressMode::MirroredRepeat,
+         EAssetSamplerAddressMode::ClampToEdge},
+        LossyBinding) == EAssetResult::Success;
+    FMaterialAssetDesc LossyDesc;
+    LossyDesc.SchemaVersion = 1;
+    LossyDesc.Parameters.push_back({
+        FString("Albedo"),
+        FMaterialAssetParameterValue::FromTextureBinding(LossyBinding)});
+    Private::FMaterialShaderDefinition LossyDefinition;
+    LossyDefinition.Kind = Private::EMaterialShaderDefinitionKind::Material;
+    LossyDefinition.Value = std::move(LossyDesc);
+    FString Ignored;
+    FMaterialAssetDesc ProgrammaticV2;
+    ProgrammaticV2.Id = MakeId("Material", "Tests/Materials/LegacyV2");
+    ProgrammaticV2.Version = MakeVersion("legacy-v2");
+    ProgrammaticV2.SchemaVersion = 2;
+    (void)TSoftAssetRef<FShaderAsset>::Create(
+        MakeId("ShaderProgram", "Tests/Shaders/Foundation"),
+        ProgrammaticV2.Shader);
+    ProgrammaticV2.Parameters.push_back({
+        FString("Albedo"),
+        FMaterialAssetParameterValue::FromTexture(Texture)});
+    FMaterialAsset RejectedProgrammaticV2;
+    Record(
+        Result,
+        bMadeBinding &&
+        Private::WriteMaterialShaderDefinition(
+            LossyDefinition, Ignored, nullptr) == EAssetResult::InvalidDefinition &&
+        FMaterialAsset::CreateValidated(
+            std::move(ProgrammaticV2),
+            RejectedProgrammaticV2) == EAssetResult::InvalidMaterialAsset,
+        "Schema v1 rejects lossy downgrade and schema v2 rejects legacy texture values");
 }
 
 void TestSchemaSpecificLimits(FAssetMaterialShaderTestResult& Result)
@@ -741,12 +929,12 @@ void TestFixtureCorpus(
     }
     Record(
         Result,
-        bValid && ValidCount == 40,
-        "All 40 representative valid definitions load transactionally");
+        bValid && ValidCount == 41,
+        "All 41 representative valid definitions load transactionally");
     Record(
         Result,
-        bInvalid && InvalidCount == 40,
-        "All 40 malformed and boundary definitions fail atomically");
+        bInvalid && InvalidCount == 41,
+        "All 41 malformed and boundary definitions fail atomically");
     std::string CanonicalGolden;
     for (const auto& [Name, Digest] : CanonicalRecords)
     {
@@ -1234,6 +1422,7 @@ FAssetMaterialShaderTestResult RunAssetMaterialShaderTests(
     TestCanonicalOwnershipAndRollback(Result);
     TestDiagnosticsAndLimits(Result);
     TestSchemaCategoriesAndInterfaceRoundTrip(Result);
+    TestMaterialSchemaV2(Result);
     TestSchemaSpecificLimits(Result);
     TestFixtureCorpus(Result, Options);
     TestRepositoryAssets(Result);

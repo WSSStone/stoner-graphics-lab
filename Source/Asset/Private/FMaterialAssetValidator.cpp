@@ -36,6 +36,20 @@ bool IsFinite(const FMaterialAssetParameterValue& Value)
         return std::holds_alternative<FAssetId>(Value.Value) &&
             std::get<FAssetId>(Value.Value).IsValid() &&
             std::get<FAssetId>(Value.Value).GetAssetType() == "Texture";
+    case EMaterialAssetParameterType::TextureBinding:
+        if (!std::holds_alternative<FMaterialTextureBinding>(Value.Value))
+            return false;
+        {
+            const FMaterialTextureBinding& Binding =
+                std::get<FMaterialTextureBinding>(Value.Value);
+            return !Binding.Texture.IsEmpty() &&
+                Binding.TexCoordSet <= 1 &&
+                IsValidAssetSamplerFilter(Binding.Sampler.MinFilter) &&
+                IsValidAssetSamplerFilter(Binding.Sampler.MagFilter) &&
+                IsValidAssetSamplerMipFilter(Binding.Sampler.MipFilter) &&
+                IsValidAssetSamplerAddressMode(Binding.Sampler.AddressU) &&
+                IsValidAssetSamplerAddressMode(Binding.Sampler.AddressV);
+        }
     }
     return false;
 }
@@ -80,6 +94,19 @@ EAssetResult NormalizeParameters(
     return EAssetResult::Success;
 }
 
+bool HasLegacyTextureReference(
+    const Core::TArray<FMaterialAssetParameter>& Parameters)
+{
+    return std::any_of(
+        Parameters.begin(),
+        Parameters.end(),
+        [](const FMaterialAssetParameter& Parameter)
+        {
+            return Parameter.Value.Type ==
+                EMaterialAssetParameterType::TextureReference;
+        });
+}
+
 } // namespace
 
 namespace Private
@@ -92,7 +119,7 @@ EAssetResult ValidateMaterialAsset(
     if (!Desc.Id.IsValid() ||
         Desc.Id.GetAssetType() != TAssetTypeTraits<FMaterialAsset>::GetAssetType() ||
         Desc.Version.Validate() != EAssetResult::Success ||
-        Desc.SchemaVersion != 1 ||
+        (Desc.SchemaVersion != 1 && Desc.SchemaVersion != 2) ||
         Desc.Shader.IsEmpty() ||
         !IsDomainBlendValid(Desc.Domain, Desc.BlendMode))
     {
@@ -108,7 +135,14 @@ EAssetResult ValidateMaterialAsset(
     {
         return EAssetResult::InvalidMaterialAsset;
     }
-    return NormalizeParameters(Desc.Parameters);
+    const EAssetResult ParametersResult = NormalizeParameters(Desc.Parameters);
+    if (ParametersResult != EAssetResult::Success ||
+        (Desc.SchemaVersion == 2 &&
+         HasLegacyTextureReference(Desc.Parameters)))
+    {
+        return EAssetResult::InvalidMaterialAsset;
+    }
+    return EAssetResult::Success;
 }
 
 EAssetResult ValidateMaterialInstanceAsset(
@@ -119,7 +153,7 @@ EAssetResult ValidateMaterialInstanceAsset(
         Desc.Id.GetAssetType() !=
             TAssetTypeTraits<FMaterialInstanceAsset>::GetAssetType() ||
         Desc.Version.Validate() != EAssetResult::Success ||
-        Desc.SchemaVersion != 1)
+        (Desc.SchemaVersion != 1 && Desc.SchemaVersion != 2))
     {
         return EAssetResult::InvalidInstanceChain;
     }
@@ -127,7 +161,9 @@ EAssetResult ValidateMaterialInstanceAsset(
         [](const auto& Parent) { return !Parent.IsEmpty(); },
         Desc.Parent.Reference);
     if (!bValidParent ||
-        NormalizeParameters(Desc.Overrides) != EAssetResult::Success)
+        NormalizeParameters(Desc.Overrides) != EAssetResult::Success ||
+        (Desc.SchemaVersion == 2 &&
+         HasLegacyTextureReference(Desc.Overrides)))
     {
         return EAssetResult::InvalidInstanceChain;
     }

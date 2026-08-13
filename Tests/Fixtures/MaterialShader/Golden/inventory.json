@@ -39,7 +39,8 @@
     "instance-12.json",
     "instance-13.json",
     "instance-14.json",
-    "instance-15.json"
+    "instance-15.json",
+    "material-v2.json"
   ],
   "invalid": [
     {
@@ -60,7 +61,7 @@
     },
     {
       "file": "04-version-two.json",
-      "expected": "UnsupportedSchema"
+      "expected": "InvalidDefinition"
     },
     {
       "file": "05-required-extension.json",
@@ -200,6 +201,10 @@
     },
     {
       "file": "39-number-root.json",
+      "expected": "InvalidDefinition"
+    },
+    {
+      "file": "40-v2-texcoord.json",
       "expected": "InvalidDefinition"
     }
   ]

@@ -6,6 +6,33 @@
 namespace Stoner::Asset
 {
 
+EAssetResult FMaterialTextureBinding::Create(
+    const FAssetId& TextureId,
+    Core::uint32 InTexCoordSet,
+    FMaterialSamplerIntent InSampler,
+    FMaterialTextureBinding& OutBinding)
+{
+    OutBinding = {};
+    if (InTexCoordSet > 1 ||
+        !IsValidAssetSamplerFilter(InSampler.MinFilter) ||
+        !IsValidAssetSamplerFilter(InSampler.MagFilter) ||
+        !IsValidAssetSamplerMipFilter(InSampler.MipFilter) ||
+        !IsValidAssetSamplerAddressMode(InSampler.AddressU) ||
+        !IsValidAssetSamplerAddressMode(InSampler.AddressV))
+    {
+        return EAssetResult::InvalidMaterialAsset;
+    }
+    const EAssetResult ReferenceResult =
+        TSoftAssetRef<FTextureAsset>::Create(TextureId, OutBinding.Texture);
+    if (ReferenceResult != EAssetResult::Success)
+    {
+        return ReferenceResult;
+    }
+    OutBinding.TexCoordSet = InTexCoordSet;
+    OutBinding.Sampler = InSampler;
+    return EAssetResult::Success;
+}
+
 Core::FString FShaderPermutationKey::ToString() const
 {
     Core::TArray<Core::FString> Sorted = Flags;
@@ -42,6 +69,14 @@ FMaterialAssetParameterValue FMaterialAssetParameterValue::FromTexture(
     FAssetId Value)
 {
     return {EMaterialAssetParameterType::TextureReference, std::move(Value)};
+}
+
+FMaterialAssetParameterValue FMaterialAssetParameterValue::FromTextureBinding(
+    FMaterialTextureBinding Value)
+{
+    return {
+        EMaterialAssetParameterType::TextureBinding,
+        std::move(Value)};
 }
 
 } // namespace Stoner::Asset

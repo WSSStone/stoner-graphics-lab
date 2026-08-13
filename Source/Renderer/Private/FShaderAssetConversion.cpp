@@ -62,6 +62,7 @@ EMaterialParameterValueType ParameterType(
     case Asset::EMaterialAssetParameterType::Color:
         return EMaterialParameterValueType::Color;
     case Asset::EMaterialAssetParameterType::TextureReference:
+    case Asset::EMaterialAssetParameterType::TextureBinding:
         return EMaterialParameterValueType::ResourceReference;
     }
     return EMaterialParameterValueType::Scalar;
