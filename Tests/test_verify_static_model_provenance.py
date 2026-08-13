@@ -66,6 +66,50 @@ class StaticModelProvenanceTests(unittest.TestCase):
         errors = _MODULE.verify(self.root)
         self.assertTrue(any(error.startswith("fixture 0: missing fields:") for error in errors))
 
+    def test_verifies_fixture_file_and_checksum(self) -> None:
+        fixture = self.root / "Tests" / "Fixtures" / "StaticModel" / "sample.gltf"
+        fixture.parent.mkdir(parents=True, exist_ok=True)
+        fixture.write_bytes(b"fixture")
+        manifest = self.root / "Validation" / "024" / "fixture-manifest.json"
+        entry = {
+            "path": fixture.relative_to(self.root).as_posix(),
+            "source_url": "repository-owned://test",
+            "upstream_revision": "test-v1",
+            "sha256": "sha256:" + _MODULE.sha256(fixture),
+            "license": "CC0-1.0",
+            "validator_result": "valid",
+            "expected_result": "success",
+            "scope": ["test"],
+        }
+        manifest.write_text(
+            json.dumps({"schema": _MODULE.FIXTURE_SCHEMA, "fixtures": [entry]}),
+            encoding="utf-8",
+        )
+        self.assertEqual([], _MODULE.verify(self.root))
+        fixture.write_bytes(b"changed")
+        self.assertIn(
+            "fixture 0: checksum mismatch: Tests/Fixtures/StaticModel/sample.gltf",
+            _MODULE.verify(self.root),
+        )
+
+    def test_rejects_fixture_path_escape(self) -> None:
+        manifest = self.root / "Validation" / "024" / "fixture-manifest.json"
+        entry = {
+            "path": "../outside.gltf",
+            "source_url": "repository-owned://test",
+            "upstream_revision": "test-v1",
+            "sha256": "sha256:" + "0" * 64,
+            "license": "CC0-1.0",
+            "validator_result": "valid",
+            "expected_result": "success",
+            "scope": ["test"],
+        }
+        manifest.write_text(
+            json.dumps({"schema": _MODULE.FIXTURE_SCHEMA, "fixtures": [entry]}),
+            encoding="utf-8",
+        )
+        self.assertIn("fixture 0: path escapes repository", _MODULE.verify(self.root))
+
 
 if __name__ == "__main__":
     unittest.main()

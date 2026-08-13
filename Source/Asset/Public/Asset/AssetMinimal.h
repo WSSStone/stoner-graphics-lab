@@ -37,6 +37,7 @@
 #include "Asset/FShaderPayloadAsset.h"
 #include "Asset/FShaderSourceAsset.h"
 #include "Asset/FStaticMeshAsset.h"
+#include "Asset/FStaticMeshInspection.h"
 #include "Asset/FStaticMeshTypes.h"
 #include "Asset/FStaticModelImport.h"
 #include "Asset/TSoftAssetRef.h"

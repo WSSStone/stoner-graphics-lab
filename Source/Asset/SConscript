@@ -110,6 +110,16 @@ lib = BuildLayer(
         'FStbImageDecode.cpp': {
             'ccflags': stb_warning_flags,
         },
+        'FStaticMeshTangentGenerator.cpp': {
+            'include_paths': [
+                'ThirdParty',
+            ],
+        },
+        'FGLTFStaticModelImporter.cpp': {
+            'include_paths': [
+                'ThirdParty',
+            ],
+        },
     },
     private_c_sources=[
         'ThirdParty/cgltf/cgltf.c',

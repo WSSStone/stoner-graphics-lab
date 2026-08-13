@@ -86,6 +86,8 @@ def verify_fixture_manifest(path: Path) -> list[str]:
     if not isinstance(fixtures, list):
         return ["fixture manifest fixtures must be an array"]
     errors: list[str] = []
+    root = path.parents[2]
+    listed_paths: set[str] = set()
     for index, fixture in enumerate(fixtures):
         if not isinstance(fixture, dict):
             errors.append(f"fixture {index}: entry must be an object")
@@ -96,6 +98,30 @@ def verify_fixture_manifest(path: Path) -> list[str]:
         digest = fixture.get("sha256")
         if not isinstance(digest, str) or len(digest.removeprefix("sha256:")) != 64:
             errors.append(f"fixture {index}: invalid SHA-256")
+        relative_text = fixture.get("path")
+        if not isinstance(relative_text, str) or not relative_text:
+            errors.append(f"fixture {index}: invalid path")
+            continue
+        relative = Path(relative_text)
+        if relative.is_absolute() or ".." in relative.parts:
+            errors.append(f"fixture {index}: path escapes repository")
+            continue
+        normalized = relative.as_posix()
+        if normalized in listed_paths:
+            errors.append(f"fixture {index}: duplicate path: {normalized}")
+            continue
+        listed_paths.add(normalized)
+        target = root / relative
+        if not target.is_file():
+            errors.append(f"fixture {index}: missing file: {normalized}")
+        elif isinstance(digest, str) and len(digest.removeprefix("sha256:")) == 64:
+            if sha256(target) != digest.removeprefix("sha256:"):
+                errors.append(f"fixture {index}: checksum mismatch: {normalized}")
+        scope = fixture.get("scope")
+        if not isinstance(scope, list) or not scope or not all(
+            isinstance(value, str) and value for value in scope
+        ):
+            errors.append(f"fixture {index}: invalid scope")
     return errors
 
 
