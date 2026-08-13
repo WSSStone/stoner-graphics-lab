@@ -1,9 +1,11 @@
 <!-- SPECKIT START -->
-Feature 024 Asset: Static Mesh & Model Pipeline is in planning. Read
+Feature 024 Asset: Static Mesh & Model Pipeline is in implementation. Read
 `doc/roadmap.md` for program context, `specs/024-static-mesh-model/spec.md` and
 `specs/024-static-mesh-model/plan.md` for the active feature contract/design,
-and `specs/023-material-shader-assets/` plus `Validation/023/` for the latest
-completed feature evidence.
+`specs/024-static-mesh-model/tasks.md` for authoritative progress, and
+`specs/023-material-shader-assets/` plus `Validation/023/` for the latest
+completed feature evidence. The current `asset-static-mesh` suite is only a
+foundation gate until T040-T057 complete the real US1 import acceptance.
 <!-- SPECKIT END -->
 
 ## Active Technologies

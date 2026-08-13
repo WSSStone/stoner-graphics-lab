@@ -2,7 +2,7 @@
 
 **Feature Branch**: `024-static-mesh-model`
 **Created**: 2026-07-30
-**Status**: Draft
+**Status**: In Progress
 **Input**: User description: "为 roadmap 下一项制定 spec"
 
 ## Clarifications

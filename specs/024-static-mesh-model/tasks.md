@@ -68,25 +68,25 @@ all three. No canonical mesh/model payload may be accepted before T037.
 
 ### Shared Material Schema v2
 
-- [ ] T022 Add failing Material/MaterialInstance v1 compatibility, v2 texture-binding, canonical JSON, dependency, and lossy-downgrade tests in `Tests/AssetMaterialShaderTests.cpp`
-- [ ] T023 [P] Add failing Asset sampler-intent to RHI sampler conversion tests in `Tests/RendererMaterialShaderAssetTests.cpp`
-- [ ] T024 Add Asset-owned sampler enums, `FMaterialSamplerIntent`, `FMaterialTextureBinding`, and the `TextureBinding` parameter variant in `Source/Asset/Public/Asset/FMaterialShaderTypes.h` and `Source/Asset/Private/FMaterialShaderTypes.cpp`
-- [ ] T025 Implement strict schema-v2 read/write plus byte-identical schema-v1 round trips in `Source/Asset/Private/FMaterialShaderJsonCodec.h` and `Source/Asset/Private/FMaterialShaderJsonCodec.cpp`
-- [ ] T026 Validate structured bindings, upgrade v1 defaults, extract typed texture dependencies, and support instance overrides in `Source/Asset/Private/FMaterialShaderSchemaValidator.cpp`, `Source/Asset/Private/FMaterialAssetValidator.cpp`, `Source/Asset/Private/FMaterialDependencyExtractor.cpp`, and `Source/Asset/Private/FMaterialInstanceResolver.cpp`
-- [ ] T027 Map backend-neutral sampler intent and complete texture bindings into Renderer snapshots without Asset-to-RHI leakage in `Source/Renderer/Private/FMaterialAssetConversion.cpp` and `Source/Renderer/Public/Renderer/FMaterialAssetConversion.h`
-- [ ] T028 Add schema-v2 valid/invalid definitions and preserve schema-v1 golden digests in `Tests/Fixtures/MaterialShader/Valid/`, `Tests/Fixtures/MaterialShader/Invalid/`, and `Tests/Fixtures/MaterialShader/Golden/canonical-digests.txt`
-- [ ] T029 Run and record the Material v1/v2 compatibility gate in `Validation/024/reports/material-schema-v2.txt`
+- [X] T022 Add failing Material/MaterialInstance v1 compatibility, v2 texture-binding, canonical JSON, dependency, and lossy-downgrade tests in `Tests/AssetMaterialShaderTests.cpp`
+- [X] T023 [P] Add failing Asset sampler-intent to RHI sampler conversion tests in `Tests/RendererMaterialShaderAssetTests.cpp`
+- [X] T024 Add Asset-owned sampler enums, `FMaterialSamplerIntent`, `FMaterialTextureBinding`, and the `TextureBinding` parameter variant in `Source/Asset/Public/Asset/FMaterialShaderTypes.h` and `Source/Asset/Private/FMaterialShaderTypes.cpp`
+- [X] T025 Implement strict schema-v2 read/write plus byte-identical schema-v1 round trips in `Source/Asset/Private/FMaterialShaderJsonCodec.h` and `Source/Asset/Private/FMaterialShaderJsonCodec.cpp`
+- [X] T026 Validate structured bindings, upgrade v1 defaults, extract typed texture dependencies, and support instance overrides in `Source/Asset/Private/FMaterialShaderSchemaValidator.cpp`, `Source/Asset/Private/FMaterialAssetValidator.cpp`, `Source/Asset/Private/FMaterialDependencyExtractor.cpp`, and `Source/Asset/Private/FMaterialInstanceResolver.cpp`
+- [X] T027 Map backend-neutral sampler intent and complete texture bindings into Renderer snapshots without Asset-to-RHI leakage in `Source/Renderer/Private/FMaterialAssetConversion.cpp` and `Source/Renderer/Public/Renderer/FMaterialAssetConversion.h`
+- [X] T028 Add schema-v2 valid/invalid definitions and preserve schema-v1 golden digests in `Tests/Fixtures/MaterialShader/Valid/`, `Tests/Fixtures/MaterialShader/Invalid/`, and `Tests/Fixtures/MaterialShader/Golden/canonical-digests.txt`
+- [X] T029 Run and record the Material v1/v2 compatibility gate in `Validation/024/reports/material-schema-v2.txt`
 
 ### RHI Buffer Upload And Indexed Draw
 
-- [ ] T030 Add failing range, lifecycle, unsupported-device, and full indexed-draw argument tests in `Tests/RHICoreTests.cpp`
-- [ ] T031 [P] Add failing device-local upload, first-index, signed vertex-offset, and invalidation tests in `Tests/VulkanBackendTests.cpp`
-- [ ] T032 Define `FRHIBufferUploadDesc`, `FRHIIndexedDrawArguments`, non-retaining upload semantics, and compatibility overloads in `Source/RHI/Public/RHI/FRHIBufferUploadDesc.h`, `Source/RHI/Public/RHI/FRHIIndexedDrawArguments.h`, `Source/RHI/Public/RHI/IRHIDevice.h`, and `Source/RHI/Public/RHI/IRHICommandBuffer.h`
-- [ ] T033 Implement validated host-visible and staged device-local buffer upload behind `IRHIDevice::UploadBuffer` in `Source/Backend/Vulkan/Public/VulkanRHI/FVulkanDevice.h` and `Source/Backend/Vulkan/Private/FVulkanDevice.cpp`
-- [ ] T034 Implement full indexed-draw argument recording and Vulkan command mapping in `Source/Backend/Vulkan/Public/VulkanRHI/FVulkanCommandBuffer.h`, `Source/Backend/Vulkan/Private/FVulkanCommandBuffer.cpp`, and `Source/Backend/Vulkan/Private/FVulkanNativeContext.cpp`
-- [ ] T035 Migrate existing Renderer draw call sites to compatibility-safe indexed arguments in `Source/Renderer/Private/FDeferredFrameExecutor.cpp`
-- [ ] T036 Run and record Debug plus strict Release Core/RHI/Vulkan migration gates in `Validation/024/reports/foundation-rhi.txt`
-- [ ] T037 Register the `coordinate-convention` suite, include all foundation test sources, and run the complete blocking gate in `Tests/Main.cpp`, `Tests/SConscript`, and `Validation/024/reports/foundation-complete.txt`
+- [X] T030 Add failing range, lifecycle, unsupported-device, and full indexed-draw argument tests in `Tests/RHICoreTests.cpp`
+- [X] T031 [P] Add failing device-local upload, first-index, signed vertex-offset, and invalidation tests in `Tests/VulkanBackendTests.cpp`
+- [X] T032 Define `FRHIBufferUploadDesc`, `FRHIIndexedDrawArguments`, non-retaining upload semantics, and compatibility overloads in `Source/RHI/Public/RHI/FRHIBufferUploadDesc.h`, `Source/RHI/Public/RHI/FRHIIndexedDrawArguments.h`, `Source/RHI/Public/RHI/IRHIDevice.h`, and `Source/RHI/Public/RHI/IRHICommandBuffer.h`
+- [X] T033 Implement validated host-visible and staged device-local buffer upload behind `IRHIDevice::UploadBuffer` in `Source/Backend/Vulkan/Public/VulkanRHI/FVulkanDevice.h` and `Source/Backend/Vulkan/Private/FVulkanDevice.cpp`
+- [X] T034 Implement full indexed-draw argument recording and Vulkan command mapping in `Source/Backend/Vulkan/Public/VulkanRHI/FVulkanCommandBuffer.h`, `Source/Backend/Vulkan/Private/FVulkanCommandBuffer.cpp`, and `Source/Backend/Vulkan/Private/FVulkanNativeContext.cpp`
+- [X] T035 Migrate existing Renderer draw call sites to compatibility-safe indexed arguments in `Source/Renderer/Private/FDeferredFrameExecutor.cpp`
+- [X] T036 Run and record Debug plus strict Release Core/RHI/Vulkan migration gates in `Validation/024/reports/foundation-rhi.txt`
+- [X] T037 Register the `coordinate-convention` suite, include all foundation test sources, and run the complete blocking gate in `Tests/Main.cpp`, `Tests/SConscript`, and `Validation/024/reports/foundation-complete.txt`
 
 **Checkpoint**: One engine-wide coordinate convention, shared Material schema
 v2, and backend-neutral mesh upload/draw contracts are stable.
@@ -102,21 +102,25 @@ v2, and backend-neutral mesh upload/draw contracts are stable.
 GLB, indexed/non-indexed, dense/interleaved/sparse/normalized, missing
 attribute, strict-policy, and basis fixtures for 20 identical runs.
 
+The currently registered suite is a foundation gate only. It does not satisfy
+this independent test until T040-T057 add the policy corpus, real importer,
+deterministic repetition, and recorded acceptance evidence.
+
 ### Tests For User Story 1
 
-- [ ] T038 [P] [US1] Add failing payload validation, stream, index-width, primitive, and bounds tests in `Tests/AssetStaticMeshGeometryTests.cpp` and `Tests/AssetStaticMeshGeometryTests.h`
-- [ ] T039 [P] [US1] Add failing JSON/GLB preflight plus dense/interleaved/sparse/normalized accessor tests in `Tests/AssetGLTFContainerTests.cpp` and `Tests/AssetGLTFContainerTests.h`
+- [X] T038 [P] [US1] Add failing payload validation, stream, index-width, primitive, and bounds tests in `Tests/AssetStaticMeshGeometryTests.cpp` and `Tests/AssetStaticMeshGeometryTests.h`
+- [X] T039 [P] [US1] Add failing JSON/GLB preflight plus dense/interleaved/sparse/normalized accessor tests in `Tests/AssetGLTFContainerTests.cpp` and `Tests/AssetGLTFContainerTests.h`
 - [ ] T040 [P] [US1] Add failing default/strict missing-normal, tangent, degenerate, UV, and policy-version tests in `Tests/AssetGLTFPolicyTests.cpp` and `Tests/AssetGLTFPolicyTests.h`
 - [ ] T041 [P] [US1] Add at least 12 repository-owned golden primitives covering basis, packing, index width, missing attributes, transforms, front-face parity, primitive bounds, and model bounds with SC-004 expected values in `Tests/Fixtures/StaticModel/Valid/Geometry/`
 
 ### Implementation For User Story 1
 
-- [ ] T042 [US1] Define Asset-only mesh bounds, semantic streams, 16/32-bit index data, primitives, and material slots in `Source/Asset/Public/Asset/FStaticMeshTypes.h` and `Source/Asset/Private/FStaticMeshTypes.cpp`
-- [ ] T043 [US1] Implement immutable `FStaticMeshAsset::CreateValidated`, aggregate bounds, dependency/source-manifest checks, and type traits in `Source/Asset/Public/Asset/FStaticMeshAsset.h`, `Source/Asset/Private/FStaticMeshAsset.cpp`, and `Source/Asset/Private/FStaticMeshAssetValidator.cpp`
-- [ ] T044 [US1] Implement versioned geometry policies, finite import limits, coordinate identity, and profile digesting in `Source/Asset/Public/Asset/FStaticModelImport.h` and `Source/Asset/Private/FStaticModelImport.cpp`
-- [ ] T045 [US1] Wrap patched cgltf with capped allocation, bounded in-memory parse, RAII cleanup, and no filesystem callbacks in `Source/Asset/Private/FCgltfDocument.h` and `Source/Asset/Private/FCgltfDocument.cpp`
-- [ ] T046 [US1] Implement checked JSON/GLB source preflight for header, chunks, lengths, alignment, padding, and trailing bytes in `Source/Asset/Private/FGLTFContainerPreflight.h` and `Source/Asset/Private/FGLTFContainerPreflight.cpp`
-- [ ] T047 [US1] Implement checked dense, interleaved, normalized, and sparse accessor decoding with strict index ordering in `Source/Asset/Private/FGLTFAccessorDecoder.h` and `Source/Asset/Private/FGLTFAccessorDecoder.cpp`
+- [X] T042 [US1] Define Asset-only mesh bounds, semantic streams, 16/32-bit index data, primitives, and material slots in `Source/Asset/Public/Asset/FStaticMeshTypes.h` and `Source/Asset/Private/FStaticMeshTypes.cpp`
+- [X] T043 [US1] Implement immutable `FStaticMeshAsset::CreateValidated`, aggregate bounds, dependency/source-manifest checks, and type traits in `Source/Asset/Public/Asset/FStaticMeshAsset.h`, `Source/Asset/Private/FStaticMeshAsset.cpp`, and `Source/Asset/Private/FStaticMeshAssetValidator.cpp`
+- [X] T044 [US1] Implement versioned geometry policies, finite import limits, coordinate identity, and profile digesting in `Source/Asset/Public/Asset/FStaticModelImport.h` and `Source/Asset/Private/FStaticModelImport.cpp`
+- [X] T045 [US1] Wrap patched cgltf with capped allocation, bounded in-memory parse, RAII cleanup, and no filesystem callbacks in `Source/Asset/Private/FCgltfDocument.h` and `Source/Asset/Private/FCgltfDocument.cpp`
+- [X] T046 [US1] Implement checked JSON/GLB source preflight for header, chunks, lengths, alignment, padding, and trailing bytes in `Source/Asset/Private/FGLTFContainerPreflight.h` and `Source/Asset/Private/FGLTFContainerPreflight.cpp`
+- [X] T047 [US1] Implement checked dense, interleaved, normalized, and sparse accessor decoding with strict index ordering in `Source/Asset/Private/FGLTFAccessorDecoder.h` and `Source/Asset/Private/FGLTFAccessorDecoder.cpp`
 - [ ] T048 [US1] Implement glTF-to-Unreal basis conjugation, index-order preservation, tangent reflection parity, and finite stream normalization in `Source/Asset/Private/FGLTFGeometryNormalizer.h` and `Source/Asset/Private/FGLTFGeometryNormalizer.cpp`
 - [ ] T049 [US1] Implement deterministic flat-normal vertex splitting and reject non-derivable degenerate references in `Source/Asset/Private/FStaticMeshNormalGenerator.h` and `Source/Asset/Private/FStaticMeshNormalGenerator.cpp`
 - [ ] T050 [US1] Adapt pinned MikkTSpace for required-tangent generation, selected UV validation, and canonical handedness in `Source/Asset/Private/FStaticMeshTangentGenerator.h` and `Source/Asset/Private/FStaticMeshTangentGenerator.cpp`
