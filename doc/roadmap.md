@@ -1,6 +1,6 @@
 # Stoner Graphics Lab - Engine Development Roadmap
 
-> **Version**: 2.1.5 | **Created**: 2026-04-21 | **Last Updated**: 2026-07-30 | **Status**: Active
+> **Version**: 2.1.6 | **Created**: 2026-04-21 | **Last Updated**: 2026-08-13 | **Status**: Active
 > **Constitution**: v1.4.0
 > **Numbering Rule**: Every runtime phase number equals its Speckit feature number. Feature 002 is this roadmap meta-feature.
 > **Completed Baseline**: Features 001 and 003 through 023 are implemented and verified.
@@ -99,15 +99,15 @@ through screen-space, derived-data, and hybrid integration milestones.
 - [OpenUSD Asset Resolution](https://openusd.org/release/api/ar_page_front.html) informs logical identifiers and replaceable resolver strategies; USD composition itself remains a later Scene/Prefab concern.
 - [Unreal Asset Management](https://dev.epicgames.com/documentation/en-us/unreal-engine/asset-management-in-unreal-engine) supports separating unloaded metadata, soft references, asynchronous loading, and residency ownership.
 
-### Current State (Feature 023 Complete)
+### Current State (Feature 024 In Progress)
 
 | Ownership Area | Status | Current Capability |
 |---|---|---|
 | Core | Done | Types, memory, math, logging, assertions, filesystem/process/time/window handles |
-| Asset | Done through Material/Shader Assets | Identity, registry, image/texture/KTX2 data, versioned Material/Shader definitions, typed dependencies, deterministic target selection, and bounded canonical loading |
-| RHI | KTX2 extension done | Device/resources plus total compressed-format, block-footprint, upload, and per-format usage contracts |
-| Backend/Vulkan | KTX2 extension done | Native/fallback resources plus compressed format queries, image creation, upload, and readback |
-| Renderer | Feature 023 adapter done | Render Graph, forward/deferred execution, immutable Asset-to-Renderer material/shader snapshots, and transactional shader registration |
+| Asset | Feature 024 foundation in progress | Prior Asset capabilities plus Material schema v2, static-mesh value contracts, bounded glTF/GLB preflight, capped cgltf parsing, and checked accessor decoding; complete model import is not yet delivered |
+| RHI | Feature 024 transfer extension in progress | Device/resources plus compressed-format contracts, bounded buffer upload, and complete indexed-draw arguments |
+| Backend/Vulkan | Feature 024 transfer extension in progress | Native/fallback resources plus compressed formats, buffer upload, indexed draw mapping, and readback |
+| Renderer | Feature 024 foundation in progress | Existing rendering paths plus Material schema-v2 conversion; static-mesh realization remains pending |
 | Application | Done foundation | Window/input, ECS scene organization, visible triangle integration |
 | Additional Backends | Planned | Metal, DX12, desktop OpenGL, and GLES follow the Asset-backed shader path |
 
@@ -183,7 +183,7 @@ depend on Tools.
 | 021 | Image & Texture Foundation | Asset | 008, 020 | L | Yes | ✅ Done |
 | 022 | KTX2 Cooking & Compression | Asset | 010, 021 | XL | Yes | ✅ Done |
 | 023 | Material & Shader Assets | Asset | 014, 020, 021 | XL | Yes | ✅ Done |
-| 024 | Static Mesh & Model Pipeline | Asset | 004, 008, 020, 021, 023 | XL | Yes | ⬜ Todo |
+| 024 | Static Mesh & Model Pipeline | Asset | 004, 008, 020, 021, 023 | XL | Yes | 🔄 In Progress |
 | 025 | Cooker, Manifest & Derived Data | Asset | 021, 022, 023, 024 | XL | Yes | ⬜ Todo |
 | 026 | Runtime Asset Manager | Asset | 020, 025 | XL | Yes | ⬜ Todo |
 | 027 | Metal Backend | Backend | 008, 016, 018, 023, 025 | XL | No | ⬜ Todo |
@@ -1345,19 +1345,20 @@ Meshlets:
 
 ## How to Use This Roadmap
 
-1. Find the first `⬜ Todo` phase whose dependencies are `✅ Done`.
+1. Resume any `🔄 In Progress` phase; only when none exists, select the first
+   `⬜ Todo` phase whose dependencies are `✅ Done`.
 2. Copy its complete Speckit Prompt into `/speckit.specify`.
 3. Run `/speckit.clarify`, showing each full question before recommendations and options.
 4. Run `/speckit.plan`, `/speckit.tasks`, and `/speckit.analyze`.
 5. Run `/speckit.implement`, validate locally and in required CI, and retain evidence.
 6. Mark the phase `✅ Done`, update Current State, dependency styling if used, and this change log.
 
-Feature 023 Asset: Material & Shader Assets is complete. Local macOS validation
-and GitHub Actions run 30553736883 passed Windows/macOS/Linux Debug and strict
-Release, full regression, identical 40-valid/40-invalid corpus digests, the
-six-program and 22-dependency repository inventory, Linux ASan/UBSan,
-ThreadSanitizer, and applicable Lavapipe native gates. The next phase is
-**024 Asset: Static Mesh & Model Pipeline**.
+Feature 023 Asset: Material & Shader Assets is complete. Feature 024 Asset:
+Static Mesh & Model Pipeline is in progress. Its coordinate migration,
+Material schema-v2, RHI transfer, static-mesh value, container preflight,
+capped parser, and accessor foundations are implemented, while complete
+geometry import, model hierarchy, material/image package assembly, Renderer
+realization, malformed corpus, performance, and cross-platform closeout remain.
 
 ### Status Legend
 
@@ -1374,6 +1375,7 @@ ThreadSanitizer, and applicable Lavapipe native gates. The next phase is
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-13 | 2.1.6 | Marked Feature 024 In Progress after its blocking coordinate, Material v2, RHI transfer, static-mesh value, container, parser, and accessor foundations passed local strict Debug/Release and regression gates; retained complete glTF import and closeout as pending work. |
 | 2026-07-30 | 2.1.5 | Marked Feature 023 complete after GitHub Actions run 30553736883 passed Windows/macOS/Linux Debug and Release, exact cross-platform corpus/repository evidence, full regression, Linux sanitizers, and applicable Lavapipe native gates; activated Phase 024 as the next roadmap target. |
 | 2026-07-30 | 2.1.4 | Recorded Feature 023 local implementation, shader-content migration, deterministic schema/Renderer evidence, and configured cross-platform gates; retained In Progress status pending remote CI. |
 | 2026-07-30 | 2.1.3 | Marked Feature 022 complete after GitHub Actions run 30509436643 passed Windows/macOS/Linux Debug and Release, Linux sanitizers, deterministic digest comparison, independent validation, and conditional Lavapipe native evidence; activated Phase 023 as the next roadmap target. |
