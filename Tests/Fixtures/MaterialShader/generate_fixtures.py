@@ -125,6 +125,40 @@ def material(index: int) -> dict:
     }
 
 
+def material_v2() -> dict:
+    return {
+        "schema": "stoner.material",
+        "version": 2,
+        "id": asset("Material", "Tests/Materials/V2"),
+        "requiredExtensions": [],
+        "domain": "surface",
+        "blendMode": "opaque",
+        "renderState": {
+            "depthTest": True,
+            "depthWrite": True,
+            "twoSided": False,
+        },
+        "shader": asset("ShaderProgram", "Tests/Shaders/Foundation"),
+        "permutationFlags": [],
+        "parameters": [{
+            "name": "BaseColorTexture",
+            "type": "textureBinding",
+            "value": {
+                "texture": "Texture:Tests/Textures/V2#base-color",
+                "texCoord": 1,
+                "sampler": {
+                    "min": "nearest",
+                    "mag": "linear",
+                    "mip": "none",
+                    "addressU": "mirroredRepeat",
+                    "addressV": "clampToEdge",
+                },
+            },
+        }],
+        "extensions": {},
+    }
+
+
 def instance(index: int) -> dict:
     parent = (
         asset("Material", f"Tests/Materials/M{index % 12:02d}")
@@ -151,7 +185,7 @@ def invalid_cases(base: dict) -> list[tuple[str, object, str]]:
         ("missing-schema", {k: v for k, v in base.items() if k != "schema"}, "InvalidDefinition"),
         ("unknown-schema", {**base, "schema": "stoner.future"}, "UnsupportedSchema"),
         ("version-zero", {**base, "version": 0}, "UnsupportedSchema"),
-        ("version-two", {**base, "version": 2}, "UnsupportedSchema"),
+        ("version-two", {**base, "version": 2}, "InvalidDefinition"),
         ("required-extension", {**base, "requiredExtensions": ["vendor.required"], "extensions": {"vendor.required": {}}}, "UnknownRequiredExtension"),
         ("missing-required-body", {**base, "requiredExtensions": ["vendor.required"]}, "InvalidDefinition"),
         ("extensions-array", {**base, "extensions": []}, "InvalidDefinition"),
@@ -192,6 +226,9 @@ def invalid_cases(base: dict) -> list[tuple[str, object, str]]:
         ("number-root", "1", "InvalidDefinition"),
     ]
     cases.extend(raw)
+    v2_texcoord = material_v2()
+    v2_texcoord["parameters"][0]["value"]["texCoord"] = 2
+    cases.append(("v2-texcoord", v2_texcoord, "InvalidDefinition"))
     return cases
 
 
@@ -216,6 +253,8 @@ def main() -> None:
         name = f"instance-{index:02d}.json"
         write(VALID / name, instance(index))
         inventory["valid"].append(name)
+    write(VALID / "material-v2.json", material_v2())
+    inventory["valid"].append("material-v2.json")
 
     for index, (name, value, expected) in enumerate(
         invalid_cases(material(0))

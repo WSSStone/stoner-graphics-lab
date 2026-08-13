@@ -228,6 +228,11 @@ Stoner::Core::uint32 FVulkanDevice::GetCommandBufferCapacity() const noexcept
     return CommandBufferCapacity;
 }
 
+Stoner::Core::uint32 FVulkanDevice::GetTrackedUploadRequestCount() const noexcept
+{
+    return static_cast<Stoner::Core::uint32>(UploadRequests.size());
+}
+
 Stoner::RHI::ERHIResult FVulkanDevice::Initialize(const FVulkanInstanceDesc& Desc)
 {
     if (State != Stoner::RHI::ERHIDeviceState::Uninitialized)
@@ -583,6 +588,40 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIBuffer> FVulkanDevice::CreateBuff
     MarkResourceAllocation(
         Diagnostics, Buffer->GetAllocation().GetReason());
     return {Stoner::RHI::ERHIResult::Success, Buffer};
+}
+
+Stoner::RHI::ERHIResult FVulkanDevice::UploadBuffer(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Buffer,
+    const Stoner::RHI::FRHIBufferUploadDesc& Upload)
+{
+    using namespace Stoner::RHI;
+    if (!IsActive() || !Buffer ||
+        Buffer->GetLifecycleState() != ERHIResourceLifecycleState::Valid)
+    {
+        return ERHIResult::InvalidState;
+    }
+
+    const auto VulkanBuffer = std::dynamic_pointer_cast<FVulkanBuffer>(Buffer);
+    const bool bOwned = VulkanBuffer &&
+        std::find(Buffers.begin(), Buffers.end(), VulkanBuffer) != Buffers.end();
+    if (!bOwned || !IsValidRHIBufferUploadDesc(Buffer->GetDesc(), Upload))
+    {
+        return ERHIResult::InvalidState;
+    }
+
+    if (Buffer->GetDesc().MemoryAccess == ERHIMemoryAccess::HostVisible)
+    {
+        return VulkanBuffer->Upload(
+            Upload.Data, Upload.DataSizeBytes, Upload.DestinationOffset);
+    }
+    if (!HasRHIFlag(Buffer->GetUsage(), ERHIBufferUsage::CopyDestination))
+    {
+        return ERHIResult::Unsupported;
+    }
+
+    return StageBufferUpload(
+        Buffer, Upload.Data, Upload.DataSizeBytes,
+        {Upload.DestinationOffset, Upload.DataSizeBytes}).Result;
 }
 
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHITexture> FVulkanDevice::CreateTexture(const Stoner::RHI::FRHITextureDesc& Desc)

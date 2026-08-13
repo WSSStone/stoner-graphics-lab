@@ -29,6 +29,26 @@ void AddUnique(
     }
 }
 
+const FAssetId* TextureId(const FMaterialAssetParameterValue& Value)
+{
+    if (Value.Type == EMaterialAssetParameterType::TextureReference &&
+        std::holds_alternative<FAssetId>(Value.Value))
+    {
+        return &std::get<FAssetId>(Value.Value);
+    }
+    if (Value.Type == EMaterialAssetParameterType::TextureBinding &&
+        std::holds_alternative<FMaterialTextureBinding>(Value.Value))
+    {
+        const auto& Binding =
+            std::get<FMaterialTextureBinding>(Value.Value);
+        if (Binding.Texture.GetId())
+        {
+            return &*Binding.Texture.GetId();
+        }
+    }
+    return nullptr;
+}
+
 } // namespace
 
 EAssetResult ExtractMaterialDependencies(FMaterialAssetDesc& Desc)
@@ -44,13 +64,11 @@ EAssetResult ExtractMaterialDependencies(FMaterialAssetDesc& Desc)
         EAssetDependencyStrength::Required);
     for (const FMaterialAssetParameter& Parameter : Desc.Parameters)
     {
-        if (Parameter.Value.Type ==
-                EMaterialAssetParameterType::TextureReference &&
-            std::holds_alternative<FAssetId>(Parameter.Value.Value))
+        if (const FAssetId* Texture = TextureId(Parameter.Value))
         {
             AddUnique(
                 Desc.Dependencies,
-                std::get<FAssetId>(Parameter.Value.Value),
+                *Texture,
                 EAssetDependencyStrength::Required);
         }
     }
@@ -84,13 +102,11 @@ EAssetResult ExtractMaterialInstanceDependencies(
         EAssetDependencyStrength::Required);
     for (const FMaterialAssetParameter& Override : Desc.Overrides)
     {
-        if (Override.Value.Type ==
-                EMaterialAssetParameterType::TextureReference &&
-            std::holds_alternative<FAssetId>(Override.Value.Value))
+        if (const FAssetId* Texture = TextureId(Override.Value))
         {
             AddUnique(
                 Desc.Dependencies,
-                std::get<FAssetId>(Override.Value.Value),
+                *Texture,
                 EAssetDependencyStrength::Required);
         }
     }

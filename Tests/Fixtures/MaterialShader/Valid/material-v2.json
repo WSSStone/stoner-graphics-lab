@@ -1,0 +1,39 @@
+{
+  "schema": "stoner.material",
+  "version": 2,
+  "id": {
+    "type": "Material",
+    "path": "Tests/Materials/V2"
+  },
+  "requiredExtensions": [],
+  "domain": "surface",
+  "blendMode": "opaque",
+  "renderState": {
+    "depthTest": true,
+    "depthWrite": true,
+    "twoSided": false
+  },
+  "shader": {
+    "type": "ShaderProgram",
+    "path": "Tests/Shaders/Foundation"
+  },
+  "permutationFlags": [],
+  "parameters": [
+    {
+      "name": "BaseColorTexture",
+      "type": "textureBinding",
+      "value": {
+        "texture": "Texture:Tests/Textures/V2#base-color",
+        "texCoord": 1,
+        "sampler": {
+          "min": "nearest",
+          "mag": "linear",
+          "mip": "none",
+          "addressU": "mirroredRepeat",
+          "addressV": "clampToEdge"
+        }
+      }
+    }
+  ],
+  "extensions": {}
+}

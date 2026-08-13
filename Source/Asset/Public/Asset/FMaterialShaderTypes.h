@@ -2,6 +2,7 @@
 
 #include "Asset/FAssetDigest.h"
 #include "Asset/FAssetId.h"
+#include "Asset/FTextureAsset.h"
 #include "Asset/TSoftAssetRef.h"
 #include "Core/FColor.h"
 #include "Core/FVector4.h"
@@ -17,7 +18,6 @@ class FShaderSourceAsset;
 class FShaderPayloadAsset;
 class FMaterialAsset;
 class FMaterialInstanceAsset;
-class FTextureAsset;
 
 template <>
 struct TAssetTypeTraits<FShaderAsset>
@@ -117,7 +117,101 @@ enum class EMaterialAssetParameterType : Core::uint8
     Scalar,
     Vector,
     Color,
-    TextureReference
+    TextureReference,
+    TextureBinding
+};
+
+enum class EAssetSamplerFilter : Core::uint8
+{
+    Nearest,
+    Linear,
+    Automatic
+};
+
+enum class EAssetSamplerMipFilter : Core::uint8
+{
+    None,
+    Nearest,
+    Linear,
+    Automatic
+};
+
+enum class EAssetSamplerAddressMode : Core::uint8
+{
+    Repeat,
+    MirroredRepeat,
+    ClampToEdge
+};
+
+[[nodiscard]] constexpr bool IsValidAssetSamplerFilter(
+    EAssetSamplerFilter Value) noexcept
+{
+    switch (Value)
+    {
+    case EAssetSamplerFilter::Nearest:
+    case EAssetSamplerFilter::Linear:
+    case EAssetSamplerFilter::Automatic:
+        return true;
+    }
+    return false;
+}
+
+[[nodiscard]] constexpr bool IsValidAssetSamplerMipFilter(
+    EAssetSamplerMipFilter Value) noexcept
+{
+    switch (Value)
+    {
+    case EAssetSamplerMipFilter::None:
+    case EAssetSamplerMipFilter::Nearest:
+    case EAssetSamplerMipFilter::Linear:
+    case EAssetSamplerMipFilter::Automatic:
+        return true;
+    }
+    return false;
+}
+
+[[nodiscard]] constexpr bool IsValidAssetSamplerAddressMode(
+    EAssetSamplerAddressMode Value) noexcept
+{
+    switch (Value)
+    {
+    case EAssetSamplerAddressMode::Repeat:
+    case EAssetSamplerAddressMode::MirroredRepeat:
+    case EAssetSamplerAddressMode::ClampToEdge:
+        return true;
+    }
+    return false;
+}
+
+struct FMaterialSamplerIntent
+{
+    EAssetSamplerFilter MinFilter = EAssetSamplerFilter::Automatic;
+    EAssetSamplerFilter MagFilter = EAssetSamplerFilter::Linear;
+    EAssetSamplerMipFilter MipFilter = EAssetSamplerMipFilter::Automatic;
+    EAssetSamplerAddressMode AddressU = EAssetSamplerAddressMode::Repeat;
+    EAssetSamplerAddressMode AddressV = EAssetSamplerAddressMode::Repeat;
+
+    [[nodiscard]] bool operator==(const FMaterialSamplerIntent&) const = default;
+};
+
+struct FMaterialTextureBinding
+{
+    TSoftAssetRef<FTextureAsset> Texture;
+    Core::uint32 TexCoordSet = 0;
+    FMaterialSamplerIntent Sampler;
+
+    [[nodiscard]] static EAssetResult Create(
+        const FAssetId& TextureId,
+        Core::uint32 InTexCoordSet,
+        FMaterialSamplerIntent InSampler,
+        FMaterialTextureBinding& OutBinding);
+    [[nodiscard]] bool operator==(
+        const FMaterialTextureBinding& Other) const noexcept
+    {
+        return Texture.GetId() == Other.Texture.GetId() &&
+            TexCoordSet == Other.TexCoordSet &&
+            Sampler == Other.Sampler;
+    }
 };
 
 struct FMaterialAssetRenderState
@@ -200,7 +294,12 @@ struct FShaderTargetRequest
 struct FMaterialAssetParameterValue
 {
     EMaterialAssetParameterType Type = EMaterialAssetParameterType::Scalar;
-    std::variant<float, Core::FVector4, Core::FColor, FAssetId> Value = 0.0f;
+    std::variant<
+        float,
+        Core::FVector4,
+        Core::FColor,
+        FAssetId,
+        FMaterialTextureBinding> Value = 0.0f;
 
     [[nodiscard]] static FMaterialAssetParameterValue FromScalar(float Value);
     [[nodiscard]] static FMaterialAssetParameterValue FromVector(
@@ -209,6 +308,8 @@ struct FMaterialAssetParameterValue
         Core::FColor Value);
     [[nodiscard]] static FMaterialAssetParameterValue FromTexture(
         FAssetId Value);
+    [[nodiscard]] static FMaterialAssetParameterValue FromTextureBinding(
+        FMaterialTextureBinding Value);
     [[nodiscard]] bool operator==(const FMaterialAssetParameterValue&) const = default;
 };
 

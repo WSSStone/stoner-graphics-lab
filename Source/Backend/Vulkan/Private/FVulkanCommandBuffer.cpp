@@ -170,10 +170,9 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDraw(Stoner::Core::uint32 Ve
 }
 
 Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDrawIndexed(
-    Stoner::Core::uint32 IndexCount, Stoner::Core::uint32 InstanceCount,
-    Stoner::Core::uint32 FirstInstance)
+    const Stoner::RHI::FRHIIndexedDrawArguments& Arguments)
 {
-    if (ValidateRecordingState() != Stoner::RHI::ERHIResult::Success || QueueType != Stoner::RHI::ERHIQueueType::Graphics || !HasActiveRenderPass() || IndexCount == 0 || InstanceCount == 0)
+    if (ValidateRecordingState() != Stoner::RHI::ERHIResult::Success || QueueType != Stoner::RHI::ERHIQueueType::Graphics || !HasActiveRenderPass() || !Stoner::RHI::IsValidRHIIndexedDrawArguments(Arguments))
     {
         MarkRecordingDiagnostic("indexed draw rejected; requires graphics recording inside render pass");
         return Stoner::RHI::ERHIResult::InvalidState;
@@ -187,8 +186,18 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDrawIndexed(
         MarkRecordingDiagnostic("indexed draw recorded with compatible graphics pipeline binding");
     }
     AppendCommand({Stoner::RHI::ERHISymbolicCommandType::DrawIndexed,
-        IndexCount, InstanceCount, FirstInstance});
+        Arguments.IndexCount, Arguments.InstanceCount, Arguments.FirstIndex,
+        Arguments.VertexOffset, Arguments.FirstInstance});
     return Stoner::RHI::ERHIResult::Success;
+}
+
+Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDrawIndexed(
+    Stoner::Core::uint32 IndexCount,
+    Stoner::Core::uint32 InstanceCount,
+    Stoner::Core::uint32 FirstInstance)
+{
+    return RecordDrawIndexed(
+        {IndexCount, InstanceCount, 0, 0, FirstInstance});
 }
 
 Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDispatch(Stoner::Core::uint32 GroupCountX, Stoner::Core::uint32 GroupCountY, Stoner::Core::uint32 GroupCountZ)

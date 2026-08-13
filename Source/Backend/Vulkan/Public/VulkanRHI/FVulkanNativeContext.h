@@ -96,6 +96,7 @@ struct FVulkanNativeFrameBindings
     Stoner::Core::uint32 FrameSlot = 0;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> OutputTexture;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> VertexBuffer;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> IndexBuffer;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIGraphicsPipeline> GraphicsPipeline;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIRenderPass> RenderPass;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIFramebuffer> Framebuffer;

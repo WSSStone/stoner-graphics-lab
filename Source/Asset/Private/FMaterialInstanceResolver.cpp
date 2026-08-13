@@ -29,22 +29,34 @@ EAssetResult AppendRuntimeDependencies(
     for (const FMaterialAssetParameter& Parameter :
          Material.EffectiveParameters)
     {
-        if (Parameter.Value.Type !=
-                EMaterialAssetParameterType::TextureReference ||
-            !std::holds_alternative<FAssetId>(Parameter.Value.Value))
+        const FAssetId* Texture = nullptr;
+        if (Parameter.Value.Type ==
+                EMaterialAssetParameterType::TextureReference &&
+            std::holds_alternative<FAssetId>(Parameter.Value.Value))
         {
-            continue;
+            Texture = &std::get<FAssetId>(Parameter.Value.Value);
         }
-        const FAssetId& Texture =
-            std::get<FAssetId>(Parameter.Value.Value);
+        else if (Parameter.Value.Type ==
+                     EMaterialAssetParameterType::TextureBinding &&
+                 std::holds_alternative<FMaterialTextureBinding>(
+                     Parameter.Value.Value))
+        {
+            const auto& Binding = std::get<FMaterialTextureBinding>(
+                Parameter.Value.Value);
+            if (Binding.Texture.GetId())
+            {
+                Texture = &*Binding.Texture.GetId();
+            }
+        }
+        if (!Texture) continue;
         const auto TextureVersion =
-            Lookup.FindDependencyVersion(Texture);
+            Lookup.FindDependencyVersion(*Texture);
         if (!TextureVersion)
         {
             return EAssetResult::UnresolvedDependency;
         }
         Material.SourceManifest.push_back({
-            Texture,
+            *Texture,
             *TextureVersion,
             EAssetSourceRole::Texture});
     }

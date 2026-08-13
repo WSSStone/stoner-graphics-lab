@@ -23,6 +23,8 @@ struct FVulkanRecordedCommand
     Stoner::Core::uint64 A = 0;
     Stoner::Core::uint64 B = 0;
     Stoner::Core::uint64 C = 0;
+    Stoner::Core::int64 D = 0;
+    Stoner::Core::uint64 E = 0;
 };
 
 class FVulkanCommandBuffer final : public Stoner::RHI::IRHICommandBuffer
@@ -44,7 +46,10 @@ public:
     Stoner::RHI::ERHIResult Reset() override;
 
     Stoner::RHI::ERHIResult RecordDraw(Stoner::Core::uint32 VertexCount, Stoner::Core::uint32 InstanceCount = 1) override;
-    Stoner::RHI::ERHIResult RecordDrawIndexed(Stoner::Core::uint32 IndexCount,
+    Stoner::RHI::ERHIResult RecordDrawIndexed(
+        const Stoner::RHI::FRHIIndexedDrawArguments& Arguments) override;
+    Stoner::RHI::ERHIResult RecordDrawIndexed(
+        Stoner::Core::uint32 IndexCount,
         Stoner::Core::uint32 InstanceCount = 1,
         Stoner::Core::uint32 FirstInstance = 0) override;
     Stoner::RHI::ERHIResult RecordDispatch(Stoner::Core::uint32 GroupCountX, Stoner::Core::uint32 GroupCountY, Stoner::Core::uint32 GroupCountZ) override;

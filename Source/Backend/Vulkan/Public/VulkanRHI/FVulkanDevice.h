@@ -56,6 +56,7 @@ public:
     [[nodiscard]] Stoner::Core::uint32 GetDescriptorPoolCapacity() const noexcept;
     [[nodiscard]] Stoner::Core::uint32 GetDescriptorPoolAllocatedCount() const noexcept;
     [[nodiscard]] Stoner::Core::uint32 GetCommandBufferCapacity() const noexcept;
+    [[nodiscard]] Stoner::Core::uint32 GetTrackedUploadRequestCount() const noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult ReadbackTextureForTesting(
         const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Texture,
         Stoner::Core::uint32 MipLevel,
@@ -77,6 +78,9 @@ public:
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISemaphore> CreateSemaphore() override;
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> CreateSwapchain(Stoner::Core::uint32 FrameCount) override;
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIBuffer> CreateBuffer(const Stoner::RHI::FRHIBufferDesc& Desc) override;
+    Stoner::RHI::ERHIResult UploadBuffer(
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Buffer,
+        const Stoner::RHI::FRHIBufferUploadDesc& Upload) override;
     Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHITexture> CreateTexture(const Stoner::RHI::FRHITextureDesc& Desc) override;
     Stoner::RHI::ERHIResult UploadTexture(
         const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Texture,

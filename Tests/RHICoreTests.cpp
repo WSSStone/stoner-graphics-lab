@@ -21,6 +21,8 @@ struct FSymbolicCommand
     uint32 A = 0;
     uint32 B = 0;
     uint32 C = 0;
+    int32 D = 0;
+    uint32 E = 0;
 };
 
 void Record(FRHICoreTestResult& Result, bool bPassed, const char* Name)
@@ -106,17 +108,27 @@ public:
         return ERHIResult::Success;
     }
 
-    ERHIResult RecordDrawIndexed(uint32 IndexCount, uint32 InstanceCount = 1,
-        uint32 FirstInstance = 0) override
+    ERHIResult RecordDrawIndexed(
+        const FRHIIndexedDrawArguments& Arguments) override
     {
-        if (State != ERHICommandBufferState::Recording)
+        if (State != ERHICommandBufferState::Recording ||
+            !IsValidRHIIndexedDrawArguments(Arguments))
         {
             return ERHIResult::InvalidState;
         }
 
         Commands.push_back({ERHISymbolicCommandType::DrawIndexed,
-            IndexCount, InstanceCount, FirstInstance});
+            Arguments.IndexCount, Arguments.InstanceCount,
+            Arguments.FirstIndex, Arguments.VertexOffset,
+            Arguments.FirstInstance});
         return ERHIResult::Success;
+    }
+
+    ERHIResult RecordDrawIndexed(uint32 IndexCount,
+        uint32 InstanceCount = 1, uint32 FirstInstance = 0) override
+    {
+        return RecordDrawIndexed(
+            {IndexCount, InstanceCount, 0, 0, FirstInstance});
     }
 
     ERHIResult RecordDispatch(uint32 GroupCountX, uint32 GroupCountY, uint32 GroupCountZ) override
@@ -662,10 +674,35 @@ public:
     [[nodiscard]] ERHIBufferUsage GetUsage() const noexcept override { return Desc.Usage; }
     [[nodiscard]] ERHIResourceLifecycleState GetLifecycleState() const noexcept override { return State; }
     ERHIResult Invalidate() override { State = ERHIResourceLifecycleState::Invalidated; return ERHIResult::Success; }
+    ERHIResult Upload(const void* Data, uint64 SizeBytes,
+        uint64 OffsetBytes = 0) override
+    {
+        if (State != ERHIResourceLifecycleState::Valid ||
+            Desc.MemoryAccess != ERHIMemoryAccess::HostVisible ||
+            Data == nullptr || SizeBytes == 0 ||
+            OffsetBytes > Desc.SizeInBytes ||
+            SizeBytes > Desc.SizeInBytes - OffsetBytes)
+        {
+            return ERHIResult::InvalidState;
+        }
+        if (OffsetBytes + SizeBytes > Bytes.max_size())
+        {
+            return ERHIResult::Unavailable;
+        }
+        Bytes.resize(static_cast<usize>(OffsetBytes + SizeBytes));
+        std::memcpy(Bytes.data() + static_cast<usize>(OffsetBytes), Data,
+            static_cast<usize>(SizeBytes));
+        return ERHIResult::Success;
+    }
+    [[nodiscard]] const TArray<uint8>& GetBytes() const noexcept
+    {
+        return Bytes;
+    }
 
 private:
     FRHIBufferDesc Desc;
     ERHIResourceLifecycleState State = ERHIResourceLifecycleState::Valid;
+    TArray<uint8> Bytes;
 };
 
 class FMockTexture final : public IRHITexture
@@ -1189,6 +1226,11 @@ public:
         FRHITextureUploadDesc Desc;
         TArray<uint8> Bytes;
     };
+    struct FBufferUploadRecord
+    {
+        FRHIBufferUploadDesc Desc;
+        TArray<uint8> Bytes;
+    };
 
     FMockDevice()
     {
@@ -1333,6 +1375,45 @@ public:
         return {ERHIResult::Success, MakeShared<FMockBuffer>(Desc)};
     }
 
+    ERHIResult UploadBuffer(
+        const TSharedPtr<IRHIBuffer>& Buffer,
+        const FRHIBufferUploadDesc& Upload) override
+    {
+        if (!bBufferUploadSupported)
+        {
+            return ERHIResult::Unsupported;
+        }
+        if (!IsActive() || !Buffer ||
+            Buffer->GetLifecycleState() !=
+                ERHIResourceLifecycleState::Valid ||
+            !IsValidRHIBufferUploadDesc(Buffer->GetDesc(), Upload))
+        {
+            return ERHIResult::InvalidState;
+        }
+        const auto MockBuffer = std::dynamic_pointer_cast<FMockBuffer>(Buffer);
+        if (!MockBuffer)
+        {
+            return ERHIResult::InvalidState;
+        }
+        if (Buffer->GetDesc().MemoryAccess == ERHIMemoryAccess::HostVisible)
+        {
+            return MockBuffer->Upload(
+                Upload.Data, Upload.DataSizeBytes, Upload.DestinationOffset);
+        }
+        if (!HasRHIFlag(Buffer->GetUsage(), ERHIBufferUsage::CopyDestination))
+        {
+            return ERHIResult::Unsupported;
+        }
+        FBufferUploadRecord RecordValue;
+        RecordValue.Desc = Upload;
+        RecordValue.Desc.Data = nullptr;
+        RecordValue.Bytes.resize(static_cast<usize>(Upload.DataSizeBytes));
+        std::memcpy(RecordValue.Bytes.data(), Upload.Data,
+            static_cast<usize>(Upload.DataSizeBytes));
+        BufferUploads.push_back(std::move(RecordValue));
+        return ERHIResult::Success;
+    }
+
     TRHIObjectResult<IRHITexture> CreateTexture(const FRHITextureDesc& Desc) override
     {
         if (!IsActive())
@@ -1427,10 +1508,21 @@ public:
         FailUploadIndex = Index;
     }
 
+    void SetBufferUploadSupported(bool bSupported) noexcept
+    {
+        bBufferUploadSupported = bSupported;
+    }
+
     [[nodiscard]] const TArray<FTextureUploadRecord>&
         GetUploads() const noexcept
     {
         return Uploads;
+    }
+
+    [[nodiscard]] const TArray<FBufferUploadRecord>&
+    GetBufferUploads() const noexcept
+    {
+        return BufferUploads;
     }
 
     TRHIObjectResult<IRHISampler> CreateSampler(const FRHISamplerDesc& Desc) override
@@ -1649,6 +1741,8 @@ private:
     ERHIDeviceState State = ERHIDeviceState::Active;
     FRHIDeviceCapabilities Capabilities;
     TArray<FTextureUploadRecord> Uploads;
+    TArray<FBufferUploadRecord> BufferUploads;
+    bool bBufferUploadSupported = true;
     usize FailUploadIndex = std::numeric_limits<usize>::max();
 };
 
@@ -3068,6 +3162,83 @@ void TestResourcePipelineLifecycleAndSmokeFlow(FRHICoreTestResult& Result)
     Record(Result, true, "Every public RHI resource/pipeline contract has success and negative mock coverage");
 }
 
+void TestBufferUploadAndIndexedDrawContracts(FRHICoreTestResult& Result)
+{
+    FRHIBufferDesc Desc;
+    Desc.SizeInBytes = 16;
+    Desc.Usage = ERHIBufferUsage::Vertex | ERHIBufferUsage::CopyDestination;
+    Desc.MemoryAccess = ERHIMemoryAccess::HostVisible;
+    const uint8 Source[4] = {1, 2, 3, 4};
+    const FRHIBufferUploadDesc ValidUpload{4, Source, sizeof(Source)};
+    const FRHIBufferUploadDesc NullData{0, nullptr, sizeof(Source)};
+    const FRHIBufferUploadDesc EmptyData{0, Source, 0};
+    const FRHIBufferUploadDesc Overflow{14, Source, sizeof(Source)};
+    Record(Result,
+        IsValidRHIBufferUploadDesc(Desc, ValidUpload) &&
+            !IsValidRHIBufferUploadDesc(Desc, NullData) &&
+            !IsValidRHIBufferUploadDesc(Desc, EmptyData) &&
+            !IsValidRHIBufferUploadDesc(Desc, Overflow),
+        "RHI buffer upload contract validates source and checked destination ranges");
+
+    FMockDevice Device;
+    const auto HostBuffer = Device.CreateBuffer(Desc);
+    const ERHIResult HostResult = Device.UploadBuffer(
+        HostBuffer.Object, ValidUpload);
+    auto ConcreteHost = std::dynamic_pointer_cast<FMockBuffer>(HostBuffer.Object);
+    Record(Result,
+        HostResult == ERHIResult::Success && ConcreteHost &&
+            ConcreteHost->GetBytes().size() == 8 &&
+            ConcreteHost->GetBytes()[4] == 1 &&
+            Device.UploadBuffer(HostBuffer.Object, Overflow) ==
+                ERHIResult::InvalidState,
+        "RHI host-visible buffer upload copies bytes and rejects out-of-range writes");
+
+    FRHIBufferDesc DeviceLocalDesc = Desc;
+    DeviceLocalDesc.MemoryAccess = ERHIMemoryAccess::DeviceLocal;
+    const auto DeviceLocal = Device.CreateBuffer(DeviceLocalDesc);
+    uint8 Staged[4] = {5, 6, 7, 8};
+    const ERHIResult StagedResult = Device.UploadBuffer(
+        DeviceLocal.Object, {0, Staged, sizeof(Staged)});
+    Staged[0] = 99;
+    Record(Result,
+        StagedResult == ERHIResult::Success &&
+            Device.GetBufferUploads().size() == 1 &&
+            Device.GetBufferUploads().front().Desc.Data == nullptr &&
+            Device.GetBufferUploads().front().Bytes.front() == 5,
+        "RHI device-local buffer upload snapshots bytes without retaining source pointers");
+
+    Device.SetBufferUploadSupported(false);
+    Record(Result,
+        Device.UploadBuffer(DeviceLocal.Object, {0, Staged, sizeof(Staged)}) ==
+            ERHIResult::Unsupported,
+        "RHI buffer upload reports unsupported optional device paths");
+    Device.SetBufferUploadSupported(true);
+    (void)DeviceLocal.Object->Invalidate();
+    Record(Result,
+        Device.UploadBuffer(DeviceLocal.Object, {0, Staged, sizeof(Staged)}) ==
+            ERHIResult::InvalidState &&
+            Device.Shutdown() == ERHIResult::Success &&
+            Device.UploadBuffer(HostBuffer.Object, ValidUpload) ==
+                ERHIResult::InvalidState,
+        "RHI buffer upload rejects invalidated buffers and shutdown devices");
+
+    FMockCommandBuffer Commands(ERHIQueueType::Graphics);
+    const FRHIIndexedDrawArguments FullArguments{36, 4, 12, -7, 9};
+    const ERHIResult DrawResult = Commands.Begin() == ERHIResult::Success
+        ? Commands.RecordDrawIndexed(FullArguments)
+        : ERHIResult::Failed;
+    const FSymbolicCommand* Recorded = Commands.GetCommands().empty()
+        ? nullptr : &Commands.GetCommands().back();
+    Record(Result,
+        DrawResult == ERHIResult::Success && Recorded &&
+            Recorded->Type == ERHISymbolicCommandType::DrawIndexed &&
+            Recorded->A == 36 && Recorded->B == 4 && Recorded->C == 12 &&
+            Recorded->D == -7 && Recorded->E == 9 &&
+            Commands.RecordDrawIndexed({0, 1, 0, 0, 0}) ==
+                ERHIResult::InvalidState,
+        "RHI indexed draw preserves first index signed vertex offset and first instance");
+}
+
 void TestAggregateAndIsolation(FRHICoreTestResult& Result)
 {
     FMockDevice Device;
@@ -3100,6 +3271,7 @@ FRHICoreTestResult RunRHICoreTests()
     TestRenderPassesAndFramebuffers(Result);
     TestDeferredCommandContracts(Result);
     TestResourcePipelineLifecycleAndSmokeFlow(Result);
+    TestBufferUploadAndIndexedDrawContracts(Result);
     TestAggregateAndIsolation(Result);
 
     std::cout << "[INFO] RHI core tests passed=" << Result.Passed

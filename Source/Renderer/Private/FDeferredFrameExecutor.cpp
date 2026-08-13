@@ -218,8 +218,12 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
                 bRecorded = IsBufferValid(Bindings.SurfaceIndexBuffer, Stoner::RHI::ERHIBufferUsage::Index) &&
                     Commands.BindIndexBuffer(Bindings.SurfaceIndexBuffer, Stoner::RHI::ERHIIndexType::UInt16) ==
                         Stoner::RHI::ERHIResult::Success &&
-                    Commands.RecordDrawIndexed(Bindings.SurfaceIndexCount,
-                        static_cast<Stoner::Core::uint32>(Plan.AcceptedDraws.size())) ==
+                    Commands.RecordDrawIndexed({
+                        Bindings.SurfaceIndexCount,
+                        static_cast<Stoner::Core::uint32>(Plan.AcceptedDraws.size()),
+                        0,
+                        0,
+                        0}) ==
                         Stoner::RHI::ERHIResult::Success;
             }
             else if (bRecorded && !Plan.AcceptedDraws.empty())
@@ -298,8 +302,12 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
                         Stoner::RHI::ERHIResult::Success &&
                     BindDescriptorSets(Commands, *Batch.Stage) &&
                     Commands.SetScissor(Batch.Scissor) == Stoner::RHI::ERHIResult::Success &&
-                    Commands.RecordDrawIndexed(
-                        IndexCount, Batch.InstanceCount, Batch.FirstInstance) ==
+                    Commands.RecordDrawIndexed({
+                        IndexCount,
+                        Batch.InstanceCount,
+                        0,
+                        0,
+                        Batch.FirstInstance}) ==
                         Stoner::RHI::ERHIResult::Success;
                 if (!bRecorded)
                 {

@@ -170,8 +170,11 @@ std::size_t TextureParameterCount(yyjson_val* Root, const char* Name)
     {
         yyjson_val* Type = yyjson_obj_get(Parameter, "type");
         if (yyjson_is_str(Type) &&
-            std::string_view(
-                yyjson_get_str(Type), yyjson_get_len(Type)) == "texture")
+            (std::string_view(
+                 yyjson_get_str(Type), yyjson_get_len(Type)) == "texture" ||
+             std::string_view(
+                 yyjson_get_str(Type), yyjson_get_len(Type)) ==
+                 "textureBinding"))
         {
             ++Count;
         }
@@ -392,6 +395,32 @@ bool AssetId(yyjson_val* Value, const char* ExpectedType, FAssetId& Out)
         EAssetResult::Success;
 }
 
+bool AssetIdText(yyjson_val* Value, const char* ExpectedType, FAssetId& Out)
+{
+    if (!yyjson_is_str(Value))
+    {
+        return false;
+    }
+    const std::string_view Text(yyjson_get_str(Value), yyjson_get_len(Value));
+    const std::string Prefix = std::string(ExpectedType) + ":";
+    if (!Text.starts_with(Prefix))
+    {
+        return false;
+    }
+    const std::string_view Remainder = Text.substr(Prefix.size());
+    const std::size_t Hash = Remainder.find('#');
+    const std::string_view Path = Remainder.substr(0, Hash);
+    const std::optional<Core::FString> Subresource = Hash == std::string_view::npos
+        ? std::nullopt
+        : std::optional<Core::FString>(Core::FString(
+              std::string(Remainder.substr(Hash + 1))));
+    return FAssetId::Create(
+               Core::FString(ExpectedType),
+               Core::FString(std::string(Path)),
+               Subresource,
+               Out) == EAssetResult::Success;
+}
+
 bool Digest(yyjson_val* Object, FAssetDigest& Out)
 {
     Core::FString Text;
@@ -593,11 +622,78 @@ std::optional<EMaterialAssetParameterType> ParameterType(
     if (Text == "color") return EMaterialAssetParameterType::Color;
     if (Text == "texture")
         return EMaterialAssetParameterType::TextureReference;
+    if (Text == "textureBinding")
+        return EMaterialAssetParameterType::TextureBinding;
     return std::nullopt;
+}
+
+std::optional<EAssetSamplerFilter> SamplerFilter(std::string_view Text)
+{
+    if (Text == "nearest") return EAssetSamplerFilter::Nearest;
+    if (Text == "linear") return EAssetSamplerFilter::Linear;
+    if (Text == "automatic") return EAssetSamplerFilter::Automatic;
+    return std::nullopt;
+}
+
+std::optional<EAssetSamplerMipFilter> SamplerMipFilter(std::string_view Text)
+{
+    if (Text == "none") return EAssetSamplerMipFilter::None;
+    if (Text == "nearest") return EAssetSamplerMipFilter::Nearest;
+    if (Text == "linear") return EAssetSamplerMipFilter::Linear;
+    if (Text == "automatic") return EAssetSamplerMipFilter::Automatic;
+    return std::nullopt;
+}
+
+std::optional<EAssetSamplerAddressMode> SamplerAddressMode(
+    std::string_view Text)
+{
+    if (Text == "repeat") return EAssetSamplerAddressMode::Repeat;
+    if (Text == "mirroredRepeat") return EAssetSamplerAddressMode::MirroredRepeat;
+    if (Text == "clampToEdge") return EAssetSamplerAddressMode::ClampToEdge;
+    return std::nullopt;
+}
+
+bool ParseTextureBinding(yyjson_val* Value, FMaterialTextureBinding& Out)
+{
+    if (!ClosedObject(Value, {"texture", "texCoord", "sampler"}))
+    {
+        return false;
+    }
+    FAssetId Texture;
+    Core::uint32 TexCoord = 0;
+    yyjson_val* Sampler = yyjson_obj_get(Value, "sampler");
+    Core::FString Min;
+    Core::FString Mag;
+    Core::FString Mip;
+    Core::FString AddressU;
+    Core::FString AddressV;
+    if (!AssetIdText(yyjson_obj_get(Value, "texture"), "Texture", Texture) ||
+        !Unsigned(Value, "texCoord", TexCoord) ||
+        !ClosedObject(Sampler, {"min", "mag", "mip", "addressU", "addressV"}) ||
+        !String(Sampler, "min", Min) ||
+        !String(Sampler, "mag", Mag) ||
+        !String(Sampler, "mip", Mip) ||
+        !String(Sampler, "addressU", AddressU) ||
+        !String(Sampler, "addressV", AddressV))
+    {
+        return false;
+    }
+    const auto MinFilter = SamplerFilter(Min.View());
+    const auto MagFilter = SamplerFilter(Mag.View());
+    const auto MipFilter = SamplerMipFilter(Mip.View());
+    const auto U = SamplerAddressMode(AddressU.View());
+    const auto V = SamplerAddressMode(AddressV.View());
+    return MinFilter && MagFilter && MipFilter && U && V &&
+        FMaterialTextureBinding::Create(
+            Texture,
+            TexCoord,
+            {*MinFilter, *MagFilter, *MipFilter, *U, *V},
+            Out) == EAssetResult::Success;
 }
 
 bool ParseParameter(
     yyjson_val* Object,
+    Core::uint32 SchemaVersion,
     FMaterialAssetParameter& Out)
 {
     if (!ClosedObject(Object, {"name", "type", "value"}) ||
@@ -645,10 +741,24 @@ bool ParseParameter(
     }
     case EMaterialAssetParameterType::TextureReference:
     {
+        if (SchemaVersion != 1) return false;
         FAssetId Texture;
         if (!AssetId(Value, "Texture", Texture)) return false;
-        Out.Value =
-            FMaterialAssetParameterValue::FromTexture(std::move(Texture));
+        FMaterialTextureBinding Binding;
+        if (FMaterialTextureBinding::Create(
+                Texture, 0, {}, Binding) != EAssetResult::Success)
+            return false;
+        Out.Value = FMaterialAssetParameterValue::FromTextureBinding(
+            std::move(Binding));
+        return true;
+    }
+    case EMaterialAssetParameterType::TextureBinding:
+    {
+        if (SchemaVersion != 2) return false;
+        FMaterialTextureBinding Binding;
+        if (!ParseTextureBinding(Value, Binding)) return false;
+        Out.Value = FMaterialAssetParameterValue::FromTextureBinding(
+            std::move(Binding));
         return true;
     }
     }
@@ -657,6 +767,7 @@ bool ParseParameter(
 
 bool ParseParameters(
     yyjson_val* Value,
+    Core::uint32 SchemaVersion,
     Core::TArray<FMaterialAssetParameter>& Out)
 {
     Out.clear();
@@ -670,7 +781,7 @@ bool ParseParameters(
     yyjson_arr_foreach(Value, Index, Maximum, Element)
     {
         FMaterialAssetParameter Parameter;
-        if (!ParseParameter(Element, Parameter))
+        if (!ParseParameter(Element, SchemaVersion, Parameter))
         {
             return false;
         }
@@ -688,7 +799,7 @@ bool ParseShader(yyjson_val* Root, FShaderAssetDesc& Out)
              "requiredParameters", "interface", "variants", "extensions"}) ||
         !AssetId(yyjson_obj_get(Root, "id"), "ShaderProgram", Out.Id) ||
         !Unsigned(Root, "version", Out.SchemaVersion) ||
-        Out.SchemaVersion != 1)
+        (Out.SchemaVersion != 1 && Out.SchemaVersion != 2))
     {
         return false;
     }
@@ -889,13 +1000,17 @@ bool ParseMaterial(yyjson_val* Root, FMaterialAssetDesc& Out)
              "parameters", "extensions"}) ||
         !AssetId(yyjson_obj_get(Root, "id"), "Material", Out.Id) ||
         !Unsigned(Root, "version", Out.SchemaVersion) ||
-        Out.SchemaVersion != 1)
+        (Out.SchemaVersion != 1 && Out.SchemaVersion != 2))
+    {
         return false;
+    }
     Core::FString Domain;
     Core::FString Blend;
     if (!String(Root, "domain", Domain) ||
         !String(Root, "blendMode", Blend))
+    {
         return false;
+    }
     if (Domain == "surface") Out.Domain = EMaterialAssetDomain::Surface;
     else if (Domain == "postProcess") Out.Domain = EMaterialAssetDomain::PostProcess;
     else if (Domain == "ui") Out.Domain = EMaterialAssetDomain::UI;
@@ -921,6 +1036,7 @@ bool ParseMaterial(yyjson_val* Root, FMaterialAssetDesc& Out)
             Out.PermutationRequest.Flags) ||
         !ParseParameters(
             yyjson_obj_get(Root, "parameters"),
+            Out.SchemaVersion,
             Out.Parameters))
         return false;
     return true;
@@ -937,9 +1053,11 @@ bool ParseMaterialInstance(
         !AssetId(
             yyjson_obj_get(Root, "id"), "MaterialInstance", Out.Id) ||
         !Unsigned(Root, "version", Out.SchemaVersion) ||
-        Out.SchemaVersion != 1 ||
+        (Out.SchemaVersion != 1 && Out.SchemaVersion != 2) ||
         !ParseParameters(
-            yyjson_obj_get(Root, "overrides"), Out.Overrides))
+            yyjson_obj_get(Root, "overrides"),
+            Out.SchemaVersion,
+            Out.Overrides))
         return false;
     yyjson_val* Parent = yyjson_obj_get(Root, "parent");
     Core::FString Type;
@@ -1145,7 +1263,9 @@ void FloatJson(std::string& Out, float Value)
     Out.append(Buffer, Result.ptr);
 }
 
-const char* ParameterTypeText(EMaterialAssetParameterType Type)
+const char* ParameterTypeText(
+    EMaterialAssetParameterType Type,
+    Core::uint32 SchemaVersion)
 {
     switch (Type)
     {
@@ -1153,13 +1273,90 @@ const char* ParameterTypeText(EMaterialAssetParameterType Type)
     case EMaterialAssetParameterType::Vector: return "vector";
     case EMaterialAssetParameterType::Color: return "color";
     case EMaterialAssetParameterType::TextureReference: return "texture";
+    case EMaterialAssetParameterType::TextureBinding:
+        return SchemaVersion == 1 ? "texture" : "textureBinding";
     }
     return "unknown";
+}
+
+const char* SamplerFilterText(EAssetSamplerFilter Value)
+{
+    switch (Value)
+    {
+    case EAssetSamplerFilter::Nearest: return "nearest";
+    case EAssetSamplerFilter::Linear: return "linear";
+    case EAssetSamplerFilter::Automatic: return "automatic";
+    }
+    return "unknown";
+}
+
+const char* SamplerMipFilterText(EAssetSamplerMipFilter Value)
+{
+    switch (Value)
+    {
+    case EAssetSamplerMipFilter::None: return "none";
+    case EAssetSamplerMipFilter::Nearest: return "nearest";
+    case EAssetSamplerMipFilter::Linear: return "linear";
+    case EAssetSamplerMipFilter::Automatic: return "automatic";
+    }
+    return "unknown";
+}
+
+const char* SamplerAddressModeText(EAssetSamplerAddressMode Value)
+{
+    switch (Value)
+    {
+    case EAssetSamplerAddressMode::Repeat: return "repeat";
+    case EAssetSamplerAddressMode::MirroredRepeat: return "mirroredRepeat";
+    case EAssetSamplerAddressMode::ClampToEdge: return "clampToEdge";
+    }
+    return "unknown";
+}
+
+bool IsDefaultTextureBinding(const FMaterialTextureBinding& Binding)
+{
+    return Binding.TexCoordSet == 0 &&
+        Binding.Sampler == FMaterialSamplerIntent{};
+}
+
+bool CanWriteParameters(
+    Core::uint32 SchemaVersion,
+    const Core::TArray<FMaterialAssetParameter>& Parameters)
+{
+    if (SchemaVersion != 1 && SchemaVersion != 2)
+    {
+        return false;
+    }
+    for (const FMaterialAssetParameter& Parameter : Parameters)
+    {
+        if (Parameter.Value.Type == EMaterialAssetParameterType::TextureBinding)
+        {
+            if (!std::holds_alternative<FMaterialTextureBinding>(
+                    Parameter.Value.Value))
+            {
+                return false;
+            }
+            if (SchemaVersion == 1 &&
+                !IsDefaultTextureBinding(
+                    std::get<FMaterialTextureBinding>(Parameter.Value.Value)))
+            {
+                return false;
+            }
+        }
+        else if (SchemaVersion == 2 &&
+                 Parameter.Value.Type ==
+                     EMaterialAssetParameterType::TextureReference)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 void ParameterJson(
     std::string& Out,
     const FMaterialAssetParameter& Parameter,
+    Core::uint32 SchemaVersion,
     int Depth)
 {
     Out += "{\n";
@@ -1167,7 +1364,7 @@ void ParameterJson(
     JsonString(Out, Parameter.Name.View());
     Out += ",\n";
     Key(Out, Depth + 1, "type");
-    JsonString(Out, ParameterTypeText(Parameter.Value.Type));
+    JsonString(Out, ParameterTypeText(Parameter.Value.Type, SchemaVersion));
     Out += ",\n";
     Key(Out, Depth + 1, "value");
     if (Parameter.Value.Type == EMaterialAssetParameterType::Scalar)
@@ -1192,12 +1389,57 @@ void ParameterJson(
         FloatJson(Out, C.B); Out += ", ";
         FloatJson(Out, C.A); Out += "]";
     }
-    else
+    else if (Parameter.Value.Type ==
+             EMaterialAssetParameterType::TextureReference)
     {
         AssetIdJson(
             Out,
             std::get<FAssetId>(Parameter.Value.Value),
             Depth + 1);
+    }
+    else
+    {
+        const auto& Binding = std::get<FMaterialTextureBinding>(
+            Parameter.Value.Value);
+        if (SchemaVersion == 1)
+        {
+            AssetIdJson(Out, *Binding.Texture.GetId(), Depth + 1);
+        }
+        else
+        {
+            Out += "{\n";
+            Key(Out, Depth + 2, "texture");
+            JsonString(Out, Binding.Texture.GetId()->ToString().View());
+            Out += ",\n";
+            Key(Out, Depth + 2, "texCoord");
+            Out += std::to_string(Binding.TexCoordSet);
+            Out += ",\n";
+            Key(Out, Depth + 2, "sampler");
+            Out += "{\n";
+            Key(Out, Depth + 3, "min");
+            JsonString(Out, SamplerFilterText(Binding.Sampler.MinFilter));
+            Out += ",\n";
+            Key(Out, Depth + 3, "mag");
+            JsonString(Out, SamplerFilterText(Binding.Sampler.MagFilter));
+            Out += ",\n";
+            Key(Out, Depth + 3, "mip");
+            JsonString(Out, SamplerMipFilterText(Binding.Sampler.MipFilter));
+            Out += ",\n";
+            Key(Out, Depth + 3, "addressU");
+            JsonString(
+                Out,
+                SamplerAddressModeText(Binding.Sampler.AddressU));
+            Out += ",\n";
+            Key(Out, Depth + 3, "addressV");
+            JsonString(
+                Out,
+                SamplerAddressModeText(Binding.Sampler.AddressV));
+            Out += "\n";
+            Indent(Out, Depth + 2);
+            Out += "}\n";
+            Indent(Out, Depth + 1);
+            Out += "}";
+        }
     }
     Out += "\n";
     Indent(Out, Depth);
@@ -1207,6 +1449,7 @@ void ParameterJson(
 void ParametersJson(
     std::string& Out,
     const Core::TArray<FMaterialAssetParameter>& Parameters,
+    Core::uint32 SchemaVersion,
     int Depth)
 {
     Out += "[";
@@ -1214,7 +1457,7 @@ void ParametersJson(
     for (std::size_t Index = 0; Index < Parameters.size(); ++Index)
     {
         Indent(Out, Depth + 1);
-        ParameterJson(Out, Parameters[Index], Depth + 1);
+        ParameterJson(Out, Parameters[Index], SchemaVersion, Depth + 1);
         Out += Index + 1 == Parameters.size() ? "\n" : ",\n";
     }
     if (!Parameters.empty()) Indent(Out, Depth);
@@ -1224,11 +1467,12 @@ void ParametersJson(
 void WriteCommonStart(
     std::string& Out,
     const char* Schema,
-    const FAssetId& Id)
+    const FAssetId& Id,
+    Core::uint32 SchemaVersion)
 {
     Out += "{\n";
     Key(Out, 1, "schema"); JsonString(Out, Schema); Out += ",\n";
-    Key(Out, 1, "version"); Out += "1,\n";
+    Key(Out, 1, "version"); Out += std::to_string(SchemaVersion); Out += ",\n";
     Key(Out, 1, "id"); AssetIdJson(Out, Id, 1); Out += ",\n";
     Key(Out, 1, "requiredExtensions"); Out += "[],\n";
 }
@@ -1236,7 +1480,7 @@ void WriteCommonStart(
 std::string WriteMaterial(const FMaterialAssetDesc& Desc)
 {
     std::string Out;
-    WriteCommonStart(Out, "stoner.material", Desc.Id);
+    WriteCommonStart(Out, "stoner.material", Desc.Id, Desc.SchemaVersion);
     Key(Out, 1, "domain");
     const char* Domain = Desc.Domain == EMaterialAssetDomain::Surface
         ? "surface"
@@ -1261,7 +1505,9 @@ std::string WriteMaterial(const FMaterialAssetDesc& Desc)
     AssetIdJson(Out, *Desc.Shader.GetId(), 1); Out += ",\n";
     Key(Out, 1, "permutationFlags");
     StringArrayJson(Out, Desc.PermutationRequest.Flags); Out += ",\n";
-    Key(Out, 1, "parameters"); ParametersJson(Out, Desc.Parameters, 1); Out += ",\n";
+    Key(Out, 1, "parameters");
+    ParametersJson(Out, Desc.Parameters, Desc.SchemaVersion, 1);
+    Out += ",\n";
     Key(Out, 1, "extensions"); Out += "{}\n}\n";
     return Out;
 }
@@ -1269,7 +1515,11 @@ std::string WriteMaterial(const FMaterialAssetDesc& Desc)
 std::string WriteInstance(const FMaterialInstanceAssetDesc& Desc)
 {
     std::string Out;
-    WriteCommonStart(Out, "stoner.material-instance", Desc.Id);
+    WriteCommonStart(
+        Out,
+        "stoner.material-instance",
+        Desc.Id,
+        Desc.SchemaVersion);
     Key(Out, 1, "parent");
     std::visit(
         [&Out](const auto& Parent)
@@ -1278,7 +1528,9 @@ std::string WriteInstance(const FMaterialInstanceAssetDesc& Desc)
         },
         Desc.Parent.Reference);
     Out += ",\n";
-    Key(Out, 1, "overrides"); ParametersJson(Out, Desc.Overrides, 1); Out += ",\n";
+    Key(Out, 1, "overrides");
+    ParametersJson(Out, Desc.Overrides, Desc.SchemaVersion, 1);
+    Out += ",\n";
     Key(Out, 1, "extensions"); Out += "{}\n}\n";
     return Out;
 }
@@ -1286,7 +1538,11 @@ std::string WriteInstance(const FMaterialInstanceAssetDesc& Desc)
 std::string WriteShader(const FShaderAssetDesc& Desc)
 {
     std::string Out;
-    WriteCommonStart(Out, "stoner.shader-program", Desc.Id);
+    WriteCommonStart(
+        Out,
+        "stoner.shader-program",
+        Desc.Id,
+        Desc.SchemaVersion);
     Key(Out, 1, "programKind");
     JsonString(
         Out,
@@ -1320,7 +1576,9 @@ std::string WriteShader(const FShaderAssetDesc& Desc)
         const auto& Parameter = Desc.RequiredParameters[Index];
         Indent(Out, 2); Out += "{\n";
         Key(Out, 3, "name"); JsonString(Out, Parameter.Name.View()); Out += ",\n";
-        Key(Out, 3, "type"); JsonString(Out, ParameterTypeText(Parameter.Type)); Out += "\n";
+        Key(Out, 3, "type");
+        JsonString(Out, ParameterTypeText(Parameter.Type, Desc.SchemaVersion));
+        Out += "\n";
         Indent(Out, 2);
         Out += Index + 1 == Desc.RequiredParameters.size() ? "}\n" : "},\n";
     }
@@ -1480,7 +1738,13 @@ EAssetResult ParseMaterialShaderDefinition(
     {
         return EAssetResult::InvalidDefinition;
     }
-    if (SchemaVersion != 1)
+    const bool bShaderSchema = Schema == "stoner.shader-program";
+    const bool bMaterialSchema =
+        Schema == "stoner.material" ||
+        Schema == "stoner.material-instance";
+    if ((bShaderSchema && SchemaVersion != 1) ||
+        (bMaterialSchema && SchemaVersion != 1 && SchemaVersion != 2) ||
+        (!bShaderSchema && !bMaterialSchema))
     {
         return EAssetResult::UnsupportedSchema;
     }
@@ -1533,9 +1797,23 @@ EAssetResult WriteMaterialShaderDefinition(
         Text = WriteShader(std::get<FShaderAssetDesc>(Definition.Value));
         break;
     case EMaterialShaderDefinitionKind::Material:
+        if (!CanWriteParameters(
+                std::get<FMaterialAssetDesc>(Definition.Value).SchemaVersion,
+                std::get<FMaterialAssetDesc>(Definition.Value).Parameters))
+        {
+            return EAssetResult::InvalidDefinition;
+        }
         Text = WriteMaterial(std::get<FMaterialAssetDesc>(Definition.Value));
         break;
     case EMaterialShaderDefinitionKind::MaterialInstance:
+        if (!CanWriteParameters(
+                std::get<FMaterialInstanceAssetDesc>(Definition.Value)
+                    .SchemaVersion,
+                std::get<FMaterialInstanceAssetDesc>(Definition.Value)
+                    .Overrides))
+        {
+            return EAssetResult::InvalidDefinition;
+        }
         Text = WriteInstance(
             std::get<FMaterialInstanceAssetDesc>(Definition.Value));
         break;

@@ -45,6 +45,9 @@ private_include_paths_by_source = {
     'AssetImageTextureTests.cpp': [
         Dir('#Source/Asset/Private').abspath,
     ],
+    'AssetGLTFContainerTests.cpp': [
+        Dir('#Source/Asset/Private').abspath,
+    ],
     'AssetKTX2Tests.cpp': [
         Dir('#Source/Asset/Private').abspath,
         Dir('#ThirdParty/ktx/include').abspath,

@@ -30,6 +30,7 @@ class IRHISwapchain;
 class IRHITexture;
 
 struct FRHIBufferDesc;
+struct FRHIBufferUploadDesc;
 struct FRHIComputePipelineDesc;
 struct FRHIFramebufferDesc;
 struct FRHIGraphicsPipelineDesc;
@@ -77,6 +78,12 @@ public:
     virtual TRHIObjectResult<IRHISemaphore> CreateSemaphore() = 0;
     virtual TRHIObjectResult<IRHISwapchain> CreateSwapchain(Stoner::Core::uint32 FrameCount) = 0;
     virtual TRHIObjectResult<IRHIBuffer> CreateBuffer(const FRHIBufferDesc& Desc) = 0;
+    virtual ERHIResult UploadBuffer(
+        const Stoner::Core::TSharedPtr<IRHIBuffer>&,
+        const FRHIBufferUploadDesc&)
+    {
+        return ERHIResult::Unsupported;
+    }
     virtual TRHIObjectResult<IRHITexture> CreateTexture(const FRHITextureDesc& Desc) = 0;
     virtual ERHIResult UploadTexture(
         const Stoner::Core::TSharedPtr<IRHITexture>&,

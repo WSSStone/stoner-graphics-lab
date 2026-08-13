@@ -276,9 +276,19 @@ void TestMaterialSnapshot(
             {1.0f, 0.5f, 0.25f, 1.0f})});
     const Asset::FAssetId Texture =
         Id("Texture", "Tests/Textures/Albedo");
+    Asset::FMaterialTextureBinding Binding;
+    const bool bBindingCreated = Asset::FMaterialTextureBinding::Create(
+        Texture,
+        1,
+        {Asset::EAssetSamplerFilter::Nearest,
+         Asset::EAssetSamplerFilter::Linear,
+         Asset::EAssetSamplerMipFilter::None,
+         Asset::EAssetSamplerAddressMode::MirroredRepeat,
+         Asset::EAssetSamplerAddressMode::ClampToEdge},
+        Binding) == Asset::EAssetResult::Success;
     Resolved.EffectiveParameters.push_back({
         "Albedo",
-        Asset::FMaterialAssetParameterValue::FromTexture(Texture)});
+        Asset::FMaterialAssetParameterValue::FromTextureBinding(Binding)});
     Resolved.SourceManifest = {
         {Resolved.RootMaterialId,
          Resolved.RootMaterialVersion,
@@ -302,11 +312,23 @@ void TestMaterialSnapshot(
     }
     Record(
         Result,
-        Conversion == Renderer::EMaterialResult::Success &&
+        bBindingCreated &&
+            Conversion == Renderer::EMaterialResult::Success &&
             Snapshot.Material.IsValid() &&
             Snapshot.Material.GetShaderReference() ==
                 Id("ShaderProgram", "Tests/Shaders/Snapshot").ToString() &&
             Snapshot.ResourceRequirements.size() == 1 &&
+            Snapshot.TextureBindings.size() == 1 &&
+            Snapshot.TextureBindings.front().TextureId == Texture &&
+            Snapshot.TextureBindings.front().TexCoordSet == 1 &&
+            Snapshot.TextureBindings.front().Sampler.MinFilter ==
+                RHI::ERHISamplerFilter::Nearest &&
+            Snapshot.TextureBindings.front().Sampler.MipFilter ==
+                RHI::ERHISamplerMipFilter::None &&
+            Snapshot.TextureBindings.front().Sampler.AddressU ==
+                RHI::ERHISamplerAddressMode::MirroredRepeat &&
+            Snapshot.TextureBindings.front().Sampler.AddressV ==
+                RHI::ERHISamplerAddressMode::ClampToEdge &&
             Snapshot.SourceManifest.size() == 8,
         "Resolved material converts to owned Feature 014 snapshot and manifest");
 
@@ -350,6 +372,37 @@ void TestMaterialSnapshot(
         "Material conversion rejects conflicting manifest versions atomically");
 }
 
+void TestSamplerIntentConversion(
+    FRendererMaterialShaderAssetTestResult& Result)
+{
+    RHI::FRHISamplerDesc Sampler;
+    const Asset::FMaterialSamplerIntent Automatic;
+    const bool bAutomatic = Renderer::ConvertMaterialSamplerIntent(
+        Automatic,
+        Sampler) == Renderer::EMaterialResult::Success &&
+        Sampler.MinFilter == RHI::ERHISamplerFilter::Linear &&
+        Sampler.MagFilter == RHI::ERHISamplerFilter::Linear &&
+        Sampler.MipFilter == RHI::ERHISamplerMipFilter::Linear &&
+        Sampler.AddressU == RHI::ERHISamplerAddressMode::Repeat &&
+        Sampler.AddressV == RHI::ERHISamplerAddressMode::Repeat;
+    const RHI::FRHISamplerDesc Before = Sampler;
+    const Asset::FMaterialSamplerIntent Invalid{
+        static_cast<Asset::EAssetSamplerFilter>(255),
+        Asset::EAssetSamplerFilter::Linear,
+        Asset::EAssetSamplerMipFilter::Automatic,
+        Asset::EAssetSamplerAddressMode::Repeat,
+        Asset::EAssetSamplerAddressMode::Repeat};
+    Record(
+        Result,
+        bAutomatic &&
+            Renderer::ConvertMaterialSamplerIntent(Invalid, Sampler) ==
+                Renderer::EMaterialResult::ValidationFailed &&
+            Sampler.MinFilter == Before.MinFilter &&
+            Sampler.MagFilter == Before.MagFilter &&
+            Sampler.MipFilter == Before.MipFilter,
+        "Asset sampler intent converts deterministically to RHI without mutating output on invalid input");
+}
+
 } // namespace
 
 FRendererMaterialShaderAssetTestResult
@@ -360,5 +413,6 @@ RunRendererMaterialShaderAssetTests()
     Renderer::FShaderAssetSnapshot Shader;
     TestShaderSnapshot(Result, Shader);
     TestMaterialSnapshot(Result, Shader);
+    TestSamplerIntentConversion(Result);
     return Result;
 }

@@ -1,0 +1,24 @@
+# Feature 024 Foundation Checkpoint
+
+Date: 2026-07-31
+Platform: macOS (Apple Silicon)
+
+`coordinate-convention` was already registered in `Tests/Main.cpp` and its
+source was already included by `Tests/SConscript` before this feature's
+foundation migration. This checkpoint verifies the three intended tracks
+together rather than changing correct existing registration.
+
+```text
+conda run -n godot Build/Mac/Debug/Tests/StonerTest \
+  --suite coordinate-convention \
+  --suite asset-material-shader --suite renderer-material-asset \
+  --suite rhi --suite vulkan --suite deferred-renderer
+```
+
+Result: exit code `0`.
+
+The combined gate covers the Unreal coordinate convention, Material v1/v2
+compatibility and Renderer snapshots, checked buffer uploads, complete indexed
+draw arguments, Vulkan staging/recording, and Deferred Renderer indexed draw
+execution. This completes the shared foundation checkpoint; canonical glTF
+geometry implementation begins at T038.
