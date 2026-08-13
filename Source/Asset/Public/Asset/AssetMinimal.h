@@ -40,6 +40,8 @@
 #include "Asset/FStaticMeshInspection.h"
 #include "Asset/FStaticMeshTypes.h"
 #include "Asset/FStaticModelImport.h"
+#include "Asset/FStaticModelAsset.h"
+#include "Asset/FStaticModelInspection.h"
 #include "Asset/TSoftAssetRef.h"
 #include "Asset/IAssetCooker.h"
 #include "Asset/IAssetImporter.h"

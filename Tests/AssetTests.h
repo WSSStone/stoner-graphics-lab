@@ -5,6 +5,8 @@
 #include "AssetGLTFPolicyTests.h"
 #include "AssetMaterialShaderTests.h"
 #include "AssetStaticMeshGeometryTests.h"
+#include "AssetStaticModelHierarchyTests.h"
+#include "AssetStaticModelIdentityTests.h"
 
 struct FAssetTestResult
 {

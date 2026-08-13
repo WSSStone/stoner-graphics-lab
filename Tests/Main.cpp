@@ -25,6 +25,8 @@
 #include "AssetGLTFPolicyTests.h"
 #include "AssetMaterialShaderTests.h"
 #include "AssetStaticMeshGeometryTests.h"
+#include "AssetStaticModelHierarchyTests.h"
+#include "AssetStaticModelIdentityTests.h"
 #include "RendererMaterialShaderAssetTests.h"
 #include "TestSuiteRegistry.h"
 #include "TestSuiteRegistryTests.h"
@@ -135,6 +137,11 @@ int main(int ArgCount, char* Arguments[])
         const auto Container = RunAssetGLTFContainerTests();
         return Geometry.Failed == 0 && Policy.Failed == 0 &&
             Container.Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-static-model", [] {
+        const auto Hierarchy = RunAssetStaticModelHierarchyTests();
+        const auto Identity = RunAssetStaticModelIdentityTests();
+        return Hierarchy.Failed == 0 && Identity.Failed == 0 ? 0 : 1;
     });
     Registry.Register("asset-ktx2-encoder", [] {
         return RunAssetKTX2EncoderTests().Failed == 0 ? 0 : 1;

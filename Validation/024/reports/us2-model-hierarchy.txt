@@ -1,0 +1,50 @@
+Feature 024 US2 Model Hierarchy And Identity Acceptance
+Date: 2026-08-13
+Source base: 1623a9de7e6e plus the Feature 024 US2 working tree
+Platform/profile: macOS arm64, Debug strict and Release strict
+Manifest SHA-256: 557cc9bc3b3e7a6974fed95baf4d2ca013cbb981aea813087a96e636693340c3
+Result: PASS
+
+Commands:
+- conda run -n godot scons platform=macos config=debug strict=true -j8
+- Build/Mac/Debug/Tests/StonerTest --suite asset-static-model
+- Build/Mac/Debug/Tests/StonerTest --suite asset-static-mesh
+- conda run -n godot scons platform=macos config=release strict=true -j8
+- Build/Mac/Release/Tests/StonerTest --suite asset-static-model
+- Build/Mac/Release/Tests/StonerTest --suite asset
+- conda run -n godot python -m unittest Tests/test_verify_static_model_provenance.py
+- conda run -n godot python Tests/verify_static_model_provenance.py --root .
+
+Accepted hierarchy fixture IDs:
+- 01-multi-scene-shared through 06-fallback-unreferenced from
+  Tests/Fixtures/StaticModel/Valid/Hierarchy/
+
+Rejected hierarchy fixture IDs:
+- 01-cycle through 05-empty-scene from
+  Tests/Fixtures/StaticModel/Invalid/Hierarchy/
+
+Acceptance facts:
+- One FStaticModelAsset is emitted per authored scene; exactly one records the
+  source default scene where glTF supplies it.
+- Parents precede children in deterministic depth-first order and roots retain
+  authored scene order.
+- TRS and matrix transforms are converted to the Unreal-style left-handed,
+  Z-up basis; negative determinant evidence is retained.
+- Shared meshes are emitted once and referenced from multiple models, while
+  unreferenced meshes remain typed package outputs.
+- extras.stonerAssetId produces key.* identities for meshes, scenes, and nodes;
+  structural idx.* fallback identities are deterministic when keys are absent.
+- Explicit mesh and scene identities survive source reorder and display-name
+  changes under the same logical source path.
+- cgltf mesh extras are recovered through its bounded copy API because the
+  pinned parser stores mesh extras as source offsets for targetNames support.
+- Cycles, multiple parents, duplicate/invalid keys, depth overflow, and empty
+  scenes return no partial package outputs.
+- Complete package metadata publishes in one FAssetRegistry revision; failed
+  packages leave the existing registry revision unchanged.
+- Twenty repeated multi-scene imports preserve package ordering and identity.
+
+Deferred by design:
+- glTF material/image/texture dependencies and Material v2 mapping (US3);
+- comprehensive malformed/resolver/limit diagnostics (hardening and US5);
+- Renderer/RHI realization and native transformed-mesh proof (US4).
