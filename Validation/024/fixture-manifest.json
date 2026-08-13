@@ -1,4 +1,173 @@
 {
-  "schema": "stoner.static-model.fixture-manifest/v1",
-  "fixtures": []
+  "fixtures": [
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "scope": [
+        "US1",
+        "SC-004",
+        "01-basis-u16"
+      ],
+      "sha256": "sha256:4957aef2f078cb9ae97e160049aa9fcf2c365e00aa27d509fe1e2be89383701b",
+      "source_url": "repository-owned://feature-024/geometry",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Geometry/02-index-u8.gltf",
+      "scope": [
+        "US1",
+        "SC-004",
+        "02-index-u8"
+      ],
+      "sha256": "sha256:d16b102527e35b20e931a40cbbbb0f8cf8b98bffcfba36d20f8367e8e11ae1c5",
+      "source_url": "repository-owned://feature-024/geometry",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Geometry/03-index-u32.gltf",
+      "scope": [
+        "US1",
+        "SC-004",
+        "03-index-u32"
+      ],
+      "sha256": "sha256:e62b2600a8f28c6e163f140efd5b21e19507a887837a5f7fa3dfeba8f8a0995e",
+      "source_url": "repository-owned://feature-024/geometry",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Geometry/04-non-indexed.gltf",
+      "scope": [
+        "US1",
+        "SC-004",
+        "04-non-indexed"
+      ],
+      "sha256": "sha256:abd777b68d8e89f8564f78d43c7bebe7f3a577ac429ac86d5959e848944b1098",
+      "source_url": "repository-owned://feature-024/geometry",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Geometry/05-interleaved.gltf",
+      "scope": [
+        "US1",
+        "SC-004",
+        "05-interleaved"
+      ],
+      "sha256": "sha256:62bbf6cacadc6664acb71d7b368084fdf788bf95d80ac729bf9be28cdcdc26ea",
+      "source_url": "repository-owned://feature-024/geometry",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Geometry/06-sparse-position.gltf",
+      "scope": [
+        "US1",
+        "SC-004",
+        "06-sparse-position"
+      ],
+      "sha256": "sha256:49d8bd57543b8b04066de7798e4872b2386f141f2806548efd90b259fcbaae56",
+      "source_url": "repository-owned://feature-024/geometry",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Geometry/07-normalized-normal.gltf",
+      "scope": [
+        "US1",
+        "SC-004",
+        "07-normalized-normal"
+      ],
+      "sha256": "sha256:112c7a501d1d0b911701f69160043825bc23c412451c062a950c672e7348cbc8",
+      "source_url": "repository-owned://feature-024/geometry",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Geometry/08-missing-normal.gltf",
+      "scope": [
+        "US1",
+        "SC-004",
+        "08-missing-normal"
+      ],
+      "sha256": "sha256:8663320783471e769cae88be613a8eb07c12b14f4e79d8d4fd0fa6cc8ee003a7",
+      "source_url": "repository-owned://feature-024/geometry",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Geometry/09-missing-tangent.gltf",
+      "scope": [
+        "US1",
+        "SC-004",
+        "09-missing-tangent"
+      ],
+      "sha256": "sha256:9a55849d17740a3296b6d7f274b1aee5bd9f73e245150488e539c4f07ab849cd",
+      "source_url": "repository-owned://feature-024/geometry",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Geometry/10-uv1.gltf",
+      "scope": [
+        "US1",
+        "SC-004",
+        "10-uv1"
+      ],
+      "sha256": "sha256:696f9117c5ecc9e4e120ca2d2f2d104ab234fc57e0f6bc777f34af3f07de9001",
+      "source_url": "repository-owned://feature-024/geometry",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Geometry/11-node-transform.gltf",
+      "scope": [
+        "US1",
+        "SC-004",
+        "11-node-transform"
+      ],
+      "sha256": "sha256:fcd50224c925d5660eb64d6d906fb295c018524bc8d7524d3997ba67106f2b21",
+      "source_url": "repository-owned://feature-024/geometry",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Geometry/12-two-primitives.glb",
+      "scope": [
+        "US1",
+        "SC-004",
+        "12-two-primitives"
+      ],
+      "sha256": "sha256:f4c7e2224477c7f79b5f8a4fe622d51db40d279af7b2972389d43150d9e4f512",
+      "source_url": "repository-owned://feature-024/geometry",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    }
+  ],
+  "schema": "stoner.static-model.fixture-manifest/v1"
 }

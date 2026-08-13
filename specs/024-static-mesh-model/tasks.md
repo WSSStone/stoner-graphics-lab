@@ -110,8 +110,8 @@ deterministic repetition, and recorded acceptance evidence.
 
 - [X] T038 [P] [US1] Add failing payload validation, stream, index-width, primitive, and bounds tests in `Tests/AssetStaticMeshGeometryTests.cpp` and `Tests/AssetStaticMeshGeometryTests.h`
 - [X] T039 [P] [US1] Add failing JSON/GLB preflight plus dense/interleaved/sparse/normalized accessor tests in `Tests/AssetGLTFContainerTests.cpp` and `Tests/AssetGLTFContainerTests.h`
-- [ ] T040 [P] [US1] Add failing default/strict missing-normal, tangent, degenerate, UV, and policy-version tests in `Tests/AssetGLTFPolicyTests.cpp` and `Tests/AssetGLTFPolicyTests.h`
-- [ ] T041 [P] [US1] Add at least 12 repository-owned golden primitives covering basis, packing, index width, missing attributes, transforms, front-face parity, primitive bounds, and model bounds with SC-004 expected values in `Tests/Fixtures/StaticModel/Valid/Geometry/`
+- [X] T040 [P] [US1] Add failing default/strict missing-normal, tangent, degenerate, UV, and policy-version tests in `Tests/AssetGLTFPolicyTests.cpp` and `Tests/AssetGLTFPolicyTests.h`
+- [X] T041 [P] [US1] Add at least 12 repository-owned golden primitives covering basis, packing, index width, missing attributes, transforms, front-face parity, primitive bounds, and model bounds with SC-004 expected values in `Tests/Fixtures/StaticModel/Valid/Geometry/`
 
 ### Implementation For User Story 1
 
@@ -121,16 +121,16 @@ deterministic repetition, and recorded acceptance evidence.
 - [X] T045 [US1] Wrap patched cgltf with capped allocation, bounded in-memory parse, RAII cleanup, and no filesystem callbacks in `Source/Asset/Private/FCgltfDocument.h` and `Source/Asset/Private/FCgltfDocument.cpp`
 - [X] T046 [US1] Implement checked JSON/GLB source preflight for header, chunks, lengths, alignment, padding, and trailing bytes in `Source/Asset/Private/FGLTFContainerPreflight.h` and `Source/Asset/Private/FGLTFContainerPreflight.cpp`
 - [X] T047 [US1] Implement checked dense, interleaved, normalized, and sparse accessor decoding with strict index ordering in `Source/Asset/Private/FGLTFAccessorDecoder.h` and `Source/Asset/Private/FGLTFAccessorDecoder.cpp`
-- [ ] T048 [US1] Implement glTF-to-Unreal basis conjugation, index-order preservation, tangent reflection parity, and finite stream normalization in `Source/Asset/Private/FGLTFGeometryNormalizer.h` and `Source/Asset/Private/FGLTFGeometryNormalizer.cpp`
-- [ ] T049 [US1] Implement deterministic flat-normal vertex splitting and reject non-derivable degenerate references in `Source/Asset/Private/FStaticMeshNormalGenerator.h` and `Source/Asset/Private/FStaticMeshNormalGenerator.cpp`
-- [ ] T050 [US1] Adapt pinned MikkTSpace for required-tangent generation, selected UV validation, and canonical handedness in `Source/Asset/Private/FStaticMeshTangentGenerator.h` and `Source/Asset/Private/FStaticMeshTangentGenerator.cpp`
-- [ ] T051 [US1] Derive and validate deterministic box/sphere primitive and mesh bounds from canonical positions in `Source/Asset/Private/FStaticMeshBounds.cpp`
-- [ ] T052 [US1] Implement deterministic glTF/GLB probing and canonical mesh-only import flow in `Source/Asset/Private/FGLTFStaticModelImporter.h` and `Source/Asset/Private/FGLTFStaticModelImporter.cpp`
-- [ ] T053 [US1] Expose scoped glTF importer registration without parser-native public types in `Source/Asset/Public/Asset/FStaticModelImport.h` and `Source/Asset/Private/AssetModule.cpp`
-- [ ] T054 [US1] Implement normalized mesh stream, primitive, bounds, policy, and source-version inspection in `Source/Asset/Public/Asset/FStaticMeshInspection.h` and `Source/Asset/Private/FStaticMeshInspection.cpp`
-- [ ] T055 [US1] Register `asset-static-mesh`, aggregate it into `asset`, and compile US1 test sources in `Tests/Main.cpp`, `Tests/AssetTests.cpp`, `Tests/AssetTests.h`, and `Tests/SConscript`
-- [ ] T056 [US1] Add 20-run canonical geometry digest/report support in `Tests/AssetStaticMeshGeometryTests.cpp` and `Validation/024/reports/geometry-determinism.txt`
-- [ ] T057 [US1] Run the complete US1 independent test and record accepted fixture IDs, digests, SC-004 comparison results, and failures in `Validation/024/reports/us1-canonical-geometry.txt`
+- [X] T048 [US1] Implement glTF-to-Unreal basis conjugation, index-order preservation, tangent reflection parity, and finite stream normalization in `Source/Asset/Private/FGLTFGeometryNormalizer.h` and `Source/Asset/Private/FGLTFGeometryNormalizer.cpp`
+- [X] T049 [US1] Implement deterministic flat-normal vertex splitting and reject non-derivable degenerate references in `Source/Asset/Private/FStaticMeshNormalGenerator.h` and `Source/Asset/Private/FStaticMeshNormalGenerator.cpp`
+- [X] T050 [US1] Adapt pinned MikkTSpace for required-tangent generation, selected UV validation, and canonical handedness in `Source/Asset/Private/FStaticMeshTangentGenerator.h` and `Source/Asset/Private/FStaticMeshTangentGenerator.cpp`
+- [X] T051 [US1] Derive and validate deterministic box/sphere primitive and mesh bounds from canonical positions in `Source/Asset/Private/FStaticMeshBounds.cpp`
+- [X] T052 [US1] Implement deterministic glTF/GLB probing and canonical mesh-only import flow in `Source/Asset/Private/FGLTFStaticModelImporter.h` and `Source/Asset/Private/FGLTFStaticModelImporter.cpp`
+- [X] T053 [US1] Expose scoped glTF importer registration without parser-native public types in `Source/Asset/Public/Asset/FStaticModelImport.h` and `Source/Asset/Private/AssetModule.cpp`
+- [X] T054 [US1] Implement normalized mesh stream, primitive, bounds, policy, and source-version inspection in `Source/Asset/Public/Asset/FStaticMeshInspection.h` and `Source/Asset/Private/FStaticMeshInspection.cpp`
+- [X] T055 [US1] Register `asset-static-mesh`, aggregate it into `asset`, and compile US1 test sources in `Tests/Main.cpp`, `Tests/AssetTests.cpp`, `Tests/AssetTests.h`, and `Tests/SConscript`
+- [X] T056 [US1] Add 20-run canonical geometry digest/report support in `Tests/AssetStaticMeshGeometryTests.cpp` and `Validation/024/reports/geometry-determinism.txt`
+- [X] T057 [US1] Run the complete US1 independent test and record accepted fixture IDs, digests, SC-004 comparison results, and failures in `Validation/024/reports/us1-canonical-geometry.txt`
 
 **Checkpoint**: Canonical static mesh geometry is independently importable,
 deterministic, bounded, and inspectable.

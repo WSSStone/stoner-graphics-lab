@@ -2,6 +2,7 @@
 
 #include "Asset/FAssetDigest.h"
 #include "Asset/FAssetImportRequest.h"
+#include "Asset/FAssetExtensionRegistry.h"
 #include "Core/FCoordinateConvention.h"
 
 namespace Stoner::Asset
@@ -79,5 +80,9 @@ public:
     EStaticMeshNormalPolicy Value) noexcept;
 [[nodiscard]] bool IsValidStaticMeshTangentPolicy(
     EStaticMeshTangentPolicy Value) noexcept;
+
+[[nodiscard]] EAssetResult RegisterStaticModelImporter(
+    FAssetExtensionRegistry& Registry,
+    FAssetRegistrationToken& OutToken);
 
 } // namespace Stoner::Asset

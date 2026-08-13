@@ -1,5 +1,7 @@
 #include "Asset/AssetMinimal.h"
 
+#include "FGLTFStaticModelImporter.h"
+
 namespace Stoner::Asset
 {
 
@@ -18,6 +20,15 @@ EAssetResult RegisterKTX2TextureLoader(
 {
     return Registry.Register(
         Core::MakeShared<FKTX2TextureLoader>(),
+        OutToken);
+}
+
+EAssetResult RegisterStaticModelImporter(
+    FAssetExtensionRegistry& Registry,
+    FAssetRegistrationToken& OutToken)
+{
+    return Registry.Register(
+        Core::MakeShared<Private::FGLTFStaticModelImporter>(),
         OutToken);
 }
 
