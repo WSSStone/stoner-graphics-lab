@@ -281,11 +281,18 @@ FAssetStaticMeshGeometryTestResult RunAssetStaticMeshGeometryTests()
         EAssetResult ImportResult = EAssetResult::ProcessingFailure;
         const TArray<FAssetImportOutput> First =
             ImportFixture(Request, ImportResult);
-        const auto FirstMesh = First.empty()
+        const auto FirstMeshIt = std::find_if(First.begin(), First.end(),
+            [](const FAssetImportOutput& Output)
+            {
+                return std::dynamic_pointer_cast<const FStaticMeshAsset>(
+                    Output.Payload) != nullptr;
+            });
+        const auto FirstMesh = FirstMeshIt == First.end()
             ? TSharedPtr<const FStaticMeshAsset>{}
-            : std::dynamic_pointer_cast<const FStaticMeshAsset>(First.front().Payload);
+            : std::dynamic_pointer_cast<const FStaticMeshAsset>(
+                FirstMeshIt->Payload);
         CorpusAccepted = CorpusAccepted &&
-            ImportResult == EAssetResult::Success && First.size() == 1 && FirstMesh &&
+            ImportResult == EAssetResult::Success && First.size() == 2 && FirstMesh &&
             (Path.filename() == "12-two-primitives.glb"
                 ? FirstMesh->GetDesc().Primitives.size() == 2
                 : FirstMesh->GetDesc().Primitives.size() == 1);
@@ -308,10 +315,17 @@ FAssetStaticMeshGeometryTestResult RunAssetStaticMeshGeometryTests()
                 Repeated.size() == First.size() &&
                 Repeated.front().Metadata.Id == First.front().Metadata.Id &&
                 Repeated.front().Metadata.Version == First.front().Metadata.Version;
-            const auto RepeatedMesh = Repeated.empty()
+            const auto RepeatedMeshIt = std::find_if(
+                Repeated.begin(), Repeated.end(),
+                [](const FAssetImportOutput& Output)
+                {
+                    return std::dynamic_pointer_cast<const FStaticMeshAsset>(
+                        Output.Payload) != nullptr;
+                });
+            const auto RepeatedMesh = RepeatedMeshIt == Repeated.end()
                 ? TSharedPtr<const FStaticMeshAsset>{}
                 : std::dynamic_pointer_cast<const FStaticMeshAsset>(
-                    Repeated.front().Payload);
+                    RepeatedMeshIt->Payload);
             Deterministic = Deterministic && RepeatedMesh &&
                 FStaticMeshInspection::Format(*RepeatedMesh) == FirstInspection;
         }

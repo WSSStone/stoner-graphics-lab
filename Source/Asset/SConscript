@@ -120,6 +120,21 @@ lib = BuildLayer(
                 'ThirdParty',
             ],
         },
+        'FGLTFPackageIdentityPlanner.cpp': {
+            'include_paths': [
+                'ThirdParty',
+            ],
+        },
+        'FGLTFHierarchyBuilder.cpp': {
+            'include_paths': [
+                'ThirdParty',
+            ],
+        },
+        'FGLTFPackageAssembler.cpp': {
+            'include_paths': [
+                'ThirdParty',
+            ],
+        },
     },
     private_c_sources=[
         'ThirdParty/cgltf/cgltf.c',

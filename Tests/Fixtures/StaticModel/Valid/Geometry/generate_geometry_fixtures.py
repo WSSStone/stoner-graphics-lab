@@ -229,6 +229,15 @@ def main() -> None:
                 "scope": ["US1", "SC-004", filename.removesuffix(path.suffix)],
             }
         )
+    retained: list[dict[str, object]] = []
+    if MANIFEST.is_file():
+        current = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        retained = [
+            item
+            for item in current.get("fixtures", [])
+            if "/Valid/Geometry/" not in item.get("path", "")
+        ]
+    entries = sorted(retained + entries, key=lambda item: item["path"])
     MANIFEST.write_text(
         json.dumps(
             {"schema": "stoner.static-model.fixture-manifest/v1", "fixtures": entries},

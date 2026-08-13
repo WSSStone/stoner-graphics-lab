@@ -5,6 +5,10 @@
 #include "FCgltfDocument.h"
 #include "FGLTFAccessorDecoder.h"
 #include "FGLTFGeometryNormalizer.h"
+#include "FGLTFPackageAssembler.h"
+#include "FGLTFPackageIdentityPlanner.h"
+#include "FGLTFPackageValidator.h"
+#include "FGLTFStableKey.h"
 #include "FStaticMeshBounds.h"
 #include "FStaticMeshNormalGenerator.h"
 
@@ -576,6 +580,13 @@ EAssetResult ImportMeshes(
         return Result;
     }
     const Core::FString LogicalPath = Request.Descriptor.Location.GetLocator();
+    FGLTFPackageIdentityPlan Identities;
+    Result = PlanGLTFPackageIdentities(
+        *Data, LogicalPath, Profile, Identities);
+    if (Result != EAssetResult::Success)
+    {
+        return Result;
+    }
     const FAssetDigest SourceDigest = FAssetDigest::FromBytes(SourceBytes);
     const FAssetDigest ProfileDigest = Profile.GetDigest();
     FAssetId SourceId;
@@ -589,8 +600,12 @@ EAssetResult ImportMeshes(
     SourceVersion.ContentDigest = SourceDigest;
     SourceVersion.Producer = ImporterId();
     SourceVersion.ProducerVersion = ImporterVersion();
+    const FAssetSourceVersionRecord SourceRecord{
+        SourceId, SourceVersion, EAssetSourceRole::Source};
 
     Core::uint64 PrimitiveCount = 0;
+    Core::TArray<Core::TSharedPtr<const FStaticMeshAsset>> MeshPayloads;
+    MeshPayloads.reserve(Data->meshes_count);
     for (cgltf_size MeshIndex = 0; MeshIndex < Data->meshes_count; ++MeshIndex)
     {
         const cgltf_mesh& SourceMesh = Data->meshes[MeshIndex];
@@ -601,37 +616,26 @@ EAssetResult ImportMeshes(
         }
         PrimitiveCount += SourceMesh.primitives_count;
         FStaticMeshAssetDesc Desc;
-        Result = MakeId(
-            "StaticMesh", LogicalPath,
-            "idx.mesh." + std::to_string(MeshIndex), Desc.Id);
-        if (Result != EAssetResult::Success)
-        {
-            return Result;
-        }
+        Desc.Id = Identities.MeshIds[MeshIndex];
         Desc.Version.SourceDigest = SourceDigest;
         Desc.Version.ContentDigest = MakeContentDigest(
             SourceDigest, ProfileDigest, static_cast<Core::uint32>(MeshIndex));
         Desc.Version.Producer = ImporterId();
         Desc.Version.ProducerVersion = ImporterVersion();
         Desc.ImportProfileDigest = ProfileDigest;
-        Desc.SourceManifest.push_back({SourceId, SourceVersion, EAssetSourceRole::Source});
+        Desc.SourceManifest.push_back(SourceRecord);
 
-        FAssetId MaterialId;
-        Result = MakeId("Material", LogicalPath, "idx.material.default", MaterialId);
-        if (Result != EAssetResult::Success)
-        {
-            return Result;
-        }
         FStaticMeshMaterialSlot Slot;
         Slot.StableKey = Core::FString("idx.material.default");
-        if (TSoftAssetRef<FMaterialAsset>::Create(MaterialId, Slot.Material) !=
+        if (TSoftAssetRef<FMaterialAsset>::Create(
+                Identities.DefaultMaterialId, Slot.Material) !=
             EAssetResult::Success)
         {
             return EAssetResult::InvalidIdentity;
         }
         Desc.MaterialSlots.push_back(std::move(Slot));
         Desc.Dependencies.push_back({
-            MaterialId,
+            Identities.DefaultMaterialId,
             EAssetDependencyRole::Runtime,
             EAssetDependencyStrength::Required,
             EAssetDependencyResolution::Unresolved});
@@ -645,6 +649,19 @@ EAssetResult ImportMeshes(
                 *Data, Storage, SourceMesh.primitives[PrimitiveIndex],
                 static_cast<Core::uint32>(MeshIndex),
                 static_cast<Core::uint32>(PrimitiveIndex), Profile, Primitive);
+            if (Result != EAssetResult::Success)
+            {
+                return Result;
+            }
+            bool ExplicitPrimitiveKey = false;
+            Result = MakeGLTFStableKey(
+                SourceMesh.primitives[PrimitiveIndex].extras.data,
+                Core::FString(
+                    "idx.mesh." + std::to_string(MeshIndex) + ".primitive." +
+                    std::to_string(PrimitiveIndex)),
+                Primitive.StableKey,
+                ExplicitPrimitiveKey);
+            (void)ExplicitPrimitiveKey;
             if (Result != EAssetResult::Success)
             {
                 return Result;
@@ -664,6 +681,7 @@ EAssetResult ImportMeshes(
             return Result;
         }
         auto Payload = Core::MakeShared<const FStaticMeshAsset>(std::move(Asset));
+        MeshPayloads.push_back(Payload);
         FAssetMetadata Metadata;
         Metadata.Id = Payload->GetDesc().Id;
         Metadata.Version = Payload->GetDesc().Version;
@@ -677,12 +695,37 @@ EAssetResult ImportMeshes(
             {Core::FString("mesh.profile"), ProfileDigest.ToLowerHex()}};
         OutOutputs.push_back({std::move(Metadata), std::move(Payload)});
     }
+    Core::TArray<Core::TSharedPtr<const FStaticModelAsset>> Models;
+    Result = AssembleGLTFModels(
+        *Data, Identities, Profile, SourceRecord,
+        ImporterId(), ImporterVersion(), MeshPayloads, Models, Diagnostics);
+    if (Result != EAssetResult::Success)
+    {
+        return Result;
+    }
+    for (const auto& Model : Models)
+    {
+        FAssetMetadata Metadata;
+        Metadata.Id = Model->GetDesc().Id;
+        Metadata.Version = Model->GetDesc().Version;
+        Metadata.Source = Request.Descriptor.Location;
+        Metadata.Producer = ImporterId();
+        Metadata.ProducerVersion = ImporterVersion();
+        Metadata.Dependencies = Model->GetDesc().Dependencies;
+        Metadata.Attributes = {
+            {Core::FString("model.node-count"),
+             Core::FString(std::to_string(Model->GetDesc().Nodes.size()))},
+            {Core::FString("model.scene-key"), Model->GetDesc().SceneStableKey},
+            {Core::FString("model.default-scene"),
+             Core::FString(Model->GetDesc().bSourceDefaultScene ? "true" : "false")}};
+        OutOutputs.push_back({std::move(Metadata), Model});
+    }
     std::sort(OutOutputs.begin(), OutOutputs.end(),
         [](const FAssetImportOutput& Left, const FAssetImportOutput& Right)
         {
             return Left.Metadata.Id < Right.Metadata.Id;
         });
-    return EAssetResult::Success;
+    return ValidateGLTFPackageOutputs(Identities, OutOutputs);
 }
 
 } // namespace

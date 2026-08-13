@@ -148,23 +148,23 @@ negative-scale, cycle, multiple-parent, and unreferenced-mesh fixtures.
 
 ### Tests For User Story 2
 
-- [ ] T058 [P] [US2] Add failing scene/root/node order, matrix/TRS, shared-mesh, cycle, parent, depth, and unreferenced-mesh tests in `Tests/AssetStaticModelHierarchyTests.cpp` and `Tests/AssetStaticModelHierarchyTests.h`
-- [ ] T059 [P] [US2] Add failing explicit-key reorder, duplicate-key, invalid-key, name-independence, and fallback identity tests in `Tests/AssetStaticModelIdentityTests.cpp` and `Tests/AssetStaticModelIdentityTests.h`
-- [ ] T060 [P] [US2] Add multi-scene, hierarchy, identity-reorder, no-key fallback, and invalid graph fixtures in `Tests/Fixtures/StaticModel/Valid/Hierarchy/` and `Tests/Fixtures/StaticModel/Invalid/Hierarchy/`
+- [X] T058 [P] [US2] Add failing scene/root/node order, matrix/TRS, shared-mesh, cycle, parent, depth, and unreferenced-mesh tests in `Tests/AssetStaticModelHierarchyTests.cpp` and `Tests/AssetStaticModelHierarchyTests.h`
+- [X] T059 [P] [US2] Add failing explicit-key reorder, duplicate-key, invalid-key, name-independence, and fallback identity tests in `Tests/AssetStaticModelIdentityTests.cpp` and `Tests/AssetStaticModelIdentityTests.h`
+- [X] T060 [P] [US2] Add multi-scene, hierarchy, identity-reorder, no-key fallback, and invalid graph fixtures in `Tests/Fixtures/StaticModel/Valid/Hierarchy/` and `Tests/Fixtures/StaticModel/Invalid/Hierarchy/`
 
 ### Implementation For User Story 2
 
-- [ ] T061 [US2] Define immutable model nodes, roots, scene evidence, mesh references, hierarchy bounds, and model type traits in `Source/Asset/Public/Asset/FStaticModelAsset.h` and `Source/Asset/Private/FStaticModelAsset.cpp`
-- [ ] T062 [US2] Validate one-parent acyclic hierarchy, root completeness, finite transforms, depth, references, and aggregate bounds in `Source/Asset/Private/FStaticModelAssetValidator.h` and `Source/Asset/Private/FStaticModelAssetValidator.cpp`
-- [ ] T063 [US2] Convert glTF matrix/TRS nodes by basis conjugation and build deterministic root/child order in `Source/Asset/Private/FGLTFHierarchyBuilder.h` and `Source/Asset/Private/FGLTFHierarchyBuilder.cpp`
-- [ ] T064 [US2] Extract and normalize `extras.stonerAssetId`, enforce per-type uniqueness, and generate typed structural fallback keys in `Source/Asset/Private/FGLTFStableKey.h` and `Source/Asset/Private/FGLTFStableKey.cpp`
-- [ ] T065 [US2] Plan model, mesh, material, image, and texture IDs before decoding so references are independent of allocation and publication order in `Source/Asset/Private/FGLTFPackageIdentityPlanner.h` and `Source/Asset/Private/FGLTFPackageIdentityPlanner.cpp`
-- [ ] T066 [US2] Assemble one model per scene, record the default scene, deduplicate shared meshes, and retain unreferenced mesh outputs in `Source/Asset/Private/FGLTFPackageAssembler.h` and `Source/Asset/Private/FGLTFPackageAssembler.cpp`
-- [ ] T067 [US2] Validate complete output identities, payload types, versions, dependencies, and references before returning any output in `Source/Asset/Private/FGLTFPackageValidator.h` and `Source/Asset/Private/FGLTFPackageValidator.cpp`
-- [ ] T068 [US2] Integrate hierarchy and package assembly into the importer with empty-output rollback on failure in `Source/Asset/Private/FGLTFStaticModelImporter.cpp`
-- [ ] T069 [US2] Add deterministic model roots, nodes, scene/default-scene, stable-key policy, and package dependency inspection in `Source/Asset/Public/Asset/FStaticModelInspection.h` and `Source/Asset/Private/FStaticModelInspection.cpp`
-- [ ] T070 [US2] Register `asset-static-model`, aggregate hierarchy/identity tests, and compile US2 sources in `Tests/Main.cpp`, `Tests/AssetTests.cpp`, and `Tests/SConscript`
-- [ ] T071 [US2] Run the complete US2 independent test including explicit-key reorder and atomic registry publication evidence in `Validation/024/reports/us2-model-hierarchy.txt`
+- [X] T061 [US2] Define immutable model nodes, roots, scene evidence, mesh references, hierarchy bounds, and model type traits in `Source/Asset/Public/Asset/FStaticModelAsset.h` and `Source/Asset/Private/FStaticModelAsset.cpp`
+- [X] T062 [US2] Validate one-parent acyclic hierarchy, root completeness, finite transforms, depth, references, and aggregate bounds in `Source/Asset/Private/FStaticModelAssetValidator.h` and `Source/Asset/Private/FStaticModelAssetValidator.cpp`
+- [X] T063 [US2] Convert glTF matrix/TRS nodes by basis conjugation and build deterministic root/child order in `Source/Asset/Private/FGLTFHierarchyBuilder.h` and `Source/Asset/Private/FGLTFHierarchyBuilder.cpp`
+- [X] T064 [US2] Extract and normalize `extras.stonerAssetId`, enforce per-type uniqueness, and generate typed structural fallback keys in `Source/Asset/Private/FGLTFStableKey.h` and `Source/Asset/Private/FGLTFStableKey.cpp`
+- [X] T065 [US2] Plan model, mesh, material, image, and texture IDs before decoding so references are independent of allocation and publication order in `Source/Asset/Private/FGLTFPackageIdentityPlanner.h` and `Source/Asset/Private/FGLTFPackageIdentityPlanner.cpp`
+- [X] T066 [US2] Assemble one model per scene, record the default scene, deduplicate shared meshes, and retain unreferenced mesh outputs in `Source/Asset/Private/FGLTFPackageAssembler.h` and `Source/Asset/Private/FGLTFPackageAssembler.cpp`
+- [X] T067 [US2] Validate complete output identities, payload types, versions, dependencies, and references before returning any output in `Source/Asset/Private/FGLTFPackageValidator.h` and `Source/Asset/Private/FGLTFPackageValidator.cpp`
+- [X] T068 [US2] Integrate hierarchy and package assembly into the importer with empty-output rollback on failure in `Source/Asset/Private/FGLTFStaticModelImporter.cpp`
+- [X] T069 [US2] Add deterministic model roots, nodes, scene/default-scene, stable-key policy, and package dependency inspection in `Source/Asset/Public/Asset/FStaticModelInspection.h` and `Source/Asset/Private/FStaticModelInspection.cpp`
+- [X] T070 [US2] Register `asset-static-model`, aggregate hierarchy/identity tests, and compile US2 sources in `Tests/Main.cpp`, `Tests/AssetTests.cpp`, and `Tests/SConscript`
+- [X] T071 [US2] Run the complete US2 independent test including explicit-key reorder and atomic registry publication evidence in `Validation/024/reports/us2-model-hierarchy.txt`
 
 **Checkpoint**: Models preserve authored static assembly and stable typed
 subresources without creating Scene/ECS objects.

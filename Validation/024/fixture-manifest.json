@@ -1,6 +1,76 @@
 {
   "fixtures": [
     {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hierarchy/01-cycle.gltf",
+      "scope": [
+        "US2",
+        "hierarchy",
+        "01-cycle"
+      ],
+      "sha256": "sha256:6a13c49d87cca238271487026440ef549712a4b01d07705b7ca1083d97fc511f",
+      "source_url": "repository-owned://feature-024/hierarchy",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "invalid"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hierarchy/02-multiple-parent.gltf",
+      "scope": [
+        "US2",
+        "hierarchy",
+        "02-multiple-parent"
+      ],
+      "sha256": "sha256:9d440bd1423c2a542843ab622ecbebcee9743960a134e8c803e83d07f023120a",
+      "source_url": "repository-owned://feature-024/hierarchy",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "invalid"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hierarchy/03-duplicate-node-key.gltf",
+      "scope": [
+        "US2",
+        "hierarchy",
+        "03-duplicate-node-key"
+      ],
+      "sha256": "sha256:877379ed949c88061e356f332346ff8b4b7b66138ad70eb3499941835404ad00",
+      "source_url": "repository-owned://feature-024/hierarchy",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "invalid"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hierarchy/04-invalid-mesh-key.gltf",
+      "scope": [
+        "US2",
+        "hierarchy",
+        "04-invalid-mesh-key"
+      ],
+      "sha256": "sha256:3862258ae507ed655b4fd9ad3b3a9428593bde6328649e9920a0aa7f7387b173",
+      "source_url": "repository-owned://feature-024/hierarchy",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "invalid"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hierarchy/05-empty-scene.gltf",
+      "scope": [
+        "US2",
+        "hierarchy",
+        "05-empty-scene"
+      ],
+      "sha256": "sha256:cd14553a75556bd778dd6ecfa823c32b1bbb2b273f55e92ab16a8572c2b0c0c9",
+      "source_url": "repository-owned://feature-024/hierarchy",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "invalid"
+    },
+    {
       "expected_result": "success",
       "license": "CC0-1.0",
       "path": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
@@ -165,6 +235,90 @@
       ],
       "sha256": "sha256:f4c7e2224477c7f79b5f8a4fe622d51db40d279af7b2972389d43150d9e4f512",
       "source_url": "repository-owned://feature-024/geometry",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Hierarchy/01-multi-scene-shared.gltf",
+      "scope": [
+        "US2",
+        "hierarchy",
+        "01-multi-scene-shared"
+      ],
+      "sha256": "sha256:25edb3c4b848f39030c3db4bed8558a1e04a77a7527562bcdf257cf3ccc4f7ce",
+      "source_url": "repository-owned://feature-024/hierarchy",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Hierarchy/02-nested-trs-negative.gltf",
+      "scope": [
+        "US2",
+        "hierarchy",
+        "02-nested-trs-negative"
+      ],
+      "sha256": "sha256:5c89f31b5c51b65ea8b1ce1a4bfe734b457f1b050701c0087bf83a76f2557819",
+      "source_url": "repository-owned://feature-024/hierarchy",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Hierarchy/03-matrix-transform.gltf",
+      "scope": [
+        "US2",
+        "hierarchy",
+        "03-matrix-transform"
+      ],
+      "sha256": "sha256:9a2da259daf2677cb47f0a60d8baa87d4bf2cbf3da01cec7a4716ff5c872541a",
+      "source_url": "repository-owned://feature-024/hierarchy",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Hierarchy/04-explicit-keys-a.gltf",
+      "scope": [
+        "US2",
+        "hierarchy",
+        "04-explicit-keys-a"
+      ],
+      "sha256": "sha256:95f137012e65031582b0cea524f679f8f3ecba6ca840b30251fc4b354c40554a",
+      "source_url": "repository-owned://feature-024/hierarchy",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Hierarchy/05-explicit-keys-reordered.gltf",
+      "scope": [
+        "US2",
+        "hierarchy",
+        "05-explicit-keys-reordered"
+      ],
+      "sha256": "sha256:ff3e3bb22c468cf6f21614c25b464b9f39153dd49caa73e89b1f8b0996df15df",
+      "source_url": "repository-owned://feature-024/hierarchy",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Hierarchy/06-fallback-unreferenced.gltf",
+      "scope": [
+        "US2",
+        "hierarchy",
+        "06-fallback-unreferenced"
+      ],
+      "sha256": "sha256:3e481b28654532999e1c02f8e7551383f4f94365588689f52825240281766dd0",
+      "source_url": "repository-owned://feature-024/hierarchy",
       "upstream_revision": "feature-024-v1",
       "validator_result": "valid"
     }

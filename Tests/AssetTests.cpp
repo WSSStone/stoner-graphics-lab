@@ -18,9 +18,15 @@ FAssetTestResult RunAssetTests(
     const FAssetGLTFPolicyTestResult GLTFPolicy = RunAssetGLTFPolicyTests();
     const FAssetGLTFContainerTestResult GLTFContainer =
         RunAssetGLTFContainerTests();
+    const FAssetStaticModelHierarchyTestResult StaticModelHierarchy =
+        RunAssetStaticModelHierarchyTests();
+    const FAssetStaticModelIdentityTestResult StaticModelIdentity =
+        RunAssetStaticModelIdentityTests();
     return {
         Core.Passed + Image.Passed + KTX2.Passed + MaterialShader.Passed +
-            StaticMesh.Passed + GLTFPolicy.Passed + GLTFContainer.Passed,
+            StaticMesh.Passed + GLTFPolicy.Passed + GLTFContainer.Passed +
+            StaticModelHierarchy.Passed + StaticModelIdentity.Passed,
         Core.Failed + Image.Failed + KTX2.Failed + MaterialShader.Failed +
-            StaticMesh.Failed + GLTFPolicy.Failed + GLTFContainer.Failed};
+            StaticMesh.Failed + GLTFPolicy.Failed + GLTFContainer.Failed +
+            StaticModelHierarchy.Failed + StaticModelIdentity.Failed};
 }
