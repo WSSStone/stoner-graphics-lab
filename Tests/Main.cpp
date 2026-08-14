@@ -22,6 +22,8 @@
 #include "TriangleDemoIntegrationTests.h"
 #include "AssetTests.h"
 #include "AssetGLTFContainerTests.h"
+#include "AssetGLTFMaterialTests.h"
+#include "AssetGLTFImageDependencyTests.h"
 #include "AssetGLTFPolicyTests.h"
 #include "AssetMaterialShaderTests.h"
 #include "AssetStaticMeshGeometryTests.h"
@@ -142,6 +144,11 @@ int main(int ArgCount, char* Arguments[])
         const auto Hierarchy = RunAssetStaticModelHierarchyTests();
         const auto Identity = RunAssetStaticModelIdentityTests();
         return Hierarchy.Failed == 0 && Identity.Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-gltf-material", [] {
+        const auto Material = RunAssetGLTFMaterialTests();
+        const auto Image = RunAssetGLTFImageDependencyTests();
+        return Material.Failed == 0 && Image.Failed == 0 ? 0 : 1;
     });
     Registry.Register("asset-ktx2-encoder", [] {
         return RunAssetKTX2EncoderTests().Failed == 0 ? 0 : 1;

@@ -45,7 +45,7 @@ FAssetStaticModelHierarchyTestResult RunAssetStaticModelHierarchyTests()
     const auto MultiMeshes = FindPayloads<FStaticMeshAsset>(MultiOutputs);
     const auto MultiModels = FindPayloads<FStaticModelAsset>(MultiOutputs);
     bool SharedMesh = ImportResult == EAssetResult::Success &&
-        MultiOutputs.size() == 3 && MultiMeshes.size() == 1 &&
+        MultiOutputs.size() == 4 && MultiMeshes.size() == 1 &&
         MultiModels.size() == 2;
     int DefaultScenes = 0;
     for (const auto& Model : MultiModels)

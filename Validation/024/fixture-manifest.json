@@ -71,6 +71,32 @@
       "validator_result": "invalid"
     },
     {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Materials/01-missing-image.gltf",
+      "scope": [
+        "US3",
+        "materials"
+      ],
+      "sha256": "sha256:f6a9421893ed9c2793287267b03859d7b12908a9b02625a4f66a1a5c5dd43546",
+      "source_url": "repository-owned://feature-024/materials",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Materials/02-missing-uv1.gltf",
+      "scope": [
+        "US3",
+        "materials"
+      ],
+      "sha256": "sha256:9159bf41b343decb41a205ce6e62e94b4a3f06a46f8f585fef27624ec6fd9269",
+      "source_url": "repository-owned://feature-024/materials",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
       "expected_result": "success",
       "license": "CC0-1.0",
       "path": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
@@ -319,6 +345,45 @@
       ],
       "sha256": "sha256:3e481b28654532999e1c02f8e7551383f4f94365588689f52825240281766dd0",
       "source_url": "repository-owned://feature-024/hierarchy",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Materials/01-pbr-all-embedded.gltf",
+      "scope": [
+        "US3",
+        "materials"
+      ],
+      "sha256": "sha256:bd342eafce957d5b8303dc0b0452b05052c3b16fc7587ac5a6317e284ab67e89",
+      "source_url": "repository-owned://feature-024/materials",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Materials/02-external-jpeg.gltf",
+      "scope": [
+        "US3",
+        "materials"
+      ],
+      "sha256": "sha256:21ae544040af8fcad34d8f05ea4a43e47761797b54947879ee90723d0c65ef04",
+      "source_url": "repository-owned://feature-024/materials",
+      "upstream_revision": "feature-024-v1",
+      "validator_result": "valid"
+    },
+    {
+      "expected_result": "dependency",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Valid/Materials/albedo.jpg",
+      "scope": [
+        "US3",
+        "materials"
+      ],
+      "sha256": "sha256:285f7c2212e8fac6daf291d149a1712d56bbef60047abc7ee845d9b826218c69",
+      "source_url": "repository-owned://feature-024/materials",
       "upstream_revision": "feature-024-v1",
       "validator_result": "valid"
     }

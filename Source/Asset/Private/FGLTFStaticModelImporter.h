@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Asset/IAssetImporter.h"
+#include "Asset/FStaticModelImport.h"
 
 namespace Stoner::Asset::Private
 {
@@ -23,6 +24,10 @@ public:
         const FAssetImportRequest& Request,
         Core::TArray<FAssetImportOutput>& OutOutputs,
         FAssetDiagnosticList* Diagnostics) override;
+    [[nodiscard]] EAssetResult Import(
+        const FStaticModelImportRequest& Request,
+        Core::TArray<FAssetImportOutput>& OutOutputs,
+        FAssetDiagnosticList* Diagnostics);
 };
 
 } // namespace Stoner::Asset::Private

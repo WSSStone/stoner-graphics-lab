@@ -5,17 +5,21 @@
 #include "FCgltfDocument.h"
 #include "FGLTFAccessorDecoder.h"
 #include "FGLTFGeometryNormalizer.h"
+#include "FGLTFDependencyResolver.h"
+#include "FGLTFDefaultMaterial.h"
+#include "FGLTFImageTextureBridge.h"
+#include "FGLTFMaterialMapper.h"
 #include "FGLTFPackageAssembler.h"
 #include "FGLTFPackageIdentityPlanner.h"
 #include "FGLTFPackageValidator.h"
 #include "FGLTFStableKey.h"
 #include "FStaticMeshBounds.h"
 #include "FStaticMeshNormalGenerator.h"
+#include "FStaticMeshTangentGenerator.h"
 
 #include "cgltf/cgltf.h"
 
 #include <algorithm>
-#include <array>
 #include <cctype>
 #include <limits>
 #include <optional>
@@ -90,74 +94,6 @@ std::optional<EGLTFAccessorType> ConvertAccessorType(cgltf_type Type)
     }
 }
 
-int DecodeBase64Value(char Character)
-{
-    if (Character >= 'A' && Character <= 'Z') return Character - 'A';
-    if (Character >= 'a' && Character <= 'z') return Character - 'a' + 26;
-    if (Character >= '0' && Character <= '9') return Character - '0' + 52;
-    if (Character == '+') return 62;
-    if (Character == '/') return 63;
-    return -1;
-}
-
-EAssetResult DecodeDataUri(
-    std::string_view Uri,
-    Core::uint64 MaximumBytes,
-    Core::TArray<Core::uint8>& OutBytes)
-{
-    OutBytes.clear();
-    const std::size_t Comma = Uri.find(',');
-    if (!Uri.starts_with("data:") || Comma == std::string_view::npos ||
-        !Uri.substr(0, Comma).ends_with(";base64"))
-    {
-        return EAssetResult::AccessDenied;
-    }
-    const std::string_view Encoded = Uri.substr(Comma + 1);
-    if (Encoded.empty() || Encoded.size() % 4 != 0 ||
-        Encoded.size() / 4 * 3 > MaximumBytes)
-    {
-        return EAssetResult::CapacityExceeded;
-    }
-    OutBytes.reserve(Encoded.size() / 4 * 3);
-    for (std::size_t Offset = 0; Offset < Encoded.size(); Offset += 4)
-    {
-        std::array<int, 4> Values{};
-        int Padding = 0;
-        for (std::size_t Index = 0; Index < 4; ++Index)
-        {
-            const char Character = Encoded[Offset + Index];
-            if (Character == '=')
-            {
-                Values[Index] = 0;
-                ++Padding;
-            }
-            else
-            {
-                if (Padding != 0 || (Values[Index] = DecodeBase64Value(Character)) < 0)
-                {
-                    OutBytes.clear();
-                    return EAssetResult::MalformedSource;
-                }
-            }
-        }
-        if (Padding > 2 || (Padding != 0 && Offset + 4 != Encoded.size()))
-        {
-            OutBytes.clear();
-            return EAssetResult::MalformedSource;
-        }
-        const Core::uint32 Value =
-            (static_cast<Core::uint32>(Values[0]) << 18U) |
-            (static_cast<Core::uint32>(Values[1]) << 12U) |
-            (static_cast<Core::uint32>(Values[2]) << 6U) |
-            static_cast<Core::uint32>(Values[3]);
-        OutBytes.push_back(static_cast<Core::uint8>(Value >> 16U));
-        if (Padding < 2) OutBytes.push_back(static_cast<Core::uint8>(Value >> 8U));
-        if (Padding < 1) OutBytes.push_back(static_cast<Core::uint8>(Value));
-    }
-    return OutBytes.size() <= MaximumBytes
-        ? EAssetResult::Success : EAssetResult::CapacityExceeded;
-}
-
 struct FBufferStorage
 {
     Core::TArray<Core::TArray<Core::uint8>> Owned;
@@ -167,6 +103,8 @@ struct FBufferStorage
 EAssetResult BuildBufferStorage(
     const cgltf_data& Data,
     const FStaticModelImportProfile& Profile,
+    const FAssetSourceLocator& MainSource,
+    const Core::TSharedPtr<IAssetResolver>& Resolver,
     FBufferStorage& OutStorage)
 {
     OutStorage = {};
@@ -197,11 +135,18 @@ EAssetResult BuildBufferStorage(
             const std::string_view Uri(Buffer.uri);
             if (!Uri.starts_with("data:"))
             {
-                return EAssetResult::NotFound;
+                FGLTFResolvedDependency Dependency;
+                const EAssetResult ResolveResult = ResolveGLTFDependency(
+                    MainSource, Uri, Resolver,
+                    Profile.Limits.MaxSingleDependencyBytes, Dependency);
+                if (ResolveResult != EAssetResult::Success)
+                    return ResolveResult;
+                OutStorage.Owned[Index] = std::move(Dependency.Bytes);
             }
-            const EAssetResult Result = DecodeDataUri(
-                Uri, Profile.Limits.MaxSingleDependencyBytes,
-                OutStorage.Owned[Index]);
+            const EAssetResult Result = Uri.starts_with("data:")
+                ? DecodeGLTFDataUri(Uri, Profile.Limits.MaxSingleDependencyBytes,
+                      OutStorage.Owned[Index])
+                : EAssetResult::Success;
             if (Result != EAssetResult::Success ||
                 OutStorage.Owned[Index].size() < Buffer.size)
             {
@@ -340,6 +285,27 @@ const cgltf_accessor* FindAttribute(
         }
     }
     return Found;
+}
+
+EAssetResult ValidateMaterialTexCoords(const cgltf_primitive& Primitive)
+{
+    if (Primitive.material == nullptr) return EAssetResult::Success;
+    const cgltf_material& Material = *Primitive.material;
+    const cgltf_texture_view* Views[] = {
+        &Material.pbr_metallic_roughness.base_color_texture,
+        &Material.pbr_metallic_roughness.metallic_roughness_texture,
+        &Material.normal_texture,
+        &Material.occlusion_texture,
+        &Material.emissive_texture};
+    for (const cgltf_texture_view* View : Views)
+    {
+        if (View->texture == nullptr) continue;
+        if (View->texcoord < 0 || View->texcoord > 1 ||
+            FindAttribute(Primitive, cgltf_attribute_type_texcoord,
+                View->texcoord) == nullptr)
+            return EAssetResult::MalformedSource;
+    }
+    return EAssetResult::Success;
 }
 
 void CopyVec2(const FGLTFDecodedAccessor& Source, Core::TArray<Core::FVector2>& Out)
@@ -547,10 +513,26 @@ FAssetDigest MakeContentDigest(
     return FAssetDigest::FromBytes(Bytes);
 }
 
+FAssetMetadata MakeMaterialMetadata(
+    const FMaterialAsset& Material,
+    const FAssetSourceLocator& Source)
+{
+    FAssetMetadata Metadata;
+    Metadata.Id = Material.GetDesc().Id;
+    Metadata.Version = Material.GetDesc().Version;
+    Metadata.Source = Source;
+    Metadata.Producer = ImporterId();
+    Metadata.ProducerVersion = ImporterVersion();
+    Metadata.Dependencies = Material.GetDesc().Dependencies;
+    Metadata.Attributes = {{Core::FString("material.schema"), Core::FString("2")}};
+    return Metadata;
+}
+
 EAssetResult ImportMeshes(
     const FAssetImportRequest& Request,
     const FStaticModelImportProfile& Profile,
     std::span<const Core::uint8> SourceBytes,
+    const Core::TSharedPtr<IAssetResolver>& Resolver,
     Core::TArray<FAssetImportOutput>& OutOutputs,
     FAssetDiagnosticList* Diagnostics)
 {
@@ -574,7 +556,8 @@ EAssetResult ImportMeshes(
         return EAssetResult::Unsupported;
     }
     FBufferStorage Storage;
-    Result = BuildBufferStorage(*Data, Profile, Storage);
+    Result = BuildBufferStorage(
+        *Data, Profile, Request.Descriptor.Location, Resolver, Storage);
     if (Result != EAssetResult::Success)
     {
         return Result;
@@ -585,6 +568,8 @@ EAssetResult ImportMeshes(
         *Data, LogicalPath, Profile, Identities);
     if (Result != EAssetResult::Success)
     {
+        AddDiagnostic(Diagnostics, EAssetStage::Identity, Result, Request,
+            "asset.gltf.identity", "package-identities");
         return Result;
     }
     const FAssetDigest SourceDigest = FAssetDigest::FromBytes(SourceBytes);
@@ -602,6 +587,76 @@ EAssetResult ImportMeshes(
     SourceVersion.ProducerVersion = ImporterVersion();
     const FAssetSourceVersionRecord SourceRecord{
         SourceId, SourceVersion, EAssetSourceRole::Source};
+
+    FGLTFMaterialMappingProfile Mapping;
+    Result = MakeDefaultGLTFMaterialMappingProfile(Mapping);
+    if (Result != EAssetResult::Success ||
+        Mapping.Name != Profile.MaterialMappingProfile)
+        return EAssetResult::Unsupported;
+    Core::TArray<FGLTFTextureVariant> TextureVariants;
+    Result = PlanGLTFTextureVariants(*Data, Identities, TextureVariants);
+    if (Result != EAssetResult::Success)
+    {
+        AddDiagnostic(Diagnostics, EAssetStage::Identity, Result, Request,
+            "asset.gltf.texture-identity", "texture-variants");
+        return Result;
+    }
+    Core::TArray<FAssetImportOutput> ImageTextureOutputs;
+    Result = BuildGLTFImageTextureOutputs(
+        *Data, Identities, TextureVariants, Request, Resolver, Profile,
+        [&Data, &Storage](const cgltf_buffer_view* View,
+            Core::TArray<Core::uint8>& OutBytes)
+        {
+            std::span<const Core::uint8> Buffer;
+            const EAssetResult ReadResult =
+                GetBufferViewBytes(*Data, Storage, View, Buffer);
+            if (ReadResult != EAssetResult::Success ||
+                View->offset > Buffer.size() || View->size > Buffer.size() - View->offset)
+                return EAssetResult::MalformedSource;
+            OutBytes.assign(Buffer.begin() + static_cast<std::ptrdiff_t>(View->offset),
+                Buffer.begin() + static_cast<std::ptrdiff_t>(View->offset + View->size));
+            return EAssetResult::Success;
+        },
+        ImageTextureOutputs, Diagnostics);
+    if (Result != EAssetResult::Success)
+    {
+        AddDiagnostic(Diagnostics, EAssetStage::Dependency, Result, Request,
+            "asset.gltf.image", "image-texture-outputs");
+        return Result;
+    }
+    OutOutputs.insert(OutOutputs.end(),
+        ImageTextureOutputs.begin(), ImageTextureOutputs.end());
+
+    Core::TArray<Core::TSharedPtr<const FMaterialAsset>> Materials;
+    Materials.reserve(Data->materials_count + 1);
+    for (Core::uint32 MaterialIndex = 0;
+         MaterialIndex < Data->materials_count; ++MaterialIndex)
+    {
+        Core::TSharedPtr<const FMaterialAsset> Material;
+        Result = MapGLTFMaterial(*Data, &Data->materials[MaterialIndex],
+            Identities.MaterialIds[MaterialIndex], TextureVariants,
+            Mapping, Material, Diagnostics);
+        if (Result != EAssetResult::Success)
+        {
+            AddDiagnostic(Diagnostics, EAssetStage::Import, Result, Request,
+                "asset.gltf.material", "mapped-material");
+            return Result;
+        }
+        OutOutputs.push_back({MakeMaterialMetadata(
+            *Material, Request.Descriptor.Location), Material});
+        Materials.push_back(std::move(Material));
+    }
+    Core::TSharedPtr<const FMaterialAsset> DefaultMaterial;
+    Result = BuildGLTFDefaultMaterial(*Data, Identities.DefaultMaterialId,
+        TextureVariants, Mapping, DefaultMaterial, Diagnostics);
+    if (Result != EAssetResult::Success)
+    {
+        AddDiagnostic(Diagnostics, EAssetStage::Import, Result, Request,
+            "asset.gltf.default-material", "default-material");
+        return Result;
+    }
+    OutOutputs.push_back({MakeMaterialMetadata(
+        *DefaultMaterial, Request.Descriptor.Location), DefaultMaterial});
 
     Core::uint64 PrimitiveCount = 0;
     Core::TArray<Core::TSharedPtr<const FStaticMeshAsset>> MeshPayloads;
@@ -625,15 +680,25 @@ EAssetResult ImportMeshes(
         Desc.ImportProfileDigest = ProfileDigest;
         Desc.SourceManifest.push_back(SourceRecord);
 
-        FStaticMeshMaterialSlot Slot;
-        Slot.StableKey = Core::FString("idx.material.default");
-        if (TSoftAssetRef<FMaterialAsset>::Create(
-                Identities.DefaultMaterialId, Slot.Material) !=
-            EAssetResult::Success)
+        for (Core::uint32 MaterialIndex = 0;
+             MaterialIndex < Data->materials_count; ++MaterialIndex)
         {
-            return EAssetResult::InvalidIdentity;
+            FStaticMeshMaterialSlot Slot;
+            Slot.StableKey = Identities.MaterialKeys[MaterialIndex];
+            if (TSoftAssetRef<FMaterialAsset>::Create(
+                    Identities.MaterialIds[MaterialIndex], Slot.Material) !=
+                EAssetResult::Success) return EAssetResult::InvalidIdentity;
+            Desc.MaterialSlots.push_back(std::move(Slot));
+            Desc.Dependencies.push_back({Identities.MaterialIds[MaterialIndex],
+                EAssetDependencyRole::Runtime, EAssetDependencyStrength::Required,
+                EAssetDependencyResolution::Unresolved});
         }
-        Desc.MaterialSlots.push_back(std::move(Slot));
+        FStaticMeshMaterialSlot DefaultSlot;
+        DefaultSlot.StableKey = Core::FString("idx.material.default");
+        if (TSoftAssetRef<FMaterialAsset>::Create(
+                Identities.DefaultMaterialId, DefaultSlot.Material) !=
+            EAssetResult::Success) return EAssetResult::InvalidIdentity;
+        Desc.MaterialSlots.push_back(std::move(DefaultSlot));
         Desc.Dependencies.push_back({
             Identities.DefaultMaterialId,
             EAssetDependencyRole::Runtime,
@@ -653,6 +718,35 @@ EAssetResult ImportMeshes(
             {
                 return Result;
             }
+            const cgltf_primitive& SourcePrimitive =
+                SourceMesh.primitives[PrimitiveIndex];
+            Result = ValidateMaterialTexCoords(SourcePrimitive);
+            if (Result != EAssetResult::Success) return Result;
+            if (SourcePrimitive.material != nullptr)
+            {
+                if (SourcePrimitive.material < Data->materials ||
+                    SourcePrimitive.material >= Data->materials + Data->materials_count)
+                    return EAssetResult::MalformedSource;
+                Primitive.MaterialSlotIndex = static_cast<Core::uint32>(
+                    SourcePrimitive.material - Data->materials);
+                if (SourcePrimitive.material->normal_texture.texture != nullptr &&
+                    Primitive.Vertices.Tangents.empty())
+                {
+                    const cgltf_int TexCoord =
+                        SourcePrimitive.material->normal_texture.texcoord;
+                    if (TexCoord < 0 || TexCoord > 1 ||
+                        (Profile.TangentPolicy ==
+                            EStaticMeshTangentPolicy::RequireSource))
+                        return EAssetResult::MalformedSource;
+                    Result = GenerateStaticMeshTangents(
+                        Primitive.Vertices, Primitive.Indices,
+                        static_cast<Core::uint32>(TexCoord),
+                        Profile.Limits.MaxVerticesPerPrimitive);
+                    if (Result != EAssetResult::Success) return Result;
+                }
+            }
+            else Primitive.MaterialSlotIndex =
+                static_cast<Core::uint32>(Data->materials_count);
             bool ExplicitPrimitiveKey = false;
             Result = MakeGLTFStableKey(
                 SourceMesh.primitives[PrimitiveIndex].extras.data,
@@ -725,7 +819,12 @@ EAssetResult ImportMeshes(
         {
             return Left.Metadata.Id < Right.Metadata.Id;
         });
-    return ValidateGLTFPackageOutputs(Identities, OutOutputs);
+    Core::TArray<FAssetId> ExpectedTextureIds;
+    ExpectedTextureIds.reserve(TextureVariants.size());
+    for (const FGLTFTextureVariant& Variant : TextureVariants)
+        ExpectedTextureIds.push_back(Variant.TextureId);
+    return ValidateGLTFPackageOutputs(
+        Identities, OutOutputs, true, ExpectedTextureIds);
 }
 
 } // namespace
@@ -801,7 +900,7 @@ EAssetResult FGLTFStaticModelImporter::Import(
     if (Result == EAssetResult::Success)
     {
         Result = ImportMeshes(
-            Request, *Profile, SourceBytes, OutOutputs, Diagnostics);
+            Request, *Profile, SourceBytes, nullptr, OutOutputs, Diagnostics);
     }
     if (Result != EAssetResult::Success)
     {
@@ -809,6 +908,29 @@ EAssetResult FGLTFStaticModelImporter::Import(
         AddDiagnostic(Diagnostics, EAssetStage::Import, Result, Request,
             "asset.gltf.import", "package");
     }
+    return Result;
+}
+
+EAssetResult FGLTFStaticModelImporter::Import(
+    const FStaticModelImportRequest& Request,
+    Core::TArray<FAssetImportOutput>& OutOutputs,
+    FAssetDiagnosticList* Diagnostics)
+{
+    OutOutputs.clear();
+    if (Diagnostics != nullptr) Diagnostics->clear();
+    if (!Request.Profile || Request.Profile->Validate() != EAssetResult::Success ||
+        !Request.AssetRequest.Descriptor.Location.IsValid() ||
+        !Request.AssetRequest.Source.IsValid())
+        return EAssetResult::InvalidInput;
+    Core::TArray<Core::uint8> SourceBytes;
+    EAssetResult Result = Request.AssetRequest.Source.ReadBounded(
+        Request.Profile->Limits.MaxMainSourceBytes,
+        Request.AssetRequest.Descriptor.Size, SourceBytes);
+    if (Result == EAssetResult::Success)
+        Result = ImportMeshes(
+            Request.AssetRequest, *Request.Profile, SourceBytes,
+            Request.DependencyResolver, OutOutputs, Diagnostics);
+    if (Result != EAssetResult::Success) OutOutputs.clear();
     return Result;
 }
 

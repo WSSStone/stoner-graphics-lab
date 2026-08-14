@@ -32,4 +32,13 @@ EAssetResult RegisterStaticModelImporter(
         OutToken);
 }
 
+EAssetResult ImportStaticModel(
+    const FStaticModelImportRequest& Request,
+    Core::TArray<FAssetImportOutput>& OutOutputs,
+    FAssetDiagnosticList* Diagnostics)
+{
+    Private::FGLTFStaticModelImporter Importer;
+    return Importer.Import(Request, OutOutputs, Diagnostics);
+}
+
 } // namespace Stoner::Asset

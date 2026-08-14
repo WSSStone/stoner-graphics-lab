@@ -1358,7 +1358,7 @@ void TestMaterialResolution(FAssetMaterialShaderTestResult& Result)
         Resolved.EffectiveParameters.end(),
         [](const FMaterialAssetParameter& Parameter)
         {
-            return Parameter.Name == FString("Roughness");
+            return Parameter.Name == FString("RoughnessFactor");
         });
     Record(
         Result,

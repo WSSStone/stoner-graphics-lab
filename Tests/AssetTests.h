@@ -2,6 +2,8 @@
 
 #include "AssetKTX2Tests.h"
 #include "AssetGLTFContainerTests.h"
+#include "AssetGLTFMaterialTests.h"
+#include "AssetGLTFImageDependencyTests.h"
 #include "AssetGLTFPolicyTests.h"
 #include "AssetMaterialShaderTests.h"
 #include "AssetStaticMeshGeometryTests.h"

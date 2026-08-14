@@ -292,7 +292,7 @@ FAssetStaticMeshGeometryTestResult RunAssetStaticMeshGeometryTests()
             : std::dynamic_pointer_cast<const FStaticMeshAsset>(
                 FirstMeshIt->Payload);
         CorpusAccepted = CorpusAccepted &&
-            ImportResult == EAssetResult::Success && First.size() == 2 && FirstMesh &&
+            ImportResult == EAssetResult::Success && First.size() == 3 && FirstMesh &&
             (Path.filename() == "12-two-primitives.glb"
                 ? FirstMesh->GetDesc().Primitives.size() == 2
                 : FirstMesh->GetDesc().Primitives.size() == 1);

@@ -12,7 +12,7 @@
   },
   "overrides": [
     {
-      "name": "Roughness",
+      "name": "RoughnessFactor",
       "type": "scalar",
       "value": 0.125
     }
