@@ -151,7 +151,7 @@ jobs:
           --timeout-seconds 1200
       - name: Upload Feature 025 Release evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: asset-cooker-release-${{ matrix.slug }}
           path: |
@@ -201,7 +201,7 @@ jobs:
           --timeout-seconds 1200
       - name: Upload Feature 025 sanitizer evidence
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: asset-cooker-linux-${{ matrix.slug }}
           path: |

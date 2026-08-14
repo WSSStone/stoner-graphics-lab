@@ -33,6 +33,7 @@ int ParseNonNegative(const char* Text)
 void SpawnSleepingChild(const char* Self, int Milliseconds)
 {
 #if defined(_WIN32)
+    (void)Self;
     std::wstring Command = L"cmd.exe /C ping 127.0.0.1 -n 2 >NUL";
     STARTUPINFOW Startup{};
     Startup.cb = sizeof(Startup);
