@@ -68,6 +68,23 @@ inline FAssetImportRequest MakeRequest(
     return Request;
 }
 
+inline FAssetImportRequest MakeMemoryRequest(
+    TArray<uint8> Bytes,
+    const FString& LogicalPath,
+    FStaticModelImportProfile Profile = {})
+{
+    FAssetImportRequest Request;
+    (void)FAssetSourceLocator::Create(
+        FString("fixture"), LogicalPath, Request.Descriptor.Location);
+    Request.Descriptor.Size = Bytes.size();
+    Request.Descriptor.FormatHint = FString("gltf");
+    Request.Source = FAssetSourceLease(
+        MakeShared<FMemorySource>(std::move(Bytes)));
+    Request.Parameters =
+        MakeShared<FStaticModelImportProfile>(std::move(Profile));
+    return Request;
+}
+
 inline TArray<FAssetImportOutput> Import(
     const FAssetImportRequest& Request,
     EAssetResult& OutResult)

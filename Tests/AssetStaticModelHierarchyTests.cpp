@@ -99,7 +99,7 @@ FAssetStaticModelHierarchyTestResult RunAssetStaticModelHierarchyTests()
         MakeRequest(Valid("02-nested-trs-negative.gltf"), {}, ShallowProfile),
         ImportResult);
     Record(Result,
-        ImportResult == EAssetResult::MalformedSource && ShallowOutputs.empty(),
+        ImportResult == EAssetResult::CapacityExceeded && ShallowOutputs.empty(),
         "hierarchy depth limit rejects the package atomically");
 
     const char* InvalidFixtures[] = {

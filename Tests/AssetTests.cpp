@@ -26,13 +26,22 @@ FAssetTestResult RunAssetTests(
         RunAssetGLTFMaterialTests();
     const FAssetGLTFImageDependencyTestResult GLTFImage =
         RunAssetGLTFImageDependencyTests();
+    const FAssetGLTFMalformedTestResult GLTFMalformed =
+        RunAssetGLTFMalformedTests();
+    const FAssetGLTFResolverTestResult GLTFResolver =
+        RunAssetGLTFResolverTests();
+    const FAssetGLTFLimitTestResult GLTFLimit = RunAssetGLTFLimitTests();
+    const FAssetGLTFDiagnosticTestResult GLTFDiagnostic =
+        RunAssetGLTFDiagnosticTests();
     return {
         Core.Passed + Image.Passed + KTX2.Passed + MaterialShader.Passed +
             StaticMesh.Passed + GLTFPolicy.Passed + GLTFContainer.Passed +
             StaticModelHierarchy.Passed + StaticModelIdentity.Passed +
-            GLTFMaterial.Passed + GLTFImage.Passed,
+            GLTFMaterial.Passed + GLTFImage.Passed + GLTFMalformed.Passed +
+            GLTFResolver.Passed + GLTFLimit.Passed + GLTFDiagnostic.Passed,
         Core.Failed + Image.Failed + KTX2.Failed + MaterialShader.Failed +
             StaticMesh.Failed + GLTFPolicy.Failed + GLTFContainer.Failed +
             StaticModelHierarchy.Failed + StaticModelIdentity.Failed +
-            GLTFMaterial.Failed + GLTFImage.Failed};
+            GLTFMaterial.Failed + GLTFImage.Failed + GLTFMalformed.Failed +
+            GLTFResolver.Failed + GLTFLimit.Failed + GLTFDiagnostic.Failed};
 }

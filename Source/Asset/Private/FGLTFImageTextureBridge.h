@@ -41,6 +41,7 @@ using FGLTFBufferViewReader = std::function<EAssetResult(
     const FAssetImportRequest& MainRequest,
     const Core::TSharedPtr<IAssetResolver>& Resolver,
     const FStaticModelImportProfile& Profile,
+    Core::uint64& InOutAggregateDependencyBytes,
     const FGLTFBufferViewReader& ReadBufferView,
     Core::TArray<FAssetImportOutput>& OutOutputs,
     FAssetDiagnosticList* Diagnostics);

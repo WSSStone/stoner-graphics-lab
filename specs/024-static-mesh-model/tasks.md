@@ -212,17 +212,17 @@ meaning through shared Asset contracts.
 publication before Renderer consumes any imported payload. This is a blocking
 foundation, not the completed US5 acceptance story.
 
-- [ ] T086 [P] Add failing malformed JSON, GLB, accessor, sparse, index, topology, extension, skin, morph, and compression tests in `Tests/AssetGLTFMalformedTests.cpp` and `Tests/AssetGLTFMalformedTests.h`
-- [ ] T087 [P] Add failing URI traversal, percent ambiguity, unsupported scheme, alias, self-resolution, and missing dependency tests in `Tests/AssetGLTFResolverTests.cpp` and `Tests/AssetGLTFResolverTests.h`
-- [ ] T088 [P] Add failing source/dependency/allocation/count/depth/geometry/diagnostic limit tests in `Tests/AssetGLTFLimitTests.cpp` and `Tests/AssetGLTFLimitTests.h`
-- [ ] T089 [P] Add failing normalized diagnostic, caller-output preservation, registry rollback, and skipped-optional inspection tests in `Tests/AssetGLTFDiagnosticTests.cpp` and `Tests/AssetGLTFDiagnosticTests.h`
-- [ ] T090 [P] Implement deterministic malformed fixture mutation tooling with unit tests in `Tests/Fixtures/StaticModel/generate_invalid_fixtures.py` and `Tests/test_generate_static_model_invalid_fixtures.py`
-- [ ] T091 Enforce capped parser allocations and aggregate checked counters before parser traversal in `Source/Asset/Private/FCgltfDocument.cpp` and `Source/Asset/Private/FStaticModelImport.cpp`
-- [ ] T092 Harden source-relative dependency canonicalization, data URI validation, recursion detection, and scope containment in `Source/Asset/Private/FGLTFDependencyResolver.cpp`
-- [ ] T093 Fail closed for unsupported required versions/extensions, topology, skins, morphs, compression, and semantics while allowing evidenced optional skips in `Source/Asset/Private/FGLTFPackageValidator.cpp`
-- [ ] T094 Normalize stage, subject, structural location, result category, and actionable reason without raw parser text or absolute paths in `Source/Asset/Private/FGLTFDiagnostics.h` and `Source/Asset/Private/FGLTFDiagnostics.cpp`
-- [ ] T095 Record unknown optional extensions and excluded cameras/lights/animations deterministically in `Source/Asset/Private/FStaticModelInspection.cpp`
-- [ ] T096 Preserve pre-existing caller outputs, apply registry mutations only after complete package validation, register `asset-gltf-hardening`, and record the passing foundation gate in `Source/Asset/Private/FGLTFStaticModelImporter.cpp`, `Source/Asset/Private/FGLTFPackageAssembler.cpp`, `Tests/Main.cpp`, `Tests/AssetTests.cpp`, `Tests/AssetTests.h`, `Tests/SConscript`, and `Validation/024/reports/import-hardening.txt`
+- [X] T086 [P] Add failing malformed JSON, GLB, accessor, sparse, index, topology, extension, skin, morph, and compression tests in `Tests/AssetGLTFMalformedTests.cpp` and `Tests/AssetGLTFMalformedTests.h`
+- [X] T087 [P] Add failing URI traversal, percent ambiguity, unsupported scheme, alias, self-resolution, and missing dependency tests in `Tests/AssetGLTFResolverTests.cpp` and `Tests/AssetGLTFResolverTests.h`
+- [X] T088 [P] Add failing source/dependency/allocation/count/depth/geometry/diagnostic limit tests in `Tests/AssetGLTFLimitTests.cpp` and `Tests/AssetGLTFLimitTests.h`
+- [X] T089 [P] Add failing normalized diagnostic, caller-output preservation, registry rollback, and skipped-optional inspection tests in `Tests/AssetGLTFDiagnosticTests.cpp` and `Tests/AssetGLTFDiagnosticTests.h`
+- [X] T090 [P] Implement deterministic malformed fixture mutation tooling with unit tests in `Tests/Fixtures/StaticModel/generate_invalid_fixtures.py` and `Tests/test_generate_static_model_invalid_fixtures.py`
+- [X] T091 Enforce capped parser allocations and aggregate checked counters before parser traversal in `Source/Asset/Private/FCgltfDocument.cpp` and `Source/Asset/Private/FStaticModelImport.cpp`
+- [X] T092 Harden source-relative dependency canonicalization, data URI validation, recursion detection, and scope containment in `Source/Asset/Private/FGLTFDependencyResolver.cpp`
+- [X] T093 Fail closed for unsupported required versions/extensions, topology, skins, morphs, compression, and semantics while allowing evidenced optional skips in `Source/Asset/Private/FGLTFPackageValidator.cpp`
+- [X] T094 Normalize stage, subject, structural location, result category, and actionable reason without raw parser text or absolute paths in `Source/Asset/Private/FGLTFDiagnostics.h` and `Source/Asset/Private/FGLTFDiagnostics.cpp`
+- [X] T095 Record unknown optional extensions and excluded cameras/lights/animations deterministically in `Source/Asset/Private/FStaticModelInspection.cpp`
+- [X] T096 Preserve pre-existing caller outputs, apply registry mutations only after complete package validation, register `asset-gltf-hardening`, and record the passing foundation gate in `Source/Asset/Private/FGLTFStaticModelImporter.cpp`, `Source/Asset/Private/FGLTFPackageAssembler.cpp`, `Tests/Main.cpp`, `Tests/AssetTests.cpp`, `Tests/AssetTests.h`, `Tests/SConscript`, and `Validation/024/reports/import-hardening.txt`
 
 **Checkpoint**: Bounded import rejects every implemented invalid class safely
 and atomically before Renderer integration begins.
