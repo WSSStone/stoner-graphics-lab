@@ -1,9 +1,9 @@
 # Stoner Graphics Lab - Engine Development Roadmap
 
-> **Version**: 2.1.7 | **Created**: 2026-04-21 | **Last Updated**: 2026-08-14 | **Status**: Active
+> **Version**: 2.1.8 | **Created**: 2026-04-21 | **Last Updated**: 2026-08-15 | **Status**: Active
 > **Constitution**: v1.4.0
 > **Numbering Rule**: Every runtime phase number equals its Speckit feature number. Feature 002 is this roadmap meta-feature.
-> **Completed Baseline**: Features 001 and 003 through 024 are implemented and verified.
+> **Completed Baseline**: Features 001 and 003 through 025 are implemented and verified.
 
 ---
 
@@ -64,11 +64,11 @@
 Stoner Graphics Lab is a C++20 cross-platform graphics engine developed through
 one Speckit cycle per roadmap phase. Features 003 through 019 established Core,
 RHI, Vulkan, Renderer, Application, visible presentation, and sibling forward
-and deferred paths. Features 020 through 024 establish the CPU Asset foundation:
+and deferred paths. Features 020 through 025 establish the Asset delivery foundation:
 stable identity/registry, source images and textures, KTX2 cooking, versioned
 Material/Shader definitions, and canonical static mesh/model ingestion with
-Renderer RHI realization. The next critical gap is deterministic offline
-packaging and derived-data management before managed runtime loading.
+Renderer RHI realization, deterministic offline cooking, manifests, and local
+derived data. The next critical gap is managed asynchronous runtime loading.
 
 Roadmap 2.1 adds Asset as an independent runtime layer. It separates source
 interchange, cooked delivery, runtime management, and GPU realization so that
@@ -99,12 +99,13 @@ through screen-space, derived-data, and hybrid integration milestones.
 - [OpenUSD Asset Resolution](https://openusd.org/release/api/ar_page_front.html) informs logical identifiers and replaceable resolver strategies; USD composition itself remains a later Scene/Prefab concern.
 - [Unreal Asset Management](https://dev.epicgames.com/documentation/en-us/unreal-engine/asset-management-in-unreal-engine) supports separating unloaded metadata, soft references, asynchronous loading, and residency ownership.
 
-### Current State (Feature 024 Complete; Feature 025 Next)
+### Current State (Feature 025 Complete; Feature 026 Next)
 
 | Ownership Area | Status | Current Capability |
 |---|---|---|
-| Core | Done | Types, memory, math, logging, assertions, filesystem/process/time/window handles |
-| Asset | Static mesh/model foundation done | Material schema v2 plus bounded glTF/GLB import, typed mesh/model payloads, stable subresources, hierarchy, geometry normalization, and atomic material/image/texture packages |
+| Core | Done | Types, memory, math, logging, assertions, durable file transactions, native leases, long-path-safe filesystem/process/time/window handles |
+| Asset | Offline delivery foundation done | Typed source assets, target profiles, cooked payload envelopes, canonical manifests, derived keys, and runtime-consumable codecs |
+| Tools | Asset Cooker done | Deterministic graph/snapshot scheduling, local immutable DDC, incremental invalidation, atomic generation publication, strict validation, CLI, and normalized reports |
 | RHI | Static-mesh transfer contracts done | Device/resources plus compressed formats, bounded buffer upload, and complete indexed-draw arguments |
 | Backend/Vulkan | Static-mesh native evidence done | Native/fallback resources plus compressed formats, buffer upload, indexed draw mapping, cleanup, and Lavapipe attachment readback |
 | Renderer | Static-mesh realization done | Material schema-v2 conversion plus transactional packing, RHI allocation/upload, immutable snapshots, sections, and rollback diagnostics |
@@ -184,7 +185,7 @@ depend on Tools.
 | 022 | KTX2 Cooking & Compression | Asset | 010, 021 | XL | Yes | ✅ Done |
 | 023 | Material & Shader Assets | Asset | 014, 020, 021 | XL | Yes | ✅ Done |
 | 024 | Static Mesh & Model Pipeline | Asset | 004, 008, 020, 021, 023 | XL | Yes | ✅ Done |
-| 025 | Cooker, Manifest & Derived Data | Asset | 021, 022, 023, 024 | XL | Yes | ⬜ Todo |
+| 025 | Cooker, Manifest & Derived Data | Asset | 021, 022, 023, 024 | XL | Yes | ✅ Done |
 | 026 | Runtime Asset Manager | Asset | 020, 025 | XL | Yes | ⬜ Todo |
 | 027 | Metal Backend | Backend | 008, 016, 018, 023, 025 | XL | No | ⬜ Todo |
 | 028 | Meshlet Derived Data | Asset | 024, 025, 026 | XL | No | ⬜ Todo |
@@ -875,6 +876,15 @@ must produce identical asset identities and typed payload contracts.
 #### What's Excluded
 - Runtime async requests, handles, in-process cache ownership, streaming, and GPU residency
 
+#### Completion Evidence
+- Consumes the typed Image/Texture, KTX2, Material/Shader, and Static Model
+  payload contracts from Features 021-024 without introducing a runtime-to-Tools dependency.
+- GitHub Actions run 31827665459 passed all eight Windows/macOS/Linux Debug,
+  strict Release, ASan/UBSan, and TSan jobs; normalized artifact identities are
+  recorded under `Validation/025/`.
+- Runtime requests/handles/cache ownership remain in Feature 026; streaming,
+  package archives, remote DDC, hot reload, and GPU residency remain excluded.
+
 #### Speckit Prompt
 ```text
 Implement the offline Asset Cooker and derived-data pipeline on Features 021-024: Tools/AssetCooker; deterministic target-profile manifests; derived keys containing source hash, importer and cooker versions, settings, and target; incremental dependency invalidation; atomic output publication; strict cooked payload validation; development and cooked paths sharing FAssetId and payload contracts; reproducibility, stale-cache, corruption, and clean-machine tests; diagnostics; and three-platform CI. Runtime modules must not depend on Tools. Exclude runtime async loading, asset handles, streaming, and GPU residency.
@@ -1353,12 +1363,12 @@ Meshlets:
 5. Run `/speckit.implement`, validate locally and in required CI, and retain evidence.
 6. Mark the phase `✅ Done`, update Current State, dependency styling if used, and this change log.
 
-Feature 024 Asset: Static Mesh & Model Pipeline is complete. It delivered the
-Unreal-style coordinate migration, bounded glTF/GLB import, canonical geometry,
-model hierarchy, stable multi-output identities, Material/Image/Texture package
-assembly, transactional Renderer/RHI realization, malformed corpus, performance
-evidence, and passing three-platform/native CI. Feature 025 Asset: Cooker,
-Manifest & Derived Data is the next critical-path phase.
+Feature 025 Asset: Cooker, Manifest & Derived Data is complete. It delivered
+target profiles, deterministic cook graphs and input snapshots, typed payload
+envelopes, canonical manifests, local immutable DDC, incremental invalidation,
+atomic generation publication, standalone validation, normalized reports,
+performance/corruption evidence, and passing three-platform sanitizer CI.
+Feature 026 Asset: Runtime Asset Manager is the next critical-path phase.
 
 ### Status Legend
 
@@ -1375,6 +1385,7 @@ Manifest & Derived Data is the next critical-path phase.
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-15 | 2.1.8 | Marked Feature 025 complete after GitHub Actions run 31827665459 passed all eight Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan jobs, archived normalized corruption and benchmark artifacts, and activated Feature 026 Runtime Asset Manager as the next roadmap target. |
 | 2026-08-14 | 2.1.7 | Marked Feature 024 complete after GitHub Actions run 31766671726 passed Windows/macOS/Linux Debug and strict Release, Linux ASan/UBSan/TSan, refreshed Feature 018/019 native evidence, and native run 31766671729 passed indexed-clockwise static-mesh attachment readback; activated Feature 025 as the next roadmap target. |
 | 2026-08-13 | 2.1.6 | Marked Feature 024 In Progress after its blocking coordinate, Material v2, RHI transfer, static-mesh value, container, parser, and accessor foundations passed local strict Debug/Release and regression gates; retained complete glTF import and closeout as pending work. |
 | 2026-07-30 | 2.1.5 | Marked Feature 023 complete after GitHub Actions run 30553736883 passed Windows/macOS/Linux Debug and Release, exact cross-platform corpus/repository evidence, full regression, Linux sanitizers, and applicable Lavapipe native gates; activated Phase 024 as the next roadmap target. |

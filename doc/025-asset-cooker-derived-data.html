@@ -13,7 +13,7 @@
 <li><a href="#s1">一、文档与上下文信息</a></li><li><a href="#s2">二、目标与边界</a></li><li><a href="#s3">三、交互与产品设计</a></li><li><a href="#s4">四、技术架构与关键决策</a></li><li><a href="#s5">五、实施与验证</a></li><li><a href="#s6">六、设计巧思与最佳实践</a></li><li><a href="#s7">七、编程语言知识点</a></li><li><a href="#s8">八、软件工程知识点</a></li><li><a href="#s9">九、引擎与资产管线学习笔记</a></li>
 </ul></aside>
 <main><h1>025 - Asset Cooker &amp; Derived Data</h1>
-<div class="meta">状态：<span class="badge">本地实现完成，跨平台验证中</span> · 更新：2026-08-14 · Roadmap Phase 025 · 层级：Tools / Asset / Core</div>
+<div class="meta">状态：<span class="badge">完成</span> · 更新：2026-08-15 · Roadmap Phase 025 · 层级：Tools / Asset / Core</div>
 
 <section id="s1"><h2>一、文档与上下文信息</h2>
 <h3>1. 基础元数据</h3><table><tbody>
@@ -21,10 +21,10 @@
 <tr><th>设计文档</th><td><code>specs/025-asset-cooker-derived-data/</code> 下的 spec、plan、tasks、research、data-model、quickstart 与 contracts。</td></tr>
 <tr><th>核心源码</th><td><code>Tools/AssetCooker/</code> 的离线编排；<code>Source/Asset/</code> 的 runtime-consumable cooked contracts/codecs；<code>Source/Core/</code> 的 durable file transaction 与跨进程 lease。</td></tr>
 <tr><th>测试与证据</th><td><code>Tests/AssetCooker*.cpp</code>、<code>Tests/CorePlatformFile*.cpp</code>、<code>Tests/Fixtures/AssetCooker/</code>、<code>Validation/025/</code>。</td></tr>
-<tr><th>本地结果</th><td>strict Debug/Release 构建通过；全量回归分别 1602/1595 条 PASS；20-run determinism、并发、15/30 corruption corpus 与 M4 Pro reference benchmark 通过。</td></tr>
+<tr><th>验证结果</th><td>本地 strict Debug/Release 与 1606/1599 条全量回归通过；20-run determinism、并发、15/30 corruption corpus 与 M4 Pro reference benchmark 通过；GitHub Actions run 31827665459 的 8/8 跨平台及 sanitizer jobs 全绿。</td></tr>
 </tbody></table>
 <h3>2. 本期核心摘要</h3><p>本期把 020–024 的 source Asset 转换为可发布的 cooked generation。独立的 <code>StonerAssetCooker</code> 可以 plan、clean cook、incremental cook、validate 与 inspect；它构造依赖图、固定输入快照、计算 derived key、复用或修复 DDC、生成 canonical manifest，并通过 immutable generation 与原子 current pointer 发布完整结果。</p><p>最值得学习的是 build cache 与 runtime package 不是同一件事。DDC entry 是可丢弃、可重建的派生数据；published generation 是必须独立验证、原子可见的部署边界。两者由 AssetId、version 与 digest 串联，却拥有不同的信任模型和生命周期。</p>
-<h3>3. 上下文与依赖</h3><p>025 消费 020 的 identity/registry/extension、021 的 image/texture、022 的 KTX2 cook、023 的 material/shader 与 024 的 static model typed payload。它为 026 Runtime Asset Manager、027 Meshlet derived asset 和 028 Streaming/Residency 提供稳定 cooked contract。编译方向保持 <code>Tools/AssetCooker -&gt; Asset + Core</code>；runtime 模块不得依赖 Tools，Asset 仍只依赖 Core。</p></section>
+<h3>3. 上下文与依赖</h3><p>025 消费 020 的 identity/registry/extension、021 的 image/texture、022 的 KTX2 cook、023 的 material/shader 与 024 的 static model typed payload。它为 026 Runtime Asset Manager、028 Meshlet Derived Data 和 030 Streaming/Residency 提供稳定 cooked contract。编译方向保持 <code>Tools/AssetCooker -&gt; Asset + Core</code>；runtime 模块不得依赖 Tools，Asset 仍只依赖 Core。</p></section>
 
 <section id="s2"><h2>二、目标与边界</h2>
 <h3>1. 业务与功能目标</h3><p>开发者给定 source root、selection、target profile、output、DDC 与 worker count，即可得到确定 generation。未变化节点复用验证后的 DDC；损坏 entry 被隔离并重建；发布前失败不会改变 current generation；发布后的 output 可在 source 和 DDC 都移除后独立严格验证。命令统一使用稳定 exit category、stable reason 和可规范化 JSON report。</p>
@@ -109,7 +109,7 @@ Post-commit audit warning: new complete Current remains authoritative</code></pr
 
 <section id="s5"><h2>五、实施与验证（任务流）</h2>
 <h3>1. 任务拆解清单</h3><ol><li>Core durable file、transaction 与 native lease。</li><li>Asset target profile、derived key、payload envelope、manifest/current pointer codecs。</li><li>Tool discovery、graph、snapshot、scheduler 与 producer registration。</li><li>DDC lookup、quarantine、竞争安装与 incremental invalidation。</li><li>Generation image、failure injection、atomic publication 与 standalone validation。</li><li>CLI/report、clean-machine quickstart、scale/corruption corpus、benchmark、架构与 CI。</li></ol>
-<h3>2. 验收状态</h3><p>macOS strict Debug/Release 与全量 regression 已通过；20 次 plan/clean/incremental/validate/standalone 在 1/8 workers 间得到相同 normalized reports；writer/quarantine/publication/lease 压力通过；M4 Pro reference 的时间与 RSS 均低于门槛。跨平台 Release、sanitizer 与 artifact identity 由 Feature workflow 完成后再作为最终交付证据。</p>
+<h3>2. 验收状态</h3><p>Feature 025 已完成。macOS strict Debug/Release 与全量 regression 通过；20 次 plan/clean/incremental/validate/standalone 在 1/8 workers 间得到相同 normalized reports；writer/quarantine/publication/lease 压力通过；M4 Pro reference 的时间与 RSS 均低于门槛。GitHub Actions run 31827665459 的 Windows/macOS/Linux Debug、strict Release、Linux ASan/UBSan 与 TSan 共 8 项全部通过，artifact 记录 15/15 DDC 与 30/30 published corruption cases。</p>
 <h3>3. 测试矩阵与覆盖意图</h3><table><thead><tr><th>类别</th><th>风险</th><th>证据</th></tr></thead><tbody>
 <tr><td>Contract/golden</td><td>schema 宽松、canonical 漂移、digest 错误</td><td>contract verifier、payload/manifest/profile tests</td></tr>
 <tr><td>Graph/snapshot</td><td>cycle、过深、source 变化、调度非确定</td><td>graph/scheduler/snapshot suites</td></tr>
@@ -129,7 +129,7 @@ Post-commit audit warning: new complete Current remains authoritative</code></pr
 <li><strong>Tool 是 composition root：</strong>producer 经 Asset public extension 注册，runtime 不认识 CLI/DDC layout。</li>
 </ul>
 <h3>2. 优化方案与收益</h3><p>已实现节点级 DDC reuse、并发竞争收敛、拓扑调度、content-addressed payload、read-only plan 与 bounded validation。收益是增量 cook 时间、失败可恢复性、跨平台确定性和调试质量。1,000 assets/5,000 edges benchmark 同时覆盖 plan、cached、validation 与 clean，防止小 fixture 掩盖复杂度退化。</p>
-<h3>3. 已知限制与后续演进</h3><p>当前 DDC 只在本地目录，没有容量管理、远端传输或 trust domain；成功 generation 不清理；runtime 尚无 async request、handle、package mount 或 residency。026 将复用本期 manifest/envelope 管理 runtime 生命周期；027/028 将 meshlet、mip/chunk 与 budget 建在相同 derived evidence 上。</p></section>
+<h3>3. 已知限制与后续演进</h3><p>当前 DDC 只在本地目录，没有容量管理、远端传输或 trust domain；成功 generation 不清理；runtime 尚无 async request、handle、package mount 或 residency。026 将复用本期 manifest/envelope 管理 runtime 生命周期；028/030 将 meshlet、mip/chunk 与 budget 建在相同 derived evidence 上。</p></section>
 
 <section id="s7"><h2>七、编程语言知识点</h2>
 <h3>1. 标准库接口与用法</h3><p><code>std::filesystem</code> 处理 Tool-private path；<code>std::span</code> 传递 bounded bytes；<code>std::shared_ptr&lt;const T&gt;</code> 保存 immutable payload；<code>std::atomic</code> 生成 stage token 与共享失败状态；<code>std::chrono</code> 表达 lease timeout；<code>std::future</code>/<code>std::thread</code> 验证 writer；<code>std::sort</code> 固定 manifest 与 report 顺序。</p>

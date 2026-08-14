@@ -1,12 +1,12 @@
 <!-- SPECKIT START -->
-Feature 025 Asset: Cooker, Manifest & Derived Data is in planning. Read
-`doc/roadmap.md` for program context,
-`specs/025-asset-cooker-derived-data/spec.md` for the clarified feature
-contract, and `specs/025-asset-cooker-derived-data/plan.md`, `research.md`,
-`data-model.md`, `contracts/`, and `quickstart.md` for the active design.
-Feature 024 is complete; its closeout evidence remains under `Validation/024/`
-and `doc/024-static-mesh-model.html`. Do not extend Feature 025 into runtime
-Asset Manager, streaming, packaging, or GPU residency scope.
+Feature 025 Asset: Cooker, Manifest & Derived Data is complete. Read
+`doc/roadmap.md` for program context, `specs/025-asset-cooker-derived-data/`
+for the delivered contract/design/tasks, and `Validation/025/` plus
+`doc/025-asset-cooker-derived-data.html` for closeout evidence. GitHub Actions
+run 31827665459 passed all eight required cross-platform jobs. Feature 026
+Asset: Runtime Asset Manager is the next roadmap target; create its Speckit
+feature from the Phase 026 prompt before implementation. Do not fold streaming,
+GPU residency, hot reload, network storage, or offline cooker ownership into 026.
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -65,6 +65,7 @@ Asset Manager, streaming, packaging, or GPU residency scope.
 - 020-asset-core: Implemented the Core-only Asset layer, NFC logical identity, SHA-256 version evidence, metadata/dependency registry with atomic batches and concurrent snapshots, deterministic resolver/importer dispatch, scoped extension registrations with execution leases, focused test-suite selection, architecture enforcement, diagnostics, inspection, and opt-in registry benchmark; Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan passed in CI run 30347149237
 - 023-material-shader-assets: Implemented versioned Material/Shader/Instance Assets, bounded canonical JSON, typed GLSL/SPIR-V dependencies, ordered target selection, complete source-version manifests, immutable Renderer snapshots, repository shader migration, bytecode-only native boundaries, deterministic corpus evidence, and passing Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan validation in CI run 30553736883
 - 024-static-mesh-model: Implemented bounded glTF/GLB static package import, Unreal-style coordinate normalization, typed immutable mesh/model payloads, stable multi-output identities, hierarchy, Material v2 and Image/Texture dependencies, transactional Renderer/RHI buffer realization, malformed corpus, deterministic/concurrent/performance gates, and passing Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan and Lavapipe indexed readback in CI runs 31766671726 and 31766671729
+- 025-asset-cooker-derived-data: Implemented deterministic target profiles, cook graph/input snapshots, typed payload envelopes, canonical manifests, local immutable DDC, incremental invalidation, native leases, long-path-safe atomic generation publication, standalone validation, normalized CLI reports, corruption/concurrency/performance gates, and passing Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan in CI run 31827665459
 
 ## Git Commit Style
 - Commit messages must start with a conventional type prefix such as `feat`, `docs`, `fix`, `chore`, `refactor`, `test`, or `build`.

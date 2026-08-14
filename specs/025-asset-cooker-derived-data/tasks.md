@@ -312,12 +312,12 @@ and roadmap completion gates after all user stories pass locally.
 - [X] T149 Add Feature 025 Windows/macOS/Linux Debug and strict Release, Linux ASan/UBSan/TSan, deterministic, subprocess, architecture, schema, and artifact-upload jobs in `.github/workflows/feature-025-asset-cooker.yml`
 - [X] T150 Add clean-checkout cross-platform orchestration that performs and compares two clean cooks per host, unchanged incremental and standalone validation, separate 15-case DDC and 30-case published corruption, concurrency, benchmarks, and normalized reports with unit coverage; require CI plan/cached/validate/synthetic-clean/representative-clean smoke times to pass the documented 4x ceilings in `.github/scripts/run_asset_cooker_validation.py` and `.github/scripts/test_run_asset_cooker_validation.py`
 - [X] T151 Run focused Feature 025 and complete Features 020-024 plus engine Debug and strict Release regressions and record commands/results in `Validation/025/reports/regressions.txt`
-- [ ] T152 Run Linux ASan, UBSan, and TSan gates over focused cooker, filesystem lease, DDC, and publication suites and archive normalized results through `.github/workflows/feature-025-asset-cooker.yml`
-- [ ] T153 Run Windows, macOS, and Linux CI, require every Feature 025 job to pass, and record workflow/run/artifact identities in `Validation/025/reports/cross-platform-ci.txt`
+- [X] T152 Run Linux ASan, UBSan, and TSan gates over focused cooker, filesystem lease, DDC, and publication suites and archive normalized results through `.github/workflows/feature-025-asset-cooker.yml`
+- [X] T153 Run Windows, macOS, and Linux CI, require every Feature 025 job to pass, and record workflow/run/artifact identities in `Validation/025/reports/cross-platform-ci.txt`
 - [X] T154 Verify zero runtime-to-Tools, Asset-to-RHI/Renderer/Application/Backend, native-handle, private JSON, and untracked-output violations and record the final scan in `Validation/025/reports/architecture.txt`
 - [X] T155 Create the Feature 025 system-design summary consistent with `doc/SYSTEM_DESIGN.MD` and prior feature pages in `doc/025-asset-cooker-derived-data.html`
-- [ ] T156 Run `git diff --check`, contract/fixture verifiers, all focused suites, full Debug/strict Release regressions, sanitizers, hard-gated M4/CI benchmarks, CI, and every command in `specs/025-asset-cooker-derived-data/quickstart.md`; require every documented threshold and corpus count to pass before finalizing `Validation/025/README.md`
-- [ ] T157 After T156 passes, update Feature 025 status, actual dependency evidence, exclusions, and Feature 026 handoff in `doc/roadmap.md` and `AGENTS.md`
+- [X] T156 Run `git diff --check`, contract/fixture verifiers, all focused suites, full Debug/strict Release regressions, sanitizers, hard-gated M4/CI benchmarks, CI, and every command in `specs/025-asset-cooker-derived-data/quickstart.md`; require every documented threshold and corpus count to pass before finalizing `Validation/025/README.md`
+- [X] T157 After T156 passes, update Feature 025 status, actual dependency evidence, exclusions, and Feature 026 handoff in `doc/roadmap.md` and `AGENTS.md`
 
 ---
 

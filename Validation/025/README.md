@@ -1,6 +1,6 @@
 # Feature 025 Validation
 
-Status: **in progress**
+Status: **complete**
 
 This directory owns normalized, reproducible evidence for Asset Cooker,
 manifest, derived-data, publication, and standalone-validation gates. Reports
@@ -25,3 +25,17 @@ tracked. They remain under ignored `Saved/` roots or uploaded CI artifacts.
 The feature is not complete until every report is backed by a passing command
 at the final revision and `fixture-manifest.json` covers every checked-in
 Feature 025 fixture.
+
+## Final Result
+
+Feature 025 passed local macOS strict Debug and Release builds, complete engine
+regressions, contract/fixture/architecture verification, deterministic and
+concurrency gates, the Apple M4 Pro benchmark, and every cross-platform gate in
+GitHub Actions run 31827665459. The run completed 8/8 jobs across Windows,
+macOS, and Linux, including Linux ASan/UBSan and TSan. Downloaded artifacts
+confirmed 15/15 DDC corruption cases, 30/30 published corruption cases, and
+the 1,000-asset/5,000-edge CI benchmark on all three Release hosts.
+
+The authoritative remote identities and artifact digests are recorded in
+`reports/cross-platform-ci.txt`. Generated DDC entries, staging directories,
+cooked generations, and raw logs remain excluded from version control.
