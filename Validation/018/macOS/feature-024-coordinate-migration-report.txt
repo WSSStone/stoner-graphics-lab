@@ -1,0 +1,22 @@
+feature=018-triangle-demo-integration
+run-id=local-ci-working-tree
+mode=headless
+runtime-object-mode=deterministic
+adapter=Deterministic
+software-device=false
+requested-frames=4096
+completed-frames=4096
+frames-in-flight=2
+time-to-first-present-ms=0.000
+memory-samples=28
+memory-baseline-bytes=10616832
+memory-final-bytes=10616832
+final-live-objects=0
+validation-result=pass
+recovery-count=0
+diagnostic sequence=1 stage=Window result=0 subject=Window reason=window not required
+diagnostic sequence=2 stage=Runtime result=0 subject=Runtime reason=headless
+diagnostic sequence=3 stage=Shader result=0 subject=TriangleShaders reason=vertex and fragment main entry points validated
+diagnostic sequence=4 stage=Upload result=0 subject=TriangleUpload reason=three-vertex RGB payload ready
+diagnostic sequence=5 stage=Pipeline result=0 subject=TrianglePipeline reason=triangle pipeline ready
+diagnostic sequence=6 stage=Shutdown result=0 subject=DemoComposite reason=reverse-order shutdown complete
