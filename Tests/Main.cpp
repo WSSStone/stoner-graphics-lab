@@ -164,6 +164,11 @@ int main(int ArgCount, char* Arguments[])
         return Malformed.Failed == 0 && Resolver.Failed == 0 &&
             Limit.Failed == 0 && Diagnostic.Failed == 0 ? 0 : 1;
     });
+    Registry.Register("asset-gltf-malformed", [] {
+        const auto Import = RunAssetGLTFMalformedTests();
+        const auto Realization = RunRendererStaticMeshFailureTests();
+        return Import.Failed == 0 && Realization.Failed == 0 ? 0 : 1;
+    });
     Registry.Register("asset-ktx2-encoder", [] {
         return RunAssetKTX2EncoderTests().Failed == 0 ? 0 : 1;
     });

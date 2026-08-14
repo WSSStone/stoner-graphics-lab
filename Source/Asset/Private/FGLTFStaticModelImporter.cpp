@@ -193,7 +193,9 @@ EAssetResult GetBufferViewBytes(
     {
         return EAssetResult::MalformedSource;
     }
-    OutBytes = Buffer;
+    OutBytes = Buffer.subspan(
+        static_cast<Core::usize>(View->offset),
+        static_cast<Core::usize>(View->size));
     return EAssetResult::Success;
 }
 
@@ -220,13 +222,11 @@ EAssetResult MakeAccessorSource(
     {
         EAssetResult Result = GetBufferViewBytes(
             Data, Storage, Accessor.buffer_view, OutSource.BaseBytes);
-        if (Result != EAssetResult::Success ||
-            Accessor.buffer_view->offset >
-                std::numeric_limits<Core::uint64>::max() - Accessor.offset)
+        if (Result != EAssetResult::Success)
         {
             return EAssetResult::MalformedSource;
         }
-        OutSource.ByteOffset = Accessor.buffer_view->offset + Accessor.offset;
+        OutSource.ByteOffset = Accessor.offset;
         OutSource.ByteStride = Accessor.buffer_view->stride;
     }
     if (Accessor.is_sparse)
@@ -250,12 +250,8 @@ EAssetResult MakeAccessorSource(
             return EAssetResult::MalformedSource;
         }
         Sparse.IndexComponentType = *SparseIndexType;
-        Sparse.IndicesByteOffset =
-            Accessor.sparse.indices_buffer_view->offset +
-            Accessor.sparse.indices_byte_offset;
-        Sparse.ValuesByteOffset =
-            Accessor.sparse.values_buffer_view->offset +
-            Accessor.sparse.values_byte_offset;
+        Sparse.IndicesByteOffset = Accessor.sparse.indices_byte_offset;
+        Sparse.ValuesByteOffset = Accessor.sparse.values_byte_offset;
         OutSource.Sparse = Sparse;
     }
     return EAssetResult::Success;
