@@ -17,6 +17,8 @@
 #include "RendererRenderGraphTests.h"
 #include "RendererKTX2TextureTests.h"
 #include "RendererTextureAssetTests.h"
+#include "RendererStaticMeshTests.h"
+#include "RendererStaticMeshFailureTests.h"
 #include "VulkanBackendTests.h"
 #include "VulkanNativeIntegrationTests.h"
 #include "TriangleDemoIntegrationTests.h"
@@ -182,6 +184,11 @@ int main(int ArgCount, char* Arguments[])
         return RunRendererMaterialShaderAssetTests().Failed == 0 ? 0 : 1;
     });
     Registry.Register("renderer-render-graph", [] { return RunRendererRenderGraphTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("renderer-static-mesh", [] {
+        const auto Success = RunRendererStaticMeshTests();
+        const auto Failure = RunRendererStaticMeshFailureTests();
+        return Success.Failed == 0 && Failure.Failed == 0 ? 0 : 1;
+    });
     Registry.Register("renderer-texture", [] {
         const auto AssetResult = RunRendererTextureAssetTests();
         const auto KTX2Result = RunRendererKTX2TextureTests();

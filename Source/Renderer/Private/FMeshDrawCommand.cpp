@@ -1,10 +1,25 @@
 #include "Renderer/FMeshDrawCommand.h"
+#include "Renderer/FStaticMeshAssetConversion.h"
 
 #include <algorithm>
 #include <sstream>
 
 namespace Stoner::Renderer
 {
+
+Stoner::RHI::FRHIIndexedDrawArguments
+MakeStaticMeshSectionDrawArguments(
+    const FStaticMeshSection& Section,
+    Stoner::Core::uint32 InstanceCount,
+    Stoner::Core::uint32 FirstInstance) noexcept
+{
+    return {
+        Section.IndexCount,
+        InstanceCount,
+        Section.FirstIndex,
+        Section.VertexOffset,
+        FirstInstance};
+}
 
 namespace
 {

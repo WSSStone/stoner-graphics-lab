@@ -240,22 +240,22 @@ Vulkan transformed-mesh readback probe.
 
 ### Tests For User Story 4
 
-- [ ] T097 [P] [US4] Add failing packing, uint16/uint32, section offset, material, bounds, and source-manifest tests in `Tests/RendererStaticMeshTests.cpp` and `Tests/RendererStaticMeshTests.h`
-- [ ] T098 [P] [US4] Add failing validate/plan/allocate/upload/finalize rollback, normalized realization-diagnostic, and source-replacement tests in `Tests/RendererStaticMeshFailureTests.cpp` and `Tests/RendererStaticMeshFailureTests.h`
-- [ ] T099 [P] [US4] Add failing full indexed section recording and resource lifecycle tests in `Tests/RHICoreTests.cpp`
+- [X] T097 [P] [US4] Add failing packing, uint16/uint32, section offset, material, bounds, and source-manifest tests in `Tests/RendererStaticMeshTests.cpp` and `Tests/RendererStaticMeshTests.h`
+- [X] T098 [P] [US4] Add failing validate/plan/allocate/upload/finalize rollback, normalized realization-diagnostic, and source-replacement tests in `Tests/RendererStaticMeshFailureTests.cpp` and `Tests/RendererStaticMeshFailureTests.h`
+- [X] T099 [P] [US4] Add failing full indexed section recording and resource lifecycle tests in `Tests/RHICoreTests.cpp`
 
 ### Implementation For User Story 4
 
-- [ ] T100 [US4] Define realization profile, stages, diagnostics, sections, immutable snapshot, request, and result contracts in `Source/Renderer/Public/Renderer/FStaticMeshAssetConversion.h` and `Source/Renderer/Public/Renderer/FStaticMeshRealization.h`
-- [ ] T101 [US4] Build deterministic semantic-to-RHI vertex formats, interleaving, alignments, index packing, buffer sizes, and section offsets in `Source/Renderer/Private/FStaticMeshAssetConversion.cpp`
-- [ ] T102 [US4] Implement validate-plan-allocate-upload-finalize-publish realization with complete rollback in `Source/Renderer/Private/FStaticMeshRealization.cpp`
-- [ ] T103 [US4] Validate material dependencies, normalized source manifests, realization profile digests, and explicit reconversion semantics in `Source/Renderer/Private/FStaticMeshRealization.cpp`
-- [ ] T104 [US4] Upload packed vertex/index bytes only through `IRHIDevice::UploadBuffer` and invalidate every request-owned resource on failure in `Source/Renderer/Private/FStaticMeshRealization.cpp`
-- [ ] T105 [US4] Map Material v2 sampler intent to RHI samplers without mutating Asset definitions in `Source/Renderer/Private/FMaterialAssetConversion.cpp` and `Source/Renderer/Private/FStaticMeshRealization.cpp`
-- [ ] T106 [US4] Emit complete `FRHIIndexedDrawArguments` from realized primitive sections in `Source/Renderer/Private/FMeshDrawCommand.cpp` and `Source/Renderer/Public/Renderer/FMeshDrawCommand.h`
-- [ ] T107 [US4] Add native Vulkan transformed-mesh upload, clockwise culling, non-symmetric matrix, and readback coverage in `Tests/VulkanNativeIntegrationTests.cpp`
-- [ ] T108 [US4] Add deterministic and native realization orchestration plus timeout/report handling in `.github/scripts/run_static_model_validation.py` and `.github/scripts/test_run_static_model_validation.py`
-- [ ] T109 [US4] Register `renderer-static-mesh`, compile US4 sources, and expose focused CLI selection in `Tests/Main.cpp` and `Tests/SConscript`
+- [X] T100 [US4] Define realization profile, stages, diagnostics, sections, immutable snapshot, request, and result contracts in `Source/Renderer/Public/Renderer/FStaticMeshAssetConversion.h` and `Source/Renderer/Public/Renderer/FStaticMeshRealization.h`
+- [X] T101 [US4] Build deterministic semantic-to-RHI vertex formats, interleaving, alignments, index packing, buffer sizes, and section offsets in `Source/Renderer/Private/FStaticMeshAssetConversion.cpp`
+- [X] T102 [US4] Implement validate-plan-allocate-upload-finalize-publish realization with complete rollback in `Source/Renderer/Private/FStaticMeshRealization.cpp`
+- [X] T103 [US4] Validate material dependencies, normalized source manifests, realization profile digests, and explicit reconversion semantics in `Source/Renderer/Private/FStaticMeshRealization.cpp`
+- [X] T104 [US4] Upload packed vertex/index bytes only through `IRHIDevice::UploadBuffer` and invalidate every request-owned resource on failure in `Source/Renderer/Private/FStaticMeshRealization.cpp`
+- [X] T105 [US4] Map Material v2 sampler intent to RHI samplers without mutating Asset definitions in `Source/Renderer/Private/FMaterialAssetConversion.cpp` and `Source/Renderer/Private/FStaticMeshRealization.cpp`
+- [X] T106 [US4] Emit complete `FRHIIndexedDrawArguments` from realized primitive sections in `Source/Renderer/Private/FMeshDrawCommand.cpp` and `Source/Renderer/Public/Renderer/FMeshDrawCommand.h`
+- [X] T107 [US4] Add native Vulkan transformed-mesh upload, clockwise culling, non-symmetric matrix, and readback coverage in `Tests/VulkanNativeIntegrationTests.cpp`
+- [X] T108 [US4] Add deterministic and native realization orchestration plus timeout/report handling in `.github/scripts/run_static_model_validation.py` and `.github/scripts/test_run_static_model_validation.py`
+- [X] T109 [US4] Register `renderer-static-mesh`, compile US4 sources, and expose focused CLI selection in `Tests/Main.cpp` and `Tests/SConscript`
 - [ ] T110 [US4] Run mock and native US4 gates and record uploaded byte hashes, sections, cleanup, normalized realization diagnostics, and readback in `Validation/024/reports/us4-renderer-realization.txt`
 
 **Checkpoint**: Every accepted mesh can become a self-contained draw-ready

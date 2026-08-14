@@ -1,6 +1,8 @@
 #include "VulkanNativeIntegrationTests.h"
+#include "RendererStaticMeshTestSupport.h"
 #include "ShaderTestFixtures.h"
 
+#include "Renderer/FStaticMeshRealization.h"
 #include "VulkanRHI/FVulkanComputePipeline.h"
 #include "VulkanRHI/FVulkanDevice.h"
 #include "VulkanRHI/FVulkanGraphicsPipeline.h"
@@ -11,6 +13,7 @@
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -137,7 +140,9 @@ FVulkanNativeIntegrationTestResult RunVulkanNativeIntegrationTests()
     const ERHIResult InitializeResult = Context.Initialize(ERHIRuntimeMode::NativeHeadless);
     if (InitializeResult == ERHIResult::Unsupported || InitializeResult == ERHIResult::Unavailable)
     {
-        Record(Result, true, "Vulkan native integration reports unavailable runtime explicitly");
+        const char* Required = std::getenv("STONER_REQUIRE_STATIC_MESH_NATIVE");
+        Record(Result, Required == nullptr || std::strcmp(Required, "1") != 0,
+            "Vulkan native integration reports unavailable runtime explicitly");
         return Result;
     }
     Record(Result, InitializeResult == ERHIResult::Success && Context.GetSnapshot().ProvesNativeExecution(),
@@ -154,11 +159,33 @@ FVulkanNativeIntegrationTestResult RunVulkanNativeIntegrationTests()
         ReadShaderWords("Content/Shaders/Triangle/Triangle.frag.spv"));
     Record(Result, Context.ExecuteOffscreenTriangle(
         TriangleVertex, TriangleFragment) == ERHIResult::Success,
-        "Vulkan native integration uploads vertices and submits offscreen triangle");
+        "Vulkan native integration performs indexed clockwise-culling attachment readback");
     Record(Result, Context.GetSnapshot().GetTotalLiveObjectCount() == 2,
         "Vulkan native integration releases frame-local resources after completion");
     Record(Result, Context.Shutdown() == ERHIResult::Success && Context.GetSnapshot().GetTotalLiveObjectCount() == 0,
         "Vulkan native integration shutdown reaches zero live objects");
+
+    auto StaticMeshDevice = Stoner::Core::MakeShared<FVulkanDevice>();
+    FVulkanInstanceDesc StaticMeshDeviceDesc;
+    StaticMeshDeviceDesc.RuntimeMode = EVulkanInstanceRuntimeMode::DeterministicFallback;
+    StaticMeshDeviceDesc.bRequestValidation = false;
+    const auto StaticMeshAsset = Stoner::Tests::StaticMesh::MakeAsset();
+    const bool bStaticMeshDeviceReady =
+        StaticMeshDevice->Initialize(StaticMeshDeviceDesc) == ERHIResult::Success &&
+        StaticMeshDevice->EnableNativeShaderRuntime() == ERHIResult::Success;
+    const Stoner::Renderer::FStaticMeshRealizationResult StaticMeshRealization =
+        bStaticMeshDeviceReady
+        ? Stoner::Renderer::FStaticMeshRealizer::Realize(
+              {StaticMeshDevice, StaticMeshAsset, {}})
+        : Stoner::Renderer::FStaticMeshRealizationResult{};
+    Record(Result,
+        StaticMeshRealization.Succeeded() &&
+            StaticMeshDevice->GetTrackedUploadRequestCount() == 2 &&
+            StaticMeshRealization.Snapshot->Sections.size() == 2,
+        "Renderer static mesh realization reaches Vulkan buffer transfer path");
+    Record(Result,
+        StaticMeshDevice->Shutdown() == ERHIResult::Success,
+        "Vulkan static mesh realization releases device-owned resources");
 
     FVulkanDevice ShaderDevice;
     FVulkanInstanceDesc DeviceDesc;
