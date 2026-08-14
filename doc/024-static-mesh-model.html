@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>024 - Static Mesh &amp; Model Pipeline - Stoner Graphics Lab</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}:root{--bg:#f4f7f8;--paper:#fff;--ink:#17212b;--muted:#617184;--line:#d5e0e5;--accent:#0f766e;--soft:#e7f5f2;--warn:#a15c00;--code:#edf2f4;--dark:#17212b;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.72 var(--sans)}.page{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 18px;background:var(--paper);border-right:1px solid var(--line)}.brand{font-size:14px;font-weight:800;color:var(--accent)}.subtitle{font-size:12px;color:var(--muted);padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:18px}.toc{list-style:none;padding:0}.toc a{display:block;padding:6px 8px;color:var(--muted);text-decoration:none;border-radius:6px;font-size:13px}.toc a:hover{color:var(--accent);background:var(--soft)}main{max-width:1080px;width:100%;padding:48px 48px 96px;margin:0 auto}h1{margin:0 0 8px;font-size:34px;line-height:1.2;color:var(--accent)}.meta{color:var(--muted);font-size:13px;margin-bottom:30px}section{margin-bottom:56px}h2{margin:32px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:23px}h3{margin:22px 0 10px;font-size:17px}h4{margin:16px 0 6px;font-size:15px}p{margin:0 0 14px}ul,ol{margin:0 0 16px;padding-left:23px}li{margin:4px 0}code{font-family:var(--mono);font-size:13px;background:var(--code);padding:2px 5px;border-radius:4px}pre{margin:14px 0;padding:16px;overflow:auto;border-radius:8px;color:#e5e7eb;background:var(--dark);font-size:13px;line-height:1.55}pre code{background:transparent;color:inherit;padding:0}table{width:100%;border-collapse:collapse;margin:16px 0 20px;font-size:14px}th,td{padding:9px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted);font-size:12px;background:#f9fbfc}.note{margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:8px;background:var(--paper)}.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--soft);color:var(--accent);font-weight:700;font-size:12px}@media(max-width:860px){.page{display:block}.sidebar{position:static;height:auto}main{padding:32px 22px 72px}}
+</style>
+</head>
+<body><div class="page">
+<aside class="sidebar"><div class="brand">Stoner Graphics Lab</div><div class="subtitle">024 - Static Mesh &amp; Model Pipeline</div><ul class="toc">
+<li><a href="#s1">一、文档与上下文信息</a></li><li><a href="#s2">二、目标与边界</a></li><li><a href="#s3">三、交互与产品设计</a></li><li><a href="#s4">四、技术架构与关键决策</a></li><li><a href="#s5">五、实施与验证</a></li><li><a href="#s6">六、设计巧思与最佳实践</a></li><li><a href="#s7">七、编程语言知识点</a></li><li><a href="#s8">八、软件工程知识点</a></li><li><a href="#s9">九、渲染、引擎与图形 API</a></li>
+</ul></aside>
+<main><h1>024 - Static Mesh &amp; Model Pipeline</h1>
+<div class="meta">状态：<span class="badge">本地验收通过，等待跨平台 CI</span> · 更新：2026-08-14 · Roadmap Phase 024 · 层级：Asset / Renderer / RHI / Vulkan</div>
+
+<section id="s1"><h2>一、文档与上下文信息</h2>
+<h3>1. 基础元数据</h3><table><tbody>
+<tr><th>Feature</th><td>024 - Asset: Static Mesh &amp; Model Pipeline；Roadmap 与 Speckit 编号一致。</td></tr>
+<tr><th>设计文档</th><td><code>specs/024-static-mesh-model/spec.md</code>、<code>plan.md</code>、<code>tasks.md</code>、<code>research.md</code>、<code>data-model.md</code> 与 <code>contracts/</code></td></tr>
+<tr><th>核心源码</th><td><code>Source/Asset/</code> 的 glTF import 与 canonical payload；<code>Source/Renderer/</code> 的 packing/realization；<code>Source/RHI/</code> 与 Vulkan 的 portable upload/indexed draw。</td></tr>
+<tr><th>第三方</th><td>Asset-private cgltf v1.15 加 overflow backport；Asset-private MikkTSpace 固定提交；public header 不暴露第三方类型。</td></tr>
+<tr><th>验证</th><td><code>Tests/AssetGLTF*.cpp</code>、<code>AssetStaticModel*.cpp</code>、<code>RendererStaticMesh*.cpp</code>、78 项 fixture manifest、<code>Validation/024/</code>。</td></tr>
+</tbody></table>
+<h3>2. 本期核心摘要</h3><p>本期把 glTF 2.0/GLB 静态模型导入为引擎自己的 immutable CPU Asset。一个源文件可原子地产出 Mesh、Model、Material、Image 与 Texture typed subresources；几何在发布前完成 accessor 解码、Unreal 风格坐标转换、法线/切线补全、bounds 与依赖验证，Renderer 再把 typed mesh 显式打包为 RHI vertex/index buffers。</p><p>学习价值集中在“authoring data 不等于 GPU data”。Asset 保存可验证、可重煮、与 API 无关的语义数组和层级；Renderer 决定 interleaving、index width 与 upload；RHI 描述 portable transfer；Vulkan 执行真实 allocation/copy/readback。这个分层让后续 Meshlet、Ray Tracing 和其他 backend 能复用同一 mesh 权威数据。</p>
+<h3>3. 上下文与依赖</h3><p>024 建立在 020 identity/registry/resolver/importer、021 image/texture、023 Material v2 与既有 Core math/RHI resource contracts 上。它为 cooker、runtime Asset Manager、Meshlet、streaming 和 BLAS derived data 提供稳定输入。Asset production 只依赖 Core 与 Asset 内部 contract；Renderer 可依赖 Asset 与 RHI；Backend 只理解 RHI，不解析 glTF，也不持有 Asset identity。</p></section>
+
+<section id="s2"><h2>二、目标与边界</h2>
+<h3>1. 业务与功能目标</h3><p>引擎开发者向 scoped importer 提交 source identity、bytes、resolver 与 versioned import profile。成功时得到 identity-sorted 完整 package；失败时输出为空并返回稳定 diagnostic。调用方可将任意 <code>FStaticMeshAsset</code> 交给 <code>FStaticMeshRealizer</code>，成功后获得深拥有 RHI buffers、vertex layout、sections、bounds 与 source manifest 的 immutable snapshot。</p>
+<h3>2. 架构目标与定位</h3><pre><code>.gltf/.glb + resolver
+        |
+        v
+Asset private: preflight -> cgltf -> decode -> normalize -> assemble
+        |
+        +--> FStaticMeshAsset / FStaticModelAsset / Material / Image / Texture
+                                      |
+                                      v
+Renderer: validate -> pack -> allocate -> upload -> publish snapshot
+                                      |
+                                      v
+RHI portable buffer/upload/indexed-draw contract
+                                      |
+                                      v
+Vulkan native allocation, staging, submission and readback</code></pre><p>Public Asset contract 只包含 typed CPU 数据、identity/version、dependency 与 metadata。cgltf、MikkTSpace、物理文件和 Vulkan 都留在 private/composition 边界。具体图形 API 没有进入 Asset，因此 DX12/Metal 可实现相同 RHI transfer contract。</p>
+<h3>3. 边界与非目标（约束）</h3><ul>
+<li>不导入 skin、animation、morph target、camera/light：它们需要独立 runtime 与 ECS 语义，留给 Skeletal/Scene tracks。</li>
+<li>不把 glTF scene 直接实例化为 ECS：Model Asset 是可复用描述，不应在 import 时产生 world side effect。</li>
+<li>不做 cooker、DDC、package 或 async manager：这些属于后续 025/026，当前 import 保持 request-scoped。</li>
+<li>不做 mesh optimization、LOD、meshlet 或 BLAS：它们是 canonical mesh 的 derived data，而非 source authority。</li>
+<li>不支持 Draco、EXT_meshopt_compression 与任意 required extension：缺少经过规划的 decoder 时必须 fail closed。</li>
+<li>不绑定 GPU vertex bytes 到 Asset schema：否则切换 backend/profile 会迫使资产身份与格式一起变化。</li>
+</ul></section>
+
+<section id="s3"><h2>三、交互与产品设计</h2>
+<h3>1. 用户使用路径</h3><pre><code>Resolve source and dependencies
+  -> Import(request, outputs, diagnostics)
+  -> validate complete package
+  -> atomically register outputs
+  -> Realize(mesh asset, device, profile)
+  -> immutable render snapshot
+
+Any import failure  -> outputs == empty
+Any realize failure -> snapshot == null; temporary RHI resources released</code></pre><p>调试时先运行 <code>--suite asset-static-model</code> 看 import identity/package，再运行 <code>--suite asset-gltf-malformed</code> 看 first-failure category，最后运行 <code>--suite renderer-static-mesh</code> 定位 validate/plan/allocate/upload/finalize 阶段。</p>
+<h3>2. 核心规则与状态机</h3><pre><code>Import: Preflight -> Parse -> Resolve -> Decode -> Normalize -> Assemble -> Publish
+Realize: ValidateAsset -> Plan -> Allocate -> Upload -> Finalize -> Publish
+
+Only Publish exposes a result. Earlier failure discards all request-owned state.</code></pre><p>Import profile、source/dependency digest 与稳定结构键共同进入 version evidence。显式 <code>extras.stonerAssetId</code> 使用 <code>key.*</code> namespace；缺省身份使用 typed <code>idx.*</code> structural key；display name 永不参与 identity。一个 glTF scene 对应一个 Model，未被 scene 引用的 Mesh 仍然输出。</p>
+<h3>3. 失败模式与调试入口</h3><ul>
+<li>GLB header/chunk 顺序、长度、padding 或 embedded NUL 错误在 preflight 阶段终止。</li>
+<li>URI traversal、query/fragment、unsupported scheme、digest/type mismatch 在 dependency resolver 阶段终止。</li>
+<li>越界 accessor、非法 stride/sparse index、非有限 position、非 triangle mode 在 decode/validation 阶段终止。</li>
+<li>scene cycle、multiple parent、重复 explicit key 与 dependency conflict 在 package validation 阶段原子回滚。</li>
+<li>RHI allocation/upload 注入失败返回首个稳定 realization diagnostic，并证明无 request-owned live resource。</li>
+</ul></section>
+
+<section id="s4"><h2>四、技术架构与关键决策</h2>
+<h3>1. 技术栈与基础设施</h3><p>C++20、传统 public/private header/source、SCons 4.10.1。cgltf 与 MikkTSpace 以私有 C/C99 translation unit 编译；fixture、generator 与 Python verifier 全部 checked in，CI 不在线下载测试数据。本地 macOS 使用 Apple Clang 21；三平台 strict Release、Linux sanitizer 与 Lavapipe native readback 由 GitHub Actions 承担。</p>
+<h3>2. 关键信息</h3>
+<h4>(1) 模块对应关系</h4><table><thead><tr><th>模块/类型</th><th>职责</th><th>关键边界</th></tr></thead><tbody>
+<tr><td><code>FGLTFContainerPreflight</code></td><td>在 parser 前验证 JSON/GLB envelope 与 checked ranges</td><td>不发布 parser-native view</td></tr>
+<tr><td><code>FGLTFAccessorDecoder</code></td><td>处理 packed/interleaved/normalized/sparse accessor</td><td>只产出项目拥有的 typed arrays</td></tr>
+<tr><td><code>FGLTFGeometryNormalizer</code></td><td>坐标、normal/tangent、index 与 bounds canonicalization</td><td>只转换一次 basis/parity</td></tr>
+<tr><td><code>FGLTFPackageIdentityPlanner</code></td><td>规划 typed explicit/fallback subresource identity</td><td>名字不影响 identity</td></tr>
+<tr><td><code>FGLTFPackageAssembler</code></td><td>组合 Mesh/Model/Material/Image/Texture 与 manifest</td><td>全部验证后一次发布</td></tr>
+<tr><td><code>FStaticMeshAsset</code></td><td>immutable semantic streams、primitives、slots、bounds</td><td>没有 GPU layout/handle</td></tr>
+<tr><td><code>FStaticModelAsset</code></td><td>scene roots、node hierarchy、local transform、mesh refs</td><td>不创建 ECS entity</td></tr>
+<tr><td><code>FStaticMeshRealizer</code></td><td>packing、RHI allocation/upload 与 immutable snapshot</td><td>Renderer 是 Asset-to-RHI adapter</td></tr>
+</tbody></table>
+<h4>(2) 数据与资源流</h4><p>glTF 右手 Y-up 数据通过 <code>Engine.X=Gltf.Z</code>、<code>Engine.Y=-Gltf.X</code>、<code>Engine.Z=Gltf.Y</code> 进入左手 Z-up、+X forward 空间。反射已经把 source CCW 映射到 engine clockwise，因此 index order 不再翻转；tangent <code>w</code> 只因 basis reflection 取反一次。Renderer 将 position/normal/tangent/UV 按 profile 打包，并通过 <code>IRHIDevice::UploadBuffer</code> 上传，section 记录完整 first index、index count 与 vertex offset。</p>
+<h4>(3) 诊断与可视化</h4><p>Import diagnostic 记录稳定 Asset identity、source element key、category/code 与 reason，不记录地址和平台路径。Inspection 按 identity 排序输出 package、geometry、hierarchy、material 与 dependency 摘要。Determinism gate 对完整 payload、manifest 和 diagnostics 做 20 次比较；native report 额外记录上传 byte hash、section 与 indexed clockwise readback。</p>
+<h3>3. 架构决策记录 (ADR)</h3><table><thead><tr><th>决策</th><th>理由</th><th>拒绝方案与后果</th></tr></thead><tbody>
+<tr><td>全引擎迁移到 Unreal 风格坐标</td><td>避免 importer 后长期维护两套 world/view 语义</td><td>只转换 Asset 会把 adapter 扩散到 Scene/Renderer/shader</td></tr>
+<tr><td>cgltf 仅作 private document parser</td><td>复用成熟 object model，同时由项目控制 limits、URI 与 transaction</td><td>自写完整 parser 风险高；parse_file 会绕过 resolver 与预算</td></tr>
+<tr><td>typed CPU mesh 为权威</td><td>可验证、可重煮，并支持多 backend/meshlet/BLAS</td><td>opaque GPU bytes 会把当前 Vulkan layout 固化为资产格式</td></tr>
+<tr><td>MikkTSpace 仅用于需要切线的默认策略</td><td>遵循 glTF 推荐且不为无 normal map 的 mesh 增加工作</td><td>手写 tangent 容易产生 seam/parity 错误；永远生成是无谓开销</td></tr>
+<tr><td>multi-output import 与 realization 都事务化</td><td>任何后段失败都不能留下 dangling dependency 或 partial GPU state</td><td>逐项发布无法在后续失败时可靠回滚</td></tr>
+<tr><td>显式 key 与 structural fallback 分 namespace</td><td>既支持手工稳定 identity，也保证无 extras 文件可重复导入</td><td>name-derived identity 会因重命名 churn；裸 index 会与显式键冲突</td></tr>
+</tbody></table></section>
+
+<section id="s5"><h2>五、实施与验证（任务流）</h2>
+<h3>1. 任务拆解清单</h3><ol><li>完成全引擎坐标/矩阵/front-face 迁移，并刷新 018/019 deterministic gates。</li><li>建立 mesh/model public value model、limits、inspection 与 validators。</li><li>完成 GLB/JSON preflight、bounded cgltf ownership、dependency resolver 与 accessor decoder。</li><li>完成 geometry normalization、flat normals、MikkTSpace tangents、bounds 与 12 项 golden geometry。</li><li>完成 scene hierarchy、stable identity、Material v2、Image/Texture dependencies 与 package transaction。</li><li>扩展 RHI upload/indexed draw，并实现 Renderer packing/realization rollback。</li><li>补齐 78 项 fixture provenance、malformed corpus、determinism、concurrency、performance、architecture 与 CI。</li></ol>
+<h3>2. 验收状态</h3><p>Apple M4 Pro 本地 Debug 完整回归、strict Release、20 次 valid fixture determinism、8 路并发、78 项 corpus verifier、architecture scanner 和 Python 工具单测均通过。100k vertices、300k indices、16 primitives、16 material dependencies 的 3.11 MiB GLB 在 Release 五次测量最大约 0.016 秒，tracked request peak 约 12.6 MiB，低于 5 秒与 1 GiB gate。当前文档生成时 Linux native readback 与三平台 CI 尚待远端 closeout，因此状态没有提前标为“已交付”。</p>
+<h3>3. 测试矩阵与覆盖意图</h3><table><thead><tr><th>类别</th><th>覆盖风险</th><th>主要证据</th></tr></thead><tbody>
+<tr><td>Container/parser</td><td>malformed GLB、allocation overflow、partial parser lifetime</td><td><code>AssetGLTFContainerTests.cpp</code></td></tr>
+<tr><td>Geometry</td><td>accessor layout、basis/parity、missing normal/tangent、bounds</td><td>12 golden fixtures 与 <code>AssetStaticMeshGeometryTests.cpp</code></td></tr>
+<tr><td>Package/model</td><td>scene cycle、shared mesh、stable key、atomic registry</td><td>hierarchy/identity tests</td></tr>
+<tr><td>Material/texture</td><td>UV/sampler semantic、embedded/external image、default material</td><td><code>AssetGLTFMaterialTests.cpp</code></td></tr>
+<tr><td>Malformed corpus</td><td>unsupported extension/mode/semantic、URI 与 range attack surface</td><td>57+ targeted invalid fixtures、ASan/UBSan</td></tr>
+<tr><td>Renderer/RHI</td><td>packing/index width、failure rollback、byte ownership</td><td>Renderer static mesh tests、native readback</td></tr>
+<tr><td>Quality attributes</td><td>nondeterminism、shared mutable payload、time/memory regression</td><td>20-run、8-way concurrency、M4 Pro benchmark</td></tr>
+</tbody></table></section>
+
+<section id="s6"><h2>六、设计巧思与最佳实践</h2>
+<h3>1. 当前业务场景与业务模型的最佳实践</h3><ul>
+<li><strong>先 envelope 再 parser：</strong>损坏 GLB 在建立复杂 object graph 前被稳定拒绝。</li>
+<li><strong>checked arithmetic 先于 allocation：</strong>offset、stride、count 与 aggregate bytes 都先在 64-bit 范围验证。</li>
+<li><strong>basis reflection 与 node determinant 分离：</strong>前者是格式转换，后者是实例变换，混用会造成二次翻面。</li>
+<li><strong>Asset 与 realization 两段 transaction：</strong>CPU package 完整不代表 GPU upload 必然成功，两边都必须各自原子发布。</li>
+<li><strong>stable identity 不依赖 display name：</strong>编辑器重命名不会使软引用和未来 DDC key 失效。</li>
+<li><strong>valid-but-unsupported 单独分类：</strong>glTF Validator 通过不代表 Feature 024 scope 接受，诊断要区分格式损坏与能力缺失。</li>
+</ul>
+<h3>2. 优化方案与收益</h3><p>已实现 bounded parser allocator、request-local dependency dedup、16/32-bit canonical index 保留、按需 tangent generation、单 mesh 双 buffer packing、immutable shared payload 与 deterministic ordering。收益主要是受控峰值、较少 RHI object、稳定 cache input 和并发只读安全。尚未实现的 meshoptimizer、LOD、meshlet、streaming 与 GPU residency 将以当前 canonical payload 作为 derived-data 输入，不必改变 source identity。</p>
+<h3>3. 已知限制与后续演进</h3><p>当前 static-only、最多 UV0/UV1、核心 metallic-roughness、PNG/JPEG，且不支持压缩 mesh extension。025 将建立 manifest/DDC/cooker，026 加载与缓存 runtime payload，027 才从 cooked mesh 生成 meshlet；后续 Skeletal track 需基于研究重新决定 smooth/sharp normal、skin hierarchy 与 animation contracts。现有 corpus、identity golden、transaction tests 和 native byte hash 将成为这些演进的回归基线。</p></section>
+
+<section id="s7"><h2>七、编程语言知识点</h2>
+<h3>1. 标准库接口与用法</h3><p><code>std::span</code> 提供不拥有的 source/accessor byte view；<code>std::shared_ptr&lt;const T&gt;</code> 发布 immutable Asset payload；<code>std::optional</code> 表达 mesh ref、default scene 与可选 subresource；<code>std::variant</code> 承载 material typed value；<code>std::async</code> 与 future 验证八路独立 import；<code>std::chrono</code> 生成 performance report；<code>std::from_chars</code> 解析无 locale 的测试参数。</p>
+<h3>2. 语言特性与惯用法</h3><p>RAII 管理 cgltf document、registration token、execution lease 与临时 RHI resource；移动语义把 request scratch 一次性交给 immutable output；<code>enum class</code> 对 policy/stage/result fail closed；<code>[[nodiscard]]</code> 强迫调用方处理 import/realization 结果；private helper class 隐藏第三方类型；checked helper 与 out parameter 避免异常跨层传播。</p>
+<h3>3. 平台相关与编译器行为</h3><p>Private C translation units 隔离 Clang/GCC/MSVC warning；project C++ 在 strict mode 使用 <code>-Werror</code>/<code>/WX</code>。Canonical identity、digest、float evidence 与 inspection 不依赖 locale、地址或物理路径。macOS sandbox 中 MoltenVK 可被探测但 Metal 不可用，因此仅接受 controlled unavailable；真实 native 由有图形能力的平台或 Linux Lavapipe 提供。</p></section>
+
+<section id="s8"><h2>八、软件工程知识点</h2>
+<h3>1. 设计模式与架构模式</h3><p><code>IAssetResolver</code>/<code>IAssetImporter</code> 是 Strategy；cgltf、Material mapper 与 Renderer realizer 是 Adapter；AssetId/version/profile 是 Value Object；import pipeline 类似 compiler front-end；package assembler 和 realization publish 是 Unit of Work；source manifest 是 provenance record；fixture verifier 与 native probe 是独立 Contract Test。</p>
+<h3>2. 工程原则与方法论</h3><p>Dependency Inversion 保证 Asset 不认识 Renderer/RHI；Single Responsibility 把 container、accessor、geometry、hierarchy、material、identity 与 assembly 拆开；YAGNI 推迟 cooker/streaming；Design by Contract 验证每个 byte range、semantic、dependency 与 stage；defensive parsing 为本地不可信资产输入设置有限预算；deterministic design 让测试 evidence 未来可直接成为 derived-data key。</p>
+<h3>3. 测试策略与质量保障</h3><p>Valid/invalid corpus 做 equivalence partitioning；exact-limit 与 first-above 做 boundary testing；mutation manifest 做 targeted negative testing；golden geometry/identity 防 silent semantic drift；failure injection 覆盖 transaction rollback；20 次重复与 8 路并发覆盖 determinism/ownership；ASan/UBSan/TSan 覆盖 parser 与共享状态；architecture scanner 防第三方/native type 穿透 public boundary。</p></section>
+
+<section id="s9"><h2>九、渲染、引擎与图形 API 学习笔记</h2>
+<h3>1. 本期核心概念拆解</h3><ul>
+<li><strong>Canonical mesh：</strong>引擎语义空间中的权威 CPU 几何，不是 glTF accessor view，也不是 GPU bytes。</li>
+<li><strong>Model vs Mesh：</strong>Mesh 拥有几何；Model 拥有 scene/node/local transform 并软引用 Mesh。</li>
+<li><strong>Tangent frame：</strong>normal、tangent.xyz 与 handedness w 共同重建 bitangent，reflection 必须只修正一次。</li>
+<li><strong>Section：</strong>打包 buffer 中一个 primitive 的 indexed draw 范围与 material identity。</li>
+<li><strong>Realization snapshot：</strong>某 Asset version/profile 在某 RHI device 上的 immutable GPU-ready 结果。</li>
+</ul>
+<h3>2. 与 Vulkan / DX12 / Metal / OpenGL 的关系</h3><table><thead><tr><th>本项目概念</th><th>Vulkan</th><th>DX12</th><th>Metal / OpenGL</th></tr></thead><tbody>
+<tr><td>Vertex/index buffer</td><td><code>VkBuffer</code> + device memory</td><td>resource + vertex/index buffer view</td><td>MTLBuffer / GL buffer</td></tr>
+<tr><td>Upload</td><td>mapped staging + copy + barrier/fence</td><td>upload heap + copy command + state transition</td><td>shared/blit path / buffer upload</td></tr>
+<tr><td>Indexed section</td><td><code>vkCmdDrawIndexed</code></td><td><code>DrawIndexedInstanced</code></td><td><code>drawIndexedPrimitives</code> / <code>glDrawElementsBaseVertex</code></td></tr>
+<tr><td>Canonical front face</td><td colspan="3">Renderer/RHI 表达 clockwise；Backend 根据 viewport/API convention 做最终映射。</td></tr>
+</tbody></table>
+<h3>3. 源码阅读路线</h3><ol><li><code>FStaticMeshTypes.h</code>、<code>FStaticMeshAsset.h</code>、<code>FStaticModelAsset.h</code>：理解公开 CPU value model。</li><li><code>FStaticModelImport.h</code>：看 limits、policy、statistics 与 request contract。</li><li><code>FGLTFContainerPreflight.cpp</code>、<code>FGLTFAccessorDecoder.cpp</code>：看不可信 bytes 如何受控进入 typed data。</li><li><code>FGLTFGeometryNormalizer.cpp</code> 与 normal/tangent generators：看坐标和 tangent frame。</li><li><code>FGLTFPackageIdentityPlanner.cpp</code>、<code>FGLTFHierarchyBuilder.cpp</code>、<code>FGLTFPackageAssembler.cpp</code>：看 identity 与原子 package。</li><li><code>FStaticMeshAssetConversion.cpp</code>、<code>FStaticMeshRealization.cpp</code>：看 Asset 如何成为 RHI buffers。</li><li><code>AssetStaticModelDeterminism.cpp</code> 与 fixture verifier：从 evidence 反推 contract。</li></ol>
+<h3>4. 自测问题</h3><ul><li>为什么 glTF basis reflection 后不应再交换 triangle indices？</li><li>为什么 node negative determinant 不能和 source basis parity 合并？</li><li>为什么 Mesh Asset 保存 typed streams 而 Renderer 才 interleave？</li><li>为什么一个 glTF 文件需要产出多个 typed AssetId？</li><li>为什么 display name 不适合作为 subresource identity？</li><li>为什么 glTF Validator pass 仍可能得到 UnsupportedFeature？</li><li>为什么 import transaction 与 GPU realization transaction 必须分成两层？</li><li>未来 Meshlet cooker 如何复用本期 source manifest 与 profile digest？</li></ul>
+</section></main></div></body></html>

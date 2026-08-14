@@ -1,0 +1,4 @@
+feature=019-deferred-rendering-pipeline
+profile=deterministic
+test-exit-code=0
+validation-result=pass
