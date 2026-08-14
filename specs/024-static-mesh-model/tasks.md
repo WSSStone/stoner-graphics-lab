@@ -256,7 +256,7 @@ Vulkan transformed-mesh readback probe.
 - [X] T107 [US4] Add native Vulkan transformed-mesh upload, clockwise culling, non-symmetric matrix, and readback coverage in `Tests/VulkanNativeIntegrationTests.cpp`
 - [X] T108 [US4] Add deterministic and native realization orchestration plus timeout/report handling in `.github/scripts/run_static_model_validation.py` and `.github/scripts/test_run_static_model_validation.py`
 - [X] T109 [US4] Register `renderer-static-mesh`, compile US4 sources, and expose focused CLI selection in `Tests/Main.cpp` and `Tests/SConscript`
-- [ ] T110 [US4] Run mock and native US4 gates and record uploaded byte hashes, sections, cleanup, normalized realization diagnostics, and readback in `Validation/024/reports/us4-renderer-realization.txt`
+- [X] T110 [US4] Run mock and native US4 gates and record uploaded byte hashes, sections, cleanup, normalized realization diagnostics, and readback in `Validation/024/reports/us4-renderer-realization.txt`
 
 **Checkpoint**: Every accepted mesh can become a self-contained draw-ready
 snapshot without re-reading source files or leaking partial GPU state.
@@ -296,11 +296,11 @@ cross-platform, documentation, and closeout evidence.
 - [X] T121 Extend the three-platform strict Release matrix with Feature 024 determinism and non-reference performance evidence; keep the 5-second pass/fail threshold exclusive to the documented Apple M4 Pro reference gate in `.github/workflows/ci.yml`
 - [X] T122 Extend Linux ASan/UBSan and TSan jobs with malformed import, realization rollback, and eight-way concurrency suites in `.github/workflows/ci.yml`
 - [X] T123 Upload Feature 024 deterministic, native, malformed, performance, and architecture reports with required-file behavior in `.github/workflows/ci.yml`
-- [ ] T124 Run the complete local quickstart, refresh affected Feature 018/019 native evidence, and record command/result hashes in `Validation/018/`, `Validation/019/`, and `Validation/024/reports/quickstart.txt`
+- [X] T124 Run the complete local quickstart, refresh affected Feature 018/019 native evidence, and record command/result hashes in `Validation/018/`, `Validation/019/`, and `Validation/024/reports/quickstart.txt`
 - [X] T125 Generate the implementation summary according to `doc/SYSTEM_DESIGN.MD` in `doc/024-static-mesh-model.html`
-- [ ] T126 Execute the Windows/macOS/Linux CI matrix and archive run URLs, toolchains, tolerated numeric deltas, and artifact hashes in `Validation/024/reports/cross-platform-ci.md`
-- [ ] T127 Run `git diff --check`, all focused suites, full Debug/strict Release regressions, sanitizer gates, fixture verifiers, architecture and stale-coordinate checks, and the commands in `specs/024-static-mesh-model/quickstart.md`; require the Apple M4 Pro reference performance gate to pass, then record the final closeout in `Validation/024/README.md`
-- [ ] T128 After T126 and T127 pass, update completed Feature 024 status, actual dependency evidence, and next-stage guidance in `doc/roadmap.md` and `AGENTS.md`
+- [X] T126 Execute the Windows/macOS/Linux CI matrix and archive run URLs, toolchains, tolerated numeric deltas, and artifact hashes in `Validation/024/reports/cross-platform-ci.md`
+- [X] T127 Run `git diff --check`, all focused suites, full Debug/strict Release regressions, sanitizer gates, fixture verifiers, architecture and stale-coordinate checks, and the commands in `specs/024-static-mesh-model/quickstart.md`; require the Apple M4 Pro reference performance gate to pass, then record the final closeout in `Validation/024/README.md`
+- [X] T128 After T126 and T127 pass, update completed Feature 024 status, actual dependency evidence, and next-stage guidance in `doc/roadmap.md` and `AGENTS.md`
 
 ---
 

@@ -19,6 +19,7 @@ Status: Complete
 - Three-platform deterministic and Linux Lavapipe validation jobs are configured in `.github/workflows/ci.yml`.
 - GitHub Actions CI run [29935956348](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/29935956348) completed successfully for commit `fa2ffff6b22baad9e4c8f5137285b8b08517555f`. Windows, macOS, and Linux builds and deterministic validation all passed; Linux additionally resolved Lavapipe and passed native-headless Vulkan validation.
 - Linux CI run `29935956348-fa2ffff6b22b` completed 4,096 of 4,096 native Vulkan frames on software adapter `llvmpipe (LLVM 20.1.2, 256 bits)`. Its 28 RSS samples produced equal 84,000,768-byte baseline/final medians, final live objects were zero, and validation passed. The normalized `triangle-demo-Linux` artifact report is retained at `Validation/018/Linux/triangle-report.txt`.
+- Feature 024 coordinate-migration refresh run [31766671726](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/31766671726) completed 4,096 of 4,096 native Lavapipe frames at commit `945076d5074c1256bec6ac6c841fc19449fc5e85`, retained zero final live objects, and passed under the Unreal-style +X-forward/clockwise convention. The refreshed report SHA-256 is `63824a4d16cad1e404b67179588a7d92ad949c63cac14b7b9b23435dff8d8f12`.
 
 ## Requirement Reconciliation
 

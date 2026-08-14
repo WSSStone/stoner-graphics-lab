@@ -1,5 +1,5 @@
 feature=018-triangle-demo-integration
-run-id=29935956348-fa2ffff6b22b
+run-id=31766671726-64d1dd80b025
 mode=headless-vulkan
 runtime-object-mode=native
 adapter=llvmpipe (LLVM 20.1.2, 256 bits)
@@ -9,8 +9,8 @@ completed-frames=4096
 frames-in-flight=2
 time-to-first-present-ms=0.000
 memory-samples=28
-memory-baseline-bytes=84000768
-memory-final-bytes=84000768
+memory-baseline-bytes=85655552
+memory-final-bytes=85655552
 final-live-objects=0
 validation-result=pass
 recovery-count=0
