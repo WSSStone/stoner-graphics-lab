@@ -55,10 +55,17 @@ def parse_args(argv=None):
 def main(argv=None):
     args = parse_args(argv)
     env = os.environ.copy()
-    suites = ["renderer-static-mesh"]
+    suites = [
+        "asset-static-model",
+        "asset-gltf-malformed",
+        "renderer-static-mesh",
+    ]
     if args.profile == "native":
         env["STONER_REQUIRE_STATIC_MESH_NATIVE"] = "1"
         env["STONER_REQUIRE_DEFERRED_NATIVE"] = "1"
+        env["STONER_STATIC_MESH_NATIVE_REPORT"] = (
+            "Validation/024/Linux/native-static-mesh-readback.txt"
+        )
         suites.extend(("vulkan-native", "deferred-native"))
 
     results = {}

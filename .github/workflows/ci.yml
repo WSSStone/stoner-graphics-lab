@@ -29,6 +29,8 @@ jobs:
             ktx2_validator_report_path: Validation/022/Linux/ktx-validate.json
             material_shader_report_path: Validation/023/Linux/determinism.txt
             material_shader_repository_report_path: Validation/023/Linux/repository.txt
+            static_model_report_path: Validation/024/Linux/deterministic.txt
+            static_model_architecture_path: Validation/024/Linux/architecture.txt
           - name: macOS headless
             os: macos-latest
             test_path: Build/Mac/Debug/Tests/StonerTest
@@ -40,6 +42,8 @@ jobs:
             ktx2_validator_report_path: Validation/022/macOS/ktx-validate.json
             material_shader_report_path: Validation/023/macOS/determinism.txt
             material_shader_repository_report_path: Validation/023/macOS/repository.txt
+            static_model_report_path: Validation/024/macOS/deterministic.txt
+            static_model_architecture_path: Validation/024/macOS/architecture.txt
           - name: Windows headless
             os: windows-latest
             test_path: Build/Win64/Debug/Tests/StonerTest.exe
@@ -51,6 +55,8 @@ jobs:
             ktx2_validator_report_path: Validation/022/Windows/ktx-validate.json
             material_shader_report_path: Validation/023/Windows/determinism.txt
             material_shader_repository_report_path: Validation/023/Windows/repository.txt
+            static_model_report_path: Validation/024/Windows/deterministic.txt
+            static_model_architecture_path: Validation/024/Windows/architecture.txt
 
     steps:
       - name: Checkout
@@ -80,6 +86,14 @@ jobs:
           python Tests/verify_material_shader_provenance.py
           python Tests/verify_repository_shader_assets.py --report ${{ matrix.material_shader_repository_report_path }}
           python -m unittest Tests/test_verify_material_shader_provenance.py Tests/test_verify_repository_shader_assets.py
+
+      - name: Verify Feature 024 corpus provenance and architecture
+        run: |
+          python Tests/verify_static_model_provenance.py
+          python Tests/verify_static_model_fixtures.py
+          python Tests/verify_coordinate_convention.py
+          python Tests/verify_asset_layer.py --stamp ${{ matrix.static_model_architecture_path }}
+          python -m unittest Tests/test_verify_static_model_provenance.py Tests/test_verify_static_model_fixtures.py Tests/test_verify_asset_layer.py Tests/test_generate_static_model_performance_fixture.py Tests/test_verify_coordinate_convention.py
 
       - name: Rebuild canonical encoder when pinned WASI SDK is available
         if: runner.os == 'Linux'
@@ -126,6 +140,26 @@ jobs:
           --suite renderer-material-asset
           --material-shader-determinism-runs 20
           --material-shader-report ${{ matrix.material_shader_report_path }}
+
+      - name: Run Feature 024 focused import malformed and Renderer gates
+        run: >-
+          ${{ matrix.test_path }}
+          --suite coordinate-convention
+          --suite asset-static-mesh
+          --suite asset-static-model
+          --suite asset-gltf-material
+          --suite asset-gltf-hardening
+          --suite asset-gltf-malformed
+          --suite renderer-static-mesh
+          --static-model-determinism-runs 2
+
+      - name: Run Feature 024 deterministic validation report
+        run: >-
+          python .github/scripts/run_static_model_validation.py
+          --profile deterministic
+          --tests ${{ matrix.test_path }}
+          --output ${{ matrix.static_model_report_path }}
+          --timeout-seconds 1200
 
       - name: Run Feature 022 RHI compressed format suite
         run: ${{ matrix.test_path }} --suite rhi
@@ -256,6 +290,17 @@ jobs:
             ${{ matrix.material_shader_repository_report_path }}
           if-no-files-found: error
 
+      - name: Upload Feature 024 Debug validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-model-debug-${{ runner.os }}
+          path: |
+            ${{ matrix.static_model_report_path }}
+            ${{ matrix.static_model_architecture_path }}
+            Validation/024/reports/us5-malformed-diagnostics.txt
+          if-no-files-found: error
+
   release-build:
     name: ${{ matrix.name }} Release
     runs-on: ${{ matrix.os }}
@@ -267,14 +312,20 @@ jobs:
             os: ubuntu-latest
             test_path: Build/Linux/Release/Tests/StonerTest
             report_path: Validation/023/Linux/release-determinism.txt
+            static_model_report_path: Validation/024/Linux/release-determinism.txt
+            static_model_performance_path: Validation/024/Linux/release-performance.json
           - name: macOS
             os: macos-latest
             test_path: Build/Mac/Release/Tests/StonerTest
             report_path: Validation/023/macOS/release-determinism.txt
+            static_model_report_path: Validation/024/macOS/release-determinism.txt
+            static_model_performance_path: Validation/024/macOS/release-performance.json
           - name: Windows
             os: windows-latest
             test_path: Build/Win64/Release/Tests/StonerTest.exe
             report_path: Validation/023/Windows/release-determinism.txt
+            static_model_report_path: Validation/024/Windows/release-determinism.txt
+            static_model_performance_path: Validation/024/Windows/release-performance.json
 
     steps:
       - name: Checkout
@@ -298,12 +349,43 @@ jobs:
           --material-shader-determinism-runs 20
           --material-shader-report ${{ matrix.report_path }}
 
+      - name: Run Feature 024 strict Release determinism
+        run: >-
+          python .github/scripts/run_static_model_validation.py
+          --profile deterministic
+          --tests ${{ matrix.test_path }}
+          --output ${{ matrix.static_model_report_path }}
+          --timeout-seconds 1200
+
+      - name: Run Feature 024 non-reference performance sample
+        run: >-
+          ${{ matrix.test_path }}
+          --suite asset-static-model
+          --static-model-determinism-runs 1
+          --static-model-performance-runs 1
+          --static-model-performance-max-seconds 60
+          --static-model-performance-fixture Tests/Fixtures/StaticModel/Performance/Representative.glb
+
+      - name: Preserve Feature 024 platform performance report
+        run: >-
+          python -c "from pathlib import Path; p=Path(r'${{ matrix.static_model_performance_path }}'); p.parent.mkdir(parents=True, exist_ok=True); p.write_bytes(Path('Validation/024/reports/performance.json').read_bytes())"
+
       - name: Upload Feature 023 strict Release report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: material-shader-assets-release-${{ runner.os }}
           path: ${{ matrix.report_path }}
+          if-no-files-found: error
+
+      - name: Upload Feature 024 strict Release reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-model-release-${{ runner.os }}
+          path: |
+            ${{ matrix.static_model_report_path }}
+            ${{ matrix.static_model_performance_path }}
           if-no-files-found: error
 
   linux-sanitizers:
@@ -340,6 +422,14 @@ jobs:
           --suite triangle-demo
           --suite deferred-native
 
+      - name: Run sanitized Feature 024 malformed rollback and concurrency gates
+        run: >-
+          Build/Linux/Debug/Tests/StonerTest
+          --suite asset-gltf-malformed
+          --suite asset-static-model
+          --suite renderer-static-mesh
+          --static-model-determinism-runs 2
+
       - name: Run sanitized Feature 022 Renderer texture suite
         run: Build/Linux/Debug/Tests/StonerTest --suite renderer-texture
 
@@ -365,8 +455,10 @@ jobs:
       - name: Build focused tests with ThreadSanitizer
         run: scons config=debug strict=1 sanitizers=thread
 
-      - name: Run Feature 023 eight-way immutable Asset and Renderer gate
+      - name: Run Feature 023-024 eight-way immutable Asset and Renderer gates
         run: >-
           Build/Linux/Debug/Tests/StonerTest
           --suite asset-material-shader
           --suite renderer-material-asset
+          --suite asset-static-model
+          --static-model-determinism-runs 2

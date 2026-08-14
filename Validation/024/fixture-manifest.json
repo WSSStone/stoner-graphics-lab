@@ -1170,6 +1170,28 @@
       "source_url": "repository-owned://feature-024/materials",
       "upstream_revision": "feature-024-v1",
       "validator_result": "valid"
+    },
+    {
+      "expected_result": "success",
+      "generator": "Tests/Fixtures/StaticModel/Performance/generate_performance_fixture.py",
+      "generator_sha256": "sha256:399ce03b7f3f50d768852c8e678ecda52153a0028aafbc8c7e1982f96d9e6930",
+      "license": "CC0-1.0",
+      "path": "Tests/Fixtures/StaticModel/Performance/Representative.glb",
+      "performance_shape": {
+        "indices": 300000,
+        "materials": 16,
+        "primitives": 16,
+        "textures": 0,
+        "vertices": 100000
+      },
+      "scope": [
+        "performance",
+        "SC-008"
+      ],
+      "sha256": "sha256:559828d17e85f5b22df4bd8a8e3eb8255b0aefc0fd11fbb027fe0b72a86a4b57",
+      "source_url": "repository-owned://feature-024/performance",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "valid"
     }
   ],
   "schema": "stoner.static-model.fixture-manifest/v1"

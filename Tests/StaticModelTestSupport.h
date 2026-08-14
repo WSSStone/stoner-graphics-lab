@@ -39,12 +39,68 @@ private:
     TArray<uint8> Bytes_;
 };
 
+class FFixtureResolver final : public IAssetResolver
+{
+public:
+    FAssetExtensionCapability GetCapability() const override
+    {
+        FAssetExtensionCapability Capability;
+        Capability.Kind = EAssetExtensionKind::Resolver;
+        (void)FAssetParticipantId::Create(
+            FString("tests.static-model-fixture"), Capability.Participant);
+        (void)FAssetProducerVersion::Create(
+            FString("1"), Capability.ProducerVersion);
+        Capability.Schemes = {FString("fixture")};
+        return Capability;
+    }
+
+    FAssetResolveResult Resolve(const FAssetResolveRequest& Request) override
+    {
+        FAssetResolveResult Result;
+        const std::filesystem::path Path(
+            Request.Location.GetLocator().ToStdString());
+        if (!std::filesystem::is_regular_file(Path)) return Result;
+        std::ifstream Stream(Path, std::ios::binary);
+        TArray<uint8> Bytes{
+            std::istreambuf_iterator<char>(Stream),
+            std::istreambuf_iterator<char>()};
+        Result.Result = EAssetResult::Success;
+        Result.Descriptor.Location = Request.Location;
+        Result.Descriptor.Size = Bytes.size();
+        const std::string Extension = Path.extension().string();
+        Result.Descriptor.FormatHint = FString(
+            Extension == ".png" ? "png" : Extension == ".hdr" ? "hdr" : "jpeg");
+        Result.Source = FAssetSourceLease(
+            MakeShared<FMemorySource>(std::move(Bytes)));
+        return Result;
+    }
+};
+
 inline TArray<uint8> ReadFixture(const std::filesystem::path& Path)
 {
     std::ifstream Stream(Path, std::ios::binary);
     return {
         std::istreambuf_iterator<char>(Stream),
         std::istreambuf_iterator<char>()};
+}
+
+inline TArray<std::filesystem::path> ValidFixturePaths()
+{
+    TArray<std::filesystem::path> Paths;
+    const std::filesystem::path Root = "Tests/Fixtures/StaticModel";
+    for (const auto& Entry : std::filesystem::recursive_directory_iterator(Root))
+    {
+        const bool InInvalidCorpus =
+            Entry.path().generic_string().find("/Invalid/") != std::string::npos;
+        if (!InInvalidCorpus && Entry.is_regular_file() &&
+            (Entry.path().extension() == ".gltf" ||
+             Entry.path().extension() == ".glb"))
+        {
+            Paths.push_back(Entry.path());
+        }
+    }
+    std::sort(Paths.begin(), Paths.end());
+    return Paths;
 }
 
 inline FAssetImportRequest MakeRequest(
@@ -98,6 +154,22 @@ inline TArray<FAssetImportOutput> Import(
         return Outputs;
     }
     OutResult = FAssetDispatch::Import(Extensions, Request, Outputs);
+    return Outputs;
+}
+
+inline TArray<FAssetImportOutput> ImportPackage(
+    const std::filesystem::path& Path,
+    EAssetResult& OutResult,
+    FAssetDiagnosticList* Diagnostics = nullptr,
+    FStaticModelImportProfile Profile = {})
+{
+    FStaticModelImportRequest Request;
+    Request.AssetRequest = MakeRequest(Path, {}, std::move(Profile));
+    Request.Profile = std::dynamic_pointer_cast<const FStaticModelImportProfile>(
+        Request.AssetRequest.Parameters);
+    Request.DependencyResolver = MakeShared<FFixtureResolver>();
+    TArray<FAssetImportOutput> Outputs;
+    OutResult = ImportStaticModel(Request, Outputs, Diagnostics);
     return Outputs;
 }
 

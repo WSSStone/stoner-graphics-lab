@@ -1,0 +1,9 @@
+feature=024-static-mesh-model
+profile=deterministic
+asset-static-model-exit-code=0
+asset-gltf-malformed-exit-code=0
+renderer-static-mesh-exit-code=0
+renderer-buffer-uploads=required
+indexed-clockwise-readback=required
+non-symmetric-matrix-readback=not-run
+validation-result=pass

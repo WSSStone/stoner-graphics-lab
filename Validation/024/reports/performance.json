@@ -1,0 +1,25 @@
+{
+  "schema": "stoner.static-model.performance/v1",
+  "reference_profile": "Apple M4 Pro macOS Release",
+  "platform": "macOS",
+  "build_profile": "Release",
+  "compiler": "Clang 21.0.0 (clang-2100.1.1.101)",
+  "cpu_model": "Apple M4 Pro",
+  "os_version": "26.5.2",
+  "hardware_threads": 14,
+  "fixture": "Tests/Fixtures/StaticModel/Performance/Representative.glb",
+  "fixture_sha256": "559828d17e85f5b22df4bd8a8e3eb8255b0aefc0fd11fbb027fe0b72a86a4b57",
+  "warmup_runs": 1,
+  "measured_runs": 5,
+  "warmup_seconds": 0.016074833,
+  "max_seconds": 5,
+  "aggregate_allocation_limit_bytes": 1073741824,
+  "measured": [
+    {"seconds": 0.015102208, "source_bytes": 3113640, "parser_peak_bytes": 55417, "dependency_bytes": 0, "decoded_geometry_bytes": 3800000, "tracked_request_owned_peak_bytes": 13196337},
+    {"seconds": 0.01449925, "source_bytes": 3113640, "parser_peak_bytes": 55417, "dependency_bytes": 0, "decoded_geometry_bytes": 3800000, "tracked_request_owned_peak_bytes": 13196337},
+    {"seconds": 0.014996667, "source_bytes": 3113640, "parser_peak_bytes": 55417, "dependency_bytes": 0, "decoded_geometry_bytes": 3800000, "tracked_request_owned_peak_bytes": 13196337},
+    {"seconds": 0.014715708, "source_bytes": 3113640, "parser_peak_bytes": 55417, "dependency_bytes": 0, "decoded_geometry_bytes": 3800000, "tracked_request_owned_peak_bytes": 13196337},
+    {"seconds": 0.014793708, "source_bytes": 3113640, "parser_peak_bytes": 55417, "dependency_bytes": 0, "decoded_geometry_bytes": 3800000, "tracked_request_owned_peak_bytes": 13196337}
+  ],
+  "passed": true
+}

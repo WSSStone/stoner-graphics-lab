@@ -6,7 +6,8 @@
 
 FAssetTestResult RunAssetTests(
     const FAssetKTX2TestOptions& Options,
-    const FAssetMaterialShaderTestOptions& MaterialShaderOptions)
+    const FAssetMaterialShaderTestOptions& MaterialShaderOptions,
+    const FAssetStaticModelTestOptions& StaticModelOptions)
 {
     const FAssetCoreTestResult Core = RunAssetCoreTests();
     const FAssetImageTextureTestResult Image = RunAssetImageTextureTests();
@@ -22,6 +23,11 @@ FAssetTestResult RunAssetTests(
         RunAssetStaticModelHierarchyTests();
     const FAssetStaticModelIdentityTestResult StaticModelIdentity =
         RunAssetStaticModelIdentityTests();
+    const auto StaticModelDeterminism =
+        RunAssetStaticModelDeterminismTests(StaticModelOptions);
+    const auto StaticModelConcurrency = RunAssetStaticModelConcurrencyTests();
+    const auto StaticModelBenchmark =
+        RunAssetStaticModelBenchmark(StaticModelOptions);
     const FAssetGLTFMaterialTestResult GLTFMaterial =
         RunAssetGLTFMaterialTests();
     const FAssetGLTFImageDependencyTestResult GLTFImage =
@@ -37,11 +43,15 @@ FAssetTestResult RunAssetTests(
         Core.Passed + Image.Passed + KTX2.Passed + MaterialShader.Passed +
             StaticMesh.Passed + GLTFPolicy.Passed + GLTFContainer.Passed +
             StaticModelHierarchy.Passed + StaticModelIdentity.Passed +
+            StaticModelDeterminism.Passed + StaticModelConcurrency.Passed +
+            StaticModelBenchmark.Passed +
             GLTFMaterial.Passed + GLTFImage.Passed + GLTFMalformed.Passed +
             GLTFResolver.Passed + GLTFLimit.Passed + GLTFDiagnostic.Passed,
         Core.Failed + Image.Failed + KTX2.Failed + MaterialShader.Failed +
             StaticMesh.Failed + GLTFPolicy.Failed + GLTFContainer.Failed +
             StaticModelHierarchy.Failed + StaticModelIdentity.Failed +
+            StaticModelDeterminism.Failed + StaticModelConcurrency.Failed +
+            StaticModelBenchmark.Failed +
             GLTFMaterial.Failed + GLTFImage.Failed + GLTFMalformed.Failed +
             GLTFResolver.Failed + GLTFLimit.Failed + GLTFDiagnostic.Failed};
 }

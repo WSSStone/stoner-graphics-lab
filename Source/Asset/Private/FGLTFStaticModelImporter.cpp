@@ -569,8 +569,14 @@ EAssetResult ImportMeshes(
     std::span<const Core::uint8> SourceBytes,
     const Core::TSharedPtr<IAssetResolver>& Resolver,
     Core::TArray<FAssetImportOutput>& OutOutputs,
-    FAssetDiagnosticList* Diagnostics)
+    FAssetDiagnosticList* Diagnostics,
+    FStaticModelImportStatistics* Statistics)
 {
+    if (Statistics != nullptr)
+    {
+        *Statistics = {};
+        Statistics->SourceBytes = static_cast<Core::uint64>(SourceBytes.size());
+    }
     FCgltfDocument Document;
     EAssetResult Result = FCgltfDocument::Parse(
         SourceBytes, Profile, Document, Diagnostics);
@@ -578,6 +584,8 @@ EAssetResult ImportMeshes(
     {
         return Result;
     }
+    if (Statistics != nullptr)
+        Statistics->ParserPeakBytes = Document.GetParserAllocatedBytes();
     const cgltf_data* Data = Document.GetNativeDocument();
     if (Data == nullptr || Data->meshes_count == 0)
         return EAssetResult::MalformedSource;
@@ -599,6 +607,8 @@ EAssetResult ImportMeshes(
     {
         return Result;
     }
+    if (Statistics != nullptr)
+        Statistics->DependencyBytes = AggregateDependencyBytes;
     const Core::FString LogicalPath = Request.Descriptor.Location.GetLocator();
     FGLTFPackageIdentityPlan Identities;
     Result = PlanGLTFPackageIdentities(
@@ -865,6 +875,25 @@ EAssetResult ImportMeshes(
             OptionalExtensionSummary(*Data)});
         OutOutputs.push_back({std::move(Metadata), Model});
     }
+    if (Statistics != nullptr)
+    {
+        Statistics->DecodedGeometryBytes = DecodedGeometryBytes;
+        const Core::uint64 SourceCopies = Statistics->SourceBytes <=
+                std::numeric_limits<Core::uint64>::max() / 3
+            ? Statistics->SourceBytes * 3
+            : std::numeric_limits<Core::uint64>::max();
+        Core::uint64 Peak = SourceCopies;
+        const auto Add = [&Peak](Core::uint64 Bytes)
+        {
+            Peak = Bytes <= std::numeric_limits<Core::uint64>::max() - Peak
+                ? Peak + Bytes
+                : std::numeric_limits<Core::uint64>::max();
+        };
+        Add(Statistics->ParserPeakBytes);
+        Add(Statistics->DependencyBytes);
+        Add(Statistics->DecodedGeometryBytes);
+        Statistics->TrackedRequestOwnedPeakBytes = Peak;
+    }
     std::sort(OutOutputs.begin(), OutOutputs.end(),
         [](const FAssetImportOutput& Left, const FAssetImportOutput& Right)
         {
@@ -951,7 +980,8 @@ EAssetResult FGLTFStaticModelImporter::Import(
     if (Result == EAssetResult::Success)
     {
         Result = ImportMeshes(
-            Request, *Profile, SourceBytes, nullptr, CandidateOutputs, Diagnostics);
+            Request, *Profile, SourceBytes, nullptr, CandidateOutputs, Diagnostics,
+            nullptr);
     }
     if (Result != EAssetResult::Success)
     {
@@ -970,6 +1000,7 @@ EAssetResult FGLTFStaticModelImporter::Import(
     FAssetDiagnosticList* Diagnostics)
 {
     if (Diagnostics != nullptr) Diagnostics->clear();
+    if (Request.Statistics != nullptr) *Request.Statistics = {};
     if (!Request.Profile || Request.Profile->Validate() != EAssetResult::Success ||
         !Request.AssetRequest.Descriptor.Location.IsValid() ||
         !Request.AssetRequest.Source.IsValid())
@@ -982,7 +1013,8 @@ EAssetResult FGLTFStaticModelImporter::Import(
     if (Result == EAssetResult::Success)
         Result = ImportMeshes(
             Request.AssetRequest, *Request.Profile, SourceBytes,
-            Request.DependencyResolver, CandidateOutputs, Diagnostics);
+            Request.DependencyResolver, CandidateOutputs, Diagnostics,
+            Request.Statistics);
     if (Result == EAssetResult::Success)
         OutOutputs = std::move(CandidateOutputs);
     else AddDiagnostic(Diagnostics, EAssetStage::Import, Result,
