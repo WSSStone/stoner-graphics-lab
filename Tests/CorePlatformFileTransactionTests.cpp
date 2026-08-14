@@ -236,11 +236,32 @@ FCorePlatformFileTransactionTestResult RunCorePlatformFileTransactionTests()
     {
         LongDirectory /= "component-0123456789";
     }
-    std::filesystem::create_directories(LongDirectory, Error);
+    const std::filesystem::path LongFile = LongDirectory / "payload.bin";
+    TArray<uint8> LongReadBack;
+    FPlatformFileInfo LongInfo;
+    FPlatformFileEnumerationOptions LongOptions;
+    LongOptions.MaxFiles = 2;
+    LongOptions.MaxDepth = 2;
+    LongOptions.MaxPathBytes = 1024;
+    TArray<FPlatformFileInfo> LongFiles;
     Record(Result,
-        !Error && FPlatformFileSystem::WriteFileDurable(
-            ToString(LongDirectory / "payload.bin"), Bytes("long")).IsSuccess(),
-        "Durable write supports long nested paths");
+        LongFile.generic_string().size() > 260 &&
+        FPlatformFileSystem::CreateDirectory(ToString(LongDirectory)) &&
+        FPlatformFileSystem::WriteFileDurable(
+            ToString(LongFile), Bytes("long")).IsSuccess() &&
+        FPlatformFileSystem::ReadFile(ToString(LongFile), LongReadBack) &&
+        Equals(LongReadBack, "long") &&
+        FPlatformFileSystem::QueryRegularFile(
+            ToString(LongFile), 4, LongInfo).IsSuccess() &&
+        FPlatformFileSystem::EnumerateRegularFiles(
+            ToString(LongDirectory), LongOptions, LongFiles).IsSuccess() &&
+        LongFiles.size() == 1,
+        "File transactions support absolute paths beyond 260 characters");
+    Record(Result,
+        FPlatformFileSystem::RemoveTreeContained(
+            ToString(Root), ToString(Root / "LongPath"), 32).IsSuccess() &&
+        !FPlatformFileSystem::Exists(ToString(Root / "LongPath")),
+        "Contained removal supports absolute paths beyond 260 characters");
     Error.clear();
 
 #if !SG_PLATFORM_WINDOWS

@@ -93,12 +93,37 @@ std::filesystem::path Detail::ToNativePath(const FString& Path)
     {
         NativeUtf8Path.push_back(static_cast<char8_t>(Byte));
     }
-    return std::filesystem::path(NativeUtf8Path);
+    std::filesystem::path NativePath(NativeUtf8Path);
+#if SG_PLATFORM_WINDOWS
+    NativePath.make_preferred();
+    if (NativePath.is_absolute())
+    {
+        const std::wstring Native = NativePath.native();
+        if (!Native.starts_with(L"\\\\?\\"))
+        {
+            if (Native.starts_with(L"\\\\"))
+                return std::filesystem::path(
+                    L"\\\\?\\UNC\\" + Native.substr(2));
+            return std::filesystem::path(L"\\\\?\\" + Native);
+        }
+    }
+#endif
+    return NativePath;
 }
 
 FString Detail::FromNativePath(const std::filesystem::path& Path)
 {
+#if SG_PLATFORM_WINDOWS
+    const std::wstring Native = Path.native();
+    std::filesystem::path PortablePath = Path;
+    if (Native.starts_with(L"\\\\?\\UNC\\"))
+        PortablePath = std::filesystem::path(L"\\\\" + Native.substr(8));
+    else if (Native.starts_with(L"\\\\?\\"))
+        PortablePath = std::filesystem::path(Native.substr(4));
+    const std::u8string Utf8 = PortablePath.generic_u8string();
+#else
     const std::u8string Utf8 = Path.generic_u8string();
+#endif
     std::string Text;
     Text.reserve(Utf8.size());
     for (const char8_t Byte : Utf8)
