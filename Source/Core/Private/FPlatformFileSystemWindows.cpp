@@ -41,6 +41,13 @@ FPlatformFileStatus FromWindowsError(DWORD Error, const char* Context)
         ClassifyWindowsError(Error), static_cast<int64>(Error), Context);
 }
 
+bool IsAtomicReplacementWindow(DWORD Error)
+{
+    return Error == ERROR_FILE_NOT_FOUND ||
+        Error == ERROR_PATH_NOT_FOUND ||
+        Error == ERROR_SHARING_VIOLATION;
+}
+
 } // namespace
 
 bool PlatformReadFile(
@@ -48,14 +55,25 @@ bool PlatformReadFile(
     TArray<uint8>& OutData)
 {
     OutData.clear();
-    HANDLE File = ::CreateFileW(
-        Path.c_str(),
-        GENERIC_READ,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-        nullptr,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
-        nullptr);
+    HANDLE File = INVALID_HANDLE_VALUE;
+    constexpr int MaxOpenAttempts = 64;
+    for (int Attempt = 0; Attempt < MaxOpenAttempts; ++Attempt)
+    {
+        File = ::CreateFileW(
+            Path.c_str(),
+            GENERIC_READ,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            nullptr,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
+            nullptr);
+        if (File != INVALID_HANDLE_VALUE ||
+            !IsAtomicReplacementWindow(::GetLastError()))
+        {
+            break;
+        }
+        ::SwitchToThread();
+    }
     if (File == INVALID_HANDLE_VALUE)
     {
         return false;
