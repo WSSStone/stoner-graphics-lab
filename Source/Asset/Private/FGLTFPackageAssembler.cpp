@@ -1,17 +1,47 @@
 #include "FGLTFPackageAssembler.h"
 
 #include "FGLTFHierarchyBuilder.h"
+#include "FGLTFImageTextureBridge.h"
 #include "FStaticMeshBounds.h"
 
 #include "cgltf/cgltf.h"
 
 #include <algorithm>
 #include <functional>
+#include <optional>
+#include <set>
+#include <string>
 
 namespace Stoner::Asset::Private
 {
 namespace
 {
+
+const char* SemanticSuffix(ETextureSemantic Semantic)
+{
+    switch (Semantic)
+    {
+    case ETextureSemantic::Color: return "color";
+    case ETextureSemantic::Normal: return "normal";
+    case ETextureSemantic::Data: return "data";
+    case ETextureSemantic::Unspecified: break;
+    }
+    return "invalid";
+}
+
+EAssetResult AddTextureUse(
+    const cgltf_data& Data,
+    const cgltf_texture_view& View,
+    ETextureSemantic Semantic,
+    std::set<std::pair<Core::uint32, ETextureSemantic>>& Uses)
+{
+    if (View.texture == nullptr) return EAssetResult::Success;
+    if (View.texture < Data.textures ||
+        View.texture >= Data.textures + Data.textures_count)
+        return EAssetResult::MalformedSource;
+    Uses.insert({static_cast<Core::uint32>(View.texture - Data.textures), Semantic});
+    return EAssetResult::Success;
+}
 
 FAssetDigest MakeModelDigest(
     const FAssetDigest& Source,
@@ -87,6 +117,60 @@ EAssetResult BuildModelBounds(
 }
 
 } // namespace
+
+EAssetResult PlanGLTFTextureVariants(
+    const cgltf_data& Data,
+    const FGLTFPackageIdentityPlan& Identities,
+    Core::TArray<FGLTFTextureVariant>& OutVariants)
+{
+    OutVariants.clear();
+    if (Identities.TextureIds.size() != Data.textures_count)
+        return EAssetResult::InvalidInput;
+    std::set<std::pair<Core::uint32, ETextureSemantic>> Uses;
+    for (const cgltf_material& Material :
+         std::span<const cgltf_material>(Data.materials, Data.materials_count))
+    {
+        EAssetResult Result = AddTextureUse(Data,
+            Material.pbr_metallic_roughness.base_color_texture,
+            ETextureSemantic::Color, Uses);
+        if (Result == EAssetResult::Success) Result = AddTextureUse(Data,
+            Material.pbr_metallic_roughness.metallic_roughness_texture,
+            ETextureSemantic::Data, Uses);
+        if (Result == EAssetResult::Success) Result = AddTextureUse(
+            Data, Material.normal_texture, ETextureSemantic::Normal, Uses);
+        if (Result == EAssetResult::Success) Result = AddTextureUse(
+            Data, Material.occlusion_texture, ETextureSemantic::Data, Uses);
+        if (Result == EAssetResult::Success) Result = AddTextureUse(
+            Data, Material.emissive_texture, ETextureSemantic::Color, Uses);
+        if (Result != EAssetResult::Success) return Result;
+    }
+    for (Core::uint32 Index = 0; Index < Data.textures_count; ++Index)
+    {
+        const bool HasUse = std::any_of(Uses.begin(), Uses.end(),
+            [Index](const auto& Use) { return Use.first == Index; });
+        if (!HasUse) Uses.insert({Index, ETextureSemantic::Data});
+    }
+    for (const auto& [Index, Semantic] : Uses)
+    {
+        const Core::usize UseCount = static_cast<Core::usize>(std::count_if(
+            Uses.begin(), Uses.end(),
+            [Index](const auto& Use) { return Use.first == Index; }));
+        FAssetId Id = Identities.TextureIds[Index];
+        if (UseCount > 1)
+        {
+            if (!Id.GetSubresource()) return EAssetResult::InvalidIdentity;
+            const Core::FString Key(
+                Id.GetSubresource()->ToStdString() + "." + SemanticSuffix(Semantic));
+            const Core::FString Type = Id.GetAssetType();
+            const Core::FString Path = Id.GetLogicalPath();
+            const EAssetResult Result = FAssetId::Create(
+                Type, Path, std::optional<Core::FString>(Key), Id);
+            if (Result != EAssetResult::Success) return Result;
+        }
+        OutVariants.push_back({Index, Semantic, std::move(Id)});
+    }
+    return EAssetResult::Success;
+}
 
 EAssetResult AssembleGLTFModels(
     const cgltf_data& Data,

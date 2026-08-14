@@ -183,23 +183,23 @@ failure.
 
 ### Tests For User Story 3
 
-- [ ] T072 [P] [US3] Add failing PBR factors, alpha, two-sided, texture-binding, UV/sampler, and default-material mapping tests in `Tests/AssetGLTFMaterialTests.cpp` and `Tests/AssetGLTFMaterialTests.h`
-- [ ] T073 [P] [US3] Add failing color/data semantic split, shared-image, embedded/external PNG/JPEG, and dependency failure tests in `Tests/AssetGLTFImageDependencyTests.cpp` and `Tests/AssetGLTFImageDependencyTests.h`
-- [ ] T074 [P] [US3] Add licensed core PBR, sampler, UV1, alpha, shared-image, and invalid dependency fixtures in `Tests/Fixtures/StaticModel/Valid/Materials/` and `Tests/Fixtures/StaticModel/Invalid/Materials/`
+- [X] T072 [P] [US3] Add failing PBR factors, alpha, two-sided, texture-binding, UV/sampler, and default-material mapping tests in `Tests/AssetGLTFMaterialTests.cpp` and `Tests/AssetGLTFMaterialTests.h`
+- [X] T073 [P] [US3] Add failing color/data semantic split, shared-image, embedded/external PNG/JPEG, and dependency failure tests in `Tests/AssetGLTFImageDependencyTests.cpp` and `Tests/AssetGLTFImageDependencyTests.h`
+- [X] T074 [P] [US3] Add licensed core PBR, sampler, UV1, alpha, shared-image, and invalid dependency fixtures in `Tests/Fixtures/StaticModel/Valid/Materials/` and `Tests/Fixtures/StaticModel/Invalid/Materials/`
 
 ### Implementation For User Story 3
 
-- [ ] T075 [US3] Define and validate a versioned glTF material mapping profile with explicit surface shader and parameter identities in `Source/Asset/Public/Asset/FGLTFMaterialMappingProfile.h` and `Source/Asset/Private/FGLTFMaterialMappingProfile.cpp`
-- [ ] T076 [US3] Map core metallic-roughness factors, texture roles, alpha state, double-sided state, scalar factors, and structured bindings in `Source/Asset/Private/FGLTFMaterialMapper.h` and `Source/Asset/Private/FGLTFMaterialMapper.cpp`
-- [ ] T077 [US3] Route embedded/data-URI/external PNG and JPEG bytes through Feature 021 Image/Texture import contracts with explicit color/data semantics in `Source/Asset/Private/FGLTFImageTextureBridge.h` and `Source/Asset/Private/FGLTFImageTextureBridge.cpp`
-- [ ] T078 [US3] Resolve source-relative image dependencies only through the scoped resolver and canonical source manifest in `Source/Asset/Private/FGLTFDependencyResolver.h` and `Source/Asset/Private/FGLTFDependencyResolver.cpp`
-- [ ] T079 [US3] Generate one deterministic package-local core-default Material v2 asset under the active mapping profile in `Source/Asset/Private/FGLTFDefaultMaterial.cpp`
-- [ ] T080 [US3] Deduplicate source images while splitting incompatible Texture semantic identities and dependency roles in `Source/Asset/Private/FGLTFPackageAssembler.cpp`
-- [ ] T081 [US3] Upgrade the repository deferred surface material and interface to schema v2 texture bindings without changing shader logical identity in `Content/Materials/DeferredSurface.material.json` and `Content/Shaders/Deferred/Surface.shader.json`
-- [ ] T082 [US3] Integrate material/image/texture outputs and all-or-nothing dependency validation into `Source/Asset/Private/FGLTFStaticModelImporter.cpp` and `Source/Asset/Private/FGLTFPackageValidator.cpp`
-- [ ] T083 [US3] Register `asset-gltf-material`, aggregate it into `asset`, and compile US3 sources in `Tests/Main.cpp`, `Tests/AssetTests.cpp`, and `Tests/SConscript`
-- [ ] T084 [US3] Add 20-run material/texture mapping and dependency digest evidence in `Tests/AssetGLTFMaterialTests.cpp` and `Validation/024/reports/material-determinism.txt`
-- [ ] T085 [US3] Run the complete US3 independent test and record all supported PBR fields, semantic splits, and atomic failures in `Validation/024/reports/us3-material-texture.txt`
+- [X] T075 [US3] Define and validate a versioned glTF material mapping profile with explicit surface shader and parameter identities in `Source/Asset/Public/Asset/FGLTFMaterialMappingProfile.h` and `Source/Asset/Private/FGLTFMaterialMappingProfile.cpp`
+- [X] T076 [US3] Map core metallic-roughness factors, texture roles, alpha state, double-sided state, scalar factors, and structured bindings in `Source/Asset/Private/FGLTFMaterialMapper.h` and `Source/Asset/Private/FGLTFMaterialMapper.cpp`
+- [X] T077 [US3] Route embedded/data-URI/external PNG and JPEG bytes through Feature 021 Image/Texture import contracts with explicit color/data semantics in `Source/Asset/Private/FGLTFImageTextureBridge.h` and `Source/Asset/Private/FGLTFImageTextureBridge.cpp`
+- [X] T078 [US3] Resolve source-relative image dependencies only through the scoped resolver and canonical source manifest in `Source/Asset/Private/FGLTFDependencyResolver.h` and `Source/Asset/Private/FGLTFDependencyResolver.cpp`
+- [X] T079 [US3] Generate one deterministic package-local core-default Material v2 asset under the active mapping profile in `Source/Asset/Private/FGLTFDefaultMaterial.cpp`
+- [X] T080 [US3] Deduplicate source images while splitting incompatible Texture semantic identities and dependency roles in `Source/Asset/Private/FGLTFPackageAssembler.cpp`
+- [X] T081 [US3] Upgrade the repository deferred surface material and interface to schema v2 texture bindings without changing shader logical identity in `Content/Materials/DeferredSurface.material.json` and `Content/Shaders/Deferred/Surface.shader.json`
+- [X] T082 [US3] Integrate material/image/texture outputs and all-or-nothing dependency validation into `Source/Asset/Private/FGLTFStaticModelImporter.cpp` and `Source/Asset/Private/FGLTFPackageValidator.cpp`
+- [X] T083 [US3] Register `asset-gltf-material`, aggregate it into `asset`, and compile US3 sources in `Tests/Main.cpp`, `Tests/AssetTests.cpp`, and `Tests/SConscript`
+- [X] T084 [US3] Add 20-run material/texture mapping and dependency digest evidence in `Tests/AssetGLTFMaterialTests.cpp` and `Validation/024/reports/material-determinism.txt`
+- [X] T085 [US3] Run the complete US3 independent test and record all supported PBR fields, semantic splits, and atomic failures in `Validation/024/reports/us3-material-texture.txt`
 
 **Checkpoint**: Imported geometry retains equivalent material and texture
 meaning through shared Asset contracts.

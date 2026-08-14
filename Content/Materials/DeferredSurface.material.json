@@ -1,6 +1,6 @@
 {
   "schema": "stoner.material",
-  "version": 1,
+  "version": 2,
   "id": {
     "type": "Material",
     "path": "Engine/Materials/DeferredSurface"
@@ -20,17 +20,39 @@
   "permutationFlags": [],
   "parameters": [
     {
-      "name": "BaseColor",
-      "type": "texture",
+      "name": "BaseColorTexture",
+      "type": "textureBinding",
       "value": {
-        "type": "Texture",
-        "path": "Engine/Textures/DefaultWhite"
+        "texture": "Texture:Engine/Textures/DefaultWhite",
+        "texCoord": 0,
+        "sampler": {
+          "min": "automatic",
+          "mag": "linear",
+          "mip": "automatic",
+          "addressU": "repeat",
+          "addressV": "repeat"
+        }
       }
     },
     {
-      "name": "Roughness",
+      "name": "BaseColorFactor",
+      "type": "color",
+      "value": [1.0, 1.0, 1.0, 1.0]
+    },
+    {
+      "name": "MetallicFactor",
+      "type": "scalar",
+      "value": 0.0
+    },
+    {
+      "name": "RoughnessFactor",
       "type": "scalar",
       "value": 0.5
+    },
+    {
+      "name": "EmissiveFactor",
+      "type": "color",
+      "value": [0.0, 0.0, 0.0, 1.0]
     }
   ],
   "extensions": {}

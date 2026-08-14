@@ -3,6 +3,9 @@
 #include "Asset/FAssetDigest.h"
 #include "Asset/FAssetImportRequest.h"
 #include "Asset/FAssetExtensionRegistry.h"
+#include "Asset/FAssetDiagnostics.h"
+#include "Asset/IAssetImporter.h"
+#include "Asset/IAssetResolver.h"
 #include "Core/FCoordinateConvention.h"
 
 namespace Stoner::Asset
@@ -76,6 +79,13 @@ public:
     [[nodiscard]] FAssetDigest GetDigest() const;
 };
 
+struct FStaticModelImportRequest
+{
+    FAssetImportRequest AssetRequest;
+    Core::TSharedPtr<IAssetResolver> DependencyResolver;
+    Core::TSharedPtr<const FStaticModelImportProfile> Profile;
+};
+
 [[nodiscard]] bool IsValidStaticMeshNormalPolicy(
     EStaticMeshNormalPolicy Value) noexcept;
 [[nodiscard]] bool IsValidStaticMeshTangentPolicy(
@@ -84,5 +94,10 @@ public:
 [[nodiscard]] EAssetResult RegisterStaticModelImporter(
     FAssetExtensionRegistry& Registry,
     FAssetRegistrationToken& OutToken);
+
+[[nodiscard]] EAssetResult ImportStaticModel(
+    const FStaticModelImportRequest& Request,
+    Core::TArray<FAssetImportOutput>& OutOutputs,
+    FAssetDiagnosticList* Diagnostics = nullptr);
 
 } // namespace Stoner::Asset

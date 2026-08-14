@@ -135,6 +135,16 @@ lib = BuildLayer(
                 'ThirdParty',
             ],
         },
+        'FGLTFImageTextureBridge.cpp': {
+            'include_paths': [
+                'ThirdParty',
+            ],
+        },
+        'FGLTFMaterialMapper.cpp': {
+            'include_paths': [
+                'ThirdParty',
+            ],
+        },
     },
     private_c_sources=[
         'ThirdParty/cgltf/cgltf.c',
