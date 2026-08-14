@@ -10,6 +10,7 @@
 #include "FCookInputSnapshot.h"
 
 #include <algorithm>
+#include <atomic>
 #include <map>
 #include <span>
 #include <string>

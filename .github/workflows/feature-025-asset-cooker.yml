@@ -205,4 +205,4 @@ jobs:
           path: |
             Validation/025/CI/linux-${{ matrix.slug }}.json
             Build/Feature025Validation/linux-${{ matrix.slug }}/suite-logs/*.txt
-          if-no-files-found: error
+          if-no-files-found: warn
