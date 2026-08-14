@@ -36,6 +36,9 @@ namespace Stoner::Core::Detail
 [[nodiscard]] bool PlatformReadFile(
     const std::filesystem::path& Path,
     TArray<uint8>& OutData);
+[[nodiscard]] FPlatformFileStatus PlatformCanonicalPath(
+    const std::filesystem::path& Path,
+    std::filesystem::path& OutPath);
 #endif
 
 } // namespace Stoner::Core::Detail

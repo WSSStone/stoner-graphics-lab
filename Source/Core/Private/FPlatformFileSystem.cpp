@@ -82,6 +82,27 @@ bool IsContainedCanonical(
 #endif
 }
 
+std::filesystem::path CanonicalExisting(
+    const std::filesystem::path& Path,
+    std::error_code& Error)
+{
+#if SG_PLATFORM_WINDOWS
+    std::filesystem::path Result;
+    const FPlatformFileStatus Status =
+        Detail::PlatformCanonicalPath(Path, Result);
+    if (!Status.IsSuccess())
+    {
+        Error = std::error_code(
+            static_cast<int>(Status.NativeError), std::system_category());
+        return {};
+    }
+    Error.clear();
+    return Result;
+#else
+    return std::filesystem::weakly_canonical(Path, Error);
+#endif
+}
+
 } // namespace
 
 std::filesystem::path Detail::ToNativePath(const FString& Path)
@@ -292,7 +313,7 @@ FPlatformFileStatus FPlatformFileSystem::QueryRegularFile(
     }
 
     const std::filesystem::path Canonical =
-        std::filesystem::weakly_canonical(NativePath, Error);
+        CanonicalExisting(NativePath, Error);
     if (Error)
     {
         return Detail::MakeFileStatus(
@@ -318,7 +339,7 @@ FPlatformFileStatus FPlatformFileSystem::EnumerateRegularFiles(
 
     std::error_code Error;
     const std::filesystem::path CanonicalRoot =
-        std::filesystem::weakly_canonical(Detail::ToNativePath(Root), Error);
+        CanonicalExisting(Detail::ToNativePath(Root), Error);
     if (Error || !std::filesystem::is_directory(CanonicalRoot, Error))
     {
         const EPlatformFileResult Result = Error
@@ -366,7 +387,7 @@ FPlatformFileStatus FPlatformFileSystem::EnumerateRegularFiles(
                     EPlatformFileResult::LimitExceeded, 0, "enumerate:files");
             }
             const std::filesystem::path CanonicalPath =
-                std::filesystem::weakly_canonical(Entry.path(), Error);
+                CanonicalExisting(Entry.path(), Error);
             if (Error)
             {
                 break;
@@ -415,14 +436,14 @@ FPlatformFileStatus FPlatformFileSystem::CheckContainedPath(
     }
     std::error_code Error;
     const auto CanonicalRoot =
-        std::filesystem::weakly_canonical(Detail::ToNativePath(Root), Error);
+        CanonicalExisting(Detail::ToNativePath(Root), Error);
     if (Error)
     {
         return Detail::MakeFileStatus(
             ClassifyError(Error), Error.value(), "containment:root");
     }
     const auto CanonicalCandidate =
-        std::filesystem::weakly_canonical(Detail::ToNativePath(Candidate), Error);
+        CanonicalExisting(Detail::ToNativePath(Candidate), Error);
     if (Error)
     {
         return Detail::MakeFileStatus(
@@ -490,9 +511,9 @@ FPlatformFileStatus FPlatformFileSystem::RemoveTreeContained(
 
     std::error_code Error;
     const auto Root =
-        std::filesystem::weakly_canonical(Detail::ToNativePath(AllowedRoot), Error);
+        CanonicalExisting(Detail::ToNativePath(AllowedRoot), Error);
     const auto Tree =
-        std::filesystem::weakly_canonical(Detail::ToNativePath(Candidate), Error);
+        CanonicalExisting(Detail::ToNativePath(Candidate), Error);
     if (Error)
     {
         return Detail::MakeFileStatus(

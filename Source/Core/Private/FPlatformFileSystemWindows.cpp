@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <string>
 
 namespace Stoner::Core::Detail
 {
@@ -103,6 +104,44 @@ bool PlatformReadFile(
     return true;
 }
 
+FPlatformFileStatus PlatformCanonicalPath(
+    const std::filesystem::path& Path,
+    std::filesystem::path& OutPath)
+{
+    OutPath.clear();
+    HANDLE File = ::CreateFileW(
+        Path.c_str(),
+        FILE_READ_ATTRIBUTES,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS,
+        nullptr);
+    if (File == INVALID_HANDLE_VALUE)
+        return FromWindowsError(GetLastError(), "canonical-path:open");
+
+    const DWORD Required = ::GetFinalPathNameByHandleW(
+        File, nullptr, 0, FILE_NAME_NORMALIZED | VOLUME_NAME_DOS);
+    if (Required == 0)
+    {
+        const DWORD Error = GetLastError();
+        ::CloseHandle(File);
+        return FromWindowsError(Error, "canonical-path:size");
+    }
+    std::wstring Buffer(static_cast<usize>(Required), L'\0');
+    const DWORD Written = ::GetFinalPathNameByHandleW(
+        File, Buffer.data(), Required,
+        FILE_NAME_NORMALIZED | VOLUME_NAME_DOS);
+    const DWORD Error = Written == 0 || Written >= Required
+        ? GetLastError() : ERROR_SUCCESS;
+    ::CloseHandle(File);
+    if (Error != ERROR_SUCCESS)
+        return FromWindowsError(Error, "canonical-path:read");
+    Buffer.resize(Written);
+    OutPath = std::filesystem::path(std::move(Buffer));
+    return {};
+}
+
 FPlatformFileStatus PlatformMoveDirectoryNoReplace(
     const std::filesystem::path& Source,
     const std::filesystem::path& Destination)
@@ -135,24 +174,9 @@ FPlatformFileStatus PlatformReplaceFileAtomic(
     const std::filesystem::path& Source,
     const std::filesystem::path& Destination)
 {
-    const DWORD Attributes = ::GetFileAttributesW(Destination.c_str());
-    if (Attributes != INVALID_FILE_ATTRIBUTES)
-    {
-        if (!::ReplaceFileW(
-                Destination.c_str(), Source.c_str(), nullptr,
-                REPLACEFILE_WRITE_THROUGH, nullptr, nullptr))
-        {
-            return FromWindowsError(GetLastError(), "replace-file:replace");
-        }
-        return {};
-    }
-    if (GetLastError() != ERROR_FILE_NOT_FOUND &&
-        GetLastError() != ERROR_PATH_NOT_FOUND)
-    {
-        return FromWindowsError(GetLastError(), "replace-file:query");
-    }
     if (!::MoveFileExW(
-            Source.c_str(), Destination.c_str(), MOVEFILE_WRITE_THROUGH))
+            Source.c_str(), Destination.c_str(),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
     {
         return FromWindowsError(GetLastError(), "replace-file:move");
     }
