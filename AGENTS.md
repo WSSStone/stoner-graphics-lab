@@ -1,11 +1,10 @@
 <!-- SPECKIT START -->
-Feature 024 Asset: Static Mesh & Model Pipeline is in implementation. Read
-`doc/roadmap.md` for program context, `specs/024-static-mesh-model/spec.md` and
-`specs/024-static-mesh-model/plan.md` for the active feature contract/design,
-`specs/024-static-mesh-model/tasks.md` for authoritative progress, and
-`specs/023-material-shader-assets/` plus `Validation/023/` for the latest
-completed feature evidence. The current `asset-static-mesh` suite is only a
-foundation gate until T040-T057 complete the real US1 import acceptance.
+Feature 024 Asset: Static Mesh & Model Pipeline is complete. Read
+`doc/roadmap.md` for program context, `specs/024-static-mesh-model/` for its
+contract/design/task history, and `Validation/024/` plus
+`doc/024-static-mesh-model.html` for closeout evidence. Feature 025 Asset:
+Cooker, Manifest & Derived Data is the next roadmap target; begin it with a new
+Speckit Specify cycle rather than extending the completed Feature 024 scope.
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -61,6 +60,7 @@ foundation gate until T040-T057 complete the real US1 import acceptance.
 - 019-deferred-rendering-pipeline: Implemented a sibling deferred Renderer strategy with three color surface targets plus depth, normalized world-space normals, StandardZ/ReversedZ policies, directional/fullscreen and instanced point/spot volumes, render-graph/RHI execution, uncapped deterministic light handling, diagnostics, real mapped Vulkan attachment readback, runtime-independent and native failure injection, four-tier comparison artifacts, forward coexistence, and passing Windows/macOS/Linux CI with Linux Lavapipe evidence
 - 020-asset-core: Implemented the Core-only Asset layer, NFC logical identity, SHA-256 version evidence, metadata/dependency registry with atomic batches and concurrent snapshots, deterministic resolver/importer dispatch, scoped extension registrations with execution leases, focused test-suite selection, architecture enforcement, diagnostics, inspection, and opt-in registry benchmark; Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan passed in CI run 30347149237
 - 023-material-shader-assets: Implemented versioned Material/Shader/Instance Assets, bounded canonical JSON, typed GLSL/SPIR-V dependencies, ordered target selection, complete source-version manifests, immutable Renderer snapshots, repository shader migration, bytecode-only native boundaries, deterministic corpus evidence, and passing Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan validation in CI run 30553736883
+- 024-static-mesh-model: Implemented bounded glTF/GLB static package import, Unreal-style coordinate normalization, typed immutable mesh/model payloads, stable multi-output identities, hierarchy, Material v2 and Image/Texture dependencies, transactional Renderer/RHI buffer realization, malformed corpus, deterministic/concurrent/performance gates, and passing Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan and Lavapipe indexed readback in CI runs 31766671726 and 31766671729
 
 ## Git Commit Style
 - Commit messages must start with a conventional type prefix such as `feat`, `docs`, `fix`, `chore`, `refactor`, `test`, or `build`.

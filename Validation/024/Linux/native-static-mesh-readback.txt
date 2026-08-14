@@ -1,0 +1,5 @@
+feature=024-static-mesh-model
+runtime=vulkan-native
+indexed-clockwise-attachment-readback=pass
+renderer-buffer-transfer=pass
+suite-passed=yes

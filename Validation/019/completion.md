@@ -31,14 +31,14 @@ regressions ran inside the same `StonerTest`/CI workflow and passed.
 `Validation/019/Linux/deferred-readback-report.txt`
 
 - SHA-256:
-  `f601576de6401fac6fe08e5d5f9b15e2ea0c288fce7e1e5b57d0796d9384ad74`
+  `caeb8bb5b544ce0ab756d2639a981272b24cd45331c3b5587da7cf8d14f87124`
 - Runtime: real Vulkan through `llvmpipe (LLVM 20.1.2, 256 bits)`
 - Reference path: `NativeDeferredReadback`
 - Native submission: complete
-- Standard-Z probes: 12/12 passing
-- Reversed-Z probes: 12/12 passing
+- Standard-Z probes: 18/18 passing
+- Reversed-Z probes: 18/18 passing
 - Non-finite or duplicate probes: none
-- Peak/final deferred live objects: `88/0`
+- Peak/final deferred live objects: `89/0`
 
 `Validation/019/Linux/renderer-comparison-report.txt`
 
@@ -54,12 +54,16 @@ regressions ran inside the same `StonerTest`/CI workflow and passed.
 
 ## CR-001 Evidence Refresh Note
 
-The retained Linux readback report above is the original Feature 019 closeout
-evidence for implementation commit `3012b4f500b8496bf69c2089d534a5b56adc6b77`.
-CR-001 subsequently strengthened native deferred validation to require 18 probes
-per depth convention and the six point/spot local-light edge probes introduced
-by `CR001-B08-F005`. Use this document as historical closeout evidence only
-until a fresh post-CR Linux CI artifact is recorded with the stricter validator.
+The original report above remains historical implementation evidence. Feature
+024 coordinate-migration refresh run
+[31766671726](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/31766671726)
+at commit `945076d5074c1256bec6ac6c841fc19449fc5e85` passed the strengthened
+post-CR validator: 18 probes per depth convention, all six point/spot local-light
+edge probes per convention, non-symmetric matrix packing, and zero final live
+objects. The retained refreshed readback SHA-256 is
+`caeb8bb5b544ce0ab756d2639a981272b24cd45331c3b5587da7cf8d14f87124`;
+the comparison report remains
+`5c26e000c24184b53c20fad333d78f010b5c0f54e10e515f6d52065ce42c0795`.
 
 ## Failure And Cleanup Gates
 

@@ -21,11 +21,10 @@ No screenshot is a Feature 019 completion gate. Failed CI reports should still
 be uploaded when available, but only artifacts tied to a passing commit/run are
 retained as completion evidence.
 
-## CR-001 Evidence Note
+## Post-CR Evidence Refresh
 
-The retained Linux artifacts in this directory were captured for the original
-Feature 019 closeout. CR-001 later strengthened the native deferred reference
-scene to require 18 probes per depth convention plus explicit point/spot
-local-light edge probes. Fresh post-CR Linux artifacts must therefore be tied
-to a newer CI run and must satisfy the stricter wrapper validation before they
-can be used as current closeout evidence.
+The retained Linux artifacts were refreshed by Feature 024 CI run
+`31766671726` at commit `945076d5074c1256bec6ac6c841fc19449fc5e85`.
+They satisfy the strengthened wrapper: 18 probes per depth convention, all six
+point/spot local-light edge probes per convention, non-symmetric matrix packing,
+and zero final frame-owned resources.

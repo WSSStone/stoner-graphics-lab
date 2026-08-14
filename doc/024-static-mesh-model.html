@@ -13,7 +13,7 @@
 <li><a href="#s1">一、文档与上下文信息</a></li><li><a href="#s2">二、目标与边界</a></li><li><a href="#s3">三、交互与产品设计</a></li><li><a href="#s4">四、技术架构与关键决策</a></li><li><a href="#s5">五、实施与验证</a></li><li><a href="#s6">六、设计巧思与最佳实践</a></li><li><a href="#s7">七、编程语言知识点</a></li><li><a href="#s8">八、软件工程知识点</a></li><li><a href="#s9">九、渲染、引擎与图形 API</a></li>
 </ul></aside>
 <main><h1>024 - Static Mesh &amp; Model Pipeline</h1>
-<div class="meta">状态：<span class="badge">本地验收通过，等待跨平台 CI</span> · 更新：2026-08-14 · Roadmap Phase 024 · 层级：Asset / Renderer / RHI / Vulkan</div>
+<div class="meta">状态：<span class="badge">已交付</span> · 更新：2026-08-14 · Roadmap Phase 024 · 层级：Asset / Renderer / RHI / Vulkan</div>
 
 <section id="s1"><h2>一、文档与上下文信息</h2>
 <h3>1. 基础元数据</h3><table><tbody>
@@ -100,7 +100,7 @@ Only Publish exposes a result. Earlier failure discards all request-owned state.
 
 <section id="s5"><h2>五、实施与验证（任务流）</h2>
 <h3>1. 任务拆解清单</h3><ol><li>完成全引擎坐标/矩阵/front-face 迁移，并刷新 018/019 deterministic gates。</li><li>建立 mesh/model public value model、limits、inspection 与 validators。</li><li>完成 GLB/JSON preflight、bounded cgltf ownership、dependency resolver 与 accessor decoder。</li><li>完成 geometry normalization、flat normals、MikkTSpace tangents、bounds 与 12 项 golden geometry。</li><li>完成 scene hierarchy、stable identity、Material v2、Image/Texture dependencies 与 package transaction。</li><li>扩展 RHI upload/indexed draw，并实现 Renderer packing/realization rollback。</li><li>补齐 78 项 fixture provenance、malformed corpus、determinism、concurrency、performance、architecture 与 CI。</li></ol>
-<h3>2. 验收状态</h3><p>Apple M4 Pro 本地 Debug 完整回归、strict Release、20 次 valid fixture determinism、8 路并发、78 项 corpus verifier、architecture scanner 和 Python 工具单测均通过。100k vertices、300k indices、16 primitives、16 material dependencies 的 3.11 MiB GLB 在 Release 五次测量最大约 0.016 秒，tracked request peak 约 12.6 MiB，低于 5 秒与 1 GiB gate。当前文档生成时 Linux native readback 与三平台 CI 尚待远端 closeout，因此状态没有提前标为“已交付”。</p>
+<h3>2. 验收状态</h3><p>Apple M4 Pro 本地 Debug 完整回归、strict Release、20 次 valid fixture determinism、8 路并发、78 项 corpus verifier、architecture scanner 和 Python 工具单测均通过。100k vertices、300k indices、16 primitives、16 material dependencies 的 3.11 MiB GLB 在 Release 五次测量最大约 0.016 秒，tracked request peak 约 12.6 MiB，低于 5 秒与 1 GiB gate。GitHub Actions run <a href="https://github.com/WSSStone/stoner-graphics-lab/actions/runs/31766671726">31766671726</a> 通过三平台 Debug/Release、ASan/UBSan、TSan、018/019 刷新；native run <a href="https://github.com/WSSStone/stoner-graphics-lab/actions/runs/31766671729">31766671729</a> 通过 Lavapipe indexed-clockwise static-mesh readback。</p>
 <h3>3. 测试矩阵与覆盖意图</h3><table><thead><tr><th>类别</th><th>覆盖风险</th><th>主要证据</th></tr></thead><tbody>
 <tr><td>Container/parser</td><td>malformed GLB、allocation overflow、partial parser lifetime</td><td><code>AssetGLTFContainerTests.cpp</code></td></tr>
 <tr><td>Geometry</td><td>accessor layout、basis/parity、missing normal/tangent、bounds</td><td>12 golden fixtures 与 <code>AssetStaticMeshGeometryTests.cpp</code></td></tr>

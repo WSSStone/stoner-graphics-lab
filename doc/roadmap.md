@@ -1,9 +1,9 @@
 # Stoner Graphics Lab - Engine Development Roadmap
 
-> **Version**: 2.1.6 | **Created**: 2026-04-21 | **Last Updated**: 2026-08-13 | **Status**: Active
+> **Version**: 2.1.7 | **Created**: 2026-04-21 | **Last Updated**: 2026-08-14 | **Status**: Active
 > **Constitution**: v1.4.0
 > **Numbering Rule**: Every runtime phase number equals its Speckit feature number. Feature 002 is this roadmap meta-feature.
-> **Completed Baseline**: Features 001 and 003 through 023 are implemented and verified.
+> **Completed Baseline**: Features 001 and 003 through 024 are implemented and verified.
 
 ---
 
@@ -64,11 +64,11 @@
 Stoner Graphics Lab is a C++20 cross-platform graphics engine developed through
 one Speckit cycle per roadmap phase. Features 003 through 019 established Core,
 RHI, Vulkan, Renderer, Application, visible presentation, and sibling forward
-and deferred paths. Features 020 through 023 establish the CPU Asset foundation:
-stable identity/registry, source images and textures, KTX2 cooking, and
-versioned Material/Shader definitions with Renderer snapshots. The next
-critical gap is canonical static mesh/model ingestion before offline packaging
-and managed runtime loading.
+and deferred paths. Features 020 through 024 establish the CPU Asset foundation:
+stable identity/registry, source images and textures, KTX2 cooking, versioned
+Material/Shader definitions, and canonical static mesh/model ingestion with
+Renderer RHI realization. The next critical gap is deterministic offline
+packaging and derived-data management before managed runtime loading.
 
 Roadmap 2.1 adds Asset as an independent runtime layer. It separates source
 interchange, cooked delivery, runtime management, and GPU realization so that
@@ -99,15 +99,15 @@ through screen-space, derived-data, and hybrid integration milestones.
 - [OpenUSD Asset Resolution](https://openusd.org/release/api/ar_page_front.html) informs logical identifiers and replaceable resolver strategies; USD composition itself remains a later Scene/Prefab concern.
 - [Unreal Asset Management](https://dev.epicgames.com/documentation/en-us/unreal-engine/asset-management-in-unreal-engine) supports separating unloaded metadata, soft references, asynchronous loading, and residency ownership.
 
-### Current State (Feature 024 In Progress)
+### Current State (Feature 024 Complete; Feature 025 Next)
 
 | Ownership Area | Status | Current Capability |
 |---|---|---|
 | Core | Done | Types, memory, math, logging, assertions, filesystem/process/time/window handles |
-| Asset | Feature 024 foundation in progress | Prior Asset capabilities plus Material schema v2, static-mesh value contracts, bounded glTF/GLB preflight, capped cgltf parsing, and checked accessor decoding; complete model import is not yet delivered |
-| RHI | Feature 024 transfer extension in progress | Device/resources plus compressed-format contracts, bounded buffer upload, and complete indexed-draw arguments |
-| Backend/Vulkan | Feature 024 transfer extension in progress | Native/fallback resources plus compressed formats, buffer upload, indexed draw mapping, and readback |
-| Renderer | Feature 024 foundation in progress | Existing rendering paths plus Material schema-v2 conversion; static-mesh realization remains pending |
+| Asset | Static mesh/model foundation done | Material schema v2 plus bounded glTF/GLB import, typed mesh/model payloads, stable subresources, hierarchy, geometry normalization, and atomic material/image/texture packages |
+| RHI | Static-mesh transfer contracts done | Device/resources plus compressed formats, bounded buffer upload, and complete indexed-draw arguments |
+| Backend/Vulkan | Static-mesh native evidence done | Native/fallback resources plus compressed formats, buffer upload, indexed draw mapping, cleanup, and Lavapipe attachment readback |
+| Renderer | Static-mesh realization done | Material schema-v2 conversion plus transactional packing, RHI allocation/upload, immutable snapshots, sections, and rollback diagnostics |
 | Application | Done foundation | Window/input, ECS scene organization, visible triangle integration |
 | Additional Backends | Planned | Metal, DX12, desktop OpenGL, and GLES follow the Asset-backed shader path |
 
@@ -183,7 +183,7 @@ depend on Tools.
 | 021 | Image & Texture Foundation | Asset | 008, 020 | L | Yes | ✅ Done |
 | 022 | KTX2 Cooking & Compression | Asset | 010, 021 | XL | Yes | ✅ Done |
 | 023 | Material & Shader Assets | Asset | 014, 020, 021 | XL | Yes | ✅ Done |
-| 024 | Static Mesh & Model Pipeline | Asset | 004, 008, 020, 021, 023 | XL | Yes | 🔄 In Progress |
+| 024 | Static Mesh & Model Pipeline | Asset | 004, 008, 020, 021, 023 | XL | Yes | ✅ Done |
 | 025 | Cooker, Manifest & Derived Data | Asset | 021, 022, 023, 024 | XL | Yes | ⬜ Todo |
 | 026 | Runtime Asset Manager | Asset | 020, 025 | XL | Yes | ⬜ Todo |
 | 027 | Metal Backend | Backend | 008, 016, 018, 023, 025 | XL | No | ⬜ Todo |
@@ -1353,12 +1353,12 @@ Meshlets:
 5. Run `/speckit.implement`, validate locally and in required CI, and retain evidence.
 6. Mark the phase `✅ Done`, update Current State, dependency styling if used, and this change log.
 
-Feature 023 Asset: Material & Shader Assets is complete. Feature 024 Asset:
-Static Mesh & Model Pipeline is in progress. Its coordinate migration,
-Material schema-v2, RHI transfer, static-mesh value, container preflight,
-capped parser, and accessor foundations are implemented, while complete
-geometry import, model hierarchy, material/image package assembly, Renderer
-realization, malformed corpus, performance, and cross-platform closeout remain.
+Feature 024 Asset: Static Mesh & Model Pipeline is complete. It delivered the
+Unreal-style coordinate migration, bounded glTF/GLB import, canonical geometry,
+model hierarchy, stable multi-output identities, Material/Image/Texture package
+assembly, transactional Renderer/RHI realization, malformed corpus, performance
+evidence, and passing three-platform/native CI. Feature 025 Asset: Cooker,
+Manifest & Derived Data is the next critical-path phase.
 
 ### Status Legend
 
@@ -1375,6 +1375,7 @@ realization, malformed corpus, performance, and cross-platform closeout remain.
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-14 | 2.1.7 | Marked Feature 024 complete after GitHub Actions run 31766671726 passed Windows/macOS/Linux Debug and strict Release, Linux ASan/UBSan/TSan, refreshed Feature 018/019 native evidence, and native run 31766671729 passed indexed-clockwise static-mesh attachment readback; activated Feature 025 as the next roadmap target. |
 | 2026-08-13 | 2.1.6 | Marked Feature 024 In Progress after its blocking coordinate, Material v2, RHI transfer, static-mesh value, container, parser, and accessor foundations passed local strict Debug/Release and regression gates; retained complete glTF import and closeout as pending work. |
 | 2026-07-30 | 2.1.5 | Marked Feature 023 complete after GitHub Actions run 30553736883 passed Windows/macOS/Linux Debug and Release, exact cross-platform corpus/repository evidence, full regression, Linux sanitizers, and applicable Lavapipe native gates; activated Phase 024 as the next roadmap target. |
 | 2026-07-30 | 2.1.4 | Recorded Feature 023 local implementation, shader-content migration, deterministic schema/Renderer evidence, and configured cross-platform gates; retained In Progress status pending remote CI. |
