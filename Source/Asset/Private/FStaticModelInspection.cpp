@@ -87,7 +87,11 @@ Core::FString FStaticModelInspection::FormatPackage(
         Stream << "  id=" << Output.Metadata.Id.ToString().CStr()
                << " type=" << (Output.Payload
                     ? Output.Payload->GetAssetType().CStr() : "<metadata>")
-               << " dependencies=" << Output.Metadata.Dependencies.size() << '\n';
+               << " dependencies=" << Output.Metadata.Dependencies.size();
+        for (const auto& Attribute : Output.Metadata.Attributes)
+            Stream << " " << Attribute.first.CStr() << "="
+                   << Attribute.second.CStr();
+        Stream << '\n';
     }
     return Core::FString(Stream.str());
 }

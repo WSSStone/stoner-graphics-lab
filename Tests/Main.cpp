@@ -24,6 +24,10 @@
 #include "AssetGLTFContainerTests.h"
 #include "AssetGLTFMaterialTests.h"
 #include "AssetGLTFImageDependencyTests.h"
+#include "AssetGLTFMalformedTests.h"
+#include "AssetGLTFResolverTests.h"
+#include "AssetGLTFLimitTests.h"
+#include "AssetGLTFDiagnosticTests.h"
 #include "AssetGLTFPolicyTests.h"
 #include "AssetMaterialShaderTests.h"
 #include "AssetStaticMeshGeometryTests.h"
@@ -149,6 +153,14 @@ int main(int ArgCount, char* Arguments[])
         const auto Material = RunAssetGLTFMaterialTests();
         const auto Image = RunAssetGLTFImageDependencyTests();
         return Material.Failed == 0 && Image.Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-gltf-hardening", [] {
+        const auto Malformed = RunAssetGLTFMalformedTests();
+        const auto Resolver = RunAssetGLTFResolverTests();
+        const auto Limit = RunAssetGLTFLimitTests();
+        const auto Diagnostic = RunAssetGLTFDiagnosticTests();
+        return Malformed.Failed == 0 && Resolver.Failed == 0 &&
+            Limit.Failed == 0 && Diagnostic.Failed == 0 ? 0 : 1;
     });
     Registry.Register("asset-ktx2-encoder", [] {
         return RunAssetKTX2EncoderTests().Failed == 0 ? 0 : 1;

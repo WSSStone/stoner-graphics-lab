@@ -108,6 +108,7 @@ EAssetResult BuildGLTFImageTextureOutputs(
     const FAssetImportRequest& MainRequest,
     const Core::TSharedPtr<IAssetResolver>& Resolver,
     const FStaticModelImportProfile& Profile,
+    Core::uint64& InOutAggregateDependencyBytes,
     const FGLTFBufferViewReader& ReadBufferView,
     Core::TArray<FAssetImportOutput>& OutOutputs,
     FAssetDiagnosticList* Diagnostics)
@@ -117,6 +118,7 @@ EAssetResult BuildGLTFImageTextureOutputs(
     for (Core::uint32 ImageIndex = 0; ImageIndex < Data.images_count; ++ImageIndex)
     {
         const cgltf_image& SourceImage = Data.images[ImageIndex];
+        const bool CountsAsDependency = SourceImage.buffer_view == nullptr;
         Core::TArray<Core::uint8> Bytes;
         FAssetSourceDescriptor Descriptor;
         Descriptor.Location = MainRequest.Descriptor.Location;
@@ -141,6 +143,13 @@ EAssetResult BuildGLTFImageTextureOutputs(
         }
         else Result = EAssetResult::MalformedSource;
         if (Result != EAssetResult::Success || Bytes.empty()) return Result;
+        if (CountsAsDependency)
+        {
+            if (Bytes.size() > Profile.Limits.MaxAggregateDependencyBytes -
+                    InOutAggregateDependencyBytes)
+                return EAssetResult::CapacityExceeded;
+            InOutAggregateDependencyBytes += Bytes.size();
+        }
         Descriptor.Size = Bytes.size();
         if (SourceImage.mime_type != nullptr)
         {

@@ -135,6 +135,11 @@ lib = BuildLayer(
                 'ThirdParty',
             ],
         },
+        'FGLTFPackageValidator.cpp': {
+            'include_paths': [
+                'ThirdParty',
+            ],
+        },
         'FGLTFImageTextureBridge.cpp': {
             'include_paths': [
                 'ThirdParty',

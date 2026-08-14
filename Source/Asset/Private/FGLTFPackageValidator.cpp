@@ -6,11 +6,60 @@
 #include "Asset/FStaticModelAsset.h"
 #include "Asset/FTextureAsset.h"
 
+#include "cgltf/cgltf.h"
+
 #include <algorithm>
 #include <set>
+#include <string_view>
 
 namespace Stoner::Asset::Private
 {
+
+EAssetResult ValidateGLTFStaticPackageSupport(const cgltf_data& Data)
+{
+    if (Data.asset.version == nullptr ||
+        std::string_view(Data.asset.version) != "2.0" ||
+        (Data.asset.min_version != nullptr &&
+         std::string_view(Data.asset.min_version) != "2.0") ||
+        Data.extensions_required_count != 0 || Data.skins_count != 0 ||
+        Data.variants_count != 0)
+        return EAssetResult::Unsupported;
+    for (const cgltf_buffer_view& View :
+         std::span<const cgltf_buffer_view>(Data.buffer_views, Data.buffer_views_count))
+        if (View.has_meshopt_compression) return EAssetResult::Unsupported;
+    for (const cgltf_node& Node :
+         std::span<const cgltf_node>(Data.nodes, Data.nodes_count))
+        if (Node.skin != nullptr || Node.weights_count != 0 ||
+            Node.has_mesh_gpu_instancing)
+            return EAssetResult::Unsupported;
+    for (const cgltf_mesh& Mesh :
+         std::span<const cgltf_mesh>(Data.meshes, Data.meshes_count))
+    {
+        if (Mesh.weights_count != 0 || Mesh.target_names_count != 0)
+            return EAssetResult::Unsupported;
+        for (const cgltf_primitive& Primitive :
+             std::span<const cgltf_primitive>(Mesh.primitives, Mesh.primitives_count))
+        {
+            if (Primitive.type != cgltf_primitive_type_triangles ||
+                Primitive.targets_count != 0 ||
+                Primitive.has_draco_mesh_compression)
+                return EAssetResult::Unsupported;
+            for (const cgltf_attribute& Attribute :
+                 std::span<const cgltf_attribute>(
+                     Primitive.attributes, Primitive.attributes_count))
+            {
+                const bool Supported =
+                    Attribute.type == cgltf_attribute_type_position ||
+                    Attribute.type == cgltf_attribute_type_normal ||
+                    Attribute.type == cgltf_attribute_type_tangent ||
+                    (Attribute.type == cgltf_attribute_type_texcoord &&
+                     Attribute.index >= 0 && Attribute.index <= 1);
+                if (!Supported) return EAssetResult::Unsupported;
+            }
+        }
+    }
+    return EAssetResult::Success;
+}
 
 EAssetResult ValidateGLTFPackageOutputs(
     const FGLTFPackageIdentityPlan& Identities,

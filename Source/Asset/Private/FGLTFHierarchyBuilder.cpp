@@ -181,8 +181,17 @@ EAssetResult BuildGLTFSceneHierarchy(
     AddNode = [&](const cgltf_node* Source, Core::uint32 Depth, Core::uint32& OutIndex)
     {
         Core::uint32 GlobalIndex = 0;
-        if (!SourceNodeIndex(Source, GlobalIndex) ||
-            Depth > Profile.Limits.MaxHierarchyDepth ||
+        if (!SourceNodeIndex(Source, GlobalIndex))
+        {
+            Result = EAssetResult::MalformedSource;
+            return false;
+        }
+        if (Depth > Profile.Limits.MaxHierarchyDepth)
+        {
+            Result = EAssetResult::CapacityExceeded;
+            return false;
+        }
+        if (
             Visits[GlobalIndex] != EVisit::Unvisited || Source->skin != nullptr ||
             Source->weights_count != 0)
         {

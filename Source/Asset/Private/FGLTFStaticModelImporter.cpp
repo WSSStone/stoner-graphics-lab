@@ -5,6 +5,7 @@
 #include "FCgltfDocument.h"
 #include "FGLTFAccessorDecoder.h"
 #include "FGLTFGeometryNormalizer.h"
+#include "FGLTFDiagnostics.h"
 #include "FGLTFDependencyResolver.h"
 #include "FGLTFDefaultMaterial.h"
 #include "FGLTFImageTextureBridge.h"
@@ -45,6 +46,23 @@ FAssetProducerVersion ImporterVersion()
     return Version;
 }
 
+Core::FString OptionalExtensionSummary(const cgltf_data& Data)
+{
+    Core::TArray<Core::FString> Extensions;
+    Extensions.reserve(Data.extensions_used_count);
+    for (cgltf_size Index = 0; Index < Data.extensions_used_count; ++Index)
+        if (Data.extensions_used[Index] != nullptr)
+            Extensions.emplace_back(Data.extensions_used[Index]);
+    std::sort(Extensions.begin(), Extensions.end());
+    std::string Text;
+    for (Core::usize Index = 0; Index < Extensions.size(); ++Index)
+    {
+        if (Index != 0) Text.push_back(',');
+        Text += Extensions[Index].ToStdString();
+    }
+    return Core::FString(std::move(Text));
+}
+
 void AddDiagnostic(
     FAssetDiagnosticList* Diagnostics,
     EAssetStage Stage,
@@ -53,19 +71,11 @@ void AddDiagnostic(
     const char* Code,
     const char* Field)
 {
-    if (Diagnostics == nullptr)
-    {
-        return;
-    }
-    FAssetDiagnostic Diagnostic;
-    Diagnostic.Stage = Stage;
-    Diagnostic.Result = Result;
-    Diagnostic.Severity = EAssetDiagnosticSeverity::Error;
-    Diagnostic.Code = Core::FString(Code);
-    Diagnostic.Participant = ImporterId().ToString();
-    Diagnostic.Subject = Request.Descriptor.Location.ToString();
-    Diagnostic.Field = Core::FString(Field);
-    Diagnostics->push_back(std::move(Diagnostic));
+    AppendGLTFDiagnostic(Diagnostics,
+        std::numeric_limits<Core::uint32>::max(), Stage, Result,
+        EAssetDiagnosticSeverity::Error, Core::FString(Code),
+        ImporterId().ToString(), Request.Descriptor.Location.ToString(),
+        Core::FString(Field), Core::FString("static model package rejected"));
 }
 
 std::optional<EGLTFComponentType> ConvertComponentType(cgltf_component_type Type)
@@ -105,18 +115,17 @@ EAssetResult BuildBufferStorage(
     const FStaticModelImportProfile& Profile,
     const FAssetSourceLocator& MainSource,
     const Core::TSharedPtr<IAssetResolver>& Resolver,
+    Core::uint64& InOutAggregateDependencyBytes,
     FBufferStorage& OutStorage)
 {
     OutStorage = {};
     OutStorage.Owned.resize(Data.buffers_count);
     OutStorage.Views.resize(Data.buffers_count);
-    Core::uint64 AggregateBytes = 0;
     bool UsedBinaryChunk = false;
     for (cgltf_size Index = 0; Index < Data.buffers_count; ++Index)
     {
         const cgltf_buffer& Buffer = Data.buffers[Index];
-        if (Buffer.size > Profile.Limits.MaxSingleDependencyBytes ||
-            Buffer.size > Profile.Limits.MaxAggregateDependencyBytes - AggregateBytes)
+        if (Buffer.size > Profile.Limits.MaxSingleDependencyBytes)
         {
             return EAssetResult::CapacityExceeded;
         }
@@ -154,8 +163,12 @@ EAssetResult BuildBufferStorage(
                     ? EAssetResult::MalformedSource : Result;
             }
             OutStorage.Views[Index] = OutStorage.Owned[Index];
+            if (OutStorage.Owned[Index].size() >
+                    Profile.Limits.MaxAggregateDependencyBytes -
+                        InOutAggregateDependencyBytes)
+                return EAssetResult::CapacityExceeded;
+            InOutAggregateDependencyBytes += OutStorage.Owned[Index].size();
         }
-        AggregateBytes += Buffer.size;
     }
     return EAssetResult::Success;
 }
@@ -306,6 +319,32 @@ EAssetResult ValidateMaterialTexCoords(const cgltf_primitive& Primitive)
             return EAssetResult::MalformedSource;
     }
     return EAssetResult::Success;
+}
+
+EAssetResult AccountDecodedGeometry(
+    const FStaticMeshPrimitive& Primitive,
+    Core::uint64 MaximumBytes,
+    Core::uint64& InOutBytes)
+{
+    const auto CheckedAdd = [&InOutBytes, MaximumBytes](Core::uint64 Bytes)
+    {
+        if (Bytes > MaximumBytes - InOutBytes) return false;
+        InOutBytes += Bytes;
+        return true;
+    };
+    const auto& Vertices = Primitive.Vertices;
+    if (!CheckedAdd(Vertices.Positions.size() * sizeof(Core::FVector3)) ||
+        !CheckedAdd(Vertices.Normals.size() * sizeof(Core::FVector3)) ||
+        !CheckedAdd(Vertices.Tangents.size() * sizeof(Core::FVector4)))
+        return EAssetResult::CapacityExceeded;
+    for (const auto& TexCoords : Vertices.TexCoords)
+        if (!CheckedAdd(TexCoords.size() * sizeof(Core::FVector2)))
+            return EAssetResult::CapacityExceeded;
+    const Core::uint64 IndexStride =
+        Primitive.Indices.Uses16BitIndices()
+        ? sizeof(Core::uint16) : sizeof(Core::uint32);
+    return CheckedAdd(Primitive.Indices.GetIndexCount() * IndexStride)
+        ? EAssetResult::Success : EAssetResult::CapacityExceeded;
 }
 
 void CopyVec2(const FGLTFDecodedAccessor& Source, Core::TArray<Core::FVector2>& Out)
@@ -544,20 +583,22 @@ EAssetResult ImportMeshes(
         return Result;
     }
     const cgltf_data* Data = Document.GetNativeDocument();
-    if (Data == nullptr || Data->meshes_count == 0 ||
-        Data->meshes_count > Profile.Limits.MaxMeshes ||
+    if (Data == nullptr || Data->meshes_count == 0)
+        return EAssetResult::MalformedSource;
+    if (Data->meshes_count > Profile.Limits.MaxMeshes ||
         Data->scenes_count > Profile.Limits.MaxScenes ||
         Data->nodes_count > Profile.Limits.MaxNodes ||
         Data->materials_count > Profile.Limits.MaxMaterials ||
         Data->textures_count > Profile.Limits.MaxTextures ||
-        Data->images_count > Profile.Limits.MaxImages ||
-        Data->extensions_required_count != 0)
-    {
-        return EAssetResult::Unsupported;
-    }
+        Data->images_count > Profile.Limits.MaxImages)
+        return EAssetResult::CapacityExceeded;
+    Result = ValidateGLTFStaticPackageSupport(*Data);
+    if (Result != EAssetResult::Success) return Result;
+    Core::uint64 AggregateDependencyBytes = 0;
     FBufferStorage Storage;
     Result = BuildBufferStorage(
-        *Data, Profile, Request.Descriptor.Location, Resolver, Storage);
+        *Data, Profile, Request.Descriptor.Location, Resolver,
+        AggregateDependencyBytes, Storage);
     if (Result != EAssetResult::Success)
     {
         return Result;
@@ -604,6 +645,7 @@ EAssetResult ImportMeshes(
     Core::TArray<FAssetImportOutput> ImageTextureOutputs;
     Result = BuildGLTFImageTextureOutputs(
         *Data, Identities, TextureVariants, Request, Resolver, Profile,
+        AggregateDependencyBytes,
         [&Data, &Storage](const cgltf_buffer_view* View,
             Core::TArray<Core::uint8>& OutBytes)
         {
@@ -659,6 +701,7 @@ EAssetResult ImportMeshes(
         *DefaultMaterial, Request.Descriptor.Location), DefaultMaterial});
 
     Core::uint64 PrimitiveCount = 0;
+    Core::uint64 DecodedGeometryBytes = 0;
     Core::TArray<Core::TSharedPtr<const FStaticMeshAsset>> MeshPayloads;
     MeshPayloads.reserve(Data->meshes_count);
     for (cgltf_size MeshIndex = 0; MeshIndex < Data->meshes_count; ++MeshIndex)
@@ -747,6 +790,10 @@ EAssetResult ImportMeshes(
             }
             else Primitive.MaterialSlotIndex =
                 static_cast<Core::uint32>(Data->materials_count);
+            Result = AccountDecodedGeometry(
+                Primitive, Profile.Limits.MaxDecodedGeometryBytes,
+                DecodedGeometryBytes);
+            if (Result != EAssetResult::Success) return Result;
             bool ExplicitPrimitiveKey = false;
             Result = MakeGLTFStableKey(
                 SourceMesh.primitives[PrimitiveIndex].extras.data,
@@ -812,6 +859,14 @@ EAssetResult ImportMeshes(
             {Core::FString("model.scene-key"), Model->GetDesc().SceneStableKey},
             {Core::FString("model.default-scene"),
              Core::FString(Model->GetDesc().bSourceDefaultScene ? "true" : "false")}};
+        Metadata.Attributes.push_back({Core::FString("model.skipped-cameras"),
+            Core::FString(std::to_string(Data->cameras_count))});
+        Metadata.Attributes.push_back({Core::FString("model.skipped-lights"),
+            Core::FString(std::to_string(Data->lights_count))});
+        Metadata.Attributes.push_back({Core::FString("model.skipped-animations"),
+            Core::FString(std::to_string(Data->animations_count))});
+        Metadata.Attributes.push_back({Core::FString("model.optional-extensions"),
+            OptionalExtensionSummary(*Data)});
         OutOutputs.push_back({std::move(Metadata), Model});
     }
     std::sort(OutOutputs.begin(), OutOutputs.end(),
@@ -881,7 +936,6 @@ EAssetResult FGLTFStaticModelImporter::Import(
     Core::TArray<FAssetImportOutput>& OutOutputs,
     FAssetDiagnosticList* Diagnostics)
 {
-    OutOutputs.clear();
     if (Diagnostics != nullptr) Diagnostics->clear();
     const auto Profile = std::dynamic_pointer_cast<const FStaticModelImportProfile>(
         Request.Parameters);
@@ -893,6 +947,7 @@ EAssetResult FGLTFStaticModelImporter::Import(
         return EAssetResult::InvalidInput;
     }
     Core::TArray<Core::uint8> SourceBytes;
+    Core::TArray<FAssetImportOutput> CandidateOutputs;
     EAssetResult Result = Request.Source.ReadBounded(
         Profile->Limits.MaxMainSourceBytes,
         Request.Descriptor.Size,
@@ -900,14 +955,16 @@ EAssetResult FGLTFStaticModelImporter::Import(
     if (Result == EAssetResult::Success)
     {
         Result = ImportMeshes(
-            Request, *Profile, SourceBytes, nullptr, OutOutputs, Diagnostics);
+            Request, *Profile, SourceBytes, nullptr, CandidateOutputs, Diagnostics);
     }
     if (Result != EAssetResult::Success)
     {
-        OutOutputs.clear();
         AddDiagnostic(Diagnostics, EAssetStage::Import, Result, Request,
             "asset.gltf.import", "package");
     }
+    else OutOutputs = std::move(CandidateOutputs);
+    if (Diagnostics != nullptr && Diagnostics->size() > Profile->Limits.MaxDiagnostics)
+        Diagnostics->resize(Profile->Limits.MaxDiagnostics);
     return Result;
 }
 
@@ -916,21 +973,27 @@ EAssetResult FGLTFStaticModelImporter::Import(
     Core::TArray<FAssetImportOutput>& OutOutputs,
     FAssetDiagnosticList* Diagnostics)
 {
-    OutOutputs.clear();
     if (Diagnostics != nullptr) Diagnostics->clear();
     if (!Request.Profile || Request.Profile->Validate() != EAssetResult::Success ||
         !Request.AssetRequest.Descriptor.Location.IsValid() ||
         !Request.AssetRequest.Source.IsValid())
         return EAssetResult::InvalidInput;
     Core::TArray<Core::uint8> SourceBytes;
+    Core::TArray<FAssetImportOutput> CandidateOutputs;
     EAssetResult Result = Request.AssetRequest.Source.ReadBounded(
         Request.Profile->Limits.MaxMainSourceBytes,
         Request.AssetRequest.Descriptor.Size, SourceBytes);
     if (Result == EAssetResult::Success)
         Result = ImportMeshes(
             Request.AssetRequest, *Request.Profile, SourceBytes,
-            Request.DependencyResolver, OutOutputs, Diagnostics);
-    if (Result != EAssetResult::Success) OutOutputs.clear();
+            Request.DependencyResolver, CandidateOutputs, Diagnostics);
+    if (Result == EAssetResult::Success)
+        OutOutputs = std::move(CandidateOutputs);
+    else AddDiagnostic(Diagnostics, EAssetStage::Import, Result,
+        Request.AssetRequest, "asset.gltf.import", "package");
+    if (Diagnostics != nullptr &&
+        Diagnostics->size() > Request.Profile->Limits.MaxDiagnostics)
+        Diagnostics->resize(Request.Profile->Limits.MaxDiagnostics);
     return Result;
 }
 

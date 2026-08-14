@@ -1,7 +1,7 @@
 #include "FGLTFDependencyResolver.h"
 
-#include <filesystem>
 #include <array>
+#include <filesystem>
 #include <string>
 
 namespace Stoner::Asset::Private
@@ -14,12 +14,15 @@ EAssetResult DecodeGLTFDataUri(
 {
     OutBytes.clear();
     const std::size_t Comma = Uri.find(',');
+    const std::string_view Header = Uri.substr(0, Comma);
     if (!Uri.starts_with("data:") || Comma == std::string_view::npos ||
-        !Uri.substr(0, Comma).ends_with(";base64"))
+        Header.size() <= 5 || !Header.ends_with(";base64") ||
+        Header.find_first_of("\r\n\t ") != std::string_view::npos)
         return EAssetResult::AccessDenied;
     const std::string_view Encoded = Uri.substr(Comma + 1);
-    if (Encoded.empty() || Encoded.size() % 4 != 0 ||
-        Encoded.size() / 4 > MaximumBytes / 3 + 1)
+    if (Encoded.empty() || Encoded.size() % 4 != 0)
+        return EAssetResult::MalformedSource;
+    if (Encoded.size() / 4 > MaximumBytes / 3 + 1)
         return EAssetResult::CapacityExceeded;
     const auto Decode = [](char Character)
     {
@@ -42,7 +45,13 @@ EAssetResult DecodeGLTFDataUri(
             else if (Padding != 0 || (Values[Index] = Decode(Character)) < 0)
             { OutBytes.clear(); return EAssetResult::MalformedSource; }
         }
-        if (Padding > 2 || (Padding != 0 && Offset + 4 != Encoded.size()))
+        if (Padding > 2 || Values[0] < 0 || Values[1] < 0 ||
+            Encoded[Offset] == '=' || Encoded[Offset + 1] == '=' ||
+            (Padding == 2 && (Encoded[Offset + 2] != '=' ||
+                Encoded[Offset + 3] != '=' || (Values[1] & 0x0f) != 0)) ||
+            (Padding == 1 && (Encoded[Offset + 3] != '=' ||
+                Encoded[Offset + 2] == '=' || (Values[2] & 0x03) != 0)) ||
+            (Padding != 0 && Offset + 4 != Encoded.size()))
         { OutBytes.clear(); return EAssetResult::MalformedSource; }
         const Core::uint32 Value =
             (static_cast<Core::uint32>(Values[0]) << 18U) |
@@ -90,13 +99,14 @@ EAssetResult ResolveGLTFDependency(
     FAssetResolveResult Resolved = Resolver->Resolve({Location});
     if (Resolved.Result != EAssetResult::Success) return Resolved.Result;
     if (!Resolved.Descriptor.Location.IsValid() || !Resolved.Source.IsValid() ||
-        Resolved.Descriptor.Location.GetScheme() != MainSource.GetScheme())
+        Resolved.Descriptor.Location != Location)
         return EAssetResult::AccessDenied;
     const std::filesystem::path ResolvedPath(
         Resolved.Descriptor.Location.GetLocator().ToStdString());
     const std::filesystem::path ResolvedRelative =
         ResolvedPath.lexically_normal().lexically_relative(Scope);
-    if (ResolvedRelative.empty() || *ResolvedRelative.begin() == "..")
+    if (ResolvedRelative.empty() || *ResolvedRelative.begin() == ".." ||
+        ResolvedPath.lexically_normal() == SourcePath.lexically_normal())
         return EAssetResult::AccessDenied;
     Result = Resolved.Source.ReadBounded(
         MaximumBytes, Resolved.Descriptor.Size, OutDependency.Bytes);

@@ -1,6 +1,7 @@
 #include "FCgltfDocument.h"
 
 #include "FGLTFContainerPreflight.h"
+#include "FGLTFDiagnostics.h"
 
 #include "../../../ThirdParty/cgltf/cgltf.h"
 
@@ -89,21 +90,14 @@ EAssetResult ToAssetResult(cgltf_result Result) noexcept
 
 void AddDiagnostic(
     FAssetDiagnosticList* Diagnostics,
+    Core::uint32 MaximumDiagnostics,
     EAssetResult Result,
     const char* Field)
 {
-    if (Diagnostics == nullptr)
-    {
-        return;
-    }
-    FAssetDiagnostic Diagnostic;
-    Diagnostic.Stage = EAssetStage::Parse;
-    Diagnostic.Result = Result;
-    Diagnostic.Severity = EAssetDiagnosticSeverity::Error;
-    Diagnostic.Code = Core::FString("asset.gltf.parse");
-    Diagnostic.Participant = Core::FString("parser.cgltf");
-    Diagnostic.Field = Core::FString(Field);
-    Diagnostics->push_back(std::move(Diagnostic));
+    AppendGLTFDiagnostic(Diagnostics, MaximumDiagnostics,
+        EAssetStage::Parse, Result, EAssetDiagnosticSeverity::Error,
+        Core::FString("asset.gltf.parse"), Core::FString("parser.cgltf"),
+        {}, Core::FString(Field), Core::FString("bounded parse failed"));
 }
 
 } // namespace
@@ -145,7 +139,7 @@ EAssetResult FCgltfDocument::Parse(
     }
     if (Profile.Validate() != EAssetResult::Success)
     {
-        AddDiagnostic(OutDiagnostics, EAssetResult::InvalidInput, "profile");
+        AddDiagnostic(OutDiagnostics, 1, EAssetResult::InvalidInput, "profile");
         return EAssetResult::InvalidInput;
     }
     FGLTFContainerPreflightResult Preflight;
@@ -179,7 +173,8 @@ EAssetResult FCgltfDocument::Parse(
     if (ParseResult != cgltf_result_success || Parsed == nullptr)
     {
         const EAssetResult Result = ToAssetResult(ParseResult);
-        AddDiagnostic(OutDiagnostics, Result, "source");
+        AddDiagnostic(OutDiagnostics, Profile.Limits.MaxDiagnostics,
+            Result, "source");
         OutDocument.Reset();
         return Result;
     }

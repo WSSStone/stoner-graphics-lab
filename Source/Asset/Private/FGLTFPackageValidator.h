@@ -5,8 +5,13 @@
 
 #include <span>
 
+struct cgltf_data;
+
 namespace Stoner::Asset::Private
 {
+
+[[nodiscard]] EAssetResult ValidateGLTFStaticPackageSupport(
+    const cgltf_data& Data);
 
 [[nodiscard]] EAssetResult ValidateGLTFPackageOutputs(
     const FGLTFPackageIdentityPlan& Identities,
