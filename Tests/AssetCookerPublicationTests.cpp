@@ -25,6 +25,15 @@ FAssetCookerPublicationTestResult RunAssetCookerPublicationTests()
             ValidateCurrent(Output).Result == Asset::EAssetResult::Success,
         "a complete generation becomes current through one atomic pointer");
 
+    const auto Repeated = Private::FCookedGenerationPublisher::Publish(
+        Request(SeedRun, Output));
+    Record(Result.Passed, Result.Failed,
+        Repeated.Succeeded() && Repeated.bCommitted &&
+            Repeated.GenerationDirectory == First.GenerationDirectory &&
+            Read(Output / "Current.json") == Before &&
+            ValidateCurrent(Output).Result == Asset::EAssetResult::Success,
+        "an equivalent installed generation is published idempotently");
+
     const Core::TArray<Private::EPublicationBoundary> PreCommit{
         Private::EPublicationBoundary::RequestImageValidation,
         Private::EPublicationBoundary::LeaseAcquired,

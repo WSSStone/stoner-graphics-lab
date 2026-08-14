@@ -50,7 +50,23 @@ FPlatformFileStatus PlatformMoveDirectoryNoReplace(
             Destination.c_str(),
             MOVEFILE_WRITE_THROUGH))
     {
-        return FromWindowsError(GetLastError(), "move-directory:no-replace");
+        const DWORD Error = GetLastError();
+        // MoveFileExW reports ERROR_ACCESS_DENIED rather than
+        // ERROR_ALREADY_EXISTS for an existing directory destination. Preserve
+        // the no-replace contract so callers can validate an existing winner.
+        if (Error == ERROR_ACCESS_DENIED)
+        {
+            const DWORD DestinationAttributes =
+                ::GetFileAttributesW(Destination.c_str());
+            if (DestinationAttributes != INVALID_FILE_ATTRIBUTES)
+            {
+                return MakeFileStatus(
+                    EPlatformFileResult::AlreadyExists,
+                    static_cast<int64>(Error),
+                    "move-directory:no-replace");
+            }
+        }
+        return FromWindowsError(Error, "move-directory:no-replace");
     }
     return {};
 }
