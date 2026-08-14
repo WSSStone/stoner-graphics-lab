@@ -96,7 +96,11 @@ std::filesystem::path Detail::ToNativePath(const FString& Path)
     std::filesystem::path NativePath(NativeUtf8Path);
 #if SG_PLATFORM_WINDOWS
     NativePath.make_preferred();
-    if (NativePath.is_absolute())
+    // Keep ordinary absolute paths on the conventional Win32 spelling. Some
+    // standard-library filesystem operations treat the extended namespace
+    // differently even when the path is short; opt in only before directory
+    // paths approach the legacy 248-character creation limit.
+    if (NativePath.is_absolute() && NativePath.native().size() >= 248)
     {
         const std::wstring Native = NativePath.native();
         if (!Native.starts_with(L"\\\\?\\"))

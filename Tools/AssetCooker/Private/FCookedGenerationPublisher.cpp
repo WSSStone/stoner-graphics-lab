@@ -176,7 +176,9 @@ FCookedGenerationImageResult FCookedGenerationPublisher::BuildRequestImage(
         (void)Core::FPlatformFileSystem::RemoveTreeContained(
             Request.ScratchRoot, ImageRoot);
         Result.Result = Asset::EAssetResult::CorruptPayload;
-        Result.StableReason = Core::FString("generation-image.validation.failed");
+        Result.StableReason = Validated.StableReason.IsEmpty()
+            ? Core::FString("generation-image.validation.failed")
+            : Validated.StableReason;
         return Result;
     }
     Result.Result = Asset::EAssetResult::Success;
