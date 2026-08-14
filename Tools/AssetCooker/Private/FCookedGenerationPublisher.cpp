@@ -289,16 +289,28 @@ FCookedGenerationPublicationResult FCookedGenerationPublisher::Publish(
         return Fail(EAssetCookResultCategory::PublicationFailure,
             "publication.generation-install.injected-failure");
     }
-    const auto Move = Core::FPlatformFileSystem::MoveDirectoryNoReplace(
-        Stage, GenerationDirectory);
-    if (!Move.IsSuccess())
+    // The publication lease makes this preflight race-free with other writers.
+    // Avoid invoking Win32 directory rename for an already-installed immutable
+    // winner because its collision error is not stable across Windows versions.
+    if (EqualInstalledGeneration(Request, GenerationDirectory, ManifestDigest))
     {
         Cleanup();
-        if (Move.Result != Core::EPlatformFileResult::AlreadyExists ||
-            !EqualInstalledGeneration(
-                Request, GenerationDirectory, ManifestDigest))
-            return Fail(EAssetCookResultCategory::PublicationFailure,
-                "publication.generation-install.failed");
+    }
+    else
+    {
+        const auto Move = Core::FPlatformFileSystem::MoveDirectoryNoReplace(
+            Stage, GenerationDirectory);
+        if (!Move.IsSuccess())
+        {
+            const bool bInstalledWinnerExists =
+                Core::FPlatformFileSystem::Exists(GenerationDirectory);
+            Cleanup();
+            if (!bInstalledWinnerExists ||
+                !EqualInstalledGeneration(
+                    Request, GenerationDirectory, ManifestDigest))
+                return Fail(EAssetCookResultCategory::PublicationFailure,
+                    "publication.generation-install.failed");
+        }
     }
 
     Asset::FCurrentGenerationPointer Pointer;
