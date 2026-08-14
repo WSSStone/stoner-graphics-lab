@@ -5,9 +5,12 @@
 #include "Renderer/FForwardViewData.h"
 #include "Renderer/FMaterial.h"
 #include "Renderer/FMaterialResourceRequirement.h"
+#include "RHI/FRHIIndexedDrawArguments.h"
 
 namespace Stoner::Renderer
 {
+
+struct FStaticMeshSection;
 
 enum class EForwardDrawPass
 {
@@ -104,5 +107,10 @@ private:
 void SortForwardOpaqueDraws(Stoner::Core::TArray<FMeshDrawCommand>& Draws);
 void SortForwardTransparentDraws(Stoner::Core::TArray<FMeshDrawCommand>& Draws);
 [[nodiscard]] const char* ToString(EForwardDrawPass Pass) noexcept;
+[[nodiscard]] Stoner::RHI::FRHIIndexedDrawArguments
+MakeStaticMeshSectionDrawArguments(
+    const FStaticMeshSection& Section,
+    Stoner::Core::uint32 InstanceCount = 1,
+    Stoner::Core::uint32 FirstInstance = 0) noexcept;
 
 } // namespace Stoner::Renderer

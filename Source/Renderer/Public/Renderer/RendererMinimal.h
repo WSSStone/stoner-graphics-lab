@@ -28,6 +28,8 @@
 #include "Renderer/FShaderAssetConversion.h"
 #include "Renderer/FShaderPermutation.h"
 #include "Renderer/FTextureAssetRealization.h"
+#include "Renderer/FStaticMeshAssetConversion.h"
+#include "Renderer/FStaticMeshRealization.h"
 #include "Renderer/FTextureTargetProfile.h"
 
 // Renderer layer minimal header — high-level rendering

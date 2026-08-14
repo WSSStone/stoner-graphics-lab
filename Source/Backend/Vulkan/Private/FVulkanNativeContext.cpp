@@ -543,6 +543,8 @@ struct FVulkanNativeContext::FImpl
     VkDeviceMemory VertexMemory = VK_NULL_HANDLE;
     VkBuffer IndexBuffer = VK_NULL_HANDLE;
     VkDeviceMemory IndexMemory = VK_NULL_HANDLE;
+    VkBuffer ReadbackBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory ReadbackMemory = VK_NULL_HANDLE;
     VkImage ColorImage = VK_NULL_HANDLE;
     VkDeviceMemory ColorMemory = VK_NULL_HANDLE;
     VkImageView ColorView = VK_NULL_HANDLE;
@@ -859,6 +861,8 @@ struct FVulkanNativeContext::FImpl
         if (VertexMemory) vkFreeMemory(Device, VertexMemory, nullptr);
         if (IndexBuffer) vkDestroyBuffer(Device, IndexBuffer, nullptr);
         if (IndexMemory) vkFreeMemory(Device, IndexMemory, nullptr);
+        if (ReadbackBuffer) vkDestroyBuffer(Device, ReadbackBuffer, nullptr);
+        if (ReadbackMemory) vkFreeMemory(Device, ReadbackMemory, nullptr);
         Fence = VK_NULL_HANDLE; ImageAvailable = VK_NULL_HANDLE; RenderFinished = VK_NULL_HANDLE;
         VisibleCommandBuffers.clear(); VisibleFences.clear(); VisibleImageAvailable.clear(); VisibleRenderFinished.clear();
         CommandPool = VK_NULL_HANDLE; CommandBuffer = VK_NULL_HANDLE;
@@ -868,6 +872,7 @@ struct FVulkanNativeContext::FImpl
         ColorView = VK_NULL_HANDLE; ColorImage = VK_NULL_HANDLE; ColorMemory = VK_NULL_HANDLE;
         VertexBuffer = VK_NULL_HANDLE; VertexMemory = VK_NULL_HANDLE;
         IndexBuffer = VK_NULL_HANDLE; IndexMemory = VK_NULL_HANDLE;
+        ReadbackBuffer = VK_NULL_HANDLE; ReadbackMemory = VK_NULL_HANDLE;
         Swapchain = VK_NULL_HANDLE; SwapchainFormat = VK_FORMAT_UNDEFINED; SwapchainExtent = {};
         SwapchainImages.clear(); SwapchainViews.clear(); SwapchainFramebuffers.clear();
         CurrentFrameSlot = 0; AcquiredImageIndex = 0; AcquiredFrameSlot = 0;
@@ -1173,7 +1178,8 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     ImageInfo.arrayLayers = 1;
     ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    ImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    ImageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     if (vkCreateImage(Impl->Device, &ImageInfo, nullptr, &Impl->ColorImage) != VK_SUCCESS) return Fail();
@@ -1187,6 +1193,43 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     if (vkAllocateMemory(Impl->Device, &ImageAllocation, nullptr, &Impl->ColorMemory) != VK_SUCCESS ||
         vkBindImageMemory(Impl->Device, Impl->ColorImage, Impl->ColorMemory, 0) != VK_SUCCESS) return Fail();
     Impl->Snapshot.LiveTextures = Impl->GetLiveTextureCount();
+
+    constexpr VkDeviceSize ReadbackSize = 64u * 64u * 4u;
+    VkBufferCreateInfo ReadbackInfo =
+        MakeVulkanStruct<VkBufferCreateInfo>(
+            VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
+    ReadbackInfo.size = ReadbackSize;
+    ReadbackInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    ReadbackInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    if (vkCreateBuffer(Impl->Device, &ReadbackInfo, nullptr,
+            &Impl->ReadbackBuffer) != VK_SUCCESS)
+    {
+        return Fail();
+    }
+    VkMemoryRequirements ReadbackRequirements{};
+    vkGetBufferMemoryRequirements(
+        Impl->Device, Impl->ReadbackBuffer, &ReadbackRequirements);
+    const auto ReadbackMemoryType = Impl->FindMemoryType(
+        ReadbackRequirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (ReadbackMemoryType == UINT32_MAX)
+    {
+        return Fail();
+    }
+    VkMemoryAllocateInfo ReadbackAllocation =
+        MakeVulkanStruct<VkMemoryAllocateInfo>(
+            VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO);
+    ReadbackAllocation.allocationSize = ReadbackRequirements.size;
+    ReadbackAllocation.memoryTypeIndex = ReadbackMemoryType;
+    if (vkAllocateMemory(Impl->Device, &ReadbackAllocation, nullptr,
+            &Impl->ReadbackMemory) != VK_SUCCESS ||
+        vkBindBufferMemory(Impl->Device, Impl->ReadbackBuffer,
+            Impl->ReadbackMemory, 0) != VK_SUCCESS)
+    {
+        return Fail();
+    }
+    Impl->Snapshot.LiveBuffers = 3;
 
     VkImageViewCreateInfo ViewInfo = MakeVulkanStruct<VkImageViewCreateInfo>(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO);
     ViewInfo.image = Impl->ColorImage;
@@ -1203,7 +1246,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     Attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     Attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     Attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    Attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    Attachment.finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     VkAttachmentReference AttachmentReference{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
     VkSubpassDescription Subpass{};
     Subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -1257,7 +1300,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     VkPipelineViewportStateCreateInfo ViewportState = MakeVulkanStruct<VkPipelineViewportStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO);
     ViewportState.viewportCount = 1; ViewportState.scissorCount = 1;
     VkPipelineRasterizationStateCreateInfo Rasterizer = MakeVulkanStruct<VkPipelineRasterizationStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO);
-    Rasterizer.polygonMode = VK_POLYGON_MODE_FILL; Rasterizer.cullMode = VK_CULL_MODE_NONE;
+    Rasterizer.polygonMode = VK_POLYGON_MODE_FILL; Rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     Rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE; Rasterizer.lineWidth = 1.0f;
     VkPipelineMultisampleStateCreateInfo Multisample = MakeVulkanStruct<VkPipelineMultisampleStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
     Multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -1295,12 +1338,25 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     vkCmdBindPipeline(Impl->CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, Impl->Pipeline);
     const VkDeviceSize Offset = 0;
     vkCmdBindVertexBuffers(Impl->CommandBuffer, 0, 1, &Impl->VertexBuffer, &Offset);
+    vkCmdBindIndexBuffer(
+        Impl->CommandBuffer, Impl->IndexBuffer, 0, VK_INDEX_TYPE_UINT16);
     VkViewport Viewport{0.0f, 0.0f, 64.0f, 64.0f, 0.0f, 1.0f};
     VkRect2D Scissor{{0, 0}, {64, 64}};
     vkCmdSetViewport(Impl->CommandBuffer, 0, 1, &Viewport);
     vkCmdSetScissor(Impl->CommandBuffer, 0, 1, &Scissor);
-    vkCmdDraw(Impl->CommandBuffer, 3, 1, 0, 0);
+    vkCmdDrawIndexed(Impl->CommandBuffer, 3, 1, 0, 0, 0);
     vkCmdEndRenderPass(Impl->CommandBuffer);
+    VkBufferImageCopy ReadbackRegion{};
+    ReadbackRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    ReadbackRegion.imageSubresource.layerCount = 1;
+    ReadbackRegion.imageExtent = {64, 64, 1};
+    vkCmdCopyImageToBuffer(
+        Impl->CommandBuffer,
+        Impl->ColorImage,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        Impl->ReadbackBuffer,
+        1,
+        &ReadbackRegion);
     if (vkEndCommandBuffer(Impl->CommandBuffer) != VK_SUCCESS) return Fail();
     VkFenceCreateInfo FenceInfo = MakeVulkanStruct<VkFenceCreateInfo>(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
     if (vkCreateFence(Impl->Device, &FenceInfo, nullptr, &Impl->Fence) != VK_SUCCESS) return Fail();
@@ -1309,6 +1365,30 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     Submit.commandBufferCount = 1; Submit.pCommandBuffers = &Impl->CommandBuffer;
     if (vkQueueSubmit(Impl->GraphicsQueue, 1, &Submit, Impl->Fence) != VK_SUCCESS ||
         vkWaitForFences(Impl->Device, 1, &Impl->Fence, VK_TRUE, 30ull * 1000ull * 1000ull * 1000ull) != VK_SUCCESS) return Fail();
+    void* Readback = nullptr;
+    if (vkMapMemory(
+            Impl->Device, Impl->ReadbackMemory, 0,
+            ReadbackSize, 0, &Readback) != VK_SUCCESS)
+    {
+        return Fail();
+    }
+    const auto* Pixels = static_cast<const Stoner::Core::uint8*>(Readback);
+    bool bObservedDrawnPixel = false;
+    for (VkDeviceSize Pixel = 0; Pixel < 64u * 64u; ++Pixel)
+    {
+        const VkDeviceSize Byte = Pixel * 4u;
+        if (Pixels[Byte] > 16u || Pixels[Byte + 1u] > 16u ||
+            Pixels[Byte + 2u] > 20u)
+        {
+            bObservedDrawnPixel = true;
+            break;
+        }
+    }
+    vkUnmapMemory(Impl->Device, Impl->ReadbackMemory);
+    if (!bObservedDrawnPixel)
+    {
+        return Fail();
+    }
     Impl->DestroyFrameResources();
     return Stoner::RHI::ERHIResult::Success;
 #else
