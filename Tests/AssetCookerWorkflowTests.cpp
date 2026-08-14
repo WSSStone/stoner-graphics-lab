@@ -44,7 +44,7 @@ FAssetCookerWorkflowTestResult RunAssetCookerWorkflowTests()
 {
     FAssetCookerWorkflowTestResult Result;
     const auto Root = std::filesystem::temp_directory_path() /
-        "stoner-asset-cooker-us5-workflow";
+        "sg-acwf";
     std::filesystem::remove_all(Root);
     const auto Content = Root / "Content";
     const auto Output = Root / "Cooked";
@@ -78,6 +78,11 @@ FAssetCookerWorkflowTestResult RunAssetCookerWorkflowTests()
         Output.string(), "--ddc", Ddc.string(), "--workers", "8",
         "--lease-timeout-ms", "30000", "--normalized-report", "--report",
         (Reports / "incremental.json").string()});
+    if (!Clean.Succeeded() || !Incremental.Succeeded())
+        std::cout << "[EVIDENCE] workflow-clean="
+                  << Clean.StableReason.ToStdString()
+                  << ";incremental="
+                  << Incremental.StableReason.ToStdString() << '\n';
     Record(Result, Clean.Succeeded() && Incremental.Succeeded() &&
         Incremental.CanonicalReport.View().find("\"action\": \"reuse\"") !=
             std::string_view::npos,
