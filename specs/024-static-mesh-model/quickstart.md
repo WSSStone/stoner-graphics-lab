@@ -24,7 +24,7 @@ Expected branch: `024-static-mesh-model`.
 ## 2. Build Debug
 
 ```bash
-conda run -n godot scons platform=macos target=debug
+conda run -n godot scons platform=macos config=debug
 ```
 
 Use `platform=windows` or `platform=linux` on the corresponding machine.
@@ -86,6 +86,14 @@ resource survives.
 
 ## 6. Validate The Fixture Manifest
 
+Regenerate the checked-in representative fixture before validating after any
+generator change:
+
+```bash
+conda run -n godot python \
+  Tests/Fixtures/StaticModel/Performance/generate_performance_fixture.py
+```
+
 ```bash
 conda run -n godot python Tests/verify_static_model_fixtures.py \
   --manifest Validation/024/fixture-manifest.json \
@@ -127,8 +135,8 @@ limit, and canonical output digest under `Validation/024/reports/`.
 ```bash
 conda run -n godot scons \
   platform=macos \
-  target=release \
-  warnings_as_errors=yes
+  config=release \
+  strict=1
 ```
 
 Third-party warning suppression must remain isolated to the private C
@@ -139,7 +147,7 @@ translation units. Project sources stay under strict warnings.
 Linux CI runs:
 
 ```bash
-scons platform=linux target=debug sanitizer=address,undefined
+scons platform=linux config=debug strict=1 sanitizers=address,undefined
 Build/Linux/Debug/Tests/StonerTest \
   --suite coordinate-convention \
   --suite asset-static-model \

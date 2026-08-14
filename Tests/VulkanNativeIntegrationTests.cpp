@@ -15,6 +15,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <fstream>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <utility>
@@ -157,8 +158,9 @@ FVulkanNativeIntegrationTestResult RunVulkanNativeIntegrationTests()
         "main",
         "ShaderPayload:Engine/Shaders/Triangle#payload.vulkan.fragment",
         ReadShaderWords("Content/Shaders/Triangle/Triangle.frag.spv"));
-    Record(Result, Context.ExecuteOffscreenTriangle(
-        TriangleVertex, TriangleFragment) == ERHIResult::Success,
+    const bool bIndexedReadback = Context.ExecuteOffscreenTriangle(
+        TriangleVertex, TriangleFragment) == ERHIResult::Success;
+    Record(Result, bIndexedReadback,
         "Vulkan native integration performs indexed clockwise-culling attachment readback");
     Record(Result, Context.GetSnapshot().GetTotalLiveObjectCount() == 2,
         "Vulkan native integration releases frame-local resources after completion");
@@ -178,10 +180,10 @@ FVulkanNativeIntegrationTestResult RunVulkanNativeIntegrationTests()
         ? Stoner::Renderer::FStaticMeshRealizer::Realize(
               {StaticMeshDevice, StaticMeshAsset, {}})
         : Stoner::Renderer::FStaticMeshRealizationResult{};
-    Record(Result,
-        StaticMeshRealization.Succeeded() &&
+    const bool bStaticMeshTransfer = StaticMeshRealization.Succeeded() &&
             StaticMeshDevice->GetTrackedUploadRequestCount() == 2 &&
-            StaticMeshRealization.Snapshot->Sections.size() == 2,
+            StaticMeshRealization.Snapshot->Sections.size() == 2;
+    Record(Result, bStaticMeshTransfer,
         "Renderer static mesh realization reaches Vulkan buffer transfer path");
     Record(Result,
         StaticMeshDevice->Shutdown() == ERHIResult::Success,
@@ -542,5 +544,21 @@ FVulkanNativeIntegrationTestResult RunVulkanNativeIntegrationTests()
                 ERHIResourceLifecycleState::Invalidated &&
             !ShaderDevice.HasNativeShaderRuntime(),
         "Vulkan RHI device destroys native shader and pipeline ownership on explicit invalidation and shutdown");
+    if (const char* ReportPath =
+            std::getenv("STONER_STATIC_MESH_NATIVE_REPORT"))
+    {
+        const std::filesystem::path Path(ReportPath);
+        if (Path.has_parent_path())
+            std::filesystem::create_directories(Path.parent_path());
+        std::ofstream Report(Path, std::ios::binary | std::ios::trunc);
+        Report << "feature=024-static-mesh-model\n"
+               << "runtime=vulkan-native\n"
+               << "indexed-clockwise-attachment-readback="
+               << (bIndexedReadback ? "pass" : "fail") << '\n'
+               << "renderer-buffer-transfer="
+               << (bStaticMeshTransfer ? "pass" : "fail") << '\n'
+               << "suite-passed=" << (Result.Failed == 0 ? "yes" : "no")
+               << '\n';
+    }
     return Result;
 }

@@ -13,7 +13,7 @@ SPEC.loader.exec_module(MODULE)
 
 
 class StaticModelValidationTests(unittest.TestCase):
-    def test_deterministic_runs_only_renderer_suite(self):
+    def test_deterministic_runs_asset_malformed_and_renderer_suites(self):
         calls = []
 
         def record(command, timeout_seconds, env):
@@ -35,7 +35,11 @@ class StaticModelValidationTests(unittest.TestCase):
             self.assertEqual(0, result)
             self.assertIn("validation-result=pass", output.read_text())
         self.assertEqual(
-            [["StonerTest", "--suite", "renderer-static-mesh"]], calls
+            [
+                ["StonerTest", "--suite", "asset-static-model"],
+                ["StonerTest", "--suite", "asset-gltf-malformed"],
+                ["StonerTest", "--suite", "renderer-static-mesh"],
+            ], calls
         )
 
     def test_native_requires_all_real_execution_suites(self):
@@ -62,12 +66,17 @@ class StaticModelValidationTests(unittest.TestCase):
             self.assertIn("indexed-clockwise-readback=required", report)
             self.assertIn("non-symmetric-matrix-readback=required", report)
         self.assertEqual(
-            ["renderer-static-mesh", "vulkan-native", "deferred-native"],
+            [
+                "asset-static-model", "asset-gltf-malformed",
+                "renderer-static-mesh", "vulkan-native", "deferred-native",
+            ],
             [call[0][-1] for call in calls],
         )
         self.assertTrue(all(
             call[1].get("STONER_REQUIRE_STATIC_MESH_NATIVE") == "1"
             and call[1].get("STONER_REQUIRE_DEFERRED_NATIVE") == "1"
+            and call[1].get("STONER_STATIC_MESH_NATIVE_REPORT") ==
+                "Validation/024/Linux/native-static-mesh-readback.txt"
             for call in calls
         ))
 
@@ -92,7 +101,9 @@ class StaticModelValidationTests(unittest.TestCase):
                 MODULE.run = original
             self.assertEqual(9, result)
             self.assertIn("validation-result=fail", output.read_text())
-        self.assertEqual(["renderer-static-mesh", "vulkan-native"], calls)
+        self.assertEqual(
+            ["asset-static-model", "asset-gltf-malformed",
+             "renderer-static-mesh", "vulkan-native"], calls)
 
     def test_non_positive_timeout_is_rejected(self):
         with self.assertRaises(SystemExit):

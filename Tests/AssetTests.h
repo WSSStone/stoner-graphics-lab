@@ -13,6 +13,19 @@
 #include "AssetStaticMeshGeometryTests.h"
 #include "AssetStaticModelHierarchyTests.h"
 #include "AssetStaticModelIdentityTests.h"
+#include "AssetStaticModelDeterminism.h"
+#include "AssetStaticModelConcurrency.h"
+#include "AssetStaticModelBenchmark.h"
+
+#include <string>
+
+struct FAssetStaticModelTestOptions
+{
+    int DeterminismRuns = 20;
+    int PerformanceRuns = 0;
+    double PerformanceMaxSeconds = 5.0;
+    std::string PerformanceFixture;
+};
 
 struct FAssetTestResult
 {
@@ -22,4 +35,5 @@ struct FAssetTestResult
 
 [[nodiscard]] FAssetTestResult RunAssetTests(
     const FAssetKTX2TestOptions& Options = {},
-    const FAssetMaterialShaderTestOptions& MaterialShaderOptions = {});
+    const FAssetMaterialShaderTestOptions& MaterialShaderOptions = {},
+    const FAssetStaticModelTestOptions& StaticModelOptions = {});

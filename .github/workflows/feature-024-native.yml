@@ -8,11 +8,18 @@ on:
     paths:
       - ".github/workflows/feature-024-native.yml"
       - "Content/Shaders/Deferred/**"
+      - "Source/Asset/**"
       - "Source/Backend/Vulkan/**"
       - "Source/Renderer/**"
       - "Tests/DeferredNativeIntegrationTests.cpp"
+      - "Tests/AssetStaticModel*.cpp"
+      - "Tests/RendererStaticMesh*.cpp"
+      - "Tests/VulkanNativeIntegrationTests.cpp"
+      - "Tests/Fixtures/StaticModel/**"
       - "Tests/CoordinateConventionTests.*"
       - "Tests/verify_coordinate_convention.py"
+      - "Tests/verify_static_model_*.py"
+      - ".github/scripts/run_static_model_validation.py"
       - "specs/024-static-mesh-model/**"
   workflow_dispatch:
 
@@ -44,16 +51,26 @@ jobs:
           python Tests/verify_coordinate_convention.py
           python -m unittest Tests/test_verify_coordinate_convention.py
 
-      - name: Require native Renderer-packed uniform readback
-        env:
-          STONER_REQUIRE_DEFERRED_NATIVE: "1"
-          STONER_DEFERRED_READBACK_REPORT: Validation/024/Linux/native-packed-uniform-readback.txt
-        run: Build/Linux/Debug/Tests/StonerTest --suite deferred-native
+      - name: Verify static-model corpus and architecture evidence
+        run: |
+          python Tests/verify_static_model_provenance.py
+          python Tests/verify_static_model_fixtures.py
+          python Tests/verify_asset_layer.py
+
+      - name: Require native indexed static-mesh and packed-uniform readback
+        run: >-
+          python .github/scripts/run_static_model_validation.py
+          --profile native
+          --tests Build/Linux/Debug/Tests/StonerTest
+          --output Validation/024/Linux/native-static-model-report.txt
+          --timeout-seconds 1200
 
       - name: Upload native probe report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: feature-024-native-probe-linux
-          path: Validation/024/Linux/native-packed-uniform-readback.txt
-          if-no-files-found: warn
+          path: |
+            Validation/024/Linux/native-static-model-report.txt
+            Validation/024/Linux/native-static-mesh-readback.txt
+          if-no-files-found: error

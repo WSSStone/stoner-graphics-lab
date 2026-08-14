@@ -41,6 +41,8 @@
 
 #include <cstring>
 #include <charconv>
+#include <cerrno>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -62,6 +64,7 @@ int main(int ArgCount, char* Arguments[])
 
     FAssetKTX2TestOptions KTX2Options;
     FAssetMaterialShaderTestOptions MaterialShaderOptions;
+    FAssetStaticModelTestOptions StaticModelOptions;
     std::vector<std::string> ParsedArguments;
     for (int Index = 1; Index < ArgCount; ++Index)
     {
@@ -71,7 +74,11 @@ int main(int ArgCount, char* Arguments[])
             Argument == "--report" ||
             Argument == "--ktx2-determinism-runs" ||
             Argument == "--material-shader-report" ||
-            Argument == "--material-shader-determinism-runs")
+            Argument == "--material-shader-determinism-runs" ||
+            Argument == "--static-model-determinism-runs" ||
+            Argument == "--static-model-performance-runs" ||
+            Argument == "--static-model-performance-max-seconds" ||
+            Argument == "--static-model-performance-fixture")
         {
             if (Index + 1 >= ArgCount)
             {
@@ -110,6 +117,41 @@ int main(int ArgCount, char* Arguments[])
                 }
                 KTX2Options.DeterminismRuns = Runs;
             }
+            else if (Argument == "--static-model-performance-fixture")
+            {
+                StaticModelOptions.PerformanceFixture = Value;
+            }
+            else if (Argument == "--static-model-performance-max-seconds")
+            {
+                errno = 0;
+                char* End = nullptr;
+                const double Seconds = std::strtod(Value.c_str(), &End);
+                if (errno != 0 || End != Value.c_str() + Value.size() ||
+                    !(Seconds > 0.0))
+                {
+                    std::cerr
+                        << "Invalid --static-model-performance-max-seconds value\n";
+                    return 2;
+                }
+                StaticModelOptions.PerformanceMaxSeconds = Seconds;
+            }
+            else if (Argument == "--static-model-determinism-runs" ||
+                     Argument == "--static-model-performance-runs")
+            {
+                int Runs = 0;
+                const auto Parsed = std::from_chars(
+                    Value.data(), Value.data() + Value.size(), Runs);
+                if (Parsed.ec != std::errc{} ||
+                    Parsed.ptr != Value.data() + Value.size() ||
+                    Runs <= 0 || Runs > 1000)
+                {
+                    std::cerr << "Invalid " << Argument << " value\n";
+                    return 2;
+                }
+                if (Argument == "--static-model-determinism-runs")
+                    StaticModelOptions.DeterminismRuns = Runs;
+                else StaticModelOptions.PerformanceRuns = Runs;
+            }
             else
             {
                 int Runs = 0;
@@ -133,8 +175,8 @@ int main(int ArgCount, char* Arguments[])
     FTestSuiteRegistry Registry;
     Registry.Register("application-scene", [] { return RunApplicationSceneEcsTests().Failed == 0 ? 0 : 1; });
     Registry.Register("application-window", [] { return RunApplicationWindowInputTests().Failed == 0 ? 0 : 1; });
-    Registry.Register("asset", [KTX2Options, MaterialShaderOptions] {
-        return RunAssetTests(KTX2Options, MaterialShaderOptions).Failed == 0 ? 0 : 1;
+    Registry.Register("asset", [KTX2Options, MaterialShaderOptions, StaticModelOptions] {
+        return RunAssetTests(KTX2Options, MaterialShaderOptions, StaticModelOptions).Failed == 0 ? 0 : 1;
     });
     Registry.Register("asset-material-shader", [MaterialShaderOptions] {
         return RunAssetMaterialShaderTests(MaterialShaderOptions).Failed == 0 ? 0 : 1;
@@ -146,10 +188,16 @@ int main(int ArgCount, char* Arguments[])
         return Geometry.Failed == 0 && Policy.Failed == 0 &&
             Container.Failed == 0 ? 0 : 1;
     });
-    Registry.Register("asset-static-model", [] {
+    Registry.Register("asset-static-model", [StaticModelOptions] {
         const auto Hierarchy = RunAssetStaticModelHierarchyTests();
         const auto Identity = RunAssetStaticModelIdentityTests();
-        return Hierarchy.Failed == 0 && Identity.Failed == 0 ? 0 : 1;
+        const auto Determinism =
+            RunAssetStaticModelDeterminismTests(StaticModelOptions);
+        const auto Concurrency = RunAssetStaticModelConcurrencyTests();
+        const auto Benchmark = RunAssetStaticModelBenchmark(StaticModelOptions);
+        return Hierarchy.Failed == 0 && Identity.Failed == 0 &&
+            Determinism.Failed == 0 && Concurrency.Failed == 0 &&
+            Benchmark.Failed == 0 ? 0 : 1;
     });
     Registry.Register("asset-gltf-material", [] {
         const auto Material = RunAssetGLTFMaterialTests();

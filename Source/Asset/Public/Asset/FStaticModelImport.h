@@ -79,11 +79,21 @@ public:
     [[nodiscard]] FAssetDigest GetDigest() const;
 };
 
+struct FStaticModelImportStatistics
+{
+    Core::uint64 SourceBytes = 0;
+    Core::uint64 ParserPeakBytes = 0;
+    Core::uint64 DependencyBytes = 0;
+    Core::uint64 DecodedGeometryBytes = 0;
+    Core::uint64 TrackedRequestOwnedPeakBytes = 0;
+};
+
 struct FStaticModelImportRequest
 {
     FAssetImportRequest AssetRequest;
     Core::TSharedPtr<IAssetResolver> DependencyResolver;
     Core::TSharedPtr<const FStaticModelImportProfile> Profile;
+    FStaticModelImportStatistics* Statistics = nullptr;
 };
 
 [[nodiscard]] bool IsValidStaticMeshNormalPolicy(
