@@ -4,10 +4,12 @@
 #include "Core/SGPlatform.h"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <thread>
 
 namespace
 {
@@ -185,6 +187,42 @@ FCorePlatformFileTransactionTestResult RunCorePlatformFileTransactionTests()
         FPlatformFileSystem::ReadFile(ToString(Current), ReadBack) &&
         Equals(ReadBack, "new") && !std::filesystem::exists(Next),
         "Atomic replacement exposes complete new bytes");
+
+    std::atomic<bool> ReaderStarted{false};
+    std::atomic<bool> StopReader{false};
+    std::atomic<bool> ReaderSawOnlyComplete{true};
+    std::thread Reader([&]
+    {
+        ReaderStarted.store(true, std::memory_order_release);
+        while (!StopReader.load(std::memory_order_acquire))
+        {
+            TArray<uint8> BytesRead;
+            if (!FPlatformFileSystem::ReadFile(ToString(Current), BytesRead) ||
+                (!Equals(BytesRead, "old") && !Equals(BytesRead, "new")))
+            {
+                ReaderSawOnlyComplete.store(false, std::memory_order_relaxed);
+                break;
+            }
+        }
+    });
+    while (!ReaderStarted.load(std::memory_order_acquire))
+        std::this_thread::yield();
+    bool ReplacementsSucceeded = true;
+    for (int Index = 0; Index < 32; ++Index)
+    {
+        ReplacementsSucceeded = ReplacementsSucceeded &&
+            FPlatformFileSystem::WriteFileDurable(
+                ToString(Next), Bytes(Index % 2 == 0 ? "old" : "new"))
+                .IsSuccess() &&
+            FPlatformFileSystem::ReplaceFileAtomic(
+                ToString(Next), ToString(Current)).IsSuccess();
+    }
+    StopReader.store(true, std::memory_order_release);
+    Reader.join();
+    Record(Result,
+        ReplacementsSucceeded &&
+            ReaderSawOnlyComplete.load(std::memory_order_relaxed),
+        "Concurrent readers permit complete atomic replacements");
 
     const std::string UnicodeName =
         "unicode-\xE6\xB5\x8B\xE8\xAF\x95.bin";

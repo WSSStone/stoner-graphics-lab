@@ -178,8 +178,11 @@ bool FPlatformFileSystem::ReadFile(const FString& Path, TArray<uint8>& OutData)
 {
     OutData.clear();
 
-    std::error_code Error;
     const std::filesystem::path FilePath = Detail::ToNativePath(Path);
+#if SG_PLATFORM_WINDOWS
+    return Detail::PlatformReadFile(FilePath, OutData);
+#else
+    std::error_code Error;
     if (!std::filesystem::is_regular_file(FilePath, Error) || Error)
     {
         return false;
@@ -202,6 +205,7 @@ bool FPlatformFileSystem::ReadFile(const FString& Path, TArray<uint8>& OutData)
     }
 
     return Detail::ReadExactBytes(File, static_cast<usize>(Size), OutData);
+#endif
 }
 
 bool FPlatformFileSystem::WriteFile(const FString& Path, const TArray<uint8>& Data)

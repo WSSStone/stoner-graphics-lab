@@ -8,6 +8,7 @@
 #include <Windows.h>
 
 #include <algorithm>
+#include <limits>
 
 namespace Stoner::Core::Detail
 {
@@ -40,6 +41,67 @@ FPlatformFileStatus FromWindowsError(DWORD Error, const char* Context)
 }
 
 } // namespace
+
+bool PlatformReadFile(
+    const std::filesystem::path& Path,
+    TArray<uint8>& OutData)
+{
+    OutData.clear();
+    HANDLE File = ::CreateFileW(
+        Path.c_str(),
+        GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
+        nullptr);
+    if (File == INVALID_HANDLE_VALUE)
+    {
+        return false;
+    }
+
+    LARGE_INTEGER Size{};
+    if (!::GetFileSizeEx(File, &Size) || Size.QuadPart < 0 ||
+        static_cast<unsigned long long>(Size.QuadPart) >
+            static_cast<unsigned long long>(std::numeric_limits<usize>::max()))
+    {
+        ::CloseHandle(File);
+        return false;
+    }
+    try
+    {
+        OutData.resize(static_cast<usize>(Size.QuadPart));
+    }
+    catch (...)
+    {
+        ::CloseHandle(File);
+        OutData.clear();
+        return false;
+    }
+
+    usize Offset = 0;
+    while (Offset < OutData.size())
+    {
+        const DWORD Chunk = static_cast<DWORD>(std::min<usize>(
+            OutData.size() - Offset,
+            static_cast<usize>(std::numeric_limits<DWORD>::max())));
+        DWORD Read = 0;
+        if (!::ReadFile(File, OutData.data() + Offset, Chunk, &Read, nullptr) ||
+            Read != Chunk)
+        {
+            ::CloseHandle(File);
+            OutData.clear();
+            return false;
+        }
+        Offset += static_cast<usize>(Read);
+    }
+    if (!::CloseHandle(File))
+    {
+        OutData.clear();
+        return false;
+    }
+    return true;
+}
 
 FPlatformFileStatus PlatformMoveDirectoryNoReplace(
     const std::filesystem::path& Source,

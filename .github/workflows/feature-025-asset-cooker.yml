@@ -93,9 +93,11 @@ jobs:
           --suite asset-cooker-report
           --suite asset-cooker-workflow
           --suite asset-cooker-ddc
+          --suite asset-cooker-publication
           --suite asset-cooker-published-validation
           --suite asset-cooker-concurrency
           --suite asset-cooker-publication-concurrency
+          --suite core-file-transaction
           --suite core-file-lease
 
   release:

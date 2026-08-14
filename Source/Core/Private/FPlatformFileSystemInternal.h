@@ -2,6 +2,7 @@
 
 #include "Core/FPlatformTypes.h"
 #include "Core/FPlatformFileSystem.h"
+#include "Core/SGPlatform.h"
 #include "Core/TArray.h"
 
 #include <filesystem>
@@ -31,5 +32,10 @@ namespace Stoner::Core::Detail
 [[nodiscard]] FPlatformFileStatus PlatformWriteFileDurable(
     const std::filesystem::path& Path,
     const TArray<uint8>& Data);
+#if SG_PLATFORM_WINDOWS
+[[nodiscard]] bool PlatformReadFile(
+    const std::filesystem::path& Path,
+    TArray<uint8>& OutData);
+#endif
 
 } // namespace Stoner::Core::Detail

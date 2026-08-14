@@ -10,6 +10,11 @@
 #include <string>
 #include <vector>
 
+#if defined(_WIN32)
+#define NOMINMAX
+#include <Windows.h>
+#endif
+
 namespace
 {
 
@@ -36,26 +41,88 @@ EAssetCookResultCategory Parse(
     return Result;
 }
 
+#if !defined(_WIN32)
 std::string Quote(const std::string& Value)
 {
-#if defined(_WIN32)
-    std::string Result = "\"";
-    for (char Character : Value)
-        Result += Character == '"' ? "\\\"" : std::string(1, Character);
-    return Result + "\"";
-#else
     std::string Result = "'";
     for (char Character : Value)
         Result += Character == '\'' ? "'\\''" : std::string(1, Character);
     return Result + "'";
-#endif
 }
+#endif
 
 std::string ReadText(const std::filesystem::path& Path)
 {
     std::ifstream Input(Path, std::ios::binary);
     return {std::istreambuf_iterator<char>(Input),
         std::istreambuf_iterator<char>()};
+}
+
+int RunInvalidCommand(
+    const char* Executable,
+    const std::filesystem::path& Stdout,
+    const std::filesystem::path& Stderr)
+{
+#if defined(_WIN32)
+    SECURITY_ATTRIBUTES Security{};
+    Security.nLength = sizeof(Security);
+    Security.bInheritHandle = TRUE;
+    HANDLE StdoutHandle = ::CreateFileW(
+        Stdout.c_str(), GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        &Security, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    HANDLE StderrHandle = ::CreateFileW(
+        Stderr.c_str(), GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        &Security, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (StdoutHandle == INVALID_HANDLE_VALUE ||
+        StderrHandle == INVALID_HANDLE_VALUE)
+    {
+        if (StdoutHandle != INVALID_HANDLE_VALUE) ::CloseHandle(StdoutHandle);
+        if (StderrHandle != INVALID_HANDLE_VALUE) ::CloseHandle(StderrHandle);
+        return -1;
+    }
+
+    STARTUPINFOW Startup{};
+    Startup.cb = sizeof(Startup);
+    Startup.dwFlags = STARTF_USESTDHANDLES;
+    Startup.hStdInput = ::GetStdHandle(STD_INPUT_HANDLE);
+    Startup.hStdOutput = StdoutHandle;
+    Startup.hStdError = StderrHandle;
+    PROCESS_INFORMATION Process{};
+    const std::filesystem::path ExecutablePath(Executable);
+    std::wstring Command = L"\"" + ExecutablePath.wstring() +
+        L"\" not-a-command";
+    const BOOL Created = ::CreateProcessW(
+        ExecutablePath.c_str(), Command.data(), nullptr, nullptr, TRUE,
+        CREATE_NO_WINDOW, nullptr, nullptr, &Startup, &Process);
+    int Status = -1;
+    if (Created)
+    {
+        const DWORD Wait = ::WaitForSingleObject(Process.hProcess, 30000);
+        DWORD ExitCode = 0;
+        if (Wait == WAIT_OBJECT_0 &&
+            ::GetExitCodeProcess(Process.hProcess, &ExitCode))
+        {
+            Status = static_cast<int>(ExitCode);
+        }
+        else if (Wait == WAIT_TIMEOUT)
+        {
+            (void)::TerminateProcess(Process.hProcess, 124);
+            (void)::WaitForSingleObject(Process.hProcess, 5000);
+        }
+        ::CloseHandle(Process.hThread);
+        ::CloseHandle(Process.hProcess);
+    }
+    ::CloseHandle(StdoutHandle);
+    ::CloseHandle(StderrHandle);
+    return Status;
+#else
+    const std::string Command = Quote(Executable) +
+        " not-a-command > " + Quote(Stdout.string()) + " 2> " +
+        Quote(Stderr.string());
+    return std::system(Command.c_str());
+#endif
 }
 
 } // namespace
@@ -156,10 +223,8 @@ FAssetCookerCliTestResult RunAssetCookerCliTests(
     std::filesystem::create_directories(Root);
     const auto Stdout = Root / "stdout.txt";
     const auto Stderr = Root / "stderr.txt";
-    const std::string Command = Quote(AssetCookerExecutable) +
-        " not-a-command > " + Quote(Stdout.string()) + " 2> " +
-        Quote(Stderr.string());
-    const int Status = std::system(Command.c_str());
+    const int Status = RunInvalidCommand(
+        AssetCookerExecutable, Stdout, Stderr);
     Record(Result, Status != 0 && ReadText(Stdout).empty() &&
         ReadText(Stderr).find("invalid-arguments") != std::string::npos,
         "real CLI subprocess sends concise argument failure to stderr");
