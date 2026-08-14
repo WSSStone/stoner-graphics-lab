@@ -1,8 +1,10 @@
 #include "AssetCookerPublishedValidationTests.h"
 
 #include "AssetCookerPublicationTestSupport.h"
+#include "Core/SGPlatform.h"
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -111,6 +113,22 @@ RunAssetCookerPublishedValidationTests()
     Record(Result.Passed, Result.Failed,
         DirectResult.Result == Asset::EAssetResult::Success,
         "request-local and installed generation directories share one validator");
+
+#if SG_PLATFORM_WINDOWS
+    Private::FPublishedGenerationValidationRequest CaseVariant = Direct;
+    std::string CaseVariantPath = Published.GenerationDirectory.ToStdString();
+    std::transform(CaseVariantPath.begin(), CaseVariantPath.end(),
+        CaseVariantPath.begin(),
+        [](unsigned char Value)
+        {
+            return static_cast<char>(std::toupper(Value));
+        });
+    CaseVariant.SubjectRoot = Core::FString(CaseVariantPath);
+    Record(Result.Passed, Result.Failed,
+        Private::FPublishedGenerationValidator::Validate(CaseVariant).Result ==
+            Asset::EAssetResult::Success,
+        "Windows generation validation follows case-insensitive path semantics");
+#endif
 
     std::filesystem::remove_all(Content);
     std::filesystem::remove_all(Root / "Seed" / "DDC");

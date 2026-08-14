@@ -170,10 +170,24 @@ def main(values: Sequence[str] | None = None) -> int:
         generations.append(clean["generationId"])
 
         incremental_report = report_root / "incremental.json"
-        result = run(command_line(
-            cooker, "cook", source, output, ddc, profile, incremental_report,
-            8 if workers == 1 else 1,
-        ), root, args.timeout_seconds)
+        try:
+            result = run(command_line(
+                cooker, "cook", source, output, ddc, profile,
+                incremental_report, 8 if workers == 1 else 1,
+            ), root, args.timeout_seconds)
+        except RuntimeError as failure:
+            diagnostic = subprocess.run(
+                [str(cooker), "validate", "--output", str(output),
+                 "--strict-files"],
+                cwd=root, check=False, capture_output=True, text=True,
+                timeout=args.timeout_seconds,
+            )
+            raise RuntimeError(
+                f"{failure}\npost-failure published validation "
+                f"exit={diagnostic.returncode}\n"
+                f"stdout:\n{diagnostic.stdout}\n"
+                f"stderr:\n{diagnostic.stderr}"
+            ) from failure
         timings["incremental"].append(result.seconds)
         reports["incremental"].append(incremental_report)
         incremental = load_normalized_report(incremental_report)

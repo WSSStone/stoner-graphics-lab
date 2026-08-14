@@ -1,7 +1,10 @@
 #include "FPublishedGenerationValidator.h"
 
 #include "Core/FPlatformFileSystem.h"
+#include "Core/SGPlatform.h"
 
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <set>
 #include <span>
@@ -52,11 +55,25 @@ std::string Normalized(const std::filesystem::path& Path)
 {
     std::error_code Error;
     const auto Canonical = std::filesystem::weakly_canonical(Path, Error);
-    if (!Error) return Canonical.generic_string();
-    Error.clear();
-    const auto Absolute =
-        std::filesystem::absolute(Path, Error).lexically_normal();
-    return (Error ? Path.lexically_normal() : Absolute).generic_string();
+    std::string Result;
+    if (!Error) Result = Canonical.generic_string();
+    else
+    {
+        Error.clear();
+        const auto Absolute =
+            std::filesystem::absolute(Path, Error).lexically_normal();
+        Result = (Error ? Path.lexically_normal() : Absolute).generic_string();
+    }
+#if SG_PLATFORM_WINDOWS
+    // Win32 paths are case-insensitive. Directory enumeration can preserve
+    // different component casing than a path reconstructed from the manifest.
+    std::transform(Result.begin(), Result.end(), Result.begin(),
+        [](unsigned char Value)
+        {
+            return static_cast<char>(std::tolower(Value));
+        });
+#endif
+    return Result;
 }
 
 } // namespace
