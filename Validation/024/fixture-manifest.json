@@ -3,6 +3,790 @@
     {
       "expected_result": "failure",
       "license": "CC0-1.0",
+      "mutation": "non-triangle",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/01-non-triangle.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:5abb76255d950a861913f287866d8691cd831078105f56ccda7ff9fd3215a9a4",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "required-extension",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/02-required-extension.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:99f82a42b19a324b7ab1361d0ec4e9daf810178e3979fd3b81d3020ba72c3091",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "future-version",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/03-future-version.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:0f5f4c06d3d947e3c07bd3000275c57f194733e0109d744c5e0361e8ae9df127",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "future-min-version",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/04-future-min-version.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:028a3a97a0bcf44bc325a78b7c45cab835ab40d3e6f1bd31d90cff10eb05d25e",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "missing-position",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/05-missing-position.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:a877c727451c4556033f3423e6ec202f02a63800adb07049077258c23a393c25",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "invalid-index-accessor",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/06-invalid-index-accessor.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:51febffb807312d5eab072fd835b5fd4087ac303fa733d9e58c1372eb8c57c00",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "unsupported-color",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/07-unsupported-color.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:cbf9ddb4b399175339c01d71da5776d2286115774f5b303939659c0aa1bc819c",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "morph-target",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/08-morph-target.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:6601eceb2cac7bd0edf24ebbf15b5ffddd10324ef7164d865f8b214c87eed10b",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "skin",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/09-skin.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:3cdc85020f0c24d822f1c1f774657aa231b67ba0a46207ace10421decac393ab",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "gpu-instancing",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/10-gpu-instancing.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:3d224e2d4e703fa938df59f26a061c2bf08c4b7b1936db2f3bf3e607af0594b5",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "meshopt-compression",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/11-meshopt-compression.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:c4508ec7dfe28b4a58e83dbe122aa07667bf499b58321fa9e17c8b93b4312942",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "draco-primitive",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/12-draco-primitive.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:c94d5e45b85c79b1cd64473319719ef7e784125b24118557be197a4fad2daedc",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "material-variants",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/13-material-variants.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:860c909411d488ee69f09218ddc449cca650f3ed13c132928d72a9cf0524c4ca",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "line-loop",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/14-line-loop.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:8fd78f19f1a2f3ebc85823c40914e6f4e2f3aa560165fb4c5dd031972c0b7648",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "line-strip",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/15-line-strip.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:399ddc00729d0109c0919557347e555df32ab8aaaa8a17459cff7d5494ed9e00",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "triangle-strip",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/16-triangle-strip.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:01998d7603576c47bc416f81ac402235b50e1a72358f9a73b0d23fbea2feb450",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "triangle-fan",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/17-triangle-fan.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:076ca9f5a92d35ecf64a18e94bcff6983a7c66550576bcf428d51a6746890e51",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "joints-semantic",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/18-joints-semantic.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:1785bda2f95630ab1f1e4c60e386ee84eca52b107560567d7dd47f661ae37f39",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "weights-semantic",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/19-weights-semantic.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:94d8e33bb25175da3ed2e1e73889b9d3ded90410f3b1253ee65e3c76fe3e9710",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "texcoord2-semantic",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/20-texcoord2-semantic.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:e6de9b2ca941a2c636d8191c6e46201f644aa634a2debc80f45107cba2126995",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "multiple-morph-targets",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/21-multiple-morph-targets.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "unsupported"
+      ],
+      "sha256": "sha256:01a3c4a1bb76bb0d4d72ba70e4dec3c1497b19689951b6234a103f993b486e4c",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "unsupported"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "accessor-buffer-view",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/22-accessor-buffer-view.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:86fcdb3a5dbce34a37e9bcae1e368128ed617267acfa57a4c0435822a5a7ab20",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "zero-accessor-count",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/23-zero-accessor-count.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:753735497c3d4a7d4881e1b89d2ac4aefa3a2e261b1563d8aa4674b60142241c",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "position-scalar",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/24-position-scalar.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:c5f9bdf492ee8453cba5575046014eb6be77324da29f08de3b5a6062653bf574",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "position-signed-int",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/25-position-signed-int.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:ba2059a441ac405eb7edbd909ee7c2c0ee39b73cb63342539cb10d953fe94cfe",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "index-float",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/26-index-float.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:eb808e24784e83bfc7b1b467ff81335fd677b5ea4b01526a99de0fe841308aec",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "index-vec2",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/27-index-vec2.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:84597d19bf79ea4f6bb41c8ce92c506c740f444a0c5a5316f135c8c15e7d4947",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "short-buffer",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/28-short-buffer.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:ad0a3e44d6360f999ea99b6e61ae8c58054d4fb8b2c9606f7dff53aff29c7f3e",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "buffer-view-buffer",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/29-buffer-view-buffer.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:076f35a24c8033cafd8684296a313f0b653f2c266d7f374b5b60324fff3ae428",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "buffer-view-offset",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/30-buffer-view-offset.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:f0a8d90d7c44f5d77dbb5bae08c57aab6c1667bd93742f5c8dae7770e19a4729",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "short-buffer-view",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/31-short-buffer-view.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:2dbd3e9306b7e99293a58d0ce9ffaaa8c14c365c82706905717b56de2a9a425b",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "primitive-material",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/32-primitive-material.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:ff63f76a9c644937c99d795625140b33b1f94016dbbff2162a079e31cb8aa5a2",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "node-mesh",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/33-node-mesh.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:1a3aacc2b8effeb0300d186cbf7656f6aeab7a03dcb9c0d0c1aae3729eb3c6b5",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "scene-node",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/34-scene-node.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:e7890b9c7e3aca6b11b89f3d3fe7cf4563dbfd51bfa46931dff9b3c83e64742b",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "default-scene",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/35-default-scene.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:9d26f95bf4d5f487e164c1dfaba0adc88c07aac95462e13c95907329a06b1969",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "node-cycle",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/36-node-cycle.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:3802f81cf2db65454cead59725cc2dbb812cffebcfbc52d82d9d307715f7cbe7",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "missing-meshes",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/37-missing-meshes.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:1d75002ecc4e7e8a38c531fc2d67bce01665df728e5700acaa969e55ce4f37f6",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "missing-nodes",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/38-missing-nodes.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:ea0ca4ce3f1805562e86ae99067a621eaf1d2873ccf3cfbe23094760d2b8f101",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "missing-scenes",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/39-missing-scenes.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:aa54998491c267d4e94de07a88233e8bf87831cfa61aaeb597e673e83f8e0bb0",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "empty-primitives",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/40-empty-primitives.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:ee262d6a75bc8114f7fb628f1722fb04cd2bb3ac07523046c98ca7997a9653ed",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "empty-attributes",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/41-empty-attributes.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:38fcb883bd6e8501a8c69f850e34f3d41df0239257ba468ee79f0940d25c0bec",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "invalid-base64-alphabet",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/42-invalid-base64-alphabet.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:ed15280af2654e2c72f9c07c90d966459d4fdd7fd9a51c3ef201dd99ba242346",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "invalid-base64-padding",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/43-invalid-base64-padding.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:bc4b92d2089ff6f774cdc8535465742105490fdedb5a7f2c48292307a330d724",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "unsupported-buffer-scheme",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/44-unsupported-buffer-scheme.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:bca6b3de945e172eda0a712fa58e312f5386391ac0e849e380eced6038f69b0f",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "buffer-uri-fragment",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/45-buffer-uri-fragment.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:437ef7989b02ab3e885abe2d561a399e9b6846b795cd16ac5d0487ed255944ca",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "buffer-uri-query",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/46-buffer-uri-query.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:dfcccfc6bb6c3d87a9b2102f1294df119b854e0541cd9215c5cbb689a38dbea7",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "buffer-uri-traversal",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/47-buffer-uri-traversal.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:f59ce73b9c97cae6562d1a9d9141b2308fa93c6721f323cd954f551637df50d8",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "buffer-uri-backslash",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/48-buffer-uri-backslash.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:bbcc1b8720eca7a664969bfbd49a867af4862bee204695a0b1f18a04dea105f3",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
+      "mutation": "sparse-count-overflow",
+      "mutation_base": "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf",
+      "path": "Tests/Fixtures/StaticModel/Invalid/Hardening/49-sparse-count-overflow.gltf",
+      "scope": [
+        "US5",
+        "malformed",
+        "malformed"
+      ],
+      "sha256": "sha256:139cd0eb99b8c59610ea7f607860f41f6f8b1b8819e11970267393a5937baf2c",
+      "source_url": "repository-owned://feature-024/hardening-mutation",
+      "upstream_revision": "feature-024-generator-v1",
+      "validator_result": "malformed"
+    },
+    {
+      "expected_result": "failure",
+      "license": "CC0-1.0",
       "path": "Tests/Fixtures/StaticModel/Invalid/Hierarchy/01-cycle.gltf",
       "scope": [
         "US2",

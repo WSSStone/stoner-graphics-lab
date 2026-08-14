@@ -2,6 +2,8 @@
 
 #include "StaticModelTestSupport.h"
 
+#include <algorithm>
+#include <filesystem>
 #include <iostream>
 #include <string>
 
@@ -46,6 +48,37 @@ bool ReplaceOnce(std::string& Text, const std::string& Before,
     Text.replace(At, Before.size(), After);
     return true;
 }
+
+bool RejectsGeneratedCorpus(std::size_t& OutCount)
+{
+    OutCount = 0;
+    TArray<std::filesystem::path> Paths;
+    const std::filesystem::path Root =
+        "Tests/Fixtures/StaticModel/Invalid/Hardening";
+    for (const auto& Entry : std::filesystem::directory_iterator(Root))
+    {
+        if (Entry.path().extension() == ".gltf")
+        {
+            Paths.push_back(Entry.path());
+        }
+    }
+    std::sort(Paths.begin(), Paths.end());
+    for (const std::filesystem::path& Path : Paths)
+    {
+        EAssetResult ImportResult = EAssetResult::Success;
+        const auto Outputs = Import(MakeRequest(Path), ImportResult);
+        if (ImportResult == EAssetResult::Success || !Outputs.empty())
+        {
+            std::cout << "[DETAIL] accepted invalid fixture="
+                      << Path.generic_string()
+                      << " result=" << static_cast<int>(ImportResult)
+                      << " outputs=" << Outputs.size() << '\n';
+            return false;
+        }
+        ++OutCount;
+    }
+    return OutCount >= 40;
+}
 }
 
 FAssetGLTFMalformedTestResult RunAssetGLTFMalformedTests()
@@ -87,5 +120,10 @@ FAssetGLTFMalformedTestResult RunAssetGLTFMalformedTests()
         Semantic, "TEXCOORD_0", "COLOR_0");
     Record(Result, SemanticMutated && Rejects(std::move(Semantic)),
         "unsupported vertex semantic fails closed");
+
+    std::size_t CorpusCount = 0;
+    Record(Result, RejectsGeneratedCorpus(CorpusCount),
+        "manifest-listed malformed corpus rejects atomically");
+    std::cout << "[INFO] malformed-corpus-count=" << CorpusCount << '\n';
     return Result;
 }

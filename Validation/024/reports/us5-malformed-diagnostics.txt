@@ -1,0 +1,15 @@
+feature=024-static-mesh-model
+profile=macos-local
+generated-mutation-count=49
+mutation-manifest-schema=1
+mutation-categories=malformed,unsupported
+mutation-provenance=base-path,mutation-name,expected-category,sha256
+normal-debug-result=pass
+strict-asan-ubsan-result=pass
+accepted-invalid-fixtures=0
+partial-import-outputs=0
+renderer-failure-snapshot-count=0
+renderer-rollback=all-request-owned-buffers-invalidated
+normalized-realization-stages=ValidateAsset,Plan,Allocate,Upload,Finalize
+cross-platform-normalization=pending-ci
+result=pass-local-pending-ci

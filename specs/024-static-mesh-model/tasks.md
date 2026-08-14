@@ -272,9 +272,9 @@ deterministic diagnostics without partial registry or GPU state.
 least 40 manifest-listed mutations on all platforms, then compare normalized
 Renderer realization-failure diagnostics from `renderer-static-mesh`.
 
-- [ ] T111 [US5] Generate and classify at least 40 malformed/unsupported fixtures with expected results and mutation provenance in `Tests/Fixtures/StaticModel/Invalid/` and `Validation/024/fixture-manifest.json`
-- [ ] T112 [US5] Register `asset-gltf-malformed`, aggregate it into `asset`, and compile the completed US5 acceptance sources in `Tests/Main.cpp`, `Tests/AssetTests.cpp`, and `Tests/SConscript`
-- [ ] T113 [US5] Run the complete US5 malformed and Renderer realization-diagnostic acceptance under normal and sanitizer profiles, compare normalized cross-platform expectations, and record results in `Validation/024/reports/us5-malformed-diagnostics.txt`
+- [X] T111 [US5] Generate and classify at least 40 malformed/unsupported fixtures with expected results and mutation provenance in `Tests/Fixtures/StaticModel/Invalid/` and `Validation/024/fixture-manifest.json`
+- [X] T112 [US5] Register `asset-gltf-malformed`, aggregate it into `asset`, and compile the completed US5 acceptance sources in `Tests/Main.cpp`, `Tests/AssetTests.cpp`, and `Tests/SConscript`
+- [X] T113 [US5] Run the complete US5 malformed and Renderer realization-diagnostic acceptance under normal and sanitizer profiles, compare normalized cross-platform expectations, and record results in `Validation/024/reports/us5-malformed-diagnostics.txt`
 
 **Checkpoint**: All defined import and realization failure classes are
 diagnosable, deterministic, and leave no partial observable state.
