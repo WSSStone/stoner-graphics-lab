@@ -91,7 +91,7 @@ RunAssetCookerPublishedValidationTests()
     namespace Private = AssetCooker::Private;
     FAssetCookerPublishedValidationTestResult Result;
     const auto Root = std::filesystem::temp_directory_path() /
-        "stoner-cooker-published-validation";
+        "sg-pv";
     std::filesystem::remove_all(Root);
     std::filesystem::path Content;
     const FRun SeedRun = Seed(Root, Content);
@@ -180,8 +180,8 @@ RunAssetCookerPublishedValidationTests()
     Core::uint32 Detected = 0;
     for (Core::usize Index = 0; Index < Cases.size(); ++Index)
     {
-        const auto CaseOutput = Root / "CorruptCases" /
-            Cases[Index].stem().string();
+        const auto CaseOutput = Root / "Cases" /
+            std::to_string(Index + 1);
         std::filesystem::create_directories(CaseOutput.parent_path());
         std::filesystem::copy(Output, CaseOutput,
             std::filesystem::copy_options::recursive);
