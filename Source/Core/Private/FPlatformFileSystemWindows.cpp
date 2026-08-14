@@ -56,6 +56,26 @@ bool IsAtomicReplacementWindow(DWORD Error)
         Error == ERROR_UNABLE_TO_MOVE_REPLACEMENT_2;
 }
 
+FPlatformFileStatus CanonicalPathFromHandle(
+    HANDLE File,
+    std::filesystem::path& OutPath)
+{
+    const DWORD Required = ::GetFinalPathNameByHandleW(
+        File, nullptr, 0, FILE_NAME_NORMALIZED | VOLUME_NAME_DOS);
+    if (Required == 0)
+        return FromWindowsError(GetLastError(), "canonical-path:size");
+
+    std::wstring Buffer(static_cast<usize>(Required), L'\0');
+    const DWORD Written = ::GetFinalPathNameByHandleW(
+        File, Buffer.data(), Required,
+        FILE_NAME_NORMALIZED | VOLUME_NAME_DOS);
+    if (Written == 0 || Written >= Required)
+        return FromWindowsError(GetLastError(), "canonical-path:read");
+    Buffer.resize(Written);
+    OutPath = std::filesystem::path(std::move(Buffer));
+    return {};
+}
+
 } // namespace
 
 bool PlatformReadFile(
@@ -130,6 +150,82 @@ bool PlatformReadFile(
     return true;
 }
 
+FPlatformFileStatus PlatformQueryRegularFile(
+    const std::filesystem::path& Path,
+    uint64 MaxBytes,
+    FPlatformFileInfo& OutInfo)
+{
+    OutInfo = {};
+    HANDLE File = INVALID_HANDLE_VALUE;
+    DWORD LastOpenError = ERROR_SUCCESS;
+    constexpr int MaxOpenAttempts = 64;
+    for (int Attempt = 0; Attempt < MaxOpenAttempts; ++Attempt)
+    {
+        File = ::CreateFileW(
+            Path.c_str(),
+            FILE_READ_ATTRIBUTES,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            nullptr,
+            OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
+            nullptr);
+        if (File != INVALID_HANDLE_VALUE)
+        {
+            break;
+        }
+        LastOpenError = ::GetLastError();
+        if (!IsAtomicReadWindow(LastOpenError))
+        {
+            break;
+        }
+        ::Sleep(1);
+    }
+    if (File == INVALID_HANDLE_VALUE)
+        return FromWindowsError(LastOpenError, "query-regular-file:open");
+
+    FILE_ATTRIBUTE_TAG_INFO Attributes{};
+    if (!::GetFileInformationByHandleEx(
+            File, FileAttributeTagInfo, &Attributes, sizeof(Attributes)))
+    {
+        const DWORD Error = GetLastError();
+        ::CloseHandle(File);
+        return FromWindowsError(Error, "query-regular-file:attributes");
+    }
+    if ((Attributes.FileAttributes &
+            (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) != 0)
+    {
+        ::CloseHandle(File);
+        return MakeFileStatus(
+            EPlatformFileResult::NotRegularFile, 0,
+            "query-regular-file:type");
+    }
+
+    LARGE_INTEGER Size{};
+    if (!::GetFileSizeEx(File, &Size) || Size.QuadPart < 0)
+    {
+        const DWORD Error = GetLastError();
+        ::CloseHandle(File);
+        return FromWindowsError(Error, "query-regular-file:size");
+    }
+    if (static_cast<unsigned long long>(Size.QuadPart) > MaxBytes)
+    {
+        ::CloseHandle(File);
+        return MakeFileStatus(
+            EPlatformFileResult::LimitExceeded, 0,
+            "query-regular-file:bytes");
+    }
+
+    std::filesystem::path Canonical;
+    const FPlatformFileStatus CanonicalStatus =
+        CanonicalPathFromHandle(File, Canonical);
+    ::CloseHandle(File);
+    if (!CanonicalStatus.IsSuccess()) return CanonicalStatus;
+
+    OutInfo.Path = FromNativePath(Canonical);
+    OutInfo.ByteSize = static_cast<uint64>(Size.QuadPart);
+    return {};
+}
+
 FPlatformFileStatus PlatformCanonicalPath(
     const std::filesystem::path& Path,
     std::filesystem::path& OutPath)
@@ -146,26 +242,9 @@ FPlatformFileStatus PlatformCanonicalPath(
     if (File == INVALID_HANDLE_VALUE)
         return FromWindowsError(GetLastError(), "canonical-path:open");
 
-    const DWORD Required = ::GetFinalPathNameByHandleW(
-        File, nullptr, 0, FILE_NAME_NORMALIZED | VOLUME_NAME_DOS);
-    if (Required == 0)
-    {
-        const DWORD Error = GetLastError();
-        ::CloseHandle(File);
-        return FromWindowsError(Error, "canonical-path:size");
-    }
-    std::wstring Buffer(static_cast<usize>(Required), L'\0');
-    const DWORD Written = ::GetFinalPathNameByHandleW(
-        File, Buffer.data(), Required,
-        FILE_NAME_NORMALIZED | VOLUME_NAME_DOS);
-    const DWORD Error = Written == 0 || Written >= Required
-        ? GetLastError() : ERROR_SUCCESS;
+    const FPlatformFileStatus Status = CanonicalPathFromHandle(File, OutPath);
     ::CloseHandle(File);
-    if (Error != ERROR_SUCCESS)
-        return FromWindowsError(Error, "canonical-path:read");
-    Buffer.resize(Written);
-    OutPath = std::filesystem::path(std::move(Buffer));
-    return {};
+    return Status;
 }
 
 FPlatformFileStatus PlatformMoveDirectoryNoReplace(

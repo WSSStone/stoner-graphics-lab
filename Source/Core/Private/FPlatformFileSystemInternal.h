@@ -36,6 +36,10 @@ namespace Stoner::Core::Detail
 [[nodiscard]] bool PlatformReadFile(
     const std::filesystem::path& Path,
     TArray<uint8>& OutData);
+[[nodiscard]] FPlatformFileStatus PlatformQueryRegularFile(
+    const std::filesystem::path& Path,
+    uint64 MaxBytes,
+    FPlatformFileInfo& OutInfo);
 [[nodiscard]] FPlatformFileStatus PlatformCanonicalPath(
     const std::filesystem::path& Path,
     std::filesystem::path& OutPath);

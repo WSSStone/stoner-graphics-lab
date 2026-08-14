@@ -286,8 +286,11 @@ FPlatformFileStatus FPlatformFileSystem::QueryRegularFile(
             EPlatformFileResult::InvalidArgument, 0, "query-regular-file:path");
     }
 
-    std::error_code Error;
     const std::filesystem::path NativePath = Detail::ToNativePath(Path);
+#if SG_PLATFORM_WINDOWS
+    return Detail::PlatformQueryRegularFile(NativePath, MaxBytes, OutInfo);
+#else
+    std::error_code Error;
     const auto Symlink = std::filesystem::symlink_status(NativePath, Error);
     if (Error)
     {
@@ -322,6 +325,7 @@ FPlatformFileStatus FPlatformFileSystem::QueryRegularFile(
     OutInfo.Path = Detail::FromNativePath(Canonical);
     OutInfo.ByteSize = static_cast<uint64>(Size);
     return {};
+#endif
 }
 
 FPlatformFileStatus FPlatformFileSystem::EnumerateRegularFiles(
