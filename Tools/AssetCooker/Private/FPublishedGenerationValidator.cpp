@@ -36,7 +36,8 @@ Core::FString Join(const Core::FString& Root, std::string_view Relative)
 bool ReadBounded(
     const Core::FString& Path,
     Core::uint64 Maximum,
-    Core::TArray<Core::uint8>& Out)
+    Core::TArray<Core::uint8>& Out,
+    Core::FPlatformFileInfo* OutInfo = nullptr)
 {
     Out.clear();
     Core::FPlatformFileInfo Info;
@@ -48,6 +49,7 @@ bool ReadBounded(
         Out.clear();
         return false;
     }
+    if (OutInfo) *OutInfo = Info;
     return true;
 }
 
@@ -125,8 +127,10 @@ FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
             "published.generation.missing");
 
     Core::TArray<Core::uint8> ManifestBytes;
+    Core::FPlatformFileInfo ManifestInfo;
     if (!ReadBounded(Join(GenerationDirectory, "Manifest.json"),
-            Request.ManifestLimits.MaxManifestBytes, ManifestBytes))
+            Request.ManifestLimits.MaxManifestBytes, ManifestBytes,
+            &ManifestInfo))
         return Fail(Asset::EAssetResult::NotFound,
             EPublishedCorruptionCategory::ManifestInvalid,
             "published.manifest.missing");
@@ -148,9 +152,13 @@ FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
             EPublishedCorruptionCategory::ManifestDigestMismatch,
             "published.manifest.digest-mismatch");
 
-    std::set<std::string> ExpectedFiles{
-        Normalized(std::filesystem::path(GenerationDirectory.ToStdString()) /
-            "Manifest.json")};
+    // QueryRegularFile returns the canonical spelling used by enumeration.
+    // Anchor expected paths there so Windows 8.3 aliases (for example the
+    // runner TEMP path) cannot make valid files appear unexpected.
+    const Core::FString CanonicalGenerationDirectory(
+        std::filesystem::path(ManifestInfo.Path.ToStdString())
+            .parent_path().generic_string());
+    std::set<std::string> ExpectedFiles{Normalized(ManifestInfo.Path.ToStdString())};
     Core::uint32 ValidatedPayloads = 0;
     for (const auto& Record : Manifest.Records)
     {
@@ -163,7 +171,9 @@ FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
                 "published.payload.locator-mismatch");
         const Core::FString PayloadPath = Join(
             GenerationDirectory, Record.PayloadLocator.View());
-        ExpectedFiles.insert(Normalized(PayloadPath.ToStdString()));
+        ExpectedFiles.insert(Normalized(Join(
+            CanonicalGenerationDirectory, Record.PayloadLocator.View())
+                .ToStdString()));
         Core::TArray<Core::uint8> PayloadBytes;
         if (!ReadBounded(PayloadPath,
                 Request.PayloadLimits.MaxEnvelopeBytes, PayloadBytes))
