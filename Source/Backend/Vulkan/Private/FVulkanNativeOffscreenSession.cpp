@@ -1032,6 +1032,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
     }
 #if !defined(STONER_VULKAN_NATIVE_AVAILABLE) || !STONER_VULKAN_NATIVE_AVAILABLE
     (void)Shaders;
+    (void)UniformPayload;
     return Stoner::RHI::ERHIResult::Unsupported;
 #else
     if (!Context.GetNativeDeviceAccess(Impl->Access))
