@@ -219,6 +219,16 @@ FCorePlatformFileTransactionTestResult RunCorePlatformFileTransactionTests()
     }
     StopReader.store(true, std::memory_order_release);
     Reader.join();
+    if (!ReplacementsSucceeded ||
+        !ReaderSawOnlyComplete.load(std::memory_order_relaxed))
+    {
+        std::cout << "[EVIDENCE] replacements-succeeded="
+                  << (ReplacementsSucceeded ? "true" : "false")
+                  << " reader-saw-only-complete="
+                  << (ReaderSawOnlyComplete.load(std::memory_order_relaxed)
+                          ? "true" : "false")
+                  << '\n';
+    }
     Record(Result,
         ReplacementsSucceeded &&
             ReaderSawOnlyComplete.load(std::memory_order_relaxed),

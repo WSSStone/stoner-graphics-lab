@@ -41,11 +41,19 @@ FPlatformFileStatus FromWindowsError(DWORD Error, const char* Context)
         ClassifyWindowsError(Error), static_cast<int64>(Error), Context);
 }
 
-bool IsAtomicReplacementWindow(DWORD Error)
+bool IsAtomicReadWindow(DWORD Error)
 {
     return Error == ERROR_FILE_NOT_FOUND ||
         Error == ERROR_PATH_NOT_FOUND ||
         Error == ERROR_SHARING_VIOLATION;
+}
+
+bool IsAtomicReplacementWindow(DWORD Error)
+{
+    return Error == ERROR_SHARING_VIOLATION ||
+        Error == ERROR_ACCESS_DENIED ||
+        Error == ERROR_UNABLE_TO_MOVE_REPLACEMENT ||
+        Error == ERROR_UNABLE_TO_MOVE_REPLACEMENT_2;
 }
 
 } // namespace
@@ -68,11 +76,11 @@ bool PlatformReadFile(
             FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
             nullptr);
         if (File != INVALID_HANDLE_VALUE ||
-            !IsAtomicReplacementWindow(::GetLastError()))
+            !IsAtomicReadWindow(::GetLastError()))
         {
             break;
         }
-        ::SwitchToThread();
+        ::Sleep(1);
     }
     if (File == INVALID_HANDLE_VALUE)
     {
@@ -192,13 +200,36 @@ FPlatformFileStatus PlatformReplaceFileAtomic(
     const std::filesystem::path& Source,
     const std::filesystem::path& Destination)
 {
-    if (!::MoveFileExW(
-            Source.c_str(), Destination.c_str(),
-            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+    constexpr int MaxReplaceAttempts = 64;
+    DWORD LastError = ERROR_SUCCESS;
+    for (int Attempt = 0; Attempt < MaxReplaceAttempts; ++Attempt)
     {
-        return FromWindowsError(GetLastError(), "replace-file:move");
+        if (::ReplaceFileW(
+                Destination.c_str(), Source.c_str(), nullptr,
+                REPLACEFILE_WRITE_THROUGH, nullptr, nullptr))
+        {
+            return {};
+        }
+
+        LastError = ::GetLastError();
+        if (LastError == ERROR_FILE_NOT_FOUND ||
+            LastError == ERROR_PATH_NOT_FOUND)
+        {
+            if (::MoveFileExW(
+                    Source.c_str(), Destination.c_str(),
+                    MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+            {
+                return {};
+            }
+            LastError = ::GetLastError();
+        }
+        if (!IsAtomicReplacementWindow(LastError))
+        {
+            return FromWindowsError(LastError, "replace-file:replace");
+        }
+        ::Sleep(1);
     }
-    return {};
+    return FromWindowsError(LastError, "replace-file:retry-limit");
 }
 
 FPlatformFileStatus PlatformWriteFileDurable(
