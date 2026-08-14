@@ -1,6 +1,7 @@
 #include "Asset/FTextureCook.h"
 
 #include "FTextureCookPolicy.h"
+#include "FAssetTargetProfileCodec.h"
 #include "FWamrEncoderRuntime.h"
 
 #include <algorithm>
@@ -152,6 +153,88 @@ FKTX2EncoderMetadata MetadataString(
 }
 
 } // namespace
+
+EAssetResult ResolveTextureProfileSettings(
+    const Core::TSharedPtr<const FAssetTargetProfileEvidence>& Profile,
+    const FTextureCookSettings& LegacySettings,
+    FTextureCookSettings& OutSettings,
+    FAssetProfileProjectionEvidence& OutProjection,
+    FAssetDiagnosticList* OutDiagnostics)
+{
+    OutSettings = LegacySettings;
+    OutProjection = {};
+    if (!Profile)
+    {
+        return OutSettings.Validate();
+    }
+    FAssetParticipantId Producer;
+    (void)FAssetParticipantId::Create(
+        Core::FString("cooker.ktx2"), Producer);
+    const EAssetResult ProjectionResult = BuildAssetProfileProjection(
+        *Profile, Producer, 1, {}, OutProjection);
+    if (ProjectionResult != EAssetResult::Success)
+    {
+        AddDiagnostic(
+            OutDiagnostics,
+            "targetProfile.buildPolicy.producerSettings",
+            "missing or invalid cooker.ktx2 schema v1 settings");
+        return ProjectionResult;
+    }
+    const FAssetProducerSettingsRecord* Record =
+        Profile->Profile.BuildPolicy.FindProducer(Producer);
+    if (!Record || Record->Settings.size() != 4)
+    {
+        AddDiagnostic(
+            OutDiagnostics,
+            "targetProfile.buildPolicy.producerSettings",
+            "cooker.ktx2 requires exactly four settings");
+        return EAssetResult::InvalidInput;
+    }
+    const FAssetProducerSetting* AllowLossy =
+        Record->Find(Core::FString("allowLossyData"));
+    const FAssetProducerSetting* Compression =
+        Record->Find(Core::FString("compressionPolicy"));
+    const FAssetProducerSetting* Portable =
+        Record->Find(Core::FString("portableProfile"));
+    const FAssetProducerSetting* Quality =
+        Record->Find(Core::FString("quality"));
+    const auto* AllowLossyValue = AllowLossy
+        ? std::get_if<bool>(&AllowLossy->Value) : nullptr;
+    const auto* CompressionValue = Compression
+        ? std::get_if<Core::FString>(&Compression->Value) : nullptr;
+    const auto* PortableValue = Portable
+        ? std::get_if<Core::FString>(&Portable->Value) : nullptr;
+    const auto* QualityValue = Quality
+        ? std::get_if<Core::FString>(&Quality->Value) : nullptr;
+    if (!AllowLossyValue || !CompressionValue || !PortableValue || !QualityValue)
+    {
+        AddDiagnostic(
+            OutDiagnostics,
+            "targetProfile.buildPolicy.producerSettings",
+            "cooker.ktx2 setting types are invalid");
+        return EAssetResult::InvalidInput;
+    }
+    if (*CompressionValue == Core::FString("default-by-semantic"))
+        OutSettings.CompressionPolicy = ETextureCompressionPolicy::DefaultBySemantic;
+    else if (*CompressionValue == Core::FString("etc1s"))
+        OutSettings.CompressionPolicy = ETextureCompressionPolicy::ETC1S;
+    else if (*CompressionValue == Core::FString("uastc"))
+        OutSettings.CompressionPolicy = ETextureCompressionPolicy::UASTC;
+    else if (*CompressionValue == Core::FString("uncompressed"))
+        OutSettings.CompressionPolicy = ETextureCompressionPolicy::Uncompressed;
+    else
+        return EAssetResult::InvalidInput;
+    if (*QualityValue == Core::FString("balanced"))
+        OutSettings.Quality = ETextureCookQuality::Balanced;
+    else if (*QualityValue == Core::FString("high"))
+        OutSettings.Quality = ETextureCookQuality::High;
+    else
+        return EAssetResult::InvalidInput;
+    OutSettings.bAllowLossyData = *AllowLossyValue;
+    OutSettings.PortableProfile = *PortableValue;
+    OutSettings.ProducerVersion = Core::FString("022-v1");
+    return OutSettings.Validate();
+}
 
 const char* TexturePolicyToken(ETextureCompressionPolicy Policy) noexcept
 {

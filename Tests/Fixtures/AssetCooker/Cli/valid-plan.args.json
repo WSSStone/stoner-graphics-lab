@@ -1,0 +1,15 @@
+{
+  "command": "plan",
+  "arguments": [
+    "--source-root", "Tests/Fixtures/AssetCooker/Representative",
+    "--cook-all",
+    "--target-profile", "Config/AssetCooker/Profiles/Mac-Vulkan.json",
+    "--output", "Saved/AssetCookerFixture/Cooked",
+    "--ddc", "Saved/AssetCookerFixture/DDC",
+    "--workers", "4",
+    "--normalized-report",
+    "--report", "Saved/AssetCookerFixture/Reports/plan.json"
+  ],
+  "expectedExitCode": 0,
+  "expectedResult": "success"
+}

@@ -1,0 +1,13 @@
+{
+  "command": "cook",
+  "arguments": [
+    "--source-root", "Content",
+    "--cook-all",
+    "--target-profile", "Config/AssetCooker/Profiles/Mac-Vulkan.json",
+    "--output", "Saved/AssetCookerFixture/Cooked",
+    "--ddc", "Saved/AssetCookerFixture/DDC",
+    "--report", "Content/report.json"
+  ],
+  "expectedExitCode": 2,
+  "expectedResult": "invalid-arguments"
+}

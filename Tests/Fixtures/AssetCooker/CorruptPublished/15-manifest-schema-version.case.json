@@ -1,0 +1,1 @@
+{"case":"manifest-schema-version","subject":"manifest","mutation":"schema-version","expected":"reject"}

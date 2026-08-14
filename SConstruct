@@ -100,6 +100,15 @@ SConscript(
     duplicate=0,
 )
 
+# Offline Asset Cooker tool. Feature 025 makes this a supported repository
+# executable, and the test runner exercises its real process boundary.
+asset_cooker_library, asset_cooker_program = SConscript(
+    'Tools/AssetCooker/SConscript',
+    variant_dir=os.path.join(build_base, 'Tools', 'AssetCooker'),
+    duplicate=0,
+)
+env['STONER_ASSET_COOKER_PROGRAM'] = asset_cooker_program
+
 # RHI layer (depends on Core)
 SConscript(
     'Source/RHI/SConscript',

@@ -1,0 +1,29 @@
+Feature 025 local regression validation
+=======================================
+
+Host: macOS Apple Silicon
+Environment: conda environment godot; SCons 4.10.1
+
+Debug strict build:
+  conda run -n godot scons -j8 config=debug strict=1
+  Result: PASS
+
+Debug full engine regression:
+  Build/Mac/Debug/Tests/StonerTest
+  Result: PASS; 1602 [PASS], 0 [FAIL]
+
+Release strict build:
+  conda run -n godot scons -j8 config=release strict=1
+  Result: PASS
+
+Release full engine regression:
+  Build/Mac/Release/Tests/StonerTest
+  Result: PASS; 1595 [PASS], 0 [FAIL]
+
+The full suite includes the focused Feature 025 contracts, profile/key,
+payload/manifest, clean/incremental DDC, publication, corruption, CLI/report,
+concurrency and Core file-ownership suites, plus Features 020-024 and earlier
+engine regression suites. The native Vulkan probe reported the explicitly
+supported unavailable-runtime result because Metal is unavailable in the
+execution sandbox; that path passed and is not used as cross-platform native
+evidence.

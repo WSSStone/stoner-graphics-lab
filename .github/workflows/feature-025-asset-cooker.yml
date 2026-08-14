@@ -1,0 +1,208 @@
+name: Feature 025 Asset Cooker
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/scripts/run_asset_cooker_validation.py"
+      - ".github/scripts/test_run_asset_cooker_validation.py"
+      - ".github/workflows/feature-025-asset-cooker.yml"
+      - "Config/AssetCooker/**"
+      - "Source/Asset/**"
+      - "Source/Core/**"
+      - "Tests/AssetCooker*"
+      - "Tests/CorePlatformFile*"
+      - "Tests/Fixtures/AssetCooker/**"
+      - "Tests/verify_architecture.py"
+      - "Tests/verify_asset_cooker_*"
+      - "Tools/AssetCooker/**"
+      - "specs/025-asset-cooker-derived-data/contracts/**"
+  push:
+    branches:
+      - "025-asset-cooker-derived-data"
+    paths:
+      - ".github/scripts/run_asset_cooker_validation.py"
+      - ".github/scripts/test_run_asset_cooker_validation.py"
+      - ".github/workflows/feature-025-asset-cooker.yml"
+      - "Config/AssetCooker/**"
+      - "Source/Asset/**"
+      - "Source/Core/**"
+      - "Tests/AssetCooker*"
+      - "Tests/CorePlatformFile*"
+      - "Tests/Fixtures/AssetCooker/**"
+      - "Tests/verify_architecture.py"
+      - "Tests/verify_asset_cooker_*"
+      - "Tools/AssetCooker/**"
+      - "specs/025-asset-cooker-derived-data/contracts/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: feature-025-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  debug:
+    name: ${{ matrix.name }} Debug
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            slug: linux
+            os: ubuntu-latest
+            tests: Build/Linux/Debug/Tests/StonerTest
+          - name: macOS
+            slug: macos
+            os: macos-latest
+            tests: Build/Mac/Debug/Tests/StonerTest
+          - name: Windows
+            slug: windows
+            os: windows-latest
+            tests: Build/Win64/Debug/Tests/StonerTest.exe
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable MSVC command prompt
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Install SCons
+        run: python -m pip install scons==4.10.1
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
+      - name: Build Debug with strict warnings
+        run: scons config=debug strict=1
+      - name: Verify contracts fixtures and architecture
+        run: |
+          python Tests/verify_asset_cooker_contracts.py
+          python Tests/verify_asset_cooker_fixtures.py
+          python Tests/verify_architecture.py
+          python -m unittest Tests/test_verify_asset_cooker_contracts.py Tests/test_verify_asset_cooker_fixtures.py Tests/test_verify_architecture.py
+          python .github/scripts/test_run_asset_cooker_validation.py
+      - name: Run focused Debug cooker and ownership gates
+        run: >-
+          ${{ matrix.tests }}
+          --suite asset-cooker-cli
+          --suite asset-cooker-report
+          --suite asset-cooker-workflow
+          --suite asset-cooker-ddc
+          --suite asset-cooker-published-validation
+          --suite asset-cooker-concurrency
+          --suite asset-cooker-publication-concurrency
+          --suite core-file-lease
+
+  release:
+    name: ${{ matrix.name }} strict Release
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            slug: linux
+            os: ubuntu-latest
+            cooker: Build/Linux/Release/Tools/AssetCooker/StonerAssetCooker
+            tests: Build/Linux/Release/Tests/StonerTest
+            profile: Config/AssetCooker/Profiles/Linux-Vulkan.json
+          - name: macOS
+            slug: macos
+            os: macos-latest
+            cooker: Build/Mac/Release/Tools/AssetCooker/StonerAssetCooker
+            tests: Build/Mac/Release/Tests/StonerTest
+            profile: Config/AssetCooker/Profiles/Mac-Vulkan.json
+          - name: Windows
+            slug: windows
+            os: windows-latest
+            cooker: Build/Win64/Release/Tools/AssetCooker/StonerAssetCooker.exe
+            tests: Build/Win64/Release/Tests/StonerTest.exe
+            profile: Config/AssetCooker/Profiles/Windows-Vulkan.json
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable MSVC command prompt
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Install SCons
+        run: python -m pip install scons==4.10.1
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
+      - name: Build strict Release
+        run: scons config=release strict=1
+      - name: Run cross-platform cooker validation and CI benchmark
+        run: >-
+          python .github/scripts/run_asset_cooker_validation.py
+          --root .
+          --cooker ${{ matrix.cooker }}
+          --tests ${{ matrix.tests }}
+          --profile ${{ matrix.profile }}
+          --work Build/Feature025Validation/${{ matrix.slug }}-release
+          --output Validation/025/CI/${{ matrix.slug }}-release.json
+          --determinism-runs 2
+          --timeout-seconds 1200
+      - name: Upload Feature 025 Release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-cooker-release-${{ matrix.slug }}
+          path: |
+            Validation/025/CI/${{ matrix.slug }}-release.json
+            Build/Feature025Validation/${{ matrix.slug }}-release/benchmark.txt
+            Build/Feature025Validation/${{ matrix.slug }}-release/suite-logs/*.txt
+          if-no-files-found: error
+
+  linux-sanitizers:
+    name: Linux ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+      TSAN_OPTIONS: halt_on_error=1:history_size=7
+      STONER_SKIP_OPTIONAL_DEFERRED_NATIVE: "1"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ASan-UBSan
+            slug: asan-ubsan
+            sanitizers: address,undefined
+          - name: TSan
+            slug: tsan
+            sanitizers: thread
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SCons
+        run: python -m pip install scons==4.10.1
+      - name: Build focused sanitizer configuration
+        run: >-
+          scons config=debug strict=1
+          sanitizers=${{ matrix.sanitizers }}
+      - name: Run sanitized cooker validation
+        run: >-
+          python .github/scripts/run_asset_cooker_validation.py
+          --root .
+          --cooker Build/Linux/Debug/Tools/AssetCooker/StonerAssetCooker
+          --tests Build/Linux/Debug/Tests/StonerTest
+          --profile Config/AssetCooker/Profiles/Linux-Vulkan.json
+          --work Build/Feature025Validation/linux-${{ matrix.slug }}
+          --output Validation/025/CI/linux-${{ matrix.slug }}.json
+          --determinism-runs 2
+          --skip-benchmark
+          --timeout-seconds 1200
+      - name: Upload Feature 025 sanitizer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-cooker-linux-${{ matrix.slug }}
+          path: |
+            Validation/025/CI/linux-${{ matrix.slug }}.json
+            Build/Feature025Validation/linux-${{ matrix.slug }}/suite-logs/*.txt
+          if-no-files-found: error

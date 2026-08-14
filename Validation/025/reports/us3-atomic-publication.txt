@@ -1,0 +1,61 @@
+Feature 025 US3 - Atomic Immutable Generation Publication
+=========================================================
+
+Result: PASS
+Host: macOS Apple Silicon
+Configurations: Debug; Release strict (-Werror)
+
+Publication evidence
+--------------------
+- A self-contained request-local image is built outside the output root with
+  sharded digest-addressed payloads and one canonical Manifest.json.
+- The same standalone validator checks the request image, output staging,
+  installed generation, and Current.json-selected generation.
+- The output-root native lease is held across staging, complete source snapshot
+  revalidation, absent generation installation, and Current.json replacement.
+- Current.next is durably written, reread, strictly parsed, and atomically
+  replaced. Replacement success is the sole commit point.
+- Every injected pre-commit boundary preserved the previous valid Current.json.
+  An injected post-commit audit failure remained committed success with a
+  stable warning. Cleanup remained best-effort and never exposed failed work.
+- Existing equivalent generations are validated and accepted without mutation;
+  all successful immutable generations are retained.
+
+Standalone validation and corruption evidence
+---------------------------------------------
+- Validation succeeded after source and DDC removal.
+- The checked-in CorruptPublished corpus contains 30 independent current,
+  generation, manifest, locator, dependency, schema, size, digest, payload,
+  missing, truncation, substitution, and unexpected-file descriptors.
+- Detection result: 30/30 rejected; no corrupted case validated successfully.
+- Every descriptor has exact SHA-256, provenance, license, expected validity,
+  asset family, target scope, and expected result in fixture-manifest.json.
+
+Concurrency evidence
+--------------------
+- Eight overlapping equivalent writers converged to one complete generation.
+- A competing writer process timed out with the stable timeout exit category.
+- A competing writer with a longer bound waited and succeeded after release.
+- Abrupt process exit released native lease ownership for the next publisher.
+- A concurrent reader loop observed only complete valid current generations.
+
+Commands
+--------
+conda run -n godot scons -j8 asset_cooker=1 Build/Mac/Debug/Tests/StonerTest
+Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-publication
+Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-published-validation
+Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-publication-concurrency
+Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-clean
+Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-incremental
+conda run -n godot scons -j8 config=release strict=1 asset_cooker=1 Build/Mac/Release/Tools/AssetCooker/StonerAssetCooker Build/Mac/Release/Tests/StonerTest
+Build/Mac/Release/Tests/StonerTest --suite asset-cooker-publication
+Build/Mac/Release/Tests/StonerTest --suite asset-cooker-published-validation
+Build/Mac/Release/Tests/StonerTest --suite asset-cooker-publication-concurrency
+Build/Mac/Release/Tests/StonerTest --suite asset-cooker-clean
+python3 Tests/verify_architecture.py --root .
+python3 Tests/verify_asset_cooker_contracts.py --root .
+python3 -m unittest Tests/test_verify_asset_cooker_contracts.py Tests/test_verify_architecture.py
+git diff --check
+
+All commands passed. Shell-level confstr/xcrun messages were host sandbox
+environment warnings and did not originate from project compilation.

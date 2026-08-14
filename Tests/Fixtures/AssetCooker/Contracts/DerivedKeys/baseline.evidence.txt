@@ -1,0 +1,11 @@
+keyFormatVersion=1
+assetId=Texture:Cooker/Test
+sourceVersion=sha256(source-v1)
+sourceManifest=file:Content/test.png=sha256(source-file-v1)
+dependency=build:Image:Cooker/Test=sha256(image-content-v1)
+importer=importer.image@021-v1
+cooker=cooker.ktx2@022-v1
+codec=codec.ktx2@1
+payloadSchemaVersion=1
+effectiveSettingsDigest=sha256(ktx2-settings-v1)
+relevantProfileDigest=sha256(ktx2-profile-v1)

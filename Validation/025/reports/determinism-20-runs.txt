@@ -1,0 +1,37 @@
+{
+  "benchmarkReportSha256": null,
+  "benchmarkSeconds": null,
+  "corruptCacheCases": 15,
+  "corruptPublishedCases": 30,
+  "generationId": "046d1065aac3aa01aec8eb0a3fcedf3536287ad086272756adf4aac02175aed0",
+  "maximumSeconds": {
+    "clean": 0.040676250122487545,
+    "incremental": 0.038571625016629696,
+    "plan": 0.02360787522047758,
+    "standalone": 0.0085657499730587,
+    "validate": 0.00924124987795949
+  },
+  "passed": true,
+  "reportDigests": {
+    "clean": "5e6233ed4ba87c96b52621909540bc9e48a726793075d4c134ed72b0cf8b8140",
+    "incremental": "f0e7f845146b0b780bee6eac965885f121dbf34a0731124be8f4c1859e2f815f",
+    "plan": "bebef7384f964a507f0221e015c15febe1356d1d10578eadd3f95feae2ea4ff1",
+    "standalone": "fba5e0645a4c77ede56054d1853571e96746bf309f430077e9ac78fda9d302ef",
+    "validate": "fba5e0645a4c77ede56054d1853571e96746bf309f430077e9ac78fda9d302ef"
+  },
+  "runs": 20,
+  "schema": "stoner.asset-cooker-validation-summary",
+  "schemaVersion": 1,
+  "suiteSeconds": null,
+  "thresholdSeconds": {
+    "clean": 240.0,
+    "incremental": 40.0,
+    "plan": 8.0,
+    "standalone": 40.0,
+    "validate": 40.0
+  },
+  "workers": [
+    1,
+    8
+  ]
+}

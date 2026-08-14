@@ -1,0 +1,1 @@
+{"schema":"stoner.asset-cooker-concurrency-case","schemaVersion":1,"scenario":"same-derived-key","participants":8,"expected":"one-equivalent-entry-no-partials"}

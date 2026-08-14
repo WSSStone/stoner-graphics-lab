@@ -61,6 +61,16 @@ class AssetArchitectureVerifierTests(unittest.TestCase):
             "Backend must not include Asset" in error
             for error in _MODULE.verify(self.root)))
 
+    def test_includes_feature_025_runtime_tool_boundary(self) -> None:
+        source = self.root / "Source/Renderer/Private/ToolLeak.cpp"
+        source.write_text(
+            '#include "Tools/AssetCooker/AssetCookerMinimal.h"\n',
+            encoding="utf-8",
+        )
+        self.assertTrue(any(
+            "runtime layer must not include Tools" in error
+            for error in _MODULE.verify(self.root)))
+
 
 if __name__ == "__main__":
     unittest.main()

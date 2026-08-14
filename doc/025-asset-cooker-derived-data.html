@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>025 - Asset Cooker &amp; Derived Data - Stoner Graphics Lab</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}:root{--bg:#f4f7f8;--paper:#fff;--ink:#17212b;--muted:#617184;--line:#d5e0e5;--accent:#0f766e;--soft:#e7f5f2;--warn:#a15c00;--code:#edf2f4;--dark:#17212b;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.72 var(--sans)}.page{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 18px;background:var(--paper);border-right:1px solid var(--line)}.brand{font-size:14px;font-weight:800;color:var(--accent)}.subtitle{font-size:12px;color:var(--muted);padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:18px}.toc{list-style:none;padding:0}.toc a{display:block;padding:6px 8px;color:var(--muted);text-decoration:none;border-radius:6px;font-size:13px}.toc a:hover{color:var(--accent);background:var(--soft)}main{max-width:1080px;width:100%;padding:48px 48px 96px;margin:0 auto}h1{margin:0 0 8px;font-size:34px;line-height:1.2;color:var(--accent)}.meta{color:var(--muted);font-size:13px;margin-bottom:30px}section{margin-bottom:56px}h2{margin:32px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:23px}h3{margin:22px 0 10px;font-size:17px}h4{margin:16px 0 6px;font-size:15px}p{margin:0 0 14px}ul,ol{margin:0 0 16px;padding-left:23px}li{margin:4px 0}code{font-family:var(--mono);font-size:13px;background:var(--code);padding:2px 5px;border-radius:4px}pre{margin:14px 0;padding:16px;overflow:auto;border-radius:8px;color:#e5e7eb;background:var(--dark);font-size:13px;line-height:1.55}pre code{background:transparent;color:inherit;padding:0}table{width:100%;border-collapse:collapse;margin:16px 0 20px;font-size:14px}th,td{padding:9px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted);font-size:12px;background:#f9fbfc}.note{margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:8px;background:var(--paper)}.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--soft);color:var(--accent);font-weight:700;font-size:12px}@media(max-width:860px){.page{display:block}.sidebar{position:static;height:auto}main{padding:32px 22px 72px}}
+</style>
+</head>
+<body><div class="page">
+<aside class="sidebar"><div class="brand">Stoner Graphics Lab</div><div class="subtitle">025 - Asset Cooker &amp; Derived Data</div><ul class="toc">
+<li><a href="#s1">一、文档与上下文信息</a></li><li><a href="#s2">二、目标与边界</a></li><li><a href="#s3">三、交互与产品设计</a></li><li><a href="#s4">四、技术架构与关键决策</a></li><li><a href="#s5">五、实施与验证</a></li><li><a href="#s6">六、设计巧思与最佳实践</a></li><li><a href="#s7">七、编程语言知识点</a></li><li><a href="#s8">八、软件工程知识点</a></li><li><a href="#s9">九、引擎与资产管线学习笔记</a></li>
+</ul></aside>
+<main><h1>025 - Asset Cooker &amp; Derived Data</h1>
+<div class="meta">状态：<span class="badge">本地实现完成，跨平台验证中</span> · 更新：2026-08-14 · Roadmap Phase 025 · 层级：Tools / Asset / Core</div>
+
+<section id="s1"><h2>一、文档与上下文信息</h2>
+<h3>1. 基础元数据</h3><table><tbody>
+<tr><th>Feature</th><td>025 - Asset: Cooker &amp; Derived Data；Roadmap 与 Speckit 编号一致。</td></tr>
+<tr><th>设计文档</th><td><code>specs/025-asset-cooker-derived-data/</code> 下的 spec、plan、tasks、research、data-model、quickstart 与 contracts。</td></tr>
+<tr><th>核心源码</th><td><code>Tools/AssetCooker/</code> 的离线编排；<code>Source/Asset/</code> 的 runtime-consumable cooked contracts/codecs；<code>Source/Core/</code> 的 durable file transaction 与跨进程 lease。</td></tr>
+<tr><th>测试与证据</th><td><code>Tests/AssetCooker*.cpp</code>、<code>Tests/CorePlatformFile*.cpp</code>、<code>Tests/Fixtures/AssetCooker/</code>、<code>Validation/025/</code>。</td></tr>
+<tr><th>本地结果</th><td>strict Debug/Release 构建通过；全量回归分别 1602/1595 条 PASS；20-run determinism、并发、15/30 corruption corpus 与 M4 Pro reference benchmark 通过。</td></tr>
+</tbody></table>
+<h3>2. 本期核心摘要</h3><p>本期把 020–024 的 source Asset 转换为可发布的 cooked generation。独立的 <code>StonerAssetCooker</code> 可以 plan、clean cook、incremental cook、validate 与 inspect；它构造依赖图、固定输入快照、计算 derived key、复用或修复 DDC、生成 canonical manifest，并通过 immutable generation 与原子 current pointer 发布完整结果。</p><p>最值得学习的是 build cache 与 runtime package 不是同一件事。DDC entry 是可丢弃、可重建的派生数据；published generation 是必须独立验证、原子可见的部署边界。两者由 AssetId、version 与 digest 串联，却拥有不同的信任模型和生命周期。</p>
+<h3>3. 上下文与依赖</h3><p>025 消费 020 的 identity/registry/extension、021 的 image/texture、022 的 KTX2 cook、023 的 material/shader 与 024 的 static model typed payload。它为 026 Runtime Asset Manager、027 Meshlet derived asset 和 028 Streaming/Residency 提供稳定 cooked contract。编译方向保持 <code>Tools/AssetCooker -&gt; Asset + Core</code>；runtime 模块不得依赖 Tools，Asset 仍只依赖 Core。</p></section>
+
+<section id="s2"><h2>二、目标与边界</h2>
+<h3>1. 业务与功能目标</h3><p>开发者给定 source root、selection、target profile、output、DDC 与 worker count，即可得到确定 generation。未变化节点复用验证后的 DDC；损坏 entry 被隔离并重建；发布前失败不会改变 current generation；发布后的 output 可在 source 和 DDC 都移除后独立严格验证。命令统一使用稳定 exit category、stable reason 和可规范化 JSON report。</p>
+<h3>2. 架构目标与定位</h3><pre><code>Source files + target profile
+             |
+             v
+Tools/AssetCooker: discover -> graph -> snapshot -> schedule
+             -> DDC lookup/cook/install
+             -> generation image -> validate -> atomic publish
+             |                              |
+             v                              v
+Asset public cooked contracts          Core durable file/lease
+             |
+             v
+Future runtime Asset Manager reads generation
+
+Runtime -X-> Tools/AssetCooker
+Asset   -X-> RHI / Renderer / Application / Backend</code></pre><p>Target profile、derived-key evidence、payload envelope、manifest 与 current pointer 属于 Asset 公共 contract，未来 runtime loader 不需要链接 Tool。图调度、DDC layout、quarantine、publication 与 CLI/report 属于离线 Tool。durable write、no-replace move 和 lease 是可复用 Core primitive。</p>
+<h3>3. 边界与非目标（约束）</h3><ul>
+<li>不做 runtime async Asset Manager：025 只产出与验证 cooked generation，026 接管 request、handle 与 cache。</li>
+<li>不做 package/archive：当前目录布局优先支持可检查性，打包容器由后续阶段设计。</li>
+<li>不做 remote DDC、eviction 或 GC：先证明本地 immutable entry 与竞争收敛。</li>
+<li>不做 streaming/residency：chunk priority、CPU/GPU budget 和 eviction 属于 028。</li>
+<li>不做 editor database 或 hot reload：source discovery 是一次 request 的固定快照。</li>
+<li>不让 Tool contract 泄漏到 runtime：避免游戏目标携带 importer、CLI 与 publication policy。</li>
+</ul></section>
+
+<section id="s3"><h2>三、交互与产品设计</h2>
+<h3>1. 用户使用路径</h3><pre><code>StonerAssetCooker plan ... --normalized-report
+  -> read-only graph/key/cache decision; no output/DDC/scratch mutation
+
+StonerAssetCooker cook ... --clean
+  -> snapshot -> typed cook -> DDC install -> immutable generation
+  -> strict validation -> atomic Current.json replacement
+
+StonerAssetCooker cook ...
+  -> validated DDC hits reused; corrupt entries quarantined/rebuilt
+
+remove source + DDC
+StonerAssetCooker validate --output ... --strict-files
+  -> generation remains independently deployable</code></pre>
+<h3>2. 核心规则与状态机</h3><pre><code>DDC: Miss -> Stage -> Lease -> Install -> Hit
+     Invalid -> Lease -> Quarantine -> Cook -> Install
+     Invalid -> another writer repairs -> Re-query -> Reuse winner
+
+Publication: Build image -> Validate -> Acquire lease
+             -> Install generation -> Replace Current pointer
+             -> Post-commit audit
+
+Any pre-commit failure: old Current remains authoritative
+Post-commit audit warning: new complete Current remains authoritative</code></pre><p>Plan 严格只读。Derived key 包含 source/dependency version、importer/cooker/codec version、payload schema、effective settings 和 relevant profile digest；不相关 profile 字段不得造成误失效。成功 generation 的 manifest 与 payload 自描述且 content-addressed。</p>
+<h3>3. 失败模式与调试入口</h3><ul>
+<li><strong>Profile/argument：</strong>closed schema、overlapping roots、非法 worker/timeout 在写入前失败。</li>
+<li><strong>Source changed：</strong>snapshot pin 后再次校验，变化时返回 transient category，不发布混合版本。</li>
+<li><strong>DDC corrupt：</strong>查看 quarantine failure digest 与 stable reason；普通 cook 重建，strict validate 失败。</li>
+<li><strong>Publication：</strong>failure injection 穿过 stage、payload、manifest、install 与 pointer replace 边界。</li>
+<li><strong>Concurrency：</strong>lease timeout 有界；crash 后 OS 释放 ownership；等待者重新查询 winner。</li>
+<li><strong>入口：</strong><code>Validation/025/reports/</code>、normalized report、focused suites 与 cross-platform runner。</li>
+</ul></section>
+
+<section id="s4"><h2>四、技术架构与关键决策</h2>
+<h3>1. 技术栈与基础设施</h3><p>C++20、传统 public/private header/source、SCons 4.10.1。CLI orchestration 使用 Python 标准库与参数数组启动子进程，不使用 shell。Asset-private yyjson 实现 canonical JSON typed codecs；现有 KTX/WAMR/cgltf/MikkTSpace/stb producer 由 Tool 经 public Asset extension 调用。Feature workflow 覆盖 Windows/macOS/Linux Debug、strict Release、Linux ASan/UBSan 与 TSan。</p>
+<h3>2. 关键信息</h3>
+<h4>2.1 模块对应关系</h4><table><thead><tr><th>模块</th><th>职责</th><th>边界</th></tr></thead><tbody>
+<tr><td><code>FAssetTargetProfile</code></td><td>平台、backend、capability、policy、limits</td><td>display 与 effective digest 分离</td></tr>
+<tr><td><code>FAssetDerivedKey</code></td><td>规范化全部相关 provenance</td><td>不包含物理 cache path</td></tr>
+<tr><td><code>FAssetCookedPayload</code></td><td>typed envelope、schema/version、body digest</td><td>runtime 可 bounded load</td></tr>
+<tr><td><code>FAssetCookGraph</code></td><td>selection、拓扑序、cycle/depth/edge limit</td><td>Tool-private policy</td></tr>
+<tr><td><code>FDerivedDataStore</code></td><td>lookup、stage、lease、install、quarantine</td><td>entry 不可原地修改</td></tr>
+<tr><td><code>FCookedGenerationPublisher</code></td><td>immutable generation 与 current pointer</td><td>读者只见完整旧版或新版</td></tr>
+<tr><td><code>FPublishedGenerationValidator</code></td><td>无 source/DDC 的 strict validation</td><td>部署产物独立可信</td></tr>
+<tr><td><code>FAssetCookRunner</code></td><td>串联完整控制流与稳定 report</td><td>不暴露 private parser</td></tr>
+</tbody></table>
+<h4>2.2 数据与控制流</h4><p>Discovery 产出 typed assets 与物理 source 集合；graph 固定 reachable nodes 与拓扑序；snapshot 固定 source digest；每节点计算 target decision 与 derived evidence。Scheduler 只在依赖成功后运行节点，先 lookup DDC，miss 才调用 cooker。全部 envelope 形成 canonical manifest；publisher 构造 scratch image，完整重读验证后才替换 current pointer。</p>
+<h4>2.3 诊断、报告与确定性</h4><p>Normalized report 排除 host、timing、RSS 和 worker count，只保留稳定 command/result、summary、逐节点 decision、source/dependency evidence 与 diagnostic。Telemetry 不参与 deterministic digest。1-worker 与 8-worker、不同空目录和 20 次重复必须得到相同 generation 与 normalized bytes。</p>
+<h3>3. 架构决策记录 (ADR)</h3>
+<h4>(1) DDC 与发布目录分离</h4><p><strong>决策：</strong>DDC 可隔离重建，generation 必须 immutable 且独立验证。<strong>否决：</strong>把 cache entry 直接当发布包。<strong>后果：</strong>多一次 image 构造，换来清晰信任边界。</p>
+<h4>(2) Derived key 使用完整 evidence</h4><p><strong>决策：</strong>source/dependency/producer/settings/profile 进入规范哈希。<strong>否决：</strong>mtime 受复制、时区与文件系统精度影响。<strong>后果：</strong>跨平台、跨目录可复现。</p>
+<h4>(3) no-replace install 加 OS lease</h4><p><strong>决策：</strong>唯一 stage 完整验证后持 lease 安装；已有等价 winner 就复用。<strong>否决：</strong>原地写最终目录。<strong>后果：</strong>并发 writer 收敛，crash ownership 由 OS 释放。</p>
+<h4>(4) Current pointer 是唯一可变点</h4><p><strong>决策：</strong>generation 永不修改，只原子替换小型 pointer。<strong>否决：</strong>覆盖当前 payload/manifest。<strong>后果：</strong>读者无需全局锁；成功 generation 暂不 GC。</p>
+<h4>(5) Plan 严格只读</h4><p><strong>决策：</strong>plan 可查询 cache，但不得创建 output、DDC 或 scratch。<strong>否决：</strong>有副作用的 dry run。<strong>后果：</strong>plan 只报告 would-rebuild，不暗中修复。</p></section>
+
+<section id="s5"><h2>五、实施与验证（任务流）</h2>
+<h3>1. 任务拆解清单</h3><ol><li>Core durable file、transaction 与 native lease。</li><li>Asset target profile、derived key、payload envelope、manifest/current pointer codecs。</li><li>Tool discovery、graph、snapshot、scheduler 与 producer registration。</li><li>DDC lookup、quarantine、竞争安装与 incremental invalidation。</li><li>Generation image、failure injection、atomic publication 与 standalone validation。</li><li>CLI/report、clean-machine quickstart、scale/corruption corpus、benchmark、架构与 CI。</li></ol>
+<h3>2. 验收状态</h3><p>macOS strict Debug/Release 与全量 regression 已通过；20 次 plan/clean/incremental/validate/standalone 在 1/8 workers 间得到相同 normalized reports；writer/quarantine/publication/lease 压力通过；M4 Pro reference 的时间与 RSS 均低于门槛。跨平台 Release、sanitizer 与 artifact identity 由 Feature workflow 完成后再作为最终交付证据。</p>
+<h3>3. 测试矩阵与覆盖意图</h3><table><thead><tr><th>类别</th><th>风险</th><th>证据</th></tr></thead><tbody>
+<tr><td>Contract/golden</td><td>schema 宽松、canonical 漂移、digest 错误</td><td>contract verifier、payload/manifest/profile tests</td></tr>
+<tr><td>Graph/snapshot</td><td>cycle、过深、source 变化、调度非确定</td><td>graph/scheduler/snapshot suites</td></tr>
+<tr><td>DDC</td><td>错误复用、半写、损坏未隔离</td><td>15-case corruption、mutation、8 writers</td></tr>
+<tr><td>Publication</td><td>半成品可见、失败覆盖旧 current</td><td>failure injection、30-case corruption、process probes</td></tr>
+<tr><td>Operator</td><td>CLI 副作用、report 不稳定</td><td>CLI/report/workflow、quickstart、subprocess runner</td></tr>
+<tr><td>Scale/quality</td><td>O(N²)、内存、并发 UB、边界泄漏</td><td>hard benchmark、sanitizers、architecture verifier</td></tr>
+</tbody></table></section>
+
+<section id="s6"><h2>六、设计巧思与最佳实践</h2>
+<h3>1. 当前业务场景与业务模型的最佳实践</h3><ul>
+<li><strong>先固定输入再并发：</strong>并行只改变执行时序，不能改变节点看到的 source bytes。</li>
+<li><strong>失败证据也 content-addressed：</strong>quarantine 以 failure digest 命名，不用时间戳表达原因。</li>
+<li><strong>最终分类互斥：</strong>等待者复用 winner 后归类为 reused；过程由 stable reason 保留。</li>
+<li><strong>发布前重读：</strong>writer 刚写完不等于磁盘满足 runtime contract。</li>
+<li><strong>normalized 与 telemetry 分层：</strong>确定性证据和性能观测不共享哈希域。</li>
+<li><strong>Tool 是 composition root：</strong>producer 经 Asset public extension 注册，runtime 不认识 CLI/DDC layout。</li>
+</ul>
+<h3>2. 优化方案与收益</h3><p>已实现节点级 DDC reuse、并发竞争收敛、拓扑调度、content-addressed payload、read-only plan 与 bounded validation。收益是增量 cook 时间、失败可恢复性、跨平台确定性和调试质量。1,000 assets/5,000 edges benchmark 同时覆盖 plan、cached、validation 与 clean，防止小 fixture 掩盖复杂度退化。</p>
+<h3>3. 已知限制与后续演进</h3><p>当前 DDC 只在本地目录，没有容量管理、远端传输或 trust domain；成功 generation 不清理；runtime 尚无 async request、handle、package mount 或 residency。026 将复用本期 manifest/envelope 管理 runtime 生命周期；027/028 将 meshlet、mip/chunk 与 budget 建在相同 derived evidence 上。</p></section>
+
+<section id="s7"><h2>七、编程语言知识点</h2>
+<h3>1. 标准库接口与用法</h3><p><code>std::filesystem</code> 处理 Tool-private path；<code>std::span</code> 传递 bounded bytes；<code>std::shared_ptr&lt;const T&gt;</code> 保存 immutable payload；<code>std::atomic</code> 生成 stage token 与共享失败状态；<code>std::chrono</code> 表达 lease timeout；<code>std::future</code>/<code>std::thread</code> 验证 writer；<code>std::sort</code> 固定 manifest 与 report 顺序。</p>
+<h3>2. 语言特性与惯用法</h3><p>RAII 的 <code>FPlatformFileLease</code> 在 normal return、move 与进程退出时释放 native ownership；<code>enum class</code> 区分 lookup/install/result；<code>[[nodiscard]]</code> 强制处理文件与 contract 结果；move semantics 在验证完成后一次发布 payload/manifest；显式 result 保持无异常边界。</p>
+<h3>3. 平台相关与编译器行为</h3><p>POSIX 与 Windows 各自实现 native ownership 与 rename/no-replace，public Core API 不泄漏 fd/HANDLE。路径、worker scheduling、host label 与 wall clock 不进入 identity。MSVC、Clang、GCC 共享小端 envelope 与 UTF-8 canonical JSON，CI 比较 normalized report 和 generation identity。</p></section>
+
+<section id="s8"><h2>八、软件工程知识点</h2>
+<h3>1. 设计模式与架构模式</h3><p>Importer/Cooker/Codec 是 Strategy；typed codec facade 是 Adapter；profile/key/manifest 是 Value Object；graph + scheduler 是 build DAG；DDC install 与 publication 是 transaction；lease 是 scoped ownership；immutable generation + pointer 类似 MVCC snapshot；CLI runner 与 schema verifier形成 Contract Test。</p>
+<h3>2. 工程原则与方法论</h3><p>Dependency Inversion 保证 Asset 不依赖 Tool；Single Source of Truth 让 semantic manifest 决定 generation；Design by Contract 对 bytes、identity、version、profile 与 limits fail closed；YAGNI 推迟 remote DDC/package/GC；reproducible build 排除时间戳、绝对路径和调度顺序。</p>
+<h3>3. 测试策略与质量保障</h3><p>Golden fixture 检查 canonical bytes；mutation 覆盖 key 输入维度；15/30 corruption corpus 做错误分区；failure injection 穿过 commit boundary；process probe 验证 OS ownership；20-run 与 1/8 worker 做 metamorphic determinism；hard benchmark 约束时间/RSS；架构脚本用负向 fixture 证明规则真的会失败。</p></section>
+
+<section id="s9"><h2>九、引擎与资产管线学习笔记</h2>
+<h3>1. 本期核心概念拆解</h3><ul>
+<li><strong>Cook：</strong>把 authoring Asset 转成 target profile 的 runtime payload，不是复制文件。</li>
+<li><strong>Derived key：</strong>回答哪些输入事实完全相同才允许复用。</li>
+<li><strong>DDC：</strong>可丢弃的编译缓存，命中前仍须验证 evidence 与 payload。</li>
+<li><strong>Generation：</strong>互相一致、独立可验证的 payload 与 manifest 快照。</li>
+<li><strong>Atomic publication：</strong>读者只看到完整旧快照或完整新快照。</li>
+<li><strong>Relevant profile：</strong>只有真正影响 producer 输出的 target 字段进入 key。</li>
+</ul>
+<h3>2. 与成熟引擎的关系</h3><table><thead><tr><th>本项目</th><th>成熟引擎对应概念</th><th>本期范围</th></tr></thead><tbody>
+<tr><td>Derived key + DDC entry</td><td>Unreal Derived Data Cache / artifact cache</td><td>本地、immutable、validated</td></tr>
+<tr><td>Target profile</td><td>TargetPlatform + cook settings</td><td>三平台 Vulkan profile</td></tr>
+<tr><td>Cook manifest</td><td>Asset registry/package provenance</td><td>typed records 与 payload locator</td></tr>
+<tr><td>Generation pointer</td><td>staged build promotion</td><td>目录 generation，无 archive</td></tr>
+<tr><td>Standalone validator</td><td>deployment integrity validation</td><td>无需 source/importer/DDC</td></tr>
+</tbody></table>
+<h3>3. 源码阅读路线</h3><ol><li><code>FAssetTargetProfile.h</code> 与 <code>FAssetDerivedKey.h</code>。</li><li><code>FAssetCookedPayload.h</code>、<code>FAssetCookManifest.h</code> 与 codec facade。</li><li><code>FAssetCookGraph.cpp</code>、<code>FCookInputSnapshot.cpp</code> 与 scheduler。</li><li><code>FDerivedDataStore.cpp</code> 的 stage、lease、winner、quarantine。</li><li><code>FCookedGenerationPublisher.cpp</code> 与 validator 的 commit boundary。</li><li><code>FAssetCookRunner.cpp</code> 的完整控制流。</li><li><code>AssetCookerConcurrencyTests.cpp</code> 与 publication tests。</li></ol>
+<h3>4. 自测问题</h3><ul><li>为什么 DDC hit 仍必须解析 entry 和 payload？</li><li>为什么 source hash、producer version 和 relevant profile 都进入 key？</li><li>为什么 generationId 不包含目录或 worker count？</li><li>为什么 current pointer 应比 generation 更小、更晚写？</li><li>为什么 plan 查询 cache 可以，创建 DDC 目录不可以？</li><li>为什么等待者复用 winner 后不应同时报告 invalidated？</li><li>为什么 standalone validate 要在 source 与 DDC 删除后运行？</li><li>026 应复用哪些 Asset contract，而不链接哪些 Tool 代码？</li></ul>
+</section></main></div></body></html>

@@ -1,0 +1,1 @@
+{"case":"manifest-noncanonical","subject":"manifest","mutation":"prefix-whitespace","expected":"reject"}

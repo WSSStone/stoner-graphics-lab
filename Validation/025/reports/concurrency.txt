@@ -1,0 +1,38 @@
+Feature 025 concurrency validation
+==================================
+
+Platform: macOS Apple Silicon
+Configuration: Release, strict warnings
+Command:
+  conda run -n godot scons -j8 config=release strict=1 Build/Mac/Release/Tests/StonerTest
+
+DDC corruption-repair stress:
+  Build/Mac/Release/Tests/StonerTest --suite asset-cooker-concurrency
+  Repetitions: 20
+  Result: PASS (20/20)
+  Coverage: eight same-key writers; eight concurrent corrupt-entry repairers;
+            repaired-winner re-query; immutable payload and manifest equality.
+
+Combined ownership matrix:
+  Build/Mac/Release/Tests/StonerTest \
+    --suite asset-cooker-concurrency \
+    --suite asset-cooker-publication-concurrency \
+    --suite core-file-lease
+
+Result: PASS (15/15 assertions)
+  - same-key DDC writers converge
+  - quarantine repairers converge
+  - equivalent same-root publishers converge
+  - competing publisher observes bounded timeout
+  - waiting publisher succeeds after lease release
+  - abrupt process exit releases publication ownership
+  - readers observe only complete old/new generation pointers
+  - native same-process and cross-process lease timeout/release semantics
+  - inherited child processes do not retain native lease ownership
+
+Regression fixed during validation:
+  A waiter that first observed a corrupt entry and then reused a winner's repair
+  retained both invalidated and reused classifications. The mutually exclusive
+  report-count invariant rejected that report. The repaired-winner path now
+  clears transient invalidation/quarantine classification while preserving
+  stable reason ddc.lookup.repaired-winner.

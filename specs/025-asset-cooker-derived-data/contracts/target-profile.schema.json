@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stoner.graphics/schemas/asset-target-profile-v1.json",
+  "title": "Stoner Asset Target Profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaVersion",
+    "displayName",
+    "platform",
+    "cpuArchitecture",
+    "graphicsBackend",
+    "shaderPayloadChoices",
+    "textureCapabilities",
+    "textureFallback",
+    "buildPolicy",
+    "limits"
+  ],
+  "properties": {
+    "schema": {
+      "const": "stoner.asset-target-profile"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "platform": {
+      "enum": ["windows", "macos", "linux", "android", "ios"]
+    },
+    "cpuArchitecture": {
+      "enum": ["x86_64", "arm64"]
+    },
+    "graphicsBackend": {
+      "enum": ["vulkan", "metal", "dx12", "opengl", "gles"]
+    },
+    "shaderPayloadChoices": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/shaderPayloadChoice"
+      }
+    },
+    "textureCapabilities": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+      }
+    },
+    "textureFallback": {
+      "enum": ["fail", "uncompressed", "portable-ktx2"]
+    },
+    "buildPolicy": {
+      "$ref": "#/$defs/buildPolicy"
+    },
+    "limits": {
+      "$ref": "#/$defs/limits"
+    },
+    "requiredExtensions": {
+      "$ref": "#/$defs/tokenSet"
+    },
+    "optionalExtensions": {
+      "$ref": "#/$defs/tokenSet"
+    },
+    "extensions": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "shaderPayloadChoice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "profile", "format"],
+      "properties": {
+        "backend": {
+          "enum": ["vulkan", "metal", "dx12", "opengl", "gles"]
+        },
+        "profile": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+        },
+        "format": {
+          "enum": ["spirv", "msl", "dxil", "glsl", "essl"]
+        }
+      }
+    },
+    "buildPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["optimization", "includeDebugSymbols", "validation", "producerSettings"],
+      "properties": {
+        "optimization": {
+          "enum": ["development", "shipping"]
+        },
+        "includeDebugSymbols": {
+          "type": "boolean"
+        },
+        "validation": {
+          "enum": ["standard", "strict"]
+        },
+        "producerSettings": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "description": "Sorted by producer; duplicate producers fail semantic validation",
+          "items": {
+            "$ref": "#/$defs/producerSettingsRecord"
+          }
+        }
+      }
+    },
+    "producerSettingsRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer", "schemaVersion", "settings"],
+      "properties": {
+        "producer": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+        },
+        "schemaVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "settings": {
+          "type": "object",
+          "maxProperties": 64,
+          "additionalProperties": {
+            "anyOf": [
+              {"type": "boolean"},
+              {"type": "integer", "minimum": -9223372036854775808, "maximum": 9223372036854775807},
+              {"type": "number"},
+              {"type": "string", "maxLength": 1024}
+            ]
+          }
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxDiscoveredSources",
+        "maxAssets",
+        "maxDependencyEdges",
+        "maxDependencyDepth",
+        "maxSourceBytes",
+        "maxPayloadBytes",
+        "maxAggregateBytes",
+        "maxManifestBytes",
+        "maxDiagnostics"
+      ],
+      "properties": {
+        "maxDiscoveredSources": {"type": "integer", "minimum": 1, "maximum": 100000},
+        "maxAssets": {"type": "integer", "minimum": 1, "maximum": 100000},
+        "maxDependencyEdges": {"type": "integer", "minimum": 0, "maximum": 1000000},
+        "maxDependencyDepth": {"type": "integer", "minimum": 1, "maximum": 256},
+        "maxSourceBytes": {"type": "integer", "minimum": 1, "maximum": 1073741824},
+        "maxPayloadBytes": {"type": "integer", "minimum": 1, "maximum": 1073741824},
+        "maxAggregateBytes": {"type": "integer", "minimum": 1, "maximum": 8589934592},
+        "maxManifestBytes": {"type": "integer", "minimum": 1, "maximum": 268435456},
+        "maxDiagnostics": {"type": "integer", "minimum": 1, "maximum": 4096}
+      }
+    },
+    "tokenSet": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+      }
+    }
+  }
+}

@@ -1,0 +1,148 @@
+ {
+  "schema": "stoner.asset-cook-manifest",
+  "schemaVersion": 1,
+  "generationId": "c7a9f320814a477738d04f2d5d8912397d2a038cb18b4d32e75142490a59faf6",
+  "targetProfile": {
+    "schema": "stoner.asset-target-profile",
+    "schemaVersion": 1,
+    "displayName": "Mac Vulkan Dev",
+    "platform": "macos",
+    "cpuArchitecture": "arm64",
+    "graphicsBackend": "vulkan",
+    "shaderPayloadChoices": [
+      {
+        "backend": "vulkan",
+        "profile": "vulkan-1.3",
+        "format": "spirv"
+      }
+    ],
+    "textureCapabilities": ["rgba8-unorm"],
+    "textureFallback": "portable-ktx2",
+    "buildPolicy": {
+      "optimization": "development",
+      "includeDebugSymbols": false,
+      "validation": "standard",
+      "producerSettings": [
+        {
+          "producer": "cooker.cooked-image-texture",
+          "schemaVersion": 1,
+          "settings": {
+            "codecPolicy": "exact-v1"
+          }
+        },
+        {
+          "producer": "cooker.cooked-material-shader",
+          "schemaVersion": 1,
+          "settings": {
+            "codecPolicy": "exact-v1"
+          }
+        },
+        {
+          "producer": "cooker.cooked-static-model",
+          "schemaVersion": 1,
+          "settings": {
+            "codecPolicy": "exact-v1"
+          }
+        },
+        {
+          "producer": "cooker.ktx2",
+          "schemaVersion": 1,
+          "settings": {
+            "allowLossyData": false,
+            "compressionPolicy": "default-by-semantic",
+            "portableProfile": "stoner.ktx2.portable.v1",
+            "quality": "balanced"
+          }
+        }
+      ]
+    },
+    "limits": {
+      "maxDiscoveredSources": 100000,
+      "maxAssets": 100000,
+      "maxDependencyEdges": 1000000,
+      "maxDependencyDepth": 256,
+      "maxSourceBytes": 1073741824,
+      "maxPayloadBytes": 1073741824,
+      "maxAggregateBytes": 8589934592,
+      "maxManifestBytes": 268435456,
+      "maxDiagnostics": 4096
+    }
+  },
+  "effectiveProfileDigest": "e2b279200b84849245a3b5b325bda0c87f00c236318c8a5325af694cd283553d",
+  "selection": {
+    "mode": "explicit-roots",
+    "roots": ["Texture:Cooker/B"],
+    "sourceScopes": ["Content"],
+    "discoveryRulesVersion": "b7b0df6eff9e7237e6faccf7a4290c753f62673e577774536e85d6bbaf8077fd"
+  },
+  "snapshotDigest": "a3de50ad066b028f5a1d3d37aef91f4a057918c8b74a0a8e600460ecdf2cf859",
+  "limitsDigest": "25d22e4d93cbf466136a8c6e03e61c0119b0225cfe2075a657a3f1f2ad059bb9",
+  "records": [
+    {
+      "assetId": "Image:Cooker/A",
+      "assetType": "Image",
+      "sourceVersion": "1062883bb76d61bbf2bf118b51508342217c8c63fae7dfc2ce93b4bf655f1419",
+      "sourceManifest": [
+        {
+          "assetId": "Image:Cooker/A",
+          "version": "ce0c8a79ed7178662cb3d7339af026b2e8bc4e323d63b69ac1eb37b4fadf1a3e",
+          "role": "primary"
+        }
+      ],
+      "importer": {
+        "id": "importer.test",
+        "version": "1.0.0"
+      },
+      "cooker": {
+        "id": "cooker.test",
+        "version": "1.0.0"
+      },
+      "codec": {
+        "id": "codec.test",
+        "version": "1.0.0"
+      },
+      "derivedKey": "4eb3ad01683772761205ed7fd08c9442a298bb02477b15dc245f657cfe5f419d",
+      "payloadSchemaVersion": 1,
+      "payloadLocator": "Payloads/7da3c66525c3be3d9902e3cd6b7e30a704d4fa75a5b6584da03c3e842309849b.sgasset",
+      "payloadBytes": 128,
+      "envelopeDigest": "7da3c66525c3be3d9902e3cd6b7e30a704d4fa75a5b6584da03c3e842309849b",
+      "dependencies": []
+    },
+    {
+      "assetId": "Texture:Cooker/B",
+      "assetType": "Texture",
+      "sourceVersion": "85d40550a6614d69f2b3bd6645fdfbda1a368c7a52636f7c56adc50b16f2cf3c",
+      "sourceManifest": [
+        {
+          "assetId": "Texture:Cooker/B",
+          "version": "52cc312639b403def9e2a790098054de382119834d2eda5863247764814614c6",
+          "role": "primary"
+        }
+      ],
+      "importer": {
+        "id": "importer.test",
+        "version": "1.0.0"
+      },
+      "cooker": {
+        "id": "cooker.test",
+        "version": "1.0.0"
+      },
+      "codec": {
+        "id": "codec.test",
+        "version": "1.0.0"
+      },
+      "derivedKey": "14d1e1e076bd8cb05104ace864af24dcc652b615283630301b78d8c75df5d6e2",
+      "payloadSchemaVersion": 1,
+      "payloadLocator": "Payloads/30833fbd3e58edfc55da0cc9fc6e8732b99b9036e4841f8d33b3470603af23ba.sgasset",
+      "payloadBytes": 128,
+      "envelopeDigest": "30833fbd3e58edfc55da0cc9fc6e8732b99b9036e4841f8d33b3470603af23ba",
+      "dependencies": [
+        {
+          "assetId": "Image:Cooker/A",
+          "role": "build"
+        }
+      ]
+    }
+  ],
+  "requiredExtensions": ["stoner.core"]
+}

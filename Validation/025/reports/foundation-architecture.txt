@@ -1,0 +1,39 @@
+Feature 025 Foundation Architecture Gate
+=======================================
+
+Date: 2026-08-14
+Platform: macOS arm64
+Scope: Task T045 / Plan milestone M2
+
+PASS  Tests/verify_architecture.py
+  - Asset cannot include RHI, Renderer, Application, Backend, or Tools.
+  - Runtime layers cannot include Tools.
+  - Tools cannot include Source/Asset/Private by path or private-header name.
+  - Runtime public APIs cannot expose known native graphics or private parser
+    types.
+
+PASS  Tests/verify_asset_layer.py
+  - Asset declares Core as its only build dependency.
+  - Third-party parsers remain in explicit private adapters.
+  - Renderer owns no source-format parsing or filesystem access.
+  - Backend owns no Asset dependency.
+  - Core Unicode implementation remains private.
+
+PASS  Python verifier unit matrix (13 tests)
+  Tests/test_verify_architecture.py
+  Tests/test_verify_asset_layer.py
+  Tests/test_verify_asset_cooker_contracts.py
+
+PASS  SCons dependency integration
+  Building StonerTest reruns architecture checks when either verifier changes
+  and reruns contract checks when schemas, the fixture manifest, or registered
+  contract goldens change.
+
+Approved private JSON adapters added for Feature 025:
+  Source/Asset/Private/FAssetTargetProfileCodec.cpp
+  Source/Asset/Private/FAssetCookManifestCodec.cpp
+
+No Tool target receives Source/Asset/Private as an include path. Asset Cooker
+currently links only Asset and Core.
+
+Result: PASS

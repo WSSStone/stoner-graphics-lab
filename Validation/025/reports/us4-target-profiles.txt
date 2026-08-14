@@ -1,0 +1,64 @@
+Feature 025 US4 - Explicit Target Profiles
+===========================================
+
+Result: PASS
+Host: macOS Apple Silicon
+Configurations: Debug; Release strict (-Werror)
+
+Profile and producer evidence
+-----------------------------
+- Canonical versioned Windows Vulkan, macOS Vulkan, and Linux Vulkan profiles
+  explicitly declare backend-tagged SPIR-V, ordered texture capabilities,
+  fallback policy, limits, and schema-versioned settings for every producer.
+- Fixture SHA-256 values are recorded in fixture-manifest.json and verified.
+- Generic cooked-family producers accept only codecPolicy=exact-v1 and reject
+  missing, wrong-schema, unknown, or unsupported setting values.
+- Renaming displayName preserves effective profile identity, derived keys,
+  payload bytes, target decisions, and generation identity.
+
+Target decision evidence
+------------------------
+- Image/texture decisions select the first payload-compatible declared target
+  capability. Incompatible LDR capabilities use uncompressed fallback only
+  when explicitly authorized and report bUsedFallback=true.
+- The same incompatible request with fallback=fail is rejected before
+  publication. Unknown texture capabilities also fail closed.
+- Shader payload decisions require an exact backend/profile/format match.
+  A valid Metal target profile without matching MSL payloads fails closed.
+- Static mesh/model profile projection and decision remain target-independent.
+- Every successful non-plan asset report records effective settings digest,
+  relevant profile digest, normalized target selection, and fallback status.
+
+Precise DDC invalidation evidence
+--------------------------------
+- Display-name-only mutation: every representative DDC entry reused.
+- Platform/CPU-only mutation: every current payload-family DDC entry reused.
+- Texture capability mutation: only image/texture entries recooked.
+- Shader payload choice mutation: only material/shader entries recooked.
+- Texture fallback and graphics backend affect only their declared families.
+- An unsupported static-model producer setting is rejected only by the owning
+  producer; unaffected family projections remain identical.
+
+Canonical profile SHA-256
+------------------------
+- Windows-Vulkan.json: 541ba158725c764e16d19c7f503b78912d4db08bc222fc590a9eaaad551be32a
+- Mac-Vulkan.json: 8091fc8334950d5b815e0fd581798ab4e7ea79762922870d0e1ab01d6462e9b8
+- Linux-Vulkan.json: f02fa1c55efc3f64134660a7dfe0fd58d70f733c7a4d6b6745ac8278e255e58b
+
+Commands
+--------
+conda run -n godot scons -j8 asset_cooker=1 Build/Mac/Debug/Tests/StonerTest
+Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-target-profile
+Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-profile-invalidation
+Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-clean
+conda run -n godot scons -j8 config=release strict=1 asset_cooker=1 Build/Mac/Release/Tools/AssetCooker/StonerAssetCooker Build/Mac/Release/Tests/StonerTest
+Build/Mac/Release/Tests/StonerTest --suite asset-cooker-target-profile
+Build/Mac/Release/Tests/StonerTest --suite asset-cooker-profile-invalidation
+Build/Mac/Release/Tests/StonerTest --suite asset-cooker-clean
+Build/Mac/Release/Tests/StonerTest --suite asset-cooker-incremental
+conda run -n godot python Tests/verify_asset_cooker_contracts.py --root .
+conda run -n godot python Tests/verify_architecture.py --root .
+conda run -n godot python -m unittest Tests.test_verify_asset_cooker_contracts Tests.test_verify_architecture Tests.test_verify_asset_layer
+
+All commands passed. Shell-level confstr/xcrun messages were host sandbox
+environment warnings and did not originate from project compilation.

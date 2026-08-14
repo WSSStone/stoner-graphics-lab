@@ -1,0 +1,15 @@
+{
+  "success": 0,
+  "invalid-arguments": 2,
+  "invalid-profile": 3,
+  "discovery-failure": 4,
+  "graph-failure": 5,
+  "cook-failure": 6,
+  "cache-failure": 7,
+  "source-changed": 8,
+  "lease-timeout": 9,
+  "published-validation-failure": 10,
+  "publication-failure": 11,
+  "io-failure": 12,
+  "internal-failure": 13
+}

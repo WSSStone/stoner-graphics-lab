@@ -6,6 +6,8 @@
 #include "CoreMathTests.h"
 #include "CoordinateConventionTests.h"
 #include "CorePlatformOwnershipTests.h"
+#include "CorePlatformFileLeaseTests.h"
+#include "CorePlatformFileTransactionTests.h"
 #include "LoggingAssertionTests.h"
 #include "CorePlatformTests.h"
 #include "DeferredRenderingTests.h"
@@ -32,6 +34,23 @@
 #include "AssetGLTFDiagnosticTests.h"
 #include "AssetGLTFPolicyTests.h"
 #include "AssetMaterialShaderTests.h"
+#include "AssetCookerGraphTests.h"
+#include "AssetCookerSchedulerTests.h"
+#include "AssetCookerInputSnapshotTests.h"
+#include "AssetCookerSourceCatalogTests.h"
+#include "AssetCookerDeterminismTests.h"
+#include "AssetCookerDerivedDataTests.h"
+#include "AssetCookerIncrementalTests.h"
+#include "AssetCookerConcurrencyTests.h"
+#include "AssetCookerPublicationTests.h"
+#include "AssetCookerPublishedValidationTests.h"
+#include "AssetCookerPublicationConcurrencyTests.h"
+#include "AssetCookerTargetProfileTests.h"
+#include "AssetCookerProfileInvalidationTests.h"
+#include "AssetCookerCliTests.h"
+#include "AssetCookerReportTests.h"
+#include "AssetCookerWorkflowTests.h"
+#include "AssetCookerBenchmark.h"
 #include "AssetStaticMeshGeometryTests.h"
 #include "AssetStaticModelHierarchyTests.h"
 #include "AssetStaticModelIdentityTests.h"
@@ -43,6 +62,7 @@
 #include <charconv>
 #include <cerrno>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -65,7 +85,22 @@ int main(int ArgCount, char* Arguments[])
     FAssetKTX2TestOptions KTX2Options;
     FAssetMaterialShaderTestOptions MaterialShaderOptions;
     FAssetStaticModelTestOptions StaticModelOptions;
+    FAssetCookerBenchmarkOptions AssetCookerBenchmarkOptions;
     std::vector<std::string> ParsedArguments;
+    std::filesystem::path LeaseProbePath =
+        std::filesystem::path(Arguments[0]).parent_path() /
+        "PlatformFileLeaseProbe";
+    std::filesystem::path PublicationProbePath =
+        std::filesystem::path(Arguments[0]).parent_path() /
+        "AssetCookerPublicationProbe";
+    std::filesystem::path AssetCookerPath =
+        std::filesystem::path(Arguments[0]).parent_path().parent_path() /
+        "Tools" / "AssetCooker" / "StonerAssetCooker";
+#if defined(_WIN32)
+    LeaseProbePath += ".exe";
+    PublicationProbePath += ".exe";
+    AssetCookerPath += ".exe";
+#endif
     for (int Index = 1; Index < ArgCount; ++Index)
     {
         const std::string Argument = Arguments[Index];
@@ -169,6 +204,31 @@ int main(int ArgCount, char* Arguments[])
             }
             continue;
         }
+        if (Argument == "--asset-cooker-benchmark-profile" ||
+            Argument == "--asset-cooker-benchmark-corpus" ||
+            Argument == "--asset-cooker-benchmark-report")
+        {
+            if (Index + 1 >= ArgCount)
+            {
+                std::cerr << "Missing value after " << Argument << '\n';
+                return 2;
+            }
+            const std::string Value = Arguments[++Index];
+            AssetCookerBenchmarkOptions.Enabled = true;
+            if (Argument == "--asset-cooker-benchmark-profile")
+            {
+                if (Value != "reference" && Value != "ci")
+                {
+                    std::cerr << "Invalid --asset-cooker-benchmark-profile value\n";
+                    return 2;
+                }
+                AssetCookerBenchmarkOptions.CiProfile = Value == "ci";
+            }
+            else if (Argument == "--asset-cooker-benchmark-corpus")
+                AssetCookerBenchmarkOptions.Corpus = Value;
+            else AssetCookerBenchmarkOptions.Report = Value;
+            continue;
+        }
         ParsedArguments.push_back(Argument);
     }
 
@@ -220,10 +280,87 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("asset-ktx2-encoder", [] {
         return RunAssetKTX2EncoderTests().Failed == 0 ? 0 : 1;
     });
+    Registry.Register("asset-cooker-profile", [] {
+        return RunAssetCookerProfileTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-derived-key", [] {
+        return RunAssetCookerDerivedKeyTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-codec", [] {
+        const auto Payload = RunAssetCookerPayloadCodecTests();
+        const auto Manifest = RunAssetCookerManifestTests();
+        const auto Equivalence = RunAssetCookerEquivalenceTests();
+        return Payload.Failed == 0 && Manifest.Failed == 0 &&
+            Equivalence.Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-graph", [] {
+        return RunAssetCookerGraphTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-scheduler", [] {
+        return RunAssetCookerSchedulerTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-snapshot", [] {
+        return RunAssetCookerInputSnapshotTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-source-catalog", [] {
+        return RunAssetCookerSourceCatalogTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-clean", [] {
+        return RunAssetCookerDeterminismTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-determinism", [] {
+        return RunAssetCookerDeterminismTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-ddc", [] {
+        return RunAssetCookerDerivedDataTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-incremental", [] {
+        return RunAssetCookerIncrementalTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-concurrency", [] {
+        return RunAssetCookerConcurrencyTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-publication", [] {
+        return RunAssetCookerPublicationTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-published-validation", [] {
+        return RunAssetCookerPublishedValidationTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-publication-concurrency", [PublicationProbePath] {
+        return RunAssetCookerPublicationConcurrencyTests(
+            PublicationProbePath.string().c_str()).Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-target-profile", [] {
+        return RunAssetCookerTargetProfileTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-profile-invalidation", [] {
+        return RunAssetCookerProfileInvalidationTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-cli", [AssetCookerPath] {
+        return RunAssetCookerCliTests(AssetCookerPath.string().c_str()).Failed == 0
+            ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-report", [] {
+        return RunAssetCookerReportTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-workflow", [] {
+        return RunAssetCookerWorkflowTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-cooker-benchmark", [AssetCookerBenchmarkOptions] {
+        return RunAssetCookerBenchmark(AssetCookerBenchmarkOptions).Failed == 0
+            ? 0 : 1;
+    });
     Registry.Register("core-foundation", [] { return RunCoreFoundationTests().Failed == 0 ? 0 : 1; });
     Registry.Register("core-math", [] { return RunCoreMathTests().Failed == 0 ? 0 : 1; });
     Registry.Register("coordinate-convention", [] { return RunCoordinateConventionTests().Failed == 0 ? 0 : 1; });
     Registry.Register("core-platform", [] { return RunCorePlatformTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("core-file-transaction", [] {
+        return RunCorePlatformFileTransactionTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("core-file-lease", [LeaseProbePath] {
+        return RunCorePlatformFileLeaseTests(
+            LeaseProbePath.string().c_str()).Failed == 0 ? 0 : 1;
+    });
     Registry.Register("core-platform-ownership", [] { return RunCorePlatformOwnershipTests().Failed == 0 ? 0 : 1; });
     Registry.Register("deferred-native", [] { return RunDeferredNativeIntegrationTests().Failed == 0 ? 0 : 1; });
     Registry.Register("deferred-renderer", [] { return RunDeferredRenderingTests().Failed == 0 ? 0 : 1; });

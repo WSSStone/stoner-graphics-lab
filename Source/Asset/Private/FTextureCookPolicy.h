@@ -7,6 +7,13 @@
 namespace Stoner::Asset::Private
 {
 
+[[nodiscard]] EAssetResult ResolveTextureProfileSettings(
+    const Core::TSharedPtr<const FAssetTargetProfileEvidence>& Profile,
+    const FTextureCookSettings& LegacySettings,
+    FTextureCookSettings& OutSettings,
+    FAssetProfileProjectionEvidence& OutProjection,
+    FAssetDiagnosticList* OutDiagnostics = nullptr);
+
 [[nodiscard]] EAssetResult ResolveTextureCookPolicy(
     const FTextureAsset& Texture,
     const FTextureCookSettings& Settings,

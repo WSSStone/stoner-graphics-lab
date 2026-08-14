@@ -49,3 +49,8 @@ Thumbs.db
 # Code review execution state is branch-local and archived as a final report.
 CodeReview/Runs/*
 !CodeReview/Runs/README.md
+
+# Feature 025 local Asset Cooker state
+Saved/DerivedDataCache/
+Saved/Cooked/
+Saved/Feature025*/

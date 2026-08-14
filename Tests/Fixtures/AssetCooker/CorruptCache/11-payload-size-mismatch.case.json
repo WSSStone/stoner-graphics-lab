@@ -1,0 +1,1 @@
+{"case":"payload-size-mismatch","mutation":"replace metadata payload size","strict":"fail","ordinary":"quarantine-rebuild"}

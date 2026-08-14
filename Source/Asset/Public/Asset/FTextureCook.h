@@ -72,6 +72,9 @@ class FKTX2TextureCooker final : public IAssetCooker
 {
 public:
     [[nodiscard]] FAssetExtensionCapability GetCapability() const override;
+    [[nodiscard]] EAssetResult GetRelevantProfileEvidence(
+        const FAssetTargetProfileEvidence& Profile,
+        FAssetProfileProjectionEvidence& OutEvidence) const override;
     [[nodiscard]] FAssetCookResult Cook(
         const FAssetCookRequest& Request) override;
 };

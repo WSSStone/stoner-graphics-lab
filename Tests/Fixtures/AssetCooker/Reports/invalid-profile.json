@@ -1,0 +1,36 @@
+{
+  "schema": "stoner.asset-cook-report",
+  "schemaVersion": 1,
+  "command": "inspect",
+  "result": "invalid-profile",
+  "deterministicDigest": "e4a1434285886fa4a8557f5b590633da049294ff18ec5b19e4ac071146b178d4",
+  "summary": {
+    "discovered": 0,
+    "selectedRoots": 0,
+    "reachable": 0,
+    "reuseEligible": 0,
+    "reuseIneligible": 0,
+    "cacheHits": 0,
+    "cacheMisses": 0,
+    "cacheCorrupt": 0,
+    "quarantined": 0,
+    "cooked": 0,
+    "regenerated": 0,
+    "reused": 0,
+    "invalidated": 0,
+    "failed": 0,
+    "staged": 0,
+    "published": 0,
+    "sourceBytes": 0,
+    "payloadBytes": 0,
+    "generationBytes": 0
+  },
+  "decisions": [],
+  "diagnostics": [
+    {
+      "category": "invalid-profile",
+      "stage": "inspect",
+      "reason": "asset-cooker.inspect.profile-invalid"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"schema":"stoner.asset-cooker-concurrency-case","schemaVersion":1,"scenario":"same-publication-root","participants":2,"expected":"one-current-generation-no-partials"}

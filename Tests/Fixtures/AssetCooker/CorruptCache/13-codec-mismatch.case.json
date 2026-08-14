@@ -1,0 +1,1 @@
+{"case":"codec-mismatch","mutation":"replace metadata codec id","strict":"fail","ordinary":"quarantine-rebuild"}

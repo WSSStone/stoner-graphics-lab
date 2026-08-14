@@ -1,0 +1,22 @@
+Feature 025 architecture validation
+===================================
+
+Commands:
+  python3 Tests/verify_architecture.py
+  python3 Tests/verify_asset_layer.py
+  python3 -m unittest Tests/test_verify_architecture.py Tests/test_verify_asset_layer.py
+  git ls-files 'Saved/DerivedDataCache/**' 'Saved/Cooked/**' 'Saved/Feature025*'
+
+Results:
+  PASS - runtime source and build files do not depend on Tools/AssetCooker
+  PASS - Asset depends on Core only and has no RHI/Renderer/Application/Backend include
+  PASS - AssetCooker consumes public Asset APIs, not Asset-private headers
+  PASS - public runtime headers expose no Vulkan/GLFW/private parser handles
+  PASS - yyjson/cgltf/MikkTSpace/stb/KTX/WAMR dependencies remain in exact private adapters
+  PASS - Renderer does not parse source formats or own source-file access
+  PASS - Backend does not depend on Asset
+  PASS - no Saved DDC, cooked generation, or Feature025 temporary tree is tracked
+  PASS - 10 architecture verifier unit tests, including negative fixtures
+
+Generated outputs are covered by exact .gitignore rules for
+Saved/DerivedDataCache/, Saved/Cooked/, and Saved/Feature025*/.

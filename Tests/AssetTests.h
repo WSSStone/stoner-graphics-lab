@@ -16,6 +16,11 @@
 #include "AssetStaticModelDeterminism.h"
 #include "AssetStaticModelConcurrency.h"
 #include "AssetStaticModelBenchmark.h"
+#include "AssetCookerProfileTests.h"
+#include "AssetCookerDerivedKeyTests.h"
+#include "AssetCookerEquivalenceTests.h"
+#include "AssetCookerManifestTests.h"
+#include "AssetCookerPayloadCodecTests.h"
 
 #include <string>
 

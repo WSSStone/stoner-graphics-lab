@@ -1,0 +1,1 @@
+{"case":"payload-locator-shard","subject":"manifest-record","mutation":"wrong-shard","expected":"reject"}

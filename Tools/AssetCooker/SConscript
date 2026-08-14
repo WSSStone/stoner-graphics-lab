@@ -1,0 +1,44 @@
+"""Build the opt-in offline Asset Cooker library and executable."""
+
+Import('env', 'platform', 'config', 'build_base')
+import os
+
+tool_env = env.Clone()
+tool_env.Append(CPPPATH=[
+    Dir('#Tools/AssetCooker/Public').abspath,
+    Dir('#Source/Asset/Public').abspath,
+    Dir('#Source/Core/Public').abspath,
+])
+
+library = tool_env.StaticLibrary(
+    'AssetCooker',
+    [
+        'Private/AssetCookerModule.cpp',
+        'Private/FAssetCookCli.cpp',
+        'Private/FAssetCookGraph.cpp',
+        'Private/FAssetCookReport.cpp',
+        'Private/FAssetCookReportCodec.cpp',
+        'Private/FAssetCookRequest.cpp',
+        'Private/FAssetCookRunner.cpp',
+        'Private/FAssetCookScheduler.cpp',
+        'Private/FCookedGenerationPublisher.cpp',
+        'Private/FDerivedDataStore.cpp',
+        'Private/FPublishedGenerationValidator.cpp',
+        'Private/FAssetSourceCatalog.cpp',
+        'Private/FCookInputSnapshot.cpp',
+    ],
+)
+
+config_name = 'Debug' if config == 'debug' else 'Release'
+build_root = os.path.join('#Build', platform, config_name)
+tool_env.Append(LIBPATH=[
+    Dir(os.path.join(build_root, 'Asset')).abspath,
+    Dir(os.path.join(build_root, 'Core')).abspath,
+])
+tool_env.Append(LIBS=[library, 'Asset', 'Core'])
+tool_env.Append(LIBS=env.get('STONER_ASSET_THIRD_PARTY_LIBS', []))
+if platform == 'Linux':
+    tool_env.Append(LIBS=['dl'])
+
+program = tool_env.Program('StonerAssetCooker', ['Private/Main.cpp'])
+Return('library', 'program')

@@ -25,6 +25,11 @@ for backend in _BACKEND_LAYERS:
     public_dir = os.path.join(_SOURCE_ROOT, backend, 'Public')
     include_paths.append(Dir('#' + public_dir).abspath)
 
+include_paths.extend([
+    Dir('#Tools/AssetCooker/Public').abspath,
+    Dir('#Tools/AssetCooker/Private').abspath,
+])
+
 test_env.Append(CPPPATH=include_paths)
 
 # Source files — use relative path to SConscript source dir for variant_dir compat
@@ -59,6 +64,18 @@ private_include_paths_by_source = {
     'AssetMaterialShaderTests.cpp': [
         Dir('#Source/Asset/Private').abspath,
     ],
+    'AssetCookerProfileTests.cpp': [
+        Dir('#Source/Asset/Private').abspath,
+    ],
+    'AssetCookerDerivedKeyTests.cpp': [
+        Dir('#Source/Asset/Private').abspath,
+    ],
+    'AssetCookerEquivalenceTests.cpp': [
+        Dir('#Source/Asset/Private').abspath,
+    ],
+    'AssetCookerBenchmark.cpp': [
+        Dir('#ThirdParty').abspath,
+    ],
     'TriangleDemoIntegrationTests.cpp': [
         Dir('#Demo/StonerDemo/Private').abspath,
     ],
@@ -80,6 +97,25 @@ for cpp_file in cpp_files:
     else:
         source_env = test_env
     objects.extend(source_env.Object(source))
+
+for tool_source in (
+    'FAssetCookGraph.cpp',
+    'FAssetCookCli.cpp',
+    'FAssetCookScheduler.cpp',
+    'FCookInputSnapshot.cpp',
+    'FAssetCookRequest.cpp',
+    'FAssetCookReport.cpp',
+    'FAssetCookReportCodec.cpp',
+    'FAssetCookRunner.cpp',
+    'FCookedGenerationPublisher.cpp',
+    'FDerivedDataStore.cpp',
+    'FPublishedGenerationValidator.cpp',
+    'FAssetSourceCatalog.cpp',
+):
+    objects.extend(test_env.Object(
+        os.path.join('AssetCookerTool', tool_source[:-4]),
+        File('#Tools/AssetCooker/Private/' + tool_source),
+    ))
 
 # Build output base
 config_display = 'Debug' if config == 'debug' else 'Release'
@@ -118,6 +154,28 @@ if platform == 'Mac' and graphics_deps['glfw_available']:
     test_env.Append(FRAMEWORKS=['Cocoa', 'IOKit', 'CoreFoundation'])
 
 program = test_env.Program('StonerTest', objects)
+test_env.Depends(program, env['STONER_ASSET_COOKER_PROGRAM'])
+test_env.Alias('asset-cooker-benchmark', program)
+
+lease_probe = test_env.Program(
+    'PlatformFileLeaseProbe',
+    [File('#Tests/Helpers/PlatformFileLeaseProbe.cpp')],
+)
+test_env.Depends(program, lease_probe)
+
+publication_probe = test_env.Program(
+    'AssetCookerPublicationProbe',
+    [
+        File('#Tests/Helpers/AssetCookerPublicationProbe.cpp'),
+        test_env.Object(
+            'AssetCookerPublicationProbePublisher',
+            File('#Tools/AssetCooker/Private/FCookedGenerationPublisher.cpp')),
+        test_env.Object(
+            'AssetCookerPublicationProbeValidator',
+            File('#Tools/AssetCooker/Private/FPublishedGenerationValidator.cpp')),
+    ],
+)
+test_env.Depends(program, publication_probe)
 
 asset_benchmark = None
 if ARGUMENTS.get('asset_benchmark', '0').lower() in ('1', 'true', 'yes', 'on'):
@@ -151,6 +209,7 @@ platform_matrix = test_env.Command(
 test_env.Depends(program, platform_matrix)
 
 asset_layer_script = File('#Tests/verify_asset_layer.py')
+architecture_script = File('#Tests/verify_architecture.py')
 asset_layer_stamp = File('AssetLayerBoundary.stamp')
 
 def _verify_asset_layer(target, source, env):
@@ -166,8 +225,58 @@ def _verify_asset_layer(target, source, env):
 
 asset_layer_boundary = test_env.Command(
     asset_layer_stamp,
-    [asset_layer_script],
+    [asset_layer_script, architecture_script],
     Action(_verify_asset_layer, 'Verifying Asset -> Core architecture boundary'),
 )
 test_env.Depends(program, asset_layer_boundary)
-Return('program', 'asset_benchmark')
+
+asset_cooker_contract_script = File('#Tests/verify_asset_cooker_contracts.py')
+asset_cooker_contract_stamp = File('AssetCookerContracts.stamp')
+asset_cooker_contract_sources = [
+    asset_cooker_contract_script,
+    File('#specs/025-asset-cooker-derived-data/contracts/target-profile.schema.json'),
+    File('#specs/025-asset-cooker-derived-data/contracts/manifest.schema.json'),
+    File('#specs/025-asset-cooker-derived-data/contracts/report.schema.json'),
+    File('#Validation/025/fixture-manifest.json'),
+    File('#Config/AssetCooker/Profiles/Windows-Vulkan.json'),
+    File('#Config/AssetCooker/Profiles/Mac-Vulkan.json'),
+    File('#Config/AssetCooker/Profiles/Linux-Vulkan.json'),
+    File('#Tests/Fixtures/AssetCooker/Contracts/Profiles/mac-vulkan.json'),
+    File('#Tests/Fixtures/AssetCooker/Contracts/DerivedKeys/baseline.evidence.txt'),
+    File('#Tests/Fixtures/AssetCooker/Contracts/DerivedKeys/baseline.expected.txt'),
+    File('#Tests/Fixtures/AssetCooker/Contracts/Payloads/valid-image.sgasset'),
+    File('#Tests/Fixtures/AssetCooker/Contracts/Payloads/invalid-truncated.sgasset'),
+    File('#Tests/Fixtures/AssetCooker/Contracts/Payloads/invalid-body-digest.sgasset'),
+    File('#Tests/Fixtures/AssetCooker/Contracts/Manifests/valid-manifest.json'),
+    File('#Tests/Fixtures/AssetCooker/Contracts/Manifests/invalid-noncanonical.json'),
+    File('#Tests/Fixtures/AssetCooker/Contracts/Manifests/invalid-generation.json'),
+    File('#Tests/Fixtures/AssetCooker/Cli/valid-plan.args.json'),
+    File('#Tests/Fixtures/AssetCooker/Cli/invalid-overlap.args.json'),
+    File('#Tests/Fixtures/AssetCooker/Cli/exit-categories.json'),
+    File('#Tests/Fixtures/AssetCooker/Reports/valid-plan.json'),
+    File('#Tests/Fixtures/AssetCooker/Reports/invalid-profile.json'),
+]
+
+def _verify_asset_cooker_contracts(target, source, env):
+    command = [
+        sys.executable,
+        source[0].srcnode().abspath,
+        '--root',
+        Dir('#').abspath,
+    ]
+    result = subprocess.run(command, check=False)
+    if result.returncode == 0:
+        with open(target[0].abspath, 'w', encoding='ascii') as output:
+            output.write('passed\n')
+    return result.returncode
+
+asset_cooker_contracts = test_env.Command(
+    asset_cooker_contract_stamp,
+    asset_cooker_contract_sources,
+    Action(
+        _verify_asset_cooker_contracts,
+        'Verifying Asset Cooker schemas and golden fixtures',
+    ),
+)
+test_env.Depends(program, asset_cooker_contracts)
+Return('program', 'asset_benchmark', 'lease_probe')

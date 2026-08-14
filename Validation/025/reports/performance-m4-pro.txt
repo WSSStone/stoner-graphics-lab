@@ -1,0 +1,16 @@
+Feature 025 Asset Cooker performance gate
+profile=apple-m4-pro-reference
+corpus=Tests/Fixtures/AssetCooker/Scale/scale-1000-5000.json
+corpus_sha256=431b690c41b5388094cc591010359e0e849b7268c1c0595d5623f07519f26ca6
+assets=1000
+dependency_edges=5000
+payload_bytes=263979
+artifact_digest=5c727cb539a0222d1e5979bf4c4af8a29b3a03b8ce211ea6539cc9ae1ca66bb4
+representative_generation=21267bb69afadc0d45a19cf14eced7836486419051cd618c21681645354a7af9
+plan_seconds=0.007643459 limit=2
+cached_seconds=0.010177042 limit=10
+validate_seconds=0.001675125 limit=10
+synthetic_clean_seconds=0.011057458 limit=60
+representative_clean_seconds=0.028361167 limit=60
+peak_rss_bytes=20627456 limit=1073741824
+passed=true

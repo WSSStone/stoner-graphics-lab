@@ -1,10 +1,12 @@
 <!-- SPECKIT START -->
-Feature 024 Asset: Static Mesh & Model Pipeline is complete. Read
-`doc/roadmap.md` for program context, `specs/024-static-mesh-model/` for its
-contract/design/task history, and `Validation/024/` plus
-`doc/024-static-mesh-model.html` for closeout evidence. Feature 025 Asset:
-Cooker, Manifest & Derived Data is the next roadmap target; begin it with a new
-Speckit Specify cycle rather than extending the completed Feature 024 scope.
+Feature 025 Asset: Cooker, Manifest & Derived Data is in planning. Read
+`doc/roadmap.md` for program context,
+`specs/025-asset-cooker-derived-data/spec.md` for the clarified feature
+contract, and `specs/025-asset-cooker-derived-data/plan.md`, `research.md`,
+`data-model.md`, `contracts/`, and `quickstart.md` for the active design.
+Feature 024 is complete; its closeout evidence remains under `Validation/024/`
+and `doc/024-static-mesh-model.html`. Do not extend Feature 025 into runtime
+Asset Manager, streaming, packaging, or GPU residency scope.
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -42,6 +44,8 @@ Speckit Specify cycle rather than extending the completed Feature 024 scope.
 - Versioned canonical UTF-8 JSON authoring definitions plus separate repository-owned GLSL/SPIR-V dependency files under `Content/`; immutable in-memory Asset payloads and Renderer snapshots; no cooked binary, manifest, DDC, package, database, or runtime cache (023-material-shader-assets)
 - C++20 with traditional public/private headers and sources; C99 for private cgltf and MikkTSpace translation units; no C++20 Modules + Existing Core, Asset, RHI, Renderer, Application, and Vulkan Backend contracts; pinned private cgltf v1.15 with accessor-overflow backport; pinned private MikkTSpace at `3e895b49d05ea07e4c2133156cfa94369e19e409`; existing yyjson 0.12.0 and stb_image 2.30; SCons 4.10.1 (024-static-mesh-model)
 - Source `.gltf`, `.glb`, external buffer, and image files resolved through `IAssetResolver`; immutable process-local CPU mesh/model payloads and Renderer RHI snapshots; checked-in fixtures and validation evidence; no database, manifest, DDC, package, or persistent runtime cache (024-static-mesh-model)
+- C++20 with traditional public/private header and source separation; no C++20 Modules; Python 3 standard-library validation scripts + Existing Core and Asset contracts from Features 003-006 and 020-024; existing Asset-private yyjson 0.12.0 canonical JSON path; existing SHA-256 `FAssetDigest`; SCons 4.10.1; POSIX `fcntl`/`rename` behind Core on macOS/Linux; Win32 `CreateFileW`/replace-existing move behind Core on Windows; no new third-party runtime dependency (025-asset-cooker-derived-data)
+- Local source roots; local immutable directory-entry DDC; local self-contained cooked generation directories and atomic `Current.json`; checked-in target profiles, fixtures, schemas, and normalized validation evidence; no database, archive/package, remote cache, network service, or runtime cache (025-asset-cooker-derived-data)
 
 ## Recent Changes
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system

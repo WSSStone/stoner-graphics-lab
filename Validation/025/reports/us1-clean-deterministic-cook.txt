@@ -1,0 +1,81 @@
+Feature 025 US1 - Deterministic Clean Cook
+==========================================
+
+Date: 2026-08-14
+Host: Apple M4 Pro, macOS
+Branch: 025-asset-cooker-derived-data
+Profile: Tests/Fixtures/AssetCooker/Contracts/Profiles/mac-vulkan.json
+
+Result
+------
+
+PASS. The offline runner discovers Feature 021-024 sources, closes the required
+dependency graph, pins every consumed source byte, cooks through public Asset
+extension contracts, and writes a request-local generation image containing
+digest-addressed SGCOOK01 payloads plus a canonical manifest.
+
+Representative corpus evidence
+------------------------------
+
+- Authoritative sources discovered: 4
+- Reachable assets: 11
+- Cooked assets: 11
+- Distinct codecs emitted: 9
+- Generation digest:
+  21267bb69afadc0d45a19cf14eced7836486419051cd618c21681645354a7af9
+- Target shader choice: Vulkan SPIR-V from checked-in Surface payloads
+- Texture behavior: RGBA8 and portable KTX2 are accepted by the mac-vulkan
+  profile; missing producer settings fail closed in the profile suite
+- Typed family coverage: all ten Feature 021-024 payload codecs pass the
+  source-model/cooked-load equivalence suite; the representative source corpus
+  exercises nine codecs and has no MaterialInstance authoring root
+
+Determinism
+-----------
+
+- One-worker and eight-worker cooks produce identical canonical manifest bytes,
+  generation identity, payload locators, envelope digests, and payload bytes.
+- Twenty alternating one-worker/eight-worker clean cooks preserve those bytes.
+- Every returned artifact equals its durable request-local scratch file and
+  reloads through FAssetCookContractCodec::LoadTypedPayload.
+- Plan-only computes the same closure without producing cooked artifacts.
+
+Failure and boundary evidence
+-----------------------------
+
+- Missing dependency, dependency cycle, invalid role, type mismatch, missing
+  version evidence, asset-count overflow, and dependency-depth overflow fail
+  without a caller-visible partial graph.
+- Scheduler failure returns no partial result set and commits successful results
+  only by deterministic plan index.
+- Source snapshots pin shader definition plus all four GLSL/SPIR-V dependencies;
+  source mutation returns TransientFailure and is not retried.
+- Empty cook-all and case-folded locator collisions fail without a partial
+  catalog.
+- Runtime-to-Tools, Tool-to-Asset-private, Asset graphics-layer, and native
+  handle boundaries pass the architecture verifier.
+
+Commands
+--------
+
+1. conda run -n godot scons -j8 asset_cooker=1
+   Build/Mac/Debug/Tools/AssetCooker/StonerAssetCooker
+   Build/Mac/Debug/Tests/StonerTest
+2. Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-profile
+3. Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-derived-key
+4. Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-codec
+5. Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-graph
+6. Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-scheduler
+7. Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-snapshot
+8. Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-source-catalog
+9. Build/Mac/Debug/Tests/StonerTest --suite asset-cooker-clean
+10. python3 Tests/verify_asset_cooker_contracts.py --root .
+11. python3 Tests/verify_architecture.py --root .
+12. conda run -n godot scons -j8 config=release strict=1 asset_cooker=1
+    Build/Mac/Release/Tools/AssetCooker/StonerAssetCooker
+    Build/Mac/Release/Tests/StonerTest
+13. Release focused suites matching commands 4-9
+14. git diff --check
+
+All commands passed. Strict Release compiled project-owned sources with
+-Wall -Wextra -Werror.

@@ -8,6 +8,10 @@ import pathlib
 import re
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+
+import verify_architecture
+
 
 FORBIDDEN_PREFIXES = (
     "Application/",
@@ -42,6 +46,22 @@ APPROVED_THIRD_PARTY_INCLUDES = {
     ),
     (
         "Source/Asset/Private/FMaterialShaderJsonCodec.cpp",
+        "../../../ThirdParty/yyjson/yyjson.h",
+    ),
+    (
+        "Source/Asset/Private/FAssetCookManifestCodec.cpp",
+        "../../../ThirdParty/yyjson/yyjson.h",
+    ),
+    (
+        "Source/Asset/Private/FAssetDerivedDataEntryCodec.cpp",
+        "../../../ThirdParty/yyjson/yyjson.h",
+    ),
+    (
+        "Source/Asset/Private/FAssetTargetProfileCodec.cpp",
+        "../../../ThirdParty/yyjson/yyjson.h",
+    ),
+    (
+        "Source/Asset/Private/FCurrentGenerationPointerCodec.cpp",
         "../../../ThirdParty/yyjson/yyjson.h",
     ),
     (
@@ -80,7 +100,7 @@ NATIVE_TYPE_PATTERN = re.compile(r"\b(?:Vk[A-Z][A-Za-z0-9_]*|GLFW[A-Za-z0-9_]*)\
 
 
 def verify(root: pathlib.Path) -> list[str]:
-    errors: list[str] = []
+    errors: list[str] = verify_architecture.verify(root)
     asset_root = root / "Source" / "Asset"
     for path in sorted(asset_root.rglob("*")):
         if not path.is_file() or path.suffix not in {".h", ".cpp"}:

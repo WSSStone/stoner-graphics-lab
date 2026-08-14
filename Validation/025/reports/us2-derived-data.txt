@@ -1,0 +1,54 @@
+Feature 025 US2 - Immutable Local Derived Data
+================================================
+
+Result: PASS
+Host: macOS Apple Silicon
+Configurations: Debug; Release strict (-Werror)
+
+Contract and implementation evidence
+------------------------------------
+- Entries are sharded by the complete 64-lowercase-hex derived key.
+- Entry.json is a typed, canonical, strict Asset-layer contract and records the
+  complete key evidence, payload contract, profile projection, size, digest,
+  and required extensions.
+- Every hit recomputes its key and validates canonical metadata plus a fully
+  typed-loaded SGCOOK01 payload before reuse.
+- Cooking and DDC-local durable staging occur outside the per-key native lease.
+  The lease protects only winner re-query, put-if-absent installation, and
+  quarantine revalidation/move.
+- Strict cache validation fails without mutation. Ordinary cooking moves a
+  still-invalid entry beneath a stable failure-evidence digest and rebuilds.
+- Clean policy bypasses lookup; physical DDC/staging paths do not enter the
+  manifest, artifact bytes, or generation identity.
+
+Deterministic test evidence
+---------------------------
+- First PNG closure: eligible=2, misses=2, cooked=2.
+- Unchanged repeat: eligible=2, reused=2, cooked=0 (100% eligible reuse).
+- Corruption corpus: 14 invalid final-entry cases rejected by strict mode and
+  quarantined/rebuilt by ordinary mode; one incomplete staging remnant ignored.
+- Eight concurrent same-key requests converged to one complete immutable entry
+  set; subsequent strict validation reused both reachable records.
+- Source/dependency/importer/cooker/codec/schema/producer-setting/profile-
+  capability evidence mutations produced distinct keys.
+- Addition, edit, removal, and rename sequence converged byte-for-byte and
+  manifest-for-manifest with a clean cook of the final source state. Removed
+  and unreachable entries remained reconstructible in DDC but absent from the
+  next manifest.
+
+Commands
+--------
+conda run -n godot scons -j8 config=release strict=1 asset_cooker=1 Build/Mac/Release/Tools/AssetCooker/StonerAssetCooker Build/Mac/Release/Tests/StonerTest
+Build/Mac/Release/Tests/StonerTest --suite asset-cooker-ddc
+Build/Mac/Release/Tests/StonerTest --suite asset-cooker-incremental
+Build/Mac/Release/Tests/StonerTest --suite asset-cooker-concurrency
+Build/Mac/Release/Tests/StonerTest --suite asset-cooker-clean
+Build/Mac/Release/Tests/StonerTest --suite asset-cooker-derived-key
+Build/Mac/Release/Tests/StonerTest --suite asset-cooker-codec
+python3 Tests/verify_architecture.py --root .
+python3 Tests/verify_asset_cooker_contracts.py --root .
+python3 -m unittest Tests/test_verify_asset_cooker_contracts.py Tests/test_verify_architecture.py
+git diff --check
+
+All commands passed. Shell-level confstr/xcrun messages were host sandbox
+environment warnings and did not originate from project compilation.

@@ -35,6 +35,7 @@
 #include "Core/FPlatformMisc.h"
 #include "Core/FPlatformTime.h"
 #include "Core/FPlatformFileSystem.h"
+#include "Core/FPlatformFileLease.h"
 #include "Core/FPlatformProcess.h"
 #include "Core/FPlatformMemory.h"
 #include "Core/FPlatformWindow.h"

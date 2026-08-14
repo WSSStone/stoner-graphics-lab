@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stoner.graphics/schemas/asset-cook-report-v1.json",
+  "title": "Stoner Asset Cooker Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaVersion",
+    "command",
+    "result",
+    "deterministicDigest",
+    "summary",
+    "decisions",
+    "diagnostics"
+  ],
+  "properties": {
+    "schema": {"const": "stoner.asset-cook-report"},
+    "schemaVersion": {"const": 1},
+    "command": {"enum": ["cook", "plan", "validate", "validate-cache", "inspect"]},
+    "result": {
+      "enum": [
+        "success",
+        "invalid-arguments",
+        "invalid-profile",
+        "discovery-failure",
+        "graph-failure",
+        "cook-failure",
+        "cache-failure",
+        "source-changed",
+        "lease-timeout",
+        "published-validation-failure",
+        "publication-failure",
+        "io-failure",
+        "internal-failure"
+      ]
+    },
+    "effectiveProfileDigest": {"$ref": "#/$defs/digest"},
+    "snapshotDigest": {"$ref": "#/$defs/digest"},
+    "planDigest": {"$ref": "#/$defs/digest"},
+    "generationId": {"$ref": "#/$defs/digest"},
+    "deterministicDigest": {"$ref": "#/$defs/digest"},
+    "summary": {"$ref": "#/$defs/summary"},
+    "decisions": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {"$ref": "#/$defs/decision"}
+    },
+    "diagnostics": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {"$ref": "#/$defs/diagnostic"}
+    },
+    "telemetry": {"$ref": "#/$defs/telemetry"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nonNegative": {"type": "integer", "minimum": 0},
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "discovered",
+        "selectedRoots",
+        "reachable",
+        "reuseEligible",
+        "reuseIneligible",
+        "cacheHits",
+        "cacheMisses",
+        "cacheCorrupt",
+        "quarantined",
+        "cooked",
+        "regenerated",
+        "reused",
+        "invalidated",
+        "failed",
+        "staged",
+        "published",
+        "sourceBytes",
+        "payloadBytes",
+        "generationBytes"
+      ],
+      "properties": {
+        "discovered": {"$ref": "#/$defs/nonNegative"},
+        "selectedRoots": {"$ref": "#/$defs/nonNegative"},
+        "reachable": {"$ref": "#/$defs/nonNegative"},
+        "reuseEligible": {"$ref": "#/$defs/nonNegative"},
+        "reuseIneligible": {"$ref": "#/$defs/nonNegative"},
+        "cacheHits": {"$ref": "#/$defs/nonNegative"},
+        "cacheMisses": {"$ref": "#/$defs/nonNegative"},
+        "cacheCorrupt": {"$ref": "#/$defs/nonNegative"},
+        "quarantined": {"$ref": "#/$defs/nonNegative"},
+        "cooked": {"$ref": "#/$defs/nonNegative"},
+        "regenerated": {"$ref": "#/$defs/nonNegative"},
+        "reused": {"$ref": "#/$defs/nonNegative"},
+        "invalidated": {"$ref": "#/$defs/nonNegative"},
+        "failed": {"$ref": "#/$defs/nonNegative"},
+        "staged": {"$ref": "#/$defs/nonNegative"},
+        "published": {"$ref": "#/$defs/nonNegative"},
+        "sourceBytes": {"$ref": "#/$defs/nonNegative"},
+        "payloadBytes": {"$ref": "#/$defs/nonNegative"},
+        "generationBytes": {"$ref": "#/$defs/nonNegative"}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planIndex", "assetId", "action", "reason"],
+      "properties": {
+        "planIndex": {"type": "integer", "minimum": 0},
+        "assetId": {"type": "string", "minLength": 1, "maxLength": 2048},
+        "action": {"enum": ["hit", "miss", "invalidate", "quarantine", "cook", "rebuild", "fallback", "ineligible", "reuse", "stage", "validate", "publish", "fail"]},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 512},
+        "derivedKey": {"$ref": "#/$defs/digest"},
+        "effectiveSettingsDigest": {"$ref": "#/$defs/digest"},
+        "relevantProfileDigest": {"$ref": "#/$defs/digest"},
+        "targetDecision": {"type": "string", "minLength": 1, "maxLength": 512},
+        "sourceEvidence": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {"type": "string", "minLength": 1, "maxLength": 4096}
+        },
+        "dependencyEvidence": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {"type": "string", "minLength": 1, "maxLength": 4096}
+        },
+        "usedFallback": {"type": "boolean"},
+        "reuseEligible": {"type": "boolean"}
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "stage", "reason"],
+      "properties": {
+        "category": {"type": "string", "minLength": 1, "maxLength": 128},
+        "stage": {"type": "string", "minLength": 1, "maxLength": 128},
+        "assetId": {"type": "string", "minLength": 1, "maxLength": 2048},
+        "dependencyChain": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {"type": "string", "minLength": 1, "maxLength": 2048}
+        },
+        "sourceLocator": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "targetProfileDigest": {"$ref": "#/$defs/digest"},
+        "derivedKey": {"$ref": "#/$defs/digest"},
+        "generationId": {"$ref": "#/$defs/digest"},
+        "field": {"type": "string", "maxLength": 512},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 1024}
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "description": "Non-deterministic and excluded from deterministicDigest",
+      "additionalProperties": false,
+      "properties": {
+        "host": {"type": "string", "maxLength": 128},
+        "toolchain": {"type": "string", "maxLength": 256},
+        "elapsedMilliseconds": {"$ref": "#/$defs/nonNegative"},
+        "peakRssBytes": {"$ref": "#/$defs/nonNegative"},
+        "workerCount": {"type": "integer", "minimum": 1, "maximum": 32}
+      }
+    }
+  }
+}

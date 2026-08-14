@@ -5,6 +5,9 @@
 #include "Asset/FAssetMetadata.h"
 #include "Asset/FAssetPayload.h"
 #include "Asset/FAssetSource.h"
+#include "Asset/FAssetTargetProfile.h"
+
+#include <utility>
 
 namespace Stoner::Asset
 {
@@ -20,13 +23,26 @@ struct FAssetLoadRequest
     FAssetMetadata Metadata;
     FAssetSourceLease Source;
     Core::TSharedPtr<const FAssetLoadParameters> Parameters;
+    Core::TSharedPtr<const FAssetTargetProfileEvidence> TargetProfileEvidence;
 };
 
 struct FAssetLoadResult
 {
+    FAssetLoadResult() = default;
+    FAssetLoadResult(
+        EAssetResult InResult,
+        Core::TSharedPtr<const FAssetPayload> InPayload,
+        FAssetDiagnosticList InDiagnostics)
+        : Result(InResult),
+          Payload(std::move(InPayload)),
+          Diagnostics(std::move(InDiagnostics))
+    {
+    }
+
     EAssetResult Result = EAssetResult::Unsupported;
     Core::TSharedPtr<const FAssetPayload> Payload;
     FAssetDiagnosticList Diagnostics;
+    Core::TSharedPtr<const FAssetTargetProfileEvidence> TargetProfileEvidence;
 };
 
 class IAssetLoader : public IAssetExtension

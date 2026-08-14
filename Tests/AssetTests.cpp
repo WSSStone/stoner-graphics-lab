@@ -28,6 +28,11 @@ FAssetTestResult RunAssetTests(
     const auto StaticModelConcurrency = RunAssetStaticModelConcurrencyTests();
     const auto StaticModelBenchmark =
         RunAssetStaticModelBenchmark(StaticModelOptions);
+    const auto CookerProfile = RunAssetCookerProfileTests();
+    const auto DerivedKey = RunAssetCookerDerivedKeyTests();
+    const auto Equivalence = RunAssetCookerEquivalenceTests();
+    const auto Manifest = RunAssetCookerManifestTests();
+    const auto PayloadCodec = RunAssetCookerPayloadCodecTests();
     const FAssetGLTFMaterialTestResult GLTFMaterial =
         RunAssetGLTFMaterialTests();
     const FAssetGLTFImageDependencyTestResult GLTFImage =
@@ -45,6 +50,9 @@ FAssetTestResult RunAssetTests(
             StaticModelHierarchy.Passed + StaticModelIdentity.Passed +
             StaticModelDeterminism.Passed + StaticModelConcurrency.Passed +
             StaticModelBenchmark.Passed +
+            CookerProfile.Passed + DerivedKey.Passed + Equivalence.Passed +
+            Manifest.Passed +
+            PayloadCodec.Passed +
             GLTFMaterial.Passed + GLTFImage.Passed + GLTFMalformed.Passed +
             GLTFResolver.Passed + GLTFLimit.Passed + GLTFDiagnostic.Passed,
         Core.Failed + Image.Failed + KTX2.Failed + MaterialShader.Failed +
@@ -52,6 +60,9 @@ FAssetTestResult RunAssetTests(
             StaticModelHierarchy.Failed + StaticModelIdentity.Failed +
             StaticModelDeterminism.Failed + StaticModelConcurrency.Failed +
             StaticModelBenchmark.Failed +
+            CookerProfile.Failed + DerivedKey.Failed + Equivalence.Failed +
+            Manifest.Failed +
+            PayloadCodec.Failed +
             GLTFMaterial.Failed + GLTFImage.Failed + GLTFMalformed.Failed +
             GLTFResolver.Failed + GLTFLimit.Failed + GLTFDiagnostic.Failed};
 }

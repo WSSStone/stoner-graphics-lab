@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stoner.graphics/schemas/asset-cook-manifest-v1.json",
+  "title": "Stoner Asset Cook Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaVersion",
+    "generationId",
+    "targetProfile",
+    "effectiveProfileDigest",
+    "selection",
+    "snapshotDigest",
+    "limitsDigest",
+    "records"
+  ],
+  "properties": {
+    "schema": {"const": "stoner.asset-cook-manifest"},
+    "schemaVersion": {"const": 1},
+    "generationId": {"$ref": "#/$defs/digest"},
+    "targetProfile": {"$ref": "target-profile.schema.json"},
+    "effectiveProfileDigest": {"$ref": "#/$defs/digest"},
+    "selection": {"$ref": "#/$defs/selection"},
+    "snapshotDigest": {"$ref": "#/$defs/digest"},
+    "limitsDigest": {"$ref": "#/$defs/digest"},
+    "records": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {"$ref": "#/$defs/assetRecord"}
+    },
+    "requiredExtensions": {"$ref": "#/$defs/tokenSet"}
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "assetId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "token": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "tokenSet": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/token"}
+    },
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "roots", "sourceScopes", "discoveryRulesVersion"],
+      "properties": {
+        "mode": {"enum": ["explicit-roots", "cook-all"]},
+        "roots": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100000,
+          "items": {"$ref": "#/$defs/assetId"}
+        },
+        "sourceScopes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1024,
+          "items": {"type": "string", "minLength": 1, "maxLength": 4096}
+        },
+        "discoveryRulesVersion": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "sourceRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assetId", "version", "role"],
+      "properties": {
+        "assetId": {"$ref": "#/$defs/assetId"},
+        "version": {"$ref": "#/$defs/digest"},
+        "role": {"$ref": "#/$defs/token"}
+      }
+    },
+    "dependencyRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assetId", "role"],
+      "properties": {
+        "assetId": {"$ref": "#/$defs/assetId"},
+        "role": {"$ref": "#/$defs/token"},
+        "requiredVersion": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "participant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": {"$ref": "#/$defs/token"},
+        "version": {"$ref": "#/$defs/token"}
+      }
+    },
+    "assetRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assetId",
+        "assetType",
+        "sourceVersion",
+        "sourceManifest",
+        "importer",
+        "cooker",
+        "codec",
+        "derivedKey",
+        "payloadSchemaVersion",
+        "payloadLocator",
+        "payloadBytes",
+        "envelopeDigest",
+        "dependencies"
+      ],
+      "properties": {
+        "assetId": {"$ref": "#/$defs/assetId"},
+        "assetType": {"$ref": "#/$defs/token"},
+        "sourceVersion": {"$ref": "#/$defs/digest"},
+        "sourceManifest": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {"$ref": "#/$defs/sourceRecord"}
+        },
+        "importer": {"$ref": "#/$defs/participant"},
+        "cooker": {"$ref": "#/$defs/participant"},
+        "codec": {"$ref": "#/$defs/participant"},
+        "derivedKey": {"$ref": "#/$defs/digest"},
+        "payloadSchemaVersion": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "payloadLocator": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "payloadBytes": {"type": "integer", "minimum": 1, "maximum": 1073741824},
+        "envelopeDigest": {"$ref": "#/$defs/digest"},
+        "dependencies": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {"$ref": "#/$defs/dependencyRecord"}
+        }
+      }
+    }
+  }
+}

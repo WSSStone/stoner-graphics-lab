@@ -3,6 +3,7 @@
 #include "Asset/FKTX2TextureCodec.h"
 #include "Asset/FTextureAsset.h"
 #include "FTextureCookPolicy.h"
+#include "FAssetTargetProfileCodec.h"
 #include "FKTX2ContainerCodec.h"
 #include "IKTX2Encoder.h"
 
@@ -37,13 +38,19 @@ void AddCookDiagnostic(
 
 FAssetCookResult Fail(
     EAssetResult Result,
-    Core::FString TargetProfile,
+    const FAssetCookRequest& Request,
+    const FAssetProfileProjectionEvidence& Projection,
     FAssetDiagnosticList Diagnostics)
 {
     FAssetCookResult Failed;
     Failed.Result = Result;
-    Failed.TargetProfile = std::move(TargetProfile);
+    Failed.TargetProfile = Request.TargetProfile.IsEmpty() &&
+            Request.TargetProfileEvidence
+        ? Request.TargetProfileEvidence->Profile.DisplayName
+        : Request.TargetProfile;
     Failed.Diagnostics = std::move(Diagnostics);
+    Failed.TargetProfileEvidence = Request.TargetProfileEvidence;
+    Failed.ProfileProjection = Projection;
     return Failed;
 }
 
@@ -201,6 +208,16 @@ FAssetExtensionCapability FKTX2TextureCooker::GetCapability() const
     return Capability;
 }
 
+EAssetResult FKTX2TextureCooker::GetRelevantProfileEvidence(
+    const FAssetTargetProfileEvidence& Profile,
+    FAssetProfileProjectionEvidence& OutEvidence) const
+{
+    FAssetParticipantId Producer;
+    (void)FAssetParticipantId::Create(
+        Core::FString("cooker.ktx2"), Producer);
+    return BuildAssetProfileProjection(Profile, Producer, 1, {}, OutEvidence);
+}
+
 FAssetCookResult FKTX2TextureCooker::Cook(
     const FAssetCookRequest& Request)
 {
@@ -210,11 +227,12 @@ FAssetCookResult FKTX2TextureCooker::Cook(
             Request.Parameters);
     const auto Texture =
         std::dynamic_pointer_cast<const FTextureAsset>(Request.Payload);
+    FTextureCookSettings Settings;
+    FAssetProfileProjectionEvidence ProfileProjection;
     if (!Parameters || !Texture ||
         Parameters->TextureId != Texture->GetId() ||
         Request.Metadata.Id != Texture->GetId() ||
         Request.Metadata.Validate() != EAssetResult::Success ||
-        Parameters->Settings.Validate() != EAssetResult::Success ||
         Parameters->Limits.Validate() != EAssetResult::Success ||
         !Texture->GetImage() || Texture->GetMips().empty() ||
         Texture->GetMips().size() > Parameters->Limits.MaxMipLevels)
@@ -228,8 +246,19 @@ FAssetCookResult FKTX2TextureCooker::Cook(
             "typed parameters, metadata, or texture payload are invalid");
         return Fail(
             EAssetResult::InvalidInput,
-            Request.TargetProfile,
+            Request,
+            ProfileProjection,
             std::move(Diagnostics));
+    }
+    EAssetResult Result = ResolveTextureProfileSettings(
+        Request.TargetProfileEvidence,
+        Parameters->Settings,
+        Settings,
+        ProfileProjection,
+        &Diagnostics);
+    if (Result != EAssetResult::Success)
+    {
+        return Fail(Result, Request, ProfileProjection, std::move(Diagnostics));
     }
     for (const FImageMip& Mip : Texture->GetMips())
     {
@@ -246,30 +275,31 @@ FAssetCookResult FKTX2TextureCooker::Cook(
                 "source texture exceeds configured cook limits");
             return Fail(
                 EAssetResult::KTX2LimitExceeded,
-                Request.TargetProfile,
+                Request,
+                ProfileProjection,
                 std::move(Diagnostics));
         }
     }
 
     ETextureCompressionPolicy Policy =
         ETextureCompressionPolicy::Uncompressed;
-    EAssetResult Result = ResolveTextureCookPolicy(
+    Result = ResolveTextureCookPolicy(
         *Texture,
-        Parameters->Settings,
+        Settings,
         Policy,
         &Diagnostics);
     if (Result != EAssetResult::Success)
     {
         return Fail(
-            Result, Request.TargetProfile, std::move(Diagnostics));
+            Result, Request, ProfileProjection, std::move(Diagnostics));
     }
 
     const FAssetDigest CookRevision = BuildTextureCookRevision(
-        *Texture, Parameters->Settings, Policy);
+        *Texture, Settings, Policy);
     const Core::TArray<FKTX2EncoderMetadata> Metadata =
         BuildKTX2Metadata(
             *Texture,
-            Parameters->Settings,
+            Settings,
             Policy,
             CookRevision);
     Core::TArray<Core::uint8> Bytes;
@@ -282,7 +312,7 @@ FAssetCookResult FKTX2TextureCooker::Cook(
     {
         FKTX2EncoderRequest EncoderRequest;
         EncoderRequest.Policy = Policy;
-        EncoderRequest.Quality = Parameters->Settings.Quality;
+        EncoderRequest.Quality = Settings.Quality;
         EncoderRequest.bSRGB =
             Texture->GetSemantic() == ETextureSemantic::Color &&
             Texture->GetColorSpace() == EImageColorSpace::SRGB;
@@ -315,7 +345,8 @@ FAssetCookResult FKTX2TextureCooker::Cook(
                     "Basis cooking requires a supported LDR UNorm source");
                 return Fail(
                     EAssetResult::UnsupportedCompression,
-                    Request.TargetProfile,
+                    Request,
+                    ProfileProjection,
                     std::move(Diagnostics));
             }
             EncoderRequest.Mips.push_back({
@@ -334,7 +365,7 @@ FAssetCookResult FKTX2TextureCooker::Cook(
     if (Result != EAssetResult::Success)
     {
         return Fail(
-            Result, Request.TargetProfile, std::move(Diagnostics));
+            Result, Request, ProfileProjection, std::move(Diagnostics));
     }
     if (Bytes.empty() ||
         Bytes.size() > Parameters->Limits.MaxArtifactBytes)
@@ -348,7 +379,8 @@ FAssetCookResult FKTX2TextureCooker::Cook(
             "encoded artifact exceeds configured cook limits");
         return Fail(
             EAssetResult::KTX2LimitExceeded,
-            Request.TargetProfile,
+            Request,
+            ProfileProjection,
             std::move(Diagnostics));
     }
 
@@ -362,12 +394,12 @@ FAssetCookResult FKTX2TextureCooker::Cook(
     if (Result != EAssetResult::Success)
     {
         return Fail(
-            Result, Request.TargetProfile, std::move(Diagnostics));
+            Result, Request, ProfileProjection, std::move(Diagnostics));
     }
     if (!MatchesSource(
             Artifact.GetInfo(),
             *Texture,
-            Parameters->Settings,
+            Settings,
             Policy,
             CookRevision))
     {
@@ -380,19 +412,25 @@ FAssetCookResult FKTX2TextureCooker::Cook(
             "reopened artifact does not match the source contract");
         return Fail(
             EAssetResult::Conflict,
-            Request.TargetProfile,
+            Request,
+            ProfileProjection,
             std::move(Diagnostics));
     }
 
     FAssetCookResult Cooked;
     Cooked.Result = EAssetResult::Success;
-    Cooked.TargetProfile = Request.TargetProfile;
+    Cooked.TargetProfile = Request.TargetProfile.IsEmpty() &&
+            Request.TargetProfileEvidence
+        ? Request.TargetProfileEvidence->Profile.DisplayName
+        : Request.TargetProfile;
     Cooked.Artifact.assign(
         Artifact.GetBytes().begin(), Artifact.GetBytes().end());
     Cooked.CookDigest = Artifact.GetArtifactDigest();
     Cooked.Payload =
         Core::MakeShared<FKTX2TextureArtifact>(std::move(Artifact));
     Cooked.Diagnostics = std::move(Diagnostics);
+    Cooked.TargetProfileEvidence = Request.TargetProfileEvidence;
+    Cooked.ProfileProjection = std::move(ProfileProjection);
     return Cooked;
 }
 
