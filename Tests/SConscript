@@ -234,6 +234,7 @@ asset_cooker_contract_script = File('#Tests/verify_asset_cooker_contracts.py')
 asset_cooker_contract_stamp = File('AssetCookerContracts.stamp')
 asset_cooker_contract_sources = [
     asset_cooker_contract_script,
+    File('#.gitattributes'),
     File('#specs/025-asset-cooker-derived-data/contracts/target-profile.schema.json'),
     File('#specs/025-asset-cooker-derived-data/contracts/manifest.schema.json'),
     File('#specs/025-asset-cooker-derived-data/contracts/report.schema.json'),

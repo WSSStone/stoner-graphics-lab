@@ -4,12 +4,14 @@
 #include "Core/FPlatformFileSystem.h"
 #include "Core/SGPlatform.h"
 
+#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <string>
 #include <thread>
 #include <type_traits>
+#include <vector>
 
 #if SG_PLATFORM_WINDOWS
 #define NOMINMAX
@@ -155,6 +157,49 @@ FCorePlatformFileLeaseTestResult RunCorePlatformFileLeaseTests(
         Moved.IsHeld() && !Owner.IsHeld(),
         "File lease move transfers ownership exactly once");
     Moved.Release();
+
+    constexpr int ThreadCount = 4;
+    constexpr int AcquisitionsPerThread = 8;
+    std::atomic<int> ActiveOwners{0};
+    std::atomic<int> CompletedAcquisitions{0};
+    std::atomic<int> FailedAcquisitions{0};
+    std::atomic<bool> OverlappedOwnership{false};
+    std::vector<std::thread> SerialContenders;
+    SerialContenders.reserve(ThreadCount);
+    for (int ThreadIndex = 0; ThreadIndex < ThreadCount; ++ThreadIndex)
+    {
+        SerialContenders.emplace_back([&]
+        {
+            for (int Attempt = 0; Attempt < AcquisitionsPerThread; ++Attempt)
+            {
+                FPlatformFileLease Lease;
+                const auto Status = FPlatformFileLease::Acquire(
+                    FString(LeasePath.generic_string()), 2000,
+                    FString("owner=serial-contender\n"), Lease);
+                if (!Status.IsSuccess())
+                {
+                    ++FailedAcquisitions;
+                    continue;
+                }
+                if (ActiveOwners.fetch_add(1) != 0)
+                {
+                    OverlappedOwnership = true;
+                }
+                std::this_thread::yield();
+                --ActiveOwners;
+                ++CompletedAcquisitions;
+            }
+        });
+    }
+    for (auto& ContenderThread : SerialContenders)
+    {
+        ContenderThread.join();
+    }
+    Record(Result,
+        FailedAcquisitions == 0 &&
+        CompletedAcquisitions == ThreadCount * AcquisitionsPerThread &&
+        !OverlappedOwnership,
+        "Same-process repeated contenders serialize ownership");
 
     Record(Result,
         RunProbe(Probe, "crash", LeasePath, 1000, 0) == 0,

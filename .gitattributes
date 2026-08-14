@@ -6,3 +6,13 @@ Content/Shaders/**/*.frag text eol=lf
 Content/Shaders/**/*.spv binary
 Tests/Fixtures/MaterialShader/Golden/*.json text eol=lf
 Tests/Fixtures/MaterialShader/Golden/*.txt text eol=lf
+Config/AssetCooker/**/*.json text eol=lf
+Tests/Fixtures/AssetCooker/**/*.json text eol=lf
+Tests/Fixtures/AssetCooker/**/*.txt text eol=lf
+Tests/Fixtures/AssetCooker/**/*.md text eol=lf
+Tests/Fixtures/AssetCooker/**/*.py text eol=lf
+Tests/Fixtures/AssetCooker/**/*.gltf text eol=lf
+Tests/Fixtures/AssetCooker/**/*.vert text eol=lf
+Tests/Fixtures/AssetCooker/**/*.frag text eol=lf
+Validation/025/*.json text eol=lf
+specs/025-asset-cooker-derived-data/contracts/*.json text eol=lf

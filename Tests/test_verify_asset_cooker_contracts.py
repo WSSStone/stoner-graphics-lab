@@ -86,6 +86,10 @@ class AssetCookerContractVerifierTests(unittest.TestCase):
                     contracts.canonical_profile(profile, True), encoding="utf-8"
                 )
             (root / ".gitignore").write_text("Saved/Cooked/\n", encoding="utf-8")
+            (root / ".gitattributes").write_text(
+                "Config/AssetCooker/**/*.json text eol=lf\n",
+                encoding="utf-8",
+            )
             tool_private = root / "Tools/AssetCooker/Private"
             tool_private.mkdir(parents=True)
             (tool_private / "Registered.cpp").write_text("", encoding="utf-8")
@@ -101,6 +105,7 @@ class AssetCookerContractVerifierTests(unittest.TestCase):
 
             errors = contracts.verify_repository_contracts(root)
             self.assertTrue(any("missing generated-output" in error for error in errors))
+            self.assertTrue(any("missing canonical LF attribute" in error for error in errors))
             self.assertTrue(any("unregistered AssetCooker source" in error for error in errors))
             self.assertTrue(any("does not expose cooked contract" in error for error in errors))
 

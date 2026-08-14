@@ -7,6 +7,7 @@ on:
       - ".github/scripts/run_asset_cooker_validation.py"
       - ".github/scripts/test_run_asset_cooker_validation.py"
       - ".github/workflows/feature-025-asset-cooker.yml"
+      - ".gitattributes"
       - "Config/AssetCooker/**"
       - "Source/Asset/**"
       - "Source/Core/**"
@@ -24,6 +25,7 @@ on:
       - ".github/scripts/run_asset_cooker_validation.py"
       - ".github/scripts/test_run_asset_cooker_validation.py"
       - ".github/workflows/feature-025-asset-cooker.yml"
+      - ".gitattributes"
       - "Config/AssetCooker/**"
       - "Source/Asset/**"
       - "Source/Core/**"
@@ -64,7 +66,7 @@ jobs:
             os: windows-latest
             tests: Build/Win64/Debug/Tests/StonerTest.exe
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Enable MSVC command prompt
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
@@ -123,7 +125,7 @@ jobs:
             tests: Build/Win64/Release/Tests/StonerTest.exe
             profile: Config/AssetCooker/Profiles/Windows-Vulkan.json
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Enable MSVC command prompt
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
@@ -149,7 +151,7 @@ jobs:
           --timeout-seconds 1200
       - name: Upload Feature 025 Release evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: asset-cooker-release-${{ matrix.slug }}
           path: |
@@ -178,7 +180,7 @@ jobs:
             slug: tsan
             sanitizers: thread
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install SCons
         run: python -m pip install scons==4.10.1
       - name: Build focused sanitizer configuration
@@ -199,7 +201,7 @@ jobs:
           --timeout-seconds 1200
       - name: Upload Feature 025 sanitizer evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: asset-cooker-linux-${{ matrix.slug }}
           path: |

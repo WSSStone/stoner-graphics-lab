@@ -3,6 +3,7 @@
 #include "FPlatformFileSystemInternal.h"
 #include "Core/SGPlatform.h"
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <memory>
@@ -29,9 +30,9 @@ namespace
 using FClock = std::chrono::steady_clock;
 
 std::mutex GLeaseRegistryMutex;
-std::unordered_map<std::string, std::weak_ptr<std::timed_mutex>> GLeaseRegistry;
+std::unordered_map<std::string, std::weak_ptr<std::mutex>> GLeaseRegistry;
 
-std::shared_ptr<std::timed_mutex> GetProcessLeaseMutex(const FString& Path)
+std::shared_ptr<std::mutex> GetProcessLeaseMutex(const FString& Path)
 {
     std::lock_guard<std::mutex> Guard(GLeaseRegistryMutex);
     const std::string Key = Path.ToStdString();
@@ -42,7 +43,7 @@ std::shared_ptr<std::timed_mutex> GetProcessLeaseMutex(const FString& Path)
             return Existing;
         }
     }
-    auto Created = std::make_shared<std::timed_mutex>();
+    auto Created = std::make_shared<std::mutex>();
     GLeaseRegistry[Key] = Created;
     return Created;
 }
@@ -60,8 +61,8 @@ FPlatformFileStatus LeaseStatus(
 struct FPlatformFileLease::FImpl
 {
     FString Path;
-    std::shared_ptr<std::timed_mutex> ProcessMutex;
-    std::unique_lock<std::timed_mutex> ProcessLock;
+    std::shared_ptr<std::mutex> ProcessMutex;
+    std::unique_lock<std::mutex> ProcessLock;
 #if SG_PLATFORM_WINDOWS
     HANDLE Handle = INVALID_HANDLE_VALUE;
 #else
@@ -122,10 +123,17 @@ FPlatformFileStatus FPlatformFileLease::Acquire(
     Candidate->Path = NormalizedPath;
     Candidate->ProcessMutex = GetProcessLeaseMutex(NormalizedPath);
     Candidate->ProcessLock =
-        std::unique_lock<std::timed_mutex>(*Candidate->ProcessMutex, std::defer_lock);
-    if (!Candidate->ProcessLock.try_lock_until(Deadline))
+        std::unique_lock<std::mutex>(*Candidate->ProcessMutex, std::defer_lock);
+    while (!Candidate->ProcessLock.try_lock())
     {
-        return LeaseStatus(EPlatformFileResult::TimedOut, 0, "lease:process-timeout");
+        const auto Now = FClock::now();
+        if (Now >= Deadline)
+        {
+            return LeaseStatus(
+                EPlatformFileResult::TimedOut, 0, "lease:process-timeout");
+        }
+        std::this_thread::sleep_until(std::min(
+            Deadline, Now + std::chrono::milliseconds(10)));
     }
 
 #if SG_PLATFORM_WINDOWS

@@ -40,6 +40,13 @@ REQUIRED_IGNORES = {
     "Saved/Cooked/",
     "Saved/Feature025*/",
 }
+REQUIRED_LF_ATTRIBUTES = {
+    "Config/AssetCooker/**/*.json text eol=lf",
+    "Tests/Fixtures/AssetCooker/**/*.json text eol=lf",
+    "Tests/Fixtures/AssetCooker/**/*.txt text eol=lf",
+    "Validation/025/*.json text eol=lf",
+    "specs/025-asset-cooker-derived-data/contracts/*.json text eol=lf",
+}
 RUNTIME_COOKED_HEADERS = {
     "FAssetCookContractCodec.h",
     "FAssetCookManifest.h",
@@ -518,6 +525,19 @@ def verify_repository_contracts(root: pathlib.Path) -> list[str]:
     else:
         for required in sorted(REQUIRED_IGNORES - ignored):
             errors.append(f"missing generated-output ignore rule: {required}")
+
+    try:
+        attributes = {
+            line.strip() for line in (root / ".gitattributes").read_text(
+                encoding="utf-8"
+            ).splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        }
+    except OSError as error:
+        errors.append(f"unable to read .gitattributes: {error}")
+    else:
+        for required in sorted(REQUIRED_LF_ATTRIBUTES - attributes):
+            errors.append(f"missing canonical LF attribute: {required}")
 
     tool_root = root / "Tools/AssetCooker"
     sconscript = tool_root / "SConscript"
