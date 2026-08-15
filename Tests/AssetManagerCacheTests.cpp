@@ -194,6 +194,47 @@ void TestLifecycleStress(FAssetManagerCacheTestResult& Result)
         "ten thousand lifecycle operations return every cache retention to zero");
     (void)Manager->Shutdown();
 }
+
+void TestConcurrentReadyHandoff(FAssetManagerCacheTestResult& Result)
+{
+    constexpr int Iterations = 200;
+    const FAssetId Id = MakeRuntimeTestId("Runtime/ConcurrentReadyHandoff");
+    auto Extensions = MakeRuntimeTestExtensions(Id);
+    Core::TSharedPtr<FAssetManager> Manager;
+    FAssetDiagnosticList Diagnostics;
+    bool Passed = FAssetManager::Create(
+        MakeDevelopmentManagerConfig(Extensions), Manager, Diagnostics) ==
+        EAssetResult::Success;
+    for (int Iteration = 0; Iteration < Iterations && Passed; ++Iteration)
+    {
+        FAssetRequestHandle Previous;
+        FAssetRequestSnapshot PreviousSnapshot;
+        Passed = Manager->Request<FRuntimeTestPayload>(Id, Previous) ==
+                EAssetResult::Success &&
+            WaitForRequestTerminal(*Manager, Previous, PreviousSnapshot) &&
+            PreviousSnapshot.State == EAssetRequestState::Ready;
+        FAssetRequestHandle Next;
+        EAssetResult Admission = EAssetResult::ProcessingFailure;
+        std::thread Admit([&]
+        {
+            Admission = Manager->Request<FRuntimeTestPayload>(Id, Next);
+        });
+        const EAssetResult Released = Manager->ReleaseRequest(Previous);
+        Admit.join();
+        FAssetRequestSnapshot NextSnapshot;
+        Passed = Passed && Released == EAssetResult::Success &&
+            Admission == EAssetResult::Success && Next.IsValid() &&
+            WaitForRequestTerminal(*Manager, Next, NextSnapshot) &&
+            NextSnapshot.State == EAssetRequestState::Ready &&
+            Manager->ReleaseRequest(Next) == EAssetResult::Success;
+    }
+    const auto Inspection = Manager->Inspect();
+    Record(Result,
+        Passed && Inspection.CachedAssets == 0 &&
+            Inspection.RequestRetentions == 0,
+        "concurrent ready admission and final release preserve request ownership");
+    (void)Manager->Shutdown();
+}
 } // namespace
 
 FAssetManagerCacheTestResult RunAssetManagerCacheTests()
@@ -202,5 +243,6 @@ FAssetManagerCacheTestResult RunAssetManagerCacheTests()
     TestRetentionAndImmediateUnload(Result);
     TestDependencyRetentionAndAtomicLimit(Result);
     TestLifecycleStress(Result);
+    TestConcurrentReadyHandoff(Result);
     return Result;
 }

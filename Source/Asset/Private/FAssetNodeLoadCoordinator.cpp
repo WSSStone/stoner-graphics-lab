@@ -16,6 +16,7 @@ struct FAssetNodeLoadCoordinator::FImpl
     {
         FAssetLoadKey Key;
         FAssetLoadScratchResult Result;
+        Core::TSharedPtr<FAssetCancellationToken> PhysicalCancellation;
         Core::uint32 Interests = 0;
         bool bComplete = false;
         std::condition_variable Condition;
@@ -56,6 +57,9 @@ FAssetLoadScratchResult FAssetNodeLoadCoordinator::Load(
         {
             Entry = Core::MakeShared<FImpl::FEntry>();
             Entry->Key = Key;
+            Entry->PhysicalCancellation =
+                Core::MakeShared<FAssetCancellationToken>();
+            Entry->PhysicalCancellation->Link(Context.Cancellation);
             Entry->Interests = 1;
             Impl_->Entries.push_back(Entry);
             bOwner = true;
@@ -63,6 +67,7 @@ FAssetLoadScratchResult FAssetNodeLoadCoordinator::Load(
         else
         {
             Entry = *Found;
+            Entry->PhysicalCancellation->Link(Context.Cancellation);
             ++Entry->Interests;
         }
     }
@@ -70,7 +75,7 @@ FAssetLoadScratchResult FAssetNodeLoadCoordinator::Load(
     if (bOwner)
     {
         const FAssetRuntimeExecutionContext PhysicalContext{
-            Core::MakeShared<FAssetCancellationToken>(), Context.Deadline};
+            Entry->PhysicalCancellation, Context.Deadline};
         FAssetLoadScratchResult Loaded = Strategy.Load(Key, PhysicalContext);
         std::lock_guard Lock(Impl_->Mutex);
         Entry->Result = Loaded;

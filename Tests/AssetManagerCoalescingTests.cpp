@@ -77,10 +77,13 @@ public:
             ++SharedLoads;
             SharedStarted = true;
             Condition.notify_all();
-            Condition.wait_for(Lock, std::chrono::seconds(2), [&]
+            const auto Deadline = std::chrono::steady_clock::now() +
+                std::chrono::seconds(2);
+            while (!ReleaseShared && !Context.ShouldStop() &&
+                std::chrono::steady_clock::now() < Deadline)
             {
-                return ReleaseShared || Context.ShouldStop();
-            });
+                Condition.wait_for(Lock, std::chrono::milliseconds(2));
+            }
         }
         Result.Metadata.push_back(Found->second);
         Result.Payloads.push_back(Core::MakeShared<FRuntimeTestPayload>(
@@ -260,6 +263,51 @@ void TestDependencyOwnerCancellation(FAssetManagerCoalescingTestResult& Result)
             Strategy.SharedLoads == 1 && Coordinator.ActiveEntries() == 0,
         "dependency owner cancellation preserves a surviving root interest");
 }
+
+void TestLastDependencyInterestCancellation(
+    FAssetManagerCoalescingTestResult& Result)
+{
+    const FAssetId Root = MakeRuntimeTestId("Runtime/LastCancelledRoot");
+    const FAssetId Shared =
+        MakeRuntimeTestId("Runtime/LastCancelledDependency");
+    const FAssetDependency Dependency{Shared,
+        EAssetDependencyRole::Runtime,
+        EAssetDependencyStrength::Required,
+        EAssetDependencyResolution::Resolved};
+    FSharedDependencyStrategy Strategy;
+    Strategy.SharedId = Shared;
+    Strategy.Records.emplace(Root, MakeGraphMetadata(Root, {Dependency}));
+    Strategy.Records.emplace(Shared, MakeGraphMetadata(Shared));
+    FAssetNodeLoadCoordinator Coordinator;
+    FAssetRequestTable Requests(0x260020ULL, 1);
+    FAssetRequestHandle Request;
+    FAssetLoadOperationTable Operations;
+    Core::TSharedPtr<FSharedAssetLoadOperation> Operation;
+    const bool Attached = Requests.Allocate(Request) &&
+        Operations.Attach(MakeGraphKey(Root), Request, Operation) ==
+            EAssetOperationAttachResult::Created;
+    const FAssetRuntimeExecutionContext OwnerContext{
+        Operation ? Operation->Cancellation : nullptr,
+        std::chrono::steady_clock::now() + std::chrono::seconds(2)};
+    FAssetLoadScratchResult Loaded;
+    std::thread Worker([&]
+    {
+        Loaded = FAssetDependencyScheduler::LoadClosure(
+            MakeGraphKey(Root), Strategy, OwnerContext, {}, &Coordinator);
+    });
+    const bool Started = Strategy.WaitForShared();
+    const auto Begin = std::chrono::steady_clock::now();
+    const bool Detached = Attached && Operations.Detach(Operation, Request);
+    Worker.join();
+    const auto Milliseconds = std::chrono::duration_cast<
+        std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - Begin).count();
+    Record(Result,
+        Started && Detached && Loaded.Result == EAssetResult::Cancelled &&
+            Strategy.SharedLoads == 1 && Coordinator.ActiveEntries() == 0 &&
+            Milliseconds < 500,
+        "last dependency interest propagates cooperative cancellation");
+}
 } // namespace
 
 FAssetManagerCoalescingTestResult RunAssetManagerCoalescingTests()
@@ -305,5 +353,6 @@ FAssetManagerCoalescingTestResult RunAssetManagerCoalescingTests()
     TestCompleteLoadKeyEquivalence(Result);
     TestSharedDependencyOperation(Result);
     TestDependencyOwnerCancellation(Result);
+    TestLastDependencyInterestCancellation(Result);
     return Result;
 }

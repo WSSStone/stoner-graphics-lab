@@ -204,6 +204,7 @@ EAssetResult FAssetManager::RequestUntyped(
     Private::EAssetOperationAttachResult Attach =
         Private::EAssetOperationAttachResult::Created;
     bool bImmediateReady = false;
+    bool bReadyCacheFailure = false;
     {
         std::lock_guard Lock(Impl_->StateMutex);
         if (Impl_->ShuttingDown)
@@ -229,24 +230,33 @@ EAssetResult FAssetManager::RequestUntyped(
                 {OutRequest, Key, Operation, false, std::move(Completion),
                     bHasCompletion, false, false,
                     Attach == Private::EAssetOperationAttachResult::InFlight});
+            if (Attach == Private::EAssetOperationAttachResult::ReadyCache)
+            {
+                Core::TSharedPtr<const FAssetPayload> ReadyPayload;
+                if (Impl_->Cache.AcquireRequest(Key, ReadyPayload))
+                {
+                    if (auto* Control = Impl_->FindControl(OutRequest))
+                        Control->bCacheInterest = true;
+                    (void)Impl_->Requests.CommitReady(
+                        OutRequest, std::move(ReadyPayload));
+                    bImmediateReady = true;
+                }
+                else
+                {
+                    (void)Impl_->Operations.Detach(Operation, OutRequest);
+                    if (bHasCompletion)
+                        Impl_->Completions.ReleaseReservation();
+                    Impl_->RemoveControl(OutRequest);
+                    (void)Impl_->Requests.Release(OutRequest);
+                    OutRequest = {};
+                    bReadyCacheFailure = true;
+                }
+            }
         }
     }
+    if (bReadyCacheFailure) return EAssetResult::ProcessingFailure;
     if (bImmediateReady)
     {
-        Impl_->CompleteRequest(OutRequest, EAssetResult::Success);
-        return EAssetResult::Success;
-    }
-    if (Attach == Private::EAssetOperationAttachResult::ReadyCache)
-    {
-        Core::TSharedPtr<const FAssetPayload> CachedPayload;
-        if (!Impl_->Cache.AcquireRequest(Key, CachedPayload))
-            return EAssetResult::ProcessingFailure;
-        {
-            std::lock_guard Lock(Impl_->StateMutex);
-            if (auto* Control = Impl_->FindControl(OutRequest))
-                Control->bCacheInterest = true;
-        }
-        (void)Impl_->Requests.CommitReady(OutRequest, CachedPayload);
         Impl_->CompleteRequest(OutRequest, EAssetResult::Success);
         return EAssetResult::Success;
     }
@@ -312,7 +322,7 @@ EAssetResult FAssetManager::RequestUntyped(
             else if (Result == EAssetResult::Success)
                 Result = EAssetResult::ProcessingFailure;
 
-            std::vector<FAssetRequestHandle> Interests;
+            std::vector<FAssetRequestHandle> CompletedInterests;
             {
                 std::lock_guard Lock(State->StateMutex);
                 if (Operation->bTerminal) return;
@@ -348,29 +358,27 @@ EAssetResult FAssetManager::RequestUntyped(
                         Result == EAssetResult::Cancelled
                         ? Private::EAssetLoadOperationState::Cancelled
                         : Private::EAssetLoadOperationState::Failed;
-                Interests = Operation->Interests;
+                for (const auto Interest : Operation->Interests)
+                {
+                    const bool Committed = Operation->State ==
+                            Private::EAssetLoadOperationState::Ready
+                        ? State->Requests.CommitReady(
+                              Interest, Operation->Payload)
+                        : State->Requests.CommitTerminal(Interest,
+                              Operation->State == Private::
+                                      EAssetLoadOperationState::Cancelled
+                                  ? EAssetRequestState::Cancelled
+                                  : EAssetRequestState::Failed,
+                              Operation->Result);
+                    if (Committed) CompletedInterests.push_back(Interest);
+                }
                 State->Operations.ReclaimIfUnretained(Operation);
             }
-            for (const auto Interest : Interests)
-            {
-                if (Operation->State ==
-                        Private::EAssetLoadOperationState::Ready)
-                {
-                    (void)State->Requests.CommitReady(
-                        Interest, Operation->Payload);
-                    State->CompleteRequest(Interest, EAssetResult::Success);
-                }
-                else
-                {
-                    (void)State->Requests.CommitTerminal(Interest,
-                        Operation->State ==
-                                Private::EAssetLoadOperationState::Cancelled
-                            ? EAssetRequestState::Cancelled
-                            : EAssetRequestState::Failed,
-                        Operation->Result);
-                    State->CompleteRequest(Interest, Operation->Result);
-                }
-            }
+            for (const auto Interest : CompletedInterests)
+                State->CompleteRequest(Interest,
+                    Operation->State == Private::EAssetLoadOperationState::Ready
+                        ? EAssetResult::Success
+                        : Operation->Result);
         });
     if (Submit != Private::EAssetWorkerSubmitResult::Accepted)
     {
@@ -436,21 +444,21 @@ EAssetResult FAssetManager::GetResultUntyped(
 
 EAssetResult FAssetManager::Cancel(FAssetRequestHandle Request)
 {
-    FAssetRequestSnapshot Snapshot;
-    if (!Impl_->Requests.Query(Request, Snapshot))
-        return EAssetResult::InvalidHandle;
-    if (Snapshot.State == EAssetRequestState::Ready ||
-        Snapshot.State == EAssetRequestState::Cancelled)
-        return EAssetResult::Success;
+    bool Committed = false;
     {
         std::lock_guard Lock(Impl_->StateMutex);
+        FAssetRequestSnapshot Snapshot;
+        if (!Impl_->Requests.Query(Request, Snapshot))
+            return EAssetResult::InvalidHandle;
+        if (Snapshot.State == EAssetRequestState::Ready ||
+            Snapshot.State == EAssetRequestState::Cancelled)
+            return EAssetResult::Success;
         auto* Control = Impl_->FindControl(Request);
         if (Control && Control->Operation)
             (void)Impl_->Operations.Detach(Control->Operation, Request);
+        Committed = Impl_->Requests.CommitTerminal(
+            Request, EAssetRequestState::Cancelled, EAssetResult::Cancelled);
     }
-    const bool Committed = Impl_->Requests.CommitTerminal(
-        Request, EAssetRequestState::Cancelled, EAssetResult::Cancelled)
-        ;
     if (Committed)
     {
         Impl_->CompleteRequest(Request, EAssetResult::Cancelled);

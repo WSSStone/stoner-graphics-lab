@@ -4,6 +4,7 @@
 #include "Helpers/AssetManagerControlledLoader.h"
 
 #include <iostream>
+#include <thread>
 
 namespace
 {
@@ -171,6 +172,44 @@ void TestBoundedNonConformingExtension(
         "bounded non-conforming extension cannot publish after its deadline");
     (void)Controlled.Manager->Shutdown();
 }
+
+void TestPublicationCancellationRace(
+    FAssetManagerCancellationTestResult& Result)
+{
+    constexpr int Iterations = 100;
+    bool Passed = true;
+    for (int Iteration = 0; Iteration < Iterations && Passed; ++Iteration)
+    {
+        const FAssetId Id = MakeRuntimeTestId("Runtime/PublishCancelRace");
+        auto Controlled = Make(Id);
+        FAssetRequestHandle Request;
+        EAssetResult CallbackResult = EAssetResult::NotReady;
+        Passed = Controlled.Manager &&
+            Controlled.Manager->Request<FRuntimeTestPayload>(Id, Request,
+                [&CallbackResult](FAssetRequestHandle, EAssetResult Value)
+                {
+                    CallbackResult = Value;
+                }) == EAssetResult::Success &&
+            Controlled.State->WaitUntilStarted(1000);
+        std::thread Release([&] { Controlled.State->Release(); });
+        const EAssetResult CancelResult = Controlled.Manager->Cancel(Request);
+        Release.join();
+        FAssetRequestSnapshot Snapshot;
+        Passed = Passed && WaitForRequestTerminal(
+            *Controlled.Manager, Request, Snapshot);
+        const auto Pump = Controlled.Manager->PumpCompletions(1);
+        Passed = Passed && CancelResult == EAssetResult::Success &&
+            Pump.Result == EAssetResult::Success && Pump.Dispatched == 1 &&
+            ((Snapshot.State == EAssetRequestState::Ready &&
+                 CallbackResult == EAssetResult::Success) ||
+             (Snapshot.State == EAssetRequestState::Cancelled &&
+                 CallbackResult == EAssetResult::Cancelled));
+        (void)Controlled.Manager->ReleaseRequest(Request);
+        (void)Controlled.Manager->Shutdown();
+    }
+    Record(Result, Passed,
+        "publication and cancellation commit one matching terminal outcome");
+}
 } // namespace
 
 FAssetManagerCancellationTestResult RunAssetManagerCancellationTests()
@@ -180,5 +219,6 @@ FAssetManagerCancellationTestResult RunAssetManagerCancellationTests()
     TestAllCallerCancellation(Result);
     TestDeadlineAndLateCancellation(Result);
     TestBoundedNonConformingExtension(Result);
+    TestPublicationCancellationRace(Result);
     return Result;
 }
