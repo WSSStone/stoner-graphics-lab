@@ -201,7 +201,8 @@ EAssetResult FAssetManager::RequestUntyped(
             Impl_->BoundGeneration->GetPointer().GenerationId;
 
     Core::TSharedPtr<Private::FSharedAssetLoadOperation> Operation;
-    Private::EAssetOperationAttachResult Attach;
+    Private::EAssetOperationAttachResult Attach =
+        Private::EAssetOperationAttachResult::Created;
     bool bImmediateReady = false;
     {
         std::lock_guard Lock(Impl_->StateMutex);
