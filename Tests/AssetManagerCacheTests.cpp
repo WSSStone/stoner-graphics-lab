@@ -166,7 +166,9 @@ void TestLifecycleStress(FAssetManagerCacheTestResult& Result)
         Passed = Manager->Request<FRuntimeTestPayload>(Id, Request) ==
             EAssetResult::Success;
         FAssetRequestSnapshot Snapshot;
-        for (int Poll = 0; Poll < 10000 && Passed; ++Poll)
+        const auto RequestDeadline =
+            std::chrono::steady_clock::now() + std::chrono::seconds(1);
+        while (Passed && std::chrono::steady_clock::now() < RequestDeadline)
         {
             Passed = Manager->Query(Request, Snapshot) ==
                 EAssetResult::Success;
@@ -184,7 +186,14 @@ void TestLifecycleStress(FAssetManagerCacheTestResult& Result)
         std::chrono::steady_clock::now() - Begin).count();
     const auto Inspection = Manager->Inspect();
     std::cout << "[METRIC] runtime-manager-lifecycle iterations="
-              << Iterations << " milliseconds=" << Milliseconds << '\n';
+              << Iterations << " milliseconds=" << Milliseconds
+              << " imports=" << Extensions.ImportCalls->load()
+              << " cached-assets=" << Inspection.CachedAssets
+              << " payload-bytes=" << Inspection.CachedPayloadBytes
+              << " external-retentions="
+              << Inspection.ExternalHandleRetentions
+              << " request-retentions=" << Inspection.RequestRetentions
+              << '\n';
     Record(Result,
         Passed && Extensions.ImportCalls->load() == Iterations &&
             Inspection.CachedAssets == 0 &&

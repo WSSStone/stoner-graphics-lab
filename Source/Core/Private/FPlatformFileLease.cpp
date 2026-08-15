@@ -160,6 +160,9 @@ FPlatformFileStatus FPlatformFileLease::Acquire(
             EPlatformFileResult::TimedOut, 0, "lease:process-timeout");
 
 #if SG_PLATFORM_WINDOWS
+    // Keep the native lock byte outside the metadata payload so diagnostics
+    // remain readable through a separate shared handle while the lease is held.
+    Candidate->LockRange.OffsetHigh = 1;
     for (;;)
     {
         Candidate->Handle = ::CreateFileW(

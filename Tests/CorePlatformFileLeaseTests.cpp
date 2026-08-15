@@ -127,9 +127,12 @@ FCorePlatformFileLeaseTestResult RunCorePlatformFileLeaseTests(
         "File lease acquires native ownership");
 
     TArray<uint8> Metadata;
+    const TArray<uint8> ExpectedMetadata{
+        'o', 'w', 'n', 'e', 'r', '=', 'p', 'r', 'i', 'm', 'a', 'r', 'y', '\n'};
     Record(Result,
         FPlatformFileSystem::ReadFile(
-            FString(LeasePath.generic_string()), Metadata) && !Metadata.empty(),
+            FString(LeasePath.generic_string()), Metadata) &&
+            Metadata == ExpectedMetadata,
         "File lease writes readable owner metadata");
 
     EPlatformFileResult ContendedResult = EPlatformFileResult::Success;

@@ -410,7 +410,7 @@ FAssetCookResult FAssetCookRunner::Run(
                         return Private::FAssetCookScheduledResult{
                             Asset::EAssetResult::CorruptPayload, {}};
                     }
-                    State.bQuarantined = !Quarantine.bEntryWasReplaced;
+                    State.bQuarantined = Quarantine.bEntryQuarantined;
                     if (Quarantine.bEntryWasReplaced)
                     {
                         Lookup = Private::FDerivedDataStore::Lookup(LookupRequest);
