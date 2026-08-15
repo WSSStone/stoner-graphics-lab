@@ -1,14 +1,13 @@
 <!-- SPECKIT START -->
-Feature 026 Asset: Runtime Asset Manager has completed local implementation on
-branch `026-runtime-asset-manager`. macOS Debug, strict Release, focused/full
-regression, and M4 Pro benchmark gates passed; evidence is under
-`Validation/026/reports/` and the implementation study is
-`doc/026-runtime-asset-manager.html`. The feature remains active until the
-current revision passes the required eight-job Windows/macOS/Linux and Linux
-sanitizer GitHub Actions matrix and conclusions are recorded in
-`Validation/026/CI/README.md`. Feature 027 Metal is next only after that
-closeout. Do not fold streaming, GPU residency, hot reload, network storage,
-generation pruning, or offline cooker ownership into 026.
+Feature 026 Asset: Runtime Asset Manager is complete. GitHub Actions run
+31882332020 passed all eight required Windows/macOS/Linux Debug and strict
+Release plus Linux ASan/UBSan/TSan jobs for revision `8427e13`; artifact digests
+are recorded in `Validation/026/CI/README.md`. Read
+`doc/026-runtime-asset-manager.html` and
+`specs/026-runtime-asset-manager/` for delivered design and evidence. Feature
+027 Backend: Metal is the next roadmap target; create its Speckit feature from
+the Phase 027 prompt before implementation. Do not fold iOS lifecycle, Metal
+mesh shaders, ray tracing, or Asset ownership into 027.
 <!-- SPECKIT END -->
 
 ## Active Technologies

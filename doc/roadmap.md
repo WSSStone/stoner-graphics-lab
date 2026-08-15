@@ -1,9 +1,9 @@
 # Stoner Graphics Lab - Engine Development Roadmap
 
-> **Version**: 2.1.10 | **Created**: 2026-04-21 | **Last Updated**: 2026-08-15 | **Status**: Active
+> **Version**: 2.1.11 | **Created**: 2026-04-21 | **Last Updated**: 2026-08-15 | **Status**: Active
 > **Constitution**: v1.4.0
 > **Numbering Rule**: Every runtime phase number equals its Speckit feature number. Feature 002 is this roadmap meta-feature.
-> **Completed Baseline**: Features 001 and 003 through 025 are implemented and verified.
+> **Completed Baseline**: Features 001 and 003 through 026 are implemented and verified.
 
 ---
 
@@ -69,8 +69,8 @@ stable identity/registry, source images and textures, KTX2 cooking, versioned
 Material/Shader definitions, and canonical static mesh/model ingestion with
 Renderer RHI realization, deterministic offline cooking, manifests, and local
 derived data. Feature 026 has implemented managed asynchronous runtime loading
-and passed its local Debug/strict Release/full-regression gates; required remote
-cross-platform and sanitizer CI remains before closeout.
+and passed its local and required remote cross-platform/sanitizer gates. The
+next phase is the native Metal portability backend.
 
 Roadmap 2.1 adds Asset as an independent runtime layer. It separates source
 interchange, cooked delivery, runtime management, and GPU realization so that
@@ -101,7 +101,7 @@ through screen-space, derived-data, and hybrid integration milestones.
 - [OpenUSD Asset Resolution](https://openusd.org/release/api/ar_page_front.html) informs logical identifiers and replaceable resolver strategies; USD composition itself remains a later Scene/Prefab concern.
 - [Unreal Asset Management](https://dev.epicgames.com/documentation/en-us/unreal-engine/asset-management-in-unreal-engine) supports separating unloaded metadata, soft references, asynchronous loading, and residency ownership.
 
-### Current State (Feature 026 Local Implementation Complete; Remote CI Pending)
+### Current State (Feature 026 Complete; Feature 027 Next)
 
 | Ownership Area | Status | Current Capability |
 |---|---|---|
@@ -188,7 +188,7 @@ depend on Tools.
 | 023 | Material & Shader Assets | Asset | 014, 020, 021 | XL | Yes | ✅ Done |
 | 024 | Static Mesh & Model Pipeline | Asset | 004, 008, 020, 021, 023 | XL | Yes | ✅ Done |
 | 025 | Cooker, Manifest & Derived Data | Asset | 021, 022, 023, 024 | XL | Yes | ✅ Done |
-| 026 | Runtime Asset Manager | Asset | 020, 025 | XL | Yes | 🔄 In Progress |
+| 026 | Runtime Asset Manager | Asset | 020, 025 | XL | Yes | ✅ Done |
 | 027 | Metal Backend | Backend | 008, 016, 018, 023, 025 | XL | No | ⬜ Todo |
 | 028 | Meshlet Derived Data | Asset | 024, 025, 026 | XL | No | ⬜ Todo |
 | 029 | GPU-Driven Visibility & LOD | Renderer | 013, 028 | XL | No | ⬜ Todo |
@@ -929,9 +929,10 @@ the runtime ownership of offline pruning policy.
 - macOS Debug, strict Release, focused validation, M4 Pro benchmark gates, and
   complete Debug/Release regression passed; normalized reports are stored under
   `Validation/026/reports/`.
-- The phase remains `In Progress` until the current revision passes all eight
-  required Windows/macOS/Linux Debug/strict Release and Linux sanitizer jobs and
-  their artifact conclusions are recorded in `Validation/026/CI/README.md`.
+- GitHub Actions run 31882332020 passed all eight Windows/macOS/Linux
+  Debug/strict Release and Linux ASan/UBSan/TSan jobs for revision `8427e13`;
+  artifact conclusions and SHA-256 digests are recorded in
+  `Validation/026/CI/README.md`.
 
 #### Speckit Prompt
 ```text
@@ -1386,13 +1387,12 @@ Meshlets:
 5. Run `/speckit.implement`, validate locally and in required CI, and retain evidence.
 6. Mark the phase `✅ Done`, update Current State, dependency styling if used, and this change log.
 
-Feature 026 Asset: Runtime Asset Manager has completed implementation and local
-validation. It delivered hybrid source/cooked typed loading, dependency
+Feature 026 Asset: Runtime Asset Manager is complete. It delivered hybrid
+source/cooked typed loading, dependency
 scheduling, duplicate work coalescing with independent cancellation, immutable
 handles, deterministic unload, explicit completion pumping, bounded inspection,
-shutdown safety, and generation reader leases. It remains the active phase until
-the required eight-job remote CI matrix passes; Feature 027 Metal is next only
-after that closeout.
+shutdown safety, and generation reader leases. GitHub Actions run 31882332020
+passed all eight required jobs. Feature 027 Metal is the next roadmap phase.
 
 ### Status Legend
 
@@ -1409,6 +1409,7 @@ after that closeout.
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-15 | 2.1.11 | Hardened Feature 026 terminal publication, ready-cache handoff, and shared-dependency cancellation; GitHub Actions run 31882332020 passed Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan; downloaded all eight artifacts, recorded their digests, and activated Feature 027 Metal. |
 | 2026-08-15 | 2.1.10 | Recorded Feature 026 local implementation, Debug/strict Release/full-regression and M4 Pro evidence; retained In Progress status pending the required eight-job Windows/macOS/Linux and sanitizer CI matrix. |
 | 2026-08-15 | 2.1.8 | Marked Feature 025 complete after GitHub Actions run 31827665459 passed all eight Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan jobs, archived normalized corruption and benchmark artifacts, and activated Feature 026 Runtime Asset Manager as the next roadmap target. |
 | 2026-08-14 | 2.1.7 | Marked Feature 024 complete after GitHub Actions run 31766671726 passed Windows/macOS/Linux Debug and strict Release, Linux ASan/UBSan/TSan, refreshed Feature 018/019 native evidence, and native run 31766671729 passed indexed-clockwise static-mesh attachment readback; activated Feature 025 as the next roadmap target. |

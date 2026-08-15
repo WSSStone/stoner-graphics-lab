@@ -201,10 +201,10 @@ dispatch, pump on a selected thread, test reentrancy, compare reports, and scale
 - [X] T065 Run focused Debug and strict Release on macOS and store Validation/026/reports/local-release.json
 - [X] T066 Run the exact full-regression commands in quickstart section 10 and store the normalized result in Validation/026/reports/regression.txt
 - [X] T067 Add path-filtered three-platform Debug/Release and Linux ASan/UBSan/TSan jobs, each uploading one uniquely named normalized artifact even on failure, in .github/workflows/feature-026-runtime-asset-manager.yml
-- [ ] T068 Run the exact gh workflow/watch/download commands in quickstart section 11 for all eight jobs and record conclusions/digests in Validation/026/CI/README.md
+- [X] T068 Run the exact gh workflow/watch/download commands in quickstart section 11 for all eight jobs and record conclusions/digests in Validation/026/CI/README.md
 - [X] T069 Document architecture, lifecycle, usage, exclusions, and evidence in doc/026-runtime-asset-manager.html following doc/SYSTEM_DESIGN.MD
-- [ ] T070 Update Feature 026 completion and next Feature 027 status in doc/roadmap.md and AGENTS.md
-- [ ] T071 Execute specs/026-runtime-asset-manager/quickstart.md, run git diff --check, and resolve discrepancies in owning files
+- [X] T070 Update Feature 026 completion and next Feature 027 status in doc/roadmap.md and AGENTS.md
+- [X] T071 Execute specs/026-runtime-asset-manager/quickstart.md, run git diff --check, and resolve discrepancies in owning files
 
 ---
 

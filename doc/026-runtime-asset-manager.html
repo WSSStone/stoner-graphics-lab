@@ -26,8 +26,8 @@
 <main>
 <header>
   <h1>026 - Runtime Asset Manager</h1>
-  <div class="meta">版本 1.0 · 2026-08-15 · 本地实现与全量回归完成 · 远程八任务 CI 待执行</div>
-  <div class="callout pending"><strong>交付边界：</strong>实现已在 macOS Debug/strict Release 及完整回归中通过；本文不把尚未运行的 GitHub Actions 记为成功。CI 结论应在对应 revision 推送后补入 <code>Validation/026/CI/README.md</code>。</div>
+  <div class="meta">版本 1.2 · 2026-08-15 · 已交付 · 并发加固与远程八任务验证通过</div>
+  <div class="callout"><strong>交付结论：</strong>macOS 本地 Debug/strict Release 与完整回归通过；GitHub Actions run <code>31882332020</code> 对 hardening revision <code>8427e13</code> 的 Windows/macOS/Linux Debug、strict Release 和 Linux sanitizer 八项验证全部成功。</div>
 </header>
 
 <section id="context">
@@ -40,7 +40,7 @@
 <tr><td>设计输入</td><td><code>specs/026-runtime-asset-manager/</code> 中的 spec、plan、research、data-model、contracts、tasks 与 quickstart</td></tr>
 <tr><td>主要实现</td><td><code>Source/Asset/Public/Asset/FAssetManager*.h</code>、<code>TAssetHandle.h</code> 与 <code>Source/Asset/Private/FAsset*.cpp</code></td></tr>
 <tr><td>测试与证据</td><td><code>Tests/AssetManager*Tests.cpp</code>、<code>Validation/026/reports/</code></td></tr>
-<tr><td>本地结果</td><td>Debug、strict Release、契约/架构检查、focused、benchmark 和 Debug/Release 全回归全部通过</td></tr>
+<tr><td>最终结果</td><td>本地 Debug、strict Release、契约/架构、focused、benchmark、全回归通过；远程 run 31882332020 八项全部通过并已下载 artifacts</td></tr>
 </tbody></table>
 
 <h3>2. 本期核心摘要</h3>
@@ -198,7 +198,7 @@ conda run -n godot python .github/scripts/run_runtime_asset_manager_validation.p
 <tr><td>Lifetime / shutdown</td><td>stale alias、UAF、retained entry、teardown race</td><td><code>AssetManagerLifetimeTests.cpp</code>、<code>lifetime-stress.txt</code></td></tr>
 <tr><td>Generation process lease</td><td>publication 被误删、crash 后永久锁、路径别名</td><td><code>AssetManagerGenerationLease*Tests.cpp</code></td></tr>
 <tr><td>Determinism / performance</td><td>worker 顺序影响结果、规模退化</td><td><code>determinism.txt</code>、<code>performance-m4-pro.txt</code></td></tr>
-<tr><td>Cross-platform CI</td><td>Windows/Linux 锁、编译器和 sanitizer 差异</td><td><span class="badge">Workflow ready</span> 远程结果待执行</td></tr>
+<tr><td>Cross-platform CI</td><td>Windows/Linux 锁、编译器和 sanitizer 差异</td><td><span class="badge">8/8 passed</span> run 31882332020</td></tr>
 </tbody></table>
 </section>
 
@@ -221,7 +221,7 @@ conda run -n godot python .github/scripts/run_runtime_asset_manager_validation.p
 <ul>
 <li>本期加载粒度是完整 typed payload；后续 Feature 030 才拆分 mip/meshlet chunk 和 residency。</li>
 <li>reader lease 只提供安全维护证据，不决定 pruning policy。</li>
-<li>跨平台 workflow 已建立，但本文生成时尚未对当前 revision 执行远程八任务验证。</li>
+<li>跨平台 workflow 已对并发加固 revision <code>8427e13</code> 完成八任务验证；后续变更仍需重新建立对应 revision 的证据。</li>
 <li>Renderer 仍需显式把 Asset handle 转为 RHI resource；manager 不缓存 GPU object。</li>
 <li>后续 Feature 027 Metal 可依赖 cooked shader payload 与 runtime manager，但仍必须维持 Backend 不反向依赖 Asset 的既定边界。</li>
 </ul>
