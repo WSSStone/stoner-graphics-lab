@@ -35,7 +35,7 @@
 - [x] Color, normal, generic-data, alpha, transfer, and orientation semantics remain explicit
 - [x] Asset, Renderer, RHI, and Vulkan ownership boundaries match the constitution
 - [x] BC, ETC2/EAC, ASTC, fallback, and capability-selection outcomes are testable
-- [x] Feature 025 cooker/manifest, Feature 026 async manager, and Feature 030 streaming remain excluded
+- [x] Feature 025 cooker/manifest, Feature 026 async manager, and Feature 031 streaming remain excluded
 - [x] Three-platform, independent-validator, sanitizer, regression, and available-native evidence are defined
 
 ## Notes

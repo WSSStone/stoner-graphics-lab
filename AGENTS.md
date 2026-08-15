@@ -8,6 +8,10 @@ are recorded in `Validation/026/CI/README.md`. Read
 027 Backend: Metal is the next roadmap target; create its Speckit feature from
 the Phase 027 prompt before implementation. Do not fold iOS lifecycle, Metal
 mesh shaders, ray tracing, or Asset ownership into 027.
+Feature 028 is now Asset: Production Content Integration & Acceptance; it uses
+licensed artist-authored content to validate source import through strict
+cooked loading and visible Vulkan/Metal rendering. Meshlet Derived Data and all
+former Features 028-038 were shifted to Features 029-039.
 <!-- SPECKIT END -->
 
 ## Active Technologies
