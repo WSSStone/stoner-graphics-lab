@@ -34,7 +34,7 @@ versions, installs the immutable generation, and atomically replaces only
 ## Technical Context
 
 **Language/Version**: C++20 with traditional public/private header and source separation; no C++20 Modules; Python 3 standard-library validation scripts
-**Primary Dependencies**: Existing Core and Asset contracts from Features 003-006 and 020-024; existing Asset-private yyjson 0.12.0 canonical JSON path; existing SHA-256 `FAssetDigest`; SCons 4.10.1; descriptor-owned POSIX `flock`/`rename` behind Core on macOS/Linux; Win32 `CreateFileW`/replace-existing move behind Core on Windows; no new third-party runtime dependency
+**Primary Dependencies**: Existing Core and Asset contracts from Features 003-006 and 020-024; existing Asset-private yyjson 0.12.0 canonical JSON path; existing SHA-256 `FAssetDigest`; SCons 4.10.1; descriptor-owned POSIX `flock`/`rename` behind Core on macOS/Linux; durable Win32 file handles plus `ReplaceFileW`/`MoveFileExW` transaction primitives behind Core on Windows; no new third-party runtime dependency
 **Storage**: Local source roots; local immutable directory-entry DDC; local self-contained cooked generation directories and atomic `Current.json`; checked-in target profiles, fixtures, schemas, and normalized validation evidence; no database, archive/package, remote cache, network service, or runtime cache
 **Testing**: Existing `StonerTest` suite registry plus focused asset-cooker profile/manifest/envelope/key/graph/DDC/snapshot/lease/publication/determinism/concurrency/performance suites; subprocess CLI probes; Python schema, fixture, layout, and architecture verifiers; Debug and strict Release on Windows/macOS/Linux; Linux ASan/UBSan and TSan; clean-machine, incremental, corruption, failure-injection, and twenty-repeat validation
 **Target Platform**: Cooker host support on Windows x64, macOS Apple Silicon, and Linux x64; explicit target profiles initially cover the repository's Vulkan Windows/Linux/macOS delivery evidence and leave registered Metal/DX12/OpenGL/GLES profile extensions for later backend features
@@ -124,6 +124,7 @@ Source/
     │   ├── FAssetCookContractCodec.h
     │   ├── FAssetCookedPayload.h
     │   ├── FAssetDerivedKey.h
+    │   ├── FPublishedGenerationValidator.h
     │   ├── FAssetTargetProfile.h
     │   ├── IAssetCooker.h
     │   └── IAssetLoader.h
@@ -131,6 +132,7 @@ Source/
         ├── FAssetCookManifestCodec.*
         ├── FAssetCookedPayloadCodec.*
         ├── FAssetDerivedKeyBuilder.*
+        ├── FPublishedGenerationValidator.cpp
         ├── FAssetTargetProfileCodec.*
         ├── FImageTextureCookedCodec.*
         ├── FMaterialShaderCookedCodec.*
@@ -150,7 +152,7 @@ Tools/AssetCooker/
 │   ├── FCookInputSnapshot.*
 │   ├── FDerivedDataStore.*
 │   ├── FCookedGenerationPublisher.*
-│   ├── FPublishedGenerationValidator.*
+│   ├── FPublishedGenerationValidator.h (compatibility alias)
 │   └── Main.cpp
 └── SConscript
 

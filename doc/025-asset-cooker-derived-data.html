@@ -95,7 +95,7 @@ Post-commit audit warning: new complete Current remains authoritative</code></pr
 <tr><td><code>FAssetCookGraph</code></td><td>selection、拓扑序、cycle/depth/edge limit</td><td>Tool-private policy</td></tr>
 <tr><td><code>FDerivedDataStore</code></td><td>lookup、stage、lease、install、quarantine</td><td>entry 不可原地修改</td></tr>
 <tr><td><code>FCookedGenerationPublisher</code></td><td>immutable generation 与 current pointer</td><td>读者只见完整旧版或新版</td></tr>
-<tr><td><code>FPublishedGenerationValidator</code></td><td>无 source/DDC 的 strict validation</td><td>部署产物独立可信</td></tr>
+<tr><td><code>Asset::FPublishedGenerationValidator</code></td><td>Asset 公共边界提供无 source/DDC 的 strict validation</td><td>Tool 与未来 runtime 共享同一部署验证契约</td></tr>
 <tr><td><code>FAssetCookRunner</code></td><td>串联完整控制流与稳定 report</td><td>不暴露 private parser</td></tr>
 </tbody></table>
 <h4>2.2 数据与控制流</h4><p>Discovery 产出 typed assets 与物理 source 集合；graph 固定 reachable nodes 与拓扑序；snapshot 固定 source digest；每节点计算 target decision 与 derived evidence。Scheduler 只在依赖成功后运行节点，先 lookup DDC，miss 才调用 cooker。全部 envelope 形成 canonical manifest；publisher 构造 scratch image，完整重读验证后才替换 current pointer。</p>

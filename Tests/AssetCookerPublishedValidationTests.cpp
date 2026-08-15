@@ -104,15 +104,45 @@ RunAssetCookerPublishedValidationTests()
             Current.ValidatedPayloads == SeedRun.Result.Manifest.Records.size(),
         "current-pointer validation checks the complete installed generation");
 
-    Private::FPublishedGenerationValidationRequest Direct;
+    Asset::FPublishedGenerationValidationRequest Direct;
     Direct.SubjectRoot = Published.GenerationDirectory;
-    Direct.Subject = Private::EPublishedValidationSubject::GenerationDirectory;
+    Direct.Subject = Asset::EPublishedValidationSubject::GenerationDirectory;
     Direct.ExpectedGenerationId = SeedRun.Result.Manifest.GenerationId;
     const auto DirectResult =
-        Private::FPublishedGenerationValidator::Validate(Direct);
+        Asset::FPublishedGenerationValidator::Validate(Direct);
     Record(Result.Passed, Result.Failed,
         DirectResult.Result == Asset::EAssetResult::Success,
-        "request-local and installed generation directories share one validator");
+        "Asset exposes the shared installed-generation validator to runtime consumers");
+
+    const auto CodecMismatchDirectory = Root / "CodecMismatch";
+    std::filesystem::copy(
+        std::filesystem::path(Published.GenerationDirectory.ToStdString()),
+        CodecMismatchDirectory, std::filesystem::copy_options::recursive);
+    Asset::FAssetCookManifest CodecMismatch = SeedRun.Result.Manifest;
+    Asset::FAssetProducerVersion CodecVersion;
+    (void)Asset::FAssetProducerVersion::Create(
+        Core::FString("2"), CodecVersion);
+    CodecMismatch.Records.front().Codec.Version = CodecVersion;
+    CodecMismatch.GenerationId = {};
+    Core::FString CodecMismatchCanonical;
+    const auto CodecMismatchWritten =
+        Asset::FAssetCookContractCodec::WriteManifest(
+            CodecMismatch, {}, CodecMismatchCanonical);
+    Write(CodecMismatchDirectory / "Manifest.json",
+        Core::TArray<Core::uint8>(CodecMismatchCanonical.View().begin(),
+            CodecMismatchCanonical.View().end()));
+    Asset::FPublishedGenerationValidationRequest CodecMismatchRequest;
+    CodecMismatchRequest.SubjectRoot =
+        Core::FString(CodecMismatchDirectory.generic_string());
+    CodecMismatchRequest.Subject =
+        Asset::EPublishedValidationSubject::GenerationDirectory;
+    CodecMismatchRequest.ExpectedGenerationId = CodecMismatch.GenerationId;
+    Record(Result.Passed, Result.Failed,
+        CodecMismatchWritten == Asset::EAssetResult::Success &&
+            Asset::FPublishedGenerationValidator::Validate(
+                CodecMismatchRequest).Category ==
+                Asset::EPublishedCorruptionCategory::PayloadInvalid,
+        "published validation rejects manifest and envelope codec revision mismatch");
 
 #if SG_PLATFORM_WINDOWS
     Private::FPublishedGenerationValidationRequest CaseVariant = Direct;

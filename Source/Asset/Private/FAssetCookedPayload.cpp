@@ -48,7 +48,7 @@ EAssetResult FAssetCookedPayloadLimits::Validate() const noexcept
 EAssetResult FAssetCookedPayloadHeader::Validate() const noexcept
 {
     if (ContainerVersion != CurrentContainerVersion ||
-        PayloadSchemaVersion != 1)
+        CodecVersion != 1 || PayloadSchemaVersion != 1)
     {
         return EAssetResult::UnsupportedSchema;
     }

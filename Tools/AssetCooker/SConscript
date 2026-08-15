@@ -23,7 +23,6 @@ library = tool_env.StaticLibrary(
         'Private/FAssetCookScheduler.cpp',
         'Private/FCookedGenerationPublisher.cpp',
         'Private/FDerivedDataStore.cpp',
-        'Private/FPublishedGenerationValidator.cpp',
         'Private/FAssetSourceCatalog.cpp',
         'Private/FCookInputSnapshot.cpp',
     ],

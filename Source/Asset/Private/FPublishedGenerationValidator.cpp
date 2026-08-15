@@ -1,22 +1,25 @@
-#include "FPublishedGenerationValidator.h"
+#include "Asset/FPublishedGenerationValidator.h"
 
+#include "Asset/FAssetCookContractCodec.h"
+#include "Asset/FAssetPayload.h"
 #include "Core/FPlatformFileSystem.h"
 #include "Core/SGPlatform.h"
+#include "Core/TArray.h"
+#include "Core/TSharedPtr.h"
 
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
 #include <set>
-#include <span>
 #include <string>
 
-namespace Stoner::AssetCooker::Private
+namespace Stoner::Asset
 {
 namespace
 {
 
 FPublishedGenerationValidationResult Fail(
-    Asset::EAssetResult Result,
+    EAssetResult Result,
     EPublishedCorruptionCategory Category,
     const char* Reason)
 {
@@ -61,8 +64,6 @@ std::string Normalized(const std::filesystem::path& Path)
         std::filesystem::absolute(Path, Error).lexically_normal();
     std::string Result =
         (Error ? Path.lexically_normal() : Absolute).generic_string();
-    // Win32 paths are case-insensitive. Directory enumeration can preserve
-    // different component casing than a path reconstructed from the manifest.
     std::transform(Result.begin(), Result.end(), Result.begin(),
         [](unsigned char Value)
         {
@@ -83,6 +84,14 @@ std::string Normalized(const std::filesystem::path& Path)
     return Result;
 }
 
+bool CodecVersionMatches(
+    const FAssetCookManifestRecord& Record,
+    const FAssetCookedPayloadEnvelope& Envelope)
+{
+    return Record.Codec.Version.ToString() == Core::FString(
+        std::to_string(Envelope.Header.CodecVersion));
+}
+
 } // namespace
 
 FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
@@ -92,24 +101,24 @@ FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
         Request.MaxPathBytes == 0 ||
         (Request.Subject == EPublishedValidationSubject::GenerationDirectory &&
          !Request.ExpectedGenerationId.has_value()))
-        return Fail(Asset::EAssetResult::InvalidInput,
+        return Fail(EAssetResult::InvalidInput,
             EPublishedCorruptionCategory::InvalidRequest,
             "published.validate.invalid-request");
 
-    Asset::FCurrentGenerationPointer Pointer;
+    FCurrentGenerationPointer Pointer;
     Core::FString GenerationDirectory;
-    Asset::FAssetDigest ExpectedGeneration;
+    FAssetDigest ExpectedGeneration;
     if (Request.Subject == EPublishedValidationSubject::CurrentPointer)
     {
         Core::TArray<Core::uint8> PointerBytes;
         if (!ReadBounded(Join(Request.SubjectRoot, "Current.json"),
                 1024ULL * 1024ULL, PointerBytes))
-            return Fail(Asset::EAssetResult::NotFound,
+            return Fail(EAssetResult::NotFound,
                 EPublishedCorruptionCategory::PointerMissing,
                 "published.pointer.missing");
-        if (Asset::FAssetCookContractCodec::ParseCurrentPointer(
-                PointerBytes, Pointer) != Asset::EAssetResult::Success)
-            return Fail(Asset::EAssetResult::CorruptPayload,
+        if (FAssetCookContractCodec::ParseCurrentPointer(
+                PointerBytes, Pointer) != EAssetResult::Success)
+            return Fail(EAssetResult::CorruptPayload,
                 EPublishedCorruptionCategory::PointerInvalid,
                 "published.pointer.invalid");
         ExpectedGeneration = Pointer.GenerationId;
@@ -122,7 +131,7 @@ FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
         GenerationDirectory = Request.SubjectRoot;
     }
     if (!Core::FPlatformFileSystem::Exists(GenerationDirectory))
-        return Fail(Asset::EAssetResult::NotFound,
+        return Fail(EAssetResult::NotFound,
             EPublishedCorruptionCategory::GenerationMissing,
             "published.generation.missing");
 
@@ -131,42 +140,41 @@ FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
     if (!ReadBounded(Join(GenerationDirectory, "Manifest.json"),
             Request.ManifestLimits.MaxManifestBytes, ManifestBytes,
             &ManifestInfo))
-        return Fail(Asset::EAssetResult::NotFound,
+        return Fail(EAssetResult::NotFound,
             EPublishedCorruptionCategory::ManifestInvalid,
             "published.manifest.missing");
-    Asset::FAssetCookManifest Manifest;
-    if (Asset::FAssetCookContractCodec::ParseManifest(
+    FAssetCookManifest Manifest;
+    if (FAssetCookContractCodec::ParseManifest(
             ManifestBytes, Request.ManifestLimits, Manifest) !=
-            Asset::EAssetResult::Success)
-        return Fail(Asset::EAssetResult::CorruptPayload,
+            EAssetResult::Success)
+        return Fail(EAssetResult::CorruptPayload,
             EPublishedCorruptionCategory::ManifestInvalid,
             "published.manifest.invalid");
-    const auto ManifestDigest = Asset::FAssetDigest::FromBytes(ManifestBytes);
+    const auto ManifestDigest = FAssetDigest::FromBytes(ManifestBytes);
     if (Manifest.GenerationId != ExpectedGeneration)
-        return Fail(Asset::EAssetResult::Conflict,
+        return Fail(EAssetResult::Conflict,
             EPublishedCorruptionCategory::GenerationMismatch,
             "published.generation.identity-mismatch");
     if (Request.Subject == EPublishedValidationSubject::CurrentPointer &&
         ManifestDigest != Pointer.ManifestDigest)
-        return Fail(Asset::EAssetResult::Conflict,
+        return Fail(EAssetResult::Conflict,
             EPublishedCorruptionCategory::ManifestDigestMismatch,
             "published.manifest.digest-mismatch");
 
-    // QueryRegularFile returns the canonical spelling used by enumeration.
-    // Anchor expected paths there so Windows 8.3 aliases (for example the
-    // runner TEMP path) cannot make valid files appear unexpected.
     const Core::FString CanonicalGenerationDirectory(
         std::filesystem::path(ManifestInfo.Path.ToStdString())
             .parent_path().generic_string());
-    std::set<std::string> ExpectedFiles{Normalized(ManifestInfo.Path.ToStdString())};
+    std::set<std::string> ExpectedFiles{
+        Normalized(ManifestInfo.Path.ToStdString())};
     Core::uint32 ValidatedPayloads = 0;
     for (const auto& Record : Manifest.Records)
     {
-        const std::string Digest = Record.EnvelopeDigest.ToLowerHex().ToStdString();
+        const std::string Digest =
+            Record.EnvelopeDigest.ToLowerHex().ToStdString();
         const Core::FString ExpectedLocator(
             "Payloads/" + Digest.substr(0, 2) + "/" + Digest + ".sgasset");
         if (Record.PayloadLocator != ExpectedLocator)
-            return Fail(Asset::EAssetResult::Conflict,
+            return Fail(EAssetResult::Conflict,
                 EPublishedCorruptionCategory::PayloadMismatch,
                 "published.payload.locator-mismatch");
         const Core::FString PayloadPath = Join(
@@ -177,21 +185,23 @@ FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
         Core::TArray<Core::uint8> PayloadBytes;
         if (!ReadBounded(PayloadPath,
                 Request.PayloadLimits.MaxEnvelopeBytes, PayloadBytes))
-            return Fail(Asset::EAssetResult::NotFound,
+            return Fail(EAssetResult::NotFound,
                 EPublishedCorruptionCategory::PayloadMissing,
                 "published.payload.missing");
-        Core::TSharedPtr<const Asset::FAssetPayload> Payload;
-        Asset::FAssetCookedPayloadEnvelope Envelope;
+        Core::TSharedPtr<const FAssetPayload> Payload;
+        FAssetCookedPayloadEnvelope Envelope;
         if (PayloadBytes.size() != Record.PayloadBytes ||
-            Asset::FAssetCookContractCodec::LoadTypedPayload(
+            FAssetCookContractCodec::LoadTypedPayload(
                 PayloadBytes, Request.PayloadLimits, Payload, &Envelope) !=
-                Asset::EAssetResult::Success || !Payload ||
+                EAssetResult::Success || !Payload ||
             Envelope.Header.AssetId != Record.AssetId ||
             Envelope.Header.AssetType != Record.AssetType ||
             Envelope.Header.CodecId != Record.Codec.Id.ToString() ||
-            Envelope.Header.PayloadSchemaVersion != Record.PayloadSchemaVersion ||
+            !CodecVersionMatches(Record, Envelope) ||
+            Envelope.Header.PayloadSchemaVersion !=
+                Record.PayloadSchemaVersion ||
             Envelope.EnvelopeDigest != Record.EnvelopeDigest)
-            return Fail(Asset::EAssetResult::CorruptPayload,
+            return Fail(EAssetResult::CorruptPayload,
                 EPublishedCorruptionCategory::PayloadInvalid,
                 "published.payload.invalid");
         ++ValidatedPayloads;
@@ -204,7 +214,7 @@ FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
     Core::TArray<Core::FPlatformFileInfo> Files;
     if (!Core::FPlatformFileSystem::EnumerateRegularFiles(
             GenerationDirectory, Options, Files).IsSuccess())
-        return Fail(Asset::EAssetResult::AccessDenied,
+        return Fail(EAssetResult::AccessDenied,
             EPublishedCorruptionCategory::IoFailure,
             "published.generation.enumeration-failed");
     Core::uint32 UnexpectedFiles = 0;
@@ -212,16 +222,16 @@ FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
         if (!ExpectedFiles.contains(Normalized(File.Path.ToStdString())))
             ++UnexpectedFiles;
     if (Request.bRejectUnexpectedFiles && UnexpectedFiles != 0)
-        return Fail(Asset::EAssetResult::Conflict,
+        return Fail(EAssetResult::Conflict,
             EPublishedCorruptionCategory::UnexpectedFile,
             "published.generation.unexpected-file");
     if (Files.size() != ExpectedFiles.size() + UnexpectedFiles)
-        return Fail(Asset::EAssetResult::Conflict,
+        return Fail(EAssetResult::Conflict,
             EPublishedCorruptionCategory::PayloadMismatch,
             "published.generation.duplicate-or-ambiguous-files");
 
     FPublishedGenerationValidationResult Result;
-    Result.Result = Asset::EAssetResult::Success;
+    Result.Result = EAssetResult::Success;
     Result.Category = EPublishedCorruptionCategory::None;
     Result.StableReason = Core::FString("published.validate.success");
     Result.GenerationDirectory = GenerationDirectory;
@@ -233,4 +243,4 @@ FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
     return Result;
 }
 
-} // namespace Stoner::AssetCooker::Private
+} // namespace Stoner::Asset

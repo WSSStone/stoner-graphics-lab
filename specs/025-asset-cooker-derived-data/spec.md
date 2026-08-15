@@ -2,7 +2,7 @@
 
 **Feature Branch**: `025-asset-cooker-derived-data`  
 **Created**: 2026-08-14  
-**Status**: Draft  
+**Status**: Complete
 **Input**: User description: "为 roadmap 下一项制定 spec"
 
 ## Clarifications

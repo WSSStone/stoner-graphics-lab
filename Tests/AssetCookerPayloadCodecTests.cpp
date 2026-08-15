@@ -158,6 +158,15 @@ void TestUnknownContracts(FAssetCookerPayloadCodecTestResult& Result)
             EAssetResult::Unsupported,
         "unknown payload codec fails closed");
 
+    TArray<uint8> CodecVersion = Baseline;
+    const usize CodecVersionOffset = CodecOffset + 12;
+    CodecVersion[CodecVersionOffset] = 2;
+    Record(
+        Result,
+        FAssetCookContractCodec::ParseCookedPayload(
+            CodecVersion, {}, Parsed) == EAssetResult::UnsupportedSchema,
+        "unknown payload codec version fails closed");
+
     TArray<uint8> Schema = Baseline;
     const usize SchemaOffset = CodecOffset + 12 + 4;
     Schema[SchemaOffset] = 2;

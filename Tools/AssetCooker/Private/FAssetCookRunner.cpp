@@ -520,7 +520,8 @@ FAssetCookResult FAssetCookRunner::Run(
         const auto& KeyEvidence = PreparedNode.Evidence;
         const auto& DerivedKey = PreparedNode.DerivedKey;
         if (Envelope.Header.CodecId != KeyEvidence.CodecId.ToString() ||
-            Envelope.Header.CodecVersion != 1 ||
+            KeyEvidence.CodecVersion.ToString() != Core::FString(
+                std::to_string(Envelope.Header.CodecVersion)) ||
             Envelope.Header.PayloadSchemaVersion != KeyEvidence.PayloadSchemaVersion)
             return Fail(EAssetCookResultCategory::CookFailure,
                 "asset-cooker.envelope.contract-mismatch", OutReport);

@@ -1,6 +1,6 @@
 # Stoner Graphics Lab - Engine Development Roadmap
 
-> **Version**: 2.1.8 | **Created**: 2026-04-21 | **Last Updated**: 2026-08-15 | **Status**: Active
+> **Version**: 2.1.9 | **Created**: 2026-04-21 | **Last Updated**: 2026-08-15 | **Status**: Active
 > **Constitution**: v1.4.0
 > **Numbering Rule**: Every runtime phase number equals its Speckit feature number. Feature 002 is this roadmap meta-feature.
 > **Completed Baseline**: Features 001 and 003 through 025 are implemented and verified.
@@ -884,6 +884,9 @@ must produce identical asset identities and typed payload contracts.
   recorded under `Validation/025/`.
 - Runtime requests/handles/cache ownership remain in Feature 026; streaming,
   package archives, remote DDC, hot reload, and GPU residency remain excluded.
+- The bounded published-generation validator is an Asset public contract shared
+  by the offline Tool and future runtime consumers; unknown codec revisions fail
+  closed and manifest/envelope codec evidence must agree.
 
 #### Speckit Prompt
 ```text
@@ -901,20 +904,22 @@ Implement the offline Asset Cooker and derived-data pipeline on Features 021-024
 Load source-backed development assets or strict cooked manifests through one
 runtime contract. Schedule dependencies asynchronously, coalesce duplicate
 requests, retain typed handles, propagate failure/cancellation, and unload
-deterministically.
+deterministically. Reader leases expose live-generation evidence without giving
+the runtime ownership of offline pruning policy.
 
 #### Key Deliverables
 - `FAssetManager`, `FAssetRequestHandle`, and `TAssetHandle<T>`
 - Request state machine, dependency scheduler, coalescing, and cache ownership
 - Cancellation, failure propagation, reference retention, and deterministic unload
+- Published-generation reader leases and live-generation evidence for later safe maintenance
 - Concurrency, shutdown, repeated-load, strict-cooked-mode, and stress tests
 
 #### What's Excluded
-- Offline cooking, budget eviction, chunk streaming, GPU residency, hot reload, and network storage
+- Offline cooking, generation pruning, DDC garbage collection, budget eviction, chunk streaming, GPU residency, hot reload, and network storage
 
 #### Speckit Prompt
 ```text
-Implement the Runtime Asset Manager on Features 020 and 025: hybrid development source-backed loading and strict cooked-manifest loading with identical FAssetId and typed payload contracts; FAssetManager, FAssetRequestHandle, and TAssetHandle; asynchronous dependency scheduling, duplicate-request coalescing, cache ownership, cancellation, failure propagation, reference retention, deterministic unload, shutdown safety, diagnostics, concurrency and stress tests, and cross-platform CI. Exclude offline cooking, budget eviction, chunk streaming, GPU residency, hot reload, and network storage.
+Implement the Runtime Asset Manager on Features 020 and 025: hybrid development source-backed loading and strict cooked-manifest loading through the shared Asset generation validator with identical FAssetId and typed payload contracts; FAssetManager, FAssetRequestHandle, and TAssetHandle; asynchronous dependency scheduling, duplicate-request coalescing, cache ownership, cancellation, failure propagation, reference retention, deterministic unload, shutdown safety, published-generation reader leases and live-generation evidence, diagnostics, concurrency and stress tests, and cross-platform CI. Exclude offline cooking, generation pruning, DDC garbage collection, budget eviction, chunk streaming, GPU residency, hot reload, and network storage.
 ```
 
 ### Phase 027 — Backend: Metal
@@ -1313,6 +1318,7 @@ Meshlets:
 - **Skeletal Mesh and Animation**: add typed skeleton, skin, clip, and animation-graph assets after the static model contract stabilizes.
 - **Audio and Font assets**: add independent runtime consumers without changing core identity, registry, cooker, or manager contracts.
 - **Editor hot reload and asset database**: add editor-facing discovery, redirects, source watching, and searchable metadata without making the runtime depend on editor services.
+- **Cooked build maintenance and packaging**: consume Feature 026 reader-lease evidence to own generation retention, safe pruning, local DDC quarantine/GC, package archives, and optional remote DDC without moving offline policy into runtime modules.
 - **Android platform shell**: add lifecycle, native window, input, packaging, deployment, and device validation after the GLES backend is stable.
 
 ---
@@ -1330,6 +1336,7 @@ Meshlets:
 | Compressed formats expand RHI/backend scope | High | High | Isolate Feature 022 and require per-format backend capability tests |
 | Async cancellation races with unload | High | Medium | Explicit request state machine, retained handles, idempotent cleanup, stress tests |
 | Offline cooker and runtime manager drift | High | Medium | Separate Features 025/026 but require identical AssetId, manifest, and payload contracts |
+| Immutable generations and local DDC grow without bound | Medium | High | Feature 026 exposes reader leases; a future Tools/Packaging track owns retention, pruning, quarantine cleanup, and DDC GC |
 | Meshlet/BLAS/SDF data becomes a second authority | High | Medium | Treat all as versioned derived assets from canonical static meshes |
 | Vulkan assumptions leak before a second backend | High | Medium | Implement native Metal at 027 before advanced rendering expands |
 | Advanced rendering phases become multi-subsystem rewrites | High | High | Separate data, backend contracts, renderer effects, temporal methods, and final integration |

@@ -109,7 +109,6 @@ for tool_source in (
     'FAssetCookRunner.cpp',
     'FCookedGenerationPublisher.cpp',
     'FDerivedDataStore.cpp',
-    'FPublishedGenerationValidator.cpp',
     'FAssetSourceCatalog.cpp',
 ):
     objects.extend(test_env.Object(
@@ -170,9 +169,6 @@ publication_probe = test_env.Program(
         test_env.Object(
             'AssetCookerPublicationProbePublisher',
             File('#Tools/AssetCooker/Private/FCookedGenerationPublisher.cpp')),
-        test_env.Object(
-            'AssetCookerPublicationProbeValidator',
-            File('#Tools/AssetCooker/Private/FPublishedGenerationValidator.cpp')),
     ],
 )
 test_env.Depends(program, publication_probe)

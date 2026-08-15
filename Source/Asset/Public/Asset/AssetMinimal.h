@@ -11,6 +11,7 @@
 #include "Asset/FAssetCookedExtensions.h"
 #include "Asset/FAssetCookManifest.h"
 #include "Asset/FCurrentGenerationPointer.h"
+#include "Asset/FPublishedGenerationValidator.h"
 #include "Asset/FAssetDispatch.h"
 #include "Asset/FAssetExtensionRegistry.h"
 #include "Asset/FAssetId.h"

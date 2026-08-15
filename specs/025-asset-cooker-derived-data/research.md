@@ -352,8 +352,8 @@ root. The tool acquires the publication lease before creating or cleaning
 output-root staging, copies/finalizes the image there, validates every byte,
 re-verifies the input snapshot, and moves the absent generation directory into
 `Generations`. `Current.next` is durably written and atomically replaces
-`Current.json`. POSIX uses same-filesystem `rename`; Windows uses
-replace-existing move semantics through Core. Failure before pointer
+`Current.json`. POSIX uses same-filesystem `rename`; Windows uses Core's
+`ReplaceFileW` transaction path with a `MoveFileExW` fallback. Failure before pointer
 replacement leaves the old generation current.
 
 Successful atomic replacement is the commit point and returns committed
@@ -364,9 +364,11 @@ pointer; recovery validates whichever complete pointer is present.
 
 Successful immutable generations are not automatically pruned in Feature 025.
 This avoids deleting files while an external validator or future runtime reader
-uses them. Generation retention and reader-aware garbage collection move to
-Feature 026 or a later packaging phase. Failed staging is cleaned best-effort
-under the publication lease and is never addressable from `Current.json`.
+uses them. Feature 026 owns reader leases and live-generation evidence; a future
+Tools/Packaging maintenance track owns retention policy, generation pruning,
+local DDC garbage collection, and remote-cache evolution. Failed staging is
+cleaned best-effort under the publication lease and is never addressable from
+`Current.json`.
 
 **Rationale**: One file replacement is the observable commit point; replacing
 an entire non-empty directory portably is not. Keeping each generation
@@ -384,7 +386,8 @@ self-contained enables validation without the DDC or source tree.
 **Sources**:
 
 - [POSIX rename atomicity](https://pubs.opengroup.org/onlinepubs/9799919799/functions/rename.html)
-- [Windows MoveFileEx replacement](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw)
+- [Windows ReplaceFile](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew)
+- [Windows MoveFileEx fallback](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw)
 
 ## Manifest And Generation Identity
 
