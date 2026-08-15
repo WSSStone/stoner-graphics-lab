@@ -99,6 +99,9 @@ FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
 {
     if (Request.SubjectRoot.IsEmpty() || Request.MaxFiles == 0 ||
         Request.MaxPathBytes == 0 ||
+        (Request.Policy != EPublishedGenerationValidationPolicy::FullPayloads &&
+         Request.Policy !=
+             EPublishedGenerationValidationPolicy::IndexAndLayout) ||
         (Request.Subject == EPublishedValidationSubject::GenerationDirectory &&
          !Request.ExpectedGenerationId.has_value()))
         return Fail(EAssetResult::InvalidInput,
@@ -167,6 +170,7 @@ FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
     std::set<std::string> ExpectedFiles{
         Normalized(ManifestInfo.Path.ToStdString())};
     Core::uint32 ValidatedPayloads = 0;
+    Core::uint32 IndexedPayloads = 0;
     for (const auto& Record : Manifest.Records)
     {
         const std::string Digest =
@@ -183,6 +187,21 @@ FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
             CanonicalGenerationDirectory, Record.PayloadLocator.View())
                 .ToStdString()));
         Core::TArray<Core::uint8> PayloadBytes;
+        Core::FPlatformFileInfo PayloadInfo;
+        const auto PayloadStatus = Core::FPlatformFileSystem::QueryRegularFile(
+            PayloadPath, Request.PayloadLimits.MaxEnvelopeBytes, PayloadInfo);
+        if (!PayloadStatus.IsSuccess())
+            return Fail(EAssetResult::NotFound,
+                EPublishedCorruptionCategory::PayloadMissing,
+                "published.payload.missing");
+        if (PayloadInfo.ByteSize != Record.PayloadBytes)
+            return Fail(EAssetResult::CorruptPayload,
+                EPublishedCorruptionCategory::PayloadInvalid,
+                "published.payload.size-mismatch");
+        ++IndexedPayloads;
+        if (Request.Policy ==
+            EPublishedGenerationValidationPolicy::IndexAndLayout)
+            continue;
         if (!ReadBounded(PayloadPath,
                 Request.PayloadLimits.MaxEnvelopeBytes, PayloadBytes))
             return Fail(EAssetResult::NotFound,
@@ -239,6 +258,7 @@ FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
     Result.Manifest = std::move(Manifest);
     Result.ManifestDigest = ManifestDigest;
     Result.ValidatedPayloads = ValidatedPayloads;
+    Result.IndexedPayloads = IndexedPayloads;
     Result.UnexpectedFiles = UnexpectedFiles;
     return Result;
 }

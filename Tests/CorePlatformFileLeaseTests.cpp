@@ -223,6 +223,78 @@ FCorePlatformFileLeaseTestResult RunCorePlatformFileLeaseTests(
         "Native lease ownership is not inherited by child process");
     NonInherited.Release();
 
+    FPlatformFileLease SharedA;
+    FPlatformFileLease SharedB;
+    Record(Result,
+        FPlatformFileLease::Acquire(
+            FString(LeasePath.generic_string()),
+            EPlatformFileLeaseMode::Shared, 1000, FString(), SharedA)
+                .IsSuccess() &&
+        FPlatformFileLease::Acquire(
+            FString(LeasePath.generic_string()),
+            EPlatformFileLeaseMode::Shared, 1000, FString(), SharedB)
+                .IsSuccess(),
+        "Same-process shared leases coexist");
+    Record(Result,
+        RunProbe(Probe, "shared", LeasePath, 1000, 0) == 0,
+        "Cross-process shared leases coexist");
+    Record(Result,
+        RunProbe(Probe, "exclusive", LeasePath, 30, 0) == 9,
+        "Exclusive process lease times out while readers live");
+
+    FPlatformFileLease ExclusiveWhileShared;
+    Record(Result,
+        FPlatformFileLease::Acquire(
+            FString(LeasePath.generic_string()),
+            EPlatformFileLeaseMode::Exclusive, 30,
+            FString("owner=blocked\n"), ExclusiveWhileShared).Result ==
+            EPlatformFileResult::TimedOut,
+        "Same-process exclusive lease times out while readers live");
+    FPlatformFileLease MovedShared(std::move(SharedA));
+    Record(Result, MovedShared.IsHeld() && !SharedA.IsHeld(),
+        "Shared lease move transfers ownership exactly once");
+    MovedShared.Release();
+    SharedB.Release();
+
+    FPlatformFileLease ExclusiveAfterReaders;
+    Record(Result,
+        FPlatformFileLease::Acquire(
+            FString(LeasePath.generic_string()),
+            EPlatformFileLeaseMode::Exclusive, 1000,
+            FString("owner=after-readers\n"), ExclusiveAfterReaders)
+            .IsSuccess(),
+        "Exclusive lease succeeds after all readers release");
+    ExclusiveAfterReaders.Release();
+
+    Record(Result,
+        RunProbe(Probe, "shared-crash", LeasePath, 1000, 0) == 0,
+        "Shared lease probe exits abruptly after acquisition");
+    FPlatformFileLease ExclusiveAfterCrash;
+    Record(Result,
+        FPlatformFileLease::Acquire(
+            FString(LeasePath.generic_string()),
+            EPlatformFileLeaseMode::Exclusive, 1000,
+            FString("owner=after-reader-crash\n"), ExclusiveAfterCrash)
+            .IsSuccess(),
+        "Reader ownership is released by process exit");
+    ExclusiveAfterCrash.Release();
+
+    const std::filesystem::path OtherLeasePath = Root / "other-generation.lock";
+    FPlatformFileLease FirstGeneration;
+    FPlatformFileLease OtherGeneration;
+    Record(Result,
+        FPlatformFileLease::Acquire(
+            FString(LeasePath.generic_string()),
+            EPlatformFileLeaseMode::Exclusive, 1000, FString(), FirstGeneration)
+            .IsSuccess() &&
+        FPlatformFileLease::Acquire(
+            FString(OtherLeasePath.generic_string()),
+            EPlatformFileLeaseMode::Exclusive, 1000, FString(), OtherGeneration)
+            .IsSuccess(),
+        "Different generation lease paths never contend");
+    FirstGeneration.Release();
+    OtherGeneration.Release();
+
     std::filesystem::remove_all(Root, Error);
     return Result;
 }

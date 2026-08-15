@@ -27,6 +27,7 @@ struct FAssetExtensionCapability
     Core::TArray<Core::FString> Schemes;
     Core::TArray<Core::FString> FormatHints;
     Core::usize ProbeByteLimit = 0;
+    bool bRuntimeCompatible = false;
 };
 
 class IAssetExtension

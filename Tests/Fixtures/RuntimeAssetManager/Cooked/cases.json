@@ -1,0 +1,12 @@
+{
+  "schema": "stoner.runtime-asset-manager-cooked-cases",
+  "schemaVersion": 1,
+  "cases": [
+    {"id": "valid-publication", "expected": "success"},
+    {"id": "same-size-payload-corruption", "expected": "corrupt-payload"},
+    {"id": "required-extension-missing", "expected": "unsupported"},
+    {"id": "declared-validated-optional-fallback", "expected": "success"},
+    {"id": "undeclared-optional-fallback", "expected": "dependency-mismatch"},
+    {"id": "unsatisfied-optional-fallback", "expected": "dependency-mismatch"}
+  ]
+}

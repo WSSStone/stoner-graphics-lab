@@ -152,7 +152,7 @@ Asset::EAssetResult ImportImage(
     Parameters->Settings.MipPolicy = Asset::EImageMipPolicy::FullChain;
     return Asset::FAssetDispatch::Import(
         Registry,
-        Asset::FAssetImportRequest{Descriptor, Source, Parameters},
+        Asset::FAssetImportRequest{Descriptor, Source, Parameters, {}},
         Out);
 }
 
@@ -265,7 +265,7 @@ Asset::EAssetResult FAssetSourceCatalog::Discover(
                     Core::FString("content"), Core::FString(Relative), Locator) !=
                 Asset::EAssetResult::Success)
                 return Asset::EAssetResult::InvalidIdentity;
-            Asset::FAssetResolveResult Resolved = Resolver->Resolve({Locator});
+            Asset::FAssetResolveResult Resolved = Resolver->Resolve({Locator, {}});
             if (Resolved.Result != Asset::EAssetResult::Success)
                 return Resolved.Result;
             Core::TArray<Core::uint8> Bytes;

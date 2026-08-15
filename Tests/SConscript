@@ -85,6 +85,13 @@ private_defines_by_source = {
     'AssetKTX2Tests.cpp': ['KHRONOS_STATIC'],
 }
 
+# Runtime Asset Manager tests exercise private scheduling kernels without
+# exposing those implementation details through the public Asset API.
+for cpp_file in cpp_files:
+    if cpp_file.startswith('AssetManager'):
+        private_include_paths_by_source.setdefault(cpp_file, []).append(
+            Dir('#Source/Asset/Private').abspath)
+
 objects = []
 for cpp_file in cpp_files:
     source = os.path.join(rel_src_dir, cpp_file)
@@ -115,6 +122,10 @@ for tool_source in (
         os.path.join('AssetCookerTool', tool_source[:-4]),
         File('#Tools/AssetCooker/Private/' + tool_source),
     ))
+
+controlled_loader_source = '#Tests/Helpers/AssetManagerControlledLoader.cpp'
+if os.path.isfile(File(controlled_loader_source).srcnode().abspath):
+    objects.extend(test_env.Object(File(controlled_loader_source)))
 
 # Build output base
 config_display = 'Debug' if config == 'debug' else 'Release'
@@ -172,6 +183,17 @@ publication_probe = test_env.Program(
     ],
 )
 test_env.Depends(program, publication_probe)
+
+# Feature 026 process helpers are introduced test-first. Build the probe as soon
+# as its source enters the fixture tree.
+generation_lease_probe = None
+generation_lease_probe_source = '#Tests/Helpers/GenerationReaderLeaseProbe.cpp'
+if os.path.isfile(File(generation_lease_probe_source).srcnode().abspath):
+    generation_lease_probe = test_env.Program(
+        'GenerationReaderLeaseProbe',
+        [File(generation_lease_probe_source)],
+    )
+    test_env.Depends(program, generation_lease_probe)
 
 asset_benchmark = None
 if ARGUMENTS.get('asset_benchmark', '0').lower() in ('1', 'true', 'yes', 'on'):
@@ -276,4 +298,29 @@ asset_cooker_contracts = test_env.Command(
     ),
 )
 test_env.Depends(program, asset_cooker_contracts)
-Return('program', 'asset_benchmark', 'lease_probe')
+
+runtime_asset_manager_script = File('#Tests/verify_runtime_asset_manager.py')
+runtime_asset_manager_stamp = File('RuntimeAssetManagerContracts.stamp')
+
+def _verify_runtime_asset_manager(target, source, env):
+    command = [
+        sys.executable,
+        source[0].srcnode().abspath,
+        '--root',
+        Dir('#').abspath,
+        '--stamp',
+        target[0].abspath,
+    ]
+    return subprocess.run(command, check=False).returncode
+
+runtime_asset_manager_contracts = test_env.Command(
+    runtime_asset_manager_stamp,
+    [runtime_asset_manager_script],
+    Action(
+        _verify_runtime_asset_manager,
+        'Verifying Runtime Asset Manager contracts and architecture',
+    ),
+)
+test_env.Depends(program, runtime_asset_manager_contracts)
+
+Return('program', 'asset_benchmark', 'lease_probe', 'generation_lease_probe')

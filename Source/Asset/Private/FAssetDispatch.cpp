@@ -78,7 +78,8 @@ FAssetResolveResult FAssetDispatch::Resolve(
             Candidates.end(),
             [&Request](const FAssetExtensionCapability& Capability)
             {
-                return !Contains(Capability.Schemes, Request.Location.GetScheme());
+                return !Contains(Capability.Schemes, Request.Location.GetScheme()) ||
+                    (Request.RuntimeContext && !Capability.bRuntimeCompatible);
             }),
         Candidates.end());
     if (Candidates.empty())
@@ -126,7 +127,7 @@ EAssetResult FAssetDispatch::Import(
 {
     return Import(
         Registry,
-        FAssetImportRequest{Descriptor, Source, {}},
+        FAssetImportRequest{Descriptor, Source, {}, {}},
         OutOutputs,
         Diagnostics);
 }
@@ -139,6 +140,14 @@ EAssetResult FAssetDispatch::Import(
 {
     OutOutputs.clear();
     auto Candidates = Registry.Snapshot(EAssetExtensionKind::Importer);
+    if (Request.RuntimeContext)
+        Candidates.erase(
+            std::remove_if(Candidates.begin(), Candidates.end(),
+                [](const FAssetExtensionCapability& Capability)
+                {
+                    return !Capability.bRuntimeCompatible;
+                }),
+            Candidates.end());
     // Format hints are advisory. Every registered importer still receives a
     // bounded probe so misleading or absent extensions cannot override content.
     if (Candidates.size() > 64)

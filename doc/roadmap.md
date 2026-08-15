@@ -1,6 +1,6 @@
 # Stoner Graphics Lab - Engine Development Roadmap
 
-> **Version**: 2.1.9 | **Created**: 2026-04-21 | **Last Updated**: 2026-08-15 | **Status**: Active
+> **Version**: 2.1.10 | **Created**: 2026-04-21 | **Last Updated**: 2026-08-15 | **Status**: Active
 > **Constitution**: v1.4.0
 > **Numbering Rule**: Every runtime phase number equals its Speckit feature number. Feature 002 is this roadmap meta-feature.
 > **Completed Baseline**: Features 001 and 003 through 025 are implemented and verified.
@@ -68,7 +68,9 @@ and deferred paths. Features 020 through 025 establish the Asset delivery founda
 stable identity/registry, source images and textures, KTX2 cooking, versioned
 Material/Shader definitions, and canonical static mesh/model ingestion with
 Renderer RHI realization, deterministic offline cooking, manifests, and local
-derived data. The next critical gap is managed asynchronous runtime loading.
+derived data. Feature 026 has implemented managed asynchronous runtime loading
+and passed its local Debug/strict Release/full-regression gates; required remote
+cross-platform and sanitizer CI remains before closeout.
 
 Roadmap 2.1 adds Asset as an independent runtime layer. It separates source
 interchange, cooked delivery, runtime management, and GPU realization so that
@@ -99,12 +101,12 @@ through screen-space, derived-data, and hybrid integration milestones.
 - [OpenUSD Asset Resolution](https://openusd.org/release/api/ar_page_front.html) informs logical identifiers and replaceable resolver strategies; USD composition itself remains a later Scene/Prefab concern.
 - [Unreal Asset Management](https://dev.epicgames.com/documentation/en-us/unreal-engine/asset-management-in-unreal-engine) supports separating unloaded metadata, soft references, asynchronous loading, and residency ownership.
 
-### Current State (Feature 025 Complete; Feature 026 Next)
+### Current State (Feature 026 Local Implementation Complete; Remote CI Pending)
 
 | Ownership Area | Status | Current Capability |
 |---|---|---|
 | Core | Done | Types, memory, math, logging, assertions, durable file transactions, native leases, long-path-safe filesystem/process/time/window handles |
-| Asset | Offline delivery foundation done | Typed source assets, target profiles, cooked payload envelopes, canonical manifests, derived keys, and runtime-consumable codecs |
+| Asset | Runtime manager locally validated | Typed source/cooked loading, async dependency scheduling, coalescing, cancellation, typed handles, deterministic unload, completion pump, inspection, and generation reader leases |
 | Tools | Asset Cooker done | Deterministic graph/snapshot scheduling, local immutable DDC, incremental invalidation, atomic generation publication, strict validation, CLI, and normalized reports |
 | RHI | Static-mesh transfer contracts done | Device/resources plus compressed formats, bounded buffer upload, and complete indexed-draw arguments |
 | Backend/Vulkan | Static-mesh native evidence done | Native/fallback resources plus compressed formats, buffer upload, indexed draw mapping, cleanup, and Lavapipe attachment readback |
@@ -186,7 +188,7 @@ depend on Tools.
 | 023 | Material & Shader Assets | Asset | 014, 020, 021 | XL | Yes | ✅ Done |
 | 024 | Static Mesh & Model Pipeline | Asset | 004, 008, 020, 021, 023 | XL | Yes | ✅ Done |
 | 025 | Cooker, Manifest & Derived Data | Asset | 021, 022, 023, 024 | XL | Yes | ✅ Done |
-| 026 | Runtime Asset Manager | Asset | 020, 025 | XL | Yes | ⬜ Todo |
+| 026 | Runtime Asset Manager | Asset | 020, 025 | XL | Yes | 🔄 In Progress |
 | 027 | Metal Backend | Backend | 008, 016, 018, 023, 025 | XL | No | ⬜ Todo |
 | 028 | Meshlet Derived Data | Asset | 024, 025, 026 | XL | No | ⬜ Todo |
 | 029 | GPU-Driven Visibility & LOD | Renderer | 013, 028 | XL | No | ⬜ Todo |
@@ -917,6 +919,20 @@ the runtime ownership of offline pruning policy.
 #### What's Excluded
 - Offline cooking, generation pruning, DDC garbage collection, budget eviction, chunk streaming, GPU residency, hot reload, and network storage
 
+#### Local Implementation Evidence
+- Development and strict cooked loading share typed Asset identities and payload
+  contracts; cooked mode validates and binds one immutable generation and never
+  falls back to source import.
+- Request/operation/dependency ownership, per-caller cancellation, typed-handle
+  retention, deterministic zero-reference unload, explicit completion pumping,
+  bounded inspection, and cross-process generation reader leases are implemented.
+- macOS Debug, strict Release, focused validation, M4 Pro benchmark gates, and
+  complete Debug/Release regression passed; normalized reports are stored under
+  `Validation/026/reports/`.
+- The phase remains `In Progress` until the current revision passes all eight
+  required Windows/macOS/Linux Debug/strict Release and Linux sanitizer jobs and
+  their artifact conclusions are recorded in `Validation/026/CI/README.md`.
+
 #### Speckit Prompt
 ```text
 Implement the Runtime Asset Manager on Features 020 and 025: hybrid development source-backed loading and strict cooked-manifest loading through the shared Asset generation validator with identical FAssetId and typed payload contracts; FAssetManager, FAssetRequestHandle, and TAssetHandle; asynchronous dependency scheduling, duplicate-request coalescing, cache ownership, cancellation, failure propagation, reference retention, deterministic unload, shutdown safety, published-generation reader leases and live-generation evidence, diagnostics, concurrency and stress tests, and cross-platform CI. Exclude offline cooking, generation pruning, DDC garbage collection, budget eviction, chunk streaming, GPU residency, hot reload, and network storage.
@@ -1370,12 +1386,13 @@ Meshlets:
 5. Run `/speckit.implement`, validate locally and in required CI, and retain evidence.
 6. Mark the phase `✅ Done`, update Current State, dependency styling if used, and this change log.
 
-Feature 025 Asset: Cooker, Manifest & Derived Data is complete. It delivered
-target profiles, deterministic cook graphs and input snapshots, typed payload
-envelopes, canonical manifests, local immutable DDC, incremental invalidation,
-atomic generation publication, standalone validation, normalized reports,
-performance/corruption evidence, and passing three-platform sanitizer CI.
-Feature 026 Asset: Runtime Asset Manager is the next critical-path phase.
+Feature 026 Asset: Runtime Asset Manager has completed implementation and local
+validation. It delivered hybrid source/cooked typed loading, dependency
+scheduling, duplicate work coalescing with independent cancellation, immutable
+handles, deterministic unload, explicit completion pumping, bounded inspection,
+shutdown safety, and generation reader leases. It remains the active phase until
+the required eight-job remote CI matrix passes; Feature 027 Metal is next only
+after that closeout.
 
 ### Status Legend
 
@@ -1392,6 +1409,7 @@ Feature 026 Asset: Runtime Asset Manager is the next critical-path phase.
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-15 | 2.1.10 | Recorded Feature 026 local implementation, Debug/strict Release/full-regression and M4 Pro evidence; retained In Progress status pending the required eight-job Windows/macOS/Linux and sanitizer CI matrix. |
 | 2026-08-15 | 2.1.8 | Marked Feature 025 complete after GitHub Actions run 31827665459 passed all eight Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan jobs, archived normalized corruption and benchmark artifacts, and activated Feature 026 Runtime Asset Manager as the next roadmap target. |
 | 2026-08-14 | 2.1.7 | Marked Feature 024 complete after GitHub Actions run 31766671726 passed Windows/macOS/Linux Debug and strict Release, Linux ASan/UBSan/TSan, refreshed Feature 018/019 native evidence, and native run 31766671729 passed indexed-clockwise static-mesh attachment readback; activated Feature 025 as the next roadmap target. |
 | 2026-08-13 | 2.1.6 | Marked Feature 024 In Progress after its blocking coordinate, Material v2, RHI transfer, static-mesh value, container, parser, and accessor foundations passed local strict Debug/Release and regression gates; retained complete glTF import and closeout as pending work. |

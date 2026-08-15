@@ -51,7 +51,14 @@ enum class EAssetResult : Core::uint8
     TargetUnavailable,
     AmbiguousTarget,
     InvalidMaterialAsset,
-    InvalidInstanceChain
+    InvalidInstanceChain,
+    InvalidHandle,
+    NotReady,
+    Cancelled,
+    ShuttingDown,
+    ReentrantPump,
+    DeadlineExceeded,
+    SourceChanged
 };
 
 enum class EAssetStage : Core::uint8

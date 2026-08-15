@@ -15,7 +15,7 @@ class FMaterialShaderDefinitionImporter final : public IAssetImporter
 public:
     [[nodiscard]] FAssetExtensionCapability GetCapability() const override
     {
-        return {
+        FAssetExtensionCapability Result{
             EAssetExtensionKind::Importer,
             Participant(),
             ProducerVersion(),
@@ -26,6 +26,8 @@ public:
                 Core::FString("material.json"),
                 Core::FString("material-instance.json")},
             4096};
+        Result.bRuntimeCompatible = true;
+        return Result;
     }
 
     [[nodiscard]] FAssetProbeResult Probe(
@@ -55,7 +57,7 @@ public:
         Core::TArray<FAssetImportOutput>& OutOutputs) override
     {
         return Import(
-            FAssetImportRequest{Descriptor, Source, {}},
+            FAssetImportRequest{Descriptor, Source, {}, {}},
             OutOutputs,
             nullptr);
     }
@@ -66,6 +68,8 @@ public:
         FAssetDiagnosticList* Diagnostics) override
     {
         OutOutputs.clear();
+        if (Request.RuntimeContext && Request.RuntimeContext->ShouldStop())
+            return EAssetResult::Cancelled;
         FMaterialShaderLoadRequest LoadRequest;
         LoadRequest.Descriptor = Request.Descriptor;
         LoadRequest.Source = Request.Source;
@@ -75,12 +79,15 @@ public:
                     Request.Parameters))
         {
             LoadRequest.ExpectedId = Parameters->ExpectedId;
+            LoadRequest.Extensions = Parameters->Extensions.get();
             LoadRequest.Limits = Parameters->Limits;
             LoadRequest.bLoadDependencies =
                 Parameters->bLoadDependencies;
         }
         FMaterialShaderLoadResult Loaded =
             FMaterialShaderSourceLoader::Load(LoadRequest);
+        if (Request.RuntimeContext && Request.RuntimeContext->ShouldStop())
+            return EAssetResult::Cancelled;
         if (Diagnostics)
         {
             Diagnostics->insert(

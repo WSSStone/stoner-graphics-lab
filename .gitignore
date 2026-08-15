@@ -54,3 +54,7 @@ CodeReview/Runs/*
 Saved/DerivedDataCache/
 Saved/Cooked/
 Saved/Feature025*/
+
+# Feature 026 local Runtime Asset Manager state
+Saved/Feature026*/
+Validation/026/work/

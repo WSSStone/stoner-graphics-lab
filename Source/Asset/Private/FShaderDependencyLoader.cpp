@@ -113,7 +113,7 @@ EAssetResult ResolveBytes(
     }
     FAssetResolveResult Resolved = FAssetDispatch::Resolve(
         *Request.Extensions,
-        {OutLocation},
+        {OutLocation, {}},
         Diagnostics);
     if (Resolved.Result != EAssetResult::Success)
     {

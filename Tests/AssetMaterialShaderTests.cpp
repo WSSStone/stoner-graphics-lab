@@ -512,7 +512,8 @@ void TestCanonicalOwnershipAndRollback(
     FAssetImportRequest ImportRequest{
         LoadRequest.Descriptor,
         LoadRequest.Source,
-        Parameters};
+        Parameters,
+        {}};
     const auto Failed = bRegistered
         ? FMaterialShaderImportService::ImportAndRegister(
               Extensions, Registry, ImportRequest)

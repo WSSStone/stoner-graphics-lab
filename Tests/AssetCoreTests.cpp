@@ -539,7 +539,7 @@ void TestResolverDispatch(FAssetCoreTestResult& Result)
     const bool Registered =
         Registry.Register(Low, LowToken) == EAssetResult::Success &&
         Registry.Register(High, HighToken) == EAssetResult::Success;
-    FAssetResolveRequest Request{MakeSource("mem", "missing")};
+    FAssetResolveRequest Request{MakeSource("mem", "missing"), {}};
     const FAssetResolveResult Winner = FAssetDispatch::Resolve(Registry, Request);
     Record(
         Result,

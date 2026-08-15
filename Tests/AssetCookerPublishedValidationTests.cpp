@@ -114,6 +114,17 @@ RunAssetCookerPublishedValidationTests()
         DirectResult.Result == Asset::EAssetResult::Success,
         "Asset exposes the shared installed-generation validator to runtime consumers");
 
+    Asset::FPublishedGenerationValidationRequest IndexOnly = Direct;
+    IndexOnly.Policy =
+        Asset::EPublishedGenerationValidationPolicy::IndexAndLayout;
+    const auto Indexed =
+        Asset::FPublishedGenerationValidator::Validate(IndexOnly);
+    Record(Result.Passed, Result.Failed,
+        Indexed.Result == Asset::EAssetResult::Success &&
+            Indexed.IndexedPayloads == SeedRun.Result.Manifest.Records.size() &&
+            Indexed.ValidatedPayloads == 0,
+        "index-and-layout policy binds records without decoding payload bodies");
+
     const auto CodecMismatchDirectory = Root / "CodecMismatch";
     std::filesystem::copy(
         std::filesystem::path(Published.GenerationDirectory.ToStdString()),
@@ -191,6 +202,17 @@ RunAssetCookerPublishedValidationTests()
         SeedRun.Result.Manifest.GenerationId.ToLowerHex().ToStdString() /
         AssetRecord.PayloadLocator.ToStdString();
     const auto Payload = Read(PayloadPath);
+    auto SameSizeCorrupt = Payload;
+    SameSizeCorrupt.back() ^= 0x01U;
+    Write(PayloadPath, SameSizeCorrupt);
+    Record(Result.Passed, Result.Failed,
+        Asset::FPublishedGenerationValidator::Validate(IndexOnly).Result ==
+            Asset::EAssetResult::Success &&
+        ValidateCurrent(Output).Category ==
+            Private::EPublishedCorruptionCategory::PayloadInvalid,
+        "index-only startup defers body decoding while full validation detects corruption");
+    Write(PayloadPath, Payload);
+
     auto Truncated = Payload;
     Truncated.pop_back();
     Write(PayloadPath, Truncated);

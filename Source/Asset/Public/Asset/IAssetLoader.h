@@ -6,6 +6,7 @@
 #include "Asset/FAssetPayload.h"
 #include "Asset/FAssetSource.h"
 #include "Asset/FAssetTargetProfile.h"
+#include "Asset/FAssetRuntimeExecutionContext.h"
 
 #include <utility>
 
@@ -24,6 +25,7 @@ struct FAssetLoadRequest
     FAssetSourceLease Source;
     Core::TSharedPtr<const FAssetLoadParameters> Parameters;
     Core::TSharedPtr<const FAssetTargetProfileEvidence> TargetProfileEvidence;
+    Core::TSharedPtr<const FAssetRuntimeExecutionContext> RuntimeContext;
 };
 
 struct FAssetLoadResult

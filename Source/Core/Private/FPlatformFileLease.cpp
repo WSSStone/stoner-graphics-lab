@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <thread>
 #include <unordered_map>
 
@@ -30,9 +31,11 @@ namespace
 using FClock = std::chrono::steady_clock;
 
 std::mutex GLeaseRegistryMutex;
-std::unordered_map<std::string, std::weak_ptr<std::mutex>> GLeaseRegistry;
+std::unordered_map<std::string, std::weak_ptr<std::shared_timed_mutex>>
+    GLeaseRegistry;
 
-std::shared_ptr<std::mutex> GetProcessLeaseMutex(const FString& Path)
+std::shared_ptr<std::shared_timed_mutex> GetProcessLeaseMutex(
+    const FString& Path)
 {
     std::lock_guard<std::mutex> Guard(GLeaseRegistryMutex);
     const std::string Key = Path.ToStdString();
@@ -43,7 +46,7 @@ std::shared_ptr<std::mutex> GetProcessLeaseMutex(const FString& Path)
             return Existing;
         }
     }
-    auto Created = std::make_shared<std::mutex>();
+    auto Created = std::make_shared<std::shared_timed_mutex>();
     GLeaseRegistry[Key] = Created;
     return Created;
 }
@@ -61,10 +64,13 @@ FPlatformFileStatus LeaseStatus(
 struct FPlatformFileLease::FImpl
 {
     FString Path;
-    std::shared_ptr<std::mutex> ProcessMutex;
-    std::unique_lock<std::mutex> ProcessLock;
+    EPlatformFileLeaseMode Mode = EPlatformFileLeaseMode::Exclusive;
+    std::shared_ptr<std::shared_timed_mutex> ProcessMutex;
+    std::unique_lock<std::shared_timed_mutex> ExclusiveProcessLock;
+    std::shared_lock<std::shared_timed_mutex> SharedProcessLock;
 #if SG_PLATFORM_WINDOWS
     HANDLE Handle = INVALID_HANDLE_VALUE;
+    OVERLAPPED LockRange{};
 #else
     int Descriptor = -1;
 #endif
@@ -95,6 +101,18 @@ FPlatformFileStatus FPlatformFileLease::Acquire(
     const FString& OwnerMetadata,
     FPlatformFileLease& OutLease)
 {
+    return Acquire(
+        LeasePath, EPlatformFileLeaseMode::Exclusive, TimeoutMilliseconds,
+        OwnerMetadata, OutLease);
+}
+
+FPlatformFileStatus FPlatformFileLease::Acquire(
+    const FString& LeasePath,
+    EPlatformFileLeaseMode Mode,
+    uint64 TimeoutMilliseconds,
+    const FString& OwnerMetadata,
+    FPlatformFileLease& OutLease)
+{
     if (LeasePath.IsEmpty() || TimeoutMilliseconds > 600000 || OutLease.IsHeld())
     {
         return LeaseStatus(EPlatformFileResult::InvalidArgument, 0, "lease:arguments");
@@ -121,20 +139,25 @@ FPlatformFileStatus FPlatformFileLease::Acquire(
         FClock::now() + std::chrono::milliseconds(TimeoutMilliseconds);
     auto Candidate = TUniquePtr<FImpl>(new FImpl());
     Candidate->Path = NormalizedPath;
+    Candidate->Mode = Mode;
     Candidate->ProcessMutex = GetProcessLeaseMutex(NormalizedPath);
-    Candidate->ProcessLock =
-        std::unique_lock<std::mutex>(*Candidate->ProcessMutex, std::defer_lock);
-    while (!Candidate->ProcessLock.try_lock())
+    bool ProcessAcquired = false;
+    if (Mode == EPlatformFileLeaseMode::Shared)
     {
-        const auto Now = FClock::now();
-        if (Now >= Deadline)
-        {
-            return LeaseStatus(
-                EPlatformFileResult::TimedOut, 0, "lease:process-timeout");
-        }
-        std::this_thread::sleep_until(std::min(
-            Deadline, Now + std::chrono::milliseconds(10)));
+        Candidate->SharedProcessLock = std::shared_lock<std::shared_timed_mutex>(
+            *Candidate->ProcessMutex, std::defer_lock);
+        ProcessAcquired = Candidate->SharedProcessLock.try_lock_until(Deadline);
     }
+    else
+    {
+        Candidate->ExclusiveProcessLock =
+            std::unique_lock<std::shared_timed_mutex>(
+                *Candidate->ProcessMutex, std::defer_lock);
+        ProcessAcquired = Candidate->ExclusiveProcessLock.try_lock_until(Deadline);
+    }
+    if (!ProcessAcquired)
+        return LeaseStatus(
+            EPlatformFileResult::TimedOut, 0, "lease:process-timeout");
 
 #if SG_PLATFORM_WINDOWS
     for (;;)
@@ -142,7 +165,7 @@ FPlatformFileStatus FPlatformFileLease::Acquire(
         Candidate->Handle = ::CreateFileW(
             CanonicalPath.c_str(),
             GENERIC_READ | GENERIC_WRITE,
-            FILE_SHARE_READ,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
             nullptr,
             OPEN_ALWAYS,
             FILE_ATTRIBUTE_NORMAL,
@@ -172,8 +195,36 @@ FPlatformFileStatus FPlatformFileLease::Acquire(
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
-    if (!::SetFilePointerEx(Candidate->Handle, {}, nullptr, FILE_BEGIN) ||
-        !::SetEndOfFile(Candidate->Handle))
+    for (;;)
+    {
+        DWORD Flags = LOCKFILE_FAIL_IMMEDIATELY;
+        if (Mode == EPlatformFileLeaseMode::Exclusive)
+            Flags |= LOCKFILE_EXCLUSIVE_LOCK;
+        if (::LockFileEx(
+                Candidate->Handle, Flags, 0, 1, 0, &Candidate->LockRange))
+            break;
+        const DWORD NativeError = GetLastError();
+        if (NativeError != ERROR_LOCK_VIOLATION &&
+            NativeError != ERROR_SHARING_VIOLATION)
+        {
+            ::CloseHandle(Candidate->Handle);
+            Candidate->Handle = INVALID_HANDLE_VALUE;
+            return LeaseStatus(EPlatformFileResult::IoError,
+                static_cast<int64>(NativeError), "lease:lock");
+        }
+        if (FClock::now() >= Deadline)
+        {
+            ::CloseHandle(Candidate->Handle);
+            Candidate->Handle = INVALID_HANDLE_VALUE;
+            return LeaseStatus(EPlatformFileResult::TimedOut,
+                static_cast<int64>(NativeError), "lease:native-timeout");
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    if (Mode == EPlatformFileLeaseMode::Exclusive &&
+        (!::SetFilePointerEx(Candidate->Handle, {}, nullptr, FILE_BEGIN) ||
+         !::SetEndOfFile(Candidate->Handle)))
     {
         const DWORD NativeError = GetLastError();
         ::CloseHandle(Candidate->Handle);
@@ -185,7 +236,7 @@ FPlatformFileStatus FPlatformFileLease::Acquire(
     }
     const std::string& Metadata = OwnerMetadata.ToStdString();
     DWORD Written = 0;
-    if (!Metadata.empty() &&
+    if (Mode == EPlatformFileLeaseMode::Exclusive && !Metadata.empty() &&
         (!::WriteFile(
              Candidate->Handle,
              Metadata.data(),
@@ -202,7 +253,8 @@ FPlatformFileStatus FPlatformFileLease::Acquire(
             static_cast<int64>(NativeError),
             "lease:metadata-write");
     }
-    if (!::FlushFileBuffers(Candidate->Handle))
+    if (Mode == EPlatformFileLeaseMode::Exclusive &&
+        !::FlushFileBuffers(Candidate->Handle))
     {
         const DWORD NativeError = GetLastError();
         ::CloseHandle(Candidate->Handle);
@@ -228,7 +280,10 @@ FPlatformFileStatus FPlatformFileLease::Acquire(
 
     for (;;)
     {
-        if (::flock(Candidate->Descriptor, LOCK_EX | LOCK_NB) == 0)
+        const int LockMode = Mode == EPlatformFileLeaseMode::Shared
+            ? LOCK_SH
+            : LOCK_EX;
+        if (::flock(Candidate->Descriptor, LockMode | LOCK_NB) == 0)
         {
             break;
         }
@@ -254,8 +309,9 @@ FPlatformFileStatus FPlatformFileLease::Acquire(
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
-    if (::ftruncate(Candidate->Descriptor, 0) != 0 ||
-        ::lseek(Candidate->Descriptor, 0, SEEK_SET) < 0)
+    if (Mode == EPlatformFileLeaseMode::Exclusive &&
+        (::ftruncate(Candidate->Descriptor, 0) != 0 ||
+         ::lseek(Candidate->Descriptor, 0, SEEK_SET) < 0))
     {
         const int NativeError = errno;
         ::close(Candidate->Descriptor);
@@ -267,7 +323,8 @@ FPlatformFileStatus FPlatformFileLease::Acquire(
     }
     const std::string& Metadata = OwnerMetadata.ToStdString();
     usize Offset = 0;
-    while (Offset < Metadata.size())
+    while (Mode == EPlatformFileLeaseMode::Exclusive &&
+           Offset < Metadata.size())
     {
         const ssize_t Written = ::write(
             Candidate->Descriptor,
@@ -289,7 +346,8 @@ FPlatformFileStatus FPlatformFileLease::Acquire(
         }
         Offset += static_cast<usize>(Written);
     }
-    if (::fsync(Candidate->Descriptor) != 0)
+    if (Mode == EPlatformFileLeaseMode::Exclusive &&
+        ::fsync(Candidate->Descriptor) != 0)
     {
         const int NativeError = errno;
         ::close(Candidate->Descriptor);
@@ -333,6 +391,7 @@ void FPlatformFileLease::Release() noexcept
 #if SG_PLATFORM_WINDOWS
     if (Impl->Handle != INVALID_HANDLE_VALUE)
     {
+        (void)::UnlockFileEx(Impl->Handle, 0, 1, 0, &Impl->LockRange);
         ::CloseHandle(Impl->Handle);
         Impl->Handle = INVALID_HANDLE_VALUE;
     }

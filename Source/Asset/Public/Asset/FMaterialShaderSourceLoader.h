@@ -26,6 +26,7 @@ class FMaterialShaderImportParameters final : public FAssetImportParameters
 {
 public:
     FAssetId ExpectedId;
+    Core::TSharedPtr<const FAssetExtensionRegistry> Extensions;
     FMaterialShaderAssetLimits Limits;
     bool bLoadDependencies = true;
 };

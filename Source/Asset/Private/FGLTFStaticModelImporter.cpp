@@ -917,6 +917,7 @@ FAssetExtensionCapability FGLTFStaticModelImporter::GetCapability() const
     Capability.ProducerVersion = ImporterVersion();
     Capability.FormatHints = {Core::FString("gltf"), Core::FString("glb")};
     Capability.ProbeByteLimit = 64U * 1024U;
+    Capability.bRuntimeCompatible = true;
     return Capability;
 }
 
@@ -946,7 +947,8 @@ EAssetResult FGLTFStaticModelImporter::Import(
     const FAssetSourceLease& Source,
     Core::TArray<FAssetImportOutput>& OutOutputs)
 {
-    return Import(FAssetImportRequest{Descriptor, Source, {}}, OutOutputs, nullptr);
+    return Import(
+        FAssetImportRequest{Descriptor, Source, {}, {}}, OutOutputs, nullptr);
 }
 
 EAssetResult FGLTFStaticModelImporter::Import(
@@ -962,6 +964,8 @@ EAssetResult FGLTFStaticModelImporter::Import(
     FAssetDiagnosticList* Diagnostics)
 {
     if (Diagnostics != nullptr) Diagnostics->clear();
+    if (Request.RuntimeContext && Request.RuntimeContext->ShouldStop())
+        return EAssetResult::Cancelled;
     const auto Profile = std::dynamic_pointer_cast<const FStaticModelImportProfile>(
         Request.Parameters);
     if (!Profile || Profile->Validate() != EAssetResult::Success ||
@@ -983,6 +987,8 @@ EAssetResult FGLTFStaticModelImporter::Import(
             Request, *Profile, SourceBytes, nullptr, CandidateOutputs, Diagnostics,
             nullptr);
     }
+    if (Request.RuntimeContext && Request.RuntimeContext->ShouldStop())
+        Result = EAssetResult::Cancelled;
     if (Result != EAssetResult::Success)
     {
         AddDiagnostic(Diagnostics, EAssetStage::Import, Result, Request,

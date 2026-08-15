@@ -105,6 +105,13 @@ FKTX2TextureRealizationResult Failure(
     case EAssetResult::AmbiguousTarget:
     case EAssetResult::InvalidMaterialAsset:
     case EAssetResult::InvalidInstanceChain:
+    case EAssetResult::InvalidHandle:
+    case EAssetResult::NotReady:
+    case EAssetResult::Cancelled:
+    case EAssetResult::ShuttingDown:
+    case EAssetResult::ReentrantPump:
+    case EAssetResult::DeadlineExceeded:
+    case EAssetResult::SourceChanged:
         return ERHIResult::Failed;
     }
     return ERHIResult::Failed;

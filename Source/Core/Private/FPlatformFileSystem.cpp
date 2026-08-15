@@ -224,6 +224,31 @@ bool FPlatformFileSystem::CreateDirectory(const FString& Path)
     return !Error && std::filesystem::is_directory(Directory, Error) && !Error;
 }
 
+FPlatformFileStatus FPlatformFileSystem::CanonicalizeExistingPath(
+    const FString& Path,
+    FString& OutCanonicalPath)
+{
+    OutCanonicalPath = {};
+    if (Path.IsEmpty())
+        return Detail::MakeFileStatus(
+            EPlatformFileResult::InvalidArgument, 0, "canonicalize:arguments");
+    std::error_code Error;
+    auto Canonical = CanonicalExisting(Detail::ToNativePath(Path), Error);
+    if (Error)
+        return Detail::MakeFileStatus(
+            ClassifyError(Error), Error.value(), "canonicalize:path");
+    std::string Text = Canonical.generic_string();
+#if SG_PLATFORM_WINDOWS
+    std::transform(Text.begin(), Text.end(), Text.begin(),
+        [](unsigned char Value)
+        {
+            return static_cast<char>(std::tolower(Value));
+        });
+#endif
+    OutCanonicalPath = FString(std::move(Text));
+    return {};
+}
+
 bool FPlatformFileSystem::ReadFile(const FString& Path, TArray<uint8>& OutData)
 {
     OutData.clear();

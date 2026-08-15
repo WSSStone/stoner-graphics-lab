@@ -17,6 +17,12 @@ enum class EPublishedValidationSubject : Core::uint8
     GenerationDirectory
 };
 
+enum class EPublishedGenerationValidationPolicy : Core::uint8
+{
+    FullPayloads,
+    IndexAndLayout
+};
+
 enum class EPublishedCorruptionCategory : Core::uint8
 {
     None,
@@ -39,6 +45,8 @@ struct FPublishedGenerationValidationRequest
     Core::FString SubjectRoot;
     EPublishedValidationSubject Subject =
         EPublishedValidationSubject::CurrentPointer;
+    EPublishedGenerationValidationPolicy Policy =
+        EPublishedGenerationValidationPolicy::FullPayloads;
     std::optional<FAssetDigest> ExpectedGenerationId;
     bool bRejectUnexpectedFiles = true;
     FAssetCookManifestLimits ManifestLimits;
@@ -58,6 +66,7 @@ struct FPublishedGenerationValidationResult
     FAssetCookManifest Manifest;
     FAssetDigest ManifestDigest;
     Core::uint32 ValidatedPayloads = 0;
+    Core::uint32 IndexedPayloads = 0;
     Core::uint32 UnexpectedFiles = 0;
 
     [[nodiscard]] bool Succeeded() const noexcept

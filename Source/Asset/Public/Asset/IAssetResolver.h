@@ -2,6 +2,7 @@
 
 #include "Asset/FAssetExtensionRegistry.h"
 #include "Asset/FAssetSource.h"
+#include "Asset/FAssetRuntimeExecutionContext.h"
 
 namespace Stoner::Asset
 {
@@ -9,6 +10,7 @@ namespace Stoner::Asset
 struct FAssetResolveRequest
 {
     FAssetSourceLocator Location;
+    Core::TSharedPtr<const FAssetRuntimeExecutionContext> RuntimeContext;
 };
 
 struct FAssetResolveResult

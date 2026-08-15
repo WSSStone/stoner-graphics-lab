@@ -1,12 +1,14 @@
 <!-- SPECKIT START -->
-Feature 025 Asset: Cooker, Manifest & Derived Data is complete. Read
-`doc/roadmap.md` for program context, `specs/025-asset-cooker-derived-data/`
-for the delivered contract/design/tasks, and `Validation/025/` plus
-`doc/025-asset-cooker-derived-data.html` for closeout evidence. GitHub Actions
-run 31827665459 passed all eight required cross-platform jobs. Feature 026
-Asset: Runtime Asset Manager is the next roadmap target; create its Speckit
-feature from the Phase 026 prompt before implementation. Do not fold streaming,
-GPU residency, hot reload, network storage, or offline cooker ownership into 026.
+Feature 026 Asset: Runtime Asset Manager has completed local implementation on
+branch `026-runtime-asset-manager`. macOS Debug, strict Release, focused/full
+regression, and M4 Pro benchmark gates passed; evidence is under
+`Validation/026/reports/` and the implementation study is
+`doc/026-runtime-asset-manager.html`. The feature remains active until the
+current revision passes the required eight-job Windows/macOS/Linux and Linux
+sanitizer GitHub Actions matrix and conclusions are recorded in
+`Validation/026/CI/README.md`. Feature 027 Metal is next only after that
+closeout. Do not fold streaming, GPU residency, hot reload, network storage,
+generation pruning, or offline cooker ownership into 026.
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -46,6 +48,8 @@ GPU residency, hot reload, network storage, or offline cooker ownership into 026
 - Source `.gltf`, `.glb`, external buffer, and image files resolved through `IAssetResolver`; immutable process-local CPU mesh/model payloads and Renderer RHI snapshots; checked-in fixtures and validation evidence; no database, manifest, DDC, package, or persistent runtime cache (024-static-mesh-model)
 - C++20 with traditional public/private header and source separation; no C++20 Modules; Python 3 standard-library validation scripts + Existing Core and Asset contracts from Features 003-006 and 020-024; existing Asset-private yyjson 0.12.0 canonical JSON path; existing SHA-256 `FAssetDigest`; SCons 4.10.1; descriptor-owned POSIX `flock`/`rename` behind Core on macOS/Linux; durable Win32 file handles plus `ReplaceFileW`/`MoveFileExW` transaction primitives behind Core on Windows; no new third-party runtime dependency (025-asset-cooker-derived-data)
 - Local source roots; local immutable directory-entry DDC; local self-contained cooked generation directories and atomic `Current.json`; checked-in target profiles, fixtures, schemas, and normalized validation evidence; shared Asset published-generation validation; no database, archive/package, remote cache, network service, or runtime cache (025-asset-cooker-derived-data)
+- C++20 with traditional public/private headers and sources; no C++20 Modules; Python 3 standard-library validation scripts + Existing Core ownership, filesystem, Unicode, diagnostics, and platform lease contracts; Asset identity/metadata/extension dispatch from 020; immutable payload types and validators from 021-024; target profile, manifest, envelope codec, and published-generation validation from 025; C++ standard library concurrency (`std::thread`, `std::mutex`, `std::condition_variable`, atomics); SCons 4.10.1; no new third-party dependency (026-runtime-asset-manager)
+- Immutable development source leases, one potentially read-only local published generation, and an explicit writable lease-coordination root; process-local request/operation/cache/diagnostic state; generation-scoped OS reader lease; no database, DDC ownership, package archive, persistent runtime cache, or network storage (026-runtime-asset-manager)
 
 ## Recent Changes
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system

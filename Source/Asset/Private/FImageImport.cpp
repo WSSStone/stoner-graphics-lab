@@ -332,6 +332,7 @@ FAssetExtensionCapability FImageAssetImporter::GetCapability() const
         Core::FString("jpeg"),
         Core::FString("hdr")};
     Capability.ProbeByteLimit = 64U * 1024U;
+    Capability.bRuntimeCompatible = true;
     return Capability;
 }
 
@@ -376,6 +377,8 @@ EAssetResult FImageAssetImporter::Import(
     Core::TArray<FAssetImportOutput>& OutOutputs,
     FAssetDiagnosticList* Diagnostics)
 {
+    if (Request.RuntimeContext && Request.RuntimeContext->ShouldStop())
+        return EAssetResult::Cancelled;
     return BuildImageOutputs(Request, OutOutputs, Diagnostics);
 }
 

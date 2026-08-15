@@ -7,7 +7,8 @@
 FAssetTestResult RunAssetTests(
     const FAssetKTX2TestOptions& Options,
     const FAssetMaterialShaderTestOptions& MaterialShaderOptions,
-    const FAssetStaticModelTestOptions& StaticModelOptions)
+    const FAssetStaticModelTestOptions& StaticModelOptions,
+    const FAssetManagerTestOptions& AssetManagerOptions)
 {
     const FAssetCoreTestResult Core = RunAssetCoreTests();
     const FAssetImageTextureTestResult Image = RunAssetImageTextureTests();
@@ -33,6 +34,7 @@ FAssetTestResult RunAssetTests(
     const auto Equivalence = RunAssetCookerEquivalenceTests();
     const auto Manifest = RunAssetCookerManifestTests();
     const auto PayloadCodec = RunAssetCookerPayloadCodecTests();
+    const auto AssetManager = RunAssetManagerTests(AssetManagerOptions);
     const FAssetGLTFMaterialTestResult GLTFMaterial =
         RunAssetGLTFMaterialTests();
     const FAssetGLTFImageDependencyTestResult GLTFImage =
@@ -53,6 +55,7 @@ FAssetTestResult RunAssetTests(
             CookerProfile.Passed + DerivedKey.Passed + Equivalence.Passed +
             Manifest.Passed +
             PayloadCodec.Passed +
+            AssetManager.Passed +
             GLTFMaterial.Passed + GLTFImage.Passed + GLTFMalformed.Passed +
             GLTFResolver.Passed + GLTFLimit.Passed + GLTFDiagnostic.Passed,
         Core.Failed + Image.Failed + KTX2.Failed + MaterialShader.Failed +
@@ -63,6 +66,46 @@ FAssetTestResult RunAssetTests(
             CookerProfile.Failed + DerivedKey.Failed + Equivalence.Failed +
             Manifest.Failed +
             PayloadCodec.Failed +
+            AssetManager.Failed +
             GLTFMaterial.Failed + GLTFImage.Failed + GLTFMalformed.Failed +
             GLTFResolver.Failed + GLTFLimit.Failed + GLTFDiagnostic.Failed};
+}
+
+FAssetManagerKernelTestResult RunAssetManagerTests(
+    const FAssetManagerTestOptions& Options)
+{
+    (void)Options;
+    const auto Kernel = RunAssetManagerKernelTests();
+    const auto Contract = RunAssetManagerContractTests();
+    const auto Development = RunAssetManagerDevelopmentTests();
+    const auto Dependency = RunAssetManagerDependencyTests();
+    const auto ManagerEquivalence = RunAssetManagerEquivalenceTests();
+    const auto Coalescing = RunAssetManagerCoalescingTests();
+    const auto Cancellation = RunAssetManagerCancellationTests();
+    const auto Cache = RunAssetManagerCacheTests();
+    const auto Lifetime = RunAssetManagerLifetimeTests();
+    const auto Shutdown = RunAssetManagerShutdownTests();
+    const auto GenerationLease = RunAssetManagerGenerationLeaseTests();
+    const auto GenerationLeaseProcess =
+        RunAssetManagerGenerationLeaseProcessTests(
+            Options.GenerationLeaseProbe.c_str());
+    const auto Completion = RunAssetManagerCompletionTests();
+    const auto Inspection = RunAssetManagerInspectionTests();
+    const auto Stress = RunAssetManagerStressTests();
+    const auto Benchmark = RunAssetManagerBenchmark(
+        Options.BenchmarkEnabled, Options.BenchmarkCiProfile,
+        Options.BenchmarkReport);
+    return {
+        Kernel.Passed + Contract.Passed + Development.Passed +
+            Dependency.Passed + ManagerEquivalence.Passed +
+            Coalescing.Passed + Cancellation.Passed + Cache.Passed +
+            Lifetime.Passed + Shutdown.Passed + GenerationLease.Passed +
+            GenerationLeaseProcess.Passed + Completion.Passed +
+            Inspection.Passed + Stress.Passed + Benchmark.Passed,
+        Kernel.Failed + Contract.Failed + Development.Failed +
+            Dependency.Failed + ManagerEquivalence.Failed +
+            Coalescing.Failed + Cancellation.Failed + Cache.Failed +
+            Lifetime.Failed + Shutdown.Failed + GenerationLease.Failed +
+            GenerationLeaseProcess.Failed + Completion.Failed +
+            Inspection.Failed + Stress.Failed + Benchmark.Failed};
 }

@@ -237,7 +237,7 @@ bool FStonerDemoApplication::ValidateShaderPayloads()
     const Asset::FAssetResolveResult Definition =
         Asset::FAssetDispatch::Resolve(
             Extensions,
-            {DefinitionLocation});
+            {DefinitionLocation, {}});
     if (Definition.Result != Asset::EAssetResult::Success)
     {
         return false;

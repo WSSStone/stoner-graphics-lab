@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>026 - Runtime Asset Manager - Stoner Graphics Lab</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}:root{--bg:#f3f6f7;--paper:#fff;--ink:#17212b;--muted:#617184;--line:#d5e0e5;--accent:#0f766e;--soft:#e7f5f2;--warn:#9a5b08;--warn-soft:#fff7e8;--code:#edf2f4;--dark:#17212b;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.72 var(--sans)}.page{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 18px;background:var(--paper);border-right:1px solid var(--line)}.brand{font-size:14px;font-weight:800;color:var(--accent)}.subtitle{font-size:12px;color:var(--muted);padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:18px}.toc{list-style:none;padding:0}.toc a{display:block;padding:6px 8px;color:var(--muted);text-decoration:none;border-radius:6px;font-size:13px}.toc a:hover{color:var(--accent);background:var(--soft)}main{max-width:1080px;width:100%;padding:48px 48px 96px;margin:0 auto}h1{margin:0 0 8px;font-size:34px;line-height:1.2;color:var(--accent);letter-spacing:0}.meta{color:var(--muted);font-size:13px;margin-bottom:30px}section{margin-bottom:52px}h2{margin:32px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:23px;letter-spacing:0}h3{margin:22px 0 10px;font-size:17px;letter-spacing:0}h4{margin:16px 0 6px;font-size:15px;letter-spacing:0}p{margin:0 0 14px}ul,ol{margin:0 0 16px;padding-left:23px}li{margin:4px 0}code{font-family:var(--mono);font-size:13px;background:var(--code);padding:2px 5px;border-radius:4px}pre{margin:14px 0;padding:16px;overflow:auto;border-radius:8px;color:#e5e7eb;background:var(--dark);font-size:13px;line-height:1.55}pre code{background:transparent;color:inherit;padding:0}table{width:100%;border-collapse:collapse;margin:14px 0 20px;background:var(--paper)}th,td{padding:10px 12px;border:1px solid var(--line);text-align:left;vertical-align:top}th{background:var(--soft);font-size:13px}.callout{margin:16px 0;padding:14px 16px;border-left:4px solid var(--accent);background:var(--soft)}.pending{border-left-color:var(--warn);background:var(--warn-soft)}.flow{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:8px;margin:18px 0}.node{padding:12px 10px;border:1px solid var(--line);border-radius:6px;background:var(--paper);text-align:center;font-size:13px}.arrow{color:var(--accent);font-weight:700}.badge{display:inline-block;padding:2px 7px;border-radius:4px;background:var(--soft);color:var(--accent);font-size:12px;font-weight:700}.small{font-size:13px;color:var(--muted)}@media(max-width:850px){.page{display:block}.sidebar{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}main{padding:32px 20px 72px}.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg)}}
+</style>
+</head>
+<body>
+<div class="page">
+<aside class="sidebar">
+  <div class="brand">STONER GRAPHICS LAB</div>
+  <div class="subtitle">Feature 026 implementation study</div>
+  <ul class="toc">
+    <li><a href="#context">一、文档与上下文信息</a></li>
+    <li><a href="#scope">二、目标与边界</a></li>
+    <li><a href="#usage">三、交互与产品设计</a></li>
+    <li><a href="#architecture">四、技术架构与关键决策</a></li>
+    <li><a href="#validation">五、实施与验证</a></li>
+    <li><a href="#practice">六、设计巧思与最佳实践</a></li>
+    <li><a href="#cpp">七、编程语言知识点</a></li>
+  </ul>
+</aside>
+<main>
+<header>
+  <h1>026 - Runtime Asset Manager</h1>
+  <div class="meta">版本 1.0 · 2026-08-15 · 本地实现与全量回归完成 · 远程八任务 CI 待执行</div>
+  <div class="callout pending"><strong>交付边界：</strong>实现已在 macOS Debug/strict Release 及完整回归中通过；本文不把尚未运行的 GitHub Actions 记为成功。CI 结论应在对应 revision 推送后补入 <code>Validation/026/CI/README.md</code>。</div>
+</header>
+
+<section id="context">
+<h2>一、文档与上下文信息</h2>
+<h3>1. 基础元数据</h3>
+<table><tbody>
+<tr><th>项目项</th><th>内容</th></tr>
+<tr><td>Feature / Roadmap</td><td>026 - Asset: Runtime Asset Manager</td></tr>
+<tr><td>实现分支</td><td><code>026-runtime-asset-manager</code></td></tr>
+<tr><td>设计输入</td><td><code>specs/026-runtime-asset-manager/</code> 中的 spec、plan、research、data-model、contracts、tasks 与 quickstart</td></tr>
+<tr><td>主要实现</td><td><code>Source/Asset/Public/Asset/FAssetManager*.h</code>、<code>TAssetHandle.h</code> 与 <code>Source/Asset/Private/FAsset*.cpp</code></td></tr>
+<tr><td>测试与证据</td><td><code>Tests/AssetManager*Tests.cpp</code>、<code>Validation/026/reports/</code></td></tr>
+<tr><td>本地结果</td><td>Debug、strict Release、契约/架构检查、focused、benchmark 和 Debug/Release 全回归全部通过</td></tr>
+</tbody></table>
+
+<h3>2. 本期核心摘要</h3>
+<p>Feature 026 把 Features 020-025 的“可识别、可导入、可 cook、可发布”资产，变成运行时可请求的 CPU 资产。调用方通过同一个 <code>FAssetManager</code> 异步请求 typed Asset；开发模式从 source resolver/importer 加载，strict cooked 模式只读取已验证且绑定的 generation。两条路径共享 AssetId、依赖关系和 typed payload contract。</p>
+<p>最值得学习的工程主题是<strong>身份、物理工作、调用者兴趣与对象生命周期的分离</strong>。等价请求可共享一次物理加载，但取消仍属于单个调用者；缓存不拥有永久 grace period，最后一个外部 handle、request interest 和 dependency retention 释放后立即卸载；worker 只产生结果，用户 callback 必须由显式 completion pump 在调用线程确定性分发。</p>
+
+<h3>3. 上下文与依赖</h3>
+<ul>
+<li>Feature 020 提供 <code>FAssetId</code>、registry、resolver/importer/loader 与 extension registry。</li>
+<li>Features 021-024 提供 Image/Texture、KTX2、Material/Shader、StaticMesh/Model typed payload。</li>
+<li>Feature 025 提供 immutable cooked generation、manifest、payload envelope、publication validator 与原子 <code>Current.json</code>。</li>
+<li>Feature 026 只依赖 Asset 与 Core；它不链接 <code>Tools/AssetCooker</code>，也不拥有 RHI/GPU 对象。</li>
+<li>后续 Meshlet、backend shader payload、Streaming/Residency 可以消费 typed handles 和依赖调度，但不得把 manager 变成 GPU residency 系统。</li>
+</ul>
+</section>
+
+<section id="scope">
+<h2>二、目标与边界</h2>
+<h3>1. 业务与功能目标</h3>
+<p>Renderer、Application 或未来 runtime subsystem 可提交 typed Asset request，轮询其状态，取得 immutable <code>TAssetHandle&lt;T&gt;</code>，并在指定线程 pump completion callback。错误由稳定的 <code>EAssetResult</code>、terminal snapshot、依赖失败路径和 bounded inspection 表达，不通过异常或半成品 handle 暴露。</p>
+
+<h3>2. 架构目标与定位</h3>
+<div class="flow">
+  <div class="node"><strong>Source / Cooked</strong><br>Resolver 或 generation</div><div class="node arrow">→</div>
+  <div class="node"><strong>Asset Manager</strong><br>CPU request + lifetime</div><div class="node arrow">→</div>
+  <div class="node"><strong>Renderer</strong><br>RHI realization + GPU residency</div>
+</div>
+<p>Public contract 包括 manager config、request handle、typed handle、execution context 和 inspection snapshot；worker executor、request/operation table、scheduler、cache、loading strategy、completion queue 与 generation binding 都是 private implementation。具体 Vulkan、Metal、DX12 或图形格式选择不进入本阶段。</p>
+
+<h3>3. 边界与非目标（约束）</h3>
+<ul>
+<li><strong>不做 offline cook 或 pruning：</strong>它们属于 Tools/维护流程；runtime 只持 reader lease。</li>
+<li><strong>不做 streaming、budget eviction 或 chunk scheduling：</strong>这些需要独立的 Feature 030 策略和 GPU/CPU budget 模型。</li>
+<li><strong>不做 GPU residency：</strong>Asset 不能依赖 RHI；Renderer 才能把 CPU payload realization 为 GPU resource。</li>
+<li><strong>不做 hot reload：</strong>开发模式在一次加载开始时 pin source/version；变化会失败且不自动重试，释放后新请求才读取新版本。</li>
+<li><strong>不做网络或远程缓存：</strong>当前 generation、coordination root 和 payload 都是本机文件系统 contract。</li>
+</ul>
+</section>
+
+<section id="usage">
+<h2>三、交互与产品设计</h2>
+<h3>1. 用户使用路径</h3>
+<pre><code>FAssetManager Manager(Config);
+FAssetRequestHandle Request = Manager.Request&lt;FTextureAsset&gt;(TextureId);
+
+while (!Manager.Query(Request).IsTerminal()) {
+    Manager.PumpCompletions();
+}
+
+TAssetHandle&lt;FTextureAsset&gt; Texture = Manager.GetResult&lt;FTextureAsset&gt;(Request);
+Manager.ReleaseRequest(Request); // Texture 仍独立保持 immutable payload</code></pre>
+<p>strict cooked 启动时，manager 先读取并验证 current pointer、绑定 exact generation、取得 shared reader lease，再允许 admission。若 manifest、envelope、codec、extension、type 或 dependency closure 不匹配，请求 fail closed，且不会退回 source importer。</p>
+
+<h3>2. 核心规则与状态机</h3>
+<pre><code>Accepted
+  -> WaitingForDependencies
+  -> Loading
+  -> Succeeded | Failed | Cancelled
+
+Shutdown: reject new admission -> signal cooperative cancellation
+          -> join conforming work -> terminal audit -> release manager ownership</code></pre>
+<ul>
+<li>slot index 加 generation 防止旧 request handle 误指向复用后的新请求。</li>
+<li>complete load key 决定能否 coalesce；AssetId 相同但 expected type、mode、target 或 bound generation 不同，不能共享。</li>
+<li>一个 caller 取消只移除自己的 interest；共享 operation 与 dependency 仍被其他 root 需要时继续执行。</li>
+<li>callback reservation 在 admission 时完成，避免物理加载成功后才发现 completion queue 已满。</li>
+</ul>
+
+<h3>3. 失败模式与调试入口</h3>
+<table><thead><tr><th>失败</th><th>可观察行为</th><th>入口</th></tr></thead><tbody>
+<tr><td>source 在发布前变化</td><td>请求失败，无 retry、无 partial cache</td><td><code>AssetManagerDevelopmentTests.cpp</code></td></tr>
+<tr><td>required dependency 缺失或成环</td><td>root-specific 稳定依赖路径</td><td><code>AssetManagerDependencyTests.cpp</code></td></tr>
+<tr><td>cooked generation 不兼容</td><td>startup/bind fail closed，零 source fallback</td><td><code>AssetManagerCookedTests.cpp</code></td></tr>
+<tr><td>错误线程/递归 pump</td><td>拒绝递归分发；worker 永不调用 consumer callback</td><td><code>AssetManagerCompletionTests.cpp</code></td></tr>
+<tr><td>陈旧 request handle</td><td>generation mismatch，无法读取或取消新 slot</td><td><code>AssetManagerLifetimeTests.cpp</code></td></tr>
+</tbody></table>
+</section>
+
+<section id="architecture">
+<h2>四、技术架构与关键决策</h2>
+<h3>1. 技术栈与基础设施</h3>
+<p>实现使用 C++20、传统 header/source 分离、项目 Core ownership 和 SCons 4.10.1。并发使用标准库 mutex、atomic、condition variable、thread、shared/weak ownership 与 monotonic deadline。跨进程 generation reader ownership 通过 Core 的 POSIX <code>flock</code> / Windows <code>LockFileEx</code> 封装，不向 Asset public header 暴露 native handle。</p>
+
+<h3>2. 关键信息</h3>
+<h4>(1) 模块对应关系</h4>
+<table><thead><tr><th>模块</th><th>职责</th><th>关键性质</th></tr></thead><tbody>
+<tr><td><code>FAssetRequestTable</code></td><td>request slot、generation、状态与 terminal commit</td><td>stale-safe、一次提交</td></tr>
+<tr><td><code>FAssetLoadOperationTable</code></td><td>完整 load key 到共享物理 operation</td><td>共享工作，不共享取消</td></tr>
+<tr><td><code>FAssetDependencyScheduler</code></td><td>closure、顺序、cycle/limit/fallback 检查</td><td>确定性、root-specific failure</td></tr>
+<tr><td><code>FAssetNodeLoadCoordinator</code></td><td>跨 root 合并相同 dependency node</td><td>首个 caller 取消不污染其他 root</td></tr>
+<tr><td><code>FDevelopmentAssetLoadingStrategy</code></td><td>resolver/importer dispatch、source pin 与 mutation check</td><td>原子 multi-output</td></tr>
+<tr><td><code>FCookedAssetLoadingStrategy</code></td><td>bound index lookup、envelope/type/extension 验证</td><td>strict、零 fallback</td></tr>
+<tr><td><code>FAssetRuntimeCache</code></td><td>immutable entry 与三类 retention</td><td>零引用同步移除</td></tr>
+<tr><td><code>FAssetCompletionQueue</code></td><td>reservation、sequence、显式 pump</td><td>有界、线程亲和、确定顺序</td></tr>
+<tr><td><code>FBoundCookedGeneration</code></td><td>验证并绑定 exact immutable generation</td><td>reader lease、rollback、只读 publication</td></tr>
+</tbody></table>
+
+<h4>(2) 数据与控制流</h4>
+<ol>
+<li>admission 校验 config、AssetId、expected type 与容量，并预留 completion。</li>
+<li>complete load key 查询 cache/operation table；等价请求加入 caller membership。</li>
+<li>scheduler 解析 required closure 与允许的 optional fallback，产生稳定 ready order。</li>
+<li>mode strategy 从 pinned source 或 bound generation 生成 immutable typed payload。</li>
+<li>operation 一次性 commit 到 cache；每个仍有 interest 的 caller 独立进入 terminal state。</li>
+<li>callback 按 sequence 入队；调用方 pump 时才在当前线程执行。</li>
+<li>最后一个 external/request/dependency retention 释放后，cache entry 立即移除。</li>
+</ol>
+
+<h4>(3) 关键日志、诊断与可视化</h4>
+<p><code>FAssetManagerInspection</code> 输出 bounded immutable request、operation、cache 与 generation snapshot。排序、截断与 redaction 都是确定性的；只记录规范 identity、状态、decision 和 result，不泄漏 native handle、绝对 coordination path 或 worker 地址。result code 负责机器决策，inspection 负责解释“为什么”。</p>
+
+<h3>3. 架构决策记录（ADR）</h3>
+<h4>(1) 显式 completion pump</h4>
+<p><strong>决策：</strong>worker 只入队，callback 仅由显式 pump 调用。<strong>原因：</strong>Renderer/Application 往往要求 main-thread affinity，worker 直接回调会制造随机重入与 teardown race。被否决的是 worker callback 和隐式专用 callback thread；前者不安全，后者引入额外生命周期与调度语义。</p>
+
+<h4>(2) 引用驱动的即时卸载</h4>
+<p><strong>决策：</strong>三类 retention 归零即移除，不保留时间 grace cache。这样测试和运行时都能准确推导内存所有权。LRU/budget eviction 被推迟到 Streaming &amp; Residency，因为它需要独立预算、优先级和 telemetry，而非偷偷改变本期 handle 语义。</p>
+
+<h4>(3) generation 级跨进程 reader lease</h4>
+<p><strong>决策：</strong>publication root 保持只读，另设 writable coordination root，并以规范 publication namespace 取得 generation shared lease。操作系统在 crash 后释放所有权，未来 packaging/pruning 无需 PID 猜测。锁住整个 <code>Current.json</code> 被否决，因为旧 generation reader 不应阻塞新 generation 发布。</p>
+
+<h4>(4) strict cooked fail closed</h4>
+<p><strong>决策：</strong>cooked mode 验证 manifest/index/envelope/type/codec/required extension，任何不一致都失败且绝不 source fallback。这样发布包缺失不会在开发机上“看似可用”、到目标机才崩溃；代价是发布工具必须完整声明 runtime capability。</p>
+</section>
+
+<section id="validation">
+<h2>五、实施与验证（任务流）</h2>
+<h3>1. 任务拆解清单</h3>
+<ol>
+<li>扩展 Core shared/exclusive file lease 与 published-generation index validation。</li>
+<li>建立 public request/typed handle/config/inspection contract 与 bounded runtime kernel。</li>
+<li>实现 development/cooked 两种 strategy 及语义等价 gate。</li>
+<li>实现 coalescing、独立取消、dependency retention、cache 与 shutdown。</li>
+<li>实现跨进程 generation reader ownership 和 deterministic diagnostics。</li>
+<li>补齐 mutation、malformed、concurrency、stress、benchmark、sanitizer 与 CI orchestration。</li>
+</ol>
+
+<h3>2. 验收标准</h3>
+<pre><code>conda run -n godot scons -j8 config=debug strict=1
+conda run -n godot scons -j8 config=release strict=1
+conda run -n godot python Tests/verify_runtime_asset_manager.py --root .
+conda run -n godot python .github/scripts/run_runtime_asset_manager_validation.py \
+  --root . --tests-debug Build/Mac/Debug/Tests/StonerTest \
+  --tests-release Build/Mac/Release/Tests/StonerTest \
+  --profile Config/AssetCooker/Profiles/Mac-Vulkan.json \
+  --work Build/Feature026Validation/full-regression \
+  --output Validation/026/reports/regression.txt \
+  --full-regression --timeout-seconds 1200</code></pre>
+<p>本地 <code>local-release.json</code> 与 <code>regression.txt</code> 均为 <code>passed: true</code>。完整回归覆盖 contract、architecture、runner unit、Debug/Release focused、Debug/Release regression 与 Release benchmark。</p>
+
+<h3>3. 测试矩阵与覆盖意图</h3>
+<table><thead><tr><th>类别</th><th>主要风险</th><th>证据</th></tr></thead><tbody>
+<tr><td>Contract / equivalence</td><td>source/cooked 语义漂移、type 混淆、隐式 fallback</td><td><code>AssetManagerContractTests.cpp</code>、<code>AssetManagerEquivalenceTests.cpp</code></td></tr>
+<tr><td>Dependency / cancellation</td><td>cycle、错误传播、共享 work 被单 caller 取消</td><td><code>AssetManagerDependencyTests.cpp</code>、<code>cancellation-matrix.txt</code></td></tr>
+<tr><td>Lifetime / shutdown</td><td>stale alias、UAF、retained entry、teardown race</td><td><code>AssetManagerLifetimeTests.cpp</code>、<code>lifetime-stress.txt</code></td></tr>
+<tr><td>Generation process lease</td><td>publication 被误删、crash 后永久锁、路径别名</td><td><code>AssetManagerGenerationLease*Tests.cpp</code></td></tr>
+<tr><td>Determinism / performance</td><td>worker 顺序影响结果、规模退化</td><td><code>determinism.txt</code>、<code>performance-m4-pro.txt</code></td></tr>
+<tr><td>Cross-platform CI</td><td>Windows/Linux 锁、编译器和 sanitizer 差异</td><td><span class="badge">Workflow ready</span> 远程结果待执行</td></tr>
+</tbody></table>
+</section>
+
+<section id="practice">
+<h2>六、设计巧思与最佳实践</h2>
+<h3>1. 当前业务场景与业务模型的最佳实践</h3>
+<ul>
+<li><strong>完整 load key：</strong>identity 不是 coalescing 的全部条件。mode、expected type、target evidence 和 bound generation 都进入 key，防止逻辑同名但物理语义不同的请求错误合并。</li>
+<li><strong>预留后执行：</strong>completion capacity 在 admission 时预留，使系统不会在成功加载后才因通知资源不足而陷入无法表达的状态。</li>
+<li><strong>独立 cancellation token：</strong>共享 dependency physical load 不继承第一个 root 的取消所有权；root 只管理自己的 interest。</li>
+<li><strong>immutable payload：</strong>handle 可安全跨 manager 生命周期保留；hot reload 不会原地改变既有对象。</li>
+<li><strong>strict boundary：</strong>cooked runtime 不链接 Tools，也不“帮忙” import source，保持发布环境可复现。</li>
+</ul>
+
+<h3>2. 优化方案与收益</h3>
+<p>已实现的优化包括：等价请求与 dependency node 合并以降低重复 I/O/import；pre-bound manifest index 避免每次请求重扫 generation；bounded FIFO worker 与 completion reservation 限制内存增长；引用驱动卸载降低无预算缓存的驻留；stable order 和 normalized diagnostics 降低并发测试噪声。M4 Pro reference gate 覆盖 8 请求 admission、1000 Asset/5000 edge 图、10000 completion pump 和 10000 lifecycle cycle。</p>
+<p>未来优化铺垫包括 chunk request、priority、CPU/GPU budget、LRU/eviction 和 prefetch。它们尚未实现，不能把当前 benchmark 解读为 streaming 性能承诺。</p>
+
+<h3>3. 已知限制与后续演进</h3>
+<ul>
+<li>本期加载粒度是完整 typed payload；后续 Feature 030 才拆分 mip/meshlet chunk 和 residency。</li>
+<li>reader lease 只提供安全维护证据，不决定 pruning policy。</li>
+<li>跨平台 workflow 已建立，但本文生成时尚未对当前 revision 执行远程八任务验证。</li>
+<li>Renderer 仍需显式把 Asset handle 转为 RHI resource；manager 不缓存 GPU object。</li>
+<li>后续 Feature 027 Metal 可依赖 cooked shader payload 与 runtime manager，但仍必须维持 Backend 不反向依赖 Asset 的既定边界。</li>
+</ul>
+</section>
+
+<section id="cpp">
+<h2>七、编程语言知识点</h2>
+<h3>1. 标准库接口与用法</h3>
+<table><thead><tr><th>接口</th><th>本项目用途</th><th>注意点</th></tr></thead><tbody>
+<tr><td><code>std::shared_ptr</code> / <code>std::weak_ptr</code></td><td>immutable payload 与 manager-independent handle control</td><td>共享对象生命周期不等于 manager cache ownership，二者必须分开计数</td></tr>
+<tr><td><code>std::atomic</code></td><td>取消、停止和轻量状态信号</td><td>复合状态迁移仍需 table lock，不能把多个 atomic 当事务</td></tr>
+<tr><td><code>std::mutex</code> / <code>std::condition_variable</code></td><td>bounded worker queue、request/operation/cache 协调</td><td>consumer callback 必须在解锁后执行，避免重入死锁</td></tr>
+<tr><td><code>std::chrono::steady_clock</code></td><td>deadline 与 timeout</td><td>monotonic clock 不受系统时间调整影响</td></tr>
+<tr><td><code>std::optional</code></td><td>terminal result、fallback decision、可选配置</td><td>“不存在”和“存在但失败”应保持不同语义</td></tr>
+<tr><td><code>std::variant</code> / typed templates</td><td>payload contract 与 <code>TAssetHandle&lt;T&gt;</code> 类型检查</td><td>publication 前必须验证 identity type 与实际 payload type 一致</td></tr>
+<tr><td><code>std::filesystem</code></td><td>publication/coordination path 规范化</td><td>安全身份使用 canonical namespace digest，诊断不泄漏 native absolute path</td></tr>
+</tbody></table>
+
+<h3>2. 并发与所有权阅读提示</h3>
+<p>阅读本期代码时，先问三个问题：谁拥有 request interest，谁拥有 physical operation，谁保持 payload alive。它们分别落在 request table、operation/dependency coordinator 和 cache/typed handle。把这三者混成一个 reference count，通常会导致一个 caller 取消所有人、manager 析构使 handle 悬空，或 dependency 永远无法卸载。</p>
+</section>
+
+<footer class="small">实现依据：<code>specs/026-runtime-asset-manager/</code> · 本地证据：<code>Validation/026/reports/</code> · 远程 CI 状态以 <code>Validation/026/CI/README.md</code> 为准。</footer>
+</main>
+</div>
+</body>
+</html>

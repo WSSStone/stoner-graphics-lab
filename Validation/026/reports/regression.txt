@@ -1,0 +1,50 @@
+{
+  "commands": [
+    {
+      "exitCode": 0,
+      "name": "runtime-contract"
+    },
+    {
+      "exitCode": 0,
+      "name": "asset-boundary"
+    },
+    {
+      "exitCode": 0,
+      "name": "architecture"
+    },
+    {
+      "exitCode": 0,
+      "name": "contract-unit"
+    },
+    {
+      "exitCode": 0,
+      "name": "runner-unit"
+    },
+    {
+      "exitCode": 0,
+      "name": "debug-focused"
+    },
+    {
+      "exitCode": 0,
+      "name": "debug-regression"
+    },
+    {
+      "exitCode": 0,
+      "name": "release-focused"
+    },
+    {
+      "exitCode": 0,
+      "name": "release-benchmark"
+    },
+    {
+      "exitCode": 0,
+      "name": "release-regression"
+    }
+  ],
+  "feature": "026-runtime-asset-manager",
+  "passed": true,
+  "prepared": false,
+  "profile": "full-regression",
+  "schema": "stoner.runtime-asset-manager-validation",
+  "schemaVersion": 1
+}

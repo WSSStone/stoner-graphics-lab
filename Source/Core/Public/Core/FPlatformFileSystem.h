@@ -55,6 +55,9 @@ struct FPlatformFileSystem
 {
     [[nodiscard]] static bool Exists(const FString& Path);
     [[nodiscard]] static bool CreateDirectory(const FString& Path);
+    [[nodiscard]] static FPlatformFileStatus CanonicalizeExistingPath(
+        const FString& Path,
+        FString& OutCanonicalPath);
     [[nodiscard]] static bool ReadFile(const FString& Path, TArray<uint8>& OutData);
     [[nodiscard]] static bool WriteFile(const FString& Path, const TArray<uint8>& Data);
 

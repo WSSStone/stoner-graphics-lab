@@ -21,6 +21,22 @@
 #include "AssetCookerEquivalenceTests.h"
 #include "AssetCookerManifestTests.h"
 #include "AssetCookerPayloadCodecTests.h"
+#include "AssetManagerKernelTests.h"
+#include "AssetManagerContractTests.h"
+#include "AssetManagerDevelopmentTests.h"
+#include "AssetManagerDependencyTests.h"
+#include "AssetManagerEquivalenceTests.h"
+#include "AssetManagerCoalescingTests.h"
+#include "AssetManagerCancellationTests.h"
+#include "AssetManagerCacheTests.h"
+#include "AssetManagerLifetimeTests.h"
+#include "AssetManagerShutdownTests.h"
+#include "AssetManagerGenerationLeaseTests.h"
+#include "AssetManagerGenerationLeaseProcessTests.h"
+#include "AssetManagerCompletionTests.h"
+#include "AssetManagerInspectionTests.h"
+#include "AssetManagerStressTests.h"
+#include "AssetManagerBenchmark.h"
 
 #include <string>
 
@@ -32,6 +48,14 @@ struct FAssetStaticModelTestOptions
     std::string PerformanceFixture;
 };
 
+struct FAssetManagerTestOptions
+{
+    bool BenchmarkEnabled = false;
+    bool BenchmarkCiProfile = false;
+    std::string BenchmarkReport;
+    std::string GenerationLeaseProbe;
+};
+
 struct FAssetTestResult
 {
     int Passed = 0;
@@ -41,4 +65,8 @@ struct FAssetTestResult
 [[nodiscard]] FAssetTestResult RunAssetTests(
     const FAssetKTX2TestOptions& Options = {},
     const FAssetMaterialShaderTestOptions& MaterialShaderOptions = {},
-    const FAssetStaticModelTestOptions& StaticModelOptions = {});
+    const FAssetStaticModelTestOptions& StaticModelOptions = {},
+    const FAssetManagerTestOptions& AssetManagerOptions = {});
+
+[[nodiscard]] FAssetManagerKernelTestResult RunAssetManagerTests(
+    const FAssetManagerTestOptions& Options = {});

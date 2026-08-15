@@ -96,7 +96,7 @@ EAssetResult ResolveGLTFDependency(
     EAssetResult Result = FAssetSourceLocator::Create(
         MainSource.GetScheme(), Core::FString(Combined.generic_string()), Location);
     if (Result != EAssetResult::Success) return Result;
-    FAssetResolveResult Resolved = Resolver->Resolve({Location});
+    FAssetResolveResult Resolved = Resolver->Resolve({Location, {}});
     if (Resolved.Result != EAssetResult::Success) return Resolved.Result;
     if (!Resolved.Descriptor.Location.IsValid() || !Resolved.Source.IsValid() ||
         Resolved.Descriptor.Location != Location)

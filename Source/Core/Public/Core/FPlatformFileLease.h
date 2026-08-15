@@ -7,6 +7,12 @@
 namespace Stoner::Core
 {
 
+enum class EPlatformFileLeaseMode : uint8
+{
+    Shared,
+    Exclusive
+};
+
 class FPlatformFileLease
 {
 public:
@@ -20,6 +26,12 @@ public:
 
     [[nodiscard]] static FPlatformFileStatus Acquire(
         const FString& LeasePath,
+        uint64 TimeoutMilliseconds,
+        const FString& OwnerMetadata,
+        FPlatformFileLease& OutLease);
+    [[nodiscard]] static FPlatformFileStatus Acquire(
+        const FString& LeasePath,
+        EPlatformFileLeaseMode Mode,
         uint64 TimeoutMilliseconds,
         const FString& OwnerMetadata,
         FPlatformFileLease& OutLease);

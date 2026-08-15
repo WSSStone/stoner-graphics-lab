@@ -51,6 +51,7 @@
 #include "AssetCookerReportTests.h"
 #include "AssetCookerWorkflowTests.h"
 #include "AssetCookerBenchmark.h"
+#include "AssetManagerCookedTests.h"
 #include "AssetStaticMeshGeometryTests.h"
 #include "AssetStaticModelHierarchyTests.h"
 #include "AssetStaticModelIdentityTests.h"
@@ -86,6 +87,7 @@ int main(int ArgCount, char* Arguments[])
     FAssetMaterialShaderTestOptions MaterialShaderOptions;
     FAssetStaticModelTestOptions StaticModelOptions;
     FAssetCookerBenchmarkOptions AssetCookerBenchmarkOptions;
+    FAssetManagerTestOptions AssetManagerOptions;
     std::vector<std::string> ParsedArguments;
     std::filesystem::path LeaseProbePath =
         std::filesystem::path(Arguments[0]).parent_path() /
@@ -93,14 +95,20 @@ int main(int ArgCount, char* Arguments[])
     std::filesystem::path PublicationProbePath =
         std::filesystem::path(Arguments[0]).parent_path() /
         "AssetCookerPublicationProbe";
+    std::filesystem::path GenerationLeaseProbePath =
+        std::filesystem::path(Arguments[0]).parent_path() /
+        "GenerationReaderLeaseProbe";
     std::filesystem::path AssetCookerPath =
         std::filesystem::path(Arguments[0]).parent_path().parent_path() /
         "Tools" / "AssetCooker" / "StonerAssetCooker";
 #if defined(_WIN32)
     LeaseProbePath += ".exe";
     PublicationProbePath += ".exe";
+    GenerationLeaseProbePath += ".exe";
     AssetCookerPath += ".exe";
 #endif
+    AssetManagerOptions.GenerationLeaseProbe =
+        GenerationLeaseProbePath.string();
     for (int Index = 1; Index < ArgCount; ++Index)
     {
         const std::string Argument = Arguments[Index];
@@ -229,14 +237,105 @@ int main(int ArgCount, char* Arguments[])
             else AssetCookerBenchmarkOptions.Report = Value;
             continue;
         }
+        if (Argument == "--asset-manager-benchmark-profile" ||
+            Argument == "--asset-manager-benchmark-report")
+        {
+            if (Index + 1 >= ArgCount)
+            {
+                std::cerr << "Missing value after " << Argument << '\n';
+                return 2;
+            }
+            const std::string Value = Arguments[++Index];
+            AssetManagerOptions.BenchmarkEnabled = true;
+            if (Argument == "--asset-manager-benchmark-profile")
+            {
+                if (Value != "reference" && Value != "ci")
+                {
+                    std::cerr
+                        << "Invalid --asset-manager-benchmark-profile value\n";
+                    return 2;
+                }
+                AssetManagerOptions.BenchmarkCiProfile = Value == "ci";
+            }
+            else AssetManagerOptions.BenchmarkReport = Value;
+            continue;
+        }
         ParsedArguments.push_back(Argument);
     }
 
     FTestSuiteRegistry Registry;
     Registry.Register("application-scene", [] { return RunApplicationSceneEcsTests().Failed == 0 ? 0 : 1; });
     Registry.Register("application-window", [] { return RunApplicationWindowInputTests().Failed == 0 ? 0 : 1; });
-    Registry.Register("asset", [KTX2Options, MaterialShaderOptions, StaticModelOptions] {
-        return RunAssetTests(KTX2Options, MaterialShaderOptions, StaticModelOptions).Failed == 0 ? 0 : 1;
+    Registry.Register("asset", [KTX2Options, MaterialShaderOptions, StaticModelOptions, AssetManagerOptions] {
+        return RunAssetTests(KTX2Options, MaterialShaderOptions, StaticModelOptions, AssetManagerOptions).Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager", [AssetManagerOptions] {
+        return RunAssetManagerTests(AssetManagerOptions).Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-request", [] {
+        return RunAssetManagerKernelTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-cooked", [] {
+        return RunAssetManagerCookedTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-contract", [] {
+        return RunAssetManagerContractTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-dependency", [] {
+        return RunAssetManagerDependencyTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-development", [] {
+        return RunAssetManagerDevelopmentTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-source-mutation", [] {
+        return RunAssetManagerDevelopmentTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-equivalence", [] {
+        return RunAssetManagerEquivalenceTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-cache", [] {
+        return RunAssetManagerCacheTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-completion", [] {
+        return RunAssetManagerCompletionTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-lifetime", [] {
+        return RunAssetManagerLifetimeTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-cancellation", [] {
+        return RunAssetManagerCancellationTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-shutdown", [] {
+        return RunAssetManagerShutdownTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-inspection", [] {
+        return RunAssetManagerInspectionTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-stress", [] {
+        return RunAssetManagerStressTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-generation-lease", [AssetManagerOptions] {
+        const auto Local = RunAssetManagerGenerationLeaseTests();
+        const auto Process = RunAssetManagerGenerationLeaseProcessTests(
+            AssetManagerOptions.GenerationLeaseProbe.c_str());
+        return Local.Failed == 0 && Process.Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-generation-lease-process", [AssetManagerOptions] {
+        return RunAssetManagerGenerationLeaseProcessTests(
+            AssetManagerOptions.GenerationLeaseProbe.c_str()).Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-concurrency", [] {
+        const auto Coalescing = RunAssetManagerCoalescingTests();
+        const auto Cancellation = RunAssetManagerCancellationTests();
+        const auto Shutdown = RunAssetManagerShutdownTests();
+        return Coalescing.Failed == 0 && Cancellation.Failed == 0 &&
+            Shutdown.Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("asset-manager-benchmark", [AssetManagerOptions] {
+        return RunAssetManagerBenchmark(
+            AssetManagerOptions.BenchmarkEnabled,
+            AssetManagerOptions.BenchmarkCiProfile,
+            AssetManagerOptions.BenchmarkReport).Failed == 0 ? 0 : 1;
     });
     Registry.Register("asset-material-shader", [MaterialShaderOptions] {
         return RunAssetMaterialShaderTests(MaterialShaderOptions).Failed == 0 ? 0 : 1;

@@ -86,9 +86,21 @@ int main(int ArgCount, char* Arguments[])
         return 2;
     }
 
+    const std::string Mode(Arguments[1]);
+    const bool Shared = Mode == "shared" || Mode == "shared-crash";
+    const bool Exclusive = Mode == "acquire" || Mode == "crash" ||
+        Mode == "spawn-child-and-exit" || Mode == "exclusive" ||
+        Mode == "exclusive-crash";
+    if (!Shared && !Exclusive)
+    {
+        return 2;
+    }
+
     Stoner::Core::FPlatformFileLease Lease;
     const auto Status = Stoner::Core::FPlatformFileLease::Acquire(
         Stoner::Core::FString(Arguments[2]),
+        Shared ? Stoner::Core::EPlatformFileLeaseMode::Shared
+               : Stoner::Core::EPlatformFileLeaseMode::Exclusive,
         static_cast<Stoner::Core::uint64>(TimeoutMilliseconds),
         Stoner::Core::FString("owner=probe\n"),
         Lease);
@@ -101,8 +113,8 @@ int main(int ArgCount, char* Arguments[])
         return 10;
     }
 
-    const std::string Mode(Arguments[1]);
-    if (Mode == "crash")
+    if (Mode == "crash" || Mode == "shared-crash" ||
+        Mode == "exclusive-crash")
     {
         std::_Exit(0);
     }
@@ -111,7 +123,7 @@ int main(int ArgCount, char* Arguments[])
         SpawnSleepingChild(Arguments[0], HoldMilliseconds);
         std::_Exit(0);
     }
-    if (Mode != "acquire")
+    if (Mode != "acquire" && Mode != "shared" && Mode != "exclusive")
     {
         return 2;
     }

@@ -1,0 +1,17 @@
+{
+  "schema": "stoner.runtime-asset-manager-equivalence-cases",
+  "schemaVersion": 1,
+  "sourceRoot": "Tests/Fixtures/AssetCooker/Representative",
+  "cases": [
+    {"family": "image-texture", "root": "Texture:Cooked/representative#texture"},
+    {"family": "material-shader", "root": "ShaderProgram:Engine/Shaders/Deferred/Surface"},
+    {"family": "static-mesh-model", "root": "StaticModel:representative.gltf#idx.scene.0"}
+  ],
+  "comparison": [
+    "asset-id",
+    "asset-type",
+    "dependency-roles",
+    "target-meaning",
+    "decoded-payload-semantics"
+  ]
+}

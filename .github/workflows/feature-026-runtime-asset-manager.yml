@@ -1,0 +1,206 @@
+name: Feature 026 Runtime Asset Manager
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/scripts/run_runtime_asset_manager_validation.py"
+      - ".github/scripts/test_run_runtime_asset_manager_validation.py"
+      - ".github/workflows/feature-026-runtime-asset-manager.yml"
+      - "Source/Asset/**"
+      - "Source/Core/**"
+      - "Tests/AssetManager*"
+      - "Tests/CorePlatformFileLeaseTests.cpp"
+      - "Tests/Helpers/AssetManagerControlledLoader.*"
+      - "Tests/Helpers/GenerationReaderLeaseProbe.cpp"
+      - "Tests/verify_runtime_asset_manager.py"
+      - "Tests/test_verify_runtime_asset_manager.py"
+      - "specs/026-runtime-asset-manager/**"
+  push:
+    branches:
+      - "026-runtime-asset-manager"
+    paths:
+      - ".github/scripts/run_runtime_asset_manager_validation.py"
+      - ".github/scripts/test_run_runtime_asset_manager_validation.py"
+      - ".github/workflows/feature-026-runtime-asset-manager.yml"
+      - "Source/Asset/**"
+      - "Source/Core/**"
+      - "Tests/AssetManager*"
+      - "Tests/CorePlatformFileLeaseTests.cpp"
+      - "Tests/Helpers/AssetManagerControlledLoader.*"
+      - "Tests/Helpers/GenerationReaderLeaseProbe.cpp"
+      - "Tests/verify_runtime_asset_manager.py"
+      - "Tests/test_verify_runtime_asset_manager.py"
+      - "specs/026-runtime-asset-manager/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: feature-026-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  debug:
+    name: ${{ matrix.name }} Debug
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            slug: linux
+            os: ubuntu-latest
+            tests: Build/Linux/Debug/Tests/StonerTest
+          - name: macOS
+            slug: macos
+            os: macos-latest
+            tests: Build/Mac/Debug/Tests/StonerTest
+          - name: Windows
+            slug: windows
+            os: windows-latest
+            tests: Build/Win64/Debug/Tests/StonerTest.exe
+    steps:
+      - uses: actions/checkout@v5
+      - name: Enable MSVC command prompt
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Install SCons
+        run: python -m pip install scons==4.10.1
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
+      - name: Prepare failure-safe report
+        run: >-
+          python .github/scripts/run_runtime_asset_manager_validation.py
+          --root . --work Build/Feature026Validation/${{ matrix.slug }}-debug
+          --output Validation/026/CI/${{ matrix.slug }}-debug.json
+          --prepare-only
+      - name: Build Debug with strict warnings
+        run: scons config=debug strict=1
+      - name: Run focused Debug validation
+        run: >-
+          python .github/scripts/run_runtime_asset_manager_validation.py
+          --root . --tests-debug ${{ matrix.tests }}
+          --work Build/Feature026Validation/${{ matrix.slug }}-debug
+          --output Validation/026/CI/${{ matrix.slug }}-debug.json
+          --skip-benchmark --timeout-seconds 1200
+      - name: Upload Feature 026 Debug evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: runtime-asset-manager-debug-${{ matrix.slug }}
+          path: Validation/026/CI/${{ matrix.slug }}-debug.json
+          if-no-files-found: error
+
+  release:
+    name: ${{ matrix.name }} strict Release
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            slug: linux
+            os: ubuntu-latest
+            tests: Build/Linux/Release/Tests/StonerTest
+            profile: Config/AssetCooker/Profiles/Linux-Vulkan.json
+          - name: macOS
+            slug: macos
+            os: macos-latest
+            tests: Build/Mac/Release/Tests/StonerTest
+            profile: Config/AssetCooker/Profiles/Mac-Vulkan.json
+          - name: Windows
+            slug: windows
+            os: windows-latest
+            tests: Build/Win64/Release/Tests/StonerTest.exe
+            profile: Config/AssetCooker/Profiles/Windows-Vulkan.json
+    steps:
+      - uses: actions/checkout@v5
+      - name: Enable MSVC command prompt
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Install SCons
+        run: python -m pip install scons==4.10.1
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
+      - name: Prepare failure-safe report
+        run: >-
+          python .github/scripts/run_runtime_asset_manager_validation.py
+          --root . --work Build/Feature026Validation/${{ matrix.slug }}-release
+          --output Validation/026/CI/${{ matrix.slug }}-release.json
+          --prepare-only
+      - name: Build strict Release
+        run: scons config=release strict=1
+      - name: Run focused Release validation and CI benchmark
+        run: >-
+          python .github/scripts/run_runtime_asset_manager_validation.py
+          --root . --tests-release ${{ matrix.tests }}
+          --profile ${{ matrix.profile }}
+          --work Build/Feature026Validation/${{ matrix.slug }}-release
+          --output Validation/026/CI/${{ matrix.slug }}-release.json
+          --timeout-seconds 1200
+      - name: Upload Feature 026 Release evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: runtime-asset-manager-release-${{ matrix.slug }}
+          path: |
+            Validation/026/CI/${{ matrix.slug }}-release.json
+            Build/Feature026Validation/${{ matrix.slug }}-release/performance.txt
+          if-no-files-found: warn
+
+  linux-sanitizers:
+    name: Linux ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ASan-UBSan
+            slug: asan-ubsan
+            sanitizers: address,undefined
+          - name: TSan
+            slug: tsan
+            sanitizers: thread
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+      TSAN_OPTIONS: halt_on_error=1:history_size=7
+      STONER_SKIP_OPTIONAL_DEFERRED_NATIVE: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install SCons
+        run: python -m pip install scons==4.10.1
+      - name: Prepare failure-safe report
+        run: >-
+          python .github/scripts/run_runtime_asset_manager_validation.py
+          --root . --work Build/Feature026Validation/linux-${{ matrix.slug }}
+          --output Validation/026/CI/linux-${{ matrix.slug }}.json
+          --prepare-only
+      - name: Build sanitizer configuration
+        run: >-
+          scons config=debug strict=1
+          sanitizers=${{ matrix.sanitizers }}
+      - name: Run sanitized concurrency and lifetime validation
+        run: >-
+          python .github/scripts/run_runtime_asset_manager_validation.py
+          --root . --tests-debug Build/Linux/Debug/Tests/StonerTest
+          --work Build/Feature026Validation/linux-${{ matrix.slug }}
+          --output Validation/026/CI/linux-${{ matrix.slug }}.json
+          --skip-benchmark --timeout-seconds 1200
+      - name: Upload Feature 026 sanitizer evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: runtime-asset-manager-linux-${{ matrix.slug }}
+          path: Validation/026/CI/linux-${{ matrix.slug }}.json
+          if-no-files-found: error
