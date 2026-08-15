@@ -1,7 +1,10 @@
 #include "AssetCookerConcurrencyTests.h"
 
 #include "AssetCookerDerivedDataTestSupport.h"
+#include "Core/FPlatformFileLease.h"
+#include "FDerivedDataStore.h"
 
+#include <chrono>
 #include <filesystem>
 #include <future>
 #include <iostream>
@@ -44,8 +47,44 @@ FAssetCookerConcurrencyTestResult RunAssetCookerConcurrencyTests()
               << "eight same-key writers converge to complete immutable entries\n";
 
     const auto CorruptEntry = FirstEntry(Root / "SharedDDC");
-    auto CorruptPayload = Read(CorruptEntry / "Payload.sgasset");
+    const auto ValidPayload = Read(CorruptEntry / "Payload.sgasset");
+    auto CorruptPayload = ValidPayload;
     if (!CorruptPayload.empty()) CorruptPayload.pop_back();
+    Write(CorruptEntry / "Payload.sgasset", CorruptPayload);
+
+    Asset::FAssetDerivedDataEntry Entry;
+    const bool ParsedEntry = Asset::FAssetCookContractCodec::ParseDerivedDataEntry(
+        Read(CorruptEntry / "Entry.json"), {}, Entry) == Asset::EAssetResult::Success;
+    AssetCooker::Private::FDerivedDataLookupRequest LookupRequest;
+    LookupRequest.Root = Core::FString((Root / "SharedDDC").generic_string());
+    LookupRequest.DerivedKey = Entry.DerivedKey;
+    LookupRequest.Evidence = Entry.Evidence;
+    LookupRequest.RequiredExtensions = Entry.RequiredExtensions;
+    const auto InvalidEntry = AssetCooker::Private::FDerivedDataStore::Lookup(
+        LookupRequest);
+    const auto StorePaths = AssetCooker::Private::FDerivedDataStore::PathsFor(
+        LookupRequest.Root, LookupRequest.DerivedKey);
+    Core::FPlatformFileLease WinnerLease;
+    const bool HeldWinnerLease = Core::FPlatformFileLease::Acquire(
+        StorePaths.LeaseFile, 1000, Core::FString("test.ddc-winner"),
+        WinnerLease).IsSuccess();
+    auto TimedOutQuarantine = std::async(std::launch::async,
+        [LookupRequest, InvalidEntry]
+        {
+            return AssetCooker::Private::FDerivedDataStore::Quarantine(
+                LookupRequest, InvalidEntry, std::chrono::milliseconds(30));
+        });
+    Write(CorruptEntry / "Payload.sgasset", ValidPayload);
+    const auto WinnerResult = TimedOutQuarantine.get();
+    WinnerLease.Release();
+    const bool LeaseRaceResolved = ParsedEntry &&
+        InvalidEntry.Status == AssetCooker::Private::EDerivedDataLookupStatus::Invalid &&
+        HeldWinnerLease && WinnerResult.Result == Asset::EAssetResult::Success &&
+        WinnerResult.bEntryWasReplaced && !WinnerResult.bEntryQuarantined;
+    (LeaseRaceResolved ? ++Result.Passed : ++Result.Failed);
+    std::cout << (LeaseRaceResolved ? "[PASS] " : "[FAIL] ")
+              << "quarantine lease timeout re-queries an installed winner\n";
+
     Write(CorruptEntry / "Payload.sgasset", CorruptPayload);
     Futures.clear();
     for (int Index = 0; Index < 8; ++Index)
