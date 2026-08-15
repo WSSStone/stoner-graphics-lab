@@ -70,6 +70,7 @@ struct FDerivedDataQuarantineResult
     Core::FString StableReason;
     Core::FString PhysicalDirectory;
     bool bEntryWasReplaced = false;
+    bool bEntryQuarantined = false;
 };
 
 class FDerivedDataStore

@@ -361,6 +361,19 @@ FDerivedDataQuarantineResult FDerivedDataStore::Quarantine(
         Paths.EntryDirectory, Destination);
     if (!Move.IsSuccess())
     {
+        const auto Winner = Lookup(Request);
+        if (Winner.Status == EDerivedDataLookupStatus::Hit ||
+            Winner.Status == EDerivedDataLookupStatus::Miss)
+        {
+            Result.Result = Asset::EAssetResult::Success;
+            Result.StableReason = Core::FString(
+                Winner.Status == EDerivedDataLookupStatus::Hit
+                    ? "ddc.quarantine.repaired-by-winner"
+                    : "ddc.quarantine.already-absent");
+            Result.bEntryWasReplaced =
+                Winner.Status == EDerivedDataLookupStatus::Hit;
+            return Result;
+        }
         Result.Result = Asset::EAssetResult::AccessDenied;
         Result.StableReason = Core::FString("ddc.quarantine.move-failed");
         return Result;
@@ -378,6 +391,7 @@ FDerivedDataQuarantineResult FDerivedDataStore::Quarantine(
     Result.Result = Asset::EAssetResult::Success;
     Result.StableReason = Core::FString("ddc.quarantine.moved");
     Result.PhysicalDirectory = Destination;
+    Result.bEntryQuarantined = true;
     return Result;
 }
 
