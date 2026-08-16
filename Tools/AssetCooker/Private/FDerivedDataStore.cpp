@@ -80,6 +80,24 @@ bool EqualPayload(
         Winner.Payload == Payload;
 }
 
+bool ResolveQuarantineRace(
+    const FDerivedDataLookupRequest& Request,
+    FDerivedDataQuarantineResult& Result)
+{
+    const auto Winner = FDerivedDataStore::Lookup(Request);
+    if (Winner.Status != EDerivedDataLookupStatus::Hit &&
+        Winner.Status != EDerivedDataLookupStatus::Miss)
+        return false;
+
+    Result.Result = Asset::EAssetResult::Success;
+    Result.StableReason = Core::FString(
+        Winner.Status == EDerivedDataLookupStatus::Hit
+            ? "ddc.quarantine.repaired-by-winner"
+            : "ddc.quarantine.already-absent");
+    Result.bEntryWasReplaced = Winner.Status == EDerivedDataLookupStatus::Hit;
+    return true;
+}
+
 } // namespace
 
 FDerivedDataStorePaths FDerivedDataStore::PathsFor(
@@ -324,7 +342,10 @@ FDerivedDataQuarantineResult FDerivedDataStore::Quarantine(
         Core::FString("stoner.asset-cooker.ddc-quarantine"), Lease);
     if (!LeaseStatus.IsSuccess())
     {
-        Result.Result = Asset::EAssetResult::TransientFailure;
+        if (ResolveQuarantineRace(Request, Result)) return Result;
+        Result.Result = LeaseStatus.Result == Core::EPlatformFileResult::TimedOut
+            ? Asset::EAssetResult::TransientFailure
+            : Asset::EAssetResult::AccessDenied;
         Result.StableReason = Core::FString("ddc.quarantine.lease-failed");
         return Result;
     }
@@ -361,19 +382,7 @@ FDerivedDataQuarantineResult FDerivedDataStore::Quarantine(
         Paths.EntryDirectory, Destination);
     if (!Move.IsSuccess())
     {
-        const auto Winner = Lookup(Request);
-        if (Winner.Status == EDerivedDataLookupStatus::Hit ||
-            Winner.Status == EDerivedDataLookupStatus::Miss)
-        {
-            Result.Result = Asset::EAssetResult::Success;
-            Result.StableReason = Core::FString(
-                Winner.Status == EDerivedDataLookupStatus::Hit
-                    ? "ddc.quarantine.repaired-by-winner"
-                    : "ddc.quarantine.already-absent");
-            Result.bEntryWasReplaced =
-                Winner.Status == EDerivedDataLookupStatus::Hit;
-            return Result;
-        }
+        if (ResolveQuarantineRace(Request, Result)) return Result;
         Result.Result = Asset::EAssetResult::AccessDenied;
         Result.StableReason = Core::FString("ddc.quarantine.move-failed");
         return Result;
