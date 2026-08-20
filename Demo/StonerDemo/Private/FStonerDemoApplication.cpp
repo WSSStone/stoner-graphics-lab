@@ -762,8 +762,10 @@ EDemoExitCode FStonerDemoApplication::DriveValidationWindowCycle()
     using Stoner::Application::EApplicationResult;
     if (!Window || Configuration.ValidationLifecycleCycles == 0)
         return EDemoExitCode::Success;
+    const Stoner::Core::uint32 CycleWindowFrames = std::min(
+        1000u, std::max(1u, Configuration.FrameBudget / 3u));
     const Stoner::Core::uint32 Interval = std::max(
-        1u, Configuration.FrameBudget /
+        1u, CycleWindowFrames /
             (Configuration.ValidationLifecycleCycles + 1u));
     switch (ValidationWindowCycleState)
     {
