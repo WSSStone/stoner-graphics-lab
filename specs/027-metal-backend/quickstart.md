@@ -254,6 +254,13 @@ gh run watch HARDWARE_RUN_ID --exit-status
 gh run download HARDWARE_RUN_ID --dir Validation/027/CI/hardware
 ```
 
+GitHub only permits `workflow_dispatch` for workflows already registered on the
+default branch. Before Feature 027 is merged, the first hardware run is created
+by pushing a change to `feature-027-metal-hardware.yml` on `027-metal-backend`;
+use the `gh run list`, `watch`, and `download` commands above for that run. After
+the workflow exists on the default branch, use the explicit `gh workflow run`
+command for subsequent branch or closeout runs.
+
 Expected: the six Windows/macOS-arm64/Linux Debug/strict Release jobs, Linux
 ASan/UBSan and TSan, and two `macos-26-intel` build/cook jobs pass. Each macOS
 job records its Metal-device probe. A runner without a device reports native
