@@ -78,6 +78,7 @@ void WriteReport(const FOptions& Options, uint32 Presented, uint32 Cycles,
         << "}\n";
 }
 
+#if defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
 bool RenderClearFrame(const TSharedPtr<IRHIDevice>& Device,
     const TSharedPtr<IRHICommandQueue>& Queue,
     const TSharedPtr<IRHISwapchain>& Swapchain)
@@ -123,6 +124,7 @@ bool RenderClearFrame(const TSharedPtr<IRHIDevice>& Device,
         return false;
     return true;
 }
+#endif
 
 } // namespace
 

@@ -12,9 +12,11 @@
 namespace
 {
 
+#if SG_PLATFORM_MAC
 using namespace Stoner;
 using namespace Stoner::Core;
 using namespace Stoner::RHI;
+#endif
 
 void Record(FMetalCommandTestResult& Result, bool Passed, const char* Name)
 {

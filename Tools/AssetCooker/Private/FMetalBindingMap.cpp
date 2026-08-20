@@ -4,6 +4,7 @@
 #include <limits>
 #include <new>
 #include <set>
+#include <stdexcept>
 #include <tuple>
 
 namespace Stoner::AssetCooker::Private
