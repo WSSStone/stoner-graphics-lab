@@ -39,11 +39,19 @@ FMetalPresentationTestResult RunMetalPresentationTests()
     Desc.Window = FPlatformWindow(reinterpret_cast<void*>(0x1));
     auto Surface = MakeShared<Private::FMetalPresentationSurface>(
         Owner, Desc, Context);
+#if defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
     Record(Result,
         Context->Attach(Desc.Window, ERHIFormat::B8G8R8A8_UNorm, 2, true) ==
                 ERHIResult::InvalidState &&
             !Context->IsAttached(),
         "presentation attach rejects missing native Metal ownership");
+#else
+    Record(Result,
+        Context->Attach(Desc.Window, ERHIFormat::B8G8R8A8_UNorm, 2, true) ==
+                ERHIResult::Unsupported &&
+            !Context->IsAttached(),
+        "presentation attach reports unsupported without GLFW");
+#endif
     Record(Result,
         Surface->IsValid() && Surface->Invalidate() == ERHIResult::Success &&
             !Surface->IsValid() &&

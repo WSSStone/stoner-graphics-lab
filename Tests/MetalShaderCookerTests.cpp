@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <string_view>
 
 namespace
 {
@@ -53,10 +54,26 @@ FAssetProducerVersion Producer(const char* Text)
     return Value;
 }
 
+const char* HostArchitecture()
+{
+#if defined(__aarch64__) || defined(__arm64__)
+    return "arm64";
+#elif defined(__x86_64__) || defined(_M_X64)
+    return "x86_64";
+#else
+    return "unsupported";
+#endif
+}
+
 bool ParseProfile(FAssetTargetProfileEvidence& Out)
 {
-    const TArray<uint8> Bytes =
-        Read("Config/AssetCooker/Profiles/Mac-Metal-Arm64.json");
+    const char* Profile = nullptr;
+    if (std::string_view(HostArchitecture()) == "arm64")
+        Profile = "Config/AssetCooker/Profiles/Mac-Metal-Arm64.json";
+    else if (std::string_view(HostArchitecture()) == "x86_64")
+        Profile = "Config/AssetCooker/Profiles/Mac-Metal-X86_64.json";
+    if (!Profile) return false;
+    const TArray<uint8> Bytes = Read(Profile);
     return FAssetCookContractCodec::ParseTargetProfile(Bytes, Out) ==
         EAssetResult::Success;
 }
@@ -145,7 +162,7 @@ FMetalShaderCookParameters Parameters(
         std::span<const uint8>(
             reinterpret_cast<const uint8*>("glsl-v1"), 7));
     Value.WorkingDirectory = FString(Root.generic_string());
-    Value.Architecture = FString("arm64");
+    Value.Architecture = FString(HostArchitecture());
     Value.ToolchainEvidence = {
         FString(
             "/Applications/Xcode/metal\n"

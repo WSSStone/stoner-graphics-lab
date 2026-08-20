@@ -19,6 +19,7 @@ using namespace Stoner::Backend::Metal;
 using namespace Stoner::Core;
 using namespace Stoner::RHI;
 
+#if SG_PLATFORM_MAC
 std::string HexEncode(std::string_view Value)
 {
     std::ostringstream Stream;
@@ -44,6 +45,7 @@ void EmitNativeDeviceEvidence(const FMetalDeviceCreateResult& Created)
               << " capability="
               << CapabilityDigest.ToLowerHex().ToStdString() << '\n';
 }
+#endif
 
 void Record(
     FMetalNativeIntegrationTestResult& Result,
