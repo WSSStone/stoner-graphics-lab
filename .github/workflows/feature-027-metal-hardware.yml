@@ -39,6 +39,9 @@ jobs:
             profile: Config/AssetCooker/Profiles/Mac-Metal-X86_64.json
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
       - name: Verify runner architecture and Metal toolchain
         shell: bash
         run: |
@@ -50,9 +53,14 @@ jobs:
       - name: Create isolated Python environment
         shell: bash
         run: |
-          python3 -m venv "$RUNNER_TEMP/feature027-venv"
+          python -m venv "$RUNNER_TEMP/feature027-venv"
           "$RUNNER_TEMP/feature027-venv/bin/python" -m pip install scons==4.10.1
           echo "$RUNNER_TEMP/feature027-venv/bin" >> "$GITHUB_PATH"
+      - name: Prepare failure-safe hardware report
+        run: >-
+          python .github/scripts/run_metal_validation.py
+          --root . --tier deterministic --workload derivation --prepare-only
+          --output Validation/027/CI/work/hardware-${{ matrix.slug }}/bootstrap.json
       - name: Build strict Release
         run: scons config=release strict=1
       - name: Verify architecture and validation tooling
