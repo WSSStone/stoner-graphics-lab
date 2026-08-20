@@ -1,9 +1,10 @@
 # Feature 027 CI Evidence
 
 Downloaded artifacts remain in the ignored `downloaded/` directory. Hosted
-Metal-device probes are useful native conformance evidence, but do not replace
-the broader, fail-on-unavailable self-hosted hardware acceptance required by
-T122 and T123.
+Metal-device probes are useful native conformance evidence, but lightweight
+hosted probes do not replace the full fail-on-unavailable acceptance required
+by T122 and T123. T122 uses the physical M4 Pro self-hosted runner; T123 uses
+GitHub-hosted `macos-26-intel` and requires the same full native workload.
 
 ## Hosted Matrix Run 32382290743
 
@@ -134,17 +135,18 @@ matched shader cooking. They do not contain the full triangle/deferred
 comparison, visible presentation, failure, lifecycle, and local-hardware
 cross-check bundle required by the self-hosted hardware workflow.
 
-## Remaining Hardware Acceptance
+## Remaining Full Native Acceptance
 
 Run `32377219273` was created by the branch-scoped push trigger at revision
-`9cec77d9bd9881c0dbe8df69669f895f4d1406a3`. Its `Native Metal arm64` and
-`Native Metal x86_64` jobs remain queued because the repository currently has
-zero registered self-hosted runners.
+`9cec77d9bd9881c0dbe8df69669f895f4d1406a3` under the superseded two-self-hosted
+runner policy. It will be replaced by the next workflow-file push. The revised
+workflow runs arm64 on the physical M4 Pro self-hosted runner and x86_64 on
+GitHub-hosted `macos-26-intel`.
 
 | Lane | Required labels | Gap owner | Status |
 |---|---|---|---|
-| arm64 | `self-hosted`, `macOS`, `metal`, `arm64` | Repository maintainer | Queued; no matching runner |
-| x86_64 | `self-hosted`, `macOS`, `metal`, `x86_64` | Repository maintainer | Queued; no matching runner |
+| arm64 | `self-hosted`, `macOS`, `metal`, `arm64` | Repository maintainer | Waiting for M4 Pro runner registration |
+| x86_64 | `macos-26-intel` | GitHub Actions | Ready for the revised workflow run |
 
 Diagnostic commands:
 
@@ -153,9 +155,8 @@ gh api repos/WSSStone/stoner-graphics-lab/actions/runners
 gh run view 32377219273 --json databaseId,headSha,status,conclusion,jobs,url
 ```
 
-Follow-up gate: register GPU-capable Macs with the exact labels above, allow
-both already-queued jobs to finish, require success, download both
+Follow-up gate: register the physical M4 Pro with the exact arm64 labels, push
+the revised workflow, require both full jobs to pass, download both
 `metal-hardware-*` artifacts, and create the checked-in `native-arm64.json` and
 `native-x86_64.json` acceptance reports. Until then T122, T123, T126, and T127
-remain open; hosted paravirtual probes and the local M4 Pro run do not waive the
-missing Intel-hardware evidence.
+remain open. Physical Intel Mac validation is optional.

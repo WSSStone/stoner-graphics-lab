@@ -16,11 +16,11 @@ permissions:
 
 concurrency:
   group: feature-027-hardware-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   native-metal:
-    name: Native Metal ${{ matrix.arch }}
+    name: Native Metal ${{ matrix.arch }} (${{ matrix.runner-kind }})
     runs-on: ${{ matrix.labels }}
     timeout-minutes: 180
     strategy:
@@ -29,11 +29,13 @@ jobs:
         include:
           - arch: arm64
             slug: macos-arm64
+            runner-kind: physical-self-hosted
             labels: [self-hosted, macOS, metal, arm64]
             profile: Config/AssetCooker/Profiles/Mac-Metal-Arm64.json
           - arch: x86_64
             slug: macos-x86_64
-            labels: [self-hosted, macOS, metal, x86_64]
+            runner-kind: github-hosted
+            labels: macos-26-intel
             profile: Config/AssetCooker/Profiles/Mac-Metal-X86_64.json
     steps:
       - uses: actions/checkout@v5

@@ -274,10 +274,11 @@ command for subsequent branch or closeout runs.
 Expected: the six Windows/macOS-arm64/Linux Debug/strict Release jobs, Linux
 ASan/UBSan and TSan, and two `macos-26-intel` build/cook jobs pass. Each macOS
 job records its Metal-device probe. A runner without a device reports native
-execution as unavailable; it does not satisfy the required arm64 or Intel native
-gate. The separate hardware workflow must pass required GPU-capable arm64 and
-x86_64 jobs; each fails on an unavailable probe and records the native device,
-target profile, compiler, GPU readback, and artifact digests.
+execution as unavailable. The separate full-workload workflow must pass the
+physical M4 Pro self-hosted arm64 job and GitHub-hosted `macos-26-intel`
+x86_64 job; each fails on an unavailable probe and records the native device,
+target profile, compiler, GPU readback, and artifact digests. A physical Intel
+Mac run is optional.
 
 ## 11. Final Planning/Implementation Gate
 

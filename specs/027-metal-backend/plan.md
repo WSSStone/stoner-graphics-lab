@@ -17,18 +17,18 @@ The authoritative GLSL/SPIR-V Asset chain remains unchanged. A Tools-only,
 pinned SPIRV-Cross stage deterministically derives normalized MSL on all three
 development hosts. macOS alone invokes the Apple offline compiler without a
 shell to produce target-qualified `metallib` payloads for strict cooked
-generations. CI builds and cooks on both Apple Silicon and Intel macOS runners;
-separate required GPU-capable hardware lanes execute native offscreen gates on
-both architectures. An unavailable probe from an ordinary hosted runner is
-diagnostic only. Visible lifecycle acceptance and explicit Vulkan comparison
-evidence remain real-hardware gates.
+generations. CI builds and cooks on both Apple Silicon and Intel macOS runners.
+The required full native gates run on the physical M4 Pro self-hosted arm64
+runner and GitHub-hosted `macos-26-intel` x86_64 runner; the latter counts only
+with a real Metal device and GPU readback. Visible lifecycle acceptance remains
+a physical-M4 gate, while a physical Intel compatibility run is optional.
 
 ## Technical Context
 
 **Language/Version**: C++20 with traditional public/private headers and sources; Objective-C++20 with ARC in Metal-private `.mm` units; Python 3 standard-library validation scripts; no C++20 Modules
 **Primary Dependencies**: Existing Core/RHI/Renderer/Application/Asset and AssetCooker contracts; Apple Metal, QuartzCore, Cocoa, and Foundation frameworks on macOS; GLFW 3.4 native Cocoa bridge; pinned private SPIRV-Cross `a0fba56c34a6700f1724bf9b751da5b488a3775c`; SCons 4.10.1
 **Storage**: Existing immutable DDC entries and published cooked generations containing versioned Metal shader payloads and derivation/compiler evidence; process-local native Metal state and validation artifacts under `Validation/027/`; no database, runtime shader cache, or Asset-owned GPU state
-**Testing**: Existing C++ test runner; backend contract, shader-cook, native offscreen, presentation, failure-injection, lifecycle, and cross-backend probes; Python validators; Windows/macOS/Linux Debug and strict Release; Linux shared-code sanitizers; `macos-26` arm64 and `macos-26-intel` x86_64 build/cook jobs; runtime-qualified native hardware evidence on both architectures
+**Testing**: Existing C++ test runner; backend contract, shader-cook, native offscreen, presentation, failure-injection, lifecycle, and cross-backend probes; Python validators; Windows/macOS/Linux Debug and strict Release; Linux shared-code sanitizers; `macos-26` arm64 and `macos-26-intel` x86_64 build/cook jobs; physical M4 Pro arm64 plus GPU-qualified GitHub-hosted Intel full native evidence
 **Target Platform**: macOS 12.0+ desktop on Apple Silicon and Intel Metal-capable Macs, MSL 2.4 baseline with runtime capability gating; Windows and Linux build shared contracts and run deterministic MSL derivation without Apple frameworks
 **Project Type**: Layered C++ graphics engine, desktop demo, and offline Asset cooker CLI
 **Performance Goals**: At least 3,000 visible frames and 20 lifecycle cycles; 20 byte-stable shader derivations/final cooks under an identical architecture/toolchain tuple; 10,000 bounded resource/pipeline/command lifecycle iterations with a 1,000-iteration warm-up and final-versus-initial post-warm-up median RSS growth no greater than `max(16 MiB, 5%)`
@@ -62,10 +62,10 @@ evidence remain real-hardware gates.
   the same deterministic SPIR-V-to-MSL derivation.
 - [x] **Automated Cross-Platform Validation**: The plan adds Windows/macOS/Linux
   Debug and strict Release gates, shared-code sanitizer gates, and current
-  `macos-26` arm64 plus `macos-26-intel` x86_64 build/cook jobs. Separate
-  required GPU-capable arm64 and x86_64 jobs pass only after a real Metal-device
-  probe and native GPU readback; hosted `unavailable` results cannot replace
-  those hardware jobs.
+  `macos-26` arm64 plus `macos-26-intel` x86_64 build/cook jobs. Required full
+  native jobs use the physical M4 Pro self-hosted arm64 runner and GitHub-hosted
+  `macos-26-intel`; both pass only after a real Metal-device probe and native
+  GPU readback. Hosted `unavailable` results cannot satisfy either gate.
 
 ### Post-Design Re-check
 
@@ -232,7 +232,8 @@ it accepts an executable plus argv, never a shell command.
    10,000-iteration lifecycle stress, deterministic diagnostics, ownership
    inspection, and cross-backend failure injection.
 11. **M8 CI, evidence, and closeout**: Run the ten-job hosted build/cook matrix
-   plus required GPU-capable arm64 and x86_64 native-offscreen hardware jobs.
+   plus the physical M4 Pro arm64 and GitHub-hosted Intel x86_64 full native
+   jobs.
    Archive tiered evidence and digests, rerun affected Vulkan/Asset regressions,
    update system documentation, and retain manual evidence only for visible
    desktop lifecycle acceptance.

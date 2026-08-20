@@ -251,27 +251,31 @@ bit-identical cross-vendor images are not a realistic semantic contract.
 ASan/UBSan and TSan for shared code. The arm64 jobs use `macos-26`; add Intel
 build/cook jobs on `macos-26-intel`. Standard jobs probe for a real `MTLDevice`;
 an absent device records `unavailable` and cannot satisfy a native criterion.
-Add a separate required hardware workflow with GPU-capable arm64 and x86_64
-runner labels. Each hardware job fails unless the probe succeeds and all native
-offscreen gates produce GPU readback. Feature closeout requires both hardware
-artifacts. Visible 3,000-frame/20-cycle acceptance remains a manual real-hardware
-gate because desktop interaction is distinct from offscreen automation.
+The separate full-workload workflow uses the physical M4 Pro through
+`[self-hosted, macOS, metal, arm64]` and GitHub-hosted `macos-26-intel` for
+x86_64. Each job fails unless the probe succeeds and all native offscreen gates
+produce GPU readback. Feature closeout requires both artifacts. A physical
+Intel Mac run is optional. Visible 3,000-frame/20-cycle acceptance remains a
+physical-M4 gate because desktop interaction is distinct from offscreen
+automation.
 
 **Rationale**: GitHub's current official
 [runner image table](https://github.com/actions/runner-images) lists both CPU
 architecture labels, but GitHub's
 [larger-runner reference](https://docs.github.com/en/actions/reference/runners/larger-runners)
 only explicitly advertises GPU acceleration for arm64 XLarge macOS runners.
-Therefore CPU architecture availability proves compilation/cooking coverage,
-not native GPU availability. Required dedicated hardware labels make the
-automated native obligation explicit and keep `unavailable` hosted probes from
-turning into false success.
+Therefore CPU architecture availability alone proves compilation/cooking
+coverage, not native GPU availability. The x86_64 lane is accepted only because
+the repository's `macos-26-intel` probes have demonstrated a real Metal device;
+the full workflow still requires every GPU readback and lifecycle gate and fails
+closed if that capability disappears.
 
 **Alternatives considered**: `macos-latest` alone currently selects arm64 and
 does not prove Intel compilation; assuming every macOS VM has Metal would create
-false native passes; requiring hosted GUI interaction would produce fragile or
-false presentation evidence; making paid XLarge capacity mandatory is avoided
-unless the repository explicitly enables it.
+false native passes; requiring a physical Intel Mac would leave the feature
+permanently blocked by unavailable hardware; requiring hosted GUI interaction
+would produce fragile presentation evidence; making paid XLarge capacity
+mandatory is avoided unless the repository explicitly enables it.
 
 ## 15. Scope Boundary
 

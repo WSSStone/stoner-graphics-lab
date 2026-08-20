@@ -28,18 +28,18 @@ as the native result.
    offscreen runs only when the probe succeeds.
 10. macOS Intel strict Release plus native shader cook, Metal-device probe, and
     Vulkan regression; native offscreen runs only when the probe succeeds.
-11. Required GPU-capable macOS arm64 native-offscreen conformance, strict-cooked
-    shader, triangle/deferred, failure, and lifecycle gates.
-12. Required GPU-capable macOS x86_64 equivalent native-offscreen gates.
+11. Required physical M4 Pro self-hosted arm64 native-offscreen conformance,
+    strict-cooked shader, triangle/deferred, failure, and lifecycle gates.
+12. Required GitHub-hosted `macos-26-intel` x86_64 equivalent full native gates.
 
 The macOS labels are pinned to `macos-26` and `macos-26-intel` for CPU-
 architecture build/cook coverage. Runner/toolchain identity and Metal-device
 probe results are recorded in artifacts. A hosted result without a real device
-is `unavailable`, not a native pass. Jobs 11-12 use explicit self-hosted labels
-`[self-hosted, macOS, metal, arm64]` and
-`[self-hosted, macOS, metal, x86_64]`, or an equivalently documented
-GPU-capable hosted label. They are required and fail on an unavailable probe;
-manual evidence cannot replace these automated native-offscreen jobs.
+is `unavailable`, not a native pass. Job 11 uses
+`[self-hosted, macOS, metal, arm64]`; job 12 uses `macos-26-intel`. Both are
+required, execute the same full workload, and fail on an unavailable device or
+missing GPU readback. A physical Intel Mac run is optional and manual evidence
+cannot replace either automated native-offscreen job.
 
 ## Native Workloads
 
@@ -93,7 +93,8 @@ are forbidden.
 
 Feature 027 closes only when all applicable public RHI operations are classified
 and pass or are tied to a genuine reported device limitation; both Mac
-architectures have passing required automated native-offscreen hardware jobs;
+architectures have passing required automated full native jobs under the
+physical-M4/hosted-Intel policy;
 all shared jobs pass; visible acceptance is
 recorded; Vulkan/MoltenVK affected regressions pass; and no accepted native pass
 originates from deterministic or semantic-oracle output.

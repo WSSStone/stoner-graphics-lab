@@ -15,6 +15,10 @@
 - Q: Feature 027 是否必须把 Apple Silicon 与 Intel Metal Mac 都作为正式支持目标？ → A: 是；最低 deployment target 范围内的 Apple Silicon 与 Intel Metal Mac 均为正式目标，并分别需要可获得的 native validation。
 - Q: Windows/Linux 上的 Asset Cooker 对 Metal target 应提供到什么程度？ → A: 三平台均生成并验证从 SPIR-V 派生的规范化 Metal 源码与确定性证据；仅 macOS 可编译原生 Metal library 并发布有效 Metal cooked generation。
 
+### Session 2026-08-20
+
+- Q: 当项目拥有物理 Apple Silicon M4 Pro、但没有实体 Intel Mac 时，x86_64 Metal 的必需自动化 gate 如何执行？ → A: arm64 使用物理 M4 Pro self-hosted runner；x86_64 使用 GitHub-hosted `macos-26-intel`，但只有在真实 `MTLDevice` 探测、完整 native workload 和 GPU readback 全部通过时才满足 gate。实体 Intel Mac 降为可选兼容性验证，不阻塞 Feature 027。
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Execute Existing RHI Workloads on Metal (Priority: P1)
@@ -391,17 +395,21 @@ Windows and Linux with no Metal SDK present.
 - **FR-041**: Metal implementation units and Apple framework linkage MUST be
   excluded on unsupported platforms while shared public headers and backend
   selection remain compilable.
-- **FR-042**: Validation MUST cover native Metal execution on both Apple Silicon
-  and Intel Metal Macs within the supported deployment range. When automation
-  for either architecture is temporarily unavailable, the gap, manual command,
-  evidence owner, and follow-up gate MUST be documented, and Feature 027 MUST
-  remain incomplete until the required automated hardware lane passes.
+- **FR-042**: Validation MUST cover native Metal execution for both arm64 and
+  x86_64 macOS within the supported deployment range. The required arm64 lane
+  MUST run on the project's physical M4 Pro self-hosted runner. The required
+  x86_64 lane MAY run on GitHub-hosted `macos-26-intel`, provided it reports a
+  real `MTLDevice` and passes the complete native workload with GPU readback.
+  Physical Intel Mac validation is optional. When either required lane is
+  temporarily unavailable, the gap, manual command, evidence owner, and
+  follow-up gate MUST be documented and Feature 027 MUST remain incomplete.
 - **FR-043**: Automated validation MUST include macOS native offscreen Metal,
   Windows/macOS/Linux shared Debug and strict Release coverage, and applicable
-  sanitizer validation for shared ownership and lifecycle code. A required
-  GPU-capable macOS hardware lane for each supported CPU architecture MUST pass
-  native offscreen gates before closeout; an `unavailable` probe from a standard
-  hosted build job is diagnostic evidence and MUST NOT satisfy this requirement.
+  sanitizer validation for shared ownership and lifecycle code. The physical
+  self-hosted arm64 lane and GitHub-hosted `macos-26-intel` x86_64 lane MUST
+  pass the full native offscreen, strict-cooked, comparison, failure, and
+  lifecycle gates before closeout. A lightweight hosted build probe or an
+  `unavailable` device result MUST NOT satisfy this requirement.
 - **FR-044**: Validation evidence MUST distinguish deterministic/mock,
   native-offscreen, visible-manual, and cross-backend comparison tiers and MUST
   record backend/device/capability and shader-payload version evidence.
@@ -465,9 +473,10 @@ Windows and Linux with no Metal SDK present.
   median of the first ten post-warm-up samples by no more than the greater of
   16 MiB or 5% of the first median. The report MUST retain every sample and both
   medians so the threshold is reproducible.
-- **SC-007**: Native conformance and lifecycle validation passes on at least one
-  Apple Silicon Mac and one Intel Metal Mac within the supported deployment
-  range; evidence records architecture, OS, device, and capability data.
+- **SC-007**: Native conformance and lifecycle validation passes on the physical
+  M4 Pro arm64 runner and on a GitHub-hosted `macos-26-intel` x86_64 runner;
+  both reports record architecture, OS, device, capability, and GPU-readback
+  evidence. A physical Intel Mac compatibility run is optional.
 - **SC-008**: Windows, macOS, and Linux automated Debug and strict Release gates
   all pass; Windows/Linux require no Apple SDK or framework, and applicable
   shared sanitizer gates report zero findings.
@@ -506,11 +515,11 @@ Windows and Linux with no Metal SDK present.
   not the boundary of backend completeness; only genuine platform/device
   limitations may produce an unsupported result.
 - Standard hosted macOS CI proves compilation, cooking, and device-probe
-  behavior but may lack usable Metal hardware or reliable visible desktop
-  interaction. Required native offscreen evidence therefore comes from explicit
-  GPU-capable macOS hardware lanes for arm64 and x86_64; visible evidence remains
-  a manual hardware acceptance gate when automation cannot drive the desktop
-  lifecycle honestly.
+  behavior but its lightweight probes do not satisfy full hardware acceptance.
+  Required native offscreen evidence comes from the physical M4 Pro self-hosted
+  arm64 lane and the full-workload GitHub-hosted `macos-26-intel` x86_64 lane.
+  Visible evidence remains a physical M4 Pro acceptance gate; a physical Intel
+  compatibility run is optional.
 - Feature 028 will validate artist-authored production content across Vulkan and
   Metal; Feature 027 uses bounded repository-owned scenes/assets to establish
   backend correctness first.

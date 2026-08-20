@@ -25,9 +25,10 @@ MSL derivation mismatch.
 
 The hosted macOS arm64 and x86_64 probes used Apple Paravirtual Metal devices
 and produced real GPU readback. They are correctly classified as native
-offscreen evidence, but they do not replace the broader self-hosted hardware
-acceptance in T122/T123 or visible presentation acceptance in T124.
+offscreen evidence. The lightweight probes do not by themselves replace T122
+or T123: arm64 still requires the physical M4 Pro full workflow, while x86_64
+must rerun the full workflow on `macos-26-intel`. Visible presentation remains
+the separate physical M4 Pro acceptance in T124.
 
 Runner identities, job conclusions, native capability digests, and artifact
 archive digests are retained in `Validation/027/CI/README.md`.
-
