@@ -187,14 +187,17 @@ conda run -n godot python .github/scripts/run_metal_validation.py \
   --profile Config/AssetCooker/Profiles/Mac-Metal-Arm64.json \
   --publication Build/Feature027Validation/native-cook-arm64/run-00/Cooked \
   --lease Build/Feature027Validation/visible-acceptance-lease \
+  --visible-frames 30000 \
   --tier visible-manual \
   --work Validation/027/captures/local-mac \
   --output Validation/027/captures/visible-acceptance.json \
   --timeout-seconds 7200
 ```
 
+The 30,000-frame budget leaves enough time for manual desktop interaction on a
+non-throttled presentation loop; the acceptance threshold remains 3,000 frames.
 Exercise resize, minimize, restore, focus, scale/display movement where
-available, and close. Accept only with 3,000 frames, 20 completed cycles, one
+available, and close. Accept only with at least 3,000 frames, 20 completed cycles, one
 correctly oriented capture, zero unrecovered presentation error, clean layer
 detach, and exit code 0. The runner drives the bounded demo and validates its
 report; save and inspect the oriented capture separately in the same directory.

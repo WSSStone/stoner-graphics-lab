@@ -81,6 +81,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--lifecycle-iterations", type=int, default=10000)
     parser.add_argument("--smoke-frames", type=int, default=120)
     parser.add_argument("--smoke-cycles", type=int, default=4)
+    parser.add_argument("--visible-frames", type=int, default=3000)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--work", type=Path)
     parser.add_argument("--timeout-seconds", type=int, default=1200)
@@ -95,6 +96,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         parser.error("--smoke-frames must be in [1, 10000]")
     if not 1 <= args.smoke_cycles <= args.smoke_frames:
         parser.error("--smoke-cycles must be in [1, smoke-frames]")
+    if not 3000 <= args.visible_frames <= 1_000_000:
+        parser.error("--visible-frames must be in [3000, 1000000]")
     if not 1 <= args.timeout_seconds <= 7200:
         parser.error("--timeout-seconds must be in [1, 7200]")
     if args.workload is None:
@@ -514,7 +517,7 @@ def parse_demo_report(text: str) -> tuple[bool, int, int]:
 
 def run_visible(
     demo: Path, tests: Path, root: Path, work: Path, timeout: int,
-    profile: Path, publication: Path, lease: Path,
+    profile: Path, publication: Path, lease: Path, frame_budget: int,
 ) -> tuple[bool, dict[str, object] | None, int, int, str, Path]:
     native_passed, _, evidence, native_log = run_native(
         tests, root, timeout, True
@@ -523,7 +526,7 @@ def run_visible(
     completed = run_command(
         [
             str(demo), "--backend", "metal", "--mode", "validate",
-            "--frames", "3000", "--warmup-frames", "1000",
+            "--frames", str(frame_budget), "--warmup-frames", "1000",
             "--memory-sample-interval", "100",
             "--cooked-root", str(publication),
             "--lease-root", str(lease),
@@ -756,7 +759,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             publication is not None and lease is not None
         passed, evidence, frames, recoveries, log, demo_report = run_visible(
             demo, tests, root, work, args.timeout_seconds,
-            profile, publication, lease,
+            profile, publication, lease, args.visible_frames,
         )
         report["counts"]["frames"] = frames
         report["counts"]["lifecycleCycles"] = recoveries
