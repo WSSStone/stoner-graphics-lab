@@ -171,6 +171,18 @@ bool HasArgument(const FProcessExecutionRequest& Request, const char* Expected)
     }
     return false;
 }
+
+bool HasModuleCacheArgument(
+    const FProcessExecutionRequest& Request,
+    const std::filesystem::path& WorkingDirectory)
+{
+    const FString Expected(
+        "-fmodules-cache-path=" +
+        (WorkingDirectory / "metal-module-cache").string());
+    return std::find(
+        Request.Arguments.begin(), Request.Arguments.end(), Expected) !=
+        Request.Arguments.end();
+}
 #endif
 
 FMetalLibraryCompileRequest MakeRequest(
@@ -232,9 +244,9 @@ void TestFinalization(FMetalShaderCompilerTestResult& Result)
     const bool Clean =
         !std::filesystem::exists(Root / "stoner-metal-input.metal") &&
         !std::filesystem::exists(Root / "stoner-metal-output.air") &&
-        !std::filesystem::exists(Root / "stoner-metal-output.metallib");
-    Record(Result,
-        Derived && Finalized.Succeeded() &&
+        !std::filesystem::exists(Root / "stoner-metal-output.metallib") &&
+        !std::filesystem::exists(Root / "metal-module-cache");
+    const bool Passed = Derived && Finalized.Succeeded() &&
             Finalized.LibraryBytes == Expected &&
             Finalized.NativeEvidence.IsValid() &&
             Finalized.NativeEvidence.NativeLibrary.has_value() &&
@@ -243,7 +255,19 @@ void TestFinalization(FMetalShaderCompilerTestResult& Result)
             HasArgument(Executor.Requests[6], "metal") &&
             HasArgument(Executor.Requests[6], "-std=macos-metal2.4") &&
             HasArgument(Executor.Requests[6], "-mmacosx-version-min=12.0") &&
-            HasArgument(Executor.Requests[7], "metallib") && Clean,
+            HasModuleCacheArgument(Executor.Requests[6], Root) &&
+            HasArgument(Executor.Requests[7], "metallib") && Clean;
+    if (!Passed)
+        std::cout << "  finalizer-status="
+                  << static_cast<int>(Finalized.Status)
+                  << " reason=" << Finalized.StableReason.CStr()
+                  << " requests=" << Executor.Requests.size()
+                  << " clean=" << Clean
+                  << " module-cache-arg="
+                  << (Executor.Requests.size() > 6 &&
+                      HasModuleCacheArgument(Executor.Requests[6], Root))
+                  << '\n';
+    Record(Result, Passed,
         "finalizer emits validated native evidence and cleans temporary files");
 #else
     Record(Result,
@@ -286,6 +310,14 @@ void TestFailures(FMetalShaderCompilerTestResult& Result)
     FFakeMetalExecutor Executor;
     const bool EvidenceRejected = FinalizeMetalLibrary(Mismatch, &Executor).Status ==
         EMetalLibraryFinalizeStatus::EvidenceMismatch;
+    if (!(Derived && Timeout && Failure && EmptyAir && EmptyLibrary &&
+          EvidenceRejected))
+        std::cout << "  failure-matrix derived=" << Derived
+                  << " timeout=" << Timeout
+                  << " failure=" << Failure
+                  << " empty-air=" << EmptyAir
+                  << " empty-library=" << EmptyLibrary
+                  << " evidence=" << EvidenceRejected << '\n';
     Record(Result,
         Derived && Timeout && Failure && EmptyAir && EmptyLibrary &&
             EvidenceRejected,

@@ -518,7 +518,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.work is None:
         temporary = tempfile.TemporaryDirectory(prefix="stoner-metal-validation-")
         work = Path(temporary.name)
-    elif args.workload in {"native", "comparison"}:
+    else:
         work = args.work if args.work.is_absolute() else root / args.work
 
     passed = False

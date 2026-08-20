@@ -424,8 +424,13 @@ bool FStonerDemoApplication::LoadStrictCookedMetalShaderPayloads()
         if (!Variant.Permutation.Flags.empty()) continue;
         for (const auto& Reference : Variant.Payloads)
         {
-            if (Reference.Backend != Asset::EShaderBackendFamily::Metal ||
-                Reference.Format != Asset::EShaderPayloadFormat::MetalLibrary)
+            const bool bExactMetal =
+                Reference.Backend == Asset::EShaderBackendFamily::Metal &&
+                Reference.Format == Asset::EShaderPayloadFormat::MetalLibrary;
+            const bool bDerivedMetal =
+                Reference.Backend == Asset::EShaderBackendFamily::Vulkan &&
+                Reference.Format == Asset::EShaderPayloadFormat::SPIRV;
+            if (!bExactMetal && !bDerivedMetal)
                 continue;
             const auto& PayloadId = Reference.Payload.GetId();
             if (!PayloadId) continue;

@@ -113,6 +113,7 @@ struct FTemporaryOutputs
     std::filesystem::path Source;
     std::filesystem::path Air;
     std::filesystem::path Library;
+    std::filesystem::path ModuleCache;
 
     ~FTemporaryOutputs()
     {
@@ -120,6 +121,7 @@ struct FTemporaryOutputs
         std::filesystem::remove(Source, Error);
         std::filesystem::remove(Air, Error);
         std::filesystem::remove(Library, Error);
+        std::filesystem::remove_all(ModuleCache, Error);
     }
 };
 
@@ -315,13 +317,21 @@ FMetalLibraryCompileResult FinalizeMetalLibrary(
         FTemporaryOutputs Files{
             Root / "stoner-metal-input.metal",
             Root / "stoner-metal-output.air",
-            Root / "stoner-metal-output.metallib"};
+            Root / "stoner-metal-output.metallib",
+            Root / "metal-module-cache"};
         if (std::filesystem::exists(Files.Source) ||
             std::filesystem::exists(Files.Air) ||
-            std::filesystem::exists(Files.Library))
+            std::filesystem::exists(Files.Library) ||
+            std::filesystem::exists(Files.ModuleCache))
             return Failure(
                 EMetalLibraryFinalizeStatus::InvalidRequest,
                 "metal-finalize-work-collision");
+        std::error_code ModuleCacheError;
+        if (!std::filesystem::create_directory(
+                Files.ModuleCache, ModuleCacheError) || ModuleCacheError)
+            return Failure(
+                EMetalLibraryFinalizeStatus::IoFailure,
+                "metal-finalize-module-cache-create");
         {
             std::ofstream Output(Files.Source, std::ios::binary);
             Output.write(
@@ -346,6 +356,9 @@ FMetalLibraryCompileResult FinalizeMetalLibrary(
             {Core::FString("-sdk"), Core::FString("macosx"),
              Core::FString("metal"), Core::FString("-std=macos-metal2.4"),
              Core::FString("-mmacosx-version-min=12.0"),
+             Core::FString(
+                 "-fmodules-cache-path=" +
+                 Utf8Path(Files.ModuleCache).ToStdString()),
              Core::FString("-c"), Utf8Path(Files.Source),
              Core::FString("-o"), Utf8Path(Files.Air)},
             Request.TimeoutMilliseconds, Request.MaxToolOutputBytes);

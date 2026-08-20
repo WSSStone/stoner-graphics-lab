@@ -171,6 +171,11 @@ Asset::EAssetResult PrepareCookNode(
             *Node.Payload, PayloadContract) != Asset::EAssetResult::Success ||
         PayloadContract.AssetId != Node.Metadata.Id)
         return Asset::EAssetResult::TypeMismatch;
+    if (IsMetalShaderSource(Node, Profile.Profile))
+    {
+        PayloadContract.CodecVersion = 2;
+        PayloadContract.PayloadSchemaVersion = 2;
+    }
 
     auto& Evidence = Out.Evidence;
     Evidence.AssetId = Node.Metadata.Id;
@@ -464,21 +469,40 @@ FAssetCookResult FAssetCookRunner::Run(
     }
 
     std::atomic<bool> bCacheFailure{false};
+    std::atomic<Core::uint32> FirstFailureIndex{
+        std::numeric_limits<Core::uint32>::max()};
     Private::FAssetCookScheduleOutput Scheduled;
     const Asset::EAssetResult Schedule = Private::FAssetCookScheduler::Execute(
         Plan, Request.WorkerCount,
         [&Registry, &Catalog, &Snapshot, &ParsedProfile, &SharedProfile,
-         &Request, &Prepared, &bCacheFailure](
+         &Request, &Prepared, &bCacheFailure, &FirstFailureIndex](
             const Private::FAssetCookGraphNode& Node,
             const Core::TArray<Private::FAssetCookScheduledResult>& Results)
         {
             (void)Results;
             auto& State = Prepared[Node.PlanIndex];
+            const auto RecordFailure = [&](const char* Reason)
+            {
+                const std::string StableReason(Reason);
+                State.StableReason = Core::FString(StableReason);
+                Core::uint32 Current = FirstFailureIndex.load(
+                    std::memory_order_relaxed);
+                while (Node.PlanIndex < Current &&
+                    !FirstFailureIndex.compare_exchange_weak(
+                        Current, Node.PlanIndex,
+                        std::memory_order_relaxed,
+                        std::memory_order_relaxed))
+                {
+                }
+            };
             if (Private::FCookInputSnapshotBuilder::Revalidate(
                     Snapshot, ParsedProfile.Profile.Limits.MaxSourceBytes,
                     Catalog.Revalidate) != Asset::EAssetResult::Success)
+            {
+                RecordFailure("asset-cooker.source.changed");
                 return Private::FAssetCookScheduledResult{
                     Asset::EAssetResult::TransientFailure, {}};
+            }
 
             const auto LookupRequest = MakeLookupRequest(
                 Request, ParsedProfile, State);
@@ -496,6 +520,7 @@ FAssetCookResult FAssetCookRunner::Run(
                 {
                     State.StableReason = Lookup.StableReason;
                     bCacheFailure.store(true, std::memory_order_relaxed);
+                    RecordFailure(State.StableReason.CStr());
                     return Private::FAssetCookScheduledResult{
                         Asset::EAssetResult::CorruptPayload, {}};
                 }
@@ -508,6 +533,7 @@ FAssetCookResult FAssetCookRunner::Run(
                     {
                         State.StableReason = Quarantine.StableReason;
                         bCacheFailure.store(true, std::memory_order_relaxed);
+                        RecordFailure(State.StableReason.CStr());
                         return Private::FAssetCookScheduledResult{
                             Asset::EAssetResult::CorruptPayload, {}};
                     }
@@ -533,6 +559,7 @@ FAssetCookResult FAssetCookRunner::Run(
                 {
                     State.StableReason = Lookup.StableReason;
                     bCacheFailure.store(true, std::memory_order_relaxed);
+                    RecordFailure(State.StableReason.CStr());
                     return Private::FAssetCookScheduledResult{
                         Asset::EAssetResult::ProcessingFailure, {}};
                 }
@@ -546,8 +573,11 @@ FAssetCookResult FAssetCookRunner::Run(
             Asset::FAssetCookResult Cooked = Asset::FAssetDispatch::Cook(
                 Registry, State.CookerId, CookRequest);
             if (Cooked.Result != Asset::EAssetResult::Success)
+            {
+                RecordFailure("asset-cooker.cook.dispatch-failed");
                 return Private::FAssetCookScheduledResult{
                     Cooked.Result, std::move(Cooked.Artifact)};
+            }
 
             auto Installed = Private::FDerivedDataStore::Install(
                 LookupRequest, Cooked.Artifact, Request.LeaseTimeout);
@@ -568,6 +598,7 @@ FAssetCookResult FAssetCookRunner::Run(
             {
                 State.StableReason = Installed.StableReason;
                 bCacheFailure.store(true, std::memory_order_relaxed);
+                RecordFailure(State.StableReason.CStr());
                 return Private::FAssetCookScheduledResult{
                     Asset::EAssetResult::ProcessingFailure, {}};
             }
@@ -582,14 +613,30 @@ FAssetCookResult FAssetCookRunner::Run(
         },
         Scheduled);
     if (Schedule != Asset::EAssetResult::Success)
-        return Fail(bCacheFailure.load(std::memory_order_relaxed)
-                ? EAssetCookResultCategory::CacheFailure : GraphCategory(Schedule),
-            bCacheFailure.load(std::memory_order_relaxed)
-                ? "asset-cooker.cache.failed"
-                : Schedule == Asset::EAssetResult::TransientFailure
-                ? "asset-cooker.source.changed"
-                : "asset-cooker.cook.failed",
-            OutReport);
+    {
+        const bool bCacheFailed = bCacheFailure.load(std::memory_order_relaxed);
+        const char* Reason = bCacheFailed
+            ? "asset-cooker.cache.failed"
+            : Schedule == Asset::EAssetResult::TransientFailure
+            ? "asset-cooker.source.changed"
+            : "asset-cooker.cook.failed";
+        const Core::uint32 FailureIndex = FirstFailureIndex.load(
+            std::memory_order_relaxed);
+        if (FailureIndex < Report.Assets.size())
+        {
+            auto& FailedAsset = Report.Assets[FailureIndex];
+            FailedAsset.Decision = EAssetCookDecision::Failed;
+            FailedAsset.Action = EAssetCookAction::Fail;
+            FailedAsset.StableReason = Prepared[FailureIndex].StableReason;
+            Report.Counts.Failed = 1;
+        }
+        OutReport = std::move(Report);
+        FAssetCookResult Failed;
+        Failed.Category = bCacheFailed
+            ? EAssetCookResultCategory::CacheFailure : GraphCategory(Schedule);
+        Failed.StableReason = Core::FString(Reason);
+        return Failed;
+    }
 
     Asset::FAssetCookManifest Manifest;
     Manifest.TargetProfile = ParsedProfile;

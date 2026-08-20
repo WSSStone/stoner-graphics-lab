@@ -60,7 +60,12 @@ Apple Silicon:
 Build/Mac/Release/Tools/AssetCooker/StonerAssetCooker cook \
   --target-profile Config/AssetCooker/Profiles/Mac-Metal-Arm64.json \
   --source-root Content \
-  --cook-all \
+  --root ShaderProgram:Engine/Shaders/Triangle \
+  --root ShaderProgram:Engine/Shaders/Deferred/Surface \
+  --root ShaderProgram:Engine/Shaders/Deferred/Composition \
+  --root ShaderProgram:Engine/Shaders/Deferred/DirectionalLight \
+  --root ShaderProgram:Engine/Shaders/Deferred/PointLight \
+  --root ShaderProgram:Engine/Shaders/Deferred/SpotLight \
   --output Build/Feature027Cook/arm64 \
   --ddc Build/Feature027Cook/DDC-arm64 \
   --report Validation/027/reports/cook-arm64.json
@@ -70,6 +75,9 @@ Intel uses `Mac-Metal-X86_64.json` and a distinct output root. Repeat each cook
 20 times through the validation runner. Expected: identical payload identity,
 dependency/version evidence, pipeline result, and normalized report. Exact
 metallib bytes are compared only under identical recorded Apple toolchains.
+Feature 027 intentionally cooks only its repository-owned shader roots; the
+full production content closure, including material texture dependencies, is
+owned by Feature 028.
 
 Windows/Linux final-cook attempts must return `HostUnsupported`, publish no
 generation, and leave existing `Current.json` untouched.

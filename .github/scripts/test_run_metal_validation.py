@@ -90,6 +90,41 @@ class MetalValidationRunnerTests(unittest.TestCase):
         ])
         self.assertEqual("visible", visible.workload)
 
+    def test_persistent_work_is_available_to_lifecycle_logging(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            tests = root / "StonerTest"
+            tests.write_bytes(b"test")
+            output = root / "report.json"
+            with mock.patch.object(validation, "revision", return_value="0" * 40), \
+                    mock.patch.object(
+                        validation,
+                        "run_lifecycle",
+                        return_value=(True, "unavailable", {
+                            "warmupIterations": 1000,
+                            "sampleInterval": 100,
+                            "samplesBytes": [100] * 90,
+                            "firstMedianBytes": 100,
+                            "finalMedianBytes": 100,
+                            "absoluteGrowthBytes": 0,
+                            "relativeGrowth": 0.0,
+                            "allowedGrowthBytes": 16777216,
+                            "passed": True,
+                        }, "lifecycle-log\n"),
+                    ):
+                result = validation.main([
+                    "--root", str(root),
+                    "--tests", str(tests),
+                    "--workload", "lifecycle",
+                    "--work", "work",
+                    "--output", str(output),
+                ])
+            self.assertEqual(0, result)
+            self.assertEqual(
+                "lifecycle-log\n",
+                (root / "work" / "lifecycle.log").read_text(encoding="utf-8"),
+            )
+
     def test_native_parser_requires_device_shader_and_readback(self) -> None:
         device = (
             "[EVIDENCE] metal-native-device identity=registry-42 "

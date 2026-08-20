@@ -236,9 +236,9 @@ inline Core::TSharedPtr<const Asset::FShaderAsset> TriangleProgram(
         Desc.Stages.push_back(std::move(Source));
 
         Asset::FShaderPayloadReference Reference;
-        Reference.Backend = Asset::EShaderBackendFamily::Metal;
-        Reference.Profile = Payload->GetProfile();
-        Reference.Format = Asset::EShaderPayloadFormat::MetalLibrary;
+        Reference.Backend = Asset::EShaderBackendFamily::Vulkan;
+        Reference.Profile = Core::FString("vulkan-1.3");
+        Reference.Format = Asset::EShaderPayloadFormat::SPIRV;
         Reference.Stage = Payload->GetStage();
         Reference.EntryPoint = Core::FString("main");
         (void)Asset::TSoftAssetRef<Asset::FShaderPayloadAsset>::Create(
