@@ -40,6 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
+        if: matrix.runner-kind == 'github-hosted'
         with:
           python-version: "3.12"
       - name: Verify runner architecture and Metal toolchain
@@ -50,10 +51,30 @@ jobs:
           /usr/bin/xcrun --find metallib
           /usr/bin/xcrun xcodebuild -version
           /usr/bin/xcrun --sdk macosx --show-sdk-version
-      - name: Create isolated Python environment
+      - name: Create hosted isolated Python environment
+        if: matrix.runner-kind == 'github-hosted'
         shell: bash
         run: |
           python -m venv "$RUNNER_TEMP/feature027-venv"
+          "$RUNNER_TEMP/feature027-venv/bin/python" -m pip install scons==4.10.1
+          echo "$RUNNER_TEMP/feature027-venv/bin" >> "$GITHUB_PATH"
+      - name: Create physical isolated Python environment
+        if: matrix.runner-kind == 'physical-self-hosted'
+        shell: bash
+        run: |
+          CONDA_COMMAND="${CONDA_EXE:-$(command -v conda || true)}"
+          if test -z "$CONDA_COMMAND"; then
+            for candidate in "$HOME/miniforge3/bin/conda" "$HOME/miniconda3/bin/conda"; do
+              if test -x "$candidate"; then
+                CONDA_COMMAND="$candidate"
+                break
+              fi
+            done
+          fi
+          test -n "$CONDA_COMMAND"
+          "$CONDA_COMMAND" run -n godot python -c \
+            'import sys; assert sys.version_info[:2] == (3, 12), sys.version'
+          "$CONDA_COMMAND" run -n godot python -m venv "$RUNNER_TEMP/feature027-venv"
           "$RUNNER_TEMP/feature027-venv/bin/python" -m pip install scons==4.10.1
           echo "$RUNNER_TEMP/feature027-venv/bin" >> "$GITHUB_PATH"
       - name: Prepare failure-safe hardware report
