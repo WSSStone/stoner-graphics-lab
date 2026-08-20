@@ -79,16 +79,42 @@ class MetalValidationRunnerTests(unittest.TestCase):
         self.assertEqual("native", native.workload)
         self.assertEqual("comparison", comparison.workload)
 
-    def test_visible_tier_requires_demo_and_persistent_work(self) -> None:
+    def test_visible_tier_requires_strict_cooked_inputs(self) -> None:
         with self.assertRaises(SystemExit):
             validation.parse_args([
                 "--output", "x", "--tier", "visible-manual",
             ])
         visible = validation.parse_args([
             "--output", "x", "--tier", "visible-manual",
-            "--demo", "demo", "--work", "work",
+            "--demo", "demo", "--profile", "profile",
+            "--publication", "publication", "--lease", "lease",
+            "--work", "work",
         ])
         self.assertEqual("visible", visible.workload)
+
+    def test_visible_runner_forwards_strict_cooked_inputs(self) -> None:
+        completed = subprocess.CompletedProcess([], 0, "", "")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            report = root / "work" / "visible-demo.txt"
+            report.parent.mkdir(parents=True)
+            report.write_text("", encoding="utf-8")
+            with mock.patch.object(
+                validation, "run_native", return_value=(True, True, {}, "")
+            ), mock.patch.object(
+                validation, "run_command", return_value=completed
+            ) as command:
+                validation.run_visible(
+                    root / "demo", root / "tests", root, root / "work", 30,
+                    root / "profile.json", root / "Published", root / "Lease",
+                )
+        invocation = command.call_args.args[0]
+        self.assertEqual(
+            ["--cooked-root", str(root / "Published")],
+            invocation[invocation.index("--cooked-root"):invocation.index("--cooked-root") + 2],
+        )
+        self.assertIn(str(root / "profile.json"), invocation)
+        self.assertIn(str(root / "Lease"), invocation)
 
     def test_presentation_smoke_requires_probe_and_persistent_work(self) -> None:
         with self.assertRaises(SystemExit):

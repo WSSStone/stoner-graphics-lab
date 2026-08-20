@@ -184,6 +184,9 @@ conda run -n godot python .github/scripts/run_metal_validation.py \
   --root . \
   --tests Build/Mac/Release/Tests/StonerTest \
   --demo Build/Mac/Release/Demo/StonerDemo/StonerDemo \
+  --profile Config/AssetCooker/Profiles/Mac-Metal-Arm64.json \
+  --publication Build/Feature027Validation/native-cook-arm64/run-00/Cooked \
+  --lease Build/Feature027Validation/visible-acceptance-lease \
   --tier visible-manual \
   --work Validation/027/captures/local-mac \
   --output Validation/027/captures/visible-acceptance.json \

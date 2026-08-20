@@ -60,6 +60,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--demo", type=Path)
     parser.add_argument("--presentation-probe", type=Path)
     parser.add_argument("--profile", type=Path)
+    parser.add_argument("--publication", type=Path)
+    parser.add_argument("--lease", type=Path)
     parser.add_argument(
         "--tier",
         choices=(
@@ -110,8 +112,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         parser.error(
             "visible-manual tier requires visible or presentation-smoke workload"
         )
-    if args.workload == "visible" and (args.demo is None or args.work is None):
-        parser.error("visible workload requires --demo and persistent --work evidence")
+    if args.workload == "visible" and any(value is None for value in (
+        args.demo, args.profile, args.publication, args.lease, args.work,
+    )):
+        parser.error(
+            "visible workload requires --demo, --profile, --publication, "
+            "--lease, and persistent --work evidence"
+        )
     if args.workload == "presentation-smoke" and (
         args.presentation_probe is None or args.work is None
     ):
@@ -507,6 +514,7 @@ def parse_demo_report(text: str) -> tuple[bool, int, int]:
 
 def run_visible(
     demo: Path, tests: Path, root: Path, work: Path, timeout: int,
+    profile: Path, publication: Path, lease: Path,
 ) -> tuple[bool, dict[str, object] | None, int, int, str, Path]:
     native_passed, _, evidence, native_log = run_native(
         tests, root, timeout, True
@@ -517,6 +525,9 @@ def run_visible(
             str(demo), "--backend", "metal", "--mode", "validate",
             "--frames", "3000", "--warmup-frames", "1000",
             "--memory-sample-interval", "100",
+            "--cooked-root", str(publication),
+            "--lease-root", str(lease),
+            "--target-profile", str(profile),
             "--validation-output", str(demo_report),
         ],
         root,
@@ -574,9 +585,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     profile = None if args.profile is None else (
         args.profile if args.profile.is_absolute() else root / args.profile
     )
+    publication = None if args.publication is None else (
+        args.publication if args.publication.is_absolute()
+        else root / args.publication
+    )
+    lease = None if args.lease is None else (
+        args.lease if args.lease.is_absolute() else root / args.lease
+    )
     if profile is not None and not profile.is_file():
         print(f"target profile does not exist: {profile}", file=sys.stderr)
         return 2
+    if publication is not None and not (publication / "Current.json").is_file():
+        print(f"published generation does not exist: {publication}", file=sys.stderr)
+        return 2
+    if lease is not None:
+        try:
+            lease.mkdir(parents=True, exist_ok=True)
+        except OSError as error:
+            print(f"lease root is unavailable: {error}", file=sys.stderr)
+            return 2
     workload_name = {
         "derivation": "metal-shader-derivation",
         "failure": "metal-failure-determinism",
@@ -591,6 +618,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         report["artifacts"].append({
             "path": profile.resolve().relative_to(root).as_posix(),
             "digest": sha256_file(profile),
+        })
+    if publication is not None:
+        current = publication / "Current.json"
+        report["artifacts"].append({
+            "path": current.resolve().relative_to(root).as_posix(),
+            "digest": sha256_file(current),
         })
     if args.prepare_only:
         report["failureCategory"] = "not-run"
@@ -719,9 +752,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         unavailable_is_success = not available and not required and \
             platform.system() == "Darwin"
     elif args.workload == "visible":
-        assert demo is not None
+        assert demo is not None and profile is not None and \
+            publication is not None and lease is not None
         passed, evidence, frames, recoveries, log, demo_report = run_visible(
-            demo, tests, root, work, args.timeout_seconds
+            demo, tests, root, work, args.timeout_seconds,
+            profile, publication, lease,
         )
         report["counts"]["frames"] = frames
         report["counts"]["lifecycleCycles"] = recoveries
