@@ -58,6 +58,15 @@ jobs:
           python -m venv "$RUNNER_TEMP/feature027-venv"
           "$RUNNER_TEMP/feature027-venv/bin/python" -m pip install scons==4.10.1
           echo "$RUNNER_TEMP/feature027-venv/bin" >> "$GITHUB_PATH"
+      - name: Provision hosted GLFW presentation dependency
+        if: matrix.runner-kind == 'github-hosted'
+        shell: bash
+        run: |
+          brew install glfw
+          GLFW_PREFIX="$(brew --prefix glfw)"
+          test -f "$GLFW_PREFIX/include/GLFW/glfw3.h"
+          test -e "$GLFW_PREFIX/lib/libglfw.3.dylib"
+          echo "GLFW_ROOT=$GLFW_PREFIX" >> "$GITHUB_ENV"
       - name: Create physical isolated Python environment
         if: matrix.runner-kind == 'physical-self-hosted'
         shell: bash
