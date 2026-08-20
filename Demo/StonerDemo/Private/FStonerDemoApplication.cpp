@@ -31,6 +31,15 @@ double NowMilliseconds()
         std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
+bool IsRecoverablePresentationResult(
+    EDemoGraphicsBackend Backend, Stoner::RHI::ERHIResult Result)
+{
+    if (Result == Stoner::RHI::ERHIResult::ResizeRequired) return true;
+    return Backend == EDemoGraphicsBackend::Metal &&
+        (Result == Stoner::RHI::ERHIResult::Unavailable ||
+            Result == Stoner::RHI::ERHIResult::NotReady);
+}
+
 class FMountedFileSource final : public Stoner::Asset::IAssetSource
 {
 public:
@@ -800,9 +809,11 @@ EDemoExitCode FStonerDemoApplication::RunVisible()
             return EDemoExitCode::FrameFailed;
         FDemoBackendFrame BackendFrame;
         const Stoner::RHI::ERHIResult AcquireResult = BackendRuntime->AcquireFrame(BackendFrame);
-        if (AcquireResult == Stoner::RHI::ERHIResult::ResizeRequired)
+        if (IsRecoverablePresentationResult(
+                Configuration.GraphicsBackend, AcquireResult))
         {
             (void)NotifyDrawableExtent(0, 0, NowMilliseconds());
+            std::this_thread::sleep_for(std::chrono::milliseconds(8));
             continue;
         }
         if (AcquireResult != Stoner::RHI::ERHIResult::Success)
@@ -824,9 +835,11 @@ EDemoExitCode FStonerDemoApplication::RunVisible()
             return EDemoExitCode::FrameFailed;
         }
         const Stoner::RHI::ERHIResult PresentResult = BackendRuntime->SubmitFrame(BackendFrame);
-        if (PresentResult == Stoner::RHI::ERHIResult::ResizeRequired)
+        if (IsRecoverablePresentationResult(
+                Configuration.GraphicsBackend, PresentResult))
         {
             (void)NotifyDrawableExtent(0, 0, NowMilliseconds());
+            std::this_thread::sleep_for(std::chrono::milliseconds(8));
             continue;
         }
         if (PresentResult != Stoner::RHI::ERHIResult::Success)
