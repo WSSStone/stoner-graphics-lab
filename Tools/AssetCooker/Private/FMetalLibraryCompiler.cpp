@@ -27,6 +27,7 @@ public:
     }
 };
 
+#if SG_PLATFORM_MAC
 std::filesystem::path NativePath(const Core::FString& Value)
 {
     const std::string Utf8 = Value.ToStdString();
@@ -132,6 +133,7 @@ const char* HostArchitecture()
     return "unsupported";
 #endif
 }
+#endif
 
 FMetalLibraryCompileResult Failure(
     EMetalLibraryFinalizeStatus Status,
@@ -143,6 +145,7 @@ FMetalLibraryCompileResult Failure(
     return Result;
 }
 
+#if SG_PLATFORM_MAC
 FMetalLibraryCompileResult ProcessFailure(
     EMetalLibraryFinalizeStatus Status,
     const char* Reason,
@@ -153,6 +156,7 @@ FMetalLibraryCompileResult ProcessFailure(
     Result.ToolStandardError = Process.StandardError;
     return Result;
 }
+#endif
 
 } // namespace
 

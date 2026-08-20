@@ -82,6 +82,8 @@ RHI::ERHIResult FMetalPresentationContext::Attach(
     (void)Format;
     (void)MaximumDrawableCount;
     (void)bVSync;
+    (void)NativeDevice_;
+    (void)NativeQueue_;
     return RHI::ERHIResult::Unsupported;
 #else
     if (!Impl_ || !Owner_ || !PlatformWindow.IsValid() ||

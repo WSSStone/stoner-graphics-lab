@@ -362,9 +362,9 @@ bool FStonerDemoApplication::LoadStrictCookedMetalShaderPayloads()
         Core::MakeShared<const Asset::FAssetTargetProfileEvidence>(
             TargetEvidence);
     Core::TSharedPtr<Asset::FAssetManager> Manager;
-    Asset::FAssetDiagnosticList Diagnostics;
+    Asset::FAssetDiagnosticList AssetDiagnostics;
     if (Asset::FAssetManager::Create(
-            ManagerConfig, Manager, Diagnostics) !=
+            ManagerConfig, Manager, AssetDiagnostics) !=
             Asset::EAssetResult::Success || !Manager)
         return false;
 
