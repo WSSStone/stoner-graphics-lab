@@ -19,6 +19,10 @@
 
 - Q: 当项目拥有物理 Apple Silicon M4 Pro、但没有实体 Intel Mac 时，x86_64 Metal 的必需自动化 gate 如何执行？ → A: arm64 使用物理 M4 Pro self-hosted runner；x86_64 使用 GitHub-hosted `macos-26-intel`，但只有在真实 `MTLDevice` 探测、完整 native workload 和 GPU readback 全部通过时才满足 gate。实体 Intel Mac 降为可选兼容性验证，不阻塞 Feature 027。
 
+### Session 2026-08-21
+
+- Q: GitHub-hosted Intel 的直接 Metal device 可用、但 MoltenVK 无法在该 paravirtual device 上创建 Vulkan device 时，x86_64 gate 是否仍必须运行 cross-backend comparison？ → A: 否；x86_64 必须完成全部 Metal-only native、strict-cooked、presentation-smoke、failure 与 lifecycle 门禁，物理 M4 arm64 独占必需的 Metal/Vulkan cross-backend comparison。不得把 Intel Metal 成功错误绑定到该 runner 不支持的 MoltenVK 能力。
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Execute Existing RHI Workloads on Metal (Priority: P1)
@@ -406,10 +410,13 @@ Windows and Linux with no Metal SDK present.
 - **FR-043**: Automated validation MUST include macOS native offscreen Metal,
   Windows/macOS/Linux shared Debug and strict Release coverage, and applicable
   sanitizer validation for shared ownership and lifecycle code. The physical
-  self-hosted arm64 lane and GitHub-hosted `macos-26-intel` x86_64 lane MUST
-  pass the full native offscreen, strict-cooked, comparison, failure, and
-  lifecycle gates before closeout. A lightweight hosted build probe or an
-  `unavailable` device result MUST NOT satisfy this requirement.
+  self-hosted arm64 lane MUST pass native offscreen, strict-cooked,
+  cross-backend comparison, failure, and lifecycle gates. The GitHub-hosted
+  `macos-26-intel` x86_64 lane MUST pass the equivalent Metal-only native
+  offscreen, strict-cooked, failure, and lifecycle gates with GPU readback;
+  Vulkan/MoltenVK is not required on that paravirtual device. A lightweight
+  hosted build probe or an `unavailable` Metal result MUST NOT satisfy this
+  requirement.
 - **FR-044**: Validation evidence MUST distinguish deterministic/mock,
   native-offscreen, visible-manual, and cross-backend comparison tiers and MUST
   record backend/device/capability and shader-payload version evidence.

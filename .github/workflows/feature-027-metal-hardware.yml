@@ -77,27 +77,6 @@ jobs:
           "$CONDA_COMMAND" run -n godot python -m venv "$RUNNER_TEMP/feature027-venv"
           "$RUNNER_TEMP/feature027-venv/bin/python" -m pip install scons==4.10.1
           echo "$RUNNER_TEMP/feature027-venv/bin" >> "$GITHUB_PATH"
-      - name: Install pinned MoltenVK for hosted Intel comparison
-        if: matrix.runner-kind == 'github-hosted' && matrix.arch == 'x86_64'
-        shell: bash
-        run: |
-          archive="$RUNNER_TEMP/MoltenVK-macos.tar"
-          package_root="$RUNNER_TEMP/moltenvk-sdk"
-          curl --fail --location --retry 3 \
-            --output "$archive" \
-            https://github.com/KhronosGroup/MoltenVK/releases/download/v1.4.2/MoltenVK-macos.tar
-          echo "f95765a6229cb7b915990a2890ce12ebe36a730b021545d3d52ae69ce4c4024e  $archive" \
-            | shasum -a 256 --check
-          mkdir -p "$package_root"
-          tar -xf "$archive" -C "$package_root"
-          sdk_root="$package_root/MoltenVK/MoltenVK"
-          ln -s include "$sdk_root/Include"
-          ln -s dynamic/dylib/macOS "$sdk_root/Lib"
-          test -f "$sdk_root/Include/vulkan/vulkan.h"
-          test -f "$sdk_root/Lib/libMoltenVK.dylib"
-          echo "VULKAN_SDK=$sdk_root" >> "$GITHUB_ENV"
-          echo "VK_ICD_FILENAMES=$sdk_root/Lib/MoltenVK_icd.json" >> "$GITHUB_ENV"
-          echo "DYLD_LIBRARY_PATH=$sdk_root/Lib" >> "$GITHUB_ENV"
       - name: Prepare failure-safe hardware report
         run: >-
           python .github/scripts/run_metal_validation.py
@@ -131,6 +110,7 @@ jobs:
           --output Validation/027/CI/work/hardware-${{ matrix.slug }}/native.json
           --timeout-seconds 1800
       - name: Require native Metal and Vulkan comparison
+        if: matrix.arch == 'arm64'
         run: >-
           python .github/scripts/run_metal_validation.py
           --root . --tests Build/Mac/Release/Tests/StonerTest
@@ -159,6 +139,7 @@ jobs:
           --repetitions 20
           --timeout-seconds 1800
       - name: Require strict-cooked Metal and Vulkan render acceptance
+        if: matrix.arch == 'arm64'
         run: >-
           python .github/scripts/run_metal_render_acceptance.py
           --root .
@@ -169,6 +150,20 @@ jobs:
           --lease Build/Feature027Validation/${{ matrix.slug }}/render-lease
           --output-dir Validation/027/CI/work/hardware-${{ matrix.slug }}/render
           --work Build/Feature027Validation/${{ matrix.slug }}/render
+          --timeout-seconds 1800
+      - name: Require strict-cooked Metal render acceptance
+        if: matrix.arch == 'x86_64'
+        run: >-
+          python .github/scripts/run_metal_render_acceptance.py
+          --root .
+          --tests Build/Mac/Release/Tests/StonerTest
+          --demo Build/Mac/Release/Demo/StonerDemo/StonerDemo
+          --profile ${{ matrix.profile }}
+          --publication Build/Feature027Validation/${{ matrix.slug }}/native-cook/run-00/Cooked
+          --lease Build/Feature027Validation/${{ matrix.slug }}/render-lease
+          --output-dir Validation/027/CI/work/hardware-${{ matrix.slug }}/render
+          --work Build/Feature027Validation/${{ matrix.slug }}/render
+          --metal-only
           --timeout-seconds 1800
       - name: Require bounded real-window Metal presentation smoke
         run: >-

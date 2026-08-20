@@ -37,9 +37,13 @@ architecture build/cook coverage. Runner/toolchain identity and Metal-device
 probe results are recorded in artifacts. A hosted result without a real device
 is `unavailable`, not a native pass. Job 11 uses
 `[self-hosted, macOS, metal, arm64]`; job 12 uses `macos-26-intel`. Both are
-required, execute the same full workload, and fail on an unavailable device or
-missing GPU readback. A physical Intel Mac run is optional and manual evidence
-cannot replace either automated native-offscreen job.
+required and fail on an unavailable Metal device or missing GPU readback. Job
+11 additionally owns the required Metal/Vulkan cross-backend comparison. Job
+12 executes the equivalent full Metal-only workload because MoltenVK 1.4.2 is
+not usable on the hosted Intel `Apple Paravirtual device`; this does not relax
+any Metal offscreen, strict-cooked, presentation-smoke, failure, or lifecycle
+gate. A physical Intel Mac run is optional and manual evidence cannot replace
+either automated native-offscreen job.
 
 ## Native Workloads
 

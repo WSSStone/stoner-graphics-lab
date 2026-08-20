@@ -278,7 +278,9 @@ execution as unavailable. The separate full-workload workflow must pass the
 physical M4 Pro self-hosted arm64 job and GitHub-hosted `macos-26-intel`
 x86_64 job; each fails on an unavailable probe and records the native device,
 target profile, compiler, GPU readback, and artifact digests. A physical Intel
-Mac run is optional.
+Mac run is optional. The physical M4 job additionally owns the required
+Metal/Vulkan comparison. The hosted Intel job runs the full Metal-only workload
+because its paravirtual Metal device does not provide a usable MoltenVK device.
 
 ## 11. Final Planning/Implementation Gate
 

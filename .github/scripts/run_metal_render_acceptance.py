@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run native Feature 027 triangle/deferred acceptance and write four reports."""
+"""Run native Feature 027 triangle/deferred acceptance and write reports."""
 
 from __future__ import annotations
 
@@ -57,6 +57,10 @@ def parse_args(values: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--timeout-seconds", type=int, default=1800)
+    parser.add_argument(
+        "--metal-only", action="store_true",
+        help="require strict-cooked Metal evidence without Vulkan comparison",
+    )
     args = parser.parse_args(values)
     if not 1 <= args.timeout_seconds <= 7200:
         parser.error("--timeout-seconds must be in [1, 7200]")
@@ -173,47 +177,30 @@ def main(values: Sequence[str] | None = None) -> int:
         demo_command("metal", work / "metal-triangle.txt"),
         root, args.timeout_seconds,
     )
-    vulkan_demo = run(
-        demo_command("vulkan", work / "vulkan-triangle.txt"),
-        root, args.timeout_seconds,
-    )
     metal_triangle = TRIANGLE["metal"].search(metal_demo.stdout)
-    vulkan_triangle = TRIANGLE["vulkan"].search(vulkan_demo.stdout)
-    if not metal_triangle or not vulkan_triangle:
-        raise ValueError("independent native triangle readback evidence is incomplete")
+    if not metal_triangle:
+        raise ValueError("native Metal triangle readback evidence is incomplete")
 
     vulkan_raw = work / "vulkan-deferred.txt"
-    deferred = run([
-        str(tests), "--suite", "deferred-native", "--suite",
-        "metal-backend-comparison",
-    ], root, args.timeout_seconds, {
+    deferred_command = [str(tests), "--suite", "deferred-native"]
+    deferred_environment = {
         "STONER_REQUIRE_METAL_DEFERRED": "1",
-        "STONER_REQUIRE_DEFERRED_NATIVE": "1",
         "STONER_DEFERRED_NATIVE_SHADER_DIR": "Content/Shaders/Deferred",
-        "STONER_DEFERRED_READBACK_REPORT": str(vulkan_raw),
-    })
-    metal_deferred = DEFERRED.search(deferred.stdout)
-    comparison = COMPARISON.search(deferred.stdout)
-    if not metal_deferred or not comparison or not vulkan_raw.is_file():
-        raise ValueError("native deferred or comparison evidence is incomplete")
-    vulkan_text = vulkan_raw.read_text(encoding="utf-8")
-    if "native_submission=true" not in vulkan_text or "result=PASS" not in vulkan_text:
-        raise ValueError("Vulkan deferred report did not pass native submission")
-    adapter = next(
-        (line.partition("=")[2] for line in vulkan_text.splitlines()
-         if line.startswith("adapter=")), "",
-    )
-    if not adapter:
-        raise ValueError("Vulkan adapter evidence is missing")
-    vulkan_device = {
-        "identity": f"vulkan:{digest_bytes(adapter.encode())[:24]}",
-        "name": adapter[:256],
-        "capabilityDigest": digest_bytes(vulkan_text.encode()),
     }
+    if not args.metal_only:
+        deferred_command += ["--suite", "metal-backend-comparison"]
+        deferred_environment.update({
+            "STONER_REQUIRE_DEFERRED_NATIVE": "1",
+            "STONER_DEFERRED_READBACK_REPORT": str(vulkan_raw),
+        })
+    deferred = run(
+        deferred_command, root, args.timeout_seconds, deferred_environment
+    )
+    metal_deferred = DEFERRED.search(deferred.stdout)
     metal_shader_digests = sorted(set(
         validation.NATIVE_SHADER_EVIDENCE.findall(deferred.stdout)
     ))
-    if not metal_shader_digests:
+    if not metal_deferred or not metal_shader_digests:
         raise ValueError("Metal deferred shader evidence is missing")
 
     write_report(
@@ -230,6 +217,31 @@ def main(values: Sequence[str] | None = None) -> int:
         [{"name": "metal-deferred-attachment-readback", "result": "passed",
           "evidenceDigest": metal_deferred.group(1)}], frames=1,
     )
+    if args.metal_only:
+        return 0
+
+    vulkan_demo = run(
+        demo_command("vulkan", work / "vulkan-triangle.txt"),
+        root, args.timeout_seconds,
+    )
+    vulkan_triangle = TRIANGLE["vulkan"].search(vulkan_demo.stdout)
+    comparison = COMPARISON.search(deferred.stdout)
+    if not vulkan_triangle or not comparison or not vulkan_raw.is_file():
+        raise ValueError("independent Vulkan or comparison evidence is incomplete")
+    vulkan_text = vulkan_raw.read_text(encoding="utf-8")
+    if "native_submission=true" not in vulkan_text or "result=PASS" not in vulkan_text:
+        raise ValueError("Vulkan deferred report did not pass native submission")
+    adapter = next(
+        (line.partition("=")[2] for line in vulkan_text.splitlines()
+         if line.startswith("adapter=")), "",
+    )
+    if not adapter:
+        raise ValueError("Vulkan adapter evidence is missing")
+    vulkan_device = {
+        "identity": f"vulkan:{digest_bytes(adapter.encode())[:24]}",
+        "name": adapter[:256],
+        "capabilityDigest": digest_bytes(vulkan_text.encode()),
+    }
     vulkan_report_digest = digest_bytes(vulkan_text.encode())
     write_report(
         root, output_dir / "us4-vulkan-regression.json",

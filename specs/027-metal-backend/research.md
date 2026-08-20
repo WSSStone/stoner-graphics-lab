@@ -277,6 +277,14 @@ permanently blocked by unavailable hardware; requiring hosted GUI interaction
 would produce fragile presentation evidence; making paid XLarge capacity
 mandatory is avoided unless the repository explicitly enables it.
 
+The hosted Intel runner exposes a real `Apple Paravirtual device` to direct
+Metal, but MoltenVK 1.4.2 cannot create a usable Vulkan device on that virtual
+GPU. Therefore the required x86_64 lane runs the complete Metal-only native,
+strict-cooked, presentation-smoke, failure, and lifecycle workload. The
+physical M4 lane remains the required independent Metal/Vulkan comparison
+owner. Treating Vulkan availability as a prerequisite for Intel Metal evidence
+would conflate two backend capabilities and reject valid native Metal results.
+
 ## 15. Scope Boundary
 
 **Decision**: Feature 027 stops at existing RHI conformance, native desktop
