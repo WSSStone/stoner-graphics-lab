@@ -1,0 +1,47 @@
+{
+  "artifacts": [
+    {
+      "digest": "30382edde6b68d954763a778a2d34b016d158917333f4365d82072964322e045",
+      "path": "Config/AssetCooker/Profiles/Mac-Metal-Arm64.json"
+    },
+    {
+      "digest": "a134750aed0361294fb6cf7f0e827689097198e1044b7b529d14fb74074b2f5a",
+      "path": "Build/Feature027Validation/macos-arm64/native/native.log"
+    }
+  ],
+  "backend": "metal",
+  "counts": {
+    "frames": 0,
+    "iterations": 0,
+    "lifecycleCycles": 0
+  },
+  "device": {
+    "capabilityDigest": "7ebdde1f9560449a72351ff14ac9f7c6fc690eed6818102daa5d499f72370afe",
+    "identity": "registry-4294968412",
+    "name": "Apple M4 Pro"
+  },
+  "host": {
+    "architecture": "arm64",
+    "os": "macos"
+  },
+  "probes": [
+    {
+      "evidenceDigest": "ce7055383f07677db12e769442a3bb663b9c6424384f322716ba36dd9909e2a2",
+      "name": "native-metal-conformance",
+      "result": "passed"
+    }
+  ],
+  "reportDigest": "bb9886a73e9ca790b7bafdc76215c032b96f6431e24daaa9cd0d7b5c569b048a",
+  "result": "passed",
+  "revision": "506e49e0143884d7a33c93de3b366eea377ff92b",
+  "schemaVersion": 1,
+  "shaderEvidenceDigests": [
+    "2b45501f048d1dd7f4e8e1c4c9577c6024a44d074a410fa951f20ce9a2dcf9c1",
+    "964dd236438aa8431e0e47e4d5640688c914b02a3cade752953b5f6abea498b8",
+    "9fa0ed1516be1519e248b05186327d09a41a9737993635b670d47e6a3eff087a",
+    "d1fb64fd1ee2f134d2e092fa7dee0e197fbd54504623f5ba06affd0c8248129e",
+    "f23a3e3786dda59cb262fcd68ca7e90ca845ae4f90673938eeca66cd487f49d3"
+  ],
+  "tier": "native-offscreen",
+  "workload": "metal-native-conformance"
+}

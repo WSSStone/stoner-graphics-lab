@@ -1,19 +1,15 @@
 <!-- SPECKIT START -->
-Feature 026 Asset: Runtime Asset Manager is complete. GitHub Actions run
-31882332020 passed all eight required Windows/macOS/Linux Debug and strict
-Release plus Linux ASan/UBSan/TSan jobs for revision `8427e13`; artifact digests
-are recorded in `Validation/026/CI/README.md`. Read
-`doc/026-runtime-asset-manager.html` and
-`specs/026-runtime-asset-manager/` for delivered design and evidence.
-Feature 027 Backend: Metal specification and implementation planning are active
-on branch `027-metal-backend`. Read `specs/027-metal-backend/plan.md` first,
-then its `research.md`, `data-model.md`, and `contracts/` before generating
-tasks or implementing. The plan uses private Objective-C++ Metal ownership,
-backend-neutral typed shader bytes, deterministic Tools-only SPIRV-Cross MSL
-derivation, macOS-only offline metallib finalization, and native arm64 plus Intel
-validation. Do not fold iOS lifecycle, Metal mesh shaders, ray tracing, Asset
-GPU ownership, or backend-specific rendering algorithms into 027.
-Feature 028 is now Asset: Production Content Integration & Acceptance; it uses
+Feature 027 Backend: Metal is complete. Hosted matrix run 32392504204 passed all
+ten Windows/macOS/Linux build, strict Release, sanitizer, derivation, and native
+probe jobs for revision `f3e8b12`; required hardware run 32394691067 passed the
+physical M4 Pro arm64 Metal/Vulkan lane and GitHub-hosted Intel x86_64 Metal-only
+lane for revision `506e49e`. Artifact and report digests are recorded in
+`Validation/027/CI/README.md`. Read `doc/027-metal-backend.html` and
+`specs/027-metal-backend/` for the delivered architecture and evidence. Metal
+uses private Objective-C++ ownership, backend-neutral typed shader bytes,
+deterministic Tools-only SPIRV-Cross MSL derivation, macOS-only offline metallib
+finalization, and capability-correct dual-architecture validation.
+Feature 028 is next: Asset Production Content Integration & Acceptance. It uses
 licensed artist-authored content to validate source import through strict
 cooked loading and visible Vulkan/Metal rendering. Meshlet Derived Data and all
 former Features 028-038 were shifted to Features 029-039.
@@ -58,6 +54,8 @@ former Features 028-038 were shifted to Features 029-039.
 - Local source roots; local immutable directory-entry DDC; local self-contained cooked generation directories and atomic `Current.json`; checked-in target profiles, fixtures, schemas, and normalized validation evidence; shared Asset published-generation validation; no database, archive/package, remote cache, network service, or runtime cache (025-asset-cooker-derived-data)
 - C++20 with traditional public/private headers and sources; no C++20 Modules; Python 3 standard-library validation scripts + Existing Core ownership, filesystem, Unicode, diagnostics, and platform lease contracts; Asset identity/metadata/extension dispatch from 020; immutable payload types and validators from 021-024; target profile, manifest, envelope codec, and published-generation validation from 025; C++ standard library concurrency (`std::thread`, `std::mutex`, `std::condition_variable`, atomics); SCons 4.10.1; no new third-party dependency (026-runtime-asset-manager)
 - Immutable development source leases, one potentially read-only local published generation, and an explicit writable lease-coordination root; process-local request/operation/cache/diagnostic state; generation-scoped OS reader lease; no database, DDC ownership, package archive, persistent runtime cache, or network storage (026-runtime-asset-manager)
+- C++20 plus private Objective-C++20 with ARC; existing Core, RHI, Renderer, Application, Asset, AssetCooker, GLFW/Cocoa, Metal/QuartzCore/Foundation; pinned private SPIRV-Cross 0.68.0 lineage; offline `metal`/`metallib`; SCons 4.10.1; macOS 12.0 and MSL 2.4 baseline (027-metal-backend)
+- Process-local native Metal device/resource/pipeline/command/synchronization/presentation state; repository-owned GLSL/SPIR-V authority, deterministic normalized MSL, target-tagged cooked metallib payloads and validation evidence; no runtime shader compilation, Asset GPU ownership, iOS lifecycle, Metal mesh shaders, or ray tracing (027-metal-backend)
 
 ## Recent Changes
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system
@@ -78,6 +76,7 @@ former Features 028-038 were shifted to Features 029-039.
 - 023-material-shader-assets: Implemented versioned Material/Shader/Instance Assets, bounded canonical JSON, typed GLSL/SPIR-V dependencies, ordered target selection, complete source-version manifests, immutable Renderer snapshots, repository shader migration, bytecode-only native boundaries, deterministic corpus evidence, and passing Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan validation in CI run 30553736883
 - 024-static-mesh-model: Implemented bounded glTF/GLB static package import, Unreal-style coordinate normalization, typed immutable mesh/model payloads, stable multi-output identities, hierarchy, Material v2 and Image/Texture dependencies, transactional Renderer/RHI buffer realization, malformed corpus, deterministic/concurrent/performance gates, and passing Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan and Lavapipe indexed readback in CI runs 31766671726 and 31766671729
 - 025-asset-cooker-derived-data: Implemented deterministic target profiles, cook graph/input snapshots, typed payload envelopes, canonical manifests, local immutable DDC, incremental invalidation, native leases, long-path-safe atomic generation publication, standalone validation, normalized CLI reports, corruption/concurrency/performance gates, and passing Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan in CI run 31827665459
+- 027-metal-backend: Implemented the native Metal RHI backend, responsibility-specific Objective-C++ ownership, complete applicable RHI resource/command/sync/presentation paths, deterministic SPIR-V-to-MSL and offline metallib cooking, strict-cooked triangle/deferred GPU readback, Metal/Vulkan comparison, diagnostics/failure/lifecycle gates, and passing ten-job hosted plus physical M4 Pro arm64/GitHub Intel x86_64 hardware CI
 
 ## Git Commit Style
 - Commit messages must start with a conventional type prefix such as `feat`, `docs`, `fix`, `chore`, `refactor`, `test`, or `build`.

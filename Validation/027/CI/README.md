@@ -1,10 +1,67 @@
 # Feature 027 CI Evidence
 
-Downloaded artifacts remain in the ignored `downloaded/` directory. Hosted
-Metal-device probes are useful native conformance evidence, but lightweight
-hosted probes do not replace the full fail-on-unavailable acceptance required
-by T122 and T123. T122 uses the physical M4 Pro self-hosted runner; T123 uses
-GitHub-hosted `macos-26-intel` and requires the same full native workload.
+Downloaded artifacts remain in ignored local directories. The final required
+hardware run uses the physical M4 Pro for arm64 Metal/Vulkan comparison and
+GitHub-hosted `macos-26-intel` for complete x86_64 Metal-only acceptance. Both
+lanes fail when their required native device, GPU readback, strict-cooked
+rendering, presentation, failure, or lifecycle evidence is unavailable.
+
+## Required Hardware Run 32394691067
+
+- Workflow: `Feature 027 Metal Hardware`
+- Event: branch push
+- Revision: `506e49e0143884d7a33c93de3b366eea377ff92b`
+- Started: `2026-08-20T16:55:11Z`
+- Completed: `2026-08-20T17:18:10Z`
+- Conclusion: **success (2/2 required jobs)**
+- Run: <https://github.com/WSSStone/stoner-graphics-lab/actions/runs/32394691067>
+
+The physical arm64 job completed in 5m39s on `Apple M4 Pro` device
+`registry-4294968412`, capability digest
+`7ebdde1f9560449a72351ff14ac9f7c6fc690eed6818102daa5d499f72370afe`.
+It passed strict Release, twenty-repeat MSL derivation and native cooking,
+native RHI/deferred readback, strict-cooked triangle/deferred rendering,
+Metal/Vulkan comparison, 120-frame/four-cycle presentation smoke, failure
+determinism, and 10,000 lifecycle cycles. Its 90-sample RSS gate reported zero
+median growth against a 16 MiB allowance. The local 3,000-frame visible
+acceptance below used the same physical machine and device family.
+
+The GitHub-hosted x86_64 job completed in 22m56s on macOS 26 with a real
+`Apple Paravirtual device`, identity `registry-4294968046`, capability digest
+`73e31afc30b78af97fdb9bcf06e58128ba873b28ee82a83a03d7687317399`.
+It passed the equivalent full Metal-only native workload, including strict-
+cooked triangle/deferred GPU readback, 120-frame/four-cycle GLFW/CAMetalLayer
+presentation, failure determinism, and 10,000 lifecycle cycles. Its lifecycle
+median grew by 8,192 bytes (0.140%) against a 16 MiB allowance. The arm64 lane
+owns the required cross-backend comparison because the hosted Intel
+paravirtual GPU does not expose a usable MoltenVK device; physical Intel Mac
+validation remains optional.
+
+### Hardware Artifact Archives
+
+These are GitHub's finalized artifact archive digests.
+
+| Artifact | SHA-256 |
+|---|---|
+| `metal-hardware-macos-arm64-1` | `52612d2cd3217f42b46a65981a995fd8a84255e5204b4c463024bc992ae4730a` |
+| `metal-hardware-macos-x86_64-1` | `391f3de1fb1e52b0797a585749109482528b3fb08673e1a67358d80771f1629f` |
+
+### Accepted Hardware Reports
+
+The two `native.json` reports are checked in as `native-arm64.json` and
+`native-x86_64.json`. The remaining report digests stay in the immutable CI
+artifacts and prove the complete lane rather than overloading one aggregate
+report with unrelated workload semantics.
+
+| Gate | arm64 report digest | x86_64 report digest |
+|---|---|---|
+| Native RHI/readback | `bb9886a73e9ca790b7bafdc76215c032b96f6431e24daaa9cd0d7b5c569b048a` | `7fcdc3f9378debe85b1a568b40aaa3ab79dbbc6efa1abda2017bd7a5c063b1cb` |
+| 20x MSL derivation | `b4407c1981326d212ad077f6cab68f6c456b59f1db661fcfd7ab502e86e55fee` | `bf5c1b59d47a5611f7ee7eda389631f95d3ca846ff181fd5750fa1ffa4c5281e` |
+| 20x native cook | `2a92b6952cc4d47fe8aed110ba2b574a629f83ab018c22267b502dffbe923294` | `0e440a18e3b458b3d554e73bcac0ad6d6178f067c24e9effbe1e9daed56b7339` |
+| Presentation smoke | `fb22fe8faf3219ae37941b19ebcc4b70e2e2f24882a2bcefb7d4b40ce6529aa0` | `8ecb9d95f15b38124f663b2ecde195362f463a1e6d22c728d63570f4ebf91996` |
+| Failure determinism | `389a1a75b5c467612be30a2c875e196d36d70041eedc3d6ddbd0833dcb5a823d` | `5a1b7866a90c4712fa4fdcb1a030c03ef4cd873f79687e7b32ca31933f26529c` |
+| Lifecycle/RSS | `f2ddac54439320f2395489ae7f9e5054918a351d9f3a327edef37275b025995a` | `d47b2ac09fb620a091f80dc16cef5a5b4cb0b3b94b7ef7fa5162b0de675773ff` |
+| Metal/Vulkan comparison | `7fc65dd6d8de6b7c40713500474efe996513fa1ad3921a757aa4a32517628317` | Not assigned to this capability lane |
 
 ## Hosted Matrix Run 32382290743
 
@@ -67,12 +124,14 @@ only the stable `StonerDemo` window and a correctly oriented RGB triangle.
 
 ## Checked-In Report Validation
 
-All eleven checked-in JSON reports passed both the runner's canonical digest
+All twelve checked-in JSON reports passed both the runner's canonical digest
 validator and Draft 2020-12 validation against
 `metal-validation-report.schema.json`.
 
 | Report | SHA-256 |
 |---|---|
+| `native-arm64.json` | `fd302a7915ea2c356e8b8cf88827861c6be3712aa9313fa64d58b1deec7c5975` |
+| `native-x86_64.json` | `eba700326d2a54751b335e51bd6c42ff76d5df3374f03f310c74121aabddb0fc` |
 | `us1-rhi-conformance.json` | `b2d9eaab4d11fb423077d0dcd66535a08721d5073025425755f293862a8161e9` |
 | `us2-presentation-smoke.json` | `da53d5b775ef57628189be5ac43673a1acbe9d425635ab652c09bf97e492854e` |
 | `us3-derivation-determinism.json` | `f719c55932e22f376d939cb7903e6f1a3b7224d2d15b86e13384579101087a28` |
@@ -134,29 +193,3 @@ These hosted probes cover device/resource/queue conformance and architecture-
 matched shader cooking. They do not contain the full triangle/deferred
 comparison, visible presentation, failure, lifecycle, and local-hardware
 cross-check bundle required by the self-hosted hardware workflow.
-
-## Remaining Full Native Acceptance
-
-Run `32377219273` was created by the branch-scoped push trigger at revision
-`9cec77d9bd9881c0dbe8df69669f895f4d1406a3` under the superseded two-self-hosted
-runner policy. It will be replaced by the next workflow-file push. The revised
-workflow runs arm64 on the physical M4 Pro self-hosted runner and x86_64 on
-GitHub-hosted `macos-26-intel`.
-
-| Lane | Required labels | Gap owner | Status |
-|---|---|---|---|
-| arm64 | `self-hosted`, `macOS`, `metal`, `arm64` | Repository maintainer | Waiting for M4 Pro runner registration |
-| x86_64 | `macos-26-intel` | GitHub Actions | Ready for the revised workflow run |
-
-Diagnostic commands:
-
-```bash
-gh api repos/WSSStone/stoner-graphics-lab/actions/runners
-gh run view 32377219273 --json databaseId,headSha,status,conclusion,jobs,url
-```
-
-Follow-up gate: register the physical M4 Pro with the exact arm64 labels, push
-the revised workflow, require both full jobs to pass, download both
-`metal-hardware-*` artifacts, and create the checked-in `native-arm64.json` and
-`native-x86_64.json` acceptance reports. Until then T122, T123, T126, and T127
-remain open. Physical Intel Mac validation is optional.

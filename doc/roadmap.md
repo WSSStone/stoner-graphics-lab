@@ -1,9 +1,9 @@
 # Stoner Graphics Lab - Engine Development Roadmap
 
-> **Version**: 2.2.0 | **Created**: 2026-04-21 | **Last Updated**: 2026-08-15 | **Status**: Active
+> **Version**: 2.2.1 | **Created**: 2026-04-21 | **Last Updated**: 2026-08-21 | **Status**: Active
 > **Constitution**: v1.4.0
 > **Numbering Rule**: Every runtime phase number equals its Speckit feature number. The roadmap is a standalone governance document and does not occupy a feature number; runtime phases begin at 003.
-> **Completed Baseline**: Features 001 and 003 through 026 are implemented and verified.
+> **Completed Baseline**: Features 001 and 003 through 027 are implemented and verified.
 
 ---
 
@@ -70,10 +70,11 @@ stable identity/registry, source images and textures, KTX2 cooking, versioned
 Material/Shader definitions, and canonical static mesh/model ingestion with
 Renderer RHI realization, deterministic offline cooking, manifests, and local
 derived data. Feature 026 has implemented managed asynchronous runtime loading
-and passed its local and required remote cross-platform/sanitizer gates. The
-next phase is the native Metal portability backend. Feature 028 then closes the
-remaining content-realism gap with licensed production assets and an end-to-end
-source-to-visible-render acceptance path before derived meshlet work begins.
+and passed its local and required remote cross-platform/sanitizer gates. Feature
+027 has delivered the native Metal portability backend with physical arm64 and
+hosted x86_64 native acceptance. Feature 028 is now next: it closes the remaining
+content-realism gap with licensed production assets and an end-to-end source-to-
+visible-render acceptance path before derived meshlet work begins.
 
 Roadmap 2.1 added Asset as an independent runtime layer. It separates source
 interchange, cooked delivery, runtime management, and GPU realization so that
@@ -109,7 +110,7 @@ through screen-space, derived-data, and hybrid integration milestones.
 - [OpenUSD Asset Resolution](https://openusd.org/release/api/ar_page_front.html) informs logical identifiers and replaceable resolver strategies; USD composition itself remains a later Scene/Prefab concern.
 - [Unreal Asset Management](https://dev.epicgames.com/documentation/en-us/unreal-engine/asset-management-in-unreal-engine) supports separating unloaded metadata, soft references, asynchronous loading, and residency ownership.
 
-### Current State (Feature 026 Complete; Feature 027 Next)
+### Current State (Feature 027 Complete; Feature 028 Next)
 
 | Ownership Area | Status | Current Capability |
 |---|---|---|
@@ -120,7 +121,7 @@ through screen-space, derived-data, and hybrid integration milestones.
 | Backend/Vulkan | Static-mesh native evidence done | Native/fallback resources plus compressed formats, buffer upload, indexed draw mapping, cleanup, and Lavapipe attachment readback |
 | Renderer | Static-mesh realization done | Material schema-v2 conversion plus transactional packing, RHI allocation/upload, immutable snapshots, sections, and rollback diagnostics |
 | Application | Done foundation | Window/input, ECS scene organization, visible triangle integration |
-| Additional Backends | Planned | Metal, DX12, desktop OpenGL, and GLES follow the Asset-backed shader path |
+| Additional Backends | Metal done | Native Metal device/resources/commands/synchronization/presentation plus strict-cooked shader execution; DX12, desktop OpenGL, and GLES remain planned |
 
 ---
 
@@ -197,7 +198,7 @@ depend on Tools.
 | 024 | Static Mesh & Model Pipeline | Asset | 004, 008, 020, 021, 023 | XL | Yes | ✅ Done |
 | 025 | Cooker, Manifest & Derived Data | Asset | 021, 022, 023, 024 | XL | Yes | ✅ Done |
 | 026 | Runtime Asset Manager | Asset | 020, 025 | XL | Yes | ✅ Done |
-| 027 | Metal Backend | Backend | 008, 016, 018, 023, 025 | XL | No | ⬜ Todo |
+| 027 | Metal Backend | Backend | 008, 016, 018, 023, 025 | XL | No | ✅ Done |
 | 028 | Production Content Integration & Acceptance | Asset | 018, 019, 022, 024, 026, 027 | L | Yes | ⬜ Todo |
 | 029 | Meshlet Derived Data | Asset | 024, 025, 026, 028 | XL | No | ⬜ Todo |
 | 030 | GPU-Driven Visibility & LOD | Renderer | 013, 029 | XL | No | ⬜ Todo |
@@ -1377,9 +1378,10 @@ packaging, input, and deployment require a future Application/platform phase.
 
 At each batch boundary, address accepted S0-S2 debt that affects the next
 feature. Feature 020 closed CR001-B09-F003 with the reusable test-suite
-registry. Decompose CR001-B09-F005 before Feature 027 or another new native
-execution path would duplicate the same oversized Vulkan session
-responsibility.
+registry. Feature 027 avoided duplicating CR001-B09-F005 by decomposing Metal
+resources, commands, queues, synchronization, and presentation around a shared
+owner state; the oversized Vulkan native session remains debt to address before
+its next major expansion.
 
 ---
 
@@ -1447,12 +1449,14 @@ Meshlets:
 5. Run `/speckit.implement`, validate locally and in required CI, and retain evidence.
 6. Mark the phase `✅ Done`, update Current State, dependency styling if used, and this change log.
 
-Feature 026 Asset: Runtime Asset Manager is complete. It delivered hybrid
-source/cooked typed loading, dependency
-scheduling, duplicate work coalescing with independent cancellation, immutable
-handles, deterministic unload, explicit completion pumping, bounded inspection,
-shutdown safety, and generation reader leases. GitHub Actions run 31882332020
-passed all eight required jobs. Feature 027 Metal is the next roadmap phase.
+Feature 027 Backend: Metal is complete. It delivered private Objective-C++
+ownership, complete applicable RHI realization, deterministic SPIR-V-to-MSL and
+offline metallib cooking, strict-cooked triangle/deferred execution,
+CAMetalLayer presentation, failure/lifecycle diagnostics, and backend-neutral
+Metal/Vulkan comparison. Hosted matrix run 32392504204 passed all ten jobs and
+required hardware run 32394691067 passed physical M4 Pro arm64 plus GitHub-
+hosted Intel x86_64. Feature 028 Production Content Integration & Acceptance is
+the next roadmap phase.
 
 ### Status Legend
 
@@ -1469,6 +1473,7 @@ passed all eight required jobs. Feature 027 Metal is the next roadmap phase.
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-08-21 | 2.2.1 | Marked Feature 027 complete after the ten-job hosted matrix and required hardware run 32394691067 passed physical M4 Pro arm64 Metal/Vulkan and hosted Intel x86_64 Metal-only native acceptance; activated Feature 028 Production Content Integration & Acceptance. |
 | 2026-08-15 | 2.2.0 | Inserted Feature 028 Production Content Integration & Acceptance as the licensed source-to-cooked-to-visible gate after Metal; shifted the former Features 028-038 to 029-039 and updated dependencies, prompts, DAG, tracks, solo order, and risks. |
 | 2026-08-15 | 2.1.11 | Hardened Feature 026 terminal publication, ready-cache handoff, and shared-dependency cancellation; GitHub Actions run 31882332020 passed Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan; downloaded all eight artifacts, recorded their digests, and activated Feature 027 Metal. |
 | 2026-08-15 | 2.1.10 | Recorded Feature 026 local implementation, Debug/strict Release/full-regression and M4 Pro evidence; retained In Progress status pending the required eight-job Windows/macOS/Linux and sanitizer CI matrix. |

@@ -1,0 +1,48 @@
+{
+  "artifacts": [
+    {
+      "digest": "62afc373ec5c4187b76e2e1e91e1f91e384558aa1a555fb0975c5067322edf85",
+      "path": "Config/AssetCooker/Profiles/Mac-Metal-X86_64.json"
+    },
+    {
+      "digest": "8165b9c6b98a207eb30625435e7630f8ac5fd3ad1ccab13213af3fbb8e194004",
+      "path": "Build/Feature027Validation/macos-x86_64/native/native.log"
+    }
+  ],
+  "backend": "metal",
+  "counts": {
+    "frames": 0,
+    "iterations": 0,
+    "lifecycleCycles": 0
+  },
+  "device": {
+    "capabilityDigest": "73e31afc30b78af97fdb9bcfbcf06e58128ba873b28ee82a83a03d7687317399",
+    "identity": "registry-4294968046",
+    "name": "Apple Paravirtual device"
+  },
+  "host": {
+    "architecture": "x86_64",
+    "os": "macos",
+    "runnerImage": "macos26"
+  },
+  "probes": [
+    {
+      "evidenceDigest": "5cc78e912ee0c071c3457e8d377e8bb0b6cf6acb42a941d68f1425926aafe714",
+      "name": "native-metal-conformance",
+      "result": "passed"
+    }
+  ],
+  "reportDigest": "7fcdc3f9378debe85b1a568b40aaa3ab79dbbc6efa1abda2017bd7a5c063b1cb",
+  "result": "passed",
+  "revision": "506e49e0143884d7a33c93de3b366eea377ff92b",
+  "schemaVersion": 1,
+  "shaderEvidenceDigests": [
+    "3f5b0250d400e8d185d2446a460263903a1931efb93d2d6bad1810dd224cc6a5",
+    "51bc6eeb29ac32f863eebec39bd9d11a853fea9f5454d80fd116c0f6b1814ba7",
+    "6b36423cdf83e3c06b4806041df8b603180eee3f66b6c029ddb7b0943651890f",
+    "795f8697caff5869542fff3ffeb6302347e13f6d44511bd27741d67355ef20dc",
+    "9dd48959839d5cf67a4902bb719148c846c4a164c8a861e2fa9886685498d478"
+  ],
+  "tier": "native-offscreen",
+  "workload": "metal-native-conformance"
+}

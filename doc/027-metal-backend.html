@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>027 - Native Metal Backend - Stoner Graphics Lab</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}:root{--bg:#f4f6f5;--paper:#fff;--ink:#182128;--muted:#617078;--line:#d7dfdc;--accent:#176b5b;--accent-2:#2f6378;--soft:#eaf4f1;--info:#edf4f7;--warn:#955b12;--warn-soft:#fff6e8;--code:#edf1f0;--dark:#182128;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.72 var(--sans)}.page{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 18px;background:var(--paper);border-right:1px solid var(--line)}.brand{font-size:14px;font-weight:800;color:var(--accent)}.subtitle{font-size:12px;color:var(--muted);padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:18px}.toc{list-style:none;padding:0}.toc a{display:block;padding:6px 8px;color:var(--muted);text-decoration:none;border-radius:6px;font-size:13px}.toc a:hover{color:var(--accent);background:var(--soft)}main{max-width:1080px;width:100%;padding:48px 48px 96px;margin:0 auto}h1{margin:0 0 8px;font-size:34px;line-height:1.2;color:var(--accent);letter-spacing:0}.meta{color:var(--muted);font-size:13px;margin-bottom:30px}section{margin-bottom:52px}h2{margin:32px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:23px;letter-spacing:0}h3{margin:22px 0 10px;font-size:17px;letter-spacing:0}h4{margin:16px 0 6px;font-size:15px;letter-spacing:0}p{margin:0 0 14px}ul,ol{margin:0 0 16px;padding-left:23px}li{margin:4px 0}code{font-family:var(--mono);font-size:13px;background:var(--code);padding:2px 5px;border-radius:4px}pre{margin:14px 0;padding:16px;overflow:auto;border-radius:8px;color:#e5e7eb;background:var(--dark);font-size:13px;line-height:1.55}pre code{background:transparent;color:inherit;padding:0}table{width:100%;border-collapse:collapse;margin:14px 0 20px;background:var(--paper)}th,td{padding:10px 12px;border:1px solid var(--line);text-align:left;vertical-align:top}th{background:var(--soft);font-size:13px}.callout{margin:16px 0;padding:14px 16px;border-left:4px solid var(--accent);background:var(--soft)}.note{border-left-color:var(--accent-2);background:var(--info)}.pending{border-left-color:var(--warn);background:var(--warn-soft)}.flow{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:8px;margin:18px 0}.node{padding:12px 10px;border:1px solid var(--line);border-radius:6px;background:var(--paper);text-align:center;font-size:13px}.arrow{color:var(--accent);font-weight:700}.badge{display:inline-block;padding:2px 7px;border-radius:4px;background:var(--soft);color:var(--accent);font-size:12px;font-weight:700}.small{font-size:13px;color:var(--muted)}@media(max-width:850px){.page{display:block}.sidebar{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}main{padding:32px 20px 72px}.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg)}}
+</style>
+</head>
+<body>
+<div class="page">
+<aside class="sidebar">
+  <div class="brand">STONER GRAPHICS LAB</div>
+  <div class="subtitle">Feature 027 implementation study</div>
+  <ul class="toc">
+    <li><a href="#context">一、文档与上下文信息</a></li>
+    <li><a href="#scope">二、目标与边界</a></li>
+    <li><a href="#usage">三、交互与产品设计</a></li>
+    <li><a href="#architecture">四、技术架构与关键决策</a></li>
+    <li><a href="#validation">五、实施与验证</a></li>
+    <li><a href="#practice">六、设计巧思与最佳实践</a></li>
+    <li><a href="#cpp">七、编程语言与 API 知识点</a></li>
+  </ul>
+</aside>
+<main>
+<header>
+  <h1>027 - Native Metal Backend</h1>
+  <div class="meta">版本 1.0 · 2026-08-21 · 已交付 · 原生 macOS RHI backend 与双架构验收通过</div>
+  <div class="callout"><strong>工程结论：</strong>Feature 027 不是把 Vulkan 调用翻译成 Metal，而是在同一套 RHI 契约下实现第二个真正独立的 native backend。Renderer、Application 与 Asset 不持有 Apple API；私有 Objective-C++ 实现独占设备、资源、命令、同步和 <code>CAMetalLayer</code> 生命周期。GitHub Actions hardware run <code>32394691067</code> 在 revision <code>506e49e</code> 上通过 arm64 与 x86_64 两条必需门禁。</div>
+</header>
+
+<section id="context">
+<h2>一、文档与上下文信息</h2>
+<h3>1. 基础元数据</h3>
+<table><tbody>
+<tr><th>项目项</th><th>内容</th></tr>
+<tr><td>Feature / Roadmap</td><td>027 - Backend: Metal</td></tr>
+<tr><td>实现分支</td><td><code>027-metal-backend</code></td></tr>
+<tr><td>设计输入</td><td><code>specs/027-metal-backend/</code> 中的 spec、plan、research、data-model、contracts、tasks 与 quickstart</td></tr>
+<tr><td>主要实现</td><td><code>Source/Backend/Metal/</code>、RHI typed shader payload/binding map、<code>Tools/AssetCooker/Private/FMetal*</code></td></tr>
+<tr><td>验证入口</td><td><code>Tests/Metal*Tests.*</code>、<code>Tests/verify_metal_backend.py</code>、<code>.github/scripts/run_metal_*.py</code></td></tr>
+<tr><td>证据位置</td><td><code>Validation/027/</code>；远程运行和 artifact 摘要以 <code>Validation/027/CI/README.md</code> 为准</td></tr>
+</tbody></table>
+
+<h3>2. 本期核心摘要</h3>
+<p>Feature 027 交付了覆盖当前适用 RHI 契约的 Metal 设备、buffer/texture/sampler、descriptor、render/compute pipeline、command、queue、同步、upload/readback、swapchain 等价物和窗口呈现。三角形与 deferred workload 仍从 Renderer 的 backend-neutral 描述出发，Metal Backend 只消费 RHI 数据；同一 workload 可独立在 Vulkan/MoltenVK 和 Metal 上运行并比较结果。</p>
+<p>本期第二条主线是 production shader 路径。GLSL/SPIR-V 继续作为仓库权威输入，Tools-only SPIRV-Cross 确定性派生 MSL；macOS 再用离线 <code>metal</code> 与 <code>metallib</code> 生成 target-tagged native library。runtime 只接收已 cook 的 typed bytes 和 binding evidence，不读 shader 路径，也不进行运行时源码编译。</p>
+
+<h3>3. 上下文与依赖</h3>
+<ul>
+<li>Features 007-008 定义 backend-neutral RHI contract；027 通过第二实现检验这些抽象是否真的可移植。</li>
+<li>Feature 016 提供 Application-owned window/view 借用边界；Metal 只在借用有效期内 attach 自己拥有的 layer。</li>
+<li>Features 018-019 提供 triangle 与 deferred 的真实 workload、readback 与跨 backend 语义基准。</li>
+<li>Features 023、025、026 提供 Shader Asset identity、cooked generation 与 strict-cooked runtime loading；Metal 不反向依赖 Asset。</li>
+<li>Feature 028 将用真实可再分发内容贯通 Asset、Renderer、Vulkan 与 Metal，而不是继续扩张 backend contract。</li>
+</ul>
+</section>
+
+<section id="scope">
+<h2>二、目标与边界</h2>
+<h3>1. 功能目标</h3>
+<p>开发者能够在支持的 macOS 上选择 Metal，运行已有 RHI workload、创建 production cooked pipeline、执行 GPU readback，并通过真实窗口呈现。非法资源组合、foreign/stale object、缺失 binding evidence、错误 payload/profile、drawable 暂不可用和注入失败都必须在明确边界上 fail closed。</p>
+
+<h3>2. 架构目标与定位</h3>
+<div class="flow">
+  <div class="node"><strong>GLSL / SPIR-V</strong><br>权威 Shader Asset</div><div class="node arrow">→</div>
+  <div class="node"><strong>AssetCooker</strong><br>MSL + metallib evidence</div><div class="node arrow">→</div>
+  <div class="node"><strong>RHI / Metal</strong><br>typed bytes + native execution</div>
+</div>
+<p>层次关系仍为 <code>Backend -&gt; RHI + Core</code>。Asset 负责 CPU identity 和 cooked payload，Tools 负责离线变换，Renderer 负责组织 workload，Application 负责窗口；只有 <code>Source/Backend/Metal/Private/*.mm</code> 可以持有 Objective-C 与 Apple framework 对象。这个划分使 Metal 成为 RHI portability test，而不是新的跨层捷径。</p>
+
+<h3>3. 边界与非目标</h3>
+<ul>
+<li><strong>不做 iOS 生命周期：</strong>没有 UIKit、移动端 surface、后台切换或触摸输入。</li>
+<li><strong>不做 Metal 专属渲染算法：</strong>mesh shader、ray tracing、MetalFX 等留给后续独立阶段。</li>
+<li><strong>不把 GPU ownership 放进 Asset：</strong>metallib 是资产 payload，<code>MTLLibrary</code> 和 pipeline 是 Backend 对象。</li>
+<li><strong>不允许运行时 shader compile：</strong>strict cooked 缺失或不兼容即失败。</li>
+<li><strong>不假装跨 backend 二进制相同：</strong>比较的是归一化语义与图像容差，不是 Metal/Vulkan 内部布局。</li>
+</ul>
+</section>
+
+<section id="usage">
+<h2>三、交互与产品设计</h2>
+<h3>1. 开发者使用路径</h3>
+<pre><code>// Public call site sees only RHI and the C++ Metal factory contract.
+FMetalBackendConfig Config;
+Config.RuntimeMode = ERHIRuntimeMode::Native;
+
+FMetalDeviceCreateResult Created = CreateMetalDevice(Config);
+TSharedPtr&lt;IRHIDevice&gt; Device = Created.Device;
+
+// Renderer submits the same RHI frame description used by Vulkan.
+ExecuteDeferredFrame(*Device, FramePlan);
+Device-&gt;WaitIdle();</code></pre>
+<p>生产路径先由 AssetCooker 生成带 profile、compiler、binding-map 和 digest 证据的 native payload，再由 runtime manager strict-cooked 加载。Renderer 深拷贝为 RHI shader module description；Metal pipeline creation 校验 payload format、target profile 和 native binding map 后才调用 Apple API。</p>
+
+<h3>2. 命令与呈现状态</h3>
+<pre><code>Command: Initial -> Recording -> Executable -> Submitted -> Completed
+Layer:   Detached -> Attaching -> Ready <-> Paused
+         Ready/Paused -> Reconfiguring -> Ready/Paused
+         Any live state -> Draining -> Detached</code></pre>
+<ul>
+<li>command 在提交前记录并验证 RHI intent，提交时才按 Metal encoder scope 编码。</li>
+<li>resource owner identity、generation 与 live state 共同阻止 foreign/stale handle 被编码。</li>
+<li>零尺寸、最小化或 <code>nextDrawable == nil</code> 进入 bounded pause/skip，不忙等、不伪造成功。</li>
+<li>shutdown 先停止 admission、排空 in-flight work，再 detach layer 和释放借用的 window/view 联系。</li>
+</ul>
+
+<h3>3. 可诊断行为</h3>
+<table><thead><tr><th>场景</th><th>预期行为</th><th>主要证据</th></tr></thead><tbody>
+<tr><td>非 macOS 显式选择 Metal</td><td>API-free unsupported result；不编译/链接 Apple header 或 framework</td><td><code>FMetalDeviceFactoryUnsupported.cpp</code></td></tr>
+<tr><td>错误 metallib/profile/binding map</td><td>native pipeline 创建前拒绝，稳定 result 与 diagnostic</td><td><code>MetalShaderCookTests</code>、<code>MetalPipelineTests</code></td></tr>
+<tr><td>foreign/stale resource</td><td>不访问无效 native object，后续工作仍可继续</td><td><code>MetalRHIConformanceTests</code></td></tr>
+<tr><td>resize/minimize/restore</td><td>layer extent 更新、drawable 暂停并恢复、无旧帧提交</td><td><code>MetalPresentationTests</code>、visible acceptance</td></tr>
+<tr><td>任意注入失败</td><td>确定性 unwind，terminal ownership counters 归零</td><td><code>MetalFailureInjectionTests</code></td></tr>
+</tbody></table>
+</section>
+
+<section id="architecture">
+<h2>四、技术架构与关键决策</h2>
+<h3>1. 技术栈与模块边界</h3>
+<p>实现使用 C++20 与 private Objective-C++20，ARC 管理 Objective-C 引用；最低目标为 macOS 12.0 / MSL 2.4。Metal、QuartzCore、Cocoa、Foundation 只链接到 macOS Metal target。SPIRV-Cross 固定为仓库 private Tools dependency；Windows/Linux 只执行 MSL 派生和架构验证，不接触 Apple SDK。</p>
+
+<h3>2. 关键模块对应关系</h3>
+<table><thead><tr><th>模块</th><th>职责</th><th>重要不变量</th></tr></thead><tbody>
+<tr><td><code>FMetalDeviceOwnerState</code></td><td>设备 identity、generation、live/in-flight counter</td><td>所有对象共享 foreign/stale 判断与 shutdown 审计</td></tr>
+<tr><td><code>FMetalBuffer/Texture/Sampler</code></td><td>native resource、storage mode、upload/readback</td><td>managed/shared/private coherency 显式处理</td></tr>
+<tr><td><code>FMetal*CommandEncoder</code></td><td>render、compute、blit 的 scope 映射</td><td>RHI barrier 必要时结束/切换 encoder</td></tr>
+<tr><td><code>FMetalQueue/Submission</code></td><td>提交顺序、retained object、completion</td><td>terminal 前不释放被 GPU 使用的对象</td></tr>
+<tr><td><code>FMetalSynchronization</code></td><td>fence/semaphore 的 epoch 与 completion</td><td>旧 epoch completion 不可满足新 wait</td></tr>
+<tr><td><code>FMetalPresentationContext</code></td><td><code>CAMetalLayer</code> attach/acquire/present/detach</td><td>拥有 layer，不拥有 Application window/view</td></tr>
+<tr><td><code>FSpirvCrossMslDeriver</code></td><td>确定性 SPIR-V 到规范 MSL</td><td>仅 Tools；路径、时间戳不进入 identity</td></tr>
+<tr><td><code>FMetalLibraryCompiler</code></td><td>显式 argv 调用 metal/metallib</td><td>无 shell、bounded output、完整 toolchain evidence</td></tr>
+</tbody></table>
+
+<h3>3. 架构决策记录（ADR）</h3>
+<h4>(1) 私有 Objective-C++ 边界</h4>
+<p><strong>决策：</strong>公开 header 保持普通 C++，Apple protocol 和 Cocoa 类型只出现在 private <code>.mm</code>。这样 Windows/Linux 可编译同一公共接口，同时 ARC 的强弱引用规则不会渗入 Core/RHI。metal-cpp 并不能消除 Cocoa layer 集成所需的 Objective-C++，反而会再引入一套 wrapper lifetime，因此未采用。</p>
+
+<h4>(2) 分解 native object，而非复制巨型 context</h4>
+<p><strong>决策：</strong>资源、pipeline、command、queue、sync 和 presentation 分别实现，并共享小型 owner state。此前 Vulkan 集成已经暴露巨型 native context 在 ownership、失败回滚和测试隔离上的代价；第二 backend 借此把责任域切开，同时保留统一设备身份。</p>
+
+<h4>(3) 直接 binding 加版本化证据</h4>
+<p><strong>决策：</strong>Feature 027 使用 direct buffer/texture/sampler binding。Tools 对 <code>(stage,set,binding,type,array element)</code> 只做一次确定性映射，并把 canonical digest 写入 cook evidence；RHI 搬运 backend-neutral map，Metal 只校验和消费。argument buffer 是优化选项，不应在 correctness 首期扩大 GPU-family 差异。</p>
+
+<h4>(4) 逻辑 barrier 到 encoder scope</h4>
+<p><strong>决策：</strong>普通资源依赖 Metal tracked hazards，RHI barrier 仍验证 logical state；遇到 encoder 不允许跨越的 transition 时保守结束当前 encoder。Metal 与 Vulkan 的 barrier 模型不同，所以正确抽象不是逐 API 映射，而是让 RHI 描述可观察的顺序和可见性，再由 backend 选择合法机制。</p>
+
+<h4>(5) 跨架构而非架构推断能力</h4>
+<p><strong>决策：</strong>arm64 与 x86_64 都是正式目标，但 GPU family、storage mode、format 和 binding limit 来自真实 <code>MTLDevice</code> 查询，不从 CPU 架构猜测。Apple Silicon 常见 unified memory；Intel runner 可能是离散、集成或虚拟设备，代码必须按 capability snapshot 行事。</p>
+</section>
+
+<section id="validation">
+<h2>五、实施与验证</h2>
+<h3>1. 验证分层</h3>
+<table><thead><tr><th>层级</th><th>证明内容</th><th>不能声称的内容</th></tr></thead><tbody>
+<tr><td>deterministic</td><td>三平台 build isolation、MSL/evidence 20 次一致、失败诊断一致</td><td>不能声称 GPU 执行</td></tr>
+<tr><td>native-offscreen</td><td>真实 <code>MTLDevice</code>、command completion、GPU readback</td><td>不能替代窗口呈现</td></tr>
+<tr><td>visible-manual</td><td>真实 <code>CAMetalLayer</code>、resize/minimize/restore、capture 与 clean shutdown</td><td>单张图不能证明长期生命周期</td></tr>
+<tr><td>cross-backend</td><td>独立 Metal/Vulkan native evidence 后再按固定容差比较</td><td>semantic oracle 不能充当任一 native 侧</td></tr>
+</tbody></table>
+
+<h3>2. 双架构验证职责</h3>
+<p>物理 M4 Pro arm64 lane 负责完整 native offscreen、production cook、strict-cooked triangle/deferred、真实窗口、failure、10,000 次生命周期和 Metal/Vulkan 对照。GitHub-hosted <code>macos-26-intel</code> lane 要求真实 x86_64 <code>MTLDevice</code>，并执行等价的 Metal-only native、strict-cooked、presentation smoke、failure 与 lifecycle gate。</p>
+<div class="callout note"><strong>为什么 Intel 不要求 MoltenVK 对照：</strong>该 hosted Intel 的 Apple Paravirtual device 可正常执行直接 Metal，但无法建立 MoltenVK Vulkan device。把 x86_64 Metal 成功绑定到 runner 不具备的 Vulkan capability，会把“第二 backend 是否正确”混同为“测试主机是否提供第三方兼容层”。跨 backend 对照仍由具备两套真实 runtime 的物理 M4 lane 强制承担。</div>
+
+<h3>3. 关键验收量</h3>
+<ul>
+<li>MSL derivation 与 production cook 各重复 20 次，identity-bearing digest 必须稳定。</li>
+<li>可见验收运行 3,000 帧并执行 20 个 resize/minimize/restore cycle。</li>
+<li>生命周期门禁执行 10,000 次；前 1,000 次 warm-up，随后每 100 次记录 RSS，共 90 个样本。</li>
+<li>允许增长为 <code>max(16 MiB, 5%)</code>，同时 terminal native ownership counters 必须归零。</li>
+<li>native report 记录 OS、CPU architecture、真实 device identity、capability digest、shader evidence、probe 和 artifact digest。</li>
+</ul>
+
+<h3>4. 常用验证命令</h3>
+<pre><code>conda run -n godot scons -j8 config=debug strict=1
+conda run -n godot scons -j8 config=release strict=1
+conda run -n godot python Tests/verify_metal_backend.py --root . --mode all
+conda run -n godot python -m unittest Tests/test_verify_metal_backend.py
+gh workflow run feature-027-metal-hardware.yml --ref 027-metal-backend
+gh run watch &lt;run-id&gt; --exit-status</code></pre>
+</section>
+
+<section id="practice">
+<h2>六、设计巧思与最佳实践</h2>
+<h3>1. 当前场景中的最佳实践</h3>
+<ul>
+<li><strong>typed shader bytes：</strong>RHI 明确区分 SPIR-V 和 MetalLibrary；禁止把任意 bytes 填进 SPIR-V word contract。</li>
+<li><strong>evidence accompanies payload：</strong>payload digest、target profile、compiler tuple 和 binding policy 都参与兼容性判断。</li>
+<li><strong>record then encode：</strong>公共 command recording 不立即触碰 native encoder，错误可在提交前完整验证并确定性回滚。</li>
+<li><strong>owner state audit：</strong>每类 native object 都计入 inspection，failure injection 与 shutdown 可验证真正归零。</li>
+<li><strong>capability-correct CI：</strong>每个 lane 只声明其运行环境能够真实证明的内容，同时保证所有 requirement 都有明确 owner。</li>
+</ul>
+
+<h3>2. 取舍与收益</h3>
+<p>直接 binding、tracked hazards 和 macOS-only finalization 都是“先把 portable correctness 做实”的选择。它们牺牲了 argument buffer、untracked hazard 和跨平台 native library compilation 的潜在性能或便利，却显著减少首个 Metal backend 的状态空间。等 Feature 028 用真实内容暴露规模特征后，再以测量证据决定优化方向。</p>
+
+<h3>3. 已知限制与后续演进</h3>
+<ul>
+<li>GitHub-hosted Intel 是真实 Metal API/GPU readback 证据，但设备为 Apple Paravirtual device；实体 Intel Mac 仍是有价值的可选兼容性补充。</li>
+<li>当前 presentation 面向 macOS GLFW/Cocoa；iOS 需要独立 Application lifecycle 与 surface contract。</li>
+<li>当前 binding map v1 以 direct binding 为主；未来 argument buffer 必须作为新 policy/version 并保持旧 cooked generation 可读。</li>
+<li>Feature 028 才会用 licensed artist-authored glTF、PBR material 与 1K/2K texture 验证 source-to-cooked-to-visible 的实际组合。</li>
+</ul>
+</section>
+
+<section id="cpp">
+<h2>七、编程语言与 API 知识点</h2>
+<h3>1. Objective-C++ 与 ARC</h3>
+<p><code>.mm</code> 允许同一 translation unit 使用 C++ ownership 与 Objective-C protocol。ARC 管理 <code>id&lt;MTLDevice&gt;</code>、<code>CAMetalLayer*</code> 等引用，但 C++ shared owner state、submission retention 和析构顺序仍由引擎明确控制。ARC 解决引用计数语法，不替代跨语言生命周期设计。</p>
+
+<h3>2. Metal API 阅读提示</h3>
+<table><thead><tr><th>Metal 概念</th><th>本项目映射</th><th>关键差异</th></tr></thead><tbody>
+<tr><td><code>MTLCommandQueue/Buffer</code></td><td>RHI queue、submission、completion</td><td>逻辑多 queue 语义仍由 RHI 验证</td></tr>
+<tr><td>render/compute/blit encoder</td><td>RHI command records 的提交期编码</td><td>encoder scope 比通用 command list 更严格</td></tr>
+<tr><td>storage mode</td><td>host visible/device local 与 coherency</td><td>managed resource 需要显式 modify/synchronize</td></tr>
+<tr><td><code>CAMetalLayer</code> / drawable</td><td>swapchain-equivalent presentation</td><td>drawable 是帧级短生命周期对象，不能跨帧缓存</td></tr>
+<tr><td><code>MTLLibrary</code></td><td>RHI typed MetalLibrary payload 的 native realization</td><td>runtime 不从 MSL source 编译</td></tr>
+</tbody></table>
+
+<h3>3. 跨语言所有权检查法</h3>
+<p>阅读 Metal backend 时依次确认四件事：C++ wrapper 是否共享正确 device owner identity；Objective-C object 是否只出现在 private Objective-C++；submission 是否保持 GPU 执行所需的 resource；shutdown 是否先等待 terminal completion 再释放 layer/device。只看 ARC retain count 无法回答后两项。</p>
+</section>
+
+<footer class="small">实现依据：<code>specs/027-metal-backend/</code> · 验证证据：<code>Validation/027/</code> · 远程运行结论与 artifact digest：<code>Validation/027/CI/README.md</code>。</footer>
+</main>
+</div>
+</body>
+</html>

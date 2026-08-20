@@ -2,7 +2,7 @@
 
 **Feature Branch**: `027-metal-backend`
 **Created**: 2026-08-18
-**Status**: Draft
+**Status**: Complete
 **Input**: User description: "为 roadmap phase 27 metal backend 制定 spec"
 
 ## Clarifications
