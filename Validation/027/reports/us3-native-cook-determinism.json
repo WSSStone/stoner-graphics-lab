@@ -1,0 +1,69 @@
+{
+  "artifacts": [
+    {
+      "digest": "30382edde6b68d954763a778a2d34b016d158917333f4365d82072964322e045",
+      "path": "Config/AssetCooker/Profiles/Mac-Metal-Arm64.json"
+    }
+  ],
+  "backend": "metal",
+  "counts": {
+    "frames": 0,
+    "iterations": 20,
+    "lifecycleCycles": 0
+  },
+  "device": {
+    "capabilityDigest": "7ebdde1f9560449a72351ff14ac9f7c6fc690eed6818102daa5d499f72370afe",
+    "identity": "registry-4294968412",
+    "name": "Apple M4 Pro"
+  },
+  "host": {
+    "architecture": "arm64",
+    "os": "macos"
+  },
+  "probes": [
+    {
+      "evidenceDigest": "582f9d3942b28cefe3cf2e99c944122cca03f6b98594f20933de474e96b81f24",
+      "name": "production-cook-generation",
+      "result": "passed"
+    },
+    {
+      "evidenceDigest": "b4b608786ebc531f8cf034bf9c5ec2c0f5b23607a941c1399a05074d9b253f6e",
+      "name": "production-cook-normalized-reports",
+      "result": "passed"
+    },
+    {
+      "evidenceDigest": "6c93ffc789fcc50e6879f37e6f3e01463e341c2d341f335acf9cba493b34192f",
+      "name": "production-cook-ddc-keys",
+      "result": "passed"
+    },
+    {
+      "evidenceDigest": "fe6bf509f7493a855f92f3de68fafa3b38702a88d0800810adf8bc6fc1aaba4f",
+      "name": "production-cook-envelopes",
+      "result": "passed"
+    },
+    {
+      "evidenceDigest": "c083de0500b7750f7339e55855146c07d1faf6ce14e0fb5dd01ba087e11d1a64",
+      "name": "production-cook-strict-load-graphics-compute",
+      "result": "passed"
+    }
+  ],
+  "reportDigest": "318f0352ad57f1352d077ba36d55f1ed6529316f56799937950696e536f200e7",
+  "result": "passed",
+  "revision": "695c8a1e05799d5b68c518289ac6f435fbfbe1a3",
+  "schemaVersion": 1,
+  "shaderEvidenceDigests": [
+    "291f4469f0224e85be1240166a04c1090a44636813154d834b92d4220f52f115",
+    "37c87f6a5f7ce451f4453bbb5afdbd3935e250ce7e656c40cc8c78dfe2ab6d61",
+    "48f6e4baa647d2571b3da02b428017e272a1406c8396cfde702a481fd6c2e540",
+    "8657de81e06940ad12053f3ab1a6804d3128e2c4880698207df22c6e4472b9cd",
+    "866f510f26be2c6cbc8aa31cd06ccada770adc5fb787276c382d105a27f654e3",
+    "9e7a3ab012a73b8c6677daed8e4846a2cb062fa65e0ede5e555e7516f54bceec",
+    "c2fb650f3dd25b8ec24ccb28cb4212c9d19cef96d6e1fed6d1e04825e751c7ad",
+    "d7f79e2b246d3d7e8adadd44b82f0270ce8ae69fcd3415fbb59ad7ea02af4e2e",
+    "e00d1709999cfd9423baed6d53102f398c2179e0fe165bb80c7486a020221f78",
+    "e5b68abacffccd55ff4d240691cd707bb8f1677a0f9fb8b7a815db93e425de4a",
+    "e9e1f40747b24bddc7c4d6e231b4f580d5a0905bc2ddfbd642cbe449350e79dc"
+  ],
+  "tier": "native-offscreen",
+  "workload": "metal-native-cook-determinism"
+}
