@@ -15,9 +15,13 @@
 #include <array>
 #include <cctype>
 #include <cstring>
+#include <iomanip>
+#include <iostream>
 #include <limits>
 #include <new>
 #include <stdexcept>
+#include <span>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -1391,11 +1395,20 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
             break;
         }
     }
+    const auto Digest = Stoner::RHI::ComputeRHISha256(
+        std::span<const Stoner::Core::uint8>(
+            Pixels, static_cast<std::size_t>(ReadbackSize)));
     vkUnmapMemory(Impl->Device, Impl->ReadbackMemory);
     if (!bObservedDrawnPixel)
     {
         return Fail();
     }
+    std::ostringstream DigestText;
+    DigestText << std::hex << std::setfill('0');
+    for (const auto Byte : Digest.Bytes)
+        DigestText << std::setw(2) << static_cast<unsigned int>(Byte);
+    std::cout << "[EVIDENCE] vulkan-native-triangle status=passed readback="
+              << DigestText.str() << '\n';
     Impl->DestroyFrameResources();
     return Stoner::RHI::ERHIResult::Success;
 #else

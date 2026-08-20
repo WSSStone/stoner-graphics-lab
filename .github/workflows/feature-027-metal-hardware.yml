@@ -52,6 +52,7 @@ jobs:
           python -m unittest Tests/test_verify_architecture.py Tests/test_verify_metal_backend.py
           python .github/scripts/test_run_metal_validation.py
           python .github/scripts/test_run_metal_native_cook.py
+          python .github/scripts/test_run_metal_render_acceptance.py
       - name: Run deterministic MSL derivation twenty times
         run: >-
           python .github/scripts/run_metal_validation.py
@@ -96,6 +97,18 @@ jobs:
           --work Build/Feature027Validation/${{ matrix.slug }}/native-cook
           --output Validation/027/CI/work/hardware-${{ matrix.slug }}/native-cook.json
           --repetitions 20
+          --timeout-seconds 1800
+      - name: Require strict-cooked Metal and Vulkan render acceptance
+        run: >-
+          python .github/scripts/run_metal_render_acceptance.py
+          --root .
+          --tests Build/Mac/Release/Tests/StonerTest
+          --demo Build/Mac/Release/Demo/StonerDemo/StonerDemo
+          --profile ${{ matrix.profile }}
+          --publication Build/Feature027Validation/${{ matrix.slug }}/native-cook/run-00/Cooked
+          --lease Build/Feature027Validation/${{ matrix.slug }}/render-lease
+          --output-dir Validation/027/CI/work/hardware-${{ matrix.slug }}/render
+          --work Build/Feature027Validation/${{ matrix.slug }}/render
           --timeout-seconds 1800
       - name: Run failure determinism
         run: >-

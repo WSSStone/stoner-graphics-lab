@@ -118,6 +118,27 @@ capabilities prove a genuine hardware limitation.
 
 ## 6. Native Offscreen Validation
 
+After the production cook in section 4, run the shared triangle/deferred
+acceptance entrypoint. It requires independent GPU readback from Metal and
+Vulkan/MoltenVK and writes the four normalized User Story 4 reports:
+
+```bash
+conda run -n godot python .github/scripts/run_metal_render_acceptance.py \
+  --root . \
+  --tests Build/Mac/Release/Tests/StonerTest \
+  --demo Build/Mac/Release/Demo/StonerDemo/StonerDemo \
+  --profile Config/AssetCooker/Profiles/Mac-Metal-Arm64.json \
+  --publication Build/Feature027Validation/native-cook-arm64/run-00/Cooked \
+  --lease Build/Feature027Validation/render-acceptance-lease \
+  --output-dir Validation/027/reports \
+  --work Build/Feature027Validation/render-acceptance \
+  --timeout-seconds 1800
+```
+
+The Metal triangle must consume the strict-cooked generation. The comparison
+report is accepted only when the C++ probe emits independent Metal and Vulkan
+native evidence under `metal-vulkan-tolerance-v1`.
+
 ```bash
 conda run -n godot python .github/scripts/run_metal_validation.py \
   --root . \

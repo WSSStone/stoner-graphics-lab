@@ -1,5 +1,6 @@
 #include "FDemoBackendFactory.h"
 
+#include "Asset/FAssetDigest.h"
 #include "Core/SGPlatform.h"
 #include "RHI/RHIMinimal.h"
 #include "VulkanRHI/FVulkanNativeContext.h"
@@ -9,6 +10,7 @@
 #endif
 
 #include <array>
+#include <iostream>
 #include <utility>
 
 namespace Stoner::Demo
@@ -81,6 +83,7 @@ public:
     }
 
     RHI::ERHIResult ExecuteOffscreenTriangle(
+        const Renderer::FForwardFramePlan&,
         const RHI::FRHIShaderModuleDesc& VertexShader,
         const RHI::FRHIShaderModuleDesc& FragmentShader) override
     {
@@ -303,10 +306,122 @@ public:
     }
 
     RHI::ERHIResult ExecuteOffscreenTriangle(
-        const RHI::FRHIShaderModuleDesc&,
-        const RHI::FRHIShaderModuleDesc&) override
+        const Renderer::FForwardFramePlan& Plan,
+        const RHI::FRHIShaderModuleDesc& VertexShader,
+        const RHI::FRHIShaderModuleDesc& FragmentShader) override
     {
-        return RHI::ERHIResult::Unsupported;
+        constexpr Core::uint32 Extent = 64;
+        constexpr Core::uint64 ReadbackSize = Extent * Extent * 4u;
+        if (!Device_ || !Plan.IsValid() ||
+            Plan.OutputTarget.Extent.Width != Extent ||
+            Plan.OutputTarget.Extent.Height != Extent)
+            return RHI::ERHIResult::InvalidState;
+        if (PrepareTriangle(
+                VertexShader, FragmentShader, Extent, Extent) !=
+            RHI::ERHIResult::Success)
+            return RHI::ERHIResult::Failed;
+
+        const auto Fail = [this]() {
+            ResetTriangleResources();
+            return RHI::ERHIResult::Failed;
+        };
+        RHI::FRHITextureDesc OutputDesc;
+        OutputDesc.Width = Extent;
+        OutputDesc.Height = Extent;
+        OutputDesc.Format = RHI::ERHIFormat::B8G8R8A8_UNorm;
+        OutputDesc.Usage = RHI::ERHITextureUsage::ColorAttachment |
+            RHI::ERHITextureUsage::CopySource;
+        auto Output = Device_->CreateTexture(OutputDesc);
+        if (!Output.Succeeded()) return Fail();
+
+        RHI::FRHIFramebufferDesc FramebufferDesc;
+        FramebufferDesc.RenderPass = RenderPass_;
+        FramebufferDesc.Attachments.push_back({Output.Object, 0, 0});
+        FramebufferDesc.Width = Extent;
+        FramebufferDesc.Height = Extent;
+        auto Framebuffer = Device_->CreateFramebuffer(FramebufferDesc);
+        auto RenderCommands = Device_->CreateCommandBuffer(
+            RHI::ERHIQueueType::Graphics);
+        auto Queue = Device_->CreateCommandQueue(RHI::ERHIQueueType::Graphics);
+        auto RenderFence = Device_->CreateFence();
+        if (!Framebuffer.Succeeded() || !RenderCommands.Succeeded() ||
+            !Queue.Succeeded() || !RenderFence.Succeeded())
+            return Fail();
+
+        Renderer::FForwardFrameExecutionBindings Bindings;
+        Bindings.OutputTexture = Output.Object;
+        Bindings.VertexBuffer = VertexBuffer_;
+        Bindings.GraphicsPipeline = GraphicsPipeline_;
+        Bindings.RenderPass = RenderPass_;
+        Bindings.Framebuffer = Framebuffer.Object;
+        Bindings.CommandBuffer = RenderCommands.Object;
+        const auto Execution = Renderer::FForwardFrameExecutor().Execute(
+            Plan, Bindings);
+        if (!Execution.Succeeded() ||
+            Queue.Object->Submit(
+                RenderCommands.Object, {}, {}, RenderFence.Object) !=
+                RHI::ERHIResult::Success ||
+            RenderFence.Object->Wait(5'000'000) != RHI::ERHIResult::Success)
+            return Fail();
+
+        RHI::FRHIBufferDesc ReadbackDesc;
+        ReadbackDesc.SizeInBytes = ReadbackSize;
+        ReadbackDesc.Usage = RHI::ERHIBufferUsage::CopyDestination;
+        ReadbackDesc.MemoryAccess = RHI::ERHIMemoryAccess::HostVisible;
+        auto Readback = Device_->CreateBuffer(ReadbackDesc);
+        auto CopyCommands = Device_->CreateCommandBuffer(
+            RHI::ERHIQueueType::Graphics);
+        auto CopyFence = Device_->CreateFence();
+        if (!Readback.Succeeded() || !CopyCommands.Succeeded() ||
+            !CopyFence.Succeeded())
+            return Fail();
+
+        RHI::FRHIResourceBarrierDesc ToCopy;
+        ToCopy.Texture = Output.Object;
+        ToCopy.RequiredTextureUsage = RHI::ERHITextureUsage::CopySource;
+        ToCopy.Before = RHI::ERHIResourceLayout::Present;
+        ToCopy.After = RHI::ERHIResourceLayout::CopySource;
+        RHI::FRHITextureBufferCopyRegion Region;
+        Region.Width = Extent;
+        Region.Height = Extent;
+        const bool bCopyRecorded =
+            CopyCommands.Object->Begin() == RHI::ERHIResult::Success &&
+            CopyCommands.Object->RecordLayoutTransition(ToCopy) ==
+                RHI::ERHIResult::Success &&
+            CopyCommands.Object->RecordTextureToBufferCopy(
+                Output.Object, Readback.Object, Region) ==
+                RHI::ERHIResult::Success &&
+            CopyCommands.Object->End() == RHI::ERHIResult::Success;
+        if (!bCopyRecorded ||
+            Queue.Object->Submit(
+                CopyCommands.Object, {}, {}, CopyFence.Object) !=
+                RHI::ERHIResult::Success ||
+            CopyFence.Object->Wait(5'000'000) != RHI::ERHIResult::Success)
+            return Fail();
+
+        Core::TArray<Core::uint8> Bytes;
+        if (Backend::Metal::ReadMetalBufferForValidation(
+                Device_, Readback.Object, 0, ReadbackSize, Bytes) !=
+                RHI::ERHIResult::Success || Bytes.size() != ReadbackSize)
+            return Fail();
+        bool bObservedDrawnPixel = false;
+        for (Core::usize Pixel = 0; Pixel < Bytes.size() / 4; ++Pixel)
+        {
+            const Core::usize Byte = Pixel * 4;
+            if (Bytes[Byte] > 16u || Bytes[Byte + 1] > 16u ||
+                Bytes[Byte + 2] > 16u)
+            {
+                bObservedDrawnPixel = true;
+                break;
+            }
+        }
+        if (!bObservedDrawnPixel) return Fail();
+
+        const Asset::FAssetDigest Digest = Asset::FAssetDigest::FromBytes(Bytes);
+        std::cout << "[EVIDENCE] metal-native-triangle status=passed readback="
+                  << Digest.ToLowerHex().CStr() << '\n';
+        ResetTriangleResources();
+        return RHI::ERHIResult::Success;
     }
 
     RHI::FRHIRuntimeSnapshot GetSnapshot() const noexcept override

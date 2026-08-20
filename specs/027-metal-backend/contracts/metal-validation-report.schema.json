@@ -124,7 +124,7 @@
       },
       "then": {
         "required": ["device", "shaderEvidenceDigests"],
-        "properties": { "backend": { "const": "metal" } }
+        "properties": { "backend": { "enum": ["metal", "vulkan"] } }
       }
     },
     {

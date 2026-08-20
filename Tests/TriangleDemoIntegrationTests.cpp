@@ -67,11 +67,14 @@ public:
         return Stoner::RHI::ERHIResult::Unsupported;
     }
     Stoner::RHI::ERHIResult ExecuteOffscreenTriangle(
+        const Stoner::Renderer::FForwardFramePlan& Plan,
         const Stoner::RHI::FRHIShaderModuleDesc&,
         const Stoner::RHI::FRHIShaderModuleDesc&) override
     {
         ++State_->ExecuteCalls;
-        return Stoner::RHI::ERHIResult::Success;
+        return Plan.IsValid() && Plan.HasRenderableGeometry()
+            ? Stoner::RHI::ERHIResult::Success
+            : Stoner::RHI::ERHIResult::InvalidState;
     }
     Stoner::RHI::FRHIRuntimeSnapshot GetSnapshot() const noexcept override
     {

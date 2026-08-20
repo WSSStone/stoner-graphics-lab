@@ -6,8 +6,10 @@ on:
     paths:
       - ".github/scripts/run_metal_validation.py"
       - ".github/scripts/run_metal_native_cook.py"
+      - ".github/scripts/run_metal_render_acceptance.py"
       - ".github/scripts/test_run_metal_validation.py"
       - ".github/scripts/test_run_metal_native_cook.py"
+      - ".github/scripts/test_run_metal_render_acceptance.py"
       - ".github/workflows/feature-027-metal-backend.yml"
       - "Config/AssetCooker/Profiles/Mac-Metal-*.json"
       - "Content/Shaders/**"
@@ -31,8 +33,10 @@ on:
     paths:
       - ".github/scripts/run_metal_validation.py"
       - ".github/scripts/run_metal_native_cook.py"
+      - ".github/scripts/run_metal_render_acceptance.py"
       - ".github/scripts/test_run_metal_validation.py"
       - ".github/scripts/test_run_metal_native_cook.py"
+      - ".github/scripts/test_run_metal_render_acceptance.py"
       - ".github/workflows/feature-027-metal-backend.yml"
       - "Config/AssetCooker/Profiles/Mac-Metal-*.json"
       - "Content/Shaders/**"
@@ -161,6 +165,7 @@ jobs:
           python -m unittest Tests/test_verify_architecture.py Tests/test_verify_metal_backend.py
           python .github/scripts/test_run_metal_validation.py
           python .github/scripts/test_run_metal_native_cook.py
+          python .github/scripts/test_run_metal_render_acceptance.py
       - name: Run deterministic MSL derivation twenty times
         run: >-
           python .github/scripts/run_metal_validation.py

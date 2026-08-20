@@ -541,12 +541,12 @@ FMetalDeferredNativeProbeReport RunMetalDeferredNativeProbe()
     Draw.MeshId = 1;
     Draw.MaterialId = 1;
     Draw.Name = "MetalDeferredTriangle";
-    Draw.Surface.BaseColor = FColor(0.5f, 0.25f, 0.125f, 1.0f);
+    Draw.Surface.BaseColor = FColor(0.8f, 0.2f, 0.1f, 1.0f);
     Draw.Surface.AmbientOcclusion = 0.75f;
     Draw.Surface.Normal = {0.0f, 0.0f, 1.0f};
-    Draw.Surface.Roughness = 0.4f;
-    Draw.Surface.Emissive = FColor(0.1f, 0.05f, 0.0f, 1.0f);
-    Draw.Surface.Metallic = 0.2f;
+    Draw.Surface.Roughness = 0.42f;
+    Draw.Surface.Emissive = FColor(0.3f, 0.05f, 0.0f, 1.0f);
+    Draw.Surface.Metallic = 0.65f;
     Inputs.DrawCandidates.push_back(Draw);
     Inputs.DirectionalLights.push_back({
         {2, 1}, "MetalDeferredSun", {0.0f, 0.0f, -1.0f},
@@ -780,15 +780,31 @@ FMetalDeferredNativeProbeReport RunMetalDeferredNativeProbe()
         const auto Depth = Pixel(Readbacks[3].Bytes, Readbacks[3].Format);
         const auto Lighting = Pixel(Readbacks[4].Bytes, Readbacks[4].Format);
         const auto Final = Pixel(Readbacks[5].Bytes, Readbacks[5].Format);
+        Report.BaseColorAO = {
+            static_cast<float>(Base[0]), static_cast<float>(Base[1]),
+            static_cast<float>(Base[2]), static_cast<float>(Base[3])};
+        Report.NormalRoughness = {
+            static_cast<float>(Normal[0]), static_cast<float>(Normal[1]),
+            static_cast<float>(Normal[2]), static_cast<float>(Normal[3])};
+        Report.EmissiveMetallic = {
+            static_cast<float>(Emissive[0]), static_cast<float>(Emissive[1]),
+            static_cast<float>(Emissive[2]), static_cast<float>(Emissive[3])};
+        Report.Depth = {static_cast<float>(Depth[0]), 0.0f, 0.0f, 0.0f};
+        Report.Lighting = {
+            static_cast<float>(Lighting[0]), static_cast<float>(Lighting[1]),
+            static_cast<float>(Lighting[2]), static_cast<float>(Lighting[3])};
+        Report.FinalOutput = {
+            static_cast<float>(Final[0]), static_cast<float>(Final[1]),
+            static_cast<float>(Final[2]), static_cast<float>(Final[3])};
         Report.bGBufferPassed =
-            Near(Base[0], 0.5, 2.0 / 255.0) &&
-            Near(Base[1], 0.25, 2.0 / 255.0) &&
-            Near(Base[2], 0.125, 2.0 / 255.0) &&
+            Near(Base[0], 0.8, 2.0 / 255.0) &&
+            Near(Base[1], 0.2, 2.0 / 255.0) &&
+            Near(Base[2], 0.1, 2.0 / 255.0) &&
             Near(Base[3], 0.75, 2e-3) &&
-            Near(Emissive[0], 0.1, 1e-3) &&
+            Near(Emissive[0], 0.3, 1e-3) &&
             Near(Emissive[1], 0.05, 1e-3) &&
-            Near(Emissive[3], 0.2, 1e-3) &&
-            Near(Normal[3], 0.4, 1e-3);
+            Near(Emissive[3], 0.65, 1e-3) &&
+            Near(Normal[3], 0.42, 1e-3);
         const double Length = std::sqrt(
             Normal[0] * Normal[0] + Normal[1] * Normal[1] +
             Normal[2] * Normal[2]);
@@ -800,9 +816,9 @@ FMetalDeferredNativeProbeReport RunMetalDeferredNativeProbe()
             Near(Lighting[1], 1.0, 1e-3) &&
             Near(Lighting[2], 1.0, 1e-3);
         Report.bFinalOutputPassed =
-            Near(Final[0], 0.6, 2.0 / 255.0) &&
-            Near(Final[1], 0.3, 2.0 / 255.0) &&
-            Near(Final[2], 0.125, 2.0 / 255.0) &&
+            Near(Final[0], 1.0, 2.0 / 255.0) &&
+            Near(Final[1], 0.25, 2.0 / 255.0) &&
+            Near(Final[2], 0.1, 2.0 / 255.0) &&
             Near(Final[3], 1.0, 2.0 / 255.0);
         Report.FinalOutputDigest = FAssetDigest::FromBytes(
             Readbacks[5].Bytes).ToLowerHex();

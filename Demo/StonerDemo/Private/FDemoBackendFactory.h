@@ -47,6 +47,7 @@ public:
         Core::uint32 Width,
         Core::uint32 Height) = 0;
     [[nodiscard]] virtual RHI::ERHIResult ExecuteOffscreenTriangle(
+        const Renderer::FForwardFramePlan& Plan,
         const RHI::FRHIShaderModuleDesc& VertexShader,
         const RHI::FRHIShaderModuleDesc& FragmentShader) = 0;
     [[nodiscard]] virtual RHI::FRHIRuntimeSnapshot GetSnapshot() const noexcept = 0;

@@ -1,9 +1,12 @@
 #include "DeferredNativeIntegrationTests.h"
+#include "MetalBackendComparison.h"
 #include "MetalDeferredNativeProbe.h"
 
+#include "Asset/FAssetDigest.h"
 #include "Renderer/FDeferredFrameExecutor.h"
 #include "VulkanRHI/FVulkanNativeContext.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <cmath>
@@ -12,6 +15,7 @@
 #include <cstring>
 #include <filesystem>
 #include <set>
+#include <span>
 #include <string>
 
 namespace
@@ -111,6 +115,170 @@ std::array<Stoner::RHI::FRHIShaderModuleDesc, 9> DeferredShaders(
         Shader(Directory, "SpotLight.vert.spv", ERHIShaderStage::Vertex),
         Shader(Directory, "SpotLight.frag.spv", ERHIShaderStage::Fragment),
         Shader(Directory, "Composition.frag.spv", ERHIShaderStage::Fragment)};
+}
+
+const Stoner::Backend::Vulkan::FVulkanDeferredProbe* FindProbe(
+    const Stoner::Backend::Vulkan::FVulkanDeferredValidationReport& Report,
+    const char* Name)
+{
+    for (const auto& Probe : Report.Probes)
+        if (Probe.Convention == Stoner::Core::FString("StandardZ") &&
+            Probe.Name == Stoner::Core::FString(Name))
+            return &Probe;
+    return nullptr;
+}
+
+FMetalBackendReadback ScalarReadback(
+    const char* Backend,
+    const Stoner::Core::FString& Evidence,
+    const char* Workload,
+    EMetalReadbackSemantic Semantic,
+    float Value)
+{
+    FMetalBackendReadback Result;
+    Result.Backend = Backend;
+    Result.EvidenceReference = Evidence;
+    Result.WorkloadIdentity = Workload;
+    Result.ShaderVersion = "repository-deferred-v1";
+    Result.Width = 1;
+    Result.Height = 1;
+    Result.RowPitchBytes = sizeof(float);
+    Result.Format = EMetalReadbackFormat::R32Float;
+    Result.Semantic = Semantic;
+    Result.Bytes.resize(sizeof(float));
+    std::memcpy(Result.Bytes.data(), &Value, sizeof(float));
+    return Result;
+}
+
+FMetalBackendReadback ColorReadback(
+    const char* Backend,
+    const Stoner::Core::FString& Evidence,
+    const char* Workload,
+    const Stoner::Core::FVector4& Value)
+{
+    FMetalBackendReadback Result;
+    Result.Backend = Backend;
+    Result.EvidenceReference = Evidence;
+    Result.WorkloadIdentity = Workload;
+    Result.ShaderVersion = "repository-deferred-v1";
+    Result.Width = 1;
+    Result.Height = 1;
+    Result.RowPitchBytes = 4;
+    Result.Semantic = EMetalReadbackSemantic::FinalLdrColor;
+    Result.Bytes = {
+        static_cast<Stoner::Core::uint8>(std::lround(
+            std::clamp(Value.X, 0.0f, 1.0f) * 255.0f)),
+        static_cast<Stoner::Core::uint8>(std::lround(
+            std::clamp(Value.Y, 0.0f, 1.0f) * 255.0f)),
+        static_cast<Stoner::Core::uint8>(std::lround(
+            std::clamp(Value.Z, 0.0f, 1.0f) * 255.0f)),
+        static_cast<Stoner::Core::uint8>(std::lround(
+            std::clamp(Value.W, 0.0f, 1.0f) * 255.0f))};
+    return Result;
+}
+
+FMetalBackendReadback NormalReadback(
+    const char* Backend,
+    const Stoner::Core::FString& Evidence,
+    const Stoner::Core::FVector4& Value)
+{
+    auto Result = ColorReadback(
+        Backend, Evidence, "scene/deferred/gbuffer-normal-v1", Value);
+    Result.Semantic = EMetalReadbackSemantic::WorldNormal;
+    Result.bNormalEncodedUNorm = true;
+    for (Stoner::Core::uint32 Channel = 0; Channel < 3; ++Channel)
+    {
+        const float Component = Channel == 0 ? Value.X :
+            Channel == 1 ? Value.Y : Value.Z;
+        Result.Bytes[Channel] = static_cast<Stoner::Core::uint8>(std::lround(
+            std::clamp(Component * 0.5f + 0.5f, 0.0f, 1.0f) * 255.0f));
+    }
+    return Result;
+}
+
+bool CompareNativeDeferredEvidence(
+    const FMetalDeferredNativeProbeReport& Metal,
+    const Stoner::Backend::Vulkan::FVulkanDeferredValidationReport& Vulkan,
+    Stoner::Core::FString& OutDigest)
+{
+    using Stoner::Asset::FAssetDigest;
+    using Stoner::Core::FString;
+    const FString VulkanDump = Vulkan.Dump();
+    const auto VulkanBytes = std::span<const Stoner::Core::uint8>(
+        reinterpret_cast<const Stoner::Core::uint8*>(VulkanDump.View().data()),
+        VulkanDump.Len());
+    const FString VulkanDigest =
+        FAssetDigest::FromBytes(VulkanBytes).ToLowerHex();
+    const FString MetalEvidence = FString(
+        std::string("metal:") + Metal.FinalOutputDigest.ToStdString());
+    const FString VulkanEvidence = FString(
+        std::string("vulkan:") + VulkanDigest.ToStdString());
+
+    const auto* Base = FindProbe(Vulkan, "opaque-base");
+    const auto* AO = FindProbe(Vulkan, "ambient-occlusion");
+    const auto* Normal = FindProbe(Vulkan, "world-normal");
+    const auto* Roughness = FindProbe(Vulkan, "roughness");
+    const auto* Metallic = FindProbe(Vulkan, "metallic");
+    const auto* Depth = FindProbe(Vulkan, "surface-depth");
+    if (!Base || !AO || !Normal || !Roughness || !Metallic || !Depth)
+        return false;
+
+    const std::array Reports = {
+        CompareMetalBackendReadbacks(
+            ColorReadback("metal", MetalEvidence,
+                "scene/deferred/gbuffer-base-v1", Metal.BaseColorAO),
+            ColorReadback("vulkan", VulkanEvidence,
+                "scene/deferred/gbuffer-base-v1", Base->Observed)),
+        CompareMetalBackendReadbacks(
+            ScalarReadback("metal", MetalEvidence,
+                "scene/deferred/gbuffer-ao-v1",
+                EMetalReadbackSemantic::AmbientOcclusion,
+                Metal.BaseColorAO.W),
+            ScalarReadback("vulkan", VulkanEvidence,
+                "scene/deferred/gbuffer-ao-v1",
+                EMetalReadbackSemantic::AmbientOcclusion,
+                AO->Observed.W)),
+        CompareMetalBackendReadbacks(
+            NormalReadback("metal", MetalEvidence, Metal.NormalRoughness),
+            NormalReadback("vulkan", VulkanEvidence, Normal->Observed)),
+        CompareMetalBackendReadbacks(
+            ScalarReadback("metal", MetalEvidence,
+                "scene/deferred/gbuffer-roughness-v1",
+                EMetalReadbackSemantic::Roughness,
+                Metal.NormalRoughness.W),
+            ScalarReadback("vulkan", VulkanEvidence,
+                "scene/deferred/gbuffer-roughness-v1",
+                EMetalReadbackSemantic::Roughness,
+                Roughness->Observed.W)),
+        CompareMetalBackendReadbacks(
+            ScalarReadback("metal", MetalEvidence,
+                "scene/deferred/gbuffer-metallic-v1",
+                EMetalReadbackSemantic::Metallic,
+                Metal.EmissiveMetallic.W),
+            ScalarReadback("vulkan", VulkanEvidence,
+                "scene/deferred/gbuffer-metallic-v1",
+                EMetalReadbackSemantic::Metallic,
+                Metallic->Observed.W)),
+        CompareMetalBackendReadbacks(
+            ScalarReadback("metal", MetalEvidence,
+                "scene/deferred/gbuffer-depth-v1",
+                EMetalReadbackSemantic::NormalizedDepth,
+                Metal.Depth.X),
+            ScalarReadback("vulkan", VulkanEvidence,
+                "scene/deferred/gbuffer-depth-v1",
+                EMetalReadbackSemantic::NormalizedDepth,
+                Depth->Observed.X))};
+    std::string Canonical;
+    for (const auto& Comparison : Reports)
+    {
+        if (!Comparison.bPassed) return false;
+        Canonical += Comparison.Dump().ToStdString();
+    }
+    const auto Bytes = std::span<const Stoner::Core::uint8>(
+        reinterpret_cast<const Stoner::Core::uint8*>(Canonical.data()),
+        Canonical.size());
+    OutDigest = FAssetDigest::FromBytes(Bytes).ToLowerHex();
+    return true;
 }
 
 } // namespace
@@ -249,6 +417,19 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
         "Deferred native validation covers point and spot local-light edge cases");
     Record(Result, Report.bPassed && Report.FinalLiveObjects == 0,
         "Deferred native validation passes semantic probes and releases frame-owned objects");
+
+    Stoner::Core::FString ComparisonDigest;
+    const bool bComparisonEligible =
+        MetalReport.Status == EMetalDeferredProbeStatus::Success;
+    const bool bNativeComparison = bComparisonEligible &&
+        CompareNativeDeferredEvidence(
+            MetalReport, Report, ComparisonDigest);
+    if (bNativeComparison)
+        std::cout << "[EVIDENCE] metal-vulkan-deferred-comparison status=passed"
+                  << " tolerance=" << FMetalBackendComparisonReport::ToleranceSet
+                  << " digest=" << ComparisonDigest.CStr() << '\n';
+    Record(Result, !bComparisonEligible || bNativeComparison,
+        "Metal and Vulkan native GBuffer evidence satisfies frozen cross-backend tolerances");
 
     Stoner::Renderer::FDeferredViewData ProbeView;
     ProbeView.Extent = {32, 32};

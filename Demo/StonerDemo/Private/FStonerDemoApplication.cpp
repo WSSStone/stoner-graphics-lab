@@ -722,7 +722,10 @@ EDemoExitCode FStonerDemoApplication::RunNativeHeadless()
 {
     if (!BackendRuntime) return EDemoExitCode::RuntimeUnavailable;
     LifecycleState = EDemoLifecycleState::Running;
+    const Stoner::Renderer::FForwardFramePlan FramePlan =
+        BuildTriangleFramePlan(64, 64);
     if (BackendRuntime->ExecuteOffscreenTriangle(
+        FramePlan,
         TriangleVertexShader,
         TriangleFragmentShader) != Stoner::RHI::ERHIResult::Success)
     {
