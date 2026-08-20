@@ -162,6 +162,7 @@ private:
     EMode Mode;
 };
 
+#if SG_PLATFORM_MAC
 bool HasArgument(const FProcessExecutionRequest& Request, const char* Expected)
 {
     for (const FString& Argument : Request.Arguments)
@@ -170,6 +171,7 @@ bool HasArgument(const FProcessExecutionRequest& Request, const char* Expected)
     }
     return false;
 }
+#endif
 
 FMetalLibraryCompileRequest MakeRequest(
     const std::filesystem::path& Root,
