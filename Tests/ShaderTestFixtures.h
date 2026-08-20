@@ -96,4 +96,18 @@ MakeMinimalShaderBytecode(
     return Words;
 }
 
+[[nodiscard]] inline Stoner::RHI::FRHIShaderPayloadDesc
+MakeMinimalShaderPayload(
+    Stoner::RHI::ERHIShaderStage Stage,
+    std::string_view EntryPoint,
+    const Stoner::Core::FString& Identity = "test-shader",
+    const Stoner::Core::FString& TargetProfile = "legacy-vulkan-v1")
+{
+    Stoner::RHI::FRHIShaderPayloadDesc Payload;
+    const auto Words = MakeMinimalShaderBytecode(Stage, EntryPoint);
+    (void)Stoner::RHI::SetRHIShaderSpirvWords(
+        Payload, Words, Identity, TargetProfile);
+    return Payload;
+}
+
 } // namespace Stoner::Tests

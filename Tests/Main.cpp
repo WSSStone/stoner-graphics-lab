@@ -8,7 +8,25 @@
 #include "CorePlatformOwnershipTests.h"
 #include "CorePlatformFileLeaseTests.h"
 #include "CorePlatformFileTransactionTests.h"
+#include "CorePlatformProcessTests.h"
 #include "LoggingAssertionTests.h"
+#include "MetalTests.h"
+#include "MetalBackendComparisonTests.h"
+#include "MetalDeviceTests.h"
+#include "MetalDiagnosticsTests.h"
+#include "MetalFailureInjectionTests.h"
+#include "MetalLifecycleStressTests.h"
+#include "MetalCommandTests.h"
+#include "MetalNativeIntegrationTests.h"
+#include "MetalPipelineTests.h"
+#include "MetalPresentationIntegrationTests.h"
+#include "MetalPresentationTests.h"
+#include "MetalResourceTests.h"
+#include "MetalShaderCompilerTests.h"
+#include "MetalShaderCookerTests.h"
+#include "MetalShaderDerivationTests.h"
+#include "MetalShaderPublicationTests.h"
+#include "MetalShaderRuntimeTests.h"
 #include "CorePlatformTests.h"
 #include "DeferredRenderingTests.h"
 #include "DeferredNativeIntegrationTests.h"
@@ -88,10 +106,14 @@ int main(int ArgCount, char* Arguments[])
     FAssetStaticModelTestOptions StaticModelOptions;
     FAssetCookerBenchmarkOptions AssetCookerBenchmarkOptions;
     FAssetManagerTestOptions AssetManagerOptions;
+    FMetalTestOptions MetalOptions;
     std::vector<std::string> ParsedArguments;
     std::filesystem::path LeaseProbePath =
         std::filesystem::path(Arguments[0]).parent_path() /
         "PlatformFileLeaseProbe";
+    std::filesystem::path ProcessProbePath =
+        std::filesystem::path(Arguments[0]).parent_path() /
+        "PlatformProcessProbe";
     std::filesystem::path PublicationProbePath =
         std::filesystem::path(Arguments[0]).parent_path() /
         "AssetCookerPublicationProbe";
@@ -103,6 +125,7 @@ int main(int ArgCount, char* Arguments[])
         "Tools" / "AssetCooker" / "StonerAssetCooker";
 #if defined(_WIN32)
     LeaseProbePath += ".exe";
+    ProcessProbePath += ".exe";
     PublicationProbePath += ".exe";
     GenerationLeaseProbePath += ".exe";
     AssetCookerPath += ".exe";
@@ -118,6 +141,9 @@ int main(int ArgCount, char* Arguments[])
             Argument == "--ktx2-determinism-runs" ||
             Argument == "--material-shader-report" ||
             Argument == "--material-shader-determinism-runs" ||
+            Argument == "--metal-report" ||
+            Argument == "--metal-determinism-runs" ||
+            Argument == "--metal-lifecycle-iterations" ||
             Argument == "--static-model-determinism-runs" ||
             Argument == "--static-model-performance-runs" ||
             Argument == "--static-model-performance-max-seconds" ||
@@ -132,6 +158,29 @@ int main(int ArgCount, char* Arguments[])
             if (Argument == "--material-shader-report")
             {
                 MaterialShaderOptions.ReportPath = Value.c_str();
+            }
+            else if (Argument == "--metal-report")
+            {
+                MetalOptions.ReportPath = Value;
+            }
+            else if (Argument == "--metal-determinism-runs" ||
+                     Argument == "--metal-lifecycle-iterations")
+            {
+                std::uint32_t Count = 0;
+                const auto Parsed = std::from_chars(
+                    Value.data(), Value.data() + Value.size(), Count);
+                const std::uint32_t Maximum =
+                    Argument == "--metal-determinism-runs" ? 1000u : 1000000u;
+                if (Parsed.ec != std::errc{} ||
+                    Parsed.ptr != Value.data() + Value.size() ||
+                    Count == 0 || Count > Maximum)
+                {
+                    std::cerr << "Invalid " << Argument << " value\n";
+                    return 2;
+                }
+                if (Argument == "--metal-determinism-runs")
+                    MetalOptions.DeterminismRuns = Count;
+                else MetalOptions.LifecycleIterations = Count;
             }
             else if (Argument == "--emit-ktx2-dir")
             {
@@ -258,6 +307,16 @@ int main(int ArgCount, char* Arguments[])
                 AssetManagerOptions.BenchmarkCiProfile = Value == "ci";
             }
             else AssetManagerOptions.BenchmarkReport = Value;
+            continue;
+        }
+        if (Argument == "--metal-native")
+        {
+            MetalOptions.bRequestNative = true;
+            continue;
+        }
+        if (Argument == "--metal-visible")
+        {
+            MetalOptions.bRequestVisible = true;
             continue;
         }
         ParsedArguments.push_back(Argument);
@@ -453,6 +512,10 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("core-math", [] { return RunCoreMathTests().Failed == 0 ? 0 : 1; });
     Registry.Register("coordinate-convention", [] { return RunCoordinateConventionTests().Failed == 0 ? 0 : 1; });
     Registry.Register("core-platform", [] { return RunCorePlatformTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("core-platform-process", [ProcessProbePath] {
+        return RunCorePlatformProcessTests(
+            ProcessProbePath.string().c_str()).Failed == 0 ? 0 : 1;
+    });
     Registry.Register("core-file-transaction", [] {
         return RunCorePlatformFileTransactionTests().Failed == 0 ? 0 : 1;
     });
@@ -465,6 +528,86 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("deferred-renderer", [] { return RunDeferredRenderingTests().Failed == 0 ? 0 : 1; });
     Registry.Register("logging", [Executable = std::string(Arguments[0])] {
         return RunLoggingAssertionTests(Executable.c_str()).Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal", [MetalOptions] {
+        const auto Scaffold = RunMetalTests(MetalOptions);
+        const auto Device = RunMetalDeviceTests();
+        const auto Diagnostics = RunMetalDiagnosticsTests();
+        const auto Failure = RunMetalFailureInjectionTests();
+        const auto Lifecycle = RunMetalLifecycleStressTests(MetalOptions);
+        const auto Command = RunMetalCommandTests();
+        const auto Pipeline = RunMetalPipelineTests();
+        const auto Presentation = RunMetalPresentationTests();
+        const auto Visible = RunMetalPresentationIntegrationTests(
+            MetalOptions.bRequestVisible);
+        const auto Native = RunMetalNativeIntegrationTests(
+            MetalOptions.bRequestNative);
+        const auto Resource = RunMetalResourceTests();
+        const auto Derivation = RunMetalShaderDerivationTests();
+        const auto Compiler = RunMetalShaderCompilerTests();
+        const auto Cooker = RunMetalShaderCookerTests();
+        const auto Publication = RunMetalShaderPublicationTests();
+        const auto Runtime = RunMetalShaderRuntimeTests();
+        return Scaffold.Failed == 0 && Device.Failed == 0 &&
+            Diagnostics.Failed == 0 && Failure.Failed == 0 &&
+            Lifecycle.Failed == 0 &&
+            Command.Failed == 0 &&
+            Pipeline.Failed == 0 && Presentation.Failed == 0 &&
+            Visible.Failed == 0 &&
+            Native.Failed == 0 &&
+            Resource.Failed == 0 && Derivation.Failed == 0 &&
+            Compiler.Failed == 0 && Cooker.Failed == 0 &&
+            Publication.Failed == 0 && Runtime.Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-backend-comparison", [] {
+        return RunMetalBackendComparisonTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-device", [] {
+        return RunMetalDeviceTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-diagnostics", [] {
+        return RunMetalDiagnosticsTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-failure-injection", [] {
+        return RunMetalFailureInjectionTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-lifecycle-stress", [MetalOptions] {
+        return RunMetalLifecycleStressTests(MetalOptions).Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-command", [] {
+        return RunMetalCommandTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-pipeline", [] {
+        return RunMetalPipelineTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-presentation", [] {
+        return RunMetalPresentationTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-presentation-visible", [MetalOptions] {
+        return RunMetalPresentationIntegrationTests(
+            MetalOptions.bRequestVisible).Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-native", [MetalOptions] {
+        return RunMetalNativeIntegrationTests(
+            MetalOptions.bRequestNative).Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-resource", [] {
+        return RunMetalResourceTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-shader-compiler", [] {
+        return RunMetalShaderCompilerTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-shader-cooker", [] {
+        return RunMetalShaderCookerTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-shader-derivation", [] {
+        return RunMetalShaderDerivationTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-shader-publication", [] {
+        return RunMetalShaderPublicationTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("metal-shader-runtime", [] {
+        return RunMetalShaderRuntimeTests().Failed == 0 ? 0 : 1;
     });
     Registry.Register("renderer-comparison", [] { return RunRendererComparisonTests().Failed == 0 ? 0 : 1; });
     Registry.Register("renderer-forward", [] { return RunRendererForwardPipelineTests().Failed == 0 ? 0 : 1; });

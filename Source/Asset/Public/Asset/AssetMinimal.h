@@ -51,6 +51,8 @@
 #include "Asset/FMaterialShaderTypes.h"
 #include "Asset/FShaderAsset.h"
 #include "Asset/FShaderPayloadAsset.h"
+#include "Asset/FShaderNativeBindingEvidence.h"
+#include "Asset/FShaderNativeLibraryEvidence.h"
 #include "Asset/FShaderSourceAsset.h"
 #include "Asset/FStaticMeshAsset.h"
 #include "Asset/FStaticMeshInspection.h"

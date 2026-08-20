@@ -2,6 +2,7 @@
 
 #include "Core/CoreMinimal.h"
 #include "RHI/ERHIFormat.h"
+#include "RHI/ERHIPipelineState.h"
 #include "RHI/ERHIQueueType.h"
 #include "RHI/ERHIResourceUsage.h"
 
@@ -106,6 +107,29 @@ struct FRHIDeviceCapabilities
     Stoner::Core::uint32 MaxCommandBuffersPerQueue = 0;
     Stoner::Core::uint32 MaxQueuesPerType = 0;
 
+    Stoner::Core::uint64 MaxBufferSizeBytes = 0;
+    Stoner::Core::uint64 MaxResourceSizeBytes = 0;
+    Stoner::Core::uint32 MaxTextureDimension1D = 0;
+    Stoner::Core::uint32 MaxTextureDimension2D = 0;
+    Stoner::Core::uint32 MaxTextureDimension3D = 0;
+    Stoner::Core::uint32 MaxTextureArrayLayers = 0;
+
+    Stoner::Core::uint32 MaxPerStageBufferBindings = 0;
+    Stoner::Core::uint32 MaxPerStageTextureBindings = 0;
+    Stoner::Core::uint32 MaxPerStageSamplerBindings = 0;
+    Stoner::Core::uint32 MaxConstantRangeBytes = 0;
+    Stoner::Core::uint32 MaxConstantDataBytesPerStage = 0;
+
+    Stoner::Core::uint32 MaxComputeThreadgroupSizeX = 0;
+    Stoner::Core::uint32 MaxComputeThreadgroupSizeY = 0;
+    Stoner::Core::uint32 MaxComputeThreadgroupSizeZ = 0;
+    Stoner::Core::uint32 MaxComputeThreadsPerThreadgroup = 0;
+    Stoner::Core::uint32 MaxComputeDispatchGroupsX = 0;
+    Stoner::Core::uint32 MaxComputeDispatchGroupsY = 0;
+    Stoner::Core::uint32 MaxComputeDispatchGroupsZ = 0;
+
+    Stoner::Core::uint32 SupportedSampleCounts = 0;
+
     Stoner::Core::TArray<FRHIFormatCapabilities> Formats;
 
     [[nodiscard]] bool SupportsQueue(ERHIQueueType QueueType) const noexcept
@@ -186,6 +210,55 @@ struct FRHIDeviceCapabilities
         return It != Formats.end() &&
             (It->Capabilities & Required) == Required;
     }
+
+    [[nodiscard]] bool SupportsSampleCount(
+        ERHISampleCount SampleCount) const noexcept
+    {
+        if (!IsValidRHISampleCount(SampleCount))
+        {
+            return false;
+        }
+        return (SupportedSampleCounts &
+            static_cast<Stoner::Core::uint32>(SampleCount)) != 0;
+    }
+
+    [[nodiscard]] bool HasValidLimits() const noexcept
+    {
+        if (MaxInFlightFrames == 0 || MaxCommandBuffersPerQueue == 0 ||
+            MaxQueuesPerType == 0 || MaxBufferSizeBytes == 0 ||
+            MaxResourceSizeBytes < MaxBufferSizeBytes ||
+            MaxTextureDimension1D == 0 || MaxTextureDimension2D == 0 ||
+            MaxTextureDimension3D == 0 || MaxTextureArrayLayers == 0 ||
+            MaxPerStageBufferBindings == 0 ||
+            MaxPerStageTextureBindings == 0 ||
+            MaxPerStageSamplerBindings == 0 ||
+            MaxConstantRangeBytes == 0 ||
+            MaxConstantDataBytesPerStage < MaxConstantRangeBytes ||
+            !SupportsSampleCount(ERHISampleCount::One))
+        {
+            return false;
+        }
+        if (bSupportsComputeQueue &&
+            (MaxComputeThreadgroupSizeX == 0 ||
+             MaxComputeThreadgroupSizeY == 0 ||
+             MaxComputeThreadgroupSizeZ == 0 ||
+             MaxComputeThreadsPerThreadgroup == 0 ||
+             MaxComputeDispatchGroupsX == 0 ||
+             MaxComputeDispatchGroupsY == 0 ||
+             MaxComputeDispatchGroupsZ == 0 ||
+             static_cast<Stoner::Core::uint64>(MaxComputeThreadgroupSizeX) *
+                 MaxComputeThreadgroupSizeY * MaxComputeThreadgroupSizeZ <
+                 MaxComputeThreadsPerThreadgroup))
+        {
+            return false;
+        }
+        return true;
+    }
 };
+
+[[nodiscard]] bool IsValidRHIDeviceCapabilities(
+    const FRHIDeviceCapabilities& Capabilities) noexcept;
+[[nodiscard]] Stoner::Core::FString DumpRHIDeviceCapabilities(
+    const FRHIDeviceCapabilities& Capabilities);
 
 } // namespace Stoner::RHI

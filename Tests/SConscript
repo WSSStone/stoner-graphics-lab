@@ -14,7 +14,10 @@ graphics_deps = DetectGraphicsDependencies(platform)
 # Use '#' prefix to get absolute paths for compiler -I flags
 _SOURCE_ROOT = 'Source'
 _LAYERS = ['Application', 'Renderer', 'RHI', 'Asset', 'Core']
-_BACKEND_LAYERS = [os.path.join('Backend', 'Vulkan')]
+_BACKEND_LAYERS = [
+    os.path.join('Backend', 'Vulkan'),
+    os.path.join('Backend', 'Metal'),
+]
 
 include_paths = []
 for layer in _LAYERS:
@@ -31,6 +34,14 @@ include_paths.extend([
 ])
 
 test_env.Append(CPPPATH=include_paths)
+test_env.Append(CPPDEFINES=[
+    ('STONER_GLFW_AVAILABLE', int(graphics_deps['glfw_available'])),
+])
+if graphics_deps['glfw_include_dir']:
+    test_env.Append(CPPPATH=[graphics_deps['glfw_include_dir']])
+
+if platform == 'Mac':
+    test_env.Append(CCFLAGS=['-Werror=unguarded-availability-new'])
 
 # Source files — use relative path to SConscript source dir for variant_dir compat
 tests_src_dir = Dir('.').srcnode().abspath
@@ -76,6 +87,30 @@ private_include_paths_by_source = {
     'AssetCookerBenchmark.cpp': [
         Dir('#ThirdParty').abspath,
     ],
+    'MetalShaderDerivationTests.cpp': [
+        Dir('#ThirdParty/spirv-cross').abspath,
+    ],
+    'MetalDeviceTests.cpp': [
+        Dir('#Source/Backend/Metal/Private').abspath,
+    ],
+    'MetalDiagnosticsTests.cpp': [
+        Dir('#Source/Backend/Metal/Private').abspath,
+    ],
+    'MetalFailureInjectionTests.cpp': [
+        Dir('#Source/Backend/Metal/Private').abspath,
+    ],
+    'MetalLifecycleStressTests.cpp': [
+        Dir('#Source/Backend/Metal/Private').abspath,
+    ],
+    'MetalCommandTests.cpp': [
+        Dir('#Source/Backend/Metal/Private').abspath,
+    ],
+    'MetalPipelineTests.cpp': [
+        Dir('#Source/Backend/Metal/Private').abspath,
+    ],
+    'MetalPresentationTests.cpp': [
+        Dir('#Source/Backend/Metal/Private').abspath,
+    ],
     'TriangleDemoIntegrationTests.cpp': [
         Dir('#Demo/StonerDemo/Private').abspath,
     ],
@@ -117,8 +152,18 @@ for tool_source in (
     'FCookedGenerationPublisher.cpp',
     'FDerivedDataStore.cpp',
     'FAssetSourceCatalog.cpp',
+    'FMetalBindingMap.cpp',
+    'FMetalLibraryCompiler.cpp',
+    'FMetalShaderCooker.cpp',
+    'FMetalShaderEvidenceCodec.cpp',
+    'FSpirvCrossMslDeriver.cpp',
 ):
-    objects.extend(test_env.Object(
+    tool_source_env = test_env.Clone()
+    if tool_source == 'FSpirvCrossMslDeriver.cpp':
+        tool_source_env.Append(
+            CPPPATH=[Dir('#ThirdParty/spirv-cross').abspath],
+        )
+    objects.extend(tool_source_env.Object(
         os.path.join('AssetCookerTool', tool_source[:-4]),
         File('#Tools/AssetCooker/Private/' + tool_source),
     ))
@@ -133,15 +178,21 @@ build_base = os.path.join('#Build', platform, config_display)
 
 # Library search paths — point to each layer's variant_dir output
 _LIB_LAYERS = ['Core', 'Asset', 'RHI', 'Renderer', 'Application']
-_BACKEND_LIB_LAYERS = [os.path.join('Backend', 'Vulkan')]
+_BACKEND_LIB_LAYERS = [
+    os.path.join('Backend', 'Vulkan'),
+    os.path.join('Backend', 'Metal'),
+]
 lib_paths = [Dir(os.path.join(build_base, layer)).abspath for layer in _LIB_LAYERS]
 lib_paths += [Dir(os.path.join(build_base, backend)).abspath for backend in _BACKEND_LIB_LAYERS]
 lib_paths.append(Dir(os.path.join(build_base, 'Demo', 'StonerDemo')).abspath)
 test_env.Append(LIBPATH=lib_paths)
 
 # Libraries to link (order matters for static linking: dependents first)
-test_env.Append(LIBS=['StonerDemoRuntime', 'Application', 'Renderer', 'RHI', 'Asset', 'Core', 'VulkanRHI'])
+test_env.Append(LIBS=['StonerDemoRuntime', 'Application', 'Renderer', 'RHI', 'Asset', 'Core', 'VulkanRHI', 'MetalRHI'])
+if platform == 'Mac':
+    test_env.Append(FRAMEWORKS=['Metal', 'QuartzCore', 'Cocoa', 'Foundation'])
 test_env.Append(LIBS=env.get('STONER_ASSET_THIRD_PARTY_LIBS', []))
+test_env.Append(LIBS=env.get('STONER_ASSET_COOKER_THIRD_PARTY_LIBS', []))
 if platform == 'Linux':
     test_env.Append(LIBS=['dl'])
 if platform == 'Win64':
@@ -167,11 +218,26 @@ program = test_env.Program('StonerTest', objects)
 test_env.Depends(program, env['STONER_ASSET_COOKER_PROGRAM'])
 test_env.Alias('asset-cooker-benchmark', program)
 
+if platform == 'Mac':
+    presentation_probe_env = test_env.Clone()
+    presentation_probe_env.Append(CCFLAGS=['-fobjc-arc'])
+    presentation_probe = presentation_probe_env.Program(
+        'MetalPresentationProbe',
+        [File('#Tests/Helpers/MetalPresentationProbe.mm')],
+    )
+    test_env.Depends(program, presentation_probe)
+
 lease_probe = test_env.Program(
     'PlatformFileLeaseProbe',
     [File('#Tests/Helpers/PlatformFileLeaseProbe.cpp')],
 )
 test_env.Depends(program, lease_probe)
+
+process_probe = test_env.Program(
+    'PlatformProcessProbe',
+    [File('#Tests/Helpers/PlatformProcessProbe.cpp')],
+)
+test_env.Depends(program, process_probe)
 
 publication_probe = test_env.Program(
     'AssetCookerPublicationProbe',
@@ -323,4 +389,6 @@ runtime_asset_manager_contracts = test_env.Command(
 )
 test_env.Depends(program, runtime_asset_manager_contracts)
 
-Return('program', 'asset_benchmark', 'lease_probe', 'generation_lease_probe')
+Return(
+    'program', 'asset_benchmark', 'lease_probe', 'generation_lease_probe',
+    'process_probe')

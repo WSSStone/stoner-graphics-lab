@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stoner.graphics/schemas/027/metal-shader-evidence.schema.json",
+  "title": "Feature 027 Metal Shader Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "shaderAssetId",
+    "shaderAssetVersion",
+    "spirvDigest",
+    "stage",
+    "entryPoint",
+    "interfaceDigest",
+    "spirvCross",
+    "bindingPolicy",
+    "target",
+    "normalizedMslDigest",
+    "evidenceDigest"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "enum": ["derivation", "native-library"] },
+    "shaderAssetId": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "shaderAssetVersion": { "$ref": "#/$defs/digest" },
+    "glslDigest": { "$ref": "#/$defs/digest" },
+    "spirvDigest": { "$ref": "#/$defs/digest" },
+    "stage": { "enum": ["vertex", "fragment", "compute"] },
+    "entryPoint": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "interfaceDigest": { "$ref": "#/$defs/digest" },
+    "spirvCross": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "optionsDigest"],
+      "properties": {
+        "commit": { "const": "a0fba56c34a6700f1724bf9b751da5b488a3775c" },
+        "optionsDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "bindingPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "entries", "digest"],
+      "properties": {
+        "version": { "const": "metal-direct-binding-v1" },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/bindingEntry" }
+        },
+        "digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "deploymentTarget", "mslVersion"],
+      "properties": {
+        "profile": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "architecture": { "enum": ["arm64", "x86_64"] },
+        "deploymentTarget": { "const": "12.0" },
+        "mslVersion": { "const": "2.4" }
+      }
+    },
+    "normalizedMslDigest": { "$ref": "#/$defs/digest" },
+    "nativeLibrary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compiler", "xcodeBuild", "sdk", "argumentDigest", "digest", "sizeBytes"],
+      "properties": {
+        "compiler": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "xcodeBuild": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "sdk": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "argumentDigest": { "$ref": "#/$defs/digest" },
+        "digest": { "$ref": "#/$defs/digest" },
+        "sizeBytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "evidenceDigest": { "$ref": "#/$defs/digest" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "native-library" } } },
+      "then": {
+        "required": ["nativeLibrary"],
+        "properties": {
+          "target": { "required": ["architecture"] }
+        }
+      },
+      "else": { "not": { "required": ["nativeLibrary"] } }
+    }
+  ],
+  "$defs": {
+    "bindingEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "set", "binding", "descriptorType", "arrayElement", "nativeClass", "nativeIndex"],
+      "properties": {
+        "stage": { "enum": ["vertex", "fragment", "compute"] },
+        "set": { "type": "integer", "minimum": 0 },
+        "binding": { "type": "integer", "minimum": 0 },
+        "descriptorType": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "arrayElement": { "type": "integer", "minimum": 0 },
+        "nativeClass": { "enum": ["buffer", "texture", "sampler"] },
+        "nativeIndex": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

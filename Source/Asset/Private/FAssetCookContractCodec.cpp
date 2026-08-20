@@ -182,6 +182,18 @@ EAssetResult FAssetCookContractCodec::BuildDerivedKey(
     return FAssetDerivedKeyBuilder::Build(Evidence, OutKey);
 }
 
+EAssetResult FAssetCookContractCodec::BuildProfileProjection(
+    const FAssetTargetProfileEvidence& Profile,
+    const FAssetParticipantId& Producer,
+    Core::uint32 ExpectedSchemaVersion,
+    std::span<const Core::FString> RelevantTargetFields,
+    FAssetProfileProjectionEvidence& OutProjection)
+{
+    return Private::BuildAssetProfileProjection(
+        Profile, Producer, ExpectedSchemaVersion,
+        RelevantTargetFields, OutProjection);
+}
+
 EAssetResult FAssetCookContractCodec::WriteDerivedDataEntry(
     const FAssetDerivedDataEntry& Entry,
     Core::FString& OutCanonical)

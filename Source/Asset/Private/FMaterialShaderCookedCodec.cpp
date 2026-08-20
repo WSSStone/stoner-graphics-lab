@@ -4,6 +4,8 @@
 #include "Asset/FMaterialInstanceAsset.h"
 #include "Asset/FShaderAsset.h"
 #include "Asset/FShaderPayloadAsset.h"
+#include "Asset/FShaderNativeBindingEvidence.h"
+#include "Asset/FShaderNativeLibraryEvidence.h"
 #include "Asset/FShaderSourceAsset.h"
 #include "FAssetCookedBinary.h"
 #include "FMaterialShaderJsonCodec.h"
@@ -94,6 +96,144 @@ bool ReadPermutation(
         Out.Flags.push_back(std::move(Flag));
     }
     return true;
+}
+
+void WriteNativeBindingEvidence(
+    FCookedBinaryWriter& Writer,
+    const FShaderNativeBindingEvidence& Evidence)
+{
+    Writer.Text(Evidence.PolicyVersion);
+    Writer.U32(static_cast<Core::uint32>(Evidence.Entries.size()));
+    for (const auto& Entry : Evidence.Entries)
+    {
+        Writer.U8(static_cast<Core::uint8>(Entry.Stage));
+        Writer.U32(Entry.SetIndex);
+        Writer.U32(Entry.BindingIndex);
+        Writer.U8(static_cast<Core::uint8>(Entry.DescriptorType));
+        Writer.U32(Entry.ArrayElement);
+        Writer.U8(static_cast<Core::uint8>(Entry.NativeClass));
+        Writer.U32(Entry.NativeIndex);
+    }
+    Writer.U32(static_cast<Core::uint32>(Evidence.ReservedRanges.size()));
+    for (const auto& Range : Evidence.ReservedRanges)
+    {
+        Writer.U8(static_cast<Core::uint8>(Range.Stage));
+        Writer.U8(static_cast<Core::uint8>(Range.NativeClass));
+        Writer.U32(Range.FirstIndex);
+        Writer.U32(Range.Count);
+        Writer.Text(Range.Purpose);
+    }
+    Writer.U32(static_cast<Core::uint32>(Evidence.LimitSnapshot.size()));
+    for (const auto& Limit : Evidence.LimitSnapshot)
+    {
+        Writer.U8(static_cast<Core::uint8>(Limit.Stage));
+        Writer.U8(static_cast<Core::uint8>(Limit.NativeClass));
+        Writer.U32(Limit.MaxCount);
+    }
+    Writer.Digest(Evidence.CanonicalDigest);
+}
+
+bool ReadNativeBindingEvidence(
+    FCookedBinaryReader& Reader,
+    FShaderNativeBindingEvidence& Out)
+{
+    Out = {};
+    Core::uint32 Count = 0;
+    if (!Reader.Text(Out.PolicyVersion) || !Reader.Count(Count)) return false;
+    Out.Entries.reserve(Count);
+    for (Core::uint32 Index = 0; Index < Count; ++Index)
+    {
+        Core::uint8 Stage = 0;
+        Core::uint8 DescriptorType = 0;
+        Core::uint8 NativeClass = 0;
+        FShaderNativeBindingEntry Entry;
+        if (!Reader.U8(Stage) || !Reader.U32(Entry.SetIndex) ||
+            !Reader.U32(Entry.BindingIndex) || !Reader.U8(DescriptorType) ||
+            !Reader.U32(Entry.ArrayElement) || !Reader.U8(NativeClass) ||
+            !Reader.U32(Entry.NativeIndex))
+            return false;
+        Entry.Stage = static_cast<EShaderStage>(Stage);
+        Entry.DescriptorType = static_cast<EShaderResourceKind>(DescriptorType);
+        Entry.NativeClass = static_cast<EShaderNativeResourceClass>(NativeClass);
+        Out.Entries.push_back(Entry);
+    }
+    if (!Reader.Count(Count)) return false;
+    Out.ReservedRanges.reserve(Count);
+    for (Core::uint32 Index = 0; Index < Count; ++Index)
+    {
+        Core::uint8 Stage = 0;
+        Core::uint8 NativeClass = 0;
+        FShaderNativeReservedRange Range;
+        if (!Reader.U8(Stage) || !Reader.U8(NativeClass) ||
+            !Reader.U32(Range.FirstIndex) || !Reader.U32(Range.Count) ||
+            !Reader.Text(Range.Purpose))
+            return false;
+        Range.Stage = static_cast<EShaderStage>(Stage);
+        Range.NativeClass =
+            static_cast<EShaderNativeResourceClass>(NativeClass);
+        Out.ReservedRanges.push_back(std::move(Range));
+    }
+    if (!Reader.Count(Count)) return false;
+    Out.LimitSnapshot.reserve(Count);
+    for (Core::uint32 Index = 0; Index < Count; ++Index)
+    {
+        Core::uint8 Stage = 0;
+        Core::uint8 NativeClass = 0;
+        FShaderNativeBindingLimit Limit;
+        if (!Reader.U8(Stage) || !Reader.U8(NativeClass) ||
+            !Reader.U32(Limit.MaxCount))
+            return false;
+        Limit.Stage = static_cast<EShaderStage>(Stage);
+        Limit.NativeClass =
+            static_cast<EShaderNativeResourceClass>(NativeClass);
+        Out.LimitSnapshot.push_back(Limit);
+    }
+    return Reader.Digest(Out.CanonicalDigest) &&
+        Out.Validate() == EAssetResult::Success;
+}
+
+void WriteNativeLibraryEvidence(
+    FCookedBinaryWriter& Writer,
+    const FShaderNativeLibraryEvidence& Evidence)
+{
+    Writer.Digest(Evidence.DerivationEvidenceDigest);
+    Writer.Text(Evidence.TargetProfile);
+    Writer.Text(Evidence.Architecture);
+    Writer.Text(Evidence.Compiler);
+    Writer.Text(Evidence.XcodeBuild);
+    Writer.Text(Evidence.Sdk);
+    Writer.Text(Evidence.DeploymentTarget);
+    Writer.Text(Evidence.LanguageVersion);
+    Writer.Digest(Evidence.ArgumentDigest);
+    Writer.Digest(Evidence.LibraryDigest);
+    Writer.U64(Evidence.SizeBytes);
+    Writer.Text(Evidence.Finalizer.ToString());
+    Writer.Text(Evidence.FinalizerVersion.ToString());
+    Writer.Digest(Evidence.CanonicalDigest);
+}
+
+bool ReadNativeLibraryEvidence(
+    FCookedBinaryReader& Reader,
+    FShaderNativeLibraryEvidence& Out)
+{
+    Out = {};
+    Core::FString Finalizer;
+    Core::FString FinalizerVersion;
+    if (!Reader.Digest(Out.DerivationEvidenceDigest) ||
+        !Reader.Text(Out.TargetProfile) || !Reader.Text(Out.Architecture) ||
+        !Reader.Text(Out.Compiler) || !Reader.Text(Out.XcodeBuild) ||
+        !Reader.Text(Out.Sdk) || !Reader.Text(Out.DeploymentTarget) ||
+        !Reader.Text(Out.LanguageVersion) ||
+        !Reader.Digest(Out.ArgumentDigest) ||
+        !Reader.Digest(Out.LibraryDigest) || !Reader.U64(Out.SizeBytes) ||
+        !Reader.Text(Finalizer) || !Reader.Text(FinalizerVersion) ||
+        !Reader.Digest(Out.CanonicalDigest) ||
+        FAssetParticipantId::Create(Finalizer, Out.Finalizer) !=
+            EAssetResult::Success ||
+        FAssetProducerVersion::Create(
+            FinalizerVersion, Out.FinalizerVersion) != EAssetResult::Success)
+        return false;
+    return Out.Validate() == EAssetResult::Success;
 }
 
 FAssetCookedPayloadHeader Header(const FAssetId& Id, const char* Codec)
@@ -204,6 +344,21 @@ EAssetResult EncodeMaterialShaderCookedBody(
             Writer.Bytes(ShaderPayload->GetBytes());
             OutHeader = Header(
                 ShaderPayload->GetId(), "stoner.shader-payload");
+            if (ShaderPayload->GetFormat() == EShaderPayloadFormat::MetalLibrary)
+            {
+                const auto* Evidence =
+                    ShaderPayload->GetNativeBindingEvidence();
+                const auto* LibraryEvidence =
+                    ShaderPayload->GetNativeLibraryEvidence();
+                if (!Evidence || !LibraryEvidence ||
+                    Evidence->Validate() != EAssetResult::Success ||
+                    LibraryEvidence->Validate() != EAssetResult::Success)
+                    return EAssetResult::InvalidInput;
+                WriteNativeBindingEvidence(Writer, *Evidence);
+                WriteNativeLibraryEvidence(Writer, *LibraryEvidence);
+                OutHeader.CodecVersion = 2;
+                OutHeader.PayloadSchemaVersion = 2;
+            }
         }
         else return EAssetResult::TypeMismatch;
         OutBody = Writer.Take();
@@ -289,15 +444,36 @@ EAssetResult DecodeMaterialShaderCookedBody(
             if (!Reader.U8(Backend) || !Reader.Text(Profile) ||
                 !Reader.U8(Format) || !Reader.U8(Stage) ||
                 !Reader.Text(Entry) || !ReadPermutation(Reader, Permutation) ||
-                !Reader.Bytes(Bytes) || !Reader.AtEnd())
+                !Reader.Bytes(Bytes))
                 return EAssetResult::CorruptPayload;
             FShaderPayloadAsset Asset;
-            const EAssetResult Result = FShaderPayloadAsset::Create(
-                std::move(Id), std::move(Version),
-                static_cast<EShaderBackendFamily>(Backend),
-                std::move(Profile), static_cast<EShaderPayloadFormat>(Format),
-                static_cast<EShaderStage>(Stage), std::move(Entry),
-                std::move(Permutation), std::move(Bytes), Asset);
+            EAssetResult Result = EAssetResult::CorruptPayload;
+            if (HeaderValue.PayloadSchemaVersion == 1)
+            {
+                if (!Reader.AtEnd()) return EAssetResult::CorruptPayload;
+                Result = FShaderPayloadAsset::Create(
+                    std::move(Id), std::move(Version),
+                    static_cast<EShaderBackendFamily>(Backend),
+                    std::move(Profile), static_cast<EShaderPayloadFormat>(Format),
+                    static_cast<EShaderStage>(Stage), std::move(Entry),
+                    std::move(Permutation), std::move(Bytes), Asset);
+            }
+            else if (HeaderValue.PayloadSchemaVersion == 2)
+            {
+                FShaderNativeBindingEvidence Evidence;
+                FShaderNativeLibraryEvidence LibraryEvidence;
+                if (!ReadNativeBindingEvidence(Reader, Evidence) ||
+                    !ReadNativeLibraryEvidence(Reader, LibraryEvidence) ||
+                    !Reader.AtEnd())
+                    return EAssetResult::CorruptPayload;
+                Result = FShaderPayloadAsset::CreateWithNativeEvidence(
+                    std::move(Id), std::move(Version),
+                    static_cast<EShaderBackendFamily>(Backend),
+                    std::move(Profile), static_cast<EShaderPayloadFormat>(Format),
+                    static_cast<EShaderStage>(Stage), std::move(Entry),
+                    std::move(Permutation), std::move(Bytes),
+                    std::move(Evidence), std::move(LibraryEvidence), Asset);
+            }
             if (Result != EAssetResult::Success) return Result;
             OutPayload = Core::MakeShared<FShaderPayloadAsset>(std::move(Asset));
             return EAssetResult::Success;

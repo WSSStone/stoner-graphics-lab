@@ -106,6 +106,71 @@ Core::TSharedPtr<const Asset::FShaderPayloadAsset> Payload(
         : nullptr;
 }
 
+Asset::FShaderNativeBindingEvidence NativeEvidence(
+    Asset::EShaderStage Stage)
+{
+    Asset::FShaderNativeBindingEvidence Evidence;
+    Evidence.PolicyVersion = "metal-direct-binding-v1";
+    Evidence.ReservedRanges.push_back({
+        Stage, Asset::EShaderNativeResourceClass::Buffer,
+        0, 1, "constant-data"});
+    Evidence.LimitSnapshot = {
+        {Stage, Asset::EShaderNativeResourceClass::Buffer, 31},
+        {Stage, Asset::EShaderNativeResourceClass::Texture, 128},
+        {Stage, Asset::EShaderNativeResourceClass::Sampler, 16}};
+    (void)Asset::FinalizeShaderNativeBindingEvidence(Evidence);
+    return Evidence;
+}
+
+Asset::FShaderNativeLibraryEvidence NativeLibraryEvidence(
+    const Core::TArray<Core::uint8>& Bytes)
+{
+    Asset::FShaderNativeLibraryEvidence Evidence;
+    Evidence.DerivationEvidenceDigest = Asset::FAssetDigest::FromBytes(
+        Core::TArray<Core::uint8>{'d', 'e', 'r', 'i', 'v', 'e'});
+    Evidence.TargetProfile = "metal-macos-12-arm64";
+    Evidence.Architecture = "arm64";
+    Evidence.Compiler = "test-metal-compiler";
+    Evidence.XcodeBuild = "test-xcode-build";
+    Evidence.Sdk = "test-macos-sdk";
+    Evidence.DeploymentTarget = "12.0";
+    Evidence.LanguageVersion = "2.4";
+    Evidence.ArgumentDigest = Asset::FAssetDigest::FromBytes(
+        Core::TArray<Core::uint8>{'a', 'r', 'g', 'v'});
+    Evidence.LibraryDigest = Asset::FAssetDigest::FromBytes(Bytes);
+    Evidence.SizeBytes = Bytes.size();
+    (void)Asset::FAssetParticipantId::Create(
+        "cooker.metal-shader", Evidence.Finalizer);
+    (void)Asset::FAssetProducerVersion::Create(
+        "027-v1", Evidence.FinalizerVersion);
+    (void)Asset::FinalizeShaderNativeLibraryEvidence(Evidence);
+    return Evidence;
+}
+
+Core::TSharedPtr<const Asset::FShaderPayloadAsset> MetalPayload(
+    Asset::EShaderStage Stage,
+    const char* Subresource)
+{
+    const Core::TArray<Core::uint8> Bytes = {'M', 'T', 'L', 'B'};
+    Asset::FShaderPayloadAsset Value;
+    const Asset::FAssetId PayloadId =
+        Id("ShaderPayload", "Tests/Shaders/MetalSnapshot", Subresource);
+    Asset::FAssetVersion PayloadVersion;
+    PayloadVersion.SourceDigest = Asset::FAssetDigest::FromBytes(Bytes);
+    PayloadVersion.ContentDigest = PayloadVersion.SourceDigest;
+    const auto Created =
+        Asset::FShaderPayloadAsset::CreateWithNativeEvidence(
+            PayloadId, PayloadVersion,
+            Asset::EShaderBackendFamily::Metal,
+            Core::FString("metal-macos-12-arm64"),
+            Asset::EShaderPayloadFormat::MetalLibrary, Stage,
+            Core::FString("main"), {}, Bytes, NativeEvidence(Stage),
+            NativeLibraryEvidence(Bytes), Value);
+    return Created == Asset::EAssetResult::Success
+        ? Core::MakeShared<Asset::FShaderPayloadAsset>(std::move(Value))
+        : nullptr;
+}
+
 Asset::FSelectedShaderProgram SelectedProgram()
 {
     Asset::FSelectedShaderProgram Selected;
@@ -187,15 +252,15 @@ void TestShaderSnapshot(
         Conversion == Renderer::EMaterialResult::Success &&
         OutSnapshot.ShaderRecords.size() == 1 &&
         OutSnapshot.ModuleDescriptions.size() == 2 &&
-        OutSnapshot.ModuleDescriptions[0].Bytecode.Words.front() ==
-            0x07230203U &&
+        ReadRHIShaderSpirvWord(
+            OutSnapshot.ModuleDescriptions[0].Payload, 0) == 0x07230203U &&
         OutSnapshot.SourceManifest.size() == 5;
     Selected.Stages.clear();
     Record(
         Result,
         bOwned &&
-            OutSnapshot.ModuleDescriptions[1].Bytecode.Words.front() ==
-                0x07230203U,
+            ReadRHIShaderSpirvWord(
+                OutSnapshot.ModuleDescriptions[1].Payload, 0) == 0x07230203U,
         "Shader conversion owns bytecode and complete selected manifest");
 
     Asset::FSelectedShaderProgram Incomplete = SelectedProgram();
@@ -253,6 +318,47 @@ void TestShaderSnapshot(
             ReaderResults.end(),
             [](Core::uint8 Value) { return Value != 0; }),
         "Eight concurrent shader snapshot conversions agree");
+}
+
+void TestMetalShaderSnapshot(FRendererMaterialShaderAssetTestResult& Result)
+{
+    Asset::FSelectedShaderProgram Selected = SelectedProgram();
+    Selected.Backend = Asset::EShaderBackendFamily::Metal;
+    Selected.SelectedProfile = "metal-macos-12-arm64";
+    Selected.Stages = {
+        {Asset::EShaderStage::Vertex,
+         MetalPayload(Asset::EShaderStage::Vertex, "vertex")},
+        {Asset::EShaderStage::Fragment,
+         MetalPayload(Asset::EShaderStage::Fragment, "fragment")}};
+    Selected.SourceManifest.resize(3);
+    for (const auto& Stage : Selected.Stages)
+    {
+        Selected.SourceManifest.push_back({
+            Stage.Payload->GetId(), Stage.Payload->GetVersion(),
+            Asset::EAssetSourceRole::Payload});
+    }
+    (void)Asset::NormalizeSourceManifest(Selected.SourceManifest);
+
+    Renderer::FShaderAssetSnapshot Snapshot;
+    const auto Converted = Renderer::ConvertShaderAsset(
+        {&Selected}, Snapshot);
+    const bool bConverted = Converted == Renderer::EMaterialResult::Success &&
+        Snapshot.ModuleDescriptions.size() == 2 &&
+        Snapshot.ModuleDescriptions[0].Payload.Format ==
+            RHI::ERHIShaderPayloadFormat::MetalLibrary &&
+        Snapshot.ModuleDescriptions[0].RuntimeMode ==
+            RHI::ERHIRuntimeObjectMode::RealRuntime &&
+        RHI::IsCanonicalRHINativeBindingMap(
+            Snapshot.ModuleDescriptions[0].NativeBindingMap) &&
+        Snapshot.ModuleDescriptions[0].NativeBindingMap.CanonicalDigest.Bytes ==
+            Selected.Stages[0].Payload->GetNativeBindingEvidence()
+                ->CanonicalDigest.GetBytes();
+    Selected.Stages.clear();
+    Record(Result,
+        bConverted &&
+            Snapshot.ModuleDescriptions[0].Payload.Bytes ==
+                Core::TArray<Core::uint8>({'M', 'T', 'L', 'B'}),
+        "Metal shader conversion owns native bytes and authoritative binding evidence");
 }
 
 void TestMaterialSnapshot(
@@ -412,6 +518,7 @@ RunRendererMaterialShaderAssetTests()
     TestAtomicShaderLibrary(Result);
     Renderer::FShaderAssetSnapshot Shader;
     TestShaderSnapshot(Result, Shader);
+    TestMetalShaderSnapshot(Result);
     TestMaterialSnapshot(Result, Shader);
     TestSamplerIntentConversion(Result);
     return Result;

@@ -21,7 +21,9 @@ EAssetResult FAssetDerivedKey::ParseLowerHex(
 
 EAssetResult FAssetDerivedKeyEvidence::Validate() const noexcept
 {
-    if (KeyFormatVersion != CurrentKeyFormatVersion || !AssetId.IsValid() ||
+    if ((KeyFormatVersion != LegacyKeyFormatVersion &&
+         KeyFormatVersion != CurrentKeyFormatVersion) ||
+        !AssetId.IsValid() ||
         !SourceVersion.IsAvailable() || !ImporterId.IsValid() ||
         !ImporterVersion.IsValid() || !CookerId.IsValid() ||
         !CookerVersion.IsValid() || !CodecId.IsValid() ||
@@ -30,6 +32,24 @@ EAssetResult FAssetDerivedKeyEvidence::Validate() const noexcept
         !RelevantProfileDigest.IsAvailable())
     {
         return EAssetResult::InvalidInput;
+    }
+    if ((KeyFormatVersion == LegacyKeyFormatVersion &&
+         !AdditionalEvidence.empty()) ||
+        (KeyFormatVersion == CurrentKeyFormatVersion &&
+         AdditionalEvidence.empty()))
+    {
+        return EAssetResult::InvalidInput;
+    }
+    for (Core::usize Index = 0; Index < AdditionalEvidence.size(); ++Index)
+    {
+        const auto& Evidence = AdditionalEvidence[Index];
+        if (Evidence.Name.IsEmpty() || Evidence.Name.Len() > 128 ||
+            !Evidence.Digest.IsAvailable() ||
+            (Index > 0 &&
+             !(AdditionalEvidence[Index - 1].Name < Evidence.Name)))
+        {
+            return EAssetResult::InvalidInput;
+        }
     }
     for (Core::usize Index = 0; Index < SourceManifest.size(); ++Index)
     {

@@ -403,16 +403,12 @@ void TestForwardFrameExecution(FRendererForwardPipelineTestResult& Result)
     FRHIShaderModuleDesc VertexShaderDesc;
     VertexShaderDesc.Stage = ERHIShaderStage::Vertex;
     VertexShaderDesc.EntryPoint = "main";
-    VertexShaderDesc.PayloadIdentity = "triangle-vertex";
-    VertexShaderDesc.Bytecode.Words =
-        Stoner::Tests::MakeMinimalShaderBytecode(
-            ERHIShaderStage::Vertex, "main");
+    VertexShaderDesc.Payload = Stoner::Tests::MakeMinimalShaderPayload(
+        ERHIShaderStage::Vertex, "main", "triangle-vertex");
     FRHIShaderModuleDesc FragmentShaderDesc = VertexShaderDesc;
     FragmentShaderDesc.Stage = ERHIShaderStage::Fragment;
-    FragmentShaderDesc.PayloadIdentity = "triangle-fragment";
-    FragmentShaderDesc.Bytecode.Words =
-        Stoner::Tests::MakeMinimalShaderBytecode(
-            ERHIShaderStage::Fragment, "main");
+    FragmentShaderDesc.Payload = Stoner::Tests::MakeMinimalShaderPayload(
+        ERHIShaderStage::Fragment, "main", "triangle-fragment");
     auto VertexShader = Device.CreateShaderModule(VertexShaderDesc);
     auto FragmentShader = Device.CreateShaderModule(FragmentShaderDesc);
 

@@ -1,0 +1,11 @@
+{
+  "schema": "stoner.metal.presentation-lifecycle-cases.v1",
+  "cases": [
+    {"name": "initial", "width": 640, "height": 360, "expected": "ready"},
+    {"name": "resize", "width": 960, "height": 540, "expected": "generation-advance"},
+    {"name": "minimized", "width": 0, "height": 0, "expected": "unavailable"},
+    {"name": "restored", "width": 640, "height": 360, "expected": "ready"},
+    {"name": "temporary-no-drawable", "width": 640, "height": 360, "expected": "unavailable-recoverable"},
+    {"name": "close", "width": 640, "height": 360, "expected": "unavailable"}
+  ]
+}

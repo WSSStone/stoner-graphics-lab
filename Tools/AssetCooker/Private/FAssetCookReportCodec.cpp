@@ -286,6 +286,7 @@ const char* FAssetCookReportCodec::CommandToken(
     case EAssetCookReportCommand::Validate: return "validate";
     case EAssetCookReportCommand::ValidateCache: return "validate-cache";
     case EAssetCookReportCommand::Inspect: return "inspect";
+    case EAssetCookReportCommand::Doctor: return "doctor";
     }
     return "cook";
 }

@@ -22,6 +22,8 @@ class ArchitectureVerifierTests(unittest.TestCase):
             "Source/Renderer/Public/Renderer",
             "Source/Application/Public/Application",
             "Source/Backend/Vulkan/Public/Vulkan",
+            "Source/Backend/Metal/Public/MetalRHI",
+            "Source/Backend/Metal/Private",
             "Tools/AssetCooker/Public/AssetCooker",
             "Tools/AssetCooker/Private",
         ):
@@ -69,6 +71,31 @@ class ArchitectureVerifierTests(unittest.TestCase):
         errors = verify_architecture.verify(self.root)
         self.assertTrue(any("must not link AssetCooker" in error for error in errors))
         self.assertTrue(any("depend on Core only" in error for error in errors))
+
+    def test_objective_cpp_runtime_source_is_scanned(self) -> None:
+        (self.root / "Source/Backend/Metal/Private/Leak.mm").write_text(
+            '#include "Tools/AssetCooker/Public.h"\n', encoding="utf-8"
+        )
+        errors = verify_architecture.verify(self.root)
+        self.assertTrue(any("must not include Tools" in error for error in errors))
+
+    def test_objective_cpp_outside_metal_private_fails(self) -> None:
+        path = self.root / "Source/Renderer/Private/Leak.mm"
+        path.parent.mkdir(parents=True)
+        path.write_text("void Leak() {}\n", encoding="utf-8")
+        errors = verify_architecture.verify(self.root)
+        self.assertTrue(any("Objective-C++" in error for error in errors))
+
+    def test_private_metal_ownership_and_spirv_cross_runtime_fail(self) -> None:
+        path = self.root / "Source/Application/Private/Leak.cpp"
+        path.parent.mkdir(parents=True)
+        path.write_text(
+            "MTLDevice* Device;\n#include \"spirv_cross.hpp\"\n",
+            encoding="utf-8",
+        )
+        errors = verify_architecture.verify(self.root)
+        self.assertTrue(any("native Metal ownership" in error for error in errors))
+        self.assertTrue(any("SPIRV-Cross" in error for error in errors))
 
 
 if __name__ == "__main__":

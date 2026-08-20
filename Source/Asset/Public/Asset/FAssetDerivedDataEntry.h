@@ -35,6 +35,7 @@ struct FAssetDerivedDataEntryLimits
     Core::uint64 MaxMetadataBytes = 4ULL * 1024ULL * 1024ULL;
     Core::uint32 MaxSources = 4096;
     Core::uint32 MaxDependencies = 65536;
+    Core::uint32 MaxAdditionalEvidence = 64;
     Core::uint32 MaxRequiredExtensions = 256;
 };
 

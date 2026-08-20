@@ -47,8 +47,12 @@ EAssetResult FAssetCookedPayloadLimits::Validate() const noexcept
 
 EAssetResult FAssetCookedPayloadHeader::Validate() const noexcept
 {
+    const bool bLegacySchema = CodecVersion == 1 && PayloadSchemaVersion == 1;
+    const bool bMetalShaderSchema =
+        CodecId == Core::FString("stoner.shader-payload") &&
+        CodecVersion == 2 && PayloadSchemaVersion == 2;
     if (ContainerVersion != CurrentContainerVersion ||
-        CodecVersion != 1 || PayloadSchemaVersion != 1)
+        (!bLegacySchema && !bMetalShaderSchema))
     {
         return EAssetResult::UnsupportedSchema;
     }

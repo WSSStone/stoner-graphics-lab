@@ -1,0 +1,113 @@
+name: Feature 027 Metal Hardware
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: feature-027-hardware-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  native-metal:
+    name: Native Metal ${{ matrix.arch }}
+    runs-on: ${{ matrix.labels }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            slug: macos-arm64
+            labels: [self-hosted, macOS, metal, arm64]
+            profile: Config/AssetCooker/Profiles/Mac-Metal-Arm64.json
+          - arch: x86_64
+            slug: macos-x86_64
+            labels: [self-hosted, macOS, metal, x86_64]
+            profile: Config/AssetCooker/Profiles/Mac-Metal-X86_64.json
+    steps:
+      - uses: actions/checkout@v5
+      - name: Verify runner architecture and Metal toolchain
+        shell: bash
+        run: |
+          test "$(uname -m)" = "${{ matrix.arch }}"
+          /usr/bin/xcrun --find metal
+          /usr/bin/xcrun --find metallib
+          /usr/bin/xcrun xcodebuild -version
+          /usr/bin/xcrun --sdk macosx --show-sdk-version
+      - name: Create isolated Python environment
+        shell: bash
+        run: |
+          python3 -m venv "$RUNNER_TEMP/feature027-venv"
+          "$RUNNER_TEMP/feature027-venv/bin/python" -m pip install scons==4.10.1
+          echo "$RUNNER_TEMP/feature027-venv/bin" >> "$GITHUB_PATH"
+      - name: Build strict Release
+        run: scons config=release strict=1
+      - name: Verify architecture and validation tooling
+        run: |
+          python Tests/verify_architecture.py
+          python Tests/verify_metal_backend.py --root . --mode all
+          python -m unittest Tests/test_verify_architecture.py Tests/test_verify_metal_backend.py
+          python .github/scripts/test_run_metal_validation.py
+      - name: Run deterministic MSL derivation twenty times
+        run: >-
+          python .github/scripts/run_metal_validation.py
+          --root . --tests Build/Mac/Release/Tests/StonerTest
+          --tier deterministic --workload derivation --repetitions 20
+          --work Build/Feature027Validation/${{ matrix.slug }}/derivation
+          --output Validation/027/CI/work/hardware-${{ matrix.slug }}/derivation.json
+          --timeout-seconds 1200
+      - name: Require native shader, RHI, and deferred readback evidence
+        run: >-
+          python .github/scripts/run_metal_validation.py
+          --root . --tests Build/Mac/Release/Tests/StonerTest
+          --profile ${{ matrix.profile }} --tier native-offscreen
+          --workload native --require-native
+          --work Build/Feature027Validation/${{ matrix.slug }}/native
+          --output Validation/027/CI/work/hardware-${{ matrix.slug }}/native.json
+          --timeout-seconds 1800
+      - name: Require native Metal and Vulkan comparison
+        run: >-
+          python .github/scripts/run_metal_validation.py
+          --root . --tests Build/Mac/Release/Tests/StonerTest
+          --profile ${{ matrix.profile }} --tier cross-backend
+          --workload comparison --require-native
+          --work Build/Feature027Validation/${{ matrix.slug }}/comparison
+          --output Validation/027/CI/work/hardware-${{ matrix.slug }}/comparison.json
+          --timeout-seconds 1800
+      - name: Run native shader publication and shared triangle integration
+        run: >-
+          Build/Mac/Release/Tests/StonerTest
+          --suite metal-shader-compiler
+          --suite metal-shader-cooker
+          --suite metal-shader-publication
+          --suite metal-shader-runtime
+          --suite triangle-demo
+      - name: Run failure determinism
+        run: >-
+          python .github/scripts/run_metal_validation.py
+          --root . --tests Build/Mac/Release/Tests/StonerTest
+          --tier deterministic --workload failure --repetitions 20
+          --work Build/Feature027Validation/${{ matrix.slug }}/failure
+          --output Validation/027/CI/work/hardware-${{ matrix.slug }}/failure.json
+          --timeout-seconds 1200
+      - name: Run required native lifecycle and RSS gate
+        run: >-
+          python .github/scripts/run_metal_validation.py
+          --root . --tests Build/Mac/Release/Tests/StonerTest
+          --profile ${{ matrix.profile }} --tier native-offscreen
+          --workload lifecycle --lifecycle-iterations 10000 --require-native
+          --work Build/Feature027Validation/${{ matrix.slug }}/lifecycle
+          --output Validation/027/CI/work/hardware-${{ matrix.slug }}/lifecycle.json
+          --timeout-seconds 3600
+      - name: Upload required native evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: metal-hardware-${{ matrix.slug }}-${{ github.run_attempt }}
+          path: |
+            Validation/027/CI/work/hardware-${{ matrix.slug }}
+            Build/Feature027Validation/${{ matrix.slug }}
+          if-no-files-found: error

@@ -1,4 +1,5 @@
 #include "DeferredNativeIntegrationTests.h"
+#include "MetalDeferredNativeProbe.h"
 
 #include "Renderer/FDeferredFrameExecutor.h"
 #include "VulkanRHI/FVulkanNativeContext.h"
@@ -90,9 +91,9 @@ Stoner::RHI::FRHIShaderModuleDesc Shader(
     Stoner::RHI::FRHIShaderModuleDesc Desc;
     Desc.Stage = Stage;
     Desc.EntryPoint = "main";
-    Desc.PayloadIdentity =
-        Stoner::Core::FString(std::string("Content/") + File);
-    Desc.Bytecode.Words = ReadWords(Directory + "/" + File);
+    const Stoner::Core::FString Identity(std::string("Content/") + File);
+    (void)Stoner::RHI::SetRHIShaderSpirvWords(
+        Desc.Payload, ReadWords(Directory + "/" + File), Identity);
     return Desc;
 }
 
@@ -120,6 +121,41 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
     using namespace Stoner::RHI;
 
     FDeferredNativeIntegrationTestResult Result;
+    const FMetalDeferredNativeProbeReport MetalReport =
+        RunMetalDeferredNativeProbe();
+    const bool bRequireMetal = std::getenv("STONER_REQUIRE_METAL_DEFERRED") !=
+            nullptr &&
+        std::string_view(std::getenv("STONER_REQUIRE_METAL_DEFERRED")) == "1";
+    if (MetalReport.Status == EMetalDeferredProbeStatus::Unavailable)
+    {
+        Record(Result, !bRequireMetal,
+            bRequireMetal
+                ? "required Metal deferred device and compiler are available"
+                : "Metal deferred native validation is controlled unavailable");
+    }
+    else
+    {
+        for (const auto& Digest : MetalReport.ShaderEvidenceDigests)
+            std::cout << "[EVIDENCE] metal-native-shader evidence="
+                      << Digest.CStr() << '\n';
+        if (!MetalReport.FinalOutputDigest.IsEmpty())
+            std::cout << "[EVIDENCE] metal-native-deferred status=passed readback="
+                      << MetalReport.FinalOutputDigest.CStr() << '\n';
+        Record(Result,
+            MetalReport.Status == EMetalDeferredProbeStatus::Success &&
+                MetalReport.bUsedSharedRenderer &&
+                MetalReport.bNativeSubmissionCompleted,
+            "Metal deferred executes the shared Renderer graph through native RHI submission");
+        Record(Result,
+            MetalReport.bGBufferPassed &&
+                MetalReport.bWorldNormalPassed &&
+                MetalReport.bDepthPassed,
+            "Metal deferred readback preserves GBuffer world normal and depth semantics");
+        Record(Result,
+            MetalReport.bLightingPassed &&
+                MetalReport.bFinalOutputPassed,
+            "Metal deferred readback preserves lighting and final-output tolerances");
+    }
     constexpr std::array FailurePoints = {
         EVulkanDeferredFailurePoint::PartialInitialization,
         EVulkanDeferredFailurePoint::Record,

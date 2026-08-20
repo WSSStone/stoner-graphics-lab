@@ -1,5 +1,51 @@
-"""Metal backend stub — no sources yet."""
+"""Build the macOS-only Metal backend without leaking Apple APIs."""
 
-# No source files to compile for this backend yet
-lib = None
+Import('env', 'platform', 'config')
+from SCons.Script import Dir
+from LayerBuilder import BuildLayer
+from GraphicsDependencyDetect import DetectGraphicsDependencies
+
+if platform != 'Mac':
+    unsupported_env = env.Clone()
+    unsupported_env.Append(CPPPATH=[
+        Dir('#Source/Backend/Metal/Public').abspath,
+        Dir('#Source/RHI/Public').abspath,
+        Dir('#Source/Core/Public').abspath,
+    ])
+    unsupported_sources = [
+        'Private/FMetalDeviceFactoryUnsupported.cpp',
+        'Private/FMetalDeviceOwnerState.cpp',
+        'Private/FMetalDiagnostics.cpp',
+        'Private/FMetalFailureInjector.cpp',
+        'Private/FMetalInspection.cpp',
+    ]
+    unsupported = [unsupported_env.Object(source) for source in unsupported_sources]
+    lib = unsupported_env.StaticLibrary('MetalRHI', unsupported)
+    Return('lib')
+
+metal_env = env.Clone()
+metal_env['ENV'] = dict(metal_env.get('ENV', {}))
+metal_env['ENV']['MACOSX_DEPLOYMENT_TARGET'] = '12.0'
+metal_env.Append(FRAMEWORKS=['Metal', 'QuartzCore', 'Cocoa', 'Foundation'])
+deps = DetectGraphicsDependencies(platform)
+metal_env.Append(CPPDEFINES=[('STONER_GLFW_AVAILABLE', int(deps['glfw_available']))])
+if deps['glfw_include_dir']:
+    metal_env.Append(CPPPATH=[deps['glfw_include_dir']])
+
+lib = BuildLayer(
+    metal_env,
+    'MetalRHI',
+    dependencies=['RHI', 'Core'],
+    source_dir='Source/Backend/Metal/Private',
+    public_dir='Source/Backend/Metal/Public',
+    private_cpp_settings={
+        '*.mm': {
+            'ccflags': [
+                '-fobjc-arc',
+                '-mmacosx-version-min=12.0',
+                '-Werror=unguarded-availability-new',
+            ],
+        },
+    },
+)
 Return('lib')

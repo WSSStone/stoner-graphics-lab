@@ -5,7 +5,6 @@
 #include "Core/FPlatformFileSystem.h"
 #include "RHI/ERHIRuntimeMode.h"
 #include "Renderer/RendererMinimal.h"
-#include "VulkanRHI/FVulkanNativeContext.h"
 
 #include <array>
 #include <chrono>
@@ -18,11 +17,6 @@
 namespace Stoner::Demo
 {
 
-class FStonerDemoApplication::FNativeContextHolder
-{
-public:
-    Stoner::Backend::Vulkan::FVulkanNativeContext Context;
-};
 class FStonerDemoApplication::FWindowHolder
 {
 public:
@@ -140,6 +134,18 @@ public:
         const Stoner::Core::TArray<
             Stoner::Core::TSharedPtr<const Stoner::Asset::FAssetPayload>>&
             Payloads)
+    {
+        for (const auto& Payload : Payloads)
+        {
+            auto ShaderPayload = std::dynamic_pointer_cast<
+                const Stoner::Asset::FShaderPayloadAsset>(Payload);
+            if (ShaderPayload) Payloads_.push_back(std::move(ShaderPayload));
+        }
+    }
+
+    explicit FPayloadLookup(
+        const Stoner::Core::TArray<Stoner::Core::TSharedPtr<
+            const Stoner::Asset::FShaderPayloadAsset>>& Payloads)
         : Payloads_(Payloads)
     {
     }
@@ -149,21 +155,21 @@ public:
     {
         for (const auto& Payload : Payloads_)
         {
-            auto ShaderPayload = std::dynamic_pointer_cast<
-                const Stoner::Asset::FShaderPayloadAsset>(Payload);
-            if (ShaderPayload && ShaderPayload->GetId() == Id)
+            if (Payload && Payload->GetId() == Id)
             {
-                return ShaderPayload;
+                return Payload;
             }
         }
         return {};
     }
 
 private:
-    const Stoner::Core::TArray<
-        Stoner::Core::TSharedPtr<const Stoner::Asset::FAssetPayload>>&
+    Stoner::Core::TArray<
+        Stoner::Core::TSharedPtr<const Stoner::Asset::FShaderPayloadAsset>>
         Payloads_;
 };
+
+} // namespace
 
 Stoner::Renderer::FForwardFramePlan BuildTriangleFramePlan(
     Stoner::Core::uint32 Width, Stoner::Core::uint32 Height)
@@ -202,11 +208,17 @@ Stoner::Renderer::FForwardFramePlan BuildTriangleFramePlan(
     return Plan;
 }
 
-} // namespace
-
-FStonerDemoApplication::FStonerDemoApplication(FDemoConfiguration InConfiguration)
-    : Configuration(std::move(InConfiguration)), ValidationMonitor(Configuration)
+FStonerDemoApplication::FStonerDemoApplication(
+    FDemoConfiguration InConfiguration,
+    Stoner::Core::TSharedPtr<IDemoBackendFactory> InBackendFactory)
+    : Configuration(std::move(InConfiguration)),
+      ValidationMonitor(Configuration),
+      BackendFactory(std::move(InBackendFactory))
 {
+    if (!BackendFactory)
+    {
+        BackendFactory = Stoner::Core::MakeShared<FDemoBackendFactory>();
+    }
 }
 
 FStonerDemoApplication::~FStonerDemoApplication()
@@ -217,6 +229,11 @@ FStonerDemoApplication::~FStonerDemoApplication()
 bool FStonerDemoApplication::ValidateShaderPayloads()
 {
     using namespace Stoner;
+    if (Configuration.GraphicsBackend == EDemoGraphicsBackend::Metal &&
+        Configuration.RequiresNativeRuntime())
+    {
+        return LoadStrictCookedMetalShaderPayloads();
+    }
     Asset::FAssetExtensionRegistry Extensions;
     Asset::FAssetRegistrationToken ResolverToken;
     if (Extensions.Register(
@@ -304,6 +321,172 @@ bool FStonerDemoApplication::ValidateShaderPayloads()
     return bTriangleShadersLoaded;
 }
 
+bool FStonerDemoApplication::LoadStrictCookedMetalShaderPayloads()
+{
+    using namespace Stoner;
+    Core::TArray<Core::uint8> ProfileBytes;
+    Asset::FAssetTargetProfileEvidence TargetEvidence;
+    if (!Core::FPlatformFileSystem::ReadFile(
+            Configuration.TargetProfilePath, ProfileBytes) ||
+        Asset::FAssetCookContractCodec::ParseTargetProfile(
+            ProfileBytes, TargetEvidence) != Asset::EAssetResult::Success ||
+        TargetEvidence.Profile.Platform != Asset::EAssetTargetPlatform::MacOS ||
+        TargetEvidence.Profile.GraphicsBackend !=
+            Asset::EAssetGraphicsBackend::Metal)
+        return false;
+
+    Core::FString SelectedProfile;
+    for (const auto& Choice : TargetEvidence.Profile.ShaderPayloadChoices)
+    {
+        if (Choice.Backend == Asset::EAssetGraphicsBackend::Metal &&
+            Choice.Format == Asset::EAssetShaderPayloadFormat::MetalLibrary)
+        {
+            SelectedProfile = Choice.Profile;
+            break;
+        }
+    }
+    if (SelectedProfile.IsEmpty()) return false;
+
+    std::error_code FileError;
+    std::filesystem::create_directories(
+        Configuration.LeaseCoordinationRoot.ToStdString(), FileError);
+    if (FileError) return false;
+
+    Asset::FAssetManagerConfig ManagerConfig;
+    ManagerConfig.Mode = Asset::EAssetManagerMode::StrictCooked;
+    ManagerConfig.ExtensionRegistry =
+        Core::MakeShared<Asset::FAssetExtensionRegistry>();
+    ManagerConfig.PublicationRoot = Configuration.CookedPublicationRoot;
+    ManagerConfig.LeaseCoordinationRoot = Configuration.LeaseCoordinationRoot;
+    ManagerConfig.TargetEvidence =
+        Core::MakeShared<const Asset::FAssetTargetProfileEvidence>(
+            TargetEvidence);
+    Core::TSharedPtr<Asset::FAssetManager> Manager;
+    Asset::FAssetDiagnosticList Diagnostics;
+    if (Asset::FAssetManager::Create(
+            ManagerConfig, Manager, Diagnostics) !=
+            Asset::EAssetResult::Success || !Manager)
+        return false;
+
+    const auto WaitReady = [&Manager](
+        Asset::FAssetRequestHandle Request) -> bool
+    {
+        for (int Attempt = 0; Attempt < 6000; ++Attempt)
+        {
+            Asset::FAssetRequestSnapshot Snapshot;
+            if (Manager->Query(Request, Snapshot) !=
+                Asset::EAssetResult::Success)
+                return false;
+            if (Snapshot.State == Asset::EAssetRequestState::Ready)
+                return true;
+            if (Snapshot.State == Asset::EAssetRequestState::Failed ||
+                Snapshot.State == Asset::EAssetRequestState::Cancelled)
+                return false;
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        return false;
+    };
+    const auto ShutdownManager = [&Manager](
+        const Core::TArray<Asset::FAssetRequestHandle>& Requests)
+    {
+        for (const auto Request : Requests)
+            if (Request.IsValid()) (void)Manager->ReleaseRequest(Request);
+        (void)Manager->Shutdown();
+        Manager.reset();
+    };
+
+    Asset::FAssetId ProgramId;
+    if (Asset::FAssetId::Create(
+            "ShaderProgram", "Engine/Shaders/Triangle", std::nullopt,
+            ProgramId) != Asset::EAssetResult::Success)
+    {
+        (void)Manager->Shutdown();
+        return false;
+    }
+    Core::TArray<Asset::FAssetRequestHandle> Requests;
+    Asset::FAssetRequestHandle ProgramRequest;
+    Asset::TAssetHandle<Asset::FShaderAsset> ProgramHandle;
+    if (Manager->Request<Asset::FShaderAsset>(ProgramId, ProgramRequest) !=
+            Asset::EAssetResult::Success ||
+        !WaitReady(ProgramRequest) ||
+        Manager->GetResult(ProgramRequest, ProgramHandle) !=
+            Asset::EAssetResult::Success || !ProgramHandle.IsValid())
+    {
+        Requests.push_back(ProgramRequest);
+        ShutdownManager(Requests);
+        return false;
+    }
+    Requests.push_back(ProgramRequest);
+
+    Core::TArray<Core::TSharedPtr<const Asset::FShaderPayloadAsset>> Payloads;
+    for (const auto& Variant : ProgramHandle->GetDesc().Variants)
+    {
+        if (!Variant.Permutation.Flags.empty()) continue;
+        for (const auto& Reference : Variant.Payloads)
+        {
+            if (Reference.Backend != Asset::EShaderBackendFamily::Metal ||
+                Reference.Format != Asset::EShaderPayloadFormat::MetalLibrary)
+                continue;
+            const auto& PayloadId = Reference.Payload.GetId();
+            if (!PayloadId) continue;
+            Asset::FAssetRequestHandle PayloadRequest;
+            Asset::TAssetHandle<Asset::FShaderPayloadAsset> PayloadHandle;
+            if (Manager->Request<Asset::FShaderPayloadAsset>(
+                    *PayloadId, PayloadRequest) != Asset::EAssetResult::Success ||
+                !WaitReady(PayloadRequest) ||
+                Manager->GetResult(PayloadRequest, PayloadHandle) !=
+                    Asset::EAssetResult::Success || !PayloadHandle.IsValid())
+            {
+                Requests.push_back(PayloadRequest);
+                ShutdownManager(Requests);
+                return false;
+            }
+            Requests.push_back(PayloadRequest);
+            Payloads.push_back(
+                Core::MakeShared<const Asset::FShaderPayloadAsset>(
+                    *PayloadHandle));
+        }
+        break;
+    }
+    FPayloadLookup Lookup(Payloads);
+    Asset::FShaderTargetRequest Target;
+    Target.Backend = Asset::EShaderBackendFamily::Metal;
+    Target.CpuArchitecture = TargetEvidence.Profile.CpuArchitecture;
+    Target.AcceptableProfiles = {SelectedProfile};
+    Asset::FSelectedShaderProgram Selected;
+    Renderer::FShaderAssetSnapshot Snapshot;
+    const bool bSelected = Payloads.size() == 2 &&
+        Asset::SelectShaderProgram(
+            *ProgramHandle, Target, Lookup, Selected) ==
+            Asset::EAssetResult::Success &&
+        Renderer::ConvertShaderAsset({&Selected}, Snapshot) ==
+            Renderer::EMaterialResult::Success &&
+        Snapshot.ModuleDescriptions.size() == 2;
+    ProgramHandle.Reset();
+    Selected.Stages.clear();
+    Payloads.clear();
+    ShutdownManager(Requests);
+    if (!bSelected) return false;
+
+    TriangleVertexShader = {};
+    TriangleFragmentShader = {};
+    for (auto& Module : Snapshot.ModuleDescriptions)
+    {
+        if (Module.Stage == RHI::ERHIShaderStage::Vertex)
+            TriangleVertexShader = std::move(Module);
+        else if (Module.Stage == RHI::ERHIShaderStage::Fragment)
+            TriangleFragmentShader = std::move(Module);
+    }
+    bTriangleShadersLoaded =
+        RHI::IsValidRHIShaderModuleDesc(TriangleVertexShader) &&
+        TriangleVertexShader.Payload.Format ==
+            RHI::ERHIShaderPayloadFormat::MetalLibrary &&
+        RHI::IsValidRHIShaderModuleDesc(TriangleFragmentShader) &&
+        TriangleFragmentShader.Payload.Format ==
+            RHI::ERHIShaderPayloadFormat::MetalLibrary;
+    return bTriangleShadersLoaded;
+}
+
 bool FStonerDemoApplication::ShouldInject(EDemoStage Stage, EDemoExitCode Code, const char* Subject)
 {
     if (!bHasFailureInjection || FailureInjectionStage != Stage) return false;
@@ -335,11 +518,7 @@ EDemoExitCode FStonerDemoApplication::Initialize()
 
     if (Configuration.RequiresNativeRuntime())
     {
-#if !defined(STONER_VULKAN_RUNTIME_AVAILABLE) || !STONER_VULKAN_RUNTIME_AVAILABLE
-        Diagnostics.Add(EDemoStage::Runtime, EDemoExitCode::RuntimeUnavailable, "Vulkan", "native Vulkan dependency unavailable");
-        LifecycleState = EDemoLifecycleState::Failed;
-        return EDemoExitCode::RuntimeUnavailable;
-#elif !defined(STONER_GLFW_AVAILABLE) || !STONER_GLFW_AVAILABLE
+#if !defined(STONER_GLFW_AVAILABLE) || !STONER_GLFW_AVAILABLE
         if (Configuration.RequiresVisibleWindow())
         {
             Diagnostics.Add(EDemoStage::Window, EDemoExitCode::RuntimeUnavailable, "GLFW", "native window dependency unavailable");
@@ -347,6 +526,21 @@ EDemoExitCode FStonerDemoApplication::Initialize()
             return EDemoExitCode::RuntimeUnavailable;
         }
 #endif
+        FDemoBackendCreateResult Created =
+            BackendFactory->Create(Configuration.GraphicsBackend);
+        if (!Created.Succeeded())
+        {
+            Diagnostics.Add(
+                EDemoStage::Runtime,
+                EDemoExitCode::RuntimeUnavailable,
+                ToString(Configuration.GraphicsBackend),
+                Created.FailureReason.IsEmpty()
+                    ? "requested backend factory unavailable"
+                    : Created.FailureReason.CStr());
+            LifecycleState = EDemoLifecycleState::Failed;
+            return EDemoExitCode::RuntimeUnavailable;
+        }
+        BackendRuntime = std::move(Created.Runtime);
     }
 
     if (Configuration.RequiresVisibleWindow())
@@ -364,27 +558,33 @@ EDemoExitCode FStonerDemoApplication::Initialize()
             LifecycleState = EDemoLifecycleState::Failed;
             return EDemoExitCode::RuntimeUnavailable;
         }
-        NativeContext = std::make_unique<FNativeContextHolder>();
-        const Stoner::RHI::ERHIResult NativeResult = NativeContext->Context.Initialize(
-            Stoner::RHI::ERHIRuntimeMode::Native, Window->Value.GetPlatformWindow());
-        if (NativeResult != Stoner::RHI::ERHIResult::Success || !NativeContext->Context.GetSnapshot().ProvesNativeExecution())
-        {
-            Diagnostics.Add(EDemoStage::Runtime, EDemoExitCode::RuntimeUnavailable, "VulkanPresentation", "real native presentation runtime unavailable");
-            NativeContext.reset();
-            (void)Window->Value.Destroy();
-            Window.reset();
-            LifecycleState = EDemoLifecycleState::Failed;
-            return EDemoExitCode::RuntimeUnavailable;
-        }
     }
-    else if (Configuration.RunMode == EDemoRunMode::NativeHeadless)
+
+    if (Configuration.RequiresNativeRuntime())
     {
-        NativeContext = std::make_unique<FNativeContextHolder>();
-        const Stoner::RHI::ERHIResult NativeResult = NativeContext->Context.Initialize(Stoner::RHI::ERHIRuntimeMode::NativeHeadless);
-        if (NativeResult != Stoner::RHI::ERHIResult::Success || !NativeContext->Context.GetSnapshot().ProvesNativeExecution())
+        const Stoner::Core::FPlatformWindow PlatformWindow = Window
+            ? Window->Value.GetPlatformWindow()
+            : Stoner::Core::FPlatformWindow{};
+        const Stoner::RHI::ERHIResult NativeResult = BackendRuntime->Initialize(
+            Configuration.RunMode,
+            PlatformWindow,
+            Configuration.MaxFramesInFlight,
+            Configuration.bEnableValidationLayers);
+        if (NativeResult != Stoner::RHI::ERHIResult::Success ||
+            !BackendRuntime->GetSnapshot().ProvesNativeExecution())
         {
-            Diagnostics.Add(EDemoStage::Runtime, EDemoExitCode::RuntimeUnavailable, "VulkanNativeHeadless", "real native runtime proof unavailable");
-            NativeContext.reset();
+            Diagnostics.Add(
+                EDemoStage::Runtime,
+                EDemoExitCode::RuntimeUnavailable,
+                ToString(Configuration.GraphicsBackend),
+                "real native runtime proof unavailable");
+            (void)BackendRuntime->Shutdown();
+            BackendRuntime.reset();
+            if (Window)
+            {
+                (void)Window->Value.Destroy();
+                Window.reset();
+            }
             LifecycleState = EDemoLifecycleState::Failed;
             return EDemoExitCode::RuntimeUnavailable;
         }
@@ -418,7 +618,7 @@ EDemoExitCode FStonerDemoApplication::Initialize()
         CurrentDrawableWidth = Window->Value.GetDrawableWidth();
         CurrentDrawableHeight = Window->Value.GetDrawableHeight();
         if (CurrentDrawableWidth > 0 && CurrentDrawableHeight > 0 &&
-            NativeContext->Context.PrepareVisibleTriangle(
+            BackendRuntime->PrepareTriangle(
                 TriangleVertexShader, TriangleFragmentShader,
                 CurrentDrawableWidth, CurrentDrawableHeight) != Stoner::RHI::ERHIResult::Success)
         {
@@ -515,9 +715,9 @@ EDemoExitCode FStonerDemoApplication::NotifyPresentSuccess(double NowMillisecond
 
 EDemoExitCode FStonerDemoApplication::RunNativeHeadless()
 {
-    if (!NativeContext) return EDemoExitCode::RuntimeUnavailable;
+    if (!BackendRuntime) return EDemoExitCode::RuntimeUnavailable;
     LifecycleState = EDemoLifecycleState::Running;
-    if (NativeContext->Context.ExecuteOffscreenTriangle(
+    if (BackendRuntime->ExecuteOffscreenTriangle(
         TriangleVertexShader,
         TriangleFragmentShader) != Stoner::RHI::ERHIResult::Success)
     {
@@ -525,7 +725,7 @@ EDemoExitCode FStonerDemoApplication::RunNativeHeadless()
         LifecycleState = EDemoLifecycleState::Failed;
         return EDemoExitCode::FrameFailed;
     }
-    const Stoner::RHI::FRHIRuntimeSnapshot Snapshot = NativeContext->Context.GetSnapshot();
+    const Stoner::RHI::FRHIRuntimeSnapshot Snapshot = BackendRuntime->GetSnapshot();
     while (CompletedFrames < Configuration.FrameBudget)
     {
         ++CompletedFrames;
@@ -542,7 +742,7 @@ EDemoExitCode FStonerDemoApplication::RunNativeHeadless()
 
 EDemoExitCode FStonerDemoApplication::RunVisible()
 {
-    if (!NativeContext || !Window) return EDemoExitCode::RuntimeUnavailable;
+    if (!BackendRuntime || !Window) return EDemoExitCode::RuntimeUnavailable;
     LifecycleState = EDemoLifecycleState::Running;
     while (!Window->Value.IsCloseRequested() &&
         (!Configuration.IsBounded() || CompletedFrames < Configuration.FrameBudget))
@@ -568,14 +768,14 @@ EDemoExitCode FStonerDemoApplication::RunVisible()
             Stoner::RHI::ERHIResult RecreateResult = Stoner::RHI::ERHIResult::Failed;
             if (!PresentationState.bInitialized)
             {
-                RecreateResult = NativeContext->Context.PrepareVisibleTriangle(
+                RecreateResult = BackendRuntime->PrepareTriangle(
                     TriangleVertexShader,
                     TriangleFragmentShader,
                     Width,
                     Height);
                 if (RecreateResult == Stoner::RHI::ERHIResult::Success) PresentationState.bInitialized = true;
             }
-            else RecreateResult = NativeContext->Context.RecreateVisiblePresentation(Width, Height);
+            else RecreateResult = BackendRuntime->RecreatePresentation(Width, Height);
             if (RecreateResult != Stoner::RHI::ERHIResult::Success)
             {
                 Diagnostics.Add(EDemoStage::Present, EDemoExitCode::FrameFailed, "PresentationRecreate", "swapchain recreation failed");
@@ -590,8 +790,8 @@ EDemoExitCode FStonerDemoApplication::RunVisible()
             ShouldInject(EDemoStage::Submit, EDemoExitCode::FrameFailed, "FrameSubmit") ||
             ShouldInject(EDemoStage::Present, EDemoExitCode::FrameFailed, "FramePresent"))
             return EDemoExitCode::FrameFailed;
-        Stoner::Backend::Vulkan::FVulkanNativeFrameBindings NativeBindings;
-        const Stoner::RHI::ERHIResult AcquireResult = NativeContext->Context.AcquireVisibleFrame(NativeBindings);
+        FDemoBackendFrame BackendFrame;
+        const Stoner::RHI::ERHIResult AcquireResult = BackendRuntime->AcquireFrame(BackendFrame);
         if (AcquireResult == Stoner::RHI::ERHIResult::ResizeRequired)
         {
             (void)NotifyDrawableExtent(0, 0, NowMilliseconds());
@@ -605,12 +805,7 @@ EDemoExitCode FStonerDemoApplication::RunVisible()
         }
 
         Stoner::Renderer::FForwardFrameExecutionBindings ExecutionBindings;
-        ExecutionBindings.OutputTexture = NativeBindings.OutputTexture;
-        ExecutionBindings.VertexBuffer = NativeBindings.VertexBuffer;
-        ExecutionBindings.GraphicsPipeline = NativeBindings.GraphicsPipeline;
-        ExecutionBindings.RenderPass = NativeBindings.RenderPass;
-        ExecutionBindings.Framebuffer = NativeBindings.Framebuffer;
-        ExecutionBindings.CommandBuffer = NativeBindings.CommandBuffer;
+        ExecutionBindings = BackendFrame.ExecutionBindings;
         const Stoner::Renderer::FForwardFramePlan FramePlan = BuildTriangleFramePlan(Width, Height);
         const Stoner::Renderer::FForwardFrameExecutionResult RecordResult =
             Stoner::Renderer::FForwardFrameExecutor().Execute(FramePlan, ExecutionBindings);
@@ -620,7 +815,7 @@ EDemoExitCode FStonerDemoApplication::RunVisible()
             LifecycleState = EDemoLifecycleState::Failed;
             return EDemoExitCode::FrameFailed;
         }
-        const Stoner::RHI::ERHIResult PresentResult = NativeContext->Context.SubmitAndPresentVisibleFrame(NativeBindings);
+        const Stoner::RHI::ERHIResult PresentResult = BackendRuntime->SubmitFrame(BackendFrame);
         if (PresentResult == Stoner::RHI::ERHIResult::ResizeRequired)
         {
             (void)NotifyDrawableExtent(0, 0, NowMilliseconds());
@@ -643,7 +838,7 @@ EDemoExitCode FStonerDemoApplication::RunVisible()
             return EDemoExitCode::ValidationFailed;
         ++CompletedFrames;
         if (ShouldInject(EDemoStage::Memory, EDemoExitCode::ValidationFailed, "ProcessRSS") ||
-            !ValidationMonitor.Sample(CompletedFrames, NativeContext->Context.GetSnapshot()))
+            !ValidationMonitor.Sample(CompletedFrames, BackendRuntime->GetSnapshot()))
         {
             Diagnostics.Add(EDemoStage::Memory, EDemoExitCode::ValidationFailed, "ProcessRSS", "resident-memory sampling unavailable");
             LifecycleState = EDemoLifecycleState::Failed;
@@ -699,10 +894,10 @@ EDemoExitCode FStonerDemoApplication::Shutdown()
     FrameContexts.clear();
     PresentationState.Reset();
     TriangleResources.Reset();
-    if (NativeContext)
+    if (BackendRuntime)
     {
-        (void)NativeContext->Context.Shutdown();
-        NativeContext.reset();
+        (void)BackendRuntime->Shutdown();
+        BackendRuntime.reset();
     }
     if (Window)
     {

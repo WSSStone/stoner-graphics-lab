@@ -70,5 +70,7 @@ struct FVulkanAdapterSelection
 [[nodiscard]] bool PassesRequiredCapabilityGate(const FVulkanAdapterCandidate& Candidate) noexcept;
 [[nodiscard]] Stoner::Core::int32 ScoreAdapterCandidate(const FVulkanAdapterCandidate& Candidate) noexcept;
 [[nodiscard]] FVulkanAdapterSelection SelectBestAdapter(Stoner::Core::TArray<FVulkanAdapterCandidate> Candidates);
+[[nodiscard]] Stoner::RHI::FRHIDeviceCapabilities
+MakeVulkanBaselineDeviceCapabilities();
 
 } // namespace Stoner::Backend::Vulkan

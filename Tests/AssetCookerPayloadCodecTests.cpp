@@ -209,6 +209,41 @@ void TestBounds(FAssetCookerPayloadCodecTestResult& Result)
         "writer rejects an empty body without partial bytes");
 }
 
+void TestMetalShaderEnvelopeV2(FAssetCookerPayloadCodecTestResult& Result)
+{
+    FAssetCookedPayloadHeader Header;
+    (void)FAssetId::Create(
+        FString("ShaderPayload"), FString("Cooker/Metal/Test"), {},
+        Header.AssetId);
+    Header.AssetType = FString("ShaderPayload");
+    Header.CodecId = FString("stoner.shader-payload");
+    Header.CodecVersion = 2;
+    Header.PayloadSchemaVersion = 2;
+    const TArray<uint8> Body = {0x4d, 0x54, 0x4c, 0x42};
+    TArray<uint8> Envelope;
+    FAssetCookedPayloadEnvelope Written;
+    const EAssetResult Write = FAssetCookContractCodec::WriteCookedPayload(
+        Header, {}, Body, {}, Envelope, &Written);
+    FAssetCookedPayloadEnvelope Parsed;
+    const EAssetResult Parse = FAssetCookContractCodec::ParseCookedPayload(
+        Envelope, {}, Parsed);
+    Record(
+        Result,
+        Write == EAssetResult::Success && Parse == EAssetResult::Success &&
+            Parsed == Written && Parsed.Header.CodecVersion == 2 &&
+            Parsed.Header.PayloadSchemaVersion == 2,
+        "shader payload v2 envelope round-trips without weakening v1 codecs");
+
+    Header.PayloadSchemaVersion = 1;
+    Envelope.clear();
+    Record(
+        Result,
+        FAssetCookContractCodec::WriteCookedPayload(
+            Header, {}, Body, {}, Envelope) != EAssetResult::Success &&
+            Envelope.empty(),
+        "mixed shader payload codec and schema revisions fail closed");
+}
+
 void TestGoldenFixtures(FAssetCookerPayloadCodecTestResult& Result)
 {
     constexpr const char* Root =
@@ -244,6 +279,7 @@ FAssetCookerPayloadCodecTestResult RunAssetCookerPayloadCodecTests()
     TestCorruption(Result);
     TestUnknownContracts(Result);
     TestBounds(Result);
+    TestMetalShaderEnvelopeV2(Result);
     TestGoldenFixtures(Result);
     return Result;
 }

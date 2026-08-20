@@ -8,6 +8,7 @@
 #include "Core/TArray.h"
 
 #include <variant>
+#include <optional>
 
 namespace Stoner::Asset
 {
@@ -42,7 +43,8 @@ enum class EAssetShaderPayloadFormat : Core::uint8
     MSL,
     DXIL,
     GLSL,
-    ESSL
+    ESSL,
+    MetalLibrary
 };
 
 enum class EAssetTextureFallback : Core::uint8
@@ -126,9 +128,20 @@ struct FAssetTargetLimits
     [[nodiscard]] bool operator==(const FAssetTargetLimits&) const = default;
 };
 
+struct FAssetMetalShaderTarget
+{
+    Core::FString DeploymentTarget = Core::FString("12.0");
+    Core::FString MslVersion = Core::FString("2.4");
+    Core::FString BindingPolicy = Core::FString("metal-direct-binding-v1");
+    Core::uint32 NativeEvidenceSchemaVersion = 1;
+
+    [[nodiscard]] EAssetResult Validate() const noexcept;
+    [[nodiscard]] bool operator==(const FAssetMetalShaderTarget&) const = default;
+};
+
 struct FAssetTargetProfile
 {
-    static constexpr Core::uint32 CurrentSchemaVersion = 1;
+    static constexpr Core::uint32 CurrentSchemaVersion = 2;
 
     Core::FString Schema = Core::FString("stoner.asset-target-profile");
     Core::uint32 SchemaVersion = CurrentSchemaVersion;
@@ -138,6 +151,7 @@ struct FAssetTargetProfile
         EAssetTargetCpuArchitecture::X86_64;
     EAssetGraphicsBackend GraphicsBackend = EAssetGraphicsBackend::Vulkan;
     Core::TArray<FAssetShaderPayloadChoice> ShaderPayloadChoices;
+    std::optional<FAssetMetalShaderTarget> MetalShaderTarget;
     Core::TArray<Core::FString> TextureCapabilities;
     EAssetTextureFallback TextureFallback = EAssetTextureFallback::Fail;
     FAssetTargetBuildPolicy BuildPolicy;

@@ -154,6 +154,12 @@ FAssetCookerCliTestResult RunAssetCookerCliTests(
         "Config/AssetCooker/Profiles/Mac-Vulkan.json"}) ==
         EAssetCookResultCategory::Success,
         "inspect accepts exactly one target subject");
+    Record(Result, Parse({"doctor", "--target-profile",
+        "Config/AssetCooker/Profiles/Mac-Metal-Arm64.json",
+        "--normalized-report"}, &Invocation) ==
+            EAssetCookResultCategory::Success &&
+        Invocation.Command == EAssetCookReportCommand::Doctor,
+        "doctor accepts one explicit Metal target profile");
 
     Record(Result,
         Parse({"cook", "--source-root", "Content", "--cook-all", "--root",
@@ -162,6 +168,9 @@ FAssetCookerCliTestResult RunAssetCookerCliTests(
             "--ddc", "D"}) == EAssetCookResultCategory::InvalidArguments &&
         Parse({"inspect", "--output", "O", "--ddc", "D", "--key",
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}) ==
+            EAssetCookResultCategory::InvalidArguments &&
+        Parse({"doctor"}) == EAssetCookResultCategory::InvalidArguments &&
+        Parse({"doctor", "--target-profile", "P", "--output", "O"}) ==
             EAssetCookResultCategory::InvalidArguments,
         "mutually exclusive root and inspect subjects are rejected");
     Record(Result,

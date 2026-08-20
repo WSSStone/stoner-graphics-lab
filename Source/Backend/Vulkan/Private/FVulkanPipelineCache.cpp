@@ -101,13 +101,14 @@ void AppendShaderKey(
     Stream << "shader:" << static_cast<int>(Shader->GetStage()) << ','
            << static_cast<int>(Desc.ValidationMode) << ','
            << static_cast<int>(Desc.RuntimeMode) << ',';
-    AppendText(Stream, Desc.PayloadIdentity);
+    AppendText(Stream, Desc.Payload.PayloadIdentity);
     AppendText(Stream, Desc.EntryPoint);
-    AppendText(Stream, Desc.Bytecode.Format);
-    Stream << Desc.Bytecode.Words.size() << ':';
-    for (Stoner::Core::uint32 Word : Desc.Bytecode.Words)
+    Stream << static_cast<int>(Desc.Payload.Format) << ',';
+    AppendText(Stream, Desc.Payload.TargetProfile);
+    Stream << Desc.Payload.Bytes.size() << ':';
+    for (Stoner::Core::uint8 Byte : Desc.Payload.Bytes)
     {
-        Stream << Word << ',';
+        Stream << static_cast<unsigned int>(Byte) << ',';
     }
     Stream << "interface:";
     AppendBindings(Stream, Desc.InterfaceMetadata.Bindings);

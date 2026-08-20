@@ -1,0 +1,15 @@
+{
+  "schema": "stoner.metal-malformed-payload-cases",
+  "schemaVersion": 1,
+  "cases": [
+    {"name": "empty-library", "mutation": "empty-bytes", "expectedResult": "corrupt-payload"},
+    {"name": "legacy-schema", "mutation": "payload-schema-v1", "expectedResult": "unsupported-schema"},
+    {"name": "wrong-backend", "mutation": "backend-vulkan", "expectedResult": "target-unavailable"},
+    {"name": "source-msl", "mutation": "format-msl", "expectedResult": "target-unavailable"},
+    {"name": "wrong-stage", "mutation": "stage-mismatch", "expectedResult": "dependency-mismatch"},
+    {"name": "wrong-entry", "mutation": "entry-point-mismatch", "expectedResult": "dependency-mismatch"},
+    {"name": "missing-binding-evidence", "mutation": "remove-binding-evidence", "expectedResult": "corrupt-payload"},
+    {"name": "changed-library", "mutation": "library-digest-mismatch", "expectedResult": "corrupt-payload"},
+    {"name": "changed-interface", "mutation": "binding-digest-mismatch", "expectedResult": "corrupt-payload"}
+  ]
+}

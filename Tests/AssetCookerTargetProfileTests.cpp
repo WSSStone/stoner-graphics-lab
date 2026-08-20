@@ -86,6 +86,31 @@ FAssetCookerTargetProfileTestResult RunAssetCookerTargetProfileTests()
     Record(Result, ProfilesValid,
         "Windows macOS and Linux Vulkan profiles are strict complete contracts");
 
+    const Core::TArray<std::filesystem::path> MetalProfiles{
+        "Config/AssetCooker/Profiles/Mac-Metal-Arm64.json",
+        "Config/AssetCooker/Profiles/Mac-Metal-X86_64.json"};
+    bool MetalProfilesValid = true;
+    for (const auto& Path : MetalProfiles)
+    {
+        Asset::FAssetTargetProfileEvidence Profile;
+        MetalProfilesValid = MetalProfilesValid && ParseProfile(Path, Profile) &&
+            Profile.Profile.SchemaVersion == 2 &&
+            Profile.Profile.Platform == Asset::EAssetTargetPlatform::MacOS &&
+            Profile.Profile.GraphicsBackend ==
+                Asset::EAssetGraphicsBackend::Metal &&
+            Profile.Profile.MetalShaderTarget.has_value() &&
+            Profile.Profile.MetalShaderTarget->DeploymentTarget ==
+                Core::FString("12.0") &&
+            Profile.Profile.MetalShaderTarget->MslVersion ==
+                Core::FString("2.4") &&
+            Profile.Profile.ShaderPayloadChoices.size() == 1 &&
+            Profile.Profile.ShaderPayloadChoices.front().Format ==
+                Asset::EAssetShaderPayloadFormat::MetalLibrary &&
+            HasExactGenericSettings(Profile.Profile);
+    }
+    Record(Result, MetalProfilesValid,
+        "arm64 and x86_64 Metal profiles require macOS 12 MSL 2.4 native libraries");
+
     Asset::FAssetTargetProfileEvidence Baseline;
     (void)ParseProfile(Profiles[1], Baseline);
     auto RenamedProfile = Baseline.Profile;

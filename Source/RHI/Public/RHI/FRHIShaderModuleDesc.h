@@ -1,9 +1,11 @@
 #pragma once
 
 #include "Core/CoreMinimal.h"
+#include "RHI/ERHIShaderPayloadFormat.h"
 #include "RHI/ERHIDescriptorType.h"
 #include "RHI/ERHIShaderStage.h"
 #include "RHI/ERHIRuntimeMode.h"
+#include "RHI/FRHINativeBindingMap.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -28,10 +30,13 @@ enum class ERHIPipelineReuseState
     Unavailable
 };
 
-struct FRHIShaderBytecodeDesc
+struct FRHIShaderPayloadDesc
 {
-    Stoner::Core::TArray<Stoner::Core::uint32> Words;
-    Stoner::Core::FString Format = "SPIR-V";
+    ERHIShaderPayloadFormat Format = ERHIShaderPayloadFormat::Unknown;
+    Stoner::Core::TArray<Stoner::Core::uint8> Bytes;
+    Stoner::Core::FString PayloadIdentity;
+    Stoner::Core::FString TargetProfile;
+    FRHISha256Digest PayloadDigest;
 };
 
 struct FRHIShaderInterfaceBinding
@@ -61,9 +66,9 @@ struct FRHIShaderModuleDesc
 {
     ERHIShaderStage Stage = ERHIShaderStage::Unknown;
     Stoner::Core::FString EntryPoint;
-    Stoner::Core::FString PayloadIdentity;
-    FRHIShaderBytecodeDesc Bytecode;
+    FRHIShaderPayloadDesc Payload;
     FRHIShaderInterfaceMetadata InterfaceMetadata;
+    FRHINativeBindingMap NativeBindingMap;
     ERHIShaderBytecodeValidationMode ValidationMode = ERHIShaderBytecodeValidationMode::StructuralFallback;
     ERHIRuntimeObjectMode RuntimeMode = ERHIRuntimeObjectMode::Unknown;
     Stoner::Core::FString DebugName;
@@ -104,40 +109,138 @@ struct FRHIShaderModuleDesc
     return Stage == ERHIShaderStage::Vertex || Stage == ERHIShaderStage::Fragment || Stage == ERHIShaderStage::Compute;
 }
 
-[[nodiscard]] inline bool IsValidRHIShaderBytecode(const FRHIShaderBytecodeDesc& Bytecode) noexcept
+[[nodiscard]] inline Stoner::Core::uint32 ReadRHIShaderSpirvWord(
+    const FRHIShaderPayloadDesc& Payload,
+    std::size_t WordIndex) noexcept
+{
+    const std::size_t Offset = WordIndex * sizeof(Stoner::Core::uint32);
+    return static_cast<Stoner::Core::uint32>(Payload.Bytes[Offset]) |
+        (static_cast<Stoner::Core::uint32>(Payload.Bytes[Offset + 1U]) << 8U) |
+        (static_cast<Stoner::Core::uint32>(Payload.Bytes[Offset + 2U]) << 16U) |
+        (static_cast<Stoner::Core::uint32>(Payload.Bytes[Offset + 3U]) << 24U);
+}
+
+[[nodiscard]] inline bool TryGetRHIShaderSpirvWords(
+    const FRHIShaderPayloadDesc& Payload,
+    Stoner::Core::TArray<Stoner::Core::uint32>& OutWords) noexcept
+{
+    OutWords.clear();
+    if (Payload.Format != ERHIShaderPayloadFormat::SPIRV || Payload.Bytes.empty() ||
+        Payload.Bytes.size() % sizeof(Stoner::Core::uint32) != 0)
+    {
+        return false;
+    }
+    try
+    {
+        OutWords.resize(Payload.Bytes.size() / sizeof(Stoner::Core::uint32));
+        for (std::size_t Index = 0; Index < OutWords.size(); ++Index)
+        {
+            OutWords[Index] = ReadRHIShaderSpirvWord(Payload, Index);
+        }
+        return true;
+    }
+    catch (const std::bad_alloc&)
+    {
+        OutWords.clear();
+        return false;
+    }
+    catch (const std::length_error&)
+    {
+        OutWords.clear();
+        return false;
+    }
+}
+
+[[nodiscard]] inline bool SetRHIShaderSpirvWords(
+    FRHIShaderPayloadDesc& OutPayload,
+    const Stoner::Core::TArray<Stoner::Core::uint32>& Words,
+    const Stoner::Core::FString& PayloadIdentity,
+    const Stoner::Core::FString& TargetProfile = "legacy-vulkan-v1") noexcept
+{
+    try
+    {
+        OutPayload = {};
+        OutPayload.Format = ERHIShaderPayloadFormat::SPIRV;
+        OutPayload.PayloadIdentity = PayloadIdentity;
+        OutPayload.TargetProfile = TargetProfile;
+        OutPayload.Bytes.resize(Words.size() * sizeof(Stoner::Core::uint32));
+        for (std::size_t Index = 0; Index < Words.size(); ++Index)
+        {
+            const Stoner::Core::uint32 Word = Words[Index];
+            const std::size_t Offset = Index * sizeof(Stoner::Core::uint32);
+            OutPayload.Bytes[Offset] = static_cast<Stoner::Core::uint8>(Word);
+            OutPayload.Bytes[Offset + 1U] = static_cast<Stoner::Core::uint8>(Word >> 8U);
+            OutPayload.Bytes[Offset + 2U] = static_cast<Stoner::Core::uint8>(Word >> 16U);
+            OutPayload.Bytes[Offset + 3U] = static_cast<Stoner::Core::uint8>(Word >> 24U);
+        }
+        OutPayload.PayloadDigest = ComputeRHISha256(OutPayload.Bytes);
+        return true;
+    }
+    catch (const std::bad_alloc&)
+    {
+        OutPayload = {};
+        return false;
+    }
+    catch (const std::length_error&)
+    {
+        OutPayload = {};
+        return false;
+    }
+}
+
+[[nodiscard]] inline bool IsValidRHIShaderPayload(
+    const FRHIShaderPayloadDesc& Payload) noexcept
+{
+    FRHISha256Digest ComputedDigest;
+    if (!IsValidRHIShaderPayloadFormat(Payload.Format) || Payload.Bytes.empty() ||
+        Payload.PayloadIdentity.IsEmpty() || Payload.TargetProfile.IsEmpty() ||
+        !Payload.PayloadDigest.bAvailable ||
+        !TryComputeRHISha256(Payload.Bytes, ComputedDigest) ||
+        ComputedDigest != Payload.PayloadDigest)
+    {
+        return false;
+    }
+    return Payload.Format != ERHIShaderPayloadFormat::SPIRV ||
+        Payload.Bytes.size() % sizeof(Stoner::Core::uint32) == 0;
+}
+
+[[nodiscard]] inline bool IsValidRHIShaderBytecode(const FRHIShaderPayloadDesc& Bytecode) noexcept
 {
     constexpr Stoner::Core::uint32 SpirvMagic = 0x07230203u;
     constexpr Stoner::Core::uint32 OpEntryPoint = 15u;
-    if (Bytecode.Words.size() < 5 ||
-        Bytecode.Format.View() != "SPIR-V" ||
-        Bytecode.Words[0] != SpirvMagic)
+    const std::size_t WordSize = Bytecode.Bytes.size() / sizeof(Stoner::Core::uint32);
+    if (!IsValidRHIShaderPayload(Bytecode) ||
+        Bytecode.Format != ERHIShaderPayloadFormat::SPIRV ||
+        WordSize < 5 || ReadRHIShaderSpirvWord(Bytecode, 0) != SpirvMagic)
     {
         return false;
     }
 
-    const Stoner::Core::uint32 Version = Bytecode.Words[1];
+    const Stoner::Core::uint32 Version = ReadRHIShaderSpirvWord(Bytecode, 1);
     const Stoner::Core::uint32 Major = (Version >> 16u) & 0xffu;
     const Stoner::Core::uint32 Minor = (Version >> 8u) & 0xffu;
     if (Major != 1u || Minor > 6u || (Version & 0xffu) != 0u ||
-        Bytecode.Words[3] == 0u || Bytecode.Words[4] != 0u)
+        ReadRHIShaderSpirvWord(Bytecode, 3) == 0u ||
+        ReadRHIShaderSpirvWord(Bytecode, 4) != 0u)
     {
         return false;
     }
 
     bool bHasEntryPoint = false;
-    for (std::size_t WordIndex = 5; WordIndex < Bytecode.Words.size();)
+    for (std::size_t WordIndex = 5; WordIndex < WordSize;)
     {
-        const Stoner::Core::uint32 Instruction = Bytecode.Words[WordIndex];
+        const Stoner::Core::uint32 Instruction = ReadRHIShaderSpirvWord(Bytecode, WordIndex);
         const std::size_t WordCount = static_cast<std::size_t>(Instruction >> 16u);
         const Stoner::Core::uint32 Opcode = Instruction & 0xffffu;
-        if (WordCount == 0 || WordCount > Bytecode.Words.size() - WordIndex)
+        if (WordCount == 0 || WordCount > WordSize - WordIndex)
         {
             return false;
         }
         if (Opcode == OpEntryPoint)
         {
-            if (WordCount < 4 || Bytecode.Words[WordIndex + 2] == 0u ||
-                Bytecode.Words[WordIndex + 2] >= Bytecode.Words[3])
+            if (WordCount < 4 || ReadRHIShaderSpirvWord(Bytecode, WordIndex + 2U) == 0u ||
+                ReadRHIShaderSpirvWord(Bytecode, WordIndex + 2U) >=
+                    ReadRHIShaderSpirvWord(Bytecode, 3U))
             {
                 return false;
             }
@@ -146,7 +249,7 @@ struct FRHIShaderModuleDesc
                  NameWord < WordIndex + WordCount && !bTerminated;
                  ++NameWord)
             {
-                const Stoner::Core::uint32 Packed = Bytecode.Words[NameWord];
+                const Stoner::Core::uint32 Packed = ReadRHIShaderSpirvWord(Bytecode, NameWord);
                 for (Stoner::Core::uint32 ByteIndex = 0; ByteIndex < 4u; ++ByteIndex)
                 {
                     if (((Packed >> (ByteIndex * 8u)) & 0xffu) == 0u)
@@ -184,7 +287,7 @@ GetRHIShaderExecutionModel(ERHIShaderStage Stage) noexcept
 }
 
 [[nodiscard]] inline bool DoesRHIShaderBytecodeDeclareEntryPoint(
-    const FRHIShaderBytecodeDesc& Bytecode,
+    const FRHIShaderPayloadDesc& Bytecode,
     ERHIShaderStage Stage,
     const Stoner::Core::FString& EntryPoint) noexcept
 {
@@ -196,12 +299,14 @@ GetRHIShaderExecutionModel(ERHIShaderStage Stage) noexcept
         return false;
     }
 
-    for (std::size_t WordIndex = 5; WordIndex < Bytecode.Words.size();)
+    const std::size_t WordSize = Bytecode.Bytes.size() / sizeof(Stoner::Core::uint32);
+    for (std::size_t WordIndex = 5; WordIndex < WordSize;)
     {
-        const Stoner::Core::uint32 Instruction = Bytecode.Words[WordIndex];
+        const Stoner::Core::uint32 Instruction = ReadRHIShaderSpirvWord(Bytecode, WordIndex);
         const std::size_t WordCount = static_cast<std::size_t>(Instruction >> 16u);
         const Stoner::Core::uint32 Opcode = Instruction & 0xffffu;
-        if (Opcode == OpEntryPoint && Bytecode.Words[WordIndex + 1] == ExpectedModel)
+        if (Opcode == OpEntryPoint &&
+            ReadRHIShaderSpirvWord(Bytecode, WordIndex + 1U) == ExpectedModel)
         {
             std::size_t CharacterIndex = 0;
             bool bTerminated = false;
@@ -210,7 +315,7 @@ GetRHIShaderExecutionModel(ERHIShaderStage Stage) noexcept
                  NameWord < WordIndex + WordCount && !bTerminated;
                  ++NameWord)
             {
-                const Stoner::Core::uint32 Packed = Bytecode.Words[NameWord];
+                const Stoner::Core::uint32 Packed = ReadRHIShaderSpirvWord(Bytecode, NameWord);
                 for (Stoner::Core::uint32 ByteIndex = 0; ByteIndex < 4u; ++ByteIndex)
                 {
                     const char Character = static_cast<char>(
@@ -324,10 +429,21 @@ GetRHIShaderExecutionModel(ERHIShaderStage Stage) noexcept
 
 [[nodiscard]] inline bool IsValidRHIShaderModuleDesc(const FRHIShaderModuleDesc& Desc) noexcept
 {
-    return IsSupportedRHIShaderStage(Desc.Stage) && !Desc.EntryPoint.IsEmpty() && !Desc.PayloadIdentity.IsEmpty() &&
-        IsValidRHIShaderBytecode(Desc.Bytecode) &&
-        DoesRHIShaderBytecodeDeclareEntryPoint(Desc.Bytecode, Desc.Stage, Desc.EntryPoint) &&
-        IsValidRHIShaderInterfaceMetadata(Desc.InterfaceMetadata, Desc.Stage);
+    if (!IsSupportedRHIShaderStage(Desc.Stage) || Desc.EntryPoint.IsEmpty() ||
+        !IsValidRHIShaderPayload(Desc.Payload) ||
+        !IsValidRHIShaderInterfaceMetadata(Desc.InterfaceMetadata, Desc.Stage))
+    {
+        return false;
+    }
+    if (!Desc.NativeBindingMap.PolicyVersion.IsEmpty() &&
+        !IsCanonicalRHINativeBindingMap(Desc.NativeBindingMap))
+    {
+        return false;
+    }
+    return Desc.Payload.Format == ERHIShaderPayloadFormat::MetalLibrary ||
+        (IsValidRHIShaderBytecode(Desc.Payload) &&
+         DoesRHIShaderBytecodeDeclareEntryPoint(
+             Desc.Payload, Desc.Stage, Desc.EntryPoint));
 }
 
 } // namespace Stoner::RHI

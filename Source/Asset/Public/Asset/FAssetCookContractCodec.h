@@ -72,6 +72,13 @@ public:
         const FAssetDerivedKeyEvidence& Evidence,
         FAssetDerivedKey& OutKey);
 
+    [[nodiscard]] static EAssetResult BuildProfileProjection(
+        const FAssetTargetProfileEvidence& Profile,
+        const FAssetParticipantId& Producer,
+        Core::uint32 ExpectedSchemaVersion,
+        std::span<const Core::FString> RelevantTargetFields,
+        FAssetProfileProjectionEvidence& OutProjection);
+
     [[nodiscard]] static EAssetResult WriteDerivedDataEntry(
         const FAssetDerivedDataEntry& Entry,
         Core::FString& OutCanonical);

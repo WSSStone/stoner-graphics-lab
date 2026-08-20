@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stoner.graphics/schemas/027/metal-validation-report.schema.json",
+  "title": "Feature 027 Metal Validation Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "revision",
+    "tier",
+    "workload",
+    "backend",
+    "host",
+    "counts",
+    "probes",
+    "artifacts",
+    "result",
+    "reportDigest"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "revision": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "tier": { "enum": ["deterministic", "native-offscreen", "visible-manual", "cross-backend"] },
+    "workload": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "backend": { "enum": ["metal", "vulkan", "comparison", "shared"] },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "architecture"],
+      "properties": {
+        "os": { "enum": ["windows", "macos", "linux"] },
+        "architecture": { "enum": ["x86_64", "arm64"] },
+        "runnerImage": { "type": "string", "maxLength": 256 }
+      }
+    },
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity", "name", "capabilityDigest"],
+      "properties": {
+        "identity": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "capabilityDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "shaderEvidenceDigests": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/digest" },
+      "uniqueItems": true
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frames", "lifecycleCycles", "iterations"],
+      "properties": {
+        "frames": { "type": "integer", "minimum": 0 },
+        "lifecycleCycles": { "type": "integer", "minimum": 0 },
+        "iterations": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "probes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "result"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "result": { "enum": ["passed", "failed", "unsupported"] },
+          "tolerance": { "type": "string", "maxLength": 256 },
+          "evidenceDigest": { "$ref": "#/$defs/digest" }
+        }
+      }
+    },
+    "ownership": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["warmupIterations", "sampleInterval", "samplesBytes", "firstMedianBytes", "finalMedianBytes", "absoluteGrowthBytes", "relativeGrowth", "allowedGrowthBytes", "passed"],
+      "properties": {
+        "warmupIterations": { "const": 1000 },
+        "sampleInterval": { "const": 100 },
+        "samplesBytes": {
+          "type": "array",
+          "minItems": 90,
+          "maxItems": 90,
+          "items": { "type": "integer", "minimum": 0 }
+        },
+        "firstMedianBytes": { "type": "integer", "minimum": 0 },
+        "finalMedianBytes": { "type": "integer", "minimum": 0 },
+        "absoluteGrowthBytes": { "type": "integer" },
+        "relativeGrowth": { "type": "number" },
+        "allowedGrowthBytes": { "type": "integer", "minimum": 16777216 },
+        "passed": { "type": "boolean" }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "digest"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "digest": { "$ref": "#/$defs/digest" }
+        }
+      }
+    },
+    "failureCategory": { "type": "string", "maxLength": 256 },
+    "result": { "enum": ["passed", "failed", "unavailable"] },
+    "reportDigest": { "$ref": "#/$defs/digest" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "tier": { "enum": ["native-offscreen", "visible-manual"] },
+          "result": { "const": "passed" }
+        },
+        "required": ["tier", "result"]
+      },
+      "then": {
+        "required": ["device", "shaderEvidenceDigests"],
+        "properties": { "backend": { "const": "metal" } }
+      }
+    },
+    {
+      "if": { "properties": { "tier": { "const": "cross-backend" } } },
+      "then": { "properties": { "backend": { "const": "comparison" } } }
+    },
+    {
+      "if": { "properties": { "workload": { "const": "metal-lifecycle-stress" } } },
+      "then": { "required": ["memory"] }
+    }
+  ],
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

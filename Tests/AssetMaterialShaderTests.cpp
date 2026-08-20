@@ -2,6 +2,7 @@
 
 #include "Asset/AssetMinimal.h"
 #include "FMaterialShaderJsonCodec.h"
+#include "FMaterialShaderCookedCodec.h"
 #include "FShaderPayloadValidation.h"
 
 #include <algorithm>
@@ -273,6 +274,139 @@ FAssetVersion MakeVersion(std::string_view Text)
             std::span<const uint8>(Bytes, Text.size()));
     Version.ContentDigest = Version.SourceDigest;
     return Version;
+}
+
+FShaderNativeBindingEvidence MakeNativeBindingEvidence(
+    EShaderStage Stage = EShaderStage::Vertex)
+{
+    FShaderNativeBindingEvidence Evidence;
+    Evidence.PolicyVersion = FString("metal-direct-binding-v1");
+    Evidence.Entries = {{
+        Stage,
+        0,
+        0,
+        EShaderResourceKind::UniformBuffer,
+        0,
+        EShaderNativeResourceClass::Buffer,
+        1}};
+    Evidence.ReservedRanges = {{
+        Stage,
+        EShaderNativeResourceClass::Buffer,
+        0,
+        1,
+        FString("engine-vertex")}};
+    Evidence.LimitSnapshot = {{
+        Stage,
+        EShaderNativeResourceClass::Buffer,
+        31}};
+    (void)FinalizeShaderNativeBindingEvidence(Evidence);
+    return Evidence;
+}
+
+FShaderNativeLibraryEvidence MakeNativeLibraryEvidence(
+    const TArray<uint8>& Bytes,
+    const char* Profile = "metal-macos-12-arm64")
+{
+    FShaderNativeLibraryEvidence Evidence;
+    Evidence.DerivationEvidenceDigest = FAssetDigest::FromBytes(
+        TArray<uint8>{'d', 'e', 'r', 'i', 'v', 'e'});
+    Evidence.TargetProfile = FString(Profile);
+    Evidence.Architecture = FString("arm64");
+    Evidence.Compiler = FString("test-metal-compiler");
+    Evidence.XcodeBuild = FString("test-xcode-build");
+    Evidence.Sdk = FString("test-macos-sdk");
+    Evidence.DeploymentTarget = FString("12.0");
+    Evidence.LanguageVersion = FString("2.4");
+    Evidence.ArgumentDigest = FAssetDigest::FromBytes(
+        TArray<uint8>{'a', 'r', 'g', 'v'});
+    Evidence.LibraryDigest = FAssetDigest::FromBytes(Bytes);
+    Evidence.SizeBytes = Bytes.size();
+    (void)FAssetParticipantId::Create(
+        FString("cooker.metal-shader"), Evidence.Finalizer);
+    (void)FAssetProducerVersion::Create(
+        FString("027-v1"), Evidence.FinalizerVersion);
+    (void)FinalizeShaderNativeLibraryEvidence(Evidence);
+    return Evidence;
+}
+
+void TestMetalLibraryPayloadV2(FAssetMaterialShaderTestResult& Result)
+{
+    const TArray<uint8> MetalBytes = {
+        static_cast<uint8>('M'), static_cast<uint8>('T'),
+        static_cast<uint8>('L'), static_cast<uint8>('B'), 1, 2, 3};
+    FShaderPayloadAsset Payload;
+    FShaderPermutationKey Permutation;
+    FShaderNativeBindingEvidence Evidence = MakeNativeBindingEvidence();
+    const EAssetResult Create =
+        FShaderPayloadAsset::CreateWithNativeEvidence(
+            MakeId("ShaderPayload", "Tests/Metal/Vertex"),
+            MakeVersion("metal-library-v2"), EShaderBackendFamily::Metal,
+            FString("metal-macos-12-arm64"),
+            EShaderPayloadFormat::MetalLibrary, EShaderStage::Vertex,
+            FString("main"), Permutation, MetalBytes, Evidence,
+            MakeNativeLibraryEvidence(MetalBytes), Payload);
+    FAssetCookedPayloadHeader Header;
+    TArray<uint8> Body;
+    const EAssetResult Encode = Private::EncodeMaterialShaderCookedBody(
+        Payload, {}, Header, Body);
+    TSharedPtr<const FAssetPayload> Decoded;
+    const EAssetResult Decode =
+        Private::DecodeMaterialShaderCookedBody(Header, Body, Decoded);
+    const auto Loaded =
+        std::dynamic_pointer_cast<const FShaderPayloadAsset>(Decoded);
+    Record(
+        Result,
+        Create == EAssetResult::Success && Encode == EAssetResult::Success &&
+            Header.CodecVersion == 2 && Header.PayloadSchemaVersion == 2 &&
+            Decode == EAssetResult::Success && Loaded &&
+            Loaded->GetBytes() == MetalBytes &&
+            Loaded->GetNativeBindingEvidence() &&
+            *Loaded->GetNativeBindingEvidence() == Evidence &&
+            Loaded->GetNativeLibraryEvidence() &&
+            *Loaded->GetNativeLibraryEvidence() ==
+                MakeNativeLibraryEvidence(MetalBytes),
+        "MetalLibrary payload v2 preserves exact bytes and native evidence");
+
+    FShaderPayloadAsset MissingEvidence;
+    FShaderNativeBindingEvidence WrongDigest = Evidence;
+    WrongDigest.CanonicalDigest = FAssetDigest::FromBytes(MetalBytes);
+    FShaderPayloadAsset InvalidEvidence;
+    Record(
+        Result,
+        FShaderPayloadAsset::Create(
+            MakeId("ShaderPayload", "Tests/Metal/Missing"),
+            MakeVersion("metal-missing"), EShaderBackendFamily::Metal,
+            FString("metal-macos-12-arm64"),
+            EShaderPayloadFormat::MetalLibrary, EShaderStage::Vertex,
+            FString("main"), {}, MetalBytes, MissingEvidence) !=
+                EAssetResult::Success &&
+            FShaderPayloadAsset::CreateWithNativeEvidence(
+                MakeId("ShaderPayload", "Tests/Metal/BadDigest"),
+                MakeVersion("metal-bad-digest"), EShaderBackendFamily::Metal,
+                FString("metal-macos-12-arm64"),
+                EShaderPayloadFormat::MetalLibrary, EShaderStage::Vertex,
+                FString("main"), {}, MetalBytes, WrongDigest,
+                MakeNativeLibraryEvidence(MetalBytes),
+                InvalidEvidence) != EAssetResult::Success,
+        "MetalLibrary construction rejects missing or mismatched evidence");
+
+    TArray<uint8> CorruptBody = Body;
+    CorruptBody.back() ^= 1U;
+    Decoded.reset();
+    Record(
+        Result,
+        Private::DecodeMaterialShaderCookedBody(
+            Header, CorruptBody, Decoded) != EAssetResult::Success &&
+            !Decoded &&
+            Private::ValidateShaderPayloadBytes(
+                MetalBytes, EShaderPayloadFormat::MetalLibrary,
+                EShaderStage::Vertex, FString("main")) ==
+                EAssetResult::Success &&
+            Private::ValidateShaderPayloadBytes(
+                MetalBytes, EShaderPayloadFormat::MSL,
+                EShaderStage::Vertex, FString("main")) ==
+                EAssetResult::DependencyMismatch,
+        "Metal payload evidence corruption fails closed and MSL stays source-only");
 }
 
 std::string ValidMaterial()
@@ -1226,6 +1360,7 @@ void TestRepositoryAssets(FAssetMaterialShaderTestResult& Result)
             InvalidSelection) == EAssetResult::InvalidInput &&
         InvalidSelection.Stages.empty();
     FallbackTarget.Backend = EShaderBackendFamily::Metal;
+    FallbackTarget.CpuArchitecture = EAssetTargetCpuArchitecture::Arm64;
     FallbackTarget.AcceptableProfiles = {FString("vulkan-1.3")};
     const bool bCrossBackendRejected =
         TriangleProgram &&
@@ -1239,6 +1374,75 @@ void TestRepositoryAssets(FAssetMaterialShaderTestResult& Result)
         bOrderedFallback && bDuplicateProfilesRejected &&
             bCrossBackendRejected,
         "Shader target selection honors profile order without backend fallback");
+
+    TArray<TSharedPtr<const FAssetPayload>> MetalPayloads;
+    for (const auto& Candidate : Triangle.Payloads)
+    {
+        const auto Source =
+            std::dynamic_pointer_cast<const FShaderPayloadAsset>(Candidate);
+        if (!Source) continue;
+        TArray<uint8> LibraryBytes = {'M', 'T', 'L', 'B',
+            static_cast<uint8>(Source->GetStage())};
+        FAssetVersion Version = Source->GetVersion();
+        Version.ContentDigest = FAssetDigest::FromBytes(LibraryBytes);
+        Version.CookDigest = Version.ContentDigest;
+        Version.TargetProfile = FString("metal-macos-12-arm64");
+        (void)FAssetParticipantId::Create(
+            FString("cooker.metal-shader"), Version.Producer);
+        (void)FAssetProducerVersion::Create(
+            FString("027-v1"), Version.ProducerVersion);
+        FShaderPayloadAsset Metal;
+        auto NativeBinding = MakeNativeBindingEvidence(Source->GetStage());
+        NativeBinding.Entries.clear();
+        (void)FinalizeShaderNativeBindingEvidence(NativeBinding);
+        if (FShaderPayloadAsset::CreateWithNativeEvidence(
+                Source->GetId(), Version, EShaderBackendFamily::Metal,
+                FString("metal-macos-12-arm64"),
+                EShaderPayloadFormat::MetalLibrary, Source->GetStage(),
+                Source->GetEntryPoint(), Source->GetPermutation(),
+                LibraryBytes, std::move(NativeBinding),
+                MakeNativeLibraryEvidence(LibraryBytes), Metal) ==
+            EAssetResult::Success)
+            MetalPayloads.push_back(
+                MakeShared<FShaderPayloadAsset>(std::move(Metal)));
+    }
+    FShaderTargetRequest MetalTarget;
+    MetalTarget.Backend = EShaderBackendFamily::Metal;
+    MetalTarget.CpuArchitecture = EAssetTargetCpuArchitecture::Arm64;
+    MetalTarget.AcceptableProfiles = {FString("metal-macos-12-arm64")};
+    FSelectedShaderProgram MetalSelection;
+    const FLoadedPayloadLookup MetalLookup(MetalPayloads);
+    const EAssetResult MetalSelectionResult = TriangleProgram
+        ? SelectShaderProgram(
+            *TriangleProgram, MetalTarget, MetalLookup, MetalSelection)
+        : EAssetResult::InvalidInput;
+    const bool bDerivedMetalSelected = TriangleProgram &&
+        MetalSelectionResult == EAssetResult::Success &&
+        MetalSelection.Stages.size() == 2;
+    MetalTarget.CpuArchitecture = EAssetTargetCpuArchitecture::X86_64;
+    FSelectedShaderProgram WrongCpuSelection;
+    const bool bWrongCpuRejected = TriangleProgram &&
+        SelectShaderProgram(
+            *TriangleProgram, MetalTarget, MetalLookup,
+            WrongCpuSelection) != EAssetResult::Success &&
+        WrongCpuSelection.Stages.empty();
+    MetalTarget.CpuArchitecture = EAssetTargetCpuArchitecture::Arm64;
+    MetalTarget.AcceptableProfiles = {FString("metal-macos-12-other")};
+    const bool bWrongProfileRejected = TriangleProgram &&
+        SelectShaderProgram(
+            *TriangleProgram, MetalTarget, MetalLookup,
+            WrongCpuSelection) == EAssetResult::TargetUnavailable;
+    if (!bDerivedMetalSelected || !bWrongCpuRejected || !bWrongProfileRejected)
+        std::cout << "  metal-payloads=" << MetalPayloads.size()
+                  << " select-result="
+                  << static_cast<int>(MetalSelectionResult)
+                  << " selected-stages=" << MetalSelection.Stages.size()
+                  << " wrong-cpu=" << bWrongCpuRejected
+                  << " wrong-profile=" << bWrongProfileRejected << '\n';
+    Record(
+        Result,
+        bDerivedMetalSelected && bWrongCpuRejected && bWrongProfileRejected,
+        "strict Metal selection requires derived native payload profile and CPU evidence");
 
     const TArray<uint8> VertexSpirv =
         ReadBytes(Root / "Triangle/Triangle.vert.spv");
@@ -1423,6 +1627,7 @@ FAssetMaterialShaderTestResult RunAssetMaterialShaderTests(
     TestCanonicalOwnershipAndRollback(Result);
     TestDiagnosticsAndLimits(Result);
     TestSchemaCategoriesAndInterfaceRoundTrip(Result);
+    TestMetalLibraryPayloadV2(Result);
     TestMaterialSchemaV2(Result);
     TestSchemaSpecificLimits(Result);
     TestFixtureCorpus(Result, Options);

@@ -1101,8 +1101,15 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
         VertexShader.Stage != Stoner::RHI::ERHIShaderStage::Vertex ||
         FragmentShader.Stage != Stoner::RHI::ERHIShaderStage::Fragment)
         return Fail();
-    const auto& VertexWords = VertexShader.Bytecode.Words;
-    const auto& FragmentWords = FragmentShader.Bytecode.Words;
+    Stoner::Core::TArray<Stoner::Core::uint32> VertexWords;
+    Stoner::Core::TArray<Stoner::Core::uint32> FragmentWords;
+    if (!Stoner::RHI::TryGetRHIShaderSpirvWords(
+            VertexShader.Payload, VertexWords) ||
+        !Stoner::RHI::TryGetRHIShaderSpirvWords(
+            FragmentShader.Payload, FragmentWords))
+    {
+        return Fail();
+    }
 
     constexpr std::array<float, 15> Vertices = {
          0.0f, -0.6f, 1.0f, 0.0f, 0.0f,
@@ -1527,8 +1534,15 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
         VertexShader.Stage != Stoner::RHI::ERHIShaderStage::Vertex ||
         FragmentShader.Stage != Stoner::RHI::ERHIShaderStage::Fragment)
         return Stoner::RHI::ERHIResult::Failed;
-    const auto& VertexWords = VertexShader.Bytecode.Words;
-    const auto& FragmentWords = FragmentShader.Bytecode.Words;
+    Stoner::Core::TArray<Stoner::Core::uint32> VertexWords;
+    Stoner::Core::TArray<Stoner::Core::uint32> FragmentWords;
+    if (!Stoner::RHI::TryGetRHIShaderSpirvWords(
+            VertexShader.Payload, VertexWords) ||
+        !Stoner::RHI::TryGetRHIShaderSpirvWords(
+            FragmentShader.Payload, FragmentWords))
+    {
+        return Stoner::RHI::ERHIResult::Failed;
+    }
     Impl->VisibleVertexShader = VertexShader;
     Impl->VisibleFragmentShader = FragmentShader;
     Impl->bHasVisibleShaders = true;

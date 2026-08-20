@@ -30,11 +30,20 @@ struct FAssetDerivedDependencyEvidence
     [[nodiscard]] bool operator==(const FAssetDerivedDependencyEvidence&) const = default;
 };
 
+struct FAssetDerivedNamedEvidence
+{
+    Core::FString Name;
+    FAssetDigest Digest;
+
+    [[nodiscard]] bool operator==(const FAssetDerivedNamedEvidence&) const = default;
+};
+
 struct FAssetDerivedKeyEvidence
 {
-    static constexpr Core::uint32 CurrentKeyFormatVersion = 1;
+    static constexpr Core::uint32 LegacyKeyFormatVersion = 1;
+    static constexpr Core::uint32 CurrentKeyFormatVersion = 2;
 
-    Core::uint32 KeyFormatVersion = CurrentKeyFormatVersion;
+    Core::uint32 KeyFormatVersion = LegacyKeyFormatVersion;
     FAssetId AssetId;
     FAssetDigest SourceVersion;
     Core::TArray<FAssetDerivedSourceEvidence> SourceManifest;
@@ -48,6 +57,7 @@ struct FAssetDerivedKeyEvidence
     Core::uint32 PayloadSchemaVersion = 0;
     FAssetDigest EffectiveSettingsDigest;
     FAssetDigest RelevantProfileDigest;
+    Core::TArray<FAssetDerivedNamedEvidence> AdditionalEvidence;
 
     [[nodiscard]] EAssetResult Validate() const noexcept;
     [[nodiscard]] bool operator==(const FAssetDerivedKeyEvidence&) const = default;

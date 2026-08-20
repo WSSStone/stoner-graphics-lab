@@ -324,8 +324,13 @@ struct FVulkanNativeOffscreenSession::FImpl
             return false;
         }
         VkShaderModuleCreateInfo Info = MakeVulkanStruct<VkShaderModuleCreateInfo>(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
-        Info.codeSize = Desc.Bytecode.Words.size() * sizeof(Stoner::Core::uint32);
-        Info.pCode = Desc.Bytecode.Words.data();
+        Stoner::Core::TArray<Stoner::Core::uint32> SpirvWords;
+        if (!Stoner::RHI::TryGetRHIShaderSpirvWords(Desc.Payload, SpirvWords))
+        {
+            return false;
+        }
+        Info.codeSize = SpirvWords.size() * sizeof(Stoner::Core::uint32);
+        Info.pCode = SpirvWords.data();
         if (vkCreateShaderModule(Access.Device, &Info, nullptr, &Out) != VK_SUCCESS)
         {
             return false;

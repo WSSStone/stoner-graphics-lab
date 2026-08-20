@@ -1,0 +1,32 @@
+{
+  "schema": "stoner.metal-derivation-cases",
+  "schemaVersion": 1,
+  "spirvCrossCommit": "a0fba56c34a6700f1724bf9b751da5b488a3775c",
+  "bindingPolicy": "metal-direct-binding-v1",
+  "deploymentTarget": "12.0",
+  "mslVersion": "2.4",
+  "repetitions": 20,
+  "cases": [
+    {
+      "name": "triangle-vertex",
+      "input": "Tests/Fixtures/Metal/Conformance/triangle.vert.spv",
+      "stage": "vertex",
+      "entryPoint": "main",
+      "expectedResult": "success"
+    },
+    {
+      "name": "triangle-fragment",
+      "input": "Tests/Fixtures/Metal/Conformance/triangle.frag.spv",
+      "stage": "fragment",
+      "entryPoint": "main",
+      "expectedResult": "success"
+    },
+    {
+      "name": "compute",
+      "input": "Tests/Fixtures/Metal/Conformance/compute.comp.spv",
+      "stage": "compute",
+      "entryPoint": "main",
+      "expectedResult": "success"
+    }
+  ]
+}

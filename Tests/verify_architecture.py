@@ -10,13 +10,18 @@ import subprocess
 import sys
 
 
-SOURCE_SUFFIXES = {".h", ".hpp", ".c", ".cpp", ".cc"}
+SOURCE_SUFFIXES = {".h", ".hpp", ".c", ".cpp", ".cc", ".mm"}
 RUNTIME_LAYERS = ("Core", "Asset", "RHI", "Renderer", "Application", "Backend")
 GRAPHICS_PREFIXES = ("RHI/", "Renderer/", "Application/", "Backend/")
 NATIVE_OR_PRIVATE_PATTERN = re.compile(
     r"\b(?:Vk[A-Z][A-Za-z0-9_]*|GLFW[A-Za-z0-9_]*|ID3D[A-Za-z0-9_]*|"
     r"IDXGI[A-Za-z0-9_]*|yyjson_[A-Za-z0-9_]*|cgltf_[A-Za-z0-9_]*|"
-    r"ktx_[A-Za-z0-9_]*|wasm_[A-Za-z0-9_]*)\b"
+    r"ktx_[A-Za-z0-9_]*|wasm_[A-Za-z0-9_]*|CAMetalLayer|NSView|"
+    r"MTL[A-Z][A-Za-z0-9_]*|id\s*<\s*MTL[A-Za-z0-9_]+\s*>)\b"
+)
+METAL_NATIVE_PATTERN = re.compile(
+    r"\b(?:CAMetalLayer|NSView|MTL[A-Z][A-Za-z0-9_]*|"
+    r"id\s*<\s*MTL[A-Za-z0-9_]+\s*>)\b"
 )
 INCLUDE_PATTERN = re.compile(
     r'^\s*#\s*include\s*[<"]([^>"]+)[>"]', re.MULTILINE
@@ -37,6 +42,7 @@ def verify(root: pathlib.Path) -> list[str]:
     private_headers = {
         path.name for path in private_root.rglob("*.h") if path.is_file()
     }
+    metal_private_root = (root / "Source/Backend/Metal/Private").resolve()
 
     for layer in RUNTIME_LAYERS:
         layer_root = root / "Source" / layer
@@ -44,6 +50,25 @@ def verify(root: pathlib.Path) -> list[str]:
             continue
         for path in _source_files(layer_root):
             text = path.read_text(encoding="utf-8")
+            resolved = path.resolve()
+            in_metal_private = (
+                resolved == metal_private_root or
+                metal_private_root in resolved.parents
+            )
+            if path.suffix.lower() == ".mm" and not in_metal_private:
+                errors.append(
+                    f"{path.relative_to(root)}: Objective-C++ is restricted to "
+                    "Backend/Metal/Private"
+                )
+            if not in_metal_private and METAL_NATIVE_PATTERN.search(text):
+                errors.append(
+                    f"{path.relative_to(root)}: native Metal ownership is restricted "
+                    "to Backend/Metal/Private"
+                )
+            if "spirv_cross" in text:
+                errors.append(
+                    f"{path.relative_to(root)}: SPIRV-Cross is restricted to Tools"
+                )
             for include in INCLUDE_PATTERN.findall(text):
                 if include.startswith("Tools/") or "/Tools/" in include:
                     errors.append(
@@ -136,7 +161,8 @@ def main() -> int:
         return 1
     print(
         "Architecture: PASS (Asset graphics boundary, runtime-to-Tools, "
-        "Tool-to-Asset-private, native/private public API leakage)"
+        "Tool-to-Asset-private, Metal/Objective-C++ ownership, Tools-only "
+        "SPIRV-Cross, native/private public API leakage)"
     )
     if args.stamp:
         args.stamp.parent.mkdir(parents=True, exist_ok=True)

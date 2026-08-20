@@ -84,9 +84,11 @@ FRHIShaderModuleDesc MakeShader(ERHIShaderStage Stage)
     FRHIShaderModuleDesc Desc;
     Desc.Stage = Stage;
     Desc.EntryPoint = "main";
-    Desc.PayloadIdentity = Stage == ERHIShaderStage::Vertex ? "DeferredTestVS" : "DeferredTestFS";
-    Desc.Bytecode.Words =
-        Stoner::Tests::MakeMinimalShaderBytecode(Stage, Desc.EntryPoint.View());
+    const char* Identity = Stage == ERHIShaderStage::Vertex
+        ? "DeferredTestVS"
+        : "DeferredTestFS";
+    Desc.Payload = Stoner::Tests::MakeMinimalShaderPayload(
+        Stage, Desc.EntryPoint.View(), Identity);
     return Desc;
 }
 

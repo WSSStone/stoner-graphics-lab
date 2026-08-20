@@ -2,9 +2,17 @@
 
 #include "Core/FString.h"
 
-namespace Stoner::Core::Detail
+namespace Stoner::Core
+{
+
+struct FProcessExecutionRequest;
+
+namespace Detail
 {
 
 [[nodiscard]] bool IsExplicitDynamicModulePath(const FString& Path);
+[[nodiscard]] bool IsValidProcessRequest(
+    const FProcessExecutionRequest& Request);
 
-} // namespace Stoner::Core::Detail
+} // namespace Detail
+} // namespace Stoner::Core

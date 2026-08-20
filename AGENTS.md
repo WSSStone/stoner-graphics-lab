@@ -4,10 +4,15 @@ Feature 026 Asset: Runtime Asset Manager is complete. GitHub Actions run
 Release plus Linux ASan/UBSan/TSan jobs for revision `8427e13`; artifact digests
 are recorded in `Validation/026/CI/README.md`. Read
 `doc/026-runtime-asset-manager.html` and
-`specs/026-runtime-asset-manager/` for delivered design and evidence. Feature
-027 Backend: Metal is the next roadmap target; create its Speckit feature from
-the Phase 027 prompt before implementation. Do not fold iOS lifecycle, Metal
-mesh shaders, ray tracing, or Asset ownership into 027.
+`specs/026-runtime-asset-manager/` for delivered design and evidence.
+Feature 027 Backend: Metal specification and implementation planning are active
+on branch `027-metal-backend`. Read `specs/027-metal-backend/plan.md` first,
+then its `research.md`, `data-model.md`, and `contracts/` before generating
+tasks or implementing. The plan uses private Objective-C++ Metal ownership,
+backend-neutral typed shader bytes, deterministic Tools-only SPIRV-Cross MSL
+derivation, macOS-only offline metallib finalization, and native arm64 plus Intel
+validation. Do not fold iOS lifecycle, Metal mesh shaders, ray tracing, Asset
+GPU ownership, or backend-specific rendering algorithms into 027.
 Feature 028 is now Asset: Production Content Integration & Acceptance; it uses
 licensed artist-authored content to validate source import through strict
 cooked loading and visible Vulkan/Metal rendering. Meshlet Derived Data and all

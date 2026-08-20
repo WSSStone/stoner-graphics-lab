@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    {"path": "compute.comp", "sha256": "e349d8c04b53b79c723e4fb187aea621526415f8cece6b88637f318bd5a06755", "provenance": "repository-owned GLSL conformance source"},
+    {"path": "compute.comp.spv", "sha256": "db479f2b5d5d0e087a9f86fbce1906bfb5b25b3c33751aafe06caf781749c16e", "provenance": "compiled from compute.comp with repository glslc workflow"},
+    {"path": "expected-msl.json", "sha256": "48f16a0e91c11a82d38e157bcda690de3de7a7eda744216a44c4374c3113405d", "provenance": "backend-neutral derivation expectations"},
+    {"path": "expected-readback.json", "sha256": "158a54a173a10dd0a20cf9733616993e4e2ad973c51ea4b2748cd44fcd05b29d", "provenance": "backend-neutral GPU readback expectations"},
+    {"path": "triangle.frag.spv", "sha256": "68b4535277d4f77dfccd32de133084b73be7e41c5b554ed19633b41a6a60c85c", "provenance": "byte-identical copy of Content/Shaders/Triangle/Triangle.frag.spv"},
+    {"path": "triangle.vert.spv", "sha256": "1f26aeab6dfbb2414f62c6be313fd9b6d37b7e6b142ef02fd863a3b3e901cda1", "provenance": "byte-identical copy of Content/Shaders/Triangle/Triangle.vert.spv"}
+  ]
+}

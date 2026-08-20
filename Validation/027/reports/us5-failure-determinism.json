@@ -1,0 +1,32 @@
+{
+  "artifacts": [],
+  "backend": "shared",
+  "counts": {
+    "frames": 0,
+    "iterations": 20,
+    "lifecycleCycles": 0
+  },
+  "host": {
+    "architecture": "arm64",
+    "os": "macos"
+  },
+  "ownership": {
+    "device": 0,
+    "inFlight": 0,
+    "objects": 0,
+    "submissions": 0
+  },
+  "probes": [
+    {
+      "evidenceDigest": "48809f1bb86a8143671f536420e0bb47f9781b31ea8131aa3cf0604ee7d771b9",
+      "name": "failure-injection-determinism",
+      "result": "passed"
+    }
+  ],
+  "reportDigest": "f83481365d9440a9a3664e48cfda75a78e1872cef459efcb2cdbfbb76a637d83",
+  "result": "passed",
+  "revision": "5244d5086860f4da5548e3b581945adf417146b5",
+  "schemaVersion": 1,
+  "tier": "deterministic",
+  "workload": "metal-failure-determinism"
+}

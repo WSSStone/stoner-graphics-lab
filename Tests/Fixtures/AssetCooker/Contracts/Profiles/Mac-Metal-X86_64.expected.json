@@ -1,0 +1,15 @@
+{
+  "schema": "stoner.asset-target-profile-expectation",
+  "schemaVersion": 1,
+  "profile": "Config/AssetCooker/Profiles/Mac-Metal-X86_64.json",
+  "effectiveProfileDigest": "65c8bae1ac1ec62c8c2ff375edb078e358737ec98e4b0607e94599e120bf006c",
+  "platform": "macos",
+  "cpuArchitecture": "x86_64",
+  "graphicsBackend": "metal",
+  "payloadFormat": "metal-library",
+  "payloadProfile": "metal-macos-12-x86_64",
+  "deploymentTarget": "12.0",
+  "mslVersion": "2.4",
+  "bindingPolicy": "metal-direct-binding-v1",
+  "finalization": "required"
+}

@@ -8,9 +8,11 @@
 #include "FDerivedDataStore.h"
 #include "FAssetSourceCatalog.h"
 #include "FCookInputSnapshot.h"
+#include "FMetalShaderCooker.h"
 
 #include <algorithm>
 #include <atomic>
+#include <filesystem>
 #include <map>
 #include <span>
 #include <string>
@@ -88,17 +90,59 @@ struct FPreparedCookNode
     Asset::FAssetDerivedKeyEvidence Evidence;
     Asset::FAssetDerivedKey DerivedKey;
     Asset::FAssetCookedTargetDecision TargetDecision;
+    Core::TSharedPtr<const Asset::FAssetCookParameters> Parameters;
     bool bReused = false;
     bool bInvalidated = false;
     bool bQuarantined = false;
     Core::FString StableReason = Core::FString("ddc.lookup.not-run");
 };
 
+bool IsMetalShaderSource(
+    const Private::FAssetCookGraphNode& Node,
+    const Asset::FAssetTargetProfile& Profile)
+{
+    const auto Payload =
+        std::dynamic_pointer_cast<const Asset::FShaderPayloadAsset>(Node.Payload);
+    return Payload &&
+        Payload->GetBackend() == Asset::EShaderBackendFamily::Vulkan &&
+        Payload->GetFormat() == Asset::EShaderPayloadFormat::SPIRV &&
+        Profile.Platform == Asset::EAssetTargetPlatform::MacOS &&
+        Profile.GraphicsBackend == Asset::EAssetGraphicsBackend::Metal;
+}
+
+const Asset::FShaderAsset* FindShaderProgram(
+    const Private::FAssetCookGraphPlan& Plan,
+    const Asset::FAssetId& PayloadId)
+{
+    for (const auto& Candidate : Plan.Nodes)
+    {
+        const auto Program =
+            std::dynamic_pointer_cast<const Asset::FShaderAsset>(
+                Candidate.Payload);
+        if (!Program) continue;
+        for (const auto& Variant : Program->GetDesc().Variants)
+            for (const auto& Reference : Variant.Payloads)
+                if (Reference.Payload.GetId() &&
+                    *Reference.Payload.GetId() == PayloadId)
+                    return Program.get();
+    }
+    return nullptr;
+}
+
+Core::FString ArchitectureToken(Asset::EAssetTargetCpuArchitecture Architecture)
+{
+    return Core::FString(
+        Architecture == Asset::EAssetTargetCpuArchitecture::Arm64
+            ? "arm64" : "x86_64");
+}
+
 Asset::EAssetResult PrepareCookNode(
     const Private::FAssetCookGraphPlan& Plan,
     const Private::FAssetCookGraphNode& Node,
     const Asset::FAssetTargetProfileEvidence& Profile,
     const Asset::FAssetExtensionRegistry& Registry,
+    const Private::FMetalToolchainEvidence* MetalToolchain,
+    const Core::FString& ScratchRoot,
     FPreparedCookNode& Out)
 {
     Out = {};
@@ -109,6 +153,8 @@ Asset::EAssetResult PrepareCookNode(
             Family, Asset::EAssetExtensionKind::Cooker, Out.CookerId) !=
             Asset::EAssetResult::Success)
         return Asset::EAssetResult::Unsupported;
+    if (IsMetalShaderSource(Node, Profile.Profile))
+        Out.CookerId = Private::FMetalShaderCooker::ParticipantId();
     const auto CookerLease = Registry.Acquire(
         Asset::EAssetExtensionKind::Cooker, Out.CookerId);
     const auto Cooker = CookerLease.Get<Asset::IAssetCooker>();
@@ -161,6 +207,41 @@ Asset::EAssetResult PrepareCookNode(
     Evidence.PayloadSchemaVersion = PayloadContract.PayloadSchemaVersion;
     Evidence.EffectiveSettingsDigest = Projection.EffectiveSettingsDigest;
     Evidence.RelevantProfileDigest = Projection.RelevantProfileDigest;
+    if (IsMetalShaderSource(Node, Profile.Profile))
+    {
+        const auto Payload =
+            std::dynamic_pointer_cast<const Asset::FShaderPayloadAsset>(
+                Node.Payload);
+        const Asset::FShaderAsset* Program = Payload
+            ? FindShaderProgram(Plan, Payload->GetId()) : nullptr;
+        if (!Payload || !Program || !MetalToolchain ||
+            !MetalToolchain->IsValid())
+            return Asset::EAssetResult::UnresolvedDependency;
+        auto Parameters = Core::MakeShared<Private::FMetalShaderCookParameters>();
+        Parameters->ShaderAssetId = Program->GetDesc().Id;
+        Parameters->ShaderAssetVersion =
+            VersionDigest(Program->GetDesc().Version);
+        Parameters->InterfaceBindings = Program->GetDesc().InterfaceBindings;
+        Parameters->Architecture = ArchitectureToken(
+            Profile.Profile.CpuArchitecture);
+        Parameters->ToolchainEvidence = *MetalToolchain;
+        Parameters->WorkingDirectory = Core::FString(
+            (std::filesystem::path(ScratchRoot.ToStdString()) /
+             ("metal-shader-" + std::to_string(Node.PlanIndex))).generic_string());
+        for (const auto& Source : Program->GetDesc().Stages)
+            if (Source.Stage == Payload->GetStage())
+                Parameters->GlslDigest = Source.ExpectedDigest;
+        Private::FSpirvCrossMslResult Derivation;
+        Core::TArray<Asset::FAssetDerivedNamedEvidence> Additional;
+        const Asset::EAssetResult Prepared =
+            Private::BuildMetalShaderDerivedEvidence(
+            *Payload, *Parameters, Profile, Derivation, Additional);
+        if (Prepared != Asset::EAssetResult::Success) return Prepared;
+        Evidence.KeyFormatVersion =
+            Asset::FAssetDerivedKeyEvidence::CurrentKeyFormatVersion;
+        Evidence.AdditionalEvidence = std::move(Additional);
+        Out.Parameters = std::move(Parameters);
+    }
     return Asset::FAssetCookContractCodec::BuildDerivedKey(
         Evidence, Out.DerivedKey);
 }
@@ -260,12 +341,32 @@ FAssetCookResult FAssetCookRunner::Run(
         Asset::EAssetResult::Success)
         return Fail(EAssetCookResultCategory::InternalFailure,
             "asset-cooker.extensions.failed", OutReport);
+    auto MetalCooker = Core::MakeShared<Private::FMetalShaderCooker>();
+    Asset::FAssetRegistrationToken MetalCookerToken;
+    if (Registry.Register(MetalCooker, MetalCookerToken) !=
+        Asset::EAssetResult::Success)
+        return Fail(EAssetCookResultCategory::InternalFailure,
+            "asset-cooker.metal-extension.failed", OutReport);
+    Private::FMetalToolchainEvidence MetalToolchain;
+    if (ParsedProfile.Profile.GraphicsBackend ==
+        Asset::EAssetGraphicsBackend::Metal)
+    {
+        if (Private::InspectMetalToolchain(60000, 256U * 1024U,
+                MetalToolchain) !=
+            Private::EMetalLibraryFinalizeStatus::Success)
+            return Fail(EAssetCookResultCategory::CookFailure,
+                "asset-cooker.metal-toolchain.unavailable", OutReport);
+    }
     const auto SharedProfile =
         Core::MakeShared<const Asset::FAssetTargetProfileEvidence>(ParsedProfile);
 
     Core::TArray<FPreparedCookNode> Prepared(Plan.Nodes.size());
     for (const auto& Node : Plan.Nodes)
         if (PrepareCookNode(Plan, Node, ParsedProfile, Registry,
+                ParsedProfile.Profile.GraphicsBackend ==
+                        Asset::EAssetGraphicsBackend::Metal
+                    ? &MetalToolchain : nullptr,
+                Request.ScratchRoot,
                 Prepared[Node.PlanIndex]) != Asset::EAssetResult::Success)
             return Fail(EAssetCookResultCategory::CookFailure,
                 "asset-cooker.derived-evidence.failed", OutReport);
@@ -441,6 +542,7 @@ FAssetCookResult FAssetCookRunner::Run(
             CookRequest.Payload = Node.Payload;
             CookRequest.TargetProfile = ParsedProfile.Profile.DisplayName;
             CookRequest.TargetProfileEvidence = SharedProfile;
+            CookRequest.Parameters = State.Parameters;
             Asset::FAssetCookResult Cooked = Asset::FAssetDispatch::Cook(
                 Registry, State.CookerId, CookRequest);
             if (Cooked.Result != Asset::EAssetResult::Success)

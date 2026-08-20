@@ -12,7 +12,8 @@ enum class EAssetCookReportCommand : Core::uint8
     Plan,
     Validate,
     ValidateCache,
-    Inspect
+    Inspect,
+    Doctor
 };
 
 struct FAssetCookReportDiagnostic

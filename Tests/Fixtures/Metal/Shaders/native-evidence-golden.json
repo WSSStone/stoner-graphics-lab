@@ -1,0 +1,29 @@
+{
+  "schema": "stoner.metal-native-evidence-expectation",
+  "schemaVersion": 1,
+  "comparisonScope": "exact-apple-toolchain-tuple",
+  "requiredFields": [
+    "derivationEvidenceDigest",
+    "targetProfile",
+    "architecture",
+    "compiler",
+    "xcodeBuild",
+    "sdk",
+    "deploymentTarget",
+    "mslVersion",
+    "argumentDigest",
+    "libraryDigest",
+    "sizeBytes",
+    "finalizer",
+    "finalizerVersion",
+    "evidenceDigest"
+  ],
+  "forbiddenIdentityFields": [
+    "hostName",
+    "processId",
+    "timestamp",
+    "workingDirectory",
+    "temporaryPath"
+  ],
+  "repetitions": 20
+}

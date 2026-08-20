@@ -67,6 +67,12 @@ env = Environment()
 ConfigureToolchain(env, platform)
 ApplyConfig(env, config, platform)
 
+if platform == 'Mac':
+    env['ENV'] = dict(env.get('ENV', {}))
+    env['ENV']['MACOSX_DEPLOYMENT_TARGET'] = '12.0'
+    env.Append(CCFLAGS=['-mmacosx-version-min=12.0'])
+    env.Append(LINKFLAGS=['-mmacosx-version-min=12.0'])
+
 logger.info("Stoner Graphics Lab")
 logger.info("  Platform : %s", platform)
 logger.info("  Config   : %s", config_display)

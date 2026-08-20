@@ -153,7 +153,29 @@ void TestInitialization(FVulkanBackendTestResult& Result)
         Device.GetDiagnostics().RuntimeModeReason[0] != '\0',
         "Vulkan explicit deterministic backend initialization");
     Record(Result, Device.GetCapabilities().bSupportsGraphicsQueue && Device.GetCapabilities().bSupportsSynchronization &&
-        Device.GetCapabilities().SupportsFormat(ERHIFormat::B8G8R8A8_UNorm), "Vulkan selected device capabilities");
+        Device.GetCapabilities().SupportsFormat(ERHIFormat::B8G8R8A8_UNorm) &&
+        IsValidRHIDeviceCapabilities(Device.GetCapabilities()) &&
+        Device.GetCapabilities().MaxBufferSizeBytes == 128ULL * 1024ULL * 1024ULL &&
+        Device.GetCapabilities().MaxTextureDimension2D == 8192 &&
+        Device.GetCapabilities().MaxPerStageTextureBindings == 16 &&
+        Device.GetCapabilities().MaxConstantRangeBytes == 128 &&
+        Device.GetCapabilities().MaxComputeThreadsPerThreadgroup == 128 &&
+        Device.GetCapabilities().SupportsSampleCount(ERHISampleCount::Four),
+        "Vulkan selected device capabilities publish a valid conservative limit snapshot");
+    FRHIBufferDesc OversizedBuffer;
+    OversizedBuffer.SizeInBytes =
+        Device.GetCapabilities().MaxBufferSizeBytes + 1ULL;
+    OversizedBuffer.Usage = ERHIBufferUsage::Storage;
+    FRHITextureDesc OversizedTexture;
+    OversizedTexture.Width = 1;
+    OversizedTexture.Height = 1;
+    OversizedTexture.Format = ERHIFormat::R8G8B8A8_UNorm;
+    OversizedTexture.Usage = ERHITextureUsage::Sampled;
+    OversizedTexture.Width = Device.GetCapabilities().MaxTextureDimension2D + 1U;
+    Record(Result,
+        Device.CreateBuffer(OversizedBuffer).Result == ERHIResult::Unsupported &&
+            Device.CreateTexture(OversizedTexture).Result == ERHIResult::Unsupported,
+        "Vulkan factories enforce their published resource and texture limits");
 
     FVulkanInstanceDesc UnsupportedDesc;
     UnsupportedDesc.bForceUnsupportedRuntime = true;
@@ -576,9 +598,8 @@ void TestLifecycleAndFactoryState(FVulkanBackendTestResult& Result)
     FRHIShaderModuleDesc Desc;
     Desc.Stage = Stage;
     Desc.EntryPoint = EntryPoint;
-    Desc.PayloadIdentity = Payload;
-    Desc.Bytecode.Words =
-        Stoner::Tests::MakeMinimalShaderBytecode(Stage, EntryPoint);
+    Desc.Payload = Stoner::Tests::MakeMinimalShaderPayload(
+        Stage, EntryPoint, Payload);
     const ERHIShaderStageFlags Visibility = ToShaderStageFlag(Stage);
     if (Stage == ERHIShaderStage::Vertex)
     {
@@ -658,16 +679,18 @@ void TestShaderPipelineAndBinding(FVulkanBackendTestResult& Result)
         Device.GetDiagnostics().RuntimeModeReason[0] != '\0', "Vulkan shader module fallback runtime mode is explicit");
 
     FRHIShaderModuleDesc BadBytecode = ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "bad");
-    BadBytecode.Bytecode.Words = {1u, 2u, 3u};
+    (void)SetRHIShaderSpirvWords(
+        BadBytecode.Payload, {1u, 2u, 3u}, "bad");
     FRHIShaderModuleDesc TruncatedHeader =
         ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "truncated");
-    TruncatedHeader.Bytecode.Words = {
-        0x07230203u, 0x00010000u, 0u, 1u};
+    (void)SetRHIShaderSpirvWords(
+        TruncatedHeader.Payload,
+        {0x07230203u, 0x00010000u, 0u, 1u},
+        "truncated");
     FRHIShaderModuleDesc WrongStage =
         ShaderDesc(ERHIShaderStage::Fragment, "MainVS", "wrong_stage");
-    WrongStage.Bytecode.Words =
-        Stoner::Tests::MakeMinimalShaderBytecode(
-            ERHIShaderStage::Vertex, "MainVS");
+    WrongStage.Payload = Stoner::Tests::MakeMinimalShaderPayload(
+        ERHIShaderStage::Vertex, "MainVS", "wrong_stage");
     FRHIShaderModuleDesc BadMetadata = ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "bad_meta");
     BadMetadata.InterfaceMetadata.Bindings[0].Visibility = ERHIShaderStageFlags::Fragment;
     Record(Result, Device.CreateShaderModule(BadBytecode).Result == ERHIResult::InvalidState &&
@@ -1161,48 +1184,56 @@ void TestAllocationOwnershipAndFootprints(
             EVulkanAllocationFailure::ArithmeticOverflow,
         "Vulkan texture footprint overflow is explicit and non-mutating");
 
+    FVulkanMemoryAllocator OverflowAllocator;
+    FRHIBufferDesc HugeBuffer = ValidBufferDesc();
+    HugeBuffer.SizeInBytes = std::numeric_limits<uint64>::max();
+    HugeBuffer.MemoryAccess = ERHIMemoryAccess::HostVisible;
+    auto HugeAllocation = OverflowAllocator.AllocateBuffer(HugeBuffer, true);
+    FRHIBufferDesc TwoBytes = ValidBufferDesc();
+    TwoBytes.SizeInBytes = 2;
+    auto Overflowed = OverflowAllocator.AllocateBuffer(TwoBytes, true);
+    Record(Result, HugeAllocation.IsSuccessful() &&
+        !Overflowed.IsSuccessful() &&
+        Overflowed.GetFailure() == EVulkanAllocationFailure::ArithmeticOverflow &&
+        OverflowAllocator.GetSnapshot().LastFailure ==
+            EVulkanAllocationFailure::ArithmeticOverflow &&
+        OverflowAllocator.GetSnapshot().AllocatedBytes ==
+            std::numeric_limits<uint64>::max() &&
+        OverflowAllocator.GetSnapshot().LiveAllocationCount == 1,
+        "Vulkan allocation accounting rejects overflow without mutation");
+
+    OverflowAllocator.ConfigureBudgetLimit(2);
+    FRHIBufferDesc OneByte = ValidBufferDesc();
+    OneByte.SizeInBytes = 1;
+    auto BudgetRejected = OverflowAllocator.AllocateBuffer(OneByte, true);
+    Record(Result,
+        !BudgetRejected.IsSuccessful() &&
+        BudgetRejected.GetFailure() == EVulkanAllocationFailure::BudgetExceeded &&
+        OverflowAllocator.GetSnapshot().LastFailure ==
+            EVulkanAllocationFailure::BudgetExceeded &&
+        OverflowAllocator.GetSnapshot().AllocatedBytes ==
+            std::numeric_limits<uint64>::max(),
+        "Vulkan post-overflow budget checks cannot be bypassed");
+
     FVulkanDevice OverflowDevice;
     Record(Result,
         InitializeDeterministic(OverflowDevice) == ERHIResult::Success,
         "Vulkan allocation-overflow fixture initializes");
-    FRHIBufferDesc HugeBuffer = ValidBufferDesc();
-    HugeBuffer.SizeInBytes = std::numeric_limits<uint64>::max();
-    HugeBuffer.MemoryAccess = ERHIMemoryAccess::HostVisible;
     const auto Huge = OverflowDevice.CreateBuffer(HugeBuffer);
-    FRHIBufferDesc TwoBytes = ValidBufferDesc();
-    TwoBytes.SizeInBytes = 2;
-    const auto Overflowed = OverflowDevice.CreateBuffer(TwoBytes);
-    Record(Result, Huge.Succeeded() &&
-        Overflowed.Result == ERHIResult::Unavailable &&
-        OverflowDevice.GetAllocationSnapshot().LastFailure ==
-            EVulkanAllocationFailure::ArithmeticOverflow &&
-        OverflowDevice.GetAllocationSnapshot().AllocatedBytes ==
-            std::numeric_limits<uint64>::max() &&
-        OverflowDevice.GetAllocationSnapshot().LiveAllocationCount == 1,
-        "Vulkan allocation accounting rejects overflow without mutation");
-
-    OverflowDevice.ConfigureAllocationBudget(2);
-    FRHIBufferDesc OneByte = ValidBufferDesc();
-    OneByte.SizeInBytes = 1;
-    Record(Result,
-        OverflowDevice.CreateBuffer(OneByte).Result ==
-            ERHIResult::Unavailable &&
-        OverflowDevice.GetAllocationSnapshot().LastFailure ==
-            EVulkanAllocationFailure::BudgetExceeded &&
-        OverflowDevice.GetAllocationSnapshot().AllocatedBytes ==
-            std::numeric_limits<uint64>::max(),
-        "Vulkan post-overflow budget checks cannot be bypassed");
-
-    auto HugeVulkanBuffer =
-        std::dynamic_pointer_cast<FVulkanBuffer>(Huge.Object);
+    FRHIBufferDesc SmallHostBuffer = ValidBufferDesc();
+    SmallHostBuffer.SizeInBytes = 1;
+    SmallHostBuffer.MemoryAccess = ERHIMemoryAccess::HostVisible;
+    const auto Small = OverflowDevice.CreateBuffer(SmallHostBuffer);
+    auto SmallVulkanBuffer =
+        std::dynamic_pointer_cast<FVulkanBuffer>(Small.Object);
     const uint8 Byte = 0x5a;
-    Record(Result, HugeVulkanBuffer &&
-        HugeVulkanBuffer->Upload(&Byte, 1, 0) == ERHIResult::Success &&
-        HugeVulkanBuffer->GetUploadedBytes().size() == 1 &&
-        HugeVulkanBuffer->Upload(&Byte, 1,
-            std::numeric_limits<uint64>::max() - 1) ==
-            ERHIResult::Unavailable,
-        "Vulkan host upload grows sparsely and reports impossible storage");
+    Record(Result, Huge.Result == ERHIResult::Unsupported &&
+        OverflowDevice.GetAllocationSnapshot().LiveAllocationCount == 1 &&
+        SmallVulkanBuffer &&
+        SmallVulkanBuffer->Upload(&Byte, 1, 0) == ERHIResult::Success &&
+        SmallVulkanBuffer->Upload(&Byte, 1, 1) == ERHIResult::InvalidState,
+        "Vulkan capability gates oversized buffers and host uploads reject invalid ranges without growth");
+    (void)OverflowAllocator.Release(HugeAllocation);
     (void)OverflowDevice.Shutdown();
     Record(Result,
         OverflowDevice.GetAllocationSnapshot().AllocatedBytes == 0 &&

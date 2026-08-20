@@ -23,6 +23,20 @@ constexpr Core::usize MaxJsonValues = 8192;
 
 using FAllowed = std::initializer_list<std::string_view>;
 
+bool ParseRawNumber(const char* Begin, const char* End, double& Out)
+{
+    const std::string Text(Begin, End);
+    yyjson_val Value{};
+    const char* ParsedEnd = yyjson_read_number(
+        Text.c_str(), &Value, YYJSON_READ_NOFLAG, nullptr, nullptr);
+    if (ParsedEnd != Text.c_str() + Text.size() || !yyjson_is_num(&Value))
+    {
+        return false;
+    }
+    Out = yyjson_get_num(&Value);
+    return std::isfinite(Out);
+}
+
 bool ClosedObject(yyjson_val* Object, FAllowed Allowed)
 {
     if (!yyjson_is_obj(Object))
@@ -219,7 +233,8 @@ bool ParseShaderChoices(
                  {"msl", EAssetShaderPayloadFormat::MSL},
                  {"dxil", EAssetShaderPayloadFormat::DXIL},
                  {"glsl", EAssetShaderPayloadFormat::GLSL},
-                 {"essl", EAssetShaderPayloadFormat::ESSL}},
+                 {"essl", EAssetShaderPayloadFormat::ESSL},
+                 {"metal-library", EAssetShaderPayloadFormat::MetalLibrary}},
                 Choice.Format))
         {
             return false;
@@ -255,10 +270,7 @@ bool ParseSettingValue(yyjson_val* Value, FAssetProducerSettingValue& Out)
         return true;
     }
     double Number = 0.0;
-    const auto NumberResult = std::from_chars(
-        Begin, End, Number, std::chars_format::general);
-    if (NumberResult.ec != std::errc{} || NumberResult.ptr != End ||
-        !std::isfinite(Number))
+    if (!ParseRawNumber(Begin, End, Number))
     {
         return false;
     }
@@ -434,6 +446,7 @@ const char* ShaderFormatToken(EAssetShaderPayloadFormat Value)
     case EAssetShaderPayloadFormat::DXIL: return "dxil";
     case EAssetShaderPayloadFormat::GLSL: return "glsl";
     case EAssetShaderPayloadFormat::ESSL: return "essl";
+    case EAssetShaderPayloadFormat::MetalLibrary: return "metal-library";
     }
     return "spirv";
 }
@@ -464,10 +477,17 @@ void WriteSettingValue(std::string& Out, const FAssetProducerSettingValue& Value
     else if (const auto* Number = std::get_if<double>(&Value))
     {
         char Buffer[64]{};
-        const auto Result = std::to_chars(
-            Buffer, Buffer + sizeof(Buffer), *Number,
-            std::chars_format::general);
-        Out.append(Buffer, Result.ptr);
+        yyjson_mut_doc* Document = yyjson_mut_doc_new(nullptr);
+        yyjson_mut_val* JsonNumber = yyjson_mut_double(Document, *Number);
+        const char* End = yyjson_mut_write_number(JsonNumber, Buffer);
+        std::size_t Length = static_cast<std::size_t>(End - Buffer);
+        if (Length >= 2 && Buffer[Length - 2] == '.' &&
+            Buffer[Length - 1] == '0')
+        {
+            Length -= 2;
+        }
+        Out.append(Buffer, Length);
+        yyjson_mut_doc_free(Document);
     }
     else
     {
@@ -498,6 +518,16 @@ std::string WriteProfile(const FAssetTargetProfile& Profile, bool IncludeDisplay
         Indent(Out, 2); Out += Index + 1 == Profile.ShaderPayloadChoices.size() ? "}\n" : "},\n";
     }
     Indent(Out, 1); Out += "],\n";
+    if (Profile.MetalShaderTarget.has_value())
+    {
+        const auto& Metal = *Profile.MetalShaderTarget;
+        Key(Out, 1, "metalShaderTarget"); Out += "{\n";
+        Key(Out, 2, "deploymentTarget"); EscapeJson(Metal.DeploymentTarget.View(), Out); Out += ",\n";
+        Key(Out, 2, "mslVersion"); EscapeJson(Metal.MslVersion.View(), Out); Out += ",\n";
+        Key(Out, 2, "bindingPolicy"); EscapeJson(Metal.BindingPolicy.View(), Out); Out += ",\n";
+        Key(Out, 2, "nativeEvidenceSchemaVersion"); Out += std::to_string(Metal.NativeEvidenceSchemaVersion); Out += "\n";
+        Indent(Out, 1); Out += "},\n";
+    }
     Key(Out, 1, "textureCapabilities"); WriteStringArray(Out, Profile.TextureCapabilities); Out += ",\n";
     Key(Out, 1, "textureFallback");
     EscapeJson(
@@ -600,6 +630,23 @@ void AppendRelevantField(
         }
         Out.push_back(']');
     }
+    else if (Field == Core::FString("metalShaderTarget"))
+    {
+        if (!Profile.MetalShaderTarget)
+        {
+            Out += "null";
+        }
+        else
+        {
+            const auto& Metal = *Profile.MetalShaderTarget;
+            Out.push_back('{');
+            EscapeJson(Metal.DeploymentTarget.View(), Out);
+            EscapeJson(Metal.MslVersion.View(), Out);
+            EscapeJson(Metal.BindingPolicy.View(), Out);
+            Out += std::to_string(Metal.NativeEvidenceSchemaVersion);
+            Out.push_back('}');
+        }
+    }
     else if (Field == Core::FString("optimization"))
         Out += std::to_string(static_cast<int>(Profile.BuildPolicy.Optimization));
     else if (Field == Core::FString("includeDebugSymbols"))
@@ -645,6 +692,7 @@ EAssetResult ParseAssetTargetProfile(
             Root,
             {"schema", "schemaVersion", "displayName", "platform",
              "cpuArchitecture", "graphicsBackend", "shaderPayloadChoices",
+             "metalShaderTarget",
              "textureCapabilities", "textureFallback", "buildPolicy", "limits",
              "requiredExtensions", "optionalExtensions", "extensions"}))
     {
@@ -697,9 +745,29 @@ EAssetResult ParseAssetTargetProfile(
     {
         return EAssetResult::InvalidDefinition;
     }
-    if (Profile.SchemaVersion != FAssetTargetProfile::CurrentSchemaVersion)
+    if (Profile.SchemaVersion != 1 &&
+        Profile.SchemaVersion != FAssetTargetProfile::CurrentSchemaVersion)
     {
         return EAssetResult::UnsupportedSchema;
+    }
+    yyjson_val* Metal = yyjson_obj_get(Root, "metalShaderTarget");
+    if (Metal != nullptr)
+    {
+        FAssetMetalShaderTarget Target;
+        if (!ClosedObject(
+                Metal,
+                {"deploymentTarget", "mslVersion", "bindingPolicy",
+                 "nativeEvidenceSchemaVersion"}) ||
+            !String(Metal, "deploymentTarget", Target.DeploymentTarget) ||
+            !String(Metal, "mslVersion", Target.MslVersion) ||
+            !String(Metal, "bindingPolicy", Target.BindingPolicy) ||
+            !Unsigned(
+                Metal, "nativeEvidenceSchemaVersion",
+                Target.NativeEvidenceSchemaVersion))
+        {
+            return EAssetResult::InvalidDefinition;
+        }
+        Profile.MetalShaderTarget = std::move(Target);
     }
     const EAssetResult Validation = Profile.Validate();
     if (Validation != EAssetResult::Success)
@@ -765,7 +833,8 @@ EAssetResult BuildAssetProfileProjection(
     }
     static const std::set<std::string_view> AllowedFields = {
         "platform", "cpuArchitecture", "graphicsBackend",
-        "shaderPayloadChoices", "textureCapabilities", "textureFallback",
+        "shaderPayloadChoices", "metalShaderTarget",
+        "textureCapabilities", "textureFallback",
         "optimization", "includeDebugSymbols", "validation"};
     std::string Relevant = "{\n";
     for (Core::usize Index = 0; Index < SortedFields.size(); ++Index)

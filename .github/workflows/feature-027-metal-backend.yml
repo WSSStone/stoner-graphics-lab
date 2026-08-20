@@ -1,0 +1,268 @@
+name: Feature 027 Metal Backend
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/scripts/run_metal_validation.py"
+      - ".github/scripts/test_run_metal_validation.py"
+      - ".github/workflows/feature-027-metal-backend.yml"
+      - "Config/AssetCooker/Profiles/Mac-Metal-*.json"
+      - "Content/Shaders/**"
+      - "Demo/StonerDemo/**"
+      - "Source/Asset/**"
+      - "Source/Backend/Metal/**"
+      - "Source/Backend/Vulkan/**"
+      - "Source/Core/**"
+      - "Source/RHI/**"
+      - "Source/Renderer/**"
+      - "Tests/Metal*"
+      - "Tests/DeferredNativeIntegrationTests.*"
+      - "Tests/verify_architecture.py"
+      - "Tests/verify_metal_backend.py"
+      - "ThirdParty/spirv-cross/**"
+      - "Tools/AssetCooker/**"
+      - "specs/027-metal-backend/**"
+  push:
+    branches:
+      - "027-metal-backend"
+    paths:
+      - ".github/scripts/run_metal_validation.py"
+      - ".github/scripts/test_run_metal_validation.py"
+      - ".github/workflows/feature-027-metal-backend.yml"
+      - "Config/AssetCooker/Profiles/Mac-Metal-*.json"
+      - "Content/Shaders/**"
+      - "Demo/StonerDemo/**"
+      - "Source/Asset/**"
+      - "Source/Backend/Metal/**"
+      - "Source/Backend/Vulkan/**"
+      - "Source/Core/**"
+      - "Source/RHI/**"
+      - "Source/Renderer/**"
+      - "Tests/Metal*"
+      - "Tests/DeferredNativeIntegrationTests.*"
+      - "Tests/verify_architecture.py"
+      - "Tests/verify_metal_backend.py"
+      - "ThirdParty/spirv-cross/**"
+      - "Tools/AssetCooker/**"
+      - "specs/027-metal-backend/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: feature-027-hosted-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }} ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            slug: windows-x86_64-debug
+            os: windows-latest
+            config: debug
+            label: Debug
+            tests: Build/Win64/Debug/Tests/StonerTest.exe
+            profile: ""
+          - name: Windows
+            slug: windows-x86_64-release
+            os: windows-latest
+            config: release
+            label: strict Release
+            tests: Build/Win64/Release/Tests/StonerTest.exe
+            profile: ""
+          - name: Linux
+            slug: linux-x86_64-debug
+            os: ubuntu-latest
+            config: debug
+            label: Debug
+            tests: Build/Linux/Debug/Tests/StonerTest
+            profile: ""
+          - name: Linux
+            slug: linux-x86_64-release
+            os: ubuntu-latest
+            config: release
+            label: strict Release
+            tests: Build/Linux/Release/Tests/StonerTest
+            profile: ""
+          - name: macOS arm64
+            slug: macos-arm64-debug
+            os: macos-26
+            config: debug
+            label: Debug
+            tests: Build/Mac/Debug/Tests/StonerTest
+            profile: Config/AssetCooker/Profiles/Mac-Metal-Arm64.json
+          - name: macOS arm64
+            slug: macos-arm64-release
+            os: macos-26
+            config: release
+            label: strict Release
+            tests: Build/Mac/Release/Tests/StonerTest
+            profile: Config/AssetCooker/Profiles/Mac-Metal-Arm64.json
+          - name: macOS Intel
+            slug: macos-x86_64-debug
+            os: macos-26-intel
+            config: debug
+            label: Debug build/cook
+            tests: Build/Mac/Debug/Tests/StonerTest
+            profile: Config/AssetCooker/Profiles/Mac-Metal-X86_64.json
+          - name: macOS Intel
+            slug: macos-x86_64-release
+            os: macos-26-intel
+            config: release
+            label: strict Release build/cook
+            tests: Build/Mac/Release/Tests/StonerTest
+            profile: Config/AssetCooker/Profiles/Mac-Metal-X86_64.json
+    steps:
+      - uses: actions/checkout@v5
+      - name: Enable MSVC command prompt
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Install SCons
+        run: python -m pip install scons==4.10.1
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
+      - name: Record runner identity
+        shell: bash
+        run: |
+          mkdir -p Validation/027/CI/work/${{ matrix.slug }}
+          {
+            echo "runner-os=${RUNNER_OS}"
+            echo "runner-arch=${RUNNER_ARCH}"
+            echo "image-os=${ImageOS:-unknown}"
+            uname -a || true
+            python --version
+          } > Validation/027/CI/work/${{ matrix.slug }}/runner.txt
+      - name: Prepare failure-safe derivation report
+        run: >-
+          python .github/scripts/run_metal_validation.py
+          --root . --tier deterministic --workload derivation
+          --output Validation/027/CI/work/${{ matrix.slug }}/derivation.json
+          --prepare-only
+      - name: Build with strict warnings
+        run: scons config=${{ matrix.config }} strict=1
+      - name: Verify architecture and Feature 027 contracts
+        run: |
+          python Tests/verify_architecture.py
+          python Tests/verify_metal_backend.py --root . --mode all
+          python -m unittest Tests/test_verify_architecture.py Tests/test_verify_metal_backend.py
+          python .github/scripts/test_run_metal_validation.py
+      - name: Run deterministic MSL derivation twenty times
+        run: >-
+          python .github/scripts/run_metal_validation.py
+          --root . --tests ${{ matrix.tests }}
+          --tier deterministic --workload derivation --repetitions 20
+          --work Build/Feature027Validation/${{ matrix.slug }}/derivation
+          --output Validation/027/CI/work/${{ matrix.slug }}/derivation.json
+          --timeout-seconds 1200
+      - name: Run focused backend-neutral and unsupported-host gates
+        run: >-
+          ${{ matrix.tests }}
+          --suite metal-device
+          --suite metal-resource
+          --suite metal-pipeline
+          --suite metal-command
+          --suite metal-presentation
+          --suite metal-shader-compiler
+          --suite metal-shader-cooker
+          --suite metal-shader-publication
+          --suite metal-shader-runtime
+      - name: Run deterministic failure diagnostics
+        run: >-
+          python .github/scripts/run_metal_validation.py
+          --root . --tests ${{ matrix.tests }}
+          --tier deterministic --workload failure --repetitions 20
+          --work Build/Feature027Validation/${{ matrix.slug }}/failure
+          --output Validation/027/CI/work/${{ matrix.slug }}/failure.json
+          --timeout-seconds 1200
+      - name: Probe hosted Metal honestly
+        if: runner.os == 'macOS'
+        run: >-
+          python .github/scripts/run_metal_validation.py
+          --root . --tests ${{ matrix.tests }}
+          --profile ${{ matrix.profile }} --tier native-offscreen
+          --work Build/Feature027Validation/${{ matrix.slug }}/native
+          --output Validation/027/CI/work/${{ matrix.slug }}/native.json
+          --timeout-seconds 1800
+      - name: Upload Feature 027 hosted evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: metal-backend-${{ matrix.slug }}-${{ github.run_attempt }}
+          path: |
+            Validation/027/CI/work/${{ matrix.slug }}
+            Build/Feature027Validation/${{ matrix.slug }}
+          if-no-files-found: error
+
+  linux-sanitizers:
+    name: Linux ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ASan-UBSan
+            slug: linux-asan-ubsan
+            sanitizers: address,undefined
+          - name: TSan
+            slug: linux-tsan
+            sanitizers: thread
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+      TSAN_OPTIONS: halt_on_error=1:history_size=7
+      STONER_SKIP_OPTIONAL_DEFERRED_NATIVE: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install SCons
+        run: python -m pip install scons==4.10.1
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
+      - name: Build sanitizer configuration
+        run: >-
+          scons config=debug strict=1
+          sanitizers=${{ matrix.sanitizers }}
+      - name: Run deterministic derivation twenty times
+        run: >-
+          python .github/scripts/run_metal_validation.py
+          --root . --tests Build/Linux/Debug/Tests/StonerTest
+          --tier deterministic --workload derivation --repetitions 20
+          --work Build/Feature027Validation/${{ matrix.slug }}/derivation
+          --output Validation/027/CI/work/${{ matrix.slug }}/derivation.json
+          --timeout-seconds 1200
+      - name: Run sanitized failure and lifecycle validation
+        run: |
+          python .github/scripts/run_metal_validation.py \
+            --root . --tests Build/Linux/Debug/Tests/StonerTest \
+            --tier deterministic --workload failure --repetitions 20 \
+            --work Build/Feature027Validation/${{ matrix.slug }}/failure \
+            --output Validation/027/CI/work/${{ matrix.slug }}/failure.json \
+            --timeout-seconds 1200
+          python .github/scripts/run_metal_validation.py \
+            --root . --tests Build/Linux/Debug/Tests/StonerTest \
+            --tier deterministic --workload lifecycle \
+            --lifecycle-iterations 10000 \
+            --work Build/Feature027Validation/${{ matrix.slug }}/lifecycle \
+            --output Validation/027/CI/work/${{ matrix.slug }}/lifecycle.json \
+            --timeout-seconds 1800
+      - name: Upload Feature 027 sanitizer evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: metal-backend-${{ matrix.slug }}-${{ github.run_attempt }}
+          path: |
+            Validation/027/CI/work/${{ matrix.slug }}
+            Build/Feature027Validation/${{ matrix.slug }}
+          if-no-files-found: error

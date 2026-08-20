@@ -10,7 +10,14 @@
   ],
   "allowedPermutationFlags": [],
   "requiredParameters": [],
-  "interface": {"bindings": [], "constantRanges": []},
+  "interface": {"bindings": [
+    {"set": 0, "binding": 0, "kind": "uniformBuffer", "arrayCount": 1, "visibility": ["vertex", "fragment"], "name": "FrameView"},
+    {"set": 2, "binding": 0, "kind": "combinedTextureSampler", "arrayCount": 1, "visibility": ["fragment"], "name": "BaseColorAOTexture"},
+    {"set": 2, "binding": 1, "kind": "combinedTextureSampler", "arrayCount": 1, "visibility": ["fragment"], "name": "NormalRoughnessTexture"},
+    {"set": 2, "binding": 2, "kind": "combinedTextureSampler", "arrayCount": 1, "visibility": ["fragment"], "name": "EmissiveMetallicTexture"},
+    {"set": 2, "binding": 3, "kind": "combinedTextureSampler", "arrayCount": 1, "visibility": ["fragment"], "name": "DepthTexture"},
+    {"set": 3, "binding": 0, "kind": "storageBuffer", "arrayCount": 1, "visibility": ["vertex", "fragment"], "name": "Lights"}
+  ], "constantRanges": []},
   "variants": [{"name": "default", "flags": [], "payloads": [
     {"backend": "vulkan", "profile": "vulkan-1.3", "format": "spirv", "stage": "vertex", "entryPoint": "main", "asset": {"type": "ShaderPayload", "path": "Engine/Shaders/Deferred/PointLight", "subresource": "payload.vulkan.vertex"}, "locator": "PointLight.vert.spv", "digest": "sha256:4bd91aa8469b7c02f2185e792a91e231cb970dbff3ce17adf95f81b202ee24ef", "producer": "Stoner.CheckedInSpirv", "producerVersion": "023-v1"},
     {"backend": "vulkan", "profile": "vulkan-1.3", "format": "spirv", "stage": "fragment", "entryPoint": "main", "asset": {"type": "ShaderPayload", "path": "Engine/Shaders/Deferred/PointLight", "subresource": "payload.vulkan.fragment"}, "locator": "PointLight.frag.spv", "digest": "sha256:6b2ec8e16b6ce7f2fa09c4870a47e2239cccf7acb6ac8803f097ac9614a5fcb3", "producer": "Stoner.CheckedInSpirv", "producerVersion": "023-v1"}

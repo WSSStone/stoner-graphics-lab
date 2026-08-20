@@ -13,6 +13,12 @@ enum class EDemoRunMode
     NativeHeadless
 };
 
+enum class EDemoGraphicsBackend
+{
+    Vulkan,
+    Metal
+};
+
 enum class EDemoExitCode : int
 {
     Success = 0,
@@ -27,6 +33,7 @@ enum class EDemoExitCode : int
 struct FDemoConfiguration
 {
     EDemoRunMode RunMode = EDemoRunMode::InteractiveNative;
+    EDemoGraphicsBackend GraphicsBackend = EDemoGraphicsBackend::Vulkan;
     Stoner::Core::uint32 ClientWidth = 1280;
     Stoner::Core::uint32 ClientHeight = 720;
     Stoner::Core::uint32 FrameBudget = 0;
@@ -37,6 +44,9 @@ struct FDemoConfiguration
     Stoner::Core::uint32 MaxFramesInFlight = 2;
     bool bEnableValidationLayers = false;
     Stoner::Core::FString ShaderDirectory = "Content/Shaders/Triangle";
+    Stoner::Core::FString CookedPublicationRoot;
+    Stoner::Core::FString LeaseCoordinationRoot;
+    Stoner::Core::FString TargetProfilePath;
     Stoner::Core::FString ValidationOutputPath = "Build/triangle-demo-validation.txt";
     Stoner::Core::FString EvidenceRunId = "local";
 
@@ -50,5 +60,6 @@ struct FDemoConfiguration
 };
 
 [[nodiscard]] const char* ToString(EDemoRunMode Mode) noexcept;
+[[nodiscard]] const char* ToString(EDemoGraphicsBackend Backend) noexcept;
 
 } // namespace Stoner::Demo

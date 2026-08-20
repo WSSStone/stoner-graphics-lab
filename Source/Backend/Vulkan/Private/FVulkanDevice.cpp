@@ -257,6 +257,13 @@ Stoner::RHI::ERHIResult FVulkanDevice::Initialize(const FVulkanInstanceDesc& Des
 
     SelectedAdapter = Selection.Selected;
     MapCapabilities(SelectedAdapter);
+    if (!Stoner::RHI::IsValidRHIDeviceCapabilities(Capabilities))
+    {
+        State = Stoner::RHI::ERHIDeviceState::Shutdown;
+        MarkUnsupportedRuntime(
+            Diagnostics, "selected Vulkan adapter produced an invalid capability snapshot");
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
     if (!Allocator)
     {
         Allocator = std::make_shared<FVulkanMemoryAllocator>();
@@ -956,6 +963,11 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIShaderModule> FVulkanDevice::Crea
         MarkShaderModule(Diagnostics, "shader module creation rejected invalid bytecode or interface metadata");
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
+    if (Desc.Payload.Format != Stoner::RHI::ERHIShaderPayloadFormat::SPIRV)
+    {
+        MarkShaderModule(Diagnostics, "Vulkan shader module creation requires SPIR-V payload bytes");
+        return {Stoner::RHI::ERHIResult::Unsupported, nullptr};
+    }
 
     Stoner::RHI::FRHIShaderModuleDesc RuntimeDesc;
     try
@@ -976,9 +988,17 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIShaderModule> FVulkanDevice::Crea
     const bool bUseNativeRuntime = HasNativeShaderRuntime();
     if (bUseNativeRuntime)
     {
+        Stoner::Core::TArray<Stoner::Core::uint32> SpirvWords;
+        if (!Stoner::RHI::TryGetRHIShaderSpirvWords(
+                Desc.Payload, SpirvWords))
+        {
+            MarkShaderModule(
+                Diagnostics, "native shader module creation could not align SPIR-V bytes");
+            return {Stoner::RHI::ERHIResult::Unavailable, nullptr};
+        }
         const Stoner::RHI::ERHIResult NativeResult =
             NativeShaderContext->CreateOwnedShaderModule(
-                Desc.Bytecode.Words, NativeToken);
+                SpirvWords, NativeToken);
         if (NativeResult != Stoner::RHI::ERHIResult::Success)
         {
             MarkShaderModule(
@@ -1925,16 +1945,12 @@ void FVulkanDevice::InvalidateOwnedObjects() noexcept
 
 void FVulkanDevice::MapCapabilities(const FVulkanAdapterCandidate& Adapter)
 {
-    Capabilities = {};
+    Capabilities = MakeVulkanBaselineDeviceCapabilities();
     Capabilities.bSupportsGraphicsQueue = Adapter.Queues.bGraphics;
     Capabilities.bSupportsComputeQueue = Adapter.Queues.bCompute;
     Capabilities.bSupportsTransferQueue = Adapter.Queues.bTransfer;
     Capabilities.bSupportsPresentQueue = Adapter.Queues.bPresent;
     Capabilities.bSupportsPresentation = Adapter.bPresentationSupported;
-    Capabilities.bSupportsSynchronization = true;
-    Capabilities.MaxInFlightFrames = 3;
-    Capabilities.MaxCommandBuffersPerQueue = 0;
-    Capabilities.MaxQueuesPerType = 1;
     Capabilities.Formats =
         Adapter.Formats.GetFormatCapabilities();
 }
@@ -1946,6 +1962,11 @@ bool FVulkanDevice::SupportsBufferDesc(const Stoner::RHI::FRHIBufferDesc& Desc) 
         MarkResourceAllocation(Diagnostics, "invalid or unsupported buffer description");
         return false;
     }
+    if (Desc.SizeInBytes > Capabilities.MaxBufferSizeBytes)
+    {
+        MarkResourceAllocation(Diagnostics, "buffer size exceeds published device capability");
+        return false;
+    }
     return true;
 }
 
@@ -1953,6 +1974,34 @@ bool FVulkanDevice::SupportsTextureDesc(const Stoner::RHI::FRHITextureDesc& Desc
 {
     using namespace Stoner::RHI;
     if (!IsValidRHITextureDesc(Desc))
+    {
+        return false;
+    }
+    const bool bDimensionSupported =
+        (Desc.Dimension == ERHITextureDimension::Texture1D &&
+         Desc.Width <= Capabilities.MaxTextureDimension1D) ||
+        (Desc.Dimension == ERHITextureDimension::Texture2D &&
+         Desc.Width <= Capabilities.MaxTextureDimension2D &&
+         Desc.Height <= Capabilities.MaxTextureDimension2D) ||
+        (Desc.Dimension == ERHITextureDimension::Texture3D &&
+         Desc.Width <= Capabilities.MaxTextureDimension3D &&
+         Desc.Height <= Capabilities.MaxTextureDimension3D &&
+         Desc.Depth <= Capabilities.MaxTextureDimension3D) ||
+        (Desc.Dimension == ERHITextureDimension::TextureCube &&
+         Desc.Width <= Capabilities.MaxTextureDimension2D &&
+         Desc.Height <= Capabilities.MaxTextureDimension2D) ||
+        (Desc.Dimension == ERHITextureDimension::Texture1DArray &&
+         Desc.Width <= Capabilities.MaxTextureDimension1D &&
+         Desc.ArrayLayers <= Capabilities.MaxTextureArrayLayers) ||
+        (Desc.Dimension == ERHITextureDimension::Texture2DArray &&
+         Desc.Width <= Capabilities.MaxTextureDimension2D &&
+         Desc.Height <= Capabilities.MaxTextureDimension2D &&
+         Desc.ArrayLayers <= Capabilities.MaxTextureArrayLayers) ||
+        (Desc.Dimension == ERHITextureDimension::TextureCubeArray &&
+         Desc.Width <= Capabilities.MaxTextureDimension2D &&
+         Desc.Height <= Capabilities.MaxTextureDimension2D &&
+         Desc.ArrayLayers <= Capabilities.MaxTextureArrayLayers);
+    if (!bDimensionSupported || !Capabilities.SupportsSampleCount(Desc.SampleCount))
     {
         return false;
     }

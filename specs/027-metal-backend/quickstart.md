@@ -1,0 +1,212 @@
+# Quickstart: Native Metal Backend
+
+Commands run from the repository root. Commands for code not yet implemented
+become executable as their corresponding milestones land.
+
+## 1. macOS Toolchain Doctor
+
+```bash
+Build/Mac/Debug/Tools/AssetCooker/StonerAssetCooker doctor \
+  --target-profile Config/AssetCooker/Profiles/Mac-Metal-Arm64.json \
+  --report Validation/027/reports/metal-toolchain-doctor.json
+```
+
+The current development Mac has Xcode but reports the optional Metal Toolchain
+as missing. Install it explicitly before M2/native cook validation:
+
+```bash
+xcodebuild -downloadComponent MetalToolchain
+```
+
+The build and doctor must fail with an actionable message when the toolchain is
+absent; implementation must never install it automatically.
+
+## 2. Shared Build And Architecture Gates
+
+```bash
+conda run -n godot scons -j8 config=debug strict=1
+conda run -n godot scons -j8 config=release strict=1
+conda run -n godot python Tests/verify_architecture.py
+conda run -n godot python Tests/verify_metal_backend.py --root . --mode architecture
+conda run -n godot python -m unittest Tests/test_verify_architecture.py Tests/test_verify_metal_backend.py
+```
+
+Expected on Windows/Linux: no Apple framework/header lookup and no `.mm` compile;
+API-free Metal selection and shared RHI contracts still compile. Expected on
+macOS: Metal private units compile with ARC and architecture scans include them.
+All macOS compile/link/finalization actions must record
+`MACOSX_DEPLOYMENT_TARGET=12.0`; Objective-C++ availability diagnostics are
+errors, and the verifier rejects a newer implicit target.
+
+## 3. Deterministic Shader Derivation
+
+```bash
+conda run -n godot python .github/scripts/run_metal_validation.py \
+  --root . \
+  --tier deterministic \
+  --repetitions 20 \
+  --output Validation/027/reports/msl-derivation.json
+```
+
+Run on Windows, macOS, and Linux. All 20 repetitions and all three hosts must
+produce identical normalized MSL and derivation-evidence digests for the same
+SPIR-V fixtures. This tier does not count as native Metal execution.
+
+## 4. Native Metal Shader Cook
+
+Apple Silicon:
+
+```bash
+Build/Mac/Release/Tools/AssetCooker/StonerAssetCooker cook \
+  --target-profile Config/AssetCooker/Profiles/Mac-Metal-Arm64.json \
+  --source-root Content \
+  --cook-all \
+  --output Build/Feature027Cook/arm64 \
+  --ddc Build/Feature027Cook/DDC-arm64 \
+  --report Validation/027/reports/cook-arm64.json
+```
+
+Intel uses `Mac-Metal-X86_64.json` and a distinct output root. Repeat each cook
+20 times through the validation runner. Expected: identical payload identity,
+dependency/version evidence, pipeline result, and normalized report. Exact
+metallib bytes are compared only under identical recorded Apple toolchains.
+
+Windows/Linux final-cook attempts must return `HostUnsupported`, publish no
+generation, and leave existing `Current.json` untouched.
+
+## 5. Focused Contract Suites
+
+```bash
+Build/Mac/Debug/Tests/StonerTest \
+  --suite metal-device \
+  --suite metal-resource \
+  --suite metal-descriptor \
+  --suite metal-pipeline \
+  --suite metal-command \
+  --suite metal-synchronization \
+  --suite metal-shader-cook
+```
+
+Expected: the extracted public API matches
+`contracts/rhi-operation-matrix.md`; every frozen operation passes native
+conformance, or returns `Unsupported` only when the selected device's published
+capabilities prove a genuine hardware limitation.
+
+## 6. Native Offscreen Validation
+
+```bash
+conda run -n godot python .github/scripts/run_metal_validation.py \
+  --root . \
+  --tests Build/Mac/Release/Tests/StonerTest \
+  --profile Config/AssetCooker/Profiles/Mac-Metal-Arm64.json \
+  --tier native-offscreen \
+  --work Build/Feature027Validation/native-offscreen \
+  --output Validation/027/reports/native-offscreen-arm64.json \
+  --timeout-seconds 1800
+```
+
+Expected: graphics, compute, transfer, barriers, synchronization, triangle, and
+deferred probes contain real GPU readback, device/capability evidence, and
+strict-cooked Metal-library evidence. No semantic oracle is recorded as output.
+
+## 7. Visible Presentation Acceptance
+
+```bash
+Build/Mac/Release/Demo/StonerDemo/StonerDemo \
+  --backend metal \
+  --mode visible \
+  --frames 3000 \
+  --lifecycle-cycles 20 \
+  --validation-dir Validation/027/captures/local-mac
+```
+
+Exercise resize, minimize, restore, focus, scale/display movement where
+available, and close. Accept only with 3,000 frames, 20 completed cycles, one
+correctly oriented capture, zero unrecovered presentation error, clean layer
+detach, and exit code 0.
+
+## 8. Metal/Vulkan Comparison
+
+```bash
+conda run -n godot python .github/scripts/run_metal_validation.py \
+  --root . \
+  --tests Build/Mac/Release/Tests/StonerTest \
+  --tier cross-backend \
+  --work Build/Feature027Validation/comparison \
+  --output Validation/027/reports/metal-vulkan-comparison.json \
+  --timeout-seconds 1800
+```
+
+Expected: both backends are explicitly selected and independently native;
+triangle and deferred outputs meet declared orientation, color, depth,
+world-space-normal, and image tolerances. A failed Metal run cannot be replaced
+by MoltenVK.
+
+## 9. Failure And Lifecycle Stress
+
+```bash
+conda run -n godot python .github/scripts/run_metal_validation.py \
+  --root . \
+  --tests Build/Mac/Release/Tests/StonerTest \
+  --tier deterministic \
+  --workload failure \
+  --repetitions 20 \
+  --output Validation/027/reports/failure-determinism.json
+
+conda run -n godot python .github/scripts/run_metal_validation.py \
+  --root . \
+  --tests Build/Mac/Release/Tests/StonerTest \
+  --tier deterministic \
+  --workload lifecycle \
+  --lifecycle-iterations 10000 \
+  --output Validation/027/reports/lifecycle-stress.json
+```
+
+Expected: every injection reaches its declared terminal state, no partial object
+is published, and all native/in-flight counters return to zero. Iterations
+1-1,000 warm up; RSS is sampled every 100 iterations from 1,100 through 10,000.
+The final-ten median may exceed the first-ten post-warm-up median by at most
+`max(16 MiB, 5%)`; the report retains all samples and computed values.
+
+## 10. GitHub Actions
+
+```bash
+gh workflow run feature-027-metal-backend.yml --ref 027-metal-backend
+gh run list --workflow feature-027-metal-backend.yml --branch 027-metal-backend --limit 1
+gh run watch RUN_ID --exit-status
+gh run download RUN_ID --dir Validation/027/CI/downloaded
+gh run view RUN_ID --json databaseId,headSha,status,conclusion,jobs
+
+gh workflow run feature-027-metal-hardware.yml --ref 027-metal-backend
+gh run list --workflow feature-027-metal-hardware.yml --branch 027-metal-backend --limit 1
+gh run watch HARDWARE_RUN_ID --exit-status
+gh run download HARDWARE_RUN_ID --dir Validation/027/CI/hardware
+```
+
+Expected: the six Windows/macOS-arm64/Linux Debug/strict Release jobs, Linux
+ASan/UBSan and TSan, and two `macos-26-intel` build/cook jobs pass. Each macOS
+job records its Metal-device probe. A runner without a device reports native
+execution as unavailable; it does not satisfy the required arm64 or Intel native
+gate. The separate hardware workflow must pass required GPU-capable arm64 and
+x86_64 jobs; each fails on an unavailable probe and records the native device,
+target profile, compiler, GPU readback, and artifact digests.
+
+## 11. Final Planning/Implementation Gate
+
+```bash
+git diff --check
+rg -n "NEEDS CLARIFICATIO[N]|TOD[O]|TB[D]|\[FEATUR[E]\]|\[##[#]" \
+  specs/027-metal-backend/spec.md \
+  specs/027-metal-backend/plan.md \
+  specs/027-metal-backend/research.md \
+  specs/027-metal-backend/data-model.md \
+  specs/027-metal-backend/quickstart.md \
+  specs/027-metal-backend/tasks.md \
+  specs/027-metal-backend/contracts
+python -m json.tool specs/027-metal-backend/contracts/metal-shader-evidence.schema.json >/dev/null
+python -m json.tool specs/027-metal-backend/contracts/metal-validation-report.schema.json >/dev/null
+git status --short
+```
+
+Expected: no unresolved planning marker, invalid JSON, malformed whitespace,
+unexplained output, or untracked validation artifact.

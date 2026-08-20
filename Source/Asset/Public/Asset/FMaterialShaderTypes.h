@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Asset/FAssetDigest.h"
+#include "Asset/FAssetTargetProfile.h"
 #include "Asset/FAssetId.h"
 #include "Asset/FTextureAsset.h"
 #include "Asset/TSoftAssetRef.h"
@@ -84,16 +85,18 @@ enum class EShaderPayloadFormat : Core::uint8
     SPIRV,
     MSL,
     DXIL,
-    GLSL
+    GLSL,
+    MetalLibrary
 };
 
 enum class EShaderResourceKind : Core::uint8
 {
-    UniformBuffer,
-    SampledTexture,
-    Sampler,
-    StorageBuffer,
-    StorageTexture
+    UniformBuffer = 0,
+    SampledTexture = 1,
+    Sampler = 2,
+    StorageBuffer = 3,
+    StorageTexture = 4,
+    CombinedTextureSampler = 5
 };
 
 enum class EMaterialAssetDomain : Core::uint8
@@ -287,6 +290,7 @@ struct FShaderConstantRange
 struct FShaderTargetRequest
 {
     EShaderBackendFamily Backend = EShaderBackendFamily::Vulkan;
+    std::optional<EAssetTargetCpuArchitecture> CpuArchitecture;
     Core::TArray<Core::FString> AcceptableProfiles;
     FShaderPermutationKey Permutation;
 };

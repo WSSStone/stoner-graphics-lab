@@ -16,6 +16,29 @@ bool IsCanonicalPermutation(const FShaderPermutationKey& Key)
         std::adjacent_find(Key.Flags.begin(), Key.Flags.end()) == Key.Flags.end();
 }
 
+bool IsShaderStage(EShaderStage Stage)
+{
+    return Stage == EShaderStage::Vertex ||
+        Stage == EShaderStage::Fragment || Stage == EShaderStage::Compute;
+}
+
+bool IsBackend(EShaderBackendFamily Backend)
+{
+    return Backend == EShaderBackendFamily::Vulkan ||
+        Backend == EShaderBackendFamily::Metal ||
+        Backend == EShaderBackendFamily::DirectX12 ||
+        Backend == EShaderBackendFamily::OpenGL ||
+        Backend == EShaderBackendFamily::GLES;
+}
+
+bool IsLegacyPayloadFormat(EShaderPayloadFormat Format)
+{
+    return Format == EShaderPayloadFormat::SPIRV ||
+        Format == EShaderPayloadFormat::MSL ||
+        Format == EShaderPayloadFormat::DXIL ||
+        Format == EShaderPayloadFormat::GLSL;
+}
+
 } // namespace
 
 EAssetResult FShaderSourceAsset::Create(
@@ -75,7 +98,8 @@ EAssetResult FShaderPayloadAsset::Create(
         !Version.ContentDigest.IsAvailable() ||
         Profile.IsEmpty() ||
         EntryPoint.IsEmpty() ||
-        Bytes.empty() ||
+        !IsBackend(Backend) || !IsLegacyPayloadFormat(Format) ||
+        !IsShaderStage(Stage) || Bytes.empty() ||
         !IsCanonicalPermutation(Permutation))
     {
         return EAssetResult::InvalidInput;
@@ -92,6 +116,53 @@ EAssetResult FShaderPayloadAsset::Create(
     return EAssetResult::Success;
 }
 
+EAssetResult FShaderPayloadAsset::CreateWithNativeEvidence(
+    FAssetId Id,
+    FAssetVersion Version,
+    EShaderBackendFamily Backend,
+    Core::FString Profile,
+    EShaderPayloadFormat Format,
+    EShaderStage Stage,
+    Core::FString EntryPoint,
+    FShaderPermutationKey Permutation,
+    Core::TArray<Core::uint8> Bytes,
+    FShaderNativeBindingEvidence NativeBindingEvidence,
+    FShaderNativeLibraryEvidence NativeLibraryEvidence,
+    FShaderPayloadAsset& OutAsset)
+{
+    OutAsset = {};
+    if (!Id.IsValid() ||
+        Id.GetAssetType() != TAssetTypeTraits<FShaderPayloadAsset>::GetAssetType() ||
+        Version.Validate() != EAssetResult::Success ||
+        !Version.ContentDigest.IsAvailable() ||
+        Backend != EShaderBackendFamily::Metal ||
+        Format != EShaderPayloadFormat::MetalLibrary ||
+        !IsShaderStage(Stage) || Profile.IsEmpty() || EntryPoint.IsEmpty() ||
+        Bytes.empty() ||
+        !IsCanonicalPermutation(Permutation) ||
+        NativeBindingEvidence.Validate() != EAssetResult::Success ||
+        NativeLibraryEvidence.Validate() != EAssetResult::Success ||
+        NativeLibraryEvidence.TargetProfile != Profile ||
+        NativeLibraryEvidence.LibraryDigest !=
+            FAssetDigest::FromBytes(Bytes) ||
+        NativeLibraryEvidence.SizeBytes != Bytes.size())
+    {
+        return EAssetResult::InvalidInput;
+    }
+    OutAsset.Id_ = std::move(Id);
+    OutAsset.Version_ = std::move(Version);
+    OutAsset.Backend_ = Backend;
+    OutAsset.Profile_ = std::move(Profile);
+    OutAsset.Format_ = Format;
+    OutAsset.Stage_ = Stage;
+    OutAsset.EntryPoint_ = std::move(EntryPoint);
+    OutAsset.Permutation_ = std::move(Permutation);
+    OutAsset.Bytes_ = std::move(Bytes);
+    OutAsset.NativeBindingEvidence_ = std::move(NativeBindingEvidence);
+    OutAsset.NativeLibraryEvidence_ = std::move(NativeLibraryEvidence);
+    return EAssetResult::Success;
+}
+
 Core::FString FShaderPayloadAsset::GetAssetType() const
 {
     return TAssetTypeTraits<FShaderPayloadAsset>::GetAssetType();
@@ -105,5 +176,16 @@ EShaderStage FShaderPayloadAsset::GetStage() const noexcept { return Stage_; }
 const Core::FString& FShaderPayloadAsset::GetEntryPoint() const noexcept { return EntryPoint_; }
 const FShaderPermutationKey& FShaderPayloadAsset::GetPermutation() const noexcept { return Permutation_; }
 const Core::TArray<Core::uint8>& FShaderPayloadAsset::GetBytes() const noexcept { return Bytes_; }
+const FShaderNativeBindingEvidence*
+FShaderPayloadAsset::GetNativeBindingEvidence() const noexcept
+{
+    return NativeBindingEvidence_ ? &*NativeBindingEvidence_ : nullptr;
+}
+
+const FShaderNativeLibraryEvidence*
+FShaderPayloadAsset::GetNativeLibraryEvidence() const noexcept
+{
+    return NativeLibraryEvidence_ ? &*NativeLibraryEvidence_ : nullptr;
+}
 
 } // namespace Stoner::Asset

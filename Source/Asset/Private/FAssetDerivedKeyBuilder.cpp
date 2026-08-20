@@ -23,7 +23,8 @@ enum class EFieldTag : Core::uint32
     CodecVersion = 11,
     PayloadSchema = 12,
     EffectiveSettings = 13,
-    RelevantProfile = 14
+    RelevantProfile = 14,
+    AdditionalEvidence = 15
 };
 
 void AppendU32(Core::TArray<Core::uint8>& Out, Core::uint32 Value)
@@ -99,7 +100,10 @@ EAssetResult FAssetDerivedKeyBuilder::BuildCanonicalStreamForTesting(
     {
         return Validation;
     }
-    constexpr std::string_view Domain = "stoner.asset-derived-key.v1";
+    const std::string_view Domain = Evidence.KeyFormatVersion ==
+            FAssetDerivedKeyEvidence::LegacyKeyFormatVersion
+        ? "stoner.asset-derived-key.v1"
+        : "stoner.asset-derived-key.v2";
     AppendString(OutBytes, Domain);
     AppendField(OutBytes, EFieldTag::KeyFormat, [&](auto& Out) {
         AppendU32(Out, Evidence.KeyFormatVersion);
@@ -163,6 +167,18 @@ EAssetResult FAssetDerivedKeyBuilder::BuildCanonicalStreamForTesting(
     AppendField(OutBytes, EFieldTag::RelevantProfile, [&](auto& Out) {
         AppendDigest(Out, Evidence.RelevantProfileDigest);
     });
+    if (Evidence.KeyFormatVersion >=
+        FAssetDerivedKeyEvidence::CurrentKeyFormatVersion)
+    {
+        AppendField(OutBytes, EFieldTag::AdditionalEvidence, [&](auto& Out) {
+            AppendU64(Out, Evidence.AdditionalEvidence.size());
+            for (const auto& Item : Evidence.AdditionalEvidence)
+            {
+                AppendString(Out, Item.Name.View());
+                AppendDigest(Out, Item.Digest);
+            }
+        });
+    }
     return EAssetResult::Success;
 }
 

@@ -1,0 +1,13 @@
+{
+  "schema": "stoner.metal.presentation-fixture-manifest.v1",
+  "lifecycleCases": "lifecycle-cases.json",
+  "expectedFrame": {
+    "path": "expected-frame.rgba8",
+    "width": 2,
+    "height": 2,
+    "format": "RGBA8_UNorm",
+    "origin": "top-left",
+    "byteCount": 16,
+    "sha256": "3922b048d51e806172f5157dc8a306d96abf2cd0815e8bd93d461f97bcb73d00"
+  }
+}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/CoreMinimal.h"
+#include "FDemoBackendFactory.h"
 #include "FDemoConfiguration.h"
 #include "FDemoDiagnostics.h"
 #include "FDemoValidationMonitor.h"
@@ -8,6 +9,10 @@
 
 namespace Stoner::Demo
 {
+
+[[nodiscard]] Stoner::Renderer::FForwardFramePlan BuildTriangleFramePlan(
+    Stoner::Core::uint32 Width,
+    Stoner::Core::uint32 Height);
 
 enum class EDemoLifecycleState
 {
@@ -44,7 +49,9 @@ struct FDemoFrameContext
 class FStonerDemoApplication
 {
 public:
-    explicit FStonerDemoApplication(FDemoConfiguration InConfiguration);
+    explicit FStonerDemoApplication(
+        FDemoConfiguration InConfiguration,
+        Stoner::Core::TSharedPtr<IDemoBackendFactory> InBackendFactory = nullptr);
     ~FStonerDemoApplication();
 
     [[nodiscard]] EDemoExitCode Run();
@@ -54,6 +61,10 @@ public:
     [[nodiscard]] Stoner::Core::uint32 GetCompletedFrames() const noexcept { return CompletedFrames; }
     [[nodiscard]] std::size_t GetFrameContextCount() const noexcept { return FrameContexts.size(); }
     [[nodiscard]] const FDemoDiagnostics& GetDiagnostics() const noexcept { return Diagnostics; }
+    [[nodiscard]] EDemoGraphicsBackend GetGraphicsBackend() const noexcept
+    {
+        return Configuration.GraphicsBackend;
+    }
     void SetFailureInjection(EDemoStage Stage) noexcept { bHasFailureInjection = true; FailureInjectionStage = Stage; }
     [[nodiscard]] EDemoExitCode NotifyDrawableExtent(Stoner::Core::uint32 Width, Stoner::Core::uint32 Height, double NowMilliseconds);
     [[nodiscard]] EDemoExitCode NotifyPresentSuccess(double NowMilliseconds);
@@ -63,6 +74,7 @@ public:
 
 private:
     [[nodiscard]] bool ValidateShaderPayloads();
+    [[nodiscard]] bool LoadStrictCookedMetalShaderPayloads();
     [[nodiscard]] EDemoExitCode RunDeterministic();
     [[nodiscard]] EDemoExitCode RunNativeHeadless();
     [[nodiscard]] EDemoExitCode RunVisible();
@@ -81,8 +93,8 @@ private:
     Stoner::Core::TArray<FDemoFrameContext> FrameContexts;
     Stoner::Core::uint32 CompletedFrames = 0;
     bool bShutdownComplete = false;
-    class FNativeContextHolder;
-    std::unique_ptr<FNativeContextHolder> NativeContext;
+    Stoner::Core::TSharedPtr<IDemoBackendFactory> BackendFactory;
+    Stoner::Core::TUniquePtr<IDemoBackendRuntime> BackendRuntime;
     class FWindowHolder;
     std::unique_ptr<FWindowHolder> Window;
     bool bHasFailureInjection = false;

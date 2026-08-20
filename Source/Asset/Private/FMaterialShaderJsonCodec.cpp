@@ -18,6 +18,20 @@ namespace Stoner::Asset::Private
 namespace
 {
 
+bool ParseRawNumber(const char* Raw, std::size_t Length, double& Out)
+{
+    const std::string Text(Raw, Length);
+    yyjson_val Value{};
+    const char* ParsedEnd = yyjson_read_number(
+        Text.c_str(), &Value, YYJSON_READ_NOFLAG, nullptr, nullptr);
+    if (ParsedEnd != Text.c_str() + Text.size() || !yyjson_is_num(&Value))
+    {
+        return false;
+    }
+    Out = yyjson_get_num(&Value);
+    return std::isfinite(Out);
+}
+
 using FAllowed = std::initializer_list<std::string_view>;
 
 void AddDiagnostic(
@@ -341,12 +355,13 @@ bool FloatValue(yyjson_val* Value, float& Out)
     }
     const char* Raw = yyjson_get_raw(Value);
     const std::size_t Length = yyjson_get_len(Value);
-    float Parsed = 0.0f;
-    const auto Result = std::from_chars(
-        Raw, Raw + Length, Parsed, std::chars_format::general);
-    if (Result.ec != std::errc{} ||
-        Result.ptr != Raw + Length ||
-        !std::isfinite(Parsed))
+    double ParsedDouble = 0.0;
+    if (!ParseRawNumber(Raw, Length, ParsedDouble))
+    {
+        return false;
+    }
+    const float Parsed = static_cast<float>(ParsedDouble);
+    if (!std::isfinite(Parsed))
     {
         return false;
     }
@@ -572,6 +587,7 @@ std::optional<EShaderPayloadFormat> PayloadFormat(std::string_view Text)
     if (Text == "msl") return EShaderPayloadFormat::MSL;
     if (Text == "dxil") return EShaderPayloadFormat::DXIL;
     if (Text == "glsl") return EShaderPayloadFormat::GLSL;
+    if (Text == "metal-library") return EShaderPayloadFormat::MetalLibrary;
     return std::nullopt;
 }
 
@@ -582,6 +598,8 @@ std::optional<EShaderResourceKind> ResourceKind(std::string_view Text)
     if (Text == "sampler") return EShaderResourceKind::Sampler;
     if (Text == "storageBuffer") return EShaderResourceKind::StorageBuffer;
     if (Text == "storageTexture") return EShaderResourceKind::StorageTexture;
+    if (Text == "combinedTextureSampler")
+        return EShaderResourceKind::CombinedTextureSampler;
     return std::nullopt;
 }
 
@@ -1181,6 +1199,7 @@ const char* FormatText(EShaderPayloadFormat Value)
     case EShaderPayloadFormat::MSL: return "msl";
     case EShaderPayloadFormat::DXIL: return "dxil";
     case EShaderPayloadFormat::GLSL: return "glsl";
+    case EShaderPayloadFormat::MetalLibrary: return "metal-library";
     }
     return "unknown";
 }
@@ -1194,6 +1213,8 @@ const char* ResourceKindText(EShaderResourceKind Value)
     case EShaderResourceKind::Sampler: return "sampler";
     case EShaderResourceKind::StorageBuffer: return "storageBuffer";
     case EShaderResourceKind::StorageTexture: return "storageTexture";
+    case EShaderResourceKind::CombinedTextureSampler:
+        return "combinedTextureSampler";
     }
     return "unknown";
 }
@@ -1255,12 +1276,16 @@ void FloatJson(std::string& Out, float Value)
         return;
     }
     char Buffer[64]{};
-    const auto Result = std::to_chars(
-        Buffer,
-        Buffer + sizeof(Buffer),
-        Value,
-        std::chars_format::general);
-    Out.append(Buffer, Result.ptr);
+    yyjson_mut_doc* Document = yyjson_mut_doc_new(nullptr);
+    yyjson_mut_val* JsonNumber = yyjson_mut_float(Document, Value);
+    const char* End = yyjson_mut_write_number(JsonNumber, Buffer);
+    std::size_t Length = static_cast<std::size_t>(End - Buffer);
+    if (Length >= 2 && Buffer[Length - 2] == '.' && Buffer[Length - 1] == '0')
+    {
+        Length -= 2;
+    }
+    Out.append(Buffer, Length);
+    yyjson_mut_doc_free(Document);
 }
 
 const char* ParameterTypeText(

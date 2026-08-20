@@ -285,4 +285,41 @@ FVulkanAdapterSelection SelectBestAdapter(Stoner::Core::TArray<FVulkanAdapterCan
     return Selection;
 }
 
+Stoner::RHI::FRHIDeviceCapabilities MakeVulkanBaselineDeviceCapabilities()
+{
+    using namespace Stoner::RHI;
+    FRHIDeviceCapabilities Capabilities;
+    Capabilities.bSupportsGraphicsQueue = true;
+    Capabilities.bSupportsComputeQueue = true;
+    Capabilities.bSupportsTransferQueue = true;
+    Capabilities.bSupportsSynchronization = true;
+    Capabilities.MaxInFlightFrames = 3;
+    Capabilities.MaxCommandBuffersPerQueue = 64;
+    Capabilities.MaxQueuesPerType = 1;
+    Capabilities.MaxBufferSizeBytes = 128ULL * 1024ULL * 1024ULL;
+    Capabilities.MaxResourceSizeBytes = 128ULL * 1024ULL * 1024ULL;
+    Capabilities.MaxTextureDimension1D = 8192;
+    Capabilities.MaxTextureDimension2D = 8192;
+    Capabilities.MaxTextureDimension3D = 2048;
+    Capabilities.MaxTextureArrayLayers = 256;
+    Capabilities.MaxPerStageBufferBindings = 12;
+    Capabilities.MaxPerStageTextureBindings = 16;
+    Capabilities.MaxPerStageSamplerBindings = 16;
+    Capabilities.MaxConstantRangeBytes = 128;
+    Capabilities.MaxConstantDataBytesPerStage = 128;
+    Capabilities.MaxComputeThreadgroupSizeX = 128;
+    Capabilities.MaxComputeThreadgroupSizeY = 128;
+    Capabilities.MaxComputeThreadgroupSizeZ = 64;
+    Capabilities.MaxComputeThreadsPerThreadgroup = 128;
+    Capabilities.MaxComputeDispatchGroupsX = 65535;
+    Capabilities.MaxComputeDispatchGroupsY = 65535;
+    Capabilities.MaxComputeDispatchGroupsZ = 65535;
+    Capabilities.SupportedSampleCounts =
+        static_cast<Stoner::Core::uint32>(ERHISampleCount::One) |
+        static_cast<Stoner::Core::uint32>(ERHISampleCount::Two) |
+        static_cast<Stoner::Core::uint32>(ERHISampleCount::Four) |
+        static_cast<Stoner::Core::uint32>(ERHISampleCount::Eight);
+    return Capabilities;
+}
+
 } // namespace Stoner::Backend::Vulkan

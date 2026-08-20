@@ -121,6 +121,19 @@ std::string EntryJson(const FAssetDerivedDataEntry& Entry)
     Key(Out, "payloadSchemaVersion"); Out += std::to_string(Evidence.PayloadSchemaVersion); Out.push_back(',');
     Key(Out, "effectiveSettingsDigest"); DigestText(Evidence.EffectiveSettingsDigest, Out); Out.push_back(',');
     Key(Out, "relevantProfileDigest"); DigestText(Evidence.RelevantProfileDigest, Out);
+    if (Evidence.KeyFormatVersion >= FAssetDerivedKeyEvidence::CurrentKeyFormatVersion)
+    {
+        Out.push_back(',');
+        Key(Out, "additionalEvidence"); Out.push_back('[');
+        for (Core::usize Index = 0; Index < Evidence.AdditionalEvidence.size(); ++Index)
+        {
+            if (Index) Out.push_back(',');
+            const auto& Item = Evidence.AdditionalEvidence[Index];
+            Out.push_back('{'); Key(Out, "name"); Escape(Item.Name.View(), Out); Out.push_back(',');
+            Key(Out, "digest"); DigestText(Item.Digest, Out); Out.push_back('}');
+        }
+        Out.push_back(']');
+    }
     Out += "},";
     Key(Out, "codecId"); Escape(Entry.CodecId.ToString().View(), Out); Out.push_back(',');
     Key(Out, "codecVersion"); Escape(Entry.CodecVersion.ToString().View(), Out); Out.push_back(',');
@@ -224,8 +237,10 @@ bool ParseVersion(yyjson_val* Object, FAssetVersion& Out)
 
 bool ParseEvidence(yyjson_val* Object, const FAssetDerivedDataEntryLimits& Limits, FAssetDerivedKeyEvidence& Out)
 {
-    if (!Closed(Object, {"keyFormatVersion", "assetId", "sourceVersion", "sources", "dependencies", "importerId", "importerVersion", "cookerId", "cookerVersion", "codecId", "codecVersion", "payloadSchemaVersion", "effectiveSettingsDigest", "relevantProfileDigest"}) ||
-        !Unsigned(Object, "keyFormatVersion", Out.KeyFormatVersion) ||
+    if (!Unsigned(Object, "keyFormatVersion", Out.KeyFormatVersion) ||
+        !Closed(Object, Out.KeyFormatVersion == FAssetDerivedKeyEvidence::LegacyKeyFormatVersion
+            ? std::initializer_list<std::string_view>{"keyFormatVersion", "assetId", "sourceVersion", "sources", "dependencies", "importerId", "importerVersion", "cookerId", "cookerVersion", "codecId", "codecVersion", "payloadSchemaVersion", "effectiveSettingsDigest", "relevantProfileDigest"}
+            : std::initializer_list<std::string_view>{"keyFormatVersion", "assetId", "sourceVersion", "sources", "dependencies", "importerId", "importerVersion", "cookerId", "cookerVersion", "codecId", "codecVersion", "payloadSchemaVersion", "effectiveSettingsDigest", "relevantProfileDigest", "additionalEvidence"}) ||
         !Unsigned(Object, "payloadSchemaVersion", Out.PayloadSchemaVersion) ||
         !Digest(Object, "sourceVersion", Out.SourceVersion) ||
         !Digest(Object, "effectiveSettingsDigest", Out.EffectiveSettingsDigest) ||
@@ -264,6 +279,22 @@ bool ParseEvidence(yyjson_val* Object, const FAssetDerivedDataEntryLimits& Limit
         else return false;
         Out.Dependencies.push_back(std::move(Dependency));
     }
+    if (Out.KeyFormatVersion == FAssetDerivedKeyEvidence::CurrentKeyFormatVersion)
+    {
+        yyjson_val* Additional = yyjson_obj_get(Object, "additionalEvidence");
+        if (!yyjson_is_arr(Additional) || yyjson_arr_size(Additional) == 0 ||
+            yyjson_arr_size(Additional) > Limits.MaxAdditionalEvidence)
+            return false;
+        yyjson_arr_foreach(Additional, Index, Count, Value)
+        {
+            FAssetDerivedNamedEvidence Item;
+            if (!Closed(Value, {"name", "digest"}) ||
+                !Text(Value, "name", Item.Name) ||
+                !Digest(Value, "digest", Item.Digest))
+                return false;
+            Out.AdditionalEvidence.push_back(std::move(Item));
+        }
+    }
     return Out.Validate() == EAssetResult::Success;
 }
 
@@ -290,7 +321,8 @@ EAssetResult ParseAssetDerivedDataEntry(
     OutEntry = {};
     if (Bytes.empty() || Bytes.size() > Limits.MaxMetadataBytes ||
         Limits.MaxMetadataBytes == 0 || Limits.MaxSources == 0 ||
-        Limits.MaxDependencies == 0 || Limits.MaxRequiredExtensions == 0)
+        Limits.MaxDependencies == 0 || Limits.MaxAdditionalEvidence == 0 ||
+        Limits.MaxRequiredExtensions == 0)
         return EAssetResult::DefinitionLimitExceeded;
     constexpr yyjson_read_flag Flags = YYJSON_READ_NUMBER_AS_RAW;
     const std::size_t Required = yyjson_read_max_memory_usage(Bytes.size(), Flags);

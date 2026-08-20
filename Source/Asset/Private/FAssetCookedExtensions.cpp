@@ -85,7 +85,8 @@ Core::TArray<Core::FString> RelevantFields(EAssetCookedFamily Family)
                 Core::FString("textureFallback")};
     case EAssetCookedFamily::MaterialShader:
         return {Core::FString("graphicsBackend"),
-                Core::FString("shaderPayloadChoices")};
+                Core::FString("shaderPayloadChoices"),
+                Core::FString("metalShaderTarget")};
     case EAssetCookedFamily::StaticModel:
         return {};
     }
@@ -114,6 +115,7 @@ const char* ShaderFormatToken(EAssetShaderPayloadFormat Format)
     case EAssetShaderPayloadFormat::DXIL: return "dxil";
     case EAssetShaderPayloadFormat::GLSL: return "glsl";
     case EAssetShaderPayloadFormat::ESSL: return "essl";
+    case EAssetShaderPayloadFormat::MetalLibrary: return "metal-library";
     }
     return "unknown";
 }
@@ -212,6 +214,24 @@ EAssetResult ResolveMaterialDecision(
                     std::string("shader:") + BackendToken(Choice.Backend) +
                     "/" + Choice.Profile.ToStdString() + "/" +
                     ShaderFormatToken(Choice.Format));
+                Out.bUsedFallback = Index != 0;
+                return EAssetResult::Success;
+            }
+        }
+        if (ShaderPayload->GetBackend() == EShaderBackendFamily::Vulkan &&
+            ShaderPayload->GetFormat() == EShaderPayloadFormat::SPIRV &&
+            Profile.GraphicsBackend == EAssetGraphicsBackend::Metal)
+        {
+            for (Core::usize Index = 0;
+                 Index < Profile.ShaderPayloadChoices.size(); ++Index)
+            {
+                const auto& Choice = Profile.ShaderPayloadChoices[Index];
+                if (Choice.Backend != EAssetGraphicsBackend::Metal ||
+                    Choice.Format != EAssetShaderPayloadFormat::MetalLibrary)
+                    continue;
+                Out.Selection = Core::FString(
+                    std::string("shader-derived:metal/") +
+                    Choice.Profile.ToStdString() + "/metal-library");
                 Out.bUsedFallback = Index != 0;
                 return EAssetResult::Success;
             }

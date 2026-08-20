@@ -46,8 +46,56 @@ RHI::ERHIDescriptorType Descriptor(Asset::EShaderResourceKind Value)
         return RHI::ERHIDescriptorType::StorageBuffer;
     case Asset::EShaderResourceKind::StorageTexture:
         return RHI::ERHIDescriptorType::StorageTexture;
+    case Asset::EShaderResourceKind::CombinedTextureSampler:
+        return RHI::ERHIDescriptorType::CombinedTextureSampler;
     }
     return RHI::ERHIDescriptorType::UniformBuffer;
+}
+
+RHI::ERHINativeResourceClass NativeClass(
+    Asset::EShaderNativeResourceClass Value)
+{
+    switch (Value)
+    {
+    case Asset::EShaderNativeResourceClass::Buffer:
+        return RHI::ERHINativeResourceClass::Buffer;
+    case Asset::EShaderNativeResourceClass::Texture:
+        return RHI::ERHINativeResourceClass::Texture;
+    case Asset::EShaderNativeResourceClass::Sampler:
+        return RHI::ERHINativeResourceClass::Sampler;
+    }
+    return static_cast<RHI::ERHINativeResourceClass>(255);
+}
+
+bool ConvertNativeBindingEvidence(
+    const Asset::FShaderNativeBindingEvidence& Evidence,
+    RHI::FRHINativeBindingMap& Out)
+{
+    Out = {};
+    if (Evidence.Validate() != Asset::EAssetResult::Success) return false;
+    Out.PolicyVersion = Evidence.PolicyVersion;
+    for (const auto& Entry : Evidence.Entries)
+    {
+        Out.Entries.push_back({
+            Stage(Entry.Stage), Entry.SetIndex, Entry.BindingIndex,
+            Descriptor(Entry.DescriptorType), Entry.ArrayElement,
+            NativeClass(Entry.NativeClass), Entry.NativeIndex});
+    }
+    for (const auto& Range : Evidence.ReservedRanges)
+    {
+        Out.ReservedRanges.push_back({
+            Stage(Range.Stage), NativeClass(Range.NativeClass),
+            Range.FirstIndex, Range.Count, Range.Purpose});
+    }
+    for (const auto& Limit : Evidence.LimitSnapshot)
+    {
+        Out.LimitSnapshot.push_back({
+            Stage(Limit.Stage), NativeClass(Limit.NativeClass),
+            Limit.MaxCount});
+    }
+    Out.CanonicalDigest.bAvailable = Evidence.CanonicalDigest.IsAvailable();
+    Out.CanonicalDigest.Bytes = Evidence.CanonicalDigest.GetBytes();
+    return RHI::IsCanonicalRHINativeBindingMap(Out);
 }
 
 EMaterialParameterValueType ParameterType(
@@ -149,12 +197,19 @@ EMaterialResult ConvertShaderAsset(
     {
         const Asset::FSelectedShaderStage& SelectedStage =
             Selected.Stages[Index];
-        if (!SelectedStage.Payload ||
-            SelectedStage.Payload->GetFormat() !=
-                Asset::EShaderPayloadFormat::SPIRV ||
+        const bool bSpirv = SelectedStage.Payload &&
+            Selected.Backend == Asset::EShaderBackendFamily::Vulkan &&
+            SelectedStage.Payload->GetFormat() ==
+                Asset::EShaderPayloadFormat::SPIRV;
+        const bool bMetalLibrary = SelectedStage.Payload &&
+            Selected.Backend == Asset::EShaderBackendFamily::Metal &&
+            SelectedStage.Payload->GetFormat() ==
+                Asset::EShaderPayloadFormat::MetalLibrary;
+        if ((!bSpirv && !bMetalLibrary) ||
             SelectedStage.Payload->GetStage() != SelectedStage.Stage ||
-            SelectedStage.Payload->GetBytes().size() % sizeof(Core::uint32) !=
-                0)
+            (bSpirv &&
+             SelectedStage.Payload->GetBytes().size() % sizeof(Core::uint32) !=
+                 0))
         {
             Diagnose(Diagnostics, "MAT-ASSET-SHADER-PAYLOAD");
             return EMaterialResult::ValidationFailed;
@@ -163,16 +218,40 @@ EMaterialResult ConvertShaderAsset(
         RHI::FRHIShaderModuleDesc Module;
         Module.Stage = Stage(SelectedStage.Stage);
         Module.EntryPoint = SelectedStage.Payload->GetEntryPoint();
-        Module.PayloadIdentity =
+        Module.Payload.Format = bMetalLibrary
+            ? RHI::ERHIShaderPayloadFormat::MetalLibrary
+            : RHI::ERHIShaderPayloadFormat::SPIRV;
+        Module.Payload.PayloadIdentity =
             SelectedStage.Payload->GetId().ToString();
-        Module.DebugName = Module.PayloadIdentity;
-        Module.Bytecode.Words.resize(
-            SelectedStage.Payload->GetBytes().size() /
-            sizeof(Core::uint32));
-        std::memcpy(
-            Module.Bytecode.Words.data(),
-            SelectedStage.Payload->GetBytes().data(),
-            SelectedStage.Payload->GetBytes().size());
+        Module.Payload.TargetProfile = Selected.SelectedProfile;
+        Module.Payload.Bytes = SelectedStage.Payload->GetBytes();
+        Module.Payload.PayloadDigest =
+            RHI::ComputeRHISha256(Module.Payload.Bytes);
+        if (bMetalLibrary)
+        {
+            const auto* NativeEvidence =
+                SelectedStage.Payload->GetNativeBindingEvidence();
+            const auto* NativeLibrary =
+                SelectedStage.Payload->GetNativeLibraryEvidence();
+            if (!NativeEvidence || !NativeLibrary ||
+                NativeLibrary->Validate() != Asset::EAssetResult::Success ||
+                NativeLibrary->TargetProfile != Selected.SelectedProfile ||
+                NativeLibrary->LibraryDigest !=
+                    SelectedStage.Payload->GetVersion().ContentDigest ||
+                NativeLibrary->LibraryDigest !=
+                    Asset::FAssetDigest::FromBytes(
+                        SelectedStage.Payload->GetBytes()) ||
+                !ConvertNativeBindingEvidence(
+                    *NativeEvidence, Module.NativeBindingMap))
+            {
+                Diagnose(Diagnostics, "MAT-ASSET-SHADER-NATIVE-BINDING");
+                return EMaterialResult::ValidationFailed;
+            }
+            Module.ValidationMode =
+                RHI::ERHIShaderBytecodeValidationMode::Runtime;
+            Module.RuntimeMode = RHI::ERHIRuntimeObjectMode::RealRuntime;
+        }
+        Module.DebugName = Module.Payload.PayloadIdentity;
         Module.InterfaceMetadata.DebugName = Record.ShaderId;
         for (const Asset::FShaderInterfaceBinding& Binding :
              Selected.InterfaceBindings)

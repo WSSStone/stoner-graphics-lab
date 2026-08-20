@@ -2,13 +2,44 @@
 
 Import('env', 'platform', 'config', 'build_base')
 import os
+from LayerBuilder import BuildPrivateCppLibrary
 
 tool_env = env.Clone()
 tool_env.Append(CPPPATH=[
     Dir('#Tools/AssetCooker/Public').abspath,
+    Dir('#ThirdParty/spirv-cross').abspath,
     Dir('#Source/Asset/Public').abspath,
     Dir('#Source/Core/Public').abspath,
 ])
+if platform == 'Mac':
+    tool_env['ENV'] = dict(tool_env.get('ENV', {}))
+    tool_env['ENV']['MACOSX_DEPLOYMENT_TARGET'] = '12.0'
+    if '-mmacosx-version-min=12.0' not in tool_env.get('CCFLAGS', []):
+        tool_env.Append(CCFLAGS=['-mmacosx-version-min=12.0'])
+    if '-mmacosx-version-min=12.0' not in tool_env.get('LINKFLAGS', []):
+        tool_env.Append(LINKFLAGS=['-mmacosx-version-min=12.0'])
+
+spirv_cross_sources = [
+    'ThirdParty/spirv-cross/spirv_cross.cpp',
+    'ThirdParty/spirv-cross/spirv_cross_parsed_ir.cpp',
+    'ThirdParty/spirv-cross/spirv_parser.cpp',
+    'ThirdParty/spirv-cross/spirv_cfg.cpp',
+    'ThirdParty/spirv-cross/spirv_glsl.cpp',
+    'ThirdParty/spirv-cross/spirv_msl.cpp',
+]
+spirv_cross_build_dir = os.path.join(
+    build_base, 'Tools', 'AssetCooker', 'ThirdParty', 'spirv-cross')
+spirv_cross_warning_flags = ['/w'] if platform == 'Win64' else ['-w']
+spirv_cross_library = BuildPrivateCppLibrary(
+    env,
+    'stoner_spirv_cross',
+    spirv_cross_sources,
+    ['ThirdParty/spirv-cross'],
+    spirv_cross_build_dir,
+    ccflags=spirv_cross_warning_flags,
+    deployment_target='12.0' if platform == 'Mac' else None,
+)
+env['STONER_ASSET_COOKER_THIRD_PARTY_LIBS'] = spirv_cross_library
 
 library = tool_env.StaticLibrary(
     'AssetCooker',
@@ -25,6 +56,11 @@ library = tool_env.StaticLibrary(
         'Private/FDerivedDataStore.cpp',
         'Private/FAssetSourceCatalog.cpp',
         'Private/FCookInputSnapshot.cpp',
+        'Private/FMetalBindingMap.cpp',
+        'Private/FMetalLibraryCompiler.cpp',
+        'Private/FMetalShaderCooker.cpp',
+        'Private/FMetalShaderEvidenceCodec.cpp',
+        'Private/FSpirvCrossMslDeriver.cpp',
     ],
 )
 
@@ -34,7 +70,7 @@ tool_env.Append(LIBPATH=[
     Dir(os.path.join(build_root, 'Asset')).abspath,
     Dir(os.path.join(build_root, 'Core')).abspath,
 ])
-tool_env.Append(LIBS=[library, 'Asset', 'Core'])
+tool_env.Append(LIBS=[library, spirv_cross_library, 'Asset', 'Core'])
 tool_env.Append(LIBS=env.get('STONER_ASSET_THIRD_PARTY_LIBS', []))
 if platform == 'Linux':
     tool_env.Append(LIBS=['dl'])

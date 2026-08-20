@@ -79,6 +79,18 @@ FAssetTargetProfile MakeProfile(const char* DisplayName = "Mac Vulkan Dev")
     return Profile;
 }
 
+FAssetTargetProfile MakeMetalProfile()
+{
+    FAssetTargetProfile Profile = MakeProfile("Mac Metal Dev");
+    Profile.GraphicsBackend = EAssetGraphicsBackend::Metal;
+    Profile.ShaderPayloadChoices = {{
+        EAssetGraphicsBackend::Metal,
+        FString("metal-macos-12-arm64"),
+        EAssetShaderPayloadFormat::MetalLibrary}};
+    Profile.MetalShaderTarget = FAssetMetalShaderTarget{};
+    return Profile;
+}
+
 void TestCanonicalRoundTrip(FAssetCookerProfileTestResult& Result)
 {
     const FString Fixture = ReadText(
@@ -124,8 +136,9 @@ void TestEffectiveIdentity(FAssetCookerProfileTestResult& Result)
     IrrelevantProfile.GraphicsBackend = EAssetGraphicsBackend::Metal;
     IrrelevantProfile.ShaderPayloadChoices = {{
         EAssetGraphicsBackend::Metal,
-        FString("metal2.4"),
-        EAssetShaderPayloadFormat::MSL}};
+        FString("metal-macos-12-arm64"),
+        EAssetShaderPayloadFormat::MetalLibrary}};
+    IrrelevantProfile.MetalShaderTarget = FAssetMetalShaderTarget{};
     FString IrrelevantText;
     FAssetTargetProfileEvidence Irrelevant;
     (void)WriteAssetTargetProfile(
@@ -170,8 +183,8 @@ void TestStrictFailures(FAssetCookerProfileTestResult& Result)
         "unknown profile fields fail closed");
 
     std::string WrongSchema = Canonical.ToStdString();
-    const std::size_t Version = WrongSchema.find("\"schemaVersion\": 1");
-    WrongSchema[Version + 17] = '2';
+    const std::size_t Version = WrongSchema.find("\"schemaVersion\": 2");
+    WrongSchema[Version + 17] = '3';
     Record(
         Result,
         ParseAssetTargetProfile(Bytes(WrongSchema), Parsed) ==
@@ -194,6 +207,53 @@ void TestStrictFailures(FAssetCookerProfileTestResult& Result)
         Result,
         Missing.Validate() != EAssetResult::Success,
         "profile requires explicit producer settings");
+}
+
+void TestMetalProfileV2(FAssetCookerProfileTestResult& Result)
+{
+    const FAssetTargetProfile Profile = MakeMetalProfile();
+    FString Canonical;
+    FAssetTargetProfileEvidence Written;
+    const EAssetResult Write =
+        WriteAssetTargetProfile(Profile, Canonical, &Written);
+    FAssetTargetProfileEvidence Parsed;
+    const auto CanonicalBytes = Bytes(Canonical.View());
+    const EAssetResult Parse =
+        ParseAssetTargetProfile(CanonicalBytes, Parsed);
+    Record(
+        Result,
+        Write == EAssetResult::Success && Parse == EAssetResult::Success &&
+            Parsed == Written &&
+            Canonical.View().find("\"metal-library\"") !=
+                std::string_view::npos &&
+            Canonical.View().find("\"deploymentTarget\": \"12.0\"") !=
+                std::string_view::npos,
+        "v2 Metal profile round-trips architecture and native target requirements");
+
+    FAssetTargetProfile MissingTarget = Profile;
+    MissingTarget.MetalShaderTarget.reset();
+    FAssetTargetProfile WrongDeployment = Profile;
+    WrongDeployment.MetalShaderTarget->DeploymentTarget = FString("14.0");
+    FAssetTargetProfile LegacyMetal = Profile;
+    LegacyMetal.SchemaVersion = 1;
+    LegacyMetal.MetalShaderTarget.reset();
+    Record(
+        Result,
+        MissingTarget.Validate() != EAssetResult::Success &&
+            WrongDeployment.Validate() != EAssetResult::Success &&
+            LegacyMetal.Validate() != EAssetResult::Success,
+        "MetalLibrary requires valid v2 deployment and evidence policy fields");
+
+    const TArray<FString> Fields = {FString("metalShaderTarget")};
+    FAssetProfileProjectionEvidence Projection;
+    Record(
+        Result,
+        BuildAssetProfileProjection(
+            Written, Participant("cooker.cooked-material-shader"), 1,
+            Fields, Projection) == EAssetResult::Success &&
+            Projection.CanonicalRelevantProfile.View().find(
+                "metal-direct-binding-v1") != std::string_view::npos,
+        "Metal target requirements participate in material shader cook identity");
 }
 
 void TestKTX2Projection(FAssetCookerProfileTestResult& Result)
@@ -250,6 +310,7 @@ FAssetCookerProfileTestResult RunAssetCookerProfileTests()
     TestCanonicalRoundTrip(Result);
     TestEffectiveIdentity(Result);
     TestStrictFailures(Result);
+    TestMetalProfileV2(Result);
     TestKTX2Projection(Result);
     return Result;
 }

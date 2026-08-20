@@ -62,8 +62,8 @@ Stoner::RHI::FRHIShaderModuleDesc NativeShaderDesc(
     Stoner::RHI::FRHIShaderModuleDesc Desc;
     Desc.Stage = Stage;
     Desc.EntryPoint = EntryPoint;
-    Desc.PayloadIdentity = Identity;
-    Desc.Bytecode.Words = std::move(Words);
+    (void)Stoner::RHI::SetRHIShaderSpirvWords(
+        Desc.Payload, Words, Identity);
     return Desc;
 }
 
@@ -202,10 +202,8 @@ FVulkanNativeIntegrationTestResult RunVulkanNativeIntegrationTests()
     FRHIShaderModuleDesc ShaderDesc;
     ShaderDesc.Stage = ERHIShaderStage::Vertex;
     ShaderDesc.EntryPoint = "NativeVS";
-    ShaderDesc.PayloadIdentity = "native-rhi-shader";
-    ShaderDesc.Bytecode.Words =
-        Stoner::Tests::MakeMinimalShaderBytecode(
-            ERHIShaderStage::Vertex, "NativeVS");
+    ShaderDesc.Payload = Stoner::Tests::MakeMinimalShaderPayload(
+        ERHIShaderStage::Vertex, "NativeVS", "native-rhi-shader");
     const auto NativeShader = ShaderDevice.CreateShaderModule(ShaderDesc);
     auto ConcreteShader =
         std::dynamic_pointer_cast<FVulkanShaderModule>(NativeShader.Object);

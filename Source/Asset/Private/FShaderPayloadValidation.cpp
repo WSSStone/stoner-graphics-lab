@@ -1,5 +1,8 @@
 #include "FShaderPayloadValidation.h"
 
+#include "Asset/FShaderPayloadAsset.h"
+
+#include <algorithm>
 #include <cstring>
 
 namespace Stoner::Asset::Private
@@ -33,6 +36,16 @@ EAssetResult ValidateShaderPayloadBytes(
     EShaderStage Stage,
     const Core::FString& EntryPoint)
 {
+    if (ExecutionModel(Stage) == ~Core::uint32{0})
+    {
+        return EAssetResult::DependencyMismatch;
+    }
+    if (Format == EShaderPayloadFormat::MetalLibrary)
+    {
+        return !Bytes.empty() && !EntryPoint.IsEmpty()
+            ? EAssetResult::Success
+            : EAssetResult::DependencyMismatch;
+    }
     if (Format != EShaderPayloadFormat::SPIRV ||
         Bytes.size() < 20 ||
         Bytes.size() % 4 != 0 ||
@@ -88,6 +101,49 @@ EAssetResult ValidateShaderPayloadBytes(
         Index += Count;
     }
     return EAssetResult::DependencyMismatch;
+}
+
+EAssetResult ValidateStrictCookedShaderPayload(
+    const FAssetTargetProfile& Profile,
+    Core::uint32 CodecVersion,
+    Core::uint32 PayloadSchemaVersion,
+    const FAssetPayload& Payload) noexcept
+{
+    if (Profile.GraphicsBackend != EAssetGraphicsBackend::Metal)
+        return EAssetResult::Success;
+    const auto* Shader = dynamic_cast<const FShaderPayloadAsset*>(&Payload);
+    if (!Shader || CodecVersion != 2 || PayloadSchemaVersion != 2 ||
+        Shader->GetBackend() != EShaderBackendFamily::Metal ||
+        Shader->GetFormat() != EShaderPayloadFormat::MetalLibrary ||
+        !Profile.MetalShaderTarget)
+        return EAssetResult::CorruptPayload;
+    const auto Choice = std::find_if(
+        Profile.ShaderPayloadChoices.begin(),
+        Profile.ShaderPayloadChoices.end(),
+        [Shader](const auto& Candidate)
+        {
+            return Candidate.Backend == EAssetGraphicsBackend::Metal &&
+                Candidate.Format == EAssetShaderPayloadFormat::MetalLibrary &&
+                Candidate.Profile == Shader->GetProfile();
+        });
+    const auto* Binding = Shader->GetNativeBindingEvidence();
+    const auto* Library = Shader->GetNativeLibraryEvidence();
+    const Core::FString ExpectedArchitecture =
+        Profile.CpuArchitecture == EAssetTargetCpuArchitecture::Arm64
+        ? Core::FString("arm64") : Core::FString("x86_64");
+    return Choice != Profile.ShaderPayloadChoices.end() && Binding && Library &&
+            Binding->Validate() == EAssetResult::Success &&
+            Library->Validate() == EAssetResult::Success &&
+            Library->TargetProfile == Shader->GetProfile() &&
+            Library->Architecture == ExpectedArchitecture &&
+            Library->DeploymentTarget ==
+                Profile.MetalShaderTarget->DeploymentTarget &&
+            Library->LanguageVersion == Profile.MetalShaderTarget->MslVersion &&
+            Library->LibraryDigest ==
+                FAssetDigest::FromBytes(Shader->GetBytes()) &&
+            Library->SizeBytes == Shader->GetBytes().size()
+        ? EAssetResult::Success
+        : EAssetResult::CorruptPayload;
 }
 
 } // namespace Stoner::Asset::Private

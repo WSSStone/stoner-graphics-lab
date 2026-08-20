@@ -2,6 +2,7 @@
 
 #include "Asset/FAssetCookContractCodec.h"
 #include "Core/FPlatformFileSystem.h"
+#include "FShaderPayloadValidation.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -76,7 +77,13 @@ FAssetLoadScratchResult FCookedAssetLoadingStrategy::Load(
         Envelope.Header.CodecId != Found->Codec.Id.ToString() ||
         Found->Codec.Version.ToString() != Core::FString(
             std::to_string(Envelope.Header.CodecVersion)) ||
-        Envelope.Header.PayloadSchemaVersion != Found->PayloadSchemaVersion)
+        Envelope.Header.PayloadSchemaVersion != Found->PayloadSchemaVersion ||
+        (Found->AssetType == Core::FString("ShaderPayload") &&
+         ValidateStrictCookedShaderPayload(
+             Manifest.TargetProfile.Profile,
+             Envelope.Header.CodecVersion,
+             Envelope.Header.PayloadSchemaVersion,
+             *Payload) != EAssetResult::Success))
     {
         Out.Result = EAssetResult::CorruptPayload;
         return Out;

@@ -1243,6 +1243,29 @@ public:
         Capabilities.MaxInFlightFrames = 3;
         Capabilities.MaxCommandBuffersPerQueue = 64;
         Capabilities.MaxQueuesPerType = 1;
+        Capabilities.MaxBufferSizeBytes = 128ULL * 1024ULL * 1024ULL;
+        Capabilities.MaxResourceSizeBytes = 128ULL * 1024ULL * 1024ULL;
+        Capabilities.MaxTextureDimension1D = 8192;
+        Capabilities.MaxTextureDimension2D = 8192;
+        Capabilities.MaxTextureDimension3D = 2048;
+        Capabilities.MaxTextureArrayLayers = 256;
+        Capabilities.MaxPerStageBufferBindings = 12;
+        Capabilities.MaxPerStageTextureBindings = 16;
+        Capabilities.MaxPerStageSamplerBindings = 16;
+        Capabilities.MaxConstantRangeBytes = 128;
+        Capabilities.MaxConstantDataBytesPerStage = 128;
+        Capabilities.MaxComputeThreadgroupSizeX = 128;
+        Capabilities.MaxComputeThreadgroupSizeY = 128;
+        Capabilities.MaxComputeThreadgroupSizeZ = 64;
+        Capabilities.MaxComputeThreadsPerThreadgroup = 128;
+        Capabilities.MaxComputeDispatchGroupsX = 65535;
+        Capabilities.MaxComputeDispatchGroupsY = 65535;
+        Capabilities.MaxComputeDispatchGroupsZ = 65535;
+        Capabilities.SupportedSampleCounts =
+            static_cast<uint32>(ERHISampleCount::One) |
+            static_cast<uint32>(ERHISampleCount::Two) |
+            static_cast<uint32>(ERHISampleCount::Four) |
+            static_cast<uint32>(ERHISampleCount::Eight);
         Capabilities.Formats = {
             MakeRHIFormatCapabilities(ERHIFormat::R8_UNorm),
             MakeRHIFormatCapabilities(ERHIFormat::R8G8_UNorm),
@@ -1776,6 +1799,43 @@ void TestCoreValuesAndCapabilities(FRHICoreTestResult& Result)
     Record(Result, !Capabilities.SupportsQueue(ERHIQueueType::Transfer), "FRHIDeviceCapabilities rejects unsupported transfer queue");
     Record(Result, Capabilities.SupportsFormat(ERHIFormat::R8G8B8A8_UNorm), "FRHIDeviceCapabilities reports supported color format");
     Record(Result, !Capabilities.SupportsFormat(ERHIFormat::S8_UInt), "FRHIDeviceCapabilities rejects unsupported stencil format");
+
+    FMockDevice CapabilityDevice;
+    const FRHIDeviceCapabilities CompleteCapabilities =
+        CapabilityDevice.GetCapabilities();
+    Record(Result,
+        IsValidRHIDeviceCapabilities(CompleteCapabilities) &&
+            CompleteCapabilities.SupportsSampleCount(ERHISampleCount::Four) &&
+            DumpRHIDeviceCapabilities(CompleteCapabilities).View().find(
+                "valid=1") != std::string_view::npos,
+        "RHI device capability limits validate and dump canonically");
+    FRHIDeviceCapabilities InvalidLimits = CompleteCapabilities;
+    InvalidLimits.MaxBufferSizeBytes = 0;
+    Record(Result, !IsValidRHIDeviceCapabilities(InvalidLimits),
+        "RHI device capabilities reject a missing buffer-size limit");
+    InvalidLimits = CompleteCapabilities;
+    InvalidLimits.MaxTextureDimension2D = 0;
+    Record(Result, !IsValidRHIDeviceCapabilities(InvalidLimits),
+        "RHI device capabilities reject a missing texture-dimension limit");
+    InvalidLimits = CompleteCapabilities;
+    InvalidLimits.MaxPerStageTextureBindings = 0;
+    Record(Result, !IsValidRHIDeviceCapabilities(InvalidLimits),
+        "RHI device capabilities reject a missing per-stage binding limit");
+    InvalidLimits = CompleteCapabilities;
+    InvalidLimits.MaxConstantDataBytesPerStage =
+        InvalidLimits.MaxConstantRangeBytes - 1U;
+    Record(Result, !IsValidRHIDeviceCapabilities(InvalidLimits),
+        "RHI device capabilities reject inconsistent constant-data limits");
+    InvalidLimits = CompleteCapabilities;
+    InvalidLimits.SupportedSampleCounts =
+        static_cast<uint32>(ERHISampleCount::Two);
+    Record(Result, !IsValidRHIDeviceCapabilities(InvalidLimits),
+        "RHI device capabilities require single-sample support");
+    InvalidLimits = CompleteCapabilities;
+    InvalidLimits.MaxComputeThreadsPerThreadgroup =
+        std::numeric_limits<uint32>::max();
+    Record(Result, !IsValidRHIDeviceCapabilities(InvalidLimits),
+        "RHI device capabilities reject impossible compute threadgroup limits");
 }
 
 void TestRuntimeAndPresentationContracts(FRHICoreTestResult& Result)
@@ -2124,9 +2184,8 @@ void TestSwapchain(FRHICoreTestResult& Result)
     FRHIShaderModuleDesc Desc;
     Desc.Stage = Stage;
     Desc.EntryPoint = EntryPoint;
-    Desc.PayloadIdentity = Payload;
-    Desc.Bytecode.Words =
-        Stoner::Tests::MakeMinimalShaderBytecode(Stage, EntryPoint);
+    Desc.Payload = Stoner::Tests::MakeMinimalShaderPayload(
+        Stage, EntryPoint, Payload);
     const ERHIShaderStageFlags Visibility = ToShaderStageFlag(Stage);
     if (Stage == ERHIShaderStage::Vertex)
     {
@@ -2754,8 +2813,99 @@ void TestShaderAndPipelineContracts(FRHICoreTestResult& Result)
     const auto Compute = Device.CreateShaderModule(MakeShaderDesc(ERHIShaderStage::Compute, "MainCS", "cs_payload"));
 
     Record(Result, Vertex.Succeeded() && Vertex.Object->GetStage() == ERHIShaderStage::Vertex &&
-            Vertex.Object->GetDesc().PayloadIdentity == FString("vs_payload"),
+            Vertex.Object->GetDesc().Payload.PayloadIdentity == FString("vs_payload"),
         "IRHIShaderModule preserves stage, entry point, and opaque payload identity");
+
+    FRHIShaderModuleDesc MetalLibrary =
+        MakeShaderDesc(ERHIShaderStage::Vertex, "MainVS", "metal_payload");
+    MetalLibrary.Payload.Format = ERHIShaderPayloadFormat::MetalLibrary;
+    MetalLibrary.Payload.Bytes = {0x4d, 0x54, 0x4c, 0x42, 0x01};
+    MetalLibrary.Payload.TargetProfile = "Mac-Metal-Arm64-v2";
+    MetalLibrary.Payload.PayloadDigest =
+        ComputeRHISha256(MetalLibrary.Payload.Bytes);
+    Record(Result,
+        IsValidRHIShaderModuleDesc(MetalLibrary),
+        "RHI accepts an opaque typed MetalLibrary payload without parsing it as SPIR-V");
+    const FRHISha256Digest AbcDigest = ComputeRHISha256(
+        TArray<uint8>{'a', 'b', 'c'});
+    const std::array<uint8, 32> ExpectedAbcDigest = {
+        0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea,
+        0x41, 0x41, 0x40, 0xde, 0x5d, 0xae, 0x22, 0x23,
+        0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c,
+        0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad};
+    Record(Result,
+        AbcDigest.bAvailable && AbcDigest.Bytes == ExpectedAbcDigest,
+        "RHI canonical digests match the SHA-256 standard vector");
+
+    FRHIShaderModuleDesc UnknownPayload = MetalLibrary;
+    UnknownPayload.Payload.Format = ERHIShaderPayloadFormat::Unknown;
+    Record(Result,
+        !IsValidRHIShaderModuleDesc(UnknownPayload),
+        "RHI rejects an unknown shader payload format");
+    FRHIShaderModuleDesc UnalignedSpirv =
+        MakeShaderDesc(ERHIShaderStage::Vertex, "MainVS", "unaligned");
+    UnalignedSpirv.Payload.Bytes.push_back(0xff);
+    UnalignedSpirv.Payload.PayloadDigest =
+        ComputeRHISha256(UnalignedSpirv.Payload.Bytes);
+    Record(Result,
+        !IsValidRHIShaderModuleDesc(UnalignedSpirv),
+        "RHI rejects SPIR-V payload bytes that are not word aligned");
+    FRHIShaderModuleDesc WrongDigest =
+        MakeShaderDesc(ERHIShaderStage::Vertex, "MainVS", "wrong_digest");
+    WrongDigest.Payload.Bytes.back() ^= 1U;
+    Record(Result,
+        !IsValidRHIShaderModuleDesc(WrongDigest),
+        "RHI rejects shader payload bytes that do not match their digest");
+
+    const auto LegacyWords = Stoner::Tests::MakeMinimalShaderBytecode(
+        ERHIShaderStage::Compute, "LegacyMain");
+    FRHIShaderPayloadDesc MigratedPayload;
+    TArray<uint32> RoundTripWords;
+    Record(Result,
+        SetRHIShaderSpirvWords(
+            MigratedPayload, LegacyWords, "legacy", "Vulkan-v1") &&
+            TryGetRHIShaderSpirvWords(MigratedPayload, RoundTripWords) &&
+            RoundTripWords == LegacyWords &&
+            MigratedPayload.Format == ERHIShaderPayloadFormat::SPIRV,
+        "legacy SPIR-V words migrate to typed bytes and round-trip through checked aligned storage");
+
+    FRHINativeBindingMap BindingMap;
+    BindingMap.PolicyVersion = "metal-direct-binding-v1";
+    BindingMap.Entries = {
+        {ERHIShaderStage::Vertex, 0, 0, ERHIDescriptorType::UniformBuffer,
+            0, ERHINativeResourceClass::Buffer, 4},
+        {ERHIShaderStage::Fragment, 0, 1, ERHIDescriptorType::SampledTexture,
+            0, ERHINativeResourceClass::Texture, 0}};
+    BindingMap.ReservedRanges = {
+        {ERHIShaderStage::Vertex, ERHINativeResourceClass::Buffer,
+            0, 4, "vertex-streams"}};
+    BindingMap.LimitSnapshot = {
+        {ERHIShaderStage::Vertex, ERHINativeResourceClass::Buffer, 16},
+        {ERHIShaderStage::Fragment, ERHINativeResourceClass::Texture, 16}};
+    const bool bFinalizedBindingMap =
+        FinalizeRHINativeBindingMapDigest(BindingMap);
+    Record(Result,
+        bFinalizedBindingMap && IsCanonicalRHINativeBindingMap(BindingMap),
+        "RHI validates canonical native binding order, limits, reserved ranges, and digest");
+    FRHINativeBindingMap ReorderedBindingMap = BindingMap;
+    std::swap(
+        ReorderedBindingMap.Entries[0], ReorderedBindingMap.Entries[1]);
+    (void)FinalizeRHINativeBindingMapDigest(ReorderedBindingMap);
+    Record(Result,
+        !IsCanonicalRHINativeBindingMap(ReorderedBindingMap),
+        "RHI rejects non-canonical native binding entry order even with a matching digest");
+    FRHINativeBindingMap TamperedBindingMap = BindingMap;
+    TamperedBindingMap.Entries[0].NativeIndex = 5;
+    Record(Result,
+        !IsCanonicalRHINativeBindingMap(TamperedBindingMap),
+        "RHI rejects native binding metadata changed after digest generation");
+    FRHINativeBindingMap OutOfRangeBindingMap = BindingMap;
+    OutOfRangeBindingMap.Entries[0].NativeIndex = 16;
+    (void)FinalizeRHINativeBindingMapDigest(OutOfRangeBindingMap);
+    Record(Result,
+        !IsCanonicalRHINativeBindingMap(OutOfRangeBindingMap),
+        "RHI rejects native binding entries outside the captured target limits");
+
     Record(Result, Device.CreateShaderModule(MakeShaderDesc(ERHIShaderStage::Unknown, "Main", "payload")).Result == ERHIResult::Unsupported,
         "IRHIShaderModule rejects missing stage");
     Record(Result, Device.CreateShaderModule(MakeShaderDesc(ERHIShaderStage::Vertex, "", "payload")).Result == ERHIResult::InvalidState,
@@ -2764,24 +2914,29 @@ void TestShaderAndPipelineContracts(FRHICoreTestResult& Result)
         "IRHIShaderModule rejects unsupported future shader stage");
     FRHIShaderModuleDesc TruncatedHeader =
         MakeShaderDesc(ERHIShaderStage::Vertex, "MainVS", "truncated_header");
-    TruncatedHeader.Bytecode.Words = {
-        0x07230203u, 0x00010000u, 0u, 1u};
+    (void)SetRHIShaderSpirvWords(
+        TruncatedHeader.Payload,
+        {0x07230203u, 0x00010000u, 0u, 1u},
+        "truncated_header");
     Record(Result,
         Device.CreateShaderModule(TruncatedHeader).Result ==
             ERHIResult::InvalidState,
         "IRHIShaderModule rejects a truncated four-word SPIR-V header");
     FRHIShaderModuleDesc MalformedInstruction =
         MakeShaderDesc(ERHIShaderStage::Vertex, "MainVS", "bad_instruction");
-    MalformedInstruction.Bytecode.Words.back() = (2u << 16u) | 56u;
+    auto MalformedWords = Stoner::Tests::MakeMinimalShaderBytecode(
+        ERHIShaderStage::Vertex, "MainVS");
+    MalformedWords.back() = (2u << 16u) | 56u;
+    (void)SetRHIShaderSpirvWords(
+        MalformedInstruction.Payload, MalformedWords, "bad_instruction");
     Record(Result,
         Device.CreateShaderModule(MalformedInstruction).Result ==
             ERHIResult::InvalidState,
         "IRHIShaderModule rejects an instruction that overruns the payload");
     FRHIShaderModuleDesc WrongStage =
         MakeShaderDesc(ERHIShaderStage::Fragment, "MainVS", "wrong_stage");
-    WrongStage.Bytecode.Words =
-        Stoner::Tests::MakeMinimalShaderBytecode(
-            ERHIShaderStage::Vertex, "MainVS");
+    WrongStage.Payload = Stoner::Tests::MakeMinimalShaderPayload(
+        ERHIShaderStage::Vertex, "MainVS", "wrong_stage");
     Record(Result,
         Device.CreateShaderModule(WrongStage).Result ==
             ERHIResult::InvalidState,

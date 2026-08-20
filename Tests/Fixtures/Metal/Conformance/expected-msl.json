@@ -1,0 +1,11 @@
+{
+  "bindingPolicy": "metal-direct-binding-v1",
+  "deploymentTarget": "12.0",
+  "entryPoint": "main",
+  "mslVersion": "2.4",
+  "shaders": [
+    {"file": "triangle.vert.spv", "stage": "vertex"},
+    {"file": "triangle.frag.spv", "stage": "fragment"},
+    {"file": "compute.comp.spv", "stage": "compute"}
+  ]
+}

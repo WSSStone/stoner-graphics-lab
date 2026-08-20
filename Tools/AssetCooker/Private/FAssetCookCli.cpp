@@ -4,6 +4,7 @@
 #include "AssetCooker/FAssetCookRunner.h"
 #include "Core/FPlatformFileSystem.h"
 #include "FDerivedDataStore.h"
+#include "FMetalLibraryCompiler.h"
 #include "FPublishedGenerationValidator.h"
 
 #include <algorithm>
@@ -478,6 +479,75 @@ FAssetCookCliResult ExecuteInspect(const FAssetCookCliInvocation& Invocation)
     return ExecuteValidateCache(Invocation);
 }
 
+const char* MetalDoctorReason(EMetalLibraryFinalizeStatus Status)
+{
+    switch (Status)
+    {
+    case EMetalLibraryFinalizeStatus::Success:
+        return "asset-cooker.doctor.metal.success";
+    case EMetalLibraryFinalizeStatus::HostUnsupported:
+        return "asset-cooker.doctor.metal.host-unsupported";
+    case EMetalLibraryFinalizeStatus::ToolchainUnavailable:
+        return "asset-cooker.doctor.metal.toolchain-unavailable";
+    case EMetalLibraryFinalizeStatus::TimedOut:
+        return "asset-cooker.doctor.metal.timed-out";
+    case EMetalLibraryFinalizeStatus::InvalidRequest:
+        return "asset-cooker.doctor.metal.invalid-request";
+    case EMetalLibraryFinalizeStatus::CompilerFailed:
+        return "asset-cooker.doctor.metal.command-failed";
+    case EMetalLibraryFinalizeStatus::EmptyOutput:
+        return "asset-cooker.doctor.metal.empty-output";
+    case EMetalLibraryFinalizeStatus::EvidenceMismatch:
+        return "asset-cooker.doctor.metal.evidence-mismatch";
+    case EMetalLibraryFinalizeStatus::IoFailure:
+        return "asset-cooker.doctor.metal.io-failure";
+    }
+    return "asset-cooker.doctor.metal.internal-failure";
+}
+
+FAssetCookCliResult ExecuteDoctor(const FAssetCookCliInvocation& Invocation)
+{
+    Asset::FAssetTargetProfileEvidence Profile;
+    if (!ReadProfile(Invocation.TargetProfilePath, Profile) ||
+        Profile.Profile.Platform != Asset::EAssetTargetPlatform::MacOS ||
+        Profile.Profile.GraphicsBackend != Asset::EAssetGraphicsBackend::Metal ||
+        !Profile.Profile.MetalShaderTarget)
+        return Finish(Invocation, BaseDocument(
+            Invocation.Command, EAssetCookResultCategory::InvalidProfile,
+            Core::FString("asset-cooker.doctor.metal.profile-invalid")));
+
+    FMetalToolchainEvidence Evidence;
+    const EMetalLibraryFinalizeStatus Status =
+        InspectMetalToolchain(30000, 256U * 1024U, Evidence);
+    const bool bSucceeded = Status == EMetalLibraryFinalizeStatus::Success;
+    auto Document = BaseDocument(
+        Invocation.Command,
+        bSucceeded ? EAssetCookResultCategory::Success
+                   : EAssetCookResultCategory::CookFailure,
+        Core::FString(MetalDoctorReason(Status)));
+    Document.Pipeline.EffectiveProfileDigest = Profile.EffectiveProfileDigest;
+    Document.Pipeline.SnapshotDigest = Asset::FAssetDigest::FromBytes(
+        std::span<const Core::uint8>{});
+    Document.bHasPipeline = true;
+    if (bSucceeded)
+    {
+        const auto AddEvidence = [&Document](
+            const char* Field, const Core::FString& Value)
+        {
+            FAssetCookReportDiagnostic Diagnostic;
+            Diagnostic.Category = Core::FString("toolchain-evidence");
+            Diagnostic.Stage = Core::FString("doctor");
+            Diagnostic.Field = Core::FString(Field);
+            Diagnostic.Reason = Value;
+            Document.Diagnostics.push_back(std::move(Diagnostic));
+        };
+        AddEvidence("metalCompiler", Evidence.MetalCompiler);
+        AddEvidence("xcodeBuild", Evidence.XcodeBuild);
+        AddEvidence("sdk", Evidence.Sdk);
+    }
+    return Finish(Invocation, std::move(Document));
+}
+
 } // namespace
 
 EAssetCookResultCategory FAssetCookCli::Parse(
@@ -656,6 +726,19 @@ EAssetCookResultCategory FAssetCookCli::Parse(
         if (const auto* Report = One(Options, "--report"))
             OutInvocation.ReportPath = *Report;
     }
+    else if (Command == "doctor")
+    {
+        if (!ParseOptions(Arguments,
+                {"--target-profile", "--report"}, {},
+                {"--normalized-report"}, Options))
+            return EAssetCookResultCategory::InvalidArguments;
+        const auto* Profile = One(Options, "--target-profile");
+        if (!Profile) return EAssetCookResultCategory::InvalidArguments;
+        OutInvocation.Command = EAssetCookReportCommand::Doctor;
+        OutInvocation.TargetProfilePath = *Profile;
+        if (const auto* Report = One(Options, "--report"))
+            OutInvocation.ReportPath = *Report;
+    }
     else return EAssetCookResultCategory::InvalidArguments;
 
     OutInvocation.bNormalizedReport = Options.Flags.contains("--normalized-report");
@@ -693,6 +776,8 @@ FAssetCookCliResult FAssetCookCli::Execute(
         return ExecuteValidate(Invocation);
     if (Invocation.Command == EAssetCookReportCommand::ValidateCache)
         return ExecuteValidateCache(Invocation);
+    if (Invocation.Command == EAssetCookReportCommand::Doctor)
+        return ExecuteDoctor(Invocation);
     return ExecuteInspect(Invocation);
 }
 

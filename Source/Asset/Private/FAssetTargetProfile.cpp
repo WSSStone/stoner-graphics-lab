@@ -169,10 +169,20 @@ EAssetResult FAssetTargetLimits::Validate() const noexcept
     return EAssetResult::Success;
 }
 
+EAssetResult FAssetMetalShaderTarget::Validate() const noexcept
+{
+    return DeploymentTarget == Core::FString("12.0") &&
+            MslVersion == Core::FString("2.4") &&
+            BindingPolicy == Core::FString("metal-direct-binding-v1") &&
+            NativeEvidenceSchemaVersion == 1
+        ? EAssetResult::Success
+        : EAssetResult::InvalidInput;
+}
+
 EAssetResult FAssetTargetProfile::Validate() const noexcept
 {
     if (Schema != Core::FString("stoner.asset-target-profile") ||
-        SchemaVersion != CurrentSchemaVersion ||
+        (SchemaVersion != 1 && SchemaVersion != CurrentSchemaVersion) ||
         DisplayName.IsEmpty() || DisplayName.Len() > 128 ||
         ShaderPayloadChoices.empty() || ShaderPayloadChoices.size() > 32 ||
         TextureCapabilities.empty() || TextureCapabilities.size() > 64 ||
@@ -198,7 +208,7 @@ EAssetResult FAssetTargetProfile::Validate() const noexcept
     {
         if (!IsLowerToken(Choice.Profile, 128) ||
             !EnumInRange(Choice.Backend, EAssetGraphicsBackend::GLES) ||
-            !EnumInRange(Choice.Format, EAssetShaderPayloadFormat::ESSL))
+            !EnumInRange(Choice.Format, EAssetShaderPayloadFormat::MetalLibrary))
         {
             return EAssetResult::InvalidInput;
         }
@@ -209,6 +219,31 @@ EAssetResult FAssetTargetProfile::Validate() const noexcept
         {
             return EAssetResult::InvalidInput;
         }
+    }
+    if (SchemaVersion == 1 && MetalShaderTarget.has_value())
+        return EAssetResult::InvalidInput;
+    if (SchemaVersion == 1 && std::any_of(
+            ShaderPayloadChoices.begin(), ShaderPayloadChoices.end(),
+            [](const FAssetShaderPayloadChoice& Choice)
+            {
+                return Choice.Format ==
+                    EAssetShaderPayloadFormat::MetalLibrary;
+            }))
+        return EAssetResult::InvalidInput;
+    if (SchemaVersion == CurrentSchemaVersion)
+    {
+        const bool bMetal = GraphicsBackend == EAssetGraphicsBackend::Metal;
+        if (bMetal != MetalShaderTarget.has_value() ||
+            (bMetal && MetalShaderTarget->Validate() != EAssetResult::Success))
+            return EAssetResult::InvalidInput;
+        if (bMetal && std::none_of(
+                ShaderPayloadChoices.begin(), ShaderPayloadChoices.end(),
+                [](const FAssetShaderPayloadChoice& Choice)
+                {
+                    return Choice.Backend == EAssetGraphicsBackend::Metal &&
+                        Choice.Format == EAssetShaderPayloadFormat::MetalLibrary;
+                }))
+            return EAssetResult::InvalidInput;
     }
     std::set<std::string> TextureChoices;
     for (const Core::FString& Capability : TextureCapabilities)

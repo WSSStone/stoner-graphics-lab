@@ -30,18 +30,21 @@ def _GetPublicIncludePath(layer_name):
     return os.path.join(_SOURCE_ROOT, layer_name, 'Public')
 
 
-def _FindCppFiles(source_dir_abs):
-    """Find all .cpp files in a directory using the filesystem.
+def _FindCppAndObjectiveCppFiles(source_dir_abs):
+    """Find all C++ and Objective-C++ files in a directory.
 
     Args:
         source_dir_abs: Absolute path to the source directory.
 
     Returns:
-        Sorted list of .cpp filenames (basenames only).
+        Sorted list of .cpp/.mm filenames (basenames only).
     """
     if not os.path.isdir(source_dir_abs):
         return []
-    return sorted(f for f in os.listdir(source_dir_abs) if f.endswith('.cpp'))
+    return sorted(
+        filename for filename in os.listdir(source_dir_abs)
+        if filename.endswith(('.cpp', '.mm'))
+    )
 
 
 def _MakeRelativeToSConscriptDir(abs_path):
@@ -77,7 +80,7 @@ def BuildLayer(
 
     Clones the environment, sets CPPPATH to only the permitted dependencies'
     Public/ directories (enforcing adjacent-only layer isolation at compile time),
-    finds all .cpp files from the Private/ directory, and returns a StaticLibrary.
+    finds all .cpp/.mm files from the Private/ directory, and returns a StaticLibrary.
 
     Works correctly with variant_dir: source files are referenced relative to
     the SConscript's source directory so SCons places .o and .a files in the
@@ -119,11 +122,11 @@ def BuildLayer(
 
     # Find source files using filesystem
     source_dir_abs = Dir('#' + source_dir).abspath
-    cpp_files = _FindCppFiles(source_dir_abs)
+    cpp_files = _FindCppAndObjectiveCppFiles(source_dir_abs)
 
     private_c_sources = private_c_sources or []
     if not cpp_files and not private_c_sources:
-        logger.warning("Layer '%s': no .cpp files found in %s", layer_name, source_dir)
+        logger.warning("Layer '%s': no .cpp/.mm files found in %s", layer_name, source_dir)
         return None
 
     # Convert source_dir to a path relative to the current SConscript's source
@@ -135,6 +138,8 @@ def BuildLayer(
     for cpp_file in cpp_files:
         source = os.path.join(rel_source_dir, cpp_file)
         settings = private_cpp_settings.get(cpp_file)
+        if settings is None and cpp_file.endswith('.mm'):
+            settings = private_cpp_settings.get('*.mm')
         if not settings:
             sources.append(source)
             continue
@@ -192,7 +197,7 @@ def BuildPrivateCMakeLibrary(
     cmake_config = 'Debug' if config == 'debug' else 'Release'
 
     def _build_private_library(target, source, env):
-        del target, source, env
+        del target, source
         configure = [
             'cmake',
             '-S',
@@ -202,7 +207,18 @@ def BuildPrivateCMakeLibrary(
             '-DCMAKE_BUILD_TYPE=' + cmake_config,
             '-DBUILD_SHARED_LIBS=OFF',
         ]
-        result = subprocess.run(configure, check=False)
+        process_environment = os.environ.copy()
+        process_environment.update(env.get('ENV', {}))
+        deployment_target = process_environment.get('MACOSX_DEPLOYMENT_TARGET')
+        if deployment_target:
+            configure.append(
+                '-DCMAKE_OSX_DEPLOYMENT_TARGET=' + deployment_target
+            )
+        result = subprocess.run(
+            configure,
+            check=False,
+            env=process_environment,
+        )
         if result.returncode != 0:
             return result.returncode
         build = [
@@ -215,7 +231,11 @@ def BuildPrivateCMakeLibrary(
             target_name,
             '--parallel',
         ]
-        return subprocess.run(build, check=False).returncode
+        return subprocess.run(
+            build,
+            check=False,
+            env=process_environment,
+        ).returncode
 
     return env.Command(
         target,
@@ -225,6 +245,47 @@ def BuildPrivateCMakeLibrary(
             'Building private third-party library ' + target_name,
         ),
     )
+
+
+def BuildPrivateCppLibrary(
+    env,
+    library_name,
+    sources,
+    include_paths,
+    build_dir,
+    ccflags=None,
+    deployment_target=None,
+):
+    """Build selected vendored C++ sources without exporting include paths."""
+    library_env = env.Clone()
+    library_env.Append(
+        CPPPATH=[Dir('#' + path).abspath for path in include_paths],
+    )
+    library_env.Append(CCFLAGS=ccflags or [])
+    if deployment_target:
+        library_env['ENV'] = dict(library_env.get('ENV', {}))
+        library_env['ENV']['MACOSX_DEPLOYMENT_TARGET'] = deployment_target
+        deployment_flag = '-mmacosx-version-min=' + deployment_target
+        if deployment_flag not in library_env.get('CCFLAGS', []):
+            library_env.Append(CCFLAGS=[deployment_flag])
+
+    objects = []
+    for source in sources:
+        object_name = os.path.splitext(os.path.basename(source))[0]
+        objects.extend(library_env.Object(
+            '#' + os.path.join(build_dir, 'Objects', object_name),
+            File('#' + source),
+        ))
+    library = library_env.StaticLibrary(
+        '#' + os.path.join(build_dir, library_name),
+        objects,
+    )
+    logger.info(
+        "Private C++ library '%s': building from %d source file(s)",
+        library_name,
+        len(sources),
+    )
+    return library
 
 
 def DiscoverSubModules(layer_dir, exports):

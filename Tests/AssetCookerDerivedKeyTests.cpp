@@ -1,6 +1,8 @@
 #include "AssetCookerDerivedKeyTests.h"
 
 #include "Asset/FAssetDerivedKey.h"
+#include "Asset/FAssetCookContractCodec.h"
+#include "Asset/FAssetDerivedDataEntry.h"
 #include "FAssetDerivedKeyBuilder.h"
 
 #include <fstream>
@@ -179,6 +181,78 @@ void TestRelevantInvalidation(FAssetCookerDerivedKeyTestResult& Result)
         "baseline derived key matches checked-in golden value");
 }
 
+void TestVersionTwoEvidenceInvalidation(FAssetCookerDerivedKeyTestResult& Result)
+{
+    FAssetDerivedKeyEvidence Baseline = MakeEvidence();
+    Baseline.KeyFormatVersion = FAssetDerivedKeyEvidence::CurrentKeyFormatVersion;
+    Baseline.AdditionalEvidence = {
+        {FString("binding-policy"), Digest("binding-v1")},
+        {FString("profile"), Digest("metal-arm64-v1")},
+        {FString("transformation"), Digest("spirv-cross-v1")}};
+    FAssetDerivedKey First;
+    const bool Built = FAssetDerivedKeyBuilder::Build(Baseline, First) ==
+        EAssetResult::Success;
+    bool Invalidated = Built;
+    for (usize Index = 0; Index < Baseline.AdditionalEvidence.size(); ++Index)
+    {
+        FAssetDerivedKeyEvidence Changed = Baseline;
+        Changed.AdditionalEvidence[Index].Digest = Digest(
+            std::string("changed-") + std::to_string(Index));
+        FAssetDerivedKey Next;
+        Invalidated = Invalidated &&
+            FAssetDerivedKeyBuilder::Build(Changed, Next) ==
+                EAssetResult::Success &&
+            Next != First;
+    }
+    FAssetDerivedKeyEvidence Unsorted = Baseline;
+    std::swap(Unsorted.AdditionalEvidence[0], Unsorted.AdditionalEvidence[1]);
+    FAssetDerivedKey Rejected;
+    Record(
+        Result,
+        Invalidated &&
+            FAssetDerivedKeyBuilder::Build(Unsorted, Rejected) ==
+                EAssetResult::InvalidInput,
+        "v2 named evidence invalidates independently and requires canonical order");
+}
+
+void TestVersionTwoEntryRoundTrip(FAssetCookerDerivedKeyTestResult& Result)
+{
+    FAssetDerivedDataEntry Entry;
+    Entry.Evidence = MakeEvidence();
+    Entry.Evidence.KeyFormatVersion =
+        FAssetDerivedKeyEvidence::CurrentKeyFormatVersion;
+    Entry.Evidence.AdditionalEvidence = {
+        {FString("apple-toolchain"), Digest("toolchain-v1")},
+        {FString("authoritative-glsl"), Digest("glsl-v1")},
+        {FString("binding-policy"), Digest("binding-v1")},
+        {FString("native-library-contract"), Digest("library-v2")},
+        {FString("target-profile"), Digest("profile-v1")},
+        {FString("target-tuple"), Digest("mac-arm64-v1")},
+        {FString("transformation"), Digest("spirv-cross-v1")}};
+    Entry.AssetId = Entry.Evidence.AssetId;
+    Entry.CodecId = Entry.Evidence.CodecId;
+    Entry.CodecVersion = Entry.Evidence.CodecVersion;
+    Entry.PayloadSchemaVersion = Entry.Evidence.PayloadSchemaVersion;
+    Entry.RelevantProfileDigest = Entry.Evidence.RelevantProfileDigest;
+    Entry.PayloadBytes = 128;
+    Entry.EnvelopeDigest = Digest("metal-envelope-v2");
+    const bool Built = FAssetCookContractCodec::BuildDerivedKey(
+        Entry.Evidence, Entry.DerivedKey) == EAssetResult::Success;
+    FString Canonical;
+    const bool Written = Built &&
+        FAssetCookContractCodec::WriteDerivedDataEntry(Entry, Canonical) ==
+            EAssetResult::Success;
+    FAssetDerivedDataEntry Parsed;
+    const TArray<uint8> Bytes(Canonical.View().begin(), Canonical.View().end());
+    const bool Read = Written &&
+        FAssetCookContractCodec::ParseDerivedDataEntry(Bytes, {}, Parsed) ==
+            EAssetResult::Success;
+    Record(Result,
+        Read && Parsed == Entry &&
+            Parsed.Evidence.AdditionalEvidence.size() == 7,
+        "v2 named evidence survives canonical DDC metadata round-trip");
+}
+
 } // namespace
 
 FAssetCookerDerivedKeyTestResult RunAssetCookerDerivedKeyTests()
@@ -187,5 +261,7 @@ FAssetCookerDerivedKeyTestResult RunAssetCookerDerivedKeyTests()
     TestStableAndComplete(Result);
     TestDomainAndBoundaries(Result);
     TestRelevantInvalidation(Result);
+    TestVersionTwoEvidenceInvalidation(Result);
+    TestVersionTwoEntryRoundTrip(Result);
     return Result;
 }

@@ -1,5 +1,7 @@
 #include "FDemoConfiguration.h"
 
+#include "Core/SGPlatform.h"
+
 #include <cerrno>
 #include <cstdlib>
 #include <limits>
@@ -65,6 +67,28 @@ void ApplyProfileDefaults(FDemoConfiguration& Config)
     }
 }
 
+void ApplyBackendDefaults(FDemoConfiguration& Config)
+{
+    if (Config.GraphicsBackend != EDemoGraphicsBackend::Metal) return;
+#if defined(__aarch64__) || defined(__arm64__)
+    constexpr const char* Architecture = "arm64";
+    constexpr const char* Profile =
+        "Config/AssetCooker/Profiles/Mac-Metal-Arm64.json";
+#else
+    constexpr const char* Architecture = "x86_64";
+    constexpr const char* Profile =
+        "Config/AssetCooker/Profiles/Mac-Metal-X86_64.json";
+#endif
+    if (Config.CookedPublicationRoot.IsEmpty())
+        Config.CookedPublicationRoot = Stoner::Core::FString(
+            std::string("Build/Feature027Cook/") + Architecture);
+    if (Config.LeaseCoordinationRoot.IsEmpty())
+        Config.LeaseCoordinationRoot = Stoner::Core::FString(
+            std::string("Build/Feature027Cook/Lease-") + Architecture);
+    if (Config.TargetProfilePath.IsEmpty())
+        Config.TargetProfilePath = Profile;
+}
+
 } // namespace
 
 bool FDemoConfiguration::IsBounded() const noexcept
@@ -104,6 +128,10 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
         if (ValidationOutputPath.IsEmpty()) return Fail("validation-output must not be empty");
     }
     if (ShaderDirectory.IsEmpty()) return Fail("shader-dir must not be empty");
+    if (GraphicsBackend == EDemoGraphicsBackend::Metal && RequiresNativeRuntime() &&
+        (CookedPublicationRoot.IsEmpty() || LeaseCoordinationRoot.IsEmpty() ||
+            TargetProfilePath.IsEmpty()))
+        return Fail("native Metal requires cooked, lease, and target-profile paths");
     return true;
 }
 
@@ -139,6 +167,19 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
             else if (Mode == "headless") Parsed.RunMode = EDemoRunMode::DeterministicHeadless;
             else if (Mode == "headless-vulkan") Parsed.RunMode = EDemoRunMode::NativeHeadless;
             else { OutReason = "unknown mode"; return EDemoExitCode::InvalidConfiguration; }
+        }
+        else if (Option == "--backend")
+        {
+            const std::string_view Backend(Value);
+            if (Backend == "vulkan")
+                Parsed.GraphicsBackend = EDemoGraphicsBackend::Vulkan;
+            else if (Backend == "metal")
+                Parsed.GraphicsBackend = EDemoGraphicsBackend::Metal;
+            else
+            {
+                OutReason = "unknown backend";
+                return EDemoExitCode::InvalidConfiguration;
+            }
         }
         else if (Option == "--frames")
         {
@@ -180,6 +221,9 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
             if (!ParseUInt(Value, Parsed.MaxFramesInFlight, false)) { OutReason = "invalid frames-in-flight"; return EDemoExitCode::InvalidConfiguration; }
         }
         else if (Option == "--shader-dir") Parsed.ShaderDirectory = Value;
+        else if (Option == "--cooked-root") Parsed.CookedPublicationRoot = Value;
+        else if (Option == "--lease-root") Parsed.LeaseCoordinationRoot = Value;
+        else if (Option == "--target-profile") Parsed.TargetProfilePath = Value;
         else if (Option == "--validation-output") Parsed.ValidationOutputPath = Value;
         else { OutReason = "unknown option"; return EDemoExitCode::InvalidConfiguration; }
     }
@@ -190,6 +234,7 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
     const Stoner::Core::uint64 ExplicitGrowth = Parsed.MaxMemoryGrowthBytes;
     const double ExplicitPercent = Parsed.MaxMemoryGrowthPercent;
     ApplyProfileDefaults(Parsed);
+    ApplyBackendDefaults(Parsed);
     if (bFrameBudgetSpecified) Parsed.FrameBudget = ExplicitFrames;
     if (bWarmupSpecified) Parsed.WarmupFrames = ExplicitWarmup;
     if (bIntervalSpecified) Parsed.MemorySampleInterval = ExplicitInterval;
@@ -210,6 +255,16 @@ const char* ToString(EDemoRunMode Mode) noexcept
     case EDemoRunMode::BoundedNative: return "validate";
     case EDemoRunMode::DeterministicHeadless: return "headless";
     case EDemoRunMode::NativeHeadless: return "headless-vulkan";
+    }
+    return "unknown";
+}
+
+const char* ToString(EDemoGraphicsBackend Backend) noexcept
+{
+    switch (Backend)
+    {
+    case EDemoGraphicsBackend::Vulkan: return "vulkan";
+    case EDemoGraphicsBackend::Metal: return "metal";
     }
     return "unknown";
 }

@@ -1,0 +1,13 @@
+{
+  "schema": "stoner.metal-strict-generation-cases",
+  "schemaVersion": 1,
+  "cases": [
+    {"name": "complete-v2-library", "payload": "metal-library", "schemaVersion": 2, "expectedResult": "success"},
+    {"name": "missing-stage", "payload": "missing", "schemaVersion": 2, "expectedResult": "not-found"},
+    {"name": "spirv-only", "payload": "spirv", "schemaVersion": 1, "expectedResult": "target-unavailable"},
+    {"name": "msl-source-only", "payload": "msl", "schemaVersion": 1, "expectedResult": "target-unavailable"},
+    {"name": "wrong-cpu-profile", "payload": "metal-library", "schemaVersion": 2, "expectedResult": "target-unavailable"},
+    {"name": "failed-finalization", "payload": "none", "schemaVersion": 0, "expectedResult": "no-publication"},
+    {"name": "old-generation-remains-current", "payload": "invalid-new-generation", "schemaVersion": 2, "expectedResult": "current-unchanged"}
+  ]
+}

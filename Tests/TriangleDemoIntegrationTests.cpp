@@ -3,6 +3,7 @@
 #include "FDemoConfiguration.h"
 #include "FStonerDemoApplication.h"
 #include "FDemoValidationMonitor.h"
+#include "MetalShaderCookedTestSupport.h"
 
 #include <filesystem>
 #include <fstream>
@@ -12,6 +13,125 @@
 namespace
 {
 using namespace Stoner::Demo;
+
+struct FBackendCallState
+{
+    EDemoGraphicsBackend Backend = EDemoGraphicsBackend::Vulkan;
+    int InitializeCalls = 0;
+    int ExecuteCalls = 0;
+    int ShutdownCalls = 0;
+};
+
+class FRecordingBackendRuntime final : public IDemoBackendRuntime
+{
+public:
+    explicit FRecordingBackendRuntime(
+        Stoner::Core::TSharedPtr<FBackendCallState> State)
+        : State_(std::move(State))
+    {
+    }
+
+    EDemoGraphicsBackend GetBackend() const noexcept override
+    {
+        return State_->Backend;
+    }
+    Stoner::RHI::ERHIResult Initialize(
+        EDemoRunMode,
+        const Stoner::Core::FPlatformWindow&,
+        Stoner::Core::uint32,
+        bool) override
+    {
+        ++State_->InitializeCalls;
+        return Stoner::RHI::ERHIResult::Success;
+    }
+    Stoner::RHI::ERHIResult PrepareTriangle(
+        const Stoner::RHI::FRHIShaderModuleDesc&,
+        const Stoner::RHI::FRHIShaderModuleDesc&,
+        Stoner::Core::uint32,
+        Stoner::Core::uint32) override
+    {
+        return Stoner::RHI::ERHIResult::Success;
+    }
+    Stoner::RHI::ERHIResult AcquireFrame(FDemoBackendFrame&) override
+    {
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
+    Stoner::RHI::ERHIResult SubmitFrame(const FDemoBackendFrame&) override
+    {
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
+    Stoner::RHI::ERHIResult RecreatePresentation(
+        Stoner::Core::uint32,
+        Stoner::Core::uint32) override
+    {
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
+    Stoner::RHI::ERHIResult ExecuteOffscreenTriangle(
+        const Stoner::RHI::FRHIShaderModuleDesc&,
+        const Stoner::RHI::FRHIShaderModuleDesc&) override
+    {
+        ++State_->ExecuteCalls;
+        return Stoner::RHI::ERHIResult::Success;
+    }
+    Stoner::RHI::FRHIRuntimeSnapshot GetSnapshot() const noexcept override
+    {
+        Stoner::RHI::FRHIRuntimeSnapshot Snapshot;
+        Snapshot.RequestedMode = Stoner::RHI::ERHIRuntimeMode::NativeHeadless;
+        Snapshot.ObjectMode = Stoner::RHI::ERHIRuntimeObjectMode::RealRuntime;
+        Snapshot.AdapterName = ToString(State_->Backend);
+        Snapshot.LiveInstances = 1;
+        Snapshot.LiveDevices = 1;
+        return Snapshot;
+    }
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDevice> GetDevice()
+        const noexcept override
+    {
+        return nullptr;
+    }
+    Stoner::RHI::ERHIResult Shutdown() override
+    {
+        ++State_->ShutdownCalls;
+        return Stoner::RHI::ERHIResult::Success;
+    }
+
+private:
+    Stoner::Core::TSharedPtr<FBackendCallState> State_;
+};
+
+class FRecordingBackendFactory final : public IDemoBackendFactory
+{
+public:
+    FRecordingBackendFactory(
+        EDemoGraphicsBackend Backend,
+        bool bAvailable)
+        : State(Stoner::Core::MakeShared<FBackendCallState>()),
+          bAvailable_(bAvailable)
+    {
+        State->Backend = Backend;
+    }
+
+    FDemoBackendCreateResult Create(
+        EDemoGraphicsBackend Backend) const override
+    {
+        FDemoBackendCreateResult Result;
+        Result.RequestedBackend = Backend;
+        Result.SelectedBackend = State->Backend;
+        if (!bAvailable_ || Backend != State->Backend)
+        {
+            Result.Result = Stoner::RHI::ERHIResult::Unavailable;
+            Result.FailureReason = "requested test backend unavailable";
+            return Result;
+        }
+        Result.Result = Stoner::RHI::ERHIResult::Success;
+        Result.Runtime = Stoner::Core::MakeUnique<FRecordingBackendRuntime>(State);
+        return Result;
+    }
+
+    Stoner::Core::TSharedPtr<FBackendCallState> State;
+
+private:
+    bool bAvailable_ = false;
+};
 
 void Record(FTriangleDemoIntegrationTestResult& Result, bool bPassed, const char* Name)
 {
@@ -31,7 +151,20 @@ void TestConfiguration(FTriangleDemoIntegrationTestResult& Result)
     Stoner::Core::FString Reason;
     Record(Result, Parse({"StonerDemo", "--mode", "headless"}, Config, Reason) == EDemoExitCode::Success &&
         Config.FrameBudget == 4096 && Config.WarmupFrames == 512 && Config.MemorySampleInterval == 128 &&
-        Config.MaxFramesInFlight == 2, "Triangle demo headless defaults match endurance profile");
+        Config.MaxFramesInFlight == 2 &&
+        Config.GraphicsBackend == EDemoGraphicsBackend::Vulkan,
+        "Triangle demo headless defaults match endurance profile");
+    Record(Result,
+        Parse({"StonerDemo", "--mode", "headless", "--backend", "metal"},
+            Config, Reason) == EDemoExitCode::Success &&
+            Config.GraphicsBackend == EDemoGraphicsBackend::Metal &&
+            std::string_view(ToString(Config.GraphicsBackend)) == "metal",
+        "Triangle demo parses and exposes an explicit Metal backend");
+    Record(Result,
+        Parse({"StonerDemo", "--backend", "automatic"}, Config, Reason) ==
+            EDemoExitCode::InvalidConfiguration &&
+            Reason == Stoner::Core::FString("unknown backend"),
+        "Triangle demo rejects automatic or unknown backend fallback");
     Record(Result, Parse({"StonerDemo", "--mode", "validate", "--frames", "0"}, Config, Reason) == EDemoExitCode::InvalidConfiguration,
         "Triangle demo rejects zero bounded frame budget");
     Record(Result, Parse({"StonerDemo", "--unknown", "value"}, Config, Reason) == EDemoExitCode::InvalidConfiguration,
@@ -79,6 +212,114 @@ void TestNativeFallbackRejection(FTriangleDemoIntegrationTestResult& Result)
     App.SetFailureInjection(EDemoStage::Runtime);
     Record(Result, App.Run() != EDemoExitCode::Success,
         "Triangle demo native-required mode never reports deterministic visible success");
+
+    Config.RunMode = EDemoRunMode::NativeHeadless;
+    Config.GraphicsBackend = EDemoGraphicsBackend::Metal;
+    auto UnavailableMetal = Stoner::Core::MakeShared<FRecordingBackendFactory>(
+        EDemoGraphicsBackend::Metal, false);
+    FStonerDemoApplication Metal(Config, UnavailableMetal);
+    const auto MetalResult = Metal.Initialize();
+    Record(Result,
+            MetalResult == EDemoExitCode::RuntimeUnavailable &&
+            Metal.GetGraphicsBackend() == EDemoGraphicsBackend::Metal &&
+            Metal.GetDiagnostics().BuildStableText().View().find("subject=metal") !=
+                std::string_view::npos,
+        "explicit Metal request fails as Metal and never substitutes Vulkan");
+    (void)Metal.Shutdown();
+
+    FDemoBackendFactory DefaultFactory;
+    const FDemoBackendCreateResult ExplicitMetal =
+        DefaultFactory.Create(EDemoGraphicsBackend::Metal);
+    Record(Result,
+        ExplicitMetal.RequestedBackend == EDemoGraphicsBackend::Metal &&
+            ExplicitMetal.SelectedBackend == EDemoGraphicsBackend::Metal &&
+            (!ExplicitMetal.Succeeded() ||
+                ExplicitMetal.Runtime->GetBackend() ==
+                    EDemoGraphicsBackend::Metal),
+        "default backend factory preserves explicit Metal identity on every host");
+}
+
+void TestSharedBackendComposition(FTriangleDemoIntegrationTestResult& Result)
+{
+    const Stoner::Renderer::FForwardFramePlan First =
+        BuildTriangleFramePlan(640, 360);
+    const Stoner::Renderer::FForwardFramePlan Second =
+        BuildTriangleFramePlan(640, 360);
+    const bool bSharedPlan = First.IsValid() && Second.IsValid() &&
+        First.DebugDump == Second.DebugDump &&
+        First.AcceptedOpaqueDraws.size() == 1 &&
+        First.AcceptedOpaqueDraws.front().GetCandidate().DebugName ==
+            Stoner::Core::FString("RGBTriangle") &&
+        First.AcceptedOpaqueDraws.front().GetCandidate()
+                .MaterialBinding.MaterialName ==
+            Stoner::Core::FString("VertexColor");
+    Record(Result, bSharedPlan,
+        "triangle scene material and frame plan are backend-independent");
+
+    namespace MetalCooked = Stoner::Tests::MetalShaderCooked;
+    namespace Cooker = Stoner::AssetCooker::Private;
+    const auto Root = std::filesystem::temp_directory_path() /
+        "stoner-demo-metal-composition";
+    std::error_code Error;
+    std::filesystem::remove_all(Root, Error);
+    const Stoner::Core::TArray<Stoner::Core::TSharedPtr<const
+        Stoner::Asset::FShaderPayloadAsset>> MetalPayloads = {
+        MetalCooked::TriangleMetalPayload(
+            Stoner::Asset::EShaderStage::Vertex,
+            "payload.vulkan.vertex", "source-vertex-v1", 1),
+        MetalCooked::TriangleMetalPayload(
+            Stoner::Asset::EShaderStage::Fragment,
+            "payload.vulkan.fragment", "source-fragment-v1", 2)};
+    const auto Program = MetalCooked::TriangleProgram(MetalPayloads);
+    MetalCooked::FGeneration Generation;
+    const bool bBuilt = Program && MetalCooked::BuildGeneration(
+        Root / "Generation", MetalPayloads, Generation,
+        "Config/AssetCooker/Profiles/Mac-Metal-Arm64.json", Program);
+    const auto PublicationRoot = Root / "Published";
+    const auto Published = bBuilt
+        ? Cooker::FCookedGenerationPublisher::Publish(
+              MetalCooked::PublicationRequest(Generation, PublicationRoot))
+        : Cooker::FCookedGenerationPublicationResult{};
+    const auto CoordinationRoot = Root / "Coordination";
+    std::filesystem::create_directories(CoordinationRoot, Error);
+
+    bool bSharedLifecycle = Published.Succeeded() && !Error;
+    for (EDemoGraphicsBackend Backend : {
+             EDemoGraphicsBackend::Vulkan,
+             EDemoGraphicsBackend::Metal})
+    {
+        FDemoConfiguration Config;
+        Config.RunMode = EDemoRunMode::NativeHeadless;
+        Config.GraphicsBackend = Backend;
+        Config.FrameBudget = 20;
+        Config.WarmupFrames = 0;
+        Config.MemorySampleInterval = 2;
+        Config.MaxMemoryGrowthBytes = 1024 * 1024;
+        Config.MaxMemoryGrowthPercent = 5.0;
+        Config.ValidationOutputPath = Backend == EDemoGraphicsBackend::Metal
+            ? "Build/Mac/Debug/Tests/triangle-metal-composition.txt"
+            : "Build/Mac/Debug/Tests/triangle-vulkan-composition.txt";
+        if (Backend == EDemoGraphicsBackend::Metal)
+        {
+            Config.CookedPublicationRoot = PublicationRoot.generic_string().c_str();
+            Config.LeaseCoordinationRoot = CoordinationRoot.generic_string().c_str();
+            Config.TargetProfilePath =
+                "Config/AssetCooker/Profiles/Mac-Metal-Arm64.json";
+        }
+        auto Factory = Stoner::Core::MakeShared<FRecordingBackendFactory>(
+            Backend, true);
+        FStonerDemoApplication App(Config, Factory);
+        const EDemoExitCode Run = App.Run();
+        bSharedLifecycle = bSharedLifecycle &&
+            Run == EDemoExitCode::Success &&
+            App.GetCompletedFrames() == 20 &&
+            Factory->State->InitializeCalls == 1 &&
+            Factory->State->ExecuteCalls == 1 &&
+            Factory->State->ShutdownCalls == 1;
+    }
+    Record(Result, bSharedLifecycle,
+        "explicit Vulkan and Metal runtimes use the same Demo lifecycle");
+    std::filesystem::remove_all(Root, Error);
 }
 
 void TestInitializationContractAndShaderStages(FTriangleDemoIntegrationTestResult& Result)
@@ -334,6 +575,7 @@ FTriangleDemoIntegrationTestResult RunTriangleDemoIntegrationTests()
     TestConfiguration(Result);
     TestDeterministicLifecycle(Result);
     TestNativeFallbackRejection(Result);
+    TestSharedBackendComposition(Result);
     TestInitializationContractAndShaderStages(Result);
     TestPresentationRecovery(Result);
     TestFailureInjectionAndFirstFailure(Result);

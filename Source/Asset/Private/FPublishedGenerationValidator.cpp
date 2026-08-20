@@ -2,6 +2,8 @@
 
 #include "Asset/FAssetCookContractCodec.h"
 #include "Asset/FAssetPayload.h"
+#include "Asset/FShaderPayloadAsset.h"
+#include "FShaderPayloadValidation.h"
 #include "Core/FPlatformFileSystem.h"
 #include "Core/SGPlatform.h"
 #include "Core/TArray.h"
@@ -219,7 +221,13 @@ FPublishedGenerationValidationResult FPublishedGenerationValidator::Validate(
             !CodecVersionMatches(Record, Envelope) ||
             Envelope.Header.PayloadSchemaVersion !=
                 Record.PayloadSchemaVersion ||
-            Envelope.EnvelopeDigest != Record.EnvelopeDigest)
+            Envelope.EnvelopeDigest != Record.EnvelopeDigest ||
+            (Record.AssetType == Core::FString("ShaderPayload") &&
+             Private::ValidateStrictCookedShaderPayload(
+                 Manifest.TargetProfile.Profile,
+                 Envelope.Header.CodecVersion,
+                 Envelope.Header.PayloadSchemaVersion,
+                 *Payload) != EAssetResult::Success))
             return Fail(EAssetResult::CorruptPayload,
                 EPublishedCorruptionCategory::PayloadInvalid,
                 "published.payload.invalid");
