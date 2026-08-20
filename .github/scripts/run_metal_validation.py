@@ -58,6 +58,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--tests", type=Path)
     parser.add_argument("--demo", type=Path)
+    parser.add_argument("--presentation-probe", type=Path)
     parser.add_argument("--profile", type=Path)
     parser.add_argument(
         "--tier",
@@ -71,11 +72,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--workload",
         choices=(
             "derivation", "failure", "lifecycle", "native", "comparison",
-            "visible",
+            "visible", "presentation-smoke",
         ),
     )
     parser.add_argument("--repetitions", type=int, default=20)
     parser.add_argument("--lifecycle-iterations", type=int, default=10000)
+    parser.add_argument("--smoke-frames", type=int, default=120)
+    parser.add_argument("--smoke-cycles", type=int, default=4)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--work", type=Path)
     parser.add_argument("--timeout-seconds", type=int, default=1200)
@@ -86,6 +89,10 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         parser.error("--repetitions must be in [1, 100]")
     if not 1 <= args.lifecycle_iterations <= 1_000_000:
         parser.error("--lifecycle-iterations must be in [1, 1000000]")
+    if not 1 <= args.smoke_frames <= 10000:
+        parser.error("--smoke-frames must be in [1, 10000]")
+    if not 1 <= args.smoke_cycles <= args.smoke_frames:
+        parser.error("--smoke-cycles must be in [1, smoke-frames]")
     if not 1 <= args.timeout_seconds <= 7200:
         parser.error("--timeout-seconds must be in [1, 7200]")
     if args.workload is None:
@@ -97,10 +104,20 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         }[args.tier]
     if args.tier == "cross-backend" and args.workload != "comparison":
         parser.error("cross-backend tier requires the comparison workload")
-    if args.tier == "visible-manual" and args.workload != "visible":
-        parser.error("visible-manual tier requires the visible workload")
+    if args.tier == "visible-manual" and args.workload not in {
+        "visible", "presentation-smoke",
+    }:
+        parser.error(
+            "visible-manual tier requires visible or presentation-smoke workload"
+        )
     if args.workload == "visible" and (args.demo is None or args.work is None):
         parser.error("visible workload requires --demo and persistent --work evidence")
+    if args.workload == "presentation-smoke" and (
+        args.presentation_probe is None or args.work is None
+    ):
+        parser.error(
+            "presentation-smoke requires --presentation-probe and persistent --work evidence"
+        )
     return args
 
 
@@ -224,19 +241,28 @@ def validate_report(document: dict[str, object]) -> list[str]:
             errors.append("native pass requires complete device evidence")
         elif not DIGEST.fullmatch(str(device.get("capabilityDigest", ""))):
             errors.append("native capability digest is invalid")
-        if not isinstance(shaders, list) or not shaders or any(
-            not DIGEST.fullmatch(str(value)) for value in shaders
-        ):
-            errors.append("native pass requires shader evidence digests")
+        if document.get("workload") != "metal-presentation-smoke":
+            if not isinstance(shaders, list) or not shaders or any(
+                not DIGEST.fullmatch(str(value)) for value in shaders
+            ):
+                errors.append("native pass requires shader evidence digests")
     if document.get("workload") == "metal-lifecycle-stress":
         memory = document.get("memory")
         if not isinstance(memory, dict) or len(memory.get("samplesBytes", [])) != 90:
             errors.append("lifecycle report requires exactly 90 RSS samples")
     if document.get("tier") == "visible-manual" and document.get("result") == "passed":
         counts = document.get("counts")
-        if not isinstance(counts, dict) or counts.get("frames", 0) < 3000 or \
-                counts.get("lifecycleCycles", 0) < 20:
-            errors.append("visible pass requires at least 3000 frames and 20 cycles")
+        minimum_frames, minimum_cycles = (
+            (120, 4) if document.get("workload") == "metal-presentation-smoke"
+            else (3000, 20)
+        )
+        if not isinstance(counts, dict) or \
+                counts.get("frames", 0) < minimum_frames or \
+                counts.get("lifecycleCycles", 0) < minimum_cycles:
+            errors.append(
+                f"visible pass requires at least {minimum_frames} frames "
+                f"and {minimum_cycles} cycles"
+            )
     if document.get("tier") == "cross-backend" and document.get("result") == "passed":
         probes = document.get("probes")
         if not isinstance(probes, list) or not any(
@@ -368,6 +394,73 @@ def parse_native_output(stdout: str) -> dict[str, object] | None:
     }
 
 
+def parse_native_device_output(stdout: str) -> dict[str, str] | None:
+    devices = NATIVE_DEVICE_EVIDENCE.findall(stdout)
+    if len(devices) != 1:
+        return None
+    identity, encoded_name, capability = devices[0]
+    try:
+        name = bytes.fromhex(encoded_name).decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        return None
+    if not identity or not name:
+        return None
+    return {
+        "identity": identity[:128],
+        "name": name[:256],
+        "capabilityDigest": capability,
+    }
+
+
+def run_presentation_smoke(
+    tests: Path, probe: Path, root: Path, work: Path, frames: int,
+    cycles: int, timeout: int,
+) -> tuple[bool, dict[str, str] | None, int, int, str, Path]:
+    native = run_command(
+        [str(tests), "--suite", "metal-native", "--metal-native"],
+        root, timeout,
+    )
+    contracts = run_command(
+        [str(tests), "--suite", "metal-presentation",
+         "--suite", "metal-presentation-visible", "--metal-visible"],
+        root, timeout,
+    )
+    work.mkdir(parents=True, exist_ok=True)
+    raw_report = work / "presentation-probe.json"
+    presented = run_command(
+        [str(probe), "--frames", str(frames), "--cycles", str(cycles),
+         "--report", str(raw_report)],
+        root, timeout,
+    )
+    try:
+        document = json.loads(raw_report.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        document = {}
+    actual_frames = document.get("presentedFrames", 0)
+    actual_cycles = document.get("completedLifecycleCycles", 0)
+    clean = all(document.get(field) is True for field in (
+        "layerDetached", "deviceShutdown", "windowDestroyed",
+        "ownershipClean",
+    ))
+    combined = "".join((
+        native.stdout, native.stderr, contracts.stdout, contracts.stderr,
+        presented.stdout, presented.stderr,
+    ))
+    device = parse_native_device_output(native.stdout + native.stderr)
+    passed = native.returncode == 0 and contracts.returncode == 0 and \
+        presented.returncode == 0 and device is not None and clean and \
+        document.get("result") == "passed" and actual_frames >= frames and \
+        actual_cycles >= cycles
+    if not passed:
+        sys.stderr.write(combined)
+    return (
+        passed, device,
+        actual_frames if isinstance(actual_frames, int) else 0,
+        actual_cycles if isinstance(actual_cycles, int) else 0,
+        combined, raw_report,
+    )
+
+
 def run_native(
     tests: Path, root: Path, timeout: int, require_native: bool,
     comparison: bool = False,
@@ -474,6 +567,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     demo = None if args.demo is None else (
         args.demo if args.demo.is_absolute() else root / args.demo
     )
+    presentation_probe = None if args.presentation_probe is None else (
+        args.presentation_probe if args.presentation_probe.is_absolute()
+        else root / args.presentation_probe
+    )
     profile = None if args.profile is None else (
         args.profile if args.profile.is_absolute() else root / args.profile
     )
@@ -487,6 +584,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "native": "metal-native-conformance",
         "comparison": "metal-vulkan-comparison",
         "visible": "metal-visible-presentation",
+        "presentation-smoke": "metal-presentation-smoke",
     }[args.workload]
     report = base_report(root, workload_name, args.tier)
     if profile is not None:
@@ -512,6 +610,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         report["failureCategory"] = "demo-binary-missing"
         errors = write_report(output, report)
         print(f"demo binary does not exist: {demo}", file=sys.stderr)
+        return 2 if errors else 1
+    if args.workload == "presentation-smoke" and (
+        presentation_probe is None or not presentation_probe.is_file()
+    ):
+        report["result"] = "failed"
+        report["failureCategory"] = "presentation-probe-missing"
+        errors = write_report(output, report)
+        print(
+            f"presentation probe does not exist: {presentation_probe}",
+            file=sys.stderr,
+        )
         return 2 if errors else 1
 
     temporary: tempfile.TemporaryDirectory[str] | None = None
@@ -609,7 +718,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ]
         unavailable_is_success = not available and not required and \
             platform.system() == "Darwin"
-    else:
+    elif args.workload == "visible":
         assert demo is not None
         passed, evidence, frames, recoveries, log, demo_report = run_visible(
             demo, tests, root, work, args.timeout_seconds
@@ -633,6 +742,33 @@ def main(argv: Sequence[str] | None = None) -> int:
             report["artifacts"].append({
                 "path": relative.as_posix(),
                 "digest": sha256_file(demo_report),
+            })
+    else:
+        assert presentation_probe is not None
+        passed, device, frames, cycles, log, raw_report = \
+            run_presentation_smoke(
+                tests, presentation_probe, root, work,
+                args.smoke_frames, args.smoke_cycles, args.timeout_seconds,
+            )
+        report["counts"]["frames"] = frames
+        report["counts"]["lifecycleCycles"] = cycles
+        report["counts"]["iterations"] = 1
+        report["probes"] = [{
+            "name": "metal-presentation-layer-lifecycle",
+            "result": "passed" if passed else "failed",
+            **({"evidenceDigest": sha256_file(raw_report)}
+               if raw_report.is_file() else {}),
+        }]
+        if device:
+            report["device"] = device
+        report["ownership"] = {
+            "device": 0, "objects": 0, "presentation": 0, "inFlight": 0,
+        }
+        if raw_report.is_file():
+            relative = raw_report.resolve().relative_to(root)
+            report["artifacts"].append({
+                "path": relative.as_posix(),
+                "digest": sha256_file(raw_report),
             })
 
     if log and args.work is not None:

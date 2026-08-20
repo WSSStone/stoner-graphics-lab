@@ -216,6 +216,7 @@ Asset::EAssetResult Select(
     return Asset::SelectShaderProgram(Program, Target, Lookup, Out);
 }
 
+#if SG_PLATFORM_MAC
 bool LoadProductionProgram(
     Asset::FAssetManager& Manager,
     const Asset::FAssetTargetProfileEvidence& TargetEvidence,
@@ -343,6 +344,7 @@ bool LoadProductionProgram(
     Release();
     return bLoaded;
 }
+#endif
 
 void TestProductionCookedPipelines(
     FMetalShaderRuntimeTestResult& Result,

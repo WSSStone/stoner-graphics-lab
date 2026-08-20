@@ -123,9 +123,20 @@
         "required": ["tier", "result"]
       },
       "then": {
-        "required": ["device", "shaderEvidenceDigests"],
+        "required": ["device"],
         "properties": { "backend": { "enum": ["metal", "vulkan"] } }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "tier": { "enum": ["native-offscreen", "visible-manual"] },
+          "result": { "const": "passed" },
+          "workload": { "not": { "const": "metal-presentation-smoke" } }
+        },
+        "required": ["tier", "result", "workload"]
+      },
+      "then": { "required": ["shaderEvidenceDigests"] }
     },
     {
       "if": { "properties": { "tier": { "const": "cross-backend" } } },

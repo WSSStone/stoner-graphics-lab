@@ -60,7 +60,9 @@ bool ParseOptions(int ArgCount, char** Arguments, FOptions& Out)
 }
 
 void WriteReport(const FOptions& Options, uint32 Presented, uint32 Cycles,
-    const char* Result, const char* Failure)
+    const char* Result, const char* Failure, bool bLayerDetached = false,
+    bool bDeviceShutdown = false, bool bWindowDestroyed = false,
+    bool bOwnershipClean = false)
 {
     if (Options.ReportPath.IsEmpty()) return;
     std::ofstream Output(std::string(Options.ReportPath.View()),
@@ -73,12 +75,34 @@ void WriteReport(const FOptions& Options, uint32 Presented, uint32 Cycles,
         << "  \"requestedLifecycleCycles\": "
         << Options.LifecycleCycles << ",\n"
         << "  \"completedLifecycleCycles\": " << Cycles << ",\n"
+        << "  \"layerDetached\": "
+        << (bLayerDetached ? "true" : "false") << ",\n"
+        << "  \"deviceShutdown\": "
+        << (bDeviceShutdown ? "true" : "false") << ",\n"
+        << "  \"windowDestroyed\": "
+        << (bWindowDestroyed ? "true" : "false") << ",\n"
+        << "  \"ownershipClean\": "
+        << (bOwnershipClean ? "true" : "false") << ",\n"
         << "  \"result\": \"" << Result << "\",\n"
         << "  \"failure\": \"" << Failure << "\"\n"
         << "}\n";
 }
 
 #if defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
+bool WaitForWindowAttribute(GLFWwindow* Window, int Attribute, int Expected)
+{
+    const auto Deadline = std::chrono::steady_clock::now() +
+        std::chrono::seconds(2);
+    do
+    {
+        glfwPollEvents();
+        if (glfwGetWindowAttrib(Window, Attribute) == Expected) return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    while (std::chrono::steady_clock::now() < Deadline);
+    return false;
+}
+
 bool RenderClearFrame(const TSharedPtr<IRHIDevice>& Device,
     const TSharedPtr<IRHICommandQueue>& Queue,
     const TSharedPtr<IRHISwapchain>& Swapchain)
@@ -183,24 +207,37 @@ int main(int ArgCount, char** Arguments)
         Window.GetPlatformWindow().GetNativeHandle());
     uint32 Presented = 0;
     uint32 Cycles = 0;
-    const uint32 CycleInterval = Options.Frames / Options.LifecycleCycles;
+    const uint32 CycleInterval =
+        Options.Frames / (Options.LifecycleCycles + 1);
     const uint32 MaximumAttempts = Options.Frames * 100;
+    const uint32 EffectiveCycleInterval = CycleInterval > 0
+        ? CycleInterval : 1;
+    bool bLifecycleFailed = false;
     for (uint32 Attempt = 0;
          Presented < Options.Frames && Attempt < MaximumAttempts;
          ++Attempt)
     {
         (void)Window.PollEvents();
         if (Cycles < Options.LifecycleCycles &&
-            Presented >= (Cycles + 1) * CycleInterval)
+            Presented >= (Cycles + 1) * EffectiveCycleInterval)
         {
             const int Width = Cycles % 2 == 0 ? 800 : 640;
             const int Height = Cycles % 2 == 0 ? 450 : 360;
             glfwSetWindowSize(NativeWindow, Width, Height);
             glfwIconifyWindow(NativeWindow);
-            (void)Window.PollEvents();
-            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            if (!WaitForWindowAttribute(
+                    NativeWindow, GLFW_ICONIFIED, GLFW_TRUE))
+            {
+                bLifecycleFailed = true;
+                break;
+            }
             glfwRestoreWindow(NativeWindow);
-            (void)Window.PollEvents();
+            if (!WaitForWindowAttribute(
+                    NativeWindow, GLFW_ICONIFIED, GLFW_FALSE))
+            {
+                bLifecycleFailed = true;
+                break;
+            }
             ++Cycles;
         }
         if (RenderClearFrame(Created.Device, Queue.Object, Swapchain.Object))
@@ -209,17 +246,30 @@ int main(int ArgCount, char** Arguments)
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
-    const bool bPresentedAll = Presented == Options.Frames &&
-        Cycles == Options.LifecycleCycles;
+    const bool bPresentedAll = !bLifecycleFailed &&
+        Presented == Options.Frames && Cycles == Options.LifecycleCycles;
     const auto SurfaceShutdown = Surface.Object->Invalidate();
     const auto DeviceShutdown = Created.Device->Shutdown();
     const auto WindowShutdown = Window.Destroy();
+    Swapchain.Object.reset();
+    Surface.Object.reset();
+    Queue.Object.reset();
+    FMetalBackendInspection Inspection;
+    const bool bOwnershipClean = InspectMetalDevice(
+            Created.Device, Inspection) &&
+        Inspection.LiveObjectCount == 0 &&
+        Inspection.PresentationOwnershipCount == 0 &&
+        Inspection.InFlightSubmissionCount == 0;
     const bool bClean = SurfaceShutdown == ERHIResult::Success &&
         DeviceShutdown == ERHIResult::Success &&
-        WindowShutdown == EApplicationResult::Success;
+        WindowShutdown == EApplicationResult::Success && bOwnershipClean;
     WriteReport(Options, Presented, Cycles,
         bPresentedAll && bClean ? "passed" : "failed",
-        bPresentedAll ? (bClean ? "" : "shutdown") : "frame-budget");
+        bPresentedAll ? (bClean ? "" : "shutdown") : "frame-budget",
+        SurfaceShutdown == ERHIResult::Success,
+        DeviceShutdown == ERHIResult::Success,
+        WindowShutdown == EApplicationResult::Success,
+        bOwnershipClean);
     std::cout << "metal-presentation frames=" << Presented
               << " cycles=" << Cycles
               << " shutdown=" << (bClean ? "clean" : "failed") << '\n';

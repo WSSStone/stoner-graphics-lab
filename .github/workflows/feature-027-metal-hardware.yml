@@ -110,6 +110,19 @@ jobs:
           --output-dir Validation/027/CI/work/hardware-${{ matrix.slug }}/render
           --work Build/Feature027Validation/${{ matrix.slug }}/render
           --timeout-seconds 1800
+      - name: Require bounded real-window Metal presentation smoke
+        run: >-
+          python .github/scripts/run_metal_validation.py
+          --root .
+          --tests Build/Mac/Release/Tests/StonerTest
+          --presentation-probe Build/Mac/Release/Tests/MetalPresentationProbe
+          --tier visible-manual
+          --workload presentation-smoke
+          --smoke-frames 120
+          --smoke-cycles 4
+          --work Build/Feature027Validation/${{ matrix.slug }}/presentation-smoke
+          --output Validation/027/CI/work/hardware-${{ matrix.slug }}/presentation-smoke.json
+          --timeout-seconds 600
       - name: Run failure determinism
         run: >-
           python .github/scripts/run_metal_validation.py

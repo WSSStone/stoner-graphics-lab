@@ -166,6 +166,25 @@ class MetalBackendVerifierTests(unittest.TestCase):
         errors = verifier.validate_validation_evidence(document, "visible.json")
         self.assertTrue(any("3000 frames" in error for error in errors))
 
+    def test_presentation_smoke_uses_bounded_visible_threshold(self) -> None:
+        document = {
+            "tier": "visible-manual",
+            "workload": "metal-presentation-smoke",
+            "backend": "metal",
+            "result": "passed",
+            "device": {
+                "identity": "gpu", "name": "GPU", "capabilityDigest": "1" * 64,
+            },
+            "counts": {"frames": 120, "lifecycleCycles": 4},
+            "probes": [{
+                "name": "presentation", "result": "passed",
+                "evidenceDigest": "2" * 64,
+            }],
+        }
+        self.assertEqual(
+            [], verifier.validate_validation_evidence(document, "smoke.json")
+        )
+
     def test_forbidden_ios_api_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)

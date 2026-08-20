@@ -251,6 +251,7 @@ def validate_validation_evidence(document: dict[str, object], label: str) -> lis
     tier = document.get("tier")
     result = document.get("result")
     backend = document.get("backend")
+    workload = document.get("workload")
     native_tiers = {"native-offscreen", "visible-manual", "cross-backend"}
     if tier == "deterministic" and backend != "shared":
         errors.append(f"{label}: deterministic evidence must use the shared backend")
@@ -261,7 +262,9 @@ def validate_validation_evidence(document: dict[str, object], label: str) -> lis
             "identity", "name", "capabilityDigest"
         }.issubset(device):
             errors.append(f"{label}: native pass lacks complete device proof")
-        if not isinstance(shaders, list) or not shaders:
+        if workload != "metal-presentation-smoke" and (
+            not isinstance(shaders, list) or not shaders
+        ):
             errors.append(f"{label}: native pass lacks shader payload proof")
         probes = document.get("probes")
         if not isinstance(probes, list) or not any(
@@ -275,9 +278,17 @@ def validate_validation_evidence(document: dict[str, object], label: str) -> lis
             errors.append(f"{label}: semantic oracle is presented as native evidence")
     if tier == "visible-manual" and result == "passed":
         counts = document.get("counts")
-        if not isinstance(counts, dict) or counts.get("frames", 0) < 3000 or \
-                counts.get("lifecycleCycles", 0) < 20:
-            errors.append(f"{label}: visible pass lacks 3000 frames and 20 cycles")
+        minimum_frames, minimum_cycles = (
+            (120, 4) if workload == "metal-presentation-smoke"
+            else (3000, 20)
+        )
+        if not isinstance(counts, dict) or \
+                counts.get("frames", 0) < minimum_frames or \
+                counts.get("lifecycleCycles", 0) < minimum_cycles:
+            errors.append(
+                f"{label}: visible pass lacks {minimum_frames} frames "
+                f"and {minimum_cycles} cycles"
+            )
     if tier == "cross-backend" and result == "passed":
         probes = document.get("probes")
         if not isinstance(probes, list) or not any(

@@ -90,6 +90,19 @@ class MetalValidationRunnerTests(unittest.TestCase):
         ])
         self.assertEqual("visible", visible.workload)
 
+    def test_presentation_smoke_requires_probe_and_persistent_work(self) -> None:
+        with self.assertRaises(SystemExit):
+            validation.parse_args([
+                "--output", "x", "--tier", "visible-manual",
+                "--workload", "presentation-smoke",
+            ])
+        smoke = validation.parse_args([
+            "--output", "x", "--tier", "visible-manual",
+            "--workload", "presentation-smoke",
+            "--presentation-probe", "probe", "--work", "work",
+        ])
+        self.assertEqual("presentation-smoke", smoke.workload)
+
     def test_persistent_work_is_available_to_lifecycle_logging(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -161,6 +174,27 @@ class MetalValidationRunnerTests(unittest.TestCase):
         errors = validation.validate_report(document)
         self.assertTrue(any("device evidence" in error for error in errors))
         self.assertTrue(any("shader evidence" in error for error in errors))
+
+    def test_presentation_smoke_pass_does_not_require_shader_payload(self) -> None:
+        with mock.patch.object(validation, "revision", return_value="0" * 40):
+            document = validation.base_report(
+                Path("."), "metal-presentation-smoke", "visible-manual"
+            )
+        document.update({
+            "result": "passed",
+            "device": {
+                "identity": "registry-42",
+                "name": "M4 Pro",
+                "capabilityDigest": "1" * 64,
+            },
+            "counts": {"frames": 120, "lifecycleCycles": 4, "iterations": 1},
+            "probes": [{
+                "name": "presentation", "result": "passed",
+                "evidenceDigest": "2" * 64,
+            }],
+        })
+        validation.finalize_report(document)
+        self.assertEqual([], validation.validate_report(document))
 
     def test_visible_report_parser_requires_native_long_run_and_cleanup(self) -> None:
         accepted = "\n".join((

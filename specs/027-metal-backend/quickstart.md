@@ -156,6 +156,29 @@ strict-cooked Metal-library evidence. No semantic oracle is recorded as output.
 
 ## 7. Visible Presentation Acceptance
 
+Before the long visible acceptance, run the bounded layer/lifecycle smoke. This
+clear-only probe intentionally has no shader payload; it proves real device,
+drawable presentation, resize/minimize/restore recovery, layer detach, and zero
+terminal ownership:
+
+```bash
+conda run -n godot python .github/scripts/run_metal_validation.py \
+  --root . \
+  --tests Build/Mac/Release/Tests/StonerTest \
+  --presentation-probe Build/Mac/Release/Tests/MetalPresentationProbe \
+  --tier visible-manual \
+  --workload presentation-smoke \
+  --smoke-frames 120 \
+  --smoke-cycles 4 \
+  --work Build/Feature027Validation/presentation-smoke \
+  --output Validation/027/reports/us2-presentation-smoke.json \
+  --timeout-seconds 600
+```
+
+The probe must record exactly one native Metal device, at least 120 presented
+frames and four completed lifecycle cycles, clean layer/device/window shutdown,
+and zero live presentation/in-flight ownership.
+
 ```bash
 conda run -n godot python .github/scripts/run_metal_validation.py \
   --root . \
