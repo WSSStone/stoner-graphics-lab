@@ -259,9 +259,9 @@ orientation, color, depth, normal, and image tolerances.
 - [X] T098 [US4] Load strict cooked Metal Shader Assets and execute the existing triangle composition through shared RHI submission/presentation in Demo/StonerDemo/Private/FStonerDemoApplication.cpp and Demo/StonerDemo/SConscript
 - [X] T099 [US4] Route the existing deferred surface/graph/execution and real attachment readback through selected Metal RHI objects without Renderer forks in Tests/DeferredNativeIntegrationTests.cpp and Source/Renderer/Private/FDeferredRenderer.cpp
 - [X] T100 [US4] Implement canonical Metal/Vulkan semantic and image comparison reports with the frozen `metal-vulkan-tolerance-v1` thresholds, observed maxima/ratios, and independent native evidence references in Tests/MetalBackendComparison.cpp and Tests/MetalBackendComparison.h
-- [ ] T101 [US4] Run native Metal triangle/deferred probes and store normalized evidence in Validation/027/reports/us4-metal-triangle.json and Validation/027/reports/us4-metal-deferred.json
-- [ ] T102 [US4] Rerun Vulkan/MoltenVK triangle/deferred native probes after Demo/RHI changes and store evidence in Validation/027/reports/us4-vulkan-regression.json
-- [ ] T103 [US4] Produce the accepted cross-backend comparison with tolerance provenance in Validation/027/reports/us4-metal-vulkan-comparison.json
+- [X] T101 [US4] Run native Metal triangle/deferred probes and store normalized evidence in Validation/027/reports/us4-metal-triangle.json and Validation/027/reports/us4-metal-deferred.json
+- [X] T102 [US4] Rerun Vulkan/MoltenVK triangle/deferred native probes after Demo/RHI changes and store evidence in Validation/027/reports/us4-vulkan-regression.json
+- [X] T103 [US4] Produce the accepted cross-backend comparison with tolerance provenance in Validation/027/reports/us4-metal-vulkan-comparison.json
 - [X] T104 [US4] Verify Renderer and Application contain no Metal imports or backend-specific rendering branches using Tests/verify_metal_backend.py and Validation/027/reports/us4-architecture.md
 
 **Checkpoint**: Metal and Vulkan are explicit peers executing the same rendering
