@@ -142,6 +142,9 @@ int main(int ArgCount, char* Arguments[])
             Argument == "--material-shader-report" ||
             Argument == "--material-shader-determinism-runs" ||
             Argument == "--metal-report" ||
+            Argument == "--metal-cooked-root" ||
+            Argument == "--metal-lease-root" ||
+            Argument == "--metal-target-profile" ||
             Argument == "--metal-determinism-runs" ||
             Argument == "--metal-lifecycle-iterations" ||
             Argument == "--static-model-determinism-runs" ||
@@ -162,6 +165,18 @@ int main(int ArgCount, char* Arguments[])
             else if (Argument == "--metal-report")
             {
                 MetalOptions.ReportPath = Value;
+            }
+            else if (Argument == "--metal-cooked-root")
+            {
+                MetalOptions.CookedPublicationRoot = Value;
+            }
+            else if (Argument == "--metal-lease-root")
+            {
+                MetalOptions.LeaseCoordinationRoot = Value;
+            }
+            else if (Argument == "--metal-target-profile")
+            {
+                MetalOptions.TargetProfilePath = Value;
             }
             else if (Argument == "--metal-determinism-runs" ||
                      Argument == "--metal-lifecycle-iterations")
@@ -606,8 +621,8 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("metal-shader-publication", [] {
         return RunMetalShaderPublicationTests().Failed == 0 ? 0 : 1;
     });
-    Registry.Register("metal-shader-runtime", [] {
-        return RunMetalShaderRuntimeTests().Failed == 0 ? 0 : 1;
+    Registry.Register("metal-shader-runtime", [MetalOptions] {
+        return RunMetalShaderRuntimeTests(MetalOptions).Failed == 0 ? 0 : 1;
     });
     Registry.Register("renderer-comparison", [] { return RunRendererComparisonTests().Failed == 0 ? 0 : 1; });
     Registry.Register("renderer-forward", [] { return RunRendererForwardPipelineTests().Failed == 0 ? 0 : 1; });

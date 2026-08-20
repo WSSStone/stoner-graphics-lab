@@ -255,6 +255,11 @@ void TestFinalization(FMetalShaderCompilerTestResult& Result)
             HasArgument(Executor.Requests[6], "metal") &&
             HasArgument(Executor.Requests[6], "-std=macos-metal2.4") &&
             HasArgument(Executor.Requests[6], "-mmacosx-version-min=12.0") &&
+            HasArgument(Executor.Requests[6], "-greproducible") &&
+            HasArgument(Executor.Requests[6], "-frecord-sources=no") &&
+            HasArgument(
+                Executor.Requests[6],
+                "-fdebug-compilation-dir=/stoner-metal-work") &&
             HasModuleCacheArgument(Executor.Requests[6], Root) &&
             HasArgument(Executor.Requests[7], "metallib") && Clean;
     if (!Passed)

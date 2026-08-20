@@ -79,6 +79,8 @@ bool PayloadMatchesReference(
             Entry.DescriptorType = Binding.Kind;
             Entry.ArrayElement = ArrayElement;
             Expected.push_back(Entry);
+            if (Binding.Kind == EShaderResourceKind::CombinedTextureSampler)
+                Expected.push_back(Entry);
         }
     }
     if (Expected.size() != BindingEvidence->Entries.size()) return false;

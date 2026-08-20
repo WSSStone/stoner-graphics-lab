@@ -87,17 +87,31 @@ EMetalLibraryFinalizeStatus ExecuteTool(
 
 Asset::FAssetDigest ArgumentDigest(
     const Core::FProcessExecutionRequest& First,
-    const Core::FProcessExecutionRequest& Second)
+    const Core::FProcessExecutionRequest& Second,
+    const std::filesystem::path& WorkingDirectory)
 {
     std::string Canonical;
-    const auto Append = [&Canonical](
+    const std::string PhysicalRoot = WorkingDirectory.generic_string();
+    const auto Normalize = [&PhysicalRoot](std::string Value)
+    {
+        std::string::size_type Position = 0;
+        while (!PhysicalRoot.empty() &&
+            (Position = Value.find(PhysicalRoot, Position)) !=
+                std::string::npos)
+        {
+            Value.replace(Position, PhysicalRoot.size(), "<WORK>");
+            Position += 6;
+        }
+        return Value;
+    };
+    const auto Append = [&Canonical, &Normalize](
         const Core::FProcessExecutionRequest& Request)
     {
         Canonical += Request.ExecutablePath.ToStdString();
         Canonical.push_back('\0');
         for (const auto& Argument : Request.Arguments)
         {
-            Canonical += Argument.ToStdString();
+            Canonical += Normalize(Argument.ToStdString());
             Canonical.push_back('\0');
         }
     };
@@ -356,6 +370,18 @@ FMetalLibraryCompileResult FinalizeMetalLibrary(
             {Core::FString("-sdk"), Core::FString("macosx"),
              Core::FString("metal"), Core::FString("-std=macos-metal2.4"),
              Core::FString("-mmacosx-version-min=12.0"),
+             Core::FString("-greproducible"),
+             Core::FString("-frecord-sources=no"),
+             Core::FString("-fdebug-compilation-dir=/stoner-metal-work"),
+             Core::FString(
+                 "-ffile-prefix-map=" +
+                 Root.generic_string() + "=/stoner-metal-work"),
+             Core::FString(
+                 "-fdebug-prefix-map=" +
+                 Root.generic_string() + "=/stoner-metal-work"),
+             Core::FString(
+                 "-fmacro-prefix-map=" +
+                 Root.generic_string() + "=/stoner-metal-work"),
              Core::FString(
                  "-fmodules-cache-path=" +
                  Utf8Path(Files.ModuleCache).ToStdString()),
@@ -414,7 +440,7 @@ FMetalLibraryCompileResult FinalizeMetalLibrary(
             Toolchain.MetalCompiler,
             Toolchain.XcodeBuild,
             Toolchain.Sdk,
-            ArgumentDigest(Metal, Metallib),
+            ArgumentDigest(Metal, Metallib, Root),
             Asset::FAssetDigest::FromBytes(Bytes),
             Size};
         if (FinalizeMetalShaderEvidence(Native) !=

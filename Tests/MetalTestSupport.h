@@ -6,6 +6,9 @@
 struct FMetalTestOptions
 {
     std::string ReportPath;
+    std::string CookedPublicationRoot;
+    std::string LeaseCoordinationRoot;
+    std::string TargetProfilePath;
     std::uint32_t DeterminismRuns = 20;
     std::uint32_t LifecycleIterations = 10000;
     bool bRequestNative = false;

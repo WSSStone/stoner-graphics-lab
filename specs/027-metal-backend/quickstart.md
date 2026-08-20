@@ -66,6 +66,7 @@ Build/Mac/Release/Tools/AssetCooker/StonerAssetCooker cook \
   --root ShaderProgram:Engine/Shaders/Deferred/DirectionalLight \
   --root ShaderProgram:Engine/Shaders/Deferred/PointLight \
   --root ShaderProgram:Engine/Shaders/Deferred/SpotLight \
+  --root ShaderProgram:Engine/Shaders/Validation/NoOp \
   --output Build/Feature027Cook/arm64 \
   --ddc Build/Feature027Cook/DDC-arm64 \
   --report Validation/027/reports/cook-arm64.json
@@ -78,6 +79,21 @@ metallib bytes are compared only under identical recorded Apple toolchains.
 Feature 027 intentionally cooks only its repository-owned shader roots; the
 full production content closure, including material texture dependencies, is
 owned by Feature 028.
+
+The production runner performs the twenty isolated cooks, strict generation
+loads, and native graphics/compute pipeline creations required by T089:
+
+```bash
+conda run -n godot python .github/scripts/run_metal_native_cook.py \
+  --root . \
+  --cooker Build/Mac/Release/Tools/AssetCooker/StonerAssetCooker \
+  --tests Build/Mac/Release/Tests/StonerTest \
+  --profile Config/AssetCooker/Profiles/Mac-Metal-Arm64.json \
+  --work Build/Feature027Validation/native-cook-arm64 \
+  --output Validation/027/reports/us3-native-cook-determinism.json \
+  --repetitions 20 \
+  --timeout-seconds 1800
+```
 
 Windows/Linux final-cook attempts must return `HostUnsupported`, publish no
 generation, and leave existing `Current.json` untouched.

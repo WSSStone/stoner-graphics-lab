@@ -51,6 +51,7 @@ jobs:
           python Tests/verify_metal_backend.py --root . --mode all
           python -m unittest Tests/test_verify_architecture.py Tests/test_verify_metal_backend.py
           python .github/scripts/test_run_metal_validation.py
+          python .github/scripts/test_run_metal_native_cook.py
       - name: Run deterministic MSL derivation twenty times
         run: >-
           python .github/scripts/run_metal_validation.py
@@ -85,6 +86,17 @@ jobs:
           --suite metal-shader-publication
           --suite metal-shader-runtime
           --suite triangle-demo
+      - name: Require deterministic production Metal cook and pipeline creation
+        run: >-
+          python .github/scripts/run_metal_native_cook.py
+          --root .
+          --cooker Build/Mac/Release/Tools/AssetCooker/StonerAssetCooker
+          --tests Build/Mac/Release/Tests/StonerTest
+          --profile ${{ matrix.profile }}
+          --work Build/Feature027Validation/${{ matrix.slug }}/native-cook
+          --output Validation/027/CI/work/hardware-${{ matrix.slug }}/native-cook.json
+          --repetitions 20
+          --timeout-seconds 1800
       - name: Run failure determinism
         run: >-
           python .github/scripts/run_metal_validation.py

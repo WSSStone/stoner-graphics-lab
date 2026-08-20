@@ -1215,7 +1215,8 @@ void TestRepositoryAssets(FAssetMaterialShaderTestResult& Result)
         "Deferred/Composition.shader.json",
         "Deferred/DirectionalLight.shader.json",
         "Deferred/PointLight.shader.json",
-        "Deferred/SpotLight.shader.json"};
+        "Deferred/SpotLight.shader.json",
+        "Validation/NoOp.shader.json"};
     FAssetExtensionRegistry Extensions;
     FAssetRegistrationToken ResolverToken;
     const bool bRegistered =
@@ -1231,9 +1232,7 @@ void TestRepositoryAssets(FAssetMaterialShaderTestResult& Result)
     {
         const auto Loaded = FMaterialShaderSourceLoader::Load(
             MakeRepositoryRequest(Root, ProgramPath, Extensions));
-        bLoaded = bLoaded && Loaded.Succeeded() &&
-            Loaded.Payloads.size() == 5 &&
-            Loaded.Metadata.size() == 5;
+        bLoaded = bLoaded && Loaded.Succeeded();
         TSharedPtr<const FShaderAsset> Program;
         for (const auto& Payload : Loaded.Payloads)
         {
@@ -1266,14 +1265,20 @@ void TestRepositoryAssets(FAssetMaterialShaderTestResult& Result)
             Target.AcceptableProfiles = {FString("vulkan-1.3")};
             FSelectedShaderProgram Selection;
             const FLoadedPayloadLookup Lookup(Loaded.Payloads);
+            const auto ExpectedStages = Program->GetDesc().ProgramKind ==
+                    EShaderProgramKind::Compute
+                ? 1u : 2u;
+            const auto ExpectedManifest = ExpectedStages * 2u + 1u;
             bSelected = bSelected &&
                 SelectShaderProgram(
                     *Program,
                     Target,
                     Lookup,
                     Selection) == EAssetResult::Success &&
-                Selection.Stages.size() == 2 &&
-                Selection.SourceManifest.size() == 5;
+                Selection.Stages.size() == ExpectedStages &&
+                Selection.SourceManifest.size() == ExpectedManifest &&
+                Loaded.Payloads.size() == ExpectedManifest &&
+                Loaded.Metadata.size() == ExpectedManifest;
         }
         else
         {
@@ -1282,8 +1287,8 @@ void TestRepositoryAssets(FAssetMaterialShaderTestResult& Result)
     }
     Record(
         Result,
-        bLoaded && SourceIds.size() == 11 && PayloadIds.size() == 11,
-        "All six repository programs load 11 source and 11 payload identities");
+        bLoaded && SourceIds.size() == 12 && PayloadIds.size() == 12,
+        "All seven repository programs load 12 source and 12 payload identities");
     Record(
         Result,
         bSelected,

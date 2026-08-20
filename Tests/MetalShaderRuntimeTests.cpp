@@ -2,9 +2,20 @@
 
 #include "Asset/FAssetManager.h"
 #include "Asset/FAssetManagerConfig.h"
+#include "Asset/FAssetCookContractCodec.h"
+#include "Core/FPlatformFileSystem.h"
+#include "Core/SGPlatform.h"
 #include "MetalShaderCookedTestSupport.h"
 #include "Renderer/FShaderAssetConversion.h"
+#include "RHI/FRHIComputePipelineDesc.h"
+#include "RHI/FRHIGraphicsPipelineDesc.h"
+#include "RHI/FRHIPipelineLayoutDesc.h"
 
+#if SG_PLATFORM_MAC
+#include "MetalRHI/FMetalDeviceFactory.h"
+#endif
+
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
@@ -72,9 +83,16 @@ private:
     Core::TArray<Core::TSharedPtr<const Asset::FShaderPayloadAsset>> Values_;
 };
 
+struct FProductionLibraryDigest
+{
+    Asset::FAssetId Id;
+    Asset::FAssetDigest Digest;
+};
+
 bool MakeProgram(
     const Core::TArray<Core::TSharedPtr<const Asset::FShaderPayloadAsset>>& Payloads,
-    Asset::FShaderAsset& Out)
+    Asset::FShaderAsset& Out,
+    bool bCombinedSampler = false)
 {
     if (Payloads.size() != 2) return false;
     Asset::FShaderAssetDesc Desc;
@@ -112,12 +130,42 @@ bool MakeProgram(
         Variant.Payloads.push_back(std::move(Reference));
     }
     Desc.Variants.push_back(std::move(Variant));
-    Desc.InterfaceBindings.push_back({
-        0, 0, Asset::EShaderResourceKind::UniformBuffer, 1,
-        {Asset::EShaderStage::Vertex, Asset::EShaderStage::Fragment},
-        Core::FString("Frame")});
+    Desc.InterfaceBindings.push_back(bCombinedSampler
+        ? Asset::FShaderInterfaceBinding{
+              2, 0, Asset::EShaderResourceKind::CombinedTextureSampler, 1,
+              {Asset::EShaderStage::Fragment}, Core::FString("Texture")}
+        : Asset::FShaderInterfaceBinding{
+              0, 0, Asset::EShaderResourceKind::UniformBuffer, 1,
+              {Asset::EShaderStage::Vertex, Asset::EShaderStage::Fragment},
+              Core::FString("Frame")});
     return Asset::FShaderAsset::CreateValidated(std::move(Desc), Out) ==
         Asset::EAssetResult::Success;
+}
+
+Core::TSharedPtr<const Asset::FShaderPayloadAsset> CombinedSamplerPayload(
+    const Asset::FShaderPayloadAsset& Source)
+{
+    const auto Bytes = Source.GetBytes();
+    Asset::FShaderNativeBindingEvidence Binding =
+        BindingEvidence(Asset::EShaderStage::Fragment, false);
+    Binding.Entries = {
+        {Asset::EShaderStage::Fragment, 2, 0,
+         Asset::EShaderResourceKind::CombinedTextureSampler, 0,
+         Asset::EShaderNativeResourceClass::Texture, 0},
+        {Asset::EShaderStage::Fragment, 2, 0,
+         Asset::EShaderResourceKind::CombinedTextureSampler, 0,
+         Asset::EShaderNativeResourceClass::Sampler, 0}};
+    (void)Asset::FinalizeShaderNativeBindingEvidence(Binding);
+    Asset::FShaderPayloadAsset Payload;
+    const auto Created = Asset::FShaderPayloadAsset::CreateWithNativeEvidence(
+        Source.GetId(), Source.GetVersion(), Source.GetBackend(),
+        Source.GetProfile(), Source.GetFormat(), Source.GetStage(),
+        Source.GetEntryPoint(), Source.GetPermutation(), Bytes,
+        std::move(Binding),
+        LibraryEvidence(Bytes, Source.GetProfile(), "arm64"), Payload);
+    return Created == Asset::EAssetResult::Success
+        ? Core::MakeShared<const Asset::FShaderPayloadAsset>(std::move(Payload))
+        : nullptr;
 }
 
 Core::TSharedPtr<const Asset::FShaderPayloadAsset> MutatedPayload(
@@ -168,9 +216,328 @@ Asset::EAssetResult Select(
     return Asset::SelectShaderProgram(Program, Target, Lookup, Out);
 }
 
+bool LoadProductionProgram(
+    Asset::FAssetManager& Manager,
+    const Asset::FAssetTargetProfileEvidence& TargetEvidence,
+    const Core::FString& SelectedProfile,
+    const char* ProgramPath,
+    Core::usize ExpectedStageCount,
+    Renderer::FShaderAssetSnapshot& Out,
+    Core::TArray<FProductionLibraryDigest>* OutLibraries = nullptr)
+{
+    Asset::FAssetId ProgramId;
+    if (Asset::FAssetId::Create(
+            "ShaderProgram", ProgramPath, std::nullopt, ProgramId) !=
+        Asset::EAssetResult::Success)
+        return false;
+
+    Core::TArray<Asset::FAssetRequestHandle> Requests;
+    const auto Release = [&Manager, &Requests]()
+    {
+        for (const auto Request : Requests)
+            if (Request.IsValid()) (void)Manager.ReleaseRequest(Request);
+    };
+    Asset::FAssetRequestHandle ProgramRequest;
+    Asset::FAssetRequestSnapshot RequestSnapshot;
+    Asset::TAssetHandle<Asset::FShaderAsset> Program;
+    if (Manager.Request<Asset::FShaderAsset>(ProgramId, ProgramRequest) !=
+            Asset::EAssetResult::Success ||
+        !WaitTerminal(Manager, ProgramRequest, RequestSnapshot) ||
+        RequestSnapshot.State != Asset::EAssetRequestState::Ready ||
+        Manager.GetResult(ProgramRequest, Program) !=
+            Asset::EAssetResult::Success || !Program.IsValid())
+    {
+        Requests.push_back(ProgramRequest);
+        Release();
+        return false;
+    }
+    Requests.push_back(ProgramRequest);
+
+    Core::TArray<Core::TSharedPtr<const Asset::FShaderPayloadAsset>> Payloads;
+    for (const auto& Variant : Program->GetDesc().Variants)
+    {
+        if (!Variant.Permutation.Flags.empty()) continue;
+        for (const auto& Reference : Variant.Payloads)
+        {
+            const bool bDerivedMetal =
+                Reference.Backend == Asset::EShaderBackendFamily::Vulkan &&
+                Reference.Format == Asset::EShaderPayloadFormat::SPIRV;
+            const bool bExactMetal =
+                Reference.Backend == Asset::EShaderBackendFamily::Metal &&
+                Reference.Format == Asset::EShaderPayloadFormat::MetalLibrary;
+            const auto& PayloadId = Reference.Payload.GetId();
+            if ((!bDerivedMetal && !bExactMetal) || !PayloadId) continue;
+            Asset::FAssetRequestHandle PayloadRequest;
+            Asset::TAssetHandle<Asset::FShaderPayloadAsset> Payload;
+            if (Manager.Request<Asset::FShaderPayloadAsset>(
+                    *PayloadId, PayloadRequest) != Asset::EAssetResult::Success ||
+                !WaitTerminal(Manager, PayloadRequest, RequestSnapshot) ||
+                RequestSnapshot.State != Asset::EAssetRequestState::Ready ||
+                Manager.GetResult(PayloadRequest, Payload) !=
+                    Asset::EAssetResult::Success || !Payload.IsValid())
+            {
+                Requests.push_back(PayloadRequest);
+                Release();
+                return false;
+            }
+            Requests.push_back(PayloadRequest);
+            Payloads.push_back(
+                Core::MakeShared<const Asset::FShaderPayloadAsset>(*Payload));
+        }
+        break;
+    }
+
+    Asset::FShaderTargetRequest Target;
+    Target.Backend = Asset::EShaderBackendFamily::Metal;
+    Target.CpuArchitecture = TargetEvidence.Profile.CpuArchitecture;
+    Target.AcceptableProfiles = {SelectedProfile};
+    FLookup Lookup(Payloads);
+    Asset::FSelectedShaderProgram Selected;
+    const auto Selection = Payloads.size() == ExpectedStageCount
+        ? Asset::SelectShaderProgram(*Program, Target, Lookup, Selected)
+        : Asset::EAssetResult::DependencyMismatch;
+    const auto Conversion = Selection == Asset::EAssetResult::Success
+        ? Renderer::ConvertShaderAsset({&Selected}, Out)
+        : Renderer::EMaterialResult::ValidationFailed;
+    const bool bLoaded = Payloads.size() == ExpectedStageCount &&
+        Selection == Asset::EAssetResult::Success &&
+        Conversion == Renderer::EMaterialResult::Success &&
+        Out.ModuleDescriptions.size() == ExpectedStageCount;
+    if (bLoaded && OutLibraries)
+        for (const auto& Payload : Payloads)
+            OutLibraries->push_back({
+                Payload->GetId(),
+                Asset::FAssetDigest::FromBytes(Payload->GetBytes())});
+    if (!bLoaded)
+    {
+        std::cout << "[INFO] production-program path=" << ProgramPath
+                  << " payloads=" << Payloads.size()
+                  << " selection=" << static_cast<int>(Selection)
+                  << " conversion=" << static_cast<int>(Conversion) << '\n';
+        for (const auto& Reference : Program->GetDesc().Variants.front().Payloads)
+        {
+            const auto& ReferenceId = Reference.Payload.GetId();
+            const auto Payload = ReferenceId ? Lookup.Find(*ReferenceId) : nullptr;
+            Core::usize ExpectedBindings = 0;
+            for (const auto& Binding : Program->GetDesc().InterfaceBindings)
+                if (std::find(
+                        Binding.Visibility.begin(), Binding.Visibility.end(),
+                        Reference.Stage) != Binding.Visibility.end())
+                    ExpectedBindings += Binding.ArrayCount;
+            const auto* Evidence = Payload
+                ? Payload->GetNativeBindingEvidence() : nullptr;
+            std::cout << "[INFO] production-stage stage="
+                      << static_cast<int>(Reference.Stage)
+                      << " payload=" << static_cast<bool>(Payload)
+                      << " source="
+                      << (Payload && Payload->GetVersion().SourceDigest ==
+                              Reference.ExpectedDigest)
+                      << " binding-expected=" << ExpectedBindings
+                      << " binding-actual="
+                      << (Evidence ? Evidence->Entries.size() : 0) << '\n';
+        }
+    }
+    Program.Reset();
+    Payloads.clear();
+    Selected.Stages.clear();
+    Release();
+    return bLoaded;
+}
+
+void TestProductionCookedPipelines(
+    FMetalShaderRuntimeTestResult& Result,
+    const FMetalTestOptions& Options)
+{
+    const bool bAnyPath = !Options.CookedPublicationRoot.empty() ||
+        !Options.LeaseCoordinationRoot.empty() ||
+        !Options.TargetProfilePath.empty();
+    if (!bAnyPath) return;
+    const bool bComplete = !Options.CookedPublicationRoot.empty() &&
+        !Options.LeaseCoordinationRoot.empty() &&
+        !Options.TargetProfilePath.empty();
+#if SG_PLATFORM_MAC
+    Core::TArray<Core::uint8> ProfileBytes;
+    Asset::FAssetTargetProfileEvidence TargetEvidence;
+    const bool bProfile = bComplete &&
+        Core::FPlatformFileSystem::ReadFile(
+            Options.TargetProfilePath.c_str(), ProfileBytes) &&
+        Asset::FAssetCookContractCodec::ParseTargetProfile(
+            ProfileBytes, TargetEvidence) == Asset::EAssetResult::Success &&
+        TargetEvidence.Profile.Platform == Asset::EAssetTargetPlatform::MacOS &&
+        TargetEvidence.Profile.GraphicsBackend ==
+            Asset::EAssetGraphicsBackend::Metal;
+    Core::FString SelectedProfile;
+    if (bProfile)
+    {
+        for (const auto& Choice : TargetEvidence.Profile.ShaderPayloadChoices)
+            if (Choice.Backend == Asset::EAssetGraphicsBackend::Metal &&
+                Choice.Format == Asset::EAssetShaderPayloadFormat::MetalLibrary)
+            {
+                SelectedProfile = Choice.Profile;
+                break;
+            }
+    }
+    std::error_code Error;
+    std::filesystem::create_directories(
+        Options.LeaseCoordinationRoot, Error);
+    Asset::FAssetManagerConfig Config;
+    Config.Mode = Asset::EAssetManagerMode::StrictCooked;
+    Config.ExtensionRegistry = Core::MakeShared<Asset::FAssetExtensionRegistry>();
+    Config.PublicationRoot = Core::FString(Options.CookedPublicationRoot);
+    Config.LeaseCoordinationRoot = Core::FString(Options.LeaseCoordinationRoot);
+    Config.TargetEvidence =
+        Core::MakeShared<const Asset::FAssetTargetProfileEvidence>(TargetEvidence);
+    Core::TSharedPtr<Asset::FAssetManager> Manager;
+    Asset::FAssetDiagnosticList Diagnostics;
+    const bool bManager = bProfile && !SelectedProfile.IsEmpty() && !Error &&
+        Asset::FAssetManager::Create(Config, Manager, Diagnostics) ==
+            Asset::EAssetResult::Success && Manager;
+    Renderer::FShaderAssetSnapshot Graphics;
+    Renderer::FShaderAssetSnapshot Compute;
+    Core::TArray<Renderer::FShaderAssetSnapshot> DeferredPrograms(5);
+    Core::TArray<FProductionLibraryDigest> Libraries;
+    const bool bTriangle = bManager && LoadProductionProgram(
+            *Manager, TargetEvidence, SelectedProfile,
+            "Engine/Shaders/Triangle", 2, Graphics, &Libraries);
+    const bool bSurface = bManager && LoadProductionProgram(
+            *Manager, TargetEvidence, SelectedProfile,
+            "Engine/Shaders/Deferred/Surface", 2, DeferredPrograms[0],
+            &Libraries);
+    const bool bComposition = bManager && LoadProductionProgram(
+            *Manager, TargetEvidence, SelectedProfile,
+            "Engine/Shaders/Deferred/Composition", 2, DeferredPrograms[1],
+            &Libraries);
+    const bool bDirectional = bManager && LoadProductionProgram(
+            *Manager, TargetEvidence, SelectedProfile,
+            "Engine/Shaders/Deferred/DirectionalLight", 2,
+            DeferredPrograms[2], &Libraries);
+    const bool bPoint = bManager && LoadProductionProgram(
+            *Manager, TargetEvidence, SelectedProfile,
+            "Engine/Shaders/Deferred/PointLight", 2, DeferredPrograms[3],
+            &Libraries);
+    const bool bSpot = bManager && LoadProductionProgram(
+            *Manager, TargetEvidence, SelectedProfile,
+            "Engine/Shaders/Deferred/SpotLight", 2, DeferredPrograms[4],
+            &Libraries);
+    const bool bCompute = bManager && LoadProductionProgram(
+            *Manager, TargetEvidence, SelectedProfile,
+            "Engine/Shaders/Validation/NoOp", 1, Compute, &Libraries);
+    std::sort(
+        Libraries.begin(), Libraries.end(),
+        [](const auto& Left, const auto& Right) { return Left.Id < Right.Id; });
+    Libraries.erase(
+        std::unique(
+            Libraries.begin(), Libraries.end(),
+            [](const auto& Left, const auto& Right)
+            { return Left.Id == Right.Id; }),
+        Libraries.end());
+    const bool bStrict = bTriangle && bSurface && bComposition &&
+        bDirectional && bPoint && bSpot && bCompute && Libraries.size() == 12;
+    if (!bStrict)
+    {
+        std::cout << "[INFO] production-load triangle=" << bTriangle
+                  << " surface=" << bSurface
+                  << " composition=" << bComposition
+                  << " directional=" << bDirectional
+                  << " point=" << bPoint
+                  << " spot=" << bSpot
+                  << " compute=" << bCompute << '\n';
+    }
+    if (Manager)
+    {
+        (void)Manager->Shutdown();
+        Manager.reset();
+    }
+
+    auto Created = Backend::Metal::CreateMetalDevice();
+    Core::TArray<Core::TSharedPtr<RHI::IRHIShaderModule>> GraphicsModules;
+    Core::TArray<Core::TSharedPtr<RHI::IRHIShaderModule>> ComputeModules;
+    bool bModules = bStrict && Created.Succeeded();
+    if (bModules)
+    {
+        for (const auto& Desc : Graphics.ModuleDescriptions)
+        {
+            auto Module = Created.Device->CreateShaderModule(Desc);
+            bModules = bModules && Module.Succeeded();
+            GraphicsModules.push_back(std::move(Module.Object));
+        }
+        for (const auto& Desc : Compute.ModuleDescriptions)
+        {
+            auto Module = Created.Device->CreateShaderModule(Desc);
+            bModules = bModules && Module.Succeeded();
+            ComputeModules.push_back(std::move(Module.Object));
+        }
+    }
+    RHI::FRHIPipelineLayoutDesc GraphicsLayoutDesc;
+    GraphicsLayoutDesc.Bindings.push_back({
+        0, 0, RHI::ERHIDescriptorType::UniformBuffer, 1,
+        RHI::ERHIShaderStageFlags::Vertex |
+            RHI::ERHIShaderStageFlags::Fragment});
+    RHI::FRHIPipelineLayoutDesc ComputeLayoutDesc;
+    ComputeLayoutDesc.Bindings.push_back({
+        0, 0, RHI::ERHIDescriptorType::UniformBuffer, 1,
+        RHI::ERHIShaderStageFlags::Compute});
+    const auto GraphicsLayout = bModules
+        ? Created.Device->CreatePipelineLayout(GraphicsLayoutDesc)
+        : RHI::TRHIObjectResult<RHI::IRHIPipelineLayout>{};
+    const auto ComputeLayout = bModules
+        ? Created.Device->CreatePipelineLayout(ComputeLayoutDesc)
+        : RHI::TRHIObjectResult<RHI::IRHIPipelineLayout>{};
+    RHI::FRHIGraphicsPipelineDesc GraphicsDesc;
+    GraphicsDesc.ShaderModules = GraphicsModules;
+    GraphicsDesc.PipelineLayout = GraphicsLayout.Object;
+    GraphicsDesc.VertexInput.Stride = sizeof(float) * 5;
+    GraphicsDesc.VertexInput.Attributes = {
+        {0, RHI::ERHIFormat::R32G32_Float, 0},
+        {1, RHI::ERHIFormat::R32G32B32_Float, sizeof(float) * 2}};
+    GraphicsDesc.Rasterizer.CullMode = RHI::ERHICullMode::None;
+    GraphicsDesc.RenderTargets.ColorFormats = {RHI::ERHIFormat::B8G8R8A8_UNorm};
+    GraphicsDesc.RuntimeMode = RHI::ERHIRuntimeObjectMode::RealRuntime;
+    RHI::FRHIComputePipelineDesc ComputeDesc;
+    ComputeDesc.ShaderModules = ComputeModules;
+    ComputeDesc.PipelineLayout = ComputeLayout.Object;
+    ComputeDesc.RuntimeMode = RHI::ERHIRuntimeObjectMode::RealRuntime;
+    const auto GraphicsPipeline = GraphicsLayout.Succeeded()
+        ? Created.Device->CreateGraphicsPipeline(GraphicsDesc)
+        : RHI::TRHIObjectResult<RHI::IRHIGraphicsPipeline>{};
+    const auto ComputePipeline = ComputeLayout.Succeeded()
+        ? Created.Device->CreateComputePipeline(ComputeDesc)
+        : RHI::TRHIObjectResult<RHI::IRHIComputePipeline>{};
+    const bool bPassed = bStrict && bModules && GraphicsPipeline.Succeeded() &&
+        ComputePipeline.Succeeded();
+    if (!bPassed)
+    {
+        std::cout << "[INFO] production-pipeline strict=" << bStrict
+                  << " modules=" << bModules
+                  << " graphics=" << GraphicsPipeline.Succeeded()
+                  << " compute=" << ComputePipeline.Succeeded() << '\n';
+    }
+    if (bPassed)
+    {
+        std::cout << "[EVIDENCE] metal-production-cooked graphics="
+                  << Graphics.ModuleDescriptions.size()
+                  << " compute=" << Compute.ModuleDescriptions.size()
+                  << " libraries=12";
+        for (const auto& Library : Libraries)
+            std::cout << " digest="
+                      << Library.Digest.ToLowerHex().CStr();
+        std::cout << '\n';
+    }
+    ComputeModules.clear();
+    GraphicsModules.clear();
+    if (Created.Device) (void)Created.Device->Shutdown();
+    Record(Result, bPassed,
+        "production generation strictly loads all libraries into native graphics and compute pipelines");
+#else
+    Record(Result, !bComplete,
+        "production Metal pipeline validation is macOS-only");
+#endif
+}
+
 } // namespace
 
-FMetalShaderRuntimeTestResult RunMetalShaderRuntimeTests()
+FMetalShaderRuntimeTestResult RunMetalShaderRuntimeTests(
+    const FMetalTestOptions& Options)
 {
     using namespace Stoner;
     using namespace Stoner::Tests::MetalShaderCooked;
@@ -265,6 +632,28 @@ FMetalShaderRuntimeTestResult RunMetalShaderRuntimeTests()
     Record(Result, SelectedStrict && TargetRejections,
         "strict selection rejects missing CPU, wrong CPU, profile, and backend");
 
+    const auto CombinedFragmentSource = MetalPayload(
+        Asset::EShaderStage::Fragment, "payload.vulkan.fragment",
+        "source-fragment-v1", 2, "metal-macos-12-arm64", "arm64", false);
+    const Core::TArray<Core::TSharedPtr<const Asset::FShaderPayloadAsset>>
+        CombinedPayloads{
+            MetalPayload(
+                Asset::EShaderStage::Vertex, "payload.vulkan.vertex",
+                "source-vertex-v1", 1, "metal-macos-12-arm64", "arm64", false),
+            CombinedFragmentSource
+                ? CombinedSamplerPayload(*CombinedFragmentSource) : nullptr};
+    Asset::FShaderAsset CombinedProgram;
+    Asset::FSelectedShaderProgram CombinedSelected;
+    const bool CombinedSelectedStrict =
+        CombinedPayloads.front() && CombinedPayloads.back() &&
+        MakeProgram(CombinedPayloads, CombinedProgram, true) &&
+        Select(
+            CombinedProgram, FLookup(CombinedPayloads), CombinedSelected) ==
+            Asset::EAssetResult::Success &&
+        CombinedSelected.Stages.size() == 2;
+    Record(Result, CombinedSelectedStrict,
+        "strict Metal selection accepts combined texture/sampler native entry pairs");
+
     const auto Vertex = Payloads.front();
     const Core::TArray<Core::TSharedPtr<const Asset::FShaderPayloadAsset>> BadStage{
         MutatedPayload(*Vertex, Asset::EShaderBackendFamily::Metal,
@@ -314,6 +703,8 @@ FMetalShaderRuntimeTestResult RunMetalShaderRuntimeTests()
             RHI::IsCanonicalRHINativeBindingMap(
                 Snapshot.ModuleDescriptions.front().NativeBindingMap),
         "Renderer RHI snapshots own Metal bytes and bindings after Asset release");
+
+    TestProductionCookedPipelines(Result, Options);
 
     std::filesystem::remove_all(Root, Error);
     return Result;

@@ -1,0 +1,17 @@
+{
+  "schema": "stoner.shader-program",
+  "version": 1,
+  "id": {"type": "ShaderProgram", "path": "Engine/Shaders/Validation/NoOp"},
+  "requiredExtensions": [],
+  "programKind": "compute",
+  "stages": [
+    {"stage": "compute", "entryPoint": "main", "language": "glsl", "source": {"asset": {"type": "ShaderSource", "path": "Engine/Shaders/Validation/NoOp", "subresource": "source.compute"}, "locator": "NoOp.comp", "digest": "sha256:0c0a991d9d31055268c06a33c1bedfb275152c7a0d6dd7fda2a16a111a6cf386"}}
+  ],
+  "allowedPermutationFlags": [],
+  "requiredParameters": [],
+  "interface": {"bindings": [], "constantRanges": []},
+  "variants": [{"name": "default", "flags": [], "payloads": [
+    {"backend": "vulkan", "profile": "vulkan-1.3", "format": "spirv", "stage": "compute", "entryPoint": "main", "asset": {"type": "ShaderPayload", "path": "Engine/Shaders/Validation/NoOp", "subresource": "payload.vulkan.compute"}, "locator": "NoOp.comp.spv", "digest": "sha256:4376feee5ca91874f9acbc8ee3690eae94b479fbfd6fa2d262912d4759c7bad8", "producer": "Stoner.CheckedInSpirv", "producerVersion": "023-v1"}
+  ]}],
+  "extensions": {}
+}

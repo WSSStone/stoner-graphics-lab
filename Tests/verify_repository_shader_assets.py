@@ -16,6 +16,7 @@ PROGRAM_FILES = {
     "Content/Shaders/Deferred/DirectionalLight.shader.json",
     "Content/Shaders/Deferred/PointLight.shader.json",
     "Content/Shaders/Deferred/SpotLight.shader.json",
+    "Content/Shaders/Validation/NoOp.shader.json",
 }
 
 PROGRAM_IDENTITIES = {
@@ -31,6 +32,8 @@ PROGRAM_IDENTITIES = {
         ("ShaderProgram", "Engine/Shaders/Deferred/PointLight", ""),
     "Content/Shaders/Deferred/SpotLight.shader.json":
         ("ShaderProgram", "Engine/Shaders/Deferred/SpotLight", ""),
+    "Content/Shaders/Validation/NoOp.shader.json":
+        ("ShaderProgram", "Engine/Shaders/Validation/NoOp", ""),
 }
 
 
@@ -74,9 +77,10 @@ def verify(root: Path) -> list[str]:
         program_ids.add(program_id)
         if document.get("schema") != "stoner.shader-program":
             errors.append(f"schema:{relative}")
+        program_kind = document.get("programKind")
         if (
             document.get("version") != 1
-            or document.get("programKind") != "graphics"
+            or program_kind not in {"graphics", "compute"}
             or document.get("allowedPermutationFlags") != []
             or document.get("requiredExtensions") != []
         ):
@@ -86,7 +90,10 @@ def verify(root: Path) -> list[str]:
             stage.get("stage")
             for stage in document.get("stages", [])
         }
-        if stage_names != {"vertex", "fragment"}:
+        expected_stages = (
+            {"compute"} if program_kind == "compute" else {"vertex", "fragment"}
+        )
+        if stage_names != expected_stages:
             errors.append(f"stage-set:{relative}")
         for stage in document.get("stages", []):
             source = stage.get("source", {})
@@ -129,9 +136,11 @@ def verify(root: Path) -> list[str]:
     }
     if owned_files != actual_files:
         errors.append("dependency-inventory")
-    if len([p for p in owned_files if p.suffix == ".spv"]) != 11:
+    if len([p for p in owned_files if p.suffix == ".spv"]) != 12:
         errors.append("spirv-count")
-    if len([p for p in owned_files if p.suffix in {".vert", ".frag"}]) != 11:
+    if len([
+        p for p in owned_files if p.suffix in {".vert", ".frag", ".comp"}
+    ]) != 12:
         errors.append("source-count")
 
     point = (
@@ -182,9 +191,9 @@ def write_report(path: Path, errors: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         "feature=023",
-        "programs=6",
-        "sources=11",
-        "payloads=11",
+        "programs=7",
+        "sources=12",
+        "payloads=12",
         "result=" + ("pass" if not errors else "fail"),
     ]
     lines.extend(
@@ -218,7 +227,7 @@ def _verify_dependency(
     )
     if identity[2] != expected_subresource:
         errors.append(f"dependency-subresource:{definition}:{locator}")
-    if stage not in {"vertex", "fragment"} or entry != "main":
+    if stage not in {"vertex", "fragment", "compute"} or entry != "main":
         errors.append(f"dependency-stage-entry:{definition}:{locator}")
     if expected_type == "ShaderSource":
         if record.get("language") not in (None, "glsl"):
@@ -270,7 +279,7 @@ def main() -> int:
         for error in errors:
             print("ERROR " + error)
         return 1
-    print("Repository shader assets passed: programs=6 sources=11 payloads=11")
+    print("Repository shader assets passed: programs=7 sources=12 payloads=12")
     return 0
 
 
