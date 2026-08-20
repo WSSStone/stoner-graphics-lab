@@ -757,6 +757,62 @@ EDemoExitCode FStonerDemoApplication::RunNativeHeadless()
     return EDemoExitCode::Success;
 }
 
+EDemoExitCode FStonerDemoApplication::DriveValidationWindowCycle()
+{
+    using Stoner::Application::EApplicationResult;
+    if (!Window || Configuration.ValidationLifecycleCycles == 0)
+        return EDemoExitCode::Success;
+    const Stoner::Core::uint32 Interval = std::max(
+        1u, Configuration.FrameBudget /
+            (Configuration.ValidationLifecycleCycles + 1u));
+    switch (ValidationWindowCycleState)
+    {
+    case EDemoValidationWindowCycleState::Idle:
+        if (ValidationWindowCyclesStarted >=
+                Configuration.ValidationLifecycleCycles ||
+            CompletedFrames < (ValidationWindowCyclesStarted + 1u) * Interval)
+            return EDemoExitCode::Success;
+        ValidationWindowExpectedWidth =
+            (ValidationWindowCyclesStarted % 2u == 0u)
+                ? std::max(320u, Configuration.ClientWidth - 160u)
+                : Configuration.ClientWidth;
+        ValidationWindowExpectedHeight =
+            (ValidationWindowCyclesStarted % 2u == 0u)
+                ? std::max(240u, Configuration.ClientHeight - 90u)
+                : Configuration.ClientHeight;
+        if (Window->Value.SetClientSize(
+                ValidationWindowExpectedWidth,
+                ValidationWindowExpectedHeight) != EApplicationResult::Success)
+            return EDemoExitCode::ValidationFailed;
+        ValidationWindowCycleState =
+            EDemoValidationWindowCycleState::WaitingForResize;
+        return EDemoExitCode::Success;
+    case EDemoValidationWindowCycleState::WaitingForResize:
+        if (Window->Value.GetClientWidth() != ValidationWindowExpectedWidth ||
+            Window->Value.GetClientHeight() != ValidationWindowExpectedHeight)
+            return EDemoExitCode::Success;
+        if (Window->Value.Minimize() != EApplicationResult::Success)
+            return EDemoExitCode::ValidationFailed;
+        ValidationWindowCycleState =
+            EDemoValidationWindowCycleState::WaitingForMinimize;
+        return EDemoExitCode::Success;
+    case EDemoValidationWindowCycleState::WaitingForMinimize:
+        if (!Window->Value.IsMinimized()) return EDemoExitCode::Success;
+        if (Window->Value.Restore() != EApplicationResult::Success)
+            return EDemoExitCode::ValidationFailed;
+        ValidationWindowCycleState =
+            EDemoValidationWindowCycleState::WaitingForRestore;
+        return EDemoExitCode::Success;
+    case EDemoValidationWindowCycleState::WaitingForRestore:
+        if (Window->Value.IsMinimized() || !Window->Value.HasDrawableArea())
+            return EDemoExitCode::Success;
+        ++ValidationWindowCyclesStarted;
+        ValidationWindowCycleState = EDemoValidationWindowCycleState::Idle;
+        return EDemoExitCode::Success;
+    }
+    return EDemoExitCode::ValidationFailed;
+}
+
 EDemoExitCode FStonerDemoApplication::RunVisible()
 {
     if (!BackendRuntime || !Window) return EDemoExitCode::RuntimeUnavailable;
@@ -767,6 +823,15 @@ EDemoExitCode FStonerDemoApplication::RunVisible()
         (void)Window->Value.PollEvents();
         (void)Window->Value.PollInputEvents();
         if (Window->Value.IsCloseRequested()) break;
+        if (DriveValidationWindowCycle() != EDemoExitCode::Success)
+        {
+            Diagnostics.Add(EDemoStage::Present,
+                EDemoExitCode::ValidationFailed,
+                "ValidationWindowCycle",
+                "window lifecycle command failed");
+            LifecycleState = EDemoLifecycleState::Failed;
+            return EDemoExitCode::ValidationFailed;
+        }
         const Stoner::Core::uint32 Width = Window->Value.GetDrawableWidth();
         const Stoner::Core::uint32 Height = Window->Value.GetDrawableHeight();
         if (Width == 0 || Height == 0)

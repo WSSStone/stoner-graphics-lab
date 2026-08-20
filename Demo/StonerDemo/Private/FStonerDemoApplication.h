@@ -27,6 +27,14 @@ enum class EDemoLifecycleState
     Failed
 };
 
+enum class EDemoValidationWindowCycleState
+{
+    Idle,
+    WaitingForResize,
+    WaitingForMinimize,
+    WaitingForRestore
+};
+
 struct FDemoPresentationState
 {
     Stoner::Core::uint64 Generation = 0;
@@ -78,6 +86,7 @@ private:
     [[nodiscard]] EDemoExitCode RunDeterministic();
     [[nodiscard]] EDemoExitCode RunNativeHeadless();
     [[nodiscard]] EDemoExitCode RunVisible();
+    [[nodiscard]] EDemoExitCode DriveValidationWindowCycle();
     [[nodiscard]] bool ShouldInject(EDemoStage Stage, EDemoExitCode Code, const char* Subject);
     [[nodiscard]] EDemoExitCode FailInitialize(EDemoStage Stage,
         EDemoExitCode Code,
@@ -104,6 +113,11 @@ private:
     Stoner::Core::uint32 CurrentDrawableWidth = 0;
     Stoner::Core::uint32 CurrentDrawableHeight = 0;
     bool bFirstPresentRecorded = false;
+    EDemoValidationWindowCycleState ValidationWindowCycleState =
+        EDemoValidationWindowCycleState::Idle;
+    Stoner::Core::uint32 ValidationWindowCyclesStarted = 0;
+    Stoner::Core::uint32 ValidationWindowExpectedWidth = 0;
+    Stoner::Core::uint32 ValidationWindowExpectedHeight = 0;
     Stoner::Core::TArray<double> RecoveryDurationsMilliseconds;
     Stoner::RHI::FRHIShaderModuleDesc TriangleVertexShader;
     Stoner::RHI::FRHIShaderModuleDesc TriangleFragmentShader;

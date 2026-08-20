@@ -180,6 +180,14 @@ void TestConfiguration(FTriangleDemoIntegrationTestResult& Result)
         "--validation-output", "Build/custom-report.txt", "--enable-validation"}, Config, Reason) == EDemoExitCode::Success &&
         Config.ClientWidth == 800 && Config.ClientHeight == 600 && Config.MaxFramesInFlight == 3 && Config.bEnableValidationLayers,
         "Triangle demo parses every canonical CLI option");
+    Record(Result,
+        Parse({"StonerDemo", "--mode", "validate", "--frames", "3000",
+            "--lifecycle-cycles", "20"}, Config, Reason) ==
+                EDemoExitCode::Success &&
+            Config.ValidationLifecycleCycles == 20 &&
+        Parse({"StonerDemo", "--mode", "headless", "--lifecycle-cycles", "20"},
+            Config, Reason) == EDemoExitCode::InvalidConfiguration,
+        "Triangle demo scopes automated lifecycle cycles to bounded visible validation");
     Record(Result, Parse({"StonerDemo", "--mode", "headless", "--frames", "abc"}, Config, Reason) == EDemoExitCode::InvalidConfiguration &&
         Parse({"StonerDemo", "--width", "-1"}, Config, Reason) == EDemoExitCode::InvalidConfiguration &&
         Parse({"StonerDemo", "--max-memory-growth-percent", "nan"}, Config, Reason) == EDemoExitCode::InvalidConfiguration,

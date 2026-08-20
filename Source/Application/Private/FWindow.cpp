@@ -201,6 +201,28 @@ EApplicationResult FWindow::SetDisplayMode(EWindowDisplayMode NewMode, bool bRun
     return EApplicationResult::Success;
 }
 
+EApplicationResult FWindow::SetClientSize(
+    Stoner::Core::uint32 Width, Stoner::Core::uint32 Height)
+{
+    if (!IsActive() || !Driver) return EApplicationResult::InvalidLifecycle;
+    if (Width == 0 || Height == 0 || Width > FWindowDesc::MaxClientWidth ||
+        Height > FWindowDesc::MaxClientHeight)
+        return EApplicationResult::InvalidInput;
+    return Driver->SetClientSize(Width, Height);
+}
+
+EApplicationResult FWindow::Minimize()
+{
+    if (!IsActive() || !Driver) return EApplicationResult::InvalidLifecycle;
+    return Driver->Minimize();
+}
+
+EApplicationResult FWindow::Restore()
+{
+    if (!IsActive() || !Driver) return EApplicationResult::InvalidLifecycle;
+    return Driver->Restore();
+}
+
 void FWindow::QueueEvent(const FWindowEvent& Event)
 {
     FWindowEvent Copy = Event;

@@ -70,6 +70,8 @@ class MetalValidationRunnerTests(unittest.TestCase):
             validation.parse_args(["--output", "x", "--timeout-seconds", "0"])
         with self.assertRaises(SystemExit):
             validation.parse_args(["--output", "x", "--visible-frames", "2999"])
+        with self.assertRaises(SystemExit):
+            validation.parse_args(["--output", "x", "--visible-cycles", "19"])
 
     def test_tier_selects_native_and_comparison_workloads(self) -> None:
         native = validation.parse_args([
@@ -109,7 +111,7 @@ class MetalValidationRunnerTests(unittest.TestCase):
                 validation.run_visible(
                     root / "demo", root / "tests", root, root / "work", 30,
                     root / "profile.json", root / "Published", root / "Lease",
-                    30000,
+                    30000, 20,
                 )
         invocation = command.call_args.args[0]
         self.assertEqual(
@@ -119,6 +121,7 @@ class MetalValidationRunnerTests(unittest.TestCase):
         self.assertIn(str(root / "profile.json"), invocation)
         self.assertIn(str(root / "Lease"), invocation)
         self.assertIn("30000", invocation)
+        self.assertIn("20", invocation)
 
     def test_presentation_smoke_requires_probe_and_persistent_work(self) -> None:
         with self.assertRaises(SystemExit):

@@ -42,6 +42,7 @@ struct FDemoConfiguration
     Stoner::Core::uint64 MaxMemoryGrowthBytes = 0;
     double MaxMemoryGrowthPercent = 0.0;
     Stoner::Core::uint32 MaxFramesInFlight = 2;
+    Stoner::Core::uint32 ValidationLifecycleCycles = 0;
     bool bEnableValidationLayers = false;
     Stoner::Core::FString ShaderDirectory = "Content/Shaders/Triangle";
     Stoner::Core::FString CookedPublicationRoot;

@@ -23,6 +23,31 @@ public:
     }
     void Destroy() override { bCreated = false; }
     void RequestClose() override { WindowEvents.push_back(FWindowEvent::CloseRequested(NextSequence++)); }
+    EApplicationResult SetClientSize(
+        Stoner::Core::uint32 Width, Stoner::Core::uint32 Height) override
+    {
+        DrawableWidth = Width;
+        DrawableHeight = Height;
+        WindowEvents.push_back(FWindowEvent::Resized(Width, Height, NextSequence++));
+        WindowEvents.push_back(FWindowEvent::DrawableResized(
+            Width, Height, NextSequence++));
+        return EApplicationResult::Success;
+    }
+    EApplicationResult Minimize() override
+    {
+        DrawableWidth = 0;
+        DrawableHeight = 0;
+        WindowEvents.push_back(FWindowEvent::Minimized(NextSequence++));
+        return EApplicationResult::Success;
+    }
+    EApplicationResult Restore() override
+    {
+        DrawableWidth = 1280;
+        DrawableHeight = 720;
+        WindowEvents.push_back(FWindowEvent::Restored(
+            DrawableWidth, DrawableHeight, NextSequence++));
+        return EApplicationResult::Success;
+    }
     Stoner::Core::FPlatformWindow GetPlatformWindow() const noexcept override
     { return bCreated ? Stoner::Core::FPlatformWindow(const_cast<int*>(&NativeToken)) : Stoner::Core::FPlatformWindow{}; }
     Stoner::Core::uint32 GetDrawableWidth() const noexcept override { return DrawableWidth; }
@@ -168,6 +193,17 @@ void TestPrivateDriverAndRealWindowEvents(FApplicationWindowInputTestResult& Res
     (void)Window.PollEvents();
     Record(Result, !Window.IsPresentationPaused() && Window.HasDrawableArea(),
         "Application real driver restores presentation after non-zero framebuffer extent");
+
+    Record(Result,
+        Window.SetClientSize(960, 540) == EApplicationResult::Success &&
+            Window.Minimize() == EApplicationResult::Success &&
+            Window.Restore() == EApplicationResult::Success,
+        "Application forwards explicit size minimize and restore commands");
+    (void)Window.PollEvents();
+    Record(Result,
+        Window.GetClientWidth() == 1280 && Window.GetClientHeight() == 720 &&
+            !Window.IsMinimized() && Window.HasDrawableArea(),
+        "Application applies commanded window lifecycle events deterministically");
 
     Script->QueueInput(FInputEvent::KeyDown(EKey::Escape, 105));
     Script->QueueWindow(FWindowEvent::CloseRequested(106));

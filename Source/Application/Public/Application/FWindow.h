@@ -26,6 +26,10 @@ public:
     [[nodiscard]] EApplicationResult RequestClose();
     [[nodiscard]] EApplicationResult Destroy();
     [[nodiscard]] EApplicationResult SetDisplayMode(EWindowDisplayMode NewMode, bool bRuntimeAllowsMode = true);
+    [[nodiscard]] EApplicationResult SetClientSize(
+        Stoner::Core::uint32 Width, Stoner::Core::uint32 Height);
+    [[nodiscard]] EApplicationResult Minimize();
+    [[nodiscard]] EApplicationResult Restore();
 
     void QueueEvent(const FWindowEvent& Event);
     Stoner::Core::TArray<FWindowEvent> PollEvents();

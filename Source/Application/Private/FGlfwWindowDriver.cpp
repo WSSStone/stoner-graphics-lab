@@ -67,6 +67,25 @@ public:
     }
 
     void RequestClose() override { if (Window) glfwSetWindowShouldClose(Window, GLFW_TRUE); }
+    EApplicationResult SetClientSize(
+        Stoner::Core::uint32 Width, Stoner::Core::uint32 Height) override
+    {
+        if (!Window) return EApplicationResult::InvalidLifecycle;
+        glfwSetWindowSize(Window, static_cast<int>(Width), static_cast<int>(Height));
+        return EApplicationResult::Success;
+    }
+    EApplicationResult Minimize() override
+    {
+        if (!Window) return EApplicationResult::InvalidLifecycle;
+        glfwIconifyWindow(Window);
+        return EApplicationResult::Success;
+    }
+    EApplicationResult Restore() override
+    {
+        if (!Window) return EApplicationResult::InvalidLifecycle;
+        glfwRestoreWindow(Window);
+        return EApplicationResult::Success;
+    }
     [[nodiscard]] Stoner::Core::FPlatformWindow GetPlatformWindow() const noexcept override { return Stoner::Core::FPlatformWindow(Window); }
     [[nodiscard]] Stoner::Core::uint32 GetDrawableWidth() const noexcept override { return DrawableWidth; }
     [[nodiscard]] Stoner::Core::uint32 GetDrawableHeight() const noexcept override { return DrawableHeight; }

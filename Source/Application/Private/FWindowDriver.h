@@ -22,6 +22,13 @@ public:
     virtual void Destroy() {}
     virtual void Poll() {}
     virtual void RequestClose() {}
+    virtual EApplicationResult SetClientSize(
+        Stoner::Core::uint32, Stoner::Core::uint32)
+    { return EApplicationResult::UnsupportedMode; }
+    virtual EApplicationResult Minimize()
+    { return EApplicationResult::UnsupportedMode; }
+    virtual EApplicationResult Restore()
+    { return EApplicationResult::UnsupportedMode; }
     [[nodiscard]] virtual Stoner::Core::FPlatformWindow GetPlatformWindow() const noexcept { return {}; }
     [[nodiscard]] virtual Stoner::Core::uint32 GetDrawableWidth() const noexcept { return 0; }
     [[nodiscard]] virtual Stoner::Core::uint32 GetDrawableHeight() const noexcept { return 0; }

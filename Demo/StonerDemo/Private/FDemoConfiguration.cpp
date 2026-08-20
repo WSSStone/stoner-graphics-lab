@@ -116,6 +116,10 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
     if (ClientWidth == 0 || ClientHeight == 0 || ClientWidth > 16384 || ClientHeight > 16384)
         return Fail("width and height must be in range 1..16384");
     if (MaxFramesInFlight == 0) return Fail("frames-in-flight must be positive");
+    if (ValidationLifecycleCycles > 0 &&
+        (RunMode != EDemoRunMode::BoundedNative ||
+            ValidationLifecycleCycles > 1000))
+        return Fail("lifecycle-cycles require bounded visible mode and range 1..1000");
     if (IsBounded())
     {
         if (FrameBudget == 0) return Fail("bounded modes require a positive frame budget");
@@ -219,6 +223,10 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
         else if (Option == "--frames-in-flight")
         {
             if (!ParseUInt(Value, Parsed.MaxFramesInFlight, false)) { OutReason = "invalid frames-in-flight"; return EDemoExitCode::InvalidConfiguration; }
+        }
+        else if (Option == "--lifecycle-cycles")
+        {
+            if (!ParseUInt(Value, Parsed.ValidationLifecycleCycles, false)) { OutReason = "invalid lifecycle-cycles"; return EDemoExitCode::InvalidConfiguration; }
         }
         else if (Option == "--shader-dir") Parsed.ShaderDirectory = Value;
         else if (Option == "--cooked-root") Parsed.CookedPublicationRoot = Value;
