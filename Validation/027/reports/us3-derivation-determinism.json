@@ -1,94 +1,26 @@
 {
-  "comparisonScope": "cross-host-derivation",
-  "evidence": [
-    "surface-fragment msl=5d7c8870ca04b1ba9e0e4b25bddc7c26e65072d63baf5c119d91c424a7a51e18 evidence=8703b674a0e11eb435c3b29ca4eb68d035616de8fa6a99744857a5cfa4117b43 binding=2a748c3e6b1e8c8e122ef2c49b58deef23c84fccc695a5473f29a3d8084f29f0",
-    "triangle-vertex msl=2f0d852a59a0fb80721e76791f1ac4a8ce5f7de8b41da9046c6483d41a20a457 options=55abf9bcc9febb1c0a8513181cded65b1ff16c4a51c369ee7629d01f7665edc3 binding=eb8ee1dbd1d6f5de6062bb68358ad168528550d6ba87b10e674c5fa926ad79c6"
-  ],
-  "outcomes": [
+  "artifacts": [],
+  "backend": "shared",
+  "counts": {
+    "frames": 0,
+    "iterations": 20,
+    "lifecycleCycles": 0
+  },
+  "host": {
+    "architecture": "arm64",
+    "os": "macos"
+  },
+  "probes": [
     {
-      "result": "pass",
-      "run": 1
-    },
-    {
-      "result": "pass",
-      "run": 2
-    },
-    {
-      "result": "pass",
-      "run": 3
-    },
-    {
-      "result": "pass",
-      "run": 4
-    },
-    {
-      "result": "pass",
-      "run": 5
-    },
-    {
-      "result": "pass",
-      "run": 6
-    },
-    {
-      "result": "pass",
-      "run": 7
-    },
-    {
-      "result": "pass",
-      "run": 8
-    },
-    {
-      "result": "pass",
-      "run": 9
-    },
-    {
-      "result": "pass",
-      "run": 10
-    },
-    {
-      "result": "pass",
-      "run": 11
-    },
-    {
-      "result": "pass",
-      "run": 12
-    },
-    {
-      "result": "pass",
-      "run": 13
-    },
-    {
-      "result": "pass",
-      "run": 14
-    },
-    {
-      "result": "pass",
-      "run": 15
-    },
-    {
-      "result": "pass",
-      "run": 16
-    },
-    {
-      "result": "pass",
-      "run": 17
-    },
-    {
-      "result": "pass",
-      "run": 18
-    },
-    {
-      "result": "pass",
-      "run": 19
-    },
-    {
-      "result": "pass",
-      "run": 20
+      "evidenceDigest": "f3e1be112f0aef8143924671c44187168d1ade5566130c4a3868a0c285d5593e",
+      "name": "deterministic-msl-derivation",
+      "result": "passed"
     }
   ],
-  "repetitions": 20,
-  "schema": "stoner.metal-validation",
+  "reportDigest": "231aabd1d655e09550aa009666aa6d4ecbf9eecfab27c92cfc568444eec7d27b",
+  "result": "passed",
+  "revision": "bbe02de179f27ff80b6aa52464353331456ac7b2",
   "schemaVersion": 1,
-  "stable": true,
-  "tier": "deterministic"
+  "tier": "deterministic",
+  "workload": "metal-shader-derivation"
 }
