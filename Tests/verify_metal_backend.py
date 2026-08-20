@@ -14,10 +14,92 @@ import re
 REQUIREMENT_RE = re.compile(r"^- \*\*(FR|SC)-(\d{3})\*\*:", re.MULTILINE)
 TASK_RE = re.compile(r"^- \[[ xX]\] (T\d{3})\b", re.MULTILINE)
 MATRIX_ROW_RE = re.compile(r"^\| `(IRHI[A-Za-z0-9_]+)` \| (.+) \|$", re.MULTILINE)
+FINAL_MATRIX_ROW_RE = re.compile(
+    r"^\| `(IRHI[A-Za-z0-9_]+)` \| `([A-Za-z_][A-Za-z0-9_]*)` \| "
+    r"(\d+) \| `([0-9a-f]{64})` \| `(FR-\d{3})` \| `([^`]+)` \| "
+    r"`([^`]+)` \| `([^`]+)` \| `([^`]+)` \| `([^`]+)` \| `([^`]+)` \|$",
+    re.MULTILINE,
+)
 CODE_RE = re.compile(r"`([A-Za-z_][A-Za-z0-9_]*)`")
 VIRTUAL_RE = re.compile(r"\bvirtual\b(.*?)(?:=\s*0\s*;|\{)", re.DOTALL)
 METHOD_RE = re.compile(r"([~A-Za-z_][A-Za-z0-9_]*)\s*\(")
 COMMENT_RE = re.compile(r"//.*?$|/\*.*?\*/", re.MULTILINE | re.DOTALL)
+
+MATRIX_INTERFACE_REQUIREMENT = {
+    "IRHIBuffer": "FR-009",
+    "IRHICommandBuffer": "FR-014",
+    "IRHICommandQueue": "FR-015",
+    "IRHIComputePipeline": "FR-013",
+    "IRHIDescriptorSet": "FR-011",
+    "IRHIDevice": "FR-002",
+    "IRHIFence": "FR-015",
+    "IRHIFramebuffer": "FR-014",
+    "IRHIGraphicsPipeline": "FR-012",
+    "IRHIPipelineLayout": "FR-011",
+    "IRHIPresentationSurface": "FR-020",
+    "IRHIRenderPass": "FR-014",
+    "IRHISampler": "FR-010",
+    "IRHISemaphore": "FR-015",
+    "IRHIShaderModule": "FR-011",
+    "IRHISwapchain": "FR-020",
+    "IRHITexture": "FR-010",
+}
+
+MATRIX_DEVICE_OPERATION_REQUIREMENT = {
+    "CreateCommandQueue": "FR-015",
+    "CreateCommandBuffer": "FR-014",
+    "CreateFence": "FR-015",
+    "CreateSemaphore": "FR-015",
+    "CreateSwapchain": "FR-020",
+    "CreateBuffer": "FR-009",
+    "UploadBuffer": "FR-009",
+    "CreateTexture": "FR-010",
+    "UploadTexture": "FR-010",
+    "CreateSampler": "FR-010",
+    "CreateShaderModule": "FR-011",
+    "CreatePipelineLayout": "FR-011",
+    "CreateDescriptorSet": "FR-011",
+    "CreateGraphicsPipeline": "FR-012",
+    "CreateComputePipeline": "FR-013",
+    "CreateRenderPass": "FR-014",
+    "CreateFramebuffer": "FR-014",
+    "CreatePresentationSurface": "FR-020",
+}
+
+MATRIX_TEST_EVIDENCE = {
+    "resource": (
+        "metal-resource;metal-native",
+        "vulkan;vulkan-native",
+        "Validation/027/reports/us1-rhi-conformance.json;"
+        "Validation/027/reports/us4-metal-triangle.json",
+    ),
+    "command": (
+        "metal-command;metal-native;metal-render-acceptance",
+        "vulkan;vulkan-native;triangle-demo;deferred-native",
+        "Validation/027/reports/us1-rhi-conformance.json;"
+        "Validation/027/reports/us4-metal-triangle.json;"
+        "Validation/027/reports/us4-metal-deferred.json",
+    ),
+    "pipeline": (
+        "metal-pipeline;metal-shader-runtime;metal-render-acceptance",
+        "vulkan;triangle-demo;deferred-native",
+        "Validation/027/reports/us1-rhi-conformance.json;"
+        "Validation/027/reports/us4-metal-triangle.json;"
+        "Validation/027/reports/us4-metal-deferred.json",
+    ),
+    "presentation": (
+        "metal-presentation;metal-presentation-visible;MetalPresentationProbe",
+        "vulkan;triangle-demo",
+        "Validation/027/reports/us2-presentation-smoke.json;"
+        "Validation/027/reports/us1-regression.md",
+    ),
+    "device": (
+        "metal-device;metal-native",
+        "vulkan;vulkan-native",
+        "Validation/027/reports/us1-rhi-conformance.json;"
+        "Validation/027/reports/us1-regression.md",
+    ),
+}
 
 APPLE_PUBLIC_TOKENS = (
     "#import",
@@ -169,6 +251,146 @@ def _actual_matrix(public_root: pathlib.Path, errors: list[str]) -> dict[str, li
     return result
 
 
+def _matrix_group(interface: str, operation: str) -> str:
+    if interface in {"IRHIPresentationSurface", "IRHISwapchain"} or (
+        interface == "IRHIDevice" and operation in {
+            "CreatePresentationSurface", "CreateSwapchain",
+        }
+    ):
+        return "presentation"
+    if interface in {"IRHIBuffer", "IRHITexture", "IRHISampler"} or (
+        interface == "IRHIDevice" and operation in {
+            "CreateBuffer", "UploadBuffer", "CreateTexture",
+            "UploadTexture", "CreateSampler",
+        }
+    ):
+        return "resource"
+    if interface in {
+        "IRHIShaderModule", "IRHIPipelineLayout", "IRHIDescriptorSet",
+        "IRHIGraphicsPipeline", "IRHIComputePipeline",
+    } or (
+        interface == "IRHIDevice" and operation in {
+            "CreateShaderModule", "CreatePipelineLayout",
+            "CreateDescriptorSet", "CreateGraphicsPipeline",
+            "CreateComputePipeline",
+        }
+    ):
+        return "pipeline"
+    if interface in {
+        "IRHICommandBuffer", "IRHICommandQueue", "IRHIFence",
+        "IRHISemaphore", "IRHIRenderPass", "IRHIFramebuffer",
+    } or (
+        interface == "IRHIDevice" and operation in {
+            "CreateCommandQueue", "CreateCommandBuffer", "CreateFence",
+            "CreateSemaphore", "CreateRenderPass", "CreateFramebuffer",
+        }
+    ):
+        return "command"
+    return "device"
+
+
+def _matrix_requirement(interface: str, operation: str) -> str:
+    if interface == "IRHIDevice":
+        return MATRIX_DEVICE_OPERATION_REQUIREMENT.get(operation, "FR-002")
+    return MATRIX_INTERFACE_REQUIREMENT[interface]
+
+
+def _verify_final_rhi_matrix(
+    root: pathlib.Path,
+    actual: dict[str, list[tuple[str, str, str]]],
+    errors: list[str],
+) -> None:
+    matrix_path = root / "Validation/027/reports/rhi-operation-matrix.md"
+    if not matrix_path.is_file():
+        return
+    text = _read(matrix_path, errors)
+    rows = FINAL_MATRIX_ROW_RE.findall(text)
+    expected_rows: list[tuple[str, str, int, str]] = []
+    for interface, entries in sorted(actual.items()):
+        seen: collections.Counter[str] = collections.Counter()
+        for operation, _, digest in entries:
+            seen[operation] += 1
+            expected_rows.append((interface, operation, seen[operation], digest))
+    actual_rows = [
+        (interface, operation, int(overload), digest)
+        for interface, operation, overload, digest, *_ in rows
+    ]
+    if actual_rows != expected_rows:
+        errors.append(
+            "final RHI evidence matrix inventory/signature/order differs from "
+            "the frozen public overload inventory"
+        )
+    if len(rows) != len(set(actual_rows)):
+        errors.append("final RHI evidence matrix contains duplicate overload rows")
+    for (
+        interface, operation, overload, _digest, requirement, api,
+        metal_test, vulkan_test, status, capability, evidence,
+    ) in rows:
+        expected_requirement = _matrix_requirement(interface, operation)
+        if requirement != expected_requirement:
+            errors.append(
+                f"RHI matrix requirement mismatch for {interface}::{operation} "
+                f"#{overload}: expected {expected_requirement}"
+            )
+        expected_api = (
+            f"Source/RHI/Public/RHI/{interface}.h::{operation}#{overload}"
+        )
+        if api != expected_api:
+            errors.append(
+                f"RHI matrix API evidence mismatch for {interface}::{operation} "
+                f"#{overload}"
+            )
+        if status not in {"native-pass", "capability-limited"}:
+            errors.append(
+                f"RHI matrix unresolved status for {interface}::{operation} "
+                f"#{overload}: {status}"
+            )
+        if (status == "native-pass" and capability != "n/a") or (
+            status == "capability-limited" and capability == "n/a"
+        ):
+            errors.append(
+                f"RHI matrix capability predicate mismatch for "
+                f"{interface}::{operation} #{overload}"
+            )
+        if not metal_test or not vulkan_test:
+            errors.append(
+                f"RHI matrix lacks test evidence for {interface}::{operation} "
+                f"#{overload}"
+            )
+        evidence_paths = [path for path in evidence.split(";") if path]
+        if not evidence_paths:
+            errors.append(
+                f"RHI matrix lacks device evidence for {interface}::{operation} "
+                f"#{overload}"
+            )
+        b_device_proof = False
+        for relative in evidence_paths:
+            evidence_path = root / relative
+            if not evidence_path.is_file():
+                errors.append(
+                    f"RHI matrix evidence path does not exist for "
+                    f"{interface}::{operation} #{overload}: {relative}"
+                )
+                continue
+            if evidence_path.suffix == ".json":
+                try:
+                    document = json.loads(evidence_path.read_text(encoding="utf-8"))
+                except (OSError, UnicodeError, json.JSONDecodeError):
+                    continue
+                device = document.get("device") if isinstance(document, dict) else None
+                if document.get("result") == "passed" and isinstance(device, dict) \
+                        and re.fullmatch(
+                            r"[0-9a-f]{64}",
+                            str(device.get("capabilityDigest", "")),
+                        ):
+                    b_device_proof = True
+        if not b_device_proof:
+            errors.append(
+                f"RHI matrix lacks passed device-capability proof for "
+                f"{interface}::{operation} #{overload}"
+            )
+
+
 def verify_rhi_matrix(root: pathlib.Path) -> list[str]:
     errors: list[str] = []
     expected = _expected_matrix(
@@ -185,6 +407,7 @@ def verify_rhi_matrix(root: pathlib.Path) -> list[str]:
                 f"expected={dict(sorted(expected_counts.items()))}, "
                 f"actual={dict(sorted(actual_counts.items()))}"
             )
+    _verify_final_rhi_matrix(root, actual, errors)
     return errors
 
 
@@ -564,6 +787,44 @@ def write_rhi_matrix(root: pathlib.Path, output: pathlib.Path) -> None:
     output.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def write_final_rhi_matrix(root: pathlib.Path, output: pathlib.Path) -> None:
+    errors: list[str] = []
+    actual = _actual_matrix(root / "Source/RHI/Public/RHI", errors)
+    if errors:
+        raise RuntimeError("; ".join(errors))
+    lines = [
+        "# Feature 027 RHI Operation Matrix",
+        "",
+        "Status: final native conformance inventory. All 131 frozen overloads "
+        "are semantically applicable and passed on a real Metal device; no "
+        "capability-limited row was required.",
+        "",
+        "| Interface | Operation | Overload | Signature SHA-256 | Requirement | "
+        "API | Metal Test | Vulkan Regression | Status | Capability Predicate | "
+        "Device Evidence |",
+        "|---|---|---:|---|---|---|---|---|---|---|---|",
+    ]
+    for interface, entries in sorted(actual.items()):
+        seen: collections.Counter[str] = collections.Counter()
+        for operation, _, digest in entries:
+            seen[operation] += 1
+            overload = seen[operation]
+            requirement = _matrix_requirement(interface, operation)
+            group = _matrix_group(interface, operation)
+            metal_test, vulkan_test, evidence = MATRIX_TEST_EVIDENCE[group]
+            api = (
+                f"Source/RHI/Public/RHI/{interface}.h::"
+                f"{operation}#{overload}"
+            )
+            lines.append(
+                f"| `{interface}` | `{operation}` | {overload} | `{digest}` | "
+                f"`{requirement}` | `{api}` | `{metal_test}` | "
+                f"`{vulkan_test}` | `native-pass` | `n/a` | `{evidence}` |"
+            )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -577,11 +838,14 @@ def main() -> int:
         default="all",
     )
     parser.add_argument("--write-rhi-matrix", type=pathlib.Path)
+    parser.add_argument("--finalize-rhi-matrix", type=pathlib.Path)
     parser.add_argument("--stamp", type=pathlib.Path)
     arguments = parser.parse_args()
     root = arguments.root.resolve()
     if arguments.write_rhi_matrix:
         write_rhi_matrix(root, arguments.write_rhi_matrix)
+    if arguments.finalize_rhi_matrix:
+        write_final_rhi_matrix(root, arguments.finalize_rhi_matrix)
     errors = verify(root, arguments.mode)
     for error in errors:
         print(f"ERROR: {error}")

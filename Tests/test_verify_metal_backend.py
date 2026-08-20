@@ -115,6 +115,26 @@ class MetalBackendVerifierTests(unittest.TestCase):
         root = pathlib.Path(__file__).resolve().parents[1]
         self.assertEqual([], verifier.verify_rhi_matrix(root))
 
+    def test_final_rhi_matrix_rejects_unresolved_status(self) -> None:
+        source = pathlib.Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            output = root / "Validation/027/reports/rhi-operation-matrix.md"
+            output.parent.mkdir(parents=True)
+            text = (
+                source / "Validation/027/reports/rhi-operation-matrix.md"
+            ).read_text(encoding="utf-8")
+            output.write_text(
+                text.replace("`native-pass`", "`required-native`", 1),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            actual = verifier._actual_matrix(
+                source / "Source/RHI/Public/RHI", errors
+            )
+            verifier._verify_final_rhi_matrix(root, actual, errors)
+            self.assertTrue(any("unresolved status" in error for error in errors))
+
     def test_requirement_trace_covers_every_fr_and_sc(self) -> None:
         root = pathlib.Path(__file__).resolve().parents[1]
         self.assertEqual([], verifier.verify_requirement_trace(root))

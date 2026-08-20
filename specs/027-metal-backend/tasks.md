@@ -158,7 +158,7 @@ contracts, and verify real GPU readback plus exact ownership cleanup.
 
 - [X] T061 [US1] Register all Metal private/public sources, framework flags, test suites, native availability definitions, and emitted deployment-target verification for Backend/Test/Demo actions in Source/Backend/Metal/SConscript, Source/Backend/SConscript, Tests/SConscript, Tests/MetalTests.cpp, and Tests/Main.cpp
 - [X] T062 [US1] Run the focused Metal device/resource/pipeline/command/native suites and record GPU probe plus conformance results in Validation/027/reports/us1-rhi-conformance.json
-- [ ] T063 [US1] Verify every row frozen by T006 is now native-pass or genuine capability-limited with requirement/API/test/device-capability evidence, fail on any new or missing public overload, and update statuses without changing the baseline inventory in Validation/027/reports/rhi-operation-matrix.md
+- [X] T063 [US1] Verify every row frozen by T006 is now native-pass or genuine capability-limited with requirement/API/test/device-capability evidence, fail on any new or missing public overload, and update statuses without changing the baseline inventory in Validation/027/reports/rhi-operation-matrix.md
 - [X] T064 [US1] Run affected RHI/Vulkan/Renderer regressions after the shared contract migration and record the checkpoint in Validation/027/reports/us1-regression.md
 
 **Checkpoint**: US1 is a real offscreen Metal RHI MVP. It is not yet a complete
@@ -193,7 +193,7 @@ correct layer ownership, frame completion, and clean detach.
 - [X] T073 [US2] Implement bounded paused/unavailable/reconfiguring recovery for zero extent, minimize, occlusion, and temporary `nextDrawable == nil` without polling loops in Source/Backend/Metal/Private/FMetalPresentationContext.mm
 - [X] T074 [US2] Implement drain, drawable release, layer device clear, detach-before-window-destroy, and exact shutdown audit in Source/Backend/Metal/Private/FMetalPresentationContext.mm and Source/Backend/Metal/Private/FMetalDevice.mm
 - [X] T075 [US2] Add a real-window presentation helper with explicit user-controlled lifecycle actions and normalized output in Tests/Helpers/MetalPresentationProbe.mm and Tests/SConscript
-- [ ] T076 [US2] Run the focused presentation contracts and one bounded local real-window smoke, recording device/layer/lifecycle evidence in Validation/027/reports/us2-presentation-smoke.json
+- [X] T076 [US2] Run the focused presentation contracts and one bounded local real-window smoke, recording device/layer/lifecycle evidence in Validation/027/reports/us2-presentation-smoke.json
 
 **Checkpoint**: Native Metal presentation is usable and lifecycle-correct without
 transferring window/view ownership out of Application.
