@@ -92,6 +92,7 @@ class MetalValidationRunnerTests(unittest.TestCase):
             "--output", "x", "--tier", "visible-manual",
             "--demo", "demo", "--profile", "profile",
             "--publication", "publication", "--lease", "lease",
+            "--capture", "capture.png",
             "--work", "work",
         ])
         self.assertEqual("visible", visible.workload)
@@ -228,6 +229,26 @@ class MetalValidationRunnerTests(unittest.TestCase):
         })
         validation.finalize_report(document)
         self.assertEqual([], validation.validate_report(document))
+
+    def test_visible_presentation_pass_requires_accepted_png(self) -> None:
+        with mock.patch.object(validation, "revision", return_value="0" * 40):
+            document = validation.base_report(
+                Path("."), "metal-visible-presentation", "visible-manual"
+            )
+        document.update({
+            "result": "passed",
+            "device": {
+                "identity": "registry-42", "name": "M4 Pro",
+                "capabilityDigest": "1" * 64,
+            },
+            "shaderEvidenceDigests": ["2" * 64],
+            "counts": {"frames": 3000, "lifecycleCycles": 20, "iterations": 1},
+        })
+        validation.finalize_report(document)
+        self.assertTrue(any(
+            "accepted PNG" in error
+            for error in validation.validate_report(document)
+        ))
 
     def test_visible_report_parser_requires_native_long_run_and_cleanup(self) -> None:
         accepted = "\n".join((

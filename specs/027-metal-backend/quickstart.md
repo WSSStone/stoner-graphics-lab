@@ -187,6 +187,7 @@ conda run -n godot python .github/scripts/run_metal_validation.py \
   --profile Config/AssetCooker/Profiles/Mac-Metal-Arm64.json \
   --publication Build/Feature027Validation/native-cook-arm64/run-00/Cooked \
   --lease Build/Feature027Validation/visible-acceptance-lease \
+  --capture Validation/027/captures/visible-metal-arm64.png \
   --visible-frames 30000 \
   --visible-cycles 20 \
   --tier visible-manual \

@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 from typing import Mapping, Sequence
 
 
@@ -62,6 +63,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--profile", type=Path)
     parser.add_argument("--publication", type=Path)
     parser.add_argument("--lease", type=Path)
+    parser.add_argument("--capture", type=Path)
     parser.add_argument(
         "--tier",
         choices=(
@@ -119,11 +121,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
             "visible-manual tier requires visible or presentation-smoke workload"
         )
     if args.workload == "visible" and any(value is None for value in (
-        args.demo, args.profile, args.publication, args.lease, args.work,
+        args.demo, args.profile, args.publication, args.lease, args.capture,
+        args.work,
     )):
         parser.error(
             "visible workload requires --demo, --profile, --publication, "
-            "--lease, and persistent --work evidence"
+            "--lease, --capture, and persistent --work evidence"
         )
     if args.workload == "presentation-smoke" and (
         args.presentation_probe is None or args.work is None
@@ -276,6 +279,13 @@ def validate_report(document: dict[str, object]) -> list[str]:
                 f"visible pass requires at least {minimum_frames} frames "
                 f"and {minimum_cycles} cycles"
             )
+        if document.get("workload") == "metal-visible-presentation" and not any(
+            isinstance(item, dict) and
+            str(item.get("path", "")).startswith("Validation/027/captures/") and
+            str(item.get("path", "")).lower().endswith(".png")
+            for item in document.get("artifacts", [])
+        ):
+            errors.append("visible presentation pass requires an accepted PNG capture")
     if document.get("tier") == "cross-backend" and document.get("result") == "passed":
         probes = document.get("probes")
         if not isinstance(probes, list) or not any(
@@ -600,6 +610,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     lease = None if args.lease is None else (
         args.lease if args.lease.is_absolute() else root / args.lease
     )
+    capture = None if args.capture is None else (
+        args.capture if args.capture.is_absolute() else root / args.capture
+    )
     if profile is not None and not profile.is_file():
         print(f"target profile does not exist: {profile}", file=sys.stderr)
         return 2
@@ -761,12 +774,28 @@ def main(argv: Sequence[str] | None = None) -> int:
             platform.system() == "Darwin"
     elif args.workload == "visible":
         assert demo is not None and profile is not None and \
-            publication is not None and lease is not None
+            publication is not None and lease is not None and capture is not None
+        capture_before = capture.stat().st_mtime_ns if capture.is_file() else None
+        capture_started = time.time_ns()
         passed, evidence, frames, recoveries, log, demo_report = run_visible(
             demo, tests, root, work, args.timeout_seconds,
             profile, publication, lease, args.visible_frames,
             args.visible_cycles,
         )
+        capture_current = capture.stat().st_mtime_ns if capture.is_file() else None
+        capture_fresh = capture_current is not None and (
+            capture_current >= capture_started
+            if capture_before is None
+            else capture_current > capture_before
+        )
+        if not capture_fresh:
+            passed = False
+            log += "accepted visible PNG was not created during this run\n"
+        else:
+            report["artifacts"].append({
+                "path": capture.resolve().relative_to(root).as_posix(),
+                "digest": sha256_file(capture),
+            })
         report["counts"]["frames"] = frames
         report["counts"]["lifecycleCycles"] = recoveries
         report["probes"] = [{
