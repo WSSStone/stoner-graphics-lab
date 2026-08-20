@@ -294,7 +294,7 @@ platforms with honest native-unavailable results.
 - [X] T112 [US5] Provide API-free unsupported Metal factory/selection behavior on Windows/Linux without compiling or linking Apple implementation units in Source/Backend/Metal/Public/MetalRHI/FMetalDeviceFactory.h, Source/Backend/Metal/Private/FMetalDeviceFactoryUnsupported.cpp, and Source/Backend/Metal/SConscript
 - [X] T113 [US5] Enforce Backend-only Apple API usage, Tools-only SPIRV-Cross, no Asset/RHI/Renderer/Application native ownership, and complete `.mm` scanning in Tests/verify_metal_backend.py and Tests/verify_architecture.py
 - [X] T114 [US5] Run all failure points and twenty repeated normalized traces, recording terminal states and ownership counters in Validation/027/reports/us5-failure-determinism.json
-- [ ] T115 [US5] Run the 10,000-iteration Release lifecycle/RSS gate and record all 90 samples, warm-up/sample intervals, first/final medians, absolute/relative growth, computed `max(16 MiB, 5%)` threshold, and result in Validation/027/reports/us5-lifecycle-stress.json
+- [X] T115 [US5] Run the 10,000-iteration Release lifecycle/RSS gate and record all 90 samples, warm-up/sample intervals, first/final medians, absolute/relative growth, computed `max(16 MiB, 5%)` threshold, and result in Validation/027/reports/us5-lifecycle-stress.json
 - [X] T116 [US5] Run shared Windows/macOS/Linux build-isolation and derivation probes through the validation runner and record unavailable-versus-native classifications in Validation/027/reports/us5-cross-platform.md
 
 **Checkpoint**: Failures are reproducible and clean; unsupported hosts remain
