@@ -79,6 +79,17 @@ class MetalValidationRunnerTests(unittest.TestCase):
         self.assertEqual("native", native.workload)
         self.assertEqual("comparison", comparison.workload)
 
+    def test_visible_tier_requires_demo_and_persistent_work(self) -> None:
+        with self.assertRaises(SystemExit):
+            validation.parse_args([
+                "--output", "x", "--tier", "visible-manual",
+            ])
+        visible = validation.parse_args([
+            "--output", "x", "--tier", "visible-manual",
+            "--demo", "demo", "--work", "work",
+        ])
+        self.assertEqual("visible", visible.workload)
+
     def test_native_parser_requires_device_shader_and_readback(self) -> None:
         device = (
             "[EVIDENCE] metal-native-device identity=registry-42 "
@@ -115,6 +126,30 @@ class MetalValidationRunnerTests(unittest.TestCase):
         errors = validation.validate_report(document)
         self.assertTrue(any("device evidence" in error for error in errors))
         self.assertTrue(any("shader evidence" in error for error in errors))
+
+    def test_visible_report_parser_requires_native_long_run_and_cleanup(self) -> None:
+        accepted = "\n".join((
+            "runtime-object-mode=native",
+            "completed-frames=3000",
+            "recovery-count=20",
+            "final-live-objects=0",
+            "validation-result=pass",
+        ))
+        rejected = accepted.replace("completed-frames=3000", "completed-frames=2999")
+        self.assertEqual((True, 3000, 20), validation.parse_demo_report(accepted))
+        self.assertEqual((False, 2999, 20), validation.parse_demo_report(rejected))
+
+    def test_comparison_pass_requires_native_and_tolerance_proof(self) -> None:
+        with mock.patch.object(validation, "revision", return_value="0" * 40):
+            document = validation.base_report(
+                Path("."), "metal-vulkan-comparison", "cross-backend"
+            )
+        document["result"] = "passed"
+        document["probes"] = [{"name": "comparison", "result": "passed"}]
+        validation.finalize_report(document)
+        errors = validation.validate_report(document)
+        self.assertTrue(any("device evidence" in error for error in errors))
+        self.assertTrue(any("tolerance provenance" in error for error in errors))
 
 
 if __name__ == "__main__":

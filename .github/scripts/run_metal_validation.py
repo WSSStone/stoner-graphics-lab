@@ -57,6 +57,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--tests", type=Path)
+    parser.add_argument("--demo", type=Path)
     parser.add_argument("--profile", type=Path)
     parser.add_argument(
         "--tier",
@@ -68,7 +69,10 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--workload",
-        choices=("derivation", "failure", "lifecycle", "native", "comparison"),
+        choices=(
+            "derivation", "failure", "lifecycle", "native", "comparison",
+            "visible",
+        ),
     )
     parser.add_argument("--repetitions", type=int, default=20)
     parser.add_argument("--lifecycle-iterations", type=int, default=10000)
@@ -89,12 +93,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
             "deterministic": "derivation",
             "native-offscreen": "native",
             "cross-backend": "comparison",
-            "visible-manual": "native",
+            "visible-manual": "visible",
         }[args.tier]
     if args.tier == "cross-backend" and args.workload != "comparison":
         parser.error("cross-backend tier requires the comparison workload")
-    if args.tier == "visible-manual":
-        parser.error("visible-manual evidence is accepted only by the manual workflow")
+    if args.tier == "visible-manual" and args.workload != "visible":
+        parser.error("visible-manual tier requires the visible workload")
+    if args.workload == "visible" and (args.demo is None or args.work is None):
+        parser.error("visible workload requires --demo and persistent --work evidence")
     return args
 
 
@@ -205,7 +211,9 @@ def validate_report(document: dict[str, object]) -> list[str]:
         errors.append("result is invalid")
     if document.get("tier") == "cross-backend" and document.get("backend") != "comparison":
         errors.append("cross-backend tier requires comparison backend")
-    native_pass = document.get("tier") in {"native-offscreen", "visible-manual"} \
+    native_pass = document.get("tier") in {
+        "native-offscreen", "visible-manual", "cross-backend",
+    } \
         and document.get("result") == "passed"
     if native_pass:
         device = document.get("device")
@@ -224,6 +232,19 @@ def validate_report(document: dict[str, object]) -> list[str]:
         memory = document.get("memory")
         if not isinstance(memory, dict) or len(memory.get("samplesBytes", [])) != 90:
             errors.append("lifecycle report requires exactly 90 RSS samples")
+    if document.get("tier") == "visible-manual" and document.get("result") == "passed":
+        counts = document.get("counts")
+        if not isinstance(counts, dict) or counts.get("frames", 0) < 3000 or \
+                counts.get("lifecycleCycles", 0) < 20:
+            errors.append("visible pass requires at least 3000 frames and 20 cycles")
+    if document.get("tier") == "cross-backend" and document.get("result") == "passed":
+        probes = document.get("probes")
+        if not isinstance(probes, list) or not any(
+            isinstance(probe, dict) and
+            probe.get("tolerance") == "metal-vulkan-tolerance-v1"
+            for probe in probes
+        ):
+            errors.append("comparison pass requires frozen tolerance provenance")
     artifacts = document.get("artifacts")
     if not isinstance(artifacts, list) or any(
         not isinstance(item, dict) or not DIGEST.fullmatch(str(item.get("digest", "")))
@@ -371,6 +392,55 @@ def run_native(
     return passed, available, evidence, combined
 
 
+def parse_demo_report(text: str) -> tuple[bool, int, int]:
+    fields: dict[str, str] = {}
+    for line in text.splitlines():
+        key, separator, value = line.partition("=")
+        if separator and key and key not in fields:
+            fields[key] = value
+    try:
+        frames = int(fields.get("completed-frames", "-1"))
+        recoveries = int(fields.get("recovery-count", "-1"))
+        live_objects = int(fields.get("final-live-objects", "-1"))
+    except ValueError:
+        return False, 0, 0
+    passed = (
+        fields.get("runtime-object-mode") == "native" and
+        fields.get("validation-result") == "pass" and
+        frames >= 3000 and recoveries >= 20 and live_objects == 0
+    )
+    return passed, frames, recoveries
+
+
+def run_visible(
+    demo: Path, tests: Path, root: Path, work: Path, timeout: int,
+) -> tuple[bool, dict[str, object] | None, int, int, str, Path]:
+    native_passed, _, evidence, native_log = run_native(
+        tests, root, timeout, True
+    )
+    demo_report = work / "visible-demo.txt"
+    completed = run_command(
+        [
+            str(demo), "--backend", "metal", "--mode", "validate",
+            "--frames", "3000", "--warmup-frames", "1000",
+            "--memory-sample-interval", "100",
+            "--validation-output", str(demo_report),
+        ],
+        root,
+        timeout,
+    )
+    try:
+        report_text = demo_report.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        report_text = ""
+    visible_passed, frames, recoveries = parse_demo_report(report_text)
+    passed = native_passed and completed.returncode == 0 and visible_passed
+    combined = native_log + completed.stdout + completed.stderr + report_text
+    if not passed:
+        sys.stderr.write(combined)
+    return passed, evidence, frames, recoveries, combined, demo_report
+
+
 def write_log(
     root: Path, work: Path, name: str, content: str,
 ) -> dict[str, str] | None:
@@ -401,6 +471,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     output = args.output if args.output.is_absolute() else root / args.output
     tests = args.tests or Path("Build/Mac/Debug/Tests/StonerTest")
     tests = tests if tests.is_absolute() else root / tests
+    demo = None if args.demo is None else (
+        args.demo if args.demo.is_absolute() else root / args.demo
+    )
     profile = None if args.profile is None else (
         args.profile if args.profile.is_absolute() else root / args.profile
     )
@@ -413,6 +486,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "lifecycle": "metal-lifecycle-stress",
         "native": "metal-native-conformance",
         "comparison": "metal-vulkan-comparison",
+        "visible": "metal-visible-presentation",
     }[args.workload]
     report = base_report(root, workload_name, args.tier)
     if profile is not None:
@@ -433,12 +507,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         errors = write_report(output, report)
         print(f"test binary does not exist: {tests}", file=sys.stderr)
         return 2 if errors else 1
+    if args.workload == "visible" and (demo is None or not demo.is_file()):
+        report["result"] = "failed"
+        report["failureCategory"] = "demo-binary-missing"
+        errors = write_report(output, report)
+        print(f"demo binary does not exist: {demo}", file=sys.stderr)
+        return 2 if errors else 1
 
     temporary: tempfile.TemporaryDirectory[str] | None = None
     if args.work is None:
         temporary = tempfile.TemporaryDirectory(prefix="stoner-metal-validation-")
         work = Path(temporary.name)
-    else:
+    elif args.workload in {"native", "comparison"}:
         work = args.work if args.work.is_absolute() else root / args.work
 
     passed = False
@@ -507,7 +587,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "shaderEvidenceDigests"
             ]
         unavailable_is_success = native == "unavailable" and passed
-    else:
+    elif args.workload in {"native", "comparison"}:
         comparison = args.workload == "comparison"
         required = args.require_native or comparison
         passed, available, evidence, log = run_native(
@@ -529,6 +609,31 @@ def main(argv: Sequence[str] | None = None) -> int:
             ]
         unavailable_is_success = not available and not required and \
             platform.system() == "Darwin"
+    else:
+        assert demo is not None
+        passed, evidence, frames, recoveries, log, demo_report = run_visible(
+            demo, tests, root, work, args.timeout_seconds
+        )
+        report["counts"]["frames"] = frames
+        report["counts"]["lifecycleCycles"] = recoveries
+        report["probes"] = [{
+            "name": "visible-metal-presentation-lifecycle",
+            "result": "passed" if passed else "failed",
+            **({
+                "evidenceDigest": sha256_file(demo_report),
+            } if demo_report.is_file() else {}),
+        }]
+        if evidence:
+            report["device"] = evidence["device"]
+            report["shaderEvidenceDigests"] = evidence[
+                "shaderEvidenceDigests"
+            ]
+        if demo_report.is_file():
+            relative = demo_report.resolve().relative_to(root)
+            report["artifacts"].append({
+                "path": relative.as_posix(),
+                "digest": sha256_file(demo_report),
+            })
 
     if log and args.work is not None:
         artifact = write_log(root, work, f"{args.workload}.log", log)

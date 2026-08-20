@@ -32,6 +32,70 @@ APPLE_PUBLIC_TOKENS = (
 RUNTIME_SOURCE_SUFFIXES = {".h", ".hpp", ".c", ".cc", ".cpp", ".mm"}
 RUNTIME_ROOTS = ("Source", "Demo", "Tools")
 
+REQUIREMENT_TASK_TRACE: dict[str, tuple[str, ...]] = {
+    "FR-001": ("T039", "T061", "T095"),
+    "FR-002": ("T038", "T041", "T042", "T043", "T062"),
+    "FR-003": ("T034", "T041"),
+    "FR-004": ("T034", "T042", "T043"),
+    "FR-005": ("T003", "T006", "T034", "T063"),
+    "FR-006": ("T036", "T063"),
+    "FR-007": ("T035", "T040", "T060"),
+    "FR-008": ("T034", "T035", "T037", "T047"),
+    "FR-009": ("T035", "T044", "T046", "T055", "T062"),
+    "FR-010": ("T035", "T045", "T046", "T055", "T062"),
+    "FR-011": ("T028", "T036", "T047", "T053", "T054"),
+    "FR-012": ("T036", "T049"),
+    "FR-013": ("T036", "T050"),
+    "FR-014": ("T037", "T052", "T056"),
+    "FR-015": ("T037", "T057", "T058", "T059"),
+    "FR-016": ("T037", "T040", "T059", "T060"),
+    "FR-017": ("T018", "T019", "T020", "T034", "T042"),
+    "FR-018": ("T065", "T068", "T073"),
+    "FR-019": ("T066", "T069", "T070", "T071"),
+    "FR-020": ("T066", "T069", "T070", "T071", "T072", "T073", "T076"),
+    "FR-021": ("T067", "T070", "T071", "T072"),
+    "FR-022": ("T067", "T073", "T076", "T124"),
+    "FR-023": ("T021", "T024", "T027", "T077", "T082"),
+    "FR-024": ("T027", "T028", "T029", "T030", "T078", "T082", "T089"),
+    "FR-025": ("T031", "T032", "T079", "T083", "T084", "T089"),
+    "FR-026": ("T031", "T032", "T078", "T079", "T083", "T090"),
+    "FR-027": ("T021", "T022", "T023", "T024", "T030", "T079", "T089"),
+    "FR-028": ("T079", "T080", "T083", "T084", "T085", "T086", "T087", "T088"),
+    "FR-029": ("T036", "T048", "T049", "T050", "T085", "T087"),
+    "FR-030": ("T021", "T022", "T024", "T047", "T077", "T087", "T088"),
+    "FR-031": ("T092", "T095", "T096", "T098", "T101"),
+    "FR-032": ("T093", "T097", "T099", "T101"),
+    "FR-033": ("T038", "T091", "T101", "T117", "T121", "T122", "T123"),
+    "FR-034": ("T016", "T017", "T020", "T091", "T102", "T120"),
+    "FR-035": ("T091", "T094", "T095", "T103"),
+    "FR-036": ("T093", "T094", "T099", "T100", "T103"),
+    "FR-037": ("T105", "T106", "T107", "T110", "T111", "T113", "T114"),
+    "FR-038": ("T034", "T040", "T105", "T106", "T107", "T108", "T115"),
+    "FR-039": ("T039", "T041", "T105", "T109", "T112"),
+    "FR-040": ("T105", "T109", "T112", "T114"),
+    "FR-041": ("T007", "T008", "T009", "T010", "T090", "T116", "T119"),
+    "FR-042": ("T089", "T101", "T121", "T122", "T123"),
+    "FR-043": ("T116", "T119", "T121", "T122", "T123"),
+    "FR-044": ("T001", "T003", "T062", "T076", "T089", "T101", "T117", "T125"),
+    "FR-045": ("T007", "T009", "T026", "T030", "T045", "T117"),
+    "SC-001": ("T062", "T063", "T122", "T123"),
+    "SC-002": ("T076", "T124"),
+    "SC-003": ("T101", "T102", "T103", "T122", "T123"),
+    "SC-004": ("T027", "T078", "T089", "T116", "T119"),
+    "SC-005": ("T105", "T106", "T107", "T110", "T111", "T114", "T122", "T123"),
+    "SC-006": ("T108", "T115", "T122", "T123"),
+    "SC-007": ("T121", "T122", "T123"),
+    "SC-008": ("T116", "T119", "T120", "T121"),
+    "SC-009": ("T117", "T121", "T122", "T123", "T124", "T125"),
+    "SC-010": ("T016", "T017", "T020", "T091", "T102", "T120"),
+}
+
+FORBIDDEN_SCOPE_PATTERNS = {
+    "iOS application lifecycle": re.compile(r"\b(?:UIApplication|UIWindow|UIViewController)\b"),
+    "Metal mesh shaders": re.compile(r"\b(?:MTLMeshRenderPipeline|MTLObjectPayloadBinding)\b"),
+    "Metal ray tracing": re.compile(r"\b(?:MTLAccelerationStructure|MTLIntersectionFunctionTable)\b"),
+}
+
 SPIRV_CROSS_SOURCES = (
     "spirv_cross.cpp",
     "spirv_cross_parsed_ir.cpp",
@@ -146,6 +210,126 @@ def verify_contracts(root: pathlib.Path) -> list[str]:
     if task_ids != expected_tasks:
         errors.append("Feature 027 tasks must be exactly sequential T001-T128")
     errors.extend(verify_rhi_matrix(root))
+    errors.extend(verify_requirement_trace(root, requirements, set(task_ids)))
+    return errors
+
+
+def verify_requirement_trace(
+    root: pathlib.Path,
+    requirements: set[str] | None = None,
+    task_ids: set[str] | None = None,
+) -> list[str]:
+    errors: list[str] = []
+    if requirements is None or task_ids is None:
+        spec = _read(root / "specs/027-metal-backend/spec.md", errors)
+        tasks = _read(root / "specs/027-metal-backend/tasks.md", errors)
+        requirements = {
+            f"{kind}-{number}" for kind, number in REQUIREMENT_RE.findall(spec)
+        }
+        task_ids = set(TASK_RE.findall(tasks))
+    traced = set(REQUIREMENT_TASK_TRACE)
+    if traced != requirements:
+        errors.append(
+            "Feature 027 traceability identity mismatch: "
+            f"missing={sorted(requirements - traced)}, "
+            f"unexpected={sorted(traced - requirements)}"
+        )
+    for requirement, tasks in sorted(REQUIREMENT_TASK_TRACE.items()):
+        if not tasks:
+            errors.append(f"traceability has no tasks for {requirement}")
+        missing_tasks = set(tasks) - task_ids
+        if missing_tasks:
+            errors.append(
+                f"traceability for {requirement} references missing tasks: "
+                f"{sorted(missing_tasks)}"
+            )
+    return errors
+
+
+def validate_validation_evidence(document: dict[str, object], label: str) -> list[str]:
+    errors: list[str] = []
+    tier = document.get("tier")
+    result = document.get("result")
+    backend = document.get("backend")
+    native_tiers = {"native-offscreen", "visible-manual", "cross-backend"}
+    if tier == "deterministic" and backend != "shared":
+        errors.append(f"{label}: deterministic evidence must use the shared backend")
+    if result == "passed" and tier in native_tiers:
+        device = document.get("device")
+        shaders = document.get("shaderEvidenceDigests")
+        if not isinstance(device, dict) or not {
+            "identity", "name", "capabilityDigest"
+        }.issubset(device):
+            errors.append(f"{label}: native pass lacks complete device proof")
+        if not isinstance(shaders, list) or not shaders:
+            errors.append(f"{label}: native pass lacks shader payload proof")
+        probes = document.get("probes")
+        if not isinstance(probes, list) or not any(
+            isinstance(probe, dict) and probe.get("result") == "passed" and
+            re.fullmatch(r"[0-9a-f]{64}", str(probe.get("evidenceDigest", "")))
+            for probe in probes
+        ):
+            errors.append(f"{label}: native pass lacks GPU evidence digest")
+        serialized = json.dumps(document, sort_keys=True).lower()
+        if "semantic-oracle" in serialized or "semantic oracle" in serialized:
+            errors.append(f"{label}: semantic oracle is presented as native evidence")
+    if tier == "visible-manual" and result == "passed":
+        counts = document.get("counts")
+        if not isinstance(counts, dict) or counts.get("frames", 0) < 3000 or \
+                counts.get("lifecycleCycles", 0) < 20:
+            errors.append(f"{label}: visible pass lacks 3000 frames and 20 cycles")
+    if tier == "cross-backend" and result == "passed":
+        probes = document.get("probes")
+        if not isinstance(probes, list) or not any(
+            isinstance(probe, dict) and
+            probe.get("tolerance") == "metal-vulkan-tolerance-v1"
+            for probe in probes
+        ):
+            errors.append(f"{label}: comparison pass lacks frozen tolerance provenance")
+    return errors
+
+
+def verify_validation_evidence(root: pathlib.Path) -> list[str]:
+    errors: list[str] = []
+    validation = root / "Validation/027"
+    if not validation.is_dir():
+        return errors
+    for path in sorted(validation.rglob("*.json")):
+        if "downloaded" in path.parts or "work" in path.parts:
+            continue
+        try:
+            document = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            errors.append(f"cannot read validation evidence {path}: {error}")
+            continue
+        if not isinstance(document, dict) or "tier" not in document:
+            continue
+        errors.extend(
+            validate_validation_evidence(document, path.relative_to(root).as_posix())
+        )
+    return errors
+
+
+def verify_forbidden_scope(root: pathlib.Path) -> list[str]:
+    errors: list[str] = []
+    roots = (
+        root / "Source/Backend/Metal",
+        root / "Source/Asset",
+        root / "Tools/AssetCooker",
+    )
+    for source_root in roots:
+        if not source_root.is_dir():
+            continue
+        for path in sorted(source_root.rglob("*")):
+            if not path.is_file() or path.suffix.lower() not in RUNTIME_SOURCE_SUFFIXES:
+                continue
+            text = _read(path, errors)
+            for label, pattern in FORBIDDEN_SCOPE_PATTERNS.items():
+                if pattern.search(text):
+                    errors.append(
+                        f"Feature 027 forbidden scope ({label}) in "
+                        f"{path.relative_to(root)}"
+                    )
     return errors
 
 
@@ -338,6 +522,9 @@ def verify(root: pathlib.Path, mode: str = "all") -> list[str]:
         errors.extend(verify_architecture(root))
         errors.extend(verify_metal_build_contract(root))
         errors.extend(verify_spirv_cross_vendor(root))
+        errors.extend(verify_forbidden_scope(root))
+    if mode in {"all", "evidence"}:
+        errors.extend(verify_validation_evidence(root))
     return errors
 
 
@@ -375,7 +562,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--mode",
-        choices=("all", "architecture", "contracts", "rhi-matrix"),
+        choices=("all", "architecture", "contracts", "rhi-matrix", "evidence"),
         default="all",
     )
     parser.add_argument("--write-rhi-matrix", type=pathlib.Path)

@@ -115,6 +115,68 @@ class MetalBackendVerifierTests(unittest.TestCase):
         root = pathlib.Path(__file__).resolve().parents[1]
         self.assertEqual([], verifier.verify_rhi_matrix(root))
 
+    def test_requirement_trace_covers_every_fr_and_sc(self) -> None:
+        root = pathlib.Path(__file__).resolve().parents[1]
+        self.assertEqual([], verifier.verify_requirement_trace(root))
+
+    def test_native_pass_requires_device_shader_and_gpu_proof(self) -> None:
+        document = {
+            "tier": "native-offscreen",
+            "backend": "metal",
+            "result": "passed",
+            "probes": [],
+        }
+        errors = verifier.validate_validation_evidence(document, "native.json")
+        self.assertTrue(any("device proof" in error for error in errors))
+        self.assertTrue(any("shader payload proof" in error for error in errors))
+        self.assertTrue(any("GPU evidence digest" in error for error in errors))
+
+    def test_semantic_oracle_cannot_be_native_evidence(self) -> None:
+        document = {
+            "tier": "native-offscreen",
+            "backend": "metal",
+            "result": "passed",
+            "device": {
+                "identity": "gpu", "name": "GPU", "capabilityDigest": "1" * 64,
+            },
+            "shaderEvidenceDigests": ["2" * 64],
+            "probes": [{
+                "name": "semantic-oracle", "result": "passed",
+                "evidenceDigest": "3" * 64,
+            }],
+        }
+        errors = verifier.validate_validation_evidence(document, "native.json")
+        self.assertTrue(any("semantic oracle" in error for error in errors))
+
+    def test_visible_pass_requires_frozen_duration(self) -> None:
+        document = {
+            "tier": "visible-manual",
+            "backend": "metal",
+            "result": "passed",
+            "device": {
+                "identity": "gpu", "name": "GPU", "capabilityDigest": "1" * 64,
+            },
+            "shaderEvidenceDigests": ["2" * 64],
+            "counts": {"frames": 2999, "lifecycleCycles": 20},
+            "probes": [{
+                "name": "visible", "result": "passed",
+                "evidenceDigest": "3" * 64,
+            }],
+        }
+        errors = verifier.validate_validation_evidence(document, "visible.json")
+        self.assertTrue(any("3000 frames" in error for error in errors))
+
+    def test_forbidden_ios_api_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            private = root / "Source/Backend/Metal/Private"
+            private.mkdir(parents=True)
+            (private / "Leak.mm").write_text(
+                "void Use(UIApplication* App);\n", encoding="utf-8"
+            )
+            errors = verifier.verify_forbidden_scope(root)
+            self.assertTrue(any("iOS application lifecycle" in error for error in errors))
+
     def test_layer_builder_discovers_cpp_and_objective_cpp_only(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)

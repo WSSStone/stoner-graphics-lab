@@ -157,7 +157,7 @@ contracts, and verify real GPU readback plus exact ownership cleanup.
 ### US1 Integration And Gate
 
 - [X] T061 [US1] Register all Metal private/public sources, framework flags, test suites, native availability definitions, and emitted deployment-target verification for Backend/Test/Demo actions in Source/Backend/Metal/SConscript, Source/Backend/SConscript, Tests/SConscript, Tests/MetalTests.cpp, and Tests/Main.cpp
-- [ ] T062 [US1] Run the focused Metal device/resource/pipeline/command/native suites and record GPU probe plus conformance results in Validation/027/reports/us1-rhi-conformance.json
+- [X] T062 [US1] Run the focused Metal device/resource/pipeline/command/native suites and record GPU probe plus conformance results in Validation/027/reports/us1-rhi-conformance.json
 - [ ] T063 [US1] Verify every row frozen by T006 is now native-pass or genuine capability-limited with requirement/API/test/device-capability evidence, fail on any new or missing public overload, and update statuses without changing the baseline inventory in Validation/027/reports/rhi-operation-matrix.md
 - [X] T064 [US1] Run affected RHI/Vulkan/Renderer regressions after the shared contract migration and record the checkpoint in Validation/027/reports/us1-regression.md
 
@@ -228,7 +228,7 @@ fail closed for every host/profile/evidence/payload mismatch.
 - [X] T087 [US3] Enforce strict cooked Metal payload validation and zero GLSL/SPIR-V/MSL source fallback through the runtime manager in Source/Asset/Private/FCookedAssetLoadingStrategy.cpp and Source/Asset/Private/FShaderDependencyLoader.cpp
 - [X] T088 [US3] Run twenty local deterministic derivations and record canonical MSL/evidence digests in Validation/027/reports/us3-derivation-determinism.json
 - [ ] T089 [US3] Run twenty eligible macOS final cooks, strict loads, and graphics/compute pipeline creations under one exact architecture/deployment/Xcode/SDK/compiler/profile/input tuple; prove identical metallib digests, DDC keys, evidence digests, outcomes, and reports while recording cross-tuple comparisons as derivation-only in Validation/027/reports/us3-native-cook-determinism.json
-- [ ] T090 [US3] Verify Windows/Linux finalization returns HostUnsupported and cannot publish a valid Metal generation in Validation/027/reports/us3-nonmac-finalization.md
+- [X] T090 [US3] Verify Windows/Linux finalization returns HostUnsupported and cannot publish a valid Metal generation in Validation/027/reports/us3-nonmac-finalization.md
 - [X] T091 [US3] Run Feature 023/025/026 material, cooker, publication, and runtime-manager regressions and record the checkpoint in Validation/027/reports/us3-asset-regression.md
 
 **Checkpoint**: Production runtime Metal pipelines consume only strict cooked
@@ -295,7 +295,7 @@ platforms with honest native-unavailable results.
 - [X] T113 [US5] Enforce Backend-only Apple API usage, Tools-only SPIRV-Cross, no Asset/RHI/Renderer/Application native ownership, and complete `.mm` scanning in Tests/verify_metal_backend.py and Tests/verify_architecture.py
 - [X] T114 [US5] Run all failure points and twenty repeated normalized traces, recording terminal states and ownership counters in Validation/027/reports/us5-failure-determinism.json
 - [ ] T115 [US5] Run the 10,000-iteration Release lifecycle/RSS gate and record all 90 samples, warm-up/sample intervals, first/final medians, absolute/relative growth, computed `max(16 MiB, 5%)` threshold, and result in Validation/027/reports/us5-lifecycle-stress.json
-- [ ] T116 [US5] Run shared Windows/macOS/Linux build-isolation and derivation probes through the validation runner and record unavailable-versus-native classifications in Validation/027/reports/us5-cross-platform.md
+- [X] T116 [US5] Run shared Windows/macOS/Linux build-isolation and derivation probes through the validation runner and record unavailable-versus-native classifications in Validation/027/reports/us5-cross-platform.md
 
 **Checkpoint**: Failures are reproducible and clean; unsupported hosts remain
 first-class build/derivation environments without false Metal execution claims.
@@ -307,8 +307,8 @@ first-class build/derivation environments without false Metal execution claims.
 **Purpose**: Prove every FR/SC, collect both Mac architecture evidence, preserve
 all affected regressions, and close Feature 027 honestly.
 
-- [ ] T117 [P] Complete FR-001-FR-045 and SC-001-SC-010 trace checks, evidence-tier validation, native-device proof, and forbidden-scope checks in Tests/verify_metal_backend.py and Tests/test_verify_metal_backend.py
-- [ ] T118 [P] Implement normalized deterministic/native/visible/comparison orchestration, Metal-device probing, schema validation, timeout, cleanup, and runner unit tests in .github/scripts/run_metal_validation.py and .github/scripts/test_run_metal_validation.py
+- [X] T117 [P] Complete FR-001-FR-045 and SC-001-SC-010 trace checks, evidence-tier validation, native-device proof, and forbidden-scope checks in Tests/verify_metal_backend.py and Tests/test_verify_metal_backend.py
+- [X] T118 [P] Implement normalized deterministic/native/visible/comparison orchestration, Metal-device probing, schema validation, timeout, cleanup, and runner unit tests in .github/scripts/run_metal_validation.py and .github/scripts/test_run_metal_validation.py
 - [X] T119 Add the ten-job Windows/macOS-arm64/Linux Debug/strict Release, Linux ASan/UBSan/TSan, and macOS Intel hosted build/cook matrix with twenty-repeat deterministic MSL derivation on every supported host, unique always-uploaded artifacts, and honest native-unavailable handling in .github/workflows/feature-027-metal-backend.yml; add required fail-on-unavailable GPU native-offscreen jobs using `[self-hosted, macOS, metal, arm64]` and `[self-hosted, macOS, metal, x86_64]` in .github/workflows/feature-027-metal-hardware.yml
 - [X] T120 Run local macOS Debug and strict Release builds plus all focused Feature 027 and affected full-regression suites and record results in Validation/027/reports/local-regression.md
 - [ ] T121 Dispatch, watch, and download both workflows using the exact commands from quickstart section 10 and record all hosted and required hardware job conclusions, runner architectures/labels, probe results, head SHA, and artifact digests in Validation/027/CI/README.md; for any unavailable hardware lane also record the gap owner, exact manual diagnostic command, and follow-up gate while leaving closeout blocked

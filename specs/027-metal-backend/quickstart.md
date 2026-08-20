@@ -80,14 +80,14 @@ generation, and leave existing `Current.json` untouched.
 Build/Mac/Debug/Tests/StonerTest \
   --suite metal-device \
   --suite metal-resource \
-  --suite metal-descriptor \
   --suite metal-pipeline \
   --suite metal-command \
-  --suite metal-synchronization \
-  --suite metal-shader-cook
+  --suite metal-shader-cooker \
+  --suite metal-native
 ```
 
-Expected: the extracted public API matches
+Descriptor coverage is part of `metal-pipeline`; synchronization coverage is
+part of `metal-command` and `metal-native`. Expected: the extracted public API matches
 `contracts/rhi-operation-matrix.md`; every frozen operation passes native
 conformance, or returns `Unsupported` only when the selected device's published
 capabilities prove a genuine hardware limitation.
@@ -112,18 +112,21 @@ strict-cooked Metal-library evidence. No semantic oracle is recorded as output.
 ## 7. Visible Presentation Acceptance
 
 ```bash
-Build/Mac/Release/Demo/StonerDemo/StonerDemo \
-  --backend metal \
-  --mode visible \
-  --frames 3000 \
-  --lifecycle-cycles 20 \
-  --validation-dir Validation/027/captures/local-mac
+conda run -n godot python .github/scripts/run_metal_validation.py \
+  --root . \
+  --tests Build/Mac/Release/Tests/StonerTest \
+  --demo Build/Mac/Release/Demo/StonerDemo/StonerDemo \
+  --tier visible-manual \
+  --work Validation/027/captures/local-mac \
+  --output Validation/027/captures/visible-acceptance.json \
+  --timeout-seconds 7200
 ```
 
 Exercise resize, minimize, restore, focus, scale/display movement where
 available, and close. Accept only with 3,000 frames, 20 completed cycles, one
 correctly oriented capture, zero unrecovered presentation error, clean layer
-detach, and exit code 0.
+detach, and exit code 0. The runner drives the bounded demo and validates its
+report; save and inspect the oriented capture separately in the same directory.
 
 ## 8. Metal/Vulkan Comparison
 
