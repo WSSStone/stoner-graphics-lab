@@ -1,4 +1,5 @@
 ThirdParty/** text=auto eol=lf
+Content/ProductionAcceptance/** text=auto eol=lf
 ThirdParty/spirv-cross/** -whitespace
 Content/Materials/**/*.json text eol=lf
 Content/Shaders/**/*.json text eol=lf
