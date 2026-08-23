@@ -184,8 +184,10 @@ bool RunPath(
     Config.GraphicsBackend = EDemoGraphicsBackend::Vulkan;
     Config.Workload = EDemoWorkload::ProductionContent;
     Config.RenderPath = Path;
-    Config.ClientWidth = 256;
-    Config.ClientHeight = 256;
+    // Keep the non-visible lifecycle gate focused on ownership and native
+    // execution. Hardware image acceptance retains the calibrated extent.
+    Config.ClientWidth = bVisible ? 256 : 64;
+    Config.ClientHeight = bVisible ? 256 : 64;
     Config.FrameBudget = 4096;
     Config.WarmupFrames = 512;
     Config.MemorySampleInterval = 128;
