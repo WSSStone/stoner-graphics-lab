@@ -19,7 +19,7 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
             "Config/Validation/ProductionContent", "run_production_content_validation.py",
             "windows-latest", "ubuntu-latest", "macos-26", "--profile regular",
             "macos-26-intel", "Mac-Metal-X86_64.json",
-            "--profile medium", "timeout-minutes: 30",
+            "--profile medium", "timeout-minutes: 60", "--timeout-seconds 1800",
             "Build strict Debug", "Build strict Release",
             "actions/cache@v4", "External/Sponza",
         ):

@@ -35,9 +35,26 @@ const char* Environment(const char* Name)
     return Value && *Value != '\0' ? Value : nullptr;
 }
 
+std::filesystem::path NativeFilesystemPath(
+    const std::filesystem::path& Path)
+{
+#if SG_PLATFORM_WINDOWS
+    const std::filesystem::path Absolute = std::filesystem::absolute(Path);
+    const std::wstring Native = Absolute.native();
+    if (Native.rfind(LR"(\\?\)", 0) == 0)
+        return Absolute;
+    if (Native.rfind(LR"(\\)", 0) == 0)
+        return std::filesystem::path(
+            std::wstring(LR"(\\?\UNC\)") + Native.substr(2));
+    return std::filesystem::path(std::wstring(LR"(\\?\)") + Native);
+#else
+    return Path;
+#endif
+}
+
 Core::TArray<Core::uint8> Read(const std::filesystem::path& Path)
 {
-    std::ifstream Input(Path, std::ios::binary);
+    std::ifstream Input(NativeFilesystemPath(Path), std::ios::binary);
     return {
         std::istreambuf_iterator<char>(Input),
         std::istreambuf_iterator<char>()};
@@ -47,7 +64,8 @@ bool Write(
     const std::filesystem::path& Path,
     const Core::TArray<Core::uint8>& Bytes)
 {
-    std::ofstream Output(Path, std::ios::binary | std::ios::trunc);
+    std::ofstream Output(
+        NativeFilesystemPath(Path), std::ios::binary | std::ios::trunc);
     Output.write(
         reinterpret_cast<const char*>(Bytes.data()),
         static_cast<std::streamsize>(Bytes.size()));
@@ -132,15 +150,32 @@ bool CopyPublication(
     const std::filesystem::path& Destination)
 {
     std::error_code Error;
-    std::filesystem::remove_all(Destination, Error);
+    std::filesystem::remove_all(NativeFilesystemPath(Destination), Error);
     Error.clear();
-    std::filesystem::create_directories(Destination.parent_path(), Error);
+    std::filesystem::create_directories(
+        NativeFilesystemPath(Destination.parent_path()), Error);
     if (Error) return false;
     Error.clear();
     std::filesystem::copy(
-        Source, Destination,
+        NativeFilesystemPath(Source), NativeFilesystemPath(Destination),
         std::filesystem::copy_options::recursive, Error);
     return !Error;
+}
+
+bool Remove(const std::filesystem::path& Path)
+{
+    std::error_code Error;
+    const bool Removed = std::filesystem::remove(
+        NativeFilesystemPath(Path), Error);
+    return Removed && !Error;
+}
+
+bool RemoveTree(const std::filesystem::path& Path)
+{
+    std::error_code Error;
+    const auto Removed = std::filesystem::remove_all(
+        NativeFilesystemPath(Path), Error);
+    return Removed > 0 && !Error;
 }
 
 } // namespace
@@ -323,19 +358,15 @@ RunProductionContentStrictRuntimeTests()
         const auto Payload = Generation /
             Seed.Manifest.Records.front().PayloadLocator.ToStdString();
         if (Prepared && Cases[Index].Mutation == 1)
-            Prepared = std::filesystem::remove(Mutated / "Current.json");
+            Prepared = Remove(Mutated / "Current.json");
         else if (Prepared && Cases[Index].Mutation == 2)
             Prepared = Write(Mutated / "Current.json", {'{', '}'});
         else if (Prepared && Cases[Index].Mutation == 3)
-        {
-            std::error_code Error;
-            std::filesystem::remove_all(Generation, Error);
-            Prepared = !Error;
-        }
+            Prepared = RemoveTree(Generation);
         else if (Prepared && Cases[Index].Mutation == 4)
-            Prepared = std::filesystem::remove(Generation / "Manifest.json");
+            Prepared = Remove(Generation / "Manifest.json");
         else if (Prepared && Cases[Index].Mutation == 5)
-            Prepared = std::filesystem::remove(Payload);
+            Prepared = Remove(Payload);
         else if (Prepared && Cases[Index].Mutation == 6)
         {
             auto Bytes = Read(Payload);
@@ -375,7 +406,7 @@ RunProductionContentStrictRuntimeTests()
         Seed.Manifest.GenerationId.ToLowerHex().ToStdString();
     const auto MissingPayload = MissingGeneration /
         Seed.Manifest.Records.front().PayloadLocator.ToStdString();
-    MissingPrepared = MissingPrepared && std::filesystem::remove(MissingPayload);
+    MissingPrepared = MissingPrepared && Remove(MissingPayload);
     std::filesystem::create_directories(TemporaryRoot / "LeaseNoPartial");
     FAssetManagerConfig MissingConfig = StrictConfig(
         MissingPayloadPublication, TemporaryRoot / "LeaseNoPartial",
