@@ -12,6 +12,14 @@ on:
           - feature-closeout
           - reference-image-change
           - production-render-path-change
+  # A newly introduced workflow cannot be manually dispatched until its file
+  # exists on the default branch. This branch-scoped trigger makes the initial
+  # pre-merge hardware gate observable without weakening its runner labels.
+  push:
+    branches:
+      - "028-production-content-acceptance"
+    paths:
+      - ".github/workflows/feature-028-production-hardware.yml"
 
 permissions:
   contents: read
