@@ -28,6 +28,8 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
             text, r"cron:\s*['\"]\d+\s+\d+\s+\*\s+\*\s+[0-6]['\"]"
         )
         self.assertEqual(text.count("slug: macos-intel-metal"), 2)
+        self.assertNotIn("slug: macos-vulkan", text)
+        self.assertIn("Mac-Vulkan.json", HARDWARE.read_text(encoding="utf-8"))
 
     def test_hosted_workflow_has_digest_checked_artifact_handoff(self):
         text = HOSTED.read_text(encoding="utf-8")

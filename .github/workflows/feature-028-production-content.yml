@@ -71,11 +71,6 @@ jobs:
             os: macos-26-intel
             build: Build/Mac/Release
             target: Config/AssetCooker/Profiles/Production/Mac-Metal-X86_64.json
-          - name: macOS Vulkan
-            slug: macos-vulkan
-            os: macos-26
-            build: Build/Mac/Release
-            target: Config/AssetCooker/Profiles/Production/Mac-Vulkan.json
     steps:
       - uses: actions/checkout@v5
         with:
@@ -87,9 +82,6 @@ jobs:
       - name: Install Linux graphics dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
-      - name: Install macOS Vulkan dependencies
-        if: matrix.slug == 'macos-vulkan'
-        run: brew install molten-vk
       - name: Build strict Debug
         run: scons config=debug strict=1
       - name: Build strict Release
@@ -131,8 +123,6 @@ jobs:
             target: Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json
           - slug: macos-intel-metal
             target: Config/AssetCooker/Profiles/Production/Mac-Metal-X86_64.json
-          - slug: macos-vulkan
-            target: Config/AssetCooker/Profiles/Production/Mac-Vulkan.json
     steps:
       - uses: actions/checkout@v5
       - uses: actions/download-artifact@v7
@@ -182,7 +172,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
       - name: Prepare sanitizer evidence
-        run: mkdir -p Validation/028/CI/work/${{ matrix.slug }}
+        run: |
+          mkdir -p Validation/028/CI/work/${{ matrix.slug }}
+          echo "revision=${GITHUB_SHA}" > Validation/028/CI/work/${{ matrix.slug }}/status.txt
       - name: Build sanitizer configuration
         run: >-
           scons config=debug strict=1
