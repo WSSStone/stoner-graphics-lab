@@ -20,6 +20,7 @@ namespace Stoner::Demo
 namespace
 {
 
+#if SG_PLATFORM_MAC
 bool BuildPresentationPixels(
     std::span<const Core::uint8> Source,
     Core::uint32 SourceWidth,
@@ -86,6 +87,7 @@ bool NormalizePresentationPixels(
     }
     return true;
 }
+#endif
 
 class FVulkanDemoBackendRuntime final : public IDemoBackendRuntime
 {

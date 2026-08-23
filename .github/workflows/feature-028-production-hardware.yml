@@ -30,7 +30,7 @@ concurrency:
 
 jobs:
   hardware:
-    name: ${{ matrix.name }} (${{ inputs.reason }})
+    name: ${{ matrix.name }} (${{ inputs.reason || 'initial-branch-gate' }})
     runs-on: ${{ matrix.labels }}
     timeout-minutes: 90
     strategy:
@@ -54,6 +54,8 @@ jobs:
             target: Config/AssetCooker/Profiles/Production/Mac-Vulkan.json
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - name: Install SCons
         run: python -m pip install scons==4.10.1
       - name: Acquire pinned medium corpus
