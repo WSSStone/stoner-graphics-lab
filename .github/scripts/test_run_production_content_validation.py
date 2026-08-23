@@ -48,6 +48,24 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             self.assertIn(root, command)
         self.assertIn("--clean", command)
 
+    def test_metal_doctor_preflight_is_normalized_and_serialized(self):
+        command = self.module.build_metal_doctor_command(
+            Path("cooker"), Path("profile"), Path("doctor.json")
+        )
+        self.assertEqual([
+            "cooker", "doctor",
+            "--target-profile", "profile",
+            "--normalized-report",
+            "--report", "doctor.json",
+        ], command)
+        with mock.patch.object(self.module.os, "cpu_count", return_value=16):
+            self.assertEqual(
+                2, self.module.clean_cook_concurrency(20, "metal")
+            )
+            self.assertEqual(
+                4, self.module.clean_cook_concurrency(20, "vulkan")
+            )
+
     def test_clean_reports_must_be_byte_identical(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

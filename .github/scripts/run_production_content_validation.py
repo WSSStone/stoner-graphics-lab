@@ -937,6 +937,34 @@ def build_cook_command(
     return command
 
 
+def build_metal_doctor_command(
+    cooker: Path,
+    target_profile: Path,
+    report: Path,
+) -> list[str]:
+    return [
+        str(cooker),
+        "doctor",
+        "--target-profile",
+        str(target_profile),
+        "--normalized-report",
+        "--report",
+        str(report),
+    ]
+
+
+def clean_cook_concurrency(
+    determinism_runs: int,
+    graphics_backend: str,
+) -> int:
+    limit = 2 if graphics_backend == "metal" else 4
+    return min(
+        determinism_runs,
+        limit,
+        max(1, (os.cpu_count() or 1) // 2),
+    )
+
+
 def copy_shader_source(repository_root: Path, destination: Path) -> None:
     source = repository_root / "Content/Shaders/Deferred"
     destination.mkdir(parents=True)
@@ -1028,6 +1056,7 @@ def run_package(
     lifecycle_cycles: int,
     warmup_cycles: int,
     timeout: int,
+    graphics_backend: str,
     require_visible: bool = False,
     deadline: float | None = None,
 ) -> dict:
@@ -1081,10 +1110,8 @@ def run_package(
             },
         }
 
-    concurrency = min(
-        determinism_runs,
-        4,
-        max(1, (os.cpu_count() or 1) // 2),
+    concurrency = clean_cook_concurrency(
+        determinism_runs, graphics_backend
     )
     if concurrency == 1:
         clean_runs = [RunClean(index) for index in range(determinism_runs)]
@@ -1327,6 +1354,17 @@ def run_profile(args: argparse.Namespace) -> dict:
 
     started = time.monotonic()
     deadline = started + validation_profile["timeBudgetSeconds"]
+    if target_contract["graphicsBackend"] == "metal":
+        doctor_report = output / "metal-toolchain.json"
+        run_stage(
+            "metal-toolchain",
+            build_metal_doctor_command(
+                cooker, target_profile, doctor_report
+            ),
+            repository_root,
+            remaining_stage_timeout(deadline, args.timeout_seconds),
+        )
+        load_report(doctor_report, "doctor")
     package_reports = []
     for package in packages:
         runs = args.determinism_runs if package["tier"] == "regular" else 1
@@ -1345,6 +1383,7 @@ def run_profile(args: argparse.Namespace) -> dict:
                 validation_profile["lifecycleCycles"],
                 validation_profile["warmupCycles"],
                 args.timeout_seconds,
+                target_contract["graphicsBackend"],
                 args.profile == "hardware",
                 deadline,
             )

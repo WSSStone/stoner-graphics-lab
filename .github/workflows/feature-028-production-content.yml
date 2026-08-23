@@ -87,6 +87,9 @@ jobs:
       - name: Install Linux graphics dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
+      - name: Install macOS Vulkan dependencies
+        if: matrix.slug == 'macos-vulkan'
+        run: brew install molten-vk
       - name: Build strict Debug
         run: scons config=debug strict=1
       - name: Build strict Release

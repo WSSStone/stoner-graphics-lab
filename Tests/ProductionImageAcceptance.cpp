@@ -1,6 +1,13 @@
 #include "ProductionImageAcceptance.h"
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable: 4201)
+#endif
 #include "FLIP.h"
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 #include <algorithm>
 #include <cmath>

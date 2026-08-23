@@ -46,12 +46,14 @@ bool VisibleRequested()
     return Value && std::string_view(Value) == "1";
 }
 
+#if SG_PLATFORM_MAC
 bool ImageAcceptanceRequired()
 {
     const char* Value = Environment(
         "STONER_REQUIRE_PRODUCTION_IMAGE_ACCEPTANCE");
     return Value && std::string_view(Value) == "1";
 }
+#endif
 
 bool RunVisibleSurfaceSmoke()
 {
@@ -102,6 +104,7 @@ bool RunVisibleSurfaceSmoke()
 #endif
 }
 
+#if SG_PLATFORM_MAC
 bool ReadLifecycleSettings(Core::uint32& OutCycles, Core::uint32& OutWarmup)
 {
     OutCycles = 20;
@@ -219,6 +222,7 @@ bool RunPath(
     OutDiagnostics = Application.GetDiagnostics().BuildStableText();
     return bPassed;
 }
+#endif
 
 } // namespace
 
