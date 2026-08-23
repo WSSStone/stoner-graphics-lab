@@ -353,6 +353,42 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             {"result": "Passed"}, {"result": "Passed"}
         ]))
 
+    def test_hosted_windows_native_deferral_is_explicit_and_not_a_native_pass(self):
+        contract = {
+            "platform": "windows",
+            "cpuArchitecture": "x86_64",
+            "graphicsBackend": "vulkan",
+            "targetProfileDigest": "a" * 64,
+        }
+        deferred = self.module.deferred_native_result(contract)
+        self.assertEqual("NotRun", deferred["result"])
+        self.assertEqual(
+            "windows-vulkan-x86_64-hardware",
+            deferred["replacementLane"],
+        )
+        self.assertFalse(self.module.aggregate_results([deferred]))
+        self.assertFalse(
+            self.module.aggregate_native_results([deferred], False)
+        )
+        self.assertTrue(
+            self.module.aggregate_native_results([deferred], True)
+        )
+        unsupported = self.module.unsupported_result(
+            "native", "Vulkan device unavailable",
+            "windows-vulkan-x86_64-hardware",
+        )
+        self.assertFalse(
+            self.module.aggregate_native_results([unsupported], True)
+        )
+        self.module.validate_native_deferral("regular", contract, True)
+        for profile, changed in (
+            ("hardware", contract),
+            ("regular", {**contract, "platform": "linux"}),
+            ("regular", {**contract, "graphicsBackend": "metal"}),
+        ):
+            with self.assertRaisesRegex(ValueError, "restricted"):
+                self.module.validate_native_deferral(profile, changed, True)
+
     def test_native_stage_uses_exact_backend_suite_and_lifecycle_environment(self):
         for backend, suite, prefix in (
             ("vulkan", "production-content-vulkan-native", "VULKAN"),

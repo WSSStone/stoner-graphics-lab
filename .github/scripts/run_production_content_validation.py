@@ -357,6 +357,19 @@ def verify_validation_output(output: Path, target_profile: Path) -> dict:
     for package in packages:
         if not isinstance(package, dict):
             raise ValueError("validation package evidence is invalid")
+        native_lifecycle = package.get("nativeLifecycle")
+        if native_lifecycle is not None and not isinstance(native_lifecycle, dict):
+            raise ValueError("validation native lifecycle evidence is invalid")
+        if (
+            isinstance(native_lifecycle, dict)
+            and native_lifecycle.get("result") != "Passed"
+        ):
+            target_contract = load_native_target_contract(target_profile)
+            validate_native_deferral(
+                summary.get("profile"), target_contract, True
+            )
+            if native_lifecycle != deferred_native_result(target_contract):
+                raise ValueError("validation native deferral evidence differs")
         package_id = _safe_package_token(package.get("packageId"))
         generation_id = package.get("generationId")
         if not isinstance(generation_id, str) or not re.fullmatch(
@@ -409,6 +422,58 @@ def unsupported_result(stage: str, prerequisite: str, replacement_lane: str) -> 
 
 def aggregate_results(results: Sequence[dict]) -> bool:
     return bool(results) and all(item.get("result") == "Passed" for item in results)
+
+
+def deferred_native_result(contract: dict) -> dict:
+    return {
+        "result": "NotRun",
+        "reason": "deferred-to-required-hardware",
+        "missingPrerequisite": (
+            f"physical {contract['platform']} {contract['cpuArchitecture']} "
+            f"{contract['graphicsBackend']} device"
+        ),
+        "replacementLane": "-".join((
+            contract["platform"], contract["graphicsBackend"],
+            contract["cpuArchitecture"], "hardware",
+        )),
+        "targetProfileDigest": contract["targetProfileDigest"],
+    }
+
+
+def aggregate_native_results(
+    results: Sequence[dict],
+    allow_deferred_to_hardware: bool,
+) -> bool:
+    if aggregate_results(results):
+        return True
+    if not allow_deferred_to_hardware or not results:
+        return False
+    return all(
+        item.get("result") == "NotRun"
+        and item.get("reason") == "deferred-to-required-hardware"
+        and item.get("replacementLane") == "windows-vulkan-x86_64-hardware"
+        and isinstance(item.get("targetProfileDigest"), str)
+        and re.fullmatch(r"[0-9a-f]{64}", item["targetProfileDigest"])
+        for item in results
+    )
+
+
+def validate_native_deferral(
+    profile_name: str,
+    contract: dict,
+    defer_native_to_hardware: bool,
+) -> None:
+    if not defer_native_to_hardware:
+        return
+    if (
+        profile_name != "regular"
+        or contract["platform"] != "windows"
+        or contract["cpuArchitecture"] != "x86_64"
+        or contract["graphicsBackend"] != "vulkan"
+    ):
+        raise ValueError(
+            "native deferral is restricted to hosted Windows regular Vulkan"
+        )
 
 
 def load_failure_catalog(repository_root: Path) -> list[dict]:
@@ -1058,6 +1123,7 @@ def run_package(
     timeout: int,
     graphics_backend: str,
     require_visible: bool = False,
+    defer_native_to_hardware: bool = False,
     deadline: float | None = None,
 ) -> dict:
     package_output = output / package["packageId"]
@@ -1234,21 +1300,31 @@ def run_package(
     if tree_digest(source) != source_digest:
         raise RuntimeError("repository or staged source changed during validation")
 
-    native_lifecycle = run_native_lifecycle(
-        repository_root,
-        tests,
-        target_profile,
-        first_run["publication"],
-        lease_root,
-        generation_ids[0],
-        package["rootAssetId"],
-        WORKLOAD_REVISION,
-        lifecycle_cycles,
-        warmup_cycles,
-        first_run["reports"] / "native-lifecycle.txt",
-        remaining_stage_timeout(package_deadline, timeout),
-        require_visible,
-    )
+    native_report = first_run["reports"] / "native-lifecycle.txt"
+    if defer_native_to_hardware:
+        native_lifecycle = deferred_native_result(
+            load_native_target_contract(target_profile)
+        )
+        native_report.write_text(
+            json.dumps(native_lifecycle, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    else:
+        native_lifecycle = run_native_lifecycle(
+            repository_root,
+            tests,
+            target_profile,
+            first_run["publication"],
+            lease_root,
+            generation_ids[0],
+            package["rootAssetId"],
+            WORKLOAD_REVISION,
+            lifecycle_cycles,
+            warmup_cycles,
+            native_report,
+            remaining_stage_timeout(package_deadline, timeout),
+            require_visible,
+        )
 
     return {
         "packageId": package["packageId"],
@@ -1311,6 +1387,9 @@ def run_profile(args: argparse.Namespace) -> dict:
         manifest,
     )
     target_contract = load_native_target_contract(target_profile)
+    validate_native_deferral(
+        args.profile, target_contract, args.defer_native_to_hardware
+    )
     cook_unsupported = cook_host_support(target_contract)
     if cook_unsupported is not None:
         result = {
@@ -1385,6 +1464,7 @@ def run_profile(args: argparse.Namespace) -> dict:
                 args.timeout_seconds,
                 target_contract["graphicsBackend"],
                 args.profile == "hardware",
+                args.defer_native_to_hardware,
                 deadline,
             )
         )
@@ -1403,9 +1483,10 @@ def run_profile(args: argparse.Namespace) -> dict:
         "timeBudgetSeconds": validation_profile["timeBudgetSeconds"],
         "elapsedSeconds": elapsed,
         "passed": elapsed <= validation_profile["timeBudgetSeconds"] and
-            aggregate_results([
-                report["nativeLifecycle"] for report in package_reports
-            ]),
+            aggregate_native_results(
+                [report["nativeLifecycle"] for report in package_reports],
+                args.defer_native_to_hardware,
+            ),
     }
     summary_path = output / "summary.json"
     summary_path.write_text(
@@ -1432,6 +1513,9 @@ def parse_args(values: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--verify-only", type=Path)
     parser.add_argument("--acquire-missing", action="store_true")
     parser.add_argument(
+        "--defer-native-to-hardware", action="store_true"
+    )
+    parser.add_argument(
         "--content-root",
         type=Path,
         default=Path("Content/ProductionAcceptance"),
@@ -1440,7 +1524,8 @@ def parse_args(values: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--timeout-seconds", type=int, default=1800)
     args = parser.parse_args(values)
     if args.verify_only is not None:
-        if any((args.profile, args.build_root, args.output, args.acquire_missing)):
+        if any((args.profile, args.build_root, args.output, args.acquire_missing,
+                args.defer_native_to_hardware)):
             parser.error(
                 "--verify-only cannot be combined with execution options"
             )

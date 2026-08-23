@@ -20,6 +20,7 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
             "windows-latest", "ubuntu-latest", "macos-26", "--profile regular",
             "macos-26-intel", "Mac-Metal-X86_64.json",
             "--profile medium", "timeout-minutes: 60", "--timeout-seconds 1800",
+            "--defer-native-to-hardware",
             "Build strict Debug", "Build strict Release",
             "actions/cache@v4", "External/Sponza",
         ):
@@ -29,6 +30,7 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         )
         self.assertEqual(text.count("slug: macos-intel-metal"), 2)
         self.assertNotIn("slug: macos-vulkan", text)
+        self.assertEqual(text.count("native: --defer-native-to-hardware"), 1)
         self.assertIn("Mac-Vulkan.json", HARDWARE.read_text(encoding="utf-8"))
 
     def test_hosted_workflow_has_digest_checked_artifact_handoff(self):

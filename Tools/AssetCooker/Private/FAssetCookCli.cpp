@@ -518,7 +518,7 @@ FAssetCookCliResult ExecuteDoctor(const FAssetCookCliInvocation& Invocation)
 
     FMetalToolchainEvidence Evidence;
     const EMetalLibraryFinalizeStatus Status =
-        InspectMetalToolchain(30000, 256U * 1024U, Evidence);
+        InspectMetalToolchain(60000, 256U * 1024U, Evidence);
     const bool bSucceeded = Status == EMetalLibraryFinalizeStatus::Success;
     auto Document = BaseDocument(
         Invocation.Command,

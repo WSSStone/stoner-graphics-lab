@@ -56,21 +56,25 @@ jobs:
             os: windows-latest
             build: Build/Win64/Release
             target: Config/AssetCooker/Profiles/Production/Windows-Vulkan.json
+            native: --defer-native-to-hardware
           - name: Linux Vulkan
             slug: linux-vulkan
             os: ubuntu-latest
             build: Build/Linux/Release
             target: Config/AssetCooker/Profiles/Production/Linux-Vulkan.json
+            native: ''
           - name: macOS Metal
             slug: macos-metal
             os: macos-26
             build: Build/Mac/Release
             target: Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json
+            native: ''
           - name: macOS Intel Metal
             slug: macos-intel-metal
             os: macos-26-intel
             build: Build/Mac/Release
             target: Config/AssetCooker/Profiles/Production/Mac-Metal-X86_64.json
+            native: ''
     steps:
       - uses: actions/checkout@v5
         with:
@@ -96,6 +100,7 @@ jobs:
           --profile regular --target-profile ${{ matrix.target }}
           --build-root ${{ matrix.build }}
           --output Build/Validation/028/${{ matrix.slug }}
+          ${{ matrix.native }}
           --timeout-seconds 600
       - name: Upload regular immutable evidence
         if: always()
