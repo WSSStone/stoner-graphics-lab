@@ -152,6 +152,70 @@ jobs:
           path: Build/Validation/028/downloaded/${{ matrix.slug }}/artifact-manifest.json
           if-no-files-found: error
 
+  linux-sanitizers:
+    if: github.event_name != 'schedule'
+    name: Linux ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ASan-UBSan
+            slug: asan-ubsan
+            sanitizers: address,undefined
+          - name: TSan
+            slug: tsan
+            sanitizers: thread
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+      TSAN_OPTIONS: halt_on_error=1:history_size=7
+      STONER_SKIP_OPTIONAL_DEFERRED_NATIVE: "1"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Install dependencies
+        run: |
+          python -m pip install scons==4.10.1
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
+      - name: Prepare sanitizer evidence
+        run: mkdir -p Validation/028/CI/work/${{ matrix.slug }}
+      - name: Build sanitizer configuration
+        run: >-
+          scons config=debug strict=1
+          sanitizers=${{ matrix.sanitizers }}
+      - name: Run ASan-UBSan failure and lifetime gates
+        if: matrix.slug == 'asan-ubsan'
+        run: >-
+          Build/Linux/Debug/Tests/StonerTest
+          --suite asset-gltf-malformed
+          --suite asset-gltf-hardening
+          --suite asset-manager-cancellation
+          --suite asset-manager-shutdown
+          --suite renderer-static-model
+          --suite production-content
+          | tee Validation/028/CI/work/${{ matrix.slug }}/tests.txt
+      - name: Run TSan concurrency and lifetime gates
+        if: matrix.slug == 'tsan'
+        run: >-
+          Build/Linux/Debug/Tests/StonerTest
+          --suite asset-manager-cancellation
+          --suite asset-manager-shutdown
+          --suite asset-manager-concurrency
+          --suite renderer-static-model
+          --suite production-content
+          | tee Validation/028/CI/work/${{ matrix.slug }}/tests.txt
+      - name: Upload sanitizer evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: production-sanitizer-${{ matrix.slug }}-${{ github.run_attempt }}
+          path: Validation/028/CI/work/${{ matrix.slug }}
+          if-no-files-found: error
+
   medium:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     name: Weekly or manual medium profile

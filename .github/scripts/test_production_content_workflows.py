@@ -37,6 +37,20 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         self.assertIn("--target-profile ${{ matrix.target }}", text)
         self.assertIn("artifact-manifest.json", text)
 
+    def test_hosted_workflow_has_feature_028_linux_sanitizer_gates(self):
+        text = HOSTED.read_text(encoding="utf-8")
+        for token in (
+            "sanitizers: address,undefined", "sanitizers: thread",
+            "ASAN_OPTIONS", "UBSAN_OPTIONS", "TSAN_OPTIONS",
+            "--suite asset-gltf-malformed",
+            "--suite asset-manager-cancellation",
+            "--suite asset-manager-concurrency",
+            "--suite renderer-static-model",
+            "--suite production-content",
+            "production-sanitizer-${{ matrix.slug }}",
+        ):
+            self.assertIn(token, text)
+
     def test_hardware_workflow_uses_explicit_platform_labels_and_dispatch(self):
         text = HARDWARE.read_text(encoding="utf-8")
         for token in (
