@@ -214,7 +214,11 @@ lib_paths.append(Dir(os.path.join(build_base, 'Demo', 'StonerDemo')).abspath)
 test_env.Append(LIBPATH=lib_paths)
 
 # Libraries to link (order matters for static linking: dependents first)
-test_env.Append(LIBS=['StonerDemoRuntime', 'Application', 'Renderer', 'RHI', 'Asset', 'Core', 'VulkanRHI', 'MetalRHI'])
+engine_libs = ['StonerDemoRuntime', 'Application', 'Renderer', 'VulkanRHI']
+if platform == 'Mac':
+    engine_libs.append('MetalRHI')
+engine_libs.extend(['RHI', 'Asset', 'Core'])
+test_env.Append(LIBS=engine_libs)
 if platform == 'Mac':
     test_env.Append(FRAMEWORKS=['Metal', 'QuartzCore', 'Cocoa', 'Foundation'])
 test_env.Append(LIBS=env.get('STONER_ASSET_THIRD_PARTY_LIBS', []))

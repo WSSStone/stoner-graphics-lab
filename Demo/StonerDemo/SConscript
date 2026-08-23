@@ -42,10 +42,13 @@ if platform == 'Mac':
     backend_paths.append(os.path.join('Backend', 'Metal'))
 demo_env.Append(LIBPATH=[Dir(os.path.join(build_root, path)).abspath for path in (
     ['Application', 'Renderer', 'RHI', 'Asset', 'Core'] + backend_paths)])
-demo_env.Append(LIBS=[runtime, 'Application', 'Renderer', 'RHI', 'Asset', 'Core', 'VulkanRHI'])
+engine_libs = [runtime, 'Application', 'Renderer', 'VulkanRHI']
+if platform == 'Mac':
+    engine_libs.append('MetalRHI')
+engine_libs.extend(['RHI', 'Asset', 'Core'])
+demo_env.Append(LIBS=engine_libs)
 demo_env.Append(LIBS=env.get('STONER_ASSET_THIRD_PARTY_LIBS', []))
 if platform == 'Mac':
-    demo_env.Append(LIBS=['MetalRHI'])
     demo_env.Append(FRAMEWORKS=['Metal', 'QuartzCore', 'Cocoa', 'Foundation'])
 
 if deps['vulkan_library']:

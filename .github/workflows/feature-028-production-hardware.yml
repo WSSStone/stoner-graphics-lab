@@ -19,7 +19,18 @@ on:
     branches:
       - "028-production-content-acceptance"
     paths:
+      - ".github/scripts/*production*"
       - ".github/workflows/feature-028-production-hardware.yml"
+      - "Config/AssetCooker/Profiles/Production/**"
+      - "Config/Validation/ProductionContent/**"
+      - "Content/ProductionAcceptance/**"
+      - "Content/Shaders/**"
+      - "Demo/StonerDemo/**"
+      - "Source/**"
+      - "Tests/**"
+      - "ThirdParty/flip/**"
+      - "Tools/AssetCooker/**"
+      - "specs/028-production-content-acceptance/**"
 
 permissions:
   contents: read
