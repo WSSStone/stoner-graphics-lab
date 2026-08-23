@@ -230,7 +230,6 @@ void TestRepresentativeCorpus(FAssetCookerDeterminismTestResult& TestResult)
         if (Reloaded) Codecs.insert(Envelope.Header.CodecId.ToStdString());
     }
     const bool Families = Codecs.contains("stoner.image") &&
-        Codecs.contains("stoner.texture") &&
         Codecs.contains("stoner.ktx2") &&
         Codecs.contains("stoner.shader-program") &&
         Codecs.contains("stoner.shader-source") &&

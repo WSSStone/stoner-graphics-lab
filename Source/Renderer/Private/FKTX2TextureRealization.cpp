@@ -9,6 +9,7 @@
 #include "RHI/IRHITexture.h"
 
 #include <limits>
+#include <cstring>
 #include <new>
 #include <span>
 #include <stdexcept>
@@ -213,13 +214,17 @@ FKTX2TextureRealizationResult Failure(
 [[nodiscard]] bool BuildUncompressedMips(
     const Stoner::Asset::FKTX2TextureArtifact& Artifact,
     Stoner::RHI::ERHIFormat Format,
+    Stoner::Core::TArray<Stoner::Core::TArray<Stoner::Core::uint8>>&
+        OutExpandedStorage,
     Stoner::Core::TArray<FRealizationMip>& OutMips) noexcept
 {
     OutMips.clear();
+    OutExpandedStorage.clear();
     const auto Bytes = Artifact.GetBytes();
     try
     {
         OutMips.reserve(Artifact.GetInfo().Levels.size());
+        OutExpandedStorage.reserve(Artifact.GetInfo().Levels.size());
         for (const auto& Level : Artifact.GetInfo().Levels)
         {
             Stoner::RHI::FRHITextureFootprint Footprint;
@@ -230,32 +235,95 @@ FKTX2TextureRealizationResult Failure(
                     1,
                     Footprint) ||
                 Level.ByteOffset > Bytes.size() ||
-                Level.ByteLength >
-                    Bytes.size() - Level.ByteOffset ||
-                Level.ByteLength != Footprint.TotalBytes)
+                Level.ByteLength > Bytes.size() - Level.ByteOffset)
             {
                 OutMips.clear();
+                OutExpandedStorage.clear();
                 return false;
+            }
+            const auto StoredBytes = Bytes.subspan(
+                static_cast<Stoner::Core::usize>(Level.ByteOffset),
+                static_cast<Stoner::Core::usize>(Level.ByteLength));
+            std::span<const Stoner::Core::uint8> UploadBytes = StoredBytes;
+            if (Level.ByteLength != Footprint.TotalBytes)
+            {
+                const auto StoredFormat =
+                    Artifact.GetInfo().StoredTexelFormat;
+                const Stoner::Core::uint64 PixelCount =
+                    static_cast<Stoner::Core::uint64>(Level.Extent.Width) *
+                    Level.Extent.Height;
+                const bool bRGB8 = StoredFormat ==
+                        Stoner::Asset::EImageTexelFormat::R8G8B8_UNorm &&
+                    (Format == Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm ||
+                     Format == Stoner::RHI::ERHIFormat::R8G8B8A8_sRGB) &&
+                    StoredBytes.size() == PixelCount * 3;
+                const bool bRGB32 = StoredFormat ==
+                        Stoner::Asset::EImageTexelFormat::R32G32B32_Float &&
+                    Format ==
+                        Stoner::RHI::ERHIFormat::R32G32B32A32_Float &&
+                    StoredBytes.size() == PixelCount * 12;
+                if (!bRGB8 && !bRGB32)
+                {
+                    OutMips.clear();
+                    OutExpandedStorage.clear();
+                    return false;
+                }
+                OutExpandedStorage.emplace_back(
+                    static_cast<Stoner::Core::usize>(
+                        Footprint.TotalBytes));
+                auto& Expanded = OutExpandedStorage.back();
+                if (bRGB8)
+                {
+                    for (Stoner::Core::uint64 Pixel = 0;
+                         Pixel < PixelCount; ++Pixel)
+                    {
+                        const auto SourceOffset =
+                            static_cast<Stoner::Core::usize>(Pixel * 3);
+                        const auto TargetOffset =
+                            static_cast<Stoner::Core::usize>(Pixel * 4);
+                        std::memcpy(
+                            Expanded.data() + TargetOffset,
+                            StoredBytes.data() + SourceOffset, 3);
+                        Expanded[TargetOffset + 3] = 255;
+                    }
+                }
+                else
+                {
+                    constexpr float Opaque = 1.0f;
+                    for (Stoner::Core::uint64 Pixel = 0;
+                         Pixel < PixelCount; ++Pixel)
+                    {
+                        const auto SourceOffset =
+                            static_cast<Stoner::Core::usize>(Pixel * 12);
+                        const auto TargetOffset =
+                            static_cast<Stoner::Core::usize>(Pixel * 16);
+                        std::memcpy(
+                            Expanded.data() + TargetOffset,
+                            StoredBytes.data() + SourceOffset, 12);
+                        std::memcpy(
+                            Expanded.data() + TargetOffset + 12,
+                            &Opaque, sizeof(Opaque));
+                    }
+                }
+                UploadBytes = Expanded;
             }
             OutMips.push_back({
                 Level.MipLevel,
                 Level.Extent,
                 Footprint.TightRowBytes,
-                Bytes.subspan(
-                    static_cast<Stoner::Core::usize>(
-                        Level.ByteOffset),
-                    static_cast<Stoner::Core::usize>(
-                        Level.ByteLength))});
+                UploadBytes});
         }
     }
     catch (const std::bad_alloc&)
     {
         OutMips.clear();
+        OutExpandedStorage.clear();
         return false;
     }
     catch (const std::length_error&)
     {
         OutMips.clear();
+        OutExpandedStorage.clear();
         return false;
     }
     return !OutMips.empty();
@@ -309,6 +377,8 @@ FKTX2TextureRealizationResult FKTX2TextureRealizer::Realize(
     }
 
     FTextureTranscodeResult Transcoded;
+    Stoner::Core::TArray<Stoner::Core::TArray<Stoner::Core::uint8>>
+        ExpandedStorage;
     Stoner::Core::TArray<FRealizationMip> Mips;
     if (Request.Artifact->GetInfo().CompressionPolicy ==
         ETextureCompressionPolicy::Uncompressed)
@@ -316,6 +386,7 @@ FKTX2TextureRealizationResult FKTX2TextureRealizer::Realize(
         if (!BuildUncompressedMips(
                 *Request.Artifact,
                 Selection.SelectedFormat,
+                ExpandedStorage,
                 Mips))
         {
             return Failure(

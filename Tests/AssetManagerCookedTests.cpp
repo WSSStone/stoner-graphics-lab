@@ -3,7 +3,7 @@
 #include "AssetCookerPublicationTestSupport.h"
 #include "Asset/FAssetManager.h"
 #include "Asset/FAssetManagerConfig.h"
-#include "Asset/FTextureAsset.h"
+#include "Asset/FKTX2TextureArtifact.h"
 #include "Core/SGPlatform.h"
 #include "FBoundCookedGeneration.h"
 
@@ -108,20 +108,20 @@ FAssetManagerCookedTestResult RunAssetManagerCookedTests()
     const auto RequestResult =
         ManagerResult == Asset::EAssetResult::Success &&
             TextureRecord != SeedRun.Result.Manifest.Records.end()
-        ? Manager->Request<Asset::FTextureAsset>(
+        ? Manager->Request<Asset::FKTX2TextureArtifact>(
               TextureRecord->AssetId, TextureRequest)
         : Asset::EAssetResult::ProcessingFailure;
     Asset::FAssetRequestSnapshot TextureSnapshot;
     const bool TextureTerminal = RequestResult == Asset::EAssetResult::Success &&
         WaitTerminal(*Manager, TextureRequest, TextureSnapshot);
-    Asset::TAssetHandle<Asset::FTextureAsset> Texture;
+    Asset::TAssetHandle<Asset::FKTX2TextureArtifact> Texture;
     Record(Result.Passed, Result.Failed,
         TextureTerminal &&
             TextureSnapshot.State == Asset::EAssetRequestState::Ready &&
             Manager->GetResult(TextureRequest, Texture) ==
                 Asset::EAssetResult::Success &&
-            Texture.IsValid() && Texture->GetImage() != nullptr,
-        "strict cooked manager loads texture and required image closure");
+            Texture.IsValid() && !Texture->GetBytes().empty(),
+        "strict cooked manager loads KTX2 texture and required image closure");
     Texture.Reset();
     (void)Manager->ReleaseRequest(TextureRequest);
 
@@ -133,8 +133,9 @@ FAssetManagerCookedTestResult RunAssetManagerCookedTests()
     if (!CorruptPayload.empty()) CorruptPayload.back() ^= 0x01U;
     Write(PayloadPath, CorruptPayload);
     Asset::FAssetRequestHandle CorruptRequest;
-    const auto CorruptAdmission = Manager->Request<Asset::FTextureAsset>(
-        TextureRecord->AssetId, CorruptRequest);
+    const auto CorruptAdmission =
+        Manager->Request<Asset::FKTX2TextureArtifact>(
+            TextureRecord->AssetId, CorruptRequest);
     Asset::FAssetRequestSnapshot CorruptSnapshot;
     const bool CorruptTerminal =
         CorruptAdmission == Asset::EAssetResult::Success &&

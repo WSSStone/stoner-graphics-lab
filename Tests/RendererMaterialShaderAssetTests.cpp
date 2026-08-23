@@ -142,7 +142,7 @@ Asset::FShaderNativeLibraryEvidence NativeLibraryEvidence(
     (void)Asset::FAssetParticipantId::Create(
         "cooker.metal-shader", Evidence.Finalizer);
     (void)Asset::FAssetProducerVersion::Create(
-        "027-v1", Evidence.FinalizerVersion);
+        "027-v2", Evidence.FinalizerVersion);
     (void)Asset::FinalizeShaderNativeLibraryEvidence(Evidence);
     return Evidence;
 }

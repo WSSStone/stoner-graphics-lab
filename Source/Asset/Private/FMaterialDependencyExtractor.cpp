@@ -10,11 +10,12 @@ namespace
 void AddUnique(
     Core::TArray<FAssetDependency>& Dependencies,
     const FAssetId& Id,
+    EAssetDependencyRole Role,
     EAssetDependencyStrength Strength)
 {
     FAssetDependency Dependency{
         Id,
-        EAssetDependencyRole::Runtime,
+        Role,
         Strength,
         EAssetDependencyResolution::Unresolved};
     if (std::none_of(
@@ -61,6 +62,7 @@ EAssetResult ExtractMaterialDependencies(FMaterialAssetDesc& Desc)
     AddUnique(
         Desc.Dependencies,
         *Desc.Shader.GetId(),
+        EAssetDependencyRole::Runtime,
         EAssetDependencyStrength::Required);
     for (const FMaterialAssetParameter& Parameter : Desc.Parameters)
     {
@@ -69,6 +71,7 @@ EAssetResult ExtractMaterialDependencies(FMaterialAssetDesc& Desc)
             AddUnique(
                 Desc.Dependencies,
                 *Texture,
+                EAssetDependencyRole::Runtime,
                 EAssetDependencyStrength::Required);
         }
     }
@@ -99,6 +102,7 @@ EAssetResult ExtractMaterialInstanceDependencies(
     AddUnique(
         Desc.Dependencies,
         *ParentId,
+        EAssetDependencyRole::Runtime,
         EAssetDependencyStrength::Required);
     for (const FMaterialAssetParameter& Override : Desc.Overrides)
     {
@@ -107,7 +111,42 @@ EAssetResult ExtractMaterialInstanceDependencies(
             AddUnique(
                 Desc.Dependencies,
                 *Texture,
+                EAssetDependencyRole::Runtime,
                 EAssetDependencyStrength::Required);
+        }
+    }
+    std::sort(
+        Desc.Dependencies.begin(),
+        Desc.Dependencies.end(),
+        [](const auto& Left, const auto& Right)
+        {
+            return Left.TargetId < Right.TargetId;
+        });
+    return EAssetResult::Success;
+}
+
+EAssetResult ExtractShaderDependencies(FShaderAssetDesc& Desc)
+{
+    Desc.Dependencies.clear();
+    for (const FShaderSourceReference& Stage : Desc.Stages)
+    {
+        if (Stage.Source.GetId())
+            AddUnique(
+                Desc.Dependencies,
+                *Stage.Source.GetId(),
+                EAssetDependencyRole::Source,
+                EAssetDependencyStrength::Required);
+    }
+    for (const FShaderVariantDefinition& Variant : Desc.Variants)
+    {
+        for (const FShaderPayloadReference& Payload : Variant.Payloads)
+        {
+            if (Payload.Payload.GetId())
+                AddUnique(
+                    Desc.Dependencies,
+                    *Payload.Payload.GetId(),
+                    EAssetDependencyRole::Runtime,
+                    EAssetDependencyStrength::Required);
         }
     }
     std::sort(

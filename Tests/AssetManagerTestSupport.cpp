@@ -180,7 +180,7 @@ public:
         const FAssetSourceLease& Source,
         TArray<FAssetImportOutput>& OutOutputs) override
     {
-        return Import({Descriptor, Source, {}, {}}, OutOutputs);
+        return Import({Descriptor, Source, {}, {}, {}}, OutOutputs);
     }
 
 private:

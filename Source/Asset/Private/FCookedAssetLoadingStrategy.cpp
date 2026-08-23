@@ -14,8 +14,10 @@ namespace Stoner::Asset::Private
 
 FCookedAssetLoadingStrategy::FCookedAssetLoadingStrategy(
     FAssetManagerConfig Config,
-    const FBoundCookedGeneration& Generation)
-    : Config_(std::move(Config)), Generation_(Generation)
+    const FBoundCookedGeneration& Generation,
+    Core::TSharedPtr<FAssetManagerExecutionCounterState> Counters)
+    : Config_(std::move(Config)), Generation_(Generation),
+      Counters_(std::move(Counters))
 {
 }
 
@@ -24,6 +26,8 @@ FAssetLoadScratchResult FCookedAssetLoadingStrategy::Load(
     const FAssetRuntimeExecutionContext& Context)
 {
     FAssetLoadScratchResult Out;
+    FAssetManagerExecutionCounterState::Increment(
+        Counters_->StrictLoaderExecutions);
     if (Context.ShouldStop())
     {
         Out.Result = EAssetResult::Cancelled;
@@ -59,8 +63,7 @@ FAssetLoadScratchResult FCookedAssetLoadingStrategy::Load(
         return Out;
     }
     Core::TArray<Core::uint8> Bytes;
-    if (!Core::FPlatformFileSystem::ReadFile(Path, Bytes) ||
-        FAssetDigest::FromBytes(Bytes) != Found->EnvelopeDigest)
+    if (!Core::FPlatformFileSystem::ReadFile(Path, Bytes))
     {
         Out.Result = EAssetResult::CorruptPayload;
         return Out;
@@ -72,7 +75,8 @@ FAssetLoadScratchResult FCookedAssetLoadingStrategy::Load(
     FAssetCookedPayloadEnvelope Envelope;
     if (FAssetCookContractCodec::LoadTypedPayload(
             Bytes, Limits, Payload, &Envelope) != EAssetResult::Success ||
-        !Payload || Envelope.Header.AssetId != Found->AssetId ||
+        !Payload || Envelope.EnvelopeDigest != Found->EnvelopeDigest ||
+        Envelope.Header.AssetId != Found->AssetId ||
         Envelope.Header.AssetType != Found->AssetType ||
         Envelope.Header.CodecId != Found->Codec.Id.ToString() ||
         Found->Codec.Version.ToString() != Core::FString(

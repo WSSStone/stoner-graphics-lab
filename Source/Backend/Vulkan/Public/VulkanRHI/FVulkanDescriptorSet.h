@@ -48,6 +48,7 @@ public:
 
 private:
     friend class FVulkanDevice;
+    friend class FVulkanNativeContext;
 
     FVulkanDescriptorSet(
         const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIPipelineLayout>& InLayout,

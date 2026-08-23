@@ -66,6 +66,21 @@ public:
     {
         return Stoner::RHI::ERHIResult::Unsupported;
     }
+    Stoner::RHI::ERHIResult PrepareProductionPresentation(
+        Stoner::Core::uint32,
+        Stoner::Core::uint32) override
+    {
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
+    Stoner::RHI::ERHIResult PresentProductionImage(
+        std::span<const Stoner::Core::uint8>,
+        Stoner::Core::uint32,
+        Stoner::Core::uint32,
+        Stoner::Core::uint32,
+        FDemoProductionPresentationResult&) override
+    {
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
     Stoner::RHI::ERHIResult ExecuteOffscreenTriangle(
         const Stoner::Renderer::FForwardFramePlan& Plan,
         const Stoner::RHI::FRHIShaderModuleDesc&,

@@ -8,6 +8,7 @@
 #include "FMetalGraphicsPipeline.h"
 #include "FMetalRenderPass.h"
 #include "FMetalTexture.h"
+#include "RHI/IRHIPipelineLayout.h"
 
 #include <cmath>
 #include <new>
@@ -467,8 +468,19 @@ RHI::ERHIResult FMetalCommandBuffer::BindDescriptorSet(
     Core::TSharedPtr<RHI::IRHIPipelineLayout> Expected;
     if (BoundGraphicsPipeline_) Expected = BoundGraphicsPipeline_->GetPipelineLayout();
     else if (BoundComputePipeline_) Expected = BoundComputePipeline_->GetPipelineLayout();
+    const Core::TSharedPtr<RHI::IRHIPipelineLayout> Actual =
+        DescriptorSet ? DescriptorSet->GetPipelineLayout() : nullptr;
     if (!IsRecording() || !Native || !Native->IsCompatible(GetOwner()) ||
-        !Expected || DescriptorSet->GetPipelineLayout().get() != Expected.get())
+        DescriptorSet->GetLifecycleState() !=
+            RHI::ERHIResourceLifecycleState::Valid ||
+        !Expected || !Actual ||
+        Expected->GetLifecycleState() !=
+            RHI::ERHIResourceLifecycleState::Valid ||
+        Actual->GetLifecycleState() !=
+            RHI::ERHIResourceLifecycleState::Valid ||
+        (Actual.get() != Expected.get() &&
+         !RHI::AreRHIPipelineLayoutDescsEquivalent(
+             Actual->GetDesc(), Expected->GetDesc())))
         return RHI::ERHIResult::InvalidState;
     FMetalCommandRecord Record;
     Record.Type = RHI::ERHISymbolicCommandType::BindDescriptorSet;

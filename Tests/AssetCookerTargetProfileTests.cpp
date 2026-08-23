@@ -47,6 +47,30 @@ bool HasExactGenericSettings(const Asset::FAssetTargetProfile& Profile)
     return true;
 }
 
+bool HasKTX2SettingsAndProjection(
+    const Asset::FAssetTargetProfileEvidence& Profile)
+{
+    Asset::FAssetParticipantId Participant;
+    if (Asset::FAssetParticipantId::Create(
+            Core::FString("cooker.ktx2"), Participant) !=
+        Asset::EAssetResult::Success)
+        return false;
+    const auto* Record = Profile.Profile.BuildPolicy.FindProducer(Participant);
+    if (!Record || Record->SchemaVersion != 1 || Record->Settings.size() != 4 ||
+        !Record->Find(Core::FString("allowLossyData")) ||
+        !Record->Find(Core::FString("compressionPolicy")) ||
+        !Record->Find(Core::FString("portableProfile")) ||
+        !Record->Find(Core::FString("quality")))
+        return false;
+    Asset::FKTX2TextureCooker Cooker;
+    Asset::FAssetProfileProjectionEvidence Projection;
+    return Cooker.GetRelevantProfileEvidence(Profile, Projection) ==
+            Asset::EAssetResult::Success &&
+        Projection.Producer == Participant &&
+        Projection.EffectiveSettingsDigest.IsAvailable() &&
+        Projection.RelevantProfileDigest.IsAvailable();
+}
+
 bool WriteProfile(
     const std::filesystem::path& Path,
     const Asset::FAssetTargetProfile& Profile,
@@ -81,7 +105,8 @@ FAssetCookerTargetProfileTestResult RunAssetCookerTargetProfileTests()
                 Asset::EAssetGraphicsBackend::Vulkan &&
             !Profile.Profile.ShaderPayloadChoices.empty() &&
             !Profile.Profile.TextureCapabilities.empty() &&
-            HasExactGenericSettings(Profile.Profile);
+            HasExactGenericSettings(Profile.Profile) &&
+            HasKTX2SettingsAndProjection(Profile);
     }
     Record(Result, ProfilesValid,
         "Windows macOS and Linux Vulkan profiles are strict complete contracts");
@@ -106,13 +131,38 @@ FAssetCookerTargetProfileTestResult RunAssetCookerTargetProfileTests()
             Profile.Profile.ShaderPayloadChoices.size() == 1 &&
             Profile.Profile.ShaderPayloadChoices.front().Format ==
                 Asset::EAssetShaderPayloadFormat::MetalLibrary &&
-            HasExactGenericSettings(Profile.Profile);
+            HasExactGenericSettings(Profile.Profile) &&
+            HasKTX2SettingsAndProjection(Profile);
     }
     Record(Result, MetalProfilesValid,
         "arm64 and x86_64 Metal profiles require macOS 12 MSL 2.4 native libraries");
 
     Asset::FAssetTargetProfileEvidence Baseline;
     (void)ParseProfile(Profiles[1], Baseline);
+    Asset::FKTX2TextureCooker KtxCooker;
+    Asset::FAssetProfileProjectionEvidence BaselineKtxProjection;
+    const bool BaselineProjected = KtxCooker.GetRelevantProfileEvidence(
+        Baseline, BaselineKtxProjection) == Asset::EAssetResult::Success;
+    auto CapabilityChangedProfile = Baseline.Profile;
+    CapabilityChangedProfile.TextureCapabilities = {
+        Core::FString("rgba8-unorm"), Core::FString("rgba16-float")};
+    Core::FString CapabilityChangedText;
+    Asset::FAssetTargetProfileEvidence CapabilityChanged;
+    Asset::FAssetProfileProjectionEvidence CapabilityChangedProjection;
+    const bool CapabilityChangedWritten =
+        Asset::FAssetCookContractCodec::WriteTargetProfile(
+            CapabilityChangedProfile, CapabilityChangedText,
+            &CapabilityChanged) == Asset::EAssetResult::Success &&
+        KtxCooker.GetRelevantProfileEvidence(
+            CapabilityChanged, CapabilityChangedProjection) ==
+            Asset::EAssetResult::Success;
+    Record(Result,
+        BaselineProjected && CapabilityChangedWritten &&
+            BaselineKtxProjection.EffectiveSettingsDigest ==
+                CapabilityChangedProjection.EffectiveSettingsDigest &&
+            BaselineKtxProjection.RelevantProfileDigest !=
+                CapabilityChangedProjection.RelevantProfileDigest,
+        "KTX2 projection isolates producer settings and target texture capabilities");
     auto RenamedProfile = Baseline.Profile;
     RenamedProfile.DisplayName = Core::FString("Renamed Non-authoritative Profile");
     Core::FString RenamedText;

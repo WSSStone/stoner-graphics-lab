@@ -15,6 +15,7 @@ class ArchitectureVerifierTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.root = pathlib.Path(self.temporary.name)
         for relative in (
+            "Demo/StonerDemo/Private",
             "Source/Core/Public/Core",
             "Source/Asset/Public/Asset",
             "Source/Asset/Private",
@@ -96,6 +97,64 @@ class ArchitectureVerifierTests(unittest.TestCase):
         errors = verify_architecture.verify(self.root)
         self.assertTrue(any("native Metal ownership" in error for error in errors))
         self.assertTrue(any("SPIRV-Cross" in error for error in errors))
+
+    def test_renderer_and_application_cannot_call_native_backends(self) -> None:
+        renderer = self.root / "Source/Renderer/Public/Renderer/Leak.h"
+        renderer.write_text(
+            '#include "VulkanRHI/FVulkanDevice.h"\n', encoding="utf-8"
+        )
+        application = self.root / "Source/Application/Private/Leak.cpp"
+        application.parent.mkdir(parents=True, exist_ok=True)
+        application.write_text(
+            "void Leak() { Stoner::Backend::Metal::CreateDevice(); }\n",
+            encoding="utf-8",
+        )
+        errors = verify_architecture.verify(self.root)
+        self.assertTrue(any("Renderer must not call native backend" in error for error in errors))
+        self.assertTrue(any("Application must not call native backend" in error for error in errors))
+
+    def test_asset_namespace_leak_fails_without_an_include(self) -> None:
+        path = self.root / "Source/Asset/Private/Leak.cpp"
+        path.write_text(
+            "Stoner::Renderer::FMaterial* LeakedMaterial;\n",
+            encoding="utf-8",
+        )
+        errors = verify_architecture.verify(self.root)
+        self.assertTrue(any("Asset must not reference" in error for error in errors))
+
+    def test_flip_runtime_include_and_link_fail(self) -> None:
+        source = self.root / "Source/Renderer/Public/Renderer/Leak.h"
+        source.write_text('#include "ThirdParty/flip/FLIP.h"\n', encoding="utf-8")
+        sconscript = self.root / "Demo/StonerDemo/SConscript"
+        sconscript.parent.mkdir(parents=True, exist_ok=True)
+        sconscript.write_text("CPPPATH=['#ThirdParty/flip']\n", encoding="utf-8")
+        errors = verify_architecture.verify(self.root)
+        self.assertTrue(any("FLIP is validation-only" in error for error in errors))
+
+    def test_demo_composition_root_line_budget_fails(self) -> None:
+        path = self.root / "Demo/StonerDemo/Private/FStonerDemoApplication.cpp"
+        path.write_text("void Line();\n" * 1601, encoding="utf-8")
+        errors = verify_architecture.verify(self.root)
+        self.assertTrue(any("Demo composition root exceeds" in error for error in errors))
+
+    def test_feature_scope_exclusions_reject_added_production_paths(self) -> None:
+        errors = verify_architecture.verify_feature_diff_paths([
+            "Source/Asset/Private/FObjImporter.cpp",
+            "Source/Renderer/Private/FMeshletBuilder.cpp",
+            "Demo/StonerDemo/Private/FVisualRedesign.cpp",
+            "Tests/MeshletFutureContractTests.cpp",
+        ])
+        self.assertEqual(3, len(errors))
+        self.assertTrue(any("new source importer" in error for error in errors))
+        self.assertTrue(any("Meshlet or LOD" in error for error in errors))
+        self.assertTrue(any("visual-quality redesign" in error for error in errors))
+
+    def test_feature_scope_allows_feature_028_production_helpers(self) -> None:
+        self.assertEqual([], verify_architecture.verify_feature_diff_paths([
+            "Demo/StonerDemo/Private/FProductionContentSession.cpp",
+            "Source/Renderer/Private/FStaticModelRealization.cpp",
+            "Tools/AssetCooker/Private/FAssetCookerSelection.cpp",
+        ]))
 
 
 if __name__ == "__main__":

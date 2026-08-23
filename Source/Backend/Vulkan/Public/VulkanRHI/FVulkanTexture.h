@@ -33,6 +33,7 @@ public:
 
 private:
     friend class FVulkanDevice;
+    friend class FVulkanNativeContext;
 
     FVulkanTexture(
         const Stoner::RHI::FRHITextureDesc& InDesc,

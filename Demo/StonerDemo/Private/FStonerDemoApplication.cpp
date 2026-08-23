@@ -3,6 +3,14 @@
 #include "Application/FWindow.h"
 #include "Asset/AssetMinimal.h"
 #include "Core/FPlatformFileSystem.h"
+#include "FProductionContentComposition.h"
+#include "FProductionContentDeferredExecution.h"
+#include "FProductionContentRuntime.h"
+#include "FProductionContentSession.h"
+#include "FProductionWindowCaptureWriter.h"
+#include "FStonerDemoWindowState.h"
+#include "RHI/IRHICommandQueue.h"
+#include "RHI/IRHIFence.h"
 #include "RHI/ERHIRuntimeMode.h"
 #include "Renderer/RendererMinimal.h"
 
@@ -17,11 +25,6 @@
 namespace Stoner::Demo
 {
 
-class FStonerDemoApplication::FWindowHolder
-{
-public:
-    Stoner::Application::FWindow Value;
-};
 namespace
 {
 
@@ -38,6 +41,23 @@ bool IsRecoverablePresentationResult(
     return Backend == EDemoGraphicsBackend::Metal &&
         (Result == Stoner::RHI::ERHIResult::Unavailable ||
             Result == Stoner::RHI::ERHIResult::NotReady);
+}
+
+bool HasSameLiveObjects(
+    const Stoner::RHI::FRHIRuntimeSnapshot& Left,
+    const Stoner::RHI::FRHIRuntimeSnapshot& Right) noexcept
+{
+    return Left.LiveInstances == Right.LiveInstances &&
+        Left.LiveDevices == Right.LiveDevices &&
+        Left.LiveSurfaces == Right.LiveSurfaces &&
+        Left.LiveSwapchains == Right.LiveSwapchains &&
+        Left.LiveBuffers == Right.LiveBuffers &&
+        Left.LiveTextures == Right.LiveTextures &&
+        Left.LiveShaderModules == Right.LiveShaderModules &&
+        Left.LivePipelines == Right.LivePipelines &&
+        Left.LiveCommandBuffers == Right.LiveCommandBuffers &&
+        Left.LiveSynchronizationObjects ==
+            Right.LiveSynchronizationObjects;
 }
 
 class FMountedFileSource final : public Stoner::Asset::IAssetSource
@@ -509,6 +529,512 @@ bool FStonerDemoApplication::ShouldInject(EDemoStage Stage, EDemoExitCode Code, 
     return true;
 }
 
+EDemoExitCode FStonerDemoApplication::InitializeProductionContent()
+{
+    using namespace Stoner;
+    if (!BackendRuntime || !BackendRuntime->GetDevice())
+        return FailInitialize(EDemoStage::Runtime,
+            EDemoExitCode::RuntimeUnavailable, "ProductionDevice",
+            "production content requires an active native RHI device");
+
+    Core::TArray<Core::uint8> ProfileBytes;
+    Asset::FAssetTargetProfileEvidence TargetEvidence;
+    Asset::FAssetDigest Generation;
+    if (!Core::FPlatformFileSystem::ReadFile(
+            Configuration.TargetProfilePath, ProfileBytes) ||
+        Asset::FAssetCookContractCodec::ParseTargetProfile(
+            ProfileBytes, TargetEvidence) != Asset::EAssetResult::Success ||
+        Asset::FAssetDigest::ParseLowerHex(
+            Configuration.StrictGeneration, Generation) !=
+            Asset::EAssetResult::Success)
+        return FailInitialize(EDemoStage::Shader,
+            EDemoExitCode::InitializationFailed, "ProductionContract",
+            "target profile or strict generation is invalid");
+    ProductionRuntime = std::make_unique<FProductionContentRuntime>();
+    FProductionContentSessionConfig SessionConfig;
+    SessionConfig.PublicationRoot = Configuration.CookedPublicationRoot;
+    SessionConfig.LeaseCoordinationRoot = Configuration.LeaseCoordinationRoot;
+    SessionConfig.RootAssetIdentity = Configuration.ProductionRoot;
+    SessionConfig.ExpectedGeneration = Generation;
+    SessionConfig.TargetEvidence =
+        Core::MakeShared<const Asset::FAssetTargetProfileEvidence>(
+            TargetEvidence);
+    SessionConfig.WorkerCount = Configuration.ProductionLifecycleCycles == 1000 ? 8u : 4u;
+    const Asset::EAssetResult SessionResult =
+        ProductionRuntime->Session.Load(
+            SessionConfig, ProductionRuntime->LoadedClosure);
+    if (SessionResult != Asset::EAssetResult::Success)
+        return FailInitialize(EDemoStage::Upload,
+            EDemoExitCode::InitializationFailed, "ProductionStrictSession",
+            ProductionRuntime->Session.Inspect().FirstFailure.IsEmpty()
+                ? "strict cooked closure failed"
+                : ProductionRuntime->Session.Inspect().FirstFailure.CStr());
+
+    Renderer::FStaticModelRealizationRequest Request;
+    Request.Device = BackendRuntime->GetDevice();
+    Request.Model = ProductionRuntime->LoadedClosure.Model;
+    Request.Dependencies = ProductionRuntime->LoadedClosure.Dependencies;
+    Request.TargetEvidence = SessionConfig.TargetEvidence;
+    if (Request.Dependencies.Textures.empty())
+        return FailInitialize(EDemoStage::Upload,
+            EDemoExitCode::InitializationFailed, "ProductionTextures",
+            "production closure has no cooked texture");
+    for (const auto& Texture : Request.Dependencies.Textures)
+    {
+        Request.TextureTargetProfiles.push_back({
+            Texture->GetId(),
+            Renderer::FTextureTargetProfile::DesktopDefault(
+                Texture->GetInfo())});
+    }
+    Request.RenderTargets.SampleCount = RHI::ERHISampleCount::One;
+    Request.RenderTargets.ColorFormats = {
+        RHI::ERHIFormat::R8G8B8A8_UNorm,
+        RHI::ERHIFormat::R16G16B16A16_Float,
+        RHI::ERHIFormat::R16G16B16A16_Float};
+    Request.RenderTargets.DepthStencilFormat = RHI::ERHIFormat::D32_Float;
+    const RHI::ERHIResult DeferredRealized =
+        Renderer::FStaticModelRealizer::Realize(
+            Request, ProductionRuntime->DeferredRenderSnapshot,
+            ProductionRuntime->DeferredRealizationInspection);
+    if (DeferredRealized == RHI::ERHIResult::Success)
+    {
+        ProductionRuntime->ForwardRenderSnapshot =
+            ProductionRuntime->DeferredRenderSnapshot;
+        ProductionRuntime->ForwardRealizationInspection =
+            ProductionRuntime->DeferredRealizationInspection;
+    }
+    if (DeferredRealized != RHI::ERHIResult::Success ||
+        !ProductionRuntime->DeferredRenderSnapshot ||
+        !ProductionRuntime->ForwardRenderSnapshot)
+        return FailInitialize(EDemoStage::Pipeline,
+            EDemoExitCode::InitializationFailed, "ProductionRealization",
+            ProductionRuntime->DeferredRealizationInspection.FirstFailure.Reason.IsEmpty()
+                ? "aggregate Renderer realization failed"
+                : ProductionRuntime->DeferredRealizationInspection.FirstFailure.Reason.CStr());
+
+    FProductionContentCompositionConfig CompositionConfig;
+    CompositionConfig.WorkloadRevision = Configuration.WorkloadRevision;
+    CompositionConfig.Width = Configuration.ClientWidth;
+    CompositionConfig.Height = Configuration.ClientHeight;
+    Core::FString CompositionReason;
+    if (!FProductionContentCompositionBuilder::Build(
+            ProductionRuntime->DeferredRenderSnapshot, CompositionConfig,
+            ProductionRuntime->Composition, &CompositionReason))
+        return FailInitialize(EDemoStage::Pipeline,
+            EDemoExitCode::InitializationFailed, "ProductionComposition",
+            CompositionReason.CStr());
+
+    if (FProductionContentDeferredExecutionBuilder::Build(
+            Request.Device, *ProductionRuntime->DeferredRenderSnapshot,
+            ProductionRuntime->Composition,
+            ProductionRuntime->LoadedClosure.RenderShaders,
+            ProductionRuntime->LoadedClosure.RenderShaderPayloads,
+            TargetEvidence, ProductionRuntime->DeferredResources,
+            &CompositionReason) != RHI::ERHIResult::Success)
+        return FailInitialize(EDemoStage::Pipeline,
+            EDemoExitCode::InitializationFailed,
+            "ProductionDeferredExecution", CompositionReason.CStr());
+
+    Renderer::FDeferredRendererConfiguration DeferredConfig;
+    DeferredConfig.bEnableValidationReadback = true;
+    Renderer::FDeferredFramePlan DeferredPlan;
+    if (Renderer::FForwardRenderer().PrepareFrame(
+            ProductionRuntime->Composition.ForwardInputs,
+            ProductionRuntime->ForwardPlan) !=
+            Renderer::EForwardResult::Success ||
+        Renderer::FDeferredRenderer(DeferredConfig).PrepareFrame(
+            ProductionRuntime->Composition.DeferredInputs,
+            DeferredPlan) != Renderer::EDeferredResult::Success ||
+        !PrepareProductionForwardSmoke(
+            *Request.Device, *ProductionRuntime->ForwardRenderSnapshot,
+            ProductionRuntime->ForwardPlan, DeferredPlan,
+            ProductionRuntime->ForwardBindings, &CompositionReason))
+        return FailInitialize(EDemoStage::Pipeline,
+            EDemoExitCode::InitializationFailed,
+            "ProductionForwardExecution", CompositionReason.CStr());
+
+    Diagnostics.Add(EDemoStage::Upload, EDemoExitCode::Success,
+        "ProductionStrictSession",
+        "strict generation and complete dependency closure loaded");
+    Diagnostics.Add(EDemoStage::Pipeline, EDemoExitCode::Success,
+        "ProductionRealization",
+        "aggregate render snapshot and backend-neutral composition published");
+    return EDemoExitCode::Success;
+}
+
+FDemoProductionLifecycleCounters
+FStonerDemoApplication::ReleaseProductionContentCycle()
+{
+    FDemoProductionLifecycleCounters Counters;
+    if (!ProductionRuntime || !BackendRuntime)
+    {
+        Counters.AssetOwners = 1;
+        Counters.RendererOwners = 1;
+        Counters.RHIObjects = 1;
+        Counters.NativeObjects = 1;
+        Counters.bStaleHandleRejected = false;
+        return Counters;
+    }
+
+    const Core::TWeakPtr<const Renderer::FStaticModelRenderSnapshot>
+        StaleDeferredSnapshot = ProductionRuntime->DeferredRenderSnapshot;
+    const Core::TWeakPtr<const Renderer::FStaticModelRenderSnapshot>
+        StaleForwardSnapshot = ProductionRuntime->ForwardRenderSnapshot;
+    ReleaseProductionForwardSmoke(ProductionRuntime->ForwardBindings);
+    ProductionRuntime->DeferredResources.Release();
+    ProductionRuntime->ForwardPlan = {};
+    ProductionRuntime->Composition = {};
+    ProductionRuntime->DeferredRenderSnapshot.reset();
+    ProductionRuntime->ForwardRenderSnapshot.reset();
+    ProductionRuntime->LoadedClosure = {};
+    (void)ProductionRuntime->Session.Shutdown();
+    const FProductionContentSessionInspection SessionInspection =
+        ProductionRuntime->Session.Inspect();
+    ProductionRuntime.reset();
+
+    const Asset::FAssetManagerInspection& Manager =
+        SessionInspection.Manager;
+    Counters.AssetOwners =
+        static_cast<Core::uint64>(Manager.ActiveOperations) +
+        Manager.CachedAssets + Manager.ExternalHandleRetentions +
+        Manager.RequestRetentions + Manager.RequiredDependencyRetentions +
+        Manager.CompletionReservations + Manager.QueuedCompletions +
+        Manager.Requests.size() + Manager.Operations.size();
+    Counters.RendererOwners =
+        (StaleDeferredSnapshot.expired() ? 0 : 1) +
+        (StaleForwardSnapshot.expired() ? 0 : 1);
+
+    const RHI::FRHIRuntimeSnapshot Released = BackendRuntime->GetSnapshot();
+    const bool bRuntimeReturned =
+        HasSameLiveObjects(Released, ProductionRuntimeBaseline);
+    Counters.RHIObjects = bRuntimeReturned ? 0 :
+        Released.GetTotalLiveObjectCount();
+    Counters.NativeObjects = bRuntimeReturned ? 0 : 1;
+    Counters.PresentationObjects =
+        Released.LiveSurfaces == ProductionRuntimeBaseline.LiveSurfaces &&
+        Released.LiveSwapchains == ProductionRuntimeBaseline.LiveSwapchains
+        ? 0 : static_cast<Core::uint64>(Released.LiveSurfaces) +
+            Released.LiveSwapchains;
+    Counters.bStaleHandleRejected =
+        SessionInspection.bStaleHandleRejected &&
+        StaleDeferredSnapshot.expired() && StaleForwardSnapshot.expired();
+    return Counters;
+}
+
+EDemoExitCode FStonerDemoApplication::RunProductionContent()
+{
+    using namespace Stoner;
+    if (!ProductionRuntime || !ProductionRuntime->DeferredRenderSnapshot ||
+        !ProductionRuntime->ForwardRenderSnapshot ||
+        !BackendRuntime || !BackendRuntime->GetDevice())
+        return EDemoExitCode::InitializationFailed;
+    const auto Device = BackendRuntime->GetDevice();
+    ProductionExecutionInspection = {};
+    ProductionExecutionInspection.RequestedBackend =
+        Configuration.GraphicsBackend;
+    ProductionExecutionInspection.ExecutedBackend =
+        BackendRuntime->GetBackend();
+    ProductionExecutionInspection.RenderPath = Configuration.RenderPath;
+    ProductionExecutionInspection.Runtime = BackendRuntime->GetSnapshot();
+    if (ProductionExecutionInspection.RequestedBackend !=
+            ProductionExecutionInspection.ExecutedBackend ||
+        !ProductionExecutionInspection.Runtime.ProvesNativeExecution())
+        return FailInitialize(EDemoStage::Runtime,
+            EDemoExitCode::RuntimeUnavailable, "ProductionExecution",
+            "requested backend did not prove native execution");
+    const auto RecordCommands = [this](EDemoRenderPath Path)
+        -> Core::TSharedPtr<RHI::IRHICommandBuffer>
+    {
+        if (Path == EDemoRenderPath::DeferredFull)
+        {
+            const auto Execution = Renderer::FDeferredFrameExecutor().Execute(
+                ProductionRuntime->DeferredResources.Plan,
+                ProductionRuntime->DeferredResources.Graph,
+                ProductionRuntime->DeferredResources.Bindings);
+            return Execution.Succeeded()
+                ? ProductionRuntime->DeferredResources.Bindings.CommandBuffer
+                : Core::TSharedPtr<RHI::IRHICommandBuffer>{};
+        }
+        const auto Execution = Renderer::FForwardFrameExecutor().Execute(
+            ProductionRuntime->ForwardPlan,
+            ProductionRuntime->ForwardBindings);
+        if (!Execution.Succeeded())
+        {
+            const Core::FString Reason(
+                "result=" + std::to_string(
+                    static_cast<int>(Execution.Result)) +
+                "; recorded=" +
+                std::to_string(Execution.RecordedCommandCount));
+            Diagnostics.Add(EDemoStage::Record,
+                EDemoExitCode::FrameFailed, "ForwardExecutor",
+                Reason.CStr());
+        }
+        return Execution.Succeeded()
+            ? ProductionRuntime->ForwardBindings.CommandBuffer
+            : Core::TSharedPtr<RHI::IRHICommandBuffer>{};
+    };
+
+    const auto CaptureReadback = [this, &Device](
+        Core::uint32 Cycle,
+        const Core::FString& Name,
+        const Core::TSharedPtr<RHI::IRHIBuffer>& Readback,
+        const RHI::FRHITextureBufferCopyRegion& Region,
+        RHI::ERHIFormat Format,
+        Core::uint64 ReadbackBytes)
+    {
+        Core::TArray<Core::uint8> Bytes;
+        if (!Readback || ReadbackBytes == 0 ||
+            ReadProductionBuffer(Configuration.GraphicsBackend,
+                Device, Readback, ReadbackBytes, Bytes) !=
+                RHI::ERHIResult::Success ||
+            Bytes.size() != ReadbackBytes)
+            return false;
+        const bool bNonBlank = std::any_of(
+            Bytes.begin(), Bytes.end(),
+            [](Core::uint8 Value) { return Value != 0; });
+        const Core::uint32 RowTexels =
+            Region.DestinationRowLengthTexels == 0
+            ? Region.Width : Region.DestinationRowLengthTexels;
+        FDemoProductionReadbackEvidence Evidence;
+        Evidence.Name = Name;
+        Evidence.Digest =
+            Asset::FAssetDigest::FromBytes(Bytes).ToLowerHex();
+        Evidence.ByteCount = ReadbackBytes;
+        Evidence.Width = Region.Width;
+        Evidence.Height = Region.Height;
+        Evidence.RowPitchBytes =
+            RowTexels * RHI::GetRHIFormatByteSize(Format);
+        Evidence.Format = Format;
+        Evidence.bNonBlank = bNonBlank;
+        Evidence.Bytes = Bytes;
+        ProductionExecutionInspection.Readbacks.push_back(std::move(Evidence));
+        if (bNonBlank && (Name == Core::FString("FinalOutput") ||
+                Name == Core::FString("ForwardColor")))
+        {
+            FDemoProductionCapture Capture;
+            Capture.Cycle = Cycle;
+            Capture.Name = Name;
+            Capture.Width = Region.Width;
+            Capture.Height = Region.Height;
+            Capture.RowPitchBytes =
+                RowTexels * RHI::GetRHIFormatByteSize(Format);
+            Capture.CaptureStartedNs = static_cast<Core::uint64>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count());
+            Capture.Format = Format;
+            Capture.Bytes = std::move(Bytes);
+            const bool bSelectedVisiblePath = Configuration.bVisibleCapture &&
+                ((Configuration.RenderPath == EDemoRenderPath::DeferredFull &&
+                    Name == Core::FString("FinalOutput")) ||
+                 (Configuration.RenderPath == EDemoRenderPath::ForwardSmoke &&
+                    Name == Core::FString("ForwardColor")));
+            if (bSelectedVisiblePath)
+            {
+                if (!Window || !BackendRuntime)
+                    return false;
+                (void)Window->Value.PollEvents();
+                if (Window->Value.IsCloseRequested()) return false;
+                FDemoProductionPresentationResult Presented;
+                RHI::ERHIResult PresentResult =
+                    BackendRuntime->PresentProductionImage(
+                        Capture.Bytes, Capture.Width, Capture.Height,
+                        Capture.RowPitchBytes, Presented);
+                if (PresentResult == RHI::ERHIResult::ResizeRequired)
+                {
+                    const Core::uint32 DrawableWidth =
+                        Window->Value.GetDrawableWidth();
+                    const Core::uint32 DrawableHeight =
+                        Window->Value.GetDrawableHeight();
+                    if (BackendRuntime->RecreatePresentation(
+                            DrawableWidth, DrawableHeight) ==
+                            RHI::ERHIResult::Success)
+                        PresentResult = BackendRuntime->PresentProductionImage(
+                            Capture.Bytes, Capture.Width, Capture.Height,
+                            Capture.RowPitchBytes, Presented);
+                }
+                if (PresentResult != RHI::ERHIResult::Success ||
+                    !Presented.bPresented || Presented.Rgba8.empty())
+                    return false;
+                if (Presented.Width == Capture.Width &&
+                    Presented.Height == Capture.Height &&
+                    Presented.RowPitchBytes == Capture.RowPitchBytes &&
+                    Presented.Rgba8 != Capture.Bytes)
+                {
+                    Diagnostics.Add(EDemoStage::Readback,
+                        EDemoExitCode::ValidationFailed,
+                        "ProductionPresentation",
+                        "native presentation readback differs from the submitted RGBA image");
+                    return false;
+                }
+                Capture.Width = Presented.Width;
+                Capture.Height = Presented.Height;
+                Capture.RowPitchBytes = Presented.RowPitchBytes;
+                Capture.Format = RHI::ERHIFormat::R8G8B8A8_UNorm;
+                Capture.bPresented = true;
+                Capture.bWindowOnlyCapture = true;
+                Capture.Bytes = std::move(Presented.Rgba8);
+            }
+            Capture.Digest =
+                Asset::FAssetDigest::FromBytes(Capture.Bytes).ToLowerHex();
+            const bool bStreamCalibrationCapture =
+                bSelectedVisiblePath &&
+                !Configuration.ProductionCaptureRoot.IsEmpty() &&
+                Capture.Name == Core::FString("FinalOutput") &&
+                Capture.Cycle <= 20;
+            if (bStreamCalibrationCapture && !WriteProductionWindowCapture(
+                    Capture, ToString(Configuration.GraphicsBackend),
+                    Configuration.WorkloadRevision.CStr(),
+                    Configuration.ProductionCaptureRoot.CStr()))
+                return false;
+            constexpr Core::usize MaximumRetainedCalibrationCaptures = 20;
+            const Core::usize RetainedCalibrationCaptures =
+                static_cast<Core::usize>(std::count_if(
+                    ProductionExecutionInspection.Captures.begin(),
+                    ProductionExecutionInspection.Captures.end(),
+                    [&Capture](const FDemoProductionCapture& Existing)
+                    {
+                        return Existing.Name == Capture.Name &&
+                            Existing.bWindowOnlyCapture &&
+                            !Existing.Bytes.empty();
+                    }));
+            if (!bSelectedVisiblePath || bStreamCalibrationCapture ||
+                RetainedCalibrationCaptures >=
+                    MaximumRetainedCalibrationCaptures)
+            {
+                Capture.Bytes.clear();
+                Capture.Bytes.shrink_to_fit();
+            }
+            ProductionExecutionInspection.Captures.push_back(
+                std::move(Capture));
+        }
+        if (!bNonBlank)
+            Diagnostics.Add(EDemoStage::Readback,
+                EDemoExitCode::ValidationFailed, Name.CStr(),
+                "native GPU readback contained only zero bytes");
+        return bNonBlank;
+    };
+
+    for (Core::uint32 Cycle = 1;
+         Cycle <= Configuration.ProductionLifecycleCycles; ++Cycle)
+    {
+        {
+            auto Queue = Device->CreateCommandQueue(
+                RHI::ERHIQueueType::Graphics);
+            if (!Queue.Succeeded())
+                return FailInitialize(EDemoStage::Submit,
+                    EDemoExitCode::FrameFailed, "ProductionExecution",
+                    "production native queue creation failed");
+            ProductionExecutionInspection.Readbacks.clear();
+            const auto ExecutePath = [&](EDemoRenderPath Path)
+            {
+                const auto Commands = RecordCommands(Path);
+                const char* PathName = Path == EDemoRenderPath::DeferredFull
+                    ? "Deferred" : "Forward";
+                if (!Commands)
+                {
+                    Diagnostics.Add(EDemoStage::Submit,
+                        EDemoExitCode::FrameFailed, PathName,
+                        "production command recording failed");
+                    return false;
+                }
+                auto Fence = Device->CreateFence();
+                if (!Fence.Succeeded())
+                {
+                    Diagnostics.Add(EDemoStage::Submit,
+                        EDemoExitCode::FrameFailed, PathName,
+                        "production fence creation failed");
+                    return false;
+                }
+                if (Queue.Object->Submit(Commands, {}, {}, Fence.Object) !=
+                    RHI::ERHIResult::Success)
+                {
+                    Diagnostics.Add(EDemoStage::Submit,
+                        EDemoExitCode::FrameFailed, PathName,
+                        "production queue submission failed");
+                    return false;
+                }
+                if (Fence.Object->Wait(30'000'000) !=
+                    RHI::ERHIResult::Success)
+                {
+                    Diagnostics.Add(EDemoStage::Submit,
+                        EDemoExitCode::FrameFailed, PathName,
+                        "production fence completion failed");
+                    return false;
+                }
+                bool bReadbacksValid = true;
+                if (Path == EDemoRenderPath::DeferredFull)
+                {
+                    for (const auto& Binding :
+                         ProductionRuntime->DeferredResources.Bindings.Readbacks)
+                    {
+                        Core::uint64 ReadbackBytes = 0;
+                        const bool bBindingValid = Binding.Source &&
+                            RHI::TryGetRHITextureBufferCopyByteSize(
+                                Binding.Region, Binding.Source->GetFormat(),
+                                ReadbackBytes) &&
+                            CaptureReadback(Cycle, Binding.Name,
+                                Binding.Destination, Binding.Region,
+                                Binding.Source->GetFormat(), ReadbackBytes);
+                        bReadbacksValid = bBindingValid && bReadbacksValid;
+                    }
+                }
+                else
+                {
+                    Core::uint64 ReadbackBytes = 0;
+                    bReadbacksValid =
+                        ProductionRuntime->ForwardBindings.OutputTexture &&
+                        RHI::TryGetRHITextureBufferCopyByteSize(
+                            ProductionRuntime->ForwardBindings.ReadbackRegion,
+                            ProductionRuntime->ForwardBindings.OutputTexture->GetFormat(),
+                            ReadbackBytes) &&
+                        CaptureReadback(Cycle, "ForwardColor",
+                            ProductionRuntime->ForwardBindings.ReadbackBuffer,
+                            ProductionRuntime->ForwardBindings.ReadbackRegion,
+                            ProductionRuntime->ForwardBindings.OutputTexture->GetFormat(),
+                            ReadbackBytes);
+                }
+                if (!bReadbacksValid)
+                    Diagnostics.Add(EDemoStage::Readback,
+                        EDemoExitCode::ValidationFailed, PathName,
+                        "production GPU readback validation failed");
+                return bReadbacksValid;
+            };
+            if (!ExecutePath(EDemoRenderPath::DeferredFull) ||
+                !ExecutePath(EDemoRenderPath::ForwardSmoke))
+                return FailInitialize(EDemoStage::Readback,
+                    EDemoExitCode::ValidationFailed, "ProductionExecution",
+                    "production Deferred or Forward native execution failed");
+        }
+
+        const FDemoProductionLifecycleCounters Counters =
+            ReleaseProductionContentCycle();
+        if (!ValidationMonitor.SampleProductionCycle(Cycle, Counters))
+            return FailInitialize(EDemoStage::Memory,
+                EDemoExitCode::ValidationFailed, "ProductionLifecycle",
+                "production lifecycle RSS sampling failed");
+        ProductionExecutionInspection.CompletedCycles = Cycle;
+        CompletedFrames = Cycle;
+        if (Cycle < Configuration.ProductionLifecycleCycles &&
+            InitializeProductionContent() != EDemoExitCode::Success)
+            return EDemoExitCode::InitializationFailed;
+    }
+    ProductionExecutionInspection.bSubmissionCompleted = true;
+    ProductionExecutionInspection.bSynchronizationCompleted = true;
+    ProductionExecutionInspection.LifecycleSamples =
+        ValidationMonitor.GetProductionSamples();
+    ProductionExecutionInspection.bLifecyclePassed =
+        ValidationMonitor.EvaluateProductionLifecycle();
+    if (!ProductionExecutionInspection.bLifecyclePassed)
+        return FailInitialize(EDemoStage::Memory,
+            EDemoExitCode::ValidationFailed, "ProductionLifecycle",
+            "production ownership or RSS lifecycle gate failed");
+    LifecycleState = EDemoLifecycleState::Stopping;
+    Diagnostics.Add(EDemoStage::Readback, EDemoExitCode::Success,
+        "ProductionExecution",
+        "native production submission and readback completed");
+    return EDemoExitCode::Success;
+}
+
 EDemoExitCode FStonerDemoApplication::FailInitialize(
     EDemoStage Stage,
     EDemoExitCode Code,
@@ -528,7 +1054,10 @@ EDemoExitCode FStonerDemoApplication::Initialize()
 
     if (ShouldInject(EDemoStage::Window, EDemoExitCode::InitializationFailed, "Window")) return EDemoExitCode::InitializationFailed;
     if (ShouldInject(EDemoStage::Runtime, EDemoExitCode::RuntimeUnavailable, "Runtime")) return EDemoExitCode::RuntimeUnavailable;
-    if (ShouldInject(EDemoStage::Shader, EDemoExitCode::InitializationFailed, "TriangleShaders")) return EDemoExitCode::InitializationFailed;
+    if (Configuration.Workload == EDemoWorkload::Triangle &&
+        ShouldInject(EDemoStage::Shader,
+            EDemoExitCode::InitializationFailed, "TriangleShaders"))
+        return EDemoExitCode::InitializationFailed;
 
     if (Configuration.RequiresNativeRuntime())
     {
@@ -561,7 +1090,9 @@ EDemoExitCode FStonerDemoApplication::Initialize()
     {
         Window = std::make_unique<FWindowHolder>();
         Stoner::Application::FWindowDesc Desc;
-        Desc.Title = "Stoner Graphics Lab - Triangle Demo";
+        Desc.Title = Configuration.Workload == EDemoWorkload::Triangle
+            ? "Stoner Graphics Lab - Triangle Demo"
+            : "Stoner Graphics Lab - Production Content";
         Desc.ClientWidth = Configuration.ClientWidth;
         Desc.ClientHeight = Configuration.ClientHeight;
         if (Window->Value.CreateRealWindow(Desc) != Stoner::Application::EApplicationResult::Success ||
@@ -584,14 +1115,29 @@ EDemoExitCode FStonerDemoApplication::Initialize()
             PlatformWindow,
             Configuration.MaxFramesInFlight,
             Configuration.bEnableValidationLayers);
+        const Stoner::RHI::FRHIRuntimeSnapshot NativeSnapshot =
+            BackendRuntime->GetSnapshot();
         if (NativeResult != Stoner::RHI::ERHIResult::Success ||
-            !BackendRuntime->GetSnapshot().ProvesNativeExecution())
+            !NativeSnapshot.ProvesNativeExecution())
         {
+            std::string Reason =
+                NativeResult != Stoner::RHI::ERHIResult::Success
+                ? "native runtime initialization failed"
+                : "native runtime snapshot proof unavailable";
+            Reason += "; requested=";
+            Reason += Stoner::RHI::ToString(NativeSnapshot.RequestedMode);
+            Reason += "; object=";
+            Reason += std::to_string(
+                static_cast<int>(NativeSnapshot.ObjectMode)).c_str();
+            Reason += "; instances=";
+            Reason += std::to_string(NativeSnapshot.LiveInstances).c_str();
+            Reason += "; devices=";
+            Reason += std::to_string(NativeSnapshot.LiveDevices).c_str();
             Diagnostics.Add(
                 EDemoStage::Runtime,
                 EDemoExitCode::RuntimeUnavailable,
                 ToString(Configuration.GraphicsBackend),
-                "real native runtime proof unavailable");
+                Reason.c_str());
             (void)BackendRuntime->Shutdown();
             BackendRuntime.reset();
             if (Window)
@@ -602,11 +1148,33 @@ EDemoExitCode FStonerDemoApplication::Initialize()
             LifecycleState = EDemoLifecycleState::Failed;
             return EDemoExitCode::RuntimeUnavailable;
         }
+        ProductionRuntimeBaseline = BackendRuntime->GetSnapshot();
     }
 
     Diagnostics.Add(EDemoStage::Window, EDemoExitCode::Success, "Window", Configuration.RequiresVisibleWindow() ? "native window ready" : "window not required");
     Diagnostics.Add(EDemoStage::Runtime, EDemoExitCode::Success, "Runtime", ToString(Configuration.RunMode));
-    if (!ValidateShaderPayloads())
+    if (Configuration.Workload == EDemoWorkload::ProductionContent)
+    {
+        if (Configuration.bVisibleCapture)
+        {
+            CurrentDrawableWidth = Window->Value.GetDrawableWidth();
+            CurrentDrawableHeight = Window->Value.GetDrawableHeight();
+            if (CurrentDrawableWidth == 0 || CurrentDrawableHeight == 0 ||
+                BackendRuntime->PrepareProductionPresentation(
+                    CurrentDrawableWidth, CurrentDrawableHeight) !=
+                    Stoner::RHI::ERHIResult::Success)
+                return FailInitialize(
+                    EDemoStage::Pipeline,
+                    EDemoExitCode::InitializationFailed,
+                    "ProductionPresentation",
+                    "native production presentation resources failed");
+            ProductionRuntimeBaseline = BackendRuntime->GetSnapshot();
+        }
+        const EDemoExitCode ProductionResult = InitializeProductionContent();
+        if (ProductionResult != EDemoExitCode::Success)
+            return ProductionResult;
+    }
+    else if (!ValidateShaderPayloads())
     {
         return FailInitialize(
             EDemoStage::Shader,
@@ -614,20 +1182,28 @@ EDemoExitCode FStonerDemoApplication::Initialize()
             "TriangleShaders",
             "invalid stage, entry point, or checked-in SPIR-V payload");
     }
-    Diagnostics.Add(EDemoStage::Shader, EDemoExitCode::Success, "TriangleShaders", "vertex and fragment main entry points validated");
+    if (Configuration.Workload == EDemoWorkload::Triangle)
+        Diagnostics.Add(EDemoStage::Shader, EDemoExitCode::Success,
+            "TriangleShaders",
+            "vertex and fragment main entry points validated");
 
-    if (ShouldInject(EDemoStage::Upload, EDemoExitCode::InitializationFailed, "TriangleUpload"))
+    if (Configuration.Workload == EDemoWorkload::Triangle &&
+        ShouldInject(EDemoStage::Upload,
+            EDemoExitCode::InitializationFailed, "TriangleUpload"))
     {
         (void)Shutdown();
         return EDemoExitCode::InitializationFailed;
     }
-    if (ShouldInject(EDemoStage::Pipeline, EDemoExitCode::InitializationFailed, "TrianglePipeline"))
+    if (Configuration.Workload == EDemoWorkload::Triangle &&
+        ShouldInject(EDemoStage::Pipeline,
+            EDemoExitCode::InitializationFailed, "TrianglePipeline"))
     {
         (void)Shutdown();
         return EDemoExitCode::InitializationFailed;
     }
 
-    if (Configuration.RequiresVisibleWindow())
+    if (Configuration.Workload == EDemoWorkload::Triangle &&
+        Configuration.RequiresVisibleWindow())
     {
         CurrentDrawableWidth = Window->Value.GetDrawableWidth();
         CurrentDrawableHeight = Window->Value.GetDrawableHeight();
@@ -643,10 +1219,14 @@ EDemoExitCode FStonerDemoApplication::Initialize()
                 "native presentation resources failed");
         }
     }
-    Diagnostics.Add(EDemoStage::Upload, EDemoExitCode::Success, "TriangleUpload", "three-vertex RGB payload ready");
-    Diagnostics.Add(EDemoStage::Pipeline, EDemoExitCode::Success, "TrianglePipeline", "triangle pipeline ready");
-
-    TriangleResources.bInitialized = true;
+    if (Configuration.Workload == EDemoWorkload::Triangle)
+    {
+        Diagnostics.Add(EDemoStage::Upload, EDemoExitCode::Success,
+            "TriangleUpload", "three-vertex RGB payload ready");
+        Diagnostics.Add(EDemoStage::Pipeline, EDemoExitCode::Success,
+            "TrianglePipeline", "triangle pipeline ready");
+        TriangleResources.bInitialized = true;
+    }
     if (Configuration.RequiresVisibleWindow())
     {
         PresentationState.bInitialized = CurrentDrawableWidth > 0 && CurrentDrawableHeight > 0;
@@ -943,29 +1523,40 @@ EDemoExitCode FStonerDemoApplication::Run()
     EDemoExitCode Result = Initialize();
     if (Result == EDemoExitCode::Success)
     {
-        if (Configuration.RunMode == EDemoRunMode::DeterministicHeadless)
+        if (Configuration.Workload == EDemoWorkload::ProductionContent)
+            Result = RunProductionContent();
+        else if (Configuration.RunMode == EDemoRunMode::DeterministicHeadless)
             Result = RunDeterministic();
         else if (Configuration.RunMode == EDemoRunMode::NativeHeadless)
             Result = RunNativeHeadless();
         else Result = RunVisible();
     }
 
-    ValidationMonitor.SetRequestedFrames(Configuration.IsBounded() ? Configuration.FrameBudget : CompletedFrames);
+    const bool bUsesLegacyFrameValidation =
+        Configuration.Workload == EDemoWorkload::Triangle &&
+        Configuration.IsBounded();
+    ValidationMonitor.SetRequestedFrames(
+        bUsesLegacyFrameValidation ? Configuration.FrameBudget : CompletedFrames);
     ValidationMonitor.SetCompletedFrames(CompletedFrames);
     const EDemoExitCode ShutdownResult = Shutdown();
     if (Result == EDemoExitCode::Success && ShutdownResult != EDemoExitCode::Success) Result = ShutdownResult;
 
     ValidationMonitor.SetRuntimeSnapshot({});
-    if (Result == EDemoExitCode::Success && Configuration.IsBounded() && !ValidationMonitor.Evaluate())
+    if (Result == EDemoExitCode::Success && bUsesLegacyFrameValidation &&
+        !ValidationMonitor.Evaluate())
     {
         Diagnostics.Add(EDemoStage::Memory, EDemoExitCode::ValidationFailed, "Endurance", "memory or final resource gate failed");
         Result = EDemoExitCode::ValidationFailed;
     }
-    if (Configuration.IsBounded() && ShouldInject(EDemoStage::Report, EDemoExitCode::ReportFailed, "ValidationReport"))
+    if (bUsesLegacyFrameValidation &&
+        ShouldInject(EDemoStage::Report,
+            EDemoExitCode::ReportFailed, "ValidationReport"))
     {
         if (Result == EDemoExitCode::Success) Result = EDemoExitCode::ReportFailed;
     }
-    else if (Configuration.IsBounded() && !ValidationMonitor.WriteReport(Diagnostics) && Result == EDemoExitCode::Success)
+    else if (bUsesLegacyFrameValidation &&
+        !ValidationMonitor.WriteReport(Diagnostics) &&
+        Result == EDemoExitCode::Success)
     {
         Diagnostics.Add(EDemoStage::Report, EDemoExitCode::ReportFailed, "ValidationReport", "validation report could not be written");
         Result = EDemoExitCode::ReportFailed;
@@ -982,6 +1573,14 @@ EDemoExitCode FStonerDemoApplication::Shutdown()
     FrameContexts.clear();
     PresentationState.Reset();
     TriangleResources.Reset();
+    if (ProductionRuntime)
+    {
+        ProductionRuntime->DeferredRenderSnapshot.reset();
+        ProductionRuntime->ForwardRenderSnapshot.reset();
+        ProductionRuntime->LoadedClosure = {};
+        (void)ProductionRuntime->Session.Shutdown();
+        ProductionRuntime.reset();
+    }
     if (BackendRuntime)
     {
         (void)BackendRuntime->Shutdown();

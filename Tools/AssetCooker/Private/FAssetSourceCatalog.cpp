@@ -152,7 +152,8 @@ Asset::EAssetResult ImportImage(
     Parameters->Settings.MipPolicy = Asset::EImageMipPolicy::FullChain;
     return Asset::FAssetDispatch::Import(
         Registry,
-        Asset::FAssetImportRequest{Descriptor, Source, Parameters, {}},
+        Asset::FAssetImportRequest{
+            Descriptor, Source, Parameters, {}, {}},
         Out);
 }
 

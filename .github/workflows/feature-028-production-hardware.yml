@@ -1,0 +1,74 @@
+name: Feature 028 Production Hardware
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Hardware acceptance trigger
+        type: choice
+        required: true
+        default: feature-closeout
+        options:
+          - feature-closeout
+          - reference-image-change
+          - production-render-path-change
+
+permissions:
+  contents: read
+
+concurrency:
+  group: feature-028-hardware-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  hardware:
+    name: ${{ matrix.name }} (${{ inputs.reason }})
+    runs-on: ${{ matrix.labels }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows Vulkan
+            slug: windows-vulkan
+            labels: [self-hosted, Windows, Vulkan, x64]
+            build: Build/Win64/Release
+            target: Config/AssetCooker/Profiles/Production/Windows-Vulkan.json
+          - name: macOS Metal
+            slug: macos-metal
+            labels: [self-hosted, macOS, metal, arm64]
+            build: Build/Mac/Release
+            target: Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json
+          - name: macOS Vulkan
+            slug: macos-vulkan
+            labels: [self-hosted, macOS, Vulkan, arm64]
+            build: Build/Mac/Release
+            target: Config/AssetCooker/Profiles/Production/Mac-Vulkan.json
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install SCons
+        run: python -m pip install scons==4.10.1
+      - name: Acquire pinned medium corpus
+        run: >-
+          python .github/scripts/acquire_production_corpus.py
+          --package khronos-sponza-gltf
+          --content-root Content/ProductionAcceptance
+      - name: Build strict Release
+        run: scons config=release strict=1
+      - name: Run explicit hardware profile
+        env:
+          STONER_PRODUCTION_VISIBLE: '1'
+        run: >-
+          python .github/scripts/run_production_content_validation.py
+          --profile hardware --target-profile ${{ matrix.target }}
+          --build-root ${{ matrix.build }}
+          --output Build/Validation/028/hardware-${{ matrix.slug }}
+          --acquire-missing
+          --timeout-seconds 1800
+      - name: Upload failure-safe hardware evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: production-hardware-${{ matrix.slug }}-${{ github.run_attempt }}
+          path: Build/Validation/028/hardware-${{ matrix.slug }}
+          if-no-files-found: error

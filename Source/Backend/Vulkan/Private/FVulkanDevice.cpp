@@ -148,6 +148,20 @@ bool FVulkanDevice::IsActive() const noexcept
     return State == Stoner::RHI::ERHIDeviceState::Active;
 }
 
+Stoner::RHI::ERHIRuntimeMode FVulkanDevice::GetRuntimeMode() const noexcept
+{
+    return NativeShaderContext && NativeShaderContext->IsAvailable()
+        ? Stoner::RHI::ERHIRuntimeMode::NativeHeadless
+        : Stoner::RHI::ERHIRuntimeMode::Deterministic;
+}
+
+Stoner::RHI::FRHIRuntimeSnapshot FVulkanDevice::GetRuntimeSnapshot() const noexcept
+{
+    return NativeShaderContext && NativeShaderContext->IsAvailable()
+        ? NativeShaderContext->GetSnapshot()
+        : Stoner::RHI::FRHIRuntimeSnapshot{};
+}
+
 const FVulkanDiagnostics& FVulkanDevice::GetDiagnostics() const noexcept
 {
     return Diagnostics;
@@ -230,7 +244,9 @@ Stoner::Core::uint32 FVulkanDevice::GetCommandBufferCapacity() const noexcept
 
 Stoner::Core::uint32 FVulkanDevice::GetTrackedUploadRequestCount() const noexcept
 {
-    return static_cast<Stoner::Core::uint32>(UploadRequests.size());
+    return static_cast<Stoner::Core::uint32>(std::count_if(
+        UploadRequests.begin(), UploadRequests.end(),
+        [](const auto& Request) { return !Request.expired(); }));
 }
 
 Stoner::RHI::ERHIResult FVulkanDevice::Initialize(const FVulkanInstanceDesc& Desc)
@@ -344,9 +360,9 @@ void FVulkanDevice::ConfigurePipelineCreationLimit(Stoner::Core::uint32 MaxSucce
 void FVulkanDevice::ConfigureFallbackCompletionInjection(FVulkanCompletionInjectionConfig Injection) noexcept
 {
     CompletionInjection = Injection;
-    for (const auto& Queue : Queues)
+    for (const auto& WeakQueue : Queues)
     {
-        if (Queue)
+        if (const auto Queue = WeakQueue.lock())
         {
             Queue->ConfigureCompletionInjection(CompletionInjection);
         }
@@ -384,7 +400,13 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHICommandQueue> FVulkanDevice::Crea
     try
     {
         Queue.reset(new FVulkanQueue(
-            QueueType, DeviceOwner, &Diagnostics, CompletionInjection));
+            QueueType, DeviceOwner, &Diagnostics, CompletionInjection,
+            NativeShaderContext));
+        Queues.erase(
+            std::remove_if(
+                Queues.begin(), Queues.end(),
+                [](const auto& Candidate) { return Candidate.expired(); }),
+            Queues.end());
         Queues.push_back(Queue);
     }
     catch (const std::bad_alloc&)
@@ -626,9 +648,13 @@ Stoner::RHI::ERHIResult FVulkanDevice::UploadBuffer(
         return ERHIResult::Unsupported;
     }
 
-    return StageBufferUpload(
+    const auto Staged = StageBufferUpload(
         Buffer, Upload.Data, Upload.DataSizeBytes,
-        {Upload.DestinationOffset, Upload.DataSizeBytes}).Result;
+        {Upload.DestinationOffset, Upload.DataSizeBytes});
+    if (!Staged.Succeeded() || !HasNativeShaderRuntime())
+        return Staged.Result;
+    return VulkanBuffer->RecordNativeUpload(
+        Upload.Data, Upload.DataSizeBytes, Upload.DestinationOffset);
 }
 
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHITexture> FVulkanDevice::CreateTexture(const Stoner::RHI::FRHITextureDesc& Desc)
@@ -903,6 +929,41 @@ Stoner::RHI::ERHIResult FVulkanDevice::ReadbackTextureForTesting(
     return Stoner::RHI::ERHIResult::Success;
 }
 
+Stoner::RHI::ERHIResult FVulkanDevice::ReadbackBufferForTesting(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Buffer,
+    Stoner::Core::uint64 Offset,
+    Stoner::Core::uint64 Size,
+    Stoner::Core::TArray<Stoner::Core::uint8>& OutBytes)
+{
+    OutBytes.clear();
+    if (!IsActive() || !Buffer || Size == 0 ||
+        Offset > Buffer->GetSizeInBytes() ||
+        Size > Buffer->GetSizeInBytes() - Offset)
+        return Stoner::RHI::ERHIResult::InvalidState;
+    const auto VulkanBuffer = std::dynamic_pointer_cast<FVulkanBuffer>(Buffer);
+    if (!VulkanBuffer || VulkanBuffer->GetLifecycleState() !=
+            Stoner::RHI::ERHIResourceLifecycleState::Valid)
+        return Stoner::RHI::ERHIResult::InvalidState;
+    const auto& Bytes = VulkanBuffer->GetUploadedBytes();
+    if (Offset > Bytes.size() || Size > Bytes.size() - Offset)
+        return Stoner::RHI::ERHIResult::NotReady;
+    try
+    {
+        OutBytes.assign(
+            Bytes.begin() + static_cast<Stoner::Core::usize>(Offset),
+            Bytes.begin() + static_cast<Stoner::Core::usize>(Offset + Size));
+    }
+    catch (const std::bad_alloc&)
+    {
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    return Stoner::RHI::ERHIResult::Success;
+}
+
 Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISampler> FVulkanDevice::CreateSampler(const Stoner::RHI::FRHISamplerDesc& Desc)
 {
     if (!IsActive())
@@ -1141,6 +1202,11 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIDescriptorSet> FVulkanDevice::Cre
     }
     try
     {
+        DescriptorSets.erase(
+            std::remove_if(
+                DescriptorSets.begin(), DescriptorSets.end(),
+                [](const auto& Candidate) { return Candidate.expired(); }),
+            DescriptorSets.end());
         DescriptorSets.push_back(DescriptorSet);
     }
     catch (const std::bad_alloc&)
@@ -1621,6 +1687,11 @@ Stoner::RHI::TRHIObjectResult<FVulkanUploadRequest> FVulkanDevice::StageBufferUp
     {
         try
         {
+            UploadRequests.erase(
+                std::remove_if(
+                    UploadRequests.begin(), UploadRequests.end(),
+                    [](const auto& Request) { return Request.expired(); }),
+                UploadRequests.end());
             UploadRequests.push_back(Result.Object);
         }
         catch (const std::bad_alloc&)
@@ -1656,6 +1727,11 @@ Stoner::RHI::TRHIObjectResult<FVulkanUploadRequest> FVulkanDevice::StageTextureU
     {
         try
         {
+            UploadRequests.erase(
+                std::remove_if(
+                    UploadRequests.begin(), UploadRequests.end(),
+                    [](const auto& Request) { return Request.expired(); }),
+                UploadRequests.end());
             UploadRequests.push_back(Result.Object);
         }
         catch (const std::bad_alloc&)
@@ -1813,9 +1889,9 @@ void FVulkanDevice::InvalidateOwnedObjects() noexcept
     {
         DeviceOwner->bActive = false;
     }
-    for (const auto& Queue : Queues)
+    for (const auto& WeakQueue : Queues)
     {
-        if (Queue)
+        if (const auto Queue = WeakQueue.lock())
         {
             Queue->Invalidate();
         }
@@ -1859,16 +1935,16 @@ void FVulkanDevice::InvalidateOwnedObjects() noexcept
     {
         PresentationOwner->bActive = false;
     }
-    for (const auto& Request : UploadRequests)
+    for (const auto& WeakRequest : UploadRequests)
     {
-        if (Request)
+        if (const auto Request = WeakRequest.lock())
         {
             (void)Request->Invalidate();
         }
     }
-    for (const auto& DescriptorSet : DescriptorSets)
+    for (const auto& WeakDescriptorSet : DescriptorSets)
     {
-        if (DescriptorSet)
+        if (const auto DescriptorSet = WeakDescriptorSet.lock())
         {
             (void)DescriptorSet->Invalidate();
         }

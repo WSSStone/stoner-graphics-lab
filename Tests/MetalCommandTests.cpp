@@ -4,6 +4,7 @@
 #if SG_PLATFORM_MAC
 #include "FMetalCommandBuffer.h"
 #include "FMetalDeviceOwnerState.h"
+#include "FMetalSubmission.h"
 #include "FMetalSynchronization.h"
 #endif
 
@@ -91,6 +92,28 @@ void TestSynchronization(FMetalCommandTestResult& Result)
             Semaphore.Reset() == ERHIResult::Success,
         "semaphore signal consumption is binary over monotonic epochs");
 }
+
+void TestCompletedSubmissionReleasesSynchronization(
+    FMetalCommandTestResult& Result)
+{
+    auto Owner = MakeShared<Backend::Metal::Private::FMetalDeviceOwnerState>(103);
+    auto Commands = MakeShared<Backend::Metal::Private::FMetalCommandBuffer>(
+        Owner, ERHIQueueType::Graphics);
+    auto Fence = MakeShared<Backend::Metal::Private::FMetalFence>(
+        Owner, nullptr, false);
+    TWeakPtr<Backend::Metal::Private::FMetalFence> WeakFence = Fence;
+    const uint64 Epoch = Fence->ReserveSubmissionSignal();
+    Backend::Metal::Private::FMetalSubmission Submission(
+        Owner, Commands, {}, {}, {}, {}, Fence, Epoch);
+    Fence.reset();
+    Commands.reset();
+
+    Submission.Complete(true);
+    Record(Result,
+        WeakFence.expired() && Submission.IsComplete() &&
+            Submission.Wait() == ERHIResult::Success,
+        "completed submissions release retained synchronization ownership");
+}
 #endif
 
 } // namespace
@@ -101,6 +124,7 @@ FMetalCommandTestResult RunMetalCommandTests()
 #if SG_PLATFORM_MAC
     TestCommandState(Result);
     TestSynchronization(Result);
+    TestCompletedSubmissionReleasesSynchronization(Result);
 #else
     Record(Result, true, "Metal command implementation is excluded off macOS");
 #endif

@@ -55,6 +55,29 @@ void FDemoValidationMonitor::AddSyntheticSample(Stoner::Core::uint32 CompletedFr
     Samples.push_back({CompletedFrame, ResidentBytes, RuntimeSnapshot});
 }
 
+bool FDemoValidationMonitor::SampleProductionCycle(
+    Stoner::Core::uint32 CompletedCycle,
+    const FDemoProductionLifecycleCounters& Counters)
+{
+    const Stoner::Core::FProcessMemorySnapshot Memory =
+        Stoner::Core::FPlatformMemory::QueryProcessMemory();
+    if (!Memory.bAvailable || Memory.ResidentBytes == 0)
+    {
+        bMemoryAvailable = false;
+        return false;
+    }
+    AddSyntheticProductionCycle(CompletedCycle, Memory.ResidentBytes, Counters);
+    return true;
+}
+
+void FDemoValidationMonitor::AddSyntheticProductionCycle(
+    Stoner::Core::uint32 CompletedCycle,
+    Stoner::Core::uint64 ResidentBytes,
+    const FDemoProductionLifecycleCounters& Counters)
+{
+    ProductionSamples.push_back({CompletedCycle, ResidentBytes, Counters});
+}
+
 bool FDemoValidationMonitor::Evaluate()
 {
     if (!Configuration.IsBounded())
@@ -90,6 +113,36 @@ bool FDemoValidationMonitor::Evaluate()
     return bPassed;
 }
 
+bool FDemoValidationMonitor::EvaluateProductionLifecycle()
+{
+    bPassed = false;
+    ProductionWarmupBytes = 0;
+    ProductionTerminalBytes = 0;
+    ProductionPeakBytes = 0;
+    if (Configuration.Workload != EDemoWorkload::ProductionContent ||
+        !bMemoryAvailable || ProductionSamples.size() !=
+            Configuration.ProductionLifecycleCycles)
+        return false;
+    for (Stoner::Core::usize Index = 0; Index < ProductionSamples.size(); ++Index)
+    {
+        const auto& Sample = ProductionSamples[Index];
+        if (Sample.CompletedCycle != Index + 1 || Sample.ResidentBytes == 0 ||
+            !Sample.Counters.IsAtBaseline() ||
+            !Sample.Counters.bStaleHandleRejected)
+            return false;
+        ProductionPeakBytes = std::max(
+            ProductionPeakBytes, Sample.ResidentBytes);
+    }
+    ProductionWarmupBytes = ProductionSamples[
+        Configuration.ProductionWarmupCycles - 1].ResidentBytes;
+    ProductionTerminalBytes = ProductionSamples.back().ResidentBytes;
+    const Stoner::Core::uint64 Growth =
+        ProductionTerminalBytes > ProductionWarmupBytes
+        ? ProductionTerminalBytes - ProductionWarmupBytes : 0;
+    bPassed = Growth <= Configuration.ProductionMaxRssGrowthBytes;
+    return bPassed;
+}
+
 Stoner::Core::FString FDemoValidationMonitor::BuildReport(const FDemoDiagnostics& Diagnostics) const
 {
     std::ostringstream Stream;
@@ -109,6 +162,15 @@ Stoner::Core::FString FDemoValidationMonitor::BuildReport(const FDemoDiagnostics
            << "memory-final-bytes=" << FinalMedianBytes << '\n'
            << "final-live-objects=" << FinalSnapshot.GetTotalLiveObjectCount() << '\n'
            << "validation-result=" << (bPassed ? "pass" : "fail") << '\n';
+    if (Configuration.Workload == EDemoWorkload::ProductionContent)
+    {
+        Stream << "production-cycles=" << ProductionSamples.size() << '\n'
+               << "production-warmup-cycle="
+               << Configuration.ProductionWarmupCycles << '\n'
+               << "production-warmup-rss-bytes=" << ProductionWarmupBytes << '\n'
+               << "production-terminal-rss-bytes=" << ProductionTerminalBytes << '\n'
+               << "production-peak-rss-bytes=" << ProductionPeakBytes << '\n';
+    }
     Stream << "recovery-count=" << RecoveryMilliseconds.size() << '\n';
     for (Stoner::Core::usize Index = 0; Index < RecoveryMilliseconds.size(); ++Index)
         Stream << "recovery-ms[" << Index << "]=" << RecoveryMilliseconds[Index] << '\n';

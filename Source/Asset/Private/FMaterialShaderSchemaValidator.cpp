@@ -14,9 +14,13 @@ EAssetResult ValidateMaterialShaderDefinition(
     switch (Definition.Kind)
     {
     case EMaterialShaderDefinitionKind::Shader:
-        return ValidateShaderProgram(
-            std::get<FShaderAssetDesc>(Definition.Value),
-            Diagnostics);
+    {
+        auto& Desc = std::get<FShaderAssetDesc>(Definition.Value);
+        EAssetResult Result = ExtractShaderDependencies(Desc);
+        return Result == EAssetResult::Success
+            ? ValidateShaderProgram(Desc, Diagnostics)
+            : Result;
+    }
     case EMaterialShaderDefinitionKind::Material:
     {
         auto& Desc = std::get<FMaterialAssetDesc>(Definition.Value);

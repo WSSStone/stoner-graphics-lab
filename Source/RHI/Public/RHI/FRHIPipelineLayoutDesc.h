@@ -71,6 +71,47 @@ struct FRHIPipelineLayoutDesc
     return nullptr;
 }
 
+[[nodiscard]] inline bool AreRHIPipelineLayoutDescsEquivalent(
+    const FRHIPipelineLayoutDesc& Left,
+    const FRHIPipelineLayoutDesc& Right) noexcept
+{
+    if (!IsValidRHIPipelineLayoutDesc(Left) ||
+        !IsValidRHIPipelineLayoutDesc(Right) ||
+        Left.Bindings.size() != Right.Bindings.size() ||
+        Left.ConstantRanges.size() != Right.ConstantRanges.size())
+    {
+        return false;
+    }
+    for (const FRHIDescriptorBinding& Binding : Left.Bindings)
+    {
+        const FRHIDescriptorBinding* Match =
+            FindRHIPipelineLayoutBinding(
+                Right, Binding.SetIndex, Binding.BindingSlot);
+        if (!Match || Match->DescriptorType != Binding.DescriptorType ||
+            Match->ArrayCount != Binding.ArrayCount ||
+            Match->Visibility != Binding.Visibility)
+        {
+            return false;
+        }
+    }
+    for (const FRHIShaderConstantRange& Range : Left.ConstantRanges)
+    {
+        bool bMatched = false;
+        for (const FRHIShaderConstantRange& Candidate : Right.ConstantRanges)
+        {
+            if (Candidate.OffsetBytes == Range.OffsetBytes &&
+                Candidate.SizeBytes == Range.SizeBytes &&
+                Candidate.Visibility == Range.Visibility)
+            {
+                bMatched = true;
+                break;
+            }
+        }
+        if (!bMatched) return false;
+    }
+    return true;
+}
+
 [[nodiscard]] inline bool DoesRHIShaderConstantRangeContain(
     const FRHIShaderConstantRange& Available,
     const FRHIShaderConstantRange& Required) noexcept

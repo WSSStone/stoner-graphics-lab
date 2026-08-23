@@ -204,6 +204,9 @@ Stoner::RHI::ERHIResult FVulkanUploadRequest::Invalidate() noexcept
         return Stoner::RHI::ERHIResult::InvalidState;
     }
     Lifecycle = EVulkanUploadLifecycle::Invalidated;
+    decltype(StagingData){}.swap(StagingData);
+    Buffer.reset();
+    Texture.reset();
     return Stoner::RHI::ERHIResult::Success;
 }
 

@@ -9,6 +9,7 @@ namespace Stoner::Backend::Vulkan
 {
 
 class FVulkanDevice;
+class FVulkanNativeContext;
 
 class FVulkanBuffer final : public Stoner::RHI::IRHIBuffer
 {
@@ -29,11 +30,16 @@ public:
 
 private:
     friend class FVulkanDevice;
+    friend class FVulkanNativeContext;
 
     FVulkanBuffer(
         const Stoner::RHI::FRHIBufferDesc& InDesc,
         FVulkanResourceAllocation&& InAllocation,
         std::shared_ptr<FVulkanMemoryAllocator> InAllocator);
+    [[nodiscard]] Stoner::RHI::ERHIResult RecordNativeUpload(
+        const void* Data,
+        Stoner::Core::uint64 SizeBytes,
+        Stoner::Core::uint64 OffsetBytes);
 
     Stoner::RHI::FRHIBufferDesc Desc;
     FVulkanResourceAllocation Allocation;

@@ -83,6 +83,27 @@ FAssetMetadata MakeTextureMetadata(
     return Metadata;
 }
 
+void AddBridgeDiagnostic(
+    FAssetDiagnosticList* Diagnostics,
+    EAssetResult Result,
+    Core::uint32 ImageIndex,
+    const char* Field,
+    Core::FString Actual)
+{
+    if (Diagnostics == nullptr) return;
+    FAssetDiagnostic Diagnostic;
+    Diagnostic.Stage = EAssetStage::Dependency;
+    Diagnostic.Result = Result;
+    Diagnostic.Severity = EAssetDiagnosticSeverity::Error;
+    Diagnostic.Code = Core::FString("asset.gltf.image-output");
+    Diagnostic.Subject = Core::FString("idx.image." + std::to_string(ImageIndex));
+    Diagnostic.Participant = Participant().ToString();
+    Diagnostic.Field = Core::FString(Field);
+    Diagnostic.Actual = std::move(Actual);
+    Diagnostic.Reason = Core::FString("image importer output contract rejected");
+    Diagnostics->push_back(std::move(Diagnostic));
+}
+
 } // namespace
 
 const FAssetId* FindGLTFTextureVariant(
@@ -196,7 +217,14 @@ EAssetResult BuildGLTFImageTextureOutputs(
         FImageAssetImporter Importer;
         Core::TArray<FAssetImportOutput> Imported;
         Result = Importer.Import(ImageRequest, Imported, Diagnostics);
-        if (Result != EAssetResult::Success || Imported.size() != 2) return Result;
+        if (Result != EAssetResult::Success) return Result;
+        if (Imported.size() != 2)
+        {
+            AddBridgeDiagnostic(Diagnostics, EAssetResult::ProcessingFailure,
+                ImageIndex, "output-count",
+                Core::FString(std::to_string(Imported.size())));
+            return EAssetResult::ProcessingFailure;
+        }
         const auto ImageOutput = std::find_if(Imported.begin(), Imported.end(),
             [](const FAssetImportOutput& Output)
             { return std::dynamic_pointer_cast<const FImageAsset>(Output.Payload) != nullptr; });
@@ -204,7 +232,19 @@ EAssetResult BuildGLTFImageTextureOutputs(
             [](const FAssetImportOutput& Output)
             { return std::dynamic_pointer_cast<const FTextureAsset>(Output.Payload) != nullptr; });
         if (ImageOutput == Imported.end() || TextureOutput == Imported.end())
+        {
+            std::string Actual;
+            for (const FAssetImportOutput& Output : Imported)
+            {
+                if (!Actual.empty()) Actual += ',';
+                Actual += Output.Payload
+                    ? Output.Payload->GetAssetType().ToStdString()
+                    : std::string("null");
+            }
+            AddBridgeDiagnostic(Diagnostics, EAssetResult::ProcessingFailure,
+                ImageIndex, "output-types", Core::FString(std::move(Actual)));
             return EAssetResult::ProcessingFailure;
+        }
         const auto Image = std::dynamic_pointer_cast<const FImageAsset>(ImageOutput->Payload);
         OutOutputs.push_back(*ImageOutput);
         if (!ImageVariants.empty()) OutOutputs.push_back(*TextureOutput);

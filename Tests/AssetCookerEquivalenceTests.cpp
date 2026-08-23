@@ -2,6 +2,7 @@
 
 #include "Asset/AssetMinimal.h"
 #include "FMaterialShaderJsonCodec.h"
+#include "FMaterialShaderSchemaValidator.h"
 #include "StaticModelTestSupport.h"
 
 #include <algorithm>
@@ -152,7 +153,9 @@ TSharedPtr<const FAssetPayload> LoadDefinition(
     const TArray<uint8> Bytes = ReadBytes(Path);
     FMaterialShaderDefinition Definition;
     if (ParseMaterialShaderDefinition(Bytes, {}, Definition, nullptr) !=
-        EAssetResult::Success)
+            EAssetResult::Success ||
+        ValidateMaterialShaderDefinition(Definition, nullptr) !=
+            EAssetResult::Success)
         return {};
     if (auto* Desc = std::get_if<FShaderAssetDesc>(&Definition.Value))
     {
@@ -294,7 +297,9 @@ bool KeySemanticsEqual(
         const auto* Loaded = dynamic_cast<const FMaterialAsset*>(&LoadedPayload);
         return Loaded && Loaded->GetDesc().Id == SourceValue->GetDesc().Id &&
             Loaded->GetDesc().CanonicalDefinition ==
-                SourceValue->GetDesc().CanonicalDefinition;
+                SourceValue->GetDesc().CanonicalDefinition &&
+            Loaded->GetDesc().Dependencies ==
+                SourceValue->GetDesc().Dependencies;
     }
     if (const auto* SourceValue =
             dynamic_cast<const FMaterialInstanceAsset*>(&SourcePayload))
@@ -303,7 +308,9 @@ bool KeySemanticsEqual(
             dynamic_cast<const FMaterialInstanceAsset*>(&LoadedPayload);
         return Loaded && Loaded->GetDesc().Id == SourceValue->GetDesc().Id &&
             Loaded->GetDesc().CanonicalDefinition ==
-                SourceValue->GetDesc().CanonicalDefinition;
+                SourceValue->GetDesc().CanonicalDefinition &&
+            Loaded->GetDesc().Dependencies ==
+                SourceValue->GetDesc().Dependencies;
     }
     return dynamic_cast<const FStaticMeshAsset*>(&SourcePayload) != nullptr
         ? dynamic_cast<const FStaticMeshAsset*>(&LoadedPayload) != nullptr
@@ -396,6 +403,46 @@ void TestAllFamilies(FAssetCookerEquivalenceTestResult& Result)
         "every typed codec rejects a truncated body with a valid envelope digest");
 }
 
+void TestUnnamedStaticModelNode(FAssetCookerEquivalenceTestResult& Result)
+{
+    const auto Payloads = LoadStaticPayloads();
+    const auto Source = std::find_if(
+        Payloads.begin(), Payloads.end(), [](const auto& Payload)
+        {
+            return std::dynamic_pointer_cast<const FStaticModelAsset>(Payload)
+                != nullptr;
+        });
+    bool Passed = Source != Payloads.end();
+    FStaticModelAsset Model;
+    if (Passed)
+    {
+        auto Desc = std::dynamic_pointer_cast<const FStaticModelAsset>(*Source)
+                        ->GetDesc();
+        Passed = !Desc.Nodes.empty();
+        if (Passed)
+        {
+            Desc.Nodes.front().DisplayName = {};
+            Passed = FStaticModelAsset::CreateValidated(
+                std::move(Desc), 256, Model, nullptr) ==
+                EAssetResult::Success;
+        }
+    }
+    TArray<uint8> Bytes;
+    TSharedPtr<const FAssetPayload> Loaded;
+    if (Passed)
+        Passed = FAssetCookContractCodec::WriteTypedPayload(
+            Model, {}, Bytes) == EAssetResult::Success;
+    if (Passed)
+        Passed = FAssetCookContractCodec::LoadTypedPayload(
+            Bytes, {}, Loaded) == EAssetResult::Success;
+    const auto LoadedModel =
+        std::dynamic_pointer_cast<const FStaticModelAsset>(Loaded);
+    Record(Result,
+        Passed && LoadedModel && !LoadedModel->GetDesc().Nodes.empty() &&
+            LoadedModel->GetDesc().Nodes.front().DisplayName.IsEmpty(),
+        "static-model codec preserves a valid unnamed node");
+}
+
 FAssetMetadata Metadata(const FImageAsset& Image)
 {
     FAssetMetadata Value;
@@ -482,6 +529,7 @@ FAssetCookerEquivalenceTestResult RunAssetCookerEquivalenceTests()
 {
     FAssetCookerEquivalenceTestResult Result;
     TestAllFamilies(Result);
+    TestUnnamedStaticModelNode(Result);
     TestExtensionDispatch(Result);
     return Result;
 }

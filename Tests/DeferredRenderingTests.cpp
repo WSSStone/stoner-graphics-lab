@@ -242,6 +242,15 @@ void TestSurfaceAndNormalContracts(FDeferredRenderingTestResult& Result)
     Record(Result, !TryBuildWorldNormalFromModel(
         FMatrix4x4::Scale(FVector3(1.0f, 0.0f, 1.0f)), NormalMatrix),
         "Deferred draw rejects singular model transforms");
+    const bool bSmallScaleValid = TryBuildWorldNormalFromModel(
+        FMatrix4x4::Scale(FVector3(0.0001f, 0.0001f, 0.0001f)),
+        NormalMatrix);
+    Record(Result,
+        bSmallScaleValid && NormalMatrix.IsFinite() &&
+            NormalMatrix.M[0][0] > 9999.0f &&
+            NormalMatrix.M[1][1] > 9999.0f &&
+            NormalMatrix.M[2][2] > 9999.0f,
+        "Deferred world normal transform uses scale-relative invertibility");
 
     FDeferredViewData ReconstructedView = MakeView();
     ReconstructedView.ViewProjection = FMatrix4x4::Translation(
@@ -346,6 +355,7 @@ void TestShaderAndExecutionContracts(FDeferredRenderingTestResult& Result)
     auto Commands = std::dynamic_pointer_cast<FVulkanCommandBuffer>(Fixture.Bindings.CommandBuffer);
     bool bHasIndexed = false;
     bool bHasDescriptorSafeOrder = false;
+    Stoner::Core::uint32 AttachmentToSampledTransitions = 0;
     if (Commands)
     {
         for (const FVulkanRecordedCommand& Command : Commands->GetRecordedCommands())
@@ -353,6 +363,9 @@ void TestShaderAndExecutionContracts(FDeferredRenderingTestResult& Result)
             bHasIndexed = bHasIndexed || Command.Type == ERHISymbolicCommandType::DrawIndexed;
             bHasDescriptorSafeOrder = bHasDescriptorSafeOrder ||
                 Command.Type == ERHISymbolicCommandType::BindGraphicsPipeline;
+            if (Command.Type == ERHISymbolicCommandType::LayoutTransition &&
+                Command.Barrier.After == ERHIResourceLayout::ShaderReadOnly)
+                ++AttachmentToSampledTransitions;
         }
     }
     Record(Result, Fixture.Bindings.Surface.RenderPass && Fixture.Bindings.Surface.Framebuffer,
@@ -371,6 +384,27 @@ void TestShaderAndExecutionContracts(FDeferredRenderingTestResult& Result)
         "Deferred executor records every canonical graph pass");
     Record(Result, bHasIndexed && bHasDescriptorSafeOrder,
         "Deferred executor command sequence includes pipeline binding and indexed light volumes");
+    Record(Result,
+        AttachmentToSampledTransitions == 5,
+        "Deferred executor records explicit attachment visibility transitions before sampling");
+
+    FExecutionFixture AggregateFixture;
+    const bool bAggregateFixture = AggregateFixture.Initialize(Plan);
+    FDeferredSurfaceDrawBinding AggregateDraw;
+    AggregateDraw.VertexBuffer = AggregateFixture.Bindings.SurfaceVertexBuffer;
+    AggregateDraw.IndexBuffer = AggregateFixture.Bindings.SurfaceIndexBuffer;
+    AggregateDraw.IndexType = ERHIIndexType::UInt16;
+    AggregateDraw.Draw = {3, 1, 0, 0, 0};
+    AggregateDraw.Pipeline = AggregateFixture.Bindings.Surface.Pipeline;
+    AggregateFixture.Bindings.SurfaceDraws = {AggregateDraw};
+    AggregateFixture.Bindings.SurfaceVertexBuffer.reset();
+    const auto AggregateExecution = FDeferredFrameExecutor().Execute(
+        Plan, Graph, AggregateFixture.Bindings);
+    Record(Result,
+        bAggregateFixture && AggregateExecution.Succeeded() &&
+            AggregateExecution.RecordedDrawCount ==
+                Execution.RecordedDrawCount,
+        "Deferred executor consumes per-draw indexed aggregate geometry and pipeline bindings");
 
     FDeferredFrameExecutionBindings Invalid = Fixture.Bindings;
     Invalid.Depth.reset();

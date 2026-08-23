@@ -85,6 +85,18 @@ struct FDeferredReadbackBinding
     Stoner::RHI::FRHITextureBufferCopyRegion Region;
 };
 
+struct FDeferredSurfaceDrawBinding
+{
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> VertexBuffer;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> IndexBuffer;
+    Stoner::RHI::ERHIIndexType IndexType =
+        Stoner::RHI::ERHIIndexType::UInt16;
+    Stoner::RHI::FRHIIndexedDrawArguments Draw;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHIGraphicsPipeline> Pipeline;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<
+        Stoner::RHI::IRHIDescriptorSet>> DescriptorSets;
+};
+
 struct FDeferredFrameExecutionBindings
 {
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHICommandBuffer> CommandBuffer;
@@ -97,6 +109,7 @@ struct FDeferredFrameExecutionBindings
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> SurfaceVertexBuffer;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> SurfaceIndexBuffer;
     Stoner::Core::uint32 SurfaceIndexCount = 0;
+    Stoner::Core::TArray<FDeferredSurfaceDrawBinding> SurfaceDraws;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> FullscreenVertexBuffer;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> SphereVertexBuffer;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> SphereIndexBuffer;

@@ -1283,6 +1283,22 @@ void TestCommandBuffersRecordingAndSubmission(FVulkanBackendTestResult& Result)
         "Vulkan zero command-buffer capacity rejects allocation");
     (void)ZeroCapacityDevice.Shutdown();
 
+    FVulkanDevice ReuseCapacityDevice;
+    Record(Result,
+        InitializeDeterministic(ReuseCapacityDevice) == ERHIResult::Success,
+        "Vulkan command reuse fixture initializes");
+    ReuseCapacityDevice.ConfigureCommandBufferCapacity(1);
+    {
+        const auto TransientCommand = ReuseCapacityDevice.CreateCommandBuffer(
+            ERHIQueueType::Graphics);
+        Record(Result, TransientCommand.Succeeded(),
+            "Vulkan transient command buffer consumes pool capacity");
+    }
+    Record(Result,
+        ReuseCapacityDevice.CreateCommandBuffer(
+            ERHIQueueType::Graphics).Succeeded(),
+        "Vulkan command buffer destruction returns pool capacity");
+
     FVulkanDevice Device;
     Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan command fixture device initializes");
 
@@ -1652,6 +1668,31 @@ void TestRenderPassFramebufferRecordingAndUploads(FVulkanBackendTestResult& Resu
         Device.GetDiagnostics().UploadSchedulingReason[0] != '\0', "Vulkan upload scheduling records pending uploads without claiming execution");
     Record(Result, VulkanTransfer && VulkanTransfer->ScheduleBufferUpload(BufferUpload.Object) == ERHIResult::InvalidState, "Vulkan upload scheduling rejects already scheduled uploads");
 
+    const auto DisposableUpload = Device.StageBufferUpload(
+        DestinationBuffer.Object, Data, sizeof(Data), {0, sizeof(Data)});
+    Record(Result,
+        DisposableUpload.Succeeded() &&
+            DisposableUpload.Object->GetStagingData().size() == sizeof(Data) &&
+            DisposableUpload.Object->Invalidate() == ERHIResult::Success &&
+            DisposableUpload.Object->GetStagingData().empty(),
+        "Vulkan upload invalidation releases retained staging bytes");
+
+    const uint32 TrackedUploadsBeforeTransient =
+        Device.GetTrackedUploadRequestCount();
+    {
+        const auto TransientUpload = Device.StageBufferUpload(
+            DestinationBuffer.Object, Data, sizeof(Data), {0, sizeof(Data)});
+        Record(Result,
+            TransientUpload.Succeeded() &&
+                Device.GetTrackedUploadRequestCount() ==
+                    TrackedUploadsBeforeTransient + 1,
+            "Vulkan device observes live transient upload requests");
+    }
+    Record(Result,
+        Device.GetTrackedUploadRequestCount() ==
+            TrackedUploadsBeforeTransient,
+        "Vulkan upload request destruction returns device tracking capacity");
+
     (void)Device.Shutdown();
     Record(Result, RenderPass.Object->GetLifecycleState() == ERHIResourceLifecycleState::Invalidated &&
         Framebuffer.Object->GetLifecycleState() == ERHIResourceLifecycleState::Invalidated &&
@@ -1734,6 +1775,28 @@ void TestSamplersDescriptorsAndUploads(FVulkanBackendTestResult& Result)
         ReplacementSet.Succeeded() &&
         Device.GetDescriptorPoolAllocatedCount() == 1,
         "Vulkan descriptor capacity is reusable after reservation release");
+
+    FVulkanDevice LifetimeDevice;
+    Record(Result,
+        InitializeDeterministic(LifetimeDevice) == ERHIResult::Success,
+        "Vulkan descriptor lifetime fixture device initializes");
+    LifetimeDevice.ConfigureDescriptorPoolCapacity(1);
+    const auto LifetimeLayout =
+        LifetimeDevice.CreatePipelineLayout(ResourceLayoutDesc());
+    {
+        const auto TransientSet =
+            LifetimeDevice.CreateDescriptorSet(LifetimeLayout.Object, 0);
+        Record(Result,
+            TransientSet.Succeeded() &&
+                LifetimeDevice.GetDescriptorPoolAllocatedCount() == 1,
+            "Vulkan transient descriptor consumes one pool reservation");
+    }
+    const auto ReusedAfterDestruction =
+        LifetimeDevice.CreateDescriptorSet(LifetimeLayout.Object, 0);
+    Record(Result,
+        ReusedAfterDestruction.Succeeded() &&
+            LifetimeDevice.GetDescriptorPoolAllocatedCount() == 1,
+        "Vulkan descriptor destruction returns capacity without explicit invalidation");
 
     const unsigned char Data[16] = {};
     const auto BufferUpload = Device.StageBufferUpload(Buffer.Object, Data, sizeof(Data), {0, sizeof(Data)});
@@ -1886,8 +1949,14 @@ void TestSamplersDescriptorsAndUploads(FVulkanBackendTestResult& Result)
             Device.UploadBuffer(DeviceLocalBuffer.Object,
                 {0, BufferBytes, sizeof(BufferBytes)}) ==
                 ERHIResult::Success &&
-            Device.GetTrackedUploadRequestCount() == UploadCountBefore + 1,
-        "Vulkan buffer upload uses direct host writes and tracked device-local staging");
+            Device.GetTrackedUploadRequestCount() == UploadCountBefore,
+        "Vulkan buffer upload uses direct host writes and releases temporary device-local staging");
+    const auto HostVisibleInvalidateResult =
+        HostVisibleBuffer.Object->Invalidate();
+    Record(Result,
+        HostVisibleInvalidateResult == ERHIResult::Success &&
+            ConcreteHostBuffer->GetUploadedBytes().empty(),
+        "Vulkan buffer invalidation releases retained CPU upload bytes");
     const auto DeviceLocalNonCopyBuffer = Device.CreateBuffer({64,
         ERHIBufferUsage::Vertex, ERHIMemoryAccess::DeviceLocal});
     (void)DeviceLocalBuffer.Object->Invalidate();

@@ -68,6 +68,20 @@ public:
             Value.Len()));
     }
 
+    void TextAllowEmpty(const Core::FString& Value)
+    {
+        if (Value.Len() > MaximumTextBytes ||
+            Value.Len() > std::numeric_limits<Core::uint32>::max())
+        {
+            bValid_ = false;
+            return;
+        }
+        U32(static_cast<Core::uint32>(Value.Len()));
+        Append(std::span<const Core::uint8>(
+            reinterpret_cast<const Core::uint8*>(Value.View().data()),
+            Value.Len()));
+    }
+
     void OptionalText(const std::optional<Core::FString>& Value)
     {
         Bool(Value.has_value());
@@ -205,6 +219,20 @@ public:
     {
         Core::uint32 Size = 0;
         if (!U32(Size) || Size == 0 || Size > MaximumTextBytes_ || !Require(Size))
+            return false;
+        const auto Begin = Bytes_.begin() + static_cast<std::ptrdiff_t>(Offset_);
+        const auto End = Begin + static_cast<std::ptrdiff_t>(Size);
+        if (std::find(Begin, End, Core::uint8{0}) != End) return false;
+        Out = Core::FString(std::string_view(
+            reinterpret_cast<const char*>(Bytes_.data() + Offset_), Size));
+        Offset_ += Size;
+        return true;
+    }
+
+    bool TextAllowEmpty(Core::FString& Out)
+    {
+        Core::uint32 Size = 0;
+        if (!U32(Size) || Size > MaximumTextBytes_ || !Require(Size))
             return false;
         const auto Begin = Bytes_.begin() + static_cast<std::ptrdiff_t>(Offset_);
         const auto End = Begin + static_cast<std::ptrdiff_t>(Size);

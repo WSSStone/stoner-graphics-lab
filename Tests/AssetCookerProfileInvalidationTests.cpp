@@ -254,6 +254,17 @@ RunAssetCookerProfileInvalidationTests()
     };
 
     const auto Initial = CookProfile("initial", Base.Profile);
+    if (!Initial.Result.Succeeded())
+    {
+        std::cout << "[DETAIL] initial profile cook failed category="
+                  << static_cast<int>(Initial.Result.Category)
+                  << " reason=" << Initial.Result.StableReason.CStr() << '\n';
+        for (const auto& AssetReport : Initial.Report.Assets)
+            if (AssetReport.Decision == AssetCooker::EAssetCookDecision::Failed)
+                std::cout << "[DETAIL] failed asset="
+                          << AssetReport.AssetId.ToString().CStr()
+                          << " reason=" << AssetReport.StableReason.CStr() << '\n';
+    }
     auto Renamed = Base.Profile;
     Renamed.DisplayName = Core::FString("Renamed DDC Profile");
     const auto RenamedRun = CookProfile("renamed", Renamed);

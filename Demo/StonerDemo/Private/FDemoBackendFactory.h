@@ -7,6 +7,8 @@
 #include "RHI/ERHIResult.h"
 #include "Renderer/FForwardFrameExecutor.h"
 
+#include <span>
+
 namespace Stoner::RHI
 {
 class IRHIDevice;
@@ -21,6 +23,15 @@ struct FDemoBackendFrame
     Core::uint32 FrameIndex = 0;
     Core::uint32 Width = 0;
     Core::uint32 Height = 0;
+};
+
+struct FDemoProductionPresentationResult
+{
+    Core::TArray<Core::uint8> Rgba8;
+    Core::uint32 Width = 0;
+    Core::uint32 Height = 0;
+    Core::uint32 RowPitchBytes = 0;
+    bool bPresented = false;
 };
 
 class IDemoBackendRuntime
@@ -46,6 +57,15 @@ public:
     [[nodiscard]] virtual RHI::ERHIResult RecreatePresentation(
         Core::uint32 Width,
         Core::uint32 Height) = 0;
+    [[nodiscard]] virtual RHI::ERHIResult PrepareProductionPresentation(
+        Core::uint32 Width,
+        Core::uint32 Height) = 0;
+    [[nodiscard]] virtual RHI::ERHIResult PresentProductionImage(
+        std::span<const Core::uint8> Rgba8,
+        Core::uint32 Width,
+        Core::uint32 Height,
+        Core::uint32 RowPitchBytes,
+        FDemoProductionPresentationResult& OutResult) = 0;
     [[nodiscard]] virtual RHI::ERHIResult ExecuteOffscreenTriangle(
         const Renderer::FForwardFramePlan& Plan,
         const RHI::FRHIShaderModuleDesc& VertexShader,

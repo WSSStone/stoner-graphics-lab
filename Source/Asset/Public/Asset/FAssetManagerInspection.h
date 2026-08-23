@@ -58,6 +58,11 @@ struct FAssetManagerInspection
     Core::uint64 RequestRetentions = 0;
     Core::uint64 RequiredDependencyRetentions = 0;
     Core::uint64 ExtensionContractViolations = 0;
+    Core::uint64 ResolverExecutions = 0;
+    Core::uint64 ImporterExecutions = 0;
+    Core::uint64 AuthoringDecoderExecutions = 0;
+    Core::uint64 SourceFallbackExecutions = 0;
+    Core::uint64 StrictLoaderExecutions = 0;
     Core::uint32 CompletionReservations = 0;
     Core::uint32 QueuedCompletions = 0;
     Core::TArray<FAssetRequestInspectionRecord> Requests;

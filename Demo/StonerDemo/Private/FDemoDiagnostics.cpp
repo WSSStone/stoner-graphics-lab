@@ -42,6 +42,7 @@ const char* ToString(EDemoStage Stage) noexcept
     case EDemoStage::Acquire: return "Acquire";
     case EDemoStage::Record: return "Record";
     case EDemoStage::Submit: return "Submit";
+    case EDemoStage::Readback: return "Readback";
     case EDemoStage::Present: return "Present";
     case EDemoStage::Memory: return "Memory";
     case EDemoStage::Report: return "Report";

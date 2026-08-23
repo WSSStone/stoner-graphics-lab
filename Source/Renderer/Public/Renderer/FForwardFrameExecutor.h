@@ -1,6 +1,9 @@
 #pragma once
 
 #include "Renderer/FForwardFramePlan.h"
+#include "RHI/ERHIIndexType.h"
+#include "RHI/FRHIIndexedDrawArguments.h"
+#include "RHI/FRHITextureBufferCopyRegion.h"
 
 namespace Stoner::RHI
 {
@@ -10,6 +13,7 @@ class IRHIFramebuffer;
 class IRHIGraphicsPipeline;
 class IRHIRenderPass;
 class IRHITexture;
+class IRHIDescriptorSet;
 }
 
 namespace Stoner::Renderer
@@ -26,11 +30,29 @@ enum class EForwardExecutionResult
 struct FForwardFrameExecutionBindings
 {
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> OutputTexture;
+    Stoner::Core::TArray<Stoner::Core::TSharedPtr<
+        Stoner::RHI::IRHITexture>> AuxiliaryColorTextures;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> DepthTexture;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> VertexBuffer;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIGraphicsPipeline> GraphicsPipeline;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIRenderPass> RenderPass;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIFramebuffer> Framebuffer;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHICommandBuffer> CommandBuffer;
+    struct FDrawBinding
+    {
+        Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> VertexBuffer;
+        Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> IndexBuffer;
+        Stoner::RHI::ERHIIndexType IndexType =
+            Stoner::RHI::ERHIIndexType::UInt16;
+        Stoner::RHI::FRHIIndexedDrawArguments Draw;
+        Stoner::Core::TSharedPtr<Stoner::RHI::IRHIGraphicsPipeline> Pipeline;
+        Stoner::Core::TArray<Stoner::Core::TSharedPtr<
+            Stoner::RHI::IRHIDescriptorSet>> DescriptorSets;
+    };
+    Stoner::Core::TArray<FDrawBinding> Draws;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> ReadbackBuffer;
+    Stoner::RHI::FRHITextureBufferCopyRegion ReadbackRegion;
+    bool bTransitionToPresent = true;
 };
 
 struct FForwardFrameExecutionResult

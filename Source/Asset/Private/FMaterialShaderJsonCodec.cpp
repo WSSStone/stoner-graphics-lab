@@ -1602,7 +1602,7 @@ std::string WriteShader(const FShaderAssetDesc& Desc)
         Indent(Out, 2); Out += "{\n";
         Key(Out, 3, "name"); JsonString(Out, Parameter.Name.View()); Out += ",\n";
         Key(Out, 3, "type");
-        JsonString(Out, ParameterTypeText(Parameter.Type, Desc.SchemaVersion));
+        JsonString(Out, ParameterTypeText(Parameter.Type, 2));
         Out += "\n";
         Indent(Out, 2);
         Out += Index + 1 == Desc.RequiredParameters.size() ? "}\n" : "},\n";

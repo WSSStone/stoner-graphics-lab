@@ -1,0 +1,20 @@
+{
+  "schema": "stoner.production-corpus-failure-cases",
+  "schemaVersion": 1,
+  "cases": [
+    {"caseId": "absolute-posix", "mutation": "file-path", "value": "/escape.gltf", "expectedCategory": "unsafe-path"},
+    {"caseId": "absolute-windows", "mutation": "file-path", "value": "C:/escape.gltf", "expectedCategory": "unsafe-path"},
+    {"caseId": "dot-segment", "mutation": "file-path", "value": "./first.gltf", "expectedCategory": "unsafe-path"},
+    {"caseId": "parent-segment", "mutation": "file-path", "value": "../first.gltf", "expectedCategory": "unsafe-path"},
+    {"caseId": "mixed-separator", "mutation": "file-path", "value": "folder\\first.gltf", "expectedCategory": "unsafe-path"},
+    {"caseId": "percent-alias", "mutation": "file-path", "value": "%2e%2e/first.gltf", "expectedCategory": "unsafe-path"},
+    {"caseId": "maintainer-note", "mutation": "file-path", "value": "MAINTAINER_NOTES.md", "expectedCategory": "out-of-band-note"},
+    {"caseId": "case-collision", "mutation": "case-collision", "expectedCategory": "normalization-collision"},
+    {"caseId": "nfc-collision", "mutation": "nfc-collision", "expectedCategory": "normalization-collision"},
+    {"caseId": "duplicate-path", "mutation": "duplicate-path", "expectedCategory": "duplicate-path"},
+    {"caseId": "escaping-package-root", "mutation": "package-root", "value": "../External", "expectedCategory": "unsafe-path"},
+    {"caseId": "invalid-tier", "mutation": "tier", "value": "nightly", "expectedCategory": "invalid-tier"},
+    {"caseId": "missing-root-file", "mutation": "root-file", "value": "missing.gltf", "expectedCategory": "missing-root-file"},
+    {"caseId": "dangling-coverage", "mutation": "coverage", "value": "missing-claim", "expectedCategory": "coverage-closure"}
+  ]
+}

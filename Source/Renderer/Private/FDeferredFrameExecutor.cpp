@@ -93,6 +93,59 @@ Stoner::RHI::FRHIRenderPassClearValues MakeClearValues(const FDeferredFramePlan&
     return true;
 }
 
+[[nodiscard]] bool AreSurfaceDrawsValid(
+    const FDeferredFramePlan& Plan,
+    const FDeferredFrameExecutionBindings& Bindings) noexcept
+{
+    if (Bindings.SurfaceDraws.empty()) return true;
+    if (Bindings.SurfaceDraws.size() != Plan.AcceptedDraws.size()) return false;
+    for (const auto& Draw : Bindings.SurfaceDraws)
+    {
+        if (!IsBufferValid(Draw.VertexBuffer,
+                Stoner::RHI::ERHIBufferUsage::Vertex) ||
+            !IsBufferValid(Draw.IndexBuffer,
+                Stoner::RHI::ERHIBufferUsage::Index) ||
+            !Stoner::RHI::IsValidRHIIndexedDrawArguments(Draw.Draw) ||
+            !Draw.Pipeline ||
+            Draw.Pipeline->GetLifecycleState() !=
+                Stoner::RHI::ERHIResourceLifecycleState::Valid)
+            return false;
+        for (const auto& Set : Draw.DescriptorSets)
+            if (!Set || Set->GetLifecycleState() !=
+                    Stoner::RHI::ERHIResourceLifecycleState::Valid)
+                return false;
+    }
+    return true;
+}
+
+[[nodiscard]] bool BindDescriptorSets(
+    Stoner::RHI::IRHICommandBuffer& Commands,
+    const Stoner::Core::TArray<Stoner::Core::TSharedPtr<
+        Stoner::RHI::IRHIDescriptorSet>>& DescriptorSets)
+{
+    for (const auto& DescriptorSet : DescriptorSets)
+        if (Commands.BindDescriptorSet(DescriptorSet) !=
+            Stoner::RHI::ERHIResult::Success)
+            return false;
+    return true;
+}
+
+[[nodiscard]] bool TransitionTexture(
+    Stoner::RHI::IRHICommandBuffer& Commands,
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Texture,
+    Stoner::RHI::ERHITextureUsage RequiredUsage,
+    Stoner::RHI::ERHIResourceLayout Before,
+    Stoner::RHI::ERHIResourceLayout After)
+{
+    Stoner::RHI::FRHIResourceBarrierDesc Transition;
+    Transition.Texture = Texture;
+    Transition.RequiredTextureUsage = RequiredUsage;
+    Transition.Before = Before;
+    Transition.After = After;
+    return Commands.RecordLayoutTransition(Transition) ==
+        Stoner::RHI::ERHIResult::Success;
+}
+
 } // namespace
 
 FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFramePlan& Plan,
@@ -140,7 +193,10 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
             }
         }
     }
-    if (!IsBufferValid(Bindings.SurfaceVertexBuffer, Stoner::RHI::ERHIBufferUsage::Vertex) ||
+    if ((!Bindings.SurfaceDraws.empty()
+            ? !AreSurfaceDrawsValid(Plan, Bindings)
+            : !IsBufferValid(Bindings.SurfaceVertexBuffer,
+                Stoner::RHI::ERHIBufferUsage::Vertex)) ||
         !IsBufferValid(Bindings.FullscreenVertexBuffer, Stoner::RHI::ERHIBufferUsage::Vertex))
     {
         Out.FinalState = EDeferredExecutionState::Failed;
@@ -169,7 +225,9 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
                 Stoner::RHI::FRHIResourceBarrierDesc Transition;
                 Transition.Texture = Readback.Source;
                 Transition.RequiredTextureUsage = Stoner::RHI::ERHITextureUsage::CopySource;
-                Transition.Before = Stoner::RHI::ERHIResourceLayout::ShaderReadOnly;
+                Transition.Before = Readback.Source == Bindings.FinalOutput
+                    ? Stoner::RHI::ERHIResourceLayout::ColorAttachment
+                    : Stoner::RHI::ERHIResourceLayout::ShaderReadOnly;
                 Transition.After = Stoner::RHI::ERHIResourceLayout::CopySource;
                 if (Commands.RecordLayoutTransition(Transition) != Stoner::RHI::ERHIResult::Success ||
                     Commands.RecordTextureToBufferCopy(Readback.Source, Readback.Destination,
@@ -197,6 +255,16 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
         }
 
         const FDeferredStageBindings& Stage = *FindStage(Bindings, Pass.Stage);
+        if (Pass.Stage == EDeferredPassStage::Composition &&
+            !TransitionTexture(Commands, Bindings.LightingAccumulation,
+                Stoner::RHI::ERHITextureUsage::Sampled,
+                Stoner::RHI::ERHIResourceLayout::ColorAttachment,
+                Stoner::RHI::ERHIResourceLayout::ShaderReadOnly))
+        {
+            Out.Result = EDeferredResult::RecordFailed;
+            Out.FinalState = EDeferredExecutionState::Failed;
+            return Out;
+        }
         const auto ClearValues = MakeClearValues(Plan, Pass.Stage, *Stage.RenderPass);
         const bool bLocalVolume = Pass.Stage == EDeferredPassStage::PointLightVolumes ||
             Pass.Stage == EDeferredPassStage::SpotLightVolumes;
@@ -212,25 +280,48 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
         }
         if (bRecorded && Pass.Stage == EDeferredPassStage::SurfaceData)
         {
-            bRecorded = Commands.BindVertexBuffer(Bindings.SurfaceVertexBuffer) == Stoner::RHI::ERHIResult::Success;
-            if (bRecorded && Bindings.SurfaceIndexCount > 0)
+            if (!Bindings.SurfaceDraws.empty())
             {
-                bRecorded = IsBufferValid(Bindings.SurfaceIndexBuffer, Stoner::RHI::ERHIBufferUsage::Index) &&
-                    Commands.BindIndexBuffer(Bindings.SurfaceIndexBuffer, Stoner::RHI::ERHIIndexType::UInt16) ==
-                        Stoner::RHI::ERHIResult::Success &&
-                    Commands.RecordDrawIndexed({
-                        Bindings.SurfaceIndexCount,
-                        static_cast<Stoner::Core::uint32>(Plan.AcceptedDraws.size()),
-                        0,
-                        0,
-                        0}) ==
-                        Stoner::RHI::ERHIResult::Success;
+                for (const auto& Draw : Bindings.SurfaceDraws)
+                {
+                    bRecorded = bRecorded &&
+                        Commands.BindGraphicsPipeline(Draw.Pipeline) ==
+                            Stoner::RHI::ERHIResult::Success &&
+                        BindDescriptorSets(Commands, Draw.DescriptorSets) &&
+                        Commands.BindVertexBuffer(Draw.VertexBuffer) ==
+                            Stoner::RHI::ERHIResult::Success &&
+                        Commands.BindIndexBuffer(
+                            Draw.IndexBuffer, Draw.IndexType) ==
+                            Stoner::RHI::ERHIResult::Success &&
+                        Commands.RecordDrawIndexed(Draw.Draw) ==
+                            Stoner::RHI::ERHIResult::Success;
+                    if (!bRecorded) break;
+                }
             }
-            else if (bRecorded && !Plan.AcceptedDraws.empty())
+            else
             {
-                bRecorded = Commands.RecordDraw(3,
-                    static_cast<Stoner::Core::uint32>(Plan.AcceptedDraws.size())) ==
+                bRecorded = Commands.BindVertexBuffer(
+                    Bindings.SurfaceVertexBuffer) ==
                     Stoner::RHI::ERHIResult::Success;
+                if (bRecorded && Bindings.SurfaceIndexCount > 0)
+                {
+                    bRecorded = IsBufferValid(Bindings.SurfaceIndexBuffer, Stoner::RHI::ERHIBufferUsage::Index) &&
+                        Commands.BindIndexBuffer(Bindings.SurfaceIndexBuffer, Stoner::RHI::ERHIIndexType::UInt16) ==
+                            Stoner::RHI::ERHIResult::Success &&
+                        Commands.RecordDrawIndexed({
+                            Bindings.SurfaceIndexCount,
+                            static_cast<Stoner::Core::uint32>(Plan.AcceptedDraws.size()),
+                            0,
+                            0,
+                            0}) ==
+                            Stoner::RHI::ERHIResult::Success;
+                }
+                else if (bRecorded && !Plan.AcceptedDraws.empty())
+                {
+                    bRecorded = Commands.RecordDraw(3,
+                        static_cast<Stoner::Core::uint32>(Plan.AcceptedDraws.size())) ==
+                        Stoner::RHI::ERHIResult::Success;
+                }
             }
         }
         else if (bRecorded && bLocalVolume)
@@ -325,6 +416,26 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
                     Stoner::RHI::ERHIResult::Success;
         }
         bRecorded = bRecorded && Commands.EndRenderPass() == Stoner::RHI::ERHIResult::Success;
+        if (bRecorded && Pass.Stage == EDeferredPassStage::SurfaceData)
+        {
+            bRecorded =
+                TransitionTexture(Commands, Bindings.BaseColorAO,
+                    Stoner::RHI::ERHITextureUsage::Sampled,
+                    Stoner::RHI::ERHIResourceLayout::ColorAttachment,
+                    Stoner::RHI::ERHIResourceLayout::ShaderReadOnly) &&
+                TransitionTexture(Commands, Bindings.NormalRoughness,
+                    Stoner::RHI::ERHITextureUsage::Sampled,
+                    Stoner::RHI::ERHIResourceLayout::ColorAttachment,
+                    Stoner::RHI::ERHIResourceLayout::ShaderReadOnly) &&
+                TransitionTexture(Commands, Bindings.EmissiveMetallic,
+                    Stoner::RHI::ERHITextureUsage::Sampled,
+                    Stoner::RHI::ERHIResourceLayout::ColorAttachment,
+                    Stoner::RHI::ERHIResourceLayout::ShaderReadOnly) &&
+                TransitionTexture(Commands, Bindings.Depth,
+                    Stoner::RHI::ERHITextureUsage::Sampled,
+                    Stoner::RHI::ERHIResourceLayout::DepthStencilAttachment,
+                    Stoner::RHI::ERHIResourceLayout::ShaderReadOnly);
+        }
         if (!bRecorded)
         {
             Out.RecordedCommandCount = Commands.GetRecordedCommandCount();

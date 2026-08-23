@@ -64,3 +64,9 @@ Validation/026/CI/downloaded/
 Validation/027/work/
 Validation/027/CI/downloaded/
 Validation/027/captures/local/
+
+# Feature 028 local production-content state
+Content/ProductionAcceptance/External/
+Validation/028/work/
+Validation/028/CI/downloaded/
+Validation/028/captures/local/

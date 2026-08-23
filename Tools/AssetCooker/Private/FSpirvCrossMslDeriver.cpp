@@ -347,6 +347,9 @@ Asset::EAssetResult DeriveMetalShaderSource(
         Options.set_msl_version(2, 4);
         Options.argument_buffers = false;
         Compiler.set_msl_options(Options);
+        auto CommonOptions = Compiler.get_common_options();
+        CommonOptions.vertex.flip_vert_y = true;
+        Compiler.set_common_options(CommonOptions);
         const std::string Generated = Compiler.compile();
         Core::FString Normalized;
         const Asset::EAssetResult Normalize =
@@ -356,6 +359,7 @@ Asset::EAssetResult DeriveMetalShaderSource(
         static constexpr std::string_view OptionsIdentity =
             "spirv-cross:a0fba56c34a6700f1724bf9b751da5b488a3775c;"
             "platform=macos;msl=2.4;argument-buffers=0;"
+            "flip-vertex-y=1;"
             "entry-point=stoner-prefix-v1;"
             "binding-policy=metal-direct-binding-v1";
         OutResult.NormalizedMsl = std::move(Normalized);

@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stoner.local/schemas/production-acceptance-report-v1.json",
+  "title": "Stoner Production Acceptance Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schemaVersion", "deterministic", "observations", "artifacts"],
+  "properties": {
+    "schema": {"const": "stoner.production-acceptance-report"},
+    "schemaVersion": {"const": 1},
+    "deterministic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["corpusRevision", "packageId", "rootAssetId", "sourceSetDigest", "targetProfileDigest", "generationIdentity", "mode", "dependencyCoverageDigest", "workloadRevision", "backend", "result", "evidenceDigest", "firstFailure"],
+      "properties": {
+        "corpusRevision": {"type": "string"},
+        "packageId": {"type": "string"},
+        "rootAssetId": {"type": "string"},
+        "sourceSetDigest": {"$ref": "#/$defs/sha256"},
+        "targetProfileDigest": {"$ref": "#/$defs/sha256"},
+        "generationIdentity": {
+          "oneOf": [
+            {"$ref": "#/$defs/sha256"},
+            {"const": "not-created"}
+          ]
+        },
+        "mode": {"enum": ["development", "strict-cooked"]},
+        "dependencyCoverageDigest": {"$ref": "#/$defs/sha256"},
+        "workloadRevision": {"type": "string"},
+        "backend": {"enum": ["none", "vulkan", "metal"]},
+        "result": {"enum": ["passed", "failed", "unsupported"]},
+        "evidenceDigest": {"$ref": "#/$defs/sha256"},
+        "firstFailure": {"$ref": "#/$defs/failure"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"result": {"const": "passed"}}, "required": ["result"]},
+          "then": {
+            "properties": {
+              "generationIdentity": {"$ref": "#/$defs/sha256"},
+              "firstFailure": {"type": "null"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"result": {"enum": ["failed", "unsupported"]}}, "required": ["result"]},
+          "then": {"properties": {"firstFailure": {"$ref": "#/$defs/failureObject"}}}
+        },
+        {
+          "if": {"properties": {"result": {"const": "unsupported"}}, "required": ["result"]},
+          "then": {"properties": {"firstFailure": {"required": ["missingPrerequisite", "replacementLane"]}}}
+        }
+      ]
+    },
+    "observations": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hostClass": {"type": "string", "maxLength": 128},
+        "deviceClass": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,95}$"},
+        "deviceDescription": {"type": "string", "maxLength": 256},
+        "durationMilliseconds": {"type": "integer", "minimum": 0},
+        "peakRssBytes": {"type": "integer", "minimum": 0},
+        "rssGrowthBytes": {"type": "integer"},
+        "lifecycleCycles": {"type": "integer", "minimum": 0},
+        "flip": {"$ref": "#/$defs/flip"}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "pathToken", "sha256", "sizeBytes"],
+        "properties": {
+          "kind": {"enum": ["report", "readback", "window-capture", "comparison", "log"]},
+          "pathToken": {"type": "string", "maxLength": 512, "pattern": "^(?!/)(?!.*\\\\).+$"},
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "sizeBytes": {"type": "integer", "minimum": 0, "maximum": 67108864}
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "deterministic": {
+            "properties": {"backend": {"enum": ["vulkan", "metal"]}},
+            "required": ["backend"]
+          }
+        },
+        "required": ["deterministic"]
+      },
+      "then": {
+        "properties": {
+          "observations": {"required": ["deviceClass", "flip"]}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "deterministic": {
+            "properties": {
+              "backend": {"enum": ["vulkan", "metal"]},
+              "result": {"const": "passed"}
+            },
+            "required": ["backend", "result"]
+          }
+        },
+        "required": ["deterministic"]
+      },
+      "then": {
+        "properties": {
+          "observations": {
+            "properties": {
+              "flip": {
+                "properties": {
+                  "state": {"const": "measured"},
+                  "passed": {"const": true}
+                },
+                "required": ["state", "passed"]
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "failure": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/failureObject"}
+      ]
+    },
+    "failureObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage", "category", "subject", "expected", "observed", "reproductionProfile"],
+      "properties": {
+        "stage": {"type": "string", "maxLength": 64},
+        "category": {"type": "string", "maxLength": 96},
+        "subject": {"type": "string", "maxLength": 512},
+        "expected": {"type": "string", "maxLength": 512},
+        "observed": {"type": "string", "maxLength": 512},
+        "reproductionProfile": {"type": "string", "maxLength": 128},
+        "missingPrerequisite": {"type": "string", "minLength": 1, "maxLength": 256},
+        "replacementLane": {"type": "string", "minLength": 1, "maxLength": 128}
+      }
+    },
+    "flip": {
+      "oneOf": [
+        {"$ref": "#/$defs/measuredFlip"},
+        {"$ref": "#/$defs/unmeasuredFlip"}
+      ]
+    },
+    "measuredFlip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "baselineId", "mean", "p95", "maximum", "badPixelThreshold", "badPixelFraction", "passed"],
+      "properties": {
+        "state": {"const": "measured"},
+        "baselineId": {"type": "string"},
+        "mean": {"type": "number", "minimum": 0, "maximum": 1},
+        "p95": {"type": "number", "minimum": 0, "maximum": 1},
+        "maximum": {"type": "number", "minimum": 0, "maximum": 1},
+        "badPixelThreshold": {"type": "number", "minimum": 0, "maximum": 1},
+        "badPixelFraction": {"type": "number", "minimum": 0, "maximum": 1},
+        "passed": {"type": "boolean"}
+      }
+    },
+    "unmeasuredFlip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "reason"],
+      "properties": {
+        "state": {"const": "not-run"},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 256}
+      }
+    }
+  }
+}

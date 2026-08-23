@@ -368,47 +368,57 @@ RHI::ERHIResult FMetalPresentationContext::Present(
         return RHI::ERHIResult::InvalidState;
     }
 
-    id<MTLCommandQueue> Queue = (__bridge id<MTLCommandQueue>)NativeQueue_;
-    id<MTLCommandBuffer> Commands = [Queue commandBuffer];
-    if (!Commands)
+    @autoreleasepool
     {
-        if (WaitSemaphore) WaitSemaphore->CancelSubmissionWait(WaitEpoch);
-        Owner_->EndSubmission();
-        return RHI::ERHIResult::Failed;
-    }
-    if (WaitSemaphore)
-        WaitSemaphore->EncodeSubmissionWait((__bridge void*)Commands, WaitEpoch);
-    [Commands presentDrawable:Frame.Drawable];
-    Frame.bInFlight = true;
-    ++Impl_->InFlightCount;
-    auto Self = weak_from_this().lock();
-    if (!Self)
-    {
-        Frame.bInFlight = false;
-        --Impl_->InFlightCount;
-        if (WaitSemaphore) WaitSemaphore->CancelSubmissionWait(WaitEpoch);
-        Owner_->EndSubmission();
-        return RHI::ERHIResult::InvalidState;
-    }
-    [Commands addCompletedHandler:^(id<MTLCommandBuffer> Buffer) {
-        std::lock_guard CompletionLock(Self->Impl_->Mutex);
-        auto& Completed = Self->Impl_->Frames[FrameSlot];
-        if (Completed.Generation == Generation)
+        id<MTLCommandQueue> Queue =
+            (__bridge id<MTLCommandQueue>)NativeQueue_;
+        id<MTLCommandBuffer> Commands = [Queue commandBuffer];
+        if (!Commands)
         {
-            Completed.Drawable = nil;
-            Completed.Texture.reset();
-            Completed.bInFlight = false;
+            if (WaitSemaphore)
+                WaitSemaphore->CancelSubmissionWait(WaitEpoch);
+            Owner_->EndSubmission();
+            return RHI::ERHIResult::Failed;
         }
-        if (Self->Impl_->InFlightCount > 0) --Self->Impl_->InFlightCount;
-        if (Buffer.status != MTLCommandBufferStatusCompleted || Buffer.error)
-            Self->Owner_->RecordTerminalFailure(
-                Core::FString("metal-presentation-command-failed"));
-        Self->Owner_->EndSubmission();
-        Self->Impl_->Condition.notify_all();
-    }];
-    if (WaitSemaphore) WaitSemaphore->CommitSubmissionWait(WaitEpoch);
-    [Commands commit];
-    return RHI::ERHIResult::Success;
+        if (WaitSemaphore)
+            WaitSemaphore->EncodeSubmissionWait(
+                (__bridge void*)Commands, WaitEpoch);
+        [Commands presentDrawable:Frame.Drawable];
+        Frame.bInFlight = true;
+        ++Impl_->InFlightCount;
+        auto Self = weak_from_this().lock();
+        if (!Self)
+        {
+            Frame.bInFlight = false;
+            --Impl_->InFlightCount;
+            if (WaitSemaphore)
+                WaitSemaphore->CancelSubmissionWait(WaitEpoch);
+            Owner_->EndSubmission();
+            return RHI::ERHIResult::InvalidState;
+        }
+        [Commands addCompletedHandler:^(id<MTLCommandBuffer> Buffer) {
+            std::lock_guard CompletionLock(Self->Impl_->Mutex);
+            auto& Completed = Self->Impl_->Frames[FrameSlot];
+            if (Completed.Generation == Generation)
+            {
+                Completed.Drawable = nil;
+                Completed.Texture.reset();
+                Completed.bInFlight = false;
+            }
+            if (Self->Impl_->InFlightCount > 0)
+                --Self->Impl_->InFlightCount;
+            if (Buffer.status != MTLCommandBufferStatusCompleted ||
+                Buffer.error)
+                Self->Owner_->RecordTerminalFailure(
+                    Core::FString("metal-presentation-command-failed"));
+            Self->Owner_->EndSubmission();
+            Self->Impl_->Condition.notify_all();
+        }];
+        if (WaitSemaphore)
+            WaitSemaphore->CommitSubmissionWait(WaitEpoch);
+        [Commands commit];
+        return RHI::ERHIResult::Success;
+    }
 #endif
 }
 

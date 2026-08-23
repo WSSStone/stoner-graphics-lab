@@ -109,6 +109,18 @@ struct FTargetFacts
     return ERHIFormat::Unknown;
 }
 
+[[nodiscard]] bool CanExpandStoredFormat(
+    const FKTX2TextureInfo& Info,
+    ERHIFormat Format) noexcept
+{
+    if (!Info.StoredTexelFormat) return false;
+    if (*Info.StoredTexelFormat == EImageTexelFormat::R8G8B8_UNorm)
+        return Format == ERHIFormat::R8G8B8A8_UNorm ||
+            Format == ERHIFormat::R8G8B8A8_sRGB;
+    return *Info.StoredTexelFormat == EImageTexelFormat::R32G32B32_Float &&
+        Format == ERHIFormat::R32G32B32A32_Float;
+}
+
 [[nodiscard]] bool IsBasisArtifact(
     const FKTX2TextureInfo& Info) noexcept
 {
@@ -195,6 +207,20 @@ FTextureTargetProfile FTextureTargetProfile::DesktopDefault(
         if (Stored != ERHIFormat::Unknown)
         {
             Profile.PreferredFormats.push_back(Stored);
+        }
+        else if (Info.StoredTexelFormat ==
+                 EImageTexelFormat::R8G8B8_UNorm)
+        {
+            Profile.PreferredFormats.push_back(
+                Info.ColorSpace == EImageColorSpace::SRGB
+                    ? ERHIFormat::R8G8B8A8_sRGB
+                    : ERHIFormat::R8G8B8A8_UNorm);
+        }
+        else if (Info.StoredTexelFormat ==
+                 EImageTexelFormat::R32G32B32_Float)
+        {
+            Profile.PreferredFormats.push_back(
+                ERHIFormat::R32G32B32A32_Float);
         }
         return Profile;
     }
@@ -426,7 +452,8 @@ FTextureTargetSelection SelectTextureTarget(
                 "artifact codec cannot produce candidate format"));
             continue;
         }
-        if (!bBasis && Format != StoredFormat)
+        if (!bBasis && Format != StoredFormat &&
+            !CanExpandStoredFormat(Info, Format))
         {
             Selection.Candidates.push_back(Reject(
                 Format, TranscodeFormat,

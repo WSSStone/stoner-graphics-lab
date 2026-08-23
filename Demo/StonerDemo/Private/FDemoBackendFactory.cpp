@@ -3,6 +3,7 @@
 #include "Asset/FAssetDigest.h"
 #include "Core/SGPlatform.h"
 #include "RHI/RHIMinimal.h"
+#include "VulkanRHI/FVulkanDevice.h"
 #include "VulkanRHI/FVulkanNativeContext.h"
 
 #if SG_PLATFORM_MAC
@@ -11,12 +12,80 @@
 
 #include <array>
 #include <iostream>
+#include <limits>
 #include <utility>
 
 namespace Stoner::Demo
 {
 namespace
 {
+
+bool BuildPresentationPixels(
+    std::span<const Core::uint8> Source,
+    Core::uint32 SourceWidth,
+    Core::uint32 SourceHeight,
+    Core::uint32 SourceRowPitch,
+    Core::uint32 TargetWidth,
+    Core::uint32 TargetHeight,
+    RHI::ERHIFormat TargetFormat,
+    Core::TArray<Core::uint8>& OutNative)
+{
+    OutNative.clear();
+    const bool bBgra = TargetFormat == RHI::ERHIFormat::B8G8R8A8_UNorm;
+    const bool bRgba = TargetFormat == RHI::ERHIFormat::R8G8B8A8_UNorm ||
+        TargetFormat == RHI::ERHIFormat::R8G8B8A8_sRGB;
+    const Core::uint64 TargetBytes =
+        static_cast<Core::uint64>(TargetWidth) * TargetHeight * 4u;
+    if ((!bBgra && !bRgba) || SourceWidth == 0 || SourceHeight == 0 ||
+        TargetWidth == 0 || TargetHeight == 0 ||
+        SourceRowPitch < SourceWidth * 4u ||
+        Source.size() < static_cast<Core::usize>(SourceRowPitch) * SourceHeight ||
+        TargetBytes > std::numeric_limits<Core::usize>::max())
+        return false;
+    OutNative.resize(static_cast<Core::usize>(TargetBytes));
+    for (Core::uint32 Y = 0; Y < TargetHeight; ++Y)
+    {
+        const Core::uint32 SourceY = static_cast<Core::uint32>(
+            static_cast<Core::uint64>(Y) * SourceHeight / TargetHeight);
+        for (Core::uint32 X = 0; X < TargetWidth; ++X)
+        {
+            const Core::uint32 SourceX = static_cast<Core::uint32>(
+                static_cast<Core::uint64>(X) * SourceWidth / TargetWidth);
+            const Core::usize SourceOffset =
+                static_cast<Core::usize>(SourceY) * SourceRowPitch +
+                static_cast<Core::usize>(SourceX) * 4u;
+            const Core::usize TargetOffset =
+                (static_cast<Core::usize>(Y) * TargetWidth + X) * 4u;
+            OutNative[TargetOffset] = Source[SourceOffset + (bBgra ? 2u : 0u)];
+            OutNative[TargetOffset + 1u] = Source[SourceOffset + 1u];
+            OutNative[TargetOffset + 2u] = Source[SourceOffset + (bBgra ? 0u : 2u)];
+            OutNative[TargetOffset + 3u] = Source[SourceOffset + 3u];
+        }
+    }
+    return true;
+}
+
+bool NormalizePresentationPixels(
+    std::span<const Core::uint8> Native,
+    RHI::ERHIFormat Format,
+    Core::TArray<Core::uint8>& OutRgba8)
+{
+    OutRgba8.clear();
+    const bool bBgra = Format == RHI::ERHIFormat::B8G8R8A8_UNorm;
+    const bool bRgba = Format == RHI::ERHIFormat::R8G8B8A8_UNorm ||
+        Format == RHI::ERHIFormat::R8G8B8A8_sRGB;
+    if ((!bBgra && !bRgba) || Native.empty() || Native.size() % 4u != 0)
+        return false;
+    OutRgba8.resize(Native.size());
+    for (Core::usize Offset = 0; Offset < Native.size(); Offset += 4u)
+    {
+        OutRgba8[Offset] = Native[Offset + (bBgra ? 2u : 0u)];
+        OutRgba8[Offset + 1u] = Native[Offset + 1u];
+        OutRgba8[Offset + 2u] = Native[Offset + (bBgra ? 0u : 2u)];
+        OutRgba8[Offset + 3u] = Native[Offset + 3u];
+    }
+    return true;
+}
 
 class FVulkanDemoBackendRuntime final : public IDemoBackendRuntime
 {
@@ -37,7 +106,30 @@ public:
             Mode == EDemoRunMode::NativeHeadless
                 ? RHI::ERHIRuntimeMode::NativeHeadless
                 : RHI::ERHIRuntimeMode::Native;
-        return Context_.Initialize(RuntimeMode, Window);
+        Device_ = Core::MakeShared<Backend::Vulkan::FVulkanDevice>();
+        Device_->ConfigureDescriptorPoolCapacity(128);
+        Backend::Vulkan::FVulkanInstanceDesc DeviceDesc;
+        DeviceDesc.RuntimeMode =
+            Backend::Vulkan::EVulkanInstanceRuntimeMode::DeterministicFallback;
+        DeviceDesc.bRequestValidation = false;
+        RHI::ERHIResult DeviceResult = Device_->Initialize(DeviceDesc);
+        if (DeviceResult == RHI::ERHIResult::Success)
+            DeviceResult = Device_->EnableNativeShaderRuntime();
+        if (DeviceResult != RHI::ERHIResult::Success)
+        {
+            if (Device_) (void)Device_->Shutdown();
+            Device_.reset();
+            return DeviceResult;
+        }
+        if (Mode == EDemoRunMode::NativeHeadless)
+            return RHI::ERHIResult::Success;
+        const RHI::ERHIResult ContextResult = Context_.Initialize(RuntimeMode, Window);
+        if (ContextResult != RHI::ERHIResult::Success)
+        {
+            (void)Device_->Shutdown();
+            Device_.reset();
+        }
+        return ContextResult;
     }
 
     RHI::ERHIResult PrepareTriangle(
@@ -79,7 +171,38 @@ public:
         Core::uint32 Width,
         Core::uint32 Height) override
     {
+        if (bProductionPresentation_)
+            return Context_.PrepareVisibleImage(Width, Height);
         return Context_.RecreateVisiblePresentation(Width, Height);
+    }
+
+    RHI::ERHIResult PrepareProductionPresentation(
+        Core::uint32 Width,
+        Core::uint32 Height) override
+    {
+        const RHI::ERHIResult Result =
+            Context_.PrepareVisibleImage(Width, Height);
+        bProductionPresentation_ = Result == RHI::ERHIResult::Success;
+        return Result;
+    }
+
+    RHI::ERHIResult PresentProductionImage(
+        std::span<const Core::uint8> Rgba8,
+        Core::uint32 Width,
+        Core::uint32 Height,
+        Core::uint32 RowPitchBytes,
+        FDemoProductionPresentationResult& OutResult) override
+    {
+        OutResult = {};
+        const RHI::ERHIResult Result = Context_.PresentVisibleRgba8(
+            Rgba8, Width, Height, RowPitchBytes, OutResult.Rgba8,
+            OutResult.Width, OutResult.Height);
+        if (Result == RHI::ERHIResult::Success)
+        {
+            OutResult.RowPitchBytes = OutResult.Width * 4u;
+            OutResult.bPresented = true;
+        }
+        return Result;
     }
 
     RHI::ERHIResult ExecuteOffscreenTriangle(
@@ -87,29 +210,42 @@ public:
         const RHI::FRHIShaderModuleDesc& VertexShader,
         const RHI::FRHIShaderModuleDesc& FragmentShader) override
     {
+        if (!Context_.IsAvailable() &&
+            Context_.Initialize(RHI::ERHIRuntimeMode::NativeHeadless) !=
+                RHI::ERHIResult::Success)
+            return RHI::ERHIResult::Unavailable;
         return Context_.ExecuteOffscreenTriangle(VertexShader, FragmentShader);
     }
 
     RHI::FRHIRuntimeSnapshot GetSnapshot() const noexcept override
     {
-        return Context_.GetSnapshot();
+        return Device_ ? Device_->GetRuntimeSnapshot() : Context_.GetSnapshot();
     }
 
     Core::TSharedPtr<RHI::IRHIDevice> GetDevice() const noexcept override
     {
-        return nullptr;
+        return Device_;
     }
 
     RHI::ERHIResult Shutdown() override
     {
         LastNativeFrame_ = {};
-        return Context_.Shutdown();
+        RHI::ERHIResult DeviceResult = RHI::ERHIResult::Success;
+        if (Device_)
+        {
+            DeviceResult = Device_->Shutdown();
+            Device_.reset();
+        }
+        const RHI::ERHIResult ContextResult = Context_.Shutdown();
+        return DeviceResult != RHI::ERHIResult::Success ? DeviceResult : ContextResult;
     }
 
 private:
     EDemoRunMode Mode_ = EDemoRunMode::InteractiveNative;
     Backend::Vulkan::FVulkanNativeContext Context_;
+    Core::TSharedPtr<Backend::Vulkan::FVulkanDevice> Device_;
     Backend::Vulkan::FVulkanNativeFrameBindings LastNativeFrame_;
+    bool bProductionPresentation_ = false;
 };
 
 #if SG_PLATFORM_MAC
@@ -303,6 +439,115 @@ public:
     RHI::ERHIResult RecreatePresentation(Core::uint32, Core::uint32) override
     {
         return Swapchain_ ? RHI::ERHIResult::Success : RHI::ERHIResult::InvalidState;
+    }
+
+    RHI::ERHIResult PrepareProductionPresentation(
+        Core::uint32 Width,
+        Core::uint32 Height) override
+    {
+        return Device_ && Swapchain_ && Width > 0 && Height > 0
+            ? RHI::ERHIResult::Success
+            : RHI::ERHIResult::InvalidState;
+    }
+
+    RHI::ERHIResult PresentProductionImage(
+        std::span<const Core::uint8> Rgba8,
+        Core::uint32 Width,
+        Core::uint32 Height,
+        Core::uint32 RowPitchBytes,
+        FDemoProductionPresentationResult& OutResult) override
+    {
+        OutResult = {};
+        if (!Device_ || !Queue_ || !Swapchain_)
+            return RHI::ERHIResult::InvalidState;
+        Core::uint32 FrameIndex = 0;
+        const RHI::ERHIResult Acquire =
+            Swapchain_->AcquireNextFrame(FrameIndex);
+        if (Acquire != RHI::ERHIResult::Success) return Acquire;
+        const auto Image = Swapchain_->GetImage(FrameIndex);
+        const auto ReleaseAcquire = [this, FrameIndex]() {
+            (void)Swapchain_->Present(FrameIndex);
+        };
+        if (!Image)
+        {
+            ReleaseAcquire();
+            return RHI::ERHIResult::Failed;
+        }
+        const auto& Desc = Image->GetDesc();
+        Core::TArray<Core::uint8> NativePixels;
+        if (!BuildPresentationPixels(
+                Rgba8, Width, Height, RowPitchBytes,
+                Desc.Width, Desc.Height, Desc.Format, NativePixels))
+        {
+            ReleaseAcquire();
+            return RHI::ERHIResult::InvalidState;
+        }
+        RHI::FRHITextureUploadDesc Upload;
+        Upload.Width = Desc.Width;
+        Upload.Height = Desc.Height;
+        Upload.RowPitchBytes = static_cast<Core::uint64>(Desc.Width) * 4u;
+        Upload.Data = NativePixels.data();
+        Upload.DataSizeBytes = NativePixels.size();
+        if (Device_->UploadTexture(Image, Upload) != RHI::ERHIResult::Success)
+        {
+            ReleaseAcquire();
+            return RHI::ERHIResult::Failed;
+        }
+
+        RHI::FRHIBufferDesc ReadbackDesc;
+        ReadbackDesc.SizeInBytes = NativePixels.size();
+        ReadbackDesc.Usage = RHI::ERHIBufferUsage::CopyDestination;
+        ReadbackDesc.MemoryAccess = RHI::ERHIMemoryAccess::HostVisible;
+        auto Readback = Device_->CreateBuffer(ReadbackDesc);
+        auto Commands = Device_->CreateCommandBuffer(
+            RHI::ERHIQueueType::Graphics);
+        auto Fence = Device_->CreateFence();
+        if (!Readback.Succeeded() || !Commands.Succeeded() ||
+            !Fence.Succeeded())
+        {
+            ReleaseAcquire();
+            return RHI::ERHIResult::Failed;
+        }
+        RHI::FRHITextureBufferCopyRegion Region;
+        Region.Width = Desc.Width;
+        Region.Height = Desc.Height;
+        Region.DestinationRowLengthTexels = Desc.Width;
+        Region.DestinationImageHeightTexels = Desc.Height;
+        const bool bRecorded =
+            Commands.Object->Begin() == RHI::ERHIResult::Success &&
+            Commands.Object->RecordTextureToBufferCopy(
+                Image, Readback.Object, Region) ==
+                RHI::ERHIResult::Success &&
+            Commands.Object->End() == RHI::ERHIResult::Success;
+        if (!bRecorded || Queue_->Submit(
+                Commands.Object, {}, {}, Fence.Object) !=
+                RHI::ERHIResult::Success ||
+            Fence.Object->Wait(30'000'000) != RHI::ERHIResult::Success)
+        {
+            ReleaseAcquire();
+            return RHI::ERHIResult::Failed;
+        }
+        Core::TArray<Core::uint8> NativeReadback;
+        if (Backend::Metal::ReadMetalBufferForValidation(
+                Device_, Readback.Object, 0, NativePixels.size(),
+                NativeReadback) != RHI::ERHIResult::Success ||
+            !NormalizePresentationPixels(
+                NativeReadback, Desc.Format, OutResult.Rgba8))
+        {
+            ReleaseAcquire();
+            return RHI::ERHIResult::Failed;
+        }
+        const RHI::ERHIResult Presented = Swapchain_->Present(FrameIndex);
+        if (Presented != RHI::ERHIResult::Success)
+        {
+            OutResult = {};
+            return Presented;
+        }
+        OutResult.Width = Desc.Width;
+        OutResult.Height = Desc.Height;
+        OutResult.RowPitchBytes = Desc.Width * 4u;
+        OutResult.bPresented = true;
+        return RHI::ERHIResult::Success;
     }
 
     RHI::ERHIResult ExecuteOffscreenTriangle(

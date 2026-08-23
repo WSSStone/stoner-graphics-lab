@@ -89,7 +89,7 @@ Asset::EAssetResult FAssetManagerControlledLoader::Import(
     const Asset::FAssetSourceLease& Source,
     Core::TArray<Asset::FAssetImportOutput>& OutOutputs)
 {
-    return Import({Descriptor, Source, {}, {}}, OutOutputs);
+    return Import({Descriptor, Source, {}, {}, {}}, OutOutputs);
 }
 
 Asset::EAssetResult FAssetManagerControlledLoader::Import(

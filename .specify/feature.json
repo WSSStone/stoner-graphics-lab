@@ -1,3 +1,4 @@
 {
-  "feature_directory": "specs/027-metal-backend"
+  "feature_directory": "specs/028-production-content-acceptance",
+  "implementation_base_revision": "66a20cc42881d3747d836f9f45257c37f7f3e039"
 }

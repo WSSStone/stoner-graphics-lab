@@ -170,8 +170,11 @@ EAssetResult ResolveTextureProfileSettings(
     FAssetParticipantId Producer;
     (void)FAssetParticipantId::Create(
         Core::FString("cooker.ktx2"), Producer);
+    const Core::TArray<Core::FString> RelevantFields{
+        Core::FString("textureCapabilities"),
+        Core::FString("textureFallback")};
     const EAssetResult ProjectionResult = BuildAssetProfileProjection(
-        *Profile, Producer, 1, {}, OutProjection);
+        *Profile, Producer, 1, RelevantFields, OutProjection);
     if (ProjectionResult != EAssetResult::Success)
     {
         AddDiagnostic(

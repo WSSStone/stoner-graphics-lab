@@ -39,9 +39,21 @@
 #include "RendererTextureAssetTests.h"
 #include "RendererStaticMeshTests.h"
 #include "RendererStaticMeshFailureTests.h"
+#include "RendererStaticModelRealizationTests.h"
+#include "RendererStaticModelRealizationFailureTests.h"
 #include "VulkanBackendTests.h"
 #include "VulkanNativeIntegrationTests.h"
 #include "TriangleDemoIntegrationTests.h"
+#include "ProductionContentTests.h"
+#include "ProductionContentDemoTests.h"
+#include "ProductionContentCorpusTests.h"
+#include "ProductionContentCookGraphTests.h"
+#include "ProductionContentEquivalenceTests.h"
+#include "ProductionContentStrictRuntimeTests.h"
+#include "ProductionImageAcceptanceTests.h"
+#include "ProductionImageCalibrationTests.h"
+#include "VulkanProductionContentIntegrationTests.h"
+#include "MetalProductionContentIntegrationTests.h"
 #include "AssetTests.h"
 #include "AssetGLTFContainerTests.h"
 #include "AssetGLTFMaterialTests.h"
@@ -64,6 +76,8 @@
 #include "AssetCookerPublishedValidationTests.h"
 #include "AssetCookerPublicationConcurrencyTests.h"
 #include "AssetCookerTargetProfileTests.h"
+#include "AssetCookerProductionTextureTests.h"
+#include "AssetCookerProductionTextureIntegrationTests.h"
 #include "AssetCookerProfileInvalidationTests.h"
 #include "AssetCookerCliTests.h"
 #include "AssetCookerReportTests.h"
@@ -506,6 +520,12 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("asset-cooker-target-profile", [] {
         return RunAssetCookerTargetProfileTests().Failed == 0 ? 0 : 1;
     });
+    Registry.Register("asset-cooker-production-texture", [] {
+        const auto Unit = RunAssetCookerProductionTextureTests();
+        const auto Integration =
+            RunAssetCookerProductionTextureIntegrationTests();
+        return Unit.Failed == 0 && Integration.Failed == 0 ? 0 : 1;
+    });
     Registry.Register("asset-cooker-profile-invalidation", [] {
         return RunAssetCookerProfileInvalidationTests().Failed == 0 ? 0 : 1;
     });
@@ -636,6 +656,11 @@ int main(int ArgCount, char* Arguments[])
         const auto Failure = RunRendererStaticMeshFailureTests();
         return Success.Failed == 0 && Failure.Failed == 0 ? 0 : 1;
     });
+    Registry.Register("renderer-static-model", [] {
+        const auto Success = RunRendererStaticModelRealizationTests();
+        const auto Failure = RunRendererStaticModelRealizationFailureTests();
+        return Success.Failed == 0 && Failure.Failed == 0 ? 0 : 1;
+    });
     Registry.Register("renderer-texture", [] {
         const auto AssetResult = RunRendererTextureAssetTests();
         const auto KTX2Result = RunRendererKTX2TextureTests();
@@ -648,6 +673,38 @@ int main(int ArgCount, char* Arguments[])
         return RunTestSuiteRegistryTests(Executable.c_str()).Failed == 0 ? 0 : 1;
     });
     Registry.Register("triangle-demo", [] { return RunTriangleDemoIntegrationTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("production-content", [] {
+        return RunProductionContentTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("production-content-demo", [] {
+        return RunProductionContentDemoTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("production-content-corpus", [] {
+        return RunProductionContentCorpusTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("production-content-cook-graph", [] {
+        return RunProductionContentCookGraphTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("production-content-equivalence", [] {
+        return RunProductionContentEquivalenceTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("production-content-strict-runtime", [] {
+        return RunProductionContentStrictRuntimeTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("production-image-acceptance", [] {
+        return RunProductionImageAcceptanceTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("production-image-calibration", [] {
+        return RunProductionImageCalibrationTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("production-content-vulkan-native", [] {
+        return RunVulkanProductionContentIntegrationTests().Failed == 0
+            ? 0 : 1;
+    });
+    Registry.Register("production-content-metal-native", [] {
+        return RunMetalProductionContentIntegrationTests().Failed == 0
+            ? 0 : 1;
+    });
     Registry.Register("vulkan", [] { return RunVulkanBackendTests().Failed == 0 ? 0 : 1; });
     Registry.Register("vulkan-native", [] { return RunVulkanNativeIntegrationTests().Failed == 0 ? 0 : 1; });
 

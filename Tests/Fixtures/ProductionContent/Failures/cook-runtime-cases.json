@@ -1,0 +1,20 @@
+{
+  "schema": "stoner.production-content.failure-cases",
+  "schemaVersion": 1,
+  "cases": [
+    {"id":"strict-valid","stage":"runtime","expected":"success"},
+    {"id":"source-unavailable","stage":"runtime","expected":"success"},
+    {"id":"source-fallback-zero","stage":"runtime","expected":"success"},
+    {"id":"wrong-target","stage":"bind","expected":"runtime.generation.validation-failed"},
+    {"id":"pointer-missing","stage":"publication","expected":"published.pointer.missing"},
+    {"id":"pointer-invalid","stage":"publication","expected":"published.pointer.invalid"},
+    {"id":"generation-missing","stage":"publication","expected":"published.generation.missing"},
+    {"id":"manifest-missing","stage":"publication","expected":"published.manifest.missing"},
+    {"id":"payload-missing","stage":"publication","expected":"published.payload.missing"},
+    {"id":"payload-corrupt","stage":"publication","expected":"published.payload.invalid"},
+    {"id":"payload-substituted","stage":"publication","expected":"published.payload.invalid"},
+    {"id":"unexpected-file","stage":"publication","expected":"published.generation.unexpected-file"},
+    {"id":"request-cancelled","stage":"runtime","expected":"cancelled"},
+    {"id":"no-partial-root","stage":"runtime","expected":"empty-closure"}
+  ]
+}

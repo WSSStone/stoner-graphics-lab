@@ -1,0 +1,1441 @@
+#!/usr/bin/env python3
+"""Run Feature 028 source-to-cooked production-content validation."""
+
+from __future__ import annotations
+
+import argparse
+import concurrent.futures
+import hashlib
+import importlib.util
+import json
+import math
+import os
+from pathlib import Path
+import platform
+import re
+import shutil
+import subprocess
+import sys
+import time
+from dataclasses import dataclass
+from typing import Iterable, Sequence
+
+
+SCRIPT_DIR = Path(__file__).parent
+REPOSITORY_ROOT = SCRIPT_DIR.parents[1]
+CORPUS_MANIFEST = Path("Content/ProductionAcceptance/Corpus/corpus-v1.json")
+VALIDATION_PROFILES = Path("Config/Validation/ProductionContent")
+SHADER_SOURCE_FILES = (
+    "Composition.frag",
+    "Composition.frag.spv",
+    "Composition.shader.json",
+    "DirectionalLight.frag",
+    "DirectionalLight.frag.spv",
+    "DirectionalLight.shader.json",
+    "Fullscreen.vert",
+    "Fullscreen.vert.spv",
+    "PointLight.frag",
+    "PointLight.frag.spv",
+    "PointLight.shader.json",
+    "PointLight.vert",
+    "PointLight.vert.spv",
+    "SpotLight.frag",
+    "SpotLight.frag.spv",
+    "SpotLight.shader.json",
+    "SpotLight.vert",
+    "SpotLight.vert.spv",
+    "Surface.shader.json",
+    "Surface.vert",
+    "Surface.frag",
+    "Surface.vert.spv",
+    "Surface.frag.spv",
+)
+DEFERRED_SHADER_ROOTS = (
+    "ShaderProgram:Engine/Shaders/Deferred/Surface",
+    "ShaderProgram:Engine/Shaders/Deferred/DirectionalLight",
+    "ShaderProgram:Engine/Shaders/Deferred/PointLight",
+    "ShaderProgram:Engine/Shaders/Deferred/SpotLight",
+    "ShaderProgram:Engine/Shaders/Deferred/Composition",
+)
+FAILURE_CATALOG = Path(
+    "Tests/Fixtures/ProductionContent/Failures/failure-catalog.json"
+)
+WORKLOAD_REVISION = "production-content-v1"
+FAILURE_STAGES = (
+    "corpus", "import", "cook", "publication", "strict-load",
+    "realization", "native", "image", "lifecycle", "timeout",
+    "unsupported",
+)
+FAILURE_CASE_FIELDS = {
+    "caseId", "stage", "expectedCategory", "reproductionProfile",
+}
+
+PROFILE_FIELDS = {
+    "schema", "schemaVersion", "profileId", "corpusRevision", "packageIds",
+    "targetProfiles", "lifecycleCycles", "warmupCycles", "maxRssGrowthBytes",
+    "timeBudgetSeconds", "cadence", "requiredGates",
+}
+PROFILE_CONTRACTS = {
+    "regular": {
+        "cycles": 20,
+        "warmup": 2,
+        "budget": 600,
+        "cadence": ["relevant-pull-request", "relevant-push"],
+        "gates": [
+            "corpus", "import", "clean-cook", "warm-cook",
+            "strict-runtime", "semantic-equivalence",
+            "transactional-realization", "platform-applicable-native",
+            "lifecycle", "report",
+        ],
+    },
+    "medium": {
+        "cycles": 1000,
+        "warmup": 20,
+        "budget": 1800,
+        "cadence": [
+            "weekly-default-branch", "feature-closeout", "release-closeout"
+        ],
+        "gates": [
+            "corpus", "all-package-import", "clean-cook",
+            "warm-cook-100-percent-reuse", "strict-no-source-runtime",
+            "complete-semantic-equivalence", "transactional-realization",
+            "lifecycle", "report",
+        ],
+    },
+    "hardware": {
+        "cycles": 1000,
+        "warmup": 20,
+        "budget": 1800,
+        "cadence": [
+            "feature-closeout", "reference-image-change",
+            "production-render-path-change",
+        ],
+        "gates": [
+            "strict-runtime", "transactional-realization", "deferred-native",
+            "forward-native-smoke", "semantic-readback",
+            "accepted-image-baseline", "window-only-capture", "lifecycle",
+            "report",
+        ],
+    },
+}
+
+LIFECYCLE_EVIDENCE_PREFIX = "[EVIDENCE] "
+LIFECYCLE_EVIDENCE_FIELDS = {
+    "backend", "cycles", "warmup-cycle", "warmup-rss", "terminal-rss",
+    "peak-rss", "growth", "captures", "readbacks", "counters", "stale",
+}
+IMAGE_EVIDENCE_PREFIX = "[IMAGE] "
+IMAGE_EVIDENCE_FIELDS = {
+    "backend", "device-class", "baseline", "semantic-probes", "mean",
+    "p95", "maximum", "bad-fraction", "result",
+}
+
+
+def load_local_module(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@dataclass(frozen=True)
+class CommandResult:
+    seconds: float
+    stdout: str
+    stderr: str
+
+
+class StageFailure(RuntimeError):
+    def __init__(self, stage: str, category: str, detail: str):
+        super().__init__(f"{stage}: {category}: {detail}")
+        self.stage = stage
+        self.category = category
+        self.detail = detail
+
+
+def remaining_stage_timeout(deadline: float, configured_timeout: int) -> int:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise StageFailure(
+            "profile", "timeout", "profile time budget is exhausted"
+        )
+    return min(configured_timeout, max(1, math.ceil(remaining)))
+
+
+def equivalence_request_timeout_seconds(stage_timeout: int) -> int:
+    """Reserve process-exit slack while bounding one extension execution."""
+    return max(30, min(300, stage_timeout - 5))
+
+
+def run_command(
+    command: Sequence[str],
+    root: Path,
+    timeout: int,
+    environment: dict[str, str] | None = None,
+) -> CommandResult:
+    started = time.monotonic()
+    process_environment = os.environ.copy()
+    if environment:
+        process_environment.update(environment)
+    result = subprocess.run(
+        list(command),
+        cwd=root,
+        env=process_environment,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+    elapsed = time.monotonic() - started
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"command failed ({result.returncode}): {' '.join(command)}\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+    return CommandResult(elapsed, result.stdout, result.stderr)
+
+
+def run_stage(
+    stage: str,
+    command: Sequence[str],
+    root: Path,
+    timeout: int,
+    environment: dict[str, str] | None = None,
+) -> CommandResult:
+    print(
+        f"[production-validation] stage={stage} status=started",
+        file=sys.stderr,
+        flush=True,
+    )
+    try:
+        result = run_command(command, root, timeout, environment)
+        print(
+            f"[production-validation] stage={stage} status=passed",
+            file=sys.stderr,
+            flush=True,
+        )
+        return result
+    except subprocess.TimeoutExpired as error:
+        print(
+            f"[production-validation] stage={stage} status=timeout",
+            file=sys.stderr,
+            flush=True,
+        )
+        raise StageFailure(stage, "timeout", f"exceeded {timeout} seconds") from error
+    except (OSError, RuntimeError) as error:
+        print(
+            f"[production-validation] stage={stage} status=failed",
+            file=sys.stderr,
+            flush=True,
+        )
+        raise StageFailure(stage, "command-failed", str(error)) from error
+
+
+def canonical_json(value: object) -> str:
+    return json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+
+
+def sha256_bytes(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def tree_digest(root: Path) -> str:
+    records = []
+    for path in sorted(item for item in root.rglob("*") if item.is_file()):
+        relative = path.relative_to(root).as_posix()
+        payload = path.read_bytes()
+        records.append((relative, len(payload), sha256_bytes(payload)))
+    return sha256_bytes(canonical_json(records).encode("utf-8"))
+
+
+def artifact_record(path: Path, root: Path) -> dict:
+    resolved_path = path.resolve()
+    resolved_root = root.resolve()
+    try:
+        token = resolved_path.relative_to(resolved_root).as_posix()
+    except ValueError as error:
+        raise ValueError("artifact is outside its declared root") from error
+    payload = resolved_path.read_bytes()
+    return {
+        "path": token,
+        "sha256": sha256_bytes(payload),
+        "sizeBytes": len(payload),
+    }
+
+
+def revalidate_artifact(record: dict, root: Path) -> None:
+    if set(record) != {"path", "sha256", "sizeBytes"}:
+        raise ValueError("artifact record fields are invalid")
+    token = record["path"]
+    if not isinstance(token, str) or not token or "\\" in token:
+        raise ValueError("artifact path token is invalid")
+    path = (root / token).resolve()
+    try:
+        path.relative_to(root.resolve())
+    except ValueError as error:
+        raise ValueError("artifact path escapes its root") from error
+    if not path.is_file():
+        raise ValueError("artifact is missing")
+    payload = path.read_bytes()
+    if len(payload) != record["sizeBytes"]:
+        raise ValueError("artifact size differs")
+    if sha256_bytes(payload) != record["sha256"]:
+        raise ValueError("artifact digest differs")
+
+
+def write_artifact_manifest(output: Path) -> Path:
+    manifest_path = output / "artifact-manifest.json"
+    records = [
+        artifact_record(path, output)
+        for path in sorted(item for item in output.rglob("*") if item.is_file())
+        if path != manifest_path
+    ]
+    manifest = {
+        "schema": "stoner.production-validation-artifacts",
+        "schemaVersion": 1,
+        "artifacts": records,
+    }
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return manifest_path
+
+
+def _safe_package_token(value: object) -> str:
+    if (
+        not isinstance(value, str) or not value
+        or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", value)
+    ):
+        raise ValueError("validation package identity is invalid")
+    return value
+
+
+def verify_validation_output(output: Path, target_profile: Path) -> dict:
+    output = output.resolve()
+    artifact_manifest_path = output / "artifact-manifest.json"
+    if not artifact_manifest_path.is_file():
+        raise ValueError("artifact manifest is missing")
+    manifest = json.loads(artifact_manifest_path.read_text(encoding="utf-8"))
+    if (
+        not isinstance(manifest, dict)
+        or set(manifest) != {"schema", "schemaVersion", "artifacts"}
+        or manifest.get("schema") != "stoner.production-validation-artifacts"
+        or manifest.get("schemaVersion") != 1
+        or not isinstance(manifest.get("artifacts"), list)
+    ):
+        raise ValueError("artifact manifest contract is invalid")
+    paths = [record.get("path") for record in manifest["artifacts"]]
+    if paths != sorted(paths) or len(paths) != len(set(paths)):
+        raise ValueError("artifact manifest ordering or uniqueness is invalid")
+    for record in manifest["artifacts"]:
+        revalidate_artifact(record, output)
+    expected = {
+        path.relative_to(output).as_posix()
+        for path in output.rglob("*")
+        if path.is_file() and path != artifact_manifest_path
+    }
+    if set(paths) != expected:
+        raise ValueError("artifact manifest inventory differs")
+    summary_path = output / "summary.json"
+    if not summary_path.is_file():
+        raise ValueError("validation summary is missing")
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    if summary.get("passed") is not True:
+        raise ValueError("validation summary did not pass")
+    target_profile = target_profile.resolve()
+    if not target_profile.is_file():
+        raise ValueError("target profile is missing during artifact verification")
+    target_profile_digest = sha256_bytes(target_profile.read_bytes())
+    if summary.get("targetProfileDigest") != target_profile_digest:
+        raise ValueError("target profile digest differs")
+    packages = summary.get("packages")
+    if not isinstance(packages, list) or not packages:
+        raise ValueError("validation summary package evidence is missing")
+    for package in packages:
+        if not isinstance(package, dict):
+            raise ValueError("validation package evidence is invalid")
+        package_id = _safe_package_token(package.get("packageId"))
+        generation_id = package.get("generationId")
+        if not isinstance(generation_id, str) or not re.fullmatch(
+            r"[0-9a-f]{64}", generation_id
+        ):
+            raise ValueError("validation generation identity is invalid")
+        publication = output / package_id / "clean-00/publication"
+        current_path = publication / "Current.json"
+        if not current_path.is_file():
+            raise ValueError("published current pointer is missing")
+        current_bytes = current_path.read_bytes()
+        if package.get("currentPointerDigest") != sha256_bytes(current_bytes):
+            raise ValueError("published current pointer digest differs")
+        current = json.loads(current_bytes.decode("utf-8"))
+        expected_locator = f"Generations/{generation_id}/Manifest.json"
+        if (
+            current.get("schema") != "stoner.asset-current-generation"
+            or current.get("schemaVersion") != 1
+            or current.get("generationId") != generation_id
+            or current.get("manifestLocator") != expected_locator
+            or current.get("manifestDigest") !=
+                package.get("generationManifestDigest")
+        ):
+            raise ValueError("published generation pointer differs")
+        generation_manifest_path = publication / expected_locator
+        if not generation_manifest_path.is_file():
+            raise ValueError("published generation manifest is missing")
+        if sha256_bytes(generation_manifest_path.read_bytes()) != current["manifestDigest"]:
+            raise ValueError("published generation manifest digest differs")
+    return {
+        "result": "Passed",
+        "passed": True,
+        "artifactCount": len(paths),
+        "manifestSha256": sha256_bytes(artifact_manifest_path.read_bytes()),
+        "targetProfileDigest": target_profile_digest,
+    }
+
+
+def unsupported_result(stage: str, prerequisite: str, replacement_lane: str) -> dict:
+    return {
+        "result": "Unsupported",
+        "firstFailure": {
+            "stage": stage,
+            "category": "unsupported-prerequisite",
+            "missingPrerequisite": prerequisite,
+            "replacementLane": replacement_lane,
+        },
+    }
+
+
+def aggregate_results(results: Sequence[dict]) -> bool:
+    return bool(results) and all(item.get("result") == "Passed" for item in results)
+
+
+def load_failure_catalog(repository_root: Path) -> list[dict]:
+    value = json.loads(
+        (repository_root / FAILURE_CATALOG).read_text(encoding="utf-8")
+    )
+    if (
+        not isinstance(value, dict)
+        or set(value) != {"schema", "schemaVersion", "cases"}
+        or value.get("schema") != "stoner.production-content.failure-catalog"
+        or value.get("schemaVersion") != 1
+        or not isinstance(value.get("cases"), list)
+        or len(value["cases"]) < 30
+    ):
+        raise ValueError("production failure catalog contract is invalid")
+    stage_order = {stage: index for index, stage in enumerate(FAILURE_STAGES)}
+    identifiers: set[str] = set()
+    previous: tuple[int, str] | None = None
+    for case in value["cases"]:
+        if not isinstance(case, dict) or set(case) != FAILURE_CASE_FIELDS:
+            raise ValueError("production failure case fields are invalid")
+        if case["stage"] not in stage_order:
+            raise ValueError("production failure case stage is invalid")
+        for field in FAILURE_CASE_FIELDS:
+            token = case[field]
+            if (
+                not isinstance(token, str)
+                or not token
+                or len(token) > 128
+                or any(character not in
+                    "abcdefghijklmnopqrstuvwxyz0123456789.-"
+                    for character in token)
+            ):
+                raise ValueError("production failure case token is invalid")
+        if case["caseId"] in identifiers:
+            raise ValueError("production failure case identity is duplicated")
+        identifiers.add(case["caseId"])
+        key = (stage_order[case["stage"]], case["caseId"])
+        if previous is not None and key <= previous:
+            raise ValueError("production failure catalog ordering is invalid")
+        previous = key
+    return value["cases"]
+
+
+def failure_from_catalog_case(case: dict) -> dict:
+    if not isinstance(case, dict) or set(case) != FAILURE_CASE_FIELDS:
+        raise ValueError("production failure case fields are invalid")
+    failure = {
+        "stage": case["stage"],
+        "category": case["expectedCategory"],
+        "subject": case["caseId"],
+        "expected": "rejected-at-declared-stage",
+        "observed": "targeted-negative-case",
+        "reproductionProfile": case["reproductionProfile"],
+    }
+    if case["stage"] == "unsupported":
+        failure.update({
+            "missingPrerequisite": case["expectedCategory"],
+            "replacementLane": case["reproductionProfile"],
+        })
+    return failure
+
+
+def _require_string_list(value: object, field: str) -> list[str]:
+    if (
+        not isinstance(value, list) or not value
+        or any(not isinstance(item, str) or not item for item in value)
+        or len(set(value)) != len(value)
+    ):
+        raise ValueError(f"validation profile {field} must be a non-empty unique string list")
+    return value
+
+
+def load_validation_profile(repository_root: Path, profile_name: str) -> dict:
+    if profile_name not in PROFILE_CONTRACTS:
+        raise ValueError("unknown validation profile")
+    path = repository_root / VALIDATION_PROFILES / f"{profile_name.title()}.json"
+    profile = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(profile, dict) or set(profile) != PROFILE_FIELDS:
+        raise ValueError("validation profile fields are invalid")
+    if profile.get("schema") != "stoner.production-validation-profile" or profile.get("schemaVersion") != 1:
+        raise ValueError("validation profile schema is invalid")
+    if profile.get("profileId") != profile_name:
+        raise ValueError("validation profile ID mismatch")
+    if not isinstance(profile.get("corpusRevision"), str) or not profile["corpusRevision"]:
+        raise ValueError("validation profile corpus revision is invalid")
+    _require_string_list(profile.get("packageIds"), "packageIds")
+    target_profiles = _require_string_list(profile.get("targetProfiles"), "targetProfiles")
+    if any(Path(item).is_absolute() or "\\" in item or not item.endswith(".json") for item in target_profiles):
+        raise ValueError("validation profile target path is invalid")
+    contract = PROFILE_CONTRACTS[profile_name]
+    if profile.get("lifecycleCycles") != contract["cycles"]:
+        raise ValueError("validation profile cycle count is invalid")
+    if profile.get("warmupCycles") != contract["warmup"]:
+        raise ValueError("validation profile warm-up boundary is invalid")
+    if profile.get("maxRssGrowthBytes") != 16 * 1024 * 1024:
+        raise ValueError("validation profile RSS limit is invalid")
+    if profile.get("timeBudgetSeconds") != contract["budget"]:
+        raise ValueError("validation profile time budget is invalid")
+    if profile.get("cadence") != contract["cadence"]:
+        raise ValueError("validation profile cadence is invalid")
+    if profile.get("requiredGates") != contract["gates"]:
+        raise ValueError("validation profile required gates are invalid")
+    return profile
+
+
+def load_native_target_contract(path: Path) -> dict:
+    payload = path.read_bytes()
+    value = json.loads(payload.decode("utf-8"))
+    if (
+        not isinstance(value, dict)
+        or value.get("schema") != "stoner.asset-target-profile"
+        or value.get("schemaVersion") not in (1, 2)
+        or value.get("platform") not in ("windows", "linux", "macos")
+        or value.get("cpuArchitecture") not in ("x86_64", "arm64")
+        or value.get("graphicsBackend") not in ("vulkan", "metal")
+    ):
+        raise ValueError("native target profile contract is invalid")
+    if value["graphicsBackend"] == "metal" and value["platform"] != "macos":
+        raise ValueError("Metal target profile must use macOS")
+    return {
+        "platform": value["platform"],
+        "cpuArchitecture": value["cpuArchitecture"],
+        "graphicsBackend": value["graphicsBackend"],
+        "targetProfileDigest": sha256_bytes(payload),
+    }
+
+
+def build_native_lifecycle_stage(
+    tests: Path,
+    backend: str,
+    publication: Path,
+    lease_root: Path,
+    generation: str,
+    target_profile: Path,
+    production_root: str,
+    workload_revision: str,
+    cycles: int,
+    warmup_cycles: int,
+    require_visible: bool = False,
+) -> tuple[list[str], dict[str, str]]:
+    if backend not in ("vulkan", "metal"):
+        raise ValueError("native lifecycle backend is invalid")
+    if (cycles, warmup_cycles) not in ((20, 2), (1000, 20)):
+        raise ValueError("native lifecycle boundary is invalid")
+    prefix = backend.upper()
+    suite = f"production-content-{backend}-native"
+    environment = {
+        f"STONER_REQUIRE_{prefix}_PRODUCTION": "1",
+        f"STONER_PRODUCTION_{prefix}_PUBLICATION_ROOT": str(publication),
+        f"STONER_PRODUCTION_{prefix}_LEASE_ROOT": str(lease_root),
+        f"STONER_PRODUCTION_{prefix}_GENERATION": generation,
+        f"STONER_PRODUCTION_{prefix}_TARGET_PROFILE": str(target_profile),
+        "STONER_PRODUCTION_ROOT": production_root,
+        "STONER_PRODUCTION_WORKLOAD_REVISION": workload_revision,
+        "STONER_PRODUCTION_LIFECYCLE_CYCLES": str(cycles),
+        "STONER_PRODUCTION_WARMUP_CYCLES": str(warmup_cycles),
+    }
+    if require_visible:
+        environment["STONER_PRODUCTION_VISIBLE"] = "1"
+        environment["STONER_REQUIRE_PRODUCTION_IMAGE_ACCEPTANCE"] = "1"
+    return [str(tests), "--suite", suite], environment
+
+
+def parse_native_lifecycle_evidence(
+    output: str,
+    expected_cycles: int,
+    expected_warmup: int,
+) -> dict:
+    matching = [
+        line[len(LIFECYCLE_EVIDENCE_PREFIX):]
+        for line in output.splitlines()
+        if line.startswith(LIFECYCLE_EVIDENCE_PREFIX)
+    ]
+    if len(matching) != 1:
+        raise ValueError("native lifecycle evidence count is invalid")
+    fields: dict[str, str] = {}
+    for token in matching[0].split():
+        if "=" not in token:
+            raise ValueError("native lifecycle evidence token is invalid")
+        key, value = token.split("=", 1)
+        if key in fields:
+            raise ValueError("native lifecycle evidence field is duplicated")
+        fields[key] = value
+    if set(fields) != LIFECYCLE_EVIDENCE_FIELDS:
+        raise ValueError("native lifecycle evidence fields are invalid")
+    if fields["backend"] not in ("vulkan", "metal"):
+        raise ValueError("native lifecycle backend is invalid")
+    numeric = {}
+    for key in LIFECYCLE_EVIDENCE_FIELDS - {"backend"}:
+        if not re.fullmatch(r"0|[1-9][0-9]*", fields[key]):
+            raise ValueError("native lifecycle numeric evidence is invalid")
+        numeric[key] = int(fields[key])
+    if (
+        numeric["cycles"] != expected_cycles
+        or numeric["warmup-cycle"] != expected_warmup
+        or numeric["warmup-rss"] <= 0
+        or numeric["terminal-rss"] <= 0
+        or numeric["peak-rss"] < max(
+            numeric["warmup-rss"], numeric["terminal-rss"]
+        )
+        or numeric["growth"] > 16 * 1024 * 1024
+        or numeric["captures"] != expected_cycles * 2
+        or numeric["readbacks"] != 7
+        or numeric["counters"] != 0
+        or numeric["stale"] != 1
+    ):
+        raise ValueError("native lifecycle evidence failed its exact contract")
+    return {
+        "backend": fields["backend"],
+        "lifecycleCycles": numeric["cycles"],
+        "warmupCycles": numeric["warmup-cycle"],
+        "warmupRssBytes": numeric["warmup-rss"],
+        "terminalRssBytes": numeric["terminal-rss"],
+        "peakRssBytes": numeric["peak-rss"],
+        "rssGrowthBytes": numeric["growth"],
+        "captureCount": numeric["captures"],
+        "readbackCount": numeric["readbacks"],
+        "ownersAtTerminal": numeric["counters"],
+        "staleHandleRejected": True,
+    }
+
+
+def parse_native_image_evidence(output: str, expected_backend: str) -> dict:
+    matching = [
+        line[len(IMAGE_EVIDENCE_PREFIX):]
+        for line in output.splitlines()
+        if line.startswith(IMAGE_EVIDENCE_PREFIX)
+    ]
+    if len(matching) != 1:
+        raise ValueError("native image evidence count is invalid")
+    fields: dict[str, str] = {}
+    for token in matching[0].split():
+        if "=" not in token:
+            raise ValueError("native image evidence token is invalid")
+        key, value = token.split("=", 1)
+        if key in fields:
+            raise ValueError("native image evidence field is duplicated")
+        fields[key] = value
+    if set(fields) != IMAGE_EVIDENCE_FIELDS:
+        raise ValueError("native image evidence fields are invalid")
+    if (
+        fields["backend"] != expected_backend
+        or fields["result"] != "passed"
+        or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,95}", fields["device-class"])
+        or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,127}", fields["baseline"])
+        or not re.fullmatch(r"[1-9][0-9]*", fields["semantic-probes"])
+    ):
+        raise ValueError("native image identity evidence is invalid")
+    observations = {}
+    for key in ("mean", "p95", "maximum", "bad-fraction"):
+        try:
+            value = float(fields[key])
+        except ValueError as error:
+            raise ValueError("native image metric is invalid") from error
+        if not math.isfinite(value) or value < 0.0 or value > 1.0:
+            raise ValueError("native image metric is invalid")
+        observations[key] = value
+    return {
+        "backend": expected_backend,
+        "deviceClass": fields["device-class"],
+        "baselineId": fields["baseline"],
+        "semanticProbeCount": int(fields["semantic-probes"]),
+        "flip": {
+            "mean": observations["mean"],
+            "p95": observations["p95"],
+            "maximum": observations["maximum"],
+            "badPixelFraction": observations["bad-fraction"],
+            "passed": True,
+        },
+    }
+
+
+def native_host_support(
+    contract: dict,
+    host_system: str | None = None,
+    host_machine: str | None = None,
+    host_translated: bool | None = None,
+) -> dict | None:
+    system = (host_system or platform.system()).lower()
+    machine = (host_machine or platform.machine()).lower()
+    normalized_system = {
+        "darwin": "macos", "macos": "macos", "linux": "linux",
+        "windows": "windows",
+    }.get(system, system)
+    normalized_machine = {
+        "amd64": "x86_64", "x86_64": "x86_64",
+        "aarch64": "arm64", "arm64": "arm64",
+    }.get(machine, machine)
+    if (
+        normalized_system == contract["platform"]
+        and normalized_machine == contract["cpuArchitecture"]
+    ):
+        if host_translated is None:
+            host_translated = rosetta_translated(normalized_system)
+        if not (
+            host_translated
+            and contract["graphicsBackend"] == "metal"
+            and normalized_system == "macos"
+        ):
+            return None
+        return unsupported_result(
+            "native",
+            f"physical {contract['platform']} {contract['cpuArchitecture']} "
+            "Metal host (Rosetta translation is cook-only)",
+            "-".join((
+                contract["platform"], contract["graphicsBackend"],
+                contract["cpuArchitecture"], "hardware",
+            )),
+        )
+    lane = "-".join((
+        contract["platform"], contract["graphicsBackend"],
+        contract["cpuArchitecture"], "hardware",
+    ))
+    return unsupported_result(
+        "native",
+        f"{contract['platform']} {contract['cpuArchitecture']} "
+        f"{contract['graphicsBackend']} host",
+        lane,
+    )
+
+
+def cook_host_support(
+    contract: dict,
+    host_system: str | None = None,
+    host_machine: str | None = None,
+    host_translated: bool | None = None,
+) -> dict | None:
+    if contract["graphicsBackend"] != "metal":
+        return None
+    unsupported = native_host_support(
+        contract, host_system=host_system, host_machine=host_machine,
+        host_translated=False,
+    )
+    if unsupported is None:
+        return None
+    lane = "-".join((
+        contract["platform"], contract["graphicsBackend"],
+        contract["cpuArchitecture"], "hardware",
+    ))
+    return unsupported_result(
+        "cook",
+        f"{contract['platform']} {contract['cpuArchitecture']} "
+        "Metal offline finalizer",
+        lane,
+    )
+
+
+def rosetta_translated(normalized_system: str | None = None) -> bool:
+    system = normalized_system or {
+        "darwin": "macos", "macos": "macos",
+    }.get(platform.system().lower(), platform.system().lower())
+    if system != "macos":
+        return False
+    explicit = os.environ.get("STONER_ROSETTA_TRANSLATED")
+    if explicit is not None:
+        return explicit.strip().lower() in {"1", "true", "yes", "on"}
+    try:
+        result = subprocess.run(
+            ["/usr/sbin/sysctl", "-in", "sysctl.proc_translated"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0 and result.stdout.strip() == "1"
+
+
+def run_native_lifecycle(
+    repository_root: Path,
+    tests: Path,
+    target_profile: Path,
+    publication: Path,
+    lease_root: Path,
+    generation: str,
+    production_root: str,
+    workload_revision: str,
+    cycles: int,
+    warmup_cycles: int,
+    report_path: Path,
+    timeout: int,
+    require_visible: bool = False,
+) -> dict:
+    contract = load_native_target_contract(target_profile)
+    unsupported = native_host_support(contract)
+    if unsupported is not None:
+        report_path.write_text(
+            json.dumps(unsupported, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return unsupported
+    command, environment = build_native_lifecycle_stage(
+        tests, contract["graphicsBackend"], publication, lease_root,
+        generation, target_profile, production_root, workload_revision,
+        cycles, warmup_cycles, require_visible,
+    )
+    if require_visible:
+        environment["STONER_PRODUCTION_CAPTURE_ROOT"] = str(
+            report_path.parent / "captures"
+        )
+    result = run_stage(
+        "native", command, repository_root, timeout, environment
+    )
+    report_path.write_text(
+        result.stdout + result.stderr, encoding="utf-8"
+    )
+    evidence = parse_native_lifecycle_evidence(
+        result.stdout, cycles, warmup_cycles
+    )
+    image_evidence = (
+        parse_native_image_evidence(
+            result.stdout, contract["graphicsBackend"]
+        )
+        if require_visible else None
+    )
+    return {
+        "result": "Passed",
+        "seconds": result.seconds,
+        "targetProfileDigest": contract["targetProfileDigest"],
+        **evidence,
+        "imageAcceptance": image_evidence,
+    }
+
+
+def load_report(path: Path, expected_command: str) -> dict:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if (
+        value.get("schema") != "stoner.asset-cook-report"
+        or value.get("result") != "success"
+        or value.get("command") != expected_command
+        or "telemetry" in value
+    ):
+        raise ValueError(f"invalid normalized report: {path}")
+    return value
+
+
+def assert_clean_determinism(reports: Iterable[Path]) -> str:
+    paths = list(reports)
+    if not paths:
+        raise ValueError("no clean reports")
+    expected = paths[0].read_bytes()
+    for path in paths[1:]:
+        if path.read_bytes() != expected:
+            raise ValueError(
+                f"normalized clean reports differ: {paths[0]} vs {path}"
+            )
+    return sha256_bytes(expected)
+
+
+def assert_acceptance_correctness_determinism(
+    reports: Iterable[Path],
+) -> str:
+    paths = list(reports)
+    if not paths:
+        raise ValueError("no acceptance reports")
+    report_module = load_local_module(
+        "production_acceptance_report",
+        SCRIPT_DIR / "production_acceptance_report.py",
+    )
+    expected = report_module.canonical_correctness_bytes(
+        json.loads(paths[0].read_text(encoding="utf-8"))
+    )
+    for path in paths[1:]:
+        candidate = report_module.canonical_correctness_bytes(
+            json.loads(path.read_text(encoding="utf-8"))
+        )
+        if candidate != expected:
+            raise ValueError(
+                "acceptance correctness differs across equivalent runs"
+            )
+    return sha256_bytes(expected)
+
+
+def assert_full_reuse(report: dict) -> None:
+    summary = report.get("summary", {})
+    if (
+        summary.get("reachable", 0) <= 0
+        or summary.get("reused") != summary.get("reachable")
+        or summary.get("cooked") != 0
+        or summary.get("failed") != 0
+    ):
+        raise ValueError("unchanged warm cook did not reuse every reachable asset")
+
+
+def build_cook_command(
+    cooker: Path,
+    package_root: Path,
+    shader_root: Path,
+    root_asset_ids: Sequence[str],
+    target_profile: Path,
+    publication: Path,
+    ddc: Path,
+    report: Path,
+    clean: bool,
+    workers: int,
+) -> list[str]:
+    command = [
+        str(cooker),
+        "cook",
+        "--source-root",
+        str(package_root),
+        "--source-root",
+        str(shader_root),
+        "--target-profile",
+        str(target_profile),
+        "--output",
+        str(publication),
+        "--ddc",
+        str(ddc),
+        "--workers",
+        str(workers),
+        "--lease-timeout-ms",
+        "30000",
+        "--normalized-report",
+        "--report",
+        str(report),
+    ]
+    root_arguments = []
+    for root_asset_id in root_asset_ids:
+        root_arguments.extend(("--root", root_asset_id))
+    command[6:6] = root_arguments
+    if clean:
+        command.append("--clean")
+    return command
+
+
+def copy_shader_source(repository_root: Path, destination: Path) -> None:
+    source = repository_root / "Content/Shaders/Deferred"
+    destination.mkdir(parents=True)
+    for name in SHADER_SOURCE_FILES:
+        shutil.copy2(source / name, destination / name)
+
+
+def executable(build_root: Path, relative: str) -> Path:
+    path = build_root / relative
+    if os.name == "nt":
+        path = path.with_suffix(".exe")
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    return path
+
+
+def package_source(
+    repository_root: Path,
+    content_root: Path,
+    package: dict,
+) -> Path:
+    path = content_root / package["packageRoot"]
+    if not path.is_dir():
+        raise FileNotFoundError(
+            f"verified package is not staged: {package['packageId']} at {path}"
+        )
+    return path
+
+
+def acquire_missing_external_packages(
+    repository_root: Path,
+    content_root: Path,
+    packages: Sequence[dict],
+) -> list[dict]:
+    acquisition = load_local_module(
+        "acquire_production_corpus",
+        SCRIPT_DIR / "acquire_production_corpus.py",
+    )
+    results = []
+    manifest_path = repository_root / CORPUS_MANIFEST
+    for package in packages:
+        if package.get("tier") != "medium":
+            continue
+        source = content_root / package["packageRoot"]
+        if source.is_dir():
+            continue
+        result = acquisition.acquire_package(
+            manifest_path, package["packageId"], content_root
+        )
+        results.append(result)
+    return results
+
+
+def validate_profile_selection(
+    repository_root: Path,
+    profile_name: str,
+    target_profile: Path,
+    manifest: dict,
+) -> tuple[dict, list[dict]]:
+    profile = load_validation_profile(repository_root, profile_name)
+    if profile.get("corpusRevision") != manifest.get("corpusRevision"):
+        raise ValueError("validation profile corpus revision mismatch")
+    canonical_target = target_profile.resolve()
+    allowed = {
+        (repository_root / item).resolve()
+        for item in profile.get("targetProfiles", [])
+    }
+    if canonical_target not in allowed:
+        raise ValueError("target profile is not declared by validation profile")
+    package_ids = set(profile.get("packageIds", []))
+    selected = [
+        package for package in manifest["packages"]
+        if package["packageId"] in package_ids
+    ]
+    if {package["packageId"] for package in selected} != package_ids:
+        raise ValueError("validation profile references an unknown package")
+    return profile, selected
+
+
+def run_package(
+    repository_root: Path,
+    cooker: Path,
+    tests: Path,
+    target_profile: Path,
+    package: dict,
+    source: Path,
+    output: Path,
+    determinism_runs: int,
+    lifecycle_cycles: int,
+    warmup_cycles: int,
+    timeout: int,
+    require_visible: bool = False,
+    deadline: float | None = None,
+) -> dict:
+    package_output = output / package["packageId"]
+    package_output.mkdir(parents=True)
+    source_digest = tree_digest(source)
+    package_deadline = deadline or (time.monotonic() + timeout)
+
+    def RunClean(index: int) -> dict:
+        run_root = package_output / f"clean-{index:02d}"
+        source_root = run_root / "sources/package"
+        shader_root = run_root / "sources/shaders"
+        shutil.copytree(source, source_root)
+        copy_shader_source(repository_root, shader_root)
+        publication = run_root / "publication"
+        ddc = run_root / "ddc"
+        report_root = run_root / "reports"
+        report_root.mkdir(parents=True)
+        clean_report = report_root / "clean.json"
+        result = run_stage(
+            "clean-cook",
+            build_cook_command(
+                cooker,
+                source_root,
+                shader_root,
+                (package["rootAssetId"], *DEFERRED_SHADER_ROOTS),
+                target_profile,
+                publication,
+                ddc,
+                clean_report,
+                True,
+                1 if index % 2 == 0 else 2,
+            ),
+            repository_root,
+            remaining_stage_timeout(package_deadline, timeout),
+        )
+        clean = load_report(clean_report, "cook")
+        if tree_digest(source_root) != source_digest:
+            raise RuntimeError("authoritative source changed during clean cook")
+        return {
+            "index": index,
+            "report": clean_report,
+            "generationId": clean["generationId"],
+            "seconds": result.seconds,
+            "paths": {
+                "source": source_root,
+                "shader": shader_root,
+                "publication": publication,
+                "ddc": ddc,
+                "reports": report_root,
+            },
+        }
+
+    concurrency = min(
+        determinism_runs,
+        4,
+        max(1, (os.cpu_count() or 1) // 2),
+    )
+    if concurrency == 1:
+        clean_runs = [RunClean(index) for index in range(determinism_runs)]
+    else:
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=concurrency,
+            thread_name_prefix="production-clean-cook",
+        ) as executor:
+            clean_runs = list(executor.map(RunClean, range(determinism_runs)))
+    clean_runs.sort(key=lambda item: item["index"])
+    clean_reports = [item["report"] for item in clean_runs]
+    generation_ids = [item["generationId"] for item in clean_runs]
+    clean_seconds = [item["seconds"] for item in clean_runs]
+    first_run = clean_runs[0]["paths"] if clean_runs else None
+
+    clean_report_digest = assert_clean_determinism(clean_reports)
+    if len(set(generation_ids)) != 1:
+        raise RuntimeError("clean generation identity differs across runs")
+    assert first_run is not None
+
+    warm_report = first_run["reports"] / "warm.json"
+    warm_result = run_stage(
+        "warm-cook",
+        build_cook_command(
+            cooker,
+            first_run["source"],
+            first_run["shader"],
+            (package["rootAssetId"], *DEFERRED_SHADER_ROOTS),
+            target_profile,
+            first_run["publication"],
+            first_run["ddc"],
+            warm_report,
+            False,
+            8,
+        ),
+        repository_root,
+        remaining_stage_timeout(package_deadline, timeout),
+    )
+    warm = load_report(warm_report, "cook")
+    assert_full_reuse(warm)
+    if warm["generationId"] != generation_ids[0]:
+        raise RuntimeError("warm generation differs from clean generation")
+
+    validate_report = first_run["reports"] / "validate.json"
+    validate_result = run_stage(
+        "publication",
+        [
+            str(cooker),
+            "validate",
+            "--output",
+            str(first_run["publication"]),
+            "--strict-files",
+            "--normalized-report",
+            "--report",
+            str(validate_report),
+        ],
+        repository_root,
+        remaining_stage_timeout(package_deadline, timeout),
+    )
+    load_report(validate_report, "validate")
+    current_pointer = first_run["publication"] / "Current.json"
+    current_digest_before_runtime = sha256_bytes(current_pointer.read_bytes())
+    current_record = json.loads(current_pointer.read_text(encoding="utf-8"))
+    generation_manifest = (
+        first_run["publication"] / current_record["manifestLocator"]
+    )
+    generation_manifest_digest = sha256_bytes(generation_manifest.read_bytes())
+    if (
+        current_record.get("generationId") != generation_ids[0]
+        or current_record.get("manifestDigest") != generation_manifest_digest
+    ):
+        raise RuntimeError("published generation evidence is inconsistent")
+
+    lease_root = package_output / "lease-coordination"
+    equivalence_timeout = remaining_stage_timeout(package_deadline, timeout)
+    equivalence_result = run_stage(
+        "semantic-equivalence",
+        [str(tests), "--suite", "production-content-equivalence"],
+        repository_root,
+        equivalence_timeout,
+        {
+            "STONER_PRODUCTION_PUBLICATION_ROOT": str(
+                first_run["publication"]
+            ),
+            "STONER_PRODUCTION_LEASE_ROOT": str(lease_root),
+            "STONER_PRODUCTION_TARGET_PROFILE": str(target_profile),
+            "STONER_PRODUCTION_PACKAGE_ROOT": str(first_run["source"]),
+            "STONER_PRODUCTION_SHADER_ROOT": str(first_run["shader"]),
+            "STONER_PRODUCTION_REQUEST_TIMEOUT_SECONDS": str(
+                equivalence_request_timeout_seconds(equivalence_timeout)
+            ),
+        },
+    )
+    (first_run["reports"] / "equivalence.txt").write_text(
+        equivalence_result.stdout + equivalence_result.stderr,
+        encoding="utf-8",
+    )
+    shutil.rmtree(first_run["source"])
+    shutil.rmtree(first_run["shader"])
+    if first_run["source"].exists() or first_run["shader"].exists():
+        raise RuntimeError("source roots remained available before strict runtime")
+    strict_runtime_result = run_stage(
+        "strict-runtime",
+        [str(tests), "--suite", "production-content-strict-runtime"],
+        repository_root,
+        remaining_stage_timeout(package_deadline, timeout),
+        {
+            "STONER_PRODUCTION_PUBLICATION_ROOT": str(
+                first_run["publication"]
+            ),
+            "STONER_PRODUCTION_TARGET_PROFILE": str(target_profile),
+        },
+    )
+    (first_run["reports"] / "strict-runtime.txt").write_text(
+        strict_runtime_result.stdout + strict_runtime_result.stderr,
+        encoding="utf-8",
+    )
+    if sha256_bytes(current_pointer.read_bytes()) != current_digest_before_runtime:
+        raise RuntimeError("runtime validation changed the published current pointer")
+    if tree_digest(source) != source_digest:
+        raise RuntimeError("repository or staged source changed during validation")
+
+    native_lifecycle = run_native_lifecycle(
+        repository_root,
+        tests,
+        target_profile,
+        first_run["publication"],
+        lease_root,
+        generation_ids[0],
+        package["rootAssetId"],
+        WORKLOAD_REVISION,
+        lifecycle_cycles,
+        warmup_cycles,
+        first_run["reports"] / "native-lifecycle.txt",
+        remaining_stage_timeout(package_deadline, timeout),
+        require_visible,
+    )
+
+    return {
+        "packageId": package["packageId"],
+        "rootAssetId": package["rootAssetId"],
+        "generationId": generation_ids[0],
+        "currentPointerDigest": current_digest_before_runtime,
+        "generationManifestDigest": generation_manifest_digest,
+        "cleanRuns": determinism_runs,
+        "cleanReportDigest": clean_report_digest,
+        "maximumCleanSeconds": max(clean_seconds),
+        "warmSeconds": warm_result.seconds,
+        "validateSeconds": validate_result.seconds,
+        "equivalenceSeconds": equivalence_result.seconds,
+        "strictRuntimeSeconds": strict_runtime_result.seconds,
+        "reachableAssets": warm["summary"]["reachable"],
+        "reusedAssets": warm["summary"]["reused"],
+        "sourceTreeDigest": source_digest,
+        "nativeLifecycle": native_lifecycle,
+    }
+
+
+def run_profile(args: argparse.Namespace) -> dict:
+    repository_root = args.root.resolve()
+    target_profile = (
+        args.target_profile
+        if args.target_profile.is_absolute()
+        else repository_root / args.target_profile
+    ).resolve()
+    build_root = (
+        args.build_root
+        if args.build_root.is_absolute()
+        else repository_root / args.build_root
+    ).resolve()
+    output = (
+        args.output if args.output.is_absolute() else repository_root / args.output
+    ).resolve()
+    content_root = (
+        args.content_root
+        if args.content_root.is_absolute()
+        else repository_root / args.content_root
+    ).resolve()
+    cooker = executable(build_root, "Tools/AssetCooker/StonerAssetCooker")
+    tests = executable(build_root, "Tests/StonerTest")
+    if not target_profile.is_file():
+        raise FileNotFoundError(target_profile)
+    if output.exists() and any(output.iterdir()):
+        raise FileExistsError(f"validation output must be empty: {output}")
+    output.mkdir(parents=True, exist_ok=True)
+
+    verifier = load_local_module(
+        "verify_production_corpus",
+        SCRIPT_DIR / "verify_production_corpus.py",
+    )
+    manifest_path = repository_root / CORPUS_MANIFEST
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    validation_profile, packages = validate_profile_selection(
+        repository_root,
+        args.profile,
+        target_profile,
+        manifest,
+    )
+    target_contract = load_native_target_contract(target_profile)
+    cook_unsupported = cook_host_support(target_contract)
+    if cook_unsupported is not None:
+        result = {
+            "schema": "stoner.production-cook-runtime-summary",
+            "schemaVersion": 1,
+            "profile": args.profile,
+            "corpusRevision": manifest["corpusRevision"],
+            "corpusDigest": sha256_bytes(manifest_path.read_bytes()),
+            "targetProfile": target_profile.relative_to(
+                repository_root
+            ).as_posix(),
+            "targetProfileDigest": target_contract["targetProfileDigest"],
+            "determinismRuns": args.determinism_runs,
+            "packages": [],
+            "acquisitions": [],
+            "timeBudgetSeconds": validation_profile["timeBudgetSeconds"],
+            "elapsedSeconds": 0.0,
+            "unsupported": cook_unsupported,
+            "passed": False,
+        }
+        (output / "summary.json").write_text(
+            json.dumps(result, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        write_artifact_manifest(output)
+        return result
+    acquisition_results = []
+    if args.acquire_missing:
+        acquisition_results = acquire_missing_external_packages(
+            repository_root, content_root, packages
+        )
+    verification = verifier.verify_manifest(
+        manifest_path,
+        content_root,
+        package_ids=validation_profile["packageIds"],
+    )
+    if verification["result"] != "Passed":
+        raise RuntimeError(
+            f"corpus verification failed: {verification['firstFailure']}"
+        )
+
+    started = time.monotonic()
+    deadline = started + validation_profile["timeBudgetSeconds"]
+    package_reports = []
+    for package in packages:
+        runs = args.determinism_runs if package["tier"] == "regular" else 1
+        package_reports.append(
+            run_package(
+                repository_root,
+                cooker,
+                tests,
+                target_profile,
+                package,
+                package_source(
+                    repository_root, content_root, package
+                ),
+                output,
+                runs,
+                validation_profile["lifecycleCycles"],
+                validation_profile["warmupCycles"],
+                args.timeout_seconds,
+                args.profile == "hardware",
+                deadline,
+            )
+        )
+    elapsed = time.monotonic() - started
+    result = {
+        "schema": "stoner.production-cook-runtime-summary",
+        "schemaVersion": 1,
+        "profile": args.profile,
+        "corpusRevision": manifest["corpusRevision"],
+        "corpusDigest": verification["manifestDigest"],
+        "targetProfile": target_profile.relative_to(repository_root).as_posix(),
+        "targetProfileDigest": sha256_bytes(target_profile.read_bytes()),
+        "determinismRuns": args.determinism_runs,
+        "packages": package_reports,
+        "acquisitions": acquisition_results,
+        "timeBudgetSeconds": validation_profile["timeBudgetSeconds"],
+        "elapsedSeconds": elapsed,
+        "passed": elapsed <= validation_profile["timeBudgetSeconds"] and
+            aggregate_results([
+                report["nativeLifecycle"] for report in package_reports
+            ]),
+    }
+    summary_path = output / "summary.json"
+    summary_path.write_text(
+        json.dumps(result, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    if elapsed > validation_profile["timeBudgetSeconds"]:
+        raise RuntimeError(
+            f"validation exceeded {validation_profile['timeBudgetSeconds']} second budget"
+        )
+    write_artifact_manifest(output)
+    return result
+
+
+def parse_args(values: Sequence[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--root", type=Path, default=REPOSITORY_ROOT)
+    parser.add_argument(
+        "--profile", choices=("regular", "medium", "hardware")
+    )
+    parser.add_argument("--target-profile", type=Path)
+    parser.add_argument("--build-root", type=Path)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--verify-only", type=Path)
+    parser.add_argument("--acquire-missing", action="store_true")
+    parser.add_argument(
+        "--content-root",
+        type=Path,
+        default=Path("Content/ProductionAcceptance"),
+    )
+    parser.add_argument("--determinism-runs", type=int, default=20)
+    parser.add_argument("--timeout-seconds", type=int, default=1800)
+    args = parser.parse_args(values)
+    if args.verify_only is not None:
+        if any((args.profile, args.build_root, args.output, args.acquire_missing)):
+            parser.error(
+                "--verify-only cannot be combined with execution options"
+            )
+        if args.target_profile is None:
+            parser.error("--verify-only requires --target-profile")
+        return args
+    if not all((args.profile, args.target_profile, args.build_root, args.output)):
+        parser.error(
+            "--profile, --target-profile, --build-root, and --output are required"
+        )
+    if not 1 <= args.determinism_runs <= 20:
+        parser.error("--determinism-runs must be in [1, 20]")
+    if not 60 <= args.timeout_seconds <= 7200:
+        parser.error("--timeout-seconds must be in [60, 7200]")
+    return args
+
+
+def main(values: Sequence[str] | None = None) -> int:
+    args = parse_args(values)
+    if args.verify_only is not None:
+        output = args.verify_only
+        if not output.is_absolute():
+            output = args.root.resolve() / output
+        if args.target_profile is None:
+            raise ValueError("--verify-only requires --target-profile")
+        target_profile = args.target_profile
+        if not target_profile.is_absolute():
+            target_profile = args.root.resolve() / target_profile
+        result = verify_validation_output(output, target_profile)
+    else:
+        result = run_profile(args)
+    print(json.dumps(result, sort_keys=True))
+    return 0 if result.get("passed") is True else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

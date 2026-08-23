@@ -4,6 +4,7 @@
 #include "VulkanRHI/FVulkanDeviceOwnerState.h"
 #include "VulkanRHI/FVulkanDiagnostics.h"
 #include "VulkanRHI/FVulkanFence.h"
+#include "VulkanRHI/FVulkanNativeContext.h"
 #include "VulkanRHI/FVulkanSemaphore.h"
 
 #include <new>
@@ -16,11 +17,13 @@ FVulkanQueue::FVulkanQueue(
     Stoner::RHI::ERHIQueueType InQueueType,
     Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> InOwner,
     FVulkanDiagnostics* InDiagnostics,
-    FVulkanCompletionInjectionConfig InInjection) noexcept
+    FVulkanCompletionInjectionConfig InInjection,
+    Stoner::Core::TSharedPtr<FVulkanNativeContext> InNativeContext) noexcept
     : QueueType(InQueueType)
     , Owner(std::move(InOwner))
     , Diagnostics(InDiagnostics)
     , CompletionInjection(InInjection)
+    , NativeContext(std::move(InNativeContext))
 {
 }
 
@@ -130,6 +133,20 @@ Stoner::RHI::ERHIResult FVulkanQueue::Submit(
         }
     }
 
+    if (NativeContext && NativeContext->IsAvailable())
+    {
+        const Stoner::RHI::ERHIResult NativeResult =
+            NativeContext->ExecuteRecordedCommands(*VulkanCommandBuffer);
+        if (NativeResult != Stoner::RHI::ERHIResult::Success)
+        {
+            if (Diagnostics)
+            {
+                MarkSubmission(*Diagnostics, "native Vulkan command execution failed");
+            }
+            return NativeResult;
+        }
+    }
+
     Stoner::Core::TSharedPtr<FVulkanCommandSubmission> Submission;
     try
     {
@@ -179,7 +196,9 @@ Stoner::RHI::ERHIResult FVulkanQueue::Submit(
 
     if (Diagnostics)
     {
-        MarkSubmission(*Diagnostics, "deterministic fallback submission recorded; no real GPU execution occurred");
+        MarkSubmission(*Diagnostics, NativeContext && NativeContext->IsAvailable()
+            ? "native Vulkan submission completed"
+            : "deterministic fallback submission recorded; no real GPU execution occurred");
     }
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -240,6 +259,7 @@ void FVulkanQueue::Invalidate() noexcept
         }
     }
     Owner.reset();
+    NativeContext.reset();
     Diagnostics = nullptr;
 }
 

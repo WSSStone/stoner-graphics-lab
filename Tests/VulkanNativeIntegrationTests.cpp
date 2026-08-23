@@ -138,6 +138,16 @@ FVulkanNativeIntegrationTestResult RunVulkanNativeIntegrationTests()
         "Vulkan visible frame failure lifecycle releases acquired state and reusable fences");
 
     FVulkanNativeContext Context;
+    Stoner::Core::TArray<Stoner::Core::uint8> PresentedBytes;
+    Stoner::Core::uint32 PresentedWidth = 0;
+    Stoner::Core::uint32 PresentedHeight = 0;
+    constexpr std::array<Stoner::Core::uint8, 4> Pixel = {1, 2, 3, 255};
+    Record(Result,
+        Context.PrepareVisibleImage(1, 1) == ERHIResult::InvalidState &&
+        Context.PresentVisibleRgba8(
+            Pixel, 1, 1, 4, PresentedBytes,
+            PresentedWidth, PresentedHeight) == ERHIResult::InvalidState,
+        "Vulkan visible image presentation rejects an uninitialized context");
     const ERHIResult InitializeResult = Context.Initialize(ERHIRuntimeMode::NativeHeadless);
     if (InitializeResult == ERHIResult::Unsupported || InitializeResult == ERHIResult::Unavailable)
     {
@@ -180,9 +190,19 @@ FVulkanNativeIntegrationTestResult RunVulkanNativeIntegrationTests()
         ? Stoner::Renderer::FStaticMeshRealizer::Realize(
               {StaticMeshDevice, StaticMeshAsset, {}})
         : Stoner::Renderer::FStaticMeshRealizationResult{};
+    const auto StaticVertexBuffer = StaticMeshRealization.Succeeded()
+        ? std::dynamic_pointer_cast<FVulkanBuffer>(
+              StaticMeshRealization.Snapshot->VertexBuffer)
+        : nullptr;
+    const auto StaticIndexBuffer = StaticMeshRealization.Succeeded()
+        ? std::dynamic_pointer_cast<FVulkanBuffer>(
+              StaticMeshRealization.Snapshot->IndexBuffer)
+        : nullptr;
     const bool bStaticMeshTransfer = StaticMeshRealization.Succeeded() &&
-            StaticMeshDevice->GetTrackedUploadRequestCount() == 2 &&
-            StaticMeshRealization.Snapshot->Sections.size() == 2;
+        StaticVertexBuffer && !StaticVertexBuffer->GetUploadedBytes().empty() &&
+        StaticIndexBuffer && !StaticIndexBuffer->GetUploadedBytes().empty() &&
+        StaticMeshDevice->GetTrackedUploadRequestCount() == 0 &&
+        StaticMeshRealization.Snapshot->Sections.size() == 2;
     Record(Result, bStaticMeshTransfer,
         "Renderer static mesh realization reaches Vulkan buffer transfer path");
     Record(Result,

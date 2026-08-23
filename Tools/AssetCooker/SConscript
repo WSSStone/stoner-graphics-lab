@@ -51,6 +51,7 @@ library = tool_env.StaticLibrary(
         'Private/FAssetCookReportCodec.cpp',
         'Private/FAssetCookRequest.cpp',
         'Private/FAssetCookRunner.cpp',
+        'Private/FAssetCookerSelection.cpp',
         'Private/FAssetCookScheduler.cpp',
         'Private/FCookedGenerationPublisher.cpp',
         'Private/FDerivedDataStore.cpp',

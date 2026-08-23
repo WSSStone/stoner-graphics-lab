@@ -1,0 +1,65 @@
+{
+  "backend": "vulkan",
+  "captureCount": 20,
+  "deviceClass": "macos.apple8.moltenvk.rgba8",
+  "generationIdentity": "88d01dc9de176f9f532ebeb1a3110f303a7b6067583260364485ff85e140091c",
+  "height": 512,
+  "mutations": {
+    "blank": {
+      "badPixelFraction": 0.07646561,
+      "maximum": 0.99361777,
+      "mean": 0.05277739,
+      "p95": 0.61511838,
+      "rejected": true
+    },
+    "colorSpace": {
+      "badPixelFraction": 0.07505035,
+      "maximum": 0.75539434,
+      "mean": 0.04076230,
+      "p95": 0.55628568,
+      "rejected": true
+    },
+    "materialSwap": {
+      "badPixelFraction": 0.06903839,
+      "maximum": 0.96325845,
+      "mean": 0.03301680,
+      "p95": 0.19721398,
+      "rejected": true
+    },
+    "missingGeometry": {
+      "badPixelFraction": 0.07646561,
+      "maximum": 0.99361777,
+      "mean": 0.05277739,
+      "p95": 0.61511838,
+      "rejected": true
+    },
+    "origin": {
+      "badPixelFraction": 0.10970306,
+      "maximum": 0.99361777,
+      "mean": 0.06857361,
+      "p95": 0.70649666,
+      "rejected": true
+    },
+    "staleFrameRejectedBeforeFlip": true
+  },
+  "noise": {
+    "badPixelFraction": 0.0,
+    "maximum": 0.0,
+    "mean": 0.0,
+    "p95": 0.0
+  },
+  "policy": {
+    "badPixelFractionMax": 0.001,
+    "badPixelThreshold": 0.05,
+    "maximumMax": 0.01,
+    "meanMax": 0.0005,
+    "p95Max": 0.001
+  },
+  "referenceSha256": "52a0f9b1945394186c55d46df6138ed18c82fa3f8c05cc0de04cc232beb4f431",
+  "schema": "stoner.production-image-calibration-evidence",
+  "schemaVersion": 1,
+  "semanticProbeCount": 20,
+  "targetProfileSha256": "d4805fbce24ab907f2d8da45ef9583260c50b33f43ac9cbac4ffc225c0797fee",
+  "width": 512,
+  "workloadRevision": "production-content-v1"
+}

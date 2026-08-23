@@ -140,8 +140,10 @@ void TestDerivation(FMetalShaderDerivationTestResult& Result)
                 std::string_view::npos &&
             Baseline.NormalizedMsl.View().find("stoner_main") !=
                 std::string_view::npos &&
+            Baseline.NormalizedMsl.View().find("Invert Y-axis for Metal") !=
+                std::string_view::npos &&
             Baseline.NormalizedMsl.View().back() == '\n',
-        "SPIRV-Cross produces byte-stable normalized MSL across twenty runs");
+        "SPIRV-Cross produces byte-stable Y-corrected MSL across twenty runs");
     if (Repeated)
         std::cout << "[EVIDENCE] metal-derivation triangle-vertex"
                   << " msl="
@@ -179,9 +181,19 @@ void TestReflectedBindingAndEvidence(
 {
     const TArray<uint8> Spirv =
         ReadBytes("Content/Shaders/Deferred/Surface.frag.spv");
-    const TArray<FShaderInterfaceBinding> Interface = {Binding(
-        1, 0, EShaderResourceKind::UniformBuffer, 1,
-        EShaderStage::Fragment)};
+    const TArray<FShaderInterfaceBinding> Interface = {
+        Binding(1, 0, EShaderResourceKind::UniformBuffer, 1,
+            EShaderStage::Fragment),
+        Binding(1, 1, EShaderResourceKind::CombinedTextureSampler, 1,
+            EShaderStage::Fragment),
+        Binding(1, 2, EShaderResourceKind::CombinedTextureSampler, 1,
+            EShaderStage::Fragment),
+        Binding(1, 3, EShaderResourceKind::CombinedTextureSampler, 1,
+            EShaderStage::Fragment),
+        Binding(1, 4, EShaderResourceKind::CombinedTextureSampler, 1,
+            EShaderStage::Fragment),
+        Binding(1, 5, EShaderResourceKind::CombinedTextureSampler, 1,
+            EShaderStage::Fragment)};
     FSpirvCrossMslRequest Request;
     Request.SpirvBytes = Spirv;
     Request.Stage = EShaderStage::Fragment;
@@ -206,7 +218,7 @@ void TestReflectedBindingAndEvidence(
     Record(
         Result,
         Derive == EAssetResult::Success && Derived.IsValid() &&
-            Derived.BindingEvidence.Entries.size() == 1 &&
+            Derived.BindingEvidence.Entries.size() == 11 &&
             Derived.BindingEvidence.Entries.front().SetIndex == 1 &&
             Derived.BindingEvidence.Entries.front().BindingIndex == 0 &&
             Finalize == EAssetResult::Success &&

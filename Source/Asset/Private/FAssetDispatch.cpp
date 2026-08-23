@@ -127,7 +127,7 @@ EAssetResult FAssetDispatch::Import(
 {
     return Import(
         Registry,
-        FAssetImportRequest{Descriptor, Source, {}, {}},
+        FAssetImportRequest{Descriptor, Source, {}, {}, {}},
         OutOutputs,
         Diagnostics);
 }

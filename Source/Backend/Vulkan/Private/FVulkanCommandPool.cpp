@@ -4,6 +4,7 @@
 #include "VulkanRHI/FVulkanDeviceOwnerState.h"
 #include "VulkanRHI/FVulkanDiagnostics.h"
 
+#include <algorithm>
 #include <new>
 #include <stdexcept>
 
@@ -22,7 +23,12 @@ FVulkanCommandPool::FVulkanCommandPool(
 
 Stoner::RHI::ERHIQueueType FVulkanCommandPool::GetQueueType() const noexcept { return QueueType; }
 Stoner::Core::uint32 FVulkanCommandPool::GetCapacity() const noexcept { return Capacity; }
-Stoner::Core::uint32 FVulkanCommandPool::GetAllocatedCount() const noexcept { return static_cast<Stoner::Core::uint32>(CommandBuffers.size()); }
+Stoner::Core::uint32 FVulkanCommandPool::GetAllocatedCount() const noexcept
+{
+    return static_cast<Stoner::Core::uint32>(std::count_if(
+        CommandBuffers.begin(), CommandBuffers.end(),
+        [](const auto& Candidate) { return !Candidate.expired(); }));
+}
 bool FVulkanCommandPool::IsValid() const noexcept
 {
     return bValid && Owner && Owner->bActive;
@@ -35,6 +41,11 @@ Stoner::RHI::TRHIObjectResult<FVulkanCommandBuffer> FVulkanCommandPool::Allocate
         MarkCommandAllocation(Diagnostics, "command pool is invalidated");
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
+    CommandBuffers.erase(
+        std::remove_if(
+            CommandBuffers.begin(), CommandBuffers.end(),
+            [](const auto& Candidate) { return Candidate.expired(); }),
+        CommandBuffers.end());
     if (CommandBuffers.size() >= Capacity)
     {
         MarkCommandAllocation(Diagnostics, "command buffer capacity exhausted");
@@ -79,9 +90,9 @@ void FVulkanCommandPool::Invalidate() noexcept
         return;
     }
     bValid = false;
-    for (const auto& CommandBuffer : CommandBuffers)
+    for (const auto& WeakCommandBuffer : CommandBuffers)
     {
-        if (CommandBuffer)
+        if (const auto CommandBuffer = WeakCommandBuffer.lock())
         {
             CommandBuffer->Invalidate();
         }

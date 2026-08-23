@@ -1,0 +1,189 @@
+name: Feature 028 Production Content
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
+  pull_request:
+    paths:
+      - '.github/scripts/*production*'
+      - '.github/workflows/feature-028-production-content.yml'
+      - 'Config/AssetCooker/Profiles/Production/**'
+      - 'Config/Validation/ProductionContent/**'
+      - 'Content/ProductionAcceptance/**'
+      - 'Content/Shaders/**'
+      - 'Demo/StonerDemo/**'
+      - 'Source/**'
+      - 'Tests/**'
+      - 'ThirdParty/flip/**'
+      - 'Tools/AssetCooker/**'
+      - 'specs/028-production-content-acceptance/**'
+  push:
+    branches: ['028-production-content-acceptance', 'master']
+    paths:
+      - '.github/scripts/*production*'
+      - '.github/workflows/feature-028-production-content.yml'
+      - 'Config/AssetCooker/Profiles/Production/**'
+      - 'Config/Validation/ProductionContent/**'
+      - 'Content/ProductionAcceptance/**'
+      - 'Content/Shaders/**'
+      - 'Demo/StonerDemo/**'
+      - 'Source/**'
+      - 'Tests/**'
+      - 'ThirdParty/flip/**'
+      - 'Tools/AssetCooker/**'
+      - 'specs/028-production-content-acceptance/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: feature-028-production-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regular:
+    if: github.event_name != 'schedule'
+    name: Regular ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows Vulkan
+            slug: windows-vulkan
+            os: windows-latest
+            build: Build/Win64/Release
+            target: Config/AssetCooker/Profiles/Production/Windows-Vulkan.json
+          - name: Linux Vulkan
+            slug: linux-vulkan
+            os: ubuntu-latest
+            build: Build/Linux/Release
+            target: Config/AssetCooker/Profiles/Production/Linux-Vulkan.json
+          - name: macOS Metal
+            slug: macos-metal
+            os: macos-26
+            build: Build/Mac/Release
+            target: Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json
+          - name: macOS Intel Metal
+            slug: macos-intel-metal
+            os: macos-26-intel
+            build: Build/Mac/Release
+            target: Config/AssetCooker/Profiles/Production/Mac-Metal-X86_64.json
+          - name: macOS Vulkan
+            slug: macos-vulkan
+            os: macos-26
+            build: Build/Mac/Release
+            target: Config/AssetCooker/Profiles/Production/Mac-Vulkan.json
+    steps:
+      - uses: actions/checkout@v5
+      - if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Install SCons
+        run: python -m pip install scons==4.10.1
+      - name: Install Linux graphics dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
+      - name: Build strict Debug
+        run: scons config=debug strict=1
+      - name: Build strict Release
+        run: scons config=release strict=1
+      - name: Validate runner contracts
+        run: |
+          python .github/scripts/test_run_production_content_validation.py
+          python .github/scripts/test_production_content_workflows.py
+      - name: Run regular profile
+        run: >-
+          python .github/scripts/run_production_content_validation.py
+          --profile regular --target-profile ${{ matrix.target }}
+          --build-root ${{ matrix.build }}
+          --output Build/Validation/028/${{ matrix.slug }}
+          --timeout-seconds 600
+      - name: Upload regular immutable evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: production-regular-${{ matrix.slug }}-${{ github.run_attempt }}
+          path: Build/Validation/028/${{ matrix.slug }}
+          if-no-files-found: error
+
+  regular-consumer:
+    if: github.event_name != 'schedule'
+    name: Revalidate ${{ matrix.slug }} artifact
+    needs: regular
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - slug: windows-vulkan
+            target: Config/AssetCooker/Profiles/Production/Windows-Vulkan.json
+          - slug: linux-vulkan
+            target: Config/AssetCooker/Profiles/Production/Linux-Vulkan.json
+          - slug: macos-metal
+            target: Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json
+          - slug: macos-intel-metal
+            target: Config/AssetCooker/Profiles/Production/Mac-Metal-X86_64.json
+          - slug: macos-vulkan
+            target: Config/AssetCooker/Profiles/Production/Mac-Vulkan.json
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v7
+        with:
+          name: production-regular-${{ matrix.slug }}-${{ github.run_attempt }}
+          path: Build/Validation/028/downloaded/${{ matrix.slug }}
+      - name: Revalidate producer artifact digests
+        run: >-
+          python .github/scripts/run_production_content_validation.py
+          --verify-only Build/Validation/028/downloaded/${{ matrix.slug }}
+          --target-profile ${{ matrix.target }}
+      - name: Preserve consumer verification
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: production-consumer-${{ matrix.slug }}-${{ github.run_attempt }}
+          path: Build/Validation/028/downloaded/${{ matrix.slug }}/artifact-manifest.json
+          if-no-files-found: error
+
+  medium:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    name: Weekly or manual medium profile
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install dependencies
+        run: |
+          python -m pip install scons==4.10.1
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
+      - name: Restore pinned Sponza corpus
+        uses: actions/cache@v4
+        with:
+          path: Content/ProductionAcceptance/External/Sponza
+          key: production-sponza-${{ hashFiles('Content/ProductionAcceptance/Corpus/corpus-v1.json') }}
+      - name: Acquire pinned medium corpus
+        run: >-
+          python .github/scripts/acquire_production_corpus.py
+          --package khronos-sponza-gltf
+          --content-root Content/ProductionAcceptance
+      - name: Build strict Release
+        run: scons config=release strict=1
+      - name: Run medium profile
+        run: >-
+          python .github/scripts/run_production_content_validation.py
+          --profile medium
+          --target-profile Config/AssetCooker/Profiles/Production/Linux-Vulkan.json
+          --build-root Build/Linux/Release
+          --output Build/Validation/028/medium-linux
+          --acquire-missing
+          --timeout-seconds 1800
+      - name: Upload medium evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: production-medium-linux-${{ github.run_attempt }}
+          path: Build/Validation/028/medium-linux
+          if-no-files-found: error

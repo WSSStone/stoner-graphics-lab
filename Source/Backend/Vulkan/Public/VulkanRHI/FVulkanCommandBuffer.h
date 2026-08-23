@@ -25,6 +25,24 @@ struct FVulkanRecordedCommand
     Stoner::Core::uint64 C = 0;
     Stoner::Core::int64 D = 0;
     Stoner::Core::uint64 E = 0;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> BufferA;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> BufferB;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> TextureA;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> TextureB;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHIGraphicsPipeline> GraphicsPipeline;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHIComputePipeline> ComputePipeline;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDescriptorSet> DescriptorSet;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHIRenderPass> RenderPass;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHIFramebuffer> Framebuffer;
+    Stoner::RHI::FRHIRenderPassClearValues ClearValues;
+    Stoner::RHI::FRHIResourceBarrierDesc Barrier;
+    Stoner::RHI::FRHIBufferCopyRange BufferCopy;
+    Stoner::RHI::FRHITextureCopyRegion TextureCopy;
+    Stoner::RHI::FRHITextureBufferCopyRegion TextureToBufferCopy;
+    Stoner::RHI::FRHIIndexedDrawArguments IndexedDraw;
+    Stoner::RHI::FRHIViewport Viewport;
+    Stoner::RHI::FRHIScissorRect Scissor;
+    Stoner::RHI::ERHIIndexType IndexType = Stoner::RHI::ERHIIndexType::UInt16;
 };
 
 class FVulkanCommandBuffer final : public Stoner::RHI::IRHICommandBuffer

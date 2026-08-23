@@ -84,6 +84,13 @@ void TestManagerInspection(FAssetManagerInspectionTestResult& Result)
             Inspection.Operations.empty() && Inspection.Cache.empty() &&
             Inspection.bInspectionTruncated && Redacted,
         "manager inspection is bounded, stable, and excludes native source paths");
+    Record(Result,
+        Ready && Inspection.ResolverExecutions == 2 &&
+            Inspection.ImporterExecutions == 1 &&
+            Inspection.AuthoringDecoderExecutions == 1 &&
+            Inspection.SourceFallbackExecutions == 0 &&
+            Inspection.StrictLoaderExecutions == 0,
+        "development inspection counts source participants without reporting strict loaders");
     (void)Manager->ReleaseRequest(First);
     (void)Manager->ReleaseRequest(Second);
     (void)Manager->Shutdown();

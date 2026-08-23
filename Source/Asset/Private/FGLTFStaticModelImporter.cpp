@@ -381,9 +381,11 @@ EAssetResult DecodePrimitive(
     Core::uint32 MeshIndex,
     Core::uint32 PrimitiveIndex,
     const FStaticModelImportProfile& Profile,
-    FStaticMeshPrimitive& OutPrimitive)
+    FStaticMeshPrimitive& OutPrimitive,
+    const char*& OutFailureField)
 {
     OutPrimitive = {};
+    OutFailureField = "decode";
     if (SourcePrimitive.type != cgltf_primitive_type_triangles ||
         SourcePrimitive.targets_count != 0 ||
         SourcePrimitive.has_draco_mesh_compression)
@@ -499,6 +501,7 @@ EAssetResult DecodePrimitive(
     }
     if (OutPrimitive.Vertices.Normals.empty())
     {
+        OutFailureField = "normal-generation";
         OutPrimitive.Vertices.Tangents.clear();
         Result = GenerateFlatStaticMeshNormals(
             OutPrimitive.Vertices, OutPrimitive.Indices,
@@ -508,6 +511,7 @@ EAssetResult DecodePrimitive(
             return Result;
         }
     }
+    OutFailureField = "bounds";
     Result = BuildStaticMeshBounds(
         OutPrimitive.Vertices.Positions, OutPrimitive.LocalBounds);
     if (Result != EAssetResult::Success)
@@ -658,11 +662,9 @@ EAssetResult ImportMeshes(
             std::span<const Core::uint8> Buffer;
             const EAssetResult ReadResult =
                 GetBufferViewBytes(*Data, Storage, View, Buffer);
-            if (ReadResult != EAssetResult::Success ||
-                View->offset > Buffer.size() || View->size > Buffer.size() - View->offset)
+            if (ReadResult != EAssetResult::Success)
                 return EAssetResult::MalformedSource;
-            OutBytes.assign(Buffer.begin() + static_cast<std::ptrdiff_t>(View->offset),
-                Buffer.begin() + static_cast<std::ptrdiff_t>(View->offset + View->size));
+            OutBytes.assign(Buffer.begin(), Buffer.end());
             return EAssetResult::Success;
         },
         ImageTextureOutputs, Diagnostics);
@@ -759,18 +761,27 @@ EAssetResult ImportMeshes(
              PrimitiveIndex < SourceMesh.primitives_count; ++PrimitiveIndex)
         {
             FStaticMeshPrimitive Primitive;
+            const char* PrimitiveFailureField = "decode";
             Result = DecodePrimitive(
                 *Data, Storage, SourceMesh.primitives[PrimitiveIndex],
                 static_cast<Core::uint32>(MeshIndex),
-                static_cast<Core::uint32>(PrimitiveIndex), Profile, Primitive);
+                static_cast<Core::uint32>(PrimitiveIndex), Profile, Primitive,
+                PrimitiveFailureField);
             if (Result != EAssetResult::Success)
             {
+                AddDiagnostic(Diagnostics, EAssetStage::Normalize, Result,
+                    Request, "asset.gltf.primitive", PrimitiveFailureField);
                 return Result;
             }
             const cgltf_primitive& SourcePrimitive =
                 SourceMesh.primitives[PrimitiveIndex];
             Result = ValidateMaterialTexCoords(SourcePrimitive);
-            if (Result != EAssetResult::Success) return Result;
+            if (Result != EAssetResult::Success)
+            {
+                AddDiagnostic(Diagnostics, EAssetStage::Validate, Result,
+                    Request, "asset.gltf.primitive", "material-texcoords");
+                return Result;
+            }
             if (SourcePrimitive.material != nullptr)
             {
                 if (SourcePrimitive.material < Data->materials ||
@@ -818,6 +829,8 @@ EAssetResult ImportMeshes(
         Result = BuildAggregateStaticMeshBounds(Desc.Primitives, Desc.Bounds);
         if (Result != EAssetResult::Success)
         {
+            AddDiagnostic(Diagnostics, EAssetStage::Normalize, Result,
+                Request, "asset.gltf.mesh", "aggregate-bounds");
             return Result;
         }
         FStaticMeshAsset Asset;
@@ -825,6 +838,8 @@ EAssetResult ImportMeshes(
             std::move(Desc), Asset, Diagnostics);
         if (Result != EAssetResult::Success)
         {
+            AddDiagnostic(Diagnostics, EAssetStage::Validate, Result,
+                Request, "asset.gltf.mesh", "asset-validation");
             return Result;
         }
         auto Payload = Core::MakeShared<const FStaticMeshAsset>(std::move(Asset));
@@ -948,7 +963,8 @@ EAssetResult FGLTFStaticModelImporter::Import(
     Core::TArray<FAssetImportOutput>& OutOutputs)
 {
     return Import(
-        FAssetImportRequest{Descriptor, Source, {}, {}}, OutOutputs, nullptr);
+        FAssetImportRequest{Descriptor, Source, {}, {}, {}},
+        OutOutputs, nullptr);
 }
 
 EAssetResult FGLTFStaticModelImporter::Import(
@@ -984,8 +1000,8 @@ EAssetResult FGLTFStaticModelImporter::Import(
     if (Result == EAssetResult::Success)
     {
         Result = ImportMeshes(
-            Request, *Profile, SourceBytes, nullptr, CandidateOutputs, Diagnostics,
-            nullptr);
+            Request, *Profile, SourceBytes, Request.DependencyResolver,
+            CandidateOutputs, Diagnostics, nullptr);
     }
     if (Request.RuntimeContext && Request.RuntimeContext->ShouldStop())
         Result = EAssetResult::Cancelled;

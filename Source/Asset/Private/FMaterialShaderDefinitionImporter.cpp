@@ -57,7 +57,7 @@ public:
         Core::TArray<FAssetImportOutput>& OutOutputs) override
     {
         return Import(
-            FAssetImportRequest{Descriptor, Source, {}, {}},
+            FAssetImportRequest{Descriptor, Source, {}, {}, {}},
             OutOutputs,
             nullptr);
     }

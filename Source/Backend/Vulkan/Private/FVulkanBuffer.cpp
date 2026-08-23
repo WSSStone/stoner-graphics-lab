@@ -58,6 +58,7 @@ Stoner::RHI::ERHIResult FVulkanBuffer::Invalidate()
         return Stoner::RHI::ERHIResult::InvalidState;
     }
     LifecycleState = Stoner::RHI::ERHIResourceLifecycleState::Invalidated;
+    decltype(UploadedBytes){}.swap(UploadedBytes);
     return Allocator
         ? Allocator->Release(Allocation)
         : Stoner::RHI::ERHIResult::InvalidState;
@@ -96,6 +97,36 @@ Stoner::RHI::ERHIResult FVulkanBuffer::Upload(const void* Data, Stoner::Core::ui
         return Stoner::RHI::ERHIResult::Unavailable;
     }
     std::memcpy(UploadedBytes.data() + static_cast<Stoner::Core::usize>(OffsetBytes), Data, static_cast<Stoner::Core::usize>(SizeBytes));
+    return Stoner::RHI::ERHIResult::Success;
+}
+
+Stoner::RHI::ERHIResult FVulkanBuffer::RecordNativeUpload(
+    const void* Data,
+    Stoner::Core::uint64 SizeBytes,
+    Stoner::Core::uint64 OffsetBytes)
+{
+    if (LifecycleState != Stoner::RHI::ERHIResourceLifecycleState::Valid ||
+        Data == nullptr || SizeBytes == 0 || OffsetBytes > Desc.SizeInBytes ||
+        SizeBytes > Desc.SizeInBytes - OffsetBytes)
+        return Stoner::RHI::ERHIResult::InvalidState;
+    const Stoner::Core::uint64 RequiredBytes = OffsetBytes + SizeBytes;
+    if (RequiredBytes > static_cast<Stoner::Core::uint64>(UploadedBytes.max_size()))
+        return Stoner::RHI::ERHIResult::Unavailable;
+    try
+    {
+        if (UploadedBytes.size() < static_cast<Stoner::Core::usize>(RequiredBytes))
+            UploadedBytes.resize(static_cast<Stoner::Core::usize>(RequiredBytes));
+    }
+    catch (const std::bad_alloc&)
+    {
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    std::memcpy(UploadedBytes.data() + static_cast<Stoner::Core::usize>(OffsetBytes),
+        Data, static_cast<Stoner::Core::usize>(SizeBytes));
     return Stoner::RHI::ERHIResult::Success;
 }
 

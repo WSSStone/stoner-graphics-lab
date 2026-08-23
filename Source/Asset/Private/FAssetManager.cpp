@@ -34,14 +34,17 @@ struct FAssetManager::FImpl
         const FAssetManagerConfig& InConfig,
         Core::uint64 Lifetime,
         Core::TUniquePtr<Private::FBoundCookedGeneration> InGeneration,
-        Core::TUniquePtr<Private::IAssetLoadingStrategy> InStrategy)
+        Core::TUniquePtr<Private::IAssetLoadingStrategy> InStrategy,
+        Core::TSharedPtr<Private::FAssetManagerExecutionCounterState>
+            InExecutionCounters)
         : Config(InConfig),
           Requests(Lifetime, InConfig.Limits.MaxRequests),
           Workers(InConfig.WorkerCount, InConfig.Limits.MaxQueuedWork),
           Cache(InConfig.Limits.MaxAggregatePayloadBytes),
           Completions(InConfig.Limits.MaxCompletions),
           BoundGeneration(std::move(InGeneration)),
-          Strategy(std::move(InStrategy))
+          Strategy(std::move(InStrategy)),
+          ExecutionCounters(std::move(InExecutionCounters))
     {
     }
 
@@ -114,6 +117,8 @@ struct FAssetManager::FImpl
     Private::FAssetCompletionQueue Completions;
     Core::TUniquePtr<Private::FBoundCookedGeneration> BoundGeneration;
     Core::TUniquePtr<Private::IAssetLoadingStrategy> Strategy;
+    Core::TSharedPtr<Private::FAssetManagerExecutionCounterState>
+        ExecutionCounters;
     Private::FAssetLoadOperationTable Operations;
     Private::FAssetNodeLoadCoordinator NodeLoads;
     std::vector<FRequestControl> RequestControls;
@@ -152,19 +157,22 @@ EAssetResult FAssetManager::Create(
         if (Result != EAssetResult::Success) return Result;
     }
     Core::TUniquePtr<Private::IAssetLoadingStrategy> Strategy;
+    auto ExecutionCounters =
+        Core::MakeShared<Private::FAssetManagerExecutionCounterState>();
     if (Config.Mode == EAssetManagerMode::DevelopmentSource)
         Strategy = Core::MakeUnique<Private::FDevelopmentAssetLoadingStrategy>(
-            Config);
+            Config, ExecutionCounters);
     else
         Strategy = Core::MakeUnique<Private::FCookedAssetLoadingStrategy>(
-            Config, *Bound);
+            Config, *Bound, ExecutionCounters);
     Core::uint64 Lifetime = GManagerLifetime.fetch_add(
         1, std::memory_order_relaxed);
     if (Lifetime == 0)
         Lifetime = GManagerLifetime.fetch_add(1, std::memory_order_relaxed);
     OutManager = Core::TSharedPtr<FAssetManager>(new FAssetManager(
         Core::MakeUnique<FImpl>(
-            Config, Lifetime, std::move(Bound), std::move(Strategy))));
+            Config, Lifetime, std::move(Bound), std::move(Strategy),
+            std::move(ExecutionCounters))));
     return EAssetResult::Success;
 }
 
@@ -537,6 +545,21 @@ FAssetManagerInspection FAssetManager::Inspect() const
     Result.RequiredDependencyRetentions = Cache.RequiredDependencies;
     Result.ExtensionContractViolations =
         Impl_->ExtensionContractViolations;
+    Result.ResolverExecutions =
+        Impl_->ExecutionCounters->ResolverExecutions.load(
+            std::memory_order_relaxed);
+    Result.ImporterExecutions =
+        Impl_->ExecutionCounters->ImporterExecutions.load(
+            std::memory_order_relaxed);
+    Result.AuthoringDecoderExecutions =
+        Impl_->ExecutionCounters->AuthoringDecoderExecutions.load(
+            std::memory_order_relaxed);
+    Result.SourceFallbackExecutions =
+        Impl_->ExecutionCounters->SourceFallbackExecutions.load(
+            std::memory_order_relaxed);
+    Result.StrictLoaderExecutions =
+        Impl_->ExecutionCounters->StrictLoaderExecutions.load(
+            std::memory_order_relaxed);
     Result.CompletionReservations = Impl_->Completions.Reserved();
     Result.QueuedCompletions = Impl_->Completions.Queued();
     for (const auto& Control : Impl_->RequestControls)

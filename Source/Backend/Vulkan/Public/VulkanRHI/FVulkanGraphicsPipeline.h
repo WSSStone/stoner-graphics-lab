@@ -29,6 +29,7 @@ public:
 
 private:
     friend class FVulkanDevice;
+    friend class FVulkanNativeContext;
 
     FVulkanGraphicsPipeline(
         Stoner::RHI::FRHIGraphicsPipelineDesc InDesc,

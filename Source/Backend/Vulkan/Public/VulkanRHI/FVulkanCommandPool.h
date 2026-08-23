@@ -38,7 +38,7 @@ private:
     Stoner::RHI::ERHIQueueType QueueType = Stoner::RHI::ERHIQueueType::Graphics;
     Stoner::Core::uint32 Capacity = 0;
     Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> Owner;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandBuffer>> CommandBuffers;
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanCommandBuffer>> CommandBuffers;
     bool bValid = true;
 };
 

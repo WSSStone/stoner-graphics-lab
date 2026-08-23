@@ -1,0 +1,30 @@
+{
+  "schema": "stoner.production-validation-profile",
+  "schemaVersion": 1,
+  "profileId": "medium",
+  "corpusRevision": "khronos-2026-08-19-v1",
+  "packageIds": ["khronos-lantern-glb", "khronos-sponza-gltf"],
+  "targetProfiles": [
+    "Config/AssetCooker/Profiles/Production/Linux-Vulkan.json",
+    "Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json",
+    "Config/AssetCooker/Profiles/Production/Mac-Metal-X86_64.json",
+    "Config/AssetCooker/Profiles/Production/Mac-Vulkan.json",
+    "Config/AssetCooker/Profiles/Production/Windows-Vulkan.json"
+  ],
+  "lifecycleCycles": 1000,
+  "warmupCycles": 20,
+  "maxRssGrowthBytes": 16777216,
+  "timeBudgetSeconds": 1800,
+  "cadence": ["weekly-default-branch", "feature-closeout", "release-closeout"],
+  "requiredGates": [
+    "corpus",
+    "all-package-import",
+    "clean-cook",
+    "warm-cook-100-percent-reuse",
+    "strict-no-source-runtime",
+    "complete-semantic-equivalence",
+    "transactional-realization",
+    "lifecycle",
+    "report"
+  ]
+}

@@ -110,7 +110,7 @@ inline Asset::FShaderNativeLibraryEvidence LibraryEvidence(
     Evidence.LibraryDigest = Asset::FAssetDigest::FromBytes(Bytes);
     Evidence.SizeBytes = Bytes.size();
     Evidence.Finalizer = Participant("cooker.metal-shader");
-    Evidence.FinalizerVersion = Producer("027-v1");
+    Evidence.FinalizerVersion = Producer("027-v2");
     (void)Asset::FinalizeShaderNativeLibraryEvidence(Evidence);
     return Evidence;
 }
@@ -131,7 +131,7 @@ inline Core::TSharedPtr<const Asset::FShaderPayloadAsset> MetalPayload(
     Version.ContentDigest = Asset::FAssetDigest::FromBytes(Bytes);
     Version.CookDigest = Version.ContentDigest;
     Version.Producer = Participant("cooker.metal-shader");
-    Version.ProducerVersion = Producer("027-v1");
+    Version.ProducerVersion = Producer("027-v2");
     Version.TargetProfile = Profile;
     Asset::FShaderPayloadAsset Payload;
     const auto Created = Asset::FShaderPayloadAsset::CreateWithNativeEvidence(
@@ -159,7 +159,7 @@ inline Core::TSharedPtr<const Asset::FShaderPayloadAsset> TriangleMetalPayload(
     Version.ContentDigest = Asset::FAssetDigest::FromBytes(Bytes);
     Version.CookDigest = Version.ContentDigest;
     Version.Producer = Participant("cooker.metal-shader");
-    Version.ProducerVersion = Producer("027-v1");
+    Version.ProducerVersion = Producer("027-v2");
     Version.TargetProfile = Profile;
     Asset::FShaderPayloadAsset Payload;
     const auto Created = Asset::FShaderPayloadAsset::CreateWithNativeEvidence(
@@ -306,7 +306,7 @@ inline bool BuildGeneration(
         Record.Importer = {
             Participant("stoner.material-shader.dependency"), Producer("023-v1")};
         Record.Cooker = {
-            Participant("cooker.metal-shader"), Producer("027-v1")};
+            Participant("cooker.metal-shader"), Producer("027-v2")};
         if (Asset::FAssetParticipantId::Create(
                 Envelope.Header.CodecId, Record.Codec.Id) !=
                 Asset::EAssetResult::Success ||

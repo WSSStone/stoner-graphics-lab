@@ -1,0 +1,33 @@
+{
+  "schema": "stoner.production-image-baseline",
+  "schemaVersion": 1,
+  "baselineId": "production-content-v1.macos.apple8.moltenvk.rgba8.v1",
+  "state": "accepted",
+  "workloadRevision": "production-content-v1",
+  "backend": "vulkan",
+  "deviceClass": "macos.apple8.moltenvk.rgba8",
+  "capabilitySignature": {
+    "registryVersion": 1,
+    "backendImplementation": "moltenvk",
+    "cpuArchitecture": "arm64",
+    "adapterFamily": "apple8",
+    "shaderProfile": "vulkan-1.3",
+    "colorFormat": "rgba8-unorm",
+    "depthFormat": "d32-float",
+    "sampleCount": 1,
+    "textureFormatFamily": "astc"
+  },
+  "width": 512,
+  "height": 512,
+  "colorTransfer": "srgb",
+  "referencePath": "macos.apple8.moltenvk.rgba8/production-content-v1.ppm",
+  "referenceSha256": "52a0f9b1945394186c55d46df6138ed18c82fa3f8c05cc0de04cc232beb4f431",
+  "flipPolicy": {
+    "meanMax": 0.0005,
+    "p95Max": 0.001,
+    "maximumMax": 0.01,
+    "badPixelThreshold": 0.05,
+    "badPixelFractionMax": 0.001
+  },
+  "calibrationEvidenceSha256": "1f7637393a3d88a028f9966c43bb358a0a3727bc4e3165a577f0d0d67bdd9ec4"
+}

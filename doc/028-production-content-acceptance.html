@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>028 - Asset Production Content Integration &amp; Acceptance - Stoner Graphics Lab</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}:root{--bg:#f5f4f1;--paper:#fff;--ink:#20252b;--muted:#667078;--line:#ddd9d0;--accent:#815b24;--accent2:#22677a;--soft:#f6efe3;--info:#eaf3f5;--warn:#9a4e24;--warnsoft:#fff0e7;--code:#efede8;--dark:#20252b;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.72 var(--sans)}.page{display:grid;grid-template-columns:290px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 18px;background:var(--paper);border-right:1px solid var(--line)}.brand{font-size:14px;font-weight:800;color:var(--accent)}.subtitle{font-size:12px;color:var(--muted);padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:18px}.toc{list-style:none;padding:0}.toc a{display:block;padding:6px 8px;color:var(--muted);text-decoration:none;border-radius:6px;font-size:13px}.toc a:hover{color:var(--accent);background:var(--soft)}main{max-width:1120px;width:100%;padding:48px 48px 96px;margin:0 auto}h1{margin:0 0 8px;font-size:34px;line-height:1.2;color:var(--accent)}.meta{color:var(--muted);font-size:13px;margin-bottom:30px}section{margin-bottom:52px}h2{margin:32px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:23px}h3{margin:22px 0 10px;font-size:17px}h4{margin:16px 0 6px;font-size:15px}p{margin:0 0 14px}ul,ol{margin:0 0 16px;padding-left:23px}li{margin:4px 0}code{font-family:var(--mono);font-size:13px;background:var(--code);padding:2px 5px;border-radius:4px}pre{margin:14px 0;padding:16px;overflow:auto;border-radius:8px;color:#e5e7eb;background:var(--dark);font-size:13px;line-height:1.55}pre code{background:transparent;color:inherit;padding:0}table{width:100%;border-collapse:collapse;margin:14px 0 20px;background:var(--paper)}th,td{padding:10px 12px;border:1px solid var(--line);text-align:left;vertical-align:top}th{background:var(--soft);font-size:13px}.callout{margin:16px 0;padding:14px 16px;border-left:4px solid var(--accent);background:var(--soft)}.note{border-left-color:var(--accent2);background:var(--info)}.pending{border-left-color:var(--warn);background:var(--warnsoft)}.flow{display:grid;grid-template-columns:repeat(7,minmax(92px,1fr));gap:8px;margin:18px 0}.node{padding:12px 9px;border:1px solid var(--line);border-radius:6px;background:var(--paper);text-align:center;font-size:12px}.arrow{color:var(--accent);font-weight:700}.small{font-size:13px;color:var(--muted)}@media(max-width:900px){.page{display:block}.sidebar{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}main{padding:32px 20px 72px}.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg)}}
+</style>
+</head>
+<body>
+<div class="page">
+<aside class="sidebar">
+  <div class="brand">STONER GRAPHICS LAB</div>
+  <div class="subtitle">Feature 028 implementation study</div>
+  <ul class="toc">
+    <li><a href="#context">一、文档与上下文信息</a></li>
+    <li><a href="#scope">二、目标与边界</a></li>
+    <li><a href="#usage">三、交互与产品设计</a></li>
+    <li><a href="#architecture">四、技术架构与关键决策</a></li>
+    <li><a href="#validation">五、实施与验证</a></li>
+    <li><a href="#practice">六、设计巧思与最佳实践</a></li>
+    <li><a href="#cpp">七、编程语言知识点</a></li>
+    <li><a href="#engineering">八、软件工程知识点</a></li>
+    <li><a href="#graphics">九、渲染、引擎与图形 API 学习笔记</a></li>
+  </ul>
+</aside>
+<main>
+<header>
+  <h1>028 - Asset Production Content Integration &amp; Acceptance</h1>
+  <div class="meta">版本 1.0 · 2026-08-23 · 主体实现完成 / final-revision closeout 进行中 · 分支 028-production-content-acceptance</div>
+  <div class="callout"><strong>工程结论：</strong>Feature 028 把“单元测试里能导入资产”提升为可审计的生产内容闭环：真实 GLB/glTF 和 KTX2 从 source 进入确定性 cook generation，经 source-unavailable strict manager 加载、Renderer 事务化 realization、Vulkan/Metal 原生 Deferred 与 Forward 执行，再由 attachment semantic probes、accepted baseline、CPU FLIP、1,000 次生命周期和 artifact digest 共同证明。Metal 上曾经 nonblank 但明显过暗的画面说明：生命周期门禁不能代替图像正确性门禁。</div>
+</header>
+
+<section id="context">
+<h2>一、文档与上下文信息</h2>
+<h3>1. 基础元数据</h3>
+<table><tbody>
+<tr><th>项目项</th><th>内容</th></tr>
+<tr><td>Feature / Roadmap</td><td>028 - Asset Production Content Integration &amp; Acceptance；原计划中的 Meshlet Derived Data 顺延到 029</td></tr>
+<tr><td>设计输入</td><td><code>specs/028-production-content-acceptance/</code> 的 spec、plan、research、data-model、contracts、tasks 与 quickstart</td></tr>
+<tr><td>主要源码</td><td><code>Source/Asset/</code>、<code>Source/Renderer/</code>、<code>Demo/StonerDemo/Private/FProductionContent*</code>、Vulkan/Metal Backend、<code>Tools/AssetCooker/</code></td></tr>
+<tr><td>内容与策略</td><td><code>Content/ProductionAcceptance/</code>、<code>Config/Validation/ProductionContent/</code></td></tr>
+<tr><td>验证入口</td><td><code>Tests/Production*</code>、<code>.github/scripts/run_production_content_validation.py</code>、Feature 028 workflows</td></tr>
+<tr><td>证据</td><td><code>Validation/028/</code>；本地 regular/medium 结果见 <code>reports/us4-tiered-acceptance.md</code></td></tr>
+</tbody></table>
+
+<h3>2. 本期核心摘要</h3>
+<p>工程交付上，本期引入了两级真实内容：仓库内有界 Lantern GLB 用于相关 PR 的 regular gate，hash-pinned 外部 Sponza 包用于 weekly/closeout medium gate。两个包都必须完成真实 Image/Texture/KTX2、Material/Shader、StaticMesh/StaticModel cook，生成 immutable generation；运行期卸载 source 后仍要从一个 generation 发布完整 typed closure，并把全部 primitive、material、texture 和 shader 事务化 realization 为 Renderer/RHI 对象。</p>
+<p>学习价值上，Feature 028 最重要的是理解“渲染验收是一组互补 oracle”。nonblank 只能证明写过像素，attachment probe 能定位 GBuffer/lighting/composition 哪一层错，FLIP 能衡量感知差异，生命周期 counter 能证明 ownership 回到基线，semantic equivalence 能证明 source/cooked 含义一致。任何单一 oracle 都可能产生假绿。</p>
+
+<h3>3. 上下文与依赖</h3>
+<ul>
+<li>Features 020-024 提供 Asset identity、Image/Texture、Material/Shader 和 glTF 静态模型 CPU payload。</li>
+<li>Feature 025 提供 DDC、manifest、generation publication 和 standalone validation；Feature 026 提供 development/strict manager、lease 与 typed request。</li>
+<li>Features 019、022、023 提供 Deferred pipeline、KTX2 和 shader payload；Feature 027 提供独立 Metal backend 与 offline metallib。</li>
+<li>FLIP 1.7 仅作为 test-side CPU single-header dependency；runtime 不链接 FLIP。cgltf、stb_image、KTX-Software、WAMR、yyjson、SPIRV-Cross 继续保持各自 private 边界。</li>
+<li>Feature 029 可在这套真实内容、确定性 cook、严格生命周期与图像证据上继续做 Meshlet Derived Data，而不必重新发明 acceptance。</li>
+</ul>
+</section>
+
+<section id="scope">
+<h2>二、目标与边界</h2>
+<h3>1. 业务与功能目标</h3>
+<ul>
+<li>内容维护者能验证 package inventory、hash、root identity 和 source tree，没有隐式网络或 license-policy 判断。</li>
+<li>cook owner 能对每个目标 profile 做 clean determinism、warm 100% eligible reuse、publication 和 consumer-side digest revalidation。</li>
+<li>runtime/Renderer 能在 source 不可用时加载完整 closure，拒绝 wrong target、corrupt payload、missing dependency 和 partial realization。</li>
+<li>渲染维护者能查看 BaseColorAO、NormalRoughness、MaterialProperties、Depth、LightingAccumulation、FinalOutput 和 ForwardColor 的原始 GPU readback，并用 semantic probe + exact baseline + FLIP 判定。</li>
+<li>CI owner 能用 regular、medium、hardware 三种 profile 表达 cadence、预算、capability owner 和 Unsupported replacement lane。</li>
+</ul>
+
+<h3>2. 架构目标与定位</h3>
+<div class="flow">
+  <div class="node"><strong>Corpus</strong><br>hash-pinned source</div><div class="node arrow">→</div>
+  <div class="node"><strong>AssetCooker</strong><br>DDC + generation</div><div class="node arrow">→</div>
+  <div class="node"><strong>Asset Manager</strong><br>strict typed closure</div><div class="node arrow">→</div>
+  <div class="node"><strong>Renderer/RHI</strong><br>realize + execute</div>
+</div>
+<p>Asset 仍是 CPU-only；Renderer 是 Asset-to-RHI realization 的唯一适配层；Backend 独占 native GPU object、submit、readback 与 present。Tools 可以依赖 Asset 并生成平台 payload，runtime Demo 不得链接 Tools/AssetCooker。测试层可以消费所有公共 contract，并独占 baseline/FLIP 评价逻辑。</p>
+
+<h3>3. 边界与非目标（约束）</h3>
+<ul>
+<li><strong>不自动决定 license 合规：</strong>自动化只验证 bytes 与 metadata，法律判断需要明确的人类 owner。</li>
+<li><strong>不把 Sponza bytes 提交到 Git：</strong>medium 内容较大且许可/存储策略独立，使用 revision + inventory hash 的外部 staging。</li>
+<li><strong>不做 source fallback：</strong>strict acceptance 必须在 source 已撤销后通过，否则无法证明 shipping 路径。</li>
+<li><strong>不自动接受 Candidate baseline：</strong>校准可以生成候选，只有用户明确接受后才能成为 Accepted。</li>
+<li><strong>不做 streaming、residency、archive/package、LOD/Meshlet、virtual geometry 或 ray tracing：</strong>这些会改变 ownership 与可见结果，分别留给后续 feature。</li>
+<li><strong>不要求不同 API 的原始浮点字节完全相同：</strong>先统一图像方向、row pitch、transfer 和格式，再比较语义与感知差异。</li>
+</ul>
+</section>
+
+<section id="usage">
+<h2>三、交互与产品设计</h2>
+<h3>1. 用户使用路径</h3>
+<pre><code>python3 .github/scripts/run_production_content_validation.py \
+  --profile medium \
+  --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json \
+  --build-root Build/Mac/Release \
+  --output Build/Validation/028/medium-metal \
+  --timeout-seconds 1800</code></pre>
+<ol>
+<li>按 corpus manifest 验证文件集合、大小和 SHA-256；medium 缺包时只能走显式 pinned acquisition。</li>
+<li>将 package 与仓库 shader 复制到隔离 source roots，做 clean cooks 与 unchanged warm cook。</li>
+<li>standalone validation 通过后运行 development-versus-cooked semantic equivalence，再删除复制的 source roots。</li>
+<li>strict manager bind generation、批量 request 全部 manifest records、发布 typed closure；resolver/importer/source decoder counters 必须为零。</li>
+<li>Renderer 在事务中创建 mesh buffers、KTX2 textures、descriptors 和 pipelines；任一失败则 reverse-order rollback，不发布 partial snapshot。</li>
+<li>每轮执行 Deferred full 与 Forward smoke，submit/fence 后读取 attachment；释放 session、snapshot 和 RHI resource，再采 ownership/RSS。</li>
+</ol>
+
+<h3>2. 核心规则与状态机</h3>
+<pre><code>Corpus:      Unverified -> Verified -> Staged
+Cook:        Source -> DDC entries -> Generation -> Current pointer
+Session:     Empty -> Bound -> Requests pending -> Closure published -> Shutdown
+Realization: Validate -> Create transaction -> Commit snapshot
+                                  `-> Failure -> Rollback
+Baseline:    Candidate -> Calibrated -> Reviewed -> Accepted -> Superseded
+Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
+<p>regular 固定 20 次、1-2 warm-up；medium/hardware 固定 1,000 次、1-20 warm-up。warm-up 计入总次数，RSS 取 warm-up 边界样本到 terminal 的净增长，上限 16 MiB；内部 owners 必须归零且 stale handle 必须被拒绝。regular manager 固定四个 workers，以保证 2-cycle 内存稳定；medium/hardware 使用八个 workers，以满足 30 分钟预算。</p>
+
+<h3>3. 失败模式与调试入口</h3>
+<table><thead><tr><th>症状</th><th>定位方法</th><th>本期真实案例</th></tr></thead><tbody>
+<tr><td>画面 nonblank 但错误</td><td>比较 GBuffer、Depth、Lighting、Final 的点 probe 与 readback</td><td>Metal FinalOutput 约 0.024，而 Vulkan 约 0.761；定位到 vertex Y 语义未转换</td></tr>
+<tr><td>轮廓像对但 lighting 错</td><td>检查 surface 与 fullscreen pass 是否以不同次数发生坐标翻转</td><td>两次错位让轮廓“看似正常”，lighting 却读取错误表面</td></tr>
+<tr><td>合法 glTF 被 AccessDenied</td><td>查看 resolver scope 与 manager importer request 的 dependency resolver</td><td>flat package 空 scope 和 generic import path 未转发 resolver</td></tr>
+<tr><td>Sponza deferred draw 全拒绝</td><td>检查 first rejection 与 transform determinant</td><td>绝对 determinant 阈值误杀小尺度但可逆变换，改为 scale-relative 判定</td></tr>
+<tr><td>20/2 RSS 失败</td><td>读取 warm-up/terminal/peak 与 worker count</td><td>八 worker 对 regular warm-up 太激进，改为 profile-bound 4/8 worker policy</td></tr>
+<tr><td>baseline 缺失或未接受</td><td>检查 registry 的 workload/backend/device-class exact key 和 status</td><td>Candidate/Reviewed 不参与运行时选择，缺失时 fail closed</td></tr>
+</tbody></table>
+</section>
+
+<section id="architecture">
+<h2>四、技术架构与关键决策</h2>
+<h3>1. 技术栈与基础设施</h3>
+<p>主体使用 C++20，Metal private implementation 使用 Objective-C++20/ARC，自动化使用 Python 3 标准库，构建系统为 SCons 4.10.1。Vulkan lane 使用真实 Vulkan/MoltenVK/Lavapipe capability；Metal lane 使用 macOS native Metal 和 offline MSL 2.4 metallib。CPU FLIP 固定为 NVIDIA FLIP 1.7 commit <code>b475eb4b...</code>，只编入测试。</p>
+
+<h3>2. 关键信息</h3>
+<h3>2.1 模块对应关系</h3>
+<table><thead><tr><th>模块 / 类型</th><th>职责与状态</th><th>关键关系</th></tr></thead><tbody>
+<tr><td><code>corpus-v1.json</code> 与 acquisition scripts</td><td>package revision、inventory、root、coverage claim</td><td>只决定 bytes admission，不决定 license</td></tr>
+<tr><td><code>FPublishedGenerationValidator</code></td><td>pointer、manifest、layout、payload envelope</td><td>standalone full validation；runtime bind 可用 IndexAndLayout</td></tr>
+<tr><td><code>FProductionContentSession</code></td><td>registry、manager、request handles、closure、shutdown inspection</td><td>所有 records 先批量 request，再按 manifest 稳定顺序取 typed result</td></tr>
+<tr><td><code>FStaticModelRealizer</code></td><td>mesh/texture/material/shader 到 immutable render snapshot</td><td>transaction commit 前不发布 partial GPU ownership</td></tr>
+<tr><td><code>FProductionContentCompositionBuilder</code></td><td>placement、camera、lights、frame token、Deferred/Forward inputs</td><td>同一 backend-neutral composition 驱动两条 path</td></tr>
+<tr><td><code>FProductionContentDeferredExecutionBuilder</code></td><td>aggregate geometry、pipeline、descriptor、attachment/readback binding</td><td>只消费 Renderer snapshot 与 RHI device</td></tr>
+<tr><td><code>ProductionImageAcceptance</code></td><td>canonical image、semantic probes、CPU FLIP metrics</td><td>先 probe，后 exact accepted baseline comparison</td></tr>
+<tr><td><code>run_production_content_validation.py</code></td><td>stage deadline、profile contract、reports、artifact manifest</td><td>local/CI 共用一个 runner，Unsupported 不是 pass</td></tr>
+</tbody></table>
+
+<h3>2.2 数据流、控制流与资源流</h3>
+<pre><code>verified source bytes
+  -> importer values + complete dependency graph
+  -> target-specific cook (KTX2 / SPIR-V or metallib / mesh / material)
+  -> digest-addressed DDC entries
+  -> immutable generation + atomic Current.json
+  -> full standalone validation and semantic equivalence
+  -> source roots revoked
+  -> strict typed requests + closure
+  -> transactional Renderer snapshot
+  -> Deferred + Forward RHI command records
+  -> Vulkan/Metal submit + fence + raw readback
+  -> semantic probes + accepted baseline + FLIP
+  -> release + counters + RSS + artifact manifest</code></pre>
+<p>session 的前置 generation 检查使用 IndexAndLayout，因为 strict loader 随后会对每个被请求 payload 验证文件大小、body digest、envelope digest、AssetId/type/codec/schema，并完成 typed decode。这样每轮仍覆盖全 manifest，却避免在 manager load 前把全部 payload 重复解码一次。</p>
+
+<h3>2.3 日志、诊断与可视化</h3>
+<ul>
+<li>deterministic report 只含 identity、digest、generation、结果和稳定 first failure；host path、PID、native pointer、credential 不得进入。</li>
+<li>timing、RSS、device class、FLIP 和 image observation 明确属于 observational fields，不参与 correctness digest。</li>
+<li>native integration 输出 <code>[EVIDENCE]</code> 行，含 cycles、warm-up RSS、terminal/peak/growth、captures、readbacks、counters 和 stale。</li>
+<li>image failure 先输出 probe 名称与 attachment，再输出 FLIP mean/p95/max/bad fraction；避免只给“截图不同”。</li>
+</ul>
+
+<h3>3. 架构决策记录（ADR）</h3>
+<h4>(1) 真实内容分为 checked-in regular 与 staged medium</h4>
+<p><strong>决策：</strong>Lantern 有界入库，Sponza 用 revision + file inventory hash 外部 staging。<strong>理由：</strong>PR 需要离线、快速、可复现，medium 需要更大 primitive/material/texture 规模。<strong>否决方案：</strong>把 Sponza 全量入库会扩大仓库和许可治理面；只用 Lantern 又无法暴露 103 primitive、69 texture 的规模问题。<strong>后果：</strong>medium runner 必须显式处理 acquisition failure 和 cache integrity。</p>
+
+<h4>(2) baseline 必须 exact device class 且由人明确接受</h4>
+<p><strong>决策：</strong>registry 由 backend implementation、CPU architecture、adapter family、shader profile、color/depth format、sample count 和 texture family 构造 canonical signature，精确匹配一个 class；只有 Accepted baseline 可运行。<strong>否决方案：</strong>nearest-device fallback 会把真实硬件差异隐藏为容差。<strong>后果：</strong>新增硬件要先校准和评审，但不会静默借用错误参考图。</p>
+
+<h4>(3) semantic probe 优先于 FLIP</h4>
+<p><strong>决策：</strong>coverage、orientation、primitive/material region、base color、normal、metal/roughness、emissive、depth 和 current-frame token 先过，FLIP 后过。<strong>理由：</strong>感知指标可以容忍局部差异，却不能解释 attachment 读错或整帧 stale。<strong>否决方案：</strong>只比较最终图曾让旧门禁 nonblank 假绿。<strong>后果：</strong>失败更可定位，baseline threshold 也不能掩盖结构错误。</p>
+
+<h4>(4) 一个 snapshot 共享 Deferred 与 Forward realization</h4>
+<p><strong>决策：</strong>同一 immutable aggregate snapshot 被两条 render path 共享。<strong>理由：</strong>几何和纹理 ownership 相同，重复 realization 曾把 Sponza 20-cycle RSS 推高到 30 MiB 以上。<strong>否决方案：</strong>分别创建两套 snapshot 简单但制造无意义的 GPU 内存和销毁压力。<strong>后果：</strong>两条 path 必须保持只读 contract，未来若需要不同资源需显式拆分。</p>
+
+<h4>(5) 批量 request 与 profile-bound worker policy</h4>
+<p><strong>决策：</strong>先提交全部 manifest request，再按稳定顺序完成；regular 用四 workers，medium/hardware 用八 workers。<strong>理由：</strong>顺序 request 让主线程大量 sleep，八 worker 则无法在 2-cycle regular warm-up 内稳定 allocator。<strong>否决方案：</strong>统一四 worker 会使 medium 接近或超过 30 分钟；统一八 worker 会让 regular RSS 假失败。<strong>后果：</strong>worker count 成为显式、受限 session contract。</p>
+
+<h4>(6) Vulkan-to-Metal vertex Y 语义在 derivation 中处理</h4>
+<p><strong>决策：</strong>SPIRV-Cross common options 启用 <code>vertex.flip_vert_y</code>，identity 增加 <code>flip-vertex-y=1</code>，Metal producer version 升级以隔离旧 DDC/metallib。<strong>理由：</strong>surface 和 fullscreen pass 坐标错位会在两次错误后伪装出正确轮廓，却让 deferred lighting 采错 GBuffer。<strong>否决方案：</strong>在每个 shader 手工修正会污染 GLSL authority 并遗漏 pass。<strong>后果：</strong>derivation policy 变化必须进入 cook identity。</p>
+</section>
+
+<section id="validation">
+<h2>五、实施与验证（任务流）</h2>
+<h3>1. 任务拆解清单</h3>
+<ol>
+<li><strong>Foundation：</strong>corpus/schema/profile/device-class/baseline contract 与 FLIP vendor inventory。</li>
+<li><strong>Cook/runtime：</strong>真实 KTX2 producer selection、generation validation、development/strict semantic equivalence。</li>
+<li><strong>Renderer：</strong>aggregate model realization transaction、composition、Deferred full、Forward smoke。</li>
+<li><strong>Native image：</strong>Vulkan/Metal attachment readback、window-only capture、semantic probes、FLIP。</li>
+<li><strong>Lifecycle：</strong>20/2 与 1000/20 固定循环、counter/stale/RSS、timeout。</li>
+<li><strong>Automation/evidence：</strong>regular/medium/hardware workflows、canonical reports、privacy 和 artifact manifests。</li>
+</ol>
+
+<h3>2. 验收标准与当前结果</h3>
+<table><thead><tr><th>门禁</th><th>标准</th><th>当前本地证据</th></tr></thead><tbody>
+<tr><td>Strict Release</td><td>warnings as errors</td><td>PASS</td></tr>
+<tr><td>Regular Metal</td><td>20 clean、37/37 reuse、20/2 lifecycle、&lt;600s</td><td>46.052s；RSS +5,144,576</td></tr>
+<tr><td>Medium Metal</td><td>两包、1000/20、&lt;1800s</td><td>1,724.162s；Lantern +0，Sponza +16,613,376</td></tr>
+<tr><td>Image acceptance</td><td>exact class、Accepted baseline、semantic + FLIP</td><td>Metal/Vulkan regular 20-cycle 已通过</td></tr>
+<tr><td>Artifact revalidation</td><td>每项 size/digest/profile 匹配</td><td>regular 3,522 项；medium 4,288 项</td></tr>
+<tr><td>Final closeout</td><td>同一 revision hosted + medium + physical hardware</td><td>待 T112-T114</td></tr>
+</tbody></table>
+
+<h3>3. 测试矩阵与覆盖意图</h3>
+<table><thead><tr><th>测试类别</th><th>覆盖风险</th><th>入口</th></tr></thead><tbody>
+<tr><td>Corpus/negative</td><td>missing/extra/hash/path escape/normalization collision</td><td><code>test_verify_production_corpus.py</code>、failure catalog</td></tr>
+<tr><td>Cook determinism</td><td>host path、并发顺序、旧 DDC、wrong producer</td><td>runner 20 clean + warm reuse</td></tr>
+<tr><td>Strict runtime</td><td>source fallback、corrupt/substituted payload、lease/target mismatch</td><td><code>ProductionContentStrictRuntimeTests</code></td></tr>
+<tr><td>Realization failure</td><td>partial GPU ownership、rollback order、stale snapshot</td><td><code>RendererStaticModelRealization*Tests</code></td></tr>
+<tr><td>Native/image</td><td>API 未执行、attachment 错位、stale frame、感知回归</td><td><code>Metal/VulkanProductionContentIntegrationTests</code></td></tr>
+<tr><td>Lifecycle</td><td>owner leak、allocator drift、stale alias</td><td><code>FDemoValidationMonitor</code> + 20/1000-cycle</td></tr>
+<tr><td>Privacy/report</td><td>absolute path、secret、PID/pointer、unbounded artifacts</td><td><code>test_production_evidence_privacy.py</code></td></tr>
+</tbody></table>
+</section>
+
+<section id="practice">
+<h2>六、设计巧思与最佳实践</h2>
+<h3>1. 当前业务场景的最佳实践</h3>
+<ul>
+<li><strong>证据链而非单一截图：</strong>source digest、generation、target、GPU readback、baseline 和 lifecycle 都能互相追溯。</li>
+<li><strong>fail closed：</strong>missing baseline、ambiguous device class、Unsupported backend、timeout 和 source fallback 都不能聚合为 success。</li>
+<li><strong>事务化 publication：</strong>cook generation 用原子 Current pointer；Renderer snapshot 只在全部 RHI object 成功后 commit。</li>
+<li><strong>稳定 identity 与 observation 分离：</strong>时间/RSS/设备观察可以变化，不应污染 deterministic correctness digest。</li>
+<li><strong>负例是 contract 的一部分：</strong>至少 30 类 first failure 让 CI 失败可以复现，而不是只给非零退出码。</li>
+</ul>
+
+<h3>2. 优化方案与收益</h3>
+<ul>
+<li>macOS SHA-256 使用平台 CommonCrypto，在不改变 <code>FAssetDigest</code> public contract 的前提下降低大 payload hash 成本。</li>
+<li>strict loader 复用 parser 已计算的 envelope digest，避免同一 bytes 重复 SHA；body 与 envelope 两层校验仍保留。</li>
+<li>批量提交 189 个 Sponza request，把顺序 sleep 转成受限并行；20-cycle 从约 84 秒降至约 27 秒。</li>
+<li>Deferred/Forward 共享 snapshot，使 Sponza GPU ownership 和 RSS 降至 16 MiB 门禁内。</li>
+<li>未来可研究 decoded-body buffer ownership、GPU resource pooling 和更细粒度 lifecycle benchmark，但不能跨 cycle 保留本应释放的验收对象。</li>
+</ul>
+
+<h3>3. 已知限制与后续演进</h3>
+<ul>
+<li>Sponza medium RSS 仅低于上限 163,840 bytes，final revision 必须重跑而不能复用本地结论。</li>
+<li>外部 medium acquisition 依赖网络/cache 可用性；Unavailable 必须由 replacement lane 承担。</li>
+<li>baseline 只覆盖已接受的确切 device class；新 GPU/driver family 需要单独校准。</li>
+<li>当前一次性加载完整 closure，不代表已有 streaming/residency；Feature 029+ 若改变资源粒度必须保留本期 semantic/image/lifecycle 回归。</li>
+</ul>
+</section>
+
+<section id="cpp">
+<h2>七、编程语言知识点</h2>
+<h3>1. 标准库接口与用法</h3>
+<table><thead><tr><th>接口</th><th>本项目用法</th><th>注意点</th></tr></thead><tbody>
+<tr><td><code>std::variant</code> / <code>std::get_if</code></td><td>session 在一个容器保留九类 typed asset handle</td><td>variant 不替代 AssetId/type 校验；取错类型必须显式失败</td></tr>
+<tr><td><code>std::filesystem</code></td><td>package scope、generation locator、artifact enumeration</td><td>必须 canonical/bounded，不能用字符串前缀判断 containment</td></tr>
+<tr><td><code>std::chrono::steady_clock</code></td><td>request deadline 与 runner stage budget</td><td>deadline 用 steady clock，报告时间才可用 wall clock</td></tr>
+<tr><td><code>std::weak_ptr</code></td><td>release 后证明 Renderer snapshot 真正失效</td><td>expired 只证明无 shared owner，仍需 manager/RHI counters</td></tr>
+<tr><td><code>std::span</code></td><td>SHA、payload codec、readback bytes 的无所有权视图</td><td>span 生命周期不得超过底层 buffer</td></tr>
+<tr><td><code>std::lower_bound</code></td><td>在 canonical sorted manifest 查 record/dependency</td><td>前提是排序不变量已经由 codec validation 保证</td></tr>
+</tbody></table>
+
+<h3>2. 语言特性与惯用法</h3>
+<ul>
+<li><strong>RAII：</strong>manager lease、registration token、RHI transaction 和 Objective-C++ owner 在所有失败路径释放。</li>
+<li><strong>移动语义：</strong>typed payload、readback 和 closure 在 publication 时 move，避免复制大 KTX2/mesh 数据。</li>
+<li><strong><code>enum class</code>：</strong>result、stage、baseline status、profile 和 validation policy 不发生隐式整数混用。</li>
+<li><strong><code>[[nodiscard]]</code>：</strong>创建、validate、load、shutdown result 不能被无意忽略；有意忽略时显式 <code>(void)</code>。</li>
+<li><strong>Result + out value：</strong>跨层不用异常传播业务失败，保证 partial output 在失败时为空。</li>
+<li><strong>条件编译：</strong>CommonCrypto 和 Metal 只在 macOS private implementation 生效，公共 digest/RHI contract 跨平台不变。</li>
+</ul>
+
+<h3>3. 平台相关与编译器行为</h3>
+<p>macOS 使用 CommonCrypto 加速 SHA 和 Metal offline toolchain；Windows/Linux 使用 portable SHA fallback，Linux native lane可用 Lavapipe。MSL derivation 可在非 macOS Tools build 测试，但 metallib finalization 只能在 macOS。strict build 的 <code>-Werror</code> 还暴露了 aggregate initializer 新字段缺失，因此新增 <code>DependencyResolver</code> 时所有 request initializer 都必须同步。设备 class signature 明确允许 CPU architecture 中的下划线，例如 <code>x86_64</code>。</p>
+</section>
+
+<section id="engineering">
+<h2>八、软件工程知识点</h2>
+<h3>1. 设计模式与架构模式</h3>
+<ul>
+<li><strong>Strategy：</strong>Asset Manager 在 development source 与 strict cooked loading strategy 间切换；acceptance 比较两者语义。</li>
+<li><strong>Builder：</strong>composition、Deferred execution 和 report builder 先验证完整输入，再发布值。</li>
+<li><strong>Transaction：</strong>generation publication 与 Renderer realization 都采用 commit/rollback，避免 partial state。</li>
+<li><strong>Value Object：</strong>AssetId、digest、target evidence、device signature、baseline key 都可比较、可序列化、无 native pointer。</li>
+<li><strong>Adapter：</strong>Renderer 把 CPU Asset snapshot 适配到 RHI；Vulkan/Metal 再把 RHI intent 映射到各自 API。</li>
+<li><strong>Contract Test：</strong>同一 production workload 在 mock、Vulkan、Metal、regular、medium 与 hardware lane 上复用不变量。</li>
+</ul>
+
+<h3>2. 工程原则与方法论</h3>
+<ul>
+<li><strong>分层与依赖倒置：</strong>Asset 不知道 GPU，Backend 不知道 Asset；Renderer 是唯一桥梁。</li>
+<li><strong>契约式设计：</strong>cycles/warm-up/budget、target、baseline status 和 first failure 均是 schema/代码双重约束。</li>
+<li><strong>防御性编程：</strong>所有 path、count、bytes、depth、deadline、artifact 数量都有上界。</li>
+<li><strong>确定性优先：</strong>identity-bearing report 与 observational evidence 分开，重复 cook 可 byte-compare。</li>
+<li><strong>YAGNI：</strong>没有借真实内容之机加入 editor、hot reload、streaming 或新渲染效果。</li>
+<li><strong>可测试设计：</strong>capability unavailable 有 Unsupported 结果，CI 不必伪造 native success。</li>
+</ul>
+
+<h3>3. 测试策略与质量保障</h3>
+<p>单元测试负责 schema、codec、failure catalog 和 deterministic report；contract test 负责 development/strict semantic equivalence；mock RHI 负责 transaction rollback；native offscreen 证明真实 API submit/readback；visible hardware 证明窗口 present 和 reference image；1000-cycle 证明长期 ownership/RSS。架构扫描与 privacy scan 则覆盖“代码能跑但边界已腐化”的风险。不同层互补，不能用大量 mock 测试替代一次真实 GPU，也不能用一张截图替代 failure/lifecycle 矩阵。</p>
+</section>
+
+<section id="graphics">
+<h2>九、渲染、引擎与图形 API 学习笔记</h2>
+<h3>1. 本期核心概念拆解</h3>
+<h4>(1) Deferred attachment 是调试接口</h4>
+<p>GBuffer 不只是中间纹理，也是定位几何、材质、坐标和 lighting 错误的分层证据。BaseColor 正常而 Lighting 过暗，说明问题更可能在 normal/depth reconstruction、fullscreen sampling 或 light math，而不是 texture import。真实引擎常有 RenderDoc capture；本项目用 bounded readback 与 semantic probes 建立自动化等价物。</p>
+
+<h4>(2) Framebuffer 坐标语义不是“把 UV 翻一下”</h4>
+<p>Vulkan clip/framebuffer 与 Metal 的坐标约定必须在 shader derivation policy 中一致处理。surface pass 和 fullscreen pass 若分别以错误方向写/读，最终轮廓可能偶然抵消，但 GBuffer 像素含义已经错位。常见误区是只看最终 silhouette，不检查 world normal、depth 和 lighting attachment。</p>
+
+<h4>(3) KTX2 artifact 与 GPU texture 不是同一层</h4>
+<p>KTX2 是 immutable CPU cooked artifact，包含 mip、semantic、color space 和 compressed bytes；Renderer 根据真实 RHI capability 选择 target/transcode 并创建 GPU texture。Asset 不应持有 VkImage/MTLTexture，RHI 也不应理解 glTF URI。</p>
+
+<h4>(4) 感知指标不是结构正确性的替代</h4>
+<p>FLIP 模拟人眼对亮度、颜色和空间差异的敏感度，适合跨 GPU/API 的最终图比较；但它不知道“这个像素是否来自当前 frame”或“normal attachment 是否方向正确”。因此本期规定 semantic probe 先于 FLIP。</p>
+
+<h4>(5) GPU correctness 与 ownership correctness 同等重要</h4>
+<p>一帧正确不代表反复 recreate 安全。每轮完整 load-realize-render-release 后，Asset、Renderer、RHI、native 和 presentation owner 都要回到 runtime baseline；否则 1,000 次后可能 OOM 或 stale-handle alias。</p>
+
+<h3>2. 与 Vulkan / DX12 / Metal / OpenGL 的关系</h3>
+<table><thead><tr><th>本项目概念</th><th>Vulkan</th><th>DX12</th><th>Metal / OpenGL</th><th>本期状态</th></tr></thead><tbody>
+<tr><td>typed cooked shader</td><td>SPIR-V module</td><td>DXIL blob</td><td>metallib / GLSL program</td><td>Vulkan + Metal 真实实现</td></tr>
+<tr><td>aggregate realization</td><td>VkBuffer/Image/View/Descriptor/Pipeline</td><td>Resource/Heap/Descriptor/Pipeline State</td><td>MTLBuffer/Texture/RenderPipeline；GL object</td><td>通过 RHI 在 Vulkan/Metal 实现</td></tr>
+<tr><td>attachment readback</td><td>copy image to buffer + barrier/fence</td><td>copy footprint + resource state/fence</td><td>blit/synchronize；GL read pixels</td><td>Vulkan + Metal 真实执行</td></tr>
+<tr><td>framebuffer Y policy</td><td>viewport/clip convention</td><td>viewport/clip convention</td><td>Metal viewport/MSL derivation；GL origin convention</td><td>Metal derivation 显式 flip</td></tr>
+<tr><td>lifecycle completion</td><td>fence/device idle</td><td>fence value</td><td>command buffer completion；GL sync</td><td>backend-neutral fence + native proof</td></tr>
+<tr><td>baseline device class</td><td>adapter/features/formats</td><td>adapter/feature level/formats</td><td>GPU family/features/formats</td><td>exact canonical signature</td></tr>
+</tbody></table>
+
+<h3>3. 源码阅读路线</h3>
+<ol>
+<li><code>specs/028-production-content-acceptance/spec.md</code>：先理解真实内容、图像和生命周期为何都是 mandatory。</li>
+<li><code>Content/ProductionAcceptance/Corpus/corpus-v1.json</code> 与 profiles：查看输入和 tier contract。</li>
+<li><code>FPublishedGenerationValidator</code>、<code>FAssetManager</code>、<code>FCookedAssetLoadingStrategy</code>：理解 generation bind 与 payload integrity。</li>
+<li><code>FProductionContentSession.cpp</code>：理解批量 typed request、closure publication 与 shutdown。</li>
+<li><code>FStaticModelRealization.cpp</code>：理解 Asset-to-RHI transaction。</li>
+<li><code>FProductionContentComposition.cpp</code> 与 Deferred/Forward execution builder：理解同一 snapshot 如何生成两条 path。</li>
+<li><code>Metal/VulkanProductionContentIntegrationTests.cpp</code>：跟踪 submit、fence、readback 和 lifecycle loop。</li>
+<li><code>ProductionImageAcceptance.cpp</code> 与 baseline registry：理解 canonical image、probe 和 FLIP。</li>
+<li><code>run_production_content_validation.py</code>：最后看全部阶段如何被 deadline、report 和 artifact manifest 串起来。</li>
+</ol>
+
+<h3>4. 自测问题</h3>
+<ol>
+<li>为什么 nonblank FinalOutput 无法证明 deferred lighting 读取了正确 GBuffer 像素？</li>
+<li>为什么 vertex Y flip 必须进入 shader derivation identity 和 producer version？</li>
+<li>为什么 strict session 可以用 IndexAndLayout 前置检查，却仍声称每轮验证全部 payload？</li>
+<li>为什么 Candidate baseline 即使肉眼正确也不能自动参与 gate？</li>
+<li>为什么同一 immutable snapshot 可以共享给 Deferred/Forward，而 command buffer/readback 不能随意共享？</li>
+<li>为什么绝对 determinant 阈值会误杀小尺度但可逆的 model transform？</li>
+<li>为什么 regular 与 medium 需要不同 worker count，但仍要固定在 contract 中？</li>
+<li>如果跨 cycle 缓存 decoded mesh 能提速，它会破坏哪一项“full load-realize-release”验收语义？</li>
+<li>为什么 Vulkan/Metal 不能比较原始 native memory layout，却能比较 canonical attachment image？</li>
+</ol>
+</section>
+
+<footer class="small">实现依据：<code>specs/028-production-content-acceptance/</code> · 本地证据：<code>Validation/028/reports/</code> · final-revision CI 与硬件证据待 <code>Validation/028/CI/README.md</code> 完成。</footer>
+</main>
+</div>
+</body>
+</html>

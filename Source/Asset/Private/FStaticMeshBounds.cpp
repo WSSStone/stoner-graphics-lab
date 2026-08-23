@@ -1,5 +1,6 @@
 #include "FStaticMeshBounds.h"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -31,13 +32,24 @@ EAssetResult BuildStaticMeshBounds(
         return EAssetResult::MalformedSource;
     }
     const Core::FVector3 Center = Box.GetCenter();
-    const Core::FVector3 Extent = Box.GetExtent();
-    float Radius = Extent.Length();
-    if (!Core::FMath::IsFinite(Radius))
+    const double DeltaX = std::max(
+        std::abs(static_cast<double>(Box.Min.X) - Center.X),
+        std::abs(static_cast<double>(Box.Max.X) - Center.X));
+    const double DeltaY = std::max(
+        std::abs(static_cast<double>(Box.Min.Y) - Center.Y),
+        std::abs(static_cast<double>(Box.Max.Y) - Center.Y));
+    const double DeltaZ = std::max(
+        std::abs(static_cast<double>(Box.Min.Z) - Center.Z),
+        std::abs(static_cast<double>(Box.Max.Z) - Center.Z));
+    const double RequiredRadius = std::hypot(DeltaX, DeltaY, DeltaZ);
+    if (!std::isfinite(RequiredRadius) ||
+        RequiredRadius > std::numeric_limits<float>::max())
     {
         return EAssetResult::CapacityExceeded;
     }
-    Radius = std::nextafter(Radius, std::numeric_limits<float>::infinity());
+    float Radius = static_cast<float>(RequiredRadius);
+    if (static_cast<double>(Radius) < RequiredRadius)
+        Radius = std::nextafter(Radius, std::numeric_limits<float>::infinity());
     OutBounds.Box = Box;
     OutBounds.Sphere = Core::FSphere(Center, Radius);
     return OutBounds.IsValid()

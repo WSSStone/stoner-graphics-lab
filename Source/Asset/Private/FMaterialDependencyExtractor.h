@@ -2,6 +2,7 @@
 
 #include "Asset/FMaterialAsset.h"
 #include "Asset/FMaterialInstanceAsset.h"
+#include "Asset/FShaderAsset.h"
 
 namespace Stoner::Asset::Private
 {
@@ -10,5 +11,7 @@ namespace Stoner::Asset::Private
     FMaterialAssetDesc& Desc);
 [[nodiscard]] EAssetResult ExtractMaterialInstanceDependencies(
     FMaterialInstanceAssetDesc& Desc);
+[[nodiscard]] EAssetResult ExtractShaderDependencies(
+    FShaderAssetDesc& Desc);
 
 } // namespace Stoner::Asset::Private

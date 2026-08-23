@@ -54,6 +54,57 @@ struct FDemoFrameContext
     bool bInFlight = false;
 };
 
+struct FDemoProductionReadbackEvidence
+{
+    Stoner::Core::FString Name;
+    Stoner::Core::FString Digest;
+    Stoner::Core::uint64 ByteCount = 0;
+    Stoner::Core::uint32 Width = 0;
+    Stoner::Core::uint32 Height = 0;
+    Stoner::Core::uint32 RowPitchBytes = 0;
+    Stoner::RHI::ERHIFormat Format = Stoner::RHI::ERHIFormat::Unknown;
+    bool bNonBlank = false;
+    Stoner::Core::TArray<Stoner::Core::uint8> Bytes;
+};
+
+struct FDemoProductionCapture
+{
+    Stoner::Core::uint32 Cycle = 0;
+    Stoner::Core::FString Name;
+    Stoner::Core::FString Digest;
+    Stoner::Core::uint32 Width = 0;
+    Stoner::Core::uint32 Height = 0;
+    Stoner::Core::uint32 RowPitchBytes = 0;
+    Stoner::Core::uint64 CaptureStartedNs = 0;
+    Stoner::RHI::ERHIFormat Format = Stoner::RHI::ERHIFormat::Unknown;
+    bool bPresented = false;
+    bool bWindowOnlyCapture = false;
+    Stoner::Core::TArray<Stoner::Core::uint8> Bytes;
+};
+
+struct FDemoProductionExecutionInspection
+{
+    EDemoGraphicsBackend RequestedBackend = EDemoGraphicsBackend::Vulkan;
+    EDemoGraphicsBackend ExecutedBackend = EDemoGraphicsBackend::Vulkan;
+    EDemoRenderPath RenderPath = EDemoRenderPath::DeferredFull;
+    Stoner::RHI::FRHIRuntimeSnapshot Runtime;
+    Stoner::Core::TArray<FDemoProductionReadbackEvidence> Readbacks;
+    Stoner::Core::TArray<FDemoProductionCapture> Captures;
+    Stoner::Core::TArray<FDemoProductionLifecycleSample> LifecycleSamples;
+    Stoner::Core::uint32 CompletedCycles = 0;
+    bool bSubmissionCompleted = false;
+    bool bSynchronizationCompleted = false;
+    bool bLifecyclePassed = false;
+
+    [[nodiscard]] bool ProvesNativeExecution() const noexcept
+    {
+        return RequestedBackend == ExecutedBackend &&
+            Runtime.ProvesNativeExecution() && bSubmissionCompleted &&
+            bSynchronizationCompleted && !Readbacks.empty() &&
+            CompletedCycles > 0 && bLifecyclePassed;
+    }
+};
+
 class FStonerDemoApplication
 {
 public:
@@ -69,6 +120,11 @@ public:
     [[nodiscard]] Stoner::Core::uint32 GetCompletedFrames() const noexcept { return CompletedFrames; }
     [[nodiscard]] std::size_t GetFrameContextCount() const noexcept { return FrameContexts.size(); }
     [[nodiscard]] const FDemoDiagnostics& GetDiagnostics() const noexcept { return Diagnostics; }
+    [[nodiscard]] const FDemoProductionExecutionInspection&
+        GetProductionExecutionInspection() const noexcept
+    {
+        return ProductionExecutionInspection;
+    }
     [[nodiscard]] EDemoGraphicsBackend GetGraphicsBackend() const noexcept
     {
         return Configuration.GraphicsBackend;
@@ -83,6 +139,10 @@ public:
 private:
     [[nodiscard]] bool ValidateShaderPayloads();
     [[nodiscard]] bool LoadStrictCookedMetalShaderPayloads();
+    [[nodiscard]] EDemoExitCode InitializeProductionContent();
+    [[nodiscard]] FDemoProductionLifecycleCounters
+        ReleaseProductionContentCycle();
+    [[nodiscard]] EDemoExitCode RunProductionContent();
     [[nodiscard]] EDemoExitCode RunDeterministic();
     [[nodiscard]] EDemoExitCode RunNativeHeadless();
     [[nodiscard]] EDemoExitCode RunVisible();
@@ -106,6 +166,8 @@ private:
     Stoner::Core::TUniquePtr<IDemoBackendRuntime> BackendRuntime;
     class FWindowHolder;
     std::unique_ptr<FWindowHolder> Window;
+    class FProductionContentRuntime;
+    std::unique_ptr<FProductionContentRuntime> ProductionRuntime;
     bool bHasFailureInjection = false;
     EDemoStage FailureInjectionStage = EDemoStage::Configuration;
     double RecoveryStartMilliseconds = 0.0;
@@ -122,6 +184,8 @@ private:
     Stoner::RHI::FRHIShaderModuleDesc TriangleVertexShader;
     Stoner::RHI::FRHIShaderModuleDesc TriangleFragmentShader;
     bool bTriangleShadersLoaded = false;
+    FDemoProductionExecutionInspection ProductionExecutionInspection;
+    Stoner::RHI::FRHIRuntimeSnapshot ProductionRuntimeBaseline;
 };
 
 } // namespace Stoner::Demo

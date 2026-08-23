@@ -35,6 +35,7 @@
 
 #import <Metal/Metal.h>
 
+#include <algorithm>
 #include <atomic>
 #include <limits>
 #include <map>
@@ -222,6 +223,24 @@ RHI::FRHIRuntimeSnapshot FMetalDevice::GetRuntimeSnapshot() const noexcept
     Result.bSoftwareDevice = false;
     Result.LiveInstances = IsActive() ? 1 : 0;
     Result.LiveDevices = IsActive() ? 1 : 0;
+    const FMetalBackendInspection Inspection = Inspect();
+    Result.LiveBuffers = static_cast<Core::uint32>(std::min<Core::uint64>(
+        Inspection.ResourceOwnershipCount,
+        std::numeric_limits<Core::uint32>::max()));
+    Result.LivePipelines = static_cast<Core::uint32>(std::min<Core::uint64>(
+        Inspection.PipelineOwnershipCount,
+        std::numeric_limits<Core::uint32>::max()));
+    Result.LiveCommandBuffers = static_cast<Core::uint32>(
+        std::min<Core::uint64>(Inspection.CommandOwnershipCount,
+            std::numeric_limits<Core::uint32>::max()));
+    Result.LiveSynchronizationObjects = static_cast<Core::uint32>(
+        std::min<Core::uint64>(
+            Inspection.SynchronizationOwnershipCount +
+                Inspection.SubmissionOwnershipCount,
+            std::numeric_limits<Core::uint32>::max()));
+    Result.LiveSurfaces = static_cast<Core::uint32>(std::min<Core::uint64>(
+        Inspection.PresentationOwnershipCount,
+        std::numeric_limits<Core::uint32>::max()));
     return Result;
 }
 

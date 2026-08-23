@@ -50,7 +50,9 @@ private:
 };
 
 EAssetResult ImportWithUri(const std::string& Uri,
-    const TSharedPtr<IAssetResolver>& Resolver, TArray<FAssetImportOutput>& Outputs)
+    const TSharedPtr<IAssetResolver>& Resolver, TArray<FAssetImportOutput>& Outputs,
+    const FString& Locator = FString(
+        "Tests/Fixtures/StaticModel/Valid/Materials/model.gltf"))
 {
     auto Bytes = ReadFixture(
         "Tests/Fixtures/StaticModel/Valid/Materials/02-external-jpeg.gltf");
@@ -59,8 +61,7 @@ EAssetResult ImportWithUri(const std::string& Uri,
     Text.replace(At, std::string("albedo.jpg").size(), Uri);
     FStaticModelImportRequest Request;
     Request.AssetRequest = MakeMemoryRequest(
-        TArray<uint8>(Text.begin(), Text.end()),
-        FString("Tests/Fixtures/StaticModel/Valid/Materials/model.gltf"));
+        TArray<uint8>(Text.begin(), Text.end()), Locator);
     Request.Profile = MakeShared<FStaticModelImportProfile>();
     Request.DependencyResolver = Resolver;
     return ImportStaticModel(Request, Outputs);
@@ -99,5 +100,14 @@ FAssetGLTFResolverTestResult RunAssetGLTFResolverTests()
             EAssetResult::Success && !ExactOutputs.empty() &&
             ExactResolver->Calls == 1,
         "exact source-relative dependency resolves within scope");
+
+    auto FlatResolver = MakeShared<FControlledResolver>();
+    TArray<FAssetImportOutput> FlatOutputs;
+    Record(Result,
+        ImportWithUri(
+            "albedo.jpg", FlatResolver, FlatOutputs,
+            FString("model.gltf")) == EAssetResult::Success &&
+            !FlatOutputs.empty() && FlatResolver->Calls == 1,
+        "flat package dependency resolves within its implicit root scope");
     return Result;
 }

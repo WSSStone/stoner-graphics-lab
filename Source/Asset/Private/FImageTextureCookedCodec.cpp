@@ -2,6 +2,7 @@
 
 #include "Asset/FImageAsset.h"
 #include "Asset/FKTX2TextureArtifact.h"
+#include "Asset/FKTX2TextureCodec.h"
 #include "Asset/FTextureAsset.h"
 #include "FAssetCookedBinary.h"
 
@@ -323,9 +324,9 @@ EAssetResult DecodeImageTextureCookedBody(
                 !Reader.AtEnd() || Info.TextureId != HeaderValue.AssetId)
                 return EAssetResult::CorruptPayload;
             FKTX2TextureArtifact Artifact;
-            if (FKTX2TextureArtifact::Create(
-                    HeaderValue.AssetId, std::move(Info), std::move(Bytes),
-                    Artifact) != EAssetResult::Success)
+            if (FKTX2TextureCodec::Open(
+                    HeaderValue.AssetId, Bytes, {}, Artifact) !=
+                    EAssetResult::Success || Artifact.GetInfo() != Info)
                 return EAssetResult::CorruptPayload;
             OutPayload = Core::MakeShared<FKTX2TextureArtifact>(
                 std::move(Artifact));

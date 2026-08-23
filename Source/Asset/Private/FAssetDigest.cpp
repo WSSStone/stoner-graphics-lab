@@ -1,5 +1,7 @@
 #include "Asset/FAssetDigest.h"
 
+#include "Core/FPlatformHash.h"
+
 #include <array>
 #include <string>
 #include <vector>
@@ -41,6 +43,12 @@ int HexValue(char Character)
 
 FAssetDigest FAssetDigest::FromBytes(std::span<const Core::uint8> Bytes)
 {
+    FAssetDigest Digest;
+    if (Core::FPlatformHash::TrySha256(Bytes, Digest.Bytes_))
+    {
+        Digest.Available_ = true;
+        return Digest;
+    }
     std::vector<Core::uint8> Message(Bytes.begin(), Bytes.end());
     const Core::uint64 BitLength = static_cast<Core::uint64>(Message.size()) * 8U;
     Message.push_back(0x80U);
@@ -100,7 +108,6 @@ FAssetDigest FAssetDigest::FromBytes(std::span<const Core::uint8> Bytes)
         State[4] += E; State[5] += F; State[6] += G; State[7] += H;
     }
 
-    FAssetDigest Digest;
     Digest.Available_ = true;
     for (std::size_t Index = 0; Index < State.size(); ++Index)
     {

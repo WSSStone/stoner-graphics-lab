@@ -12,7 +12,8 @@ class FCookedAssetLoadingStrategy final : public IAssetLoadingStrategy
 public:
     FCookedAssetLoadingStrategy(
         FAssetManagerConfig Config,
-        const FBoundCookedGeneration& Generation);
+        const FBoundCookedGeneration& Generation,
+        Core::TSharedPtr<FAssetManagerExecutionCounterState> Counters);
     [[nodiscard]] FAssetLoadScratchResult Load(
         const FAssetLoadKey& Key,
         const FAssetRuntimeExecutionContext& Context) override;
@@ -20,6 +21,7 @@ public:
 private:
     FAssetManagerConfig Config_;
     const FBoundCookedGeneration& Generation_;
+    Core::TSharedPtr<FAssetManagerExecutionCounterState> Counters_;
 };
 
 } // namespace Stoner::Asset::Private

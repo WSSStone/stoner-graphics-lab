@@ -432,6 +432,42 @@ void TestForwardFrameExecution(FRendererForwardPipelineTestResult& Result)
     Record(Result, Execution.Succeeded() && Execution.RecordedDrawCount == 1 && Execution.RecordedCommandCount == 9,
         "Forward executor records transition render bindings three-vertex draw and present transition");
 
+    Bindings.DepthTexture = Texture.Object;
+    Record(Result,
+        FForwardFrameExecutor().Execute(
+            Prepare(RepresentativeInputs()), Bindings).Result ==
+                EForwardExecutionResult::InvalidBinding,
+        "Forward executor rejects a depth binding without depth-attachment usage");
+    Bindings.DepthTexture.reset();
+
+    auto IndexBuffer = Device.CreateBuffer(
+        {64, ERHIBufferUsage::Index | ERHIBufferUsage::CopyDestination,
+            ERHIMemoryAccess::HostVisible});
+    auto AggregateCommands = Device.CreateCommandBuffer(ERHIQueueType::Graphics);
+    FForwardFrameExecutionBindings AggregateBindings;
+    AggregateBindings.OutputTexture = Texture.Object;
+    AggregateBindings.RenderPass = RenderPass.Object;
+    AggregateBindings.Framebuffer = Framebuffer.Object;
+    AggregateBindings.CommandBuffer = AggregateCommands.Object;
+    const FForwardFramePlan AggregatePlan = Prepare(RepresentativeInputs());
+    const auto AggregateDrawCount = AggregatePlan.AcceptedOpaqueDraws.size() +
+        AggregatePlan.AcceptedTransparentDraws.size();
+    for (std::size_t Index = 0; Index < AggregateDrawCount; ++Index)
+    {
+        FForwardFrameExecutionBindings::FDrawBinding DrawBinding;
+        DrawBinding.VertexBuffer = VertexBuffer.Object;
+        DrawBinding.IndexBuffer = IndexBuffer.Object;
+        DrawBinding.Draw = {3, 1, 0, 0, 0};
+        DrawBinding.Pipeline = Pipeline.Object;
+        AggregateBindings.Draws.push_back(std::move(DrawBinding));
+    }
+    const auto AggregateExecution = FForwardFrameExecutor().Execute(
+        AggregatePlan, AggregateBindings);
+    Record(Result,
+        AggregateExecution.Succeeded() &&
+            AggregateExecution.RecordedDrawCount == AggregateDrawCount,
+        "Forward executor consumes the complete per-draw indexed aggregate binding set");
+
     Bindings.VertexBuffer.reset();
     Record(Result, FForwardFrameExecutor().Execute(Prepare(RepresentativeInputs()), Bindings).Result == EForwardExecutionResult::InvalidBinding,
         "Forward executor rejects incomplete resource bindings");

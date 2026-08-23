@@ -30,6 +30,7 @@
 #include "Renderer/FTextureAssetRealization.h"
 #include "Renderer/FStaticMeshAssetConversion.h"
 #include "Renderer/FStaticMeshRealization.h"
+#include "Renderer/FStaticModelRealization.h"
 #include "Renderer/FTextureTargetProfile.h"
 
 // Renderer layer minimal header — high-level rendering

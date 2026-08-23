@@ -165,7 +165,11 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDraw(Stoner::Core::uint32 Ve
     {
         MarkRecordingDiagnostic("draw recorded with compatible graphics pipeline binding");
     }
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::Draw, VertexCount, InstanceCount, 0});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::Draw;
+    Command.A = VertexCount;
+    Command.B = InstanceCount;
+    AppendCommand(std::move(Command));
     return Stoner::RHI::ERHIResult::Success;
 }
 
@@ -185,9 +189,15 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDrawIndexed(
     {
         MarkRecordingDiagnostic("indexed draw recorded with compatible graphics pipeline binding");
     }
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::DrawIndexed,
-        Arguments.IndexCount, Arguments.InstanceCount, Arguments.FirstIndex,
-        Arguments.VertexOffset, Arguments.FirstInstance});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::DrawIndexed;
+    Command.A = Arguments.IndexCount;
+    Command.B = Arguments.InstanceCount;
+    Command.C = Arguments.FirstIndex;
+    Command.D = Arguments.VertexOffset;
+    Command.E = Arguments.FirstInstance;
+    Command.IndexedDraw = Arguments;
+    AppendCommand(std::move(Command));
     return Stoner::RHI::ERHIResult::Success;
 }
 
@@ -215,7 +225,12 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordDispatch(Stoner::Core::uint3
     {
         MarkRecordingDiagnostic("dispatch recorded with compatible compute pipeline binding");
     }
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::Dispatch, GroupCountX, GroupCountY, GroupCountZ});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::Dispatch;
+    Command.A = GroupCountX;
+    Command.B = GroupCountY;
+    Command.C = GroupCountZ;
+    AppendCommand(std::move(Command));
     return Stoner::RHI::ERHIResult::Success;
 }
 
@@ -247,7 +262,10 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::BindGraphicsPipeline(const Stoner:
         return Stoner::RHI::ERHIResult::InvalidState;
     }
     BoundGraphicsPipeline = Pipeline;
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::BindGraphicsPipeline, 0, 0, 0});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::BindGraphicsPipeline;
+    Command.GraphicsPipeline = Pipeline;
+    AppendCommand(std::move(Command));
     MarkRecordingDiagnostic("graphics pipeline bound; deterministic fallback bind performs no real runtime execution");
     if (Diagnostics)
     {
@@ -284,7 +302,10 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::BindComputePipeline(const Stoner::
         return Stoner::RHI::ERHIResult::InvalidState;
     }
     BoundComputePipeline = Pipeline;
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::BindComputePipeline, 0, 0, 0});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::BindComputePipeline;
+    Command.ComputePipeline = Pipeline;
+    AppendCommand(std::move(Command));
     MarkRecordingDiagnostic("compute pipeline bound; deterministic fallback bind performs no real runtime execution");
     if (Diagnostics)
     {
@@ -300,7 +321,9 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordBarrier()
         MarkRecordingDiagnostic("generic barrier rejected outside recording");
         return Stoner::RHI::ERHIResult::InvalidState;
     }
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::Barrier, 0, 0, 0});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::Barrier;
+    AppendCommand(std::move(Command));
     MarkRecordingDiagnostic("generic barrier recorded");
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -333,7 +356,12 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordBarrier(const Stoner::RHI::F
         MarkRecordingDiagnostic("barrier rejected because no resource was provided");
         return Stoner::RHI::ERHIResult::InvalidState;
     }
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::Barrier, static_cast<Stoner::Core::uint64>(Barrier.Before), static_cast<Stoner::Core::uint64>(Barrier.After), 0});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::Barrier;
+    Command.A = static_cast<Stoner::Core::uint64>(Barrier.Before);
+    Command.B = static_cast<Stoner::Core::uint64>(Barrier.After);
+    Command.Barrier = Barrier;
+    AppendCommand(std::move(Command));
     MarkRecordingDiagnostic("declarative barrier recorded");
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -352,7 +380,15 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordBufferCopy(const Stoner::Cor
         MarkRecordingDiagnostic("buffer copy rejected by resource lifecycle range or usage");
         return Stoner::RHI::ERHIResult::InvalidState;
     }
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::BufferCopy, Range.SourceOffsetBytes, Range.DestinationOffsetBytes, Range.SizeBytes});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::BufferCopy;
+    Command.A = Range.SourceOffsetBytes;
+    Command.B = Range.DestinationOffsetBytes;
+    Command.C = Range.SizeBytes;
+    Command.BufferA = Source;
+    Command.BufferB = Destination;
+    Command.BufferCopy = Range;
+    AppendCommand(std::move(Command));
     MarkRecordingDiagnostic("buffer copy recorded");
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -377,7 +413,15 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordTextureCopy(const Stoner::Co
         MarkRecordingDiagnostic("texture copy rejected by resource lifecycle region or usage");
         return Stoner::RHI::ERHIResult::InvalidState;
     }
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::TextureCopy, Region.Width, Region.Height, Region.Depth});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::TextureCopy;
+    Command.A = Region.Width;
+    Command.B = Region.Height;
+    Command.C = Region.Depth;
+    Command.TextureA = Source;
+    Command.TextureB = Destination;
+    Command.TextureCopy = Region;
+    AppendCommand(std::move(Command));
     MarkRecordingDiagnostic("texture copy recorded");
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -434,8 +478,15 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::RecordTextureToBufferCopy(
         MarkRecordingDiagnostic("texture-to-buffer copy rejected by destination range");
         return Stoner::RHI::ERHIResult::InvalidState;
     }
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::TextureToBufferCopy,
-        Region.DestinationOffsetBytes, RequiredBytes, Region.Width});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::TextureToBufferCopy;
+    Command.A = Region.DestinationOffsetBytes;
+    Command.B = RequiredBytes;
+    Command.C = Region.Width;
+    Command.TextureA = Source;
+    Command.BufferA = Destination;
+    Command.TextureToBufferCopy = Region;
+    AppendCommand(std::move(Command));
     MarkRecordingDiagnostic("texture-to-buffer copy recorded");
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -460,9 +511,26 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::BeginRenderPass(const Stoner::Core
         MarkRecordingDiagnostic("begin render pass rejected by scope lifecycle or compatibility");
         return Stoner::RHI::ERHIResult::InvalidState;
     }
+    Stoner::RHI::FRHIRenderPassClearValues ClearValues;
+    for (const Stoner::RHI::FRHIRenderPassAttachmentDesc& Attachment : RenderPass->GetDesc().Attachments)
+    {
+        if (Attachment.LoadOp == Stoner::RHI::ERHIAttachmentLoadOp::Clear &&
+            Attachment.Role == Stoner::RHI::ERHIAttachmentRole::Color)
+        {
+            ClearValues.Colors.push_back({});
+        }
+    }
     ActiveRenderPass = RenderPass;
     ActiveFramebuffer = Framebuffer;
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::BeginRenderPass, Framebuffer->GetWidth(), Framebuffer->GetHeight(), Framebuffer->GetAttachmentCount()});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::BeginRenderPass;
+    Command.A = Framebuffer->GetWidth();
+    Command.B = Framebuffer->GetHeight();
+    Command.C = Framebuffer->GetAttachmentCount();
+    Command.RenderPass = RenderPass;
+    Command.Framebuffer = Framebuffer;
+    Command.ClearValues = std::move(ClearValues);
+    AppendCommand(std::move(Command));
     MarkRecordingDiagnostic("render pass scope began");
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -477,7 +545,12 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::BeginRenderPass(
         MarkRecordingDiagnostic("begin render pass rejected by explicit clear-value compatibility");
         return Stoner::RHI::ERHIResult::InvalidState;
     }
-    return BeginRenderPass(RenderPass, Framebuffer);
+    const Stoner::RHI::ERHIResult Result = BeginRenderPass(RenderPass, Framebuffer);
+    if (Result == Stoner::RHI::ERHIResult::Success)
+    {
+        Commands.back().ClearValues = ClearValues;
+    }
+    return Result;
 }
 
 Stoner::RHI::ERHIResult FVulkanCommandBuffer::EndRenderPass()
@@ -492,7 +565,9 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::EndRenderPass()
     BoundGraphicsPipeline.reset();
     BoundComputePipeline.reset();
     BoundIndexBuffer.reset();
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::EndRenderPass, 0, 0, 0});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::EndRenderPass;
+    AppendCommand(std::move(Command));
     MarkRecordingDiagnostic("render pass scope ended");
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -507,7 +582,11 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::BindVertexBuffer(
         return Stoner::RHI::ERHIResult::InvalidState;
     }
     BoundVertexBuffer = Buffer;
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::BindVertexBuffer, OffsetBytes, 0, 0});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::BindVertexBuffer;
+    Command.A = OffsetBytes;
+    Command.BufferA = Buffer;
+    AppendCommand(std::move(Command));
     return Stoner::RHI::ERHIResult::Success;
 }
 
@@ -526,7 +605,13 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::BindIndexBuffer(
         return Stoner::RHI::ERHIResult::InvalidState;
     }
     BoundIndexBuffer = Buffer;
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::BindIndexBuffer, OffsetBytes, Alignment, 0});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::BindIndexBuffer;
+    Command.A = OffsetBytes;
+    Command.B = Alignment;
+    Command.BufferA = Buffer;
+    Command.IndexType = IndexType;
+    AppendCommand(std::move(Command));
     return Stoner::RHI::ERHIResult::Success;
 }
 
@@ -541,8 +626,12 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::BindDescriptorSet(
         MarkRecordingDiagnostic("descriptor set binding rejected by state lifecycle or layout");
         return Stoner::RHI::ERHIResult::InvalidState;
     }
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::BindDescriptorSet,
-        DescriptorSet->GetSetIndex(), DescriptorSet->GetBoundResourceCount(), 0});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::BindDescriptorSet;
+    Command.A = DescriptorSet->GetSetIndex();
+    Command.B = DescriptorSet->GetBoundResourceCount();
+    Command.DescriptorSet = DescriptorSet;
+    AppendCommand(std::move(Command));
     return Stoner::RHI::ERHIResult::Success;
 }
 
@@ -552,8 +641,12 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::SetViewport(const Stoner::RHI::FRH
         !(Viewport.Width > 0.0f) || !(Viewport.Height > 0.0f) || Viewport.MinDepth < 0.0f ||
         Viewport.MaxDepth > 1.0f || Viewport.MinDepth > Viewport.MaxDepth)
         return Stoner::RHI::ERHIResult::InvalidState;
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::SetViewport,
-        static_cast<Stoner::Core::uint64>(Viewport.Width), static_cast<Stoner::Core::uint64>(Viewport.Height), 0});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::SetViewport;
+    Command.A = static_cast<Stoner::Core::uint64>(Viewport.Width);
+    Command.B = static_cast<Stoner::Core::uint64>(Viewport.Height);
+    Command.Viewport = Viewport;
+    AppendCommand(std::move(Command));
     return Stoner::RHI::ERHIResult::Success;
 }
 
@@ -561,7 +654,12 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::SetScissor(const Stoner::RHI::FRHI
 {
     if (ValidateRecordingState() != Stoner::RHI::ERHIResult::Success || !HasActiveRenderPass() || Scissor.Width == 0 || Scissor.Height == 0)
         return Stoner::RHI::ERHIResult::InvalidState;
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::SetScissor, Scissor.Width, Scissor.Height, 0});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::SetScissor;
+    Command.A = Scissor.Width;
+    Command.B = Scissor.Height;
+    Command.Scissor = Scissor;
+    AppendCommand(std::move(Command));
     return Stoner::RHI::ERHIResult::Success;
 }
 
@@ -584,7 +682,11 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::ScheduleBufferUpload(const Stoner:
     {
         return Result;
     }
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::UploadSchedule, Range.OffsetBytes, Range.SizeBytes, 0});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::UploadSchedule;
+    Command.A = Range.OffsetBytes;
+    Command.B = Range.SizeBytes;
+    AppendCommand(std::move(Command));
     if (Diagnostics)
     {
         MarkUploadScheduling(*Diagnostics, "buffer upload scheduled into command buffer");
@@ -611,7 +713,12 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::ScheduleTextureUpload(const Stoner
     {
         return Result;
     }
-    AppendCommand({Stoner::RHI::ERHISymbolicCommandType::UploadSchedule, Region.Width, Region.Height, Region.Depth});
+    FVulkanRecordedCommand Command;
+    Command.Type = Stoner::RHI::ERHISymbolicCommandType::UploadSchedule;
+    Command.A = Region.Width;
+    Command.B = Region.Height;
+    Command.C = Region.Depth;
+    AppendCommand(std::move(Command));
     if (Diagnostics)
     {
         MarkUploadScheduling(*Diagnostics, "texture upload scheduled into command buffer");

@@ -136,6 +136,36 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
         (CookedPublicationRoot.IsEmpty() || LeaseCoordinationRoot.IsEmpty() ||
             TargetProfilePath.IsEmpty()))
         return Fail("native Metal requires cooked, lease, and target-profile paths");
+    if (Workload == EDemoWorkload::Triangle)
+    {
+        if (RenderPath != EDemoRenderPath::Triangle)
+            return Fail("triangle workload requires the triangle render path");
+        if (!ProductionRoot.IsEmpty() || !StrictGeneration.IsEmpty() ||
+            !WorkloadRevision.IsEmpty() || bVisibleCapture)
+            return Fail("production options require the production-content workload");
+    }
+    else
+    {
+        if (RenderPath == EDemoRenderPath::Triangle)
+            return Fail("production workload requires an explicit render path");
+        if (ProductionRoot.IsEmpty() || StrictGeneration.IsEmpty() ||
+            WorkloadRevision.IsEmpty() || CookedPublicationRoot.IsEmpty() ||
+            LeaseCoordinationRoot.IsEmpty() || TargetProfilePath.IsEmpty() ||
+            DeviceClassRegistryPath.IsEmpty())
+            return Fail("production workload requires strict root, generation, revision, paths, and registry");
+        const bool bRegular = ProductionLifecycleCycles == 20 &&
+            ProductionWarmupCycles == 2;
+        const bool bExtended = ProductionLifecycleCycles == 1000 &&
+            ProductionWarmupCycles == 20;
+        if (!bRegular && !bExtended)
+            return Fail("production lifecycle must use fixed 20/2 or 1000/20 cycles");
+        if (ProductionMaxRssGrowthBytes != 16ULL * 1024ULL * 1024ULL)
+            return Fail("production RSS growth limit must be exactly 16 MiB");
+        if (bVisibleCapture &&
+            (!RequiresNativeRuntime() || !RequiresVisibleWindow() ||
+                BaselineRoot.IsEmpty()))
+            return Fail("visible capture requires native visible mode and a baseline root");
+    }
     return true;
 }
 
@@ -156,6 +186,16 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
         {
             Parsed.bEnableValidationLayers = true;
             continue;
+        }
+        if (Option == "--visible-capture")
+        {
+            Parsed.bVisibleCapture = true;
+            continue;
+        }
+        if (Option == "--device-class")
+        {
+            OutReason = "device class must be registry-derived";
+            return EDemoExitCode::InvalidConfiguration;
         }
         if (Index + 1 >= ArgCount)
         {
@@ -182,6 +222,35 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
             else
             {
                 OutReason = "unknown backend";
+                return EDemoExitCode::InvalidConfiguration;
+            }
+        }
+        else if (Option == "--workload")
+        {
+            const std::string_view Workload(Value);
+            if (Workload == "triangle")
+            {
+                Parsed.Workload = EDemoWorkload::Triangle;
+                Parsed.RenderPath = EDemoRenderPath::Triangle;
+            }
+            else if (Workload == "production-content")
+                Parsed.Workload = EDemoWorkload::ProductionContent;
+            else
+            {
+                OutReason = "unknown workload";
+                return EDemoExitCode::InvalidConfiguration;
+            }
+        }
+        else if (Option == "--render-path")
+        {
+            const std::string_view Path(Value);
+            if (Path == "deferred-full")
+                Parsed.RenderPath = EDemoRenderPath::DeferredFull;
+            else if (Path == "forward-smoke")
+                Parsed.RenderPath = EDemoRenderPath::ForwardSmoke;
+            else
+            {
+                OutReason = "unknown render path";
                 return EDemoExitCode::InvalidConfiguration;
             }
         }
@@ -232,6 +301,39 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
         else if (Option == "--cooked-root") Parsed.CookedPublicationRoot = Value;
         else if (Option == "--lease-root") Parsed.LeaseCoordinationRoot = Value;
         else if (Option == "--target-profile") Parsed.TargetProfilePath = Value;
+        else if (Option == "--production-root") Parsed.ProductionRoot = Value;
+        else if (Option == "--strict-generation") Parsed.StrictGeneration = Value;
+        else if (Option == "--workload-revision") Parsed.WorkloadRevision = Value;
+        else if (Option == "--baseline-root") Parsed.BaselineRoot = Value;
+        else if (Option == "--device-class-registry")
+            Parsed.DeviceClassRegistryPath = Value;
+        else if (Option == "--production-cycles")
+        {
+            if (!ParseUInt(Value, Parsed.ProductionLifecycleCycles, false))
+            {
+                OutReason = "invalid production-cycles";
+                return EDemoExitCode::InvalidConfiguration;
+            }
+        }
+        else if (Option == "--production-warmup-cycles")
+        {
+            if (!ParseUInt(Value, Parsed.ProductionWarmupCycles, false))
+            {
+                OutReason = "invalid production-warmup-cycles";
+                return EDemoExitCode::InvalidConfiguration;
+            }
+        }
+        else if (Option == "--production-max-rss-growth-mib")
+        {
+            Stoner::Core::uint32 MiB = 0;
+            if (!ParseUInt(Value, MiB, false))
+            {
+                OutReason = "invalid production-max-rss-growth-mib";
+                return EDemoExitCode::InvalidConfiguration;
+            }
+            Parsed.ProductionMaxRssGrowthBytes =
+                static_cast<Stoner::Core::uint64>(MiB) * 1024ULL * 1024ULL;
+        }
         else if (Option == "--validation-output") Parsed.ValidationOutputPath = Value;
         else { OutReason = "unknown option"; return EDemoExitCode::InvalidConfiguration; }
     }
@@ -273,6 +375,27 @@ const char* ToString(EDemoGraphicsBackend Backend) noexcept
     {
     case EDemoGraphicsBackend::Vulkan: return "vulkan";
     case EDemoGraphicsBackend::Metal: return "metal";
+    }
+    return "unknown";
+}
+
+const char* ToString(EDemoWorkload Workload) noexcept
+{
+    switch (Workload)
+    {
+    case EDemoWorkload::Triangle: return "triangle";
+    case EDemoWorkload::ProductionContent: return "production-content";
+    }
+    return "unknown";
+}
+
+const char* ToString(EDemoRenderPath Path) noexcept
+{
+    switch (Path)
+    {
+    case EDemoRenderPath::Triangle: return "triangle";
+    case EDemoRenderPath::DeferredFull: return "deferred-full";
+    case EDemoRenderPath::ForwardSmoke: return "forward-smoke";
     }
     return "unknown";
 }

@@ -215,7 +215,11 @@ EAssetResult FKTX2TextureCooker::GetRelevantProfileEvidence(
     FAssetParticipantId Producer;
     (void)FAssetParticipantId::Create(
         Core::FString("cooker.ktx2"), Producer);
-    return BuildAssetProfileProjection(Profile, Producer, 1, {}, OutEvidence);
+    const Core::TArray<Core::FString> RelevantFields{
+        Core::FString("textureCapabilities"),
+        Core::FString("textureFallback")};
+    return BuildAssetProfileProjection(
+        Profile, Producer, 1, RelevantFields, OutEvidence);
 }
 
 FAssetCookResult FKTX2TextureCooker::Cook(

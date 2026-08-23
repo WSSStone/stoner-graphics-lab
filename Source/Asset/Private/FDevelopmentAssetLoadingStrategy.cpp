@@ -13,6 +13,33 @@ namespace Stoner::Asset::Private
 {
 namespace
 {
+class FRegistryDependencyResolver final : public IAssetResolver
+{
+public:
+    FRegistryDependencyResolver(
+        Core::TSharedPtr<FAssetExtensionRegistry> Registry,
+        Core::TSharedPtr<const FAssetRuntimeExecutionContext> RuntimeContext)
+        : Registry_(std::move(Registry)),
+          RuntimeContext_(std::move(RuntimeContext))
+    {
+    }
+
+    FAssetExtensionCapability GetCapability() const override { return {}; }
+
+    FAssetResolveResult Resolve(
+        const FAssetResolveRequest& Request) override
+    {
+        FAssetResolveRequest Forwarded = Request;
+        if (!Forwarded.RuntimeContext)
+            Forwarded.RuntimeContext = RuntimeContext_;
+        return FAssetDispatch::Resolve(*Registry_, Forwarded);
+    }
+
+private:
+    Core::TSharedPtr<FAssetExtensionRegistry> Registry_;
+    Core::TSharedPtr<const FAssetRuntimeExecutionContext> RuntimeContext_;
+};
+
 EAssetResult MakeLocation(
     const FAssetManagerConfig& Config,
     const FAssetId& Id,
@@ -62,7 +89,9 @@ Core::TSharedPtr<const FAssetImportParameters> MakeParameters(
         Parameters->Settings.MipPolicy = EImageMipPolicy::FullChain;
         return Parameters;
     }
-    if (Key.ExpectedType == Core::FString("ShaderProgram") ||
+    if (Key.ExpectedType == Core::FString("ShaderSource") ||
+        Key.ExpectedType == Core::FString("ShaderPayload") ||
+        Key.ExpectedType == Core::FString("ShaderProgram") ||
         Key.ExpectedType == Core::FString("Material") ||
         Key.ExpectedType == Core::FString("MaterialInstance"))
     {
@@ -79,8 +108,9 @@ Core::TSharedPtr<const FAssetImportParameters> MakeParameters(
 } // namespace
 
 FDevelopmentAssetLoadingStrategy::FDevelopmentAssetLoadingStrategy(
-    FAssetManagerConfig Config)
-    : Config_(std::move(Config))
+    FAssetManagerConfig Config,
+    Core::TSharedPtr<FAssetManagerExecutionCounterState> Counters)
+    : Config_(std::move(Config)), Counters_(std::move(Counters))
 {
 }
 
@@ -99,6 +129,8 @@ FAssetLoadScratchResult FDevelopmentAssetLoadingStrategy::Load(
     if (Out.Result != EAssetResult::Success) return Out;
 
     auto RuntimeContext = Core::MakeShared<FAssetRuntimeExecutionContext>(Context);
+    FAssetManagerExecutionCounterState::Increment(
+        Counters_->ResolverExecutions);
     const FAssetResolveResult Resolved = FAssetDispatch::Resolve(
         *Config_.ExtensionRegistry, {Location, RuntimeContext}, &Out.Diagnostics);
     if (Resolved.Result != EAssetResult::Success || !Resolved.Source.IsValid())
@@ -117,7 +149,13 @@ FAssetLoadScratchResult FDevelopmentAssetLoadingStrategy::Load(
     const FAssetImportRequest ImportRequest{
         Resolved.Descriptor, Resolved.Source,
         MakeParameters(Config_, Key, Resolved.Descriptor),
-        RuntimeContext};
+        RuntimeContext,
+        Core::MakeShared<FRegistryDependencyResolver>(
+            Config_.ExtensionRegistry, RuntimeContext)};
+    FAssetManagerExecutionCounterState::Increment(
+        Counters_->ImporterExecutions);
+    FAssetManagerExecutionCounterState::Increment(
+        Counters_->AuthoringDecoderExecutions);
     Out.Result = FAssetDispatch::Import(
         *Config_.ExtensionRegistry, ImportRequest, Outputs, &Out.Diagnostics);
     if (Out.Result != EAssetResult::Success) return Out;
@@ -128,6 +166,8 @@ FAssetLoadScratchResult FDevelopmentAssetLoadingStrategy::Load(
         return Out;
     }
 
+    FAssetManagerExecutionCounterState::Increment(
+        Counters_->ResolverExecutions);
     const FAssetResolveResult ReResolved = FAssetDispatch::Resolve(
         *Config_.ExtensionRegistry, {Location, RuntimeContext}, &Out.Diagnostics);
     Core::TArray<Core::uint8> CurrentBytes;

@@ -1,0 +1,83 @@
+{
+  "schema": "stoner.asset-target-profile",
+  "schemaVersion": 2,
+  "displayName": "macOS Metal x86_64 Development",
+  "platform": "macos",
+  "cpuArchitecture": "x86_64",
+  "graphicsBackend": "metal",
+  "shaderPayloadChoices": [
+    {
+      "backend": "metal",
+      "profile": "metal-macos-12-x86_64",
+      "format": "metal-library"
+    }
+  ],
+  "metalShaderTarget": {
+    "deploymentTarget": "12.0",
+    "mslVersion": "2.4",
+    "bindingPolicy": "metal-direct-binding-v1",
+    "nativeEvidenceSchemaVersion": 1
+  },
+  "textureCapabilities": ["rgba8-unorm", "rgba16-float"],
+  "textureFallback": "portable-ktx2",
+  "buildPolicy": {
+    "optimization": "development",
+    "includeDebugSymbols": false,
+    "validation": "strict",
+    "producerSettings": [
+      {
+        "producer": "cooker.cooked-image-texture",
+        "schemaVersion": 1,
+        "settings": {
+          "codecPolicy": "exact-v1"
+        }
+      },
+      {
+        "producer": "cooker.cooked-material-shader",
+        "schemaVersion": 1,
+        "settings": {
+          "codecPolicy": "exact-v1"
+        }
+      },
+      {
+        "producer": "cooker.cooked-static-model",
+        "schemaVersion": 1,
+        "settings": {
+          "codecPolicy": "exact-v1"
+        }
+      },
+      {
+        "producer": "cooker.ktx2",
+        "schemaVersion": 1,
+        "settings": {
+          "allowLossyData": false,
+          "compressionPolicy": "uncompressed",
+          "portableProfile": "stoner.ktx2.portable.v1",
+          "quality": "balanced"
+        }
+      },
+      {
+        "producer": "cooker.metal-shader",
+        "schemaVersion": 1,
+        "settings": {
+          "bindingPolicy": "metal-direct-binding-v1",
+          "deploymentTarget": "12.0",
+          "finalization": "required",
+          "mslVersion": "2.4",
+          "spirvCrossCommit": "a0fba56c34a6700f1724bf9b751da5b488a3775c"
+        }
+      }
+    ]
+  },
+  "limits": {
+    "maxDiscoveredSources": 100000,
+    "maxAssets": 100000,
+    "maxDependencyEdges": 1000000,
+    "maxDependencyDepth": 256,
+    "maxSourceBytes": 1073741824,
+    "maxPayloadBytes": 1073741824,
+    "maxAggregateBytes": 8589934592,
+    "maxManifestBytes": 268435456,
+    "maxDiagnostics": 4096
+  }
+}

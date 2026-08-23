@@ -294,7 +294,7 @@ void WriteModel(FCookedBinaryWriter& Writer, const FStaticModelAssetDesc& Desc)
     for (const auto& Node : Desc.Nodes)
     {
         Writer.Text(Node.StableKey);
-        Writer.Text(Node.DisplayName);
+        Writer.TextAllowEmpty(Node.DisplayName);
         Vec3(Writer, Node.LocalTransform.Translation);
         Writer.Float(Node.LocalTransform.Rotation.X);
         Writer.Float(Node.LocalTransform.Rotation.Y);
@@ -332,7 +332,8 @@ bool ReadModel(FCookedBinaryReader& Reader, FStaticModelAssetDesc& Out)
     {
         FStaticModelNode Node;
         Core::uint32 ChildCount = 0;
-        if (!Reader.Text(Node.StableKey) || !Reader.Text(Node.DisplayName) ||
+        if (!Reader.Text(Node.StableKey) ||
+            !Reader.TextAllowEmpty(Node.DisplayName) ||
             !Vec3(Reader, Node.LocalTransform.Translation) ||
             !Reader.Float(Node.LocalTransform.Rotation.X) ||
             !Reader.Float(Node.LocalTransform.Rotation.Y) ||

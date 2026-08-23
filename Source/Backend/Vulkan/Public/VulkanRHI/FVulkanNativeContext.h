@@ -12,6 +12,8 @@ namespace Stoner::Backend::Vulkan
 {
 
 class FVulkanDevice;
+class FVulkanCommandBuffer;
+class FVulkanQueue;
 class FVulkanComputePipeline;
 class FVulkanGraphicsPipeline;
 class FVulkanShaderModule;
@@ -142,6 +144,17 @@ public:
         const Stoner::RHI::FRHIShaderModuleDesc& FragmentShader,
         Stoner::Core::uint32 Width,
         Stoner::Core::uint32 Height);
+    [[nodiscard]] Stoner::RHI::ERHIResult PrepareVisibleImage(
+        Stoner::Core::uint32 Width,
+        Stoner::Core::uint32 Height);
+    [[nodiscard]] Stoner::RHI::ERHIResult PresentVisibleRgba8(
+        std::span<const Stoner::Core::uint8> Bytes,
+        Stoner::Core::uint32 Width,
+        Stoner::Core::uint32 Height,
+        Stoner::Core::uint32 RowPitchBytes,
+        Stoner::Core::TArray<Stoner::Core::uint8>& OutPresentedRgba8,
+        Stoner::Core::uint32& OutWidth,
+        Stoner::Core::uint32& OutHeight);
     [[nodiscard]] Stoner::RHI::ERHIResult AcquireVisibleFrame(FVulkanNativeFrameBindings& OutBindings);
     [[nodiscard]] Stoner::RHI::ERHIResult SubmitAndPresentVisibleFrame(const FVulkanNativeFrameBindings& Bindings);
     [[nodiscard]] Stoner::RHI::ERHIResult DrawVisibleFrame();
@@ -154,6 +167,7 @@ public:
 
 private:
     friend class FVulkanDevice;
+    friend class FVulkanQueue;
     friend class FVulkanComputePipeline;
     friend class FVulkanGraphicsPipeline;
     friend class FVulkanShaderModule;
@@ -188,6 +202,8 @@ private:
         Stoner::Core::uint64 Token,
         Stoner::Core::uint32 MipLevel,
         Stoner::Core::TArray<Stoner::Core::uint8>& OutBytes) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult ExecuteRecordedCommands(
+        const FVulkanCommandBuffer& Commands) noexcept;
     void DestroyOwnedTexture(Stoner::Core::uint64 Token) noexcept;
     struct FImpl;
     std::unique_ptr<FImpl> Impl;

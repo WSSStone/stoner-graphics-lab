@@ -9,10 +9,14 @@ lane for revision `506e49e`. Artifact and report digests are recorded in
 uses private Objective-C++ ownership, backend-neutral typed shader bytes,
 deterministic Tools-only SPIRV-Cross MSL derivation, macOS-only offline metallib
 finalization, and capability-correct dual-architecture validation.
-Feature 028 is next: Asset Production Content Integration & Acceptance. It uses
-licensed artist-authored content to validate source import through strict
-cooked loading and visible Vulkan/Metal rendering. Meshlet Derived Data and all
-former Features 028-038 were shifted to Features 029-039.
+Feature 028 Asset Production Content Integration & Acceptance is the active
+planned feature on branch `028-production-content-acceptance`. Read
+`specs/028-production-content-acceptance/plan.md` before implementation. The
+plan uses a checked-in bounded Lantern GLB and an externally staged hash-pinned
+Sponza package to validate real KTX2 cooking, strict-cooked loading,
+transactional Renderer realization, and visible Vulkan/Metal rendering. Asset
+license selection and compliance remain entirely outside automated acceptance.
+Meshlet Derived Data and former Features 028-038 remain shifted to 029-039.
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -56,6 +60,8 @@ former Features 028-038 were shifted to Features 029-039.
 - Immutable development source leases, one potentially read-only local published generation, and an explicit writable lease-coordination root; process-local request/operation/cache/diagnostic state; generation-scoped OS reader lease; no database, DDC ownership, package archive, persistent runtime cache, or network storage (026-runtime-asset-manager)
 - C++20 plus private Objective-C++20 with ARC; existing Core, RHI, Renderer, Application, Asset, AssetCooker, GLFW/Cocoa, Metal/QuartzCore/Foundation; pinned private SPIRV-Cross 0.68.0 lineage; offline `metal`/`metallib`; SCons 4.10.1; macOS 12.0 and MSL 2.4 baseline (027-metal-backend)
 - Process-local native Metal device/resource/pipeline/command/synchronization/presentation state; repository-owned GLSL/SPIR-V authority, deterministic normalized MSL, target-tagged cooked metallib payloads and validation evidence; no runtime shader compilation, Asset GPU ownership, iOS lifecycle, Metal mesh shaders, or ray tracing (027-metal-backend)
+- C++20 with traditional public/private headers and sources; Objective-C++20 remains private to Metal; Python 3 standard-library validation scripts + Existing Core, Asset, AssetCooker, RHI, Renderer, Application, Vulkan and Metal contracts; cgltf 1.15, stb_image 2.30, KTX-Software 4.4.2, WAMR 2.4.5, yyjson 0.12.0, SPIRV-Cross 0.68.0 lineage; CPU-only NVIDIA FLIP 1.7 single-header implementation pinned to commit `b475eb4bf394ab877c42166c9eb0a84a02cc5b14`; SCons 4.10.1 (028-production-content-acceptance)
+- Checked-in bounded Lantern GLB and corpus metadata; externally staged hash-pinned Sponza medium package; local immutable DDC and cooked generations; checked-in baseline policy/reference images and bounded validation evidence; no database, archive, remote cache, or runtime source fallback (028-production-content-acceptance)
 
 ## Recent Changes
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system

@@ -8,6 +8,7 @@ namespace Stoner::Backend::Vulkan
 
 struct FVulkanDiagnostics;
 struct FVulkanDeviceOwnerState;
+class FVulkanNativeContext;
 
 class FVulkanQueue final : public Stoner::RHI::IRHICommandQueue
 {
@@ -34,7 +35,8 @@ private:
         Stoner::RHI::ERHIQueueType InQueueType,
         Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> InOwner,
         FVulkanDiagnostics* InDiagnostics,
-        FVulkanCompletionInjectionConfig InInjection) noexcept;
+        FVulkanCompletionInjectionConfig InInjection,
+        Stoner::Core::TSharedPtr<FVulkanNativeContext> InNativeContext) noexcept;
     void Invalidate() noexcept;
 
     Stoner::RHI::ERHIQueueType QueueType;
@@ -42,6 +44,7 @@ private:
     Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> Owner;
     FVulkanDiagnostics* Diagnostics = nullptr;
     FVulkanCompletionInjectionConfig CompletionInjection;
+    Stoner::Core::TSharedPtr<FVulkanNativeContext> NativeContext;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandSubmission>> Submissions;
     bool bValid = true;
 };

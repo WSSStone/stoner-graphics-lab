@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stoner.local/schemas/production-validation-profile-v1.json",
+  "title": "Stoner Production Validation Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schemaVersion", "profileId", "corpusRevision", "packageIds", "targetProfiles", "lifecycleCycles", "warmupCycles", "maxRssGrowthBytes", "timeBudgetSeconds", "cadence", "requiredGates"],
+  "properties": {
+    "schema": {"const": "stoner.production-validation-profile"},
+    "schemaVersion": {"const": 1},
+    "profileId": {"enum": ["regular", "medium", "hardware"]},
+    "corpusRevision": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"},
+    "packageIds": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
+    },
+    "targetProfiles": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {"type": "string", "maxLength": 256, "pattern": "^(?!/)(?!.*\\\\).+\\.json$"}
+    },
+    "lifecycleCycles": {"type": "integer"},
+    "warmupCycles": {"type": "integer"},
+    "maxRssGrowthBytes": {"const": 16777216},
+    "timeBudgetSeconds": {"type": "integer"},
+    "cadence": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": ["relevant-pull-request", "relevant-push", "weekly-default-branch", "feature-closeout", "release-closeout", "reference-image-change", "production-render-path-change"]
+      }
+    },
+    "requiredGates": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"profileId": {"const": "regular"}}, "required": ["profileId"]},
+      "then": {
+        "properties": {
+          "lifecycleCycles": {"const": 20},
+          "warmupCycles": {"const": 2},
+          "timeBudgetSeconds": {"const": 600}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"profileId": {"enum": ["medium", "hardware"]}}, "required": ["profileId"]},
+      "then": {
+        "properties": {
+          "lifecycleCycles": {"const": 1000},
+          "warmupCycles": {"const": 20},
+          "timeBudgetSeconds": {"const": 1800}
+        }
+      }
+    }
+  ]
+}

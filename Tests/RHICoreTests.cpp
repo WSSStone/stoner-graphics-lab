@@ -2730,6 +2730,17 @@ void TestDescriptorLayoutsAndSets(FRHICoreTestResult& Result)
     Record(Result, Layout.Object->FindBinding(0, 1) && Layout.Object->FindBinding(0, 1)->ArrayCount == 2,
         "IRHIPipelineLayout finds binding by set index and binding slot");
 
+    FRHIPipelineLayoutDesc ReorderedDesc = MakePipelineLayoutDesc();
+    std::reverse(ReorderedDesc.Bindings.begin(), ReorderedDesc.Bindings.end());
+    FRHIPipelineLayoutDesc IncompatibleDesc = ReorderedDesc;
+    IncompatibleDesc.Bindings.front().ArrayCount += 1;
+    Record(Result,
+        AreRHIPipelineLayoutDescsEquivalent(
+            MakePipelineLayoutDesc(), ReorderedDesc) &&
+            !AreRHIPipelineLayoutDescsEquivalent(
+                MakePipelineLayoutDesc(), IncompatibleDesc),
+        "RHI pipeline layout equivalence ignores declaration order and rejects structural changes");
+
     FRHIPipelineLayoutDesc DuplicateDesc = MakePipelineLayoutDesc();
     DuplicateDesc.Bindings.push_back({0, 1, ERHIDescriptorType::Sampler, 1, ERHIShaderStageFlags::Fragment});
     Record(Result, Device.CreatePipelineLayout(DuplicateDesc).Result == ERHIResult::InvalidState,

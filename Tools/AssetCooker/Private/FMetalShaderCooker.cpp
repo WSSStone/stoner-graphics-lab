@@ -79,7 +79,7 @@ Asset::FAssetProducerVersion FMetalShaderCooker::ProducerVersion()
 {
     Asset::FAssetProducerVersion Value;
     (void)Asset::FAssetProducerVersion::Create(
-        Core::FString("027-v1"), Value);
+        Core::FString("027-v2"), Value);
     return Value;
 }
 

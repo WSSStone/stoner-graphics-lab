@@ -1,6 +1,8 @@
 #include "Renderer/FDeferredSurfaceData.h"
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <sstream>
 
 namespace Stoner::Renderer
@@ -163,18 +165,29 @@ bool TryBuildWorldNormalFromModel(const Stoner::Core::FMatrix4x4& Model,
         return false;
     }
 
-    const float A = Model.M[0][0], B = Model.M[0][1], C = Model.M[0][2];
-    const float D = Model.M[1][0], E = Model.M[1][1], F = Model.M[1][2];
-    const float G = Model.M[2][0], H = Model.M[2][1], I = Model.M[2][2];
-    const float Determinant = A * (E * I - F * H) - B * (D * I - F * G) + C * (D * H - E * G);
-    if (!IsFinite(Determinant) || Stoner::Core::FMath::Abs(Determinant) <= Stoner::Core::FMath::DefaultTolerance)
+    const double A = Model.M[0][0], B = Model.M[0][1], C = Model.M[0][2];
+    const double D = Model.M[1][0], E = Model.M[1][1], F = Model.M[1][2];
+    const double G = Model.M[2][0], H = Model.M[2][1], I = Model.M[2][2];
+    const double Scale = std::max({
+        std::abs(A), std::abs(B), std::abs(C),
+        std::abs(D), std::abs(E), std::abs(F),
+        std::abs(G), std::abs(H), std::abs(I)});
+    const double Determinant =
+        A * (E * I - F * H) - B * (D * I - F * G) +
+        C * (D * H - E * G);
+    const double RelativeDeterminant = Scale > 0.0
+        ? Determinant / (Scale * Scale * Scale) : 0.0;
+    if (!std::isfinite(Determinant) ||
+        !std::isfinite(RelativeDeterminant) ||
+        std::abs(RelativeDeterminant) <=
+            Stoner::Core::FMath::DefaultTolerance)
     {
         OutWorldNormalFromModel = Stoner::Core::FMatrix4x4::Identity();
         return false;
     }
 
-    const float InverseDeterminant = 1.0f / Determinant;
-    const float Inverse[3][3] = {
+    const double InverseDeterminant = 1.0 / Determinant;
+    const double Inverse[3][3] = {
         {(E * I - F * H) * InverseDeterminant, (C * H - B * I) * InverseDeterminant, (B * F - C * E) * InverseDeterminant},
         {(F * G - D * I) * InverseDeterminant, (A * I - C * G) * InverseDeterminant, (C * D - A * F) * InverseDeterminant},
         {(D * H - E * G) * InverseDeterminant, (B * G - A * H) * InverseDeterminant, (A * E - B * D) * InverseDeterminant},
@@ -184,7 +197,8 @@ bool TryBuildWorldNormalFromModel(const Stoner::Core::FMatrix4x4& Model,
     {
         for (int Column = 0; Column < 3; ++Column)
         {
-            OutWorldNormalFromModel.M[Row][Column] = Inverse[Column][Row];
+            OutWorldNormalFromModel.M[Row][Column] =
+                static_cast<float>(Inverse[Column][Row]);
         }
     }
     return IsDeferredFinite(OutWorldNormalFromModel);

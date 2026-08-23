@@ -48,6 +48,8 @@ public:
     [[nodiscard]] Stoner::RHI::ERHIDeviceState GetState() const noexcept override;
     [[nodiscard]] const Stoner::RHI::FRHIDeviceCapabilities& GetCapabilities() const noexcept override;
     [[nodiscard]] bool IsActive() const noexcept override;
+    [[nodiscard]] Stoner::RHI::ERHIRuntimeMode GetRuntimeMode() const noexcept override;
+    [[nodiscard]] Stoner::RHI::FRHIRuntimeSnapshot GetRuntimeSnapshot() const noexcept override;
     [[nodiscard]] const FVulkanDiagnostics& GetDiagnostics() const noexcept;
     [[nodiscard]] const FVulkanAdapterCandidate& GetSelectedAdapter() const noexcept;
     [[nodiscard]] FVulkanAllocationSnapshot GetAllocationSnapshot() const noexcept;
@@ -60,6 +62,11 @@ public:
     [[nodiscard]] Stoner::RHI::ERHIResult ReadbackTextureForTesting(
         const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Texture,
         Stoner::Core::uint32 MipLevel,
+        Stoner::Core::TArray<Stoner::Core::uint8>& OutBytes);
+    [[nodiscard]] Stoner::RHI::ERHIResult ReadbackBufferForTesting(
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Buffer,
+        Stoner::Core::uint64 Offset,
+        Stoner::Core::uint64 Size,
         Stoner::Core::TArray<Stoner::Core::uint8>& OutBytes);
 
     Stoner::RHI::ERHIResult Initialize(const FVulkanInstanceDesc& Desc = {});
@@ -130,7 +137,7 @@ private:
     FVulkanAdapterCandidate SelectedAdapter;
     FVulkanDiagnostics Diagnostics;
     Stoner::Core::TSharedPtr<FVulkanNativeContext> NativeShaderContext;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanQueue>> Queues;
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanQueue>> Queues;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandPool>> CommandPools;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanFence>> Fences;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSemaphore>> Semaphores;
@@ -153,8 +160,8 @@ private:
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanGraphicsPipeline>> GraphicsPipelines;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanComputePipeline>> ComputePipelines;
     FVulkanPipelineCache PipelineCache;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanDescriptorSet>> DescriptorSets;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanUploadRequest>> UploadRequests;
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanDescriptorSet>> DescriptorSets;
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanUploadRequest>> UploadRequests;
     Stoner::Core::uint32 CommandBufferCapacity = 64;
     Stoner::Core::uint32 PipelineCreationLimit = 0;
     Stoner::Core::uint32 SuccessfulPipelineCreations = 0;

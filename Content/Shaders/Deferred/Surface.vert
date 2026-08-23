@@ -5,6 +5,8 @@
 
 layout(location = 0) in vec3 InPosition;
 layout(location = 1) in vec3 InNormal;
+layout(location = 2) in vec4 InTangent;
+layout(location = 3) in vec2 InTexCoord0;
 
 layout(set = 0, binding = 0, std140) uniform FrameView
 {
@@ -27,9 +29,14 @@ layout(set = 1, binding = 0, std140) uniform DrawMaterial
 } Draw;
 
 layout(location = 0) out vec3 WorldNormal;
+layout(location = 1) out vec2 TexCoord0;
+layout(location = 2) out vec4 WorldTangent;
 
 void main()
 {
     gl_Position = Frame.ViewProjection * Draw.Model * vec4(InPosition, 1.0);
     WorldNormal = normalize(mat3(Draw.WorldNormalFromModel) * InNormal);
+    WorldTangent = vec4(
+        normalize(mat3(Draw.Model) * InTangent.xyz), InTangent.w);
+    TexCoord0 = InTexCoord0;
 }

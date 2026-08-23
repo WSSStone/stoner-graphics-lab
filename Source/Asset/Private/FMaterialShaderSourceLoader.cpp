@@ -4,6 +4,7 @@
 #include "Asset/FMaterialAsset.h"
 #include "Asset/FMaterialInstanceAsset.h"
 #include "Asset/FShaderAsset.h"
+#include "FMaterialDependencyExtractor.h"
 #include "FMaterialShaderJsonCodec.h"
 #include "FMaterialShaderSchemaValidator.h"
 #include "FShaderDependencyLoader.h"
@@ -31,55 +32,6 @@ FAssetProducerVersion MaterialShaderProducerVersion()
         Core::FString("024-material-v2"),
         Version);
     return Version;
-}
-
-void ExtractShaderDependencies(FShaderAssetDesc& Desc)
-{
-    Desc.Dependencies.clear();
-    const auto Add = [&Desc](
-        const FAssetId& Id,
-        EAssetDependencyRole Role)
-    {
-        FAssetDependency Dependency{
-            Id,
-            Role,
-            EAssetDependencyStrength::Required,
-            EAssetDependencyResolution::Unresolved};
-        if (std::none_of(
-                Desc.Dependencies.begin(),
-                Desc.Dependencies.end(),
-                [&Dependency](const auto& Existing)
-                {
-                    return Existing.SameDeclaration(Dependency);
-                }))
-        {
-            Desc.Dependencies.push_back(std::move(Dependency));
-        }
-    };
-    for (const FShaderSourceReference& Stage : Desc.Stages)
-    {
-        if (Stage.Source.GetId())
-        {
-            Add(*Stage.Source.GetId(), EAssetDependencyRole::Source);
-        }
-    }
-    for (const FShaderVariantDefinition& Variant : Desc.Variants)
-    {
-        for (const FShaderPayloadReference& Payload : Variant.Payloads)
-        {
-            if (Payload.Payload.GetId())
-            {
-                Add(*Payload.Payload.GetId(), EAssetDependencyRole::Runtime);
-            }
-        }
-    }
-    std::sort(
-        Desc.Dependencies.begin(),
-        Desc.Dependencies.end(),
-        [](const auto& Left, const auto& Right)
-        {
-            return Left.TargetId < Right.TargetId;
-        });
 }
 
 template <typename T>
@@ -147,7 +99,7 @@ FMaterialShaderLoadResult FMaterialShaderSourceLoader::Load(
         Private::EMaterialShaderDefinitionKind::Shader)
     {
         auto& ShaderDesc = std::get<FShaderAssetDesc>(Definition.Value);
-        ExtractShaderDependencies(ShaderDesc);
+        (void)Private::ExtractShaderDependencies(ShaderDesc);
         Core::TArray<Core::TSharedPtr<const FAssetPayload>>
             DependencyPayloads;
         Core::TArray<FAssetMetadata> DependencyMetadata;

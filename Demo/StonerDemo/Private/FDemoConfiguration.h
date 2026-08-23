@@ -19,6 +19,19 @@ enum class EDemoGraphicsBackend
     Metal
 };
 
+enum class EDemoWorkload
+{
+    Triangle,
+    ProductionContent
+};
+
+enum class EDemoRenderPath
+{
+    Triangle,
+    DeferredFull,
+    ForwardSmoke
+};
+
 enum class EDemoExitCode : int
 {
     Success = 0,
@@ -34,6 +47,8 @@ struct FDemoConfiguration
 {
     EDemoRunMode RunMode = EDemoRunMode::InteractiveNative;
     EDemoGraphicsBackend GraphicsBackend = EDemoGraphicsBackend::Vulkan;
+    EDemoWorkload Workload = EDemoWorkload::Triangle;
+    EDemoRenderPath RenderPath = EDemoRenderPath::Triangle;
     Stoner::Core::uint32 ClientWidth = 1280;
     Stoner::Core::uint32 ClientHeight = 720;
     Stoner::Core::uint32 FrameBudget = 0;
@@ -48,6 +63,17 @@ struct FDemoConfiguration
     Stoner::Core::FString CookedPublicationRoot;
     Stoner::Core::FString LeaseCoordinationRoot;
     Stoner::Core::FString TargetProfilePath;
+    Stoner::Core::FString ProductionRoot;
+    Stoner::Core::FString StrictGeneration;
+    Stoner::Core::FString WorkloadRevision;
+    Stoner::Core::FString BaselineRoot;
+    Stoner::Core::FString DeviceClassRegistryPath;
+    Stoner::Core::FString ProductionCaptureRoot;
+    Stoner::Core::uint32 ProductionLifecycleCycles = 20;
+    Stoner::Core::uint32 ProductionWarmupCycles = 2;
+    Stoner::Core::uint64 ProductionMaxRssGrowthBytes =
+        16ULL * 1024ULL * 1024ULL;
+    bool bVisibleCapture = false;
     Stoner::Core::FString ValidationOutputPath = "Build/triangle-demo-validation.txt";
     Stoner::Core::FString EvidenceRunId = "local";
 
@@ -62,5 +88,7 @@ struct FDemoConfiguration
 
 [[nodiscard]] const char* ToString(EDemoRunMode Mode) noexcept;
 [[nodiscard]] const char* ToString(EDemoGraphicsBackend Backend) noexcept;
+[[nodiscard]] const char* ToString(EDemoWorkload Workload) noexcept;
+[[nodiscard]] const char* ToString(EDemoRenderPath Path) noexcept;
 
 } // namespace Stoner::Demo

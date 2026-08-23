@@ -3,6 +3,7 @@
 #include "AssetCookerPublicationTestSupport.h"
 #include "AssetManagerTestSupport.h"
 #include "Asset/FMaterialAsset.h"
+#include "Asset/FKTX2TextureArtifact.h"
 #include "Asset/FMaterialShaderSourceLoader.h"
 #include "Asset/FShaderAsset.h"
 #include "Asset/FStaticMeshAsset.h"
@@ -170,25 +171,21 @@ void Record(
 
 bool EqualTexture(
     const FTextureAsset& Left,
-    const FTextureAsset& Right)
+    const FKTX2TextureArtifact& Right)
 {
+    const auto& Info = Right.GetInfo();
     if (Left.GetId() != Right.GetId() ||
-        Left.GetSemantic() != Right.GetSemantic() ||
-        Left.GetColorSpace() != Right.GetColorSpace() ||
-        Left.GetMipPolicy() != Right.GetMipPolicy() ||
-        Left.GetMips().size() != Right.GetMips().size())
+        Left.GetSemantic() != Info.Semantic ||
+        Left.GetColorSpace() != Info.ColorSpace ||
+        Left.GetMipPolicy() != Info.MipPolicy ||
+        Left.GetMips().size() != Info.Levels.size() ||
+        Left.GetContentDigest() != Info.ContentDigest)
         return false;
     for (Core::usize Index = 0; Index < Left.GetMips().size(); ++Index)
     {
-        const auto LeftBytes = Left.GetMips()[Index].GetBytes();
-        const auto RightBytes = Right.GetMips()[Index].GetBytes();
         if (Left.GetMips()[Index].GetExtent() !=
-                Right.GetMips()[Index].GetExtent() ||
-            Left.GetMips()[Index].GetFormat() !=
-                Right.GetMips()[Index].GetFormat() ||
-            LeftBytes.size() != RightBytes.size() ||
-            !std::equal(LeftBytes.begin(), LeftBytes.end(),
-                RightBytes.begin()))
+                Info.Levels[Index].Extent ||
+            Info.Levels[Index].MipLevel != Index)
             return false;
     }
     return true;
@@ -368,7 +365,7 @@ FAssetManagerEquivalenceTestResult RunAssetManagerEquivalenceTests()
         DevelopmentCreate == EAssetResult::Success &&
         CookedCreate == EAssetResult::Success;
     TAssetHandle<FTextureAsset> DevelopmentTexture;
-    TAssetHandle<FTextureAsset> CookedTexture;
+    TAssetHandle<FKTX2TextureArtifact> CookedTexture;
     TAssetHandle<FShaderAsset> DevelopmentShader;
     TAssetHandle<FShaderAsset> CookedShader;
     TAssetHandle<FStaticModelAsset> DevelopmentModel;

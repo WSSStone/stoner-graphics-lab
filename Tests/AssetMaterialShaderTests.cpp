@@ -324,7 +324,7 @@ FShaderNativeLibraryEvidence MakeNativeLibraryEvidence(
     (void)FAssetParticipantId::Create(
         FString("cooker.metal-shader"), Evidence.Finalizer);
     (void)FAssetProducerVersion::Create(
-        FString("027-v1"), Evidence.FinalizerVersion);
+        FString("027-v2"), Evidence.FinalizerVersion);
     (void)FinalizeShaderNativeLibraryEvidence(Evidence);
     return Evidence;
 }
@@ -647,6 +647,7 @@ void TestCanonicalOwnershipAndRollback(
         LoadRequest.Descriptor,
         LoadRequest.Source,
         Parameters,
+        {},
         {}};
     const auto Failed = bRegistered
         ? FMaterialShaderImportService::ImportAndRegister(
@@ -1395,7 +1396,7 @@ void TestRepositoryAssets(FAssetMaterialShaderTestResult& Result)
         (void)FAssetParticipantId::Create(
             FString("cooker.metal-shader"), Version.Producer);
         (void)FAssetProducerVersion::Create(
-            FString("027-v1"), Version.ProducerVersion);
+            FString("027-v2"), Version.ProducerVersion);
         FShaderPayloadAsset Metal;
         auto NativeBinding = MakeNativeBindingEvidence(Source->GetStage());
         NativeBinding.Entries.clear();

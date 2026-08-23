@@ -3,6 +3,7 @@
 #include "Asset/AssetMinimal.h"
 #include "Core/FPlatformFileSystem.h"
 #include "FAssetCookGraph.h"
+#include "FAssetCookerSelection.h"
 #include "FAssetCookScheduler.h"
 #include "FCookedGenerationPublisher.h"
 #include "FDerivedDataStore.h"
@@ -90,6 +91,7 @@ struct FPreparedCookNode
     Asset::FAssetDerivedKeyEvidence Evidence;
     Asset::FAssetDerivedKey DerivedKey;
     Asset::FAssetCookedTargetDecision TargetDecision;
+    Asset::FAssetCookedPayloadHeader OutputContract;
     Core::TSharedPtr<const Asset::FAssetCookParameters> Parameters;
     bool bReused = false;
     bool bInvalidated = false;
@@ -148,33 +150,35 @@ Asset::EAssetResult PrepareCookNode(
     Out = {};
     Asset::EAssetCookedFamily Family;
     if (Asset::GetAssetCookedFamily(Node.Metadata.Id.GetAssetType(), Family) !=
-            Asset::EAssetResult::Success ||
-        Asset::GetAssetCookedParticipant(
-            Family, Asset::EAssetExtensionKind::Cooker, Out.CookerId) !=
-            Asset::EAssetResult::Success)
+            Asset::EAssetResult::Success || !Node.Payload)
         return Asset::EAssetResult::Unsupported;
+    Private::FAssetCookerSelection Selection;
+    if (Private::SelectAssetCooker(
+            Family, *Node.Payload, Profile, Registry, Selection) !=
+        Asset::EAssetResult::Success)
+        return Asset::EAssetResult::Unsupported;
+    Out.CookerId = Selection.CookerId;
+    Out.Parameters = Selection.Parameters;
+    Out.OutputContract = Selection.OutputContract;
+    Out.TargetDecision = Selection.TargetDecision;
+    Asset::FAssetProfileProjectionEvidence Projection =
+        Selection.ProfileProjection;
     if (IsMetalShaderSource(Node, Profile.Profile))
+    {
         Out.CookerId = Private::FMetalShaderCooker::ParticipantId();
-    const auto CookerLease = Registry.Acquire(
-        Asset::EAssetExtensionKind::Cooker, Out.CookerId);
-    const auto Cooker = CookerLease.Get<Asset::IAssetCooker>();
-    Asset::FAssetProfileProjectionEvidence Projection;
-    if (!Cooker || Cooker->GetRelevantProfileEvidence(Profile, Projection) !=
-            Asset::EAssetResult::Success)
-        return Asset::EAssetResult::InvalidInput;
-    if (!Node.Payload || Asset::ResolveAssetCookedTargetDecision(
-            Family, *Node.Payload, Profile.Profile,
-            Out.TargetDecision) != Asset::EAssetResult::Success)
-        return Asset::EAssetResult::Unsupported;
-    Asset::FAssetCookedPayloadHeader PayloadContract;
-    if (Asset::FAssetCookContractCodec::DescribeTypedPayload(
-            *Node.Payload, PayloadContract) != Asset::EAssetResult::Success ||
-        PayloadContract.AssetId != Node.Metadata.Id)
+        const auto CookerLease = Registry.Acquire(
+            Asset::EAssetExtensionKind::Cooker, Out.CookerId);
+        const auto Cooker = CookerLease.Get<Asset::IAssetCooker>();
+        if (!Cooker || Cooker->GetRelevantProfileEvidence(
+                Profile, Projection) != Asset::EAssetResult::Success)
+            return Asset::EAssetResult::InvalidInput;
+    }
+    if (Out.OutputContract.AssetId != Node.Metadata.Id)
         return Asset::EAssetResult::TypeMismatch;
     if (IsMetalShaderSource(Node, Profile.Profile))
     {
-        PayloadContract.CodecVersion = 2;
-        PayloadContract.PayloadSchemaVersion = 2;
+        Out.OutputContract.CodecVersion = 2;
+        Out.OutputContract.PayloadSchemaVersion = 2;
     }
 
     auto& Evidence = Out.Evidence;
@@ -206,12 +210,17 @@ Asset::EAssetResult PrepareCookNode(
     Evidence.CookerId = Out.CookerId;
     Evidence.CookerVersion = CookerVersion(Registry, Out.CookerId);
     if (Asset::FAssetParticipantId::Create(
-            PayloadContract.CodecId, Evidence.CodecId) != Asset::EAssetResult::Success)
+            Out.OutputContract.CodecId, Evidence.CodecId) !=
+        Asset::EAssetResult::Success)
         return Asset::EAssetResult::InvalidInput;
-    Evidence.CodecVersion = CodecVersion(PayloadContract.CodecVersion);
-    Evidence.PayloadSchemaVersion = PayloadContract.PayloadSchemaVersion;
+    Evidence.CodecVersion = CodecVersion(Out.OutputContract.CodecVersion);
+    Evidence.PayloadSchemaVersion = Out.OutputContract.PayloadSchemaVersion;
     Evidence.EffectiveSettingsDigest = Projection.EffectiveSettingsDigest;
     Evidence.RelevantProfileDigest = Projection.RelevantProfileDigest;
+    Evidence.AdditionalEvidence = Selection.AdditionalEvidence;
+    if (!Evidence.AdditionalEvidence.empty())
+        Evidence.KeyFormatVersion =
+            Asset::FAssetDerivedKeyEvidence::CurrentKeyFormatVersion;
     if (IsMetalShaderSource(Node, Profile.Profile))
     {
         const auto Payload =
@@ -352,6 +361,11 @@ FAssetCookResult FAssetCookRunner::Run(
         Asset::EAssetResult::Success)
         return Fail(EAssetCookResultCategory::InternalFailure,
             "asset-cooker.metal-extension.failed", OutReport);
+    Asset::FAssetRegistrationToken KTX2CookerToken;
+    if (Asset::RegisterKTX2TextureCooker(Registry, KTX2CookerToken) !=
+        Asset::EAssetResult::Success)
+        return Fail(EAssetCookResultCategory::InternalFailure,
+            "asset-cooker.ktx2-extension.failed", OutReport);
     Private::FMetalToolchainEvidence MetalToolchain;
     if (ParsedProfile.Profile.GraphicsBackend ==
         Asset::EAssetGraphicsBackend::Metal)
@@ -579,8 +593,24 @@ FAssetCookResult FAssetCookRunner::Run(
                     Cooked.Result, std::move(Cooked.Artifact)};
             }
 
+            Asset::FAssetCookedPayloadLimits PayloadLimits;
+            PayloadLimits.MaxEnvelopeBytes =
+                ParsedProfile.Profile.Limits.MaxPayloadBytes;
+            PayloadLimits.MaxBodyBytes =
+                ParsedProfile.Profile.Limits.MaxPayloadBytes;
+            Core::TArray<Core::uint8> NormalizedArtifact;
+            const Asset::EAssetResult Normalized =
+                Private::NormalizeCookedArtifact(
+                    State.CookerId, State.OutputContract, Cooked, PayloadLimits,
+                    NormalizedArtifact);
+            if (Normalized != Asset::EAssetResult::Success)
+            {
+                RecordFailure("asset-cooker.cook.artifact-contract-failed");
+                return Private::FAssetCookScheduledResult{Normalized, {}};
+            }
+
             auto Installed = Private::FDerivedDataStore::Install(
-                LookupRequest, Cooked.Artifact, Request.LeaseTimeout);
+                LookupRequest, NormalizedArtifact, Request.LeaseTimeout);
             if (Installed.Result != Asset::EAssetResult::Success &&
                 Request.CachePolicy == EAssetCookCachePolicy::IgnoreExisting)
             {
@@ -591,7 +621,8 @@ FAssetCookResult FAssetCookRunner::Run(
                         LookupRequest, Existing, Request.LeaseTimeout);
                     if (Quarantine.Result == Asset::EAssetResult::Success)
                         Installed = Private::FDerivedDataStore::Install(
-                            LookupRequest, Cooked.Artifact, Request.LeaseTimeout);
+                            LookupRequest, NormalizedArtifact,
+                            Request.LeaseTimeout);
                 }
             }
             if (Installed.Result != Asset::EAssetResult::Success)

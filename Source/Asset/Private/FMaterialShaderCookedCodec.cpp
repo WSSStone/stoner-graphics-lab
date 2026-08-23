@@ -8,6 +8,7 @@
 #include "Asset/FShaderNativeLibraryEvidence.h"
 #include "Asset/FShaderSourceAsset.h"
 #include "FAssetCookedBinary.h"
+#include "FMaterialShaderSchemaValidator.h"
 #include "FMaterialShaderJsonCodec.h"
 
 #include <memory>
@@ -401,6 +402,9 @@ EAssetResult DecodeMaterialShaderCookedBody(
                     Canonical.Len()),
                 {}, Definition, nullptr);
             if (Parse != EAssetResult::Success) return Parse;
+            const EAssetResult Validate =
+                ValidateMaterialShaderDefinition(Definition, nullptr);
+            if (Validate != EAssetResult::Success) return Validate;
             if (HeaderValue.CodecId == Core::FString("stoner.shader-program"))
                 return PublishDefinition<FShaderAsset, FShaderAssetDesc>(
                     Definition, HeaderValue.AssetId, OutPayload);

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stoner.local/schemas/image-baseline-v1.json",
+  "title": "Stoner Production Image Baseline",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schemaVersion", "baselineId", "state", "workloadRevision", "backend", "deviceClass", "capabilitySignature", "width", "height", "colorTransfer", "referencePath", "referenceSha256", "flipPolicy", "calibrationEvidenceSha256"],
+  "properties": {
+    "schema": {"const": "stoner.production-image-baseline"},
+    "schemaVersion": {"const": 1},
+    "baselineId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,127}$"},
+    "state": {"enum": ["candidate", "calibrated", "reviewed", "accepted", "superseded"]},
+    "workloadRevision": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"},
+    "backend": {"enum": ["vulkan", "metal"]},
+    "deviceClass": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,95}$"},
+    "capabilitySignature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["registryVersion", "backendImplementation", "cpuArchitecture", "adapterFamily", "shaderProfile", "colorFormat", "depthFormat", "sampleCount", "textureFormatFamily"],
+      "properties": {
+        "registryVersion": {"const": 1},
+        "backendImplementation": {"enum": ["native-vulkan", "moltenvk", "lavapipe", "native-metal"]},
+        "cpuArchitecture": {"enum": ["x86_64", "arm64"]},
+        "adapterFamily": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"},
+        "shaderProfile": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"},
+        "colorFormat": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"},
+        "depthFormat": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"},
+        "sampleCount": {"type": "integer", "enum": [1, 2, 4, 8]},
+        "textureFormatFamily": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"}
+      }
+    },
+    "width": {"type": "integer", "minimum": 1, "maximum": 16384},
+    "height": {"type": "integer", "minimum": 1, "maximum": 16384},
+    "colorTransfer": {"enum": ["srgb", "linear-to-srgb-v1"]},
+    "referencePath": {"type": "string", "pattern": "^(?!/)(?!.*\\\\).+$"},
+    "referenceSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "flipPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["meanMax", "p95Max", "maximumMax", "badPixelThreshold", "badPixelFractionMax"],
+      "properties": {
+        "meanMax": {"type": "number", "minimum": 0, "maximum": 1},
+        "p95Max": {"type": "number", "minimum": 0, "maximum": 1},
+        "maximumMax": {"type": "number", "minimum": 0, "maximum": 1},
+        "badPixelThreshold": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "badPixelFractionMax": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "calibrationEvidenceSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -7,6 +7,21 @@
 namespace Stoner::Asset::Private
 {
 
+namespace
+{
+bool IsWithinSourceScope(
+    const std::filesystem::path& Candidate,
+    const std::filesystem::path& Scope)
+{
+    const std::filesystem::path Normalized = Candidate.lexically_normal();
+    if (Normalized.empty()) return false;
+    if (Scope.empty()) return *Normalized.begin() != "..";
+    const std::filesystem::path Relative =
+        Normalized.lexically_relative(Scope);
+    return !Relative.empty() && *Relative.begin() != "..";
+}
+} // namespace
+
 EAssetResult DecodeGLTFDataUri(
     std::string_view Uri,
     Core::uint64 MaximumBytes,
@@ -87,8 +102,7 @@ EAssetResult ResolveGLTFDependency(
     const std::filesystem::path Relative(RelativeUri);
     if (Relative.is_absolute()) return EAssetResult::AccessDenied;
     const std::filesystem::path Combined = (Scope / Relative).lexically_normal();
-    const std::filesystem::path RelativeToScope = Combined.lexically_relative(Scope);
-    if (RelativeToScope.empty() || *RelativeToScope.begin() == ".." ||
+    if (!IsWithinSourceScope(Combined, Scope) ||
         Combined == SourcePath.lexically_normal())
         return EAssetResult::AccessDenied;
 
@@ -103,9 +117,7 @@ EAssetResult ResolveGLTFDependency(
         return EAssetResult::AccessDenied;
     const std::filesystem::path ResolvedPath(
         Resolved.Descriptor.Location.GetLocator().ToStdString());
-    const std::filesystem::path ResolvedRelative =
-        ResolvedPath.lexically_normal().lexically_relative(Scope);
-    if (ResolvedRelative.empty() || *ResolvedRelative.begin() == ".." ||
+    if (!IsWithinSourceScope(ResolvedPath, Scope) ||
         ResolvedPath.lexically_normal() == SourcePath.lexically_normal())
         return EAssetResult::AccessDenied;
     Result = Resolved.Source.ReadBounded(

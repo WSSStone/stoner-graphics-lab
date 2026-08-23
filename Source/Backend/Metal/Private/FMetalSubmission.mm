@@ -43,7 +43,10 @@ void FMetalSubmission::Complete(bool bSucceeded) noexcept
     Records_.clear();
     WaitSemaphores_.clear();
     SignalSemaphores_.clear();
+    SignalEpochs_.clear();
     CommandBuffer_.reset();
+    Fence_.reset();
+    FenceEpoch_ = 0;
     Condition_.notify_all();
 }
 

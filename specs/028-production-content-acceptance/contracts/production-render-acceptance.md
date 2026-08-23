@@ -1,0 +1,91 @@
+# Production Render Acceptance Contract
+
+## Workload Authority
+
+One production composition is identified by a versioned workload ID and
+contains the strict-cooked root, model placement, camera, lights, frame state,
+and render settings. The same values feed Vulkan and Metal. Backend-specific
+differences are limited to target payload selection, capability-justified
+fallback, native presentation, and readback normalization.
+
+Deferred executes the full production acceptance workload. Forward executes a
+bounded visible and native-readback smoke with the same root/camera/composition.
+
+## Native Proof Sequence
+
+1. Prove the requested RHI backend and physical/native execution mode.
+2. Realize and publish the complete model snapshot.
+3. Submit real backend commands and observe completion synchronization.
+4. For visible lanes, present the complete application window or surface.
+5. Copy GPU-produced output to readback and verify the current frame token.
+6. Normalize row pitch, channel order, image origin, and color transfer.
+7. Run semantic probes.
+8. Select the exact accepted image baseline.
+9. Run FLIP and enforce all declared limits.
+10. Emit report and window-only capture, then release all ownership.
+
+A deterministic simulation, semantic oracle, software fallback where physical
+hardware is required, stale checked-in image, or silently substituted backend
+cannot satisfy steps 1-5.
+
+## Mandatory Semantic Probes
+
+- expected dimensions/format and finite values;
+- nonblank/non-placeholder pixel distribution;
+- expected background and geometry coverage ranges;
+- orientation/corner marker or equivalent asymmetric workload evidence;
+- current frame token and non-stale submission evidence;
+- material-region probes for base color, normal response, metallic/roughness,
+  emissive where present, and depth/normal deferred attachments;
+- no missing primitive/material region declared by workload inspection.
+
+Every probe must pass before perceptual comparison begins.
+
+## Baseline Selection
+
+The key is exact `(WorkloadRevision, Backend, DeviceClass)`. The runner builds a
+canonical signature from registry version, backend implementation, CPU
+architecture, adapter family, shader profile, color format, depth format,
+sample count, and texture-format family, then derives `DeviceClass` by exactly
+one match in `Config/Validation/ProductionContent/DeviceClasses.json`. A CLI or
+caller cannot supply an authoritative class token. Marketing device name and
+driver version are observations, not key material. Zero or multiple class or
+baseline matches is `ImageBaselineMissing` or `ImageBaselineAmbiguous` and
+fails the required hardware gate; nearest/fallback selection is forbidden.
+
+## Perceptual Policy
+
+- Input is canonical same-size LDR RGB after color-transfer normalization.
+- Metric is pinned CPU LDR-FLIP.
+- Report mean, p95, max, and bad-pixel fraction where a bad pixel exceeds the
+  baseline's FLIP error threshold.
+- All four baseline limits must pass.
+- Thresholds are fixed reviewed data. Ordinary execution cannot create a
+  reference, widen tolerance, choose a nearest device class, or approve output.
+
+## Lifecycle Profiles
+
+| Profile | Full cycles | Warm-up cycles | Required native scope | RSS rule |
+|---|---:|---:|---|---|
+| Regular | 20 | 1-2 | Platform-applicable bounded native/headless gates | Post-warm-up sample to terminal <= 16 MiB |
+| Medium | 1,000 | 1-20 | Declared medium environment | Same |
+| Hardware | 1,000 | 1-20 | Windows Vulkan; macOS Vulkan + Metal | Same |
+
+Each cycle performs strict manager bind/request, complete closure, Renderer
+realization, deferred render/readback, bounded forward smoke where required,
+snapshot release, Asset handle release, manager/backend teardown as declared,
+and terminal counter inspection. Counts return to baseline after every cycle or
+at the profile's explicitly declared synchronization boundary. Warm-up cycles
+count toward the full-cycle total. The RSS origin sample is taken immediately
+after the last warm-up cycle and compared with the terminal sample.
+
+## Capture Privacy
+
+- Capture only the application window/render surface, never the desktop.
+- Verify capture dimensions, workload/backend in-frame evidence, and digest.
+- Reports redact absolute paths, credentials, user names, PID, pointer values,
+  and unbounded environment data.
+- Canonical report JSON is at most 1 MiB and references at most 64 artifacts;
+  each artifact is at most 64 MiB and the aggregate is at most 256 MiB.
+- A capture is supporting evidence; GPU readback and semantic probes remain the
+  native gate.
