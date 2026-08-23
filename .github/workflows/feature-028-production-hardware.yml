@@ -93,3 +93,4 @@ jobs:
           name: production-hardware-${{ matrix.slug }}-${{ github.run_attempt }}
           path: Build/Validation/028/hardware-${{ matrix.slug }}
           if-no-files-found: error
+          include-hidden-files: true

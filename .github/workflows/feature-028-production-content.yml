@@ -109,6 +109,7 @@ jobs:
           name: production-regular-${{ matrix.slug }}-${{ github.run_attempt }}
           path: Build/Validation/028/${{ matrix.slug }}
           if-no-files-found: error
+          include-hidden-files: true
 
   regular-consumer:
     if: github.event_name != 'schedule'
@@ -255,3 +256,4 @@ jobs:
           name: production-medium-linux-${{ github.run_attempt }}
           path: Build/Validation/028/medium-linux
           if-no-files-found: error
+          include-hidden-files: true

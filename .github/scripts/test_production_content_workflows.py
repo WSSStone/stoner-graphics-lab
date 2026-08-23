@@ -40,6 +40,13 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         self.assertIn("--verify-only", text)
         self.assertIn("--target-profile ${{ matrix.target }}", text)
         self.assertIn("artifact-manifest.json", text)
+        self.assertEqual(2, text.count("include-hidden-files: true"))
+        self.assertEqual(
+            1,
+            HARDWARE.read_text(encoding="utf-8").count(
+                "include-hidden-files: true"
+            ),
+        )
 
     def test_hosted_workflow_has_feature_028_linux_sanitizer_gates(self):
         text = HOSTED.read_text(encoding="utf-8")
