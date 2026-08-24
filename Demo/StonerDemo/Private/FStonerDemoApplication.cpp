@@ -897,7 +897,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                             Existing.bWindowOnlyCapture &&
                             !Existing.Bytes.empty();
                     }));
-            if (!bSelectedVisiblePath || bStreamCalibrationCapture ||
+            if (!bSelectedVisiblePath || !Configuration.ProductionCaptureRoot.IsEmpty() ||
                 RetainedCalibrationCaptures >=
                     MaximumRetainedCalibrationCaptures)
             {
