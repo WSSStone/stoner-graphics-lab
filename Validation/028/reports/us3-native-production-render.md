@@ -24,9 +24,13 @@ Accepted post-registration runs selected the exact Metal and MoltenVK v2
 records, passed 20 semantic probes, and measured zero mean, p95, maximum, and
 bad-pixel-fraction FLIP error. All blank, stale-frame, origin,
 missing-geometry, material-swap, color-space, and opposite-normal mutations
-were rejected. Lifecycle ownership returned to zero; RSS stability remains a
-separate T126 closeout item because recent Sponza runs exceeded the fixed
-16 MiB post-warm-up threshold.
+were rejected. The final bounded visible runs completed with exit code 0 on
+both backends and retained zero owners plus stale-handle rejection on every
+cycle. Metal observed 9,715,712 bytes of cycle-2-to-cycle-20 RSS growth;
+MoltenVK observed 57,278,464 bytes. These 20-frame calibration RSS values are
+explicitly observational because Sponza is not a regular-profile root. Its
+authoritative lifecycle/RSS acceptance remains the separate 1,000-cycle,
+cycle-20-warm-up hardware gate required by T126.
 
 ## Scope And Method
 

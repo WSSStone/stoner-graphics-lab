@@ -248,7 +248,10 @@ the final warm-up cycle; the gate requires growth at most 16 MiB in addition to
 all ownership counters returning to baseline. Arm64 Metal regular uses one
 runtime manager worker so worker-local allocation is stable inside two cycles;
 other regular targets use four workers, while medium/hardware use eight workers
-to meet the 10/30-minute throughput budgets.
+to meet the 10/30-minute throughput budgets. The separate 20-frame visible
+image-calibration run still requires per-cycle ownership and stale-handle
+proof, but treats RSS as an observation: Sponza is not a regular-profile root,
+and its authoritative lifecycle/RSS gate is the 1,000-cycle hardware profile.
 
 **Rationale**: A named but variable warm-up lets callers move the measurement
 origin until a leak appears acceptable. Exact profile-owned boundaries make the

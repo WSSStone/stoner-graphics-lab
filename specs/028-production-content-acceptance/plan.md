@@ -272,7 +272,10 @@ Validation. No new runtime module is introduced.
    manager worker for regular allocator stability and eight for medium/hardware
    throughput. The medium runner may execute its two disjoint package roots
    concurrently under one shared deadline; hardware packages remain serialized
-   because visible windows and capture devices are host-global resources.
+   because visible windows and capture devices are host-global resources. Keep
+   the separate 20-frame Sponza image-calibration run focused on image and
+   per-cycle ownership proof; its RSS is observational because Sponza lifecycle
+   authority belongs to the 1,000-cycle hardware profile.
 6. Build at least 30 stable negative cases spanning corpus, cook, publication,
    strict load, realization, native capability, image, and lifecycle failures.
 
