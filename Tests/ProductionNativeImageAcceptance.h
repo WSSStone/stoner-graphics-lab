@@ -18,6 +18,16 @@ struct FProductionNativeImageAcceptanceResult
     FProductionFlipResult Flip;
 };
 
+[[nodiscard]] bool BuildProductionWorkloadRegions(
+    const Stoner::Core::FString& WorkloadRevision,
+    Stoner::Core::uint32 Width,
+    Stoner::Core::uint32 Height,
+    Stoner::Core::TArray<FProductionRegionProbe>& OutRegions);
+
+[[nodiscard]] bool IsProductionWorkloadNormalProbeValid(
+    const Stoner::Core::FString& WorkloadRevision,
+    const Stoner::Core::FVector3& WorldNormal) noexcept;
+
 [[nodiscard]] FProductionNativeImageAcceptanceResult
 RunProductionNativeImageAcceptance(
     const Stoner::Demo::FDemoProductionExecutionInspection& Inspection,

@@ -315,6 +315,32 @@ Core::TArray<FProductionRegionProbe> LanternRegions(
     };
 }
 
+Core::TArray<FProductionRegionProbe> SponzaRegions(
+    Core::uint32 Width,
+    Core::uint32 Height)
+{
+    const auto Probe = [Width, Height](const char* Name, float X, float Y,
+        Core::FVector3 Expected, float Tolerance)
+    {
+        return FProductionRegionProbe{
+            Name, At(X, Width), At(Y, Height), Expected, Tolerance};
+    };
+    return {
+        Probe("background", 0.95f, 0.05f, {0.0f, 0.0f, 0.0f}, 0.01f),
+        Probe("orientation", 0.10f, 0.10f,
+            Srgb8(57, 45, 32), 0.12f),
+        Probe("primitive-material", 0.90f, 0.55f,
+            Srgb8(86, 80, 69), 0.15f),
+        Probe("base-color", 0.18f, 0.68f,
+            Srgb8(5, 23, 79), 0.12f),
+        Probe("normal-response", 0.238f, 0.529f,
+            Srgb8(175, 147, 102), 0.20f),
+        Probe("metallic-roughness", 0.78f, 0.53f,
+            Srgb8(50, 43, 34), 0.12f),
+        Probe("emissive", 0.75f, 0.05f, {0.0f, 0.0f, 0.0f}, 0.01f),
+    };
+}
+
 std::filesystem::path CapturePath(
     const Core::FString& CaptureRoot,
     const Core::FString& Backend)
@@ -360,6 +386,37 @@ bool VerifyDigest(
 
 } // namespace
 
+bool BuildProductionWorkloadRegions(
+    const Core::FString& WorkloadRevision,
+    Core::uint32 Width,
+    Core::uint32 Height,
+    Core::TArray<FProductionRegionProbe>& OutRegions)
+{
+    OutRegions.clear();
+    if (WorkloadRevision == Core::FString("production-content-v1"))
+        OutRegions = LanternRegions(Width, Height);
+    else if (WorkloadRevision ==
+        Core::FString("production-content-sponza-v2"))
+        OutRegions = SponzaRegions(Width, Height);
+    return OutRegions.size() == 7;
+}
+
+bool IsProductionWorkloadNormalProbeValid(
+    const Stoner::Core::FString& WorkloadRevision,
+    const Stoner::Core::FVector3& WorldNormal) noexcept
+{
+    const float Length = std::sqrt(
+        WorldNormal.X * WorldNormal.X + WorldNormal.Y * WorldNormal.Y +
+        WorldNormal.Z * WorldNormal.Z);
+    if (!std::isfinite(Length) || Length < 0.8f || Length > 1.2f)
+        return false;
+    if (WorkloadRevision ==
+        Stoner::Core::FString("production-content-sponza-v2"))
+        return WorldNormal.Y >= 0.8f;
+    return WorkloadRevision ==
+        Stoner::Core::FString("production-content-v1");
+}
+
 FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
     const Stoner::Demo::FDemoProductionExecutionInspection& Inspection,
     const Stoner::Core::FString& Backend,
@@ -403,8 +460,12 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
         !ToReadbackView(*LightingEvidence, EProductionColorTransfer::Linear,
             LightingView))
         return Fail("semantic-readback-layout");
-    const Core::uint32 ProbeX = At(0.598f, ColorView.Width);
-    const Core::uint32 ProbeY = At(0.390f, ColorView.Height);
+    const bool bSponzaV2 = WorkloadRevision ==
+        Core::FString("production-content-sponza-v2");
+    const Core::uint32 ProbeX = At(
+        0.598f, ColorView.Width);
+    const Core::uint32 ProbeY = At(
+        0.390f, ColorView.Height);
     Core::FVector3 BaseColorSample;
     Core::FVector3 NormalSample;
     Core::FVector3 DepthSample;
@@ -418,10 +479,8 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
     if (!SampleProductionReadbackPixel(
             NormalView, ProbeX, ProbeY, NormalSample, Failure))
         return Fail("normal-attachment-region");
-    const float NormalLength = std::sqrt(
-        NormalSample.X * NormalSample.X + NormalSample.Y * NormalSample.Y +
-        NormalSample.Z * NormalSample.Z);
-    if (NormalLength < 0.8f || NormalLength > 1.2f)
+    if (!IsProductionWorkloadNormalProbeValid(
+            WorkloadRevision, NormalSample))
         return Fail("normal-attachment-region");
     if (!SampleProductionReadbackPixel(
             DepthView, ProbeX, ProbeY, DepthSample, Failure) ||
@@ -447,9 +506,11 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
     Semantic.Depth = &Depth;
     Semantic.ExpectedFrameToken = Inspection.CompletedCycles;
     Semantic.ObservedFrameToken = Inspection.CompletedCycles;
-    Semantic.MinimumCoverageFraction = 0.01f;
-    Semantic.MaximumCoverageFraction = 0.35f;
-    Semantic.Regions = LanternRegions(Color.Width, Color.Height);
+    Semantic.MinimumCoverageFraction = bSponzaV2 ? 0.75f : 0.01f;
+    Semantic.MaximumCoverageFraction = bSponzaV2 ? 0.82f : 0.35f;
+    if (!BuildProductionWorkloadRegions(
+            WorkloadRevision, Color.Width, Color.Height, Semantic.Regions))
+        return Fail("workload-semantic-regions");
     Semantic.RequiredRegionNames = {"background"};
     Result.Semantic = RunProductionSemanticProbes(Semantic);
     if (!Result.Semantic.bPassed)
@@ -481,7 +542,9 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
 
     FProductionNativeImageEvidence Native{
         Backend, Backend, "native", WorkloadRevision,
-        Baseline.WorkloadRevision, Inspection.ProvesNativeExecution(),
+        Baseline.WorkloadRevision,
+        Inspection.RequestedBackend == Inspection.ExecutedBackend &&
+            Inspection.Runtime.ProvesNativeExecution(),
         Inspection.bSubmissionCompleted, true, true, true};
     if (!ValidateProductionNativeImageEvidence(Native, Failure))
     {

@@ -1,5 +1,7 @@
 #include "FDemoBackendFactory.h"
 
+#include "FProductionPresentationPixels.h"
+
 #include "Asset/FAssetDigest.h"
 #include "Core/SGPlatform.h"
 #include "RHI/RHIMinimal.h"
@@ -12,7 +14,6 @@
 
 #include <array>
 #include <iostream>
-#include <limits>
 #include <utility>
 
 namespace Stoner::Demo
@@ -21,51 +22,6 @@ namespace
 {
 
 #if SG_PLATFORM_MAC
-bool BuildPresentationPixels(
-    std::span<const Core::uint8> Source,
-    Core::uint32 SourceWidth,
-    Core::uint32 SourceHeight,
-    Core::uint32 SourceRowPitch,
-    Core::uint32 TargetWidth,
-    Core::uint32 TargetHeight,
-    RHI::ERHIFormat TargetFormat,
-    Core::TArray<Core::uint8>& OutNative)
-{
-    OutNative.clear();
-    const bool bBgra = TargetFormat == RHI::ERHIFormat::B8G8R8A8_UNorm;
-    const bool bRgba = TargetFormat == RHI::ERHIFormat::R8G8B8A8_UNorm ||
-        TargetFormat == RHI::ERHIFormat::R8G8B8A8_sRGB;
-    const Core::uint64 TargetBytes =
-        static_cast<Core::uint64>(TargetWidth) * TargetHeight * 4u;
-    if ((!bBgra && !bRgba) || SourceWidth == 0 || SourceHeight == 0 ||
-        TargetWidth == 0 || TargetHeight == 0 ||
-        SourceRowPitch < SourceWidth * 4u ||
-        Source.size() < static_cast<Core::usize>(SourceRowPitch) * SourceHeight ||
-        TargetBytes > std::numeric_limits<Core::usize>::max())
-        return false;
-    OutNative.resize(static_cast<Core::usize>(TargetBytes));
-    for (Core::uint32 Y = 0; Y < TargetHeight; ++Y)
-    {
-        const Core::uint32 SourceY = static_cast<Core::uint32>(
-            static_cast<Core::uint64>(Y) * SourceHeight / TargetHeight);
-        for (Core::uint32 X = 0; X < TargetWidth; ++X)
-        {
-            const Core::uint32 SourceX = static_cast<Core::uint32>(
-                static_cast<Core::uint64>(X) * SourceWidth / TargetWidth);
-            const Core::usize SourceOffset =
-                static_cast<Core::usize>(SourceY) * SourceRowPitch +
-                static_cast<Core::usize>(SourceX) * 4u;
-            const Core::usize TargetOffset =
-                (static_cast<Core::usize>(Y) * TargetWidth + X) * 4u;
-            OutNative[TargetOffset] = Source[SourceOffset + (bBgra ? 2u : 0u)];
-            OutNative[TargetOffset + 1u] = Source[SourceOffset + 1u];
-            OutNative[TargetOffset + 2u] = Source[SourceOffset + (bBgra ? 0u : 2u)];
-            OutNative[TargetOffset + 3u] = Source[SourceOffset + 3u];
-        }
-    }
-    return true;
-}
-
 bool NormalizePresentationPixels(
     std::span<const Core::uint8> Native,
     RHI::ERHIFormat Format,
@@ -109,7 +65,11 @@ public:
                 ? RHI::ERHIRuntimeMode::NativeHeadless
                 : RHI::ERHIRuntimeMode::Native;
         Device_ = Core::MakeShared<Backend::Vulkan::FVulkanDevice>();
-        Device_->ConfigureDescriptorPoolCapacity(128);
+        // The bounded production corpus can realize hundreds of material
+        // descriptor sets before the shared Deferred lighting sets. Keep the
+        // explicit fixed-capacity RHI contract, but size the demo runtime for
+        // the admitted Sponza upper bound rather than the triangle default.
+        Device_->ConfigureDescriptorPoolCapacity(4096);
         Backend::Vulkan::FVulkanInstanceDesc DeviceDesc;
         DeviceDesc.RuntimeMode =
             Backend::Vulkan::EVulkanInstanceRuntimeMode::DeterministicFallback;
@@ -174,7 +134,16 @@ public:
         Core::uint32 Height) override
     {
         if (bProductionPresentation_)
-            return Context_.PrepareVisibleImage(Width, Height);
+        {
+            const RHI::ERHIResult Result =
+                Context_.PrepareVisibleImage(Width, Height);
+            if (Result == RHI::ERHIResult::Success)
+            {
+                ProductionPresentationWidth_ = Width;
+                ProductionPresentationHeight_ = Height;
+            }
+            return Result;
+        }
         return Context_.RecreateVisiblePresentation(Width, Height);
     }
 
@@ -185,6 +154,11 @@ public:
         const RHI::ERHIResult Result =
             Context_.PrepareVisibleImage(Width, Height);
         bProductionPresentation_ = Result == RHI::ERHIResult::Success;
+        if (bProductionPresentation_)
+        {
+            ProductionPresentationWidth_ = Width;
+            ProductionPresentationHeight_ = Height;
+        }
         return Result;
     }
 
@@ -196,8 +170,16 @@ public:
         FDemoProductionPresentationResult& OutResult) override
     {
         OutResult = {};
+        Core::TArray<Core::uint8> Fitted;
+        if (!BuildAspectFitPresentationPixels(
+                Rgba8, Width, Height, RowPitchBytes,
+                ProductionPresentationWidth_, ProductionPresentationHeight_,
+                RHI::ERHIFormat::R8G8B8A8_UNorm, Fitted))
+            return RHI::ERHIResult::InvalidState;
         const RHI::ERHIResult Result = Context_.PresentVisibleRgba8(
-            Rgba8, Width, Height, RowPitchBytes, OutResult.Rgba8,
+            Fitted, ProductionPresentationWidth_,
+            ProductionPresentationHeight_,
+            ProductionPresentationWidth_ * 4u, OutResult.Rgba8,
             OutResult.Width, OutResult.Height);
         if (Result == RHI::ERHIResult::Success)
         {
@@ -248,6 +230,8 @@ private:
     Core::TSharedPtr<Backend::Vulkan::FVulkanDevice> Device_;
     Backend::Vulkan::FVulkanNativeFrameBindings LastNativeFrame_;
     bool bProductionPresentation_ = false;
+    Core::uint32 ProductionPresentationWidth_ = 0;
+    Core::uint32 ProductionPresentationHeight_ = 0;
 };
 
 #if SG_PLATFORM_MAC
@@ -477,7 +461,7 @@ public:
         }
         const auto& Desc = Image->GetDesc();
         Core::TArray<Core::uint8> NativePixels;
-        if (!BuildPresentationPixels(
+        if (!BuildAspectFitPresentationPixels(
                 Rgba8, Width, Height, RowPitchBytes,
                 Desc.Width, Desc.Height, Desc.Format, NativePixels))
         {

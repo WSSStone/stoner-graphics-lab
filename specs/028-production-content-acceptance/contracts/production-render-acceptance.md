@@ -11,6 +11,27 @@ fallback, native presentation, and readback normalization.
 Deferred executes the full production acceptance workload. Forward executes a
 bounded visible and native-readback smoke with the same root/camera/composition.
 
+## Camera Authority and Calibration Preview
+
+Formal rendering selects one code-owned camera preset by exact workload
+revision. The preset contains 16 row-major float32 View values and 16 row-major
+float32 Projection values. View must be finite, affine, orthonormal without
+scale/shear, and invertible. Projection must be finite, invertible, and match
+the engine's positive-X-forward StandardZ perspective convention. Camera
+position, ViewProjection, and inverse ViewProjection are derived. Missing,
+invalid, or ambiguous presets fail before native submission.
+
+An explicit interactive calibration preview may use the same strict-cooked
+root, Renderer realization, Deferred execution, requested backend, and native
+application window to propose a candidate. It may accept input and write a
+bounded candidate record, but it cannot modify the preset registry, image
+baseline state, or any formal report. Formal validation rejects caller camera
+overrides and does not read preview input.
+
+Changing a frozen camera advances `WorkloadRevision`; semantic regions,
+references, calibration mutations, explicit maintainer acceptance, and required
+hardware evidence are repeated for the new revision.
+
 ## Native Proof Sequence
 
 1. Prove the requested RHI backend and physical/native execution mode.

@@ -1,6 +1,7 @@
 #include "VulkanRHI/FVulkanNativeContext.h"
 #include "FVulkanNativeDeviceAccess.h"
 #include "FVulkanNativeOffscreenSession.h"
+#include "FVulkanRasterizationConvention.h"
 #include "FVulkanStruct.h"
 #include "VulkanRHI/FVulkanBuffer.h"
 #include "VulkanRHI/FVulkanCommandBuffer.h"
@@ -246,7 +247,8 @@ using namespace Stoner::RHI;
 
 [[nodiscard]] VkFrontFace ToVulkanFrontFace(ERHIFrontFace Face) noexcept
 {
-    return Face == ERHIFrontFace::Clockwise
+    const ERHIFrontFace NativeFace = Private::ResolveVulkanFrontFace(Face);
+    return NativeFace == ERHIFrontFace::Clockwise
         ? VK_FRONT_FACE_CLOCKWISE
         : VK_FRONT_FACE_COUNTER_CLOCKWISE;
 }
@@ -1324,7 +1326,8 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     ViewportState.viewportCount = 1; ViewportState.scissorCount = 1;
     VkPipelineRasterizationStateCreateInfo Rasterizer = MakeVulkanStruct<VkPipelineRasterizationStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO);
     Rasterizer.polygonMode = VK_POLYGON_MODE_FILL; Rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    Rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE; Rasterizer.lineWidth = 1.0f;
+    Rasterizer.frontFace = ToVulkanFrontFace(ERHIFrontFace::Clockwise);
+    Rasterizer.lineWidth = 1.0f;
     VkPipelineMultisampleStateCreateInfo Multisample = MakeVulkanStruct<VkPipelineMultisampleStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
     Multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
     VkPipelineColorBlendAttachmentState BlendAttachment{};
@@ -1753,7 +1756,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
     VertexInput.vertexAttributeDescriptionCount = 2; VertexInput.pVertexAttributeDescriptions = Attributes;
     VkPipelineInputAssemblyStateCreateInfo Assembly = MakeVulkanStruct<VkPipelineInputAssemblyStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO); Assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     VkPipelineViewportStateCreateInfo ViewportState = MakeVulkanStruct<VkPipelineViewportStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO); ViewportState.viewportCount = 1; ViewportState.scissorCount = 1;
-    VkPipelineRasterizationStateCreateInfo Rasterizer = MakeVulkanStruct<VkPipelineRasterizationStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO); Rasterizer.polygonMode = VK_POLYGON_MODE_FILL; Rasterizer.cullMode = VK_CULL_MODE_NONE; Rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE; Rasterizer.lineWidth = 1.0f;
+    VkPipelineRasterizationStateCreateInfo Rasterizer = MakeVulkanStruct<VkPipelineRasterizationStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO); Rasterizer.polygonMode = VK_POLYGON_MODE_FILL; Rasterizer.cullMode = VK_CULL_MODE_NONE; Rasterizer.frontFace = ToVulkanFrontFace(ERHIFrontFace::Clockwise); Rasterizer.lineWidth = 1.0f;
     VkPipelineMultisampleStateCreateInfo Multisample = MakeVulkanStruct<VkPipelineMultisampleStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO); Multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
     VkPipelineColorBlendAttachmentState BlendAttachment{}; BlendAttachment.colorWriteMask = 0xf;
     VkPipelineColorBlendStateCreateInfo Blend = MakeVulkanStruct<VkPipelineColorBlendStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO); Blend.attachmentCount = 1; Blend.pAttachments = &BlendAttachment;

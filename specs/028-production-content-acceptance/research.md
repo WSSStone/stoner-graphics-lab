@@ -278,3 +278,33 @@ prevents an unrelated desktop or secret-bearing window from entering artifacts.
 - Full-screen screenshots cropped afterward: exposes unrelated desktop content
   before validation.
 - Logs as the only evidence: unbounded and difficult to validate or compare.
+
+## Decision 12: Calibrate Freely, Freeze Exact Matrices by Workload
+
+**Decision**: Add a calibration-only strict-cooked native free-camera preview.
+It uses right-drag look, W/S/A/D/Q/E movement, Shift acceleration, wheel FOV,
+reset, snapshot, and exit controls. Snapshot emits row-major View and Projection
+matrices with round-trip float precision. Formal Deferred and Forward rendering
+select exactly one code-owned preset by workload revision and derive camera
+position, ViewProjection, and inverse ViewProjection from it. Formal modes
+offer no caller camera override.
+
+Sponza moves from the rejected exterior-like
+`production-content-sponza-v1` candidate to an internal atrium-depth
+`production-content-sponza-v2` preset. Every backend/device-class reference for
+v2 must be recalibrated and explicitly accepted.
+
+**Rationale**: A single MVP cannot describe a multi-draw model because each
+draw has a different Model transform. Separate View and Projection matrices
+preserve the user's exact selected pose without coupling it to per-draw model
+state. Keeping the preview outside formal modes permits exploratory movement
+while preserving deterministic CI authority and backend parity.
+
+**Alternatives considered**:
+
+- Store one MVP: rejected because Sponza has many Model matrices.
+- Allow formal CLI camera overrides: rejected because callers could bypass the
+  reviewed workload and baseline contract.
+- Build a general editor/game camera: deferred as broader runtime/editor scope.
+- Keep the first Sponza facade candidate: rejected because it does not provide
+  the intended interior depth and material coverage.

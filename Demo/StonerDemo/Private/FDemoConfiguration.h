@@ -45,6 +45,9 @@ enum class EDemoExitCode : int
 
 struct FDemoConfiguration
 {
+    static constexpr Stoner::Core::uint32 ProductionImageAcceptanceExtent = 256;
+    static constexpr Stoner::Core::uint32 ProductionCameraPreviewExtent = 1024;
+
     EDemoRunMode RunMode = EDemoRunMode::InteractiveNative;
     EDemoGraphicsBackend GraphicsBackend = EDemoGraphicsBackend::Vulkan;
     EDemoWorkload Workload = EDemoWorkload::Triangle;
@@ -69,15 +72,27 @@ struct FDemoConfiguration
     Stoner::Core::FString BaselineRoot;
     Stoner::Core::FString DeviceClassRegistryPath;
     Stoner::Core::FString ProductionCaptureRoot;
+    Stoner::Core::FString ProductionCameraPresetOutput;
     Stoner::Core::uint32 ProductionLifecycleCycles = 20;
     Stoner::Core::uint32 ProductionWarmupCycles = 2;
     Stoner::Core::uint64 ProductionMaxRssGrowthBytes =
         16ULL * 1024ULL * 1024ULL;
     bool bVisibleCapture = false;
+    bool bProductionCameraPreview = false;
     Stoner::Core::FString ValidationOutputPath = "Build/triangle-demo-validation.txt";
     Stoner::Core::FString EvidenceRunId = "local";
 
     [[nodiscard]] bool IsBounded() const noexcept;
+    [[nodiscard]] Stoner::Core::uint32 GetProductionRenderWidth() const noexcept
+    {
+        return bProductionCameraPreview
+            ? ProductionCameraPreviewExtent : ClientWidth;
+    }
+    [[nodiscard]] Stoner::Core::uint32 GetProductionRenderHeight() const noexcept
+    {
+        return bProductionCameraPreview
+            ? ProductionCameraPreviewExtent : ClientHeight;
+    }
     [[nodiscard]] bool RequiresNativeRuntime() const noexcept;
     [[nodiscard]] bool RequiresVisibleWindow() const noexcept;
     [[nodiscard]] bool IsValid(Stoner::Core::FString* OutReason = nullptr) const;

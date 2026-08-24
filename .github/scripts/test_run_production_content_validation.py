@@ -445,6 +445,24 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 ],
             )
 
+    def test_each_production_package_has_an_exact_workload_revision(self):
+        self.assertEqual(
+            "production-content-v1",
+            self.module.package_workload_revision({
+                "packageId": "khronos-lantern-glb",
+            }),
+        )
+        self.assertEqual(
+            "production-content-sponza-v2",
+            self.module.package_workload_revision({
+                "packageId": "khronos-sponza-gltf",
+            }),
+        )
+        with self.assertRaisesRegex(ValueError, "not declared"):
+            self.module.package_workload_revision({
+                "packageId": "undeclared-package",
+            })
+
     def test_lifecycle_evidence_requires_exact_cycles_warmup_and_zero_owners(self):
         valid = (
             "[EVIDENCE] backend=metal cycles=1000 warmup-cycle=20 "

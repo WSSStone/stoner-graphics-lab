@@ -143,6 +143,7 @@ private:
     [[nodiscard]] FDemoProductionLifecycleCounters
         ReleaseProductionContentCycle();
     [[nodiscard]] EDemoExitCode RunProductionContent();
+    [[nodiscard]] EDemoExitCode RunProductionCameraPreview();
     [[nodiscard]] EDemoExitCode RunDeterministic();
     [[nodiscard]] EDemoExitCode RunNativeHeadless();
     [[nodiscard]] EDemoExitCode RunVisible();

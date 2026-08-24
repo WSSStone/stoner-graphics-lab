@@ -46,6 +46,7 @@
 #include "TriangleDemoIntegrationTests.h"
 #include "ProductionContentTests.h"
 #include "ProductionContentDemoTests.h"
+#include "ProductionCameraPreviewTests.h"
 #include "ProductionContentCorpusTests.h"
 #include "ProductionContentCookGraphTests.h"
 #include "ProductionContentEquivalenceTests.h"
@@ -678,6 +679,9 @@ int main(int ArgCount, char* Arguments[])
     });
     Registry.Register("production-content-demo", [] {
         return RunProductionContentDemoTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("production-camera-preview", [] {
+        return RunProductionCameraPreviewTests().Failed == 0 ? 0 : 1;
     });
     Registry.Register("production-content-corpus", [] {
         return RunProductionContentCorpusTests().Failed == 0 ? 0 : 1;

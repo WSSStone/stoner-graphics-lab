@@ -1,6 +1,7 @@
 #include "ProductionImageAcceptanceTests.h"
 
 #include "ProductionImageBaselineRegistry.h"
+#include "ProductionNativeImageAcceptance.h"
 
 #include <cmath>
 #include <cstring>
@@ -149,6 +150,32 @@ void TestNativeEvidence(FProductionImageAcceptanceTestResult& Result)
         "native proof rejects a non-window capture");
 }
 
+void TestWorkloadRegions(FProductionImageAcceptanceTestResult& Result)
+{
+    TArray<FProductionRegionProbe> Regions;
+    Record(Result, BuildProductionWorkloadRegions(
+            "production-content-v1", 512, 512, Regions) &&
+            Regions.size() == 7 && Regions[1].Name == FString("orientation"),
+        "Lantern image acceptance selects its exact semantic regions");
+    Record(Result, BuildProductionWorkloadRegions(
+            "production-content-sponza-v2", 512, 512, Regions) &&
+            Regions.size() == 7 && Regions[0].X == 486 && Regions[0].Y == 25 &&
+            Regions[1].X == 51 && Regions[1].Y == 51,
+        "Sponza image acceptance selects its exact semantic regions");
+    Record(Result,
+        IsProductionWorkloadNormalProbeValid(
+            "production-content-sponza-v2", {0.0f, 1.0f, 0.0f}) &&
+        !IsProductionWorkloadNormalProbeValid(
+            "production-content-sponza-v2", {0.0f, -1.0f, 0.0f}) &&
+        !IsProductionWorkloadNormalProbeValid(
+            "production-content-unknown-v1", {0.0f, 1.0f, 0.0f}),
+        "Sponza image acceptance rejects the opposite-facing world normal");
+    Record(Result, !BuildProductionWorkloadRegions(
+            "production-content-unknown-v1", 512, 512, Regions) &&
+            Regions.empty(),
+        "image acceptance rejects an undeclared workload region contract");
+}
+
 void WriteText(const std::filesystem::path& Path, const std::string& Text)
 {
     std::filesystem::create_directories(Path.parent_path());
@@ -223,6 +250,7 @@ FProductionImageAcceptanceTestResult RunProductionImageAcceptanceTests()
     TestSemanticProbeOrdering(Result);
     TestFlipAndMutation(Result);
     TestNativeEvidence(Result);
+    TestWorkloadRegions(Result);
     TestBaselineRegistry(Result);
     return Result;
 }

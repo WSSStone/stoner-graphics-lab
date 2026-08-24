@@ -1,5 +1,6 @@
 #include "FVulkanNativeOffscreenSession.h"
 #include "FVulkanNativeDeviceAccess.h"
+#include "FVulkanRasterizationConvention.h"
 #include "FVulkanStruct.h"
 
 #include <algorithm>
@@ -827,7 +828,11 @@ bool CreateGraphicsPipeline(FVulkanNativeOffscreenSession::FImpl& State,
     VkPipelineRasterizationStateCreateInfo Rasterizer = MakeVulkanStruct<VkPipelineRasterizationStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO);
     Rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     Rasterizer.cullMode = CullMode;
-    Rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    Rasterizer.frontFace =
+        Private::ResolveVulkanFrontFace(RHI::ERHIFrontFace::Clockwise) ==
+                RHI::ERHIFrontFace::Clockwise
+        ? VK_FRONT_FACE_CLOCKWISE
+        : VK_FRONT_FACE_COUNTER_CLOCKWISE;
     Rasterizer.lineWidth = 1.0f;
     VkPipelineMultisampleStateCreateInfo Multisample = MakeVulkanStruct<VkPipelineMultisampleStateCreateInfo>(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
     Multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;

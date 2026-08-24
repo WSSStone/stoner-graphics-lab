@@ -1,6 +1,7 @@
 #include "VulkanBackendTests.h"
 #include "ShaderTestFixtures.h"
 
+#include "FVulkanRasterizationConvention.h"
 #include "VulkanRHI/VulkanDevice.h"
 
 #include <array>
@@ -214,6 +215,18 @@ void TestInitialization(FVulkanBackendTestResult& Result)
     (void)Device.Shutdown();
     (void)ValidationDevice.Shutdown();
     (void)ColorOnlyDevice.Shutdown();
+}
+
+void TestRasterizationConvention(FVulkanBackendTestResult& Result)
+{
+    Record(Result,
+        Stoner::Backend::Vulkan::Private::ResolveVulkanFrontFace(
+            ERHIFrontFace::Clockwise) ==
+                ERHIFrontFace::CounterClockwise &&
+        Stoner::Backend::Vulkan::Private::ResolveVulkanFrontFace(
+            ERHIFrontFace::CounterClockwise) ==
+                ERHIFrontFace::Clockwise,
+        "Vulkan positive-height viewport adapts canonical RHI winding once");
 }
 
 void TestQueues(FVulkanBackendTestResult& Result)
@@ -2112,6 +2125,7 @@ FVulkanBackendTestResult RunVulkanBackendTests()
 {
     FVulkanBackendTestResult Result;
     TestAdapterSelection(Result);
+    TestRasterizationConvention(Result);
     TestInitialization(Result);
     TestQueues(Result);
     TestSurfaceSwapchain(Result);

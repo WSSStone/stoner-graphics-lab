@@ -4,6 +4,7 @@
 #include "FDemoValidationMonitor.h"
 #include "FProductionContentComposition.h"
 #include "FProductionContentDeferredExecution.h"
+#include "FProductionPresentationPixels.h"
 #include "RendererStaticModelRealizationTestSupport.h"
 
 #include <algorithm>
@@ -186,6 +187,29 @@ bool BuildDeferredShaderClosure(
 FProductionContentDemoTestResult RunProductionContentDemoTests()
 {
     FProductionContentDemoTestResult Result;
+
+    const Core::TArray<Core::uint8> SourcePixels = {
+        255, 0, 0, 255, 0, 255, 0, 255,
+        0, 0, 255, 255, 255, 255, 255, 255};
+    Core::TArray<Core::uint8> FittedPixels;
+    const bool bFitted = BuildAspectFitPresentationPixels(
+        SourcePixels, 2, 2, 8, 4, 2,
+        RHI::ERHIFormat::R8G8B8A8_UNorm, FittedPixels);
+    Record(Result,
+        bFitted && FittedPixels.size() == 32 &&
+            FittedPixels[0] == 0 && FittedPixels[3] == 255 &&
+            FittedPixels[4] == 255 && FittedPixels[5] == 0 &&
+            FittedPixels[8] == 0 && FittedPixels[9] == 255 &&
+            FittedPixels[12] == 0 && FittedPixels[15] == 255 &&
+            FittedPixels[20] == 0 && FittedPixels[22] == 255 &&
+            FittedPixels[24] == 255 && FittedPixels[25] == 255,
+        "production presentation preserves aspect with opaque black side bars");
+    Core::TArray<Core::uint8> ExactPixels;
+    Record(Result,
+        BuildAspectFitPresentationPixels(SourcePixels, 2, 2, 8, 2, 2,
+            RHI::ERHIFormat::R8G8B8A8_UNorm, ExactPixels) &&
+            ExactPixels == SourcePixels,
+        "equal production render and drawable extents preserve exact pixels");
     FDemoConfiguration Vulkan;
     FDemoConfiguration Metal;
     Core::FString Reason;
@@ -289,6 +313,51 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
             Reason == Core::FString("device class must be registry-derived"),
         "production configuration rejects caller-supplied device class tokens");
 
+    auto PreviewArguments = RegularArguments("metal");
+    for (Core::usize Index = 0; Index + 1 < PreviewArguments.size(); ++Index)
+    {
+        if (Core::FString(PreviewArguments[Index]) == Core::FString("--mode"))
+            PreviewArguments[Index + 1] = "interactive";
+        if (Core::FString(PreviewArguments[Index]) ==
+            Core::FString("--target-profile"))
+            PreviewArguments[Index + 1] =
+                "Config/AssetCooker/Profiles/Mac-Metal-Arm64.json";
+    }
+    PreviewArguments.push_back("--production-camera-preview");
+    PreviewArguments.push_back("--camera-preset-output");
+    PreviewArguments.push_back("Build/Validation/028/camera/candidate.json");
+    FDemoConfiguration Preview;
+    Record(Result,
+        ParseArray(std::move(PreviewArguments), Preview, Reason) ==
+                EDemoExitCode::Success &&
+            Preview.bProductionCameraPreview &&
+            Preview.ProductionCameraPresetOutput == Core::FString(
+                "Build/Validation/028/camera/candidate.json") &&
+            Preview.RunMode == EDemoRunMode::InteractiveNative &&
+            Preview.RenderPath == EDemoRenderPath::DeferredFull &&
+            Preview.GetProductionRenderWidth() ==
+                FDemoConfiguration::ProductionCameraPreviewExtent &&
+            Preview.GetProductionRenderHeight() ==
+                FDemoConfiguration::ProductionCameraPreviewExtent,
+        "camera preview requires explicit interactive strict-cooked output");
+
+    auto HeadlessPreview = RegularArguments("vulkan");
+    HeadlessPreview.push_back("--production-camera-preview");
+    HeadlessPreview.push_back("--camera-preset-output");
+    HeadlessPreview.push_back("Build/Validation/028/camera/invalid.json");
+    Record(Result,
+        ParseArray(std::move(HeadlessPreview), Invalid, Reason) ==
+            EDemoExitCode::InvalidConfiguration,
+        "camera preview rejects headless or formal validation mode");
+
+    auto FormalOutput = RegularArguments("vulkan");
+    FormalOutput.push_back("--camera-preset-output");
+    FormalOutput.push_back("Build/Validation/028/camera/override.json");
+    Record(Result,
+        ParseArray(std::move(FormalOutput), Invalid, Reason) ==
+            EDemoExitCode::InvalidConfiguration,
+        "formal production validation rejects preview camera output options");
+
     std::ifstream BuildFile("Demo/StonerDemo/SConscript", std::ios::binary);
     const std::string BuildText{
         std::istreambuf_iterator<char>(BuildFile),
@@ -334,6 +403,31 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
                 Snapshot->GetDraws().size(),
         "composition preserves root version frame token and every realized draw");
 
+    FProductionContentCompositionConfig SponzaV2Config = CompositionConfig;
+    SponzaV2Config.WorkloadRevision = "production-content-sponza-v2";
+    FProductionContentComposition SponzaV2Composition;
+    FProductionCameraPreset SponzaV2Preset;
+    const bool bSponzaV2Composed =
+        ResolveProductionCameraPreset(
+            SponzaV2Config.WorkloadRevision, SponzaV2Preset,
+            &CompositionReason) &&
+        FProductionContentCompositionBuilder::Build(
+            Snapshot, SponzaV2Config, SponzaV2Composition,
+            &CompositionReason);
+    Record(Result,
+        bSponzaV2Composed && SponzaV2Preset.IsValid() &&
+            SponzaV2Composition.DeferredInputs.View.View.NearlyEquals(
+                SponzaV2Preset.View) &&
+            SponzaV2Composition.DeferredInputs.View.Projection.NearlyEquals(
+                SponzaV2Preset.Projection) &&
+            SponzaV2Composition.ForwardInputs.View.ViewMatrix.NearlyEquals(
+                SponzaV2Preset.View) &&
+            SponzaV2Composition.ForwardInputs.View.ViewProjectionMatrix
+                .NearlyEquals(SponzaV2Preset.ViewProjection) &&
+            SponzaV2Composition.DeferredInputs.View.ViewProjection.NearlyEquals(
+                SponzaV2Composition.ForwardInputs.View.ViewProjectionMatrix),
+        "Sponza v2 frozen camera is exact and backend-neutral across Deferred and Forward");
+
     Renderer::FDeferredRendererConfiguration DeferredConfig;
     DeferredConfig.bEnableValidationReadback = true;
     Renderer::FDeferredFramePlan DeferredPlan;
@@ -356,6 +450,30 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
             DeferredPlan.View.CameraPosition ==
                 ForwardPlan.ViewData.CameraPosition,
         "Deferred full and Forward smoke share one backend-neutral composition");
+
+    FProductionCameraPreset MovedCamera;
+    Renderer::FDeferredFramePlan CameraDeferredPlan;
+    Renderer::FForwardFramePlan CameraForwardPlan;
+    const bool bCameraApplied = BuildProductionCameraPreset(
+            Composition.WorkloadRevision,
+            MakeProductionCameraView(
+                {1.0f, -0.5f, 0.25f}, 0.2f, -0.1f),
+            MakeProductionPerspective(0.9f, 16.0f / 9.0f),
+            MovedCamera, &CompositionReason) &&
+        ApplyProductionCameraPreset(Composition, MovedCamera,
+            CameraDeferredPlan, CameraForwardPlan, &CompositionReason);
+    Record(Result,
+        bCameraApplied &&
+            CameraDeferredPlan.View.View.NearlyEquals(MovedCamera.View) &&
+            CameraDeferredPlan.View.Projection.NearlyEquals(
+                MovedCamera.Projection) &&
+            CameraDeferredPlan.View.ViewProjection.NearlyEquals(
+                CameraForwardPlan.ViewData.ViewProjectionMatrix) &&
+            CameraDeferredPlan.View.View.NearlyEquals(
+                CameraForwardPlan.ViewData.ViewMatrix) &&
+            CameraDeferredPlan.View.CameraPosition ==
+                CameraForwardPlan.ViewData.CameraPosition,
+        "camera updates feed exact shared matrices to Deferred and Forward plans");
 
     Renderer::FDeferredFrameExecutionBindings DeferredBindings;
     Renderer::FForwardFrameExecutionBindings ForwardBindings;

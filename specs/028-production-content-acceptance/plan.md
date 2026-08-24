@@ -21,6 +21,10 @@ static-model realization transaction. Demo/Validation owns dependency loading,
 scene composition, lifecycle repetition, semantic probes, CPU LDR-FLIP image
 comparison, and evidence orchestration. Deferred is the full image-acceptance
 path; Forward is a bounded native readback and visible smoke for the same root.
+For workload calibration, a separate strict-cooked native preview loop permits
+free-camera navigation and emits candidate View/Projection matrices. Formal
+gates consume only exact revision-owned frozen presets; interactive state is
+never an acceptance input.
 
 ## Technical Context
 
@@ -106,7 +110,9 @@ Tools/AssetCooker/
 
 Demo/StonerDemo/Private/
 |-- FProductionContentSession.*      # Strict manager/request/lifecycle coordinator
-`-- FProductionContentComposition.*  # Backend-neutral camera/light/draw assembly
+|-- FProductionContentComposition.*  # Backend-neutral camera/light/draw assembly
+|-- FProductionCameraPreset.*        # Exact workload-owned View/Projection authority
+`-- FProductionCameraPreview.*       # Calibration-only native free-camera controller
 
 Tests/
 |-- ProductionContentCorpusTests.cpp
@@ -235,6 +241,12 @@ Validation. No new runtime module is introduced.
 
 ### M5 - Image, Lifecycle, and Failure Acceptance
 
+0. Add a calibration-only native production preview using the same strict
+   closure, realization, Deferred, and presentation path. Its free camera may
+   emit canonical candidate View/Projection records, but formal validation
+   selects only a finite, invertible, affine/orthonormal, convention-correct
+   preset by exact workload revision. Camera changes advance the revision and
+   require new probes, references, calibration, review, and hardware evidence.
 1. Vendor the pinned CPU-only FLIP header as a private Validation dependency,
    record provenance/version, and test metric stability using normalized
    linear/sRGB RGB buffers without introducing CUDA or Python packages.

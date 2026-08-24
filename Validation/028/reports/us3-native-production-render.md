@@ -5,6 +5,29 @@ Captured on 2026-08-22 from branch
 `66a20cc42881d3747d836f9f45257c37f7f3e039` plus the current Feature 028
 implementation worktree.
 
+## Sponza v2 camera and outward-normal correction (2026-08-24)
+
+The maintainer explicitly accepted the frozen Sponza v2 atrium camera and the
+corrected outward-facing image. Feature 024's canonical clockwise RHI winding
+now adapts once at both native backend boundaries: Vulkan's positive-height
+viewport and Metal's SPIRV-Cross `flip_vert_y` path both select native
+counter-clockwise front faces for the canonical clockwise declaration.
+
+Twenty visible 512x512 captures per backend were byte-identical within and
+across Apple8 Metal and MoltenVK. The accepted reference SHA-256 is
+`25cae6c615e49aa53358a602e3d7130d46be98b4dc8e2c12a3651c1f10d0a441`.
+Both backends returned the same diagnostic world normal
+`(-0.0000304, +0.999512, -0.00919342)`, and the semantic gate now rejects a
+Sponza v2 diagnostic normal whose +Y component is below 0.8 before FLIP.
+
+Accepted post-registration runs selected the exact Metal and MoltenVK v2
+records, passed 20 semantic probes, and measured zero mean, p95, maximum, and
+bad-pixel-fraction FLIP error. All blank, stale-frame, origin,
+missing-geometry, material-swap, color-space, and opposite-normal mutations
+were rejected. Lifecycle ownership returned to zero; RSS stability remains a
+separate T126 closeout item because recent Sponza runs exceeded the fixed
+16 MiB post-warm-up threshold.
+
 ## Scope And Method
 
 The strict cooked Khronos Lantern root was loaded, realized, rendered, and

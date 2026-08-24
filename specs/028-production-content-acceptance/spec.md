@@ -15,6 +15,10 @@
 - Q: 生产资产完整 load、realize、render、release 循环应采用什么强度和内存通过标准？ → A: Regular gate 执行 20 次并以第 1-2 次为 warm-up；medium/hardware gate 执行 1,000 次并以第 1-20 次为 warm-up；warm-up 计入总次数，内部资源计数归零，从 warm-up 后样本到终止样本的 RSS 净增长不超过 16 MiB。
 - Q: Phase 028 完成后，regular、medium 和真实硬件验收分别应在什么时候成为必需 gate？ → A: Regular 对相关 PR/推送自动执行；medium 每周定时并在 feature/release closeout 强制通过；真实硬件在 Feature 028 closeout，以及参考图或渲染路径变化时强制执行。
 
+### Session 2026-08-24
+
+- Q: Sponza 的初始正面构图不适合作为最终图像基线时，Phase 028 应如何选择并冻结视角？ → A: 增加 strict-cooked、native、calibration-only 自由相机预览；维护者选择中庭纵深构图后保存 row-major View 与 Projection 矩阵，正式 gate 仅按 workload revision 消费代码内冻结预设，绝不消费交互状态或调用方覆盖值。
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Admit Representative Production Content (Priority: P1)
@@ -504,6 +508,27 @@ corpus and generation evidence.
   instructions, evidence index, delivered system-design documentation, roadmap
   status, and project memory without rewriting historical specifications to
   conceal implementation gaps.
+- **FR-046**: A calibration-only production camera preview MUST use the same
+  strict-cooked root, transactional Renderer realization, Deferred execution,
+  requested native backend, and application-window presentation path as image
+  acceptance while remaining unavailable to automated validation modes.
+- **FR-047**: Every formally accepted production workload MUST select exactly
+  one backend-neutral camera preset by exact workload revision. The preset MUST
+  contain finite, invertible row-major View and Projection matrices; View MUST
+  be affine and orthonormal without scale or shear, and Projection MUST match
+  the engine's positive-X-forward StandardZ perspective convention. Missing,
+  invalid, or ambiguous presets MUST fail closed before rendering.
+- **FR-048**: Calibration preview MUST provide right-drag look, W/S forward and
+  backward, A/D strafe, Q/E vertical movement, Shift acceleration, wheel FOV,
+  reset, snapshot, and exit controls. Snapshot MUST emit a bounded canonical
+  candidate record with round-trip float precision, workload, render extent,
+  backend, View, Projection, and digest; it MUST NOT automatically modify or
+  accept an authoritative preset or image baseline.
+- **FR-049**: A frozen camera, light, transform, or render-policy change MUST
+  advance the workload revision and invalidate prior image/probe authority for
+  that package. New references MUST repeat semantic-probe definition,
+  20-capture calibration, mutation rejection, explicit maintainer acceptance,
+  and required hardware validation.
 
 ### Key Entities
 
@@ -534,6 +559,9 @@ corpus and generation evidence.
 - **Image Acceptance Baseline**: Reviewed reference image and perceptual
   tolerance policy identified by workload revision, backend, and device class;
   it supplements but never replaces mandatory semantic/readback probes.
+- **Production Camera Preset**: Exact workload-owned View and Projection
+  matrices used by both Deferred and Forward on every backend; calibration
+  interaction can propose but never authoritatively override this record.
 
 ## Success Criteria *(mandatory)*
 
@@ -599,6 +627,11 @@ corpus and generation evidence.
   corpus integrity, reproduce the bounded target generation, run strict-cooked
   acceptance, and locate all required evidence without undocumented local files
   or credentials.
+- **SC-015**: Synthetic preview input tests reproduce identical camera matrices
+  for identical event/delta sequences; formal Vulkan and Metal execution prove
+  byte-identical View and Projection inputs for Deferred and Forward, and 100%
+  of invalid or caller-overridden formal camera attempts fail before native
+  submission.
 
 ## Assumptions
 
@@ -631,3 +664,5 @@ corpus and generation evidence.
 - New source formats, animation, editor workflows, hot reload, packaging,
   streaming, Meshlets, virtual geometry, ray tracing, and broad visual redesign
   remain assigned to later roadmap work.
+- The calibration free camera is private Feature 028 validation tooling, not a
+  reusable gameplay/editor camera system or a promise of runtime navigation.

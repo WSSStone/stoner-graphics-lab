@@ -1,0 +1,51 @@
+{
+  "schema": "stoner.production-camera-approval",
+  "schemaVersion": 1,
+  "workloadRevision": "production-content-sponza-v2",
+  "cameraApprovalStatus": "Accepted",
+  "imageBaselineStatus": "NotCreated",
+  "acceptedOn": "2026-08-24",
+  "sourceCandidateMatrixSha256": "34ac58edc10864b3294d6a97c41101bbd006dce5313715e49ad14547a7eab8a7",
+  "calibrationBackend": "metal",
+  "calibrationExtent": {
+    "width": 1024,
+    "height": 1024
+  },
+  "view": [
+    -0.136053622,
+    -0.986105621,
+    -0.0953160524,
+    1.61162198,
+    0.990615845,
+    -0.136675894,
+    0,
+    -3.93525147,
+    -0.0130274063,
+    -0.0944215953,
+    0.995447159,
+    0.12801826,
+    0,
+    0,
+    0,
+    1
+  ],
+  "projection": [
+    0,
+    1.7320509,
+    0,
+    0,
+    0,
+    0,
+    -1.7320509,
+    0,
+    1.001001,
+    0,
+    0,
+    -0.1001001,
+    1,
+    0,
+    0,
+    0
+  ],
+  "note": "Explicit maintainer acceptance applies only to the frozen camera. No image baseline is accepted by this record."
+}

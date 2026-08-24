@@ -6,6 +6,7 @@
 #include "FMetalDescriptorSet.h"
 #include "FMetalDeviceOwnerState.h"
 #include "FMetalPipelineLayout.h"
+#include "FMetalRasterizationConvention.h"
 #include "MetalRHI/FMetalDeviceFactory.h"
 #endif
 #include "RHI/FRHIDeviceCapabilities.h"
@@ -111,6 +112,15 @@ FRHINativeBindingMap MakeMap()
 
 void TestBindingEvidence(FMetalPipelineTestResult& Result)
 {
+    Record(Result,
+        Backend::Metal::Private::ResolveMetalFrontFace(
+            ERHIFrontFace::Clockwise) ==
+                ERHIFrontFace::CounterClockwise &&
+        Backend::Metal::Private::ResolveMetalFrontFace(
+            ERHIFrontFace::CounterClockwise) ==
+                ERHIFrontFace::Clockwise,
+        "Metal adapts canonical RHI winding once after SPIRV-Cross vertex Y flip");
+
     const auto Capabilities = MakeCapabilities();
     const auto Interface = MakeInterface();
     const auto Layout = MakeLayout();

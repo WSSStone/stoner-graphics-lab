@@ -5,6 +5,7 @@
 #include "FMetalDescriptorSet.h"
 #include "FMetalFramebuffer.h"
 #include "FMetalGraphicsPipeline.h"
+#include "FMetalRasterizationConvention.h"
 #include "FMetalSampler.h"
 #include "FMetalShaderLibrary.h"
 #include "FMetalTexture.h"
@@ -211,7 +212,8 @@ RHI::ERHIResult EncodeMetalRenderCommands(
                 [Encoder setDepthStencilState:Pipeline->GetNativeDepthStencil()];
                 [Encoder setCullMode:ToCull(Pipeline->GetDesc().Rasterizer.CullMode)];
                 [Encoder setFrontFacingWinding:
-                    ToWinding(Pipeline->GetDesc().Rasterizer.FrontFace)];
+                    ToWinding(ResolveMetalFrontFace(
+                        Pipeline->GetDesc().Rasterizer.FrontFace))];
                 break;
             case RHI::ERHISymbolicCommandType::BindVertexBuffer:
             {

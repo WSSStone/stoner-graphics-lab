@@ -141,7 +141,8 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
         if (RenderPath != EDemoRenderPath::Triangle)
             return Fail("triangle workload requires the triangle render path");
         if (!ProductionRoot.IsEmpty() || !StrictGeneration.IsEmpty() ||
-            !WorkloadRevision.IsEmpty() || bVisibleCapture)
+            !WorkloadRevision.IsEmpty() || bVisibleCapture ||
+            bProductionCameraPreview || !ProductionCameraPresetOutput.IsEmpty())
             return Fail("production options require the production-content workload");
     }
     else
@@ -165,6 +166,15 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
             (!RequiresNativeRuntime() || !RequiresVisibleWindow() ||
                 BaselineRoot.IsEmpty()))
             return Fail("visible capture requires native visible mode and a baseline root");
+        if (bProductionCameraPreview)
+        {
+            if (RunMode != EDemoRunMode::InteractiveNative ||
+                RenderPath != EDemoRenderPath::DeferredFull ||
+                ProductionCameraPresetOutput.IsEmpty() || bVisibleCapture)
+                return Fail("camera preview requires interactive Deferred production mode, output path, and no acceptance capture");
+        }
+        else if (!ProductionCameraPresetOutput.IsEmpty())
+            return Fail("camera preset output requires camera preview mode");
     }
     return true;
 }
@@ -190,6 +200,11 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
         if (Option == "--visible-capture")
         {
             Parsed.bVisibleCapture = true;
+            continue;
+        }
+        if (Option == "--production-camera-preview")
+        {
+            Parsed.bProductionCameraPreview = true;
             continue;
         }
         if (Option == "--device-class")
@@ -307,6 +322,8 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
         else if (Option == "--baseline-root") Parsed.BaselineRoot = Value;
         else if (Option == "--device-class-registry")
             Parsed.DeviceClassRegistryPath = Value;
+        else if (Option == "--camera-preset-output")
+            Parsed.ProductionCameraPresetOutput = Value;
         else if (Option == "--production-cycles")
         {
             if (!ParseUInt(Value, Parsed.ProductionLifecycleCycles, false))

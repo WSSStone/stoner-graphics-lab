@@ -1,5 +1,4 @@
 #include "FStonerDemoApplication.h"
-
 #include "Application/FWindow.h"
 #include "Asset/AssetMinimal.h"
 #include "Core/FPlatformFileSystem.h"
@@ -13,7 +12,6 @@
 #include "RHI/IRHIFence.h"
 #include "RHI/ERHIRuntimeMode.h"
 #include "Renderer/RendererMinimal.h"
-
 #include <array>
 #include <chrono>
 #include <cstring>
@@ -614,8 +612,8 @@ EDemoExitCode FStonerDemoApplication::InitializeProductionContent()
 
     FProductionContentCompositionConfig CompositionConfig;
     CompositionConfig.WorkloadRevision = Configuration.WorkloadRevision;
-    CompositionConfig.Width = Configuration.ClientWidth;
-    CompositionConfig.Height = Configuration.ClientHeight;
+    CompositionConfig.Width = Configuration.GetProductionRenderWidth();
+    CompositionConfig.Height = Configuration.GetProductionRenderHeight();
     Core::FString CompositionReason;
     if (!FProductionContentCompositionBuilder::Build(
             ProductionRuntime->DeferredRenderSnapshot, CompositionConfig,
@@ -1155,7 +1153,8 @@ EDemoExitCode FStonerDemoApplication::Initialize()
     Diagnostics.Add(EDemoStage::Runtime, EDemoExitCode::Success, "Runtime", ToString(Configuration.RunMode));
     if (Configuration.Workload == EDemoWorkload::ProductionContent)
     {
-        if (Configuration.bVisibleCapture)
+        if (Configuration.bVisibleCapture ||
+            Configuration.bProductionCameraPreview)
         {
             CurrentDrawableWidth = Window->Value.GetDrawableWidth();
             CurrentDrawableHeight = Window->Value.GetDrawableHeight();
@@ -1524,7 +1523,8 @@ EDemoExitCode FStonerDemoApplication::Run()
     if (Result == EDemoExitCode::Success)
     {
         if (Configuration.Workload == EDemoWorkload::ProductionContent)
-            Result = RunProductionContent();
+            Result = Configuration.bProductionCameraPreview
+                ? RunProductionCameraPreview() : RunProductionContent();
         else if (Configuration.RunMode == EDemoRunMode::DeterministicHeadless)
             Result = RunDeterministic();
         else if (Configuration.RunMode == EDemoRunMode::NativeHeadless)

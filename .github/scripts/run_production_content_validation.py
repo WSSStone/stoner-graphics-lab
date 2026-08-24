@@ -60,7 +60,10 @@ DEFERRED_SHADER_ROOTS = (
 FAILURE_CATALOG = Path(
     "Tests/Fixtures/ProductionContent/Failures/failure-catalog.json"
 )
-WORKLOAD_REVISION = "production-content-v1"
+WORKLOAD_REVISIONS = {
+    "khronos-lantern-glb": "production-content-v1",
+    "khronos-sponza-gltf": "production-content-sponza-v2",
+}
 FAILURE_STAGES = (
     "corpus", "import", "cook", "publication", "strict-load",
     "realization", "native", "image", "lifecycle", "timeout",
@@ -319,6 +322,14 @@ def _safe_package_token(value: object) -> str:
     ):
         raise ValueError("validation package identity is invalid")
     return value
+
+
+def package_workload_revision(package: dict) -> str:
+    package_id = _safe_package_token(package.get("packageId"))
+    revision = WORKLOAD_REVISIONS.get(package_id)
+    if revision is None:
+        raise ValueError("production workload revision is not declared")
+    return revision
 
 
 def verify_validation_output(output: Path, target_profile: Path) -> dict:
@@ -1309,6 +1320,7 @@ def run_package(
         raise RuntimeError("repository or staged source changed during validation")
 
     native_report = first_run["reports"] / "native-lifecycle.txt"
+    workload_revision = package_workload_revision(package)
     if defer_native_to_hardware:
         native_lifecycle = deferred_native_result(
             load_native_target_contract(target_profile)
@@ -1326,7 +1338,7 @@ def run_package(
             lease_root,
             generation_ids[0],
             package["rootAssetId"],
-            WORKLOAD_REVISION,
+            workload_revision,
             lifecycle_cycles,
             warmup_cycles,
             native_report,
@@ -1337,6 +1349,7 @@ def run_package(
     return {
         "packageId": package["packageId"],
         "rootAssetId": package["rootAssetId"],
+        "workloadRevision": workload_revision,
         "generationId": generation_ids[0],
         "currentPointerDigest": current_digest_before_runtime,
         "generationManifestDigest": generation_manifest_digest,

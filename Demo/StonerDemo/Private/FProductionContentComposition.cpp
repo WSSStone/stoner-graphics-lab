@@ -1,5 +1,4 @@
 #include "FProductionContentComposition.h"
-
 #include "RHI/FRHIBufferUploadDesc.h"
 #include "RHI/IRHIBuffer.h"
 #include "RHI/IRHIDevice.h"
@@ -21,19 +20,6 @@ using namespace Stoner::Renderer;
 void Fail(FString* OutReason, const char* Reason)
 {
     if (OutReason) *OutReason = Reason;
-}
-
-FMatrix4x4 MakeForwardPerspective(
-    float VerticalFovRadians, float Aspect, float NearPlane, float FarPlane)
-{
-    const float VerticalScale = 1.0f / std::tan(VerticalFovRadians * 0.5f);
-    const float HorizontalScale = VerticalScale / Aspect;
-    const float DepthScale = FarPlane / (FarPlane - NearPlane);
-    return FMatrix4x4(
-        0.0f, HorizontalScale, 0.0f, 0.0f,
-        0.0f, 0.0f, -VerticalScale, 0.0f,
-        DepthScale, 0.0f, 0.0f, -NearPlane * DepthScale,
-        1.0f, 0.0f, 0.0f, 0.0f);
 }
 
 bool AccumulateBounds(
@@ -163,24 +149,21 @@ bool FProductionContentCompositionBuilder::Build(
     Candidate.SnapshotGeneration = Snapshot->GetSnapshotGeneration();
     Candidate.FrameToken = Config.FrameToken;
     Candidate.ModelPlacement = MakePlacement(Bounds, Config);
-    Candidate.CameraPosition = FVector3::Zero();
+
+    FProductionCameraPreset Camera;
+    if (!ResolveProductionCameraPreset(
+            Config.WorkloadRevision, Camera, OutReason))
+        return false;
+    Candidate.CameraPosition = Camera.CameraPosition;
 
     const FString FrameIdentity(Config.WorkloadRevision.ToStdString() +
         "/frame-" + std::to_string(Config.FrameToken));
     const float NearPlane = 0.1f;
     const float FarPlane = 100.0f;
-    const FMatrix4x4 View = FMatrix4x4::Identity();
-    const FMatrix4x4 Projection = MakeForwardPerspective(
-        1.0471975512f,
-        static_cast<float>(Config.Width) / static_cast<float>(Config.Height),
-        NearPlane, FarPlane);
-    const FMatrix4x4 ViewProjection = Projection * View;
-    FMatrix4x4 InverseViewProjection;
-    if (!ViewProjection.TryInverse(InverseViewProjection))
-    {
-        Fail(OutReason, "production camera is not invertible");
-        return false;
-    }
+    const FMatrix4x4& View = Camera.View;
+    const FMatrix4x4& Projection = Camera.Projection;
+    const FMatrix4x4& ViewProjection = Camera.ViewProjection;
+    const FMatrix4x4& InverseViewProjection = Camera.InverseViewProjection;
 
     auto& Deferred = Candidate.DeferredInputs;
     Deferred.FrameId = FrameIdentity;
@@ -342,6 +325,61 @@ bool FProductionContentCompositionBuilder::Build(
     }
 
     OutComposition = std::move(Candidate);
+    return true;
+}
+
+bool ApplyProductionCameraPreset(
+    FProductionContentComposition& InOutComposition,
+    const FProductionCameraPreset& Camera,
+    FDeferredFramePlan& OutDeferredPlan,
+    FForwardFramePlan& OutForwardPlan,
+    FString* OutReason)
+{
+    if (OutReason) OutReason->Clear();
+    if (!Camera.IsValid() || InOutComposition.WorkloadRevision.IsEmpty() ||
+        Camera.WorkloadRevision != InOutComposition.WorkloadRevision)
+    {
+        Fail(OutReason, "camera preset does not match the production composition");
+        return false;
+    }
+
+    FDeferredFrameInputs Deferred = InOutComposition.DeferredInputs;
+    FForwardFrameInputs Forward = InOutComposition.ForwardInputs;
+    Deferred.View.View = Camera.View;
+    Deferred.View.Projection = Camera.Projection;
+    Deferred.View.ViewProjection = Camera.ViewProjection;
+    Deferred.View.InverseViewProjection = Camera.InverseViewProjection;
+    Deferred.View.CameraPosition = Camera.CameraPosition;
+    Forward.View.ViewMatrix = Camera.View;
+    Forward.View.ViewProjectionMatrix = Camera.ViewProjection;
+    Forward.View.CameraPosition = Camera.CameraPosition;
+
+    FDeferredRendererConfiguration DeferredConfig;
+    DeferredConfig.bEnableValidationReadback = true;
+    FDeferredFramePlan DeferredPlan;
+    FForwardFramePlan ForwardPlan;
+    if (FDeferredRenderer(DeferredConfig).PrepareFrame(
+            Deferred, DeferredPlan) != EDeferredResult::Success ||
+        FForwardRenderer().PrepareFrame(Forward, ForwardPlan) !=
+            EForwardResult::Success ||
+        !DeferredPlan.IsValid() || DeferredPlan.AcceptedDraws.empty() ||
+        !ForwardPlan.IsValid() || !ForwardPlan.HasRenderableGeometry() ||
+        !DeferredPlan.View.View.NearlyEquals(
+            ForwardPlan.ViewData.ViewMatrix) ||
+        !DeferredPlan.View.ViewProjection.NearlyEquals(
+            ForwardPlan.ViewData.ViewProjectionMatrix) ||
+        DeferredPlan.View.CameraPosition !=
+            ForwardPlan.ViewData.CameraPosition)
+    {
+        Fail(OutReason, "camera update did not produce matching renderer plans");
+        return false;
+    }
+
+    InOutComposition.CameraPosition = Camera.CameraPosition;
+    InOutComposition.DeferredInputs = std::move(Deferred);
+    InOutComposition.ForwardInputs = std::move(Forward);
+    OutDeferredPlan = std::move(DeferredPlan);
+    OutForwardPlan = std::move(ForwardPlan);
     return true;
 }
 

@@ -1,0 +1,71 @@
+{
+  "backend": "vulkan",
+  "captureCount": 20,
+  "deviceClass": "macos.apple8.moltenvk.rgba8",
+  "generationIdentity": "8fa033d770e58ea26574e840ada100fe174b05139575ef9de6a6557097c99073",
+  "height": 512,
+  "mutations": {
+    "blank": {
+      "badPixelFraction": 0.87351990,
+      "maximum": 0.98448223,
+      "mean": 0.47167510,
+      "p95": 0.95949036,
+      "rejected": true
+    },
+    "colorSpace": {
+      "badPixelFraction": 0.88626099,
+      "maximum": 0.84877765,
+      "mean": 0.56308794,
+      "p95": 0.70140994,
+      "rejected": true
+    },
+    "materialSwap": {
+      "badPixelFraction": 0.80890656,
+      "maximum": 0.70689422,
+      "mean": 0.18276861,
+      "p95": 0.46501276,
+      "rejected": true
+    },
+    "missingGeometry": {
+      "badPixelFraction": 0.52102280,
+      "maximum": 0.98448223,
+      "mean": 0.28050497,
+      "p95": 0.93559122,
+      "rejected": true
+    },
+    "origin": {
+      "badPixelFraction": 0.98684692,
+      "maximum": 0.98043829,
+      "mean": 0.42306390,
+      "p95": 0.84751815,
+      "rejected": true
+    },
+    "staleFrameRejectedBeforeFlip": true
+  },
+  "normalDirection": {
+    "expectedAxis": "+Y",
+    "minimumComponent": 0.8,
+    "observed": [-0.0000303984, 0.999512, -0.00919342],
+    "oppositeRejected": true
+  },
+  "noise": {
+    "badPixelFraction": 0.0,
+    "maximum": 0.0,
+    "mean": 0.0,
+    "p95": 0.0
+  },
+  "policy": {
+    "badPixelFractionMax": 0.001,
+    "badPixelThreshold": 0.05,
+    "maximumMax": 0.01,
+    "meanMax": 0.0005,
+    "p95Max": 0.001
+  },
+  "referenceSha256": "25cae6c615e49aa53358a602e3d7130d46be98b4dc8e2c12a3651c1f10d0a441",
+  "schema": "stoner.production-image-calibration-evidence",
+  "schemaVersion": 1,
+  "semanticProbeCount": 20,
+  "targetProfileSha256": "d4805fbce24ab907f2d8da45ef9583260c50b33f43ac9cbac4ffc225c0797fee",
+  "width": 512,
+  "workloadRevision": "production-content-sponza-v2"
+}

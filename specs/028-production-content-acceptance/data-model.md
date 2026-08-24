@@ -161,6 +161,27 @@ it through `Releasing -> Released`.
 | `FrameState` | deterministic frame token/time | Proves current frame |
 | `Paths` | Deferred full + Forward smoke | Both use same root/composition inputs |
 
+## 10A. Production Camera Preset
+
+| Field | Type | Rules |
+|---|---|---|
+| `WorkloadRevision` | canonical string | Exact unique authority; no nearest/fallback selection |
+| `View` | 16 float32 row-major values | Finite, affine, orthonormal, no scale/shear, invertible |
+| `Projection` | 16 float32 row-major values | Finite, invertible, positive-X-forward StandardZ perspective |
+| `CameraPosition` | derived `FVector3` | Inverse-View origin; never independently authored |
+| `ViewProjection` | derived matrix | `Projection * View` |
+| `InverseViewProjection` | derived matrix | Must exist and remain finite |
+
+State: `Candidate -> Frozen -> Superseded`. Candidate records are bounded
+calibration output only. Formal rendering consumes only the code-owned Frozen
+record selected by exact workload revision. A camera change creates a new
+workload revision and forces semantic/image recalibration.
+
+The calibration controller owns transient position, orientation, velocity,
+FOV, input events, and frame delta. None of those transient fields are report
+identity or formal gate inputs; only an explicit snapshot can propose the two
+matrices above.
+
 ## 11. Device Class Registry
 
 | Field | Type | Rules |

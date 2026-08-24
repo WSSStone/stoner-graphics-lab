@@ -109,6 +109,9 @@ private_include_paths_by_source = {
     'MetalPipelineTests.cpp': [
         Dir('#Source/Backend/Metal/Private').abspath,
     ],
+    'VulkanBackendTests.cpp': [
+        Dir('#Source/Backend/Vulkan/Private').abspath,
+    ],
     'MetalPresentationTests.cpp': [
         Dir('#Source/Backend/Metal/Private').abspath,
     ],
@@ -116,6 +119,9 @@ private_include_paths_by_source = {
         Dir('#Demo/StonerDemo/Private').abspath,
     ],
     'ProductionContentDemoTests.cpp': [
+        Dir('#Demo/StonerDemo/Private').abspath,
+    ],
+    'ProductionCameraPreviewTests.cpp': [
         Dir('#Demo/StonerDemo/Private').abspath,
     ],
     'ProductionContentStrictRuntimeTests.cpp': [

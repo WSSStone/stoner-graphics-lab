@@ -88,6 +88,36 @@ sample at most 16 MiB.
 
 ## 5. Run Hardware Image Acceptance
 
+Before accepting a new workload camera, launch the calibration-only preview
+against an already published strict generation:
+
+```bash
+Build/Mac/Release/Demo/StonerDemo/StonerDemo \
+  --mode interactive \
+  --backend metal \
+  --workload production-content \
+  --render-path deferred-full \
+  --production-camera-preview \
+  --camera-preset-output Build/Validation/028/camera/sponza-candidate.json \
+  --cooked-root <publication-root> \
+  --lease-root <lease-root> \
+  --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json \
+  --device-class-registry Config/Validation/ProductionContent/DeviceClasses.json \
+  --production-root StaticModel:Sponza.gltf#idx.scene.0 \
+  --strict-generation <generation> \
+  --workload-revision production-content-sponza-v2
+```
+
+Use right-drag look, W/S/A/D/Q/E movement, Shift acceleration, wheel FOV,
+`R` reset, Enter snapshot, and Escape exit. The emitted candidate is not an
+accepted preset or image baseline. Copying a reviewed candidate into a new
+workload revision is an explicit implementation/review action and requires the
+complete image recalibration below. The preview renders a 1024-by-1024
+calibration image and the hardware gate renders its 256-by-256 acceptance
+image. Both use the same square aspect ratio, near/far planes, coordinate
+convention, and frozen projection matrix. Resizing the window changes only the
+aspect-preserving letterboxed presentation.
+
 ```bash
 STONER_PRODUCTION_VISIBLE=1 \
 python3 .github/scripts/run_production_content_validation.py \

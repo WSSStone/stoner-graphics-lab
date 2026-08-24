@@ -193,8 +193,19 @@ gates, and release every owner.
 - [X] T080 [US3] Implement mandatory nonblank, coverage, orientation, current-frame, primitive/material region, base-color, normal, metallic/roughness, emissive, depth, and normal-attachment probes before perceptual comparison in Tests/ProductionImageAcceptance.cpp
 - [X] T081 [US3] Implement schema-validated versioned `Config/Validation/ProductionContent/DeviceClasses.json` loading with canonical ordering and unique class/signature checks, canonical capability-signature construction with all required fields, exact one-class derivation, and exact workload/backend/class lookup that consumes only `Accepted` baselines and rejects Candidate/Calibrated/Reviewed/Superseded with no caller token or nearest/fallback selection in Tests/ProductionImageBaselineRegistry.h and Tests/ProductionImageBaselineRegistry.cpp
 - [X] T082 [US3] Wrap CPU LDR-FLIP and report mean, p95, max, bad-pixel threshold, and bad-pixel fraction against immutable limits in Tests/ProductionImageAcceptance.cpp
-- [X] T083 [US3] Calibrate candidate Vulkan and Metal baseline policies for registry-derived device classes from 20 same-revision captures plus blank, stale, origin, missing-geometry, material-swap, and color-space mutations, obtain explicit maintainer acceptance, transition selected records to `Accepted`, and retain non-Accepted state fixtures under Content/ProductionAcceptance/Baselines/
+- [ ] T083 [US3] Calibrate candidate Vulkan and Metal baseline policies for every current workload revision and registry-derived device class from 20 same-revision captures plus blank, stale, origin, missing-geometry, material-swap, and color-space mutations, obtain explicit maintainer acceptance, transition selected records to `Accepted`, and retain non-Accepted state fixtures under Content/ProductionAcceptance/Baselines/
 - [X] T084 [US3] Run the regular strict load-realize-Deferred/Forward-render-release path for 20 cycles with cycles 1-2 as included warm-up, assert all Asset/Renderer/RHI/native/presentation counters return to baseline and RSS growth from the post-warm-up sample to terminal is at most 16 MiB, and record US3 evidence in Validation/028/reports/us3-native-production-render.md
+
+### Camera Calibration Expansion
+
+- [X] T119 [US3] Amend the Feature 028 specification, plan, data model, research, render contract, task traceability, and quickstart for calibration-only free camera, exact revision-owned View/Projection presets, Sponza v2 invalidation, and fail-closed formal authority in specs/028-production-content-acceptance/
+- [X] T120 [P] [US3] Add failing camera matrix validation/derivation, exact revision lookup, Deferred/Forward parity, preview input/reset/snapshot, and formal CLI isolation tests in Tests/ProductionContentDemoTests.cpp and Tests/ProductionCameraPreviewTests.cpp
+- [X] T121 [US3] Implement exact code-owned `FProductionCameraPreset` lookup, finite affine orthonormal View validation, positive-X StandardZ Projection validation, and derived camera/ViewProjection/inverse data in Demo/StonerDemo/Private/FProductionCameraPreset.h and Demo/StonerDemo/Private/FProductionCameraPreset.cpp
+- [X] T122 [US3] Implement the calibration-only right-drag/WASD/QE/Shift/wheel/reset/snapshot/exit controller and canonical bounded candidate JSON writer in Demo/StonerDemo/Private/FProductionCameraPreview.h and Demo/StonerDemo/Private/FProductionCameraPreview.cpp
+- [X] T123 [US3] Add preview-only CLI validation and a strict-cooked native Deferred preview loop that updates camera uniforms/plans without recooking or re-realizing content, while formal native validation rejects overrides and remains input-free, in Demo/StonerDemo/Private/FDemoConfiguration.* and Demo/StonerDemo/Private/FStonerDemoApplication.*
+- [X] T124 [US3] Use the Metal preview on the strict Sponza generation to select and explicitly approve an internal atrium-depth View/Projection candidate, freeze it as `production-content-sponza-v2`, and prove Vulkan/Metal plus Deferred/Forward consume the identical preset
+- [X] T125 [US3] Replace Sponza v1 runner/probe authority with v2, redefine semantic regions from the approved view, regenerate 20-capture candidate calibration per required backend/device class, reject all mutations, obtain explicit maintainer acceptance, and remove the unaccepted v1 candidate from consumable baseline state
+- [ ] T126 [US3] Re-run strict builds, camera/demo/image suites, 20-cycle visible acceptance, 1,000-cycle hardware lifecycle, medium, regression, sanitizer, clean-checkout, and final CI evidence after the v2 camera change
 
 **Checkpoint**: The same strict-cooked production root renders through native
 Vulkan and Metal with transactional lifetime and semantic/perceptual proof.
@@ -360,7 +371,7 @@ Setup --> Real KTX2 Foundation --|
 | FR-011-FR-013 | T021, T029-T030, T035, T040 | Existing resolver/importer and complete typed dependency graph |
 | FR-014 | T008-T019, T036, T048 | Real KTX2 producer/artifact and semantic comparison |
 | FR-015-FR-022 | T035-T054 | Self-contained generation, strict no-source load, equivalence, reuse, mutation/failure |
-| FR-023-FR-031 | T055-T084 | Asset-root composition, transactional realization, native readback, FLIP, lifecycle |
+| FR-023-FR-031, FR-046-FR-049 | T055-T084, T119-T126 | Asset-root composition, transactional realization, frozen camera preview/presets, native readback, FLIP, lifecycle |
 | FR-032-FR-037 | T085-T097, T112-T114 | Regular, medium, hardware profiles and required cadence/evidence |
 | FR-038-FR-041 | T098-T107 | Deterministic/observational reports, stable failures, bounded privacy-safe artifacts |
 | FR-042 | T020-T022, T031, T035-T038, T052-T053, T055-T058, T069, T080-T083, T103 | At least 30 cross-stage negative cases |
@@ -378,6 +389,7 @@ Setup --> Real KTX2 Foundation --|
 | SC-012 | T098-T107, T118 |
 | SC-013 | T108 |
 | SC-014 | T115, T118 |
+| SC-015 | T120-T126 |
 
 ## Parallel Examples
 

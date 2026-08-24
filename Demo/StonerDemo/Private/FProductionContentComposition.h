@@ -6,6 +6,8 @@
 #include "Renderer/FForwardRenderer.h"
 #include "Renderer/FStaticModelRealization.h"
 
+#include "FProductionCameraPreset.h"
+
 namespace Stoner::Demo
 {
 
@@ -44,6 +46,13 @@ public:
         FProductionContentComposition& OutComposition,
         Core::FString* OutReason = nullptr);
 };
+
+[[nodiscard]] bool ApplyProductionCameraPreset(
+    FProductionContentComposition& InOutComposition,
+    const FProductionCameraPreset& Camera,
+    Renderer::FDeferredFramePlan& OutDeferredPlan,
+    Renderer::FForwardFramePlan& OutForwardPlan,
+    Core::FString* OutReason = nullptr);
 
 [[nodiscard]] bool BindProductionDeferredDraws(
     const Renderer::FStaticModelRenderSnapshot& Snapshot,

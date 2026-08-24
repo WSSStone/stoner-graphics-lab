@@ -1,0 +1,33 @@
+{
+  "schema": "stoner.production-image-baseline",
+  "schemaVersion": 1,
+  "baselineId": "production-content-sponza-v2.macos.apple8.metal.rgba8.v1",
+  "state": "accepted",
+  "workloadRevision": "production-content-sponza-v2",
+  "backend": "metal",
+  "deviceClass": "macos.apple8.metal.rgba8",
+  "capabilitySignature": {
+    "registryVersion": 1,
+    "backendImplementation": "native-metal",
+    "cpuArchitecture": "arm64",
+    "adapterFamily": "apple8",
+    "shaderProfile": "metal-macos-12-arm64",
+    "colorFormat": "rgba8-unorm",
+    "depthFormat": "d32-float",
+    "sampleCount": 1,
+    "textureFormatFamily": "astc"
+  },
+  "width": 512,
+  "height": 512,
+  "colorTransfer": "srgb",
+  "referencePath": "macos.apple8.metal.rgba8/production-content-sponza-v2.ppm",
+  "referenceSha256": "25cae6c615e49aa53358a602e3d7130d46be98b4dc8e2c12a3651c1f10d0a441",
+  "flipPolicy": {
+    "meanMax": 0.0005,
+    "p95Max": 0.001,
+    "maximumMax": 0.01,
+    "badPixelThreshold": 0.05,
+    "badPixelFractionMax": 0.001
+  },
+  "calibrationEvidenceSha256": "a5052e00761a902b0b8d1fb15a1e85605b38d604f71e00a0b3770dda8d1f94ae"
+}
