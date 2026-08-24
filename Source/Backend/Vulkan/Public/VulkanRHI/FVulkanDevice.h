@@ -139,8 +139,8 @@ private:
     Stoner::Core::TSharedPtr<FVulkanNativeContext> NativeShaderContext;
     Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanQueue>> Queues;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandPool>> CommandPools;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanFence>> Fences;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSemaphore>> Semaphores;
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanFence>> Fences;
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanSemaphore>> Semaphores;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSurface>> Surfaces;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSwapchain>> Swapchains;
     std::shared_ptr<FVulkanDeviceOwnerState> DeviceOwner =
@@ -150,15 +150,15 @@ private:
     std::shared_ptr<FVulkanMemoryAllocator> Allocator = std::make_shared<FVulkanMemoryAllocator>();
     Stoner::Core::uint32 DescriptorPoolCapacity = 16;
     std::shared_ptr<FVulkanDescriptorPool> DescriptorPool;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanBuffer>> Buffers;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanTexture>> Textures;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanSampler>> Samplers;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanRenderPass>> RenderPasses;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanFramebuffer>> Framebuffers;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanPipelineLayout>> PipelineLayouts;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanShaderModule>> ShaderModules;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanGraphicsPipeline>> GraphicsPipelines;
-    Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanComputePipeline>> ComputePipelines;
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanBuffer>> Buffers;
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanTexture>> Textures;
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanSampler>> Samplers;
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanRenderPass>> RenderPasses;
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanFramebuffer>> Framebuffers;
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanPipelineLayout>> PipelineLayouts;
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanShaderModule>> ShaderModules;
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanGraphicsPipeline>> GraphicsPipelines;
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanComputePipeline>> ComputePipelines;
     FVulkanPipelineCache PipelineCache;
     Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanDescriptorSet>> DescriptorSets;
     Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanUploadRequest>> UploadRequests;

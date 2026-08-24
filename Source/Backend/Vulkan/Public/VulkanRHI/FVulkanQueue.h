@@ -46,6 +46,7 @@ private:
     FVulkanCompletionInjectionConfig CompletionInjection;
     Stoner::Core::TSharedPtr<FVulkanNativeContext> NativeContext;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandSubmission>> Submissions;
+    bool bHasCompletedSubmission = false;
     bool bValid = true;
 };
 

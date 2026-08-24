@@ -7,23 +7,33 @@ the matching record to `accepted`.
 
 ## Accepted macOS Apple8 baselines
 
-The Metal and MoltenVK/Vulkan records for workload revision
-`production-content-v1` were explicitly accepted by the maintainer after their
+The corrected native winding exposed that the former Lantern
+`production-content-v1` image showed the back face and relied on a light placed
+behind the intended surface. Those records are retained as `superseded` and
+cannot be consumed. Revision `production-content-lantern-v2` preserves the
+frozen identity camera, validates the intended approximately -X world normal,
+and moves the key light to the camera-facing side. Its Metal and
+MoltenVK/Vulkan records were explicitly accepted by the maintainer after their
 twenty same-revision captures produced zero FLIP error and the calibration
 suite rejected blank, stale-frame, origin, missing-geometry, material-swap,
-and color-space mutations.
+color-space, and opposite-normal mutations.
 
 | Backend | Device class | Baseline ID | Calibration evidence SHA-256 |
 | --- | --- | --- | --- |
-| Metal | `macos.apple8.metal.rgba8` | `production-content-v1.macos.apple8.metal.rgba8.v1` | `48b280d184ce78234f986b109c5c2511571d32e16ae65fdb99f01319f0af26e1` |
-| Vulkan (MoltenVK) | `macos.apple8.moltenvk.rgba8` | `production-content-v1.macos.apple8.moltenvk.rgba8.v1` | `1f7637393a3d88a028f9966c43bb358a0a3727bc4e3165a577f0d0d67bdd9ec4` |
+| Metal | `macos.apple8.metal.rgba8` | `production-content-lantern-v2.macos.apple8.metal.rgba8.v1` | `dc90dcf5e4c60a28084a0518ff9aad1be00ca745c0860aa601ebbcad24702b4a` |
+| Vulkan (MoltenVK) | `macos.apple8.moltenvk.rgba8` | `production-content-lantern-v2.macos.apple8.moltenvk.rgba8.v1` | `bc32bb96fb422300ccb00d32072bf1ca523e4924085e327d542c8690448104af` |
 
 Both records use reference image SHA-256
-`52a0f9b1945394186c55d46df6138ed18c82fa3f8c05cc0de04cc232beb4f431`
+`f208b18d3db701282955066716e3ab6bcdee3de830b342dcf0f0e5baac798a42`
 and remain selected only by exact workload, backend, registry-derived device
 class, and capability-signature equality. The `StateFixtures/` records retain
 all four non-accepted lifecycle states against a fixture-only workload so the
 production selector must continue to reject them.
+
+Feature 028 freezes `sampleCount=1` and performs no anti-aliasing or general
+post-processing. That visibly aliased output is the reviewed v2 authority for
+this phase; a future post-processing/anti-aliasing feature must advance the
+workload revision and repeat calibration rather than silently replacing it.
 
 ## Accepted Sponza v2 image baseline
 

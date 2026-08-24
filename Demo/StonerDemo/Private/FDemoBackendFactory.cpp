@@ -431,9 +431,15 @@ public:
         Core::uint32 Width,
         Core::uint32 Height) override
     {
-        return Device_ && Swapchain_ && Width > 0 && Height > 0
-            ? RHI::ERHIResult::Success
-            : RHI::ERHIResult::InvalidState;
+        if (!Device_ || !Swapchain_ || Width == 0 || Height == 0)
+            return RHI::ERHIResult::InvalidState;
+        if (!ProductionReadbackFence_)
+        {
+            auto Fence = Device_->CreateFence();
+            if (!Fence.Succeeded()) return Fence.Result;
+            ProductionReadbackFence_ = std::move(Fence.Object);
+        }
+        return RHI::ERHIResult::Success;
     }
 
     RHI::ERHIResult PresentProductionImage(
@@ -487,9 +493,8 @@ public:
         auto Readback = Device_->CreateBuffer(ReadbackDesc);
         auto Commands = Device_->CreateCommandBuffer(
             RHI::ERHIQueueType::Graphics);
-        auto Fence = Device_->CreateFence();
         if (!Readback.Succeeded() || !Commands.Succeeded() ||
-            !Fence.Succeeded())
+            !ProductionReadbackFence_)
         {
             ReleaseAcquire();
             return RHI::ERHIResult::Failed;
@@ -506,9 +511,11 @@ public:
                 RHI::ERHIResult::Success &&
             Commands.Object->End() == RHI::ERHIResult::Success;
         if (!bRecorded || Queue_->Submit(
-                Commands.Object, {}, {}, Fence.Object) !=
+                Commands.Object, {}, {}, ProductionReadbackFence_) !=
                 RHI::ERHIResult::Success ||
-            Fence.Object->Wait(30'000'000) != RHI::ERHIResult::Success)
+            ProductionReadbackFence_->Wait(30'000'000) !=
+                RHI::ERHIResult::Success ||
+            ProductionReadbackFence_->Reset() != RHI::ERHIResult::Success)
         {
             ReleaseAcquire();
             return RHI::ERHIResult::Failed;
@@ -669,6 +676,7 @@ public:
     {
         ClearPendingFrame();
         ResetTriangleResources();
+        ProductionReadbackFence_.reset();
         Queue_.reset();
         Swapchain_.reset();
         if (Surface_)
@@ -713,6 +721,7 @@ private:
     Core::TSharedPtr<RHI::IRHIPresentationSurface> Surface_;
     Core::TSharedPtr<RHI::IRHISwapchain> Swapchain_;
     Core::TSharedPtr<RHI::IRHICommandQueue> Queue_;
+    Core::TSharedPtr<RHI::IRHIFence> ProductionReadbackFence_;
     Core::TSharedPtr<RHI::IRHIBuffer> VertexBuffer_;
     Core::TSharedPtr<RHI::IRHIShaderModule> VertexShader_;
     Core::TSharedPtr<RHI::IRHIShaderModule> FragmentShader_;

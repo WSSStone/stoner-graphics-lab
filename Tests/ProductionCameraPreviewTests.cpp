@@ -47,7 +47,7 @@ FProductionCameraPreviewTestResult RunProductionCameraPreviewTests()
     FProductionCameraPreset Lantern;
     Record(Result,
         ResolveProductionCameraPreset(
-            "production-content-v1", Lantern, &Reason) &&
+            "production-content-lantern-v2", Lantern, &Reason) &&
             Lantern.IsValid() &&
             Lantern.CameraPosition == Core::FVector3::Zero() &&
             Lantern.ViewProjection.NearlyEquals(

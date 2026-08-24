@@ -36,6 +36,22 @@ std::string CaptureStem(Core::uint32 Cycle)
 
 } // namespace
 
+void FStonerDemoApplication::RecordProductionCapture(
+    FDemoProductionCapture Capture)
+{
+    ++ProductionExecutionInspection.CaptureCount;
+    if (Capture.Name == Core::FString("FinalOutput"))
+    {
+        ++ProductionExecutionInspection.FinalOutputCaptureCount;
+        if (Capture.bPresented && Capture.bWindowOnlyCapture)
+            ++ProductionExecutionInspection.PresentedFinalOutputCaptureCount;
+    }
+    else if (Capture.Name == Core::FString("ForwardColor"))
+        ++ProductionExecutionInspection.ForwardColorCaptureCount;
+    if (!Capture.Bytes.empty())
+        ProductionExecutionInspection.Captures.push_back(std::move(Capture));
+}
+
 bool WriteProductionWindowCapture(
     const FDemoProductionCapture& Capture,
     const char* Backend,

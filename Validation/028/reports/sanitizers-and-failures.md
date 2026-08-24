@@ -2,11 +2,11 @@
 
 ## Status
 
-T110 is partially complete. The current macOS arm64 worktree passed the focused
-malformed-input, cancellation, failure-injection, rollback, shutdown, and
-lifetime regressions below. Required Linux ASan/UBSan and applicable TSan runs
-must execute on the final revision before T110 can be marked complete; macOS
-results are not presented as Linux sanitizer evidence.
+T110 is complete for final code revision
+`0a5ad11f8d511a9b54da33da086b15cf530ca68a`. The current macOS arm64 worktree
+passed the focused malformed-input, cancellation, failure-injection, rollback,
+shutdown, and lifetime regressions below. Hosted run `32711618360` then passed
+both required Linux ASan/UBSan and applicable TSan jobs on the same revision.
 
 ## Local Failure And Lifetime Gates
 
@@ -22,7 +22,7 @@ ownership to zero. Renderer failures covered buffer, texture, shader, layout,
 descriptor, sampler, pipeline, cancellation, and device-loss boundaries without
 publishing a partial snapshot.
 
-## Pending Final-Revision Linux Gates
+## Final-Revision Linux Gates
 
 The final closeout must run at least:
 
@@ -34,8 +34,10 @@ scons config=debug strict=1 sanitizers=thread
 Build/Linux/Debug/Tests/StonerTest --suite asset-manager-cancellation --suite asset-manager-shutdown --suite asset-manager-concurrency --suite renderer-static-model --suite production-content
 ```
 
-ASan/UBSan must report no memory/undefined-behavior diagnostic. TSan is
-applicable to Asset Manager and CPU Renderer contract suites; native GPU/runtime
-lanes remain owned by their non-TSan jobs. Run IDs, revision, artifact names,
-and digests will be recorded in `Validation/028/CI/README.md` before T110 is
-checked.
+ASan/UBSan reported no memory or undefined-behavior diagnostic. TSan passed the
+Asset Manager and CPU Renderer contract suites; native GPU/runtime lanes remain
+owned by their non-TSan jobs. The uploaded artifacts are
+`production-sanitizer-asan-ubsan-1` with SHA-256
+`dece1f0bb157f053e3db8521cfbeceebfb85be17ffe706b74a1aea3013d92554` and
+`production-sanitizer-tsan-1` with SHA-256
+`efedc7b050e99740cbeb60d8146f881c3b6071686146011fe8ed5490339ff80f`.

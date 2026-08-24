@@ -7,6 +7,7 @@
 #include "VulkanRHI/FVulkanNativeContext.h"
 #include "VulkanRHI/FVulkanSemaphore.h"
 
+#include <algorithm>
 #include <new>
 #include <stdexcept>
 
@@ -222,6 +223,18 @@ Stoner::RHI::ERHIResult FVulkanQueue::WaitIdle()
             }
         }
     }
+    if (!Submissions.empty()) bHasCompletedSubmission = true;
+    Submissions.erase(
+        std::remove_if(Submissions.begin(), Submissions.end(),
+            [](const auto& Submission)
+            {
+                return !Submission ||
+                    Submission->GetCompletionState() ==
+                        EVulkanCompletionState::Completed ||
+                    Submission->GetCompletionState() ==
+                        EVulkanCompletionState::Invalidated;
+            }),
+        Submissions.end());
     if (Diagnostics)
     {
         MarkCompletion(*Diagnostics, "queue wait idle completed fallback submissions");
@@ -231,10 +244,15 @@ Stoner::RHI::ERHIResult FVulkanQueue::WaitIdle()
 
 Stoner::RHI::ERHIResult FVulkanQueue::ObserveLastSubmissionCompletion(Stoner::Core::uint64 TimeoutMicroseconds) noexcept
 {
-    if (!IsValid() || Submissions.empty() || !Submissions.back())
+    if (!IsValid())
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
+    if (Submissions.empty())
+        return bHasCompletedSubmission
+            ? Stoner::RHI::ERHIResult::Success
+            : Stoner::RHI::ERHIResult::InvalidState;
+    if (!Submissions.back()) return Stoner::RHI::ERHIResult::InvalidState;
     const Stoner::RHI::ERHIResult Result = Submissions.back()->ObserveCompletion(TimeoutMicroseconds);
     if (Diagnostics)
     {
@@ -261,6 +279,7 @@ void FVulkanQueue::Invalidate() noexcept
     Owner.reset();
     NativeContext.reset();
     Diagnostics = nullptr;
+    bHasCompletedSubmission = false;
 }
 
 } // namespace Stoner::Backend::Vulkan

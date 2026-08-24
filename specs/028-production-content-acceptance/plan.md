@@ -34,7 +34,7 @@ never an acceptance input.
 **Testing**: Existing `StonerTest` suites plus corpus, KTX2 integration, semantic-equivalence, transactional realization, native readback, image-acceptance, lifecycle, failure-injection, Python schema/runner tests, Windows/macOS/Linux CI, and required Windows/macOS hardware lanes
 **Target Platform**: Windows x64 Vulkan; macOS arm64 Metal and Vulkan/MoltenVK; Linux x64 build, deterministic, sanitizer, and bounded Lavapipe/headless Vulkan validation
 **Project Type**: Cross-platform graphics engine, offline asset cooker CLI, desktop demo, and validation tooling
-**Performance Goals**: Regular profile within 10 minutes per hosted job; medium profile within 30 minutes per declared hardware lane; deterministic reports byte-identical across 20 repetitions
+**Performance Goals**: Regular profile within 10 minutes per hosted job; medium profile within 30 minutes per declared hardware lane; serialized visible hardware profile within 60 minutes per declared lane; deterministic reports byte-identical across 20 repetitions
 **Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; 1,000 medium/hardware cycles with cycles 1-20 as warm-up; warm-up counts toward the total and RSS growth from the post-warm-up sample to the terminal sample is at most 16 MiB; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation
 **Scale/Scope**: Two artist-authored source works; regular Lantern GLB is about 9.6 MB with 3 primitives and four 2K textures; medium Sponza external package is about 50 MB with 103 primitives, 25 materials, and 69 mostly 1K textures; at least 30 deterministic negative cases
 

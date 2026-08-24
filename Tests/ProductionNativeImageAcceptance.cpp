@@ -309,7 +309,7 @@ Core::TArray<FProductionRegionProbe> LanternRegions(
         Probe("normal-response", 0.598f, 0.250f,
             Srgb8(62, 40, 24), 0.12f),
         Probe("metallic-roughness", 0.605f, 0.760f,
-            Srgb8(69, 64, 60), 0.12f),
+            Srgb8(138, 104, 107), 0.12f),
         Probe("emissive", 0.352f, 0.410f,
             Srgb8(222, 158, 72), 0.30f),
     };
@@ -393,7 +393,9 @@ bool BuildProductionWorkloadRegions(
     Core::TArray<FProductionRegionProbe>& OutRegions)
 {
     OutRegions.clear();
-    if (WorkloadRevision == Core::FString("production-content-v1"))
+    if (WorkloadRevision ==
+            Core::FString("production-content-lantern-v2") ||
+        WorkloadRevision == Core::FString("production-content-v1"))
         OutRegions = LanternRegions(Width, Height);
     else if (WorkloadRevision ==
         Core::FString("production-content-sponza-v2"))
@@ -413,6 +415,9 @@ bool IsProductionWorkloadNormalProbeValid(
     if (WorkloadRevision ==
         Stoner::Core::FString("production-content-sponza-v2"))
         return WorldNormal.Y >= 0.8f;
+    if (WorkloadRevision ==
+        Stoner::Core::FString("production-content-lantern-v2"))
+        return WorldNormal.X <= -0.8f;
     return WorkloadRevision ==
         Stoner::Core::FString("production-content-v1");
 }

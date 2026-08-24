@@ -343,7 +343,8 @@ EAssetResult FProductionContentSession::Load(
         if (Result != EAssetResult::Success)
         {
             Impl_->Inspection.FirstFailure = Core::FString(
-                "request:" + Record.AssetId.ToString().ToStdString());
+                "request:" + Record.AssetId.ToString().ToStdString() +
+                ";result=" + std::to_string(static_cast<int>(Result)));
             (void)Shutdown();
             return Result;
         }
@@ -362,7 +363,8 @@ EAssetResult FProductionContentSession::Load(
         if (Result != EAssetResult::Success)
         {
             Impl_->Inspection.FirstFailure = Core::FString(
-                "load:" + Record.AssetId.ToString().ToStdString());
+                "load:" + Record.AssetId.ToString().ToStdString() +
+                ";result=" + std::to_string(static_cast<int>(Result)));
             (void)Shutdown();
             return Result;
         }

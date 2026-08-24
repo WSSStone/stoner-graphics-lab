@@ -85,7 +85,7 @@ jobs:
           --build-root ${{ matrix.build }}
           --output Build/Validation/028/hardware-${{ matrix.slug }}
           --acquire-missing
-          --timeout-seconds 1800
+          --timeout-seconds 3600
       - name: Upload failure-safe hardware evidence
         if: always()
         uses: actions/upload-artifact@v6

@@ -573,6 +573,21 @@ void TestStableDiagnosticsAndReports(FTriangleDemoIntegrationTestResult& Result)
 
     FDemoDiagnostics Diagnostics;
     Diagnostics.Add(EDemoStage::Runtime, EDemoExitCode::Success, "Runtime", "headless");
+    FDemoDiagnostics BoundedDiagnostics;
+    for (int Index = 0; Index < 300; ++Index)
+        BoundedDiagnostics.Add(EDemoStage::Runtime,
+            EDemoExitCode::Success, "Runtime", "repeated-success");
+    BoundedDiagnostics.Add(EDemoStage::Memory,
+        EDemoExitCode::ValidationFailed, "Memory", "terminal-failure");
+    const auto BoundedText = BoundedDiagnostics.BuildStableText().ToStdString();
+    Record(Result,
+        BoundedDiagnostics.GetRecords().size() == 257 &&
+            BoundedDiagnostics.HasPrimaryFailure() &&
+            BoundedText.find("diagnostic sequence=301 stage=Memory") !=
+                std::string::npos &&
+            BoundedText.find("diagnostic dropped-success=44") !=
+                std::string::npos,
+        "Triangle demo diagnostics bound repeated success while preserving terminal failure");
     Stoner::Core::FString FirstReport;
     bool bStableReports = true;
     for (int Run = 0; Run < 20; ++Run)

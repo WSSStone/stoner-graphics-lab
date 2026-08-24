@@ -28,7 +28,7 @@ part of the regular production-content acceptance budget.
 |---|---|---:|---:|---|
 | Regular | Checked-in Lantern | 20 / 2 | 10 minutes | Windows, Linux, or macOS target-capable host; headless/software-native evidence where applicable |
 | Medium | Lantern and hash-pinned Sponza | 1,000 / 20 | 30 minutes | Target-capable closeout or scheduled runner; external package cache may be reused only after hash verification |
-| Hardware | Lantern and hash-pinned Sponza | 1,000 / 20 | 30 minutes | Physical Windows Vulkan or macOS Vulkan/Metal device with an application display surface |
+| Hardware | Lantern and hash-pinned Sponza | 1,000 / 20 | 60 minutes | Physical Windows Vulkan or macOS Vulkan/Metal device with an application display surface |
 
 The runner does not accept caller overrides for cycle or warm-up boundaries.
 `Unsupported` is a structured non-success result and always identifies the

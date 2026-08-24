@@ -197,7 +197,8 @@ bool ResolveProductionCameraPreset(
                 1.0f, 0.0f, 0.0f, 0.0f),
             OutPreset, OutReason);
     }
-    if (WorkloadRevision != FString("production-content-v1") &&
+    if (WorkloadRevision != FString("production-content-lantern-v2") &&
+        WorkloadRevision != FString("production-content-v1") &&
         WorkloadRevision != FString("production-content-sponza-v1"))
     {
         OutPreset = {};

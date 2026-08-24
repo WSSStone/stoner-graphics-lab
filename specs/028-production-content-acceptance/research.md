@@ -248,7 +248,9 @@ the final warm-up cycle; the gate requires growth at most 16 MiB in addition to
 all ownership counters returning to baseline. Arm64 Metal regular uses one
 runtime manager worker so worker-local allocation is stable inside two cycles;
 other regular targets use four workers, while medium/hardware use eight workers
-to meet the 10/30-minute throughput budgets. The separate 20-frame visible
+to meet their declared throughput budgets. Medium remains bounded to 30 minutes;
+hardware receives 60 minutes because its two accepted packages must serialize
+their visible windows and capture device. The separate 20-frame visible
 image-calibration run still requires per-cycle ownership and stale-handle
 proof, but treats RSS as an observation: Sponza is not a regular-profile root,
 and its authoritative lifecycle/RSS gate is the 1,000-cycle hardware profile.
@@ -311,3 +313,109 @@ while preserving deterministic CI authority and backend parity.
 - Build a general editor/game camera: deferred as broader runtime/editor scope.
 - Keep the first Sponza facade candidate: rejected because it does not provide
   the intended interior depth and material coverage.
+
+## Decision 13: Advance Lantern After Correct Native Winding
+
+**Decision**: Retain the globally correct native front-face adaptation and
+advance Lantern from `production-content-v1` to
+`production-content-lantern-v2`. Source triangle normals agree with the glTF
+vertex normals for every non-degenerate Lantern triangle and overwhelmingly
+for Sponza, so the imported model is not repaired or selectively rewound.
+Lantern v2 preserves the frozen identity camera, requires the diagnostic world
+normal to face approximately -X, and places the key light on that camera-facing
+side. The former Lantern v1 image records become `superseded`; v2 receives new
+twenty-capture calibration and explicit acceptance on Metal and MoltenVK.
+
+Feature 028 retains the existing `sampleCount=1` render policy with no
+anti-aliasing or general post-processing. The maintainer reviewed and accepted
+that visibly aliased v2 output for this phase. Adding post-processing or
+anti-aliasing is later roadmap work and must advance affected workload
+revisions and repeat semantic/FLIP calibration.
+
+**Rationale**: Reverting winding would select the wrong face and reintroduce a
+cross-backend geometry error. The unexpectedly dark correct face came from the
+workload light direction, not bad asset normals. Treating the light and render
+policy as versioned workload authority preserves deterministic acceptance and
+makes the visual change reviewable.
+
+**Alternatives considered**:
+
+- Rewind Lantern only: rejected because source winding and vertex normals
+  already agree.
+- Revert the native front-face fix: rejected because it would make both
+  backends consistently wrong.
+- Add AA while accepting v2: rejected because it would expand Feature 028 and
+  obscure whether the winding/light correction itself passed acceptance.
+
+## Decision 14: Vulkan Devices Track Client-Owned Resources Weakly
+
+**Decision**: Match the RHI ownership contract used by Metal: the Vulkan device
+tracks client-owned fences, semaphores, resources, render objects, shaders, and
+pipelines with weak references. Creation prunes expired tracking entries, and
+pipeline-cache insertion prunes expired or dependency-invalid entries. Device
+shutdown still locks every surviving object and invalidates it.
+
+**Rationale**: Heap inspection of a failed MoltenVK 1,000-cycle gate found
+thousands of released `FVulkanBuffer`, `FVulkanTexture`, shader, and pipeline
+wrappers still reachable from the persistent device. Native counters returned
+to zero because their handles had been invalidated, but the device's strong
+tracking arrays retained the C++ wrappers, copied shader bytes, pipeline
+descriptions, and cache keys until device shutdown. Weak tracking preserves
+provenance and shutdown invalidation without becoming an extra resource owner.
+
+**Alternatives considered**:
+
+- Force allocator pressure relief after every cycle: rejected because it did
+  not release reachable objects and increased the observed terminal RSS.
+- Recreate the device every cycle: rejected because it would evade the intended
+  persistent-device resource lifecycle test.
+- Add a validation-only Vulkan purge call: rejected because it would hide a
+  general ownership bug behind Feature 028-specific behavior.
+
+## Decision 15: Long-Lifecycle Evidence Bookkeeping Is Bounded
+
+**Decision**: Count every native window and Forward capture, but retain image
+bytes only for the final authoritative attachment set consumed by semantic and
+FLIP acceptance. Retain every failed diagnostic and its global sequence number,
+while retaining at most 256 successful diagnostic records and reporting the
+number of dropped successes in stable diagnostic text.
+
+**Rationale**: A 1,000-cycle validation run must prove that the renderer and
+backend release their resources; the validation recorder itself must not grow
+by storing two full-resolution captures and several success strings per cycle.
+Separate counters preserve exact lifecycle evidence, while the final retained
+attachments preserve the bytes needed for image acceptance and diagnostics
+continue to preserve every actionable failure.
+
+**Alternatives considered**:
+
+- Retain every capture: rejected because evidence memory would scale with the
+  requested cycle count and contaminate the RSS gate.
+- Stop recording after warm-up: rejected because later presentation or Forward
+  omissions would become invisible.
+- Cap every diagnostic indiscriminately: rejected because a late primary or
+  secondary failure must remain inspectable.
+
+## Decision 16: Production Validation Reuses Synchronization and Retires Work
+
+**Decision**: The production lifecycle creates one backend-neutral graphics
+queue and fence, submits every cycle through that pair, waits for the fence and
+queue to become idle, then resets the fence. Vulkan `WaitIdle` removes completed
+or invalidated submission records and remembers that a completed submission was
+observed so the existing completion-inspection contract remains stable.
+
+**Rationale**: Creating queues and fences per frame makes the validation harness
+itself a source of allocator churn. Reusing them exposed a general Vulkan queue
+bug: completed submission records held command buffers indefinitely and
+exhausted a bounded command pool after 32 cycles. Explicit retirement makes
+queue lifetime independent of submission count and matches the ownership
+expected by long-running applications.
+
+**Alternatives considered**:
+
+- Increase the production command-pool capacity: rejected because the queue
+  would still grow without bound and merely fail later.
+- Recreate the queue periodically: rejected because it hides incorrect
+  submission retirement and weakens the persistent-device lifecycle test.
+- Add a Vulkan-only Demo purge: rejected because submission retirement belongs
+  to the backend queue contract, while the Demo harness remains backend-neutral.

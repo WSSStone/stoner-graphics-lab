@@ -7,12 +7,21 @@ namespace Stoner::Demo
 
 void FDemoDiagnostics::Add(EDemoStage Stage, EDemoExitCode Result, const char* Subject, const char* Reason)
 {
+    const Stoner::Core::uint64 Sequence = NextSequence++;
     if (Result != EDemoExitCode::Success && !bHasPrimaryFailure)
     {
         bHasPrimaryFailure = true;
         PrimaryExitCode = Result;
     }
-    Records.push_back({NextSequence++, Stage, Result, Subject ? Subject : "", Reason ? Reason : ""});
+    if (Result == EDemoExitCode::Success &&
+        SuccessfulRecordCount >= MaximumSuccessfulRecords)
+    {
+        ++DroppedSuccessfulRecordCount;
+        return;
+    }
+    if (Result == EDemoExitCode::Success)
+        ++SuccessfulRecordCount;
+    Records.push_back({Sequence, Stage, Result, Subject ? Subject : "", Reason ? Reason : ""});
 }
 
 Stoner::Core::FString FDemoDiagnostics::BuildStableText() const
@@ -26,6 +35,9 @@ Stoner::Core::FString FDemoDiagnostics::BuildStableText() const
                << " subject=" << Record.Subject.CStr()
                << " reason=" << Record.Reason.CStr() << '\n';
     }
+    if (DroppedSuccessfulRecordCount != 0)
+        Stream << "diagnostic dropped-success="
+               << DroppedSuccessfulRecordCount << '\n';
     return Stream.str().c_str();
 }
 

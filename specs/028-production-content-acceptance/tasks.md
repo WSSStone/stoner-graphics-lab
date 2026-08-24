@@ -206,6 +206,12 @@ gates, and release every owner.
 - [X] T124 [US3] Use the Metal preview on the strict Sponza generation to select and explicitly approve an internal atrium-depth View/Projection candidate, freeze it as `production-content-sponza-v2`, and prove Vulkan/Metal plus Deferred/Forward consume the identical preset
 - [X] T125 [US3] Replace Sponza v1 runner/probe authority with v2, redefine semantic regions from the approved view, regenerate 20-capture candidate calibration per required backend/device class, reject all mutations, obtain explicit maintainer acceptance, and remove the unaccepted v1 candidate from consumable baseline state
 - [ ] T126 [US3] Re-run strict builds, camera/demo/image suites, 20-cycle visible acceptance, 1,000-cycle hardware lifecycle, medium, regression, sanitizer, clean-checkout, and final CI evidence after the v2 camera change
+- [X] T127 [US3] Preserve the verified global native winding correction, advance Lantern authority to `production-content-lantern-v2`, move its key light to the intended camera-facing -X surface, and require the corrected normal/material probes without asset-specific triangle rewrites
+- [X] T128 [US3] Recalibrate Lantern v2 from 20 Metal and MoltenVK captures, reject blank/stale/origin/missing-geometry/material/color-space/opposite-normal mutations, obtain explicit maintainer acceptance of the current sample-count-one output, register v2 as `Accepted`, and demote Lantern v1 to `Superseded`
+- [ ] T129 [US3] Give the serialized two-package visible hardware profile a schema-enforced 60-minute lane budget while retaining 1,000 cycles per package, then rerun both physical M4 Pro backends and final CI
+- [X] T130 [US3] Replace Vulkan device-owned strong resource tracking with bounded weak tracking, prune expired pipeline-cache entries, add an active-device transient-release regression, and prove the MoltenVK Lantern 1,000-cycle visible gate returns terminal ownership to zero with no post-warm-up RSS growth
+- [X] T131 [US3] Bound long-lifecycle validation bookkeeping by retaining image bytes only for the final authoritative attachment set, counting all window/forward captures separately, capping successful diagnostics while preserving failures and global sequence, and cover the counters and truncation report in Demo/StonerDemo/Private/FProductionWindowCaptureWriter.cpp, Demo/StonerDemo/Private/FDemoDiagnostics.*, and production Demo regressions
+- [X] T132 [US3] Reuse one production graphics queue/fence across lifecycle cycles, wait for queue retirement before fence reset, retire completed/invalidated Vulkan submission records without changing completion observation semantics, and prove 128 submissions succeed with a one-buffer command-pool capacity in Demo/StonerDemo/Private/FProductionSubmissionHarness.*, Source/Backend/Vulkan/Private/FVulkanQueue.cpp, and Tests/VulkanBackendTests.cpp
 
 **Checkpoint**: The same strict-cooked production root renders through native
 Vulkan and Metal with transactional lifetime and semantic/perceptual proof.
@@ -223,7 +229,7 @@ target, cycles, budgets, gates, outputs, cadence, and replacement-lane behavior.
 
 ### Tests for User Story 4
 
-- [X] T085 [P] [US4] Add failing regular/medium/hardware profile schema, exact tier membership, exact included 2-of-20 and 20-of-1,000 warm-up boundaries, post-warm-up-to-terminal 16 MiB RSS, 10/30 minute budget, cadence, and required-gate tests in .github/scripts/test_run_production_content_validation.py
+- [X] T085 [P] [US4] Add failing regular/medium/hardware profile schema, exact tier membership, exact included 2-of-20 and 20-of-1,000 warm-up boundaries, post-warm-up-to-terminal 16 MiB RSS, 10/30/60 minute tier budgets, cadence, and required-gate tests in .github/scripts/test_run_production_content_validation.py
 - [X] T086 [P] [US4] Add failing workflow path-filter, default-branch schedule, manual closeout, hardware-label, artifact producer/consumer, digest revalidation, and unsupported aggregation tests in .github/scripts/test_production_content_workflows.py
 
 ### Implementation for User Story 4
@@ -283,10 +289,10 @@ scale, and required physical hardware evidence on one final revision.
 
 - [X] T108 [P] Extend architecture verification for Asset-to-Tools/RHI/Renderer/Application/Backend/API leakage, runtime-to-Tools links, Renderer/Application Vulkan/Metal calls, FLIP runtime links, Demo god-class growth, and the FR-044 feature-diff exclusion list covering new importers, skeletal/editor/hot-reload, package/archive, streaming/residency, Meshlet/LOD, virtual geometry, ray tracing, and visual redesign in Tests/verify_architecture.py and Tests/test_verify_architecture.py
 - [X] T109 [P] Run local macOS Debug and strict Release production-content builds with warnings as errors and record compiler/test summaries in Validation/028/reports/local-builds.md
-- [ ] T110 [P] Run Linux ASan/UBSan, applicable TSan, malformed corpus, cancellation, failure-injection, and leak regressions and record commands/results in Validation/028/reports/sanitizers-and-failures.md
+- [X] T110 [P] Run Linux ASan/UBSan, applicable TSan, malformed corpus, cancellation, failure-injection, and leak regressions and record commands/results in Validation/028/reports/sanitizers-and-failures.md
 - [X] T111 Run all affected Features 018-027 Demo, Deferred, Forward, Asset, AssetCooker, Runtime Manager, Vulkan, and Metal regression suites and record the bounded result in Validation/028/reports/regressions.md
-- [ ] T112 Run the final-revision Windows/macOS/Linux regular GitHub Actions matrix and record run IDs, revisions, artifact names, and SHA-256 values in Validation/028/CI/README.md
-- [ ] T113 Run the final-revision medium closeout profile with every accepted package through clean/warm 100-percent reuse, source-unavailable strict loading, complete semantic equivalence, and 1,000 cycles with cycles 1-20 as included warm-up, then record timing, peak RSS, post-warm-up RSS growth, and evidence digests in Validation/028/CI/README.md
+- [X] T112 Run the final-revision Windows/macOS/Linux regular GitHub Actions matrix and record run IDs, revisions, artifact names, and SHA-256 values in Validation/028/CI/README.md
+- [X] T113 Run the final-revision medium closeout profile with every accepted package through clean/warm 100-percent reuse, source-unavailable strict loading, complete semantic equivalence, and 1,000 cycles with cycles 1-20 as included warm-up, then record timing, peak RSS, post-warm-up RSS growth, and evidence digests in Validation/028/CI/README.md
 - [ ] T114 Run final-revision Windows Vulkan plus physical M4 Pro Vulkan/Metal 1,000-cycle hardware acceptance with GPU readbacks and window-only captures, and record hardware run/artifact/baseline digests in Validation/028/CI/README.md and Validation/028/Baselines/README.md
 - [ ] T115 Re-run every command in specs/028-production-content-acceptance/quickstart.md from a clean workspace and record the results in Validation/028/reports/quickstart.md
 - [X] T116 [P] Create the delivered Feature 028 system-design document following doc/SYSTEM_DESIGN.MD in doc/028-production-content-acceptance.html

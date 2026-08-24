@@ -61,7 +61,7 @@ FAILURE_CATALOG = Path(
     "Tests/Fixtures/ProductionContent/Failures/failure-catalog.json"
 )
 WORKLOAD_REVISIONS = {
-    "khronos-lantern-glb": "production-content-v1",
+    "khronos-lantern-glb": "production-content-lantern-v2",
     "khronos-sponza-gltf": "production-content-sponza-v2",
 }
 FAILURE_STAGES = (
@@ -108,7 +108,7 @@ PROFILE_CONTRACTS = {
     "hardware": {
         "cycles": 1000,
         "warmup": 20,
-        "budget": 1800,
+        "budget": 3600,
         "cadence": [
             "feature-closeout", "reference-image-change",
             "production-render-path-change",
@@ -309,7 +309,7 @@ def write_artifact_manifest(output: Path) -> Path:
         "artifacts": records,
     }
     manifest_path.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n",
         encoding="utf-8",
     )
     return manifest_path

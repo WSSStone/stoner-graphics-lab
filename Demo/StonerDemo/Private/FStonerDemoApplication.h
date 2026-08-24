@@ -10,6 +10,8 @@
 namespace Stoner::Demo
 {
 
+class FProductionSubmissionHarness;
+
 [[nodiscard]] Stoner::Renderer::FForwardFramePlan BuildTriangleFramePlan(
     Stoner::Core::uint32 Width,
     Stoner::Core::uint32 Height);
@@ -91,6 +93,10 @@ struct FDemoProductionExecutionInspection
     Stoner::Core::TArray<FDemoProductionReadbackEvidence> Readbacks;
     Stoner::Core::TArray<FDemoProductionCapture> Captures;
     Stoner::Core::TArray<FDemoProductionLifecycleSample> LifecycleSamples;
+    Stoner::Core::uint32 CaptureCount = 0;
+    Stoner::Core::uint32 FinalOutputCaptureCount = 0;
+    Stoner::Core::uint32 ForwardColorCaptureCount = 0;
+    Stoner::Core::uint32 PresentedFinalOutputCaptureCount = 0;
     Stoner::Core::uint32 CompletedCycles = 0;
     bool bSubmissionCompleted = false;
     bool bSynchronizationCompleted = false;
@@ -144,6 +150,7 @@ private:
         ReleaseProductionContentCycle();
     [[nodiscard]] EDemoExitCode RunProductionContent();
     [[nodiscard]] EDemoExitCode RunProductionCameraPreview();
+    void RecordProductionCapture(FDemoProductionCapture Capture);
     [[nodiscard]] EDemoExitCode RunDeterministic();
     [[nodiscard]] EDemoExitCode RunNativeHeadless();
     [[nodiscard]] EDemoExitCode RunVisible();
@@ -165,6 +172,8 @@ private:
     bool bShutdownComplete = false;
     Stoner::Core::TSharedPtr<IDemoBackendFactory> BackendFactory;
     Stoner::Core::TUniquePtr<IDemoBackendRuntime> BackendRuntime;
+    Stoner::Core::TUniquePtr<FProductionSubmissionHarness>
+        ProductionSubmissionHarness;
     class FWindowHolder;
     std::unique_ptr<FWindowHolder> Window;
     class FProductionContentRuntime;

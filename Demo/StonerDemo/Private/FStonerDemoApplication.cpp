@@ -1,4 +1,5 @@
 #include "FStonerDemoApplication.h"
+#include "FProductionSubmissionHarness.h"
 #include "Application/FWindow.h"
 #include "Asset/AssetMinimal.h"
 #include "Core/FPlatformFileSystem.h"
@@ -902,8 +903,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                 Capture.Bytes.clear();
                 Capture.Bytes.shrink_to_fit();
             }
-            ProductionExecutionInspection.Captures.push_back(
-                std::move(Capture));
+            RecordProductionCapture(std::move(Capture));
         }
         if (!bNonBlank)
             Diagnostics.Add(EDemoStage::Readback,
@@ -916,12 +916,10 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
          Cycle <= Configuration.ProductionLifecycleCycles; ++Cycle)
     {
         {
-            auto Queue = Device->CreateCommandQueue(
-                RHI::ERHIQueueType::Graphics);
-            if (!Queue.Succeeded())
+            if (!ProductionSubmissionHarness)
                 return FailInitialize(EDemoStage::Submit,
                     EDemoExitCode::FrameFailed, "ProductionExecution",
-                    "production native queue creation failed");
+                    "production native submission harness is unavailable");
             ProductionExecutionInspection.Readbacks.clear();
             const auto ExecutePath = [&](EDemoRenderPath Path)
             {
@@ -935,28 +933,12 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                         "production command recording failed");
                     return false;
                 }
-                auto Fence = Device->CreateFence();
-                if (!Fence.Succeeded())
+                if (ProductionSubmissionHarness->SubmitAndWait(
+                        Commands, 30'000'000) != RHI::ERHIResult::Success)
                 {
                     Diagnostics.Add(EDemoStage::Submit,
                         EDemoExitCode::FrameFailed, PathName,
-                        "production fence creation failed");
-                    return false;
-                }
-                if (Queue.Object->Submit(Commands, {}, {}, Fence.Object) !=
-                    RHI::ERHIResult::Success)
-                {
-                    Diagnostics.Add(EDemoStage::Submit,
-                        EDemoExitCode::FrameFailed, PathName,
-                        "production queue submission failed");
-                    return false;
-                }
-                if (Fence.Object->Wait(30'000'000) !=
-                    RHI::ERHIResult::Success)
-                {
-                    Diagnostics.Add(EDemoStage::Submit,
-                        EDemoExitCode::FrameFailed, PathName,
-                        "production fence completion failed");
+                        "production submit, wait, or reusable-fence reset failed");
                     return false;
                 }
                 bool bReadbacksValid = true;
@@ -1153,6 +1135,15 @@ EDemoExitCode FStonerDemoApplication::Initialize()
     Diagnostics.Add(EDemoStage::Runtime, EDemoExitCode::Success, "Runtime", ToString(Configuration.RunMode));
     if (Configuration.Workload == EDemoWorkload::ProductionContent)
     {
+        ProductionSubmissionHarness =
+            Stoner::Core::MakeUnique<FProductionSubmissionHarness>();
+        if (ProductionSubmissionHarness->Initialize(
+                BackendRuntime->GetDevice()) != Stoner::RHI::ERHIResult::Success)
+            return FailInitialize(
+                EDemoStage::Pipeline,
+                EDemoExitCode::InitializationFailed,
+                "ProductionSubmissionHarness",
+                "persistent production queue or fence creation failed");
         if (Configuration.bVisibleCapture ||
             Configuration.bProductionCameraPreview)
         {
@@ -1167,8 +1158,8 @@ EDemoExitCode FStonerDemoApplication::Initialize()
                     EDemoExitCode::InitializationFailed,
                     "ProductionPresentation",
                     "native production presentation resources failed");
-            ProductionRuntimeBaseline = BackendRuntime->GetSnapshot();
         }
+        ProductionRuntimeBaseline = BackendRuntime->GetSnapshot();
         const EDemoExitCode ProductionResult = InitializeProductionContent();
         if (ProductionResult != EDemoExitCode::Success)
             return ProductionResult;
@@ -1581,6 +1572,8 @@ EDemoExitCode FStonerDemoApplication::Shutdown()
         (void)ProductionRuntime->Session.Shutdown();
         ProductionRuntime.reset();
     }
+    if (ProductionSubmissionHarness) ProductionSubmissionHarness->Release();
+    ProductionSubmissionHarness.reset();
     if (BackendRuntime)
     {
         (void)BackendRuntime->Shutdown();

@@ -57,6 +57,30 @@ namespace
             Shader->GetDesc().InterfaceMetadata);
 }
 
+template <typename TObject>
+[[nodiscard]] bool IsTrackedObject(
+    const Stoner::Core::TArray<Stoner::Core::TWeakPtr<TObject>>& Objects,
+    const Stoner::Core::TSharedPtr<TObject>& Object) noexcept
+{
+    return Object && std::any_of(
+        Objects.begin(), Objects.end(),
+        [&Object](const auto& WeakObject)
+        {
+            return WeakObject.lock() == Object;
+        });
+}
+
+template <typename TObject>
+void TrackObject(
+    Stoner::Core::TArray<Stoner::Core::TWeakPtr<TObject>>& Objects,
+    const Stoner::Core::TSharedPtr<TObject>& Object)
+{
+    std::erase_if(
+        Objects,
+        [](const auto& WeakObject) { return WeakObject.expired(); });
+    Objects.push_back(Object);
+}
+
 [[nodiscard]] bool HasValidGraphicsShaderStages(
     const Stoner::RHI::FRHIGraphicsPipelineDesc& Desc,
     const Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState>& Owner) noexcept
@@ -486,7 +510,7 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIFence> FVulkanDevice::CreateFence
     try
     {
         Fence.reset(new FVulkanFence(bInitiallySignaled, DeviceOwner));
-        Fences.push_back(Fence);
+        TrackObject(Fences, Fence);
     }
     catch (const std::bad_alloc&)
     {
@@ -518,7 +542,7 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISemaphore> FVulkanDevice::CreateS
     try
     {
         Semaphore.reset(new FVulkanSemaphore(DeviceOwner));
-        Semaphores.push_back(Semaphore);
+        TrackObject(Semaphores, Semaphore);
     }
     catch (const std::bad_alloc&)
     {
@@ -600,7 +624,7 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIBuffer> FVulkanDevice::CreateBuff
     }
     try
     {
-        Buffers.push_back(Buffer);
+        TrackObject(Buffers, Buffer);
     }
     catch (const std::bad_alloc&)
     {
@@ -631,8 +655,7 @@ Stoner::RHI::ERHIResult FVulkanDevice::UploadBuffer(
     }
 
     const auto VulkanBuffer = std::dynamic_pointer_cast<FVulkanBuffer>(Buffer);
-    const bool bOwned = VulkanBuffer &&
-        std::find(Buffers.begin(), Buffers.end(), VulkanBuffer) != Buffers.end();
+    const bool bOwned = IsTrackedObject(Buffers, VulkanBuffer);
     if (!bOwned || !IsValidRHIBufferUploadDesc(Buffer->GetDesc(), Upload))
     {
         return ERHIResult::InvalidState;
@@ -719,7 +742,7 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHITexture> FVulkanDevice::CreateTex
     }
     try
     {
-        Textures.push_back(Texture);
+        TrackObject(Textures, Texture);
     }
     catch (const std::bad_alloc&)
     {
@@ -752,10 +775,7 @@ Stoner::RHI::ERHIResult FVulkanDevice::UploadTexture(
 
     const auto VulkanTexture =
         std::dynamic_pointer_cast<FVulkanTexture>(Texture);
-    const bool bOwned =
-        VulkanTexture &&
-        std::find(Textures.begin(), Textures.end(), VulkanTexture) !=
-            Textures.end();
+    const bool bOwned = IsTrackedObject(Textures, VulkanTexture);
     if (!bOwned)
     {
         return ERHIResult::InvalidState;
@@ -895,9 +915,7 @@ Stoner::RHI::ERHIResult FVulkanDevice::ReadbackTextureForTesting(
     }
     const auto VulkanTexture =
         std::dynamic_pointer_cast<FVulkanTexture>(Texture);
-    if (!VulkanTexture ||
-        std::find(Textures.begin(), Textures.end(), VulkanTexture) ==
-            Textures.end() ||
+    if (!IsTrackedObject(Textures, VulkanTexture) ||
         MipLevel >= VulkanTexture->GetDesc().MipLevels)
     {
         return Stoner::RHI::ERHIResult::InvalidState;
@@ -988,7 +1006,7 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISampler> FVulkanDevice::CreateSam
     }
     try
     {
-        Samplers.push_back(Sampler);
+        TrackObject(Samplers, Sampler);
     }
     catch (const std::bad_alloc&)
     {
@@ -1098,7 +1116,7 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIShaderModule> FVulkanDevice::Crea
     }
     try
     {
-        ShaderModules.push_back(ShaderModule);
+        TrackObject(ShaderModules, ShaderModule);
     }
     catch (const std::bad_alloc&)
     {
@@ -1133,7 +1151,7 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIPipelineLayout> FVulkanDevice::Cr
     try
     {
         Layout.reset(new FVulkanPipelineLayout(Desc, DeviceOwner));
-        PipelineLayouts.push_back(Layout);
+        TrackObject(PipelineLayouts, Layout);
     }
     catch (const std::bad_alloc&)
     {
@@ -1371,7 +1389,7 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIGraphicsPipeline> FVulkanDevice::
     }
     try
     {
-        GraphicsPipelines.push_back(Pipeline);
+        TrackObject(GraphicsPipelines, Pipeline);
     }
     catch (const std::bad_alloc&)
     {
@@ -1549,7 +1567,7 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIComputePipeline> FVulkanDevice::C
     }
     try
     {
-        ComputePipelines.push_back(Pipeline);
+        TrackObject(ComputePipelines, Pipeline);
     }
     catch (const std::bad_alloc&)
     {
@@ -1616,7 +1634,7 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIRenderPass> FVulkanDevice::Create
     }
     try
     {
-        RenderPasses.push_back(RenderPass);
+        TrackObject(RenderPasses, RenderPass);
     }
     catch (const std::bad_alloc&)
     {
@@ -1658,7 +1676,7 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHIFramebuffer> FVulkanDevice::Creat
     }
     try
     {
-        Framebuffers.push_back(Framebuffer);
+        TrackObject(Framebuffers, Framebuffer);
     }
     catch (const std::bad_alloc&)
     {
@@ -1903,16 +1921,16 @@ void FVulkanDevice::InvalidateOwnedObjects() noexcept
             Pool->Invalidate();
         }
     }
-    for (const auto& Fence : Fences)
+    for (const auto& WeakFence : Fences)
     {
-        if (Fence)
+        if (const auto Fence = WeakFence.lock())
         {
             Fence->Invalidate();
         }
     }
-    for (const auto& Semaphore : Semaphores)
+    for (const auto& WeakSemaphore : Semaphores)
     {
-        if (Semaphore)
+        if (const auto Semaphore = WeakSemaphore.lock())
         {
             Semaphore->Invalidate();
         }
@@ -1954,65 +1972,65 @@ void FVulkanDevice::InvalidateOwnedObjects() noexcept
         (void)DescriptorPool->Invalidate();
     }
     PipelineCache.Invalidate();
-    for (const auto& GraphicsPipeline : GraphicsPipelines)
+    for (const auto& WeakGraphicsPipeline : GraphicsPipelines)
     {
-        if (GraphicsPipeline)
+        if (const auto GraphicsPipeline = WeakGraphicsPipeline.lock())
         {
             (void)GraphicsPipeline->Invalidate();
         }
     }
-    for (const auto& ComputePipeline : ComputePipelines)
+    for (const auto& WeakComputePipeline : ComputePipelines)
     {
-        if (ComputePipeline)
+        if (const auto ComputePipeline = WeakComputePipeline.lock())
         {
             (void)ComputePipeline->Invalidate();
         }
     }
-    for (const auto& ShaderModule : ShaderModules)
+    for (const auto& WeakShaderModule : ShaderModules)
     {
-        if (ShaderModule)
+        if (const auto ShaderModule = WeakShaderModule.lock())
         {
             (void)ShaderModule->Invalidate();
         }
     }
-    for (const auto& Layout : PipelineLayouts)
+    for (const auto& WeakLayout : PipelineLayouts)
     {
-        if (Layout)
+        if (const auto Layout = WeakLayout.lock())
         {
             (void)Layout->Invalidate();
         }
     }
-    for (const auto& Sampler : Samplers)
+    for (const auto& WeakSampler : Samplers)
     {
-        if (Sampler)
+        if (const auto Sampler = WeakSampler.lock())
         {
             (void)Sampler->Invalidate();
         }
     }
-    for (const auto& Framebuffer : Framebuffers)
+    for (const auto& WeakFramebuffer : Framebuffers)
     {
-        if (Framebuffer)
+        if (const auto Framebuffer = WeakFramebuffer.lock())
         {
             (void)Framebuffer->Invalidate();
         }
     }
-    for (const auto& RenderPass : RenderPasses)
+    for (const auto& WeakRenderPass : RenderPasses)
     {
-        if (RenderPass)
+        if (const auto RenderPass = WeakRenderPass.lock())
         {
             (void)RenderPass->Invalidate();
         }
     }
-    for (const auto& Texture : Textures)
+    for (const auto& WeakTexture : Textures)
     {
-        if (Texture)
+        if (const auto Texture = WeakTexture.lock())
         {
             (void)Texture->Invalidate();
         }
     }
-    for (const auto& Buffer : Buffers)
+    for (const auto& WeakBuffer : Buffers)
     {
-        if (Buffer)
+        if (const auto Buffer = WeakBuffer.lock())
         {
             (void)Buffer->Invalidate();
         }

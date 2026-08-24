@@ -12,7 +12,7 @@
   "lifecycleCycles": 1000,
   "warmupCycles": 20,
   "maxRssGrowthBytes": 16777216,
-  "timeBudgetSeconds": 1800,
+  "timeBudgetSeconds": 3600,
   "cadence": [
     "feature-closeout",
     "reference-image-change",

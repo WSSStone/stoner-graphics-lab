@@ -35,7 +35,7 @@ Core::TArray<const char*> RegularArguments(const char* Backend)
         "StonerDemo", "--mode", "headless-vulkan", "--backend", Backend,
         "--workload", "production-content", "--production-root",
         "StaticModel:ProductionAcceptance/Lantern", "--workload-revision",
-        "production-content-v1", "--render-path", "deferred-full",
+        "production-content-lantern-v2", "--render-path", "deferred-full",
         "--strict-generation", "generation-test", "--cooked-root",
         "Build/Test/Published", "--lease-root", "Build/Test/Lease",
         "--target-profile", "Config/AssetCooker/Profiles/Mac-Vulkan.json",
@@ -221,7 +221,7 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
                 Core::FString("StaticModel:ProductionAcceptance/Lantern") &&
             Vulkan.StrictGeneration == Core::FString("generation-test") &&
             Vulkan.WorkloadRevision ==
-                Core::FString("production-content-v1") &&
+                Core::FString("production-content-lantern-v2") &&
             Vulkan.RenderPath == EDemoRenderPath::DeferredFull &&
             Vulkan.ProductionLifecycleCycles == 20 &&
             Vulkan.ProductionWarmupCycles == 2,
@@ -380,7 +380,7 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
     const auto Realized = Renderer::FStaticModelRealizer::Realize(
         Fixture.Request, Snapshot, RealizationInspection);
     FProductionContentCompositionConfig CompositionConfig;
-    CompositionConfig.WorkloadRevision = "production-content-v1";
+    CompositionConfig.WorkloadRevision = "production-content-lantern-v2";
     CompositionConfig.FrameToken = 17;
     CompositionConfig.Width = 640;
     CompositionConfig.Height = 360;
@@ -393,7 +393,7 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
     Record(Result,
         bComposed && Composition.FrameToken == 17 &&
             Composition.WorkloadRevision ==
-                Core::FString("production-content-v1") &&
+                Core::FString("production-content-lantern-v2") &&
             Composition.RootAssetId == Snapshot->GetRootAssetId() &&
             Composition.SnapshotGeneration ==
                 Snapshot->GetSnapshotGeneration() &&

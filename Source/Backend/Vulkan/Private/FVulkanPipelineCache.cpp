@@ -227,11 +227,25 @@ Stoner::Core::TSharedPtr<FVulkanComputePipeline> FVulkanPipelineCache::FindCompu
 
 void FVulkanPipelineCache::InsertGraphics(const Stoner::Core::FString& Key, const Stoner::Core::TSharedPtr<FVulkanGraphicsPipeline>& Pipeline)
 {
+    std::erase_if(
+        GraphicsEntries,
+        [](const auto& Entry)
+        {
+            const auto Existing = Entry.second.lock();
+            return !Existing || !Existing->HasValidDependencies();
+        });
     GraphicsEntries.push_back({Key, Pipeline});
 }
 
 void FVulkanPipelineCache::InsertCompute(const Stoner::Core::FString& Key, const Stoner::Core::TSharedPtr<FVulkanComputePipeline>& Pipeline)
 {
+    std::erase_if(
+        ComputeEntries,
+        [](const auto& Entry)
+        {
+            const auto Existing = Entry.second.lock();
+            return !Existing || !Existing->HasValidDependencies();
+        });
     ComputeEntries.push_back({Key, Pipeline});
 }
 

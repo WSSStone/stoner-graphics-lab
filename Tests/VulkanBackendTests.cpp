@@ -1070,6 +1070,19 @@ void TestResourceCreationAndAllocation(FVulkanBackendTestResult& Result)
         VulkanTexture && VulkanTexture->GetAllocation().IsSuccessful() &&
         Device.GetDiagnostics().ResourceAllocationReason[0] != '\0', "Vulkan resources expose real-or-fallback allocation diagnostics");
 
+    const auto AllocationBaseline = Device.GetAllocationSnapshot();
+    auto TransientBuffer = Device.CreateBuffer(ValidBufferDesc());
+    std::weak_ptr<IRHIBuffer> WeakTransientBuffer = TransientBuffer.Object;
+    TransientBuffer.Object.reset();
+    const auto AllocationAfterRelease = Device.GetAllocationSnapshot();
+    Record(Result,
+        WeakTransientBuffer.expired() &&
+            AllocationAfterRelease.LiveAllocationCount ==
+                AllocationBaseline.LiveAllocationCount &&
+            AllocationAfterRelease.AllocatedBytes ==
+                AllocationBaseline.AllocatedBytes,
+        "Vulkan device weak tracking releases transient resources while active");
+
     FRHIBufferDesc InvalidBuffer = ValidBufferDesc();
     InvalidBuffer.SizeInBytes = 0;
     FRHITextureDesc InvalidTexture = ValidTextureDesc();
@@ -1311,6 +1324,29 @@ void TestCommandBuffersRecordingAndSubmission(FVulkanBackendTestResult& Result)
         ReuseCapacityDevice.CreateCommandBuffer(
             ERHIQueueType::Graphics).Succeeded(),
         "Vulkan command buffer destruction returns pool capacity");
+    const auto PersistentQueue =
+        ReuseCapacityDevice.CreateCommandQueue(ERHIQueueType::Graphics);
+    const auto PersistentFence = ReuseCapacityDevice.CreateFence();
+    bool bPersistentQueueReused =
+        PersistentQueue.Succeeded() && PersistentFence.Succeeded();
+    for (Stoner::Core::uint32 Iteration = 0;
+         Iteration < 128 && bPersistentQueueReused; ++Iteration)
+    {
+        const auto Command = ReuseCapacityDevice.CreateCommandBuffer(
+            ERHIQueueType::Graphics);
+        bPersistentQueueReused = Command.Succeeded() &&
+            Command.Object->Begin() == ERHIResult::Success &&
+            Command.Object->RecordDispatch(1, 1, 1) == ERHIResult::Success &&
+            Command.Object->End() == ERHIResult::Success &&
+            PersistentQueue.Object->Submit(
+                Command.Object, {}, {}, PersistentFence.Object) ==
+                ERHIResult::Success &&
+            PersistentFence.Object->Wait(1) == ERHIResult::Success &&
+            PersistentQueue.Object->WaitIdle() == ERHIResult::Success &&
+            PersistentFence.Object->Reset() == ERHIResult::Success;
+    }
+    Record(Result, bPersistentQueueReused,
+        "Vulkan persistent queue retires completed submissions beyond command-pool capacity");
 
     FVulkanDevice Device;
     Record(Result, InitializeDeterministic(Device) == ERHIResult::Success, "Vulkan command fixture device initializes");

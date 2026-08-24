@@ -43,8 +43,11 @@ public:
     [[nodiscard]] Stoner::Core::FString BuildStableText() const;
 
 private:
+    static constexpr Stoner::Core::usize MaximumSuccessfulRecords = 256;
     Stoner::Core::TArray<FDemoDiagnostic> Records;
     Stoner::Core::uint64 NextSequence = 1;
+    Stoner::Core::uint64 SuccessfulRecordCount = 0;
+    Stoner::Core::uint64 DroppedSuccessfulRecordCount = 0;
     bool bHasPrimaryFailure = false;
     EDemoExitCode PrimaryExitCode = EDemoExitCode::Success;
 };

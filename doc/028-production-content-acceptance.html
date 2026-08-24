@@ -85,6 +85,7 @@
 <li><strong>不把 Sponza bytes 提交到 Git：</strong>medium 内容较大且许可/存储策略独立，使用 revision + inventory hash 的外部 staging。</li>
 <li><strong>不做 source fallback：</strong>strict acceptance 必须在 source 已撤销后通过，否则无法证明 shipping 路径。</li>
 <li><strong>不自动接受 Candidate baseline：</strong>校准可以生成候选，只有用户明确接受后才能成为 Accepted。</li>
+<li><strong>不在本期加入抗锯齿或通用后处理：</strong>Feature 028 冻结 <code>sampleCount=1</code> 的正确几何、相机和光照输出；后续图像管线 feature 必须升级 workload revision 并重新校准。</li>
 <li><strong>不做 streaming、residency、archive/package、LOD/Meshlet、virtual geometry 或 ray tracing：</strong>这些会改变 ownership 与可见结果，分别留给后续 feature。</li>
 <li><strong>不要求不同 API 的原始浮点字节完全相同：</strong>先统一图像方向、row pitch、transfer 和格式，再比较语义与感知差异。</li>
 </ul>
@@ -108,6 +109,9 @@
 <li>每轮执行 Deferred full 与 Forward smoke，submit/fence 后读取 attachment；释放 session、snapshot 和 RHI resource，再采 ownership/RSS。</li>
 </ol>
 
+<h3>1.1 校准相机路径</h3>
+<p><code>--production-camera-preview</code> 只允许 interactive、visible、strict-cooked production-content 模式。右键拖动观察方向，W/S/A/D/Q/E 移动，Shift 加速，滚轮调 FOV，R 恢复 revision preset，Enter 输出规范 View/Projection JSON，Escape 退出。正式 gate 不读取输入或调用方矩阵，只按 workload revision 选择代码内冻结矩阵；Sponza 正式视角为 <code>production-content-sponza-v2</code> 中庭纵深构图。</p>
+
 <h3>2. 核心规则与状态机</h3>
 <pre><code>Corpus:      Unverified -> Verified -> Staged
 Cook:        Source -> DDC entries -> Generation -> Current pointer
@@ -116,7 +120,7 @@ Realization: Validate -> Create transaction -> Commit snapshot
                                   `-> Failure -> Rollback
 Baseline:    Candidate -> Calibrated -> Reviewed -> Accepted -> Superseded
 Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
-<p>regular 固定 20 次、1-2 warm-up；medium/hardware 固定 1,000 次、1-20 warm-up。warm-up 计入总次数，RSS 取 warm-up 边界样本到 terminal 的净增长，上限 16 MiB；内部 owners 必须归零且 stale handle 必须被拒绝。arm64 Metal regular manager 固定一个 worker，以保证 2-cycle 内存稳定；其余 regular 使用四个 workers，medium/hardware 使用八个 workers，以满足 10/30 分钟预算。medium 的两个独立 package roots 最多并发两个并共享同一 deadline；hardware 因可见窗口和 capture device 资源而保持串行。</p>
+<p>regular 固定 20 次、1-2 warm-up；medium/hardware 固定 1,000 次、1-20 warm-up。warm-up 计入总次数，RSS 取 warm-up 边界样本到 terminal 的净增长，上限 16 MiB；内部 owners 必须归零且 stale handle 必须被拒绝。arm64 Metal regular manager 固定一个 worker，以保证 2-cycle 内存稳定；其余 regular 使用四个 workers，medium/hardware 使用八个 workers。regular、medium、hardware workload 预算分别为 10、30、60 分钟。medium 的两个独立 package roots 最多并发两个并共享同一 deadline；hardware 因可见窗口和 capture device 资源而保持串行。</p>
 
 <h3>3. 失败模式与调试入口</h3>
 <table><thead><tr><th>症状</th><th>定位方法</th><th>本期真实案例</th></tr></thead><tbody>
@@ -125,6 +129,7 @@ Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
 <tr><td>合法 glTF 被 AccessDenied</td><td>查看 resolver scope 与 manager importer request 的 dependency resolver</td><td>flat package 空 scope 和 generic import path 未转发 resolver</td></tr>
 <tr><td>Sponza deferred draw 全拒绝</td><td>检查 first rejection 与 transform determinant</td><td>绝对 determinant 阈值误杀小尺度但可逆变换，改为 scale-relative 判定</td></tr>
 <tr><td>20/2 RSS 失败</td><td>读取 warm-up/terminal/peak 与 worker count</td><td>四 worker 在 hosted arm64 仍会波动到 24 MiB；全平台一 worker 又导致 Linux RSS/Intel timeout，改为 target-bound 1/4/8 policy</td></tr>
+<tr><td>1000-cycle RSS 线性增长</td><td>用 <code>vmmap</code>/<code>heap</code> 区分 native 区域与可达 C++ wrapper</td><td>Vulkan device 强 tracking 数组保留已失效资源；改为有界 weak tracking，并清理 expired pipeline-cache key</td></tr>
 <tr><td>baseline 缺失或未接受</td><td>检查 registry 的 workload/backend/device-class exact key 和 status</td><td>Candidate/Reviewed 不参与运行时选择，缺失时 fail closed</td></tr>
 </tbody></table>
 </section>
@@ -142,6 +147,7 @@ Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
 <tr><td><code>FProductionContentSession</code></td><td>registry、manager、request handles、closure、shutdown inspection</td><td>所有 records 先批量 request，再按 manifest 稳定顺序取 typed result</td></tr>
 <tr><td><code>FStaticModelRealizer</code></td><td>mesh/texture/material/shader 到 immutable render snapshot</td><td>transaction commit 前不发布 partial GPU ownership</td></tr>
 <tr><td><code>FProductionContentCompositionBuilder</code></td><td>placement、camera、lights、frame token、Deferred/Forward inputs</td><td>同一 backend-neutral composition 驱动两条 path</td></tr>
+<tr><td><code>FProductionCameraPreset</code> / preview controller</td><td>revision-owned View/Projection、派生矩阵、校准输入与 snapshot</td><td>交互只产候选；正式 Deferred/Forward 共享冻结 preset</td></tr>
 <tr><td><code>FProductionContentDeferredExecutionBuilder</code></td><td>aggregate geometry、pipeline、descriptor、attachment/readback binding</td><td>只消费 Renderer snapshot 与 RHI device</td></tr>
 <tr><td><code>ProductionImageAcceptance</code></td><td>canonical image、semantic probes、CPU FLIP metrics</td><td>先 probe，后 exact accepted baseline comparison</td></tr>
 <tr><td><code>run_production_content_validation.py</code></td><td>stage deadline、profile contract、reports、artifact manifest</td><td>local/CI 共用一个 runner，Unsupported 不是 pass</td></tr>
@@ -189,6 +195,12 @@ Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
 
 <h4>(6) Vulkan-to-Metal vertex Y 语义在 derivation 中处理</h4>
 <p><strong>决策：</strong>SPIRV-Cross common options 启用 <code>vertex.flip_vert_y</code>，identity 增加 <code>flip-vertex-y=1</code>，Metal producer version 升级以隔离旧 DDC/metallib。<strong>理由：</strong>surface 和 fullscreen pass 坐标错位会在两次错误后伪装出正确轮廓，却让 deferred lighting 采错 GBuffer。<strong>否决方案：</strong>在每个 shader 手工修正会污染 GLSL authority 并遗漏 pass。<strong>后果：</strong>derivation policy 变化必须进入 cook identity。</p>
+
+<h4>(7) 校准自由相机与正式冻结矩阵分离</h4>
+<p><strong>决策：</strong>preview 可交互移动并输出 View/Projection 候选，正式 gate 只能查 revision-owned preset。<strong>理由：</strong>每个 draw 的 Model 不同，单一 MVP 不能作为相机 authority；调用方覆盖又会破坏 CI 确定性。<strong>后果：</strong>视角变化必须升级 workload revision、更新 semantic regions 并重新接受 baseline。</p>
+
+<h4>(8) Vulkan resource tracking 不拥有 client resource</h4>
+<p><strong>决策：</strong>device 用会自动修剪的 weak references 跟踪 fences、resources、render objects、shaders 和 pipelines；shutdown 仍锁定并 invalidates 尚存对象。<strong>理由：</strong>强 tracking 让 native counters 已归零的 C++ wrapper、shader bytes、pipeline description 和 cache key 仍可达，导致 1,000-cycle RSS 与查找成本线性增长。<strong>否决方案：</strong>每 cycle 强制 pressure relief 无法释放可达对象；重建设备会逃避 persistent-device lifecycle。<strong>后果：</strong>最后一个 snapshot owner 释放即真正结束 RHI ownership。</p>
 </section>
 
 <section id="validation">
@@ -200,6 +212,7 @@ Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
 <li><strong>Renderer：</strong>aggregate model realization transaction、composition、Deferred full、Forward smoke。</li>
 <li><strong>Native image：</strong>Vulkan/Metal attachment readback、window-only capture、semantic probes、FLIP。</li>
 <li><strong>Lifecycle：</strong>20/2 与 1000/20 固定循环、counter/stale/RSS、timeout。</li>
+<li><strong>Camera/image revision：</strong>Sponza v2 中庭 preset、Lantern v2 正确 -X 表面与灯光、逐 device-class 明确接受。</li>
 <li><strong>Automation/evidence：</strong>regular/medium/hardware workflows、canonical reports、privacy 和 artifact manifests。</li>
 </ol>
 
@@ -247,9 +260,9 @@ Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
 
 <h3>3. 已知限制与后续演进</h3>
 <ul>
-<li>Sponza medium RSS 仅低于上限 163,840 bytes，final revision 必须重跑而不能复用本地结论。</li>
 <li>外部 medium acquisition 依赖网络/cache 可用性；Unavailable 必须由 replacement lane 承担。</li>
 <li>baseline 只覆盖已接受的确切 device class；新 GPU/driver family 需要单独校准。</li>
+<li>当前正式输出为单采样且没有通用后处理；抗锯齿/后处理属于后续 roadmap，不能在不升级 revision 和重跑图像验收时静默加入。</li>
 <li>当前一次性加载完整 closure，不代表已有 streaming/residency；Feature 029+ 若改变资源粒度必须保留本期 semantic/image/lifecycle 回归。</li>
 </ul>
 </section>

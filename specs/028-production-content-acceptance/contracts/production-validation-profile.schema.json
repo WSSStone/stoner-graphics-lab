@@ -56,12 +56,22 @@
       }
     },
     {
-      "if": {"properties": {"profileId": {"enum": ["medium", "hardware"]}}, "required": ["profileId"]},
+      "if": {"properties": {"profileId": {"const": "medium"}}, "required": ["profileId"]},
       "then": {
         "properties": {
           "lifecycleCycles": {"const": 1000},
           "warmupCycles": {"const": 20},
           "timeBudgetSeconds": {"const": 1800}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"profileId": {"const": "hardware"}}, "required": ["profileId"]},
+      "then": {
+        "properties": {
+          "lifecycleCycles": {"const": 1000},
+          "warmupCycles": {"const": 20},
+          "timeBudgetSeconds": {"const": 3600}
         }
       }
     }

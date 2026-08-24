@@ -251,7 +251,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
         expected = {
             "regular": (20, 2, 600),
             "medium": (1000, 20, 1800),
-            "hardware": (1000, 20, 1800),
+            "hardware": (1000, 20, 3600),
         }
         for profile_id, (cycles, warmup, budget) in expected.items():
             profile = self.module.load_validation_profile(
@@ -416,7 +416,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 Path("StonerTest"), backend, Path("publication"),
                 Path("lease"), "a" * 64, Path("target.json"),
                 "StaticModel:Asset.glb#idx.scene.0",
-                "production-content-v1", 1000, 20,
+                "production-content-lantern-v2", 1000, 20,
             )
             self.assertEqual(
                 ["StonerTest", "--suite", suite],
@@ -435,7 +435,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 Path("StonerTest"), backend, Path("publication"),
                 Path("lease"), "a" * 64, Path("target.json"),
                 "StaticModel:Asset.glb#idx.scene.0",
-                "production-content-v1", 1000, 20, require_visible=True,
+                "production-content-lantern-v2", 1000, 20, require_visible=True,
             )
             self.assertEqual("1", visible_environment["STONER_PRODUCTION_VISIBLE"])
             self.assertEqual(
@@ -447,7 +447,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
 
     def test_each_production_package_has_an_exact_workload_revision(self):
         self.assertEqual(
-            "production-content-v1",
+            "production-content-lantern-v2",
             self.module.package_workload_revision({
                 "packageId": "khronos-lantern-glb",
             }),
@@ -626,7 +626,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                     root, Path("StonerTest"), profile,
                     Path("publication"), Path("lease"), "a" * 64,
                     "StaticModel:Asset.glb#idx.scene.0",
-                    "production-content-v1", 20, 2, report, 60,
+                    "production-content-lantern-v2", 20, 2, report, 60,
                 )
             self.assertEqual("Passed", result["result"])
             self.assertIsNone(result["imageAcceptance"])

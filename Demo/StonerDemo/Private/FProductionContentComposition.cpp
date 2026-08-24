@@ -199,7 +199,14 @@ bool FProductionContentCompositionBuilder::Build(
     FDeferredDirectionalLight DeferredSun;
     DeferredSun.Identity = {1, 1};
     DeferredSun.Name = "ProductionKey";
-    DeferredSun.Direction = FVector3(-1.0f, -0.35f, -0.6f).GetSafeNormal();
+    // Lantern v2 is the first regular workload rendered with the corrected
+    // native front-face convention. Its camera observes the physical -X face,
+    // so the key must travel from the camera side (+X) into the scene. Keep the
+    // already accepted Sponza v2 lighting frozen under its own revision.
+    DeferredSun.Direction = Config.WorkloadRevision ==
+            FString("production-content-lantern-v2")
+        ? FVector3(1.0f, 0.35f, -0.6f).GetSafeNormal()
+        : FVector3(-1.0f, -0.35f, -0.6f).GetSafeNormal();
     DeferredSun.Color = FColor(1.0f, 0.96f, 0.90f, 1.0f);
     DeferredSun.Intensity = 3.0f;
     Deferred.DirectionalLights.push_back(DeferredSun);

@@ -154,9 +154,15 @@ void TestWorkloadRegions(FProductionImageAcceptanceTestResult& Result)
 {
     TArray<FProductionRegionProbe> Regions;
     Record(Result, BuildProductionWorkloadRegions(
-            "production-content-v1", 512, 512, Regions) &&
+            "production-content-lantern-v2", 512, 512, Regions) &&
             Regions.size() == 7 && Regions[1].Name == FString("orientation"),
         "Lantern image acceptance selects its exact semantic regions");
+    Record(Result,
+        IsProductionWorkloadNormalProbeValid(
+            "production-content-lantern-v2", {-1.0f, 0.0f, 0.0f}) &&
+        !IsProductionWorkloadNormalProbeValid(
+            "production-content-lantern-v2", {1.0f, 0.0f, 0.0f}),
+        "Lantern v2 rejects the superseded opposite-facing surface");
     Record(Result, BuildProductionWorkloadRegions(
             "production-content-sponza-v2", 512, 512, Regions) &&
             Regions.size() == 7 && Regions[0].X == 486 && Regions[0].Y == 25 &&

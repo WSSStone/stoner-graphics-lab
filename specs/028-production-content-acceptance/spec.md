@@ -18,6 +18,7 @@
 ### Session 2026-08-24
 
 - Q: Sponza 的初始正面构图不适合作为最终图像基线时，Phase 028 应如何选择并冻结视角？ → A: 增加 strict-cooked、native、calibration-only 自由相机预览；维护者选择中庭纵深构图后保存 row-major View 与 Projection 矩阵，正式 gate 仅按 workload revision 消费代码内冻结预设，绝不消费交互状态或调用方覆盖值。
+- Q: 修正 native winding 后 Lantern 显示正确正面但现有无抗锯齿画面仍有明显锯齿，Phase 028 是否应同时加入 AA？ → A: 不扩展本 phase；将正确 winding、相机侧灯光和 `sampleCount=1`/无通用后处理输出冻结为 `production-content-lantern-v2` 并重新验收。后处理与抗锯齿在 Feature 028 收尾后另行改造 roadmap，届时必须升级受影响 workload revision 并重新校准。
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -529,6 +530,12 @@ corpus and generation evidence.
   that package. New references MUST repeat semantic-probe definition,
   20-capture calibration, mutation rejection, explicit maintainer acceptance,
   and required hardware validation.
+- **FR-050**: Feature 028 production image authority MUST retain the existing
+  single-sample (`sampleCount=1`) render policy without adding anti-aliasing or
+  general post-processing. This visible output MAY be accepted only through the
+  normal versioned image process; later anti-aliasing or post-processing MUST
+  be treated as a render-policy change under FR-049 rather than replacing an
+  accepted reference in place.
 
 ### Key Entities
 
@@ -608,8 +615,9 @@ corpus and generation evidence.
   16 MiB.
 - **SC-010**: The regular profile completes its bounded platform-applicable
   source-to-cooked-to-runtime gate within 10 minutes per hosted job, while the
-  medium profile completes within 30 minutes per declared hardware lane; timing
-  observations do not affect deterministic result identities.
+  medium profile completes within 30 minutes per declared hardware lane and the
+  serialized visible hardware profile completes within 60 minutes per declared
+  lane; timing observations do not affect deterministic result identities.
 - **SC-011**: Windows, macOS, and Linux automated Debug and strict Release
   validation plus all applicable sanitizer, deterministic, and native gates
   pass on the final revision; every required hardware-only gate has accepted,

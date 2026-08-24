@@ -138,22 +138,19 @@ Core::usize CaptureCount(
     const FDemoProductionExecutionInspection& Inspection,
     const char* Name)
 {
-    return static_cast<Core::usize>(std::count_if(
-        Inspection.Captures.begin(), Inspection.Captures.end(),
-        [Name](const auto& Capture) { return Capture.Name == Name; }));
+    if (std::string_view(Name) == "FinalOutput")
+        return Inspection.FinalOutputCaptureCount;
+    if (std::string_view(Name) == "ForwardColor")
+        return Inspection.ForwardColorCaptureCount;
+    return 0;
 }
 
 Core::usize PresentedCaptureCount(
     const FDemoProductionExecutionInspection& Inspection,
     const char* Name)
 {
-    return static_cast<Core::usize>(std::count_if(
-        Inspection.Captures.begin(), Inspection.Captures.end(),
-        [Name](const auto& Capture)
-        {
-            return Capture.Name == Name && Capture.bPresented &&
-                Capture.bWindowOnlyCapture;
-        }));
+    return std::string_view(Name) == "FinalOutput"
+        ? Inspection.PresentedFinalOutputCaptureCount : 0;
 }
 
 Core::usize RetainedPresentedCaptureCount(
@@ -217,7 +214,7 @@ bool RunPath(
     Config.StrictGeneration = Generation;
     Config.WorkloadRevision = Environment("STONER_PRODUCTION_WORKLOAD_REVISION")
         ? Environment("STONER_PRODUCTION_WORKLOAD_REVISION")
-        : "production-content-v1";
+        : "production-content-lantern-v2";
     Config.BaselineRoot = "Content/ProductionAcceptance/Baselines";
     Config.DeviceClassRegistryPath =
         "Config/Validation/ProductionContent/DeviceClasses.json";
@@ -246,7 +243,7 @@ void PrintFailureDetails(
 {
     std::cerr << "Vulkan production failure: cycles="
               << Inspection.CompletedCycles
-              << " captures=" << Inspection.Captures.size()
+              << " captures=" << Inspection.CaptureCount
               << " lifecycle=" << (Inspection.bLifecyclePassed ? 1 : 0)
               << '\n';
     if (!Inspection.LifecycleSamples.empty())
@@ -352,7 +349,7 @@ RunVulkanProductionContentIntegrationTests()
                   << " warmup-rss=" << Warmup.ResidentBytes
                   << " terminal-rss=" << Terminal.ResidentBytes
                   << " peak-rss=" << Peak << " growth=" << Growth
-                  << " captures=" << Deferred.Captures.size()
+                  << " captures=" << Deferred.CaptureCount
                   << " readbacks=" << Deferred.Readbacks.size()
                   << " counters=" << TerminalOwners
                   << " stale="
@@ -372,7 +369,7 @@ RunVulkanProductionContentIntegrationTests()
                 : Deferred.ProvesNativeExecution()) &&
             Deferred.ExecutedBackend == EDemoGraphicsBackend::Vulkan &&
             Deferred.CompletedCycles == ExpectedCycles &&
-            Deferred.Captures.size() == ExpectedCycles * 2u &&
+            Deferred.CaptureCount == ExpectedCycles * 2u &&
             CaptureCount(Deferred, "FinalOutput") == ExpectedCycles &&
             Deferred.LifecycleSamples.size() == ExpectedCycles &&
             (bTwentyFrameImageAcceptance || Deferred.bLifecyclePassed),
@@ -410,7 +407,7 @@ RunVulkanProductionContentIntegrationTests()
             Deferred, "vulkan", Profile,
             Environment("STONER_PRODUCTION_WORKLOAD_REVISION")
                 ? Environment("STONER_PRODUCTION_WORKLOAD_REVISION")
-                : "production-content-v1",
+                : "production-content-lantern-v2",
             "Content/ProductionAcceptance/Baselines",
             "Config/Validation/ProductionContent/DeviceClasses.json",
             CaptureRoot ? CaptureRoot : "");

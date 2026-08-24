@@ -126,7 +126,7 @@ python3 .github/scripts/run_production_content_validation.py \
   --build-root Build/Mac/Release \
   --output Build/Validation/028/hardware-metal \
   --acquire-missing \
-  --timeout-seconds 1800
+  --timeout-seconds 3600
 ```
 
 Run the equivalent command for Vulkan on Windows and for Vulkan plus Metal on
