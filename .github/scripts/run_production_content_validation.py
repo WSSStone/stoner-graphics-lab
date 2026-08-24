@@ -119,6 +119,14 @@ PROFILE_CONTRACTS = {
     },
 }
 
+
+def profile_package_concurrency(profile: str, package_count: int) -> int:
+    if profile not in PROFILE_CONTRACTS:
+        raise ValueError("production validation profile is invalid")
+    if package_count < 1:
+        raise ValueError("production validation package count is invalid")
+    return min(2, package_count) if profile == "medium" else 1
+
 LIFECYCLE_EVIDENCE_PREFIX = "[EVIDENCE] "
 LIFECYCLE_EVIDENCE_FIELDS = {
     "backend", "cycles", "warmup-cycle", "warmup-rss", "terminal-rss",
@@ -1444,30 +1452,46 @@ def run_profile(args: argparse.Namespace) -> dict:
             remaining_stage_timeout(deadline, args.timeout_seconds),
         )
         load_report(doctor_report, "doctor")
-    package_reports = []
-    for package in packages:
+    def run_selected_package(package: dict) -> dict:
         runs = args.determinism_runs if package["tier"] == "regular" else 1
-        package_reports.append(
-            run_package(
-                repository_root,
-                cooker,
-                tests,
-                target_profile,
-                package,
-                package_source(
-                    repository_root, content_root, package
-                ),
-                output,
-                runs,
-                validation_profile["lifecycleCycles"],
-                validation_profile["warmupCycles"],
-                args.timeout_seconds,
-                target_contract["graphicsBackend"],
-                args.profile == "hardware",
-                args.defer_native_to_hardware,
-                deadline,
-            )
+        return run_package(
+            repository_root,
+            cooker,
+            tests,
+            target_profile,
+            package,
+            package_source(repository_root, content_root, package),
+            output,
+            runs,
+            validation_profile["lifecycleCycles"],
+            validation_profile["warmupCycles"],
+            args.timeout_seconds,
+            target_contract["graphicsBackend"],
+            args.profile == "hardware",
+            args.defer_native_to_hardware,
+            deadline,
         )
+
+    package_concurrency = profile_package_concurrency(
+        args.profile, len(packages)
+    )
+    if package_concurrency == 1:
+        package_reports = [
+            run_selected_package(package) for package in packages
+        ]
+    else:
+        # Medium packages own disjoint source, DDC, publication, lease, and
+        # report roots. Running them concurrently preserves package order in
+        # the summary while allowing the bounded Lantern lane to overlap the
+        # much longer Sponza lifecycle. Hardware remains serialized because
+        # its visible windows and capture devices are shared host resources.
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=package_concurrency,
+            thread_name_prefix="production-package",
+        ) as executor:
+            package_reports = list(executor.map(
+                run_selected_package, packages
+            ))
     elapsed = time.monotonic() - started
     result = {
         "schema": "stoner.production-cook-runtime-summary",

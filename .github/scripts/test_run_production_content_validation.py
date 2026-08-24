@@ -263,6 +263,24 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             self.assertEqual(budget, profile["timeBudgetSeconds"])
             self.assertLess(profile["warmupCycles"], profile["lifecycleCycles"])
 
+    def test_only_medium_packages_run_concurrently(self):
+        self.assertEqual(
+            2, self.module.profile_package_concurrency("medium", 2)
+        )
+        self.assertEqual(
+            1, self.module.profile_package_concurrency("medium", 1)
+        )
+        self.assertEqual(
+            1, self.module.profile_package_concurrency("regular", 2)
+        )
+        self.assertEqual(
+            1, self.module.profile_package_concurrency("hardware", 2)
+        )
+        with self.assertRaisesRegex(ValueError, "profile"):
+            self.module.profile_package_concurrency("unknown", 2)
+        with self.assertRaisesRegex(ValueError, "package count"):
+            self.module.profile_package_concurrency("medium", 0)
+
     def test_profile_parser_rejects_unknown_fields_and_wrong_boundaries(self):
         regular = json.loads((
             self.module.REPOSITORY_ROOT

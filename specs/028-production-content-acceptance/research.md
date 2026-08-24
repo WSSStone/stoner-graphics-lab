@@ -224,7 +224,11 @@ paths change.
 feature closeout must validate the candidate revision deliberately. Separating
 hardware prevents hosts without a physical display/device from being counted as
 native passes. Immutable producer artifacts can reduce duplicated cooking, but
-every consumer revalidates target and manifest evidence. See
+every consumer revalidates target and manifest evidence. Medium package roots
+own disjoint source, DDC, publication, lease, and report trees, so up to two may
+run concurrently while retaining their manifest order and one shared deadline.
+Hardware stays serialized to avoid competing visible windows and capture
+devices. See
 [GitHub Actions workflow documentation](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflows).
 
 **Alternatives considered**:
@@ -241,7 +245,9 @@ every consumer revalidates target and manifest evidence. See
 runs use cycles 1-20 of 1,000 as warm-up. Warm-up cycles count toward the total.
 RSS growth is the terminal RSS sample minus the sample taken immediately after
 the final warm-up cycle; the gate requires growth at most 16 MiB in addition to
-all ownership counters returning to baseline.
+all ownership counters returning to baseline. Regular uses one runtime manager
+worker so worker-local allocation is stable inside two cycles; medium/hardware
+use eight workers to meet the 30-minute throughput budget.
 
 **Rationale**: A named but variable warm-up lets callers move the measurement
 origin until a leak appears acceptable. Exact profile-owned boundaries make the

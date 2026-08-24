@@ -256,7 +256,11 @@ Validation. No new runtime module is introduced.
    cycles. Cycles 1-2 are the regular warm-up and cycles 1-20 are the
    medium/hardware warm-up; warm-up counts toward the total. Return every
    tracked counter to baseline and enforce at most 16 MiB RSS growth between the
-   sample immediately after warm-up and the terminal sample.
+   sample immediately after warm-up and the terminal sample. Use one runtime
+   manager worker for regular allocator stability and eight for medium/hardware
+   throughput. The medium runner may execute its two disjoint package roots
+   concurrently under one shared deadline; hardware packages remain serialized
+   because visible windows and capture devices are host-global resources.
 6. Build at least 30 stable negative cases spanning corpus, cook, publication,
    strict load, realization, native capability, image, and lifecycle failures.
 

@@ -40,28 +40,32 @@ Result: PASS in 46.052 seconds against the 600-second budget.
 | Terminal owners / stale handle | 0 / rejected |
 | GPU captures / retained readbacks | 40 / 7 |
 
-An earlier local attempt used eight manager workers for the 20/2 regular
-profile and correctly failed at 30,310,400 bytes of post-warm-up RSS growth.
-The fixed contract uses four workers for regular and eight for medium/hardware;
-the passing run above is authoritative.
+Earlier local attempts showed that eight manager workers failed the 20/2
+regular profile at 30,310,400 bytes of post-warm-up RSS growth and four workers
+could still vary to 24,313,856 bytes on a hosted arm64 runner. The stabilized
+contract uses one worker for regular and eight for medium/hardware. A focused
+candidate-revision rerun passed 20/2 in 75.980 seconds with 4,210,688 bytes of
+RSS growth, zero terminal owners, and stale-handle rejection.
 
 ## Every-Root Medium Metal Closeout
 
 Command:
 
-`python3 .github/scripts/run_production_content_validation.py --profile medium --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json --build-root Build/Mac/Release --output Build/Validation/028/medium-metal-closeout-local-v3 --timeout-seconds 1800`
+`python3 .github/scripts/run_production_content_validation.py --profile medium --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json --build-root Build/Mac/Release --output Build/Validation/028/medium-metal-parallel-final --acquire-missing --timeout-seconds 1800`
 
-Result: PASS in 1,724.162 seconds against the 1,800-second lane budget. Both
+Result: PASS in 1,450.659 seconds against the 1,800-second lane budget. Both
 roots passed clean/warm cooking, publication validation, source-unavailable
 strict loading, complete semantic equivalence, and 1,000 full lifecycle cycles
-with cycles 1-20 included as warm-up.
+with cycles 1-20 included as warm-up. The disjoint package roots ran with a
+maximum concurrency of two under the same shared deadline; summary ordering
+remained the corpus manifest order.
 
 | Package | Assets / warm reuse | Native seconds | Peak RSS | RSS growth | Owners / stale |
 |---|---:|---:|---:|---:|---:|
-| Khronos Lantern GLB | 37 / 37 | 260.393 | 542,261,248 | 0 | 0 / rejected |
-| Khronos Sponza glTF | 189 / 189 | 1,362.027 | 332,562,432 | 16,613,376 | 0 / rejected |
+| Khronos Lantern GLB | 37 / 37 | 302.609 | 546,226,176 | 0 | 0 / rejected |
+| Khronos Sponza glTF | 189 / 189 | 1,376.784 | 334,987,264 | 14,188,544 | 0 / rejected |
 
-Sponza remained below the 16 MiB limit by 163,840 bytes. Each package retained
+Sponza remained below the 16 MiB limit by 2,588,672 bytes. Each package retained
 the final seven GPU readbacks and recorded 2,000 Deferred/Forward captures.
 
 ## Artifact Revalidation
@@ -69,7 +73,7 @@ the final seven GPU readbacks and recorded 2,000 Deferred/Forward captures.
 | Output | Artifact count | Manifest SHA-256 | Result |
 |---|---:|---|---|
 | Regular | 3,522 | `0efb0b86ae38794c3bffcd1b7baef528732460d692162e9c293ff096bfb83cd0` | PASS |
-| Medium | 4,288 | `0ff719304444d704418d0f177d089b3f46f6028c47a4c676bff85844f9752194` | PASS |
+| Medium | 4,289 | `f84189a9ef28fb1f3f5ecfc92c57e4d2ad327d0cd103cd6b175ded86715f29e9` | PASS |
 
 The revalidation command was
 `python3 .github/scripts/run_production_content_validation.py --verify-only <output> --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json`.
@@ -80,9 +84,9 @@ Key report digests:
 
 - Regular summary: `564f15e501e1435f4fbe12dc3915aa117b8fefd26c61335e2934bd94c1568381`
 - Regular native lifecycle: `687ec8a129971ecb57dc8d88fcb60a52dcb1f5ec8ecdda8f92e92c16b3ff0937`
-- Medium summary: `f0f65ca90c6527aefdfb1ab7ff1553eda57cebd324d62b00eb17e5021aacb0d6`
-- Lantern medium lifecycle: `14d2092210169b860aa8d9713331994a53cb21287adb06380c96a77b356c9a0d`
-- Sponza medium lifecycle: `4a0674742afcc573e0363728fcf5f515003c2b17261d5495a4380caed501f1c2`
+- Medium summary: `322985859d519229a333626c25b523380cde9e2f714b8866973a3f270100006c`
+- Lantern medium lifecycle: `cc9077f9f7e57a50bfcd6130617e0dd68183bb3a71484f489925c44ffb4338ee`
+- Sponza medium lifecycle: `e7956427a10d7ed863793e1b82aeab026ecab98f571a78c47edb3e0fd7817fda`
 
 ## Outcome
 

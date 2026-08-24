@@ -559,7 +559,7 @@ EDemoExitCode FStonerDemoApplication::InitializeProductionContent()
     SessionConfig.TargetEvidence =
         Core::MakeShared<const Asset::FAssetTargetProfileEvidence>(
             TargetEvidence);
-    SessionConfig.WorkerCount = Configuration.ProductionLifecycleCycles == 1000 ? 8u : 4u;
+    SessionConfig.WorkerCount = Configuration.ProductionLifecycleCycles == 1000 ? 8u : 1u;
     const Asset::EAssetResult SessionResult =
         ProductionRuntime->Session.Load(
             SessionConfig, ProductionRuntime->LoadedClosure);
