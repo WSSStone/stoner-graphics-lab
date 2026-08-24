@@ -245,9 +245,10 @@ devices. See
 runs use cycles 1-20 of 1,000 as warm-up. Warm-up cycles count toward the total.
 RSS growth is the terminal RSS sample minus the sample taken immediately after
 the final warm-up cycle; the gate requires growth at most 16 MiB in addition to
-all ownership counters returning to baseline. Regular uses one runtime manager
-worker so worker-local allocation is stable inside two cycles; medium/hardware
-use eight workers to meet the 30-minute throughput budget.
+all ownership counters returning to baseline. Arm64 Metal regular uses one
+runtime manager worker so worker-local allocation is stable inside two cycles;
+other regular targets use four workers, while medium/hardware use eight workers
+to meet the 10/30-minute throughput budgets.
 
 **Rationale**: A named but variable warm-up lets callers move the measurement
 origin until a leak appears acceptable. Exact profile-owned boundaries make the

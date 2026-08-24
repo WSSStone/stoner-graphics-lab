@@ -24,10 +24,8 @@
 
 namespace Stoner::Demo
 {
-
 namespace
 {
-
 double NowMilliseconds()
 {
     return std::chrono::duration<double, std::milli>(
@@ -556,13 +554,15 @@ EDemoExitCode FStonerDemoApplication::InitializeProductionContent()
     SessionConfig.LeaseCoordinationRoot = Configuration.LeaseCoordinationRoot;
     SessionConfig.RootAssetIdentity = Configuration.ProductionRoot;
     SessionConfig.ExpectedGeneration = Generation;
-    SessionConfig.TargetEvidence =
-        Core::MakeShared<const Asset::FAssetTargetProfileEvidence>(
-            TargetEvidence);
-    SessionConfig.WorkerCount = Configuration.ProductionLifecycleCycles == 1000 ? 8u : 1u;
-    const Asset::EAssetResult SessionResult =
-        ProductionRuntime->Session.Load(
-            SessionConfig, ProductionRuntime->LoadedClosure);
+    SessionConfig.TargetEvidence = Core::MakeShared<
+        const Asset::FAssetTargetProfileEvidence>(TargetEvidence);
+    SessionConfig.WorkerCount = Configuration.ProductionLifecycleCycles == 1000
+        ? 8u : (TargetEvidence.Profile.GraphicsBackend ==
+                Asset::EAssetGraphicsBackend::Metal &&
+            TargetEvidence.Profile.CpuArchitecture ==
+                Asset::EAssetTargetCpuArchitecture::Arm64 ? 1u : 4u);
+    const Asset::EAssetResult SessionResult = ProductionRuntime->Session.Load(
+        SessionConfig, ProductionRuntime->LoadedClosure);
     if (SessionResult != Asset::EAssetResult::Success)
         return FailInitialize(EDemoStage::Upload,
             EDemoExitCode::InitializationFailed, "ProductionStrictSession",

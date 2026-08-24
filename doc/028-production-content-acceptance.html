@@ -116,7 +116,7 @@ Realization: Validate -> Create transaction -> Commit snapshot
                                   `-> Failure -> Rollback
 Baseline:    Candidate -> Calibrated -> Reviewed -> Accepted -> Superseded
 Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
-<p>regular 固定 20 次、1-2 warm-up；medium/hardware 固定 1,000 次、1-20 warm-up。warm-up 计入总次数，RSS 取 warm-up 边界样本到 terminal 的净增长，上限 16 MiB；内部 owners 必须归零且 stale handle 必须被拒绝。regular manager 固定一个 worker，以保证 2-cycle 内存稳定；medium/hardware 使用八个 workers，以满足 30 分钟预算。medium 的两个独立 package roots 最多并发两个并共享同一 deadline；hardware 因可见窗口和 capture device 资源而保持串行。</p>
+<p>regular 固定 20 次、1-2 warm-up；medium/hardware 固定 1,000 次、1-20 warm-up。warm-up 计入总次数，RSS 取 warm-up 边界样本到 terminal 的净增长，上限 16 MiB；内部 owners 必须归零且 stale handle 必须被拒绝。arm64 Metal regular manager 固定一个 worker，以保证 2-cycle 内存稳定；其余 regular 使用四个 workers，medium/hardware 使用八个 workers，以满足 10/30 分钟预算。medium 的两个独立 package roots 最多并发两个并共享同一 deadline；hardware 因可见窗口和 capture device 资源而保持串行。</p>
 
 <h3>3. 失败模式与调试入口</h3>
 <table><thead><tr><th>症状</th><th>定位方法</th><th>本期真实案例</th></tr></thead><tbody>
@@ -124,7 +124,7 @@ Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
 <tr><td>轮廓像对但 lighting 错</td><td>检查 surface 与 fullscreen pass 是否以不同次数发生坐标翻转</td><td>两次错位让轮廓“看似正常”，lighting 却读取错误表面</td></tr>
 <tr><td>合法 glTF 被 AccessDenied</td><td>查看 resolver scope 与 manager importer request 的 dependency resolver</td><td>flat package 空 scope 和 generic import path 未转发 resolver</td></tr>
 <tr><td>Sponza deferred draw 全拒绝</td><td>检查 first rejection 与 transform determinant</td><td>绝对 determinant 阈值误杀小尺度但可逆变换，改为 scale-relative 判定</td></tr>
-<tr><td>20/2 RSS 失败</td><td>读取 warm-up/terminal/peak 与 worker count</td><td>四 worker 在 hosted arm64 仍会波动到 24 MiB，改为 profile-bound 1/8 worker policy</td></tr>
+<tr><td>20/2 RSS 失败</td><td>读取 warm-up/terminal/peak 与 worker count</td><td>四 worker 在 hosted arm64 仍会波动到 24 MiB；全平台一 worker 又导致 Linux RSS/Intel timeout，改为 target-bound 1/4/8 policy</td></tr>
 <tr><td>baseline 缺失或未接受</td><td>检查 registry 的 workload/backend/device-class exact key 和 status</td><td>Candidate/Reviewed 不参与运行时选择，缺失时 fail closed</td></tr>
 </tbody></table>
 </section>
@@ -185,7 +185,7 @@ Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
 <p><strong>决策：</strong>同一 immutable aggregate snapshot 被两条 render path 共享。<strong>理由：</strong>几何和纹理 ownership 相同，重复 realization 曾把 Sponza 20-cycle RSS 推高到 30 MiB 以上。<strong>否决方案：</strong>分别创建两套 snapshot 简单但制造无意义的 GPU 内存和销毁压力。<strong>后果：</strong>两条 path 必须保持只读 contract，未来若需要不同资源需显式拆分。</p>
 
 <h4>(5) 批量 request、profile-bound worker 与 package 调度</h4>
-<p><strong>决策：</strong>先提交全部 manifest request，再按稳定顺序完成；regular 用一个 worker，medium/hardware 用八个 workers；medium 最多并发两个拥有独立 source/DDC/publication/lease/report roots 的 package，hardware 串行。<strong>理由：</strong>四 worker 的 regular 在 hosted arm64 仍出现 24 MiB allocator 驻留波动；顺序 medium 又在 Linux 和 clean macOS workspace 用尽 1,800 秒。包级并发把 Lantern 与较长的 Sponza 重叠，同时不改变任何单包 cycle/RSS/strict contract。<strong>否决方案：</strong>提高到 16 workers 没有缩短 Sponza 且增加 RSS；并发 hardware 会争用窗口和 capture device。<strong>后果：</strong>worker count 与 package concurrency 都成为显式、受限的 profile contract。</p>
+<p><strong>决策：</strong>先提交全部 manifest request，再按稳定顺序完成；arm64 Metal regular 用一个 worker、其余 regular 用四个 workers，medium/hardware 用八个 workers；medium 最多并发两个拥有独立 source/DDC/publication/lease/report roots 的 package，hardware 串行。<strong>理由：</strong>四 worker 的 regular 在 hosted arm64 仍出现 24 MiB allocator 驻留波动；全平台一 worker 又使 Linux Lavapipe 在 cycle 2 后延迟分配并让 Intel Metal 超出 600 秒预算；顺序 medium 则在 Linux 和 clean macOS workspace 用尽 1,800 秒。包级并发把 Lantern 与较长的 Sponza 重叠，同时不改变任何单包 cycle/RSS/strict contract。<strong>否决方案：</strong>提高到 16 workers 没有缩短 Sponza 且增加 RSS；并发 hardware 会争用窗口和 capture device。<strong>后果：</strong>worker count 与 package concurrency 都成为显式、受限的 target/profile contract。</p>
 
 <h4>(6) Vulkan-to-Metal vertex Y 语义在 derivation 中处理</h4>
 <p><strong>决策：</strong>SPIRV-Cross common options 启用 <code>vertex.flip_vert_y</code>，identity 增加 <code>flip-vertex-y=1</code>，Metal producer version 升级以隔离旧 DDC/metallib。<strong>理由：</strong>surface 和 fullscreen pass 坐标错位会在两次错误后伪装出正确轮廓，却让 deferred lighting 采错 GBuffer。<strong>否决方案：</strong>在每个 shader 手工修正会污染 GLSL authority 并遗漏 pass。<strong>后果：</strong>derivation policy 变化必须进入 cook identity。</p>

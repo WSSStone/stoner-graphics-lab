@@ -43,9 +43,12 @@ Result: PASS in 46.052 seconds against the 600-second budget.
 Earlier local attempts showed that eight manager workers failed the 20/2
 regular profile at 30,310,400 bytes of post-warm-up RSS growth and four workers
 could still vary to 24,313,856 bytes on a hosted arm64 runner. The stabilized
-contract uses one worker for regular and eight for medium/hardware. A focused
-candidate-revision rerun passed 20/2 in 75.980 seconds with 4,210,688 bytes of
-RSS growth, zero terminal owners, and stale-handle rejection.
+contract uses one worker for arm64 Metal regular, four for other regular
+targets, and eight for medium/hardware. Restoring four workers outside arm64
+Metal preserves the previously passing Linux RSS and Intel Metal 10-minute
+budget evidence. A focused arm64 candidate-revision rerun passed 20/2 in 75.980
+seconds with 4,210,688 bytes of RSS growth, zero terminal owners, and
+stale-handle rejection.
 
 ## Every-Root Medium Metal Closeout
 
