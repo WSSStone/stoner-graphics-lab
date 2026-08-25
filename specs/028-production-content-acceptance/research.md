@@ -556,6 +556,17 @@ existing native lock. Cook work remains concurrent, both 1,000-cycle lifecycles
 remain serial and unmodified, and the shared 1,800-second deadline remains the
 authority.
 
+The barrier revision then passed the complete two-package profile locally in
+1,756.410 seconds, including 20 Lantern clean determinism runs, but hosted run
+`32864192139` exhausted the same 1,800-second budget. Those 20 clean runs are
+the per-target responsibility of the regular gate (FR-016/SC-003); FR-033's
+medium scale gate requires one clean cook and an unchanged 100-percent-reuse
+warm cook for every accepted package. Medium and hardware therefore execute
+one clean run per package and retain every warm, publication, equivalence,
+strict-runtime, 1,000/20 lifecycle, RSS, readback, and ownership requirement.
+This removes duplicated regular work rather than reducing medium scale proof,
+and the summary reports the number of clean runs actually executed.
+
 **Alternatives considered**:
 
 - Raise or disable the 16 MiB limit on Lavapipe: rejected because it weakens the

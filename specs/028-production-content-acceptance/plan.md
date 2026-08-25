@@ -265,8 +265,12 @@ Validation. No new runtime module is introduced.
    baseline's declared bad-pixel threshold. Reference and candidate dimensions
    and normalization policy must match exactly.
 5. Run 20 regular or 1,000 medium/hardware full manager-realizer-render-release
-   cycles. Cycles 1-2 are the regular warm-up and cycles 1-20 are the
-   medium/hardware warm-up; warm-up counts toward the total. Return every
+   cycles. The regular target gate owns the required 20 clean determinism
+   repetitions. Medium/hardware run one clean cook and one unchanged
+   100-percent-reuse warm cook per selected package rather than duplicating
+   those regular repetitions inside their lifecycle budget. Cycles 1-2 are the
+   regular warm-up and cycles 1-20 are the medium/hardware warm-up; warm-up
+   counts toward the total. Return every
    tracked counter to baseline and enforce at most 16 MiB RSS growth between the
    sample immediately after warm-up and the terminal sample. Use one runtime
    manager worker for regular allocator stability and eight for medium/hardware

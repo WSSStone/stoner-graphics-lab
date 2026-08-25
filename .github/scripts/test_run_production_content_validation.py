@@ -281,6 +281,36 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "package count"):
             self.module.profile_package_concurrency("medium", 0)
 
+    def test_clean_determinism_is_owned_only_by_regular_profile(self):
+        self.assertEqual(
+            20,
+            self.module.profile_package_clean_runs(
+                "regular", "regular", 20
+            ),
+        )
+        self.assertEqual(
+            1,
+            self.module.profile_package_clean_runs(
+                "medium", "regular", 20
+            ),
+        )
+        self.assertEqual(
+            1,
+            self.module.profile_package_clean_runs(
+                "medium", "medium", 20
+            ),
+        )
+        self.assertEqual(
+            1,
+            self.module.profile_package_clean_runs(
+                "hardware", "regular", 20
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "package tier"):
+            self.module.profile_package_clean_runs(
+                "medium", "unknown", 20
+            )
+
     def test_optional_native_lock_serializes_only_wrapped_action(self):
         events = []
 

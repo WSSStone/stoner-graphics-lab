@@ -132,6 +132,22 @@ def profile_package_concurrency(profile: str, package_count: int) -> int:
     return min(2, package_count) if profile == "medium" else 1
 
 
+def profile_package_clean_runs(
+    profile: str, package_tier: str, requested_runs: int
+) -> int:
+    if profile not in PROFILE_CONTRACTS:
+        raise ValueError("production validation profile is invalid")
+    if package_tier not in ("regular", "medium"):
+        raise ValueError("production validation package tier is invalid")
+    if requested_runs < 1 or requested_runs > 20:
+        raise ValueError("production validation clean run count is invalid")
+    # Per-target clean determinism belongs to the regular gate. Medium and
+    # hardware exercise one clean plus one 100%-reuse warm cook for every
+    # selected package and must not duplicate the regular gate's 20 clean
+    # cooks inside their lifecycle time budget.
+    return requested_runs if profile == "regular" else 1
+
+
 def run_with_optional_lock(action, lock):
     if lock is None:
         return action()
@@ -1453,7 +1469,9 @@ def run_profile(args: argparse.Namespace) -> dict:
                 repository_root
             ).as_posix(),
             "targetProfileDigest": target_contract["targetProfileDigest"],
-            "determinismRuns": args.determinism_runs,
+            "determinismRuns": profile_package_clean_runs(
+                args.profile, "regular", args.determinism_runs
+            ),
             "packages": [],
             "acquisitions": [],
             "timeBudgetSeconds": validation_profile["timeBudgetSeconds"],
@@ -1511,7 +1529,9 @@ def run_profile(args: argparse.Namespace) -> dict:
     )
 
     def run_selected_package(package: dict) -> dict:
-        runs = args.determinism_runs if package["tier"] == "regular" else 1
+        runs = profile_package_clean_runs(
+            args.profile, package["tier"], args.determinism_runs
+        )
         try:
             return run_package(
                 repository_root,
@@ -1565,7 +1585,9 @@ def run_profile(args: argparse.Namespace) -> dict:
         "corpusDigest": verification["manifestDigest"],
         "targetProfile": target_profile.relative_to(repository_root).as_posix(),
         "targetProfileDigest": sha256_bytes(target_profile.read_bytes()),
-        "determinismRuns": args.determinism_runs,
+        "determinismRuns": max(
+            report["cleanRuns"] for report in package_reports
+        ),
         "packages": package_reports,
         "acquisitions": acquisition_results,
         "timeBudgetSeconds": validation_profile["timeBudgetSeconds"],
