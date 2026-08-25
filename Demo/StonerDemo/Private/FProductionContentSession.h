@@ -21,6 +21,10 @@ struct FProductionContentSessionConfig
     [[nodiscard]] bool IsValid() const noexcept;
 };
 
+[[nodiscard]] bool ShouldLoadProductionRootClosureFirst(
+    const Core::FString& WorkloadRevision,
+    Core::uint32 LifecycleCycles) noexcept;
+
 struct FProductionContentLoadedClosure
 {
     Asset::FAssetDigest GenerationIdentity;

@@ -198,6 +198,14 @@ void AddDependency(
 
 } // namespace
 
+bool ShouldLoadProductionRootClosureFirst(
+    const Core::FString& WorkloadRevision,
+    Core::uint32 LifecycleCycles) noexcept
+{
+    return LifecycleCycles == 1000 &&
+        WorkloadRevision == Core::FString("production-content-sponza-v2");
+}
+
 struct FProductionContentSession::FImpl
 {
     Core::TSharedPtr<FAssetExtensionRegistry> Registry;
@@ -344,10 +352,10 @@ EAssetResult FProductionContentSession::Load(
 
     if (Config.bLoadRootClosureFirst)
     {
-        // The 1,000-cycle profile loads the selected model closure first. Its
-        // external root handle retains every required dependency in the
-        // manager cache, so later manifest-completeness requests become cache
-        // hits instead of duplicate physical reads and typed decodes.
+        // The Sponza 1,000-cycle profile loads the selected model closure
+        // first. Its external root handle retains every required dependency in
+        // the manager cache, so later manifest-completeness requests become
+        // cache hits instead of duplicate physical reads and typed decodes.
         const auto RootRecord = std::lower_bound(
             Validated.Manifest.Records.begin(),
             Validated.Manifest.Records.end(), *Root,

@@ -561,7 +561,9 @@ EDemoExitCode FStonerDemoApplication::InitializeProductionContent()
             TargetEvidence.Profile.CpuArchitecture ==
                 Asset::EAssetTargetCpuArchitecture::Arm64 ? 1u : 4u);
     SessionConfig.bLoadRootClosureFirst =
-        Configuration.ProductionLifecycleCycles == 1000;
+        ShouldLoadProductionRootClosureFirst(
+            Configuration.WorkloadRevision,
+            Configuration.ProductionLifecycleCycles);
     const Asset::EAssetResult SessionResult = ProductionRuntime->Session.Load(
         SessionConfig, ProductionRuntime->LoadedClosure);
     if (SessionResult != Asset::EAssetResult::Success)

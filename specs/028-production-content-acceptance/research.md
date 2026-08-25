@@ -591,15 +591,15 @@ digests, and the optimized path fails closed when authority is absent or any
 byte is mutated. All ten typed payload families, missing authority, and mutation
 rejection are covered by focused tests.
 
-The 1,000-cycle session now requests the selected StaticModel root before the
+The Sponza v2 1,000-cycle session now requests the selected StaticModel root before the
 manifest-wide completeness requests. The existing manager dependency traversal
 loads its exact closure and retains it in the request cache; the subsequent
 manifest requests therefore prove every record while avoiding duplicate decode
 work. This is not a persistent cache or a reduced workload: medium/hardware
 still use eight workers, release the full closure every cycle, and retain the
-same 1,000/20, image, owner, stale-handle, and RSS contracts. Regular 20-cycle
-ordering remains unchanged because root-first increased its short-run allocator
-residency.
+same 1,000/20, image, owner, stale-handle, and RSS contracts. Lantern and
+regular 20-cycle ordering remain unchanged because root-first increased their
+allocator residency without a corresponding large-package throughput benefit.
 
 A local optimized Sponza 20-cycle visible Metal run passed in 64.02 seconds with
 40 captures, seven retained readbacks, zero terminal owners, stale-handle

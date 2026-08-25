@@ -304,6 +304,15 @@ RunProductionContentStrictRuntimeTests()
             Session.Inspect().Manager.ExternalHandleRetentions == 0,
         "Demo strict session releases request and generation ownership on shutdown");
 
+    Record(Result,
+        Demo::ShouldLoadProductionRootClosureFirst(
+            "production-content-sponza-v2", 1000) &&
+            !Demo::ShouldLoadProductionRootClosureFirst(
+                "production-content-lantern-v2", 1000) &&
+            !Demo::ShouldLoadProductionRootClosureFirst(
+                "production-content-sponza-v2", 20),
+        "root-first loading is isolated to the Sponza v2 1000-cycle profile");
+
     std::filesystem::create_directories(
         TemporaryRoot / "LeaseDemoRootFirst");
     auto RootFirstConfig = SessionConfig;

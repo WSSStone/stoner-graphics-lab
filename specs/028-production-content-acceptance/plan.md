@@ -289,11 +289,11 @@ Validation. No new runtime module is introduced.
    software-native gate because one isolated 1,000-cycle Lantern lifecycle
    alone exceeded the complete medium budget. Every lifecycle cycle still
    loads and releases the exact selected root closure. For the 1,000-cycle
-   profile, load that root first so its dependencies populate the existing
-   request cache, then request every remaining manifest record to prove
-   publication completeness without duplicating dependency decode work. The
-   regular 20-cycle request schedule is unchanged. When the already-validated
-   generation manifest supplies the exact cooked-envelope digest, strict typed
+   Sponza v2 profile, load that root first so its dependencies populate the
+   existing request cache, then request every remaining manifest record to
+   prove publication completeness without duplicating dependency decode work.
+   The Lantern and regular 20-cycle request schedules are unchanged. When the
+   already-validated generation manifest supplies the exact cooked-envelope digest, strict typed
    loading authenticates the complete envelope once and does not re-hash its
    covered body; generic envelope decoding retains the independent body digest
    check, and missing or mismatched manifest authority fails closed. Every
