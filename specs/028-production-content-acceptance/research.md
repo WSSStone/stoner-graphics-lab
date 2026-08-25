@@ -476,3 +476,30 @@ the leak threshold.
   remains a backend-neutral 20/2 contract.
 - Retry CI until allocator timing happens to pass: rejected after two failures
   on the same revision demonstrated the missing first-use boundary.
+
+## Decision 19: Released Linux Heap Pages Are Trimmed Before RSS Sampling
+
+**Decision**: After every complete production-cycle teardown and before the
+existing process-RSS sample, ask the platform memory boundary to release unused
+heap pages. The operation is a no-op on platforms without an applicable safe
+primitive and uses `malloc_trim(0)` on Linux/glibc. The authoritative metric
+remains `/proc/self/statm` resident bytes, measured at the exact declared
+warm-up and terminal cycles with the unchanged 16 MiB growth limit.
+
+**Rationale**: A hosted Lavapipe rerun after the native prime still returned all
+ownership counters to zero and rejected stale handles, but its released RSS
+oscillated between 427,380,736 and 563,261,440 bytes across 20 cycles. Cycle 2
+to cycle 20 therefore reported 85,561,344 bytes of growth even though lower
+later samples proved the pages were allocator cache, not monotonically retained
+resources. Releasing unused glibc heap pages immediately after teardown makes
+the existing RSS contract measure live post-release residency instead of an
+arbitrary allocator-cache high point.
+
+**Alternatives considered**:
+
+- Raise or disable the 16 MiB limit on Lavapipe: rejected because it weakens the
+  same leak contract that the gate is intended to enforce.
+- Replace RSS with backend ownership counters: rejected because counters and
+  process residency detect different classes of leaks and both remain required.
+- Use the minimum or median of several cycles: rejected because it changes the
+  exact post-warm-up-to-terminal contract and could hide terminal retention.

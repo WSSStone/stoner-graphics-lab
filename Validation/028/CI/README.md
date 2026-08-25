@@ -8,13 +8,23 @@ names, and SHA-256 values here. Downloaded artifacts remain in ignored
 ## Final Implementation Revision
 
 The implementation authority is
-`c82e51790643fc6583a80240239f6f4123cc0df1`. New hosted and physical runs are
-triggered when the evidence draft is pushed. Hosted run `32803300825` on
+`f92421502770139b5357420323a61e18ee112c76`. New hosted and physical
+runs are triggered when this evidence draft is pushed. Hosted run `32803300825` on
 predecessor `426d8617fe8558114110b09a60260de3895da82f` passed Windows, both macOS
 lanes, ASan/UBSan, and TSan but failed Linux Lavapipe regular twice because its
 first large native driver allocation occurred after the declared cycle-2 RSS
 sample. The final revision primes both native paths once, releases every owner,
 and preserves the exact 20/2 and 1000/20 contracts plus the 16 MiB limit.
+
+Hosted run `32808481793` on code revision
+`c82e51790643fc6583a80240239f6f4123cc0df1` proved the prime itself was
+insufficient: Linux completed all 20 cycles with 40 captures, seven retained
+readbacks, zero terminal owners, and stale-handle rejection, but released RSS
+oscillated from 427,380,736 to 563,261,440 bytes and cycle 2 to cycle 20 grew
+85,561,344 bytes. Revision `f92421502770139b5357420323a61e18ee112c76`
+therefore trims unused Linux/glibc heap
+pages after complete teardown and before the same `/proc/self/statm` sample; it
+does not change the metric, cycle boundaries, or threshold.
 
 ## Final-Revision Local Metal Hardware Evidence
 
