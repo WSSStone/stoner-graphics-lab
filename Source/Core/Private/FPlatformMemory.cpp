@@ -11,10 +11,20 @@
 #elif SG_PLATFORM_LINUX
 #include <cstdio>
 #include <unistd.h>
+#if defined(__GLIBC__)
+#include <malloc.h>
+#endif
 #endif
 
 namespace Stoner::Core
 {
+
+void FPlatformMemory::ReleaseUnusedHeapPages() noexcept
+{
+#if SG_PLATFORM_LINUX && defined(__GLIBC__)
+    (void)malloc_trim(0);
+#endif
+}
 
 FProcessMemorySnapshot FPlatformMemory::QueryProcessMemory() noexcept
 {

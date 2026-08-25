@@ -251,6 +251,7 @@ void TestPlatformWindow(FCorePlatformTestResult& Result)
 
 void TestPlatformMemory(FCorePlatformTestResult& Result)
 {
+    FPlatformMemory::ReleaseUnusedHeapPages();
     const FProcessMemorySnapshot Snapshot = FPlatformMemory::QueryProcessMemory();
 #if SG_PLATFORM_WINDOWS || SG_PLATFORM_MAC || SG_PLATFORM_LINUX
     Record(Result, Snapshot.bAvailable, "FPlatformMemory reports supported desktop availability");

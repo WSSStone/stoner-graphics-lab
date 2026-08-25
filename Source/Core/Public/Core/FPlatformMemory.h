@@ -14,6 +14,7 @@ struct FProcessMemorySnapshot
 class FPlatformMemory
 {
 public:
+    static void ReleaseUnusedHeapPages() noexcept;
     [[nodiscard]] static FProcessMemorySnapshot QueryProcessMemory() noexcept;
 };
 

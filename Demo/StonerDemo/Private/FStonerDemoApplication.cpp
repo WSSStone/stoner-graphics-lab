@@ -969,6 +969,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
 
         const FDemoProductionLifecycleCounters Counters =
             ReleaseProductionContentCycle();
+        Core::FPlatformMemory::ReleaseUnusedHeapPages();
         if (!ValidationMonitor.SampleProductionCycle(Cycle, Counters))
             return FailInitialize(EDemoStage::Memory,
                 EDemoExitCode::ValidationFailed, "ProductionLifecycle",
