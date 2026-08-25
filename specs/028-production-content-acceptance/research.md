@@ -226,9 +226,12 @@ hardware prevents hosts without a physical display/device from being counted as
 native passes. Immutable producer artifacts can reduce duplicated cooking, but
 every consumer revalidates target and manifest evidence. Medium package roots
 own disjoint source, DDC, publication, lease, and report trees, so up to two may
-run concurrently while retaining their manifest order and one shared deadline.
-Hardware stays serialized to avoid competing visible windows and capture
-devices. See
+run their CPU/cook stages concurrently while retaining their manifest order and
+one shared deadline. Their software-native lifecycle stages are serialized: the
+final hosted Linux closeout showed that two simultaneous 1,000-cycle Lavapipe
+processes oversubscribe the runner CPU and both exhaust the shared deadline
+after every preceding stage has passed. Hardware stays fully serialized to
+avoid competing visible windows and capture devices. See
 [GitHub Actions workflow documentation](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflows).
 
 **Alternatives considered**:
@@ -502,6 +505,13 @@ the final manual Linux medium run: both packages reached native execution, but
 the repeated global allocator scan exhausted the remaining 1,467-second stage
 budget. Trimming only the two authoritative comparison samples preserves the
 measurement contract without contaminating lifecycle throughput.
+
+The subsequent comparison-only-trim run proved that allocator scanning was not
+the remaining medium timeout cause: both packages again completed cook, warm
+reuse, publication, equivalence, and strict runtime, then their simultaneously
+started Lavapipe lifecycle processes timed out together. Medium therefore
+retains parallel disjoint CPU/cook work but serializes only native lifecycle
+execution under the unchanged shared 1,800-second deadline.
 
 **Alternatives considered**:
 

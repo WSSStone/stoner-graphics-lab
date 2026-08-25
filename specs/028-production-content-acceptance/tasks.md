@@ -215,6 +215,7 @@ gates, and release every owner.
 - [X] T133 [US3] Recover Metal visible production presentation from transient `Unavailable`/`NotReady` drawable results and both backends from resize within the existing two-second lifecycle boundary, preserve exact presentation readback comparison, emit the terminal RHI result on failure, and prove the corrected path with strict builds plus visible native acceptance in Demo/StonerDemo/Private/FProductionWindowCaptureWriter.cpp
 - [X] T134 [US3] Prime Deferred and Forward native driver allocation once before the declared lifecycle sequence, require the unmeasured prime to release every owner and reject stale handles, retain exact 20/2 and 1000/20 cycle/RSS contracts, and rerun the twice-failing Linux Lavapipe regular gate without changing the 16 MiB threshold
 - [ ] T135 [US3] Release unused Linux/glibc heap pages after complete native teardown at the exact warm-up and terminal comparison cycles before the unchanged `/proc/self/statm` samples, preserve all intermediate/peak evidence plus exact 20/2 and 1000/20 comparisons and the 16 MiB threshold, and rerun the hosted Lavapipe regular and medium gates
+- [ ] T136 [US3] Preserve concurrent disjoint medium CPU/cook stages but serialize the two hosted software-native 1,000-cycle lifecycle stages under the unchanged shared 1,800-second deadline, then rerun the hosted Lavapipe medium gate
 
 **Checkpoint**: The same strict-cooked production root renders through native
 Vulkan and Metal with transactional lifetime and semantic/perceptual proof.

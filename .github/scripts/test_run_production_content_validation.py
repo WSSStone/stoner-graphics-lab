@@ -281,6 +281,31 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "package count"):
             self.module.profile_package_concurrency("medium", 0)
 
+    def test_optional_native_lock_serializes_only_wrapped_action(self):
+        events = []
+
+        class RecordingLock:
+            def __enter__(self):
+                events.append("enter")
+
+            def __exit__(self, exception_type, exception, traceback):
+                events.append("exit")
+
+        result = self.module.run_with_optional_lock(
+            lambda: events.append("native") or "passed",
+            RecordingLock(),
+        )
+        self.assertEqual("passed", result)
+        self.assertEqual(["enter", "native", "exit"], events)
+
+        events.clear()
+        result = self.module.run_with_optional_lock(
+            lambda: events.append("native") or "passed",
+            None,
+        )
+        self.assertEqual("passed", result)
+        self.assertEqual(["native"], events)
+
     def test_profile_parser_rejects_unknown_fields_and_wrong_boundaries(self):
         regular = json.loads((
             self.module.REPOSITORY_ROOT
