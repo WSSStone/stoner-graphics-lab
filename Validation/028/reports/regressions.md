@@ -1,7 +1,8 @@
 # Feature 028 Affected Regression Gate
 
-Captured through 2026-08-25 from final implementation revision
-`c82e51790643fc6583a80240239f6f4123cc0df1` on branch
+Captured through 2026-08-25 from final hosted evidence head
+`b7c89d6a5bbf92775db3b9f05af4d57e9bd5dc34`, with direct code authority
+`ffdc1a73994c8fb47971d8033628aba831af669d`, on branch
 `028-production-content-acceptance`.
 
 ## Engine Suites
@@ -22,6 +23,10 @@ The publication-dependent `production-content-equivalence` and
 regular Metal runner with their required explicit source, publication, lease,
 generation, and target-profile inputs. They intentionally reject invocation
 without those inputs.
+
+Hosted run `32818269789` passed Windows Vulkan, Linux Lavapipe Vulkan, macOS
+arm64 Metal, macOS x86_64 Metal, ASan/UBSan, and TSan. Its four independent
+consumer jobs downloaded and revalidated every immutable regular artifact.
 
 ## Script And Architecture Suites
 

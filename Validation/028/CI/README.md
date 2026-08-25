@@ -8,8 +8,8 @@ names, and SHA-256 values here. Downloaded artifacts remain in ignored
 ## Final Implementation Revision
 
 The implementation authority is
-`f92421502770139b5357420323a61e18ee112c76`. New hosted and physical
-runs are triggered when this evidence draft is pushed. Hosted run `32803300825` on
+`ffdc1a73994c8fb47971d8033628aba831af669d`; the final hosted evidence head is
+`b7c89d6a5bbf92775db3b9f05af4d57e9bd5dc34`. Hosted run `32803300825` on
 predecessor `426d8617fe8558114110b09a60260de3895da82f` passed Windows, both macOS
 lanes, ASan/UBSan, and TSan but failed Linux Lavapipe regular twice because its
 first large native driver allocation occurred after the declared cycle-2 RSS
@@ -33,31 +33,31 @@ RSS sample and peak.
 
 ## Final Hosted Regular And Sanitizer Evidence
 
-Push run `32811086369` passed on evidence revision
-`2762019d69cec9a39a71467e82ada6331b7f5c4a`, whose direct code authority is
-`f92421502770139b5357420323a61e18ee112c76`. Windows Vulkan, Linux Lavapipe
+Push run `32818269789` passed on final hosted evidence head
+`b7c89d6a5bbf92775db3b9f05af4d57e9bd5dc34` and direct code authority
+`ffdc1a73994c8fb47971d8033628aba831af669d`. Windows Vulkan, Linux Lavapipe
 Vulkan, macOS arm64 Metal, macOS x86_64 Metal, ASan/UBSan, and TSan passed.
 Four independent consumer jobs then downloaded and revalidated the immutable
 regular artifacts successfully.
 
 The corrected Linux run retained the exact 20-cycle / cycle-2 warm-up contract:
 40 captures, seven final readbacks, zero terminal owners, stale-handle
-rejection, 220,930,048 warm-up RSS bytes, 171,393,024 terminal RSS bytes,
-323,387,392 peak RSS bytes, and zero positive growth. Its regular profile
-finished in 325.050 seconds against the 600-second budget.
+rejection, 282,898,432 warm-up RSS bytes, 285,564,928 terminal RSS bytes,
+580,653,056 peak RSS bytes, and 2,666,496 bytes of positive growth. Its regular
+profile finished in 349.799 seconds against the 600-second budget.
 
 | Artifact | Size bytes | SHA-256 |
 |---|---:|---|
-| `production-regular-windows-vulkan-1` | 1,069,677,777 | `ac7874753f19971640123defa51e2a58e38547ef523c03c97512d3854ea6122e` |
-| `production-regular-linux-vulkan-1` | 1,069,676,734 | `207ce85e3d121a0078caa17fab8ea983813c581448a544c01e96e8cefaf2ddb2` |
-| `production-regular-macos-metal-1` | 1,070,847,441 | `3a4b1bda8f5b41c473b394d50e93198ce11d7b6b115050d346fbe8da889c6c5a` |
-| `production-regular-macos-intel-metal-1` | 1,070,850,762 | `601d0ed00080e552dee4494dd7b19707c7dc6d79ffb3a6faa5c8df215458a80f` |
-| `production-consumer-windows-vulkan-1` | 89,437 | `b0f0619472bcdb8486afe34257abc10a91d1df7ee325a5e70abbf46e959c9f9d` |
-| `production-consumer-linux-vulkan-1` | 89,369 | `0bf66b5af0324807f4550734afb692966641bc4f838306fd065d4654d24ebf95` |
-| `production-consumer-macos-metal-1` | 89,244 | `9f8941153603c8dd3916b68e8bd20908794a9681a7edc05f11e7ad18f98ba66d` |
-| `production-consumer-macos-intel-metal-1` | 89,468 | `c9a81e68bac5de3177decbbce8397b901ccb606b6bac9daf233541ab65d136a0` |
-| `production-sanitizer-asan-ubsan-1` | 1,909 | `f3fdb76c2602a5c45bc3c7637b67b31f7b083a4767f4c244c13a611a36132918` |
-| `production-sanitizer-tsan-1` | 1,476 | `7b675959d58942c62e4730eea052dfd805bc5f9de964cf268e9bdc709c4c9e7d` |
+| `production-regular-windows-vulkan-1` | 1,069,677,785 | `756980e3a38e29049d8314388385e7c43f15aed42297671f346a49dfba46c089` |
+| `production-regular-linux-vulkan-1` | 1,069,676,742 | `b53072a767eb97b244fe28062b7f8b0ddff413448f0fb64d6ccb4f5ef41b218e` |
+| `production-regular-macos-metal-1` | 1,070,847,020 | `10e5b8ca984edb28039d286454172b18858084cd19e1716418210d585aaa7a87` |
+| `production-regular-macos-intel-metal-1` | 1,070,850,773 | `15a0c8e4dd2070786caf24eef91c67e6bfdbddd7d75385e2bc67d01ec9452397` |
+| `production-consumer-windows-vulkan-1` | 89,438 | `8c1c377a35b30188ee158f18cedad6dc7d8dfd66fc49876ef893912f5cc959fe` |
+| `production-consumer-linux-vulkan-1` | 89,367 | `e3a6555fb0dbbca508a3184a9ffc1373b93fd322212724fc86342a64b784d57b` |
+| `production-consumer-macos-metal-1` | 89,338 | `ad8440aba4b78820850b30884ec243bdae3958a4faaa2abc134aec34227f09a0` |
+| `production-consumer-macos-intel-metal-1` | 89,468 | `4210b4c1315f1091f437083b6ff78817f266abcc8108b188e4af54f465966908` |
+| `production-sanitizer-asan-ubsan-1` | 1,909 | `eaca0e84a383ad24d9a80474163b9c8efda7568600c9c022c2362846e83c018e` |
+| `production-sanitizer-tsan-1` | 1,476 | `aa23473ad6220c56a1b44008d5541737e2cf702e0bcf2207a22267a21d928bba` |
 
 ## Final-Revision Local Metal Hardware Evidence
 

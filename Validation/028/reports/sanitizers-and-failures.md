@@ -2,11 +2,12 @@
 
 ## Status
 
-T110 is complete for final code revision
-`0a5ad11f8d511a9b54da33da086b15cf530ca68a`. The current macOS arm64 worktree
-passed the focused malformed-input, cancellation, failure-injection, rollback,
-shutdown, and lifetime regressions below. Hosted run `32711618360` then passed
-both required Linux ASan/UBSan and applicable TSan jobs on the same revision.
+T110 remains complete on final code authority
+`ffdc1a73994c8fb47971d8033628aba831af669d`. The macOS arm64 worktree passed
+the focused malformed-input, cancellation, failure-injection, rollback,
+shutdown, and lifetime regressions below. Final hosted run `32818269789` then
+passed both required Linux ASan/UBSan and applicable TSan jobs on evidence head
+`b7c89d6a5bbf92775db3b9f05af4d57e9bd5dc34`.
 
 ## Local Failure And Lifetime Gates
 
@@ -24,7 +25,7 @@ publishing a partial snapshot.
 
 ## Final-Revision Linux Gates
 
-The final closeout must run at least:
+The final closeout ran at least:
 
 ```text
 scons config=debug strict=1 sanitizers=address,undefined
@@ -38,6 +39,6 @@ ASan/UBSan reported no memory or undefined-behavior diagnostic. TSan passed the
 Asset Manager and CPU Renderer contract suites; native GPU/runtime lanes remain
 owned by their non-TSan jobs. The uploaded artifacts are
 `production-sanitizer-asan-ubsan-1` with SHA-256
-`dece1f0bb157f053e3db8521cfbeceebfb85be17ffe706b74a1aea3013d92554` and
+`eaca0e84a383ad24d9a80474163b9c8efda7568600c9c022c2362846e83c018e` and
 `production-sanitizer-tsan-1` with SHA-256
-`efedc7b050e99740cbeb60d8146f881c3b6071686146011fe8ed5490339ff80f`.
+`aa23473ad6220c56a1b44008d5541737e2cf702e0bcf2207a22267a21d928bba`.
