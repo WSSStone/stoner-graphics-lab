@@ -783,7 +783,8 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         const RHI::FRHITextureBufferCopyRegion& Region,
         RHI::ERHIFormat Format,
         Core::uint64 ReadbackBytes,
-        bool bRetainAuthoritativeEvidence)
+        bool bRetainAuthoritativeEvidence,
+        bool bRecordLifecycleCapture)
     {
         Core::TArray<Core::uint8> Bytes;
         if (!Readback || ReadbackBytes == 0 ||
@@ -815,7 +816,8 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
             ProductionExecutionInspection.Readbacks.push_back(
                 std::move(Evidence));
         }
-        if (bNonBlank && (Name == Core::FString("FinalOutput") ||
+        if (bRecordLifecycleCapture && bNonBlank &&
+            (Name == Core::FString("FinalOutput") ||
                 Name == Core::FString("ForwardColor")))
         {
             FDemoProductionCapture Capture;
@@ -880,6 +882,75 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         return bNonBlank;
     };
 
+    const auto ExecutePath = [&](EDemoRenderPath Path, Core::uint32 Cycle,
+        bool bRetainAuthoritativeEvidence,
+        bool bRecordLifecycleCapture)
+    {
+        if (!ProductionSubmissionHarness) return false;
+        const auto Commands = RecordCommands(
+            Path, bRetainAuthoritativeEvidence);
+        const char* PathName = Path == EDemoRenderPath::DeferredFull
+            ? "Deferred" : "Forward";
+        if (!Commands)
+        {
+            Diagnostics.Add(EDemoStage::Submit,
+                EDemoExitCode::FrameFailed, PathName,
+                "production command recording failed");
+            return false;
+        }
+        if (ProductionSubmissionHarness->SubmitAndWait(
+                Commands, 30'000'000) != RHI::ERHIResult::Success)
+        {
+            Diagnostics.Add(EDemoStage::Submit,
+                EDemoExitCode::FrameFailed, PathName,
+                "production submit, wait, or reusable-fence reset failed");
+            return false;
+        }
+        bool bReadbacksValid = true;
+        if (Path == EDemoRenderPath::DeferredFull)
+        {
+            for (const auto& Binding :
+                 ProductionRuntime->DeferredResources.Bindings.Readbacks)
+            {
+                if (!bRetainAuthoritativeEvidence &&
+                    Binding.Name != Core::FString("FinalOutput"))
+                    continue;
+                Core::uint64 ReadbackBytes = 0;
+                const bool bBindingValid = Binding.Source &&
+                    RHI::TryGetRHITextureBufferCopyByteSize(
+                        Binding.Region, Binding.Source->GetFormat(),
+                        ReadbackBytes) &&
+                    CaptureReadback(Cycle, Binding.Name,
+                        Binding.Destination, Binding.Region,
+                        Binding.Source->GetFormat(), ReadbackBytes,
+                        bRetainAuthoritativeEvidence,
+                        bRecordLifecycleCapture);
+                bReadbacksValid = bBindingValid && bReadbacksValid;
+            }
+        }
+        else
+        {
+            Core::uint64 ReadbackBytes = 0;
+            bReadbacksValid =
+                ProductionRuntime->ForwardBindings.OutputTexture &&
+                RHI::TryGetRHITextureBufferCopyByteSize(
+                    ProductionRuntime->ForwardBindings.ReadbackRegion,
+                    ProductionRuntime->ForwardBindings.OutputTexture->GetFormat(),
+                    ReadbackBytes) &&
+                CaptureReadback(Cycle, "ForwardColor",
+                    ProductionRuntime->ForwardBindings.ReadbackBuffer,
+                    ProductionRuntime->ForwardBindings.ReadbackRegion,
+                    ProductionRuntime->ForwardBindings.OutputTexture->GetFormat(),
+                    ReadbackBytes, bRetainAuthoritativeEvidence,
+                    bRecordLifecycleCapture);
+        }
+        if (!bReadbacksValid)
+            Diagnostics.Add(EDemoStage::Readback,
+                EDemoExitCode::ValidationFailed, PathName,
+                "production GPU readback validation failed");
+        return bReadbacksValid;
+    };
+
     const auto PrimeNativePath = [&](EDemoRenderPath Path)
     {
         if (!ProductionSubmissionHarness) return false;
@@ -907,78 +978,11 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
          Cycle <= Configuration.ProductionLifecycleCycles; ++Cycle)
     {
         {
-            if (!ProductionSubmissionHarness)
-                return FailInitialize(EDemoStage::Submit,
-                    EDemoExitCode::FrameFailed, "ProductionExecution",
-                    "production native submission harness is unavailable");
             ProductionExecutionInspection.Readbacks.clear();
-            const bool bRetainAuthoritativeEvidence =
-                Cycle == Configuration.ProductionLifecycleCycles;
-            const auto ExecutePath = [&](EDemoRenderPath Path)
-            {
-                const auto Commands = RecordCommands(
-                    Path, bRetainAuthoritativeEvidence);
-                const char* PathName = Path == EDemoRenderPath::DeferredFull
-                    ? "Deferred" : "Forward";
-                if (!Commands)
-                {
-                    Diagnostics.Add(EDemoStage::Submit,
-                        EDemoExitCode::FrameFailed, PathName,
-                        "production command recording failed");
-                    return false;
-                }
-                if (ProductionSubmissionHarness->SubmitAndWait(
-                        Commands, 30'000'000) != RHI::ERHIResult::Success)
-                {
-                    Diagnostics.Add(EDemoStage::Submit,
-                        EDemoExitCode::FrameFailed, PathName,
-                        "production submit, wait, or reusable-fence reset failed");
-                    return false;
-                }
-                bool bReadbacksValid = true;
-                if (Path == EDemoRenderPath::DeferredFull)
-                {
-                    for (const auto& Binding :
-                         ProductionRuntime->DeferredResources.Bindings.Readbacks)
-                    {
-                        if (!bRetainAuthoritativeEvidence &&
-                            Binding.Name != Core::FString("FinalOutput"))
-                            continue;
-                        Core::uint64 ReadbackBytes = 0;
-                        const bool bBindingValid = Binding.Source &&
-                            RHI::TryGetRHITextureBufferCopyByteSize(
-                                Binding.Region, Binding.Source->GetFormat(),
-                                ReadbackBytes) &&
-                            CaptureReadback(Cycle, Binding.Name,
-                                Binding.Destination, Binding.Region,
-                                Binding.Source->GetFormat(), ReadbackBytes,
-                                bRetainAuthoritativeEvidence);
-                        bReadbacksValid = bBindingValid && bReadbacksValid;
-                    }
-                }
-                else
-                {
-                    Core::uint64 ReadbackBytes = 0;
-                    bReadbacksValid =
-                        ProductionRuntime->ForwardBindings.OutputTexture &&
-                        RHI::TryGetRHITextureBufferCopyByteSize(
-                            ProductionRuntime->ForwardBindings.ReadbackRegion,
-                            ProductionRuntime->ForwardBindings.OutputTexture->GetFormat(),
-                            ReadbackBytes) &&
-                        CaptureReadback(Cycle, "ForwardColor",
-                            ProductionRuntime->ForwardBindings.ReadbackBuffer,
-                            ProductionRuntime->ForwardBindings.ReadbackRegion,
-                            ProductionRuntime->ForwardBindings.OutputTexture->GetFormat(),
-                            ReadbackBytes, bRetainAuthoritativeEvidence);
-                }
-                if (!bReadbacksValid)
-                    Diagnostics.Add(EDemoStage::Readback,
-                        EDemoExitCode::ValidationFailed, PathName,
-                        "production GPU readback validation failed");
-                return bReadbacksValid;
-            };
-            if (!ExecutePath(EDemoRenderPath::DeferredFull) ||
-                !ExecutePath(EDemoRenderPath::ForwardSmoke))
+            if (!ExecutePath(
+                    EDemoRenderPath::DeferredFull, Cycle, false, true) ||
+                !ExecutePath(
+                    EDemoRenderPath::ForwardSmoke, Cycle, false, true))
                 return FailInitialize(EDemoStage::Readback,
                     EDemoExitCode::ValidationFailed, "ProductionExecution",
                     "production Deferred or Forward native execution failed");
@@ -1009,6 +1013,25 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         return FailInitialize(EDemoStage::Memory,
             EDemoExitCode::ValidationFailed, "ProductionLifecycle",
             "production ownership or RSS lifecycle gate failed");
+    if (InitializeProductionContent() != EDemoExitCode::Success)
+        return EDemoExitCode::InitializationFailed;
+    ProductionExecutionInspection.Readbacks.clear();
+    const Core::uint32 EvidenceCycle =
+        Configuration.ProductionLifecycleCycles;
+    if (!ExecutePath(
+            EDemoRenderPath::DeferredFull, EvidenceCycle, true, false) ||
+        !ExecutePath(
+            EDemoRenderPath::ForwardSmoke, EvidenceCycle, true, false))
+        return FailInitialize(EDemoStage::Readback,
+            EDemoExitCode::ValidationFailed, "ProductionEvidenceExtraction",
+            "post-lifecycle authoritative GPU readback extraction failed");
+    const FDemoProductionLifecycleCounters EvidenceCounters =
+        ReleaseProductionContentCycle();
+    if (!EvidenceCounters.IsAtBaseline() ||
+        !EvidenceCounters.bStaleHandleRejected)
+        return FailInitialize(EDemoStage::Memory,
+            EDemoExitCode::ValidationFailed, "ProductionEvidenceExtraction",
+            "post-lifecycle evidence extraction did not return to baseline");
     LifecycleState = EDemoLifecycleState::Stopping;
     Diagnostics.Add(EDemoStage::Readback, EDemoExitCode::Success,
         "ProductionExecution",

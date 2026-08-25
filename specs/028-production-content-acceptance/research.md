@@ -387,22 +387,31 @@ FLIP acceptance. Retain every failed diagnostic and its global sequence number,
 while retaining at most 256 successful diagnostic records and reporting the
 number of dropped successes in stable diagnostic text. Every lifecycle cycle
 still performs synchronized GPU-to-CPU readback and nonblank validation for
-Deferred FinalOutput and ForwardColor. Non-terminal cycles omit the five
-intermediate Deferred attachment copies plus retained byte copies and SHA-256
-work; the terminal cycle restores all six Deferred readbacks and retains the
-seven authoritative Deferred/Forward records.
+Deferred FinalOutput and ForwardColor. Every lifecycle cycle, including the
+terminal cycle, omits the five intermediate Deferred attachment copies plus
+retained byte copies and SHA-256 work. After the exact terminal teardown, RSS
+sample, and lifecycle decision, one uncounted extraction pass restores all six
+Deferred readbacks and retains the seven authoritative Deferred/Forward
+records. The extraction pass uses the same strict generation, backend, and
+frozen workload, does not increment completed cycles or capture count, and must
+return every owner to baseline plus reject stale handles again.
 
 **Rationale**: A 1,000-cycle validation run must prove that the renderer and
 backend release their resources; the validation recorder itself must not grow
 by storing two full-resolution captures and several success strings per cycle.
-Separate counters preserve exact lifecycle evidence, while the final retained
-attachments preserve the bytes needed for image acceptance and diagnostics
-continue to preserve every actionable failure.
+Separate counters preserve exact lifecycle evidence, while post-lifecycle
+attachments preserve the bytes needed for image acceptance without making the
+terminal RSS sample include evidence that the warm-up sample intentionally did
+not retain. Diagnostics continue to preserve every actionable failure.
 
 **Alternatives considered**:
 
 - Retain every capture: rejected because evidence memory would scale with the
   requested cycle count and contaminate the RSS gate.
+- Retain the seven authoritative raw readbacks before the terminal RSS sample:
+  rejected because it makes evidence allocation itself appear as lifecycle
+  growth and lets an allocator high-water mark decide whether the same bytes
+  pass.
 - Stop recording after warm-up: rejected because later presentation or Forward
   omissions would become invisible.
 - Skip all non-terminal GPU readback: rejected because a late blank, stale, or
@@ -540,6 +549,18 @@ were released. The former macOS no-op left freed allocator-zone pages cached at
 the terminal comparison point. The Core platform boundary now requests maximal
 pressure relief across all macOS malloc zones at the same two checkpoints; a
 final hosted rerun remains required before this evidence is accepted.
+
+The first macOS relief rerun `32877744103` proved that allocator convergence was
+not the full cause. Lantern again completed 1,000 cycles, 2,000 captures, seven
+retained readbacks, zero terminal owners, and stale-handle rejection, but its
+cycle-20 and terminal samples were 527,450,112 and 595,853,312 bytes. Inspection
+of the execution order found that the terminal sample was taken only after the
+seven full-resolution authoritative readback byte arrays had been retained,
+while the cycle-20 sample retained none. The resulting 68,403,200-byte delta
+therefore included required validation evidence rather than only post-teardown
+runtime residency. Authoritative raw readback extraction now occurs after the
+unchanged lifecycle/RSS decision and has its own ownership/stale-handle check;
+a final hosted rerun remains required.
 
 The subsequent comparison-only-trim run proved that allocator scanning was not
 the remaining medium timeout cause: both packages again completed cook, warm

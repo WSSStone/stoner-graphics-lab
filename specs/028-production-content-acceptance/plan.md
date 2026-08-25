@@ -283,10 +283,11 @@ Validation. No new runtime module is introduced.
    Linux Lavapipe lane remains the regular
    software-native gate because one isolated 1,000-cycle Lantern lifecycle
    alone exceeded the complete medium budget. Every lifecycle cycle still
-   performs synchronized GPU
-   readback and nonblank validation for Deferred FinalOutput and ForwardColor;
-   only the terminal cycle copies all six Deferred attachments and computes the
-   retained authoritative evidence digests. Hardware packages remain fully
+   performs synchronized GPU readback and nonblank validation for Deferred
+   FinalOutput and ForwardColor. After the exact terminal teardown, RSS sample,
+   and lifecycle decision, one uncounted extraction pass copies all six Deferred
+   attachments, computes the retained authoritative evidence digests, and must
+   return ownership to baseline again. Hardware packages remain fully
    serialized because visible windows and capture devices are host-global
    resources. Keep
    the separate 20-frame Sponza image-calibration run focused on image and

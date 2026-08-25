@@ -623,7 +623,7 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
             LifecycleBindings.Readbacks.front().Source ==
                 DeferredResources.Bindings.FinalOutput &&
             AuthoritativeBindings.Readbacks.size() == 6,
-        "intermediate lifecycle reads only final output while the terminal cycle retains all authoritative attachments");
+        "lifecycle reads only final output while post-lifecycle extraction retains all authoritative attachments");
 
     FProductionContentComposition InvalidComposition;
     CompositionConfig.FrameToken = 0;
