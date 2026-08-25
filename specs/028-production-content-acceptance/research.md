@@ -447,3 +447,32 @@ success.
   gate requires one presented window capture for every selected frame.
 - Retry every backend error: rejected because invalid state, device loss, copy,
   synchronization, and data-integrity failures are not presentation churn.
+
+## Decision 18: Lifecycle RSS Starts After One Unmeasured Native Prime
+
+**Decision**: Before the declared 20- or 1,000-cycle lifecycle sequence, submit
+one real Deferred and one real Forward command buffer, wait for completion,
+release the complete production cycle, require all ownership counters to return
+to baseline plus stale-handle rejection, and reinitialize. The prime records no
+capture, readback, lifecycle sample, or completed cycle. Formal RSS authority
+remains the exact declared warm-up cycle to terminal delta with the unchanged
+16 MiB limit.
+
+**Rationale**: Final-revision Linux Lavapipe regular CI failed twice while all
+40 captures, seven final readbacks, submissions, terminal owners, and stale
+checks passed. RSS showed the first large driver allocation after the declared
+cycle-2 sample: the retry rose from 419,581,952 bytes at cycle 2 to 530,227,200
+at cycle 3, then stabilized near 484 MiB through cycle 20. Measuring before the
+backend has executed both production paths mistakes first-use driver allocation
+for retained per-cycle ownership. A real unmeasured prime establishes the
+environment boundary without hiding any declared lifecycle cycle or weakening
+the leak threshold.
+
+**Alternatives considered**:
+
+- Increase the 16 MiB threshold: rejected because the requirement is unchanged
+  and a larger allowance would also weaken real leak detection.
+- Select a later declared warm-up cycle only on Linux: rejected because regular
+  remains a backend-neutral 20/2 contract.
+- Retry CI until allocator timing happens to pass: rejected after two failures
+  on the same revision demonstrated the missing first-use boundary.

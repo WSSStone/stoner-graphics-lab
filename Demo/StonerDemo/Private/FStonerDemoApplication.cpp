@@ -870,6 +870,29 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         return bNonBlank;
     };
 
+    const auto PrimeNativePath = [&](EDemoRenderPath Path)
+    {
+        if (!ProductionSubmissionHarness) return false;
+        const auto Commands = RecordCommands(Path);
+        return Commands && ProductionSubmissionHarness->SubmitAndWait(
+            Commands, 30'000'000) == RHI::ERHIResult::Success;
+    };
+    if (!PrimeNativePath(EDemoRenderPath::DeferredFull) ||
+        !PrimeNativePath(EDemoRenderPath::ForwardSmoke))
+        return FailInitialize(EDemoStage::Submit,
+            EDemoExitCode::FrameFailed, "ProductionLifecyclePrime",
+            "production native lifecycle prime submission failed");
+    ProductionExecutionInspection.Readbacks.clear();
+    const FDemoProductionLifecycleCounters PrimeCounters =
+        ReleaseProductionContentCycle();
+    if (!PrimeCounters.IsAtBaseline() ||
+        !PrimeCounters.bStaleHandleRejected)
+        return FailInitialize(EDemoStage::Memory,
+            EDemoExitCode::ValidationFailed, "ProductionLifecyclePrime",
+            "production native lifecycle prime did not return to baseline");
+    if (InitializeProductionContent() != EDemoExitCode::Success)
+        return EDemoExitCode::InitializationFailed;
+
     for (Core::uint32 Cycle = 1;
          Cycle <= Configuration.ProductionLifecycleCycles; ++Cycle)
     {
