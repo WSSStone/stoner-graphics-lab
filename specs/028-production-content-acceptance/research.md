@@ -227,9 +227,10 @@ native passes. Immutable producer artifacts can reduce duplicated cooking, but
 every consumer revalidates target and manifest evidence. Medium package roots
 own disjoint source, DDC, publication, lease, and report trees, so up to two
 CPU/cook stages may run concurrently while retaining their manifest order and
-one shared deadline. Their hosted Metal native lifecycle stages are serialized
-because concurrent processes compete for the GPU and contaminate both
-throughput and per-process RSS. The scheduled/manual medium lane uses
+one shared deadline. Both packages meet at a post-strict-runtime barrier before
+their hosted Metal native lifecycle stages are serialized, because overlap with
+either CPU/cook work or another native process contaminates throughput and
+per-process RSS. The scheduled/manual medium lane uses
 GitHub-hosted arm64 Metal: an isolated 1,000-cycle Lantern Lavapipe lifecycle
 exhausted 1,471 remaining seconds after all preceding stages passed, proving
 that serialization could not make the two-package Linux software-native
@@ -499,9 +500,13 @@ warm-up and terminal comparison cycles, ask the platform memory boundary to
 release unused heap pages before the existing process-RSS sample. Other cycles
 retain their unmodified samples and peak evidence. The operation is a no-op on
 platforms without an applicable safe primitive and uses `malloc_trim(0)` on
-Linux/glibc. The authoritative metric remains `/proc/self/statm` resident
-bytes, measured at the exact declared warm-up and terminal cycles with the
-unchanged 16 MiB growth limit.
+Linux/glibc. Because glibc reports whether a trim pass released pages, the Core
+boundary performs at most eight passes and stops as soon as a pass reports no
+further release. This convergence remains inside the same exact lifecycle
+checkpoint; it neither selects a different cycle nor chooses a favorable RSS
+sample. The authoritative metric remains `/proc/self/statm` resident bytes,
+measured at the exact declared warm-up and terminal cycles with the unchanged
+16 MiB growth limit.
 
 **Rationale**: A hosted Lavapipe rerun after the native prime still returned all
 ownership counters to zero and rejected stale handles, but its released RSS
@@ -511,6 +516,14 @@ later samples proved the pages were allocator cache, not monotonically retained
 resources. Releasing unused glibc heap pages immediately after teardown makes
 the existing RSS contract measure live post-release residency instead of an
 arbitrary allocator-cache high point.
+
+Run `32858413208` exposed why a single trim invocation was still timing
+dependent: every owner returned to zero and stale-handle rejection passed, but
+the comparison samples were 229,781,504 and 340,525,056 bytes while intermediate
+RSS oscillated up to 579,129,344 bytes. Treating the first successful trim as
+converged discarded glibc's own signal that another release pass could remain.
+A bounded convergence loop honors that signal without changing the lifecycle
+or RSS acceptance rule.
 
 Calling `malloc_trim` at every one of 1,000 lifecycle cycles was rejected by
 the final manual Linux medium run: both packages reached native execution, but
@@ -532,6 +545,16 @@ CPU/cook work and serializes Metal native lifecycle stages, matching the prior
 isolated Metal evidence of about 253 seconds for Lantern and 1,302 seconds for
 Sponza. Lavapipe continues to own the required Linux regular native/RSS
 evidence.
+
+The first lock-only hosted run `32858413208` still timed out: Lantern entered
+native execution at 14:36:32 while Sponza continued clean cook, publication,
+equivalence, and strict runtime until 14:39:30. The lock prevented two Metal
+processes from overlapping, but it did not isolate a native process from the
+other package's CPU, I/O, allocator, and memory pressure. Medium therefore uses
+a package barrier after both strict-runtime stages and only then enters the
+existing native lock. Cook work remains concurrent, both 1,000-cycle lifecycles
+remain serial and unmodified, and the shared 1,800-second deadline remains the
+authority.
 
 **Alternatives considered**:
 

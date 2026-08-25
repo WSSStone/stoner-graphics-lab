@@ -272,8 +272,9 @@ Validation. No new runtime module is introduced.
    manager worker for regular allocator stability and eight for medium/hardware
    throughput. The medium runner executes the two disjoint package CPU/cook
    stages concurrently under one shared deadline on the hosted arm64 Metal
-   lane, then serializes native lifecycle stages so GPU contention cannot alter
-   throughput or per-process RSS. The Linux Lavapipe lane remains the regular
+   lane, waits until both packages have completed strict runtime, then
+   serializes native lifecycle stages so neither CPU/cook pressure nor GPU
+   contention can alter throughput or per-process RSS. The Linux Lavapipe lane remains the regular
    software-native gate because one isolated 1,000-cycle Lantern lifecycle
    alone exceeded the complete medium budget. Every lifecycle cycle still
    performs synchronized GPU

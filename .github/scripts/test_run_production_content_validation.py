@@ -306,6 +306,28 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
         self.assertEqual("passed", result)
         self.assertEqual(["native"], events)
 
+    def test_optional_native_barrier_precedes_isolated_execution(self):
+        events = []
+
+        class RecordingBarrier:
+            def wait(self, timeout):
+                events.append(("wait", timeout))
+
+        self.module.wait_for_optional_barrier(RecordingBarrier(), 17)
+        self.module.wait_for_optional_barrier(None, 17)
+        self.assertEqual([("wait", 17)], events)
+
+        class BrokenBarrier:
+            def wait(self, timeout):
+                raise self.module.threading.BrokenBarrierError
+
+        broken = BrokenBarrier()
+        broken.module = self.module
+        with self.assertRaisesRegex(
+            self.module.StageFailure, "barrier-broken"
+        ):
+            self.module.wait_for_optional_barrier(broken, 17)
+
     def test_profile_parser_rejects_unknown_fields_and_wrong_boundaries(self):
         regular = json.loads((
             self.module.REPOSITORY_ROOT

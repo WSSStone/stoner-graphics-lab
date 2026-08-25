@@ -22,7 +22,17 @@ namespace Stoner::Core
 void FPlatformMemory::ReleaseUnusedHeapPages() noexcept
 {
 #if SG_PLATFORM_LINUX && defined(__GLIBC__)
-    (void)malloc_trim(0);
+    // malloc_trim() reports whether it released pages. A single pass can
+    // leave another arena immediately trimmable after the first arena scan,
+    // which makes an exact lifecycle checkpoint depend on allocator timing.
+    // Bound the convergence loop so the comparison point measures the fully
+    // released glibc heap without turning a driver/allocator defect into an
+    // unbounded validation stall.
+    constexpr int MaxTrimPasses = 8;
+    for (int Pass = 0; Pass < MaxTrimPasses; ++Pass)
+    {
+        if (malloc_trim(0) == 0) break;
+    }
 #endif
 }
 

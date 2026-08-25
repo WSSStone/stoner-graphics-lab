@@ -173,6 +173,18 @@ class StageFailure(RuntimeError):
         self.detail = detail
 
 
+def wait_for_optional_barrier(barrier, timeout: int) -> None:
+    if barrier is None:
+        return
+    try:
+        barrier.wait(timeout=timeout)
+    except threading.BrokenBarrierError as error:
+        raise StageFailure(
+            "native", "barrier-broken",
+            "a medium package failed before isolated native execution",
+        ) from error
+
+
 def remaining_stage_timeout(deadline: float, configured_timeout: int) -> int:
     remaining = deadline - time.monotonic()
     if remaining <= 0:
@@ -1154,6 +1166,7 @@ def run_package(
     defer_native_to_hardware: bool = False,
     deadline: float | None = None,
     native_lifecycle_lock=None,
+    native_lifecycle_barrier=None,
 ) -> dict:
     package_output = output / package["packageId"]
     package_output.mkdir(parents=True)
@@ -1331,6 +1344,10 @@ def run_package(
 
     native_report = first_run["reports"] / "native-lifecycle.txt"
     workload_revision = package_workload_revision(package)
+    wait_for_optional_barrier(
+        native_lifecycle_barrier,
+        remaining_stage_timeout(package_deadline, timeout),
+    )
     if defer_native_to_hardware:
         native_lifecycle = deferred_native_result(
             load_native_target_contract(target_profile)
@@ -1487,27 +1504,38 @@ def run_profile(args: argparse.Namespace) -> dict:
         target_contract["graphicsBackend"] == "metal"
         else None
     )
+    native_lifecycle_barrier = (
+        threading.Barrier(package_concurrency)
+        if native_lifecycle_lock is not None
+        else None
+    )
 
     def run_selected_package(package: dict) -> dict:
         runs = args.determinism_runs if package["tier"] == "regular" else 1
-        return run_package(
-            repository_root,
-            cooker,
-            tests,
-            target_profile,
-            package,
-            package_source(repository_root, content_root, package),
-            output,
-            runs,
-            validation_profile["lifecycleCycles"],
-            validation_profile["warmupCycles"],
-            args.timeout_seconds,
-            target_contract["graphicsBackend"],
-            args.profile == "hardware",
-            args.defer_native_to_hardware,
-            deadline,
-            native_lifecycle_lock,
-        )
+        try:
+            return run_package(
+                repository_root,
+                cooker,
+                tests,
+                target_profile,
+                package,
+                package_source(repository_root, content_root, package),
+                output,
+                runs,
+                validation_profile["lifecycleCycles"],
+                validation_profile["warmupCycles"],
+                args.timeout_seconds,
+                target_contract["graphicsBackend"],
+                args.profile == "hardware",
+                args.defer_native_to_hardware,
+                deadline,
+                native_lifecycle_lock,
+                native_lifecycle_barrier,
+            )
+        except Exception:
+            if native_lifecycle_barrier is not None:
+                native_lifecycle_barrier.abort()
+            raise
 
     if package_concurrency == 1:
         package_reports = [
@@ -1516,8 +1544,9 @@ def run_profile(args: argparse.Namespace) -> dict:
     else:
         # Medium packages own disjoint source, DDC, publication, lease, and
         # report roots, so their CPU/cook stages may overlap. Hosted Metal
-        # lifecycle stages share one lock because concurrent processes contend
-        # for the GPU and contaminate both throughput and per-process RSS.
+        # lifecycle stages first meet at one barrier, then share one lock, so
+        # neither native process overlaps the other package's CPU/cook work or
+        # contends for the GPU and contaminates throughput/per-process RSS.
         # Hardware remains fully serialized because visible windows and capture
         # devices are shared host resources.
         with concurrent.futures.ThreadPoolExecutor(
