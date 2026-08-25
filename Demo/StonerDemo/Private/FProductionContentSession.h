@@ -16,6 +16,7 @@ struct FProductionContentSessionConfig
     Core::TSharedPtr<const Asset::FAssetRuntimeExecutionContext> RuntimeContext;
     Core::uint32 WorkerCount = 4;
     Core::uint64 RequestTimeoutMilliseconds = 30000;
+    bool bLoadRootClosureFirst = false;
 
     [[nodiscard]] bool IsValid() const noexcept;
 };

@@ -222,7 +222,8 @@ gates, and release every owner.
 - [ ] T140 [US3] Preserve the passing bcd07b6 full-profile M4 Pro evidence and replace the scheduled/manual single-host medium lane with one isolated macOS arm64 Metal lane per exact profile package, retain the unchanged 1,800-second budget and complete clean/warm/strict/equivalence/1,000-cycle/RSS contract on every lane, add a fail-closed exact-package/corpus/target/revision aggregate, and rerun hosted medium after run 32869040060 exhausted the single-lane budget
 - [ ] T141 [US3] Converge released macOS allocator-zone pages with bounded `malloc_zone_pressure_relief(nullptr, 0)` calls at the unchanged warm-up and terminal comparison points, retain the exact 1,000/20 lifecycle, ownership, stale-handle, process-RSS, and 16 MiB contracts, and rerun the isolated hosted Metal lanes after run 32874425910 completed Lantern ownership proof but reported 26,411,008 bytes of RSS growth
 - [ ] T142 [US3] Move the seven full-resolution authoritative raw readbacks to one uncounted post-lifecycle extraction on the same strict generation/backend, retain exact 1,000/20 cycles, 2,000 captures, terminal teardown/RSS, seven readbacks, semantic/FLIP, and a second owner/stale check, and rerun hosted Metal after run 32877744103 showed that pre-sample evidence retention inflated Lantern RSS growth to 68,403,200 bytes
-- [ ] T143 [US3] Move production lifecycle submission, synchronized readback, capture accounting, and post-lifecycle evidence extraction out of the Demo composition root into a dedicated private translation unit without changing behavior, keep `FStonerDemoApplication.cpp` below its 1,600-line responsibility budget, pass direct and unit architecture verification plus a from-zero strict Release build, and rerun hosted clean/medium gates after run 32881970457 failed at 1,617 lines before native execution
+- [X] T143 [US3] Move production lifecycle submission, synchronized readback, capture accounting, and post-lifecycle evidence extraction out of the Demo composition root into a dedicated private translation unit without changing behavior, keep `FStonerDemoApplication.cpp` below its 1,600-line responsibility budget, pass direct and unit architecture verification plus a from-zero strict Release build, and rerun hosted clean/medium gates after run 32881970457 failed at 1,617 lines before native execution
+- [X] T144 [US3] Eliminate redundant strict-runtime payload hashing only when a validated generation manifest supplies the exact cooked-envelope digest, retain the generic body-digest path and fail-closed mutation behavior, load the selected medium root closure before cache-backed manifest completeness checks, preserve eight workers and every 1,000/20 lifecycle/image/ownership/RSS requirement, and prove Sponza locally within the unchanged 1,800-second lane budget
 
 **Checkpoint**: The same strict-cooked production root renders through native
 Vulkan and Metal with transactional lifetime and semantic/perceptual proof.
@@ -388,7 +389,7 @@ Setup --> Real KTX2 Foundation --|
 | FR-011-FR-013 | T021, T029-T030, T035, T040 | Existing resolver/importer and complete typed dependency graph |
 | FR-014 | T008-T019, T036, T048 | Real KTX2 producer/artifact and semantic comparison |
 | FR-015-FR-022 | T035-T054 | Self-contained generation, strict no-source load, equivalence, reuse, mutation/failure |
-| FR-023-FR-031, FR-046-FR-049 | T055-T084, T119-T126 | Asset-root composition, transactional realization, frozen camera preview/presets, native readback, FLIP, lifecycle |
+| FR-023-FR-031, FR-046-FR-049 | T055-T084, T119-T126, T144 | Asset-root composition, transactional realization, frozen camera preview/presets, native readback, FLIP, lifecycle |
 | FR-032-FR-037 | T085-T097, T112-T114 | Regular, medium, hardware profiles and required cadence/evidence |
 | FR-038-FR-041 | T098-T107 | Deterministic/observational reports, stable failures, bounded privacy-safe artifacts |
 | FR-042 | T020-T022, T031, T035-T038, T052-T053, T055-T058, T069, T080-T083, T103 | At least 30 cross-stage negative cases |
@@ -401,7 +402,7 @@ Setup --> Real KTX2 Foundation --|
 | SC-005-SC-006 | T036-T049, T054 |
 | SC-007 | T031, T052, T056, T058, T103, T107 |
 | SC-008 | T070-T084, T114 |
-| SC-009-SC-010 | T084-T090, T113-T114 |
+| SC-009-SC-010 | T084-T090, T113-T114, T144 |
 | SC-011 | T108-T114 |
 | SC-012 | T098-T107, T118 |
 | SC-013 | T108 |

@@ -571,8 +571,45 @@ not expose the source-size change. Production lifecycle submission, readback,
 capture accounting, and evidence extraction now live in the dedicated private
 `FStonerDemoProductionContentRun.cpp` translation unit; the composition root is
 1,299 lines. Direct architecture verification, all 14 architecture unit tests,
-and a from-zero strict Release build pass locally. A new hosted clean build and
-medium rerun remain required.
+and a from-zero strict Release build pass locally. Hosted run `32883681679` at
+revision `246eeca` then crossed that clean architecture/build gate; its regular
+Windows Vulkan, Linux Vulkan, macOS Metal, Linux ASan/UBSan, Linux TSan, and
+isolated Lantern medium lanes passed. The isolated Sponza medium lane reached
+native execution but consumed 1,665 seconds there and exhausted its unchanged
+1,800-second complete-lane budget. The hosted Intel Metal lane also stopped
+during its Release build, so another final hosted rerun remains required.
+
+Sampling the Sponza native process showed its load workers dominated by two
+SHA-256 passes over nearly identical bytes: strict loading first authenticated
+each whole cooked envelope against the already validated generation manifest,
+then the generic codec independently hashed the envelope body. A manifest-
+authenticated typed-load entry point now computes the whole-envelope digest
+once, compares it with the immutable manifest authority, parses the header and
+typed payload, and relies on that digest to cover the header, declared body
+digest, and body bytes. The generic codec still verifies both body and envelope
+digests, and the optimized path fails closed when authority is absent or any
+byte is mutated. All ten typed payload families, missing authority, and mutation
+rejection are covered by focused tests.
+
+The 1,000-cycle session now requests the selected StaticModel root before the
+manifest-wide completeness requests. The existing manager dependency traversal
+loads its exact closure and retains it in the request cache; the subsequent
+manifest requests therefore prove every record while avoiding duplicate decode
+work. This is not a persistent cache or a reduced workload: medium/hardware
+still use eight workers, release the full closure every cycle, and retain the
+same 1,000/20, image, owner, stale-handle, and RSS contracts. Regular 20-cycle
+ordering remains unchanged because root-first increased its short-run allocator
+residency.
+
+A local optimized Sponza 20-cycle visible Metal run passed in 64.02 seconds with
+40 captures, seven retained readbacks, zero terminal owners, stale-handle
+rejection, and 11,550,720 bytes of post-warm-up RSS growth. An A/B restoration
+of the redundant body hash took 75.87 seconds, about 15.8 percent longer. The
+final local 1,000-cycle visible Metal proof passed in 1,049.75 seconds with
+2,000 captures, seven retained readbacks, zero terminal owners, stale-handle
+rejection, semantic/FLIP acceptance, a 462,602,240-byte cycle-20 RSS sample,
+a 464,076,800-byte terminal sample, and 1,474,560 bytes of growth. A hosted
+rerun remains authoritative for medium closeout.
 
 The subsequent comparison-only-trim run proved that allocator scanning was not
 the remaining medium timeout cause: both packages again completed cook, warm

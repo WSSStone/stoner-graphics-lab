@@ -304,6 +304,33 @@ RunProductionContentStrictRuntimeTests()
             Session.Inspect().Manager.ExternalHandleRetentions == 0,
         "Demo strict session releases request and generation ownership on shutdown");
 
+    std::filesystem::create_directories(
+        TemporaryRoot / "LeaseDemoRootFirst");
+    auto RootFirstConfig = SessionConfig;
+    RootFirstConfig.LeaseCoordinationRoot = Core::FString(
+        (TemporaryRoot / "LeaseDemoRootFirst").generic_string());
+    RootFirstConfig.bLoadRootClosureFirst = true;
+    Demo::FProductionContentSession RootFirstSession;
+    Demo::FProductionContentLoadedClosure RootFirstClosure;
+    const auto RootFirstResult =
+        RootFirstSession.Load(RootFirstConfig, RootFirstClosure);
+    const auto RootFirstInspection = RootFirstSession.Inspect();
+    Record(Result,
+        RootFirstResult == EAssetResult::Success &&
+            RootFirstClosure.Model &&
+            RootFirstClosure.LoadedAssetCount == Seed.Manifest.Records.size() &&
+            RootFirstInspection.Manager.StrictLoaderExecutions > 0 &&
+            RootFirstInspection.Manager.StrictLoaderExecutions <=
+                SessionInspection.Manager.StrictLoaderExecutions,
+        "Demo medium session loads the root closure before cache-backed manifest completeness");
+    RootFirstClosure = {};
+    Record(Result,
+        RootFirstSession.Shutdown() == EAssetResult::Success &&
+            RootFirstSession.Inspect().Manager.ActiveOperations == 0 &&
+            RootFirstSession.Inspect().Manager.RequestRetentions == 0 &&
+            RootFirstSession.Inspect().Manager.ExternalHandleRetentions == 0,
+        "Demo medium root-first session releases every manager retention");
+
     Core::TArray<Core::uint8> WrongProfileBytes;
     FAssetTargetProfileEvidence WrongEvidence;
     const bool WrongWritten = Core::FPlatformFileSystem::ReadFile(

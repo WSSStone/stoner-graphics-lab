@@ -23,6 +23,32 @@
 
 namespace Stoner::Asset
 {
+namespace
+{
+
+EAssetResult DecodeTypedPayload(
+    FAssetCookedPayloadEnvelope Envelope,
+    Core::TSharedPtr<const FAssetPayload>& OutPayload,
+    FAssetCookedPayloadEnvelope* OutEnvelope)
+{
+    EAssetResult Result = Private::DecodeImageTextureCookedBody(
+        Envelope.Header, Envelope.Body, OutPayload);
+    if (Result == EAssetResult::Unsupported)
+        Result = Private::DecodeMaterialShaderCookedBody(
+            Envelope.Header, Envelope.Body, OutPayload);
+    if (Result == EAssetResult::Unsupported)
+        Result = Private::DecodeStaticModelCookedBody(
+            Envelope.Header, Envelope.Body, OutPayload);
+    if (Result != EAssetResult::Success)
+    {
+        OutPayload.reset();
+        return Result;
+    }
+    if (OutEnvelope) *OutEnvelope = std::move(Envelope);
+    return EAssetResult::Success;
+}
+
+} // namespace
 
 EAssetResult FAssetCookContractCodec::ParseTargetProfile(
     std::span<const Core::uint8> Bytes,
@@ -133,21 +159,26 @@ EAssetResult FAssetCookContractCodec::LoadTypedPayload(
     const EAssetResult Parse = Private::ParseAssetCookedPayload(
         Bytes, Limits, Envelope);
     if (Parse != EAssetResult::Success) return Parse;
-    EAssetResult Result = Private::DecodeImageTextureCookedBody(
-        Envelope.Header, Envelope.Body, OutPayload);
-    if (Result == EAssetResult::Unsupported)
-        Result = Private::DecodeMaterialShaderCookedBody(
-            Envelope.Header, Envelope.Body, OutPayload);
-    if (Result == EAssetResult::Unsupported)
-        Result = Private::DecodeStaticModelCookedBody(
-            Envelope.Header, Envelope.Body, OutPayload);
-    if (Result != EAssetResult::Success)
-    {
-        OutPayload.reset();
-        return Result;
-    }
-    if (OutEnvelope) *OutEnvelope = std::move(Envelope);
-    return EAssetResult::Success;
+    return DecodeTypedPayload(std::move(Envelope), OutPayload, OutEnvelope);
+}
+
+EAssetResult FAssetCookContractCodec::LoadManifestAuthenticatedTypedPayload(
+    std::span<const Core::uint8> Bytes,
+    const FAssetDigest& ExpectedEnvelopeDigest,
+    const FAssetCookedPayloadLimits& Limits,
+    Core::TSharedPtr<const FAssetPayload>& OutPayload,
+    FAssetCookedPayloadEnvelope* OutEnvelope)
+{
+    OutPayload.reset();
+    if (OutEnvelope) *OutEnvelope = {};
+    if (!ExpectedEnvelopeDigest.IsAvailable())
+        return EAssetResult::InvalidInput;
+    FAssetCookedPayloadEnvelope Envelope;
+    const EAssetResult Parse =
+        Private::ParseManifestAuthenticatedAssetCookedPayload(
+            Bytes, ExpectedEnvelopeDigest, Limits, Envelope);
+    if (Parse != EAssetResult::Success) return Parse;
+    return DecodeTypedPayload(std::move(Envelope), OutPayload, OutEnvelope);
 }
 
 EAssetResult FAssetCookContractCodec::WriteManifest(

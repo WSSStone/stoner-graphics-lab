@@ -268,6 +268,24 @@ void TestGoldenFixtures(FAssetCookerPayloadCodecTestResult& Result)
     Record(Result, ValidPassed, "checked-in envelope golden is accepted");
     Record(Result, InvalidRejected,
         "checked-in malformed envelope goldens are rejected");
+
+    const FAssetDigest Authority = FAssetDigest::FromBytes(Valid);
+    TSharedPtr<const FAssetPayload> Payload;
+    TArray<uint8> Mutated = Valid;
+    if (!Mutated.empty()) Mutated.back() ^= 0x01U;
+    Payload.reset();
+    Record(
+        Result,
+        FAssetCookContractCodec::LoadManifestAuthenticatedTypedPayload(
+            Mutated, Authority, {}, Payload) == EAssetResult::CorruptPayload &&
+            !Payload,
+        "manifest-authenticated typed load rejects body mutation");
+
+    Record(
+        Result,
+        FAssetCookContractCodec::LoadManifestAuthenticatedTypedPayload(
+            Valid, {}, {}, Payload) == EAssetResult::InvalidInput && !Payload,
+        "manifest-authenticated typed load rejects absent authority");
 }
 
 } // namespace

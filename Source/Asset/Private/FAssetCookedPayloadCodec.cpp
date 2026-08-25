@@ -240,11 +240,25 @@ EAssetResult ParseAssetCookedPayload(
     const FAssetCookedPayloadLimits& Limits,
     FAssetCookedPayloadEnvelope& OutEnvelope)
 {
+    return ParseManifestAuthenticatedAssetCookedPayload(
+        Bytes, {}, Limits, OutEnvelope);
+}
+
+EAssetResult ParseManifestAuthenticatedAssetCookedPayload(
+    std::span<const Core::uint8> Bytes,
+    const FAssetDigest& ExpectedEnvelopeDigest,
+    const FAssetCookedPayloadLimits& Limits,
+    FAssetCookedPayloadEnvelope& OutEnvelope)
+{
     OutEnvelope = {};
     if (Limits.Validate() != EAssetResult::Success ||
         Bytes.size() > Limits.MaxEnvelopeBytes || Bytes.size() < 72 ||
         !std::equal(Magic.begin(), Magic.end(), Bytes.begin()))
         return EAssetResult::MalformedContainer;
+    const FAssetDigest EnvelopeDigest = FAssetDigest::FromBytes(Bytes);
+    if (ExpectedEnvelopeDigest.IsAvailable() &&
+        EnvelopeDigest != ExpectedEnvelopeDigest)
+        return EAssetResult::CorruptPayload;
     FReader Reader(Bytes);
     if (!Reader.Skip(Magic.size())) return EAssetResult::MalformedContainer;
     FAssetCookedPayloadEnvelope Parsed;
@@ -298,9 +312,10 @@ EAssetResult ParseAssetCookedPayload(
     const EAssetResult HeaderResult = Parsed.Header.Validate();
     if (HeaderResult != EAssetResult::Success)
         return HeaderResult;
-    if (FAssetDigest::FromBytes(Parsed.Body) != Parsed.Header.BodyDigest)
+    if (!ExpectedEnvelopeDigest.IsAvailable() &&
+        FAssetDigest::FromBytes(Parsed.Body) != Parsed.Header.BodyDigest)
         return EAssetResult::CorruptPayload;
-    Parsed.EnvelopeDigest = FAssetDigest::FromBytes(Bytes);
+    Parsed.EnvelopeDigest = EnvelopeDigest;
     OutEnvelope = std::move(Parsed);
     return EAssetResult::Success;
 }

@@ -334,10 +334,59 @@ EAssetResult FProductionContentSession::Load(
         const FAssetCookManifestRecord* Record = nullptr;
         FAssetRequestHandle Request;
     };
+    struct FLoadedRecord
+    {
+        const FAssetCookManifestRecord* Record = nullptr;
+        FAnyAssetHandle Handle;
+    };
+    Core::TArray<FLoadedRecord> LoadedRecords;
+    LoadedRecords.reserve(Validated.Manifest.Records.size());
+
+    if (Config.bLoadRootClosureFirst)
+    {
+        // The 1,000-cycle profile loads the selected model closure first. Its
+        // external root handle retains every required dependency in the
+        // manager cache, so later manifest-completeness requests become cache
+        // hits instead of duplicate physical reads and typed decodes.
+        const auto RootRecord = std::lower_bound(
+            Validated.Manifest.Records.begin(),
+            Validated.Manifest.Records.end(), *Root,
+            [](const auto& CandidateRecord, const FAssetId& Id)
+            { return CandidateRecord.AssetId < Id; });
+        if (RootRecord == Validated.Manifest.Records.end() ||
+            RootRecord->AssetId != *Root)
+        {
+            Impl_->Inspection.FirstFailure = "strict-root-record-missing";
+            (void)Shutdown();
+            return EAssetResult::NotFound;
+        }
+        FAssetRequestHandle RootRequest;
+        Result = RequestRecord(*Impl_->Manager, *RootRecord, RootRequest);
+        if (Result == EAssetResult::Success)
+        {
+            FAnyAssetHandle RootHandle;
+            Result = FinishRecord(
+                *Impl_->Manager, *RootRecord, RootRequest, Config, RootHandle,
+                Impl_->Inspection, Impl_->LastReleasedRequest);
+            if (Result == EAssetResult::Success)
+                LoadedRecords.push_back(
+                    {&*RootRecord, std::move(RootHandle)});
+        }
+        if (Result != EAssetResult::Success)
+        {
+            Impl_->Inspection.FirstFailure = Core::FString(
+                "load:" + RootRecord->AssetId.ToString().ToStdString() +
+                ";result=" + std::to_string(static_cast<int>(Result)));
+            (void)Shutdown();
+            return Result;
+        }
+    }
+
     Core::TArray<FPendingRecord> PendingRecords;
     PendingRecords.reserve(Validated.Manifest.Records.size());
     for (const auto& Record : Validated.Manifest.Records)
     {
+        if (Config.bLoadRootClosureFirst && Record.AssetId == *Root) continue;
         FAssetRequestHandle Request;
         Result = RequestRecord(*Impl_->Manager, Record, Request);
         if (Result != EAssetResult::Success)
@@ -351,7 +400,6 @@ EAssetResult FProductionContentSession::Load(
         PendingRecords.push_back({&Record, Request});
     }
 
-    Impl_->Handles.reserve(PendingRecords.size());
     for (const FPendingRecord& PendingRecord : PendingRecords)
     {
         const auto& Record = *PendingRecord.Record;
@@ -368,6 +416,14 @@ EAssetResult FProductionContentSession::Load(
             (void)Shutdown();
             return Result;
         }
+        LoadedRecords.push_back({&Record, std::move(Handle)});
+    }
+
+    Impl_->Handles.reserve(LoadedRecords.size());
+    for (FLoadedRecord& LoadedRecord : LoadedRecords)
+    {
+        const auto& Record = *LoadedRecord.Record;
+        auto& Handle = LoadedRecord.Handle;
         const bool bModelDependency =
             Record.AssetId != *Root && ModelClosure.contains(Record.AssetId);
         if (Record.AssetId == *Root)

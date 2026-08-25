@@ -338,6 +338,7 @@ void TestAllFamilies(FAssetCookerEquivalenceTestResult& Result)
         std::all_of(Payloads.begin(), Payloads.end(), [](const auto& P) { return P != nullptr; });
     bool Equivalent = Complete;
     bool Repeatable = Complete;
+    bool ManifestAuthenticated = Complete;
     bool MalformedBodiesRejected = Complete;
     for (const auto& Payload : Payloads)
     {
@@ -349,6 +350,12 @@ void TestAllFamilies(FAssetCookerEquivalenceTestResult& Result)
         TSharedPtr<const FAssetPayload> Loaded;
         const EAssetResult Load = FAssetCookContractCodec::LoadTypedPayload(
             First, {}, Loaded);
+        TSharedPtr<const FAssetPayload> AuthenticatedPayload;
+        FAssetCookedPayloadEnvelope AuthenticatedEnvelope;
+        const EAssetResult AuthenticatedLoad =
+            FAssetCookContractCodec::LoadManifestAuthenticatedTypedPayload(
+                First, FirstEnvelope.EnvelopeDigest, {},
+                AuthenticatedPayload, &AuthenticatedEnvelope);
         TArray<uint8> Second;
         const EAssetResult Rewrite = Loaded
             ? FAssetCookContractCodec::WriteTypedPayload(
@@ -359,6 +366,12 @@ void TestAllFamilies(FAssetCookerEquivalenceTestResult& Result)
             KeySemanticsEqual(*Payload, *Loaded);
         const bool RewritePass = Rewrite == EAssetResult::Success &&
             First == Second && FirstEnvelope.Header.AssetId.IsValid();
+        const bool AuthenticatedPass =
+            AuthenticatedLoad == EAssetResult::Success &&
+            AuthenticatedPayload &&
+            AuthenticatedEnvelope.EnvelopeDigest ==
+                FirstEnvelope.EnvelopeDigest &&
+            KeySemanticsEqual(*Payload, *AuthenticatedPayload);
         bool MalformedRejected = false;
         if (Write == EAssetResult::Success && FirstEnvelope.Body.size() > 1)
         {
@@ -391,12 +404,15 @@ void TestAllFamilies(FAssetCookerEquivalenceTestResult& Result)
         }
         Equivalent = Equivalent && SemanticPass;
         Repeatable = Repeatable && RewritePass;
+        ManifestAuthenticated = ManifestAuthenticated && AuthenticatedPass;
         MalformedBodiesRejected =
             MalformedBodiesRejected && MalformedRejected;
     }
     Record(Result, Complete, "all ten Feature 021-024 payload families are represented");
     Record(Result, Equivalent, "source models and cooked-loaded models are semantically equivalent");
     Record(Result, Repeatable, "every typed codec rewrites byte-identically");
+    Record(Result, ManifestAuthenticated,
+        "every typed codec accepts its manifest-authoritative envelope digest");
     Record(
         Result,
         MalformedBodiesRejected,

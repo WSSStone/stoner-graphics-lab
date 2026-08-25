@@ -73,9 +73,10 @@ FAssetLoadScratchResult FCookedAssetLoadingStrategy::Load(
     Limits.MaxBodyBytes = Config_.Limits.MaxPayloadBytes;
     Core::TSharedPtr<const FAssetPayload> Payload;
     FAssetCookedPayloadEnvelope Envelope;
-    if (FAssetCookContractCodec::LoadTypedPayload(
-            Bytes, Limits, Payload, &Envelope) != EAssetResult::Success ||
-        !Payload || Envelope.EnvelopeDigest != Found->EnvelopeDigest ||
+    if (FAssetCookContractCodec::LoadManifestAuthenticatedTypedPayload(
+            Bytes, Found->EnvelopeDigest, Limits, Payload, &Envelope) !=
+            EAssetResult::Success ||
+        !Payload ||
         Envelope.Header.AssetId != Found->AssetId ||
         Envelope.Header.AssetType != Found->AssetType ||
         Envelope.Header.CodecId != Found->Codec.Id.ToString() ||

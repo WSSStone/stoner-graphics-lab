@@ -54,6 +54,16 @@ public:
         Core::TSharedPtr<const FAssetPayload>& OutPayload,
         FAssetCookedPayloadEnvelope* OutEnvelope = nullptr);
 
+    // ExpectedEnvelopeDigest must come from an already validated immutable
+    // generation manifest. Its SHA-256 covers the complete header and body,
+    // so this path avoids hashing the body a second time before typed decode.
+    [[nodiscard]] static EAssetResult LoadManifestAuthenticatedTypedPayload(
+        std::span<const Core::uint8> Bytes,
+        const FAssetDigest& ExpectedEnvelopeDigest,
+        const FAssetCookedPayloadLimits& Limits,
+        Core::TSharedPtr<const FAssetPayload>& OutPayload,
+        FAssetCookedPayloadEnvelope* OutEnvelope = nullptr);
+
     [[nodiscard]] static EAssetResult WriteManifest(
         FAssetCookManifest& InOutManifest,
         const FAssetCookManifestLimits& Limits,
