@@ -419,3 +419,31 @@ expected by long-running applications.
   submission retirement and weakens the persistent-device lifecycle test.
 - Add a Vulkan-only Demo purge: rejected because submission retirement belongs
   to the backend queue contract, while the Demo harness remains backend-neutral.
+
+## Decision 17: Visible Production Presentation Has Bounded Recovery
+
+**Decision**: A production window capture retries `ResizeRequired` on either
+backend after recreating the presentation extent, and retries Metal
+`Unavailable`/`NotReady` drawable results for at most two seconds while pumping
+window events. Every other result fails immediately. Success still requires a
+presented non-empty window readback and exact pixel equality whenever the
+presentation and source extents match; a terminal failure records the RHI
+result.
+
+**Rationale**: A clean-checkout 1,000-cycle Metal run completed 955 visible
+frames before one drawable acquisition/presentation returned a transient result.
+All six Deferred GPU attachments for that cycle were valid, but the former
+single-attempt production path collapsed the presentation failure into a generic
+GPU-readback error. The existing visible lifecycle already defines a two-second
+recovery boundary for resize/drawable churn; production acceptance must apply
+the same bounded rule without converting a persistent or unknown failure into
+success.
+
+**Alternatives considered**:
+
+- Retry indefinitely: rejected because hardware CI must remain bounded and a
+  lost window must fail.
+- Treat missing drawable as a successful skipped capture: rejected because the
+  gate requires one presented window capture for every selected frame.
+- Retry every backend error: rejected because invalid state, device loss, copy,
+  synchronization, and data-integrity failures are not presentation churn.

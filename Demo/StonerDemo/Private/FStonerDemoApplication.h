@@ -151,6 +151,8 @@ private:
     [[nodiscard]] EDemoExitCode RunProductionContent();
     [[nodiscard]] EDemoExitCode RunProductionCameraPreview();
     void RecordProductionCapture(FDemoProductionCapture Capture);
+    [[nodiscard]] bool PresentProductionCaptureWithRecovery(
+        FDemoProductionCapture& Capture);
     [[nodiscard]] EDemoExitCode RunDeterministic();
     [[nodiscard]] EDemoExitCode RunNativeHeadless();
     [[nodiscard]] EDemoExitCode RunVisible();

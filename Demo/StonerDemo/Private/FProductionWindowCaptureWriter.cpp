@@ -1,12 +1,16 @@
 #include "FProductionWindowCaptureWriter.h"
 
 #include "Asset/FAssetDigest.h"
+#include "FDemoBackendFactory.h"
 #include "FStonerDemoApplication.h"
+#include "FStonerDemoWindowState.h"
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <thread>
 
 namespace Stoner::Demo
 {
@@ -50,6 +54,69 @@ void FStonerDemoApplication::RecordProductionCapture(
         ++ProductionExecutionInspection.ForwardColorCaptureCount;
     if (!Capture.Bytes.empty())
         ProductionExecutionInspection.Captures.push_back(std::move(Capture));
+}
+
+bool FStonerDemoApplication::PresentProductionCaptureWithRecovery(
+    FDemoProductionCapture& Capture)
+{
+    if (!Window || !BackendRuntime) return false;
+    constexpr auto RecoveryLimit = std::chrono::milliseconds(2000);
+    const auto Started = std::chrono::steady_clock::now();
+    RHI::ERHIResult Result = RHI::ERHIResult::Unavailable;
+    FDemoProductionPresentationResult Presented;
+    do
+    {
+        (void)Window->Value.PollEvents();
+        if (Window->Value.IsCloseRequested()) return false;
+        Presented = {};
+        Result = BackendRuntime->PresentProductionImage(
+            Capture.Bytes, Capture.Width, Capture.Height,
+            Capture.RowPitchBytes, Presented);
+        if (Result == RHI::ERHIResult::Success) break;
+        const bool bRecoverable = Result == RHI::ERHIResult::ResizeRequired ||
+            (Configuration.GraphicsBackend == EDemoGraphicsBackend::Metal &&
+                (Result == RHI::ERHIResult::Unavailable ||
+                    Result == RHI::ERHIResult::NotReady));
+        if (!bRecoverable) break;
+        if (Result == RHI::ERHIResult::ResizeRequired)
+        {
+            const Core::uint32 Width = Window->Value.GetDrawableWidth();
+            const Core::uint32 Height = Window->Value.GetDrawableHeight();
+            if (Width != 0 && Height != 0)
+                Result = BackendRuntime->RecreatePresentation(Width, Height);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    while (std::chrono::steady_clock::now() - Started <= RecoveryLimit);
+
+    if (Result != RHI::ERHIResult::Success || !Presented.bPresented ||
+        Presented.Rgba8.empty())
+    {
+        const Core::FString Reason(
+            "production presentation recovery failed; result=" +
+            std::to_string(static_cast<int>(Result)));
+        Diagnostics.Add(EDemoStage::Present, EDemoExitCode::ValidationFailed,
+            "ProductionPresentation", Reason.CStr());
+        return false;
+    }
+    if (Presented.Width == Capture.Width &&
+        Presented.Height == Capture.Height &&
+        Presented.RowPitchBytes == Capture.RowPitchBytes &&
+        Presented.Rgba8 != Capture.Bytes)
+    {
+        Diagnostics.Add(EDemoStage::Readback,
+            EDemoExitCode::ValidationFailed, "ProductionPresentation",
+            "native presentation readback differs from the submitted RGBA image");
+        return false;
+    }
+    Capture.Width = Presented.Width;
+    Capture.Height = Presented.Height;
+    Capture.RowPitchBytes = Presented.RowPitchBytes;
+    Capture.Format = RHI::ERHIFormat::R8G8B8A8_UNorm;
+    Capture.bPresented = true;
+    Capture.bWindowOnlyCapture = true;
+    Capture.Bytes = std::move(Presented.Rgba8);
+    return true;
 }
 
 bool WriteProductionWindowCapture(

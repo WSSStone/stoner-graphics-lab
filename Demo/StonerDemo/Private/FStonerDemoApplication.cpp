@@ -829,49 +829,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                     Name == Core::FString("ForwardColor")));
             if (bSelectedVisiblePath)
             {
-                if (!Window || !BackendRuntime)
-                    return false;
-                (void)Window->Value.PollEvents();
-                if (Window->Value.IsCloseRequested()) return false;
-                FDemoProductionPresentationResult Presented;
-                RHI::ERHIResult PresentResult =
-                    BackendRuntime->PresentProductionImage(
-                        Capture.Bytes, Capture.Width, Capture.Height,
-                        Capture.RowPitchBytes, Presented);
-                if (PresentResult == RHI::ERHIResult::ResizeRequired)
-                {
-                    const Core::uint32 DrawableWidth =
-                        Window->Value.GetDrawableWidth();
-                    const Core::uint32 DrawableHeight =
-                        Window->Value.GetDrawableHeight();
-                    if (BackendRuntime->RecreatePresentation(
-                            DrawableWidth, DrawableHeight) ==
-                            RHI::ERHIResult::Success)
-                        PresentResult = BackendRuntime->PresentProductionImage(
-                            Capture.Bytes, Capture.Width, Capture.Height,
-                            Capture.RowPitchBytes, Presented);
-                }
-                if (PresentResult != RHI::ERHIResult::Success ||
-                    !Presented.bPresented || Presented.Rgba8.empty())
-                    return false;
-                if (Presented.Width == Capture.Width &&
-                    Presented.Height == Capture.Height &&
-                    Presented.RowPitchBytes == Capture.RowPitchBytes &&
-                    Presented.Rgba8 != Capture.Bytes)
-                {
-                    Diagnostics.Add(EDemoStage::Readback,
-                        EDemoExitCode::ValidationFailed,
-                        "ProductionPresentation",
-                        "native presentation readback differs from the submitted RGBA image");
-                    return false;
-                }
-                Capture.Width = Presented.Width;
-                Capture.Height = Presented.Height;
-                Capture.RowPitchBytes = Presented.RowPitchBytes;
-                Capture.Format = RHI::ERHIFormat::R8G8B8A8_UNorm;
-                Capture.bPresented = true;
-                Capture.bWindowOnlyCapture = true;
-                Capture.Bytes = std::move(Presented.Rgba8);
+                if (!PresentProductionCaptureWithRecovery(Capture)) return false;
             }
             Capture.Digest =
                 Asset::FAssetDigest::FromBytes(Capture.Bytes).ToLowerHex();
