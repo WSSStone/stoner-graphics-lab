@@ -226,8 +226,10 @@ hardware prevents hosts without a physical display/device from being counted as
 native passes. Immutable producer artifacts can reduce duplicated cooking, but
 every consumer revalidates target and manifest evidence. Medium package roots
 own disjoint source, DDC, publication, lease, and report trees, so up to two
-complete headless pipelines may run concurrently while retaining their manifest
-order and one shared deadline. The scheduled/manual medium lane uses
+CPU/cook stages may run concurrently while retaining their manifest order and
+one shared deadline. Their hosted Metal native lifecycle stages are serialized
+because concurrent processes compete for the GPU and contaminate both
+throughput and per-process RSS. The scheduled/manual medium lane uses
 GitHub-hosted arm64 Metal: an isolated 1,000-cycle Lantern Lavapipe lifecycle
 exhausted 1,471 remaining seconds after all preceding stages passed, proving
 that serialization could not make the two-package Linux software-native
@@ -522,10 +524,14 @@ reuse, publication, equivalence, and strict runtime, then their simultaneously
 started Lavapipe lifecycle processes timed out together. Serializing those
 native stages did not solve the feasibility problem: on run `32842555956`, the
 first isolated Lantern lifecycle used all 1,471 remaining seconds without
-completing. The weekly/manual medium lane therefore runs the two disjoint
-headless pipelines concurrently on hosted arm64 Metal, where the same 1,000/20
-contract previously completed both packages in 1,450.659 seconds. Lavapipe
-continues to own the required Linux regular native/RSS evidence.
+completing. The first hosted Metal attempt then proved that complete-pipeline
+concurrency also distorts native evidence: Lantern took about 824 seconds and
+failed the unchanged RSS limit at 21,954,560 bytes while Sponza exceeded 1,530
+seconds. The weekly/manual medium lane therefore overlaps only disjoint
+CPU/cook work and serializes Metal native lifecycle stages, matching the prior
+isolated Metal evidence of about 253 seconds for Lantern and 1,302 seconds for
+Sponza. Lavapipe continues to own the required Linux regular native/RSS
+evidence.
 
 **Alternatives considered**:
 

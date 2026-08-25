@@ -16,6 +16,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from typing import Iterable, Sequence
@@ -129,6 +130,13 @@ def profile_package_concurrency(profile: str, package_count: int) -> int:
     if package_count < 1:
         raise ValueError("production validation package count is invalid")
     return min(2, package_count) if profile == "medium" else 1
+
+
+def run_with_optional_lock(action, lock):
+    if lock is None:
+        return action()
+    with lock:
+        return action()
 
 
 LIFECYCLE_EVIDENCE_PREFIX = "[EVIDENCE] "
@@ -1145,6 +1153,7 @@ def run_package(
     require_visible: bool = False,
     defer_native_to_hardware: bool = False,
     deadline: float | None = None,
+    native_lifecycle_lock=None,
 ) -> dict:
     package_output = output / package["packageId"]
     package_output.mkdir(parents=True)
@@ -1331,20 +1340,23 @@ def run_package(
             encoding="utf-8",
         )
     else:
-        native_lifecycle = run_native_lifecycle(
-            repository_root,
-            tests,
-            target_profile,
-            first_run["publication"],
-            lease_root,
-            generation_ids[0],
-            package["rootAssetId"],
-            workload_revision,
-            lifecycle_cycles,
-            warmup_cycles,
-            native_report,
-            remaining_stage_timeout(package_deadline, timeout),
-            require_visible,
+        native_lifecycle = run_with_optional_lock(
+            lambda: run_native_lifecycle(
+                repository_root,
+                tests,
+                target_profile,
+                first_run["publication"],
+                lease_root,
+                generation_ids[0],
+                package["rootAssetId"],
+                workload_revision,
+                lifecycle_cycles,
+                warmup_cycles,
+                native_report,
+                remaining_stage_timeout(package_deadline, timeout),
+                require_visible,
+            ),
+            native_lifecycle_lock,
         )
 
     return {
@@ -1469,6 +1481,13 @@ def run_profile(args: argparse.Namespace) -> dict:
     package_concurrency = profile_package_concurrency(
         args.profile, len(packages)
     )
+    native_lifecycle_lock = (
+        threading.Lock()
+        if args.profile == "medium" and package_concurrency > 1 and
+        target_contract["graphicsBackend"] == "metal"
+        else None
+    )
+
     def run_selected_package(package: dict) -> dict:
         runs = args.determinism_runs if package["tier"] == "regular" else 1
         return run_package(
@@ -1487,6 +1506,7 @@ def run_profile(args: argparse.Namespace) -> dict:
             args.profile == "hardware",
             args.defer_native_to_hardware,
             deadline,
+            native_lifecycle_lock,
         )
 
     if package_concurrency == 1:
@@ -1495,9 +1515,11 @@ def run_profile(args: argparse.Namespace) -> dict:
         ]
     else:
         # Medium packages own disjoint source, DDC, publication, lease, and
-        # report roots, so the complete headless package pipelines may overlap
-        # under one shared deadline. Hardware remains fully serialized because
-        # visible windows and capture devices are shared host resources.
+        # report roots, so their CPU/cook stages may overlap. Hosted Metal
+        # lifecycle stages share one lock because concurrent processes contend
+        # for the GPU and contaminate both throughput and per-process RSS.
+        # Hardware remains fully serialized because visible windows and capture
+        # devices are shared host resources.
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=package_concurrency,
             thread_name_prefix="production-package",
