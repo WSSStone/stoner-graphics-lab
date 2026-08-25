@@ -562,6 +562,18 @@ runtime residency. Authoritative raw readback extraction now occurs after the
 unchanged lifecycle/RSS decision and has its own ownership/stale-handle check;
 a final hosted rerun remains required.
 
+The first rerun of that ordering, `32881970457` at revision `dec8174`, failed
+before native execution because its clean strict build regenerated the
+architecture stamp and measured 1,617 lines in
+`FStonerDemoApplication.cpp`, above the enforced 1,600-line Demo composition
+budget. The local incremental strict build had reused the prior stamp and did
+not expose the source-size change. Production lifecycle submission, readback,
+capture accounting, and evidence extraction now live in the dedicated private
+`FStonerDemoProductionContentRun.cpp` translation unit; the composition root is
+1,299 lines. Direct architecture verification, all 14 architecture unit tests,
+and a from-zero strict Release build pass locally. A new hosted clean build and
+medium rerun remain required.
+
 The subsequent comparison-only-trim run proved that allocator scanning was not
 the remaining medium timeout cause: both packages again completed cook, warm
 reuse, publication, equivalence, and strict runtime, then their simultaneously

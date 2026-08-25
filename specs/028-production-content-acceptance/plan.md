@@ -238,6 +238,11 @@ Validation. No new runtime module is introduced.
    submission/presentation completion, and GPU-produced bytes. Deterministic
    simulation, semantic oracle, or backend substitution cannot satisfy native
    gates.
+5. Keep the Demo composition root below its enforced responsibility budget by
+   placing production lifecycle submission, synchronized readback, capture
+   accounting, and post-lifecycle evidence extraction in a dedicated private
+   production run translation unit. The split changes no public interface or
+   lifecycle/image contract.
 
 ### M5 - Image, Lifecycle, and Failure Acceptance
 
