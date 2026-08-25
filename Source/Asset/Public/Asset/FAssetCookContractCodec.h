@@ -13,6 +13,11 @@
 namespace Stoner::Asset
 {
 
+namespace Private
+{
+class FCookedAssetLoadingStrategy;
+}
+
 class FAssetCookContractCodec
 {
 public:
@@ -105,6 +110,19 @@ public:
     [[nodiscard]] static EAssetResult ParseCurrentPointer(
         std::span<const Core::uint8> Bytes,
         FCurrentGenerationPointer& OutPointer);
+
+private:
+    friend class Private::FCookedAssetLoadingStrategy;
+
+    // This does not authenticate Bytes. The strict loader may call it only
+    // after its bounded generation-scoped authentication object confirms the
+    // exact digest while owning the continuous generation reader lease.
+    [[nodiscard]] static EAssetResult LoadPreviouslyAuthenticatedTypedPayload(
+        std::span<const Core::uint8> Bytes,
+        const FAssetDigest& ExpectedEnvelopeDigest,
+        const FAssetCookedPayloadLimits& Limits,
+        Core::TSharedPtr<const FAssetPayload>& OutPayload,
+        FAssetCookedPayloadEnvelope* OutEnvelope = nullptr);
 };
 
 } // namespace Stoner::Asset

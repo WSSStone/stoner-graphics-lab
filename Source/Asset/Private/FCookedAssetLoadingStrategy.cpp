@@ -1,6 +1,7 @@
 #include "FCookedAssetLoadingStrategy.h"
 
 #include "Asset/FAssetCookContractCodec.h"
+#include "Asset/FAssetCookedEnvelopeAuthentication.h"
 #include "Core/FPlatformFileSystem.h"
 #include "FShaderPayloadValidation.h"
 
@@ -73,9 +74,15 @@ FAssetLoadScratchResult FCookedAssetLoadingStrategy::Load(
     Limits.MaxBodyBytes = Config_.Limits.MaxPayloadBytes;
     Core::TSharedPtr<const FAssetPayload> Payload;
     FAssetCookedPayloadEnvelope Envelope;
-    if (FAssetCookContractCodec::LoadManifestAuthenticatedTypedPayload(
-            Bytes, Found->EnvelopeDigest, Limits, Payload, &Envelope) !=
-            EAssetResult::Success ||
+    const bool bReuseAuthentication = Config_.CookedEnvelopeAuthentication &&
+        Config_.CookedEnvelopeAuthentication->CanReuse(
+            Found->EnvelopeDigest);
+    const EAssetResult LoadResult = bReuseAuthentication
+        ? FAssetCookContractCodec::LoadPreviouslyAuthenticatedTypedPayload(
+              Bytes, Found->EnvelopeDigest, Limits, Payload, &Envelope)
+        : FAssetCookContractCodec::LoadManifestAuthenticatedTypedPayload(
+              Bytes, Found->EnvelopeDigest, Limits, Payload, &Envelope);
+    if (LoadResult != EAssetResult::Success ||
         !Payload ||
         Envelope.Header.AssetId != Found->AssetId ||
         Envelope.Header.AssetType != Found->AssetType ||
@@ -91,6 +98,13 @@ FAssetLoadScratchResult FCookedAssetLoadingStrategy::Load(
              *Payload) != EAssetResult::Success))
     {
         Out.Result = EAssetResult::CorruptPayload;
+        return Out;
+    }
+    if (Config_.CookedEnvelopeAuthentication && !bReuseAuthentication &&
+        !Config_.CookedEnvelopeAuthentication->RecordAuthenticated(
+            Found->EnvelopeDigest))
+    {
+        Out.Result = EAssetResult::CapacityExceeded;
         return Out;
     }
     FAssetMetadata Metadata;

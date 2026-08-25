@@ -611,6 +611,42 @@ rejection, semantic/FLIP acceptance, a 462,602,240-byte cycle-20 RSS sample,
 a 464,076,800-byte terminal sample, and 1,474,560 bytes of growth. A hosted
 rerun remains authoritative for medium closeout.
 
+The next full hosted dispatch, `32895672130`, proved that root-first ordering
+must remain Sponza-specific: applying it to Lantern raised post-warm-up RSS
+growth to 93,110,272 bytes. The isolated local Lantern scope correction then
+passed its complete medium runner in 226.95 seconds with 1,000 cycles, 2,000
+captures, seven readbacks, zero terminal owners, stale-handle rejection, and
+zero reported RSS growth. The same hosted dispatch still timed out the Sponza
+native stage after 1,628 seconds; removing only the duplicate body hash was not
+sufficient because each of the 1,000 manager lifetimes still authenticated
+about 519 MiB of immutable envelope bytes again.
+
+The final Sponza optimization retains only successful `(generation,
+envelope-digest)` authentication results across those manager lifetimes. The
+authentication object owns a continuous generation reader lease and is bound
+to the exact publication namespace, so the generation cannot be removed or
+replaced between cycles. Capacity is bounded by the manifest record count.
+Every cycle still performs file-size checks, full file reads, container parsing,
+typed decoding, header/codec/schema/shader validation, realization, rendering,
+and complete teardown. No payload bytes, decoded Asset object, request/cache
+entry, Renderer/RHI handle, or GPU object survives through this memo. The
+default Asset Manager path is unchanged; only `production-content-sponza-v2`
+at exactly 1,000 cycles enables it. Focused tests prove first-load corruption is
+never recorded, wrong generations fail manager binding, missing authority and
+malformed containers fail closed, and a second full session load reuses only
+authentication while again loading and releasing the complete closure.
+
+The canonical local Sponza medium runner at
+`Build/Validation/028/medium-metal-sponza-authentication-reuse-final` passed in
+1,094.29 of the unchanged 1,800 seconds. Its native stage took 1,030.93 seconds
+and reported 1,000 cycles, 2,000 captures, seven readbacks, zero terminal
+owners, stale-handle rejection, a 396,689,408-byte warm-up RSS sample, a
+399,540,224-byte terminal sample, and 2,850,816 bytes of growth. It also proved
+189/189 reachable assets and 189/189 warm cook reuse. A separate full visible
+Metal replay passed all 20 Sponza v2 semantic probes and exact accepted-baseline
+FLIP with the same 1,000/20 lifecycle contract. Hosted rerun remains the final
+medium authority.
+
 The subsequent comparison-only-trim run proved that allocator scanning was not
 the remaining medium timeout cause: both packages again completed cook, warm
 reuse, publication, equivalence, and strict runtime, then their simultaneously

@@ -3,6 +3,7 @@
 #include "AssetCookerPublicationTestSupport.h"
 #include "Asset/FAssetManager.h"
 #include "Asset/FAssetManagerConfig.h"
+#include "Asset/FAssetCookedEnvelopeAuthentication.h"
 #include "Asset/FKTX2TextureArtifact.h"
 #include "Core/SGPlatform.h"
 #include "FBoundCookedGeneration.h"
@@ -147,6 +148,122 @@ FAssetManagerCookedTestResult RunAssetManagerCookedTests()
         "strict cooked request rejects same-size payload corruption");
     Write(PayloadPath, OriginalPayload);
     (void)Manager->Shutdown();
+
+    Core::TSharedPtr<Asset::FAssetCookedEnvelopeAuthentication>
+        WrongGenerationAuthentication;
+    const auto WrongContextResult =
+        Asset::FAssetCookedEnvelopeAuthentication::Create(
+            Config.PublicationRoot,
+            Config.LeaseCoordinationRoot,
+            SeedRun.Result.Manifest.TargetProfile.EffectiveProfileDigest,
+            Config.LeaseTimeoutMilliseconds,
+            static_cast<Core::uint32>(
+                SeedRun.Result.Manifest.Records.size()),
+            WrongGenerationAuthentication);
+    auto WrongGenerationConfig = Config;
+    WrongGenerationConfig.CookedEnvelopeAuthentication =
+        WrongGenerationAuthentication;
+    Core::TSharedPtr<Asset::FAssetManager> WrongGenerationManager;
+    Diagnostics.clear();
+    Record(Result.Passed, Result.Failed,
+        WrongContextResult == Asset::EAssetResult::Success &&
+            WrongGenerationAuthentication &&
+            Asset::FAssetManager::Create(
+                WrongGenerationConfig,
+                WrongGenerationManager,
+                Diagnostics) == Asset::EAssetResult::InvalidInput &&
+            !WrongGenerationManager,
+        "strict authentication context rejects a different bound generation");
+
+    Core::TSharedPtr<Asset::FAssetCookedEnvelopeAuthentication>
+        Authentication;
+    const bool AuthenticationCreated =
+        Asset::FAssetCookedEnvelopeAuthentication::Create(
+            Config.PublicationRoot,
+            Config.LeaseCoordinationRoot,
+            SeedRun.Result.Manifest.GenerationId,
+            Config.LeaseTimeoutMilliseconds,
+            static_cast<Core::uint32>(
+                SeedRun.Result.Manifest.Records.size()),
+            Authentication) == Asset::EAssetResult::Success;
+    auto AuthenticatedConfig = Config;
+    AuthenticatedConfig.CookedEnvelopeAuthentication = Authentication;
+    Write(PayloadPath, CorruptPayload);
+    Core::TSharedPtr<Asset::FAssetManager> FirstCorruptManager;
+    Diagnostics.clear();
+    const auto FirstCorruptCreate = Asset::FAssetManager::Create(
+        AuthenticatedConfig, FirstCorruptManager, Diagnostics);
+    Asset::FAssetRequestHandle FirstCorruptRequest;
+    const auto FirstCorruptAdmission =
+        FirstCorruptCreate == Asset::EAssetResult::Success
+        ? FirstCorruptManager->Request<Asset::FKTX2TextureArtifact>(
+              TextureRecord->AssetId, FirstCorruptRequest)
+        : Asset::EAssetResult::ProcessingFailure;
+    Asset::FAssetRequestSnapshot FirstCorruptSnapshot;
+    const bool FirstCorruptTerminal =
+        FirstCorruptAdmission == Asset::EAssetResult::Success &&
+        WaitTerminal(
+            *FirstCorruptManager,
+            FirstCorruptRequest,
+            FirstCorruptSnapshot);
+    Record(Result.Passed, Result.Failed,
+        AuthenticationCreated && FirstCorruptTerminal &&
+            FirstCorruptSnapshot.State == Asset::EAssetRequestState::Failed &&
+            FirstCorruptSnapshot.Result == Asset::EAssetResult::CorruptPayload &&
+            !Authentication->CanReuse(TextureRecord->EnvelopeDigest),
+        "first corrupted envelope fails authentication and is never trusted");
+    (void)FirstCorruptManager->Shutdown();
+    Write(PayloadPath, OriginalPayload);
+
+    Core::TSharedPtr<Asset::FAssetManager> FirstAuthenticatedManager;
+    Diagnostics.clear();
+    const auto FirstAuthenticatedCreate = Asset::FAssetManager::Create(
+        AuthenticatedConfig, FirstAuthenticatedManager, Diagnostics);
+    Asset::FAssetRequestHandle FirstAuthenticatedRequest;
+    const auto FirstAuthenticatedAdmission =
+        FirstAuthenticatedCreate == Asset::EAssetResult::Success
+        ? FirstAuthenticatedManager->Request<Asset::FKTX2TextureArtifact>(
+              TextureRecord->AssetId, FirstAuthenticatedRequest)
+        : Asset::EAssetResult::ProcessingFailure;
+    Asset::FAssetRequestSnapshot FirstAuthenticatedSnapshot;
+    const bool FirstAuthenticatedTerminal =
+        FirstAuthenticatedAdmission == Asset::EAssetResult::Success &&
+        WaitTerminal(
+            *FirstAuthenticatedManager,
+            FirstAuthenticatedRequest,
+            FirstAuthenticatedSnapshot);
+    (void)FirstAuthenticatedManager->Shutdown();
+    const auto FirstAuthenticationInspection = Authentication->Inspect();
+    Core::TSharedPtr<Asset::FAssetManager> ReusedAuthenticationManager;
+    Diagnostics.clear();
+    const auto ReusedAuthenticationCreate = Asset::FAssetManager::Create(
+        AuthenticatedConfig, ReusedAuthenticationManager, Diagnostics);
+    Asset::FAssetRequestHandle ReusedAuthenticationRequest;
+    const auto ReusedAuthenticationAdmission =
+        ReusedAuthenticationCreate == Asset::EAssetResult::Success
+        ? ReusedAuthenticationManager->Request<Asset::FKTX2TextureArtifact>(
+              TextureRecord->AssetId, ReusedAuthenticationRequest)
+        : Asset::EAssetResult::ProcessingFailure;
+    Asset::FAssetRequestSnapshot ReusedAuthenticationSnapshot;
+    const bool ReusedAuthenticationTerminal =
+        ReusedAuthenticationAdmission == Asset::EAssetResult::Success &&
+        WaitTerminal(
+            *ReusedAuthenticationManager,
+            ReusedAuthenticationRequest,
+            ReusedAuthenticationSnapshot);
+    const auto ReusedAuthenticationInspection = Authentication->Inspect();
+    Record(Result.Passed, Result.Failed,
+        FirstAuthenticatedTerminal &&
+            FirstAuthenticatedSnapshot.State ==
+                Asset::EAssetRequestState::Ready &&
+            ReusedAuthenticationTerminal &&
+            ReusedAuthenticationSnapshot.State ==
+                Asset::EAssetRequestState::Ready &&
+            FirstAuthenticationInspection.AuthenticatedEnvelopeCount > 0 &&
+            ReusedAuthenticationInspection.ReuseHits >
+                FirstAuthenticationInspection.ReuseHits,
+        "exact generation authentication is reused without retaining payloads");
+    (void)ReusedAuthenticationManager->Shutdown();
 
 #if !SG_PLATFORM_WINDOWS
     std::filesystem::permissions(

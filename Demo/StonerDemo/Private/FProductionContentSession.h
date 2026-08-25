@@ -17,11 +17,16 @@ struct FProductionContentSessionConfig
     Core::uint32 WorkerCount = 4;
     Core::uint64 RequestTimeoutMilliseconds = 30000;
     bool bLoadRootClosureFirst = false;
+    bool bReuseCookedEnvelopeAuthentication = false;
 
     [[nodiscard]] bool IsValid() const noexcept;
 };
 
 [[nodiscard]] bool ShouldLoadProductionRootClosureFirst(
+    const Core::FString& WorkloadRevision,
+    Core::uint32 LifecycleCycles) noexcept;
+
+[[nodiscard]] bool ShouldReuseProductionCookedEnvelopeAuthentication(
     const Core::FString& WorkloadRevision,
     Core::uint32 LifecycleCycles) noexcept;
 
@@ -44,6 +49,8 @@ struct FProductionContentSessionInspection
     Core::uint32 ReleasedRequestCount = 0;
     Core::uint32 CancelledRequestCount = 0;
     Asset::FAssetManagerInspection Manager;
+    Asset::FAssetCookedEnvelopeAuthenticationInspection
+        CookedEnvelopeAuthentication;
     Core::FString FirstFailure;
     bool bPublished = false;
     bool bShutdown = false;

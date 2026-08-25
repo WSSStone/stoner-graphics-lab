@@ -293,11 +293,20 @@ Validation. No new runtime module is introduced.
    existing request cache, then request every remaining manifest record to
    prove publication completeness without duplicating dependency decode work.
    The Lantern and regular 20-cycle request schedules are unchanged. When the
-   already-validated generation manifest supplies the exact cooked-envelope digest, strict typed
-   loading authenticates the complete envelope once and does not re-hash its
-   covered body; generic envelope decoding retains the independent body digest
-   check, and missing or mismatched manifest authority fails closed. Every
-   lifecycle cycle still
+   already-validated generation manifest supplies the exact cooked-envelope
+   digest, strict typed loading authenticates the complete envelope once and
+   does not re-hash its covered body; generic envelope decoding retains the
+   independent body digest check, and missing or mismatched manifest authority
+   fails closed. For Sponza v2 at exactly 1,000 cycles, retain a manifest-bounded
+   set of successfully authenticated envelope digests while an authentication-
+   owned reader lease continuously protects the exact publication namespace
+   and generation. Later cycles still query and read every file, parse every
+   container, decode every typed payload, realize/render the complete closure,
+   and release every runtime owner; the set contains no payload bytes, decoded
+   assets, runtime handles, or graphics objects. Unknown generations, changed
+   publication namespaces, first-load corruption, and capacity mismatch fail
+   closed. Lantern, regular, and general Asset Manager callers do not enable
+   this validation-only memo. Every lifecycle cycle still
    performs synchronized GPU readback and nonblank validation for Deferred
    FinalOutput and ForwardColor. After the exact terminal teardown, RSS sample,
    and lifecycle decision, one uncounted extraction pass copies all six Deferred

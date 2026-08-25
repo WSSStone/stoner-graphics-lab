@@ -235,28 +235,25 @@ EAssetResult WriteAssetCookedPayload(
     return EAssetResult::Success;
 }
 
-EAssetResult ParseAssetCookedPayload(
-    std::span<const Core::uint8> Bytes,
-    const FAssetCookedPayloadLimits& Limits,
-    FAssetCookedPayloadEnvelope& OutEnvelope)
+namespace
 {
-    return ParseManifestAuthenticatedAssetCookedPayload(
-        Bytes, {}, Limits, OutEnvelope);
-}
-
-EAssetResult ParseManifestAuthenticatedAssetCookedPayload(
+EAssetResult ParseAssetCookedPayloadWithAuthority(
     std::span<const Core::uint8> Bytes,
     const FAssetDigest& ExpectedEnvelopeDigest,
+    bool bPreviouslyAuthenticated,
     const FAssetCookedPayloadLimits& Limits,
     FAssetCookedPayloadEnvelope& OutEnvelope)
 {
     OutEnvelope = {};
     if (Limits.Validate() != EAssetResult::Success ||
         Bytes.size() > Limits.MaxEnvelopeBytes || Bytes.size() < 72 ||
-        !std::equal(Magic.begin(), Magic.end(), Bytes.begin()))
+        !std::equal(Magic.begin(), Magic.end(), Bytes.begin()) ||
+        (bPreviouslyAuthenticated && !ExpectedEnvelopeDigest.IsAvailable()))
         return EAssetResult::MalformedContainer;
-    const FAssetDigest EnvelopeDigest = FAssetDigest::FromBytes(Bytes);
-    if (ExpectedEnvelopeDigest.IsAvailable() &&
+    const FAssetDigest EnvelopeDigest = bPreviouslyAuthenticated
+        ? ExpectedEnvelopeDigest
+        : FAssetDigest::FromBytes(Bytes);
+    if (!bPreviouslyAuthenticated && ExpectedEnvelopeDigest.IsAvailable() &&
         EnvelopeDigest != ExpectedEnvelopeDigest)
         return EAssetResult::CorruptPayload;
     FReader Reader(Bytes);
@@ -318,6 +315,36 @@ EAssetResult ParseManifestAuthenticatedAssetCookedPayload(
     Parsed.EnvelopeDigest = EnvelopeDigest;
     OutEnvelope = std::move(Parsed);
     return EAssetResult::Success;
+}
+} // namespace
+
+EAssetResult ParseAssetCookedPayload(
+    std::span<const Core::uint8> Bytes,
+    const FAssetCookedPayloadLimits& Limits,
+    FAssetCookedPayloadEnvelope& OutEnvelope)
+{
+    return ParseAssetCookedPayloadWithAuthority(
+        Bytes, {}, false, Limits, OutEnvelope);
+}
+
+EAssetResult ParseManifestAuthenticatedAssetCookedPayload(
+    std::span<const Core::uint8> Bytes,
+    const FAssetDigest& ExpectedEnvelopeDigest,
+    const FAssetCookedPayloadLimits& Limits,
+    FAssetCookedPayloadEnvelope& OutEnvelope)
+{
+    return ParseAssetCookedPayloadWithAuthority(
+        Bytes, ExpectedEnvelopeDigest, false, Limits, OutEnvelope);
+}
+
+EAssetResult ParsePreviouslyAuthenticatedAssetCookedPayload(
+    std::span<const Core::uint8> Bytes,
+    const FAssetDigest& ExpectedEnvelopeDigest,
+    const FAssetCookedPayloadLimits& Limits,
+    FAssetCookedPayloadEnvelope& OutEnvelope)
+{
+    return ParseAssetCookedPayloadWithAuthority(
+        Bytes, ExpectedEnvelopeDigest, true, Limits, OutEnvelope);
 }
 
 } // namespace Stoner::Asset::Private

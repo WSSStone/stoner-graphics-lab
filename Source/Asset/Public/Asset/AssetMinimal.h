@@ -7,6 +7,7 @@
 #include "Asset/FAssetDerivedDataEntry.h"
 #include "Asset/FAssetTargetProfile.h"
 #include "Asset/FAssetCookedPayload.h"
+#include "Asset/FAssetCookedEnvelopeAuthentication.h"
 #include "Asset/FAssetCookContractCodec.h"
 #include "Asset/FAssetCookedExtensions.h"
 #include "Asset/FAssetCookManifest.h"

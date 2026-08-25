@@ -564,6 +564,10 @@ EDemoExitCode FStonerDemoApplication::InitializeProductionContent()
         ShouldLoadProductionRootClosureFirst(
             Configuration.WorkloadRevision,
             Configuration.ProductionLifecycleCycles);
+    SessionConfig.bReuseCookedEnvelopeAuthentication =
+        ShouldReuseProductionCookedEnvelopeAuthentication(
+            Configuration.WorkloadRevision,
+            Configuration.ProductionLifecycleCycles);
     const Asset::EAssetResult SessionResult = ProductionRuntime->Session.Load(
         SessionConfig, ProductionRuntime->LoadedClosure);
     if (SessionResult != Asset::EAssetResult::Success)

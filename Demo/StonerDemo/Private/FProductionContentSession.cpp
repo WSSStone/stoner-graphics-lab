@@ -206,12 +206,22 @@ bool ShouldLoadProductionRootClosureFirst(
         WorkloadRevision == Core::FString("production-content-sponza-v2");
 }
 
+bool ShouldReuseProductionCookedEnvelopeAuthentication(
+    const Core::FString& WorkloadRevision,
+    Core::uint32 LifecycleCycles) noexcept
+{
+    return LifecycleCycles == 1000 &&
+        WorkloadRevision == Core::FString("production-content-sponza-v2");
+}
+
 struct FProductionContentSession::FImpl
 {
     Core::TSharedPtr<FAssetExtensionRegistry> Registry;
     FAssetRegistrationToken KTX2Loader;
     FAssetCookedExtensionRegistrations CookedLoaders;
     Core::TSharedPtr<FAssetManager> Manager;
+    Core::TSharedPtr<FAssetCookedEnvelopeAuthentication>
+        CookedEnvelopeAuthentication;
     Core::TArray<FAnyAssetHandle> Handles;
     FAssetRequestHandle LastReleasedRequest;
     FProductionContentSessionInspection Inspection;
@@ -236,6 +246,8 @@ FProductionContentSession::FProductionContentSession()
 FProductionContentSession::~FProductionContentSession()
 {
     (void)Shutdown();
+    if (Impl_)
+        Impl_->CookedEnvelopeAuthentication.reset();
 }
 
 EAssetResult FProductionContentSession::Load(
@@ -269,6 +281,38 @@ EAssetResult FProductionContentSession::Load(
         Impl_->Inspection.FirstFailure = "target-profile-mismatch";
         return EAssetResult::DependencyMismatch;
     }
+    if (Config.bReuseCookedEnvelopeAuthentication)
+    {
+        if (!Impl_->CookedEnvelopeAuthentication)
+        {
+            const EAssetResult ContextResult =
+                FAssetCookedEnvelopeAuthentication::Create(
+                    Config.PublicationRoot,
+                    Config.LeaseCoordinationRoot,
+                    Validated.Manifest.GenerationId,
+                    Config.RequestTimeoutMilliseconds,
+                    static_cast<Core::uint32>(
+                        Validated.Manifest.Records.size()),
+                    Impl_->CookedEnvelopeAuthentication);
+            if (ContextResult != EAssetResult::Success)
+            {
+                Impl_->Inspection.FirstFailure =
+                    "envelope-authentication-create";
+                return ContextResult;
+            }
+        }
+        const auto Authentication =
+            Impl_->CookedEnvelopeAuthentication->Inspect();
+        if (!Impl_->CookedEnvelopeAuthentication->MatchesBinding(
+                Config.PublicationRoot,
+                Validated.Manifest.GenerationId) ||
+            Authentication.Capacity < Validated.Manifest.Records.size())
+        {
+            Impl_->Inspection.FirstFailure =
+                "envelope-authentication-generation-mismatch";
+            return EAssetResult::Conflict;
+        }
+    }
     const auto Root = std::find_if(
         Validated.Manifest.Selection.Roots.begin(),
         Validated.Manifest.Selection.Roots.end(),
@@ -299,6 +343,9 @@ EAssetResult FProductionContentSession::Load(
     ManagerConfig.PublicationRoot = Config.PublicationRoot;
     ManagerConfig.LeaseCoordinationRoot = Config.LeaseCoordinationRoot;
     ManagerConfig.TargetEvidence = Config.TargetEvidence;
+    if (Config.bReuseCookedEnvelopeAuthentication)
+        ManagerConfig.CookedEnvelopeAuthentication =
+            Impl_->CookedEnvelopeAuthentication;
     ManagerConfig.WorkerCount = Config.WorkerCount;
     FAssetDiagnosticList Diagnostics;
     EAssetResult Result = FAssetManager::Create(
@@ -482,6 +529,9 @@ EAssetResult FProductionContentSession::Load(
         static_cast<Core::uint32>(Impl_->Handles.size());
     Impl_->Inspection.LoadedAssetCount = Candidate.LoadedAssetCount;
     Impl_->Inspection.Manager = Impl_->Manager->Inspect();
+    if (Impl_->CookedEnvelopeAuthentication)
+        Impl_->Inspection.CookedEnvelopeAuthentication =
+            Impl_->CookedEnvelopeAuthentication->Inspect();
     if (Impl_->Inspection.Manager.ResolverExecutions != 0 ||
         Impl_->Inspection.Manager.ImporterExecutions != 0 ||
         Impl_->Inspection.Manager.AuthoringDecoderExecutions != 0 ||
@@ -505,6 +555,9 @@ EAssetResult FProductionContentSession::Shutdown()
     {
         Result = Impl_->Manager->Shutdown();
         Impl_->Inspection.Manager = Impl_->Manager->Inspect();
+        if (Impl_->CookedEnvelopeAuthentication)
+            Impl_->Inspection.CookedEnvelopeAuthentication =
+                Impl_->CookedEnvelopeAuthentication->Inspect();
         FAssetRequestSnapshot StaleSnapshot;
         Impl_->Inspection.bStaleHandleRejected =
             Impl_->LastReleasedRequest.IsValid() &&

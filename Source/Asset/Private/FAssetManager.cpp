@@ -1,6 +1,7 @@
 #include "Asset/FAssetManager.h"
 
 #include "Asset/FAssetManagerInspection.h"
+#include "Asset/FAssetCookedEnvelopeAuthentication.h"
 #include "FAssetRequestTable.h"
 #include "FAssetDependencyScheduler.h"
 #include "FAssetLoadOperationTable.h"
@@ -155,6 +156,13 @@ EAssetResult FAssetManager::Create(
         const EAssetResult Result = Private::FBoundCookedGeneration::Bind(
             Config, *Bound, OutDiagnostics);
         if (Result != EAssetResult::Success) return Result;
+        if (Config.CookedEnvelopeAuthentication &&
+            (!Config.CookedEnvelopeAuthentication->MatchesBinding(
+                 Config.PublicationRoot,
+                 Bound->GetPointer().GenerationId) ||
+             Config.CookedEnvelopeAuthentication->Inspect().Capacity <
+                 Bound->GetManifest().Records.size()))
+            return EAssetResult::InvalidInput;
     }
     Core::TUniquePtr<Private::IAssetLoadingStrategy> Strategy;
     auto ExecutionCounters =

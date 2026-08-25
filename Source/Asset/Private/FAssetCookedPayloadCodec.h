@@ -26,4 +26,10 @@ namespace Stoner::Asset::Private
     const FAssetCookedPayloadLimits& Limits,
     FAssetCookedPayloadEnvelope& OutEnvelope);
 
+[[nodiscard]] EAssetResult ParsePreviouslyAuthenticatedAssetCookedPayload(
+    std::span<const Core::uint8> Bytes,
+    const FAssetDigest& ExpectedEnvelopeDigest,
+    const FAssetCookedPayloadLimits& Limits,
+    FAssetCookedPayloadEnvelope& OutEnvelope);
+
 } // namespace Stoner::Asset::Private

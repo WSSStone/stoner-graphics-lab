@@ -181,6 +181,25 @@ EAssetResult FAssetCookContractCodec::LoadManifestAuthenticatedTypedPayload(
     return DecodeTypedPayload(std::move(Envelope), OutPayload, OutEnvelope);
 }
 
+EAssetResult FAssetCookContractCodec::LoadPreviouslyAuthenticatedTypedPayload(
+    std::span<const Core::uint8> Bytes,
+    const FAssetDigest& ExpectedEnvelopeDigest,
+    const FAssetCookedPayloadLimits& Limits,
+    Core::TSharedPtr<const FAssetPayload>& OutPayload,
+    FAssetCookedPayloadEnvelope* OutEnvelope)
+{
+    OutPayload.reset();
+    if (OutEnvelope) *OutEnvelope = {};
+    if (!ExpectedEnvelopeDigest.IsAvailable())
+        return EAssetResult::InvalidInput;
+    FAssetCookedPayloadEnvelope Envelope;
+    const EAssetResult Parse =
+        Private::ParsePreviouslyAuthenticatedAssetCookedPayload(
+            Bytes, ExpectedEnvelopeDigest, Limits, Envelope);
+    if (Parse != EAssetResult::Success) return Parse;
+    return DecodeTypedPayload(std::move(Envelope), OutPayload, OutEnvelope);
+}
+
 EAssetResult FAssetCookContractCodec::WriteManifest(
     FAssetCookManifest& InOutManifest,
     const FAssetCookManifestLimits& Limits,

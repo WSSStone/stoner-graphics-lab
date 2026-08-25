@@ -286,6 +286,7 @@ void TestGoldenFixtures(FAssetCookerPayloadCodecTestResult& Result)
         FAssetCookContractCodec::LoadManifestAuthenticatedTypedPayload(
             Valid, {}, {}, Payload) == EAssetResult::InvalidInput && !Payload,
         "manifest-authenticated typed load rejects absent authority");
+
 }
 
 } // namespace

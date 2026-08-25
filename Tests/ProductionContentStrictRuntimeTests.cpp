@@ -312,6 +312,14 @@ RunProductionContentStrictRuntimeTests()
             !Demo::ShouldLoadProductionRootClosureFirst(
                 "production-content-sponza-v2", 20),
         "root-first loading is isolated to the Sponza v2 1000-cycle profile");
+    Record(Result,
+        Demo::ShouldReuseProductionCookedEnvelopeAuthentication(
+            "production-content-sponza-v2", 1000) &&
+            !Demo::ShouldReuseProductionCookedEnvelopeAuthentication(
+                "production-content-lantern-v2", 1000) &&
+            !Demo::ShouldReuseProductionCookedEnvelopeAuthentication(
+                "production-content-sponza-v2", 20),
+        "envelope authentication reuse is isolated to the Sponza v2 1000-cycle profile");
 
     std::filesystem::create_directories(
         TemporaryRoot / "LeaseDemoRootFirst");
@@ -319,6 +327,7 @@ RunProductionContentStrictRuntimeTests()
     RootFirstConfig.LeaseCoordinationRoot = Core::FString(
         (TemporaryRoot / "LeaseDemoRootFirst").generic_string());
     RootFirstConfig.bLoadRootClosureFirst = true;
+    RootFirstConfig.bReuseCookedEnvelopeAuthentication = true;
     Demo::FProductionContentSession RootFirstSession;
     Demo::FProductionContentLoadedClosure RootFirstClosure;
     const auto RootFirstResult =
@@ -339,6 +348,26 @@ RunProductionContentStrictRuntimeTests()
             RootFirstSession.Inspect().Manager.RequestRetentions == 0 &&
             RootFirstSession.Inspect().Manager.ExternalHandleRetentions == 0,
         "Demo medium root-first session releases every manager retention");
+    Demo::FProductionContentLoadedClosure ReusedClosure;
+    const auto ReusedResult =
+        RootFirstSession.Load(RootFirstConfig, ReusedClosure);
+    const auto ReusedInspection = RootFirstSession.Inspect();
+    Record(Result,
+        ReusedResult == EAssetResult::Success && ReusedClosure.Model &&
+            ReusedInspection.CookedEnvelopeAuthentication.GenerationId ==
+                Seed.Manifest.GenerationId &&
+            ReusedInspection.CookedEnvelopeAuthentication.
+                AuthenticatedEnvelopeCount == Seed.Manifest.Records.size() &&
+            ReusedInspection.CookedEnvelopeAuthentication.ReuseHits >=
+                Seed.Manifest.Records.size(),
+        "Demo medium session reuses only bounded generation authentication while reloading the full closure");
+    ReusedClosure = {};
+    Record(Result,
+        RootFirstSession.Shutdown() == EAssetResult::Success &&
+            RootFirstSession.Inspect().Manager.ActiveOperations == 0 &&
+            RootFirstSession.Inspect().Manager.RequestRetentions == 0 &&
+            RootFirstSession.Inspect().Manager.ExternalHandleRetentions == 0,
+        "Demo reused-authentication session still releases every manager retention");
 
     Core::TArray<Core::uint8> WrongProfileBytes;
     FAssetTargetProfileEvidence WrongEvidence;
