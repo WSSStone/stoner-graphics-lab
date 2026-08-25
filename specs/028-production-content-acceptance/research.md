@@ -479,12 +479,14 @@ the leak threshold.
 
 ## Decision 19: Released Linux Heap Pages Are Trimmed Before RSS Sampling
 
-**Decision**: After every complete production-cycle teardown and before the
-existing process-RSS sample, ask the platform memory boundary to release unused
-heap pages. The operation is a no-op on platforms without an applicable safe
-primitive and uses `malloc_trim(0)` on Linux/glibc. The authoritative metric
-remains `/proc/self/statm` resident bytes, measured at the exact declared
-warm-up and terminal cycles with the unchanged 16 MiB growth limit.
+**Decision**: After complete production-cycle teardown at the exact declared
+warm-up and terminal comparison cycles, ask the platform memory boundary to
+release unused heap pages before the existing process-RSS sample. Other cycles
+retain their unmodified samples and peak evidence. The operation is a no-op on
+platforms without an applicable safe primitive and uses `malloc_trim(0)` on
+Linux/glibc. The authoritative metric remains `/proc/self/statm` resident
+bytes, measured at the exact declared warm-up and terminal cycles with the
+unchanged 16 MiB growth limit.
 
 **Rationale**: A hosted Lavapipe rerun after the native prime still returned all
 ownership counters to zero and rejected stale handles, but its released RSS
@@ -495,6 +497,12 @@ resources. Releasing unused glibc heap pages immediately after teardown makes
 the existing RSS contract measure live post-release residency instead of an
 arbitrary allocator-cache high point.
 
+Calling `malloc_trim` at every one of 1,000 lifecycle cycles was rejected by
+the final manual Linux medium run: both packages reached native execution, but
+the repeated global allocator scan exhausted the remaining 1,467-second stage
+budget. Trimming only the two authoritative comparison samples preserves the
+measurement contract without contaminating lifecycle throughput.
+
 **Alternatives considered**:
 
 - Raise or disable the 16 MiB limit on Lavapipe: rejected because it weakens the
@@ -503,3 +511,5 @@ arbitrary allocator-cache high point.
   process residency detect different classes of leaks and both remain required.
 - Use the minimum or median of several cycles: rejected because it changes the
   exact post-warm-up-to-terminal contract and could hide terminal retention.
+- Trim every sampled cycle: rejected because intermediate RSS remains useful
+  peak evidence and 1,000 global allocator scans exceeded the medium budget.

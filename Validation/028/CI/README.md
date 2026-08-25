@@ -22,9 +22,42 @@ insufficient: Linux completed all 20 cycles with 40 captures, seven retained
 readbacks, zero terminal owners, and stale-handle rejection, but released RSS
 oscillated from 427,380,736 to 563,261,440 bytes and cycle 2 to cycle 20 grew
 85,561,344 bytes. Revision `f92421502770139b5357420323a61e18ee112c76`
-therefore trims unused Linux/glibc heap
-pages after complete teardown and before the same `/proc/self/statm` sample; it
-does not change the metric, cycle boundaries, or threshold.
+therefore introduced Linux/glibc heap trimming before the same
+`/proc/self/statm` comparison samples; it did not change the metric, cycle
+boundaries, or threshold. Manual medium run `32814481517` then showed that
+trimming all 1,000 intermediate samples exhausted its remaining 1,467-second
+native stage budget. The follow-up limits trimming to the authoritative warm-up
+and terminal comparison cycles at code authority
+`ffdc1a73994c8fb47971d8033628aba831af669d`, while preserving every intermediate
+RSS sample and peak.
+
+## Final Hosted Regular And Sanitizer Evidence
+
+Push run `32811086369` passed on evidence revision
+`2762019d69cec9a39a71467e82ada6331b7f5c4a`, whose direct code authority is
+`f92421502770139b5357420323a61e18ee112c76`. Windows Vulkan, Linux Lavapipe
+Vulkan, macOS arm64 Metal, macOS x86_64 Metal, ASan/UBSan, and TSan passed.
+Four independent consumer jobs then downloaded and revalidated the immutable
+regular artifacts successfully.
+
+The corrected Linux run retained the exact 20-cycle / cycle-2 warm-up contract:
+40 captures, seven final readbacks, zero terminal owners, stale-handle
+rejection, 220,930,048 warm-up RSS bytes, 171,393,024 terminal RSS bytes,
+323,387,392 peak RSS bytes, and zero positive growth. Its regular profile
+finished in 325.050 seconds against the 600-second budget.
+
+| Artifact | Size bytes | SHA-256 |
+|---|---:|---|
+| `production-regular-windows-vulkan-1` | 1,069,677,777 | `ac7874753f19971640123defa51e2a58e38547ef523c03c97512d3854ea6122e` |
+| `production-regular-linux-vulkan-1` | 1,069,676,734 | `207ce85e3d121a0078caa17fab8ea983813c581448a544c01e96e8cefaf2ddb2` |
+| `production-regular-macos-metal-1` | 1,070,847,441 | `3a4b1bda8f5b41c473b394d50e93198ce11d7b6b115050d346fbe8da889c6c5a` |
+| `production-regular-macos-intel-metal-1` | 1,070,850,762 | `601d0ed00080e552dee4494dd7b19707c7dc6d79ffb3a6faa5c8df215458a80f` |
+| `production-consumer-windows-vulkan-1` | 89,437 | `b0f0619472bcdb8486afe34257abc10a91d1df7ee325a5e70abbf46e959c9f9d` |
+| `production-consumer-linux-vulkan-1` | 89,369 | `0bf66b5af0324807f4550734afb692966641bc4f838306fd065d4654d24ebf95` |
+| `production-consumer-macos-metal-1` | 89,244 | `9f8941153603c8dd3916b68e8bd20908794a9681a7edc05f11e7ad18f98ba66d` |
+| `production-consumer-macos-intel-metal-1` | 89,468 | `c9a81e68bac5de3177decbbce8397b901ccb606b6bac9daf233541ab65d136a0` |
+| `production-sanitizer-asan-ubsan-1` | 1,909 | `f3fdb76c2602a5c45bc3c7637b67b31f7b083a4767f4c244c13a611a36132918` |
+| `production-sanitizer-tsan-1` | 1,476 | `7b675959d58942c62e4730eea052dfd805bc5f9de964cf268e9bdc709c4c9e7d` |
 
 ## Final-Revision Local Metal Hardware Evidence
 
