@@ -23,6 +23,8 @@ struct FProductionContentDeferredExecutionResources
     Core::TArray<Core::TSharedPtr<RHI::IRHIDescriptorSet>> OwnedDescriptorSets;
 
     [[nodiscard]] bool IsValid() const noexcept;
+    [[nodiscard]] Renderer::FDeferredFrameExecutionBindings
+        BuildCycleBindings(bool bAuthoritativeReadbacks) const;
     void Release() noexcept;
 };
 

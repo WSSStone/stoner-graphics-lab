@@ -381,7 +381,12 @@ provenance and shutdown invalidation without becoming an extra resource owner.
 bytes only for the final authoritative attachment set consumed by semantic and
 FLIP acceptance. Retain every failed diagnostic and its global sequence number,
 while retaining at most 256 successful diagnostic records and reporting the
-number of dropped successes in stable diagnostic text.
+number of dropped successes in stable diagnostic text. Every lifecycle cycle
+still performs synchronized GPU-to-CPU readback and nonblank validation for
+Deferred FinalOutput and ForwardColor. Non-terminal cycles omit the five
+intermediate Deferred attachment copies plus retained byte copies and SHA-256
+work; the terminal cycle restores all six Deferred readbacks and retains the
+seven authoritative Deferred/Forward records.
 
 **Rationale**: A 1,000-cycle validation run must prove that the renderer and
 backend release their resources; the validation recorder itself must not grow
@@ -396,6 +401,9 @@ continue to preserve every actionable failure.
   requested cycle count and contaminate the RSS gate.
 - Stop recording after warm-up: rejected because later presentation or Forward
   omissions would become invisible.
+- Skip all non-terminal GPU readback: rejected because a late blank, stale, or
+  omitted Deferred/Forward output would become invisible even if ownership and
+  submission counters remained balanced.
 - Cap every diagnostic indiscriminately: rejected because a late primary or
   secondary failure must remain inspectable.
 

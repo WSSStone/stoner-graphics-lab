@@ -741,15 +741,18 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         return FailInitialize(EDemoStage::Runtime,
             EDemoExitCode::RuntimeUnavailable, "ProductionExecution",
             "requested backend did not prove native execution");
-    const auto RecordCommands = [this](EDemoRenderPath Path)
+    const auto RecordCommands = [this](EDemoRenderPath Path,
+        bool bAuthoritativeDeferredReadbacks)
         -> Core::TSharedPtr<RHI::IRHICommandBuffer>
     {
         if (Path == EDemoRenderPath::DeferredFull)
         {
+            const auto Bindings = ProductionRuntime->DeferredResources.
+                BuildCycleBindings(bAuthoritativeDeferredReadbacks);
             const auto Execution = Renderer::FDeferredFrameExecutor().Execute(
                 ProductionRuntime->DeferredResources.Plan,
                 ProductionRuntime->DeferredResources.Graph,
-                ProductionRuntime->DeferredResources.Bindings);
+                Bindings);
             return Execution.Succeeded()
                 ? ProductionRuntime->DeferredResources.Bindings.CommandBuffer
                 : Core::TSharedPtr<RHI::IRHICommandBuffer>{};
@@ -779,7 +782,8 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         const Core::TSharedPtr<RHI::IRHIBuffer>& Readback,
         const RHI::FRHITextureBufferCopyRegion& Region,
         RHI::ERHIFormat Format,
-        Core::uint64 ReadbackBytes)
+        Core::uint64 ReadbackBytes,
+        bool bRetainAuthoritativeEvidence)
     {
         Core::TArray<Core::uint8> Bytes;
         if (!Readback || ReadbackBytes == 0 ||
@@ -794,19 +798,23 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         const Core::uint32 RowTexels =
             Region.DestinationRowLengthTexels == 0
             ? Region.Width : Region.DestinationRowLengthTexels;
-        FDemoProductionReadbackEvidence Evidence;
-        Evidence.Name = Name;
-        Evidence.Digest =
-            Asset::FAssetDigest::FromBytes(Bytes).ToLowerHex();
-        Evidence.ByteCount = ReadbackBytes;
-        Evidence.Width = Region.Width;
-        Evidence.Height = Region.Height;
-        Evidence.RowPitchBytes =
-            RowTexels * RHI::GetRHIFormatByteSize(Format);
-        Evidence.Format = Format;
-        Evidence.bNonBlank = bNonBlank;
-        Evidence.Bytes = Bytes;
-        ProductionExecutionInspection.Readbacks.push_back(std::move(Evidence));
+        if (bRetainAuthoritativeEvidence)
+        {
+            FDemoProductionReadbackEvidence Evidence;
+            Evidence.Name = Name;
+            Evidence.Digest =
+                Asset::FAssetDigest::FromBytes(Bytes).ToLowerHex();
+            Evidence.ByteCount = ReadbackBytes;
+            Evidence.Width = Region.Width;
+            Evidence.Height = Region.Height;
+            Evidence.RowPitchBytes =
+                RowTexels * RHI::GetRHIFormatByteSize(Format);
+            Evidence.Format = Format;
+            Evidence.bNonBlank = bNonBlank;
+            Evidence.Bytes = Bytes;
+            ProductionExecutionInspection.Readbacks.push_back(
+                std::move(Evidence));
+        }
         if (bNonBlank && (Name == Core::FString("FinalOutput") ||
                 Name == Core::FString("ForwardColor")))
         {
@@ -821,18 +829,20 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                 std::chrono::duration_cast<std::chrono::nanoseconds>(
                     std::chrono::system_clock::now().time_since_epoch()).count());
             Capture.Format = Format;
-            Capture.Bytes = std::move(Bytes);
             const bool bSelectedVisiblePath = Configuration.bVisibleCapture &&
                 ((Configuration.RenderPath == EDemoRenderPath::DeferredFull &&
                     Name == Core::FString("FinalOutput")) ||
                  (Configuration.RenderPath == EDemoRenderPath::ForwardSmoke &&
                     Name == Core::FString("ForwardColor")));
+            if (bSelectedVisiblePath || bRetainAuthoritativeEvidence)
+                Capture.Bytes = std::move(Bytes);
             if (bSelectedVisiblePath)
             {
                 if (!PresentProductionCaptureWithRecovery(Capture)) return false;
             }
-            Capture.Digest =
-                Asset::FAssetDigest::FromBytes(Capture.Bytes).ToLowerHex();
+            if (!Capture.Bytes.empty())
+                Capture.Digest =
+                    Asset::FAssetDigest::FromBytes(Capture.Bytes).ToLowerHex();
             const bool bStreamCalibrationCapture =
                 bSelectedVisiblePath &&
                 !Configuration.ProductionCaptureRoot.IsEmpty() &&
@@ -873,7 +883,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
     const auto PrimeNativePath = [&](EDemoRenderPath Path)
     {
         if (!ProductionSubmissionHarness) return false;
-        const auto Commands = RecordCommands(Path);
+        const auto Commands = RecordCommands(Path, false);
         return Commands && ProductionSubmissionHarness->SubmitAndWait(
             Commands, 30'000'000) == RHI::ERHIResult::Success;
     };
@@ -902,9 +912,12 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                     EDemoExitCode::FrameFailed, "ProductionExecution",
                     "production native submission harness is unavailable");
             ProductionExecutionInspection.Readbacks.clear();
+            const bool bRetainAuthoritativeEvidence =
+                Cycle == Configuration.ProductionLifecycleCycles;
             const auto ExecutePath = [&](EDemoRenderPath Path)
             {
-                const auto Commands = RecordCommands(Path);
+                const auto Commands = RecordCommands(
+                    Path, bRetainAuthoritativeEvidence);
                 const char* PathName = Path == EDemoRenderPath::DeferredFull
                     ? "Deferred" : "Forward";
                 if (!Commands)
@@ -928,6 +941,9 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                     for (const auto& Binding :
                          ProductionRuntime->DeferredResources.Bindings.Readbacks)
                     {
+                        if (!bRetainAuthoritativeEvidence &&
+                            Binding.Name != Core::FString("FinalOutput"))
+                            continue;
                         Core::uint64 ReadbackBytes = 0;
                         const bool bBindingValid = Binding.Source &&
                             RHI::TryGetRHITextureBufferCopyByteSize(
@@ -935,7 +951,8 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                                 ReadbackBytes) &&
                             CaptureReadback(Cycle, Binding.Name,
                                 Binding.Destination, Binding.Region,
-                                Binding.Source->GetFormat(), ReadbackBytes);
+                                Binding.Source->GetFormat(), ReadbackBytes,
+                                bRetainAuthoritativeEvidence);
                         bReadbacksValid = bBindingValid && bReadbacksValid;
                     }
                 }
@@ -952,7 +969,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                             ProductionRuntime->ForwardBindings.ReadbackBuffer,
                             ProductionRuntime->ForwardBindings.ReadbackRegion,
                             ProductionRuntime->ForwardBindings.OutputTexture->GetFormat(),
-                            ReadbackBytes);
+                            ReadbackBytes, bRetainAuthoritativeEvidence);
                 }
                 if (!bReadbacksValid)
                     Diagnostics.Add(EDemoStage::Readback,

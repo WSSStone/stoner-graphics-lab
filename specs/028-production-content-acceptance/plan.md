@@ -273,8 +273,12 @@ Validation. No new runtime module is introduced.
    throughput. The medium runner may execute the disjoint CPU/cook stages of
    its two package roots concurrently under one shared deadline, but serializes
    their software-native lifecycle stages to prevent hosted CPU
-   oversubscription; hardware packages remain fully serialized because visible
-   windows and capture devices are host-global resources. Keep
+   oversubscription. Every lifecycle cycle still performs synchronized GPU
+   readback and nonblank validation for Deferred FinalOutput and ForwardColor;
+   only the terminal cycle copies all six Deferred attachments and computes the
+   retained authoritative evidence digests. Hardware packages remain fully
+   serialized because visible windows and capture devices are host-global
+   resources. Keep
    the separate 20-frame Sponza image-calibration run focused on image and
    per-cycle ownership proof; its RSS is observational because Sponza lifecycle
    authority belongs to the 1,000-cycle hardware profile.

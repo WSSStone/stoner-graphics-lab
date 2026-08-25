@@ -603,6 +603,10 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
             DeferredResources.Plan, DeferredResources.Graph,
             DeferredResources.Bindings)
         : Renderer::FDeferredFrameExecutionResult{};
+    const auto LifecycleBindings =
+        DeferredResources.BuildCycleBindings(false);
+    const auto AuthoritativeBindings =
+        DeferredResources.BuildCycleBindings(true);
     Record(Result,
         DeferredBuild == RHI::ERHIResult::Success &&
             DeferredResources.IsValid() && DeferredExecution.Succeeded() &&
@@ -612,6 +616,14 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
             DeferredExecution.RecordedDrawCount >=
                 DeferredResources.Plan.AcceptedDraws.size(),
         "strict shader closure records aggregate production Deferred attachments and readbacks");
+    Record(Result,
+        LifecycleBindings.Readbacks.size() == 1 &&
+            LifecycleBindings.Readbacks.front().Name ==
+                Core::FString("FinalOutput") &&
+            LifecycleBindings.Readbacks.front().Source ==
+                DeferredResources.Bindings.FinalOutput &&
+            AuthoritativeBindings.Readbacks.size() == 6,
+        "intermediate lifecycle reads only final output while the terminal cycle retains all authoritative attachments");
 
     FProductionContentComposition InvalidComposition;
     CompositionConfig.FrameToken = 0;

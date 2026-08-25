@@ -394,6 +394,23 @@ bool FProductionContentDeferredExecutionResources::IsValid() const noexcept
         Bindings.Readbacks.size() == 6;
 }
 
+FDeferredFrameExecutionBindings
+FProductionContentDeferredExecutionResources::BuildCycleBindings(
+    bool bAuthoritativeReadbacks) const
+{
+    FDeferredFrameExecutionBindings Selected = Bindings;
+    if (!bAuthoritativeReadbacks)
+    {
+        Selected.Readbacks.erase(std::remove_if(
+            Selected.Readbacks.begin(), Selected.Readbacks.end(),
+            [](const FDeferredReadbackBinding& Binding)
+            {
+                return Binding.Name != Core::FString("FinalOutput");
+            }), Selected.Readbacks.end());
+    }
+    return Selected;
+}
+
 void FProductionContentDeferredExecutionResources::Release() noexcept
 {
     Bindings = {};
