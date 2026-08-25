@@ -3,10 +3,12 @@
 ## Host And Revision
 
 - Host: Apple M4 Pro, macOS arm64
-- Revision: `c82e51790643fc6583a80240239f6f4123cc0df1`
+- Evidence head: `b7c89d6a5bbf92775db3b9f05af4d57e9bd5dc34`
+- Direct code authority: `ffdc1a73994c8fb47971d8033628aba831af669d`
 - Scope: final v2 cameras/baselines, winding and lighting correction, bounded
   long-lifecycle bookkeeping, Vulkan submission retirement, and transient
-  native-presentation recovery, and pre-measurement native lifecycle priming
+  native-presentation recovery, pre-measurement native lifecycle priming, and
+  Linux/glibc trimming at only the authoritative RSS comparison cycles
 - Environment: repository bundled Python/SCons 4.10.1 toolchain
 
 ## Results
