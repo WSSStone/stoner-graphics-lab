@@ -311,6 +311,32 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 "medium", "unknown", 20
             )
 
+    def test_medium_package_shards_are_exact_and_fail_closed(self):
+        packages = [
+            {"packageId": "khronos-lantern-glb"},
+            {"packageId": "khronos-sponza-gltf"},
+        ]
+        self.assertEqual(
+            packages,
+            self.module.select_profile_packages(
+                "medium", packages, None
+            ),
+        )
+        self.assertEqual(
+            [packages[1]],
+            self.module.select_profile_packages(
+                "medium", packages, "khronos-sponza-gltf"
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "only by medium"):
+            self.module.select_profile_packages(
+                "regular", packages, "khronos-lantern-glb"
+            )
+        with self.assertRaisesRegex(ValueError, "not declared"):
+            self.module.select_profile_packages(
+                "medium", packages, "unknown"
+            )
+
     def test_optional_native_lock_serializes_only_wrapped_action(self):
         events = []
 

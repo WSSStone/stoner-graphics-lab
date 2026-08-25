@@ -148,6 +148,22 @@ def profile_package_clean_runs(
     return requested_runs if profile == "regular" else 1
 
 
+def select_profile_packages(
+    profile: str, packages: list[dict], package_id: str | None
+) -> list[dict]:
+    if package_id is None:
+        return packages
+    if profile != "medium":
+        raise ValueError("package sharding is supported only by medium")
+    selected = [
+        package for package in packages
+        if package["packageId"] == package_id
+    ]
+    if len(selected) != 1:
+        raise ValueError("medium shard package is not declared by the profile")
+    return selected
+
+
 def run_with_optional_lock(action, lock):
     if lock is None:
         return action()
@@ -1453,6 +1469,9 @@ def run_profile(args: argparse.Namespace) -> dict:
         target_profile,
         manifest,
     )
+    packages = select_profile_packages(
+        args.profile, packages, args.package_id
+    )
     target_contract = load_native_target_contract(target_profile)
     validate_native_deferral(
         args.profile, target_contract, args.defer_native_to_hardware
@@ -1493,7 +1512,7 @@ def run_profile(args: argparse.Namespace) -> dict:
     verification = verifier.verify_manifest(
         manifest_path,
         content_root,
-        package_ids=validation_profile["packageIds"],
+        package_ids=[package["packageId"] for package in packages],
     )
     if verification["result"] != "Passed":
         raise RuntimeError(
@@ -1632,10 +1651,11 @@ def parse_args(values: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--determinism-runs", type=int, default=20)
     parser.add_argument("--timeout-seconds", type=int, default=1800)
+    parser.add_argument("--package-id")
     args = parser.parse_args(values)
     if args.verify_only is not None:
         if any((args.profile, args.build_root, args.output, args.acquire_missing,
-                args.defer_native_to_hardware)):
+                args.defer_native_to_hardware, args.package_id)):
             parser.error(
                 "--verify-only cannot be combined with execution options"
             )
@@ -1650,6 +1670,8 @@ def parse_args(values: Sequence[str] | None = None) -> argparse.Namespace:
         parser.error("--determinism-runs must be in [1, 20]")
     if not 60 <= args.timeout_seconds <= 7200:
         parser.error("--timeout-seconds must be in [60, 7200]")
+    if args.package_id is not None and args.profile != "medium":
+        parser.error("--package-id is supported only by --profile medium")
     return args
 
 

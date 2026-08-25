@@ -274,11 +274,13 @@ Validation. No new runtime module is introduced.
    tracked counter to baseline and enforce at most 16 MiB RSS growth between the
    sample immediately after warm-up and the terminal sample. Use one runtime
    manager worker for regular allocator stability and eight for medium/hardware
-   throughput. The medium runner executes the two disjoint package CPU/cook
-   stages concurrently under one shared deadline on the hosted arm64 Metal
-   lane, waits until both packages have completed strict runtime, then
-   serializes native lifecycle stages so neither CPU/cook pressure nor GPU
-   contention can alter throughput or per-process RSS. The Linux Lavapipe lane remains the regular
+   throughput. Scheduled/manual medium assigns each accepted package to its own
+   hosted arm64 Metal lane with the unchanged 1,800-second per-lane deadline.
+   Each lane owns its package's complete clean/warm/strict/equivalence/
+   1,000-cycle proof, and an aggregate job requires the exact profile package
+   set plus identical corpus, target, and revision authority. Local full-profile
+   fallback keeps the post-strict barrier and serialized native execution. The
+   Linux Lavapipe lane remains the regular
    software-native gate because one isolated 1,000-cycle Lantern lifecycle
    alone exceeded the complete medium budget. Every lifecycle cycle still
    performs synchronized GPU

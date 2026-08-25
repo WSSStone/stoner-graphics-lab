@@ -225,12 +225,11 @@ feature closeout must validate the candidate revision deliberately. Separating
 hardware prevents hosts without a physical display/device from being counted as
 native passes. Immutable producer artifacts can reduce duplicated cooking, but
 every consumer revalidates target and manifest evidence. Medium package roots
-own disjoint source, DDC, publication, lease, and report trees, so up to two
-CPU/cook stages may run concurrently while retaining their manifest order and
-one shared deadline. Both packages meet at a post-strict-runtime barrier before
-their hosted Metal native lifecycle stages are serialized, because overlap with
-either CPU/cook work or another native process contaminates throughput and
-per-process RSS. The scheduled/manual medium lane uses
+own disjoint source, DDC, publication, lease, and report trees. Scheduled/manual
+hosted Metal assigns one complete package to each isolated lane and aggregates
+their exact authority; the local full-profile fallback overlaps CPU/cook work,
+meets at a post-strict barrier, and serializes native execution. The
+scheduled/manual medium lanes use
 GitHub-hosted arm64 Metal: an isolated 1,000-cycle Lantern Lavapipe lifecycle
 exhausted 1,471 remaining seconds after all preceding stages passed, proving
 that serialization could not make the two-package Linux software-native
@@ -566,6 +565,22 @@ one clean run per package and retain every warm, publication, equivalence,
 strict-runtime, 1,000/20 lifecycle, RSS, readback, and ownership requirement.
 This removes duplicated regular work rather than reducing medium scale proof,
 and the summary reports the number of clean runs actually executed.
+
+Hosted run `32869040060` still exhausted 1,800 seconds after that de-duplication,
+while the identical full profile passed on the physical M4 Pro in 1,688.229
+seconds. A single hosted lane therefore has no stable margin for the sum of both
+unaltered native lifecycles. Scheduled/manual medium now uses two isolated
+`macos-26` Metal lanes, one exact declared package per lane, running
+concurrently. Each lane retains its own 1,800-second authority and complete
+clean/warm/publication/equivalence/strict/1,000-cycle/RSS evidence. A separate
+aggregate job downloads only the summary and artifact-manifest authority,
+requires the exact profile package set, rejects duplicates or cross-lane
+corpus/target drift, and fails unless both native results pass.
+
+Raising the 1,800-second limit, reducing lifecycle cycles, weakening 20-cycle
+warm-up/RSS, or running both native processes on one host were rejected. The
+two-lane wall time is the maximum package lane time rather than their sum, which
+matches SC-010's 30-minute-per-declared-lane contract without removing work.
 
 **Alternatives considered**:
 

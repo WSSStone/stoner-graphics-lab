@@ -21,6 +21,9 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
             "macos-26-intel", "Mac-Metal-X86_64.json",
             "--profile medium", "timeout-minutes: 60", "--timeout-seconds 1800",
             "production-medium-macos-metal", "Mac-Metal-Arm64.json",
+            "khronos-lantern-glb", "khronos-sponza-gltf",
+            "aggregate_production_medium.py", "--package-id",
+            "production-medium-aggregate",
             "--defer-native-to-hardware",
             "Build strict Debug", "Build strict Release",
             "actions/cache@v4", "External/Sponza",
@@ -38,6 +41,7 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         text = HOSTED.read_text(encoding="utf-8")
         self.assertIn("actions/upload-artifact@v6", text)
         self.assertIn("actions/download-artifact@v7", text)
+        self.assertIn("actions/download-artifact@v6", text)
         self.assertIn("--verify-only", text)
         self.assertIn("--target-profile ${{ matrix.target }}", text)
         self.assertIn("artifact-manifest.json", text)
@@ -48,6 +52,16 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
                 "include-hidden-files: true"
             ),
         )
+
+    def test_medium_uses_two_isolated_exact_package_lanes_and_aggregate(self):
+        text = HOSTED.read_text(encoding="utf-8")
+        self.assertIn("name: Medium Metal (${{ matrix.slug }})", text)
+        self.assertIn("fail-fast: false", text)
+        self.assertEqual(1, text.count("package: khronos-lantern-glb"))
+        self.assertEqual(1, text.count("package: khronos-sponza-gltf"))
+        self.assertIn("needs: medium", text)
+        self.assertIn("production-medium-authority-*", text)
+        self.assertIn("Validate exact medium package authority", text)
 
     def test_hosted_workflow_has_feature_028_linux_sanitizer_gates(self):
         text = HOSTED.read_text(encoding="utf-8")
