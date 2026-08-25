@@ -8,6 +8,7 @@
 #include <psapi.h>
 #elif SG_PLATFORM_MAC
 #include <mach/mach.h>
+#include <malloc/malloc.h>
 #elif SG_PLATFORM_LINUX
 #include <cstdio>
 #include <unistd.h>
@@ -21,7 +22,16 @@ namespace Stoner::Core
 
 void FPlatformMemory::ReleaseUnusedHeapPages() noexcept
 {
-#if SG_PLATFORM_LINUX && defined(__GLIBC__)
+#if SG_PLATFORM_MAC
+    // A native graphics lifecycle can leave freed allocations cached across
+    // several malloc zones. Converge the allocator at the authoritative RSS
+    // comparison points without changing the sampled cycles or threshold.
+    constexpr int MaxReliefPasses = 8;
+    for (int Pass = 0; Pass < MaxReliefPasses; ++Pass)
+    {
+        if (malloc_zone_pressure_relief(nullptr, 0) == 0) break;
+    }
+#elif SG_PLATFORM_LINUX && defined(__GLIBC__)
     // malloc_trim() reports whether it released pages. A single pass can
     // leave another arena immediately trimmable after the first arena scan,
     // which makes an exact lifecycle checkpoint depend on allocator timing.

@@ -253,12 +253,21 @@ void TestPlatformMemory(FCorePlatformTestResult& Result)
 {
     FPlatformMemory::ReleaseUnusedHeapPages();
     const FProcessMemorySnapshot Snapshot = FPlatformMemory::QueryProcessMemory();
+    FPlatformMemory::ReleaseUnusedHeapPages();
+    const FProcessMemorySnapshot RepeatedSnapshot =
+        FPlatformMemory::QueryProcessMemory();
 #if SG_PLATFORM_WINDOWS || SG_PLATFORM_MAC || SG_PLATFORM_LINUX
     Record(Result, Snapshot.bAvailable, "FPlatformMemory reports supported desktop availability");
     Record(Result, Snapshot.ResidentBytes > 0, "FPlatformMemory reports positive resident bytes");
+    Record(Result,
+        RepeatedSnapshot.bAvailable && RepeatedSnapshot.ResidentBytes > 0,
+        "FPlatformMemory repeated heap relief preserves memory telemetry");
 #else
     Record(Result, !Snapshot.bAvailable && Snapshot.ResidentBytes == 0,
         "FPlatformMemory unsupported platform result is controlled");
+    Record(Result,
+        !RepeatedSnapshot.bAvailable && RepeatedSnapshot.ResidentBytes == 0,
+        "FPlatformMemory repeated unsupported relief remains controlled");
 #endif
 }
 

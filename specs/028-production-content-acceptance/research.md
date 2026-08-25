@@ -492,20 +492,20 @@ the leak threshold.
 - Retry CI until allocator timing happens to pass: rejected after two failures
   on the same revision demonstrated the missing first-use boundary.
 
-## Decision 19: Released Linux Heap Pages Are Trimmed Before RSS Sampling
+## Decision 19: Released Heap Pages Are Reclaimed Before RSS Sampling
 
 **Decision**: After complete production-cycle teardown at the exact declared
 warm-up and terminal comparison cycles, ask the platform memory boundary to
 release unused heap pages before the existing process-RSS sample. Other cycles
 retain their unmodified samples and peak evidence. The operation is a no-op on
-platforms without an applicable safe primitive and uses `malloc_trim(0)` on
-Linux/glibc. Because glibc reports whether a trim pass released pages, the Core
-boundary performs at most eight passes and stops as soon as a pass reports no
-further release. This convergence remains inside the same exact lifecycle
-checkpoint; it neither selects a different cycle nor chooses a favorable RSS
-sample. The authoritative metric remains `/proc/self/statm` resident bytes,
-measured at the exact declared warm-up and terminal cycles with the unchanged
-16 MiB growth limit.
+platforms without an applicable safe primitive. It uses `malloc_trim(0)` on
+Linux/glibc and `malloc_zone_pressure_relief(nullptr, 0)` across all allocator
+zones on macOS. Both platform paths perform at most eight passes and stop as
+soon as a pass reports no further release. This convergence remains inside the
+same exact lifecycle checkpoint; it neither selects a different cycle nor
+chooses a favorable RSS sample. The authoritative metric remains the platform
+process-resident measurement at the exact declared warm-up and terminal cycles
+with the unchanged 16 MiB growth limit.
 
 **Rationale**: A hosted Lavapipe rerun after the native prime still returned all
 ownership counters to zero and rejected stale handles, but its released RSS
@@ -529,6 +529,17 @@ the final manual Linux medium run: both packages reached native execution, but
 the repeated global allocator scan exhausted the remaining 1,467-second stage
 budget. Trimming only the two authoritative comparison samples preserves the
 measurement contract without contaminating lifecycle throughput.
+
+Hosted arm64 Metal run `32874425910` exposed the corresponding macOS gap after
+package isolation removed cross-workload contention. Its Lantern lane completed
+1,000 cycles, 2,000 captures, seven retained readbacks, zero terminal owners,
+and stale-handle rejection, but the exact cycle-20 and terminal resident samples
+were 552,910,848 and 579,321,856 bytes. The 26,411,008-byte increase therefore
+failed the unchanged 16 MiB limit even though all tracked production objects
+were released. The former macOS no-op left freed allocator-zone pages cached at
+the terminal comparison point. The Core platform boundary now requests maximal
+pressure relief across all macOS malloc zones at the same two checkpoints; a
+final hosted rerun remains required before this evidence is accepted.
 
 The subsequent comparison-only-trim run proved that allocator scanning was not
 the remaining medium timeout cause: both packages again completed cook, warm
