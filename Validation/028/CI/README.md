@@ -1,55 +1,90 @@
 # Feature 028 CI Evidence
 
 Final closeout records hosted regular, scheduled/manual medium, and required
-Windows Vulkan plus macOS Vulkan/Metal run IDs, revision IDs, artifact names,
-and SHA-256 values here. Downloaded artifacts remain in ignored `downloaded/`.
+Windows Vulkan plus physical M4 Pro Vulkan/Metal run IDs, revision IDs, artifact
+names, and SHA-256 values here. Downloaded artifacts remain in ignored
+`downloaded/`.
 
-## Final-Revision Local Medium Evidence
+## Final Implementation Revision
 
-Revision `0a5ad11f8d511a9b54da33da086b15cf530ca68a` passed the complete local M4 Pro
-Metal medium profile with two disjoint package roots running concurrently under
-one shared deadline. This is final-revision local scale and lifecycle evidence;
-the separate manual Linux medium CI run remains required for T113 closeout.
+The implementation authority is
+`c82e51790643fc6583a80240239f6f4123cc0df1`. New hosted and physical runs are
+triggered when the evidence draft is pushed. Hosted run `32803300825` on
+predecessor `426d8617fe8558114110b09a60260de3895da82f` passed Windows, both macOS
+lanes, ASan/UBSan, and TSan but failed Linux Lavapipe regular twice because its
+first large native driver allocation occurred after the declared cycle-2 RSS
+sample. The final revision primes both native paths once, releases every owner,
+and preserves the exact 20/2 and 1000/20 contracts plus the 16 MiB limit.
 
-| Field | Lantern | Sponza |
+## Final-Revision Local Metal Hardware Evidence
+
+A detached clean worktree at predecessor
+`426d8617fe8558114110b09a60260de3895da82f` passed strict
+Debug and Release builds, acquired and verified the pinned corpus, and completed
+the serialized physical M4 Pro Metal hardware profile.
+
+| Field | Lantern v2 | Sponza v2 |
 |---|---:|---:|
 | Generation | `f60c3069294c588e146073d736dd8cd325760c8d1645ae6c412cf58c45a709d3` | `b39afe90356b699eed761aa548587883c9300d54568cb0eb94f279a09e84096b` |
 | Reachable / reused | 37 / 37 | 189 / 189 |
 | Lifecycle | 1,000 / warm-up 20 | 1,000 / warm-up 20 |
-| Native seconds | 282.281 | 1,416.776 |
-| Peak RSS bytes | 541,032,448 | 337,231,872 |
-| RSS growth bytes | 0 | 10,633,216 |
+| Native seconds | 252.940 | 1,302.317 |
+| Warm-up RSS bytes | 607,125,504 | 387,842,048 |
+| Terminal RSS bytes | 524,943,360 | 391,462,912 |
+| Peak RSS bytes | 608,681,984 | 398,475,264 |
+| RSS growth bytes | 0 | 3,620,864 |
+| Captures / readbacks | 2,000 / 7 | 2,000 / 7 |
+| Semantic probes / FLIP | 20 / 0 | 20 / 0 |
 | Terminal owners / stale | 0 / rejected | 0 / rejected |
 
-Total profile time was 1,483.692 seconds against the 1,800-second budget. The
-summary SHA-256 is
-`d4e5d69bbd7d4dbce21651304140b1e79edd6acce30bcbecce2f96b078163e23` and the
-4,289-entry artifact manifest SHA-256 is
-`a1388edf26f758ab1bdc6908c63a7355bf3ff8ce106c5cd278da46320dc80ce9`.
-Consumer verification returned `Passed` against target-profile digest
+The total profile time was 1,679.546 seconds against the schema-enforced
+3,600-second budget. Independent verification accepted 4,369 artifacts. The
+artifact-manifest SHA-256 is
+`5cd36ce6a287e40884d77f538b838a5f06bce3edd23c76258a1b16cd3918bfdb`,
+the summary SHA-256 is
+`6c456e04daf300a02fc5e7668034094d5760c859ca795923059e1a22e72c1c83`,
+and the target-profile SHA-256 is
 `82681655db59befc20366978759ae42ace9ed805e2d4e0adc7de7980854f4c8f`.
 
-## Final-Revision Hosted Runs
+## Local Vulkan And Medium Predecessor Evidence
 
-Hosted run `32711618360` passed revision
-`0a5ad11f8d511a9b54da33da086b15cf530ca68a`. All four Windows/Linux/macOS
-regular producers, all four independent Linux artifact consumers, and both
-sanitizer jobs completed successfully. Manual medium run `32716106974` targets
-the same revision and remains in progress. Hardware run `32711618382` also
-targets the same revision and remains queued for the required self-hosted
-runners.
+The immediately preceding implementation revision
+`f05a793780920b01dc7d711282f362cecb0ba803` passed the complete local physical
+M4 Pro Vulkan hardware profile. The final delta only adds bounded
+native-presentation recovery; final-binary 20-frame visible gates then passed
+both Vulkan workloads with exact accepted baseline selection, 20 semantic
+probes, FLIP 0, 40 captures, seven readbacks, zero terminal owners, and stale
+handle rejection. The physical CI run above owns the same-revision 1,000-cycle
+reconfirmation.
 
-Hosted run `32711618360` uploaded these immutable artifacts:
+| Field | Lantern v2 | Sponza v2 |
+|---|---:|---:|
+| Generation | `88d01dc9de176f9f532ebeb1a3110f303a7b6067583260364485ff85e140091c` | `8fa033d770e58ea26574e840ada100fe174b05139575ef9de6a6557097c99073` |
+| Lifecycle | 1,000 / warm-up 20 | 1,000 / warm-up 20 |
+| Native seconds | 262.162 | 1,378.944 |
+| Peak RSS bytes | 668,745,728 | 596,426,752 |
+| RSS growth bytes | 0 | 7,012,352 |
+| Terminal owners / stale | 0 / rejected | 0 / rejected |
 
-| Artifact | SHA-256 | Bytes |
-|---|---|---:|
-| `production-regular-windows-vulkan-1` | `1e7da2410a9d4438eafb1a7890fab00dae6774ee677404a296602a715a68758f` | 1,069,695,002 |
-| `production-regular-linux-vulkan-1` | `1d5fc9bfcad9786847feb70267becbecb5c7ef6afec63834e1b868f93de6fafa` | 1,069,692,856 |
-| `production-regular-macos-metal-1` | `d41b8d62e6e82c88d280ff956b72102526703daddf8268757eab1894ffa327d9` | 1,070,862,987 |
-| `production-regular-macos-intel-metal-1` | `87f63f0eb411020115cbc3abdb6848c7947ee998ca78031cca8184550902775e` | 1,070,867,453 |
-| `production-consumer-windows-vulkan-1` | `ba72ee2f430dfdc0e998660fe6a83f859254cee9e468470baa8fc1d7a06abf50` | 106,665 |
-| `production-consumer-linux-vulkan-1` | `97913bff316872bffc45a17259d7e6dab850c96178af363c649f9a735159c0a5` | 105,491 |
-| `production-consumer-macos-metal-1` | `94f35e5a1422095559d41b63b804d3e5989c4dc65bcdb34ee059601848dde5bb` | 105,219 |
-| `production-consumer-macos-intel-metal-1` | `f93206f65c0492efcda9c5281d6e5690706f8fb5b3433b6ab0ff9865585d4ca7` | 106,150 |
-| `production-sanitizer-asan-ubsan-1` | `dece1f0bb157f053e3db8521cfbeceebfb85be17ffe706b74a1aea3013d92554` | 1,909 |
-| `production-sanitizer-tsan-1` | `efedc7b050e99740cbeb60d8146f881c3b6071686146011fe8ed5490339ff80f` | 1,476 |
+That Vulkan producer emitted 4,368 artifacts with manifest SHA-256
+`45a3cffd86d92f06f300c991e85091e5fe3d42b13d7a63a3f4514cf188257908`
+and summary SHA-256
+`457bdb2951f94d92533e145dc0988cf6f390c45ad0ddd26d2f049804f569addb`.
+
+The same predecessor passed the clean-checkout Metal medium profile in
+1,453.049 seconds. Lantern used zero post-warm-up RSS growth; Sponza used
+10,469,376 bytes. Both completed 1,000 cycles, 100-percent warm reuse,
+strict-no-source loading, semantic equivalence, zero terminal owners, and stale
+handle rejection. Consumer verification accepted 4,289 artifacts with manifest
+SHA-256
+`6b97f099ec3203095ea345d18c31a09080df719129ccb3064da5e0b47b8d2d79`
+and summary SHA-256
+`b2d24c2ac74b4b97bbf23d8d80889114c0155e3f70f6384e3bcdfa08a9c2a75d`.
+
+## Superseded Hosted Evidence
+
+Hosted run `32711618360` passed the older revision
+`0a5ad11f8d511a9b54da33da086b15cf530ca68a`, including all regular producers,
+independent consumers, ASan/UBSan, and TSan. It is retained as regression
+history but is not final closeout authority. Manual medium run `32716106974`
+failed on that older revision and is likewise non-authoritative.

@@ -1,7 +1,8 @@
 # Feature 028 Affected Regression Gate
 
-Captured on 2026-08-22 from branch
-`028-production-content-acceptance` plus the current Feature 028 worktree.
+Captured through 2026-08-25 from final implementation revision
+`c82e51790643fc6583a80240239f6f4123cc0df1` on branch
+`028-production-content-acceptance`.
 
 ## Engine Suites
 
@@ -26,9 +27,11 @@ without those inputs.
 
 The following validation-runner tests passed in the `godot` conda environment:
 
-- Feature 028 production scripts: 65 tests;
-- Metal validation runner: 17 tests;
-- AssetCooker validation runner: 4 tests;
+- Feature 028 production runner: 34 tests;
+- Feature 028 workflow contract: 5 tests;
+- Feature 028 comparison/corpus/privacy/report/acquisition scripts: 34 tests;
+- Metal validation runner: 19 tests;
+- AssetCooker validation runner: 6 tests;
 - Runtime Asset Manager validation runner: 4 tests;
 - static-model validation runner: 4 tests;
 - Deferred validation runner: 9 tests; and
@@ -39,11 +42,23 @@ isolation, backend call isolation, private Objective-C++ ownership,
 validation-only FLIP ownership, Tools-only SPIRV-Cross, public API leakage,
 Feature 028 exclusions, and the 1,600-line Demo composition-root budget.
 
-## Native Metal Regression
+## Native Metal And Vulkan Regression
 
-The post-refactor 20-cycle visible Metal run passed native backend proof,
-Deferred and Forward submission, seven final GPU readbacks, 40 capture records,
-20 semantic probes, terminal owner count zero, stale-handle rejection, and the
-16 MiB RSS gate. Attachment and window-capture digests were identical to the
-pre-refactor candidate run. Image selection stopped only at the required
-`baseline-state-not-accepted` boundary.
+The clean predecessor Metal 1,000-cycle hardware run passed both v2 workloads with
+native backend proof, Deferred and Forward submission, seven final GPU
+readbacks, 2,000 capture records per workload, 20 semantic probes, accepted
+exact baselines, FLIP 0, terminal owner count zero, stale-handle rejection, and
+the 16 MiB RSS gate. Lantern post-warm-up growth was zero; Sponza growth was
+3,620,864 bytes.
+
+Final-binary 20-frame visible Vulkan gates passed Lantern v2 and Sponza v2 with
+40 capture records, seven final GPU readbacks, 20 semantic probes, accepted
+exact MoltenVK baselines, FLIP 0, zero terminal owners, and stale-handle
+rejection. The full predecessor-revision M4 Pro Vulkan hardware profile passed
+1,000 cycles per workload; final physical CI owns the same-revision 1,000-cycle
+reconfirmation. The final revision adds one unmeasured Deferred/Forward native
+prime that submits, waits, releases every owner, rejects stale handles, and
+reinitializes before the unchanged declared lifecycle sequence. Strict
+Debug/Release, complete Vulkan/Metal regressions, runner 34/34, and final-binary
+20-frame visible gates passed after that change without altering formal capture,
+readback, or cycle counts.

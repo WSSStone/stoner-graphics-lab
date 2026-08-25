@@ -57,3 +57,24 @@ this corrected image on 2026-08-24. The former Sponza v1 record is
 
 Both accepted reference images have SHA-256
 `25cae6c615e49aa53358a602e3d7130d46be98b4dc8e2c12a3651c1f10d0a441`.
+
+## Final local consumption evidence
+
+Final implementation revision
+`c82e51790643fc6583a80240239f6f4123cc0df1` consumed the Lantern v2 Metal and
+MoltenVK records without fallback in post-prime 20-frame visible gates. Each
+reported 20 semantic probes, zero FLIP error, 40 captures, seven readbacks, zero
+terminal owners, and stale-handle rejection. Its clean predecessor
+`426d8617fe8558114110b09a60260de3895da82f` consumed all four accepted Apple8
+records without fallback and rendered 1,000
+visible lifecycle cycles per workload and reported 20 semantic probes plus zero
+FLIP error for both Lantern v2 and Sponza v2. Independent consumer verification
+accepted 4,369 artifacts with manifest SHA-256
+`5cd36ce6a287e40884d77f538b838a5f06bce3edd23c76258a1b16cd3918bfdb`
+and summary SHA-256
+`6c456e04daf300a02fc5e7668034094d5760c859ca795923059e1a22e72c1c83`.
+
+The final pre-prime binary also passed separate 20-frame visible MoltenVK gates
+for both workloads with exact registry-derived baseline selection. Final
+physical CI remains responsible for the same-revision 1,000-cycle Vulkan and
+Metal closeout record.
