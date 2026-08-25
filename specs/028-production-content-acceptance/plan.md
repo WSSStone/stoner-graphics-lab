@@ -270,10 +270,11 @@ Validation. No new runtime module is introduced.
    tracked counter to baseline and enforce at most 16 MiB RSS growth between the
    sample immediately after warm-up and the terminal sample. Use one runtime
    manager worker for regular allocator stability and eight for medium/hardware
-   throughput. The medium runner may execute the disjoint CPU/cook stages of
-   its two package roots concurrently under one shared deadline, but serializes
-   their software-native lifecycle stages to prevent hosted CPU
-   oversubscription. Every lifecycle cycle still performs synchronized GPU
+   throughput. The medium runner executes the two disjoint package pipelines
+   concurrently under one shared deadline on the hosted arm64 Metal lane; the
+   Linux Lavapipe lane remains the regular software-native gate because one
+   isolated 1,000-cycle Lantern lifecycle alone exceeded the complete medium
+   budget. Every lifecycle cycle still performs synchronized GPU
    readback and nonblank validation for Deferred FinalOutput and ForwardColor;
    only the terminal cycle copies all six Deferred attachments and computes the
    retained authoritative evidence digests. Hardware packages remain fully

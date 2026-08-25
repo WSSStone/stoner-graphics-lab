@@ -225,13 +225,15 @@ feature closeout must validate the candidate revision deliberately. Separating
 hardware prevents hosts without a physical display/device from being counted as
 native passes. Immutable producer artifacts can reduce duplicated cooking, but
 every consumer revalidates target and manifest evidence. Medium package roots
-own disjoint source, DDC, publication, lease, and report trees, so up to two may
-run their CPU/cook stages concurrently while retaining their manifest order and
-one shared deadline. Their software-native lifecycle stages are serialized: the
-final hosted Linux closeout showed that two simultaneous 1,000-cycle Lavapipe
-processes oversubscribe the runner CPU and both exhaust the shared deadline
-after every preceding stage has passed. Hardware stays fully serialized to
-avoid competing visible windows and capture devices. See
+own disjoint source, DDC, publication, lease, and report trees, so up to two
+complete headless pipelines may run concurrently while retaining their manifest
+order and one shared deadline. The scheduled/manual medium lane uses
+GitHub-hosted arm64 Metal: an isolated 1,000-cycle Lantern Lavapipe lifecycle
+exhausted 1,471 remaining seconds after all preceding stages passed, proving
+that serialization could not make the two-package Linux software-native
+workload satisfy the 1,800-second profile contract. Linux Lavapipe remains
+required in the 20-cycle regular matrix. Visible hardware stays fully
+serialized to avoid competing windows and capture devices. See
 [GitHub Actions workflow documentation](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflows).
 
 **Alternatives considered**:
@@ -517,9 +519,13 @@ measurement contract without contaminating lifecycle throughput.
 The subsequent comparison-only-trim run proved that allocator scanning was not
 the remaining medium timeout cause: both packages again completed cook, warm
 reuse, publication, equivalence, and strict runtime, then their simultaneously
-started Lavapipe lifecycle processes timed out together. Medium therefore
-retains parallel disjoint CPU/cook work but serializes only native lifecycle
-execution under the unchanged shared 1,800-second deadline.
+started Lavapipe lifecycle processes timed out together. Serializing those
+native stages did not solve the feasibility problem: on run `32842555956`, the
+first isolated Lantern lifecycle used all 1,471 remaining seconds without
+completing. The weekly/manual medium lane therefore runs the two disjoint
+headless pipelines concurrently on hosted arm64 Metal, where the same 1,000/20
+contract previously completed both packages in 1,450.659 seconds. Lavapipe
+continues to own the required Linux regular native/RSS evidence.
 
 **Alternatives considered**:
 

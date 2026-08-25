@@ -20,6 +20,7 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
             "windows-latest", "ubuntu-latest", "macos-26", "--profile regular",
             "macos-26-intel", "Mac-Metal-X86_64.json",
             "--profile medium", "timeout-minutes: 60", "--timeout-seconds 1800",
+            "production-medium-macos-metal", "Mac-Metal-Arm64.json",
             "--defer-native-to-hardware",
             "Build strict Debug", "Build strict Release",
             "actions/cache@v4", "External/Sponza",
