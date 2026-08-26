@@ -563,8 +563,8 @@ EDemoExitCode FStonerDemoApplication::InitializeProductionContent()
         Configuration.ProductionLifecycleCycles,
         TargetEvidence.Profile.GraphicsBackend,
         TargetEvidence.Profile.CpuArchitecture);
-    SessionConfig.bLoadRootClosureFirst =
-        ShouldLoadProductionRootClosureFirst(
+    SessionConfig.bLoadManifestDependencyFirst =
+        ShouldLoadProductionManifestDependencyFirst(
             Configuration.WorkloadRevision,
             Configuration.ProductionLifecycleCycles);
     SessionConfig.bReuseCookedEnvelopeAuthentication =

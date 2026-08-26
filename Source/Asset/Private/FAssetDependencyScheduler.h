@@ -7,6 +7,7 @@ namespace Stoner::Asset::Private
 
 class IAssetLoadingStrategy;
 class FAssetNodeLoadCoordinator;
+class FAssetRuntimeCache;
 
 class FAssetDependencyScheduler
 {
@@ -16,7 +17,8 @@ public:
         IAssetLoadingStrategy& Strategy,
         const FAssetRuntimeExecutionContext& Context,
         const FAssetManagerLimits& Limits,
-        FAssetNodeLoadCoordinator* Coordinator = nullptr);
+        FAssetNodeLoadCoordinator* Coordinator = nullptr,
+        const FAssetRuntimeCache* Cache = nullptr);
 };
 
 } // namespace Stoner::Asset::Private

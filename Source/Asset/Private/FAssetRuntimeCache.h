@@ -38,6 +38,12 @@ public:
     [[nodiscard]] bool AcquireRequest(
         const FAssetLoadKey& Key,
         Core::TSharedPtr<const FAssetPayload>& OutPayload);
+    [[nodiscard]] bool BorrowLoaded(
+        const FAssetLoadKey& Key,
+        FAssetMetadata& OutMetadata,
+        Core::TSharedPtr<const FAssetPayload>& OutPayload,
+        Core::uint64& OutPayloadBytes,
+        Core::TArray<FAssetOptionalFallback>& OutOptionalFallbacks) const;
     void ReleaseRequest(const FAssetLoadKey& Key);
     [[nodiscard]] EAssetResult AcquireExternal(
         const FAssetLoadKey& Key,

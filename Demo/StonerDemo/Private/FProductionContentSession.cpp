@@ -198,7 +198,7 @@ void AddDependency(
 
 } // namespace
 
-bool ShouldLoadProductionRootClosureFirst(
+bool ShouldLoadProductionManifestDependencyFirst(
     const Core::FString& WorkloadRevision,
     Core::uint32 LifecycleCycles) noexcept
 {
@@ -450,81 +450,113 @@ EAssetResult FProductionContentSession::Load(
     Core::TArray<FLoadedRecord> LoadedRecords;
     LoadedRecords.reserve(Validated.Manifest.Records.size());
 
-    if (Config.bLoadRootClosureFirst)
+    const auto LoadBatch = [this, &Config, &LoadedRecords](
+        const Core::TArray<const FAssetCookManifestRecord*>& Records)
     {
-        // The Sponza 1,000-cycle profile loads the selected model closure
-        // first. Its external root handle retains every required dependency in
-        // the manager cache, so later manifest-completeness requests become
-        // cache hits instead of duplicate physical reads and typed decodes.
-        const auto RootRecord = std::lower_bound(
-            Validated.Manifest.Records.begin(),
-            Validated.Manifest.Records.end(), *Root,
-            [](const auto& CandidateRecord, const FAssetId& Id)
-            { return CandidateRecord.AssetId < Id; });
-        if (RootRecord == Validated.Manifest.Records.end() ||
-            RootRecord->AssetId != *Root)
+        Core::TArray<FPendingRecord> PendingRecords;
+        PendingRecords.reserve(Records.size());
+        for (const auto* Record : Records)
         {
-            Impl_->Inspection.FirstFailure = "strict-root-record-missing";
-            (void)Shutdown();
-            return EAssetResult::NotFound;
+            FAssetRequestHandle Request;
+            EAssetResult BatchResult = RequestRecord(
+                *Impl_->Manager, *Record, Request);
+            if (BatchResult != EAssetResult::Success)
+            {
+                Impl_->Inspection.FirstFailure = Core::FString(
+                    "request:" + Record->AssetId.ToString().ToStdString() +
+                    ";result=" + std::to_string(
+                        static_cast<int>(BatchResult)));
+                return BatchResult;
+            }
+            PendingRecords.push_back({Record, Request});
         }
-        FAssetRequestHandle RootRequest;
-        Result = RequestRecord(*Impl_->Manager, *RootRecord, RootRequest);
-        if (Result == EAssetResult::Success)
+        for (const FPendingRecord& PendingRecord : PendingRecords)
         {
-            FAnyAssetHandle RootHandle;
-            Result = FinishRecord(
-                *Impl_->Manager, *RootRecord, RootRequest, Config, RootHandle,
-                Impl_->Inspection, Impl_->LastReleasedRequest);
-            if (Result == EAssetResult::Success)
-                LoadedRecords.push_back(
-                    {&*RootRecord, std::move(RootHandle)});
+            const auto& Record = *PendingRecord.Record;
+            FAnyAssetHandle Handle;
+            EAssetResult BatchResult = FinishRecord(
+                *Impl_->Manager, Record, PendingRecord.Request, Config,
+                Handle, Impl_->Inspection, Impl_->LastReleasedRequest);
+            if (BatchResult != EAssetResult::Success)
+            {
+                Impl_->Inspection.FirstFailure = Core::FString(
+                    "load:" + Record.AssetId.ToString().ToStdString() +
+                    ";result=" + std::to_string(
+                        static_cast<int>(BatchResult)));
+                return BatchResult;
+            }
+            LoadedRecords.push_back({&Record, std::move(Handle)});
         }
-        if (Result != EAssetResult::Success)
+        return EAssetResult::Success;
+    };
+
+    if (Config.bLoadManifestDependencyFirst)
+    {
+        // Retain each completed dependency batch through its external handle.
+        // The manager then borrows those immutable payloads while loading the
+        // next batch, so every manifest record is still read and typed-decoded
+        // once per lifecycle without serializing the entire root closure onto
+        // one recursive worker.
+        Core::TArray<const FAssetCookManifestRecord*> Remaining;
+        Remaining.reserve(Validated.Manifest.Records.size());
+        for (const auto& Record : Validated.Manifest.Records)
+            Remaining.push_back(&Record);
+        std::set<FAssetId> Completed;
+        while (!Remaining.empty())
         {
-            Impl_->Inspection.FirstFailure = Core::FString(
-                "load:" + RootRecord->AssetId.ToString().ToStdString() +
-                ";result=" + std::to_string(static_cast<int>(Result)));
-            (void)Shutdown();
-            return Result;
+            Core::TArray<const FAssetCookManifestRecord*> Batch;
+            for (const auto* Record : Remaining)
+            {
+                const bool bReady = std::all_of(
+                    Record->Dependencies.begin(), Record->Dependencies.end(),
+                    [&Validated, &Completed](const auto& Dependency)
+                    {
+                        const auto Found = std::lower_bound(
+                            Validated.Manifest.Records.begin(),
+                            Validated.Manifest.Records.end(),
+                            Dependency.AssetId,
+                            [](const auto& Candidate, const FAssetId& Id)
+                            { return Candidate.AssetId < Id; });
+                        return Found == Validated.Manifest.Records.end() ||
+                            Found->AssetId != Dependency.AssetId ||
+                            Completed.contains(Dependency.AssetId);
+                    });
+                if (bReady) Batch.push_back(Record);
+            }
+            if (Batch.empty())
+            {
+                Impl_->Inspection.FirstFailure =
+                    "manifest-dependency-order-conflict";
+                (void)Shutdown();
+                return EAssetResult::Conflict;
+            }
+            Result = LoadBatch(Batch);
+            if (Result != EAssetResult::Success)
+            {
+                (void)Shutdown();
+                return Result;
+            }
+            for (const auto* Record : Batch)
+                Completed.insert(Record->AssetId);
+            Remaining.erase(std::remove_if(
+                Remaining.begin(), Remaining.end(),
+                [&Completed](const auto* Record)
+                { return Completed.contains(Record->AssetId); }),
+                Remaining.end());
         }
     }
-
-    Core::TArray<FPendingRecord> PendingRecords;
-    PendingRecords.reserve(Validated.Manifest.Records.size());
-    for (const auto& Record : Validated.Manifest.Records)
+    else
     {
-        if (Config.bLoadRootClosureFirst && Record.AssetId == *Root) continue;
-        FAssetRequestHandle Request;
-        Result = RequestRecord(*Impl_->Manager, Record, Request);
+        Core::TArray<const FAssetCookManifestRecord*> AllRecords;
+        AllRecords.reserve(Validated.Manifest.Records.size());
+        for (const auto& Record : Validated.Manifest.Records)
+            AllRecords.push_back(&Record);
+        Result = LoadBatch(AllRecords);
         if (Result != EAssetResult::Success)
         {
-            Impl_->Inspection.FirstFailure = Core::FString(
-                "request:" + Record.AssetId.ToString().ToStdString() +
-                ";result=" + std::to_string(static_cast<int>(Result)));
             (void)Shutdown();
             return Result;
         }
-        PendingRecords.push_back({&Record, Request});
-    }
-
-    for (const FPendingRecord& PendingRecord : PendingRecords)
-    {
-        const auto& Record = *PendingRecord.Record;
-        FAnyAssetHandle Handle;
-        Result = FinishRecord(
-            *Impl_->Manager, Record, PendingRecord.Request, Config,
-            Handle, Impl_->Inspection,
-            Impl_->LastReleasedRequest);
-        if (Result != EAssetResult::Success)
-        {
-            Impl_->Inspection.FirstFailure = Core::FString(
-                "load:" + Record.AssetId.ToString().ToStdString() +
-                ";result=" + std::to_string(static_cast<int>(Result)));
-            (void)Shutdown();
-            return Result;
-        }
-        LoadedRecords.push_back({&Record, std::move(Handle)});
     }
 
     Impl_->Handles.reserve(LoadedRecords.size());

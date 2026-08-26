@@ -2,6 +2,7 @@
 
 #include "AssetManagerTestSupport.h"
 #include "FAssetDependencyScheduler.h"
+#include "FAssetRuntimeCache.h"
 #include "IAssetLoadingStrategy.h"
 
 #include <chrono>
@@ -64,6 +65,7 @@ class FGraphStrategy final : public IAssetLoadingStrategy
 {
 public:
     std::map<FAssetId, FAssetMetadata> Records;
+    std::map<FAssetId, Core::uint32> LoadCounts;
     Core::TArray<FAssetOptionalFallback> Fallbacks;
 
     FAssetLoadScratchResult Load(
@@ -71,6 +73,7 @@ public:
         const FAssetRuntimeExecutionContext& Context) override
     {
         FAssetLoadScratchResult Result;
+        ++LoadCounts[Key.AssetId];
         if (Context.ShouldStop())
         {
             Result.Result = EAssetResult::Cancelled;
@@ -86,7 +89,9 @@ public:
         Result.Payloads.push_back(
             Core::MakeShared<FRuntimeTestPayload>(Key.AssetId.ToString()));
         Result.PayloadBytes.push_back(1);
-        Result.OptionalFallbacks = Fallbacks;
+        for (const auto& Fallback : Fallbacks)
+            if (Fallback.Owner == Key.AssetId)
+                Result.OptionalFallbacks.push_back(Fallback);
         Result.Result = EAssetResult::Success;
         return Result;
     }
@@ -179,6 +184,43 @@ void TestCycleAndOptionalFallback(FAssetManagerDependencyTestResult& Result)
             Fallback.OptionalFallbacks.size() == 1,
         "only an explicit validated fallback tolerates optional failure");
 }
+
+void TestCachedDependencyReuse(FAssetManagerDependencyTestResult& Result)
+{
+    const FAssetId Root = MakeRuntimeTestId("Graph/CachedRoot");
+    const FAssetId Child = MakeRuntimeTestId("Graph/CachedChild");
+    const FAssetId Optional = MakeRuntimeTestId("Graph/CachedOptional");
+    FGraphStrategy Strategy;
+    Strategy.Records.emplace(Root,
+        Metadata(Root, {{Child, EAssetDependencyRole::Runtime,
+            EAssetDependencyStrength::Required,
+            EAssetDependencyResolution::Resolved}}));
+    Strategy.Records.emplace(Child,
+        Metadata(Child, {{Optional, EAssetDependencyRole::Runtime,
+            EAssetDependencyStrength::Soft,
+            EAssetDependencyResolution::Unresolved}}));
+    Strategy.Fallbacks = {{Child, Optional,
+        EAssetOptionalFallbackDecision::ValidatedFallback,
+        Core::FString("runtime-test.cached-fallback")}};
+
+    FAssetRuntimeCache Cache(1024);
+    auto ChildLoaded = FAssetDependencyScheduler::LoadClosure(
+        Key(Child), Strategy, Context(), {});
+    Core::TSharedPtr<const FAssetPayload> ChildPayload;
+    const bool Published = ChildLoaded.Result == EAssetResult::Success &&
+        Cache.Publish(Key(Child), ChildLoaded, 1, ChildPayload) ==
+            EAssetResult::Success;
+    const auto RootLoaded = FAssetDependencyScheduler::LoadClosure(
+        Key(Root), Strategy, Context(), {}, nullptr, &Cache);
+    Record(Result,
+        Published && RootLoaded.Result == EAssetResult::Success &&
+            RootLoaded.Metadata.size() == 2 &&
+            RootLoaded.OptionalFallbacks.size() == 1 &&
+            Strategy.LoadCounts[Root] == 1 &&
+            Strategy.LoadCounts[Child] == 1,
+        "a manager closure reuses an already loaded immutable dependency without re-executing its loader");
+    Cache.ReleaseRequest(Key(Child));
+}
 } // namespace
 
 FAssetManagerDependencyTestResult RunAssetManagerDependencyTests()
@@ -186,5 +228,6 @@ FAssetManagerDependencyTestResult RunAssetManagerDependencyTests()
     FAssetManagerDependencyTestResult Result;
     TestRequiredClosure(Result);
     TestCycleAndOptionalFallback(Result);
+    TestCachedDependencyReuse(Result);
     return Result;
 }

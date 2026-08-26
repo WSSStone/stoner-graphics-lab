@@ -16,13 +16,13 @@ struct FProductionContentSessionConfig
     Core::TSharedPtr<const Asset::FAssetRuntimeExecutionContext> RuntimeContext;
     Core::uint32 WorkerCount = 4;
     Core::uint64 RequestTimeoutMilliseconds = 30000;
-    bool bLoadRootClosureFirst = false;
+    bool bLoadManifestDependencyFirst = false;
     bool bReuseCookedEnvelopeAuthentication = false;
 
     [[nodiscard]] bool IsValid() const noexcept;
 };
 
-[[nodiscard]] bool ShouldLoadProductionRootClosureFirst(
+[[nodiscard]] bool ShouldLoadProductionManifestDependencyFirst(
     const Core::FString& WorkloadRevision,
     Core::uint32 LifecycleCycles) noexcept;
 

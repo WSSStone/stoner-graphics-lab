@@ -311,7 +311,7 @@ EAssetResult FAssetManager::RequestUntyped(
             Private::FAssetLoadScratchResult Loaded =
                 Private::FAssetDependencyScheduler::LoadClosure(
                     Operation->Key, *State->Strategy, Context,
-                    State->Config.Limits, &State->NodeLoads);
+                    State->Config.Limits, &State->NodeLoads, &State->Cache);
             if (std::chrono::steady_clock::now() >= Deadline &&
                 Loaded.Result == EAssetResult::Cancelled)
                 Loaded.Result = EAssetResult::DeadlineExceeded;

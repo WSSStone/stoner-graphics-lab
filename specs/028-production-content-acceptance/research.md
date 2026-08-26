@@ -810,6 +810,38 @@ terminal owners, stale rejection, a 370,196,480-byte cycle-20 RSS sample, a
 372,883,456-byte terminal sample, and 2,686,976 bytes of growth. Hosted rerun
 remains authoritative for medium closeout.
 
+Hosted run `32942777805` then passed Windows Vulkan, Linux Vulkan, macOS
+arm64/Intel Metal, all four independent artifact consumers, ASan/UBSan, TSan,
+and the isolated Lantern medium lane. Sponza again exhausted its exact
+1,672-second native allowance after clean/warm cook, publication, semantic
+equivalence, and strict runtime passed. The remaining throughput defect was
+the Sponza-only root-first schedule itself: one Manager worker recursively read
+and decoded the entire 189-record closure before the other fifteen workers had
+useful work, so the selected sixteen-worker policy could not parallelize the
+largest image and texture batches.
+
+The Sponza v2 1,000-cycle schedule now computes deterministic dependency-first
+manifest batches. Every record in a ready batch is requested concurrently;
+later closures borrow only immutable dependencies already retained by the same
+cycle's Manager cache. The cache borrow copies metadata and shared immutable
+ownership, never payload bytes, and cannot cross the Manager lifecycle. Each
+of the 189 records is therefore still completely read, envelope-parsed, and
+typed-decoded exactly once per cycle, while root publication, complete
+manifest coverage, generation authentication, realization, native rendering,
+and teardown remain unchanged. A scheduler regression proves an already-loaded
+dependency is not re-executed, and the strict Sponza fixture requires exactly
+one strict-loader execution per manifest record.
+
+Strict Debug and Release builds, the complete Asset Manager suite, all 27
+strict-runtime checks, production Demo, image acceptance, and camera preview
+passed locally. The exact Sponza Metal replay then completed all 1,000 cycles
+in about 390 seconds, down from 795 seconds for the preceding clean-worktree
+run, with 2,000 captures, seven readbacks, zero terminal owners, stale-handle
+rejection, both authentication/validation reuse assertions, a 272,072,704-byte
+cycle-20 RSS sample, a 272,171,008-byte terminal sample, a 275,333,120-byte
+peak, and only 98,304 bytes of growth. Hosted rerun remains authoritative for
+medium closeout.
+
 The same `32927821133` dispatch also exposed comparison-point instability on
 the unchanged 20-cycle Linux regular lane: cycle 2 fell to 122,810,368 bytes
 after trimming, intermediate samples ranged from 302,780,416 to 461,225,984

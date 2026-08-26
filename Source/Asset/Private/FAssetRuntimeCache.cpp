@@ -26,6 +26,7 @@ struct FAssetRuntimeCache::FState
         FAssetMetadata Metadata;
         Core::TSharedPtr<const FAssetPayload> Payload;
         Core::uint64 PayloadBytes = 0;
+        Core::TArray<FAssetOptionalFallback> OptionalFallbacks;
         FAssetRetentionCounts Retentions;
         Core::TArray<FAssetLoadKey> RequiredDependencies;
     };
@@ -199,6 +200,9 @@ EAssetResult FAssetRuntimeCache::Publish(
         Entry.Metadata = Metadata;
         Entry.Payload = Loaded.Payloads[Index];
         Entry.PayloadBytes = Loaded.PayloadBytes[Index];
+        for (const auto& Fallback : Loaded.OptionalFallbacks)
+            if (Fallback.Owner == Metadata.Id)
+                Entry.OptionalFallbacks.push_back(Fallback);
         for (const auto& Dependency : Metadata.Dependencies)
         {
             if (Dependency.Strength != EAssetDependencyStrength::Required)
@@ -245,6 +249,27 @@ bool FAssetRuntimeCache::AcquireRequest(
         return false;
     ++Entry->Retentions.RequestInterests;
     OutPayload = Entry->Payload;
+    return true;
+}
+
+bool FAssetRuntimeCache::BorrowLoaded(
+    const FAssetLoadKey& Key,
+    FAssetMetadata& OutMetadata,
+    Core::TSharedPtr<const FAssetPayload>& OutPayload,
+    Core::uint64& OutPayloadBytes,
+    Core::TArray<FAssetOptionalFallback>& OutOptionalFallbacks) const
+{
+    OutMetadata = {};
+    OutPayload.reset();
+    OutPayloadBytes = 0;
+    OutOptionalFallbacks.clear();
+    std::lock_guard Lock(State_->Mutex);
+    const FState::FEntry* Entry = State_->Find(Key);
+    if (!Entry || !Entry->Payload || Entry->PayloadBytes == 0) return false;
+    OutMetadata = Entry->Metadata;
+    OutPayload = Entry->Payload;
+    OutPayloadBytes = Entry->PayloadBytes;
+    OutOptionalFallbacks = Entry->OptionalFallbacks;
     return true;
 }
 

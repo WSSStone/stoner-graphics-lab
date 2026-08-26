@@ -305,13 +305,13 @@ RunProductionContentStrictRuntimeTests()
         "Demo strict session releases request and generation ownership on shutdown");
 
     Record(Result,
-        Demo::ShouldLoadProductionRootClosureFirst(
+        Demo::ShouldLoadProductionManifestDependencyFirst(
             "production-content-sponza-v2", 1000) &&
-            !Demo::ShouldLoadProductionRootClosureFirst(
+            !Demo::ShouldLoadProductionManifestDependencyFirst(
                 "production-content-lantern-v2", 1000) &&
-            !Demo::ShouldLoadProductionRootClosureFirst(
+            !Demo::ShouldLoadProductionManifestDependencyFirst(
                 "production-content-sponza-v2", 20),
-        "root-first loading is isolated to the Sponza v2 1000-cycle profile");
+        "dependency-first loading is isolated to the Sponza v2 1000-cycle profile");
     Record(Result,
         Demo::ShouldReuseProductionCookedEnvelopeAuthentication(
             "production-content-sponza-v2", 1000) &&
@@ -344,36 +344,36 @@ RunProductionContentStrictRuntimeTests()
         "worker selection isolates Sponza throughput from regular and Lantern profiles");
 
     std::filesystem::create_directories(
-        TemporaryRoot / "LeaseDemoRootFirst");
-    auto RootFirstConfig = SessionConfig;
-    RootFirstConfig.LeaseCoordinationRoot = Core::FString(
-        (TemporaryRoot / "LeaseDemoRootFirst").generic_string());
-    RootFirstConfig.bLoadRootClosureFirst = true;
-    RootFirstConfig.bReuseCookedEnvelopeAuthentication = true;
-    Demo::FProductionContentSession RootFirstSession;
-    Demo::FProductionContentLoadedClosure RootFirstClosure;
-    const auto RootFirstResult =
-        RootFirstSession.Load(RootFirstConfig, RootFirstClosure);
-    const auto RootFirstInspection = RootFirstSession.Inspect();
+        TemporaryRoot / "LeaseDemoDependencyFirst");
+    auto DependencyFirstConfig = SessionConfig;
+    DependencyFirstConfig.LeaseCoordinationRoot = Core::FString(
+        (TemporaryRoot / "LeaseDemoDependencyFirst").generic_string());
+    DependencyFirstConfig.bLoadManifestDependencyFirst = true;
+    DependencyFirstConfig.bReuseCookedEnvelopeAuthentication = true;
+    Demo::FProductionContentSession DependencyFirstSession;
+    Demo::FProductionContentLoadedClosure DependencyFirstClosure;
+    const auto DependencyFirstResult = DependencyFirstSession.Load(
+        DependencyFirstConfig, DependencyFirstClosure);
+    const auto DependencyFirstInspection = DependencyFirstSession.Inspect();
     Record(Result,
-        RootFirstResult == EAssetResult::Success &&
-            RootFirstClosure.Model &&
-            RootFirstClosure.LoadedAssetCount == Seed.Manifest.Records.size() &&
-            RootFirstInspection.Manager.StrictLoaderExecutions > 0 &&
-            RootFirstInspection.Manager.StrictLoaderExecutions <=
-                SessionInspection.Manager.StrictLoaderExecutions,
-        "Demo medium session loads the root closure before cache-backed manifest completeness");
-    RootFirstClosure = {};
+        DependencyFirstResult == EAssetResult::Success &&
+            DependencyFirstClosure.Model &&
+            DependencyFirstClosure.LoadedAssetCount ==
+                Seed.Manifest.Records.size() &&
+            DependencyFirstInspection.Manager.StrictLoaderExecutions ==
+                Seed.Manifest.Records.size(),
+        "Demo medium session loads each manifest record exactly once in dependency-first batches");
+    DependencyFirstClosure = {};
     Record(Result,
-        RootFirstSession.Shutdown() == EAssetResult::Success &&
-            RootFirstSession.Inspect().Manager.ActiveOperations == 0 &&
-            RootFirstSession.Inspect().Manager.RequestRetentions == 0 &&
-            RootFirstSession.Inspect().Manager.ExternalHandleRetentions == 0,
-        "Demo medium root-first session releases every manager retention");
+        DependencyFirstSession.Shutdown() == EAssetResult::Success &&
+            DependencyFirstSession.Inspect().Manager.ActiveOperations == 0 &&
+            DependencyFirstSession.Inspect().Manager.RequestRetentions == 0 &&
+            DependencyFirstSession.Inspect().Manager.ExternalHandleRetentions == 0,
+        "Demo medium dependency-first session releases every manager retention");
     Demo::FProductionContentLoadedClosure ReusedClosure;
-    const auto ReusedResult =
-        RootFirstSession.Load(RootFirstConfig, ReusedClosure);
-    const auto ReusedInspection = RootFirstSession.Inspect();
+    const auto ReusedResult = DependencyFirstSession.Load(
+        DependencyFirstConfig, ReusedClosure);
+    const auto ReusedInspection = DependencyFirstSession.Inspect();
     Record(Result,
         ReusedResult == EAssetResult::Success && ReusedClosure.Model &&
             ReusedInspection.bGenerationValidationReused &&
@@ -386,10 +386,10 @@ RunProductionContentStrictRuntimeTests()
         "Demo medium session reuses bounded validated metadata and generation authentication while reloading the full closure");
     ReusedClosure = {};
     Record(Result,
-        RootFirstSession.Shutdown() == EAssetResult::Success &&
-            RootFirstSession.Inspect().Manager.ActiveOperations == 0 &&
-            RootFirstSession.Inspect().Manager.RequestRetentions == 0 &&
-            RootFirstSession.Inspect().Manager.ExternalHandleRetentions == 0,
+        DependencyFirstSession.Shutdown() == EAssetResult::Success &&
+            DependencyFirstSession.Inspect().Manager.ActiveOperations == 0 &&
+            DependencyFirstSession.Inspect().Manager.RequestRetentions == 0 &&
+            DependencyFirstSession.Inspect().Manager.ExternalHandleRetentions == 0,
         "Demo reused-authentication session still releases every manager retention");
 
     Core::TArray<Core::uint8> WrongProfileBytes;

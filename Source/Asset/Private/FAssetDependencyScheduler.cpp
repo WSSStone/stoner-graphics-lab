@@ -2,6 +2,7 @@
 
 #include "IAssetLoadingStrategy.h"
 #include "FAssetNodeLoadCoordinator.h"
+#include "FAssetRuntimeCache.h"
 
 #include <algorithm>
 #include <map>
@@ -25,6 +26,7 @@ struct FClosureState
     const FAssetRuntimeExecutionContext& Context;
     const FAssetManagerLimits& Limits;
     FAssetNodeLoadCoordinator* Coordinator = nullptr;
+    const FAssetRuntimeCache* Cache = nullptr;
     std::map<FAssetId, FNode> Nodes;
     std::set<FAssetId> Processed;
     std::set<FAssetId> Visiting;
@@ -70,10 +72,27 @@ EAssetResult Visit(
     {
         if (State.Nodes.size() >= State.Limits.MaxKnownAssets)
             return Fail(EAssetResult::CapacityExceeded);
-        FAssetLoadScratchResult Loaded =
-            Depth > 0 && State.Coordinator
-            ? State.Coordinator->Load(Key, State.Strategy, State.Context)
-            : State.Strategy.Load(Key, State.Context);
+        FAssetLoadScratchResult Loaded;
+        FAssetMetadata CachedMetadata;
+        Core::TSharedPtr<const FAssetPayload> CachedPayload;
+        Core::uint64 CachedPayloadBytes = 0;
+        Core::TArray<FAssetOptionalFallback> CachedFallbacks;
+        if (Depth > 0 && State.Cache && State.Cache->BorrowLoaded(
+                Key, CachedMetadata, CachedPayload, CachedPayloadBytes,
+                CachedFallbacks))
+        {
+            Loaded.Metadata.push_back(std::move(CachedMetadata));
+            Loaded.Payloads.push_back(std::move(CachedPayload));
+            Loaded.PayloadBytes.push_back(CachedPayloadBytes);
+            Loaded.OptionalFallbacks = std::move(CachedFallbacks);
+            Loaded.Result = EAssetResult::Success;
+        }
+        else
+        {
+            Loaded = Depth > 0 && State.Coordinator
+                ? State.Coordinator->Load(Key, State.Strategy, State.Context)
+                : State.Strategy.Load(Key, State.Context);
+        }
         State.Result.OptionalFallbacks.insert(
             State.Result.OptionalFallbacks.end(),
             Loaded.OptionalFallbacks.begin(), Loaded.OptionalFallbacks.end());
@@ -148,10 +167,11 @@ FAssetLoadScratchResult FAssetDependencyScheduler::LoadClosure(
     IAssetLoadingStrategy& Strategy,
     const FAssetRuntimeExecutionContext& Context,
     const FAssetManagerLimits& Limits,
-    FAssetNodeLoadCoordinator* Coordinator)
+    FAssetNodeLoadCoordinator* Coordinator,
+    const FAssetRuntimeCache* Cache)
 {
     FClosureState State{
-        Strategy, Context, Limits, Coordinator, {}, {}, {}, 0, {}};
+        Strategy, Context, Limits, Coordinator, Cache, {}, {}, {}, 0, {}};
     State.Result.Result = Visit(State, Root, 0, {});
     if (State.Result.Result != EAssetResult::Success) return State.Result;
     State.Result.Metadata.reserve(State.Nodes.size());
