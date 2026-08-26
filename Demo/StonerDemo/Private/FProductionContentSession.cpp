@@ -215,6 +215,22 @@ bool ShouldReuseProductionCookedEnvelopeAuthentication(
          WorkloadRevision == Core::FString("production-content-sponza-v2"));
 }
 
+Core::uint32 SelectProductionContentWorkerCount(
+    const Core::FString& WorkloadRevision,
+    Core::uint32 LifecycleCycles,
+    Asset::EAssetGraphicsBackend GraphicsBackend,
+    Asset::EAssetTargetCpuArchitecture CpuArchitecture) noexcept
+{
+    if (LifecycleCycles == 1000)
+    {
+        return WorkloadRevision ==
+            Core::FString("production-content-sponza-v2") ? 16u : 1u;
+    }
+    return GraphicsBackend == Asset::EAssetGraphicsBackend::Metal &&
+        CpuArchitecture == Asset::EAssetTargetCpuArchitecture::Arm64
+        ? 1u : 4u;
+}
+
 struct FProductionContentSession::FImpl
 {
     Core::TSharedPtr<FAssetExtensionRegistry> Registry;

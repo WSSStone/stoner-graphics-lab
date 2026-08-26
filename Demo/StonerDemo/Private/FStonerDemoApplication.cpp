@@ -555,11 +555,11 @@ EDemoExitCode FStonerDemoApplication::InitializeProductionContent()
     SessionConfig.ExpectedGeneration = Generation;
     SessionConfig.TargetEvidence = Core::MakeShared<
         const Asset::FAssetTargetProfileEvidence>(TargetEvidence);
-    SessionConfig.WorkerCount = Configuration.ProductionLifecycleCycles == 1000
-        ? 8u : (TargetEvidence.Profile.GraphicsBackend ==
-                Asset::EAssetGraphicsBackend::Metal &&
-            TargetEvidence.Profile.CpuArchitecture ==
-                Asset::EAssetTargetCpuArchitecture::Arm64 ? 1u : 4u);
+    SessionConfig.WorkerCount = SelectProductionContentWorkerCount(
+        Configuration.WorkloadRevision,
+        Configuration.ProductionLifecycleCycles,
+        TargetEvidence.Profile.GraphicsBackend,
+        TargetEvidence.Profile.CpuArchitecture);
     SessionConfig.bLoadRootClosureFirst =
         ShouldLoadProductionRootClosureFirst(
             Configuration.WorkloadRevision,

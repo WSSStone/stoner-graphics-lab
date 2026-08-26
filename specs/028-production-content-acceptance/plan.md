@@ -278,8 +278,9 @@ Validation. No new runtime module is introduced.
    counts toward the total. Return every
    tracked counter to baseline and enforce at most 16 MiB RSS growth between the
    sample immediately after warm-up and the terminal sample. Use one runtime
-   manager worker for regular allocator stability and eight for medium/hardware
-   throughput. Scheduled/manual medium assigns each accepted package to its own
+   manager worker for regular allocator stability, one for the bounded Lantern
+   v2 1,000-cycle workload, and sixteen for Sponza medium/hardware throughput.
+   Scheduled/manual medium assigns each accepted package to its own
    hosted arm64 Metal lane with the unchanged 1,800-second per-lane deadline.
    Each lane owns its package's complete clean/warm/strict/equivalence/
    1,000-cycle proof, and an aggregate job requires the exact profile package

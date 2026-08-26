@@ -684,6 +684,48 @@ captures, seven readbacks, zero terminal owners, stale rejection, a
 2,031,616 bytes of growth. The hosted isolated medium lanes remain the final
 throughput and closeout authority.
 
+The complete hosted rerun `32923918933` falsified the hypothesis that the body
+copy was sufficient for Lantern allocator stability. Lantern finished its
+1,000-cycle native stage in about 458 seconds with 2,000 captures, no retained
+owners, and stale-handle rejection, but its cycle-20 RSS of 519,061,504 bytes
+rose to 578,568,192 bytes at terminal, a 59,506,688-byte increase. The missing
+post-lifecycle readbacks again cascaded from that RSS decision. The comparison-
+point macOS pressure-relief path already examines all malloc zones for up to
+eight converging passes, so increasing the same relief loop lacks evidence and
+would not address per-thread allocator arenas created by repeated eight-worker
+manager lifetimes.
+
+Lantern's 37-asset closure does not need Sponza's parallel throughput to
+fit the unchanged 1,800-second lane budget. The exact Lantern v2 1,000-cycle
+workload therefore uses one manager worker, matching the existing arm64 Metal
+regular stability policy, while all other regular selections remain unchanged.
+This changes scheduling parallelism, not
+acceptance work: every cycle still constructs and shuts down a manager, reads
+and typed-decodes the complete closure, realizes both paths, submits native GPU
+work, performs capture accounting, releases every owner, and participates in
+the same 1,000/20 and 16 MiB gate.
+
+The full local proof at
+`Build/Validation/028/medium-metal-lantern-single-worker` passed in 668.94
+seconds, with a 657.07-second native stage, 1,000 cycles, 2,000 captures, seven
+readbacks, 37/37 reachable and reused assets, zero terminal owners, stale
+rejection, a 358,744,064-byte cycle-20 RSS sample, a 359,514,112-byte terminal
+sample, and only 770,048 bytes of growth. This retains more than 19 minutes of
+the unchanged lane budget. Hosted rerun remains required for allocator and
+closeout authority.
+
+The same hosted run gave Sponza 1,684 seconds of native execution after every
+pre-native stage passed, but the existing eight-worker load still timed out
+without producing lifecycle evidence. Sponza's 189-record, texture-heavy
+closure therefore uses sixteen workers, still half the Manager's validated
+32-worker bound. This is isolated to the accepted Sponza v2 1,000-cycle
+workload; Lantern and regular worker selections do not change. The direct local
+1,000-cycle replay completed well within the hosted native allowance and passed
+with 2,000 captures, seven readbacks, zero terminal owners, stale rejection, a
+394,887,168-byte cycle-20 RSS sample, a 396,853,248-byte terminal sample, and
+1,966,080 bytes of growth. Hosted revalidation remains the throughput and
+closeout authority.
+
 The subsequent comparison-only-trim run proved that allocator scanning was not
 the remaining medium timeout cause: both packages again completed cook, warm
 reuse, publication, equivalence, and strict runtime, then their simultaneously

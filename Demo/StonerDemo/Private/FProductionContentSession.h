@@ -30,6 +30,12 @@ struct FProductionContentSessionConfig
     const Core::FString& WorkloadRevision,
     Core::uint32 LifecycleCycles) noexcept;
 
+[[nodiscard]] Core::uint32 SelectProductionContentWorkerCount(
+    const Core::FString& WorkloadRevision,
+    Core::uint32 LifecycleCycles,
+    Asset::EAssetGraphicsBackend GraphicsBackend,
+    Asset::EAssetTargetCpuArchitecture CpuArchitecture) noexcept;
+
 struct FProductionContentLoadedClosure
 {
     Asset::FAssetDigest GenerationIdentity;

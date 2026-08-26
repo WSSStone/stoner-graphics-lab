@@ -324,6 +324,24 @@ RunProductionContentStrictRuntimeTests()
             !Demo::ShouldReuseProductionCookedEnvelopeAuthentication(
                 "production-content-unknown-v2", 1000),
         "envelope authentication reuse is isolated to accepted v2 1000-cycle profiles");
+    Record(Result,
+        Demo::SelectProductionContentWorkerCount(
+            "production-content-lantern-v2", 1000,
+            EAssetGraphicsBackend::Metal,
+            EAssetTargetCpuArchitecture::Arm64) == 1 &&
+            Demo::SelectProductionContentWorkerCount(
+                "production-content-sponza-v2", 1000,
+                EAssetGraphicsBackend::Metal,
+                EAssetTargetCpuArchitecture::Arm64) == 16 &&
+            Demo::SelectProductionContentWorkerCount(
+                "production-content-lantern-v2", 20,
+                EAssetGraphicsBackend::Metal,
+                EAssetTargetCpuArchitecture::Arm64) == 1 &&
+            Demo::SelectProductionContentWorkerCount(
+                "production-content-lantern-v2", 20,
+                EAssetGraphicsBackend::Vulkan,
+                EAssetTargetCpuArchitecture::X86_64) == 4,
+        "worker selection isolates Lantern allocator stability and Sponza throughput from regular profiles");
 
     std::filesystem::create_directories(
         TemporaryRoot / "LeaseDemoRootFirst");
