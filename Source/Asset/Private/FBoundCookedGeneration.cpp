@@ -1,6 +1,7 @@
 #include "FBoundCookedGeneration.h"
 
 #include "Asset/FAssetCookContractCodec.h"
+#include "Asset/FAssetCookedEnvelopeAuthentication.h"
 #include "Core/FPlatformFileSystem.h"
 
 #include <filesystem>
@@ -65,6 +66,60 @@ EAssetResult FBoundCookedGeneration::Bind(
     if (Config.Validate() != EAssetResult::Success ||
         Config.Mode != EAssetManagerMode::StrictCooked)
         return EAssetResult::InvalidInput;
+
+    if (Config.CookedGenerationValidation)
+    {
+        const auto& Validated = *Config.CookedGenerationValidation;
+        const auto Authentication =
+            Config.CookedEnvelopeAuthentication
+                ? Config.CookedEnvelopeAuthentication->Inspect()
+                : FAssetCookedEnvelopeAuthenticationInspection{};
+        const Core::FString ExpectedGenerationDirectory = Join(
+            Config.PublicationRoot,
+            ("Generations/" +
+                Validated.Pointer.GenerationId.ToLowerHex().ToStdString()).
+                    c_str());
+        if (!Validated.Succeeded() ||
+            Validated.Category != EPublishedCorruptionCategory::None ||
+            Validated.Pointer.Validate() != EAssetResult::Success ||
+            Validated.Manifest.Validate() != EAssetResult::Success ||
+            Validated.Pointer.GenerationId !=
+                Validated.Manifest.GenerationId ||
+            Validated.Pointer.ManifestDigest != Validated.ManifestDigest ||
+            Validated.GenerationDirectory != ExpectedGenerationDirectory ||
+            Validated.IndexedPayloads != Validated.Manifest.Records.size() ||
+            Validated.UnexpectedFiles != 0 ||
+            Validated.Manifest.TargetProfile.EffectiveProfileDigest !=
+                Config.TargetEvidence->EffectiveProfileDigest ||
+            !Config.CookedEnvelopeAuthentication->MatchesBinding(
+                Config.PublicationRoot,
+                Validated.Pointer.GenerationId) ||
+            !Authentication.bReaderLeaseHeld ||
+            Authentication.Capacity < Validated.Manifest.Records.size())
+        {
+            Diagnostic(OutDiagnostics, EAssetResult::Conflict,
+                "runtime.generation.validation-authority-invalid",
+                "Validated generation authority does not match the held reader lease");
+            return EAssetResult::Conflict;
+        }
+        for (const Core::FString& Required :
+             Validated.Manifest.RequiredExtensions)
+        {
+            if (!SupportsRequiredExtension(*Config.ExtensionRegistry, Required))
+            {
+                Diagnostic(OutDiagnostics,
+                    EAssetResult::UnknownRequiredExtension,
+                    "runtime.generation.extension-missing",
+                    "A required runtime extension is unavailable");
+                return EAssetResult::UnknownRequiredExtension;
+            }
+        }
+        OutGeneration.ValidatedGeneration_ =
+            Config.CookedGenerationValidation;
+        OutGeneration.Authentication_ =
+            Config.CookedEnvelopeAuthentication;
+        return EAssetResult::Success;
+    }
 
     Core::TArray<Core::uint8> PointerBytes;
     Core::FPlatformFileInfo PointerInfo;
@@ -137,8 +192,17 @@ EAssetResult FBoundCookedGeneration::Bind(
     return EAssetResult::Success;
 }
 
+bool FBoundCookedGeneration::IsBound() const noexcept
+{
+    return ReaderLease_.IsHeld() ||
+        (Authentication_ &&
+            Authentication_->Inspect().bReaderLeaseHeld);
+}
+
 void FBoundCookedGeneration::Reset() noexcept
 {
+    ValidatedGeneration_.reset();
+    Authentication_.reset();
     ReaderLease_.Release();
     GenerationDirectory_ = {};
     Pointer_ = {};

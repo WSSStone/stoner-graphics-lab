@@ -376,13 +376,14 @@ RunProductionContentStrictRuntimeTests()
     const auto ReusedInspection = RootFirstSession.Inspect();
     Record(Result,
         ReusedResult == EAssetResult::Success && ReusedClosure.Model &&
+            ReusedInspection.bGenerationValidationReused &&
             ReusedInspection.CookedEnvelopeAuthentication.GenerationId ==
                 Seed.Manifest.GenerationId &&
             ReusedInspection.CookedEnvelopeAuthentication.
                 AuthenticatedEnvelopeCount == Seed.Manifest.Records.size() &&
             ReusedInspection.CookedEnvelopeAuthentication.ReuseHits >=
                 Seed.Manifest.Records.size(),
-        "Demo medium session reuses only bounded generation authentication while reloading the full closure");
+        "Demo medium session reuses bounded validated metadata and generation authentication while reloading the full closure");
     ReusedClosure = {};
     Record(Result,
         RootFirstSession.Shutdown() == EAssetResult::Success &&

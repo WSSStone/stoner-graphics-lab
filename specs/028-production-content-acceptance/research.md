@@ -773,6 +773,43 @@ sample, a 374,112,256-byte terminal sample, and 884,736 bytes of growth. The
 same binary passed Lantern in 169.68 seconds with the reuse assertion, zero
 owners, stale rejection, and zero positive RSS growth.
 
+Hosted run `32936488807` at revision `c94e749` then passed every regular
+Windows Vulkan, Linux Vulkan, macOS arm64/Intel Metal, artifact revalidation,
+ASan/UBSan, TSan, and isolated Lantern medium job. Linux regular specifically
+returned from 194,101,248 to 171,290,624 resident bytes with zero positive
+growth, 40 captures, seven readbacks, zero terminal owners, and stale-handle
+rejection, proving the fixed one-second glibc comparison point. Sponza alone
+again exhausted its exact 1,668-second native allowance after clean/warm cook,
+publication, semantic equivalence, and strict runtime all passed. The unchanged
+Sponza generation contains 189 envelopes totaling 519,146,543 bytes, so the
+1,000-cycle contract deliberately performs about 495 GiB of complete cooked
+file reads before typed decode.
+
+The persistent session still invoked `IndexAndLayout` twice per cycle: once in
+the Demo session and again while each strict Manager bound the same immutable
+generation. Both paths parsed the same manifest, queried every payload, and
+enumerated the same directory even though the authentication-owned reader lease
+already prevented generation replacement. The session now retains the first
+successful pointer/manifest/layout result as bounded, payload-free metadata.
+Every new Manager validates that authority against the exact publication
+namespace, generation, manifest digest, target, required extensions, record
+count, and continuously held reader lease without repeating filesystem layout
+enumeration. Payload access is unchanged. A new Core bounded regular-file read
+also performs the non-link/regular-file check, size bound, allocation, and
+complete read through one native handle instead of a separate query followed
+by another open. Every cycle still reads every one of the 189 complete files,
+parses every container, creates new typed payloads, realizes both render paths,
+submits/readbacks, and releases all runtime and graphics ownership.
+
+Strict Release, 44 Core platform tests, the complete Asset Manager suite,
+strict-runtime, production Demo, runner `38/38`, workflow `6/6`, architecture
+`14/14`, and direct architecture verification pass locally. The exact local
+Sponza Metal replay then passed all 1,000 cycles in about 620 seconds with the
+new validated-metadata reuse assertion, 2,000 captures, seven readbacks, zero
+terminal owners, stale rejection, a 370,196,480-byte cycle-20 RSS sample, a
+372,883,456-byte terminal sample, and 2,686,976 bytes of growth. Hosted rerun
+remains authoritative for medium closeout.
+
 The same `32927821133` dispatch also exposed comparison-point instability on
 the unchanged 20-cycle Linux regular lane: cycle 2 fell to 122,810,368 bytes
 after trimming, intermediate samples ranged from 302,780,416 to 461,225,984

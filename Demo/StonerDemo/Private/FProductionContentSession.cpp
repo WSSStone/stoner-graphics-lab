@@ -239,6 +239,8 @@ struct FProductionContentSession::FImpl
     Core::TSharedPtr<FAssetManager> Manager;
     Core::TSharedPtr<FAssetCookedEnvelopeAuthentication>
         CookedEnvelopeAuthentication;
+    Core::TSharedPtr<const FPublishedGenerationValidationResult>
+        CookedGenerationValidation;
     Core::TArray<FAnyAssetHandle> Handles;
     FAssetRequestHandle LastReleasedRequest;
     FProductionContentSessionInspection Inspection;
@@ -264,7 +266,10 @@ FProductionContentSession::~FProductionContentSession()
 {
     (void)Shutdown();
     if (Impl_)
+    {
         Impl_->CookedEnvelopeAuthentication.reset();
+        Impl_->CookedGenerationValidation.reset();
+    }
 }
 
 EAssetResult FProductionContentSession::Load(
@@ -276,22 +281,42 @@ EAssetResult FProductionContentSession::Load(
         return EAssetResult::InvalidInput;
     Impl_->Inspection = {};
 
-    FPublishedGenerationValidationRequest ValidationRequest;
-    ValidationRequest.SubjectRoot = Config.PublicationRoot;
-    ValidationRequest.ExpectedGenerationId = Config.ExpectedGeneration;
-    // The strict manager validates every requested envelope digest, header, and
-    // typed body below.  Keep the up-front bind check scoped to the immutable
-    // index/layout so a full lifecycle cycle does not decode every payload
-    // twice before realization.
-    ValidationRequest.Policy =
-        EPublishedGenerationValidationPolicy::IndexAndLayout;
-    const FPublishedGenerationValidationResult Validated =
-        FPublishedGenerationValidator::Validate(ValidationRequest);
-    if (!Validated.Succeeded())
+    Core::TSharedPtr<const FPublishedGenerationValidationResult>
+        ValidatedAuthority;
+    if (Config.bReuseCookedEnvelopeAuthentication &&
+        Impl_->CookedGenerationValidation)
     {
-        Impl_->Inspection.FirstFailure = Core::FString(
-            "publication:" + Validated.StableReason.ToStdString());
-        return Validated.Result;
+        ValidatedAuthority = Impl_->CookedGenerationValidation;
+        Impl_->Inspection.bGenerationValidationReused = true;
+    }
+    else
+    {
+        FPublishedGenerationValidationRequest ValidationRequest;
+        ValidationRequest.SubjectRoot = Config.PublicationRoot;
+        ValidationRequest.ExpectedGenerationId = Config.ExpectedGeneration;
+        // The strict manager validates every requested envelope digest,
+        // header, and typed body below. Keep the first bind check scoped to the
+        // immutable index/layout; the generation reader lease then makes this
+        // payload-free authority safe to share with later manager lifetimes.
+        ValidationRequest.Policy =
+            EPublishedGenerationValidationPolicy::IndexAndLayout;
+        auto Validated = FPublishedGenerationValidator::Validate(
+            ValidationRequest);
+        if (!Validated.Succeeded())
+        {
+            Impl_->Inspection.FirstFailure = Core::FString(
+                "publication:" + Validated.StableReason.ToStdString());
+            return Validated.Result;
+        }
+        ValidatedAuthority = Core::MakeShared<
+            const FPublishedGenerationValidationResult>(
+                std::move(Validated));
+    }
+    const auto& Validated = *ValidatedAuthority;
+    if (Validated.Manifest.GenerationId != Config.ExpectedGeneration)
+    {
+        Impl_->Inspection.FirstFailure = "strict-generation-mismatch";
+        return EAssetResult::Conflict;
     }
     if (Validated.Manifest.TargetProfile != *Config.TargetEvidence)
     {
@@ -317,6 +342,13 @@ EAssetResult FProductionContentSession::Load(
                     "envelope-authentication-create";
                 return ContextResult;
             }
+            Impl_->CookedGenerationValidation = ValidatedAuthority;
+        }
+        else if (!Impl_->CookedGenerationValidation)
+        {
+            Impl_->Inspection.FirstFailure =
+                "envelope-authentication-authority-missing";
+            return EAssetResult::Conflict;
         }
         const auto Authentication =
             Impl_->CookedEnvelopeAuthentication->Inspect();
@@ -361,8 +393,12 @@ EAssetResult FProductionContentSession::Load(
     ManagerConfig.LeaseCoordinationRoot = Config.LeaseCoordinationRoot;
     ManagerConfig.TargetEvidence = Config.TargetEvidence;
     if (Config.bReuseCookedEnvelopeAuthentication)
+    {
         ManagerConfig.CookedEnvelopeAuthentication =
             Impl_->CookedEnvelopeAuthentication;
+        ManagerConfig.CookedGenerationValidation =
+            Impl_->CookedGenerationValidation;
+    }
     ManagerConfig.WorkerCount = Config.WorkerCount;
     FAssetDiagnosticList Diagnostics;
     EAssetResult Result = FAssetManager::Create(

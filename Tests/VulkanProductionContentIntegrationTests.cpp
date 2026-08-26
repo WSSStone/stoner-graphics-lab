@@ -379,8 +379,9 @@ RunVulkanProductionContentIntegrationTests()
             "Vulkan 20-frame image acceptance preserves per-cycle ownership while the 1,000-cycle hardware profile owns RSS acceptance");
     Record(Result,
         ExpectedCycles != 1000 ||
-            Deferred.bCookedEnvelopeAuthenticationReused,
-        "Vulkan 1,000-cycle production reuses one generation-bound authentication context across isolated manager lifetimes");
+            (Deferred.bCookedEnvelopeAuthenticationReused &&
+             Deferred.bCookedGenerationValidationReused),
+        "Vulkan 1,000-cycle production reuses one generation-bound authentication context and validated metadata authority across isolated manager lifetimes");
     const bool bVisible = Environment("STONER_PRODUCTION_VISIBLE") &&
         std::string_view(Environment("STONER_PRODUCTION_VISIBLE")) == "1";
     Record(Result,

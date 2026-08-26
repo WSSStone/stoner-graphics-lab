@@ -314,7 +314,13 @@ Validation. No new runtime module is introduced.
    manager, handles, Renderer/RHI realization, and native resources, but it
    must not destroy the payload-free authentication context between cycles.
    Integration inspection must prove at least one cross-cycle reuse hit for
-   every accepted 1,000-cycle workload. Later cycles still query and read every file, parse every
+   every accepted 1,000-cycle workload. The same continuous reader lease may
+   retain the first successful pointer/manifest/layout validation result as a
+   bounded payload-free authority. Every later manager must re-check that
+   immutable metadata against the exact publication namespace, generation,
+   target profile, required extensions, record count, and held lease, but it
+   does not re-enumerate or re-parse the unchanged generation layout. Later
+   cycles still query and read every file, parse every
    container, decode every typed payload, realize/render the complete closure,
    and release every runtime owner. Once the exact full envelope has already
    been authenticated, typed decode borrows its body from that cycle's complete
@@ -324,7 +330,10 @@ Validation. No new runtime module is introduced.
    publication namespaces, first-load corruption, and capacity mismatch fail
    closed. Regular 20-cycle and general Asset Manager callers do not enable
    this validation-only memo, and public/generic codec paths retain owned body
-   copies. When the validation session hands an immutable typed payload to the
+   copies. Strict payload loading combines the bounded regular-file check and
+   complete read through one native file handle, rejects links/non-regular
+   files and oversize input before allocation, and still compares the exact
+   byte count with manifest authority. When the validation session hands an immutable typed payload to the
    Renderer closure, use an aliasing shared pointer that retains the same
    `TAssetHandle` control instead of deep-copying the payload. The alias keeps
    manager external-retention accounting authoritative and cannot outlive its

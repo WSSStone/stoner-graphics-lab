@@ -6,6 +6,8 @@
 
 #include <cerrno>
 #include <fcntl.h>
+#include <limits>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #if SG_PLATFORM_LINUX
@@ -66,6 +68,85 @@ FPlatformFileStatus SyncParentDirectory(
 }
 
 } // namespace
+
+FPlatformFileStatus PlatformReadRegularFileBounded(
+    const std::filesystem::path& Path,
+    uint64 MaxBytes,
+    TArray<uint8>& OutData)
+{
+    OutData.clear();
+    const int Descriptor = ::open(
+        Path.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+    if (Descriptor < 0)
+        return FromErrno(errno, "read-regular-file:open");
+
+    struct stat Info{};
+    if (::fstat(Descriptor, &Info) != 0)
+    {
+        const int Error = errno;
+        ::close(Descriptor);
+        return FromErrno(Error, "read-regular-file:stat");
+    }
+    if (!S_ISREG(Info.st_mode))
+    {
+        ::close(Descriptor);
+        return MakeFileStatus(
+            EPlatformFileResult::NotRegularFile, 0,
+            "read-regular-file:type");
+    }
+    if (Info.st_size < 0 ||
+        static_cast<uint64>(Info.st_size) > MaxBytes ||
+        static_cast<uint64>(Info.st_size) >
+            static_cast<uint64>(std::numeric_limits<usize>::max()))
+    {
+        ::close(Descriptor);
+        return MakeFileStatus(
+            EPlatformFileResult::LimitExceeded, 0,
+            "read-regular-file:bytes");
+    }
+    try
+    {
+        OutData.resize(static_cast<usize>(Info.st_size));
+    }
+    catch (...)
+    {
+        ::close(Descriptor);
+        OutData.clear();
+        return MakeFileStatus(
+            EPlatformFileResult::IoError, 0,
+            "read-regular-file:allocate");
+    }
+
+    usize Offset = 0;
+    while (Offset < OutData.size())
+    {
+        const ssize_t Read = ::read(
+            Descriptor, OutData.data() + Offset, OutData.size() - Offset);
+        if (Read < 0)
+        {
+            if (errno == EINTR) continue;
+            const int Error = errno;
+            ::close(Descriptor);
+            OutData.clear();
+            return FromErrno(Error, "read-regular-file:read");
+        }
+        if (Read == 0)
+        {
+            ::close(Descriptor);
+            OutData.clear();
+            return MakeFileStatus(
+                EPlatformFileResult::IoError, 0,
+                "read-regular-file:short-read");
+        }
+        Offset += static_cast<usize>(Read);
+    }
+    if (::close(Descriptor) != 0)
+    {
+        OutData.clear();
+        return FromErrno(errno, "read-regular-file:close");
+    }
+    return {};
+}
 
 FPlatformFileStatus PlatformMoveDirectoryNoReplace(
     const std::filesystem::path& Source,

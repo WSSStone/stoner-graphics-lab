@@ -61,6 +61,7 @@ struct FProductionContentSessionInspection
     bool bPublished = false;
     bool bShutdown = false;
     bool bStaleHandleRejected = false;
+    bool bGenerationValidationReused = false;
 };
 
 class FProductionContentSession

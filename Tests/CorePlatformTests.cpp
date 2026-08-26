@@ -136,6 +136,20 @@ void TestPlatformFileSystem(FCorePlatformTestResult& Result)
     Record(Result, FPlatformFileSystem::ReadFile(BinaryFile, BinaryReadback) && BinaryReadback == BinaryPayload,
         "FPlatformFileSystem reads 1 MB binary payload byte-for-byte");
 
+    TArray<uint8> BoundedReadback;
+    Record(Result,
+        FPlatformFileSystem::ReadRegularFileBounded(
+            BinaryFile, BinaryPayload.size(), BoundedReadback).IsSuccess() &&
+            BoundedReadback == BinaryPayload,
+        "FPlatformFileSystem bounded regular-file read uses one exact file image");
+    BoundedReadback = {0x7f};
+    Record(Result,
+        !FPlatformFileSystem::ReadRegularFileBounded(
+            BinaryFile, BinaryPayload.size() - 1, BoundedReadback).
+                IsSuccess() &&
+            BoundedReadback.empty(),
+        "FPlatformFileSystem bounded regular-file read rejects oversized input without partial bytes");
+
     TArray<uint8> MissingReadback = {0x7f};
     Record(Result, !FPlatformFileSystem::ReadFile(MissingFile, MissingReadback) && MissingReadback.empty(),
         "FPlatformFileSystem missing file read fails and clears output");

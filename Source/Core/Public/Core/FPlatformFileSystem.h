@@ -59,6 +59,10 @@ struct FPlatformFileSystem
         const FString& Path,
         FString& OutCanonicalPath);
     [[nodiscard]] static bool ReadFile(const FString& Path, TArray<uint8>& OutData);
+    [[nodiscard]] static FPlatformFileStatus ReadRegularFileBounded(
+        const FString& Path,
+        uint64 MaxBytes,
+        TArray<uint8>& OutData);
     [[nodiscard]] static bool WriteFile(const FString& Path, const TArray<uint8>& Data);
 
     [[nodiscard]] static FPlatformFileStatus QueryRegularFile(

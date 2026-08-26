@@ -150,6 +150,79 @@ bool PlatformReadFile(
     return true;
 }
 
+FPlatformFileStatus PlatformReadRegularFileBounded(
+    const std::filesystem::path& Path,
+    uint64 MaxBytes,
+    TArray<uint8>& OutData)
+{
+    OutData.clear();
+    HANDLE File = ::CreateFileW(
+        Path.c_str(), GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr, OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN |
+            FILE_FLAG_OPEN_REPARSE_POINT,
+        nullptr);
+    if (File == INVALID_HANDLE_VALUE)
+        return FromWindowsError(
+            ::GetLastError(), "read-regular-file:open");
+
+    FILE_ATTRIBUTE_TAG_INFO TagInfo{};
+    LARGE_INTEGER Size{};
+    if (!::GetFileInformationByHandleEx(
+            File, FileAttributeTagInfo, &TagInfo, sizeof(TagInfo)) ||
+        (TagInfo.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 ||
+        (TagInfo.FileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0 ||
+        !::GetFileSizeEx(File, &Size) || Size.QuadPart < 0 ||
+        static_cast<unsigned long long>(Size.QuadPart) > MaxBytes ||
+        static_cast<unsigned long long>(Size.QuadPart) >
+            static_cast<unsigned long long>(
+                std::numeric_limits<usize>::max()))
+    {
+        const DWORD Error = ::GetLastError();
+        ::CloseHandle(File);
+        return MakeFileStatus(
+            EPlatformFileResult::LimitExceeded,
+            static_cast<int64>(Error), "read-regular-file:attributes");
+    }
+    try
+    {
+        OutData.resize(static_cast<usize>(Size.QuadPart));
+    }
+    catch (...)
+    {
+        ::CloseHandle(File);
+        OutData.clear();
+        return MakeFileStatus(
+            EPlatformFileResult::IoError, 0,
+            "read-regular-file:allocate");
+    }
+    usize Offset = 0;
+    while (Offset < OutData.size())
+    {
+        const DWORD Chunk = static_cast<DWORD>(std::min<usize>(
+            OutData.size() - Offset,
+            static_cast<usize>(std::numeric_limits<DWORD>::max())));
+        DWORD Read = 0;
+        if (!::ReadFile(File, OutData.data() + Offset, Chunk, &Read, nullptr) ||
+            Read != Chunk)
+        {
+            const DWORD Error = ::GetLastError();
+            ::CloseHandle(File);
+            OutData.clear();
+            return FromWindowsError(Error, "read-regular-file:read");
+        }
+        Offset += static_cast<usize>(Read);
+    }
+    if (!::CloseHandle(File))
+    {
+        OutData.clear();
+        return FromWindowsError(
+            ::GetLastError(), "read-regular-file:close");
+    }
+    return {};
+}
+
 FPlatformFileStatus PlatformQueryRegularFile(
     const std::filesystem::path& Path,
     uint64 MaxBytes,

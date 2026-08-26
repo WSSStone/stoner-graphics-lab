@@ -100,6 +100,7 @@ struct FDemoProductionExecutionInspection
     Stoner::Core::uint32 PresentedFinalOutputCaptureCount = 0;
     Stoner::Core::uint32 CompletedCycles = 0;
     bool bCookedEnvelopeAuthenticationReused = false;
+    bool bCookedGenerationValidationReused = false;
     bool bSubmissionCompleted = false;
     bool bSynchronizationCompleted = false;
     bool bLifecyclePassed = false;

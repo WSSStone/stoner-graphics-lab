@@ -54,17 +54,11 @@ FAssetLoadScratchResult FCookedAssetLoadingStrategy::Load(
     const auto PayloadPath = std::filesystem::path(
         Generation_.GetGenerationDirectory().ToStdString()) /
         Found->PayloadLocator.ToStdString();
-    Core::FPlatformFileInfo Info;
     const Core::FString Path(PayloadPath.lexically_normal().generic_string());
-    if (!Core::FPlatformFileSystem::QueryRegularFile(
-            Path, Config_.Limits.MaxPayloadBytes, Info).IsSuccess() ||
-        Info.ByteSize != Found->PayloadBytes)
-    {
-        Out.Result = EAssetResult::CorruptPayload;
-        return Out;
-    }
     Core::TArray<Core::uint8> Bytes;
-    if (!Core::FPlatformFileSystem::ReadFile(Path, Bytes))
+    if (!Core::FPlatformFileSystem::ReadRegularFileBounded(
+            Path, Config_.Limits.MaxPayloadBytes, Bytes).IsSuccess() ||
+        Bytes.size() != Found->PayloadBytes)
     {
         Out.Result = EAssetResult::CorruptPayload;
         return Out;

@@ -702,6 +702,9 @@ FStonerDemoApplication::ReleaseProductionContentCycle()
         ProductionContentSession->Inspect();
     ProductionExecutionInspection.bCookedEnvelopeAuthenticationReused =
         SessionInspection.CookedEnvelopeAuthentication.ReuseHits > 0;
+    ProductionExecutionInspection.bCookedGenerationValidationReused =
+        ProductionExecutionInspection.bCookedGenerationValidationReused ||
+        SessionInspection.bGenerationValidationReused;
     ProductionRuntime.reset();
 
     const Asset::FAssetManagerInspection& Manager =

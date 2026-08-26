@@ -32,6 +32,10 @@ namespace Stoner::Core::Detail
 [[nodiscard]] FPlatformFileStatus PlatformWriteFileDurable(
     const std::filesystem::path& Path,
     const TArray<uint8>& Data);
+[[nodiscard]] FPlatformFileStatus PlatformReadRegularFileBounded(
+    const std::filesystem::path& Path,
+    uint64 MaxBytes,
+    TArray<uint8>& OutData);
 #if SG_PLATFORM_WINDOWS
 [[nodiscard]] bool PlatformReadFile(
     const std::filesystem::path& Path,

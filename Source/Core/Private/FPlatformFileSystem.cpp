@@ -283,6 +283,20 @@ bool FPlatformFileSystem::ReadFile(const FString& Path, TArray<uint8>& OutData)
 #endif
 }
 
+FPlatformFileStatus FPlatformFileSystem::ReadRegularFileBounded(
+    const FString& Path,
+    uint64 MaxBytes,
+    TArray<uint8>& OutData)
+{
+    OutData.clear();
+    if (Path.IsEmpty() || MaxBytes == 0)
+        return Detail::MakeFileStatus(
+            EPlatformFileResult::InvalidArgument, 0,
+            "read-regular-file:arguments");
+    return Detail::PlatformReadRegularFileBounded(
+        Detail::ToNativePath(Path), MaxBytes, OutData);
+}
+
 bool FPlatformFileSystem::WriteFile(const FString& Path, const TArray<uint8>& Data)
 {
     std::ofstream File(Detail::ToNativePath(Path), std::ios::binary | std::ios::trunc);

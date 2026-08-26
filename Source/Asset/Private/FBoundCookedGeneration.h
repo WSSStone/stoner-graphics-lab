@@ -22,18 +22,22 @@ public:
         FBoundCookedGeneration& OutGeneration,
         FAssetDiagnosticList& OutDiagnostics);
 
-    [[nodiscard]] bool IsBound() const noexcept { return ReaderLease_.IsHeld(); }
+    [[nodiscard]] bool IsBound() const noexcept;
     [[nodiscard]] const FCurrentGenerationPointer& GetPointer() const noexcept
     {
-        return Pointer_;
+        return ValidatedGeneration_
+            ? ValidatedGeneration_->Pointer : Pointer_;
     }
     [[nodiscard]] const FAssetCookManifest& GetManifest() const noexcept
     {
-        return Manifest_;
+        return ValidatedGeneration_
+            ? ValidatedGeneration_->Manifest : Manifest_;
     }
     [[nodiscard]] const Core::FString& GetGenerationDirectory() const noexcept
     {
-        return GenerationDirectory_;
+        return ValidatedGeneration_
+            ? ValidatedGeneration_->GenerationDirectory
+            : GenerationDirectory_;
     }
     [[nodiscard]] const FGenerationReaderLease& GetReaderLease() const noexcept
     {
@@ -42,6 +46,10 @@ public:
     void Reset() noexcept;
 
 private:
+    Core::TSharedPtr<const FPublishedGenerationValidationResult>
+        ValidatedGeneration_;
+    Core::TSharedPtr<FAssetCookedEnvelopeAuthentication>
+        Authentication_;
     Core::FString GenerationDirectory_;
     FCurrentGenerationPointer Pointer_;
     FAssetCookManifest Manifest_;

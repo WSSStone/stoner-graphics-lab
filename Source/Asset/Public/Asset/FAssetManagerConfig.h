@@ -12,6 +12,7 @@ namespace Stoner::Asset
 {
 
 class FAssetCookedEnvelopeAuthentication;
+struct FPublishedGenerationValidationResult;
 
 enum class EAssetManagerMode : Core::uint8
 {
@@ -51,6 +52,8 @@ struct FAssetManagerConfig
     Core::TSharedPtr<const FAssetTargetProfileEvidence> TargetEvidence;
     Core::TSharedPtr<FAssetCookedEnvelopeAuthentication>
         CookedEnvelopeAuthentication;
+    Core::TSharedPtr<const FPublishedGenerationValidationResult>
+        CookedGenerationValidation;
     Core::uint32 WorkerCount = 4;
     FAssetManagerLimits Limits;
     Core::uint64 LeaseTimeoutMilliseconds = 5000;
@@ -68,12 +71,15 @@ struct FAssetManagerConfig
         if (Mode == EAssetManagerMode::DevelopmentSource)
             return !SourceRoot.IsEmpty() && PublicationRoot.IsEmpty() &&
                 LeaseCoordinationRoot.IsEmpty() &&
-                !CookedEnvelopeAuthentication
+                !CookedEnvelopeAuthentication &&
+                !CookedGenerationValidation
                 ? EAssetResult::Success
                 : EAssetResult::InvalidInput;
         if (Mode == EAssetManagerMode::StrictCooked)
             return SourceRoot.IsEmpty() && !PublicationRoot.IsEmpty() &&
-                !LeaseCoordinationRoot.IsEmpty()
+                !LeaseCoordinationRoot.IsEmpty() &&
+                (!CookedGenerationValidation ||
+                    CookedEnvelopeAuthentication)
                 ? EAssetResult::Success
                 : EAssetResult::InvalidInput;
         return EAssetResult::InvalidInput;
