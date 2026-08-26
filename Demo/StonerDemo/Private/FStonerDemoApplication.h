@@ -154,6 +154,8 @@ private:
         ReleaseProductionContentCycle();
     [[nodiscard]] bool ShouldRecycleProductionBackendForRssComparison()
         const noexcept;
+    [[nodiscard]] bool ShouldPrimeProductionBackendForRssComparison()
+        const noexcept;
     [[nodiscard]] EDemoExitCode SuspendProductionBackendForRssComparison();
     [[nodiscard]] EDemoExitCode ResumeProductionBackendAfterRssComparison();
     [[nodiscard]] EDemoExitCode RunProductionContent();

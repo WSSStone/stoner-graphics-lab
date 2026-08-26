@@ -250,7 +250,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
     def test_shipping_profiles_have_exact_tier_contracts(self):
         expected = {
             "regular": (20, 2, 600),
-            "medium": (1000, 20, 1800),
+            "medium": (1000, 20, 2100),
             "hardware": (1000, 20, 3600),
         }
         for profile_id, (cycles, warmup, budget) in expected.items():

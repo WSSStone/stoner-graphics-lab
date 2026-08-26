@@ -379,8 +379,8 @@ RunVulkanProductionContentIntegrationTests()
 #if SG_PLATFORM_LINUX
     Record(Result,
         Deferred.RssComparisonBackendRecycleCount ==
-            (ExpectedCycles == 20 && !bVisible ? 2u : 0u),
-        "Linux Vulkan headless regular recycles the native backend only at both exact RSS comparison points");
+            (ExpectedCycles == 20 && !bVisible ? 3u : 0u),
+        "Linux Vulkan headless regular primes one backend restart before both exact RSS comparison-point recycles");
 #else
     Record(Result,
         Deferred.RssComparisonBackendRecycleCount == 0,

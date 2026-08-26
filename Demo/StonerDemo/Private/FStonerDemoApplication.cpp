@@ -757,6 +757,16 @@ ShouldRecycleProductionBackendForRssComparison() const noexcept
     return false;
 }
 
+bool FStonerDemoApplication::
+ShouldPrimeProductionBackendForRssComparison() const noexcept
+{
+#if SG_PLATFORM_LINUX
+    return ShouldRecycleProductionBackendForRssComparison();
+#else
+    return false;
+#endif
+}
+
 EDemoExitCode
 FStonerDemoApplication::SuspendProductionBackendForRssComparison()
 {
@@ -777,7 +787,7 @@ FStonerDemoApplication::SuspendProductionBackendForRssComparison()
     ++ProductionExecutionInspection.RssComparisonBackendRecycleCount;
     Diagnostics.Add(EDemoStage::Memory, EDemoExitCode::Success,
         "ProductionRssComparison",
-        "native backend released before authoritative RSS sample");
+        "native backend released at an RSS lifecycle boundary");
     return EDemoExitCode::Success;
 }
 
@@ -812,7 +822,7 @@ FStonerDemoApplication::ResumeProductionBackendAfterRssComparison()
     ProductionRuntimeBaseline = BackendRuntime->GetSnapshot();
     Diagnostics.Add(EDemoStage::Memory, EDemoExitCode::Success,
         "ProductionRssComparison",
-        "requested native backend restored after authoritative RSS sample");
+        "requested native backend restored at an RSS lifecycle boundary");
     return EDemoExitCode::Success;
 }
 

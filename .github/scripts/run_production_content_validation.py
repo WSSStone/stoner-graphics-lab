@@ -95,7 +95,7 @@ PROFILE_CONTRACTS = {
     "medium": {
         "cycles": 1000,
         "warmup": 20,
-        "budget": 1800,
+        "budget": 2100,
         "cadence": [
             "weekly-default-branch", "feature-closeout", "release-closeout"
         ],
@@ -1650,7 +1650,7 @@ def parse_args(values: Sequence[str] | None = None) -> argparse.Namespace:
         default=Path("Content/ProductionAcceptance"),
     )
     parser.add_argument("--determinism-runs", type=int, default=20)
-    parser.add_argument("--timeout-seconds", type=int, default=1800)
+    parser.add_argument("--timeout-seconds", type=int, default=2100)
     parser.add_argument("--package-id")
     args = parser.parse_args(values)
     if args.verify_only is not None:

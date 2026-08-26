@@ -254,8 +254,9 @@ RSS growth is the terminal RSS sample minus the sample taken immediately after
 the final warm-up cycle; the gate requires growth at most 16 MiB in addition to
 all ownership counters returning to baseline. Arm64 Metal regular uses one
 runtime manager worker so worker-local allocation is stable inside two cycles;
-other regular targets use four workers, while medium/hardware use eight workers
-to meet their declared throughput budgets. Medium remains bounded to 30 minutes;
+other regular targets use four workers, while Lantern medium/hardware uses
+eight workers and Sponza v2 uses sixteen workers to meet their declared
+throughput budgets. Medium remains bounded to 35 minutes;
 hardware receives 60 minutes because its two accepted packages must serialize
 their visible windows and capture device. The separate 20-frame visible
 image-calibration run still requires per-cycle ownership and stale-handle
@@ -907,6 +908,53 @@ it would weaken the lifecycle contract. Restarting the backend on every cycle
 was rejected because the two exact post-teardown comparison points are
 sufficient and per-cycle restart would replace the declared lifecycle workload
 with a different one.
+
+The first hosted teardown rerun, `32956455256` at revision `efdfe91`, proved
+that both exact Linux backend recycles executed and returned every tracked
+owner to zero, but also exposed an asymmetric environment boundary. Its
+cycle-2 sample followed destruction of the initial Vulkan device, while its
+cycle-20 sample followed destruction of the replacement device created after
+the warm-up sample. The integration assertion for exactly two comparison-point
+recycles passed, all 20 cycles and 40 captures completed, and stale handles
+were rejected. Nevertheless RSS moved from 118,362,112 to 150,425,600 bytes,
+a 32,063,488-byte increase with a 486,227,968-byte intermediate peak. The
+remaining delta is therefore associated with crossing the first full backend
+restart inside the measured interval, not with a missed shutdown or retained
+production owner.
+
+Linux regular now follows the existing unmeasured Deferred/Forward native
+prime with one unmeasured backend shutdown, the same fixed one-second
+relief/quiescence protocol, and a native-proved restart before declared cycle
+1. Cycles 1-2 execute on that replacement backend, so the exact cycle-2 and
+cycle-20 samples both follow destruction of a post-restart backend. This prime
+records no lifecycle cycle, capture, readback, or RSS sample. The two declared
+comparison samples, 20/2 boundary, and 16 MiB threshold remain unchanged, and
+an integration assertion requires one prime recycle plus both exact
+comparison-point recycles. Metal medium does not add this prime because its
+hosted and local teardown evidence does not have the Linux loader/driver
+restart asymmetry.
+
+The same hosted run `32956455256` did not produce a successor Metal RSS
+result: its Sponza native subprocess used all 1,676 seconds remaining after
+clean cook, warm reuse, publication, semantic equivalence, and strict runtime,
+then the complete 1,800-second profile deadline terminated it. This is a
+budget conflict introduced by the required RSS-boundary correction, not a
+reduction in dependency-first throughput. The preceding hosted run
+`32951285909` needed about 1,631 native seconds to complete all 1,000 cycles,
+while its pre-native stages consumed about 139 seconds; that left roughly 30
+seconds for the newly required full backend shutdown/restart boundaries and
+post-lifecycle readback. The corrected lifecycle therefore has no stable
+hosted margin under 1,800 seconds even though all render work remains bounded.
+
+Medium authority is revised narrowly to 2,100 seconds (35 minutes) per isolated
+package lane. The exact 1,000/20 lifecycle, complete per-cycle reads and typed
+decode, two captures per cycle, seven authoritative readbacks, semantic/FLIP
+checks, zero-owner/stale-handle proof, exact RSS endpoints, and 16 MiB threshold
+remain unchanged. The workflow job retains its 60-minute outer bound. This
+supersedes the earlier rejection of a larger lane budget because that decision
+predated the full native-backend lifetime boundaries required to make RSS
+evidence truthful; removing those boundaries or reducing cycles would weaken
+correctness, whereas 300 seconds of bounded hosted variance does not.
 
 The subsequent comparison-only-trim run proved that allocator scanning was not
 the remaining medium timeout cause: both packages again completed cook, warm

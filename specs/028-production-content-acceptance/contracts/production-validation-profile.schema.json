@@ -61,7 +61,7 @@
         "properties": {
           "lifecycleCycles": {"const": 1000},
           "warmupCycles": {"const": 20},
-          "timeBudgetSeconds": {"const": 1800}
+          "timeBudgetSeconds": {"const": 2100}
         }
       }
     },

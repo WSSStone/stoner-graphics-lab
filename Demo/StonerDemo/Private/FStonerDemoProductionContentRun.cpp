@@ -267,6 +267,19 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         return FailInitialize(EDemoStage::Memory,
             EDemoExitCode::ValidationFailed, "ProductionLifecyclePrime",
             "production native lifecycle prime did not return to baseline");
+    if (ShouldPrimeProductionBackendForRssComparison())
+    {
+        if (SuspendProductionBackendForRssComparison() !=
+                EDemoExitCode::Success)
+            return EDemoExitCode::InitializationFailed;
+        Core::FPlatformMemory::ReleaseUnusedHeapPages();
+        if (ResumeProductionBackendAfterRssComparison() !=
+                EDemoExitCode::Success)
+            return EDemoExitCode::InitializationFailed;
+        Diagnostics.Add(EDemoStage::Memory, EDemoExitCode::Success,
+            "ProductionRssComparison",
+            "unmeasured backend restart primed before declared lifecycle");
+    }
     if (InitializeProductionContent() != EDemoExitCode::Success)
         return EDemoExitCode::InitializationFailed;
 

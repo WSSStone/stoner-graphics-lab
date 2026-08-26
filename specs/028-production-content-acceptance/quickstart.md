@@ -77,12 +77,12 @@ python3 .github/scripts/run_production_content_validation.py \
   --build-root Build/Mac/Release \
   --output Build/Validation/028/medium-metal \
   --acquire-missing \
-  --timeout-seconds 1800
+  --timeout-seconds 2100
 ```
 
 Medium executes every admitted package through clean/warm 100-percent reuse,
 strict no-source loading, semantic equivalence, and 1,000 lifecycle cycles with
-cycles 1-20 as warm-up. It must finish within the declared 30-minute environment
+cycles 1-20 as warm-up. It must finish within the declared 35-minute environment
 budget and enforce RSS growth from the post-warm-up sample to the terminal
 sample at most 16 MiB.
 
