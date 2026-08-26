@@ -285,6 +285,8 @@ RunMetalProductionContentIntegrationTests()
         Profile, ExpectedCycles, ExpectedWarmup, Deferred, Diagnostics);
     const bool bTwentyFrameImageAcceptance =
         IsTwentyFrameImageAcceptance(ExpectedCycles);
+    const bool bVisible = Environment("STONER_PRODUCTION_VISIBLE") &&
+        std::string_view(Environment("STONER_PRODUCTION_VISIBLE")) == "1";
     const char* CaptureRoot = Environment("STONER_PRODUCTION_CAPTURE_ROOT");
     const bool bCaptureEvidenceWritten = !CaptureRoot ||
         ValidateProductionWindowCaptureSet("metal", CaptureRoot, 20);
@@ -369,6 +371,10 @@ RunMetalProductionContentIntegrationTests()
     }
     Record(Result, bDeferredPassed,
         "Metal production Deferred uses the requested native backend and synchronized submission");
+    Record(Result,
+        Deferred.RssComparisonBackendRecycleCount ==
+            (ExpectedCycles == 1000 && !bVisible ? 2u : 0u),
+        "Metal headless medium recycles the native backend only at both exact RSS comparison points");
     if (bTwentyFrameImageAcceptance)
         Record(Result, HasBalancedLifecycleOwnership(Deferred),
             "Metal 20-frame image acceptance preserves per-cycle ownership while the 1,000-cycle hardware profile owns RSS acceptance");
@@ -377,8 +383,6 @@ RunMetalProductionContentIntegrationTests()
             (Deferred.bCookedEnvelopeAuthenticationReused &&
              Deferred.bCookedGenerationValidationReused),
         "Metal 1,000-cycle production reuses one generation-bound authentication context and validated metadata authority across isolated manager lifetimes");
-    const bool bVisible = Environment("STONER_PRODUCTION_VISIBLE") &&
-        std::string_view(Environment("STONER_PRODUCTION_VISIBLE")) == "1";
     Record(Result,
         !bVisible || PresentedCaptureCount(
             Deferred, "FinalOutput") == ExpectedCycles,

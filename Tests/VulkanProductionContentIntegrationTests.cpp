@@ -321,6 +321,8 @@ RunVulkanProductionContentIntegrationTests()
         Profile, ExpectedCycles, ExpectedWarmup, Deferred, Diagnostics);
     const bool bTwentyFrameImageAcceptance =
         IsTwentyFrameImageAcceptance(ExpectedCycles);
+    const bool bVisible = Environment("STONER_PRODUCTION_VISIBLE") &&
+        std::string_view(Environment("STONER_PRODUCTION_VISIBLE")) == "1";
     const char* CaptureRoot = Environment("STONER_PRODUCTION_CAPTURE_ROOT");
     const bool bCaptureEvidenceWritten = !CaptureRoot ||
         ValidateProductionWindowCaptureSet("vulkan", CaptureRoot, 20);
@@ -374,6 +376,16 @@ RunVulkanProductionContentIntegrationTests()
             Deferred.LifecycleSamples.size() == ExpectedCycles &&
             (bTwentyFrameImageAcceptance || Deferred.bLifecyclePassed),
         "Vulkan production Deferred uses the requested native backend and synchronized submission");
+#if SG_PLATFORM_LINUX
+    Record(Result,
+        Deferred.RssComparisonBackendRecycleCount ==
+            (ExpectedCycles == 20 && !bVisible ? 2u : 0u),
+        "Linux Vulkan headless regular recycles the native backend only at both exact RSS comparison points");
+#else
+    Record(Result,
+        Deferred.RssComparisonBackendRecycleCount == 0,
+        "non-Linux Vulkan retains the existing backend lifecycle between RSS comparison points");
+#endif
     if (bTwentyFrameImageAcceptance)
         Record(Result, HasBalancedLifecycleOwnership(Deferred),
             "Vulkan 20-frame image acceptance preserves per-cycle ownership while the 1,000-cycle hardware profile owns RSS acceptance");
@@ -382,8 +394,6 @@ RunVulkanProductionContentIntegrationTests()
             (Deferred.bCookedEnvelopeAuthenticationReused &&
              Deferred.bCookedGenerationValidationReused),
         "Vulkan 1,000-cycle production reuses one generation-bound authentication context and validated metadata authority across isolated manager lifetimes");
-    const bool bVisible = Environment("STONER_PRODUCTION_VISIBLE") &&
-        std::string_view(Environment("STONER_PRODUCTION_VISIBLE")) == "1";
     Record(Result,
         !bVisible || PresentedCaptureCount(
             Deferred, "FinalOutput") == ExpectedCycles,

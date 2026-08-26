@@ -3,6 +3,7 @@
 #include "Application/FWindow.h"
 #include "Asset/AssetMinimal.h"
 #include "Core/FPlatformFileSystem.h"
+#include "Core/SGPlatform.h"
 #include "FProductionContentComposition.h"
 #include "FProductionContentDeferredExecution.h"
 #include "FProductionContentRuntime.h"
@@ -734,6 +735,85 @@ FStonerDemoApplication::ReleaseProductionContentCycle()
         SessionInspection.bStaleHandleRejected &&
         StaleDeferredSnapshot.expired() && StaleForwardSnapshot.expired();
     return Counters;
+}
+
+bool FStonerDemoApplication::
+ShouldRecycleProductionBackendForRssComparison() const noexcept
+{
+    if (Configuration.Workload != EDemoWorkload::ProductionContent ||
+        Configuration.RunMode != EDemoRunMode::NativeHeadless)
+        return false;
+#if SG_PLATFORM_LINUX
+    if (Configuration.GraphicsBackend == EDemoGraphicsBackend::Vulkan &&
+        Configuration.ProductionLifecycleCycles == 20 &&
+        Configuration.ProductionWarmupCycles == 2)
+        return true;
+#elif SG_PLATFORM_MAC
+    if (Configuration.GraphicsBackend == EDemoGraphicsBackend::Metal &&
+        Configuration.ProductionLifecycleCycles == 1000 &&
+        Configuration.ProductionWarmupCycles == 20)
+        return true;
+#endif
+    return false;
+}
+
+EDemoExitCode
+FStonerDemoApplication::SuspendProductionBackendForRssComparison()
+{
+    if (!ShouldRecycleProductionBackendForRssComparison())
+        return EDemoExitCode::Success;
+    if (!BackendRuntime || !ProductionSubmissionHarness)
+        return FailInitialize(EDemoStage::Runtime,
+            EDemoExitCode::InitializationFailed,
+            "ProductionRssComparison",
+            "comparison-point backend ownership is unavailable");
+    ProductionSubmissionHarness->Release();
+    if (BackendRuntime->Shutdown() != Stoner::RHI::ERHIResult::Success)
+        return FailInitialize(EDemoStage::Runtime,
+            EDemoExitCode::InitializationFailed,
+            "ProductionRssComparison",
+            "comparison-point backend shutdown failed");
+    ProductionRuntimeBaseline = {};
+    ++ProductionExecutionInspection.RssComparisonBackendRecycleCount;
+    Diagnostics.Add(EDemoStage::Memory, EDemoExitCode::Success,
+        "ProductionRssComparison",
+        "native backend released before authoritative RSS sample");
+    return EDemoExitCode::Success;
+}
+
+EDemoExitCode
+FStonerDemoApplication::ResumeProductionBackendAfterRssComparison()
+{
+    if (!ShouldRecycleProductionBackendForRssComparison())
+        return EDemoExitCode::Success;
+    if (!BackendRuntime || !ProductionSubmissionHarness)
+        return FailInitialize(EDemoStage::Runtime,
+            EDemoExitCode::InitializationFailed,
+            "ProductionRssComparison",
+            "comparison-point backend restart ownership is unavailable");
+    const Stoner::RHI::ERHIResult NativeResult = BackendRuntime->Initialize(
+        Configuration.RunMode, {}, Configuration.MaxFramesInFlight,
+        Configuration.bEnableValidationLayers);
+    const Stoner::RHI::FRHIRuntimeSnapshot Snapshot =
+        BackendRuntime->GetSnapshot();
+    if (NativeResult != Stoner::RHI::ERHIResult::Success ||
+        !Snapshot.ProvesNativeExecution() ||
+        BackendRuntime->GetBackend() != Configuration.GraphicsBackend)
+        return FailInitialize(EDemoStage::Runtime,
+            EDemoExitCode::RuntimeUnavailable,
+            "ProductionRssComparison",
+            "comparison-point backend restart failed native proof");
+    if (ProductionSubmissionHarness->Initialize(
+            BackendRuntime->GetDevice()) != Stoner::RHI::ERHIResult::Success)
+        return FailInitialize(EDemoStage::Pipeline,
+            EDemoExitCode::InitializationFailed,
+            "ProductionRssComparison",
+            "comparison-point submission harness restart failed");
+    ProductionRuntimeBaseline = BackendRuntime->GetSnapshot();
+    Diagnostics.Add(EDemoStage::Memory, EDemoExitCode::Success,
+        "ProductionRssComparison",
+        "requested native backend restored after authoritative RSS sample");
+    return EDemoExitCode::Success;
 }
 
 

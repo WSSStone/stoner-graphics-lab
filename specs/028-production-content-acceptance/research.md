@@ -868,6 +868,46 @@ between the same two bounded trim sequences, while Metal retains 100
 milliseconds. The sample remains single, unconditional, and value-independent;
 hosted Linux rerun remains authoritative.
 
+Hosted run `32951285909` at revision `86a0014` proved the dependency-first
+throughput change: Sponza completed all 1,000 cycles inside the lane deadline,
+with 2,000 captures, zero terminal owners, and stale-handle rejection. It also
+showed that fixed allocator relief alone does not make a persistent native
+backend a stable RSS comparison boundary. Sponza's exact cycle-20 and terminal
+Metal samples were 249,364,480 and 342,310,912 bytes, a 92,946,432-byte
+increase with a 343,195,648-byte peak. The same dispatch's Linux Vulkan regular
+lane completed all 20 cycles, 40 captures, seven readbacks, zero owners, and
+stale rejection, but moved from 179,372,032 to 288,284,672 bytes, a
+108,912,640-byte endpoint increase while intermediate Lavapipe residency
+oscillated much higher. Neither failure left a tracked production object alive.
+
+The authoritative native-headless RSS lanes now release the submission harness
+and completely shut down the requested backend after production-cycle teardown
+at both exact comparison points. Linux Vulkan applies this only to the regular
+20/2 headless gate; macOS Metal applies it only to the medium 1,000/20 headless
+gate. After the unchanged single warm-up sample, the same requested backend is
+reinitialized, native execution is re-proved, and the shared submission harness
+is restored before cycle processing continues. After the unchanged terminal
+sample and lifecycle decision, it is restored again for the existing uncounted
+seven-readback evidence extraction. The continuous strict-generation session
+and reader lease survive, but no RHI/native device ownership does. Visible
+hardware presentation is deliberately unchanged.
+
+The exact local Sponza v2 Metal replay passed this boundary with 1,000 cycles,
+2,000 captures, seven readbacks, zero terminal owners, stale rejection, both
+generation reuse assertions, and exactly two backend recycles. Its cycle-20
+sample was 269,139,968 bytes, terminal sample 271,564,800 bytes, peak
+272,875,520 bytes, and growth 2,424,832 bytes. Strict Debug/Release, production
+Demo/content/camera/image suites, all 14 architecture unit tests, and direct
+architecture verification also passed. Hosted Linux and Metal reruns remain
+required before the comparison-boundary fix is accepted as final evidence.
+
+Taking repeated samples or selecting a minimum was rejected because it would
+make the gate value-dependent. Raising the 16 MiB limit was rejected because
+it would weaken the lifecycle contract. Restarting the backend on every cycle
+was rejected because the two exact post-teardown comparison points are
+sufficient and per-cycle restart would replace the declared lifecycle workload
+with a different one.
+
 The subsequent comparison-only-trim run proved that allocator scanning was not
 the remaining medium timeout cause: both packages again completed cook, warm
 reuse, publication, equivalence, and strict runtime, then their simultaneously

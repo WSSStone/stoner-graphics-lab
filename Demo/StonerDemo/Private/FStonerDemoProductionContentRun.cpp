@@ -20,7 +20,6 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         !ProductionRuntime->ForwardRenderSnapshot ||
         !BackendRuntime || !BackendRuntime->GetDevice())
         return EDemoExitCode::InitializationFailed;
-    const auto Device = BackendRuntime->GetDevice();
     ProductionExecutionInspection = {};
     ProductionExecutionInspection.RequestedBackend =
         Configuration.GraphicsBackend;
@@ -69,7 +68,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
             : Core::TSharedPtr<RHI::IRHICommandBuffer>{};
     };
 
-    const auto CaptureReadback = [this, &Device](
+    const auto CaptureReadback = [this](
         Core::uint32 Cycle,
         const Core::FString& Name,
         const Core::TSharedPtr<RHI::IRHIBuffer>& Readback,
@@ -80,7 +79,10 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         bool bRecordLifecycleCapture)
     {
         Core::TArray<Core::uint8> Bytes;
-        if (!Readback || ReadbackBytes == 0 ||
+        const auto Device = BackendRuntime
+            ? BackendRuntime->GetDevice()
+            : Core::TSharedPtr<RHI::IRHIDevice>{};
+        if (!Device || !Readback || ReadbackBytes == 0 ||
             ReadProductionBuffer(Configuration.GraphicsBackend,
                 Device, Readback, ReadbackBytes, Bytes) !=
                 RHI::ERHIResult::Success ||
@@ -282,8 +284,14 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
 
         const FDemoProductionLifecycleCounters Counters =
             ReleaseProductionContentCycle();
-        if (Cycle == Configuration.ProductionWarmupCycles ||
-            Cycle == Configuration.ProductionLifecycleCycles)
+        const bool bRssComparisonPoint =
+            Cycle == Configuration.ProductionWarmupCycles ||
+            Cycle == Configuration.ProductionLifecycleCycles;
+        if (bRssComparisonPoint &&
+            SuspendProductionBackendForRssComparison() !=
+                EDemoExitCode::Success)
+            return EDemoExitCode::InitializationFailed;
+        if (bRssComparisonPoint)
             Core::FPlatformMemory::ReleaseUnusedHeapPages();
         if (!ValidationMonitor.SampleProductionCycle(Cycle, Counters))
             return FailInitialize(EDemoStage::Memory,
@@ -291,9 +299,15 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                 "production lifecycle RSS sampling failed");
         ProductionExecutionInspection.CompletedCycles = Cycle;
         CompletedFrames = Cycle;
-        if (Cycle < Configuration.ProductionLifecycleCycles &&
-            InitializeProductionContent() != EDemoExitCode::Success)
-            return EDemoExitCode::InitializationFailed;
+        if (Cycle < Configuration.ProductionLifecycleCycles)
+        {
+            if (bRssComparisonPoint &&
+                ResumeProductionBackendAfterRssComparison() !=
+                    EDemoExitCode::Success)
+                return EDemoExitCode::InitializationFailed;
+            if (InitializeProductionContent() != EDemoExitCode::Success)
+                return EDemoExitCode::InitializationFailed;
+        }
     }
     ProductionExecutionInspection.bSubmissionCompleted = true;
     ProductionExecutionInspection.bSynchronizationCompleted = true;
@@ -305,6 +319,9 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         return FailInitialize(EDemoStage::Memory,
             EDemoExitCode::ValidationFailed, "ProductionLifecycle",
             "production ownership or RSS lifecycle gate failed");
+    if (ResumeProductionBackendAfterRssComparison() !=
+        EDemoExitCode::Success)
+        return EDemoExitCode::InitializationFailed;
     if (InitializeProductionContent() != EDemoExitCode::Success)
         return EDemoExitCode::InitializationFailed;
     ProductionExecutionInspection.Readbacks.clear();

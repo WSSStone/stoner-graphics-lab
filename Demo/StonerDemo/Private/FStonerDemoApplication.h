@@ -99,6 +99,7 @@ struct FDemoProductionExecutionInspection
     Stoner::Core::uint32 ForwardColorCaptureCount = 0;
     Stoner::Core::uint32 PresentedFinalOutputCaptureCount = 0;
     Stoner::Core::uint32 CompletedCycles = 0;
+    Stoner::Core::uint32 RssComparisonBackendRecycleCount = 0;
     bool bCookedEnvelopeAuthenticationReused = false;
     bool bCookedGenerationValidationReused = false;
     bool bSubmissionCompleted = false;
@@ -151,6 +152,10 @@ private:
     [[nodiscard]] EDemoExitCode InitializeProductionContent();
     [[nodiscard]] FDemoProductionLifecycleCounters
         ReleaseProductionContentCycle();
+    [[nodiscard]] bool ShouldRecycleProductionBackendForRssComparison()
+        const noexcept;
+    [[nodiscard]] EDemoExitCode SuspendProductionBackendForRssComparison();
+    [[nodiscard]] EDemoExitCode ResumeProductionBackendAfterRssComparison();
     [[nodiscard]] EDemoExitCode RunProductionContent();
     [[nodiscard]] EDemoExitCode RunProductionCameraPreview();
     void RecordProductionCapture(FDemoProductionCapture Capture);

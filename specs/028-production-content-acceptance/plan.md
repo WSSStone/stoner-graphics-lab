@@ -279,11 +279,17 @@ Validation. No new runtime module is introduced.
    tracked counter to baseline and enforce at most 16 MiB RSS growth between the
    sample immediately after warm-up and the terminal sample.
    Before each of those two authoritative samples, complete queue idle and
-   ownership teardown, release unused heap pages, wait a fixed 100 milliseconds
-   on Metal or one fixed second on glibc/Lavapipe for native completion
-   callbacks and allocator/kernel accounting to quiesce, release unused heap
-   pages once more, then take exactly one RSS sample. Do not select a minimum
-   or retry the sample based on its value. Use one runtime
+   ownership teardown. The native-headless RSS authority fully shuts down the
+   requested backend before allocator relief at both exact comparison points:
+   Linux Vulkan regular uses this boundary for 20/2, and macOS Metal medium
+   uses it for 1,000/20. Restore and re-prove the same requested native backend
+   after the warm-up sample and again before the uncounted evidence extraction;
+   visible hardware/presentation paths retain their existing continuous
+   backend lifetime. Release unused heap pages, wait a fixed 100 milliseconds
+   on Metal or one fixed second on glibc/Lavapipe for native completion and
+   allocator/kernel accounting to quiesce, release unused heap pages once more,
+   then take exactly one RSS sample. Do not select a minimum or retry the sample
+   based on its value. Use one runtime
    manager worker for regular allocator stability, eight for the bounded
    Lantern v2 1,000-cycle workload, and sixteen for Sponza medium/hardware
    throughput.
