@@ -116,7 +116,9 @@ private:
 
     // This does not authenticate Bytes. The strict loader may call it only
     // after its bounded generation-scoped authentication object confirms the
-    // exact digest while owning the continuous generation reader lease.
+    // exact digest while owning the continuous generation reader lease. The
+    // optional envelope is header-only; typed decode borrows the body directly
+    // from Bytes for the duration of this call and retains no borrowed view.
     [[nodiscard]] static EAssetResult LoadPreviouslyAuthenticatedTypedPayload(
         std::span<const Core::uint8> Bytes,
         const FAssetDigest& ExpectedEnvelopeDigest,

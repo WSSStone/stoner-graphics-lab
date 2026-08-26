@@ -315,11 +315,15 @@ RunProductionContentStrictRuntimeTests()
     Record(Result,
         Demo::ShouldReuseProductionCookedEnvelopeAuthentication(
             "production-content-sponza-v2", 1000) &&
-            !Demo::ShouldReuseProductionCookedEnvelopeAuthentication(
+            Demo::ShouldReuseProductionCookedEnvelopeAuthentication(
                 "production-content-lantern-v2", 1000) &&
             !Demo::ShouldReuseProductionCookedEnvelopeAuthentication(
-                "production-content-sponza-v2", 20),
-        "envelope authentication reuse is isolated to the Sponza v2 1000-cycle profile");
+                "production-content-sponza-v2", 20) &&
+            !Demo::ShouldReuseProductionCookedEnvelopeAuthentication(
+                "production-content-lantern-v2", 20) &&
+            !Demo::ShouldReuseProductionCookedEnvelopeAuthentication(
+                "production-content-unknown-v2", 1000),
+        "envelope authentication reuse is isolated to accepted v2 1000-cycle profiles");
 
     std::filesystem::create_directories(
         TemporaryRoot / "LeaseDemoRootFirst");

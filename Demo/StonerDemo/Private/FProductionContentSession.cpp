@@ -211,7 +211,8 @@ bool ShouldReuseProductionCookedEnvelopeAuthentication(
     Core::uint32 LifecycleCycles) noexcept
 {
     return LifecycleCycles == 1000 &&
-        WorkloadRevision == Core::FString("production-content-sponza-v2");
+        (WorkloadRevision == Core::FString("production-content-lantern-v2") ||
+         WorkloadRevision == Core::FString("production-content-sponza-v2"));
 }
 
 struct FProductionContentSession::FImpl

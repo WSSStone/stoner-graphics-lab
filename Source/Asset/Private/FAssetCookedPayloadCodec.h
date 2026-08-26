@@ -32,4 +32,15 @@ namespace Stoner::Asset::Private
     const FAssetCookedPayloadLimits& Limits,
     FAssetCookedPayloadEnvelope& OutEnvelope);
 
+// The returned body view borrows Bytes and remains valid only while Bytes is
+// alive. The envelope intentionally contains only the parsed header and
+// bounded header extensions so the strict loader can typed-decode a previously
+// authenticated body without allocating a second full-size body buffer.
+[[nodiscard]] EAssetResult ParsePreviouslyAuthenticatedAssetCookedPayloadView(
+    std::span<const Core::uint8> Bytes,
+    const FAssetDigest& ExpectedEnvelopeDigest,
+    const FAssetCookedPayloadLimits& Limits,
+    FAssetCookedPayloadEnvelope& OutEnvelope,
+    std::span<const Core::uint8>& OutBody);
+
 } // namespace Stoner::Asset::Private

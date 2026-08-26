@@ -647,6 +647,43 @@ Metal replay passed all 20 Sponza v2 semantic probes and exact accepted-baseline
 FLIP with the same 1,000/20 lifecycle contract. Hosted rerun remains the final
 medium authority.
 
+Hosted run `32907674313` then passed every regular Windows Vulkan, Linux
+Vulkan, macOS arm64/Intel Metal, artifact revalidation, ASan/UBSan, and TSan
+job, but exposed two remaining medium-only costs. Lantern completed all 1,000
+cycles and returned every owner, yet its 536,018,944-byte cycle-20 RSS sample
+rose to 561,856,512 bytes at terminal, a 25,837,568-byte increase above the
+unchanged 16 MiB limit. Sponza completed clean/warm cook, publication,
+equivalence, and strict runtime, but its native process consumed the remaining
+1,663 seconds and hit the unchanged lane deadline. Because lifecycle failure
+precedes the post-lifecycle extraction, Lantern's reported zero readbacks were
+a cascading consequence rather than a separate GPU-readback defect.
+
+The authenticated loader still copied every complete file into its per-cycle
+file buffer and then copied the full cooked-envelope body into a second buffer
+before typed decode. The validation-only previously-authenticated path now
+parses a header-only envelope and borrows a bounded body span from the complete
+file buffer only for the duration of typed decode. Normal public, generic, and
+first-authentication codec paths retain owned body copies and all existing
+digest checks. The borrowed path still checks file size, reads the complete
+file, validates the container/header/schema/codec/shader authority, decodes a
+new typed payload, realizes and renders it, and releases it on every cycle; no
+span or body buffer is retained across the call. The manifest-bounded
+authentication object is now enabled for both accepted v2 workloads at exactly
+1,000 cycles so Lantern receives the same bounded allocator relief, while both
+20-cycle regular schedules and unknown revisions remain fail-closed.
+
+The full local Lantern medium runner at
+`Build/Validation/028/medium-metal-lantern-borrowed-body` passed in 194.38
+seconds, including a 181.55-second native stage, 1,000 cycles, 2,000 captures,
+seven readbacks, 37/37 reachable and reused assets, zero terminal owners, stale
+handle rejection, a 545,505,280-byte cycle-20 RSS sample, a 481,918,976-byte
+terminal sample, and zero reported growth. A direct native-only Sponza replay
+against the same clean/warm/strict generation also passed 1,000 cycles, 2,000
+captures, seven readbacks, zero terminal owners, stale rejection, a
+396,132,352-byte cycle-20 sample, a 398,163,968-byte terminal sample, and
+2,031,616 bytes of growth. The hosted isolated medium lanes remain the final
+throughput and closeout authority.
+
 The subsequent comparison-only-trim run proved that allocator scanning was not
 the remaining medium timeout cause: both packages again completed cook, warm
 reuse, publication, equivalence, and strict runtime, then their simultaneously

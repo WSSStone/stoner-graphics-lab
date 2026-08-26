@@ -297,16 +297,21 @@ Validation. No new runtime module is introduced.
    digest, strict typed loading authenticates the complete envelope once and
    does not re-hash its covered body; generic envelope decoding retains the
    independent body digest check, and missing or mismatched manifest authority
-   fails closed. For Sponza v2 at exactly 1,000 cycles, retain a manifest-bounded
-   set of successfully authenticated envelope digests while an authentication-
+   fails closed. For accepted Lantern v2 and Sponza v2 workloads at exactly
+   1,000 cycles, retain a manifest-bounded set of successfully authenticated
+   envelope digests while an authentication-
    owned reader lease continuously protects the exact publication namespace
    and generation. Later cycles still query and read every file, parse every
    container, decode every typed payload, realize/render the complete closure,
-   and release every runtime owner; the set contains no payload bytes, decoded
-   assets, runtime handles, or graphics objects. Unknown generations, changed
+   and release every runtime owner. Once the exact full envelope has already
+   been authenticated, typed decode borrows its body from that cycle's complete
+   file buffer instead of allocating a second full body copy; the view cannot
+   outlive the decode call. The set contains no payload bytes, decoded assets,
+   runtime handles, or graphics objects. Unknown generations, changed
    publication namespaces, first-load corruption, and capacity mismatch fail
-   closed. Lantern, regular, and general Asset Manager callers do not enable
-   this validation-only memo. Every lifecycle cycle still
+   closed. Regular 20-cycle and general Asset Manager callers do not enable
+   this validation-only memo, and public/generic codec paths retain owned body
+   copies. Every lifecycle cycle still
    performs synchronized GPU readback and nonblank validation for Deferred
    FinalOutput and ForwardColor. After the exact terminal teardown, RSS sample,
    and lifecycle decision, one uncounted extraction pass copies all six Deferred
