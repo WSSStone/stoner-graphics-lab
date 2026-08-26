@@ -760,11 +760,7 @@ ShouldRecycleProductionBackendForRssComparison() const noexcept
 bool FStonerDemoApplication::
 ShouldPrimeProductionBackendForRssComparison() const noexcept
 {
-#if SG_PLATFORM_LINUX
     return ShouldRecycleProductionBackendForRssComparison();
-#else
-    return false;
-#endif
 }
 
 EDemoExitCode

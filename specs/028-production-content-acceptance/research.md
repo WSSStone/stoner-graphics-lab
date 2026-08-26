@@ -930,9 +930,7 @@ cycle-20 samples both follow destruction of a post-restart backend. This prime
 records no lifecycle cycle, capture, readback, or RSS sample. The two declared
 comparison samples, 20/2 boundary, and 16 MiB threshold remain unchanged, and
 an integration assertion requires one prime recycle plus both exact
-comparison-point recycles. Metal medium does not add this prime because its
-hosted and local teardown evidence does not have the Linux loader/driver
-restart asymmetry.
+comparison-point recycles.
 
 The same hosted run `32956455256` did not produce a successor Metal RSS
 result: its Sponza native subprocess used all 1,676 seconds remaining after
@@ -955,6 +953,35 @@ supersedes the earlier rejection of a larger lane budget because that decision
 predated the full native-backend lifetime boundaries required to make RSS
 evidence truthful; removing those boundaries or reducing cycles would weaken
 correctness, whereas 300 seconds of bounded hosted variance does not.
+
+Run `32960932852` validated both conclusions separately. Linux regular passed
+its complete profile after exactly one unmeasured restart prime plus both RSS
+comparison-point recycles: cycle-2 RSS was 245,047,296 bytes, terminal RSS was
+220,364,800 bytes, reported positive growth was zero, peak RSS was 623,161,344
+bytes, and all 20 cycles, 40 captures, seven readbacks, owner/stale checks, and
+artifact revalidation passed. Sponza also completed all 1,000 cycles inside the
+new budget, proved both comparison-point recycles, produced 2,000 captures,
+returned every tracked owner to zero, and rejected stale handles, but its RSS
+moved from 250,511,360 to 344,637,440 bytes, a 94,126,080-byte increase. The
+cycle-20 sample again followed destruction of the initial Metal device while
+the terminal sample followed its replacement. Hosted Metal therefore has the
+same first-restart asymmetry even though a local replay happened not to expose
+it. The unmeasured restart prime is consequently required for both exact
+native-headless RSS authorities: Linux Vulkan regular uses the one-second
+glibc/Lavapipe relief protocol and Metal medium uses the 100-millisecond macOS
+zone-relief protocol. Both integration lanes require exactly three total
+recycles; visible hardware remains continuous.
+
+The exact local Sponza v2 medium runner at
+`Build/Validation/028/medium-metal-sponza-three-recycle-final` then passed the
+generalized boundary. It completed the whole profile in 550.87 seconds and the
+native 1,000-cycle stage in 486.29 seconds with exactly three backend recycles,
+2,000 captures, seven authoritative readbacks, zero terminal owners, and stale
+handle rejection. RSS moved from 269,664,256 after cycle 20 to 273,268,736 at
+cycle 1,000, a 3,604,480-byte increase with a 275,742,720-byte peak. This proves
+the third recycle removes the first-restart asymmetry without changing the
+declared lifecycle or weakening the 16 MiB contract; hosted Linux and Metal
+authority still must pass together on the committed revision.
 
 The subsequent comparison-only-trim run proved that allocator scanning was not
 the remaining medium timeout cause: both packages again completed cook, warm

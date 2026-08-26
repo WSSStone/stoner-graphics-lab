@@ -285,12 +285,13 @@ Validation. No new runtime module is introduced.
    uses it for 1,000/20. Restore and re-prove the same requested native backend
    after the warm-up sample and again before the uncounted evidence extraction;
    visible hardware/presentation paths retain their existing continuous
-   backend lifetime. Before the declared Linux regular sequence, follow the
-   existing unmeasured native Deferred/Forward prime with one unmeasured full
-   backend shutdown, fixed relief/quiescence, and restart. This makes both
-   authoritative Linux endpoints observe a backend that has already crossed
-   the same restart boundary without adding a declared cycle, capture, or RSS
-   sample. Release unused heap pages, wait a fixed 100 milliseconds
+   backend lifetime. Before each declared native-headless RSS sequence, follow
+   the existing unmeasured native Deferred/Forward prime with one unmeasured
+   full backend shutdown, platform-specific fixed relief/quiescence, and
+   restart. This makes both authoritative Linux regular and Metal medium
+   endpoints observe a backend that has already crossed the same restart
+   boundary without adding a declared cycle, capture, or RSS sample. Release
+   unused heap pages, wait a fixed 100 milliseconds
    on Metal or one fixed second on glibc/Lavapipe for native completion and
    allocator/kernel accounting to quiesce, release unused heap pages once more,
    then take exactly one RSS sample. Do not select a minimum or retry the sample

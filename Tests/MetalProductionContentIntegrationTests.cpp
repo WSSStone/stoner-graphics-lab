@@ -373,8 +373,8 @@ RunMetalProductionContentIntegrationTests()
         "Metal production Deferred uses the requested native backend and synchronized submission");
     Record(Result,
         Deferred.RssComparisonBackendRecycleCount ==
-            (ExpectedCycles == 1000 && !bVisible ? 2u : 0u),
-        "Metal headless medium recycles the native backend only at both exact RSS comparison points");
+            (ExpectedCycles == 1000 && !bVisible ? 3u : 0u),
+        "Metal headless medium primes one backend restart before both exact RSS comparison-point recycles");
     if (bTwentyFrameImageAcceptance)
         Record(Result, HasBalancedLifecycleOwnership(Deferred),
             "Metal 20-frame image acceptance preserves per-cycle ownership while the 1,000-cycle hardware profile owns RSS acceptance");
