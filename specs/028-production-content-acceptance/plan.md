@@ -318,7 +318,12 @@ Validation. No new runtime module is introduced.
    publication namespaces, first-load corruption, and capacity mismatch fail
    closed. Regular 20-cycle and general Asset Manager callers do not enable
    this validation-only memo, and public/generic codec paths retain owned body
-   copies. Every lifecycle cycle still
+   copies. When the validation session hands an immutable typed payload to the
+   Renderer closure, use an aliasing shared pointer that retains the same
+   `TAssetHandle` control instead of deep-copying the payload. The alias keeps
+   manager external-retention accounting authoritative and cannot outlive its
+   payload, while session teardown still requires every alias and handle to be
+   released before manager shutdown. Every lifecycle cycle still
    performs synchronized GPU readback and nonblank validation for Deferred
    FinalOutput and ForwardColor. After the exact terminal teardown, RSS sample,
    and lifecycle decision, one uncounted extraction pass copies all six Deferred

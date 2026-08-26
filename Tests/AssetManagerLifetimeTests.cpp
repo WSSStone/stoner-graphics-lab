@@ -37,22 +37,29 @@ void TestHandleLifetime(FAssetManagerLifetimeTestResult& Result)
         Manager->GetResult(Request, Original) == EAssetResult::Success;
     TAssetHandle<FRuntimeTestPayload> Copy = Original;
     TAssetHandle<FRuntimeTestPayload> Moved = std::move(Copy);
+    Core::TSharedPtr<const FRuntimeTestPayload> Shared = Original.GetShared();
     const auto OneControl = Manager->Inspect();
     (void)Manager->ReleaseRequest(Request);
     (void)Manager->Shutdown();
     Manager.reset();
     Record(Result,
         Ready && !Copy.IsValid() && Original.IsValid() && Moved.IsValid() &&
-            Original.Get() == Moved.Get() &&
+            Shared && Original.Get() == Moved.Get() &&
+            Original.Get() == Shared.get() &&
             OneControl.ExternalHandleRetentions == 1 &&
             Moved.GetIdentity() == Id &&
             Moved->GetValue() == Core::FString("survives-manager"),
         "copied and moved typed handles share one manager-independent retention control");
     Original.Reset();
+    Moved.Reset();
     Record(Result,
-        Moved.IsValid() && Moved->GetValue() ==
+        Shared && Shared->GetValue() ==
             Core::FString("survives-manager"),
-        "typed payload remains valid after request release and manager destruction");
+        "shared typed payload aliases the retention control after handles and manager are destroyed");
+    Shared.reset();
+    Record(Result,
+        !Shared,
+        "shared typed payload releases its final retention control deterministically");
 }
 } // namespace
 

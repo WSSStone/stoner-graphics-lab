@@ -52,6 +52,13 @@ public:
     }
     [[nodiscard]] const T& operator*() const noexcept { return *Get(); }
     [[nodiscard]] const T* operator->() const noexcept { return Get(); }
+    [[nodiscard]] Core::TSharedPtr<const T> GetShared() const noexcept
+    {
+        const T* Payload = Get();
+        return Payload
+            ? Core::TSharedPtr<const T>(Control_, Payload)
+            : Core::TSharedPtr<const T>{};
+    }
     [[nodiscard]] const FAssetId& GetIdentity() const noexcept
     {
         return Control_->GetIdentity();

@@ -154,11 +154,11 @@ EAssetResult FinishRecord(
 }
 
 template <typename T>
-Core::TSharedPtr<const T> CopyHandle(const FAnyAssetHandle& Handle)
+Core::TSharedPtr<const T> ShareHandle(const FAnyAssetHandle& Handle)
 {
     const auto* Typed = std::get_if<TAssetHandle<T>>(&Handle);
     return Typed && Typed->IsValid()
-        ? Core::MakeShared<const T>(**Typed)
+        ? Typed->GetShared()
         : Core::TSharedPtr<const T>{};
 }
 
@@ -191,7 +191,7 @@ void AddDependency(
 {
     const auto* Typed = std::get_if<TAssetHandle<T>>(&Handle);
     if (!Typed || !Typed->IsValid()) return;
-    Out.push_back(Core::MakeShared<const T>(**Typed));
+    Out.push_back(Typed->GetShared());
     Dependencies.Versions.push_back({
         Typed->GetIdentity(), IntrinsicVersion(**Typed)});
 }
@@ -499,7 +499,7 @@ EAssetResult FProductionContentSession::Load(
         const bool bModelDependency =
             Record.AssetId != *Root && ModelClosure.contains(Record.AssetId);
         if (Record.AssetId == *Root)
-            Candidate.Model = CopyHandle<FStaticModelAsset>(Handle);
+            Candidate.Model = ShareHandle<FStaticModelAsset>(Handle);
         else if (bModelDependency &&
                  Record.AssetType == Core::FString("StaticMesh"))
             AddDependency(Handle, Candidate.Dependencies.Meshes,
@@ -526,12 +526,12 @@ EAssetResult FProductionContentSession::Load(
                 Candidate.Dependencies);
         if (Record.AssetType == Core::FString("ShaderProgram"))
         {
-            const auto Shader = CopyHandle<FShaderAsset>(Handle);
+            const auto Shader = ShareHandle<FShaderAsset>(Handle);
             if (Shader) Candidate.RenderShaders.push_back(Shader);
         }
         else if (Record.AssetType == Core::FString("ShaderPayload"))
         {
-            const auto Payload = CopyHandle<FShaderPayloadAsset>(Handle);
+            const auto Payload = ShareHandle<FShaderPayloadAsset>(Handle);
             if (Payload) Candidate.RenderShaderPayloads.push_back(Payload);
         }
         Impl_->Handles.push_back(std::move(Handle));

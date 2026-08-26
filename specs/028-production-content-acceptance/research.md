@@ -723,8 +723,32 @@ workload; Lantern and regular worker selections do not change. The direct local
 1,000-cycle replay completed well within the hosted native allowance and passed
 with 2,000 captures, seven readbacks, zero terminal owners, stale rejection, a
 394,887,168-byte cycle-20 RSS sample, a 396,853,248-byte terminal sample, and
-1,966,080 bytes of growth. Hosted revalidation remains the throughput and
-closeout authority.
+1,966,080 bytes of growth. Hosted run `32927821133` still timed out after every
+pre-native stage passed: the sixteen-worker native process exhausted its exact
+1,631-second remaining allowance without producing lifecycle evidence.
+
+Inspection then found that the validation session retained each original typed
+Asset handle but also deep-copied every immutable model, mesh, material,
+texture, and shader payload into the Renderer closure on every lifecycle
+cycle. This duplicated the largest Sponza CPU payloads after complete strict
+file reads and typed decode, without adding validation coverage. `TAssetHandle`
+now exposes an aliasing typed shared pointer whose ownership remains the same
+handle control. The Renderer closure therefore observes the exact decoded
+immutable object without copying it, and the manager's external-retention
+counter remains live until every handle and alias is released. The public
+handle lifetime test proves that aliases survive handle/manager destruction
+and release the final control deterministically. A strict Release build and a
+20-cycle native Sponza replay passed before the exact sixteen-worker
+1,000-cycle replay completed in 947.82 seconds with 2,000 captures, seven
+readbacks, zero terminal owners, stale rejection, a 372,752,384-byte cycle-20
+RSS sample, a 374,784,000-byte terminal sample, and 2,031,616 bytes of growth.
+This retains complete loading, decoding, realization, native rendering, and
+teardown work while leaving 683 seconds against the hosted native allowance;
+the same binary then passed the exact eight-worker Lantern 1,000-cycle replay
+in 176.82 seconds with 2,000 captures, seven readbacks, zero terminal owners,
+stale rejection, a 528,334,848-byte cycle-20 RSS sample, a 457,965,568-byte
+terminal sample, and zero positive growth. Hosted revalidation remains the
+throughput and closeout authority.
 
 The same `32927821133` dispatch also exposed comparison-point instability on
 the unchanged 20-cycle Linux regular lane: cycle 2 fell to 122,810,368 bytes
