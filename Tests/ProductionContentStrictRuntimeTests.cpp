@@ -328,7 +328,7 @@ RunProductionContentStrictRuntimeTests()
         Demo::SelectProductionContentWorkerCount(
             "production-content-lantern-v2", 1000,
             EAssetGraphicsBackend::Metal,
-            EAssetTargetCpuArchitecture::Arm64) == 1 &&
+            EAssetTargetCpuArchitecture::Arm64) == 8 &&
             Demo::SelectProductionContentWorkerCount(
                 "production-content-sponza-v2", 1000,
                 EAssetGraphicsBackend::Metal,
@@ -341,7 +341,7 @@ RunProductionContentStrictRuntimeTests()
                 "production-content-lantern-v2", 20,
                 EAssetGraphicsBackend::Vulkan,
                 EAssetTargetCpuArchitecture::X86_64) == 4,
-        "worker selection isolates Lantern allocator stability and Sponza throughput from regular profiles");
+        "worker selection isolates Sponza throughput from regular and Lantern profiles");
 
     std::filesystem::create_directories(
         TemporaryRoot / "LeaseDemoRootFirst");

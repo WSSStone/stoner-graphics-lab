@@ -2,6 +2,9 @@
 
 #include "Core/SGPlatform.h"
 
+#include <chrono>
+#include <thread>
+
 #if SG_PLATFORM_WINDOWS
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -26,11 +29,19 @@ void FPlatformMemory::ReleaseUnusedHeapPages() noexcept
     // A native graphics lifecycle can leave freed allocations cached across
     // several malloc zones. Converge the allocator at the authoritative RSS
     // comparison points without changing the sampled cycles or threshold.
-    constexpr int MaxReliefPasses = 8;
-    for (int Pass = 0; Pass < MaxReliefPasses; ++Pass)
+    const auto Release = []
     {
-        if (malloc_zone_pressure_relief(nullptr, 0) == 0) break;
-    }
+        constexpr int MaxReliefPasses = 8;
+        for (int Pass = 0; Pass < MaxReliefPasses; ++Pass)
+            if (malloc_zone_pressure_relief(nullptr, 0) == 0) break;
+    };
+    Release();
+    // Completed Metal handlers can publish zero ownership immediately before
+    // the native command buffer and driver allocations leave their callback.
+    // Keep the authoritative sample fixed, but give that release a bounded,
+    // deterministic quiescence window and converge the zones once more.
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    Release();
 #elif SG_PLATFORM_LINUX && defined(__GLIBC__)
     // malloc_trim() reports whether it released pages. A single pass can
     // leave another arena immediately trimmable after the first arena scan,
@@ -38,11 +49,18 @@ void FPlatformMemory::ReleaseUnusedHeapPages() noexcept
     // Bound the convergence loop so the comparison point measures the fully
     // released glibc heap without turning a driver/allocator defect into an
     // unbounded validation stall.
-    constexpr int MaxTrimPasses = 8;
-    for (int Pass = 0; Pass < MaxTrimPasses; ++Pass)
+    const auto Release = []
     {
-        if (malloc_trim(0) == 0) break;
-    }
+        constexpr int MaxTrimPasses = 8;
+        for (int Pass = 0; Pass < MaxTrimPasses; ++Pass)
+            if (malloc_trim(0) == 0) break;
+    };
+    Release();
+    // glibc arena release and kernel RSS accounting can settle just after the
+    // first trim. Use the same fixed comparison-point quiescence as Metal,
+    // then retain exactly one post-quiescence authoritative RSS sample.
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    Release();
 #endif
 }
 

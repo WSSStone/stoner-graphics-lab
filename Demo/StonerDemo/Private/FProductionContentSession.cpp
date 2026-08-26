@@ -224,7 +224,7 @@ Core::uint32 SelectProductionContentWorkerCount(
     if (LifecycleCycles == 1000)
     {
         return WorkloadRevision ==
-            Core::FString("production-content-sponza-v2") ? 16u : 1u;
+            Core::FString("production-content-sponza-v2") ? 16u : 8u;
     }
     return GraphicsBackend == Asset::EAssetGraphicsBackend::Metal &&
         CpuArchitecture == Asset::EAssetTargetCpuArchitecture::Arm64

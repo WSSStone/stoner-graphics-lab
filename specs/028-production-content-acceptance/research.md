@@ -695,24 +695,24 @@ eight converging passes, so increasing the same relief loop lacks evidence and
 would not address per-thread allocator arenas created by repeated eight-worker
 manager lifetimes.
 
-Lantern's 37-asset closure does not need Sponza's parallel throughput to
-fit the unchanged 1,800-second lane budget. The exact Lantern v2 1,000-cycle
-workload therefore uses one manager worker, matching the existing arm64 Metal
-regular stability policy, while all other regular selections remain unchanged.
-This changes scheduling parallelism, not
-acceptance work: every cycle still constructs and shuts down a manager, reads
-and typed-decodes the complete closure, realizes both paths, submits native GPU
-work, performs capture accounting, releases every owner, and participates in
-the same 1,000/20 and 16 MiB gate.
+Lantern's 37-asset closure was then evaluated with one manager worker to test
+whether repeated worker-thread arenas caused that growth. This changes only
+scheduling parallelism: every cycle still constructs and shuts down a manager,
+reads and typed-decodes the complete closure, realizes both paths, submits
+native GPU work, performs capture accounting, releases every owner, and
+participates in the same 1,000/20 and 16 MiB gate.
 
 The full local proof at
 `Build/Validation/028/medium-metal-lantern-single-worker` passed in 668.94
 seconds, with a 657.07-second native stage, 1,000 cycles, 2,000 captures, seven
 readbacks, 37/37 reachable and reused assets, zero terminal owners, stale
 rejection, a 358,744,064-byte cycle-20 RSS sample, a 359,514,112-byte terminal
-sample, and only 770,048 bytes of growth. This retains more than 19 minutes of
-the unchanged lane budget. Hosted rerun remains required for allocator and
-closeout authority.
+sample, and only 770,048 bytes of growth. Hosted run `32927821133` rejected the
+hypothesis: the same single-worker workload finished all 1,000 cycles with zero
+owners and stale rejection, but its RSS grew from 349,356,032 to 442,335,232
+bytes, a worse 92,979,200-byte increase. Lantern therefore returns to eight
+workers; the completed experiment remains evidence that worker-thread count is
+not the hosted RSS root cause.
 
 The same hosted run gave Sponza 1,684 seconds of native execution after every
 pre-native stage passed, but the existing eight-worker load still timed out
@@ -725,6 +725,24 @@ with 2,000 captures, seven readbacks, zero terminal owners, stale rejection, a
 394,887,168-byte cycle-20 RSS sample, a 396,853,248-byte terminal sample, and
 1,966,080 bytes of growth. Hosted revalidation remains the throughput and
 closeout authority.
+
+The same `32927821133` dispatch also exposed comparison-point instability on
+the unchanged 20-cycle Linux regular lane: cycle 2 fell to 122,810,368 bytes
+after trimming, intermediate samples ranged from 302,780,416 to 461,225,984
+bytes, and cycle 20 settled at 173,289,472 bytes. All owners were zero and stale
+rejection passed, but the exact endpoint difference was 50,479,104 bytes. On
+Metal, a completed handler can publish zero submission ownership immediately
+before its native command buffer and driver allocations leave the callback; on
+glibc, arena release and kernel RSS accounting can likewise settle just after
+the first trim. The comparison-point protocol now performs the existing
+bounded all-zone/arena relief, waits a fixed 100 milliseconds, performs the
+same bounded relief again, and then takes exactly one authoritative sample.
+The wait is unconditional and value-independent; it does not select a minimum,
+move the warm-up/terminal cycles, or weaken the 16 MiB threshold. A strict
+Release build, all 42 Core platform tests, all 27 strict-runtime tests, and a
+20-cycle native Metal replay passed with 40 captures, seven readbacks, zero
+owners, stale rejection, and 5,406,720 bytes of RSS growth. Hosted Linux and
+Metal reruns remain authoritative.
 
 The subsequent comparison-only-trim run proved that allocator scanning was not
 the remaining medium timeout cause: both packages again completed cook, warm
