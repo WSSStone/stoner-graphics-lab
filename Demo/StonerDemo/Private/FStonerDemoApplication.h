@@ -11,6 +11,7 @@ namespace Stoner::Demo
 {
 
 class FProductionSubmissionHarness;
+class FProductionContentSession;
 
 [[nodiscard]] Stoner::Renderer::FForwardFramePlan BuildTriangleFramePlan(
     Stoner::Core::uint32 Width,
@@ -98,6 +99,7 @@ struct FDemoProductionExecutionInspection
     Stoner::Core::uint32 ForwardColorCaptureCount = 0;
     Stoner::Core::uint32 PresentedFinalOutputCaptureCount = 0;
     Stoner::Core::uint32 CompletedCycles = 0;
+    bool bCookedEnvelopeAuthenticationReused = false;
     bool bSubmissionCompleted = false;
     bool bSynchronizationCompleted = false;
     bool bLifecyclePassed = false;
@@ -180,6 +182,7 @@ private:
     std::unique_ptr<FWindowHolder> Window;
     class FProductionContentRuntime;
     std::unique_ptr<FProductionContentRuntime> ProductionRuntime;
+    std::unique_ptr<FProductionContentSession> ProductionContentSession;
     bool bHasFailureInjection = false;
     EDemoStage FailureInjectionStage = EDemoStage::Configuration;
     double RecoveryStartMilliseconds = 0.0;

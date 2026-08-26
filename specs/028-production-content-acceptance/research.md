@@ -748,7 +748,30 @@ the same binary then passed the exact eight-worker Lantern 1,000-cycle replay
 in 176.82 seconds with 2,000 captures, seven readbacks, zero terminal owners,
 stale rejection, a 528,334,848-byte cycle-20 RSS sample, a 457,965,568-byte
 terminal sample, and zero positive growth. Hosted revalidation remains the
-throughput and closeout authority.
+throughput and closeout authority. Hosted run `32932377467` proved the
+payload-alias change independently useful but insufficient: Lantern passed its
+complete medium profile in 501.14 seconds and its 465.87-second native stage
+reported 14,630,912 bytes of RSS growth, while Sponza again exhausted its exact
+1,687-second native allowance after every pre-native stage passed.
+
+The remaining Sponza review found a composition-lifetime defect rather than a
+new payload cost. `FProductionContentSession::Shutdown()` intentionally keeps
+the generation-bound authentication context so a later `Load()` can reuse it,
+and its focused unit test exercised that sequence. The application, however,
+stored the session inside `FProductionContentRuntime` and destroyed the entire
+runtime after every cycle, so the production gate discarded the context and
+reader lease before the next manager lifetime. The session now belongs to the
+application for the complete gate while each cycle still destroys all loaded
+payload handles, manager/cache state, Renderer snapshots, RHI objects, and
+native resources. A new integration inspection bit requires an actual reuse
+hit for every 1,000-cycle Metal/Vulkan workload. Strict Release, 42 Core
+platform tests, 27 strict-runtime tests, the 38-test runner, six workflow tests,
+and 14 architecture tests passed. The exact local sixteen-worker Sponza replay
+then passed the new reuse assertion in 780.84 seconds with 2,000 captures,
+seven readbacks, zero owners, stale rejection, a 373,227,520-byte cycle-20 RSS
+sample, a 374,112,256-byte terminal sample, and 884,736 bytes of growth. The
+same binary passed Lantern in 169.68 seconds with the reuse assertion, zero
+owners, stale rejection, and zero positive RSS growth.
 
 The same `32927821133` dispatch also exposed comparison-point instability on
 the unchanged 20-cycle Linux regular lane: cycle 2 fell to 122,810,368 bytes
@@ -759,14 +782,22 @@ Metal, a completed handler can publish zero submission ownership immediately
 before its native command buffer and driver allocations leave the callback; on
 glibc, arena release and kernel RSS accounting can likewise settle just after
 the first trim. The comparison-point protocol now performs the existing
-bounded all-zone/arena relief, waits a fixed 100 milliseconds, performs the
-same bounded relief again, and then takes exactly one authoritative sample.
+bounded all-zone/arena relief, waits a fixed platform-specific interval,
+performs the same bounded relief again, and then takes exactly one authoritative sample.
 The wait is unconditional and value-independent; it does not select a minimum,
 move the warm-up/terminal cycles, or weaken the 16 MiB threshold. A strict
 Release build, all 42 Core platform tests, all 27 strict-runtime tests, and a
 20-cycle native Metal replay passed with 40 captures, seven readbacks, zero
-owners, stale rejection, and 5,406,720 bytes of RSS growth. Hosted Linux and
-Metal reruns remain authoritative.
+owners, stale rejection, and 5,406,720 bytes of RSS growth. The 100-millisecond
+protocol passed the next hosted Metal and Linux regular run: Metal grew only
+1,818,624 bytes and Linux fell from 233,730,048 to 164,536,320 bytes. Run
+`32932377467` then showed the Linux result was not repeatable: its exact
+cycle-2 sample fell to 120,991,744 bytes while cycle 20 remained 171,040,768
+bytes, producing 50,049,024 bytes of apparent growth despite zero owners and
+stale rejection. glibc/Lavapipe therefore uses a fixed one-second quiescence
+between the same two bounded trim sequences, while Metal retains 100
+milliseconds. The sample remains single, unconditional, and value-independent;
+hosted Linux rerun remains authoritative.
 
 The subsequent comparison-only-trim run proved that allocator scanning was not
 the remaining medium timeout cause: both packages again completed cook, warm

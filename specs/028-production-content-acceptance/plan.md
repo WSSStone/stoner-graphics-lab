@@ -277,12 +277,13 @@ Validation. No new runtime module is introduced.
    regular warm-up and cycles 1-20 are the medium/hardware warm-up; warm-up
    counts toward the total. Return every
    tracked counter to baseline and enforce at most 16 MiB RSS growth between the
-   sample immediately after warm-up and the terminal sample. Use one runtime
+   sample immediately after warm-up and the terminal sample.
    Before each of those two authoritative samples, complete queue idle and
    ownership teardown, release unused heap pages, wait a fixed 100 milliseconds
-   for native completion callbacks and allocator/kernel accounting to quiesce,
-   release unused heap pages once more, then take exactly one RSS sample. Do not
-   select a minimum or retry the sample based on its value. Use one runtime
+   on Metal or one fixed second on glibc/Lavapipe for native completion
+   callbacks and allocator/kernel accounting to quiesce, release unused heap
+   pages once more, then take exactly one RSS sample. Do not select a minimum
+   or retry the sample based on its value. Use one runtime
    manager worker for regular allocator stability, eight for the bounded
    Lantern v2 1,000-cycle workload, and sixteen for Sponza medium/hardware
    throughput.
@@ -308,7 +309,12 @@ Validation. No new runtime module is introduced.
    1,000 cycles, retain a manifest-bounded set of successfully authenticated
    envelope digests while an authentication-
    owned reader lease continuously protects the exact publication namespace
-   and generation. Later cycles still query and read every file, parse every
+   and generation. The validation application owns that session across the
+   complete lifecycle gate; each cycle still shuts down and recreates its
+   manager, handles, Renderer/RHI realization, and native resources, but it
+   must not destroy the payload-free authentication context between cycles.
+   Integration inspection must prove at least one cross-cycle reuse hit for
+   every accepted 1,000-cycle workload. Later cycles still query and read every file, parse every
    container, decode every typed payload, realize/render the complete closure,
    and release every runtime owner. Once the exact full envelope has already
    been authenticated, typed decode borrows its body from that cycle's complete

@@ -56,10 +56,11 @@ void FPlatformMemory::ReleaseUnusedHeapPages() noexcept
             if (malloc_trim(0) == 0) break;
     };
     Release();
-    // glibc arena release and kernel RSS accounting can settle just after the
-    // first trim. Use the same fixed comparison-point quiescence as Metal,
-    // then retain exactly one post-quiescence authoritative RSS sample.
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // Hosted Lavapipe proved that glibc arena release and kernel RSS accounting
+    // can remain unstable beyond the Metal-sized window. Use a fixed one-second
+    // comparison-point quiescence, then retain exactly one post-quiescence
+    // authoritative RSS sample.
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     Release();
 #endif
 }

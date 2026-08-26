@@ -548,6 +548,9 @@ EDemoExitCode FStonerDemoApplication::InitializeProductionContent()
             EDemoExitCode::InitializationFailed, "ProductionContract",
             "target profile or strict generation is invalid");
     ProductionRuntime = std::make_unique<FProductionContentRuntime>();
+    if (!ProductionContentSession)
+        ProductionContentSession =
+            std::make_unique<FProductionContentSession>();
     FProductionContentSessionConfig SessionConfig;
     SessionConfig.PublicationRoot = Configuration.CookedPublicationRoot;
     SessionConfig.LeaseCoordinationRoot = Configuration.LeaseCoordinationRoot;
@@ -568,14 +571,14 @@ EDemoExitCode FStonerDemoApplication::InitializeProductionContent()
         ShouldReuseProductionCookedEnvelopeAuthentication(
             Configuration.WorkloadRevision,
             Configuration.ProductionLifecycleCycles);
-    const Asset::EAssetResult SessionResult = ProductionRuntime->Session.Load(
+    const Asset::EAssetResult SessionResult = ProductionContentSession->Load(
         SessionConfig, ProductionRuntime->LoadedClosure);
     if (SessionResult != Asset::EAssetResult::Success)
         return FailInitialize(EDemoStage::Upload,
             EDemoExitCode::InitializationFailed, "ProductionStrictSession",
-            ProductionRuntime->Session.Inspect().FirstFailure.IsEmpty()
+            ProductionContentSession->Inspect().FirstFailure.IsEmpty()
                 ? "strict cooked closure failed"
-                : ProductionRuntime->Session.Inspect().FirstFailure.CStr());
+                : ProductionContentSession->Inspect().FirstFailure.CStr());
 
     Renderer::FStaticModelRealizationRequest Request;
     Request.Device = BackendRuntime->GetDevice();
@@ -673,7 +676,7 @@ FDemoProductionLifecycleCounters
 FStonerDemoApplication::ReleaseProductionContentCycle()
 {
     FDemoProductionLifecycleCounters Counters;
-    if (!ProductionRuntime || !BackendRuntime)
+    if (!ProductionRuntime || !ProductionContentSession || !BackendRuntime)
     {
         Counters.AssetOwners = 1;
         Counters.RendererOwners = 1;
@@ -694,9 +697,11 @@ FStonerDemoApplication::ReleaseProductionContentCycle()
     ProductionRuntime->DeferredRenderSnapshot.reset();
     ProductionRuntime->ForwardRenderSnapshot.reset();
     ProductionRuntime->LoadedClosure = {};
-    (void)ProductionRuntime->Session.Shutdown();
+    (void)ProductionContentSession->Shutdown();
     const FProductionContentSessionInspection SessionInspection =
-        ProductionRuntime->Session.Inspect();
+        ProductionContentSession->Inspect();
+    ProductionExecutionInspection.bCookedEnvelopeAuthenticationReused =
+        SessionInspection.CookedEnvelopeAuthentication.ReuseHits > 0;
     ProductionRuntime.reset();
 
     const Asset::FAssetManagerInspection& Manager =
@@ -1283,8 +1288,12 @@ EDemoExitCode FStonerDemoApplication::Shutdown()
         ProductionRuntime->DeferredRenderSnapshot.reset();
         ProductionRuntime->ForwardRenderSnapshot.reset();
         ProductionRuntime->LoadedClosure = {};
-        (void)ProductionRuntime->Session.Shutdown();
         ProductionRuntime.reset();
+    }
+    if (ProductionContentSession)
+    {
+        (void)ProductionContentSession->Shutdown();
+        ProductionContentSession.reset();
     }
     if (ProductionSubmissionHarness) ProductionSubmissionHarness->Release();
     ProductionSubmissionHarness.reset();

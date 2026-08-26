@@ -12,7 +12,6 @@ namespace Stoner::Demo
 class FStonerDemoApplication::FProductionContentRuntime
 {
 public:
-    FProductionContentSession Session;
     FProductionContentLoadedClosure LoadedClosure;
     Core::TSharedPtr<const Renderer::FStaticModelRenderSnapshot>
         DeferredRenderSnapshot;
