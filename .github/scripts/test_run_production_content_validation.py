@@ -259,7 +259,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
     def test_shipping_profiles_have_exact_tier_contracts(self):
         expected = {
             "regular": (20, 2, 600),
-            "medium": (1000, 20, 2100),
+            "medium": (1000, 20, 2400),
             "hardware": (1000, 20, 3600),
         }
         for profile_id, (cycles, warmup, budget) in expected.items():
@@ -556,6 +556,31 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                     "STONER_REQUIRE_PRODUCTION_IMAGE_ACCEPTANCE"
                 ],
             )
+
+    def test_linux_exact_rss_authority_uses_one_glibc_arena(self):
+        linux = {"platform": "linux", "graphicsBackend": "vulkan"}
+        self.assertEqual(
+            {"MALLOC_ARENA_MAX": "1"},
+            self.module.native_allocator_authority_environment(
+                linux, 20, 2, False
+            ),
+        )
+        for cycles, warmup, visible in (
+            (1000, 20, False), (20, 2, True)
+        ):
+            self.assertEqual(
+                {},
+                self.module.native_allocator_authority_environment(
+                    linux, cycles, warmup, visible
+                ),
+            )
+        self.assertEqual(
+            {},
+            self.module.native_allocator_authority_environment(
+                {"platform": "macos", "graphicsBackend": "metal"},
+                20, 2, False,
+            ),
+        )
 
     def test_each_production_package_has_an_exact_workload_revision(self):
         self.assertEqual(

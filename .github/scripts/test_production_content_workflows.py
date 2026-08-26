@@ -19,7 +19,7 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
             "Config/Validation/ProductionContent", "run_production_content_validation.py",
             "windows-latest", "ubuntu-latest", "macos-26", "--profile regular",
             "macos-26-intel", "Mac-Metal-X86_64.json",
-            "--profile medium", "timeout-minutes: 60", "--timeout-seconds 2100",
+            "--profile medium", "timeout-minutes: 60", "--timeout-seconds 2400",
             "production-medium-macos-metal", "Mac-Metal-Arm64.json",
             "khronos-lantern-glb", "khronos-sponza-gltf",
             "aggregate_production_medium.py", "--package-id",

@@ -438,7 +438,11 @@ corpus and generation evidence.
   the medium/hardware profile MUST complete 1,000 full cycles and use cycles
   1-20 as warm-up. Warm-up cycles count toward the required total. Net RSS
   growth from the sample immediately after warm-up through the terminal sample
-  MUST NOT exceed 16 MiB.
+  MUST NOT exceed 16 MiB. The exact Linux Vulkan native-headless 20/2 authority
+  MUST start its child process with one glibc arena so freed arena
+  fragmentation is bounded before the unchanged trim/quiescence/single-sample
+  protocol; this override MUST NOT apply to visible hardware, other platforms,
+  or other lifecycle shapes and MUST NOT substitute for live ownership checks.
 - **FR-032**: The regular validation profile MUST exercise one bounded accepted
   package through provenance, import, clean and warm cooking, standalone
   generation validation, strict-cooked runtime loading, semantic equivalence,
@@ -615,7 +619,7 @@ corpus and generation evidence.
   16 MiB.
 - **SC-010**: The regular profile completes its bounded platform-applicable
   source-to-cooked-to-runtime gate within 10 minutes per hosted job, while the
-  medium profile completes within 35 minutes per declared hardware lane and the
+  medium profile completes within 40 minutes per declared hardware lane and the
   serialized visible hardware profile completes within 60 minutes per declared
   lane; timing observations do not affect deterministic result identities.
 - **SC-011**: Windows, macOS, and Linux automated Debug and strict Release

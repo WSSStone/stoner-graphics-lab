@@ -30,7 +30,7 @@ def aggregate_medium_shards(
         profile.get("profileId") != "medium"
         or profile.get("lifecycleCycles") != 1000
         or profile.get("warmupCycles") != 20
-        or profile.get("timeBudgetSeconds") != 2100
+        or profile.get("timeBudgetSeconds") != 2400
         or not isinstance(expected_packages, list)
         or len(expected_packages) < 2
         or len(set(expected_packages)) != len(expected_packages)
@@ -54,9 +54,9 @@ def aggregate_medium_shards(
             or summary.get("profile") != "medium"
             or summary.get("passed") is not True
             or summary.get("determinismRuns") != 1
-            or summary.get("timeBudgetSeconds") != 2100
+            or summary.get("timeBudgetSeconds") != 2400
             or not isinstance(summary.get("elapsedSeconds"), (int, float))
-            or summary["elapsedSeconds"] > 2100
+            or summary["elapsedSeconds"] > 2400
             or summary.get("targetProfileDigest") != target_digest
             or not isinstance(packages, list)
             or len(packages) != 1

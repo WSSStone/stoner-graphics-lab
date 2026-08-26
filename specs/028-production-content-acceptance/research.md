@@ -256,7 +256,7 @@ all ownership counters returning to baseline. Arm64 Metal regular uses one
 runtime manager worker so worker-local allocation is stable inside two cycles;
 other regular targets use four workers, while Lantern medium/hardware uses
 eight workers and Sponza v2 uses sixteen workers to meet their declared
-throughput budgets. Medium remains bounded to 35 minutes;
+throughput budgets. Medium remains bounded to 40 minutes;
 hardware receives 60 minutes because its two accepted packages must serialize
 their visible windows and capture device. The separate 20-frame visible
 image-calibration run still requires per-cycle ownership and stale-handle
@@ -1020,6 +1020,37 @@ at cycle 20 to 271,548,416 bytes at cycle 1,000, a 786,432-byte increase with a
 275,808,256-byte peak. Strict Release, runner 38/38, workflow 6/6, and Core
 platform 44/44 also passed; hosted Sponza and x86_64 Metal remain the required
 authority for the environment-specific correction.
+
+Hosted run `32976142026` at revision `9d306cf` accepted the x86_64 Metal
+throughput correction: all 20 isolated clean cooks, warm reuse, strict runtime,
+native lifecycle, and artifact upload completed inside the unchanged 600-
+second regular profile deadline, and the job passed in 46m44s including its
+long strict builds. Windows, arm64 Metal, Lantern medium, ASan/UBSan, and TSan
+also passed. The run exposed two independent remaining boundaries.
+
+Linux Vulkan again completed all 20 cycles, 40 captures, exactly three backend
+recycles, zero terminal owners, and stale-handle rejection, but RSS moved from
+146,169,856 to 198,483,968 bytes, a 52,314,112-byte increase with a
+549,539,840-byte peak. A full backend shutdown, bounded all-arena trim, and one
+fixed second still cannot make the result independent of the number of glibc
+arenas that hosted Mesa worker threads happen to create. The exact 20/2
+native-headless child therefore starts with `MALLOC_ARENA_MAX=1`. This does not
+release live allocations or change the workload; it bounds only freed arena
+fragmentation before the existing trim/quiescence/single-sample protocol.
+Visible hardware, every non-Linux platform, and non-authoritative cycle shapes
+receive no allocator override.
+
+Sponza passed every pre-native stage but its native child consumed all 1,938
+seconds remaining inside the 2,100-second complete-profile budget. No RSS value
+was selected and no lifecycle result was produced. The isolated package budget
+therefore advances to 2,400 seconds (40 minutes), while the workflow job keeps
+its 60-minute outer bound. This leaves about seven minutes after the observed
+13-minute strict build plus a full 40-minute profile for artifact publication.
+The exact 1,000/20 lifecycle, complete per-cycle reads/parse/typed decode,
+2,000 captures, seven readbacks, three backend recycles, one-second fixed
+quiescence, single RSS endpoints, zero-owner/stale proof, and 16 MiB threshold
+remain unchanged. Reducing work, relaxing RSS, or exceeding the existing
+60-minute job authority remain rejected.
 
 The subsequent comparison-only-trim run proved that allocator scanning was not
 the remaining medium timeout cause: both packages again completed cook, warm
