@@ -60,10 +60,19 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
         ], command)
         with mock.patch.object(self.module.os, "cpu_count", return_value=16):
             self.assertEqual(
-                2, self.module.clean_cook_concurrency(20, "metal")
+                2, self.module.clean_cook_concurrency(
+                    20, "metal", "arm64"
+                )
             )
             self.assertEqual(
-                4, self.module.clean_cook_concurrency(20, "vulkan")
+                4, self.module.clean_cook_concurrency(
+                    20, "metal", "x86_64"
+                )
+            )
+            self.assertEqual(
+                4, self.module.clean_cook_concurrency(
+                    20, "vulkan", "x86_64"
+                )
             )
 
     def test_clean_reports_must_be_byte_identical(self):

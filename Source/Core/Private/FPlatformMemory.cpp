@@ -38,9 +38,12 @@ void FPlatformMemory::ReleaseUnusedHeapPages() noexcept
     Release();
     // Completed Metal handlers can publish zero ownership immediately before
     // the native command buffer and driver allocations leave their callback.
-    // Keep the authoritative sample fixed, but give that release a bounded,
-    // deterministic quiescence window and converge the zones once more.
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // Hosted Metal proved that 100 milliseconds can be shorter than the
+    // driver/kernel RSS-accounting delay after a complete backend shutdown.
+    // Keep the authoritative sample fixed, but give that release the same
+    // bounded one-second quiescence used by the Linux authority and converge
+    // the zones once more.
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     Release();
 #elif SG_PLATFORM_LINUX && defined(__GLIBC__)
     // malloc_trim() reports whether it released pages. A single pass can

@@ -271,7 +271,12 @@ Validation. No new runtime module is introduced.
    and normalization policy must match exactly.
 5. Run 20 regular or 1,000 medium/hardware full manager-realizer-render-release
    cycles. The regular target gate owns the required 20 clean determinism
-   repetitions. Medium/hardware run one clean cook and one unchanged
+   repetitions. Independent clean runs retain isolated source, DDC,
+   publication, and report roots; the slower hosted x86_64 Metal target may
+   execute at most four of those independent runs concurrently so the same 20
+   byte-identical results remain inside the unchanged regular deadline.
+   Arm64 Metal retains its two-run bound and Vulkan retains its existing
+   bounded policy. Medium/hardware run one clean cook and one unchanged
    100-percent-reuse warm cook per selected package rather than duplicating
    those regular repetitions inside their lifecycle budget. Cycles 1-2 are the
    regular warm-up and cycles 1-20 are the medium/hardware warm-up; warm-up
@@ -291,11 +296,10 @@ Validation. No new runtime module is introduced.
    restart. This makes both authoritative Linux regular and Metal medium
    endpoints observe a backend that has already crossed the same restart
    boundary without adding a declared cycle, capture, or RSS sample. Release
-   unused heap pages, wait a fixed 100 milliseconds
-   on Metal or one fixed second on glibc/Lavapipe for native completion and
-   allocator/kernel accounting to quiesce, release unused heap pages once more,
-   then take exactly one RSS sample. Do not select a minimum or retry the sample
-   based on its value. Use one runtime
+   unused heap pages, wait one fixed second on Metal and glibc/Lavapipe for
+   native completion and allocator/kernel accounting to quiesce, release
+   unused heap pages once more, then take exactly one RSS sample. Do not select
+   a minimum or retry the sample based on its value. Use one runtime
    manager worker for regular allocator stability, eight for the bounded
    Lantern v2 1,000-cycle workload, and sixteen for Sponza medium/hardware
    throughput.

@@ -1093,12 +1093,17 @@ def build_metal_doctor_command(
 def clean_cook_concurrency(
     determinism_runs: int,
     graphics_backend: str,
+    cpu_architecture: str,
 ) -> int:
-    limit = 2 if graphics_backend == "metal" else 4
+    is_intel_metal = (
+        graphics_backend == "metal" and cpu_architecture == "x86_64"
+    )
+    limit = 4 if graphics_backend != "metal" or is_intel_metal else 2
+    cpu_divisor = 1 if is_intel_metal else 2
     return min(
         determinism_runs,
         limit,
-        max(1, (os.cpu_count() or 1) // 2),
+        max(1, (os.cpu_count() or 1) // cpu_divisor),
     )
 
 
@@ -1194,6 +1199,7 @@ def run_package(
     warmup_cycles: int,
     timeout: int,
     graphics_backend: str,
+    cpu_architecture: str,
     require_visible: bool = False,
     defer_native_to_hardware: bool = False,
     deadline: float | None = None,
@@ -1251,7 +1257,7 @@ def run_package(
         }
 
     concurrency = clean_cook_concurrency(
-        determinism_runs, graphics_backend
+        determinism_runs, graphics_backend, cpu_architecture
     )
     if concurrency == 1:
         clean_runs = [RunClean(index) for index in range(determinism_runs)]
@@ -1565,6 +1571,7 @@ def run_profile(args: argparse.Namespace) -> dict:
                 validation_profile["warmupCycles"],
                 args.timeout_seconds,
                 target_contract["graphicsBackend"],
+                target_contract["cpuArchitecture"],
                 args.profile == "hardware",
                 args.defer_native_to_hardware,
                 deadline,

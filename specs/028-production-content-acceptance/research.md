@@ -983,6 +983,44 @@ the third recycle removes the first-restart asymmetry without changing the
 declared lifecycle or weakening the 16 MiB contract; hosted Linux and Metal
 authority still must pass together on the committed revision.
 
+Full hosted run `32965832757` at revision `d979113` passed Windows Vulkan,
+Linux Vulkan, arm64 Metal regular, Lantern medium, ASan/UBSan, and TSan, but
+identified two remaining environment boundaries. Sponza completed all 1,000
+cycles and exactly three backend recycles with 2,000 captures, zero terminal
+owners, and stale-handle rejection, then failed before the uncounted seven-
+readback extraction because RSS moved from 249,298,944 to 342,360,064 bytes,
+a 93,061,120-byte increase with a 343,556,096-byte peak. Both samples were
+taken after complete backend shutdown and all-zone pressure relief, so this is
+no longer a first-device-versus-replacement-device asymmetry. The hosted Metal
+driver/kernel release can remain visible in `resident_size` beyond the fixed
+100-millisecond quiescence even after tracked ownership reaches zero.
+
+The same run's x86_64 Metal regular lane completed all 20 isolated clean cooks
+but consumed the 600-second complete-profile deadline; its warm cook was given
+the remaining eight seconds and timed out. No clean run, target, or byte-
+identity requirement is removed. Because every clean run already owns a
+disjoint source, DDC, publication, and report root, only the x86_64 Metal
+schedule increases from at most two to at most four concurrent clean cooks,
+bounded by the reported CPU count. Arm64 Metal remains capped at two and
+Vulkan keeps its existing policy.
+
+The Metal comparison-point quiescence is increased to one fixed second between
+the same two all-zone pressure-relief passes. This is unconditional and
+value-independent, keeps exactly one warm-up and one terminal sample, preserves
+the 1,000/20 lifecycle, three backend recycles, seven-readback extraction, and
+16 MiB threshold, and adds only three bounded seconds to the exact medium path.
+Repeated/minimum sampling, a larger threshold, fewer cycles, and treating zero
+tracked owners as a substitute for RSS remain rejected.
+
+The exact local Sponza v2 replay with the one-second Metal quiescence passed in
+562.86 profile seconds and 494.30 native seconds. It completed all 1,000
+cycles, 2,000 captures, seven readbacks, exactly three backend recycles, zero
+terminal owners, and stale-handle rejection. RSS moved from 270,761,984 bytes
+at cycle 20 to 271,548,416 bytes at cycle 1,000, a 786,432-byte increase with a
+275,808,256-byte peak. Strict Release, runner 38/38, workflow 6/6, and Core
+platform 44/44 also passed; hosted Sponza and x86_64 Metal remain the required
+authority for the environment-specific correction.
+
 The subsequent comparison-only-trim run proved that allocator scanning was not
 the remaining medium timeout cause: both packages again completed cook, warm
 reuse, publication, equivalence, and strict runtime, then their simultaneously
