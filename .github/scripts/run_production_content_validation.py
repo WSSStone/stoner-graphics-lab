@@ -727,6 +727,18 @@ def native_allocator_authority_environment(
         # remain resident and authoritative; only freed arena fragmentation is
         # bounded before the existing trim/quiescence/single-sample protocol.
         return {"MALLOC_ARENA_MAX": "1"}
+    if (
+        contract["platform"] == "macos"
+        and contract["graphicsBackend"] == "metal"
+        and (cycles, warmup_cycles) == (1000, 20)
+        and not require_visible
+    ):
+        # Apple libmalloc's initialization switch trades allocator throughput
+        # for aggressive madvise, disables the large allocation cache, and
+        # bounds the medium allocator to one magazine. Apply it only to the
+        # exact headless Metal RSS authority; live allocations and the existing
+        # all-zone relief/single-sample gate remain authoritative.
+        return {"MallocSpaceEfficient": "1"}
     return {}
 
 

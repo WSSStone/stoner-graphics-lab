@@ -443,6 +443,11 @@ corpus and generation evidence.
   fragmentation is bounded before the unchanged trim/quiescence/single-sample
   protocol; this override MUST NOT apply to visible hardware, other platforms,
   or other lifecycle shapes and MUST NOT substitute for live ownership checks.
+  The exact macOS Metal native-headless 1,000/20 authority MUST likewise start
+  with Apple libmalloc space-efficient mode so freed large-cache and
+  multi-magazine residency cannot decide the unchanged RSS gate; that override
+  MUST NOT apply to visible hardware, non-Metal execution, or other lifecycle
+  shapes and MUST NOT substitute for live ownership checks.
 - **FR-032**: The regular validation profile MUST exercise one bounded accepted
   package through provenance, import, clean and warm cooking, standalone
   generation validation, strict-cooked runtime loading, semantic equivalence,

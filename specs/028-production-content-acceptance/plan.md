@@ -300,9 +300,12 @@ Validation. No new runtime module is introduced.
    native completion and allocator/kernel accounting to quiesce, release
    unused heap pages once more, then take exactly one RSS sample. Do not select
    a minimum or retry the sample based on its value. Start only the exact Linux
-   Vulkan native-headless 20/2 child with one glibc arena; visible hardware,
-   other platforms, and other lifecycle shapes receive no allocator override.
-   Use one runtime
+   Vulkan native-headless 20/2 child with one glibc arena and start only the
+   exact macOS Metal native-headless 1,000/20 child with Apple libmalloc
+   space-efficient mode. The latter enables aggressive madvise, disables the
+   large-allocation cache, and bounds the medium allocator to one magazine.
+   Visible hardware, other backends, and other lifecycle shapes receive no
+   allocator override. Use one runtime
    manager worker for regular allocator stability, eight for the bounded
    Lantern v2 1,000-cycle workload, and sixteen for Sponza medium/hardware
    throughput.

@@ -1114,3 +1114,30 @@ matches SC-010's 30-minute-per-declared-lane contract without removing work.
   exact post-warm-up-to-terminal contract and could hide terminal retention.
 - Trim every sampled cycle: rejected because intermediate RSS remains useful
   peak evidence and 1,000 global allocator scans exceeded the medium budget.
+
+Hosted run `32981721345` at revision `01aec2a` accepted the Linux allocator
+boundary: the exact 20/2 Vulkan child completed all 20 cycles, 40 captures,
+seven readbacks, three backend recycles, zero terminal owners, and stale-handle
+rejection while RSS moved from 86,564,864 to 88,936,448 bytes, a 2,371,584-byte
+increase. The same run's Sponza lane completed its full 1,000 cycles, 2,000
+captures, and three Metal backend recycles with zero owners and stale rejection,
+but again moved from 249,085,952 to 342,114,304 bytes, a 93,028,352-byte
+increase. The failure occurred after the one-second quiescence and bounded
+all-zone relief at both endpoints, so another delay or an additional relief
+pass has no new evidence behind it.
+
+Apple's libmalloc source at revision
+`c49dafa25f1efe8607701ae6014a663ad2ee437f` exposes
+`MallocSpaceEfficient=1` specifically as a time-for-space policy: it enables
+aggressive madvise, disables the large allocation cache, and reduces the
+medium allocator to one magazine. The exact
+macOS Metal 1,000/20 native-headless child now starts with that allocator mode.
+It does not release live allocations, select an RSS value, change the 16 MiB
+threshold, or reduce lifecycle work. Visible hardware, regular 20/2 Metal,
+non-Metal execution, and every other lifecycle shape retain their default
+allocator environment. The exact local Sponza medium runner then passed in
+653.28 seconds, including a 576.91-second native stage, 1,000 cycles, 2,000
+captures, seven readbacks, zero terminal owners, and stale-handle rejection.
+RSS moved from 52,101,120 to 52,527,104 bytes, a 425,984-byte increase with a
+53,641,216-byte peak. A complete hosted rerun remains required before this
+boundary is accepted.
