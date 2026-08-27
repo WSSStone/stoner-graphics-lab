@@ -583,7 +583,11 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
         )
         macos_metal = {"platform": "macos", "graphicsBackend": "metal"}
         self.assertEqual(
-            {"MallocSpaceEfficient": "1"},
+            {
+                "MallocSpaceEfficient": "1",
+                "MallocNanoZone": "0",
+                "MallocMaxMagazines": "1",
+            },
             self.module.native_allocator_authority_environment(
                 macos_metal, 1000, 20, False,
             ),

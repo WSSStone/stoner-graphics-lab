@@ -302,8 +302,11 @@ Validation. No new runtime module is introduced.
    a minimum or retry the sample based on its value. Start only the exact Linux
    Vulkan native-headless 20/2 child with one glibc arena and start only the
    exact macOS Metal native-headless 1,000/20 child with Apple libmalloc
-   space-efficient mode. The latter enables aggressive madvise, disables the
-   large-allocation cache, and bounds the medium allocator to one magazine.
+   space-efficient mode, Nano disabled, and one general allocator magazine.
+   Space-efficient mode enables aggressive madvise, disables the
+   large-allocation cache, and bounds only the medium allocator to one
+   magazine; the additional two settings independently bound Nano and the
+   tiny/small magazine allocator.
    Visible hardware, other backends, and other lifecycle shapes receive no
    allocator override. Use one runtime
    manager worker for regular allocator stability, eight for the bounded

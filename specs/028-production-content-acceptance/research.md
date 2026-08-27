@@ -1141,3 +1141,28 @@ captures, seven readbacks, zero terminal owners, and stale-handle rejection.
 RSS moved from 52,101,120 to 52,527,104 bytes, a 425,984-byte increase with a
 53,641,216-byte peak. A complete hosted rerun remains required before this
 boundary is accepted.
+
+Full hosted rerun `33041706012` at revision `a367555` showed that
+`MallocSpaceEfficient=1` alone does not bound the exact macOS 26 arm64 runner.
+The Lantern shard completed all 1,000 cycles, 2,000 captures, three backend
+recycles, zero terminal owners, and stale-handle rejection, but RSS moved from
+28,884,992 to 124,125,184 bytes, a 95,240,192-byte increase. The lifecycle
+failed before the uncounted seven-readback extraction, so its zero readback
+count is a consequence rather than a separate rendering failure.
+
+Apple libmalloc keeps Nano initialization and the general tiny/small magazine
+count independent from `MallocSpaceEfficient`; that switch controls aggressive
+madvise, the large cache, and the medium allocator magazine count. The exact
+macOS Metal 1,000/20 native-headless child therefore also starts with
+`MallocNanoZone=0` and `MallocMaxMagazines=1`. This bounds freed allocator
+fragmentation without releasing live allocations, changing lifecycle work,
+selecting an RSS value, or weakening the 16 MiB limit. Visible hardware,
+regular Metal, other backends, and other lifecycle shapes keep their default
+allocator environment. Local and complete hosted revalidation remain required.
+
+The exact local Lantern v2 medium runner with all three allocator bounds passed
+in 143.22 profile seconds and 130.81 native seconds. It completed 1,000 cycles,
+2,000 captures, seven authoritative readbacks, three backend recycles, zero
+terminal owners, and stale-handle rejection. RSS moved from 30,785,536 bytes
+at cycle 20 to 31,260,672 bytes at cycle 1,000, a 475,136-byte increase with a
+31,539,200-byte peak. Complete hosted revalidation remains authoritative.

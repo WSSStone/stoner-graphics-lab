@@ -2,15 +2,37 @@
 
 ## Status
 
-Candidate `ad98e2b17f7b24cb5faabdcf1d51826f364cc966` passed the build,
-corpus, focused-test, regular, medium, and independent-consumer entries below in
-an independent detached worktree on 2026-08-26. The subsequent dependency-first
-throughput correction changes strict runtime scheduling, so T115 remains open
-until those commands and the physical hardware entry point tracked by
-T114/T126/T129 are repeated on the eventual final revision. The results below
-remain the clean predecessor evidence rather than final closeout authority.
+Clean-clone candidate `a3675551b56379277fd55a4847bdab05b2e7aab5` passed every
+non-visible-hardware quickstart entry in an independent clone on 2026-08-27.
+The clone was built from empty Debug and Release trees, acquired the external
+package through the pinned acquisition command, ran both native Metal profiles,
+independently revalidated both artifact sets, and retained no tracked changes.
+A successor allocator-boundary correction also passed the exact local Lantern
+medium replay; complete hosted and visible hardware authority remain required
+before T115 closes.
 
-## Clean Checkout
+## Final-Candidate Clean Clone
+
+| Quickstart entry | Result |
+|---|---|
+| `conda run -n godot scons config=debug strict=1 -j8` | PASS from an empty `Build/` tree |
+| `conda run -n godot scons config=release strict=1 -j8` | PASS from an empty Release tree |
+| `Build/Mac/Debug/Tests/StonerTest --suite production-content` | PASS, 4 checks |
+| Regular corpus verification | PASS without network access |
+| Pinned medium acquisition | PASS, 71 files and 52,686,624 bytes |
+| Medium corpus verification | PASS |
+| Metal regular profile | PASS in 75.026 seconds; 20 clean runs, 37/37 warm reuse, 20 cycles with cycle 2 as the RSS origin, 6,438,912-byte RSS growth, 40 captures, seven readbacks, zero terminal owners, stale-handle rejection |
+| Regular artifact consumer verification | PASS, 3,523 artifacts; manifest SHA-256 `328d93964fd3998c53f5f0c4ea4f611c3ca3125e79a46fc80ca9b2b84f5a1827`; summary SHA-256 `59b23b030bb0bde4d1ac0ecf17e2dd37b0bff6ec4ece0d1bbda61305842e9b59` |
+| Metal medium profile | PASS in 702.581 seconds; Lantern and Sponza v2 each completed 1,000 cycles, 100-percent warm reuse, 2,000 captures, seven readbacks, zero terminal owners, and stale-handle rejection; RSS growth was 671,744 and 442,368 bytes respectively |
+| Medium artifact consumer verification | PASS, 926 artifacts; manifest SHA-256 `069c064bd47338ec933a77d9d3723d5ed3bb1bfd8cfe36437ab04eaa3769b2bd`; summary SHA-256 `162841fa3a351d5d2e4ac4dfea750d4a0823173ccc6731186585b6817debd5cf` |
+| Allocator-boundary Lantern medium replay | PASS in 143.225 seconds; 1,000/20 cycles, 2,000 captures, seven readbacks, zero terminal owners, stale-handle rejection, and 475,136-byte RSS growth |
+
+The native runners were executed with normal host Metal access. A preliminary
+restricted-process attempt intentionally remained fail-closed at native device
+initialization with zero cycles; it was not counted as acceptance and was not
+used as the output root for the passing rerun.
+
+## Earlier Clean Checkout
 
 An independent detached git worktree at the exact revision was used. The
 hash-pinned external Sponza package was staged into its ignored corpus root and

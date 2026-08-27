@@ -733,12 +733,17 @@ def native_allocator_authority_environment(
         and (cycles, warmup_cycles) == (1000, 20)
         and not require_visible
     ):
-        # Apple libmalloc's initialization switch trades allocator throughput
-        # for aggressive madvise, disables the large allocation cache, and
-        # bounds the medium allocator to one magazine. Apply it only to the
-        # exact headless Metal RSS authority; live allocations and the existing
+        # Apple libmalloc's space-efficient switch enables aggressive madvise,
+        # disables the large allocation cache, and bounds only the medium
+        # allocator to one magazine. Nano and the general tiny/small magazine
+        # count are configured independently, so bound those too for this exact
+        # long-running RSS authority. Live allocations and the existing
         # all-zone relief/single-sample gate remain authoritative.
-        return {"MallocSpaceEfficient": "1"}
+        return {
+            "MallocSpaceEfficient": "1",
+            "MallocNanoZone": "0",
+            "MallocMaxMagazines": "1",
+        }
     return {}
 
 
