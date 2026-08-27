@@ -73,12 +73,17 @@ profile for other lanes. A target/profile mismatch fails closed.
 ```bash
 python3 .github/scripts/run_production_content_validation.py \
   --profile medium \
-  --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-X86_64.json \
+  --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json \
   --build-root Build/Mac/Release \
   --output Build/Validation/028/medium-metal \
   --acquire-missing \
   --timeout-seconds 3900
 ```
+
+Use `Mac-Metal-X86_64.json` only on the hosted Intel Metal lane. The offline
+metallib finalizer is architecture-specific, so an Apple Silicon local replay
+must use `Mac-Metal-Arm64.json`; target/host mismatch is structured
+`Unsupported`, not a portable success.
 
 Medium executes every admitted package through clean/warm 100-percent reuse,
 strict no-source loading, semantic equivalence, and 1,000 lifecycle cycles with

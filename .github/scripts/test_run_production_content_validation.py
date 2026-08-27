@@ -571,12 +571,33 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 "production-content-lantern-v2", 1000, 20, require_visible=True,
             )
             self.assertEqual("1", visible_environment["STONER_PRODUCTION_VISIBLE"])
+            self.assertNotIn(
+                "STONER_REQUIRE_PRODUCTION_IMAGE_ACCEPTANCE",
+                visible_environment,
+            )
+
+            _, physical_environment = self.module.build_native_lifecycle_stage(
+                Path("StonerTest"), backend, Path("publication"),
+                Path("lease"), "a" * 64, Path("target.json"),
+                "StaticModel:Asset.glb#idx.scene.0",
+                "production-content-lantern-v2", 1000, 20,
+                require_visible=True, require_image_acceptance=True,
+            )
+            self.assertEqual("1", physical_environment["STONER_PRODUCTION_VISIBLE"])
             self.assertEqual(
                 "1",
-                visible_environment[
+                physical_environment[
                     "STONER_REQUIRE_PRODUCTION_IMAGE_ACCEPTANCE"
                 ],
             )
+            with self.assertRaisesRegex(ValueError, "requires visible"):
+                self.module.build_native_lifecycle_stage(
+                    Path("StonerTest"), backend, Path("publication"),
+                    Path("lease"), "a" * 64, Path("target.json"),
+                    "StaticModel:Asset.glb#idx.scene.0",
+                    "production-content-lantern-v2", 1000, 20,
+                    require_image_acceptance=True,
+                )
 
     def test_native_lifecycle_preserves_the_normal_production_allocator(self):
         for contract in (

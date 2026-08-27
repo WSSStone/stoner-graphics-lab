@@ -859,11 +859,14 @@ def build_native_lifecycle_stage(
     cycles: int,
     warmup_cycles: int,
     require_visible: bool = False,
+    require_image_acceptance: bool = False,
 ) -> tuple[list[str], dict[str, str]]:
     if backend not in ("vulkan", "metal"):
         raise ValueError("native lifecycle backend is invalid")
     if (cycles, warmup_cycles) not in ((20, 2), (1000, 20)):
         raise ValueError("native lifecycle boundary is invalid")
+    if require_image_acceptance and not require_visible:
+        raise ValueError("image acceptance requires visible presentation")
     prefix = backend.upper()
     suite = f"production-content-{backend}-native"
     environment = {
@@ -879,6 +882,7 @@ def build_native_lifecycle_stage(
     }
     if require_visible:
         environment["STONER_PRODUCTION_VISIBLE"] = "1"
+    if require_image_acceptance:
         environment["STONER_REQUIRE_PRODUCTION_IMAGE_ACCEPTANCE"] = "1"
     return [str(tests), "--suite", suite], environment
 
@@ -1144,6 +1148,7 @@ def run_native_lifecycle(
         tests, contract["graphicsBackend"], publication, lease_root,
         generation, target_profile, production_root, workload_revision,
         cycles, warmup_cycles, require_visible,
+        authority["dispositions"]["image"] == "required",
     )
     environment.update(native_allocator_authority_environment(
         contract, cycles, warmup_cycles, require_visible
@@ -1166,7 +1171,7 @@ def run_native_lifecycle(
         parse_native_image_evidence(
             result.stdout, contract["graphicsBackend"]
         )
-        if require_visible else None
+        if authority["dispositions"]["image"] == "required" else None
     )
     return {
         "result": "Passed",
