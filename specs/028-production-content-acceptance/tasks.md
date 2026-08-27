@@ -410,6 +410,7 @@ Setup --> Real KTX2 Foundation --|
 | FR-038-FR-041 | T098-T107 | Deterministic/observational reports, stable failures, bounded privacy-safe artifacts |
 | FR-042 | T020-T022, T031, T035-T038, T052-T053, T055-T058, T069, T080-T083, T103 | At least 30 cross-stage negative cases |
 | FR-043-FR-045 | T108, T111-T118 | Architecture, exclusion/regression, documentation, roadmap, and closeout |
+| FR-050 | T127-T128, T118 | Single-sample/no-post-processing authority, reviewed v2 output, and final scope audit |
 
 | Success criteria | Primary tasks |
 |---|---|

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from pathlib import Path
+import json
 import re
 import unittest
 
@@ -8,9 +9,29 @@ import unittest
 ROOT = Path(__file__).parents[2]
 HOSTED = ROOT / ".github/workflows/feature-028-production-content.yml"
 HARDWARE = ROOT / ".github/workflows/feature-028-production-hardware.yml"
+DEVICE_CLASS_SCHEMA = (
+    ROOT / "specs/028-production-content-acceptance/contracts/"
+    "device-class-registry.schema.json"
+)
+IMAGE_BASELINE_SCHEMA = (
+    ROOT / "specs/028-production-content-acceptance/contracts/"
+    "image-baseline.schema.json"
+)
 
 
 class ProductionContentWorkflowContractTests(unittest.TestCase):
+    def test_capability_schemas_accept_authoritative_intel_shader_profile(self):
+        for path in (DEVICE_CLASS_SCHEMA, IMAGE_BASELINE_SCHEMA):
+            schema = json.loads(path.read_text(encoding="utf-8"))
+            definitions = schema.get("$defs", {})
+            signature = definitions.get("capabilitySignature")
+            if signature is None:
+                signature = schema["properties"]["capabilitySignature"]
+            pattern = signature["properties"]["shaderProfile"]["pattern"]
+            self.assertIsNotNone(
+                re.fullmatch(pattern, "metal-macos-12-x86_64"), path.name
+            )
+
     def test_hosted_workflow_has_relevant_paths_regular_matrix_and_medium_cadence(self):
         text = HOSTED.read_text(encoding="utf-8")
         for token in (
