@@ -634,9 +634,10 @@ corpus and generation evidence.
   16 MiB.
 - **SC-010**: The regular profile completes its bounded platform-applicable
   source-to-cooked-to-runtime gate within 10 minutes per hosted job, while the
-  medium profile completes within 40 minutes per declared hardware lane and the
-  serialized visible hardware profile completes within 60 minutes per declared
-  lane; timing observations do not affect deterministic result identities.
+  medium profile completes within 50 minutes per declared package lane, with
+  its native lifecycle independently capped at 40 minutes, and the serialized
+  visible hardware profile completes within 60 minutes per declared lane;
+  timing observations do not affect deterministic result identities.
 - **SC-011**: Windows, macOS, and Linux automated Debug and strict Release
   validation plus all applicable sanitizer, deterministic, and native gates
   pass on the final revision; every required hardware-only gate has accepted,

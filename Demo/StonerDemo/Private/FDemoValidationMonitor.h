@@ -37,6 +37,7 @@ struct FDemoProductionLifecycleSample
     Stoner::Core::uint32 CompletedCycle = 0;
     Stoner::Core::uint64 ResidentBytes = 0;
     FDemoProductionLifecycleCounters Counters;
+    Stoner::Core::FProcessMemorySnapshot ProcessMemory;
 };
 
 class FDemoValidationMonitor

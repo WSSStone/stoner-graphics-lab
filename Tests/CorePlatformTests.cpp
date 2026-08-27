@@ -276,6 +276,15 @@ void TestPlatformMemory(FCorePlatformTestResult& Result)
     Record(Result,
         RepeatedSnapshot.bAvailable && RepeatedSnapshot.ResidentBytes > 0,
         "FPlatformMemory repeated heap relief preserves memory telemetry");
+#if SG_PLATFORM_MAC
+    Record(Result,
+        Snapshot.bDetailedAvailable && Snapshot.PhysicalFootprintBytes > 0,
+        "FPlatformMemory reports macOS task VM diagnostics");
+    Record(Result,
+        Snapshot.bHeapAvailable &&
+            Snapshot.HeapBytesAllocated >= Snapshot.HeapBytesInUse,
+        "FPlatformMemory reports bounded all-zone malloc diagnostics");
+#endif
 #else
     Record(Result, !Snapshot.bAvailable && Snapshot.ResidentBytes == 0,
         "FPlatformMemory unsupported platform result is controlled");

@@ -29,7 +29,8 @@ class ProductionMediumAggregateTests(unittest.TestCase):
             "packageIds": package_ids,
             "lifecycleCycles": 1000,
             "warmupCycles": 20,
-            "timeBudgetSeconds": 2400,
+            "timeBudgetSeconds": 3000,
+            "nativeTimeBudgetSeconds": 2400,
         }), encoding="utf-8")
         target = root / "Target.json"
         target.write_text("{}\n", encoding="utf-8")
@@ -46,7 +47,8 @@ class ProductionMediumAggregateTests(unittest.TestCase):
                 "targetProfile": "Target.json",
                 "targetProfileDigest": target_digest,
                 "determinismRuns": 1,
-                "timeBudgetSeconds": 2400,
+                "timeBudgetSeconds": 3000,
+                "nativeTimeBudgetSeconds": 2400,
                 "elapsedSeconds": 1000 + index,
                 "passed": True,
                 "packages": [{

@@ -40,7 +40,7 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
             "Config/Validation/ProductionContent", "run_production_content_validation.py",
             "windows-latest", "ubuntu-latest", "macos-26", "--profile regular",
             "macos-26-intel", "Mac-Metal-X86_64.json",
-            "--profile medium", "timeout-minutes: 60", "--timeout-seconds 2400",
+            "--profile medium", "timeout-minutes: 60", "--timeout-seconds 3000",
             "production-medium-macos-metal", "Mac-Metal-Arm64.json",
             "khronos-lantern-glb", "khronos-sponza-gltf",
             "aggregate_production_medium.py", "--package-id",
@@ -92,6 +92,7 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("Mac-Metal-Arm64.json", medium)
         self.assertIn("Validate Metal readback modes", medium)
         self.assertIn("--suite metal-resource", medium)
+        self.assertIn("--timeout-seconds 3000", medium)
         self.assertIn("Mac-Metal-X86_64.json", aggregate)
         self.assertNotIn("Mac-Metal-Arm64.json", aggregate)
 

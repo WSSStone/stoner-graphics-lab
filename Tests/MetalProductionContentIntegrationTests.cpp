@@ -321,6 +321,34 @@ RunMetalProductionContentIntegrationTests()
                   << " stale="
                   << (Terminal.Counters.bStaleHandleRejected ? 1 : 0)
                   << '\n';
+        const auto& WarmupMemory = Warmup.ProcessMemory;
+        const auto& TerminalMemory = Terminal.ProcessMemory;
+        std::cout << "[OBSERVATION] metal-rss-detail"
+                  << " warmup-physical="
+                  << WarmupMemory.PhysicalFootprintBytes
+                  << " terminal-physical="
+                  << TerminalMemory.PhysicalFootprintBytes
+                  << " warmup-internal=" << WarmupMemory.InternalBytes
+                  << " terminal-internal=" << TerminalMemory.InternalBytes
+                  << " warmup-external=" << WarmupMemory.ExternalBytes
+                  << " terminal-external=" << TerminalMemory.ExternalBytes
+                  << " warmup-reusable=" << WarmupMemory.ReusableBytes
+                  << " terminal-reusable=" << TerminalMemory.ReusableBytes
+                  << " warmup-compressed=" << WarmupMemory.CompressedBytes
+                  << " terminal-compressed=" << TerminalMemory.CompressedBytes
+                  << " warmup-heap-in-use=" << WarmupMemory.HeapBytesInUse
+                  << " terminal-heap-in-use=" << TerminalMemory.HeapBytesInUse
+                  << " warmup-heap-allocated="
+                  << WarmupMemory.HeapBytesAllocated
+                  << " terminal-heap-allocated="
+                  << TerminalMemory.HeapBytesAllocated
+                  << " details="
+                  << (WarmupMemory.bDetailedAvailable &&
+                      TerminalMemory.bDetailedAvailable ? 1 : 0)
+                  << " heap="
+                  << (WarmupMemory.bHeapAvailable &&
+                      TerminalMemory.bHeapAvailable ? 1 : 0)
+                  << '\n';
     }
     const bool bDeferredPassed =
         bDeferred &&

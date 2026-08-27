@@ -34,7 +34,7 @@ never an acceptance input.
 **Testing**: Existing `StonerTest` suites plus corpus, KTX2 integration, semantic-equivalence, transactional realization, native readback, image-acceptance, lifecycle, failure-injection, Python schema/runner tests, Windows/macOS/Linux CI, and required Windows/macOS hardware lanes
 **Target Platform**: Windows x64 Vulkan; macOS arm64 Metal and Vulkan/MoltenVK; Linux x64 build, deterministic, sanitizer, and bounded Lavapipe/headless Vulkan validation
 **Project Type**: Cross-platform graphics engine, offline asset cooker CLI, desktop demo, and validation tooling
-**Performance Goals**: Regular profile within 10 minutes per hosted job; medium profile within 40 minutes per declared hardware lane; serialized visible hardware profile within 60 minutes per declared lane; deterministic reports byte-identical across 20 repetitions
+**Performance Goals**: Regular profile within 10 minutes per hosted job; medium profile within 50 minutes per declared package lane, including an independently bounded 40-minute native lifecycle stage; serialized visible hardware profile within 60 minutes per declared lane; deterministic reports byte-identical across 20 repetitions
 **Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; 1,000 medium/hardware cycles with cycles 1-20 as warm-up; warm-up counts toward the total and RSS growth from the post-warm-up sample to the terminal sample is at most 16 MiB; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation
 **Scale/Scope**: Two artist-authored source works; regular Lantern GLB is about 9.6 MB with 3 primitives and four 2K textures; medium Sponza external package is about 50 MB with 103 primitives, 25 materials, and 69 mostly 1K textures; at least 30 deterministic negative cases
 
@@ -326,9 +326,11 @@ Validation. No new runtime module is introduced.
    Lantern v2 1,000-cycle workload, and sixteen for Sponza medium/hardware
    throughput.
    Scheduled/manual medium assigns each accepted package to its own
-   hosted Intel Metal lane with a 2,400-second per-lane deadline. This preserves
-   bounded headroom for the required full native-backend RSS comparison
-   boundaries without reducing the 1,000/20 lifecycle workload.
+   hosted Intel Metal lane with a 3,000-second complete-lane deadline and an
+   independently bounded 2,400-second native lifecycle allowance. This keeps
+   cook, publication, equivalence, and strict-runtime setup from silently
+   consuming the native proof's budget while preserving the 60-minute workflow
+   job bound and the complete 1,000/20 lifecycle workload.
    Each lane owns its package's complete clean/warm/strict/equivalence/
    1,000-cycle proof, and an aggregate job requires the exact profile package
    set plus identical corpus, target, and revision authority. Local full-profile

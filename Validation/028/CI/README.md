@@ -126,6 +126,28 @@ and summary SHA-256
 
 ## Superseded Hosted Evidence
 
+Hosted run `33052483658` on revision
+`a4ce1fdfa23b0ac576e2fc027f1c6968a441fb29` passed all regular producers,
+independent consumers, ASan/UBSan, and TSan. Its Intel Lantern medium shard
+completed the exact 1,000-cycle lifecycle with 2,000 captures, zero terminal
+owners, and stale-handle rejection, but failed the unchanged 16 MiB RSS gate:
+resident bytes grew from 11,235,328 at warm-up to 54,919,168 at termination
+(43,683,840 bytes). The serialized Sponza shard then reached its native stage
+but exhausted the old shared 2,400-second package-lane budget after 2,112
+seconds. This is failure evidence, not closeout authority. The successor keeps
+`resident_size` and the 16 MiB threshold authoritative, adds observation-only
+macOS task-VM/all-zone malloc telemetry, and separates a 2,400-second native
+cap from a 3,000-second complete medium-lane budget; hosted reconfirmation is
+still required.
+
+The revised contract passed an exact local arm64 Lantern medium replay in
+159.616 seconds, including 148.196 seconds of native execution. It completed
+1,000/20 cycles, 2,000 captures, seven readbacks, zero terminal owners, and
+stale-handle rejection; RSS grew 589,824 bytes (30,670,848 to 31,260,672,
+32,129,024 peak). Both task-VM and all-zone malloc endpoint diagnostics were
+available. This proves the instrumentation and budget plumbing locally but
+does not substitute for the required Intel category evidence.
+
 Hosted run `33046135110` on revision
 `4ff520033c50ace5630744f4dcaae5204042a0e9` passed all regular producers,
 independent artifact consumers, ASan/UBSan, and TSan. Its Intel Lantern medium

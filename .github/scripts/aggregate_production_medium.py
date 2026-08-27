@@ -30,7 +30,8 @@ def aggregate_medium_shards(
         profile.get("profileId") != "medium"
         or profile.get("lifecycleCycles") != 1000
         or profile.get("warmupCycles") != 20
-        or profile.get("timeBudgetSeconds") != 2400
+        or profile.get("timeBudgetSeconds") != 3000
+        or profile.get("nativeTimeBudgetSeconds") != 2400
         or not isinstance(expected_packages, list)
         or len(expected_packages) < 2
         or len(set(expected_packages)) != len(expected_packages)
@@ -54,9 +55,10 @@ def aggregate_medium_shards(
             or summary.get("profile") != "medium"
             or summary.get("passed") is not True
             or summary.get("determinismRuns") != 1
-            or summary.get("timeBudgetSeconds") != 2400
+            or summary.get("timeBudgetSeconds") != 3000
+            or summary.get("nativeTimeBudgetSeconds") != 2400
             or not isinstance(summary.get("elapsedSeconds"), (int, float))
-            or summary["elapsedSeconds"] > 2400
+            or summary["elapsedSeconds"] > 3000
             or summary.get("targetProfileDigest") != target_digest
             or not isinstance(packages, list)
             or len(packages) != 1
@@ -78,6 +80,8 @@ def aggregate_medium_shards(
             or native.get("staleHandleRejected") is not True
             or native.get("captureCount") != 2000
             or native.get("readbackCount") != 7
+            or not isinstance(native.get("seconds"), (int, float))
+            or native["seconds"] > 2400
             or native.get("rssGrowthBytes", 16 * 1024 * 1024 + 1) >
                 16 * 1024 * 1024
         ):

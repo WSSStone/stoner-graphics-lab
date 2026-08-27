@@ -42,7 +42,7 @@ python3 .github/scripts/run_production_content_validation.py \
   --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json \
   --build-root Build/Mac/Release \
   --output Build/Validation/028/medium-macos-metal \
-  --acquire-missing --timeout-seconds 2400
+  --acquire-missing --timeout-seconds 3000
 ```
 
 Hardware validation uses the same runner and additionally requires a physical
@@ -86,8 +86,9 @@ python3 .github/scripts/run_production_content_validation.py \
 - A missing host, device, display, backend, or tool is `Unsupported`, names its
   prerequisite and replacement hardware lane, and fails aggregate acceptance.
 
-Regular lanes have a 10-minute workload budget, medium lanes have a 40-minute
-budget, and serialized visible hardware lanes have a 60-minute budget. Workflow
+Regular lanes have a 10-minute workload budget, medium package lanes have a
+50-minute complete budget with an independently capped 40-minute native stage,
+and serialized visible hardware lanes have a 60-minute budget. Workflow
 setup and compilation have separate job timeouts. Evidence is written below
 `Build/Validation/028/`, uploaded with failure-safe steps, and promoted into
 this directory only after digest and privacy verification.

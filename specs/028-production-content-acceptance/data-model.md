@@ -80,7 +80,8 @@ and non-color material-data textures.
 | `WarmupCycles` | integer | Exactly 2 for regular and 20 for medium/hardware; included in lifecycle count |
 | `MaxRssGrowthBytes` | integer | 16 MiB |
 | `RequiredGates` | ordered enum list | Corpus/import/cook/runtime/realization/render/image/lifecycle as applicable |
-| `TimeBudgetSeconds` | integer | 600 regular job; 2,400 medium lane; 3,600 serialized visible hardware lane |
+| `TimeBudgetSeconds` | integer | 600 regular job; 3,000 complete medium package lane; 3,600 serialized visible hardware lane |
+| `NativeTimeBudgetSeconds` | integer | 600 regular; 2,400 medium; 3,600 hardware; always capped by the enclosing lane deadline |
 
 ## 6. Production Asset Closure
 

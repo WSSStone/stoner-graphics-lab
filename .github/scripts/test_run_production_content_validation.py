@@ -143,6 +143,19 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
         ])
         self.assertEqual(20, parsed.determinism_runs)
 
+    def test_native_stage_has_independent_cap_inside_complete_lane(self):
+        with mock.patch.object(
+            self.module.time, "monotonic", return_value=100.0
+        ):
+            self.assertEqual(
+                2400,
+                self.module.native_stage_timeout(3100.0, 3000, 2400),
+            )
+            self.assertEqual(
+                2100,
+                self.module.native_stage_timeout(2200.0, 3000, 2400),
+            )
+
     def test_profile_selection_requires_exact_target_and_package_membership(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -164,6 +177,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 "warmupCycles": 2,
                 "maxRssGrowthBytes": 16 * 1024 * 1024,
                 "timeBudgetSeconds": 600,
+                "nativeTimeBudgetSeconds": 600,
                 "cadence": ["relevant-pull-request", "relevant-push"],
                 "requiredGates": [
                     "corpus", "import", "clean-cook", "warm-cook",
@@ -259,7 +273,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
     def test_shipping_profiles_have_exact_tier_contracts(self):
         expected = {
             "regular": (20, 2, 600),
-            "medium": (1000, 20, 2400),
+            "medium": (1000, 20, 3000),
             "hardware": (1000, 20, 3600),
         }
         for profile_id, (cycles, warmup, budget) in expected.items():
@@ -270,6 +284,10 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             self.assertEqual(warmup, profile["warmupCycles"])
             self.assertEqual(16 * 1024 * 1024, profile["maxRssGrowthBytes"])
             self.assertEqual(budget, profile["timeBudgetSeconds"])
+            self.assertEqual(
+                2400 if profile_id == "medium" else budget,
+                profile["nativeTimeBudgetSeconds"],
+            )
             self.assertLess(profile["warmupCycles"], profile["lifecycleCycles"])
 
     def test_only_medium_packages_run_concurrently(self):

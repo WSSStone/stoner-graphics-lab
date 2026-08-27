@@ -1207,3 +1207,41 @@ stage, 1,000/20 cycles, 2,000 captures, seven authoritative readbacks, zero
 terminal owners, stale-handle rejection, and 524,288 bytes of RSS growth
 (30,752,768 to 31,277,056 bytes, 31,997,952 peak). Complete Intel hosted
 revalidation remains authoritative.
+
+## Decision 43: Separate medium native time from setup and diagnose Intel RSS by category
+
+Full hosted run `33052483658` at revision `a4ce1fd` falsified the readback-churn
+change as a complete Intel RSS remedy. Lantern still completed all 1,000 cycles
+and 2,000 captures with zero terminal owners and stale-handle rejection, but
+resident size moved from 11,235,328 to 54,919,168 bytes, a 43,683,840-byte
+increase. The failure still precedes the uncounted authoritative extraction, so
+zero reported readbacks remains a fail-closed consequence. Because the retained
+amount is nearly the same as the preceding Intel run, another allocator switch,
+longer sleep, or relaxed threshold has no supporting evidence.
+
+The authoritative value remains the single `resident_size` sample at the exact
+cycle-20 and cycle-1,000 comparison points. Additional observation now records
+`TASK_VM_INFO` physical footprint, internal, external, reusable, and compressed
+bytes plus `malloc_zone_statistics(nullptr, ...)` in-use and allocated totals at
+those same points. These fields cannot select or replace the authoritative RSS
+value; they only distinguish live heap, retained malloc pages, and non-heap or
+graphics VM so the next Intel run can identify the responsible category.
+
+The same run showed an independent scheduling defect. Sponza passed strict
+Release, Metal readback-mode validation, clean/warm cook, publication, semantic
+equivalence, and strict runtime, then its native process exhausted the 2,112
+seconds left from the shared 2,400-second complete-lane deadline. Medium package
+authority therefore uses a 3,000-second complete-lane budget with an explicit
+2,400-second native-stage cap. The GitHub job remains bounded to 60 minutes, and
+the lifecycle remains exactly 1,000 cycles with 20 included warm-up cycles.
+
+The exact local arm64 Lantern medium replay passed the revised contract in
+159.616 profile seconds and 148.196 native seconds. It completed 1,000/20
+cycles, 2,000 captures, seven authoritative readbacks, zero terminal owners,
+and stale-handle rejection. Authoritative RSS moved from 30,670,848 to
+31,260,672 bytes, a 589,824-byte increase with a 32,129,024-byte peak. The
+observation-only endpoint data was also available: physical footprint moved
+from 5,341,832 to 5,407,368 bytes, heap in-use from 1,503,488 to 1,672,448
+bytes, and heap allocated remained 25,165,824 bytes. This validates collection
+and serialization without attempting to infer the Intel retained category;
+the isolated Intel hosted replay remains authoritative for that diagnosis.

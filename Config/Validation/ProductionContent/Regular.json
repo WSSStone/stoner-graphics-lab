@@ -15,6 +15,7 @@
   "warmupCycles": 2,
   "maxRssGrowthBytes": 16777216,
   "timeBudgetSeconds": 600,
+  "nativeTimeBudgetSeconds": 600,
   "cadence": ["relevant-pull-request", "relevant-push"],
   "requiredGates": [
     "corpus",

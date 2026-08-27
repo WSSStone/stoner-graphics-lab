@@ -78,11 +78,39 @@ FProcessMemorySnapshot FPlatformMemory::QueryProcessMemory() noexcept
         return {static_cast<uint64>(Counters.WorkingSetSize), true};
     }
 #elif SG_PLATFORM_MAC
-    mach_task_basic_info_data_t Info{};
-    mach_msg_type_number_t Count = MACH_TASK_BASIC_INFO_COUNT;
-    if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, reinterpret_cast<task_info_t>(&Info), &Count) == KERN_SUCCESS)
+    mach_task_basic_info_data_t BasicInfo{};
+    mach_msg_type_number_t BasicCount = MACH_TASK_BASIC_INFO_COUNT;
+    if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO,
+            reinterpret_cast<task_info_t>(&BasicInfo), &BasicCount) ==
+        KERN_SUCCESS)
     {
-        return {static_cast<uint64>(Info.resident_size), true};
+        FProcessMemorySnapshot Result;
+        Result.ResidentBytes = static_cast<uint64>(BasicInfo.resident_size);
+        Result.bAvailable = true;
+
+        task_vm_info_data_t VmInfo{};
+        mach_msg_type_number_t VmCount = TASK_VM_INFO_COUNT;
+        if (task_info(mach_task_self(), TASK_VM_INFO,
+                reinterpret_cast<task_info_t>(&VmInfo), &VmCount) ==
+            KERN_SUCCESS)
+        {
+            Result.PhysicalFootprintBytes =
+                static_cast<uint64>(VmInfo.phys_footprint);
+            Result.InternalBytes = static_cast<uint64>(VmInfo.internal);
+            Result.ExternalBytes = static_cast<uint64>(VmInfo.external);
+            Result.ReusableBytes = static_cast<uint64>(VmInfo.reusable);
+            Result.CompressedBytes = static_cast<uint64>(VmInfo.compressed);
+            Result.bDetailedAvailable = true;
+        }
+
+        malloc_statistics_t Heap{};
+        malloc_zone_statistics(nullptr, &Heap);
+        Result.HeapBytesInUse = static_cast<uint64>(Heap.size_in_use);
+        Result.HeapBytesAllocated = static_cast<uint64>(Heap.size_allocated);
+        Result.bHeapAvailable =
+            Result.HeapBytesAllocated > 0 &&
+            Result.HeapBytesAllocated >= Result.HeapBytesInUse;
+        return Result;
     }
 #elif SG_PLATFORM_LINUX
     long ResidentPages = 0;

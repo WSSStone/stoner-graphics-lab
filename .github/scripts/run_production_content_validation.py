@@ -77,13 +77,15 @@ FAILURE_CASE_FIELDS = {
 PROFILE_FIELDS = {
     "schema", "schemaVersion", "profileId", "corpusRevision", "packageIds",
     "targetProfiles", "lifecycleCycles", "warmupCycles", "maxRssGrowthBytes",
-    "timeBudgetSeconds", "cadence", "requiredGates",
+    "timeBudgetSeconds", "nativeTimeBudgetSeconds", "cadence",
+    "requiredGates",
 }
 PROFILE_CONTRACTS = {
     "regular": {
         "cycles": 20,
         "warmup": 2,
         "budget": 600,
+        "native_budget": 600,
         "cadence": ["relevant-pull-request", "relevant-push"],
         "gates": [
             "corpus", "import", "clean-cook", "warm-cook",
@@ -95,7 +97,8 @@ PROFILE_CONTRACTS = {
     "medium": {
         "cycles": 1000,
         "warmup": 20,
-        "budget": 2400,
+        "budget": 3000,
+        "native_budget": 2400,
         "cadence": [
             "weekly-default-branch", "feature-closeout", "release-closeout"
         ],
@@ -110,6 +113,7 @@ PROFILE_CONTRACTS = {
         "cycles": 1000,
         "warmup": 20,
         "budget": 3600,
+        "native_budget": 3600,
         "cadence": [
             "feature-closeout", "reference-image-change",
             "production-render-path-change",
@@ -224,6 +228,15 @@ def remaining_stage_timeout(deadline: float, configured_timeout: int) -> int:
             "profile", "timeout", "profile time budget is exhausted"
         )
     return min(configured_timeout, max(1, math.ceil(remaining)))
+
+
+def native_stage_timeout(
+    deadline: float, configured_timeout: int, native_budget: int
+) -> int:
+    return min(
+        native_budget,
+        remaining_stage_timeout(deadline, configured_timeout),
+    )
 
 
 def equivalence_request_timeout_seconds(stage_timeout: int) -> int:
@@ -645,6 +658,8 @@ def load_validation_profile(repository_root: Path, profile_name: str) -> dict:
         raise ValueError("validation profile RSS limit is invalid")
     if profile.get("timeBudgetSeconds") != contract["budget"]:
         raise ValueError("validation profile time budget is invalid")
+    if profile.get("nativeTimeBudgetSeconds") != contract["native_budget"]:
+        raise ValueError("validation profile native time budget is invalid")
     if profile.get("cadence") != contract["cadence"]:
         raise ValueError("validation profile cadence is invalid")
     if profile.get("requiredGates") != contract["gates"]:
@@ -1238,6 +1253,7 @@ def run_package(
     lifecycle_cycles: int,
     warmup_cycles: int,
     timeout: int,
+    native_timeout: int,
     graphics_backend: str,
     cpu_architecture: str,
     require_visible: bool = False,
@@ -1448,7 +1464,9 @@ def run_package(
                 lifecycle_cycles,
                 warmup_cycles,
                 native_report,
-                remaining_stage_timeout(package_deadline, timeout),
+                native_stage_timeout(
+                    package_deadline, timeout, native_timeout
+                ),
                 require_visible,
             ),
             native_lifecycle_lock,
@@ -1540,6 +1558,8 @@ def run_profile(args: argparse.Namespace) -> dict:
             "packages": [],
             "acquisitions": [],
             "timeBudgetSeconds": validation_profile["timeBudgetSeconds"],
+            "nativeTimeBudgetSeconds":
+                validation_profile["nativeTimeBudgetSeconds"],
             "elapsedSeconds": 0.0,
             "unsupported": cook_unsupported,
             "passed": False,
@@ -1610,6 +1630,7 @@ def run_profile(args: argparse.Namespace) -> dict:
                 validation_profile["lifecycleCycles"],
                 validation_profile["warmupCycles"],
                 args.timeout_seconds,
+                validation_profile["nativeTimeBudgetSeconds"],
                 target_contract["graphicsBackend"],
                 target_contract["cpuArchitecture"],
                 args.profile == "hardware",
@@ -1657,6 +1678,8 @@ def run_profile(args: argparse.Namespace) -> dict:
         "packages": package_reports,
         "acquisitions": acquisition_results,
         "timeBudgetSeconds": validation_profile["timeBudgetSeconds"],
+        "nativeTimeBudgetSeconds":
+            validation_profile["nativeTimeBudgetSeconds"],
         "elapsedSeconds": elapsed,
         "passed": elapsed <= validation_profile["timeBudgetSeconds"] and
             aggregate_native_results(

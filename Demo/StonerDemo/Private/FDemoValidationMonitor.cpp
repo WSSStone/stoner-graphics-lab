@@ -66,7 +66,8 @@ bool FDemoValidationMonitor::SampleProductionCycle(
         bMemoryAvailable = false;
         return false;
     }
-    AddSyntheticProductionCycle(CompletedCycle, Memory.ResidentBytes, Counters);
+    ProductionSamples.push_back(
+        {CompletedCycle, Memory.ResidentBytes, Counters, Memory});
     return true;
 }
 
@@ -75,7 +76,11 @@ void FDemoValidationMonitor::AddSyntheticProductionCycle(
     Stoner::Core::uint64 ResidentBytes,
     const FDemoProductionLifecycleCounters& Counters)
 {
-    ProductionSamples.push_back({CompletedCycle, ResidentBytes, Counters});
+    Stoner::Core::FProcessMemorySnapshot Memory;
+    Memory.ResidentBytes = ResidentBytes;
+    Memory.bAvailable = ResidentBytes != 0;
+    ProductionSamples.push_back(
+        {CompletedCycle, ResidentBytes, Counters, Memory});
 }
 
 bool FDemoValidationMonitor::Evaluate()
@@ -164,12 +169,47 @@ Stoner::Core::FString FDemoValidationMonitor::BuildReport(const FDemoDiagnostics
            << "validation-result=" << (bPassed ? "pass" : "fail") << '\n';
     if (Configuration.Workload == EDemoWorkload::ProductionContent)
     {
+        const FDemoProductionLifecycleSample* Warmup =
+            ProductionSamples.size() >= Configuration.ProductionWarmupCycles
+            ? &ProductionSamples[Configuration.ProductionWarmupCycles - 1]
+            : nullptr;
+        const FDemoProductionLifecycleSample* Terminal =
+            ProductionSamples.empty() ? nullptr : &ProductionSamples.back();
         Stream << "production-cycles=" << ProductionSamples.size() << '\n'
                << "production-warmup-cycle="
                << Configuration.ProductionWarmupCycles << '\n'
                << "production-warmup-rss-bytes=" << ProductionWarmupBytes << '\n'
                << "production-terminal-rss-bytes=" << ProductionTerminalBytes << '\n'
                << "production-peak-rss-bytes=" << ProductionPeakBytes << '\n';
+        if (Warmup && Terminal)
+        {
+            const auto WriteMemoryDetails = [&Stream](const char* Prefix,
+                const Stoner::Core::FProcessMemorySnapshot& Memory)
+            {
+                Stream << Prefix << "-physical-footprint-bytes="
+                       << Memory.PhysicalFootprintBytes << '\n'
+                       << Prefix << "-internal-bytes="
+                       << Memory.InternalBytes << '\n'
+                       << Prefix << "-external-bytes="
+                       << Memory.ExternalBytes << '\n'
+                       << Prefix << "-reusable-bytes="
+                       << Memory.ReusableBytes << '\n'
+                       << Prefix << "-compressed-bytes="
+                       << Memory.CompressedBytes << '\n'
+                       << Prefix << "-heap-in-use-bytes="
+                       << Memory.HeapBytesInUse << '\n'
+                       << Prefix << "-heap-allocated-bytes="
+                       << Memory.HeapBytesAllocated << '\n'
+                       << Prefix << "-details-available="
+                       << (Memory.bDetailedAvailable ? 1 : 0) << '\n'
+                       << Prefix << "-heap-available="
+                       << (Memory.bHeapAvailable ? 1 : 0) << '\n';
+            };
+            WriteMemoryDetails(
+                "production-warmup", Warmup->ProcessMemory);
+            WriteMemoryDetails(
+                "production-terminal", Terminal->ProcessMemory);
+        }
     }
     Stream << "recovery-count=" << RecoveryMilliseconds.size() << '\n';
     for (Stoner::Core::usize Index = 0; Index < RecoveryMilliseconds.size(); ++Index)

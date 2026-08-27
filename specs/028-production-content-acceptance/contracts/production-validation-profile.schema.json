@@ -4,7 +4,7 @@
   "title": "Stoner Production Validation Profile",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "schemaVersion", "profileId", "corpusRevision", "packageIds", "targetProfiles", "lifecycleCycles", "warmupCycles", "maxRssGrowthBytes", "timeBudgetSeconds", "cadence", "requiredGates"],
+  "required": ["schema", "schemaVersion", "profileId", "corpusRevision", "packageIds", "targetProfiles", "lifecycleCycles", "warmupCycles", "maxRssGrowthBytes", "timeBudgetSeconds", "nativeTimeBudgetSeconds", "cadence", "requiredGates"],
   "properties": {
     "schema": {"const": "stoner.production-validation-profile"},
     "schemaVersion": {"const": 1},
@@ -28,6 +28,7 @@
     "warmupCycles": {"type": "integer"},
     "maxRssGrowthBytes": {"const": 16777216},
     "timeBudgetSeconds": {"type": "integer"},
+    "nativeTimeBudgetSeconds": {"type": "integer"},
     "cadence": {
       "type": "array",
       "minItems": 1,
@@ -51,7 +52,8 @@
         "properties": {
           "lifecycleCycles": {"const": 20},
           "warmupCycles": {"const": 2},
-          "timeBudgetSeconds": {"const": 600}
+          "timeBudgetSeconds": {"const": 600},
+          "nativeTimeBudgetSeconds": {"const": 600}
         }
       }
     },
@@ -61,7 +63,8 @@
         "properties": {
           "lifecycleCycles": {"const": 1000},
           "warmupCycles": {"const": 20},
-          "timeBudgetSeconds": {"const": 2400}
+          "timeBudgetSeconds": {"const": 3000},
+          "nativeTimeBudgetSeconds": {"const": 2400}
         }
       }
     },
@@ -71,7 +74,8 @@
         "properties": {
           "lifecycleCycles": {"const": 1000},
           "warmupCycles": {"const": 20},
-          "timeBudgetSeconds": {"const": 3600}
+          "timeBudgetSeconds": {"const": 3600},
+          "nativeTimeBudgetSeconds": {"const": 3600}
         }
       }
     }
