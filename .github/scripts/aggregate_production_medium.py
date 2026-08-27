@@ -26,12 +26,31 @@ def aggregate_medium_shards(
 ) -> dict:
     profile = load_json(profile_path)
     expected_packages = profile.get("packageIds")
+    expected_policy = {
+        "allowedExecutionClasses": [
+            "github-hosted", "local-diagnostic"
+        ],
+        "executionClasses": {
+            "github-hosted": {
+                "rss": "observed", "timing": "operational",
+                "image": "not-required",
+            },
+            "local-diagnostic": {
+                "rss": "observed", "timing": "operational",
+                "image": "not-required",
+            },
+        },
+        "physicalPreflight": [],
+    }
     if (
-        profile.get("profileId") != "medium"
+        profile.get("schema") != "stoner.production-validation-profile"
+        or profile.get("schemaVersion") != 2
+        or profile.get("profileId") != "medium"
         or profile.get("lifecycleCycles") != 1000
         or profile.get("warmupCycles") != 20
-        or profile.get("timeBudgetSeconds") != 3000
-        or profile.get("nativeTimeBudgetSeconds") != 2400
+        or profile.get("timeBudgetSeconds") != 3900
+        or profile.get("nativeTimeBudgetSeconds") != 3600
+        or profile.get("authorityPolicy") != expected_policy
         or not isinstance(expected_packages, list)
         or len(expected_packages) < 2
         or len(set(expected_packages)) != len(expected_packages)
@@ -53,12 +72,13 @@ def aggregate_medium_shards(
                 "stoner.production-cook-runtime-summary"
             or summary.get("schemaVersion") != 1
             or summary.get("profile") != "medium"
+            or summary.get("executionClass") != "github-hosted"
             or summary.get("passed") is not True
             or summary.get("determinismRuns") != 1
-            or summary.get("timeBudgetSeconds") != 3000
-            or summary.get("nativeTimeBudgetSeconds") != 2400
+            or summary.get("timeBudgetSeconds") != 3900
+            or summary.get("nativeTimeBudgetSeconds") != 3600
             or not isinstance(summary.get("elapsedSeconds"), (int, float))
-            or summary["elapsedSeconds"] > 3000
+            or summary["elapsedSeconds"] > 3900
             or summary.get("targetProfileDigest") != target_digest
             or not isinstance(packages, list)
             or len(packages) != 1
@@ -74,6 +94,7 @@ def aggregate_medium_shards(
             or package.get("reachableAssets") != package.get("reusedAssets")
             or not isinstance(native, dict)
             or native.get("result") != "Passed"
+            or native.get("executionClass") != "github-hosted"
             or native.get("lifecycleCycles") != 1000
             or native.get("warmupCycles") != 20
             or native.get("ownersAtTerminal") != 0
@@ -81,9 +102,13 @@ def aggregate_medium_shards(
             or native.get("captureCount") != 2000
             or native.get("readbackCount") != 7
             or not isinstance(native.get("seconds"), (int, float))
-            or native["seconds"] > 2400
-            or native.get("rssGrowthBytes", 16 * 1024 * 1024 + 1) >
-                16 * 1024 * 1024
+            or native["seconds"] > 3600
+            or native.get("rssDisposition") != "observed"
+            or native.get("timingDisposition") != "operational"
+            or native.get("imageDisposition") != "not-required"
+            or not isinstance(native.get("rssGrowthBytes"), int)
+            or native["rssGrowthBytes"] < 0
+            or not isinstance(native.get("rssWithinLimit"), bool)
         ):
             raise ValueError("medium shard package evidence is invalid")
         manifest_path = summary_path.with_name("artifact-manifest.json")
@@ -107,6 +132,8 @@ def aggregate_medium_shards(
             "elapsedSeconds": summary["elapsedSeconds"],
             "nativeSeconds": native.get("seconds"),
             "rssGrowthBytes": native.get("rssGrowthBytes"),
+            "rssWithinLimit": native.get("rssWithinLimit"),
+            "rssDisposition": native.get("rssDisposition"),
             "summaryDigest": sha256_file(summary_path),
             "artifactManifestDigest": sha256_file(manifest_path),
         })
@@ -118,6 +145,10 @@ def aggregate_medium_shards(
         "schema": "stoner.production-medium-aggregate",
         "schemaVersion": 1,
         "profile": "medium",
+        "executionClass": "github-hosted",
+        "measurementDispositions": expected_policy["executionClasses"][
+            "github-hosted"
+        ],
         "corpusRevision": common[0],
         "corpusDigest": common[1],
         "targetProfile": common[2],

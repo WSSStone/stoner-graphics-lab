@@ -277,6 +277,22 @@ Core::uint32 At(float Unit, Core::uint32 Extent)
         static_cast<Core::uint32>(Unit * static_cast<float>(Extent)));
 }
 
+FProductionPixelRegion RegionAt(
+    float UnitX,
+    float UnitY,
+    Core::uint32 Width,
+    Core::uint32 Height,
+    Core::uint32 Radius = 4)
+{
+    const Core::uint32 CenterX = At(UnitX, Width);
+    const Core::uint32 CenterY = At(UnitY, Height);
+    return {
+        CenterX > Radius ? CenterX - Radius : 0u,
+        CenterY > Radius ? CenterY - Radius : 0u,
+        std::min(Width, CenterX + Radius + 1u),
+        std::min(Height, CenterY + Radius + 1u)};
+}
+
 Core::FVector3 Srgb8(Core::uint8 R, Core::uint8 G, Core::uint8 B)
 {
     const auto Linear = [](Core::uint8 Value)
@@ -294,13 +310,16 @@ Core::TArray<FProductionRegionProbe> LanternRegions(
     Core::uint32 Height)
 {
     const auto Probe = [Width, Height](const char* Name, float X, float Y,
-        Core::FVector3 Expected, float Tolerance)
+        Core::FVector3 Expected, float Tolerance,
+        float MinimumValidSampleFraction = 0.50f)
     {
         return FProductionRegionProbe{
-            Name, At(X, Width), At(Y, Height), Expected, Tolerance};
+            Name, RegionAt(X, Y, Width, Height), Expected, Tolerance,
+            MinimumValidSampleFraction, EProductionRegionStatistic::Median,
+            0.5f};
     };
     return {
-        Probe("background", 0.10f, 0.10f, {0.0f, 0.0f, 0.0f}, 0.01f),
+        Probe("background", 0.10f, 0.10f, {0.0f, 0.0f, 0.0f}, 0.01f, 0.90f),
         Probe("orientation", 0.345f, 0.390f, Srgb8(237, 255, 140), 0.30f),
         Probe("primitive-material", 0.598f, 0.390f,
             Srgb8(165, 114, 67), 0.25f),
@@ -320,13 +339,16 @@ Core::TArray<FProductionRegionProbe> SponzaRegions(
     Core::uint32 Height)
 {
     const auto Probe = [Width, Height](const char* Name, float X, float Y,
-        Core::FVector3 Expected, float Tolerance)
+        Core::FVector3 Expected, float Tolerance,
+        float MinimumValidSampleFraction = 0.50f)
     {
         return FProductionRegionProbe{
-            Name, At(X, Width), At(Y, Height), Expected, Tolerance};
+            Name, RegionAt(X, Y, Width, Height), Expected, Tolerance,
+            MinimumValidSampleFraction, EProductionRegionStatistic::Median,
+            0.5f};
     };
     return {
-        Probe("background", 0.95f, 0.05f, {0.0f, 0.0f, 0.0f}, 0.01f),
+        Probe("background", 0.95f, 0.05f, {0.0f, 0.0f, 0.0f}, 0.01f, 0.90f),
         Probe("orientation", 0.10f, 0.10f,
             Srgb8(57, 45, 32), 0.12f),
         Probe("primitive-material", 0.90f, 0.55f,
@@ -393,6 +415,7 @@ bool BuildProductionWorkloadRegions(
     Core::TArray<FProductionRegionProbe>& OutRegions)
 {
     OutRegions.clear();
+    if (Width != 512 || Height != 512) return false;
     if (WorkloadRevision ==
             Core::FString("production-content-lantern-v2") ||
         WorkloadRevision == Core::FString("production-content-v1"))
@@ -465,65 +488,18 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
         !ToReadbackView(*LightingEvidence, EProductionColorTransfer::Linear,
             LightingView))
         return Fail("semantic-readback-layout");
-    const bool bSponzaV2 = WorkloadRevision ==
-        Core::FString("production-content-sponza-v2");
-    const Core::uint32 ProbeX = At(
-        0.598f, ColorView.Width);
-    const Core::uint32 ProbeY = At(
-        0.390f, ColorView.Height);
-    Core::FVector3 BaseColorSample;
-    Core::FVector3 NormalSample;
-    Core::FVector3 DepthSample;
-    Core::FVector3 LightingSample;
-    Core::FString Failure;
-    if (!SampleProductionReadbackPixel(
-            BaseColorView, ProbeX, ProbeY, BaseColorSample, Failure) ||
-        std::max({BaseColorSample.X, BaseColorSample.Y, BaseColorSample.Z}) <=
-            0.02f)
-        return Fail("base-color-attachment-region");
-    if (!SampleProductionReadbackPixel(
-            NormalView, ProbeX, ProbeY, NormalSample, Failure))
-        return Fail("normal-attachment-region");
-    if (!IsProductionWorkloadNormalProbeValid(
-            WorkloadRevision, NormalSample))
-        return Fail("normal-attachment-region");
-    if (!SampleProductionReadbackPixel(
-            DepthView, ProbeX, ProbeY, DepthSample, Failure) ||
-        DepthSample.X <= 0.0f || DepthSample.X >= 1.0f)
-        return Fail("depth-attachment-region");
-    if (!SampleProductionReadbackPixel(
-            LightingView, ProbeX, ProbeY, LightingSample, Failure) ||
-        std::max({LightingSample.X, LightingSample.Y, LightingSample.Z}) <=
-            0.10f)
-        return Fail("lighting-attachment-region");
-    FProductionCanonicalImage Color;
-    FProductionCanonicalImage Normal;
-    FProductionCanonicalImage Depth;
-    if (!NormalizeProductionReadback(ColorView, Color, Failure) ||
-        !NormalizeProductionSignedNormalReadback(NormalView, Normal, Failure) ||
-        !NormalizeProductionReadback(DepthView, Depth, Failure))
-        return Fail(Failure.CStr());
-
-    FProductionNativeImageAcceptanceResult Result;
-    FProductionSemanticProbeRequest Semantic;
-    Semantic.Color = &Color;
-    Semantic.Normal = &Normal;
-    Semantic.Depth = &Depth;
-    Semantic.ExpectedFrameToken = Inspection.CompletedCycles;
-    Semantic.ObservedFrameToken = Inspection.CompletedCycles;
-    Semantic.MinimumCoverageFraction = bSponzaV2 ? 0.75f : 0.01f;
-    Semantic.MaximumCoverageFraction = bSponzaV2 ? 0.82f : 0.35f;
-    if (!BuildProductionWorkloadRegions(
-            WorkloadRevision, Color.Width, Color.Height, Semantic.Regions))
-        return Fail("workload-semantic-regions");
-    Semantic.RequiredRegionNames = {"background"};
-    Result.Semantic = RunProductionSemanticProbes(Semantic);
-    if (!Result.Semantic.bPassed)
+    constexpr Core::uint32 FormalExtent = 512;
+    const auto HasFormalExtent = [](const FProductionReadbackView& View)
     {
-        Result.FirstFailure = Result.Semantic.FirstFailure;
-        return Result;
-    }
+        return View.Width == FormalExtent && View.Height == FormalExtent;
+    };
+    if (!HasFormalExtent(ColorView) || !HasFormalExtent(BaseColorView) ||
+        !HasFormalExtent(NormalView) || !HasFormalExtent(DepthView) ||
+        !HasFormalExtent(LightingView))
+        return Fail("formal-image-extent");
 
+    Core::FString Failure;
+    FProductionNativeImageAcceptanceResult Result;
     FProductionImageBaselineRegistry Registry;
     if (!Registry.LoadDeviceClasses(DeviceClassRegistryPath, Failure))
     {
@@ -571,14 +547,81 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
     if (!LoadPpm(Reference, Baseline.ColorTransfer,
             ReferenceImage, Failure) ||
         !LoadPpm(CandidatePath, Baseline.ColorTransfer,
-            CandidateImage, Failure) ||
-        ReferenceImage.Width != Baseline.Width ||
-        ReferenceImage.Height != Baseline.Height)
+            CandidateImage, Failure))
     {
-        Result.FirstFailure = Failure.IsEmpty()
-            ? Core::FString("baseline-dimensions") : Failure;
+        Result.FirstFailure = Failure;
         return Result;
     }
+    if (Baseline.Width != FormalExtent || Baseline.Height != FormalExtent ||
+        ReferenceImage.Width != FormalExtent ||
+        ReferenceImage.Height != FormalExtent ||
+        CandidateImage.Width != FormalExtent ||
+        CandidateImage.Height != FormalExtent)
+    {
+        Result.FirstFailure = "formal-image-extent";
+        return Result;
+    }
+
+    const bool bSponzaV2 = WorkloadRevision ==
+        Core::FString("production-content-sponza-v2");
+    const Core::FVector3 ExpectedNormal = bSponzaV2
+        ? Core::FVector3::UnitY() : -Core::FVector3::UnitX();
+    const FProductionPixelRegion AttachmentRegion = RegionAt(
+        0.598f, 0.390f, FormalExtent, FormalExtent);
+    FProductionReadbackRegionSample BaseColorSample;
+    FProductionReadbackRegionSample DepthSample;
+    FProductionReadbackRegionSample LightingSample;
+    float NormalCoverage = 0.0f;
+    if (!SampleProductionReadbackRegion(
+            BaseColorView, AttachmentRegion, 0.5f,
+            BaseColorSample, Failure) ||
+        BaseColorSample.ValidSampleFraction < 0.75f ||
+        std::max({BaseColorSample.Value.X, BaseColorSample.Value.Y,
+            BaseColorSample.Value.Z}) <= 0.02f)
+        return Fail("base-color-attachment-region");
+    if (!MeasureProductionReadbackDirectionalCoverage(
+            NormalView, AttachmentRegion, ExpectedNormal, 0.8f,
+            NormalCoverage, Failure) || NormalCoverage < 0.60f)
+        return Fail("normal-attachment-region");
+    if (!SampleProductionReadbackRegion(
+            DepthView, AttachmentRegion, 0.5f, DepthSample, Failure) ||
+        DepthSample.ValidSampleFraction < 0.75f ||
+        DepthSample.Value.X <= 0.0f || DepthSample.Value.X >= 1.0f)
+        return Fail("depth-attachment-region");
+    if (!SampleProductionReadbackRegion(
+            LightingView, AttachmentRegion, 0.5f,
+            LightingSample, Failure) ||
+        LightingSample.ValidSampleFraction < 0.75f ||
+        std::max({LightingSample.Value.X, LightingSample.Value.Y,
+            LightingSample.Value.Z}) <= 0.10f)
+        return Fail("lighting-attachment-region");
+    FProductionCanonicalImage Color;
+    FProductionCanonicalImage Normal;
+    FProductionCanonicalImage Depth;
+    if (!NormalizeProductionReadback(ColorView, Color, Failure) ||
+        !NormalizeProductionSignedNormalReadback(NormalView, Normal, Failure) ||
+        !NormalizeProductionReadback(DepthView, Depth, Failure))
+        return Fail(Failure.CStr());
+
+    FProductionSemanticProbeRequest Semantic;
+    Semantic.Color = &Color;
+    Semantic.Normal = &Normal;
+    Semantic.Depth = &Depth;
+    Semantic.ExpectedFrameToken = Inspection.CompletedCycles;
+    Semantic.ObservedFrameToken = Inspection.CompletedCycles;
+    Semantic.MinimumCoverageFraction = bSponzaV2 ? 0.75f : 0.01f;
+    Semantic.MaximumCoverageFraction = bSponzaV2 ? 0.82f : 0.35f;
+    if (!BuildProductionWorkloadRegions(
+            WorkloadRevision, Color.Width, Color.Height, Semantic.Regions))
+        return Fail("workload-semantic-regions");
+    Semantic.RequiredRegionNames = {"background"};
+    Result.Semantic = RunProductionSemanticProbes(Semantic);
+    if (!Result.Semantic.bPassed)
+    {
+        Result.FirstFailure = Result.Semantic.FirstFailure;
+        return Result;
+    }
+
     Result.Flip = CompareProductionImagesWithFlip(
         ReferenceImage, CandidateImage, Baseline.FlipPolicy);
     Result.bPassed = Result.Flip.bMeasured && Result.Flip.bPassed;

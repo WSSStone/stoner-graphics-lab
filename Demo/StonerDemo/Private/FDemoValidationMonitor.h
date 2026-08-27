@@ -78,6 +78,10 @@ public:
     {
         return ProductionPeakBytes;
     }
+    [[nodiscard]] bool IsProductionRssWithinLimit() const noexcept
+    {
+        return bProductionRssWithinLimit;
+    }
     [[nodiscard]] const Stoner::Core::TArray<FDemoProductionLifecycleSample>&
         GetProductionSamples() const noexcept
     {
@@ -102,6 +106,7 @@ private:
     Stoner::Core::uint64 ProductionPeakBytes = 0;
     double FirstPresentMilliseconds = 0.0;
     bool bMemoryAvailable = true;
+    bool bProductionRssWithinLimit = false;
     bool bPassed = false;
 };
 

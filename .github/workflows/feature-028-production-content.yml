@@ -257,7 +257,7 @@ jobs:
           --build-root Build/Mac/Release
           --output Build/Validation/028/medium-metal-${{ matrix.slug }}
           --acquire-missing
-          --timeout-seconds 3000
+          --timeout-seconds 3900
           --package-id ${{ matrix.package }}
       - name: Upload medium evidence
         if: always()

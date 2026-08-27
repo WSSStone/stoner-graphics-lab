@@ -25,12 +25,30 @@ class ProductionMediumAggregateTests(unittest.TestCase):
         package_ids = ["lantern", "sponza"]
         profile = root / "Medium.json"
         profile.write_text(json.dumps({
+            "schema": "stoner.production-validation-profile",
+            "schemaVersion": 2,
             "profileId": "medium",
             "packageIds": package_ids,
             "lifecycleCycles": 1000,
             "warmupCycles": 20,
-            "timeBudgetSeconds": 3000,
-            "nativeTimeBudgetSeconds": 2400,
+            "timeBudgetSeconds": 3900,
+            "nativeTimeBudgetSeconds": 3600,
+            "authorityPolicy": {
+                "allowedExecutionClasses": [
+                    "github-hosted", "local-diagnostic"
+                ],
+                "executionClasses": {
+                    "github-hosted": {
+                        "rss": "observed", "timing": "operational",
+                        "image": "not-required",
+                    },
+                    "local-diagnostic": {
+                        "rss": "observed", "timing": "operational",
+                        "image": "not-required",
+                    },
+                },
+                "physicalPreflight": [],
+            },
         }), encoding="utf-8")
         target = root / "Target.json"
         target.write_text("{}\n", encoding="utf-8")
@@ -42,13 +60,14 @@ class ProductionMediumAggregateTests(unittest.TestCase):
                 "schema": "stoner.production-cook-runtime-summary",
                 "schemaVersion": 1,
                 "profile": "medium",
+                "executionClass": "github-hosted",
                 "corpusRevision": "corpus-v1",
                 "corpusDigest": "a" * 64,
                 "targetProfile": "Target.json",
                 "targetProfileDigest": target_digest,
                 "determinismRuns": 1,
-                "timeBudgetSeconds": 3000,
-                "nativeTimeBudgetSeconds": 2400,
+                "timeBudgetSeconds": 3900,
+                "nativeTimeBudgetSeconds": 3600,
                 "elapsedSeconds": 1000 + index,
                 "passed": True,
                 "packages": [{
@@ -60,6 +79,7 @@ class ProductionMediumAggregateTests(unittest.TestCase):
                     "reusedAssets": 10 + index,
                     "nativeLifecycle": {
                         "result": "Passed",
+                        "executionClass": "github-hosted",
                         "lifecycleCycles": 1000,
                         "warmupCycles": 20,
                         "ownersAtTerminal": 0,
@@ -67,6 +87,10 @@ class ProductionMediumAggregateTests(unittest.TestCase):
                         "captureCount": 2000,
                         "readbackCount": 7,
                         "rssGrowthBytes": index,
+                        "rssWithinLimit": True,
+                        "rssDisposition": "observed",
+                        "timingDisposition": "operational",
+                        "imageDisposition": "not-required",
                         "seconds": 900 + index,
                     },
                 }],
@@ -131,6 +155,44 @@ class ProductionMediumAggregateTests(unittest.TestCase):
             path.write_text(json.dumps(changed), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "authority differs"):
                 self.module.aggregate_medium_shards(root, profile, target)
+
+    def test_observed_hosted_rss_never_promotes_or_fails_the_aggregate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            profile, target = self.write_fixture(root)
+            path = root / "shard-0/summary.json"
+            changed = json.loads(path.read_text(encoding="utf-8"))
+            native = changed["packages"][0]["nativeLifecycle"]
+            native["rssGrowthBytes"] = 128 * 1024 * 1024
+            native["rssWithinLimit"] = False
+            path.write_text(json.dumps(changed), encoding="utf-8")
+            result = self.module.aggregate_medium_shards(
+                root, profile, target
+            )
+            self.assertTrue(result["passed"])
+            self.assertEqual("github-hosted", result["executionClass"])
+            self.assertEqual(
+                "observed", result["packages"][0]["rssDisposition"]
+            )
+
+    def test_observation_safe_aggregation_still_rejects_functional_gaps(self):
+        mutations = (
+            ("result", "Unsupported"),
+            ("captureCount", 1999),
+            ("readbackCount", 6),
+            ("ownersAtTerminal", 1),
+            ("staleHandleRejected", False),
+        )
+        for field, value in mutations:
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                profile, target = self.write_fixture(root)
+                path = root / "shard-0/summary.json"
+                changed = json.loads(path.read_text(encoding="utf-8"))
+                changed["packages"][0]["nativeLifecycle"][field] = value
+                path.write_text(json.dumps(changed), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "package evidence"):
+                    self.module.aggregate_medium_shards(root, profile, target)
 
 
 if __name__ == "__main__":

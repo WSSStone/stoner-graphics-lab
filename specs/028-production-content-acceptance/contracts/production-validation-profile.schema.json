@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://stoner.local/schemas/production-validation-profile-v1.json",
+  "$id": "https://stoner.local/schemas/production-validation-profile-v2.json",
   "title": "Stoner Production Validation Profile",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "schemaVersion", "profileId", "corpusRevision", "packageIds", "targetProfiles", "lifecycleCycles", "warmupCycles", "maxRssGrowthBytes", "timeBudgetSeconds", "nativeTimeBudgetSeconds", "cadence", "requiredGates"],
+  "required": ["schema", "schemaVersion", "profileId", "corpusRevision", "packageIds", "targetProfiles", "lifecycleCycles", "warmupCycles", "maxRssGrowthBytes", "timeBudgetSeconds", "nativeTimeBudgetSeconds", "cadence", "requiredGates", "authorityPolicy"],
   "properties": {
     "schema": {"const": "stoner.production-validation-profile"},
-    "schemaVersion": {"const": 1},
+    "schemaVersion": {"const": 2},
     "profileId": {"enum": ["regular", "medium", "hardware"]},
     "corpusRevision": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"},
     "packageIds": {
@@ -43,6 +43,65 @@
       "maxItems": 32,
       "uniqueItems": true,
       "items": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
+    },
+    "authorityPolicy": {
+      "oneOf": [
+        {"$ref": "#/$defs/hostedLocalAuthorityPolicy"},
+        {"$ref": "#/$defs/hardwareAuthorityPolicy"}
+      ]
+    }
+  },
+  "$defs": {
+    "hostedLocalAuthorityPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowedExecutionClasses", "executionClasses", "physicalPreflight"],
+      "properties": {
+        "allowedExecutionClasses": {"const": ["github-hosted", "local-diagnostic"]},
+        "executionClasses": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["github-hosted", "local-diagnostic"],
+          "properties": {
+            "github-hosted": {"$ref": "#/$defs/observationalMeasurements"},
+            "local-diagnostic": {"$ref": "#/$defs/observationalMeasurements"}
+          }
+        },
+        "physicalPreflight": {"const": []}
+      }
+    },
+    "hardwareAuthorityPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowedExecutionClasses", "executionClasses", "physicalPreflight"],
+      "properties": {
+        "allowedExecutionClasses": {"const": ["controlled-physical", "local-diagnostic"]},
+        "executionClasses": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["controlled-physical", "local-diagnostic"],
+          "properties": {
+            "controlled-physical": {"$ref": "#/$defs/physicalMeasurements"},
+            "local-diagnostic": {"$ref": "#/$defs/observationalMeasurements"}
+          }
+        },
+        "physicalPreflight": {
+          "const": [
+            "registered-device-class",
+            "exclusive-runner-device-display",
+            "frozen-revision-and-software",
+            "default-production-allocator",
+            "declared-sample-protocol",
+            "window-presentation-and-readback"
+          ]
+        }
+      }
+    },
+    "observationalMeasurements": {
+      "const": {"rss": "observed", "timing": "operational", "image": "not-required"}
+    },
+    "physicalMeasurements": {
+      "const": {"rss": "required", "timing": "operational", "image": "required"}
     }
   },
   "allOf": [
@@ -54,6 +113,7 @@
           "warmupCycles": {"const": 2},
           "timeBudgetSeconds": {"const": 600},
           "nativeTimeBudgetSeconds": {"const": 600}
+          ,"authorityPolicy": {"$ref": "#/$defs/hostedLocalAuthorityPolicy"}
         }
       }
     },
@@ -63,8 +123,9 @@
         "properties": {
           "lifecycleCycles": {"const": 1000},
           "warmupCycles": {"const": 20},
-          "timeBudgetSeconds": {"const": 3000},
-          "nativeTimeBudgetSeconds": {"const": 2400}
+          "timeBudgetSeconds": {"const": 3900},
+          "nativeTimeBudgetSeconds": {"const": 3600},
+          "authorityPolicy": {"$ref": "#/$defs/hostedLocalAuthorityPolicy"}
         }
       }
     },
@@ -75,7 +136,8 @@
           "lifecycleCycles": {"const": 1000},
           "warmupCycles": {"const": 20},
           "timeBudgetSeconds": {"const": 3600},
-          "nativeTimeBudgetSeconds": {"const": 3600}
+          "nativeTimeBudgetSeconds": {"const": 3600},
+          "authorityPolicy": {"$ref": "#/$defs/hardwareAuthorityPolicy"}
         }
       }
     }

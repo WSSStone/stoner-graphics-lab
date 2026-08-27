@@ -53,16 +53,19 @@ jobs:
             labels: [self-hosted, Windows, Vulkan, x64]
             build: Build/Win64/Release
             target: Config/AssetCooker/Profiles/Production/Windows-Vulkan.json
+            device_class: windows.discrete-vulkan.rgba8
           - name: macOS Metal
             slug: macos-metal
             labels: [self-hosted, macOS, metal, arm64]
             build: Build/Mac/Release
             target: Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json
+            device_class: macos.apple8.metal.rgba8
           - name: macOS Vulkan
             slug: macos-vulkan
             labels: [self-hosted, macOS, Vulkan, arm64]
             build: Build/Mac/Release
             target: Config/AssetCooker/Profiles/Production/Mac-Vulkan.json
+            device_class: macos.apple8.moltenvk.rgba8
     steps:
       - uses: actions/checkout@v5
         with:
@@ -79,6 +82,12 @@ jobs:
       - name: Run explicit hardware profile
         env:
           STONER_PRODUCTION_VISIBLE: '1'
+          STONER_PHYSICAL_DEVICE_CLASS: ${{ matrix.device_class }}
+          STONER_PHYSICAL_EXCLUSIVE: '1'
+          STONER_PHYSICAL_FROZEN_REVISION: ${{ github.sha }}
+          STONER_PHYSICAL_ALLOCATOR: default-production
+          STONER_PHYSICAL_SAMPLE_PROTOCOL: warmup20-terminal1000
+          STONER_PHYSICAL_PRESENTATION: window-readback
         run: >-
           python .github/scripts/run_production_content_validation.py
           --profile hardware --target-profile ${{ matrix.target }}

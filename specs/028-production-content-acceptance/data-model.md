@@ -237,7 +237,8 @@ fail before baseline lookup; there is no nearest or fallback device class.
 | Field | Type | Rules |
 |---|---|---|
 | `Deterministic` | canonical object | Corpus, root, target, generation digest or `not-created`, closure, workload, backend, result, evidence digests, and conditional first failure |
-| `Observations` | bounded object | Timing, RSS/task-VM/allocator, exact registered device class, image metric, artifact observations, and per-measurement authority disposition |
+| `Authority` | canonical bounded object | Workflow-derived execution class, physical preflight state/evidence, and exact `required`, `operational`, `observed`, or `not-required` disposition for each environment-sensitive measurement; callers and aggregates cannot promote it |
+| `Observations` | bounded object | Timing, RSS/task-VM/allocator, exact registered device class, image metric, and artifact observations; values do not carry or create authority |
 | `FirstFailure` | object or null | Null for Passed; exactly one stable stage/category/subject/expected/observed/reproduction object for Failed/Unsupported; Unsupported also names missing prerequisite and replacement lane |
 | `Artifacts` | ordered digest list | At most 64; every external report/readback/capture has digest and byte size, each at most 64 MiB and aggregate at most 256 MiB |
 

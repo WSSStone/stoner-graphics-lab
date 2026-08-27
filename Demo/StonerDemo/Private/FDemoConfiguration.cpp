@@ -166,6 +166,10 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
             (!RequiresNativeRuntime() || !RequiresVisibleWindow() ||
                 BaselineRoot.IsEmpty()))
             return Fail("visible capture requires native visible mode and a baseline root");
+        if (bVisibleCapture &&
+            (ClientWidth != ProductionImageAcceptanceExtent ||
+             ClientHeight != ProductionImageAcceptanceExtent))
+            return Fail("formal image acceptance requires exactly 512x512");
         if (bProductionCameraPreview)
         {
             if (RunMode != EDemoRunMode::InteractiveNative ||
@@ -210,6 +214,11 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
         if (Option == "--device-class")
         {
             OutReason = "device class must be registry-derived";
+            return EDemoExitCode::InvalidConfiguration;
+        }
+        if (Option == "--execution-class")
+        {
+            OutReason = "execution class must be workflow-derived";
             return EDemoExitCode::InvalidConfiguration;
         }
         if (Index + 1 >= ArgCount)

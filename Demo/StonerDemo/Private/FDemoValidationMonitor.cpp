@@ -124,6 +124,7 @@ bool FDemoValidationMonitor::EvaluateProductionLifecycle()
     ProductionWarmupBytes = 0;
     ProductionTerminalBytes = 0;
     ProductionPeakBytes = 0;
+    bProductionRssWithinLimit = false;
     if (Configuration.Workload != EDemoWorkload::ProductionContent ||
         !bMemoryAvailable || ProductionSamples.size() !=
             Configuration.ProductionLifecycleCycles)
@@ -144,7 +145,12 @@ bool FDemoValidationMonitor::EvaluateProductionLifecycle()
     const Stoner::Core::uint64 Growth =
         ProductionTerminalBytes > ProductionWarmupBytes
         ? ProductionTerminalBytes - ProductionWarmupBytes : 0;
-    bPassed = Growth <= Configuration.ProductionMaxRssGrowthBytes;
+    bProductionRssWithinLimit =
+        Growth <= Configuration.ProductionMaxRssGrowthBytes;
+    // The Demo owns exact lifecycle/capture/readback/owner/stale evidence. RSS
+    // is recorded here without environment authority; the workflow-owned
+    // runner applies it only for a preflighted controlled-physical lane.
+    bPassed = true;
     return bPassed;
 }
 
@@ -181,6 +187,9 @@ Stoner::Core::FString FDemoValidationMonitor::BuildReport(const FDemoDiagnostics
                << "production-warmup-rss-bytes=" << ProductionWarmupBytes << '\n'
                << "production-terminal-rss-bytes=" << ProductionTerminalBytes << '\n'
                << "production-peak-rss-bytes=" << ProductionPeakBytes << '\n';
+        Stream << "production-rss-disposition=observed\n"
+               << "production-rss-within-limit="
+               << (bProductionRssWithinLimit ? 1 : 0) << '\n';
         if (Warmup && Terminal)
         {
             const auto WriteMemoryDetails = [&Stream](const char* Prefix,

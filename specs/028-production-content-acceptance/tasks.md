@@ -254,7 +254,11 @@ Research Decisions 45-46; their hosted-RSS-authority, allocator-coercion, and
 obsolete-timeout clauses are replaced by T166-T172. The ledger remains visible
 so the specification does not rewrite or hide investigation history.
 
-- [ ] T166 [US3] Replace exact-pixel color and attachment semantics with workload-versioned bounded region median/quantile/directional-coverage probes, require minimum valid-sample coverage, freeze every formal calibration/reference/candidate at exactly 512-by-512 while keeping the 1024 preview non-authoritative, fail mismatched formal extents before comparison, preserve exact same-size FLIP with no translation/scale/crop/warp/resampling/alignment search, add one-pixel translation rejection plus edge-coverage stability mutations, and recalibrate Lantern v2/Sponza v2 semantic evidence without changing accepted camera/reference authority in Demo/StonerDemo/Private/FDemoConfiguration.*, Tests/MetalProductionContentIntegrationTests.cpp, Tests/VulkanProductionContentIntegrationTests.cpp, Tests/ProductionImageAcceptance.*, Tests/ProductionNativeImageAcceptance.cpp, Tests/ProductionImageAcceptanceTests.cpp, Content/ProductionAcceptance/Baselines/, and Validation/028/Baselines/
+- [X] T166 [US3] Replace exact-pixel color and attachment semantics with workload-versioned bounded region median/quantile/directional-coverage probes, require minimum valid-sample coverage, freeze every formal calibration/reference/candidate at exactly 512-by-512 while keeping the 1024 preview non-authoritative, fail mismatched formal extents before comparison, preserve exact same-size FLIP with no translation/scale/crop/warp/resampling/alignment search, add one-pixel translation rejection plus edge-coverage stability mutations, and recalibrate Lantern v2/Sponza v2 semantic evidence without changing accepted camera/reference authority in specs/028-production-content-acceptance/contracts/image-baseline.schema.json, Demo/StonerDemo/Private/FDemoConfiguration.*, Tests/MetalProductionContentIntegrationTests.cpp, Tests/VulkanProductionContentIntegrationTests.cpp, Tests/ProductionImageAcceptance.*, Tests/ProductionImageBaselineRegistry.*, Tests/ProductionNativeImageAcceptance.cpp, Tests/ProductionImageAcceptanceTests.cpp, Content/ProductionAcceptance/Baselines/, and Validation/028/Baselines/
+
+T166 supersedes only the exact-pixel semantic and 256-pixel formal-extent
+assumptions in completed image tasks; their native readback, normalization,
+device-class, accepted-baseline, and FLIP work remains delivered.
 
 **Checkpoint**: The same strict-cooked production root renders through native
 Vulkan and Metal with transactional lifetime and semantic/perceptual proof.
@@ -289,10 +293,14 @@ target, cycles, budgets, gates, outputs, cadence, and replacement-lane behavior.
 - [X] T096 [US4] Document local, scheduled, closeout, and hardware ownership, prerequisites, commands, caches, budgets, and evidence outputs in Validation/028/README.md and Config/Validation/ProductionContent/README.md
 - [X] T097 [US4] Run the US4 profile-contract, workflow-static, regular-local, every-root medium clean/warm/strict/equivalence, unsupported, timeout, and artifact-revalidation gates and record evidence in Validation/028/reports/us4-tiered-acceptance.md
 
-- [ ] T167 [P] [US4] Add failing authority-policy/profile/runner tests proving workflow-owned `github-hosted`, `controlled-physical`, and `local-diagnostic` classes; `required`/`operational`/`observed` disposition; physical preflight; hosted RSS non-authority; exact 1,000/20, 2,000-capture, seven-readback, owner/stale requirements; 3,900/3,600-second medium operational caps; and observation-safe aggregation in .github/scripts/test_run_production_content_validation.py, .github/scripts/test_production_content_workflows.py, and .github/scripts/test_aggregate_production_medium.py
-- [ ] T168 [US4] Version the validation-profile authority contract and implement trusted environment classification so hosted RSS/task-VM/allocator/elapsed measurements remain bounded observations, timeouts fail only incomplete work, controlled physical RSS retains the preflighted 16 MiB gate, local callers cannot claim physical authority, and obsolete hosted allocator-zone coercion is removed in specs/028-production-content-acceptance/contracts/production-validation-profile.schema.json, Config/Validation/ProductionContent/*.json, .github/scripts/run_production_content_validation.py, Demo/StonerDemo/Private/FDemoConfiguration.*, and Demo/StonerDemo/Private/FDemoValidationMonitor.*
-- [ ] T169 [US4] Update isolated hosted Intel Metal package lanes to 3,900-second package and 3,600-second native operational timeouts inside the 90-minute job, preserve normal production allocator behavior plus diagnostic collection, require exact functional/lifecycle shard authority, and make aggregate success ignore observed RSS values without accepting incomplete, Unsupported, missing, owner/stale, capture, or readback evidence in .github/workflows/feature-028-production-content.yml and .github/scripts/aggregate_production_medium.py
-- [ ] T170 [US4] Document hosted functional authority, observation-only RSS/timing, controlled-physical preflight/RSS ownership, operational timeout interpretation, and replacement-lane procedure in Config/Validation/ProductionContent/README.md, Validation/028/README.md, and Validation/028/CI/README.md
+- [X] T167 [P] [US4] Add failing authority-policy/profile/runner tests proving workflow-owned `github-hosted`, `controlled-physical`, and `local-diagnostic` classes; rejection of caller promotion; `required`/`operational`/`observed` disposition; physical preflight; hosted RSS non-authority in both runner and Demo validation monitor; exact 1,000/20, 2,000-capture, seven-readback, owner/stale requirements; 3,900/3,600-second medium operational caps; and observation-safe aggregation in Tests/ProductionContentDemoTests.cpp, .github/scripts/test_run_production_content_validation.py, .github/scripts/test_production_content_workflows.py, and .github/scripts/test_aggregate_production_medium.py
+- [X] T168 [US4] Version the validation-profile authority contract and implement trusted environment classification so hosted RSS/task-VM/allocator/elapsed measurements remain bounded observations, timeouts fail only incomplete work, controlled physical RSS retains the preflighted 16 MiB gate, local callers cannot claim physical authority, and obsolete hosted allocator-zone coercion is removed in specs/028-production-content-acceptance/contracts/production-validation-profile.schema.json, Config/Validation/ProductionContent/*.json, .github/scripts/run_production_content_validation.py, Demo/StonerDemo/Private/FDemoConfiguration.*, and Demo/StonerDemo/Private/FDemoValidationMonitor.*
+- [X] T169 [US4] Update isolated hosted Intel Metal package lanes to 3,900-second package and 3,600-second native operational timeouts inside the 90-minute job, preserve normal production allocator behavior plus diagnostic collection, require exact functional/lifecycle shard authority, and make aggregate success ignore observed RSS values without accepting incomplete, Unsupported, missing, owner/stale, capture, or readback evidence in .github/workflows/feature-028-production-content.yml and .github/scripts/aggregate_production_medium.py
+- [X] T170 [US4] Document hosted functional authority, observation-only RSS/timing, controlled-physical preflight/RSS ownership, operational timeout interpretation, and replacement-lane procedure in Config/Validation/ProductionContent/README.md, Validation/028/README.md, and Validation/028/CI/README.md
+
+T167-T170 supersede the hosted RSS-authority and 30/40/50-minute medium-budget
+interpretations recorded by completed T085, T088-T089, T093, and T097 without
+reopening their exact work, schema validation, or workflow coverage.
 
 **Checkpoint**: Each acceptance tier is reproducible, bounded, honest about
 capability, and scheduled at the clarified cadence.
@@ -325,8 +333,12 @@ boundedness, redaction, and actionable reproduction data.
 - [X] T106 [US5] Prove normalized correctness reports are byte-identical across 20 equivalent runs while timing, RSS, device, and image observations remain separately identified in .github/scripts/test_run_production_content_validation.py
 - [X] T107 [US5] Run the US5 success/failure/Unsupported report, 30-case catalog, artifact-digest, privacy, capture, boundedness, and 20-run determinism gates and record evidence in Validation/028/reports/us5-evidence.md
 
-- [ ] T171 [P] [US5] Add failing report-schema and canonicalization fixtures for execution class, authority preflight, per-measurement disposition, hosted observation non-failure, operational timeout failure, physical required RSS/image decisions, image `not-required`, and aggregate non-promotion in .github/scripts/test_production_acceptance_report.py and .github/scripts/test_production_evidence_privacy.py
-- [ ] T172 [US5] Implement bounded canonical environment-authority observations and conditional image/RSS result rules, reject caller promotion or conflicting aggregate policies, retain task-VM/allocator diagnostics without deterministic identity impact, and update report verification in specs/028-production-content-acceptance/contracts/production-acceptance-report.schema.json, .github/scripts/production_acceptance_report.py, and .github/scripts/verify_production_evidence.py
+- [X] T171 [P] [US5] Add failing report-schema and canonicalization fixtures for execution class, authority preflight, per-measurement disposition, hosted observation non-failure, operational timeout failure, physical required RSS/image decisions, image `not-required`, and aggregate non-promotion in .github/scripts/test_production_acceptance_report.py and .github/scripts/test_production_evidence_privacy.py
+- [X] T172 [US5] Implement bounded canonical environment-authority observations and conditional image/RSS result rules, reject caller promotion or conflicting aggregate policies, retain task-VM/allocator diagnostics without deterministic identity impact, and update report verification in specs/028-production-content-acceptance/contracts/production-acceptance-report.schema.json, .github/scripts/production_acceptance_report.py, and .github/scripts/verify_production_evidence.py
+
+T171-T172 supersede the unconditional native-Passed/measured-FLIP assumption in
+completed T098 and T100-T101; their deterministic/result/failure/artifact bounds
+remain delivered.
 
 **Checkpoint**: A new maintainer can explain and reproduce any acceptance result
 without exposing host-private state or confusing observations with identities.
@@ -448,7 +460,7 @@ Setup --> Real KTX2 Foundation --|
 | SC-012 | T098-T107, T118 |
 | SC-013 | T108 |
 | SC-014 | T115, T118 |
-| SC-015 | T120-T126 |
+| SC-015 | T120-T125 |
 | SC-016 | T167-T172, T113-T114 |
 | SC-017 | T166, T114 |
 

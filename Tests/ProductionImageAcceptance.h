@@ -46,13 +46,39 @@ struct FProductionCanonicalImage
     [[nodiscard]] bool IsValid() const noexcept;
 };
 
+struct FProductionPixelRegion
+{
+    Stoner::Core::uint32 MinimumX = 0;
+    Stoner::Core::uint32 MinimumY = 0;
+    Stoner::Core::uint32 MaximumXExclusive = 0;
+    Stoner::Core::uint32 MaximumYExclusive = 0;
+
+    [[nodiscard]] bool IsValid(
+        Stoner::Core::uint32 Width,
+        Stoner::Core::uint32 Height) const noexcept;
+};
+
+enum class EProductionRegionStatistic
+{
+    Median,
+    Quantile
+};
+
 struct FProductionRegionProbe
 {
     Stoner::Core::FString Name;
-    Stoner::Core::uint32 X = 0;
-    Stoner::Core::uint32 Y = 0;
+    FProductionPixelRegion Region;
     Stoner::Core::FVector3 Expected;
     float Tolerance = 0.0f;
+    float MinimumValidSampleFraction = 0.5f;
+    EProductionRegionStatistic Statistic = EProductionRegionStatistic::Median;
+    float Quantile = 0.5f;
+};
+
+struct FProductionReadbackRegionSample
+{
+    Stoner::Core::FVector3 Value;
+    float ValidSampleFraction = 0.0f;
 };
 
 struct FProductionSemanticProbeRequest
@@ -124,6 +150,21 @@ struct FProductionNativeImageEvidence
     Stoner::Core::uint32 X,
     Stoner::Core::uint32 Y,
     Stoner::Core::FVector3& OutValue,
+    Stoner::Core::FString& OutFailure);
+
+[[nodiscard]] bool SampleProductionReadbackRegion(
+    const FProductionReadbackView& Source,
+    const FProductionPixelRegion& Region,
+    float Quantile,
+    FProductionReadbackRegionSample& OutSample,
+    Stoner::Core::FString& OutFailure);
+
+[[nodiscard]] bool MeasureProductionReadbackDirectionalCoverage(
+    const FProductionReadbackView& Source,
+    const FProductionPixelRegion& Region,
+    const Stoner::Core::FVector3& ExpectedDirection,
+    float MinimumDot,
+    float& OutCoverage,
     Stoner::Core::FString& OutFailure);
 
 [[nodiscard]] FProductionSemanticProbeResult RunProductionSemanticProbes(

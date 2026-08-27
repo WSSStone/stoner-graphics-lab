@@ -200,8 +200,10 @@ bool RunPath(
     Config.RenderPath = Path;
     // Keep the non-visible lifecycle gate focused on ownership and native
     // execution. Hardware image acceptance retains the calibrated extent.
-    Config.ClientWidth = bVisible ? 256 : 64;
-    Config.ClientHeight = bVisible ? 256 : 64;
+    Config.ClientWidth = bVisible
+        ? FDemoConfiguration::ProductionImageAcceptanceExtent : 64;
+    Config.ClientHeight = bVisible
+        ? FDemoConfiguration::ProductionImageAcceptanceExtent : 64;
     Config.FrameBudget = 4096;
     Config.WarmupFrames = 512;
     Config.MemorySampleInterval = 128;

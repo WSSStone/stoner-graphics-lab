@@ -400,14 +400,15 @@ Validation. No new runtime module is introduced.
 1. Implement one schema-driven validation runner and reuse it from local and CI
    entry points. Separate deterministic report fields from timing, memory,
    device descriptions, and image observations. Schema validation requires a
-   backend, exact registered device class, and measured or structured not-run
-   FLIP result for native reports; exactly one structured first failure for
-   Failed/Unsupported; failure-only `not-created` when no generation exists;
-   and a real generation digest, measured passing FLIP for native execution,
-   and no first failure for Passed. Every environment-sensitive measurement
-   records environment class, authority preflight, and `required`,
-   `operational`, or `observed` disposition; aggregation cannot promote an
-   observation.
+   backend and exact registered device class for native reports. A profile with
+   `ImageDisposition=required` requires measured passing FLIP; a profile without
+   image authority emits structured `not-required`, and a failure before a
+   required comparison emits structured `not-run`. Failed/Unsupported has
+   exactly one structured first failure; only a failed pre-generation run may
+   use `not-created`; Passed has a real generation digest and no first failure.
+   Every environment-sensitive measurement records environment class,
+   authority preflight, and `required`, `operational`, `observed`, or
+   `not-required` disposition; aggregation cannot promote an observation.
 2. Regular workflow runs on relevant PR/push paths for Windows/macOS/Linux. A
    producer job may share immutable cooked artifacts only when each consumer
    still verifies target/profile and performs its platform-specific gates.

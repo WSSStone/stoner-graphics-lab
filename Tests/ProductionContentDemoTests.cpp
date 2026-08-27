@@ -227,6 +227,31 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
             Vulkan.ProductionWarmupCycles == 2,
         "production configuration preserves strict root revision and fixed lifecycle");
 
+    auto VisibleArguments = RegularArguments("vulkan");
+    for (Core::usize Index = 0; Index + 1 < VisibleArguments.size(); ++Index)
+        if (Core::FString(VisibleArguments[Index]) == Core::FString("--mode"))
+            VisibleArguments[Index + 1] = "validate";
+    VisibleArguments.insert(VisibleArguments.end(), {
+        "--visible-capture", "--width", "512", "--height", "512"});
+    FDemoConfiguration Visible;
+    Record(Result,
+        ParseArray(VisibleArguments, Visible, Reason) == EDemoExitCode::Success &&
+            Visible.GetProductionRenderWidth() ==
+                FDemoConfiguration::ProductionImageAcceptanceExtent &&
+            Visible.GetProductionRenderHeight() ==
+                FDemoConfiguration::ProductionImageAcceptanceExtent,
+        "formal image acceptance freezes the render extent at exactly 512x512");
+
+    for (Core::usize Index = 0; Index + 1 < VisibleArguments.size(); ++Index)
+        if (Core::FString(VisibleArguments[Index]) == Core::FString("--width"))
+            VisibleArguments[Index + 1] = "256";
+    Record(Result,
+        ParseArray(std::move(VisibleArguments), Visible, Reason) ==
+                EDemoExitCode::InvalidConfiguration &&
+            Reason == Core::FString(
+                "formal image acceptance requires exactly 512x512"),
+        "formal image acceptance rejects caller-selected non-canonical extents");
+
     auto MetalArguments = RegularArguments("metal");
     for (Core::usize Index = 0; Index + 1 < MetalArguments.size(); ++Index)
         if (Core::FString(MetalArguments[Index]) ==
@@ -282,6 +307,20 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
                 64ULL * 1024ULL * 1024ULL + 20ULL * 1024ULL,
         "production lifecycle fixes RSS origin after included warm-up and terminal cycle");
 
+    FDemoValidationMonitor HostedObservationMonitor(Vulkan);
+    for (Core::uint32 Cycle = 1; Cycle <= 20; ++Cycle)
+    {
+        const Core::uint64 Rss = Cycle < 20
+            ? 64ULL * 1024ULL * 1024ULL
+            : 96ULL * 1024ULL * 1024ULL;
+        HostedObservationMonitor.AddSyntheticProductionCycle(
+            Cycle, Rss, FDemoProductionLifecycleCounters{});
+    }
+    Record(Result,
+        HostedObservationMonitor.EvaluateProductionLifecycle() &&
+            !HostedObservationMonitor.IsProductionRssWithinLimit(),
+        "production lifecycle keeps hosted RSS as a bounded observation without weakening functional authority");
+
     FDemoValidationMonitor LeakingMonitor(Vulkan);
     for (Core::uint32 Cycle = 1; Cycle <= 20; ++Cycle)
     {
@@ -312,6 +351,16 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
                 EDemoExitCode::InvalidConfiguration &&
             Reason == Core::FString("device class must be registry-derived"),
         "production configuration rejects caller-supplied device class tokens");
+
+    auto CallerAuthority = RegularArguments("vulkan");
+    CallerAuthority.push_back("--execution-class");
+    CallerAuthority.push_back("controlled-physical");
+    Record(Result,
+        ParseArray(std::move(CallerAuthority), Invalid, Reason) ==
+                EDemoExitCode::InvalidConfiguration &&
+            Reason == Core::FString(
+                "execution class must be workflow-derived"),
+        "production configuration rejects caller promotion to physical authority");
 
     auto PreviewArguments = RegularArguments("metal");
     for (Core::usize Index = 0; Index + 1 < PreviewArguments.size(); ++Index)

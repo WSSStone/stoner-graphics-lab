@@ -148,6 +148,15 @@ bool FProductionCanonicalImage::IsValid() const noexcept
     return std::all_of(LinearRgb.begin(), LinearRgb.end(), IsUnit);
 }
 
+bool FProductionPixelRegion::IsValid(
+    Stoner::Core::uint32 Width,
+    Stoner::Core::uint32 Height) const noexcept
+{
+    return MinimumX < MaximumXExclusive &&
+        MinimumY < MaximumYExclusive &&
+        MaximumXExclusive <= Width && MaximumYExclusive <= Height;
+}
+
 bool NormalizeProductionReadback(
     const FProductionReadbackView& Source,
     FProductionCanonicalImage& OutImage,
@@ -331,6 +340,158 @@ bool SampleProductionReadbackPixel(
     return true;
 }
 
+bool SampleProductionReadbackRegion(
+    const FProductionReadbackView& Source,
+    const FProductionPixelRegion& Region,
+    float Quantile,
+    FProductionReadbackRegionSample& OutSample,
+    Stoner::Core::FString& OutFailure)
+{
+    using namespace Stoner::Core;
+    OutSample = {};
+    OutFailure = {};
+    const uint32 PixelBytes = BytesPerPixel(Source.Format);
+    const uint64 TightPitch = static_cast<uint64>(Source.Width) * PixelBytes;
+    const uint64 RequiredBytes = static_cast<uint64>(Source.RowPitchBytes) *
+        Source.Height;
+    if (!Region.IsValid(Source.Width, Source.Height) || PixelBytes == 0 ||
+        Source.RowPitchBytes < TightPitch || RequiredBytes > Source.Bytes.size() ||
+        !std::isfinite(Quantile) || Quantile < 0.0f || Quantile > 1.0f)
+    {
+        OutFailure = "sample-region-contract";
+        return false;
+    }
+
+    const usize SampleCount =
+        static_cast<usize>(Region.MaximumXExclusive - Region.MinimumX) *
+        (Region.MaximumYExclusive - Region.MinimumY);
+    TArray<float> R;
+    TArray<float> G;
+    TArray<float> B;
+    try
+    {
+        R.reserve(SampleCount);
+        G.reserve(SampleCount);
+        B.reserve(SampleCount);
+    }
+    catch (const std::bad_alloc&)
+    {
+        OutFailure = "sample-region-allocation";
+        return false;
+    }
+    for (uint32 Y = Region.MinimumY; Y < Region.MaximumYExclusive; ++Y)
+    {
+        const uint32 SourceY = Source.Origin == EProductionImageOrigin::TopLeft
+            ? Y : Source.Height - 1u - Y;
+        const uint8* Row = Source.Bytes.data() +
+            static_cast<usize>(SourceY) * Source.RowPitchBytes;
+        for (uint32 X = Region.MinimumX; X < Region.MaximumXExclusive; ++X)
+        {
+            float Red = 0.0f;
+            float Green = 0.0f;
+            float Blue = 0.0f;
+            if (!ReadPixel(Row + static_cast<usize>(X) * PixelBytes,
+                    Source.Format, Red, Green, Blue) ||
+                !std::isfinite(Red) || !std::isfinite(Green) ||
+                !std::isfinite(Blue))
+                continue;
+            if (Source.Transfer == EProductionColorTransfer::SRGB)
+            {
+                if (!IsUnit(Red) || !IsUnit(Green) || !IsUnit(Blue))
+                    continue;
+                Red = SrgbToLinear(Red);
+                Green = SrgbToLinear(Green);
+                Blue = SrgbToLinear(Blue);
+            }
+            R.push_back(Red);
+            G.push_back(Green);
+            B.push_back(Blue);
+        }
+    }
+    if (R.empty())
+    {
+        OutFailure = "sample-region-no-valid-samples";
+        return false;
+    }
+    std::sort(R.begin(), R.end());
+    std::sort(G.begin(), G.end());
+    std::sort(B.begin(), B.end());
+    const usize Index = static_cast<usize>(
+        Quantile * static_cast<float>(R.size() - 1u));
+    OutSample.Value = {R[Index], G[Index], B[Index]};
+    OutSample.ValidSampleFraction = static_cast<float>(R.size()) /
+        static_cast<float>(SampleCount);
+    return true;
+}
+
+bool MeasureProductionReadbackDirectionalCoverage(
+    const FProductionReadbackView& Source,
+    const FProductionPixelRegion& Region,
+    const Stoner::Core::FVector3& ExpectedDirection,
+    float MinimumDot,
+    float& OutCoverage,
+    Stoner::Core::FString& OutFailure)
+{
+    using namespace Stoner::Core;
+    OutCoverage = 0.0f;
+    OutFailure = {};
+    const float ExpectedLength = std::sqrt(
+        ExpectedDirection.X * ExpectedDirection.X +
+        ExpectedDirection.Y * ExpectedDirection.Y +
+        ExpectedDirection.Z * ExpectedDirection.Z);
+    const uint32 PixelBytes = BytesPerPixel(Source.Format);
+    const uint64 TightPitch = static_cast<uint64>(Source.Width) * PixelBytes;
+    const uint64 RequiredBytes = static_cast<uint64>(Source.RowPitchBytes) *
+        Source.Height;
+    if (!Region.IsValid(Source.Width, Source.Height) || PixelBytes == 0 ||
+        Source.RowPitchBytes < TightPitch || RequiredBytes > Source.Bytes.size() ||
+        !std::isfinite(ExpectedLength) || ExpectedLength <= 0.0f ||
+        !std::isfinite(MinimumDot) || MinimumDot < -1.0f || MinimumDot > 1.0f)
+    {
+        OutFailure = "direction-region-contract";
+        return false;
+    }
+    const FVector3 Expected = ExpectedDirection * (1.0f / ExpectedLength);
+    usize Matched = 0;
+    usize Valid = 0;
+    const usize SampleCount =
+        static_cast<usize>(Region.MaximumXExclusive - Region.MinimumX) *
+        (Region.MaximumYExclusive - Region.MinimumY);
+    for (uint32 Y = Region.MinimumY; Y < Region.MaximumYExclusive; ++Y)
+    {
+        const uint32 SourceY = Source.Origin == EProductionImageOrigin::TopLeft
+            ? Y : Source.Height - 1u - Y;
+        const uint8* Row = Source.Bytes.data() +
+            static_cast<usize>(SourceY) * Source.RowPitchBytes;
+        for (uint32 X = Region.MinimumX; X < Region.MaximumXExclusive; ++X)
+        {
+            FVector3 Direction;
+            if (!ReadPixel(Row + static_cast<usize>(X) * PixelBytes,
+                    Source.Format, Direction.X, Direction.Y, Direction.Z) ||
+                !std::isfinite(Direction.X) || !std::isfinite(Direction.Y) ||
+                !std::isfinite(Direction.Z))
+                continue;
+            const float Length = std::sqrt(Direction.X * Direction.X +
+                Direction.Y * Direction.Y + Direction.Z * Direction.Z);
+            if (!std::isfinite(Length) || Length < 0.8f || Length > 1.2f)
+                continue;
+            ++Valid;
+            Direction = Direction * (1.0f / Length);
+            const float Dot = Direction.X * Expected.X +
+                Direction.Y * Expected.Y + Direction.Z * Expected.Z;
+            if (Dot >= MinimumDot) ++Matched;
+        }
+    }
+    if (Valid == 0)
+    {
+        OutFailure = "direction-region-no-valid-samples";
+        return false;
+    }
+    OutCoverage = static_cast<float>(Matched) /
+        static_cast<float>(SampleCount);
+    return true;
+}
+
 FProductionSemanticProbeResult RunProductionSemanticProbes(
     const FProductionSemanticProbeRequest& Request)
 {
@@ -372,15 +533,60 @@ FProductionSemanticProbeResult RunProductionSemanticProbes(
 
     for (const auto& Probe : Request.Regions)
     {
-        if (Probe.Name.IsEmpty() || Probe.X >= Request.Color->Width ||
-            Probe.Y >= Request.Color->Height || Probe.Tolerance < 0.0f)
+        if (Probe.Name.IsEmpty() ||
+            !Probe.Region.IsValid(Request.Color->Width, Request.Color->Height) ||
+            !std::isfinite(Probe.Tolerance) || Probe.Tolerance < 0.0f ||
+            !std::isfinite(Probe.MinimumValidSampleFraction) ||
+            Probe.MinimumValidSampleFraction <= 0.0f ||
+            Probe.MinimumValidSampleFraction > 1.0f ||
+            !std::isfinite(Probe.Quantile) || Probe.Quantile < 0.0f ||
+            Probe.Quantile > 1.0f)
             return Fail("region-contract");
-        const Stoner::Core::usize Pixel =
-            (static_cast<Stoner::Core::usize>(Probe.Y) * Request.Color->Width +
-             Probe.X) * 3u;
-        if (std::abs(Pixels[Pixel] - Probe.Expected.X) > Probe.Tolerance ||
-            std::abs(Pixels[Pixel + 1u] - Probe.Expected.Y) > Probe.Tolerance ||
-            std::abs(Pixels[Pixel + 2u] - Probe.Expected.Z) > Probe.Tolerance)
+        Stoner::Core::TArray<float> Red;
+        Stoner::Core::TArray<float> Green;
+        Stoner::Core::TArray<float> Blue;
+        Stoner::Core::usize Matching = 0;
+        const Stoner::Core::usize SampleCount = static_cast<Stoner::Core::usize>(
+            Probe.Region.MaximumXExclusive - Probe.Region.MinimumX) *
+            (Probe.Region.MaximumYExclusive - Probe.Region.MinimumY);
+        Red.reserve(SampleCount);
+        Green.reserve(SampleCount);
+        Blue.reserve(SampleCount);
+        for (Stoner::Core::uint32 Y = Probe.Region.MinimumY;
+             Y < Probe.Region.MaximumYExclusive; ++Y)
+        {
+            for (Stoner::Core::uint32 X = Probe.Region.MinimumX;
+                 X < Probe.Region.MaximumXExclusive; ++X)
+            {
+                const Stoner::Core::usize Pixel =
+                    (static_cast<Stoner::Core::usize>(Y) *
+                        Request.Color->Width + X) * 3u;
+                const float R = Pixels[Pixel];
+                const float G = Pixels[Pixel + 1u];
+                const float B = Pixels[Pixel + 2u];
+                Red.push_back(R);
+                Green.push_back(G);
+                Blue.push_back(B);
+                if (std::abs(R - Probe.Expected.X) <= Probe.Tolerance &&
+                    std::abs(G - Probe.Expected.Y) <= Probe.Tolerance &&
+                    std::abs(B - Probe.Expected.Z) <= Probe.Tolerance)
+                    ++Matching;
+            }
+        }
+        std::sort(Red.begin(), Red.end());
+        std::sort(Green.begin(), Green.end());
+        std::sort(Blue.begin(), Blue.end());
+        const float Quantile = Probe.Statistic == EProductionRegionStatistic::Median
+            ? 0.5f : Probe.Quantile;
+        const Stoner::Core::usize StatisticIndex =
+            static_cast<Stoner::Core::usize>(
+                Quantile * static_cast<float>(SampleCount - 1u));
+        const float ValidFraction = static_cast<float>(Matching) /
+            static_cast<float>(SampleCount);
+        if (ValidFraction < Probe.MinimumValidSampleFraction ||
+            std::abs(Red[StatisticIndex] - Probe.Expected.X) > Probe.Tolerance ||
+            std::abs(Green[StatisticIndex] - Probe.Expected.Y) > Probe.Tolerance ||
+            std::abs(Blue[StatisticIndex] - Probe.Expected.Z) > Probe.Tolerance)
             return Fail(Stoner::Core::FString(
                 std::string("region-") + Probe.Name.ToStdString()));
         ++Result.PassedProbeCount;

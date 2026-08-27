@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 import importlib.util
+import copy
+import hashlib
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -105,6 +108,65 @@ class ProductionEvidencePrivacyTests(unittest.TestCase):
                 "HOME=/Users/alice", encoding="utf-8"
             )
             with self.assertRaisesRegex(ValueError, "private"):
+                self.module.validate_evidence_tree(root)
+
+    def test_evidence_tree_validates_authority_without_promoting_observations(self):
+        report = {
+            "schema": "stoner.production-acceptance-report",
+            "schemaVersion": 2,
+            "deterministic": {
+                "corpusRevision": "corpus-v1", "packageId": "package-a",
+                "rootAssetId": "StaticModel:Asset.glb#idx.scene.0",
+                "sourceSetDigest": "a" * 64,
+                "targetProfileDigest": "a" * 64,
+                "generationIdentity": "a" * 64,
+                "mode": "strict-cooked",
+                "dependencyCoverageDigest": "a" * 64,
+                "workloadRevision": "production-content-v1",
+                "backend": "none", "result": "passed",
+                "evidenceDigest": hashlib.sha256(b"[]").hexdigest(),
+                "firstFailure": None,
+            },
+            "authority": {
+                "executionClass": "github-hosted",
+                "preflight": {
+                    "state": "not-required",
+                    "reason": "hosted execution owns no physical authority",
+                },
+                "measurements": {
+                    "timing": {
+                        "disposition": "operational", "state": "measured",
+                        "completed": True,
+                    },
+                    "rss": {
+                        "disposition": "observed", "state": "measured",
+                    },
+                    "image": {
+                        "disposition": "not-required",
+                        "state": "not-required",
+                        "reason": "hosted profile owns no image authority",
+                    },
+                },
+            },
+            "observations": {
+                "durationMilliseconds": 10,
+                "rssGrowthBytes": 128 * 1024 * 1024,
+            },
+            "artifacts": [],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "acceptance.json"
+            path.write_text(json.dumps(report), encoding="utf-8")
+            self.module.validate_evidence_tree(root)
+            promoted = copy.deepcopy(report)
+            promoted["authority"]["measurements"]["rss"] = {
+                "disposition": "required", "state": "measured",
+                "threshold": 16 * 1024 * 1024, "passed": False,
+                "preflightEvidenceDigest": "a" * 64,
+            }
+            path.write_text(json.dumps(promoted), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "promotion|authority"):
                 self.module.validate_evidence_tree(root)
 
 

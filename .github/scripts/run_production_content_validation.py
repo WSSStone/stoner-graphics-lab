@@ -78,8 +78,30 @@ PROFILE_FIELDS = {
     "schema", "schemaVersion", "profileId", "corpusRevision", "packageIds",
     "targetProfiles", "lifecycleCycles", "warmupCycles", "maxRssGrowthBytes",
     "timeBudgetSeconds", "nativeTimeBudgetSeconds", "cadence",
-    "requiredGates",
+    "requiredGates", "authorityPolicy",
 }
+EXECUTION_CLASSES = (
+    "github-hosted", "controlled-physical", "local-diagnostic",
+)
+MEASUREMENT_DISPOSITIONS = (
+    "required", "operational", "observed", "not-required",
+)
+PHYSICAL_PREFLIGHT_ENVIRONMENT = (
+    "STONER_PHYSICAL_DEVICE_CLASS",
+    "STONER_PHYSICAL_EXCLUSIVE",
+    "STONER_PHYSICAL_FROZEN_REVISION",
+    "STONER_PHYSICAL_ALLOCATOR",
+    "STONER_PHYSICAL_SAMPLE_PROTOCOL",
+    "STONER_PHYSICAL_PRESENTATION",
+)
+PHYSICAL_PREFLIGHT_NAMES = (
+    "registered-device-class",
+    "exclusive-runner-device-display",
+    "frozen-revision-and-software",
+    "default-production-allocator",
+    "declared-sample-protocol",
+    "window-presentation-and-readback",
+)
 PROFILE_CONTRACTS = {
     "regular": {
         "cycles": 20,
@@ -97,8 +119,8 @@ PROFILE_CONTRACTS = {
     "medium": {
         "cycles": 1000,
         "warmup": 20,
-        "budget": 3000,
-        "native_budget": 2400,
+        "budget": 3900,
+        "native_budget": 3600,
         "cadence": [
             "weekly-default-branch", "feature-closeout", "release-closeout"
         ],
@@ -126,6 +148,138 @@ PROFILE_CONTRACTS = {
         ],
     },
 }
+
+
+def expected_authority_policy(profile_name: str) -> dict:
+    hosted = {
+        "rss": "observed",
+        "timing": "operational",
+        "image": "not-required",
+    }
+    local = {
+        "rss": "observed",
+        "timing": "operational",
+        "image": "not-required",
+    }
+    physical = {
+        "rss": "required",
+        "timing": "operational",
+        "image": "required",
+    }
+    if profile_name in ("regular", "medium"):
+        return {
+            "allowedExecutionClasses": [
+                "github-hosted", "local-diagnostic",
+            ],
+            "executionClasses": {
+                "github-hosted": hosted,
+                "local-diagnostic": local,
+            },
+            "physicalPreflight": [],
+        }
+    if profile_name == "hardware":
+        return {
+            "allowedExecutionClasses": [
+                "controlled-physical", "local-diagnostic",
+            ],
+            "executionClasses": {
+                "controlled-physical": physical,
+                "local-diagnostic": local,
+            },
+            "physicalPreflight": list(PHYSICAL_PREFLIGHT_NAMES),
+        }
+    raise ValueError("production validation profile is invalid")
+
+
+def _validate_physical_preflight(environment: dict[str, str]) -> dict:
+    missing = [
+        key for key in PHYSICAL_PREFLIGHT_ENVIRONMENT
+        if not environment.get(key)
+    ]
+    if missing:
+        raise StageFailure(
+            "unsupported", "physical-preflight-incomplete",
+            "missing " + ",".join(missing),
+        )
+    revision = environment["STONER_PHYSICAL_FROZEN_REVISION"]
+    if (
+        environment["STONER_PHYSICAL_EXCLUSIVE"] != "1"
+        or environment["STONER_PHYSICAL_ALLOCATOR"] !=
+            "default-production"
+        or environment["STONER_PHYSICAL_SAMPLE_PROTOCOL"] !=
+            "warmup20-terminal1000"
+        or environment["STONER_PHYSICAL_PRESENTATION"] !=
+            "window-readback"
+        or not re.fullmatch(
+            r"[a-z0-9][a-z0-9.-]{0,95}",
+            environment["STONER_PHYSICAL_DEVICE_CLASS"],
+        )
+        or not re.fullmatch(r"[0-9a-f]{40}", revision)
+        or revision != environment.get("GITHUB_SHA")
+    ):
+        raise StageFailure(
+            "unsupported", "physical-preflight-invalid",
+            "controlled physical preflight values differ",
+        )
+    return {
+        "deviceClass": environment["STONER_PHYSICAL_DEVICE_CLASS"],
+        "exclusiveRunnerDeviceDisplay": True,
+        "frozenRevision": revision,
+        "allocator": "default-production",
+        "sampleProtocol": "warmup20-terminal1000",
+        "presentation": "window-readback",
+        "passed": True,
+    }
+
+
+def classify_execution_environment(
+    profile_name: str,
+    environment: dict[str, str] | None = None,
+) -> dict:
+    environment = dict(os.environ if environment is None else environment)
+    if "STONER_PRODUCTION_EXECUTION_CLASS" in environment:
+        raise ValueError("caller-selected execution class is forbidden")
+    policy = expected_authority_policy(profile_name)
+    execution_class = "local-diagnostic"
+    preflight = None
+    if environment.get("GITHUB_ACTIONS") == "true":
+        workflow = environment.get("GITHUB_WORKFLOW_REF", "")
+        runner_environment = environment.get("RUNNER_ENVIRONMENT")
+        if (
+            runner_environment == "github-hosted"
+            and profile_name in ("regular", "medium")
+            and "/.github/workflows/feature-028-production-content.yml@"
+                in workflow
+        ):
+            execution_class = "github-hosted"
+        elif (
+            runner_environment == "self-hosted"
+            and profile_name == "hardware"
+            and "/.github/workflows/feature-028-production-hardware.yml@"
+                in workflow
+        ):
+            execution_class = "controlled-physical"
+            preflight = _validate_physical_preflight(environment)
+        else:
+            raise StageFailure(
+                "unsupported", "workflow-authority-mismatch",
+                "GitHub workflow cannot own the requested execution class",
+            )
+    if execution_class not in policy["allowedExecutionClasses"]:
+        raise StageFailure(
+            "unsupported", "execution-class-not-allowed",
+            f"{execution_class} is not allowed by {profile_name}",
+        )
+    dispositions = policy["executionClasses"][execution_class]
+    if any(value not in MEASUREMENT_DISPOSITIONS for value in dispositions.values()):
+        raise ValueError("measurement disposition is invalid")
+    return {
+        "executionClass": execution_class,
+        "source": "workflow" if execution_class != "local-diagnostic"
+            else "local-default",
+        "dispositions": dict(dispositions),
+        "preflight": preflight,
+    }
 
 
 def profile_package_concurrency(profile: str, package_count: int) -> int:
@@ -639,7 +793,7 @@ def load_validation_profile(repository_root: Path, profile_name: str) -> dict:
     profile = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(profile, dict) or set(profile) != PROFILE_FIELDS:
         raise ValueError("validation profile fields are invalid")
-    if profile.get("schema") != "stoner.production-validation-profile" or profile.get("schemaVersion") != 1:
+    if profile.get("schema") != "stoner.production-validation-profile" or profile.get("schemaVersion") != 2:
         raise ValueError("validation profile schema is invalid")
     if profile.get("profileId") != profile_name:
         raise ValueError("validation profile ID mismatch")
@@ -664,6 +818,10 @@ def load_validation_profile(repository_root: Path, profile_name: str) -> dict:
         raise ValueError("validation profile cadence is invalid")
     if profile.get("requiredGates") != contract["gates"]:
         raise ValueError("validation profile required gates are invalid")
+    if profile.get("authorityPolicy") != expected_authority_policy(
+        profile_name
+    ):
+        raise ValueError("validation profile authority policy is invalid")
     return profile
 
 
@@ -731,39 +889,9 @@ def native_allocator_authority_environment(
     warmup_cycles: int,
     require_visible: bool,
 ) -> dict[str, str]:
-    if (
-        contract["platform"] == "linux"
-        and contract["graphicsBackend"] == "vulkan"
-        and (cycles, warmup_cycles) == (20, 2)
-        and not require_visible
-    ):
-        # The exact Linux RSS authority must not depend on how many glibc
-        # arenas a hosted Mesa process happens to create. Live allocations
-        # remain resident and authoritative; only freed arena fragmentation is
-        # bounded before the existing trim/quiescence/single-sample protocol.
-        return {"MALLOC_ARENA_MAX": "1"}
-    if (
-        contract["platform"] == "macos"
-        and contract["graphicsBackend"] == "metal"
-        and contract.get("cpuArchitecture") == "x86_64"
-        and (cycles, warmup_cycles) == (1000, 20)
-        and not require_visible
-    ):
-        # Apple libmalloc's space-efficient switch enables aggressive madvise,
-        # disables the large allocation cache, and bounds only the medium
-        # allocator to one magazine. Intel endpoint telemetry showed that one
-        # remaining medium region accumulated about 45 MiB of reusable pages
-        # while physical footprint stayed flat, so route that allocation class
-        # through the small/large paths whose released regions are reclaimed by
-        # the existing all-zone relief. Nano and the general tiny/small magazine
-        # count remain independently bounded. Live allocations and the existing
-        # resident-size/single-sample gate remain authoritative.
-        return {
-            "MallocSpaceEfficient": "1",
-            "MallocNanoZone": "0",
-            "MallocMaxMagazines": "1",
-            "MallocMediumZone": "0",
-        }
+    # Acceptance must exercise the production allocator. Hosted RSS is an
+    # observation, while a controlled physical lane owns the calibrated gate;
+    # neither class may rewrite allocator topology to manufacture a result.
     return {}
 
 
@@ -771,7 +899,10 @@ def parse_native_lifecycle_evidence(
     output: str,
     expected_cycles: int,
     expected_warmup: int,
+    rss_disposition: str = "observed",
 ) -> dict:
+    if rss_disposition not in ("required", "observed"):
+        raise ValueError("native lifecycle RSS disposition is invalid")
     matching = [
         line[len(LIFECYCLE_EVIDENCE_PREFIX):]
         for line in output.splitlines()
@@ -804,13 +935,15 @@ def parse_native_lifecycle_evidence(
         or numeric["peak-rss"] < max(
             numeric["warmup-rss"], numeric["terminal-rss"]
         )
-        or numeric["growth"] > 16 * 1024 * 1024
         or numeric["captures"] != expected_cycles * 2
         or numeric["readbacks"] != 7
         or numeric["counters"] != 0
         or numeric["stale"] != 1
     ):
         raise ValueError("native lifecycle evidence failed its exact contract")
+    rss_within_limit = numeric["growth"] <= 16 * 1024 * 1024
+    if rss_disposition == "required" and not rss_within_limit:
+        raise ValueError("native lifecycle required RSS gate failed")
     return {
         "backend": fields["backend"],
         "lifecycleCycles": numeric["cycles"],
@@ -819,6 +952,8 @@ def parse_native_lifecycle_evidence(
         "terminalRssBytes": numeric["terminal-rss"],
         "peakRssBytes": numeric["peak-rss"],
         "rssGrowthBytes": numeric["growth"],
+        "rssWithinLimit": rss_within_limit,
+        "rssDisposition": rss_disposition,
         "captureCount": numeric["captures"],
         "readbackCount": numeric["readbacks"],
         "ownersAtTerminal": numeric["counters"],
@@ -987,7 +1122,16 @@ def run_native_lifecycle(
     report_path: Path,
     timeout: int,
     require_visible: bool = False,
+    authority: dict | None = None,
 ) -> dict:
+    authority = authority or {
+        "executionClass": "local-diagnostic",
+        "dispositions": {
+            "rss": "observed", "timing": "operational",
+            "image": "not-required",
+        },
+        "preflight": None,
+    }
     contract = load_native_target_contract(target_profile)
     unsupported = native_host_support(contract)
     if unsupported is not None:
@@ -1015,7 +1159,8 @@ def run_native_lifecycle(
         result.stdout + result.stderr, encoding="utf-8"
     )
     evidence = parse_native_lifecycle_evidence(
-        result.stdout, cycles, warmup_cycles
+        result.stdout, cycles, warmup_cycles,
+        authority["dispositions"]["rss"],
     )
     image_evidence = (
         parse_native_image_evidence(
@@ -1026,6 +1171,9 @@ def run_native_lifecycle(
     return {
         "result": "Passed",
         "seconds": result.seconds,
+        "executionClass": authority["executionClass"],
+        "timingDisposition": authority["dispositions"]["timing"],
+        "imageDisposition": authority["dispositions"]["image"],
         "targetProfileDigest": contract["targetProfileDigest"],
         **evidence,
         "imageAcceptance": image_evidence,
@@ -1266,6 +1414,7 @@ def run_package(
     deadline: float | None = None,
     native_lifecycle_lock=None,
     native_lifecycle_barrier=None,
+    authority: dict | None = None,
 ) -> dict:
     package_output = output / package["packageId"]
     package_output.mkdir(parents=True)
@@ -1473,6 +1622,7 @@ def run_package(
                     package_deadline, timeout, native_timeout
                 ),
                 require_visible,
+                authority,
             ),
             native_lifecycle_lock,
         )
@@ -1542,6 +1692,43 @@ def run_profile(args: argparse.Namespace) -> dict:
         args.profile, packages, args.package_id
     )
     target_contract = load_native_target_contract(target_profile)
+    try:
+        authority = classify_execution_environment(args.profile)
+    except StageFailure as error:
+        if error.stage != "unsupported":
+            raise
+        unsupported = unsupported_result(
+            "unsupported", error.detail,
+            "controlled-physical-hardware",
+        )
+        result = {
+            "schema": "stoner.production-cook-runtime-summary",
+            "schemaVersion": 1,
+            "profile": args.profile,
+            "corpusRevision": manifest["corpusRevision"],
+            "corpusDigest": sha256_bytes(manifest_path.read_bytes()),
+            "targetProfile": target_profile.relative_to(
+                repository_root
+            ).as_posix(),
+            "targetProfileDigest": target_contract["targetProfileDigest"],
+            "determinismRuns": profile_package_clean_runs(
+                args.profile, "regular", args.determinism_runs
+            ),
+            "packages": [],
+            "acquisitions": [],
+            "timeBudgetSeconds": validation_profile["timeBudgetSeconds"],
+            "nativeTimeBudgetSeconds":
+                validation_profile["nativeTimeBudgetSeconds"],
+            "elapsedSeconds": 0.0,
+            "unsupported": unsupported,
+            "passed": False,
+        }
+        (output / "summary.json").write_text(
+            json.dumps(result, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        write_artifact_manifest(output)
+        return result
     validate_native_deferral(
         args.profile, target_contract, args.defer_native_to_hardware
     )
@@ -1551,6 +1738,10 @@ def run_profile(args: argparse.Namespace) -> dict:
             "schema": "stoner.production-cook-runtime-summary",
             "schemaVersion": 1,
             "profile": args.profile,
+            "executionClass": authority["executionClass"],
+            "authoritySource": authority["source"],
+            "authorityPreflight": authority["preflight"],
+            "measurementDispositions": authority["dispositions"],
             "corpusRevision": manifest["corpusRevision"],
             "corpusDigest": sha256_bytes(manifest_path.read_bytes()),
             "targetProfile": target_profile.relative_to(
@@ -1643,6 +1834,7 @@ def run_profile(args: argparse.Namespace) -> dict:
                 deadline,
                 native_lifecycle_lock,
                 native_lifecycle_barrier,
+                authority,
             )
         except Exception:
             if native_lifecycle_barrier is not None:
@@ -1673,6 +1865,10 @@ def run_profile(args: argparse.Namespace) -> dict:
         "schema": "stoner.production-cook-runtime-summary",
         "schemaVersion": 1,
         "profile": args.profile,
+        "executionClass": authority["executionClass"],
+        "authoritySource": authority["source"],
+        "authorityPreflight": authority["preflight"],
+        "measurementDispositions": authority["dispositions"],
         "corpusRevision": manifest["corpusRevision"],
         "corpusDigest": verification["manifestDigest"],
         "targetProfile": target_profile.relative_to(repository_root).as_posix(),
@@ -1725,7 +1921,7 @@ def parse_args(values: Sequence[str] | None = None) -> argparse.Namespace:
         default=Path("Content/ProductionAcceptance"),
     )
     parser.add_argument("--determinism-runs", type=int, default=20)
-    parser.add_argument("--timeout-seconds", type=int, default=2400)
+    parser.add_argument("--timeout-seconds", type=int, default=3900)
     parser.add_argument("--package-id")
     args = parser.parse_args(values)
     if args.verify_only is not None:

@@ -12,7 +12,10 @@ from typing import Iterable, Sequence
 
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 TOKEN = re.compile(r"^[a-z0-9][a-z0-9.-]{0,127}$")
-ROOT_FIELDS = {"schema", "schemaVersion", "deterministic", "observations", "artifacts"}
+ROOT_FIELDS = {
+    "schema", "schemaVersion", "deterministic", "authority",
+    "observations", "artifacts",
+}
 DETERMINISTIC_FIELDS = {
     "corpusRevision", "packageId", "rootAssetId", "sourceSetDigest",
     "targetProfileDigest", "generationIdentity", "mode",
@@ -21,8 +24,11 @@ DETERMINISTIC_FIELDS = {
 }
 OBSERVATION_FIELDS = {
     "hostClass", "deviceClass", "deviceDescription", "durationMilliseconds",
-    "peakRssBytes", "rssGrowthBytes", "lifecycleCycles", "flip",
+    "peakRssBytes", "rssGrowthBytes", "taskVmBytes", "allocatorBytes",
+    "lifecycleCycles", "flip",
 }
+AUTHORITY_FIELDS = {"executionClass", "preflight", "measurements"}
+MEASUREMENT_KINDS = {"timing", "rss", "image", "taskVm", "allocator", "peakRss"}
 ARTIFACT_FIELDS = {"kind", "pathToken", "sha256", "sizeBytes"}
 FAILURE_FIELDS = {
     "stage", "category", "subject", "expected", "observed",
@@ -127,15 +133,13 @@ def _validate_failure(value: object, unsupported: bool) -> None:
         )
 
 
-def _validate_flip(value: object, passed_native: bool) -> None:
+def _validate_flip(value: object) -> None:
     if not isinstance(value, dict):
         raise ValueError("FLIP observation is invalid")
     state = value.get("state")
-    if state == "not-run":
-        _require_exact_fields(value, {"state", "reason"}, "FLIP not-run")
-        _require_bounded_string(value.get("reason"), "FLIP not-run reason", 256)
-        if passed_native:
-            raise ValueError("native Passed requires measured passing FLIP")
+    if state in ("not-run", "not-required"):
+        _require_exact_fields(value, {"state", "reason"}, f"FLIP {state}")
+        _require_bounded_string(value.get("reason"), f"FLIP {state} reason", 256)
         return
     fields = {
         "state", "baselineId", "mean", "p95", "maximum",
@@ -151,17 +155,18 @@ def _validate_flip(value: object, passed_native: bool) -> None:
             raise ValueError(f"FLIP {field} is invalid")
     if not isinstance(measured.get("passed"), bool):
         raise ValueError("FLIP result is invalid")
-    if passed_native and measured["passed"] is not True:
-        raise ValueError("native Passed requires measured passing FLIP")
 
 
-def _validate_observations(value: object, backend: str, result: str) -> None:
+def _validate_observations(value: object, backend: str) -> None:
     if not isinstance(value, dict) or not set(value).issubset(OBSERVATION_FIELDS):
         raise ValueError("observations fields are invalid")
     for field in ("hostClass", "deviceDescription"):
         if field in value:
             _require_bounded_string(value[field], field, 128 if field == "hostClass" else 256)
-    for field in ("durationMilliseconds", "peakRssBytes", "lifecycleCycles"):
+    for field in (
+        "durationMilliseconds", "peakRssBytes", "taskVmBytes",
+        "allocatorBytes", "lifecycleCycles",
+    ):
         if field in value and (not isinstance(value[field], int) or isinstance(value[field], bool) or value[field] < 0):
             raise ValueError(f"observation {field} is invalid")
     if "rssGrowthBytes" in value and (not isinstance(value["rssGrowthBytes"], int) or isinstance(value["rssGrowthBytes"], bool)):
@@ -173,9 +178,195 @@ def _validate_observations(value: object, backend: str, result: str) -> None:
             raise ValueError("native report device class is invalid")
         if "flip" not in value:
             raise ValueError("native report FLIP observation is missing")
-        _validate_flip(value["flip"], result == "passed")
+        _validate_flip(value["flip"])
     elif "deviceClass" in value or "flip" in value or "deviceDescription" in value:
         raise ValueError("non-native observations contain native fields")
+
+
+def _validate_preflight(value: object, execution_class: str) -> dict:
+    if not isinstance(value, dict):
+        raise ValueError("authority preflight is invalid")
+    state = value.get("state")
+    if execution_class in ("github-hosted", "local-diagnostic"):
+        preflight = _require_exact_fields(
+            value, {"state", "reason"}, "authority preflight"
+        )
+        if state != "not-required":
+            raise ValueError("authority preflight promotion is forbidden")
+        _require_bounded_string(preflight.get("reason"), "preflight reason", 256)
+        return preflight
+    if state == "passed":
+        preflight = _require_exact_fields(
+            value, {"state", "evidenceDigest"}, "authority preflight"
+        )
+        if not isinstance(preflight.get("evidenceDigest"), str) or not SHA256.fullmatch(
+            preflight["evidenceDigest"]
+        ):
+            raise ValueError("authority preflight evidence digest is invalid")
+        return preflight
+    if state == "failed":
+        preflight = _require_exact_fields(
+            value, {"state", "reason", "replacementLane"},
+            "authority preflight",
+        )
+        _require_bounded_string(preflight.get("reason"), "preflight reason", 256)
+        _require_bounded_string(
+            preflight.get("replacementLane"), "preflight replacement lane", 128
+        )
+        return preflight
+    raise ValueError("controlled physical preflight is invalid")
+
+
+def _validate_observed_measurement(value: object, kind: str) -> None:
+    record = _require_exact_fields(
+        value, {"disposition", "state"}, f"{kind} measurement"
+    )
+    if record != {"disposition": "observed", "state": "measured"}:
+        raise ValueError(f"{kind} observed measurement is invalid")
+
+
+def _validate_not_required_measurement(value: object, kind: str) -> dict:
+    record = _require_exact_fields(
+        value, {"disposition", "state", "reason"}, f"{kind} measurement"
+    )
+    if record.get("disposition") != "not-required" or record.get("state") != "not-required":
+        raise ValueError(f"{kind} not-required measurement is invalid")
+    _require_bounded_string(record.get("reason"), f"{kind} not-required reason", 256)
+    return record
+
+
+def _validate_required_measurement(
+    value: object, kind: str, preflight: dict
+) -> dict:
+    if preflight.get("state") == "failed":
+        record = _require_exact_fields(
+            value,
+            {"disposition", "state", "reason", "replacementLane"},
+            f"required {kind} measurement",
+        )
+        if (
+            record.get("disposition") != "required"
+            or record.get("state") != "not-run"
+            or record.get("replacementLane") != preflight.get("replacementLane")
+        ):
+            raise ValueError(f"required {kind} not-run measurement is invalid")
+        _require_bounded_string(record.get("reason"), f"required {kind} reason", 256)
+        return record
+    fields = {
+        "disposition", "state", "passed", "preflightEvidenceDigest",
+    }
+    if kind == "rss":
+        fields.add("threshold")
+    record = _require_exact_fields(value, fields, f"required {kind} measurement")
+    if (
+        record.get("disposition") != "required"
+        or record.get("state") != "measured"
+        or not isinstance(record.get("passed"), bool)
+        or record.get("preflightEvidenceDigest") != preflight.get("evidenceDigest")
+    ):
+        raise ValueError(f"required {kind} authority is invalid")
+    if kind == "rss" and (
+        not isinstance(record.get("threshold"), int)
+        or isinstance(record.get("threshold"), bool)
+        or record["threshold"] < 0
+    ):
+        raise ValueError("required rss threshold is invalid")
+    return record
+
+
+def _validate_authority(
+    value: object, observations: dict, backend: str, result: str,
+    first_failure: object,
+) -> dict:
+    authority = _require_exact_fields(value, AUTHORITY_FIELDS, "authority")
+    execution_class = authority.get("executionClass")
+    if execution_class not in (
+        "github-hosted", "controlled-physical", "local-diagnostic"
+    ):
+        raise ValueError("execution class is invalid")
+    preflight = _validate_preflight(authority.get("preflight"), execution_class)
+    measurements = authority.get("measurements")
+    if (
+        not isinstance(measurements, dict)
+        or not {"timing", "rss", "image"}.issubset(measurements)
+        or not set(measurements).issubset(MEASUREMENT_KINDS)
+    ):
+        raise ValueError("authority measurement fields are invalid")
+    timing = _require_exact_fields(
+        measurements["timing"],
+        {"disposition", "state", "completed"}, "timing measurement",
+    )
+    if (
+        timing.get("disposition") != "operational"
+        or timing.get("state") != "measured"
+        or not isinstance(timing.get("completed"), bool)
+    ):
+        raise ValueError("operational timing measurement is invalid")
+    if timing["completed"] is False:
+        if (
+            result != "failed" or not isinstance(first_failure, dict)
+            or first_failure.get("stage") != "timeout"
+        ):
+            raise ValueError("operational timeout requires incomplete failed work")
+    elif result == "passed" and timing["completed"] is not True:
+        raise ValueError("Passed report requires completed operational work")
+
+    for kind, observation_field in (
+        ("taskVm", "taskVmBytes"),
+        ("allocator", "allocatorBytes"),
+        ("peakRss", "peakRssBytes"),
+    ):
+        present = kind in measurements
+        if present != (observation_field in observations):
+            raise ValueError(f"{kind} observation and authority differ")
+        if present:
+            _validate_observed_measurement(measurements[kind], kind)
+
+    if execution_class in ("github-hosted", "local-diagnostic"):
+        try:
+            _validate_observed_measurement(measurements["rss"], "rss")
+            image = _validate_not_required_measurement(
+                measurements["image"], "image"
+            )
+        except ValueError as error:
+            raise ValueError("authority promotion is forbidden") from error
+        if "rssGrowthBytes" not in observations:
+            raise ValueError("observed RSS value is missing")
+        if backend in ("vulkan", "metal"):
+            flip = observations.get("flip")
+            if (
+                not isinstance(flip, dict)
+                or flip.get("state") != "not-required"
+                or flip.get("reason") != image.get("reason")
+            ):
+                raise ValueError("not-required image must use its stable reason")
+        return authority
+
+    rss = _validate_required_measurement(measurements["rss"], "rss", preflight)
+    image = _validate_required_measurement(
+        measurements["image"], "image", preflight
+    )
+    if preflight.get("state") == "failed":
+        if result != "unsupported":
+            raise ValueError("failed physical preflight must be Unsupported")
+        return authority
+    if "rssGrowthBytes" not in observations:
+        raise ValueError("required RSS value is missing")
+    expected_rss = observations["rssGrowthBytes"] <= rss["threshold"]
+    if rss["passed"] != expected_rss:
+        raise ValueError("required rss result differs from threshold")
+    if backend not in ("vulkan", "metal"):
+        raise ValueError("required image authority needs a native backend")
+    flip = observations.get("flip")
+    if not isinstance(flip, dict) or flip.get("state") != "measured":
+        raise ValueError("required image must be measured")
+    if image["passed"] != flip.get("passed"):
+        raise ValueError("required image result differs from FLIP")
+    if result == "passed" and rss["passed"] is not True:
+        raise ValueError("required rss must pass for a Passed report")
+    if result == "passed" and image["passed"] is not True:
+        raise ValueError("required image must pass for a Passed report")
+    return authority
 
 
 def _validate_artifacts(artifacts: object, evidence_root: Path | None) -> list[dict]:
@@ -224,7 +415,7 @@ def validate_report(report: object, evidence_root: Path | None = None) -> None:
     if len(canonical_bytes(report)) > MAX_REPORT_BYTES:
         raise ValueError("canonical report exceeds 1 MiB")
     root = _require_exact_fields(report, ROOT_FIELDS, "report")
-    if root.get("schema") != "stoner.production-acceptance-report" or root.get("schemaVersion") != 1:
+    if root.get("schema") != "stoner.production-acceptance-report" or root.get("schemaVersion") != 2:
         raise ValueError("report schema is invalid")
     deterministic = _require_exact_fields(
         root.get("deterministic"), DETERMINISTIC_FIELDS, "deterministic"
@@ -257,7 +448,12 @@ def validate_report(report: object, evidence_root: Path | None = None) -> None:
         ):
             raise ValueError("failure report generation is invalid")
         _validate_failure(deterministic.get("firstFailure"), result == "unsupported")
-    _validate_observations(root.get("observations"), backend, result)
+    observations = root.get("observations")
+    _validate_observations(observations, backend)
+    _validate_authority(
+        root.get("authority"), observations, backend, result,
+        deterministic.get("firstFailure"),
+    )
     artifacts = _validate_artifacts(root.get("artifacts"), evidence_root)
     if deterministic["evidenceDigest"] != evidence_digest(artifacts):
         raise ValueError("evidence digest differs from artifact index")
@@ -279,8 +475,27 @@ def select_first_failure(failures: Iterable[dict]) -> dict | None:
     )
 
 
+def validate_aggregate_authority(reports: Sequence[dict]) -> dict:
+    if not reports:
+        raise ValueError("aggregate authority requires at least one report")
+    expected = None
+    for report in reports:
+        try:
+            validate_report(report)
+        except ValueError as error:
+            raise ValueError("aggregate authority is invalid or promoted") from error
+        authority = report["authority"]
+        encoded = canonical_bytes(authority)
+        if expected is None:
+            expected = encoded
+        elif encoded != expected:
+            raise ValueError("aggregate authority differs or was promoted")
+    return dict(reports[0]["authority"])
+
+
 def build_report(
     deterministic: dict,
+    authority: dict,
     observations: dict,
     artifact_inputs: Sequence[tuple[Path, str]],
     evidence_root: Path,
@@ -309,8 +524,9 @@ def build_report(
     completed_deterministic["firstFailure"] = selected_failure
     report = {
         "schema": "stoner.production-acceptance-report",
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "deterministic": completed_deterministic,
+        "authority": dict(authority),
         "observations": dict(observations),
         "artifacts": artifacts,
     }
@@ -334,15 +550,17 @@ def validate_schema_contract(path: Path) -> None:
         or set(schema.get("required", [])) != ROOT_FIELDS
         or schema.get("properties", {}).get("schema", {}).get("const") !=
             "stoner.production-acceptance-report"
-        or schema.get("properties", {}).get("schemaVersion", {}).get("const") != 1
+        or schema.get("properties", {}).get("schemaVersion", {}).get("const") != 2
     ):
         raise ValueError("acceptance report root schema differs from runtime")
     deterministic = schema["properties"]["deterministic"]
     observations = schema["properties"]["observations"]
+    authority = schema["properties"]["authority"]
     artifacts = schema["properties"]["artifacts"]
     artifact_item = artifacts["items"]
     if (
         set(deterministic.get("required", [])) != DETERMINISTIC_FIELDS
+        or set(authority.get("required", [])) != AUTHORITY_FIELDS
         or set(observations.get("properties", {})) != OBSERVATION_FIELDS
         or set(artifact_item.get("required", [])) != ARTIFACT_FIELDS
         or set(artifact_item["properties"]["kind"].get("enum", [])) !=

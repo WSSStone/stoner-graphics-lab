@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://stoner.local/schemas/production-acceptance-report-v1.json",
+  "$id": "https://stoner.local/schemas/production-acceptance-report-v2.json",
   "title": "Stoner Production Acceptance Report",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "schemaVersion", "deterministic", "observations", "artifacts"],
+  "required": ["schema", "schemaVersion", "deterministic", "authority", "observations", "artifacts"],
   "properties": {
     "schema": {"const": "stoner.production-acceptance-report"},
-    "schemaVersion": {"const": 1},
+    "schemaVersion": {"const": 2},
     "deterministic": {
       "type": "object",
       "additionalProperties": false,
@@ -18,12 +18,7 @@
         "rootAssetId": {"type": "string"},
         "sourceSetDigest": {"$ref": "#/$defs/sha256"},
         "targetProfileDigest": {"$ref": "#/$defs/sha256"},
-        "generationIdentity": {
-          "oneOf": [
-            {"$ref": "#/$defs/sha256"},
-            {"const": "not-created"}
-          ]
-        },
+        "generationIdentity": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"const": "not-created"}]},
         "mode": {"enum": ["development", "strict-cooked"]},
         "dependencyCoverageDigest": {"$ref": "#/$defs/sha256"},
         "workloadRevision": {"type": "string"},
@@ -35,12 +30,7 @@
       "allOf": [
         {
           "if": {"properties": {"result": {"const": "passed"}}, "required": ["result"]},
-          "then": {
-            "properties": {
-              "generationIdentity": {"$ref": "#/$defs/sha256"},
-              "firstFailure": {"type": "null"}
-            }
-          }
+          "then": {"properties": {"generationIdentity": {"$ref": "#/$defs/sha256"}, "firstFailure": {"type": "null"}}}
         },
         {
           "if": {"properties": {"result": {"enum": ["failed", "unsupported"]}}, "required": ["result"]},
@@ -52,6 +42,28 @@
         }
       ]
     },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executionClass", "preflight", "measurements"],
+      "properties": {
+        "executionClass": {"enum": ["github-hosted", "controlled-physical", "local-diagnostic"]},
+        "preflight": {"oneOf": [{"$ref": "#/$defs/notRequiredPreflight"}, {"$ref": "#/$defs/passedPreflight"}, {"$ref": "#/$defs/failedPreflight"}]},
+        "measurements": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["timing", "rss", "image"],
+          "properties": {
+            "timing": {"$ref": "#/$defs/operationalTiming"},
+            "rss": {"oneOf": [{"$ref": "#/$defs/observedMeasurement"}, {"$ref": "#/$defs/requiredRss"}, {"$ref": "#/$defs/requiredNotRun"}]},
+            "image": {"oneOf": [{"$ref": "#/$defs/notRequiredMeasurement"}, {"$ref": "#/$defs/requiredImage"}, {"$ref": "#/$defs/requiredNotRun"}]},
+            "taskVm": {"$ref": "#/$defs/observedMeasurement"},
+            "allocator": {"$ref": "#/$defs/observedMeasurement"},
+            "peakRss": {"$ref": "#/$defs/observedMeasurement"}
+          }
+        }
+      }
+    },
     "observations": {
       "type": "object",
       "additionalProperties": false,
@@ -62,8 +74,10 @@
         "durationMilliseconds": {"type": "integer", "minimum": 0},
         "peakRssBytes": {"type": "integer", "minimum": 0},
         "rssGrowthBytes": {"type": "integer"},
+        "taskVmBytes": {"type": "integer", "minimum": 0},
+        "allocatorBytes": {"type": "integer", "minimum": 0},
         "lifecycleCycles": {"type": "integer", "minimum": 0},
-        "flip": {"$ref": "#/$defs/flip"}
+        "flip": {"oneOf": [{"$ref": "#/$defs/measuredFlip"}, {"$ref": "#/$defs/notRunFlip"}, {"$ref": "#/$defs/notRequiredFlip"}]}
       }
     },
     "artifacts": {
@@ -85,103 +99,41 @@
   },
   "allOf": [
     {
-      "if": {
-        "properties": {
-          "deterministic": {
-            "properties": {"backend": {"enum": ["vulkan", "metal"]}},
-            "required": ["backend"]
-          }
-        },
-        "required": ["deterministic"]
-      },
-      "then": {
-        "properties": {
-          "observations": {"required": ["deviceClass", "flip"]}
-        }
-      }
+      "if": {"properties": {"deterministic": {"properties": {"backend": {"enum": ["vulkan", "metal"]}}, "required": ["backend"]}}, "required": ["deterministic"]},
+      "then": {"properties": {"observations": {"required": ["deviceClass", "flip"]}}}
     },
     {
-      "if": {
-        "properties": {
-          "deterministic": {
-            "properties": {
-              "backend": {"enum": ["vulkan", "metal"]},
-              "result": {"const": "passed"}
-            },
-            "required": ["backend", "result"]
-          }
-        },
-        "required": ["deterministic"]
-      },
-      "then": {
-        "properties": {
-          "observations": {
-            "properties": {
-              "flip": {
-                "properties": {
-                  "state": {"const": "measured"},
-                  "passed": {"const": true}
-                },
-                "required": ["state", "passed"]
-              }
-            }
-          }
-        }
-      }
+      "if": {"properties": {"authority": {"properties": {"executionClass": {"enum": ["github-hosted", "local-diagnostic"]}}, "required": ["executionClass"]}}, "required": ["authority"]},
+      "then": {"properties": {"authority": {"properties": {"preflight": {"$ref": "#/$defs/notRequiredPreflight"}, "measurements": {"properties": {"rss": {"$ref": "#/$defs/observedMeasurement"}, "image": {"$ref": "#/$defs/notRequiredMeasurement"}}}}}}}
+    },
+    {
+      "if": {"properties": {"authority": {"properties": {"executionClass": {"const": "controlled-physical"}, "preflight": {"properties": {"state": {"const": "passed"}}, "required": ["state"]}}, "required": ["executionClass", "preflight"]}}, "required": ["authority"]},
+      "then": {"properties": {"authority": {"properties": {"measurements": {"properties": {"rss": {"$ref": "#/$defs/requiredRss"}, "image": {"$ref": "#/$defs/requiredImage"}}}}}}}
+    },
+    {
+      "if": {"properties": {"authority": {"properties": {"preflight": {"properties": {"state": {"const": "failed"}}, "required": ["state"]}}, "required": ["preflight"]}}, "required": ["authority"]},
+      "then": {"properties": {"deterministic": {"properties": {"result": {"const": "unsupported"}}}, "authority": {"properties": {"measurements": {"properties": {"rss": {"$ref": "#/$defs/requiredNotRun"}, "image": {"$ref": "#/$defs/requiredNotRun"}}}}}}}
+    },
+    {
+      "if": {"properties": {"authority": {"properties": {"measurements": {"properties": {"timing": {"properties": {"completed": {"const": false}}, "required": ["completed"]}}, "required": ["timing"]}}, "required": ["measurements"]}}, "required": ["authority"]},
+      "then": {"properties": {"deterministic": {"properties": {"result": {"const": "failed"}, "firstFailure": {"properties": {"stage": {"const": "timeout"}}}}}}}
     }
   ],
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "failure": {
-      "oneOf": [
-        {"type": "null"},
-        {"$ref": "#/$defs/failureObject"}
-      ]
-    },
-    "failureObject": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["stage", "category", "subject", "expected", "observed", "reproductionProfile"],
-      "properties": {
-        "stage": {"type": "string", "maxLength": 64},
-        "category": {"type": "string", "maxLength": 96},
-        "subject": {"type": "string", "maxLength": 512},
-        "expected": {"type": "string", "maxLength": 512},
-        "observed": {"type": "string", "maxLength": 512},
-        "reproductionProfile": {"type": "string", "maxLength": 128},
-        "missingPrerequisite": {"type": "string", "minLength": 1, "maxLength": 256},
-        "replacementLane": {"type": "string", "minLength": 1, "maxLength": 128}
-      }
-    },
-    "flip": {
-      "oneOf": [
-        {"$ref": "#/$defs/measuredFlip"},
-        {"$ref": "#/$defs/unmeasuredFlip"}
-      ]
-    },
-    "measuredFlip": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["state", "baselineId", "mean", "p95", "maximum", "badPixelThreshold", "badPixelFraction", "passed"],
-      "properties": {
-        "state": {"const": "measured"},
-        "baselineId": {"type": "string"},
-        "mean": {"type": "number", "minimum": 0, "maximum": 1},
-        "p95": {"type": "number", "minimum": 0, "maximum": 1},
-        "maximum": {"type": "number", "minimum": 0, "maximum": 1},
-        "badPixelThreshold": {"type": "number", "minimum": 0, "maximum": 1},
-        "badPixelFraction": {"type": "number", "minimum": 0, "maximum": 1},
-        "passed": {"type": "boolean"}
-      }
-    },
-    "unmeasuredFlip": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["state", "reason"],
-      "properties": {
-        "state": {"const": "not-run"},
-        "reason": {"type": "string", "minLength": 1, "maxLength": 256}
-      }
-    }
+    "notRequiredPreflight": {"type": "object", "additionalProperties": false, "required": ["state", "reason"], "properties": {"state": {"const": "not-required"}, "reason": {"type": "string", "minLength": 1, "maxLength": 256}}},
+    "passedPreflight": {"type": "object", "additionalProperties": false, "required": ["state", "evidenceDigest"], "properties": {"state": {"const": "passed"}, "evidenceDigest": {"$ref": "#/$defs/sha256"}}},
+    "failedPreflight": {"type": "object", "additionalProperties": false, "required": ["state", "reason", "replacementLane"], "properties": {"state": {"const": "failed"}, "reason": {"type": "string", "minLength": 1, "maxLength": 256}, "replacementLane": {"type": "string", "minLength": 1, "maxLength": 128}}},
+    "operationalTiming": {"type": "object", "additionalProperties": false, "required": ["disposition", "state", "completed"], "properties": {"disposition": {"const": "operational"}, "state": {"const": "measured"}, "completed": {"type": "boolean"}}},
+    "observedMeasurement": {"type": "object", "additionalProperties": false, "required": ["disposition", "state"], "properties": {"disposition": {"const": "observed"}, "state": {"const": "measured"}}},
+    "notRequiredMeasurement": {"type": "object", "additionalProperties": false, "required": ["disposition", "state", "reason"], "properties": {"disposition": {"const": "not-required"}, "state": {"const": "not-required"}, "reason": {"type": "string", "minLength": 1, "maxLength": 256}}},
+    "requiredRss": {"type": "object", "additionalProperties": false, "required": ["disposition", "state", "threshold", "passed", "preflightEvidenceDigest"], "properties": {"disposition": {"const": "required"}, "state": {"const": "measured"}, "threshold": {"type": "integer", "minimum": 0}, "passed": {"type": "boolean"}, "preflightEvidenceDigest": {"$ref": "#/$defs/sha256"}}},
+    "requiredImage": {"type": "object", "additionalProperties": false, "required": ["disposition", "state", "passed", "preflightEvidenceDigest"], "properties": {"disposition": {"const": "required"}, "state": {"const": "measured"}, "passed": {"type": "boolean"}, "preflightEvidenceDigest": {"$ref": "#/$defs/sha256"}}},
+    "requiredNotRun": {"type": "object", "additionalProperties": false, "required": ["disposition", "state", "reason", "replacementLane"], "properties": {"disposition": {"const": "required"}, "state": {"const": "not-run"}, "reason": {"type": "string", "minLength": 1, "maxLength": 256}, "replacementLane": {"type": "string", "minLength": 1, "maxLength": 128}}},
+    "failure": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/failureObject"}]},
+    "failureObject": {"type": "object", "additionalProperties": false, "required": ["stage", "category", "subject", "expected", "observed", "reproductionProfile"], "properties": {"stage": {"type": "string", "maxLength": 64}, "category": {"type": "string", "maxLength": 96}, "subject": {"type": "string", "maxLength": 512}, "expected": {"type": "string", "maxLength": 512}, "observed": {"type": "string", "maxLength": 512}, "reproductionProfile": {"type": "string", "maxLength": 128}, "missingPrerequisite": {"type": "string", "minLength": 1, "maxLength": 256}, "replacementLane": {"type": "string", "minLength": 1, "maxLength": 128}}},
+    "measuredFlip": {"type": "object", "additionalProperties": false, "required": ["state", "baselineId", "mean", "p95", "maximum", "badPixelThreshold", "badPixelFraction", "passed"], "properties": {"state": {"const": "measured"}, "baselineId": {"type": "string"}, "mean": {"type": "number", "minimum": 0, "maximum": 1}, "p95": {"type": "number", "minimum": 0, "maximum": 1}, "maximum": {"type": "number", "minimum": 0, "maximum": 1}, "badPixelThreshold": {"type": "number", "minimum": 0, "maximum": 1}, "badPixelFraction": {"type": "number", "minimum": 0, "maximum": 1}, "passed": {"type": "boolean"}}},
+    "notRunFlip": {"type": "object", "additionalProperties": false, "required": ["state", "reason"], "properties": {"state": {"const": "not-run"}, "reason": {"type": "string", "minLength": 1, "maxLength": 256}}},
+    "notRequiredFlip": {"type": "object", "additionalProperties": false, "required": ["state", "reason"], "properties": {"state": {"const": "not-required"}, "reason": {"type": "string", "minLength": 1, "maxLength": 256}}}
   }
 }

@@ -89,6 +89,23 @@ FProductionCanonicalImage VerticalFlip(
     return Result;
 }
 
+FProductionCanonicalImage TranslateOnePixelRight(
+    const FProductionCanonicalImage& Source)
+{
+    FProductionCanonicalImage Result = Source;
+    std::fill(Result.LinearRgb.begin(), Result.LinearRgb.end(), 0.0f);
+    for (uint32 Y = 0; Y < Source.Height; ++Y)
+        for (uint32 X = 1; X < Source.Width; ++X)
+        {
+            const usize Destination =
+                (static_cast<usize>(Y) * Source.Width + X) * 3u;
+            const usize Original = Destination - 3u;
+            std::copy_n(Source.LinearRgb.begin() + Original, 3u,
+                Result.LinearRgb.begin() + Destination);
+        }
+    return Result;
+}
+
 FProductionCanonicalImage MissingGeometry(
     const FProductionCanonicalImage& Source)
 {
@@ -164,7 +181,8 @@ FProductionImageCalibrationTestResult RunProductionImageCalibrationTests()
     const bool SameDimensions = std::all_of(
         Captures.begin(), Captures.end(), [&Captures](const auto& Image)
         {
-            return Image.Width == Captures.front().Width &&
+            return Image.Width == 512 && Image.Height == 512 &&
+                Image.Width == Captures.front().Width &&
                 Image.Height == Captures.front().Height;
         });
     Record(Result, SameDimensions,
@@ -197,6 +215,7 @@ FProductionImageCalibrationTestResult RunProductionImageCalibrationTests()
     const std::pair<const char*, FProductionCanonicalImage> Mutations[] = {
         {"blank", std::move(Blank)},
         {"origin", VerticalFlip(Captures.front())},
+        {"translation-one-pixel", TranslateOnePixelRight(Captures.front())},
         {"missing-geometry", MissingGeometry(Captures.front())},
         {"material-swap", MaterialSwap(Captures.front())},
         {"color-space", WrongColorSpace(Captures.front())},

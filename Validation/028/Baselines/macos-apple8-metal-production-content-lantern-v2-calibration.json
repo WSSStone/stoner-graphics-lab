@@ -40,6 +40,13 @@
       "p95": 0.75155044,
       "rejected": true
     },
+    "translationOnePixel": {
+      "badPixelFraction": 0.06557465,
+      "maximum": 0.82017022,
+      "mean": 0.01434816,
+      "p95": 0.09410684,
+      "rejected": true
+    },
     "staleFrameRejectedBeforeFlip": true
   },
   "noise": {
@@ -56,6 +63,14 @@
     "p95Max": 0.001
   },
   "referenceSha256": "f208b18d3db701282955066716e3ab6bcdee3de830b342dcf0f0e5baac798a42",
+  "regionSemantics": {
+    "attachmentMinimumValidSampleFraction": 0.75,
+    "backgroundMinimumValidSampleFraction": 0.9,
+    "colorMinimumValidSampleFraction": 0.5,
+    "normalMinimumDirectionalCoverage": 0.6,
+    "pixelRadius": 4,
+    "statistic": "median"
+  },
   "schema": "stoner.production-image-calibration-evidence",
   "schemaVersion": 1,
   "semanticProbeCount": 20,

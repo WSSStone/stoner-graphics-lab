@@ -42,12 +42,13 @@ python3 .github/scripts/run_production_content_validation.py \
   --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json \
   --build-root Build/Mac/Release \
   --output Build/Validation/028/medium-macos-metal \
-  --acquire-missing --timeout-seconds 3000
+  --acquire-missing --timeout-seconds 3900
 ```
 
 Hardware validation uses the same runner and additionally requires a physical
 display-backed application surface, accepted image evidence, and the declared
-1,000 lifecycle cycles:
+1,000 lifecycle cycles. The command below is a local diagnostic; only the
+repository hardware workflow can establish controlled-physical authority:
 
 ```bash
 STONER_PRODUCTION_VISIBLE=1 \
@@ -86,9 +87,23 @@ python3 .github/scripts/run_production_content_validation.py \
 - A missing host, device, display, backend, or tool is `Unsupported`, names its
   prerequisite and replacement hardware lane, and fails aggregate acceptance.
 
+The runner derives `github-hosted`, `controlled-physical`, or
+`local-diagnostic` from workflow provenance and rejects caller promotion.
+Hosted lanes own exact functional/lifecycle completion, including 1,000/20
+cycles, 2,000 captures, seven readbacks, zero terminal owners, and stale-handle
+rejection. Hosted RSS/task-VM/allocator/peak/elapsed metrics are observations:
+they are preserved in evidence but do not decide acceptance. A controlled
+physical hardware lane additionally requires preflight for registered device
+class, exclusive runner/device/display, frozen revision and software, default
+production allocator, declared sample protocol, and window presentation plus
+GPU readback. Only that lane owns the 16 MiB RSS and accepted-image gates.
+Local diagnostics never replace a required hosted or physical lane.
+
 Regular lanes have a 10-minute workload budget, medium package lanes have a
-50-minute complete budget with an independently capped 40-minute native stage,
+65-minute complete budget with an independently capped 60-minute native stage,
 and serialized visible hardware lanes have a 60-minute budget. Workflow
-setup and compilation have separate job timeouts. Evidence is written below
+setup and compilation have separate 90-minute job timeouts. An operational
+timeout fails because required work is incomplete; it is not a performance
+baseline. Evidence is written below
 `Build/Validation/028/`, uploaded with failure-safe steps, and promoted into
 this directory only after digest and privacy verification.

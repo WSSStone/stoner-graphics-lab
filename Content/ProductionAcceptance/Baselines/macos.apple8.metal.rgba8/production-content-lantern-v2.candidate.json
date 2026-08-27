@@ -29,5 +29,5 @@
     "badPixelThreshold": 0.05,
     "badPixelFractionMax": 0.001
   },
-  "calibrationEvidenceSha256": "dc90dcf5e4c60a28084a0518ff9aad1be00ca745c0860aa601ebbcad24702b4a"
+  "calibrationEvidenceSha256": "744b858e59fe22f173fa1c96dc2cb5e8404f143ae6bcb37325553e409ba6c822"
 }

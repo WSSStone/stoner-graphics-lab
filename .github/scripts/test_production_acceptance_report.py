@@ -39,24 +39,75 @@ class ProductionAcceptanceReportContractTests(unittest.TestCase):
             "evidenceDigest": hashlib.sha256(b"[]").hexdigest(),
             "firstFailure": None,
         }
-        observations = {}
+        authority = {
+            "executionClass": "github-hosted",
+            "preflight": {
+                "state": "not-required",
+                "reason": "hosted execution owns no physical authority",
+            },
+            "measurements": {
+                "timing": {
+                    "disposition": "operational", "state": "measured",
+                    "completed": True,
+                },
+                "rss": {"disposition": "observed", "state": "measured"},
+                "image": {
+                    "disposition": "not-required",
+                    "state": "not-required",
+                    "reason": "hosted profile owns no image authority",
+                },
+            },
+        }
+        observations = {
+            "durationMilliseconds": 10,
+            "rssGrowthBytes": 20,
+        }
         if backend != "none":
-            observations = {
+            observations.update({
                 "deviceClass": "macos.apple8.metal.rgba8",
                 "flip": {
-                    "state": "measured", "baselineId": "lantern-metal",
-                    "mean": 0.0, "p95": 0.0, "maximum": 0.0,
-                    "badPixelThreshold": 0.01, "badPixelFraction": 0.0,
-                    "passed": True,
+                    "state": "not-required",
+                    "reason": "hosted profile owns no image authority",
                 },
-            }
+            })
         return {
             "schema": "stoner.production-acceptance-report",
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "deterministic": deterministic,
+            "authority": authority,
             "observations": observations,
             "artifacts": [],
         }
+
+    def make_physical(self, report):
+        changed = copy.deepcopy(report)
+        changed["authority"] = {
+            "executionClass": "controlled-physical",
+            "preflight": {"state": "passed", "evidenceDigest": SHA},
+            "measurements": {
+                "timing": {
+                    "disposition": "operational", "state": "measured",
+                    "completed": True,
+                },
+                "rss": {
+                    "disposition": "required", "state": "measured",
+                    "threshold": 16 * 1024 * 1024, "passed": True,
+                    "preflightEvidenceDigest": SHA,
+                },
+                "image": {
+                    "disposition": "required", "state": "measured",
+                    "passed": True, "preflightEvidenceDigest": SHA,
+                },
+            },
+        }
+        if changed["deterministic"]["backend"] != "none":
+            changed["observations"]["flip"] = {
+                "state": "measured", "baselineId": "lantern-metal",
+                "mean": 0.0, "p95": 0.0, "maximum": 0.0,
+                "badPixelThreshold": 0.01, "badPixelFraction": 0.0,
+                "passed": True,
+            }
+        return changed
 
     def failure(self, unsupported=False):
         value = {
@@ -96,27 +147,90 @@ class ProductionAcceptanceReportContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "replacement"):
             self.module.validate_report(unsupported)
 
-    def test_native_reports_require_registered_class_and_flip_state(self):
+    def test_native_reports_require_registered_class_and_disposition_owned_flip_state(self):
         report = self.report(backend="metal")
         self.module.validate_report(report)
         del report["observations"]["deviceClass"]
         with self.assertRaisesRegex(ValueError, "device class"):
             self.module.validate_report(report)
-        report = self.report(backend="vulkan")
-        report["observations"]["flip"] = {"state": "not-run", "reason": "comparison unavailable"}
-        with self.assertRaisesRegex(ValueError, "measured passing FLIP"):
-            self.module.validate_report(report)
+        physical = self.make_physical(self.report(backend="vulkan"))
+        self.module.validate_report(physical)
+        physical["observations"]["flip"] = {
+            "state": "not-run", "reason": "comparison unavailable"
+        }
+        with self.assertRaisesRegex(ValueError, "required image"):
+            self.module.validate_report(physical)
 
     def test_failed_native_report_can_record_not_run_flip(self):
         report = self.report("failed", "vulkan")
         report["deterministic"]["firstFailure"] = self.failure()
-        report["observations"]["flip"] = {
-            "state": "not-run", "reason": "semantic probe failed"
-        }
         self.module.validate_report(report)
 
+    def test_hosted_observed_rss_cannot_fail_or_promote_the_result(self):
+        report = self.report("passed", "metal")
+        report["observations"]["rssGrowthBytes"] = 512 * 1024 * 1024
+        self.module.validate_report(report)
+        report["authority"]["measurements"]["rss"] = {
+            "disposition": "required", "state": "measured",
+            "threshold": 16 * 1024 * 1024, "passed": False,
+            "preflightEvidenceDigest": SHA,
+        }
+        with self.assertRaisesRegex(ValueError, "promotion|authority"):
+            self.module.validate_report(report)
+
+    def test_operational_timeout_fails_only_incomplete_work(self):
+        report = self.report("passed")
+        report["authority"]["measurements"]["timing"]["completed"] = False
+        with self.assertRaisesRegex(ValueError, "operational timeout"):
+            self.module.validate_report(report)
+        report["deterministic"]["result"] = "failed"
+        report["deterministic"]["firstFailure"] = dict(
+            self.failure(), stage="timeout", category="operational-timeout"
+        )
+        self.module.validate_report(report)
+
+    def test_controlled_physical_requires_preflighted_rss_and_image_passes(self):
+        report = self.make_physical(self.report("passed", "metal"))
+        self.module.validate_report(report)
+        for kind in ("rss", "image"):
+            changed = copy.deepcopy(report)
+            changed["authority"]["measurements"][kind]["passed"] = False
+            with self.assertRaisesRegex(ValueError, f"required {kind}"):
+                self.module.validate_report(changed)
+        changed = copy.deepcopy(report)
+        changed["authority"]["preflight"] = {
+            "state": "not-required", "reason": "caller override"
+        }
+        with self.assertRaisesRegex(ValueError, "preflight"):
+            self.module.validate_report(changed)
+
+    def test_image_not_required_uses_a_reason_instead_of_fake_flip(self):
+        report = self.report("passed", "metal")
+        self.module.validate_report(report)
+        report["observations"]["flip"] = {
+            "state": "measured", "baselineId": "fabricated",
+            "mean": 0.0, "p95": 0.0, "maximum": 0.0,
+            "badPixelThreshold": 0.01, "badPixelFraction": 0.0,
+            "passed": True,
+        }
+        with self.assertRaisesRegex(ValueError, "not-required image"):
+            self.module.validate_report(report)
+
+    def test_aggregate_preserves_authority_and_rejects_promotion(self):
+        first = self.report("passed", "metal")
+        second = copy.deepcopy(first)
+        authority = self.module.validate_aggregate_authority([first, second])
+        self.assertEqual("observed", authority["measurements"]["rss"]["disposition"])
+        second["authority"]["measurements"]["rss"] = {
+            "disposition": "required", "state": "measured",
+            "threshold": 16 * 1024 * 1024, "passed": True,
+            "preflightEvidenceDigest": SHA,
+        }
+        with self.assertRaisesRegex(ValueError, "aggregate.*authority"):
+            self.module.validate_aggregate_authority([first, second])
+
     def test_unknown_fields_are_rejected_at_every_level(self):
-        for path in (("root",), ("deterministic",), ("observations",)):
+        for path in (("root",), ("deterministic",), ("authority",), ("observations",)):
             report = self.report()
             target = report if path == ("root",) else report[path[0]]
             target["unknown"] = True
@@ -182,8 +296,20 @@ class ProductionAcceptanceReportContractTests(unittest.TestCase):
     def test_deterministic_identity_excludes_observations(self):
         first = self.report()
         second = copy.deepcopy(first)
-        first["observations"] = {"durationMilliseconds": 1, "peakRssBytes": 10}
-        second["observations"] = {"durationMilliseconds": 999, "peakRssBytes": 20}
+        first["observations"].update({
+            "durationMilliseconds": 1, "peakRssBytes": 10,
+            "taskVmBytes": 11, "allocatorBytes": 12,
+        })
+        second["observations"].update({
+            "durationMilliseconds": 999, "peakRssBytes": 20,
+            "taskVmBytes": 21, "allocatorBytes": 22,
+        })
+        for report in (first, second):
+            report["authority"]["measurements"].update({
+                "taskVm": {"disposition": "observed", "state": "measured"},
+                "allocator": {"disposition": "observed", "state": "measured"},
+                "peakRss": {"disposition": "observed", "state": "measured"},
+            })
         self.assertEqual(
             self.module.canonical_correctness_bytes(first),
             self.module.canonical_correctness_bytes(second),
@@ -203,15 +329,14 @@ class ProductionAcceptanceReportContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "native.log").write_text("native pass\n", encoding="utf-8")
-            deterministic = dict(self.report("failed", "vulkan")["deterministic"])
+            base = self.report("failed", "vulkan")
+            deterministic = dict(base["deterministic"])
             deterministic.pop("evidenceDigest")
             deterministic.pop("firstFailure")
-            observations = {
-                "deviceClass": "macos.apple8.moltenvk.rgba8",
-                "flip": {"state": "not-run", "reason": "semantic probe failed"},
-            }
+            observations = dict(base["observations"])
             report = self.module.build_report(
                 deterministic,
+                base["authority"],
                 observations,
                 [(root / "native.log", "log")],
                 root,
@@ -232,9 +357,18 @@ class ProductionAcceptanceReportContractTests(unittest.TestCase):
             deterministic.pop("firstFailure")
             correctness = []
             for run in range(20):
+                authority = copy.deepcopy(self.report()["authority"])
+                authority["measurements"]["peakRss"] = {
+                    "disposition": "observed", "state": "measured"
+                }
                 report = self.module.build_report(
                     deterministic,
-                    {"durationMilliseconds": run, "peakRssBytes": 100 + run},
+                    authority,
+                    {
+                        "durationMilliseconds": run,
+                        "rssGrowthBytes": run,
+                        "peakRssBytes": 100 + run,
+                    },
                     [], root, [],
                 )
                 correctness.append(

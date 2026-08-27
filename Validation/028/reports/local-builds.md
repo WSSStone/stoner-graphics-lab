@@ -18,7 +18,7 @@
 | Strict Debug | `conda run -n godot scons config=debug strict=1 -j8` | PASS |
 | Strict Release | `conda run -n godot scons config=release strict=1 -j8` | PASS |
 | Production demo regression | `Build/Mac/Debug/Tests/StonerTest --suite production-content-demo` | PASS |
-| Production image acceptance | `Build/Mac/Release/Tests/StonerTest --suite production-image-acceptance` | PASS, 19 checks |
+| Production image acceptance | `Build/Mac/Release/Tests/StonerTest --suite production-image-acceptance` | PASS, 27 checks |
 | Camera preview regression | `Build/Mac/Debug/Tests/StonerTest --suite production-camera-preview` | PASS, 15 checks |
 | Metal 20-frame visible image gate | `Build/Mac/Release/Tests/StonerTest --suite production-content-metal-native` with strict publication/image environment | PASS for Lantern v2; 40 captures, 7 readbacks, 20 semantic probes, FLIP 0, terminal owners 0 |
 | Vulkan 20-frame visible image gate | `Build/Mac/Release/Tests/StonerTest --suite production-content-vulkan-native` with strict publication/image environment | PASS for Lantern v2 and Sponza v2; each produced 40 captures, 7 readbacks, 20 semantic probes, FLIP 0, terminal owners 0 |

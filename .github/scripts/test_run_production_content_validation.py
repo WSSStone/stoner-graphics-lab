@@ -148,12 +148,12 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             self.module.time, "monotonic", return_value=100.0
         ):
             self.assertEqual(
-                2400,
-                self.module.native_stage_timeout(3100.0, 3000, 2400),
+                3600,
+                self.module.native_stage_timeout(4000.0, 3900, 3600),
             )
             self.assertEqual(
-                2100,
-                self.module.native_stage_timeout(2200.0, 3000, 2400),
+                3500,
+                self.module.native_stage_timeout(3600.0, 3900, 3600),
             )
 
     def test_profile_selection_requires_exact_target_and_package_membership(self):
@@ -166,7 +166,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             target.write_text("{}\n", encoding="utf-8")
             (profile_root / "Regular.json").write_text(json.dumps({
                 "schema": "stoner.production-validation-profile",
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "profileId": "regular",
                 "corpusRevision": "revision-1",
                 "targetProfiles": [
@@ -185,6 +185,9 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                     "transactional-realization", "platform-applicable-native",
                     "lifecycle", "report",
                 ],
+                "authorityPolicy": self.module.expected_authority_policy(
+                    "regular"
+                ),
             }), encoding="utf-8")
             previous = self.module.VALIDATION_PROFILES
             self.module.VALIDATION_PROFILES = Path(
@@ -273,7 +276,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
     def test_shipping_profiles_have_exact_tier_contracts(self):
         expected = {
             "regular": (20, 2, 600),
-            "medium": (1000, 20, 3000),
+            "medium": (1000, 20, 3900),
             "hardware": (1000, 20, 3600),
         }
         for profile_id, (cycles, warmup, budget) in expected.items():
@@ -285,7 +288,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             self.assertEqual(16 * 1024 * 1024, profile["maxRssGrowthBytes"])
             self.assertEqual(budget, profile["timeBudgetSeconds"])
             self.assertEqual(
-                2400 if profile_id == "medium" else budget,
+                3600 if profile_id == "medium" else budget,
                 profile["nativeTimeBudgetSeconds"],
             )
             self.assertLess(profile["warmupCycles"], profile["lifecycleCycles"])
@@ -575,67 +578,103 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 ],
             )
 
-    def test_exact_rss_authorities_bound_allocator_caches(self):
-        linux = {"platform": "linux", "graphicsBackend": "vulkan"}
-        self.assertEqual(
-            {"MALLOC_ARENA_MAX": "1"},
-            self.module.native_allocator_authority_environment(
-                linux, 20, 2, False
-            ),
-        )
-        for cycles, warmup, visible in (
-            (1000, 20, False), (20, 2, True)
+    def test_native_lifecycle_preserves_the_normal_production_allocator(self):
+        for contract in (
+            {"platform": "linux", "graphicsBackend": "vulkan"},
+            {
+                "platform": "macos", "graphicsBackend": "metal",
+                "cpuArchitecture": "x86_64",
+            },
         ):
             self.assertEqual(
                 {},
                 self.module.native_allocator_authority_environment(
-                    linux, cycles, warmup, visible
+                    contract, 1000, 20, False
                 ),
             )
+
+    def test_execution_class_is_workflow_owned_and_caller_promotion_fails(self):
         self.assertEqual(
-            {},
-            self.module.native_allocator_authority_environment(
-                {"platform": "macos", "graphicsBackend": "metal"},
-                20, 2, False,
-            ),
+            "local-diagnostic",
+            self.module.classify_execution_environment(
+                "regular", {}
+            )["executionClass"],
         )
-        macos_metal = {
-            "platform": "macos",
-            "graphicsBackend": "metal",
-            "cpuArchitecture": "x86_64",
+        hosted = {
+            "GITHUB_ACTIONS": "true",
+            "RUNNER_ENVIRONMENT": "github-hosted",
+            "GITHUB_WORKFLOW_REF": (
+                "owner/repo/.github/workflows/"
+                "feature-028-production-content.yml@refs/heads/main"
+            ),
         }
         self.assertEqual(
-            {
-                "MallocSpaceEfficient": "1",
-                "MallocNanoZone": "0",
-                "MallocMaxMagazines": "1",
-                "MallocMediumZone": "0",
-            },
-            self.module.native_allocator_authority_environment(
-                macos_metal, 1000, 20, False,
-            ),
+            "github-hosted",
+            self.module.classify_execution_environment(
+                "medium", hosted
+            )["executionClass"],
         )
-        for cycles, warmup, visible in (
-            (20, 2, False), (1000, 20, True)
-        ):
-            self.assertEqual(
-                {},
-                self.module.native_allocator_authority_environment(
-                    macos_metal, cycles, warmup, visible,
-                ),
+        with self.assertRaisesRegex(ValueError, "caller.*execution class"):
+            self.module.classify_execution_environment(
+                "hardware", {
+                    "STONER_PRODUCTION_EXECUTION_CLASS":
+                        "controlled-physical",
+                }
             )
-        self.assertEqual(
-            {},
-            self.module.native_allocator_authority_environment(
-                {
-                    "platform": "macos",
-                    "graphicsBackend": "metal",
-                    "cpuArchitecture": "arm64",
-                },
-                1000,
-                20,
-                False,
+        with self.assertRaises(SystemExit):
+            self.module.parse_args([
+                "--profile", "hardware", "--target-profile", "profile.json",
+                "--build-root", "Build", "--output", "Output",
+                "--execution-class", "controlled-physical",
+            ])
+
+    def test_controlled_physical_requires_complete_workflow_preflight(self):
+        physical = {
+            "GITHUB_ACTIONS": "true",
+            "RUNNER_ENVIRONMENT": "self-hosted",
+            "GITHUB_WORKFLOW_REF": (
+                "owner/repo/.github/workflows/"
+                "feature-028-production-hardware.yml@refs/heads/main"
             ),
+            "GITHUB_SHA": "a" * 40,
+            "STONER_PHYSICAL_DEVICE_CLASS": "macos.apple8.metal.rgba8",
+            "STONER_PHYSICAL_EXCLUSIVE": "1",
+            "STONER_PHYSICAL_FROZEN_REVISION": "a" * 40,
+            "STONER_PHYSICAL_ALLOCATOR": "default-production",
+            "STONER_PHYSICAL_SAMPLE_PROTOCOL": "warmup20-terminal1000",
+            "STONER_PHYSICAL_PRESENTATION": "window-readback",
+        }
+        authority = self.module.classify_execution_environment(
+            "hardware", physical
+        )
+        self.assertEqual("controlled-physical", authority["executionClass"])
+        self.assertEqual("required", authority["dispositions"]["rss"])
+        self.assertEqual("required", authority["dispositions"]["image"])
+        for field in self.module.PHYSICAL_PREFLIGHT_ENVIRONMENT:
+            changed = dict(physical)
+            changed.pop(field)
+            with self.assertRaises(self.module.StageFailure) as raised:
+                self.module.classify_execution_environment(
+                    "hardware", changed
+                )
+            self.assertEqual("unsupported", raised.exception.stage)
+
+    def test_measurement_dispositions_separate_required_operational_and_observed(self):
+        regular = self.module.expected_authority_policy("regular")
+        self.assertEqual(
+            {
+                "rss": "observed", "timing": "operational",
+                "image": "not-required",
+            },
+            regular["executionClasses"]["github-hosted"],
+        )
+        hardware = self.module.expected_authority_policy("hardware")
+        self.assertEqual(
+            {
+                "rss": "required", "timing": "operational",
+                "image": "required",
+            },
+            hardware["executionClasses"]["controlled-physical"],
         )
 
     def test_each_production_package_has_an_exact_workload_revision(self):
@@ -662,7 +701,9 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             "warmup-rss=100 terminal-rss=110 peak-rss=120 growth=10 "
             "captures=2000 readbacks=7 counters=0 stale=1\n"
         )
-        parsed = self.module.parse_native_lifecycle_evidence(valid, 1000, 20)
+        parsed = self.module.parse_native_lifecycle_evidence(
+            valid, 1000, 20, "required"
+        )
         self.assertEqual(10, parsed["rssGrowthBytes"])
         self.assertEqual(120, parsed["peakRssBytes"])
         for changed in (
@@ -670,12 +711,23 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             valid.replace("warmup-cycle=20", "warmup-cycle=2"),
             valid.replace("counters=0", "counters=1"),
             valid.replace("stale=1", "stale=0"),
-            valid.replace("growth=10", f"growth={16 * 1024 * 1024 + 1}"),
         ):
             with self.assertRaisesRegex(ValueError, "lifecycle"):
                 self.module.parse_native_lifecycle_evidence(
-                    changed, 1000, 20
+                    changed, 1000, 20, "required"
                 )
+        high_rss = valid.replace(
+            "growth=10", f"growth={16 * 1024 * 1024 + 1}"
+        )
+        with self.assertRaisesRegex(ValueError, "RSS"):
+            self.module.parse_native_lifecycle_evidence(
+                high_rss, 1000, 20, "required"
+            )
+        observed = self.module.parse_native_lifecycle_evidence(
+            high_rss, 1000, 20, "observed"
+        )
+        self.assertFalse(observed["rssWithinLimit"])
+        self.assertEqual("observed", observed["rssDisposition"])
 
     def test_native_image_evidence_requires_exact_measured_pass(self):
         valid = (

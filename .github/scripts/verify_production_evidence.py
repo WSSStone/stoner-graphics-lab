@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import re
@@ -28,6 +29,25 @@ PRIVATE_PATTERNS = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
     r"\b(?:native|pointer|address)\s*[=:]\s*0x[0-9a-f]+",
     r"\b(?:deviceName|adapter)\s*=\s*.+",
 ))
+
+
+_ACCEPTANCE_REPORT_MODULE = None
+
+
+def _acceptance_report_module():
+    global _ACCEPTANCE_REPORT_MODULE
+    if _ACCEPTANCE_REPORT_MODULE is not None:
+        return _ACCEPTANCE_REPORT_MODULE
+    module_path = Path(__file__).with_name("production_acceptance_report.py")
+    specification = importlib.util.spec_from_file_location(
+        "stoner_production_acceptance_report", module_path
+    )
+    if specification is None or specification.loader is None:
+        raise ValueError("acceptance report validator is unavailable")
+    module = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    _ACCEPTANCE_REPORT_MODULE = module
+    return module
 
 
 def sha256_file(path: Path) -> str:
@@ -101,6 +121,12 @@ def validate_evidence_tree(root: Path) -> dict:
                 if isinstance(value, dict) and set(value) == CAPTURE_FIELDS:
                     validate_window_capture(path.with_suffix(".ppm"), value)
                     capture_count += 1
+                if (
+                    isinstance(value, dict)
+                    and value.get("schema") ==
+                        "stoner.production-acceptance-report"
+                ):
+                    _acceptance_report_module().validate_report(value, root)
     return {
         "result": "Passed",
         "textArtifactCount": text_count,

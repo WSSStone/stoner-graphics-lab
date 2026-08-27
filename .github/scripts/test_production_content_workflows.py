@@ -40,7 +40,7 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
             "Config/Validation/ProductionContent", "run_production_content_validation.py",
             "windows-latest", "ubuntu-latest", "macos-26", "--profile regular",
             "macos-26-intel", "Mac-Metal-X86_64.json",
-            "--profile medium", "timeout-minutes: 90", "--timeout-seconds 3000",
+            "--profile medium", "timeout-minutes: 90", "--timeout-seconds 3900",
             "production-medium-macos-metal", "Mac-Metal-Arm64.json",
             "khronos-lantern-glb", "khronos-sponza-gltf",
             "aggregate_production_medium.py", "--package-id",
@@ -92,8 +92,10 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("Mac-Metal-Arm64.json", medium)
         self.assertIn("Validate Metal readback modes", medium)
         self.assertIn("--suite metal-resource", medium)
-        self.assertIn("--timeout-seconds 3000", medium)
+        self.assertIn("--timeout-seconds 3900", medium)
         self.assertIn("timeout-minutes: 90", medium)
+        self.assertNotIn("MallocMediumZone", medium)
+        self.assertNotIn("MALLOC_ARENA_MAX", medium)
         self.assertIn("Mac-Metal-X86_64.json", aggregate)
         self.assertNotIn("Mac-Metal-Arm64.json", aggregate)
 
@@ -118,10 +120,25 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
             "macOS", "metal", "arm64", "--profile hardware",
             "reference-image-change", "production-render-path-change",
             "STONER_PRODUCTION_VISIBLE: '1'",
+            "STONER_PHYSICAL_DEVICE_CLASS", "STONER_PHYSICAL_EXCLUSIVE",
+            "STONER_PHYSICAL_FROZEN_REVISION", "STONER_PHYSICAL_ALLOCATOR",
+            "STONER_PHYSICAL_SAMPLE_PROTOCOL",
+            "STONER_PHYSICAL_PRESENTATION",
         ):
             self.assertIn(token, text)
         self.assertNotIn("pull_request:", text)
         self.assertNotIn("schedule:", text)
+
+    def test_workflows_own_environment_classification_and_operational_caps(self):
+        hosted = HOSTED.read_text(encoding="utf-8")
+        hardware = HARDWARE.read_text(encoding="utf-8")
+        self.assertNotIn("--execution-class", hosted)
+        self.assertNotIn("--execution-class", hardware)
+        self.assertIn("--timeout-seconds 3900", hosted)
+        self.assertIn("nativeTimeBudgetSeconds\": 3600", (
+            ROOT / "Config/Validation/ProductionContent/Medium.json"
+        ).read_text(encoding="utf-8"))
+        self.assertIn("timeout-minutes: 90", hosted)
 
     def test_every_validation_job_uploads_failure_safe_evidence(self):
         for path in (HOSTED, HARDWARE):

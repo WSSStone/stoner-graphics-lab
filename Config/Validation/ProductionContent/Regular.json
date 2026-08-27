@@ -1,6 +1,6 @@
 {
   "schema": "stoner.production-validation-profile",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "profileId": "regular",
   "corpusRevision": "khronos-2026-08-19-v1",
   "packageIds": ["khronos-lantern-glb"],
@@ -28,5 +28,21 @@
     "platform-applicable-native",
     "lifecycle",
     "report"
-  ]
+  ],
+  "authorityPolicy": {
+    "allowedExecutionClasses": ["github-hosted", "local-diagnostic"],
+    "executionClasses": {
+      "github-hosted": {
+        "rss": "observed",
+        "timing": "operational",
+        "image": "not-required"
+      },
+      "local-diagnostic": {
+        "rss": "observed",
+        "timing": "operational",
+        "image": "not-required"
+      }
+    },
+    "physicalPreflight": []
+  }
 }

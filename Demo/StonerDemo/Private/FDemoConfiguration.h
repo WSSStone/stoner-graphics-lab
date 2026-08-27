@@ -45,7 +45,7 @@ enum class EDemoExitCode : int
 
 struct FDemoConfiguration
 {
-    static constexpr Stoner::Core::uint32 ProductionImageAcceptanceExtent = 256;
+    static constexpr Stoner::Core::uint32 ProductionImageAcceptanceExtent = 512;
     static constexpr Stoner::Core::uint32 ProductionCameraPreviewExtent = 1024;
 
     EDemoRunMode RunMode = EDemoRunMode::InteractiveNative;
@@ -86,12 +86,14 @@ struct FDemoConfiguration
     [[nodiscard]] Stoner::Core::uint32 GetProductionRenderWidth() const noexcept
     {
         return bProductionCameraPreview
-            ? ProductionCameraPreviewExtent : ClientWidth;
+            ? ProductionCameraPreviewExtent
+            : (bVisibleCapture ? ProductionImageAcceptanceExtent : ClientWidth);
     }
     [[nodiscard]] Stoner::Core::uint32 GetProductionRenderHeight() const noexcept
     {
         return bProductionCameraPreview
-            ? ProductionCameraPreviewExtent : ClientHeight;
+            ? ProductionCameraPreviewExtent
+            : (bVisibleCapture ? ProductionImageAcceptanceExtent : ClientHeight);
     }
     [[nodiscard]] bool RequiresNativeRuntime() const noexcept;
     [[nodiscard]] bool RequiresVisibleWindow() const noexcept;

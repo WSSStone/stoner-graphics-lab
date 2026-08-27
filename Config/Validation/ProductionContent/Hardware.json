@@ -1,6 +1,6 @@
 {
   "schema": "stoner.production-validation-profile",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "profileId": "hardware",
   "corpusRevision": "khronos-2026-08-19-v1",
   "packageIds": ["khronos-lantern-glb", "khronos-sponza-gltf"],
@@ -29,5 +29,28 @@
     "window-only-capture",
     "lifecycle",
     "report"
-  ]
+  ],
+  "authorityPolicy": {
+    "allowedExecutionClasses": ["controlled-physical", "local-diagnostic"],
+    "executionClasses": {
+      "controlled-physical": {
+        "rss": "required",
+        "timing": "operational",
+        "image": "required"
+      },
+      "local-diagnostic": {
+        "rss": "observed",
+        "timing": "operational",
+        "image": "not-required"
+      }
+    },
+    "physicalPreflight": [
+      "registered-device-class",
+      "exclusive-runner-device-display",
+      "frozen-revision-and-software",
+      "default-production-allocator",
+      "declared-sample-protocol",
+      "window-presentation-and-readback"
+    ]
+  }
 }

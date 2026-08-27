@@ -82,10 +82,18 @@ void TestReadbackNormalization(FProductionImageAcceptanceTestResult& Result)
 
 void TestSemanticProbeOrdering(FProductionImageAcceptanceTestResult& Result)
 {
-    auto Color = Image(4, 4, {0.0f, 0.0f, 0.0f});
-    Color.LinearRgb[(1u * 4u + 2u) * 3u] = 0.8f;
-    auto Normal = Image(4, 4, {0.5f, 0.5f, 1.0f});
-    auto Depth = Image(4, 4, {1.0f, 1.0f, 1.0f});
+    auto Color = Image(8, 8, {0.0f, 0.0f, 0.0f});
+    for (uint32 Y = 2; Y < 6; ++Y)
+    {
+        for (uint32 X = 2; X < 6; ++X)
+        {
+            if (X == 2) continue;
+            const usize Pixel = (static_cast<usize>(Y) * 8u + X) * 3u;
+            Color.LinearRgb[Pixel] = 0.8f;
+        }
+    }
+    auto Normal = Image(8, 8, {0.5f, 0.5f, 1.0f});
+    auto Depth = Image(8, 8, {1.0f, 1.0f, 1.0f});
     Depth.LinearRgb[0] = 0.25f;
     FProductionSemanticProbeRequest Request;
     Request.Color = &Color;
@@ -95,7 +103,9 @@ void TestSemanticProbeOrdering(FProductionImageAcceptanceTestResult& Result)
     Request.ObservedFrameToken = 6;
     for (const char* Name : {"orientation", "primitive-material", "base-color",
              "normal-response", "metallic-roughness", "emissive", "marker"})
-        Request.Regions.push_back({Name, 2, 1, {0.8f, 0.0f, 0.0f}, 0.01f});
+        Request.Regions.push_back({Name, {2, 2, 6, 6},
+            {0.8f, 0.0f, 0.0f}, 0.01f, 0.70f,
+            EProductionRegionStatistic::Median, 0.5f});
     const auto Stale = RunProductionSemanticProbes(Request);
     Record(Result, !Stale.bPassed && Stale.FirstFailure == FString("current-frame"),
         "semantic probes reject stale frame before material regions and FLIP");
@@ -106,13 +116,61 @@ void TestSemanticProbeOrdering(FProductionImageAcceptanceTestResult& Result)
     Request.RequiredRegionNames = {"marker"};
     const auto Accepted = RunProductionSemanticProbes(Request);
     Record(Result, Accepted.bPassed && Accepted.PassedProbeCount >= 4,
-        "semantic probes accept finite nonblank bounded coverage and expected region");
+        "semantic probes accept bounded majority coverage and robust region medians");
+
+    Color.LinearRgb[(2u * 8u + 2u) * 3u] = 1.0f;
+    const auto EdgePerturbation = RunProductionSemanticProbes(Request);
+    Record(Result, EdgePerturbation.bPassed,
+        "semantic region probes tolerate one primitive-edge coverage change");
 
     Request.RequiredRegionNames = {"marker", "clearcoat"};
     const auto MissingMaterialRegion = RunProductionSemanticProbes(Request);
     Record(Result, !MissingMaterialRegion.bPassed &&
         MissingMaterialRegion.FirstFailure == FString("missing-region-clearcoat"),
         "semantic probes require every declared primitive/material region");
+}
+
+void TestReadbackRegionStatistics(FProductionImageAcceptanceTestResult& Result)
+{
+    TArray<float> Values(4u * 4u * 4u, 0.0f);
+    for (uint32 Pixel = 0; Pixel < 16; ++Pixel)
+    {
+        Values[Pixel * 4u] = Pixel < 12 ? 0.75f : 0.0f;
+        Values[Pixel * 4u + 1u] = Pixel < 12 ? 0.25f : 0.0f;
+        Values[Pixel * 4u + 2u] = Pixel < 12 ? 0.50f : 0.0f;
+        Values[Pixel * 4u + 3u] = 1.0f;
+    }
+    const auto* Bytes = reinterpret_cast<const uint8*>(Values.data());
+    const FProductionReadbackView View{
+        {Bytes, Values.size() * sizeof(float)}, 4, 4,
+        4u * 4u * sizeof(float), EProductionReadbackPixelFormat::RGBA32Float,
+        EProductionImageOrigin::TopLeft, EProductionColorTransfer::Linear};
+    FProductionReadbackRegionSample Sample;
+    FString Failure;
+    Record(Result, SampleProductionReadbackRegion(
+        View, {0, 0, 4, 4}, 0.5f, Sample, Failure) &&
+        std::abs(Sample.Value.X - 0.75f) < 0.0001f &&
+        Sample.ValidSampleFraction == 1.0f,
+        "attachment regions expose a bounded median and valid-sample fraction");
+
+    TArray<float> Normals(4u * 4u * 4u, 0.0f);
+    for (uint32 Pixel = 0; Pixel < 16; ++Pixel)
+    {
+        Normals[Pixel * 4u] = Pixel < 12 ? 0.0f : 1.0f;
+        Normals[Pixel * 4u + 1u] = Pixel < 12 ? 1.0f : 0.0f;
+        Normals[Pixel * 4u + 2u] = 0.0f;
+        Normals[Pixel * 4u + 3u] = 1.0f;
+    }
+    Bytes = reinterpret_cast<const uint8*>(Normals.data());
+    const FProductionReadbackView NormalView{
+        {Bytes, Normals.size() * sizeof(float)}, 4, 4,
+        4u * 4u * sizeof(float), EProductionReadbackPixelFormat::RGBA32Float,
+        EProductionImageOrigin::TopLeft, EProductionColorTransfer::Linear};
+    float Coverage = 0.0f;
+    Record(Result, MeasureProductionReadbackDirectionalCoverage(
+        NormalView, {0, 0, 4, 4}, {0.0f, 1.0f, 0.0f}, 0.8f,
+        Coverage, Failure) && std::abs(Coverage - 0.75f) < 0.0001f,
+        "normal attachment regions measure directional sample coverage");
 }
 
 void TestFlipAndMutation(FProductionImageAcceptanceTestResult& Result)
@@ -131,6 +189,19 @@ void TestFlipAndMutation(FProductionImageAcceptanceTestResult& Result)
     Record(Result, Mutated.bMeasured && !Mutated.bPassed &&
         Mutated.Maximum > Exact.MaximumMax,
         "pinned CPU FLIP rejects an intentional image mutation");
+
+    Reference = Image(16, 16, {0.0f, 0.0f, 0.0f});
+    for (uint32 Y = 4; Y < 12; ++Y)
+        for (uint32 X = 4; X < 12; ++X)
+            Reference.LinearRgb[(static_cast<usize>(Y) * 16u + X) * 3u] = 1.0f;
+    auto Translated = Image(16, 16, {0.0f, 0.0f, 0.0f});
+    for (uint32 Y = 4; Y < 12; ++Y)
+        for (uint32 X = 5; X < 13; ++X)
+            Translated.LinearRgb[(static_cast<usize>(Y) * 16u + X) * 3u] = 1.0f;
+    const auto Shifted = CompareProductionImagesWithFlip(
+        Reference, Translated, Exact);
+    Record(Result, Shifted.bMeasured && !Shifted.bPassed,
+        "exact-coordinate FLIP rejects a one-pixel whole-image translation");
 }
 
 void TestNativeEvidence(FProductionImageAcceptanceTestResult& Result)
@@ -155,8 +226,10 @@ void TestWorkloadRegions(FProductionImageAcceptanceTestResult& Result)
     TArray<FProductionRegionProbe> Regions;
     Record(Result, BuildProductionWorkloadRegions(
             "production-content-lantern-v2", 512, 512, Regions) &&
-            Regions.size() == 7 && Regions[1].Name == FString("orientation"),
-        "Lantern image acceptance selects its exact semantic regions");
+            Regions.size() == 7 && Regions[1].Name == FString("orientation") &&
+            Regions[1].Region.MaximumXExclusive >
+                Regions[1].Region.MinimumX,
+        "Lantern image acceptance selects bounded semantic regions at the canonical extent");
     Record(Result,
         IsProductionWorkloadNormalProbeValid(
             "production-content-lantern-v2", {-1.0f, 0.0f, 0.0f}) &&
@@ -165,9 +238,11 @@ void TestWorkloadRegions(FProductionImageAcceptanceTestResult& Result)
         "Lantern v2 rejects the superseded opposite-facing surface");
     Record(Result, BuildProductionWorkloadRegions(
             "production-content-sponza-v2", 512, 512, Regions) &&
-            Regions.size() == 7 && Regions[0].X == 486 && Regions[0].Y == 25 &&
-            Regions[1].X == 51 && Regions[1].Y == 51,
-        "Sponza image acceptance selects its exact semantic regions");
+            Regions.size() == 7 && Regions[0].Region.MinimumX < 486 &&
+            Regions[0].Region.MaximumXExclusive > 486 &&
+            Regions[1].Region.MinimumX < 51 &&
+            Regions[1].Region.MaximumXExclusive > 51,
+        "Sponza image acceptance selects workload-versioned bounded regions");
     Record(Result,
         IsProductionWorkloadNormalProbeValid(
             "production-content-sponza-v2", {0.0f, 1.0f, 0.0f}) &&
@@ -180,6 +255,75 @@ void TestWorkloadRegions(FProductionImageAcceptanceTestResult& Result)
             "production-content-unknown-v1", 512, 512, Regions) &&
             Regions.empty(),
         "image acceptance rejects an undeclared workload region contract");
+    Record(Result, !BuildProductionWorkloadRegions(
+            "production-content-lantern-v2", 256, 256, Regions) &&
+            Regions.empty(),
+        "formal workload region contracts reject non-canonical extents");
+}
+
+bool LoadSrgbPpm(
+    const std::filesystem::path& Path,
+    FProductionCanonicalImage& OutImage)
+{
+    std::ifstream Input(Path, std::ios::binary);
+    std::string Magic;
+    uint32 Width = 0;
+    uint32 Height = 0;
+    uint32 Maximum = 0;
+    if (!(Input >> Magic >> Width >> Height >> Maximum) ||
+        Magic != "P6" || Maximum != 255 || Input.get() != '\n')
+        return false;
+    TArray<uint8> Rgb(static_cast<usize>(Width) * Height * 3u);
+    Input.read(reinterpret_cast<char*>(Rgb.data()),
+        static_cast<std::streamsize>(Rgb.size()));
+    if (!Input || Input.peek() != std::ifstream::traits_type::eof())
+        return false;
+    TArray<uint8> Rgba(static_cast<usize>(Width) * Height * 4u, 255u);
+    for (usize Pixel = 0; Pixel < Rgb.size() / 3u; ++Pixel)
+        std::copy_n(Rgb.data() + Pixel * 3u, 3u,
+            Rgba.data() + Pixel * 4u);
+    FString Failure;
+    return NormalizeProductionReadback(
+        {Rgba, Width, Height, Width * 4u,
+         EProductionReadbackPixelFormat::RGBA8UNorm,
+         EProductionImageOrigin::TopLeft, EProductionColorTransfer::SRGB},
+        OutImage, Failure);
+}
+
+void TestAcceptedReferenceRegionCalibration(
+    FProductionImageAcceptanceTestResult& Result)
+{
+    const auto Validate = [](const char* Workload, const char* Relative,
+        float MinimumCoverage, float MaximumCoverage)
+    {
+        FProductionCanonicalImage Color;
+        if (!LoadSrgbPpm(Relative, Color)) return false;
+        auto Normal = Image(512, 512, {0.5f, 0.5f, 1.0f});
+        auto Depth = Image(512, 512, {1.0f, 1.0f, 1.0f});
+        Depth.LinearRgb[0] = 0.25f;
+        FProductionSemanticProbeRequest Request;
+        Request.Color = &Color;
+        Request.Normal = &Normal;
+        Request.Depth = &Depth;
+        Request.ExpectedFrameToken = 20;
+        Request.ObservedFrameToken = 20;
+        Request.MinimumCoverageFraction = MinimumCoverage;
+        Request.MaximumCoverageFraction = MaximumCoverage;
+        Request.RequiredRegionNames = {"background"};
+        return BuildProductionWorkloadRegions(
+                Workload, 512, 512, Request.Regions) &&
+            RunProductionSemanticProbes(Request).bPassed;
+    };
+    Record(Result,
+        Validate("production-content-lantern-v2",
+            "Content/ProductionAcceptance/Baselines/"
+            "macos.apple8.metal.rgba8/production-content-lantern-v2.ppm",
+            0.01f, 0.35f) &&
+        Validate("production-content-sponza-v2",
+            "Content/ProductionAcceptance/Baselines/"
+            "macos.apple8.metal.rgba8/production-content-sponza-v2.ppm",
+            0.75f, 0.82f),
+        "accepted Lantern v2 and Sponza v2 references pass recalibrated region semantics");
 }
 
 void WriteText(const std::filesystem::path& Path, const std::string& Text)
@@ -200,7 +344,7 @@ std::string BaselineJson(const char* State, const char* Id)
         Id + R"(","state":")" + State +
         R"(","workloadRevision":"production-lantern-v1","backend":"metal","deviceClass":"macos.apple8.metal.rgba8","capabilitySignature":)" +
         SignatureJson() +
-        R"(,"width":64,"height":64,"colorTransfer":"srgb","referencePath":"lantern.ppm","referenceSha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","flipPolicy":{"meanMax":0.01,"p95Max":0.02,"maximumMax":0.1,"badPixelThreshold":0.05,"badPixelFractionMax":0.01},"calibrationEvidenceSha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"})";
+        R"(,"width":512,"height":512,"colorTransfer":"srgb","referencePath":"lantern.ppm","referenceSha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","flipPolicy":{"meanMax":0.01,"p95Max":0.02,"maximumMax":0.1,"badPixelThreshold":0.05,"badPixelFractionMax":0.01},"calibrationEvidenceSha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"})";
 }
 
 void TestBaselineRegistry(FProductionImageAcceptanceTestResult& Result)
@@ -244,6 +388,19 @@ void TestBaselineRegistry(FProductionImageAcceptanceTestResult& Result)
             "production-lantern-v1", "metal", Baseline, Failure) &&
         Failure == FString("baseline-state-not-accepted"),
         "baseline selection rejects every non-accepted lifecycle state");
+
+    std::string InvalidExtent = BaselineJson("accepted", "lantern-metal");
+    const auto Extent = InvalidExtent.find("\"width\":512");
+    InvalidExtent.replace(Extent, std::strlen("\"width\":512"),
+        "\"width\":256");
+    WriteText(Root / "accepted.json", InvalidExtent);
+    FProductionImageBaselineRegistry InvalidExtentRegistry;
+    Record(Result,
+        InvalidExtentRegistry.LoadDeviceClasses(
+            FString(RegistryPath.string()), Failure) &&
+        !InvalidExtentRegistry.LoadBaselines(FString(Root.string()), Failure) &&
+        Failure == FString("baseline-schema-or-identity"),
+        "baseline registry rejects non-canonical formal image extents");
     std::filesystem::remove_all(Root, Error);
 }
 
@@ -254,9 +411,11 @@ FProductionImageAcceptanceTestResult RunProductionImageAcceptanceTests()
     FProductionImageAcceptanceTestResult Result;
     TestReadbackNormalization(Result);
     TestSemanticProbeOrdering(Result);
+    TestReadbackRegionStatistics(Result);
     TestFlipAndMutation(Result);
     TestNativeEvidence(Result);
     TestWorkloadRegions(Result);
+    TestAcceptedReferenceRegionCalibration(Result);
     TestBaselineRegistry(Result);
     return Result;
 }
