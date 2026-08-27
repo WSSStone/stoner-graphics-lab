@@ -74,8 +74,9 @@ python3 .github/scripts/run_production_content_validation.py \
 - Relevant pull requests and pushes run regular Windows Vulkan, Linux Vulkan,
   macOS Vulkan, and macOS Metal jobs in
   `.github/workflows/feature-028-production-content.yml`.
-- The default branch runs the medium arm64 Metal profile every Monday; maintainers
-  dispatch it at Feature 028 and release closeout. The Sponza cache key is the
+- The default branch runs the medium Intel Metal profile every Monday; maintainers
+  dispatch it at Feature 028 and release closeout. Arm64 Metal remains covered
+  by regular validation and the required physical M4 hardware closeout. The Sponza cache key is the
   checked-in corpus-manifest digest, while acquisition still revalidates every
   declared file hash.
 - Maintainers explicitly dispatch

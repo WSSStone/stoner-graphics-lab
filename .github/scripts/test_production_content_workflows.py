@@ -76,6 +76,10 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
 
     def test_medium_uses_two_isolated_exact_package_lanes_and_aggregate(self):
         text = HOSTED.read_text(encoding="utf-8")
+        medium = text.split("  medium:\n", 1)[1].split(
+            "  medium-aggregate:\n", 1
+        )[0]
+        aggregate = text.split("  medium-aggregate:\n", 1)[1]
         self.assertIn("name: Medium Metal (${{ matrix.slug }})", text)
         self.assertIn("fail-fast: false", text)
         self.assertEqual(1, text.count("package: khronos-lantern-glb"))
@@ -83,6 +87,11 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         self.assertIn("needs: medium", text)
         self.assertIn("production-medium-authority-*", text)
         self.assertIn("Validate exact medium package authority", text)
+        self.assertIn("runs-on: macos-26-intel", medium)
+        self.assertIn("Mac-Metal-X86_64.json", medium)
+        self.assertNotIn("Mac-Metal-Arm64.json", medium)
+        self.assertIn("Mac-Metal-X86_64.json", aggregate)
+        self.assertNotIn("Mac-Metal-Arm64.json", aggregate)
 
     def test_hosted_workflow_has_feature_028_linux_sanitizer_gates(self):
         text = HOSTED.read_text(encoding="utf-8")

@@ -229,13 +229,24 @@ own disjoint source, DDC, publication, lease, and report trees. Scheduled/manual
 hosted Metal assigns one complete package to each isolated lane and aggregates
 their exact authority; the local full-profile fallback overlaps CPU/cook work,
 meets at a post-strict barrier, and serializes native execution. The
-scheduled/manual medium lanes use
-GitHub-hosted arm64 Metal: an isolated 1,000-cycle Lantern Lavapipe lifecycle
-exhausted 1,471 remaining seconds after all preceding stages passed, proving
-that serialization could not make the two-package Linux software-native
-workload satisfy the 1,800-second profile contract. Linux Lavapipe remains
-required in the 20-cycle regular matrix. Visible hardware stays fully
-serialized to avoid competing windows and capture devices. See
+scheduled/manual medium lanes use GitHub-hosted Intel Metal. An isolated
+1,000-cycle Lantern Lavapipe lifecycle exhausted 1,471 remaining seconds after
+all preceding stages passed, proving that serialization could not make the
+two-package Linux software-native workload satisfy the 1,800-second profile
+contract. Later hosted arm64 Metal runs completed the exact work but retained
+approximately 95 MiB of endpoint RSS despite all-zone relief, fixed quiescence,
+space-efficient mode, Nano disablement, and a one-magazine limit. Apple
+libmalloc source establishes that Xzone is the arm64 default, is never enabled
+on Intel, and its environment override is development-only and therefore not a
+supported hosted production control. Moving only scheduled/manual medium RSS
+authority to Intel makes the declared traditional allocator controls effective
+without changing cycles, captures, readbacks, ownership, stale-handle, RSS, or
+image requirements. Arm64 remains covered by regular Metal and by the required
+physical M4 1,000-cycle visible hardware lane using the default allocator.
+Linux Lavapipe remains required in the 20-cycle regular matrix. Visible
+hardware stays fully serialized to avoid competing windows and capture devices.
+See [Apple libmalloc configuration source](https://github.com/apple-oss-distributions/libmalloc/blob/main/src/malloc_config.c),
+[Apple Xzone allocator notes](https://github.com/apple-oss-distributions/libmalloc/blob/main/doc/xzone_malloc.md), and
 [GitHub Actions workflow documentation](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflows).
 
 **Alternatives considered**:

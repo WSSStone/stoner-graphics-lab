@@ -217,7 +217,7 @@ jobs:
   medium:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     name: Medium Metal (${{ matrix.slug }})
-    runs-on: macos-26
+    runs-on: macos-26-intel
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -251,7 +251,7 @@ jobs:
         run: >-
           python .github/scripts/run_production_content_validation.py
           --profile medium
-          --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json
+          --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-X86_64.json
           --build-root Build/Mac/Release
           --output Build/Validation/028/medium-metal-${{ matrix.slug }}
           --acquire-missing
@@ -292,7 +292,7 @@ jobs:
           python .github/scripts/aggregate_production_medium.py
           --root Build/Validation/028/medium-shards
           --profile Config/Validation/ProductionContent/Medium.json
-          --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json
+          --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-X86_64.json
           --output Build/Validation/028/medium-aggregate/summary.json
       - name: Upload aggregate medium evidence
         if: always()

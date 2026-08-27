@@ -301,8 +301,12 @@ Validation. No new runtime module is introduced.
    unused heap pages once more, then take exactly one RSS sample. Do not select
    a minimum or retry the sample based on its value. Start only the exact Linux
    Vulkan native-headless 20/2 child with one glibc arena and start only the
-   exact macOS Metal native-headless 1,000/20 child with Apple libmalloc
-   space-efficient mode, Nano disabled, and one general allocator magazine.
+   exact hosted Intel macOS Metal native-headless 1,000/20 child with Apple
+   libmalloc space-efficient mode, Nano disabled, and one general allocator
+   magazine. Do not claim the hosted RSS authority on arm64 macOS: the default
+   Xzone allocator cannot be disabled by a supported production environment
+   override. Preserve arm64 authority through regular coverage and the required
+   physical M4 1,000-cycle visible hardware lane under the default allocator.
    Space-efficient mode enables aggressive madvise, disables the
    large-allocation cache, and bounds only the medium allocator to one
    magazine; the additional two settings independently bound Nano and the
@@ -313,7 +317,7 @@ Validation. No new runtime module is introduced.
    Lantern v2 1,000-cycle workload, and sixteen for Sponza medium/hardware
    throughput.
    Scheduled/manual medium assigns each accepted package to its own
-   hosted arm64 Metal lane with a 2,400-second per-lane deadline. This preserves
+   hosted Intel Metal lane with a 2,400-second per-lane deadline. This preserves
    bounded headroom for the required full native-backend RSS comparison
    boundaries without reducing the 1,000/20 lifecycle workload.
    Each lane owns its package's complete clean/warm/strict/equivalence/

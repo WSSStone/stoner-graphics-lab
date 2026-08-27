@@ -443,12 +443,16 @@ corpus and generation evidence.
   fragmentation is bounded before the unchanged trim/quiescence/single-sample
   protocol; this override MUST NOT apply to visible hardware, other platforms,
   or other lifecycle shapes and MUST NOT substitute for live ownership checks.
-  The exact macOS Metal native-headless 1,000/20 authority MUST likewise start
-  with Apple libmalloc space-efficient mode, Nano disabled, and one general
-  allocator magazine so freed large-cache, Nano, tiny/small, and medium
-  allocator residency cannot decide the unchanged RSS gate; those overrides
-  MUST NOT apply to visible hardware, non-Metal execution, or other lifecycle
-  shapes and MUST NOT substitute for live ownership checks.
+  The exact hosted macOS Intel Metal native-headless 1,000/20 authority MUST
+  likewise start with Apple libmalloc space-efficient mode, Nano disabled, and
+  one general allocator magazine so freed large-cache, Nano, tiny/small, and
+  medium allocator residency cannot decide the unchanged RSS gate. Hosted
+  arm64 macOS MUST NOT claim this RSS authority because its default Xzone
+  allocator cannot be disabled by a supported production environment override;
+  the required physical M4 hardware lane remains the arm64 1,000-cycle visible
+  authority under the default allocator. The hosted Intel overrides MUST NOT
+  apply to visible hardware, non-Metal execution, or other lifecycle shapes and
+  MUST NOT substitute for live ownership checks.
 - **FR-032**: The regular validation profile MUST exercise one bounded accepted
   package through provenance, import, clean and warm cooking, standalone
   generation validation, strict-cooked runtime loading, semantic equivalence,

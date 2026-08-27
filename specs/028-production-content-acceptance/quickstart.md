@@ -151,8 +151,9 @@ capture metadata.
 ## 7. CI Entry Points
 
 - `feature-028-production-content.yml`: relevant PR/push regular matrix and
-  weekly/manual isolated per-package Metal medium lanes with an exact-package
-  aggregate gate.
+  weekly/manual isolated per-package Intel Metal medium lanes with an
+  exact-package aggregate gate. Arm64 Metal remains in the regular matrix and
+  required physical M4 hardware closeout.
 - `feature-028-production-hardware.yml`: explicit Windows Vulkan and macOS
   Vulkan/Metal hardware closeout/reference-change workflow.
 - Local commands and CI call the same Python runner and profile files.
