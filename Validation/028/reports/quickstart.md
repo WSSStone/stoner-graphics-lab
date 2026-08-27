@@ -2,14 +2,38 @@
 
 ## Status
 
-Clean-clone candidate `a3675551b56379277fd55a4847bdab05b2e7aab5` passed every
-non-visible-hardware quickstart entry in an independent clone on 2026-08-27.
-The clone was built from empty Debug and Release trees, acquired the external
-package through the pinned acquisition command, ran both native Metal profiles,
-independently revalidated both artifact sets, and retained no tracked changes.
-A successor allocator-boundary correction also passed the exact local Lantern
-medium replay; complete hosted and visible hardware authority remain required
-before T115 closes.
+Final local candidate `7f0dab41be21722827987d77cc8e22ff0c651697`
+passed every directly executable quickstart entry from a clean tracked workspace
+on 2026-08-28. The accepted camera-preview example remains a calibration-only
+template with generation/lease placeholders and was not replayed because this
+revision does not change the frozen camera. Hosted and controlled-physical
+closeout remain separate T112-T114 authority and cannot be replaced by these
+local results.
+
+## Final-Candidate Clean Workspace
+
+| Quickstart entry | Result |
+|---|---|
+| `conda run -n godot scons config=debug strict=1 -j8` | PASS after rebuilding one Debug archive corrupted by an invalid concurrent Debug/Release invocation; the counted quickstart run was serialized |
+| `conda run -n godot scons config=release strict=1 -j8` | PASS |
+| `Build/Mac/Debug/Tests/StonerTest --suite production-content` | PASS, 4 checks |
+| Regular corpus verification | PASS without network access |
+| Pinned medium acquisition | PASS by verified reuse, 71 files and 52,686,624 bytes |
+| Medium corpus verification | PASS |
+| Metal regular profile | PASS in 71.961 seconds; 20 clean runs, 37/37 warm reuse, 20/2 lifecycle cycles, 40 captures, seven readbacks, zero terminal owners, and stale-handle rejection; 5,980,160-byte RSS growth remained `observed` |
+| Regular artifact consumer verification | PASS, 3,523 artifacts; manifest SHA-256 `42189484555090aaa134581d01b914d98e3c0c9bf611f08b2ff80f6b46d201d1`; summary SHA-256 `60b22e1af27056dbb5bad1cb89a62fd6849b693f5d0e710acfc8e7485f5638f6` |
+| Metal medium profile | PASS in 610.498 seconds; Lantern and Sponza v2 each completed 1,000/20 cycles, 100-percent warm reuse, 2,000 captures, seven readbacks, zero terminal owners, and stale-handle rejection; RSS growth observations were 0 and 622,592 bytes |
+| Medium artifact consumer verification | PASS, 926 artifacts; manifest SHA-256 `5b22cde52a93af2813778453d40faef0ca3ccb8bfda7ca9f6c67e2a537b133ea`; summary SHA-256 `e12dbfbb92cbcf585615c3db7a2a7d807f8d16a9a16659e9a78b0d74fa3f0f68` |
+| Visible Metal hardware local diagnostic | PASS in 633.338 seconds; both workloads completed 1,000/20 cycles, 2,000 captures, seven readbacks, zero terminal owners, and stale-handle rejection; the report correctly retained `local-diagnostic`, image `not-required`, and RSS `observed` rather than claiming controlled-physical authority |
+| Hardware local artifact consumer verification | PASS, 1,006 artifacts; manifest SHA-256 `9489f7bdac6e83cab0ba90f53d1aace78a9c1919d82a46d284af3b0078ec4a4c`; summary SHA-256 `5aa1798b420d0ae8ae89ebdb7fdca9f0f9d1f1461d9acff2d80b108dddb915de` |
+
+The original medium example selected the hosted Intel x86_64 target and was
+therefore correctly `Unsupported` on this M4 arm64 host before any native work.
+The quickstart now uses `Mac-Metal-Arm64.json` for Apple Silicon and explicitly
+reserves `Mac-Metal-X86_64.json` for the hosted Intel lane. An initial visible
+local diagnostic also exposed that presentation and formal image authority were
+coupled; `7f0dab4` separates them, and the final clean replay proves that local
+window/native validation does not enable the controlled-physical image gate.
 
 ## Final-Candidate Clean Clone
 
