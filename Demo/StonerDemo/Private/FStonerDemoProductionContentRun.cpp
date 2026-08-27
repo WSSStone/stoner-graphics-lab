@@ -68,7 +68,8 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
             : Core::TSharedPtr<RHI::IRHICommandBuffer>{};
     };
 
-    const auto CaptureReadback = [this](
+    Core::TArray<Core::uint8> LifecycleReadbackScratch;
+    const auto CaptureReadback = [this, &LifecycleReadbackScratch](
         Core::uint32 Cycle,
         const Core::FString& Name,
         const Core::TSharedPtr<RHI::IRHIBuffer>& Readback,
@@ -78,7 +79,14 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         bool bRetainAuthoritativeEvidence,
         bool bRecordLifecycleCapture)
     {
-        Core::TArray<Core::uint8> Bytes;
+        const bool bSelectedVisiblePath = Configuration.bVisibleCapture &&
+            ((Configuration.RenderPath == EDemoRenderPath::DeferredFull &&
+                Name == Core::FString("FinalOutput")) ||
+             (Configuration.RenderPath == EDemoRenderPath::ForwardSmoke &&
+                Name == Core::FString("ForwardColor")));
+        Core::TArray<Core::uint8> RetainedBytes;
+        auto& Bytes = bRetainAuthoritativeEvidence || bSelectedVisiblePath
+            ? RetainedBytes : LifecycleReadbackScratch;
         const auto Device = BackendRuntime
             ? BackendRuntime->GetDevice()
             : Core::TSharedPtr<RHI::IRHIDevice>{};
@@ -126,12 +134,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                 std::chrono::duration_cast<std::chrono::nanoseconds>(
                     std::chrono::system_clock::now().time_since_epoch()).count());
             Capture.Format = Format;
-            const bool bSelectedVisiblePath = Configuration.bVisibleCapture &&
-                ((Configuration.RenderPath == EDemoRenderPath::DeferredFull &&
-                    Name == Core::FString("FinalOutput")) ||
-                 (Configuration.RenderPath == EDemoRenderPath::ForwardSmoke &&
-                    Name == Core::FString("ForwardColor")));
-            if (bSelectedVisiblePath || bRetainAuthoritativeEvidence)
+            if (bSelectedVisiblePath)
                 Capture.Bytes = std::move(Bytes);
             if (bSelectedVisiblePath)
             {

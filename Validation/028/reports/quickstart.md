@@ -26,6 +26,7 @@ before T115 closes.
 | Metal medium profile | PASS in 702.581 seconds; Lantern and Sponza v2 each completed 1,000 cycles, 100-percent warm reuse, 2,000 captures, seven readbacks, zero terminal owners, and stale-handle rejection; RSS growth was 671,744 and 442,368 bytes respectively |
 | Medium artifact consumer verification | PASS, 926 artifacts; manifest SHA-256 `069c064bd47338ec933a77d9d3723d5ed3bb1bfd8cfe36437ab04eaa3769b2bd`; summary SHA-256 `162841fa3a351d5d2e4ac4dfea750d4a0823173ccc6731186585b6817debd5cf` |
 | Allocator-boundary Lantern medium replay | PASS in 143.225 seconds; 1,000/20 cycles, 2,000 captures, seven readbacks, zero terminal owners, stale-handle rejection, and 475,136-byte RSS growth |
+| Bounded-readback Lantern medium replay | PASS in 161.890 seconds; 1,000/20 cycles, 2,000 captures, seven readbacks, zero terminal owners, stale-handle rejection, and 524,288-byte RSS growth |
 
 The native runners were executed with normal host Metal access. A preliminary
 restricted-process attempt intentionally remained fail-closed at native device

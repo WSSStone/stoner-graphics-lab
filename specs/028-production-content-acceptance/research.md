@@ -1177,3 +1177,33 @@ in 143.22 profile seconds and 130.81 native seconds. It completed 1,000 cycles,
 terminal owners, and stale-handle rejection. RSS moved from 30,785,536 bytes
 at cycle 20 to 31,260,672 bytes at cycle 1,000, a 475,136-byte increase with a
 31,539,200-byte peak. Complete hosted revalidation remains authoritative.
+
+Full hosted run `33046135110` at revision `4ff5200` proved that moving medium
+authority to Intel makes the traditional allocator controls effective but does
+not remove allocation churn in the validation path itself. Lantern completed
+all 1,000 cycles and 2,000 captures with zero terminal owners and stale-handle
+rejection, but RSS moved from 10,960,896 to 55,857,152 bytes: 44,896,256 bytes
+of growth. The failure preceded the uncounted seven-attachment extraction, so
+the reported zero readbacks was a consequence of fail-closed ordering.
+
+The production lifecycle was allocating and releasing both a full-resolution
+CPU vector and an additional shared Metal staging buffer for every capture,
+even though the render path had already copied into an RHI HostVisible buffer.
+On unified memory that buffer is Shared and CPU coherent after completed GPU
+work. On Intel/discrete memory it is Managed and requires
+`synchronizeResource` before CPU access. Only a Private buffer requires the
+second staging allocation. The corrected validation path therefore directly
+copies Shared buffers, synchronizes then directly copies Managed buffers,
+retains staging for Private buffers, and reuses one bounded CPU scratch vector
+for non-retained native-headless lifecycle captures. It still performs every
+GPU submission, full-resolution readback, nonblank check, and capture; visible
+presentation and post-lifecycle authoritative evidence keep owned payloads.
+See [Apple `MTLBlitCommandEncoder` synchronization documentation](https://developer.apple.com/documentation/metal/mtlblitcommandencoder/synchronize(resource:)).
+
+Strict Debug and Release builds plus repeated real-device host-visible/private
+Metal resource and native synchronization tests passed. The exact local Lantern
+medium runner then passed in 161.890 seconds, with a 149.006-second native
+stage, 1,000/20 cycles, 2,000 captures, seven authoritative readbacks, zero
+terminal owners, stale-handle rejection, and 524,288 bytes of RSS growth
+(30,752,768 to 31,277,056 bytes, 31,997,952 peak). Complete Intel hosted
+revalidation remains authoritative.

@@ -452,7 +452,12 @@ corpus and generation evidence.
   the required physical M4 hardware lane remains the arm64 1,000-cycle visible
   authority under the default allocator. The hosted Intel overrides MUST NOT
   apply to visible hardware, non-Metal execution, or other lifecycle shapes and
-  MUST NOT substitute for live ownership checks.
+  MUST NOT substitute for live ownership checks. Lifecycle image validation
+  MUST reuse bounded CPU readback storage, read host-visible Metal buffers
+  directly after the storage-mode-required synchronization, and allocate a
+  second native staging buffer only for device-local storage. This optimization
+  MUST NOT reduce GPU copies, capture counts, nonblank checks, or authoritative
+  post-lifecycle attachment extraction.
 - **FR-032**: The regular validation profile MUST exercise one bounded accepted
   package through provenance, import, clean and warm cooking, standalone
   generation validation, strict-cooked runtime loading, semantic equivalence,

@@ -311,6 +311,15 @@ Validation. No new runtime module is introduced.
    large-allocation cache, and bounds only the medium allocator to one
    magazine; the additional two settings independently bound Nano and the
    tiny/small magazine allocator.
+   Do not add allocator residency by allocating and destroying an additional
+   full-resolution Metal staging buffer and CPU vector for every lifecycle
+   readback. Shared host-visible buffers are copied directly after completed
+   GPU work; managed buffers first receive an explicit blit synchronization;
+   private buffers retain the staging path. Native-headless lifecycle probes
+   reuse one bounded CPU scratch allocation across all 2,000 captures, while
+   authoritative evidence and visible presentation retain owned bytes. This
+   changes allocation strategy only, not GPU execution, readback, nonblank,
+   capture, image, or ownership work.
    Visible hardware, other backends, and other lifecycle shapes receive no
    allocator override. Use one runtime
    manager worker for regular allocator stability, eight for the bounded

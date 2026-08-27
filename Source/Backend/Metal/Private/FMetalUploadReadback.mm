@@ -150,6 +150,34 @@ RHI::ERHIResult ReadbackMetalBuffer(
     {
         @autoreleasepool
         {
+            const auto CopySourceBytes = [&]()
+            {
+                if (Source.contents == nullptr)
+                    return RHI::ERHIResult::Failed;
+                OutBytes.resize(static_cast<Core::usize>(Size));
+                std::memcpy(
+                    OutBytes.data(),
+                    static_cast<const Core::uint8*>(Source.contents) +
+                        static_cast<NSUInteger>(Offset),
+                    static_cast<std::size_t>(Size));
+                return RHI::ERHIResult::Success;
+            };
+            if (Source.storageMode == MTLStorageModeShared)
+                return CopySourceBytes();
+            if (Source.storageMode == MTLStorageModeManaged)
+            {
+                id<MTLCommandBuffer> Commands = [Queue commandBuffer];
+                id<MTLBlitCommandEncoder> Blit = [Commands blitCommandEncoder];
+                if (Commands == nil || Blit == nil)
+                    return RHI::ERHIResult::Failed;
+                [Blit synchronizeResource:Source];
+                [Blit endEncoding];
+                return Complete(Commands)
+                    ? CopySourceBytes()
+                    : RHI::ERHIResult::Failed;
+            }
+            if (Source.storageMode != MTLStorageModePrivate)
+                return RHI::ERHIResult::Unsupported;
             id<MTLBuffer> Readback = [Source.device
                 newBufferWithLength:static_cast<NSUInteger>(Size)
                             options:MTLResourceStorageModeShared];

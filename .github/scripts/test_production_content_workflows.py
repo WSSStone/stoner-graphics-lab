@@ -90,6 +90,8 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         self.assertIn("runs-on: macos-26-intel", medium)
         self.assertIn("Mac-Metal-X86_64.json", medium)
         self.assertNotIn("Mac-Metal-Arm64.json", medium)
+        self.assertIn("Validate Metal readback modes", medium)
+        self.assertIn("--suite metal-resource", medium)
         self.assertIn("Mac-Metal-X86_64.json", aggregate)
         self.assertNotIn("Mac-Metal-Arm64.json", aggregate)
 

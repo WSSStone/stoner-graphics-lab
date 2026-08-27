@@ -53,18 +53,22 @@ void TestBuffers(FMetalResourceTestResult& Result)
         TArray<uint8> Readback;
         Passed = Passed && Buffer.Succeeded() &&
             Created.Device->UploadBuffer(Buffer.Object, Upload) ==
-                ERHIResult::Success &&
-            ReadMetalBufferForValidation(
-                Created.Device, Buffer.Object, 4, Bytes.size(), Readback) ==
-                ERHIResult::Success &&
-            std::equal(Bytes.begin(), Bytes.end(), Readback.begin()) &&
-            Buffer.Object->Upload(Bytes.data(), 64, 0) ==
+                ERHIResult::Success;
+        for (Core::uint32 Iteration = 0; Iteration < 32 && Passed; ++Iteration)
+        {
+            Passed = ReadMetalBufferForValidation(
+                    Created.Device, Buffer.Object, 4, Bytes.size(), Readback) ==
+                    ERHIResult::Success &&
+                Readback.size() == Bytes.size() &&
+                std::equal(Bytes.begin(), Bytes.end(), Readback.begin());
+        }
+        Passed = Passed && Buffer.Object->Upload(Bytes.data(), 64, 0) ==
                 ERHIResult::InvalidState &&
             Buffer.Object->Invalidate() == ERHIResult::Success &&
             Buffer.Object->Invalidate() == ERHIResult::InvalidState;
     }
     Record(Result, Passed,
-        "shared and private buffers preserve byte ranges through GPU readback");
+        "host-visible and private buffers preserve repeated GPU readbacks");
 #else
     Record(Result, true, "Metal buffer implementation is excluded off macOS");
 #endif

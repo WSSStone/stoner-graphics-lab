@@ -126,6 +126,17 @@ and summary SHA-256
 
 ## Superseded Hosted Evidence
 
+Hosted run `33046135110` on revision
+`4ff520033c50ace5630744f4dcaae5204042a0e9` passed all regular producers,
+independent artifact consumers, ASan/UBSan, and TSan. Its Intel Lantern medium
+shard completed 1,000 cycles and 2,000 captures with zero terminal owners and
+stale-handle rejection, but failed the unchanged 16 MiB gate at 44,896,256
+bytes of RSS growth (10,960,896 to 55,857,152 bytes). Sponza was cancelled and
+the aggregate correctly skipped, so this run is failure evidence rather than
+authority. The successor removes redundant per-capture Metal/CPU staging while
+retaining exact execution and passed local Lantern 1000/20 at 524,288 bytes of
+growth; a complete hosted rerun remains required.
+
 Hosted run `32711618360` passed the older revision
 `0a5ad11f8d511a9b54da33da086b15cf530ca68a`, including all regular producers,
 independent consumers, ASan/UBSan, and TSan. It is retained as regression

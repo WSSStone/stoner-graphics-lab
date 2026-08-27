@@ -247,6 +247,8 @@ jobs:
           --content-root Content/ProductionAcceptance
       - name: Build strict Release
         run: scons config=release strict=1
+      - name: Validate Metal readback modes
+        run: Build/Mac/Release/Tests/StonerTest --suite metal-resource
       - name: Run medium profile
         run: >-
           python .github/scripts/run_production_content_validation.py
