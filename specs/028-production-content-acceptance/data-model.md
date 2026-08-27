@@ -78,10 +78,27 @@ and non-color material-data textures.
 | `TargetProfiles` | ordered list | Exact AssetCooker profile IDs/digests |
 | `LifecycleCycles` | integer | 20 regular; 1,000 medium/hardware |
 | `WarmupCycles` | integer | Exactly 2 for regular and 20 for medium/hardware; included in lifecycle count |
-| `MaxRssGrowthBytes` | integer | 16 MiB |
+| `MaxRssGrowthBytes` | integer | 16 MiB when RSS disposition is `required`; recorded but not applied to `observed` hosted RSS |
+| `EnvironmentPolicy` | authority-policy ID | Workflow-owned mapping for hosted, controlled physical, and local diagnostic execution |
 | `RequiredGates` | ordered enum list | Corpus/import/cook/runtime/realization/render/image/lifecycle as applicable |
-| `TimeBudgetSeconds` | integer | 600 regular job; 3,000 complete medium package lane; 3,600 serialized visible hardware lane |
-| `NativeTimeBudgetSeconds` | integer | 600 regular; 2,400 medium; 3,600 hardware; always capped by the enclosing lane deadline |
+| `TimeBudgetSeconds` | integer | 600 regular; 3,900 hosted medium package operational timeout; 3,600 serialized visible hardware lane |
+| `NativeTimeBudgetSeconds` | integer | 600 regular; 3,600 hosted medium operational timeout; 3,600 hardware; always capped by the enclosing lane deadline |
+
+### Environment Measurement Authority
+
+| Field | Type | Rules |
+|---|---|---|
+| `ExecutionClass` | enum | `github-hosted`, `controlled-physical`, or `local-diagnostic`; selected by the workflow contract, not an unrestricted caller token |
+| `Preflight` | enum + evidence | `passed`, `failed`, or `not-required`; physical authority requires exact device, exclusive runner, frozen revision, default allocator, and sample-protocol evidence |
+| `RssDisposition` | enum | `required` only for preflighted controlled physical; otherwise `observed` |
+| `TimingDisposition` | enum | `operational` for Feature 028 timeouts; elapsed time is not a hosted performance qualification |
+| `ImageDisposition` | enum | `required` only for a profile/device class with accepted physical image authority; otherwise `not-required` |
+| `ReplacementLane` | stable token or null | Required when a requested physical authority preflight is unavailable or fails |
+
+`required` participates in the result, `operational` fails only when work does
+not complete before its bounded timeout, and `observed` is always serialized but
+cannot independently change Passed to Failed or vice versa. Aggregation rejects
+unknown or conflicting policies and cannot promote an observation.
 
 ## 6. Production Asset Closure
 
@@ -205,7 +222,7 @@ non-canonical ordering, and zero or multiple matches for an observed signature.
 | `Backend` | `vulkan` or `metal` | Exact native backend |
 | `DeviceClass` | registry-owned stable token | Derived by exactly one registry match; never accepted from a caller |
 | `CapabilitySignature` | canonical object | Registry version, backend implementation, CPU architecture, adapter family, shader profile, color/depth formats, sample count, and texture-format family; excludes marketing name |
-| `Width`, `Height` | positive integers | Exact canonical image dimensions |
+| `Width`, `Height` | integer pair | Exactly 512 by 512 for formal calibration captures, accepted references, and candidates; the 1024 preview is excluded |
 | `ColorTransfer` | enum | Canonical comparison transfer |
 | `ReferencePath`, `ReferenceSha256` | path + digest | Versioned reviewed image |
 | `FlipPolicy` | thresholds | Mean, p95, max, bad-pixel threshold/fraction |
@@ -220,15 +237,17 @@ fail before baseline lookup; there is no nearest or fallback device class.
 | Field | Type | Rules |
 |---|---|---|
 | `Deterministic` | canonical object | Corpus, root, target, generation digest or `not-created`, closure, workload, backend, result, evidence digests, and conditional first failure |
-| `Observations` | bounded object | Timing, RSS, exact registered device class, image metric, and artifact observations |
+| `Observations` | bounded object | Timing, RSS/task-VM/allocator, exact registered device class, image metric, artifact observations, and per-measurement authority disposition |
 | `FirstFailure` | object or null | Null for Passed; exactly one stable stage/category/subject/expected/observed/reproduction object for Failed/Unsupported; Unsupported also names missing prerequisite and replacement lane |
 | `Artifacts` | ordered digest list | At most 64; every external report/readback/capture has digest and byte size, each at most 64 MiB and aggregate at most 256 MiB |
 
 Result states: `Passed`, `Failed`, or `Unsupported`. `Unsupported` requires a
 missing prerequisite and replacement lane; it is never aggregated as Passed.
-Native Vulkan/Metal reports require the exact registered device class and FLIP
-result; failures before comparison use a structured `not-run` reason, while
-native Passed requires measured passing FLIP. Non-native reports use backend
+Native Vulkan/Metal reports require the exact registered device class. A profile
+with `ImageDisposition=required` requires measured passing FLIP; profiles that
+do not own image authority use a structured `not-required` reason rather than a
+fabricated comparison. Failures before a required comparison use structured
+`not-run`. Non-native reports use backend
 `none`. Passed requires a real generation digest; only Failed/Unsupported may
 use `not-created`. Deterministic content must serialize byte-identically for
 equivalent inputs. Canonical serialized report JSON is at most 1 MiB.

@@ -1287,3 +1287,80 @@ seven readbacks, zero terminal owners, and stale-handle rejection. RSS decreased
 from 544,325,632 to 426,262,528 bytes (547,405,824 peak), so reported growth was
 zero. The arm64 run receives no allocator overrides; it validates the new
 Intel-only scope without substituting for Intel RSS authority.
+
+## Decision 45: Separate hosted correctness authority from physical measurement authority
+
+Full hosted run `33076623328` at revision `7aac125` falsified the premise that
+another allocator-zone correction could turn GitHub-hosted macOS into a stable
+16 MiB RSS laboratory. Lantern completed the exact 1,000/20 lifecycle with
+2,000 captures, zero terminal owners, and stale-handle rejection. Resident size
+still moved from 10,997,760 to 55,246,848 bytes, a 44,249,088-byte increase.
+Physical footprint and internal bytes increased only from 2,842,624 to
+3,334,144, external bytes remained 7,176,192, and reusable bytes moved from
+2,056,192 to 45,813,760. All-zone malloc moved from 1,288,784 to 37,655,296
+bytes in use and from 9,494,528 to 59,973,632 bytes allocated. The result again
+correlates the endpoint failure with allocator-retained/reusable pages rather
+than tracked live engine ownership.
+
+The same run proved that the time cap was environmental rather than a content
+or semantic failure. Sponza passed strict Release, readback-mode validation,
+clean and warm cook, publication, semantic equivalence, and strict runtime, then
+the native child reached the exact 2,400-second timeout without terminal
+lifecycle evidence. The job-level 90-minute change worked as designed and
+preserved artifacts, but the hosted execution rate did not reproduce local or
+physical timing.
+
+GitHub documents [standard hosted jobs](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)
+as fresh runner instances selected by an OS/image label and publishes coarse
+CPU/memory/storage specifications. It does not define a fixed physical host,
+allocator residency, thermal state, or benchmark reproducibility contract.
+[Self-hosted runners](https://docs.github.com/en/actions/concepts/runners/self-hosted-runners)
+provide control over hardware and software, while making the project responsible
+for that control.
+Feature 028 therefore keeps hosted lanes authoritative for deterministic
+content, exact work completion, native proof, capture/readback counts, owner
+baselines, stale-handle rejection, crash, and timeout. Hosted RSS, task-VM,
+allocator, peak-memory, and elapsed-time values become bounded observations;
+the timeout remains operational because incomplete work cannot pass. The
+scheduled Sponza package/native operational limits become 3,900/3,600 seconds
+inside the existing 90-minute job.
+
+Calibrated RSS authority moves to an exclusive controlled physical lane after
+preflight proves the exact device class, workload/software revision, default
+production allocator, and sample protocol. That lane retains the 16 MiB limit.
+Accepted image/FLIP authority already belongs to the self-hosted physical
+workflow and does not change. Reports carry environment class, preflight, and a
+`required`, `operational`, or `observed` disposition so aggregation cannot turn
+an observation into a hard pass or failure.
+
+Alternatives rejected:
+
+- Raising hosted RSS from 16 MiB to 64 MiB: moves a noisy boundary without
+  making the measurement authoritative and can still hide or create failures.
+- Adding another hosted allocator switch, value-dependent retry, minimum
+  sample, or longer quiescence: previous experiments already changed endpoint
+  residency without correlating it with live engine ownership.
+- Reducing the hosted 1,000-cycle work: would discard valuable correctness,
+  teardown, stale-handle, and bounded-run coverage merely because one metric is
+  unsuitable for the environment.
+- Moving all validation to physical machines: sacrifices clean cross-platform
+  build/determinism coverage and makes ordinary validation unnecessarily scarce.
+- Widening FLIP or enabling image registration: unrelated to the hosted RSS/time
+  problem and would hide camera, origin, projection, or framebuffer regressions.
+
+## Decision 46: Replace semantic single pixels without aligning final images
+
+Semantic probes exist to classify a failure before FLIP, not to make one edge
+pixel the visual oracle. The current exact-pixel regions and common attachment
+sample can change category when normal rasterization coverage moves across that
+coordinate. Each semantic region therefore becomes a bounded rectangle with a
+minimum valid-sample fraction and a robust statistic such as median/quantile or
+directional coverage. Workload revisions continue to own the rectangles,
+expected values, and tolerances, and calibration mutations must prove wrong
+material, normal, depth, lighting, background, and orientation still fail.
+
+FLIP remains an exact same-size, same-camera, same-coordinate comparison. It may
+not translate, scale, crop, warp, resample, or search for a best alignment. An
+intentional one-pixel whole-image translation is added to mutation coverage and
+must fail, while bounded edge perturbations that preserve region semantics must
+not fail only because a single coordinate crosses a primitive edge.

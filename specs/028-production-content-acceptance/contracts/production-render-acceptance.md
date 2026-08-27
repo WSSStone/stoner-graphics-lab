@@ -60,6 +60,8 @@ cannot satisfy steps 1-5.
   emissive where present, and depth/normal deferred attachments;
 - no missing primitive/material region declared by workload inspection.
 
+Every semantic classification uses a versioned bounded region, minimum valid-
+sample coverage, and robust statistic; one exact pixel cannot be authoritative.
 Every probe must pass before perceptual comparison begins.
 
 ## Baseline Selection
@@ -74,10 +76,19 @@ driver version are observations, not key material. Zero or multiple class or
 baseline matches is `ImageBaselineMissing` or `ImageBaselineAmbiguous` and
 fails the required hardware gate; nearest/fallback selection is forbidden.
 
+Every formal Feature 028 calibration capture, accepted reference, and hardware
+candidate is exactly 512 by 512 pixels. The 1024-by-1024 interactive preview is
+navigation-only and cannot be registered as an acceptance image. A non-512
+formal image fails before semantic probes or FLIP.
+
 ## Perceptual Policy
 
-- Input is canonical same-size LDR RGB after color-transfer normalization.
+- Input is canonical same-size 512-by-512 LDR RGB after color-transfer
+  normalization.
 - Metric is pinned CPU LDR-FLIP.
+- Reference and candidate retain exact frozen-camera pixel registration. The
+  comparator cannot translate, scale, crop, warp, resample, or search for a best
+  alignment.
 - Report mean, p95, max, and bad-pixel fraction where a bad pixel exceeds the
   baseline's FLIP error threshold.
 - All four baseline limits must pass.
@@ -88,9 +99,9 @@ fails the required hardware gate; nearest/fallback selection is forbidden.
 
 | Profile | Full cycles | Warm-up cycles | Required native scope | RSS rule |
 |---|---:|---:|---|---|
-| Regular | 20 | 1-2 | Platform-applicable bounded native/headless gates | Post-warm-up sample to terminal <= 16 MiB |
-| Medium | 1,000 | 1-20 | Declared medium environment | Same |
-| Hardware | 1,000 | 1-20 | Windows Vulkan; macOS Vulkan + Metal | Same |
+| Regular | 20 | 1-2 | Platform-applicable bounded native/headless gates | Hosted measurement is observed unless a controlled physical authority is declared |
+| Medium | 1,000 | 1-20 | Hosted Metal functional/lifecycle authority | RSS/task-VM/allocator are observed; exact work/owners/stale/captures/readbacks remain required |
+| Hardware | 1,000 | 1-20 | Controlled physical Windows Vulkan; macOS Vulkan + Metal | Required <= 16 MiB after authority preflight |
 
 Each cycle performs strict manager bind/request, complete closure, Renderer
 realization, deferred render/readback, bounded forward smoke where required,
@@ -99,6 +110,31 @@ and terminal counter inspection. Counts return to baseline after every cycle or
 at the profile's explicitly declared synchronization boundary. Warm-up cycles
 count toward the full-cycle total. The RSS origin sample is taken immediately
 after the last warm-up cycle and compared with the terminal sample.
+
+## Environment and Measurement Authority
+
+The workflow contract, not an unrestricted CLI token, classifies execution as
+`github-hosted`, `controlled-physical`, or `local-diagnostic`. Each sensitive
+measurement declares one disposition:
+
+- `required`: participates in pass/fail and requires successful authority
+  preflight;
+- `operational`: fails only when the bounded timeout prevents required work from
+  completing;
+- `observed`: is serialized for diagnosis/trending and cannot independently
+  change the result.
+
+GitHub-hosted medium uses `observed` RSS/task-VM/allocator/elapsed measurements
+and operational 3,900-second package plus 3,600-second native timeouts inside a
+90-minute job. It still requires 1,000/20 cycles, 2,000 captures, seven retained
+readbacks, zero terminal owners, stale-handle rejection, and requested native
+backend proof.
+
+A controlled physical RSS/image authority must prove exact registered device,
+exclusive runner ownership, frozen workload/software revision, default
+production allocator, and the declared sample protocol. Failed preflight is
+Unsupported with a replacement lane. Local or hosted execution cannot claim
+physical authority, and aggregation cannot promote `observed` evidence.
 
 ## Capture Privacy
 

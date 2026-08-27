@@ -39,3 +39,9 @@
 - The specification is ready for `/speckit-clarify`; clarification may refine
   policy choices such as corpus acquisition, image acceptance, validation tier
   cadence, and lifecycle budgets without changing the roadmap boundary.
+- Validation iteration 2 on 2026-08-27 passed after separating GitHub-hosted
+  correctness authority from controlled-physical RSS/image authority. The
+  specification contains no unresolved clarification marker; hosted
+  observation/operational dispositions, physical preflight, exact lifecycle
+  work, region semantic probes, and no-alignment FLIP behavior are measurable
+  and traceable to FR-051-FR-056 and SC-016-SC-017.

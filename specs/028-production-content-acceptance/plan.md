@@ -26,6 +26,15 @@ free-camera navigation and emits candidate View/Projection matrices. Formal
 gates consume only exact revision-owned frozen presets; interactive state is
 never an acceptance input.
 
+Validation authority is environment-sensitive without weakening correctness.
+GitHub-hosted lanes remain hard gates for deterministic content, complete
+lifecycle work, native execution, capture/readback counts, ownership teardown,
+and stale-handle rejection, while hosted RSS/allocator/task-VM and elapsed-time
+measurements are explicit observations or operational timeouts. Calibrated RSS
+and full image authority belong only to preflighted, exclusive physical runners.
+Image comparison remains spatially registered with no automatic alignment;
+semantic classification moves from exact pixels to bounded region statistics.
+
 ## Technical Context
 
 **Language/Version**: C++20 with traditional public/private headers and sources; Objective-C++20 remains private to Metal; Python 3 standard-library validation scripts
@@ -34,15 +43,15 @@ never an acceptance input.
 **Testing**: Existing `StonerTest` suites plus corpus, KTX2 integration, semantic-equivalence, transactional realization, native readback, image-acceptance, lifecycle, failure-injection, Python schema/runner tests, Windows/macOS/Linux CI, and required Windows/macOS hardware lanes
 **Target Platform**: Windows x64 Vulkan; macOS arm64 Metal and Vulkan/MoltenVK; Linux x64 build, deterministic, sanitizer, and bounded Lavapipe/headless Vulkan validation
 **Project Type**: Cross-platform graphics engine, offline asset cooker CLI, desktop demo, and validation tooling
-**Performance Goals**: Regular profile within 10 minutes per hosted job; medium profile within 50 minutes per declared package lane, including an independently bounded 40-minute native lifecycle stage; serialized visible hardware profile within 60 minutes per declared lane; deterministic reports byte-identical across 20 repetitions
-**Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; 1,000 medium/hardware cycles with cycles 1-20 as warm-up; warm-up counts toward the total and RSS growth from the post-warm-up sample to the terminal sample is at most 16 MiB; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation
+**Performance Goals**: Regular profile within 10 minutes per hosted job; hosted medium bounded operationally to 3,900 seconds per package and 3,600 seconds per native stage inside a 90-minute job; serialized visible hardware profile within 60 minutes per declared lane; deterministic reports byte-identical across 20 repetitions; hosted elapsed time is not a performance qualification
+**Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; 1,000 medium/hardware cycles with cycles 1-20 as warm-up; warm-up counts toward the total; exact lifecycle/capture/readback/owner/stale contracts are hard on every lane; post-warm-up RSS growth is at most 16 MiB only on a preflighted controlled physical authority and is observation-only on GitHub-hosted runners; formal image calibration/reference/comparison uses an exact 512-by-512 extent while the 1024-by-1024 preview remains non-authoritative; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation; no image alignment/resampling
 **Scale/Scope**: Two artist-authored source works; regular Lantern GLB is about 9.6 MB with 3 primitives and four 2K textures; medium Sponza external package is about 50 MB with 103 primitives, 25 materials, and 69 mostly 1K textures; at least 30 deterministic negative cases
 
 ## Constitution Check
 
 *GATE: Passed before research and re-checked after Phase 1 design.*
 
-- [x] **Spec-Driven Development**: `spec.md` contains 45 functional requirements, 14 measurable success criteria, and five recorded clarification decisions.
+- [x] **Spec-Driven Development**: `spec.md` contains 56 functional requirements, 17 measurable success criteria, and ten recorded clarification decisions.
 - [x] **Decoupled Architecture**: Asset remains CPU-only; Tools performs cooking; Renderer performs RHI realization; Demo/Validation orchestrates the complete workflow; only Backend code calls Vulkan or Metal.
 - [x] **Design Pattern Discipline**: Corpus verification, semantic comparison, model realization, image comparison, and evidence rendering are separate services/contracts. No Asset Manager, Demo, or native-context god-class is introduced.
 - [x] **Multi-API Support**: One scene contract drives Vulkan and Metal. Backend/device-class baselines allow declared numeric variation without backend-specific content logic.
@@ -77,6 +86,7 @@ specs/028-production-content-acceptance/
 |   |-- device-class-registry.schema.json
 |   |-- image-baseline.schema.json
 |   |-- production-acceptance-report.schema.json
+|   |-- production-environment-authority.md
 |   |-- production-cook-runtime.md
 |   |-- static-model-realization.md
 |   `-- production-render-acceptance.md
@@ -162,7 +172,8 @@ Validation. No new runtime module is introduced.
 4. Freeze the pinned CPU-only FLIP revision, provenance fields, metric inputs,
    and private Validation-only ownership contract without yet accepting a
    dependency payload or image threshold.
-5. Define workload, device-class-registry, reference-image, and threshold
+5. Define workload, device-class-registry, reference-image, threshold, and
+   execution-environment authority
    schemas. The registry contract requires canonical class ordering and unique
    class/signature records, with semantic uniqueness enforced by its loader. A
    versioned device-class registry maps an observed canonical capability
@@ -258,63 +269,46 @@ Validation. No new runtime module is introduced.
 2. Normalize readback row pitch, channel order, origin, and color transfer into
    a canonical image before any comparison.
 3. Require semantic probes first (nonblank, coverage, orientation markers,
-   geometry/material regions, finite range, current-frame token). Derive the
+   geometry/material bounded-region statistics, finite range, current-frame
+   token). Exact single-pixel semantic authority is forbidden; each region
+   requires a minimum valid-sample coverage and robust statistic. Derive the
    device class by exact canonical capability-signature match in the versioned
    registry, then apply the exact baseline selected by workload/backend/device
    class and its versioned FLIP thresholds. Missing or ambiguous classes or
-   baselines fail closed.
+   baselines fail closed. FLIP retains exact same-size pixel registration and
+   may not translate, scale, crop, warp, resample, or search for alignment.
 4. Calibrate numeric thresholds from 20 accepted same-revision native captures
    plus an intentional mutation set; commit only reviewed thresholds and
    window-only reference captures. Calibration is never a runtime auto-approval
    path. Record mean FLIP, p95 FLIP, maximum FLIP, and the fraction above the
-   baseline's declared bad-pixel threshold. Reference and candidate dimensions
-   and normalization policy must match exactly.
+   baseline's declared bad-pixel threshold. Every formal calibration capture,
+   accepted reference, and candidate comparison is exactly 512-by-512; the
+   1024-by-1024 preview is navigation-only. Reference and candidate dimensions
+   and normalization policy must match exactly, and a mismatched formal extent
+   fails before semantic or FLIP work.
 5. Run 20 regular or 1,000 medium/hardware full manager-realizer-render-release
    cycles. The regular target gate owns the required 20 clean determinism
    repetitions. Independent clean runs retain isolated source, DDC,
    publication, and report roots; the slower hosted x86_64 Metal target may
-   execute at most four of those independent runs concurrently so the same 20
-   byte-identical results remain inside the unchanged regular deadline.
-   Arm64 Metal retains its two-run bound and Vulkan retains its existing
-   bounded policy. Medium/hardware run one clean cook and one unchanged
-   100-percent-reuse warm cook per selected package rather than duplicating
-   those regular repetitions inside their lifecycle budget. Cycles 1-2 are the
-   regular warm-up and cycles 1-20 are the medium/hardware warm-up; warm-up
-   counts toward the total. Return every
-   tracked counter to baseline and enforce at most 16 MiB RSS growth between the
-   sample immediately after warm-up and the terminal sample.
-   Before each of those two authoritative samples, complete queue idle and
-   ownership teardown. The native-headless RSS authority fully shuts down the
-   requested backend before allocator relief at both exact comparison points:
-   Linux Vulkan regular uses this boundary for 20/2, and macOS Metal medium
-   uses it for 1,000/20. Restore and re-prove the same requested native backend
-   after the warm-up sample and again before the uncounted evidence extraction;
-   visible hardware/presentation paths retain their existing continuous
-   backend lifetime. Before each declared native-headless RSS sequence, follow
-   the existing unmeasured native Deferred/Forward prime with one unmeasured
-   full backend shutdown, platform-specific fixed relief/quiescence, and
-   restart. This makes both authoritative Linux regular and Metal medium
-   endpoints observe a backend that has already crossed the same restart
-   boundary without adding a declared cycle, capture, or RSS sample. Release
-   unused heap pages, wait one fixed second on Metal and glibc/Lavapipe for
-   native completion and allocator/kernel accounting to quiesce, release
-   unused heap pages once more, then take exactly one RSS sample. Do not select
-   a minimum or retry the sample based on its value. Start only the exact Linux
-   Vulkan native-headless 20/2 child with one glibc arena and start only the
-   exact hosted Intel macOS Metal native-headless 1,000/20 child with Apple
-   libmalloc space-efficient mode, Nano disabled, and one general allocator
-   magazine. Do not claim the hosted RSS authority on arm64 macOS: the default
-   Xzone allocator cannot be disabled by a supported production environment
-   override. Preserve arm64 authority through regular coverage and the required
-   physical M4 1,000-cycle visible hardware lane under the default allocator.
-   Space-efficient mode enables aggressive madvise, disables the
-   large-allocation cache, and bounds only the medium allocator to one
-   magazine; the additional settings independently bound Nano and the
-   tiny/small magazine allocator. The exact Intel 1,000/20 child also disables
-   the medium allocator after endpoint telemetry proved that its remaining
-   region accumulated reusable pages while physical footprint stayed flat;
-   released medium-size validation allocations therefore use the normal
-   small/large reclamation paths.
+   execute at most four independent clean runs concurrently. Arm64 Metal retains
+   its two-run bound and Vulkan retains its existing bounded policy. Medium/
+   hardware run one clean cook and one unchanged 100-percent-reuse warm cook per
+   selected package. Cycles 1-2 are the regular warm-up and cycles 1-20 are the
+   medium/hardware warm-up; warm-up counts toward the total. Every environment
+   completes the exact work, returns all tracked counters to baseline, rejects
+   stale handles, and emits the required capture/readback evidence.
+
+   A workflow-owned environment classification assigns each sensitive metric a
+   `required`, `operational`, or `observed` disposition. GitHub-hosted lanes
+   record post-warm-up and terminal RSS, task-VM categories, allocator totals,
+   peak memory, and elapsed time, but those measurements cannot decide a
+   completed correctness result. Hosted execution uses normal production
+   allocator behavior rather than validation-only zone switches intended to
+   force resident pages under a threshold. A controlled physical lane applies
+   the 16 MiB RSS hard limit only after preflight proves the exact registered
+   device, exclusive runner ownership, frozen workload/software revision,
+   default allocator, and declared sample protocol. Local diagnostic execution
+   is never promoted to physical authority by a caller flag.
    Do not add allocator residency by allocating and destroying an additional
    full-resolution Metal staging buffer and CPU vector for every lifecycle
    readback. Shared host-visible buffers are copied directly after completed
@@ -324,18 +318,17 @@ Validation. No new runtime module is introduced.
    authoritative evidence and visible presentation retain owned bytes. This
    changes allocation strategy only, not GPU execution, readback, nonblank,
    capture, image, or ownership work.
-   Visible hardware, other backends, and other lifecycle shapes receive no
-   allocator override. Use one runtime
-   manager worker for regular allocator stability, eight for the bounded
+   Use one runtime manager worker for regular allocator stability, eight for the bounded
    Lantern v2 1,000-cycle workload, and sixteen for Sponza medium/hardware
    throughput.
    Scheduled/manual medium assigns each accepted package to its own
-   hosted Intel Metal lane with a 3,000-second complete-lane deadline and an
-   independently bounded 2,400-second native lifecycle allowance. This keeps
+   hosted Intel Metal lane with a 3,900-second complete-lane operational timeout
+   and an independently bounded 3,600-second native lifecycle timeout. This keeps
    cook, publication, equivalence, and strict-runtime setup from silently
    consuming the native proof's budget. The enclosing workflow job is bounded
-   to 90 minutes so its strict Release build plus the complete 50-minute
-   package lane can finish; the lifecycle remains exactly 1,000/20.
+   to 90 minutes so its strict Release build plus the complete package lane can
+   finish; the lifecycle remains exactly 1,000/20. Elapsed time below the cap is
+   reported but is not a hosted performance qualification.
    Each lane owns its package's complete clean/warm/strict/equivalence/
    1,000-cycle proof, and an aggregate job requires the exact profile package
    set plus identical corpus, target, and revision authority. Local full-profile
@@ -411,7 +404,10 @@ Validation. No new runtime module is introduced.
    FLIP result for native reports; exactly one structured first failure for
    Failed/Unsupported; failure-only `not-created` when no generation exists;
    and a real generation digest, measured passing FLIP for native execution,
-   and no first failure for Passed.
+   and no first failure for Passed. Every environment-sensitive measurement
+   records environment class, authority preflight, and `required`,
+   `operational`, or `observed` disposition; aggregation cannot promote an
+   observation.
 2. Regular workflow runs on relevant PR/push paths for Windows/macOS/Linux. A
    producer job may share immutable cooked artifacts only when each consumer
    still verifies target/profile and performs its platform-specific gates.
@@ -419,7 +415,9 @@ Validation. No new runtime module is introduced.
    `workflow_dispatch`; it is also manually required at feature/release
    closeout. Hardware workflow is explicit for Windows Vulkan and macOS
    Vulkan/Metal and is required at Feature 028 closeout and reference/render
-   path changes.
+   path changes. Hosted medium is the complete functional/lifecycle authority
+   but not RSS, performance, or accepted-image authority. The self-hosted
+   physical workflow owns calibrated RSS and image decisions after preflight.
 4. Unsupported lanes name the missing capability and replacement lane. They do
    not become passes. Publish bounded reports/artifacts with digests and no
    absolute paths, credentials, process IDs, pointers, or unrelated screen

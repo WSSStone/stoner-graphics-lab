@@ -73,19 +73,24 @@ profile for other lanes. A target/profile mismatch fails closed.
 ```bash
 python3 .github/scripts/run_production_content_validation.py \
   --profile medium \
-  --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json \
+  --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-X86_64.json \
   --build-root Build/Mac/Release \
   --output Build/Validation/028/medium-metal \
   --acquire-missing \
-  --timeout-seconds 3000
+  --timeout-seconds 3900
 ```
 
 Medium executes every admitted package through clean/warm 100-percent reuse,
 strict no-source loading, semantic equivalence, and 1,000 lifecycle cycles with
-cycles 1-20 as warm-up. The complete package lane must finish within 50 minutes;
-the native lifecycle receives at most 40 minutes inside that enclosing budget.
-The gate enforces RSS growth from the post-warm-up sample to the terminal
-sample at most 16 MiB.
+cycles 1-20 as warm-up. Hosted execution retains hard requirements for exact
+cycle/capture/readback counts, native proof, zero terminal owners, and stale-
+handle rejection. The complete package and native stages have operational
+timeouts of 3,900 and 3,600 seconds inside the 90-minute workflow job.
+
+Hosted RSS, task-VM, allocator, peak-memory, and elapsed-time fields are reported
+as observations and do not independently fail a completed correctness run. Do
+not interpret this command as RSS or performance authority. The 16 MiB RSS hard
+gate belongs to a controlled physical run that passes authority preflight.
 
 ## 5. Run Hardware Image Acceptance
 
@@ -114,10 +119,11 @@ Use right-drag look, W/S/A/D/Q/E movement, Shift acceleration, wheel FOV,
 accepted preset or image baseline. Copying a reviewed candidate into a new
 workload revision is an explicit implementation/review action and requires the
 complete image recalibration below. The preview renders a 1024-by-1024
-calibration image and the hardware gate renders its 256-by-256 acceptance
-image. Both use the same square aspect ratio, near/far planes, coordinate
-convention, and frozen projection matrix. Resizing the window changes only the
-aspect-preserving letterboxed presentation.
+navigation image, while every formal calibration capture, accepted reference,
+and hardware-gate comparison uses the canonical 512-by-512 acceptance extent.
+Both use the same square aspect ratio, near/far planes, coordinate convention,
+and frozen projection matrix. Resizing the window changes only the aspect-
+preserving letterboxed presentation; it cannot change the formal render target.
 
 ```bash
 STONER_PRODUCTION_VISIBLE=1 \
@@ -137,6 +143,15 @@ device-class baseline is failure, not an automatically created reference. The
 runner derives the class by exact canonical capability-signature match; it does
 not accept an arbitrary caller-provided class token.
 
+Formal comparison never translates, scales, crops, warps, resamples, or searches
+for a best image alignment. Semantic material/normal/depth/lighting checks use
+versioned bounded regions with minimum sample coverage rather than one exact
+pixel. Calibration must reject an intentional one-pixel whole-image translation.
+The physical lane must also prove exclusive runner ownership, the exact device
+and software/workload revision, default production allocator behavior, and the
+declared RSS sampling protocol before it can emit authoritative RSS/image
+evidence.
+
 ## 6. Validate Reports and Privacy
 
 ```bash
@@ -153,10 +168,11 @@ capture metadata.
 
 - `feature-028-production-content.yml`: relevant PR/push regular matrix and
   weekly/manual isolated per-package Intel Metal medium lanes with an
-  exact-package aggregate gate. Arm64 Metal remains in the regular matrix and
-  required physical M4 hardware closeout.
+  exact-package functional/lifecycle aggregate gate. Hosted RSS/timing remains
+  observation/operational evidence. Arm64 Metal remains in the regular matrix
+  and required physical M4 hardware closeout.
 - `feature-028-production-hardware.yml`: explicit Windows Vulkan and macOS
-  Vulkan/Metal hardware closeout/reference-change workflow.
+  Vulkan/Metal controlled-physical RSS/image closeout/reference-change workflow.
 - Local commands and CI call the same Python runner and profile files.
 
 Before Feature 028 closes, retain passing final-revision evidence for Debug,

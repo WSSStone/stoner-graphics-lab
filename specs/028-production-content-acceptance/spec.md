@@ -20,6 +20,12 @@
 - Q: Sponza 的初始正面构图不适合作为最终图像基线时，Phase 028 应如何选择并冻结视角？ → A: 增加 strict-cooked、native、calibration-only 自由相机预览；维护者选择中庭纵深构图后保存 row-major View 与 Projection 矩阵，正式 gate 仅按 workload revision 消费代码内冻结预设，绝不消费交互状态或调用方覆盖值。
 - Q: 修正 native winding 后 Lantern 显示正确正面但现有无抗锯齿画面仍有明显锯齿，Phase 028 是否应同时加入 AA？ → A: 不扩展本 phase；将正确 winding、相机侧灯光和 `sampleCount=1`/无通用后处理输出冻结为 `production-content-lantern-v2` 并重新验收。后处理与抗锯齿在 Feature 028 收尾后另行改造 roadmap，届时必须升级受影响 workload revision 并重新校准。
 
+### Session 2026-08-27
+
+- Q: GitHub-hosted runner 是否可以继续作为精确 RSS 与耗时的权威复现环境？ → A: 不可以。Hosted runner 继续严格裁决构建、确定性、strict runtime、完整生命周期工作量、readback/capture 计数、owner 归零和 stale-handle 拒绝；RSS、allocator/task-VM 与 wall-clock 数据保留为有界 observation，不能单独把 hosted 结果判为失败。固定、受控、独占的物理 runner 才能拥有校准后的 RSS 硬门禁。
+- Q: Hosted 环境不稳定是否意味着放宽图像标准？ → A: 不意味着。正式 baseline、semantic attachment 和 FLIP 仍只在精确 device class 的固定物理硬件上作为硬门禁；不允许自动平移、缩放、裁剪、重采样或最佳对齐。容易受边缘覆盖影响的单像素 semantic probe 必须改为有界区域统计。
+- Q: Hosted medium 的耗时如何处理？ → A: 耗时仅是防止失控作业的 operational timeout，不是性能合格线。Hosted Sponza 保留完整 1,000/20 生命周期工作量，但完整 package/native 上限调整为 3,900/3,600 秒并保持 90 分钟 workflow 外层界限；真实性能预算不由 hosted runner 裁决。
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Admit Representative Production Content (Priority: P1)
@@ -175,7 +181,9 @@ corpus and workload, and compare their normalized reports across repeated runs.
 2. **Given** a scheduled or manually requested medium profile, **When** its
    pinned corpus is available, **Then** it exercises every accepted package,
    longer lifecycle repetition, cold and warm processing, and records timing
-   and memory evidence separately from deterministic correctness evidence.
+   and memory evidence separately from deterministic correctness evidence;
+   hosted timing/RSS observations do not override completed functional,
+   ownership, stale-handle, capture, or readback results.
 3. **Given** supported Windows Vulkan and macOS Vulkan/Metal graphics hardware,
    **When** the hardware profile runs, **Then** it captures visible evidence and
    native readback for each required backend; Linux requires successful build,
@@ -193,6 +201,15 @@ corpus and workload, and compare their normalized reports across repeated runs.
    the weekly schedule or a feature/release closeout, **Then** the medium profile
    is required; **Given** Feature 028 closeout or a reference-image/render-path
    change, **Then** the applicable Windows/macOS hardware profile is required.
+7. **Given** a GitHub-hosted medium lane that completes the exact declared work
+   with all ownership and stale-handle rules satisfied, **When** allocator-
+   retained pages or wall-clock variance exceed a previously observed value,
+   **Then** the report preserves the measurements and environment class without
+   treating either observation as an authoritative correctness failure.
+8. **Given** a fixed physical hardware lane, **When** its preflight proves the
+   registered device, exclusive runner ownership, default production allocator,
+   frozen software image, and declared workload, **Then** calibrated RSS and
+   image policies are authoritative and any exceeded hard limit fails closed.
 
 ---
 
@@ -226,7 +243,11 @@ corpus and generation evidence.
    report is published, **Then** those fields are separated from deterministic
    identities and contain no absolute host paths, credentials, user names,
    native pointer values, or unrelated screen content.
-4. **Given** a failed acceptance rule, **When** a developer reads the result,
+4. **Given** any timing, RSS, allocator, or image measurement, **When** it is
+   serialized, **Then** the report identifies whether it is a hard requirement,
+   an operational timeout, or an observation and identifies the environment
+   class allowed to make that classification.
+5. **Given** a failed acceptance rule, **When** a developer reads the result,
    **Then** the report identifies the first stable failure, affected Asset or
    backend subject, expected condition, observed category, and next relevant
    reproduction command.
@@ -268,6 +289,14 @@ corpus and generation evidence.
   observed class.
 - Timing or memory observations are noisy, improve or regress independently of
   deterministic output, or are compared across incomparable host classes.
+- A hosted macOS run returns every tracked owner to zero while process RSS grows
+  because allocator pages become reusable rather than physically resident.
+- A hosted job completes all correctness work outside a prior wall-clock target
+  but inside its operational timeout, or times out without producing terminal
+  lifecycle evidence.
+- A physical runner is shared, updated, thermally constrained, or otherwise
+  fails its authority preflight; it must not emit an authoritative RSS/image
+  pass or failure until the environment is restored.
 - Repository or automation storage limits are exceeded by the medium corpus or
   generated evidence.
 
@@ -436,23 +465,14 @@ corpus and generation evidence.
   ownership to declared terminal baselines without stale-handle aliasing. The
   regular profile MUST complete 20 full cycles and use cycles 1-2 as warm-up;
   the medium/hardware profile MUST complete 1,000 full cycles and use cycles
-  1-20 as warm-up. Warm-up cycles count toward the required total. Net RSS
-  growth from the sample immediately after warm-up through the terminal sample
-  MUST NOT exceed 16 MiB. The exact Linux Vulkan native-headless 20/2 authority
-  MUST start its child process with one glibc arena so freed arena
-  fragmentation is bounded before the unchanged trim/quiescence/single-sample
-  protocol; this override MUST NOT apply to visible hardware, other platforms,
-  or other lifecycle shapes and MUST NOT substitute for live ownership checks.
-  The exact hosted macOS Intel Metal native-headless 1,000/20 authority MUST
-  likewise start with Apple libmalloc space-efficient mode, Nano disabled, and
-  one general allocator magazine so freed large-cache, Nano, tiny/small, and
-  medium allocator residency cannot decide the unchanged RSS gate. Hosted
-  arm64 macOS MUST NOT claim this RSS authority because its default Xzone
-  allocator cannot be disabled by a supported production environment override;
-  the required physical M4 hardware lane remains the arm64 1,000-cycle visible
-  authority under the default allocator. The hosted Intel overrides MUST NOT
-  apply to visible hardware, non-Metal execution, or other lifecycle shapes and
-  MUST NOT substitute for live ownership checks. Lifecycle image validation
+  1-20 as warm-up. Warm-up cycles count toward the required total. Every lane
+  MUST treat exact cycle/capture/readback counts, terminal owner baselines, and
+  stale-handle rejection as hard correctness gates. A fixed physical lane that
+  passes authority preflight MUST additionally keep net RSS growth from the
+  sample immediately after warm-up through the terminal sample at or below
+  16 MiB. A GitHub-hosted lane MUST collect the same RSS endpoints plus bounded
+  task-VM/allocator diagnostics as observations, but those values MUST NOT
+  decide its result or substitute for live ownership checks. Lifecycle image validation
   MUST reuse bounded CPU readback storage, read host-visible Metal buffers
   directly after the storage-mode-required synchronization, and allocate a
   second native staging buffer only for device-local storage. This optimization
@@ -467,7 +487,9 @@ corpus and generation evidence.
   package through clean and unchanged warm cooking, 100% reuse of eligible
   payloads, strict-cooked loading with source unavailable, complete normalized
   semantic equivalence, 1,000 complete lifecycle cycles, and aggregate
-  dependency, timing, peak-memory, RSS-growth, and diagnostic evidence.
+  dependency, timing, peak-memory, RSS-growth, and diagnostic evidence. Hosted
+  aggregation MUST require the exact work, lifecycle, ownership, stale, capture,
+  and readback contracts while preserving timing and memory as observations.
 - **FR-034**: Regular validation MUST run automatically for Windows, macOS, and
   Linux for every pull request or push that affects Asset delivery, Renderer,
   RHI, native backends, production composition, acceptance policy, or their
@@ -490,7 +512,10 @@ corpus and generation evidence.
   render path changes.
 - **FR-038**: Deterministic correctness evidence MUST be separated from timing,
   memory, device-description, and visible-image observations so environment
-  variation cannot alter Asset, cook, manifest, or generation identities.
+  variation cannot alter Asset, cook, manifest, or generation identities. Each
+  environment-sensitive measurement MUST declare `required`, `operational`, or
+  `observed` disposition; observations MUST NOT be promoted to hard authority by
+  aggregation or caller input.
 - **FR-039**: Every acceptance report MUST identify the corpus revision,
   package/root identity, source digest set, target profile, generation identity,
   operating mode, dependency coverage, workload revision, result category, and
@@ -499,11 +524,13 @@ corpus and generation evidence.
   reports MUST contain a real generation digest. A native-render report MUST
   additionally identify an
   explicit Vulkan or Metal backend, exact registered device class, and
-  perceptual result or a structured `not-run` reason when execution failed
-  before comparison. A Failed or Unsupported report MUST contain one structured
+  either a measured perceptual result when image authority is required, a
+  structured `not-required` reason when the profile owns no image authority, or
+  a structured `not-run` reason when execution failed before a required
+  comparison. A Failed or Unsupported report MUST contain one structured
   first failure; a Passed report MUST contain no failure and, when native, a
-  measured passing perceptual result. Schema validation MUST enforce these
-  conditions.
+  measured passing perceptual result only when its profile requires image
+  authority. Schema validation MUST enforce these conditions.
 - **FR-040**: Reports and diagnostics MUST use stable bounded ordering, stable
   first-failure selection, actionable failure categories, and normalized Asset,
   dependency, stage, backend, and target subjects. A canonical report MUST NOT
@@ -555,6 +582,36 @@ corpus and generation evidence.
   normal versioned image process; later anti-aliasing or post-processing MUST
   be treated as a render-policy change under FR-049 rather than replacing an
   accepted reference in place.
+- **FR-051**: Validation MUST derive an execution-environment class from a
+  workflow-owned contract rather than an unrestricted caller string. GitHub-
+  hosted, controlled physical, and local diagnostic execution MUST remain
+  distinct; a local or hosted run MUST NOT claim physical RSS/image authority.
+- **FR-052**: A controlled physical lane MAY claim RSS authority only after
+  proving the expected registered device, exclusive runner ownership, frozen
+  workload/software revision, default production allocator behavior, and the
+  declared warm-up/sample protocol. Failed preflight MUST be Unsupported with a
+  replacement lane, not an observational pass.
+- **FR-053**: Hosted medium execution MUST preserve 1,000 cycles, 20 included
+  warm-up cycles, 2,000 Deferred/Forward captures, seven post-lifecycle
+  authoritative readbacks, zero terminal owners, and stale-handle rejection.
+  Its RSS, task-VM, allocator, peak-memory, and wall-clock measurements MUST be
+  reported but MUST NOT independently fail a completed correctness run.
+- **FR-054**: Hosted medium package execution MUST use a 3,900-second complete
+  operational timeout and an independent 3,600-second native timeout inside a
+  90-minute workflow job. Timeout remains a failure to complete required work,
+  but elapsed time below the cap is not a performance qualification.
+- **FR-055**: Semantic image probes that classify material, orientation, normal,
+  depth, lighting, or background regions MUST use bounded region statistics and
+  minimum valid-sample coverage rather than one exact pixel. Region definitions
+  remain versioned by workload and mutations MUST prove that wrong semantics are
+  rejected.
+- **FR-056**: Perceptual image comparison MUST require identical frozen camera,
+  canonical 512-by-512 acceptance extent, normalization, and pixel coordinates.
+  The 1024-by-1024 interactive preview is not an acceptance input. Validation
+  MUST NOT translate, scale, crop, warp, resample, or search for a best
+  alignment; an intentional one-pixel whole-image translation MUST be rejected
+  in calibration mutation coverage, and any non-512 formal candidate or
+  reference MUST fail before semantic or FLIP comparison.
 
 ### Key Entities
 
@@ -579,6 +636,9 @@ corpus and generation evidence.
 - **Validation Profile**: Named regular, medium, or hardware workload defining
   exact corpus membership, target, repetition, environment prerequisites,
   resource bounds, required gates, and evidence outputs.
+- **Environment Authority Policy**: Versioned mapping from trusted execution
+  environment class and measurement kind to `required`, `operational`, or
+  `observed` disposition, including preflight and replacement-lane rules.
 - **Acceptance Evidence Set**: Bounded collection of normalized reports,
   readbacks, visible captures, timing and memory observations, diagnostics, and
   content hashes that explains one validation result.
@@ -629,15 +689,17 @@ corpus and generation evidence.
   release, and recreate cycles with cycles 1-2 as warm-up; each medium/hardware
   gate completes 1,000 cycles with cycles 1-20 as warm-up. Warm-up cycles count
   toward the total. No cycle produces stale-handle aliasing or double release,
-  all tracked ownership counts return to baseline, and RSS growth from the
-  sample immediately after warm-up through the terminal sample is at most
-  16 MiB.
+  all tracked ownership counts return to baseline. Controlled physical hardware
+  lanes additionally keep RSS growth from the sample immediately after warm-up
+  through the terminal sample at most 16 MiB; hosted lanes produce complete
+  endpoint and diagnostic observations without using RSS as their result.
 - **SC-010**: The regular profile completes its bounded platform-applicable
   source-to-cooked-to-runtime gate within 10 minutes per hosted job, while the
-  medium profile completes within 50 minutes per declared package lane, with
-  its native lifecycle independently capped at 40 minutes, and the serialized
+  hosted medium profile is bounded by a 3,900-second package timeout and an
+  independent 3,600-second native timeout inside a 90-minute job, and the serialized
   visible hardware profile completes within 60 minutes per declared lane;
-  timing observations do not affect deterministic result identities.
+  these are operational bounds rather than hosted performance qualifications,
+  and timing observations do not affect deterministic result identities.
 - **SC-011**: Windows, macOS, and Linux automated Debug and strict Release
   validation plus all applicable sanitizer, deterministic, and native gates
   pass on the final revision; every required hardware-only gate has accepted,
@@ -660,6 +722,16 @@ corpus and generation evidence.
   byte-identical View and Projection inputs for Deferred and Forward, and 100%
   of invalid or caller-overridden formal camera attempts fail before native
   submission.
+- **SC-016**: Report validation proves that 100% of hosted RSS/timing records are
+  marked observed/operational, 100% of controlled-physical RSS/image decisions
+  include successful authority preflight, and no aggregate can convert an
+  observation into a hard pass or failure.
+- **SC-017**: Every workload semantic probe passes its accepted image and rejects
+  the existing semantic mutations plus an intentional one-pixel translation;
+  bounded edge perturbations that preserve the required region statistics do
+  not fail solely because one sampled pixel crosses a primitive edge. Every
+  formal candidate/reference pair is exactly 512-by-512, and 100% of mismatched
+  formal extents fail before comparison.
 
 ## Assumptions
 
@@ -687,8 +759,10 @@ corpus and generation evidence.
   native device and evidence prerequisites are proved rather than inferred.
 - Screenshots capture only the application window or validated render surface,
   never the full desktop.
-- Timing and memory thresholds are acceptance budgets for the declared corpus
-  and environment class, not general engine performance guarantees.
+- Hosted timing limits are operational cancellation bounds and hosted memory is
+  observation-only. The 16 MiB RSS threshold is an acceptance budget only for
+  a controlled physical environment that passes authority preflight; neither is
+  a general engine performance guarantee.
 - New source formats, animation, editor workflows, hot reload, packaging,
   streaming, Meshlets, virtual geometry, ray tracing, and broad visual redesign
   remain assigned to later roadmap work.
