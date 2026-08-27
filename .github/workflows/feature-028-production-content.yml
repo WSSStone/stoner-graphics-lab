@@ -218,7 +218,7 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     name: Medium Metal (${{ matrix.slug }})
     runs-on: macos-26-intel
-    timeout-minutes: 60
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:

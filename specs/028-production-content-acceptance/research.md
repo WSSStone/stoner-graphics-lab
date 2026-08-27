@@ -1245,3 +1245,45 @@ from 5,341,832 to 5,407,368 bytes, heap in-use from 1,503,488 to 1,672,448
 bytes, and heap allocated remained 25,165,824 bytes. This validates collection
 and serialization without attempting to infer the Intel retained category;
 the isolated Intel hosted replay remains authoritative for that diagnosis.
+
+## Decision 44: Remove the diagnosed Intel medium region and make the outer job executable
+
+Hosted run `33062479846` at revision `b7b64c6` supplied the category evidence
+that the preceding allocator hypotheses lacked. Lantern completed 1,000 cycles
+and 2,000 captures with zero terminal owners and stale-handle rejection, but
+authoritative resident size moved from 10,940,416 to 56,123,392 bytes, a
+45,182,976-byte increase. Physical footprint and internal bytes each increased
+only 512,000 bytes, external bytes stayed at 7,176,192, and compressed bytes
+stayed zero. In contrast, reusable bytes moved from 2,076,672 to 46,747,648,
+an increase of 44,670,976 bytes. All-zone malloc also moved from 1,288,400 to
+37,662,544 bytes in use and from 9,494,528 to 68,362,240 bytes allocated. The
+failed post-lifecycle native/readback assertions are downstream of the
+fail-closed RSS return, not an independent rendering regression.
+
+Apple's scalable allocator implements medium allocations in 128 MiB regions.
+`MallocSpaceEfficient=1` enables aggressive madvise and restricts medium to one
+magazine, but Apple's implementation explicitly leaves disabling medium as the
+next space-efficient action when aggressive madvise is insufficient and
+accepts `MallocMediumZone=0`. The observed reusable-page increase, flat
+physical footprint, and all-zone heap growth therefore support one bounded
+change: disable medium only in the exact hosted Intel Metal 1,000/20
+native-headless child. Regular Metal, visible hardware, other lifecycle shapes,
+and the authoritative `resident_size`/16 MiB contract remain unchanged.
+
+The same run exposed an outer scheduling contradiction rather than a Sponza
+content failure. Sponza passed every pre-native stage and ran native work for
+2,053 seconds before GitHub cancelled the job exactly at its 60-minute limit.
+The 3,000-second package lane could not coexist with a preceding strict Release
+build inside that bound. The package and native caps remain 3,000 and 2,400
+seconds; only the enclosing workflow job becomes a bounded 90 minutes so those
+existing caps can execute and evidence upload can finish. Complete Intel hosted
+revalidation remains authoritative for both changes.
+
+Strict Debug and Release builds, 40 runner tests, seven workflow-contract tests,
+three medium-aggregate tests, and the targeted Core/Metal/production suites
+passed. The exact local arm64 Lantern medium replay then passed in 171.462
+profile seconds and 160.685 native seconds with 1,000/20 cycles, 2,000 captures,
+seven readbacks, zero terminal owners, and stale-handle rejection. RSS decreased
+from 544,325,632 to 426,262,528 bytes (547,405,824 peak), so reported growth was
+zero. The arm64 run receives no allocator overrides; it validates the new
+Intel-only scope without substituting for Intel RSS authority.

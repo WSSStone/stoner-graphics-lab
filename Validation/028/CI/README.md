@@ -126,6 +126,29 @@ and summary SHA-256
 
 ## Superseded Hosted Evidence
 
+Hosted run `33062479846` on revision
+`b7b64c6f0e1480d5bfd317bb12652edadc6c6dc2` passed every regular producer and
+consumer plus ASan/UBSan and TSan, but is not closeout authority. Lantern
+completed 1,000 cycles and 2,000 captures with zero terminal owners and stale
+rejection; authoritative RSS grew 45,182,976 bytes (10,940,416 to 56,123,392).
+The new diagnostic localized 44,670,976 bytes of that increase to TASK_VM
+reusable pages while physical footprint grew only 512,000 bytes; all-zone
+malloc ended at 37,662,544 bytes in use and 68,362,240 bytes allocated. This
+supports disabling the Intel scalable allocator's medium region without
+changing the sampled RSS or 16 MiB gate. Sponza passed every pre-native stage
+but was cancelled after 2,053 native seconds by the enclosing 60-minute job,
+before its independent 2,400-second native cap. The successor keeps the
+3,000/2,400-second lane caps and uses a 90-minute workflow bound.
+
+The successor contract passed strict Debug/Release, 40 runner tests, seven
+workflow tests, three aggregate tests, and targeted Core/Metal/production
+suites locally. Its exact arm64 Lantern medium replay completed in 171.462
+seconds with 1,000/20 cycles, 2,000 captures, seven readbacks, zero owners,
+stale rejection, and zero positive RSS growth (544,325,632 to 426,262,528
+bytes; 547,405,824 peak). The allocator override is fail-closed to x86_64, so
+this is regression evidence rather than a substitute for the required Intel
+replay.
+
 Hosted run `33052483658` on revision
 `a4ce1fdfa23b0ac576e2fc027f1c6968a441fb29` passed all regular producers,
 independent consumers, ASan/UBSan, and TSan. Its Intel Lantern medium shard

@@ -599,12 +599,17 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 20, 2, False,
             ),
         )
-        macos_metal = {"platform": "macos", "graphicsBackend": "metal"}
+        macos_metal = {
+            "platform": "macos",
+            "graphicsBackend": "metal",
+            "cpuArchitecture": "x86_64",
+        }
         self.assertEqual(
             {
                 "MallocSpaceEfficient": "1",
                 "MallocNanoZone": "0",
                 "MallocMaxMagazines": "1",
+                "MallocMediumZone": "0",
             },
             self.module.native_allocator_authority_environment(
                 macos_metal, 1000, 20, False,
@@ -619,6 +624,19 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                     macos_metal, cycles, warmup, visible,
                 ),
             )
+        self.assertEqual(
+            {},
+            self.module.native_allocator_authority_environment(
+                {
+                    "platform": "macos",
+                    "graphicsBackend": "metal",
+                    "cpuArchitecture": "arm64",
+                },
+                1000,
+                20,
+                False,
+            ),
+        )
 
     def test_each_production_package_has_an_exact_workload_revision(self):
         self.assertEqual(

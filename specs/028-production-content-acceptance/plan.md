@@ -309,8 +309,12 @@ Validation. No new runtime module is introduced.
    physical M4 1,000-cycle visible hardware lane under the default allocator.
    Space-efficient mode enables aggressive madvise, disables the
    large-allocation cache, and bounds only the medium allocator to one
-   magazine; the additional two settings independently bound Nano and the
-   tiny/small magazine allocator.
+   magazine; the additional settings independently bound Nano and the
+   tiny/small magazine allocator. The exact Intel 1,000/20 child also disables
+   the medium allocator after endpoint telemetry proved that its remaining
+   region accumulated reusable pages while physical footprint stayed flat;
+   released medium-size validation allocations therefore use the normal
+   small/large reclamation paths.
    Do not add allocator residency by allocating and destroying an additional
    full-resolution Metal staging buffer and CPU vector for every lifecycle
    readback. Shared host-visible buffers are copied directly after completed
@@ -329,8 +333,9 @@ Validation. No new runtime module is introduced.
    hosted Intel Metal lane with a 3,000-second complete-lane deadline and an
    independently bounded 2,400-second native lifecycle allowance. This keeps
    cook, publication, equivalence, and strict-runtime setup from silently
-   consuming the native proof's budget while preserving the 60-minute workflow
-   job bound and the complete 1,000/20 lifecycle workload.
+   consuming the native proof's budget. The enclosing workflow job is bounded
+   to 90 minutes so its strict Release build plus the complete 50-minute
+   package lane can finish; the lifecycle remains exactly 1,000/20.
    Each lane owns its package's complete clean/warm/strict/equivalence/
    1,000-cycle proof, and an aggregate job requires the exact profile package
    set plus identical corpus, target, and revision authority. Local full-profile

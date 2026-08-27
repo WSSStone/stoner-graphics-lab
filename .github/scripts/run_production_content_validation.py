@@ -745,19 +745,24 @@ def native_allocator_authority_environment(
     if (
         contract["platform"] == "macos"
         and contract["graphicsBackend"] == "metal"
+        and contract.get("cpuArchitecture") == "x86_64"
         and (cycles, warmup_cycles) == (1000, 20)
         and not require_visible
     ):
         # Apple libmalloc's space-efficient switch enables aggressive madvise,
         # disables the large allocation cache, and bounds only the medium
-        # allocator to one magazine. Nano and the general tiny/small magazine
-        # count are configured independently, so bound those too for this exact
-        # long-running RSS authority. Live allocations and the existing
-        # all-zone relief/single-sample gate remain authoritative.
+        # allocator to one magazine. Intel endpoint telemetry showed that one
+        # remaining medium region accumulated about 45 MiB of reusable pages
+        # while physical footprint stayed flat, so route that allocation class
+        # through the small/large paths whose released regions are reclaimed by
+        # the existing all-zone relief. Nano and the general tiny/small magazine
+        # count remain independently bounded. Live allocations and the existing
+        # resident-size/single-sample gate remain authoritative.
         return {
             "MallocSpaceEfficient": "1",
             "MallocNanoZone": "0",
             "MallocMaxMagazines": "1",
+            "MallocMediumZone": "0",
         }
     return {}
 
