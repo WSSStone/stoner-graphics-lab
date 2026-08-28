@@ -120,7 +120,7 @@ Realization: Validate -> Create transaction -> Commit snapshot
                                   `-> Failure -> Rollback
 Baseline:    Candidate -> Calibrated -> Reviewed -> Accepted -> Superseded
 Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
-<p>regular 固定 20 次、1-2 warm-up；medium/hardware 固定 1,000 次、1-20 warm-up。warm-up 计入总次数，内部 owners 必须归零且 stale handle 必须被拒绝。GitHub-hosted RSS、task-VM、allocator 与耗时只作为 observation；只有通过 exact device、独占 runner、冻结 revision、默认 allocator、声明采样协议和窗口 readback preflight 的 controlled-physical lane 才裁决 warm-up 到 terminal 的 16 MiB RSS 与 accepted-image gate。regular 的 operational cap 为 600 秒；hosted medium 每包/native 为 5,400/4,800 秒并置于 120 分钟 job；controlled hardware 保持 3,600 秒串行预算。hosted medium 的两个 package 使用隔离 Intel Metal shard，hardware 因可见窗口和 capture device 资源而保持串行。</p>
+<p>regular 固定 20 次、1-2 warm-up；medium/hardware 固定 1,000 次、1-20 warm-up。warm-up 计入总次数，内部 owners 必须归零且 stale handle 必须被拒绝。GitHub-hosted RSS、task-VM、allocator 与耗时只作为 observation；Feature 028 只有维护者本机 native arm64 Metal 通过 exact target/device class、非 Rosetta、独占进程锁、clean committed revision、默认 allocator、声明采样协议和窗口 readback preflight 后，才裁决 warm-up 到 terminal 的 16 MiB RSS 与 accepted-image gate。regular 的 operational cap 为 600 秒；hosted medium 每包/native 为 5,400/4,800 秒并置于 120 分钟 job；本机 Metal hardware 保持 3,600 秒串行预算。Windows/macOS Vulkan 物理资格延期到未来 hardware lab，push 不再排队不存在的 self-hosted runner。</p>
 
 <h3>3. 失败模式与调试入口</h3>
 <table><thead><tr><th>症状</th><th>定位方法</th><th>本期真实案例</th></tr></thead><tbody>
@@ -213,7 +213,7 @@ Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
 <li><strong>Native image：</strong>Vulkan/Metal attachment readback、window-only capture、semantic probes、FLIP。</li>
 <li><strong>Lifecycle：</strong>20/2 与 1000/20 固定循环、counter/stale/RSS、timeout。</li>
 <li><strong>Camera/image revision：</strong>Sponza v2 中庭 preset、Lantern v2 正确 -X 表面与灯光、逐 device-class 明确接受。</li>
-<li><strong>Automation/evidence：</strong>regular/medium/hardware workflows、canonical reports、privacy 和 artifact manifests。</li>
+<li><strong>Automation/evidence：</strong>hosted regular/medium workflow、本机 Metal hardware command、canonical reports、privacy 和 artifact manifests。</li>
 </ol>
 
 <h3>2. 验收标准与当前结果</h3>

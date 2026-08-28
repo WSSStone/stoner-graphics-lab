@@ -81,27 +81,28 @@ PROFILE_FIELDS = {
     "requiredGates", "authorityPolicy",
 }
 EXECUTION_CLASSES = (
-    "github-hosted", "controlled-physical", "local-diagnostic",
+    "github-hosted", "maintainer-local-metal", "local-diagnostic",
 )
 MEASUREMENT_DISPOSITIONS = (
     "required", "operational", "observed", "not-required",
 )
-PHYSICAL_PREFLIGHT_ENVIRONMENT = (
-    "STONER_PHYSICAL_DEVICE_CLASS",
-    "STONER_PHYSICAL_EXCLUSIVE",
-    "STONER_PHYSICAL_FROZEN_REVISION",
-    "STONER_PHYSICAL_ALLOCATOR",
-    "STONER_PHYSICAL_SAMPLE_PROTOCOL",
-    "STONER_PHYSICAL_PRESENTATION",
-)
 PHYSICAL_PREFLIGHT_NAMES = (
+    "native-arm64-macos-metal",
     "registered-device-class",
-    "exclusive-runner-device-display",
-    "frozen-revision-and-software",
+    "exclusive-local-metal-session",
+    "clean-frozen-revision-and-software",
     "default-production-allocator",
-    "declared-sample-protocol",
-    "window-presentation-and-readback",
+    "declared-sample-and-presentation-protocol",
 )
+LOCAL_METAL_ALLOCATOR_OVERRIDES = (
+    "MallocMediumZone", "MallocNanoZone", "MallocMaxMagazines",
+    "MallocSpaceEfficient", "MallocXzone", "MALLOC_ARENA_MAX",
+)
+LOCAL_METAL_TARGET = Path(
+    "Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json"
+)
+LOCAL_METAL_DEVICE_CLASS = "macos.apple8.metal.rgba8"
+_LOCAL_METAL_AUTHORITY_LOCKS: dict[str, object] = {}
 PROFILE_CONTRACTS = {
     "regular": {
         "cycles": 20,
@@ -180,10 +181,10 @@ def expected_authority_policy(profile_name: str) -> dict:
     if profile_name == "hardware":
         return {
             "allowedExecutionClasses": [
-                "controlled-physical", "local-diagnostic",
+                "maintainer-local-metal", "local-diagnostic",
             ],
             "executionClasses": {
-                "controlled-physical": physical,
+                "maintainer-local-metal": physical,
                 "local-diagnostic": local,
             },
             "physicalPreflight": list(PHYSICAL_PREFLIGHT_NAMES),
@@ -191,50 +192,112 @@ def expected_authority_policy(profile_name: str) -> dict:
     raise ValueError("production validation profile is invalid")
 
 
-def _validate_physical_preflight(environment: dict[str, str]) -> dict:
-    missing = [
-        key for key in PHYSICAL_PREFLIGHT_ENVIRONMENT
-        if not environment.get(key)
-    ]
-    if missing:
+def _git_local_authority_revision(repository_root: Path) -> str:
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repository_root,
+        check=True, capture_output=True, text=True, timeout=10,
+    ).stdout.strip()
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        cwd=repository_root, check=True, capture_output=True, text=True,
+        timeout=10,
+    ).stdout.strip()
+    if not re.fullmatch(r"[0-9a-f]{40}", revision) or dirty:
         raise StageFailure(
-            "unsupported", "physical-preflight-incomplete",
-            "missing " + ",".join(missing),
+            "unsupported", "local-metal-revision-not-frozen",
+            "maintainer local Metal authority requires a clean committed HEAD",
         )
-    revision = environment["STONER_PHYSICAL_FROZEN_REVISION"]
+    return revision
+
+
+def _acquire_local_metal_authority_lock(repository_root: Path) -> str:
+    if platform.system().lower() != "darwin":
+        raise StageFailure(
+            "unsupported", "local-metal-lock-unavailable",
+            "exclusive local Metal authority locking requires macOS",
+        )
+    import fcntl
+
+    token = hashlib.sha256(
+        str(repository_root.resolve()).encode("utf-8")
+    ).hexdigest()[:16]
+    lock_path = Path("/tmp") / f"stoner-feature-028-metal-{token}.lock"
+    key = str(lock_path)
+    if key in _LOCAL_METAL_AUTHORITY_LOCKS:
+        return hashlib.sha256(key.encode("utf-8")).hexdigest()
+    handle = lock_path.open("a+", encoding="utf-8")
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError as error:
+        handle.close()
+        raise StageFailure(
+            "unsupported", "local-metal-session-not-exclusive",
+            "another Feature 028 local Metal authority session owns the device",
+        ) from error
+    _LOCAL_METAL_AUTHORITY_LOCKS[key] = handle
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()
+
+
+def _validate_local_metal_preflight(
+    repository_root: Path,
+    target_profile: Path,
+    target_contract: dict,
+    environment: dict[str, str],
+) -> dict:
+    expected_target = (repository_root / LOCAL_METAL_TARGET).resolve()
     if (
-        environment["STONER_PHYSICAL_EXCLUSIVE"] != "1"
-        or environment["STONER_PHYSICAL_ALLOCATOR"] !=
-            "default-production"
-        or environment["STONER_PHYSICAL_SAMPLE_PROTOCOL"] !=
-            "warmup20-terminal1000"
-        or environment["STONER_PHYSICAL_PRESENTATION"] !=
-            "window-readback"
-        or not re.fullmatch(
-            r"[a-z0-9][a-z0-9.-]{0,95}",
-            environment["STONER_PHYSICAL_DEVICE_CLASS"],
-        )
-        or not re.fullmatch(r"[0-9a-f]{40}", revision)
-        or revision != environment.get("GITHUB_SHA")
+        platform.system().lower() != "darwin"
+        or platform.machine().lower() not in ("arm64", "aarch64")
+        or rosetta_translated("macos")
+        or target_profile.resolve() != expected_target
+        or target_contract.get("platform") != "macos"
+        or target_contract.get("cpuArchitecture") != "arm64"
+        or target_contract.get("graphicsBackend") != "metal"
     ):
         raise StageFailure(
-            "unsupported", "physical-preflight-invalid",
-            "controlled physical preflight values differ",
+            "unsupported", "local-metal-host-mismatch",
+            "authority requires native arm64 macOS and Mac-Metal-Arm64.json",
         )
-    return {
-        "deviceClass": environment["STONER_PHYSICAL_DEVICE_CLASS"],
+    forbidden = [
+        key for key in LOCAL_METAL_ALLOCATOR_OVERRIDES
+        if environment.get(key) is not None
+    ]
+    if forbidden:
+        raise StageFailure(
+            "unsupported", "local-metal-allocator-overridden",
+            "default production allocator required; remove " +
+            ",".join(forbidden),
+        )
+    revision = _git_local_authority_revision(repository_root)
+    lock_digest = _acquire_local_metal_authority_lock(repository_root)
+    evidence = {
+        "authority": "maintainer-local-metal",
+        "deviceClass": LOCAL_METAL_DEVICE_CLASS,
         "exclusiveRunnerDeviceDisplay": True,
         "frozenRevision": revision,
+        "targetProfile": LOCAL_METAL_TARGET.as_posix(),
         "allocator": "default-production",
         "sampleProtocol": "warmup20-terminal1000",
         "presentation": "window-readback",
+        "lockDigest": lock_digest,
         "passed": True,
     }
+    evidence["evidenceDigest"] = hashlib.sha256(
+        json.dumps(evidence, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
+    ).hexdigest()
+    return evidence
 
 
 def classify_execution_environment(
     profile_name: str,
     environment: dict[str, str] | None = None,
+    *,
+    local_metal_authority: bool = False,
+    repository_root: Path | None = None,
+    target_profile: Path | None = None,
+    target_contract: dict | None = None,
 ) -> dict:
     environment = dict(os.environ if environment is None else environment)
     if "STONER_PRODUCTION_EXECUTION_CLASS" in environment:
@@ -242,6 +305,22 @@ def classify_execution_environment(
     policy = expected_authority_policy(profile_name)
     execution_class = "local-diagnostic"
     preflight = None
+    source = "local-default"
+    if local_metal_authority:
+        if profile_name != "hardware" or environment.get("GITHUB_ACTIONS") == "true":
+            raise StageFailure(
+                "unsupported", "local-metal-authority-scope-mismatch",
+                "local Metal authority is limited to a non-GitHub hardware run",
+            )
+        if repository_root is None or target_profile is None or target_contract is None:
+            raise ValueError(
+                "local Metal authority requires repository and target evidence"
+            )
+        preflight = _validate_local_metal_preflight(
+            repository_root, target_profile, target_contract, environment
+        )
+        execution_class = "maintainer-local-metal"
+        source = "explicit-maintainer-local"
     if environment.get("GITHUB_ACTIONS") == "true":
         workflow = environment.get("GITHUB_WORKFLOW_REF", "")
         runner_environment = environment.get("RUNNER_ENVIRONMENT")
@@ -252,14 +331,6 @@ def classify_execution_environment(
                 in workflow
         ):
             execution_class = "github-hosted"
-        elif (
-            runner_environment == "self-hosted"
-            and profile_name == "hardware"
-            and "/.github/workflows/feature-028-production-hardware.yml@"
-                in workflow
-        ):
-            execution_class = "controlled-physical"
-            preflight = _validate_physical_preflight(environment)
         else:
             raise StageFailure(
                 "unsupported", "workflow-authority-mismatch",
@@ -275,8 +346,7 @@ def classify_execution_environment(
         raise ValueError("measurement disposition is invalid")
     return {
         "executionClass": execution_class,
-        "source": "workflow" if execution_class != "local-diagnostic"
-            else "local-default",
+        "source": "workflow" if execution_class == "github-hosted" else source,
         "dispositions": dict(dispositions),
         "preflight": preflight,
     }
@@ -910,7 +980,7 @@ def native_allocator_authority_environment(
     require_visible: bool,
 ) -> dict[str, str]:
     # Acceptance must exercise the production allocator. Hosted RSS is an
-    # observation, while a controlled physical lane owns the calibrated gate;
+    # observation, while maintainer-local Metal owns the calibrated gate;
     # neither class may rewrite allocator topology to manufacture a result.
     return {}
 
@@ -1189,6 +1259,15 @@ def run_native_lifecycle(
         )
         if authority["dispositions"]["image"] == "required" else None
     )
+    if (
+        image_evidence is not None
+        and authority.get("preflight") is not None
+        and image_evidence["deviceClass"] !=
+            authority["preflight"]["deviceClass"]
+    ):
+        raise ValueError(
+            "native image device class differs from authority preflight"
+        )
     return {
         "result": "Passed",
         "seconds": result.seconds,
@@ -1714,13 +1793,19 @@ def run_profile(args: argparse.Namespace) -> dict:
     )
     target_contract = load_native_target_contract(target_profile)
     try:
-        authority = classify_execution_environment(args.profile)
+        authority = classify_execution_environment(
+            args.profile,
+            local_metal_authority=args.local_metal_authority,
+            repository_root=repository_root,
+            target_profile=target_profile,
+            target_contract=target_contract,
+        )
     except StageFailure as error:
         if error.stage != "unsupported":
             raise
         unsupported = unsupported_result(
             "unsupported", error.detail,
-            "controlled-physical-hardware",
+            "maintainer-local-metal",
         )
         result = {
             "schema": "stoner.production-cook-runtime-summary",
@@ -1882,6 +1967,12 @@ def run_profile(args: argparse.Namespace) -> dict:
                 run_selected_package, packages
             ))
     elapsed = time.monotonic() - started
+    if authority["executionClass"] == "maintainer-local-metal":
+        terminal_revision = _git_local_authority_revision(repository_root)
+        if terminal_revision != authority["preflight"]["frozenRevision"]:
+            raise RuntimeError(
+                "maintainer-local Metal revision changed during validation"
+            )
     result = {
         "schema": "stoner.production-cook-runtime-summary",
         "schemaVersion": 1,
@@ -1944,10 +2035,18 @@ def parse_args(values: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--determinism-runs", type=int, default=20)
     parser.add_argument("--timeout-seconds", type=int, default=5400)
     parser.add_argument("--package-id")
+    parser.add_argument(
+        "--local-metal-authority", action="store_true",
+        help=(
+            "run the hardware profile as the maintainer's exclusive native "
+            "arm64 macOS Metal authority"
+        ),
+    )
     args = parser.parse_args(values)
     if args.verify_only is not None:
         if any((args.profile, args.build_root, args.output, args.acquire_missing,
-                args.defer_native_to_hardware, args.package_id)):
+                args.defer_native_to_hardware, args.package_id,
+                args.local_metal_authority)):
             parser.error(
                 "--verify-only cannot be combined with execution options"
             )
@@ -1964,6 +2063,8 @@ def parse_args(values: Sequence[str] | None = None) -> argparse.Namespace:
         parser.error("--timeout-seconds must be in [60, 7200]")
     if args.package_id is not None and args.profile != "medium":
         parser.error("--package-id is supported only by --profile medium")
+    if args.local_metal_authority and args.profile != "hardware":
+        parser.error("--local-metal-authority requires --profile hardware")
     return args
 
 

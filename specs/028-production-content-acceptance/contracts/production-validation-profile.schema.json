@@ -75,24 +75,24 @@
       "additionalProperties": false,
       "required": ["allowedExecutionClasses", "executionClasses", "physicalPreflight"],
       "properties": {
-        "allowedExecutionClasses": {"const": ["controlled-physical", "local-diagnostic"]},
+        "allowedExecutionClasses": {"const": ["maintainer-local-metal", "local-diagnostic"]},
         "executionClasses": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["controlled-physical", "local-diagnostic"],
+          "required": ["maintainer-local-metal", "local-diagnostic"],
           "properties": {
-            "controlled-physical": {"$ref": "#/$defs/physicalMeasurements"},
+            "maintainer-local-metal": {"$ref": "#/$defs/physicalMeasurements"},
             "local-diagnostic": {"$ref": "#/$defs/observationalMeasurements"}
           }
         },
         "physicalPreflight": {
           "const": [
+            "native-arm64-macos-metal",
             "registered-device-class",
-            "exclusive-runner-device-display",
-            "frozen-revision-and-software",
+            "exclusive-local-metal-session",
+            "clean-frozen-revision-and-software",
             "default-production-allocator",
-            "declared-sample-protocol",
-            "window-presentation-and-readback"
+            "declared-sample-and-presentation-protocol"
           ]
         }
       }

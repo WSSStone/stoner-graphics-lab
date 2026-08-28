@@ -214,7 +214,7 @@ def _validate_preflight(value: object, execution_class: str) -> dict:
             preflight.get("replacementLane"), "preflight replacement lane", 128
         )
         return preflight
-    raise ValueError("controlled physical preflight is invalid")
+    raise ValueError("maintainer-local Metal preflight is invalid")
 
 
 def _validate_observed_measurement(value: object, kind: str) -> None:
@@ -281,7 +281,7 @@ def _validate_authority(
     authority = _require_exact_fields(value, AUTHORITY_FIELDS, "authority")
     execution_class = authority.get("executionClass")
     if execution_class not in (
-        "github-hosted", "controlled-physical", "local-diagnostic"
+        "github-hosted", "maintainer-local-metal", "local-diagnostic"
     ):
         raise ValueError("execution class is invalid")
     preflight = _validate_preflight(authority.get("preflight"), execution_class)

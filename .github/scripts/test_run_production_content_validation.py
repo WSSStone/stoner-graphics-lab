@@ -666,36 +666,52 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 "--execution-class", "controlled-physical",
             ])
 
-    def test_controlled_physical_requires_complete_workflow_preflight(self):
-        physical = {
-            "GITHUB_ACTIONS": "true",
-            "RUNNER_ENVIRONMENT": "self-hosted",
-            "GITHUB_WORKFLOW_REF": (
-                "owner/repo/.github/workflows/"
-                "feature-028-production-hardware.yml@refs/heads/main"
-            ),
-            "GITHUB_SHA": "a" * 40,
-            "STONER_PHYSICAL_DEVICE_CLASS": "macos.apple8.metal.rgba8",
-            "STONER_PHYSICAL_EXCLUSIVE": "1",
-            "STONER_PHYSICAL_FROZEN_REVISION": "a" * 40,
-            "STONER_PHYSICAL_ALLOCATOR": "default-production",
-            "STONER_PHYSICAL_SAMPLE_PROTOCOL": "warmup20-terminal1000",
-            "STONER_PHYSICAL_PRESENTATION": "window-readback",
+    def test_maintainer_local_metal_requires_exact_fail_closed_preflight(self):
+        root = Path("/repo")
+        target = root / self.module.LOCAL_METAL_TARGET
+        contract = {
+            "platform": "macos", "cpuArchitecture": "arm64",
+            "graphicsBackend": "metal",
         }
-        authority = self.module.classify_execution_environment(
-            "hardware", physical
+        patches = (
+            mock.patch.object(self.module.platform, "system", return_value="Darwin"),
+            mock.patch.object(self.module.platform, "machine", return_value="arm64"),
+            mock.patch.object(self.module, "rosetta_translated", return_value=False),
+            mock.patch.object(
+                self.module, "_git_local_authority_revision",
+                return_value="a" * 40,
+            ),
+            mock.patch.object(
+                self.module, "_acquire_local_metal_authority_lock",
+                return_value="b" * 64,
+            ),
         )
-        self.assertEqual("controlled-physical", authority["executionClass"])
+        with patches[0], patches[1], patches[2], patches[3], patches[4]:
+            authority = self.module.classify_execution_environment(
+                "hardware", {}, local_metal_authority=True,
+                repository_root=root, target_profile=target,
+                target_contract=contract,
+            )
+        self.assertEqual(
+            "maintainer-local-metal", authority["executionClass"]
+        )
         self.assertEqual("required", authority["dispositions"]["rss"])
         self.assertEqual("required", authority["dispositions"]["image"])
-        for field in self.module.PHYSICAL_PREFLIGHT_ENVIRONMENT:
-            changed = dict(physical)
-            changed.pop(field)
+        self.assertEqual("a" * 40, authority["preflight"]["frozenRevision"])
+        with mock.patch.object(self.module.platform, "system", return_value="Linux"):
             with self.assertRaises(self.module.StageFailure) as raised:
                 self.module.classify_execution_environment(
-                    "hardware", changed
+                    "hardware", {}, local_metal_authority=True,
+                    repository_root=root, target_profile=target,
+                    target_contract=contract,
                 )
-            self.assertEqual("unsupported", raised.exception.stage)
+        self.assertEqual("unsupported", raised.exception.stage)
+        with self.assertRaises(self.module.StageFailure):
+            self.module.classify_execution_environment(
+                "hardware", {"MallocMediumZone": "0"},
+                local_metal_authority=True, repository_root=root,
+                target_profile=target, target_contract=contract,
+            )
 
     def test_measurement_dispositions_separate_required_operational_and_observed(self):
         regular = self.module.expected_authority_policy("regular")
@@ -712,7 +728,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 "rss": "required", "timing": "operational",
                 "image": "required",
             },
-            hardware["executionClasses"]["controlled-physical"],
+            hardware["executionClasses"]["maintainer-local-metal"],
         )
 
     def test_each_production_package_has_an_exact_workload_revision(self):
@@ -978,6 +994,22 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             "--output", "Output",
         ])
         self.assertEqual("hardware", parsed.profile)
+
+    def test_local_metal_authority_cli_is_hardware_only(self):
+        parsed = self.module.parse_args([
+            "--profile", "hardware",
+            "--target-profile", "profile.json",
+            "--build-root", "Build", "--output", "Output",
+            "--local-metal-authority",
+        ])
+        self.assertTrue(parsed.local_metal_authority)
+        with self.assertRaises(SystemExit):
+            self.module.parse_args([
+                "--profile", "regular",
+                "--target-profile", "profile.json",
+                "--build-root", "Build", "--output", "Output",
+                "--local-metal-authority",
+            ])
 
     def test_failure_catalog_has_bounded_cross_stage_first_failures(self):
         catalog = self.module.load_failure_catalog(self.module.REPOSITORY_ROOT)

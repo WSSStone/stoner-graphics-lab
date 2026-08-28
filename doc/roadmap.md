@@ -989,7 +989,7 @@ Implement a native Metal backend on Features 008, 016, 018, 023, and 025: RHI de
 **Critical Path**: ✅ Yes — advanced asset work must first prove the existing pipeline against representative production content
 
 #### Scope
-Establish a licensed, provenance-tracked production-content corpus and a
+Establish a maintainer-selected, provenance-tracked production-content corpus and a
 backend-neutral acceptance path from source import through strict cooked
 runtime loading to visible rendering. This phase validates the contracts built
 by Features 020-027; it does not add another source format or asset subsystem.
@@ -997,18 +997,28 @@ Cross-layer composition remains in Application/Demo and Validation adapters;
 the Asset runtime layer continues to depend only on Core.
 
 #### Key Deliverables
-- Two or more redistributable artist-authored glTF/GLB packages with stable source URL, revision, license, attribution, and SHA-256 records
+- Two or more artist-authored glTF/GLB packages with stable source URL, revision, attribution where known, and SHA-256 records; license/compliance decisions remain out of band
 - Representative multi-primitive, multi-material PBR content with external and embedded dependencies plus 1K/2K color, normal, and data textures
 - Deterministic source import, KTX2 cook, DDC/publication, strict-cooked `FAssetManager` loading, and typed payload equivalence evidence
-- Asset-backed demo composition with transactional Renderer/RHI realization and visible Vulkan and Metal validation on supported desktop hardware
+- Asset-backed demo composition with transactional Renderer/RHI realization, hosted Vulkan/Metal functional validation, and maintainer-local M4 Metal physical RSS/image authority
 - Tiered validation: bounded production asset in regular CI, medium corpus in scheduled/manual gates, and normalized screenshots/readbacks, timing, memory, and diagnostics
 
 #### What's Excluded
 - New source formats, skeletal animation, editor workflows, asset hot reload, meshlets, streaming/residency, virtual geometry, and visual-quality redesign
 
+#### Deferred Hardware-Lab Follow-up
+
+Windows Vulkan and macOS Vulkan physical qualification remain unverified because
+the project owns no corresponding device or registered self-hosted runner.
+Hosted Windows/Linux Vulkan build, strict-runtime, lifecycle, and native
+readback remain the non-equivalent fallback; the maintainer-local M4 Metal lane
+is the only Feature 028 physical RSS/image authority. A future hardware-lab
+roadmap revision must add controlled devices, preflight, and explicit Vulkan
+physical evidence without retroactively claiming that Feature 028 supplied it.
+
 #### Speckit Prompt
 ```text
-Implement Production Content Integration and Acceptance on Features 018, 019, 022, 024, 026, and 027: add a redistributable, provenance- and hash-tracked artist-authored glTF/GLB corpus with representative PBR materials and 1K/2K color, normal, and data textures; exercise deterministic source import, KTX2 cooking, DDC and generation publication, strict-cooked FAssetManager loading, typed payload equivalence, Renderer/RHI realization, and backend-neutral demo composition; capture visible Vulkan and Metal evidence on supported Windows/macOS hardware plus bounded Linux headless/native evidence; record timing, memory, diagnostics, screenshots/readbacks, and tiered regular-CI versus scheduled/manual gates. Keep cross-layer composition in Application/Demo and Validation adapters so Asset remains Core-only. Do not add new formats, skeletal animation, editor workflows, hot reload, meshlets, streaming, or virtual geometry.
+Implement Production Content Integration and Acceptance on Features 018, 019, 022, 024, 026, and 027: add a provenance- and hash-tracked artist-authored glTF/GLB corpus with representative PBR materials and 1K/2K color, normal, and data textures; exercise deterministic source import, KTX2 cooking, DDC and generation publication, strict-cooked FAssetManager loading, typed payload equivalence, Renderer/RHI realization, and backend-neutral demo composition; retain hosted Windows/Linux Vulkan and macOS Metal functional evidence, use the maintainer-local native arm64 Metal device for physical RSS/image authority, and defer unavailable Vulkan physical qualification to an explicit hardware-lab follow-up; record timing, memory, diagnostics, screenshots/readbacks, and tiered regular-CI versus scheduled/manual gates. Keep cross-layer composition in Application/Demo and Validation adapters so Asset remains Core-only. Do not add new formats, skeletal animation, editor workflows, hot reload, meshlets, streaming, or virtual geometry.
 ```
 
 ### Phase 029 — Asset: Meshlet Derived Data

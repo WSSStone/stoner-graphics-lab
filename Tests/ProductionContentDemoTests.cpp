@@ -354,7 +354,7 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
 
     auto CallerAuthority = RegularArguments("vulkan");
     CallerAuthority.push_back("--execution-class");
-    CallerAuthority.push_back("controlled-physical");
+    CallerAuthority.push_back("maintainer-local-metal");
     Record(Result,
         ParseArray(std::move(CallerAuthority), Invalid, Reason) ==
                 EDemoExitCode::InvalidConfiguration &&

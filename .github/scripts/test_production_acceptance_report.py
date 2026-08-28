@@ -82,7 +82,7 @@ class ProductionAcceptanceReportContractTests(unittest.TestCase):
     def make_physical(self, report):
         changed = copy.deepcopy(report)
         changed["authority"] = {
-            "executionClass": "controlled-physical",
+            "executionClass": "maintainer-local-metal",
             "preflight": {"state": "passed", "evidenceDigest": SHA},
             "measurements": {
                 "timing": {

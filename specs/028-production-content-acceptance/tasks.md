@@ -288,7 +288,7 @@ target, cycles, budgets, gates, outputs, cadence, and replacement-lane behavior.
 - [X] T091 [US4] Report unavailable backend/device/display/tool capability as `Unsupported` with exact prerequisite and replacement lane, and reject Unsupported as aggregate success in .github/scripts/run_production_content_validation.py
 - [X] T092 [P] [US4] Add relevant-path PR/push Windows/macOS/Linux regular build, strict Release, deterministic, and platform-applicable native jobs in .github/workflows/feature-028-production-content.yml
 - [X] T093 [US4] Add weekly default-branch and manual feature/release-closeout medium jobs with pinned corpus cache and 30-minute lane budget in .github/workflows/feature-028-production-content.yml
-- [X] T094 [P] [US4] Add explicit Windows Vulkan and macOS Vulkan/Metal hardware dispatch jobs required for Feature 028 closeout and reference/render-path changes in .github/workflows/feature-028-production-hardware.yml
+- **Historical, superseded T094**: The explicit Windows Vulkan and macOS Vulkan/Metal self-hosted workflow was implemented before the project confirmed that no corresponding device or registered runner exists; T174 retires its automatic queue and replaces closeout authority with the available maintainer-local Metal device.
 - [X] T095 [US4] Share only immutable digest-addressed producer artifacts where valid, and require every consumer to revalidate target profile, manifest, generation, and artifact digests in .github/workflows/feature-028-production-content.yml and .github/scripts/run_production_content_validation.py
 - [X] T096 [US4] Document local, scheduled, closeout, and hardware ownership, prerequisites, commands, caches, budgets, and evidence outputs in Validation/028/README.md and Config/Validation/ProductionContent/README.md
 - [X] T097 [US4] Run the US4 profile-contract, workflow-static, regular-local, every-root medium clean/warm/strict/equivalence, unsupported, timeout, and artifact-revalidation gates and record evidence in Validation/028/reports/us4-tiered-acceptance.md
@@ -304,6 +304,9 @@ interpretations recorded by completed T085, T088-T089, T093, and T097 without
 reopening their exact work, schema validation, or workflow coverage.
 T173 supersedes only T167/T169's hosted medium timeout constants; all authority,
 workload, lifecycle, capture/readback, ownership, stale, and physical limits remain.
+
+- [X] T174 [US4] Revise Feature 028 physical authority to the sole available maintainer-local native arm64 macOS Metal device: narrow the hardware profile to `Mac-Metal-Arm64.json`; add explicit `--local-metal-authority` with clean committed HEAD, exact target/device class, non-Rosetta, default allocator, exclusive process lock, fixed 1,000/20 sample and visible presentation/readback preflight; keep ordinary local runs diagnostic; retire the unavailable self-hosted workflow so pushes cannot queue it; defer Windows/macOS Vulkan physical qualification; and update schema, report, workflow, runner, documentation, and negative tests.
+- [X] T175 [P] [US4] Record the temporarily unavailable Windows/macOS Vulkan physical qualification as a named future hardware-lab roadmap follow-up, document hosted Windows/Linux Vulkan build/function/native validation plus maintainer-local Metal as the non-equivalent fallback, and state that neither substitutes for Vulkan physical evidence in doc/roadmap.md and Validation/028/README.md.
 
 **Checkpoint**: Each acceptance tier is reproducible, bounded, honest about
 capability, and scheduled at the clarified cadence.
@@ -357,9 +360,9 @@ scale, and required physical hardware evidence on one final revision.
 - [X] T109 [P] Run local macOS Debug and strict Release production-content builds with warnings as errors and record compiler/test summaries in Validation/028/reports/local-builds.md
 - [X] T110 [P] Run Linux ASan/UBSan, applicable TSan, malformed corpus, cancellation, failure-injection, and leak regressions and record commands/results in Validation/028/reports/sanitizers-and-failures.md
 - [X] T111 Run all affected Features 018-027 Demo, Deferred, Forward, Asset, AssetCooker, Runtime Manager, Vulkan, and Metal regression suites and record the bounded result in Validation/028/reports/regressions.md
-- [ ] T112 After T166-T173, run the final-revision Windows/macOS/Linux regular GitHub Actions matrix and record run IDs, revisions, artifact names, and SHA-256 values in Validation/028/CI/README.md
-- [ ] T113 Run the final-revision hosted medium closeout profile with every accepted package through clean/warm 100-percent reuse, source-unavailable strict loading, complete semantic equivalence, exact 1,000/20 cycles, 2,000 captures, seven readbacks, zero owners, and stale rejection; require the aggregate to preserve RSS/task-VM/allocator/timing as observations rather than hosted result authority, and record evidence digests in Validation/028/CI/README.md
-- [ ] T114 After T166-T173, enforce the schema-owned 3,600-second serialized hardware lane and run final-revision Windows Vulkan plus physical M4 Pro Vulkan/Metal 1,000-cycle controlled-hardware acceptance after exact device/exclusive-runner/frozen-revision/default-allocator/sample-protocol preflight; enforce the 16 MiB RSS and exact 512-by-512 accepted region-semantic/FLIP image gates with GPU readbacks and window-only captures, and record hardware run/artifact/baseline/preflight digests in Validation/028/CI/README.md and Validation/028/Baselines/README.md
+- [ ] T112 After T174, run the final-revision Windows/macOS/Linux regular GitHub Actions matrix and record run IDs, revisions, artifact names, and SHA-256 values in Validation/028/CI/README.md
+- [ ] T113 After T174, run the final-revision hosted medium closeout profile with every accepted package through clean/warm 100-percent reuse, source-unavailable strict loading, complete semantic equivalence, exact 1,000/20 cycles, 2,000 captures, seven readbacks, zero owners, and stale rejection; require the aggregate to preserve RSS/task-VM/allocator/timing as observations rather than hosted result authority, and record evidence digests in Validation/028/CI/README.md
+- [ ] T114 After T174, enforce the schema-owned 3,600-second serialized hardware profile and run final-revision maintainer-local M4 Pro Metal 1,000/20 acceptance after native arm64 macOS/exact target and device/exclusive lock/clean committed revision/default allocator/sample and presentation preflight; enforce the 16 MiB RSS and exact 512-by-512 accepted region-semantic/FLIP image gates with GPU readbacks and window-only captures, and record local report/artifact/baseline/preflight digests in Validation/028/CI/README.md and Validation/028/Baselines/README.md. Windows Vulkan and macOS Vulkan physical qualification are deferred and do not block Feature 028.
 - [X] T115 Re-run every command in specs/028-production-content-acceptance/quickstart.md from a clean workspace and record the results in Validation/028/reports/quickstart.md
 - [X] T116 [P] Create the delivered Feature 028 system-design document following doc/SYSTEM_DESIGN.MD in doc/028-production-content-acceptance.html
 - [ ] T117 Update Feature 028 status, final evidence references, next Phase 029 pointer, and project memory without rewriting historical gaps in doc/roadmap.md, specs/028-production-content-acceptance/spec.md, AGENTS.md, and Validation/028/README.md
@@ -446,10 +449,10 @@ Setup --> Real KTX2 Foundation --|
 | FR-014 | T008-T019, T036, T048 | Real KTX2 producer/artifact and semantic comparison |
 | FR-015-FR-022 | T035-T054 | Self-contained generation, strict no-source load, equivalence, reuse, mutation/failure |
 | FR-023-FR-031, FR-046-FR-050, FR-055-FR-056 | T055-T084, T119-T125, T127-T128, T144, T166 | Asset-root composition, frozen camera, canonical 512 extent, region semantics, exact registered FLIP, lifecycle |
-| FR-032-FR-037, FR-051-FR-054 | T085-T097, T112-T114, T167-T170, T173 | Regular/medium/hardware profiles, environment authority, hosted operational bounds, controlled physical RSS/image authority |
+| FR-032-FR-037, FR-051-FR-054 | T085-T097, T112-T114, T167-T170, T173-T174 | Regular/medium/hardware profiles, environment authority, hosted operational bounds, maintainer-local Metal RSS/image authority |
 | FR-038-FR-041 | T098-T107, T171-T172 | Deterministic/observational reports, measurement disposition, stable failures, bounded privacy-safe artifacts |
 | FR-042 | T020-T022, T031, T035-T038, T052-T053, T055-T058, T069, T080-T083, T103 | At least 30 cross-stage negative cases |
-| FR-043-FR-045 | T108, T111-T118 | Architecture, exclusion/regression, documentation, roadmap, and closeout |
+| FR-043-FR-045 | T108, T111-T118, T175 | Architecture, exclusion/regression, documentation, roadmap follow-up, and closeout |
 
 | Success criteria | Primary tasks |
 |---|---|
@@ -458,7 +461,7 @@ Setup --> Real KTX2 Foundation --|
 | SC-005-SC-006 | T036-T049, T054 |
 | SC-007 | T031, T052, T056, T058, T103, T107 |
 | SC-008 | T070-T084, T114 |
-| SC-009-SC-010 | T084-T090, T113-T114, T144, T167-T170, T173; T114 owns the consolidated 3,600-second hardware lane |
+| SC-009-SC-010 | T084-T090, T113-T114, T144, T167-T170, T173-T174; T114 owns the consolidated 3,600-second local Metal hardware lane |
 | SC-011 | T108-T114 |
 | SC-012 | T098-T107, T118 |
 | SC-013 | T108 |

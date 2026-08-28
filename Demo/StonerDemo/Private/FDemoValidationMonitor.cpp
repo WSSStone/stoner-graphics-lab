@@ -149,7 +149,7 @@ bool FDemoValidationMonitor::EvaluateProductionLifecycle()
         Growth <= Configuration.ProductionMaxRssGrowthBytes;
     // The Demo owns exact lifecycle/capture/readback/owner/stale evidence. RSS
     // is recorded here without environment authority; the workflow-owned
-    // runner applies it only for a preflighted controlled-physical lane.
+    // runner applies it only for a preflighted maintainer-local Metal lane.
     bPassed = true;
     return bPassed;
 }

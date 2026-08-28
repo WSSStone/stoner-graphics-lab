@@ -56,7 +56,7 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         self.assertEqual(text.count("slug: macos-intel-metal"), 2)
         self.assertNotIn("slug: macos-vulkan", text)
         self.assertEqual(text.count("native: --defer-native-to-hardware"), 1)
-        self.assertIn("Mac-Vulkan.json", HARDWARE.read_text(encoding="utf-8"))
+        self.assertFalse(HARDWARE.exists())
 
     def test_hosted_workflow_has_digest_checked_artifact_handoff(self):
         text = HOSTED.read_text(encoding="utf-8")
@@ -67,12 +67,6 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         self.assertIn("--target-profile ${{ matrix.target }}", text)
         self.assertIn("artifact-manifest.json", text)
         self.assertEqual(2, text.count("include-hidden-files: true"))
-        self.assertEqual(
-            1,
-            HARDWARE.read_text(encoding="utf-8").count(
-                "include-hidden-files: true"
-            ),
-        )
 
     def test_medium_uses_two_isolated_exact_package_lanes_and_aggregate(self):
         text = HOSTED.read_text(encoding="utf-8")
@@ -113,27 +107,16 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         ):
             self.assertIn(token, text)
 
-    def test_hardware_workflow_uses_explicit_platform_labels_and_dispatch(self):
-        text = HARDWARE.read_text(encoding="utf-8")
-        for token in (
-            "workflow_dispatch:", "self-hosted", "Windows", "Vulkan",
-            "macOS", "metal", "arm64", "--profile hardware",
-            "reference-image-change", "production-render-path-change",
-            "STONER_PRODUCTION_VISIBLE: '1'",
-            "STONER_PHYSICAL_DEVICE_CLASS", "STONER_PHYSICAL_EXCLUSIVE",
-            "STONER_PHYSICAL_FROZEN_REVISION", "STONER_PHYSICAL_ALLOCATOR",
-            "STONER_PHYSICAL_SAMPLE_PROTOCOL",
-            "STONER_PHYSICAL_PRESENTATION",
-        ):
-            self.assertIn(token, text)
-        self.assertNotIn("pull_request:", text)
-        self.assertNotIn("schedule:", text)
+    def test_unavailable_self_hosted_hardware_workflow_is_retired(self):
+        self.assertFalse(HARDWARE.exists())
+        text = HOSTED.read_text(encoding="utf-8")
+        self.assertNotIn("self-hosted", text)
+        self.assertNotIn("--profile hardware", text)
 
     def test_workflows_own_environment_classification_and_operational_caps(self):
         hosted = HOSTED.read_text(encoding="utf-8")
-        hardware = HARDWARE.read_text(encoding="utf-8")
         self.assertNotIn("--execution-class", hosted)
-        self.assertNotIn("--execution-class", hardware)
+        self.assertNotIn("--local-metal-authority", hosted)
         self.assertIn("--timeout-seconds 5400", hosted)
         self.assertIn("nativeTimeBudgetSeconds\": 4800", (
             ROOT / "Config/Validation/ProductionContent/Medium.json"
@@ -141,7 +124,7 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         self.assertIn("timeout-minutes: 120", hosted)
 
     def test_every_validation_job_uploads_failure_safe_evidence(self):
-        for path in (HOSTED, HARDWARE):
+        for path in (HOSTED,):
             text = path.read_text(encoding="utf-8")
             job_text = text.split("jobs:\n", 1)[1]
             jobs = len(re.findall(r"^  [a-z0-9-]+:\s*$", job_text, re.MULTILINE))

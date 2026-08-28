@@ -1,8 +1,8 @@
 # Feature 028 CI Evidence
 
 Final closeout records hosted regular, scheduled/manual medium, and required
-Windows Vulkan plus physical M4 Pro Vulkan/Metal run IDs, revision IDs, artifact
-names, and SHA-256 values here. Downloaded artifacts remain in ignored
+maintainer-local M4 Pro Metal report/revision/artifact SHA-256 values here.
+Windows/macOS Vulkan physical qualification is deferred. Downloaded artifacts remain in ignored
 `downloaded/`.
 
 ## Current Environment Authority Policy
@@ -22,21 +22,21 @@ Sponza passed clean/warm cook, publication, semantic equivalence, and strict
 runtime, then the native child was stopped after the 3,499 seconds left in the
 package deadline. The exact 1,000/20 workload remains unchanged.
 
-The 16 MiB RSS and accepted-image gates are `required` only in the
-`controlled-physical` hardware workflow after preflight proves the registered
-device class, exclusive runner/device/display, frozen revision and software,
-default production allocator, declared warmup20-terminal1000 sample protocol,
-and window presentation plus GPU readback. Missing or conflicting preflight is
-`Unsupported` and identifies the controlled hardware replacement lane. Local
-replays are `local-diagnostic` and cannot be promoted by CLI or substitute for
-either required environment. All classes run the normal production allocator;
-the former hosted allocator-zone coercion is removed.
+The 16 MiB RSS and accepted-image gates are `required` only in the explicit
+`maintainer-local-metal` hardware run after preflight proves native arm64
+macOS, exact target/device class, non-Rosetta execution, exclusive process
+lock, clean committed revision, default production allocator, declared
+warmup20-terminal1000 sample protocol, and window presentation plus GPU
+readback. Missing or conflicting preflight is `Unsupported`. Ordinary local
+replays are `local-diagnostic` and cannot substitute for either required
+environment. All classes run the normal production allocator; the former
+hosted allocator-zone coercion is removed.
 
 All run narratives below this section predate this authority-policy revision
 unless a later final-revision section explicitly says otherwise. They remain
 useful diagnostic history, but hosted RSS failures and allocator experiments
 are not current closeout decisions. Final closeout must record fresh hosted and
-controlled-physical runs from the same final revision.
+maintainer-local Metal evidence from the same final revision.
 
 ## Final Implementation Revision
 

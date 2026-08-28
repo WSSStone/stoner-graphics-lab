@@ -12,12 +12,15 @@ image requirements.
 | Class | Selection | Permitted authority |
 |---|---|---|
 | `github-hosted` | Workflow-owned hosted job definition | Build, deterministic cook, strict runtime, exact lifecycle work, native proof, captures/readbacks, ownership, stale rejection, crash, and operational timeout |
-| `controlled-physical` | Self-hosted workflow plus successful preflight | All hosted correctness facts plus calibrated RSS and required image/FLIP decisions |
+| `maintainer-local-metal` | Explicit hardware-profile flag plus successful native arm64 macOS Metal preflight | All hosted correctness facts plus calibrated RSS and required image/FLIP decisions for the sole available physical device |
 | `local-diagnostic` | Local runner default | Reproduction and observations only; cannot satisfy required hosted/physical closeout authority |
 
-The class is not accepted from an unrestricted application or runner CLI token.
-The workflow/profile binding and report provenance identify it. Missing,
-conflicting, or caller-promoted authority fails closed.
+The generic class is not accepted from an unrestricted application or runner
+CLI token. `--local-metal-authority` is a narrow explicit maintainer assertion,
+not a class selector: it is valid only for the hardware profile, native arm64
+macOS, and the exact Metal target. Missing, conflicting, dirty-revision,
+translated, allocator-overridden, nonexclusive, or other-backend authority
+fails closed.
 
 ## Measurement Dispositions
 
@@ -52,21 +55,21 @@ RSS endpoints, task-VM categories, allocator totals, peak memory, and elapsed
 time are `observed`. Hosted execution uses normal production allocator behavior;
 validation-only allocator-zone switches cannot manufacture RSS authority.
 
-## Controlled Physical Preflight
+## Maintainer-Local Metal Preflight
 
 Before RSS or image evidence is `required`, the lane proves:
 
-1. exact registered device and backend capability signature;
-2. exclusive runner/device/display ownership for the job;
-3. exact source revision, workload revision, target profile, and software image;
+1. native non-Rosetta arm64 macOS, exact Metal target, and registered device/backend capability signature;
+2. exclusive process/device/display ownership, enforced by a repository-scoped nonblocking authority lock;
+3. clean committed HEAD plus exact source revision, workload revision, target profile, and software image;
 4. default production allocator behavior;
 5. declared warm-up, queue-idle, teardown, sample, and capture protocol;
 6. required application-window presentation and readback capability.
 
 Failed preflight produces `Unsupported` with a stable missing prerequisite and
-replacement lane. It cannot fall back to hosted or local measurements.
+replacement command. It cannot fall back to hosted or ordinary local measurements.
 
-The controlled physical lifecycle retains the 16 MiB post-warm-up-to-terminal
+The maintainer-local Metal lifecycle retains the 16 MiB post-warm-up-to-terminal
 RSS hard limit. Required image acceptance retains exact workload/backend/device-
 class baseline selection, region semantics, same-size FLIP, and explicit
 maintainer-accepted reference state.
@@ -99,3 +102,7 @@ Every environment-sensitive observation records:
 
 These fields remain outside deterministic Asset/cook/generation identities and
 inside existing report/artifact privacy and size bounds.
+
+Windows Vulkan and macOS Vulkan physical qualification are deferred until the
+project owns corresponding controlled devices. They are not inferred from
+hosted software/native lanes and do not block Feature 028 closeout.

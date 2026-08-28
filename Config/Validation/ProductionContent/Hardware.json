@@ -5,9 +5,7 @@
   "corpusRevision": "khronos-2026-08-19-v1",
   "packageIds": ["khronos-lantern-glb", "khronos-sponza-gltf"],
   "targetProfiles": [
-    "Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json",
-    "Config/AssetCooker/Profiles/Production/Mac-Vulkan.json",
-    "Config/AssetCooker/Profiles/Production/Windows-Vulkan.json"
+    "Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json"
   ],
   "lifecycleCycles": 1000,
   "warmupCycles": 20,
@@ -31,9 +29,9 @@
     "report"
   ],
   "authorityPolicy": {
-    "allowedExecutionClasses": ["controlled-physical", "local-diagnostic"],
+    "allowedExecutionClasses": ["maintainer-local-metal", "local-diagnostic"],
     "executionClasses": {
-      "controlled-physical": {
+      "maintainer-local-metal": {
         "rss": "required",
         "timing": "operational",
         "image": "required"
@@ -45,12 +43,12 @@
       }
     },
     "physicalPreflight": [
+      "native-arm64-macos-metal",
       "registered-device-class",
-      "exclusive-runner-device-display",
-      "frozen-revision-and-software",
+      "exclusive-local-metal-session",
+      "clean-frozen-revision-and-software",
       "default-production-allocator",
-      "declared-sample-protocol",
-      "window-presentation-and-readback"
+      "declared-sample-and-presentation-protocol"
     ]
   }
 }

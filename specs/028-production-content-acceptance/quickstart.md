@@ -95,7 +95,7 @@ timeouts of 5,400 and 4,800 seconds inside the 120-minute workflow job.
 Hosted RSS, task-VM, allocator, peak-memory, and elapsed-time fields are reported
 as observations and do not independently fail a completed correctness run. Do
 not interpret this command as RSS or performance authority. The 16 MiB RSS hard
-gate belongs to a controlled physical run that passes authority preflight.
+gate belongs to the maintainer-local Metal run after authority preflight.
 
 ## 5. Run Hardware Image Acceptance
 
@@ -134,6 +134,7 @@ preserving letterboxed presentation; it cannot change the formal render target.
 STONER_PRODUCTION_VISIBLE=1 \
 python3 .github/scripts/run_production_content_validation.py \
   --profile hardware \
+  --local-metal-authority \
   --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json \
   --build-root Build/Mac/Release \
   --output Build/Validation/028/hardware-metal \
@@ -141,8 +142,9 @@ python3 .github/scripts/run_production_content_validation.py \
   --timeout-seconds 3600
 ```
 
-Run the equivalent command for Vulkan on Windows and for Vulkan plus Metal on
-the physical macOS lane. The command captures only the application window.
+This is the sole Feature 028 physical-authority command. Windows Vulkan and
+macOS Vulkan physical qualification are deferred until corresponding devices
+exist. The command captures only the application window.
 Semantic/readback probes run before FLIP. A missing exact workload/backend/
 device-class baseline is failure, not an automatically created reference. The
 runner derives the class by exact canonical capability-signature match; it does
@@ -152,10 +154,10 @@ Formal comparison never translates, scales, crops, warps, resamples, or searches
 for a best image alignment. Semantic material/normal/depth/lighting checks use
 versioned bounded regions with minimum sample coverage rather than one exact
 pixel. Calibration must reject an intentional one-pixel whole-image translation.
-The physical lane must also prove exclusive runner ownership, the exact device
-and software/workload revision, default production allocator behavior, and the
-declared RSS sampling protocol before it can emit authoritative RSS/image
-evidence.
+The local Metal lane must also prove native non-Rosetta arm64 execution,
+exclusive authority-lock ownership, clean committed HEAD, the exact target and
+device class, default production allocator behavior, and the declared RSS/
+presentation protocol before it can emit authoritative RSS/image evidence.
 
 ## 6. Validate Reports and Privacy
 
@@ -175,11 +177,11 @@ capture metadata.
   weekly/manual isolated per-package Intel Metal medium lanes with an
   exact-package functional/lifecycle aggregate gate. Hosted RSS/timing remains
   observation/operational evidence. Arm64 Metal remains in the regular matrix
-  and required physical M4 hardware closeout.
-- `feature-028-production-hardware.yml`: explicit Windows Vulkan and macOS
-  Vulkan/Metal controlled-physical RSS/image closeout/reference-change workflow.
+  and required maintainer-local M4 Metal closeout.
+- No Feature 028 self-hosted workflow is registered: pushes do not queue an
+  unavailable runner. The local command above is the physical RSS/image gate.
 - Local commands and CI call the same Python runner and profile files.
 
 Before Feature 028 closes, retain passing final-revision evidence for Debug,
 strict Release, sanitizer, deterministic 20-repeat reports, regular, medium,
-Windows Vulkan hardware, and macOS Vulkan/Metal hardware.
+and the maintainer-local M4 Metal hardware profile.

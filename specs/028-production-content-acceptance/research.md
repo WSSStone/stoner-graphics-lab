@@ -1393,3 +1393,42 @@ Alternatives rejected:
 - changing the 16 MiB controlled-physical RSS gate or exact 512-by-512 image
   gate;
 - treating any duration below the new cap as a performance pass.
+
+## Decision 48: Make the maintainer's local Metal device the only Feature 028 physical authority
+
+**Decision**: Feature 028 closes with one required physical environment: the
+maintainer's native arm64 macOS Metal device. The hardware profile contains
+only `Mac-Metal-Arm64.json`. A dedicated `--local-metal-authority` assertion is
+accepted only for the hardware profile and only after fail-closed preflight
+proves native non-Rosetta arm64 macOS, the exact Metal target/device class, a
+clean committed HEAD, default production allocator behavior, a repository-
+scoped exclusive process lock, the fixed 1,000/20 sample protocol, and window
+presentation/readback. Ordinary local execution remains `local-diagnostic`.
+
+The unavailable Windows Vulkan and macOS Vulkan physical lanes are deferred to
+a future hardware-lab phase. The Feature 028 self-hosted workflow is retired so
+branch pushes cannot indefinitely queue jobs when the repository has no
+registered runner. Hosted Windows/Linux/macOS jobs retain their existing build,
+determinism, strict-runtime, sanitizer, platform-native, exact-work, ownership,
+stale-handle, and operational-timeout authority, but do not substitute for the
+local Metal RSS/image decision.
+
+**Rationale**: The repository currently owns no Windows/Vulkan device and no
+self-hosted runner. Requiring evidence from nonexistent infrastructure makes
+closeout impossible without increasing product confidence. The available M4
+Metal device can produce the required visible window, GPU attachments, exact
+512-by-512 semantic/FLIP result, and calibrated 16 MiB lifecycle measurement.
+A narrow local authority contract is more honest and more reproducible than a
+workflow label that no runner can satisfy.
+
+**Alternatives considered**:
+
+- Keep all three physical lanes required and wait: rejected because no such
+  devices or runners exist and the requirement cannot produce evidence.
+- Treat hosted Vulkan or Metal as physical image/RSS authority: rejected
+  because hosted allocation, device, display, and scheduling are not controlled.
+- Let any local CLI select `controlled-physical`: rejected because it could
+  promote another target, dirty revision, translated process, or allocator-
+  modified run. The accepted flag is deliberately Metal/profile-specific.
+- Drop physical validation entirely: rejected because the local M4 can still
+  authoritatively exercise visible native Metal, accepted images, and RSS.
