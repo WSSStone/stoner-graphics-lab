@@ -57,18 +57,22 @@ void FStonerDemoApplication::RecordProductionCapture(
 }
 
 bool FStonerDemoApplication::PresentProductionCaptureWithRecovery(
-    FDemoProductionCapture& Capture)
+    FDemoProductionCapture& Capture,
+    FDemoProductionPresentationResult& Presented)
 {
     if (!Window || !BackendRuntime) return false;
     constexpr auto RecoveryLimit = std::chrono::milliseconds(2000);
     const auto Started = std::chrono::steady_clock::now();
     RHI::ERHIResult Result = RHI::ERHIResult::Unavailable;
-    FDemoProductionPresentationResult Presented;
     do
     {
         (void)Window->Value.PollEvents();
         if (Window->Value.IsCloseRequested()) return false;
-        Presented = {};
+        Presented.Rgba8.clear();
+        Presented.Width = 0;
+        Presented.Height = 0;
+        Presented.RowPitchBytes = 0;
+        Presented.bPresented = false;
         Result = BackendRuntime->PresentProductionImage(
             Capture.Bytes, Capture.Width, Capture.Height,
             Capture.RowPitchBytes, Presented);
@@ -115,7 +119,7 @@ bool FStonerDemoApplication::PresentProductionCaptureWithRecovery(
     Capture.Format = RHI::ERHIFormat::R8G8B8A8_UNorm;
     Capture.bPresented = true;
     Capture.bWindowOnlyCapture = true;
-    Capture.Bytes = std::move(Presented.Rgba8);
+    Capture.Bytes.swap(Presented.Rgba8);
     return true;
 }
 

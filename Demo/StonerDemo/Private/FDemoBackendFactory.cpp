@@ -169,15 +169,19 @@ public:
         Core::uint32 RowPitchBytes,
         FDemoProductionPresentationResult& OutResult) override
     {
-        OutResult = {};
-        Core::TArray<Core::uint8> Fitted;
+        OutResult.Rgba8.clear();
+        OutResult.Width = 0;
+        OutResult.Height = 0;
+        OutResult.RowPitchBytes = 0;
+        OutResult.bPresented = false;
         if (!BuildAspectFitPresentationPixels(
                 Rgba8, Width, Height, RowPitchBytes,
                 ProductionPresentationWidth_, ProductionPresentationHeight_,
-                RHI::ERHIFormat::R8G8B8A8_UNorm, Fitted))
+                RHI::ERHIFormat::R8G8B8A8_UNorm,
+                ProductionPresentationPixels_))
             return RHI::ERHIResult::InvalidState;
         const RHI::ERHIResult Result = Context_.PresentVisibleRgba8(
-            Fitted, ProductionPresentationWidth_,
+            ProductionPresentationPixels_, ProductionPresentationWidth_,
             ProductionPresentationHeight_,
             ProductionPresentationWidth_ * 4u, OutResult.Rgba8,
             OutResult.Width, OutResult.Height);
@@ -232,6 +236,7 @@ private:
     bool bProductionPresentation_ = false;
     Core::uint32 ProductionPresentationWidth_ = 0;
     Core::uint32 ProductionPresentationHeight_ = 0;
+    Core::TArray<Core::uint8> ProductionPresentationPixels_;
 };
 
 #if SG_PLATFORM_MAC
@@ -449,7 +454,11 @@ public:
         Core::uint32 RowPitchBytes,
         FDemoProductionPresentationResult& OutResult) override
     {
-        OutResult = {};
+        OutResult.Rgba8.clear();
+        OutResult.Width = 0;
+        OutResult.Height = 0;
+        OutResult.RowPitchBytes = 0;
+        OutResult.bPresented = false;
         if (!Device_ || !Queue_ || !Swapchain_)
             return RHI::ERHIResult::InvalidState;
         Core::uint32 FrameIndex = 0;
@@ -533,7 +542,11 @@ public:
         const RHI::ERHIResult Presented = Swapchain_->Present(FrameIndex);
         if (Presented != RHI::ERHIResult::Success)
         {
-            OutResult = {};
+            OutResult.Rgba8.clear();
+            OutResult.Width = 0;
+            OutResult.Height = 0;
+            OutResult.RowPitchBytes = 0;
+            OutResult.bPresented = false;
             return Presented;
         }
         OutResult.Width = Desc.Width;

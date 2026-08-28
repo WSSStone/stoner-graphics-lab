@@ -70,7 +70,9 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
     };
 
     Core::TArray<Core::uint8> LifecycleReadbackScratch;
-    const auto CaptureReadback = [this, &LifecycleReadbackScratch](
+    FDemoProductionPresentationResult LifecyclePresentationScratch;
+    const auto CaptureReadback = [this, &LifecycleReadbackScratch,
+        &LifecyclePresentationScratch](
         Core::uint32 Cycle,
         const Core::FString& Name,
         const Core::TSharedPtr<RHI::IRHIBuffer>& Readback,
@@ -86,7 +88,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
              (Configuration.RenderPath == EDemoRenderPath::ForwardSmoke &&
                 Name == Core::FString("ForwardColor")));
         Core::TArray<Core::uint8> RetainedBytes;
-        auto& Bytes = bRetainAuthoritativeEvidence || bSelectedVisiblePath
+        auto& Bytes = bRetainAuthoritativeEvidence
             ? RetainedBytes : LifecycleReadbackScratch;
         const auto Device = BackendRuntime
             ? BackendRuntime->GetDevice()
@@ -139,7 +141,9 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                 Capture.Bytes = std::move(Bytes);
             if (bSelectedVisiblePath)
             {
-                if (!PresentProductionCaptureWithRecovery(Capture)) return false;
+                if (!PresentProductionCaptureWithRecovery(
+                        Capture, LifecyclePresentationScratch))
+                    return false;
             }
             if (!Capture.Bytes.empty())
                 Capture.Digest =
@@ -170,8 +174,13 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                 RetainedCalibrationCaptures >=
                     MaximumRetainedCalibrationCaptures)
             {
-                Capture.Bytes.clear();
-                Capture.Bytes.shrink_to_fit();
+                if (bSelectedVisiblePath)
+                    LifecycleReadbackScratch = std::move(Capture.Bytes);
+                else
+                {
+                    Capture.Bytes.clear();
+                    Capture.Bytes.shrink_to_fit();
+                }
             }
             RecordProductionCapture(std::move(Capture));
         }

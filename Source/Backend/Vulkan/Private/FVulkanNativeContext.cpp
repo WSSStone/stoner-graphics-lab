@@ -571,6 +571,12 @@ struct FVulkanNativeContext::FImpl
     VkCommandPool CommandPool = VK_NULL_HANDLE;
     VkCommandBuffer CommandBuffer = VK_NULL_HANDLE;
     VkFence Fence = VK_NULL_HANDLE;
+    VkBuffer VisibleImageUploadBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory VisibleImageUploadMemory = VK_NULL_HANDLE;
+    VkBuffer VisibleImageReadbackBuffer = VK_NULL_HANDLE;
+    VkDeviceMemory VisibleImageReadbackMemory = VK_NULL_HANDLE;
+    Stoner::Core::uint64 VisibleImageTransferBytes = 0;
+    Stoner::Core::TArray<Stoner::Core::uint8> VisibleImageNativePixels;
     std::vector<VkCommandBuffer> VisibleCommandBuffers;
     std::vector<VkFence> VisibleFences;
     std::vector<VkSemaphore> VisibleImageAvailable;
@@ -849,9 +855,106 @@ struct FVulkanNativeContext::FImpl
         return UINT32_MAX;
     }
 
+    void DestroyVisibleImageTransferResources()
+    {
+        if (Device != VK_NULL_HANDLE)
+        {
+            if (VisibleImageUploadBuffer != VK_NULL_HANDLE)
+                vkDestroyBuffer(Device, VisibleImageUploadBuffer, nullptr);
+            if (VisibleImageUploadMemory != VK_NULL_HANDLE)
+                vkFreeMemory(Device, VisibleImageUploadMemory, nullptr);
+            if (VisibleImageReadbackBuffer != VK_NULL_HANDLE)
+                vkDestroyBuffer(Device, VisibleImageReadbackBuffer, nullptr);
+            if (VisibleImageReadbackMemory != VK_NULL_HANDLE)
+                vkFreeMemory(Device, VisibleImageReadbackMemory, nullptr);
+        }
+        VisibleImageUploadBuffer = VK_NULL_HANDLE;
+        VisibleImageUploadMemory = VK_NULL_HANDLE;
+        VisibleImageReadbackBuffer = VK_NULL_HANDLE;
+        VisibleImageReadbackMemory = VK_NULL_HANDLE;
+        VisibleImageTransferBytes = 0;
+        VisibleImageNativePixels.clear();
+        VisibleImageNativePixels.shrink_to_fit();
+    }
+
+    [[nodiscard]] bool PrepareVisibleImageTransferResources(
+        Stoner::Core::uint64 ByteCount)
+    {
+        if (ByteCount == VisibleImageTransferBytes &&
+            VisibleImageUploadBuffer != VK_NULL_HANDLE &&
+            VisibleImageUploadMemory != VK_NULL_HANDLE &&
+            VisibleImageReadbackBuffer != VK_NULL_HANDLE &&
+            VisibleImageReadbackMemory != VK_NULL_HANDLE &&
+            VisibleImageNativePixels.size() == ByteCount)
+            return true;
+
+        DestroyVisibleImageTransferResources();
+        if (ByteCount == 0 ||
+            ByteCount > std::numeric_limits<Stoner::Core::usize>::max())
+            return false;
+        const auto CreateHostBuffer = [this, ByteCount](
+            VkBufferUsageFlags Usage,
+            VkBuffer& OutBuffer,
+            VkDeviceMemory& OutMemory)
+        {
+            VkBufferCreateInfo Info = MakeVulkanStruct<VkBufferCreateInfo>(
+                VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
+            Info.size = ByteCount;
+            Info.usage = Usage;
+            Info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            if (vkCreateBuffer(
+                    Device, &Info, nullptr, &OutBuffer) != VK_SUCCESS)
+                return false;
+            VkMemoryRequirements Requirements{};
+            vkGetBufferMemoryRequirements(Device, OutBuffer, &Requirements);
+            const Stoner::Core::uint32 MemoryType = FindMemoryType(
+                Requirements.memoryTypeBits,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            if (MemoryType == UINT32_MAX) return false;
+            VkMemoryAllocateInfo Allocation =
+                MakeVulkanStruct<VkMemoryAllocateInfo>(
+                    VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO);
+            Allocation.allocationSize = Requirements.size;
+            Allocation.memoryTypeIndex = MemoryType;
+            return vkAllocateMemory(
+                       Device, &Allocation, nullptr, &OutMemory) == VK_SUCCESS &&
+                vkBindBufferMemory(
+                    Device, OutBuffer, OutMemory, 0) == VK_SUCCESS;
+        };
+        if (!CreateHostBuffer(
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                VisibleImageUploadBuffer, VisibleImageUploadMemory) ||
+            !CreateHostBuffer(
+                VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VisibleImageReadbackBuffer, VisibleImageReadbackMemory))
+        {
+            DestroyVisibleImageTransferResources();
+            return false;
+        }
+        try
+        {
+            VisibleImageNativePixels.resize(
+                static_cast<Stoner::Core::usize>(ByteCount));
+        }
+        catch (const std::bad_alloc&)
+        {
+            DestroyVisibleImageTransferResources();
+            return false;
+        }
+        catch (const std::length_error&)
+        {
+            DestroyVisibleImageTransferResources();
+            return false;
+        }
+        VisibleImageTransferBytes = ByteCount;
+        return true;
+    }
+
     void DestroyFrameResources()
     {
         if (Device == VK_NULL_HANDLE) return;
+        DestroyVisibleImageTransferResources();
         if (Fence) vkDestroyFence(Device, Fence, nullptr);
         for (VkFence Item : VisibleFences) vkDestroyFence(Device, Item, nullptr);
         if (RenderFinished) vkDestroySemaphore(Device, RenderFinished, nullptr);
@@ -1999,8 +2102,9 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
     if (TargetByteCount == 0 ||
         TargetByteCount > std::numeric_limits<Stoner::Core::usize>::max())
         return Stoner::RHI::ERHIResult::Unsupported;
-    Stoner::Core::TArray<Stoner::Core::uint8> NativePixels(
-        static_cast<Stoner::Core::usize>(TargetByteCount));
+    if (!Impl->PrepareVisibleImageTransferResources(TargetByteCount))
+        return Stoner::RHI::ERHIResult::Failed;
+    auto& NativePixels = Impl->VisibleImageNativePixels;
     for (Stoner::Core::uint32 Y = 0; Y < TargetHeight; ++Y)
     {
         const Stoner::Core::uint32 SourceY =
@@ -2025,70 +2129,14 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
         }
     }
 
-    VkBuffer Staging = VK_NULL_HANDLE;
-    VkDeviceMemory StagingMemory = VK_NULL_HANDLE;
-    VkBuffer Readback = VK_NULL_HANDLE;
-    VkDeviceMemory ReadbackMemory = VK_NULL_HANDLE;
-    const auto DestroyBuffers = [&]() {
-        if (Staging != VK_NULL_HANDLE)
-            vkDestroyBuffer(Impl->Device, Staging, nullptr);
-        if (StagingMemory != VK_NULL_HANDLE)
-            vkFreeMemory(Impl->Device, StagingMemory, nullptr);
-        if (Readback != VK_NULL_HANDLE)
-            vkDestroyBuffer(Impl->Device, Readback, nullptr);
-        if (ReadbackMemory != VK_NULL_HANDLE)
-            vkFreeMemory(Impl->Device, ReadbackMemory, nullptr);
-    };
-    const auto CreateHostBuffer = [this, TargetByteCount](
-        VkBufferUsageFlags Usage,
-        VkBuffer& OutBuffer,
-        VkDeviceMemory& OutMemory)
-    {
-        VkBufferCreateInfo Info = MakeVulkanStruct<VkBufferCreateInfo>(
-            VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
-        Info.size = TargetByteCount;
-        Info.usage = Usage;
-        Info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        if (vkCreateBuffer(
-                Impl->Device, &Info, nullptr, &OutBuffer) != VK_SUCCESS)
-            return false;
-        VkMemoryRequirements Requirements{};
-        vkGetBufferMemoryRequirements(
-            Impl->Device, OutBuffer, &Requirements);
-        const Stoner::Core::uint32 MemoryType = Impl->FindMemoryType(
-            Requirements.memoryTypeBits,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        if (MemoryType == UINT32_MAX) return false;
-        VkMemoryAllocateInfo Allocation =
-            MakeVulkanStruct<VkMemoryAllocateInfo>(
-                VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO);
-        Allocation.allocationSize = Requirements.size;
-        Allocation.memoryTypeIndex = MemoryType;
-        return vkAllocateMemory(
-                   Impl->Device, &Allocation, nullptr, &OutMemory) == VK_SUCCESS &&
-            vkBindBufferMemory(
-                Impl->Device, OutBuffer, OutMemory, 0) == VK_SUCCESS;
-    };
-    if (!CreateHostBuffer(
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT, Staging, StagingMemory) ||
-        !CreateHostBuffer(
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT, Readback, ReadbackMemory))
-    {
-        DestroyBuffers();
-        return Stoner::RHI::ERHIResult::Failed;
-    }
     void* Mapped = nullptr;
     if (vkMapMemory(
-            Impl->Device, StagingMemory, 0,
+            Impl->Device, Impl->VisibleImageUploadMemory, 0,
             TargetByteCount, 0, &Mapped) != VK_SUCCESS)
-    {
-        DestroyBuffers();
         return Stoner::RHI::ERHIResult::Failed;
-    }
     std::memcpy(Mapped, NativePixels.data(),
         static_cast<std::size_t>(TargetByteCount));
-    vkUnmapMemory(Impl->Device, StagingMemory);
+    vkUnmapMemory(Impl->Device, Impl->VisibleImageUploadMemory);
 
     const Stoner::Core::uint32 FrameSlot = Impl->CurrentFrameSlot %
         static_cast<Stoner::Core::uint32>(Impl->VisibleFences.size());
@@ -2096,26 +2144,17 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
         Impl->Device, 1, &Impl->VisibleFences[FrameSlot], VK_TRUE,
         30ull * 1000ull * 1000ull * 1000ull);
     if (Wait != VK_SUCCESS)
-    {
-        DestroyBuffers();
         return Wait == VK_TIMEOUT
             ? Stoner::RHI::ERHIResult::Timeout
             : Stoner::RHI::ERHIResult::Failed;
-    }
     Stoner::Core::uint32 ImageIndex = 0;
     const VkResult Acquire = vkAcquireNextImageKHR(
         Impl->Device, Impl->Swapchain, UINT64_MAX,
         Impl->VisibleImageAvailable[FrameSlot], VK_NULL_HANDLE, &ImageIndex);
     if (Acquire == VK_ERROR_OUT_OF_DATE_KHR)
-    {
-        DestroyBuffers();
         return Stoner::RHI::ERHIResult::ResizeRequired;
-    }
     if (Acquire != VK_SUCCESS && Acquire != VK_SUBOPTIMAL_KHR)
-    {
-        DestroyBuffers();
         return Stoner::RHI::ERHIResult::Failed;
-    }
     Impl->AcquiredImageIndex = ImageIndex;
     Impl->AcquiredFrameSlot = FrameSlot;
     Impl->bFrameAcquired = true;
@@ -2125,7 +2164,6 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
     if (vkResetCommandBuffer(Commands, 0) != VK_SUCCESS)
     {
         Impl->AbandonAcquiredVisibleFrame();
-        DestroyBuffers();
         return Stoner::RHI::ERHIResult::Failed;
     }
     VkCommandBufferBeginInfo Begin =
@@ -2134,7 +2172,6 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
     if (vkBeginCommandBuffer(Commands, &Begin) != VK_SUCCESS)
     {
         Impl->AbandonAcquiredVisibleFrame();
-        DestroyBuffers();
         return Stoner::RHI::ERHIResult::Failed;
     }
     VkImageMemoryBarrier ToDestination =
@@ -2159,7 +2196,8 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
     Region.imageSubresource.layerCount = 1;
     Region.imageExtent = {TargetWidth, TargetHeight, 1};
     vkCmdCopyBufferToImage(
-        Commands, Staging, Impl->SwapchainImages[ImageIndex],
+        Commands, Impl->VisibleImageUploadBuffer,
+        Impl->SwapchainImages[ImageIndex],
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Region);
     VkImageMemoryBarrier ToSource = ToDestination;
     ToSource.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -2172,7 +2210,8 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
         1, &ToSource);
     vkCmdCopyImageToBuffer(
         Commands, Impl->SwapchainImages[ImageIndex],
-        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Readback, 1, &Region);
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        Impl->VisibleImageReadbackBuffer, 1, &Region);
     VkImageMemoryBarrier ToPresent = ToSource;
     ToPresent.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
     ToPresent.dstAccessMask = 0;
@@ -2188,7 +2227,6 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
             &Impl->VisibleFences[FrameSlot]) != VK_SUCCESS)
     {
         Impl->AbandonAcquiredVisibleFrame();
-        DestroyBuffers();
         return Stoner::RHI::ERHIResult::Failed;
     }
     const VkPipelineStageFlags WaitStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -2208,7 +2246,6 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
         (void)Impl->RecreateVisibleFenceSignaled(FrameSlot);
         Impl->bFrameAcquired = false;
         Impl->bAcquiredSuboptimal = false;
-        DestroyBuffers();
         return Stoner::RHI::ERHIResult::Failed;
     }
     const VkResult Completed = vkWaitForFences(
@@ -2218,18 +2255,16 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
     {
         Impl->bFrameAcquired = false;
         Impl->bAcquiredSuboptimal = false;
-        DestroyBuffers();
         return Completed == VK_TIMEOUT
             ? Stoner::RHI::ERHIResult::Timeout
             : Stoner::RHI::ERHIResult::Failed;
     }
     Mapped = nullptr;
     if (vkMapMemory(
-            Impl->Device, ReadbackMemory, 0,
+            Impl->Device, Impl->VisibleImageReadbackMemory, 0,
             TargetByteCount, 0, &Mapped) != VK_SUCCESS)
     {
         Impl->AbandonAcquiredVisibleFrame();
-        DestroyBuffers();
         return Stoner::RHI::ERHIResult::Failed;
     }
     const auto* NativeReadback =
@@ -2246,7 +2281,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
             NativeReadback[Offset + (bBgra ? 0u : 2u)];
         OutPresentedRgba8[Offset + 3u] = NativeReadback[Offset + 3u];
     }
-    vkUnmapMemory(Impl->Device, ReadbackMemory);
+    vkUnmapMemory(Impl->Device, Impl->VisibleImageReadbackMemory);
 
     VkPresentInfoKHR Present = MakeVulkanStruct<VkPresentInfoKHR>(
         VK_STRUCTURE_TYPE_PRESENT_INFO_KHR);
@@ -2263,7 +2298,6 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
     Impl->bAcquiredSuboptimal = false;
     Impl->CurrentFrameSlot = (FrameSlot + 1u) %
         static_cast<Stoner::Core::uint32>(Impl->VisibleFences.size());
-    DestroyBuffers();
     if (bResize)
     {
         OutPresentedRgba8.clear();

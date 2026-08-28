@@ -85,19 +85,42 @@ bool RunVisibleSurfaceSmoke()
         Pixels[Offset + 3u] = 255;
     }
     FDemoProductionPresentationResult Presented;
-    const bool bPassed = Width > 0 && Height > 0 &&
-        Created.Runtime->Initialize(
+    const RHI::ERHIResult Initialized = Width > 0 && Height > 0
+        ? Created.Runtime->Initialize(
             EDemoRunMode::BoundedNative, Window.GetPlatformWindow(),
-            2, false) == RHI::ERHIResult::Success &&
-        Created.Runtime->PrepareProductionPresentation(Width, Height) ==
-            RHI::ERHIResult::Success &&
-        Created.Runtime->PresentProductionImage(
-            Pixels, 64, 64, 64 * 4, Presented) ==
-            RHI::ERHIResult::Success &&
+            2, false)
+        : RHI::ERHIResult::InvalidState;
+    const RHI::ERHIResult Prepared = Initialized == RHI::ERHIResult::Success
+        ? Created.Runtime->PrepareProductionPresentation(Width, Height)
+        : RHI::ERHIResult::InvalidState;
+    const RHI::ERHIResult PresentedResult =
+        Prepared == RHI::ERHIResult::Success
+        ? Created.Runtime->PresentProductionImage(
+            Pixels, 64, 64, 64 * 4, Presented)
+        : RHI::ERHIResult::InvalidState;
+    const Core::usize CenterPixel =
+        (static_cast<Core::usize>(Presented.Height / 2u) *
+            Presented.Width + Presented.Width / 2u) * 4u;
+    const bool bPassed = Width > 0 && Height > 0 &&
+        Initialized == RHI::ERHIResult::Success &&
+        Prepared == RHI::ERHIResult::Success &&
+        PresentedResult == RHI::ERHIResult::Success &&
         Presented.bPresented && Presented.Width == Width &&
         Presented.Height == Height && Presented.RowPitchBytes == Width * 4u &&
-        !Presented.Rgba8.empty() && Presented.Rgba8[0] == 31 &&
-        Presented.Rgba8[1] == 127 && Presented.Rgba8[2] == 223;
+        Presented.Rgba8.size() >= CenterPixel + 4u &&
+        Presented.Rgba8[CenterPixel] == 31 &&
+        Presented.Rgba8[CenterPixel + 1u] == 127 &&
+        Presented.Rgba8[CenterPixel + 2u] == 223;
+    if (!bPassed)
+        std::cerr << "Vulkan production surface smoke: drawable="
+                  << Width << 'x' << Height
+                  << " initialize=" << static_cast<int>(Initialized)
+                  << " prepare=" << static_cast<int>(Prepared)
+                  << " present=" << static_cast<int>(PresentedResult)
+                  << " result=" << Presented.Width << 'x'
+                  << Presented.Height << " pitch="
+                  << Presented.RowPitchBytes << " bytes="
+                  << Presented.Rgba8.size() << '\n';
     (void)Created.Runtime->Shutdown();
     (void)Window.Destroy();
     return bPassed;
