@@ -904,6 +904,23 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             parsed["flip"],
         )
 
+    def test_serial_packages_stop_after_first_native_failure(self):
+        packages = [{"packageId": "first"}, {"packageId": "second"}]
+        calls = []
+
+        def run_package(package):
+            calls.append(package["packageId"])
+            return {
+                "packageId": package["packageId"],
+                "nativeLifecycle": {"result": "Failed"},
+            }
+
+        reports = self.module.run_serial_packages_fail_closed(
+            packages, run_package
+        )
+        self.assertEqual(["first"], calls)
+        self.assertEqual(["first"], [item["packageId"] for item in reports])
+
     def test_target_profile_native_host_contract_is_explicit(self):
         contract = self.module.load_native_target_contract(
             self.module.REPOSITORY_ROOT

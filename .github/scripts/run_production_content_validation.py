@@ -906,6 +906,20 @@ def aggregate_native_results(
     )
 
 
+def run_serial_packages_fail_closed(
+    packages: Sequence[dict],
+    run_selected_package,
+) -> list[dict]:
+    reports = []
+    for package in packages:
+        report = run_selected_package(package)
+        reports.append(report)
+        native = report.get("nativeLifecycle")
+        if isinstance(native, dict) and native.get("result") != "Passed":
+            break
+    return reports
+
+
 def validate_native_deferral(
     profile_name: str,
     contract: dict,
@@ -2164,9 +2178,9 @@ def run_profile(args: argparse.Namespace) -> dict:
             raise
 
     if package_concurrency == 1:
-        package_reports = [
-            run_selected_package(package) for package in packages
-        ]
+        package_reports = run_serial_packages_fail_closed(
+            packages, run_selected_package
+        )
     else:
         # Medium packages own disjoint source, DDC, publication, lease, and
         # report roots, so their CPU/cook stages may overlap. Hosted Metal
