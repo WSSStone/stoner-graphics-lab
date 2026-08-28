@@ -47,8 +47,8 @@ python3 .github/scripts/run_production_content_validation.py \
 
 Hardware validation uses the same runner and additionally requires a physical
 display-backed application surface, accepted image evidence, and the declared
-1,000 lifecycle cycles. The command below is the sole Feature 028 physical
-authority entry point:
+1,000 lifecycle cycles. The commands below are the two Feature 028 physical
+authority entry points and must run on one committed revision:
 
 ```bash
 STONER_PRODUCTION_VISIBLE=1 \
@@ -58,6 +58,16 @@ python3 .github/scripts/run_production_content_validation.py \
   --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json \
   --build-root Build/Mac/Release \
   --output Build/Validation/028/hardware-macos-metal \
+  --acquire-missing --timeout-seconds 3600
+```
+
+```powershell
+python .github/scripts/run_production_content_validation.py `
+  --profile hardware `
+  --local-windows-vulkan-authority `
+  --target-profile Config/AssetCooker/Profiles/Production/Windows-Vulkan.json `
+  --build-root Build/Windows/Release `
+  --output Build/Validation/028/hardware-windows-vulkan `
   --acquire-missing --timeout-seconds 3600
 ```
 
@@ -81,26 +91,27 @@ python3 .github/scripts/run_production_content_validation.py \
   by regular validation and the required maintainer-local M4 Metal closeout. The Sponza cache key is the
   checked-in corpus-manifest digest, while acquisition still revalidates every
   declared file hash.
-- No Feature 028 self-hosted runner exists, so pushes do not queue a hardware
-  workflow. Maintainers run the explicit local Metal command for closeout and
-  accepted reference/render-path changes. Windows/macOS Vulkan physical
-  qualification is deferred to a future hardware-lab phase. Hosted Windows/
+- No Feature 028 self-hosted runner is required, so pushes do not queue a hardware
+  workflow. Maintainers manually synchronize and run the explicit local Metal
+  and Windows Vulkan commands for closeout and accepted reference/render-path
+  changes. macOS Vulkan qualification is deferred. Hosted Windows/
   Linux Vulkan build, strict-runtime, lifecycle, and native readback are the
   documented non-equivalent fallback and MUST NOT be labeled physical proof.
 - A missing host, device, display, backend, or tool is `Unsupported`, names its
   prerequisite and replacement hardware lane, and fails aggregate acceptance.
 
-The runner derives `github-hosted`, `maintainer-local-metal`, or
-`local-diagnostic` from repository policy and rejects generic caller promotion.
+The runner derives `github-hosted`, `maintainer-local-metal`,
+`maintainer-local-windows-vulkan`, or `local-diagnostic` from repository policy
+and rejects generic caller promotion.
 Hosted lanes own exact functional/lifecycle completion, including 1,000/20
 cycles, 2,000 captures, seven readbacks, zero terminal owners, and stale-handle
 rejection. Hosted RSS/task-VM/allocator/peak/elapsed metrics are observations:
 they are preserved in evidence but do not decide acceptance. The
-maintainer-local Metal lane additionally requires native arm64 macOS, exact
-target/registered device class, non-Rosetta execution, exclusive process lock,
-clean committed revision, default production allocator, declared sample
-protocol, and window presentation plus GPU readback. Only that lane owns the
-16 MiB RSS and accepted-image gates.
+maintainer-local physical lanes additionally require their exact native host,
+target/registered device class, exclusive process lock, clean committed
+revision, default production allocator, declared sample protocol, and window
+presentation plus GPU readback. Each owns the 16 MiB RSS and accepted-image
+gates only for its exact target.
 Local diagnostics never replace a required hosted or physical lane.
 
 Regular lanes have a 10-minute workload budget, hosted medium package lanes

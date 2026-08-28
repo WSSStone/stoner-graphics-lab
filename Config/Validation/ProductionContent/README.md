@@ -12,8 +12,8 @@ tokens or complete signatures are invalid.
 Regular uses cycles 1-2 of 20 as included warm-up. Medium and hardware use
 cycles 1-20 of 1,000. RSS growth is measured from the sample immediately after
 warm-up to the terminal sample. The 16 MiB result is `observed` on GitHub-hosted
-and local-diagnostic runs and is `required` only on a maintainer-local Metal run
-that passed the profile-owned preflight.
+and local-diagnostic runs and is `required` only on a maintainer-local Metal or
+Windows Vulkan run that passed the profile-owned preflight.
 
 Execution class is derived from repository policy and validated provenance;
 there is no generic `--execution-class` override. `github-hosted` owns deterministic,
@@ -25,8 +25,12 @@ into failure or success. `local-diagnostic` has no closeout authority.
 `--local-metal-authority` hardware command after native arm64 macOS, exact
 target/device class, non-Rosetta execution, process-level exclusive lock, clean
 committed revision, default allocator, sample protocol, and window/readback
-preflight. It owns the required 16 MiB RSS and accepted image decisions. The
-flag cannot authorize Vulkan or another target.
+preflight. `maintainer-local-windows-vulkan` is available only through the
+explicit `--local-windows-vulkan-authority` hardware command after native
+x86_64 Windows, exact target/device class, process-level exclusive lock, clean
+committed revision, default allocator, sample protocol, and window/readback
+preflight. Each class owns required 16 MiB RSS and accepted image decisions
+only for its exact target; neither flag can authorize another target.
 
 All Feature 028 profiles reference target descriptions under
 `Config/AssetCooker/Profiles/Production/`. These profiles retain the established
@@ -43,12 +47,12 @@ part of the regular production-content acceptance budget.
 |---|---|---:|---:|---|
 | Regular | Checked-in Lantern | 20 / 2 | 10 minutes | Windows, Linux, or macOS target-capable host; headless/software-native evidence where applicable |
 | Medium | Lantern and hash-pinned Sponza | 1,000 / 20 | 90 minutes complete / 80 minutes native | Isolated hosted Intel Metal package lanes; external package cache may be reused only after hash verification |
-| Hardware | Lantern and hash-pinned Sponza | 1,000 / 20 | 60 minutes | Maintainer-local native arm64 macOS Metal with an application display surface |
+| Hardware | Lantern and hash-pinned Sponza | 1,000 / 20 | 60 minutes per target | Maintainer-local native arm64 macOS Metal and x86_64 Windows Vulkan, each with an application display surface |
 
 The runner does not accept caller overrides for cycle or warm-up boundaries.
 `Unsupported` is a structured non-success result and always identifies the
 missing prerequisite plus the replacement command. An incomplete maintainer-local
-Metal preflight is `Unsupported`, never an ordinary local or hosted pass. Hardware runs set
+physical preflight is `Unsupported`, never an ordinary local or hosted pass. Hardware runs set
 `STONER_PRODUCTION_VISIBLE=1`; the captured bytes come from the application's
 own swapchain/drawable surface, never from a full-screen capture API.
 
@@ -59,9 +63,9 @@ Operational timeouts fail when required work is incomplete; finishing more
 slowly on a completed diagnostic replay is an observation, not deterministic
 correctness identity.
 
-Windows Vulkan and macOS Vulkan physical qualification are deferred to a future
-hardware-lab phase. Feature 028 does not auto-queue self-hosted workflows when
-no such runner exists.
+macOS Vulkan physical qualification remains deferred to a future hardware-lab
+phase. Windows Vulkan is performed manually on the maintainer's Windows device;
+Feature 028 does not require or auto-queue a self-hosted workflow.
 
 The external corpus is staged under
 `Content/ProductionAcceptance/External/Sponza`, which is ignored as generated

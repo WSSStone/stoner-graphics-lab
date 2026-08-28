@@ -79,7 +79,7 @@ and non-color material-data textures.
 | `LifecycleCycles` | integer | 20 regular; 1,000 medium/hardware |
 | `WarmupCycles` | integer | Exactly 2 for regular and 20 for medium/hardware; included in lifecycle count |
 | `MaxRssGrowthBytes` | integer | 16 MiB when RSS disposition is `required`; recorded but not applied to `observed` hosted RSS |
-| `EnvironmentPolicy` | authority-policy ID | Repository-owned mapping for hosted, maintainer-local Metal, and local diagnostic execution |
+| `EnvironmentPolicy` | authority-policy ID | Repository-owned mapping for hosted, maintainer-local Metal, maintainer-local Windows Vulkan, and local diagnostic execution |
 | `RequiredGates` | ordered enum list | Corpus/import/cook/runtime/realization/render/image/lifecycle as applicable |
 | `TimeBudgetSeconds` | integer | 600 regular; 5,400 hosted medium package operational timeout; 3,600 serialized visible hardware lane |
 | `NativeTimeBudgetSeconds` | integer | 600 regular; 4,800 hosted medium operational timeout; 3,600 hardware; always capped by the enclosing lane deadline |
@@ -88,9 +88,9 @@ and non-color material-data textures.
 
 | Field | Type | Rules |
 |---|---|---|
-| `ExecutionClass` | enum | `github-hosted`, `maintainer-local-metal`, or `local-diagnostic`; the dedicated local flag is a narrow Metal authority assertion, not a generic class token |
-| `Preflight` | enum + evidence | `passed`, `failed`, or `not-required`; local Metal authority requires native arm64 macOS, exact target/device class, exclusive lock, clean committed revision, default allocator, and sample/presentation evidence |
-| `RssDisposition` | enum | `required` only for preflighted maintainer-local Metal; otherwise `observed` |
+| `ExecutionClass` | enum | `github-hosted`, `maintainer-local-metal`, `maintainer-local-windows-vulkan`, or `local-diagnostic`; each dedicated local flag is a narrow target authority assertion, not a generic class token |
+| `Preflight` | enum + evidence | `passed`, `failed`, or `not-required`; each local physical authority requires its native host/backend, exact target/device class, exclusive lock, clean committed revision, default allocator, and sample/presentation evidence |
+| `RssDisposition` | enum | `required` only for either preflighted maintainer-local physical target; otherwise `observed` |
 | `TimingDisposition` | enum | `operational` for Feature 028 timeouts; elapsed time is not a hosted performance qualification |
 | `ImageDisposition` | enum | `required` only for a profile/device class with accepted physical image authority; otherwise `not-required` |
 | `ReplacementLane` | stable token or null | Required when a requested physical authority preflight is unavailable or fails |

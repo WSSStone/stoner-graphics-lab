@@ -1,8 +1,9 @@
 # Feature 028 CI Evidence
 
 Final closeout records hosted regular, scheduled/manual medium, and required
-maintainer-local M4 Pro Metal report/revision/artifact SHA-256 values here.
-Windows/macOS Vulkan physical qualification is deferred. Downloaded artifacts remain in ignored
+same-revision maintainer-local M4 Pro Metal plus Windows Vulkan
+report/revision/artifact SHA-256 values here. macOS Vulkan qualification is
+deferred. Downloaded artifacts remain in ignored
 `downloaded/`.
 
 ## Current Environment Authority Policy
@@ -23,9 +24,9 @@ runtime, then the native child was stopped after the 3,499 seconds left in the
 package deadline. The exact 1,000/20 workload remains unchanged.
 
 The 16 MiB RSS and accepted-image gates are `required` only in the explicit
-`maintainer-local-metal` hardware run after preflight proves native arm64
-macOS, exact target/device class, non-Rosetta execution, exclusive process
-lock, clean committed revision, default production allocator, declared
+`maintainer-local-metal` and `maintainer-local-windows-vulkan` hardware runs
+after preflight proves the exact native host/backend/target/device class,
+exclusive process lock, clean committed revision, default production allocator, declared
 warmup20-terminal1000 sample protocol, and window presentation plus GPU
 readback. Missing or conflicting preflight is `Unsupported`. Ordinary local
 replays are `local-diagnostic` and cannot substitute for either required
@@ -36,7 +37,7 @@ All run narratives below this section predate this authority-policy revision
 unless a later final-revision section explicitly says otherwise. They remain
 useful diagnostic history, but hosted RSS failures and allocator experiments
 are not current closeout decisions. Final closeout must record fresh hosted and
-maintainer-local Metal evidence from the same final revision.
+both maintainer-local physical evidence sets from the same final revision.
 
 ## Final Implementation Revision
 

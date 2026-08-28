@@ -40,11 +40,11 @@ semantic classification moves from exact pixels to bounded region statistics.
 **Language/Version**: C++20 with traditional public/private headers and sources; Objective-C++20 remains private to Metal; Python 3 standard-library validation scripts
 **Primary Dependencies**: Existing Core, Asset, AssetCooker, RHI, Renderer, Application, Vulkan and Metal contracts; cgltf 1.15, stb_image 2.30, KTX-Software 4.4.2, WAMR 2.4.5, yyjson 0.12.0, SPIRV-Cross 0.68.0 lineage; CPU-only NVIDIA FLIP 1.7 single-header implementation pinned to commit `b475eb4bf394ab877c42166c9eb0a84a02cc5b14`; SCons 4.10.1
 **Storage**: Checked-in bounded Lantern GLB and corpus metadata; externally staged hash-pinned Sponza medium package; local immutable DDC and cooked generations; checked-in baseline policy/reference images and bounded validation evidence; no database, archive, remote cache, or runtime source fallback
-**Testing**: Existing `StonerTest` suites plus corpus, KTX2 integration, semantic-equivalence, transactional realization, native readback, image-acceptance, lifecycle, failure-injection, Python schema/runner tests, Windows/macOS/Linux hosted CI, and the required maintainer-local arm64 Metal physical lane
-**Target Platform**: Windows x64 Vulkan, macOS arm64/Intel Metal, and Linux x64 hosted build/function/native coverage; maintainer-local arm64 macOS Metal physical authority; Windows/macOS Vulkan physical qualification deferred
+**Testing**: Existing `StonerTest` suites plus corpus, KTX2 integration, semantic-equivalence, transactional realization, native readback, image-acceptance, lifecycle, failure-injection, Python schema/runner tests, Windows/macOS/Linux hosted CI, and the required maintainer-local arm64 Metal plus x86_64 Windows Vulkan physical lanes
+**Target Platform**: Windows x64 Vulkan, macOS arm64/Intel Metal, and Linux x64 hosted build/function/native coverage; maintainer-local arm64 macOS Metal and x86_64 Windows Vulkan physical authority; macOS Vulkan physical qualification deferred
 **Project Type**: Cross-platform graphics engine, offline asset cooker CLI, desktop demo, and validation tooling
 **Performance Goals**: Regular profile within 10 minutes per hosted job; hosted medium bounded operationally to 5,400 seconds per package and 4,800 seconds per native stage inside a 120-minute job; serialized visible hardware profile within 60 minutes per declared lane; deterministic reports byte-identical across 20 repetitions; hosted elapsed time is not a performance qualification
-**Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; 1,000 medium/hardware cycles with cycles 1-20 as warm-up; warm-up counts toward the total; exact lifecycle/capture/readback/owner/stale contracts are hard on every lane; post-warm-up RSS growth is at most 16 MiB only on a preflighted maintainer-local Metal authority and is observation-only on GitHub-hosted runners; formal image calibration/reference/comparison uses an exact 512-by-512 extent while the 1024-by-1024 preview remains non-authoritative; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation; no image alignment/resampling
+**Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; 1,000 medium/hardware cycles with cycles 1-20 as warm-up; warm-up counts toward the total; exact lifecycle/capture/readback/owner/stale contracts are hard on every lane; post-warm-up RSS growth is at most 16 MiB only on either preflighted maintainer-local physical authority and is observation-only on GitHub-hosted runners; formal image calibration/reference/comparison uses an exact 512-by-512 extent while the 1024-by-1024 preview remains non-authoritative; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation; no image alignment/resampling
 **Scale/Scope**: Two artist-authored source works; regular Lantern GLB is about 9.6 MB with 3 primitives and four 2K textures; medium Sponza external package is about 50 MB with 103 primitives, 25 materials, and 69 mostly 1K textures; at least 30 deterministic negative cases
 
 ## Constitution Check
@@ -58,7 +58,7 @@ semantic classification moves from exact pixels to bounded region statistics.
 - [x] **Advanced Graphics Readiness**: Stable model/material/texture identities, bounds, topology coverage, and evidence remain reusable by Meshlet, streaming, ray-tracing, and GI phases.
 - [x] **Naming Conventions**: New C++ APIs use PascalCase and project/Unreal-style prefixes; this phase does not rename Core globally.
 - [x] **Cross-Platform Compatibility**: Build, deterministic, strict-cooked, and platform-applicable native validation cover Windows, macOS, and Linux with platform code isolated behind existing boundaries.
-- [x] **Automated Cross-Platform Validation**: Relevant PR/push regular jobs and weekly/manual hosted medium jobs cover available hosted platforms; physical closeout is an explicit local native arm64 Metal command, and unavailable self-hosted jobs are not auto-queued.
+- [x] **Automated Cross-Platform Validation**: Relevant PR/push regular jobs and weekly/manual hosted medium jobs cover available hosted platforms; physical closeout uses explicit local native arm64 Metal and x86_64 Windows Vulkan commands on one revision, and no self-hosted job is required or auto-queued.
 
 ### Post-Design Re-check
 
@@ -304,11 +304,11 @@ Validation. No new runtime module is introduced.
    completed correctness result. Hosted execution uses normal production
    allocator behavior rather than validation-only zone switches intended to
    force resident pages under a threshold. The explicit maintainer-local Metal
-   path applies the 16 MiB RSS hard limit only after preflight proves native
-   arm64 macOS, exact target/device class, a clean committed revision,
+   and Windows Vulkan paths apply the 16 MiB RSS hard limit only after preflight
+   proves the exact native OS/architecture/backend and target/device class, a clean committed revision,
    process-level exclusive session ownership, default allocator, and declared
    sample/presentation protocol. Ordinary local diagnostic execution remains
-   non-authoritative; the dedicated flag cannot select another backend/target.
+   non-authoritative; each dedicated flag cannot select another backend/target.
    Do not add allocator residency by allocating and destroying an additional
    full-resolution Metal staging buffer and CPU vector for every lifecycle
    readback. Shared host-visible buffers are copied directly after completed
@@ -415,16 +415,16 @@ Validation. No new runtime module is introduced.
 3. Medium workflow runs weekly from the default branch and via
    `workflow_dispatch`; it is also manually required at feature/release
    closeout. Feature 028 physical closeout and reference/render-path changes use
-   the documented explicit maintainer-local arm64 Metal command. Hosted medium
+   the documented explicit maintainer-local arm64 Metal and x86_64 Windows
+   Vulkan commands on one committed revision. Hosted medium
    is the complete functional/lifecycle authority but not RSS, performance, or
    accepted-image authority. The local Metal run owns calibrated RSS and image
-   decisions after fail-closed preflight. Windows Vulkan and macOS Vulkan
-   physical evidence are deferred until a future hardware lab exists; the old
-   self-hosted workflow is retired so pushes cannot queue impossible jobs.
-   Until that lab exists, hosted Windows/Linux Vulkan remains the documented
-   build/function/native fallback and the local M4 Metal lane remains the only
-   physical RSS/image authority; neither is presented as Vulkan physical proof.
-   T175 records the deferred qualification as an explicit roadmap follow-up.
+   decisions after fail-closed preflight; the local Windows device owns the
+   equivalent Vulkan decisions for its exact class. The old self-hosted workflow
+   remains retired: manual synchronization and execution do not require runner
+   registration. macOS Vulkan remains deferred, with hosted Vulkan retained as
+   a non-equivalent build/function/native fallback. T175 records that remaining
+   qualification as an explicit roadmap follow-up.
 4. Unsupported lanes name the missing capability and replacement lane. They do
    not become passes. Publish bounded reports/artifacts with digests and no
    absolute paths, credentials, process IDs, pointers, or unrelated screen

@@ -16,6 +16,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from dataclasses import dataclass
@@ -81,20 +82,21 @@ PROFILE_FIELDS = {
     "requiredGates", "authorityPolicy",
 }
 EXECUTION_CLASSES = (
-    "github-hosted", "maintainer-local-metal", "local-diagnostic",
+    "github-hosted", "maintainer-local-metal",
+    "maintainer-local-windows-vulkan", "local-diagnostic",
 )
 MEASUREMENT_DISPOSITIONS = (
     "required", "operational", "observed", "not-required",
 )
 PHYSICAL_PREFLIGHT_NAMES = (
-    "native-arm64-macos-metal",
+    "native-registered-target",
     "registered-device-class",
-    "exclusive-local-metal-session",
+    "exclusive-local-device-session",
     "clean-frozen-revision-and-software",
     "default-production-allocator",
     "declared-sample-and-presentation-protocol",
 )
-LOCAL_METAL_ALLOCATOR_OVERRIDES = (
+LOCAL_AUTHORITY_ALLOCATOR_OVERRIDES = (
     "MallocMediumZone", "MallocNanoZone", "MallocMaxMagazines",
     "MallocSpaceEfficient", "MallocXzone", "MALLOC_ARENA_MAX",
 )
@@ -102,7 +104,11 @@ LOCAL_METAL_TARGET = Path(
     "Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json"
 )
 LOCAL_METAL_DEVICE_CLASS = "macos.apple8.metal.rgba8"
-_LOCAL_METAL_AUTHORITY_LOCKS: dict[str, object] = {}
+LOCAL_WINDOWS_VULKAN_TARGET = Path(
+    "Config/AssetCooker/Profiles/Production/Windows-Vulkan.json"
+)
+LOCAL_WINDOWS_VULKAN_DEVICE_CLASS = "windows.discrete-vulkan.rgba8"
+_LOCAL_HARDWARE_AUTHORITY_LOCKS: dict[str, object] = {}
 PROFILE_CONTRACTS = {
     "regular": {
         "cycles": 20,
@@ -181,10 +187,13 @@ def expected_authority_policy(profile_name: str) -> dict:
     if profile_name == "hardware":
         return {
             "allowedExecutionClasses": [
-                "maintainer-local-metal", "local-diagnostic",
+                "maintainer-local-metal",
+                "maintainer-local-windows-vulkan",
+                "local-diagnostic",
             ],
             "executionClasses": {
                 "maintainer-local-metal": physical,
+                "maintainer-local-windows-vulkan": physical,
                 "local-diagnostic": local,
             },
             "physicalPreflight": list(PHYSICAL_PREFLIGHT_NAMES),
@@ -204,37 +213,50 @@ def _git_local_authority_revision(repository_root: Path) -> str:
     ).stdout.strip()
     if not re.fullmatch(r"[0-9a-f]{40}", revision) or dirty:
         raise StageFailure(
-            "unsupported", "local-metal-revision-not-frozen",
-            "maintainer local Metal authority requires a clean committed HEAD",
+            "unsupported", "local-authority-revision-not-frozen",
+            "maintainer local authority requires a clean committed HEAD",
         )
     return revision
 
 
-def _acquire_local_metal_authority_lock(repository_root: Path) -> str:
-    if platform.system().lower() != "darwin":
+def _acquire_local_authority_lock(
+    repository_root: Path, authority_token: str,
+) -> str:
+    system = platform.system().lower()
+    if system not in ("darwin", "windows"):
         raise StageFailure(
-            "unsupported", "local-metal-lock-unavailable",
-            "exclusive local Metal authority locking requires macOS",
+            "unsupported", "local-authority-lock-unavailable",
+            "exclusive local authority locking requires macOS or Windows",
         )
-    import fcntl
 
     token = hashlib.sha256(
         str(repository_root.resolve()).encode("utf-8")
     ).hexdigest()[:16]
-    lock_path = Path("/tmp") / f"stoner-feature-028-metal-{token}.lock"
+    lock_path = Path(tempfile.gettempdir()) / (
+        f"stoner-feature-028-{authority_token}-{token}.lock"
+    )
     key = str(lock_path)
-    if key in _LOCAL_METAL_AUTHORITY_LOCKS:
+    if key in _LOCAL_HARDWARE_AUTHORITY_LOCKS:
         return hashlib.sha256(key.encode("utf-8")).hexdigest()
-    handle = lock_path.open("a+", encoding="utf-8")
+    handle = lock_path.open("a+b")
     try:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if system == "darwin":
+            import fcntl
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        else:
+            import msvcrt
+            if lock_path.stat().st_size == 0:
+                handle.write(b"\0")
+                handle.flush()
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
     except OSError as error:
         handle.close()
         raise StageFailure(
-            "unsupported", "local-metal-session-not-exclusive",
-            "another Feature 028 local Metal authority session owns the device",
+            "unsupported", "local-authority-session-not-exclusive",
+            "another Feature 028 local authority session owns the device",
         ) from error
-    _LOCAL_METAL_AUTHORITY_LOCKS[key] = handle
+    _LOCAL_HARDWARE_AUTHORITY_LOCKS[key] = handle
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
 
@@ -259,7 +281,7 @@ def _validate_local_metal_preflight(
             "authority requires native arm64 macOS and Mac-Metal-Arm64.json",
         )
     forbidden = [
-        key for key in LOCAL_METAL_ALLOCATOR_OVERRIDES
+        key for key in LOCAL_AUTHORITY_ALLOCATOR_OVERRIDES
         if environment.get(key) is not None
     ]
     if forbidden:
@@ -269,7 +291,7 @@ def _validate_local_metal_preflight(
             ",".join(forbidden),
         )
     revision = _git_local_authority_revision(repository_root)
-    lock_digest = _acquire_local_metal_authority_lock(repository_root)
+    lock_digest = _acquire_local_authority_lock(repository_root, "metal")
     evidence = {
         "authority": "maintainer-local-metal",
         "deviceClass": LOCAL_METAL_DEVICE_CLASS,
@@ -290,11 +312,67 @@ def _validate_local_metal_preflight(
     return evidence
 
 
+def _validate_local_windows_vulkan_preflight(
+    repository_root: Path,
+    target_profile: Path,
+    target_contract: dict,
+    environment: dict[str, str],
+) -> dict:
+    expected_target = (
+        repository_root / LOCAL_WINDOWS_VULKAN_TARGET
+    ).resolve()
+    if (
+        platform.system().lower() != "windows"
+        or platform.machine().lower() not in ("amd64", "x86_64")
+        or target_profile.resolve() != expected_target
+        or target_contract.get("platform") != "windows"
+        or target_contract.get("cpuArchitecture") != "x86_64"
+        or target_contract.get("graphicsBackend") != "vulkan"
+    ):
+        raise StageFailure(
+            "unsupported", "local-windows-vulkan-host-mismatch",
+            "authority requires native x86_64 Windows and Windows-Vulkan.json",
+        )
+    forbidden = [
+        key for key in LOCAL_AUTHORITY_ALLOCATOR_OVERRIDES
+        if environment.get(key) is not None
+    ]
+    if forbidden:
+        raise StageFailure(
+            "unsupported", "local-windows-vulkan-allocator-overridden",
+            "default production allocator required; remove " +
+            ",".join(forbidden),
+        )
+    revision = _git_local_authority_revision(repository_root)
+    lock_digest = _acquire_local_authority_lock(
+        repository_root, "windows-vulkan"
+    )
+    evidence = {
+        "authority": "maintainer-local-windows-vulkan",
+        "deviceClass": LOCAL_WINDOWS_VULKAN_DEVICE_CLASS,
+        "exclusiveRunnerDeviceDisplay": True,
+        "frozenRevision": revision,
+        "targetProfile": LOCAL_WINDOWS_VULKAN_TARGET.as_posix(),
+        "allocator": "default-production",
+        "sampleProtocol": "warmup20-terminal1000",
+        "presentation": "window-readback",
+        "lockDigest": lock_digest,
+        "passed": True,
+    }
+    evidence["evidenceDigest"] = hashlib.sha256(
+        json.dumps(evidence, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
+    ).hexdigest()
+    return evidence
+
+
 def classify_execution_environment(
     profile_name: str,
     environment: dict[str, str] | None = None,
     *,
     local_metal_authority: bool = False,
+    local_windows_vulkan_authority: bool = False,
     repository_root: Path | None = None,
     target_profile: Path | None = None,
     target_contract: dict | None = None,
@@ -306,6 +384,8 @@ def classify_execution_environment(
     execution_class = "local-diagnostic"
     preflight = None
     source = "local-default"
+    if local_metal_authority and local_windows_vulkan_authority:
+        raise ValueError("local authority assertions are mutually exclusive")
     if local_metal_authority:
         if profile_name != "hardware" or environment.get("GITHUB_ACTIONS") == "true":
             raise StageFailure(
@@ -320,6 +400,21 @@ def classify_execution_environment(
             repository_root, target_profile, target_contract, environment
         )
         execution_class = "maintainer-local-metal"
+        source = "explicit-maintainer-local"
+    if local_windows_vulkan_authority:
+        if profile_name != "hardware" or environment.get("GITHUB_ACTIONS") == "true":
+            raise StageFailure(
+                "unsupported", "local-windows-vulkan-authority-scope-mismatch",
+                "local Windows Vulkan authority is limited to a non-GitHub hardware run",
+            )
+        if repository_root is None or target_profile is None or target_contract is None:
+            raise ValueError(
+                "local Windows Vulkan authority requires repository and target evidence"
+            )
+        preflight = _validate_local_windows_vulkan_preflight(
+            repository_root, target_profile, target_contract, environment
+        )
+        execution_class = "maintainer-local-windows-vulkan"
         source = "explicit-maintainer-local"
     if environment.get("GITHUB_ACTIONS") == "true":
         workflow = environment.get("GITHUB_WORKFLOW_REF", "")
@@ -980,7 +1075,7 @@ def native_allocator_authority_environment(
     require_visible: bool,
 ) -> dict[str, str]:
     # Acceptance must exercise the production allocator. Hosted RSS is an
-    # observation, while maintainer-local Metal owns the calibrated gate;
+    # observation, while maintainer-local physical runs own calibrated gates;
     # neither class may rewrite allocator topology to manufacture a result.
     return {}
 
@@ -1796,6 +1891,8 @@ def run_profile(args: argparse.Namespace) -> dict:
         authority = classify_execution_environment(
             args.profile,
             local_metal_authority=args.local_metal_authority,
+            local_windows_vulkan_authority=
+                args.local_windows_vulkan_authority,
             repository_root=repository_root,
             target_profile=target_profile,
             target_contract=target_contract,
@@ -1803,9 +1900,14 @@ def run_profile(args: argparse.Namespace) -> dict:
     except StageFailure as error:
         if error.stage != "unsupported":
             raise
+        requested_authority = (
+            "maintainer-local-windows-vulkan"
+            if args.local_windows_vulkan_authority
+            else "maintainer-local-metal"
+        )
         unsupported = unsupported_result(
             "unsupported", error.detail,
-            "maintainer-local-metal",
+            requested_authority,
         )
         result = {
             "schema": "stoner.production-cook-runtime-summary",
@@ -1967,11 +2069,11 @@ def run_profile(args: argparse.Namespace) -> dict:
                 run_selected_package, packages
             ))
     elapsed = time.monotonic() - started
-    if authority["executionClass"] == "maintainer-local-metal":
+    if authority["executionClass"].startswith("maintainer-local-"):
         terminal_revision = _git_local_authority_revision(repository_root)
         if terminal_revision != authority["preflight"]["frozenRevision"]:
             raise RuntimeError(
-                "maintainer-local Metal revision changed during validation"
+                "maintainer-local authority revision changed during validation"
             )
     result = {
         "schema": "stoner.production-cook-runtime-summary",
@@ -2042,11 +2144,19 @@ def parse_args(values: Sequence[str] | None = None) -> argparse.Namespace:
             "arm64 macOS Metal authority"
         ),
     )
+    parser.add_argument(
+        "--local-windows-vulkan-authority", action="store_true",
+        help=(
+            "run the hardware profile as the maintainer's exclusive native "
+            "x86_64 Windows Vulkan authority"
+        ),
+    )
     args = parser.parse_args(values)
     if args.verify_only is not None:
         if any((args.profile, args.build_root, args.output, args.acquire_missing,
                 args.defer_native_to_hardware, args.package_id,
-                args.local_metal_authority)):
+                args.local_metal_authority,
+                args.local_windows_vulkan_authority)):
             parser.error(
                 "--verify-only cannot be combined with execution options"
             )
@@ -2065,6 +2175,15 @@ def parse_args(values: Sequence[str] | None = None) -> argparse.Namespace:
         parser.error("--package-id is supported only by --profile medium")
     if args.local_metal_authority and args.profile != "hardware":
         parser.error("--local-metal-authority requires --profile hardware")
+    if (
+        args.local_windows_vulkan_authority
+        and args.profile != "hardware"
+    ):
+        parser.error(
+            "--local-windows-vulkan-authority requires --profile hardware"
+        )
+    if args.local_metal_authority and args.local_windows_vulkan_authority:
+        parser.error("local authority assertions are mutually exclusive")
     return args
 
 

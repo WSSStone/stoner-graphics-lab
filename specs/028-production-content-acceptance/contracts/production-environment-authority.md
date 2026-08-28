@@ -12,13 +12,14 @@ image requirements.
 | Class | Selection | Permitted authority |
 |---|---|---|
 | `github-hosted` | Workflow-owned hosted job definition | Build, deterministic cook, strict runtime, exact lifecycle work, native proof, captures/readbacks, ownership, stale rejection, crash, and operational timeout |
-| `maintainer-local-metal` | Explicit hardware-profile flag plus successful native arm64 macOS Metal preflight | All hosted correctness facts plus calibrated RSS and required image/FLIP decisions for the sole available physical device |
+| `maintainer-local-metal` | Explicit hardware-profile flag plus successful native arm64 macOS Metal preflight | All hosted correctness facts plus calibrated RSS and required image/FLIP decisions for the exact Metal device class |
+| `maintainer-local-windows-vulkan` | Explicit hardware-profile flag plus successful native x86_64 Windows Vulkan preflight | All hosted correctness facts plus calibrated RSS and required image/FLIP decisions for the exact Vulkan device class |
 | `local-diagnostic` | Local runner default | Reproduction and observations only; cannot satisfy required hosted/physical closeout authority |
 
 The generic class is not accepted from an unrestricted application or runner
-CLI token. `--local-metal-authority` is a narrow explicit maintainer assertion,
-not a class selector: it is valid only for the hardware profile, native arm64
-macOS, and the exact Metal target. Missing, conflicting, dirty-revision,
+CLI token. `--local-metal-authority` and `--local-windows-vulkan-authority` are
+narrow, mutually exclusive maintainer assertions, not class selectors. Each is
+valid only for the hardware profile and its exact native host/target. Missing, conflicting, dirty-revision,
 translated, allocator-overridden, nonexclusive, or other-backend authority
 fails closed.
 
@@ -55,11 +56,11 @@ RSS endpoints, task-VM categories, allocator totals, peak memory, and elapsed
 time are `observed`. Hosted execution uses normal production allocator behavior;
 validation-only allocator-zone switches cannot manufacture RSS authority.
 
-## Maintainer-Local Metal Preflight
+## Maintainer-Local Physical Preflight
 
 Before RSS or image evidence is `required`, the lane proves:
 
-1. native non-Rosetta arm64 macOS, exact Metal target, and registered device/backend capability signature;
+1. exact native OS/architecture/backend target and registered device/backend capability signature; Metal additionally proves non-Rosetta arm64 macOS;
 2. exclusive process/device/display ownership, enforced by a repository-scoped nonblocking authority lock;
 3. clean committed HEAD plus exact source revision, workload revision, target profile, and software image;
 4. default production allocator behavior;
@@ -69,8 +70,8 @@ Before RSS or image evidence is `required`, the lane proves:
 Failed preflight produces `Unsupported` with a stable missing prerequisite and
 replacement command. It cannot fall back to hosted or ordinary local measurements.
 
-The maintainer-local Metal lifecycle retains the 16 MiB post-warm-up-to-terminal
-RSS hard limit. Required image acceptance retains exact workload/backend/device-
+Each maintainer-local lifecycle retains the 16 MiB post-warm-up-to-terminal RSS
+hard limit. Required image acceptance retains exact workload/backend/device-
 class baseline selection, region semantics, same-size FLIP, and explicit
 maintainer-accepted reference state.
 
@@ -103,6 +104,6 @@ Every environment-sensitive observation records:
 These fields remain outside deterministic Asset/cook/generation identities and
 inside existing report/artifact privacy and size bounds.
 
-Windows Vulkan and macOS Vulkan physical qualification are deferred until the
-project owns corresponding controlled devices. They are not inferred from
-hosted software/native lanes and do not block Feature 028 closeout.
+Windows Vulkan is manually synchronized and required alongside Mac Metal on the
+same final revision; no self-hosted runner is required. macOS Vulkan remains
+deferred and is not inferred from hosted software/native lanes.

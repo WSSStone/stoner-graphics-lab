@@ -29,6 +29,7 @@
 ### Session 2026-08-28
 
 - Q: 项目没有 Windows/Vulkan 或已注册 self-hosted runner，只有维护者本机 M4 Metal 时，Feature 028 的物理验收范围如何收敛？ → A: Feature 028 唯一必需物理权威是维护者本机 native arm64 Metal。它必须由显式 `--local-metal-authority` 启动，并通过 clean committed HEAD、精确 `Mac-Metal-Arm64.json`、非 Rosetta、默认 allocator、进程级独占锁、固定 1,000/20 采样协议、窗口 presentation/readback 和 registry-derived device class 前置检查。Windows Vulkan 与 macOS Vulkan 物理证据延期到未来硬件实验室能力，不阻塞 Feature 028；不存在的 self-hosted runner workflow 不得继续由 push 自动排队。
+- Q: 维护者新增可手动同步的 Windows Vulkan 设备后，是否必须搭建 self-hosted runner，物理验收范围如何变化？ → A: 不要求搭建 runner。Windows x86_64 Vulkan 通过显式 `--local-windows-vulkan-authority` 成为第二个必需的维护者本地物理权威，与 M4 Metal 分别执行相同的 1,000/20、16 MiB、512×512 semantic/FLIP 协议。二者必须在同一最终 revision 上通过，互不替代；macOS Vulkan 仍延期。Windows 首次没有匹配 Accepted baseline 时只生成 fail-closed Candidate，并由维护者明确接受。
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -188,9 +189,9 @@ corpus and workload, and compare their normalized reports across repeated runs.
    and memory evidence separately from deterministic correctness evidence;
    hosted timing/RSS observations do not override completed functional,
    ownership, stale-handle, capture, or readback results.
-3. **Given** the maintainer's native arm64 macOS Metal device, **When** the
-   hardware profile runs with explicit local authority, **Then** it captures
-   visible Metal evidence and native readback for both accepted workloads;
+3. **Given** the maintainer's native arm64 macOS Metal or x86_64 Windows Vulkan
+   device, **When** the hardware profile runs with its explicit local authority,
+   **Then** it captures visible native evidence and readback for both accepted workloads;
    Windows/Linux/macOS hosted lanes remain build, deterministic, functional,
    and bounded native coverage rather than substitute physical authority.
 4. **Given** a host without an applicable native backend or physical graphics
@@ -204,13 +205,14 @@ corpus and workload, and compare their normalized reports across repeated runs.
    validation is selected, **Then** the regular profile is required; **Given**
    the weekly schedule or a feature/release closeout, **Then** the medium profile
    is required; **Given** Feature 028 closeout or a reference-image/render-path
-   change, **Then** the maintainer-local Metal hardware profile is required.
+   change, **Then** both maintainer-local Metal and Windows Vulkan hardware
+   profiles are required on the same committed revision.
 7. **Given** a GitHub-hosted medium lane that completes the exact declared work
    with all ownership and stale-handle rules satisfied, **When** allocator-
    retained pages or wall-clock variance exceed a previously observed value,
    **Then** the report preserves the measurements and environment class without
    treating either observation as an authoritative correctness failure.
-8. **Given** the maintainer's fixed local Metal device, **When** its preflight proves the
+8. **Given** either registered maintainer-local physical device, **When** its preflight proves the
    registered device, exclusive process/device/display ownership, default production allocator,
    frozen software image, and declared workload, **Then** calibrated RSS and
    image policies are authoritative and any exceeded hard limit fails closed.
@@ -346,9 +348,9 @@ corpus and generation evidence.
   capability and presentation handling MUST remain behind existing boundaries.
 - **Automated Cross-Platform Validation**: Regular automated validation MUST
   cover Windows, macOS, and Linux. Native visible physical authority is required
-  only on the maintainer's local arm64 macOS Metal device for Feature 028;
-  Windows Vulkan and macOS Vulkan physical qualification are explicitly
-  deferred until corresponding controlled devices exist.
+  on the maintainer's local arm64 macOS Metal and x86_64 Windows Vulkan devices
+  for Feature 028. These are manual local commands, not self-hosted workflow
+  requirements. macOS Vulkan physical qualification remains deferred.
 - **Evidence Privacy and Provenance**: Checked-in or published evidence MUST be
   bounded, source-attributable, and free of credentials, absolute user paths,
   unrelated desktop content, and unstable native identifiers. The feature MUST
@@ -471,7 +473,7 @@ corpus and generation evidence.
   the medium/hardware profile MUST complete 1,000 full cycles and use cycles
   1-20 as warm-up. Warm-up cycles count toward the required total. Every lane
   MUST treat exact cycle/capture/readback counts, terminal owner baselines, and
-  stale-handle rejection as hard correctness gates. The maintainer-local Metal lane that
+  stale-handle rejection as hard correctness gates. Each maintainer-local physical lane that
   passes authority preflight MUST additionally keep net RSS growth from the
   sample immediately after warm-up through the terminal sample at or below
   16 MiB. A GitHub-hosted lane MUST collect the same RSS endpoints plus bounded
@@ -501,10 +503,10 @@ corpus and generation evidence.
   when one producer artifact can be verified by multiple consumers without
   weakening platform-specific coverage.
 - **FR-035**: Feature 028 physical acceptance MUST include visible native Metal
-  evidence on the maintainer's arm64 macOS device. Windows Vulkan and macOS
-  Vulkan physical qualification are deferred requirements for a future
-  hardware-lab phase and MUST NOT be represented as completed Feature 028
-  evidence. Linux MUST retain build, deterministic execution, and applicable
+  evidence on the maintainer's arm64 macOS device and visible native Vulkan
+  evidence on the maintainer's x86_64 Windows device. Both targets MUST pass on
+  the same final revision and neither substitutes for the other. macOS Vulkan
+  remains a deferred hardware-lab requirement. Linux MUST retain build, deterministic execution, and applicable
   bounded headless/software-native validation.
 - **FR-036**: A gate unavailable because of host, backend, device, display, or
   tool capability MUST report Unsupported with the missing prerequisite and
@@ -513,7 +515,7 @@ corpus and generation evidence.
 - **FR-037**: Hardware-only, medium-corpus, scheduled, or manual gates MUST have
   documented reproducible entry points, required environment classes, evidence
   outputs, and ownership. The medium profile MUST run weekly and pass at feature
-  and release closeout. The maintainer-local Metal hardware profile MUST pass at
+  and release closeout. Both maintainer-local physical hardware profiles MUST pass at
   Feature 028 closeout and whenever an accepted reference image or production
   render path changes.
 - **FR-038**: Deterministic correctness evidence MUST be separated from timing,
@@ -590,11 +592,11 @@ corpus and generation evidence.
   accepted reference in place.
 - **FR-051**: Validation MUST derive an execution-environment class from a
   repository-owned contract rather than an unrestricted class string. GitHub-
-  hosted, maintainer-local Metal, and local diagnostic execution MUST remain
-  distinct; only the narrowly scoped explicit local Metal authority path may
-  claim physical RSS/image authority.
-- **FR-052**: A maintainer-local Metal run MAY claim RSS/image authority only after
-  proving native arm64 macOS, the exact registered device class and target,
+  hosted, maintainer-local Metal, maintainer-local Windows Vulkan, and local
+  diagnostic execution MUST remain distinct; only the two narrowly scoped
+  explicit local authority paths may claim physical RSS/image authority.
+- **FR-052**: A maintainer-local Metal or Windows Vulkan run MAY claim RSS/image authority only after
+  proving its native OS/architecture/backend, exact registered device class and target,
   exclusive session ownership, a clean committed and frozen
   workload/software revision, default production allocator behavior, and the
   declared warm-up/sample protocol. Failed preflight MUST be Unsupported with a
@@ -608,7 +610,7 @@ corpus and generation evidence.
   operational timeout and an independent 4,800-second native timeout inside a
   120-minute workflow job. Timeout remains a failure to complete required work,
   but elapsed time below the cap is not a performance qualification. This
-  hosted-only envelope MUST NOT alter the maintainer-local Metal 3,600-second lane.
+  hosted-only envelope MUST NOT alter either 3,600-second local physical lane.
 - **FR-055**: Semantic image probes that classify material, orientation, normal,
   depth, lighting, or background regions MUST use bounded region statistics and
   minimum valid-sample coverage rather than one exact pixel. Region definitions
@@ -690,7 +692,8 @@ corpus and generation evidence.
   first-failure category and no partial published composition.
 - **SC-008**: The bounded production composition completes full deferred native
   GPU readback and accepted visible rendering plus the required forward native
-  readback/visible smoke on the maintainer's native arm64 macOS Metal device; all
+  readback/visible smoke on the maintainer's native arm64 macOS Metal and x86_64
+  Windows Vulkan devices; all
   required semantic probes pass, and every deferred image satisfies the
   versioned perceptual policy for its backend and exact registry-derived device
   class.
@@ -698,20 +701,20 @@ corpus and generation evidence.
   release, and recreate cycles with cycles 1-2 as warm-up; each medium/hardware
   gate completes 1,000 cycles with cycles 1-20 as warm-up. Warm-up cycles count
   toward the total. No cycle produces stale-handle aliasing or double release,
-  all tracked ownership counts return to baseline. Maintainer-local Metal
+  all tracked ownership counts return to baseline. Maintainer-local physical
   lanes additionally keep RSS growth from the sample immediately after warm-up
   through the terminal sample at most 16 MiB; hosted lanes produce complete
   endpoint and diagnostic observations without using RSS as their result.
 - **SC-010**: The regular profile completes its bounded platform-applicable
   source-to-cooked-to-runtime gate within 10 minutes per hosted job, while the
   hosted medium profile is bounded by a 5,400-second package timeout and an
-  independent 4,800-second native timeout inside a 120-minute job, and the serialized
-  visible local Metal hardware profile completes within 60 minutes;
+  independent 4,800-second native timeout inside a 120-minute job, and each serialized
+  visible local physical hardware profile completes within 60 minutes;
   these are operational bounds rather than hosted performance qualifications,
   and timing observations do not affect deterministic result identities.
 - **SC-011**: Windows, macOS, and Linux automated Debug and strict Release
   validation plus all applicable sanitizer, deterministic, and native gates
-  pass on the final revision; the required local Metal hardware gate has accepted,
+  pass on the final revision; both required local physical hardware gates have accepted,
   digest-recorded evidence from that same revision. The final evidence includes
   a passing regular run, medium closeout run, and all required hardware profiles
   under the cadence defined by FR-034 and FR-037.
@@ -732,7 +735,7 @@ corpus and generation evidence.
   of invalid or caller-overridden formal camera attempts fail before native
   submission.
 - **SC-016**: Report validation proves that 100% of hosted RSS/timing records are
-  marked observed/operational, 100% of maintainer-local Metal RSS/image decisions
+  marked observed/operational, 100% of maintainer-local Metal and Windows Vulkan RSS/image decisions
   include successful authority preflight, and no aggregate can convert an
   observation into a hard pass or failure.
 - **SC-017**: Every workload semantic probe passes its accepted image and rejects
@@ -760,14 +763,15 @@ corpus and generation evidence.
 - The current static-model scope excludes skinning and animation. Production
   packages may contain out-of-scope optional data only when the existing
   importer rejects or ignores it according to a documented deterministic rule.
-- The maintainer's physical M4 Pro Metal device is the only available Feature
-  028 physical authority. Windows Vulkan, macOS Vulkan, Linux visible manual
-  presentation, Android, and cross-device qualification are deferred.
+- The maintainer's physical M4 Pro Metal and x86_64 Windows Vulkan devices are
+  the two available Feature 028 physical authorities. macOS Vulkan, Linux
+  visible manual presentation, Android, and broader cross-device qualification
+  are deferred.
 - Screenshots capture only the application window or validated render surface,
   never the full desktop.
 - Hosted timing limits are operational cancellation bounds and hosted memory is
   observation-only. The 16 MiB RSS threshold is an acceptance budget only for
-  the maintainer-local Metal environment after authority preflight; neither is
+  either maintainer-local physical environment after authority preflight; neither is
   a general engine performance guarantee.
 - New source formats, animation, editor workflows, hot reload, packaging,
   streaming, Meshlets, virtual geometry, ray tracing, and broad visual redesign

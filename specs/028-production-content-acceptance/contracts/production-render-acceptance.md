@@ -101,7 +101,7 @@ formal image fails before semantic probes or FLIP.
 |---|---:|---:|---|---|
 | Regular | 20 | 1-2 | Platform-applicable bounded native/headless gates | Hosted/local-diagnostic measurement is observed; physical authority belongs only to the hardware profile |
 | Medium | 1,000 | 1-20 | Hosted Metal functional/lifecycle authority | RSS/task-VM/allocator are observed; exact work/owners/stale/captures/readbacks remain required |
-| Hardware | 1,000 | 1-20 | Maintainer-local native arm64 macOS Metal | Required <= 16 MiB after authority preflight |
+| Hardware | 1,000 | 1-20 | Maintainer-local native arm64 macOS Metal and x86_64 Windows Vulkan, in separate runs | Required <= 16 MiB after authority preflight |
 
 Each cycle performs strict manager bind/request, complete closure, Renderer
 realization, deferred render/readback, bounded forward smoke where required,
@@ -114,7 +114,7 @@ after the last warm-up cycle and compared with the terminal sample.
 ## Environment and Measurement Authority
 
 The workflow contract, not an unrestricted CLI token, classifies execution as
-`github-hosted`, `maintainer-local-metal`, or `local-diagnostic`. Each sensitive
+`github-hosted`, `maintainer-local-metal`, `maintainer-local-windows-vulkan`, or `local-diagnostic`. Each sensitive
 measurement declares one disposition:
 
 - `required`: participates in pass/fail and requires successful authority
@@ -130,8 +130,8 @@ and operational 5,400-second package plus 4,800-second native timeouts inside a
 readbacks, zero terminal owners, stale-handle rejection, and requested native
 backend proof.
 
-A maintainer-local Metal RSS/image authority must prove native arm64 macOS,
-exact registered device/target, exclusive authority-lock ownership, clean
+A maintainer-local physical RSS/image authority must prove its exact native
+OS/architecture/backend and registered device/target, exclusive authority-lock ownership, clean
 committed frozen revision, default production allocator, and the declared
 sample/presentation protocol. Failed preflight is Unsupported with a
 replacement command. Ordinary local or hosted execution cannot claim physical

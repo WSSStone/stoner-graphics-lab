@@ -682,7 +682,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 return_value="a" * 40,
             ),
             mock.patch.object(
-                self.module, "_acquire_local_metal_authority_lock",
+                self.module, "_acquire_local_authority_lock",
                 return_value="b" * 64,
             ),
         )
@@ -713,6 +713,81 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 target_profile=target, target_contract=contract,
             )
 
+    def test_maintainer_local_windows_vulkan_requires_exact_preflight(self):
+        root = Path("C:/repo")
+        target = root / self.module.LOCAL_WINDOWS_VULKAN_TARGET
+        contract = {
+            "platform": "windows", "cpuArchitecture": "x86_64",
+            "graphicsBackend": "vulkan",
+        }
+        patches = (
+            mock.patch.object(
+                self.module.platform, "system", return_value="Windows"
+            ),
+            mock.patch.object(
+                self.module.platform, "machine", return_value="AMD64"
+            ),
+            mock.patch.object(
+                self.module, "_git_local_authority_revision",
+                return_value="c" * 40,
+            ),
+            mock.patch.object(
+                self.module, "_acquire_local_authority_lock",
+                return_value="d" * 64,
+            ),
+        )
+        with patches[0], patches[1], patches[2], patches[3]:
+            authority = self.module.classify_execution_environment(
+                "hardware", {}, local_windows_vulkan_authority=True,
+                repository_root=root, target_profile=target,
+                target_contract=contract,
+            )
+        self.assertEqual(
+            "maintainer-local-windows-vulkan",
+            authority["executionClass"],
+        )
+        self.assertEqual("required", authority["dispositions"]["rss"])
+        self.assertEqual("required", authority["dispositions"]["image"])
+        self.assertEqual("c" * 40, authority["preflight"]["frozenRevision"])
+        with mock.patch.object(
+            self.module.platform, "system", return_value="Darwin"
+        ):
+            with self.assertRaises(self.module.StageFailure):
+                self.module.classify_execution_environment(
+                    "hardware", {}, local_windows_vulkan_authority=True,
+                    repository_root=root, target_profile=target,
+                    target_contract=contract,
+                )
+        with self.assertRaises(ValueError):
+            self.module.classify_execution_environment(
+                "hardware", {}, local_metal_authority=True,
+                local_windows_vulkan_authority=True,
+            )
+
+    def test_windows_authority_lock_is_nonblocking_and_process_retained(self):
+        fake_msvcrt = mock.Mock()
+        fake_msvcrt.LK_NBLCK = 17
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(
+                self.module.platform, "system", return_value="Windows"
+            ), mock.patch.object(
+                self.module.tempfile, "gettempdir", return_value=directory
+            ), mock.patch.dict(sys.modules, {"msvcrt": fake_msvcrt}):
+                digest = self.module._acquire_local_authority_lock(
+                    Path(directory) / "repo", "windows-vulkan"
+                )
+            self.assertRegex(digest, r"^[0-9a-f]{64}$")
+            fake_msvcrt.locking.assert_called_once()
+            self.assertEqual(
+                17, fake_msvcrt.locking.call_args.args[1]
+            )
+            self.assertEqual(
+                1, fake_msvcrt.locking.call_args.args[2]
+            )
+            for handle in self.module._LOCAL_HARDWARE_AUTHORITY_LOCKS.values():
+                handle.close()
+            self.module._LOCAL_HARDWARE_AUTHORITY_LOCKS.clear()
+
     def test_measurement_dispositions_separate_required_operational_and_observed(self):
         regular = self.module.expected_authority_policy("regular")
         self.assertEqual(
@@ -729,6 +804,12 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 "image": "required",
             },
             hardware["executionClasses"]["maintainer-local-metal"],
+        )
+        self.assertEqual(
+            hardware["executionClasses"]["maintainer-local-metal"],
+            hardware["executionClasses"][
+                "maintainer-local-windows-vulkan"
+            ],
         )
 
     def test_each_production_package_has_an_exact_workload_revision(self):
@@ -995,6 +1076,21 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
         ])
         self.assertEqual("hardware", parsed.profile)
 
+    def test_hardware_profile_declares_both_local_physical_targets(self):
+        profile = json.loads((
+            self.module.REPOSITORY_ROOT
+            / self.module.VALIDATION_PROFILES
+            / "Hardware.json"
+        ).read_text(encoding="utf-8"))
+        self.assertEqual([
+            "Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json",
+            "Config/AssetCooker/Profiles/Production/Windows-Vulkan.json",
+        ], profile["targetProfiles"])
+        self.assertEqual(
+            self.module.expected_authority_policy("hardware"),
+            profile["authorityPolicy"],
+        )
+
     def test_local_metal_authority_cli_is_hardware_only(self):
         parsed = self.module.parse_args([
             "--profile", "hardware",
@@ -1009,6 +1105,30 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 "--target-profile", "profile.json",
                 "--build-root", "Build", "--output", "Output",
                 "--local-metal-authority",
+            ])
+
+    def test_local_windows_vulkan_authority_cli_is_hardware_only(self):
+        parsed = self.module.parse_args([
+            "--profile", "hardware",
+            "--target-profile", "profile.json",
+            "--build-root", "Build", "--output", "Output",
+            "--local-windows-vulkan-authority",
+        ])
+        self.assertTrue(parsed.local_windows_vulkan_authority)
+        with self.assertRaises(SystemExit):
+            self.module.parse_args([
+                "--profile", "regular",
+                "--target-profile", "profile.json",
+                "--build-root", "Build", "--output", "Output",
+                "--local-windows-vulkan-authority",
+            ])
+        with self.assertRaises(SystemExit):
+            self.module.parse_args([
+                "--profile", "hardware",
+                "--target-profile", "profile.json",
+                "--build-root", "Build", "--output", "Output",
+                "--local-metal-authority",
+                "--local-windows-vulkan-authority",
             ])
 
     def test_failure_catalog_has_bounded_cross_stage_first_failures(self):

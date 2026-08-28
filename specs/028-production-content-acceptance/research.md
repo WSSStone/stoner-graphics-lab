@@ -1432,3 +1432,39 @@ workflow label that no runner can satisfy.
   modified run. The accepted flag is deliberately Metal/profile-specific.
 - Drop physical validation entirely: rejected because the local M4 can still
   authoritatively exercise visible native Metal, accepted images, and RSS.
+
+## Decision 49: Add a manually synchronized Windows Vulkan physical authority
+
+**Decision**: A newly available maintainer-owned x86_64 Windows Vulkan device
+becomes the second required Feature 028 physical authority. It is selected only
+by `--local-windows-vulkan-authority` with the hardware profile and exact
+`Windows-Vulkan.json` target. Fail-closed preflight mirrors the Metal contract:
+clean committed HEAD, native OS/architecture/backend, exact registered device
+class, default allocator policy, repository-scoped exclusive device/display
+lock, fixed 1,000/20 sampling, and application-window presentation/readback.
+The Mac Metal and Windows Vulkan runs must pass on the same final revision and
+neither can substitute for the other.
+
+The device is synchronized and operated manually. Feature 028 does not require
+a GitHub self-hosted runner and does not restore the retired automatic hardware
+workflow. Hosted Windows remains functional/native evidence only. The first
+Windows image for a workload/device class is fail-closed Candidate evidence;
+it becomes consumable only after explicit maintainer acceptance and a committed
+baseline, followed by final-revision reruns of both physical authorities.
+macOS Vulkan remains the named hardware-lab follow-up from Decision 48/T175.
+
+**Rationale**: Physical Vulkan evidence is now attainable without pretending
+that GitHub-hosted hardware is stable or requiring permanent runner operations.
+An explicit per-target local flag preserves provenance and avoids granting a
+generic CLI token authority over RSS or images.
+
+**Alternatives considered**:
+
+- Require the Windows machine to register as self-hosted: rejected because
+  manual synchronization produces the required evidence without expanding the
+  device's remote execution/security surface.
+- Let the existing Metal flag authorize Windows: rejected because exact host,
+  backend, target, lock, and replacement diagnostics must remain explicit.
+- Reuse Metal or hosted Vulkan baselines: rejected because image authority is
+  exact workload/backend/device-class data and cross-device substitution would
+  conceal real rendering differences.

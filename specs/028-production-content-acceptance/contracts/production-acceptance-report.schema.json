@@ -47,7 +47,7 @@
       "additionalProperties": false,
       "required": ["executionClass", "preflight", "measurements"],
       "properties": {
-        "executionClass": {"enum": ["github-hosted", "maintainer-local-metal", "local-diagnostic"]},
+        "executionClass": {"enum": ["github-hosted", "maintainer-local-metal", "maintainer-local-windows-vulkan", "local-diagnostic"]},
         "preflight": {"oneOf": [{"$ref": "#/$defs/notRequiredPreflight"}, {"$ref": "#/$defs/passedPreflight"}, {"$ref": "#/$defs/failedPreflight"}]},
         "measurements": {
           "type": "object",
@@ -107,7 +107,7 @@
       "then": {"properties": {"authority": {"properties": {"preflight": {"$ref": "#/$defs/notRequiredPreflight"}, "measurements": {"properties": {"rss": {"$ref": "#/$defs/observedMeasurement"}, "image": {"$ref": "#/$defs/notRequiredMeasurement"}}}}}}}
     },
     {
-      "if": {"properties": {"authority": {"properties": {"executionClass": {"const": "maintainer-local-metal"}, "preflight": {"properties": {"state": {"const": "passed"}}, "required": ["state"]}}, "required": ["executionClass", "preflight"]}}, "required": ["authority"]},
+      "if": {"properties": {"authority": {"properties": {"executionClass": {"enum": ["maintainer-local-metal", "maintainer-local-windows-vulkan"]}, "preflight": {"properties": {"state": {"const": "passed"}}, "required": ["state"]}}, "required": ["executionClass", "preflight"]}}, "required": ["authority"]},
       "then": {"properties": {"authority": {"properties": {"measurements": {"properties": {"rss": {"$ref": "#/$defs/requiredRss"}, "image": {"$ref": "#/$defs/requiredImage"}}}}}}}
     },
     {

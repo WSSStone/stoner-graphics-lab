@@ -216,6 +216,16 @@ class ProductionAcceptanceReportContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not-required image"):
             self.module.validate_report(report)
 
+    def test_windows_vulkan_local_physical_authority_is_supported(self):
+        report = self.make_physical(self.report("passed", "vulkan"))
+        report["authority"]["executionClass"] = (
+            "maintainer-local-windows-vulkan"
+        )
+        report["observations"]["deviceClass"] = (
+            "windows.discrete-vulkan.rgba8"
+        )
+        self.module.validate_report(report)
+
     def test_aggregate_preserves_authority_and_rejects_promotion(self):
         first = self.report("passed", "metal")
         second = copy.deepcopy(first)

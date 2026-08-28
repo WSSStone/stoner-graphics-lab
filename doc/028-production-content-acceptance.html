@@ -120,7 +120,7 @@ Realization: Validate -> Create transaction -> Commit snapshot
                                   `-> Failure -> Rollback
 Baseline:    Candidate -> Calibrated -> Reviewed -> Accepted -> Superseded
 Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
-<p>regular 固定 20 次、1-2 warm-up；medium/hardware 固定 1,000 次、1-20 warm-up。warm-up 计入总次数，内部 owners 必须归零且 stale handle 必须被拒绝。GitHub-hosted RSS、task-VM、allocator 与耗时只作为 observation；Feature 028 只有维护者本机 native arm64 Metal 通过 exact target/device class、非 Rosetta、独占进程锁、clean committed revision、默认 allocator、声明采样协议和窗口 readback preflight 后，才裁决 warm-up 到 terminal 的 16 MiB RSS 与 accepted-image gate。regular 的 operational cap 为 600 秒；hosted medium 每包/native 为 5,400/4,800 秒并置于 120 分钟 job；本机 Metal hardware 保持 3,600 秒串行预算。Windows/macOS Vulkan 物理资格延期到未来 hardware lab，push 不再排队不存在的 self-hosted runner。</p>
+<p>regular 固定 20 次、1-2 warm-up；medium/hardware 固定 1,000 次、1-20 warm-up。warm-up 计入总次数，内部 owners 必须归零且 stale handle 必须被拒绝。GitHub-hosted RSS、task-VM、allocator 与耗时只作为 observation；Feature 028 的维护者本机 native arm64 Metal 与手动同步的 x86_64 Windows Vulkan 分别通过 exact host/target/device class、独占进程锁、clean committed revision、默认 allocator、声明采样协议和窗口 readback preflight 后，才裁决各自 warm-up 到 terminal 的 16 MiB RSS 与 accepted-image gate，且二者必须在同一最终 revision 上通过。regular 的 operational cap 为 600 秒；hosted medium 每包/native 为 5,400/4,800 秒并置于 120 分钟 job；每个本地 hardware target 保持 3,600 秒串行预算。设备不需要注册 self-hosted runner，push 不会远程执行；macOS Vulkan 物理资格仍延期到未来 hardware lab。</p>
 
 <h3>3. 失败模式与调试入口</h3>
 <table><thead><tr><th>症状</th><th>定位方法</th><th>本期真实案例</th></tr></thead><tbody>

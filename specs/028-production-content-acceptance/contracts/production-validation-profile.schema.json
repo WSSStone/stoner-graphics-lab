@@ -75,21 +75,22 @@
       "additionalProperties": false,
       "required": ["allowedExecutionClasses", "executionClasses", "physicalPreflight"],
       "properties": {
-        "allowedExecutionClasses": {"const": ["maintainer-local-metal", "local-diagnostic"]},
+        "allowedExecutionClasses": {"const": ["maintainer-local-metal", "maintainer-local-windows-vulkan", "local-diagnostic"]},
         "executionClasses": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["maintainer-local-metal", "local-diagnostic"],
+          "required": ["maintainer-local-metal", "maintainer-local-windows-vulkan", "local-diagnostic"],
           "properties": {
             "maintainer-local-metal": {"$ref": "#/$defs/physicalMeasurements"},
+            "maintainer-local-windows-vulkan": {"$ref": "#/$defs/physicalMeasurements"},
             "local-diagnostic": {"$ref": "#/$defs/observationalMeasurements"}
           }
         },
         "physicalPreflight": {
           "const": [
-            "native-arm64-macos-metal",
+            "native-registered-target",
             "registered-device-class",
-            "exclusive-local-metal-session",
+            "exclusive-local-device-session",
             "clean-frozen-revision-and-software",
             "default-production-allocator",
             "declared-sample-and-presentation-protocol"
