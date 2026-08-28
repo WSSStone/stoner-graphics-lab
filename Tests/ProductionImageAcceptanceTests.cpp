@@ -1,6 +1,7 @@
 #include "ProductionImageAcceptanceTests.h"
 
 #include "ProductionImageBaselineRegistry.h"
+#include "ProductionImageReference.h"
 #include "ProductionNativeImageAcceptance.h"
 
 #include <cmath>
@@ -261,35 +262,6 @@ void TestWorkloadRegions(FProductionImageAcceptanceTestResult& Result)
         "formal workload region contracts reject non-canonical extents");
 }
 
-bool LoadSrgbPpm(
-    const std::filesystem::path& Path,
-    FProductionCanonicalImage& OutImage)
-{
-    std::ifstream Input(Path, std::ios::binary);
-    std::string Magic;
-    uint32 Width = 0;
-    uint32 Height = 0;
-    uint32 Maximum = 0;
-    if (!(Input >> Magic >> Width >> Height >> Maximum) ||
-        Magic != "P6" || Maximum != 255 || Input.get() != '\n')
-        return false;
-    TArray<uint8> Rgb(static_cast<usize>(Width) * Height * 3u);
-    Input.read(reinterpret_cast<char*>(Rgb.data()),
-        static_cast<std::streamsize>(Rgb.size()));
-    if (!Input || Input.peek() != std::ifstream::traits_type::eof())
-        return false;
-    TArray<uint8> Rgba(static_cast<usize>(Width) * Height * 4u, 255u);
-    for (usize Pixel = 0; Pixel < Rgb.size() / 3u; ++Pixel)
-        std::copy_n(Rgb.data() + Pixel * 3u, 3u,
-            Rgba.data() + Pixel * 4u);
-    FString Failure;
-    return NormalizeProductionReadback(
-        {Rgba, Width, Height, Width * 4u,
-         EProductionReadbackPixelFormat::RGBA8UNorm,
-         EProductionImageOrigin::TopLeft, EProductionColorTransfer::SRGB},
-        OutImage, Failure);
-}
-
 void TestAcceptedReferenceRegionCalibration(
     FProductionImageAcceptanceTestResult& Result)
 {
@@ -297,7 +269,11 @@ void TestAcceptedReferenceRegionCalibration(
         float MinimumCoverage, float MaximumCoverage)
     {
         FProductionCanonicalImage Color;
-        if (!LoadSrgbPpm(Relative, Color)) return false;
+        FString Failure;
+        if (!LoadProductionReferenceImage(
+                Relative, EProductionColorTransfer::SRGB,
+                Color, Failure))
+            return false;
         auto Normal = Image(512, 512, {0.5f, 0.5f, 1.0f});
         auto Depth = Image(512, 512, {1.0f, 1.0f, 1.0f});
         Depth.LinearRgb[0] = 0.25f;
@@ -317,11 +293,15 @@ void TestAcceptedReferenceRegionCalibration(
     Record(Result,
         Validate("production-content-lantern-v2",
             "Content/ProductionAcceptance/Baselines/"
-            "macos.apple8.metal.rgba8/production-content-lantern-v2.ppm",
+            "macos.apple8.metal.rgba8/production-content-lantern-v2.png",
+            0.01f, 0.35f) &&
+        Validate("production-content-lantern-v2",
+            "Content/ProductionAcceptance/Baselines/"
+            "windows.discrete-vulkan.rgba8/production-content-lantern-v2.png",
             0.01f, 0.35f) &&
         Validate("production-content-sponza-v2",
             "Content/ProductionAcceptance/Baselines/"
-            "macos.apple8.metal.rgba8/production-content-sponza-v2.ppm",
+            "macos.apple8.metal.rgba8/production-content-sponza-v2.png",
             0.75f, 0.82f),
         "accepted Lantern v2 and Sponza v2 references pass recalibrated region semantics");
 }
@@ -344,7 +324,7 @@ std::string BaselineJson(const char* State, const char* Id)
         Id + R"(","state":")" + State +
         R"(","workloadRevision":"production-lantern-v1","backend":"metal","deviceClass":"macos.apple8.metal.rgba8","capabilitySignature":)" +
         SignatureJson() +
-        R"(,"width":512,"height":512,"colorTransfer":"srgb","referencePath":"lantern.ppm","referenceSha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","flipPolicy":{"meanMax":0.01,"p95Max":0.02,"maximumMax":0.1,"badPixelThreshold":0.05,"badPixelFractionMax":0.01},"calibrationEvidenceSha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"})";
+        R"(,"width":512,"height":512,"colorTransfer":"srgb","referencePath":"lantern.png","referenceSha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","flipPolicy":{"meanMax":0.01,"p95Max":0.02,"maximumMax":0.1,"badPixelThreshold":0.05,"badPixelFractionMax":0.01},"calibrationEvidenceSha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"})";
 }
 
 void TestBaselineRegistry(FProductionImageAcceptanceTestResult& Result)
@@ -402,6 +382,37 @@ void TestBaselineRegistry(FProductionImageAcceptanceTestResult& Result)
         !InvalidExtentRegistry.LoadBaselines(FString(Root.string()), Failure) &&
         Failure == FString("baseline-schema-or-identity"),
         "baseline registry rejects non-canonical formal image extents");
+
+    std::string RawReference = BaselineJson("accepted", "lantern-metal");
+    const auto PngExtension = RawReference.find("lantern.png");
+    RawReference.replace(PngExtension, std::strlen("lantern.png"),
+        "lantern.ppm");
+    WriteText(Root / "accepted.json", RawReference);
+    FProductionImageBaselineRegistry RawReferenceRegistry;
+    Record(Result,
+        RawReferenceRegistry.LoadDeviceClasses(
+            FString(RegistryPath.string()), Failure) &&
+        !RawReferenceRegistry.LoadBaselines(FString(Root.string()), Failure) &&
+        Failure == FString("baseline-schema-or-identity"),
+        "baseline registry rejects uncompressed PPM references");
+
+    FProductionImageBaselineRegistry RepositoryRegistry;
+    const FProductionCapabilitySignature WindowsSignature{
+        1, "native-vulkan", "x86_64", "discrete-vulkan", "vulkan-1.3",
+        "rgba8-unorm", "d32-float", 1, "bc"};
+    Record(Result,
+        RepositoryRegistry.LoadDeviceClasses(
+            "Config/Validation/ProductionContent/DeviceClasses.json",
+            Failure) &&
+        RepositoryRegistry.LoadBaselines(
+            "Content/ProductionAcceptance/Baselines", Failure) &&
+        RepositoryRegistry.SelectAccepted(WindowsSignature,
+            "production-content-lantern-v2", "vulkan", Baseline, Failure) &&
+        Baseline.BaselineId == FString(
+            "production-content-lantern-v2.windows.discrete-vulkan.rgba8.v1") &&
+        Baseline.ReferencePath == FString(
+            "windows.discrete-vulkan.rgba8/production-content-lantern-v2.png"),
+        "repository registry consumes the explicitly accepted Windows PNG baseline");
     std::filesystem::remove_all(Root, Error);
 }
 

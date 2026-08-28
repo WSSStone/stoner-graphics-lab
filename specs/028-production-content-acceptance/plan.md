@@ -39,7 +39,7 @@ semantic classification moves from exact pixels to bounded region statistics.
 
 **Language/Version**: C++20 with traditional public/private headers and sources; Objective-C++20 remains private to Metal; Python 3 standard-library validation scripts
 **Primary Dependencies**: Existing Core, Asset, AssetCooker, RHI, Renderer, Application, Vulkan and Metal contracts; cgltf 1.15, stb_image 2.30, KTX-Software 4.4.2, WAMR 2.4.5, yyjson 0.12.0, SPIRV-Cross 0.68.0 lineage; CPU-only NVIDIA FLIP 1.7 single-header implementation pinned to commit `b475eb4bf394ab877c42166c9eb0a84a02cc5b14`; SCons 4.10.1
-**Storage**: Checked-in bounded Lantern GLB and corpus metadata; externally staged hash-pinned Sponza medium package; local immutable DDC and cooked generations; checked-in baseline policy/reference images and bounded validation evidence; no database, archive, remote cache, or runtime source fallback
+**Storage**: Checked-in bounded Lantern GLB and corpus metadata; externally staged hash-pinned Sponza medium package; local immutable DDC and cooked generations plus raw captures only under ignored `Build/Validation/`; checked-in losslessly compressed baseline references and small canonical policy/calibration/index/summary evidence; no build dependency on historical `Validation/` outputs, database, archive, remote cache, or runtime source fallback
 **Testing**: Existing `StonerTest` suites plus corpus, KTX2 integration, semantic-equivalence, transactional realization, native readback, image-acceptance, lifecycle, failure-injection, Python schema/runner tests, Windows/macOS/Linux hosted CI, and the required maintainer-local arm64 Metal plus x86_64 Windows Vulkan physical lanes
 **Target Platform**: Windows x64 Vulkan, macOS arm64/Intel Metal, and Linux x64 hosted build/function/native coverage; maintainer-local arm64 macOS Metal and x86_64 Windows Vulkan physical authority; macOS Vulkan physical qualification deferred
 **Project Type**: Cross-platform graphics engine, offline asset cooker CLI, desktop demo, and validation tooling
@@ -150,7 +150,10 @@ Validation/028/
 boundaries. Production bytes and accepted image baselines are data under
 `Content/ProductionAcceptance`; generic engine functionality belongs in Asset,
 AssetCooker, or Renderer; workflow composition remains private to Demo and
-Validation. No new runtime module is introduced.
+Validation. Required fixture manifests belong beside their test corpora under
+`Tests/Fixtures/`, not under evidence storage. Accepted reference images use
+lossless PNG; raw readbacks/captures are generated artifacts and remain ignored.
+No new runtime module is introduced.
 
 ## Implementation Strategy
 
@@ -432,6 +435,10 @@ Validation. No new runtime module is introduced.
    artifacts, caps each artifact at 64 MiB, and caps referenced artifacts at
    256 MiB aggregate; schema handles item/count limits and the runner handles
    serialized/aggregate limits.
+   Raw captures, DDC, cooked generations, and expanded hardware packages remain
+   under ignored `Build/Validation/` or external CI artifact retention. Only
+   small canonical summaries/calibration records and losslessly compressed,
+   decoded-pixel-verified accepted references enter source control.
 5. Run Debug, strict Release, sanitizer, determinism, regular, medium, and
    hardware gates; update `doc/028-production-content-acceptance.html`, roadmap,
    validation index, and project memory only after accepted evidence is tied to

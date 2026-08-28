@@ -1,223 +1,70 @@
 # Feature 028 CI Evidence
 
-Final closeout records hosted regular, scheduled/manual medium, and required
-same-revision maintainer-local M4 Pro Metal plus Windows Vulkan
-report/revision/artifact SHA-256 values here. macOS Vulkan qualification is
-deferred. Downloaded artifacts remain in ignored
-`downloaded/`.
+This index intentionally records only current closeout authority and bounded
+digests. Raw captures, readbacks, DDC entries, cooked generations, downloaded
+artifacts, and full logs belong under ignored `Build/Validation/028/` or the CI
+provider's retention and are safe to regenerate. Superseded run narratives are
+not source-controlled evidence.
 
-## Current Environment Authority Policy
+## Environment Authority
 
-The version-2 validation profile separates functional authority from host
-telemetry. GitHub-hosted regular and medium lanes own deterministic cooking,
-strict runtime, native backend proof, exact lifecycle completion, captures,
-readbacks, terminal-owner cleanup, stale-handle rejection, and operational
-timeout completion. Hosted RSS, task-VM, allocator-zone, peak, and elapsed
-measurements are recorded as `observed`; neither exceeding 16 MiB nor staying
-below it decides hosted success. The hosted medium package/native operational
-caps are 5,400/4,800 seconds inside a 120-minute job. A timeout remains failure
-because required work is incomplete; these caps prevent runaway work but do not
-qualify hosted performance. Run `33135020377` proved the former 3,900/3,600
-envelope too short:
-Sponza passed clean/warm cook, publication, semantic equivalence, and strict
-runtime, then the native child was stopped after the 3,499 seconds left in the
-package deadline. The exact 1,000/20 workload remains unchanged.
+- GitHub-hosted regular and medium lanes own build, deterministic cook,
+  strict-cooked runtime, native functional/lifecycle completion, captures,
+  readbacks, zero terminal owners, stale-handle rejection, sanitizers, and
+  operational timeout completion.
+- Hosted RSS, task-VM, allocator, peak, and elapsed values are observations;
+  they do not decide hosted success.
+- The required 16 MiB RSS and accepted 512-by-512 semantic/FLIP image gates are
+  owned only by explicit maintainer-local arm64 Metal and x86_64 Windows Vulkan
+  runs after fail-closed physical preflight.
+- The two physical lanes must pass on one committed revision. macOS Vulkan is
+  deferred and no self-hosted runner is required.
 
-The 16 MiB RSS and accepted-image gates are `required` only in the explicit
-`maintainer-local-metal` and `maintainer-local-windows-vulkan` hardware runs
-after preflight proves the exact native host/backend/target/device class,
-exclusive process lock, clean committed revision, default production allocator, declared
-warmup20-terminal1000 sample protocol, and window presentation plus GPU
-readback. Missing or conflicting preflight is `Unsupported`. Ordinary local
-replays are `local-diagnostic` and cannot substitute for either required
-environment. All classes run the normal production allocator; the former
-hosted allocator-zone coercion is removed.
+## Current Windows Vulkan Evidence
 
-All run narratives below this section predate this authority-policy revision
-unless a later final-revision section explicitly says otherwise. They remain
-useful diagnostic history, but hosted RSS failures and allocator experiments
-are not current closeout decisions. Final closeout must record fresh hosted and
-both maintainer-local physical evidence sets from the same final revision.
+The maintainer synchronized and ran revision
+`738d66f150c0cd554267939328d0f8366336a2ff` on the x86_64 Windows Vulkan
+device. Strict Release and the focused regression suites passed. The hardware
+profile derived device class `windows.discrete-vulkan.rgba8` and completed:
 
-## Final Implementation Revision
+| Check | Result |
+| --- | --- |
+| Workload | `production-content-lantern-v2` |
+| Lifecycle / warm-up | 1,000 / 20 cycles |
+| Captures / readbacks | 2,000 / 7 |
+| Terminal owners | 0 |
+| Stale handle | rejected |
+| Candidate source SHA-256 | `4147e4c5b0a2380ebcd3177785e06d964b2851132cbf4050c831c7b5dc25c95b` |
+| Summary SHA-256 | `7c5c21b8428b8d1eeba24e0075c7c693f9922b09911a82ff69d3fb61c60d0941` |
+| RSS growth | 62,119,936 bytes |
+| Required RSS limit | 16,777,216 bytes |
 
-The implementation authority is
-`ffdc1a73994c8fb47971d8033628aba831af669d`; the final hosted evidence head is
-`b7c89d6a5bbf92775db3b9f05af4d57e9bd5dc34`. Hosted run `32803300825` on
-predecessor `426d8617fe8558114110b09a60260de3895da82f` passed Windows, both macOS
-lanes, ASan/UBSan, and TSan but failed Linux Lavapipe regular twice because its
-first large native driver allocation occurred after the declared cycle-2 RSS
-sample. The final revision primes both native paths once, releases every owner,
-and preserves the exact 20/2 and 1000/20 contracts plus the 16 MiB limit.
+The maintainer explicitly accepted the Lantern candidate on 2026-08-28. Its
+pixel-identical lossless PNG and calibration record are now the consumable
+source-controlled evidence. The run remains failed because RSS exceeded the
+physical limit. Fail-fast correctly prevented Sponza from running, so Windows
+Sponza image acceptance is still pending.
 
-Hosted run `32808481793` on code revision
-`c82e51790643fc6583a80240239f6f4123cc0df1` proved the prime itself was
-insufficient: Linux completed all 20 cycles with 40 captures, seven retained
-readbacks, zero terminal owners, and stale-handle rejection, but released RSS
-oscillated from 427,380,736 to 563,261,440 bytes and cycle 2 to cycle 20 grew
-85,561,344 bytes. Revision `f92421502770139b5357420323a61e18ee112c76`
-therefore introduced Linux/glibc heap trimming before the same
-`/proc/self/statm` comparison samples; it did not change the metric, cycle
-boundaries, or threshold. Manual medium run `32814481517` then showed that
-trimming all 1,000 intermediate samples exhausted its remaining 1,467-second
-native stage budget. The follow-up limits trimming to the authoritative warm-up
-and terminal comparison cycles at code authority
-`ffdc1a73994c8fb47971d8033628aba831af669d`, while preserving every intermediate
-RSS sample and peak.
+## Prior Hosted Result
 
-## Final Hosted Regular And Sanitizer Evidence
+Hosted run
+[`33135020377`](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/33135020377)
+at revision `ff754f40ece2330c97880a189912b29a71c71637` passed the regular
+producers/consumers, ASan/UBSan, TSan, and Lantern medium shard. Its Sponza
+medium native stage timed out after 3,499 seconds, so the run is diagnostic
+failure evidence rather than final closeout authority. Hosted telemetry from
+that run remains observation-only.
 
-Push run `32818269789` passed on final hosted evidence head
-`b7c89d6a5bbf92775db3b9f05af4d57e9bd5dc34` and direct code authority
-`ffdc1a73994c8fb47971d8033628aba831af669d`. Windows Vulkan, Linux Lavapipe
-Vulkan, macOS arm64 Metal, macOS x86_64 Metal, ASan/UBSan, and TSan passed.
-Four independent consumer jobs then downloaded and revalidated the immutable
-regular artifacts successfully.
+## Remaining Closeout
 
-The corrected Linux run retained the exact 20-cycle / cycle-2 warm-up contract:
-40 captures, seven final readbacks, zero terminal owners, stale-handle
-rejection, 282,898,432 warm-up RSS bytes, 285,564,928 terminal RSS bytes,
-580,653,056 peak RSS bytes, and 2,666,496 bytes of positive growth. Its regular
-profile finished in 349.799 seconds against the 600-second budget.
+T112-T114 remain open. The final shared revision must provide:
 
-| Artifact | Size bytes | SHA-256 |
-|---|---:|---|
-| `production-regular-windows-vulkan-1` | 1,069,677,785 | `756980e3a38e29049d8314388385e7c43f15aed42297671f346a49dfba46c089` |
-| `production-regular-linux-vulkan-1` | 1,069,676,742 | `b53072a767eb97b244fe28062b7f8b0ddff413448f0fb64d6ccb4f5ef41b218e` |
-| `production-regular-macos-metal-1` | 1,070,847,020 | `10e5b8ca984edb28039d286454172b18858084cd19e1716418210d585aaa7a87` |
-| `production-regular-macos-intel-metal-1` | 1,070,850,773 | `15a0c8e4dd2070786caf24eef91c67e6bfdbddd7d75385e2bc67d01ec9452397` |
-| `production-consumer-windows-vulkan-1` | 89,438 | `8c1c377a35b30188ee158f18cedad6dc7d8dfd66fc49876ef893912f5cc959fe` |
-| `production-consumer-linux-vulkan-1` | 89,367 | `e3a6555fb0dbbca508a3184a9ffc1373b93fd322212724fc86342a64b784d57b` |
-| `production-consumer-macos-metal-1` | 89,338 | `ad8440aba4b78820850b30884ec243bdae3958a4faaa2abc134aec34227f09a0` |
-| `production-consumer-macos-intel-metal-1` | 89,468 | `4210b4c1315f1091f437083b6ff78817f266abcc8108b188e4af54f465966908` |
-| `production-sanitizer-asan-ubsan-1` | 1,909 | `eaca0e84a383ad24d9a80474163b9c8efda7568600c9c022c2362846e83c018e` |
-| `production-sanitizer-tsan-1` | 1,476 | `aa23473ad6220c56a1b44008d5541737e2cf702e0bcf2207a22267a21d928bba` |
+1. a passing hosted Windows/macOS/Linux regular matrix;
+2. a passing hosted medium aggregate with the exact 1,000/20 lifecycle facts;
+3. passing maintainer-local Metal and Windows Vulkan hardware profiles, each
+   within 16 MiB RSS growth and consuming accepted image baselines for every
+   required workload; and
+4. bounded report, manifest, baseline, and preflight digests recorded here.
 
-## Final-Revision Local Metal Hardware Evidence
-
-A detached clean worktree at predecessor
-`426d8617fe8558114110b09a60260de3895da82f` passed strict
-Debug and Release builds, acquired and verified the pinned corpus, and completed
-the serialized physical M4 Pro Metal hardware profile.
-
-| Field | Lantern v2 | Sponza v2 |
-|---|---:|---:|
-| Generation | `f60c3069294c588e146073d736dd8cd325760c8d1645ae6c412cf58c45a709d3` | `b39afe90356b699eed761aa548587883c9300d54568cb0eb94f279a09e84096b` |
-| Reachable / reused | 37 / 37 | 189 / 189 |
-| Lifecycle | 1,000 / warm-up 20 | 1,000 / warm-up 20 |
-| Native seconds | 252.940 | 1,302.317 |
-| Warm-up RSS bytes | 607,125,504 | 387,842,048 |
-| Terminal RSS bytes | 524,943,360 | 391,462,912 |
-| Peak RSS bytes | 608,681,984 | 398,475,264 |
-| RSS growth bytes | 0 | 3,620,864 |
-| Captures / readbacks | 2,000 / 7 | 2,000 / 7 |
-| Semantic probes / FLIP | 20 / 0 | 20 / 0 |
-| Terminal owners / stale | 0 / rejected | 0 / rejected |
-
-The total profile time was 1,679.546 seconds against the schema-enforced
-3,600-second budget. Independent verification accepted 4,369 artifacts. The
-artifact-manifest SHA-256 is
-`5cd36ce6a287e40884d77f538b838a5f06bce3edd23c76258a1b16cd3918bfdb`,
-the summary SHA-256 is
-`6c456e04daf300a02fc5e7668034094d5760c859ca795923059e1a22e72c1c83`,
-and the target-profile SHA-256 is
-`82681655db59befc20366978759ae42ace9ed805e2d4e0adc7de7980854f4c8f`.
-
-## Local Vulkan And Medium Predecessor Evidence
-
-The immediately preceding implementation revision
-`f05a793780920b01dc7d711282f362cecb0ba803` passed the complete local physical
-M4 Pro Vulkan hardware profile. The final delta only adds bounded
-native-presentation recovery; final-binary 20-frame visible gates then passed
-both Vulkan workloads with exact accepted baseline selection, 20 semantic
-probes, FLIP 0, 40 captures, seven readbacks, zero terminal owners, and stale
-handle rejection. The physical CI run above owns the same-revision 1,000-cycle
-reconfirmation.
-
-| Field | Lantern v2 | Sponza v2 |
-|---|---:|---:|
-| Generation | `88d01dc9de176f9f532ebeb1a3110f303a7b6067583260364485ff85e140091c` | `8fa033d770e58ea26574e840ada100fe174b05139575ef9de6a6557097c99073` |
-| Lifecycle | 1,000 / warm-up 20 | 1,000 / warm-up 20 |
-| Native seconds | 262.162 | 1,378.944 |
-| Peak RSS bytes | 668,745,728 | 596,426,752 |
-| RSS growth bytes | 0 | 7,012,352 |
-| Terminal owners / stale | 0 / rejected | 0 / rejected |
-
-That Vulkan producer emitted 4,368 artifacts with manifest SHA-256
-`45a3cffd86d92f06f300c991e85091e5fe3d42b13d7a63a3f4514cf188257908`
-and summary SHA-256
-`457bdb2951f94d92533e145dc0988cf6f390c45ad0ddd26d2f049804f569addb`.
-
-The same predecessor passed the clean-checkout Metal medium profile in
-1,453.049 seconds. Lantern used zero post-warm-up RSS growth; Sponza used
-10,469,376 bytes. Both completed 1,000 cycles, 100-percent warm reuse,
-strict-no-source loading, semantic equivalence, zero terminal owners, and stale
-handle rejection. Consumer verification accepted 4,289 artifacts with manifest
-SHA-256
-`6b97f099ec3203095ea345d18c31a09080df719129ccb3064da5e0b47b8d2d79`
-and summary SHA-256
-`b2d24c2ac74b4b97bbf23d8d80889114c0155e3f70f6384e3bcdfa08a9c2a75d`.
-
-## Superseded Hosted Evidence
-
-Hosted run `33062479846` on revision
-`b7b64c6f0e1480d5bfd317bb12652edadc6c6dc2` passed every regular producer and
-consumer plus ASan/UBSan and TSan, but is not closeout authority. Lantern
-completed 1,000 cycles and 2,000 captures with zero terminal owners and stale
-rejection; authoritative RSS grew 45,182,976 bytes (10,940,416 to 56,123,392).
-The new diagnostic localized 44,670,976 bytes of that increase to TASK_VM
-reusable pages while physical footprint grew only 512,000 bytes; all-zone
-malloc ended at 37,662,544 bytes in use and 68,362,240 bytes allocated. This
-supports disabling the Intel scalable allocator's medium region without
-changing the sampled RSS or 16 MiB gate. Sponza passed every pre-native stage
-but was cancelled after 2,053 native seconds by the enclosing 60-minute job,
-before its independent 2,400-second native cap. The successor keeps the
-3,000/2,400-second lane caps and uses a 90-minute workflow bound.
-
-The successor contract passed strict Debug/Release, 40 runner tests, seven
-workflow tests, three aggregate tests, and targeted Core/Metal/production
-suites locally. Its exact arm64 Lantern medium replay completed in 171.462
-seconds with 1,000/20 cycles, 2,000 captures, seven readbacks, zero owners,
-stale rejection, and zero positive RSS growth (544,325,632 to 426,262,528
-bytes; 547,405,824 peak). The allocator override is fail-closed to x86_64, so
-this is regression evidence rather than a substitute for the required Intel
-replay.
-
-Hosted run `33052483658` on revision
-`a4ce1fdfa23b0ac576e2fc027f1c6968a441fb29` passed all regular producers,
-independent consumers, ASan/UBSan, and TSan. Its Intel Lantern medium shard
-completed the exact 1,000-cycle lifecycle with 2,000 captures, zero terminal
-owners, and stale-handle rejection, but failed the unchanged 16 MiB RSS gate:
-resident bytes grew from 11,235,328 at warm-up to 54,919,168 at termination
-(43,683,840 bytes). The serialized Sponza shard then reached its native stage
-but exhausted the old shared 2,400-second package-lane budget after 2,112
-seconds. This is failure evidence, not closeout authority. The successor keeps
-`resident_size` and the 16 MiB threshold authoritative, adds observation-only
-macOS task-VM/all-zone malloc telemetry, and separates a 2,400-second native
-cap from a 3,000-second complete medium-lane budget; hosted reconfirmation is
-still required.
-
-The revised contract passed an exact local arm64 Lantern medium replay in
-159.616 seconds, including 148.196 seconds of native execution. It completed
-1,000/20 cycles, 2,000 captures, seven readbacks, zero terminal owners, and
-stale-handle rejection; RSS grew 589,824 bytes (30,670,848 to 31,260,672,
-32,129,024 peak). Both task-VM and all-zone malloc endpoint diagnostics were
-available. This proves the instrumentation and budget plumbing locally but
-does not substitute for the required Intel category evidence.
-
-Hosted run `33046135110` on revision
-`4ff520033c50ace5630744f4dcaae5204042a0e9` passed all regular producers,
-independent artifact consumers, ASan/UBSan, and TSan. Its Intel Lantern medium
-shard completed 1,000 cycles and 2,000 captures with zero terminal owners and
-stale-handle rejection, but failed the unchanged 16 MiB gate at 44,896,256
-bytes of RSS growth (10,960,896 to 55,857,152 bytes). Sponza was cancelled and
-the aggregate correctly skipped, so this run is failure evidence rather than
-authority. The successor removes redundant per-capture Metal/CPU staging while
-retaining exact execution and passed local Lantern 1000/20 at 524,288 bytes of
-growth; a complete hosted rerun remains required.
-
-Hosted run `32711618360` passed the older revision
-`0a5ad11f8d511a9b54da33da086b15cf530ca68a`, including all regular producers,
-independent consumers, ASan/UBSan, and TSan. It is retained as regression
-history but is not final closeout authority. Manual medium run `32716106974`
-failed on that older revision and is likewise non-authoritative.
+Large run directories are never promoted into this path. Only the minimal
+digests and conclusions needed to audit the final decision are retained.

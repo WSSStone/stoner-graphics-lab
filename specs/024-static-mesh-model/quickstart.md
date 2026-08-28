@@ -96,7 +96,7 @@ conda run -n godot python \
 
 ```bash
 conda run -n godot python Tests/verify_static_model_fixtures.py \
-  --manifest Validation/024/fixture-manifest.json \
+  --manifest Tests/Fixtures/StaticModel/fixture-manifest.json \
   --fixtures Tests/Fixtures/StaticModel
 ```
 

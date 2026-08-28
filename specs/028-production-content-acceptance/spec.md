@@ -543,7 +543,14 @@ corpus and generation evidence.
   first-failure selection, actionable failure categories, and normalized Asset,
   dependency, stage, backend, and target subjects. A canonical report MUST NOT
   exceed 1 MiB, reference more than 64 artifacts, reference any single artifact
-  larger than 64 MiB, or reference more than 256 MiB in aggregate.
+  larger than 64 MiB, or reference more than 256 MiB in aggregate. Generated
+  runs, DDC, cooked generations, logs, raw readbacks, and unreviewed captures
+  MUST remain under ignored `Build/Validation/` or an external artifact store;
+  source-controlled `Validation/` is limited to small canonical policy,
+  calibration, index, and summary records and MUST NOT be a build dependency.
+  A reference image retained in source control MUST use lossless compression,
+  record its compressed-byte digest, and be proven pixel-equivalent to the
+  reviewed capture; uncompressed PPM/RGBA image payloads MUST NOT be committed.
 - **FR-041**: Checked-in and published evidence MUST redact absolute user paths,
   credentials, environment secrets, native pointers, process identifiers, and
   unrelated desktop content.
@@ -721,7 +728,10 @@ corpus and generation evidence.
 - **SC-012**: Equivalent deterministic runs produce byte-identical normalized
   reports in 20 repetitions, while every checked-in or published report and
   image passes automated privacy, provenance, schema, 1 MiB report, 64-artifact,
-  64 MiB per-artifact, and 256 MiB aggregate-artifact checks.
+  64 MiB per-artifact, and 256 MiB aggregate-artifact checks. A clean checkout
+  builds without historical `Validation/` run outputs, and every checked-in
+  reference image is losslessly compressed with decoded-pixel equivalence
+  verified against its reviewed source capture.
 - **SC-013**: Architecture validation reports zero Asset-to-Tools/RHI/Renderer/
   Application/Backend/graphics-API dependency violations and zero direct
   graphics-API calls from Renderer or Application.

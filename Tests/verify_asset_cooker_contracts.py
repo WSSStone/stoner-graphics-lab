@@ -44,7 +44,6 @@ REQUIRED_LF_ATTRIBUTES = {
     "Config/AssetCooker/**/*.json text eol=lf",
     "Tests/Fixtures/AssetCooker/**/*.json text eol=lf",
     "Tests/Fixtures/AssetCooker/**/*.txt text eol=lf",
-    "Validation/025/*.json text eol=lf",
     "specs/025-asset-cooker-derived-data/contracts/*.json text eol=lf",
 }
 RUNTIME_COOKED_HEADERS = {
@@ -581,7 +580,7 @@ def verify(root: pathlib.Path) -> list[str]:
     ):
         errors.extend(validate_schema(contract_root / name))
     errors.extend(verify_repository_contracts(root))
-    fixture_manifest_path = root / "Validation/025/fixture-manifest.json"
+    fixture_manifest_path = root / "Tests/Fixtures/AssetCooker/fixture-manifest.json"
     try:
         fixture_manifest = json.loads(
             fixture_manifest_path.read_bytes(), object_pairs_hook=_unique_object

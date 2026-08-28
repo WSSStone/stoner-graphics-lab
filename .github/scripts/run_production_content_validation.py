@@ -681,18 +681,54 @@ def sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
 
+def extended_length_path(path: Path) -> Path:
+    resolved = path.resolve()
+    if os.name != "nt":
+        return resolved
+    value = str(resolved)
+    if value.startswith("\\\\?\\"):
+        return resolved
+    if value.startswith("\\\\"):
+        return Path("\\\\?\\UNC\\" + value[2:])
+    return Path("\\\\?\\" + value)
+
+
+def iter_regular_files(root: Path) -> Iterable[Path]:
+    resolved_root = root.resolve()
+    walk_root = extended_length_path(resolved_root)
+    discovered = []
+    for directory, directory_names, file_names in os.walk(
+        walk_root, followlinks=False
+    ):
+        directory_names.sort()
+        relative_directory = Path(directory).relative_to(walk_root)
+        for file_name in sorted(file_names):
+            discovered.append(
+                resolved_root / relative_directory / file_name
+            )
+    return iter(sorted(
+        discovered,
+        key=lambda item: item.relative_to(resolved_root).as_posix(),
+    ))
+
+
+def read_file_bytes(path: Path) -> bytes:
+    return extended_length_path(path).read_bytes()
+
+
 def tree_digest(root: Path) -> str:
     records = []
-    for path in sorted(item for item in root.rglob("*") if item.is_file()):
-        relative = path.relative_to(root).as_posix()
-        payload = path.read_bytes()
+    resolved_root = root.resolve()
+    for path in iter_regular_files(resolved_root):
+        relative = path.relative_to(resolved_root).as_posix()
+        payload = read_file_bytes(path)
         records.append((relative, len(payload), sha256_bytes(payload)))
     return sha256_bytes(canonical_json(records).encode("utf-8"))
 
 
 def artifact_record(path: Path, root: Path) -> dict:
-    resolved_path = path.resolve()
-    resolved_root = root.resolve()
+    resolved_path = extended_length_path(path).resolve()
+    resolved_root = extended_length_path(root).resolve()
     try:
         token = resolved_path.relative_to(resolved_root).as_posix()
     except ValueError as error:
@@ -711,9 +747,10 @@ def revalidate_artifact(record: dict, root: Path) -> None:
     token = record["path"]
     if not isinstance(token, str) or not token or "\\" in token:
         raise ValueError("artifact path token is invalid")
-    path = (root / token).resolve()
+    resolved_root = extended_length_path(root).resolve()
+    path = (resolved_root / token).resolve()
     try:
-        path.relative_to(root.resolve())
+        path.relative_to(resolved_root)
     except ValueError as error:
         raise ValueError("artifact path escapes its root") from error
     if not path.is_file():
@@ -729,8 +766,8 @@ def write_artifact_manifest(output: Path) -> Path:
     manifest_path = output / "artifact-manifest.json"
     records = [
         artifact_record(path, output)
-        for path in sorted(item for item in output.rglob("*") if item.is_file())
-        if path != manifest_path
+        for path in iter_regular_files(output)
+        if path != manifest_path.resolve()
     ]
     manifest = {
         "schema": "stoner.production-validation-artifacts",
@@ -782,8 +819,8 @@ def verify_validation_output(output: Path, target_profile: Path) -> dict:
         revalidate_artifact(record, output)
     expected = {
         path.relative_to(output).as_posix()
-        for path in output.rglob("*")
-        if path.is_file() and path != artifact_manifest_path
+        for path in iter_regular_files(output)
+        if path != artifact_manifest_path
     }
     if set(paths) != expected:
         raise ValueError("artifact manifest inventory differs")

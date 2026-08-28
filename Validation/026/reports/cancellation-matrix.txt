@@ -1,7 +1,0 @@
-feature=026-runtime-asset-manager
-profile=macos-debug-strict
-iterations=100
-result=pass
-scenarios=single-caller,all-callers,idempotent,deadline,late-cancel,bounded-nonconforming
-physical_loads_per_shared_case=1
-detached_work=0

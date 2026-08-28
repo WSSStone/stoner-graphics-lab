@@ -20,8 +20,8 @@
   "width": 512,
   "height": 512,
   "colorTransfer": "srgb",
-  "referencePath": "macos.apple8.metal.rgba8/production-content-lantern-v2.ppm",
-  "referenceSha256": "f208b18d3db701282955066716e3ab6bcdee3de830b342dcf0f0e5baac798a42",
+  "referencePath": "macos.apple8.metal.rgba8/production-content-lantern-v2.png",
+  "referenceSha256": "a3a2f8d402f3ea4c7396006572c8936f675eac47db6e18b04f0e53130a32af6a",
   "flipPolicy": {
     "meanMax": 0.0005,
     "p95Max": 0.001,
@@ -29,5 +29,5 @@
     "badPixelThreshold": 0.05,
     "badPixelFractionMax": 0.001
   },
-  "calibrationEvidenceSha256": "744b858e59fe22f173fa1c96dc2cb5e8404f143ae6bcb37325553e409ba6c822"
+  "calibrationEvidenceSha256": "b2452dc25e51e8c75c712511b287c871b24d9bc8232ac0b5ed5d901092b6d02f"
 }

@@ -1,27 +1,27 @@
 {
   "schema": "stoner.production-image-baseline",
   "schemaVersion": 1,
-  "baselineId": "production-content-lantern-v2.macos.apple8.moltenvk.rgba8.v1",
+  "baselineId": "production-content-lantern-v2.windows.discrete-vulkan.rgba8.v1",
   "state": "accepted",
   "workloadRevision": "production-content-lantern-v2",
   "backend": "vulkan",
-  "deviceClass": "macos.apple8.moltenvk.rgba8",
+  "deviceClass": "windows.discrete-vulkan.rgba8",
   "capabilitySignature": {
     "registryVersion": 1,
-    "backendImplementation": "moltenvk",
-    "cpuArchitecture": "arm64",
-    "adapterFamily": "apple8",
+    "backendImplementation": "native-vulkan",
+    "cpuArchitecture": "x86_64",
+    "adapterFamily": "discrete-vulkan",
     "shaderProfile": "vulkan-1.3",
     "colorFormat": "rgba8-unorm",
     "depthFormat": "d32-float",
     "sampleCount": 1,
-    "textureFormatFamily": "astc"
+    "textureFormatFamily": "bc"
   },
   "width": 512,
   "height": 512,
   "colorTransfer": "srgb",
-  "referencePath": "macos.apple8.moltenvk.rgba8/production-content-lantern-v2.png",
-  "referenceSha256": "a3a2f8d402f3ea4c7396006572c8936f675eac47db6e18b04f0e53130a32af6a",
+  "referencePath": "windows.discrete-vulkan.rgba8/production-content-lantern-v2.png",
+  "referenceSha256": "47d0abd805f608148323259c1878fcaee0e6cd9c49ade727960b002320618a61",
   "flipPolicy": {
     "meanMax": 0.0005,
     "p95Max": 0.001,
@@ -29,5 +29,5 @@
     "badPixelThreshold": 0.05,
     "badPixelFractionMax": 0.001
   },
-  "calibrationEvidenceSha256": "e53e0fbcc5a7797f4ed4d35c4cb4f59311e4965abfde1a1c75160dbd47468d73"
+  "calibrationEvidenceSha256": "6b8465cadf8941395a22225bdd92b866176db1bb1dcb6f8e7c59bb6dbb4ab31c"
 }

@@ -31,7 +31,7 @@ and evidence structure without changing runtime behavior.
 - [X] T002 Register the Asset Cooker tool as an opt-in SCons target without adding runtime-to-Tools linkage in `SConstruct`
 - [X] T003 [P] Create the licensed representative, mutation, corruption, concurrency, and scale corpus layout plus authoring rules in `Tests/Fixtures/AssetCooker/README.md`
 - [X] T004 [P] Establish Feature 025 evidence and normalized-report conventions in `Validation/025/README.md`, `Validation/025/reports/README.md`, and `Validation/025/artifacts/README.md`
-- [X] T005 Define the fixture-manifest schema and initial provenance, license, expected identity, payload family, profile, and expected-result records in `Validation/025/fixture-manifest.json`
+- [X] T005 Define the fixture-manifest schema and initial provenance, license, expected identity, payload family, profile, and expected-result records in `Tests/Fixtures/AssetCooker/fixture-manifest.json`
 - [X] T006 Ignore local cooker staging, DDC, and published-output roots while retaining checked-in normalized evidence in `.gitignore`
 
 **Checkpoint**: The tool can be selected by the build, and every future test
@@ -65,7 +65,7 @@ joins both and blocks all user-story implementation.
 
 - [X] T018 [P] Add failing strict profile parse/write, producer-settings ordering/schema/validation, rename equivalence, malformed input, normalized digest, and cooker-projection tests in `Tests/AssetCookerProfileTests.cpp` and `Tests/AssetCookerProfileTests.h`
 - [X] T019 [P] Add failing domain separation, ambiguous-boundary, evidence-completeness, schema-versioned BuildPolicy producer-settings projection, irrelevant-field reuse, relevant-field invalidation, and golden-key tests in `Tests/AssetCookerDerivedKeyTests.cpp` and `Tests/AssetCookerDerivedKeyTests.h`
-- [X] T020 Add canonical profile and derived-key golden fixtures plus their provenance/hash records in `Tests/Fixtures/AssetCooker/Contracts/Profiles/`, `Tests/Fixtures/AssetCooker/Contracts/DerivedKeys/`, and `Validation/025/fixture-manifest.json`
+- [X] T020 Add canonical profile and derived-key golden fixtures plus their provenance/hash records in `Tests/Fixtures/AssetCooker/Contracts/Profiles/`, `Tests/Fixtures/AssetCooker/Contracts/DerivedKeys/`, and `Tests/Fixtures/AssetCooker/fixture-manifest.json`
 - [X] T021 [P] Define schema revision, display identity, normalized effective configuration, capabilities, fallback policy, unique sorted schema-versioned producer settings, and projection evidence in `Source/Asset/Public/Asset/FAssetTargetProfile.h`
 - [X] T022 [P] Define immutable derived-key identity and complete inspectable evidence records in `Source/Asset/Public/Asset/FAssetDerivedKey.h`
 - [X] T023 Implement bounded strict canonical target-profile JSON parsing/writing including ordered producer-settings records in `Source/Asset/Private/FAssetTargetProfileCodec.h` and `Source/Asset/Private/FAssetTargetProfileCodec.cpp`
@@ -79,7 +79,7 @@ joins both and blocks all user-story implementation.
 - [X] T028 [P] Add failing `SGCOOK01` round-trip, byte-order, truncation, substitution, digest, unknown-codec, unknown-schema, and size-limit tests in `Tests/AssetCookerPayloadCodecTests.cpp` and `Tests/AssetCookerPayloadCodecTests.h`
 - [X] T029 [P] Add failing canonical manifest ordering, locator containment, generation hash, dependency/source evidence, duplicate identity, and limits tests in `Tests/AssetCookerManifestTests.cpp` and `Tests/AssetCookerManifestTests.h`
 - [X] T030 [P] Add failing source-import versus cooked-load normalized equivalence tests for every Feature 021-024 payload family in `Tests/AssetCookerEquivalenceTests.cpp` and `Tests/AssetCookerEquivalenceTests.h`
-- [X] T031 Add valid and malformed envelope/manifest golden fixtures plus their provenance/hash records in `Tests/Fixtures/AssetCooker/Contracts/Payloads/`, `Tests/Fixtures/AssetCooker/Contracts/Manifests/`, and `Validation/025/fixture-manifest.json`
+- [X] T031 Add valid and malformed envelope/manifest golden fixtures plus their provenance/hash records in `Tests/Fixtures/AssetCooker/Contracts/Payloads/`, `Tests/Fixtures/AssetCooker/Contracts/Manifests/`, and `Tests/Fixtures/AssetCooker/fixture-manifest.json`
 - [X] T032 Implement schema and golden-fixture verification with unit coverage in `Tests/verify_asset_cooker_contracts.py` and `Tests/test_verify_asset_cooker_contracts.py`
 - [X] T033 [P] Define bounded cooked-envelope header, payload bytes, digests, codec/schema identity, and validation result types in `Source/Asset/Public/Asset/FAssetCookedPayload.h`
 - [X] T034 [P] Define manifest header, selection, source, dependency, asset record, generation identity, and canonical ordering types in `Source/Asset/Public/Asset/FAssetCookManifest.h`
@@ -116,7 +116,7 @@ manifest bytes, normalized reports, and source-import/cooked-load semantics.
 - [X] T048 [P] [US1] Add failing worker-count, ready-node, multi-output atomicity, plan-index commit, and bounded scheduling tests in `Tests/AssetCookerSchedulerTests.cpp` and `Tests/AssetCookerSchedulerTests.h`
 - [X] T049 [P] [US1] Add failing input pinning, complete source manifest, re-resolution, source-change, and no-retry tests in `Tests/AssetCookerInputSnapshotTests.cpp` and `Tests/AssetCookerInputSnapshotTests.h`
 - [X] T050 [P] [US1] Add failing clean-cook, every-family equivalence, repeated-byte determinism, and 1-worker/8-worker comparison tests in `Tests/AssetCookerDeterminismTests.cpp` and `Tests/AssetCookerDeterminismTests.h`
-- [X] T051 [P] [US1] Populate licensed Feature 021-024 representative source assets, expected typed roots, and complete provenance/hash records in `Tests/Fixtures/AssetCooker/Representative/` and `Validation/025/fixture-manifest.json`
+- [X] T051 [P] [US1] Populate licensed Feature 021-024 representative source assets, expected typed roots, and complete provenance/hash records in `Tests/Fixtures/AssetCooker/Representative/` and `Tests/Fixtures/AssetCooker/fixture-manifest.json`
 
 ### Implementation For User Story 1
 
@@ -160,7 +160,7 @@ eight concurrent same-key requests, and compare the final output with clean cook
 - [X] T072 [P] [US2] Add failing immutable entry install, validated hit, miss, stale metadata, interrupted write, and strict-cache tests in `Tests/AssetCookerDerivedDataTests.cpp` and `Tests/AssetCookerDerivedDataTests.h`
 - [X] T073 [P] [US2] Add failing source, dependency, importer, cooker, schema, profile BuildPolicy producer-settings schema/value, profile-capability, and unrelated-branch invalidation tests plus an addition/edit/removal/rename sequence-to-clean convergence test in `Tests/AssetCookerIncrementalTests.cpp` and `Tests/AssetCookerIncrementalTests.h`
 - [X] T074 [P] [US2] Add failing eight-writer same-key, quarantine race, winner re-query, and clean-convergence tests in `Tests/AssetCookerConcurrencyTests.cpp` and `Tests/AssetCookerConcurrencyTests.h`
-- [X] T075 [P] [US2] Add at least 15 deterministic cache truncation, substitution, key mismatch, metadata mutation, and staging-remnant fixtures plus complete records in `Tests/Fixtures/AssetCooker/CorruptCache/` and `Validation/025/fixture-manifest.json`
+- [X] T075 [P] [US2] Add at least 15 deterministic cache truncation, substitution, key mismatch, metadata mutation, and staging-remnant fixtures plus complete records in `Tests/Fixtures/AssetCooker/CorruptCache/` and `Tests/Fixtures/AssetCooker/fixture-manifest.json`
 
 ### Implementation For User Story 2
 
@@ -200,7 +200,7 @@ the prior generation remains current until one fully validated commit succeeds.
 - [X] T092 [P] [US3] Add failing current-pointer, generation, payload, manifest, locator, source independence, and unexpected-file validation tests in `Tests/AssetCookerPublishedValidationTests.cpp` and `Tests/AssetCookerPublishedValidationTests.h`
 - [X] T093 [P] [US3] Add failing two-process wait/timeout, equivalent-generation no-op, crash release, reader race, and wrong-filesystem tests in `Tests/AssetCookerPublicationConcurrencyTests.cpp` and `Tests/AssetCookerPublicationConcurrencyTests.h`
 - [X] T094 [P] [US3] Add a subprocess publication writer/holder probe with stable exit categories in `Tests/Helpers/AssetCookerPublicationProbe.cpp`
-- [X] T095 [P] [US3] Add at least 30 deterministic published current-pointer, path, dependency, schema, size, digest, target, missing, truncation, substitution, and unexpected-file corruptions plus complete records in `Tests/Fixtures/AssetCooker/CorruptPublished/` and `Validation/025/fixture-manifest.json`
+- [X] T095 [P] [US3] Add at least 30 deterministic published current-pointer, path, dependency, schema, size, digest, target, missing, truncation, substitution, and unexpected-file corruptions plus complete records in `Tests/Fixtures/AssetCooker/CorruptPublished/` and `Tests/Fixtures/AssetCooker/fixture-manifest.json`
 
 ### Implementation For User Story 3
 
@@ -239,7 +239,7 @@ while each relevant mutation invalidates only affected payload families.
 
 - [X] T112 [P] [US4] Add failing Windows/macOS/Linux capability, producer-settings presence/schema/value, texture format, shader payload, fallback, unsupported, and effective-identity tests in `Tests/AssetCookerTargetProfileTests.cpp` and `Tests/AssetCookerTargetProfileTests.h`
 - [X] T113 [P] [US4] Add failing per-family relevant/irrelevant profile mutation and precise DDC invalidation tests in `Tests/AssetCookerProfileInvalidationTests.cpp` and `Tests/AssetCookerProfileInvalidationTests.h`
-- [X] T114 [P] [US4] Add versioned checked-in Vulkan profiles with explicit effective fields and fixture-manifest records in `Config/AssetCooker/Profiles/Windows-Vulkan.json`, `Config/AssetCooker/Profiles/Mac-Vulkan.json`, `Config/AssetCooker/Profiles/Linux-Vulkan.json`, and `Validation/025/fixture-manifest.json`
+- [X] T114 [P] [US4] Add versioned checked-in Vulkan profiles with explicit effective fields and fixture-manifest records in `Config/AssetCooker/Profiles/Windows-Vulkan.json`, `Config/AssetCooker/Profiles/Mac-Vulkan.json`, `Config/AssetCooker/Profiles/Linux-Vulkan.json`, and `Tests/Fixtures/AssetCooker/fixture-manifest.json`
 
 ### Implementation For User Story 4
 
@@ -274,7 +274,7 @@ and source removal.
 - [X] T125 [P] [US5] Add failing command grammar, required/mutually-exclusive option, canonical root-overlap/report-alias rejection, worker/timeout bound, stdout/stderr, and stable exit-code tests in `Tests/AssetCookerCliTests.cpp` and `Tests/AssetCookerCliTests.h`
 - [X] T126 [P] [US5] Add failing canonical report schema, complete hit/miss/invalidate/quarantine/cook/rebuild/fallback/ineligible/reuse/stage/validate/publish/fail action vocabulary, target-profile diagnostic subject, reuse eligibility denominator/exclusions, aggregate count, provenance, deterministic digest, and telemetry-exclusion tests in `Tests/AssetCookerReportTests.cpp` and `Tests/AssetCookerReportTests.h`
 - [X] T127 [P] [US5] Add failing plan DDC/publication/source no-mutation except its explicit report output, inspect evidence, strict validation, and source/DDC removal workflow tests in `Tests/AssetCookerWorkflowTests.cpp` and `Tests/AssetCookerWorkflowTests.h`
-- [X] T128 [US5] Add golden argument, report, diagnostic, and exit-category fixtures plus complete provenance/hash records in `Tests/Fixtures/AssetCooker/Cli/`, `Tests/Fixtures/AssetCooker/Reports/`, and `Validation/025/fixture-manifest.json`
+- [X] T128 [US5] Add golden argument, report, diagnostic, and exit-category fixtures plus complete provenance/hash records in `Tests/Fixtures/AssetCooker/Cli/`, `Tests/Fixtures/AssetCooker/Reports/`, and `Tests/Fixtures/AssetCooker/fixture-manifest.json`
 
 ### Implementation For User Story 5
 
@@ -301,8 +301,8 @@ and artifacts without knowledge of internal storage layout.
 **Purpose**: Satisfy scale, architecture, regression, sanitizer, CI, evidence,
 and roadmap completion gates after all user stories pass locally.
 
-- [X] T141 [P] Implement a deterministic 1,000-asset/5,000-edge corpus generator with unit coverage and complete provenance/hash records in `Tests/Fixtures/AssetCooker/generate_scale_corpus.py`, `Tests/test_generate_asset_cooker_scale_corpus.py`, and `Validation/025/fixture-manifest.json`
-- [X] T142 Finalize and verify fixture-manifest provenance, license, hash, schema, profile, expected result, and complete corpus coverage with unit tests in `Validation/025/fixture-manifest.json`, `Tests/verify_asset_cooker_fixtures.py`, and `Tests/test_verify_asset_cooker_fixtures.py`
+- [X] T141 [P] Implement a deterministic 1,000-asset/5,000-edge corpus generator with unit coverage and complete provenance/hash records in `Tests/Fixtures/AssetCooker/generate_scale_corpus.py`, `Tests/test_generate_asset_cooker_scale_corpus.py`, and `Tests/Fixtures/AssetCooker/fixture-manifest.json`
+- [X] T142 Finalize and verify fixture-manifest provenance, license, hash, schema, profile, expected result, and complete corpus coverage with unit tests in `Tests/Fixtures/AssetCooker/fixture-manifest.json`, `Tests/verify_asset_cooker_fixtures.py`, and `Tests/test_verify_asset_cooker_fixtures.py`
 - [X] T143 Add opt-in synthetic plan/cached/validation/clean, representative clean, and peak-RSS benchmark modes that hard-fail the documented Apple M4 Pro Release thresholds and expose a separate CI 4x time profile in `Tests/AssetCookerBenchmark.cpp` and `Tests/AssetCookerBenchmark.h`
 - [X] T144 Register the benchmark target without adding it to default correctness suites in `Tests/Main.cpp` and `Tests/SConscript`
 - [X] T145 Run twenty repetitions of plan-only, clean, incremental, validation, and 1-worker/8-worker modes and record normalized artifact equality in `Validation/025/reports/determinism-20-runs.txt`

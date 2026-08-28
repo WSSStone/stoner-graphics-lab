@@ -1,50 +1,50 @@
 {
-  "backend": "metal",
+  "backend": "vulkan",
   "captureCount": 20,
-  "deviceClass": "macos.apple8.metal.rgba8",
-  "generationIdentity": "f60c3069294c588e146073d736dd8cd325760c8d1645ae6c412cf58c45a709d3",
+  "deviceClass": "windows.discrete-vulkan.rgba8",
+  "generationIdentity": "7d17710df14f3992d857e36ff7739a5c3ae368d0b61eaff80b064bc0763cea6f",
   "height": 512,
   "mutations": {
     "blank": {
-      "badPixelFraction": 0.08270645,
-      "maximum": 0.99388117,
-      "mean": 0.05778123,
-      "p95": 0.67264909,
+      "badPixelFraction": 0.08143616,
+      "maximum": 0.99440581,
+      "mean": 0.05586189,
+      "p95": 0.62147796,
       "rejected": true
     },
     "colorSpace": {
-      "badPixelFraction": 0.07694626,
-      "maximum": 0.77259713,
-      "mean": 0.04130412,
-      "p95": 0.55634570,
+      "badPixelFraction": 0.07759476,
+      "maximum": 0.72682291,
+      "mean": 0.04213975,
+      "p95": 0.56228858,
       "rejected": true
     },
     "materialSwap": {
-      "badPixelFraction": 0.07215500,
-      "maximum": 0.96288162,
-      "mean": 0.03443450,
-      "p95": 0.16312462,
+      "badPixelFraction": 0.07074738,
+      "maximum": 0.96253502,
+      "mean": 0.03454521,
+      "p95": 0.15177923,
       "rejected": true
     },
     "missingGeometry": {
-      "badPixelFraction": 0.08270645,
-      "maximum": 0.99388117,
-      "mean": 0.05778123,
-      "p95": 0.67264909,
+      "badPixelFraction": 0.08143616,
+      "maximum": 0.99440581,
+      "mean": 0.05586189,
+      "p95": 0.62147796,
       "rejected": true
     },
     "origin": {
-      "badPixelFraction": 0.11553955,
-      "maximum": 0.99388117,
-      "mean": 0.07466684,
-      "p95": 0.75155044,
+      "badPixelFraction": 0.11406708,
+      "maximum": 0.99440587,
+      "mean": 0.07216424,
+      "p95": 0.71372658,
       "rejected": true
     },
     "translationOnePixel": {
-      "badPixelFraction": 0.06557465,
-      "maximum": 0.82017022,
-      "mean": 0.01434816,
-      "p95": 0.09410684,
+      "badPixelFraction": 0.06552124,
+      "maximum": 0.87683588,
+      "mean": 0.01403814,
+      "p95": 0.09778658,
       "rejected": true
     },
     "staleFrameRejectedBeforeFlip": true
@@ -62,7 +62,7 @@
     "meanMax": 0.0005,
     "p95Max": 0.001
   },
-  "referenceSha256": "a3a2f8d402f3ea4c7396006572c8936f675eac47db6e18b04f0e53130a32af6a",
+  "referenceSha256": "47d0abd805f608148323259c1878fcaee0e6cd9c49ade727960b002320618a61",
   "regionSemantics": {
     "attachmentMinimumValidSampleFraction": 0.75,
     "backgroundMinimumValidSampleFraction": 0.9,

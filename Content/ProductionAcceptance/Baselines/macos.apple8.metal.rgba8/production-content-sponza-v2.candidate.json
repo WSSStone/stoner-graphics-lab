@@ -20,8 +20,8 @@
   "width": 512,
   "height": 512,
   "colorTransfer": "srgb",
-  "referencePath": "macos.apple8.metal.rgba8/production-content-sponza-v2.ppm",
-  "referenceSha256": "25cae6c615e49aa53358a602e3d7130d46be98b4dc8e2c12a3651c1f10d0a441",
+  "referencePath": "macos.apple8.metal.rgba8/production-content-sponza-v2.png",
+  "referenceSha256": "7e98feb07832b7d8dfdf87977a27ac1dbb955070575d2b092c985d1bb3ca8f4f",
   "flipPolicy": {
     "meanMax": 0.0005,
     "p95Max": 0.001,
@@ -29,5 +29,5 @@
     "badPixelThreshold": 0.05,
     "badPixelFractionMax": 0.001
   },
-  "calibrationEvidenceSha256": "1d8590e666a96954f5481488f205a8b547250a8e4100063f16532ce55ef1e6e3"
+  "calibrationEvidenceSha256": "2029332bd3c908c2e19adbbe2960d1f31d9faad07a3a2d7ac9d394a0d0c2defa"
 }

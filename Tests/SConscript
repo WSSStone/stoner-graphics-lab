@@ -136,6 +136,9 @@ private_include_paths_by_source = {
     'ProductionNativeImageAcceptance.cpp': [
         Dir('#Demo/StonerDemo/Private').abspath,
     ],
+    'ProductionImageReference.cpp': [
+        Dir('#Source/Asset/Private').abspath,
+    ],
     'ProductionImageAcceptance.cpp': [
         Dir('#ThirdParty/flip').abspath,
     ],
@@ -364,7 +367,7 @@ asset_cooker_contract_sources = [
     File('#specs/025-asset-cooker-derived-data/contracts/target-profile.schema.json'),
     File('#specs/025-asset-cooker-derived-data/contracts/manifest.schema.json'),
     File('#specs/025-asset-cooker-derived-data/contracts/report.schema.json'),
-    File('#Validation/025/fixture-manifest.json'),
+    File('#Tests/Fixtures/AssetCooker/fixture-manifest.json'),
     File('#Config/AssetCooker/Profiles/Windows-Vulkan.json'),
     File('#Config/AssetCooker/Profiles/Mac-Vulkan.json'),
     File('#Config/AssetCooker/Profiles/Linux-Vulkan.json'),

@@ -172,6 +172,7 @@ bool ParseBaseline(yyjson_val* Root, FProductionImageBaseline& Out)
         (Out.Backend != FString("vulkan") && Out.Backend != FString("metal")) ||
         Out.Width != 512 || Out.Height != 512 ||
         Out.ReferencePath.View().starts_with('/') ||
+        !Out.ReferencePath.View().ends_with(".png") ||
         Out.ReferencePath.View().find('\\') != std::string_view::npos ||
         !IsDigest(Out.ReferenceSha256) ||
         !IsDigest(Out.CalibrationEvidenceSha256))

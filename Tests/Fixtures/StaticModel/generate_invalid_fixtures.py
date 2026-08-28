@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 BASE = ROOT / "Tests/Fixtures/StaticModel/Valid/Geometry/01-basis-u16.gltf"
 DEFAULT_OUTPUT = ROOT / "Tests/Fixtures/StaticModel/Invalid/Hardening"
-FIXTURE_MANIFEST = ROOT / "Validation/024/fixture-manifest.json"
+FIXTURE_MANIFEST = ROOT / "Tests/Fixtures/StaticModel/fixture-manifest.json"
 
 
 def mutation_documents() -> list[tuple[str, str, dict[str, object]]]:

@@ -170,11 +170,11 @@ Tests/
 ├── AssetCookerConcurrencyTests.*
 ├── AssetCookerBenchmark.*
 ├── Fixtures/AssetCooker/
+│   └── fixture-manifest.json
 └── verify_asset_cooker_contracts.py
 
 Validation/025/
 ├── README.md
-├── fixture-manifest.json
 ├── reports/
 └── artifacts/                  # only small normalized/golden evidence tracked
 

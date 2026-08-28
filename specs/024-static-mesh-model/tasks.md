@@ -30,7 +30,7 @@ before changing public engine contracts.
 - [X] T001 Vendor cgltf v1.15 commit `360db1a` plus overflow backport `8211a9f`, preserve the MIT license, and record source hashes in `ThirdParty/cgltf/cgltf.h`, `ThirdParty/cgltf/LICENSE`, `ThirdParty/cgltf/UPSTREAM.md`, and `ThirdParty/cgltf/SHA256SUMS`
 - [X] T002 [P] Vendor MikkTSpace commit `3e895b49d05ea07e4c2133156cfa94369e19e409`, preserve its zlib-style source notice, and record hashes in `ThirdParty/mikktspace/mikktspace.c`, `ThirdParty/mikktspace/mikktspace.h`, `ThirdParty/mikktspace/UPSTREAM.md`, and `ThirdParty/mikktspace/SHA256SUMS`
 - [X] T003 Compile cgltf and MikkTSpace as private C sources with third-party-only warning suppression and no public include leakage in `Source/Asset/SConscript`
-- [X] T004 [P] Create the licensed static-model corpus layout and manifest schema in `Tests/Fixtures/StaticModel/README.md`, `Validation/024/fixture-manifest.json`, and `Validation/024/licenses/README.md`
+- [X] T004 [P] Create the licensed static-model corpus layout and manifest schema in `Tests/Fixtures/StaticModel/README.md`, `Tests/Fixtures/StaticModel/fixture-manifest.json`, and `Validation/024/licenses/README.md`
 - [X] T005 Implement pinned dependency and fixture-manifest verification with unit coverage in `Tests/verify_static_model_provenance.py` and `Tests/test_verify_static_model_provenance.py`
 - [X] T006 [P] Establish Feature 024 evidence structure and command conventions in `Validation/024/README.md` and `Validation/024/reports/README.md`
 
@@ -272,7 +272,7 @@ deterministic diagnostics without partial registry or GPU state.
 least 40 manifest-listed mutations on all platforms, then compare normalized
 Renderer realization-failure diagnostics from `renderer-static-mesh`.
 
-- [X] T111 [US5] Generate and classify at least 40 malformed/unsupported fixtures with expected results and mutation provenance in `Tests/Fixtures/StaticModel/Invalid/` and `Validation/024/fixture-manifest.json`
+- [X] T111 [US5] Generate and classify at least 40 malformed/unsupported fixtures with expected results and mutation provenance in `Tests/Fixtures/StaticModel/Invalid/` and `Tests/Fixtures/StaticModel/fixture-manifest.json`
 - [X] T112 [US5] Register `asset-gltf-malformed`, aggregate it into `asset`, and compile the completed US5 acceptance sources in `Tests/Main.cpp`, `Tests/AssetTests.cpp`, and `Tests/SConscript`
 - [X] T113 [US5] Run the complete US5 malformed and Renderer realization-diagnostic acceptance under normal and sanitizer profiles, compare normalized cross-platform expectations, and record results in `Validation/024/reports/us5-malformed-diagnostics.txt`
 
@@ -289,7 +289,7 @@ cross-platform, documentation, and closeout evidence.
 - [X] T114 Add fixture count, hash, provenance, license, validator, scope, expected-result, and minimum-12 SC-004 golden-primitive verification plus unit tests in `Tests/verify_static_model_fixtures.py` and `Tests/test_verify_static_model_fixtures.py`
 - [X] T115 Extend the Asset architecture verifier for cgltf/MikkTSpace privacy, public-header dependencies, Renderer filesystem/source-format exclusion, and native type leakage in `Tests/verify_asset_layer.py`
 - [X] T116 [P] Add the Apple M4 Pro macOS Release reference benchmark runner and report schema for one warm-up plus five independent 100k-vertex, 300k-index, 16-primitive, 16-dependency imports, failing if any measured run exceeds 5 seconds or tracked request-owned peak bytes exceed the active aggregate allocation limit, in `Tests/AssetStaticModelBenchmark.cpp`, `Tests/AssetStaticModelBenchmark.h`, and `Validation/024/reports/performance.json`
-- [X] T117 [P] Check in or deterministically generate the licensed representative performance fixture and manifest evidence in `Tests/Fixtures/StaticModel/Performance/` and `Validation/024/fixture-manifest.json`
+- [X] T117 [P] Check in or deterministically generate the licensed representative performance fixture and manifest evidence in `Tests/Fixtures/StaticModel/Performance/` and `Tests/Fixtures/StaticModel/fixture-manifest.json`
 - [X] T118 Add a 20-run every-valid-fixture deterministic comparator and wire `--static-model-determinism-runs`, `--static-model-performance-runs`, `--static-model-performance-max-seconds`, and `--static-model-performance-fixture` into the `asset-static-model` suite in `Tests/AssetStaticModelDeterminism.cpp`, `Tests/AssetStaticModelDeterminism.h`, `Tests/Main.cpp`, `Tests/AssetTests.cpp`, and `Tests/AssetTests.h`
 - [X] T119 Add the eight-way concurrent import gate with serial equivalence and no shared mutable payload, and invoke it from the `asset-static-model` aggregate in `Tests/AssetStaticModelConcurrency.cpp`, `Tests/AssetStaticModelConcurrency.h`, `Tests/AssetTests.cpp`, and `Tests/AssetTests.h`
 - [X] T120 Extend the Windows/macOS/Linux Debug matrix with provenance, fixture, focused import, malformed, Renderer, coordinate, and full regression gates in `.github/workflows/ci.yml`

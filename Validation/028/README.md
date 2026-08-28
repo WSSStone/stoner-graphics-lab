@@ -7,10 +7,14 @@ observations. A native pass requires strict-cooked loading, transactional
 Renderer realization, requested-backend proof, GPU-produced readback, semantic
 probes, and an accepted device-class image comparison.
 
-Tracked reports live in `reports/`; accepted reference metadata lives in
-`Baselines/`; final GitHub run and artifact digests live in `CI/`. Raw work,
-downloaded artifacts, external content, DDC, generations, and local captures
-remain under ignored paths.
+Tracked `Validation/028/` content is deliberately small: canonical summaries
+live in `reports/`, calibration/index metadata lives in `Baselines/`, and final
+run/artifact digests live in `CI/`. Raw work, downloaded artifacts, external
+content, DDC, cooked generations, logs, raw readbacks, and captures remain under
+ignored `Build/Validation/` paths or external CI retention. Historical run
+outputs are not build inputs; required test fixtures live under `Tests/Fixtures/`.
+Accepted reference pixels live as losslessly compressed PNG under
+`Content/ProductionAcceptance/Baselines/`, never as checked-in PPM/RGBA.
 
 ## Entry Points
 

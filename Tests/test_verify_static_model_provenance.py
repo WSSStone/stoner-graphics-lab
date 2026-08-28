@@ -25,7 +25,7 @@ class StaticModelProvenanceTests(unittest.TestCase):
             destination = self.root / "ThirdParty" / vendor
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copytree(source_root / "ThirdParty" / vendor, destination)
-        manifest = self.root / "Validation" / "024" / "fixture-manifest.json"
+        manifest = self.root / "Tests" / "Fixtures" / "StaticModel" / "fixture-manifest.json"
         manifest.parent.mkdir(parents=True, exist_ok=True)
         manifest.write_text(
             json.dumps({"schema": _MODULE.FIXTURE_SCHEMA, "fixtures": []}),
@@ -50,7 +50,7 @@ class StaticModelProvenanceTests(unittest.TestCase):
         self.assertEqual([], _MODULE.verify(self.root))
 
     def test_detects_fixture_schema_error(self) -> None:
-        manifest = self.root / "Validation" / "024" / "fixture-manifest.json"
+        manifest = self.root / "Tests" / "Fixtures" / "StaticModel" / "fixture-manifest.json"
         manifest.write_text(
             json.dumps({"schema": "wrong", "fixtures": [{}]}), encoding="utf-8"
         )
@@ -58,7 +58,7 @@ class StaticModelProvenanceTests(unittest.TestCase):
         self.assertIn("fixture manifest schema mismatch", errors)
 
     def test_detects_fixture_entry_errors(self) -> None:
-        manifest = self.root / "Validation" / "024" / "fixture-manifest.json"
+        manifest = self.root / "Tests" / "Fixtures" / "StaticModel" / "fixture-manifest.json"
         manifest.write_text(
             json.dumps({"schema": _MODULE.FIXTURE_SCHEMA, "fixtures": [{}]}),
             encoding="utf-8",
@@ -70,7 +70,7 @@ class StaticModelProvenanceTests(unittest.TestCase):
         fixture = self.root / "Tests" / "Fixtures" / "StaticModel" / "sample.gltf"
         fixture.parent.mkdir(parents=True, exist_ok=True)
         fixture.write_bytes(b"fixture")
-        manifest = self.root / "Validation" / "024" / "fixture-manifest.json"
+        manifest = self.root / "Tests" / "Fixtures" / "StaticModel" / "fixture-manifest.json"
         entry = {
             "path": fixture.relative_to(self.root).as_posix(),
             "source_url": "repository-owned://test",
@@ -93,7 +93,7 @@ class StaticModelProvenanceTests(unittest.TestCase):
         )
 
     def test_rejects_fixture_path_escape(self) -> None:
-        manifest = self.root / "Validation" / "024" / "fixture-manifest.json"
+        manifest = self.root / "Tests" / "Fixtures" / "StaticModel" / "fixture-manifest.json"
         entry = {
             "path": "../outside.gltf",
             "source_url": "repository-owned://test",

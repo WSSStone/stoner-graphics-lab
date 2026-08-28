@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[5]
 OUTPUT = Path(__file__).resolve().parent
-MANIFEST = ROOT / "Validation/024/fixture-manifest.json"
+MANIFEST = ROOT / "Tests/Fixtures/StaticModel/fixture-manifest.json"
 
 POSITIONS = [(0.0, 0.0, 0.0), (2.0, 0.0, 0.0), (0.0, 3.0, 0.0)]
 NORMALS = [(0.0, 0.0, 1.0)] * 3

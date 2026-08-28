@@ -1134,6 +1134,27 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "digest"):
                 self.module.revalidate_artifact(record, Path(directory))
 
+    def test_artifact_manifest_enumerates_deep_generation_payloads(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "output"
+            payload = output
+            for index in range(4):
+                payload /= f"segment-{index}-" + "a" * 64
+            payload /= "payload.sgasset"
+            payload.parent.mkdir(parents=True)
+            payload.write_bytes(b"deep-generation-payload")
+            self.assertGreater(len(str(payload.resolve())), 260)
+
+            files = list(self.module.iter_regular_files(output))
+            self.assertEqual([payload.resolve()], files)
+            manifest_path = self.module.write_artifact_manifest(output)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(1, len(manifest["artifacts"]))
+            self.assertEqual(
+                payload.relative_to(output).as_posix(),
+                manifest["artifacts"][0]["path"],
+            )
+
     def test_validation_output_revalidates_target_current_and_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

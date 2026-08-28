@@ -86,7 +86,7 @@ def verify_fixture_manifest(path: Path) -> list[str]:
     if not isinstance(fixtures, list):
         return ["fixture manifest fixtures must be an array"]
     errors: list[str] = []
-    root = path.parents[2]
+    root = path.parents[3]
     listed_paths: set[str] = set()
     for index, fixture in enumerate(fixtures):
         if not isinstance(fixture, dict):
@@ -129,7 +129,7 @@ def verify(root: Path) -> list[str]:
     errors: list[str] = []
     for name, (version, revision) in VENDORS.items():
         errors.extend(verify_vendor(root / "ThirdParty" / name, version, revision))
-    errors.extend(verify_fixture_manifest(root / "Validation" / "024" / "fixture-manifest.json"))
+    errors.extend(verify_fixture_manifest(root / "Tests" / "Fixtures" / "StaticModel" / "fixture-manifest.json"))
     return errors
 
 

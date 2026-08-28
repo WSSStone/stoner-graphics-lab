@@ -21,9 +21,9 @@ class StaticModelFixtureVerifierTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
         self.fixtures = self.root / "Tests/Fixtures/StaticModel"
-        self.manifest = self.root / "Validation/024/fixture-manifest.json"
+        self.manifest = self.root / "Tests/Fixtures/StaticModel/fixture-manifest.json"
         self.fixtures.mkdir(parents=True)
-        self.manifest.parent.mkdir(parents=True)
+        self.manifest.parent.mkdir(parents=True, exist_ok=True)
         entries = []
         for index in range(20):
             scope = ["valid", *(("SC-004",) if index < 12 else ())]

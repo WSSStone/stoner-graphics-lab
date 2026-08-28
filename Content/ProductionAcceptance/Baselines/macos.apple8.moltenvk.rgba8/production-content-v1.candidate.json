@@ -20,8 +20,8 @@
   "width": 512,
   "height": 512,
   "colorTransfer": "srgb",
-  "referencePath": "macos.apple8.moltenvk.rgba8/production-content-v1.ppm",
-  "referenceSha256": "52a0f9b1945394186c55d46df6138ed18c82fa3f8c05cc0de04cc232beb4f431",
+  "referencePath": "macos.apple8.moltenvk.rgba8/production-content-v1.png",
+  "referenceSha256": "21a23292df6cae22b54c28cedc746e45f0078bb7cf0d6e27a3ace9df6b65e64a",
   "flipPolicy": {
     "meanMax": 0.0005,
     "p95Max": 0.001,

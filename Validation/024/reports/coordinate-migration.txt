@@ -1,9 +1,0 @@
-feature=024-static-mesh-model
-gate=coordinate-migration
-date=2026-07-31
-convention=UnrealLH_ZUp_XForward_YRight_Meters_CW
-historical-amendments=7
-scanner=pass
-scanner-unit-tests=3-pass
-deterministic-deferred-validation=pass
-result=pass

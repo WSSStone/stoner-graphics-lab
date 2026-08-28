@@ -308,7 +308,8 @@ workload, lifecycle, capture/readback, ownership, stale, and physical limits rem
 - [X] T174 [US4] Revise Feature 028 physical authority to the sole available maintainer-local native arm64 macOS Metal device: narrow the hardware profile to `Mac-Metal-Arm64.json`; add explicit `--local-metal-authority` with clean committed HEAD, exact target/device class, non-Rosetta, default allocator, exclusive process lock, fixed 1,000/20 sample and visible presentation/readback preflight; keep ordinary local runs diagnostic; retire the unavailable self-hosted workflow so pushes cannot queue it; defer Windows/macOS Vulkan physical qualification; and update schema, report, workflow, runner, documentation, and negative tests.
 - [X] T175 [P] [US4] Record the then-unavailable Windows/macOS Vulkan physical qualification as a named future hardware-lab roadmap follow-up, document hosted Windows/Linux Vulkan build/function/native validation plus maintainer-local Metal as the non-equivalent fallback, and state that neither substitutes for Vulkan physical evidence in doc/roadmap.md and Validation/028/README.md. T176 supersedes the Windows portion after a maintainer Windows device became available; macOS Vulkan remains deferred.
 - [X] T176 [US4] Extend Feature 028 authority to the manually synchronized maintainer x86_64 Windows Vulkan device without requiring a self-hosted runner: add exact `--local-windows-vulkan-authority` preflight, cross-platform exclusive locking, target/device-class enforcement, report/profile/schema support, negative tests, manual PowerShell entry point, and dual-target same-revision policy while preserving the retired automatic hardware workflow.
-- [ ] T177 [US3] Push one reviewed Windows-enablement checkpoint, sync that exact revision to the maintainer Windows device, run strict Release plus the hardware profile, inspect the registry-derived device class and candidate images, and obtain explicit maintainer acceptance for every new Windows workload/device-class baseline before committing any record as `Accepted`.
+- [X] T177 [US3] Push one reviewed Windows-enablement checkpoint, sync that exact revision to the maintainer Windows device, run strict Release plus the hardware profile, inspect the registry-derived device class and candidate images, and obtain explicit maintainer acceptance for every new Windows workload/device-class baseline before committing any record as `Accepted`.
+- [X] T178 [US5] Enforce bounded source-controlled evidence: migrate required Feature 024/025 fixture manifests from `Validation/` to their `Tests/Fixtures/` corpora, remove build dependencies on historical run reports, store accepted references as pixel-equivalent lossless PNG instead of PPM, retain raw captures/DDC/generations only under ignored `Build/Validation/`, add format-neutral reference loading and Windows long-path artifact enumeration coverage, and validate the compressed registries, strict build, image suites, and runner tests.
 
 **Checkpoint**: Each acceptance tier is reproducible, bounded, honest about
 capability, and scheduled at the clarified cadence.
@@ -452,7 +453,7 @@ Setup --> Real KTX2 Foundation --|
 | FR-015-FR-022 | T035-T054 | Self-contained generation, strict no-source load, equivalence, reuse, mutation/failure |
 | FR-023-FR-031, FR-046-FR-050, FR-055-FR-056 | T055-T084, T119-T125, T127-T128, T144, T166 | Asset-root composition, frozen camera, canonical 512 extent, region semantics, exact registered FLIP, lifecycle |
 | FR-032-FR-037, FR-051-FR-054 | T085-T097, T112-T114, T167-T170, T173-T177 | Regular/medium/hardware profiles, environment authority, hosted operational bounds, dual maintainer-local physical RSS/image authority |
-| FR-038-FR-041 | T098-T107, T171-T172 | Deterministic/observational reports, measurement disposition, stable failures, bounded privacy-safe artifacts |
+| FR-038-FR-041 | T098-T107, T171-T172, T178 | Deterministic/observational reports, measurement disposition, stable failures, bounded privacy-safe artifacts, compressed references, generated-output retention |
 | FR-042 | T020-T022, T031, T035-T038, T052-T053, T055-T058, T069, T080-T083, T103 | At least 30 cross-stage negative cases |
 | FR-043-FR-045 | T108, T111-T118, T175 | Architecture, exclusion/regression, documentation, roadmap follow-up, and closeout |
 
@@ -465,7 +466,7 @@ Setup --> Real KTX2 Foundation --|
 | SC-008 | T070-T084, T114 |
 | SC-009-SC-010 | T084-T090, T113-T114, T144, T167-T170, T173-T177; T114 owns both consolidated 3,600-second local physical lanes |
 | SC-011 | T108-T114 |
-| SC-012 | T098-T107, T118 |
+| SC-012 | T098-T107, T118, T178 |
 | SC-013 | T108 |
 | SC-014 | T115, T118 |
 | SC-015 | T120-T125 |

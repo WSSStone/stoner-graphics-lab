@@ -20,8 +20,8 @@
   "width": 512,
   "height": 512,
   "colorTransfer": "srgb",
-  "referencePath": "macos.apple8.metal.rgba8/production-content-sponza-v1.ppm",
-  "referenceSha256": "b37985e5685a8d0426bd16ff03bd7f1b7c9d54804b08f49f3a178edc7c48ff44",
+  "referencePath": "macos.apple8.metal.rgba8/production-content-sponza-v1.png",
+  "referenceSha256": "abb3c579ba24c55ea9598bf37205a7c8c1c4b765958282bc94113ce6371a9687",
   "flipPolicy": {
     "meanMax": 0.0005,
     "p95Max": 0.001,

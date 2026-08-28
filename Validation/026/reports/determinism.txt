@@ -1,8 +1,0 @@
-feature=026-runtime-asset-manager
-profile=macos-debug-strict
-repetitions=20
-graph_nodes=1000
-graph_edges=5000
-normalized_order_matches=20
-result=pass
-variable_fields=0

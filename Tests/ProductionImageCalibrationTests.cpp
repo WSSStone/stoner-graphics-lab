@@ -1,6 +1,7 @@
 #include "ProductionImageCalibrationTests.h"
 
 #include "ProductionImageAcceptance.h"
+#include "ProductionImageReference.h"
 
 #include <algorithm>
 #include <cmath>
@@ -24,40 +25,6 @@ void Record(
 {
     (Passed ? ++Result.Passed : ++Result.Failed);
     std::cout << (Passed ? "[PASS] " : "[FAIL] ") << Name << '\n';
-}
-
-bool LoadPpm(
-    const std::filesystem::path& Path,
-    FProductionCanonicalImage& OutImage)
-{
-    std::ifstream Input(Path, std::ios::binary);
-    std::string Magic;
-    uint32 Width = 0;
-    uint32 Height = 0;
-    uint32 Maximum = 0;
-    if (!(Input >> Magic >> Width >> Height >> Maximum) || Magic != "P6" ||
-        Width == 0 || Height == 0 || Maximum != 255)
-        return false;
-    Input.get();
-    TArray<uint8> Rgb(static_cast<usize>(Width) * Height * 3u);
-    Input.read(reinterpret_cast<char*>(Rgb.data()),
-        static_cast<std::streamsize>(Rgb.size()));
-    if (!Input || Input.peek() != std::ifstream::traits_type::eof())
-        return false;
-    TArray<uint8> Rgba(static_cast<usize>(Width) * Height * 4u);
-    for (usize Pixel = 0; Pixel < Rgb.size() / 3u; ++Pixel)
-    {
-        Rgba[Pixel * 4u] = Rgb[Pixel * 3u];
-        Rgba[Pixel * 4u + 1u] = Rgb[Pixel * 3u + 1u];
-        Rgba[Pixel * 4u + 2u] = Rgb[Pixel * 3u + 2u];
-        Rgba[Pixel * 4u + 3u] = 255;
-    }
-    FString Failure;
-    return NormalizeProductionReadback(
-        {Rgba, Width, Height, static_cast<uint32>(Width * 4u),
-         EProductionReadbackPixelFormat::RGBA8UNorm,
-         EProductionImageOrigin::TopLeft, EProductionColorTransfer::SRGB},
-        OutImage, Failure);
 }
 
 FProductionFlipPolicy MeasurementPolicy()
@@ -170,7 +137,10 @@ FProductionImageCalibrationTestResult RunProductionImageCalibrationTests()
         Name << "capture-" << std::setw(2) << std::setfill('0') << Index
              << ".ppm";
         FProductionCanonicalImage Image;
-        if (!LoadPpm(Root / Name.str(), Image))
+        FString Failure;
+        if (!LoadProductionReferenceImage(
+                Root / Name.str(), EProductionColorTransfer::SRGB,
+                Image, Failure))
         {
             Record(Result, false,
                 "calibration loads exactly twenty canonical captures");

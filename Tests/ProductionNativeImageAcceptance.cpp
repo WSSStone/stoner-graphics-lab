@@ -4,6 +4,7 @@
 #include "Core/SGPlatform.h"
 #include "FStonerDemoApplication.h"
 #include "ProductionImageBaselineRegistry.h"
+#include "ProductionImageReference.h"
 
 #include "../ThirdParty/yyjson/yyjson.h"
 
@@ -224,51 +225,6 @@ bool ToReadbackView(
         Evidence.RowPitchBytes, Format, EProductionImageOrigin::TopLeft,
         Transfer};
     return Evidence.bNonBlank && !Evidence.Bytes.empty();
-}
-
-bool LoadPpm(
-    const std::filesystem::path& Path,
-    EProductionColorTransfer Transfer,
-    FProductionCanonicalImage& Out,
-    Core::FString& OutFailure)
-{
-    std::ifstream Input(Path, std::ios::binary);
-    std::string Magic;
-    Core::uint32 Width = 0;
-    Core::uint32 Height = 0;
-    Core::uint32 Maximum = 0;
-    if (!Input || !(Input >> Magic >> Width >> Height >> Maximum) ||
-        Magic != "P6" || Width == 0 || Height == 0 || Maximum != 255 ||
-        Input.get() != '\n')
-    {
-        OutFailure = "reference-image-contract";
-        return false;
-    }
-    const Core::uint64 PixelCount =
-        static_cast<Core::uint64>(Width) * Height;
-    if (PixelCount > 16384ull * 16384ull)
-    {
-        OutFailure = "reference-image-bounds";
-        return false;
-    }
-    Core::TArray<Core::uint8> Rgb(static_cast<Core::usize>(PixelCount * 3u));
-    Input.read(reinterpret_cast<char*>(Rgb.data()),
-        static_cast<std::streamsize>(Rgb.size()));
-    if (!Input || Input.peek() != std::char_traits<char>::eof())
-    {
-        OutFailure = "reference-image-size";
-        return false;
-    }
-    Core::TArray<Core::uint8> Rgba(
-        static_cast<Core::usize>(PixelCount * 4u), 255u);
-    for (Core::usize Pixel = 0; Pixel < PixelCount; ++Pixel)
-        std::copy_n(Rgb.data() + Pixel * 3u, 3u,
-            Rgba.data() + Pixel * 4u);
-    return NormalizeProductionReadback(
-        {Rgba, Width, Height, Width * 4u,
-         EProductionReadbackPixelFormat::RGBA8UNorm,
-         EProductionImageOrigin::TopLeft, Transfer},
-        Out, OutFailure);
 }
 
 Core::uint32 At(float Unit, Core::uint32 Extent)
@@ -545,9 +501,9 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
     }
     FProductionCanonicalImage ReferenceImage;
     FProductionCanonicalImage CandidateImage;
-    if (!LoadPpm(Reference, Baseline.ColorTransfer,
+    if (!LoadProductionReferenceImage(Reference, Baseline.ColorTransfer,
             ReferenceImage, Failure) ||
-        !LoadPpm(CandidatePath, Baseline.ColorTransfer,
+        !LoadProductionReferenceImage(CandidatePath, Baseline.ColorTransfer,
             CandidateImage, Failure))
     {
         Result.FirstFailure = Failure;

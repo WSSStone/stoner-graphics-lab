@@ -166,12 +166,12 @@ Tests/
 ├── CoordinateConventionTests.*
 ├── RendererStaticMeshTests.*
 ├── Fixtures/StaticModel/
+│   └── fixture-manifest.json
 ├── verify_coordinate_convention.py
 └── verify_static_model_fixtures.py
 
 Validation/024/
 ├── README.md
-├── fixture-manifest.json
 ├── licenses/
 └── reports/
 

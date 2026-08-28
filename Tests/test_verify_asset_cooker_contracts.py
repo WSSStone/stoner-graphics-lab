@@ -60,11 +60,11 @@ class AssetCookerContractVerifierTests(unittest.TestCase):
                 "report.schema.json",
             ):
                 (contract_root / name).write_text(json.dumps(schema), encoding="utf-8")
-            validation = root / "Validation/025"
-            validation.mkdir(parents=True)
+            fixture_root = root / "Tests/Fixtures/AssetCooker"
+            fixture_root.mkdir(parents=True)
             fixture = root / "fixture.bin"
             fixture.write_bytes(b"fixture")
-            (validation / "fixture-manifest.json").write_text(json.dumps({
+            (fixture_root / "fixture-manifest.json").write_text(json.dumps({
                 "fixtures": [{"path": "fixture.bin", "sha256": "0" * 64}],
             }), encoding="utf-8")
             errors = contracts.verify(root)

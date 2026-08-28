@@ -2,7 +2,7 @@
 
 This tree owns deterministic source, mutation, corruption, concurrency, and
 scale inputs for the offline Asset Cooker. Fixtures are repository-relative,
-license-audited, and recorded in `Validation/025/fixture-manifest.json` before
+license-audited, and recorded in `Tests/Fixtures/AssetCooker/fixture-manifest.json` before
 they are accepted by a test or validation gate.
 
 ## Layout

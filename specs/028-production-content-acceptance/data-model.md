@@ -224,13 +224,18 @@ non-canonical ordering, and zero or multiple matches for an observed signature.
 | `CapabilitySignature` | canonical object | Registry version, backend implementation, CPU architecture, adapter family, shader profile, color/depth formats, sample count, and texture-format family; excludes marketing name |
 | `Width`, `Height` | integer pair | Exactly 512 by 512 for formal calibration captures, accepted references, and candidates; the 1024 preview is excluded |
 | `ColorTransfer` | enum | Canonical comparison transfer |
-| `ReferencePath`, `ReferenceSha256` | path + digest | Versioned reviewed image |
+| `ReferencePath`, `ReferenceSha256` | path + digest | Versioned reviewed lossless PNG and compressed-byte digest; decoder output is proven pixel-equivalent to the reviewed raw capture |
 | `FlipPolicy` | thresholds | Mean, p95, max, bad-pixel threshold/fraction |
 | `CalibrationEvidence` | digest/reference | 20-repeat noise set and mutation results |
 
 State: `Candidate -> Calibrated -> Reviewed -> Accepted -> Superseded`.
 Ordinary CI can consume only `Accepted`. Missing or multiple registry matches
 fail before baseline lookup; there is no nearest or fallback device class.
+Raw PPM/RGBA captures are transient run artifacts under ignored
+`Build/Validation/` and are never registry inputs. Lightweight calibration JSON
+may be checked in; expanded run directories, DDC, generations, logs, and raw
+readbacks may not. Test fixture manifests are product-independent test inputs
+and live with their corpora under `Tests/Fixtures/`, not in `Validation/`.
 
 ## 13. Production Acceptance Report
 

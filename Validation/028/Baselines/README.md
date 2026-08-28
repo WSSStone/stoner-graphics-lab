@@ -12,6 +12,12 @@ coverage rather than single edge pixels. FLIP remains an exact same-size,
 same-coordinate comparison with no registration or alignment; the calibration
 set rejects a one-pixel whole-image translation.
 
+Reference pixels are stored only as losslessly compressed PNG. The registry
+hashes the PNG bytes, while admission separately proves that decoding produces
+the exact reviewed RGB pixels. Raw PPM/RGBA captures, hardware packages, DDC,
+and cooked generations remain ignored under `Build/Validation/` and are not
+source-controlled evidence.
+
 ## Accepted macOS Apple8 baselines
 
 The corrected native winding exposed that the former Lantern
@@ -27,11 +33,11 @@ color-space, one-pixel translation, and opposite-normal mutations.
 
 | Backend | Device class | Baseline ID | Calibration evidence SHA-256 |
 | --- | --- | --- | --- |
-| Metal | `macos.apple8.metal.rgba8` | `production-content-lantern-v2.macos.apple8.metal.rgba8.v1` | `744b858e59fe22f173fa1c96dc2cb5e8404f143ae6bcb37325553e409ba6c822` |
-| Vulkan (MoltenVK) | `macos.apple8.moltenvk.rgba8` | `production-content-lantern-v2.macos.apple8.moltenvk.rgba8.v1` | `4f53ba0c0c70bcabf6a5e36eb083ab90a0ed9b05717667279dca5c65f10a6656` |
+| Metal | `macos.apple8.metal.rgba8` | `production-content-lantern-v2.macos.apple8.metal.rgba8.v1` | `b2452dc25e51e8c75c712511b287c871b24d9bc8232ac0b5ed5d901092b6d02f` |
+| Vulkan (MoltenVK) | `macos.apple8.moltenvk.rgba8` | `production-content-lantern-v2.macos.apple8.moltenvk.rgba8.v1` | `e53e0fbcc5a7797f4ed4d35c4cb4f59311e4965abfde1a1c75160dbd47468d73` |
 
 Both records use reference image SHA-256
-`f208b18d3db701282955066716e3ab6bcdee3de830b342dcf0f0e5baac798a42`
+`a3a2f8d402f3ea4c7396006572c8936f675eac47db6e18b04f0e53130a32af6a`
 and remain selected only by exact workload, backend, registry-derived device
 class, and capability-signature equality. The `StateFixtures/` records retain
 all four non-accepted lifecycle states against a fixture-only workload so the
@@ -61,11 +67,37 @@ translation. The maintainer explicitly accepted this corrected image on
 
 | Backend | Device class | Accepted baseline ID | Calibration evidence SHA-256 |
 | --- | --- | --- | --- |
-| Metal | `macos.apple8.metal.rgba8` | `production-content-sponza-v2.macos.apple8.metal.rgba8.v1` | `1d8590e666a96954f5481488f205a8b547250a8e4100063f16532ce55ef1e6e3` |
-| Vulkan (MoltenVK) | `macos.apple8.moltenvk.rgba8` | `production-content-sponza-v2.macos.apple8.moltenvk.rgba8.v1` | `83482cb9c2893c4492cf4007ed5efec3486047bc2626bcebee833f394715630d` |
+| Metal | `macos.apple8.metal.rgba8` | `production-content-sponza-v2.macos.apple8.metal.rgba8.v1` | `2029332bd3c908c2e19adbbe2960d1f31d9faad07a3a2d7ac9d394a0d0c2defa` |
+| Vulkan (MoltenVK) | `macos.apple8.moltenvk.rgba8` | `production-content-sponza-v2.macos.apple8.moltenvk.rgba8.v1` | `7ff0ed70e15b50851fdfabdc6993dfb8398d5cfd0d0f05ba73071ffd9cce7963` |
 
 Both accepted reference images have SHA-256
-`25cae6c615e49aa53358a602e3d7130d46be98b4dc8e2c12a3651c1f10d0a441`.
+`7e98feb07832b7d8dfdf87977a27ac1dbb955070575d2b092c985d1bb3ca8f4f`.
+
+## Accepted Windows Vulkan Lantern v2 baseline
+
+The maintainer synchronized revision
+`738d66f150c0cd554267939328d0f8366336a2ff` to the x86_64 Windows device and
+ran strict Release plus the hardware profile. The registry derived
+`windows.discrete-vulkan.rgba8`; 1,000 lifecycle cycles, 2,000 captures, seven
+readbacks, zero terminal owners, and stale-handle rejection completed. The
+twenty 512-by-512 application-window captures were byte-identical. The
+maintainer explicitly accepted the reviewed Lantern image on 2026-08-28.
+
+| Backend | Device class | Accepted baseline ID | Calibration evidence SHA-256 |
+| --- | --- | --- | --- |
+| Vulkan | `windows.discrete-vulkan.rgba8` | `production-content-lantern-v2.windows.discrete-vulkan.rgba8.v1` | `6b8465cadf8941395a22225bdd92b866176db1bb1dcb6f8e7c59bb6dbb4ab31c` |
+
+The accepted source PPM had SHA-256
+`4147e4c5b0a2380ebcd3177785e06d964b2851132cbf4050c831c7b5dc25c95b`.
+Its lossless PNG has SHA-256
+`47d0abd805f608148323259c1878fcaee0e6cd9c49ade727960b002320618a61`;
+decoded RGB was verified pixel-identical before registration.
+
+This acceptance resolves the image `baseline-missing` result only. The same run
+measured RSS growth of 62,119,936 bytes, above the required 16 MiB physical
+limit, so the Windows hardware gate remains Failed. Fail-fast therefore did not
+run the final Windows Sponza workload; T114 remains open until the RSS issue is
+fixed and both workloads pass on the final shared revision.
 
 ## Final local consumption evidence
 

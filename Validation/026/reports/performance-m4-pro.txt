@@ -1,5 +1,0 @@
-profile=reference
-admission_ms=0.143
-graph_ms=725.000
-pump_ms=0.558
-lifecycle_ms=552.044

@@ -106,7 +106,9 @@ def validate_corpus_coverage(
 
 def _tracked_fixture_files(root: pathlib.Path) -> set[str]:
     fixture_root = root / "Tests/Fixtures/AssetCooker"
-    ignored_names = {"README.md", "generate_scale_corpus.py"}
+    ignored_names = {
+        "README.md", "fixture-manifest.json", "generate_scale_corpus.py",
+    }
     return {
         path.relative_to(root).as_posix()
         for path in fixture_root.rglob("*")
@@ -116,7 +118,7 @@ def _tracked_fixture_files(root: pathlib.Path) -> set[str]:
 
 
 def verify(root: pathlib.Path) -> list[str]:
-    manifest_path = root / "Validation/025/fixture-manifest.json"
+    manifest_path = root / "Tests/Fixtures/AssetCooker/fixture-manifest.json"
     try:
         manifest = json.loads(manifest_path.read_bytes())
     except (OSError, json.JSONDecodeError) as error:

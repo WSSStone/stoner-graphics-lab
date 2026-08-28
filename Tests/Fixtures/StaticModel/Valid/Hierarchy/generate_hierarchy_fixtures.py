@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[5]
 VALID = Path(__file__).resolve().parent
 INVALID = ROOT / "Tests/Fixtures/StaticModel/Invalid/Hierarchy"
-MANIFEST = ROOT / "Validation/024/fixture-manifest.json"
+MANIFEST = ROOT / "Tests/Fixtures/StaticModel/fixture-manifest.json"
 GEOMETRY_SCRIPT = VALID.parent / "Geometry/generate_geometry_fixtures.py"
 
 spec = importlib.util.spec_from_file_location("geometry_fixtures", GEOMETRY_SCRIPT)

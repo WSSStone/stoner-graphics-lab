@@ -1468,3 +1468,34 @@ generic CLI token authority over RSS or images.
 - Reuse Metal or hosted Vulkan baselines: rejected because image authority is
   exact workload/backend/device-class data and cross-device substitution would
   conceal real rendering differences.
+
+## Decision 50: Keep expanded validation artifacts out of source control
+
+**Decision**: `Build/Validation/` is the only repository-local home for raw
+captures, raw readbacks, DDC, cooked generations, expanded hardware packages,
+and run logs; it remains ignored. Source-controlled `Validation/` contains only
+small canonical summaries, indexes, policy, and calibration JSON and is not a
+build input. Required Feature 024/025 fixture manifests move beside their
+corpora under `Tests/Fixtures/`. Accepted image references use lossless PNG,
+record the PNG byte digest, and are admitted only after decoded RGB is proven
+pixel-identical to the reviewed raw capture. Native/transient PPM remains a run
+format, not a checked-in reference format.
+
+**Rationale**: Expanded validation state had grown beyond 240 GB and duplicated
+regenerable data. Keeping it in the repository does not improve authority: the
+canonical summary and artifact digests already identify the run, while the raw
+package belongs in bounded CI retention or a local ignored directory. Lossless
+PNG preserves exact accepted pixels while reducing the seven existing 512-by-
+512 references from about 5.25 MiB to about 0.40 MiB. Separating test fixtures
+from historical evidence also lets a clean checkout build after old run output
+is intentionally removed.
+
+**Alternatives considered**:
+
+- Keep all raw captures and generations in Git: rejected because the data is
+  regenerable, expands without bound, and does not add authority beyond signed
+  digests and canonical summaries.
+- Compress entire run directories into archives: rejected because archives
+  remain large opaque duplicates and are not runtime/build inputs.
+- Use lossy image compression: rejected because FLIP and exact pixel-digest
+  provenance require preservation of the reviewed pixel values.

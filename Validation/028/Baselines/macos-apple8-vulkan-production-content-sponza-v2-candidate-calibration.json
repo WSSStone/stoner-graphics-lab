@@ -68,7 +68,7 @@
     "meanMax": 0.0005,
     "p95Max": 0.001
   },
-  "referenceSha256": "25cae6c615e49aa53358a602e3d7130d46be98b4dc8e2c12a3651c1f10d0a441",
+  "referenceSha256": "7e98feb07832b7d8dfdf87977a27ac1dbb955070575d2b092c985d1bb3ca8f4f",
   "regionSemantics": {
     "attachmentMinimumValidSampleFraction": 0.75,
     "backgroundMinimumValidSampleFraction": 0.9,

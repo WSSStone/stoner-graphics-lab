@@ -156,7 +156,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     root = Path(__file__).resolve().parents[1]
     parser.add_argument("--manifest", type=Path,
-                        default=root / "Validation/024/fixture-manifest.json")
+                        default=root / "Tests/Fixtures/StaticModel/fixture-manifest.json")
     parser.add_argument("--fixtures", type=Path,
                         default=root / "Tests/Fixtures/StaticModel")
     args = parser.parse_args()
