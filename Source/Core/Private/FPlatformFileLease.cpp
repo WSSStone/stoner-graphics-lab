@@ -128,11 +128,13 @@ FPlatformFileStatus FPlatformFileLease::Acquire(
             Error.value(),
             "lease:parent");
     }
-    const auto CanonicalPath = std::filesystem::weakly_canonical(NativePath, Error);
+    const auto CanonicalParent = std::filesystem::canonical(Parent, Error);
     if (Error)
     {
         return LeaseStatus(EPlatformFileResult::IoError, Error.value(), "lease:path");
     }
+    const auto CanonicalPath = Detail::ToNativePath(Detail::FromNativePath(
+        CanonicalParent / NativePath.filename()));
     const FString NormalizedPath = Detail::FromNativePath(CanonicalPath);
 
     const FClock::time_point Deadline =

@@ -16,6 +16,9 @@
 #if SG_PLATFORM_WINDOWS
 #define NOMINMAX
 #include <Windows.h>
+#ifdef CreateDirectory
+#undef CreateDirectory
+#endif
 #else
 #include <sys/wait.h>
 #include <unistd.h>
@@ -297,6 +300,30 @@ FCorePlatformFileLeaseTestResult RunCorePlatformFileLeaseTests(
         "Different generation lease paths never contend");
     FirstGeneration.Release();
     OtherGeneration.Release();
+
+    std::filesystem::path LongLeaseDirectory = Root / "LongPath";
+    const std::string LongLeaseName(64, 'a');
+    while ((LongLeaseDirectory / (LongLeaseName + ".lease"))
+            .generic_string().size() <= 260)
+        LongLeaseDirectory /= "component-0123456789";
+    const std::filesystem::path LongLeasePath =
+        LongLeaseDirectory / (LongLeaseName + ".lease");
+    FPlatformFileLease LongLease;
+    Record(Result,
+        LongLeasePath.generic_string().size() > 260 &&
+        FPlatformFileSystem::CreateDirectory(
+            FString(LongLeaseDirectory.generic_string())) &&
+        FPlatformFileLease::Acquire(
+            FString(LongLeasePath.generic_string()),
+            EPlatformFileLeaseMode::Shared, 1000, FString(), LongLease)
+                .IsSuccess(),
+        "File lease supports absolute paths beyond 260 characters");
+    LongLease.Release();
+    Record(Result,
+        FPlatformFileSystem::RemoveTreeContained(
+            FString(Root.generic_string()),
+            FString(LongLeaseDirectory.generic_string()), 16).IsSuccess(),
+        "Long file lease paths remain removable after release");
 
     std::filesystem::remove_all(Root, Error);
     return Result;

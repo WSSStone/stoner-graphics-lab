@@ -221,8 +221,9 @@ RunProductionContentEquivalenceTests()
     CookedConfig.Limits = DevelopmentConfig.Limits;
     Core::TSharedPtr<FAssetManager> CookedManager;
     Diagnostics.clear();
-    const bool CookedCreated = FAssetManager::Create(
-        CookedConfig, CookedManager, Diagnostics) == EAssetResult::Success;
+    const EAssetResult CookedCreateResult = FAssetManager::Create(
+        CookedConfig, CookedManager, Diagnostics);
+    const bool CookedCreated = CookedCreateResult == EAssetResult::Success;
     FProductionAssetClosure CookedClosure;
     Core::FString CookedFailure;
     const bool CookedLoaded = CookedCreated &&
@@ -249,8 +250,16 @@ RunProductionContentEquivalenceTests()
                 Validated.Manifest.Records.size(),
         "strict mode loads the complete closure with zero source participants or fallback");
     if (!CookedLoaded)
+    {
         std::cout << "  strict closure failure="
                   << CookedFailure.CStr() << '\n';
+        if (!CookedCreated)
+            std::cout << "  strict manager create result="
+                      << static_cast<unsigned int>(CookedCreateResult)
+                      << " diagnostics="
+                      << FAssetDiagnostics::FormatNormalized(Diagnostics).CStr()
+                      << '\n';
+    }
 
     FProductionAssetEquivalenceReport Equivalence;
     const bool Equivalent = CookedLoaded &&
