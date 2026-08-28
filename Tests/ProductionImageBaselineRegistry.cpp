@@ -349,6 +349,7 @@ bool FProductionImageBaselineRegistry::SelectAccepted(
         OutFailure = "device-class-missing";
         return false;
     }
+    OutBaseline.DeviceClass = MatchedClass->DeviceClass;
 
     const FProductionImageBaseline* Match = nullptr;
     bool bFoundNonAccepted = false;

@@ -520,12 +520,33 @@ class CommandResult:
     stderr: str
 
 
+class CommandFailure(RuntimeError):
+    def __init__(
+        self,
+        command: Sequence[str],
+        returncode: int,
+        result: CommandResult,
+    ):
+        super().__init__(
+            f"command failed ({returncode}): {' '.join(command)}\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+        self.result = result
+
+
 class StageFailure(RuntimeError):
-    def __init__(self, stage: str, category: str, detail: str):
+    def __init__(
+        self,
+        stage: str,
+        category: str,
+        detail: str,
+        result: CommandResult | None = None,
+    ):
         super().__init__(f"{stage}: {category}: {detail}")
         self.stage = stage
         self.category = category
         self.detail = detail
+        self.result = result
 
 
 def wait_for_optional_barrier(barrier, timeout: int) -> None:
@@ -583,12 +604,10 @@ def run_command(
         timeout=timeout,
     )
     elapsed = time.monotonic() - started
+    command_result = CommandResult(elapsed, result.stdout, result.stderr)
     if result.returncode != 0:
-        raise RuntimeError(
-            f"command failed ({result.returncode}): {' '.join(command)}\n"
-            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
-    return CommandResult(elapsed, result.stdout, result.stderr)
+        raise CommandFailure(command, result.returncode, command_result)
+    return command_result
 
 
 def run_stage(
@@ -634,6 +653,15 @@ def run_stage(
         if partial_stderr:
             detail += f"\npartial stderr:\n{partial_stderr}"
         raise StageFailure(stage, "timeout", detail) from error
+    except CommandFailure as error:
+        print(
+            f"[production-validation] stage={stage} status=failed",
+            file=sys.stderr,
+            flush=True,
+        )
+        raise StageFailure(
+            stage, "command-failed", str(error), error.result
+        ) from error
     except (OSError, RuntimeError) as error:
         print(
             f"[production-validation] stage={stage} status=failed",
@@ -1146,7 +1174,7 @@ def parse_native_lifecycle_evidence(
     }
 
 
-def parse_native_image_evidence(output: str, expected_backend: str) -> dict:
+def parse_native_image_fields(output: str) -> dict[str, str]:
     matching = [
         line[len(IMAGE_EVIDENCE_PREFIX):]
         for line in output.splitlines()
@@ -1164,6 +1192,11 @@ def parse_native_image_evidence(output: str, expected_backend: str) -> dict:
         fields[key] = value
     if set(fields) != IMAGE_EVIDENCE_FIELDS:
         raise ValueError("native image evidence fields are invalid")
+    return fields
+
+
+def parse_native_image_evidence(output: str, expected_backend: str) -> dict:
+    fields = parse_native_image_fields(output)
     if (
         fields["backend"] != expected_backend
         or fields["result"] != "passed"
@@ -1193,6 +1226,43 @@ def parse_native_image_evidence(output: str, expected_backend: str) -> dict:
             "badPixelFraction": observations["bad-fraction"],
             "passed": True,
         },
+    }
+
+
+def parse_native_image_failure_evidence(
+    stdout: str,
+    stderr: str,
+    expected_backend: str,
+) -> dict:
+    fields = parse_native_image_fields(stdout)
+    if (
+        fields["backend"] != expected_backend
+        or fields["result"] != "failed"
+        or not re.fullmatch(
+            r"[a-z0-9][a-z0-9.-]{0,95}", fields["device-class"]
+        )
+        or not re.fullmatch(r"(?:0|[1-9][0-9]*)", fields["semantic-probes"])
+    ):
+        raise ValueError("native failed image identity evidence is invalid")
+    prefix = f"{expected_backend.capitalize()} production image failure: "
+    failures = [
+        line[len(prefix):]
+        for line in stderr.splitlines()
+        if line.startswith(prefix)
+    ]
+    if (
+        len(failures) != 1
+        or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,127}", failures[0])
+    ):
+        raise ValueError("native failed image reason is invalid")
+    return {
+        "backend": expected_backend,
+        "deviceClass": fields["device-class"],
+        "baselineId": fields["baseline"] or None,
+        "semanticProbeCount": int(fields["semantic-probes"]),
+        "flip": {"state": "not-run", "reason": failures[0]},
+        "passed": False,
+        "firstFailure": failures[0],
     }
 
 
@@ -1338,9 +1408,53 @@ def run_native_lifecycle(
         environment["STONER_PRODUCTION_CAPTURE_ROOT"] = str(
             report_path.parent / "captures"
         )
-    result = run_stage(
-        "native", command, repository_root, timeout, environment
-    )
+    try:
+        result = run_stage(
+            "native", command, repository_root, timeout, environment
+        )
+    except StageFailure as error:
+        if (
+            error.result is None
+            or authority["dispositions"]["image"] != "required"
+        ):
+            raise
+        report_path.write_text(
+            error.result.stdout + error.result.stderr, encoding="utf-8"
+        )
+        try:
+            image_evidence = parse_native_image_failure_evidence(
+                error.result.stdout,
+                error.result.stderr,
+                contract["graphicsBackend"],
+            )
+            evidence = parse_native_lifecycle_evidence(
+                error.result.stdout, cycles, warmup_cycles, "observed"
+            )
+        except ValueError:
+            raise error
+        evidence["rssDisposition"] = authority["dispositions"]["rss"]
+        if (
+            authority.get("preflight") is not None
+            and image_evidence["deviceClass"] !=
+                authority["preflight"]["deviceClass"]
+        ):
+            raise ValueError(
+                "native failed image device class differs from authority preflight"
+            )
+        return {
+            "result": "Failed",
+            "seconds": error.result.seconds,
+            "executionClass": authority["executionClass"],
+            "timingDisposition": authority["dispositions"]["timing"],
+            "imageDisposition": authority["dispositions"]["image"],
+            "targetProfileDigest": contract["targetProfileDigest"],
+            **evidence,
+            "imageAcceptance": image_evidence,
+            "firstFailure": {
+                "stage": "image",
+                "category": image_evidence["firstFailure"],
+            },
+        }
     report_path.write_text(
         result.stdout + result.stderr, encoding="utf-8"
     )

@@ -883,6 +883,27 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "image"):
                 self.module.parse_native_image_evidence(changed, "metal")
 
+    def test_native_image_failure_retains_device_class_and_reason(self):
+        output = (
+            "[IMAGE] backend=vulkan "
+            "device-class=windows.discrete-vulkan.rgba8 baseline= "
+            "semantic-probes=0 mean=0.00000000 p95=0.00000000 "
+            "maximum=0.00000000 bad-fraction=0.00000000 result=failed\n"
+        )
+        parsed = self.module.parse_native_image_failure_evidence(
+            output,
+            "Vulkan production image failure: baseline-missing\n",
+            "vulkan",
+        )
+        self.assertEqual(
+            "windows.discrete-vulkan.rgba8", parsed["deviceClass"]
+        )
+        self.assertEqual("baseline-missing", parsed["firstFailure"])
+        self.assertEqual(
+            {"state": "not-run", "reason": "baseline-missing"},
+            parsed["flip"],
+        )
+
     def test_target_profile_native_host_contract_is_explicit(self):
         contract = self.module.load_native_target_contract(
             self.module.REPOSITORY_ROOT
@@ -1016,6 +1037,75 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                  f"production-content-{backend}-native"],
                 run_stage.call_args.args[1],
             )
+
+    def test_required_image_failure_writes_failed_native_evidence(self):
+        system = {"darwin": "macos"}.get(
+            platform.system().lower(), platform.system().lower()
+        )
+        machine = {
+            "amd64": "x86_64", "x86_64": "x86_64",
+            "aarch64": "arm64", "arm64": "arm64",
+        }[platform.machine().lower()]
+        backend = "metal" if system == "macos" else "vulkan"
+        device_class = (
+            "macos.apple8.metal.rgba8" if backend == "metal"
+            else "windows.discrete-vulkan.rgba8"
+        )
+        output = (
+            f"[EVIDENCE] backend={backend} cycles=20 warmup-cycle=2 "
+            "warmup-rss=100 terminal-rss=200 peak-rss=200 growth=100 "
+            "captures=40 readbacks=7 counters=0 stale=1\n"
+            f"[IMAGE] backend={backend} device-class={device_class} "
+            "baseline= semantic-probes=0 mean=0.00000000 p95=0.00000000 "
+            "maximum=0.00000000 bad-fraction=0.00000000 result=failed\n"
+        )
+        stderr = (
+            f"{backend.capitalize()} production image failure: "
+            "baseline-missing\n"
+        )
+        command_result = self.module.CommandResult(1.0, output, stderr)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            profile = root / "target.json"
+            profile.write_text(json.dumps({
+                "schema": "stoner.asset-target-profile",
+                "schemaVersion": 1,
+                "platform": system,
+                "cpuArchitecture": machine,
+                "graphicsBackend": backend,
+            }), encoding="utf-8")
+            report = root / "native.txt"
+            authority = {
+                "executionClass": "maintainer-local-test",
+                "dispositions": {
+                    "rss": "required",
+                    "timing": "operational",
+                    "image": "required",
+                },
+                "preflight": {"deviceClass": device_class},
+            }
+            failure = self.module.StageFailure(
+                "native", "command-failed", "expected", command_result
+            )
+            with mock.patch.object(
+                self.module, "run_stage", side_effect=failure
+            ):
+                result = self.module.run_native_lifecycle(
+                    root, Path("StonerTest"), profile,
+                    Path("publication"), Path("lease"), "a" * 64,
+                    "StaticModel:Asset.glb#idx.scene.0",
+                    "production-content-lantern-v2", 20, 2, report, 60,
+                    require_visible=True,
+                    authority=authority,
+                )
+            report_text = report.read_text(encoding="utf-8")
+        self.assertEqual("Failed", result["result"])
+        self.assertEqual(
+            {"stage": "image", "category": "baseline-missing"},
+            result["firstFailure"],
+        )
+        self.assertEqual(device_class, result["imageAcceptance"]["deviceClass"])
+        self.assertTrue(report_text.endswith(stderr))
 
     def test_artifact_revalidation_rejects_substitution(self):
         with tempfile.TemporaryDirectory() as directory:

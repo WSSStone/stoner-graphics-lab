@@ -515,6 +515,7 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
     if (!Registry.SelectAccepted(
             Signature, WorkloadRevision, Backend, Baseline, Failure))
     {
+        Result.DeviceClass = Baseline.DeviceClass;
         Result.FirstFailure = Failure;
         return Result;
     }

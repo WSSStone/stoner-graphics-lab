@@ -386,8 +386,9 @@ void TestBaselineRegistry(FProductionImageAcceptanceTestResult& Result)
         CandidateRegistry.LoadBaselines(FString(Root.string()), Failure) &&
         !CandidateRegistry.SelectAccepted(Signature,
             "production-lantern-v1", "metal", Baseline, Failure) &&
-        Failure == FString("baseline-state-not-accepted"),
-        "baseline selection rejects every non-accepted lifecycle state");
+        Failure == FString("baseline-state-not-accepted") &&
+        Baseline.DeviceClass == FString("macos.apple8.metal.rgba8"),
+        "baseline rejection retains the exact registry-derived device class");
 
     std::string InvalidExtent = BaselineJson("accepted", "lantern-metal");
     const auto Extent = InvalidExtent.find("\"width\":512");
