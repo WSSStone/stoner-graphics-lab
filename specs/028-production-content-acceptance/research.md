@@ -1364,3 +1364,32 @@ not translate, scale, crop, warp, resample, or search for a best alignment. An
 intentional one-pixel whole-image translation is added to mutation coverage and
 must fail, while bounded edge perturbations that preserve region semantics must
 not fail only because a single coordinate crosses a primitive edge.
+
+## Decision 47: Give hosted completion an operational envelope, not a benchmark
+
+Final hosted run `33135020377` at revision `ff754f4` passed Windows Vulkan,
+Linux Vulkan, arm64 Metal, Intel Metal, four independent artifact consumers,
+ASan/UBSan, TSan, and the exact Lantern medium shard. Sponza passed clean cook,
+100-percent-reuse warm cook, publication, semantic equivalence, and strict
+runtime, then its native child exhausted the 3,499 seconds left inside the
+3,900-second package deadline. It produced no terminal lifecycle result, so the
+aggregate correctly skipped. No RSS, allocator, semantic-image, or FLIP value
+caused this failure.
+
+Hosted elapsed time is not a performance qualification, but incomplete work
+must still fail. The correct response is therefore to preserve every exact
+work item and widen only the watchdog envelope: 5,400 seconds for the package,
+4,800 seconds independently for native execution, and 120 minutes for strict
+Release build plus execution and failure-safe upload. The controlled-physical
+hardware profile remains 3,600 seconds and retains its calibrated RSS/image
+authority. Timeout exceptions also retain a bounded 64 KiB tail of child output
+so a future incomplete run can expose progress without creating unbounded logs.
+
+Alternatives rejected:
+
+- reducing 1,000/20 cycles or the 2,000 Deferred/Forward captures;
+- caching away per-cycle source-to-runtime work merely to satisfy hosted speed;
+- accepting partial owner/stale/readback evidence;
+- changing the 16 MiB controlled-physical RSS gate or exact 512-by-512 image
+  gate;
+- treating any duration below the new cap as a performance pass.

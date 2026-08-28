@@ -148,12 +148,12 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             self.module.time, "monotonic", return_value=100.0
         ):
             self.assertEqual(
-                3600,
-                self.module.native_stage_timeout(4000.0, 3900, 3600),
+                4800,
+                self.module.native_stage_timeout(5000.0, 5400, 4800),
             )
             self.assertEqual(
-                3500,
-                self.module.native_stage_timeout(3600.0, 3900, 3600),
+                4700,
+                self.module.native_stage_timeout(4800.0, 5400, 4800),
             )
 
     def test_profile_selection_requires_exact_target_and_package_membership(self):
@@ -276,7 +276,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
     def test_shipping_profiles_have_exact_tier_contracts(self):
         expected = {
             "regular": (20, 2, 600),
-            "medium": (1000, 20, 3900),
+            "medium": (1000, 20, 5400),
             "hardware": (1000, 20, 3600),
         }
         for profile_id, (cycles, warmup, budget) in expected.items():
@@ -288,7 +288,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             self.assertEqual(16 * 1024 * 1024, profile["maxRssGrowthBytes"])
             self.assertEqual(budget, profile["timeBudgetSeconds"])
             self.assertEqual(
-                3600 if profile_id == "medium" else budget,
+                4800 if profile_id == "medium" else budget,
                 profile["nativeTimeBudgetSeconds"],
             )
             self.assertLess(profile["warmupCycles"], profile["lifecycleCycles"])
@@ -474,6 +474,23 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 )
             self.assertEqual("timeout", raised.exception.category)
             self.assertEqual("strict-runtime", raised.exception.stage)
+
+    def test_timeout_preserves_bounded_partial_child_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with self.assertRaises(self.module.StageFailure) as raised:
+                self.module.run_stage(
+                    "native",
+                    [
+                        sys.executable, "-c",
+                        "import time; print('cycle-progress=900', flush=True); "
+                        "time.sleep(2)",
+                    ],
+                    root,
+                    1,
+                )
+            self.assertIn("partial stdout", raised.exception.detail)
+            self.assertIn("cycle-progress=900", raised.exception.detail)
 
     def test_profile_deadline_is_shared_across_all_stages(self):
         with self.assertRaises(self.module.StageFailure) as raised:

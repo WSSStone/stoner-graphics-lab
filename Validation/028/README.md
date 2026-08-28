@@ -42,7 +42,7 @@ python3 .github/scripts/run_production_content_validation.py \
   --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json \
   --build-root Build/Mac/Release \
   --output Build/Validation/028/medium-macos-metal \
-  --acquire-missing --timeout-seconds 3900
+  --acquire-missing --timeout-seconds 5400
 ```
 
 Hardware validation uses the same runner and additionally requires a physical
@@ -102,7 +102,7 @@ Local diagnostics never replace a required hosted or physical lane.
 Regular lanes have a 10-minute workload budget, medium package lanes have a
 65-minute complete budget with an independently capped 60-minute native stage,
 and serialized visible hardware lanes have a 60-minute budget. Workflow
-setup and compilation have separate 90-minute job timeouts. An operational
+setup and compilation have separate 120-minute job timeouts. An operational
 timeout fails because required work is incomplete; it is not a performance
 baseline. Evidence is written below
 `Build/Validation/028/`, uploaded with failure-safe steps, and promoted into

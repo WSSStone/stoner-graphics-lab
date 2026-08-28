@@ -13,9 +13,14 @@ strict runtime, native backend proof, exact lifecycle completion, captures,
 readbacks, terminal-owner cleanup, stale-handle rejection, and operational
 timeout completion. Hosted RSS, task-VM, allocator-zone, peak, and elapsed
 measurements are recorded as `observed`; neither exceeding 16 MiB nor staying
-below it decides hosted success. The medium package/native operational caps are
-3,900/3,600 seconds inside a 90-minute job, and a timeout remains failure
-because the required work is incomplete.
+below it decides hosted success. The hosted medium package/native operational
+caps are 5,400/4,800 seconds inside a 120-minute job. A timeout remains failure
+because required work is incomplete; these caps prevent runaway work but do not
+qualify hosted performance. Run `33135020377` proved the former 3,900/3,600
+envelope too short:
+Sponza passed clean/warm cook, publication, semantic equivalence, and strict
+runtime, then the native child was stopped after the 3,499 seconds left in the
+package deadline. The exact 1,000/20 workload remains unchanged.
 
 The 16 MiB RSS and accepted-image gates are `required` only in the
 `controlled-physical` hardware workflow after preflight proves the registered

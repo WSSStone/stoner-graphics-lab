@@ -119,8 +119,8 @@ PROFILE_CONTRACTS = {
     "medium": {
         "cycles": 1000,
         "warmup": 20,
-        "budget": 3900,
-        "native_budget": 3600,
+        "budget": 5400,
+        "native_budget": 4800,
         "cadence": [
             "weekly-default-branch", "feature-closeout", "release-closeout"
         ],
@@ -447,12 +447,28 @@ def run_stage(
         )
         return result
     except subprocess.TimeoutExpired as error:
+        def bounded_partial_output(value: object) -> str:
+            if value is None:
+                return ""
+            if isinstance(value, bytes):
+                text = value.decode("utf-8", errors="replace")
+            else:
+                text = str(value)
+            return text[-64 * 1024:]
+
+        partial_stdout = bounded_partial_output(error.stdout)
+        partial_stderr = bounded_partial_output(error.stderr)
         print(
             f"[production-validation] stage={stage} status=timeout",
             file=sys.stderr,
             flush=True,
         )
-        raise StageFailure(stage, "timeout", f"exceeded {timeout} seconds") from error
+        detail = f"exceeded {timeout} seconds"
+        if partial_stdout:
+            detail += f"\npartial stdout:\n{partial_stdout}"
+        if partial_stderr:
+            detail += f"\npartial stderr:\n{partial_stderr}"
+        raise StageFailure(stage, "timeout", detail) from error
     except (OSError, RuntimeError) as error:
         print(
             f"[production-validation] stage={stage} status=failed",
@@ -1926,7 +1942,7 @@ def parse_args(values: Sequence[str] | None = None) -> argparse.Namespace:
         default=Path("Content/ProductionAcceptance"),
     )
     parser.add_argument("--determinism-runs", type=int, default=20)
-    parser.add_argument("--timeout-seconds", type=int, default=3900)
+    parser.add_argument("--timeout-seconds", type=int, default=5400)
     parser.add_argument("--package-id")
     args = parser.parse_args(values)
     if args.verify_only is not None:

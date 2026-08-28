@@ -125,8 +125,8 @@ measurement declares one disposition:
   change the result.
 
 GitHub-hosted medium uses `observed` RSS/task-VM/allocator/elapsed measurements
-and operational 3,900-second package plus 3,600-second native timeouts inside a
-90-minute job. It still requires 1,000/20 cycles, 2,000 captures, seven retained
+and operational 5,400-second package plus 4,800-second native timeouts inside a
+120-minute job. It still requires 1,000/20 cycles, 2,000 captures, seven retained
 readbacks, zero terminal owners, stale-handle rejection, and requested native
 backend proof.
 

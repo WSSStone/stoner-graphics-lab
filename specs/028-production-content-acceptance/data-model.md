@@ -81,8 +81,8 @@ and non-color material-data textures.
 | `MaxRssGrowthBytes` | integer | 16 MiB when RSS disposition is `required`; recorded but not applied to `observed` hosted RSS |
 | `EnvironmentPolicy` | authority-policy ID | Workflow-owned mapping for hosted, controlled physical, and local diagnostic execution |
 | `RequiredGates` | ordered enum list | Corpus/import/cook/runtime/realization/render/image/lifecycle as applicable |
-| `TimeBudgetSeconds` | integer | 600 regular; 3,900 hosted medium package operational timeout; 3,600 serialized visible hardware lane |
-| `NativeTimeBudgetSeconds` | integer | 600 regular; 3,600 hosted medium operational timeout; 3,600 hardware; always capped by the enclosing lane deadline |
+| `TimeBudgetSeconds` | integer | 600 regular; 5,400 hosted medium package operational timeout; 3,600 serialized visible hardware lane |
+| `NativeTimeBudgetSeconds` | integer | 600 regular; 4,800 hosted medium operational timeout; 3,600 hardware; always capped by the enclosing lane deadline |
 
 ### Environment Measurement Authority
 

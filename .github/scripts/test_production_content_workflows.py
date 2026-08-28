@@ -40,7 +40,7 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
             "Config/Validation/ProductionContent", "run_production_content_validation.py",
             "windows-latest", "ubuntu-latest", "macos-26", "--profile regular",
             "macos-26-intel", "Mac-Metal-X86_64.json",
-            "--profile medium", "timeout-minutes: 90", "--timeout-seconds 3900",
+            "--profile medium", "timeout-minutes: 120", "--timeout-seconds 5400",
             "production-medium-macos-metal", "Mac-Metal-Arm64.json",
             "khronos-lantern-glb", "khronos-sponza-gltf",
             "aggregate_production_medium.py", "--package-id",
@@ -92,8 +92,8 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("Mac-Metal-Arm64.json", medium)
         self.assertIn("Validate Metal readback modes", medium)
         self.assertIn("--suite metal-resource", medium)
-        self.assertIn("--timeout-seconds 3900", medium)
-        self.assertIn("timeout-minutes: 90", medium)
+        self.assertIn("--timeout-seconds 5400", medium)
+        self.assertIn("timeout-minutes: 120", medium)
         self.assertNotIn("MallocMediumZone", medium)
         self.assertNotIn("MALLOC_ARENA_MAX", medium)
         self.assertIn("Mac-Metal-X86_64.json", aggregate)
@@ -134,11 +134,11 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         hardware = HARDWARE.read_text(encoding="utf-8")
         self.assertNotIn("--execution-class", hosted)
         self.assertNotIn("--execution-class", hardware)
-        self.assertIn("--timeout-seconds 3900", hosted)
-        self.assertIn("nativeTimeBudgetSeconds\": 3600", (
+        self.assertIn("--timeout-seconds 5400", hosted)
+        self.assertIn("nativeTimeBudgetSeconds\": 4800", (
             ROOT / "Config/Validation/ProductionContent/Medium.json"
         ).read_text(encoding="utf-8"))
-        self.assertIn("timeout-minutes: 90", hosted)
+        self.assertIn("timeout-minutes: 120", hosted)
 
     def test_every_validation_job_uploads_failure_safe_evidence(self):
         for path in (HOSTED, HARDWARE):

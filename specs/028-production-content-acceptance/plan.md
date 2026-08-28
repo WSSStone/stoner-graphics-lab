@@ -43,7 +43,7 @@ semantic classification moves from exact pixels to bounded region statistics.
 **Testing**: Existing `StonerTest` suites plus corpus, KTX2 integration, semantic-equivalence, transactional realization, native readback, image-acceptance, lifecycle, failure-injection, Python schema/runner tests, Windows/macOS/Linux CI, and required Windows/macOS hardware lanes
 **Target Platform**: Windows x64 Vulkan; macOS arm64 Metal and Vulkan/MoltenVK; Linux x64 build, deterministic, sanitizer, and bounded Lavapipe/headless Vulkan validation
 **Project Type**: Cross-platform graphics engine, offline asset cooker CLI, desktop demo, and validation tooling
-**Performance Goals**: Regular profile within 10 minutes per hosted job; hosted medium bounded operationally to 3,900 seconds per package and 3,600 seconds per native stage inside a 90-minute job; serialized visible hardware profile within 60 minutes per declared lane; deterministic reports byte-identical across 20 repetitions; hosted elapsed time is not a performance qualification
+**Performance Goals**: Regular profile within 10 minutes per hosted job; hosted medium bounded operationally to 5,400 seconds per package and 4,800 seconds per native stage inside a 120-minute job; serialized visible hardware profile within 60 minutes per declared lane; deterministic reports byte-identical across 20 repetitions; hosted elapsed time is not a performance qualification
 **Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; 1,000 medium/hardware cycles with cycles 1-20 as warm-up; warm-up counts toward the total; exact lifecycle/capture/readback/owner/stale contracts are hard on every lane; post-warm-up RSS growth is at most 16 MiB only on a preflighted controlled physical authority and is observation-only on GitHub-hosted runners; formal image calibration/reference/comparison uses an exact 512-by-512 extent while the 1024-by-1024 preview remains non-authoritative; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation; no image alignment/resampling
 **Scale/Scope**: Two artist-authored source works; regular Lantern GLB is about 9.6 MB with 3 primitives and four 2K textures; medium Sponza external package is about 50 MB with 103 primitives, 25 materials, and 69 mostly 1K textures; at least 30 deterministic negative cases
 
@@ -322,11 +322,11 @@ Validation. No new runtime module is introduced.
    Lantern v2 1,000-cycle workload, and sixteen for Sponza medium/hardware
    throughput.
    Scheduled/manual medium assigns each accepted package to its own
-   hosted Intel Metal lane with a 3,900-second complete-lane operational timeout
-   and an independently bounded 3,600-second native lifecycle timeout. This keeps
+   hosted Intel Metal lane with a 5,400-second complete-lane operational timeout
+   and an independently bounded 4,800-second native lifecycle timeout. This keeps
    cook, publication, equivalence, and strict-runtime setup from silently
    consuming the native proof's budget. The enclosing workflow job is bounded
-   to 90 minutes so its strict Release build plus the complete package lane can
+   to 120 minutes so its strict Release build plus the complete package lane can
    finish; the lifecycle remains exactly 1,000/20. Elapsed time below the cap is
    reported but is not a hosted performance qualification.
    Each lane owns its package's complete clean/warm/strict/equivalence/

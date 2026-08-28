@@ -24,7 +24,7 @@
 
 - Q: GitHub-hosted runner 是否可以继续作为精确 RSS 与耗时的权威复现环境？ → A: 不可以。Hosted runner 继续严格裁决构建、确定性、strict runtime、完整生命周期工作量、readback/capture 计数、owner 归零和 stale-handle 拒绝；RSS、allocator/task-VM 与 wall-clock 数据保留为有界 observation，不能单独把 hosted 结果判为失败。固定、受控、独占的物理 runner 才能拥有校准后的 RSS 硬门禁。
 - Q: Hosted 环境不稳定是否意味着放宽图像标准？ → A: 不意味着。正式 baseline、semantic attachment 和 FLIP 仍只在精确 device class 的固定物理硬件上作为硬门禁；不允许自动平移、缩放、裁剪、重采样或最佳对齐。容易受边缘覆盖影响的单像素 semantic probe 必须改为有界区域统计。
-- Q: Hosted medium 的耗时如何处理？ → A: 耗时仅是防止失控作业的 operational timeout，不是性能合格线。Hosted Sponza 保留完整 1,000/20 生命周期工作量，但完整 package/native 上限调整为 3,900/3,600 秒并保持 90 分钟 workflow 外层界限；真实性能预算不由 hosted runner 裁决。
+- Q: Hosted medium 的耗时如何处理？ → A: 耗时仅是防止失控作业的 operational timeout，不是性能合格线。Hosted Sponza 保留完整 1,000/20 生命周期工作量；在最终 Intel runner 于 3,499 秒仍被旧 native watchdog 截断后，完整 package/native 上限调整为 5,400/4,800 秒并使用 120 分钟 workflow 外层界限。真实性能预算不由 hosted runner 裁决，controlled-physical 的 3,600 秒预算不变。
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -596,10 +596,11 @@ corpus and generation evidence.
   authoritative readbacks, zero terminal owners, and stale-handle rejection.
   Its RSS, task-VM, allocator, peak-memory, and wall-clock measurements MUST be
   reported but MUST NOT independently fail a completed correctness run.
-- **FR-054**: Hosted medium package execution MUST use a 3,900-second complete
-  operational timeout and an independent 3,600-second native timeout inside a
-  90-minute workflow job. Timeout remains a failure to complete required work,
-  but elapsed time below the cap is not a performance qualification.
+- **FR-054**: Hosted medium package execution MUST use a 5,400-second complete
+  operational timeout and an independent 4,800-second native timeout inside a
+  120-minute workflow job. Timeout remains a failure to complete required work,
+  but elapsed time below the cap is not a performance qualification. This
+  hosted-only envelope MUST NOT alter the controlled-physical 3,600-second lane.
 - **FR-055**: Semantic image probes that classify material, orientation, normal,
   depth, lighting, or background regions MUST use bounded region statistics and
   minimum valid-sample coverage rather than one exact pixel. Region definitions
@@ -695,8 +696,8 @@ corpus and generation evidence.
   endpoint and diagnostic observations without using RSS as their result.
 - **SC-010**: The regular profile completes its bounded platform-applicable
   source-to-cooked-to-runtime gate within 10 minutes per hosted job, while the
-  hosted medium profile is bounded by a 3,900-second package timeout and an
-  independent 3,600-second native timeout inside a 90-minute job, and the serialized
+  hosted medium profile is bounded by a 5,400-second package timeout and an
+  independent 4,800-second native timeout inside a 120-minute job, and the serialized
   visible hardware profile completes within 60 minutes per declared lane;
   these are operational bounds rather than hosted performance qualifications,
   and timing observations do not affect deterministic result identities.

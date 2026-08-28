@@ -31,8 +31,8 @@ class ProductionMediumAggregateTests(unittest.TestCase):
             "packageIds": package_ids,
             "lifecycleCycles": 1000,
             "warmupCycles": 20,
-            "timeBudgetSeconds": 3900,
-            "nativeTimeBudgetSeconds": 3600,
+            "timeBudgetSeconds": 5400,
+            "nativeTimeBudgetSeconds": 4800,
             "authorityPolicy": {
                 "allowedExecutionClasses": [
                     "github-hosted", "local-diagnostic"
@@ -66,8 +66,8 @@ class ProductionMediumAggregateTests(unittest.TestCase):
                 "targetProfile": "Target.json",
                 "targetProfileDigest": target_digest,
                 "determinismRuns": 1,
-                "timeBudgetSeconds": 3900,
-                "nativeTimeBudgetSeconds": 3600,
+                "timeBudgetSeconds": 5400,
+                "nativeTimeBudgetSeconds": 4800,
                 "elapsedSeconds": 1000 + index,
                 "passed": True,
                 "packages": [{

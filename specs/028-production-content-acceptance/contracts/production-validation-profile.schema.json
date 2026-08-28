@@ -123,8 +123,8 @@
         "properties": {
           "lifecycleCycles": {"const": 1000},
           "warmupCycles": {"const": 20},
-          "timeBudgetSeconds": {"const": 3900},
-          "nativeTimeBudgetSeconds": {"const": 3600},
+          "timeBudgetSeconds": {"const": 5400},
+          "nativeTimeBudgetSeconds": {"const": 4800},
           "authorityPolicy": {"$ref": "#/$defs/hostedLocalAuthorityPolicy"}
         }
       }

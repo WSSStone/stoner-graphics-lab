@@ -45,8 +45,8 @@ package shard:
 - exactly seven retained post-lifecycle readbacks;
 - every tracked terminal owner at baseline;
 - stale-handle rejection;
-- a 3,900-second complete-package operational timeout;
-- an independent 3,600-second native operational timeout inside a 90-minute job.
+- a 5,400-second complete-package operational timeout;
+- an independent 4,800-second native operational timeout inside a 120-minute job.
 
 RSS endpoints, task-VM categories, allocator totals, peak memory, and elapsed
 time are `observed`. Hosted execution uses normal production allocator behavior;

@@ -205,7 +205,7 @@ gates, and release every owner.
 - [X] T123 [US3] Add preview-only CLI validation and a strict-cooked native Deferred preview loop that updates camera uniforms/plans without recooking or re-realizing content, while formal native validation rejects overrides and remains input-free, in Demo/StonerDemo/Private/FDemoConfiguration.* and Demo/StonerDemo/Private/FStonerDemoApplication.*
 - [X] T124 [US3] Use the Metal preview on the strict Sponza generation to select and explicitly approve an internal atrium-depth View/Projection candidate, freeze it as `production-content-sponza-v2`, and prove Vulkan/Metal plus Deferred/Forward consume the identical preset
 - [X] T125 [US3] Replace Sponza v1 runner/probe authority with v2, redefine semantic regions from the approved view, regenerate 20-capture candidate calibration per required backend/device class, reject all mutations, obtain explicit maintainer acceptance, and remove the unaccepted v1 candidate from consumable baseline state
-- **Historical, superseded T126**: The former post-camera broad rerun is merged into T112-T115 after T166-T172 so there is one final-revision closeout sequence.
+- **Historical, superseded T126**: The former post-camera broad rerun is merged into T112-T115 after T166-T173 so there is one final-revision closeout sequence.
 - [X] T127 [US3] Preserve the verified global native winding correction, advance Lantern authority to `production-content-lantern-v2`, move its key light to the intended camera-facing -X surface, and require the corrected normal/material probes without asset-specific triangle rewrites
 - [X] T128 [US3] Recalibrate Lantern v2 from 20 Metal and MoltenVK captures, reject blank/stale/origin/missing-geometry/material/color-space/opposite-normal mutations, obtain explicit maintainer acceptance of the current sample-count-one output, register v2 as `Accepted`, and demote Lantern v1 to `Superseded`
 - **Historical, superseded T129**: The schema-enforced 60-minute serialized hardware budget and both physical M4 Pro reruns are owned by T114 and SC-010.
@@ -251,7 +251,7 @@ superseded` are evidence records, not executable tasks and not incomplete work.
 T126 is consolidated into T112-T115, and T129 is consolidated into T114.
 T136, T138-T142, and T155-T165 retain the failed-run hypotheses that led to
 Research Decisions 45-46; their hosted-RSS-authority, allocator-coercion, and
-obsolete-timeout clauses are replaced by T166-T172. The ledger remains visible
+obsolete-timeout clauses are replaced by T166-T173. The ledger remains visible
 so the specification does not rewrite or hide investigation history.
 
 - [X] T166 [US3] Replace exact-pixel color and attachment semantics with workload-versioned bounded region median/quantile/directional-coverage probes, require minimum valid-sample coverage, freeze every formal calibration/reference/candidate at exactly 512-by-512 while keeping the 1024 preview non-authoritative, fail mismatched formal extents before comparison, preserve exact same-size FLIP with no translation/scale/crop/warp/resampling/alignment search, add one-pixel translation rejection plus edge-coverage stability mutations, and recalibrate Lantern v2/Sponza v2 semantic evidence without changing accepted camera/reference authority in specs/028-production-content-acceptance/contracts/image-baseline.schema.json, Demo/StonerDemo/Private/FDemoConfiguration.*, Tests/MetalProductionContentIntegrationTests.cpp, Tests/VulkanProductionContentIntegrationTests.cpp, Tests/ProductionImageAcceptance.*, Tests/ProductionImageBaselineRegistry.*, Tests/ProductionNativeImageAcceptance.cpp, Tests/ProductionImageAcceptanceTests.cpp, Content/ProductionAcceptance/Baselines/, and Validation/028/Baselines/
@@ -297,10 +297,13 @@ target, cycles, budgets, gates, outputs, cadence, and replacement-lane behavior.
 - [X] T168 [US4] Version the validation-profile authority contract and implement trusted environment classification so hosted RSS/task-VM/allocator/elapsed measurements remain bounded observations, timeouts fail only incomplete work, controlled physical RSS retains the preflighted 16 MiB gate, local callers cannot claim physical authority, and obsolete hosted allocator-zone coercion is removed in specs/028-production-content-acceptance/contracts/production-validation-profile.schema.json, Config/Validation/ProductionContent/*.json, .github/scripts/run_production_content_validation.py, Demo/StonerDemo/Private/FDemoConfiguration.*, and Demo/StonerDemo/Private/FDemoValidationMonitor.*
 - [X] T169 [US4] Update isolated hosted Intel Metal package lanes to 3,900-second package and 3,600-second native operational timeouts inside the 90-minute job, preserve normal production allocator behavior plus diagnostic collection, require exact functional/lifecycle shard authority, and make aggregate success ignore observed RSS values without accepting incomplete, Unsupported, missing, owner/stale, capture, or readback evidence in .github/workflows/feature-028-production-content.yml and .github/scripts/aggregate_production_medium.py
 - [X] T170 [US4] Document hosted functional authority, observation-only RSS/timing, controlled-physical preflight/RSS ownership, operational timeout interpretation, and replacement-lane procedure in Config/Validation/ProductionContent/README.md, Validation/028/README.md, and Validation/028/CI/README.md
+- [X] T173 [US4] After final hosted run 33135020377 completed every pre-native Sponza stage but exhausted the 3,499-second remaining native watchdog, preserve the exact 1,000/20 lifecycle, 2,000 captures, seven readbacks, zero-owner/stale and normal-allocator contracts while moving only hosted medium to 5,400/4,800-second operational caps inside a 120-minute job, retain controlled-physical 3,600-second authority unchanged, preserve bounded partial child output on timeout, and update profile/schema/aggregate/workflow tests and documentation
 
 T167-T170 supersede the hosted RSS-authority and 30/40/50-minute medium-budget
 interpretations recorded by completed T085, T088-T089, T093, and T097 without
 reopening their exact work, schema validation, or workflow coverage.
+T173 supersedes only T167/T169's hosted medium timeout constants; all authority,
+workload, lifecycle, capture/readback, ownership, stale, and physical limits remain.
 
 **Checkpoint**: Each acceptance tier is reproducible, bounded, honest about
 capability, and scheduled at the clarified cadence.
@@ -354,9 +357,9 @@ scale, and required physical hardware evidence on one final revision.
 - [X] T109 [P] Run local macOS Debug and strict Release production-content builds with warnings as errors and record compiler/test summaries in Validation/028/reports/local-builds.md
 - [X] T110 [P] Run Linux ASan/UBSan, applicable TSan, malformed corpus, cancellation, failure-injection, and leak regressions and record commands/results in Validation/028/reports/sanitizers-and-failures.md
 - [X] T111 Run all affected Features 018-027 Demo, Deferred, Forward, Asset, AssetCooker, Runtime Manager, Vulkan, and Metal regression suites and record the bounded result in Validation/028/reports/regressions.md
-- [ ] T112 After T166-T172, run the final-revision Windows/macOS/Linux regular GitHub Actions matrix and record run IDs, revisions, artifact names, and SHA-256 values in Validation/028/CI/README.md
+- [ ] T112 After T166-T173, run the final-revision Windows/macOS/Linux regular GitHub Actions matrix and record run IDs, revisions, artifact names, and SHA-256 values in Validation/028/CI/README.md
 - [ ] T113 Run the final-revision hosted medium closeout profile with every accepted package through clean/warm 100-percent reuse, source-unavailable strict loading, complete semantic equivalence, exact 1,000/20 cycles, 2,000 captures, seven readbacks, zero owners, and stale rejection; require the aggregate to preserve RSS/task-VM/allocator/timing as observations rather than hosted result authority, and record evidence digests in Validation/028/CI/README.md
-- [ ] T114 After T166-T172, enforce the schema-owned 3,600-second serialized hardware lane and run final-revision Windows Vulkan plus physical M4 Pro Vulkan/Metal 1,000-cycle controlled-hardware acceptance after exact device/exclusive-runner/frozen-revision/default-allocator/sample-protocol preflight; enforce the 16 MiB RSS and exact 512-by-512 accepted region-semantic/FLIP image gates with GPU readbacks and window-only captures, and record hardware run/artifact/baseline/preflight digests in Validation/028/CI/README.md and Validation/028/Baselines/README.md
+- [ ] T114 After T166-T173, enforce the schema-owned 3,600-second serialized hardware lane and run final-revision Windows Vulkan plus physical M4 Pro Vulkan/Metal 1,000-cycle controlled-hardware acceptance after exact device/exclusive-runner/frozen-revision/default-allocator/sample-protocol preflight; enforce the 16 MiB RSS and exact 512-by-512 accepted region-semantic/FLIP image gates with GPU readbacks and window-only captures, and record hardware run/artifact/baseline/preflight digests in Validation/028/CI/README.md and Validation/028/Baselines/README.md
 - [X] T115 Re-run every command in specs/028-production-content-acceptance/quickstart.md from a clean workspace and record the results in Validation/028/reports/quickstart.md
 - [X] T116 [P] Create the delivered Feature 028 system-design document following doc/SYSTEM_DESIGN.MD in doc/028-production-content-acceptance.html
 - [ ] T117 Update Feature 028 status, final evidence references, next Phase 029 pointer, and project memory without rewriting historical gaps in doc/roadmap.md, specs/028-production-content-acceptance/spec.md, AGENTS.md, and Validation/028/README.md
@@ -443,7 +446,7 @@ Setup --> Real KTX2 Foundation --|
 | FR-014 | T008-T019, T036, T048 | Real KTX2 producer/artifact and semantic comparison |
 | FR-015-FR-022 | T035-T054 | Self-contained generation, strict no-source load, equivalence, reuse, mutation/failure |
 | FR-023-FR-031, FR-046-FR-050, FR-055-FR-056 | T055-T084, T119-T125, T127-T128, T144, T166 | Asset-root composition, frozen camera, canonical 512 extent, region semantics, exact registered FLIP, lifecycle |
-| FR-032-FR-037, FR-051-FR-054 | T085-T097, T112-T114, T167-T170 | Regular/medium/hardware profiles, environment authority, hosted operational bounds, controlled physical RSS/image authority |
+| FR-032-FR-037, FR-051-FR-054 | T085-T097, T112-T114, T167-T170, T173 | Regular/medium/hardware profiles, environment authority, hosted operational bounds, controlled physical RSS/image authority |
 | FR-038-FR-041 | T098-T107, T171-T172 | Deterministic/observational reports, measurement disposition, stable failures, bounded privacy-safe artifacts |
 | FR-042 | T020-T022, T031, T035-T038, T052-T053, T055-T058, T069, T080-T083, T103 | At least 30 cross-stage negative cases |
 | FR-043-FR-045 | T108, T111-T118 | Architecture, exclusion/regression, documentation, roadmap, and closeout |
@@ -455,7 +458,7 @@ Setup --> Real KTX2 Foundation --|
 | SC-005-SC-006 | T036-T049, T054 |
 | SC-007 | T031, T052, T056, T058, T103, T107 |
 | SC-008 | T070-T084, T114 |
-| SC-009-SC-010 | T084-T090, T113-T114, T144, T167-T170; T114 owns the consolidated 3,600-second hardware lane |
+| SC-009-SC-010 | T084-T090, T113-T114, T144, T167-T170, T173; T114 owns the consolidated 3,600-second hardware lane |
 | SC-011 | T108-T114 |
 | SC-012 | T098-T107, T118 |
 | SC-013 | T108 |

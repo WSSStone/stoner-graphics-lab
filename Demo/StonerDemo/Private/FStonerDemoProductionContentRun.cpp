@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <iostream>
 #include <string>
 
 namespace Stoner::Demo
@@ -315,6 +316,18 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                 "production lifecycle RSS sampling failed");
         ProductionExecutionInspection.CompletedCycles = Cycle;
         CompletedFrames = Cycle;
+        if (Configuration.ProductionLifecycleCycles == 1000 &&
+            (Cycle % 100u == 0u ||
+                Cycle == Configuration.ProductionLifecycleCycles))
+        {
+            std::cout << "[OBSERVATION] production-lifecycle-progress"
+                      << " backend="
+                      << ToString(Configuration.GraphicsBackend)
+                      << " cycle=" << Cycle
+                      << " total="
+                      << Configuration.ProductionLifecycleCycles
+                      << std::endl;
+        }
         if (Cycle < Configuration.ProductionLifecycleCycles)
         {
             if (bRssComparisonPoint &&
