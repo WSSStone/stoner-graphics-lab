@@ -66,7 +66,7 @@ python .github/scripts/run_production_content_validation.py `
   --profile hardware `
   --local-windows-vulkan-authority `
   --target-profile Config/AssetCooker/Profiles/Production/Windows-Vulkan.json `
-  --build-root Build/Windows/Release `
+  --build-root Build/Win64/Release `
   --output Build/Validation/028/hardware-windows-vulkan `
   --acquire-missing --timeout-seconds 3600
 ```

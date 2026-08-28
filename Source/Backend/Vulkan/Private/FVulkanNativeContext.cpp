@@ -4239,13 +4239,13 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommands(
                     ++Counts[ToVulkanDescriptorType(Binding->DescriptorType)];
                 }
                 for (const auto& [Type, Count] : Counts) Sizes.push_back({Type, Count});
-                VkDescriptorPoolCreateInfo PoolInfo = MakeVulkanStruct<VkDescriptorPoolCreateInfo>(
+                VkDescriptorPoolCreateInfo DescriptorPoolInfo = MakeVulkanStruct<VkDescriptorPoolCreateInfo>(
                     VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO);
-                PoolInfo.maxSets = 1;
-                PoolInfo.poolSizeCount = static_cast<Stoner::Core::uint32>(Sizes.size());
-                PoolInfo.pPoolSizes = Sizes.data();
+                DescriptorPoolInfo.maxSets = 1;
+                DescriptorPoolInfo.poolSizeCount = static_cast<Stoner::Core::uint32>(Sizes.size());
+                DescriptorPoolInfo.pPoolSizes = Sizes.data();
                 VkDescriptorPool Pool = VK_NULL_HANDLE;
-                if (vkCreateDescriptorPool(Impl->Device, &PoolInfo, nullptr, &Pool) != VK_SUCCESS)
+                if (vkCreateDescriptorPool(Impl->Device, &DescriptorPoolInfo, nullptr, &Pool) != VK_SUCCESS)
                     return Fail(ERHIResult::Failed);
                 DescriptorPools.push_back(Pool);
                 VkDescriptorSetLayout SetLayout = BoundPipeline->DescriptorSetLayouts[Set->SetIndex];

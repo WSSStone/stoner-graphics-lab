@@ -319,7 +319,13 @@ def _verify_platform_identity(target, source, env):
         '--stamp',
         target[0].abspath,
     ]
-    return subprocess.run(command, check=False).returncode
+    process_environment = os.environ.copy()
+    process_environment.update(env.get('ENV', {}))
+    return subprocess.run(
+        command,
+        check=False,
+        env=process_environment,
+    ).returncode
 
 platform_matrix = test_env.Command(
     platform_matrix_stamp,

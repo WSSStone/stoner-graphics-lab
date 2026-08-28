@@ -1863,12 +1863,12 @@ def run_profile(args: argparse.Namespace) -> dict:
         if args.content_root.is_absolute()
         else repository_root / args.content_root
     ).resolve()
-    cooker = executable(build_root, "Tools/AssetCooker/StonerAssetCooker")
-    tests = executable(build_root, "Tests/StonerTest")
     if not target_profile.is_file():
         raise FileNotFoundError(target_profile)
     if output.exists() and any(output.iterdir()):
         raise FileExistsError(f"validation output must be empty: {output}")
+    cooker = executable(build_root, "Tools/AssetCooker/StonerAssetCooker")
+    tests = executable(build_root, "Tests/StonerTest")
     output.mkdir(parents=True, exist_ok=True)
 
     verifier = load_local_module(
