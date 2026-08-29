@@ -5,6 +5,7 @@ import argparse
 import json
 from pathlib import Path
 import platform
+import shutil
 import sys
 import tempfile
 import unittest
@@ -1137,23 +1138,35 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
     def test_artifact_manifest_enumerates_deep_generation_payloads(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "output"
-            payload = output
-            for index in range(4):
-                payload /= f"segment-{index}-" + "a" * 64
-            payload /= "payload.sgasset"
-            payload.parent.mkdir(parents=True)
-            payload.write_bytes(b"deep-generation-payload")
-            self.assertGreater(len(str(payload.resolve())), 260)
+            try:
+                payload = output
+                for index in range(4):
+                    payload /= f"segment-{index}-" + "a" * 64
+                payload /= "payload.sgasset"
+                self.module.extended_length_path(payload.parent).mkdir(
+                    parents=True
+                )
+                self.module.extended_length_path(payload).write_bytes(
+                    b"deep-generation-payload"
+                )
+                self.assertGreater(len(str(payload.resolve())), 260)
 
-            files = list(self.module.iter_regular_files(output))
-            self.assertEqual([payload.resolve()], files)
-            manifest_path = self.module.write_artifact_manifest(output)
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            self.assertEqual(1, len(manifest["artifacts"]))
-            self.assertEqual(
-                payload.relative_to(output).as_posix(),
-                manifest["artifacts"][0]["path"],
-            )
+                files = list(self.module.iter_regular_files(output))
+                self.assertEqual([payload.resolve()], files)
+                manifest_path = self.module.write_artifact_manifest(output)
+                manifest = json.loads(
+                    manifest_path.read_text(encoding="utf-8")
+                )
+                self.assertEqual(1, len(manifest["artifacts"]))
+                self.assertEqual(
+                    payload.relative_to(output).as_posix(),
+                    manifest["artifacts"][0]["path"],
+                )
+            finally:
+                shutil.rmtree(
+                    self.module.extended_length_path(output),
+                    ignore_errors=True,
+                )
 
     def test_validation_output_revalidates_target_current_and_manifest(self):
         with tempfile.TemporaryDirectory() as directory:

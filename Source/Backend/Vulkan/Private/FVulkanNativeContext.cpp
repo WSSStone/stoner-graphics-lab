@@ -1256,7 +1256,12 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     std::memcpy(Mapped, Vertices.data(), sizeof(Vertices));
     vkUnmapMemory(Impl->Device, Impl->VertexMemory);
 
-    constexpr std::array<Stoner::Core::uint16, 3> Indices = {0, 1, 2};
+    // The fixture declares clockwise RHI winding. Its clip-space vertices were
+    // originally counter-clockwise and only happened to survive while this
+    // path bypassed the Vulkan viewport-parity conversion. Keep back-face
+    // culling enabled and make the indexed geometry match the declared RHI
+    // convention before the backend converts it exactly once.
+    constexpr std::array<Stoner::Core::uint16, 3> Indices = {0, 2, 1};
     VkBufferCreateInfo IndexBufferInfo =
         MakeVulkanStruct<VkBufferCreateInfo>(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
     IndexBufferInfo.size = sizeof(Indices);
