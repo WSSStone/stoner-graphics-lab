@@ -65,6 +65,25 @@ medium native stage timed out after 3,499 seconds, so the run is diagnostic
 failure evidence rather than final closeout authority. Hosted telemetry from
 that run remains observation-only.
 
+## Windows Sponza Candidate at 8397943
+
+The maintainer-local Windows Vulkan hardware profile at revision
+`83979434abe47afd209d6f657370c0556a8eddef` passed preflight and completed both
+1,000/20 workloads inside the 3,600-second operational budget. Lantern consumed
+its accepted baseline with zero FLIP error. Sponza completed 2,000 captures,
+seven readbacks, zero terminal owners, stale-handle rejection, and observed
+176,783,360 bytes of working-set growth, then failed closed only because the
+exact Windows Sponza baseline was missing. Its 20 candidate frames were
+pixel-identical and the reviewed 512-by-512 lossless PNG is retained under
+`Validation/028/hardware-windows-vulkan-8397943-evidence/`.
+
+That run also exposed an ordering defect: accepted-baseline selection happened
+before attachment/workload semantics, so expected Candidate evidence reported
+zero semantic probes. T180 moves semantic probes before baseline lookup. The
+8397943 image remains unaccepted until the corrected Windows rerun reports the
+required semantic count and the calibration mutation suite passes; no baseline
+record is created automatically.
+
 ## Remaining Closeout
 
 T112-T114 remain open. The final shared revision must provide:

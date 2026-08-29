@@ -31,6 +31,20 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
     def test_runner_exposes_profile_driven_entry_point(self):
         self.assertTrue(callable(getattr(self.module, "run_profile", None)))
 
+    def test_native_image_semantics_precede_accepted_baseline_lookup(self):
+        source = (
+            self.module.REPOSITORY_ROOT
+            / "Tests/ProductionNativeImageAcceptance.cpp"
+        ).read_text(encoding="utf-8")
+        function = source.split(
+            "FProductionNativeImageAcceptanceResult "
+            "RunProductionNativeImageAcceptance(", 1
+        )[1].split("\nvoid PrintProductionNativeImageEvidence(", 1)[0]
+        self.assertLess(
+            function.index("RunProductionSemanticProbes(Semantic)"),
+            function.index("Registry.SelectAccepted("),
+        )
+
     def test_cook_command_preserves_source_order_and_explicit_render_roots(self):
         roots = (
             "StaticModel:Lantern.glb#idx.scene.0",
@@ -891,7 +905,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
         output = (
             "[IMAGE] backend=vulkan "
             "device-class=windows.discrete-vulkan.rgba8 baseline= "
-            "semantic-probes=0 mean=0.00000000 p95=0.00000000 "
+            "semantic-probes=20 mean=0.00000000 p95=0.00000000 "
             "maximum=0.00000000 bad-fraction=0.00000000 result=failed\n"
         )
         parsed = self.module.parse_native_image_failure_evidence(
@@ -903,6 +917,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             "windows.discrete-vulkan.rgba8", parsed["deviceClass"]
         )
         self.assertEqual("baseline-missing", parsed["firstFailure"])
+        self.assertEqual(20, parsed["semanticProbeCount"])
         self.assertEqual(
             {"state": "not-run", "reason": "baseline-missing"},
             parsed["flip"],

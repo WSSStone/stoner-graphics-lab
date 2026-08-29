@@ -311,6 +311,7 @@ workload, lifecycle, capture/readback, ownership, stale, and physical limits rem
 - [X] T177 [US3] Push one reviewed Windows-enablement checkpoint, sync that exact revision to the maintainer Windows device, run strict Release plus the hardware profile, inspect the registry-derived device class and candidate images, and obtain explicit maintainer acceptance for every new Windows workload/device-class baseline before committing any record as `Accepted`.
 - [X] T178 [US5] Enforce bounded source-controlled evidence: migrate required Feature 024/025 fixture manifests from `Validation/` to their `Tests/Fixtures/` corpora, remove build dependencies on historical run reports, store accepted references as pixel-equivalent lossless PNG instead of PPM, retain raw captures/DDC/generations only under ignored `Build/Validation/`, add format-neutral reference loading and Windows long-path artifact enumeration coverage, and validate the compressed registries, strict build, image suites, and runner tests.
 - [X] T179 [US4] After equivalent Windows Vulkan authority runs produced non-monotonic working-set growth from 11,161,600 to 169,361,408 bytes while exact lifecycle, ownership, stale-handle, semantic, and pixel evidence passed, split physical memory authority by platform: retain the preflighted 16 MiB Metal RSS hard gate; make Windows working-set RSS a complete bounded observation while preserving required Windows preflight, 1,000/20 work, 2,000 captures, seven readbacks, owner/stale and accepted-image gates; reject RSS promotion/demotion, trimming, allocator coercion, moved samples, or threshold inflation; and update profile/report schemas, runner/report tests, documentation, and bounded cross-process evidence.
+- [X] T180 [US3] After the first Windows Sponza v2 Candidate run completed exact native lifecycle/readback work but reported zero semantic probes because accepted-baseline lookup returned `baseline-missing` first, restore FR-029 ordering by running attachment and workload semantic probes before baseline selection, retain the derived device class and semantic count in fail-closed Candidate evidence, and prove the ordering with runner-source and failure-parser regressions plus strict Release and focused native/image suites.
 
 **Checkpoint**: Each acceptance tier is reproducible, bounded, honest about
 capability, and scheduled at the clarified cadence.
@@ -452,7 +453,7 @@ Setup --> Real KTX2 Foundation --|
 | FR-011-FR-013 | T021, T029-T030, T035, T040 | Existing resolver/importer and complete typed dependency graph |
 | FR-014 | T008-T019, T036, T048 | Real KTX2 producer/artifact and semantic comparison |
 | FR-015-FR-022 | T035-T054 | Self-contained generation, strict no-source load, equivalence, reuse, mutation/failure |
-| FR-023-FR-031, FR-046-FR-050, FR-055-FR-056 | T055-T084, T119-T125, T127-T128, T144, T166 | Asset-root composition, frozen camera, canonical 512 extent, region semantics, exact registered FLIP, lifecycle |
+| FR-023-FR-031, FR-046-FR-050, FR-055-FR-056 | T055-T084, T119-T125, T127-T128, T144, T166, T180 | Asset-root composition, frozen camera, canonical 512 extent, semantic-before-baseline ordering, exact registered FLIP, lifecycle |
 | FR-032-FR-037, FR-051-FR-054 | T085-T097, T112-T114, T167-T170, T173-T177, T179 | Regular/medium/hardware profiles, environment authority, hosted operational bounds, required Metal RSS, observed Windows working set, and dual physical image authority |
 | FR-038-FR-041 | T098-T107, T171-T172, T178 | Deterministic/observational reports, measurement disposition, stable failures, bounded privacy-safe artifacts, compressed references, generated-output retention |
 | FR-042 | T020-T022, T031, T035-T038, T052-T053, T055-T058, T069, T080-T083, T103 | At least 30 cross-stage negative cases |
@@ -464,7 +465,7 @@ Setup --> Real KTX2 Foundation --|
 | SC-003-SC-004 | T038, T050-T051, T054 |
 | SC-005-SC-006 | T036-T049, T054 |
 | SC-007 | T031, T052, T056, T058, T103, T107 |
-| SC-008 | T070-T084, T114 |
+| SC-008 | T070-T084, T114, T180 |
 | SC-009-SC-010 | T084-T090, T113-T114, T144, T167-T170, T173-T177, T179; T114 owns both consolidated 3,600-second local physical lanes with platform-specific RSS disposition |
 | SC-011 | T108-T114 |
 | SC-012 | T098-T107, T118, T178 |

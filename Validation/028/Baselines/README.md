@@ -108,6 +108,20 @@ that metric as observed while preserving every physical image and lifecycle
 gate. The pre-policy run failed fast before Windows Sponza, so T114 remains open
 until Sponza and both physical targets pass on the final shared revision.
 
+## Pending Windows Vulkan Sponza v2 Candidate
+
+Revision `83979434abe47afd209d6f657370c0556a8eddef` produced a stable
+512-by-512 Windows Vulkan Sponza Candidate after the exact 1,000/20 lifecycle,
+2,000 captures, seven readbacks, zero terminal owners, and stale-handle
+rejection. The PNG SHA-256 is
+`cf94b5aba99cd3746090283f4115f99c9bf28c13c9e33b95c06c2a4cfcb586a2`;
+its decoded-pixel SHA-256 is
+`4e294eb54577dfb7d4b3d7373e782a6bc76bc1d1f9d30ccc1d892f8818a61db2`.
+The image is not accepted. The run reported zero semantic probes because the
+old native acceptance order stopped at `baseline-missing`; T180 corrects that
+ordering. A corrected successor must retain semantic and twenty-capture
+mutation evidence before explicit maintainer acceptance.
+
 ## Final local consumption evidence
 
 Final implementation revision
