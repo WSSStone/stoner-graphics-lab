@@ -1,0 +1,11 @@
+{
+  "backend": "vulkan",
+  "captureScope": "application-window",
+  "captureStartedNs": 1788002878166192400,
+  "expectedFrameToken": "cycle-20",
+  "frameToken": "cycle-20",
+  "height": 512,
+  "sha256": "ce4f6cdff79fb634b6da9342d59884827c453400fc51c27c2981f180d5cf9260",
+  "width": 512,
+  "workloadRevision": "production-content-sponza-v2"
+}
