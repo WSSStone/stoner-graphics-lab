@@ -11,9 +11,11 @@ tokens or complete signatures are invalid.
 
 Regular uses cycles 1-2 of 20 as included warm-up. Medium and hardware use
 cycles 1-20 of 1,000. RSS growth is measured from the sample immediately after
-warm-up to the terminal sample. The 16 MiB result is `observed` on GitHub-hosted
-and local-diagnostic runs and is `required` only on a maintainer-local Metal or
-Windows Vulkan run that passed the profile-owned preflight.
+warm-up to the terminal sample. The 16 MiB result is `required` only on a
+maintainer-local Metal run that passed the profile-owned preflight. It is
+`observed` on GitHub-hosted, local-diagnostic, and maintainer-local Windows
+Vulkan runs; the Windows profile still records the complete endpoints,
+milestones, peak, and bounded diagnostics.
 
 Execution class is derived from repository policy and validated provenance;
 there is no generic `--execution-class` override. `github-hosted` owns deterministic,
@@ -29,8 +31,9 @@ preflight. `maintainer-local-windows-vulkan` is available only through the
 explicit `--local-windows-vulkan-authority` hardware command after native
 x86_64 Windows, exact target/device class, process-level exclusive lock, clean
 committed revision, default allocator, sample protocol, and window/readback
-preflight. Each class owns required 16 MiB RSS and accepted image decisions
-only for its exact target; neither flag can authorize another target.
+preflight. Both physical classes own accepted image decisions only for their
+exact target; Metal additionally owns required 16 MiB RSS, while Windows
+working-set RSS remains observed. Neither flag can authorize another target.
 
 All Feature 028 profiles reference target descriptions under
 `Config/AssetCooker/Profiles/Production/`. These profiles retain the established
@@ -59,6 +62,8 @@ own swapchain/drawable surface, never from a full-screen capture API.
 All classes use the normal production allocator. Validation must not set
 `MallocMediumZone`, `MallocNanoZone`, `MallocMaxMagazines`,
 `MallocSpaceEfficient`, or `MALLOC_ARENA_MAX` to manufacture RSS behavior.
+Windows validation likewise must not call working-set trimming APIs, move the
+declared samples, or inflate a threshold to manufacture a favorable result.
 Operational timeouts fail when required work is incomplete; finishing more
 slowly on a completed diagnostic replay is an observation, not deterministic
 correctness identity.

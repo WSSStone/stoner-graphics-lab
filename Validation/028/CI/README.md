@@ -14,18 +14,21 @@ not source-controlled evidence.
   operational timeout completion.
 - Hosted RSS, task-VM, allocator, peak, and elapsed values are observations;
   they do not decide hosted success.
-- The required 16 MiB RSS and accepted 512-by-512 semantic/FLIP image gates are
-  owned only by explicit maintainer-local arm64 Metal and x86_64 Windows Vulkan
-  runs after fail-closed physical preflight.
+- The required 16 MiB RSS gate is owned only by explicit maintainer-local arm64
+  Metal after fail-closed physical preflight. Both Metal and x86_64 Windows
+  Vulkan own accepted 512-by-512 semantic/FLIP image gates; Windows working-set
+  RSS is a complete bounded observation, not result authority.
 - The two physical lanes must pass on one committed revision. macOS Vulkan is
   deferred and no self-hosted runner is required.
 
 ## Current Windows Vulkan Evidence
 
 The maintainer synchronized and ran revision
-`738d66f150c0cd554267939328d0f8366336a2ff` on the x86_64 Windows Vulkan
-device. Strict Release and the focused regression suites passed. The hardware
-profile derived device class `windows.discrete-vulkan.rgba8` and completed:
+`7d0cd7327ea26bf0778002df018b3b1c19d0b12d` on the x86_64 Windows Vulkan
+device. Strict Release, runner 53/53, report 20/20, RHI 256/256, Vulkan native,
+production image/demo, Core lease, and regular-runner regressions passed. The
+hardware profile derived device class `windows.discrete-vulkan.rgba8` and
+completed:
 
 | Check | Result |
 | --- | --- |
@@ -34,16 +37,23 @@ profile derived device class `windows.discrete-vulkan.rgba8` and completed:
 | Captures / readbacks | 2,000 / 7 |
 | Terminal owners | 0 |
 | Stale handle | rejected |
-| Candidate source SHA-256 | `4147e4c5b0a2380ebcd3177785e06d964b2851132cbf4050c831c7b5dc25c95b` |
-| Summary SHA-256 | `7c5c21b8428b8d1eeba24e0075c7c693f9922b09911a82ff69d3fb61c60d0941` |
-| RSS growth | 62,119,936 bytes |
-| Required RSS limit | 16,777,216 bytes |
+| Accepted Lantern image | exact decoded-pixel match; FLIP mean/p95/max/bad fraction all zero |
+| Cross-process calibration | 3 processes, 60 byte-identical captures, pairwise FLIP all zero |
+| Decoded-pixel SHA-256 | `5a6dbaefdf2762001367e14376051b067ff7c662f371afb58a0dbf83c16bcf85` |
+| Observed RSS growth | 169,361,408 bytes |
+| RSS disposition | `observed` under Decision 51/T179 |
 
-The maintainer explicitly accepted the Lantern candidate on 2026-08-28. Its
-pixel-identical lossless PNG and calibration record are now the consumable
-source-controlled evidence. The run remains failed because RSS exceeded the
-physical limit. Fail-fast correctly prevented Sponza from running, so Windows
-Sponza image acceptance is still pending.
+The accepted Lantern baseline was consumed exactly: all 20 semantic probes and
+all FLIP limits passed, and blank/stale/origin/missing-geometry/material/color-
+space/one-pixel-translation/opposite-normal mutations were rejected. Bounded
+cross-process evidence is retained under
+`Validation/028/hardware-windows-vulkan-7d0cd73-evidence/`; its calibration JSON
+SHA-256 is `5db81ec60fba169184039e9db8812a083d7d14a5bcf7d86a1830c41623362511`.
+Equivalent same-path runs observed non-monotonic working-set growth from
+11,161,600 to 169,361,408 bytes while ownership and images remained exact.
+Decision 51/T179 therefore makes Windows working-set RSS observed without
+altering functional or image authority. This pre-policy run failed fast before
+Sponza, so Windows Sponza image acceptance remains pending.
 
 ## Prior Hosted Result
 
@@ -61,9 +71,10 @@ T112-T114 remain open. The final shared revision must provide:
 
 1. a passing hosted Windows/macOS/Linux regular matrix;
 2. a passing hosted medium aggregate with the exact 1,000/20 lifecycle facts;
-3. passing maintainer-local Metal and Windows Vulkan hardware profiles, each
-   within 16 MiB RSS growth and consuming accepted image baselines for every
-   required workload; and
+3. passing maintainer-local Metal and Windows Vulkan hardware profiles on the
+   same revision, with Metal within 16 MiB RSS growth, Windows retaining complete
+   working-set observations, and both consuming accepted image baselines for
+   every required workload; and
 4. bounded report, manifest, baseline, and preflight digests recorded here.
 
 Large run directories are never promoted into this path. Only the minimal

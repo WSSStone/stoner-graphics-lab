@@ -1,0 +1,158 @@
+{
+  "schema": "stoner.production-image-cross-process-calibration",
+  "schemaVersion": 1,
+  "revision": "7d0cd7327ea26bf0778002df018b3b1c19d0b12d",
+  "backend": "vulkan",
+  "deviceClass": "windows.discrete-vulkan.rgba8",
+  "workloadRevision": "production-content-lantern-v2",
+  "processCount": 3,
+  "capturesPerProcess": 20,
+  "totalComparedCaptures": 60,
+  "candidatePath": "production-content-lantern-v2-candidate.png",
+  "candidatePngSha256": "b18be21a6d35a9b3a8a393d8cb8eb0e9553b349c86fb061a0bb6a64c91e9f064",
+  "candidateDecodedPixelSha256": "5a6dbaefdf2762001367e14376051b067ff7c662f371afb58a0dbf83c16bcf85",
+  "sourcePpmSha256": "4147e4c5b0a2380ebcd3177785e06d964b2851132cbf4050c831c7b5dc25c95b",
+  "losslessPixelEquivalentToSource": true,
+  "allCaptureFileBytesIdentical": true,
+  "allDecodedPixelsIdentical": true,
+  "acceptedBaseline": {
+    "baselineId": "production-content-lantern-v2.windows.discrete-vulkan.rgba8.v1",
+    "referencePngSha256": "47d0abd805f608148323259c1878fcaee0e6cd9c49ade727960b002320618a61",
+    "referenceDecodedPixelSha256": "5a6dbaefdf2762001367e14376051b067ff7c662f371afb58a0dbf83c16bcf85",
+    "candidateMatchesReferenceDecodedPixels": true,
+    "semanticProbeCount": 20,
+    "flip": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "maximum": 0.0,
+      "badPixelFraction": 0.0,
+      "passed": true
+    }
+  },
+  "processes": [
+    {
+      "process": 1,
+      "lifecycleCycles": 20,
+      "warmupCycles": 2,
+      "warmupRssBytes": 220086272,
+      "terminalRssBytes": 222851072,
+      "peakRssBytes": 257142784,
+      "rssGrowthBytes": 2764800,
+      "captureCount": 40,
+      "readbackCount": 7,
+      "ownersAtTerminal": 0,
+      "staleHandleRejected": true,
+      "decodedPixelSha256": "5a6dbaefdf2762001367e14376051b067ff7c662f371afb58a0dbf83c16bcf85"
+    },
+    {
+      "process": 2,
+      "lifecycleCycles": 20,
+      "warmupCycles": 2,
+      "warmupRssBytes": 241070080,
+      "terminalRssBytes": 222162944,
+      "peakRssBytes": 255594496,
+      "rssGrowthBytes": 0,
+      "captureCount": 40,
+      "readbackCount": 7,
+      "ownersAtTerminal": 0,
+      "staleHandleRejected": true,
+      "decodedPixelSha256": "5a6dbaefdf2762001367e14376051b067ff7c662f371afb58a0dbf83c16bcf85"
+    },
+    {
+      "process": 3,
+      "lifecycleCycles": 20,
+      "warmupCycles": 2,
+      "warmupRssBytes": 237879296,
+      "terminalRssBytes": 258043904,
+      "peakRssBytes": 272498688,
+      "rssGrowthBytes": 20164608,
+      "captureCount": 40,
+      "readbackCount": 7,
+      "ownersAtTerminal": 0,
+      "staleHandleRejected": true,
+      "decodedPixelSha256": "5a6dbaefdf2762001367e14376051b067ff7c662f371afb58a0dbf83c16bcf85"
+    }
+  ],
+  "pairwiseFlip": [
+    {"left": 1, "right": 2, "mean": 0.0, "p95": 0.0, "maximum": 0.0, "badPixelFraction": 0.0},
+    {"left": 1, "right": 3, "mean": 0.0, "p95": 0.0, "maximum": 0.0, "badPixelFraction": 0.0},
+    {"left": 2, "right": 3, "mean": 0.0, "p95": 0.0, "maximum": 0.0, "badPixelFraction": 0.0}
+  ],
+  "calibratedPolicy": {
+    "meanMax": 0.0005,
+    "p95Max": 0.001,
+    "maximumMax": 0.01,
+    "badPixelThreshold": 0.05,
+    "badPixelFractionMax": 0.001
+  },
+  "mutations": {
+    "blank": {"mean": 0.05586190, "p95": 0.62147802, "maximum": 0.99440581, "badPixelFraction": 0.08143616, "rejected": true},
+    "stale": {"failure": "current-frame", "rejected": true},
+    "origin": {"mean": 0.07216423, "p95": 0.71372664, "maximum": 0.99440587, "badPixelFraction": 0.11406708, "rejected": true},
+    "missingGeometry": {"mean": 0.05586190, "p95": 0.62147802, "maximum": 0.99440581, "badPixelFraction": 0.08143616, "rejected": true},
+    "materialSwap": {"mean": 0.03454521, "p95": 0.15177926, "maximum": 0.96253502, "badPixelFraction": 0.07074738, "rejected": true},
+    "colorSpace": {"mean": 0.04213975, "p95": 0.56228846, "maximum": 0.72682291, "badPixelFraction": 0.07759476, "rejected": true},
+    "translationOnePixel": {"mean": 0.01403814, "p95": 0.09778658, "maximum": 0.87683564, "badPixelFraction": 0.06552124, "rejected": true},
+    "oppositeNormal": {"expected": [-1.0, 0.0, 0.0], "mutated": [1.0, 0.0, 0.0], "rejected": true}
+  },
+  "fullHardwareAuthority": {
+    "lifecycleCycles": 1000,
+    "warmupCycles": 20,
+    "warmupRssBytes": 240394240,
+    "terminalRssBytes": 409755648,
+    "peakRssBytes": 413728768,
+    "rssGrowthBytes": 169361408,
+    "rssWithinLimit": false,
+    "captureCount": 2000,
+    "readbackCount": 7,
+    "ownersAtTerminal": 0,
+    "staleHandleRejected": true,
+    "lanternBaselineConsumed": true,
+    "semanticProbeCount": 20,
+    "imageFlip": {
+      "mean": 0.0,
+      "p95": 0.0,
+      "maximum": 0.0,
+      "badPixelFraction": 0.0,
+      "passed": true
+    },
+    "firstFailure": "native lifecycle required RSS gate failed",
+    "nativeLifecycleReportSha256": "cbf51f3781195f8c575e08732391efbcbc4bad80923779c9439ace69d33ce535",
+    "sponzaReached": false
+  },
+  "rssDiagnostics": {
+    "headless1000": {
+      "warmupRssBytes": 162611200,
+      "terminalRssBytes": 192790528,
+      "peakRssBytes": 236417024,
+      "rssGrowthBytes": 30179328
+    },
+    "visible1000Repeat": {
+      "warmupRssBytes": 245223424,
+      "terminalRssBytes": 280719360,
+      "peakRssBytes": 363749376,
+      "rssGrowthBytes": 35495936,
+      "milestoneRssBytes": {
+        "100": 305213440,
+        "200": 301281280,
+        "300": 288120832,
+        "400": 291713024,
+        "500": 298008576,
+        "600": 322945024,
+        "700": 325623808,
+        "800": 297074688,
+        "900": 313962496,
+        "1000": 280719360
+      }
+    },
+    "priorVisible1000AtEb9ea83": {
+      "warmupRssBytes": 260390912,
+      "terminalRssBytes": 271552512,
+      "peakRssBytes": 286081024,
+      "rssGrowthBytes": 11161600,
+      "rssWithinLimit": true
+    },
+    "disposition": "blocked-driver-working-set-high-water",
+    "reason": "All project ownership counters return to zero and stale handles are rejected, while independent full runs show non-monotonic RSS plateaus and terminal growth varying from 11161600 to 169361408 bytes without production-path changes. The fixed Windows physical RSS gate therefore remains failed; no cleanup, restart, allocator substitution, sampling change, or threshold change was used."
+  }
+}

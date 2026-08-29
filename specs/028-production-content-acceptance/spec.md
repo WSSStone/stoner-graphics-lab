@@ -12,7 +12,7 @@
 - Q: Phase 028 的生产资产可见验收必须覆盖哪些 Renderer 路径？ → A: Deferred 执行完整生产验收；Forward 使用同一 Asset root 执行有界 visible/readback smoke。
 - Q: Phase 028 可以接纳哪些许可证下的真实生产资产？ → A: 不实施任何资产许可证校验；许可证选择与合规由项目维护者在系统外负责。
 - Q: Phase 028 应如何判定真实生产资产的 Vulkan/Metal 渲染图像是否合格？ → A: Semantic/readback probes 必须通过，并按 backend 与 device class 使用版本化容差进行感知图像比较；截图作为验收证据。
-- Q: 生产资产完整 load、realize、render、release 循环应采用什么强度和内存通过标准？ → A: Regular gate 执行 20 次并以第 1-2 次为 warm-up；medium/hardware gate 执行 1,000 次并以第 1-20 次为 warm-up；warm-up 计入总次数，内部资源计数归零，从 warm-up 后样本到终止样本的 RSS 净增长不超过 16 MiB。
+- Q: 生产资产完整 load、realize、render、release 循环应采用什么强度和内存通过标准？ → A: Regular gate 执行 20 次并以第 1-2 次为 warm-up；medium/hardware gate 执行 1,000 次并以第 1-20 次为 warm-up；warm-up 计入总次数，内部资源计数归零。维护者本机 Metal 从 warm-up 后样本到终止样本的 RSS 净增长不得超过 16 MiB；Hosted 与 Windows working-set RSS 按后续环境权威规则完整记录但不单独裁决结果。
 - Q: Phase 028 完成后，regular、medium 和真实硬件验收分别应在什么时候成为必需 gate？ → A: Regular 对相关 PR/推送自动执行；medium 每周定时并在 feature/release closeout 强制通过；真实硬件在 Feature 028 closeout，以及参考图或渲染路径变化时强制执行。
 
 ### Session 2026-08-24
@@ -29,7 +29,11 @@
 ### Session 2026-08-28
 
 - Q: 项目没有 Windows/Vulkan 或已注册 self-hosted runner，只有维护者本机 M4 Metal 时，Feature 028 的物理验收范围如何收敛？ → A: Feature 028 唯一必需物理权威是维护者本机 native arm64 Metal。它必须由显式 `--local-metal-authority` 启动，并通过 clean committed HEAD、精确 `Mac-Metal-Arm64.json`、非 Rosetta、默认 allocator、进程级独占锁、固定 1,000/20 采样协议、窗口 presentation/readback 和 registry-derived device class 前置检查。Windows Vulkan 与 macOS Vulkan 物理证据延期到未来硬件实验室能力，不阻塞 Feature 028；不存在的 self-hosted runner workflow 不得继续由 push 自动排队。
-- Q: 维护者新增可手动同步的 Windows Vulkan 设备后，是否必须搭建 self-hosted runner，物理验收范围如何变化？ → A: 不要求搭建 runner。Windows x86_64 Vulkan 通过显式 `--local-windows-vulkan-authority` 成为第二个必需的维护者本地物理权威，与 M4 Metal 分别执行相同的 1,000/20、16 MiB、512×512 semantic/FLIP 协议。二者必须在同一最终 revision 上通过，互不替代；macOS Vulkan 仍延期。Windows 首次没有匹配 Accepted baseline 时只生成 fail-closed Candidate，并由维护者明确接受。
+- Q: 维护者新增可手动同步的 Windows Vulkan 设备后，是否必须搭建 self-hosted runner，物理验收范围如何变化？ → A: 不要求搭建 runner。Windows x86_64 Vulkan 通过显式 `--local-windows-vulkan-authority` 成为第二个必需的维护者本地物理权威，与 M4 Metal 分别执行相同的 1,000/20 与 512×512 semantic/FLIP 协议并在同一最终 revision 上通过，互不替代；macOS Vulkan 仍延期。Windows 首次没有匹配 Accepted baseline 时只生成 fail-closed Candidate，并由维护者明确接受。RSS disposition 由 2026-08-29 的平台校准结论进一步收敛。
+
+### Session 2026-08-29
+
+- Q: 同一路径的 Windows Vulkan 权威运行在全部 owner 归零、stale-handle 拒绝、图像逐像素一致时，working-set growth 仍在 11,161,600 到 169,361,408 bytes 间非单调变化，是否继续把固定 16 MiB 作为 Windows 硬门禁？ → A: 不继续。Windows working set 受驱动驻留、系统内存压力和 OS trimming 影响，Feature 028 将其保留为有界 `observed` 诊断，不能单独判失败；不得通过 `EmptyWorkingSet`、特殊 allocator、移动采样点或任意提高阈值制造通过。Windows 仍严格要求物理 preflight、精确 1,000/20、2,000 captures、7 readbacks、owner 归零、stale 拒绝和 512×512 semantic/FLIP 图像门禁。维护者本机 Metal 的校准 16 MiB RSS 硬门禁保持不变；更稳定的 Windows reference-set/WPR 内存资格延期到未来 hardware-lab 工作。
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -212,10 +216,12 @@ corpus and workload, and compare their normalized reports across repeated runs.
    retained pages or wall-clock variance exceed a previously observed value,
    **Then** the report preserves the measurements and environment class without
    treating either observation as an authoritative correctness failure.
-8. **Given** either registered maintainer-local physical device, **When** its preflight proves the
-   registered device, exclusive process/device/display ownership, default production allocator,
-   frozen software image, and declared workload, **Then** calibrated RSS and
-   image policies are authoritative and any exceeded hard limit fails closed.
+8. **Given** either registered maintainer-local physical device, **When** its
+   preflight proves the registered device, exclusive process/device/display
+   ownership, default production allocator, frozen software image, and declared
+   workload, **Then** the exact device-class image policy is authoritative. The
+   Metal RSS policy is additionally authoritative; Windows working-set RSS is
+   retained as an observation and cannot independently fail the result.
 
 ---
 
@@ -473,12 +479,13 @@ corpus and generation evidence.
   the medium/hardware profile MUST complete 1,000 full cycles and use cycles
   1-20 as warm-up. Warm-up cycles count toward the required total. Every lane
   MUST treat exact cycle/capture/readback counts, terminal owner baselines, and
-  stale-handle rejection as hard correctness gates. Each maintainer-local physical lane that
-  passes authority preflight MUST additionally keep net RSS growth from the
-  sample immediately after warm-up through the terminal sample at or below
-  16 MiB. A GitHub-hosted lane MUST collect the same RSS endpoints plus bounded
-  task-VM/allocator diagnostics as observations, but those values MUST NOT
-  decide its result or substitute for live ownership checks. Lifecycle image validation
+  stale-handle rejection as hard correctness gates. A maintainer-local Metal
+  lane that passes authority preflight MUST additionally keep net RSS growth
+  from the sample immediately after warm-up through the terminal sample at or
+  below 16 MiB. GitHub-hosted and maintainer-local Windows Vulkan lanes MUST
+  collect the same RSS endpoints plus bounded task-VM/allocator diagnostics as
+  observations, but those values MUST NOT decide their result or substitute for
+  live ownership checks. Lifecycle image validation
   MUST reuse bounded CPU readback storage, read host-visible Metal buffers
   directly after the storage-mode-required synchronization, and allocate a
   second native staging buffer only for device-local storage. This optimization
@@ -601,13 +608,16 @@ corpus and generation evidence.
   repository-owned contract rather than an unrestricted class string. GitHub-
   hosted, maintainer-local Metal, maintainer-local Windows Vulkan, and local
   diagnostic execution MUST remain distinct; only the two narrowly scoped
-  explicit local authority paths may claim physical RSS/image authority.
-- **FR-052**: A maintainer-local Metal or Windows Vulkan run MAY claim RSS/image authority only after
+  explicit local authority paths may claim physical image authority; only the
+  Metal path may claim calibrated RSS authority.
+- **FR-052**: A maintainer-local Metal or Windows Vulkan run MAY claim physical image authority only after
   proving its native OS/architecture/backend, exact registered device class and target,
   exclusive session ownership, a clean committed and frozen
   workload/software revision, default production allocator behavior, and the
   declared warm-up/sample protocol. Failed preflight MUST be Unsupported with a
-  replacement lane, not an observational pass.
+  replacement lane, not an observational pass. After the same preflight, Metal
+  RSS is `required` with the 16 MiB limit while Windows working-set RSS is
+  `observed` and MUST NOT independently pass or fail the run.
 - **FR-053**: Hosted medium execution MUST preserve 1,000 cycles, 20 included
   warm-up cycles, 2,000 Deferred/Forward captures, seven post-lifecycle
   authoritative readbacks, zero terminal owners, and stale-handle rejection.
@@ -708,10 +718,11 @@ corpus and generation evidence.
   release, and recreate cycles with cycles 1-2 as warm-up; each medium/hardware
   gate completes 1,000 cycles with cycles 1-20 as warm-up. Warm-up cycles count
   toward the total. No cycle produces stale-handle aliasing or double release,
-  all tracked ownership counts return to baseline. Maintainer-local physical
-  lanes additionally keep RSS growth from the sample immediately after warm-up
-  through the terminal sample at most 16 MiB; hosted lanes produce complete
-  endpoint and diagnostic observations without using RSS as their result.
+  all tracked ownership counts return to baseline. The maintainer-local Metal
+  lane additionally keeps RSS growth from the sample immediately after warm-up
+  through the terminal sample at most 16 MiB; hosted and maintainer-local
+  Windows Vulkan lanes produce complete endpoint and diagnostic observations
+  without using RSS as their result.
 - **SC-010**: The regular profile completes its bounded platform-applicable
   source-to-cooked-to-runtime gate within 10 minutes per hosted job, while the
   hosted medium profile is bounded by a 5,400-second package timeout and an
@@ -744,8 +755,9 @@ corpus and generation evidence.
   byte-identical View and Projection inputs for Deferred and Forward, and 100%
   of invalid or caller-overridden formal camera attempts fail before native
   submission.
-- **SC-016**: Report validation proves that 100% of hosted RSS/timing records are
-  marked observed/operational, 100% of maintainer-local Metal and Windows Vulkan RSS/image decisions
+- **SC-016**: Report validation proves that 100% of hosted RSS/timing and
+  maintainer-local Windows Vulkan RSS records are marked observed/operational,
+  100% of required maintainer-local Metal RSS and both physical image decisions
   include successful authority preflight, and no aggregate can convert an
   observation into a hard pass or failure.
 - **SC-017**: Every workload semantic probe passes its accepted image and rejects
@@ -779,10 +791,11 @@ corpus and generation evidence.
   are deferred.
 - Screenshots capture only the application window or validated render surface,
   never the full desktop.
-- Hosted timing limits are operational cancellation bounds and hosted memory is
-  observation-only. The 16 MiB RSS threshold is an acceptance budget only for
-  either maintainer-local physical environment after authority preflight; neither is
-  a general engine performance guarantee.
+- Hosted timing limits are operational cancellation bounds. Hosted memory and
+  Windows Vulkan working-set memory are observation-only. The 16 MiB RSS
+  threshold is an acceptance budget only for the maintainer-local Metal
+  environment after authority preflight and is not a general engine performance
+  guarantee.
 - New source formats, animation, editor workflows, hot reload, packaging,
   streaming, Meshlets, virtual geometry, ray tracing, and broad visual redesign
   remain assigned to later roadmap work.

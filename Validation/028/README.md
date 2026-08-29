@@ -114,8 +114,10 @@ they are preserved in evidence but do not decide acceptance. The
 maintainer-local physical lanes additionally require their exact native host,
 target/registered device class, exclusive process lock, clean committed
 revision, default production allocator, declared sample protocol, and window
-presentation plus GPU readback. Each owns the 16 MiB RSS and accepted-image
-gates only for its exact target.
+presentation plus GPU readback. Both own accepted-image gates only for their
+exact targets. Metal additionally owns the calibrated 16 MiB RSS gate; Windows
+working-set RSS is recorded with observed disposition and cannot independently
+decide acceptance.
 Local diagnostics never replace a required hosted or physical lane.
 
 Regular lanes have a 10-minute workload budget, hosted medium package lanes

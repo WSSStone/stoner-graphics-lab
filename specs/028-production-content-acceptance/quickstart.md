@@ -171,7 +171,10 @@ pixel. Calibration must reject an intentional one-pixel whole-image translation.
 Each local physical lane must also prove its native OS/architecture/backend,
 exclusive authority-lock ownership, clean committed HEAD, exact target/device
 class, default production allocator behavior, and declared RSS/presentation
-protocol before it can emit authoritative RSS/image evidence.
+protocol before it can emit authoritative image evidence. Metal additionally
+emits required 16 MiB RSS authority. Windows records the same working-set
+endpoints and diagnostics as `observed`; RSS alone cannot fail an otherwise
+complete Windows authority run.
 
 ## 6. Validate Reports and Privacy
 
@@ -194,7 +197,7 @@ capture metadata.
   M4 Metal and Windows Vulkan are required maintainer-local closeout targets.
 - No Feature 028 self-hosted workflow is required or registered: pushes do not
   remotely execute either maintainer device. The two local commands above are
-  the physical RSS/image gates.
+  the physical image gates, the Metal RSS gate, and the Windows RSS observation.
 - Local commands and CI call the same Python runner and profile files.
 
 Before Feature 028 closes, retain passing final-revision evidence for Debug,

@@ -101,7 +101,7 @@ formal image fails before semantic probes or FLIP.
 |---|---:|---:|---|---|
 | Regular | 20 | 1-2 | Platform-applicable bounded native/headless gates | Hosted/local-diagnostic measurement is observed; physical authority belongs only to the hardware profile |
 | Medium | 1,000 | 1-20 | Hosted Metal functional/lifecycle authority | RSS/task-VM/allocator are observed; exact work/owners/stale/captures/readbacks remain required |
-| Hardware | 1,000 | 1-20 | Maintainer-local native arm64 macOS Metal and x86_64 Windows Vulkan, in separate runs | Required <= 16 MiB after authority preflight |
+| Hardware | 1,000 | 1-20 | Maintainer-local native arm64 macOS Metal and x86_64 Windows Vulkan, in separate runs | Metal required <= 16 MiB after preflight; Windows working-set RSS observed |
 
 Each cycle performs strict manager bind/request, complete closure, Renderer
 realization, deferred render/readback, bounded forward smoke where required,
@@ -130,7 +130,7 @@ and operational 5,400-second package plus 4,800-second native timeouts inside a
 readbacks, zero terminal owners, stale-handle rejection, and requested native
 backend proof.
 
-A maintainer-local physical RSS/image authority must prove its exact native
+A maintainer-local physical image authority, and Metal RSS authority, must prove its exact native
 OS/architecture/backend and registered device/target, exclusive authority-lock ownership, clean
 committed frozen revision, default production allocator, and the declared
 sample/presentation protocol. Failed preflight is Unsupported with a

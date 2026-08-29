@@ -81,8 +81,8 @@
           "additionalProperties": false,
           "required": ["maintainer-local-metal", "maintainer-local-windows-vulkan", "local-diagnostic"],
           "properties": {
-            "maintainer-local-metal": {"$ref": "#/$defs/physicalMeasurements"},
-            "maintainer-local-windows-vulkan": {"$ref": "#/$defs/physicalMeasurements"},
+            "maintainer-local-metal": {"$ref": "#/$defs/metalPhysicalMeasurements"},
+            "maintainer-local-windows-vulkan": {"$ref": "#/$defs/windowsVulkanPhysicalMeasurements"},
             "local-diagnostic": {"$ref": "#/$defs/observationalMeasurements"}
           }
         },
@@ -101,8 +101,11 @@
     "observationalMeasurements": {
       "const": {"rss": "observed", "timing": "operational", "image": "not-required"}
     },
-    "physicalMeasurements": {
+    "metalPhysicalMeasurements": {
       "const": {"rss": "required", "timing": "operational", "image": "required"}
+    },
+    "windowsVulkanPhysicalMeasurements": {
+      "const": {"rss": "observed", "timing": "operational", "image": "required"}
     }
   },
   "allOf": [

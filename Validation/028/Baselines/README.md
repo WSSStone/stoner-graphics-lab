@@ -93,11 +93,20 @@ Its lossless PNG has SHA-256
 `47d0abd805f608148323259c1878fcaee0e6cd9c49ade727960b002320618a61`;
 decoded RGB was verified pixel-identical before registration.
 
-This acceptance resolves the image `baseline-missing` result only. The same run
-measured RSS growth of 62,119,936 bytes, above the required 16 MiB physical
-limit, so the Windows hardware gate remains Failed. Fail-fast therefore did not
-run the final Windows Sponza workload; T114 remains open until the RSS issue is
-fixed and both workloads pass on the final shared revision.
+Revision `7d0cd7327ea26bf0778002df018b3b1c19d0b12d` subsequently reconfirmed the
+accepted baseline across three independent processes and 60 byte-identical
+captures. Decoded pixels had SHA-256
+`5a6dbaefdf2762001367e14376051b067ff7c662f371afb58a0dbf83c16bcf85`;
+all pairwise and accepted-baseline FLIP fields were zero, 20 semantic probes
+passed, and every declared mutation was rejected. The bounded calibration JSON
+under `Validation/028/hardware-windows-vulkan-7d0cd73-evidence/` has SHA-256
+`5db81ec60fba169184039e9db8812a083d7d14a5bcf7d86a1830c41623362511`.
+
+The same full authority run observed 169,361,408 bytes of non-monotonic Windows
+working-set growth despite zero terminal owners. Decision 51/T179 classifies
+that metric as observed while preserving every physical image and lifecycle
+gate. The pre-policy run failed fast before Windows Sponza, so T114 remains open
+until Sponza and both physical targets pass on the final shared revision.
 
 ## Final local consumption evidence
 

@@ -109,6 +109,16 @@ class ProductionAcceptanceReportContractTests(unittest.TestCase):
             }
         return changed
 
+    def make_windows_physical(self, report):
+        changed = self.make_physical(report)
+        changed["authority"]["executionClass"] = (
+            "maintainer-local-windows-vulkan"
+        )
+        changed["authority"]["measurements"]["rss"] = {
+            "disposition": "observed", "state": "measured",
+        }
+        return changed
+
     def failure(self, unsupported=False):
         value = {
             "stage": "strict-load", "category": "payload-missing",
@@ -217,14 +227,31 @@ class ProductionAcceptanceReportContractTests(unittest.TestCase):
             self.module.validate_report(report)
 
     def test_windows_vulkan_local_physical_authority_is_supported(self):
-        report = self.make_physical(self.report("passed", "vulkan"))
-        report["authority"]["executionClass"] = (
-            "maintainer-local-windows-vulkan"
+        report = self.make_windows_physical(
+            self.report("passed", "vulkan")
         )
         report["observations"]["deviceClass"] = (
             "windows.discrete-vulkan.rgba8"
         )
+        report["observations"]["rssGrowthBytes"] = 169_361_408
         self.module.validate_report(report)
+
+        promoted = copy.deepcopy(report)
+        promoted["authority"]["measurements"]["rss"] = {
+            "disposition": "required", "state": "measured",
+            "threshold": 16 * 1024 * 1024, "passed": True,
+            "preflightEvidenceDigest": SHA,
+        }
+        with self.assertRaisesRegex(ValueError, "promotion"):
+            self.module.validate_report(promoted)
+
+    def test_metal_physical_authority_cannot_demote_required_rss(self):
+        report = self.make_physical(self.report("passed", "metal"))
+        report["authority"]["measurements"]["rss"] = {
+            "disposition": "observed", "state": "measured",
+        }
+        with self.assertRaisesRegex(ValueError, "required rss"):
+            self.module.validate_report(report)
 
     def test_aggregate_preserves_authority_and_rejects_promotion(self):
         first = self.report("passed", "metal")

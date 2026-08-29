@@ -747,7 +747,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             "maintainer-local-windows-vulkan",
             authority["executionClass"],
         )
-        self.assertEqual("required", authority["dispositions"]["rss"])
+        self.assertEqual("observed", authority["dispositions"]["rss"])
         self.assertEqual("required", authority["dispositions"]["image"])
         self.assertEqual("c" * 40, authority["preflight"]["frozenRevision"])
         with mock.patch.object(
@@ -807,7 +807,10 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             hardware["executionClasses"]["maintainer-local-metal"],
         )
         self.assertEqual(
-            hardware["executionClasses"]["maintainer-local-metal"],
+            {
+                "rss": "observed", "timing": "operational",
+                "image": "required",
+            },
             hardware["executionClasses"][
                 "maintainer-local-windows-vulkan"
             ],

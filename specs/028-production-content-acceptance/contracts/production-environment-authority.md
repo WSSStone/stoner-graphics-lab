@@ -13,7 +13,7 @@ image requirements.
 |---|---|---|
 | `github-hosted` | Workflow-owned hosted job definition | Build, deterministic cook, strict runtime, exact lifecycle work, native proof, captures/readbacks, ownership, stale rejection, crash, and operational timeout |
 | `maintainer-local-metal` | Explicit hardware-profile flag plus successful native arm64 macOS Metal preflight | All hosted correctness facts plus calibrated RSS and required image/FLIP decisions for the exact Metal device class |
-| `maintainer-local-windows-vulkan` | Explicit hardware-profile flag plus successful native x86_64 Windows Vulkan preflight | All hosted correctness facts plus calibrated RSS and required image/FLIP decisions for the exact Vulkan device class |
+| `maintainer-local-windows-vulkan` | Explicit hardware-profile flag plus successful native x86_64 Windows Vulkan preflight | All hosted correctness facts plus required image/FLIP decisions for the exact Vulkan device class; working-set RSS remains observed |
 | `local-diagnostic` | Local runner default | Reproduction and observations only; cannot satisfy required hosted/physical closeout authority |
 
 The generic class is not accepted from an unrestricted application or runner
@@ -58,7 +58,7 @@ validation-only allocator-zone switches cannot manufacture RSS authority.
 
 ## Maintainer-Local Physical Preflight
 
-Before RSS or image evidence is `required`, the lane proves:
+Before Metal RSS or either physical image evidence is `required`, the lane proves:
 
 1. exact native OS/architecture/backend target and registered device/backend capability signature; Metal additionally proves non-Rosetta arm64 macOS;
 2. exclusive process/device/display ownership, enforced by a repository-scoped nonblocking authority lock;
@@ -70,10 +70,16 @@ Before RSS or image evidence is `required`, the lane proves:
 Failed preflight produces `Unsupported` with a stable missing prerequisite and
 replacement command. It cannot fall back to hosted or ordinary local measurements.
 
-Each maintainer-local lifecycle retains the 16 MiB post-warm-up-to-terminal RSS
-hard limit. Required image acceptance retains exact workload/backend/device-
-class baseline selection, region semantics, same-size FLIP, and explicit
-maintainer-accepted reference state.
+The maintainer-local Metal lifecycle retains the 16 MiB post-warm-up-to-terminal
+RSS hard limit. The Windows Vulkan lifecycle records the same RSS endpoints,
+milestones, peak, and bounded diagnostics with `observed` disposition; its
+working-set value cannot independently pass or fail the run. Required image
+acceptance on both physical lanes retains exact workload/backend/device-class
+baseline selection, region semantics, same-size FLIP, and explicit maintainer-
+accepted reference state. Windows validation must not trim its working set,
+change allocator policy, move sampling points, or inflate a threshold to create
+a favorable result. A stable Windows reference-set/WPR memory gate is deferred
+to future hardware-lab qualification.
 
 ## Image Registration
 

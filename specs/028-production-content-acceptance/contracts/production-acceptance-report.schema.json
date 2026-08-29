@@ -55,7 +55,7 @@
           "required": ["timing", "rss", "image"],
           "properties": {
             "timing": {"$ref": "#/$defs/operationalTiming"},
-            "rss": {"oneOf": [{"$ref": "#/$defs/observedMeasurement"}, {"$ref": "#/$defs/requiredRss"}, {"$ref": "#/$defs/requiredNotRun"}]},
+            "rss": {"oneOf": [{"$ref": "#/$defs/observedMeasurement"}, {"$ref": "#/$defs/observedNotRun"}, {"$ref": "#/$defs/requiredRss"}, {"$ref": "#/$defs/requiredNotRun"}]},
             "image": {"oneOf": [{"$ref": "#/$defs/notRequiredMeasurement"}, {"$ref": "#/$defs/requiredImage"}, {"$ref": "#/$defs/requiredNotRun"}]},
             "taskVm": {"$ref": "#/$defs/observedMeasurement"},
             "allocator": {"$ref": "#/$defs/observedMeasurement"},
@@ -107,12 +107,20 @@
       "then": {"properties": {"authority": {"properties": {"preflight": {"$ref": "#/$defs/notRequiredPreflight"}, "measurements": {"properties": {"rss": {"$ref": "#/$defs/observedMeasurement"}, "image": {"$ref": "#/$defs/notRequiredMeasurement"}}}}}}}
     },
     {
-      "if": {"properties": {"authority": {"properties": {"executionClass": {"enum": ["maintainer-local-metal", "maintainer-local-windows-vulkan"]}, "preflight": {"properties": {"state": {"const": "passed"}}, "required": ["state"]}}, "required": ["executionClass", "preflight"]}}, "required": ["authority"]},
+      "if": {"properties": {"authority": {"properties": {"executionClass": {"const": "maintainer-local-metal"}, "preflight": {"properties": {"state": {"const": "passed"}}, "required": ["state"]}}, "required": ["executionClass", "preflight"]}}, "required": ["authority"]},
       "then": {"properties": {"authority": {"properties": {"measurements": {"properties": {"rss": {"$ref": "#/$defs/requiredRss"}, "image": {"$ref": "#/$defs/requiredImage"}}}}}}}
     },
     {
-      "if": {"properties": {"authority": {"properties": {"preflight": {"properties": {"state": {"const": "failed"}}, "required": ["state"]}}, "required": ["preflight"]}}, "required": ["authority"]},
+      "if": {"properties": {"authority": {"properties": {"executionClass": {"const": "maintainer-local-windows-vulkan"}, "preflight": {"properties": {"state": {"const": "passed"}}, "required": ["state"]}}, "required": ["executionClass", "preflight"]}}, "required": ["authority"]},
+      "then": {"properties": {"authority": {"properties": {"measurements": {"properties": {"rss": {"$ref": "#/$defs/observedMeasurement"}, "image": {"$ref": "#/$defs/requiredImage"}}}}}}}
+    },
+    {
+      "if": {"properties": {"authority": {"properties": {"executionClass": {"const": "maintainer-local-metal"}, "preflight": {"properties": {"state": {"const": "failed"}}, "required": ["state"]}}, "required": ["executionClass", "preflight"]}}, "required": ["authority"]},
       "then": {"properties": {"deterministic": {"properties": {"result": {"const": "unsupported"}}}, "authority": {"properties": {"measurements": {"properties": {"rss": {"$ref": "#/$defs/requiredNotRun"}, "image": {"$ref": "#/$defs/requiredNotRun"}}}}}}}
+    },
+    {
+      "if": {"properties": {"authority": {"properties": {"executionClass": {"const": "maintainer-local-windows-vulkan"}, "preflight": {"properties": {"state": {"const": "failed"}}, "required": ["state"]}}, "required": ["executionClass", "preflight"]}}, "required": ["authority"]},
+      "then": {"properties": {"deterministic": {"properties": {"result": {"const": "unsupported"}}}, "authority": {"properties": {"measurements": {"properties": {"rss": {"$ref": "#/$defs/observedNotRun"}, "image": {"$ref": "#/$defs/requiredNotRun"}}}}}}}
     },
     {
       "if": {"properties": {"authority": {"properties": {"measurements": {"properties": {"timing": {"properties": {"completed": {"const": false}}, "required": ["completed"]}}, "required": ["timing"]}}, "required": ["measurements"]}}, "required": ["authority"]},
@@ -126,6 +134,7 @@
     "failedPreflight": {"type": "object", "additionalProperties": false, "required": ["state", "reason", "replacementLane"], "properties": {"state": {"const": "failed"}, "reason": {"type": "string", "minLength": 1, "maxLength": 256}, "replacementLane": {"type": "string", "minLength": 1, "maxLength": 128}}},
     "operationalTiming": {"type": "object", "additionalProperties": false, "required": ["disposition", "state", "completed"], "properties": {"disposition": {"const": "operational"}, "state": {"const": "measured"}, "completed": {"type": "boolean"}}},
     "observedMeasurement": {"type": "object", "additionalProperties": false, "required": ["disposition", "state"], "properties": {"disposition": {"const": "observed"}, "state": {"const": "measured"}}},
+    "observedNotRun": {"type": "object", "additionalProperties": false, "required": ["disposition", "state", "reason"], "properties": {"disposition": {"const": "observed"}, "state": {"const": "not-run"}, "reason": {"type": "string", "minLength": 1, "maxLength": 256}}},
     "notRequiredMeasurement": {"type": "object", "additionalProperties": false, "required": ["disposition", "state", "reason"], "properties": {"disposition": {"const": "not-required"}, "state": {"const": "not-required"}, "reason": {"type": "string", "minLength": 1, "maxLength": 256}}},
     "requiredRss": {"type": "object", "additionalProperties": false, "required": ["disposition", "state", "threshold", "passed", "preflightEvidenceDigest"], "properties": {"disposition": {"const": "required"}, "state": {"const": "measured"}, "threshold": {"type": "integer", "minimum": 0}, "passed": {"type": "boolean"}, "preflightEvidenceDigest": {"$ref": "#/$defs/sha256"}}},
     "requiredImage": {"type": "object", "additionalProperties": false, "required": ["disposition", "state", "passed", "preflightEvidenceDigest"], "properties": {"disposition": {"const": "required"}, "state": {"const": "measured"}, "passed": {"type": "boolean"}, "preflightEvidenceDigest": {"$ref": "#/$defs/sha256"}}},

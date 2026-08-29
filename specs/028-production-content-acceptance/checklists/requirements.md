@@ -40,9 +40,10 @@
   policy choices such as corpus acquisition, image acceptance, validation tier
   cadence, and lifecycle budgets without changing the roadmap boundary.
 - Validation iteration 2 on 2026-08-27 passed after separating GitHub-hosted
-  correctness authority from maintainer-local physical RSS/image authority;
-  the 2026-08-28 Windows expansion preserves that split for explicit Mac Metal
-  and Windows Vulkan local classes. The
+  correctness authority from maintainer-local physical measurement authority;
+  the 2026-08-29 calibration retains required RSS only for explicit Mac Metal,
+  keeps Windows working-set RSS observed, and preserves physical image
+  authority for both local classes. The
   specification contains no unresolved clarification marker; hosted
   observation/operational dispositions, physical preflight, exact lifecycle
   work, region semantic probes, and no-alignment FLIP behavior are measurable

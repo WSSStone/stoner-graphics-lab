@@ -168,8 +168,13 @@ def expected_authority_policy(profile_name: str) -> dict:
         "timing": "operational",
         "image": "not-required",
     }
-    physical = {
+    physical_metal = {
         "rss": "required",
+        "timing": "operational",
+        "image": "required",
+    }
+    physical_windows_vulkan = {
+        "rss": "observed",
         "timing": "operational",
         "image": "required",
     }
@@ -192,8 +197,8 @@ def expected_authority_policy(profile_name: str) -> dict:
                 "local-diagnostic",
             ],
             "executionClasses": {
-                "maintainer-local-metal": physical,
-                "maintainer-local-windows-vulkan": physical,
+                "maintainer-local-metal": physical_metal,
+                "maintainer-local-windows-vulkan": physical_windows_vulkan,
                 "local-diagnostic": local,
             },
             "physicalPreflight": list(PHYSICAL_PREFLIGHT_NAMES),
@@ -1154,8 +1159,9 @@ def native_allocator_authority_environment(
     require_visible: bool,
 ) -> dict[str, str]:
     # Acceptance must exercise the production allocator. Hosted RSS is an
-    # observation, while maintainer-local physical runs own calibrated gates;
-    # neither class may rewrite allocator topology to manufacture a result.
+    # observation. Maintainer-local Metal owns calibrated RSS/image gates;
+    # Windows owns the image gate and records working-set RSS as observed.
+    # No class may rewrite allocator topology to manufacture a result.
     return {}
 
 

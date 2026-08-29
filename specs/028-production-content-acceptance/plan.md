@@ -30,8 +30,11 @@ Validation authority is environment-sensitive without weakening correctness.
 GitHub-hosted lanes remain hard gates for deterministic content, complete
 lifecycle work, native execution, capture/readback counts, ownership teardown,
 and stale-handle rejection, while hosted RSS/allocator/task-VM and elapsed-time
-measurements are explicit observations or operational timeouts. Calibrated RSS
-and full image authority belong only to preflighted, exclusive physical runners.
+measurements are explicit observations or operational timeouts. Calibrated
+16 MiB RSS authority belongs only to the preflighted exclusive Mac Metal lane;
+Windows working-set RSS is a bounded physical observation because repeated
+same-path runs are not reproducible enough for a fixed threshold. Exact image
+authority belongs to both preflighted physical lanes.
 Image comparison remains spatially registered with no automatic alignment;
 semantic classification moves from exact pixels to bounded region statistics.
 
@@ -44,7 +47,7 @@ semantic classification moves from exact pixels to bounded region statistics.
 **Target Platform**: Windows x64 Vulkan, macOS arm64/Intel Metal, and Linux x64 hosted build/function/native coverage; maintainer-local arm64 macOS Metal and x86_64 Windows Vulkan physical authority; macOS Vulkan physical qualification deferred
 **Project Type**: Cross-platform graphics engine, offline asset cooker CLI, desktop demo, and validation tooling
 **Performance Goals**: Regular profile within 10 minutes per hosted job; hosted medium bounded operationally to 5,400 seconds per package and 4,800 seconds per native stage inside a 120-minute job; serialized visible hardware profile within 60 minutes per declared lane; deterministic reports byte-identical across 20 repetitions; hosted elapsed time is not a performance qualification
-**Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; 1,000 medium/hardware cycles with cycles 1-20 as warm-up; warm-up counts toward the total; exact lifecycle/capture/readback/owner/stale contracts are hard on every lane; post-warm-up RSS growth is at most 16 MiB only on either preflighted maintainer-local physical authority and is observation-only on GitHub-hosted runners; formal image calibration/reference/comparison uses an exact 512-by-512 extent while the 1024-by-1024 preview remains non-authoritative; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation; no image alignment/resampling
+**Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; 1,000 medium/hardware cycles with cycles 1-20 as warm-up; warm-up counts toward the total; exact lifecycle/capture/readback/owner/stale contracts are hard on every lane; post-warm-up RSS growth is at most 16 MiB only on preflighted maintainer-local Metal and is observation-only on GitHub-hosted and maintainer-local Windows Vulkan lanes; formal image calibration/reference/comparison uses an exact 512-by-512 extent while the 1024-by-1024 preview remains non-authoritative; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation; no image alignment/resampling
 **Scale/Scope**: Two artist-authored source works; regular Lantern GLB is about 9.6 MB with 3 primitives and four 2K textures; medium Sponza external package is about 50 MB with 103 primitives, 25 materials, and 69 mostly 1K textures; at least 30 deterministic negative cases
 
 ## Constitution Check
@@ -307,10 +310,18 @@ No new runtime module is introduced.
    completed correctness result. Hosted execution uses normal production
    allocator behavior rather than validation-only zone switches intended to
    force resident pages under a threshold. The explicit maintainer-local Metal
-   and Windows Vulkan paths apply the 16 MiB RSS hard limit only after preflight
-   proves the exact native OS/architecture/backend and target/device class, a clean committed revision,
+   path applies the 16 MiB RSS hard limit only after preflight proves the exact
+   native OS/architecture/backend and target/device class, a clean committed revision,
    process-level exclusive session ownership, default allocator, and declared
-   sample/presentation protocol. Ordinary local diagnostic execution remains
+   sample/presentation protocol. The equivalently preflighted Windows Vulkan
+   path records the same endpoints, milestones, peak, task-VM/allocator
+   diagnostics, and complete lifecycle, but its working-set RSS is `observed`
+   and cannot independently decide the result. It remains a hard physical image,
+   ownership, stale-handle, and exact-work authority. Do not call
+   `EmptyWorkingSet`, select a special allocator, move samples, or raise a
+   threshold to manufacture Windows memory success. A future hardware-lab
+   reference-set/WPR qualification may define a stable Windows memory metric.
+   Ordinary local diagnostic execution remains
    non-authoritative; each dedicated flag cannot select another backend/target.
    Do not add allocator residency by allocating and destroying an additional
    full-resolution Metal staging buffer and CPU vector for every lifecycle
@@ -423,7 +434,8 @@ No new runtime module is introduced.
    is the complete functional/lifecycle authority but not RSS, performance, or
    accepted-image authority. The local Metal run owns calibrated RSS and image
    decisions after fail-closed preflight; the local Windows device owns the
-   equivalent Vulkan decisions for its exact class. The old self-hosted workflow
+   equivalent Vulkan image decision for its exact class while retaining
+   working-set RSS as observed diagnostics. The old self-hosted workflow
    remains retired: manual synchronization and execution do not require runner
    registration. macOS Vulkan remains deferred, with hosted Vulkan retained as
    a non-equivalent build/function/native fallback. T175 records that remaining

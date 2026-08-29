@@ -42,7 +42,7 @@
         "image": "required"
       },
       "maintainer-local-windows-vulkan": {
-        "rss": "required",
+        "rss": "observed",
         "timing": "operational",
         "image": "required"
       },

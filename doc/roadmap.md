@@ -1000,7 +1000,7 @@ the Asset runtime layer continues to depend only on Core.
 - Two or more artist-authored glTF/GLB packages with stable source URL, revision, attribution where known, and SHA-256 records; license/compliance decisions remain out of band
 - Representative multi-primitive, multi-material PBR content with external and embedded dependencies plus 1K/2K color, normal, and data textures
 - Deterministic source import, KTX2 cook, DDC/publication, strict-cooked `FAssetManager` loading, and typed payload equivalence evidence
-- Asset-backed demo composition with transactional Renderer/RHI realization, hosted Vulkan/Metal functional validation, and same-revision maintainer-local M4 Metal plus Windows Vulkan physical RSS/image authority
+- Asset-backed demo composition with transactional Renderer/RHI realization, hosted Vulkan/Metal functional validation, same-revision maintainer-local M4 Metal RSS/image authority, and Windows Vulkan physical image authority plus bounded working-set observation
 - Tiered validation: bounded production asset in regular CI, medium corpus in scheduled/manual gates, and normalized screenshots/readbacks, timing, memory, and diagnostics
 
 #### What's Excluded
@@ -1010,14 +1010,16 @@ the Asset runtime layer continues to depend only on Core.
 
 The maintainer-owned x86_64 Windows Vulkan device is manually synchronized and
 is required alongside the M4 Metal device; no self-hosted runner is required.
-Each target has an explicit fail-closed local preflight and independent RSS/image
-authority, and both must pass on one final revision. Hosted Windows/Linux Vulkan
+Each target has an explicit fail-closed local preflight and independent image
+authority, and both must pass on one final revision. M4 Metal retains the
+calibrated 16 MiB RSS gate; Windows working-set RSS remains a bounded physical
+observation until a future reference-set/WPR hardware-lab qualification. Hosted Windows/Linux Vulkan
 remains non-equivalent functional/native evidence. macOS Vulkan remains the
 future hardware-lab follow-up and must not be inferred from either local target.
 
 #### Speckit Prompt
 ```text
-Implement Production Content Integration and Acceptance on Features 018, 019, 022, 024, 026, and 027: add a provenance- and hash-tracked artist-authored glTF/GLB corpus with representative PBR materials and 1K/2K color, normal, and data textures; exercise deterministic source import, KTX2 cooking, DDC and generation publication, strict-cooked FAssetManager loading, typed payload equivalence, Renderer/RHI realization, and backend-neutral demo composition; retain hosted Windows/Linux Vulkan and macOS Metal functional evidence, use manually synchronized maintainer-local native arm64 Metal and x86_64 Windows Vulkan devices for same-revision physical RSS/image authority, and defer macOS Vulkan physical qualification to an explicit hardware-lab follow-up; record timing, memory, diagnostics, screenshots/readbacks, and tiered regular-CI versus scheduled/manual gates. Keep cross-layer composition in Application/Demo and Validation adapters so Asset remains Core-only. Do not add new formats, skeletal animation, editor workflows, hot reload, meshlets, streaming, or virtual geometry.
+Implement Production Content Integration and Acceptance on Features 018, 019, 022, 024, 026, and 027: add a provenance- and hash-tracked artist-authored glTF/GLB corpus with representative PBR materials and 1K/2K color, normal, and data textures; exercise deterministic source import, KTX2 cooking, DDC and generation publication, strict-cooked FAssetManager loading, typed payload equivalence, Renderer/RHI realization, and backend-neutral demo composition; retain hosted Windows/Linux Vulkan and macOS Metal functional evidence, use manually synchronized maintainer-local native arm64 Metal and x86_64 Windows Vulkan devices for same-revision physical image authority, retain the calibrated Metal RSS gate and bounded Windows working-set observation, and defer macOS Vulkan plus stable Windows reference-set/WPR memory qualification to explicit hardware-lab follow-ups; record timing, memory, diagnostics, screenshots/readbacks, and tiered regular-CI versus scheduled/manual gates. Keep cross-layer composition in Application/Demo and Validation adapters so Asset remains Core-only. Do not add new formats, skeletal animation, editor workflows, hot reload, meshlets, streaming, or virtual geometry.
 ```
 
 ### Phase 029 — Asset: Meshlet Derived Data

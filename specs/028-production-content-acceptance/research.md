@@ -1499,3 +1499,51 @@ is intentionally removed.
   remain large opaque duplicates and are not runtime/build inputs.
 - Use lossy image compression: rejected because FLIP and exact pixel-digest
   provenance require preservation of the reviewed pixel values.
+
+## Decision 51: Split Metal RSS authority from Windows working-set observation
+
+**Decision**: Keep the calibrated post-warm-up-to-terminal 16 MiB RSS hard gate
+for the maintainer-local arm64 Metal lane. On the maintainer-local x86_64
+Windows Vulkan lane, preserve the identical samples, milestones, peak, task-VM/
+allocator diagnostics, and fixed 1,000/20 workload, but classify process
+working-set RSS as `observed`. Windows RSS alone cannot pass or fail the run;
+physical preflight, 2,000 captures, seven readbacks, zero terminal owners,
+stale-handle rejection, accepted 512-by-512 semantic/FLIP images, and the
+3,600-second operational bound remain required.
+
+This is a metric-authority correction, not a memory workaround. The runner
+must not call `EmptyWorkingSet`, change allocator policy, move sample points,
+restart the authority process, or raise a threshold to manufacture a favorable
+Windows result. A future controlled hardware-lab phase may add WPR/reference-
+set qualification before promoting a stable Windows memory metric.
+
+**Rationale**: Four equivalent production-path Windows measurements reported
+11,161,600, 30,179,328, 35,495,936, and 169,361,408 bytes of working-set growth.
+The final run still completed 1,000 cycles, 2,000 captures, seven readbacks,
+zero terminal owners, stale rejection, exact accepted Lantern pixels, and all
+semantic/FLIP checks. Its milestone working set rose and fell rather than
+growing monotonically. Microsoft documents working set as the pages currently
+resident for a process and notes that it is subject to operating-system
+trimming; its Windows Performance Analyzer reference-set guidance further
+states that working set is highly dependent on machine state, RAM, memory
+pressure, and trimming and is only a momentary measurement. A fixed 16 MiB
+working-set delta therefore does not provide a reproducible Windows leak
+decision for this environment. Metal retains its already calibrated local
+gate rather than inheriting that Windows limitation.
+
+Primary references:
+
+- <https://learn.microsoft.com/en-us/windows/win32/memory/working-set>
+- <https://learn.microsoft.com/en-us/windows-hardware/test/wpt/wpa-reference-set>
+
+**Alternatives considered**:
+
+- Raise the Windows threshold to the largest observed value: rejected because
+  it encodes one transient high-water event without creating reproducibility.
+- Force working-set trimming or a special allocator: rejected because it
+  changes the measured system behavior and can hide residency rather than
+  proving correct ownership.
+- Remove Windows memory evidence: rejected because complete bounded samples
+  and diagnostics remain useful for regression triage and future calibration.
+- Demote Metal RSS too: rejected because the Metal lane has a controlled,
+  calibrated local environment and no evidence requiring that authority change.

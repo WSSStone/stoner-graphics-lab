@@ -310,6 +310,7 @@ workload, lifecycle, capture/readback, ownership, stale, and physical limits rem
 - [X] T176 [US4] Extend Feature 028 authority to the manually synchronized maintainer x86_64 Windows Vulkan device without requiring a self-hosted runner: add exact `--local-windows-vulkan-authority` preflight, cross-platform exclusive locking, target/device-class enforcement, report/profile/schema support, negative tests, manual PowerShell entry point, and dual-target same-revision policy while preserving the retired automatic hardware workflow.
 - [X] T177 [US3] Push one reviewed Windows-enablement checkpoint, sync that exact revision to the maintainer Windows device, run strict Release plus the hardware profile, inspect the registry-derived device class and candidate images, and obtain explicit maintainer acceptance for every new Windows workload/device-class baseline before committing any record as `Accepted`.
 - [X] T178 [US5] Enforce bounded source-controlled evidence: migrate required Feature 024/025 fixture manifests from `Validation/` to their `Tests/Fixtures/` corpora, remove build dependencies on historical run reports, store accepted references as pixel-equivalent lossless PNG instead of PPM, retain raw captures/DDC/generations only under ignored `Build/Validation/`, add format-neutral reference loading and Windows long-path artifact enumeration coverage, and validate the compressed registries, strict build, image suites, and runner tests.
+- [X] T179 [US4] After equivalent Windows Vulkan authority runs produced non-monotonic working-set growth from 11,161,600 to 169,361,408 bytes while exact lifecycle, ownership, stale-handle, semantic, and pixel evidence passed, split physical memory authority by platform: retain the preflighted 16 MiB Metal RSS hard gate; make Windows working-set RSS a complete bounded observation while preserving required Windows preflight, 1,000/20 work, 2,000 captures, seven readbacks, owner/stale and accepted-image gates; reject RSS promotion/demotion, trimming, allocator coercion, moved samples, or threshold inflation; and update profile/report schemas, runner/report tests, documentation, and bounded cross-process evidence.
 
 **Checkpoint**: Each acceptance tier is reproducible, bounded, honest about
 capability, and scheduled at the clarified cadence.
@@ -364,8 +365,8 @@ scale, and required physical hardware evidence on one final revision.
 - [X] T110 [P] Run Linux ASan/UBSan, applicable TSan, malformed corpus, cancellation, failure-injection, and leak regressions and record commands/results in Validation/028/reports/sanitizers-and-failures.md
 - [X] T111 Run all affected Features 018-027 Demo, Deferred, Forward, Asset, AssetCooker, Runtime Manager, Vulkan, and Metal regression suites and record the bounded result in Validation/028/reports/regressions.md
 - [ ] T112 After T176-T177 and any accepted Windows baseline commit, run the final-revision Windows/macOS/Linux regular GitHub Actions matrix and record run IDs, revisions, artifact names, and SHA-256 values in Validation/028/CI/README.md
-- [ ] T113 After T176-T177 and any accepted Windows baseline commit, run the final-revision hosted medium closeout profile with every accepted package through clean/warm 100-percent reuse, source-unavailable strict loading, complete semantic equivalence, exact 1,000/20 cycles, 2,000 captures, seven readbacks, zero owners, and stale rejection; require the aggregate to preserve RSS/task-VM/allocator/timing as observations rather than hosted result authority, and record evidence digests in Validation/028/CI/README.md
-- [ ] T114 After T176-T177, enforce the schema-owned 3,600-second serialized hardware profile separately on final-revision maintainer-local M4 Pro Metal and x86_64 Windows Vulkan. Require exact native host/target/device, exclusive lock, clean committed revision, default allocator, 1,000/20 sampling, 16 MiB RSS, and exact 512-by-512 accepted region-semantic/FLIP image gates with GPU readbacks and window-only captures on both devices; require one identical final revision and record both local report/artifact/baseline/preflight digests in Validation/028/CI/README.md and Validation/028/Baselines/README.md. macOS Vulkan remains deferred and does not substitute for either required target.
+- [ ] T113 After T176-T179 and any accepted Windows baseline commit, run the final-revision hosted medium closeout profile with every accepted package through clean/warm 100-percent reuse, source-unavailable strict loading, complete semantic equivalence, exact 1,000/20 cycles, 2,000 captures, seven readbacks, zero owners, and stale rejection; require the aggregate to preserve RSS/task-VM/allocator/timing as observations rather than hosted result authority, and record evidence digests in Validation/028/CI/README.md
+- [ ] T114 After T176-T179, enforce the schema-owned 3,600-second serialized hardware profile separately on final-revision maintainer-local M4 Pro Metal and x86_64 Windows Vulkan. Require exact native host/target/device, exclusive lock, clean committed revision, default allocator, 1,000/20 sampling, and exact 512-by-512 accepted region-semantic/FLIP image gates with GPU readbacks and window-only captures on both devices; additionally require Metal post-warm-up RSS growth at most 16 MiB and require complete bounded Windows working-set RSS observations without using them as pass/fail authority. Require one identical final revision and record both local report/artifact/baseline/preflight digests in Validation/028/CI/README.md and Validation/028/Baselines/README.md. macOS Vulkan remains deferred and does not substitute for either required target.
 - [X] T115 Re-run every command in specs/028-production-content-acceptance/quickstart.md from a clean workspace and record the results in Validation/028/reports/quickstart.md
 - [X] T116 [P] Create the delivered Feature 028 system-design document following doc/SYSTEM_DESIGN.MD in doc/028-production-content-acceptance.html
 - [ ] T117 Update Feature 028 status, final evidence references, next Phase 029 pointer, and project memory without rewriting historical gaps in doc/roadmap.md, specs/028-production-content-acceptance/spec.md, AGENTS.md, and Validation/028/README.md
@@ -452,7 +453,7 @@ Setup --> Real KTX2 Foundation --|
 | FR-014 | T008-T019, T036, T048 | Real KTX2 producer/artifact and semantic comparison |
 | FR-015-FR-022 | T035-T054 | Self-contained generation, strict no-source load, equivalence, reuse, mutation/failure |
 | FR-023-FR-031, FR-046-FR-050, FR-055-FR-056 | T055-T084, T119-T125, T127-T128, T144, T166 | Asset-root composition, frozen camera, canonical 512 extent, region semantics, exact registered FLIP, lifecycle |
-| FR-032-FR-037, FR-051-FR-054 | T085-T097, T112-T114, T167-T170, T173-T177 | Regular/medium/hardware profiles, environment authority, hosted operational bounds, dual maintainer-local physical RSS/image authority |
+| FR-032-FR-037, FR-051-FR-054 | T085-T097, T112-T114, T167-T170, T173-T177, T179 | Regular/medium/hardware profiles, environment authority, hosted operational bounds, required Metal RSS, observed Windows working set, and dual physical image authority |
 | FR-038-FR-041 | T098-T107, T171-T172, T178 | Deterministic/observational reports, measurement disposition, stable failures, bounded privacy-safe artifacts, compressed references, generated-output retention |
 | FR-042 | T020-T022, T031, T035-T038, T052-T053, T055-T058, T069, T080-T083, T103 | At least 30 cross-stage negative cases |
 | FR-043-FR-045 | T108, T111-T118, T175 | Architecture, exclusion/regression, documentation, roadmap follow-up, and closeout |
@@ -464,13 +465,13 @@ Setup --> Real KTX2 Foundation --|
 | SC-005-SC-006 | T036-T049, T054 |
 | SC-007 | T031, T052, T056, T058, T103, T107 |
 | SC-008 | T070-T084, T114 |
-| SC-009-SC-010 | T084-T090, T113-T114, T144, T167-T170, T173-T177; T114 owns both consolidated 3,600-second local physical lanes |
+| SC-009-SC-010 | T084-T090, T113-T114, T144, T167-T170, T173-T177, T179; T114 owns both consolidated 3,600-second local physical lanes with platform-specific RSS disposition |
 | SC-011 | T108-T114 |
 | SC-012 | T098-T107, T118, T178 |
 | SC-013 | T108 |
 | SC-014 | T115, T118 |
 | SC-015 | T120-T125 |
-| SC-016 | T167-T172, T113-T114 |
+| SC-016 | T167-T172, T113-T114, T179 |
 | SC-017 | T166, T114 |
 
 ## Parallel Examples

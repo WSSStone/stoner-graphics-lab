@@ -225,6 +225,20 @@ def _validate_observed_measurement(value: object, kind: str) -> None:
         raise ValueError(f"{kind} observed measurement is invalid")
 
 
+def _validate_observed_not_run_measurement(value: object, kind: str) -> None:
+    record = _require_exact_fields(
+        value, {"disposition", "state", "reason"}, f"{kind} measurement"
+    )
+    if (
+        record.get("disposition") != "observed"
+        or record.get("state") != "not-run"
+    ):
+        raise ValueError(f"{kind} observed not-run measurement is invalid")
+    _require_bounded_string(
+        record.get("reason"), f"{kind} observed not-run reason", 256
+    )
+
+
 def _validate_not_required_measurement(value: object, kind: str) -> dict:
     record = _require_exact_fields(
         value, {"disposition", "state", "reason"}, f"{kind} measurement"
@@ -343,7 +357,21 @@ def _validate_authority(
                 raise ValueError("not-required image must use its stable reason")
         return authority
 
-    rss = _validate_required_measurement(measurements["rss"], "rss", preflight)
+    if execution_class == "maintainer-local-windows-vulkan":
+        try:
+            if preflight.get("state") == "failed":
+                _validate_observed_not_run_measurement(
+                    measurements["rss"], "rss"
+                )
+            else:
+                _validate_observed_measurement(measurements["rss"], "rss")
+        except ValueError as error:
+            raise ValueError("Windows RSS authority promotion is forbidden") from error
+        rss = None
+    else:
+        rss = _validate_required_measurement(
+            measurements["rss"], "rss", preflight
+        )
     image = _validate_required_measurement(
         measurements["image"], "image", preflight
     )
@@ -353,9 +381,10 @@ def _validate_authority(
         return authority
     if "rssGrowthBytes" not in observations:
         raise ValueError("required RSS value is missing")
-    expected_rss = observations["rssGrowthBytes"] <= rss["threshold"]
-    if rss["passed"] != expected_rss:
-        raise ValueError("required rss result differs from threshold")
+    if rss is not None:
+        expected_rss = observations["rssGrowthBytes"] <= rss["threshold"]
+        if rss["passed"] != expected_rss:
+            raise ValueError("required rss result differs from threshold")
     if backend not in ("vulkan", "metal"):
         raise ValueError("required image authority needs a native backend")
     flip = observations.get("flip")
@@ -363,7 +392,7 @@ def _validate_authority(
         raise ValueError("required image must be measured")
     if image["passed"] != flip.get("passed"):
         raise ValueError("required image result differs from FLIP")
-    if result == "passed" and rss["passed"] is not True:
+    if result == "passed" and rss is not None and rss["passed"] is not True:
         raise ValueError("required rss must pass for a Passed report")
     if result == "passed" and image["passed"] is not True:
         raise ValueError("required image must pass for a Passed report")

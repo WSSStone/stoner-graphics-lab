@@ -78,7 +78,7 @@ and non-color material-data textures.
 | `TargetProfiles` | ordered list | Exact AssetCooker profile IDs/digests |
 | `LifecycleCycles` | integer | 20 regular; 1,000 medium/hardware |
 | `WarmupCycles` | integer | Exactly 2 for regular and 20 for medium/hardware; included in lifecycle count |
-| `MaxRssGrowthBytes` | integer | 16 MiB when RSS disposition is `required`; recorded but not applied to `observed` hosted RSS |
+| `MaxRssGrowthBytes` | integer | 16 MiB when RSS disposition is `required` on maintainer-local Metal; retained as a diagnostic comparison value but not applied to `observed` hosted or Windows Vulkan RSS |
 | `EnvironmentPolicy` | authority-policy ID | Repository-owned mapping for hosted, maintainer-local Metal, maintainer-local Windows Vulkan, and local diagnostic execution |
 | `RequiredGates` | ordered enum list | Corpus/import/cook/runtime/realization/render/image/lifecycle as applicable |
 | `TimeBudgetSeconds` | integer | 600 regular; 5,400 hosted medium package operational timeout; 3,600 serialized visible hardware lane |
@@ -90,7 +90,7 @@ and non-color material-data textures.
 |---|---|---|
 | `ExecutionClass` | enum | `github-hosted`, `maintainer-local-metal`, `maintainer-local-windows-vulkan`, or `local-diagnostic`; each dedicated local flag is a narrow target authority assertion, not a generic class token |
 | `Preflight` | enum + evidence | `passed`, `failed`, or `not-required`; each local physical authority requires its native host/backend, exact target/device class, exclusive lock, clean committed revision, default allocator, and sample/presentation evidence |
-| `RssDisposition` | enum | `required` only for either preflighted maintainer-local physical target; otherwise `observed` |
+| `RssDisposition` | enum | `required` only for preflighted maintainer-local Metal; `observed` for hosted, maintainer-local Windows Vulkan, and local diagnostics |
 | `TimingDisposition` | enum | `operational` for Feature 028 timeouts; elapsed time is not a hosted performance qualification |
 | `ImageDisposition` | enum | `required` only for a profile/device class with accepted physical image authority; otherwise `not-required` |
 | `ReplacementLane` | stable token or null | Required when a requested physical authority preflight is unavailable or fails |
