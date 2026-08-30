@@ -511,12 +511,14 @@ bool ValidateProductionAuthoritativeFrameBundle(
             return false;
         }
     }
-    if (std::count_if(
-            Inspection.Readbacks.begin(), Inspection.Readbacks.end(),
-            [](const auto& Evidence)
-            {
-                return IsRequiredFrameReadbackName(Evidence.Name);
-            }) != std::size(RequiredNames))
+    const auto RequiredReadbackCount = std::count_if(
+        Inspection.Readbacks.begin(), Inspection.Readbacks.end(),
+        [](const auto& Evidence)
+        {
+            return IsRequiredFrameReadbackName(Evidence.Name);
+        });
+    if (RequiredReadbackCount !=
+        static_cast<decltype(RequiredReadbackCount)>(std::size(RequiredNames)))
     {
         OutFailure = "authoritative-frame-bundle";
         return false;
