@@ -26,12 +26,13 @@ class ProductionMediumAggregateTests(unittest.TestCase):
         profile = root / "Medium.json"
         profile.write_text(json.dumps({
             "schema": "stoner.production-validation-profile",
-            "schemaVersion": 2,
+            "schemaVersion": 3,
             "profileId": "medium",
             "packageIds": package_ids,
             "lifecycleCycles": 1000,
             "warmupCycles": 20,
             "timeBudgetSeconds": 5400,
+            "profileTimeBudgetSeconds": 5400,
             "nativeTimeBudgetSeconds": 4800,
             "authorityPolicy": {
                 "allowedExecutionClasses": [
@@ -113,6 +114,23 @@ class ProductionMediumAggregateTests(unittest.TestCase):
             self.assertTrue(result["passed"])
             self.assertEqual(["lantern", "sponza"], result["packageIds"])
             self.assertEqual(1001, result["maximumLaneSeconds"])
+
+    def test_checked_in_medium_profile_matches_aggregate_contract(self):
+        repository_root = SCRIPT.parents[2]
+        profile = (
+            repository_root
+            / "Config/Validation/ProductionContent/Medium.json"
+        )
+        target = (
+            repository_root
+            / "Config/AssetCooker/Profiles/Production/"
+              "Mac-Metal-X86_64.json"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(ValueError, "count is incomplete"):
+                self.module.aggregate_medium_shards(
+                    Path(directory), profile, target
+                )
 
     def test_missing_or_duplicate_package_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:

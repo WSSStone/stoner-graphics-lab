@@ -44,11 +44,12 @@ def aggregate_medium_shards(
     }
     if (
         profile.get("schema") != "stoner.production-validation-profile"
-        or profile.get("schemaVersion") != 2
+        or profile.get("schemaVersion") != 3
         or profile.get("profileId") != "medium"
         or profile.get("lifecycleCycles") != 1000
         or profile.get("warmupCycles") != 20
         or profile.get("timeBudgetSeconds") != 5400
+        or profile.get("profileTimeBudgetSeconds") != 5400
         or profile.get("nativeTimeBudgetSeconds") != 4800
         or profile.get("authorityPolicy") != expected_policy
         or not isinstance(expected_packages, list)
