@@ -48,11 +48,14 @@ part of the regular production-content acceptance budget.
 
 | Profile | Corpus | Cycles / warm-up | Package / profile / native budget | Required environment |
 |---|---|---:|---:|---|
-| Regular | Checked-in Lantern | 20 / 2 | 600 / 600 / 600 seconds | Windows, Linux, or macOS target-capable host; headless/software-native evidence where applicable |
+| Regular | Checked-in Lantern | 20 / 2 | 600 / 900 / 600 seconds | Windows, Linux, or macOS target-capable host; headless/software-native evidence where applicable |
 | Medium | Lantern and hash-pinned Sponza | 1,000 / 20 | 5,400 / 5,400 / 4,800 seconds | Isolated hosted Intel Metal package lanes; external package cache may be reused only after hash verification |
 | Hardware | Lantern and hash-pinned Sponza | 1,000 / 20 | 3,600 / 7,800 / 3,600 seconds | Maintainer-local native arm64 macOS Metal and x86_64 Windows Vulkan, each with an application display surface |
 
 The runner does not accept caller overrides for cycle or warm-up boundaries.
+The regular profile reserves 300 seconds outside its unchanged 600-second
+package/native limits for target-toolchain discovery and other profile-level
+orchestration; that headroom does not reduce or weaken any package gate.
 Hardware packages run serially and collect normal package semantic, baseline,
 FLIP, and lifecycle failures before producing one aggregate failure. Preflight,
 source/revision mutation, authority-lock loss, device loss, and malformed or

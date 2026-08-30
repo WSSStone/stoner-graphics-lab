@@ -192,7 +192,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 "warmupCycles": 2,
                 "maxRssGrowthBytes": 16 * 1024 * 1024,
                 "timeBudgetSeconds": 600,
-                "profileTimeBudgetSeconds": 600,
+                "profileTimeBudgetSeconds": 900,
                 "nativeTimeBudgetSeconds": 600,
                 "cadence": ["relevant-pull-request", "relevant-push"],
                 "requiredGates": [
@@ -291,7 +291,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
 
     def test_shipping_profiles_have_exact_tier_contracts(self):
         expected = {
-            "regular": (20, 2, 600, 600, 600),
+            "regular": (20, 2, 600, 900, 600),
             "medium": (1000, 20, 5400, 5400, 4800),
             "hardware": (1000, 20, 3600, 7800, 3600),
         }

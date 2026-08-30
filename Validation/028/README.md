@@ -120,8 +120,10 @@ working-set RSS is recorded with observed disposition and cannot independently
 decide acceptance.
 Local diagnostics never replace a required hosted or physical lane.
 
-Regular lanes have 600-second package/profile/native budgets. Hosted medium
-lanes have 5,400-second package and profile budgets with an independently
+Regular lanes have 600/900/600-second package/profile/native budgets; the
+profile-only headroom covers target-toolchain discovery and orchestration while
+the package and native work remain independently capped at 600 seconds. Hosted
+medium lanes have 5,400-second package and profile budgets with an independently
 capped 4,800-second native stage. Serialized visible hardware lanes give each
 package and native stage 3,600 seconds and the complete two-package profile
 7,800 seconds. Normal package validation failures are collected; authority,

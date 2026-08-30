@@ -115,7 +115,7 @@ PROFILE_CONTRACTS = {
         "cycles": 20,
         "warmup": 2,
         "budget": 600,
-        "profile_budget": 600,
+        "profile_budget": 900,
         "native_budget": 600,
         "cadence": ["relevant-pull-request", "relevant-push"],
         "gates": [

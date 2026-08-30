@@ -117,7 +117,7 @@
           "lifecycleCycles": {"const": 20},
           "warmupCycles": {"const": 2},
           "timeBudgetSeconds": {"const": 600},
-          "profileTimeBudgetSeconds": {"const": 600},
+          "profileTimeBudgetSeconds": {"const": 900},
           "nativeTimeBudgetSeconds": {"const": 600}
           ,"authorityPolicy": {"$ref": "#/$defs/hostedLocalAuthorityPolicy"}
         }
