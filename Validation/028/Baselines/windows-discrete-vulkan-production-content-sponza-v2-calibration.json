@@ -1,0 +1,71 @@
+{
+  "backend": "vulkan",
+  "captureCount": 20,
+  "crossProcessCalibration": {
+    "capturesPerProcess": 20,
+    "decodedPixelSha256": "4e294eb54577dfb7d4b3d7373e782a6bc76bc1d1f9d30ccc1d892f8818a61db2",
+    "modeCount": 1,
+    "noise": {
+      "badPixelFraction": 0.0,
+      "maximum": 0.0,
+      "mean": 0.0,
+      "p95": 0.0
+    },
+    "processCount": 3
+  },
+  "deviceClass": "windows.discrete-vulkan.rgba8",
+  "height": 512,
+  "maintainerAcceptance": {
+    "acceptedAt": "2026-08-30",
+    "explicit": true,
+    "referenceId": "primary"
+  },
+  "mutationsRejected": [
+    "blank",
+    "stale",
+    "origin",
+    "translation-one-pixel",
+    "missing-geometry",
+    "material-swap",
+    "color-space",
+    "opposite-normal"
+  ],
+  "physicalAuthority": {
+    "candidateRevision": "83979434abe47afd209d6f657370c0556a8eddef",
+    "candidateSourcePngSha256": "cf94b5aba99cd3746090283f4115f99c9bf28c13c9e33b95c06c2a4cfcb586a2",
+    "finalEvidenceRevision": "0cf018257902a5077cff27098d7117b842eddbe6",
+    "finalEvidenceSourcePngSha256": "63243567ebe8c711d68c2ac463072964b6f2d0169e96b9f635c1d9c6efabea1b",
+    "lifecycleCycles": 1000,
+    "ownersAtTerminal": 0,
+    "readbackCount": 7,
+    "sameFrameBundle": true,
+    "semanticProbeCount": 20,
+    "staleHandleRejected": true,
+    "warmupCycles": 20,
+    "windowCaptureCount": 2000
+  },
+  "policy": {
+    "badPixelFractionMax": 0.001,
+    "badPixelThreshold": 0.05,
+    "maximumMax": 0.01,
+    "meanMax": 0.0005,
+    "p95Max": 0.001
+  },
+  "referenceDecodedPixelSha256": "4e294eb54577dfb7d4b3d7373e782a6bc76bc1d1f9d30ccc1d892f8818a61db2",
+  "referenceSha256": "63243567ebe8c711d68c2ac463072964b6f2d0169e96b9f635c1d9c6efabea1b",
+  "regionSemantics": {
+    "attachmentMinimumValidSampleFraction": 0.75,
+    "backgroundMinimumValidSampleFraction": 0.9,
+    "colorMinimumValidSampleFraction": 0.5,
+    "normalMinimumDirectionalCoverage": 0.6,
+    "pixelRadius": 4,
+    "statistic": "median"
+  },
+  "schema": "stoner.production-image-calibration-evidence",
+  "schemaVersion": 1,
+  "semanticProbeCount": 20,
+  "shaderProducerVersion": "027-v2",
+  "targetProfileSha256": "c157918a460ea086d8089753ad6f04c46484bed2d653d07193310a2397064058",
+  "width": 512,
+  "workloadRevision": "production-content-sponza-v2"
+}

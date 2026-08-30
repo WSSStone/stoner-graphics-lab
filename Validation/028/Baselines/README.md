@@ -106,9 +106,10 @@ The same full authority run observed 169,361,408 bytes of non-monotonic Windows
 working-set growth despite zero terminal owners. Decision 51/T179 classifies
 that metric as observed while preserving every physical image and lifecycle
 gate. The pre-policy run failed fast before Windows Sponza, so T114 remains open
-until Sponza and both physical targets pass on the final shared revision.
+until both physical targets consume every Accepted baseline and pass on the
+final shared revision.
 
-## Pending Windows Vulkan Sponza v2 Candidate
+## Accepted Windows Vulkan Sponza v2 baseline
 
 Revision `83979434abe47afd209d6f657370c0556a8eddef` produced a stable
 512-by-512 Windows Vulkan Sponza Candidate after the exact 1,000/20 lifecycle,
@@ -117,10 +118,28 @@ rejection. The PNG SHA-256 is
 `cf94b5aba99cd3746090283f4115f99c9bf28c13c9e33b95c06c2a4cfcb586a2`;
 its decoded-pixel SHA-256 is
 `4e294eb54577dfb7d4b3d7373e782a6bc76bc1d1f9d30ccc1d892f8818a61db2`.
-The image is not accepted. The run reported zero semantic probes because the
-old native acceptance order stopped at `baseline-missing`; T180 corrects that
-ordering. A corrected successor must retain semantic and twenty-capture
-mutation evidence before explicit maintainer acceptance.
+The run reported zero semantic probes because the old native acceptance order
+stopped at `baseline-missing`; T180 corrected that ordering.
+
+Revision `0cf018257902a5077cff27098d7117b842eddbe6` then bound all Deferred
+attachments, FinalOutput, and the window capture to one real submission frame
+token. The corrected Windows authority reported 20 semantic probes, exact
+1,000/20 lifecycle work, 2,000 captures, seven readbacks, zero terminal owners,
+stale-handle rejection, and the same decoded candidate pixels. Its canonical
+filter-zero lossless PNG has SHA-256
+`63243567ebe8c711d68c2ac463072964b6f2d0169e96b9f635c1d9c6efabea1b`.
+Cross-process calibration retained one mode across three independent processes
+and rejected blank, stale, origin, one-pixel translation, missing-geometry,
+material-swap, color-space, and opposite-normal mutations.
+
+The maintainer explicitly accepted the reviewed Windows Sponza v2 image on
+2026-08-30. It is registered as
+`production-content-sponza-v2.windows.discrete-vulkan.rgba8.v1` with one exact
+reference; no translation, crop, scale, resampling, or alignment was applied.
+The calibration evidence SHA-256 is
+`b11ea1cc3abfe888985c8c0d2f89f754f99204bd465d63051f600a0379bf1d4c`.
+Final same-revision Windows authority must now consume this Accepted record and
+pass semantic/FLIP and mutation gates rather than generating another Candidate.
 
 ## Final local consumption evidence
 

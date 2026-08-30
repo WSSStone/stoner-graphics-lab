@@ -1,0 +1,38 @@
+{
+  "schema": "stoner.production-image-baseline",
+  "schemaVersion": 2,
+  "baselineId": "production-content-sponza-v2.windows.discrete-vulkan.rgba8.v1",
+  "state": "accepted",
+  "workloadRevision": "production-content-sponza-v2",
+  "backend": "vulkan",
+  "deviceClass": "windows.discrete-vulkan.rgba8",
+  "capabilitySignature": {
+    "registryVersion": 1,
+    "backendImplementation": "native-vulkan",
+    "cpuArchitecture": "x86_64",
+    "adapterFamily": "discrete-vulkan",
+    "shaderProfile": "vulkan-1.3",
+    "colorFormat": "rgba8-unorm",
+    "depthFormat": "d32-float",
+    "sampleCount": 1,
+    "textureFormatFamily": "bc"
+  },
+  "width": 512,
+  "height": 512,
+  "colorTransfer": "srgb",
+  "references": [
+    {
+      "referenceId": "primary",
+      "referencePath": "windows.discrete-vulkan.rgba8/production-content-sponza-v2.png",
+      "referenceSha256": "63243567ebe8c711d68c2ac463072964b6f2d0169e96b9f635c1d9c6efabea1b",
+      "flipPolicy": {
+        "meanMax": 0.0005,
+        "p95Max": 0.001,
+        "maximumMax": 0.01,
+        "badPixelThreshold": 0.05,
+        "badPixelFractionMax": 0.001
+      },
+      "calibrationEvidenceSha256": "b11ea1cc3abfe888985c8c0d2f89f754f99204bd465d63051f600a0379bf1d4c"
+    }
+  ]
+}

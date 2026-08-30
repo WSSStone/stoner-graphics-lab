@@ -590,6 +590,15 @@ void TestBaselineRegistry(FProductionImageAcceptanceTestResult& Result)
         Baseline.References.front().ReferencePath == FString(
             "windows.discrete-vulkan.rgba8/production-content-lantern-v2.png"),
         "repository registry consumes the explicitly accepted Windows PNG baseline");
+    Record(Result,
+        RepositoryRegistry.SelectAccepted(WindowsSignature,
+            "production-content-sponza-v2", "vulkan", Baseline, Failure) &&
+        Baseline.BaselineId == FString(
+            "production-content-sponza-v2.windows.discrete-vulkan.rgba8.v1") &&
+        Baseline.References.size() == 1 &&
+        Baseline.References.front().ReferencePath == FString(
+            "windows.discrete-vulkan.rgba8/production-content-sponza-v2.png"),
+        "repository registry consumes the explicitly accepted Windows Sponza PNG baseline");
     std::filesystem::remove_all(Root, Error);
 }
 

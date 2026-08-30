@@ -53,7 +53,7 @@ Equivalent same-path runs observed non-monotonic working-set growth from
 11,161,600 to 169,361,408 bytes while ownership and images remained exact.
 Decision 51/T179 therefore makes Windows working-set RSS observed without
 altering functional or image authority. This pre-policy run failed fast before
-Sponza, so Windows Sponza image acceptance remains pending.
+Sponza; later evidence and acceptance are recorded below.
 
 ## Prior Hosted Result
 
@@ -65,7 +65,17 @@ medium native stage timed out after 3,499 seconds, so the run is diagnostic
 failure evidence rather than final closeout authority. Hosted telemetry from
 that run remains observation-only.
 
-## Windows Sponza Candidate at 8397943
+Hosted prerequisite run
+[`33308514205`](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/33308514205)
+at revision `2f33cb9b6efbf9cef9b001d1f3d097310a242e86` passed Regular Windows
+Vulkan, Regular Linux Vulkan, arm64 and Intel macOS Metal, ASan/UBSan, TSan,
+and all four immutable-artifact revalidation consumers. It validated the
+900/1,200/600-second regular package/profile/native operational envelopes before
+baseline admission. Because the Accepted Windows Sponza record is committed
+after that revision, it is prerequisite evidence rather than the final shared-
+revision closeout run.
+
+## Windows Sponza acceptance
 
 The maintainer-local Windows Vulkan hardware profile at revision
 `83979434abe47afd209d6f657370c0556a8eddef` passed preflight and completed both
@@ -74,19 +84,30 @@ its accepted baseline with zero FLIP error. Sponza completed 2,000 captures,
 seven readbacks, zero terminal owners, stale-handle rejection, and observed
 176,783,360 bytes of working-set growth, then failed closed only because the
 exact Windows Sponza baseline was missing. Its 20 candidate frames were
-pixel-identical and the reviewed 512-by-512 lossless PNG is retained under
-`Validation/028/hardware-windows-vulkan-8397943-evidence/`.
+pixel-identical. After acceptance, their redundant lossless PNG was removed;
+the exact decoded mode is retained once in the canonical baseline registry.
 
 That run also exposed an ordering defect: accepted-baseline selection happened
 before attachment/workload semantics, so expected Candidate evidence reported
-zero semantic probes. T180 moves semantic probes before baseline lookup. The
-8397943 image remains unaccepted until the corrected Windows rerun reports the
-required semantic count and the calibration mutation suite passes; no baseline
-record is created automatically.
+zero semantic probes. T180 moved semantic probes before baseline lookup.
+Revision `0cf018257902a5077cff27098d7117b842eddbe6` then reported 20 semantic
+probes from a same-submission authoritative frame bundle and reproduced the
+same decoded pixels while completing the full Windows physical workload. The
+three-process calibration retained one exact mode and rejected the complete
+mutation set. The maintainer explicitly accepted the reviewed candidate on
+2026-08-30; the canonical PNG SHA-256 is
+`63243567ebe8c711d68c2ac463072964b6f2d0169e96b9f635c1d9c6efabea1b`,
+decoded pixels are
+`4e294eb54577dfb7d4b3d7373e782a6bc76bc1d1f9d30ccc1d892f8818a61db2`,
+and calibration evidence SHA-256 is
+`b11ea1cc3abfe888985c8c0d2f89f754f99204bd465d63051f600a0379bf1d4c`.
+The Accepted registry ID is
+`production-content-sponza-v2.windows.discrete-vulkan.rgba8.v1`.
 
 ## Remaining Closeout
 
-T112-T114 remain open. The final shared revision must provide:
+T112-T114 remain open. The final shared revision after baseline admission must
+provide:
 
 1. a passing hosted Windows/macOS/Linux regular matrix;
 2. a passing hosted medium aggregate with the exact 1,000/20 lifecycle facts;
