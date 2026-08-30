@@ -1548,30 +1548,33 @@ Primary references:
 - Demote Metal RSS too: rejected because the Metal lane has a controlled,
   calibrated local environment and no evidence requiring that authority change.
 
-## Decision 52: Reserve regular profile headroom outside package and native work
+## Decision 52: Give regular package, profile, and native work nested envelopes
 
-**Decision**: Keep the regular package and native operational limits at 600
-seconds each, but set the complete regular profile deadline to 900 seconds.
-The additional 300 seconds is profile-only headroom for target-toolchain
-discovery and orchestration before the package receives its own bounded
-deadline. The exact 20/2 lifecycle, 20 clean cooks, warm reuse, strict runtime,
-semantic equivalence, platform-native work, ownership, stale rejection, and
-report gates remain unchanged.
+**Decision**: Set the regular package/profile/native operational limits to
+900/1,200/600 seconds. The package envelope covers all 20 clean cooks, warm
+reuse, strict runtime, and the independently capped native child. The complete
+profile reserves another 300 seconds for target-toolchain discovery and
+orchestration before the package begins. The exact 20/2 lifecycle, cook work,
+semantic equivalence, ownership, stale rejection, and report gates remain
+unchanged.
 
 **Rationale**: Hosted Intel Metal run `33303511571` completed Metal toolchain
 discovery, all 20 clean cooks, warm cook, publication, and semantic equivalence,
-then entered strict runtime with only one second left because the 58-second
-toolchain probe and the package shared one 600-second deadline. This was an
-orchestration-envelope collision, not failed rendering or incomplete package
-work. Separating the enclosing deadline prevents environment preparation from
-silently shrinking the declared package/native allowance while retaining
-fail-closed operational bounds.
+then entered strict runtime with only one second left. The first correction
+gave the profile 900 seconds but left its nested package at 600 seconds. Follow-
+up run `33306261728` then passed strict runtime and entered native with only 53
+seconds left, proving the package itself still truncated required work. These
+were nested operational-envelope collisions, not rendering failures. The final
+900/1,200/600 split gives the declared package and native work honest independent
+bounds while remaining fail-closed.
 
 **Alternatives considered**:
 
 - Reduce clean-cook repetitions or skip strict runtime: rejected because that
   weakens the regular acceptance contract.
-- Increase the package or native limit: rejected because neither child
-  exhausted its declared 600-second allowance.
+- Leave the package at 600 seconds and increase only the profile: rejected by
+  run `33306261728`, where the package reduced native to 53 seconds.
+- Increase native beyond 600 seconds: rejected because native did not receive,
+  let alone exhaust, its declared allowance.
 - Treat the timeout as a pass: rejected because strict runtime had not
   completed and incomplete required work must remain fail-closed.

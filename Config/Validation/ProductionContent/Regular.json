@@ -14,8 +14,8 @@
   "lifecycleCycles": 20,
   "warmupCycles": 2,
   "maxRssGrowthBytes": 16777216,
-  "timeBudgetSeconds": 600,
-  "profileTimeBudgetSeconds": 900,
+  "timeBudgetSeconds": 900,
+  "profileTimeBudgetSeconds": 1200,
   "nativeTimeBudgetSeconds": 600,
   "cadence": ["relevant-pull-request", "relevant-push"],
   "requiredGates": [

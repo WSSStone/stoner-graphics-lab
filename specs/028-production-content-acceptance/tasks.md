@@ -321,7 +321,8 @@ workload, lifecycle, capture/readback, ownership, stale, and physical limits rem
 - [X] T187 [US3] Add bounded three-to-six independent-process calibration orchestration and require every accepted mode to repeat in two processes and reject every declared mutation against the whole reference set.
 - [X] T188 [P] Run strict Release and all runner/report/workflow/privacy/architecture/image/equivalence/Core/RHI/Vulkan/Metal/Demo regressions, including indexed clockwise-culling attachment readback.
 - [ ] T189 Run final Windows Vulkan authority evidence without accepting a new baseline automatically; retain only small JSON and one lossless PNG per unique candidate mode, then complete explicit maintainer review and closeout evidence.
-- [X] T190 [P] [US4] Separate the regular profile's 900-second orchestration envelope from its unchanged 600-second package/native limits after hosted Intel Metal completed all cook/equivalence work but target-toolchain discovery left strict runtime only one second; update profile/schema/specification contracts and pass runner tests without reducing any gate.
+- **Historical, superseded T190**: [US4] Separate a 900-second regular profile envelope from 600-second package/native limits after hosted Intel Metal left strict runtime one second; follow-up run 33306261728 proved the nested package still reduced native to 53 seconds.
+- [X] T191 [P] [US4] Correct regular nested operational limits to 900/1,200/600 seconds for package/profile/native after runs 33303511571 and 33306261728; retain exact 20/2, 20 clean cooks, strict runtime, independently capped native work, semantic equivalence, lifecycle, and report gates, update all contracts, and pass runner/workflow tests.
 
 **Checkpoint**: Each acceptance tier is reproducible, bounded, honest about
 capability, and scheduled at the clarified cadence.

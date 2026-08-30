@@ -81,8 +81,8 @@ and non-color material-data textures.
 | `MaxRssGrowthBytes` | integer | 16 MiB when RSS disposition is `required` on maintainer-local Metal; retained as a diagnostic comparison value but not applied to `observed` hosted or Windows Vulkan RSS |
 | `EnvironmentPolicy` | authority-policy ID | Repository-owned mapping for hosted, maintainer-local Metal, maintainer-local Windows Vulkan, and local diagnostic execution |
 | `RequiredGates` | ordered enum list | Corpus/import/cook/runtime/realization/render/image/lifecycle as applicable |
-| `TimeBudgetSeconds` | integer | 600 regular; 5,400 hosted medium package operational timeout; 3,600 serialized visible hardware lane |
-| `ProfileTimeBudgetSeconds` | integer | 900 regular, reserving profile-level target-toolchain/orchestration headroom outside the unchanged 600-second package/native limits; 5,400 hosted medium package shard; 7,800 serialized two-package hardware profile |
+| `TimeBudgetSeconds` | integer | 900 regular package, covering clean/warm/strict/native work while native remains independently capped; 5,400 hosted medium package operational timeout; 3,600 serialized visible hardware lane |
+| `ProfileTimeBudgetSeconds` | integer | 1,200 regular, reserving 300 seconds beyond the package for target-toolchain/orchestration work; 5,400 hosted medium package shard; 7,800 serialized two-package hardware profile |
 | `NativeTimeBudgetSeconds` | integer | 600 regular; 4,800 hosted medium operational timeout; 3,600 hardware; always capped by the enclosing lane deadline |
 
 ### Environment Measurement Authority

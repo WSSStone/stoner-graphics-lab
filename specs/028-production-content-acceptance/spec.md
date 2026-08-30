@@ -40,7 +40,7 @@
 - Q: 同一 Windows Vulkan 设备在独立进程中稳定产生多个图像模式时，单进程 20 帧一致是否足以接受 baseline？ → A: 不足。正式 baseline 校准至少运行三个独立进程、每进程 20 帧；若发现多个模式则最多扩展到六个进程，每个拟接受模式必须由至少两个独立进程复现。模式间差异不得用于扩大单参考容差；只有排除项目输入、绑定、同步、生命周期和未初始化状态错误后，才允许维护者显式接受最多三个 reference 的有界 reference set。
 - Q: semantic attachments、FLIP candidate 与可见 capture 是否可以来自不同渲染帧？ → A: 不可以。它们必须携带同一个由真实 submission/completion 传播的 frame token，组成一个 authoritative frame bundle；以同一计数同时填充 expected/observed token 不构成 freshness 证明。声明存在性不计入 measured semantic probe 数量。
 - Q: hardware profile 中前一个包的图像或 baseline 失败是否应阻止后续包取证？ → A: 不应。包级、正常退出的 semantic/baseline/FLIP/lifecycle 失败串行 collect-all 并在末尾聚合失败；preflight、corpus/revision/source integrity、authority lock、device-lost 与不可验证证据错误仍立即停止。每包保留 3,600 秒 operational 上限，双包 hardware profile 外层上限为 7,800 秒。
-- Q: Regular Intel Metal 的 20 次 clean cook 已通过，但工具链预检占用共享 600 秒后 strict runtime 只剩 1 秒时，是否应减少验证工作？ → A: 不应。package 与 native 上限保持 600 秒，完整 profile 上限调整为 900 秒，额外 300 秒仅容纳 target-toolchain discovery 与 profile 编排；20/2、20 次 clean cook、strict runtime、semantic equivalence、native/lifecycle 和报告门禁均不减少。
+- Q: Regular Intel Metal 的 20 次 clean cook 已通过，但共享 operational envelope 先令 strict runtime 只剩 1 秒、扩大外层后又令 native 只剩 53 秒时，是否应减少验证工作？ → A: 不应。按真实嵌套关系将 package/profile/native 上限设为 900/1,200/600 秒：package 覆盖 clean/warm/strict/native 完整工作，profile 额外容纳 target-toolchain discovery 与编排，native 自身仍独立限 600 秒；20/2、20 次 clean cook、strict runtime、semantic equivalence、native/lifecycle 和报告门禁均不减少。
 
 ## User Scenarios & Testing *(mandatory)*
 

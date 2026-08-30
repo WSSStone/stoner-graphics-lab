@@ -119,9 +119,10 @@ formal image fails before semantic probes or FLIP.
 | Medium | 1,000 | 1-20 | Hosted Metal functional/lifecycle authority | RSS/task-VM/allocator are observed; exact work/owners/stale/captures/readbacks remain required |
 | Hardware | 1,000 | 1-20 | Maintainer-local native arm64 macOS Metal and x86_64 Windows Vulkan, in separate runs | Metal required <= 16 MiB after preflight; Windows working-set RSS observed |
 
-Regular uses 600/900/600-second package/profile/native operational limits; the
-extra profile-only headroom covers target-toolchain discovery and orchestration
-without changing any package or native gate. Medium uses
+Regular uses 900/1,200/600-second package/profile/native operational limits.
+The package covers clean/warm/strict/native work, the native child remains
+independently capped, and the extra profile-only headroom covers target-toolchain
+discovery and orchestration without changing any required work. Medium uses
 5,400/5,400/4,800 seconds. Hardware uses 3,600 seconds per package and native
 stage inside a 7,800-second serialized profile deadline.
 
