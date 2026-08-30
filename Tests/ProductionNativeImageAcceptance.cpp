@@ -517,8 +517,8 @@ bool ValidateProductionAuthoritativeFrameBundle(
         {
             return IsRequiredFrameReadbackName(Evidence.Name);
         });
-    if (RequiredReadbackCount !=
-        static_cast<decltype(RequiredReadbackCount)>(std::size(RequiredNames)))
+    if (static_cast<std::size_t>(RequiredReadbackCount) !=
+        std::size(RequiredNames))
     {
         OutFailure = "authoritative-frame-bundle";
         return false;
