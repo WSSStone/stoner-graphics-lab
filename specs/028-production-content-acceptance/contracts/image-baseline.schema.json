@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://stoner.local/schemas/image-baseline-v1.json",
+  "$id": "https://stoner.local/schemas/image-baseline-v2.json",
   "title": "Stoner Production Image Baseline",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "schemaVersion", "baselineId", "state", "workloadRevision", "backend", "deviceClass", "capabilitySignature", "width", "height", "colorTransfer", "referencePath", "referenceSha256", "flipPolicy", "calibrationEvidenceSha256"],
+  "required": ["schema", "schemaVersion", "baselineId", "state", "workloadRevision", "backend", "deviceClass", "capabilitySignature", "width", "height", "colorTransfer", "references"],
   "properties": {
     "schema": {"const": "stoner.production-image-baseline"},
-    "schemaVersion": {"const": 1},
+    "schemaVersion": {"const": 2},
     "baselineId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,127}$"},
     "state": {"enum": ["candidate", "calibrated", "reviewed", "accepted", "superseded"]},
     "workloadRevision": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"},
@@ -32,8 +32,14 @@
     "width": {"const": 512},
     "height": {"const": 512},
     "colorTransfer": {"enum": ["srgb", "linear-to-srgb-v1"]},
-    "referencePath": {"type": "string", "pattern": "^(?!/)(?!.*\\\\).+\\.png$"},
-    "referenceSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "references": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/reference"}
+    }
+  },
+  "$defs": {
     "flipPolicy": {
       "type": "object",
       "additionalProperties": false,
@@ -46,6 +52,17 @@
         "badPixelFractionMax": {"type": "number", "minimum": 0, "maximum": 1}
       }
     },
-    "calibrationEvidenceSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["referenceId", "referencePath", "referenceSha256", "flipPolicy", "calibrationEvidenceSha256"],
+      "properties": {
+        "referenceId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,127}$"},
+        "referencePath": {"type": "string", "pattern": "^(?!/)(?!.*\\\\).+\\.png$"},
+        "referenceSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "flipPolicy": {"$ref": "#/$defs/flipPolicy"},
+        "calibrationEvidenceSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
   }
 }

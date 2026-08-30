@@ -181,7 +181,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             target.write_text("{}\n", encoding="utf-8")
             (profile_root / "Regular.json").write_text(json.dumps({
                 "schema": "stoner.production-validation-profile",
-                "schemaVersion": 2,
+                "schemaVersion": 3,
                 "profileId": "regular",
                 "corpusRevision": "revision-1",
                 "targetProfiles": [
@@ -192,6 +192,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 "warmupCycles": 2,
                 "maxRssGrowthBytes": 16 * 1024 * 1024,
                 "timeBudgetSeconds": 600,
+                "profileTimeBudgetSeconds": 600,
                 "nativeTimeBudgetSeconds": 600,
                 "cadence": ["relevant-pull-request", "relevant-push"],
                 "requiredGates": [
@@ -290,22 +291,23 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
 
     def test_shipping_profiles_have_exact_tier_contracts(self):
         expected = {
-            "regular": (20, 2, 600),
-            "medium": (1000, 20, 5400),
-            "hardware": (1000, 20, 3600),
+            "regular": (20, 2, 600, 600, 600),
+            "medium": (1000, 20, 5400, 5400, 4800),
+            "hardware": (1000, 20, 3600, 7800, 3600),
         }
-        for profile_id, (cycles, warmup, budget) in expected.items():
+        for profile_id, (cycles, warmup, package, profile_budget,
+                         native) in expected.items():
             profile = self.module.load_validation_profile(
                 self.module.REPOSITORY_ROOT, profile_id
             )
             self.assertEqual(cycles, profile["lifecycleCycles"])
             self.assertEqual(warmup, profile["warmupCycles"])
             self.assertEqual(16 * 1024 * 1024, profile["maxRssGrowthBytes"])
-            self.assertEqual(budget, profile["timeBudgetSeconds"])
+            self.assertEqual(package, profile["timeBudgetSeconds"])
             self.assertEqual(
-                4800 if profile_id == "medium" else budget,
-                profile["nativeTimeBudgetSeconds"],
+                profile_budget, profile["profileTimeBudgetSeconds"]
             )
+            self.assertEqual(native, profile["nativeTimeBudgetSeconds"])
             self.assertLess(profile["warmupCycles"], profile["lifecycleCycles"])
 
     def test_only_medium_packages_run_concurrently(self):
@@ -514,6 +516,16 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             )
         self.assertEqual("profile", raised.exception.stage)
         self.assertEqual("timeout", raised.exception.category)
+
+    def test_hardware_package_and_profile_deadlines_are_independent_bounds(self):
+        self.assertEqual(
+            3700.0,
+            self.module.bounded_package_deadline(7900.0, 3600, 100.0),
+        )
+        self.assertEqual(
+            3500.0,
+            self.module.bounded_package_deadline(3500.0, 3600, 100.0),
+        )
 
     def test_equivalence_request_timeout_is_bounded_with_exit_slack(self):
         self.assertEqual(
@@ -883,9 +895,15 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
         self.assertEqual("observed", observed["rssDisposition"])
 
     def test_native_image_evidence_requires_exact_measured_pass(self):
+        probe_ids = ",".join(self.module.EXPECTED_SEMANTIC_PROBE_IDS)
         valid = (
             "[IMAGE] backend=metal device-class=macos.apple8.metal.rgba8 "
-            "baseline=lantern-metal semantic-probes=18 mean=0.00100000 "
+            "baseline=lantern-metal matched-reference=primary frame-token=41 "
+            f"semantic-probes=20 probe-ids={probe_ids} "
+            "mean=0.00100000 "
+            "p95=0.00200000 maximum=0.03000000 bad-fraction=0.00010000 "
+            "result=passed\n"
+            "[IMAGE-REFERENCE] reference=primary mean=0.00100000 "
             "p95=0.00200000 maximum=0.03000000 bad-fraction=0.00010000 "
             "result=passed\n"
         )
@@ -902,10 +920,13 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 self.module.parse_native_image_evidence(changed, "metal")
 
     def test_native_image_failure_retains_device_class_and_reason(self):
+        probe_ids = ",".join(self.module.EXPECTED_SEMANTIC_PROBE_IDS)
         output = (
             "[IMAGE] backend=vulkan "
             "device-class=windows.discrete-vulkan.rgba8 baseline= "
-            "semantic-probes=20 mean=0.00000000 p95=0.00000000 "
+            "matched-reference= frame-token=41 semantic-probes=20 "
+            f"probe-ids={probe_ids} mean=0.00000000 "
+            "p95=0.00000000 "
             "maximum=0.00000000 bad-fraction=0.00000000 result=failed\n"
         )
         parsed = self.module.parse_native_image_failure_evidence(
@@ -923,7 +944,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             parsed["flip"],
         )
 
-    def test_serial_packages_stop_after_first_native_failure(self):
+    def test_serial_packages_collect_all_native_failures(self):
         packages = [{"packageId": "first"}, {"packageId": "second"}]
         calls = []
 
@@ -934,11 +955,31 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 "nativeLifecycle": {"result": "Failed"},
             }
 
-        reports = self.module.run_serial_packages_fail_closed(
+        reports = self.module.run_serial_packages_collect_all(
             packages, run_package
         )
+        self.assertEqual(["first", "second"], calls)
+        self.assertEqual(
+            ["first", "second"], [item["packageId"] for item in reports]
+        )
+
+    def test_serial_packages_stop_on_fatal_authority_recheck(self):
+        packages = [{"packageId": "first"}, {"packageId": "second"}]
+        calls = []
+
+        def run_package(package):
+            calls.append(package["packageId"])
+            return {"packageId": package["packageId"]}
+
+        with self.assertRaisesRegex(RuntimeError, "authority lock"):
+            self.module.run_serial_packages_collect_all(
+                packages,
+                run_package,
+                lambda _report: (_ for _ in ()).throw(
+                    RuntimeError("authority lock was lost")
+                ),
+            )
         self.assertEqual(["first"], calls)
-        self.assertEqual(["first"], [item["packageId"] for item in reports])
 
     def test_target_profile_native_host_contract_is_explicit(self):
         contract = self.module.load_native_target_contract(
@@ -1087,15 +1128,44 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             "macos.apple8.metal.rgba8" if backend == "metal"
             else "windows.discrete-vulkan.rgba8"
         )
+        probe_ids = ",".join(self.module.EXPECTED_SEMANTIC_PROBE_IDS)
         output = (
             f"[EVIDENCE] backend={backend} cycles=20 warmup-cycle=2 "
             "warmup-rss=100 terminal-rss=200 peak-rss=200 growth=100 "
             "captures=40 readbacks=7 counters=0 stale=1\n"
             f"[IMAGE] backend={backend} device-class={device_class} "
-            "baseline= semantic-probes=0 mean=0.00000000 p95=0.00000000 "
+            "baseline= matched-reference= frame-token=41 semantic-probes=20 "
+            f"probe-ids={probe_ids} mean=0.00000000 "
+            "p95=0.00000000 "
             "maximum=0.00000000 bad-fraction=0.00000000 result=failed\n"
         )
+        bundle = {
+            "attachments": {
+                name: "0" * 64
+                for name in self.module.FRAME_BUNDLE_ATTACHMENTS
+            },
+            "cpu": {
+                "snapshot": "a" * 64, "uniform": "b" * 64,
+                "shader": "c" * 64, "pipeline": "d" * 64,
+                "descriptor": "e" * 64, "device": "f" * 64,
+            },
+            "frameToken": 41,
+            "vulkanDriver": ({
+                "driverId": 4,
+                "driverVersion": 1,
+                "floatControlsSha256": "1" * 64,
+                "pipelineCacheUuid": "2" * 32,
+            } if backend == "vulkan" else None),
+            "windowCapture": "0" * 64,
+        }
         stderr = (
+            "[FRAME-FINGERPRINT] frame-token=41 snapshot=" + "a" * 64 +
+            " uniform=" + "b" * 64 + " shader=" + "c" * 64 +
+            " pipeline=" + "d" * 64 + " descriptor=" + "e" * 64 +
+            " device=" + "f" * 64 + "\n" +
+            "[FRAME-BUNDLE] " + json.dumps(
+                bundle, sort_keys=True, separators=(",", ":")
+            ) + "\n" +
             f"{backend.capitalize()} production image failure: "
             "baseline-missing\n"
         )
@@ -1121,10 +1191,13 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                 "preflight": {"deviceClass": device_class},
             }
             failure = self.module.StageFailure(
-                "native", "command-failed", "expected", command_result
+                "native", "command-failed", "expected", command_result, 1
             )
             with mock.patch.object(
                 self.module, "run_stage", side_effect=failure
+            ), mock.patch.object(
+                self.module, "compact_completed_native_captures",
+                return_value={"png": "authoritative-frame-test.png"},
             ):
                 result = self.module.run_native_lifecycle(
                     root, Path("StonerTest"), profile,
@@ -1142,6 +1215,44 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
         )
         self.assertEqual(device_class, result["imageAcceptance"]["deviceClass"])
         self.assertTrue(report_text.endswith(stderr))
+
+    def test_bounded_evidence_removes_ddc_generation_raw_and_large_logs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            package = output / "package"
+            reports = package / "clean-00/reports"
+            reports.mkdir(parents=True)
+            png = reports / ("authoritative-frame-" + "a" * 12 + ".png")
+            png.write_bytes(b"png")
+            (reports / "capture-summary.json").write_text(
+                "{}\n", encoding="utf-8"
+            )
+            (reports / "native-lifecycle.txt").write_bytes(b"large-log")
+            ddc = package / "clean-00/ddc/value.bin"
+            ddc.parent.mkdir(parents=True)
+            ddc.write_bytes(b"temporary")
+            package_report = {
+                "packageId": "package",
+                "nativeLifecycle": {"captureEvidence": {
+                    "png": png.name,
+                    "pngSha256": self.module.sha256_bytes(png.read_bytes()),
+                }},
+            }
+            self.module.retain_bounded_validation_evidence(
+                output, [package_report]
+            )
+            retained = sorted(
+                path.relative_to(output).as_posix()
+                for path in output.rglob("*") if path.is_file()
+            )
+            self.assertEqual([
+                f"evidence/package/{png.name}",
+                "evidence/package/capture-summary.json",
+            ], retained)
+            self.assertEqual(
+                f"evidence/package/{png.name}",
+                package_report["nativeLifecycle"]["captureEvidence"]["png"],
+            )
 
     def test_artifact_revalidation_rejects_substitution(self):
         with tempfile.TemporaryDirectory() as directory:

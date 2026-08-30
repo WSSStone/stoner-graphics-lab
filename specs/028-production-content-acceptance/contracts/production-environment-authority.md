@@ -95,6 +95,17 @@ valid. Formal calibration captures, accepted references, and hardware
 candidates are exactly 512 by 512 pixels; the 1024 preview is never an
 acceptance input, and any other formal extent fails before comparison.
 
+The physical image authority binds all semantic attachments, FinalOutput, and
+the window-only capture to one completed submission frame token. Cross-process
+calibration is required before a new reference or reference-set member can be
+accepted; within-process repetition alone is diagnostic.
+
+Serialized hardware execution collects recoverable package validation failures
+and continues after rechecking the authority lock and device. Preflight,
+revision/source mutation, lock loss, device loss, and evidence-integrity errors
+remain fail-fast. The operational budget is 3,600 seconds per package and 7,800
+seconds for the two-package profile.
+
 ## Reporting
 
 Every environment-sensitive observation records:

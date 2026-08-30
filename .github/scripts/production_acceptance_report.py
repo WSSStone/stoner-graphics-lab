@@ -25,7 +25,8 @@ DETERMINISTIC_FIELDS = {
 OBSERVATION_FIELDS = {
     "hostClass", "deviceClass", "deviceDescription", "durationMilliseconds",
     "peakRssBytes", "rssGrowthBytes", "taskVmBytes", "allocatorBytes",
-    "lifecycleCycles", "flip",
+    "lifecycleCycles", "flip", "frameToken", "semanticProbeIds",
+    "referenceComparisons", "matchedReferenceId", "calibrationProcesses",
 }
 AUTHORITY_FIELDS = {"executionClass", "preflight", "measurements"}
 MEASUREMENT_KINDS = {"timing", "rss", "image", "taskVm", "allocator", "peakRss"}
@@ -157,6 +158,77 @@ def _validate_flip(value: object) -> None:
         raise ValueError("FLIP result is invalid")
 
 
+def _validate_image_evidence_observations(
+    value: dict,
+    require_reference_comparisons: bool,
+) -> None:
+    if not isinstance(value.get("frameToken"), int) or value["frameToken"] <= 0:
+        raise ValueError("native image frame token is invalid")
+    probe_ids = value.get("semanticProbeIds")
+    if (
+        not isinstance(probe_ids, list) or not probe_ids
+        or len(probe_ids) != len(set(probe_ids))
+        or any(not isinstance(item, str) or not TOKEN.fullmatch(item)
+               for item in probe_ids)
+    ):
+        raise ValueError("native semantic probe IDs are invalid")
+    if not require_reference_comparisons:
+        if "referenceComparisons" in value or "matchedReferenceId" in value:
+            raise ValueError(
+                "not-run native image evidence contains reference comparison"
+            )
+        return
+    comparisons = value.get("referenceComparisons")
+    if not isinstance(comparisons, list) or not 1 <= len(comparisons) <= 3:
+        raise ValueError("native reference comparisons are invalid")
+    identifiers = []
+    for comparison in comparisons:
+        fields = {
+            "referenceId", "mean", "p95", "maximum",
+            "badPixelFraction", "passed",
+        }
+        item = _require_exact_fields(
+            comparison, fields, "native reference comparison"
+        )
+        reference_id = item.get("referenceId")
+        if not isinstance(reference_id, str) or not TOKEN.fullmatch(reference_id):
+            raise ValueError("native comparison reference ID is invalid")
+        identifiers.append(reference_id)
+        for field in ("mean", "p95", "maximum", "badPixelFraction"):
+            metric = item.get(field)
+            if (not isinstance(metric, (int, float)) or isinstance(metric, bool)
+                    or not 0 <= metric <= 1):
+                raise ValueError("native reference comparison metric is invalid")
+        if not isinstance(item.get("passed"), bool):
+            raise ValueError("native reference comparison result is invalid")
+    if identifiers != sorted(set(identifiers)):
+        raise ValueError("native reference comparison order is invalid")
+    matched = value.get("matchedReferenceId")
+    if not isinstance(matched, str) or not TOKEN.fullmatch(matched):
+        raise ValueError("native matched reference ID is invalid")
+    matches = [item for item in comparisons
+               if item["referenceId"] == matched and item["passed"]]
+    if len(matches) != 1:
+        raise ValueError("native matched reference is not a passing comparison")
+    calibration = value.get("calibrationProcesses")
+    if calibration is not None:
+        record = _require_exact_fields(
+            calibration,
+            {"processCount", "capturesPerProcess", "modeProcessCounts"},
+            "cross-process calibration",
+        )
+        counts = record.get("modeProcessCounts")
+        if (
+            not isinstance(record.get("processCount"), int)
+            or not 3 <= record["processCount"] <= 6
+            or record.get("capturesPerProcess") != 20
+            or not isinstance(counts, list) or not 1 <= len(counts) <= 3
+            or any(not isinstance(count, int) or count < 2 for count in counts)
+            or sum(counts) != record["processCount"]
+        ):
+            raise ValueError("cross-process calibration summary is invalid")
+
+
 def _validate_observations(value: object, backend: str) -> None:
     if not isinstance(value, dict) or not set(value).issubset(OBSERVATION_FIELDS):
         raise ValueError("observations fields are invalid")
@@ -179,6 +251,11 @@ def _validate_observations(value: object, backend: str) -> None:
         if "flip" not in value:
             raise ValueError("native report FLIP observation is missing")
         _validate_flip(value["flip"])
+        flip_state = value["flip"].get("state")
+        if flip_state in ("measured", "not-run"):
+            _validate_image_evidence_observations(
+                value, flip_state == "measured"
+            )
     elif "deviceClass" in value or "flip" in value or "deviceDescription" in value:
         raise ValueError("non-native observations contain native fields")
 
@@ -388,7 +465,13 @@ def _validate_authority(
     if backend not in ("vulkan", "metal"):
         raise ValueError("required image authority needs a native backend")
     flip = observations.get("flip")
-    if not isinstance(flip, dict) or flip.get("state") != "measured":
+    if not isinstance(flip, dict):
+        raise ValueError("required image must be measured")
+    if flip.get("state") == "not-run":
+        if result != "failed" or image["passed"] is not False:
+            raise ValueError("required image must be measured")
+        return authority
+    if flip.get("state") != "measured":
         raise ValueError("required image must be measured")
     if image["passed"] != flip.get("passed"):
         raise ValueError("required image result differs from FLIP")
@@ -445,7 +528,7 @@ def validate_report(report: object, evidence_root: Path | None = None) -> None:
     if len(canonical_bytes(report)) > MAX_REPORT_BYTES:
         raise ValueError("canonical report exceeds 1 MiB")
     root = _require_exact_fields(report, ROOT_FIELDS, "report")
-    if root.get("schema") != "stoner.production-acceptance-report" or root.get("schemaVersion") != 2:
+    if root.get("schema") != "stoner.production-acceptance-report" or root.get("schemaVersion") != 3:
         raise ValueError("report schema is invalid")
     deterministic = _require_exact_fields(
         root.get("deterministic"), DETERMINISTIC_FIELDS, "deterministic"
@@ -554,7 +637,7 @@ def build_report(
     completed_deterministic["firstFailure"] = selected_failure
     report = {
         "schema": "stoner.production-acceptance-report",
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "deterministic": completed_deterministic,
         "authority": dict(authority),
         "observations": dict(observations),
@@ -580,7 +663,7 @@ def validate_schema_contract(path: Path) -> None:
         or set(schema.get("required", [])) != ROOT_FIELDS
         or schema.get("properties", {}).get("schema", {}).get("const") !=
             "stoner.production-acceptance-report"
-        or schema.get("properties", {}).get("schemaVersion", {}).get("const") != 2
+        or schema.get("properties", {}).get("schemaVersion", {}).get("const") != 3
     ):
         raise ValueError("acceptance report root schema differs from runtime")
     deterministic = schema["properties"]["deterministic"]

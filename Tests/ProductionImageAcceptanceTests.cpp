@@ -3,6 +3,7 @@
 #include "ProductionImageBaselineRegistry.h"
 #include "ProductionImageReference.h"
 #include "ProductionNativeImageAcceptance.h"
+#include "FStonerDemoApplication.h"
 
 #include <cmath>
 #include <cstring>
@@ -116,7 +117,15 @@ void TestSemanticProbeOrdering(FProductionImageAcceptanceTestResult& Result)
     Request.MaximumCoverageFraction = 0.5f;
     Request.RequiredRegionNames = {"marker"};
     const auto Accepted = RunProductionSemanticProbes(Request);
-    Record(Result, Accepted.bPassed && Accepted.PassedProbeCount >= 4,
+    const TArray<FString> ExpectedProbeIds = {
+        "color-image", "current-frame", "nonblank", "coverage",
+        "region-orientation", "region-primitive-material",
+        "region-base-color", "region-normal-response",
+        "region-metallic-roughness", "region-emissive", "region-marker",
+        "normal-semantic", "depth-semantic"};
+    Record(Result, Accepted.bPassed &&
+        Accepted.PassedProbeCount == ExpectedProbeIds.size() &&
+        Accepted.PassedProbeIds == ExpectedProbeIds,
         "semantic probes accept bounded majority coverage and robust region medians");
 
     Color.LinearRgb[(2u * 8u + 2u) * 3u] = 1.0f;
@@ -172,6 +181,10 @@ void TestReadbackRegionStatistics(FProductionImageAcceptanceTestResult& Result)
         NormalView, {0, 0, 4, 4}, {0.0f, 1.0f, 0.0f}, 0.8f,
         Coverage, Failure) && std::abs(Coverage - 0.75f) < 0.0001f,
         "normal attachment regions measure directional sample coverage");
+    Record(Result, MeasureProductionReadbackDirectionalCoverage(
+        NormalView, {0, 0, 4, 4}, {0.0f, -1.0f, 0.0f}, 0.8f,
+        Coverage, Failure) && Coverage < 0.60f,
+        "normal attachment gate rejects the opposite-direction mutation");
 }
 
 void TestFlipAndMutation(FProductionImageAcceptanceTestResult& Result)
@@ -220,6 +233,87 @@ void TestNativeEvidence(FProductionImageAcceptanceTestResult& Result)
     Evidence.bWindowOnlyCapture = false;
     Record(Result, !ValidateProductionNativeImageEvidence(Evidence, Failure),
         "native proof rejects a non-window capture");
+}
+
+void TestAuthoritativeFrameBundle(FProductionImageAcceptanceTestResult& Result)
+{
+    Stoner::Demo::FDemoProductionExecutionInspection Inspection;
+    constexpr uint64 FrameToken = 41;
+    for (const char* Name : {
+             "FinalOutput", "BaseColorAO", "NormalRoughness",
+             "EmissiveMetallic", "Depth", "LightingAccumulation"})
+    {
+        Stoner::Demo::FDemoProductionReadbackEvidence Evidence;
+        Evidence.Name = Name;
+        Evidence.FrameToken = FrameToken;
+        Inspection.Readbacks.push_back(std::move(Evidence));
+    }
+    Inspection.AuthoritativeFrameToken = FrameToken;
+    Inspection.LastLifecyclePresentedFrameToken = FrameToken - 1u;
+    Inspection.AuthoritativeCapture.FrameToken = FrameToken;
+    Inspection.AuthoritativeCapture.ExpectedFrameToken = FrameToken;
+    Inspection.AuthoritativeCapture.bPresented = true;
+    Inspection.AuthoritativeCapture.bWindowOnlyCapture = true;
+    Inspection.AuthoritativeCapture.Bytes = {1, 2, 3, 4};
+    Stoner::Demo::FDemoProductionCapture Stale;
+    Stale.FrameToken = FrameToken - 1u;
+    Stale.ExpectedFrameToken = FrameToken - 1u;
+    Stale.bPresented = true;
+    Stale.bWindowOnlyCapture = true;
+    Stale.Bytes = {1, 2, 3, 4};
+    Inspection.LastLifecyclePresentedCapture = std::move(Stale);
+    FString Failure;
+    Record(Result,
+        ValidateProductionAuthoritativeFrameBundle(Inspection, Failure),
+        "authoritative attachments and window capture accept one submission token");
+
+    Inspection.Readbacks[2].FrameToken = FrameToken - 1u;
+    Record(Result,
+        !ValidateProductionAuthoritativeFrameBundle(Inspection, Failure) &&
+            Failure == FString("authoritative-frame-bundle"),
+        "authoritative frame bundle rejects one stale attachment");
+    Inspection.Readbacks[2].FrameToken = FrameToken;
+    Inspection.AuthoritativeCapture.FrameToken = FrameToken - 1u;
+    Record(Result,
+        !ValidateProductionAuthoritativeFrameBundle(Inspection, Failure) &&
+            Failure == FString("authoritative-frame-bundle"),
+        "authoritative frame bundle rejects a stale window capture");
+    Inspection.AuthoritativeCapture.FrameToken = FrameToken;
+    Inspection.AuthoritativeCapture.ExpectedFrameToken = FrameToken - 1u;
+    Record(Result,
+        !ValidateProductionAuthoritativeFrameBundle(Inspection, Failure) &&
+            Failure == FString("authoritative-frame-bundle"),
+        "authoritative frame bundle rejects a self-reported expected-token mismatch");
+    Inspection.AuthoritativeCapture.ExpectedFrameToken = FrameToken;
+    Inspection.LastLifecyclePresentedCapture = {};
+    Record(Result,
+        !ValidateProductionAuthoritativeFrameBundle(Inspection, Failure) &&
+            Failure == FString("stale-frame-bundle-evidence"),
+        "authoritative frame bundle requires a real prior presented token");
+}
+
+void TestReferenceSetSelection(FProductionImageAcceptanceTestResult& Result)
+{
+    FProductionReferenceComparison First;
+    First.ReferenceId = "alpha";
+    First.Flip.bMeasured = true;
+    FProductionReferenceComparison Second;
+    Second.ReferenceId = "beta";
+    Second.Flip.bMeasured = true;
+    Second.Flip.bPassed = true;
+    Second.Flip.Mean = 0.001f;
+    FString Matched;
+    FProductionFlipResult Flip;
+    Record(Result,
+        SelectProductionMatchedReference(
+            {First, Second}, Matched, Flip) &&
+            Matched == FString("beta") && Flip.Mean == 0.001f,
+        "reference set accepts the canonical second reference when the first fails");
+    Second.Flip.bPassed = false;
+    Record(Result,
+        !SelectProductionMatchedReference(
+            {First, Second}, Matched, Flip) && Matched.IsEmpty(),
+        "reference set fails closed when every reference rejects the candidate");
 }
 
 void TestWorkloadRegions(FProductionImageAcceptanceTestResult& Result)
@@ -320,11 +414,39 @@ std::string SignatureJson()
 
 std::string BaselineJson(const char* State, const char* Id)
 {
-    return std::string(R"({"schema":"stoner.production-image-baseline","schemaVersion":1,"baselineId":")") +
+    const std::string Reference =
+        R"({"referenceId":"primary","referencePath":"lantern.png","referenceSha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","flipPolicy":{"meanMax":0.01,"p95Max":0.02,"maximumMax":0.1,"badPixelThreshold":0.05,"badPixelFractionMax":0.01},"calibrationEvidenceSha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"})";
+    return std::string(R"({"schema":"stoner.production-image-baseline","schemaVersion":2,"baselineId":")") +
         Id + R"(","state":")" + State +
         R"(","workloadRevision":"production-lantern-v1","backend":"metal","deviceClass":"macos.apple8.metal.rgba8","capabilitySignature":)" +
         SignatureJson() +
-        R"(,"width":512,"height":512,"colorTransfer":"srgb","referencePath":"lantern.png","referenceSha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","flipPolicy":{"meanMax":0.01,"p95Max":0.02,"maximumMax":0.1,"badPixelThreshold":0.05,"badPixelFractionMax":0.01},"calibrationEvidenceSha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"})";
+        R"(,"width":512,"height":512,"colorTransfer":"srgb","references":[)" +
+        Reference + "]}";
+}
+
+std::string ReferenceJson(
+    const char* Id,
+    const char* Path,
+    char ReferenceDigest,
+    char CalibrationDigest)
+{
+    return std::string(R"({"referenceId":")") + Id +
+        R"(","referencePath":")" + Path +
+        R"(","referenceSha256":")" + std::string(64, ReferenceDigest) +
+        R"(","flipPolicy":{"meanMax":0.01,"p95Max":0.02,"maximumMax":0.1,"badPixelThreshold":0.05,"badPixelFractionMax":0.01},"calibrationEvidenceSha256":")" +
+        std::string(64, CalibrationDigest) + R"("})";
+}
+
+std::string BaselineJsonWithReferences(
+    const char* State,
+    const char* Id,
+    const std::string& References)
+{
+    std::string Result = BaselineJson(State, Id);
+    const auto Begin = Result.find("[{");
+    const auto End = Result.rfind("]}");
+    Result.replace(Begin + 1u, End - Begin - 1u, References);
+    return Result;
 }
 
 void TestBaselineRegistry(FProductionImageAcceptanceTestResult& Result)
@@ -396,6 +518,60 @@ void TestBaselineRegistry(FProductionImageAcceptanceTestResult& Result)
         Failure == FString("baseline-schema-or-identity"),
         "baseline registry rejects uncompressed PPM references");
 
+    const std::string Alpha = ReferenceJson(
+        "alpha", "lantern-alpha.png", 'a', 'b');
+    const std::string Beta = ReferenceJson(
+        "beta", "lantern-beta.png", 'c', 'd');
+    WriteText(Root / "accepted.json", BaselineJsonWithReferences(
+        "accepted", "lantern-metal", Alpha + "," + Beta));
+    FProductionImageBaselineRegistry MultiReferenceRegistry;
+    Record(Result,
+        MultiReferenceRegistry.LoadDeviceClasses(
+            FString(RegistryPath.string()), Failure) &&
+        MultiReferenceRegistry.LoadBaselines(
+            FString(Root.string()), Failure) &&
+        MultiReferenceRegistry.SelectAccepted(Signature,
+            "production-lantern-v1", "metal", Baseline, Failure) &&
+        Baseline.References.size() == 2 &&
+        Baseline.References[0].ReferenceId == FString("alpha") &&
+        Baseline.References[1].ReferenceId == FString("beta"),
+        "baseline v2 accepts one canonical ordered two-reference set");
+
+    WriteText(Root / "accepted.json", BaselineJsonWithReferences(
+        "accepted", "lantern-metal", Beta + "," + Alpha));
+    FProductionImageBaselineRegistry UnsortedRegistry;
+    Record(Result,
+        UnsortedRegistry.LoadDeviceClasses(
+            FString(RegistryPath.string()), Failure) &&
+        !UnsortedRegistry.LoadBaselines(FString(Root.string()), Failure) &&
+        Failure == FString("baseline-schema-or-identity"),
+        "baseline v2 rejects non-canonical reference ordering");
+
+    WriteText(Root / "accepted.json", BaselineJsonWithReferences(
+        "accepted", "lantern-metal", Alpha + "," + Alpha));
+    FProductionImageBaselineRegistry DuplicateRegistry;
+    Record(Result,
+        DuplicateRegistry.LoadDeviceClasses(
+            FString(RegistryPath.string()), Failure) &&
+        !DuplicateRegistry.LoadBaselines(FString(Root.string()), Failure) &&
+        Failure == FString("baseline-schema-or-identity"),
+        "baseline v2 rejects duplicate references");
+
+    const std::string Gamma = ReferenceJson(
+        "gamma", "lantern-gamma.png", 'e', 'f');
+    const std::string Omega = ReferenceJson(
+        "omega", "lantern-omega.png", '1', '2');
+    WriteText(Root / "accepted.json", BaselineJsonWithReferences(
+        "accepted", "lantern-metal",
+        Alpha + "," + Beta + "," + Gamma + "," + Omega));
+    FProductionImageBaselineRegistry OversizedRegistry;
+    Record(Result,
+        OversizedRegistry.LoadDeviceClasses(
+            FString(RegistryPath.string()), Failure) &&
+        !OversizedRegistry.LoadBaselines(FString(Root.string()), Failure) &&
+        Failure == FString("baseline-schema-or-identity"),
+        "baseline v2 rejects more than three references");
+
     FProductionImageBaselineRegistry RepositoryRegistry;
     const FProductionCapabilitySignature WindowsSignature{
         1, "native-vulkan", "x86_64", "discrete-vulkan", "vulkan-1.3",
@@ -410,7 +586,8 @@ void TestBaselineRegistry(FProductionImageAcceptanceTestResult& Result)
             "production-content-lantern-v2", "vulkan", Baseline, Failure) &&
         Baseline.BaselineId == FString(
             "production-content-lantern-v2.windows.discrete-vulkan.rgba8.v1") &&
-        Baseline.ReferencePath == FString(
+        Baseline.References.size() == 1 &&
+        Baseline.References.front().ReferencePath == FString(
             "windows.discrete-vulkan.rgba8/production-content-lantern-v2.png"),
         "repository registry consumes the explicitly accepted Windows PNG baseline");
     std::filesystem::remove_all(Root, Error);
@@ -426,6 +603,8 @@ FProductionImageAcceptanceTestResult RunProductionImageAcceptanceTests()
     TestReadbackRegionStatistics(Result);
     TestFlipAndMutation(Result);
     TestNativeEvidence(Result);
+    TestAuthoritativeFrameBundle(Result);
+    TestReferenceSetSelection(Result);
     TestWorkloadRegions(Result);
     TestAcceptedReferenceRegionCalibration(Result);
     TestBaselineRegistry(Result);

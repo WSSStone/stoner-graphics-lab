@@ -72,7 +72,7 @@ class ProductionAcceptanceReportContractTests(unittest.TestCase):
             })
         return {
             "schema": "stoner.production-acceptance-report",
-            "schemaVersion": 2,
+            "schemaVersion": 3,
             "deterministic": deterministic,
             "authority": authority,
             "observations": observations,
@@ -107,6 +107,18 @@ class ProductionAcceptanceReportContractTests(unittest.TestCase):
                 "badPixelThreshold": 0.01, "badPixelFraction": 0.0,
                 "passed": True,
             }
+            changed["observations"].update({
+                "frameToken": 1001,
+                "semanticProbeIds": [
+                    "color-image", "current-frame", "nonblank",
+                ],
+                "referenceComparisons": [{
+                    "referenceId": "primary", "mean": 0.0,
+                    "p95": 0.0, "maximum": 0.0,
+                    "badPixelFraction": 0.0, "passed": True,
+                }],
+                "matchedReferenceId": "primary",
+            })
         return changed
 
     def make_windows_physical(self, report):
@@ -168,13 +180,24 @@ class ProductionAcceptanceReportContractTests(unittest.TestCase):
         physical["observations"]["flip"] = {
             "state": "not-run", "reason": "comparison unavailable"
         }
+        del physical["observations"]["referenceComparisons"]
+        del physical["observations"]["matchedReferenceId"]
         with self.assertRaisesRegex(ValueError, "required image"):
             self.module.validate_report(physical)
 
     def test_failed_native_report_can_record_not_run_flip(self):
-        report = self.report("failed", "vulkan")
+        report = self.make_windows_physical(self.report("failed", "vulkan"))
         report["deterministic"]["firstFailure"] = self.failure()
+        report["authority"]["measurements"]["image"]["passed"] = False
+        report["observations"]["flip"] = {
+            "state": "not-run", "reason": "baseline missing"
+        }
+        del report["observations"]["referenceComparisons"]
+        del report["observations"]["matchedReferenceId"]
         self.module.validate_report(report)
+        del report["observations"]["frameToken"]
+        with self.assertRaisesRegex(ValueError, "frame token"):
+            self.module.validate_report(report)
 
     def test_hosted_observed_rss_cannot_fail_or_promote_the_result(self):
         report = self.report("passed", "metal")
@@ -223,6 +246,16 @@ class ProductionAcceptanceReportContractTests(unittest.TestCase):
             "badPixelThreshold": 0.01, "badPixelFraction": 0.0,
             "passed": True,
         }
+        report["observations"].update({
+            "frameToken": 20,
+            "semanticProbeIds": ["color-image"],
+            "referenceComparisons": [{
+                "referenceId": "primary", "mean": 0.0, "p95": 0.0,
+                "maximum": 0.0, "badPixelFraction": 0.0,
+                "passed": True,
+            }],
+            "matchedReferenceId": "primary",
+        })
         with self.assertRaisesRegex(ValueError, "not-required image"):
             self.module.validate_report(report)
 

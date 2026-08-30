@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://stoner.local/schemas/production-acceptance-report-v2.json",
+  "$id": "https://stoner.local/schemas/production-acceptance-report-v3.json",
   "title": "Stoner Production Acceptance Report",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "schemaVersion", "deterministic", "authority", "observations", "artifacts"],
   "properties": {
     "schema": {"const": "stoner.production-acceptance-report"},
-    "schemaVersion": {"const": 2},
+    "schemaVersion": {"const": 3},
     "deterministic": {
       "type": "object",
       "additionalProperties": false,
@@ -77,7 +77,12 @@
         "taskVmBytes": {"type": "integer", "minimum": 0},
         "allocatorBytes": {"type": "integer", "minimum": 0},
         "lifecycleCycles": {"type": "integer", "minimum": 0},
-        "flip": {"oneOf": [{"$ref": "#/$defs/measuredFlip"}, {"$ref": "#/$defs/notRunFlip"}, {"$ref": "#/$defs/notRequiredFlip"}]}
+        "flip": {"oneOf": [{"$ref": "#/$defs/measuredFlip"}, {"$ref": "#/$defs/notRunFlip"}, {"$ref": "#/$defs/notRequiredFlip"}]},
+        "frameToken": {"type": "integer", "minimum": 1},
+        "semanticProbeIds": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,127}$"}},
+        "referenceComparisons": {"type": "array", "minItems": 1, "maxItems": 3, "items": {"$ref": "#/$defs/referenceComparison"}},
+        "matchedReferenceId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,127}$"},
+        "calibrationProcesses": {"$ref": "#/$defs/calibrationProcesses"}
       }
     },
     "artifacts": {
@@ -101,6 +106,14 @@
     {
       "if": {"properties": {"deterministic": {"properties": {"backend": {"enum": ["vulkan", "metal"]}}, "required": ["backend"]}}, "required": ["deterministic"]},
       "then": {"properties": {"observations": {"required": ["deviceClass", "flip"]}}}
+    },
+    {
+      "if": {"properties": {"observations": {"properties": {"flip": {"properties": {"state": {"const": "measured"}}, "required": ["state"]}}, "required": ["flip"]}}, "required": ["observations"]},
+      "then": {"properties": {"observations": {"required": ["frameToken", "semanticProbeIds", "referenceComparisons", "matchedReferenceId"]}}}
+    },
+    {
+      "if": {"properties": {"observations": {"properties": {"flip": {"properties": {"state": {"const": "not-run"}}, "required": ["state"]}}, "required": ["flip"]}}, "required": ["observations"]},
+      "then": {"properties": {"observations": {"required": ["frameToken", "semanticProbeIds"]}}}
     },
     {
       "if": {"properties": {"authority": {"properties": {"executionClass": {"enum": ["github-hosted", "local-diagnostic"]}}, "required": ["executionClass"]}}, "required": ["authority"]},
@@ -142,6 +155,8 @@
     "failure": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/failureObject"}]},
     "failureObject": {"type": "object", "additionalProperties": false, "required": ["stage", "category", "subject", "expected", "observed", "reproductionProfile"], "properties": {"stage": {"type": "string", "maxLength": 64}, "category": {"type": "string", "maxLength": 96}, "subject": {"type": "string", "maxLength": 512}, "expected": {"type": "string", "maxLength": 512}, "observed": {"type": "string", "maxLength": 512}, "reproductionProfile": {"type": "string", "maxLength": 128}, "missingPrerequisite": {"type": "string", "minLength": 1, "maxLength": 256}, "replacementLane": {"type": "string", "minLength": 1, "maxLength": 128}}},
     "measuredFlip": {"type": "object", "additionalProperties": false, "required": ["state", "baselineId", "mean", "p95", "maximum", "badPixelThreshold", "badPixelFraction", "passed"], "properties": {"state": {"const": "measured"}, "baselineId": {"type": "string"}, "mean": {"type": "number", "minimum": 0, "maximum": 1}, "p95": {"type": "number", "minimum": 0, "maximum": 1}, "maximum": {"type": "number", "minimum": 0, "maximum": 1}, "badPixelThreshold": {"type": "number", "minimum": 0, "maximum": 1}, "badPixelFraction": {"type": "number", "minimum": 0, "maximum": 1}, "passed": {"type": "boolean"}}},
+    "referenceComparison": {"type": "object", "additionalProperties": false, "required": ["referenceId", "mean", "p95", "maximum", "badPixelFraction", "passed"], "properties": {"referenceId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,127}$"}, "mean": {"type": "number", "minimum": 0, "maximum": 1}, "p95": {"type": "number", "minimum": 0, "maximum": 1}, "maximum": {"type": "number", "minimum": 0, "maximum": 1}, "badPixelFraction": {"type": "number", "minimum": 0, "maximum": 1}, "passed": {"type": "boolean"}}},
+    "calibrationProcesses": {"type": "object", "additionalProperties": false, "required": ["processCount", "capturesPerProcess", "modeProcessCounts"], "properties": {"processCount": {"type": "integer", "minimum": 3, "maximum": 6}, "capturesPerProcess": {"const": 20}, "modeProcessCounts": {"type": "array", "minItems": 1, "maxItems": 3, "items": {"type": "integer", "minimum": 2}}}},
     "notRunFlip": {"type": "object", "additionalProperties": false, "required": ["state", "reason"], "properties": {"state": {"const": "not-run"}, "reason": {"type": "string", "minLength": 1, "maxLength": 256}}},
     "notRequiredFlip": {"type": "object", "additionalProperties": false, "required": ["state", "reason"], "properties": {"state": {"const": "not-required"}, "reason": {"type": "string", "minLength": 1, "maxLength": 256}}}
   }

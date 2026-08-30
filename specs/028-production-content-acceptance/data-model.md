@@ -82,6 +82,7 @@ and non-color material-data textures.
 | `EnvironmentPolicy` | authority-policy ID | Repository-owned mapping for hosted, maintainer-local Metal, maintainer-local Windows Vulkan, and local diagnostic execution |
 | `RequiredGates` | ordered enum list | Corpus/import/cook/runtime/realization/render/image/lifecycle as applicable |
 | `TimeBudgetSeconds` | integer | 600 regular; 5,400 hosted medium package operational timeout; 3,600 serialized visible hardware lane |
+| `ProfileTimeBudgetSeconds` | integer | 600 regular; 5,400 hosted medium package shard; 7,800 serialized two-package hardware profile |
 | `NativeTimeBudgetSeconds` | integer | 600 regular; 4,800 hosted medium operational timeout; 3,600 hardware; always capped by the enclosing lane deadline |
 
 ### Environment Measurement Authority

@@ -113,7 +113,7 @@ class ProductionEvidencePrivacyTests(unittest.TestCase):
     def test_evidence_tree_validates_authority_without_promoting_observations(self):
         report = {
             "schema": "stoner.production-acceptance-report",
-            "schemaVersion": 2,
+            "schemaVersion": 3,
             "deterministic": {
                 "corpusRevision": "corpus-v1", "packageId": "package-a",
                 "rootAssetId": "StaticModel:Asset.glb#idx.scene.0",

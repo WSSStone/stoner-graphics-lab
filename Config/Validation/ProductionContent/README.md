@@ -1,6 +1,6 @@
 # Production Content Validation Profiles
 
-`Regular.json`, `Medium.json`, and `Hardware.json` are version-2 strict workload
+`Regular.json`, `Medium.json`, and `Hardware.json` are version-3 strict workload
 contracts consumed by the shared local/CI runner. Unknown fields, profile
 overrides, and caller-selected warm-up counts are rejected.
 
@@ -46,13 +46,19 @@ part of the regular production-content acceptance budget.
 
 ## Tier Matrix
 
-| Profile | Corpus | Cycles / warm-up | Budget | Required environment |
+| Profile | Corpus | Cycles / warm-up | Package / profile / native budget | Required environment |
 |---|---|---:|---:|---|
-| Regular | Checked-in Lantern | 20 / 2 | 10 minutes | Windows, Linux, or macOS target-capable host; headless/software-native evidence where applicable |
-| Medium | Lantern and hash-pinned Sponza | 1,000 / 20 | 90 minutes complete / 80 minutes native | Isolated hosted Intel Metal package lanes; external package cache may be reused only after hash verification |
-| Hardware | Lantern and hash-pinned Sponza | 1,000 / 20 | 60 minutes per target | Maintainer-local native arm64 macOS Metal and x86_64 Windows Vulkan, each with an application display surface |
+| Regular | Checked-in Lantern | 20 / 2 | 600 / 600 / 600 seconds | Windows, Linux, or macOS target-capable host; headless/software-native evidence where applicable |
+| Medium | Lantern and hash-pinned Sponza | 1,000 / 20 | 5,400 / 5,400 / 4,800 seconds | Isolated hosted Intel Metal package lanes; external package cache may be reused only after hash verification |
+| Hardware | Lantern and hash-pinned Sponza | 1,000 / 20 | 3,600 / 7,800 / 3,600 seconds | Maintainer-local native arm64 macOS Metal and x86_64 Windows Vulkan, each with an application display surface |
 
 The runner does not accept caller overrides for cycle or warm-up boundaries.
+Hardware packages run serially and collect normal package semantic, baseline,
+FLIP, and lifecycle failures before producing one aggregate failure. Preflight,
+source/revision mutation, authority-lock loss, device loss, and malformed or
+incomplete evidence remain fatal and stop the lane immediately. The command-line
+`--timeout-seconds 3600` is a per-package/stage cap, not a 3,600-second cap on
+the two-package profile.
 `Unsupported` is a structured non-success result and always identifies the
 missing prerequisite plus the replacement command. An incomplete maintainer-local
 physical preflight is `Unsupported`, never an ordinary local or hosted pass. Hardware runs set

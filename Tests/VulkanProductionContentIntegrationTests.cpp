@@ -443,6 +443,7 @@ RunVulkanProductionContentIntegrationTests()
 
     if (ImageAcceptanceRequired())
     {
+        PrintProductionReadbackDiagnostics(Deferred);
         const auto Image = RunProductionNativeImageAcceptance(
             Deferred, "vulkan", Profile,
             Environment("STONER_PRODUCTION_WORKLOAD_REVISION")
@@ -456,7 +457,6 @@ RunVulkanProductionContentIntegrationTests()
         {
             std::cerr << "Vulkan production image failure: "
                       << Image.FirstFailure.CStr() << '\n';
-            PrintProductionReadbackDiagnostics(Deferred);
         }
         Record(Result, bVisible && Image.bPassed,
             "Vulkan production native image passes semantic probes, exact accepted baseline selection, and FLIP");

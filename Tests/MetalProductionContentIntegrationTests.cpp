@@ -437,6 +437,7 @@ RunMetalProductionContentIntegrationTests()
 
     if (ImageAcceptanceRequired())
     {
+        PrintProductionReadbackDiagnostics(Deferred);
         const auto Image = RunProductionNativeImageAcceptance(
             Deferred, "metal", Profile,
             Environment("STONER_PRODUCTION_WORKLOAD_REVISION")
@@ -450,7 +451,6 @@ RunMetalProductionContentIntegrationTests()
         {
             std::cerr << "Metal production image failure: "
                       << Image.FirstFailure.CStr() << '\n';
-            PrintProductionReadbackDiagnostics(Deferred);
         }
         Record(Result, bVisible && Image.bPassed,
             "Metal production native image passes semantic probes, exact accepted baseline selection, and FLIP");

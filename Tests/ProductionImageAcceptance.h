@@ -99,6 +99,7 @@ struct FProductionSemanticProbeResult
     bool bPassed = false;
     Stoner::Core::FString FirstFailure;
     Stoner::Core::uint32 PassedProbeCount = 0;
+    Stoner::Core::TArray<Stoner::Core::FString> PassedProbeIds;
 };
 
 struct FProductionFlipPolicy

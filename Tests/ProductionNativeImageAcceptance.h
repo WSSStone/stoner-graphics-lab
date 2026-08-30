@@ -8,15 +8,33 @@ namespace Stoner::Demo
 struct FDemoProductionExecutionInspection;
 }
 
+struct FProductionReferenceComparison
+{
+    Stoner::Core::FString ReferenceId;
+    FProductionFlipResult Flip;
+};
+
 struct FProductionNativeImageAcceptanceResult
 {
     bool bPassed = false;
     Stoner::Core::FString DeviceClass;
     Stoner::Core::FString BaselineId;
+    Stoner::Core::FString MatchedReferenceId;
+    Stoner::Core::uint64 FrameToken = 0;
     Stoner::Core::FString FirstFailure;
     FProductionSemanticProbeResult Semantic;
     FProductionFlipResult Flip;
+    Stoner::Core::TArray<FProductionReferenceComparison> ReferenceComparisons;
 };
+
+[[nodiscard]] bool ValidateProductionAuthoritativeFrameBundle(
+    const Stoner::Demo::FDemoProductionExecutionInspection& Inspection,
+    Stoner::Core::FString& OutFailure);
+
+[[nodiscard]] bool SelectProductionMatchedReference(
+    const Stoner::Core::TArray<FProductionReferenceComparison>& Comparisons,
+    Stoner::Core::FString& OutReferenceId,
+    FProductionFlipResult& OutFlip);
 
 [[nodiscard]] bool BuildProductionWorkloadRegions(
     const Stoner::Core::FString& WorkloadRevision,

@@ -38,7 +38,9 @@ hardware evidence are repeated for the new revision.
 2. Realize and publish the complete model snapshot.
 3. Submit real backend commands and observe completion synchronization.
 4. For visible lanes, present the complete application window or surface.
-5. Copy GPU-produced output to readback and verify the current frame token.
+5. Copy GPU-produced attachments and final output to readback, propagate the
+   completed submission frame token through presentation, and verify that the
+   resulting authoritative frame bundle has one token.
 6. Normalize row pitch, channel order, image origin, and color transfer.
 7. Run semantic probes.
 8. Select the exact accepted image baseline.
@@ -62,7 +64,10 @@ cannot satisfy steps 1-5.
 
 Every semantic classification uses a versioned bounded region, minimum valid-
 sample coverage, and robust statistic; one exact pixel cannot be authoritative.
-Every probe must pass before perceptual comparison begins.
+Every probe must pass before perceptual comparison begins. Required-region
+declaration checks are contract checks and do not increment the measured probe
+count. Assigning the same lifecycle counter to expected and observed evidence
+does not prove a current frame.
 
 ## Baseline Selection
 
@@ -75,6 +80,12 @@ caller cannot supply an authoritative class token. Marketing device name and
 driver version are observations, not key material. Zero or multiple class or
 baseline matches is `ImageBaselineMissing` or `ImageBaselineAmbiguous` and
 fails the required hardware gate; nearest/fallback selection is forbidden.
+
+An accepted baseline set contains one to three canonically ordered references.
+Each reference owns its PNG digest, FLIP policy, and cross-process calibration
+digest. Acceptance compares the same candidate to every reference and passes
+when every limit passes for at least one reference. All comparisons and the
+deterministically selected matching reference are reported.
 
 Every formal Feature 028 calibration capture, accepted reference, and hardware
 candidate is exactly 512 by 512 pixels. The 1024-by-1024 interactive preview is
@@ -94,6 +105,11 @@ formal image fails before semantic probes or FLIP.
 - All four baseline limits must pass.
 - Thresholds are fixed reviewed data. Ordinary execution cannot create a
   reference, widen tolerance, choose a nearest device class, or approve output.
+- Calibration begins with three independent 20-capture processes and extends
+  to at most six only to reproduce multiple modes. A proposed mode needs two
+  independent process observations. Blank, real stale-frame, origin, one-pixel
+  translation, missing-geometry, material, color-space, and opposite-normal
+  mutations must each fail against every accepted reference.
 
 ## Lifecycle Profiles
 
@@ -102,6 +118,10 @@ formal image fails before semantic probes or FLIP.
 | Regular | 20 | 1-2 | Platform-applicable bounded native/headless gates | Hosted/local-diagnostic measurement is observed; physical authority belongs only to the hardware profile |
 | Medium | 1,000 | 1-20 | Hosted Metal functional/lifecycle authority | RSS/task-VM/allocator are observed; exact work/owners/stale/captures/readbacks remain required |
 | Hardware | 1,000 | 1-20 | Maintainer-local native arm64 macOS Metal and x86_64 Windows Vulkan, in separate runs | Metal required <= 16 MiB after preflight; Windows working-set RSS observed |
+
+Regular uses 600-second package/profile/native operational limits. Medium uses
+5,400/5,400/4,800 seconds. Hardware uses 3,600 seconds per package and native
+stage inside a 7,800-second serialized profile deadline.
 
 Each cycle performs strict manager bind/request, complete closure, Renderer
 realization, deferred render/readback, bounded forward smoke where required,

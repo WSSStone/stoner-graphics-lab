@@ -136,6 +136,26 @@ bool ParsePolicy(yyjson_val* Object, FProductionFlipPolicy& Out)
         Out.BadPixelFractionMax >= 0.0f && Out.BadPixelFractionMax <= 1.0f;
 }
 
+bool ParseReference(yyjson_val* Object, FProductionImageReference& Out)
+{
+    if (!HasExactKeys(Object,
+            {"referenceId", "referencePath", "referenceSha256",
+             "flipPolicy", "calibrationEvidenceSha256"}) ||
+        !String(Object, "referenceId", Out.ReferenceId) ||
+        !String(Object, "referencePath", Out.ReferencePath) ||
+        !String(Object, "referenceSha256", Out.ReferenceSha256) ||
+        !ParsePolicy(yyjson_obj_get(Object, "flipPolicy"), Out.FlipPolicy) ||
+        !String(Object, "calibrationEvidenceSha256",
+            Out.CalibrationEvidenceSha256))
+        return false;
+    return IsToken(Out.ReferenceId) &&
+        !Out.ReferencePath.View().starts_with('/') &&
+        Out.ReferencePath.View().ends_with(".png") &&
+        Out.ReferencePath.View().find('\\') == std::string_view::npos &&
+        IsDigest(Out.ReferenceSha256) &&
+        IsDigest(Out.CalibrationEvidenceSha256);
+}
+
 bool ParseBaseline(yyjson_val* Root, FProductionImageBaseline& Out)
 {
     uint32 SchemaVersion = 0;
@@ -145,11 +165,10 @@ bool ParseBaseline(yyjson_val* Root, FProductionImageBaseline& Out)
             {"schema", "schemaVersion", "baselineId", "state",
              "workloadRevision", "backend", "deviceClass",
              "capabilitySignature", "width", "height", "colorTransfer",
-             "referencePath", "referenceSha256", "flipPolicy",
-             "calibrationEvidenceSha256"}) ||
+             "references"}) ||
         !String(Root, "schema", Schema) ||
         Schema != FString("stoner.production-image-baseline") ||
-        !UInt(Root, "schemaVersion", SchemaVersion) || SchemaVersion != 1 ||
+        !UInt(Root, "schemaVersion", SchemaVersion) || SchemaVersion != 2 ||
         !String(Root, "baselineId", Out.BaselineId) ||
         !String(Root, "state", Out.State) ||
         !String(Root, "workloadRevision", Out.WorkloadRevision) ||
@@ -157,12 +176,7 @@ bool ParseBaseline(yyjson_val* Root, FProductionImageBaseline& Out)
         !String(Root, "deviceClass", Out.DeviceClass) ||
         !ParseSignature(yyjson_obj_get(Root, "capabilitySignature"), Out.Signature) ||
         !UInt(Root, "width", Out.Width) || !UInt(Root, "height", Out.Height) ||
-        !String(Root, "colorTransfer", Transfer) ||
-        !String(Root, "referencePath", Out.ReferencePath) ||
-        !String(Root, "referenceSha256", Out.ReferenceSha256) ||
-        !ParsePolicy(yyjson_obj_get(Root, "flipPolicy"), Out.FlipPolicy) ||
-        !String(Root, "calibrationEvidenceSha256",
-            Out.CalibrationEvidenceSha256))
+        !String(Root, "colorTransfer", Transfer))
         return false;
     static const std::set<std::string> States = {
         "candidate", "calibrated", "reviewed", "accepted", "superseded"};
@@ -170,12 +184,7 @@ bool ParseBaseline(yyjson_val* Root, FProductionImageBaseline& Out)
         !IsToken(Out.DeviceClass) ||
         States.find(Out.State.ToStdString()) == States.end() ||
         (Out.Backend != FString("vulkan") && Out.Backend != FString("metal")) ||
-        Out.Width != 512 || Out.Height != 512 ||
-        Out.ReferencePath.View().starts_with('/') ||
-        !Out.ReferencePath.View().ends_with(".png") ||
-        Out.ReferencePath.View().find('\\') != std::string_view::npos ||
-        !IsDigest(Out.ReferenceSha256) ||
-        !IsDigest(Out.CalibrationEvidenceSha256))
+        Out.Width != 512 || Out.Height != 512)
         return false;
     if (Transfer == FString("srgb"))
         Out.ColorTransfer = EProductionColorTransfer::SRGB;
@@ -183,7 +192,33 @@ bool ParseBaseline(yyjson_val* Root, FProductionImageBaseline& Out)
         Out.ColorTransfer = EProductionColorTransfer::Linear;
     else
         return false;
-    return true;
+    yyjson_val* References = yyjson_obj_get(Root, "references");
+    if (!yyjson_is_arr(References) || yyjson_arr_size(References) == 0 ||
+        yyjson_arr_size(References) > 3)
+        return false;
+    std::set<std::string> ReferenceIds;
+    std::set<std::string> ReferencePaths;
+    std::set<std::string> ReferenceDigests;
+    FString PreviousReferenceId;
+    size_t ReferenceIndex = 0;
+    size_t ReferenceMaximum = 0;
+    yyjson_val* ReferenceValue = nullptr;
+    yyjson_arr_foreach(
+        References, ReferenceIndex, ReferenceMaximum, ReferenceValue)
+    {
+        FProductionImageReference Reference;
+        if (!ParseReference(ReferenceValue, Reference) ||
+            (!PreviousReferenceId.IsEmpty() &&
+                PreviousReferenceId.View() >= Reference.ReferenceId.View()) ||
+            !ReferenceIds.insert(Reference.ReferenceId.ToStdString()).second ||
+            !ReferencePaths.insert(Reference.ReferencePath.ToStdString()).second ||
+            !ReferenceDigests.insert(
+                Reference.ReferenceSha256.ToStdString()).second)
+            return false;
+        PreviousReferenceId = Reference.ReferenceId;
+        Out.References.push_back(std::move(Reference));
+    }
+    return !Out.References.empty();
 }
 
 } // namespace

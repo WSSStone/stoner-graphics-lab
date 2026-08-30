@@ -8,7 +8,12 @@
 
 #include "../ThirdParty/yyjson/yyjson.h"
 
+#if STONER_TEST_VULKAN_RUNTIME_AVAILABLE && SG_PLATFORM_WINDOWS
+#include <vulkan/vulkan.h>
+#endif
+
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <filesystem>
@@ -115,6 +120,116 @@ bool ContainsCaseInsensitive(
     return Value.find(Needle) != std::string::npos;
 }
 
+struct FVulkanDriverEvidence
+{
+    bool bAvailable = false;
+    Core::uint32 DriverId = 0;
+    Core::uint32 DriverVersion = 0;
+    std::string PipelineCacheUuid;
+    Core::FString FloatControlsSha256;
+    Core::FString Digest;
+};
+
+FVulkanDriverEvidence QueryVulkanDriverEvidence(
+    const Core::FString& ExpectedAdapter)
+{
+    FVulkanDriverEvidence Result;
+#if STONER_TEST_VULKAN_RUNTIME_AVAILABLE && SG_PLATFORM_WINDOWS
+    VkApplicationInfo Application{VK_STRUCTURE_TYPE_APPLICATION_INFO};
+    Application.pApplicationName = "StonerProductionValidation";
+    Application.apiVersion = VK_API_VERSION_1_2;
+    VkInstanceCreateInfo CreateInfo{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+    CreateInfo.pApplicationInfo = &Application;
+    VkInstance Instance = VK_NULL_HANDLE;
+    if (vkCreateInstance(&CreateInfo, nullptr, &Instance) != VK_SUCCESS)
+        return Result;
+    Core::uint32 Count = 0;
+    if (vkEnumeratePhysicalDevices(Instance, &Count, nullptr) != VK_SUCCESS ||
+        Count == 0)
+    {
+        vkDestroyInstance(Instance, nullptr);
+        return Result;
+    }
+    Core::TArray<VkPhysicalDevice> Devices(Count);
+    if (vkEnumeratePhysicalDevices(
+            Instance, &Count, Devices.data()) != VK_SUCCESS)
+    {
+        vkDestroyInstance(Instance, nullptr);
+        return Result;
+    }
+    for (const VkPhysicalDevice Device : Devices)
+    {
+        VkPhysicalDeviceFloatControlsProperties FloatControls{
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES};
+        VkPhysicalDeviceDriverProperties Driver{
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES};
+        Driver.pNext = &FloatControls;
+        VkPhysicalDeviceProperties2 Properties{
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+        Properties.pNext = &Driver;
+        vkGetPhysicalDeviceProperties2(Device, &Properties);
+        if (ExpectedAdapter != Core::FString(
+                Properties.properties.deviceName))
+            continue;
+
+        std::ostringstream FloatText;
+        FloatText
+            << static_cast<Core::uint32>(
+                FloatControls.denormBehaviorIndependence) << '|'
+            << static_cast<Core::uint32>(
+                FloatControls.roundingModeIndependence);
+        const std::array<VkBool32, 15> Capabilities = {
+            FloatControls.shaderSignedZeroInfNanPreserveFloat16,
+            FloatControls.shaderSignedZeroInfNanPreserveFloat32,
+            FloatControls.shaderSignedZeroInfNanPreserveFloat64,
+            FloatControls.shaderDenormPreserveFloat16,
+            FloatControls.shaderDenormPreserveFloat32,
+            FloatControls.shaderDenormPreserveFloat64,
+            FloatControls.shaderDenormFlushToZeroFloat16,
+            FloatControls.shaderDenormFlushToZeroFloat32,
+            FloatControls.shaderDenormFlushToZeroFloat64,
+            FloatControls.shaderRoundingModeRTEFloat16,
+            FloatControls.shaderRoundingModeRTEFloat32,
+            FloatControls.shaderRoundingModeRTEFloat64,
+            FloatControls.shaderRoundingModeRTZFloat16,
+            FloatControls.shaderRoundingModeRTZFloat32,
+            FloatControls.shaderRoundingModeRTZFloat64};
+        for (const VkBool32 Capability : Capabilities)
+            FloatText << '|' << static_cast<Core::uint32>(Capability);
+        const std::string FloatBytes = FloatText.str();
+        Result.FloatControlsSha256 = Asset::FAssetDigest::FromBytes(
+            std::span<const Core::uint8>(
+                reinterpret_cast<const Core::uint8*>(FloatBytes.data()),
+                FloatBytes.size())).ToLowerHex();
+
+        std::ostringstream Uuid;
+        Uuid << std::hex << std::setfill('0');
+        for (const Core::uint8 Byte :
+             Properties.properties.pipelineCacheUUID)
+            Uuid << std::setw(2) << static_cast<Core::uint32>(Byte);
+        Result.PipelineCacheUuid = Uuid.str();
+        Result.DriverId = static_cast<Core::uint32>(Driver.driverID);
+        Result.DriverVersion = Properties.properties.driverVersion;
+        const std::string Canonical =
+            std::to_string(Result.DriverId) + "|" +
+            std::to_string(Result.DriverVersion) + "|" +
+            Result.PipelineCacheUuid + "|" +
+            Result.FloatControlsSha256.ToStdString();
+        Result.Digest = Asset::FAssetDigest::FromBytes(
+            std::span<const Core::uint8>(
+                reinterpret_cast<const Core::uint8*>(Canonical.data()),
+                Canonical.size())).ToLowerHex();
+        Result.bAvailable = Result.PipelineCacheUuid.size() ==
+            VK_UUID_SIZE * 2u;
+        break;
+    }
+    vkDestroyInstance(Instance, nullptr);
+#else
+    (void)ExpectedAdapter;
+#endif
+    return Result;
+}
+
 bool DeriveCapabilitySignature(
     const Demo::FDemoProductionExecutionInspection& Inspection,
     const Core::FString& Backend,
@@ -191,6 +306,16 @@ const Demo::FDemoProductionReadbackEvidence* FindReadback(
             return Candidate.Name == Core::FString(Name);
         });
     return Found == Inspection.Readbacks.end() ? nullptr : &*Found;
+}
+
+bool IsRequiredFrameReadbackName(const Core::FString& Name)
+{
+    return Name == Core::FString("FinalOutput") ||
+        Name == Core::FString("BaseColorAO") ||
+        Name == Core::FString("NormalRoughness") ||
+        Name == Core::FString("EmissiveMetallic") ||
+        Name == Core::FString("Depth") ||
+        Name == Core::FString("LightingAccumulation");
 }
 
 bool ToReadbackView(
@@ -319,14 +444,6 @@ Core::TArray<FProductionRegionProbe> SponzaRegions(
     };
 }
 
-std::filesystem::path CapturePath(
-    const Core::FString& CaptureRoot,
-    const Core::FString& Backend)
-{
-    return std::filesystem::path(CaptureRoot.ToStdString()) /
-        Backend.ToStdString() / "capture-19.ppm";
-}
-
 bool ReferencePath(
     const Core::FString& Root,
     const Core::FString& Relative,
@@ -363,6 +480,140 @@ bool VerifyDigest(
 }
 
 } // namespace
+
+bool ValidateProductionAuthoritativeFrameBundle(
+    const Stoner::Demo::FDemoProductionExecutionInspection& Inspection,
+    Stoner::Core::FString& OutFailure)
+{
+    using namespace Stoner;
+    OutFailure = {};
+    constexpr const char* RequiredNames[] = {
+        "FinalOutput", "BaseColorAO", "NormalRoughness",
+        "EmissiveMetallic", "Depth", "LightingAccumulation"};
+    const Core::uint64 FrameToken = Inspection.AuthoritativeFrameToken;
+    if (FrameToken == 0)
+    {
+        OutFailure = "authoritative-frame-bundle";
+        return false;
+    }
+    for (const char* RequiredName : RequiredNames)
+    {
+        const auto Count = std::count_if(
+            Inspection.Readbacks.begin(), Inspection.Readbacks.end(),
+            [RequiredName](const auto& Evidence)
+            {
+                return Evidence.Name == Core::FString(RequiredName);
+            });
+        const auto* Evidence = FindReadback(Inspection, RequiredName);
+        if (Count != 1 || !Evidence || Evidence->FrameToken != FrameToken)
+        {
+            OutFailure = "authoritative-frame-bundle";
+            return false;
+        }
+    }
+    if (std::count_if(
+            Inspection.Readbacks.begin(), Inspection.Readbacks.end(),
+            [](const auto& Evidence)
+            {
+                return IsRequiredFrameReadbackName(Evidence.Name);
+            }) != std::size(RequiredNames))
+    {
+        OutFailure = "authoritative-frame-bundle";
+        return false;
+    }
+    const auto& Presented = Inspection.AuthoritativeCapture;
+    if (Presented.FrameToken != FrameToken ||
+        Presented.ExpectedFrameToken != FrameToken || !Presented.bPresented ||
+        !Presented.bWindowOnlyCapture || Presented.Bytes.empty() ||
+        Inspection.LastLifecyclePresentedFrameToken == 0 ||
+        Inspection.LastLifecyclePresentedFrameToken >= FrameToken)
+    {
+        OutFailure = "authoritative-frame-bundle";
+        return false;
+    }
+    const auto& StaleCapture = Inspection.LastLifecyclePresentedCapture;
+    if (StaleCapture.FrameToken !=
+            Inspection.LastLifecyclePresentedFrameToken ||
+        StaleCapture.ExpectedFrameToken != StaleCapture.FrameToken ||
+        !StaleCapture.bPresented || !StaleCapture.bWindowOnlyCapture ||
+        StaleCapture.FrameToken == FrameToken || StaleCapture.Bytes.empty())
+    {
+        OutFailure = "stale-frame-bundle-evidence";
+        return false;
+    }
+    return true;
+}
+
+Core::FString DecodedPixelDigest(
+    const FProductionCanonicalImage& Image)
+{
+    if (!Image.IsValid()) return {};
+    const auto* Bytes = reinterpret_cast<const Core::uint8*>(
+        Image.LinearRgb.data());
+    return Asset::FAssetDigest::FromBytes(std::span<const Core::uint8>(
+        Bytes, Image.LinearRgb.size() * sizeof(float))).ToLowerHex();
+}
+
+Core::FString ReadbackDecodedPixelDigest(
+    const Demo::FDemoProductionReadbackEvidence& Evidence)
+{
+    FProductionReadbackView View;
+    const EProductionColorTransfer Transfer =
+        Evidence.Name == Core::FString("FinalOutput")
+        ? EProductionColorTransfer::SRGB
+        : EProductionColorTransfer::Linear;
+    if (!ToReadbackView(Evidence, Transfer, View)) return {};
+    Core::TArray<float> Decoded;
+    Decoded.reserve(
+        static_cast<Core::usize>(View.Width) * View.Height * 3u);
+    Core::FString Failure;
+    for (Core::uint32 Y = 0; Y < View.Height; ++Y)
+        for (Core::uint32 X = 0; X < View.Width; ++X)
+        {
+            Core::FVector3 Sample;
+            if (!SampleProductionReadbackPixel(
+                    View, X, Y, Sample, Failure))
+                return {};
+            Decoded.push_back(Sample.X);
+            Decoded.push_back(Sample.Y);
+            Decoded.push_back(Sample.Z);
+        }
+    const auto* Bytes = reinterpret_cast<const Core::uint8*>(Decoded.data());
+    return Asset::FAssetDigest::FromBytes(std::span<const Core::uint8>(
+        Bytes, Decoded.size() * sizeof(float))).ToLowerHex();
+}
+
+Core::FString CaptureDecodedPixelDigest(
+    const Demo::FDemoProductionCapture& Capture)
+{
+    const FProductionReadbackView View{
+        Capture.Bytes, Capture.Width, Capture.Height,
+        Capture.RowPitchBytes, EProductionReadbackPixelFormat::RGBA8UNorm,
+        EProductionImageOrigin::TopLeft, EProductionColorTransfer::SRGB};
+    FProductionCanonicalImage Image;
+    Core::FString Failure;
+    return NormalizeProductionReadback(View, Image, Failure)
+        ? DecodedPixelDigest(Image) : Core::FString{};
+}
+
+bool SelectProductionMatchedReference(
+    const Stoner::Core::TArray<FProductionReferenceComparison>& Comparisons,
+    Stoner::Core::FString& OutReferenceId,
+    FProductionFlipResult& OutFlip)
+{
+    OutReferenceId = {};
+    OutFlip = {};
+    for (const auto& Comparison : Comparisons)
+    {
+        if (Comparison.ReferenceId.IsEmpty() ||
+            !Comparison.Flip.bMeasured || !Comparison.Flip.bPassed)
+            continue;
+        OutReferenceId = Comparison.ReferenceId;
+        OutFlip = Comparison.Flip;
+        return true;
+    }
+    return false;
+}
 
 bool BuildProductionWorkloadRegions(
     const Core::FString& WorkloadRevision,
@@ -421,16 +672,25 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
     const auto* ColorEvidence = FindReadback(Inspection, "FinalOutput");
     const auto* BaseColorEvidence = FindReadback(Inspection, "BaseColorAO");
     const auto* NormalEvidence = FindReadback(Inspection, "NormalRoughness");
+    const auto* EmissiveEvidence = FindReadback(
+        Inspection, "EmissiveMetallic");
     const auto* DepthEvidence = FindReadback(Inspection, "Depth");
     const auto* LightingEvidence = FindReadback(
         Inspection, "LightingAccumulation");
     if (!ColorEvidence || !BaseColorEvidence || !NormalEvidence ||
-        !DepthEvidence || !LightingEvidence)
+        !EmissiveEvidence || !DepthEvidence || !LightingEvidence)
         return Fail("semantic-readback-missing");
+    Core::FString FrameBundleFailure;
+    if (!ValidateProductionAuthoritativeFrameBundle(
+            Inspection, FrameBundleFailure))
+        return Fail(FrameBundleFailure.CStr());
+    const Core::uint64 FrameToken = ColorEvidence->FrameToken;
+    const auto& Presented = Inspection.AuthoritativeCapture;
 
     FProductionReadbackView ColorView;
     FProductionReadbackView BaseColorView;
     FProductionReadbackView NormalView;
+    FProductionReadbackView EmissiveView;
     FProductionReadbackView DepthView;
     FProductionReadbackView LightingView;
     if (!ToReadbackView(*ColorEvidence, EProductionColorTransfer::SRGB,
@@ -439,6 +699,8 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
             BaseColorView) ||
         !ToReadbackView(*NormalEvidence, EProductionColorTransfer::Linear,
             NormalView) ||
+        !ToReadbackView(*EmissiveEvidence, EProductionColorTransfer::Linear,
+            EmissiveView) ||
         !ToReadbackView(*DepthEvidence, EProductionColorTransfer::Linear,
             DepthView) ||
         !ToReadbackView(*LightingEvidence, EProductionColorTransfer::Linear,
@@ -451,7 +713,7 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
     };
     if (!HasFormalExtent(ColorView) || !HasFormalExtent(BaseColorView) ||
         !HasFormalExtent(NormalView) || !HasFormalExtent(DepthView) ||
-        !HasFormalExtent(LightingView))
+        !HasFormalExtent(EmissiveView) || !HasFormalExtent(LightingView))
         return Fail("formal-image-extent");
 
     Core::FString Failure;
@@ -463,9 +725,11 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
     const FProductionPixelRegion AttachmentRegion = RegionAt(
         0.598f, 0.390f, FormalExtent, FormalExtent);
     FProductionReadbackRegionSample BaseColorSample;
+    FProductionReadbackRegionSample EmissiveSample;
     FProductionReadbackRegionSample DepthSample;
     FProductionReadbackRegionSample LightingSample;
     float NormalCoverage = 0.0f;
+    float OppositeNormalCoverage = 0.0f;
     if (!SampleProductionReadbackRegion(
             BaseColorView, AttachmentRegion, 0.5f,
             BaseColorSample, Failure) ||
@@ -473,10 +737,20 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
         std::max({BaseColorSample.Value.X, BaseColorSample.Value.Y,
             BaseColorSample.Value.Z}) <= 0.02f)
         return Fail("base-color-attachment-region");
+    if (!SampleProductionReadbackRegion(
+            EmissiveView, AttachmentRegion, 0.5f,
+            EmissiveSample, Failure) ||
+        EmissiveSample.ValidSampleFraction < 0.75f)
+        return Fail("emissive-metallic-attachment-region");
     if (!MeasureProductionReadbackDirectionalCoverage(
             NormalView, AttachmentRegion, ExpectedNormal, 0.8f,
             NormalCoverage, Failure) || NormalCoverage < 0.60f)
         return Fail("normal-attachment-region");
+    if (!MeasureProductionReadbackDirectionalCoverage(
+            NormalView, AttachmentRegion, -ExpectedNormal, 0.8f,
+            OppositeNormalCoverage, Failure) ||
+        OppositeNormalCoverage >= 0.60f)
+        return Fail("opposite-normal-mutation");
     if (!SampleProductionReadbackRegion(
             DepthView, AttachmentRegion, 0.5f, DepthSample, Failure) ||
         DepthSample.ValidSampleFraction < 0.75f ||
@@ -490,19 +764,46 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
             LightingSample.Value.Z}) <= 0.10f)
         return Fail("lighting-attachment-region");
     FProductionCanonicalImage Color;
+    FProductionCanonicalImage PresentedColor;
+    FProductionCanonicalImage StaleColor;
     FProductionCanonicalImage Normal;
     FProductionCanonicalImage Depth;
+    const FProductionReadbackView PresentedView{
+        Presented.Bytes, Presented.Width, Presented.Height,
+        Presented.RowPitchBytes, EProductionReadbackPixelFormat::RGBA8UNorm,
+        EProductionImageOrigin::TopLeft, EProductionColorTransfer::SRGB};
+    const auto& StaleCapture =
+        Inspection.LastLifecyclePresentedCapture;
+    const FProductionReadbackView StaleView{
+        StaleCapture.Bytes, StaleCapture.Width, StaleCapture.Height,
+        StaleCapture.RowPitchBytes,
+        EProductionReadbackPixelFormat::RGBA8UNorm,
+        EProductionImageOrigin::TopLeft, EProductionColorTransfer::SRGB};
     if (!NormalizeProductionReadback(ColorView, Color, Failure) ||
+        !NormalizeProductionReadback(PresentedView, PresentedColor, Failure) ||
+        !NormalizeProductionReadback(StaleView, StaleColor, Failure) ||
         !NormalizeProductionSignedNormalReadback(NormalView, Normal, Failure) ||
         !NormalizeProductionReadback(DepthView, Depth, Failure))
         return Fail(Failure.CStr());
+    if (PresentedColor.Width != Color.Width ||
+        PresentedColor.Height != Color.Height ||
+        PresentedColor.LinearRgb != Color.LinearRgb)
+        return Fail("presented-frame-pixels");
+    FProductionSemanticProbeRequest StaleSemantic;
+    StaleSemantic.Color = &StaleColor;
+    StaleSemantic.ExpectedFrameToken = FrameToken;
+    StaleSemantic.ObservedFrameToken = StaleCapture.FrameToken;
+    const auto StaleResult = RunProductionSemanticProbes(StaleSemantic);
+    if (StaleResult.bPassed ||
+        StaleResult.FirstFailure != Core::FString("current-frame"))
+        return Fail("stale-frame-bundle-evidence");
 
     FProductionSemanticProbeRequest Semantic;
     Semantic.Color = &Color;
     Semantic.Normal = &Normal;
     Semantic.Depth = &Depth;
-    Semantic.ExpectedFrameToken = Inspection.CompletedCycles;
-    Semantic.ObservedFrameToken = Inspection.CompletedCycles;
+    Semantic.ExpectedFrameToken = Inspection.AuthoritativeFrameToken;
+    Semantic.ObservedFrameToken = ColorEvidence->FrameToken;
     Semantic.MinimumCoverageFraction = bSponzaV2 ? 0.75f : 0.01f;
     Semantic.MaximumCoverageFraction = bSponzaV2 ? 0.82f : 0.35f;
     if (!BuildProductionWorkloadRegions(
@@ -515,6 +816,15 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
         Result.FirstFailure = Result.Semantic.FirstFailure;
         return Result;
     }
+    for (const char* ProbeId : {
+             "base-color-attachment", "normal-attachment-direction",
+             "emissive-metallic-attachment", "depth-attachment",
+             "lighting-attachment", "final-output-readback",
+             "presented-window-capture"})
+        Result.Semantic.PassedProbeIds.push_back(ProbeId);
+    Result.Semantic.PassedProbeCount = static_cast<Core::uint32>(
+        Result.Semantic.PassedProbeIds.size());
+    Result.FrameToken = FrameToken;
 
     FProductionImageBaselineRegistry Registry;
     if (!Registry.LoadDeviceClasses(DeviceClassRegistryPath, Failure))
@@ -550,39 +860,49 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
         return Result;
     }
 
-    const std::filesystem::path CandidatePath =
-        CapturePath(CaptureRoot, Backend);
-    std::filesystem::path Reference;
-    if (!ReferencePath(BaselineRoot, Baseline.ReferencePath, Reference) ||
-        !VerifyDigest(Reference, Baseline.ReferenceSha256))
-    {
-        Result.FirstFailure = "reference-image-digest";
-        return Result;
-    }
-    FProductionCanonicalImage ReferenceImage;
-    FProductionCanonicalImage CandidateImage;
-    if (!LoadProductionReferenceImage(Reference, Baseline.ColorTransfer,
-            ReferenceImage, Failure) ||
-        !LoadProductionReferenceImage(CandidatePath, Baseline.ColorTransfer,
-            CandidateImage, Failure))
-    {
-        Result.FirstFailure = Failure;
-        return Result;
-    }
     if (Baseline.Width != FormalExtent || Baseline.Height != FormalExtent ||
-        ReferenceImage.Width != FormalExtent ||
-        ReferenceImage.Height != FormalExtent ||
-        CandidateImage.Width != FormalExtent ||
-        CandidateImage.Height != FormalExtent)
+        Color.Width != FormalExtent || Color.Height != FormalExtent ||
+        Baseline.References.empty())
     {
         Result.FirstFailure = "formal-image-extent";
         return Result;
     }
-
-    Result.Flip = CompareProductionImagesWithFlip(
-        ReferenceImage, CandidateImage, Baseline.FlipPolicy);
-    Result.bPassed = Result.Flip.bMeasured && Result.Flip.bPassed;
-    if (!Result.bPassed) Result.FirstFailure = Result.Flip.FailureReason;
+    for (const auto& AcceptedReference : Baseline.References)
+    {
+        std::filesystem::path Reference;
+        if (!ReferencePath(
+                BaselineRoot, AcceptedReference.ReferencePath, Reference) ||
+            !VerifyDigest(Reference, AcceptedReference.ReferenceSha256))
+        {
+            Result.FirstFailure = "reference-image-digest";
+            return Result;
+        }
+        FProductionCanonicalImage ReferenceImage;
+        if (!LoadProductionReferenceImage(
+                Reference, Baseline.ColorTransfer, ReferenceImage, Failure))
+        {
+            Result.FirstFailure = Failure;
+            return Result;
+        }
+        if (ReferenceImage.Width != FormalExtent ||
+            ReferenceImage.Height != FormalExtent)
+        {
+            Result.FirstFailure = "formal-image-extent";
+            return Result;
+        }
+        FProductionReferenceComparison Comparison;
+        Comparison.ReferenceId = AcceptedReference.ReferenceId;
+        Comparison.Flip = CompareProductionImagesWithFlip(
+            ReferenceImage, Color, AcceptedReference.FlipPolicy);
+        Result.ReferenceComparisons.push_back(Comparison);
+    }
+    Result.bPassed = SelectProductionMatchedReference(
+        Result.ReferenceComparisons, Result.MatchedReferenceId, Result.Flip);
+    if (!Result.bPassed)
+    {
+        Result.Flip = Result.ReferenceComparisons.front().Flip;
+        Result.FirstFailure = "reference-set-no-match";
+    }
     return Result;
 }
 
@@ -590,25 +910,52 @@ void PrintProductionNativeImageEvidence(
     const Stoner::Core::FString& Backend,
     const FProductionNativeImageAcceptanceResult& Result)
 {
+    std::string ProbeIds;
+    for (const auto& ProbeId : Result.Semantic.PassedProbeIds)
+    {
+        if (!ProbeIds.empty()) ProbeIds.push_back(',');
+        ProbeIds += ProbeId.ToStdString();
+    }
     std::cout << std::fixed << std::setprecision(8)
               << "[IMAGE] backend=" << Backend.CStr()
               << " device-class=" << Result.DeviceClass.CStr()
               << " baseline=" << Result.BaselineId.CStr()
+              << " matched-reference=" << Result.MatchedReferenceId.CStr()
+              << " frame-token=" << Result.FrameToken
               << " semantic-probes=" << Result.Semantic.PassedProbeCount
+              << " probe-ids=" << ProbeIds
               << " mean=" << Result.Flip.Mean
               << " p95=" << Result.Flip.P95
               << " maximum=" << Result.Flip.Maximum
               << " bad-fraction=" << Result.Flip.BadPixelFraction
               << " result=" << (Result.bPassed ? "passed" : "failed")
               << '\n';
+    for (const auto& Comparison : Result.ReferenceComparisons)
+    {
+        std::cout << "[IMAGE-REFERENCE] reference="
+                  << Comparison.ReferenceId.CStr()
+                  << " mean=" << Comparison.Flip.Mean
+                  << " p95=" << Comparison.Flip.P95
+                  << " maximum=" << Comparison.Flip.Maximum
+                  << " bad-fraction=" << Comparison.Flip.BadPixelFraction
+                  << " result="
+                  << (Comparison.Flip.bMeasured && Comparison.Flip.bPassed
+                      ? "passed" : "failed") << '\n';
+    }
 }
 
 void PrintProductionReadbackDiagnostics(
     const Stoner::Demo::FDemoProductionExecutionInspection& Inspection)
 {
+    const FVulkanDriverEvidence VulkanDriver =
+        QueryVulkanDriverEvidence(Inspection.Runtime.AdapterName);
+    const Stoner::Core::FString DeviceFingerprint =
+        VulkanDriver.bAvailable
+        ? VulkanDriver.Digest : Inspection.DeviceFingerprint;
     for (const auto& Evidence : Inspection.Readbacks)
     {
         std::cerr << "[READBACK] name=" << Evidence.Name.CStr()
+                  << " frame-token=" << Evidence.FrameToken
                   << " format=" << static_cast<int>(Evidence.Format)
                   << " width=" << Evidence.Width
                   << " height=" << Evidence.Height
@@ -630,4 +977,62 @@ void PrintProductionReadbackDiagnostics(
                           << '\n';
         }
     }
+    std::cerr << "[FRAME-FINGERPRINT] frame-token="
+              << Inspection.AuthoritativeFrameToken
+              << " snapshot=" << Inspection.SnapshotFingerprint.CStr()
+              << " uniform=" << Inspection.UniformFingerprint.CStr()
+              << " shader=" << Inspection.ShaderFingerprint.CStr()
+              << " pipeline=" << Inspection.PipelineFingerprint.CStr()
+              << " descriptor=" << Inspection.DescriptorFingerprint.CStr()
+              << " device=" << DeviceFingerprint.CStr()
+              << '\n';
+    std::cerr << "[FRAME-BUNDLE] {\"attachments\":{";
+    bool bFirst = true;
+    for (const char* Name : {
+             "BaseColorAO", "Depth", "EmissiveMetallic", "FinalOutput",
+             "LightingAccumulation", "NormalRoughness"})
+    {
+        const auto* Evidence = FindReadback(Inspection, Name);
+        if (!bFirst) std::cerr << ',';
+        bFirst = false;
+        std::cerr << '\"' << Name << "\":\""
+                  << (Evidence
+                      ? ReadbackDecodedPixelDigest(*Evidence).CStr() : "")
+                  << '\"';
+    }
+    std::cerr << "},\"cpu\":{"
+              << "\"descriptor\":\""
+              << Inspection.DescriptorFingerprint.CStr()
+              << "\",\"device\":\""
+              << DeviceFingerprint.CStr()
+              << "\",\"pipeline\":\""
+              << Inspection.PipelineFingerprint.CStr()
+              << "\",\"shader\":\""
+              << Inspection.ShaderFingerprint.CStr()
+              << "\",\"snapshot\":\""
+              << Inspection.SnapshotFingerprint.CStr()
+              << "\",\"uniform\":\""
+              << Inspection.UniformFingerprint.CStr()
+              << "\"},\"frameToken\":"
+              << Inspection.AuthoritativeFrameToken
+              << ",\"vulkanDriver\":";
+    if (VulkanDriver.bAvailable)
+    {
+        std::cerr << "{\"driverId\":" << VulkanDriver.DriverId
+                  << ",\"driverVersion\":"
+                  << VulkanDriver.DriverVersion
+                  << ",\"floatControlsSha256\":\""
+                  << VulkanDriver.FloatControlsSha256.CStr()
+                  << "\",\"pipelineCacheUuid\":\""
+                  << VulkanDriver.PipelineCacheUuid << "\"}";
+    }
+    else
+    {
+        std::cerr << "null";
+    }
+    std::cerr
+              << ",\"windowCapture\":\""
+              << CaptureDecodedPixelDigest(
+                     Inspection.AuthoritativeCapture).CStr()
+              << "\"}\n";
 }

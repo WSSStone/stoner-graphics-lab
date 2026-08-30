@@ -37,9 +37,13 @@ include_paths.extend([
 test_env.Append(CPPPATH=include_paths)
 test_env.Append(CPPDEFINES=[
     ('STONER_GLFW_AVAILABLE', int(graphics_deps['glfw_available'])),
+    ('STONER_TEST_VULKAN_RUNTIME_AVAILABLE',
+        int(graphics_deps['vulkan_available'])),
 ])
 if graphics_deps['glfw_include_dir']:
     test_env.Append(CPPPATH=[graphics_deps['glfw_include_dir']])
+if graphics_deps['vulkan_include_dir']:
+    test_env.Append(CPPPATH=[graphics_deps['vulkan_include_dir']])
 
 if platform == 'Mac':
     test_env.Append(CCFLAGS=['-Werror=unguarded-availability-new'])
@@ -141,6 +145,9 @@ private_include_paths_by_source = {
     ],
     'ProductionImageAcceptance.cpp': [
         Dir('#ThirdParty/flip').abspath,
+    ],
+    'ProductionImageAcceptanceTests.cpp': [
+        Dir('#Demo/StonerDemo/Private').abspath,
     ],
 }
 

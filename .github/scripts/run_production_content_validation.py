@@ -78,7 +78,8 @@ FAILURE_CASE_FIELDS = {
 PROFILE_FIELDS = {
     "schema", "schemaVersion", "profileId", "corpusRevision", "packageIds",
     "targetProfiles", "lifecycleCycles", "warmupCycles", "maxRssGrowthBytes",
-    "timeBudgetSeconds", "nativeTimeBudgetSeconds", "cadence",
+    "timeBudgetSeconds", "profileTimeBudgetSeconds",
+    "nativeTimeBudgetSeconds", "cadence",
     "requiredGates", "authorityPolicy",
 }
 EXECUTION_CLASSES = (
@@ -114,6 +115,7 @@ PROFILE_CONTRACTS = {
         "cycles": 20,
         "warmup": 2,
         "budget": 600,
+        "profile_budget": 600,
         "native_budget": 600,
         "cadence": ["relevant-pull-request", "relevant-push"],
         "gates": [
@@ -127,6 +129,7 @@ PROFILE_CONTRACTS = {
         "cycles": 1000,
         "warmup": 20,
         "budget": 5400,
+        "profile_budget": 5400,
         "native_budget": 4800,
         "cadence": [
             "weekly-default-branch", "feature-closeout", "release-closeout"
@@ -142,6 +145,7 @@ PROFILE_CONTRACTS = {
         "cycles": 1000,
         "warmup": 20,
         "budget": 3600,
+        "profile_budget": 7800,
         "native_budget": 3600,
         "cadence": [
             "feature-closeout", "reference-image-change",
@@ -506,9 +510,35 @@ LIFECYCLE_EVIDENCE_FIELDS = {
 }
 IMAGE_EVIDENCE_PREFIX = "[IMAGE] "
 IMAGE_EVIDENCE_FIELDS = {
-    "backend", "device-class", "baseline", "semantic-probes", "mean",
-    "p95", "maximum", "bad-fraction", "result",
+    "backend", "device-class", "baseline", "matched-reference",
+    "frame-token", "semantic-probes", "probe-ids", "mean", "p95",
+    "maximum", "bad-fraction", "result",
 }
+IMAGE_REFERENCE_EVIDENCE_PREFIX = "[IMAGE-REFERENCE] "
+IMAGE_REFERENCE_EVIDENCE_FIELDS = {
+    "reference", "mean", "p95", "maximum", "bad-fraction", "result",
+}
+FRAME_FINGERPRINT_PREFIX = "[FRAME-FINGERPRINT] "
+FRAME_FINGERPRINT_FIELDS = {
+    "frame-token", "snapshot", "uniform", "shader", "pipeline",
+    "descriptor", "device",
+}
+FRAME_BUNDLE_PREFIX = "[FRAME-BUNDLE] "
+FRAME_BUNDLE_ATTACHMENTS = {
+    "BaseColorAO", "Depth", "EmissiveMetallic", "FinalOutput",
+    "LightingAccumulation", "NormalRoughness",
+}
+EXPECTED_SEMANTIC_PROBE_IDS = [
+    "color-image", "current-frame", "nonblank", "coverage",
+    "region-background", "region-orientation",
+    "region-primitive-material", "region-base-color",
+    "region-normal-response", "region-metallic-roughness",
+    "region-emissive", "normal-semantic", "depth-semantic",
+    "base-color-attachment", "normal-attachment-direction",
+    "emissive-metallic-attachment", "depth-attachment",
+    "lighting-attachment", "final-output-readback",
+    "presented-window-capture",
+]
 
 
 def load_local_module(name: str, path: Path):
@@ -516,6 +546,15 @@ def load_local_module(name: str, path: Path):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def remove_validation_tree(path: Path, ignore_errors: bool = False) -> None:
+    resolved = path.resolve()
+    native_path = (
+        Path("\\\\?\\" + str(resolved))
+        if platform.system().lower() == "windows" else resolved
+    )
+    shutil.rmtree(native_path, ignore_errors=ignore_errors)
 
 
 @dataclass(frozen=True)
@@ -536,6 +575,7 @@ class CommandFailure(RuntimeError):
             f"command failed ({returncode}): {' '.join(command)}\n"
             f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         )
+        self.returncode = returncode
         self.result = result
 
 
@@ -546,12 +586,14 @@ class StageFailure(RuntimeError):
         category: str,
         detail: str,
         result: CommandResult | None = None,
+        returncode: int | None = None,
     ):
         super().__init__(f"{stage}: {category}: {detail}")
         self.stage = stage
         self.category = category
         self.detail = detail
         self.result = result
+        self.returncode = returncode
 
 
 def wait_for_optional_barrier(barrier, timeout: int) -> None:
@@ -573,6 +615,15 @@ def remaining_stage_timeout(deadline: float, configured_timeout: int) -> int:
             "profile", "timeout", "profile time budget is exhausted"
         )
     return min(configured_timeout, max(1, math.ceil(remaining)))
+
+
+def bounded_package_deadline(
+    profile_deadline: float,
+    package_budget_seconds: int,
+    now: float | None = None,
+) -> float:
+    started = time.monotonic() if now is None else now
+    return min(profile_deadline, started + package_budget_seconds)
 
 
 def native_stage_timeout(
@@ -665,7 +716,8 @@ def run_stage(
             flush=True,
         )
         raise StageFailure(
-            stage, "command-failed", str(error), error.result
+            stage, "command-failed", str(error), error.result,
+            error.returncode,
         ) from error
     except (OSError, RuntimeError) as error:
         print(
@@ -866,29 +918,17 @@ def verify_validation_output(output: Path, target_profile: Path) -> dict:
             r"[0-9a-f]{64}", generation_id
         ):
             raise ValueError("validation generation identity is invalid")
-        publication = output / package_id / "clean-00/publication"
-        current_path = publication / "Current.json"
-        if not current_path.is_file():
-            raise ValueError("published current pointer is missing")
-        current_bytes = current_path.read_bytes()
-        if package.get("currentPointerDigest") != sha256_bytes(current_bytes):
-            raise ValueError("published current pointer digest differs")
-        current = json.loads(current_bytes.decode("utf-8"))
-        expected_locator = f"Generations/{generation_id}/Manifest.json"
         if (
-            current.get("schema") != "stoner.asset-current-generation"
-            or current.get("schemaVersion") != 1
-            or current.get("generationId") != generation_id
-            or current.get("manifestLocator") != expected_locator
-            or current.get("manifestDigest") !=
-                package.get("generationManifestDigest")
+            not isinstance(package.get("currentPointerDigest"), str)
+            or not re.fullmatch(
+                r"[0-9a-f]{64}", package["currentPointerDigest"]
+            )
+            or not isinstance(package.get("generationManifestDigest"), str)
+            or not re.fullmatch(
+                r"[0-9a-f]{64}", package["generationManifestDigest"]
+            )
         ):
-            raise ValueError("published generation pointer differs")
-        generation_manifest_path = publication / expected_locator
-        if not generation_manifest_path.is_file():
-            raise ValueError("published generation manifest is missing")
-        if sha256_bytes(generation_manifest_path.read_bytes()) != current["manifestDigest"]:
-            raise ValueError("published generation manifest digest differs")
+            raise ValueError("published generation digest evidence is invalid")
     return {
         "result": "Passed",
         "passed": True,
@@ -948,18 +988,53 @@ def aggregate_native_results(
     )
 
 
-def run_serial_packages_fail_closed(
+def run_serial_packages_collect_all(
     packages: Sequence[dict],
     run_selected_package,
+    after_each=None,
 ) -> list[dict]:
     reports = []
     for package in packages:
         report = run_selected_package(package)
         reports.append(report)
-        native = report.get("nativeLifecycle")
-        if isinstance(native, dict) and native.get("result") != "Passed":
-            break
+        if after_each is not None:
+            after_each(report)
     return reports
+
+
+def revalidate_local_authority_session(
+    repository_root: Path,
+    authority: dict,
+    package_report: dict | None = None,
+) -> None:
+    if not authority.get("executionClass", "").startswith(
+        "maintainer-local-"
+    ):
+        return
+    preflight = authority.get("preflight")
+    if not isinstance(preflight, dict):
+        raise RuntimeError("local authority preflight evidence is missing")
+    if _git_local_authority_revision(repository_root) != preflight.get(
+        "frozenRevision"
+    ):
+        raise RuntimeError("maintainer-local authority revision changed")
+    expected_lock = preflight.get("lockDigest")
+    live_locks = {
+        hashlib.sha256(key.encode("utf-8")).hexdigest()
+        for key, handle in _LOCAL_HARDWARE_AUTHORITY_LOCKS.items()
+        if not handle.closed
+    }
+    if expected_lock not in live_locks:
+        raise RuntimeError("maintainer-local authority lock was lost")
+    if package_report is None:
+        return
+    native = package_report.get("nativeLifecycle")
+    image = native.get("imageAcceptance") if isinstance(native, dict) else None
+    if (
+        isinstance(image, dict)
+        and image.get("deviceClass") != preflight.get("deviceClass")
+    ):
+        raise RuntimeError("maintainer-local authority device class changed")
 
 
 def validate_native_deferral(
@@ -1058,7 +1133,7 @@ def load_validation_profile(repository_root: Path, profile_name: str) -> dict:
     profile = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(profile, dict) or set(profile) != PROFILE_FIELDS:
         raise ValueError("validation profile fields are invalid")
-    if profile.get("schema") != "stoner.production-validation-profile" or profile.get("schemaVersion") != 2:
+    if profile.get("schema") != "stoner.production-validation-profile" or profile.get("schemaVersion") != 3:
         raise ValueError("validation profile schema is invalid")
     if profile.get("profileId") != profile_name:
         raise ValueError("validation profile ID mismatch")
@@ -1077,6 +1152,8 @@ def load_validation_profile(repository_root: Path, profile_name: str) -> dict:
         raise ValueError("validation profile RSS limit is invalid")
     if profile.get("timeBudgetSeconds") != contract["budget"]:
         raise ValueError("validation profile time budget is invalid")
+    if profile.get("profileTimeBudgetSeconds") != contract["profile_budget"]:
+        raise ValueError("validation profile aggregate time budget is invalid")
     if profile.get("nativeTimeBudgetSeconds") != contract["native_budget"]:
         raise ValueError("validation profile native time budget is invalid")
     if profile.get("cadence") != contract["cadence"]:
@@ -1252,16 +1329,7 @@ def parse_native_image_fields(output: str) -> dict[str, str]:
     return fields
 
 
-def parse_native_image_evidence(output: str, expected_backend: str) -> dict:
-    fields = parse_native_image_fields(output)
-    if (
-        fields["backend"] != expected_backend
-        or fields["result"] != "passed"
-        or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,95}", fields["device-class"])
-        or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,127}", fields["baseline"])
-        or not re.fullmatch(r"[1-9][0-9]*", fields["semantic-probes"])
-    ):
-        raise ValueError("native image identity evidence is invalid")
+def _parse_image_metrics(fields: dict[str, str]) -> dict[str, float]:
     observations = {}
     for key in ("mean", "p95", "maximum", "bad-fraction"):
         try:
@@ -1271,11 +1339,177 @@ def parse_native_image_evidence(output: str, expected_backend: str) -> dict:
         if not math.isfinite(value) or value < 0.0 or value > 1.0:
             raise ValueError("native image metric is invalid")
         observations[key] = value
+    return observations
+
+
+def parse_native_reference_evidence(output: str) -> list[dict]:
+    comparisons = []
+    for line in output.splitlines():
+        if not line.startswith(IMAGE_REFERENCE_EVIDENCE_PREFIX):
+            continue
+        fields = {}
+        for token in line[len(IMAGE_REFERENCE_EVIDENCE_PREFIX):].split():
+            if "=" not in token:
+                raise ValueError("native reference evidence token is invalid")
+            key, value = token.split("=", 1)
+            if key in fields:
+                raise ValueError("native reference evidence field is duplicated")
+            fields[key] = value
+        if (
+            set(fields) != IMAGE_REFERENCE_EVIDENCE_FIELDS
+            or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,127}",
+                                fields["reference"])
+            or fields["result"] not in ("passed", "failed")
+        ):
+            raise ValueError("native reference evidence is invalid")
+        metrics = _parse_image_metrics(fields)
+        comparisons.append({
+            "referenceId": fields["reference"],
+            "mean": metrics["mean"],
+            "p95": metrics["p95"],
+            "maximum": metrics["maximum"],
+            "badPixelFraction": metrics["bad-fraction"],
+            "passed": fields["result"] == "passed",
+        })
+    if len(comparisons) > 3:
+        raise ValueError("native reference evidence exceeds its bound")
+    identifiers = [item["referenceId"] for item in comparisons]
+    if identifiers != sorted(set(identifiers)):
+        raise ValueError("native reference evidence order is invalid")
+    return comparisons
+
+
+def parse_frame_fingerprint(output: str, expected_backend: str) -> dict:
+    matching = [
+        line[len(FRAME_FINGERPRINT_PREFIX):]
+        for line in output.splitlines()
+        if line.startswith(FRAME_FINGERPRINT_PREFIX)
+    ]
+    if len(matching) != 1:
+        raise ValueError("authoritative frame fingerprint count is invalid")
+    fields = {}
+    for token in matching[0].split():
+        if "=" not in token:
+            raise ValueError("authoritative frame fingerprint token is invalid")
+        key, value = token.split("=", 1)
+        if key in fields:
+            raise ValueError("authoritative frame fingerprint is duplicated")
+        fields[key] = value
+    if (
+        set(fields) != FRAME_FINGERPRINT_FIELDS
+        or not re.fullmatch(r"[1-9][0-9]*", fields["frame-token"])
+        or any(not re.fullmatch(r"[0-9a-f]{64}", fields[field])
+               for field in FRAME_FINGERPRINT_FIELDS - {"frame-token"})
+    ):
+        raise ValueError("authoritative frame fingerprint is invalid")
+    bundles = [
+        line[len(FRAME_BUNDLE_PREFIX):]
+        for line in output.splitlines()
+        if line.startswith(FRAME_BUNDLE_PREFIX)
+    ]
+    if len(bundles) != 1:
+        raise ValueError("authoritative frame bundle fingerprint count is invalid")
+    try:
+        bundle = json.loads(bundles[0])
+    except json.JSONDecodeError as error:
+        raise ValueError("authoritative frame bundle fingerprint is invalid") from error
+    cpu_fields = {
+        "snapshot", "uniform", "shader", "pipeline", "descriptor", "device",
+    }
+    if (
+        not isinstance(bundle, dict)
+        or set(bundle) != {
+            "attachments", "cpu", "frameToken", "vulkanDriver",
+            "windowCapture",
+        }
+        or bundle.get("frameToken") != int(fields["frame-token"])
+        or not isinstance(bundle.get("cpu"), dict)
+        or set(bundle["cpu"]) != cpu_fields
+        or any(bundle["cpu"].get(field) != fields[field]
+               for field in cpu_fields)
+        or not isinstance(bundle.get("attachments"), dict)
+        or set(bundle["attachments"]) != FRAME_BUNDLE_ATTACHMENTS
+        or any(not re.fullmatch(r"[0-9a-f]{64}", value)
+               for value in bundle["attachments"].values())
+        or not isinstance(bundle.get("windowCapture"), str)
+        or not re.fullmatch(r"[0-9a-f]{64}", bundle["windowCapture"])
+        or bundle["attachments"]["FinalOutput"] != bundle["windowCapture"]
+    ):
+        raise ValueError("authoritative frame bundle fingerprint is invalid")
+    driver = bundle["vulkanDriver"]
+    if expected_backend == "vulkan":
+        if (
+            not isinstance(driver, dict)
+            or set(driver) != {
+                "driverId", "driverVersion", "floatControlsSha256",
+                "pipelineCacheUuid",
+            }
+            or not isinstance(driver["driverId"], int)
+            or isinstance(driver["driverId"], bool)
+            or driver["driverId"] < 0
+            or not isinstance(driver["driverVersion"], int)
+            or isinstance(driver["driverVersion"], bool)
+            or driver["driverVersion"] < 0
+            or not re.fullmatch(
+                r"[0-9a-f]{64}", driver["floatControlsSha256"]
+            )
+            or not re.fullmatch(
+                r"[0-9a-f]{32}", driver["pipelineCacheUuid"]
+            )
+        ):
+            raise ValueError(
+                "authoritative Vulkan driver fingerprint is invalid"
+            )
+    elif driver is not None:
+        raise ValueError("non-Vulkan frame bundle contains Vulkan driver data")
+    return bundle
+
+
+def _parse_image_identity_fields(fields: dict[str, str]) -> tuple[int, list[str]]:
+    if not re.fullmatch(r"(?:0|[1-9][0-9]*)", fields["frame-token"]):
+        raise ValueError("native image frame token is invalid")
+    frame_token = int(fields["frame-token"])
+    if not re.fullmatch(r"(?:0|[1-9][0-9]*)", fields["semantic-probes"]):
+        raise ValueError("native semantic probe count is invalid")
+    count = int(fields["semantic-probes"])
+    probe_ids = [] if not fields["probe-ids"] else fields["probe-ids"].split(",")
+    if (
+        len(probe_ids) != count or len(set(probe_ids)) != len(probe_ids)
+        or any(not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,95}", item)
+               for item in probe_ids)
+    ):
+        raise ValueError("native semantic probe identities are invalid")
+    return frame_token, probe_ids
+
+
+def parse_native_image_evidence(output: str, expected_backend: str) -> dict:
+    fields = parse_native_image_fields(output)
+    frame_token, probe_ids = _parse_image_identity_fields(fields)
+    comparisons = parse_native_reference_evidence(output)
+    if (
+        fields["backend"] != expected_backend
+        or fields["result"] != "passed"
+        or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,95}", fields["device-class"])
+        or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,127}", fields["baseline"])
+        or frame_token == 0 or probe_ids != EXPECTED_SEMANTIC_PROBE_IDS
+        or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,127}",
+                            fields["matched-reference"])
+    ):
+        raise ValueError("native image identity evidence is invalid")
+    observations = _parse_image_metrics(fields)
+    matching = [item for item in comparisons
+                if item["referenceId"] == fields["matched-reference"]]
+    if len(matching) != 1 or matching[0]["passed"] is not True:
+        raise ValueError("native matched reference evidence is invalid")
     return {
         "backend": expected_backend,
         "deviceClass": fields["device-class"],
         "baselineId": fields["baseline"],
-        "semanticProbeCount": int(fields["semantic-probes"]),
+        "matchedReferenceId": fields["matched-reference"],
+        "frameToken": frame_token,
+        "semanticProbeCount": len(probe_ids),
+        "semanticProbeIds": probe_ids,
+        "referenceComparisons": comparisons,
         "flip": {
             "mean": observations["mean"],
             "p95": observations["p95"],
@@ -1292,13 +1526,16 @@ def parse_native_image_failure_evidence(
     expected_backend: str,
 ) -> dict:
     fields = parse_native_image_fields(stdout)
+    frame_token, probe_ids = _parse_image_identity_fields(fields)
+    comparisons = parse_native_reference_evidence(stdout)
     if (
         fields["backend"] != expected_backend
         or fields["result"] != "failed"
         or not re.fullmatch(
             r"[a-z0-9][a-z0-9.-]{0,95}", fields["device-class"]
         )
-        or not re.fullmatch(r"(?:0|[1-9][0-9]*)", fields["semantic-probes"])
+        or (fields["matched-reference"] and not re.fullmatch(
+            r"[a-z0-9][a-z0-9.-]{0,127}", fields["matched-reference"]))
     ):
         raise ValueError("native failed image identity evidence is invalid")
     prefix = f"{expected_backend.capitalize()} production image failure: "
@@ -1312,12 +1549,25 @@ def parse_native_image_failure_evidence(
         or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,127}", failures[0])
     ):
         raise ValueError("native failed image reason is invalid")
+    if failures[0] in {
+        "baseline-missing", "baseline-state-not-accepted",
+        "reference-set-no-match", "reference-image-digest",
+    } and (frame_token == 0 or probe_ids != EXPECTED_SEMANTIC_PROBE_IDS):
+        raise ValueError(
+            "native failed image did not complete the semantic probe set"
+        )
     return {
         "backend": expected_backend,
         "deviceClass": fields["device-class"],
         "baselineId": fields["baseline"] or None,
-        "semanticProbeCount": int(fields["semantic-probes"]),
-        "flip": {"state": "not-run", "reason": failures[0]},
+        "matchedReferenceId": fields["matched-reference"] or None,
+        "frameToken": frame_token,
+        "semanticProbeCount": len(probe_ids),
+        "semanticProbeIds": probe_ids,
+        "referenceComparisons": comparisons,
+        "flip": ({"state": "measured", "passed": False}
+                 if comparisons else
+                 {"state": "not-run", "reason": failures[0]}),
         "passed": False,
         "firstFailure": failures[0],
     }
@@ -1478,18 +1728,58 @@ def run_native_lifecycle(
         report_path.write_text(
             error.result.stdout + error.result.stderr, encoding="utf-8"
         )
-        try:
-            image_evidence = parse_native_image_failure_evidence(
-                error.result.stdout,
-                error.result.stderr,
-                contract["graphicsBackend"],
+        combined_output = error.result.stdout + "\n" + error.result.stderr
+        if (
+            error.returncode != 1
+            or re.search(
+                r"(?:VK_ERROR_DEVICE_LOST|device[- ]lost|authority[- ]lock)",
+                combined_output,
+                re.IGNORECASE,
             )
+        ):
+            raise error
+        try:
             evidence = parse_native_lifecycle_evidence(
                 error.result.stdout, cycles, warmup_cycles, "observed"
             )
         except ValueError:
             raise error
         evidence["rssDisposition"] = authority["dispositions"]["rss"]
+        image_lines = any(
+            line.startswith(IMAGE_EVIDENCE_PREFIX)
+            for line in error.result.stdout.splitlines()
+        )
+        if not image_lines:
+            capture_evidence = compact_completed_native_captures(
+                report_path, contract["graphicsBackend"]
+            )
+            return {
+                "result": "Failed",
+                "seconds": error.result.seconds,
+                "executionClass": authority["executionClass"],
+                "timingDisposition": authority["dispositions"]["timing"],
+                "imageDisposition": authority["dispositions"]["image"],
+                "targetProfileDigest": contract["targetProfileDigest"],
+                **evidence,
+                "frameFingerprint": None,
+                "imageAcceptance": None,
+                "captureEvidence": capture_evidence,
+                "firstFailure": {
+                    "stage": "lifecycle",
+                    "category": "native-lifecycle-gate",
+                },
+            }
+        try:
+            image_evidence = parse_native_image_failure_evidence(
+                error.result.stdout,
+                error.result.stderr,
+                contract["graphicsBackend"],
+            )
+            frame_fingerprint = parse_frame_fingerprint(
+                error.result.stderr, contract["graphicsBackend"]
+            )
+        except ValueError:
+            raise error
         if (
             authority.get("preflight") is not None
             and image_evidence["deviceClass"] !=
@@ -1498,6 +1788,9 @@ def run_native_lifecycle(
             raise ValueError(
                 "native failed image device class differs from authority preflight"
             )
+        capture_evidence = compact_completed_native_captures(
+            report_path, contract["graphicsBackend"]
+        )
         return {
             "result": "Failed",
             "seconds": error.result.seconds,
@@ -1506,7 +1799,9 @@ def run_native_lifecycle(
             "imageDisposition": authority["dispositions"]["image"],
             "targetProfileDigest": contract["targetProfileDigest"],
             **evidence,
+            "frameFingerprint": frame_fingerprint,
             "imageAcceptance": image_evidence,
+            "captureEvidence": capture_evidence,
             "firstFailure": {
                 "stage": "image",
                 "category": image_evidence["firstFailure"],
@@ -1525,6 +1820,18 @@ def run_native_lifecycle(
         )
         if authority["dispositions"]["image"] == "required" else None
     )
+    frame_fingerprint = (
+        parse_frame_fingerprint(
+            result.stderr, contract["graphicsBackend"]
+        )
+        if authority["dispositions"]["image"] == "required" else None
+    )
+    capture_evidence = (
+        compact_completed_native_captures(
+            report_path, contract["graphicsBackend"]
+        )
+        if require_visible else None
+    )
     if (
         image_evidence is not None
         and authority.get("preflight") is not None
@@ -1542,8 +1849,94 @@ def run_native_lifecycle(
         "imageDisposition": authority["dispositions"]["image"],
         "targetProfileDigest": contract["targetProfileDigest"],
         **evidence,
+        "frameFingerprint": frame_fingerprint,
         "imageAcceptance": image_evidence,
+        "captureEvidence": capture_evidence,
     }
+
+
+def compact_completed_native_captures(
+    report_path: Path,
+    backend: str,
+) -> dict:
+    capture_root = report_path.parent / "captures"
+    calibration = load_local_module(
+        "run_production_image_calibration_compaction",
+        SCRIPT_DIR / "run_production_image_calibration.py",
+    )
+    try:
+        process = calibration.collect_process(capture_root, backend, 1)
+        decoded_digest = process["decodedPixelSha256"]
+        png_path = report_path.parent / (
+            f"authoritative-frame-{decoded_digest[:12]}.png"
+        )
+        png_digest = calibration.write_png(png_path, process["rgb"])
+        evidence = {
+            "schema": "stoner.production-frame-capture",
+            "schemaVersion": 1,
+            "backend": backend,
+            "captureCount": calibration.CAPTURES_PER_PROCESS,
+            "decodedPixelSha256": decoded_digest,
+            "firstFrameToken": process["firstFrameToken"],
+            "lastFrameToken": process["lastFrameToken"],
+            "staleFrameMutation": process["staleFrameMutation"],
+            "png": png_path.name,
+            "pngSha256": png_digest,
+        }
+        (report_path.parent / "capture-summary.json").write_text(
+            json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return evidence
+    finally:
+        remove_validation_tree(capture_root, ignore_errors=True)
+
+
+def retain_bounded_validation_evidence(
+    output: Path,
+    package_reports: Sequence[dict],
+) -> None:
+    evidence_root = output / "evidence"
+    for report in package_reports:
+        package_id = _safe_package_token(report.get("packageId"))
+        package_root = output / package_id
+        native = report.get("nativeLifecycle")
+        capture = native.get("captureEvidence") \
+            if isinstance(native, dict) else None
+        if isinstance(capture, dict):
+            report_root = package_root / "clean-00/reports"
+            png_name = capture.get("png")
+            source_png = report_root / str(png_name)
+            source_summary = report_root / "capture-summary.json"
+            if (
+                not isinstance(png_name, str)
+                or not re.fullmatch(
+                    r"authoritative-frame-[0-9a-f]{12}\.png", png_name
+                )
+                or not source_png.is_file()
+                or not source_summary.is_file()
+                or sha256_bytes(source_png.read_bytes()) !=
+                    capture.get("pngSha256")
+            ):
+                raise ValueError("bounded capture evidence is incomplete")
+            destination = evidence_root / package_id
+            destination.mkdir(parents=True, exist_ok=True)
+            shutil.move(source_png, destination / png_name)
+            shutil.move(
+                source_summary, destination / "capture-summary.json"
+            )
+            capture["png"] = (
+                Path("evidence") / package_id / png_name
+            ).as_posix()
+        try:
+            package_root.resolve().relative_to(output.resolve())
+        except ValueError as error:
+            raise ValueError(
+                "package evidence cleanup escapes validation output"
+            ) from error
+        remove_validation_tree(package_root)
+    if evidence_root.exists() and not any(evidence_root.iterdir()):
+        evidence_root.rmdir()
 
 
 def load_report(path: Path, expected_command: str) -> dict:
@@ -1931,8 +2324,8 @@ def run_package(
         equivalence_result.stdout + equivalence_result.stderr,
         encoding="utf-8",
     )
-    shutil.rmtree(first_run["source"])
-    shutil.rmtree(first_run["shader"])
+    remove_validation_tree(first_run["source"])
+    remove_validation_tree(first_run["shader"])
     if first_run["source"].exists() or first_run["shader"].exists():
         raise RuntimeError("source roots remained available before strict runtime")
     strict_runtime_result = run_stage(
@@ -2096,6 +2489,8 @@ def run_profile(args: argparse.Namespace) -> dict:
             "packages": [],
             "acquisitions": [],
             "timeBudgetSeconds": validation_profile["timeBudgetSeconds"],
+            "profileTimeBudgetSeconds":
+                validation_profile["profileTimeBudgetSeconds"],
             "nativeTimeBudgetSeconds":
                 validation_profile["nativeTimeBudgetSeconds"],
             "elapsedSeconds": 0.0,
@@ -2133,6 +2528,8 @@ def run_profile(args: argparse.Namespace) -> dict:
             "packages": [],
             "acquisitions": [],
             "timeBudgetSeconds": validation_profile["timeBudgetSeconds"],
+            "profileTimeBudgetSeconds":
+                validation_profile["profileTimeBudgetSeconds"],
             "nativeTimeBudgetSeconds":
                 validation_profile["nativeTimeBudgetSeconds"],
             "elapsedSeconds": 0.0,
@@ -2161,7 +2558,7 @@ def run_profile(args: argparse.Namespace) -> dict:
         )
 
     started = time.monotonic()
-    deadline = started + validation_profile["timeBudgetSeconds"]
+    deadline = started + validation_profile["profileTimeBudgetSeconds"]
     if target_contract["graphicsBackend"] == "metal":
         doctor_report = output / "metal-toolchain.json"
         run_stage(
@@ -2210,7 +2607,10 @@ def run_profile(args: argparse.Namespace) -> dict:
                 target_contract["cpuArchitecture"],
                 args.profile == "hardware",
                 args.defer_native_to_hardware,
-                deadline,
+                bounded_package_deadline(
+                    deadline,
+                    validation_profile["timeBudgetSeconds"],
+                ),
                 native_lifecycle_lock,
                 native_lifecycle_barrier,
                 authority,
@@ -2221,8 +2621,11 @@ def run_profile(args: argparse.Namespace) -> dict:
             raise
 
     if package_concurrency == 1:
-        package_reports = run_serial_packages_fail_closed(
-            packages, run_selected_package
+        package_reports = run_serial_packages_collect_all(
+            packages, run_selected_package,
+            lambda report: revalidate_local_authority_session(
+                repository_root, authority, report
+            ),
         )
     else:
         # Medium packages own disjoint source, DDC, publication, lease, and
@@ -2241,11 +2644,7 @@ def run_profile(args: argparse.Namespace) -> dict:
             ))
     elapsed = time.monotonic() - started
     if authority["executionClass"].startswith("maintainer-local-"):
-        terminal_revision = _git_local_authority_revision(repository_root)
-        if terminal_revision != authority["preflight"]["frozenRevision"]:
-            raise RuntimeError(
-                "maintainer-local authority revision changed during validation"
-            )
+        revalidate_local_authority_session(repository_root, authority)
     result = {
         "schema": "stoner.production-cook-runtime-summary",
         "schemaVersion": 1,
@@ -2264,23 +2663,27 @@ def run_profile(args: argparse.Namespace) -> dict:
         "packages": package_reports,
         "acquisitions": acquisition_results,
         "timeBudgetSeconds": validation_profile["timeBudgetSeconds"],
+        "profileTimeBudgetSeconds":
+            validation_profile["profileTimeBudgetSeconds"],
         "nativeTimeBudgetSeconds":
             validation_profile["nativeTimeBudgetSeconds"],
         "elapsedSeconds": elapsed,
-        "passed": elapsed <= validation_profile["timeBudgetSeconds"] and
+        "passed": elapsed <= validation_profile["profileTimeBudgetSeconds"] and
             aggregate_native_results(
                 [report["nativeLifecycle"] for report in package_reports],
                 args.defer_native_to_hardware,
             ),
     }
+    retain_bounded_validation_evidence(output, package_reports)
     summary_path = output / "summary.json"
     summary_path.write_text(
         json.dumps(result, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    if elapsed > validation_profile["timeBudgetSeconds"]:
+    if elapsed > validation_profile["profileTimeBudgetSeconds"]:
         raise RuntimeError(
-            f"validation exceeded {validation_profile['timeBudgetSeconds']} second budget"
+            "validation exceeded "
+            f"{validation_profile['profileTimeBudgetSeconds']} second profile budget"
         )
     write_artifact_manifest(output)
     return result

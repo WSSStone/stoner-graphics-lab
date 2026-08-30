@@ -159,6 +159,8 @@ python .github/scripts/run_production_content_validation.py `
 These two local commands are the Feature 028 physical authorities. They must
 pass on the same committed revision and each captures only the application
 window. No self-hosted runner is required. macOS Vulkan remains deferred.
+For hardware, `--timeout-seconds 3600` remains the per-package/native cap; the
+two packages run serially under the profile-owned 7,800-second deadline.
 Semantic/readback probes run before FLIP. A missing exact workload/backend/
 device-class baseline is failure, not an automatically created reference. The
 runner derives the class by exact canonical capability-signature match; it does

@@ -18,6 +18,15 @@ struct FProductionCapabilitySignature
     [[nodiscard]] Stoner::Core::FString CanonicalKey() const;
 };
 
+struct FProductionImageReference
+{
+    Stoner::Core::FString ReferenceId;
+    Stoner::Core::FString ReferencePath;
+    Stoner::Core::FString ReferenceSha256;
+    FProductionFlipPolicy FlipPolicy;
+    Stoner::Core::FString CalibrationEvidenceSha256;
+};
+
 struct FProductionImageBaseline
 {
     Stoner::Core::FString BaselineId;
@@ -29,10 +38,7 @@ struct FProductionImageBaseline
     Stoner::Core::uint32 Width = 0;
     Stoner::Core::uint32 Height = 0;
     EProductionColorTransfer ColorTransfer = EProductionColorTransfer::SRGB;
-    Stoner::Core::FString ReferencePath;
-    Stoner::Core::FString ReferenceSha256;
-    FProductionFlipPolicy FlipPolicy;
-    Stoner::Core::FString CalibrationEvidenceSha256;
+    Stoner::Core::TArray<FProductionImageReference> References;
 };
 
 class FProductionImageBaselineRegistry

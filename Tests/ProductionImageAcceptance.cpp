@@ -500,13 +500,18 @@ FProductionSemanticProbeResult RunProductionSemanticProbes(
         Result.FirstFailure = Reason;
         return Result;
     };
+    const auto Pass = [&Result](const Stoner::Core::FString& ProbeId) {
+        Result.PassedProbeIds.push_back(ProbeId);
+        Result.PassedProbeCount = static_cast<Stoner::Core::uint32>(
+            Result.PassedProbeIds.size());
+    };
     if (!Request.Color || !Request.Color->IsValid())
         return Fail("color-image");
-    ++Result.PassedProbeCount;
+    Pass("color-image");
     if (Request.ExpectedFrameToken == 0 ||
         Request.ExpectedFrameToken != Request.ObservedFrameToken)
         return Fail("current-frame");
-    ++Result.PassedProbeCount;
+    Pass("current-frame");
 
     const auto& Pixels = Request.Color->LinearRgb;
     Stoner::Core::usize Covered = 0;
@@ -522,14 +527,14 @@ FProductionSemanticProbeResult RunProductionSemanticProbes(
     }
     if (Maximum - Minimum <= 1.0f / 255.0f)
         return Fail("nonblank");
-    ++Result.PassedProbeCount;
+    Pass("nonblank");
     const float Coverage = static_cast<float>(Covered) /
         static_cast<float>(Request.Color->Width * Request.Color->Height);
     if (!std::isfinite(Coverage) ||
         Coverage < Request.MinimumCoverageFraction ||
         Coverage > Request.MaximumCoverageFraction)
         return Fail("coverage");
-    ++Result.PassedProbeCount;
+    Pass("coverage");
 
     for (const auto& Probe : Request.Regions)
     {
@@ -589,7 +594,8 @@ FProductionSemanticProbeResult RunProductionSemanticProbes(
             std::abs(Blue[StatisticIndex] - Probe.Expected.Z) > Probe.Tolerance)
             return Fail(Stoner::Core::FString(
                 std::string("region-") + Probe.Name.ToStdString()));
-        ++Result.PassedProbeCount;
+        Pass(Stoner::Core::FString(
+            std::string("region-") + Probe.Name.ToStdString()));
     }
     static const Stoner::Core::TArray<Stoner::Core::FString> MandatoryRegions = {
         "orientation", "primitive-material", "base-color", "normal-response",
@@ -607,7 +613,6 @@ FProductionSemanticProbeResult RunProductionSemanticProbes(
         if (Required.IsEmpty() || Found == Request.Regions.end())
             return Fail(Stoner::Core::FString(
                 std::string("missing-region-") + Required.ToStdString()));
-        ++Result.PassedProbeCount;
     }
     if (!Request.Normal)
         return Fail("normal-attachment");
@@ -629,7 +634,7 @@ FProductionSemanticProbeResult RunProductionSemanticProbes(
                 std::abs(Length - 1.0f) <= 0.1f;
         }
         if (!bObservedUnitNormal) return Fail("normal-semantic");
-        ++Result.PassedProbeCount;
+        Pass("normal-semantic");
     }
     if (!Request.Depth)
         return Fail("depth-attachment");
@@ -644,7 +649,7 @@ FProductionSemanticProbeResult RunProductionSemanticProbes(
         if (MaximumDepth == Request.Depth->LinearRgb.end() ||
             *MaximumDepth - *MinimumDepth <= 1.0f / 65535.0f)
             return Fail("depth-semantic");
-        ++Result.PassedProbeCount;
+        Pass("depth-semantic");
     }
     Result.bPassed = true;
     return Result;

@@ -120,11 +120,31 @@ working-set RSS is recorded with observed disposition and cannot independently
 decide acceptance.
 Local diagnostics never replace a required hosted or physical lane.
 
-Regular lanes have a 10-minute workload budget, hosted medium package lanes
-have a 90-minute complete budget with an independently capped 80-minute native
-stage, and serialized visible hardware lanes have a 60-minute budget. Hosted
+Regular lanes have 600-second package/profile/native budgets. Hosted medium
+lanes have 5,400-second package and profile budgets with an independently
+capped 4,800-second native stage. Serialized visible hardware lanes give each
+package and native stage 3,600 seconds and the complete two-package profile
+7,800 seconds. Normal package validation failures are collected; authority,
+revision, device-loss, and evidence-integrity failures stop immediately. Hosted
 medium workflow setup, compilation, and execution are enclosed by a separate
 120-minute job timeout. An operational timeout fails because required work is
 incomplete; it is not a performance baseline. Evidence is written below
 `Build/Validation/028/`, uploaded with failure-safe steps, and promoted into
 this directory only after digest and privacy verification.
+
+## Baseline calibration
+
+Accepted baseline changes require at least three independent native processes,
+twenty real submission-derived captures per process, and two-process
+reproduction of every observed mode. Use
+`.github/scripts/run_production_image_calibration.py` with a small JSON command
+file containing `nativeCommand` and `mutationCommand` arrays, plus explicit
+`--backend`, `--workload-revision`, and `--output` arguments. The tool expands
+to at most six processes, records decoded-pixel SHA-256 and pairwise-mode FLIP,
+runs each mode's threshold calibration only across processes in that mode,
+verifies the real first/last submission tokens through the stale-frame gate,
+runs every mutation against every candidate reference mode, and emits only
+`calibration.json` plus one lossless PNG per unique mode. It verifies PNG
+decoded-pixel identity and removes temporary PPM/process roots. Its output is
+Candidate-only; accepting any reference still requires an explicit maintainer
+change to the baseline registry.

@@ -35,6 +35,12 @@
 
 - Q: 同一路径的 Windows Vulkan 权威运行在全部 owner 归零、stale-handle 拒绝、图像逐像素一致时，working-set growth 仍在 11,161,600 到 169,361,408 bytes 间非单调变化，是否继续把固定 16 MiB 作为 Windows 硬门禁？ → A: 不继续。Windows working set 受驱动驻留、系统内存压力和 OS trimming 影响，Feature 028 将其保留为有界 `observed` 诊断，不能单独判失败；不得通过 `EmptyWorkingSet`、特殊 allocator、移动采样点或任意提高阈值制造通过。Windows 仍严格要求物理 preflight、精确 1,000/20、2,000 captures、7 readbacks、owner 归零、stale 拒绝和 512×512 semantic/FLIP 图像门禁。维护者本机 Metal 的校准 16 MiB RSS 硬门禁保持不变；更稳定的 Windows reference-set/WPR 内存资格延期到未来 hardware-lab 工作。
 
+### Session 2026-08-30
+
+- Q: 同一 Windows Vulkan 设备在独立进程中稳定产生多个图像模式时，单进程 20 帧一致是否足以接受 baseline？ → A: 不足。正式 baseline 校准至少运行三个独立进程、每进程 20 帧；若发现多个模式则最多扩展到六个进程，每个拟接受模式必须由至少两个独立进程复现。模式间差异不得用于扩大单参考容差；只有排除项目输入、绑定、同步、生命周期和未初始化状态错误后，才允许维护者显式接受最多三个 reference 的有界 reference set。
+- Q: semantic attachments、FLIP candidate 与可见 capture 是否可以来自不同渲染帧？ → A: 不可以。它们必须携带同一个由真实 submission/completion 传播的 frame token，组成一个 authoritative frame bundle；以同一计数同时填充 expected/observed token 不构成 freshness 证明。声明存在性不计入 measured semantic probe 数量。
+- Q: hardware profile 中前一个包的图像或 baseline 失败是否应阻止后续包取证？ → A: 不应。包级、正常退出的 semantic/baseline/FLIP/lifecycle 失败串行 collect-all 并在末尾聚合失败；preflight、corpus/revision/source integrity、authority lock、device-lost 与不可验证证据错误仍立即停止。每包保留 3,600 秒 operational 上限，双包 hardware profile 外层上限为 7,800 秒。
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Admit Representative Production Content (Priority: P1)
@@ -463,7 +469,10 @@ corpus and generation evidence.
 - **FR-029**: Image acceptance MUST first require all stable semantic and native
   readback probes to pass, then normalize row layout, channel encoding, image
   origin, and declared color transfer before perceptual comparison against an
-  accepted reference for the reported backend and device class.
+  accepted reference for the reported backend and device class. The semantic
+  attachments, normalized final output, FLIP candidate, and visible capture
+  MUST belong to one authoritative frame bundle carrying one real submission
+  frame token through completion and presentation.
 - **FR-030**: Reference images and perceptual tolerances MUST be versioned by
   workload, backend, and device class. Accepted tolerances MUST distinguish
   expected driver and numeric variation from missing geometry, wrong material
@@ -471,7 +480,10 @@ corpus and generation evidence.
   placeholder output. Device class MUST be derived by exact match against a
   versioned registry and canonical capability signature rather than accepted as
   an arbitrary caller string. A missing or ambiguous class/reference MUST NOT
-  silently pass.
+  silently pass. One accepted record MAY contain one to three explicitly
+  reviewed references. A candidate passes only when all FLIP limits pass
+  against at least one reference; every reference retains its own calibration
+  evidence and policy, and ordinary execution cannot add or accept a mode.
 - **FR-031**: Repeated composition creation, rendering, destruction, and
   recreation MUST return Asset Manager, Renderer, RHI, native, and presentation
   ownership to declared terminal baselines without stale-handle aliasing. The
@@ -503,6 +515,17 @@ corpus and generation evidence.
   dependency, timing, peak-memory, RSS-growth, and diagnostic evidence. Hosted
   aggregation MUST require the exact work, lifecycle, ownership, stale, capture,
   and readback contracts while preserving timing and memory as observations.
+- **FR-057**: Baseline calibration MUST distinguish process-local repetition
+  from cross-process stability. It MUST begin with three independent native
+  processes of 20 captures each and MAY extend to at most six processes when
+  more than one mode is observed. Every proposed mode MUST occur in at least
+  two processes, no more than three modes may be accepted, and every declared
+  mutation MUST be rejected by every reference in the set.
+- **FR-058**: Serialized hardware packages MUST use independent 3,600-second
+  package deadlines within a 7,800-second profile deadline. Recoverable package
+  validation failures MUST be retained while later packages run; environment,
+  source/revision, authority-lock, device-loss, and evidence-integrity failures
+  MUST stop immediately.
 - **FR-034**: Regular validation MUST run automatically for Windows, macOS, and
   Linux for every pull request or push that affects Asset delivery, Renderer,
   RHI, native backends, production composition, acceptance policy, or their
@@ -725,9 +748,10 @@ corpus and generation evidence.
   without using RSS as their result.
 - **SC-010**: The regular profile completes its bounded platform-applicable
   source-to-cooked-to-runtime gate within 10 minutes per hosted job, while the
-  hosted medium profile is bounded by a 5,400-second package timeout and an
-  independent 4,800-second native timeout inside a 120-minute job, and each serialized
-  visible local physical hardware profile completes within 60 minutes;
+  hosted medium profile is bounded by 5,400-second package/profile timeouts and
+  an independent 4,800-second native timeout inside a 120-minute job, while a
+  serialized visible local physical hardware profile gives each package and
+  native child 3,600 seconds inside one 7,800-second two-package deadline;
   these are operational bounds rather than hosted performance qualifications,
   and timing observations do not affect deterministic result identities.
 - **SC-011**: Windows, macOS, and Linux automated Debug and strict Release

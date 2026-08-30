@@ -38,15 +38,21 @@ authority belongs to both preflighted physical lanes.
 Image comparison remains spatially registered with no automatic alignment;
 semantic classification moves from exact pixels to bounded region statistics.
 
+Closeout image authority additionally binds semantic attachments, FinalOutput,
+FLIP, and visible capture to one completed-submission frame bundle; requires
+cross-process baseline calibration; supports at most three explicitly accepted
+reference modes; and collects recoverable serialized hardware package failures
+under independent per-package operational deadlines.
+
 ## Technical Context
 
 **Language/Version**: C++20 with traditional public/private headers and sources; Objective-C++20 remains private to Metal; Python 3 standard-library validation scripts
 **Primary Dependencies**: Existing Core, Asset, AssetCooker, RHI, Renderer, Application, Vulkan and Metal contracts; cgltf 1.15, stb_image 2.30, KTX-Software 4.4.2, WAMR 2.4.5, yyjson 0.12.0, SPIRV-Cross 0.68.0 lineage; CPU-only NVIDIA FLIP 1.7 single-header implementation pinned to commit `b475eb4bf394ab877c42166c9eb0a84a02cc5b14`; SCons 4.10.1
-**Storage**: Checked-in bounded Lantern GLB and corpus metadata; externally staged hash-pinned Sponza medium package; local immutable DDC and cooked generations plus raw captures only under ignored `Build/Validation/`; checked-in losslessly compressed baseline references and small canonical policy/calibration/index/summary evidence; no build dependency on historical `Validation/` outputs, database, archive, remote cache, or runtime source fallback
+**Storage**: Checked-in bounded Lantern GLB and corpus metadata; externally staged hash-pinned Sponza medium package; temporary local immutable DDC, cooked generations, and raw captures only under ignored `Build/Validation/`; checked-in losslessly compressed baseline references and small canonical policy/calibration/index/summary evidence; raw captures are converted to pixel-equivalent PNG and deleted with DDC/generations/large logs before evidence closeout; no build dependency on historical `Validation/` outputs, database, archive, remote cache, or runtime source fallback
 **Testing**: Existing `StonerTest` suites plus corpus, KTX2 integration, semantic-equivalence, transactional realization, native readback, image-acceptance, lifecycle, failure-injection, Python schema/runner tests, Windows/macOS/Linux hosted CI, and the required maintainer-local arm64 Metal plus x86_64 Windows Vulkan physical lanes
 **Target Platform**: Windows x64 Vulkan, macOS arm64/Intel Metal, and Linux x64 hosted build/function/native coverage; maintainer-local arm64 macOS Metal and x86_64 Windows Vulkan physical authority; macOS Vulkan physical qualification deferred
 **Project Type**: Cross-platform graphics engine, offline asset cooker CLI, desktop demo, and validation tooling
-**Performance Goals**: Regular profile within 10 minutes per hosted job; hosted medium bounded operationally to 5,400 seconds per package and 4,800 seconds per native stage inside a 120-minute job; serialized visible hardware profile within 60 minutes per declared lane; deterministic reports byte-identical across 20 repetitions; hosted elapsed time is not a performance qualification
+**Performance Goals**: Regular profile uses 600-second package/profile/native bounds; hosted medium uses 5,400/5,400/4,800-second package/profile/native bounds inside a 120-minute job; serialized visible hardware gives each package and native child 3,600 seconds inside one 7,800-second two-package profile; deterministic reports are byte-identical across 20 repetitions; hosted elapsed time is not a performance qualification
 **Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; 1,000 medium/hardware cycles with cycles 1-20 as warm-up; warm-up counts toward the total; exact lifecycle/capture/readback/owner/stale contracts are hard on every lane; post-warm-up RSS growth is at most 16 MiB only on preflighted maintainer-local Metal and is observation-only on GitHub-hosted and maintainer-local Windows Vulkan lanes; formal image calibration/reference/comparison uses an exact 512-by-512 extent while the 1024-by-1024 preview remains non-authoritative; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation; no image alignment/resampling
 **Scale/Scope**: Two artist-authored source works; regular Lantern GLB is about 9.6 MB with 3 primitives and four 2K textures; medium Sponza external package is about 50 MB with 103 primitives, 25 materials, and 69 mostly 1K textures; at least 30 deterministic negative cases
 

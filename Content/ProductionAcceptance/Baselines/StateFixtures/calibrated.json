@@ -1,6 +1,6 @@
 {
   "schema": "stoner.production-image-baseline",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "baselineId": "state-fixture.calibrated.macos.apple8.metal.rgba8",
   "state": "calibrated",
   "workloadRevision": "production-content-state-fixture-v1",
@@ -20,14 +20,19 @@
   "width": 512,
   "height": 512,
   "colorTransfer": "srgb",
-  "referencePath": "macos.apple8.metal.rgba8/production-content-v1.png",
-  "referenceSha256": "21a23292df6cae22b54c28cedc746e45f0078bb7cf0d6e27a3ace9df6b65e64a",
-  "flipPolicy": {
-    "meanMax": 0.0005,
-    "p95Max": 0.001,
-    "maximumMax": 0.01,
-    "badPixelThreshold": 0.05,
-    "badPixelFractionMax": 0.001
-  },
-  "calibrationEvidenceSha256": "48b280d184ce78234f986b109c5c2511571d32e16ae65fdb99f01319f0af26e1"
+  "references": [
+    {
+      "referenceId": "primary",
+      "referencePath": "macos.apple8.metal.rgba8/production-content-v1.png",
+      "referenceSha256": "21a23292df6cae22b54c28cedc746e45f0078bb7cf0d6e27a3ace9df6b65e64a",
+      "flipPolicy": {
+        "meanMax": 0.0005,
+        "p95Max": 0.001,
+        "maximumMax": 0.01,
+        "badPixelThreshold": 0.05,
+        "badPixelFractionMax": 0.001
+      },
+      "calibrationEvidenceSha256": "48b280d184ce78234f986b109c5c2511571d32e16ae65fdb99f01319f0af26e1"
+    }
+  ]
 }

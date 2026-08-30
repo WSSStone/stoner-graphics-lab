@@ -176,7 +176,9 @@ bool WriteProductionWindowCapture(
     const Core::FString Digest =
         Asset::FAssetDigest::FromBytes(Ppm).ToLowerHex();
     const std::string FrameToken =
-        "cycle-" + std::to_string(Capture.Cycle);
+        "submission-" + std::to_string(Capture.FrameToken);
+    const std::string ExpectedFrameToken =
+        "submission-" + std::to_string(Capture.ExpectedFrameToken);
     std::ofstream Metadata(JsonPath, std::ios::binary | std::ios::trunc);
     if (!Metadata) return false;
     Metadata
@@ -184,7 +186,7 @@ bool WriteProductionWindowCapture(
         << "  \"backend\": \"" << Backend << "\",\n"
         << "  \"captureScope\": \"application-window\",\n"
         << "  \"captureStartedNs\": " << Capture.CaptureStartedNs << ",\n"
-        << "  \"expectedFrameToken\": \"" << FrameToken << "\",\n"
+        << "  \"expectedFrameToken\": \"" << ExpectedFrameToken << "\",\n"
         << "  \"frameToken\": \"" << FrameToken << "\",\n"
         << "  \"height\": " << Capture.Height << ",\n"
         << "  \"sha256\": \"" << Digest.CStr() << "\",\n"

@@ -1,6 +1,6 @@
 {
   "schema": "stoner.production-image-baseline",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "baselineId": "production-content-lantern-v2.windows.discrete-vulkan.rgba8.v1",
   "state": "accepted",
   "workloadRevision": "production-content-lantern-v2",
@@ -20,14 +20,19 @@
   "width": 512,
   "height": 512,
   "colorTransfer": "srgb",
-  "referencePath": "windows.discrete-vulkan.rgba8/production-content-lantern-v2.png",
-  "referenceSha256": "47d0abd805f608148323259c1878fcaee0e6cd9c49ade727960b002320618a61",
-  "flipPolicy": {
-    "meanMax": 0.0005,
-    "p95Max": 0.001,
-    "maximumMax": 0.01,
-    "badPixelThreshold": 0.05,
-    "badPixelFractionMax": 0.001
-  },
-  "calibrationEvidenceSha256": "6b8465cadf8941395a22225bdd92b866176db1bb1dcb6f8e7c59bb6dbb4ab31c"
+  "references": [
+    {
+      "referenceId": "primary",
+      "referencePath": "windows.discrete-vulkan.rgba8/production-content-lantern-v2.png",
+      "referenceSha256": "47d0abd805f608148323259c1878fcaee0e6cd9c49ade727960b002320618a61",
+      "flipPolicy": {
+        "meanMax": 0.0005,
+        "p95Max": 0.001,
+        "maximumMax": 0.01,
+        "badPixelThreshold": 0.05,
+        "badPixelFractionMax": 0.001
+      },
+      "calibrationEvidenceSha256": "6b8465cadf8941395a22225bdd92b866176db1bb1dcb6f8e7c59bb6dbb4ab31c"
+    }
+  ]
 }

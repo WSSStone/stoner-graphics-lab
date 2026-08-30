@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://stoner.local/schemas/production-validation-profile-v2.json",
+  "$id": "https://stoner.local/schemas/production-validation-profile-v3.json",
   "title": "Stoner Production Validation Profile",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "schemaVersion", "profileId", "corpusRevision", "packageIds", "targetProfiles", "lifecycleCycles", "warmupCycles", "maxRssGrowthBytes", "timeBudgetSeconds", "nativeTimeBudgetSeconds", "cadence", "requiredGates", "authorityPolicy"],
+  "required": ["schema", "schemaVersion", "profileId", "corpusRevision", "packageIds", "targetProfiles", "lifecycleCycles", "warmupCycles", "maxRssGrowthBytes", "timeBudgetSeconds", "profileTimeBudgetSeconds", "nativeTimeBudgetSeconds", "cadence", "requiredGates", "authorityPolicy"],
   "properties": {
     "schema": {"const": "stoner.production-validation-profile"},
-    "schemaVersion": {"const": 2},
+    "schemaVersion": {"const": 3},
     "profileId": {"enum": ["regular", "medium", "hardware"]},
     "corpusRevision": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"},
     "packageIds": {
@@ -28,6 +28,7 @@
     "warmupCycles": {"type": "integer"},
     "maxRssGrowthBytes": {"const": 16777216},
     "timeBudgetSeconds": {"type": "integer"},
+    "profileTimeBudgetSeconds": {"type": "integer"},
     "nativeTimeBudgetSeconds": {"type": "integer"},
     "cadence": {
       "type": "array",
@@ -116,6 +117,7 @@
           "lifecycleCycles": {"const": 20},
           "warmupCycles": {"const": 2},
           "timeBudgetSeconds": {"const": 600},
+          "profileTimeBudgetSeconds": {"const": 600},
           "nativeTimeBudgetSeconds": {"const": 600}
           ,"authorityPolicy": {"$ref": "#/$defs/hostedLocalAuthorityPolicy"}
         }
@@ -128,6 +130,7 @@
           "lifecycleCycles": {"const": 1000},
           "warmupCycles": {"const": 20},
           "timeBudgetSeconds": {"const": 5400},
+          "profileTimeBudgetSeconds": {"const": 5400},
           "nativeTimeBudgetSeconds": {"const": 4800},
           "authorityPolicy": {"$ref": "#/$defs/hostedLocalAuthorityPolicy"}
         }
@@ -140,6 +143,7 @@
           "lifecycleCycles": {"const": 1000},
           "warmupCycles": {"const": 20},
           "timeBudgetSeconds": {"const": 3600},
+          "profileTimeBudgetSeconds": {"const": 7800},
           "nativeTimeBudgetSeconds": {"const": 3600},
           "authorityPolicy": {"$ref": "#/$defs/hardwareAuthorityPolicy"}
         }

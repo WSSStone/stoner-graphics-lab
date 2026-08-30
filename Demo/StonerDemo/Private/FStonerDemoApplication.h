@@ -59,6 +59,7 @@ struct FDemoFrameContext
 
 struct FDemoProductionReadbackEvidence
 {
+    Stoner::Core::uint64 FrameToken = 0;
     Stoner::Core::FString Name;
     Stoner::Core::FString Digest;
     Stoner::Core::uint64 ByteCount = 0;
@@ -72,6 +73,8 @@ struct FDemoProductionReadbackEvidence
 
 struct FDemoProductionCapture
 {
+    Stoner::Core::uint64 FrameToken = 0;
+    Stoner::Core::uint64 ExpectedFrameToken = 0;
     Stoner::Core::uint32 Cycle = 0;
     Stoner::Core::FString Name;
     Stoner::Core::FString Digest;
@@ -94,6 +97,16 @@ struct FDemoProductionExecutionInspection
     Stoner::Core::TArray<FDemoProductionReadbackEvidence> Readbacks;
     Stoner::Core::TArray<FDemoProductionCapture> Captures;
     Stoner::Core::TArray<FDemoProductionLifecycleSample> LifecycleSamples;
+    FDemoProductionCapture AuthoritativeCapture;
+    FDemoProductionCapture LastLifecyclePresentedCapture;
+    Stoner::Core::uint64 AuthoritativeFrameToken = 0;
+    Stoner::Core::uint64 LastLifecyclePresentedFrameToken = 0;
+    Stoner::Core::FString SnapshotFingerprint;
+    Stoner::Core::FString UniformFingerprint;
+    Stoner::Core::FString ShaderFingerprint;
+    Stoner::Core::FString PipelineFingerprint;
+    Stoner::Core::FString DescriptorFingerprint;
+    Stoner::Core::FString DeviceFingerprint;
     Stoner::Core::uint32 CaptureCount = 0;
     Stoner::Core::uint32 FinalOutputCaptureCount = 0;
     Stoner::Core::uint32 ForwardColorCaptureCount = 0;

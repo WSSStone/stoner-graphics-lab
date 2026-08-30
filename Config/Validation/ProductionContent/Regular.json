@@ -1,6 +1,6 @@
 {
   "schema": "stoner.production-validation-profile",
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "profileId": "regular",
   "corpusRevision": "khronos-2026-08-19-v1",
   "packageIds": ["khronos-lantern-glb"],
@@ -15,6 +15,7 @@
   "warmupCycles": 2,
   "maxRssGrowthBytes": 16777216,
   "timeBudgetSeconds": 600,
+  "profileTimeBudgetSeconds": 600,
   "nativeTimeBudgetSeconds": 600,
   "cadence": ["relevant-pull-request", "relevant-push"],
   "requiredGates": [

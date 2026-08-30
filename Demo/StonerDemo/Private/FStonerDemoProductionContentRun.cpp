@@ -9,7 +9,9 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <span>
 #include <string>
+#include <type_traits>
 
 namespace Stoner::Demo
 {
@@ -34,6 +36,157 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         return FailInitialize(EDemoStage::Runtime,
             EDemoExitCode::RuntimeUnavailable, "ProductionExecution",
             "requested backend did not prove native execution");
+    const auto DigestBytes = [](std::span<const Core::uint8> Bytes)
+    {
+        return Asset::FAssetDigest::FromBytes(Bytes).ToLowerHex();
+    };
+    const auto DigestText = [&DigestBytes](const std::string& Text)
+    {
+        return DigestBytes(std::span<const Core::uint8>(
+            reinterpret_cast<const Core::uint8*>(Text.data()), Text.size()));
+    };
+    const auto AppendPod = []<typename T>(
+        Core::TArray<Core::uint8>& Bytes, const T& Value)
+    {
+        static_assert(std::is_trivially_copyable_v<T>);
+        const auto* Begin = reinterpret_cast<const Core::uint8*>(&Value);
+        Bytes.insert(Bytes.end(), Begin, Begin + sizeof(T));
+    };
+    const auto AppendString = [&AppendPod](
+        Core::TArray<Core::uint8>& Bytes, const Core::FString& Value)
+    {
+        const Core::uint64 Length = Value.Len();
+        AppendPod(Bytes, Length);
+        Bytes.insert(Bytes.end(), Value.View().begin(), Value.View().end());
+    };
+    const auto AppendPayload = [&AppendPod](
+        Core::TArray<Core::uint8>& Bytes,
+        std::span<const Core::uint8> Payload)
+    {
+        const Core::uint64 Length = Payload.size();
+        AppendPod(Bytes, Length);
+        Bytes.insert(Bytes.end(), Payload.begin(), Payload.end());
+    };
+    const auto& Realization =
+        ProductionRuntime->DeferredRealizationInspection;
+    Core::TArray<Core::uint8> SnapshotBytes;
+    AppendString(SnapshotBytes, Configuration.WorkloadRevision);
+    AppendPod(SnapshotBytes, Realization.SnapshotGeneration);
+    for (const auto& ResourceId : Realization.OrderedResourceIds)
+        AppendString(SnapshotBytes, ResourceId);
+    for (const auto& Material :
+         ProductionRuntime->DeferredRenderSnapshot->GetMaterials())
+        AppendString(SnapshotBytes, Material.Material.Dump());
+    ProductionExecutionInspection.SnapshotFingerprint =
+        DigestBytes(SnapshotBytes);
+
+    Core::TArray<Core::uint8> UniformBytes;
+    const auto ViewUniform = Renderer::BuildDeferredFrameViewUniform(
+        ProductionRuntime->DeferredResources.Plan.View);
+    AppendPod(UniformBytes, ViewUniform);
+    for (const auto& Draw :
+         ProductionRuntime->DeferredResources.Plan.AcceptedDraws)
+    {
+        const auto Uniform = Renderer::BuildDeferredDrawMaterialUniform(Draw);
+        AppendPod(UniformBytes, Uniform);
+    }
+    for (const auto& Light :
+         ProductionRuntime->DeferredResources.Plan.Lights.Accepted)
+    {
+        const auto Uniform = Renderer::BuildDeferredLightUniform(Light);
+        AppendPod(UniformBytes, Uniform);
+    }
+    ProductionExecutionInspection.UniformFingerprint =
+        DigestBytes(UniformBytes);
+
+    Core::TArray<Core::uint8> ShaderBytes;
+    for (const auto& Shader :
+         ProductionRuntime->DeferredResources.OwnedShaders)
+    {
+        if (!Shader) continue;
+        const auto& Desc = Shader->GetDesc();
+        AppendPod(ShaderBytes, Desc.Stage);
+        AppendString(ShaderBytes, Desc.EntryPoint);
+        AppendString(ShaderBytes, Desc.Payload.PayloadIdentity);
+        AppendString(ShaderBytes, Desc.Payload.TargetProfile);
+        AppendPayload(ShaderBytes, Desc.Payload.Bytes);
+        for (const auto& Binding : Desc.InterfaceMetadata.Bindings)
+        {
+            AppendPod(ShaderBytes, Binding.SetIndex);
+            AppendPod(ShaderBytes, Binding.BindingSlot);
+            AppendPod(ShaderBytes, Binding.DescriptorType);
+            AppendPod(ShaderBytes, Binding.ArrayCount);
+            AppendPod(ShaderBytes, Binding.Visibility);
+        }
+    }
+    ProductionExecutionInspection.ShaderFingerprint = DigestBytes(ShaderBytes);
+
+    Core::TArray<Core::uint8> PipelineBytes;
+    for (const auto& Pipeline :
+         ProductionRuntime->DeferredResources.OwnedPipelines)
+    {
+        if (!Pipeline) continue;
+        const auto& Desc = Pipeline->GetDesc();
+        AppendPod(PipelineBytes, Desc.VertexInput.Stride);
+        for (const auto& Attribute : Desc.VertexInput.Attributes)
+        {
+            AppendPod(PipelineBytes, Attribute.Location);
+            AppendPod(PipelineBytes, Attribute.Format);
+            AppendPod(PipelineBytes, Attribute.Offset);
+        }
+        AppendPod(PipelineBytes, Desc.Topology);
+        AppendPod(PipelineBytes, Desc.Rasterizer.CullMode);
+        AppendPod(PipelineBytes, Desc.Rasterizer.FrontFace);
+        AppendPod(PipelineBytes, Desc.Rasterizer.bDepthClampEnabled);
+        AppendPod(PipelineBytes, Desc.Blend.bEnabled);
+        AppendPod(PipelineBytes, Desc.Blend.SourceColor);
+        AppendPod(PipelineBytes, Desc.Blend.DestinationColor);
+        AppendPod(PipelineBytes, Desc.Blend.ColorOp);
+        AppendPod(PipelineBytes, Desc.DepthStencil.bDepthTestEnabled);
+        AppendPod(PipelineBytes, Desc.DepthStencil.bDepthWriteEnabled);
+        AppendPod(PipelineBytes, Desc.DepthStencil.DepthCompare);
+        AppendPod(PipelineBytes, Desc.Multisample.SampleCount);
+        AppendPod(PipelineBytes, Desc.Multisample.bSampleShadingEnabled);
+        for (const auto Format : Desc.RenderTargets.ColorFormats)
+            AppendPod(PipelineBytes, Format);
+        AppendPod(PipelineBytes, Desc.RenderTargets.DepthStencilFormat);
+        AppendPod(PipelineBytes, Desc.RenderTargets.SampleCount);
+        AppendString(PipelineBytes, Desc.CompatibilitySummary);
+    }
+    ProductionExecutionInspection.PipelineFingerprint =
+        DigestBytes(PipelineBytes);
+
+    Core::TArray<Core::uint8> DescriptorBytes;
+    for (const auto& Set :
+         ProductionRuntime->DeferredResources.OwnedDescriptorSets)
+    {
+        if (!Set) continue;
+        AppendPod(DescriptorBytes, Set->GetSetIndex());
+        AppendPod(DescriptorBytes, Set->GetBoundResourceCount());
+        const auto Layout = Set->GetPipelineLayout();
+        if (!Layout) continue;
+        for (const auto& Binding : Layout->GetDesc().Bindings)
+        {
+            if (Binding.SetIndex != Set->GetSetIndex()) continue;
+            AppendPod(DescriptorBytes, Binding.SetIndex);
+            AppendPod(DescriptorBytes, Binding.BindingSlot);
+            AppendPod(DescriptorBytes, Binding.DescriptorType);
+            AppendPod(DescriptorBytes, Binding.ArrayCount);
+            AppendPod(DescriptorBytes, Binding.Visibility);
+            for (Core::uint32 Index = 0; Index < Binding.ArrayCount; ++Index)
+            {
+                const auto Kind = Set->GetBoundResourceKind(
+                    Binding.BindingSlot, Index);
+                AppendPod(DescriptorBytes, Kind);
+            }
+        }
+    }
+    ProductionExecutionInspection.DescriptorFingerprint =
+        DigestBytes(DescriptorBytes);
+    ProductionExecutionInspection.DeviceFingerprint = DigestText(
+        ProductionExecutionInspection.Runtime.AdapterName.ToStdString() + "|" +
+        std::to_string(static_cast<int>(
+            ProductionExecutionInspection.Runtime.ObjectMode)));
     const auto RecordCommands = [this](EDemoRenderPath Path,
         bool bAuthoritativeDeferredReadbacks)
         -> Core::TSharedPtr<RHI::IRHICommandBuffer>
@@ -70,10 +223,13 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
     };
 
     Core::TArray<Core::uint8> LifecycleReadbackScratch;
+    Core::uint64 SubmissionFrameToken = 0;
+    Core::uint64 CompletedFrameToken = 0;
     FDemoProductionPresentationResult LifecyclePresentationScratch;
     const auto CaptureReadback = [this, &LifecycleReadbackScratch,
-        &LifecyclePresentationScratch](
+        &LifecyclePresentationScratch, &CompletedFrameToken](
         Core::uint32 Cycle,
+        Core::uint64 FrameToken,
         const Core::FString& Name,
         const Core::TSharedPtr<RHI::IRHIBuffer>& Readback,
         const RHI::FRHITextureBufferCopyRegion& Region,
@@ -87,6 +243,9 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                 Name == Core::FString("FinalOutput")) ||
              (Configuration.RenderPath == EDemoRenderPath::ForwardSmoke &&
                 Name == Core::FString("ForwardColor")));
+        const bool bAuthoritativeFrameCapture =
+            bRetainAuthoritativeEvidence && bSelectedVisiblePath &&
+            Name == Core::FString("FinalOutput");
         Core::TArray<Core::uint8> RetainedBytes;
         auto& Bytes = bRetainAuthoritativeEvidence
             ? RetainedBytes : LifecycleReadbackScratch;
@@ -108,6 +267,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         if (bRetainAuthoritativeEvidence)
         {
             FDemoProductionReadbackEvidence Evidence;
+            Evidence.FrameToken = FrameToken;
             Evidence.Name = Name;
             Evidence.Digest =
                 Asset::FAssetDigest::FromBytes(Bytes).ToLowerHex();
@@ -122,11 +282,14 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
             ProductionExecutionInspection.Readbacks.push_back(
                 std::move(Evidence));
         }
-        if (bRecordLifecycleCapture && bNonBlank &&
+        if ((bRecordLifecycleCapture || bAuthoritativeFrameCapture) &&
+            bNonBlank &&
             (Name == Core::FString("FinalOutput") ||
                 Name == Core::FString("ForwardColor")))
         {
             FDemoProductionCapture Capture;
+            Capture.FrameToken = FrameToken;
+            Capture.ExpectedFrameToken = CompletedFrameToken;
             Capture.Cycle = Cycle;
             Capture.Name = Name;
             Capture.Width = Region.Width;
@@ -148,6 +311,34 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
             if (!Capture.Bytes.empty())
                 Capture.Digest =
                     Asset::FAssetDigest::FromBytes(Capture.Bytes).ToLowerHex();
+            if (bAuthoritativeFrameCapture)
+            {
+                ProductionExecutionInspection.AuthoritativeFrameToken =
+                    FrameToken;
+                ProductionExecutionInspection.AuthoritativeCapture =
+                    std::move(Capture);
+                return true;
+            }
+            if (Capture.bPresented && Capture.bWindowOnlyCapture)
+            {
+                ProductionExecutionInspection.LastLifecyclePresentedFrameToken =
+                    FrameToken;
+                auto& Stale = ProductionExecutionInspection.
+                    LastLifecyclePresentedCapture;
+                Stale = {};
+                Stale.FrameToken = Capture.FrameToken;
+                Stale.ExpectedFrameToken = Capture.ExpectedFrameToken;
+                Stale.Cycle = Capture.Cycle;
+                Stale.Name = Capture.Name;
+                Stale.Digest = Capture.Digest;
+                Stale.Width = Capture.Width;
+                Stale.Height = Capture.Height;
+                Stale.RowPitchBytes = Capture.RowPitchBytes;
+                Stale.Format = Capture.Format;
+                Stale.bPresented = true;
+                Stale.bWindowOnlyCapture = true;
+                Stale.Bytes = Capture.Bytes;
+            }
             const bool bStreamCalibrationCapture =
                 bSelectedVisiblePath &&
                 !Configuration.ProductionCaptureRoot.IsEmpty() &&
@@ -207,6 +398,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                 "production command recording failed");
             return false;
         }
+        const Core::uint64 FrameToken = ++SubmissionFrameToken;
         if (ProductionSubmissionHarness->SubmitAndWait(
                 Commands, 30'000'000) != RHI::ERHIResult::Success)
         {
@@ -215,6 +407,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                 "production submit, wait, or reusable-fence reset failed");
             return false;
         }
+        CompletedFrameToken = FrameToken;
         bool bReadbacksValid = true;
         if (Path == EDemoRenderPath::DeferredFull)
         {
@@ -229,7 +422,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                     RHI::TryGetRHITextureBufferCopyByteSize(
                         Binding.Region, Binding.Source->GetFormat(),
                         ReadbackBytes) &&
-                    CaptureReadback(Cycle, Binding.Name,
+                    CaptureReadback(Cycle, FrameToken, Binding.Name,
                         Binding.Destination, Binding.Region,
                         Binding.Source->GetFormat(), ReadbackBytes,
                         bRetainAuthoritativeEvidence,
@@ -246,7 +439,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                     ProductionRuntime->ForwardBindings.ReadbackRegion,
                     ProductionRuntime->ForwardBindings.OutputTexture->GetFormat(),
                     ReadbackBytes) &&
-                CaptureReadback(Cycle, "ForwardColor",
+                CaptureReadback(Cycle, FrameToken, "ForwardColor",
                     ProductionRuntime->ForwardBindings.ReadbackBuffer,
                     ProductionRuntime->ForwardBindings.ReadbackRegion,
                     ProductionRuntime->ForwardBindings.OutputTexture->GetFormat(),
