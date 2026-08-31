@@ -164,6 +164,13 @@ Validation. Required fixture manifests belong beside their test corpora under
 lossless PNG; raw readbacks/captures are generated artifacts and remain ignored.
 No new runtime module is introduced.
 
+Hosted regular artifacts remain immutable and attempt-suffixed. A consumer in a
+partial GitHub Actions rerun resolves the newest non-expired artifact for its
+producer whose attempt is no later than the current run attempt. Resolution is
+scoped to the same workflow run and fails closed for missing, future, malformed,
+expired, or ambiguous records before the existing manifest/digest verifier runs;
+reruns never overwrite an earlier producer artifact.
+
 ## Implementation Strategy
 
 ### M0 - Corpus, Policy, and Verifier Foundation

@@ -1652,3 +1652,34 @@ counts while making each hosted shard answer one named question.
 - Reduce physical Sponza authority: rejected because physical lanes validate
   actual driver/device behavior and are deliberately stronger than variable
   hosted orchestration.
+
+## Decision 55: Resolve immutable producer evidence across partial rerun attempts
+
+**Decision**: Keep regular producer artifacts immutable and suffixed by their
+GitHub Actions run attempt. Before downloading, each regular consumer lists the
+non-expired artifacts belonging to the same workflow run and selects the newest
+exact producer-prefix match whose attempt is no later than the current attempt.
+Missing, future-only, expired, malformed, or duplicate-attempt matches fail
+closed before download. The selected artifact still passes the unchanged target
+profile, generation, manifest, inventory, size, and SHA-256 revalidation.
+
+**Rationale**: Run `33362940103` attempt 2 reran only the previously failed
+macOS Intel producer. Its new attempt-2 artifact uploaded and revalidated, while
+Windows, Linux, and arm64 macOS producers correctly remained successful from
+attempt 1. Their consumers nevertheless constructed attempt-2 names and failed
+with `Artifact not found`. The evidence existed and was immutable; the consumer
+had confused workflow attempt identity with producer attempt availability.
+Selecting the latest available artifact per producer preserves both partial
+rerun efficiency and exact evidence verification.
+
+**Alternatives considered**:
+
+- Remove the attempt suffix and overwrite artifacts on rerun: rejected because
+  it destroys earlier immutable evidence and makes audit history ambiguous.
+- Always fall back only to attempt 1: rejected because a producer may first
+  succeed on attempt 2 and a later consumer-only rerun must still find it.
+- Rerun the complete matrix after every transport failure: rejected because it
+  repeats hours of already-passing medium and sanitizer work without adding
+  correctness evidence.
+- Skip consumer revalidation on reruns: rejected because downloaded evidence
+  must remain independently digest-checked on every accepted attempt.

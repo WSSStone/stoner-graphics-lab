@@ -75,6 +75,17 @@ baseline admission. Because the Accepted Windows Sponza record is committed
 after that revision, it is prerequisite evidence rather than the final shared-
 revision closeout run.
 
+Hosted diagnostic run
+[`33362940103`](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/33362940103)
+at revision `63db4128c6a9f155524f587cb01be942fb3a0ee2` passed both schema-v4
+medium shards, their aggregate, all regular producers, both sanitizers, and all
+producer validation. Its first attempt failed only when the macOS Intel artifact
+upload encountered GitHub DNS `ENOTFOUND`. A failed-job rerun uploaded and
+revalidated that Intel artifact, but exposed that the other regular consumers
+incorrectly requested attempt-2 names for unchanged attempt-1 producer
+artifacts. T195 records the rerun-safe immutable-artifact resolution correction;
+this diagnostic run is not final closeout authority.
+
 ## Windows Sponza acceptance
 
 The maintainer-local Windows Vulkan hardware profile at revision

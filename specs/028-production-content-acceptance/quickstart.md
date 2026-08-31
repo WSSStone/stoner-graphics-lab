@@ -204,6 +204,11 @@ capture metadata.
   remotely execute either maintainer device. The two local commands above are
   the physical image gates, the Metal RSS gate, and the Windows RSS observation.
 - Local commands and CI call the same Python runner and profile files.
+- Regular producer artifacts retain immutable attempt-suffixed names. During a
+  failed-job rerun, each consumer resolves the newest non-expired artifact for
+  its producer from the same workflow run at or before the current attempt,
+  then performs the same target-profile and manifest/SHA-256 verification.
+  Missing or ambiguous evidence remains a hard failure.
 
 Before Feature 028 closes, retain passing final-revision evidence for Debug,
 strict Release, sanitizer, deterministic 20-repeat reports, regular, medium,

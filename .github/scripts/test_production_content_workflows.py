@@ -68,6 +68,26 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         self.assertIn("artifact-manifest.json", text)
         self.assertEqual(2, text.count("include-hidden-files: true"))
 
+    def test_regular_consumer_resolves_latest_available_rerun_artifact(self):
+        text = HOSTED.read_text(encoding="utf-8")
+        consumer = text.split("  regular-consumer:\n", 1)[1].split(
+            "  linux-sanitizers:\n", 1
+        )[0]
+        self.assertIn("actions: read", text)
+        self.assertIn("gh api --paginate --slurp", consumer)
+        self.assertIn("resolve_production_artifact.py", consumer)
+        self.assertIn(
+            '--prefix "production-regular-${{ matrix.slug }}-"', consumer
+        )
+        self.assertIn('--max-attempt "${{ github.run_attempt }}"', consumer)
+        self.assertIn(
+            "name: ${{ steps.producer-artifact.outputs.name }}", consumer
+        )
+        self.assertNotIn(
+            "name: production-regular-${{ matrix.slug }}-${{ github.run_attempt }}",
+            consumer,
+        )
+
     def test_medium_uses_two_isolated_exact_package_lanes_and_aggregate(self):
         text = HOSTED.read_text(encoding="utf-8")
         medium = text.split("  medium:\n", 1)[1].split(
