@@ -116,14 +116,15 @@ formal image fails before semantic probes or FLIP.
 | Profile | Full cycles | Warm-up cycles | Required native scope | RSS rule |
 |---|---:|---:|---|---|
 | Regular | 20 | 1-2 | Platform-applicable bounded native/headless gates | Hosted/local-diagnostic measurement is observed; physical authority belongs only to the hardware profile |
-| Medium | 1,000 | 1-20 | Hosted Metal functional/lifecycle authority | RSS/task-VM/allocator are observed; exact work/owners/stale/captures/readbacks remain required |
+| Medium Lantern | 1,000 | 1-20 | Hosted Metal endurance authority | 2,000 captures; RSS/task-VM/allocator are observed; exact work/owners/stale/readbacks remain required |
+| Medium Sponza | 100 | 1-10 | Hosted Metal heavy-content scale-lifecycle authority | 200 captures; every cycle retains complete closure/realize/render/release work |
 | Hardware | 1,000 | 1-20 | Maintainer-local native arm64 macOS Metal and x86_64 Windows Vulkan, in separate runs | Metal required <= 16 MiB after preflight; Windows working-set RSS observed |
 
 Regular uses 900/1,200/600-second package/profile/native operational limits.
 The package covers clean/warm/strict/native work, the native child remains
 independently capped, and the extra profile-only headroom covers target-toolchain
 discovery and orchestration without changing any required work. Medium uses
-6,600/6,900/6,000 seconds. Hardware uses 3,600 seconds per package and native
+2,400/2,700/1,800 seconds. Hardware uses 3,600 seconds per package and native
 stage inside a 7,800-second serialized profile deadline.
 
 Each cycle performs strict manager bind/request, complete closure, Renderer
@@ -148,10 +149,11 @@ measurement declares one disposition:
   change the result.
 
 GitHub-hosted medium uses `observed` RSS/task-VM/allocator/elapsed measurements
-and operational 6,600/6,900-second package/profile plus 6,000-second native
-timeouts inside a 150-minute job. It still requires 1,000/20 cycles, 2,000 captures, seven retained
-readbacks, zero terminal owners, stale-handle rejection, and requested native
-backend proof.
+and operational 2,400/2,700-second package/profile plus 1,800-second native
+timeouts inside a 90-minute job. It still requires the exact schema-v4 package
+lifecycle (Lantern 1,000/20 and 2,000 captures; Sponza 100/10 and 200 captures),
+seven retained readbacks per package, zero terminal owners, stale-handle
+rejection, and requested native backend proof.
 
 A maintainer-local physical image authority, and Metal RSS authority, must prove its exact native
 OS/architecture/backend and registered device/target, exclusive authority-lock ownership, clean

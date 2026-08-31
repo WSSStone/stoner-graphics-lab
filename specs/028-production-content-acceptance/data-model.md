@@ -76,14 +76,28 @@ and non-color material-data textures.
 | `CorpusRevision` | string | Exact manifest revision |
 | `PackageIds` | ordered list | Regular is bounded; medium/hardware include declared packages |
 | `TargetProfiles` | ordered list | Exact AssetCooker profile IDs/digests |
-| `LifecycleCycles` | integer | 20 regular; 1,000 medium/hardware |
-| `WarmupCycles` | integer | Exactly 2 for regular and 20 for medium/hardware; included in lifecycle count |
+| `PackageLifecycles` | ordered records | One exact record per `PackageIds` entry in the same order; each record contains `PackageId`, `Purpose`, `Cycles`, and included `WarmupCycles` |
 | `MaxRssGrowthBytes` | integer | 16 MiB when RSS disposition is `required` on maintainer-local Metal; retained as a diagnostic comparison value but not applied to `observed` hosted or Windows Vulkan RSS |
 | `EnvironmentPolicy` | authority-policy ID | Repository-owned mapping for hosted, maintainer-local Metal, maintainer-local Windows Vulkan, and local diagnostic execution |
 | `RequiredGates` | ordered enum list | Corpus/import/cook/runtime/realization/render/image/lifecycle as applicable |
-| `TimeBudgetSeconds` | integer | 900 regular package, covering clean/warm/strict/native work while native remains independently capped; 6,600 hosted medium package operational timeout; 3,600 serialized visible hardware lane |
-| `ProfileTimeBudgetSeconds` | integer | 1,200 regular, reserving 300 seconds beyond the package for target-toolchain/orchestration work; 6,900 hosted medium package shard; 7,800 serialized two-package hardware profile |
-| `NativeTimeBudgetSeconds` | integer | 600 regular; 6,000 hosted medium operational timeout; 3,600 hardware; always capped by the enclosing lane deadline |
+| `TimeBudgetSeconds` | integer | 900 regular package, covering clean/warm/strict/native work while native remains independently capped; 2,400 hosted medium package operational timeout; 3,600 serialized visible hardware lane |
+| `ProfileTimeBudgetSeconds` | integer | 1,200 regular, reserving 300 seconds beyond the package for target-toolchain/orchestration work; 2,700 hosted medium package shard; 7,800 serialized two-package hardware profile |
+| `NativeTimeBudgetSeconds` | integer | 600 regular; 1,800 hosted medium operational timeout; 3,600 hardware; always capped by the enclosing lane deadline |
+
+### Package Lifecycle Record
+
+| Field | Type | Rules |
+|---|---|---|
+| `PackageId` | canonical string | Must equal the package in the same position of `PackageIds`; no missing, duplicate, or extra record |
+| `Purpose` | enum | `bounded-regression`, `endurance`, `scale-lifecycle`, or `physical-authority` |
+| `Cycles` | integer | `20` for bounded regression, `1,000` for endurance/physical authority, `100` for scale lifecycle |
+| `WarmupCycles` | integer | Included in `Cycles`; exactly `2`, `20`, or `10` for the corresponding purpose |
+
+The canonical profiles assign regular Lantern `bounded-regression` 20/2;
+hosted medium assigns Lantern `endurance` 1,000/20 and Sponza
+`scale-lifecycle` 100/10; hardware assigns both packages
+`physical-authority` 1,000/20. A consumer may not replace these records with a
+single profile-wide scalar or infer one package's purpose from another.
 
 ### Environment Measurement Authority
 

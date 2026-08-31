@@ -163,12 +163,12 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             self.module.time, "monotonic", return_value=100.0
         ):
             self.assertEqual(
-                6000,
-                self.module.native_stage_timeout(7000.0, 6600, 6000),
+                1800,
+                self.module.native_stage_timeout(3000.0, 2400, 1800),
             )
             self.assertEqual(
-                5900,
-                self.module.native_stage_timeout(6000.0, 6600, 6000),
+                1700,
+                self.module.native_stage_timeout(1800.0, 2400, 1800),
             )
 
     def test_profile_selection_requires_exact_target_and_package_membership(self):
@@ -181,15 +181,19 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             target.write_text("{}\n", encoding="utf-8")
             (profile_root / "Regular.json").write_text(json.dumps({
                 "schema": "stoner.production-validation-profile",
-                "schemaVersion": 3,
+                "schemaVersion": 4,
                 "profileId": "regular",
                 "corpusRevision": "revision-1",
                 "targetProfiles": [
                     "Config/AssetCooker/Profiles/Test.json",
                 ],
-                "packageIds": ["package-a"],
-                "lifecycleCycles": 20,
-                "warmupCycles": 2,
+                "packageIds": ["khronos-lantern-glb"],
+                "packageLifecycles": [{
+                    "packageId": "khronos-lantern-glb",
+                    "purpose": "bounded-regression",
+                    "cycles": 20,
+                    "warmupCycles": 2,
+                }],
                 "maxRssGrowthBytes": 16 * 1024 * 1024,
                 "timeBudgetSeconds": 900,
                 "profileTimeBudgetSeconds": 1200,
@@ -214,20 +218,24 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
                     root, "regular", target, {
                         "corpusRevision": "revision-1",
                         "packages": [
-                            {"packageId": "package-a"},
+                            {"packageId": "khronos-lantern-glb"},
                             {"packageId": "package-b"},
                         ],
                     },
                 )
-                self.assertEqual(["package-a"], profile["packageIds"])
-                self.assertEqual(["package-a"], [
+                self.assertEqual(
+                    ["khronos-lantern-glb"], profile["packageIds"]
+                )
+                self.assertEqual(["khronos-lantern-glb"], [
                     item["packageId"] for item in selected
                 ])
                 with self.assertRaisesRegex(ValueError, "not declared"):
                     self.module.validate_profile_selection(
                         root, "regular", root / "Other.json", {
                             "corpusRevision": "revision-1",
-                            "packages": [{"packageId": "package-a"}],
+                            "packages": [{
+                                "packageId": "khronos-lantern-glb"
+                            }],
                         },
                     )
             finally:
@@ -291,24 +299,66 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
 
     def test_shipping_profiles_have_exact_tier_contracts(self):
         expected = {
-            "regular": (20, 2, 900, 1200, 600),
-            "medium": (1000, 20, 6600, 6900, 6000),
-            "hardware": (1000, 20, 3600, 7800, 3600),
+            "regular": (
+                [{"packageId": "khronos-lantern-glb",
+                  "purpose": "bounded-regression", "cycles": 20,
+                  "warmupCycles": 2}],
+                900, 1200, 600,
+            ),
+            "medium": (
+                [{"packageId": "khronos-lantern-glb",
+                  "purpose": "endurance", "cycles": 1000,
+                  "warmupCycles": 20},
+                 {"packageId": "khronos-sponza-gltf",
+                  "purpose": "scale-lifecycle", "cycles": 100,
+                  "warmupCycles": 10}],
+                2400, 2700, 1800,
+            ),
+            "hardware": (
+                [{"packageId": "khronos-lantern-glb",
+                  "purpose": "physical-authority", "cycles": 1000,
+                  "warmupCycles": 20},
+                 {"packageId": "khronos-sponza-gltf",
+                  "purpose": "physical-authority", "cycles": 1000,
+                  "warmupCycles": 20}],
+                3600, 7800, 3600,
+            ),
         }
-        for profile_id, (cycles, warmup, package, profile_budget,
+        for profile_id, (lifecycles, package, profile_budget,
                          native) in expected.items():
             profile = self.module.load_validation_profile(
                 self.module.REPOSITORY_ROOT, profile_id
             )
-            self.assertEqual(cycles, profile["lifecycleCycles"])
-            self.assertEqual(warmup, profile["warmupCycles"])
+            self.assertEqual(lifecycles, profile["packageLifecycles"])
             self.assertEqual(16 * 1024 * 1024, profile["maxRssGrowthBytes"])
             self.assertEqual(package, profile["timeBudgetSeconds"])
             self.assertEqual(
                 profile_budget, profile["profileTimeBudgetSeconds"]
             )
             self.assertEqual(native, profile["nativeTimeBudgetSeconds"])
-            self.assertLess(profile["warmupCycles"], profile["lifecycleCycles"])
+            for lifecycle in profile["packageLifecycles"]:
+                self.assertLess(
+                    lifecycle["warmupCycles"], lifecycle["cycles"]
+                )
+
+    def test_profile_package_lifecycle_is_exact_and_package_owned(self):
+        medium = self.module.load_validation_profile(
+            self.module.REPOSITORY_ROOT, "medium"
+        )
+        self.assertEqual(
+            (1000, 20, "endurance"),
+            self.module.profile_package_lifecycle(
+                medium, "khronos-lantern-glb"
+            ),
+        )
+        self.assertEqual(
+            (100, 10, "scale-lifecycle"),
+            self.module.profile_package_lifecycle(
+                medium, "khronos-sponza-gltf"
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "package lifecycle"):
+            self.module.profile_package_lifecycle(medium, "unknown")
 
     def test_only_medium_packages_run_concurrently(self):
         self.assertEqual(
@@ -447,8 +497,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             try:
                 for field, value, error in (
                     ("unknown", True, "fields"),
-                    ("lifecycleCycles", 19, "cycle"),
-                    ("warmupCycles", 3, "warm-up"),
+                    ("packageLifecycles", [], "lifecycle"),
                     ("maxRssGrowthBytes", 1, "RSS"),
                     ("timeBudgetSeconds", 601, "budget"),
                 ):

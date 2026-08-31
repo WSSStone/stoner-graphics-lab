@@ -1609,3 +1609,46 @@ not a hosted performance qualification.
 - Remove the timeout: rejected because hung native work must remain bounded.
 - Change local physical budgets: rejected because this finding is specific to
   variable hosted Intel throughput and does not alter physical authority.
+
+## Decision 54: Separate hosted endurance from heavy-content scale lifecycle
+
+**Decision**: Upgrade the validation profile to schema v4 with an ordered
+per-package lifecycle contract. Hosted medium assigns Lantern the long-duration
+`endurance` role at 1,000 cycles with 20 included warm-up cycles and 2,000
+Deferred/Forward captures. It assigns Sponza the heavy-content
+`scale-lifecycle` role at 100 cycles with 10 included warm-up cycles and 200
+captures. Every Sponza cycle still reads and typed-decodes the complete strict
+closure, realizes all 103 primitives, 25 materials, and 69 textures, submits
+Deferred/Forward work, and completely releases the composition; seven final
+readbacks, owner baselines, and stale-handle rejection remain hard gates.
+Hosted medium uses 2,400/2,700/1,800-second package/profile/native operational
+limits inside a 90-minute job. Both maintainer-local physical lanes retain
+1,000/20, 2,000 captures, exact 512-by-512 semantic/FLIP authority, and their
+existing 3,600-second per-package/native bounds for both packages.
+
+**Rationale**: Repeated timeout expansion showed that hosted Sponza was not
+testing a new property during its last 900 equivalent full rebuilds. One
+Sponza cycle processes roughly 519 MiB of cooked envelopes; 100 cycles already
+exercise about 51.9 GiB of strict reads plus 10,300 primitive and 6,900 texture
+lifetimes. Lantern's much smaller closure can economically own the 1,000-cycle
+long-duration submission/teardown proof. Keeping 1,000 Sponza cycles as a
+second endurance test consumed 6,000 seconds and a 150-minute job without
+strengthening pixel authority, cross-process stability, physical GPU behavior,
+or a distinct ownership invariant. The split preserves fail-closed exact
+counts while making each hosted shard answer one named question.
+
+**Alternatives considered**:
+
+- Increase the hosted timeout again: rejected because it preserves duplicated
+  responsibility and makes closeout runtime unbounded by engineering value.
+- Reduce both packages to 100 cycles: rejected because that would remove the
+  dedicated long-duration endurance proof.
+- Remove Sponza from hosted medium: rejected because the heavy closure, high
+  primitive/material/texture counts, and full realization/teardown path are a
+  distinct scale contract.
+- Relax semantic, FLIP, extent, or alignment rules: rejected because image
+  comparison is not responsible for the timeout and remains physical-hardware
+  authority.
+- Reduce physical Sponza authority: rejected because physical lanes validate
+  actual driver/device behavior and are deliberately stronger than variable
+  hosted orchestration.

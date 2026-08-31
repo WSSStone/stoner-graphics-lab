@@ -120,7 +120,7 @@ Realization: Validate -> Create transaction -> Commit snapshot
                                   `-> Failure -> Rollback
 Baseline:    Candidate -> Calibrated -> Reviewed -> Accepted -> Superseded
 Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
-<p>regular 固定 20 次、1-2 warm-up；medium/hardware 固定 1,000 次、1-20 warm-up。warm-up 计入总次数，内部 owners 必须归零且 stale handle 必须被拒绝。GitHub-hosted RSS、task-VM、allocator 与耗时只作为 observation；Feature 028 的维护者本机 native arm64 Metal 与手动同步的 x86_64 Windows Vulkan 分别通过 exact host/target/device class、独占进程锁、clean committed revision、默认 allocator、声明采样协议和窗口 readback preflight 后，裁决各自的 accepted-image gate，且二者必须在同一最终 revision 上通过。Metal 继续裁决 warm-up 到 terminal 的 16 MiB RSS；Windows working-set RSS 因同路径多次运行受驱动驻留和 OS trimming 影响而只作为完整有界 observation，不得单独判失败，也不得通过 working-set trim、特殊 allocator、移动采样点或抬高阈值制造通过。regular 的 package/profile/native operational cap 为 900/1,200/600 秒；hosted medium 的 package/profile/native 为 6,600/6,900/6,000 秒并置于 150 分钟 job；每个本地 hardware target 保持 3,600 秒串行预算。设备不需要注册 self-hosted runner，push 不会远程执行；macOS Vulkan 与稳定 Windows reference-set/WPR 内存资格仍延期到未来 hardware lab。</p>
+<p>regular 固定 20 次、1-2 warm-up。hosted medium 使用按包分工的 schema v4 合同：Lantern 负责 1,000/20 endurance 与 2,000 captures；Sponza 负责 100/10 scale lifecycle 与 200 captures，每一轮仍完整读取、解码、realize、Deferred/Forward、release。两个本地 hardware target 上的两个包都保持 1,000/20、2,000 captures 和精确 512×512 semantic/FLIP。warm-up 计入总次数，内部 owners 必须归零且 stale handle 必须被拒绝。GitHub-hosted RSS、task-VM、allocator 与耗时只作为 observation；Feature 028 的维护者本机 native arm64 Metal 与手动同步的 x86_64 Windows Vulkan 分别通过 exact host/target/device class、独占进程锁、clean committed revision、默认 allocator、声明采样协议和窗口 readback preflight 后，裁决各自的 accepted-image gate，且二者必须在同一最终 revision 上通过。Metal 继续裁决 warm-up 到 terminal 的 16 MiB RSS；Windows working-set RSS 因同路径多次运行受驱动驻留和 OS trimming 影响而只作为完整有界 observation，不得单独判失败，也不得通过 working-set trim、特殊 allocator、移动采样点或抬高阈值制造通过。regular 的 package/profile/native operational cap 为 900/1,200/600 秒；hosted medium 为 2,400/2,700/1,800 秒并置于 90 分钟 job；每个本地 hardware target 保持 3,600 秒串行预算。设备不需要注册 self-hosted runner，push 不会远程执行；macOS Vulkan 与稳定 Windows reference-set/WPR 内存资格仍延期到未来 hardware lab。</p>
 
 <h3>3. 失败模式与调试入口</h3>
 <table><thead><tr><th>症状</th><th>定位方法</th><th>本期真实案例</th></tr></thead><tbody>
@@ -211,7 +211,7 @@ Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
 <li><strong>Cook/runtime：</strong>真实 KTX2 producer selection、generation validation、development/strict semantic equivalence。</li>
 <li><strong>Renderer：</strong>aggregate model realization transaction、composition、Deferred full、Forward smoke。</li>
 <li><strong>Native image：</strong>Vulkan/Metal attachment readback、window-only capture、semantic probes、FLIP。</li>
-<li><strong>Lifecycle：</strong>20/2 与 1000/20 固定循环、counter/stale/RSS、timeout。</li>
+<li><strong>Lifecycle：</strong>regular 20/2、hosted Lantern endurance 1000/20、hosted Sponza scale 100/10、physical 1000/20，以及 counter/stale/RSS/timeout。</li>
 <li><strong>Camera/image revision：</strong>Sponza v2 中庭 preset、Lantern v2 正确 -X 表面与灯光、逐 device-class 明确接受。</li>
 <li><strong>Automation/evidence：</strong>hosted regular/medium workflow、本机 Metal hardware command、canonical reports、privacy 和 artifact manifests。</li>
 </ol>
@@ -220,7 +220,7 @@ Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
 <table><thead><tr><th>门禁</th><th>标准</th><th>当前本地证据</th></tr></thead><tbody>
 <tr><td>Strict Release</td><td>warnings as errors</td><td>PASS</td></tr>
 <tr><td>Regular Metal</td><td>20 clean、37/37 reuse、20/2 lifecycle、&lt;600s</td><td>稳定化 lifecycle 75.980s；RSS +4,210,688</td></tr>
-<tr><td>Medium Metal</td><td>两包、1000/20、2000 captures、7 readbacks、zero owners/stale；hosted telemetry observed</td><td>本地完整 replay 通过；hosted Lantern 通过，Sponza 旧 3,499s watchdog 触发 T173 扩容后待重跑</td></tr>
+<tr><td>Medium Metal</td><td>Lantern 1000/20 endurance；Sponza 100/10 scale lifecycle；每周期完整工作、每包 7 readbacks、zero owners/stale；hosted telemetry observed</td><td>schema-v4 分层合同已实现，等待最终 hosted aggregate closeout</td></tr>
 <tr><td>Image acceptance</td><td>exact class、Accepted baseline、semantic + FLIP</td><td>Metal/Vulkan regular 20-cycle 已通过</td></tr>
 <tr><td>Artifact revalidation</td><td>每项 size/digest/profile 匹配</td><td>regular 3,522 项；medium 4,288 项</td></tr>
 <tr><td>Final closeout</td><td>同一 revision hosted + medium + physical hardware</td><td>待 T112-T114</td></tr>

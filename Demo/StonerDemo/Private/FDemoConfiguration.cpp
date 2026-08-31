@@ -156,10 +156,14 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
             return Fail("production workload requires strict root, generation, revision, paths, and registry");
         const bool bRegular = ProductionLifecycleCycles == 20 &&
             ProductionWarmupCycles == 2;
+        const bool bScaleLifecycle = ProductionLifecycleCycles == 100 &&
+            ProductionWarmupCycles == 10 &&
+            WorkloadRevision == Core::FString("production-content-sponza-v2");
         const bool bExtended = ProductionLifecycleCycles == 1000 &&
             ProductionWarmupCycles == 20;
-        if (!bRegular && !bExtended)
-            return Fail("production lifecycle must use fixed 20/2 or 1000/20 cycles");
+        if (!bRegular && !bScaleLifecycle && !bExtended)
+            return Fail(
+                "production lifecycle must use fixed 20/2, Sponza-v2 100/10, or 1000/20 cycles");
         if (ProductionMaxRssGrowthBytes != 16ULL * 1024ULL * 1024ULL)
             return Fail("production RSS growth limit must be exactly 16 MiB");
         if (bVisibleCapture &&

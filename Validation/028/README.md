@@ -107,9 +107,11 @@ python3 .github/scripts/run_production_content_validation.py \
 The runner derives `github-hosted`, `maintainer-local-metal`,
 `maintainer-local-windows-vulkan`, or `local-diagnostic` from repository policy
 and rejects generic caller promotion.
-Hosted lanes own exact functional/lifecycle completion, including 1,000/20
-cycles, 2,000 captures, seven readbacks, zero terminal owners, and stale-handle
-rejection. Hosted RSS/task-VM/allocator/peak/elapsed metrics are observations:
+Hosted lanes own exact functional/lifecycle completion. The schema-v4 medium
+contract assigns Lantern 1,000/20 endurance with 2,000 captures and Sponza
+100/10 scale lifecycle with 200 captures; both retain seven readbacks, zero
+terminal owners, stale-handle rejection, and complete per-cycle work. Hosted
+RSS/task-VM/allocator/peak/elapsed metrics are observations:
 they are preserved in evidence but do not decide acceptance. The
 maintainer-local physical lanes additionally require their exact native host,
 target/registered device class, exclusive process lock, clean committed

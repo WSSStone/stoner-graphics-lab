@@ -127,6 +127,7 @@ bool ReadLifecycleSettings(Core::uint32& OutCycles, Core::uint32& OutWarmup)
         !Parse("STONER_PRODUCTION_WARMUP_CYCLES", OutWarmup))
         return false;
     return (OutCycles == 20 && OutWarmup == 2) ||
+        (OutCycles == 100 && OutWarmup == 10) ||
         (OutCycles == 1000 && OutWarmup == 20);
 }
 
@@ -276,7 +277,7 @@ RunMetalProductionContentIntegrationTests()
     if (!ReadLifecycleSettings(ExpectedCycles, ExpectedWarmup))
     {
         Record(Result, false,
-            "Metal production lifecycle settings use 20/2 or 1000/20");
+            "Metal production lifecycle settings use 20/2, 100/10, or 1000/20");
         return Result;
     }
 

@@ -1,6 +1,6 @@
 {
   "schema": "stoner.production-validation-profile",
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "profileId": "hardware",
   "corpusRevision": "khronos-2026-08-19-v1",
   "packageIds": ["khronos-lantern-glb", "khronos-sponza-gltf"],
@@ -8,8 +8,20 @@
     "Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json",
     "Config/AssetCooker/Profiles/Production/Windows-Vulkan.json"
   ],
-  "lifecycleCycles": 1000,
-  "warmupCycles": 20,
+  "packageLifecycles": [
+    {
+      "packageId": "khronos-lantern-glb",
+      "purpose": "physical-authority",
+      "cycles": 1000,
+      "warmupCycles": 20
+    },
+    {
+      "packageId": "khronos-sponza-gltf",
+      "purpose": "physical-authority",
+      "cycles": 1000,
+      "warmupCycles": 20
+    }
+  ],
   "maxRssGrowthBytes": 16777216,
   "timeBudgetSeconds": 3600,
   "profileTimeBudgetSeconds": 7800,

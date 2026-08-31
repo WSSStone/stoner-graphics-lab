@@ -77,7 +77,7 @@ FAILURE_CASE_FIELDS = {
 
 PROFILE_FIELDS = {
     "schema", "schemaVersion", "profileId", "corpusRevision", "packageIds",
-    "targetProfiles", "lifecycleCycles", "warmupCycles", "maxRssGrowthBytes",
+    "targetProfiles", "packageLifecycles", "maxRssGrowthBytes",
     "timeBudgetSeconds", "profileTimeBudgetSeconds",
     "nativeTimeBudgetSeconds", "cadence",
     "requiredGates", "authorityPolicy",
@@ -112,8 +112,12 @@ LOCAL_WINDOWS_VULKAN_DEVICE_CLASS = "windows.discrete-vulkan.rgba8"
 _LOCAL_HARDWARE_AUTHORITY_LOCKS: dict[str, object] = {}
 PROFILE_CONTRACTS = {
     "regular": {
-        "cycles": 20,
-        "warmup": 2,
+        "package_lifecycles": [{
+            "packageId": "khronos-lantern-glb",
+            "purpose": "bounded-regression",
+            "cycles": 20,
+            "warmupCycles": 2,
+        }],
         "budget": 900,
         "profile_budget": 1200,
         "native_budget": 600,
@@ -126,11 +130,20 @@ PROFILE_CONTRACTS = {
         ],
     },
     "medium": {
-        "cycles": 1000,
-        "warmup": 20,
-        "budget": 6600,
-        "profile_budget": 6900,
-        "native_budget": 6000,
+        "package_lifecycles": [{
+            "packageId": "khronos-lantern-glb",
+            "purpose": "endurance",
+            "cycles": 1000,
+            "warmupCycles": 20,
+        }, {
+            "packageId": "khronos-sponza-gltf",
+            "purpose": "scale-lifecycle",
+            "cycles": 100,
+            "warmupCycles": 10,
+        }],
+        "budget": 2400,
+        "profile_budget": 2700,
+        "native_budget": 1800,
         "cadence": [
             "weekly-default-branch", "feature-closeout", "release-closeout"
         ],
@@ -142,8 +155,17 @@ PROFILE_CONTRACTS = {
         ],
     },
     "hardware": {
-        "cycles": 1000,
-        "warmup": 20,
+        "package_lifecycles": [{
+            "packageId": "khronos-lantern-glb",
+            "purpose": "physical-authority",
+            "cycles": 1000,
+            "warmupCycles": 20,
+        }, {
+            "packageId": "khronos-sponza-gltf",
+            "purpose": "physical-authority",
+            "cycles": 1000,
+            "warmupCycles": 20,
+        }],
         "budget": 3600,
         "profile_budget": 7800,
         "native_budget": 3600,
@@ -1133,7 +1155,7 @@ def load_validation_profile(repository_root: Path, profile_name: str) -> dict:
     profile = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(profile, dict) or set(profile) != PROFILE_FIELDS:
         raise ValueError("validation profile fields are invalid")
-    if profile.get("schema") != "stoner.production-validation-profile" or profile.get("schemaVersion") != 3:
+    if profile.get("schema") != "stoner.production-validation-profile" or profile.get("schemaVersion") != 4:
         raise ValueError("validation profile schema is invalid")
     if profile.get("profileId") != profile_name:
         raise ValueError("validation profile ID mismatch")
@@ -1144,10 +1166,13 @@ def load_validation_profile(repository_root: Path, profile_name: str) -> dict:
     if any(Path(item).is_absolute() or "\\" in item or not item.endswith(".json") for item in target_profiles):
         raise ValueError("validation profile target path is invalid")
     contract = PROFILE_CONTRACTS[profile_name]
-    if profile.get("lifecycleCycles") != contract["cycles"]:
-        raise ValueError("validation profile cycle count is invalid")
-    if profile.get("warmupCycles") != contract["warmup"]:
-        raise ValueError("validation profile warm-up boundary is invalid")
+    if profile.get("packageLifecycles") != contract["package_lifecycles"]:
+        raise ValueError("validation profile package lifecycle contract is invalid")
+    if [
+        lifecycle["packageId"]
+        for lifecycle in profile["packageLifecycles"]
+    ] != profile["packageIds"]:
+        raise ValueError("validation profile package lifecycle order is invalid")
     if profile.get("maxRssGrowthBytes") != 16 * 1024 * 1024:
         raise ValueError("validation profile RSS limit is invalid")
     if profile.get("timeBudgetSeconds") != contract["budget"]:
@@ -1165,6 +1190,22 @@ def load_validation_profile(repository_root: Path, profile_name: str) -> dict:
     ):
         raise ValueError("validation profile authority policy is invalid")
     return profile
+
+
+def profile_package_lifecycle(
+    profile: dict, package_id: str
+) -> tuple[int, int, str]:
+    matches = [
+        lifecycle for lifecycle in profile.get("packageLifecycles", [])
+        if lifecycle.get("packageId") == package_id
+    ]
+    if len(matches) != 1:
+        raise ValueError("validation profile package lifecycle is missing or ambiguous")
+    lifecycle = matches[0]
+    return (
+        lifecycle["cycles"], lifecycle["warmupCycles"],
+        lifecycle["purpose"],
+    )
 
 
 def load_native_target_contract(path: Path) -> dict:
@@ -1205,7 +1246,7 @@ def build_native_lifecycle_stage(
 ) -> tuple[list[str], dict[str, str]]:
     if backend not in ("vulkan", "metal"):
         raise ValueError("native lifecycle backend is invalid")
-    if (cycles, warmup_cycles) not in ((20, 2), (1000, 20)):
+    if (cycles, warmup_cycles) not in ((20, 2), (100, 10), (1000, 20)):
         raise ValueError("native lifecycle boundary is invalid")
     if require_image_acceptance and not require_visible:
         raise ValueError("image acceptance requires visible presentation")
@@ -2162,6 +2203,7 @@ def run_package(
     source: Path,
     output: Path,
     determinism_runs: int,
+    lifecycle_purpose: str,
     lifecycle_cycles: int,
     warmup_cycles: int,
     timeout: int,
@@ -2388,6 +2430,7 @@ def run_package(
 
     return {
         "packageId": package["packageId"],
+        "lifecyclePurpose": lifecycle_purpose,
         "rootAssetId": package["rootAssetId"],
         "workloadRevision": workload_revision,
         "generationId": generation_ids[0],
@@ -2589,6 +2632,11 @@ def run_profile(args: argparse.Namespace) -> dict:
         runs = profile_package_clean_runs(
             args.profile, package["tier"], args.determinism_runs
         )
+        cycles, warmup_cycles, lifecycle_purpose = (
+            profile_package_lifecycle(
+                validation_profile, package["packageId"]
+            )
+        )
         try:
             return run_package(
                 repository_root,
@@ -2599,8 +2647,9 @@ def run_profile(args: argparse.Namespace) -> dict:
                 package_source(repository_root, content_root, package),
                 output,
                 runs,
-                validation_profile["lifecycleCycles"],
-                validation_profile["warmupCycles"],
+                lifecycle_purpose,
+                cycles,
+                warmup_cycles,
                 args.timeout_seconds,
                 validation_profile["nativeTimeBudgetSeconds"],
                 target_contract["graphicsBackend"],
@@ -2709,7 +2758,7 @@ def parse_args(values: Sequence[str] | None = None) -> argparse.Namespace:
         default=Path("Content/ProductionAcceptance"),
     )
     parser.add_argument("--determinism-runs", type=int, default=20)
-    parser.add_argument("--timeout-seconds", type=int, default=6600)
+    parser.add_argument("--timeout-seconds", type=int, default=2400)
     parser.add_argument("--package-id")
     parser.add_argument(
         "--local-metal-authority", action="store_true",

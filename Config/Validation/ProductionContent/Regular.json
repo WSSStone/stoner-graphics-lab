@@ -1,6 +1,6 @@
 {
   "schema": "stoner.production-validation-profile",
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "profileId": "regular",
   "corpusRevision": "khronos-2026-08-19-v1",
   "packageIds": ["khronos-lantern-glb"],
@@ -11,8 +11,14 @@
     "Config/AssetCooker/Profiles/Production/Mac-Vulkan.json",
     "Config/AssetCooker/Profiles/Production/Windows-Vulkan.json"
   ],
-  "lifecycleCycles": 20,
-  "warmupCycles": 2,
+  "packageLifecycles": [
+    {
+      "packageId": "khronos-lantern-glb",
+      "purpose": "bounded-regression",
+      "cycles": 20,
+      "warmupCycles": 2
+    }
+  ],
   "maxRssGrowthBytes": 16777216,
   "timeBudgetSeconds": 900,
   "profileTimeBudgetSeconds": 1200,

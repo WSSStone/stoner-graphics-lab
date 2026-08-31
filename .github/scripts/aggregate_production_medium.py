@@ -26,6 +26,7 @@ def aggregate_medium_shards(
 ) -> dict:
     profile = load_json(profile_path)
     expected_packages = profile.get("packageIds")
+    expected_lifecycles = profile.get("packageLifecycles")
     expected_policy = {
         "allowedExecutionClasses": [
             "github-hosted", "local-diagnostic"
@@ -44,19 +45,40 @@ def aggregate_medium_shards(
     }
     if (
         profile.get("schema") != "stoner.production-validation-profile"
-        or profile.get("schemaVersion") != 3
+        or profile.get("schemaVersion") != 4
         or profile.get("profileId") != "medium"
-        or profile.get("lifecycleCycles") != 1000
-        or profile.get("warmupCycles") != 20
-        or profile.get("timeBudgetSeconds") != 6600
-        or profile.get("profileTimeBudgetSeconds") != 6900
-        or profile.get("nativeTimeBudgetSeconds") != 6000
+        or profile.get("timeBudgetSeconds") != 2400
+        or profile.get("profileTimeBudgetSeconds") != 2700
+        or profile.get("nativeTimeBudgetSeconds") != 1800
         or profile.get("authorityPolicy") != expected_policy
         or not isinstance(expected_packages, list)
         or len(expected_packages) < 2
         or len(set(expected_packages)) != len(expected_packages)
+        or not isinstance(expected_lifecycles, list)
+        or not all(isinstance(item, dict) for item in expected_lifecycles)
+        or [item.get("packageId") for item in expected_lifecycles]
+            != expected_packages
     ):
         raise ValueError("medium profile contract is invalid")
+    lifecycle_by_package = {
+        item["packageId"]: item for item in expected_lifecycles
+    }
+    if (
+        len(lifecycle_by_package) != len(expected_packages)
+        or lifecycle_by_package.get("khronos-lantern-glb") != {
+            "packageId": "khronos-lantern-glb",
+            "purpose": "endurance",
+            "cycles": 1000,
+            "warmupCycles": 20,
+        }
+        or lifecycle_by_package.get("khronos-sponza-gltf") != {
+            "packageId": "khronos-sponza-gltf",
+            "purpose": "scale-lifecycle",
+            "cycles": 100,
+            "warmupCycles": 10,
+        }
+    ):
+        raise ValueError("medium profile lifecycle split is invalid")
 
     summary_paths = sorted(root.rglob("summary.json"))
     if len(summary_paths) != len(expected_packages):
@@ -76,11 +98,11 @@ def aggregate_medium_shards(
             or summary.get("executionClass") != "github-hosted"
             or summary.get("passed") is not True
             or summary.get("determinismRuns") != 1
-            or summary.get("timeBudgetSeconds") != 6600
-            or summary.get("profileTimeBudgetSeconds") != 6900
-            or summary.get("nativeTimeBudgetSeconds") != 6000
+            or summary.get("timeBudgetSeconds") != 2400
+            or summary.get("profileTimeBudgetSeconds") != 2700
+            or summary.get("nativeTimeBudgetSeconds") != 1800
             or not isinstance(summary.get("elapsedSeconds"), (int, float))
-            or summary["elapsedSeconds"] > 6900
+            or summary["elapsedSeconds"] > 2700
             or summary.get("targetProfileDigest") != target_digest
             or not isinstance(packages, list)
             or len(packages) != 1
@@ -89,22 +111,25 @@ def aggregate_medium_shards(
         package = packages[0]
         native = package.get("nativeLifecycle")
         package_id = package.get("packageId")
+        lifecycle = lifecycle_by_package.get(package_id)
         if (
             package_id not in expected_packages
             or package_id in observed_packages
             or package.get("cleanRuns") != 1
             or package.get("reachableAssets") != package.get("reusedAssets")
+            or not isinstance(lifecycle, dict)
+            or package.get("lifecyclePurpose") != lifecycle["purpose"]
             or not isinstance(native, dict)
             or native.get("result") != "Passed"
             or native.get("executionClass") != "github-hosted"
-            or native.get("lifecycleCycles") != 1000
-            or native.get("warmupCycles") != 20
+            or native.get("lifecycleCycles") != lifecycle["cycles"]
+            or native.get("warmupCycles") != lifecycle["warmupCycles"]
             or native.get("ownersAtTerminal") != 0
             or native.get("staleHandleRejected") is not True
-            or native.get("captureCount") != 2000
+            or native.get("captureCount") != lifecycle["cycles"] * 2
             or native.get("readbackCount") != 7
             or not isinstance(native.get("seconds"), (int, float))
-            or native["seconds"] > 6000
+            or native["seconds"] > 1800
             or native.get("rssDisposition") != "observed"
             or native.get("timingDisposition") != "operational"
             or native.get("imageDisposition") != "not-required"
@@ -129,6 +154,9 @@ def aggregate_medium_shards(
         observed_packages.add(package_id)
         records.append({
             "packageId": package_id,
+            "lifecyclePurpose": lifecycle["purpose"],
+            "lifecycleCycles": lifecycle["cycles"],
+            "warmupCycles": lifecycle["warmupCycles"],
             "workloadRevision": package.get("workloadRevision"),
             "generationId": package.get("generationId"),
             "elapsedSeconds": summary["elapsedSeconds"],

@@ -1,16 +1,17 @@
 # Production Content Validation Profiles
 
-`Regular.json`, `Medium.json`, and `Hardware.json` are version-3 strict workload
+`Regular.json`, `Medium.json`, and `Hardware.json` are version-4 strict workload
 contracts consumed by the shared local/CI runner. Unknown fields, profile
-overrides, and caller-selected warm-up counts are rejected.
+overrides, and caller-selected lifecycle or warm-up counts are rejected.
 
 `DeviceClasses.json` maps a canonical observed capability signature to exactly
 one stable class. Marketing device names and driver versions are observations,
 not class keys. Registry records are sorted by `deviceClass`; duplicate class
 tokens or complete signatures are invalid.
 
-Regular uses cycles 1-2 of 20 as included warm-up. Medium and hardware use
-cycles 1-20 of 1,000. RSS growth is measured from the sample immediately after
+Regular uses cycles 1-2 of 20 as included warm-up. Hosted medium assigns Lantern
+1,000/20 `endurance` and Sponza 100/10 `scale-lifecycle`; hardware assigns both
+packages 1,000/20 `physical-authority`. RSS growth is measured from the sample immediately after
 warm-up to the terminal sample. The 16 MiB result is `required` only on a
 maintainer-local Metal run that passed the profile-owned preflight. It is
 `observed` on GitHub-hosted, local-diagnostic, and maintainer-local Windows
@@ -49,7 +50,7 @@ part of the regular production-content acceptance budget.
 | Profile | Corpus | Cycles / warm-up | Package / profile / native budget | Required environment |
 |---|---|---:|---:|---|
 | Regular | Checked-in Lantern | 20 / 2 | 900 / 1,200 / 600 seconds | Windows, Linux, or macOS target-capable host; headless/software-native evidence where applicable |
-| Medium | Lantern and hash-pinned Sponza | 1,000 / 20 | 6,600 / 6,900 / 6,000 seconds | Isolated hosted Intel Metal package lanes; external package cache may be reused only after hash verification |
+| Medium | Lantern endurance; hash-pinned Sponza scale lifecycle | Lantern 1,000 / 20; Sponza 100 / 10 | 2,400 / 2,700 / 1,800 seconds | Isolated hosted Intel Metal package lanes; external package cache may be reused only after hash verification |
 | Hardware | Lantern and hash-pinned Sponza | 1,000 / 20 | 3,600 / 7,800 / 3,600 seconds | Maintainer-local native arm64 macOS Metal and x86_64 Windows Vulkan, each with an application display surface |
 
 The runner does not accept caller overrides for cycle or warm-up boundaries.

@@ -42,6 +42,10 @@
 - Q: hardware profile 中前一个包的图像或 baseline 失败是否应阻止后续包取证？ → A: 不应。包级、正常退出的 semantic/baseline/FLIP/lifecycle 失败串行 collect-all 并在末尾聚合失败；preflight、corpus/revision/source integrity、authority lock、device-lost 与不可验证证据错误仍立即停止。每包保留 3,600 秒 operational 上限，双包 hardware profile 外层上限为 7,800 秒。
 - Q: Regular Intel Metal 的 20 次 clean cook 已通过，但共享 operational envelope 先令 strict runtime 只剩 1 秒、扩大外层后又令 native 只剩 53 秒时，是否应减少验证工作？ → A: 不应。按真实嵌套关系将 package/profile/native 上限设为 900/1,200/600 秒：package 覆盖 clean/warm/strict/native 完整工作，profile 额外容纳 target-toolchain discovery 与编排，native 自身仍独立限 600 秒；20/2、20 次 clean cook、strict runtime、semantic equivalence、native/lifecycle 和报告门禁均不减少。
 
+### Session 2026-08-31
+
+- Q: Hosted Sponza medium 在 6,000 秒仍无法稳定完成 1,000 个完整生命周期，是否应继续增加 timeout 或放宽图像校验？ → A: 都不应。该耗时来自每周期重新读取和解码约 519 MiB cooked closure、realize 103 primitives/25 materials/69 textures、执行 Deferred/Forward 并完整 teardown，而不是 FLIP、像素对齐或图像阈值。Hosted medium 改为分层压力合同：Lantern 保留 1,000/20 的长时 endurance 与 2,000 captures；Sponza 执行 100/10 的 scale-lifecycle 与 200 captures，每周期仍走完整 strict manager/closure/realize/render/release，且保留七次最终 readback、owner 归零和 stale-handle 拒绝。两台维护者物理设备上的 Lantern/Sponza 均继续执行 1,000/20、2,000 captures 和精确 512×512 semantic/FLIP 权威门禁。Hosted medium 的 package/profile/native operational 上限收敛为 2,400/2,700/1,800 秒，workflow 外层为 90 分钟。本答案取代 2026-08-27 对 hosted Sponza 1,000/20 与 6,600/6,900/6,000 秒的临时扩容决定。
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Admit Representative Production Content (Priority: P1)
@@ -488,9 +492,12 @@ corpus and generation evidence.
 - **FR-031**: Repeated composition creation, rendering, destruction, and
   recreation MUST return Asset Manager, Renderer, RHI, native, and presentation
   ownership to declared terminal baselines without stale-handle aliasing. The
-  regular profile MUST complete 20 full cycles and use cycles 1-2 as warm-up;
-  the medium/hardware profile MUST complete 1,000 full cycles and use cycles
-  1-20 as warm-up. Warm-up cycles count toward the required total. Every lane
+  regular profile MUST complete 20 full cycles and use cycles 1-2 as warm-up.
+  Hosted medium MUST apply the profile's ordered per-package lifecycle contract:
+  Lantern completes 1,000 cycles with cycles 1-20 as warm-up for endurance,
+  while Sponza completes 100 cycles with cycles 1-10 as warm-up for heavy-
+  content scale lifecycle. Hardware MUST complete 1,000 cycles with cycles
+  1-20 as warm-up for both packages. Warm-up cycles count toward the required total. Every lane
   MUST treat exact cycle/capture/readback counts, terminal owner baselines, and
   stale-handle rejection as hard correctness gates. A maintainer-local Metal
   lane that passes authority preflight MUST additionally keep net RSS growth
@@ -512,10 +519,14 @@ corpus and generation evidence.
 - **FR-033**: The medium validation profile MUST exercise every accepted
   package through clean and unchanged warm cooking, 100% reuse of eligible
   payloads, strict-cooked loading with source unavailable, complete normalized
-  semantic equivalence, 1,000 complete lifecycle cycles, and aggregate
-  dependency, timing, peak-memory, RSS-growth, and diagnostic evidence. Hosted
-  aggregation MUST require the exact work, lifecycle, ownership, stale, capture,
-  and readback contracts while preserving timing and memory as observations.
+  semantic equivalence, the exact package-owned lifecycle declared by the
+  profile, and aggregate dependency, timing, peak-memory, RSS-growth, and
+  diagnostic evidence. Lantern owns the 1,000/20 endurance proof; Sponza owns a
+  100/10 scale-lifecycle proof whose every cycle still performs complete strict
+  closure loading, typed decode, realization, Deferred/Forward execution, and
+  teardown. Hosted aggregation MUST require the exact work, lifecycle,
+  ownership, stale, capture, and readback contracts while preserving timing and
+  memory as observations.
 - **FR-057**: Baseline calibration MUST distinguish process-local repetition
   from cross-process stability. It MUST begin with three independent native
   processes of 20 captures each and MAY extend to at most six processes when
@@ -642,14 +653,17 @@ corpus and generation evidence.
   replacement lane, not an observational pass. After the same preflight, Metal
   RSS is `required` with the 16 MiB limit while Windows working-set RSS is
   `observed` and MUST NOT independently pass or fail the run.
-- **FR-053**: Hosted medium execution MUST preserve 1,000 cycles, 20 included
-  warm-up cycles, 2,000 Deferred/Forward captures, seven post-lifecycle
-  authoritative readbacks, zero terminal owners, and stale-handle rejection.
+- **FR-053**: Hosted medium execution MUST preserve the ordered package-owned
+  lifecycle contract: Lantern uses 1,000 cycles, 20 included warm-up cycles,
+  and 2,000 Deferred/Forward captures; Sponza uses 100 cycles, 10 included
+  warm-up cycles, and 200 Deferred/Forward captures. Each package retains seven
+  post-lifecycle authoritative readbacks, zero terminal owners, stale-handle
+  rejection, and complete work on every declared cycle.
   Its RSS, task-VM, allocator, peak-memory, and wall-clock measurements MUST be
   reported but MUST NOT independently fail a completed correctness run.
-- **FR-054**: Hosted medium package execution MUST use a 6,600-second package
-  operational timeout, a 6,900-second profile timeout, and an independent
-  6,000-second native timeout inside a 150-minute workflow job. Timeout remains
+- **FR-054**: Hosted medium package execution MUST use a 2,400-second package
+  operational timeout, a 2,700-second profile timeout, and an independent
+  1,800-second native timeout inside a 90-minute workflow job. Timeout remains
   a failure to complete required work,
   but elapsed time below the cap is not a performance qualification. This
   hosted-only envelope MUST NOT alter either 3,600-second local physical lane.
@@ -740,8 +754,9 @@ corpus and generation evidence.
   versioned perceptual policy for its backend and exact registry-derived device
   class.
 - **SC-009**: Each regular gate completes 20 repeated load, realize, render,
-  release, and recreate cycles with cycles 1-2 as warm-up; each medium/hardware
-  gate completes 1,000 cycles with cycles 1-20 as warm-up. Warm-up cycles count
+  release, and recreate cycles with cycles 1-2 as warm-up. Hosted medium
+  completes Lantern endurance at 1,000/20 and Sponza scale lifecycle at 100/10;
+  each hardware gate completes both packages at 1,000/20. Warm-up cycles count
   toward the total. No cycle produces stale-handle aliasing or double release,
   all tracked ownership counts return to baseline. The maintainer-local Metal
   lane additionally keeps RSS growth from the sample immediately after warm-up
@@ -750,8 +765,8 @@ corpus and generation evidence.
   without using RSS as their result.
 - **SC-010**: The regular profile completes its bounded platform-applicable
   source-to-cooked-to-runtime gate within 10 minutes per hosted job, while the
-  hosted medium profile is bounded by 6,600/6,900-second package/profile
-  timeouts and an independent 6,000-second native timeout inside a 150-minute
+  hosted medium profile is bounded by 2,400/2,700-second package/profile
+  timeouts and an independent 1,800-second native timeout inside a 90-minute
   job, while a
   serialized visible local physical hardware profile gives each package and
   native child 3,600 seconds inside one 7,800-second two-package deadline;

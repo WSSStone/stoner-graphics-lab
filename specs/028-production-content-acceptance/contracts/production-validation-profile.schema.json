@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://stoner.local/schemas/production-validation-profile-v3.json",
+  "$id": "https://stoner.local/schemas/production-validation-profile-v4.json",
   "title": "Stoner Production Validation Profile",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "schemaVersion", "profileId", "corpusRevision", "packageIds", "targetProfiles", "lifecycleCycles", "warmupCycles", "maxRssGrowthBytes", "timeBudgetSeconds", "profileTimeBudgetSeconds", "nativeTimeBudgetSeconds", "cadence", "requiredGates", "authorityPolicy"],
+  "required": ["schema", "schemaVersion", "profileId", "corpusRevision", "packageIds", "targetProfiles", "packageLifecycles", "maxRssGrowthBytes", "timeBudgetSeconds", "profileTimeBudgetSeconds", "nativeTimeBudgetSeconds", "cadence", "requiredGates", "authorityPolicy"],
   "properties": {
     "schema": {"const": "stoner.production-validation-profile"},
-    "schemaVersion": {"const": 3},
+    "schemaVersion": {"const": 4},
     "profileId": {"enum": ["regular", "medium", "hardware"]},
     "corpusRevision": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{0,63}$"},
     "packageIds": {
@@ -24,8 +24,12 @@
       "uniqueItems": true,
       "items": {"type": "string", "maxLength": 256, "pattern": "^(?!/)(?!.*\\\\).+\\.json$"}
     },
-    "lifecycleCycles": {"type": "integer"},
-    "warmupCycles": {"type": "integer"},
+    "packageLifecycles": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {"$ref": "#/$defs/packageLifecycle"}
+    },
     "maxRssGrowthBytes": {"const": 16777216},
     "timeBudgetSeconds": {"type": "integer"},
     "profileTimeBudgetSeconds": {"type": "integer"},
@@ -53,6 +57,35 @@
     }
   },
   "$defs": {
+    "packageLifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packageId", "purpose", "cycles", "warmupCycles"],
+      "properties": {
+        "packageId": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "purpose": {"enum": ["bounded-regression", "endurance", "scale-lifecycle", "physical-authority"]},
+        "cycles": {"enum": [20, 100, 1000]},
+        "warmupCycles": {"enum": [2, 10, 20]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"purpose": {"const": "bounded-regression"}}, "required": ["purpose"]},
+          "then": {"properties": {"cycles": {"const": 20}, "warmupCycles": {"const": 2}}}
+        },
+        {
+          "if": {"properties": {"purpose": {"const": "endurance"}}, "required": ["purpose"]},
+          "then": {"properties": {"cycles": {"const": 1000}, "warmupCycles": {"const": 20}}}
+        },
+        {
+          "if": {"properties": {"purpose": {"const": "scale-lifecycle"}}, "required": ["purpose"]},
+          "then": {"properties": {"cycles": {"const": 100}, "warmupCycles": {"const": 10}}}
+        },
+        {
+          "if": {"properties": {"purpose": {"const": "physical-authority"}}, "required": ["purpose"]},
+          "then": {"properties": {"cycles": {"const": 1000}, "warmupCycles": {"const": 20}}}
+        }
+      ]
+    },
     "hostedLocalAuthorityPolicy": {
       "type": "object",
       "additionalProperties": false,
@@ -114,8 +147,8 @@
       "if": {"properties": {"profileId": {"const": "regular"}}, "required": ["profileId"]},
       "then": {
         "properties": {
-          "lifecycleCycles": {"const": 20},
-          "warmupCycles": {"const": 2},
+          "packageIds": {"const": ["khronos-lantern-glb"]},
+          "packageLifecycles": {"const": [{"packageId": "khronos-lantern-glb", "purpose": "bounded-regression", "cycles": 20, "warmupCycles": 2}]},
           "timeBudgetSeconds": {"const": 900},
           "profileTimeBudgetSeconds": {"const": 1200},
           "nativeTimeBudgetSeconds": {"const": 600}
@@ -127,11 +160,11 @@
       "if": {"properties": {"profileId": {"const": "medium"}}, "required": ["profileId"]},
       "then": {
         "properties": {
-          "lifecycleCycles": {"const": 1000},
-          "warmupCycles": {"const": 20},
-          "timeBudgetSeconds": {"const": 6600},
-          "profileTimeBudgetSeconds": {"const": 6900},
-          "nativeTimeBudgetSeconds": {"const": 6000},
+          "packageIds": {"const": ["khronos-lantern-glb", "khronos-sponza-gltf"]},
+          "packageLifecycles": {"const": [{"packageId": "khronos-lantern-glb", "purpose": "endurance", "cycles": 1000, "warmupCycles": 20}, {"packageId": "khronos-sponza-gltf", "purpose": "scale-lifecycle", "cycles": 100, "warmupCycles": 10}]},
+          "timeBudgetSeconds": {"const": 2400},
+          "profileTimeBudgetSeconds": {"const": 2700},
+          "nativeTimeBudgetSeconds": {"const": 1800},
           "authorityPolicy": {"$ref": "#/$defs/hostedLocalAuthorityPolicy"}
         }
       }
@@ -140,8 +173,8 @@
       "if": {"properties": {"profileId": {"const": "hardware"}}, "required": ["profileId"]},
       "then": {
         "properties": {
-          "lifecycleCycles": {"const": 1000},
-          "warmupCycles": {"const": 20},
+          "packageIds": {"const": ["khronos-lantern-glb", "khronos-sponza-gltf"]},
+          "packageLifecycles": {"const": [{"packageId": "khronos-lantern-glb", "purpose": "physical-authority", "cycles": 1000, "warmupCycles": 20}, {"packageId": "khronos-sponza-gltf", "purpose": "physical-authority", "cycles": 1000, "warmupCycles": 20}]},
           "timeBudgetSeconds": {"const": 3600},
           "profileTimeBudgetSeconds": {"const": 7800},
           "nativeTimeBudgetSeconds": {"const": 3600},

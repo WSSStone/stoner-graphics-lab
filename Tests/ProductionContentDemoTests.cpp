@@ -227,6 +227,43 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
             Vulkan.ProductionWarmupCycles == 2,
         "production configuration preserves strict root revision and fixed lifecycle");
 
+    auto ScaleLifecycleArguments = RegularArguments("metal");
+    for (Core::usize Index = 0;
+         Index + 1 < ScaleLifecycleArguments.size(); ++Index)
+    {
+        const Core::FString Option(ScaleLifecycleArguments[Index]);
+        if (Option == Core::FString("--production-cycles"))
+            ScaleLifecycleArguments[Index + 1] = "100";
+        else if (Option == Core::FString("--production-warmup-cycles"))
+            ScaleLifecycleArguments[Index + 1] = "10";
+        else if (Option == Core::FString("--workload-revision"))
+            ScaleLifecycleArguments[Index + 1] =
+                "production-content-sponza-v2";
+    }
+    FDemoConfiguration ScaleLifecycle;
+    Record(Result,
+        ParseArray(std::move(ScaleLifecycleArguments), ScaleLifecycle, Reason) ==
+                EDemoExitCode::Success &&
+            ScaleLifecycle.ProductionLifecycleCycles == 100 &&
+            ScaleLifecycle.ProductionWarmupCycles == 10,
+        "production configuration accepts the fixed 100/10 scale lifecycle");
+
+    auto InvalidLanternScaleArguments = RegularArguments("metal");
+    for (Core::usize Index = 0;
+         Index + 1 < InvalidLanternScaleArguments.size(); ++Index)
+    {
+        const Core::FString Option(InvalidLanternScaleArguments[Index]);
+        if (Option == Core::FString("--production-cycles"))
+            InvalidLanternScaleArguments[Index + 1] = "100";
+        else if (Option == Core::FString("--production-warmup-cycles"))
+            InvalidLanternScaleArguments[Index + 1] = "10";
+    }
+    FDemoConfiguration InvalidLanternScale;
+    Record(Result,
+        ParseArray(std::move(InvalidLanternScaleArguments),
+            InvalidLanternScale, Reason) == EDemoExitCode::InvalidConfiguration,
+        "production configuration rejects 100/10 outside Sponza v2");
+
     auto VisibleArguments = RegularArguments("vulkan");
     for (Core::usize Index = 0; Index + 1 < VisibleArguments.size(); ++Index)
         if (Core::FString(VisibleArguments[Index]) == Core::FString("--mode"))

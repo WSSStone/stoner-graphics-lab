@@ -52,8 +52,8 @@ under independent per-package operational deadlines.
 **Testing**: Existing `StonerTest` suites plus corpus, KTX2 integration, semantic-equivalence, transactional realization, native readback, image-acceptance, lifecycle, failure-injection, Python schema/runner tests, Windows/macOS/Linux hosted CI, and the required maintainer-local arm64 Metal plus x86_64 Windows Vulkan physical lanes
 **Target Platform**: Windows x64 Vulkan, macOS arm64/Intel Metal, and Linux x64 hosted build/function/native coverage; maintainer-local arm64 macOS Metal and x86_64 Windows Vulkan physical authority; macOS Vulkan physical qualification deferred
 **Project Type**: Cross-platform graphics engine, offline asset cooker CLI, desktop demo, and validation tooling
-**Performance Goals**: Regular profile uses 900/1,200/600-second package/profile/native bounds so the 20 clean cooks plus strict/native work receive a complete package envelope and target-toolchain discovery cannot consume it; hosted medium uses 6,600/6,900/6,000-second package/profile/native bounds inside a 150-minute job; serialized visible hardware gives each package and native child 3,600 seconds inside one 7,800-second two-package profile; deterministic reports are byte-identical across 20 repetitions; hosted elapsed time is not a performance qualification
-**Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; 1,000 medium/hardware cycles with cycles 1-20 as warm-up; warm-up counts toward the total; exact lifecycle/capture/readback/owner/stale contracts are hard on every lane; post-warm-up RSS growth is at most 16 MiB only on preflighted maintainer-local Metal and is observation-only on GitHub-hosted and maintainer-local Windows Vulkan lanes; formal image calibration/reference/comparison uses an exact 512-by-512 extent while the 1024-by-1024 preview remains non-authoritative; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation; no image alignment/resampling
+**Performance Goals**: Regular profile uses 900/1,200/600-second package/profile/native bounds so the 20 clean cooks plus strict/native work receive a complete package envelope and target-toolchain discovery cannot consume it; hosted medium uses 2,400/2,700/1,800-second package/profile/native bounds inside a 90-minute job; serialized visible hardware gives each package and native child 3,600 seconds inside one 7,800-second two-package profile; deterministic reports are byte-identical across 20 repetitions; hosted elapsed time is not a performance qualification
+**Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; hosted medium assigns Lantern 1,000/20 endurance and Sponza 100/10 scale-lifecycle work; hardware retains 1,000/20 for both packages; warm-up counts toward the total; exact package-owned lifecycle/capture/readback/owner/stale contracts are hard on every lane; post-warm-up RSS growth is at most 16 MiB only on preflighted maintainer-local Metal and is observation-only on GitHub-hosted and maintainer-local Windows Vulkan lanes; formal image calibration/reference/comparison uses an exact 512-by-512 extent while the 1024-by-1024 preview remains non-authoritative; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation; no image alignment/resampling
 **Scale/Scope**: Two artist-authored source works; regular Lantern GLB is about 9.6 MB with 3 primitives and four 2K textures; medium Sponza external package is about 50 MB with 103 primitives, 25 materials, and 69 mostly 1K textures; at least 30 deterministic negative cases
 
 ## Constitution Check
@@ -297,15 +297,17 @@ No new runtime module is introduced.
    1024-by-1024 preview is navigation-only. Reference and candidate dimensions
    and normalization policy must match exactly, and a mismatched formal extent
    fails before semantic or FLIP work.
-5. Run 20 regular or 1,000 medium/hardware full manager-realizer-render-release
-   cycles. The regular target gate owns the required 20 clean determinism
+5. Run the profile's ordered package-owned full manager-realizer-render-release
+   lifecycle: regular Lantern uses 20/2, hosted medium Lantern owns 1,000/20
+   endurance, hosted medium Sponza owns 100/10 scale lifecycle, and both physical
+   packages remain 1,000/20. The regular target gate owns the required 20 clean determinism
    repetitions. Independent clean runs retain isolated source, DDC,
    publication, and report roots; the slower hosted x86_64 Metal target may
    execute at most four independent clean runs concurrently. Arm64 Metal retains
    its two-run bound and Vulkan retains its existing bounded policy. Medium/
    hardware run one clean cook and one unchanged 100-percent-reuse warm cook per
-   selected package. Cycles 1-2 are the regular warm-up and cycles 1-20 are the
-   medium/hardware warm-up; warm-up counts toward the total. Every environment
+   selected package. Sponza's hosted scale lane uses cycles 1-10 as warm-up;
+   all 1,000-cycle lanes use cycles 1-20. Warm-up counts toward the total. Every environment
    completes the exact work, returns all tracked counters to baseline, rejects
    stale handles, and emits the required capture/readback evidence.
 
@@ -334,7 +336,7 @@ No new runtime module is introduced.
    readback. Shared host-visible buffers are copied directly after completed
    GPU work; managed buffers first receive an explicit blit synchronization;
    private buffers retain the staging path. Native-headless lifecycle probes
-   reuse one bounded CPU scratch allocation across all 2,000 captures, while
+   reuse one bounded CPU scratch allocation across all declared captures, while
    authoritative evidence and visible presentation retain owned bytes. This
    changes allocation strategy only, not GPU execution, readback, nonblank,
    capture, image, or ownership work.
@@ -342,27 +344,29 @@ No new runtime module is introduced.
    Lantern v2 1,000-cycle workload, and sixteen for Sponza medium/hardware
    throughput.
    Scheduled/manual medium assigns each accepted package to its own
-   hosted Intel Metal lane with 6,600/6,900-second package/profile operational
-   timeouts and an independently bounded 6,000-second native lifecycle timeout. This keeps
+   hosted Intel Metal lane with 2,400/2,700-second package/profile operational
+   timeouts and an independently bounded 1,800-second native lifecycle timeout. This keeps
    cook, publication, equivalence, and strict-runtime setup from silently
    consuming the native proof's budget. The enclosing workflow job is bounded
-   to 150 minutes so its strict Release build plus the complete package lane can
-   finish; the lifecycle remains exactly 1,000/20. Elapsed time below the cap is
+   to 90 minutes so its strict Release build plus the complete package lane can
+   finish. Lantern remains the exact 1,000/20 endurance owner; Sponza executes
+   100/10 complete scale-lifecycle cycles rather than duplicating endurance.
+   Elapsed time below the cap is
    reported but is not a hosted performance qualification.
    Each lane owns its package's complete clean/warm/strict/equivalence/
-   1,000-cycle proof, and an aggregate job requires the exact profile package
+   package-owned lifecycle proof, and an aggregate job requires the exact profile package
    set plus identical corpus, target, and revision authority. Local full-profile
    fallback keeps the post-strict barrier and serialized native execution. The
    Linux Lavapipe lane remains the regular
    software-native gate because one isolated 1,000-cycle Lantern lifecycle
    alone exceeded the complete medium budget. Every lifecycle cycle still
-   loads and releases the exact selected root closure. For the 1,000-cycle
-   Sponza v2 profile, load the complete manifest in deterministic dependency-
-   first batches. Records within one ready batch execute concurrently; each
-   later closure borrows only immutable dependencies already retained by the
-   same cycle's Manager cache. Every manifest record is still completely read,
-   parsed, and typed-decoded exactly once per cycle, while the selected root
-   and manifest completeness remain fail-closed.
+   loads and releases the exact selected root closure. Hosted Sponza deliberately
+   uses the generic strict path for all 100 cycles so the scale proof cannot be
+   cached away: all 189 manifest records are read, parsed, typed-decoded,
+   realized, rendered, and released per cycle. The 1,000-cycle physical Sponza
+   authority may use the validated deterministic dependency-first batching and
+   immutable dependency borrowing within one cycle; the selected root and
+   manifest completeness remain fail-closed in both paths.
    The Lantern and regular 20-cycle request schedules are unchanged. When the
    already-validated generation manifest supplies the exact cooked-envelope
    digest, strict typed loading authenticates the complete envelope once and

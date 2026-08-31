@@ -44,14 +44,15 @@ package shard:
 - clean cook plus unchanged 100-percent-reuse warm cook;
 - publication, source-unavailable strict runtime, and semantic equivalence;
 - requested native backend proof;
-- 1,000 cycles with cycles 1-20 included as warm-up;
-- exactly 2,000 Deferred/Forward captures;
+- the exact schema-v4 package lifecycle: Lantern `endurance` at 1,000/20 and
+  Sponza `scale-lifecycle` at 100/10;
+- exactly two captures per declared cycle: 2,000 for Lantern and 200 for Sponza;
 - exactly seven retained post-lifecycle readbacks;
 - every tracked terminal owner at baseline;
 - stale-handle rejection;
-- a 6,600-second complete-package operational timeout;
-- a 6,900-second complete-profile operational timeout;
-- an independent 6,000-second native operational timeout inside a 150-minute job.
+- a 2,400-second complete-package operational timeout;
+- a 2,700-second complete-profile operational timeout;
+- an independent 1,800-second native operational timeout inside a 90-minute job.
 
 RSS endpoints, task-VM categories, allocator totals, peak memory, and elapsed
 time are `observed`. Hosted execution uses normal production allocator behavior;

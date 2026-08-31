@@ -22,18 +22,26 @@ class ProductionMediumAggregateTests(unittest.TestCase):
         spec.loader.exec_module(cls.module)
 
     def write_fixture(self, root: Path):
-        package_ids = ["lantern", "sponza"]
+        package_ids = ["khronos-lantern-glb", "khronos-sponza-gltf"]
+        lifecycle_contracts = {
+            "khronos-lantern-glb": ("endurance", 1000, 20),
+            "khronos-sponza-gltf": ("scale-lifecycle", 100, 10),
+        }
         profile = root / "Medium.json"
         profile.write_text(json.dumps({
             "schema": "stoner.production-validation-profile",
-            "schemaVersion": 3,
+            "schemaVersion": 4,
             "profileId": "medium",
             "packageIds": package_ids,
-            "lifecycleCycles": 1000,
-            "warmupCycles": 20,
-            "timeBudgetSeconds": 6600,
-            "profileTimeBudgetSeconds": 6900,
-            "nativeTimeBudgetSeconds": 6000,
+            "packageLifecycles": [
+                {"packageId": package_id, "purpose": purpose,
+                 "cycles": cycles, "warmupCycles": warmup}
+                for package_id, (purpose, cycles, warmup)
+                in lifecycle_contracts.items()
+            ],
+            "timeBudgetSeconds": 2400,
+            "profileTimeBudgetSeconds": 2700,
+            "nativeTimeBudgetSeconds": 1800,
             "authorityPolicy": {
                 "allowedExecutionClasses": [
                     "github-hosted", "local-diagnostic"
@@ -55,6 +63,7 @@ class ProductionMediumAggregateTests(unittest.TestCase):
         target.write_text("{}\n", encoding="utf-8")
         target_digest = self.module.sha256_file(target)
         for index, package_id in enumerate(package_ids):
+            purpose, cycles, warmup = lifecycle_contracts[package_id]
             shard = root / f"shard-{index}"
             shard.mkdir()
             summary = {
@@ -67,13 +76,14 @@ class ProductionMediumAggregateTests(unittest.TestCase):
                 "targetProfile": "Target.json",
                 "targetProfileDigest": target_digest,
                 "determinismRuns": 1,
-                "timeBudgetSeconds": 6600,
-                "profileTimeBudgetSeconds": 6900,
-                "nativeTimeBudgetSeconds": 6000,
+                "timeBudgetSeconds": 2400,
+                "profileTimeBudgetSeconds": 2700,
+                "nativeTimeBudgetSeconds": 1800,
                 "elapsedSeconds": 1000 + index,
                 "passed": True,
                 "packages": [{
                     "packageId": package_id,
+                    "lifecyclePurpose": purpose,
                     "workloadRevision": f"{package_id}-v2",
                     "generationId": str(index) * 64,
                     "cleanRuns": 1,
@@ -82,11 +92,11 @@ class ProductionMediumAggregateTests(unittest.TestCase):
                     "nativeLifecycle": {
                         "result": "Passed",
                         "executionClass": "github-hosted",
-                        "lifecycleCycles": 1000,
-                        "warmupCycles": 20,
+                        "lifecycleCycles": cycles,
+                        "warmupCycles": warmup,
                         "ownersAtTerminal": 0,
                         "staleHandleRejected": True,
-                        "captureCount": 2000,
+                        "captureCount": cycles * 2,
                         "readbackCount": 7,
                         "rssGrowthBytes": index,
                         "rssWithinLimit": True,
@@ -113,7 +123,10 @@ class ProductionMediumAggregateTests(unittest.TestCase):
                 root, profile, target
             )
             self.assertTrue(result["passed"])
-            self.assertEqual(["lantern", "sponza"], result["packageIds"])
+            self.assertEqual(
+                ["khronos-lantern-glb", "khronos-sponza-gltf"],
+                result["packageIds"],
+            )
             self.assertEqual(1001, result["maximumLaneSeconds"])
 
     def test_checked_in_medium_profile_matches_aggregate_contract(self):
@@ -212,6 +225,26 @@ class ProductionMediumAggregateTests(unittest.TestCase):
                 path.write_text(json.dumps(changed), encoding="utf-8")
                 with self.assertRaisesRegex(ValueError, "package evidence"):
                     self.module.aggregate_medium_shards(root, profile, target)
+
+    def test_profile_timeout_and_malformed_lifecycle_fail_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            profile, target = self.write_fixture(root)
+            path = root / "shard-0/summary.json"
+            changed = json.loads(path.read_text(encoding="utf-8"))
+            changed["elapsedSeconds"] = 2700.001
+            path.write_text(json.dumps(changed), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "summary contract"):
+                self.module.aggregate_medium_shards(root, profile, target)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            profile, target = self.write_fixture(root)
+            changed = json.loads(profile.read_text(encoding="utf-8"))
+            changed["packageLifecycles"][0] = "invalid"
+            profile.write_text(json.dumps(changed), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "profile contract"):
+                self.module.aggregate_medium_shards(root, profile, target)
 
 
 if __name__ == "__main__":

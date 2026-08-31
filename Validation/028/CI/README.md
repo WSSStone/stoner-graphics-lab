@@ -110,7 +110,8 @@ T112-T114 remain open. The final shared revision after baseline admission must
 provide:
 
 1. a passing hosted Windows/macOS/Linux regular matrix;
-2. a passing hosted medium aggregate with the exact 1,000/20 lifecycle facts;
+2. a passing hosted medium aggregate with exact schema-v4 package lifecycle
+   facts: Lantern endurance 1,000/20 and Sponza scale lifecycle 100/10;
 3. passing maintainer-local Metal and Windows Vulkan hardware profiles on the
    same revision, with Metal within 16 MiB RSS growth, Windows retaining complete
    working-set observations, and both consuming accepted image baselines for

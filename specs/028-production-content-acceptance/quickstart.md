@@ -77,7 +77,7 @@ python3 .github/scripts/run_production_content_validation.py \
   --build-root Build/Mac/Release \
   --output Build/Validation/028/medium-metal \
   --acquire-missing \
-  --timeout-seconds 6600
+  --timeout-seconds 2400
 ```
 
 Use `Mac-Metal-X86_64.json` only on the hosted Intel Metal lane. The offline
@@ -86,12 +86,14 @@ must use `Mac-Metal-Arm64.json`; target/host mismatch is structured
 `Unsupported`, not a portable success.
 
 Medium executes every admitted package through clean/warm 100-percent reuse,
-strict no-source loading, semantic equivalence, and 1,000 lifecycle cycles with
-cycles 1-20 as warm-up. Hosted execution retains hard requirements for exact
-cycle/capture/readback counts, native proof, zero terminal owners, and stale-
-handle rejection. The complete package and native stages have operational
-package/profile/native operational timeouts of 6,600/6,900/6,000 seconds
-inside the 150-minute workflow job.
+strict no-source loading, and semantic equivalence. Its schema-v4 package
+lifecycle assigns Lantern 1,000/20 endurance with 2,000 captures and Sponza
+100/10 scale lifecycle with 200 captures. Every Sponza cycle still loads,
+typed-decodes, realizes, renders, and releases the complete closure. Hosted
+execution retains hard requirements for each package's exact cycle/capture
+count, seven readbacks, native proof, zero terminal owners, and stale-handle
+rejection. Package/profile/native operational timeouts are
+2,400/2,700/1,800 seconds inside the 90-minute workflow job.
 
 Hosted RSS, task-VM, allocator, peak-memory, and elapsed-time fields are reported
 as observations and do not independently fail a completed correctness run. Do

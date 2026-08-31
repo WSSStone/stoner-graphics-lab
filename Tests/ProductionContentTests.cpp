@@ -33,7 +33,8 @@ void TestProfileScaffolding(FProductionContentTestResult& Result)
             ProductionContentTestSupport::ReadText(Path);
         bValid = bValid && ProductionContentTestSupport::ContainsAll(
             Text,
-            {"stoner.production-validation-profile", "lifecycleCycles",
+            {"stoner.production-validation-profile", "\"schemaVersion\": 4",
+             "packageLifecycles", "packageId", "purpose", "cycles",
              "warmupCycles", "maxRssGrowthBytes", "requiredGates"});
     }
     Record(Result, bValid, "production validation profile scaffolding exists");
