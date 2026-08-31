@@ -123,7 +123,7 @@ Regular uses 900/1,200/600-second package/profile/native operational limits.
 The package covers clean/warm/strict/native work, the native child remains
 independently capped, and the extra profile-only headroom covers target-toolchain
 discovery and orchestration without changing any required work. Medium uses
-5,400/5,400/4,800 seconds. Hardware uses 3,600 seconds per package and native
+6,600/6,900/6,000 seconds. Hardware uses 3,600 seconds per package and native
 stage inside a 7,800-second serialized profile deadline.
 
 Each cycle performs strict manager bind/request, complete closure, Renderer
@@ -148,8 +148,8 @@ measurement declares one disposition:
   change the result.
 
 GitHub-hosted medium uses `observed` RSS/task-VM/allocator/elapsed measurements
-and operational 5,400-second package plus 4,800-second native timeouts inside a
-120-minute job. It still requires 1,000/20 cycles, 2,000 captures, seven retained
+and operational 6,600/6,900-second package/profile plus 6,000-second native
+timeouts inside a 150-minute job. It still requires 1,000/20 cycles, 2,000 captures, seven retained
 readbacks, zero terminal owners, stale-handle rejection, and requested native
 backend proof.
 

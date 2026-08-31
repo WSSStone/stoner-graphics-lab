@@ -24,7 +24,7 @@
 
 - Q: GitHub-hosted runner 是否可以继续作为精确 RSS 与耗时的权威复现环境？ → A: 不可以。Hosted runner 继续严格裁决构建、确定性、strict runtime、完整生命周期工作量、readback/capture 计数、owner 归零和 stale-handle 拒绝；RSS、allocator/task-VM 与 wall-clock 数据保留为有界 observation，不能单独把 hosted 结果判为失败。固定、受控、独占的物理 runner 才能拥有校准后的 RSS 硬门禁。
 - Q: Hosted 环境不稳定是否意味着放宽图像标准？ → A: 不意味着。正式 baseline、semantic attachment 和 FLIP 仍只在精确 device class 的固定物理硬件上作为硬门禁；不允许自动平移、缩放、裁剪、重采样或最佳对齐。容易受边缘覆盖影响的单像素 semantic probe 必须改为有界区域统计。
-- Q: Hosted medium 的耗时如何处理？ → A: 耗时仅是防止失控作业的 operational timeout，不是性能合格线。Hosted Sponza 保留完整 1,000/20 生命周期工作量；在最终 Intel runner 于 3,499 秒仍被旧 native watchdog 截断后，完整 package/native 上限调整为 5,400/4,800 秒并使用 120 分钟 workflow 外层界限。真实性能预算不由 hosted runner 裁决，物理权威的 3,600 秒预算不变。
+- Q: Hosted medium 的耗时如何处理？ → A: 耗时仅是防止失控作业的 operational timeout，不是性能合格线。Hosted Sponza 保留完整 1,000/20 生命周期工作量；run 33326293909 在完成 900/1,000 cycles 后耗尽 4,800 秒 native watchdog，证明当前 Intel runner 需要更诚实的执行余量。因此 package/profile/native 上限调整为 6,600/6,900/6,000 秒并使用 150 分钟 workflow 外层界限。真实性能预算不由 hosted runner 裁决，物理权威的 3,600 秒预算不变。
 
 ### Session 2026-08-28
 
@@ -647,9 +647,10 @@ corpus and generation evidence.
   authoritative readbacks, zero terminal owners, and stale-handle rejection.
   Its RSS, task-VM, allocator, peak-memory, and wall-clock measurements MUST be
   reported but MUST NOT independently fail a completed correctness run.
-- **FR-054**: Hosted medium package execution MUST use a 5,400-second complete
-  operational timeout and an independent 4,800-second native timeout inside a
-  120-minute workflow job. Timeout remains a failure to complete required work,
+- **FR-054**: Hosted medium package execution MUST use a 6,600-second package
+  operational timeout, a 6,900-second profile timeout, and an independent
+  6,000-second native timeout inside a 150-minute workflow job. Timeout remains
+  a failure to complete required work,
   but elapsed time below the cap is not a performance qualification. This
   hosted-only envelope MUST NOT alter either 3,600-second local physical lane.
 - **FR-055**: Semantic image probes that classify material, orientation, normal,
@@ -749,8 +750,9 @@ corpus and generation evidence.
   without using RSS as their result.
 - **SC-010**: The regular profile completes its bounded platform-applicable
   source-to-cooked-to-runtime gate within 10 minutes per hosted job, while the
-  hosted medium profile is bounded by 5,400-second package/profile timeouts and
-  an independent 4,800-second native timeout inside a 120-minute job, while a
+  hosted medium profile is bounded by 6,600/6,900-second package/profile
+  timeouts and an independent 6,000-second native timeout inside a 150-minute
+  job, while a
   serialized visible local physical hardware profile gives each package and
   native child 3,600 seconds inside one 7,800-second two-package deadline;
   these are operational bounds rather than hosted performance qualifications,

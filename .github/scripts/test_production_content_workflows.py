@@ -40,7 +40,7 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
             "Config/Validation/ProductionContent", "run_production_content_validation.py",
             "windows-latest", "ubuntu-latest", "macos-26", "--profile regular",
             "macos-26-intel", "Mac-Metal-X86_64.json",
-            "--profile medium", "timeout-minutes: 120", "--timeout-seconds 5400",
+            "--profile medium", "timeout-minutes: 150", "--timeout-seconds 6600",
             "production-medium-macos-metal", "Mac-Metal-Arm64.json",
             "khronos-lantern-glb", "khronos-sponza-gltf",
             "aggregate_production_medium.py", "--package-id",
@@ -86,8 +86,8 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("Mac-Metal-Arm64.json", medium)
         self.assertIn("Validate Metal readback modes", medium)
         self.assertIn("--suite metal-resource", medium)
-        self.assertIn("--timeout-seconds 5400", medium)
-        self.assertIn("timeout-minutes: 120", medium)
+        self.assertIn("--timeout-seconds 6600", medium)
+        self.assertIn("timeout-minutes: 150", medium)
         self.assertNotIn("MallocMediumZone", medium)
         self.assertNotIn("MALLOC_ARENA_MAX", medium)
         self.assertIn("Mac-Metal-X86_64.json", aggregate)
@@ -117,11 +117,11 @@ class ProductionContentWorkflowContractTests(unittest.TestCase):
         hosted = HOSTED.read_text(encoding="utf-8")
         self.assertNotIn("--execution-class", hosted)
         self.assertNotIn("--local-metal-authority", hosted)
-        self.assertIn("--timeout-seconds 5400", hosted)
-        self.assertIn("nativeTimeBudgetSeconds\": 4800", (
+        self.assertIn("--timeout-seconds 6600", hosted)
+        self.assertIn("nativeTimeBudgetSeconds\": 6000", (
             ROOT / "Config/Validation/ProductionContent/Medium.json"
         ).read_text(encoding="utf-8"))
-        self.assertIn("timeout-minutes: 120", hosted)
+        self.assertIn("timeout-minutes: 150", hosted)
 
     def test_every_validation_job_uploads_failure_safe_evidence(self):
         for path in (HOSTED,):

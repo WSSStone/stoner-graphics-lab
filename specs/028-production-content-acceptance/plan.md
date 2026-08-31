@@ -52,7 +52,7 @@ under independent per-package operational deadlines.
 **Testing**: Existing `StonerTest` suites plus corpus, KTX2 integration, semantic-equivalence, transactional realization, native readback, image-acceptance, lifecycle, failure-injection, Python schema/runner tests, Windows/macOS/Linux hosted CI, and the required maintainer-local arm64 Metal plus x86_64 Windows Vulkan physical lanes
 **Target Platform**: Windows x64 Vulkan, macOS arm64/Intel Metal, and Linux x64 hosted build/function/native coverage; maintainer-local arm64 macOS Metal and x86_64 Windows Vulkan physical authority; macOS Vulkan physical qualification deferred
 **Project Type**: Cross-platform graphics engine, offline asset cooker CLI, desktop demo, and validation tooling
-**Performance Goals**: Regular profile uses 900/1,200/600-second package/profile/native bounds so the 20 clean cooks plus strict/native work receive a complete package envelope and target-toolchain discovery cannot consume it; hosted medium uses 5,400/5,400/4,800-second package/profile/native bounds inside a 120-minute job; serialized visible hardware gives each package and native child 3,600 seconds inside one 7,800-second two-package profile; deterministic reports are byte-identical across 20 repetitions; hosted elapsed time is not a performance qualification
+**Performance Goals**: Regular profile uses 900/1,200/600-second package/profile/native bounds so the 20 clean cooks plus strict/native work receive a complete package envelope and target-toolchain discovery cannot consume it; hosted medium uses 6,600/6,900/6,000-second package/profile/native bounds inside a 150-minute job; serialized visible hardware gives each package and native child 3,600 seconds inside one 7,800-second two-package profile; deterministic reports are byte-identical across 20 repetitions; hosted elapsed time is not a performance qualification
 **Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; 1,000 medium/hardware cycles with cycles 1-20 as warm-up; warm-up counts toward the total; exact lifecycle/capture/readback/owner/stale contracts are hard on every lane; post-warm-up RSS growth is at most 16 MiB only on preflighted maintainer-local Metal and is observation-only on GitHub-hosted and maintainer-local Windows Vulkan lanes; formal image calibration/reference/comparison uses an exact 512-by-512 extent while the 1024-by-1024 preview remains non-authoritative; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation; no image alignment/resampling
 **Scale/Scope**: Two artist-authored source works; regular Lantern GLB is about 9.6 MB with 3 primitives and four 2K textures; medium Sponza external package is about 50 MB with 103 primitives, 25 materials, and 69 mostly 1K textures; at least 30 deterministic negative cases
 
@@ -342,11 +342,11 @@ No new runtime module is introduced.
    Lantern v2 1,000-cycle workload, and sixteen for Sponza medium/hardware
    throughput.
    Scheduled/manual medium assigns each accepted package to its own
-   hosted Intel Metal lane with a 5,400-second complete-lane operational timeout
-   and an independently bounded 4,800-second native lifecycle timeout. This keeps
+   hosted Intel Metal lane with 6,600/6,900-second package/profile operational
+   timeouts and an independently bounded 6,000-second native lifecycle timeout. This keeps
    cook, publication, equivalence, and strict-runtime setup from silently
    consuming the native proof's budget. The enclosing workflow job is bounded
-   to 120 minutes so its strict Release build plus the complete package lane can
+   to 150 minutes so its strict Release build plus the complete package lane can
    finish; the lifecycle remains exactly 1,000/20. Elapsed time below the cap is
    reported but is not a hosted performance qualification.
    Each lane owns its package's complete clean/warm/strict/equivalence/

@@ -77,7 +77,7 @@ python3 .github/scripts/run_production_content_validation.py \
   --build-root Build/Mac/Release \
   --output Build/Validation/028/medium-metal \
   --acquire-missing \
-  --timeout-seconds 5400
+  --timeout-seconds 6600
 ```
 
 Use `Mac-Metal-X86_64.json` only on the hosted Intel Metal lane. The offline
@@ -90,7 +90,8 @@ strict no-source loading, semantic equivalence, and 1,000 lifecycle cycles with
 cycles 1-20 as warm-up. Hosted execution retains hard requirements for exact
 cycle/capture/readback counts, native proof, zero terminal owners, and stale-
 handle rejection. The complete package and native stages have operational
-timeouts of 5,400 and 4,800 seconds inside the 120-minute workflow job.
+package/profile/native operational timeouts of 6,600/6,900/6,000 seconds
+inside the 150-minute workflow job.
 
 Hosted RSS, task-VM, allocator, peak-memory, and elapsed-time fields are reported
 as observations and do not independently fail a completed correctness run. Do

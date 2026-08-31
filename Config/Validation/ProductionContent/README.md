@@ -49,7 +49,7 @@ part of the regular production-content acceptance budget.
 | Profile | Corpus | Cycles / warm-up | Package / profile / native budget | Required environment |
 |---|---|---:|---:|---|
 | Regular | Checked-in Lantern | 20 / 2 | 900 / 1,200 / 600 seconds | Windows, Linux, or macOS target-capable host; headless/software-native evidence where applicable |
-| Medium | Lantern and hash-pinned Sponza | 1,000 / 20 | 5,400 / 5,400 / 4,800 seconds | Isolated hosted Intel Metal package lanes; external package cache may be reused only after hash verification |
+| Medium | Lantern and hash-pinned Sponza | 1,000 / 20 | 6,600 / 6,900 / 6,000 seconds | Isolated hosted Intel Metal package lanes; external package cache may be reused only after hash verification |
 | Hardware | Lantern and hash-pinned Sponza | 1,000 / 20 | 3,600 / 7,800 / 3,600 seconds | Maintainer-local native arm64 macOS Metal and x86_64 Windows Vulkan, each with an application display surface |
 
 The runner does not accept caller overrides for cycle or warm-up boundaries.

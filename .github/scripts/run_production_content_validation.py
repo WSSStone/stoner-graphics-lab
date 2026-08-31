@@ -128,9 +128,9 @@ PROFILE_CONTRACTS = {
     "medium": {
         "cycles": 1000,
         "warmup": 20,
-        "budget": 5400,
-        "profile_budget": 5400,
-        "native_budget": 4800,
+        "budget": 6600,
+        "profile_budget": 6900,
+        "native_budget": 6000,
         "cadence": [
             "weekly-default-branch", "feature-closeout", "release-closeout"
         ],
@@ -2709,7 +2709,7 @@ def parse_args(values: Sequence[str] | None = None) -> argparse.Namespace:
         default=Path("Content/ProductionAcceptance"),
     )
     parser.add_argument("--determinism-runs", type=int, default=20)
-    parser.add_argument("--timeout-seconds", type=int, default=5400)
+    parser.add_argument("--timeout-seconds", type=int, default=6600)
     parser.add_argument("--package-id")
     parser.add_argument(
         "--local-metal-authority", action="store_true",

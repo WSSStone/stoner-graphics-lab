@@ -1578,3 +1578,34 @@ bounds while remaining fail-closed.
   let alone exhaust, its declared allowance.
 - Treat the timeout as a pass: rejected because strict runtime had not
   completed and incomplete required work must remain fail-closed.
+
+## Decision 53: Give hosted Sponza completion headroom without reducing work
+
+**Decision**: Set hosted medium package/profile/native operational limits to
+6,600/6,900/6,000 seconds and the enclosing workflow job to 150 minutes. Keep
+the exact 1,000/20 lifecycle, 2,000 captures, seven readbacks, zero owners,
+stale rejection, cook/runtime/equivalence work, normal allocator, and report
+requirements unchanged. Both maintainer-local physical lanes retain their
+independent 3,600-second package/native authority.
+
+**Rationale**: Full closeout run `33326293909` completed every Sponza setup
+stage and emitted progress through cycle 900 before the native child exhausted
+the exact 4,800-second watchdog. The sibling Lantern medium shard and every
+regular, sanitizer, and artifact-revalidation job passed. The preceding full
+run `33318787989` completed both medium shards under the same correctness
+contract, demonstrating hosted-runner throughput variance rather than a
+deterministic rendering failure. A 6,000-second native cap covers the observed
+completion rate with bounded headroom; the package and profile add 600 and 300
+seconds respectively for strict setup and orchestration, while the 150-minute
+job still prevents an unbounded hosted execution. Timing remains operational,
+not a hosted performance qualification.
+
+**Alternatives considered**:
+
+- Accept cycle 900 or treat timeout as success: rejected because required work
+  was incomplete.
+- Reduce lifecycle cycles or capture count: rejected because it weakens the
+  medium correctness and ownership contract.
+- Remove the timeout: rejected because hung native work must remain bounded.
+- Change local physical budgets: rejected because this finding is specific to
+  variable hosted Intel throughput and does not alter physical authority.

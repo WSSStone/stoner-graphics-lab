@@ -14,9 +14,9 @@
   "lifecycleCycles": 1000,
   "warmupCycles": 20,
   "maxRssGrowthBytes": 16777216,
-  "timeBudgetSeconds": 5400,
-  "profileTimeBudgetSeconds": 5400,
-  "nativeTimeBudgetSeconds": 4800,
+  "timeBudgetSeconds": 6600,
+  "profileTimeBudgetSeconds": 6900,
+  "nativeTimeBudgetSeconds": 6000,
   "cadence": ["weekly-default-branch", "feature-closeout", "release-closeout"],
   "requiredGates": [
     "corpus",

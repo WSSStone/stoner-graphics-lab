@@ -129,9 +129,9 @@
         "properties": {
           "lifecycleCycles": {"const": 1000},
           "warmupCycles": {"const": 20},
-          "timeBudgetSeconds": {"const": 5400},
-          "profileTimeBudgetSeconds": {"const": 5400},
-          "nativeTimeBudgetSeconds": {"const": 4800},
+          "timeBudgetSeconds": {"const": 6600},
+          "profileTimeBudgetSeconds": {"const": 6900},
+          "nativeTimeBudgetSeconds": {"const": 6000},
           "authorityPolicy": {"$ref": "#/$defs/hostedLocalAuthorityPolicy"}
         }
       }

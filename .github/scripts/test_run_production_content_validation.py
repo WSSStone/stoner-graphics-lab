@@ -163,12 +163,12 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
             self.module.time, "monotonic", return_value=100.0
         ):
             self.assertEqual(
-                4800,
-                self.module.native_stage_timeout(5000.0, 5400, 4800),
+                6000,
+                self.module.native_stage_timeout(7000.0, 6600, 6000),
             )
             self.assertEqual(
-                4700,
-                self.module.native_stage_timeout(4800.0, 5400, 4800),
+                5900,
+                self.module.native_stage_timeout(6000.0, 6600, 6000),
             )
 
     def test_profile_selection_requires_exact_target_and_package_membership(self):
@@ -292,7 +292,7 @@ class ProductionContentRunnerContractTests(unittest.TestCase):
     def test_shipping_profiles_have_exact_tier_contracts(self):
         expected = {
             "regular": (20, 2, 900, 1200, 600),
-            "medium": (1000, 20, 5400, 5400, 4800),
+            "medium": (1000, 20, 6600, 6900, 6000),
             "hardware": (1000, 20, 3600, 7800, 3600),
         }
         for profile_id, (cycles, warmup, package, profile_budget,

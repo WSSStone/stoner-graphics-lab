@@ -48,9 +48,9 @@ def aggregate_medium_shards(
         or profile.get("profileId") != "medium"
         or profile.get("lifecycleCycles") != 1000
         or profile.get("warmupCycles") != 20
-        or profile.get("timeBudgetSeconds") != 5400
-        or profile.get("profileTimeBudgetSeconds") != 5400
-        or profile.get("nativeTimeBudgetSeconds") != 4800
+        or profile.get("timeBudgetSeconds") != 6600
+        or profile.get("profileTimeBudgetSeconds") != 6900
+        or profile.get("nativeTimeBudgetSeconds") != 6000
         or profile.get("authorityPolicy") != expected_policy
         or not isinstance(expected_packages, list)
         or len(expected_packages) < 2
@@ -76,10 +76,11 @@ def aggregate_medium_shards(
             or summary.get("executionClass") != "github-hosted"
             or summary.get("passed") is not True
             or summary.get("determinismRuns") != 1
-            or summary.get("timeBudgetSeconds") != 5400
-            or summary.get("nativeTimeBudgetSeconds") != 4800
+            or summary.get("timeBudgetSeconds") != 6600
+            or summary.get("profileTimeBudgetSeconds") != 6900
+            or summary.get("nativeTimeBudgetSeconds") != 6000
             or not isinstance(summary.get("elapsedSeconds"), (int, float))
-            or summary["elapsedSeconds"] > 5400
+            or summary["elapsedSeconds"] > 6900
             or summary.get("targetProfileDigest") != target_digest
             or not isinstance(packages, list)
             or len(packages) != 1
@@ -103,7 +104,7 @@ def aggregate_medium_shards(
             or native.get("captureCount") != 2000
             or native.get("readbackCount") != 7
             or not isinstance(native.get("seconds"), (int, float))
-            or native["seconds"] > 4800
+            or native["seconds"] > 6000
             or native.get("rssDisposition") != "observed"
             or native.get("timingDisposition") != "operational"
             or native.get("imageDisposition") != "not-required"
