@@ -37,6 +37,7 @@ struct FWindowDesc
     Stoner::Core::uint32 ClientHeight = 720;
     EWindowDisplayMode DisplayMode = EWindowDisplayMode::Windowed;
     bool bVisible = true;
+    bool bHighDensityFramebuffer = true;
     Stoner::Core::FString DebugName = "PrimaryWindow";
 
     [[nodiscard]] bool IsValid(FApplicationDiagnosticLog* Diagnostics = nullptr) const;

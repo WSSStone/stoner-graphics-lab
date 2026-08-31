@@ -69,6 +69,11 @@ missing prerequisite plus the replacement command. An incomplete maintainer-loca
 physical preflight is `Unsupported`, never an ordinary local or hosted pass. Hardware runs set
 `STONER_PRODUCTION_VISIBLE=1`; the captured bytes come from the application's
 own swapchain/drawable surface, never from a full-screen capture API.
+The formal authority drawable is exactly 512 by 512 device pixels. On a
+high-density display the authority window boundedly adjusts its logical client
+size until the measured drawable is exact instead of accepting a 2x drawable
+and scaling it back; preview and ordinary windows keep the platform-default
+high-density framebuffer.
 
 All classes use the normal production allocator. Validation must not set
 `MallocMediumZone`, `MallocNanoZone`, `MallocMaxMagazines`,

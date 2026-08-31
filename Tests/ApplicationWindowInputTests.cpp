@@ -16,8 +16,10 @@ class FScriptedWindowDriver final : public IWindowDriver
 public:
     const char* GetDriverName() const noexcept override { return "ScriptedNative"; }
     EWindowRuntimeAvailability GetRuntimeAvailability() const noexcept override { return Availability; }
-    EApplicationResult Create(const FWindowDesc&, Stoner::Core::uint32) override
+    EApplicationResult Create(
+        const FWindowDesc& Desc, Stoner::Core::uint32) override
     {
+        bHighDensityFramebuffer = Desc.bHighDensityFramebuffer;
         bCreated = Availability == EWindowRuntimeAvailability::Available;
         return bCreated ? EApplicationResult::Success : EApplicationResult::RuntimeUnavailable;
     }
@@ -64,6 +66,7 @@ public:
 
     EWindowRuntimeAvailability Availability = EWindowRuntimeAvailability::Available;
     bool bCreated = false;
+    bool bHighDensityFramebuffer = true;
     int NativeToken = 7;
     Stoner::Core::uint32 DrawableWidth = 2560;
     Stoner::Core::uint32 DrawableHeight = 1440;
@@ -168,10 +171,13 @@ void TestPrivateDriverAndRealWindowEvents(FApplicationWindowInputTestResult& Res
     auto Driver = std::make_unique<FScriptedWindowDriver>();
     FScriptedWindowDriver* Script = Driver.get();
     FWindowTestAccess::InstallDriver(Window, std::move(Driver));
-    Record(Result, Window.CreateRealWindow(ValidDesc()) == EApplicationResult::Success && Script->bCreated &&
+    FWindowDesc PixelExactDesc = ValidDesc();
+    PixelExactDesc.bHighDensityFramebuffer = false;
+    Record(Result, Window.CreateRealWindow(PixelExactDesc) == EApplicationResult::Success && Script->bCreated &&
+            !Script->bHighDensityFramebuffer &&
             Window.IsRealWindow() && Window.GetPlatformWindow().IsValid() &&
             Window.GetDrawableWidth() == 2560 && Window.GetDrawableHeight() == 1440,
-        "Application selects injected native driver and exposes opaque handle and framebuffer pixel extent");
+        "Application propagates pixel-density policy and exposes native framebuffer extent");
 
     Script->SetDrawable(1800, 1400);
     Script->QueueWindow(FWindowEvent::DrawableResized(1800, 1400, 102));

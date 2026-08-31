@@ -679,6 +679,15 @@ corpus and generation evidence.
   alignment; an intentional one-pixel whole-image translation MUST be rejected
   in calibration mutation coverage, and any non-512 formal candidate or
   reference MUST fail before semantic or FLIP comparison.
+- **FR-059**: Formal visible image authority MUST present into an exact
+  512-by-512 native drawable and compare that application-window readback with
+  the same-frame 512-by-512 `FinalOutput` without display-density scaling.
+  Platforms whose default high-density framebuffer produces a different
+  drawable extent MUST configure and, when necessary, resize the formal
+  authority window's logical client area until the native drawable is exact.
+  Ordinary application and 1024-by-1024 camera-preview windows retain their
+  normal high-density behavior; validation MUST NOT resample either image to
+  manufacture equality.
 
 ### Key Entities
 

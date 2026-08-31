@@ -117,7 +117,10 @@ maintainer-local physical lanes additionally require their exact native host,
 target/registered device class, exclusive process lock, clean committed
 revision, default production allocator, declared sample protocol, and window
 presentation plus GPU readback. Both own accepted-image gates only for their
-exact targets. Metal additionally owns the calibrated 16 MiB RSS gate; Windows
+exact targets. The formal authority window owns an exact 512-by-512 native
+drawable; its logical client size is boundedly adjusted when Retina/high-density
+scaling changes the measured drawable, and presentation evidence is never
+resampled. Metal additionally owns the calibrated 16 MiB RSS gate; Windows
 working-set RSS is recorded with observed disposition and cannot independently
 decide acceptance.
 Local diagnostics never replace a required hosted or physical lane.

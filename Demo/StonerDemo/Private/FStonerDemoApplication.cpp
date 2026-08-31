@@ -8,6 +8,7 @@
 #include "FProductionContentDeferredExecution.h"
 #include "FProductionContentRuntime.h"
 #include "FProductionContentSession.h"
+#include "FProductionAuthorityWindowExtent.h"
 #include "FProductionWindowCaptureWriter.h"
 #include "FStonerDemoWindowState.h"
 #include "RHI/IRHICommandQueue.h"
@@ -883,6 +884,13 @@ EDemoExitCode FStonerDemoApplication::Initialize()
             : "Stoner Graphics Lab - Production Content";
         Desc.ClientWidth = Configuration.ClientWidth;
         Desc.ClientHeight = Configuration.ClientHeight;
+        // Formal image acceptance compares the native presentation readback
+        // with the canonical 512x512 FinalOutput attachment byte-for-byte.
+        // Keep ordinary and preview windows high-density, but prefer a direct
+        // pixel-density mapping for authority. The bounded convergence below
+        // remains authoritative because some GLFW/macOS combinations ignore
+        // the preference and still create a Retina-scaled drawable.
+        Desc.bHighDensityFramebuffer = !Configuration.bVisibleCapture;
         if (Window->Value.CreateRealWindow(Desc) != Stoner::Application::EApplicationResult::Success ||
             !Window->Value.GetPlatformWindow().IsValid())
         {
@@ -890,6 +898,19 @@ EDemoExitCode FStonerDemoApplication::Initialize()
             Window.reset();
             LifecycleState = EDemoLifecycleState::Failed;
             return EDemoExitCode::RuntimeUnavailable;
+        }
+        if (Configuration.bVisibleCapture &&
+            !ConvergeProductionAuthorityDrawableExtent(
+                Window->Value,
+                FDemoConfiguration::ProductionImageAcceptanceExtent,
+                FDemoConfiguration::ProductionImageAcceptanceExtent))
+        {
+            Diagnostics.Add(EDemoStage::Window,
+                EDemoExitCode::InitializationFailed, "PrimaryWindow",
+                "formal production authority requires an exact 512x512 native drawable");
+            Window.reset();
+            LifecycleState = EDemoLifecycleState::Failed;
+            return EDemoExitCode::InitializationFailed;
         }
     }
 

@@ -238,6 +238,7 @@ non-canonical ordering, and zero or multiple matches for an observed signature.
 | `DeviceClass` | registry-owned stable token | Derived by exactly one registry match; never accepted from a caller |
 | `CapabilitySignature` | canonical object | Registry version, backend implementation, CPU architecture, adapter family, shader profile, color/depth formats, sample count, and texture-format family; excludes marketing name |
 | `Width`, `Height` | integer pair | Exactly 512 by 512 for formal calibration captures, accepted references, and candidates; the 1024 preview is excluded |
+| `PresentationExtent` | integer pair | Exactly 512 by 512 for the formal native authority drawable; the authority window's logical client extent is boundedly adjusted when display density changes the measured drawable |
 | `ColorTransfer` | enum | Canonical comparison transfer |
 | `ReferencePath`, `ReferenceSha256` | path + digest | Versioned reviewed lossless PNG and compressed-byte digest; decoder output is proven pixel-equivalent to the reviewed raw capture |
 | `FlipPolicy` | thresholds | Mean, p95, max, bad-pixel threshold/fraction |

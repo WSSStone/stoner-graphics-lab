@@ -4,6 +4,7 @@
 #include "FDemoValidationMonitor.h"
 #include "FProductionContentComposition.h"
 #include "FProductionContentDeferredExecution.h"
+#include "FProductionAuthorityWindowExtent.h"
 #include "FProductionPresentationPixels.h"
 #include "RendererStaticModelRealizationTestSupport.h"
 
@@ -210,6 +211,19 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
             RHI::ERHIFormat::R8G8B8A8_UNorm, ExactPixels) &&
             ExactPixels == SourcePixels,
         "equal production render and drawable extents preserve exact pixels");
+    FProductionAuthorityClientExtent RetinaExtent;
+    FProductionAuthorityClientExtent NativeExtent;
+    FProductionAuthorityClientExtent InvalidExtent;
+    Record(Result,
+        CalculateProductionAuthorityClientExtent(
+            512, 512, 1024, 1024, 512, 512, RetinaExtent) &&
+            RetinaExtent.Width == 256 && RetinaExtent.Height == 256 &&
+        CalculateProductionAuthorityClientExtent(
+            512, 512, 512, 512, 512, 512, NativeExtent) &&
+            NativeExtent.Width == 512 && NativeExtent.Height == 512 &&
+        !CalculateProductionAuthorityClientExtent(
+            512, 512, 0, 0, 512, 512, InvalidExtent),
+        "formal production authority derives an exact drawable client extent without image scaling");
     FDemoConfiguration Vulkan;
     FDemoConfiguration Metal;
     Core::FString Reason;

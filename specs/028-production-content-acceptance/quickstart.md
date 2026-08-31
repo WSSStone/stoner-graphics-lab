@@ -132,6 +132,11 @@ and hardware-gate comparison uses the canonical 512-by-512 acceptance extent.
 Both use the same square aspect ratio, near/far planes, coordinate convention,
 and frozen projection matrix. Resizing the window changes only the aspect-
 preserving letterboxed presentation; it cannot change the formal render target.
+Formal authority additionally verifies an exact 512-by-512 native drawable.
+On Retina/high-density displays only that authority window may adjust its
+logical client size until the measured drawable is exact; the 1024 preview and
+ordinary application windows keep their normal high-density behavior. No
+capture is resized to make it match.
 
 ```bash
 STONER_PRODUCTION_VISIBLE=1 \

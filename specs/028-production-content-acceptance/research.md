@@ -1683,3 +1683,37 @@ rerun efficiency and exact evidence verification.
   correctness evidence.
 - Skip consumer revalidation on reruns: rejected because downloaded evidence
   must remain independently digest-checked on every accepted attempt.
+
+## Decision 56: Make formal authority drawable pixels exact on high-density displays
+
+**Decision**: Add an explicit high-density-framebuffer preference to the
+backend-neutral window descriptor. Keep it enabled by default and for the
+1024-by-1024 calibration preview, but prefer a direct mapping for formal visible
+production acceptance. Because GLFW 3.4 on the maintainer macOS host still
+reported a 2x Retina drawable after both generic and Cocoa preferences were
+disabled, boundedly derive and apply a logical client extent from the measured
+client/drawable ratio until the native drawable is exactly 512 by 512. Continue
+comparing the application-window readback with the same-frame `FinalOutput`
+byte-for-byte; do not resize either image.
+
+**Rationale**: Local Metal authority at revision `42ff427` completed the full
+1,000/20 Lantern lifecycle with 2,000 captures, seven readbacks, zero terminal
+owners, stale rejection, and zero RSS growth, then correctly failed
+`presented-frame-pixels`. Its capture metadata showed a 1024-by-1024 drawable:
+macOS Retina had multiplied the requested 512-by-512 logical window by two,
+while the canonical GPU attachment remained 512-by-512. The rendering and
+baseline content were not at fault. A 20/2 real-window probe then proved that
+client-extent convergence produced a 512-by-512 capture whose decoded-pixel
+digest exactly matched `FinalOutput`; the first failure advanced to the existing
+Accepted baseline comparison. Making the formal drawable exact preserves the
+existing no-alignment/no-resampling contract and leaves normal UI quality
+unchanged outside authority capture.
+
+**Alternatives considered**:
+
+- Downsample the 1024 capture: rejected because filtering creates a new image
+  and weakens exact same-frame presentation evidence.
+- Upscale `FinalOutput`: rejected for the same reason and because the formal
+  render target is intentionally fixed at 512 by 512.
+- Disable Retina framebuffers globally: rejected because ordinary and preview
+  windows should retain normal platform-native display density.

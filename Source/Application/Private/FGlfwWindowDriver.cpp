@@ -31,6 +31,10 @@ public:
         bOwnsGlfw = true;
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_VISIBLE, Desc.bVisible ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_SCALE_FRAMEBUFFER,
+            Desc.bHighDensityFramebuffer ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER,
+            Desc.bHighDensityFramebuffer ? GLFW_TRUE : GLFW_FALSE);
         Window = glfwCreateWindow(static_cast<int>(Desc.ClientWidth), static_cast<int>(Desc.ClientHeight), Desc.Title.CStr(), nullptr, nullptr);
         if (Window == nullptr)
         {

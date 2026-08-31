@@ -53,7 +53,7 @@ under independent per-package operational deadlines.
 **Target Platform**: Windows x64 Vulkan, macOS arm64/Intel Metal, and Linux x64 hosted build/function/native coverage; maintainer-local arm64 macOS Metal and x86_64 Windows Vulkan physical authority; macOS Vulkan physical qualification deferred
 **Project Type**: Cross-platform graphics engine, offline asset cooker CLI, desktop demo, and validation tooling
 **Performance Goals**: Regular profile uses 900/1,200/600-second package/profile/native bounds so the 20 clean cooks plus strict/native work receive a complete package envelope and target-toolchain discovery cannot consume it; hosted medium uses 2,400/2,700/1,800-second package/profile/native bounds inside a 90-minute job; serialized visible hardware gives each package and native child 3,600 seconds inside one 7,800-second two-package profile; deterministic reports are byte-identical across 20 repetitions; hosted elapsed time is not a performance qualification
-**Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; hosted medium assigns Lantern 1,000/20 endurance and Sponza 100/10 scale-lifecycle work; hardware retains 1,000/20 for both packages; warm-up counts toward the total; exact package-owned lifecycle/capture/readback/owner/stale contracts are hard on every lane; post-warm-up RSS growth is at most 16 MiB only on preflighted maintainer-local Metal and is observation-only on GitHub-hosted and maintainer-local Windows Vulkan lanes; formal image calibration/reference/comparison uses an exact 512-by-512 extent while the 1024-by-1024 preview remains non-authoritative; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation; no image alignment/resampling
+**Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; hosted medium assigns Lantern 1,000/20 endurance and Sponza 100/10 scale-lifecycle work; hardware retains 1,000/20 for both packages; warm-up counts toward the total; exact package-owned lifecycle/capture/readback/owner/stale contracts are hard on every lane; post-warm-up RSS growth is at most 16 MiB only on preflighted maintainer-local Metal and is observation-only on GitHub-hosted and maintainer-local Windows Vulkan lanes; formal image calibration/reference/comparison and the native authority drawable use an exact 512-by-512 extent without resampling while the 1024-by-1024 preview remains non-authoritative and retains normal high-density behavior; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation; no image alignment/resampling
 **Scale/Scope**: Two artist-authored source works; regular Lantern GLB is about 9.6 MB with 3 primitives and four 2K textures; medium Sponza external package is about 50 MB with 103 primitives, 25 materials, and 69 mostly 1K textures; at least 30 deterministic negative cases
 
 ## Constitution Check
@@ -303,7 +303,11 @@ reruns never overwrite an earlier producer artifact.
    accepted reference, and candidate comparison is exactly 512-by-512; the
    1024-by-1024 preview is navigation-only. Reference and candidate dimensions
    and normalization policy must match exactly, and a mismatched formal extent
-   fails before semantic or FLIP work.
+   fails before semantic or FLIP work. The formal visible window also requests
+   an exact 512-by-512 native drawable; on high-density displays it first
+   requests a direct mapping and then boundedly adjusts the authority window's
+   logical client extent until the measured drawable is exact, so the
+   same-frame presentation proof remains byte-for-byte rather than resampled.
 5. Run the profile's ordered package-owned full manager-realizer-render-release
    lifecycle: regular Lantern uses 20/2, hosted medium Lantern owns 1,000/20
    endurance, hosted medium Sponza owns 100/10 scale lifecycle, and both physical
