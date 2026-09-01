@@ -174,6 +174,14 @@ device-class baseline is failure, not an automatically created reference. The
 runner derives the class by exact canonical capability-signature match; it does
 not accept an arbitrary caller-provided class token.
 
+The completed Feature 028 closeout has one explicitly documented execution
+exception: the maintainer accepted the prior Windows physical evidence plus the
+committed exact Windows baselines and final-revision hosted Windows producer/
+consumer as an attested carry-forward. No Windows hardware run is claimed for
+the final revision. The command above remains the required entry point for
+future Windows baseline or render-path qualification; the carry-forward is not
+an automatic reusable shortcut.
+
 Formal comparison never translates, scales, crops, warps, resamples, or searches
 for a best image alignment. Semantic material/normal/depth/lighting checks use
 versioned bounded regions with minimum sample coverage rather than one exact

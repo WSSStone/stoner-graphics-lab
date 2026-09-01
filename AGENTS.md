@@ -9,14 +9,17 @@ lane for revision `506e49e`. Artifact and report digests are recorded in
 uses private Objective-C++ ownership, backend-neutral typed shader bytes,
 deterministic Tools-only SPIRV-Cross MSL derivation, macOS-only offline metallib
 finalization, and capability-correct dual-architecture validation.
-Feature 028 Asset Production Content Integration & Acceptance is the active
-planned feature on branch `028-production-content-acceptance`. Read
-`specs/028-production-content-acceptance/plan.md` before implementation. The
-plan uses a checked-in bounded Lantern GLB and an externally staged hash-pinned
-Sponza package to validate real KTX2 cooking, strict-cooked loading,
-transactional Renderer realization, and visible Vulkan/Metal rendering. Asset
-license selection and compliance remain entirely outside automated acceptance.
-Meshlet Derived Data and former Features 028-038 remain shifted to 029-039.
+Feature 028 Asset Production Content Integration & Acceptance is complete at
+implementation revision `588d245`. Hosted closeout run 33467298777 passed every
+regular producer/consumer, sanitizer, medium shard, and aggregate job; the same
+revision passed both 1,000/20 packages on the maintainer-local M4 Metal device.
+The maintainer explicitly closed Windows through a one-time carry-forward of
+the complete physical evidence at `0cf0182`, the subsequently admitted exact
+Accepted references, and the final-revision hosted Windows producer/consumer;
+no Windows hardware run is claimed at `588d245`. Digests and the provenance
+limitation are recorded in `Validation/028/CI/README.md`. Feature 029 Meshlet
+Derived Data is the next roadmap phase. Asset license selection and compliance
+remain entirely outside automated acceptance.
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -83,6 +86,7 @@ Meshlet Derived Data and former Features 028-038 remain shifted to 029-039.
 - 024-static-mesh-model: Implemented bounded glTF/GLB static package import, Unreal-style coordinate normalization, typed immutable mesh/model payloads, stable multi-output identities, hierarchy, Material v2 and Image/Texture dependencies, transactional Renderer/RHI buffer realization, malformed corpus, deterministic/concurrent/performance gates, and passing Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan and Lavapipe indexed readback in CI runs 31766671726 and 31766671729
 - 025-asset-cooker-derived-data: Implemented deterministic target profiles, cook graph/input snapshots, typed payload envelopes, canonical manifests, local immutable DDC, incremental invalidation, native leases, long-path-safe atomic generation publication, standalone validation, normalized CLI reports, corruption/concurrency/performance gates, and passing Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan in CI run 31827665459
 - 027-metal-backend: Implemented the native Metal RHI backend, responsibility-specific Objective-C++ ownership, complete applicable RHI resource/command/sync/presentation paths, deterministic SPIR-V-to-MSL and offline metallib cooking, strict-cooked triangle/deferred GPU readback, Metal/Vulkan comparison, diagnostics/failure/lifecycle gates, and passing ten-job hosted plus physical M4 Pro arm64/GitHub Intel x86_64 hardware CI
+- 028-production-content-acceptance: Implemented the real Lantern/Sponza source-to-cooked-to-visible acceptance path, strict-cooked closure loading, transactional Renderer realization, deterministic Vulkan/Metal image authority with semantic probes and CPU FLIP, calibration camera presets, bounded lifecycle/evidence contracts, accepted per-device references, and passing final hosted plus M4 Metal closeout; Windows closed through the explicitly documented one-time physical-evidence carry-forward
 
 ## Git Commit Style
 - Commit messages must start with a conventional type prefix such as `feat`, `docs`, `fix`, `chore`, `refactor`, `test`, or `build`.

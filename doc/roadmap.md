@@ -1,9 +1,9 @@
 # Stoner Graphics Lab - Engine Development Roadmap
 
-> **Version**: 2.2.1 | **Created**: 2026-04-21 | **Last Updated**: 2026-08-21 | **Status**: Active
+> **Version**: 2.2.2 | **Created**: 2026-04-21 | **Last Updated**: 2026-09-01 | **Status**: Active
 > **Constitution**: v1.4.0
 > **Numbering Rule**: Every runtime phase number equals its Speckit feature number. The roadmap is a standalone governance document and does not occupy a feature number; runtime phases begin at 003.
-> **Completed Baseline**: Features 001 and 003 through 027 are implemented and verified.
+> **Completed Baseline**: Features 001 and 003 through 028 are implemented and verified.
 
 ---
 
@@ -72,9 +72,9 @@ Renderer RHI realization, deterministic offline cooking, manifests, and local
 derived data. Feature 026 has implemented managed asynchronous runtime loading
 and passed its local and required remote cross-platform/sanitizer gates. Feature
 027 has delivered the native Metal portability backend with physical arm64 and
-hosted x86_64 native acceptance. Feature 028 is now next: it closes the remaining
-content-realism gap with licensed production assets and an end-to-end source-to-
-visible-render acceptance path before derived meshlet work begins.
+hosted x86_64 native acceptance. Feature 028 has closed the remaining content-
+realism gap with selected production assets and an end-to-end source-to-visible-
+render acceptance path. Feature 029 Meshlet Derived Data is now next.
 
 Roadmap 2.1 added Asset as an independent runtime layer. It separates source
 interchange, cooked delivery, runtime management, and GPU realization so that
@@ -110,12 +110,12 @@ through screen-space, derived-data, and hybrid integration milestones.
 - [OpenUSD Asset Resolution](https://openusd.org/release/api/ar_page_front.html) informs logical identifiers and replaceable resolver strategies; USD composition itself remains a later Scene/Prefab concern.
 - [Unreal Asset Management](https://dev.epicgames.com/documentation/en-us/unreal-engine/asset-management-in-unreal-engine) supports separating unloaded metadata, soft references, asynchronous loading, and residency ownership.
 
-### Current State (Feature 027 Complete; Feature 028 Next)
+### Current State (Feature 028 Complete; Feature 029 Next)
 
 | Ownership Area | Status | Current Capability |
 |---|---|---|
 | Core | Done | Types, memory, math, logging, assertions, durable file transactions, native leases, long-path-safe filesystem/process/time/window handles |
-| Asset | Runtime manager locally validated | Typed source/cooked loading, async dependency scheduling, coalescing, cancellation, typed handles, deterministic unload, completion pump, inspection, and generation reader leases |
+| Asset | Production-content acceptance complete | Typed source/cooked loading, async dependency scheduling, strict generation consumption, real Lantern/Sponza closure validation, transactional GPU realization, and deterministic image/lifecycle evidence |
 | Tools | Asset Cooker done | Deterministic graph/snapshot scheduling, local immutable DDC, incremental invalidation, atomic generation publication, strict validation, CLI, and normalized reports |
 | RHI | Static-mesh transfer contracts done | Device/resources plus compressed formats, bounded buffer upload, and complete indexed-draw arguments |
 | Backend/Vulkan | Static-mesh native evidence done | Native/fallback resources plus compressed formats, buffer upload, indexed draw mapping, cleanup, and Lavapipe attachment readback |
@@ -199,7 +199,7 @@ depend on Tools.
 | 025 | Cooker, Manifest & Derived Data | Asset | 021, 022, 023, 024 | XL | Yes | ✅ Done |
 | 026 | Runtime Asset Manager | Asset | 020, 025 | XL | Yes | ✅ Done |
 | 027 | Metal Backend | Backend | 008, 016, 018, 023, 025 | XL | No | ✅ Done |
-| 028 | Production Content Integration & Acceptance | Asset | 018, 019, 022, 024, 026, 027 | L | Yes | ⬜ Todo |
+| 028 | Production Content Integration & Acceptance | Asset | 018, 019, 022, 024, 026, 027 | L | Yes | ✅ Done |
 | 029 | Meshlet Derived Data | Asset | 024, 025, 026, 028 | XL | No | ⬜ Todo |
 | 030 | GPU-Driven Visibility & LOD | Renderer | 013, 029 | XL | No | ⬜ Todo |
 | 031 | Streaming & Residency | Asset | 022, 026, 029, 030 | XL | No | ⬜ Todo |
@@ -1000,7 +1000,7 @@ the Asset runtime layer continues to depend only on Core.
 - Two or more artist-authored glTF/GLB packages with stable source URL, revision, attribution where known, and SHA-256 records; license/compliance decisions remain out of band
 - Representative multi-primitive, multi-material PBR content with external and embedded dependencies plus 1K/2K color, normal, and data textures
 - Deterministic source import, KTX2 cook, DDC/publication, strict-cooked `FAssetManager` loading, and typed payload equivalence evidence
-- Asset-backed demo composition with transactional Renderer/RHI realization, hosted Vulkan/Metal functional validation, same-revision maintainer-local M4 Metal RSS/image authority, and Windows Vulkan physical image authority plus bounded working-set observation
+- Asset-backed demo composition with transactional Renderer/RHI realization, hosted Vulkan/Metal functional validation, final-revision maintainer-local M4 Metal RSS/image authority, and explicitly provenance-labeled Windows Vulkan physical evidence plus bounded working-set observation
 - Tiered validation: bounded production asset in regular CI, medium corpus in scheduled/manual gates, and normalized screenshots/readbacks, timing, memory, and diagnostics
 
 #### What's Excluded
@@ -1008,14 +1008,16 @@ the Asset runtime layer continues to depend only on Core.
 
 #### Local Physical Authority and Deferred Hardware-Lab Follow-up
 
-The maintainer-owned x86_64 Windows Vulkan device is manually synchronized and
-is required alongside the M4 Metal device; no self-hosted runner is required.
-Each target has an explicit fail-closed local preflight and independent image
-authority, and both must pass on one final revision. M4 Metal retains the
-calibrated 16 MiB RSS gate; Windows working-set RSS remains a bounded physical
-observation until a future reference-set/WPR hardware-lab qualification. Hosted Windows/Linux Vulkan
-remains non-equivalent functional/native evidence. macOS Vulkan remains the
-future hardware-lab follow-up and must not be inferred from either local target.
+The delivered contract has explicit fail-closed local preflights for the M4
+Metal and manually synchronized x86_64 Windows Vulkan devices; no self-hosted
+runner is required. Final revision `588d245` passed M4 Metal. For this closeout
+only, the maintainer explicitly carried forward the complete Windows physical
+bundle at `0cf0182`, its subsequently admitted exact references, and the final-
+revision hosted Windows producer/consumer. No final-revision Windows hardware
+run is claimed, and future Windows baseline or render-path changes require a
+fresh local authority run. M4 Metal retains the calibrated 16 MiB RSS gate;
+Windows working-set RSS remains a bounded observation until future reference-
+set/WPR qualification. macOS Vulkan also remains a hardware-lab follow-up.
 
 #### Speckit Prompt
 ```text
@@ -1460,14 +1462,13 @@ Meshlets:
 5. Run `/speckit.implement`, validate locally and in required CI, and retain evidence.
 6. Mark the phase `✅ Done`, update Current State, dependency styling if used, and this change log.
 
-Feature 027 Backend: Metal is complete. It delivered private Objective-C++
-ownership, complete applicable RHI realization, deterministic SPIR-V-to-MSL and
-offline metallib cooking, strict-cooked triangle/deferred execution,
-CAMetalLayer presentation, failure/lifecycle diagnostics, and backend-neutral
-Metal/Vulkan comparison. Hosted matrix run 32392504204 passed all ten jobs and
-required hardware run 32394691067 passed physical M4 Pro arm64 plus GitHub-
-hosted Intel x86_64. Feature 028 Production Content Integration & Acceptance is
-the next roadmap phase.
+Feature 028 Production Content Integration & Acceptance is complete at
+implementation revision `588d245`. Hosted closeout run 33467298777 passed every
+regular producer/consumer, sanitizer, medium shard, and aggregate job, and the
+same revision passed both full 1,000/20 packages on maintainer-local M4 Metal.
+Windows closed through the explicitly recorded one-time physical-evidence
+carry-forward without claiming a final-revision hardware run. Feature 029
+Meshlet Derived Data is the next roadmap phase.
 
 ### Status Legend
 
@@ -1484,6 +1485,7 @@ the next roadmap phase.
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-01 | 2.2.2 | Marked Feature 028 complete at implementation revision `588d245` after hosted run 33467298777 and final M4 Metal authority passed; recorded the maintainer-approved one-time Windows physical-evidence carry-forward without fabricating a final-revision run; activated Feature 029 Meshlet Derived Data. |
 | 2026-08-21 | 2.2.1 | Marked Feature 027 complete after the ten-job hosted matrix and required hardware run 32394691067 passed physical M4 Pro arm64 Metal/Vulkan and hosted Intel x86_64 Metal-only native acceptance; activated Feature 028 Production Content Integration & Acceptance. |
 | 2026-08-15 | 2.2.0 | Inserted Feature 028 Production Content Integration & Acceptance as the licensed source-to-cooked-to-visible gate after Metal; shifted the former Features 028-038 to 029-039 and updated dependencies, prompts, DAG, tracks, solo order, and risks. |
 | 2026-08-15 | 2.1.11 | Hardened Feature 026 terminal publication, ready-cache handoff, and shared-dependency cancellation; GitHub Actions run 31882332020 passed Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan; downloaded all eight artifacts, recorded their digests, and activated Feature 027 Metal. |

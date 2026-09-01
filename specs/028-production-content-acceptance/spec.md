@@ -2,7 +2,7 @@
 
 **Feature Branch**: `028-production-content-acceptance`
 **Created**: 2026-08-21
-**Status**: Draft
+**Status**: Complete (2026-09-01; closeout revision `588d24560dc6ba7b67aa4f14e60026d058b0ab31`)
 **Input**: User description: "为 roadmap Phase 028 制定 Production Content Integration & Acceptance specification"
 
 ## Clarifications
@@ -45,6 +45,10 @@
 ### Session 2026-08-31
 
 - Q: Hosted Sponza medium 在 6,000 秒仍无法稳定完成 1,000 个完整生命周期，是否应继续增加 timeout 或放宽图像校验？ → A: 都不应。该耗时来自每周期重新读取和解码约 519 MiB cooked closure、realize 103 primitives/25 materials/69 textures、执行 Deferred/Forward 并完整 teardown，而不是 FLIP、像素对齐或图像阈值。Hosted medium 改为分层压力合同：Lantern 保留 1,000/20 的长时 endurance 与 2,000 captures；Sponza 执行 100/10 的 scale-lifecycle 与 200 captures，每周期仍走完整 strict manager/closure/realize/render/release，且保留七次最终 readback、owner 归零和 stale-handle 拒绝。两台维护者物理设备上的 Lantern/Sponza 均继续执行 1,000/20、2,000 captures 和精确 512×512 semantic/FLIP 权威门禁。Hosted medium 的 package/profile/native operational 上限收敛为 2,400/2,700/1,800 秒，workflow 外层为 90 分钟。本答案取代 2026-08-27 对 hosted Sponza 1,000/20 与 6,600/6,900/6,000 秒的临时扩容决定。
+
+### Session 2026-09-01
+
+- Q: 最终 revision 已通过完整 hosted closeout 和 M4 Metal 物理 authority，但维护者决定不再重复耗时的 Windows Vulkan 物理运行时，Feature 028 如何如实收尾？ → A: 维护者明确接受一次性 Windows 证据复用：引用 revision `0cf018257902a5077cff27098d7117b842eddbe6` 已完成的 Windows Vulkan 1,000/20、2,000 captures、七次 readback、zero owners、stale rejection、20 semantic probes 与稳定 Sponza pixels，引用随后提交并明确接受的 Windows Lantern/Sponza baseline，再以最终 revision `588d24560dc6ba7b67aa4f14e60026d058b0ab31` 的 hosted Windows strict build/cook/runtime producer 和独立 artifact consumer 证明最终树仍可消费。记录必须明确标为 maintainer-attested carry-forward，不得虚构 final-revision Windows hardware run，也不得把本次决定推广为以后 baseline/render-path 变更的自动豁免。最终 revision 的 M4 Metal 物理 authority、Metal 16 MiB RSS、精确图像、hosted regular/medium/sanitizer 和 artifact gates 仍全部实际执行并通过。
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -221,7 +225,10 @@ corpus and workload, and compare their normalized reports across repeated runs.
    the weekly schedule or a feature/release closeout, **Then** the medium profile
    is required; **Given** Feature 028 closeout or a reference-image/render-path
    change, **Then** both maintainer-local Metal and Windows Vulkan hardware
-   profiles are required on the same committed revision.
+   profiles are normally required on the same committed revision. Feature 028's
+   2026-09-01 closeout uses the separately recorded one-time maintainer-attested
+   Windows evidence carry-forward and does not claim a final-revision Windows
+   hardware execution.
 7. **Given** a GitHub-hosted medium lane that completes the exact declared work
    with all ownership and stale-handle rules satisfied, **When** allocator-
    retained pages or wall-clock variance exceed a previously observed value,
@@ -546,9 +553,15 @@ corpus and generation evidence.
   weakening platform-specific coverage.
 - **FR-035**: Feature 028 physical acceptance MUST include visible native Metal
   evidence on the maintainer's arm64 macOS device and visible native Vulkan
-  evidence on the maintainer's x86_64 Windows device. Both targets MUST pass on
-  the same final revision and neither substitutes for the other. macOS Vulkan
-  remains a deferred hardware-lab requirement. Linux MUST retain build, deterministic execution, and applicable
+  evidence on the maintainer's x86_64 Windows device. Both targets normally
+  pass on the same final revision and neither substitutes for the other. For
+  the recorded 2026-09-01 Feature 028 closeout only, the maintainer explicitly
+  accepts the prior complete Windows physical evidence plus accepted baselines
+  and final-revision hosted Windows producer/consumer evidence as an attested
+  carry-forward. The closeout MUST identify that no final-revision Windows
+  hardware run occurred, and this decision MUST NOT automatically apply to a
+  later baseline or render-path change. macOS Vulkan remains a deferred
+  hardware-lab requirement. Linux MUST retain build, deterministic execution, and applicable
   bounded headless/software-native validation.
 - **FR-036**: A gate unavailable because of host, backend, device, display, or
   tool capability MUST report Unsupported with the missing prerequisite and
@@ -783,10 +796,11 @@ corpus and generation evidence.
   and timing observations do not affect deterministic result identities.
 - **SC-011**: Windows, macOS, and Linux automated Debug and strict Release
   validation plus all applicable sanitizer, deterministic, and native gates
-  pass on the final revision; both required local physical hardware gates have accepted,
-  digest-recorded evidence from that same revision. The final evidence includes
-  a passing regular run, medium closeout run, and all required hardware profiles
-  under the cadence defined by FR-034 and FR-037.
+  pass on the final revision. Final evidence includes a passing regular run,
+  medium closeout run, digest-recorded final-revision Metal physical authority,
+  and the explicitly labeled one-time Windows physical evidence carry-forward
+  defined by FR-035; it does not misreport that carry-forward as a run on the
+  final revision.
 - **SC-012**: Equivalent deterministic runs produce byte-identical normalized
   reports in 20 repetitions, while every checked-in or published report and
   image passes automated privacy, provenance, schema, 1 MiB report, 64-artifact,

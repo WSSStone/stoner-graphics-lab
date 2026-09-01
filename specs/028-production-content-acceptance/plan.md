@@ -38,6 +38,15 @@ authority belongs to both preflighted physical lanes.
 Image comparison remains spatially registered with no automatic alignment;
 semantic classification moves from exact pixels to bounded region statistics.
 
+Final closeout preserves that evidence without inventing execution. Revision
+`588d24560dc6ba7b67aa4f14e60026d058b0ab31` actually passed the complete
+hosted matrix and maintainer-local M4 Metal hardware profile. The maintainer
+explicitly accepted a one-time Windows evidence carry-forward from the prior
+complete Windows physical bundle, the subsequently accepted exact baselines,
+and the final-revision hosted Windows producer/consumer. Documentation labels
+that decision as attested carry-forward rather than a final-revision Windows
+hardware run; future image or render-path changes do not inherit it.
+
 Closeout image authority additionally binds semantic attachments, FinalOutput,
 FLIP, and visible capture to one completed-submission frame bundle; requires
 cross-process baseline calibration; supports at most three explicitly accepted
@@ -49,8 +58,8 @@ under independent per-package operational deadlines.
 **Language/Version**: C++20 with traditional public/private headers and sources; Objective-C++20 remains private to Metal; Python 3 standard-library validation scripts
 **Primary Dependencies**: Existing Core, Asset, AssetCooker, RHI, Renderer, Application, Vulkan and Metal contracts; cgltf 1.15, stb_image 2.30, KTX-Software 4.4.2, WAMR 2.4.5, yyjson 0.12.0, SPIRV-Cross 0.68.0 lineage; CPU-only NVIDIA FLIP 1.7 single-header implementation pinned to commit `b475eb4bf394ab877c42166c9eb0a84a02cc5b14`; SCons 4.10.1
 **Storage**: Checked-in bounded Lantern GLB and corpus metadata; externally staged hash-pinned Sponza medium package; temporary local immutable DDC, cooked generations, and raw captures only under ignored `Build/Validation/`; checked-in losslessly compressed baseline references and small canonical policy/calibration/index/summary evidence; raw captures are converted to pixel-equivalent PNG and deleted with DDC/generations/large logs before evidence closeout; no build dependency on historical `Validation/` outputs, database, archive, remote cache, or runtime source fallback
-**Testing**: Existing `StonerTest` suites plus corpus, KTX2 integration, semantic-equivalence, transactional realization, native readback, image-acceptance, lifecycle, failure-injection, Python schema/runner tests, Windows/macOS/Linux hosted CI, and the required maintainer-local arm64 Metal plus x86_64 Windows Vulkan physical lanes
-**Target Platform**: Windows x64 Vulkan, macOS arm64/Intel Metal, and Linux x64 hosted build/function/native coverage; maintainer-local arm64 macOS Metal and x86_64 Windows Vulkan physical authority; macOS Vulkan physical qualification deferred
+**Testing**: Existing `StonerTest` suites plus corpus, KTX2 integration, semantic-equivalence, transactional realization, native readback, image-acceptance, lifecycle, failure-injection, Python schema/runner tests, Windows/macOS/Linux hosted CI, final-revision maintainer-local arm64 Metal authority, and the explicitly recorded one-time carry-forward of the prior x86_64 Windows Vulkan physical bundle
+**Target Platform**: Windows x64 Vulkan, macOS arm64/Intel Metal, and Linux x64 hosted build/function/native coverage; maintainer-local arm64 macOS Metal physical authority; maintainer-owned x86_64 Windows Vulkan physical evidence with the one-time Feature 028 closeout carry-forward; macOS Vulkan physical qualification deferred
 **Project Type**: Cross-platform graphics engine, offline asset cooker CLI, desktop demo, and validation tooling
 **Performance Goals**: Regular profile uses 900/1,200/600-second package/profile/native bounds so the 20 clean cooks plus strict/native work receive a complete package envelope and target-toolchain discovery cannot consume it; hosted medium uses 2,400/2,700/1,800-second package/profile/native bounds inside a 90-minute job; serialized visible hardware gives each package and native child 3,600 seconds inside one 7,800-second two-package profile; deterministic reports are byte-identical across 20 repetitions; hosted elapsed time is not a performance qualification
 **Constraints**: 20 regular full lifecycle cycles with cycles 1-2 as warm-up; hosted medium assigns Lantern 1,000/20 endurance and Sponza 100/10 scale-lifecycle work; hardware retains 1,000/20 for both packages; warm-up counts toward the total; exact package-owned lifecycle/capture/readback/owner/stale contracts are hard on every lane; post-warm-up RSS growth is at most 16 MiB only on preflighted maintainer-local Metal and is observation-only on GitHub-hosted and maintainer-local Windows Vulkan lanes; formal image calibration/reference/comparison and the native authority drawable use an exact 512-by-512 extent without resampling while the 1024-by-1024 preview remains non-authoritative and retains normal high-density behavior; strict-cooked runs invoke no resolver/importer/source decoder/fallback; no full-desktop capture; no license-policy automation; no image alignment/resampling
@@ -60,14 +69,14 @@ under independent per-package operational deadlines.
 
 *GATE: Passed before research and re-checked after Phase 1 design.*
 
-- [x] **Spec-Driven Development**: `spec.md` contains 56 functional requirements, 17 measurable success criteria, and eleven recorded clarification decisions.
+- [x] **Spec-Driven Development**: `spec.md` contains 59 functional requirements, 17 measurable success criteria, and nineteen recorded clarification decisions.
 - [x] **Decoupled Architecture**: Asset remains CPU-only; Tools performs cooking; Renderer performs RHI realization; Demo/Validation orchestrates the complete workflow; only Backend code calls Vulkan or Metal.
 - [x] **Design Pattern Discipline**: Corpus verification, semantic comparison, model realization, image comparison, and evidence rendering are separate services/contracts. No Asset Manager, Demo, or native-context god-class is introduced.
 - [x] **Multi-API Support**: One scene contract drives Vulkan and Metal. Backend/device-class baselines allow declared numeric variation without backend-specific content logic.
 - [x] **Advanced Graphics Readiness**: Stable model/material/texture identities, bounds, topology coverage, and evidence remain reusable by Meshlet, streaming, ray-tracing, and GI phases.
 - [x] **Naming Conventions**: New C++ APIs use PascalCase and project/Unreal-style prefixes; this phase does not rename Core globally.
 - [x] **Cross-Platform Compatibility**: Build, deterministic, strict-cooked, and platform-applicable native validation cover Windows, macOS, and Linux with platform code isolated behind existing boundaries.
-- [x] **Automated Cross-Platform Validation**: Relevant PR/push regular jobs and weekly/manual hosted medium jobs cover available hosted platforms; physical closeout uses explicit local native arm64 Metal and x86_64 Windows Vulkan commands on one revision, and no self-hosted job is required or auto-queued.
+- [x] **Automated Cross-Platform Validation**: Relevant PR/push regular jobs and weekly/manual hosted medium jobs cover available hosted platforms; the final revision ran explicit local native arm64 Metal authority, while the maintainer recorded the one-time prior-evidence carry-forward for x86_64 Windows Vulkan instead of claiming a final-revision hardware execution. No self-hosted job is required or auto-queued.
 
 ### Post-Design Re-check
 
@@ -75,8 +84,9 @@ The data model and contracts preserve every dependency direction from
 Constitution v1.4.0. `FStaticModelRealizer` depends on Asset/RHI/Core only;
 production orchestration resides in Demo/Validation; AssetCooker produces KTX2
 offline; runtime code does not link Tools or FLIP; FLIP is validation-only; and
-native proof remains in Vulkan/Metal backend adapters. No exception or
-complexity waiver is required.
+native proof remains in Vulkan/Metal backend adapters. No architecture or
+dependency exception is required. The final Windows evidence carry-forward is
+a separately documented maintainer closeout decision about execution evidence.
 
 ## Project Structure
 

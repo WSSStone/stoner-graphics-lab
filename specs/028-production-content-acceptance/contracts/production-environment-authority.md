@@ -126,3 +126,11 @@ inside existing report/artifact privacy and size bounds.
 Windows Vulkan is manually synchronized and required alongside Mac Metal on the
 same final revision; no self-hosted runner is required. macOS Vulkan remains
 deferred and is not inferred from hosted software/native lanes.
+
+Feature 028 closeout records one explicit exception to execution, not to the
+authority implementation: on 2026-09-01 the maintainer accepted the prior
+complete Windows physical bundle, its subsequently accepted exact references,
+and the final-revision hosted Windows producer/consumer as an attested evidence
+carry-forward. The closeout index must state that no Windows hardware run
+occurred on the final revision. This decision does not automatically satisfy a
+future image-baseline or render-path change.

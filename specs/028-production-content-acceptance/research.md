@@ -1717,3 +1717,43 @@ unchanged outside authority capture.
   render target is intentionally fixed at 512 by 512.
 - Disable Retina framebuffers globally: rejected because ordinary and preview
   windows should retain normal platform-native display density.
+
+## Decision 57: Close Feature 028 with an explicit Windows evidence carry-forward
+
+**Decision**: Revision `588d24560dc6ba7b67aa4f14e60026d058b0ab31`
+is the final Feature 028 closeout revision. It actually passed the complete
+GitHub-hosted regular, sanitizer, medium, aggregate, and artifact-consumer
+matrix plus both 1,000/20 packages on the maintainer-local M4 Metal authority.
+The maintainer explicitly elected not to repeat the Windows Vulkan hardware
+profile and accepted a one-time evidence carry-forward instead. That decision
+combines the prior Windows physical bundle at
+`0cf018257902a5077cff27098d7117b842eddbe6`, the subsequently reviewed and
+committed exact Windows Lantern/Sponza references, and the final-revision
+hosted Windows producer and independent artifact consumer.
+
+Closeout evidence must call this `maintainer-attested carry-forward`; it must
+not state that a Windows hardware run occurred on `588d245`. The decision is
+specific to Feature 028 closeout and does not weaken the hardware runner,
+baseline-selection, semantic, FLIP, lifecycle, ownership, stale-handle, or
+memory-disposition implementation. A later Windows reference-image or render-
+path change still requires a fresh Windows physical run unless a future spec
+records a new explicit decision.
+
+**Rationale**: The prior Windows authority actually completed the full two-
+package physical work and produced the exact pixels later admitted as the
+Windows baselines. The final hosted run proves the final tree builds, cooks,
+strict-loads, publishes, and revalidates immutable Windows Vulkan evidence.
+The remaining gap is final-revision display/GPU execution, not an unknown or
+hidden test result. The maintainer knowingly accepts that residual risk to end
+the phase, while the evidence index remains truthful about what ran.
+
+**Alternatives considered**:
+
+- Invent or relabel a final-revision Windows pass: rejected because it would
+  falsify provenance.
+- Keep Feature 028 open indefinitely: rejected by the maintainer after review
+  of the existing Windows physical and final hosted evidence.
+- Remove Windows authority implementation or baselines: rejected because they
+  remain valuable, fully implemented gates for later changes.
+- Generalize carry-forward automatically from source diffs: rejected because
+  hardware relevance is not safely inferable from file paths alone.

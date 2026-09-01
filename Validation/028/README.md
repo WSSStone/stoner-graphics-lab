@@ -1,6 +1,7 @@
 # Feature 028 Validation
 
-Status: **in progress**
+Status: **complete** — closeout revision
+`588d24560dc6ba7b67aa4f14e60026d058b0ab31` (2026-09-01)
 
 Feature 028 evidence is split into deterministic reports and bounded host
 observations. A native pass requires strict-cooked loading, transactional
@@ -15,6 +16,17 @@ ignored `Build/Validation/` paths or external CI retention. Historical run
 outputs are not build inputs; required test fixtures live under `Tests/Fixtures/`.
 Accepted reference pixels live as losslessly compressed PNG under
 `Content/ProductionAcceptance/Baselines/`, never as checked-in PPM/RGBA.
+
+Final hosted run
+[`33467298777`](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/33467298777)
+passed every regular producer/consumer, sanitizer, medium shard, and aggregate
+job. The same revision passed both full 1,000/20 packages on maintainer-local
+M4 Metal with exact Accepted-image matches and zero RSS growth. The maintainer
+explicitly closed the Windows side by attested carry-forward of the prior full
+Windows physical bundle, its accepted exact baselines, and the final-revision
+hosted Windows producer/consumer. No Windows hardware run is claimed on the
+final revision; later Windows baseline/render-path changes still require the
+documented local command.
 
 ## Entry Points
 
@@ -46,13 +58,14 @@ python3 .github/scripts/run_production_content_validation.py \
   --target-profile Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json \
   --build-root Build/Mac/Release \
   --output Build/Validation/028/medium-macos-metal \
-  --acquire-missing --timeout-seconds 5400
+  --acquire-missing --timeout-seconds 1800
 ```
 
 Hardware validation uses the same runner and additionally requires a physical
 display-backed application surface, accepted image evidence, and the declared
-1,000 lifecycle cycles. The commands below are the two Feature 028 physical
-authority entry points and must run on one committed revision:
+1,000 lifecycle cycles. The commands below remain the two physical-authority
+entry points for future baseline or render-path changes. Feature 028 closeout's
+one-time Windows carry-forward exception is documented above and in `CI/README.md`:
 
 ```bash
 STONER_PRODUCTION_VISIBLE=1 \
@@ -128,14 +141,14 @@ Local diagnostics never replace a required hosted or physical lane.
 Regular lanes have 900/1,200/600-second package/profile/native budgets. The
 package covers clean/warm/strict/native work, native remains independently
 capped, and profile-only headroom covers target-toolchain discovery and
-orchestration without reducing any required work. Hosted
-medium lanes have 5,400-second package and profile budgets with an independently
-capped 4,800-second native stage. Serialized visible hardware lanes give each
+orchestration without reducing any required work. Hosted medium lanes have
+2,400-second package, 2,700-second profile, and independently capped
+1,800-second native budgets. Serialized visible hardware lanes give each
 package and native stage 3,600 seconds and the complete two-package profile
 7,800 seconds. Normal package validation failures are collected; authority,
 revision, device-loss, and evidence-integrity failures stop immediately. Hosted
 medium workflow setup, compilation, and execution are enclosed by a separate
-120-minute job timeout. An operational timeout fails because required work is
+90-minute job timeout. An operational timeout fails because required work is
 incomplete; it is not a performance baseline. Evidence is written below
 `Build/Validation/028/`, uploaded with failure-safe steps, and promoted into
 this directory only after digest and privacy verification.

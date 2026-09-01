@@ -377,22 +377,25 @@ without exposing host-private state or confusing observations with identities.
 ## Phase 8: Polish, Cross-Cutting Validation, and Closeout
 
 **Purpose**: Prove architecture, regressions, cross-platform automation, medium
-scale, and required physical hardware evidence on one final revision.
+scale, final-revision Metal authority, and truthfully provenance-labeled
+Windows physical evidence under the explicit closeout decision.
 
 - [X] T108 [P] Extend architecture verification for Asset-to-Tools/RHI/Renderer/Application/Backend/API leakage, runtime-to-Tools links, Renderer/Application Vulkan/Metal calls, FLIP runtime links, Demo god-class growth, and the FR-044 feature-diff exclusion list covering new importers, skeletal/editor/hot-reload, package/archive, streaming/residency, Meshlet/LOD, virtual geometry, ray tracing, and visual redesign in Tests/verify_architecture.py and Tests/test_verify_architecture.py
 - [X] T109 [P] Run local macOS Debug and strict Release production-content builds with warnings as errors and record compiler/test summaries in Validation/028/reports/local-builds.md
 - [X] T110 [P] Run Linux ASan/UBSan, applicable TSan, malformed corpus, cancellation, failure-injection, and leak regressions and record commands/results in Validation/028/reports/sanitizers-and-failures.md
 - [X] T111 Run all affected Features 018-027 Demo, Deferred, Forward, Asset, AssetCooker, Runtime Manager, Vulkan, and Metal regression suites and record the bounded result in Validation/028/reports/regressions.md
-- [ ] T112 After T176-T177 and any accepted Windows baseline commit, run the final-revision Windows/macOS/Linux regular GitHub Actions matrix and record run IDs, revisions, artifact names, and SHA-256 values in Validation/028/CI/README.md
-- [ ] T113 After T176-T179, T189, and T194, run the final-revision hosted medium closeout profile with every accepted package through clean/warm 100-percent reuse, source-unavailable strict loading, complete semantic equivalence, and the exact schema-v4 package lifecycle: Lantern endurance 1,000/20 with 2,000 captures and Sponza scale-lifecycle 100/10 with 200 captures; require seven readbacks, zero owners, stale rejection, and aggregate preservation of RSS/task-VM/allocator/timing as observations, then record evidence digests in Validation/028/CI/README.md
-- [ ] T114 After T176-T179, enforce the schema-owned 3,600-second serialized hardware profile separately on final-revision maintainer-local M4 Pro Metal and x86_64 Windows Vulkan. Require exact native host/target/device, exclusive lock, clean committed revision, default allocator, 1,000/20 sampling, and exact 512-by-512 accepted region-semantic/FLIP image gates with GPU readbacks and window-only captures on both devices; additionally require Metal post-warm-up RSS growth at most 16 MiB and require complete bounded Windows working-set RSS observations without using them as pass/fail authority. Require one identical final revision and record both local report/artifact/baseline/preflight digests in Validation/028/CI/README.md and Validation/028/Baselines/README.md. macOS Vulkan remains deferred and does not substitute for either required target.
+- [X] T112 After T176-T177 and any accepted Windows baseline commit, run the final-revision Windows/macOS/Linux regular GitHub Actions matrix and record run IDs, revisions, artifact names, and SHA-256 values in Validation/028/CI/README.md
+- [X] T113 After T176-T179, T189, and T194, run the final-revision hosted medium closeout profile with every accepted package through clean/warm 100-percent reuse, source-unavailable strict loading, complete semantic equivalence, and the exact schema-v4 package lifecycle: Lantern endurance 1,000/20 with 2,000 captures and Sponza scale-lifecycle 100/10 with 200 captures; require seven readbacks, zero owners, stale rejection, and aggregate preservation of RSS/task-VM/allocator/timing as observations, then record evidence digests in Validation/028/CI/README.md
+- [X] T114 Enforce the schema-owned 3,600-second serialized hardware profile on final-revision maintainer-local M4 Pro Metal with exact native host/target/device, exclusive lock, clean committed revision, default allocator, 1,000/20 sampling, exact 512-by-512 accepted region-semantic/FLIP image gates, GPU readbacks, window-only captures, and post-warm-up RSS growth at most 16 MiB. Close the Windows Vulkan side through the maintainer's explicit one-time acceptance of the prior complete physical bundle at `0cf018257902a5077cff27098d7117b842eddbe6`, its subsequently committed exact Accepted references, and the final-revision hosted Windows producer/consumer; preserve the fact that no Windows hardware run occurred at `588d24560dc6ba7b67aa4f14e60026d058b0ab31`, and do not generalize this carry-forward to future baseline or render-path changes. Record all physical, baseline, preflight, report, artifact, and attestation digests in Validation/028/CI/README.md and Validation/028/Baselines/README.md. macOS Vulkan remains deferred.
 - [X] T115 Re-run every command in specs/028-production-content-acceptance/quickstart.md from a clean workspace and record the results in Validation/028/reports/quickstart.md
 - [X] T116 [P] Create the delivered Feature 028 system-design document following doc/SYSTEM_DESIGN.MD in doc/028-production-content-acceptance.html
-- [ ] T117 Update Feature 028 status, final evidence references, next Phase 029 pointer, and project memory without rewriting historical gaps in doc/roadmap.md, specs/028-production-content-acceptance/spec.md, AGENTS.md, and Validation/028/README.md
-- [ ] T118 Validate all Feature 028 JSON/schema files including device-class-registry/image-baseline capability-signature parity, requirement/task traceability, task completion, artifact digests, privacy scans, ASCII/style checks, `git diff --check`, clean generated-output policy, final revision consistency, and explicit FR-044 scope/exclusion evidence in specs/028-production-content-acceptance/, Content/ProductionAcceptance/, Validation/028/, and .github/
+- [X] T117 Update Feature 028 status, final evidence references, next Phase 029 pointer, and project memory without rewriting historical gaps in doc/roadmap.md, specs/028-production-content-acceptance/spec.md, AGENTS.md, and Validation/028/README.md
+- [X] T118 Validate all Feature 028 JSON/schema files including device-class-registry/image-baseline capability-signature parity, requirement/task traceability, task completion, artifact digests, privacy scans, ASCII/style checks, `git diff --check`, clean generated-output policy, final revision consistency, and explicit FR-044 scope/exclusion evidence in specs/028-production-content-acceptance/, Content/ProductionAcceptance/, Validation/028/, and .github/
 
-**Checkpoint**: Feature 028 is complete only when regular, medium, and required
-hardware evidence all reference the same accepted final revision.
+**Checkpoint**: Feature 028 is complete when regular and medium evidence plus
+the final Metal hardware authority reference the accepted implementation
+revision, and the explicitly attested Windows carry-forward remains truthfully
+identified with its original physical revision and residual provenance gap.
 
 ---
 
@@ -472,6 +475,7 @@ Setup --> Real KTX2 Foundation --|
 | FR-014 | T008-T019, T036, T048 | Real KTX2 producer/artifact and semantic comparison |
 | FR-015-FR-022 | T035-T054 | Self-contained generation, strict no-source load, equivalence, reuse, mutation/failure |
 | FR-023-FR-031, FR-046-FR-050, FR-055-FR-056 | T055-T084, T119-T125, T127-T128, T144, T166, T180 | Asset-root composition, frozen camera, canonical 512 extent, semantic-before-baseline ordering, exact registered FLIP, lifecycle |
+| FR-057-FR-058 | T181, T184, T186-T187 | Cross-process reference-mode calibration, multi-reference selection, independent hardware package deadlines, and recoverable package collect-all |
 | FR-032-FR-037, FR-051-FR-054 | T085-T097, T112-T114, T167-T170, T173-T177, T179, T194 | Regular/medium/hardware profiles, package-owned hosted endurance/scale lifecycle, environment authority, operational bounds, required Metal RSS, observed Windows working set, and dual physical image authority |
 | FR-038-FR-041 | T098-T107, T171-T172, T178, T195 | Deterministic/observational reports, measurement disposition, stable failures, bounded privacy-safe artifacts, compressed references, generated-output retention, and rerun-safe immutable artifact handoff |
 | FR-059 | T196 | Exact formal native drawable extent on high-density displays without resampling, while preserving ordinary and preview density behavior |
@@ -485,7 +489,7 @@ Setup --> Real KTX2 Foundation --|
 | SC-005-SC-006 | T036-T049, T054 |
 | SC-007 | T031, T052, T056, T058, T103, T107 |
 | SC-008 | T070-T084, T114, T180 |
-| SC-009-SC-010 | T084-T090, T113-T114, T144, T167-T170, T173-T177, T179; T114 owns both consolidated 3,600-second local physical lanes with platform-specific RSS disposition |
+| SC-009-SC-010 | T084-T090, T113-T114, T144, T167-T170, T173-T177, T179; T114 owns the final 3,600-second Metal authority and the explicit prior-revision Windows physical-evidence carry-forward, while both implemented local lanes retain platform-specific RSS disposition |
 | SC-011 | T108-T114 |
 | SC-012 | T098-T107, T118, T178 |
 | SC-013 | T108 |

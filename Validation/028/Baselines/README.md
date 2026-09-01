@@ -130,9 +130,10 @@ under `Validation/028/hardware-windows-vulkan-7d0cd73-evidence/` has SHA-256
 The same full authority run observed 169,361,408 bytes of non-monotonic Windows
 working-set growth despite zero terminal owners. Decision 51/T179 classifies
 that metric as observed while preserving every physical image and lifecycle
-gate. The pre-policy run failed fast before Windows Sponza, so T114 remains open
-until both physical targets consume every Accepted baseline and pass on the
-final shared revision.
+gate. Final closeout does not claim a new Windows hardware execution: the
+maintainer explicitly accepted the prior complete Windows physical bundle,
+the exact references admitted from it, and final-revision hosted Windows
+producer/consumer evidence as a one-time attested carry-forward.
 
 ## Accepted Windows Vulkan Sponza v2 baseline
 
@@ -163,8 +164,11 @@ The maintainer explicitly accepted the reviewed Windows Sponza v2 image on
 reference; no translation, crop, scale, resampling, or alignment was applied.
 The calibration evidence SHA-256 is
 `b11ea1cc3abfe888985c8c0d2f89f754f99204bd465d63051f600a0379bf1d4c`.
-Final same-revision Windows authority must now consume this Accepted record and
-pass semantic/FLIP and mutation gates rather than generating another Candidate.
+The Accepted record contains the exact decoded pixels emitted by that physical
+run. On 2026-09-01 the maintainer explicitly accepted this prior physical
+evidence for Feature 028 closeout without asserting that the final revision ran
+on Windows hardware. Future Windows reference-image or render-path changes do
+not inherit this carry-forward decision.
 
 ## Final local consumption evidence
 
@@ -183,6 +187,19 @@ and summary SHA-256
 `6c456e04daf300a02fc5e7668034094d5760c859ca795923059e1a22e72c1c83`.
 
 The final pre-prime binary also passed separate 20-frame visible MoltenVK gates
-for both workloads with exact registry-derived baseline selection. Final
-physical CI remains responsible for the same-revision 1,000-cycle Vulkan and
-Metal closeout record.
+for both workloads with exact registry-derived baseline selection.
+
+Final closeout revision
+`588d24560dc6ba7b67aa4f14e60026d058b0ab31` then passed the maintainer-local
+M4 Metal authority for both workloads. Each consumed its exact-drawable Metal
+v2 reference with all four FLIP fields equal to zero, 20 semantic probes,
+1,000/20 lifecycle cycles, 2,000 captures, seven readbacks, zero terminal
+owners, stale-handle rejection, and zero RSS growth. The authority summary
+SHA-256 is
+`26a479e8b93cd1bbd74c2550be69c3b8a3624a90d7efb11dee3e408873d5f89c`,
+artifact manifest SHA-256 is
+`c6a01a2f772dd2cc747b97e12d2b840ec9af29cb3b3eec027fcd32bea8f33bb9`,
+and preflight evidence digest is
+`468c589ccd35caf49722f1ad617ccf3e86a15ebec2eeb6efa2c19772f744874b`.
+Decision 57 records the separately attested Windows carry-forward and its
+residual provenance limitation.

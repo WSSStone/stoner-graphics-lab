@@ -154,19 +154,69 @@ and calibration evidence SHA-256 is
 The Accepted registry ID is
 `production-content-sponza-v2.windows.discrete-vulkan.rgba8.v1`.
 
-## Remaining Closeout
+## Final Closeout
 
-T112-T114 remain open. The final shared revision after baseline admission must
-provide:
+Final workflow-dispatch run
+[`33467298777`](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/33467298777)
+completed successfully at revision
+`588d24560dc6ba7b67aa4f14e60026d058b0ab31`. Linux ASan/UBSan, Linux TSan,
+Regular Windows Vulkan, Regular Linux Vulkan, Regular arm64 macOS Metal,
+Regular Intel macOS Metal, all four immutable-artifact consumers, both medium
+Metal shards, and Aggregate medium Metal shards passed.
 
-1. a passing hosted Windows/macOS/Linux regular matrix;
-2. a passing hosted medium aggregate with exact schema-v4 package lifecycle
-   facts: Lantern endurance 1,000/20 and Sponza scale lifecycle 100/10;
-3. passing maintainer-local Metal and Windows Vulkan hardware profiles on the
-   same revision, with Metal within 16 MiB RSS growth, Windows retaining complete
-   working-set observations, and both consuming accepted image baselines for
-   every required workload; and
-4. bounded report, manifest, baseline, and preflight digests recorded here.
+| Hosted artifact | GitHub archive SHA-256 | Summary SHA-256 | Manifest SHA-256 |
+| --- | --- | --- | --- |
+| `production-regular-windows-vulkan-1` | `94fc0e6127551aeb284fbf44d0a13cda4f9d35120790ab0f2a1fd6be918c6d26` | `e9ad7ab143c1ed35a2f498d8a836652f55af07f9f3935c8c42f9008aab991020` | `9c3c2e15829205eb863167e2cb7d915d193d9f52fccd7a8b12127e09670e1863` |
+| `production-regular-linux-vulkan-1` | `0e0c1bfb14d0d5a95682f59be7c4ea2dd8ccd5a75b9d7a31686d159437e8c27e` | `207cbe72f68a172af05971f1a3acb146a77327ad7d27269e26202247de1a5d1c` | `df1439d958dff989a599d5685f675c9e84145718c609b1b3b9a4d241958d4564` |
+| `production-regular-macos-metal-1` | `7a464d40bdcbe87fc8f39a166ab411d8dc8682c7f5a78be2252bfcf8fd9daa23` | `ee2fdd6462834f4c423b5198d6f63b90d98933c43170281e38fcf13ab92cb38e` | `a7ffaeb32fd40b793e824a3b751c4983a7fc53c664badb4ec5be2f0cac1c2c8e` |
+| `production-regular-macos-intel-metal-1` | `5ecf798a5ac73776ff043e154714064406d2b9a7eca52f6fcb9e19ef1a09c6b8` | `297f6df18e807d1a7c852d613c66b78a473e6ce5797945efd2a6ea1d7e321af3` | `6ea499153f0cf87f6773edf7ea50849f35262ea7a4299c28703e46f2c30932b2` |
 
-Large run directories are never promoted into this path. Only the minimal
-digests and conclusions needed to audit the final decision are retained.
+The four consumer archives independently revalidated those manifests: Windows
+`ccbef1078ba8696f94a8e8f19e65d6e73173e8872190b7ef6ab4c1f35f5cb837`,
+Linux `8f489c4deeac5e03ad8168e8b4824cffd6528b02a96695eb6d08b08851c75d7d`,
+arm64 Metal `92ca159110800640be3c511100d9ad03085292a453e2d24e01e2077acfe0c021`,
+and Intel Metal
+`e2b61bb45ed6eec89fb62253da483254df93b0e01d0127acd76856563183bb77`.
+ASan/UBSan and TSan archives have SHA-256
+`57b33107516f233740e036209db4b46ad19956c2eaf9902a1370bed07ba77b97`
+and `089e34ab756125070f039da1899808c016802f37da35ecc31988e22605e9a7e2`.
+
+Hosted medium retained the exact schema-v4 responsibilities. Lantern completed
+1,000/20 endurance cycles, 2,000 captures, seven readbacks, zero owners, and
+stale rejection; summary/manifest SHA-256 values are
+`c13db5c877673f1be4e43f67db9339c51a6e88854c8723bab7cacf3dc87727a5`
+and `4540244f5ce4e5f40d871684c7e1bafbaead1f5aaa34c6fda039d07845b4ccca`.
+Sponza completed 100/10 scale-lifecycle cycles, 200 captures, seven readbacks,
+zero owners, and stale rejection; summary/manifest SHA-256 values are
+`41f867d737064277aebabed350557db76ba9dea35e7e5297b3767753a2ee9d1f`
+and `7d5b33a7520119f02d550edfdd886b6e852b28bad766e35d56457affdb5bedbe`.
+The passing aggregate summary SHA-256 is
+`b0cf9be2cefdb08247738c18cae5509eee5930663f45ffe2c10e845c88bc33e3`;
+hosted RSS and timing remained observations/operational measurements.
+
+The same final revision passed the maintainer-local M4 Metal hardware profile
+in 630.700 seconds. Both packages consumed their Accepted exact-drawable v2
+references with FLIP mean/p95/maximum/bad fraction all zero, 20 semantic
+probes, 1,000/20 cycles, 2,000 captures, seven readbacks, zero terminal owners,
+stale rejection, and zero RSS growth. Summary SHA-256 is
+`26a479e8b93cd1bbd74c2550be69c3b8a3624a90d7efb11dee3e408873d5f89c`,
+manifest SHA-256 is
+`c6a01a2f772dd2cc747b97e12d2b840ec9af29cb3b3eec027fcd32bea8f33bb9`,
+and preflight evidence digest is
+`468c589ccd35caf49722f1ad617ccf3e86a15ebec2eeb6efa2c19772f744874b`.
+
+No Windows hardware run occurred at `588d245`. On 2026-09-01 the maintainer
+explicitly accepted a one-time carry-forward of the prior complete Windows
+physical evidence at `0cf018257902a5077cff27098d7117b842eddbe6`, the exact
+Windows references later admitted at
+`700005bc25972bdd3baf6da33493d737598ce575`, and the final hosted Windows
+producer/consumer above. The prior physical summary and manifest SHA-256 values
+are `7c676b88423c7fd8af2be291fb27e15903ab07e9dd29d1da32dc4588ce4c666b`
+and `74ea6c7450c6af607e3d5662b6804c5412db2ff26ce249e9702beea76e7d7f29`.
+This attestation closes Feature 028 while preserving the provenance gap; it is
+not a fabricated pass and does not automatically authorize carry-forward for
+future baseline or render-path changes.
+
+Large run directories are not promoted here. The audit record retains only
+these bounded conclusions and digests; provider artifacts remain externally
+retained and local generated evidence remains ignored.
