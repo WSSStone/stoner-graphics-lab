@@ -594,6 +594,15 @@ void TestBaselineRegistry(FProductionImageAcceptanceTestResult& Result)
             "0ac8a8f04d32ead184dd9f4b22dcf40d6932a50fdfe993f1bc39268ed773172f"),
         "repository registry consumes the explicitly accepted exact-drawable Metal Lantern baseline");
     Record(Result,
+        RepositoryRegistry.SelectAccepted(MetalSignature,
+            "production-content-sponza-v2", "metal", Baseline, Failure) &&
+        Baseline.BaselineId == FString(
+            "production-content-sponza-v2.macos.apple8.metal.rgba8.v2") &&
+        Baseline.References.size() == 1 &&
+        Baseline.References.front().ReferenceSha256 == FString(
+            "b2c7f49b45fb3c695229c66a1f29e93a5b41bdb9b69cca0499e2b278c313cb93"),
+        "repository registry consumes the explicitly accepted exact-drawable Metal Sponza baseline");
+    Record(Result,
         RepositoryRegistry.SelectAccepted(WindowsSignature,
             "production-content-lantern-v2", "vulkan", Baseline, Failure) &&
         Baseline.BaselineId == FString(

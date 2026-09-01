@@ -1,7 +1,7 @@
 {
   "schema": "stoner.production-image-baseline",
   "schemaVersion": 2,
-  "baselineId": "production-content-sponza-v2.macos.apple8.metal.rgba8.v1",
+  "baselineId": "production-content-sponza-v2.macos.apple8.metal.rgba8.v2",
   "state": "accepted",
   "workloadRevision": "production-content-sponza-v2",
   "backend": "metal",
@@ -24,7 +24,7 @@
     {
       "referenceId": "primary",
       "referencePath": "macos.apple8.metal.rgba8/production-content-sponza-v2.png",
-      "referenceSha256": "7e98feb07832b7d8dfdf87977a27ac1dbb955070575d2b092c985d1bb3ca8f4f",
+      "referenceSha256": "b2c7f49b45fb3c695229c66a1f29e93a5b41bdb9b69cca0499e2b278c313cb93",
       "flipPolicy": {
         "meanMax": 0.0005,
         "p95Max": 0.001,
@@ -32,7 +32,7 @@
         "badPixelThreshold": 0.05,
         "badPixelFractionMax": 0.001
       },
-      "calibrationEvidenceSha256": "2029332bd3c908c2e19adbbe2960d1f31d9faad07a3a2d7ac9d394a0d0c2defa"
+      "calibrationEvidenceSha256": "9f16d72122dad114e01785feb9de29a5a9a643a532f1d59250a36f7cae8d1ad2"
     }
   ]
 }

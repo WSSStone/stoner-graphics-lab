@@ -96,6 +96,35 @@ exact-drawable correction and is prerequisite evidence for the subsequently
 accepted Metal Lantern v2 reference; final closeout still requires one shared
 post-admission revision.
 
+Hosted workflow-dispatch run
+[`33462511699`](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/33462511699)
+at revision `a21ae57fe4bfa207104c775f6844fe3c1130d694` passed Regular Windows
+Vulkan, Regular Linux Vulkan, arm64 and Intel macOS Metal, Linux ASan/UBSan,
+Linux TSan, both schema-v4 medium shards, Aggregate medium Metal shards, and
+all four immutable-artifact revalidation consumers. This is the passing hosted
+prerequisite immediately before exact-drawable Metal Sponza admission; the
+post-admission revision must still repeat final shared-revision closeout.
+
+## Metal Sponza exact-drawable acceptance
+
+The maintainer-local Metal hardware profile at revision
+`a21ae57fe4bfa207104c775f6844fe3c1130d694` passed preflight. Lantern
+consumed its exact-drawable v2 baseline with zero FLIP error. Sponza completed
+the exact 1,000/20 lifecycle, 2,000 captures, seven readbacks, zero terminal
+owners, stale-handle rejection, 20 same-frame semantic probes, exact
+FinalOutput/window equality, and zero RSS growth; it failed closed only against
+the superseded Metal reference. Three independent calibration processes then
+produced 60 exact 512-by-512 captures in one zero-noise mode and rejected the
+complete mutation set. The maintainer explicitly accepted the reviewed
+replacement on 2026-09-01. Its PNG SHA-256 is
+`b2c7f49b45fb3c695229c66a1f29e93a5b41bdb9b69cca0499e2b278c313cb93`,
+decoded pixels are
+`2e5805e31f005c4184ae759d156a3f24884781178eac218df12ce1f1f47b9bbb`,
+and canonical calibration evidence SHA-256 is
+`9f16d72122dad114e01785feb9de29a5a9a643a532f1d59250a36f7cae8d1ad2`.
+The Accepted registry ID is
+`production-content-sponza-v2.macos.apple8.metal.rgba8.v2`.
+
 ## Windows Sponza acceptance
 
 The maintainer-local Windows Vulkan hardware profile at revision

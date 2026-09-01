@@ -1,0 +1,81 @@
+{
+  "backend": "metal",
+  "captureCount": 60,
+  "crossProcessCalibration": {
+    "capturesPerProcess": 20,
+    "decodedPixelSha256": "2e5805e31f005c4184ae759d156a3f24884781178eac218df12ce1f1f47b9bbb",
+    "modeCount": 1,
+    "noise": {
+      "badPixelFraction": 0.0,
+      "maximum": 0.0,
+      "mean": 0.0,
+      "p95": 0.0
+    },
+    "processCount": 3
+  },
+  "deviceClass": "macos.apple8.metal.rgba8",
+  "height": 512,
+  "maintainerAcceptance": {
+    "acceptedAt": "2026-09-01",
+    "explicit": true,
+    "referenceId": "primary"
+  },
+  "mutationsRejected": [
+    "blank",
+    "stale",
+    "origin",
+    "translation-one-pixel",
+    "missing-geometry",
+    "material-swap",
+    "color-space",
+    "opposite-normal"
+  ],
+  "physicalAuthority": {
+    "candidateRevision": "a21ae57fe4bfa207104c775f6844fe3c1130d694",
+    "candidateSourcePngSha256": "b2c7f49b45fb3c695229c66a1f29e93a5b41bdb9b69cca0499e2b278c313cb93",
+    "lifecycleCycles": 1000,
+    "ownersAtTerminal": 0,
+    "readbackCount": 7,
+    "rssGrowthBytes": 0,
+    "rssWithinLimit": true,
+    "sameFrameBundle": true,
+    "semanticProbeCount": 20,
+    "staleHandleRejected": true,
+    "warmupCycles": 20,
+    "windowCaptureCount": 2000
+  },
+  "policy": {
+    "badPixelFractionMax": 0.001,
+    "badPixelThreshold": 0.05,
+    "maximumMax": 0.01,
+    "meanMax": 0.0005,
+    "p95Max": 0.001
+  },
+  "presentationCalibration": {
+    "candidateRevision": "a21ae57fe4bfa207104c775f6844fe3c1130d694",
+    "candidateSourcePngSha256": "b2c7f49b45fb3c695229c66a1f29e93a5b41bdb9b69cca0499e2b278c313cb93",
+    "exactDrawableHeight": 512,
+    "exactDrawableWidth": 512,
+    "imageAlignmentApplied": false,
+    "presentationEqualsFinalOutput": true,
+    "sameFrameBundle": true,
+    "semanticProbeCount": 20
+  },
+  "referenceDecodedPixelSha256": "2e5805e31f005c4184ae759d156a3f24884781178eac218df12ce1f1f47b9bbb",
+  "referenceSha256": "b2c7f49b45fb3c695229c66a1f29e93a5b41bdb9b69cca0499e2b278c313cb93",
+  "regionSemantics": {
+    "attachmentMinimumValidSampleFraction": 0.75,
+    "backgroundMinimumValidSampleFraction": 0.9,
+    "colorMinimumValidSampleFraction": 0.5,
+    "normalMinimumDirectionalCoverage": 0.6,
+    "pixelRadius": 4,
+    "statistic": "median"
+  },
+  "schema": "stoner.production-image-calibration-evidence",
+  "schemaVersion": 1,
+  "semanticProbeCount": 20,
+  "shaderProducerVersion": "027-v2",
+  "targetProfileSha256": "82681655db59befc20366978759ae42ace9ed805e2d4e0adc7de7980854f4c8f",
+  "width": 512,
+  "workloadRevision": "production-content-sponza-v2"
+}

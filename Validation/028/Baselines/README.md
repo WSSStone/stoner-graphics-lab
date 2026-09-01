@@ -66,27 +66,37 @@ workload revision and repeat calibration rather than silently replacing it.
 ## Accepted Sponza v2 image baseline
 
 The explicitly accepted camera and corrected outward-facing surface convention
-for `production-content-sponza-v2` produced 20 byte-identical captures per
-backend on the Apple8 Metal and MoltenVK device classes. Both backends observe
-the frozen diagnostic world normal as approximately
-`(-0.0000304, +0.999512, -0.00919342)` and all retained GBuffer, depth,
-lighting, final-output, and Forward readback digests are byte-identical. The
-semantic gate now requires at least 60 percent of the bounded diagnostic region
-to align with +Y at dot 0.8 or greater, so a future common backend winding
-regression fails before FLIP without depending on one edge pixel. Blank,
-stale-frame, origin, missing-geometry, material-swap, color-space, and
-opposite-normal mutations were rejected; exact FLIP also rejects a one-pixel
-translation. The maintainer explicitly accepted this corrected image on
-2026-08-24. The former Sponza v1 record is
-`superseded` and cannot be selected by the production registry.
+for `production-content-sponza-v2` observes the frozen diagnostic world normal
+as approximately `(-0.0000304, +0.999512, -0.00919342)` on Apple8 Metal and
+MoltenVK. The semantic gate requires at least 60 percent of the bounded
+diagnostic region to align with +Y at dot 0.8 or greater, so a future common
+backend winding regression fails before FLIP without depending on one edge
+pixel. The original 2026-08-24 acceptance remains authoritative for MoltenVK;
+the former Sponza v1 workload is `superseded` and cannot be selected.
+
+After T196 removed Retina drawable resampling from formal Metal authority,
+revision `a21ae57fe4bfa207104c775f6844fe3c1130d694` completed the full Metal
+1,000/20 lifecycle, 2,000 window captures, seven readbacks, zero terminal
+owners, stale-handle rejection, 20 same-frame semantic probes, exact
+FinalOutput/window equality, and zero RSS growth. Three independent processes
+then produced 60 exact 512-by-512 captures in one zero-noise mode. Blank,
+stale-frame, origin, one-pixel translation, missing-geometry, material-swap,
+color-space, and opposite-normal mutations were all rejected. The maintainer
+explicitly accepted this exact-drawable Metal replacement on 2026-09-01.
 
 | Backend | Device class | Accepted baseline ID | Calibration evidence SHA-256 |
 | --- | --- | --- | --- |
-| Metal | `macos.apple8.metal.rgba8` | `production-content-sponza-v2.macos.apple8.metal.rgba8.v1` | `2029332bd3c908c2e19adbbe2960d1f31d9faad07a3a2d7ac9d394a0d0c2defa` |
+| Metal | `macos.apple8.metal.rgba8` | `production-content-sponza-v2.macos.apple8.metal.rgba8.v2` | `9f16d72122dad114e01785feb9de29a5a9a643a532f1d59250a36f7cae8d1ad2` |
 | Vulkan (MoltenVK) | `macos.apple8.moltenvk.rgba8` | `production-content-sponza-v2.macos.apple8.moltenvk.rgba8.v1` | `7ff0ed70e15b50851fdfabdc6993dfb8398d5cfd0d0f05ba73071ffd9cce7963` |
 
-Both accepted reference images have SHA-256
+The exact-drawable Metal PNG SHA-256 is
+`b2c7f49b45fb3c695229c66a1f29e93a5b41bdb9b69cca0499e2b278c313cb93`
+and its decoded-pixel SHA-256 is
+`2e5805e31f005c4184ae759d156a3f24884781178eac218df12ce1f1f47b9bbb`.
+The unchanged MoltenVK PNG SHA-256 is
 `7e98feb07832b7d8dfdf87977a27ac1dbb955070575d2b092c985d1bb3ca8f4f`.
+No translation, crop, scale, resampling, or alignment was applied to either
+accepted reference.
 
 ## Accepted Windows Vulkan Lantern v2 baseline
 
