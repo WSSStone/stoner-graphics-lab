@@ -86,6 +86,16 @@ incorrectly requested attempt-2 names for unchanged attempt-1 producer
 artifacts. T195 records the rerun-safe immutable-artifact resolution correction;
 this diagnostic run is not final closeout authority.
 
+Hosted push run
+[`33404255291`](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/33404255291)
+at revision `2d8bc582a7f87bcd0a5cd57f1f73fe19ea43f44b` passed Regular Windows
+Vulkan, Regular Linux Vulkan, arm64 and Intel macOS Metal, Linux ASan/UBSan,
+Linux TSan, and all four immutable-artifact revalidation consumers. Medium
+shards were intentionally skipped by push policy. This run validates the
+exact-drawable correction and is prerequisite evidence for the subsequently
+accepted Metal Lantern v2 reference; final closeout still requires one shared
+post-admission revision.
+
 ## Windows Sponza acceptance
 
 The maintainer-local Windows Vulkan hardware profile at revision

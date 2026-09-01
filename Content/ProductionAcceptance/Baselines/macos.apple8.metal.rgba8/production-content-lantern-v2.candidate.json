@@ -1,7 +1,7 @@
 {
   "schema": "stoner.production-image-baseline",
   "schemaVersion": 2,
-  "baselineId": "production-content-lantern-v2.macos.apple8.metal.rgba8.v1",
+  "baselineId": "production-content-lantern-v2.macos.apple8.metal.rgba8.v2",
   "state": "accepted",
   "workloadRevision": "production-content-lantern-v2",
   "backend": "metal",
@@ -24,7 +24,7 @@
     {
       "referenceId": "primary",
       "referencePath": "macos.apple8.metal.rgba8/production-content-lantern-v2.png",
-      "referenceSha256": "a3a2f8d402f3ea4c7396006572c8936f675eac47db6e18b04f0e53130a32af6a",
+      "referenceSha256": "0ac8a8f04d32ead184dd9f4b22dcf40d6932a50fdfe993f1bc39268ed773172f",
       "flipPolicy": {
         "meanMax": 0.0005,
         "p95Max": 0.001,
@@ -32,7 +32,7 @@
         "badPixelThreshold": 0.05,
         "badPixelFractionMax": 0.001
       },
-      "calibrationEvidenceSha256": "b2452dc25e51e8c75c712511b287c871b24d9bc8232ac0b5ed5d901092b6d02f"
+      "calibrationEvidenceSha256": "c50a9df0d32ab68d1b7042285b106c0f4b1135fb3d6d4c181badbde41c8f25d6"
     }
   ]
 }

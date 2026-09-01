@@ -1,59 +1,44 @@
 {
   "backend": "metal",
-  "captureCount": 20,
-  "deviceClass": "macos.apple8.metal.rgba8",
-  "generationIdentity": "f60c3069294c588e146073d736dd8cd325760c8d1645ae6c412cf58c45a709d3",
-  "height": 512,
-  "mutations": {
-    "blank": {
-      "badPixelFraction": 0.08270645,
-      "maximum": 0.99388117,
-      "mean": 0.05778123,
-      "p95": 0.67264909,
-      "rejected": true
+  "captureCount": 60,
+  "crossProcessCalibration": {
+    "capturesPerProcess": 20,
+    "decodedPixelSha256": "41ae81b11cff782330ee35aca87ca25df76593c314917a113b21fe7949c8bbb2",
+    "modeCount": 1,
+    "noise": {
+      "badPixelFraction": 0.0,
+      "maximum": 0.0,
+      "mean": 0.0,
+      "p95": 0.0
     },
-    "colorSpace": {
-      "badPixelFraction": 0.07694626,
-      "maximum": 0.77259713,
-      "mean": 0.04130412,
-      "p95": 0.55634570,
-      "rejected": true
-    },
-    "materialSwap": {
-      "badPixelFraction": 0.07215500,
-      "maximum": 0.96288162,
-      "mean": 0.03443450,
-      "p95": 0.16312462,
-      "rejected": true
-    },
-    "missingGeometry": {
-      "badPixelFraction": 0.08270645,
-      "maximum": 0.99388117,
-      "mean": 0.05778123,
-      "p95": 0.67264909,
-      "rejected": true
-    },
-    "origin": {
-      "badPixelFraction": 0.11553955,
-      "maximum": 0.99388117,
-      "mean": 0.07466684,
-      "p95": 0.75155044,
-      "rejected": true
-    },
-    "translationOnePixel": {
-      "badPixelFraction": 0.06557465,
-      "maximum": 0.82017022,
-      "mean": 0.01434816,
-      "p95": 0.09410684,
-      "rejected": true
-    },
-    "staleFrameRejectedBeforeFlip": true
+    "processCount": 3
   },
-  "noise": {
-    "badPixelFraction": 0.0,
-    "maximum": 0.0,
-    "mean": 0.0,
-    "p95": 0.0
+  "deviceClass": "macos.apple8.metal.rgba8",
+  "height": 512,
+  "maintainerAcceptance": {
+    "acceptedAt": "2026-09-01",
+    "explicit": true,
+    "referenceId": "primary"
+  },
+  "mutationsRejected": [
+    "blank",
+    "stale",
+    "origin",
+    "translation-one-pixel",
+    "missing-geometry",
+    "material-swap",
+    "color-space",
+    "opposite-normal"
+  ],
+  "presentationCalibration": {
+    "candidateRevision": "2d8bc582a7f87bcd0a5cd57f1f73fe19ea43f44b",
+    "candidateSourcePngSha256": "0ac8a8f04d32ead184dd9f4b22dcf40d6932a50fdfe993f1bc39268ed773172f",
+    "exactDrawableHeight": 512,
+    "exactDrawableWidth": 512,
+    "imageAlignmentApplied": false,
+    "presentationEqualsFinalOutput": true,
+    "sameFrameBundle": true,
+    "semanticProbeCount": 20
   },
   "policy": {
     "badPixelFractionMax": 0.001,
@@ -62,7 +47,8 @@
     "meanMax": 0.0005,
     "p95Max": 0.001
   },
-  "referenceSha256": "a3a2f8d402f3ea4c7396006572c8936f675eac47db6e18b04f0e53130a32af6a",
+  "referenceDecodedPixelSha256": "41ae81b11cff782330ee35aca87ca25df76593c314917a113b21fe7949c8bbb2",
+  "referenceSha256": "0ac8a8f04d32ead184dd9f4b22dcf40d6932a50fdfe993f1bc39268ed773172f",
   "regionSemantics": {
     "attachmentMinimumValidSampleFraction": 0.75,
     "backgroundMinimumValidSampleFraction": 0.9,
@@ -75,7 +61,7 @@
   "schemaVersion": 1,
   "semanticProbeCount": 20,
   "shaderProducerVersion": "027-v2",
-  "transformationDigest": "ea1507d57cf6224c65a0a5f24151e29ec98e6d4666d2dea029eb39dfe792edbc",
+  "targetProfileSha256": "82681655db59befc20366978759ae42ace9ed805e2d4e0adc7de7980854f4c8f",
   "width": 512,
   "workloadRevision": "production-content-lantern-v2"
 }

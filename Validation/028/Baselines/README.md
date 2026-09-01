@@ -33,15 +33,30 @@ color-space, one-pixel translation, and opposite-normal mutations.
 
 | Backend | Device class | Baseline ID | Calibration evidence SHA-256 |
 | --- | --- | --- | --- |
-| Metal | `macos.apple8.metal.rgba8` | `production-content-lantern-v2.macos.apple8.metal.rgba8.v1` | `b2452dc25e51e8c75c712511b287c871b24d9bc8232ac0b5ed5d901092b6d02f` |
+| Metal | `macos.apple8.metal.rgba8` | `production-content-lantern-v2.macos.apple8.metal.rgba8.v2` | `c50a9df0d32ab68d1b7042285b106c0f4b1135fb3d6d4c181badbde41c8f25d6` |
 | Vulkan (MoltenVK) | `macos.apple8.moltenvk.rgba8` | `production-content-lantern-v2.macos.apple8.moltenvk.rgba8.v1` | `e53e0fbcc5a7797f4ed4d35c4cb4f59311e4965abfde1a1c75160dbd47468d73` |
 
-Both records use reference image SHA-256
-`a3a2f8d402f3ea4c7396006572c8936f675eac47db6e18b04f0e53130a32af6a`
-and remain selected only by exact workload, backend, registry-derived device
-class, and capability-signature equality. The `StateFixtures/` records retain
-all four non-accepted lifecycle states against a fixture-only workload so the
-production selector must continue to reject them.
+The MoltenVK record uses reference image SHA-256
+`a3a2f8d402f3ea4c7396006572c8936f675eac47db6e18b04f0e53130a32af6a`.
+Revision `2d8bc582a7f87bcd0a5cd57f1f73fe19ea43f44b` corrected the formal Metal
+authority window on Retina displays by converging the measured drawable to
+exactly 512 by 512. Its presented pixels exactly matched the same-submission
+FinalOutput, but correctly did not match the older blurred Metal reference.
+Three independent processes then produced 60 identical captures in one mode,
+with decoded-pixel SHA-256
+`41ae81b11cff782330ee35aca87ca25df76593c314917a113b21fe7949c8bbb2`;
+all required mutations were rejected. The maintainer explicitly accepted this
+replacement on 2026-09-01. Its lossless PNG SHA-256 is
+`0ac8a8f04d32ead184dd9f4b22dcf40d6932a50fdfe993f1bc39268ed773172f`.
+No translation, crop, scale, resampling, or alignment was applied. The prior
+Metal v1 reference is superseded by repository history and is not retained as
+a consumable mode.
+
+Both current records remain selected only by exact workload, backend,
+registry-derived device class, and capability-signature equality. The
+`StateFixtures/` records retain all four non-accepted lifecycle states against
+a fixture-only workload so the production selector must continue to reject
+them.
 
 Feature 028 freezes `sampleCount=1` and performs no anti-aliasing or general
 post-processing. That visibly aliased output is the reviewed v2 authority for

@@ -573,6 +573,9 @@ void TestBaselineRegistry(FProductionImageAcceptanceTestResult& Result)
         "baseline v2 rejects more than three references");
 
     FProductionImageBaselineRegistry RepositoryRegistry;
+    const FProductionCapabilitySignature MetalSignature{
+        1, "native-metal", "arm64", "apple8", "metal-macos-12-arm64",
+        "rgba8-unorm", "d32-float", 1, "astc"};
     const FProductionCapabilitySignature WindowsSignature{
         1, "native-vulkan", "x86_64", "discrete-vulkan", "vulkan-1.3",
         "rgba8-unorm", "d32-float", 1, "bc"};
@@ -582,6 +585,15 @@ void TestBaselineRegistry(FProductionImageAcceptanceTestResult& Result)
             Failure) &&
         RepositoryRegistry.LoadBaselines(
             "Content/ProductionAcceptance/Baselines", Failure) &&
+        RepositoryRegistry.SelectAccepted(MetalSignature,
+            "production-content-lantern-v2", "metal", Baseline, Failure) &&
+        Baseline.BaselineId == FString(
+            "production-content-lantern-v2.macos.apple8.metal.rgba8.v2") &&
+        Baseline.References.size() == 1 &&
+        Baseline.References.front().ReferenceSha256 == FString(
+            "0ac8a8f04d32ead184dd9f4b22dcf40d6932a50fdfe993f1bc39268ed773172f"),
+        "repository registry consumes the explicitly accepted exact-drawable Metal Lantern baseline");
+    Record(Result,
         RepositoryRegistry.SelectAccepted(WindowsSignature,
             "production-content-lantern-v2", "vulkan", Baseline, Failure) &&
         Baseline.BaselineId == FString(
