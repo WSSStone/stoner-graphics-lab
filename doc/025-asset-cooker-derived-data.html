@@ -24,7 +24,7 @@
 <tr><th>验证结果</th><td>本地 strict Debug/Release 与 1606/1599 条全量回归通过；20-run determinism、并发、15/30 corruption corpus 与 M4 Pro reference benchmark 通过；GitHub Actions run 31827665459 的 8/8 跨平台及 sanitizer jobs 全绿。</td></tr>
 </tbody></table>
 <h3>2. 本期核心摘要</h3><p>本期把 020–024 的 source Asset 转换为可发布的 cooked generation。独立的 <code>StonerAssetCooker</code> 可以 plan、clean cook、incremental cook、validate 与 inspect；它构造依赖图、固定输入快照、计算 derived key、复用或修复 DDC、生成 canonical manifest，并通过 immutable generation 与原子 current pointer 发布完整结果。</p><p>最值得学习的是 build cache 与 runtime package 不是同一件事。DDC entry 是可丢弃、可重建的派生数据；published generation 是必须独立验证、原子可见的部署边界。两者由 AssetId、version 与 digest 串联，却拥有不同的信任模型和生命周期。</p>
-<h3>3. 上下文与依赖</h3><p>025 消费 020 的 identity/registry/extension、021 的 image/texture、022 的 KTX2 cook、023 的 material/shader 与 024 的 static model typed payload。它为 026 Runtime Asset Manager、028 Meshlet Derived Data 和 030 Streaming/Residency 提供稳定 cooked contract。编译方向保持 <code>Tools/AssetCooker -&gt; Asset + Core</code>；runtime 模块不得依赖 Tools，Asset 仍只依赖 Core。</p></section>
+<h3>3. 上下文与依赖</h3><p>025 消费 020 的 identity/registry/extension、021 的 image/texture、022 的 KTX2 cook、023 的 material/shader 与 024 的 static model typed payload。它为 026 Runtime Asset Manager、031 Meshlet Derived Data 和 033 Streaming/Residency 提供稳定 cooked contract。编译方向保持 <code>Tools/AssetCooker -&gt; Asset + Core</code>；runtime 模块不得依赖 Tools，Asset 仍只依赖 Core。</p></section>
 
 <section id="s2"><h2>二、目标与边界</h2>
 <h3>1. 业务与功能目标</h3><p>开发者给定 source root、selection、target profile、output、DDC 与 worker count，即可得到确定 generation。未变化节点复用验证后的 DDC；损坏 entry 被隔离并重建；发布前失败不会改变 current generation；发布后的 output 可在 source 和 DDC 都移除后独立严格验证。命令统一使用稳定 exit category、stable reason 和可规范化 JSON report。</p>

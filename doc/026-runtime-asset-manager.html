@@ -73,7 +73,7 @@
 <h3>3. 边界与非目标（约束）</h3>
 <ul>
 <li><strong>不做 offline cook 或 pruning：</strong>它们属于 Tools/维护流程；runtime 只持 reader lease。</li>
-<li><strong>不做 streaming、budget eviction 或 chunk scheduling：</strong>这些需要独立的 Feature 030 策略和 GPU/CPU budget 模型。</li>
+<li><strong>不做 streaming、budget eviction 或 chunk scheduling：</strong>这些需要独立的 Feature 033 策略和 GPU/CPU budget 模型。</li>
 <li><strong>不做 GPU residency：</strong>Asset 不能依赖 RHI；Renderer 才能把 CPU payload realization 为 GPU resource。</li>
 <li><strong>不做 hot reload：</strong>开发模式在一次加载开始时 pin source/version；变化会失败且不自动重试，释放后新请求才读取新版本。</li>
 <li><strong>不做网络或远程缓存：</strong>当前 generation、coordination root 和 payload 都是本机文件系统 contract。</li>
@@ -219,7 +219,7 @@ conda run -n godot python .github/scripts/run_runtime_asset_manager_validation.p
 
 <h3>3. 已知限制与后续演进</h3>
 <ul>
-<li>本期加载粒度是完整 typed payload；后续 Feature 030 才拆分 mip/meshlet chunk 和 residency。</li>
+<li>本期加载粒度是完整 typed payload；后续 Feature 033 才拆分 mip/meshlet chunk 和 residency。</li>
 <li>reader lease 只提供安全维护证据，不决定 pruning policy。</li>
 <li>跨平台 workflow 已对并发加固 revision <code>8427e13</code> 完成八任务验证；后续变更仍需重新建立对应 revision 的证据。</li>
 <li>Renderer 仍需显式把 Asset handle 转为 RHI resource；manager 不缓存 GPU object。</li>

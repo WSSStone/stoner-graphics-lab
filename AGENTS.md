@@ -17,9 +17,16 @@ The maintainer explicitly closed Windows through a one-time carry-forward of
 the complete physical evidence at `0cf0182`, the subsequently admitted exact
 Accepted references, and the final-revision hosted Windows producer/consumer;
 no Windows hardware run is claimed at `588d245`. Digests and the provenance
-limitation are recorded in `Validation/028/CI/README.md`. Feature 029 Meshlet
-Derived Data is the next roadmap phase. Asset license selection and compliance
-remain entirely outside automated acceptance.
+limitation are recorded in `Validation/028/CI/README.md`. Roadmap 2.3 inserts
+Feature 029 Renderer HDR Post-Processing & Output Transform and Feature 030
+Renderer Anti-Aliasing & Temporal Reconstruction next, and places Meshlet
+Derived Data at Feature 031 without changing its 024/025/026/028 dependencies.
+Feature 028 v2
+`sampleCount=1` and no-general-post-processing references remain historical
+correctness evidence; later formal output changes require a workload revision
+bump, exact-dimension Candidate, explicit maintainer acceptance, no automatic
+alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. Asset
+license selection and compliance remain entirely outside automated acceptance.
 <!-- SPECKIT END -->
 
 ## Active Technologies

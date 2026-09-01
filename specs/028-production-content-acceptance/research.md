@@ -349,7 +349,11 @@ Feature 028 retains the existing `sampleCount=1` render policy with no
 anti-aliasing or general post-processing. The maintainer reviewed and accepted
 that visibly aliased v2 output for this phase. Adding post-processing or
 anti-aliasing is later roadmap work and must advance affected workload
-revisions and repeat semantic/FLIP calibration.
+revisions and repeat semantic/FLIP calibration. Roadmap 2.3 assigns the formal
+HDR output transform to Feature 029 and TAA/FXAA to Feature 030; neither may
+overwrite or reinterpret Feature 028 v2. They must generate exact-dimension
+Candidates, require explicit maintainer acceptance, reject alignment/cropping/
+scaling/resampling, and retain bounded PNG/JSON evidence.
 
 **Rationale**: Reverting winding would select the wrong face and reintroduce a
 cross-backend geometry error. The unexpectedly dark correct face came from the

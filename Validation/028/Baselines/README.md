@@ -60,8 +60,12 @@ them.
 
 Feature 028 freezes `sampleCount=1` and performs no anti-aliasing or general
 post-processing. That visibly aliased output is the reviewed v2 authority for
-this phase; a future post-processing/anti-aliasing feature must advance the
-workload revision and repeat calibration rather than silently replacing it.
+this phase and remains historical correctness evidence. Feature 029 HDR output
+or Feature 030 TAA/FXAA changes must advance the workload revision, generate a
+new exact-dimension Candidate, repeat calibration, and receive explicit
+maintainer acceptance rather than silently replacing v2. Automatic alignment,
+cropping, scaling, and resampling remain forbidden; checked-in evidence remains
+bounded PNG/JSON.
 
 ## Accepted Sponza v2 image baseline
 

@@ -6,7 +6,8 @@
 ## Summary
 
 Feature 028 turns the contracts delivered by Features 020-027 into one
-production-content acceptance path before Meshlet work begins. A bounded
+production-content acceptance path before later output-transform, temporal,
+and Meshlet work begins. A bounded
 Lantern GLB is checked in for regular validation, while a hash-pinned Sponza
 external glTF package provides the medium scale tier. Both flow through the
 existing resolver/importer, real KTX2 cooking, immutable DDC/publication,

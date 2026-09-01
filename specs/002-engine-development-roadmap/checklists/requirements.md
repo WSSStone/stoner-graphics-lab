@@ -1,7 +1,8 @@
-# Specification Quality Checklist: KTX2 Cooking & Compression
+# Specification Quality Checklist: Engine Development Roadmap
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
-**Created**: 2026-07-29
+**Created**: 2026-04-21
+**Last Amended**: 2026-09-01
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -28,19 +29,13 @@
 - [x] User scenarios cover primary flows
 - [x] Feature meets measurable outcomes defined in Success Criteria
 - [x] No implementation details leak into specification
-
-## Additional Feature Checks
-
-- [x] KTX2, ETC1S, UASTC, uncompressed HDR, and complete-mip commitments are explicit
-- [x] Color, normal, generic-data, alpha, transfer, and orientation semantics remain explicit
-- [x] Asset, Renderer, RHI, and Vulkan ownership boundaries match the constitution
-- [x] BC, ETC2/EAC, ASTC, fallback, and capability-selection outcomes are testable
-- [x] Feature 025 cooker/manifest, Feature 026 async manager, and Feature 033 streaming remain excluded
-- [x] Three-platform, independent-validator, sanitizer, regression, and available-native evidence are defined
+- [x] Runtime phase coverage is current through Feature 041 while completed Features 003-028 remain immutable
+- [x] HDR output, TAA/FXAA ordering, shared temporal infrastructure, and exact-dimension evidence governance are testable
+- [x] Feature 031 Meshlet dependencies and Feature 039 temporal reuse are explicit
+- [x] Roadmap commit scope explicitly excludes the user's tutorial, workflow, and `.gitignore` changes
 
 ## Notes
 
-- Validation iteration 1 passed all checklist items.
-- Clarification session 2026-07-29 resolved authoritative artifact ownership,
-  Generic Data loss policy, the required compressed-format matrix,
-  uncompressed fallback provenance, and runtime transcode lifetime.
+- All items pass validation for the Roadmap 2.3 amendment.
+- The spec focuses on WHAT (a roadmap document) and WHY (guide development), not HOW (no specific tooling or implementation prescribed).
+- The roadmap document itself (`doc/roadmap.md`) contains technical details by necessity (it describes engine architecture), but the spec describing the roadmap feature remains technology-agnostic.

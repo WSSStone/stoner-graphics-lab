@@ -37,7 +37,7 @@
 <h3>1. 基础元数据</h3>
 <table><tbody>
 <tr><th>项目项</th><th>内容</th></tr>
-<tr><td>Feature / Roadmap</td><td>028 - Asset Production Content Integration &amp; Acceptance；原计划中的 Meshlet Derived Data 顺延到 029</td></tr>
+<tr><td>Feature / Roadmap</td><td>028 - Asset Production Content Integration &amp; Acceptance；Roadmap 2.3 后续为 029 HDR Output、030 AA/Temporal，Meshlet Derived Data 顺延到 031</td></tr>
 <tr><td>设计输入</td><td><code>specs/028-production-content-acceptance/</code> 的 spec、plan、research、data-model、contracts、tasks 与 quickstart</td></tr>
 <tr><td>主要源码</td><td><code>Source/Asset/</code>、<code>Source/Renderer/</code>、<code>Demo/StonerDemo/Private/FProductionContent*</code>、Vulkan/Metal Backend、<code>Tools/AssetCooker/</code></td></tr>
 <tr><td>内容与策略</td><td><code>Content/ProductionAcceptance/</code>、<code>Config/Validation/ProductionContent/</code></td></tr>
@@ -55,7 +55,7 @@
 <li>Feature 025 提供 DDC、manifest、generation publication 和 standalone validation；Feature 026 提供 development/strict manager、lease 与 typed request。</li>
 <li>Features 019、022、023 提供 Deferred pipeline、KTX2 和 shader payload；Feature 027 提供独立 Metal backend 与 offline metallib。</li>
 <li>FLIP 1.7 仅作为 test-side CPU single-header dependency；runtime 不链接 FLIP。cgltf、stb_image、KTX-Software、WAMR、yyjson、SPIRV-Cross 继续保持各自 private 边界。</li>
-<li>Feature 029 可在这套真实内容、确定性 cook、严格生命周期与图像证据上继续做 Meshlet Derived Data，而不必重新发明 acceptance。</li>
+<li>Feature 029/030 可在这套真实内容、确定性 cook、严格生命周期与图像证据上建立正式输出和 temporal 管线；Feature 031 Meshlet Derived Data 继续复用同一 acceptance，而不必重新发明证据体系。</li>
 </ul>
 </section>
 
@@ -264,8 +264,9 @@ Gate:        Started -> Passed | Failed | Unsupported | Timeout</code></pre>
 <ul>
 <li>外部 medium acquisition 依赖网络/cache 可用性；Unavailable 必须由 replacement lane 承担。</li>
 <li>baseline 只覆盖已接受的确切 device class；新 GPU/driver family 需要单独校准。</li>
-<li>当前正式输出为单采样且没有通用后处理；抗锯齿/后处理属于后续 roadmap，不能在不升级 revision 和重跑图像验收时静默加入。</li>
-<li>当前一次性加载完整 closure，不代表已有 streaming/residency；Feature 029+ 若改变资源粒度必须保留本期 semantic/image/lifecycle 回归。</li>
+<li>当前 v2 正式输出为 <code>sampleCount=1</code> 且没有通用后处理，它是历史正确性证据而不是可被新输出静默覆盖的 Candidate；Feature 029/030 改变正式输出时必须升级 workload revision、生成精确尺寸 Candidate、由维护者明确接受，并禁止自动对齐、裁剪、缩放或重采样。</li>
+<li>继续保留有界 PNG/JSON 证据；不得以新 tone map 或 AA 结果回写、重解释 Feature 028 v2 reference。</li>
+<li>当前一次性加载完整 closure，不代表已有 streaming/residency；Feature 031+ 若改变资源粒度必须保留本期 semantic/image/lifecycle 回归。</li>
 </ul>
 </section>
 

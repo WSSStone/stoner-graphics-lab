@@ -49,6 +49,7 @@
 ### Session 2026-09-01
 
 - Q: 最终 revision 已通过完整 hosted closeout 和 M4 Metal 物理 authority，但维护者决定不再重复耗时的 Windows Vulkan 物理运行时，Feature 028 如何如实收尾？ → A: 维护者明确接受一次性 Windows 证据复用：引用 revision `0cf018257902a5077cff27098d7117b842eddbe6` 已完成的 Windows Vulkan 1,000/20、2,000 captures、七次 readback、zero owners、stale rejection、20 semantic probes 与稳定 Sponza pixels，引用随后提交并明确接受的 Windows Lantern/Sponza baseline，再以最终 revision `588d24560dc6ba7b67aa4f14e60026d058b0ab31` 的 hosted Windows strict build/cook/runtime producer 和独立 artifact consumer 证明最终树仍可消费。记录必须明确标为 maintainer-attested carry-forward，不得虚构 final-revision Windows hardware run，也不得把本次决定推广为以后 baseline/render-path 变更的自动豁免。最终 revision 的 M4 Metal 物理 authority、Metal 16 MiB RSS、精确图像、hosted regular/medium/sanitizer 和 artifact gates 仍全部实际执行并通过。
+- Q: Feature 028 收尾后 roadmap 如何承接正式输出和抗锯齿，同时保持 v2 证据含义？ → A: Roadmap 2.3 插入 Feature 029 HDR Post-Processing & Output Transform 和 Feature 030 Anti-Aliasing & Temporal Reconstruction，Meshlet Derived Data 顺延为 031。Feature 028 v2 `sampleCount=1`/无通用后处理 reference 保持历史正确性证据；029/030 改变正式输出必须升级 workload revision、生成精确尺寸 Candidate、由维护者明确接受，禁止自动对齐/裁剪/缩放/重采样，并继续使用有界 PNG/JSON 证据。
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -651,7 +652,11 @@ corpus and generation evidence.
   general post-processing. This visible output MAY be accepted only through the
   normal versioned image process; later anti-aliasing or post-processing MUST
   be treated as a render-policy change under FR-049 rather than replacing an
-  accepted reference in place.
+  accepted reference in place. The accepted v2 references remain historical
+  correctness evidence. Later formal output MUST use an advanced workload
+  revision, exact-dimension Candidate, and explicit maintainer acceptance;
+  automatic alignment, cropping, scaling, and resampling remain prohibited,
+  and evidence remains bounded PNG/JSON.
 - **FR-051**: Validation MUST derive an execution-environment class from a
   repository-owned contract rather than an unrestricted class string. GitHub-
   hosted, maintainer-local Metal, maintainer-local Windows Vulkan, and local

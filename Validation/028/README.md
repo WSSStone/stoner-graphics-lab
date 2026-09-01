@@ -67,6 +67,13 @@ display-backed application surface, accepted image evidence, and the declared
 entry points for future baseline or render-path changes. Feature 028 closeout's
 one-time Windows carry-forward exception is documented above and in `CI/README.md`:
 
+Roadmap 2.3 preserves the accepted v2 `sampleCount=1`,
+no-general-post-processing images as historical correctness evidence. Feature
+029/030 output changes require a new workload revision and exact-dimension
+Candidate, explicit maintainer acceptance, no alignment/crop/scale/resampling,
+and the same bounded PNG/JSON policy before these authority commands can admit
+new references.
+
 ```bash
 STONER_PRODUCTION_VISIBLE=1 \
 python3 .github/scripts/run_production_content_validation.py \
