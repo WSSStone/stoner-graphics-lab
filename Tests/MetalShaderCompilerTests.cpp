@@ -95,6 +95,7 @@ public:
     enum class EMode
     {
         Success,
+        ModernToolchain,
         CompileTimeout,
         CompileFailure,
         EmptyAir,
@@ -110,6 +111,22 @@ public:
         const usize Index = Requests.size() - 1;
         if (Index == 0) return Success("/Applications/Xcode/metal\n");
         if (Index == 1) return Success("Metal version 32023.98\n");
+        if (Index == 2 && Mode == EMode::ModernToolchain)
+        {
+            FProcessExecutionResult Result;
+            Result.Status = EProcessExecutionStatus::Completed;
+            Result.ExitCode = 72;
+            Result.StandardError = FString("metallib not found by xcrun");
+            return Result;
+        }
+        if (Index == 3 && Mode == EMode::ModernToolchain)
+            return Success("/Applications/Xcode/Metal.xctoolchain/usr/bin/metallib\n");
+        if (Index == 4 && Mode == EMode::ModernToolchain)
+            return Success("AIR-LLD 32023.98\n");
+        if (Index == 5 && Mode == EMode::ModernToolchain)
+            return Success("Xcode 26.0\nBuild version 17A1\n");
+        if (Index == 6 && Mode == EMode::ModernToolchain)
+            return Success("26.0\n");
         if (Index == 2) return Success("/Applications/Xcode/metallib\n");
         if (Index == 3) return Success("metallib version 32023.98\n");
         if (Index == 4) return Success("Xcode 16.4\nBuild version 16F6\n");
@@ -225,6 +242,30 @@ void TestDoctor(FMetalShaderCompilerTestResult& Result)
 #endif
 }
 
+void TestModernToolchainDoctor(FMetalShaderCompilerTestResult& Result)
+{
+    FFakeMetalExecutor Executor(FFakeMetalExecutor::EMode::ModernToolchain);
+    FMetalToolchainEvidence Evidence;
+    const auto Status = InspectMetalToolchain(Executor, 2000, 4096, Evidence);
+#if SG_PLATFORM_MAC
+    Record(Result,
+        Status == EMetalLibraryFinalizeStatus::Success &&
+            Evidence.IsValid() && Executor.Requests.size() == 7 &&
+            HasArgument(Executor.Requests[2], "--find") &&
+            HasArgument(
+                Executor.Requests[3], "-print-prog-name=metallib") &&
+            Executor.Requests[4].ExecutablePath == FString(
+                "/Applications/Xcode/Metal.xctoolchain/usr/bin/metallib") &&
+            HasArgument(Executor.Requests[4], "--version"),
+        "toolchain doctor discovers metallib through modern metal toolchain fallback");
+#else
+    Record(Result,
+        Status == EMetalLibraryFinalizeStatus::HostUnsupported &&
+            Executor.Requests.empty() && !Evidence.IsValid(),
+        "modern toolchain fallback remains host-gated off macOS");
+#endif
+}
+
 void TestFinalization(FMetalShaderCompilerTestResult& Result)
 {
     FString Msl;
@@ -261,7 +302,9 @@ void TestFinalization(FMetalShaderCompilerTestResult& Result)
                 Executor.Requests[6],
                 "-fdebug-compilation-dir=/stoner-metal-work") &&
             HasModuleCacheArgument(Executor.Requests[6], Root) &&
-            HasArgument(Executor.Requests[7], "metallib") && Clean;
+            Executor.Requests[7].ExecutablePath ==
+                FString("/Applications/Xcode/metallib") &&
+            !HasArgument(Executor.Requests[7], "metallib") && Clean;
     if (!Passed)
         std::cout << "  finalizer-status="
                   << static_cast<int>(Finalized.Status)
@@ -381,6 +424,7 @@ FMetalShaderCompilerTestResult RunMetalShaderCompilerTests()
 {
     FMetalShaderCompilerTestResult Result;
     TestDoctor(Result);
+    TestModernToolchainDoctor(Result);
     TestFinalization(Result);
     TestFailures(Result);
     TestNativeFinalizer(Result);

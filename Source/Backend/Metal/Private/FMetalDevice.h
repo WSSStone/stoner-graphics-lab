@@ -78,6 +78,9 @@ public:
     GetOwner() const noexcept;
     [[nodiscard]] void* GetNativeDevice() const noexcept;
     [[nodiscard]] void* GetNativeQueue() const noexcept;
+    [[nodiscard]] RHI::ERHIResult ReadbackTextureForTesting(
+        const Core::TSharedPtr<RHI::IRHITexture>& Texture,
+        Core::TArray<Core::uint8>& OutBytes) const noexcept;
 
 private:
     struct FImpl;

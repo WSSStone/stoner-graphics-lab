@@ -178,7 +178,7 @@ bool FProductionContentCompositionBuilder::Build(
         EDeferredDepthConvention::StandardZ, NearPlane, FarPlane);
     Deferred.Output = {
         "ProductionCompositionColor",
-        RHI::ERHIFormat::R8G8B8A8_UNorm,
+        RHI::ERHIFormat::R16G16B16A16_Float,
         Deferred.View.Extent};
     Deferred.AmbientContribution = FColor(0.03f, 0.03f, 0.03f, 1.0f);
 
@@ -191,7 +191,7 @@ bool FProductionContentCompositionBuilder::Build(
     Forward.View.Viewport.Extent = {Config.Width, Config.Height};
     Forward.Output.ColorTargetName = Deferred.Output.Name;
     Forward.Output.DepthTargetName = "ProductionDepth";
-    Forward.Output.FormatSummary = "RGBA8";
+    Forward.Output.FormatSummary = "RGBA16F";
     Forward.Output.Extent = {Config.Width, Config.Height};
     Forward.Environment.Mode = EForwardBackgroundMode::Clear;
     Forward.Environment.BackgroundName = "ProductionClear";
@@ -201,10 +201,14 @@ bool FProductionContentCompositionBuilder::Build(
     DeferredSun.Name = "ProductionKey";
     // Lantern v2 is the first regular workload rendered with the corrected
     // native front-face convention. Its camera observes the physical -X face,
-    // so the key must travel from the camera side (+X) into the scene. Keep the
-    // already accepted Sponza v2 lighting frozen under its own revision.
-    DeferredSun.Direction = Config.WorkloadRevision ==
-            FString("production-content-lantern-v2")
+    // so the key must travel from the camera side (+X) into the scene. Feature
+    // 029 v3 changes only the formal output policy and therefore inherits the
+    // exact Lantern v2 scene lighting. Sponza v2/v3 retain their own frozen
+    // direction.
+    const bool bLanternFrozenScene =
+        Config.WorkloadRevision == FString("production-content-lantern-v2") ||
+        Config.WorkloadRevision == FString("production-content-lantern-v3");
+    DeferredSun.Direction = bLanternFrozenScene
         ? FVector3(1.0f, 0.35f, -0.6f).GetSafeNormal()
         : FVector3(-1.0f, -0.35f, -0.6f).GetSafeNormal();
     DeferredSun.Color = FColor(1.0f, 0.96f, 0.90f, 1.0f);
@@ -611,8 +615,9 @@ bool PrepareProductionForwardSmoke(
     RHI::FRHITextureDesc OutputDesc;
     OutputDesc.Width = Width;
     OutputDesc.Height = Height;
-    OutputDesc.Format = RHI::ERHIFormat::R8G8B8A8_UNorm;
+    OutputDesc.Format = RHI::ERHIFormat::R16G16B16A16_Float;
     OutputDesc.Usage = RHI::ERHITextureUsage::ColorAttachment |
+        RHI::ERHITextureUsage::Sampled |
         RHI::ERHITextureUsage::CopySource;
     auto Output = Device.CreateTexture(OutputDesc);
     RHI::FRHITextureDesc AuxiliaryDesc = OutputDesc;
@@ -659,6 +664,10 @@ bool PrepareProductionForwardSmoke(
     auto Framebuffer = Device.CreateFramebuffer(FramebufferDesc);
     auto Commands = Device.CreateCommandBuffer(RHI::ERHIQueueType::Graphics);
 
+    // Forward remains a non-authoritative compatibility smoke path in
+    // Feature 029, but Feature 028 regression coverage still requires its
+    // scene-linear RGBA16F output to be readable.  It is never presented or
+    // admitted as the formal display output.
     RHI::FRHITextureBufferCopyRegion Region;
     Region.Width = Width;
     Region.Height = Height;

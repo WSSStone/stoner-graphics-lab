@@ -2,6 +2,7 @@
 
 #include "Core/CoreMinimal.h"
 
+#include <optional>
 #include <span>
 
 enum class EProductionReadbackPixelFormat
@@ -120,6 +121,63 @@ struct FProductionFlipResult
     float Maximum = 0.0f;
     float BadPixelFraction = 0.0f;
     Stoner::Core::FString FailureReason;
+};
+
+struct FOutputTransformSdrAcceptanceV3
+{
+    Stoner::Core::FString MaintainerId;
+    Stoner::Core::FString ReviewedAt;
+    Stoner::Core::FString CandidateSha256;
+    Stoner::Core::FString Decision;
+};
+
+struct FOutputTransformSdrBaselineV3
+{
+    Stoner::Core::FString BaselineId;
+    Stoner::Core::FString State;
+    Stoner::Core::FString WorkloadRevision;
+    Stoner::Core::FString Backend;
+    Stoner::Core::FString DeviceClass;
+    Stoner::Core::FString CapabilityDigest;
+    Stoner::Core::FString OutputDeviceProfileId;
+    Stoner::Core::FString TransformVersion;
+    double ExposureStops = 0.0;
+    Stoner::Core::FString SettingsDigest;
+    Stoner::Core::uint32 Width = 0;
+    Stoner::Core::uint32 Height = 0;
+    Stoner::Core::uint32 SampleCount = 0;
+    Stoner::Core::FString ReferencePath;
+    Stoner::Core::FString CompressedSha256;
+    Stoner::Core::FString DecodedSha256;
+    Stoner::Core::FString CalibrationEvidenceSha256;
+    FProductionFlipPolicy FlipPolicy;
+    std::optional<FOutputTransformSdrAcceptanceV3> Acceptance;
+};
+
+class FOutputTransformSdrBaselineRegistryV3
+{
+public:
+    [[nodiscard]] bool LoadRegistry(
+        const Stoner::Core::FString& Path,
+        Stoner::Core::FString& OutFailure);
+
+    [[nodiscard]] bool SelectAccepted(
+        const Stoner::Core::FString& WorkloadRevision,
+        const Stoner::Core::FString& Backend,
+        const Stoner::Core::FString& DeviceClass,
+        const Stoner::Core::FString& OutputDeviceProfileId,
+        const Stoner::Core::FString& TransformVersion,
+        double ExposureStops,
+        const Stoner::Core::FString& SettingsDigest,
+        FOutputTransformSdrBaselineV3& OutBaseline,
+        Stoner::Core::FString& OutFailure) const;
+
+    [[nodiscard]] static bool IsAllowedStateTransition(
+        const Stoner::Core::FString& From,
+        const Stoner::Core::FString& To) noexcept;
+
+private:
+    Stoner::Core::TArray<FOutputTransformSdrBaselineV3> Records;
 };
 
 struct FProductionNativeImageEvidence

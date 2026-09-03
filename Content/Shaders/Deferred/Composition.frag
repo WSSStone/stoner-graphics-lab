@@ -12,6 +12,8 @@ void main()
     vec4 baseAO = texture(BaseColorAOTexture, UV);
     vec3 emissive = texture(EmissiveMetallicTexture, UV).rgb;
     vec3 directLighting = texture(LightingAccumulationTexture, UV).rgb;
-    vec3 linearColor = baseAO.rgb * directLighting + emissive;
-    OutColor = vec4(linearColor, 1.0);
+    // Feature 029 reclassifies this pass as the RGBA16F scene-linear
+    // Rec.709/sRGB-D65 handoff; display encoding happens downstream.
+    vec3 sceneColor = baseAO.rgb * directLighting + emissive;
+    OutColor = vec4(sceneColor, 1.0);
 }

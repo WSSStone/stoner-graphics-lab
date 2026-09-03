@@ -17,16 +17,37 @@ The maintainer explicitly closed Windows through a one-time carry-forward of
 the complete physical evidence at `0cf0182`, the subsequently admitted exact
 Accepted references, and the final-revision hosted Windows producer/consumer;
 no Windows hardware run is claimed at `588d245`. Digests and the provenance
-limitation are recorded in `Validation/028/CI/README.md`. Roadmap 2.3 inserts
+limitation are recorded in `Validation/028/CI/README.md`. Roadmap 2.3.1 inserts
 Feature 029 Renderer HDR Post-Processing & Output Transform and Feature 030
 Renderer Anti-Aliasing & Temporal Reconstruction next, and places Meshlet
 Derived Data at Feature 031 without changing its 024/025/026/028 dependencies.
+Feature 029 now freezes RGBA16F linear Rec.709/sRGB-D65 SceneColor, three SDR
+tone maps, and separate 1000/2000-nit PQ plus scRGB/EDR HDR output-device
+transforms. Windows retains SDR validation but claims no HDR validation; macOS
+Metal PQ/EDR visual authority requires live maintainer inspection and cannot be
+decided by automation. Platform metadata governance is explicit: Vulkan may
+apply `VK_EXT_hdr_metadata` when available, while Metal PQ uses
+`BGR10A2Unorm` + ITU-R 2100 PQ + EDR opt-in with `EDRMetadata=nil`; Core
+Animation color management is allowed but `CAEDRMetadata` system tone mapping
+is not. Metal EDR also keeps `EDRMetadata=nil` and uses Renderer-owned
+native-reference-white packing. The
+active specification and implementation plan are
+`specs/029-hdr-output-transform/spec.md` and
+`specs/029-hdr-output-transform/plan.md`.
 Feature 028 v2
 `sampleCount=1` and no-general-post-processing references remain historical
-correctness evidence; later formal output changes require a workload revision
-bump, exact-dimension Candidate, explicit maintainer acceptance, no automatic
-alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. Asset
+correctness evidence; later SDR changes require a workload revision bump,
+exact-dimension Candidate, explicit maintainer acceptance, no automatic
+alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR visual
+output uses a bounded macOS live-view maintainer JSON attestation instead of
+automated image comparison. Asset
 license selection and compliance remain entirely outside automated acceptance.
+Formal Feature 029 capture guards a frozen software SHA before/after execution;
+SDR authority links Candidate/PNG/calibration/native-probe artifacts and HDR
+authority links four native reports/probes to the same-SHA request. Evidence-only
+commits retain the tested software revision. Preliminary working-tree captures
+cannot be relabeled or promoted as exact-commit evidence. Follow
+`specs/029-hdr-output-transform/windows-handoff.md` for the physical Windows SDR lane.
 <!-- SPECKIT END -->
 
 ## Active Technologies
@@ -72,6 +93,8 @@ license selection and compliance remain entirely outside automated acceptance.
 - Process-local native Metal device/resource/pipeline/command/synchronization/presentation state; repository-owned GLSL/SPIR-V authority, deterministic normalized MSL, target-tagged cooked metallib payloads and validation evidence; no runtime shader compilation, Asset GPU ownership, iOS lifecycle, Metal mesh shaders, or ray tracing (027-metal-backend)
 - C++20 with traditional public/private headers and sources; Objective-C++20 remains private to Metal; Python 3 standard-library validation scripts + Existing Core, Asset, AssetCooker, RHI, Renderer, Application, Vulkan and Metal contracts; cgltf 1.15, stb_image 2.30, KTX-Software 4.4.2, WAMR 2.4.5, yyjson 0.12.0, SPIRV-Cross 0.68.0 lineage; CPU-only NVIDIA FLIP 1.7 single-header implementation pinned to commit `b475eb4bf394ab877c42166c9eb0a84a02cc5b14`; SCons 4.10.1 (028-production-content-acceptance)
 - Checked-in bounded Lantern GLB and corpus metadata; externally staged hash-pinned Sponza medium package; local immutable DDC and cooked generations; checked-in baseline policy/reference images and bounded validation evidence; no database, archive, remote cache, or runtime source fallback (028-production-content-acceptance)
+- C++20 with traditional public/private headers and sources; Objective-C++20 remains private to Metal; GLSL with checked-in SPIR-V; Python 3 standard-library validation scripts + Existing Core, RHI, Renderer, Application, Asset, AssetCooker, Vulkan, Metal, Demo, Render Graph, production-content acceptance, SCons 4.10.1, offline GLSL/SPIR-V validation, existing SPIRV-Cross/offline metallib path; official ACES package `v2.0.0+2025.04.04` (`35e1e6a`) is the pinned reference authority for a repository-owned deterministic CPU/GLSL implementation and vectors, not a runtime dependency (029-hdr-output-transform)
+- Process-local frame plans, graph declarations, presentation capability snapshots, native resources, readback records, and diagnostics; checked-in shader source/SPIR-V, canonical profile/schema files, bounded PNG/JSON evidence, and immutable accepted SDR references; raw readbacks/logs remain under ignored `Build/Validation/029/`; no database, runtime shader compilation, automatic exposure history, or temporal state (029-hdr-output-transform)
 
 ## Recent Changes
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system

@@ -15,6 +15,9 @@ Core::uint64 ToMetalPixelFormat(RHI::ERHIFormat Format) noexcept
     case ERHIFormat::R8G8B8A8_UNorm: return MTLPixelFormatRGBA8Unorm;
     case ERHIFormat::R8G8B8A8_sRGB: return MTLPixelFormatRGBA8Unorm_sRGB;
     case ERHIFormat::B8G8R8A8_UNorm: return MTLPixelFormatBGRA8Unorm;
+    // CAMetalLayer's documented packed-10 PQ presentation pair uses BGR10A2.
+    // Shader component semantics remain RGBA; this is the native byte layout.
+    case ERHIFormat::R10G10B10A2_UNorm: return MTLPixelFormatBGR10A2Unorm;
     case ERHIFormat::R16G16B16A16_Float: return MTLPixelFormatRGBA16Float;
     case ERHIFormat::R32_Float: return MTLPixelFormatR32Float;
     case ERHIFormat::R32G32_Float: return MTLPixelFormatRG32Float;

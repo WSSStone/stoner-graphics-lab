@@ -190,7 +190,13 @@ int main(int ArgCount, char** Arguments)
     SwapchainDesc.Width = Window.GetDrawableWidth();
     SwapchainDesc.Height = Window.GetDrawableHeight();
     SwapchainDesc.FramesInFlight = 2;
-    auto Swapchain = Surface.Succeeded()
+    FRHIPresentationCapabilities PresentationCapabilities;
+    const ERHIResult CapabilityResult = Surface.Succeeded()
+        ? Surface.Object->QueryCapabilities(PresentationCapabilities)
+        : ERHIResult::InvalidState;
+    SwapchainDesc.SurfaceCapabilityGeneration =
+        PresentationCapabilities.CapabilityGeneration;
+    auto Swapchain = CapabilityResult == ERHIResult::Success
         ? Created.Device->CreateSwapchain(Surface.Object, SwapchainDesc)
         : TRHIObjectResult<IRHISwapchain>{};
     auto Queue = Created.Device->CreateCommandQueue(ERHIQueueType::Graphics);

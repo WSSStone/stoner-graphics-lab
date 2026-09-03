@@ -152,6 +152,12 @@ Stoner::Core::FString BuildForwardFrameDebugDump(const FForwardFramePlan& Plan)
     Stream << "Output color=" << Plan.OutputTarget.ColorTargetName.CStr()
         << " depth=" << Plan.OutputTarget.DepthTargetName.CStr()
         << " format=" << Plan.OutputTarget.FormatSummary.CStr() << '\n';
+    Stream << "SceneColorHandoff producer="
+        << ToString(Plan.SceneColorHandoff.GetProducer())
+        << " state=" << ToString(Plan.SceneColorHandoff.GetState())
+        << " sceneColorId=" << Plan.SceneColorHandoff.GetSceneColorId()
+        << " viewId=" << Plan.SceneColorHandoff.GetViewId()
+        << " frameToken=" << Plan.SceneColorHandoff.GetFrameToken() << '\n';
 
     Stream << "PassOrder\n";
     for (const FForwardPassRecord& Pass : Plan.PassOrder)

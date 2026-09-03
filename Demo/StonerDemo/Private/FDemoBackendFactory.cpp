@@ -60,10 +60,6 @@ public:
         bool) override
     {
         Mode_ = Mode;
-        const RHI::ERHIRuntimeMode RuntimeMode =
-            Mode == EDemoRunMode::NativeHeadless
-                ? RHI::ERHIRuntimeMode::NativeHeadless
-                : RHI::ERHIRuntimeMode::Native;
         Device_ = Core::MakeShared<Backend::Vulkan::FVulkanDevice>();
         // The bounded production corpus can realize hundreds of material
         // descriptor sets before the shared Deferred lighting sets. Keep the
@@ -75,6 +71,9 @@ public:
             Backend::Vulkan::EVulkanInstanceRuntimeMode::DeterministicFallback;
         DeviceDesc.bRequestValidation = false;
         RHI::ERHIResult DeviceResult = Device_->Initialize(DeviceDesc);
+        if (DeviceResult == RHI::ERHIResult::Success &&
+            Mode != EDemoRunMode::NativeHeadless)
+            DeviceResult = Device_->EnableNativePresentationRuntime(Window);
         if (DeviceResult == RHI::ERHIResult::Success)
             DeviceResult = Device_->EnableNativeShaderRuntime();
         if (DeviceResult != RHI::ERHIResult::Success)
@@ -83,15 +82,11 @@ public:
             Device_.reset();
             return DeviceResult;
         }
-        if (Mode == EDemoRunMode::NativeHeadless)
-            return RHI::ERHIResult::Success;
-        const RHI::ERHIResult ContextResult = Context_.Initialize(RuntimeMode, Window);
-        if (ContextResult != RHI::ERHIResult::Success)
-        {
-            (void)Device_->Shutdown();
-            Device_.reset();
-        }
-        return ContextResult;
+        Context_ = Mode == EDemoRunMode::NativeHeadless
+            ? Device_->GetNativeShaderContext()
+            : Device_->GetNativePresentationContext();
+        return Context_ ? RHI::ERHIResult::Success
+                        : RHI::ERHIResult::Unavailable;
     }
 
     RHI::ERHIResult PrepareTriangle(
@@ -100,14 +95,16 @@ public:
         Core::uint32 Width,
         Core::uint32 Height) override
     {
-        return Context_.PrepareVisibleTriangle(
-            VertexShader, FragmentShader, Width, Height);
+        return Context_ ? Context_->PrepareVisibleTriangle(
+            VertexShader, FragmentShader, Width, Height)
+            : RHI::ERHIResult::InvalidState;
     }
 
     RHI::ERHIResult AcquireFrame(FDemoBackendFrame& OutFrame) override
     {
         Backend::Vulkan::FVulkanNativeFrameBindings Native;
-        const RHI::ERHIResult Result = Context_.AcquireVisibleFrame(Native);
+        if (!Context_) return RHI::ERHIResult::InvalidState;
+        const RHI::ERHIResult Result = Context_->AcquireVisibleFrame(Native);
         if (Result != RHI::ERHIResult::Success) return Result;
         OutFrame = {};
         OutFrame.FrameIndex = Native.ImageIndex;
@@ -124,7 +121,8 @@ public:
     RHI::ERHIResult SubmitFrame(const FDemoBackendFrame&) override
     {
         const RHI::ERHIResult Result =
-            Context_.SubmitAndPresentVisibleFrame(LastNativeFrame_);
+            Context_ ? Context_->SubmitAndPresentVisibleFrame(LastNativeFrame_)
+                     : RHI::ERHIResult::InvalidState;
         LastNativeFrame_ = {};
         return Result;
     }
@@ -135,29 +133,96 @@ public:
     {
         if (bProductionPresentation_)
         {
-            const RHI::ERHIResult Result =
-                Context_.PrepareVisibleImage(Width, Height);
-            if (Result == RHI::ERHIResult::Success)
-            {
-                ProductionPresentationWidth_ = Width;
-                ProductionPresentationHeight_ = Height;
-            }
-            return Result;
+            auto Request = ProductionPresentationRequest_;
+            Request.Width = Width;
+            Request.Height = Height;
+            return PrepareProductionPresentationMode(Request, nullptr);
         }
-        return Context_.RecreateVisiblePresentation(Width, Height);
+        return Context_ ? Context_->RecreateVisiblePresentation(Width, Height)
+                        : RHI::ERHIResult::InvalidState;
     }
 
     RHI::ERHIResult PrepareProductionPresentation(
         Core::uint32 Width,
         Core::uint32 Height) override
     {
+        RHI::FRHISwapchainDesc Request;
+        Request.Width = Width;
+        Request.Height = Height;
+        Request.PreferredFormat = RHI::ERHIFormat::R8G8B8A8_UNorm;
+        Request.PreferredColorSpace =
+            RHI::ERHIPresentationColorSpace::SrgbNonlinear;
+        Request.NativeEncoding =
+            RHI::ERHIPresentationNativeEncoding::SdrExplicit;
+        Request.ReferenceWhiteNits = 100.0f;
+        Request.TargetPeakNits = 100.0f;
+        return PrepareProductionPresentationMode(Request, nullptr);
+    }
+
+    RHI::ERHIResult QueryProductionPresentationCapabilities(
+        RHI::FRHIPresentationCapabilities& Out) const override
+    {
+        Out = {};
+        return Context_
+            ? Context_->QueryVisiblePresentationCapabilities(Out)
+            : RHI::ERHIResult::InvalidState;
+    }
+
+    RHI::ERHIResult PrepareProductionPresentationMode(
+        const RHI::FRHISwapchainDesc& InRequest,
+        RHI::FRHIResolvedPresentationState* OutResolved) override
+    {
+        if (OutResolved) *OutResolved = {};
+        if (!Context_ || InRequest.Width == 0 || InRequest.Height == 0)
+            return RHI::ERHIResult::InvalidState;
+        RHI::FRHIPresentationCapabilities Capabilities;
+        if (QueryProductionPresentationCapabilities(Capabilities) !=
+                RHI::ERHIResult::Success)
+            return RHI::ERHIResult::Unavailable;
+        RHI::FRHISwapchainDesc Request = InRequest;
+        Request.SurfaceCapabilityGeneration =
+            Capabilities.CapabilityGeneration;
+        RHI::FRHIResolvedPresentationState Resolved;
         const RHI::ERHIResult Result =
-            Context_.PrepareVisibleImage(Width, Height);
+            Context_->PrepareVisibleImage(Request, Resolved);
         bProductionPresentation_ = Result == RHI::ERHIResult::Success;
         if (bProductionPresentation_)
         {
-            ProductionPresentationWidth_ = Width;
-            ProductionPresentationHeight_ = Height;
+            ProductionPresentationWidth_ = Request.Width;
+            ProductionPresentationHeight_ = Request.Height;
+            ProductionPresentationRequest_ = Request;
+            ResolvedProductionPresentationState_ = Resolved;
+            ProductionCapabilityDigest_ = Capabilities.CapabilityDigest;
+            if (OutResolved) *OutResolved = Resolved;
+        }
+        return Result;
+    }
+
+    RHI::ERHIResult PresentProductionFormalOutput(
+        const Core::TSharedPtr<RHI::IRHITexture>& FormalOutput,
+        Core::uint64 FrameToken,
+        FDemoProductionPresentationResult& OutResult) override
+    {
+        OutResult = {};
+        if (!Context_ || !FormalOutput || FrameToken == 0 ||
+            FormalOutput->GetDesc().Width != ProductionPresentationWidth_ ||
+            FormalOutput->GetDesc().Height != ProductionPresentationHeight_ ||
+            FormalOutput->GetFormat() !=
+                ResolvedProductionPresentationState_.Format)
+            return RHI::ERHIResult::InvalidState;
+        const auto Result =
+            Context_->PresentVisibleTextureExact(FormalOutput, FrameToken);
+        if (Result == RHI::ERHIResult::Success)
+        {
+            OutResult.Width = FormalOutput->GetDesc().Width;
+            OutResult.Height = FormalOutput->GetDesc().Height;
+            OutResult.RowPitchBytes = OutResult.Width *
+                RHI::GetRHIFormatByteSize(FormalOutput->GetFormat());
+            OutResult.FrameToken = FrameToken;
+            OutResult.Format = FormalOutput->GetFormat();
+            OutResult.ResolvedState = ResolvedProductionPresentationState_;
+            OutResult.CapabilityDigest = ProductionCapabilityDigest_;
+            OutResult.bPresented = true;
         }
         return Result;
     }
@@ -180,7 +245,8 @@ public:
                 RHI::ERHIFormat::R8G8B8A8_UNorm,
                 ProductionPresentationPixels_))
             return RHI::ERHIResult::InvalidState;
-        const RHI::ERHIResult Result = Context_.PresentVisibleRgba8(
+        if (!Context_) return RHI::ERHIResult::InvalidState;
+        const RHI::ERHIResult Result = Context_->PresentVisibleRgba8(
             ProductionPresentationPixels_, ProductionPresentationWidth_,
             ProductionPresentationHeight_,
             ProductionPresentationWidth_ * 4u, OutResult.Rgba8,
@@ -198,16 +264,16 @@ public:
         const RHI::FRHIShaderModuleDesc& VertexShader,
         const RHI::FRHIShaderModuleDesc& FragmentShader) override
     {
-        if (!Context_.IsAvailable() &&
-            Context_.Initialize(RHI::ERHIRuntimeMode::NativeHeadless) !=
-                RHI::ERHIResult::Success)
+        if (!Context_ || !Context_->IsAvailable())
             return RHI::ERHIResult::Unavailable;
-        return Context_.ExecuteOffscreenTriangle(VertexShader, FragmentShader);
+        return Context_->ExecuteOffscreenTriangle(VertexShader, FragmentShader);
     }
 
     RHI::FRHIRuntimeSnapshot GetSnapshot() const noexcept override
     {
-        return Device_ ? Device_->GetRuntimeSnapshot() : Context_.GetSnapshot();
+        return Device_ ? Device_->GetRuntimeSnapshot()
+                       : (Context_ ? Context_->GetSnapshot()
+                                   : RHI::FRHIRuntimeSnapshot{});
     }
 
     Core::TSharedPtr<RHI::IRHIDevice> GetDevice() const noexcept override
@@ -224,18 +290,21 @@ public:
             DeviceResult = Device_->Shutdown();
             Device_.reset();
         }
-        const RHI::ERHIResult ContextResult = Context_.Shutdown();
-        return DeviceResult != RHI::ERHIResult::Success ? DeviceResult : ContextResult;
+        Context_.reset();
+        return DeviceResult;
     }
 
 private:
     EDemoRunMode Mode_ = EDemoRunMode::InteractiveNative;
-    Backend::Vulkan::FVulkanNativeContext Context_;
+    Core::TSharedPtr<Backend::Vulkan::FVulkanNativeContext> Context_;
     Core::TSharedPtr<Backend::Vulkan::FVulkanDevice> Device_;
     Backend::Vulkan::FVulkanNativeFrameBindings LastNativeFrame_;
     bool bProductionPresentation_ = false;
     Core::uint32 ProductionPresentationWidth_ = 0;
     Core::uint32 ProductionPresentationHeight_ = 0;
+    RHI::FRHISwapchainDesc ProductionPresentationRequest_;
+    RHI::FRHIResolvedPresentationState ResolvedProductionPresentationState_;
+    Core::FString ProductionCapabilityDigest_;
     Core::TArray<Core::uint8> ProductionPresentationPixels_;
 };
 
@@ -273,6 +342,13 @@ public:
         SwapchainDesc.Width = 1;
         SwapchainDesc.Height = 1;
         SwapchainDesc.FramesInFlight = FramesInFlight;
+        RHI::FRHIPresentationCapabilities PresentationCapabilities;
+        const RHI::ERHIResult CapabilityResult =
+            Surface_->QueryCapabilities(PresentationCapabilities);
+        if (CapabilityResult != RHI::ERHIResult::Success)
+            return CapabilityResult;
+        SwapchainDesc.SurfaceCapabilityGeneration =
+            PresentationCapabilities.CapabilityGeneration;
         auto Swapchain = Device_->CreateSwapchain(Surface_, SwapchainDesc);
         if (!Swapchain.Succeeded()) return Swapchain.Result;
         Swapchain_ = std::move(Swapchain.Object);
@@ -427,23 +503,190 @@ public:
         return Present;
     }
 
-    RHI::ERHIResult RecreatePresentation(Core::uint32, Core::uint32) override
+    RHI::ERHIResult RecreatePresentation(
+        Core::uint32 Width, Core::uint32 Height) override
     {
-        return Swapchain_ ? RHI::ERHIResult::Success : RHI::ERHIResult::InvalidState;
+        if (bProductionPresentation_)
+        {
+            auto Request = ProductionPresentationRequest_;
+            Request.Width = Width;
+            Request.Height = Height;
+            return PrepareProductionPresentationMode(Request, nullptr);
+        }
+        return Swapchain_ ? RHI::ERHIResult::Success
+                          : RHI::ERHIResult::InvalidState;
     }
 
     RHI::ERHIResult PrepareProductionPresentation(
         Core::uint32 Width,
         Core::uint32 Height) override
     {
-        if (!Device_ || !Swapchain_ || Width == 0 || Height == 0)
+        RHI::FRHISwapchainDesc Request;
+        Request.Width = Width;
+        Request.Height = Height;
+        Request.FramesInFlight = FramesInFlight_;
+        Request.PreferredFormat = RHI::ERHIFormat::R8G8B8A8_UNorm;
+        Request.PreferredColorSpace =
+            RHI::ERHIPresentationColorSpace::SrgbNonlinear;
+        Request.NativeEncoding =
+            RHI::ERHIPresentationNativeEncoding::SdrExplicit;
+        Request.ReferenceWhiteNits = 100.0f;
+        Request.TargetPeakNits = 100.0f;
+        return PrepareProductionPresentationMode(Request, nullptr);
+    }
+
+    RHI::ERHIResult QueryProductionPresentationCapabilities(
+        RHI::FRHIPresentationCapabilities& Out) const override
+    {
+        Out = {};
+        return Surface_ ? Surface_->QueryCapabilities(Out)
+                        : RHI::ERHIResult::InvalidState;
+    }
+
+    RHI::ERHIResult PrepareProductionPresentationMode(
+        const RHI::FRHISwapchainDesc& InRequest,
+        RHI::FRHIResolvedPresentationState* OutResolved) override
+    {
+        if (OutResolved) *OutResolved = {};
+        if (!Device_ || !Swapchain_ || InRequest.Width == 0 ||
+            InRequest.Height == 0)
             return RHI::ERHIResult::InvalidState;
+        RHI::FRHIPresentationCapabilities Capabilities;
+        if (QueryProductionPresentationCapabilities(Capabilities) !=
+                RHI::ERHIResult::Success)
+            return RHI::ERHIResult::Unavailable;
+        RHI::FRHISwapchainDesc Request = InRequest;
+        Request.FramesInFlight = FramesInFlight_;
+        Request.SurfaceCapabilityGeneration =
+            Capabilities.CapabilityGeneration;
+        const auto Reconfigured = Swapchain_->Reconfigure(Request);
+        if (Reconfigured != RHI::ERHIResult::Success) return Reconfigured;
         if (!ProductionReadbackFence_)
         {
             auto Fence = Device_->CreateFence();
             if (!Fence.Succeeded()) return Fence.Result;
             ProductionReadbackFence_ = std::move(Fence.Object);
         }
+        ProductionPresentationWidth_ = Request.Width;
+        ProductionPresentationHeight_ = Request.Height;
+        ProductionPresentationRequest_ = Request;
+        ResolvedProductionPresentationState_ =
+            Swapchain_->GetResolvedPresentationState();
+        ProductionCapabilityDigest_ = Capabilities.CapabilityDigest;
+        if (OutResolved)
+            *OutResolved = ResolvedProductionPresentationState_;
+        bProductionPresentation_ = true;
+        return RHI::ERHIResult::Success;
+    }
+
+    RHI::ERHIResult PresentProductionFormalOutput(
+        const Core::TSharedPtr<RHI::IRHITexture>& FormalOutput,
+        Core::uint64 FrameToken,
+        FDemoProductionPresentationResult& OutResult) override
+    {
+        OutResult = {};
+        if (!Device_ || !Queue_ || !Swapchain_ || !FormalOutput ||
+            FrameToken == 0 ||
+            FormalOutput->GetDesc().Width != ProductionPresentationWidth_ ||
+            FormalOutput->GetDesc().Height != ProductionPresentationHeight_ ||
+            FormalOutput->GetFormat() !=
+                Swapchain_->GetResolvedPresentationState().Format ||
+            !RHI::HasRHIFlag(FormalOutput->GetUsage(),
+                RHI::ERHITextureUsage::CopySource))
+        {
+            OutResult.FailureStage = "preflight";
+            return RHI::ERHIResult::InvalidState;
+        }
+        auto ImageAvailable = Device_->CreateSemaphore();
+        auto RenderComplete = Device_->CreateSemaphore();
+        auto Fence = Device_->CreateFence();
+        if (!ImageAvailable.Succeeded() || !RenderComplete.Succeeded() ||
+            !Fence.Succeeded())
+        {
+            OutResult.FailureStage = "synchronization-create";
+            return RHI::ERHIResult::Failed;
+        }
+        Core::uint32 FrameIndex = 0;
+        const auto Acquired = Swapchain_->AcquireNextFrame(
+            FrameIndex, ImageAvailable.Object);
+        if (Acquired != RHI::ERHIResult::Success)
+        {
+            OutResult.FailureStage = "acquire";
+            return Acquired;
+        }
+        const auto Image = Swapchain_->GetImage(FrameIndex);
+        const auto Release = [this, FrameIndex]() {
+            (void)Swapchain_->Present(FrameIndex);
+        };
+        if (!Image || Image->GetFormat() != FormalOutput->GetFormat() ||
+            Image->GetDesc().Width != FormalOutput->GetDesc().Width ||
+            Image->GetDesc().Height != FormalOutput->GetDesc().Height)
+        {
+            OutResult.FailureStage = "image-contract";
+            Release();
+            return RHI::ERHIResult::InvalidState;
+        }
+        auto Commands = Device_->CreateCommandBuffer(
+            RHI::ERHIQueueType::Graphics);
+        RHI::FRHIResourceBarrierDesc ToDestination;
+        ToDestination.Texture = Image;
+        ToDestination.RequiredTextureUsage =
+            RHI::ERHITextureUsage::CopyDestination;
+        ToDestination.Before = RHI::ERHIResourceLayout::Undefined;
+        ToDestination.After = RHI::ERHIResourceLayout::CopyDestination;
+        RHI::FRHITextureCopyRegion Region;
+        Region.Width = FormalOutput->GetDesc().Width;
+        Region.Height = FormalOutput->GetDesc().Height;
+        RHI::FRHIResourceBarrierDesc ToPresent;
+        ToPresent.Texture = Image;
+        ToPresent.RequiredTextureUsage = RHI::ERHITextureUsage::Present;
+        ToPresent.Before = RHI::ERHIResourceLayout::CopyDestination;
+        ToPresent.After = RHI::ERHIResourceLayout::Present;
+        const bool bRecorded = Commands.Succeeded() &&
+            Commands.Object->Begin() == RHI::ERHIResult::Success &&
+            Commands.Object->RecordLayoutTransition(ToDestination) ==
+                RHI::ERHIResult::Success &&
+            Commands.Object->RecordTextureCopy(
+                FormalOutput, Image, Region) == RHI::ERHIResult::Success &&
+            Commands.Object->RecordLayoutTransition(ToPresent) ==
+                RHI::ERHIResult::Success &&
+            Commands.Object->End() == RHI::ERHIResult::Success;
+        if (!bRecorded)
+        {
+            OutResult.FailureStage = "command-record";
+            Release();
+            return RHI::ERHIResult::Failed;
+        }
+        if (Queue_->Submit(Commands.Object,
+                {ImageAvailable.Object}, {RenderComplete.Object},
+                Fence.Object) != RHI::ERHIResult::Success)
+        {
+            OutResult.FailureStage = "queue-submit";
+            Release();
+            return RHI::ERHIResult::Failed;
+        }
+        if (Fence.Object->Wait(30'000'000) != RHI::ERHIResult::Success)
+        {
+            OutResult.FailureStage = "fence-wait";
+            Release();
+            return RHI::ERHIResult::Failed;
+        }
+        const auto Presented =
+            Swapchain_->Present(FrameIndex, RenderComplete.Object);
+        if (Presented != RHI::ERHIResult::Success)
+        {
+            OutResult.FailureStage = "present";
+            return Presented;
+        }
+        OutResult.Width = FormalOutput->GetDesc().Width;
+        OutResult.Height = FormalOutput->GetDesc().Height;
+        OutResult.RowPitchBytes = OutResult.Width *
+            RHI::GetRHIFormatByteSize(FormalOutput->GetFormat());
+        OutResult.FrameToken = FrameToken;
+        OutResult.Format = FormalOutput->GetFormat();
+        OutResult.ResolvedState = ResolvedProductionPresentationState_;
+        OutResult.CapabilityDigest = ProductionCapabilityDigest_;
+        OutResult.bPresented = true;
         return RHI::ERHIResult::Success;
     }
 
@@ -735,6 +978,12 @@ private:
     Core::TSharedPtr<RHI::IRHISwapchain> Swapchain_;
     Core::TSharedPtr<RHI::IRHICommandQueue> Queue_;
     Core::TSharedPtr<RHI::IRHIFence> ProductionReadbackFence_;
+    Core::uint32 ProductionPresentationWidth_ = 0;
+    Core::uint32 ProductionPresentationHeight_ = 0;
+    RHI::FRHISwapchainDesc ProductionPresentationRequest_;
+    RHI::FRHIResolvedPresentationState ResolvedProductionPresentationState_;
+    Core::FString ProductionCapabilityDigest_;
+    bool bProductionPresentation_ = false;
     Core::TSharedPtr<RHI::IRHIBuffer> VertexBuffer_;
     Core::TSharedPtr<RHI::IRHIShaderModule> VertexShader_;
     Core::TSharedPtr<RHI::IRHIShaderModule> FragmentShader_;

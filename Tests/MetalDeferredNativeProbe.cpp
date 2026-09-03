@@ -123,7 +123,17 @@ TArray<FShaderInterfaceBinding> SurfaceInterface()
         Binding(0, 0, EShaderResourceKind::UniformBuffer,
             {EShaderStage::Vertex}, "FrameView"),
         Binding(1, 0, EShaderResourceKind::UniformBuffer,
-            {EShaderStage::Vertex, EShaderStage::Fragment}, "DrawMaterial")};
+            {EShaderStage::Vertex, EShaderStage::Fragment}, "DrawMaterial"),
+        Binding(1, 1, EShaderResourceKind::CombinedTextureSampler,
+            {EShaderStage::Fragment}, "BaseColorTexture"),
+        Binding(1, 2, EShaderResourceKind::CombinedTextureSampler,
+            {EShaderStage::Fragment}, "MetallicRoughnessTexture"),
+        Binding(1, 3, EShaderResourceKind::CombinedTextureSampler,
+            {EShaderStage::Fragment}, "NormalTexture"),
+        Binding(1, 4, EShaderResourceKind::CombinedTextureSampler,
+            {EShaderStage::Fragment}, "OcclusionTexture"),
+        Binding(1, 5, EShaderResourceKind::CombinedTextureSampler,
+            {EShaderStage::Fragment}, "EmissiveTexture")};
 }
 
 TArray<FShaderInterfaceBinding> DirectionalInterface()
@@ -339,6 +349,20 @@ TSharedPtr<IRHITexture> Texture(
     return Device->CreateTexture(Desc).Object;
 }
 
+bool UploadRGBA8(
+    const TSharedPtr<IRHIDevice>& Device,
+    const TSharedPtr<IRHITexture>& TextureValue,
+    const std::array<uint8, Extent * Extent * 4>& Pixels)
+{
+    FRHITextureUploadDesc Upload;
+    Upload.Width = Extent;
+    Upload.Height = Extent;
+    Upload.RowPitchBytes = Extent * 4;
+    Upload.Data = Pixels.data();
+    Upload.DataSizeBytes = Pixels.size();
+    return Device->UploadTexture(TextureValue, Upload) == ERHIResult::Success;
+}
+
 TSharedPtr<IRHIPipelineLayout> Layout(
     const TSharedPtr<IRHIDevice>& Device,
     const TArray<FShaderInterfaceBinding>& Interface)
@@ -534,7 +558,7 @@ FMetalDeferredNativeProbeReport RunMetalDeferredNativeProbe()
     Inputs.View.CameraPosition = {0.0f, 0.0f, 1.0f};
     Inputs.View.DepthPolicy = MakeDeferredDepthPolicy(
         EDeferredDepthConvention::StandardZ, 0.1f, 100.0f);
-    Inputs.Output = {"MetalDeferredOutput", ERHIFormat::R8G8B8A8_UNorm,
+    Inputs.Output = {"MetalDeferredOutput", ERHIFormat::R16G16B16A16_Float,
         Inputs.View.Extent};
     FDeferredDrawCandidate Draw;
     Draw.Identity = {1, 1};
@@ -585,13 +609,16 @@ FMetalDeferredNativeProbeReport RunMetalDeferredNativeProbe()
     Bindings.LightingAccumulation = Texture(
         Device, ERHIFormat::R16G16B16A16_Float, GBufferUsage);
     Bindings.FinalOutput = Texture(
-        Device, ERHIFormat::R8G8B8A8_UNorm,
+        Device, ERHIFormat::R16G16B16A16_Float,
         ERHITextureUsage::ColorAttachment | ERHITextureUsage::CopySource);
 
-    constexpr std::array<float, 18> SurfaceVertices = {
+    constexpr std::array<float, 36> SurfaceVertices = {
         -1.0f, -1.0f, 0.5f, 0.0f, 0.0f, 1.0f,
+         1.0f,  0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
          3.0f, -1.0f, 0.5f, 0.0f, 0.0f, 1.0f,
-        -1.0f,  3.0f, 0.5f, 0.0f, 0.0f, 1.0f};
+         1.0f,  0.0f, 0.0f, 1.0f, 2.0f, 0.0f,
+        -1.0f,  3.0f, 0.5f, 0.0f, 0.0f, 1.0f,
+         1.0f,  0.0f, 0.0f, 1.0f, 0.0f, 2.0f};
     constexpr std::array<uint16, 3> Indices = {0, 1, 2};
     constexpr std::array<float, 6> FullscreenVertices = {
         -1.0f, -1.0f, 3.0f, -1.0f, -1.0f, 3.0f};
@@ -626,12 +653,30 @@ FMetalDeferredNativeProbeReport RunMetalDeferredNativeProbe()
         ERHIBufferUsage::Uniform | ERHIBufferUsage::CopyDestination);
     const auto LightBuffer = Buffer(Device, sizeof(LightUniform),
         ERHIBufferUsage::Storage | ERHIBufferUsage::CopyDestination);
+    const auto SurfaceWhiteTexture = Texture(
+        Device, ERHIFormat::R8G8B8A8_UNorm,
+        ERHITextureUsage::Sampled | ERHITextureUsage::CopyDestination);
+    const auto SurfaceNormalTexture = Texture(
+        Device, ERHIFormat::R8G8B8A8_UNorm,
+        ERHITextureUsage::Sampled | ERHITextureUsage::CopyDestination);
+    std::array<uint8, Extent * Extent * 4> WhitePixels;
+    WhitePixels.fill(255);
+    std::array<uint8, Extent * Extent * 4> NormalPixels;
+    for (uint32 Index = 0; Index < Extent * Extent; ++Index)
+    {
+        NormalPixels[Index * 4 + 0] = 128;
+        NormalPixels[Index * 4 + 1] = 128;
+        NormalPixels[Index * 4 + 2] = 255;
+        NormalPixels[Index * 4 + 3] = 255;
+    }
     if (!Upload(Device, FrameBuffer,
             std::span<const FDeferredFrameViewUniform>(&FrameUniform, 1)) ||
         !Upload(Device, DrawBuffer,
             std::span<const FDeferredDrawMaterialUniform>(&DrawUniform, 1)) ||
         !Upload(Device, LightBuffer,
-            std::span<const FDeferredLightUniform>(&LightUniform, 1)))
+            std::span<const FDeferredLightUniform>(&LightUniform, 1)) ||
+        !UploadRGBA8(Device, SurfaceWhiteTexture, WhitePixels) ||
+        !UploadRGBA8(Device, SurfaceNormalTexture, NormalPixels))
     {
         Report.StableReason = "metal-deferred-uniform-upload";
         (void)Device->Shutdown();
@@ -655,7 +700,7 @@ FMetalDeferredNativeProbeReport RunMetalDeferredNativeProbe()
     const auto CompositionPipeline = Pipeline(
         Device, CompositionLayout, Shaders[2].Module, Shaders[4].Module,
         GetDeferredFullscreenVertexLayout(),
-        {ERHIFormat::R8G8B8A8_UNorm});
+        {ERHIFormat::R16G16B16A16_Float});
 
     const auto SurfaceSet0 = Device->CreateDescriptorSet(SurfaceLayout, 0).Object;
     const auto SurfaceSet1 = Device->CreateDescriptorSet(SurfaceLayout, 1).Object;
@@ -674,6 +719,16 @@ FMetalDeferredNativeProbeReport RunMetalDeferredNativeProbe()
         DirectionalSet2 && DirectionalSet3 && CompositionSet2 && Sampler &&
         SurfaceSet0->UpdateBuffer(0, 0, FrameBuffer) == ERHIResult::Success &&
         SurfaceSet1->UpdateBuffer(0, 0, DrawBuffer) == ERHIResult::Success &&
+        SurfaceSet1->UpdateCombinedTextureSampler(
+            1, 0, SurfaceWhiteTexture, Sampler) == ERHIResult::Success &&
+        SurfaceSet1->UpdateCombinedTextureSampler(
+            2, 0, SurfaceWhiteTexture, Sampler) == ERHIResult::Success &&
+        SurfaceSet1->UpdateCombinedTextureSampler(
+            3, 0, SurfaceNormalTexture, Sampler) == ERHIResult::Success &&
+        SurfaceSet1->UpdateCombinedTextureSampler(
+            4, 0, SurfaceWhiteTexture, Sampler) == ERHIResult::Success &&
+        SurfaceSet1->UpdateCombinedTextureSampler(
+            5, 0, SurfaceWhiteTexture, Sampler) == ERHIResult::Success &&
         DirectionalSet2->UpdateCombinedTextureSampler(
             0, 0, Bindings.BaseColorAO, Sampler) == ERHIResult::Success &&
         DirectionalSet2->UpdateCombinedTextureSampler(
@@ -713,7 +768,7 @@ FMetalDeferredNativeProbeReport RunMetalDeferredNativeProbe()
         {DirectionalSet2, DirectionalSet3});
     Bindings.Composition = Stage(
         Device, CompositionPipeline,
-        {Color(ERHIFormat::R8G8B8A8_UNorm)},
+        {Color(ERHIFormat::R16G16B16A16_Float)},
         {{Bindings.FinalOutput}}, {CompositionSet2});
     Bindings.CommandBuffer = Device->CreateCommandBuffer(
         ERHIQueueType::Graphics).Object;
@@ -737,7 +792,7 @@ FMetalDeferredNativeProbeReport RunMetalDeferredNativeProbe()
         {"Lighting", Bindings.LightingAccumulation,
             ERHIFormat::R16G16B16A16_Float, {}, {}},
         {"FinalOutput", Bindings.FinalOutput,
-            ERHIFormat::R8G8B8A8_UNorm, {}, {}}};
+            ERHIFormat::R16G16B16A16_Float, {}, {}}};
     for (auto& Readback : Readbacks)
     {
         const uint64 Size = static_cast<uint64>(Extent) * Extent *
@@ -816,10 +871,10 @@ FMetalDeferredNativeProbeReport RunMetalDeferredNativeProbe()
             Near(Lighting[1], 1.0, 1e-3) &&
             Near(Lighting[2], 1.0, 1e-3);
         Report.bFinalOutputPassed =
-            Near(Final[0], 1.0, 2.0 / 255.0) &&
-            Near(Final[1], 0.25, 2.0 / 255.0) &&
-            Near(Final[2], 0.1, 2.0 / 255.0) &&
-            Near(Final[3], 1.0, 2.0 / 255.0);
+            Near(Final[0], 1.1, 2e-3) &&
+            Near(Final[1], 0.25, 2e-3) &&
+            Near(Final[2], 0.1, 2e-3) &&
+            Near(Final[3], 1.0, 2e-3);
         Report.FinalOutputDigest = FAssetDigest::FromBytes(
             Readbacks[5].Bytes).ToLowerHex();
     }

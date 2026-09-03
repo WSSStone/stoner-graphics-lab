@@ -303,6 +303,24 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
     }
     else
     {
+        if (MetalReport.Status != EMetalDeferredProbeStatus::Success)
+        {
+            std::cout << "[INFO] metal-deferred-native-failure reason="
+                      << MetalReport.StableReason.CStr() << '\n';
+            const auto PrintVector = [](const char* Name,
+                const Stoner::Core::FVector4& Value)
+            {
+                std::cout << "[INFO] metal-deferred-native-observed "
+                          << Name << '=' << Value.X << ',' << Value.Y << ','
+                          << Value.Z << ',' << Value.W << '\n';
+            };
+            PrintVector("base-ao", MetalReport.BaseColorAO);
+            PrintVector("normal-roughness", MetalReport.NormalRoughness);
+            PrintVector("emissive-metallic", MetalReport.EmissiveMetallic);
+            PrintVector("depth", MetalReport.Depth);
+            PrintVector("lighting", MetalReport.Lighting);
+            PrintVector("final-output", MetalReport.FinalOutput);
+        }
         for (const auto& Digest : MetalReport.ShaderEvidenceDigests)
             std::cout << "[EVIDENCE] metal-native-shader evidence="
                       << Digest.CStr() << '\n';
@@ -470,6 +488,18 @@ FDeferredNativeIntegrationTestResult RunDeferredNativeIntegrationTests()
     for (const FVulkanDeferredProbe& Probe : PackedReport.Probes)
     {
         bPackedProbePassed = bPackedProbePassed && Probe.bPassed;
+        if (!Probe.bPassed)
+        {
+            std::cout << "[INFO] packed-deferred-probe-failure convention="
+                      << Probe.Convention.CStr() << " name="
+                      << Probe.Name.CStr() << " expected="
+                      << Probe.Expected.X << ',' << Probe.Expected.Y << ','
+                      << Probe.Expected.Z << ',' << Probe.Expected.W
+                      << " observed=" << Probe.Observed.X << ','
+                      << Probe.Observed.Y << ',' << Probe.Observed.Z << ','
+                      << Probe.Observed.W << " error=" << Probe.ErrorMeasure
+                      << '\n';
+        }
     }
     Record(Result, bPackedProbePassed,
         "Renderer-packed non-symmetric matrix survives Vulkan native attachment readback");

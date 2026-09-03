@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdint>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
@@ -30,6 +31,7 @@
 #include <new>
 #include <stdexcept>
 #include <span>
+#include <sstream>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -66,6 +68,8 @@ using namespace Stoner::RHI;
     case ERHIFormat::R8G8B8A8_UNorm: return VK_FORMAT_R8G8B8A8_UNORM;
     case ERHIFormat::R8G8B8A8_sRGB: return VK_FORMAT_R8G8B8A8_SRGB;
     case ERHIFormat::B8G8R8A8_UNorm: return VK_FORMAT_B8G8R8A8_UNORM;
+    case ERHIFormat::R10G10B10A2_UNorm:
+        return ToVulkanPresentationFormat(Format);
     case ERHIFormat::R16G16B16A16_Float: return VK_FORMAT_R16G16B16A16_SFLOAT;
     case ERHIFormat::R32_Float: return VK_FORMAT_R32_SFLOAT;
     case ERHIFormat::R32G32_Float: return VK_FORMAT_R32G32_SFLOAT;
@@ -389,9 +393,9 @@ class FNativeCommandBufferBinding final : public IRHICommandBuffer
 public:
     FNativeCommandBufferBinding(VkCommandBuffer InCommands, VkRenderPass InRenderPass, VkFramebuffer InFramebuffer,
         VkPipeline InPipeline, VkBuffer InVertexBuffer, VkBuffer InIndexBuffer,
-        VkExtent2D InExtent)
+        VkImage InImage, VkExtent2D InExtent)
         : Commands(InCommands), RenderPass(InRenderPass), Framebuffer(InFramebuffer), Pipeline(InPipeline),
-          VertexBuffer(InVertexBuffer), IndexBuffer(InIndexBuffer), Extent(InExtent) {}
+          VertexBuffer(InVertexBuffer), IndexBuffer(InIndexBuffer), Image(InImage), Extent(InExtent) {}
     ERHICommandBufferState GetState() const noexcept override { return State; }
     ERHIQueueType GetCompatibleQueueType() const noexcept override { return ERHIQueueType::Graphics; }
     Stoner::Core::uint32 GetRecordedCommandCount() const noexcept override { return CommandCount; }
@@ -443,8 +447,37 @@ public:
     ERHIResult RecordBarrier(const FRHIResourceBarrierDesc&) override { return ERHIResult::Unsupported; }
     ERHIResult RecordBufferCopy(const Stoner::Core::TSharedPtr<IRHIBuffer>&, const Stoner::Core::TSharedPtr<IRHIBuffer>&, FRHIBufferCopyRange) override { return ERHIResult::Unsupported; }
     ERHIResult RecordTextureCopy(const Stoner::Core::TSharedPtr<IRHITexture>&, const Stoner::Core::TSharedPtr<IRHITexture>&, FRHITextureCopyRegion) override { return ERHIResult::Unsupported; }
-    ERHIResult RecordLayoutTransition(const FRHIResourceBarrierDesc&) override
-    { if (State != ERHICommandBufferState::Recording || bInsideRenderPass) return ERHIResult::InvalidState; ++CommandCount; return ERHIResult::Success; }
+    ERHIResult RecordLayoutTransition(
+        const FRHIResourceBarrierDesc& Transition) override
+    {
+        if (State != ERHICommandBufferState::Recording || bInsideRenderPass ||
+            Image == VK_NULL_HANDLE || !Transition.Texture ||
+            Transition.Before != ERHIResourceLayout::Undefined ||
+            Transition.After != ERHIResourceLayout::Present ||
+            !HasRHIFlag(Transition.RequiredTextureUsage,
+                ERHITextureUsage::Present))
+        {
+            return ERHIResult::InvalidState;
+        }
+        VkImageMemoryBarrier Barrier = MakeVulkanStruct<VkImageMemoryBarrier>(
+            VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
+        Barrier.srcAccessMask = 0;
+        Barrier.dstAccessMask = 0;
+        Barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        Barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        Barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        Barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        Barrier.image = Image;
+        Barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        Barrier.subresourceRange.levelCount = 1;
+        Barrier.subresourceRange.layerCount = 1;
+        vkCmdPipelineBarrier(
+            Commands, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0,
+            0, nullptr, 0, nullptr, 1, &Barrier);
+        ++CommandCount;
+        return ERHIResult::Success;
+    }
     ERHIResult BeginRenderPass(const Stoner::Core::TSharedPtr<IRHIRenderPass>& Pass, const Stoner::Core::TSharedPtr<IRHIFramebuffer>& Target) override
     {
         if (State != ERHICommandBufferState::Recording || bInsideRenderPass || !Pass || !Target) return ERHIResult::InvalidState;
@@ -488,6 +521,7 @@ private:
     VkPipeline Pipeline = VK_NULL_HANDLE;
     VkBuffer VertexBuffer = VK_NULL_HANDLE;
     VkBuffer IndexBuffer = VK_NULL_HANDLE;
+    VkImage Image = VK_NULL_HANDLE;
     VkExtent2D Extent{};
     ERHICommandBufferState State = ERHICommandBufferState::Idle;
     Stoner::Core::uint32 CommandCount = 0;
@@ -497,8 +531,7 @@ private:
 
 [[maybe_unused]] ERHIFormat ToRHIFormat(VkFormat Format)
 {
-    return Format == VK_FORMAT_B8G8R8A8_UNORM || Format == VK_FORMAT_B8G8R8A8_SRGB
-        ? ERHIFormat::B8G8R8A8_UNorm : ERHIFormat::R8G8B8A8_UNorm;
+    return FromVulkanPresentationFormat(Format);
 }
 
 } // namespace
@@ -586,6 +619,12 @@ struct FVulkanNativeContext::FImpl
     Stoner::Core::uint32 AcquiredFrameSlot = 0;
     bool bFrameAcquired = false;
     bool bAcquiredSuboptimal = false;
+    bool bSupportsHDRMetadata = false;
+    Stoner::Core::uint64 PresentationCapabilityGeneration = 1;
+    Stoner::Core::uint64 PresentationModeGeneration = 0;
+    Stoner::Core::uint64 NextVisibleFrameToken = 1;
+    bool bHasExactPresentationRequest = false;
+    Stoner::RHI::FRHISwapchainDesc ExactPresentationRequest;
 
     static bool HasName(const std::vector<VkExtensionProperties>& Properties, const char* Name)
     {
@@ -1170,6 +1209,13 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Initialize(
             return Stoner::RHI::ERHIResult::Unsupported;
         }
         EnabledDeviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+        if (FImpl::HasName(
+                DeviceExtensions, VK_EXT_HDR_METADATA_EXTENSION_NAME))
+        {
+            EnabledDeviceExtensions.push_back(
+                VK_EXT_HDR_METADATA_EXTENSION_NAME);
+            Impl->bSupportsHDRMetadata = true;
+        }
     }
     constexpr const char* PortabilitySubsetExtension =
         "VK_KHR_portability_subset";
@@ -1946,17 +1992,42 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleImage(
             Impl->PhysicalDevice, Impl->Surface,
             &FormatCount, Formats.data()) != VK_SUCCESS)
         return Fail();
-    VkSurfaceFormatKHR SurfaceFormat = Formats[0];
-    for (const VkSurfaceFormatKHR& Candidate : Formats)
+    VkSurfaceFormatKHR SurfaceFormat{};
+    bool bFoundSurfaceFormat = false;
+    if (Impl->bHasExactPresentationRequest)
+    {
+        const VkFormat RequestedFormat = ToVulkanPresentationFormat(
+            Impl->ExactPresentationRequest.PreferredFormat);
+        const VkColorSpaceKHR RequestedColorSpace =
+            ToVulkanPresentationColorSpace(
+                Impl->ExactPresentationRequest.PreferredColorSpace);
+        for (const VkSurfaceFormatKHR& Candidate : Formats)
+        {
+            if (Candidate.format == RequestedFormat &&
+                Candidate.colorSpace == RequestedColorSpace)
+            {
+                SurfaceFormat = Candidate;
+                bFoundSurfaceFormat = true;
+                break;
+            }
+        }
+        if (!bFoundSurfaceFormat)
+            return Stoner::RHI::ERHIResult::Unsupported;
+    }
+    else for (const VkSurfaceFormatKHR& Candidate : Formats)
     {
         if (Candidate.format == VK_FORMAT_B8G8R8A8_SRGB &&
             Candidate.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
         {
             SurfaceFormat = Candidate;
+            bFoundSurfaceFormat = true;
             break;
         }
     }
-    if (SurfaceFormat.format != VK_FORMAT_B8G8R8A8_SRGB &&
+    if (!bFoundSurfaceFormat)
+        SurfaceFormat = Formats[0];
+    if (!Impl->bHasExactPresentationRequest &&
+        SurfaceFormat.format != VK_FORMAT_B8G8R8A8_SRGB &&
         SurfaceFormat.format != VK_FORMAT_B8G8R8A8_UNORM &&
         SurfaceFormat.format != VK_FORMAT_R8G8B8A8_SRGB &&
         SurfaceFormat.format != VK_FORMAT_R8G8B8A8_UNORM)
@@ -1999,8 +2070,42 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleImage(
             Impl->Device, &SwapchainInfo, nullptr,
             &Impl->Swapchain) != VK_SUCCESS)
         return Fail();
+    if (Impl->bHasExactPresentationRequest &&
+        Impl->ExactPresentationRequest.bHasHDRMetadata)
+    {
+        const auto SetMetadata = reinterpret_cast<PFN_vkSetHdrMetadataEXT>(
+            vkGetDeviceProcAddr(Impl->Device, "vkSetHdrMetadataEXT"));
+        if (!Impl->bSupportsHDRMetadata || !SetMetadata)
+            return Fail();
+        const auto& Source =
+            Impl->ExactPresentationRequest.HDRMetadata;
+        VkHdrMetadataEXT Native = MakeVulkanStruct<VkHdrMetadataEXT>(
+            VK_STRUCTURE_TYPE_HDR_METADATA_EXT);
+        Native.displayPrimaryRed = {
+            Source.DisplayPrimaryRedX, Source.DisplayPrimaryRedY};
+        Native.displayPrimaryGreen = {
+            Source.DisplayPrimaryGreenX, Source.DisplayPrimaryGreenY};
+        Native.displayPrimaryBlue = {
+            Source.DisplayPrimaryBlueX, Source.DisplayPrimaryBlueY};
+        Native.whitePoint = {Source.WhitePointX, Source.WhitePointY};
+        Native.minLuminance = Source.MasteringDisplayMinLuminanceNits;
+        Native.maxLuminance = Source.MasteringDisplayMaxLuminanceNits;
+        Native.maxContentLightLevel = Source.MaxContentLightLevelNits;
+        Native.maxFrameAverageLightLevel =
+            Source.MaxFrameAverageLightLevelNits;
+        SetMetadata(Impl->Device, 1, &Impl->Swapchain, &Native);
+    }
     Impl->SwapchainFormat = SurfaceFormat.format;
     Impl->SwapchainExtent = Extent;
+    ++Impl->PresentationModeGeneration;
+    Impl->Snapshot.PresentationModeGeneration =
+        Impl->PresentationModeGeneration;
+    Impl->Snapshot.PresentationWidth = Extent.width;
+    Impl->Snapshot.PresentationHeight = Extent.height;
+    Impl->Snapshot.PresentationFormat =
+        FromVulkanPresentationFormat(SurfaceFormat.format);
+    Impl->Snapshot.PresentationColorSpace =
+        FromVulkanPresentationColorSpace(SurfaceFormat.colorSpace);
     if (vkGetSwapchainImagesKHR(
             Impl->Device, Impl->Swapchain,
             &ImageCount, nullptr) != VK_SUCCESS)
@@ -2071,6 +2176,311 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleImage(
 #endif
 }
 
+Stoner::RHI::ERHIResult
+FVulkanNativeContext::QueryVisiblePresentationCapabilities(
+    Stoner::RHI::FRHIPresentationCapabilities& OutCapabilities) const
+{
+    OutCapabilities = {};
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE && defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
+    if (!Impl || Impl->PhysicalDevice == VK_NULL_HANDLE ||
+        Impl->Surface == VK_NULL_HANDLE)
+        return Stoner::RHI::ERHIResult::InvalidState;
+    Stoner::Core::uint32 Count = 0;
+    if (vkGetPhysicalDeviceSurfaceFormatsKHR(
+            Impl->PhysicalDevice, Impl->Surface, &Count, nullptr) !=
+            VK_SUCCESS || Count == 0)
+        return Stoner::RHI::ERHIResult::Failed;
+    std::vector<VkSurfaceFormatKHR> Formats(Count);
+    if (vkGetPhysicalDeviceSurfaceFormatsKHR(
+            Impl->PhysicalDevice, Impl->Surface, &Count, Formats.data()) !=
+            VK_SUCCESS)
+        return Stoner::RHI::ERHIResult::Failed;
+    OutCapabilities.SurfaceId = static_cast<Stoner::Core::uint64>(
+        reinterpret_cast<std::uintptr_t>(Impl->Surface));
+    if (OutCapabilities.SurfaceId == 0) OutCapabilities.SurfaceId = 1;
+    OutCapabilities.CapabilityGeneration =
+        Impl->PresentationCapabilityGeneration;
+    for (const VkSurfaceFormatKHR& Native : Formats)
+    {
+        const auto Format = FromVulkanPresentationFormat(Native.format);
+        const auto ColorSpace =
+            FromVulkanPresentationColorSpace(Native.colorSpace);
+        if (!Stoner::RHI::IsValidRHIFormat(Format) ||
+            !Stoner::RHI::IsValidPresentationColorSpace(ColorSpace))
+            continue;
+        const Stoner::RHI::FRHIPresentationFormatColorSpacePair Pair{
+            Format, ColorSpace};
+        if (std::find(OutCapabilities.SupportedPairs.begin(),
+                OutCapabilities.SupportedPairs.end(), Pair) ==
+            OutCapabilities.SupportedPairs.end())
+            OutCapabilities.SupportedPairs.push_back(Pair);
+    }
+    OutCapabilities.bSupportsHDRMetadata = Impl->bSupportsHDRMetadata;
+    OutCapabilities.bSupportsExtendedRange = std::any_of(
+        OutCapabilities.SupportedPairs.begin(),
+        OutCapabilities.SupportedPairs.end(), [](const auto& Pair) {
+            return Pair.ColorSpace == Stoner::RHI::
+                ERHIPresentationColorSpace::ExtendedSrgbLinear;
+        });
+    OutCapabilities.NativeReferenceWhiteNits = 80.0f;
+    OutCapabilities.CurrentHeadroom = 1.0f;
+    OutCapabilities.PotentialHeadroom =
+        OutCapabilities.bSupportsExtendedRange ? 25.0f : 1.0f;
+    std::ostringstream Digest;
+    Digest << "vulkan-native-surface-formats-v2|generation="
+           << OutCapabilities.CapabilityGeneration
+           << "|metadata=" << (OutCapabilities.bSupportsHDRMetadata ? 1 : 0)
+           << "|extended=" << (OutCapabilities.bSupportsExtendedRange ? 1 : 0);
+    for (const auto& Pair : OutCapabilities.SupportedPairs)
+    {
+        Digest << "|pair=" << static_cast<int>(Pair.Format)
+               << ':' << static_cast<int>(Pair.ColorSpace);
+    }
+    OutCapabilities.CapabilityDigest = Digest.str().c_str();
+    return OutCapabilities.IsValid()
+        ? Stoner::RHI::ERHIResult::Success
+        : Stoner::RHI::ERHIResult::Unsupported;
+#else
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::RHI::ERHIResult
+FVulkanNativeContext::RefreshVisiblePresentationCapabilities(
+    Stoner::RHI::FRHIPresentationCapabilities& OutCapabilities)
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE && defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
+    if (!Impl || Impl->Surface == VK_NULL_HANDLE)
+    {
+        OutCapabilities = {};
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    ++Impl->PresentationCapabilityGeneration;
+    return QueryVisiblePresentationCapabilities(OutCapabilities);
+#else
+    OutCapabilities = {};
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleImage(
+    const Stoner::RHI::FRHISwapchainDesc& Request,
+    Stoner::RHI::FRHIResolvedPresentationState& OutResolvedState)
+{
+    OutResolvedState = {};
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE && defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
+    if (!Impl || !Request.IsExactPresentationRequestValid())
+        return Stoner::RHI::ERHIResult::InvalidState;
+    Stoner::RHI::FRHIPresentationCapabilities Capabilities;
+    const auto CapabilityResult =
+        QueryVisiblePresentationCapabilities(Capabilities);
+    if (CapabilityResult != Stoner::RHI::ERHIResult::Success)
+        return CapabilityResult;
+    if (Request.SurfaceCapabilityGeneration !=
+            Capabilities.CapabilityGeneration ||
+        !Capabilities.SupportsPair(
+            Request.PreferredFormat, Request.PreferredColorSpace) ||
+        (Request.bHasHDRMetadata && !Capabilities.bSupportsHDRMetadata) ||
+        Request.DisplayAdaptation != Stoner::RHI::
+            ERHIPresentationDisplayAdaptation::None)
+        return Stoner::RHI::ERHIResult::Unsupported;
+    Impl->bHasExactPresentationRequest = true;
+    Impl->ExactPresentationRequest = Request;
+    const auto Result = PrepareVisibleImage(Request.Width, Request.Height);
+    Impl->bHasExactPresentationRequest = false;
+    Impl->ExactPresentationRequest = {};
+    if (Result != Stoner::RHI::ERHIResult::Success)
+        return Result;
+    OutResolvedState.ModeGeneration = Impl->PresentationModeGeneration;
+    OutResolvedState.Width = Impl->SwapchainExtent.width;
+    OutResolvedState.Height = Impl->SwapchainExtent.height;
+    OutResolvedState.Format = Request.PreferredFormat;
+    OutResolvedState.ColorSpace = Request.PreferredColorSpace;
+    OutResolvedState.NativeEncoding = Request.NativeEncoding;
+    OutResolvedState.DisplayAdaptation = Request.DisplayAdaptation;
+    OutResolvedState.bHasHDRMetadata = Request.bHasHDRMetadata;
+    OutResolvedState.MetadataDigest = Request.bHasHDRMetadata
+        ? Request.HDRMetadata.CanonicalDigest : Stoner::Core::FString{};
+    OutResolvedState.ReferenceWhiteNits = Request.ReferenceWhiteNits;
+    OutResolvedState.TargetPeakNits = Request.TargetPeakNits;
+    OutResolvedState.SwapchainImageGeneration =
+        Impl->PresentationModeGeneration;
+    Impl->Snapshot.PresentationNativeEncoding = Request.NativeEncoding;
+    Impl->Snapshot.PresentationDisplayAdaptation =
+        Request.DisplayAdaptation;
+    Impl->Snapshot.PresentationMetadataDigest =
+        OutResolvedState.MetadataDigest;
+    return OutResolvedState.IsValid()
+        ? Stoner::RHI::ERHIResult::Success
+        : Stoner::RHI::ERHIResult::Failed;
+#else
+    (void)Request;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleTextureExact(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Source,
+    Stoner::Core::uint64 FrameToken)
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE && defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
+    auto Texture = std::dynamic_pointer_cast<FVulkanTexture>(Source);
+    if (!Impl || !Texture || FrameToken == 0 ||
+        Texture->NativeContext.get() != this || Texture->NativeToken == 0 ||
+        Texture->GetLifecycleState() !=
+            Stoner::RHI::ERHIResourceLifecycleState::Valid ||
+        !Stoner::RHI::HasRHIFlag(Texture->GetUsage(),
+            Stoner::RHI::ERHITextureUsage::CopySource) ||
+        Impl->Swapchain == VK_NULL_HANDLE || Impl->VisibleFences.empty() ||
+        Impl->bFrameAcquired)
+        return Stoner::RHI::ERHIResult::InvalidState;
+    const auto Found = Impl->OwnedTextures.find(Texture->NativeToken);
+    if (Found == Impl->OwnedTextures.end() ||
+        Found->second.Image == VK_NULL_HANDLE ||
+        Found->second.MipLayouts.empty() ||
+        Texture->GetDesc().Width != Impl->SwapchainExtent.width ||
+        Texture->GetDesc().Height != Impl->SwapchainExtent.height ||
+        ToVulkanPresentationFormat(Texture->GetFormat()) !=
+            Impl->SwapchainFormat)
+        return Stoner::RHI::ERHIResult::Unsupported;
+
+    const Stoner::Core::uint32 FrameSlot = Impl->CurrentFrameSlot %
+        static_cast<Stoner::Core::uint32>(Impl->VisibleFences.size());
+    const VkResult Wait = vkWaitForFences(
+        Impl->Device, 1, &Impl->VisibleFences[FrameSlot], VK_TRUE,
+        30ull * 1000ull * 1000ull * 1000ull);
+    if (Wait != VK_SUCCESS)
+        return Wait == VK_TIMEOUT ? Stoner::RHI::ERHIResult::Timeout
+                                  : Stoner::RHI::ERHIResult::Failed;
+    Stoner::Core::uint32 ImageIndex = 0;
+    const VkResult Acquire = vkAcquireNextImageKHR(
+        Impl->Device, Impl->Swapchain, UINT64_MAX,
+        Impl->VisibleImageAvailable[FrameSlot], VK_NULL_HANDLE, &ImageIndex);
+    if (Acquire == VK_ERROR_OUT_OF_DATE_KHR)
+        return Stoner::RHI::ERHIResult::ResizeRequired;
+    if (Acquire != VK_SUCCESS && Acquire != VK_SUBOPTIMAL_KHR)
+        return Stoner::RHI::ERHIResult::Failed;
+    Impl->AcquiredImageIndex = ImageIndex;
+    Impl->AcquiredFrameSlot = FrameSlot;
+    Impl->bFrameAcquired = true;
+    Impl->bAcquiredSuboptimal = Acquire == VK_SUBOPTIMAL_KHR;
+
+    VkCommandBuffer Commands = Impl->VisibleCommandBuffers[FrameSlot];
+    VkCommandBufferBeginInfo Begin =
+        MakeVulkanStruct<VkCommandBufferBeginInfo>(
+            VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO);
+    if (vkResetCommandBuffer(Commands, 0) != VK_SUCCESS ||
+        vkBeginCommandBuffer(Commands, &Begin) != VK_SUCCESS)
+    {
+        Impl->AbandonAcquiredVisibleFrame();
+        return Stoner::RHI::ERHIResult::Failed;
+    }
+    VkImageMemoryBarrier SourceReady =
+        MakeVulkanStruct<VkImageMemoryBarrier>(
+            VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
+    SourceReady.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    SourceReady.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    SourceReady.oldLayout = Found->second.MipLayouts[0];
+    SourceReady.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    SourceReady.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    SourceReady.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    SourceReady.image = Found->second.Image;
+    SourceReady.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    SourceReady.subresourceRange.levelCount = 1;
+    SourceReady.subresourceRange.layerCount = 1;
+    VkImageMemoryBarrier DestinationReady = SourceReady;
+    DestinationReady.srcAccessMask = 0;
+    DestinationReady.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    DestinationReady.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    DestinationReady.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    DestinationReady.image = Impl->SwapchainImages[ImageIndex];
+    const std::array<VkImageMemoryBarrier, 2> Ready = {
+        SourceReady, DestinationReady};
+    vkCmdPipelineBarrier(Commands, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr,
+        static_cast<Stoner::Core::uint32>(Ready.size()), Ready.data());
+    VkImageCopy Region{};
+    Region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    Region.srcSubresource.layerCount = 1;
+    Region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    Region.dstSubresource.layerCount = 1;
+    Region.extent = {Impl->SwapchainExtent.width,
+        Impl->SwapchainExtent.height, 1};
+    vkCmdCopyImage(Commands, Found->second.Image,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        Impl->SwapchainImages[ImageIndex],
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Region);
+    VkImageMemoryBarrier ToPresent = DestinationReady;
+    ToPresent.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    ToPresent.dstAccessMask = 0;
+    ToPresent.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    ToPresent.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    vkCmdPipelineBarrier(Commands, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr,
+        1, &ToPresent);
+    if (vkEndCommandBuffer(Commands) != VK_SUCCESS ||
+        vkResetFences(Impl->Device, 1,
+            &Impl->VisibleFences[FrameSlot]) != VK_SUCCESS)
+    {
+        Impl->AbandonAcquiredVisibleFrame();
+        return Stoner::RHI::ERHIResult::Failed;
+    }
+    const VkPipelineStageFlags WaitStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    VkSubmitInfo Submit = MakeVulkanStruct<VkSubmitInfo>(
+        VK_STRUCTURE_TYPE_SUBMIT_INFO);
+    Submit.waitSemaphoreCount = 1;
+    Submit.pWaitSemaphores = &Impl->VisibleImageAvailable[FrameSlot];
+    Submit.pWaitDstStageMask = &WaitStage;
+    Submit.commandBufferCount = 1;
+    Submit.pCommandBuffers = &Commands;
+    Submit.signalSemaphoreCount = 1;
+    Submit.pSignalSemaphores = &Impl->VisibleRenderFinished[ImageIndex];
+    if (vkQueueSubmit(Impl->GraphicsQueue, 1, &Submit,
+            Impl->VisibleFences[FrameSlot]) != VK_SUCCESS)
+    {
+        (void)Impl->RecreateVisibleFenceSignaled(FrameSlot);
+        Impl->bFrameAcquired = false;
+        Impl->bAcquiredSuboptimal = false;
+        return Stoner::RHI::ERHIResult::Failed;
+    }
+    const VkResult Completed = vkWaitForFences(
+        Impl->Device, 1, &Impl->VisibleFences[FrameSlot], VK_TRUE,
+        30ull * 1000ull * 1000ull * 1000ull);
+    if (Completed != VK_SUCCESS)
+    {
+        Impl->bFrameAcquired = false;
+        Impl->bAcquiredSuboptimal = false;
+        return Completed == VK_TIMEOUT ? Stoner::RHI::ERHIResult::Timeout
+                                       : Stoner::RHI::ERHIResult::Failed;
+    }
+    VkPresentInfoKHR Present = MakeVulkanStruct<VkPresentInfoKHR>(
+        VK_STRUCTURE_TYPE_PRESENT_INFO_KHR);
+    Present.waitSemaphoreCount = 1;
+    Present.pWaitSemaphores = &Impl->VisibleRenderFinished[ImageIndex];
+    Present.swapchainCount = 1;
+    Present.pSwapchains = &Impl->Swapchain;
+    Present.pImageIndices = &ImageIndex;
+    const VkResult Presented = vkQueuePresentKHR(Impl->GraphicsQueue, &Present);
+    const bool bResize = Impl->bAcquiredSuboptimal ||
+        Presented == VK_ERROR_OUT_OF_DATE_KHR ||
+        Presented == VK_SUBOPTIMAL_KHR;
+    Impl->bFrameAcquired = false;
+    Impl->bAcquiredSuboptimal = false;
+    Impl->CurrentFrameSlot = (FrameSlot + 1u) %
+        static_cast<Stoner::Core::uint32>(Impl->VisibleFences.size());
+    Impl->Snapshot.LastAcquiredFrameToken = FrameToken;
+    Impl->Snapshot.LastSubmittedFrameToken = FrameToken;
+    Impl->Snapshot.LastPresentedFrameToken = FrameToken;
+    if (bResize) return Stoner::RHI::ERHIResult::ResizeRequired;
+    return Presented == VK_SUCCESS ? Stoner::RHI::ERHIResult::Success
+                                   : Stoner::RHI::ERHIResult::Failed;
+#else
+    (void)Source;
+    (void)FrameToken;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
 Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
     std::span<const Stoner::Core::uint8> Bytes,
     Stoner::Core::uint32 Width,
@@ -2102,6 +2512,8 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
 
     const Stoner::Core::uint32 TargetWidth = Impl->SwapchainExtent.width;
     const Stoner::Core::uint32 TargetHeight = Impl->SwapchainExtent.height;
+    if (Width != TargetWidth || Height != TargetHeight)
+        return Stoner::RHI::ERHIResult::InvalidState;
     const Stoner::Core::uint64 TargetByteCount =
         static_cast<Stoner::Core::uint64>(TargetWidth) * TargetHeight * 4u;
     if (TargetByteCount == 0 ||
@@ -2112,17 +2524,11 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
     auto& NativePixels = Impl->VisibleImageNativePixels;
     for (Stoner::Core::uint32 Y = 0; Y < TargetHeight; ++Y)
     {
-        const Stoner::Core::uint32 SourceY =
-            static_cast<Stoner::Core::uint32>(
-                static_cast<Stoner::Core::uint64>(Y) * Height / TargetHeight);
         for (Stoner::Core::uint32 X = 0; X < TargetWidth; ++X)
         {
-            const Stoner::Core::uint32 SourceX =
-                static_cast<Stoner::Core::uint32>(
-                    static_cast<Stoner::Core::uint64>(X) * Width / TargetWidth);
             const Stoner::Core::usize SourceOffset =
-                static_cast<Stoner::Core::usize>(SourceY) * RowPitchBytes +
-                static_cast<Stoner::Core::usize>(SourceX) * 4u;
+                static_cast<Stoner::Core::usize>(Y) * RowPitchBytes +
+                static_cast<Stoner::Core::usize>(X) * 4u;
             const Stoner::Core::usize DestinationOffset =
                 (static_cast<Stoner::Core::usize>(Y) * TargetWidth + X) * 4u;
             NativePixels[DestinationOffset] =
@@ -2325,11 +2731,29 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
 #endif
 }
 
-Stoner::RHI::ERHIResult FVulkanNativeContext::AcquireVisibleFrame(FVulkanNativeFrameBindings& OutBindings)
+Stoner::RHI::ERHIResult FVulkanNativeContext::AcquireVisibleFrame(
+    FVulkanNativeFrameBindings& OutBindings)
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || Impl->NextVisibleFrameToken == 0)
+        return Stoner::RHI::ERHIResult::Unavailable;
+    return AcquireVisibleFrame(
+        Impl->NextVisibleFrameToken++, OutBindings);
+#else
+    (void)OutBindings;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::AcquireVisibleFrame(
+    Stoner::Core::uint64 FrameToken,
+    FVulkanNativeFrameBindings& OutBindings)
 {
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE && defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
     OutBindings = {};
-    if (!Impl || Impl->Swapchain == VK_NULL_HANDLE || Impl->VisibleFences.empty() || Impl->bFrameAcquired)
+    if (!Impl || FrameToken == 0 || Impl->PresentationModeGeneration == 0 ||
+        Impl->Swapchain == VK_NULL_HANDLE || Impl->VisibleFences.empty() ||
+        Impl->bFrameAcquired)
         return Stoner::RHI::ERHIResult::InvalidState;
     const Stoner::Core::uint32 FrameSlot = Impl->CurrentFrameSlot % static_cast<Stoner::Core::uint32>(Impl->VisibleFences.size());
     const VkResult WaitResult = vkWaitForFences(Impl->Device, 1, &Impl->VisibleFences[FrameSlot], VK_TRUE, 30ull * 1000ull * 1000ull * 1000ull);
@@ -2346,6 +2770,8 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::AcquireVisibleFrame(FVulkanNativeF
     Impl->bAcquiredSuboptimal = AcquireResult == VK_SUBOPTIMAL_KHR;
 
     const Stoner::RHI::ERHIFormat Format = ToRHIFormat(Impl->SwapchainFormat);
+    OutBindings.FrameToken = FrameToken;
+    OutBindings.ModeGeneration = Impl->PresentationModeGeneration;
     OutBindings.ImageIndex = ImageIndex;
     OutBindings.FrameSlot = FrameSlot;
     OutBindings.OutputTexture = Stoner::Core::MakeShared<FNativeTextureBinding>(Impl->SwapchainExtent.width, Impl->SwapchainExtent.height, Format);
@@ -2358,11 +2784,17 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::AcquireVisibleFrame(FVulkanNativeF
     OutBindings.RenderPass = Stoner::Core::MakeShared<FNativeRenderPassBinding>(Format);
     OutBindings.Framebuffer = Stoner::Core::MakeShared<FNativeFramebufferBinding>(
         OutBindings.RenderPass, OutBindings.OutputTexture, Impl->SwapchainExtent.width, Impl->SwapchainExtent.height);
+    const VkFramebuffer NativeFramebuffer =
+        ImageIndex < Impl->SwapchainFramebuffers.size()
+        ? Impl->SwapchainFramebuffers[ImageIndex] : VK_NULL_HANDLE;
     OutBindings.CommandBuffer = Stoner::Core::MakeShared<FNativeCommandBufferBinding>(Impl->VisibleCommandBuffers[FrameSlot],
-        Impl->RenderPass, Impl->SwapchainFramebuffers[ImageIndex], Impl->Pipeline,
-        Impl->VertexBuffer, Impl->IndexBuffer, Impl->SwapchainExtent);
+        Impl->RenderPass, NativeFramebuffer, Impl->Pipeline,
+        Impl->VertexBuffer, Impl->IndexBuffer,
+        Impl->SwapchainImages[ImageIndex], Impl->SwapchainExtent);
+    Impl->Snapshot.LastAcquiredFrameToken = FrameToken;
     return Stoner::RHI::ERHIResult::Success;
 #else
+    (void)FrameToken;
     (void)OutBindings;
     return Stoner::RHI::ERHIResult::Unsupported;
 #endif
@@ -2371,7 +2803,10 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::AcquireVisibleFrame(FVulkanNativeF
 Stoner::RHI::ERHIResult FVulkanNativeContext::SubmitAndPresentVisibleFrame(const FVulkanNativeFrameBindings& Bindings)
 {
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE && defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
-    if (!Impl || !Impl->bFrameAcquired || Bindings.ImageIndex != Impl->AcquiredImageIndex ||
+    if (!Impl || !Impl->bFrameAcquired || Bindings.FrameToken == 0 ||
+        Bindings.FrameToken != Impl->Snapshot.LastAcquiredFrameToken ||
+        Bindings.ModeGeneration != Impl->PresentationModeGeneration ||
+        Bindings.ImageIndex != Impl->AcquiredImageIndex ||
         Bindings.FrameSlot != Impl->AcquiredFrameSlot ||
         !Bindings.CommandBuffer || Bindings.CommandBuffer->GetState() != Stoner::RHI::ERHICommandBufferState::Completed)
         return Stoner::RHI::ERHIResult::InvalidState;
@@ -2395,6 +2830,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::SubmitAndPresentVisibleFrame(const
             ? Stoner::RHI::ERHIResult::Failed
             : Stoner::RHI::ERHIResult::Unavailable;
     }
+    Impl->Snapshot.LastSubmittedFrameToken = Bindings.FrameToken;
     VkPresentInfoKHR Present = MakeVulkanStruct<VkPresentInfoKHR>(VK_STRUCTURE_TYPE_PRESENT_INFO_KHR);
     Present.waitSemaphoreCount = 1; Present.pWaitSemaphores = &Impl->VisibleRenderFinished[Bindings.ImageIndex];
     Present.swapchainCount = 1; Present.pSwapchains = &Impl->Swapchain; Present.pImageIndices = &Impl->AcquiredImageIndex;
@@ -2411,10 +2847,24 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::SubmitAndPresentVisibleFrame(const
     {
         return Stoner::RHI::ERHIResult::ResizeRequired;
     }
-    return PresentResult == VK_SUCCESS ? Stoner::RHI::ERHIResult::Success : Stoner::RHI::ERHIResult::Failed;
+    if (PresentResult != VK_SUCCESS)
+        return Stoner::RHI::ERHIResult::Failed;
+    Impl->Snapshot.LastPresentedFrameToken = Bindings.FrameToken;
+    return Stoner::RHI::ERHIResult::Success;
 #else
     (void)Bindings;
     return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::Core::uint32
+FVulkanNativeContext::GetVisiblePresentationImageCount() const noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    return Impl ? static_cast<Stoner::Core::uint32>(
+        Impl->SwapchainImages.size()) : 0;
+#else
+    return 0;
 #endif
 }
 

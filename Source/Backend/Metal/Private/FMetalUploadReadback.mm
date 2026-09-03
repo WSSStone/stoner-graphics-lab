@@ -2,6 +2,7 @@
 
 #include "RHI/FRHIFormatInfo.h"
 
+#include <algorithm>
 #include <cstring>
 #include <limits>
 #include <new>
@@ -200,6 +201,73 @@ RHI::ERHIResult ReadbackMetalBuffer(
     {
         OutBytes.clear();
         return RHI::ERHIResult::Failed;
+    }
+}
+
+RHI::ERHIResult ReadbackMetalTexture(
+    id<MTLCommandQueue> Queue,
+    id<MTLTexture> Source,
+    Core::uint64 TightRowBytes,
+    Core::uint32 Height,
+    Core::TArray<Core::uint8>& OutBytes) noexcept
+{
+    OutBytes.clear();
+    if (Queue == nil || Source == nil || TightRowBytes == 0 || Height == 0 ||
+        Source.width == 0 || Source.height != Height || Source.depth != 1 ||
+        Source.sampleCount != 1 ||
+        TightRowBytes > std::numeric_limits<NSUInteger>::max())
+        return RHI::ERHIResult::InvalidState;
+    @autoreleasepool
+    {
+        id<MTLDevice> Device = Source.device;
+        const NSUInteger Alignment = std::max<NSUInteger>(1,
+            [Device minimumLinearTextureAlignmentForPixelFormat:
+                Source.pixelFormat]);
+        const NSUInteger Tight = static_cast<NSUInteger>(TightRowBytes);
+        if (Tight > std::numeric_limits<NSUInteger>::max() -
+                (Alignment - 1))
+            return RHI::ERHIResult::Unavailable;
+        const NSUInteger Padded =
+            ((Tight + Alignment - 1) / Alignment) * Alignment;
+        if (Padded == 0 || Height >
+                std::numeric_limits<NSUInteger>::max() / Padded)
+            return RHI::ERHIResult::Unavailable;
+        const NSUInteger ByteCount = Padded * Height;
+        id<MTLBuffer> Buffer = [Device newBufferWithLength:ByteCount
+            options:MTLResourceStorageModeShared];
+        id<MTLCommandBuffer> Commands = [Queue commandBuffer];
+        id<MTLBlitCommandEncoder> Blit = [Commands blitCommandEncoder];
+        if (Buffer == nil || Commands == nil || Blit == nil)
+            return RHI::ERHIResult::Unavailable;
+        [Blit copyFromTexture:Source sourceSlice:0 sourceLevel:0
+            sourceOrigin:MTLOriginMake(0, 0, 0)
+            sourceSize:MTLSizeMake(Source.width, Source.height, 1)
+            toBuffer:Buffer destinationOffset:0
+            destinationBytesPerRow:Padded
+            destinationBytesPerImage:ByteCount];
+        [Blit endEncoding];
+        [Commands commit];
+        [Commands waitUntilCompleted];
+        if (Commands.status != MTLCommandBufferStatusCompleted)
+            return RHI::ERHIResult::Failed;
+        try
+        {
+            OutBytes.resize(static_cast<Core::usize>(Tight) * Height);
+        }
+        catch (...)
+        {
+            return RHI::ERHIResult::Unavailable;
+        }
+        const auto* SourceBytes = static_cast<const Core::uint8*>(
+            Buffer.contents);
+        for (Core::uint32 Row = 0; Row < Height; ++Row)
+        {
+            std::memcpy(
+                OutBytes.data() + static_cast<Core::usize>(Row) * Tight,
+                SourceBytes + static_cast<Core::usize>(Row) * Padded,
+                Tight);
+        }
+        return RHI::ERHIResult::Success;
     }
 }
 

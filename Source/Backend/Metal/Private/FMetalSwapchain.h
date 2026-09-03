@@ -27,22 +27,42 @@ public:
     [[nodiscard]] Core::TSharedPtr<RHI::IRHITexture> GetImage(
         Core::uint32 FrameIndex) const override;
     [[nodiscard]] Core::uint64 GetGeneration() const noexcept override;
+    [[nodiscard]] const RHI::FRHIResolvedPresentationState&
+    GetResolvedPresentationState() const noexcept override;
+    RHI::ERHIResult Reconfigure(
+        const RHI::FRHISwapchainDesc& Request) override;
     RHI::ERHIResult AcquireNextFrame(Core::uint32& OutFrameIndex) override;
     RHI::ERHIResult AcquireNextFrame(
         Core::uint32& OutFrameIndex,
         const Core::TSharedPtr<RHI::IRHISemaphore>& SignalSemaphore) override;
+    RHI::ERHIResult AcquireNextFrame(
+        Core::uint64 FrameToken,
+        RHI::FRHIPresentationFrame& OutFrame) override;
     RHI::ERHIResult Present(Core::uint32 FrameIndex) override;
+    RHI::ERHIResult Present(
+        const RHI::FRHIPresentationFrame& Frame) override;
     RHI::ERHIResult Present(
         Core::uint32 FrameIndex,
         const Core::TSharedPtr<RHI::IRHISemaphore>& WaitSemaphore) override;
 
 private:
+    RHI::ERHIResult AcquireNextFrameLocked(
+        Core::uint64 FrameToken,
+        Core::uint32& OutFrameIndex);
+    RHI::ERHIResult PresentLocked(
+        Core::uint32 FrameIndex,
+        Core::uint64 FrameToken,
+        const Core::TSharedPtr<RHI::IRHISemaphore>& WaitSemaphore);
+
     mutable std::mutex Mutex_;
     Core::TSharedPtr<FMetalPresentationSurface> Surface_;
     RHI::FRHISwapchainDesc Desc_;
     RHI::ERHISwapchainState State_ = RHI::ERHISwapchainState::Ready;
     Core::uint32 CurrentFrameIndex_ = 0;
     Core::uint64 AcquiredGeneration_ = 0;
+    Core::uint64 NextFrameToken_ = 1;
+    Core::uint64 AcquiredFrameToken_ = 0;
+    RHI::FRHIResolvedPresentationState ResolvedState_;
     Core::TArray<Core::TSharedPtr<RHI::IRHITexture>> Images_;
 };
 

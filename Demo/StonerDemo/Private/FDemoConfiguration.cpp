@@ -5,6 +5,7 @@
 #include <cerrno>
 #include <cstdlib>
 #include <limits>
+#include <cmath>
 #include <string_view>
 
 namespace Stoner::Demo
@@ -43,6 +44,18 @@ bool ParsePositiveDouble(const char* Text, double& OutValue)
     {
         return false;
     }
+    OutValue = Value;
+    return true;
+}
+
+bool ParseFiniteFloat(const char* Text, float& OutValue)
+{
+    if (Text == nullptr || Text[0] == '\0') return false;
+    errno = 0;
+    char* End = nullptr;
+    const float Value = std::strtof(Text, &End);
+    if (errno != 0 || End == Text || *End != '\0' || !std::isfinite(Value))
+        return false;
     OutValue = Value;
     return true;
 }
@@ -142,7 +155,15 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
             return Fail("triangle workload requires the triangle render path");
         if (!ProductionRoot.IsEmpty() || !StrictGeneration.IsEmpty() ||
             !WorkloadRevision.IsEmpty() || bVisibleCapture ||
-            bProductionCameraPreview || !ProductionCameraPresetOutput.IsEmpty())
+            bProductionCameraPreview || !ProductionCameraPresetOutput.IsEmpty() ||
+            !ProductionCaptureRoot.IsEmpty() ||
+            !OutputNativeProbePath.IsEmpty() ||
+            !OutputNativeProbeProfile.IsEmpty() ||
+            OutputDeviceProfileId != Core::FString(
+                Renderer::GDefaultSDROutputDeviceProfile) ||
+            OutputTransformVersion != Core::FString(
+                Renderer::GDefaultSDRToneMapVersion) ||
+            OutputExposureStops != 0.0f)
             return Fail("production options require the production-content workload");
     }
     else
@@ -174,6 +195,24 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
             (ClientWidth != ProductionImageAcceptanceExtent ||
              ClientHeight != ProductionImageAcceptanceExtent))
             return Fail("formal image acceptance requires exactly 512x512");
+        if (!ProductionCaptureRoot.IsEmpty() &&
+            (!bVisibleCapture || OutputDeviceProfileId.View().starts_with("Hdr.")))
+            return Fail("production capture output is restricted to visible SDR authority");
+        if (OutputNativeProbePath.IsEmpty() !=
+            OutputNativeProbeProfile.IsEmpty())
+            return Fail("native probe output and profile must be specified together");
+        if (!OutputNativeProbePath.IsEmpty())
+        {
+            const bool bHdrProbe = OutputNativeProbeProfile ==
+                Core::FString("native-hdr-nonvisual");
+            const bool bSdrProbe = OutputNativeProbeProfile ==
+                Core::FString("native-sdr");
+            if ((!bHdrProbe && !bSdrProbe) || !bVisibleCapture ||
+                RenderPath != EDemoRenderPath::DeferredFull ||
+                !WorkloadRevision.View().ends_with("-v3") ||
+                bHdrProbe != OutputDeviceProfileId.View().starts_with("Hdr."))
+                return Fail("native probe requires a matching visible Deferred v3 SDR or Metal HDR profile");
+        }
         if (bProductionCameraPreview)
         {
             if (RunMode != EDemoRunMode::InteractiveNative ||
@@ -183,6 +222,15 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
         }
         else if (!ProductionCameraPresetOutput.IsEmpty())
             return Fail("camera preset output requires camera preview mode");
+
+        if (OutputDeviceProfileId.View().starts_with("Hdr.") &&
+            !bVisibleCapture)
+            return Fail("HDR output requires the explicit visible production path");
+
+        Renderer::FOutputTransformSettings OutputSettings;
+        if (!ResolveDemoOutputTransformSettings(
+                *this, 80.0f, OutputSettings, nullptr, OutReason))
+            return false;
     }
     return true;
 }
@@ -335,8 +383,26 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
         else if (Option == "--baseline-root") Parsed.BaselineRoot = Value;
         else if (Option == "--device-class-registry")
             Parsed.DeviceClassRegistryPath = Value;
+        else if (Option == "--production-capture-root")
+            Parsed.ProductionCaptureRoot = Value;
+        else if (Option == "--output-native-probe")
+            Parsed.OutputNativeProbePath = Value;
+        else if (Option == "--output-native-profile")
+            Parsed.OutputNativeProbeProfile = Value;
         else if (Option == "--camera-preset-output")
             Parsed.ProductionCameraPresetOutput = Value;
+        else if (Option == "--output-device-profile")
+            Parsed.OutputDeviceProfileId = Value;
+        else if (Option == "--output-transform-version")
+            Parsed.OutputTransformVersion = Value;
+        else if (Option == "--output-exposure-stops")
+        {
+            if (!ParseFiniteFloat(Value, Parsed.OutputExposureStops))
+            {
+                OutReason = "invalid output-exposure-stops";
+                return EDemoExitCode::InvalidConfiguration;
+            }
+        }
         else if (Option == "--production-cycles")
         {
             if (!ParseUInt(Value, Parsed.ProductionLifecycleCycles, false))
@@ -385,6 +451,63 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
     if (const char* RunId = std::getenv("STONER_DEMO_RUN_ID"); RunId != nullptr && RunId[0] != '\0') Parsed.EvidenceRunId = RunId;
     OutConfiguration = Parsed;
     return EDemoExitCode::Success;
+}
+
+bool ResolveDemoOutputTransformSettings(
+    const FDemoConfiguration& Configuration,
+    float NativeReferenceWhiteNits,
+    Renderer::FOutputTransformSettings& OutSettings,
+    Renderer::FResolvedOutputTransformSettings* OutResolved,
+    Stoner::Core::FString* OutReason)
+{
+    if (OutReason) OutReason->Clear();
+    OutSettings = {};
+    if (OutResolved) *OutResolved = {};
+
+    const auto& ProfileId = Configuration.OutputDeviceProfileId;
+    const bool bHdr = ProfileId.View().starts_with("Hdr.");
+    if (bHdr && Configuration.GraphicsBackend != EDemoGraphicsBackend::Metal)
+    {
+        if (OutReason)
+            *OutReason = "Feature 029 HDR presentation is Metal-only";
+        return false;
+    }
+    OutSettings.ManualExposureStops = Configuration.OutputExposureStops;
+    OutSettings.DynamicRange = bHdr
+        ? Renderer::EOutputDynamicRange::HDR
+        : Renderer::EOutputDynamicRange::SDR;
+    OutSettings.OutputDeviceProfileId = ProfileId;
+    if (bHdr)
+    {
+        OutSettings.HDRViewingVersion = Configuration.OutputTransformVersion;
+        if (ProfileId.View().starts_with("Hdr.PQ."))
+            OutSettings.PreferredNativeEncoding =
+                RHI::ERHIPresentationNativeEncoding::Pq;
+        else
+        {
+            OutSettings.PreferredNativeEncoding =
+                RHI::ERHIPresentationNativeEncoding::MetalEdr;
+            OutSettings.NativeReferenceWhiteNits = NativeReferenceWhiteNits;
+        }
+    }
+    else
+    {
+        OutSettings.SDRToneMapVersion = Configuration.OutputTransformVersion;
+        OutSettings.PreferredNativeEncoding =
+            RHI::ERHIPresentationNativeEncoding::SdrExplicit;
+    }
+    OutSettings.bRequirePresentation = true;
+    OutSettings.bRequireReadback = true;
+    const auto Validation =
+        Renderer::FOutputTransformSettingsValidator().Validate(OutSettings);
+    if (!Validation.Succeeded())
+    {
+        if (OutReason)
+            *OutReason = Validation.Diagnostics.Dump();
+        return false;
+    }
+    if (OutResolved) *OutResolved = Validation.Settings;
+    return true;
 }
 
 const char* ToString(EDemoRunMode Mode) noexcept

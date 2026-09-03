@@ -85,6 +85,14 @@ struct FDeferredReadbackBinding
     Stoner::RHI::FRHITextureBufferCopyRegion Region;
 };
 
+struct FDeferredPostProcessStageBinding
+{
+    Stoner::Core::FString Name;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> Input;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> Output;
+    FDeferredStageBindings Stage;
+};
+
 struct FDeferredSurfaceDrawBinding
 {
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> VertexBuffer;
@@ -105,7 +113,14 @@ struct FDeferredFrameExecutionBindings
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> EmissiveMetallic;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> Depth;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> LightingAccumulation;
+    // Deferred's own terminal attachment is canonical linear HDR SceneColor.
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> FinalOutput;
+    // Optional Feature 029 chain. When present, this is the only formal output
+    // used by readback and presentation; FinalOutput remains the producer
+    // handoff and is never presented directly.
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> FormalOutput;
+    Stoner::Core::TArray<FDeferredPostProcessStageBinding>
+        OutputTransformStages;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> SurfaceVertexBuffer;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> SurfaceIndexBuffer;
     Stoner::Core::uint32 SurfaceIndexCount = 0;
@@ -126,6 +141,7 @@ struct FDeferredFrameExecutionBindings
     FDeferredStageBindings Composition;
     FDeferredStageBindings Transparency;
     Stoner::Core::TArray<FDeferredReadbackBinding> Readbacks;
+    bool bTransitionFinalOutputToPresent = false;
 };
 
 struct FDeferredFrameExecutionResult

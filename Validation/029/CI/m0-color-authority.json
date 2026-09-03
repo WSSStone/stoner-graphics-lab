@@ -1,0 +1,64 @@
+{
+  "schema": "stoner.feature-029-m0-color-authority",
+  "schemaVersion": 1,
+  "status": "passed",
+  "sourceState": {
+    "kind": "working-tree",
+    "baseRevision": "e66f848d5537db2f5f98b79ae9892b8f1ee9da26"
+  },
+  "authority": {
+    "profileRegistry": "output-transform-profiles-v1",
+    "vectorSet": "output-transform-vectors-v1",
+    "acesTag": "v2.0.0+2025.04.04",
+    "acesCommit": "35e1e6ac2c26ec75433547d5d0a3a881f39bd9f5"
+  },
+  "checks": [
+    {
+      "name": "strict-debug-build",
+      "command": "conda run -n godot scons config=debug strict=1 -j8",
+      "result": "passed"
+    },
+    {
+      "name": "registered-cpu-oracle-suite",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite renderer-output-transform-math",
+      "result": "passed",
+      "passedAssertions": 16,
+      "failedAssertions": 0
+    },
+    {
+      "name": "python-verifier-tests",
+      "command": "python3 .github/scripts/test_verify_output_transform_vectors.py",
+      "result": "passed",
+      "passedTests": 3,
+      "failedTests": 0
+    },
+    {
+      "name": "immutable-vector-verifier",
+      "command": "python3 .github/scripts/verify_output_transform_vectors.py --profiles Config/Validation/OutputTransform/Profiles.json --manifest Tests/Fixtures/OutputTransform/manifest-v1.json --vectors Tests/Fixtures/OutputTransform/vectors-v1.json --output Build/Validation/029/vectors.json",
+      "result": "passed",
+      "findingCount": 0,
+      "caseCount": 32,
+      "expectationCount": 224,
+      "hdrCaseCount": 32,
+      "expectationsPerProfile": 32,
+      "determinismRepeatCount": 20
+    },
+    {
+      "name": "json-and-whitespace-audit",
+      "command": "jq empty <M0 JSON inputs> && git diff --check",
+      "result": "passed"
+    }
+  ],
+  "digests": {
+    "manifestSha256": "b8d1bb9fac4cce192bbce03b71b7fb6c03b9eab6b160523fdacb03bb6eb7f98f",
+    "vectorsSha256": "16189846ba601040696fbb1db6120eed36253feffeae02362a691e250c24aa76",
+    "rawVerifierReportSha256": "eafa858409c3d2b2feefc1ed556dc8d4f6fc472e6572c7c6f78d0c7ae4b31cab"
+  },
+  "boundedEvidence": {
+    "checkedInJsonFiles": 3,
+    "rawReportLocation": "Build/Validation/029/vectors.json",
+    "rawReportCheckedIn": false,
+    "pngFiles": 0,
+    "automatedVisualDecision": false
+  }
+}

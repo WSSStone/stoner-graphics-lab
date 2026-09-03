@@ -58,6 +58,8 @@ void FStonerDemoApplication::RecordProductionCapture(
 
 bool FStonerDemoApplication::PresentProductionCaptureWithRecovery(
     FDemoProductionCapture& Capture,
+    const Core::TSharedPtr<RHI::IRHITexture>& FormalOutput,
+    Core::uint64 FrameToken,
     FDemoProductionPresentationResult& Presented)
 {
     if (!Window || !BackendRuntime) return false;
@@ -73,9 +75,8 @@ bool FStonerDemoApplication::PresentProductionCaptureWithRecovery(
         Presented.Height = 0;
         Presented.RowPitchBytes = 0;
         Presented.bPresented = false;
-        Result = BackendRuntime->PresentProductionImage(
-            Capture.Bytes, Capture.Width, Capture.Height,
-            Capture.RowPitchBytes, Presented);
+        Result = BackendRuntime->PresentProductionFormalOutput(
+            FormalOutput, FrameToken, Presented);
         if (Result == RHI::ERHIResult::Success) break;
         const bool bRecoverable = Result == RHI::ERHIResult::ResizeRequired ||
             (Configuration.GraphicsBackend == EDemoGraphicsBackend::Metal &&
@@ -93,33 +94,40 @@ bool FStonerDemoApplication::PresentProductionCaptureWithRecovery(
     }
     while (std::chrono::steady_clock::now() - Started <= RecoveryLimit);
 
-    if (Result != RHI::ERHIResult::Success || !Presented.bPresented ||
-        Presented.Rgba8.empty())
+    if (Result != RHI::ERHIResult::Success || !Presented.bPresented)
     {
         const Core::FString Reason(
             "production presentation recovery failed; result=" +
-            std::to_string(static_cast<int>(Result)));
+            std::to_string(static_cast<int>(Result)) +
+            "; stage=" +
+            (Presented.FailureStage.IsEmpty()
+                ? std::string("unknown")
+                : Presented.FailureStage.ToStdString()));
         Diagnostics.Add(EDemoStage::Present, EDemoExitCode::ValidationFailed,
             "ProductionPresentation", Reason.CStr());
         return false;
     }
-    if (Presented.Width == Capture.Width &&
-        Presented.Height == Capture.Height &&
-        Presented.RowPitchBytes == Capture.RowPitchBytes &&
-        Presented.Rgba8 != Capture.Bytes)
+    if (Presented.Width != Capture.Width ||
+        Presented.Height != Capture.Height ||
+        Presented.RowPitchBytes != Capture.RowPitchBytes ||
+        Presented.FrameToken != FrameToken ||
+        Presented.Format != Capture.Format ||
+        !Presented.ResolvedState.IsValid())
     {
-        Diagnostics.Add(EDemoStage::Readback,
+        Diagnostics.Add(EDemoStage::Present,
             EDemoExitCode::ValidationFailed, "ProductionPresentation",
-            "native presentation readback differs from the submitted RGBA image");
+            "formal output and native presentation extents must match exactly");
         return false;
     }
-    Capture.Width = Presented.Width;
-    Capture.Height = Presented.Height;
-    Capture.RowPitchBytes = Presented.RowPitchBytes;
-    Capture.Format = RHI::ERHIFormat::R8G8B8A8_UNorm;
     Capture.bPresented = true;
     Capture.bWindowOnlyCapture = true;
-    Capture.Bytes.swap(Presented.Rgba8);
+    if (ProductionExecutionInspection.FirstPresentedFrameToken == 0)
+        ProductionExecutionInspection.FirstPresentedFrameToken = FrameToken;
+    ProductionExecutionInspection.LastPresentedFrameToken = FrameToken;
+    ProductionExecutionInspection.ResolvedPresentationState =
+        Presented.ResolvedState;
+    ProductionExecutionInspection.PresentationCapabilityDigest =
+        Presented.CapabilityDigest;
     return true;
 }
 

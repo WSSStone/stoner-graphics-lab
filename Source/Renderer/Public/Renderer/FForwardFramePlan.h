@@ -2,6 +2,7 @@
 
 #include "Core/CoreMinimal.h"
 #include "Renderer/FForwardDiagnostics.h"
+#include "Renderer/FHDRSceneColorHandoff.h"
 #include "Renderer/FForwardLightData.h"
 #include "Renderer/FForwardRenderGraphDeclaration.h"
 #include "Renderer/FForwardViewData.h"
@@ -43,7 +44,7 @@ struct FForwardOutputTarget
 {
     Stoner::Core::FString ColorTargetName;
     Stoner::Core::FString DepthTargetName;
-    Stoner::Core::FString FormatSummary = "RGBA8";
+    Stoner::Core::FString FormatSummary = "RGBA16F";
     FForwardExtent2D Extent;
 
     [[nodiscard]] bool IsValid(const FForwardViewData& View, FForwardDiagnosticLog* Diagnostics = nullptr) const;
@@ -84,6 +85,7 @@ struct FForwardFramePlan
     Stoner::Core::TArray<FMeshDrawCommand> AcceptedTransparentDraws;
     Stoner::Core::TArray<FMeshDrawCandidate> RejectedDraws;
     FForwardRenderGraphDeclaration GraphDeclaration;
+    FHDRSceneColorHandoff SceneColorHandoff;
     FForwardDiagnosticLog Diagnostics;
     Stoner::Core::FString DebugDump;
     bool bValid = false;

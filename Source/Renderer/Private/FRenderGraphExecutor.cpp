@@ -124,38 +124,48 @@ ERenderGraphResult FRenderGraphExecutor::Execute(FRenderGraph& Graph, const FRen
         }
     }
 
-    // Foundation-phase execution emits the entire compiled transition plan up front,
-    // before any pass callback runs. This is valid here because passes perform no real
-    // GPU work and the plan order is preserved for inspection. When a real backend records
-    // commands, transitions must instead be interleaved per pass (emitted immediately
-    // before the scheduled pass that requires the new state) — see US4-AC2.
-    for (const FRenderGraphTransitionRecord& Transition : Graph.GetCompiledGraph().TransitionPlan)
+    const ERenderGraphResult ScheduleResult = Graph.GetCompiledGraph().VisitSchedule(
+        [&](const FRenderGraphScheduleEvent& Event) {
+            if (Event.Kind == ERenderGraphScheduleEventKind::Transition)
+            {
+                const ERenderGraphResult TransitionResult =
+                    CommandContext.EmitTransition(*Event.Transition);
+                if (TransitionResult != ERenderGraphResult::Success)
+                {
+                    Graph.Diagnostics.AddForResource(
+                        ERenderGraphDiagnosticCategory::Execution,
+                        TransitionResult,
+                        Event.Transition->Resource.Index,
+                        "transition emission failed");
+                    return TransitionResult;
+                }
+            }
+            else
+            {
+                FRenderGraphPassRecord& Pass = Graph.Passes[Event.PassIndex];
+                if (Pass.Desc.Callback)
+                {
+                    FRenderGraphExecutionContext Context(
+                        Graph, Pass, ResolvedResources, CommandContext);
+                    const ERenderGraphResult PassResult = Pass.Desc.Callback(Context);
+                    if (PassResult != ERenderGraphResult::Success)
+                    {
+                        Graph.Diagnostics.AddForPass(
+                            ERenderGraphDiagnosticCategory::Execution,
+                            PassResult,
+                            Event.PassIndex,
+                            "pass execution failed: " + Pass.Desc.Name.ToStdString());
+                        return PassResult;
+                    }
+                }
+            }
+            return Desc.ScheduleVisitor ? Desc.ScheduleVisitor(Event) :
+                                          ERenderGraphResult::Success;
+        });
+    if (ScheduleResult != ERenderGraphResult::Success)
     {
-        const ERenderGraphResult TransitionResult = CommandContext.EmitTransition(Transition);
-        if (TransitionResult != ERenderGraphResult::Success)
-        {
-            Graph.Diagnostics.AddForResource(ERenderGraphDiagnosticCategory::Execution, TransitionResult, Transition.Resource.Index, "transition emission failed");
-            Graph.SetState(ERenderGraphState::Failed);
-            return TransitionResult;
-        }
-    }
-
-    for (Stoner::Core::uint32 PassIndex : Graph.GetCompiledGraph().ScheduledPasses)
-    {
-        FRenderGraphPassRecord& Pass = Graph.Passes[PassIndex];
-        if (!Pass.Desc.Callback)
-        {
-            continue;
-        }
-
-        FRenderGraphExecutionContext Context(Graph, Pass, ResolvedResources, CommandContext);
-        const ERenderGraphResult PassResult = Pass.Desc.Callback(Context);
-        if (PassResult != ERenderGraphResult::Success)
-        {
-            Graph.Diagnostics.AddForPass(ERenderGraphDiagnosticCategory::Execution, PassResult, PassIndex, "pass execution failed: " + Pass.Desc.Name.ToStdString());
-            Graph.SetState(ERenderGraphState::Failed);
-            return PassResult;
-        }
+        Graph.SetState(ERenderGraphState::Failed);
+        return ScheduleResult;
     }
 
     Graph.Diagnostics.Add(ERenderGraphDiagnosticCategory::Execution, ERenderGraphResult::Success, "graph executed");

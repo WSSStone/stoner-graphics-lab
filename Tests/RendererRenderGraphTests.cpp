@@ -198,7 +198,7 @@ void TestLifetimesAliasingAndTransitions(FRendererRenderGraphTestResult& Result)
     Record(Result, Reasons[0] && Reasons[1] && Reasons[2] && Reasons[3] && Reasons[4], "Render graph produces required transition reasons");
 
     FRenderGraphCommandContext Commands;
-    const ERenderGraphResult ExecuteResult = Fixture.Graph.Execute({{{Fixture.Imported, 99}}, &Commands, false});
+    const ERenderGraphResult ExecuteResult = Fixture.Graph.Execute({{{Fixture.Imported, 99}}, &Commands, false, {}});
     Record(Result, ExecuteResult == ERenderGraphResult::Success, "Render graph executes representative graph");
     Record(Result, Commands.EmittedTransitions.size() == Compiled.TransitionPlan.size(), "Render graph emits compiled transition plan");
     Record(Result, Fixture.Graph.GetResources()[1].BackingAllocationId != Fixture.Graph.GetResources()[2].BackingAllocationId, "Render graph keeps alias-eligible resources on separate backing storage");
@@ -293,14 +293,14 @@ void TestExecutionFailuresAndDebugDump(FRendererRenderGraphTestResult& Result)
     Record(Result, CulledTransient.Compile() == ERenderGraphResult::Success, "Render graph culled-transient fixture compiles");
     Record(Result,
         CulledTransient.GetCompiledGraph().CulledPasses.size() == 1 &&
-        CulledTransient.Execute({{}, nullptr, true}) == ERenderGraphResult::Success &&
+        CulledTransient.Execute({{}, nullptr, true, {}}) == ERenderGraphResult::Success &&
         SideEffectInvoked == 1 &&
         !CulledTransient.GetResources()[CulledScratch.Index].bResolvedDuringExecution,
         "Render graph ignores transient resolution failures used only by culled passes");
 
     FRepresentativeGraph TransientFailure = BuildRepresentativeGraph();
     Record(Result, TransientFailure.Graph.Compile() == ERenderGraphResult::Success, "Render graph transient failure fixture compiles");
-    Record(Result, TransientFailure.Graph.Execute({{{TransientFailure.Imported, 10}}, nullptr, true}) == ERenderGraphResult::ResourceUnavailable, "Render graph reports transient resolution failure");
+    Record(Result, TransientFailure.Graph.Execute({{{TransientFailure.Imported, 10}}, nullptr, true, {}}) == ERenderGraphResult::ResourceUnavailable, "Render graph reports transient resolution failure");
 
     FRenderGraph FailFast{"FailFast"};
     FRenderGraphBuilder Builder = FailFast.CreateBuilder();
@@ -351,10 +351,174 @@ void TestElapsedTimeScenario(FRendererRenderGraphTestResult& Result)
     FRenderGraphCommandContext Commands;
     const bool bPassed = Fixture.Graph.Compile() == ERenderGraphResult::Success &&
         !Fixture.Graph.Dump().IsEmpty() &&
-        Fixture.Graph.Execute({{{Fixture.Imported, 123}}, &Commands, false}) == ERenderGraphResult::Success;
+        Fixture.Graph.Execute({{{Fixture.Imported, 123}}, &Commands, false, {}}) == ERenderGraphResult::Success;
     const auto End = std::chrono::steady_clock::now();
     const auto Elapsed = std::chrono::duration_cast<std::chrono::seconds>(End - Start).count();
     Record(Result, bPassed && Elapsed < 60, "Render graph representative declare compile inspect execute is under 60 seconds");
+}
+
+void TestTypedResourcesExternalEffectsAndScheduleVisitation(FRendererRenderGraphTestResult& Result)
+{
+    FRenderGraph Graph{"TypedOutputSchedule"};
+    FRenderGraphBuilder Builder = Graph.CreateBuilder();
+    const FRenderGraphResourceHandle SceneColor = Builder.CreateTexture(
+        "SceneColor",
+        64,
+        64,
+        Stoner::RHI::ERHIFormat::R16G16B16A16_Float,
+        Stoner::RHI::ERHISampleCount::One,
+        Stoner::RHI::ERHITextureUsage::Sampled |
+            Stoner::RHI::ERHITextureUsage::ColorAttachment,
+        ERenderGraphColorDomain::SceneLinearRec709D65);
+    const FRenderGraphResourceHandle EncodedOutput = Builder.CreateTexture(
+        "EncodedOutput",
+        64,
+        64,
+        Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm,
+        Stoner::RHI::ERHISampleCount::One,
+        Stoner::RHI::ERHITextureUsage::ColorAttachment |
+            Stoner::RHI::ERHITextureUsage::CopySource,
+        ERenderGraphColorDomain::EncodedSrgb);
+
+    Stoner::Core::TArray<Stoner::Core::FString> ObservedExecution;
+    FRenderGraphPassDesc Producer = Pass("Producer", ERenderGraphPassType::Graphics);
+    Producer.Accesses.push_back({SceneColor, ERenderGraphAccessType::Write,
+        ERenderGraphResourceState::Write});
+    Producer.Callback = [&ObservedExecution](FRenderGraphExecutionContext&) {
+        ObservedExecution.push_back("pass:Producer");
+        return ERenderGraphResult::Success;
+    };
+    (void)Builder.AddPass(Producer);
+
+    FRenderGraphPassDesc Encode = Pass("Encode", ERenderGraphPassType::Graphics);
+    Encode.Accesses.push_back({SceneColor, ERenderGraphAccessType::Read,
+        ERenderGraphResourceState::Read});
+    Encode.Accesses.push_back({EncodedOutput, ERenderGraphAccessType::Write,
+        ERenderGraphResourceState::Write});
+    Encode.Callback = [&ObservedExecution](FRenderGraphExecutionContext&) {
+        ObservedExecution.push_back("pass:Encode");
+        return ERenderGraphResult::Success;
+    };
+    (void)Builder.AddPass(Encode);
+
+    FRenderGraphPassDesc Readback = Pass("Readback", ERenderGraphPassType::Copy);
+    Readback.ExternalSideEffect = ERenderGraphExternalSideEffect::Readback;
+    Readback.Accesses.push_back({EncodedOutput, ERenderGraphAccessType::Read,
+        ERenderGraphResourceState::Read});
+    Readback.Callback = [&ObservedExecution](FRenderGraphExecutionContext&) {
+        ObservedExecution.push_back("pass:Readback");
+        return ERenderGraphResult::Success;
+    };
+    (void)Builder.AddPass(Readback);
+
+    Record(Result, Graph.Compile() == ERenderGraphResult::Success,
+        "Render graph compiles a typed output graph with an external readback effect");
+    const FCompiledRenderGraph& Compiled = Graph.GetCompiledGraph();
+    Record(Result,
+        Compiled.ScheduledPasses.size() == 3 && Compiled.CulledPasses.empty(),
+        "Render graph external readback effect protects its dependency chain from culling");
+
+    Stoner::Core::TArray<Stoner::Core::FString> VisitedSchedule;
+    const ERenderGraphResult VisitResult = Compiled.VisitSchedule(
+        [&VisitedSchedule](const FRenderGraphScheduleEvent& Event) {
+            if (Event.Kind == ERenderGraphScheduleEventKind::Transition)
+            {
+                VisitedSchedule.push_back("transition:" +
+                    std::to_string(Event.Transition->AfterPassIndex));
+            }
+            else
+            {
+                VisitedSchedule.push_back("pass:" + std::to_string(Event.PassIndex));
+            }
+            return ERenderGraphResult::Success;
+        });
+    Record(Result,
+        VisitResult == ERenderGraphResult::Success &&
+            !VisitedSchedule.empty() && VisitedSchedule.front() == "pass:0",
+        "Render graph immutable schedule visitor begins with the first compiled pass");
+
+    bool bTransitionsPrecedeOwningPass = true;
+    for (uint32 Index = 0; Index < VisitedSchedule.size(); ++Index)
+    {
+        if (VisitedSchedule[Index].View().find("transition:") == 0)
+        {
+            const std::string PassToken = "pass:" +
+                VisitedSchedule[Index].ToStdString().substr(11);
+            bTransitionsPrecedeOwningPass =
+                bTransitionsPrecedeOwningPass && Index + 1 < VisitedSchedule.size() &&
+                VisitedSchedule[Index + 1] == PassToken;
+        }
+    }
+    Record(Result, bTransitionsPrecedeOwningPass,
+        "Render graph schedule visitor places every compiled transition before its owning pass");
+
+    FRenderGraphCommandContext Commands;
+    FRenderGraphExecutionDesc Execution;
+    Execution.CommandContext = &Commands;
+    Execution.ScheduleVisitor = [&ObservedExecution](const FRenderGraphScheduleEvent& Event) {
+        if (Event.Kind == ERenderGraphScheduleEventKind::Transition)
+        {
+            ObservedExecution.push_back("transition:" +
+                std::to_string(Event.Transition->AfterPassIndex));
+        }
+        return ERenderGraphResult::Success;
+    };
+    Record(Result, Graph.Execute(Execution) == ERenderGraphResult::Success,
+        "Render graph executor consumes the compiled schedule visitor contract");
+    Record(Result,
+        ObservedExecution.size() == 5 &&
+            ObservedExecution[0] == "pass:Producer" &&
+            ObservedExecution[1] == "transition:1" &&
+            ObservedExecution[2] == "pass:Encode" &&
+            ObservedExecution[3] == "transition:2" &&
+            ObservedExecution[4] == "pass:Readback",
+        "Render graph executor interleaves compiled transitions with owning passes");
+
+    FRenderGraph AliasGraph{"TypedAliasCompatibility"};
+    FRenderGraphBuilder AliasBuilder = AliasGraph.CreateBuilder();
+    const FRenderGraphResourceHandle Linear = AliasBuilder.CreateTexture(
+        "Linear",
+        32,
+        32,
+        Stoner::RHI::ERHIFormat::R16G16B16A16_Float,
+        Stoner::RHI::ERHISampleCount::One,
+        Stoner::RHI::ERHITextureUsage::ColorAttachment,
+        ERenderGraphColorDomain::SceneLinearRec709D65);
+    const FRenderGraphResourceHandle Display = AliasBuilder.CreateTexture(
+        "Display",
+        32,
+        32,
+        Stoner::RHI::ERHIFormat::R16G16B16A16_Float,
+        Stoner::RHI::ERHISampleCount::One,
+        Stoner::RHI::ERHITextureUsage::ColorAttachment,
+        ERenderGraphColorDomain::DisplayLinearRec709D65);
+    FRenderGraphPassDesc LinearWrite = Pass("LinearWrite", ERenderGraphPassType::Graphics);
+    LinearWrite.Accesses.push_back({Linear, ERenderGraphAccessType::Write,
+        ERenderGraphResourceState::Write});
+    (void)AliasBuilder.AddPass(LinearWrite);
+    FRenderGraphPassDesc DisplayWrite = Pass("DisplayWrite", ERenderGraphPassType::Graphics);
+    DisplayWrite.Accesses.push_back({Display, ERenderGraphAccessType::Write,
+        ERenderGraphResourceState::Write});
+    DisplayWrite.ExternalSideEffect = ERenderGraphExternalSideEffect::Presentation;
+    (void)AliasBuilder.AddPass(DisplayWrite);
+    FRenderGraphPassDesc ObserveLinear = Pass("ObserveLinear", ERenderGraphPassType::Copy);
+    ObserveLinear.Accesses.push_back({Linear, ERenderGraphAccessType::Read,
+        ERenderGraphResourceState::Read});
+    ObserveLinear.ExternalSideEffect = ERenderGraphExternalSideEffect::Readback;
+    (void)AliasBuilder.AddPass(ObserveLinear);
+    Record(Result, AliasGraph.Compile() == ERenderGraphResult::Success,
+        "Render graph compiles typed resources with distinct color domains");
+    const bool bRejectedDomainAlias = std::any_of(
+        AliasGraph.GetCompiledGraph().AliasingDecisions.begin(),
+        AliasGraph.GetCompiledGraph().AliasingDecisions.end(),
+        [Linear, Display](const FRenderGraphAliasingDecision& Decision) {
+            return ((Decision.FirstResource == Linear && Decision.SecondResource == Display) ||
+                       (Decision.FirstResource == Display && Decision.SecondResource == Linear)) &&
+                Decision.State == ERenderGraphAliasDecisionState::Rejected &&
+                Decision.Reason == ERenderGraphAliasReason::IncompatibleDescription;
+        });
+    Record(Result, bRejectedDomainAlias,
+        "Render graph typed compatibility rejects aliasing across color domains");
 }
 
 } // namespace
@@ -367,5 +531,6 @@ FRendererRenderGraphTestResult RunRendererRenderGraphTests()
     TestRedundantTransitionElision(Result);
     TestExecutionFailuresAndDebugDump(Result);
     TestElapsedTimeScenario(Result);
+    TestTypedResourcesExternalEffectsAndScheduleVisitation(Result);
     return Result;
 }

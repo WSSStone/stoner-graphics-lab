@@ -63,6 +63,8 @@ struct FRHITextureFootprint
         return {Format, 1, 1, 1, 4, false, true, false};
     case ERHIFormat::B8G8R8A8_UNorm:
         return {Format, 1, 1, 1, 4, false, false, false};
+    case ERHIFormat::R10G10B10A2_UNorm:
+        return {Format, 1, 1, 1, 4, false, false, false};
     case ERHIFormat::R16G16B16A16_Float:
         return {Format, 1, 1, 1, 8, false, false, false};
     case ERHIFormat::R32_Float:

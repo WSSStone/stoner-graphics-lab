@@ -51,11 +51,13 @@ public:
     void AddResource(FForwardResourceDeclaration Resource);
     void AddAccess(FForwardAccessDeclaration Access);
     void AddOutput(FForwardGraphOutputSummary Output);
+    void SetSceneColorHandoff(FForwardGraphOutputSummary Handoff);
 
     [[nodiscard]] const Stoner::Core::TArray<FForwardPassDeclaration>& GetPasses() const noexcept;
     [[nodiscard]] const Stoner::Core::TArray<FForwardResourceDeclaration>& GetResources() const noexcept;
     [[nodiscard]] const Stoner::Core::TArray<FForwardAccessDeclaration>& GetAccesses() const noexcept;
     [[nodiscard]] const Stoner::Core::TArray<FForwardGraphOutputSummary>& GetOutputs() const noexcept;
+    [[nodiscard]] const FForwardGraphOutputSummary& GetSceneColorHandoff() const noexcept;
     [[nodiscard]] Stoner::Core::FString Dump() const;
 
 private:
@@ -63,6 +65,7 @@ private:
     Stoner::Core::TArray<FForwardResourceDeclaration> Resources;
     Stoner::Core::TArray<FForwardAccessDeclaration> Accesses;
     Stoner::Core::TArray<FForwardGraphOutputSummary> Outputs;
+    FForwardGraphOutputSummary SceneColorHandoff;
 };
 
 [[nodiscard]] FForwardRenderGraphDeclaration BuildForwardRenderGraphDeclaration(const FForwardFramePlan& Plan,

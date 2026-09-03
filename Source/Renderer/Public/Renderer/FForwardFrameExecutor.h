@@ -50,9 +50,12 @@ struct FForwardFrameExecutionBindings
             Stoner::RHI::IRHIDescriptorSet>> DescriptorSets;
     };
     Stoner::Core::TArray<FDrawBinding> Draws;
+    // Optional terminal operations for a direct formal-output binding.  When
+    // both are requested, the exact output is copied before its Present
+    // transition in the same command sequence.
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer> ReadbackBuffer;
     Stoner::RHI::FRHITextureBufferCopyRegion ReadbackRegion;
-    bool bTransitionToPresent = true;
+    bool bTransitionToPresent = false;
 };
 
 struct FForwardFrameExecutionResult

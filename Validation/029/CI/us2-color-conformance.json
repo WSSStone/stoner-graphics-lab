@@ -1,0 +1,122 @@
+{
+  "schema": "stoner.feature-029-us2-color-conformance",
+  "schemaVersion": 1,
+  "status": "passed",
+  "sourceState": {
+    "kind": "working-tree",
+    "baseRevision": "e66f848d5537db2f5f98b79ae9892b8f1ee9da26"
+  },
+  "authority": {
+    "profileRegistryId": "output-transform-profiles-v1",
+    "profileRegistrySha256": "6e3373ab31b36aff9e91d1b6b854d75d1171226e57bc3c236f8a1bbce1e1f7d9",
+    "vectorSetId": "output-transform-vectors-v1",
+    "vectorSetSha256": "16189846ba601040696fbb1db6120eed36253feffeae02362a691e250c24aa76",
+    "vectorManifestSha256": "b8d1bb9fac4cce192bbce03b71b7fb6c03b9eab6b160523fdacb03bb6eb7f98f",
+    "transformConstantsSha256": "71cdf65fd28460f58a26b94cdc4c722320f240864fddb8e2173c7210e7aff9ae",
+    "tolerancePolicySha256": "4e3665150d985cfb6b2e05ac46490f5dde295be52730f8afd3f18f4bf20015ce"
+  },
+  "checks": [
+    {
+      "name": "strict-debug-build",
+      "command": "conda run -n godot scons config=debug strict=1 -j8",
+      "result": "passed"
+    },
+    {
+      "name": "cpu-oracle-and-runtime-binding",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite renderer-output-transform-math",
+      "result": "passed",
+      "passedAssertions": 16,
+      "failedAssertions": 0
+    },
+    {
+      "name": "seven-output-profile-resolution",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite output-device-profile",
+      "result": "passed",
+      "passedAssertions": 5,
+      "failedAssertions": 0
+    },
+    {
+      "name": "immutable-vector-verifier",
+      "command": "python3 .github/scripts/test_verify_output_transform_vectors.py",
+      "result": "passed",
+      "passedAssertions": 7,
+      "failedAssertions": 0
+    },
+    {
+      "name": "native-offscreen-gpu-conformance",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite output-transform-gpu-conformance",
+      "result": "passed",
+      "passedAssertions": 7,
+      "failedAssertions": 0
+    },
+    {
+      "name": "strict-cooked-production-closure",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite production-content-cook-graph",
+      "result": "passed",
+      "passedAssertions": 7,
+      "failedAssertions": 0
+    },
+    {
+      "name": "output-transform-clean-cook",
+      "command": "StonerAssetCooker cook --source-root Content/Shaders --root ShaderProgram:Engine/Shaders/PostProcess/OutputTransform --target-profile Config/AssetCooker/Profiles/Mac-Vulkan.json --clean --normalized-report",
+      "result": "passed",
+      "generationId": "978b7d4e3aed129a9f9b170d43d2e120dc0c8768090533bcbd8ff1ab0e52daac",
+      "rawReportSha256": "4fd36712445ec3ca6d7403e396472c285835b157aa9c900d526c42cb49403764"
+    }
+  ],
+  "gpuConformance": {
+    "comparisonDomainPolicy": "decode each native encoding to the profile-declared linear Rec.709 or absolute-nits/XYZ domain; never compare raw scRGB80 and Metal EDR codes",
+    "backends": [
+      {
+        "backend": "Vulkan",
+        "result": "passed",
+        "sampleCount": 288,
+        "repeatCount": 20,
+        "maximumEncodedCodeError": 0.0000258371,
+        "maximumDecodedRgbError": 0.0577269,
+        "maximumDecodedXyzError": 0.0488552
+      },
+      {
+        "backend": "Metal",
+        "result": "passed",
+        "sampleCount": 288,
+        "repeatCount": 20,
+        "maximumEncodedCodeError": 0.0000258371,
+        "maximumDecodedRgbError": 0.0577269,
+        "maximumDecodedXyzError": 0.0488552
+      }
+    ],
+    "perProfile": [
+      {"profileId": "Sdr.sRGB.v1", "samplesPerBackend": 32, "result": "passed"},
+      {"profileId": "Sdr.BT709.v1", "samplesPerBackend": 32, "result": "passed"},
+      {"profileId": "Sdr.ExplicitGamma22.v1", "samplesPerBackend": 32, "result": "passed"},
+      {"profileId": "Hdr.PQ.Rec2020.1000.v1", "samplesPerBackend": 32, "result": "passed"},
+      {"profileId": "Hdr.PQ.Rec2020.2000.v1", "samplesPerBackend": 32, "result": "passed"},
+      {"profileId": "Hdr.Linear.1000.v1", "samplesPerBackend": 64, "nativeEncodings": ["scrgb80", "metal-edr"], "result": "passed"},
+      {"profileId": "Hdr.Linear.2000.v1", "samplesPerBackend": 64, "nativeEncodings": ["scrgb80", "metal-edr"], "result": "passed"}
+    ],
+    "rawLinearHdrCrossComparison": false,
+    "automatedVisualDecision": false
+  },
+  "strictCookedOutputTransform": {
+    "shaderDefinitionSha256": "4ebdd7bd8ee78ba676b5d60612ee12a0f09841346544fdad3d5668fe5d293ce3",
+    "fragmentSourceSha256": "60121a05674806e8ffcc5928d66e77f9839fd88a3c0139503ca659cba0ee7c75",
+    "fragmentSpirvSha256": "3d4faf6d5ba0fdfb1f92e557ef3e1a107816bf0f2bbd8cea463f2fb2216df2fa",
+    "programDerivedKey": "893e10a793104348787f018463bb3993a95ef500e2d6bb80876012ae1ad33317",
+    "fragmentPayloadDerivedKey": "4bce4d1e3078f1a6f990bfbedad4162d33933b79ca859ea6f697a1326a83f5e8",
+    "profileAndVersionDigestsAreDefinitionInputs": true,
+    "runtimeExpectedValueGeneration": false
+  },
+  "unrealParity": {
+    "structuralReferenceOnly": true,
+    "exactLookParityClaimed": false,
+    "exactNumericParityClaimed": false,
+    "reason": "Feature 029 owns an explicit Stoner profile registry and official ACES 2 HDR authority; Unreal is a pipeline-order reference, not the output oracle."
+  },
+  "boundedEvidence": {
+    "checkedInJsonFiles": 1,
+    "rawCookAndGpuLogsCheckedIn": false,
+    "pngFiles": 0,
+    "automatedHdrVisualAuthority": false
+  }
+}

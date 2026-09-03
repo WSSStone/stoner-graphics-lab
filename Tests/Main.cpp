@@ -18,6 +18,7 @@
 #include "MetalLifecycleStressTests.h"
 #include "MetalCommandTests.h"
 #include "MetalNativeIntegrationTests.h"
+#include "MetalOutputTransformNativeTests.h"
 #include "MetalPipelineTests.h"
 #include "MetalPresentationIntegrationTests.h"
 #include "MetalPresentationTests.h"
@@ -31,6 +32,7 @@
 #include "DeferredRenderingTests.h"
 #include "DeferredNativeIntegrationTests.h"
 #include "RHICoreTests.h"
+#include "RHIPresentationOutputTests.h"
 #include "RendererForwardPipelineTests.h"
 #include "RendererComparisonTests.h"
 #include "RendererMaterialShaderTests.h"
@@ -43,6 +45,7 @@
 #include "RendererStaticModelRealizationFailureTests.h"
 #include "VulkanBackendTests.h"
 #include "VulkanNativeIntegrationTests.h"
+#include "VulkanOutputTransformNativeTests.h"
 #include "TriangleDemoIntegrationTests.h"
 #include "ProductionContentTests.h"
 #include "ProductionContentDemoTests.h"
@@ -89,6 +92,13 @@
 #include "AssetStaticModelHierarchyTests.h"
 #include "AssetStaticModelIdentityTests.h"
 #include "RendererMaterialShaderAssetTests.h"
+#include "OutputDeviceProfileTests.h"
+#include "OutputPresentationLifecycleTests.h"
+#include "OutputTransformGPUConformanceTests.h"
+#include "RendererOutputTransformMathTests.h"
+#include "RendererOutputTransformTests.h"
+#include "RendererPostProcessGraphTests.h"
+#include "RendererPostProcessInsertionTests.h"
 #include "TestSuiteRegistry.h"
 #include "TestSuiteRegistryTests.h"
 
@@ -619,6 +629,9 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("metal-presentation", [] {
         return RunMetalPresentationTests().Failed == 0 ? 0 : 1;
     });
+    Registry.Register("metal-output-transform-native", [] {
+        return RunMetalOutputTransformNativeTests().Failed == 0 ? 0 : 1;
+    });
     Registry.Register("metal-presentation-visible", [MetalOptions] {
         return RunMetalPresentationIntegrationTests(
             MetalOptions.bRequestVisible).Failed == 0 ? 0 : 1;
@@ -651,6 +664,27 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("renderer-material-asset", [] {
         return RunRendererMaterialShaderAssetTests().Failed == 0 ? 0 : 1;
     });
+    Registry.Register("renderer-output-transform-math", [] {
+        return RunRendererOutputTransformMathTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("output-device-profile", [] {
+        return RunOutputDeviceProfileTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("output-presentation-lifecycle", [] {
+        return RunOutputPresentationLifecycleTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("output-transform-gpu-conformance", [] {
+        return RunOutputTransformGPUConformanceTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("renderer-output-transform", [] {
+        return RunRendererOutputTransformTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("renderer-post-process-graph", [] {
+        return RunRendererPostProcessGraphTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("renderer-post-process-insertion", [] {
+        return RunRendererPostProcessInsertionTests().Failed == 0 ? 0 : 1;
+    });
     Registry.Register("renderer-render-graph", [] { return RunRendererRenderGraphTests().Failed == 0 ? 0 : 1; });
     Registry.Register("renderer-static-mesh", [] {
         const auto Success = RunRendererStaticMeshTests();
@@ -670,6 +704,12 @@ int main(int ArgCount, char* Arguments[])
             : 1;
     });
     Registry.Register("rhi", [] { return RunRHICoreTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("rhi-presentation-output", [] {
+        return RunRHIPresentationOutputTests().Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("vulkan-output-transform-native", [] {
+        return RunVulkanOutputTransformNativeTests().Failed == 0 ? 0 : 1;
+    });
     Registry.Register("test-runner", [Executable = std::string(Arguments[0])] {
         return RunTestSuiteRegistryTests(Executable.c_str()).Failed == 0 ? 0 : 1;
     });

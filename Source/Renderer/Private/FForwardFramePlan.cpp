@@ -59,6 +59,18 @@ bool ValidateForwardOutputTarget(const FForwardOutputTarget& Output,
                 EForwardResult::InvalidOutput, "FWD-OUTPUT-COLOR", "Output", "color target name is required");
         }
     }
+    if (Output.FormatSummary != "RGBA16F")
+    {
+        bValid = false;
+        if (Diagnostics != nullptr)
+        {
+            Diagnostics->Add(EForwardDiagnosticSeverity::Error,
+                EForwardDiagnosticCategory::Output,
+                EForwardResult::InvalidOutput, "FWD-OUTPUT-FORMAT",
+                Output.ColorTargetName,
+                "SceneColor handoff format must be RGBA16F");
+        }
+    }
     if (!IsPositiveForwardExtent(Output.Extent))
     {
         bValid = false;

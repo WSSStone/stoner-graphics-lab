@@ -63,7 +63,7 @@ FDeferredFrameInputs MakeInputs(EDeferredDepthConvention Convention = EDeferredD
     FDeferredFrameInputs Inputs;
     Inputs.FrameId = "DeferredTestFrame";
     Inputs.View = MakeView(Convention);
-    Inputs.Output = {"DeferredOutput", ERHIFormat::R8G8B8A8_UNorm, Inputs.View.Extent};
+    Inputs.Output = {"DeferredSceneColor", ERHIFormat::R16G16B16A16_Float, Inputs.View.Extent};
     Inputs.DrawCandidates = {MakeDraw()};
     Inputs.DirectionalLights = {{{1, 1}, "Sun", FVector3(0.0f, -1.0f, 0.0f),
         FColor::OpaqueWhite(), 1.0f}};
@@ -143,7 +143,8 @@ struct FExecutionFixture
             ERHITextureUsage::CopySource);
         Bindings.LightingAccumulation = MakeTexture(ERHIFormat::R16G16B16A16_Float, GBufferUsage);
         Bindings.FinalOutput = MakeTexture(Plan.Output.Format,
-            ERHITextureUsage::ColorAttachment | ERHITextureUsage::CopySource);
+            ERHITextureUsage::ColorAttachment | ERHITextureUsage::CopySource |
+                ERHITextureUsage::Present);
         Bindings.SurfaceVertexBuffer = Device.CreateBuffer({128, ERHIBufferUsage::Vertex}).Object;
         Bindings.SurfaceIndexBuffer = Device.CreateBuffer({64, ERHIBufferUsage::Index}).Object;
         Bindings.SurfaceIndexCount = 3;
@@ -286,8 +287,11 @@ void TestPlanningAndGraph(FDeferredRenderingTestResult& Result)
     FDeferredDiagnosticLog GraphDiagnostics;
     const auto Graph = BuildDeferredRenderGraphDeclaration(Plan, &GraphDiagnostics);
     Record(Result, Graph.bValid && Graph.Resources.size() == 6 &&
-        Graph.Passes.size() == Plan.Passes.size() && Graph.FinalOutput == Inputs.Output.Name,
-        "Deferred frame plan declares complete render graph resources accesses and output");
+        Graph.Passes.size() == Plan.Passes.size() &&
+        Graph.SceneColorOutput == Inputs.Output.Name && Graph.FinalOutput.IsEmpty() &&
+        Plan.SceneColorHandoff.GetProducer() == EHDRSceneColorProducer::Deferred &&
+        Plan.SceneColorHandoff.GetFormat() == ERHIFormat::R16G16B16A16_Float,
+        "Deferred frame declares one RGBA16F SceneColor handoff without owning formal output");
 
     FDeferredFrameInputs Empty = MakeInputs();
     Empty.DrawCandidates.clear();
@@ -325,7 +329,7 @@ void TestPlanningAndGraph(FDeferredRenderingTestResult& Result)
 void TestShaderAndExecutionContracts(FDeferredRenderingTestResult& Result)
 {
     const auto Bindings = GetCanonicalDeferredShaderBindings();
-    Record(Result, Bindings.size() == 8 && Bindings.front().Set == 0 &&
+    Record(Result, Bindings.size() == 13 && Bindings.front().Set == 0 &&
         Bindings.back().Set == 3 && Bindings.back().Binding == 0,
         "Deferred shader contract exposes canonical set zero through three bindings");
     Record(Result, sizeof(FDeferredFrameViewUniform) == 304 &&
@@ -338,7 +342,7 @@ void TestShaderAndExecutionContracts(FDeferredRenderingTestResult& Result)
     const auto Surface = GetDeferredSurfaceVertexLayout();
     const auto Fullscreen = GetDeferredFullscreenVertexLayout();
     const auto Volume = GetDeferredVolumeVertexLayout();
-    Record(Result, Surface.Stride == 24 && Surface.Attributes.size() == 2 &&
+    Record(Result, Surface.Stride == 48 && Surface.Attributes.size() == 4 &&
         Fullscreen.Stride == 8 && !Fullscreen.bIndexed &&
         Volume.Stride == 12 && Volume.IndexType == ERHIIndexType::UInt16,
         "Deferred surface fullscreen and volume vertex layouts match canonical contract");
@@ -405,6 +409,14 @@ void TestShaderAndExecutionContracts(FDeferredRenderingTestResult& Result)
             AggregateExecution.RecordedDrawCount ==
                 Execution.RecordedDrawCount,
         "Deferred executor consumes per-draw indexed aggregate geometry and pipeline bindings");
+
+    FExecutionFixture PresentedFixture;
+    const bool bPresentedFixture = PresentedFixture.Initialize(Plan);
+    PresentedFixture.Bindings.bTransitionFinalOutputToPresent = true;
+    const auto PresentedExecution = FDeferredFrameExecutor().Execute(
+        Plan, Graph, PresentedFixture.Bindings);
+    Record(Result, bPresentedFixture && PresentedExecution.Succeeded(),
+        "Deferred executor records a direct formal-output Present transition");
 
     FDeferredFrameExecutionBindings Invalid = Fixture.Bindings;
     Invalid.Depth.reset();

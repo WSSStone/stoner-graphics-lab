@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stoner.local/schemas/output-validation-report-v1.json",
+  "title": "Stoner Output Transform Validation Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "schemaVersion", "gitRevision", "workloadRevision",
+    "hostPlatform", "rendererStrategy", "backend", "executionTier",
+    "deviceClass", "capabilityDigest", "sceneColor", "extent",
+    "dynamicRange", "outputDeviceProfileId", "transformVersion",
+    "exposureStops", "insertionDigest", "transferOwner", "modeGeneration",
+    "frameToken", "executionResult", "native", "visualAuthority", "artifacts"
+  ],
+  "properties": {
+    "schema": {"const": "stoner.output-validation-report"},
+    "schemaVersion": {"const": 1},
+    "gitRevision": {"$ref": "#/$defs/gitRevision"},
+    "workloadRevision": {"$ref": "#/$defs/token"},
+    "hostPlatform": {"enum": ["windows", "macos", "linux"]},
+    "rendererStrategy": {"enum": ["forward", "deferred"]},
+    "backend": {"enum": ["vulkan", "metal", "mock"]},
+    "executionTier": {"enum": ["deterministic-contract", "native-nonvisual", "sdr-image-authority"]},
+    "deviceClass": {"$ref": "#/$defs/token"},
+    "capabilityDigest": {"$ref": "#/$defs/sha256"},
+    "sceneColor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "primaries", "whitePoint", "transfer", "sampleCount", "alphaMode"],
+      "properties": {
+        "format": {"const": "rgba16-float"},
+        "primaries": {"const": "rec709"},
+        "whitePoint": {"const": "d65"},
+        "transfer": {"const": "linear"},
+        "sampleCount": {"const": 1},
+        "alphaMode": {"const": "opaque-one"}
+      }
+    },
+    "extent": {"$ref": "#/$defs/extent"},
+    "dynamicRange": {"enum": ["sdr", "hdr"]},
+    "outputDeviceProfileId": {"$ref": "#/$defs/token"},
+    "transformVersion": {"$ref": "#/$defs/token"},
+    "exposureStops": {"type": "number", "minimum": -16, "maximum": 16},
+    "insertionDigest": {"$ref": "#/$defs/sha256"},
+    "transferOwner": {"const": "renderer-output-device-stage"},
+    "modeGeneration": {"type": "integer", "minimum": 0},
+    "frameToken": {"$ref": "#/$defs/token"},
+    "executionResult": {"enum": ["passed", "failed", "unsupported", "paused"]},
+    "firstFailure": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "stage", "message"],
+          "properties": {
+            "code": {"$ref": "#/$defs/token"},
+            "stage": {"$ref": "#/$defs/token"},
+            "message": {"type": "string", "minLength": 1, "maxLength": 1024}
+          }
+        }
+      ]
+    },
+    "native": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claimDisposition", "commandCompleted", "readbackCompleted", "presented", "readbackFrameToken", "presentationFrameToken", "format", "colorSpace", "hdrMetadataDigest", "displayAdaptation"],
+      "properties": {
+        "claimDisposition": {"enum": ["not-run", "nonvisual-only", "sdr-authority"]},
+        "commandCompleted": {"type": "boolean"},
+        "readbackCompleted": {"type": "boolean"},
+        "presented": {"type": "boolean"},
+        "readbackFrameToken": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/token"}]},
+        "presentationFrameToken": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/token"}]},
+        "format": {"$ref": "#/$defs/token"},
+        "colorSpace": {"$ref": "#/$defs/token"},
+        "hdrMetadataDigest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]},
+        "displayAdaptation": {"enum": ["none", "system-color-management"]}
+      }
+    },
+    "visualAuthority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disposition", "reason"],
+      "properties": {
+        "disposition": {"enum": ["not-required", "manual-review-required", "attestation-recorded"]},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 512}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "sizeBytes"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^(?!/)(?!.*\\\\).+$", "maxLength": 240},
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "sizeBytes": {"type": "integer", "minimum": 0, "maximum": 67108864}
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "hostPlatform": {"const": "windows"},
+          "dynamicRange": {"const": "hdr"}
+        },
+        "required": ["hostPlatform", "dynamicRange"]
+      },
+      "then": {
+        "properties": {
+          "executionTier": {"const": "deterministic-contract"},
+          "native": {
+            "properties": {
+              "claimDisposition": {"const": "not-run"},
+              "commandCompleted": {"const": false},
+              "readbackCompleted": {"const": false},
+              "presented": {"const": false},
+              "readbackFrameToken": {"type": "null"},
+              "presentationFrameToken": {"type": "null"},
+              "hdrMetadataDigest": {"type": "null"},
+              "displayAdaptation": {"const": "none"}
+            }
+          },
+          "visualAuthority": {
+            "properties": {"disposition": {"const": "not-required"}}
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "hostPlatform": {"const": "macos"},
+          "backend": {"const": "metal"},
+          "dynamicRange": {"const": "hdr"}
+        },
+        "required": ["hostPlatform", "backend", "dynamicRange"]
+      },
+      "then": {
+        "properties": {
+          "native": {
+            "properties": {
+              "hdrMetadataDigest": {"type": "null"}
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "gitRevision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "token": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "extent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": {"type": "integer", "minimum": 1, "maximum": 16384},
+        "height": {"type": "integer", "minimum": 1, "maximum": 16384}
+      }
+    }
+  }
+}

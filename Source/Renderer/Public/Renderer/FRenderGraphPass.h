@@ -43,6 +43,13 @@ enum class ERenderGraphAccessType
     Preserve
 };
 
+enum class ERenderGraphExternalSideEffect
+{
+    None,
+    Readback,
+    Presentation
+};
+
 struct FRenderGraphResourceAccess
 {
     FRenderGraphResourceHandle Resource;
@@ -57,10 +64,17 @@ struct FRenderGraphPassDesc
     Stoner::Core::FString Name;
     ERenderGraphPassType Type = ERenderGraphPassType::Graphics;
     bool bPreserveForSideEffects = false;
+    ERenderGraphExternalSideEffect ExternalSideEffect =
+        ERenderGraphExternalSideEffect::None;
     Stoner::Core::TArray<FRenderGraphResourceAccess> Accesses;
     FRenderGraphPassCallback Callback;
 
     [[nodiscard]] static FRenderGraphPassDesc Make(Stoner::Core::FString InName, ERenderGraphPassType InType);
+    [[nodiscard]] bool HasExternalSideEffect() const noexcept
+    {
+        return bPreserveForSideEffects ||
+            ExternalSideEffect != ERenderGraphExternalSideEffect::None;
+    }
 };
 
 struct FRenderGraphPassRecord
@@ -73,5 +87,6 @@ struct FRenderGraphPassRecord
 [[nodiscard]] bool WritesResource(ERenderGraphAccessType Access) noexcept;
 [[nodiscard]] const char* ToString(ERenderGraphPassType Type) noexcept;
 [[nodiscard]] const char* ToString(ERenderGraphAccessType Access) noexcept;
+[[nodiscard]] const char* ToString(ERenderGraphExternalSideEffect SideEffect) noexcept;
 
 } // namespace Stoner::Renderer

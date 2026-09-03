@@ -1,0 +1,170 @@
+{
+  "schema": "stoner.feature-029-regressions",
+  "schemaVersion": 1,
+  "status": "passed",
+  "recordedAtUtc": "2026-09-02T17:34:05Z",
+  "sourceState": {
+    "kind": "working-tree",
+    "baseRevision": "e66f848d5537db2f5f98b79ae9892b8f1ee9da26",
+    "baseSubject": "docs(roadmap): add HDR output and temporal phases"
+  },
+  "host": {
+    "platform": "macos",
+    "version": "26.6.2",
+    "architecture": "arm64"
+  },
+  "artifacts": {
+    "releaseTestBinarySha256": "98f80d6255e931ac71f7b4eee2335358e543e92cfae957246baa6cc862d66e54",
+    "releaseDemoBinarySha256": "a57913a403a41ed46807bc0ca2d10f7bfffa59bd48ff970d3c21b725bea33248",
+    "outputTransformSpirvSha256": "3d4faf6d5ba0fdfb1f92e557ef3e1a107816bf0f2bbd8cea463f2fb2216df2fa",
+    "deferredCompositionSpirvSha256": "5403e87683733035ad2c5745444c3833f223f9deced4fe67eadc5de7cdf310e8",
+    "productionRunnerSummarySha256": "7f98925d20b02c5a22621c8c3a3054d368cd8f4bc1d1d60b2d168d39f62883e0",
+    "productionRunnerManifestSha256": "c1317a910c8f13fdcab4c06a4859eb6fd00b2e8ac3b20968d1015ff0633429c4"
+  },
+  "builds": [
+    {
+      "command": "/Users/wangshi/miniforge3/envs/godot/bin/scons config=release strict=1",
+      "result": "passed"
+    }
+  ],
+  "featureRegressions": [
+    {
+      "feature": "013-render-graph-foundation",
+      "suites": ["renderer-render-graph"],
+      "result": "passed"
+    },
+    {
+      "feature": "015-forward-rendering-pipeline",
+      "suites": ["renderer-forward"],
+      "result": "passed"
+    },
+    {
+      "feature": "018-triangle-demo-integration",
+      "suites": ["triangle-demo"],
+      "result": "passed"
+    },
+    {
+      "feature": "019-deferred-rendering-pipeline",
+      "suites": ["deferred-renderer", "deferred-native"],
+      "result": "passed",
+      "nativeDisposition": "physical M4 Metal plus Vulkan-through-MoltenVK submission passed outside the sandbox, including 36 depth-policy probes, cross-backend comparison, and zero-live teardown",
+      "metalReadbackSha256": "f711688ed3445e8dfcc2015093dad0c6446bc7bb9d18e887be43fc6027bda632",
+      "metalVulkanComparisonSha256": "8c7d1cb251eaa17dfebc626195a6ae2c8314471e39f8133604236b386ed96348"
+    },
+    {
+      "feature": "027-metal-backend",
+      "suites": ["metal"],
+      "result": "passed",
+      "nativeDisposition": "deterministic suite passed; required native Feature 029 and production probes were run separately with device access"
+    },
+    {
+      "feature": "028-production-content-acceptance",
+      "suites": [
+        "production-content",
+        "production-content-demo",
+        "production-content-corpus",
+        "production-content-cook-graph",
+        "production-content-equivalence",
+        "production-content-strict-runtime",
+        "production-image-acceptance",
+        "production-image-calibration",
+        "production-content-metal-native"
+      ],
+      "result": "passed",
+      "runner": {
+        "profile": "regular",
+        "executionClass": "local-diagnostic",
+        "summarySha256": "7f98925d20b02c5a22621c8c3a3054d368cd8f4bc1d1d60b2d168d39f62883e0",
+        "artifactManifestSha256": "c1317a910c8f13fdcab4c06a4859eb6fd00b2e8ac3b20968d1015ff0633429c4",
+        "cleanRuns": 20,
+        "determinismRuns": 20,
+        "semanticEquivalence": "passed",
+        "strictRuntime": "passed",
+        "native": "passed"
+      },
+      "regularProducerConsumer": {
+        "profile": "regular",
+        "package": "khronos-lantern-glb",
+        "targetProfile": "Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json",
+        "cleanRuns": 20,
+        "semanticEquivalence": "passed",
+        "strictRuntime": "passed"
+      },
+      "nativeLifecycle": {
+        "backend": "metal",
+        "cycles": 20,
+        "warmupCycle": 2,
+        "captures": 40,
+        "readbacks": 7,
+        "terminalOwnerCount": 0,
+        "staleHandleRejected": true,
+        "result": "passed"
+      }
+    }
+  ],
+  "feature029Suites": [
+    {"name": "renderer-output-transform-math", "result": "passed"},
+    {"name": "output-device-profile", "result": "passed"},
+    {"name": "output-presentation-lifecycle", "result": "passed"},
+    {
+      "name": "output-transform-gpu-conformance",
+      "result": "passed",
+      "vulkanSamples": 288,
+      "metalSamples": 288,
+      "repeatCount": 20,
+      "maximumEncodedCodeError": 0.0000258371,
+      "maximumDecodedRgbError": 0.0577269,
+      "maximumDecodedXyzError": 0.0488552
+    },
+    {"name": "renderer-output-transform", "result": "passed"},
+    {"name": "renderer-post-process-graph", "result": "passed"},
+    {"name": "renderer-post-process-insertion", "result": "passed"},
+    {"name": "rhi-presentation-output", "result": "passed"},
+    {"name": "vulkan-output-transform-native", "result": "passed"},
+    {"name": "metal-output-transform-native", "result": "passed"}
+  ],
+  "pythonChecks": [
+    {"name": "test_verify_output_transform_vectors.py", "assertions": 7, "result": "passed"},
+    {"name": "test_verify_output_transform_evidence.py", "assertions": 6, "result": "passed"},
+    {"name": "test_run_output_transform_validation.py", "assertions": 13, "result": "passed"},
+    {"name": "test_aggregate_output_transform_validation.py", "assertions": 11, "result": "passed"},
+    {"name": "test_hdr_live_review_contract.py", "assertions": 4, "result": "passed"},
+    {"name": "test_output_transform_workflows.py", "assertions": 5, "result": "passed"},
+    {"name": "test_run_production_image_calibration.py", "assertions": 9, "result": "passed"},
+    {"name": "test_verify_repository_shader_assets.py", "assertions": 11, "result": "passed"},
+    {"name": "verify_output_transform_vectors.py", "findings": 0, "result": "passed"},
+    {"name": "verify_output_transform_architecture.py", "findings": 0, "result": "passed"}
+  ],
+  "resolvedRegressions": [
+    {
+      "finding": "Closeout accepted empty machine reports and did not bind a self-consistent HDR request/attestation to the target revision; SDR records lacked verified capture linkage.",
+      "resolution": "Require four physical SDR reports and four Metal HDR reports at one software SHA, verify bounded Candidate/PNG/calibration/native artifacts and ordered HDR bundle digests, guard fresh native capture and v3 calibration before/after execution, and route verifier closeout through the complete gate. Preserve preliminary M4 evidence and reopen T101 for exact-SHA capture.",
+      "verification": ["test_aggregate_output_transform_validation.py", "test_run_output_transform_validation.py", "test_verify_output_transform_evidence.py", "test_run_production_image_calibration.py"]
+    },
+    {
+      "finding": "The production source resolver flattened Deferred shader locators and could not resolve the newly staged Deferred/PostProcess directory layout.",
+      "resolution": "Preserve directory-relative shader descriptors and resolve both Engine/Shaders/Deferred and Engine/Shaders/PostProcess prefixes.",
+      "verification": ["production-content-equivalence", "production-content-cook-graph"]
+    },
+    {
+      "finding": "The strict Demo closure retained the Feature 028 expectation of five shader programs and nine payloads.",
+      "resolution": "Require the Feature 029 closure of six shader programs and eleven payloads, including OutputTransform.",
+      "verification": ["production-content-strict-runtime"]
+    },
+    {
+      "finding": "Forward RGBA16F compatibility smoke lost its diagnostic CopySource/readback while formal authority moved to Deferred OutputTransform.",
+      "resolution": "Restore exact RGBA16F diagnostic readback without presenting or accepting Forward as formal output authority.",
+      "verification": ["production-content-demo", "production-content-metal-native"]
+    },
+    {
+      "finding": "Feature 019 native fixtures and canonical deferred bindings retained a stale position/normal-only surface layout and omitted the five material samplers now consumed by the repository deferred shaders.",
+      "resolution": "Synchronize the Renderer, Vulkan, and Metal deferred contracts on position/normal/tangent/UV vertices, five material sampler bindings, RGBA16F SceneColor, and scene-linear comparison semantics; repair local-light edge-case visibility without changing Feature 019 policy.",
+      "verification": ["deferred-renderer", "deferred-native", "production-content-metal-native"]
+    }
+  ],
+  "claims": {
+    "windowsHdrValidation": false,
+    "automatedHdrVisualDecision": false,
+    "feature028V2Reinterpreted": false
+  }
+}

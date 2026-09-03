@@ -22,6 +22,7 @@ DEFAULT_ROOTS = (
     "ShaderProgram:Engine/Shaders/Deferred/DirectionalLight",
     "ShaderProgram:Engine/Shaders/Deferred/PointLight",
     "ShaderProgram:Engine/Shaders/Deferred/SpotLight",
+    "ShaderProgram:Engine/Shaders/PostProcess/OutputTransform",
     "ShaderProgram:Engine/Shaders/Validation/NoOp",
 )
 DEVICE = re.compile(
@@ -72,8 +73,8 @@ def parse_native_evidence(output: str) -> dict[str, object]:
     if (
         int(graphics) != 2
         or int(compute) != 1
-        or int(libraries) != 12
-        or len(digests) != 12
+        or int(libraries) != 14
+        or len(digests) != 14
     ):
         raise ValueError("native production pipeline stage count is invalid")
     return {

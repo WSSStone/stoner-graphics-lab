@@ -1,13 +1,13 @@
 # Implementation Plan: Engine Development Roadmap
 
-**Branch**: `002-engine-development-roadmap` | **Date**: 2026-04-21 | **Last Amended**: 2026-09-01 | **Spec**: [spec.md](./spec.md)
+**Branch**: `002-engine-development-roadmap` | **Date**: 2026-04-21 | **Last Amended**: 2026-09-02 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/002-engine-development-roadmap/spec.md`
 
 ## Summary
 
 Maintain a comprehensive, phased, modular, agent-friendly development roadmap
 (`doc/roadmap.md`) for the Stoner Graphics Lab cross-platform graphics engine.
-Roadmap 2.3 contains runtime Features 003 through 041 across Core, Asset, RHI,
+Roadmap 2.3.1 contains runtime Features 003 through 041 across Core, Asset, RHI,
 Backend, Renderer, and Application ownership areas. It preserves completed
 Features 003-028, inserts the backend-neutral HDR output and AA/temporal phases
 at 029-030, and renumbers only the former future Features 029-039 to 031-041.
@@ -93,4 +93,4 @@ No constitution violations to justify. This is a documentation feature that plan
 | Quickstart | `specs/002-engine-development-roadmap/quickstart.md` | ✅ Complete |
 | Contracts | `specs/002-engine-development-roadmap/contracts/roadmap-phase-schema.md` | ✅ Complete |
 | Constitution | `.specify/memory/constitution.md` | ✅ Amended to v1.4.0 |
-| Master Roadmap | `doc/roadmap.md` | ✅ Updated to v2.3.0 |
+| Master Roadmap | `doc/roadmap.md` | ✅ Updated to v2.3.1 |

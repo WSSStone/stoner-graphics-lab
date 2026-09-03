@@ -7,6 +7,17 @@ namespace Stoner::Renderer
 namespace
 {
 
+Stoner::Core::uint64 StableTextId(const Stoner::Core::FString& Text) noexcept
+{
+    Stoner::Core::uint64 Value = 1469598103934665603ULL;
+    for (const char Character : Text.View())
+    {
+        Value ^= static_cast<unsigned char>(Character);
+        Value *= 1099511628211ULL;
+    }
+    return Value == 0 ? 1 : Value;
+}
+
 FForwardViewData MakeForwardView(const FDeferredViewData& View)
 {
     FForwardViewData Result;
@@ -169,6 +180,15 @@ EDeferredResult FDeferredRenderer::PrepareFrame(const FDeferredFrameInputs& Inpu
     }
 
     OutPlan.InputFingerprint = BuildDeferredInputFingerprint(OutPlan);
+    FHDRSceneColorHandoffDesc SceneColorDesc;
+    SceneColorDesc.SceneColorId = StableTextId(OutPlan.Output.Name);
+    SceneColorDesc.Producer = EHDRSceneColorProducer::Deferred;
+    SceneColorDesc.ViewId = StableTextId(OutPlan.View.Name);
+    SceneColorDesc.FrameToken = StableTextId(OutPlan.FrameId);
+    SceneColorDesc.Width = OutPlan.Output.Extent.Width;
+    SceneColorDesc.Height = OutPlan.Output.Extent.Height;
+    SceneColorDesc.Format = OutPlan.Output.Format;
+    OutPlan.SceneColorHandoff = FHDRSceneColorHandoff::Declare(SceneColorDesc);
     OutPlan.Diagnostics.SortStable();
     OutPlan.bValid = true;
     OutPlan.DebugDump = BuildDeferredFrameDebugDump(OutPlan);

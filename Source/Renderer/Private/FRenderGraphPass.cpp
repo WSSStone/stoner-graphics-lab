@@ -53,4 +53,15 @@ const char* ToString(ERenderGraphAccessType Access) noexcept
     return "Unknown";
 }
 
+const char* ToString(ERenderGraphExternalSideEffect SideEffect) noexcept
+{
+    switch (SideEffect)
+    {
+    case ERenderGraphExternalSideEffect::None: return "None";
+    case ERenderGraphExternalSideEffect::Readback: return "Readback";
+    case ERenderGraphExternalSideEffect::Presentation: return "Presentation";
+    }
+    return "Unknown";
+}
+
 } // namespace Stoner::Renderer

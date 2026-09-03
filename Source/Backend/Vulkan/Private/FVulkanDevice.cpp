@@ -174,6 +174,10 @@ bool FVulkanDevice::IsActive() const noexcept
 
 Stoner::RHI::ERHIRuntimeMode FVulkanDevice::GetRuntimeMode() const noexcept
 {
+    if (NativePresentationContext && NativePresentationContext->IsAvailable())
+    {
+        return Stoner::RHI::ERHIRuntimeMode::Native;
+    }
     return NativeShaderContext && NativeShaderContext->IsAvailable()
         ? Stoner::RHI::ERHIRuntimeMode::NativeHeadless
         : Stoner::RHI::ERHIRuntimeMode::Deterministic;
@@ -181,6 +185,10 @@ Stoner::RHI::ERHIRuntimeMode FVulkanDevice::GetRuntimeMode() const noexcept
 
 Stoner::RHI::FRHIRuntimeSnapshot FVulkanDevice::GetRuntimeSnapshot() const noexcept
 {
+    if (NativePresentationContext && NativePresentationContext->IsAvailable())
+    {
+        return NativePresentationContext->GetSnapshot();
+    }
     return NativeShaderContext && NativeShaderContext->IsAvailable()
         ? NativeShaderContext->GetSnapshot()
         : Stoner::RHI::FRHIRuntimeSnapshot{};
@@ -209,6 +217,21 @@ Stoner::RHI::ERHIResult FVulkanDevice::EnableNativeShaderRuntime()
     }
     if (HasNativeShaderRuntime())
     {
+        return Stoner::RHI::ERHIResult::Success;
+    }
+
+    if (HasNativePresentationRuntime())
+    {
+        auto NativeFormats =
+            NativePresentationContext->QueryTextureFormatCapabilities();
+        if (NativeFormats.empty())
+        {
+            return Stoner::RHI::ERHIResult::Unsupported;
+        }
+        Capabilities.Formats = std::move(NativeFormats);
+        NativeShaderContext = NativePresentationContext;
+        MarkRuntimeMode(Diagnostics,
+            "native shader runtime shares the visible presentation Vulkan device");
         return Stoner::RHI::ERHIResult::Success;
     }
 
@@ -249,6 +272,91 @@ Stoner::RHI::ERHIResult FVulkanDevice::EnableNativeShaderRuntime()
 bool FVulkanDevice::HasNativeShaderRuntime() const noexcept
 {
     return NativeShaderContext && NativeShaderContext->IsAvailable();
+}
+
+Stoner::Core::TSharedPtr<FVulkanNativeContext>
+FVulkanDevice::GetNativeShaderContext() const noexcept
+{
+    return NativeShaderContext;
+}
+
+Stoner::RHI::ERHIResult FVulkanDevice::EnableNativePresentationRuntime(
+    const Stoner::Core::FPlatformWindow& Window)
+{
+    if (!IsActive() || !Window.IsValid())
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    if (HasNativePresentationRuntime())
+    {
+        return Stoner::RHI::ERHIResult::Success;
+    }
+    if (!Surfaces.empty() || !Swapchains.empty())
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    const bool bHasCreatedNativeObjects =
+        !Queues.empty() || !CommandPools.empty() || !Fences.empty() ||
+        !Semaphores.empty() || !Buffers.empty() || !Textures.empty() ||
+        !Samplers.empty() || !RenderPasses.empty() || !Framebuffers.empty() ||
+        !PipelineLayouts.empty() || !ShaderModules.empty() ||
+        !GraphicsPipelines.empty() || !ComputePipelines.empty() ||
+        !DescriptorSets.empty() || !UploadRequests.empty();
+    if (bHasCreatedNativeObjects)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+
+    // A visible device must own both shader/resources and presentation.  A
+    // headless context created before window attachment is safe to replace
+    // only while no objects have been admitted.
+    if (NativeShaderContext)
+    {
+        (void)NativeShaderContext->Shutdown();
+        NativeShaderContext.reset();
+    }
+
+    try
+    {
+        auto Context = Stoner::Core::MakeShared<FVulkanNativeContext>();
+        const Stoner::RHI::ERHIResult Result = Context->Initialize(
+            Stoner::RHI::ERHIRuntimeMode::Native, Window);
+        if (Result != Stoner::RHI::ERHIResult::Success)
+        {
+            return Result;
+        }
+        auto NativeFormats = Context->QueryTextureFormatCapabilities();
+        if (NativeFormats.empty())
+        {
+            (void)Context->Shutdown();
+            return Stoner::RHI::ERHIResult::Unsupported;
+        }
+        Capabilities.Formats = std::move(NativeFormats);
+        NativePresentationContext = Context;
+        NativeShaderContext = std::move(Context);
+    }
+    catch (const std::bad_alloc&)
+    {
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    MarkRuntimeMode(Diagnostics,
+        "native Vulkan presentation runtime enabled behind RHI surface/swapchain contracts");
+    return Stoner::RHI::ERHIResult::Success;
+}
+
+bool FVulkanDevice::HasNativePresentationRuntime() const noexcept
+{
+    return NativePresentationContext && NativePresentationContext->IsAvailable();
+}
+
+Stoner::Core::TSharedPtr<FVulkanNativeContext>
+FVulkanDevice::GetNativePresentationContext() const noexcept
+{
+    return NativePresentationContext;
 }
 
 Stoner::Core::uint32 FVulkanDevice::GetDescriptorPoolCapacity() const noexcept
@@ -332,10 +440,16 @@ Stoner::RHI::ERHIResult FVulkanDevice::Shutdown()
     }
 
     InvalidateOwnedObjects();
-    if (NativeShaderContext)
+    if (NativeShaderContext &&
+        NativeShaderContext != NativePresentationContext)
     {
         (void)NativeShaderContext->Shutdown();
-        NativeShaderContext.reset();
+    }
+    NativeShaderContext.reset();
+    if (NativePresentationContext)
+    {
+        (void)NativePresentationContext->Shutdown();
+        NativePresentationContext.reset();
     }
     if (Instance.IsInitialized())
     {
@@ -1787,7 +1901,9 @@ Stoner::RHI::ERHIResult FVulkanDevice::CreateSurface(const Stoner::Core::FPlatfo
     Desc.Window = Window;
     Desc.DebugName = "LegacyVulkanSurface";
     const Stoner::RHI::ERHIResult Result =
-        FVulkanSurface::Create(Desc, PresentationOwner, OutSurface);
+        FVulkanSurface::Create(
+            Desc, PresentationOwner, OutSurface,
+            NativePresentationContext);
     if (Result != Stoner::RHI::ERHIResult::Success)
     {
         MarkPresentationSkipped(Diagnostics, OutSurface.GetDiagnosticReason());
@@ -1810,7 +1926,9 @@ FVulkanDevice::CreatePresentationSurface(
 
     auto Surface = Stoner::Core::MakeShared<FVulkanSurface>();
     const Stoner::RHI::ERHIResult Result =
-        FVulkanSurface::Create(Desc, PresentationOwner, *Surface);
+        FVulkanSurface::Create(
+            Desc, PresentationOwner, *Surface,
+            NativePresentationContext);
     if (Result != Stoner::RHI::ERHIResult::Success)
     {
         MarkPresentationSkipped(Diagnostics, Surface->GetDiagnosticReason());
@@ -1844,10 +1962,23 @@ FVulkanDevice::CreateSurfaceBackedSwapchain(
         MarkPresentationSkipped(Diagnostics, "invalid swapchain description");
         return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
     }
+    Stoner::RHI::FRHIPresentationCapabilities SurfaceCapabilities;
+    if (!Desc.IsExactPresentationRequestValid() ||
+        Surface->QueryCapabilities(SurfaceCapabilities) !=
+            Stoner::RHI::ERHIResult::Success)
+    {
+        MarkPresentationSkipped(
+            Diagnostics, "swapchain request lacks exact surface capability provenance");
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
     if (!Capabilities.bSupportsPresentation ||
         !Capabilities.bSupportsPresentQueue ||
         Desc.FramesInFlight > Capabilities.MaxInFlightFrames ||
-        !Capabilities.SupportsFormat(Desc.PreferredFormat))
+        !Capabilities.SupportsFormat(Desc.PreferredFormat) ||
+        Desc.SurfaceCapabilityGeneration !=
+            SurfaceCapabilities.CapabilityGeneration ||
+        !SurfaceCapabilities.SupportsPair(
+            Desc.PreferredFormat, Desc.PreferredColorSpace))
     {
         MarkPresentationSkipped(
             Diagnostics, "unsupported swapchain capability request");
@@ -1897,6 +2028,14 @@ Stoner::RHI::TRHIObjectResult<Stoner::RHI::IRHISwapchain> FVulkanDevice::CreateS
     Desc.Height = 1;
     Desc.FramesInFlight = FrameCount;
     Desc.PreferredFormat = SelectPresentationFormat(Capabilities);
+    Stoner::RHI::FRHIPresentationCapabilities SurfaceCapabilities;
+    if (Surface.QueryCapabilities(SurfaceCapabilities) !=
+        Stoner::RHI::ERHIResult::Success)
+    {
+        return {Stoner::RHI::ERHIResult::InvalidState, nullptr};
+    }
+    Desc.SurfaceCapabilityGeneration =
+        SurfaceCapabilities.CapabilityGeneration;
     return CreateSurfaceBackedSwapchain(
         Stoner::Core::MakeShared<FVulkanSurface>(Surface), Desc);
 }

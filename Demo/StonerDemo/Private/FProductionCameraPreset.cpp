@@ -181,7 +181,8 @@ bool ResolveProductionCameraPreset(
     FProductionCameraPreset& OutPreset,
     FString* OutReason)
 {
-    if (WorkloadRevision == FString("production-content-sponza-v2"))
+    if (WorkloadRevision == FString("production-content-sponza-v2") ||
+        WorkloadRevision == FString("production-content-sponza-v3"))
     {
         return BuildProductionCameraPreset(
             WorkloadRevision,
@@ -198,6 +199,7 @@ bool ResolveProductionCameraPreset(
             OutPreset, OutReason);
     }
     if (WorkloadRevision != FString("production-content-lantern-v2") &&
+        WorkloadRevision != FString("production-content-lantern-v3") &&
         WorkloadRevision != FString("production-content-v1") &&
         WorkloadRevision != FString("production-content-sponza-v1"))
     {

@@ -15,6 +15,29 @@ SPEC.loader.exec_module(MODULE)
 
 
 class CrossProcessCalibrationTests(unittest.TestCase):
+    def test_v3_requires_exact_revision_before_creating_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "new-calibration"
+            with self.assertRaisesRegex(ValueError, "exact"):
+                MODULE.run_calibration(Path(directory), output, "metal",
+                    "production-content-lantern-v3", ["unused"], ["unused"])
+            self.assertFalse(output.exists())
+
+    def test_existing_calibration_is_preserved_on_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "existing"
+            (output / "processes").mkdir(parents=True)
+            sentinel = output / "processes" / "user-evidence.json"
+            sentinel.write_text("{}", encoding="utf-8")
+            command = root / "command.json"
+            command.write_text('{"nativeCommand":["unused"],"mutationCommand":["unused"]}', encoding="utf-8")
+            with self.assertRaises(FileExistsError):
+                MODULE.main(["--root", str(root), "--output", str(output),
+                             "--backend", "metal", "--workload-revision", "production-content-lantern-v3",
+                             "--command-file", str(command), "--git-revision", "a" * 40])
+            self.assertEqual("{}", sentinel.read_text(encoding="utf-8"))
+
     def process(self, ordinal, digest):
         return {"ordinal": ordinal, "decodedPixelSha256": digest}
 
@@ -73,6 +96,40 @@ class CrossProcessCalibrationTests(unittest.TestCase):
             MODULE.calibration_evidence_digest(second),
         )
         self.assertEqual(64, len(MODULE.calibration_evidence_digest(first)))
+
+    def test_process_collection_binds_the_requested_workload_revision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            capture_root = root / "metal"
+            capture_root.mkdir()
+            rgb = bytes([17]) * (512 * 512 * 3)
+            ppm = b"P6\n512 512\n255\n" + rgb
+            digest = __import__("hashlib").sha256(ppm).hexdigest()
+            for index in range(MODULE.CAPTURES_PER_PROCESS):
+                stem = f"capture-{index:02d}"
+                (capture_root / f"{stem}.ppm").write_bytes(ppm)
+                (capture_root / f"{stem}.json").write_text(json.dumps({
+                    "width": 512,
+                    "height": 512,
+                    "backend": "metal",
+                    "captureScope": "application-window",
+                    "sha256": digest,
+                    "frameToken": f"submission-{index + 1}",
+                    "expectedFrameToken": f"submission-{index + 1}",
+                    "workloadRevision": "production-content-lantern-v3",
+                }), encoding="utf-8")
+            self.assertEqual(
+                "production-content-lantern-v3",
+                "production-content-lantern-v3" if MODULE.collect_process(
+                    root, "metal", 1,
+                    "production-content-lantern-v3",
+                ) else "",
+            )
+            with self.assertRaisesRegex(ValueError, "decoded evidence"):
+                MODULE.collect_process(
+                    root, "metal", 1,
+                    "production-content-sponza-v3",
+                )
 
     def test_mutation_output_requires_every_rejection_once(self):
         output = "\n".join(

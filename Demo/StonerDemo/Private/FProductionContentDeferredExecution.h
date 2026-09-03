@@ -3,6 +3,7 @@
 #include "Asset/AssetMinimal.h"
 #include "FProductionContentComposition.h"
 #include "Renderer/FDeferredRenderGraphDeclaration.h"
+#include "Renderer/FHDRPostProcessPipeline.h"
 
 namespace Stoner::Demo
 {
@@ -11,6 +12,7 @@ struct FProductionContentDeferredExecutionResources
 {
     Renderer::FDeferredFramePlan Plan;
     Renderer::FDeferredRenderGraphDeclaration Graph;
+    Renderer::FOutputTransformPlan OutputTransformPlan;
     Renderer::FDeferredFrameExecutionBindings Bindings;
     Core::TArray<Core::TSharedPtr<RHI::IRHIBuffer>> OwnedBuffers;
     Core::TArray<Core::TSharedPtr<RHI::IRHITexture>> OwnedTextures;
@@ -40,6 +42,7 @@ public:
         const Core::TArray<Core::TSharedPtr<const Asset::FShaderPayloadAsset>>&
             RenderShaderPayloads,
         const Asset::FAssetTargetProfileEvidence& TargetEvidence,
+        const Renderer::FOutputTransformSettings& OutputSettings,
         FProductionContentDeferredExecutionResources& OutResources,
         Core::FString* OutReason = nullptr);
 };

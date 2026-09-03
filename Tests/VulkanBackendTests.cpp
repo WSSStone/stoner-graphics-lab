@@ -375,13 +375,19 @@ void TestSurfaceSwapchain(FVulkanBackendTestResult& Result)
     NeutralDesc.Height = 32;
     NeutralDesc.FramesInFlight = 2;
     NeutralDesc.PreferredFormat = ERHIFormat::B8G8R8A8_UNorm;
+    FRHIPresentationCapabilities NeutralCapabilities;
+    const auto NeutralCapabilityResult =
+        NeutralSurfaceResult.Object->QueryCapabilities(NeutralCapabilities);
+    NeutralDesc.SurfaceCapabilityGeneration =
+        NeutralCapabilities.CapabilityGeneration;
     const auto NeutralSwapchainResult =
         BaseDevice.CreateSwapchain(NeutralSurfaceResult.Object, NeutralDesc);
     const auto NeutralImage = NeutralSwapchainResult.Object
         ? NeutralSwapchainResult.Object->GetImage(0)
         : nullptr;
     Record(Result,
-        NeutralSwapchainResult.Succeeded() && NeutralImage &&
+        NeutralCapabilityResult == ERHIResult::Success &&
+            NeutralSwapchainResult.Succeeded() && NeutralImage &&
             NeutralImage->GetDesc().Width == NeutralDesc.Width &&
             NeutralImage->GetDesc().Height == NeutralDesc.Height &&
             NeutralImage->GetFormat() == NeutralDesc.PreferredFormat &&

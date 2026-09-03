@@ -1,0 +1,75 @@
+{
+  "schema": "stoner.feature-029-shader-derivation",
+  "schemaVersion": 1,
+  "status": "passed",
+  "sourceState": {
+    "kind": "working-tree",
+    "baseRevision": "e66f848d5537db2f5f98b79ae9892b8f1ee9da26"
+  },
+  "shader": {
+    "assetId": "ShaderProgram:Engine/Shaders/PostProcess/OutputTransform",
+    "stage": "fragment",
+    "entryPoint": "main",
+    "producerVersion": "029-v2",
+    "sourceSha256": "60121a05674806e8ffcc5928d66e77f9839fd88a3c0139503ca659cba0ee7c75",
+    "spirvSha256": "3d4faf6d5ba0fdfb1f92e557ef3e1a107816bf0f2bbd8cea463f2fb2216df2fa",
+    "spirvSizeBytes": 256480,
+    "normalizedMslSha256": "83cc8377b72726043dce1183efeb171fafbed59a77730baf864804a33300ff5c",
+    "spirvCrossOptionsSha256": "ea1507d57cf6224c65a0a5f24151e29ec98e6d4666d2dea029eb39dfe792edbc",
+    "bindingEvidenceSha256": "a333e711bd4a09804bf7459e049733ac5dc616c717dc4a49c8732d19b7b5e87e",
+    "derivationRepeatCount": 20
+  },
+  "nativeFinalization": {
+    "host": "macOS",
+    "architecture": "arm64",
+    "targetProfile": "metal-macos-12-arm64",
+    "minimumMacOS": "12.0",
+    "mslVersion": "2.4",
+    "metalVersion": "Apple metal 32023.883",
+    "metallibVersion": "AIR-LLD 32023.883",
+    "xcodeVersion": "26.6 (17F113)",
+    "sdkVersion": "26.5",
+    "metallibSha256": "00770391e4a92254de82f643e230a6e36752152bf66e9a68e07bae22a049d5d4",
+    "metallibSizeBytes": 57633,
+    "nativeEvidenceSha256": "de0ad48075eac718ad61aa3f35f63cb8929057f91f586667df80bf8e84da29e5"
+  },
+  "checks": [
+    {
+      "name": "strict-debug-build",
+      "command": "conda run -n godot scons config=debug strict=1 -j8",
+      "result": "passed"
+    },
+    {
+      "name": "frozen-vector-and-shader-identity-tests",
+      "command": "python3 .github/scripts/test_verify_output_transform_vectors.py",
+      "result": "passed",
+      "passedTests": 7,
+      "failedTests": 0
+    },
+    {
+      "name": "checked-in-spirv-validation",
+      "command": "spirv-val Content/Shaders/PostProcess/OutputTransform.frag.spv",
+      "result": "passed"
+    },
+    {
+      "name": "metal-shader-derivation",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite metal-shader-derivation",
+      "result": "passed",
+      "passedAssertions": 10,
+      "failedAssertions": 0
+    },
+    {
+      "name": "native-metal-finalizer",
+      "command": "STONER_METAL_NATIVE_COMPILER=1 Build/Mac/Debug/Tests/StonerTest --suite metal-shader-compiler",
+      "result": "passed",
+      "passedAssertions": 5,
+      "failedAssertions": 0
+    }
+  ],
+  "boundedEvidence": {
+    "checkedInJsonFiles": 1,
+    "rawReportsCheckedIn": false,
+    "pngFiles": 0,
+    "automatedVisualDecision": false
+  }
+}

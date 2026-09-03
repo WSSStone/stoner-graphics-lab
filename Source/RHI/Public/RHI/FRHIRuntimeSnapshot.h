@@ -2,6 +2,8 @@
 
 #include "Core/CoreMinimal.h"
 #include "RHI/ERHIRuntimeMode.h"
+#include "RHI/ERHIFormat.h"
+#include "RHI/ERHIPresentationColorSpace.h"
 
 namespace Stoner::RHI
 {
@@ -22,6 +24,20 @@ struct FRHIRuntimeSnapshot
     Stoner::Core::uint32 LivePipelines = 0;
     Stoner::Core::uint32 LiveCommandBuffers = 0;
     Stoner::Core::uint32 LiveSynchronizationObjects = 0;
+    Stoner::Core::uint64 PresentationModeGeneration = 0;
+    Stoner::Core::uint32 PresentationWidth = 0;
+    Stoner::Core::uint32 PresentationHeight = 0;
+    ERHIFormat PresentationFormat = ERHIFormat::Unknown;
+    ERHIPresentationColorSpace PresentationColorSpace =
+        ERHIPresentationColorSpace::Unknown;
+    ERHIPresentationNativeEncoding PresentationNativeEncoding =
+        ERHIPresentationNativeEncoding::Unknown;
+    ERHIPresentationDisplayAdaptation PresentationDisplayAdaptation =
+        ERHIPresentationDisplayAdaptation::None;
+    Stoner::Core::uint64 LastAcquiredFrameToken = 0;
+    Stoner::Core::uint64 LastSubmittedFrameToken = 0;
+    Stoner::Core::uint64 LastPresentedFrameToken = 0;
+    Stoner::Core::FString PresentationMetadataDigest;
 
     [[nodiscard]] Stoner::Core::uint64 GetTotalLiveObjectCount() const noexcept
     {

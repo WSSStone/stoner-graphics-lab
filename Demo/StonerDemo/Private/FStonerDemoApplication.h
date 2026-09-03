@@ -94,6 +94,7 @@ struct FDemoProductionExecutionInspection
     EDemoGraphicsBackend ExecutedBackend = EDemoGraphicsBackend::Vulkan;
     EDemoRenderPath RenderPath = EDemoRenderPath::DeferredFull;
     Stoner::RHI::FRHIRuntimeSnapshot Runtime;
+    Stoner::RHI::FRHIResolvedPresentationState ResolvedPresentationState;
     Stoner::Core::TArray<FDemoProductionReadbackEvidence> Readbacks;
     Stoner::Core::TArray<FDemoProductionCapture> Captures;
     Stoner::Core::TArray<FDemoProductionLifecycleSample> LifecycleSamples;
@@ -101,6 +102,11 @@ struct FDemoProductionExecutionInspection
     FDemoProductionCapture LastLifecyclePresentedCapture;
     Stoner::Core::uint64 AuthoritativeFrameToken = 0;
     Stoner::Core::uint64 LastLifecyclePresentedFrameToken = 0;
+    Stoner::Core::uint64 FirstPresentedFrameToken = 0;
+    Stoner::Core::uint64 LastPresentedFrameToken = 0;
+    Stoner::Core::uint64 SettledPresentedFrameToken = 0;
+    Stoner::Core::FString PresentationCapabilityDigest;
+    Stoner::Core::FString FormalOutputReadbackDigest;
     Stoner::Core::FString SnapshotFingerprint;
     Stoner::Core::FString UniformFingerprint;
     Stoner::Core::FString ShaderFingerprint;
@@ -173,9 +179,12 @@ private:
     [[nodiscard]] EDemoExitCode ResumeProductionBackendAfterRssComparison();
     [[nodiscard]] EDemoExitCode RunProductionContent();
     [[nodiscard]] EDemoExitCode RunProductionCameraPreview();
+    [[nodiscard]] bool WriteConfiguredOutputTransformNativeProbe();
     void RecordProductionCapture(FDemoProductionCapture Capture);
     [[nodiscard]] bool PresentProductionCaptureWithRecovery(
         FDemoProductionCapture& Capture,
+        const Core::TSharedPtr<RHI::IRHITexture>& FormalOutput,
+        Core::uint64 FrameToken,
         FDemoProductionPresentationResult& PresentationScratch);
     [[nodiscard]] EDemoExitCode RunDeterministic();
     [[nodiscard]] EDemoExitCode RunNativeHeadless();
@@ -188,6 +197,9 @@ private:
         const char* Reason);
 
     FDemoConfiguration Configuration;
+    Renderer::FOutputTransformSettings ProductionOutputSettings;
+    Renderer::FResolvedOutputTransformSettings
+        ProductionResolvedOutputSettings;
     EDemoLifecycleState LifecycleState = EDemoLifecycleState::Uninitialized;
     FDemoDiagnostics Diagnostics;
     FDemoValidationMonitor ValidationMonitor;

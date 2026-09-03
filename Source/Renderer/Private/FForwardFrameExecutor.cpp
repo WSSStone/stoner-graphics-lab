@@ -16,6 +16,16 @@ FForwardFrameExecutionResult FForwardFrameExecutor::Execute(
         !Bindings.Framebuffer || !Bindings.CommandBuffer ||
         Bindings.OutputTexture->GetLifecycleState() != Stoner::RHI::ERHIResourceLifecycleState::Valid ||
         !Stoner::RHI::HasRHIFlag(Bindings.OutputTexture->GetUsage(), Stoner::RHI::ERHITextureUsage::ColorAttachment) ||
+        (Bindings.bTransitionToPresent && !Stoner::RHI::HasRHIFlag(
+            Bindings.OutputTexture->GetUsage(),
+            Stoner::RHI::ERHITextureUsage::Present)) ||
+        (Bindings.ReadbackBuffer &&
+            (!Stoner::RHI::HasRHIFlag(Bindings.OutputTexture->GetUsage(),
+                Stoner::RHI::ERHITextureUsage::CopySource) ||
+             Bindings.ReadbackBuffer->GetLifecycleState() !=
+                Stoner::RHI::ERHIResourceLifecycleState::Valid ||
+             !Stoner::RHI::HasRHIFlag(Bindings.ReadbackBuffer->GetUsage(),
+                Stoner::RHI::ERHIBufferUsage::CopyDestination))) ||
         (bLegacyGeometry && !Stoner::RHI::HasRHIFlag(
             Bindings.VertexBuffer->GetUsage(), Stoner::RHI::ERHIBufferUsage::Vertex)) ||
         (bAggregateDraws && Bindings.Draws.size() !=
@@ -49,15 +59,6 @@ FForwardFrameExecutionResult FForwardFrameExecutor::Execute(
                 Out.Result = EForwardExecutionResult::InvalidBinding;
                 return Out;
             }
-    }
-    if (Bindings.ReadbackBuffer &&
-        (!Stoner::RHI::HasRHIFlag(Bindings.OutputTexture->GetUsage(),
-             Stoner::RHI::ERHITextureUsage::CopySource) ||
-         !Stoner::RHI::HasRHIFlag(Bindings.ReadbackBuffer->GetUsage(),
-             Stoner::RHI::ERHIBufferUsage::CopyDestination)))
-    {
-        Out.Result = EForwardExecutionResult::InvalidBinding;
-        return Out;
     }
     if (Bindings.DepthTexture &&
         (Bindings.DepthTexture->GetLifecycleState() !=
@@ -147,20 +148,26 @@ FForwardFrameExecutionResult FForwardFrameExecutor::Execute(
         Commands.EndRenderPass() == Stoner::RHI::ERHIResult::Success;
     if (bRecorded && Bindings.ReadbackBuffer)
     {
-        Stoner::RHI::FRHIResourceBarrierDesc ToCopy = ToColor;
-        ToCopy.Before = Stoner::RHI::ERHIResourceLayout::ColorAttachment;
-        ToCopy.After = Stoner::RHI::ERHIResourceLayout::CopySource;
-        ToCopy.RequiredTextureUsage = Stoner::RHI::ERHITextureUsage::CopySource;
-        bRecorded = Commands.RecordLayoutTransition(ToCopy) ==
+        Stoner::RHI::FRHIResourceBarrierDesc ToCopySource;
+        ToCopySource.Texture = Bindings.OutputTexture;
+        ToCopySource.RequiredTextureUsage =
+            Stoner::RHI::ERHITextureUsage::CopySource;
+        ToCopySource.Before = Stoner::RHI::ERHIResourceLayout::ColorAttachment;
+        ToCopySource.After = Stoner::RHI::ERHIResourceLayout::CopySource;
+        bRecorded = Commands.RecordLayoutTransition(ToCopySource) ==
                 Stoner::RHI::ERHIResult::Success &&
             Commands.RecordTextureToBufferCopy(
                 Bindings.OutputTexture, Bindings.ReadbackBuffer,
                 Bindings.ReadbackRegion) == Stoner::RHI::ERHIResult::Success;
     }
-    else if (bRecorded && Bindings.bTransitionToPresent)
+    if (bRecorded && Bindings.bTransitionToPresent)
     {
-        Stoner::RHI::FRHIResourceBarrierDesc ToPresent = ToColor;
-        ToPresent.Before = Stoner::RHI::ERHIResourceLayout::ColorAttachment;
+        Stoner::RHI::FRHIResourceBarrierDesc ToPresent;
+        ToPresent.Texture = Bindings.OutputTexture;
+        ToPresent.RequiredTextureUsage = Stoner::RHI::ERHITextureUsage::Present;
+        ToPresent.Before = Bindings.ReadbackBuffer
+            ? Stoner::RHI::ERHIResourceLayout::CopySource
+            : Stoner::RHI::ERHIResourceLayout::ColorAttachment;
         ToPresent.After = Stoner::RHI::ERHIResourceLayout::Present;
         bRecorded = Commands.RecordLayoutTransition(ToPresent) ==
             Stoner::RHI::ERHIResult::Success;

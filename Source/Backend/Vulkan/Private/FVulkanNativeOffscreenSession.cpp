@@ -155,6 +155,7 @@ struct FVulkanNativeOffscreenSession::FImpl
 
     FVulkanNativeDeviceAccess Access;
     std::array<FImage, 6> Images;
+    std::array<FImage, 5> SurfaceTextures;
     std::array<FBuffer, 6> Readbacks;
     FBuffer SurfaceVertices;
     FBuffer FullscreenVertices;
@@ -505,6 +506,10 @@ struct FVulkanNativeOffscreenSession::FImpl
         {
             DestroyImage(Image);
         }
+        for (FImage& Image : SurfaceTextures)
+        {
+            DestroyImage(Image);
+        }
     }
 #endif
 };
@@ -531,8 +536,18 @@ bool CreateDescriptorState(FVulkanNativeOffscreenSession::FImpl& State)
         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     const std::array<VkDescriptorSetLayoutBinding, 1> Set0 = {{
         {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, Both, nullptr}}};
-    const std::array<VkDescriptorSetLayoutBinding, 1> Set1 = {{
-        {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, Both, nullptr}}};
+    const std::array<VkDescriptorSetLayoutBinding, 6> Set1 = {{
+        {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, Both, nullptr},
+        {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+            VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+        {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+            VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+        {3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+            VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+        {4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+            VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+        {5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+            VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}}};
     const std::array<VkDescriptorSetLayoutBinding, 5> Set2 = {{
         {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
         {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
@@ -562,7 +577,7 @@ bool CreateDescriptorState(FVulkanNativeOffscreenSession::FImpl& State)
 
     const std::array<VkDescriptorPoolSize, 3> PoolSizes = {{
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
-        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 15},
         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1}}};
     VkDescriptorPoolCreateInfo PoolInfo = MakeVulkanStruct<VkDescriptorPoolCreateInfo>(VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO);
     PoolInfo.maxSets = 5;
@@ -896,16 +911,24 @@ void UpdateDescriptors(FVulkanNativeOffscreenSession::FImpl& State)
         State.MaskedDrawUniform.Buffer, 0, State.MaskedDrawUniform.Size};
     const VkDescriptorBufferInfo LightInfo{
         State.LightUniform.Buffer, 0, State.LightUniform.Size};
-    std::array<VkDescriptorImageInfo, 5> ImageInfos{};
-    for (std::size_t Index = 0; Index < ImageInfos.size(); ++Index)
+    std::array<VkDescriptorImageInfo, 5> SurfaceImageInfos{};
+    for (std::size_t Index = 0; Index < SurfaceImageInfos.size(); ++Index)
     {
-        ImageInfos[Index].sampler = State.Sampler;
-        ImageInfos[Index].imageView = State.Images[Index].View;
-        ImageInfos[Index].imageLayout = Index == 3
+        SurfaceImageInfos[Index].sampler = State.Sampler;
+        SurfaceImageInfos[Index].imageView = State.SurfaceTextures[Index].View;
+        SurfaceImageInfos[Index].imageLayout =
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    }
+    std::array<VkDescriptorImageInfo, 5> GBufferImageInfos{};
+    for (std::size_t Index = 0; Index < GBufferImageInfos.size(); ++Index)
+    {
+        GBufferImageInfos[Index].sampler = State.Sampler;
+        GBufferImageInfos[Index].imageView = State.Images[Index].View;
+        GBufferImageInfos[Index].imageLayout = Index == 3
             ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
             : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     }
-    std::array<VkWriteDescriptorSet, 9> Writes{};
+    std::array<VkWriteDescriptorSet, 19> Writes{};
     Writes[0] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr,
         State.DescriptorSets[0], 0, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         nullptr, &FrameInfo, nullptr};
@@ -918,11 +941,20 @@ void UpdateDescriptors(FVulkanNativeOffscreenSession::FImpl& State)
     for (Stoner::Core::uint32 Index = 0; Index < 5; ++Index)
     {
         Writes[3 + Index] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr,
+            State.DescriptorSets[1], Index + 1, 0, 1,
+            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            &SurfaceImageInfos[Index], nullptr, nullptr};
+        Writes[8 + Index] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr,
+            State.MaskedDrawSet, Index + 1, 0, 1,
+            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            &SurfaceImageInfos[Index], nullptr, nullptr};
+        Writes[13 + Index] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr,
             State.DescriptorSets[2], Index, 0, 1,
-            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &ImageInfos[Index],
+            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            &GBufferImageInfos[Index],
             nullptr, nullptr};
     }
-    Writes[8] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr,
+    Writes[18] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr,
         State.DescriptorSets[3], 0, 0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         nullptr, &LightInfo, nullptr};
     vkUpdateDescriptorSets(State.Access.Device,
@@ -937,6 +969,63 @@ void BindSets(VkCommandBuffer Commands,
     {
         vkCmdBindDescriptorSets(Commands, VK_PIPELINE_BIND_POINT_GRAPHICS,
             State.PipelineLayout, Set, 1, &State.DescriptorSets[Set], 0, nullptr);
+    }
+}
+
+void PrepareSurfaceTextures(VkCommandBuffer Commands,
+    const FVulkanNativeOffscreenSession::FImpl& State,
+    VkImageLayout OldLayout)
+{
+    std::array<VkClearColorValue, 5> Clears{};
+    for (auto& Clear : Clears)
+    {
+        Clear.float32[0] = 1.0f;
+        Clear.float32[1] = 1.0f;
+        Clear.float32[2] = 1.0f;
+        Clear.float32[3] = 1.0f;
+    }
+    Clears[2].float32[0] = 0.5f;
+    Clears[2].float32[1] = 0.5f;
+
+    for (std::size_t Index = 0; Index < State.SurfaceTextures.size(); ++Index)
+    {
+        const auto& Texture = State.SurfaceTextures[Index];
+        VkImageMemoryBarrier ToTransfer =
+            MakeVulkanStruct<VkImageMemoryBarrier>(
+                VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
+        ToTransfer.srcAccessMask = OldLayout == VK_IMAGE_LAYOUT_UNDEFINED
+            ? 0 : VK_ACCESS_SHADER_READ_BIT;
+        ToTransfer.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        ToTransfer.oldLayout = OldLayout;
+        ToTransfer.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        ToTransfer.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        ToTransfer.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        ToTransfer.image = Texture.Image;
+        ToTransfer.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        ToTransfer.subresourceRange.levelCount = 1;
+        ToTransfer.subresourceRange.layerCount = 1;
+        vkCmdPipelineBarrier(Commands,
+            OldLayout == VK_IMAGE_LAYOUT_UNDEFINED
+                ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
+                : VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1,
+            &ToTransfer);
+
+        VkImageSubresourceRange Range{};
+        Range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        Range.levelCount = 1;
+        Range.layerCount = 1;
+        vkCmdClearColorImage(Commands, Texture.Image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &Clears[Index], 1, &Range);
+
+        VkImageMemoryBarrier ToSample = ToTransfer;
+        ToSample.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        ToSample.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        ToSample.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        ToSample.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        vkCmdPipelineBarrier(Commands, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr,
+            1, &ToSample);
     }
 }
 
@@ -1115,6 +1204,17 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         Impl->ReleaseAll();
         return Stoner::RHI::ERHIResult::Failed;
     }
+    for (FImpl::FImage& SurfaceTexture : Impl->SurfaceTextures)
+    {
+        if (!Impl->CreateImage(VK_FORMAT_R8G8B8A8_UNORM,
+                VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                VK_IMAGE_ASPECT_COLOR_BIT,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 4, SurfaceTexture))
+        {
+            Impl->ReleaseAll();
+            return Stoner::RHI::ERHIResult::Failed;
+        }
+    }
     for (std::size_t Index = 0; Index < Impl->Readbacks.size(); ++Index)
     {
         const VkDeviceSize Size = ValidationWidth * ValidationHeight *
@@ -1129,10 +1229,13 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         }
     }
 
-    const std::array<float, 18> SurfaceVertices = {
+    const std::array<float, 36> SurfaceVertices = {
         -0.8f, -0.8f, 0.5f, 0.0f, 0.0f, 1.0f,
+         1.0f,  0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
          0.8f, -0.8f, 0.5f, 0.0f, 0.0f, 1.0f,
-         0.0f,  0.8f, 0.5f, 0.0f, 0.0f, 1.0f};
+         1.0f,  0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
+         0.0f,  0.8f, 0.5f, 0.0f, 0.0f, 1.0f,
+         1.0f,  0.0f, 0.0f, 1.0f, 0.5f, 1.0f};
     const std::array<float, 6> FullscreenVertices = {
         -1.0f, -1.0f, 3.0f, -1.0f, -1.0f, 3.0f};
     const std::array<float, 18> SphereVertices = {
@@ -1260,11 +1363,13 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
     }
     UpdateDescriptors(*Impl);
 
-    const VkVertexInputBindingDescription SurfaceBinding{0, 24,
+    const VkVertexInputBindingDescription SurfaceBinding{0, 48,
         VK_VERTEX_INPUT_RATE_VERTEX};
-    const std::array<VkVertexInputAttributeDescription, 2> SurfaceAttributes = {{
+    const std::array<VkVertexInputAttributeDescription, 4> SurfaceAttributes = {{
         {0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0},
-        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, 12}}};
+        {1, 0, VK_FORMAT_R32G32B32_SFLOAT, 12},
+        {2, 0, VK_FORMAT_R32G32B32A32_SFLOAT, 24},
+        {3, 0, VK_FORMAT_R32G32_SFLOAT, 40}}};
     const VkVertexInputBindingDescription FullscreenBinding{0, 8,
         VK_VERTEX_INPUT_RATE_VERTEX};
     const VkVertexInputAttributeDescription FullscreenAttribute{
@@ -1274,7 +1379,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
     const VkVertexInputAttributeDescription VolumeAttribute{
         0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0};
     if (!CreateGraphicsPipeline(*Impl, Impl->Shaders[0], Impl->Shaders[1],
-            Impl->SurfacePass, &SurfaceBinding, SurfaceAttributes.data(), 2,
+            Impl->SurfacePass, &SurfaceBinding, SurfaceAttributes.data(), 4,
             true, false, false, VK_CULL_MODE_NONE, Impl->Pipelines[0]) ||
         !CreateGraphicsPipeline(*Impl, Impl->Shaders[2], Impl->Shaders[3],
             Impl->LightingPass, &FullscreenBinding, &FullscreenAttribute, 1,
@@ -1293,12 +1398,12 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
             false, false, true, VK_CULL_MODE_BACK_BIT, Impl->Pipelines[4]) ||
         !CreateGraphicsPipeline(*Impl, Impl->Shaders[6], Impl->Shaders[7],
             Impl->LightingPass, &VolumeBinding, &VolumeAttribute, 1,
-            false, false, true, VK_CULL_MODE_FRONT_BIT, Impl->Pipelines[5]) ||
+            false, false, true, VK_CULL_MODE_NONE, Impl->Pipelines[5]) ||
         !CreateGraphicsPipeline(*Impl, Impl->Shaders[2], Impl->Shaders[8],
             Impl->CompositionPass, &FullscreenBinding, &FullscreenAttribute, 1,
             false, false, false, VK_CULL_MODE_NONE, Impl->Pipelines[6]) ||
         !CreateGraphicsPipeline(*Impl, Impl->Shaders[0], Impl->Shaders[1],
-            Impl->SurfacePass, &SurfaceBinding, SurfaceAttributes.data(), 2,
+            Impl->SurfacePass, &SurfaceBinding, SurfaceAttributes.data(), 4,
             true, true, false, VK_CULL_MODE_NONE, Impl->Pipelines[7]))
     {
         Impl->ReleaseAll();
@@ -1360,6 +1465,9 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         {
             return false;
         }
+        PrepareSurfaceTextures(Impl->CommandBuffer, *Impl,
+            bReversed ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                      : VK_IMAGE_LAYOUT_UNDEFINED);
         const VkViewport Viewport{0.0f, 0.0f,
             static_cast<float>(ValidationWidth), static_cast<float>(ValidationHeight),
             0.0f, 1.0f};
@@ -1414,9 +1522,11 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         vkCmdBindIndexBuffer(Impl->CommandBuffer, Impl->SphereIndices.Buffer, 0,
             VK_INDEX_TYPE_UINT16);
         vkCmdDrawIndexed(Impl->CommandBuffer,
-            static_cast<Stoner::Core::uint32>(SphereIndices.size()), 1, 0, 0, 1);
-        vkCmdDrawIndexed(Impl->CommandBuffer,
             static_cast<Stoner::Core::uint32>(SphereIndices.size()), 1, 0, 0, 3);
+        vkCmdBindPipeline(Impl->CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+            Impl->Pipelines[3]);
+        vkCmdDrawIndexed(Impl->CommandBuffer,
+            static_cast<Stoner::Core::uint32>(SphereIndices.size()), 1, 0, 0, 1);
         vkCmdBindPipeline(Impl->CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
             Impl->Pipelines[8]);
         vkCmdDrawIndexed(Impl->CommandBuffer,
@@ -1540,7 +1650,9 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
             Probe.Metric = Metric;
             Probe.ErrorMeasure = Metric == EVulkanDeferredProbeMetric::NormalDot
                 ? NormalDot(Probe.Expected, Probe.Observed)
-                : MaxAbsoluteError(Probe.Expected, Probe.Observed);
+                : Metric == EVulkanDeferredProbeMetric::AlphaAbsolute
+                    ? std::abs(Probe.Expected.W - Probe.Observed.W)
+                    : MaxAbsoluteError(Probe.Expected, Probe.Observed);
             Probe.bPassed = IsFinite(Probe.Expected) && IsFinite(Probe.Observed) &&
                 (Metric == EVulkanDeferredProbeMetric::NormalDot
                     ? Probe.ErrorMeasure >= Threshold
@@ -1560,10 +1672,14 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         AddProbe("ambient-occlusion", "AmbientOcclusion", 0, CenterX, CenterY,
             {0.8f, 0.2f, 0.1f, 0.75f}, 2.0e-3f,
             EVulkanDeferredProbeMetric::Absolute);
+        constexpr float QuantizedTangentNormalXY = 1.0f / 255.0f;
+        const Stoner::Core::FVector4 ExpectedNormal{
+            QuantizedTangentNormalXY, QuantizedTangentNormalXY, 1.0f, 0.42f};
         AddProbe("world-normal", "WorldNormal", 1, CenterX, CenterY,
-            {0, 0, 1, 0.42f}, 0.999f, EVulkanDeferredProbeMetric::NormalDot);
+            ExpectedNormal, 0.999f, EVulkanDeferredProbeMetric::NormalDot);
         AddProbe("roughness", "Roughness", 1, CenterX, CenterY,
-            {0, 0, 1, 0.42f}, 1.0e-3f, EVulkanDeferredProbeMetric::Absolute);
+            ExpectedNormal, 1.0e-3f,
+            EVulkanDeferredProbeMetric::AlphaAbsolute);
         AddProbe("emissive", "Emissive", 2, CenterX, CenterY,
             {0.3f, 0.05f, 0, 0.65f}, 1.0e-3f,
             EVulkanDeferredProbeMetric::Absolute);

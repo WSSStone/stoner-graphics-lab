@@ -27,6 +27,19 @@ FRenderGraphResourceHandle FRenderGraphBuilder::ImportResource(const FRenderGrap
     return Graph.AddResource(ImportDesc);
 }
 
+FRenderGraphResourceHandle FRenderGraphBuilder::CreateTexture(
+    Stoner::Core::FString Name,
+    Stoner::Core::uint32 Width,
+    Stoner::Core::uint32 Height,
+    Stoner::RHI::ERHIFormat Format,
+    Stoner::RHI::ERHISampleCount SampleCount,
+    Stoner::RHI::ERHITextureUsage Usage,
+    ERenderGraphColorDomain ColorDomain)
+{
+    return CreateResource(FRenderGraphResourceDesc::TypedTexture2D(
+        std::move(Name), Width, Height, Format, SampleCount, Usage, ColorDomain));
+}
+
 FRenderGraphPassHandle FRenderGraphBuilder::AddPass(const FRenderGraphPassDesc& Desc)
 {
     return Graph.AddPass(Desc);

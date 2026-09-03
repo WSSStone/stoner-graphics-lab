@@ -34,9 +34,9 @@ class RepositoryShaderVerifierTests(unittest.TestCase):
         verifier.write_report(report, verifier.verify(root))
         expected = (
             "feature=023\n"
-            "programs=6\n"
-            "sources=11\n"
-            "payloads=11\n"
+            "programs=8\n"
+            "sources=14\n"
+            "payloads=14\n"
             "result=pass\n"
         )
         self.assertEqual(expected, report.read_text(encoding="utf-8"))

@@ -91,6 +91,15 @@ EForwardResult FForwardRenderer::PrepareFrame(const FForwardFrameInputs& Inputs,
     }
 
     OutPlan.GraphDeclaration = BuildForwardRenderGraphDeclaration(OutPlan, &LocalDiagnostics);
+    FHDRSceneColorHandoffDesc SceneColorDesc;
+    SceneColorDesc.SceneColorId =
+        (static_cast<Stoner::Core::uint64>(OutPlan.FrameId.Value) << 32U) | 1U;
+    SceneColorDesc.Producer = EHDRSceneColorProducer::Forward;
+    SceneColorDesc.ViewId = 1;
+    SceneColorDesc.FrameToken = OutPlan.FrameId.Value;
+    SceneColorDesc.Width = OutPlan.OutputTarget.Extent.Width;
+    SceneColorDesc.Height = OutPlan.OutputTarget.Extent.Height;
+    OutPlan.SceneColorHandoff = FHDRSceneColorHandoff::Declare(SceneColorDesc);
     LocalDiagnostics.SortStable();
     OutPlan.Diagnostics = LocalDiagnostics;
     OutPlan.bValid = true;

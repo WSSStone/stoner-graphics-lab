@@ -16,6 +16,7 @@ PROGRAM_FILES = {
     "Content/Shaders/Deferred/DirectionalLight.shader.json",
     "Content/Shaders/Deferred/PointLight.shader.json",
     "Content/Shaders/Deferred/SpotLight.shader.json",
+    "Content/Shaders/PostProcess/OutputTransform.shader.json",
     "Content/Shaders/Validation/NoOp.shader.json",
 }
 
@@ -32,8 +33,25 @@ PROGRAM_IDENTITIES = {
         ("ShaderProgram", "Engine/Shaders/Deferred/PointLight", ""),
     "Content/Shaders/Deferred/SpotLight.shader.json":
         ("ShaderProgram", "Engine/Shaders/Deferred/SpotLight", ""),
+    "Content/Shaders/PostProcess/OutputTransform.shader.json":
+        ("ShaderProgram", "Engine/Shaders/PostProcess/OutputTransform", ""),
     "Content/Shaders/Validation/NoOp.shader.json":
         ("ShaderProgram", "Engine/Shaders/Validation/NoOp", ""),
+}
+
+FEATURE_029_PAYLOADS = {
+    ("ShaderPayload", "Engine/Shaders/Deferred/Composition", "payload.vulkan.fragment"),
+    ("ShaderPayload", "Engine/Shaders/PostProcess/Fullscreen", "payload.vulkan.vertex"),
+    ("ShaderPayload", "Engine/Shaders/PostProcess/OutputTransform", "payload.vulkan.fragment"),
+}
+
+FEATURE_029_PAYLOAD_VERSIONS = {
+    ("ShaderPayload", "Engine/Shaders/Deferred/Composition", "payload.vulkan.fragment"):
+        "029-v1",
+    ("ShaderPayload", "Engine/Shaders/PostProcess/Fullscreen", "payload.vulkan.vertex"):
+        "029-v1",
+    ("ShaderPayload", "Engine/Shaders/PostProcess/OutputTransform", "payload.vulkan.fragment"):
+        "029-v2",
 }
 
 
@@ -136,11 +154,11 @@ def verify(root: Path) -> list[str]:
     }
     if owned_files != actual_files:
         errors.append("dependency-inventory")
-    if len([p for p in owned_files if p.suffix == ".spv"]) != 12:
+    if len([p for p in owned_files if p.suffix == ".spv"]) != 14:
         errors.append("spirv-count")
     if len([
         p for p in owned_files if p.suffix in {".vert", ".frag", ".comp"}
-    ]) != 12:
+    ]) != 14:
         errors.append("source-count")
 
     point = (
@@ -191,16 +209,17 @@ def write_report(path: Path, errors: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         "feature=023",
-        "programs=7",
-        "sources=12",
-        "payloads=12",
+        "programs=8",
+        "sources=14",
+        "payloads=14",
         "result=" + ("pass" if not errors else "fail"),
     ]
     lines.extend(
         f"error.{index:03d}={error}"
         for index, error in enumerate(errors)
     )
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write("\n".join(lines) + "\n")
 
 
 def _verify_dependency(
@@ -237,7 +256,8 @@ def _verify_dependency(
         or record.get("profile") != "vulkan-1.3"
         or record.get("format") != "spirv"
         or record.get("producer") != "Stoner.CheckedInSpirv"
-        or record.get("producerVersion") != "023-v1"
+        or record.get("producerVersion") !=
+            FEATURE_029_PAYLOAD_VERSIONS.get(identity, "023-v1")
     ):
         errors.append(f"dependency-target:{definition}:{locator}")
     target = parent / locator
@@ -279,7 +299,7 @@ def main() -> int:
         for error in errors:
             print("ERROR " + error)
         return 1
-    print("Repository shader assets passed: programs=7 sources=12 payloads=12")
+    print("Repository shader assets passed: programs=8 sources=14 payloads=14")
     return 0
 
 

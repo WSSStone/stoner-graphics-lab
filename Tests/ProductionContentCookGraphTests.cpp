@@ -51,7 +51,7 @@ AssetCooker::FAssetCookRequest MakeRequest(
             "Content/ProductionAcceptance/Regular/Lantern")};
     if (bIncludeShaderRoot)
         Result.SourceRoots.push_back(
-            Core::FString("Content/Shaders/Deferred"));
+            Core::FString("Content/Shaders"));
     Result.SelectionMode = EAssetCookSelectionMode::ExplicitRoots;
     Result.ExplicitRoots = {
         Id("StaticModel", "Lantern.glb", "idx.scene.0"),
@@ -59,7 +59,8 @@ AssetCooker::FAssetCookRequest MakeRequest(
         Id("ShaderProgram", "Engine/Shaders/Deferred/DirectionalLight"),
         Id("ShaderProgram", "Engine/Shaders/Deferred/PointLight"),
         Id("ShaderProgram", "Engine/Shaders/Deferred/SpotLight"),
-        Id("ShaderProgram", "Engine/Shaders/Deferred/Composition")};
+        Id("ShaderProgram", "Engine/Shaders/Deferred/Composition"),
+        Id("ShaderProgram", "Engine/Shaders/PostProcess/OutputTransform")};
     std::sort(Result.ExplicitRoots.begin(), Result.ExplicitRoots.end());
     Result.TargetProfilePath =
         Core::FString("Config/AssetCooker/Profiles/Mac-Vulkan.json");
@@ -149,12 +150,22 @@ FProductionContentCookGraphTestResult RunProductionContentCookGraphTests()
         "ShaderProgram", "Engine/Shaders/Deferred/PointLight");
     const FAssetId SpotShader = Id(
         "ShaderProgram", "Engine/Shaders/Deferred/SpotLight");
+    const FAssetId OutputTransformShader = Id(
+        "ShaderProgram", "Engine/Shaders/PostProcess/OutputTransform");
+    const FAssetId OutputTransformVertex = Id(
+        "ShaderPayload", "Engine/Shaders/PostProcess/Fullscreen",
+        "payload.vulkan.vertex");
+    const FAssetId OutputTransformFragment = Id(
+        "ShaderPayload", "Engine/Shaders/PostProcess/OutputTransform",
+        "payload.vulkan.fragment");
     Record(Result,
         Built == EAssetResult::Success &&
             Contains(Plan, CompositionShader) &&
             Contains(Plan, DirectionalShader) && Contains(Plan, PointShader) &&
-            Contains(Plan, SpotShader),
-        "explicit production graph includes every Deferred stage shader root");
+            Contains(Plan, SpotShader) && Contains(Plan, OutputTransformShader) &&
+            Contains(Plan, OutputTransformVertex) &&
+            Contains(Plan, OutputTransformFragment),
+        "explicit production graph includes Deferred and formal output shader roots");
 
     auto OutputsWithGenericAssets = Catalog.Outputs;
     OutputsWithGenericAssets.push_back(

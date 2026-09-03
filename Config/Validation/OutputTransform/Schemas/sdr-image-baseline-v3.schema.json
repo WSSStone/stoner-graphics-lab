@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stoner.local/schemas/sdr-image-baseline-v3.json",
+  "title": "Stoner SDR Image Baseline v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "schemaVersion", "baselineId", "state", "workloadRevision",
+    "backend", "deviceClass", "capabilityDigest", "outputDeviceProfileId",
+    "transformVersion", "exposureStops", "settingsDigest", "width", "height",
+    "sampleCount", "referencePath", "compressedSha256", "decodedSha256",
+    "calibrationEvidenceSha256", "flipPolicy", "acceptance"
+  ],
+  "properties": {
+    "schema": {"const": "stoner.sdr-image-baseline"},
+    "schemaVersion": {"const": 3},
+    "baselineId": {"$ref": "#/$defs/token"},
+    "state": {"enum": ["candidate", "calibrated", "reviewed", "accepted", "superseded"]},
+    "workloadRevision": {"type": "string", "pattern": "^production-content-(lantern|sponza)-v3([.-][a-z0-9.-]+)?$"},
+    "backend": {"enum": ["vulkan", "metal"]},
+    "deviceClass": {"$ref": "#/$defs/token"},
+    "capabilityDigest": {"$ref": "#/$defs/sha256"},
+    "outputDeviceProfileId": {"enum": ["Sdr.sRGB.v1", "Sdr.BT709.v1", "Sdr.ExplicitGamma22.v1"]},
+    "transformVersion": {"enum": ["Sdr.KhronosPbrNeutral.v1", "Sdr.NarkowiczAcesFit.v1", "Sdr.ExtendedReinhardRec709.v1"]},
+    "exposureStops": {"type": "number", "minimum": -16, "maximum": 16},
+    "settingsDigest": {"$ref": "#/$defs/sha256"},
+    "width": {"const": 512},
+    "height": {"const": 512},
+    "sampleCount": {"const": 1},
+    "referencePath": {"type": "string", "pattern": "^(?!/)(?!.*\\\\).+\\.png$", "maxLength": 240},
+    "compressedSha256": {"$ref": "#/$defs/sha256"},
+    "decodedSha256": {"$ref": "#/$defs/sha256"},
+    "calibrationEvidenceSha256": {"$ref": "#/$defs/sha256"},
+    "flipPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["meanMax", "p95Max", "maximumMax", "badPixelThreshold", "badPixelFractionMax"],
+      "properties": {
+        "meanMax": {"type": "number", "minimum": 0, "maximum": 1},
+        "p95Max": {"type": "number", "minimum": 0, "maximum": 1},
+        "maximumMax": {"type": "number", "minimum": 0, "maximum": 1},
+        "badPixelThreshold": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "badPixelFractionMax": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "acceptance": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["maintainerId", "reviewedAt", "candidateSha256", "decision"],
+          "properties": {
+            "maintainerId": {"$ref": "#/$defs/token"},
+            "reviewedAt": {"type": "string", "format": "date-time"},
+            "candidateSha256": {"$ref": "#/$defs/sha256"},
+            "decision": {"const": "accepted"}
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"state": {"const": "accepted"}}, "required": ["state"]},
+      "then": {"properties": {"acceptance": {"type": "object"}}}
+    },
+    {
+      "if": {"properties": {"state": {"enum": ["candidate", "calibrated", "reviewed"]}}, "required": ["state"]},
+      "then": {"properties": {"acceptance": {"type": "null"}}}
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "token": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"}
+  }
+}

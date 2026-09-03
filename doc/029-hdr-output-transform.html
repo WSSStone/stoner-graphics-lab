@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>029 - Renderer HDR Post-Processing &amp; Output Transform - Stoner Graphics Lab</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}:root{--bg:#f3f5f6;--paper:#fff;--ink:#182329;--muted:#66747b;--line:#d8e0e3;--accent:#0d6670;--accent2:#825d20;--soft:#e8f2f3;--warn:#a14c20;--warnsoft:#fff0e7;--code:#edf0f1;--dark:#172126;--mono:"SF Mono",Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.72 var(--sans)}.page{display:grid;grid-template-columns:290px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 18px;background:var(--paper);border-right:1px solid var(--line)}.brand{font-size:14px;font-weight:800;color:var(--accent)}.subtitle{font-size:12px;color:var(--muted);padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:18px}.toc{list-style:none;padding:0}.toc a{display:block;padding:6px 8px;color:var(--muted);text-decoration:none;border-radius:6px;font-size:13px}.toc a:hover{color:var(--accent);background:var(--soft)}main{max-width:1120px;width:100%;padding:48px 48px 96px;margin:0 auto}h1{margin:0 0 8px;font-size:34px;line-height:1.2;color:var(--accent)}.meta{color:var(--muted);font-size:13px;margin-bottom:30px}section{margin-bottom:52px}h2{margin:32px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:23px}h3{margin:22px 0 10px;font-size:17px}h4{margin:16px 0 6px;font-size:15px}p{margin:0 0 14px}ul,ol{margin:0 0 16px;padding-left:23px}li{margin:4px 0}code{font-family:var(--mono);font-size:13px;background:var(--code);padding:2px 5px;border-radius:4px}pre{margin:14px 0;padding:16px;overflow:auto;border-radius:8px;color:#e5e7eb;background:var(--dark);font-size:13px;line-height:1.55}pre code{background:transparent;color:inherit;padding:0}table{width:100%;border-collapse:collapse;margin:14px 0 20px;background:var(--paper)}th,td{padding:10px 12px;border:1px solid var(--line);text-align:left;vertical-align:top}th{background:var(--soft);font-size:13px}.callout{margin:16px 0;padding:14px 16px;border-left:4px solid var(--accent);background:var(--soft)}.pending{border-left-color:var(--warn);background:var(--warnsoft)}.flow{display:grid;grid-template-columns:repeat(9,minmax(70px,1fr));gap:7px;margin:18px 0}.node{padding:11px 7px;border:1px solid var(--line);border-radius:6px;background:var(--paper);text-align:center;font-size:12px}.arrow{color:var(--accent);font-weight:700}.small{font-size:13px;color:var(--muted)}@media(max-width:900px){.page{display:block}.sidebar{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}main{padding:32px 20px 72px}.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg)}}
+</style>
+</head>
+<body>
+<div class="page">
+<aside class="sidebar">
+  <div class="brand">STONER GRAPHICS LAB</div>
+  <div class="subtitle">Feature 029 implementation study</div>
+  <ul class="toc">
+    <li><a href="#context">一、文档与上下文信息</a></li>
+    <li><a href="#scope">二、目标与边界</a></li>
+    <li><a href="#usage">三、交互与产品设计</a></li>
+    <li><a href="#architecture">四、技术架构与关键决策</a></li>
+    <li><a href="#validation">五、实施与验证</a></li>
+    <li><a href="#practice">六、设计巧思与最佳实践</a></li>
+    <li><a href="#cpp">七、编程语言知识点</a></li>
+    <li><a href="#engineering">八、软件工程知识点</a></li>
+    <li><a href="#graphics">九、渲染、引擎与图形 API 学习笔记</a></li>
+  </ul>
+</aside>
+<main>
+<header>
+  <h1>029 - Renderer HDR Post-Processing &amp; Output Transform</h1>
+  <div class="meta">版本 0.9 · 2026-09-03 · 实现完成、权威收尾待外部门禁 · 分支 029-hdr-output-transform</div>
+  <div class="callout"><strong>工程结论：</strong>Feature 029 已把 Forward/Deferred 的正式输出收敛为一个 Renderer 与 Render Graph 共同拥有的管线：RGBA16F linear Rec.709/D65 SceneColor 经过 manual exposure、pre-tonemap 插入、版本化 SDR tone map 或 ACES 2 HDR viewing transform、post-tonemap 插入、output-device gamut/transfer，再以同一 frame token readback 和 present。当前代码与 M4 非视觉验证已完成；Windows fresh SDR、维护者 SDR 接受和四模式 HDR 肉眼验收仍是明确阻塞门禁，因此不得把本阶段标为完成。</div>
+</header>
+
+<section id="context">
+<h2>一、文档与上下文信息</h2>
+<h3>1. 基础元数据</h3>
+<table><tbody>
+<tr><th>项目项</th><th>内容</th></tr>
+<tr><td>Feature / Roadmap</td><td>029 - Renderer: HDR Post-Processing &amp; Output Transform；后续 030 消费 pre/post seams，031 Meshlet 仍只依赖 024/025/026/028</td></tr>
+<tr><td>设计输入</td><td><code>specs/029-hdr-output-transform/</code> 中的 spec、plan、research、data-model、contracts、tasks 与 quickstart</td></tr>
+<tr><td>主要源码</td><td><code>Source/Renderer/</code>、<code>Source/RHI/</code>、<code>Source/Backend/Vulkan/</code>、<code>Source/Backend/Metal/</code>、<code>Demo/StonerDemo/</code></td></tr>
+<tr><td>颜色与 shader 权威</td><td><code>Config/Validation/OutputTransform/Profiles.json</code>、<code>Tests/Fixtures/OutputTransform/</code>、<code>Content/Shaders/PostProcess/</code></td></tr>
+<tr><td>测试入口</td><td><code>renderer-output-transform*</code>、<code>output-device-profile</code>、<code>rhi-presentation-output</code>、<code>output-presentation-lifecycle</code>、Vulkan/Metal native suites 与 Python contract tests</td></tr>
+<tr><td>证据状态</td><td><code>Validation/029/</code> 保存有界 JSON/PNG；M4 Lantern/Sponza v3 Candidate 已生成但未接受，HDR live attestation 尚未由维护者创建</td></tr>
+</tbody></table>
+
+<h3>2. 本期核心摘要</h3>
+<p>工程交付上，本期不再让 Forward、Deferred 或 Backend 各自决定“最后一个像素怎么变成屏幕颜色”。两个 renderer strategy 只生产同一 typed SceneColor；Renderer 解析明确的 exposure、transform version 和 output profile，把 pass 接入现有 Render Graph，并在 terminal operation 全部完成后才发布 formal output。</p>
+<p>学习价值上，本期最重要的是区分三个常被混在一起的概念：scene-referred HDR lighting、display-referred viewing transform、native presentation encoding。前者描述光照结果，第二层决定观感和峰值目标，第三层只是把既定信号放进 sRGB、PQ 或 linear EDR storage。只有把所有权分开，才能避免 double tone map、double transfer 和“readback 看对但屏幕看错”。</p>
+
+<h3>3. 上下文与依赖</h3>
+<ul>
+<li>013 提供唯一 Render Graph；015/019 提供 Forward/Deferred producer；018 提供 native demo composition；027 提供 Metal private backend；028 提供真实 production content 和历史图像权威。</li>
+<li>Feature 029 直接依赖 013、015、018、019、027、028。官方 ACES package <code>v2.0.0+2025.04.04</code> commit <code>35e1e6a</code> 只作为参考权威，不是 runtime dependency。</li>
+<li>Feature 030 将在 pre-tonemap seam 放 TAA、在 post-tonemap seam 放 FXAA；029 故意不拥有 jitter、motion vector、history 或 reprojection。</li>
+<li>Feature 028 v2 <code>sampleCount=1</code>、无通用后处理图像继续是历史证据；029 使用独立 v3 workload、Candidate 和接受记录，绝不覆盖旧 reference。</li>
+</ul>
+</section>
+
+<section id="scope">
+<h2>二、目标与边界</h2>
+<h3>1. 业务与功能目标</h3>
+<ul>
+<li>Renderer integrator 为 Forward 或 Deferred 提交同一 RGBA16F linear Rec.709/D65 handoff，并得到唯一 formal output。</li>
+<li>图形开发者显式选择有限 manual exposure、三种 SDR curve 之一，或 HDR ACES 2 viewing transform 与 1000/2000 nit output profile。</li>
+<li>后续 feature 以稳定 identity、dependency 和 color domain 注册有限 pre/post operation，不接管 output transfer。</li>
+<li>Demo/validation operator 能把同一 completed frame 关联到 command、readback、present、extent、generation 与 capability digest。</li>
+<li>维护者能独立处理 exact SDR Candidate 和 live HDR observation；机器不能替维护者接受。</li>
+</ul>
+
+<h3>2. 架构目标与定位</h3>
+<div class="flow">
+  <div class="node"><strong>Forward / Deferred</strong><br>linear SceneColor</div><div class="node arrow">→</div>
+  <div class="node"><strong>Renderer policy</strong><br>exposure + view</div><div class="node arrow">→</div>
+  <div class="node"><strong>Render Graph</strong><br>typed passes</div><div class="node arrow">→</div>
+  <div class="node"><strong>RHI</strong><br>resolved state</div><div class="node arrow">→</div>
+  <div class="node"><strong>Backend</strong><br>native present</div>
+</div>
+<p>Public contract 只暴露 backend-neutral format、color-space、capability、generation、frame token 和 result。Renderer private implementation 拥有颜色数学、profile resolution、graph declaration 和 shader parameter。Vulkan/Metal private implementation 独占 native API；它只能执行已选择的 format/color-space/metadata policy，不能偷偷改观感。</p>
+
+<h3>3. 边界与非目标（约束）</h3>
+<ul>
+<li><strong>不实现 AA/temporal：</strong>TAA/FXAA、jitter、motion vectors 和 history 属于 030，避免 temporal state 污染正式输出基础。</li>
+<li><strong>不实现 bloom、景深、运动模糊、自动曝光：</strong>本阶段先冻结 color domain 和 insertion contract，这些 effect 后续按独立 feature 接入。</li>
+<li><strong>不实现 HDR10+/Dolby Vision 或 vendor upscaler：</strong>当前仅固定 SDR、PQ 与 linear EDR 设备变换；vendor policy 不能成为基础 contract。</li>
+<li><strong>不做 post-process editor：</strong>先证明 deterministic API、graph 和 lifecycle，再讨论编辑器 authoring。</li>
+<li><strong>不允许 silent fallback：</strong>不支持的 HDR pair 返回 Unsupported；不能偷偷呈现 SDR。</li>
+<li><strong>不自动判断 HDR 观感：</strong>HDR screenshot/FLIP 无法替代实体显示链路上的肉眼检查。</li>
+</ul>
+</section>
+
+<section id="usage">
+<h2>三、交互与产品设计</h2>
+<h3>1. 用户使用路径</h3>
+<pre><code>producer -> FHDRSceneColorHandoff
+settings -> Resolve / validate output profile
+operations -> validate pre/post Composite
+pipeline -> prepare immutable FOutputTransformPlan
+graph -> declare exposure/view/encoding/terminal passes
+executor -> record, submit, complete, read back and/or present
+result -> publish one formal output or one stable first failure</code></pre>
+<p>默认 SDR path 显式 materialize 为 <code>Sdr.KhronosPbrNeutral.v1</code> + <code>Sdr.sRGB.v1</code>，不是“空设置”。HDR path 改用版本化 ACES 2 viewing transform；它不会先跑任何 SDR curve。具体 native probe、Candidate 和 human-review 命令见 <code>specs/029-hdr-output-transform/quickstart.md</code>。</p>
+
+<h3>2. 核心规则与状态机</h3>
+<pre><code>SceneColor: ProducerOwned -> HandedOff -> Consumed
+Plan:       Unresolved -> Prepared -> Declared -> Executing
+Frame:      Acquired -> Recorded -> Submitted -> Completed -> Presented/ReadBack
+Surface:    Supported | Unsupported | Paused(zero drawable)
+Authority:  Candidate -> Maintainer Accepted/Rejected
+HDR review: Preflight -> ReadyForLiveReview -> Human Attestation</code></pre>
+<p>extent、surface capability 或 output mode generation 改变时，旧 drawable、pipeline binding 和 frame token 立即失效。失败后的 cleanup 可以继续，但 first failure 不被覆盖。presentation-only frame 不启动 CPU readback；同时请求 readback 与 present 时，两者必须指向同一个 completed frame。</p>
+
+<h3>3. 失败模式与调试入口</h3>
+<table><thead><tr><th>症状</th><th>原因</th><th>入口</th></tr></thead><tbody>
+<tr><td>prepare 阶段失败</td><td>SceneColor semantic、extent、sample count、profile/version 或 exposure 非法</td><td><code>FOutputTransformSettingsValidator.cpp</code> 与 <code>renderer-output-transform</code></td></tr>
+<tr><td>operation 被拒绝</td><td>重复 key、cycle、domain/extent 变化、资源超限或 transfer ownership 越权</td><td><code>FPostProcessInsertion.cpp</code> 与 insertion suite</td></tr>
+<tr><td>native Unsupported</td><td>surface 没有精确 format/color-space pair 或 HDR capability</td><td>resolved presentation state、capability generation、native suite</td></tr>
+<tr><td>readback 与窗口不一致</td><td>token、extent、transfer owner 或 copy/present ordering 错</td><td><code>FOutputTransformExecutor.cpp</code>、native probe 的三个 token</td></tr>
+<tr><td>Metal HDR 看似被系统再映射</td><td>误用了 <code>CAEDRMetadata</code> 或 colorspace/EDR state 错</td><td><code>FMetalPresentationContext.mm</code>；PQ/EDR 均要求 metadata nil</td></tr>
+<tr><td>Candidate 无法 closeout</td><td>仍是 Candidate、Windows fresh SDR 缺失，或 HDR attestation 缺失</td><td><code>verify_output_transform_evidence.py</code> 与 aggregate script</td></tr>
+</tbody></table>
+</section>
+
+<section id="architecture">
+<h2>四、技术架构与关键决策</h2>
+<h3>1. 技术栈与基础设施</h3>
+<p>Runtime 为 C++20；Metal implementation 为 private Objective-C++20/ARC；shader authority 是 GLSL 加 checked-in SPIR-V，经 Feature 027 的确定性 SPIRV-Cross/offline metallib 路径；验证工具只用 Python 3 标准库；构建使用 SCons 4.10.1。Vulkan runtime 缺失可以在 deterministic contract 层继续测试，但 native claim 必须来自真实 Vulkan/MoltenVK/Lavapipe；Metal native claim 必须来自 macOS Metal。</p>
+
+<h3>2. 关键信息</h3>
+<h3>2.1 模块对应关系</h3>
+<table><thead><tr><th>模块 / 类型</th><th>拥有的职责</th><th>不拥有的职责</th></tr></thead><tbody>
+<tr><td><code>FHDRSceneColorHandoff</code></td><td>RGBA16F、linear Rec.709/D65、extent、sampleCount=1、opaque alpha、frame/view identity</td><td>tone map 与 native resource</td></tr>
+<tr><td><code>FOutputTransformSettings</code></td><td>authored/resolved exposure、version、profile 与 frozen digests</td><td>surface discovery</td></tr>
+<tr><td><code>FPostProcessInsertion</code></td><td>pre/post domain、stable identity、dependency、bounded resource contract</td><td>AA implementation 与 output transfer</td></tr>
+<tr><td><code>FHDRPostProcessPipeline</code></td><td>validate、resolve、stage order、immutable plan/fingerprint</td><td>native command ownership</td></tr>
+<tr><td><code>FOutputTransformGraphBuilder</code></td><td>typed resources、pass、transition 与 external side effect</td><td>第二套 graph</td></tr>
+<tr><td><code>FOutputTransformExecutor</code></td><td>schedule-driven binding、submission、completion、terminal publication</td><td>backend color policy</td></tr>
+<tr><td>RHI presentation contracts</td><td>exact pair、metadata support、resolved extent/state、generation</td><td>1000/2000 nit viewing choice</td></tr>
+<tr><td>Vulkan / Metal private backend</td><td>native swapchain/layer、drawable、copy、submit、readback、present</td><td>tone map、fallback 与 acceptance</td></tr>
+</tbody></table>
+
+<h3>2.2 数据流、控制流与资源流</h3>
+<pre><code>RGBA16F SceneColor
+  -> Exposure (linear HDR)
+  -> PreTonemap operations (linear HDR)
+  -> SDR curve OR ACES2 HDR viewing transform (display-linear)
+  -> PostTonemap operations (display-linear)
+  -> gamut + output transfer / native linear packer
+  -> FinalOutput
+  -> optional exact GPU copy/readback
+  -> present transition + native presentation</code></pre>
+<p>Render Graph resource sidecar 携带 format、extent、sample count、usage 与 color domain。external readback/presentation 是显式 side effect，因此 compiler 不会把 terminal pass 错误 cull。空 insertion list 的主路径最多三次 mandatory fullscreen pass，再加可选 exact copy；每个 pass 仍是 O(width×height) 且每像素固定访问。</p>
+
+<h3>2.3 诊断与证据</h3>
+<ul>
+<li>deterministic diagnostics 记录 stage、first failure、profile/version、insertion digest、generation 和 token；不记录 native pointer、credential 或无界 path。</li>
+<li>encoded storage 和 decoded comparison 分开。PQ 解码到 Rec.2020 absolute nits/XYZ；scRGB/EDR 先按各自 reference-white packer 解码，再比较 nits/XYZ。</li>
+<li>SDR authority 只允许有界 lossless PNG/JSON；HDR authority 只允许 JSON/digest，禁止 screenshot 成为 authority。</li>
+<li>M4 四 profile probe 的 machine result 只证明 native state/command/readback/present；它们不能产生人类视觉结论。</li>
+</ul>
+
+<h3>3. 架构决策记录（ADR）</h3>
+<h3>3.1 ADR-001：颜色策略归 Renderer，不归 RHI/Backend</h3>
+<p><strong>决策：</strong>tone/view/output transform identity 和数学全部由 Renderer 拥有。<strong>背景：</strong>同一 Vulkan/Metal format 可以承载不同 viewing preset；若 Backend 选择曲线，Forward/Deferred 与 API 会发生观感漂移。<strong>否决：</strong>让每个 swapchain adapter 自带 tone map，因为它会导致不可审计的 double transform。<strong>后果：</strong>跨 API 行为可测试，但 RHI 需要更精确的 capability/resolved-state vocabulary。</p>
+
+<h3>3.2 ADR-002：一个 Render Graph，不建立 post-process 小图</h3>
+<p><strong>决策：</strong>扩展现有 graph 的 typed resource 与 schedule visitor。<strong>背景：</strong>独立 post-process graph 会丢失 producer barrier、lifetime 和 terminal side effect。<strong>否决：</strong>先在 Demo 中顺序调用 fullscreen shader；它无法证明真实 graph ordering。<strong>后果：</strong>基础 graph contract 略增，但 030 和后续效果可复用同一依赖系统。</p>
+
+<h3>3.3 ADR-003：Apple PQ 与 EDR 分平台治理</h3>
+<p><strong>决策：</strong>Metal PQ 为 <code>BGR10A2Unorm + ITU-R 2100 PQ + wantsEDR=true + EDRMetadata=nil</code>，允许 Core Animation 对声明的 colorspace 做色彩管理，但不启用 <code>CAEDRMetadata</code> system tone mapping；Metal EDR 为 RGBA16Float + extended-linear sRGB，且同样 metadata nil。<strong>背景：</strong>Apple EDR 与通用 HDR10 metadata 模型不是同一机制。<strong>否决：</strong>把 Vulkan <code>VK_EXT_hdr_metadata</code> 一比一映射成 CAEDRMetadata，会把 engine-owned viewing transform 再交给系统。<strong>后果：</strong>平台诊断不同但 Renderer policy 统一，HDR 观感仍必须 live review。</p>
+
+<h3>3.4 ADR-004：机器 preflight 与人眼 authority 分离</h3>
+<p><strong>决策：</strong>机器最多生成 <code>ready-for-live-review</code> request；attestation 没有自动 writer。<strong>背景：</strong>HDR screenshot 无法包含面板、OS compositor、当前 display mode 与观察者感知。<strong>否决：</strong>对 HDR PNG 跑 FLIP 或从 metadata 推导 pass。<strong>后果：</strong>closeout 有人工门禁，但不会出现“自动化绿灯冒充真实 HDR 观感”的假证据。</p>
+</section>
+
+<section id="validation">
+<h2>五、实施与验证（任务流）</h2>
+<h3>1. 任务拆解清单</h3>
+<ol>
+<li>冻结 M0：七 profile、三 SDR curve、ACES 2/PQ/gamut/reference-white 常量、CPU oracle、expected vectors 和容差。</li>
+<li>建立 RHI/Render Graph foundation：exact pair、generation、typed resource、schedule 与 external side effect。</li>
+<li>统一 Forward/Deferred handoff，建立 plan/graph/executor 和 checked-in shader。</li>
+<li>接入 Vulkan/Metal native presentation、readback、resize/paused/failure lifecycle。</li>
+<li>建立 v3 SDR Candidate、HDR request/attestation、bounded evidence 与 aggregation contract。</li>
+<li>补 workflow、architecture scan、回归、quickstart 和本文；外部 authority 完成后才更新 roadmap 状态。</li>
+</ol>
+
+<h3>2. 验收标准与当前结果</h3>
+<table><thead><tr><th>门禁</th><th>当前结果</th><th>意义</th></tr></thead><tbody>
+<tr><td>macOS strict Debug/Release 与 Feature 029 suites</td><td>已通过本地构建与回归</td><td>代码、contract 与 deterministic behavior 可执行</td></tr>
+<tr><td>M4 SDR v3</td><td>Lantern、Sponza exact 512×512 Candidate 已生成；尚未接受</td><td>fresh physical output 存在，不等于 authority</td></tr>
+<tr><td>M4 HDR non-visual</td><td>PQ1000/PQ2000/EDR1000/EDR2000 command/readback/present 通过</td><td>native contract 可用，不等于观感 pass</td></tr>
+<tr><td>Windows Vulkan fresh SDR</td><td>待独立物理环境</td><td>Feature 028 carry-forward 不可复用</td></tr>
+<tr><td>Maintainer SDR/HDR review</td><td>待明确接受与现场肉眼观察</td><td>缺失时 Feature 029 必须保持进行中</td></tr>
+<tr><td>Hosted/sanitizer same-revision closeout</td><td>待实现提交后的 CI</td><td>run ID/digest 必须绑定最终 revision</td></tr>
+</tbody></table>
+
+<h3>3. 测试矩阵与覆盖意图</h3>
+<table><thead><tr><th>类别</th><th>覆盖风险</th><th>主要入口</th></tr></thead><tbody>
+<tr><td>CPU math/vector</td><td>公式、常量、exposure、negative/nonfinite、容差漂移</td><td><code>RendererOutputTransformMathTests</code>、vector verifier</td></tr>
+<tr><td>Renderer/graph contract</td><td>stage 顺序、single writer、hazard、culling、空 insertion 等价</td><td>output-transform、post-process graph/insertion suites</td></tr>
+<tr><td>RHI/mock lifecycle</td><td>exact pair、generation、Unsupported、Paused、stale token</td><td>rhi-presentation-output、output-presentation-lifecycle</td></tr>
+<tr><td>Native backend</td><td>真实 format/colorspace/layer/swapchain、readback/present</td><td>Vulkan/Metal output native suites 与 StonerDemo probe</td></tr>
+<tr><td>Image authority</td><td>旧 baseline 覆盖、自动对齐、dimension mutation、one-pixel mutation</td><td>ProductionImageAcceptance 与 Python runner tests</td></tr>
+<tr><td>Evidence/architecture</td><td>自动 HDR pass、无界 artifact、native policy 泄漏、scope creep</td><td>evidence、HDR contract、aggregate、architecture scripts</td></tr>
+</tbody></table>
+</section>
+
+<section id="practice">
+<h2>六、设计巧思与最佳实践</h2>
+<h3>1. 当前业务场景与业务模型的最佳实践</h3>
+<ul>
+<li><strong>Formal output 是资源身份，不是“最后一个 pass 的惯例”：</strong><code>FOutputTransformPlan</code> 明确 single writer 和 frame/view identity，避免 debug pass 或旧 frame 被当成正式画面。</li>
+<li><strong>Color domain 是类型侧信息：</strong>pre-tonemap 只能看到 exposed linear HDR，post-tonemap 只能看到 display-linear；这比靠函数名约定更能拦住 FXAA/TAA 放错位置。</li>
+<li><strong>Requested 与 resolved state 分离：</strong>调用方可以请求 PQ，但证据只能引用 Backend 实际解析出的 format/colorspace/generation；防止 capability 变化后仍相信旧配置。</li>
+<li><strong>同帧 terminal identity：</strong>command、readback、present token 必须一致，解决多帧并行时“截图来自 N-1、窗口来自 N”的隐蔽错误。</li>
+<li><strong>Candidate 不是弱 pass：</strong>缺 baseline 时仍保存有界审阅材料，但 aggregation 失败；这样既不丢调试信息，也不降低权威门槛。</li>
+</ul>
+
+<h3>2. 优化方案与收益</h3>
+<ul>
+<li><strong>已实现：</strong>空 insertion path 的 mandatory fullscreen pass 上限为三，可选 exact copy 单独计数；presentation-only 不触发 CPU readback，减少同步与带宽。</li>
+<li><strong>已实现：</strong>immutable resolved plan/fingerprint 让 pipeline key、diagnostic 与 evidence 使用同一身份，降低重复解析和跨层漂移。</li>
+<li><strong>已实现：</strong>surface/mode generation 让 resize/display move 只失效相关对象，且 stale object 在提交前被拒绝。</li>
+<li><strong>未来铺垫：</strong>030 可复用 pre/post seam、typed graph 和 formal-output ownership，但不会因 029 而获得 temporal performance claim。</li>
+</ul>
+
+<h3>3. 已知限制与后续演进</h3>
+<p>本期 HDR 目标 peak 是 transform 配置，不是面板光度测量；EDR headroom 仍依赖当代 display capability。Deferred 默认维持 <code>sampleCount=1</code>，MSAA、DLSS/FSR/XeSS 后续再议。030 应新增 shared jitter、motion vector、history ping-pong、reprojection/rejection/invalidation；Screen-Space GI 必须复用同一 temporal framework，不得另建一套。</p>
+</section>
+
+<section id="cpp">
+<h2>七、编程语言知识点</h2>
+<h3>1. 标准库接口与用法</h3>
+<ul>
+<li><code>std::optional</code> 表达“没有 HDR metadata”或 optional terminal request；nil 与空结构不能混淆。</li>
+<li><code>std::variant</code>/<code>std::get_if</code> 用于 typed graph/pass 或 Asset handle 分支，调用方必须显式处理类型不匹配。</li>
+<li><code>std::unique_ptr</code> 和 <code>std::shared_ptr</code> 分别表达 Backend/private owner 与跨 plan/execution 的 immutable evidence。</li>
+<li><code>std::filesystem</code> 只在 Application/validation 层管理 probe、lease 与 evidence path，不进入 Renderer public contract。</li>
+<li><code>&lt;cmath&gt;</code> 的 <code>isfinite</code>、<code>exp2</code> 与 double precision reference math 用于 exposure 和 conformance oracle；shader 结果按冻结容差比较。</li>
+</ul>
+
+<h3>2. 语言特性与惯用法</h3>
+<ul>
+<li><code>enum class</code> 区分 color domain、transfer、presentation color space 与 result，避免整数互换。</li>
+<li><code>constexpr</code> 固定默认 profile/version 和边界值，使测试与 production 共享编译期身份。</li>
+<li><code>[[nodiscard]]</code> 标注 settings resolution、native reconfigure 与 execution result，防止忽略 fail-closed 返回。</li>
+<li>RAII 负责 command、drawable、lease 与 frame-owned resource；失败路径按 owner 逆序释放。</li>
+<li>传统 public/private header separation 隐藏 Vulkan、Metal 和 Objective-C 类型；Feature 029 未采用 C++20 Modules。</li>
+</ul>
+
+<h3>3. 平台相关与编译器行为</h3>
+<p>Clang 编译 private Objective-C++/ARC，MSVC/GCC 只看到 RHI 公共值类型。packed 10-bit 与 FP16 的 native 名称、row layout 和 colorspace token 不跨 Backend 泄漏。Windows 不跑 HDR authority；Linux Lavapipe 用于 Vulkan native/readback 契约而非显示观感；macOS Metal live mode 需要真实 Cocoa window 和显示器，sandbox/headless 结果不能替代。</p>
+</section>
+
+<section id="engineering">
+<h2>八、软件工程知识点</h2>
+<h3>1. 设计模式与架构模式</h3>
+<ul>
+<li><strong>Strategy：</strong>三种 SDR curve、HDR viewing transform 和 output-device packer 由稳定 version identity 选择。</li>
+<li><strong>Composite：</strong>pre/post operations 以受限 DAG/ordered list 组合，并统一验证 domain 与 resource budget。</li>
+<li><strong>Builder：</strong>graph builder 从 immutable plan 声明 typed resources/pass，而不执行 native command。</li>
+<li><strong>Adapter：</strong>Vulkan/Metal 将 RHI resolved state 映射到 native surface/layer；适配器不拥有观感策略。</li>
+<li><strong>State Machine：</strong>frame、surface、authority 与 attestation 都有不可跳跃的显式状态。</li>
+<li><strong>Contract Test：</strong>mock RHI 验证抽象语义，native suite 验证真实 API 映射，二者互不冒充。</li>
+</ul>
+
+<h3>2. 工程原则与方法论</h3>
+<p>依赖倒置让 Renderer 只面对 RHI contract；接口隔离让 presentation capability 不携带 tone-map policy；YAGNI 阻止 AA/bloom/editor 混入；DRY 由 Forward/Deferred 共用 output pipeline 实现，但不会把 Apple EDR 与 Vulkan HDR metadata 强行抽象成同一机制；防御性编程通过 exact pair、finite check、bounds、generation 和 immutable evidence fail closed。</p>
+
+<h3>3. 测试策略与质量保障</h3>
+<p>测试按 oracle 分层：math/vector 检查颜色真值，contract 测试检查拓扑和状态，native 测试检查 API 行为，production workload 检查真实内容，human attestation 检查显示观感。negative/boundary 覆盖 nonfinite、zero extent、unsupported pair、stale token、cycle、duplicate writer、one-pixel mutation 与 forbidden normalization。架构 grep 额外拒绝 Renderer native API、第二套 graph、runtime shader compilation 和越界 feature scope。</p>
+</section>
+
+<section id="graphics">
+<h2>九、渲染、引擎与图形 API 学习笔记</h2>
+<h3>1. 本期核心概念拆解</h3>
+<h3>1.1 Scene-referred 与 display-referred</h3>
+<p>Scene-referred 值表达相对场景亮度，允许大于 1；display-referred 值已面向具体显示能力。误区是把 RGBA16F 等同于 HDR 显示：FP16 只是 storage，必须经过 viewing transform、gamut 和 transfer 才有显示语义。</p>
+<h3>1.2 Tone map、ODT 与 transfer</h3>
+<p>SDR curve 压缩动态范围；HDR ACES viewing transform 结合 viewing preset 产生目标 display-linear signal；PQ/sRGB 再编码 storage。把三者塞进 Backend 或重复执行会让亮度和颜色错误。</p>
+<h3>1.3 PQ 与 Apple EDR</h3>
+<p>PQ 是面向绝对亮度的非线性编码；Apple EDR 是 extended-linear 工作/合成路径，依赖 reference white 与 headroom。二者不应比较 raw code value，必须解码到 nits/XYZ。Metal PQ 允许 CA colorspace management，但 metadata nil 明确禁止系统接管 tone mapping。</p>
+<h3>1.4 Temporal 插入语义</h3>
+<p>TAA 需要 HDR scene signal，因此属于 pre-tonemap；FXAA 依据显示空间边缘，因此属于 post-tonemap。029 只提供 seam 和 domain，不实现 temporal state，这是 030 能保持单一框架的关键。</p>
+
+<h3>2. 与 Vulkan / DX12 / Metal / OpenGL 的关系</h3>
+<table><thead><tr><th>本项目概念</th><th>Vulkan</th><th>DX12</th><th>Metal</th><th>OpenGL</th></tr></thead><tbody>
+<tr><td>Exact output pair</td><td><code>VkSurfaceFormatKHR</code> format + colorSpace</td><td>swapchain format + OS colorspace</td><td><code>CAMetalLayer.pixelFormat</code> + <code>colorspace</code></td><td>default framebuffer capability，平台相关</td></tr>
+<tr><td>PQ output</td><td>10-bit + HDR10 ST2084 colorspace</td><td>10-bit swapchain + PQ colorspace</td><td>BGR10A2 + ITU-R 2100 PQ</td><td>无统一 core 对应</td></tr>
+<tr><td>Linear HDR</td><td>FP16 + extended sRGB linear</td><td>FP16 scRGB</td><td>RGBA16Float + EDR</td><td>FP16 framebuffer 但 compositor contract 不统一</td></tr>
+<tr><td>Metadata</td><td><code>VK_EXT_hdr_metadata</code>（若支持）</td><td>HDR metadata API</td><td>本期明确 <code>EDRMetadata=nil</code></td><td>窗口系统扩展</td></tr>
+<tr><td>Graph transition</td><td>image layout/barrier</td><td>resource state/barrier</td><td>encoder/resource usage sequencing</td><td>隐式状态 + memory barrier</td></tr>
+<tr><td>同帧完成</td><td>submit/fence/present identity</td><td>command queue/fence/present</td><td>command buffer completion + drawable present</td><td>sync object + swap</td></tr>
+</tbody></table>
+<p>DX12/OpenGL 这里只用于概念对照，并非 Feature 029 已实现 backend。关键不是强求 API 一一同构，而是让 RHI 表达 Renderer 真正需要验证的共同语义，同时把平台差异留在 private adapter。</p>
+
+<h3>3. 源码阅读路线</h3>
+<ol>
+<li><code>FHDRSceneColorHandoff.h</code> 与 <code>FOutputTransformSettings.h</code>：先理解输入和策略身份。</li>
+<li><code>FPostProcessInsertion.h</code> 与 private validator：理解 color domain 和可组合边界。</li>
+<li><code>FHDRPostProcessPipeline.cpp</code>、<code>FOutputTransformGraphBuilder.cpp</code>：跟随 plan 到 graph。</li>
+<li><code>FOutputTransformExecutor.cpp</code>：查看 terminal publication 和同帧 token。</li>
+<li>RHI presentation headers：理解 requested/resolved capability 与 generation。</li>
+<li><code>FMetalPresentationContext.mm</code>、Vulkan surface/swapchain：对照平台映射。</li>
+<li><code>OutputTransform.frag</code> 与 CPU reference：对比 GPU/CPU 数学。</li>
+<li>Renderer、RHI、native、evidence tests：按 oracle 层验证上述假设。</li>
+</ol>
+
+<h3>4. 自测问题</h3>
+<ol>
+<li>为什么 RGBA16F SceneColor 并不自动意味着屏幕输出是 HDR？</li>
+<li>如果 Metal Backend 自己再做一次 tone map，哪些 deterministic/native 测试可能仍误绿？</li>
+<li>为什么 PQ1000 与 PQ2000 可以共享 native format，却必须拥有不同 profile identity？</li>
+<li>为什么 TAA 必须放在 pre-tonemap，而 FXAA 放在 post-tonemap？</li>
+<li>为什么 readback token 与 presentation token 不一致时，即使两张图都“看起来合理”也必须失败？</li>
+<li>Apple 的 <code>EDRMetadata=nil</code> 与“不允许任何 Core Animation 色彩管理”有什么区别？</li>
+<li>为什么 Feature 028 v2 baseline 不能直接重解释为 029 的 Accepted reference？</li>
+<li>为什么 HDR native preflight 通过后，仍不能由自动化写入 visual pass？</li>
+</ol>
+</section>
+</main>
+</div>
+</body>
+</html>

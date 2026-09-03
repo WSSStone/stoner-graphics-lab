@@ -2,7 +2,7 @@
 
 **Feature Branch**: `002-engine-development-roadmap`
 **Created**: 2026-04-21
-**Status**: Complete (living roadmap; amended 2026-09-01)
+**Status**: Complete (living roadmap; amended 2026-09-02)
 **Input**: User description: "Research and create a comprehensive, phased, modular, agent-friendly development roadmap for the Stoner Graphics Lab cross-platform graphics engine. Create doc/ directory at project root and produce the roadmap as markdown documents."
 
 ## User Scenarios & Testing *(mandatory)*
@@ -88,11 +88,11 @@ A project lead wants to understand the overall scope of the graphics engine and 
 - **FR-014**: Material and shader asset contracts MUST precede static model ingestion so glTF material subresources target an established schema.
 - **FR-015**: Advanced rendering MUST separate derived meshlet data from GPU visibility, ray-tracing backend infrastructure from renderer effects, and screen-space GI from SDF/surface-cache data and final hybrid integration.
 - **FR-016**: Native Backend phases MUST be independently scoped by graphics API, appear early enough to validate backend-neutral contracts, and keep Android application lifecycle/packaging outside the GLES backend phase.
-- **FR-017**: The roadmap MUST place one backend-neutral HDR SceneColor-to-display phase after completed Feature 028, with explicit pre-tonemap/post-tonemap insertion points, manual exposure, versioned tone mapping, output transfer, Forward/Deferred unification, Render Graph integration, Vulkan/Metal presentation/readback, resize, and debug bypass.
+- **FR-017**: The roadmap MUST place one backend-neutral HDR SceneColor-to-display phase after completed Feature 028, with RGBA16F linear Rec.709/sRGB-D65 SceneColor, explicit pre-tonemap/post-tonemap insertion points, manual exposure, three versioned SDR tone maps, a separate versioned ACES-style HDR viewing transform, SDR sRGB/Rec.709/gamma plus 1000/2000-nit PQ/scRGB output-device profiles, Forward/Deferred unification, Render Graph integration, Vulkan/Metal presentation/readback, resize/mode changes, and debug bypass. Windows retains SDR validation but no HDR authority; macOS Metal PQ/EDR visual acceptance requires live maintainer inspection and MUST NOT be automated.
 - **FR-018**: The roadmap MUST place a separate TAA-primary/FXAA-fallback phase after the HDR output phase. TAA MUST run before tone mapping, FXAA MUST run after tone mapping, and Deferred MUST retain `sampleCount=1` as its default rather than adopting MSAA.
 - **FR-019**: The temporal phase MUST own deterministic jitter, previous/current `ViewProjection`, motion vectors, history ping-pong, reprojection, depth/normal rejection, disocclusion handling, neighborhood clamp, and camera-cut/resize/FOV invalidation. Later Screen-Space GI MUST reuse that foundation and MUST NOT create a duplicate temporal framework.
 - **FR-020**: Completed Features 003-028 MUST retain their identifiers. Inserting Features 029-030 MUST renumber only the former future Features 029-039 to 031-041, and Meshlet Derived Data at 031 MUST retain dependencies 024, 025, 026, and 028 without depending on post-processing.
-- **FR-021**: Feature 028 v2 `sampleCount=1`/no-general-post-processing references MUST remain historical correctness evidence. Any later formal output change MUST increment workload revision, generate a new exact-dimension Candidate, require explicit maintainer acceptance, prohibit automatic alignment/cropping/scaling/resampling, and retain bounded PNG/JSON evidence.
+- **FR-021**: Feature 028 v2 `sampleCount=1`/no-general-post-processing references MUST remain historical correctness evidence. Later SDR output changes MUST increment workload revision, generate a new exact-dimension Candidate, require explicit maintainer acceptance, prohibit automatic alignment/cropping/scaling/resampling, and retain bounded PNG/JSON evidence. HDR visual output MUST use a bounded macOS Metal live-view maintainer attestation; automation MUST NOT score, compare, or accept HDR appearance.
 - **FR-022**: The Roadmap 2.3 amendment commit MUST contain only roadmap, Feature 002 governance, Feature 028 policy/reference, project-memory, and stale-future-reference corrections. User-owned `.gitignore`, `.github/workflows/tutorial-docs.yml`, `Tools/Tutorial/`, and `doc/tutorial/` changes MUST remain untouched and unstaged.
 
 ### Key Entities
@@ -143,6 +143,12 @@ A project lead wants to understand the overall scope of the graphics engine and 
 - Q: How are tone mapping and anti-aliasing ordered? → A: Feature 029 owns the shared backend-neutral HDR SceneColor-to-display path. Feature 030 places TAA before tone mapping and FXAA after tone mapping; Deferred defaults to `sampleCount=1`, while MSAA and DLSS/FSR/XeSS remain later extensions.
 - Q: What temporal infrastructure may Screen-Space GI own? → A: It may extend Feature 030's motion-vector, jitter, history, reprojection, rejection, and invalidation contracts for GI signals, but it may not create a duplicate temporal framework.
 - Q: How are Feature 028 references handled after formal output changes? → A: Keep v2 as historical correctness evidence. New output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/crop/scale/resampling, and bounded PNG/JSON evidence.
+
+### Session 2026-09-02
+
+- Q: Which color and display profiles does Feature 029 own? → A: Freeze RGBA16F linear Rec.709/sRGB-D65 SceneColor; implement SDR sRGB/Rec.709/gamma with Khronos PBR Neutral, ACES fitted, and Extended Reinhard tone maps, plus separate ACES-style 1000/2000-nit PQ Rec.2020 and scRGB/EDR HDR transforms.
+- Q: How is HDR visual output accepted? → A: Windows performs no HDR validation. macOS Metal validates PQ and EDR/scRGB through live maintainer inspection; automation may validate non-visual contracts and attestation completeness but may not judge HDR appearance.
+- Q: How does the Feature 028 evidence policy extend? → A: v2 remains historical; SDR uses successor exact-dimension Candidates and the existing no-alignment policy, while HDR uses bounded manual JSON attestations rather than automated image reference comparison.
 
 ## Assumptions
 

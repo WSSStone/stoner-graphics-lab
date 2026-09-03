@@ -1,0 +1,219 @@
+{
+  "schema": "stoner.output-transform-profile-registry",
+  "schemaVersion": 1,
+  "registryId": "output-transform-profiles-v1",
+  "sceneColor": {
+    "format": "rgba16-float",
+    "primaries": "rec709",
+    "whitePoint": "d65",
+    "transfer": "linear",
+    "sampleCount": 1,
+    "alphaMode": "opaque-one"
+  },
+  "manualExposure": {
+    "minimumStops": -16,
+    "maximumStops": 16,
+    "samples": [-16, -8, -1, 0, 1, 8, 15, 16],
+    "oneStopPairs": [[-1, 0], [0, 1], [15, 16]],
+    "scaleEquation": "exp2(stops)",
+    "negativeZeroPolicy": "normalize-to-positive-zero"
+  },
+  "boundaryPolicy": {
+    "nonFinite": "fail",
+    "finiteNegativeBeforeTransform": "preserve",
+    "finiteNegativeAtTransform": "clamp-to-zero",
+    "positiveOverRangeBeforeTransform": "preserve",
+    "formalAlpha": 1.0
+  },
+  "toneMapStrategies": [
+    {
+      "versionId": "Sdr.KhronosPbrNeutral.v1",
+      "default": true,
+      "constants": {"f90": 0.04, "startCompression": 0.76, "desaturation": 0.15}
+    },
+    {
+      "versionId": "Sdr.NarkowiczAcesFit.v1",
+      "default": false,
+      "constants": {"a": 2.51, "b": 0.03, "c": 2.43, "d": 0.59, "e": 0.14}
+    },
+    {
+      "versionId": "Sdr.ExtendedReinhardRec709.v1",
+      "default": false,
+      "constants": {"luma": [0.2126, 0.7152, 0.0722], "whiteLuminance": 4.0}
+    }
+  ],
+  "hdrViewingTransform": {
+    "versionId": "Hdr.ACES2.0.0_2025-04-04.Rec2020D65.v1",
+    "inputConversion": "rec709-d65-to-aces2065-1-d60-bradford",
+    "peakPresetsNits": [1000, 2000],
+    "referenceLuminanceNits": 100
+  },
+  "transferConstants": {
+    "srgb": {"linearThreshold": 0.0031308, "linearSlope": 12.92, "scale": 1.055, "exponent": 2.4, "offset": 0.055},
+    "bt709": {"alpha": 1.099, "beta": 0.018, "linearSlope": 4.5, "exponent": 0.45},
+    "gamma22": {"gamma": 2.2},
+    "st2084": {
+      "m1": 0.1593017578125,
+      "m2": 78.84375,
+      "c1": 0.8359375,
+      "c2": 18.8515625,
+      "c3": 18.6875,
+      "absoluteScaleNits": 10000
+    },
+    "scrgb80": {"nitsPerLinearOne": 80}
+  },
+  "matrices": {
+    "rec709ToXyzD65": [
+      [0.41239079926595928, 0.35758433938387801, 0.18048078840183429],
+      [0.21263900587151024, 0.71516867876775603, 0.07219231536073371],
+      [0.01933081871559182, 0.11919477979462598, 0.95053215224966070]
+    ],
+    "rec2020ToXyzD65": [
+      [0.63695804830129110, 0.14461690358620832, 0.16888097516417208],
+      [0.26270021201126698, 0.67799807151887082, 0.05930171646986195],
+      [0.0, 0.02807269304908743, 1.06098505771079090]
+    ],
+    "rec709ToRec2020D65": [
+      [0.62740389593469903, 0.32928303837788381, 0.04331306568741722],
+      [0.06909728935823199, 0.91954039507545904, 0.01136231556630916],
+      [0.01639143887515023, 0.08801330787722578, 0.89559525324762401]
+    ],
+    "rec2020ToRec709D65": [
+      [1.66049100210843470, -0.58764113878854951, -0.07284986331988486],
+      [-0.12455047452159052, 1.13289989712595980, -0.00834942260436949],
+      [-0.01815076335490522, -0.10057889800800736, 1.11872966136291250]
+    ],
+    "rec709D65ToAces2065_1D60": [
+      [0.43963298191949124, 0.38298869815155401, 0.17737831992895473],
+      [0.08977644295884223, 0.81343942874898045, 0.09678412829217702],
+      [0.01754117038317271, 0.11154655330238701, 0.87091227631444046]
+    ]
+  },
+  "tolerancePolicies": {
+    "cpu-double-v1": {"absoluteFloor": 1e-10, "relativeFraction": 1e-10},
+    "sdr-linear-rgb-v1": {"absoluteChannelError": 0.00784313725490196},
+    "hdr-pq10-decoded-v1": {"absoluteFloorNits": 0.02, "relativeFraction": 0.0025, "nativeStepMultiplier": 1.5, "xyzPropagationEpsilon": 0.000001},
+    "hdr-fp16-decoded-v1": {"absoluteFloorNits": 0.02, "relativeFraction": 0.0025, "nativeStepMultiplier": 2.0, "xyzPropagationEpsilon": 0.000001}
+  },
+  "profiles": [
+    {
+      "schema": "stoner.output-device-profile",
+      "schemaVersion": 1,
+      "profileId": "Sdr.sRGB.v1",
+      "dynamicRange": "sdr",
+      "targetPrimaries": "rec709-d65",
+      "whitePoint": "d65",
+      "referenceWhiteNits": 100,
+      "targetPeakNits": 100,
+      "transfer": "srgb",
+      "storageClass": "unorm8",
+      "nativeColorSpace": "srgb-nonlinear",
+      "metadataPolicy": "none",
+      "comparisonDomain": "linear-rec709",
+      "nativeEncodingOptions": ["sdr-explicit"],
+      "conformanceTolerance": {"policyId": "sdr-linear-rgb-v1", "absoluteChannelError": 0.00784313725490196}
+    },
+    {
+      "schema": "stoner.output-device-profile",
+      "schemaVersion": 1,
+      "profileId": "Sdr.BT709.v1",
+      "dynamicRange": "sdr",
+      "targetPrimaries": "rec709-d65",
+      "whitePoint": "d65",
+      "referenceWhiteNits": 100,
+      "targetPeakNits": 100,
+      "transfer": "bt709-oetf",
+      "storageClass": "unorm8",
+      "nativeColorSpace": "bt709-nonlinear",
+      "metadataPolicy": "none",
+      "comparisonDomain": "linear-rec709",
+      "nativeEncodingOptions": ["sdr-explicit"],
+      "conformanceTolerance": {"policyId": "sdr-linear-rgb-v1", "absoluteChannelError": 0.00784313725490196}
+    },
+    {
+      "schema": "stoner.output-device-profile",
+      "schemaVersion": 1,
+      "profileId": "Sdr.ExplicitGamma22.v1",
+      "dynamicRange": "sdr",
+      "targetPrimaries": "rec709-d65",
+      "whitePoint": "d65",
+      "referenceWhiteNits": 100,
+      "targetPeakNits": 100,
+      "transfer": "gamma22",
+      "storageClass": "unorm8",
+      "nativeColorSpace": "sdr-pass-through",
+      "metadataPolicy": "none",
+      "comparisonDomain": "linear-rec709",
+      "nativeEncodingOptions": ["sdr-explicit"],
+      "conformanceTolerance": {"policyId": "sdr-linear-rgb-v1", "absoluteChannelError": 0.00784313725490196}
+    },
+    {
+      "schema": "stoner.output-device-profile",
+      "schemaVersion": 1,
+      "profileId": "Hdr.PQ.Rec2020.1000.v1",
+      "dynamicRange": "hdr",
+      "targetPrimaries": "rec2020-d65",
+      "whitePoint": "d65",
+      "referenceWhiteNits": 100,
+      "targetPeakNits": 1000,
+      "transfer": "st2084",
+      "storageClass": "packed10-unorm",
+      "nativeColorSpace": "hdr10-st2084",
+      "metadataPolicy": "hdr10-static",
+      "comparisonDomain": "absolute-nits-xyz",
+      "nativeEncodingOptions": ["pq-rec2020"],
+      "conformanceTolerance": {"policyId": "hdr-pq10-decoded-v1", "absoluteFloorNits": 0.02, "relativeFraction": 0.0025, "nativeStepMultiplier": 1.5, "xyzPropagationEpsilon": 0.000001}
+    },
+    {
+      "schema": "stoner.output-device-profile",
+      "schemaVersion": 1,
+      "profileId": "Hdr.PQ.Rec2020.2000.v1",
+      "dynamicRange": "hdr",
+      "targetPrimaries": "rec2020-d65",
+      "whitePoint": "d65",
+      "referenceWhiteNits": 100,
+      "targetPeakNits": 2000,
+      "transfer": "st2084",
+      "storageClass": "packed10-unorm",
+      "nativeColorSpace": "hdr10-st2084",
+      "metadataPolicy": "hdr10-static",
+      "comparisonDomain": "absolute-nits-xyz",
+      "nativeEncodingOptions": ["pq-rec2020"],
+      "conformanceTolerance": {"policyId": "hdr-pq10-decoded-v1", "absoluteFloorNits": 0.02, "relativeFraction": 0.0025, "nativeStepMultiplier": 1.5, "xyzPropagationEpsilon": 0.000001}
+    },
+    {
+      "schema": "stoner.output-device-profile",
+      "schemaVersion": 1,
+      "profileId": "Hdr.Linear.1000.v1",
+      "dynamicRange": "hdr",
+      "targetPrimaries": "rec709-d65",
+      "whitePoint": "d65",
+      "referenceWhiteNits": "native-resolved",
+      "targetPeakNits": 1000,
+      "transfer": "linear-hdr",
+      "storageClass": "rgba16-float",
+      "nativeColorSpace": "extended-srgb-linear",
+      "metadataPolicy": "edr-state",
+      "comparisonDomain": "absolute-nits-xyz",
+      "nativeEncodingOptions": ["scrgb80", "metal-edr"],
+      "conformanceTolerance": {"policyId": "hdr-fp16-decoded-v1", "absoluteFloorNits": 0.02, "relativeFraction": 0.0025, "nativeStepMultiplier": 2.0, "xyzPropagationEpsilon": 0.000001}
+    },
+    {
+      "schema": "stoner.output-device-profile",
+      "schemaVersion": 1,
+      "profileId": "Hdr.Linear.2000.v1",
+      "dynamicRange": "hdr",
+      "targetPrimaries": "rec709-d65",
+      "whitePoint": "d65",
+      "referenceWhiteNits": "native-resolved",
+      "targetPeakNits": 2000,
+      "transfer": "linear-hdr",
+      "storageClass": "rgba16-float",
+      "nativeColorSpace": "extended-srgb-linear",
+      "metadataPolicy": "edr-state",
+      "comparisonDomain": "absolute-nits-xyz",
+      "nativeEncodingOptions": ["scrgb80", "metal-edr"],
+      "conformanceTolerance": {"policyId": "hdr-fp16-decoded-v1", "absoluteFloorNits": 0.02, "relativeFraction": 0.0025, "nativeStepMultiplier": 2.0, "xyzPropagationEpsilon": 0.000001}
+    }
+  ]
+}

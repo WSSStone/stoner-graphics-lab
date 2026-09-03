@@ -95,6 +95,12 @@ private_include_paths_by_source = {
     'MetalShaderDerivationTests.cpp': [
         Dir('#ThirdParty/spirv-cross').abspath,
     ],
+    'RendererOutputTransformMathTests.cpp': [
+        Dir('#Source/Renderer/Private').abspath,
+    ],
+    'OutputTransformGPUConformanceTests.cpp': [
+        Dir('#Source/Renderer/Private').abspath,
+    ],
     'MetalDeviceTests.cpp': [
         Dir('#Source/Backend/Metal/Private').abspath,
     ],
@@ -116,7 +122,13 @@ private_include_paths_by_source = {
     'VulkanBackendTests.cpp': [
         Dir('#Source/Backend/Vulkan/Private').abspath,
     ],
+    'VulkanOutputTransformNativeTests.cpp': [
+        Dir('#Source/Backend/Vulkan/Private').abspath,
+    ],
     'MetalPresentationTests.cpp': [
+        Dir('#Source/Backend/Metal/Private').abspath,
+    ],
+    'MetalOutputTransformNativeTests.cpp': [
         Dir('#Source/Backend/Metal/Private').abspath,
     ],
     'TriangleDemoIntegrationTests.cpp': [
@@ -153,6 +165,10 @@ private_include_paths_by_source = {
 
 private_defines_by_source = {
     'AssetKTX2Tests.cpp': ['KHRONOS_STATIC'],
+    'VulkanOutputTransformNativeTests.cpp': [
+        ('STONER_VULKAN_NATIVE_AVAILABLE',
+            int(graphics_deps['vulkan_available'])),
+    ],
 }
 
 # Runtime Asset Manager tests exercise private scheduling kernels without

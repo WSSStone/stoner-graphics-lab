@@ -1,0 +1,113 @@
+{
+  "schema": "stoner.output-transform-vector-manifest",
+  "schemaVersion": 1,
+  "vectorSetId": "output-transform-vectors-v1",
+  "hashAlgorithm": "sha256",
+  "authority": {
+    "acesPackageTag": "v2.0.0+2025.04.04",
+    "acesPackageCommit": "35e1e6ac2c26ec75433547d5d0a3a881f39bd9f5",
+    "acesCoreCommit": "2d7af39344725aaa8ac3bf1746693c9a1d6c4792",
+    "acesOutputCommit": "aab74723f76728c37345ed01e51ebb24fb1f2f1f",
+    "khronosToneMappingCommit": "b5a2eed5ddf6c2227090449399de9c7affb9e4c9",
+    "openColorIOCrossCheck": {
+      "tag": "v2.4.2",
+      "commit": "6918fad3f5d22ac3ef2397c754bf4268c2b58dd0",
+      "role": "released ACES2 reference-point cross-check only; not a runtime dependency"
+    }
+  },
+  "upstreamSourceDigests": [
+    {
+      "source": "aces-core/lib/Lib.Academy.OutputTransform.ctl",
+      "sha256": "545a95d5f44f929365aaf989b266b98c14f2ebe1e7dea2ce9d30d0213f2d1b7a"
+    },
+    {
+      "source": "aces-core/lib/Lib.Academy.Tonescale.ctl",
+      "sha256": "c63cc6127c594d0346f931680c1ef73a2abde5b7f7d82409e7aefdb74597d0f4"
+    },
+    {
+      "source": "aces-core/lib/Lib.Academy.DisplayEncoding.ctl",
+      "sha256": "1e732637fbc2d7ae907a078ef4fea8a6664b959c29d90f9b2883b61c8de30a87"
+    },
+    {
+      "source": "KhronosGroup/ToneMapping/PBR_Neutral/PBR_Neutral.glsl",
+      "sha256": "087a1542c8d12d2d0fb89f570057e4e8365cc04eee5bff76c6e365cfa69f3734"
+    }
+  ],
+  "repositoryInputDigests": [
+    {
+      "path": "Config/Validation/OutputTransform/Profiles.json",
+      "sha256": "6e3373ab31b36aff9e91d1b6b854d75d1171226e57bc3c236f8a1bbce1e1f7d9"
+    },
+    {
+      "path": "Source/Renderer/Private/FOutputTransformReference.h",
+      "sha256": "fd740391755c38a1ac95d1e262873492ece4d9e4bf57614e33887667a5b2831f"
+    },
+    {
+      "path": "Source/Renderer/Private/FOutputTransformReference.cpp",
+      "sha256": "f470b0c464350460c294b9cafe75fce467388425d47c83da0ff5d2e0bdfe05e9"
+    },
+    {
+      "path": "Source/Renderer/Private/FOutputTransformAces2Reference.h",
+      "sha256": "6683a5d5fefaddb345669eb61e1865fe1bd6b769823919e728d4dd1df951b89a"
+    },
+    {
+      "path": "Source/Renderer/Private/FOutputTransformAces2Reference.cpp",
+      "sha256": "edac461d16260b20bf9432718a28d1bc1031b9d5187dc85a252e0c2a4831b655"
+    },
+    {
+      "path": "Tests/Fixtures/OutputTransform/UPSTREAM.md",
+      "sha256": "b8bf24628a1b256b2256a7060df05240c88ff4feada6e61dd16d70f78ae06592"
+    }
+  ],
+  "vectorDocument": {
+    "path": "Tests/Fixtures/OutputTransform/vectors-v1.json",
+    "sha256": "16189846ba601040696fbb1db6120eed36253feffeae02362a691e250c24aa76",
+    "caseCount": 32,
+    "expectationCount": 224,
+    "hdrCaseCount": 32,
+    "expectationsPerProfile": 32
+  },
+  "coverage": {
+    "requiredExposureSamples": [-16, -8, -1, 0, 1, 8, 15, 16],
+    "oneStopPairs": [
+      ["neutral-e-1", "neutral-e0"],
+      ["neutral-e0", "neutral-e1"],
+      ["high-pair-e15", "high-pair-e16"]
+    ],
+    "requiredCategories": [
+      "black",
+      "one-stop-neutral",
+      "one-stop-high",
+      "exposure-boundary",
+      "display-white",
+      "saturated-primary",
+      "saturated-secondary",
+      "diffuse",
+      "emissive",
+      "finite-negative",
+      "numeric-boundary",
+      "mixed"
+    ],
+    "requiredSdrStrategies": [
+      "Sdr.KhronosPbrNeutral.v1",
+      "Sdr.NarkowiczAcesFit.v1",
+      "Sdr.ExtendedReinhardRec709.v1"
+    ],
+    "requiredProfiles": [
+      "Sdr.sRGB.v1",
+      "Sdr.BT709.v1",
+      "Sdr.ExplicitGamma22.v1",
+      "Hdr.PQ.Rec2020.1000.v1",
+      "Hdr.PQ.Rec2020.2000.v1",
+      "Hdr.Linear.1000.v1",
+      "Hdr.Linear.2000.v1"
+    ],
+    "determinismRepeatCount": 20
+  },
+  "expectedValuePolicy": {
+    "mode": "immutable-authoring-time",
+    "runtimeRegeneration": false,
+    "checkedInGenerator": false,
+    "verification": "digest, structural invariants, independent analytic SDR/transfer/packing checks, and registered C++ oracle tests"
+  }
+}

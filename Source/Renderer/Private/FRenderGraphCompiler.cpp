@@ -20,7 +20,12 @@ using Stoner::Core::uint32;
     }
     if (A.Kind == ERenderGraphResourceKind::Texture)
     {
-        return A.Width == B.Width && A.Height == B.Height && A.Depth == B.Depth && A.FormatId == B.FormatId;
+        if (A.Width != B.Width || A.Height != B.Height || A.Depth != B.Depth ||
+            A.Texture.bIsTyped != B.Texture.bIsTyped)
+        {
+            return false;
+        }
+        return A.Texture.bIsTyped ? A.Texture == B.Texture : A.FormatId == B.FormatId;
     }
     return A.SizeInBytes == B.SizeInBytes;
 }
@@ -69,6 +74,43 @@ void FCompiledRenderGraph::Clear()
 bool FCompiledRenderGraph::IsExecutable() const noexcept
 {
     return !ScheduledPasses.empty() && !Diagnostics.HasErrors();
+}
+
+ERenderGraphResult FCompiledRenderGraph::VisitSchedule(
+    const FRenderGraphScheduleVisitor& Visitor) const
+{
+    if (!Visitor || !IsExecutable())
+    {
+        return ERenderGraphResult::InvalidState;
+    }
+    for (uint32 PassIndex : ScheduledPasses)
+    {
+        for (const FRenderGraphTransitionRecord& Transition : TransitionPlan)
+        {
+            if (Transition.AfterPassIndex == PassIndex)
+            {
+                const FRenderGraphScheduleEvent Event{
+                    ERenderGraphScheduleEventKind::Transition,
+                    PassIndex,
+                    &Transition};
+                const ERenderGraphResult Result = Visitor(Event);
+                if (Result != ERenderGraphResult::Success)
+                {
+                    return Result;
+                }
+            }
+        }
+        const FRenderGraphScheduleEvent Event{
+            ERenderGraphScheduleEventKind::Pass,
+            PassIndex,
+            nullptr};
+        const ERenderGraphResult Result = Visitor(Event);
+        if (Result != ERenderGraphResult::Success)
+        {
+            return Result;
+        }
+    }
+    return ERenderGraphResult::Success;
 }
 
 Stoner::Core::FString FCompiledRenderGraph::Dump(const FRenderGraph& Graph) const
@@ -154,7 +196,7 @@ ERenderGraphResult FRenderGraphCompiler::Compile(FRenderGraph& Graph)
     bool bHasSideEffectPass = false;
     for (const FRenderGraphPassRecord& Pass : Passes)
     {
-        bHasSideEffectPass = bHasSideEffectPass || Pass.Desc.bPreserveForSideEffects;
+        bHasSideEffectPass = bHasSideEffectPass || Pass.Desc.HasExternalSideEffect();
     }
     if (Graph.GetOutputs().empty() && !bHasSideEffectPass)
     {
@@ -290,7 +332,7 @@ ERenderGraphResult FRenderGraphCompiler::Compile(FRenderGraph& Graph)
     }
     for (const FRenderGraphPassRecord& Pass : Passes)
     {
-        if (Pass.Desc.bPreserveForSideEffects)
+        if (Pass.Desc.HasExternalSideEffect())
         {
             Required[Pass.Handle.Index] = true;
         }

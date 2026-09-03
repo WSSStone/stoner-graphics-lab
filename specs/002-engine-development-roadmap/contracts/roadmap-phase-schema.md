@@ -2,7 +2,7 @@
 
 **Feature**: 002-engine-development-roadmap
 **Date**: 2026-04-21
-**Last Amended**: 2026-09-01
+**Last Amended**: 2026-09-02
 
 ## Overview
 

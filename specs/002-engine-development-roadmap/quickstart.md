@@ -7,7 +7,7 @@
 ## What This Feature Produces
 
 A single master document, `doc/roadmap.md`, that defines the complete
-development plan for the Stoner Graphics Lab engine. Roadmap 2.3 contains
+development plan for the Stoner Graphics Lab engine. Roadmap 2.3.1 contains
 runtime Features 003 through 041 across Core, Asset, RHI, Backend, Renderer,
 and Application ownership areas. Feature 002 is this roadmap meta-feature and
 is not reused as a runtime phase number.
@@ -67,5 +67,5 @@ shared HDR SceneColor-to-display contract required before anti-aliasing and
 later temporal effects.
 
 ```
-/speckit.specify Implement Renderer HDR Post-Processing and Output Transform on Features 013, 015, 018, 019, 027, and 028: define a backend-neutral HDR SceneColor-to-display Render Graph pipeline shared by Forward and Deferred; explicit pre-tonemap and post-tonemap insertion points; deterministic manual exposure; versioned tone mapping; explicit sRGB/output transfer; Vulkan and Metal native presentation/readback parity; resize-safe resource recreation; and a diagnostic debug bypass. Preserve Feature 028 v2 sampleCount=1/no-general-post-processing output as historical correctness evidence. Any formal output change must increment the affected workload revision, generate a new exact-dimension Candidate, and require explicit maintainer acceptance; reject automatic alignment, cropping, scaling, and resampling, and retain bounded PNG/JSON evidence. Exclude anti-aliasing, bloom, depth of field, motion blur, automatic exposure, HDR10/EDR, vendor upscalers, and a post-processing editor.
+/speckit.specify Implement Renderer HDR Post-Processing and Output Transform on Features 013, 015, 018, 019, 027, and 028: use one Forward/Deferred Render Graph path from RGBA16F linear Rec.709/sRGB-D65 SceneColor through manual exposure and explicit pre/post-tonemap insertion points; provide versioned SDR Khronos PBR Neutral, ACES fitted, and Extended Reinhard tone maps with Khronos as default; provide separate ACES-style HDR viewing transforms for 1000/2000-nit PQ Rec.2020 and scRGB/EDR output-device profiles; integrate applicable HDR swapchains/drawables, native presentation/readback, resize/mode changes, and debug bypass. Windows retains SDR but no HDR validation. macOS Metal alone performs live human PQ/EDR visual authority; automation must not judge HDR appearance. Preserve Feature 028 v2 as historical evidence; use successor exact-dimension Candidates/no alignment for SDR and bounded manual JSON attestations for HDR. Exclude AA, bloom, depth of field, motion blur, automatic exposure, vendor upscalers, and a post-processing editor.
 ```

@@ -53,6 +53,7 @@ struct FTargetFacts
     case ERHIFormat::R8G8B8A8_UNorm:
     case ERHIFormat::R8G8B8A8_sRGB:
     case ERHIFormat::B8G8R8A8_UNorm:
+    case ERHIFormat::R10G10B10A2_UNorm:
     case ERHIFormat::R16G16B16A16_Float:
     case ERHIFormat::R32G32B32A32_Float:
     case ERHIFormat::BC3_RGBA_UNorm:
@@ -394,6 +395,7 @@ bool TryMapTextureTranscodeFormat(
             ETextureTranscodeFormat::R8G8B8A8_SRGB;
         return true;
     case ERHIFormat::B8G8R8A8_UNorm:
+    case ERHIFormat::R10G10B10A2_UNorm:
     case ERHIFormat::R16G16B16A16_Float:
     case ERHIFormat::R32_Float:
     case ERHIFormat::R32G32_Float:

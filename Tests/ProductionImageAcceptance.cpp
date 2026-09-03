@@ -1,5 +1,7 @@
 #include "ProductionImageAcceptance.h"
 
+#include "../ThirdParty/yyjson/yyjson.h"
+
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable: 4201)
@@ -22,8 +24,13 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <limits>
 #include <memory>
+#include <set>
+#include <string>
 
 namespace
 {
@@ -138,7 +145,361 @@ bool IsUnit(float Value)
     return std::isfinite(Value) && Value >= 0.0f && Value <= 1.0f;
 }
 
+bool HasExactJsonKeys(yyjson_val* Object,
+    std::initializer_list<const char*> Keys)
+{
+    if (!yyjson_is_obj(Object) || yyjson_obj_size(Object) != Keys.size())
+        return false;
+    for (const char* Key : Keys)
+        if (!yyjson_obj_get(Object, Key)) return false;
+    return true;
+}
+
+bool ReadJsonString(yyjson_val* Object, const char* Key, FString& Out)
+{
+    yyjson_val* Value = yyjson_obj_get(Object, Key);
+    if (!yyjson_is_str(Value)) return false;
+    Out = FString(std::string_view(yyjson_get_str(Value), yyjson_get_len(Value)));
+    return !Out.IsEmpty();
+}
+
+bool ReadJsonUInt(yyjson_val* Object, const char* Key, uint32& Out)
+{
+    yyjson_val* Value = yyjson_obj_get(Object, Key);
+    if (!yyjson_is_uint(Value) || yyjson_get_uint(Value) > UINT32_MAX)
+        return false;
+    Out = static_cast<uint32>(yyjson_get_uint(Value));
+    return true;
+}
+
+bool ReadJsonNumber(yyjson_val* Object, const char* Key, double& Out)
+{
+    yyjson_val* Value = yyjson_obj_get(Object, Key);
+    if (!yyjson_is_num(Value)) return false;
+    Out = yyjson_get_num(Value);
+    return std::isfinite(Out);
+}
+
+bool IsBaselineV3Token(const FString& Value)
+{
+    if (Value.IsEmpty() || Value.Len() > 128) return false;
+    return std::all_of(Value.View().begin(), Value.View().end(), [](char Character) {
+        return (Character >= 'A' && Character <= 'Z') ||
+            (Character >= 'a' && Character <= 'z') ||
+            (Character >= '0' && Character <= '9') || Character == '.' ||
+            Character == '-' || Character == '_';
+    });
+}
+
+bool IsBaselineV3Digest(const FString& Value)
+{
+    return Value.Len() == 64 &&
+        std::all_of(Value.View().begin(), Value.View().end(), [](char Character) {
+            return (Character >= '0' && Character <= '9') ||
+                (Character >= 'a' && Character <= 'f');
+        });
+}
+
+bool IsFreshV3Workload(const FString& Value)
+{
+    const auto View = Value.View();
+    constexpr std::string_view Lantern = "production-content-lantern-v3";
+    constexpr std::string_view Sponza = "production-content-sponza-v3";
+    const bool bPrefix = View == Lantern || View == Sponza ||
+        View.starts_with(std::string(Lantern) + ".") ||
+        View.starts_with(std::string(Lantern) + "-") ||
+        View.starts_with(std::string(Sponza) + ".") ||
+        View.starts_with(std::string(Sponza) + "-");
+    if (!bPrefix) return false;
+    return std::all_of(View.begin(), View.end(), [](char Character) {
+        return (Character >= 'a' && Character <= 'z') ||
+            (Character >= '0' && Character <= '9') || Character == '.' ||
+            Character == '-';
+    });
+}
+
+bool IsSafePngPath(const FString& Value)
+{
+    const auto View = Value.View();
+    if (View.empty() || View.size() > 240 || View.front() == '/' ||
+        View.find('\\') != std::string_view::npos ||
+        !View.ends_with(".png"))
+        return false;
+    const std::filesystem::path Path(Value.ToStdString());
+    return std::none_of(Path.begin(), Path.end(), [](const auto& Part) {
+        return Part == "..";
+    });
+}
+
+bool ParseBaselineV3Policy(yyjson_val* Object, FProductionFlipPolicy& Out)
+{
+    double Mean = 0.0;
+    double P95 = 0.0;
+    double Maximum = 0.0;
+    double BadThreshold = 0.0;
+    double BadFraction = 0.0;
+    if (!HasExactJsonKeys(Object,
+            {"meanMax", "p95Max", "maximumMax", "badPixelThreshold",
+             "badPixelFractionMax"}) ||
+        !ReadJsonNumber(Object, "meanMax", Mean) ||
+        !ReadJsonNumber(Object, "p95Max", P95) ||
+        !ReadJsonNumber(Object, "maximumMax", Maximum) ||
+        !ReadJsonNumber(Object, "badPixelThreshold", BadThreshold) ||
+        !ReadJsonNumber(Object, "badPixelFractionMax", BadFraction) ||
+        Mean < 0.0 || Mean > 1.0 || P95 < 0.0 || P95 > 1.0 ||
+        Maximum < 0.0 || Maximum > 1.0 || BadThreshold <= 0.0 ||
+        BadThreshold > 1.0 || BadFraction < 0.0 || BadFraction > 1.0)
+        return false;
+    Out = {static_cast<float>(Mean), static_cast<float>(P95),
+        static_cast<float>(Maximum), static_cast<float>(BadThreshold),
+        static_cast<float>(BadFraction)};
+    return true;
+}
+
+bool ParseBaselineV3Acceptance(
+    yyjson_val* Value,
+    std::optional<FOutputTransformSdrAcceptanceV3>& Out)
+{
+    Out.reset();
+    if (yyjson_is_null(Value)) return true;
+    FOutputTransformSdrAcceptanceV3 Acceptance;
+    if (!HasExactJsonKeys(Value,
+            {"maintainerId", "reviewedAt", "candidateSha256", "decision"}) ||
+        !ReadJsonString(Value, "maintainerId", Acceptance.MaintainerId) ||
+        !ReadJsonString(Value, "reviewedAt", Acceptance.ReviewedAt) ||
+        !ReadJsonString(Value, "candidateSha256", Acceptance.CandidateSha256) ||
+        !ReadJsonString(Value, "decision", Acceptance.Decision) ||
+        !IsBaselineV3Token(Acceptance.MaintainerId) ||
+        Acceptance.ReviewedAt.Len() > 64 ||
+        !IsBaselineV3Digest(Acceptance.CandidateSha256) ||
+        Acceptance.Decision != FString("accepted"))
+        return false;
+    Out = std::move(Acceptance);
+    return true;
+}
+
+bool ParseBaselineV3Record(yyjson_val* Value,
+    FOutputTransformSdrBaselineV3& Out)
+{
+    FString Schema;
+    uint32 SchemaVersion = 0;
+    if (!HasExactJsonKeys(Value,
+            {"schema", "schemaVersion", "baselineId", "state",
+             "workloadRevision", "backend", "deviceClass",
+             "capabilityDigest", "outputDeviceProfileId", "transformVersion",
+             "exposureStops", "settingsDigest", "width", "height",
+             "sampleCount", "referencePath", "compressedSha256",
+             "decodedSha256", "calibrationEvidenceSha256", "flipPolicy",
+             "acceptance"}) ||
+        !ReadJsonString(Value, "schema", Schema) ||
+        Schema != FString("stoner.sdr-image-baseline") ||
+        !ReadJsonUInt(Value, "schemaVersion", SchemaVersion) ||
+        SchemaVersion != 3 ||
+        !ReadJsonString(Value, "baselineId", Out.BaselineId) ||
+        !ReadJsonString(Value, "state", Out.State) ||
+        !ReadJsonString(Value, "workloadRevision", Out.WorkloadRevision) ||
+        !ReadJsonString(Value, "backend", Out.Backend) ||
+        !ReadJsonString(Value, "deviceClass", Out.DeviceClass) ||
+        !ReadJsonString(Value, "capabilityDigest", Out.CapabilityDigest) ||
+        !ReadJsonString(Value, "outputDeviceProfileId",
+            Out.OutputDeviceProfileId) ||
+        !ReadJsonString(Value, "transformVersion", Out.TransformVersion) ||
+        !ReadJsonNumber(Value, "exposureStops", Out.ExposureStops) ||
+        !ReadJsonString(Value, "settingsDigest", Out.SettingsDigest) ||
+        !ReadJsonUInt(Value, "width", Out.Width) ||
+        !ReadJsonUInt(Value, "height", Out.Height) ||
+        !ReadJsonUInt(Value, "sampleCount", Out.SampleCount) ||
+        !ReadJsonString(Value, "referencePath", Out.ReferencePath) ||
+        !ReadJsonString(Value, "compressedSha256", Out.CompressedSha256) ||
+        !ReadJsonString(Value, "decodedSha256", Out.DecodedSha256) ||
+        !ReadJsonString(Value, "calibrationEvidenceSha256",
+            Out.CalibrationEvidenceSha256) ||
+        !ParseBaselineV3Policy(yyjson_obj_get(Value, "flipPolicy"),
+            Out.FlipPolicy) ||
+        !ParseBaselineV3Acceptance(yyjson_obj_get(Value, "acceptance"),
+            Out.Acceptance))
+        return false;
+
+    static const std::set<std::string> States = {
+        "candidate", "calibrated", "reviewed", "accepted", "superseded"};
+    static const std::set<std::string> Profiles = {
+        "Sdr.sRGB.v1", "Sdr.BT709.v1", "Sdr.ExplicitGamma22.v1"};
+    static const std::set<std::string> Transforms = {
+        "Sdr.KhronosPbrNeutral.v1", "Sdr.NarkowiczAcesFit.v1",
+        "Sdr.ExtendedReinhardRec709.v1"};
+    if (!IsBaselineV3Token(Out.BaselineId) ||
+        States.find(Out.State.ToStdString()) == States.end() ||
+        !IsFreshV3Workload(Out.WorkloadRevision) ||
+        (Out.Backend != FString("vulkan") && Out.Backend != FString("metal")) ||
+        !IsBaselineV3Token(Out.DeviceClass) ||
+        !IsBaselineV3Digest(Out.CapabilityDigest) ||
+        Profiles.find(Out.OutputDeviceProfileId.ToStdString()) == Profiles.end() ||
+        Transforms.find(Out.TransformVersion.ToStdString()) == Transforms.end() ||
+        Out.ExposureStops < -16.0 || Out.ExposureStops > 16.0 ||
+        !IsBaselineV3Digest(Out.SettingsDigest) || Out.Width != 512 ||
+        Out.Height != 512 || Out.SampleCount != 1 ||
+        !IsSafePngPath(Out.ReferencePath) ||
+        !IsBaselineV3Digest(Out.CompressedSha256) ||
+        !IsBaselineV3Digest(Out.DecodedSha256) ||
+        !IsBaselineV3Digest(Out.CalibrationEvidenceSha256))
+        return false;
+    if (Out.Acceptance.has_value() &&
+        Out.Acceptance->CandidateSha256 != Out.CompressedSha256)
+        return false;
+    if (Out.State == FString("accepted"))
+        return Out.Acceptance.has_value();
+    if (Out.State == FString("candidate") ||
+        Out.State == FString("calibrated") || Out.State == FString("reviewed"))
+        return !Out.Acceptance.has_value();
+    return true;
+}
+
+bool HasSameBaselineV3AuthorityKey(
+    const FOutputTransformSdrBaselineV3& Left,
+    const FOutputTransformSdrBaselineV3& Right)
+{
+    return Left.WorkloadRevision == Right.WorkloadRevision &&
+        Left.Backend == Right.Backend && Left.DeviceClass == Right.DeviceClass &&
+        Left.OutputDeviceProfileId == Right.OutputDeviceProfileId &&
+        Left.TransformVersion == Right.TransformVersion &&
+        Left.ExposureStops == Right.ExposureStops &&
+        Left.SettingsDigest == Right.SettingsDigest;
+}
+
 } // namespace
+
+bool FOutputTransformSdrBaselineRegistryV3::LoadRegistry(
+    const Stoner::Core::FString& Path,
+    Stoner::Core::FString& OutFailure)
+{
+    using namespace Stoner::Core;
+    Records.clear();
+    OutFailure = {};
+    std::ifstream Input(Path.ToStdString(), std::ios::binary);
+    if (!Input)
+    {
+        OutFailure = "sdr-v3-registry-json";
+        return false;
+    }
+    std::string Bytes{std::istreambuf_iterator<char>(Input), {}};
+    if (Bytes.size() > 1024u * 1024u)
+    {
+        OutFailure = "sdr-v3-registry-bounds";
+        return false;
+    }
+    yyjson_read_err Error{};
+    yyjson_doc* Document = yyjson_read_opts(
+        Bytes.data(), Bytes.size(), YYJSON_READ_NOFLAG, nullptr, &Error);
+    if (!Document)
+    {
+        OutFailure = "sdr-v3-registry-json";
+        return false;
+    }
+    yyjson_val* Root = yyjson_doc_get_root(Document);
+    FString Schema;
+    FString RegistryId;
+    uint32 Version = 0;
+    yyjson_val* Values = yyjson_obj_get(Root, "records");
+    const bool bHeaderValid = HasExactJsonKeys(
+            Root, {"schema", "schemaVersion", "registryId", "records"}) &&
+        ReadJsonString(Root, "schema", Schema) &&
+        Schema == FString("stoner.sdr-image-baseline-registry") &&
+        ReadJsonUInt(Root, "schemaVersion", Version) && Version == 3 &&
+        ReadJsonString(Root, "registryId", RegistryId) &&
+        RegistryId == FString("output-transform-sdr-baselines-v3") &&
+        yyjson_is_arr(Values) && yyjson_arr_size(Values) <= 64;
+    if (!bHeaderValid)
+    {
+        yyjson_doc_free(Document);
+        OutFailure = "sdr-v3-registry-schema";
+        return false;
+    }
+    std::set<std::string> BaselineIds;
+    size_t Index = 0;
+    size_t Maximum = 0;
+    yyjson_val* Value = nullptr;
+    yyjson_arr_foreach(Values, Index, Maximum, Value)
+    {
+        FOutputTransformSdrBaselineV3 Record;
+        if (!ParseBaselineV3Record(Value, Record) ||
+            !BaselineIds.insert(Record.BaselineId.ToStdString()).second ||
+            std::any_of(Records.begin(), Records.end(), [&](const auto& Existing) {
+                return HasSameBaselineV3AuthorityKey(Existing, Record);
+            }))
+        {
+            yyjson_doc_free(Document);
+            Records.clear();
+            OutFailure = "sdr-v3-record-schema-or-identity";
+            return false;
+        }
+        Records.push_back(std::move(Record));
+    }
+    yyjson_doc_free(Document);
+    return true;
+}
+
+bool FOutputTransformSdrBaselineRegistryV3::SelectAccepted(
+    const Stoner::Core::FString& WorkloadRevision,
+    const Stoner::Core::FString& Backend,
+    const Stoner::Core::FString& DeviceClass,
+    const Stoner::Core::FString& OutputDeviceProfileId,
+    const Stoner::Core::FString& TransformVersion,
+    double ExposureStops,
+    const Stoner::Core::FString& SettingsDigest,
+    FOutputTransformSdrBaselineV3& OutBaseline,
+    Stoner::Core::FString& OutFailure) const
+{
+    using namespace Stoner::Core;
+    OutBaseline = {};
+    OutFailure = {};
+    if (!IsFreshV3Workload(WorkloadRevision) ||
+        !IsBaselineV3Token(DeviceClass) ||
+        !std::isfinite(ExposureStops) || !IsBaselineV3Digest(SettingsDigest))
+    {
+        OutFailure = "sdr-v3-selection-contract";
+        return false;
+    }
+    const FOutputTransformSdrBaselineV3* Match = nullptr;
+    bool bFoundNonAccepted = false;
+    for (const auto& Candidate : Records)
+    {
+        if (Candidate.WorkloadRevision != WorkloadRevision ||
+            Candidate.Backend != Backend || Candidate.DeviceClass != DeviceClass ||
+            Candidate.OutputDeviceProfileId != OutputDeviceProfileId ||
+            Candidate.TransformVersion != TransformVersion ||
+            Candidate.ExposureStops != ExposureStops ||
+            Candidate.SettingsDigest != SettingsDigest)
+            continue;
+        if (Candidate.State != FString("accepted"))
+        {
+            bFoundNonAccepted = true;
+            continue;
+        }
+        Match = &Candidate;
+    }
+    if (!Match)
+    {
+        OutFailure = bFoundNonAccepted ? FString("sdr-v3-state-not-accepted")
+                                      : FString("sdr-v3-baseline-missing");
+        return false;
+    }
+    OutBaseline = *Match;
+    return true;
+}
+
+bool FOutputTransformSdrBaselineRegistryV3::IsAllowedStateTransition(
+    const Stoner::Core::FString& From,
+    const Stoner::Core::FString& To) noexcept
+{
+    return (From == Stoner::Core::FString("candidate") &&
+            To == Stoner::Core::FString("calibrated")) ||
+        (From == Stoner::Core::FString("calibrated") &&
+         To == Stoner::Core::FString("reviewed")) ||
+        (From == Stoner::Core::FString("reviewed") &&
+         To == Stoner::Core::FString("accepted")) ||
+        (From == Stoner::Core::FString("accepted") &&
+         To == Stoner::Core::FString("superseded"));
+}
 
 bool FProductionCanonicalImage::IsValid() const noexcept
 {

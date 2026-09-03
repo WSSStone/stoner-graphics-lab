@@ -328,9 +328,11 @@ void TestWorkloadRegions(FProductionImageAcceptanceTestResult& Result)
     Record(Result,
         IsProductionWorkloadNormalProbeValid(
             "production-content-lantern-v2", {-1.0f, 0.0f, 0.0f}) &&
+        IsProductionWorkloadNormalProbeValid(
+            "production-content-lantern-v3", {-1.0f, 0.0f, 0.0f}) &&
         !IsProductionWorkloadNormalProbeValid(
             "production-content-lantern-v2", {1.0f, 0.0f, 0.0f}),
-        "Lantern v2 rejects the superseded opposite-facing surface");
+        "Lantern v2/v3 reject the superseded opposite-facing surface");
     Record(Result, BuildProductionWorkloadRegions(
             "production-content-sponza-v2", 512, 512, Regions) &&
             Regions.size() == 7 && Regions[0].Region.MinimumX < 486 &&
@@ -341,6 +343,8 @@ void TestWorkloadRegions(FProductionImageAcceptanceTestResult& Result)
     Record(Result,
         IsProductionWorkloadNormalProbeValid(
             "production-content-sponza-v2", {0.0f, 1.0f, 0.0f}) &&
+        IsProductionWorkloadNormalProbeValid(
+            "production-content-sponza-v3", {0.0f, 1.0f, 0.0f}) &&
         !IsProductionWorkloadNormalProbeValid(
             "production-content-sponza-v2", {0.0f, -1.0f, 0.0f}) &&
         !IsProductionWorkloadNormalProbeValid(
@@ -447,6 +451,191 @@ std::string BaselineJsonWithReferences(
     const auto End = Result.rfind("]}");
     Result.replace(Begin + 1u, End - Begin - 1u, References);
     return Result;
+}
+
+std::string SdrBaselineV3Json(
+    const char* State,
+    const char* Acceptance,
+    const char* Id = "lantern-metal-srgb-neutral-v3")
+{
+    return std::string(R"({"schema":"stoner.sdr-image-baseline","schemaVersion":3,"baselineId":")") +
+        Id + R"(","state":")" + State +
+        R"(","workloadRevision":"production-content-lantern-v3","backend":"metal","deviceClass":"macos.apple8.metal.sdr","capabilityDigest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","outputDeviceProfileId":"Sdr.sRGB.v1","transformVersion":"Sdr.KhronosPbrNeutral.v1","exposureStops":0,"settingsDigest":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","width":512,"height":512,"sampleCount":1,"referencePath":"Validation/029/SDR/M4-Metal/lantern-v3.png","compressedSha256":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","decodedSha256":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd","calibrationEvidenceSha256":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee","flipPolicy":{"meanMax":0.01,"p95Max":0.02,"maximumMax":0.1,"badPixelThreshold":0.05,"badPixelFractionMax":0.01},"acceptance":)" +
+        Acceptance + "}";
+}
+
+std::string SdrBaselineV3Registry(const std::string& Records)
+{
+    return std::string(R"({"schema":"stoner.sdr-image-baseline-registry","schemaVersion":3,"registryId":"output-transform-sdr-baselines-v3","records":[)") +
+        Records + "]}";
+}
+
+void TestSdrBaselineV3Registry(FProductionImageAcceptanceTestResult& Result)
+{
+    const auto Root = std::filesystem::temp_directory_path() /
+        "stoner-output-transform-sdr-v3-registry-tests";
+    std::error_code Error;
+    std::filesystem::remove_all(Root, Error);
+    const auto RegistryPath = Root / "Baselines-v3.json";
+    const std::string Acceptance =
+        R"({"maintainerId":"maintainer","reviewedAt":"2026-09-02T12:00:00Z","candidateSha256":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","decision":"accepted"})";
+
+    Record(Result,
+        FOutputTransformSdrBaselineRegistryV3::IsAllowedStateTransition(
+            "candidate", "calibrated") &&
+        FOutputTransformSdrBaselineRegistryV3::IsAllowedStateTransition(
+            "calibrated", "reviewed") &&
+        FOutputTransformSdrBaselineRegistryV3::IsAllowedStateTransition(
+            "reviewed", "accepted") &&
+        FOutputTransformSdrBaselineRegistryV3::IsAllowedStateTransition(
+            "accepted", "superseded") &&
+        !FOutputTransformSdrBaselineRegistryV3::IsAllowedStateTransition(
+            "candidate", "accepted") &&
+        !FOutputTransformSdrBaselineRegistryV3::IsAllowedStateTransition(
+            "superseded", "accepted"),
+        "SDR v3 baseline lifecycle permits only the declared forward transitions");
+
+    FString Failure;
+    FOutputTransformSdrBaselineV3 Selected;
+    WriteText(RegistryPath, SdrBaselineV3Registry(
+        SdrBaselineV3Json("candidate", "null")));
+    FOutputTransformSdrBaselineRegistryV3 CandidateRegistry;
+    Record(Result,
+        CandidateRegistry.LoadRegistry(FString(RegistryPath.string()), Failure) &&
+        !CandidateRegistry.SelectAccepted(
+            "production-content-lantern-v3", "metal",
+            "macos.apple8.metal.sdr", "Sdr.sRGB.v1",
+            "Sdr.KhronosPbrNeutral.v1", 0.0,
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            Selected, Failure) &&
+        Failure == FString("sdr-v3-state-not-accepted"),
+        "ordinary SDR v3 Candidate loading cannot promote or select authority");
+
+    WriteText(RegistryPath, SdrBaselineV3Registry(
+        SdrBaselineV3Json("accepted", "null")));
+    FOutputTransformSdrBaselineRegistryV3 MissingAcceptanceRegistry;
+    Record(Result,
+        !MissingAcceptanceRegistry.LoadRegistry(
+            FString(RegistryPath.string()), Failure) &&
+        Failure == FString("sdr-v3-record-schema-or-identity"),
+        "accepted SDR v3 baseline requires explicit maintainer acceptance");
+
+    WriteText(RegistryPath, SdrBaselineV3Registry(
+        SdrBaselineV3Json("accepted", Acceptance.c_str())));
+    FOutputTransformSdrBaselineRegistryV3 AcceptedRegistry;
+    Record(Result,
+        AcceptedRegistry.LoadRegistry(FString(RegistryPath.string()), Failure) &&
+        AcceptedRegistry.SelectAccepted(
+            "production-content-lantern-v3", "metal",
+            "macos.apple8.metal.sdr", "Sdr.sRGB.v1",
+            "Sdr.KhronosPbrNeutral.v1", 0.0,
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            Selected, Failure) &&
+        Selected.State == FString("accepted") &&
+        Selected.Width == 512 && Selected.Height == 512 &&
+        Selected.SampleCount == 1 && Selected.Acceptance.has_value() &&
+        Selected.Acceptance->MaintainerId == FString("maintainer"),
+        "SDR v3 selects only an exact fresh key with explicit acceptance");
+
+    const struct
+    {
+        const char* Workload;
+        const char* Backend;
+        const char* Device;
+        const char* Profile;
+        const char* Transform;
+        double Exposure;
+        const char* Settings;
+    } KeyMismatches[] = {
+        {"production-content-sponza-v3", "metal", "macos.apple8.metal.sdr",
+            "Sdr.sRGB.v1", "Sdr.KhronosPbrNeutral.v1", 0.0,
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+        {"production-content-lantern-v3", "vulkan", "macos.apple8.metal.sdr",
+            "Sdr.sRGB.v1", "Sdr.KhronosPbrNeutral.v1", 0.0,
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+        {"production-content-lantern-v3", "metal", "another.device",
+            "Sdr.sRGB.v1", "Sdr.KhronosPbrNeutral.v1", 0.0,
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+        {"production-content-lantern-v3", "metal", "macos.apple8.metal.sdr",
+            "Sdr.BT709.v1", "Sdr.KhronosPbrNeutral.v1", 0.0,
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+        {"production-content-lantern-v3", "metal", "macos.apple8.metal.sdr",
+            "Sdr.sRGB.v1", "Sdr.NarkowiczAcesFit.v1", 0.0,
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+        {"production-content-lantern-v3", "metal", "macos.apple8.metal.sdr",
+            "Sdr.sRGB.v1", "Sdr.KhronosPbrNeutral.v1", 1.0,
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+        {"production-content-lantern-v3", "metal", "macos.apple8.metal.sdr",
+            "Sdr.sRGB.v1", "Sdr.KhronosPbrNeutral.v1", 0.0,
+            "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"},
+    };
+    bool bAllKeysFailClosed = true;
+    for (const auto& Mismatch : KeyMismatches)
+    {
+        bAllKeysFailClosed = bAllKeysFailClosed &&
+            !AcceptedRegistry.SelectAccepted(
+                Mismatch.Workload, Mismatch.Backend, Mismatch.Device,
+                Mismatch.Profile, Mismatch.Transform, Mismatch.Exposure,
+                Mismatch.Settings, Selected, Failure) &&
+            Failure == FString("sdr-v3-baseline-missing");
+    }
+    Record(Result, bAllKeysFailClosed,
+        "SDR v3 authority never crosses workload, backend, device, profile, transform, exposure, or settings keys");
+
+    std::string InvalidExtent = SdrBaselineV3Json(
+        "accepted", Acceptance.c_str());
+    const auto Width = InvalidExtent.find("\"width\":512");
+    InvalidExtent.replace(Width, std::strlen("\"width\":512"),
+        "\"width\":511");
+    WriteText(RegistryPath, SdrBaselineV3Registry(InvalidExtent));
+    FOutputTransformSdrBaselineRegistryV3 InvalidExtentRegistry;
+    Record(Result,
+        !InvalidExtentRegistry.LoadRegistry(
+            FString(RegistryPath.string()), Failure) &&
+        Failure == FString("sdr-v3-record-schema-or-identity"),
+        "SDR v3 baseline rejects non-exact 512-by-512 authority");
+
+    std::string WrongAcceptedDigest = SdrBaselineV3Json(
+        "accepted", Acceptance.c_str());
+    const auto CandidateDigest = WrongAcceptedDigest.find(
+        "\"candidateSha256\":\"cccc");
+    WrongAcceptedDigest[CandidateDigest +
+        std::strlen("\"candidateSha256\":\"")] = 'f';
+    WriteText(RegistryPath, SdrBaselineV3Registry(WrongAcceptedDigest));
+    FOutputTransformSdrBaselineRegistryV3 WrongDigestRegistry;
+    Record(Result,
+        !WrongDigestRegistry.LoadRegistry(
+            FString(RegistryPath.string()), Failure),
+        "maintainer acceptance is bound to the exact compressed Candidate digest");
+
+    WriteText(RegistryPath, SdrBaselineV3Registry(
+        SdrBaselineV3Json("candidate", "null")));
+    FOutputTransformSdrBaselineRegistryV3 V3OnlyRegistry;
+    Record(Result,
+        V3OnlyRegistry.LoadRegistry(FString(RegistryPath.string()), Failure) &&
+        !V3OnlyRegistry.SelectAccepted(
+            "production-content-lantern-v2", "metal",
+            "macos.apple8.metal.sdr", "Sdr.sRGB.v1",
+            "Sdr.KhronosPbrNeutral.v1", 0.0,
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            Selected, Failure) &&
+        Failure == FString("sdr-v3-selection-contract"),
+        "SDR v3 loader cannot reinterpret or carry forward Feature 028 v2 authority");
+
+    FOutputTransformSdrBaselineRegistryV3 RepositoryRegistry;
+    Record(Result,
+        RepositoryRegistry.LoadRegistry(
+            "Config/Validation/OutputTransform/SDR/Baselines-v3.json",
+            Failure) &&
+        !RepositoryRegistry.SelectAccepted(
+            "production-content-lantern-v3", "metal",
+            "macos.apple8.metal.sdr", "Sdr.sRGB.v1",
+            "Sdr.KhronosPbrNeutral.v1", 0.0,
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            Selected, Failure) &&
+        Failure == FString("sdr-v3-baseline-missing"),
+        "empty repository v3 registry fails closed until fresh maintainer acceptance");
+    std::filesystem::remove_all(Root, Error);
 }
 
 void TestBaselineRegistry(FProductionImageAcceptanceTestResult& Result)
@@ -638,5 +827,6 @@ FProductionImageAcceptanceTestResult RunProductionImageAcceptanceTests()
     TestWorkloadRegions(Result);
     TestAcceptedReferenceRegionCalibration(Result);
     TestBaselineRegistry(Result);
+    TestSdrBaselineV3Registry(Result);
     return Result;
 }

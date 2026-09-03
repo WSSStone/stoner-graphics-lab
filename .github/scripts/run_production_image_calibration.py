@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import binascii
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -29,6 +30,15 @@ REQUIRED_MUTATIONS = (
 GPU_MUTATIONS = REQUIRED_MUTATIONS
 
 
+def verify_v3_revision(repository_root: Path, revision: str | None) -> None:
+    spec = importlib.util.spec_from_file_location(
+        "calibration_output_provenance", Path(__file__).with_name("output_transform_provenance.py"))
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.require_frozen_revision(repository_root, revision)
+
+
 def remove_calibration_tree(path: Path, ignore_errors: bool = False) -> None:
     resolved = path.resolve()
     native_path = Path("\\\\?\\" + str(resolved)) if os.name == "nt" else resolved
@@ -50,7 +60,9 @@ def _ppm_rgb(path: Path) -> tuple[int, int, bytes, str]:
     return width, height, rgb, hashlib.sha256(payload).hexdigest()
 
 
-def collect_process(root: Path, backend: str, ordinal: int) -> dict:
+def collect_process(
+    root: Path, backend: str, ordinal: int, workload_revision: str | None = None,
+) -> dict:
     capture_root = root / backend
     frame_tokens = []
     decoded_digests = []
@@ -67,6 +79,8 @@ def collect_process(root: Path, backend: str, ordinal: int) -> dict:
             metadata.get("width") != width
             or metadata.get("height") != height
             or metadata.get("backend") != backend
+            or (workload_revision is not None and
+                metadata.get("workloadRevision") != workload_revision)
             or metadata.get("captureScope") != "application-window"
             or metadata.get("sha256") != file_digest
             or metadata.get("frameToken") != metadata.get("expectedFrameToken")
@@ -310,7 +324,11 @@ def run_calibration(
     workload_revision: str,
     native_command: list[str],
     mutation_command: list[str],
+    git_revision: str | None = None,
 ) -> dict:
+    is_v3 = workload_revision.endswith("-v3")
+    if is_v3:
+        verify_v3_revision(repository_root, git_revision)
     if output.exists() and any(output.iterdir()):
         raise FileExistsError("calibration output must be empty")
     output.mkdir(parents=True, exist_ok=True)
@@ -329,7 +347,9 @@ def run_calibration(
             "STONER_PRODUCTION_WORKLOAD_REVISION": workload_revision,
         }
         _run(native_command, repository_root, environment)
-        processes.append(collect_process(root, backend, ordinal))
+        processes.append(collect_process(
+            root, backend, ordinal, workload_revision,
+        ))
         if len(processes) >= MIN_PROCESSES and not calibration_complete(processes):
             target_count = min(MAX_PROCESSES, target_count + 1)
     if not calibration_complete(processes):
@@ -398,6 +418,9 @@ def run_calibration(
         "pairwiseModeFlip": pairwise_flip,
         "candidateOnly": True,
     }
+    if is_v3:
+        verify_v3_revision(repository_root, git_revision)
+        summary["gitRevision"] = git_revision
     (output / "calibration.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
@@ -415,10 +438,13 @@ def main(values: list[str] | None = None) -> int:
         choices=(
             "production-content-lantern-v2",
             "production-content-sponza-v2",
+            "production-content-lantern-v3",
+            "production-content-sponza-v3",
         ),
         required=True,
     )
     parser.add_argument("--command-file", type=Path, required=True)
+    parser.add_argument("--git-revision", help="Required frozen software commit for v3; v2 is unchanged")
     args = parser.parse_args(values)
     commands = json.loads(args.command_file.read_text(encoding="utf-8"))
     if (
@@ -431,11 +457,14 @@ def main(values: list[str] | None = None) -> int:
     ):
         raise ValueError("calibration command file is invalid")
     resolved_output = args.output.resolve()
+    if resolved_output.exists() and any(resolved_output.iterdir()):
+        raise FileExistsError("calibration output must be empty; existing evidence is preserved")
     try:
         run_calibration(
             args.root.resolve(), resolved_output, args.backend,
             args.workload_revision,
             commands["nativeCommand"], commands["mutationCommand"],
+            args.git_revision,
         )
     finally:
         remove_calibration_tree(

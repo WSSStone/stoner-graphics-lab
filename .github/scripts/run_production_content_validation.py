@@ -27,37 +27,17 @@ SCRIPT_DIR = Path(__file__).parent
 REPOSITORY_ROOT = SCRIPT_DIR.parents[1]
 CORPUS_MANIFEST = Path("Content/ProductionAcceptance/Corpus/corpus-v1.json")
 VALIDATION_PROFILES = Path("Config/Validation/ProductionContent")
-SHADER_SOURCE_FILES = (
-    "Composition.frag",
-    "Composition.frag.spv",
-    "Composition.shader.json",
-    "DirectionalLight.frag",
-    "DirectionalLight.frag.spv",
-    "DirectionalLight.shader.json",
-    "Fullscreen.vert",
-    "Fullscreen.vert.spv",
-    "PointLight.frag",
-    "PointLight.frag.spv",
-    "PointLight.shader.json",
-    "PointLight.vert",
-    "PointLight.vert.spv",
-    "SpotLight.frag",
-    "SpotLight.frag.spv",
-    "SpotLight.shader.json",
-    "SpotLight.vert",
-    "SpotLight.vert.spv",
-    "Surface.shader.json",
-    "Surface.vert",
-    "Surface.frag",
-    "Surface.vert.spv",
-    "Surface.frag.spv",
+SHADER_SOURCE_DIRECTORIES = (
+    "Deferred",
+    "PostProcess",
 )
-DEFERRED_SHADER_ROOTS = (
+RENDER_SHADER_ROOTS = (
     "ShaderProgram:Engine/Shaders/Deferred/Surface",
     "ShaderProgram:Engine/Shaders/Deferred/DirectionalLight",
     "ShaderProgram:Engine/Shaders/Deferred/PointLight",
     "ShaderProgram:Engine/Shaders/Deferred/SpotLight",
     "ShaderProgram:Engine/Shaders/Deferred/Composition",
+    "ShaderProgram:Engine/Shaders/PostProcess/OutputTransform",
 )
 FAILURE_CATALOG = Path(
     "Tests/Fixtures/ProductionContent/Failures/failure-catalog.json"
@@ -2116,10 +2096,12 @@ def clean_cook_concurrency(
 
 
 def copy_shader_source(repository_root: Path, destination: Path) -> None:
-    source = repository_root / "Content/Shaders/Deferred"
     destination.mkdir(parents=True)
-    for name in SHADER_SOURCE_FILES:
-        shutil.copy2(source / name, destination / name)
+    for directory in SHADER_SOURCE_DIRECTORIES:
+        shutil.copytree(
+            repository_root / "Content/Shaders" / directory,
+            destination / directory,
+        )
 
 
 def executable(build_root: Path, relative: str) -> Path:
@@ -2239,7 +2221,7 @@ def run_package(
                 cooker,
                 source_root,
                 shader_root,
-                (package["rootAssetId"], *DEFERRED_SHADER_ROOTS),
+                (package["rootAssetId"], *RENDER_SHADER_ROOTS),
                 target_profile,
                 publication,
                 ddc,
@@ -2296,7 +2278,7 @@ def run_package(
             cooker,
             first_run["source"],
             first_run["shader"],
-            (package["rootAssetId"], *DEFERRED_SHADER_ROOTS),
+            (package["rootAssetId"], *RENDER_SHADER_ROOTS),
             target_profile,
             first_run["publication"],
             first_run["ddc"],

@@ -5,6 +5,16 @@
 namespace Stoner::Renderer
 {
 
+bool FRenderGraphTextureSidecar::IsValid() const noexcept
+{
+    return bIsTyped && Stoner::RHI::IsValidRHIFormat(Format) &&
+        Stoner::RHI::IsValidRHISampleCount(SampleCount) &&
+        Usage != Stoner::RHI::ERHITextureUsage::None &&
+        Stoner::RHI::HasOnlyRHIFlags(
+            Usage, Stoner::RHI::RHITextureUsageValidMask) &&
+        ColorDomain != ERenderGraphColorDomain::Unspecified;
+}
+
 FRenderGraphResourceDesc FRenderGraphResourceDesc::Buffer(Stoner::Core::FString InName, Stoner::Core::uint64 SizeInBytes)
 {
     FRenderGraphResourceDesc Desc;
@@ -21,6 +31,25 @@ FRenderGraphResourceDesc FRenderGraphResourceDesc::Texture2D(Stoner::Core::FStri
     Desc.Kind = ERenderGraphResourceKind::Texture;
     Desc.Width = Width;
     Desc.Height = Height;
+    return Desc;
+}
+
+FRenderGraphResourceDesc FRenderGraphResourceDesc::TypedTexture2D(
+    Stoner::Core::FString InName,
+    Stoner::Core::uint32 Width,
+    Stoner::Core::uint32 Height,
+    Stoner::RHI::ERHIFormat Format,
+    Stoner::RHI::ERHISampleCount SampleCount,
+    Stoner::RHI::ERHITextureUsage Usage,
+    ERenderGraphColorDomain ColorDomain)
+{
+    FRenderGraphResourceDesc Desc = Texture2D(std::move(InName), Width, Height);
+    Desc.FormatId = static_cast<Stoner::Core::uint32>(Format);
+    Desc.Texture.Format = Format;
+    Desc.Texture.SampleCount = SampleCount;
+    Desc.Texture.Usage = Usage;
+    Desc.Texture.ColorDomain = ColorDomain;
+    Desc.Texture.bIsTyped = true;
     return Desc;
 }
 
@@ -52,9 +81,27 @@ bool IsValidRenderGraphResourceDesc(const FRenderGraphResourceDesc& Desc) noexce
     case ERenderGraphResourceKind::External:
         return Desc.SizeInBytes > 0;
     case ERenderGraphResourceKind::Texture:
-        return Desc.Width > 0 && Desc.Height > 0 && Desc.Depth > 0 && Desc.FormatId != 0;
+        return Desc.Width > 0 && Desc.Height > 0 && Desc.Depth > 0 &&
+            (Desc.Texture.bIsTyped ? Desc.Texture.IsValid() : Desc.FormatId != 0);
     }
     return false;
+}
+
+const char* ToString(ERenderGraphColorDomain Domain) noexcept
+{
+    switch (Domain)
+    {
+    case ERenderGraphColorDomain::Unspecified: return "Unspecified";
+    case ERenderGraphColorDomain::SceneLinearRec709D65: return "SceneLinearRec709D65";
+    case ERenderGraphColorDomain::DisplayLinearRec709D65: return "DisplayLinearRec709D65";
+    case ERenderGraphColorDomain::DisplayLinearRec2020D65: return "DisplayLinearRec2020D65";
+    case ERenderGraphColorDomain::EncodedSrgb: return "EncodedSrgb";
+    case ERenderGraphColorDomain::EncodedBt709: return "EncodedBt709";
+    case ERenderGraphColorDomain::EncodedGamma22: return "EncodedGamma22";
+    case ERenderGraphColorDomain::EncodedPqRec2020D65: return "EncodedPqRec2020D65";
+    case ERenderGraphColorDomain::ExtendedSrgbLinear: return "ExtendedSrgbLinear";
+    }
+    return "Unknown";
 }
 
 const char* ToString(ERenderGraphResourceKind Kind) noexcept

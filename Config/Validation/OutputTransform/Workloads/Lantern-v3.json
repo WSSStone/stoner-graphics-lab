@@ -1,0 +1,20 @@
+{
+  "schema": "stoner.output-transform-workload",
+  "schemaVersion": 3,
+  "workloadRevision": "production-content-lantern-v3",
+  "contentPackage": "lantern",
+  "rendererStrategy": "deferred",
+  "width": 512,
+  "height": 512,
+  "sampleCount": 1,
+  "settings": {
+    "dynamicRange": "sdr",
+    "exposureStops": 0,
+    "outputDeviceProfileId": "Sdr.sRGB.v1",
+    "toneMapVersion": "Sdr.KhronosPbrNeutral.v1",
+    "preTonemapOperations": [],
+    "postTonemapOperations": []
+  },
+  "settingsDigest": "2e9ec7a45efe6537db4e806e05cca54043d4a841aa013c67c941866e35d20d34",
+  "authorityPolicy": "fresh-v3-candidate-explicit-maintainer-acceptance"
+}

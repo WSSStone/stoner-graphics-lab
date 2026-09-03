@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stoner.local/schemas/output-device-profile-v1.json",
+  "title": "Stoner Output Device Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "schemaVersion", "profileId", "dynamicRange",
+    "targetPrimaries", "whitePoint", "referenceWhiteNits", "targetPeakNits", "transfer",
+    "storageClass", "nativeColorSpace", "metadataPolicy",
+    "comparisonDomain", "nativeEncodingOptions", "conformanceTolerance"
+  ],
+  "properties": {
+    "schema": {"const": "stoner.output-device-profile"},
+    "schemaVersion": {"const": 1},
+    "profileId": {
+      "enum": [
+        "Sdr.sRGB.v1",
+        "Sdr.BT709.v1",
+        "Sdr.ExplicitGamma22.v1",
+        "Hdr.PQ.Rec2020.1000.v1",
+        "Hdr.PQ.Rec2020.2000.v1",
+        "Hdr.Linear.1000.v1",
+        "Hdr.Linear.2000.v1"
+      ]
+    },
+    "dynamicRange": {"enum": ["sdr", "hdr"]},
+    "targetPrimaries": {"enum": ["rec709-d65", "rec2020-d65"]},
+    "whitePoint": {"const": "d65"},
+    "referenceWhiteNits": {
+      "oneOf": [
+        {"type": "number", "exclusiveMinimum": 0, "maximum": 10000},
+        {"const": "native-resolved"}
+      ]
+    },
+    "targetPeakNits": {"enum": [100, 1000, 2000]},
+    "transfer": {"enum": ["srgb", "bt709-oetf", "gamma22", "st2084", "linear-hdr"]},
+    "storageClass": {"enum": ["unorm8", "packed10-unorm", "rgba16-float"]},
+    "nativeColorSpace": {"enum": ["srgb-nonlinear", "bt709-nonlinear", "sdr-pass-through", "hdr10-st2084", "extended-srgb-linear"]},
+    "metadataPolicy": {"enum": ["none", "hdr10-static", "edr-state"]},
+    "comparisonDomain": {"enum": ["linear-rec709", "absolute-nits-xyz"]},
+    "nativeEncodingOptions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {"enum": ["sdr-explicit", "pq-rec2020", "scrgb80", "metal-edr"]}
+    },
+    "conformanceTolerance": {
+      "oneOf": [
+        {
+          "const": {
+            "policyId": "sdr-linear-rgb-v1",
+            "absoluteChannelError": 0.00784313725490196
+          }
+        },
+        {
+          "const": {
+            "policyId": "hdr-pq10-decoded-v1",
+            "absoluteFloorNits": 0.02,
+            "relativeFraction": 0.0025,
+            "nativeStepMultiplier": 1.5,
+            "xyzPropagationEpsilon": 0.000001
+          }
+        },
+        {
+          "const": {
+            "policyId": "hdr-fp16-decoded-v1",
+            "absoluteFloorNits": 0.02,
+            "relativeFraction": 0.0025,
+            "nativeStepMultiplier": 2.0,
+            "xyzPropagationEpsilon": 0.000001
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"profileId": {"pattern": "^Sdr\\."}}},
+      "then": {
+        "properties": {
+          "dynamicRange": {"const": "sdr"},
+          "targetPrimaries": {"const": "rec709-d65"},
+          "referenceWhiteNits": {"const": 100},
+          "targetPeakNits": {"const": 100},
+          "storageClass": {"const": "unorm8"},
+          "metadataPolicy": {"const": "none"},
+          "comparisonDomain": {"const": "linear-rec709"},
+          "nativeEncodingOptions": {"const": ["sdr-explicit"]},
+          "conformanceTolerance": {
+            "const": {
+              "policyId": "sdr-linear-rgb-v1",
+              "absoluteChannelError": 0.00784313725490196
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"profileId": {"pattern": "^Hdr\\.PQ\\."}}},
+      "then": {
+        "properties": {
+          "dynamicRange": {"const": "hdr"},
+          "targetPrimaries": {"const": "rec2020-d65"},
+          "referenceWhiteNits": {"const": 100},
+          "transfer": {"const": "st2084"},
+          "storageClass": {"const": "packed10-unorm"},
+          "nativeColorSpace": {"const": "hdr10-st2084"},
+          "metadataPolicy": {"const": "hdr10-static"},
+          "comparisonDomain": {"const": "absolute-nits-xyz"},
+          "nativeEncodingOptions": {"const": ["pq-rec2020"]},
+          "conformanceTolerance": {
+            "const": {
+              "policyId": "hdr-pq10-decoded-v1",
+              "absoluteFloorNits": 0.02,
+              "relativeFraction": 0.0025,
+              "nativeStepMultiplier": 1.5,
+              "xyzPropagationEpsilon": 0.000001
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"profileId": {"pattern": "^Hdr\\.Linear\\."}}},
+      "then": {
+        "properties": {
+          "dynamicRange": {"const": "hdr"},
+          "targetPrimaries": {"const": "rec709-d65"},
+          "referenceWhiteNits": {"const": "native-resolved"},
+          "transfer": {"const": "linear-hdr"},
+          "storageClass": {"const": "rgba16-float"},
+          "nativeColorSpace": {"const": "extended-srgb-linear"},
+          "metadataPolicy": {"const": "edr-state"},
+          "comparisonDomain": {"const": "absolute-nits-xyz"},
+          "nativeEncodingOptions": {"const": ["scrgb80", "metal-edr"]},
+          "conformanceTolerance": {
+            "const": {
+              "policyId": "hdr-fp16-decoded-v1",
+              "absoluteFloorNits": 0.02,
+              "relativeFraction": 0.0025,
+              "nativeStepMultiplier": 2.0,
+              "xyzPropagationEpsilon": 0.000001
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"profileId": {"pattern": "\\.1000\\.v1$"}}},
+      "then": {"properties": {"targetPeakNits": {"const": 1000}}}
+    },
+    {
+      "if": {"properties": {"profileId": {"pattern": "\\.2000\\.v1$"}}},
+      "then": {"properties": {"targetPeakNits": {"const": 2000}}}
+    },
+    {
+      "if": {"properties": {"profileId": {"const": "Sdr.sRGB.v1"}}},
+      "then": {"properties": {"transfer": {"const": "srgb"}, "nativeColorSpace": {"const": "srgb-nonlinear"}}}
+    },
+    {
+      "if": {"properties": {"profileId": {"const": "Sdr.BT709.v1"}}},
+      "then": {"properties": {"transfer": {"const": "bt709-oetf"}, "nativeColorSpace": {"const": "bt709-nonlinear"}}}
+    },
+    {
+      "if": {"properties": {"profileId": {"const": "Sdr.ExplicitGamma22.v1"}}},
+      "then": {"properties": {"transfer": {"const": "gamma22"}, "nativeColorSpace": {"const": "sdr-pass-through"}}}
+    }
+  ]
+}

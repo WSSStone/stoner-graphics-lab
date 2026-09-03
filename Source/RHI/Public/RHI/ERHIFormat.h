@@ -11,6 +11,7 @@ enum class ERHIFormat
     R8G8B8A8_UNorm,
     R8G8B8A8_sRGB,
     B8G8R8A8_UNorm,
+    R10G10B10A2_UNorm,
     R16G16B16A16_Float,
     R32_Float,
     R32G32_Float,
@@ -51,6 +52,7 @@ enum class ERHIFormat
     case ERHIFormat::R8G8B8A8_UNorm:
     case ERHIFormat::R8G8B8A8_sRGB:
     case ERHIFormat::B8G8R8A8_UNorm:
+    case ERHIFormat::R10G10B10A2_UNorm:
     case ERHIFormat::R32_Float:
     case ERHIFormat::D24_UNorm_S8_UInt:
     case ERHIFormat::D32_Float:
@@ -94,6 +96,7 @@ enum class ERHIFormat
     case ERHIFormat::R8G8B8A8_UNorm:
     case ERHIFormat::R8G8B8A8_sRGB:
     case ERHIFormat::B8G8R8A8_UNorm:
+    case ERHIFormat::R10G10B10A2_UNorm:
     case ERHIFormat::R16G16B16A16_Float:
     case ERHIFormat::R32_Float:
     case ERHIFormat::R32G32_Float:

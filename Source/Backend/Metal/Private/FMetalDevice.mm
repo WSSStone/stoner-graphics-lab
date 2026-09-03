@@ -241,6 +241,36 @@ RHI::FRHIRuntimeSnapshot FMetalDevice::GetRuntimeSnapshot() const noexcept
     Result.LiveSurfaces = static_cast<Core::uint32>(std::min<Core::uint64>(
         Inspection.PresentationOwnershipCount,
         std::numeric_limits<Core::uint32>::max()));
+    if (Impl_)
+    {
+        std::lock_guard Lock(Impl_->SurfaceMutex);
+        for (const auto& WeakSurface : Impl_->Surfaces)
+        {
+            const auto Surface = WeakSurface.lock();
+            if (!Surface || !Surface->IsValid() || !Surface->GetContext() ||
+                !Surface->GetContext()->IsAttached())
+                continue;
+            const RHI::FRHIResolvedPresentationState Resolved =
+                Surface->GetContext()->GetResolvedPresentationState();
+            const FMetalPresentationLayerSnapshot Layer =
+                Surface->GetContext()->GetLayerSnapshot();
+            if (!Resolved.IsValid()) continue;
+            Result.PresentationModeGeneration = Resolved.ModeGeneration;
+            Result.PresentationWidth = Resolved.Width;
+            Result.PresentationHeight = Resolved.Height;
+            Result.PresentationFormat = Resolved.Format;
+            Result.PresentationColorSpace = Resolved.ColorSpace;
+            Result.PresentationNativeEncoding = Resolved.NativeEncoding;
+            Result.PresentationDisplayAdaptation =
+                Resolved.DisplayAdaptation;
+            Result.PresentationMetadataDigest = Resolved.MetadataDigest;
+            Result.LastAcquiredFrameToken = Layer.LastAcquiredFrameToken;
+            Result.LastSubmittedFrameToken = Layer.LastSubmittedFrameToken;
+            Result.LastPresentedFrameToken = Layer.LastPresentedFrameToken;
+            Result.LiveSwapchains = 1;
+            break;
+        }
+    }
     return Result;
 }
 
@@ -870,6 +900,11 @@ FMetalDevice::CreatePresentationSurface(
             Owner_, GetNativeDevice(), GetNativeQueue());
         auto Surface = Core::MakeShared<FMetalPresentationSurface>(
             Owner_, Desc, std::move(Context));
+        RHI::FRHIPresentationCapabilities PresentationCapabilities;
+        const RHI::ERHIResult CapabilityResult =
+            Surface->QueryCapabilities(PresentationCapabilities);
+        if (CapabilityResult != RHI::ERHIResult::Success)
+            return {CapabilityResult, nullptr};
         {
             std::lock_guard Lock(Impl_->SurfaceMutex);
             Impl_->Surfaces.push_back(Surface);
@@ -893,7 +928,7 @@ FMetalDevice::CreateSwapchain(
     const auto Native =
         std::dynamic_pointer_cast<FMetalPresentationSurface>(Surface);
     if (!IsActive() || !Native || !Native->IsCompatible(Owner_) ||
-        !Native->IsValid() || !Desc.IsValid())
+        !Native->IsValid() || !Desc.IsExactPresentationRequestValid())
         return {RHI::ERHIResult::InvalidState, nullptr};
     if (!Capabilities_.bSupportsPresentation ||
         !Capabilities_.bSupportsPresentQueue ||
@@ -903,9 +938,18 @@ FMetalDevice::CreateSwapchain(
         return {RHI::ERHIResult::Unsupported, nullptr};
     if (Native->GetContext()->IsAttached())
         return {RHI::ERHIResult::InvalidState, nullptr};
+    RHI::FRHIPresentationCapabilities PresentationCapabilities;
+    const RHI::ERHIResult CapabilityResult =
+        Native->QueryCapabilities(PresentationCapabilities);
+    if (CapabilityResult != RHI::ERHIResult::Success)
+        return {CapabilityResult, nullptr};
+    if (Desc.SurfaceCapabilityGeneration !=
+            PresentationCapabilities.CapabilityGeneration ||
+        !PresentationCapabilities.SupportsPair(
+            Desc.PreferredFormat, Desc.PreferredColorSpace))
+        return {RHI::ERHIResult::Unsupported, nullptr};
     const auto AttachResult = Native->GetContext()->Attach(
-        Native->GetDesc().Window, Desc.PreferredFormat,
-        Desc.FramesInFlight, Desc.bVSync);
+        Native->GetDesc().Window, Desc);
     if (AttachResult != RHI::ERHIResult::Success)
         return {AttachResult, nullptr};
     try
@@ -946,6 +990,36 @@ void* FMetalDevice::GetNativeDevice() const noexcept
 void* FMetalDevice::GetNativeQueue() const noexcept
 {
     return Impl_ ? (__bridge void*)Impl_->Queue : nullptr;
+}
+
+RHI::ERHIResult FMetalDevice::ReadbackTextureForTesting(
+    const Core::TSharedPtr<RHI::IRHITexture>& Texture,
+    Core::TArray<Core::uint8>& OutBytes) const noexcept
+{
+    OutBytes.clear();
+    if (!IsActive() || !Texture)
+        return RHI::ERHIResult::InvalidState;
+    const auto Native = std::dynamic_pointer_cast<FMetalTexture>(Texture);
+    if (!Native || !Native->IsCompatible(Owner_) ||
+        Native->GetLifecycleState() !=
+            RHI::ERHIResourceLifecycleState::Valid)
+        return RHI::ERHIResult::InvalidState;
+    const auto& Desc = Native->GetDesc();
+    const RHI::FRHIFormatInfo FormatInfo =
+        RHI::GetRHIFormatInfo(Desc.Format);
+    if (!FormatInfo.IsValid() || FormatInfo.bCompressed ||
+        FormatInfo.BlockWidth != 1 || FormatInfo.BlockHeight != 1 ||
+        FormatInfo.BlockDepth != 1)
+        return RHI::ERHIResult::Unsupported;
+    const Core::uint32 BytesPerPixel = FormatInfo.BytesPerBlock;
+    if (BytesPerPixel == 0 || Desc.Width >
+            std::numeric_limits<Core::uint64>::max() / BytesPerPixel)
+        return RHI::ERHIResult::Unsupported;
+    return ReadbackMetalTexture(
+        (__bridge id<MTLCommandQueue>)GetNativeQueue(),
+        Native->GetNativeTexture(),
+        static_cast<Core::uint64>(Desc.Width) * BytesPerPixel,
+        Desc.Height, OutBytes);
 }
 
 } // namespace Stoner::Backend::Metal::Private

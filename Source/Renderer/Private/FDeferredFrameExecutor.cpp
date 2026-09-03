@@ -46,6 +46,39 @@ namespace
     return true;
 }
 
+[[nodiscard]] bool ArePostProcessStagesValid(
+    const FDeferredFrameExecutionBindings& Bindings,
+    FDeferredExtent2D Extent) noexcept
+{
+    if (Bindings.OutputTransformStages.empty())
+        return !Bindings.FormalOutput ||
+            Bindings.FormalOutput == Bindings.FinalOutput;
+    if (!Bindings.FormalOutput ||
+        Bindings.OutputTransformStages.front().Input != Bindings.FinalOutput ||
+        Bindings.OutputTransformStages.back().Output != Bindings.FormalOutput)
+        return false;
+    auto ExpectedInput = Bindings.FinalOutput;
+    for (const auto& Stage : Bindings.OutputTransformStages)
+    {
+        if (Stage.Name.IsEmpty() || Stage.Input != ExpectedInput ||
+            !Stage.Output || !IsStageValid(Stage.Stage) ||
+            Stage.Stage.Framebuffer->GetDesc().Attachments.size() != 1 ||
+            Stage.Stage.Framebuffer->GetDesc().Attachments.front().Texture !=
+                Stage.Output ||
+            Stage.Input->GetDesc().Width != Extent.Width ||
+            Stage.Input->GetDesc().Height != Extent.Height ||
+            Stage.Output->GetDesc().Width != Extent.Width ||
+            Stage.Output->GetDesc().Height != Extent.Height ||
+            !Stoner::RHI::HasRHIFlag(Stage.Input->GetUsage(),
+                Stoner::RHI::ERHITextureUsage::Sampled) ||
+            !Stoner::RHI::HasRHIFlag(Stage.Output->GetUsage(),
+                Stoner::RHI::ERHITextureUsage::ColorAttachment))
+            return false;
+        ExpectedInput = Stage.Output;
+    }
+    return true;
+}
+
 [[nodiscard]] const FDeferredStageBindings* FindStage(const FDeferredFrameExecutionBindings& Bindings,
     EDeferredPassStage Stage)
 {
@@ -154,6 +187,8 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
 {
     FDeferredFrameExecutionResult Out;
     const FDeferredExtent2D Extent = Plan.SurfaceLayout.Extent;
+    const auto FormalOutput = Bindings.FormalOutput
+        ? Bindings.FormalOutput : Bindings.FinalOutput;
     const bool bBaseValid = Plan.IsValid() && Graph.bValid && Bindings.CommandBuffer &&
         (Bindings.CommandBuffer->GetState() == Stoner::RHI::ERHICommandBufferState::Idle ||
             Bindings.CommandBuffer->GetState() == Stoner::RHI::ERHICommandBufferState::Resettable) &&
@@ -168,7 +203,11 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
         IsTextureValid(Bindings.LightingAccumulation, Stoner::RHI::ERHIFormat::R16G16B16A16_Float,
             Extent, Stoner::RHI::ERHITextureUsage::ColorAttachment) &&
         IsTextureValid(Bindings.FinalOutput, Plan.Output.Format, Extent,
-            Stoner::RHI::ERHITextureUsage::ColorAttachment);
+            Stoner::RHI::ERHITextureUsage::ColorAttachment) &&
+        ArePostProcessStagesValid(Bindings, Extent) &&
+        (!Bindings.bTransitionFinalOutputToPresent ||
+            Stoner::RHI::HasRHIFlag(FormalOutput->GetUsage(),
+                Stoner::RHI::ERHITextureUsage::Present));
     if (!bBaseValid)
     {
         Out.FinalState = EDeferredExecutionState::Failed;
@@ -215,17 +254,61 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
     const Stoner::RHI::FRHIViewport Viewport{0.0f, 0.0f, static_cast<float>(Extent.Width),
         static_cast<float>(Extent.Height), 0.0f, 1.0f};
     const Stoner::RHI::FRHIScissorRect FullScissor{0, 0, Extent.Width, Extent.Height};
+    bool bFinalOutputCopied = false;
+    bool bOutputTransformRecorded = false;
 
     for (const FDeferredPassRecord& Pass : Plan.Passes)
     {
         if (Pass.Stage == EDeferredPassStage::ValidationReadback)
         {
+            if (!bOutputTransformRecorded)
+            {
+                for (const auto& Post : Bindings.OutputTransformStages)
+                {
+                    if (!TransitionTexture(Commands, Post.Input,
+                            Stoner::RHI::ERHITextureUsage::Sampled,
+                            Stoner::RHI::ERHIResourceLayout::ColorAttachment,
+                            Stoner::RHI::ERHIResourceLayout::ShaderReadOnly) ||
+                        !TransitionTexture(Commands, Post.Output,
+                            Stoner::RHI::ERHITextureUsage::ColorAttachment,
+                            Stoner::RHI::ERHIResourceLayout::Undefined,
+                            Stoner::RHI::ERHIResourceLayout::ColorAttachment) ||
+                        Commands.BeginRenderPass(
+                            Post.Stage.RenderPass, Post.Stage.Framebuffer) !=
+                            Stoner::RHI::ERHIResult::Success ||
+                        Commands.SetViewport(Viewport) !=
+                            Stoner::RHI::ERHIResult::Success ||
+                        Commands.SetScissor(FullScissor) !=
+                            Stoner::RHI::ERHIResult::Success ||
+                        Commands.BindGraphicsPipeline(Post.Stage.Pipeline) !=
+                            Stoner::RHI::ERHIResult::Success ||
+                        !BindDescriptorSets(Commands, Post.Stage) ||
+                        Commands.BindVertexBuffer(
+                            Bindings.FullscreenVertexBuffer) !=
+                            Stoner::RHI::ERHIResult::Success ||
+                        Commands.RecordDraw(3, 1) !=
+                            Stoner::RHI::ERHIResult::Success ||
+                        Commands.EndRenderPass() !=
+                            Stoner::RHI::ERHIResult::Success)
+                    {
+                        Out.Result = EDeferredResult::RecordFailed;
+                        Out.FinalState = EDeferredExecutionState::Failed;
+                        Out.Diagnostics.Add(EDeferredDiagnosticSeverity::Error,
+                            Pass.Stage, EDeferredResult::RecordFailed,
+                            "DEF-EXEC-OUTPUT-TRANSFORM", Post.Name,
+                            "formal output transform stopped at the first failed exact native stage");
+                        return Out;
+                    }
+                    ++Out.RecordedPassCount;
+                }
+                bOutputTransformRecorded = true;
+            }
             for (const FDeferredReadbackBinding& Readback : Bindings.Readbacks)
             {
                 Stoner::RHI::FRHIResourceBarrierDesc Transition;
                 Transition.Texture = Readback.Source;
                 Transition.RequiredTextureUsage = Stoner::RHI::ERHITextureUsage::CopySource;
-                Transition.Before = Readback.Source == Bindings.FinalOutput
+                Transition.Before = Readback.Source == FormalOutput
                     ? Stoner::RHI::ERHIResourceLayout::ColorAttachment
                     : Stoner::RHI::ERHIResourceLayout::ShaderReadOnly;
                 Transition.After = Stoner::RHI::ERHIResourceLayout::CopySource;
@@ -248,6 +331,20 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
                         "partial command recording was closed and reset without later success");
                     return Out;
                 }
+                bFinalOutputCopied = bFinalOutputCopied ||
+                    Readback.Source == FormalOutput;
+            }
+            if (Bindings.bTransitionFinalOutputToPresent &&
+                !TransitionTexture(Commands, FormalOutput,
+                    Stoner::RHI::ERHITextureUsage::Present,
+                    bFinalOutputCopied
+                        ? Stoner::RHI::ERHIResourceLayout::CopySource
+                        : Stoner::RHI::ERHIResourceLayout::ColorAttachment,
+                    Stoner::RHI::ERHIResourceLayout::Present))
+            {
+                Out.Result = EDeferredResult::RecordFailed;
+                Out.FinalState = EDeferredExecutionState::Failed;
+                return Out;
             }
             ++Out.RecordedPassCount;
             Out.LastCompletedStage = Pass.Stage;
@@ -458,6 +555,17 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
         Out.RecordedDrawCount += Pass.DrawCount;
         Out.LastCompletedStage = Pass.Stage;
     }
+    if (Bindings.bTransitionFinalOutputToPresent &&
+        Plan.FindPass(EDeferredPassStage::ValidationReadback) == nullptr &&
+        !TransitionTexture(Commands, Bindings.FinalOutput,
+            Stoner::RHI::ERHITextureUsage::Present,
+            Stoner::RHI::ERHIResourceLayout::ColorAttachment,
+            Stoner::RHI::ERHIResourceLayout::Present))
+    {
+        Out.Result = EDeferredResult::RecordFailed;
+        Out.FinalState = EDeferredExecutionState::Failed;
+        return Out;
+    }
     if (Commands.End() != Stoner::RHI::ERHIResult::Success)
     {
         Out.RecordedCommandCount = Commands.GetRecordedCommandCount();
@@ -481,6 +589,16 @@ Stoner::Core::TArray<FDeferredShaderBindingContract> GetCanonicalDeferredShaderB
     return {
         {0, 0, ERHIDescriptorType::UniformBuffer, Both},
         {1, 0, ERHIDescriptorType::UniformBuffer, Both},
+        {1, 1, ERHIDescriptorType::CombinedTextureSampler,
+            ERHIShaderStageFlags::Fragment},
+        {1, 2, ERHIDescriptorType::CombinedTextureSampler,
+            ERHIShaderStageFlags::Fragment},
+        {1, 3, ERHIDescriptorType::CombinedTextureSampler,
+            ERHIShaderStageFlags::Fragment},
+        {1, 4, ERHIDescriptorType::CombinedTextureSampler,
+            ERHIShaderStageFlags::Fragment},
+        {1, 5, ERHIDescriptorType::CombinedTextureSampler,
+            ERHIShaderStageFlags::Fragment},
         {2, 0, ERHIDescriptorType::CombinedTextureSampler, ERHIShaderStageFlags::Fragment},
         {2, 1, ERHIDescriptorType::CombinedTextureSampler, ERHIShaderStageFlags::Fragment},
         {2, 2, ERHIDescriptorType::CombinedTextureSampler, ERHIShaderStageFlags::Fragment},
@@ -492,8 +610,10 @@ Stoner::Core::TArray<FDeferredShaderBindingContract> GetCanonicalDeferredShaderB
 
 FDeferredVertexLayoutContract GetDeferredSurfaceVertexLayout()
 {
-    return {"Surface", 24, {{0, Stoner::RHI::ERHIFormat::R32G32B32_Float, 0},
-        {1, Stoner::RHI::ERHIFormat::R32G32B32_Float, 12}}, true,
+    return {"Surface", 48, {{0, Stoner::RHI::ERHIFormat::R32G32B32_Float, 0},
+        {1, Stoner::RHI::ERHIFormat::R32G32B32_Float, 12},
+        {2, Stoner::RHI::ERHIFormat::R32G32B32A32_Float, 24},
+        {3, Stoner::RHI::ERHIFormat::R32G32_Float, 40}}, true,
         Stoner::RHI::ERHIIndexType::UInt16};
 }
 

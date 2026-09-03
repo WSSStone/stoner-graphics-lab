@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/CoreMinimal.h"
+#include "Renderer/FOutputTransformSettings.h"
 
 namespace Stoner::Demo
 {
@@ -73,6 +74,13 @@ struct FDemoConfiguration
     Stoner::Core::FString DeviceClassRegistryPath;
     Stoner::Core::FString ProductionCaptureRoot;
     Stoner::Core::FString ProductionCameraPresetOutput;
+    Stoner::Core::FString OutputNativeProbePath;
+    Stoner::Core::FString OutputNativeProbeProfile;
+    Stoner::Core::FString OutputDeviceProfileId =
+        Renderer::GDefaultSDROutputDeviceProfile;
+    Stoner::Core::FString OutputTransformVersion =
+        Renderer::GDefaultSDRToneMapVersion;
+    float OutputExposureStops = 0.0f;
     Stoner::Core::uint32 ProductionLifecycleCycles = 20;
     Stoner::Core::uint32 ProductionWarmupCycles = 2;
     Stoner::Core::uint64 ProductionMaxRssGrowthBytes =
@@ -102,6 +110,13 @@ struct FDemoConfiguration
     static EDemoExitCode Parse(int ArgCount, const char* const* Arguments,
         FDemoConfiguration& OutConfiguration, Stoner::Core::FString& OutReason);
 };
+
+[[nodiscard]] bool ResolveDemoOutputTransformSettings(
+    const FDemoConfiguration& Configuration,
+    float NativeReferenceWhiteNits,
+    Renderer::FOutputTransformSettings& OutSettings,
+    Renderer::FResolvedOutputTransformSettings* OutResolved = nullptr,
+    Stoner::Core::FString* OutReason = nullptr);
 
 [[nodiscard]] const char* ToString(EDemoRunMode Mode) noexcept;
 [[nodiscard]] const char* ToString(EDemoGraphicsBackend Backend) noexcept;

@@ -231,6 +231,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         Core::uint32 Cycle,
         Core::uint64 FrameToken,
         const Core::FString& Name,
+        const Core::TSharedPtr<RHI::IRHITexture>& Source,
         const Core::TSharedPtr<RHI::IRHIBuffer>& Readback,
         const RHI::FRHITextureBufferCopyRegion& Region,
         RHI::ERHIFormat Format,
@@ -239,10 +240,8 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         bool bRecordLifecycleCapture)
     {
         const bool bSelectedVisiblePath = Configuration.bVisibleCapture &&
-            ((Configuration.RenderPath == EDemoRenderPath::DeferredFull &&
-                Name == Core::FString("FinalOutput")) ||
-             (Configuration.RenderPath == EDemoRenderPath::ForwardSmoke &&
-                Name == Core::FString("ForwardColor")));
+            Configuration.RenderPath == EDemoRenderPath::DeferredFull &&
+            Name == Core::FString("FinalOutput");
         const bool bAuthoritativeFrameCapture =
             bRetainAuthoritativeEvidence && bSelectedVisiblePath &&
             Name == Core::FString("FinalOutput");
@@ -261,6 +260,9 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
         const bool bNonBlank = std::any_of(
             Bytes.begin(), Bytes.end(),
             [](Core::uint8 Value) { return Value != 0; });
+        if (Name == Core::FString("FinalOutput"))
+            ProductionExecutionInspection.FormalOutputReadbackDigest =
+                Asset::FAssetDigest::FromBytes(Bytes).ToLowerHex();
         const Core::uint32 RowTexels =
             Region.DestinationRowLengthTexels == 0
             ? Region.Width : Region.DestinationRowLengthTexels;
@@ -305,7 +307,8 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
             if (bSelectedVisiblePath)
             {
                 if (!PresentProductionCaptureWithRecovery(
-                        Capture, LifecyclePresentationScratch))
+                        Capture, Source, FrameToken,
+                        LifecyclePresentationScratch))
                     return false;
             }
             if (!Capture.Bytes.empty())
@@ -314,6 +317,8 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
             if (bAuthoritativeFrameCapture)
             {
                 ProductionExecutionInspection.AuthoritativeFrameToken =
+                    FrameToken;
+                ProductionExecutionInspection.SettledPresentedFrameToken =
                     FrameToken;
                 ProductionExecutionInspection.AuthoritativeCapture =
                     std::move(Capture);
@@ -362,6 +367,8 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                     }));
             if (!bSelectedVisiblePath ||
                 !Configuration.ProductionCaptureRoot.IsEmpty() ||
+                Configuration.OutputDeviceProfileId.View().starts_with(
+                    "Hdr.") ||
                 RetainedCalibrationCaptures >=
                     MaximumRetainedCalibrationCaptures)
             {
@@ -423,6 +430,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                         Binding.Region, Binding.Source->GetFormat(),
                         ReadbackBytes) &&
                     CaptureReadback(Cycle, FrameToken, Binding.Name,
+                        Binding.Source,
                         Binding.Destination, Binding.Region,
                         Binding.Source->GetFormat(), ReadbackBytes,
                         bRetainAuthoritativeEvidence,
@@ -440,6 +448,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionContent()
                     ProductionRuntime->ForwardBindings.OutputTexture->GetFormat(),
                     ReadbackBytes) &&
                 CaptureReadback(Cycle, FrameToken, "ForwardColor",
+                    ProductionRuntime->ForwardBindings.OutputTexture,
                     ProductionRuntime->ForwardBindings.ReadbackBuffer,
                     ProductionRuntime->ForwardBindings.ReadbackRegion,
                     ProductionRuntime->ForwardBindings.OutputTexture->GetFormat(),

@@ -2,6 +2,7 @@
 
 #include "Core/CoreMinimal.h"
 #include "Renderer/FDeferredDiagnostics.h"
+#include "Renderer/FHDRSceneColorHandoff.h"
 #include "Renderer/FDeferredLightData.h"
 #include "Renderer/FDeferredSurfaceData.h"
 #include "Renderer/FMeshDrawCommand.h"
@@ -28,7 +29,8 @@ struct FDeferredViewData
 struct FDeferredOutputTarget
 {
     Stoner::Core::FString Name;
-    Stoner::RHI::ERHIFormat Format = Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm;
+    Stoner::RHI::ERHIFormat Format =
+        Stoner::RHI::ERHIFormat::R16G16B16A16_Float;
     FDeferredExtent2D Extent;
 
     [[nodiscard]] bool IsValid(const FDeferredViewData& View,
@@ -95,6 +97,7 @@ struct FDeferredFramePlan
     FDeferredLightSet Lights;
     Stoner::Core::TArray<FDeferredPassRecord> Passes;
     FDeferredDiagnosticLog Diagnostics;
+    FHDRSceneColorHandoff SceneColorHandoff;
     Stoner::Core::FString InputFingerprint;
     Stoner::Core::FString DebugDump;
     bool bValid = false;

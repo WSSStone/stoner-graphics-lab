@@ -1,10 +1,13 @@
 #include "MetalShaderDerivationTests.h"
 
 #include "Asset/AssetMinimal.h"
+#include "Core/SGPlatform.h"
 #include "FMetalBindingMap.h"
+#include "FMetalLibraryCompiler.h"
 #include "FMetalShaderEvidenceCodec.h"
 #include "FSpirvCrossMslDeriver.h"
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -18,6 +21,17 @@ using namespace Stoner;
 using namespace Stoner::Asset;
 using namespace Stoner::AssetCooker::Private;
 using namespace Stoner::Core;
+
+const char* HostArchitecture()
+{
+#if defined(__aarch64__) || defined(__arm64__)
+    return "arm64";
+#elif defined(__x86_64__) || defined(_M_X64)
+    return "x86_64";
+#else
+    return "unsupported";
+#endif
+}
 
 void Record(
     FMetalShaderDerivationTestResult& Result,
@@ -312,6 +326,134 @@ void TestDeferredCombinedTextureSamplers(
         "deferred combined samplers derive paired Metal texture and sampler bindings");
 }
 
+void TestOutputTransformDerivation(
+    FMetalShaderDerivationTestResult& Result)
+{
+    const TArray<uint8> Spirv = ReadBytes(
+        "Content/Shaders/PostProcess/OutputTransform.frag.spv");
+    const TArray<FShaderInterfaceBinding> Interface = {
+        Binding(0, 0, EShaderResourceKind::CombinedTextureSampler, 1,
+            EShaderStage::Fragment),
+        Binding(0, 1, EShaderResourceKind::UniformBuffer, 1,
+            EShaderStage::Fragment)};
+    FSpirvCrossMslRequest Request;
+    Request.SpirvBytes = Spirv;
+    Request.Stage = EShaderStage::Fragment;
+    Request.EntryPoint = FString("main");
+    Request.InterfaceBindings = Interface;
+    FSpirvCrossMslResult Baseline;
+    bool bStable = DeriveMetalShaderSource(Request, Baseline) ==
+            EAssetResult::Success && Baseline.IsValid() &&
+        Baseline.BindingEvidence.Entries.size() == 3;
+    for (int Run = 1; Run < 20 && bStable; ++Run)
+    {
+        FSpirvCrossMslResult Candidate;
+        bStable = DeriveMetalShaderSource(Request, Candidate) ==
+                EAssetResult::Success && Candidate.IsValid() &&
+            Candidate.SpirvDigest == Baseline.SpirvDigest &&
+            Candidate.InterfaceDigest == Baseline.InterfaceDigest &&
+            Candidate.OptionsDigest == Baseline.OptionsDigest &&
+            Candidate.NormalizedMslDigest == Baseline.NormalizedMslDigest &&
+            Candidate.NormalizedMsl == Baseline.NormalizedMsl &&
+            Candidate.BindingEvidence == Baseline.BindingEvidence;
+    }
+    Record(Result, bStable &&
+            Baseline.NormalizedMsl.View().find("fragment") !=
+                std::string_view::npos &&
+            Baseline.NormalizedMsl.View().find("stoner_main") !=
+                std::string_view::npos &&
+            Baseline.NormalizedMsl.View().find("texture2d") !=
+                std::string_view::npos &&
+            Baseline.NormalizedMsl.View().find("sampler") !=
+                std::string_view::npos,
+        "output transform SPIR-V derives stable bound MSL across twenty runs");
+    if (bStable)
+    {
+        std::cout << "[EVIDENCE] metal-derivation output-transform-fragment"
+                  << " spirv="
+                  << Baseline.SpirvDigest.ToLowerHex().ToStdString()
+                  << " msl="
+                  << Baseline.NormalizedMslDigest.ToLowerHex().ToStdString()
+                  << " options="
+                  << Baseline.OptionsDigest.ToLowerHex().ToStdString()
+                  << " binding="
+                  << Baseline.BindingEvidence.CanonicalDigest
+                         .ToLowerHex().ToStdString()
+                  << '\n';
+    }
+
+#if SG_PLATFORM_MAC
+    FAssetId ShaderId;
+    const FString TargetProfile(
+        std::string("metal-macos-12-") + HostArchitecture());
+    FMetalShaderEvidence Evidence;
+    const bool bEvidenceReady = bStable &&
+        FAssetId::Create(FString("ShaderProgram"),
+            FString("Engine/Shaders/PostProcess/OutputTransform"), {},
+            ShaderId) == EAssetResult::Success;
+    if (bEvidenceReady)
+    {
+        Evidence.ShaderAssetId = std::move(ShaderId);
+        Evidence.ShaderAssetVersion = Baseline.SpirvDigest;
+        Evidence.SpirvDigest = Baseline.SpirvDigest;
+        Evidence.Stage = EShaderStage::Fragment;
+        Evidence.EntryPoint = FString("main");
+        Evidence.InterfaceDigest = Baseline.InterfaceDigest;
+        Evidence.SpirvCrossOptionsDigest = Baseline.OptionsDigest;
+        Evidence.BindingEvidence = Baseline.BindingEvidence;
+        Evidence.TargetProfile = TargetProfile;
+        Evidence.NormalizedMslDigest = Baseline.NormalizedMslDigest;
+    }
+    const std::filesystem::path Scratch =
+        std::filesystem::temp_directory_path() /
+        "stoner-output-transform-metallib-test";
+    std::error_code Error;
+    std::filesystem::remove_all(Scratch, Error);
+    std::filesystem::create_directories(Scratch, Error);
+    FMetalLibraryCompileRequest Compile;
+    Compile.WorkingDirectory = FString(Scratch.string());
+    Compile.Architecture = FString(HostArchitecture());
+    Compile.TargetProfile = TargetProfile;
+    Compile.NormalizedMsl = Baseline.NormalizedMsl;
+    const bool bEvidenceFinalized = bEvidenceReady && Error.value() == 0 &&
+        FinalizeMetalShaderEvidence(Evidence) == EAssetResult::Success;
+    if (bEvidenceFinalized)
+        Compile.DerivationEvidence = Evidence;
+    const FMetalLibraryCompileResult Library =
+        bEvidenceFinalized
+        ? FinalizeMetalLibrary(Compile)
+        : FMetalLibraryCompileResult{};
+    Record(Result,
+        Library.Succeeded() && !Library.LibraryBytes.empty() &&
+            Library.NativeEvidence.IsValid(),
+        "output transform MSL finalizes through offline metal and metallib");
+    if (Library.Succeeded())
+    {
+        std::cout << "[EVIDENCE] metal-finalization output-transform-fragment"
+                  << " metallib="
+                  << Library.NativeEvidence.NativeLibrary->LibraryDigest
+                         .ToLowerHex().ToStdString()
+                  << " size="
+                  << Library.NativeEvidence.NativeLibrary->SizeBytes
+                  << " evidence="
+                  << Library.NativeEvidence.EvidenceDigest
+                         .ToLowerHex().ToStdString()
+                  << '\n';
+    }
+    else
+    {
+        std::cout << "[EVIDENCE] metal-finalization-failure"
+                  << " reason=" << Library.StableReason.ToStdString()
+                  << " stderr=" << Library.ToolStandardError.ToStdString()
+                  << '\n';
+    }
+    std::filesystem::remove_all(Scratch, Error);
+#else
+    Record(Result, bStable,
+        "output transform metallib finalization is macOS-only");
+#endif
+}
+
 } // namespace
 
 FMetalShaderDerivationTestResult RunMetalShaderDerivationTests()
@@ -321,5 +463,6 @@ FMetalShaderDerivationTestResult RunMetalShaderDerivationTests()
     TestDerivation(Result);
     TestReflectedBindingAndEvidence(Result);
     TestDeferredCombinedTextureSamplers(Result);
+    TestOutputTransformDerivation(Result);
     return Result;
 }

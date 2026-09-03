@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stoner.local/schemas/hdr-live-review-request-v1.json",
+  "title": "Stoner macOS HDR Live Review Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "schemaVersion", "requestId", "gitRevision", "workloadRevision",
+    "backend", "hostClass", "deviceClass", "displayClass",
+    "displayCapabilityDigest", "preflightDigest", "nativeReportDigest",
+    "reviewSessionId", "profiles", "state", "firstFailure"
+  ],
+  "properties": {
+    "schema": {"const": "stoner.hdr-live-review-request"},
+    "schemaVersion": {"const": 1},
+    "requestId": {"$ref": "#/$defs/token"},
+    "gitRevision": {"$ref": "#/$defs/gitRevision"},
+    "workloadRevision": {"$ref": "#/$defs/token"},
+    "backend": {"const": "metal"},
+    "hostClass": {"const": "maintainer-local-macos-metal"},
+    "deviceClass": {"$ref": "#/$defs/token"},
+    "displayClass": {"$ref": "#/$defs/token"},
+    "displayCapabilityDigest": {"$ref": "#/$defs/sha256"},
+    "preflightDigest": {"$ref": "#/$defs/sha256"},
+    "nativeReportDigest": {"$ref": "#/$defs/sha256"},
+    "reviewSessionId": {"$ref": "#/$defs/token"},
+    "profiles": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "prefixItems": [
+        {"$ref": "#/$defs/pq1000"},
+        {"$ref": "#/$defs/pq2000"},
+        {"$ref": "#/$defs/edr1000"},
+        {"$ref": "#/$defs/edr2000"}
+      ],
+      "items": false
+    },
+    "state": {"enum": ["not-run", "unsupported", "failed", "ready-for-live-review"]},
+    "firstFailure": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": {"$ref": "#/$defs/token"},
+            "message": {"type": "string", "minLength": 1, "maxLength": 1024}
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"state": {"const": "failed"}}, "required": ["state"]},
+      "then": {"properties": {"firstFailure": {"type": "object"}}},
+      "else": {"properties": {"firstFailure": {"type": "null"}}}
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "gitRevision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "token": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "profileBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profileId", "targetPeakNits", "transfer", "gamut", "displayAdaptation", "modeGeneration", "firstFrameToken", "lastFrameToken", "settledFrameToken", "readbackDigest", "presentationReady"],
+      "properties": {
+        "profileId": {"type": "string"},
+        "targetPeakNits": {"enum": [1000, 2000]},
+        "transfer": {"enum": ["st2084", "metal-edr-linear"]},
+        "gamut": {"enum": ["rec2020-d65", "rec709-d65"]},
+        "displayAdaptation": {"enum": ["none", "system-color-management"]},
+        "modeGeneration": {"type": "integer", "minimum": 1},
+        "firstFrameToken": {"$ref": "#/$defs/token"},
+        "lastFrameToken": {"$ref": "#/$defs/token"},
+        "settledFrameToken": {"$ref": "#/$defs/token"},
+        "readbackDigest": {"$ref": "#/$defs/sha256"},
+        "presentationReady": {"const": true}
+      }
+    },
+    "pq1000": {"allOf": [{"$ref": "#/$defs/profileBase"}, {"properties": {"profileId": {"const": "Hdr.PQ.Rec2020.1000.v1"}, "targetPeakNits": {"const": 1000}, "transfer": {"const": "st2084"}, "gamut": {"const": "rec2020-d65"}, "displayAdaptation": {"const": "system-color-management"}}}]},
+    "pq2000": {"allOf": [{"$ref": "#/$defs/profileBase"}, {"properties": {"profileId": {"const": "Hdr.PQ.Rec2020.2000.v1"}, "targetPeakNits": {"const": 2000}, "transfer": {"const": "st2084"}, "gamut": {"const": "rec2020-d65"}, "displayAdaptation": {"const": "system-color-management"}}}]},
+    "edr1000": {"allOf": [{"$ref": "#/$defs/profileBase"}, {"properties": {"profileId": {"const": "Hdr.Linear.1000.v1"}, "targetPeakNits": {"const": 1000}, "transfer": {"const": "metal-edr-linear"}, "gamut": {"const": "rec709-d65"}, "displayAdaptation": {"const": "none"}}}]},
+    "edr2000": {"allOf": [{"$ref": "#/$defs/profileBase"}, {"properties": {"profileId": {"const": "Hdr.Linear.2000.v1"}, "targetPeakNits": {"const": 2000}, "transfer": {"const": "metal-edr-linear"}, "gamut": {"const": "rec709-d65"}, "displayAdaptation": {"const": "none"}}}]}
+  }
+}

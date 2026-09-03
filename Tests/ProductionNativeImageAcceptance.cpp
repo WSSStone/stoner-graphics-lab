@@ -627,10 +627,14 @@ bool BuildProductionWorkloadRegions(
     if (Width != 512 || Height != 512) return false;
     if (WorkloadRevision ==
             Core::FString("production-content-lantern-v2") ||
+        WorkloadRevision ==
+            Core::FString("production-content-lantern-v3") ||
         WorkloadRevision == Core::FString("production-content-v1"))
         OutRegions = LanternRegions(Width, Height);
     else if (WorkloadRevision ==
-        Core::FString("production-content-sponza-v2"))
+            Core::FString("production-content-sponza-v2") ||
+        WorkloadRevision ==
+            Core::FString("production-content-sponza-v3"))
         OutRegions = SponzaRegions(Width, Height);
     return OutRegions.size() == 7;
 }
@@ -645,10 +649,14 @@ bool IsProductionWorkloadNormalProbeValid(
     if (!std::isfinite(Length) || Length < 0.8f || Length > 1.2f)
         return false;
     if (WorkloadRevision ==
-        Stoner::Core::FString("production-content-sponza-v2"))
+            Stoner::Core::FString("production-content-sponza-v2") ||
+        WorkloadRevision ==
+            Stoner::Core::FString("production-content-sponza-v3"))
         return WorldNormal.Y >= 0.8f;
     if (WorkloadRevision ==
-        Stoner::Core::FString("production-content-lantern-v2"))
+            Stoner::Core::FString("production-content-lantern-v2") ||
+        WorkloadRevision ==
+            Stoner::Core::FString("production-content-lantern-v3"))
         return WorldNormal.X <= -0.8f;
     return WorkloadRevision ==
         Stoner::Core::FString("production-content-v1");
@@ -720,9 +728,10 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
 
     Core::FString Failure;
     FProductionNativeImageAcceptanceResult Result;
-    const bool bSponzaV2 = WorkloadRevision ==
-        Core::FString("production-content-sponza-v2");
-    const Core::FVector3 ExpectedNormal = bSponzaV2
+    const bool bSponzaFrozenScene =
+        WorkloadRevision == Core::FString("production-content-sponza-v2") ||
+        WorkloadRevision == Core::FString("production-content-sponza-v3");
+    const Core::FVector3 ExpectedNormal = bSponzaFrozenScene
         ? Core::FVector3::UnitY() : -Core::FVector3::UnitX();
     const FProductionPixelRegion AttachmentRegion = RegionAt(
         0.598f, 0.390f, FormalExtent, FormalExtent);
@@ -806,8 +815,8 @@ FProductionNativeImageAcceptanceResult RunProductionNativeImageAcceptance(
     Semantic.Depth = &Depth;
     Semantic.ExpectedFrameToken = Inspection.AuthoritativeFrameToken;
     Semantic.ObservedFrameToken = ColorEvidence->FrameToken;
-    Semantic.MinimumCoverageFraction = bSponzaV2 ? 0.75f : 0.01f;
-    Semantic.MaximumCoverageFraction = bSponzaV2 ? 0.82f : 0.35f;
+    Semantic.MinimumCoverageFraction = bSponzaFrozenScene ? 0.75f : 0.01f;
+    Semantic.MaximumCoverageFraction = bSponzaFrozenScene ? 0.82f : 0.35f;
     if (!BuildProductionWorkloadRegions(
             WorkloadRevision, Color.Width, Color.Height, Semantic.Regions))
         return Fail("workload-semantic-regions");

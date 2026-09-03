@@ -72,6 +72,21 @@ Core::FProcessExecutionRequest ToolRequest(
     return Request;
 }
 
+Core::FProcessExecutionRequest ExecutableRequest(
+    const Core::FString& ExecutablePath,
+    Core::TArray<Core::FString> Arguments,
+    Core::uint64 Timeout,
+    Core::usize Maximum)
+{
+    Core::FProcessExecutionRequest Request;
+    Request.ExecutablePath = ExecutablePath;
+    Request.Arguments = std::move(Arguments);
+    Request.Limits.TimeoutMilliseconds = Timeout;
+    Request.Limits.MaxStdoutBytes = Maximum;
+    Request.Limits.MaxStderrBytes = Maximum;
+    return Request;
+}
+
 EMetalLibraryFinalizeStatus ExecuteTool(
     IMetalToolExecutor& Executor,
     const Core::FProcessExecutionRequest& Request,
@@ -149,6 +164,119 @@ const char* HostArchitecture()
     return "unsupported";
 #endif
 }
+
+struct FResolvedMetalToolchain
+{
+    FMetalToolchainEvidence Evidence;
+    Core::FString MetallibExecutable;
+};
+
+bool IsAbsoluteToolPath(const Core::FString& Value)
+{
+    return !Value.IsEmpty() && NativePath(Value).is_absolute();
+}
+
+EMetalLibraryFinalizeStatus InspectMetalToolchainResolved(
+    IMetalToolExecutor& Executor,
+    Core::uint64 TimeoutMilliseconds,
+    Core::usize MaxOutputBytes,
+    FResolvedMetalToolchain& OutToolchain)
+{
+    OutToolchain = {};
+    Core::FProcessExecutionResult MetalPath;
+    Core::FProcessExecutionResult MetalVersion;
+    Core::FProcessExecutionResult MetallibPath;
+    Core::FProcessExecutionResult MetallibVersion;
+    Core::FProcessExecutionResult Xcode;
+    Core::FProcessExecutionResult Sdk;
+    auto Status = ExecuteTool(
+        Executor,
+        ToolRequest(
+            {Core::FString("--find"), Core::FString("metal")},
+            TimeoutMilliseconds, MaxOutputBytes),
+        MetalPath);
+    if (Status != EMetalLibraryFinalizeStatus::Success)
+        return Status == EMetalLibraryFinalizeStatus::TimedOut
+            ? Status : EMetalLibraryFinalizeStatus::ToolchainUnavailable;
+    Status = ExecuteTool(
+        Executor,
+        ToolRequest(
+            {Core::FString("metal"), Core::FString("--version")},
+            TimeoutMilliseconds, MaxOutputBytes),
+        MetalVersion);
+    if (Status != EMetalLibraryFinalizeStatus::Success)
+        return Status == EMetalLibraryFinalizeStatus::TimedOut
+            ? Status : EMetalLibraryFinalizeStatus::ToolchainUnavailable;
+
+    Status = ExecuteTool(
+        Executor,
+        ToolRequest(
+            {Core::FString("--find"), Core::FString("metallib")},
+            TimeoutMilliseconds, MaxOutputBytes),
+        MetallibPath);
+    Core::FString ResolvedMetallib = Trimmed(MetallibPath.StandardOutput);
+    if (Status == EMetalLibraryFinalizeStatus::TimedOut)
+        return Status;
+    if (Status != EMetalLibraryFinalizeStatus::Success ||
+        !IsAbsoluteToolPath(ResolvedMetallib))
+    {
+        MetallibPath = {};
+        Status = ExecuteTool(
+            Executor,
+            ToolRequest(
+                {Core::FString("metal"),
+                 Core::FString("-print-prog-name=metallib")},
+                TimeoutMilliseconds, MaxOutputBytes),
+            MetallibPath);
+        if (Status != EMetalLibraryFinalizeStatus::Success)
+            return Status == EMetalLibraryFinalizeStatus::TimedOut
+                ? Status : EMetalLibraryFinalizeStatus::ToolchainUnavailable;
+        ResolvedMetallib = Trimmed(MetallibPath.StandardOutput);
+        if (!IsAbsoluteToolPath(ResolvedMetallib))
+            return EMetalLibraryFinalizeStatus::ToolchainUnavailable;
+    }
+    Status = ExecuteTool(
+        Executor,
+        ExecutableRequest(
+            ResolvedMetallib,
+            {Core::FString("--version")},
+            TimeoutMilliseconds, MaxOutputBytes),
+        MetallibVersion);
+    if (Status != EMetalLibraryFinalizeStatus::Success)
+        return Status == EMetalLibraryFinalizeStatus::TimedOut
+            ? Status : EMetalLibraryFinalizeStatus::ToolchainUnavailable;
+    Status = ExecuteTool(
+        Executor,
+        ToolRequest(
+            {Core::FString("xcodebuild"), Core::FString("-version")},
+            TimeoutMilliseconds, MaxOutputBytes),
+        Xcode);
+    if (Status != EMetalLibraryFinalizeStatus::Success) return Status;
+    Status = ExecuteTool(
+        Executor,
+        ToolRequest(
+            {Core::FString("--sdk"), Core::FString("macosx"),
+             Core::FString("--show-sdk-version")},
+            TimeoutMilliseconds, MaxOutputBytes),
+        Sdk);
+    if (Status != EMetalLibraryFinalizeStatus::Success) return Status;
+
+    OutToolchain.Evidence.MetalCompiler = Core::FString(
+        Trimmed(MetalPath.StandardOutput).ToStdString() + "\n" +
+        Trimmed(MetalVersion.StandardOutput).ToStdString() + "\n" +
+        ResolvedMetallib.ToStdString() + "\n" +
+        Trimmed(MetallibVersion.StandardOutput).ToStdString());
+    OutToolchain.Evidence.XcodeBuild = Trimmed(Xcode.StandardOutput);
+    OutToolchain.Evidence.Sdk = Trimmed(Sdk.StandardOutput);
+    OutToolchain.MetallibExecutable = std::move(ResolvedMetallib);
+    if (!OutToolchain.Evidence.IsValid() ||
+        !IsAbsoluteToolPath(OutToolchain.MetallibExecutable))
+    {
+        OutToolchain = {};
+        return EMetalLibraryFinalizeStatus::ToolchainUnavailable;
+    }
+    return EMetalLibraryFinalizeStatus::Success;
+}
 #endif
 
 FMetalLibraryCompileResult Failure(
@@ -199,76 +327,12 @@ EMetalLibraryFinalizeStatus InspectMetalToolchain(
         return EMetalLibraryFinalizeStatus::InvalidRequest;
     try
     {
-        Core::FProcessExecutionResult MetalPath;
-        Core::FProcessExecutionResult MetalVersion;
-        Core::FProcessExecutionResult MetallibPath;
-        Core::FProcessExecutionResult MetallibVersion;
-        Core::FProcessExecutionResult Xcode;
-        Core::FProcessExecutionResult Sdk;
-        auto Status = ExecuteTool(
-            Executor,
-            ToolRequest(
-                {Core::FString("--find"), Core::FString("metal")},
-                TimeoutMilliseconds, MaxOutputBytes),
-            MetalPath);
-        if (Status != EMetalLibraryFinalizeStatus::Success)
-            return Status == EMetalLibraryFinalizeStatus::TimedOut
-                ? Status : EMetalLibraryFinalizeStatus::ToolchainUnavailable;
-        Status = ExecuteTool(
-            Executor,
-            ToolRequest(
-                {Core::FString("metal"), Core::FString("--version")},
-                TimeoutMilliseconds, MaxOutputBytes),
-            MetalVersion);
-        if (Status != EMetalLibraryFinalizeStatus::Success)
-            return Status == EMetalLibraryFinalizeStatus::TimedOut
-                ? Status : EMetalLibraryFinalizeStatus::ToolchainUnavailable;
-        Status = ExecuteTool(
-            Executor,
-            ToolRequest(
-                {Core::FString("--find"), Core::FString("metallib")},
-                TimeoutMilliseconds, MaxOutputBytes),
-            MetallibPath);
-        if (Status != EMetalLibraryFinalizeStatus::Success)
-            return Status == EMetalLibraryFinalizeStatus::TimedOut
-                ? Status : EMetalLibraryFinalizeStatus::ToolchainUnavailable;
-        Status = ExecuteTool(
-            Executor,
-            ToolRequest(
-                {Core::FString("metallib"), Core::FString("--version")},
-                TimeoutMilliseconds, MaxOutputBytes),
-            MetallibVersion);
-        if (Status != EMetalLibraryFinalizeStatus::Success)
-            return Status == EMetalLibraryFinalizeStatus::TimedOut
-                ? Status : EMetalLibraryFinalizeStatus::ToolchainUnavailable;
-        Status = ExecuteTool(
-            Executor,
-            ToolRequest(
-                {Core::FString("xcodebuild"), Core::FString("-version")},
-                TimeoutMilliseconds, MaxOutputBytes),
-            Xcode);
-        if (Status != EMetalLibraryFinalizeStatus::Success) return Status;
-        Status = ExecuteTool(
-            Executor,
-            ToolRequest(
-                {Core::FString("--sdk"), Core::FString("macosx"),
-                 Core::FString("--show-sdk-version")},
-                TimeoutMilliseconds, MaxOutputBytes),
-            Sdk);
-        if (Status != EMetalLibraryFinalizeStatus::Success) return Status;
-        OutEvidence.MetalCompiler = Core::FString(
-            Trimmed(MetalPath.StandardOutput).ToStdString() + "\n" +
-            Trimmed(MetalVersion.StandardOutput).ToStdString() + "\n" +
-            Trimmed(MetallibPath.StandardOutput).ToStdString() + "\n" +
-            Trimmed(MetallibVersion.StandardOutput).ToStdString());
-        OutEvidence.XcodeBuild = Trimmed(Xcode.StandardOutput);
-        OutEvidence.Sdk = Trimmed(Sdk.StandardOutput);
-        if (!OutEvidence.IsValid())
-        {
-            OutEvidence = {};
-            return EMetalLibraryFinalizeStatus::ToolchainUnavailable;
-        }
-        return EMetalLibraryFinalizeStatus::Success;
+        FResolvedMetalToolchain Resolved;
+        const EMetalLibraryFinalizeStatus Status =
+            InspectMetalToolchainResolved(
+                Executor, TimeoutMilliseconds, MaxOutputBytes, Resolved);
+        OutEvidence = std::move(Resolved.Evidence);
+        return Status;
     }
     catch (const std::bad_alloc&)
     {
@@ -359,12 +423,14 @@ FMetalLibraryCompileResult FinalizeMetalLibrary(
 
         FPlatformToolExecutor PlatformExecutor;
         IMetalToolExecutor& Tool = Executor ? *Executor : PlatformExecutor;
-        FMetalToolchainEvidence Toolchain;
-        const EMetalLibraryFinalizeStatus Doctor = InspectMetalToolchain(
-            Tool, Request.TimeoutMilliseconds,
-            Request.MaxToolOutputBytes, Toolchain);
+        FResolvedMetalToolchain ResolvedToolchain;
+        const EMetalLibraryFinalizeStatus Doctor =
+            InspectMetalToolchainResolved(
+                Tool, Request.TimeoutMilliseconds,
+                Request.MaxToolOutputBytes, ResolvedToolchain);
         if (Doctor != EMetalLibraryFinalizeStatus::Success)
             return Failure(Doctor, "metal-finalize-toolchain");
+        FMetalToolchainEvidence& Toolchain = ResolvedToolchain.Evidence;
 
         auto Metal = ToolRequest(
             {Core::FString("-sdk"), Core::FString("macosx"),
@@ -388,9 +454,9 @@ FMetalLibraryCompileResult FinalizeMetalLibrary(
              Core::FString("-c"), Utf8Path(Files.Source),
              Core::FString("-o"), Utf8Path(Files.Air)},
             Request.TimeoutMilliseconds, Request.MaxToolOutputBytes);
-        auto Metallib = ToolRequest(
-            {Core::FString("-sdk"), Core::FString("macosx"),
-             Core::FString("metallib"), Utf8Path(Files.Air),
+        auto Metallib = ExecutableRequest(
+            ResolvedToolchain.MetallibExecutable,
+            {Utf8Path(Files.Air),
              Core::FString("-o"), Utf8Path(Files.Library)},
             Request.TimeoutMilliseconds, Request.MaxToolOutputBytes);
         Core::FProcessExecutionResult Process;

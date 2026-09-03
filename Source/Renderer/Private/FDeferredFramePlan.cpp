@@ -61,14 +61,14 @@ bool FDeferredViewData::IsValid(FDeferredDiagnosticLog* Diagnostics) const
 bool FDeferredOutputTarget::IsValid(const FDeferredViewData& View,
     FDeferredDiagnosticLog* Diagnostics) const
 {
-    const bool bValid = !Name.IsEmpty() && Extent.IsPositive() &&
-        Extent.Width == View.Extent.Width && Extent.Height == View.Extent.Height &&
-        (Format == Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm ||
-            Format == Stoner::RHI::ERHIFormat::B8G8R8A8_UNorm);
+    const bool bValid = !Name.IsEmpty() &&
+        Format == Stoner::RHI::ERHIFormat::R16G16B16A16_Float &&
+        Extent.IsPositive() &&
+        Extent.Width == View.Extent.Width && Extent.Height == View.Extent.Height;
     if (!bValid)
     {
         AddError(Diagnostics, EDeferredResult::InvalidOutput, "DEF-OUTPUT", Name,
-            "output requires stable identity matching view extent and supported LDR format");
+            "SceneColor requires stable identity matching view extent and RGBA16F format");
     }
     return bValid;
 }
@@ -192,6 +192,12 @@ Stoner::Core::FString BuildDeferredFrameDebugDump(const FDeferredFramePlan& Plan
     std::ostringstream Stream;
     Stream << "DeferredFrame id=" << Plan.FrameId.CStr() << " valid=" << (Plan.bValid ? 1 : 0)
         << " layout=" << Plan.SurfaceLayout.LayoutId.CStr() << '\n';
+    Stream << "SceneColorHandoff producer="
+        << ToString(Plan.SceneColorHandoff.GetProducer())
+        << " state=" << ToString(Plan.SceneColorHandoff.GetState())
+        << " sceneColorId=" << Plan.SceneColorHandoff.GetSceneColorId()
+        << " viewId=" << Plan.SceneColorHandoff.GetViewId()
+        << " frameToken=" << Plan.SceneColorHandoff.GetFrameToken() << '\n';
     Stream << "Surface extent=" << Plan.SurfaceLayout.Extent.Width << 'x'
         << Plan.SurfaceLayout.Extent.Height << " samples="
         << static_cast<int>(Plan.SurfaceLayout.SampleCount) << " depth="

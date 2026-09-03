@@ -1,0 +1,167 @@
+name: Feature 029 HDR Output Transform
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/scripts/*output_transform*'
+      - '.github/workflows/feature-029-hdr-output.yml'
+      - 'Config/Validation/OutputTransform/**'
+      - 'Content/Shaders/PostProcess/**'
+      - 'Demo/StonerDemo/**'
+      - 'Source/**'
+      - 'Tests/**'
+      - 'specs/029-hdr-output-transform/**'
+  push:
+    branches: ['029-hdr-output-transform', 'master']
+    paths:
+      - '.github/scripts/*output_transform*'
+      - '.github/workflows/feature-029-hdr-output.yml'
+      - 'Config/Validation/OutputTransform/**'
+      - 'Content/Shaders/PostProcess/**'
+      - 'Demo/StonerDemo/**'
+      - 'Source/**'
+      - 'Tests/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: feature-029-output-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  strict-build:
+    name: ${{ matrix.name }} strict ${{ matrix.config }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: Windows Vulkan, os: windows-latest, config: debug, build: Win64, output: Debug}
+          - {name: Windows Vulkan, os: windows-latest, config: release, build: Win64, output: Release}
+          - {name: Linux Vulkan, os: ubuntu-latest, config: debug, build: Linux, output: Debug}
+          - {name: Linux Vulkan, os: ubuntu-latest, config: release, build: Linux, output: Release}
+          - {name: macOS Metal, os: macos-26, config: debug, build: Mac, output: Debug}
+          - {name: macOS Metal, os: macos-26, config: release, build: Mac, output: Release}
+    steps:
+      - uses: actions/checkout@v5
+      - if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Install SCons
+        run: python -m pip install scons==4.10.1
+      - name: Install Linux Vulkan
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
+      - name: Strict build
+        run: scons config=${{ matrix.config }} strict=1
+      - name: Output contracts
+        run: >-
+          Build/${{ matrix.build }}/${{ matrix.output }}/Tests/StonerTest
+          --suite output-device-profile
+          --suite renderer-output-transform-math
+          --suite renderer-post-process-insertion
+          --suite renderer-post-process-graph
+          --suite renderer-output-transform
+          --suite rhi-presentation-output
+          --suite output-presentation-lifecycle
+
+  linux-sanitizers:
+    name: Linux ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: ASan UBSan, flags: 'address,undefined'}
+          - {name: TSan, flags: 'thread'}
+    steps:
+      - uses: actions/checkout@v5
+      - run: python -m pip install scons==4.10.1
+      - run: sudo apt-get update && sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
+      - run: scons config=debug strict=1 sanitizers=${{ matrix.flags }}
+      - run: >-
+          Build/Linux/Debug/Tests/StonerTest
+          --suite renderer-output-transform
+          --suite output-presentation-lifecycle
+
+  lavapipe-native:
+    name: Linux Lavapipe native readback
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - run: python -m pip install scons==4.10.1
+      - run: sudo apt-get update && sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers
+      - run: scons config=debug strict=1
+      - run: Build/Linux/Debug/Tests/StonerTest --suite vulkan-output-transform-native
+
+  metal-nonvisual:
+    name: macOS Metal PQ EDR non-visual only
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      STONER_REQUIRE_METAL_OUTPUT_PRESENTATION: '1'
+    steps:
+      - uses: actions/checkout@v5
+      - run: python -m pip install scons==4.10.1
+      - run: scons config=debug strict=1
+      - run: Build/Mac/Debug/Tests/StonerTest --suite metal-output-transform-native
+      # No automated HDR visual acceptance: this lane checks native state,
+      # completion, readback, and provenance only.
+
+  artifact-producer:
+    name: Produce bounded machine evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate scripts and produce Windows HDR no-claim record
+        run: |
+          python .github/scripts/test_verify_output_transform_evidence.py
+          python .github/scripts/test_run_output_transform_validation.py
+          python .github/scripts/test_hdr_live_review_contract.py
+          python .github/scripts/test_aggregate_output_transform_validation.py
+          python .github/scripts/test_output_transform_workflows.py
+          python .github/scripts/test_run_production_image_calibration.py
+          python .github/scripts/test_verify_output_transform_vectors.py
+          python Tests/test_verify_repository_shader_assets.py
+          mkdir -p Build/Validation/029/producer
+          python .github/scripts/run_output_transform_validation.py windows-hdr-no-claim --git-revision "$GITHUB_SHA" --workload-revision output-transform-contract-v1 --output Build/Validation/029/producer/windows-hdr-no-claim.json
+          cp Config/Validation/OutputTransform/SDR/Baselines-v3.json Build/Validation/029/producer/Baselines-v3.json
+      - uses: actions/upload-artifact@v6
+        with:
+          name: output-transform-machine-evidence-${{ github.run_attempt }}
+          path: Build/Validation/029/producer
+          if-no-files-found: error
+
+  artifact-consumer:
+    name: Revalidate immutable machine evidence
+    needs: artifact-producer
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v7
+        with:
+          name: output-transform-machine-evidence-${{ github.run_attempt }}
+          path: Build/Validation/029/consumer
+      - name: Revalidate bounded schemas, digests, and no-claim policy
+        run: >-
+          python .github/scripts/verify_output_transform_evidence.py
+          --report Build/Validation/029/consumer/windows-hdr-no-claim.json
+          --sdr-registry Build/Validation/029/consumer/Baselines-v3.json
+
+  aggregate:
+    name: Aggregate machine gates without visual authority
+    needs: [strict-build, linux-sanitizers, lavapipe-native, metal-nonvisual, artifact-consumer]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - run: python .github/scripts/test_output_transform_workflows.py
+      - run: python .github/scripts/verify_output_transform_architecture.py
+      # Closeout is intentionally absent: physical SDR acceptance and the
+      # four-profile macOS HDR live-view attestation remain maintainer gates.

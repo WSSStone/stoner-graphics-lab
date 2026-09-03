@@ -24,7 +24,8 @@ class FVulkanNativeOffscreenSession;
 enum class EVulkanDeferredProbeMetric
 {
     Absolute,
-    NormalDot
+    NormalDot,
+    AlphaAbsolute
 };
 
 enum class EVulkanDeferredFailurePoint
@@ -94,6 +95,8 @@ struct FVulkanDeferredUniformPayload
 
 struct FVulkanNativeFrameBindings
 {
+    Stoner::Core::uint64 FrameToken = 0;
+    Stoner::Core::uint64 ModeGeneration = 0;
     Stoner::Core::uint32 ImageIndex = 0;
     Stoner::Core::uint32 FrameSlot = 0;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> OutputTexture;
@@ -147,6 +150,15 @@ public:
     [[nodiscard]] Stoner::RHI::ERHIResult PrepareVisibleImage(
         Stoner::Core::uint32 Width,
         Stoner::Core::uint32 Height);
+    [[nodiscard]] Stoner::RHI::ERHIResult
+    QueryVisiblePresentationCapabilities(
+        Stoner::RHI::FRHIPresentationCapabilities& OutCapabilities) const;
+    [[nodiscard]] Stoner::RHI::ERHIResult
+    RefreshVisiblePresentationCapabilities(
+        Stoner::RHI::FRHIPresentationCapabilities& OutCapabilities);
+    [[nodiscard]] Stoner::RHI::ERHIResult PrepareVisibleImage(
+        const Stoner::RHI::FRHISwapchainDesc& Request,
+        Stoner::RHI::FRHIResolvedPresentationState& OutResolvedState);
     [[nodiscard]] Stoner::RHI::ERHIResult PresentVisibleRgba8(
         std::span<const Stoner::Core::uint8> Bytes,
         Stoner::Core::uint32 Width,
@@ -155,8 +167,16 @@ public:
         Stoner::Core::TArray<Stoner::Core::uint8>& OutPresentedRgba8,
         Stoner::Core::uint32& OutWidth,
         Stoner::Core::uint32& OutHeight);
+    [[nodiscard]] Stoner::RHI::ERHIResult PresentVisibleTextureExact(
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Source,
+        Stoner::Core::uint64 FrameToken);
     [[nodiscard]] Stoner::RHI::ERHIResult AcquireVisibleFrame(FVulkanNativeFrameBindings& OutBindings);
+    [[nodiscard]] Stoner::RHI::ERHIResult AcquireVisibleFrame(
+        Stoner::Core::uint64 FrameToken,
+        FVulkanNativeFrameBindings& OutBindings);
     [[nodiscard]] Stoner::RHI::ERHIResult SubmitAndPresentVisibleFrame(const FVulkanNativeFrameBindings& Bindings);
+    [[nodiscard]] Stoner::Core::uint32
+    GetVisiblePresentationImageCount() const noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult DrawVisibleFrame();
     [[nodiscard]] Stoner::RHI::ERHIResult RecreateVisiblePresentation(
         Stoner::Core::uint32 Width,

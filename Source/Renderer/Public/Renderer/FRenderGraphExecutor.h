@@ -34,6 +34,7 @@ struct FRenderGraphExecutionDesc
     Stoner::Core::TArray<FRenderGraphImportedResourceBinding> ImportedResources;
     FRenderGraphCommandContext* CommandContext = nullptr;
     bool bFailTransientResolution = false;
+    FRenderGraphScheduleVisitor ScheduleVisitor;
 };
 
 class FRenderGraphExecutionContext

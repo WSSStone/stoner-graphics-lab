@@ -194,10 +194,15 @@ constraints; Android application packaging is not a GLES backend responsibility.
 
 **Decision**: Feature 029 owns one backend-neutral HDR `SceneColor` to display
 pipeline shared by Forward and Deferred. It defines pre-tonemap/post-tonemap
-insertion points, deterministic manual exposure, versioned tone mapping,
-sRGB/output transfer, Render Graph integration, Vulkan/Metal native
-presentation/readback, resize, and debug bypass. Feature 030 is separate: TAA
-is the pre-tonemap primary path and FXAA is the post-tonemap fallback.
+insertion points, deterministic manual exposure, RGBA16F linear Rec.709/sRGB-D65
+working space, three versioned SDR tone maps, a separate ACES-style HDR viewing
+transform, SDR sRGB/Rec.709/gamma and 1000/2000-nit PQ/scRGB output-device
+profiles, Render Graph integration, Vulkan/Metal native presentation/readback,
+resize/mode changes, and debug bypass. Windows retains SDR validation but no HDR
+authority. macOS Metal PQ/EDR visual acceptance is a live maintainer decision;
+automation is limited to non-visual contracts and attestation completeness.
+Feature 030 is separate: TAA is the pre-tonemap primary path and FXAA is the
+post-tonemap fallback.
 
 **Rationale**: Tone mapping and output transfer define the color domain in
 which AA operates. Freezing that contract first prevents Forward, Deferred,
@@ -231,10 +236,11 @@ comparable across paths.
 
 **Decision**: Feature 028 v2 `sampleCount=1` and no-general-post-processing
 references remain immutable historical correctness evidence. Features 029 and
-030 must increment affected workload revisions, generate exact-dimension
-Candidates, and require explicit maintainer acceptance. Comparison tooling must
-reject alignment, cropping, scaling, and resampling, while retaining bounded
-PNG/JSON artifacts.
+030 must increment affected workload revisions. Changed SDR output generates
+exact-dimension Candidates, requires explicit maintainer acceptance, and rejects
+alignment, cropping, scaling, and resampling. HDR visual output uses a bounded
+macOS live-view maintainer JSON attestation and no automated image comparison.
+All evidence remains bounded PNG/JSON.
 
 **Rationale**: The v2 references prove the accepted geometry, camera, lighting,
 strict-cooked, semantic, lifecycle, and backend state before formal

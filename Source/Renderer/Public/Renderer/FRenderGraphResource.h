@@ -1,6 +1,9 @@
 #pragma once
 
 #include "Core/CoreMinimal.h"
+#include "RHI/ERHIFormat.h"
+#include "RHI/ERHIPipelineState.h"
+#include "RHI/ERHIResourceUsage.h"
 
 namespace Stoner::Renderer
 {
@@ -68,6 +71,34 @@ enum class ERenderGraphResourceState
     External
 };
 
+enum class ERenderGraphColorDomain
+{
+    Unspecified,
+    SceneLinearRec709D65,
+    DisplayLinearRec709D65,
+    DisplayLinearRec2020D65,
+    EncodedSrgb,
+    EncodedBt709,
+    EncodedGamma22,
+    EncodedPqRec2020D65,
+    ExtendedSrgbLinear
+};
+
+struct FRenderGraphTextureSidecar
+{
+    Stoner::RHI::ERHIFormat Format = Stoner::RHI::ERHIFormat::Unknown;
+    Stoner::RHI::ERHISampleCount SampleCount =
+        Stoner::RHI::ERHISampleCount::One;
+    Stoner::RHI::ERHITextureUsage Usage = Stoner::RHI::ERHITextureUsage::None;
+    ERenderGraphColorDomain ColorDomain = ERenderGraphColorDomain::Unspecified;
+    bool bIsTyped = false;
+
+    [[nodiscard]] bool IsValid() const noexcept;
+    [[nodiscard]] friend bool operator==(
+        const FRenderGraphTextureSidecar& Left,
+        const FRenderGraphTextureSidecar& Right) noexcept = default;
+};
+
 struct FRenderGraphResourceDesc
 {
     Stoner::Core::FString Name;
@@ -80,10 +111,19 @@ struct FRenderGraphResourceDesc
     Stoner::Core::uint32 Height = 1;
     Stoner::Core::uint32 Depth = 1;
     Stoner::Core::uint32 FormatId = 1;
+    FRenderGraphTextureSidecar Texture;
     bool bReadOnlyImported = false;
 
     [[nodiscard]] static FRenderGraphResourceDesc Buffer(Stoner::Core::FString InName, Stoner::Core::uint64 SizeInBytes);
     [[nodiscard]] static FRenderGraphResourceDesc Texture2D(Stoner::Core::FString InName, Stoner::Core::uint32 Width, Stoner::Core::uint32 Height);
+    [[nodiscard]] static FRenderGraphResourceDesc TypedTexture2D(
+        Stoner::Core::FString InName,
+        Stoner::Core::uint32 Width,
+        Stoner::Core::uint32 Height,
+        Stoner::RHI::ERHIFormat Format,
+        Stoner::RHI::ERHISampleCount SampleCount,
+        Stoner::RHI::ERHITextureUsage Usage,
+        ERenderGraphColorDomain ColorDomain);
     [[nodiscard]] static FRenderGraphResourceDesc ImportedBuffer(Stoner::Core::FString InName, Stoner::Core::uint64 SizeInBytes, bool bReadOnly = true);
 };
 
@@ -117,5 +157,6 @@ struct FRenderGraphAliasingDecision
 [[nodiscard]] const char* ToString(ERenderGraphResourceOwnership Ownership) noexcept;
 [[nodiscard]] const char* ToString(ERenderGraphResourceState State) noexcept;
 [[nodiscard]] const char* ToString(ERenderGraphAliasReason Reason) noexcept;
+[[nodiscard]] const char* ToString(ERenderGraphColorDomain Domain) noexcept;
 
 } // namespace Stoner::Renderer

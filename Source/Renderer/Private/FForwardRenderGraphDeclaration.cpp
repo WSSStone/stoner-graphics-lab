@@ -66,6 +66,7 @@ void FForwardRenderGraphDeclaration::Clear()
     Resources.clear();
     Accesses.clear();
     Outputs.clear();
+    SceneColorHandoff = {};
 }
 
 void FForwardRenderGraphDeclaration::AddPass(FForwardPassDeclaration Pass)
@@ -88,6 +89,12 @@ void FForwardRenderGraphDeclaration::AddOutput(FForwardGraphOutputSummary Output
     Outputs.push_back(std::move(Output));
 }
 
+void FForwardRenderGraphDeclaration::SetSceneColorHandoff(
+    FForwardGraphOutputSummary Handoff)
+{
+    SceneColorHandoff = std::move(Handoff);
+}
+
 const Stoner::Core::TArray<FForwardPassDeclaration>& FForwardRenderGraphDeclaration::GetPasses() const noexcept
 {
     return Passes;
@@ -106,6 +113,12 @@ const Stoner::Core::TArray<FForwardAccessDeclaration>& FForwardRenderGraphDeclar
 const Stoner::Core::TArray<FForwardGraphOutputSummary>& FForwardRenderGraphDeclaration::GetOutputs() const noexcept
 {
     return Outputs;
+}
+
+const FForwardGraphOutputSummary&
+FForwardRenderGraphDeclaration::GetSceneColorHandoff() const noexcept
+{
+    return SceneColorHandoff;
 }
 
 Stoner::Core::FString FForwardRenderGraphDeclaration::Dump() const
@@ -136,6 +149,9 @@ Stoner::Core::FString FForwardRenderGraphDeclaration::Dump() const
         Stream << "    color=" << Output.ColorTargetName.CStr()
             << " depth=" << Output.DepthTargetName.CStr() << '\n';
     }
+    Stream << "  SceneColorHandoff\n";
+    Stream << "    color=" << SceneColorHandoff.ColorTargetName.CStr()
+        << " depth=" << SceneColorHandoff.DepthTargetName.CStr() << '\n';
     return Stoner::Core::FString(Stream.str());
 }
 
@@ -219,12 +235,13 @@ FForwardRenderGraphDeclaration BuildForwardRenderGraphDeclaration(const FForward
         }
     }
 
-    Declaration.AddOutput({Plan.OutputTarget.ColorTargetName, Plan.OutputTarget.DepthTargetName});
+    Declaration.SetSceneColorHandoff(
+        {Plan.OutputTarget.ColorTargetName, Plan.OutputTarget.DepthTargetName});
     if (Diagnostics != nullptr)
     {
         Diagnostics->Add(EForwardDiagnosticSeverity::Info, EForwardDiagnosticCategory::ResourceDeclaration,
             EForwardResult::Success, "FWD-GRAPH-DECLARED", Plan.FrameName,
-            "render graph-compatible forward declarations prepared");
+            "render graph-compatible Forward SceneColor producer declarations prepared");
     }
     return Declaration;
 }

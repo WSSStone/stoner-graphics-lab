@@ -37,6 +37,9 @@ struct FDeferredRenderGraphDeclaration
     Stoner::Core::TArray<FDeferredGraphResource> Resources;
     Stoner::Core::TArray<FDeferredGraphPass> Passes;
     Stoner::Core::TArray<FDeferredGraphAccess> Accesses;
+    Stoner::Core::FString SceneColorOutput;
+    // Retained empty while downstream Feature 028 evidence migrates to the
+    // shared Feature 029 formal-output path.
     Stoner::Core::FString FinalOutput;
     bool bValid = false;
 

@@ -19,6 +19,7 @@
 #include <chrono>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -57,6 +58,31 @@ bool HasSameLiveObjects(
         Left.LiveCommandBuffers == Right.LiveCommandBuffers &&
         Left.LiveSynchronizationObjects ==
             Right.LiveSynchronizationObjects;
+}
+
+RHI::FRHISwapchainDesc BuildProductionPresentationRequest(
+    const Renderer::FResolvedOutputTransformSettings& Settings,
+    Core::uint32 Width,
+    Core::uint32 Height,
+    Core::uint32 FramesInFlight)
+{
+    RHI::FRHISwapchainDesc Request;
+    Request.Width = Width;
+    Request.Height = Height;
+    Request.FramesInFlight = FramesInFlight;
+    Request.PreferredFormat = Settings.OutputFormat;
+    Request.PreferredColorSpace = Settings.ColorSpace;
+    Request.NativeEncoding = Settings.NativeEncoding;
+    Request.ReferenceWhiteNits = Settings.ReferenceWhiteNits;
+    Request.TargetPeakNits = Settings.TargetPeakNits;
+    Request.DisplayAdaptation =
+        Settings.NativeEncoding == RHI::ERHIPresentationNativeEncoding::Pq
+        ? RHI::ERHIPresentationDisplayAdaptation::SystemColorManagement
+        : RHI::ERHIPresentationDisplayAdaptation::None;
+    // Apple PQ and EDR deliberately keep CAEDRMetadata unset. Core Animation
+    // color management remains enabled for PQ, but system tone mapping is not.
+    Request.bHasHDRMetadata = false;
+    return Request;
 }
 
 class FMountedFileSource final : public Stoner::Asset::IAssetSource
@@ -208,7 +234,7 @@ Stoner::Renderer::FForwardFramePlan BuildTriangleFramePlan(
     Inputs.View.ViewName = "TriangleDemoView";
     Inputs.View.Viewport.Extent = {Width, Height};
     Inputs.Output.ColorTargetName = "PresentationColor";
-    Inputs.Output.FormatSummary = "BGRA8";
+    Inputs.Output.FormatSummary = "RGBA16F";
     Inputs.Output.Extent = {Width, Height};
     Inputs.Environment.Mode = EForwardBackgroundMode::Clear;
 
@@ -641,7 +667,8 @@ EDemoExitCode FStonerDemoApplication::InitializeProductionContent()
             ProductionRuntime->Composition,
             ProductionRuntime->LoadedClosure.RenderShaders,
             ProductionRuntime->LoadedClosure.RenderShaderPayloads,
-            TargetEvidence, ProductionRuntime->DeferredResources,
+            TargetEvidence, ProductionOutputSettings,
+            ProductionRuntime->DeferredResources,
             &CompositionReason) != RHI::ERHIResult::Success)
         return FailInitialize(EDemoStage::Pipeline,
             EDemoExitCode::InitializationFailed,
@@ -973,20 +1000,63 @@ EDemoExitCode FStonerDemoApplication::Initialize()
                 EDemoExitCode::InitializationFailed,
                 "ProductionSubmissionHarness",
                 "persistent production queue or fence creation failed");
+        RHI::FRHIPresentationCapabilities PresentationCapabilities;
+        float NativeReferenceWhiteNits = 80.0f;
         if (Configuration.bVisibleCapture ||
             Configuration.bProductionCameraPreview)
         {
             CurrentDrawableWidth = Window->Value.GetDrawableWidth();
             CurrentDrawableHeight = Window->Value.GetDrawableHeight();
             if (CurrentDrawableWidth == 0 || CurrentDrawableHeight == 0 ||
-                BackendRuntime->PrepareProductionPresentation(
-                    CurrentDrawableWidth, CurrentDrawableHeight) !=
-                    Stoner::RHI::ERHIResult::Success)
+                BackendRuntime->QueryProductionPresentationCapabilities(
+                    PresentationCapabilities) != RHI::ERHIResult::Success)
                 return FailInitialize(
                     EDemoStage::Pipeline,
                     EDemoExitCode::InitializationFailed,
                     "ProductionPresentation",
-                    "native production presentation resources failed");
+                    "native production presentation capabilities failed");
+            if (PresentationCapabilities.NativeReferenceWhiteNits > 0.0f)
+                NativeReferenceWhiteNits =
+                    PresentationCapabilities.NativeReferenceWhiteNits;
+        }
+        Core::FString OutputReason;
+        if (!ResolveDemoOutputTransformSettings(
+                Configuration, NativeReferenceWhiteNits,
+                ProductionOutputSettings,
+                &ProductionResolvedOutputSettings, &OutputReason))
+            return FailInitialize(
+                EDemoStage::Pipeline,
+                EDemoExitCode::InitializationFailed,
+                "ProductionOutputTransform",
+                OutputReason.IsEmpty()
+                    ? "production output settings failed"
+                    : OutputReason.CStr());
+        if (Configuration.bVisibleCapture ||
+            Configuration.bProductionCameraPreview)
+        {
+            const auto PresentationRequest = BuildProductionPresentationRequest(
+                ProductionResolvedOutputSettings,
+                CurrentDrawableWidth, CurrentDrawableHeight,
+                Configuration.MaxFramesInFlight);
+            RHI::FRHIResolvedPresentationState NativeResolved;
+            if (BackendRuntime->PrepareProductionPresentationMode(
+                    PresentationRequest, &NativeResolved) !=
+                    RHI::ERHIResult::Success ||
+                !NativeResolved.IsValid() ||
+                NativeResolved.Format !=
+                    ProductionResolvedOutputSettings.OutputFormat ||
+                NativeResolved.ColorSpace !=
+                    ProductionResolvedOutputSettings.ColorSpace ||
+                NativeResolved.NativeEncoding !=
+                    ProductionResolvedOutputSettings.NativeEncoding ||
+                NativeResolved.DisplayAdaptation !=
+                    PresentationRequest.DisplayAdaptation ||
+                NativeResolved.bHasHDRMetadata)
+                return FailInitialize(
+                    EDemoStage::Pipeline,
+                    EDemoExitCode::InitializationFailed,
+                    "ProductionPresentation",
+                    "native presentation did not resolve the exact Renderer output policy");
         }
         ProductionRuntimeBaseline = BackendRuntime->GetSnapshot();
         const EDemoExitCode ProductionResult = InitializeProductionContent();
@@ -1360,6 +1430,15 @@ EDemoExitCode FStonerDemoApplication::Run()
     ValidationMonitor.SetCompletedFrames(CompletedFrames);
     const EDemoExitCode ShutdownResult = Shutdown();
     if (Result == EDemoExitCode::Success && ShutdownResult != EDemoExitCode::Success) Result = ShutdownResult;
+    if (Result == EDemoExitCode::Success &&
+        !Configuration.OutputNativeProbePath.IsEmpty() &&
+        !WriteConfiguredOutputTransformNativeProbe())
+    {
+        Diagnostics.Add(EDemoStage::Report, EDemoExitCode::ReportFailed,
+            "OutputNativeProbe",
+            "completed native facts could not be serialized or written");
+        Result = EDemoExitCode::ReportFailed;
+    }
 
     ValidationMonitor.SetRuntimeSnapshot({});
     if (Result == EDemoExitCode::Success && bUsesLegacyFrameValidation &&

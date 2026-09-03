@@ -20,6 +20,11 @@ FMetalSwapchain::FMetalSwapchain(
     try
     {
         Images_.resize(Desc_.FramesInFlight);
+        if (Surface_ && Surface_->GetContext())
+            ResolvedState_ =
+                Surface_->GetContext()->GetResolvedPresentationState();
+        if (!ResolvedState_.IsValid())
+            State_ = RHI::ERHISwapchainState::Unavailable;
     }
     catch (const std::bad_alloc&)
     {
@@ -70,10 +75,87 @@ Core::uint64 FMetalSwapchain::GetGeneration() const noexcept
         ? Surface_->GetContext()->GetGeneration() : 0;
 }
 
+const RHI::FRHIResolvedPresentationState&
+FMetalSwapchain::GetResolvedPresentationState() const noexcept
+{
+    return ResolvedState_;
+}
+
+RHI::ERHIResult FMetalSwapchain::Reconfigure(
+    const RHI::FRHISwapchainDesc& Request)
+{
+    std::lock_guard Lock(Mutex_);
+    if (!Surface_ || !Surface_->IsValid() ||
+        State_ == RHI::ERHISwapchainState::Acquired)
+        return State_ == RHI::ERHISwapchainState::Acquired
+            ? RHI::ERHIResult::NotReady
+            : RHI::ERHIResult::InvalidState;
+    if (Request.IsZeroDrawable())
+    {
+        for (auto& Image : Images_) Image.reset();
+        Images_.clear();
+        Desc_ = Request;
+        ResolvedState_ = {};
+        AcquiredGeneration_ = 0;
+        AcquiredFrameToken_ = 0;
+        CurrentFrameIndex_ = 0;
+        State_ = RHI::ERHISwapchainState::Paused;
+        return RHI::ERHIResult::NotReady;
+    }
+    RHI::FRHIPresentationCapabilities Capabilities;
+    if (!Request.IsExactPresentationRequestValid() ||
+        Surface_->QueryCapabilities(Capabilities) !=
+            RHI::ERHIResult::Success ||
+        Request.SurfaceCapabilityGeneration !=
+            Capabilities.CapabilityGeneration ||
+        !Capabilities.SupportsPair(
+            Request.PreferredFormat, Request.PreferredColorSpace))
+        return RHI::ERHIResult::Unsupported;
+
+    Core::TArray<Core::TSharedPtr<RHI::IRHITexture>> NewImages;
+    try
+    {
+        NewImages.resize(Request.FramesInFlight);
+    }
+    catch (const std::bad_alloc&)
+    {
+        return RHI::ERHIResult::Failed;
+    }
+    const RHI::ERHIResult ReconfigureResult =
+        Surface_->GetContext()->Reconfigure(
+            Surface_->GetDesc().Window, Request);
+    if (ReconfigureResult != RHI::ERHIResult::Success)
+        return ReconfigureResult;
+
+    for (auto& Image : Images_) Image.reset();
+    Images_ = std::move(NewImages);
+    Desc_ = Request;
+    CurrentFrameIndex_ = 0;
+    AcquiredGeneration_ = 0;
+    AcquiredFrameToken_ = 0;
+    ResolvedState_ =
+        Surface_->GetContext()->GetResolvedPresentationState();
+    State_ = ResolvedState_.IsValid()
+        ? RHI::ERHISwapchainState::Ready
+        : RHI::ERHISwapchainState::Unavailable;
+    return State_ == RHI::ERHISwapchainState::Ready
+        ? RHI::ERHIResult::Success
+        : RHI::ERHIResult::Failed;
+}
+
 RHI::ERHIResult FMetalSwapchain::AcquireNextFrame(Core::uint32& OutFrameIndex)
 {
     std::lock_guard Lock(Mutex_);
+    const Core::uint64 FrameToken = NextFrameToken_++;
+    return AcquireNextFrameLocked(FrameToken, OutFrameIndex);
+}
+
+RHI::ERHIResult FMetalSwapchain::AcquireNextFrameLocked(
+    Core::uint64 FrameToken,
+    Core::uint32& OutFrameIndex)
+{
     OutFrameIndex = 0;
+    if (FrameToken == 0) return RHI::ERHIResult::InvalidState;
     if (FMetalFailureInjector::ShouldFail(
             EMetalFailurePoint::DrawableAcquisition))
     {
@@ -88,20 +170,62 @@ RHI::ERHIResult FMetalSwapchain::AcquireNextFrame(Core::uint32& OutFrameIndex)
     if (!Surface_ || !Surface_->IsValid() ||
         State_ == RHI::ERHISwapchainState::Acquired || Images_.empty())
         return RHI::ERHIResult::InvalidState;
+    if (Surface_->GetCapabilityGeneration() !=
+        Desc_.SurfaceCapabilityGeneration)
+    {
+        State_ = RHI::ERHISwapchainState::ResizeRequired;
+        return RHI::ERHIResult::ResizeRequired;
+    }
     auto Result = Surface_->GetContext()->Acquire(
-        CurrentFrameIndex_, Images_[CurrentFrameIndex_], AcquiredGeneration_);
+        CurrentFrameIndex_, FrameToken, Images_[CurrentFrameIndex_],
+        AcquiredGeneration_);
+    ResolvedState_ =
+        Surface_->GetContext()->GetResolvedPresentationState();
     if (Result != RHI::ERHIResult::Success)
     {
         Images_[CurrentFrameIndex_].reset();
         AcquiredGeneration_ = 0;
+        AcquiredFrameToken_ = 0;
         State_ = Result == RHI::ERHIResult::ResizeRequired
             ? RHI::ERHISwapchainState::ResizeRequired
             : RHI::ERHISwapchainState::Unavailable;
         return Result;
     }
     State_ = RHI::ERHISwapchainState::Acquired;
+    AcquiredFrameToken_ = FrameToken;
     OutFrameIndex = CurrentFrameIndex_;
     return RHI::ERHIResult::Success;
+}
+
+RHI::ERHIResult FMetalSwapchain::AcquireNextFrame(
+    Core::uint64 FrameToken,
+    RHI::FRHIPresentationFrame& OutFrame)
+{
+    OutFrame = {};
+    std::lock_guard Lock(Mutex_);
+    Core::uint32 ImageIndex = 0;
+    const RHI::ERHIResult Result =
+        AcquireNextFrameLocked(FrameToken, ImageIndex);
+    if (Result != RHI::ERHIResult::Success) return Result;
+    OutFrame.FrameToken = FrameToken;
+    OutFrame.ModeGeneration = ResolvedState_.ModeGeneration;
+    OutFrame.SwapchainImageGeneration =
+        ResolvedState_.SwapchainImageGeneration;
+    OutFrame.ImageIndex = ImageIndex;
+    OutFrame.Width = ResolvedState_.Width;
+    OutFrame.Height = ResolvedState_.Height;
+    OutFrame.Format = ResolvedState_.Format;
+    OutFrame.ColorSpace = ResolvedState_.ColorSpace;
+    OutFrame.DisplayAdaptation = ResolvedState_.DisplayAdaptation;
+    OutFrame.MetadataDigest = ResolvedState_.MetadataDigest;
+    if (OutFrame.IsValid()) return RHI::ERHIResult::Success;
+    Surface_->GetContext()->CancelAcquire(
+        CurrentFrameIndex_, AcquiredGeneration_);
+    Images_[CurrentFrameIndex_].reset();
+    AcquiredGeneration_ = 0;
+    AcquiredFrameToken_ = 0;
+    State_ = RHI::ERHISwapchainState::Unavailable;
+    return RHI::ERHIResult::InvalidState;
 }
 
 RHI::ERHIResult FMetalSwapchain::AcquireNextFrame(
@@ -120,6 +244,7 @@ RHI::ERHIResult FMetalSwapchain::AcquireNextFrame(
             CurrentFrameIndex_, AcquiredGeneration_);
         Images_[CurrentFrameIndex_].reset();
         AcquiredGeneration_ = 0;
+        AcquiredFrameToken_ = 0;
         State_ = RHI::ERHISwapchainState::Unavailable;
     }
     return SignalResult;
@@ -127,7 +252,18 @@ RHI::ERHIResult FMetalSwapchain::AcquireNextFrame(
 
 RHI::ERHIResult FMetalSwapchain::Present(Core::uint32 FrameIndex)
 {
-    return Present(FrameIndex, nullptr);
+    std::lock_guard Lock(Mutex_);
+    return PresentLocked(FrameIndex, AcquiredFrameToken_, nullptr);
+}
+
+RHI::ERHIResult FMetalSwapchain::Present(
+    const RHI::FRHIPresentationFrame& Frame)
+{
+    std::lock_guard Lock(Mutex_);
+    if (!Frame.Matches(ResolvedState_) ||
+        Frame.FrameToken != AcquiredFrameToken_)
+        return RHI::ERHIResult::InvalidState;
+    return PresentLocked(Frame.ImageIndex, Frame.FrameToken, nullptr);
 }
 
 RHI::ERHIResult FMetalSwapchain::Present(
@@ -135,6 +271,14 @@ RHI::ERHIResult FMetalSwapchain::Present(
     const Core::TSharedPtr<RHI::IRHISemaphore>& WaitSemaphore)
 {
     std::lock_guard Lock(Mutex_);
+    return PresentLocked(FrameIndex, AcquiredFrameToken_, WaitSemaphore);
+}
+
+RHI::ERHIResult FMetalSwapchain::PresentLocked(
+    Core::uint32 FrameIndex,
+    Core::uint64 FrameToken,
+    const Core::TSharedPtr<RHI::IRHISemaphore>& WaitSemaphore)
+{
     if (FMetalFailureInjector::ShouldFail(
             EMetalFailurePoint::Presentation))
     {
@@ -150,6 +294,17 @@ RHI::ERHIResult FMetalSwapchain::Present(
         State_ != RHI::ERHISwapchainState::Acquired ||
         FrameIndex != CurrentFrameIndex_)
         return RHI::ERHIResult::InvalidState;
+    if (Surface_->GetCapabilityGeneration() !=
+        Desc_.SurfaceCapabilityGeneration)
+    {
+        Surface_->GetContext()->CancelAcquire(
+            FrameIndex, AcquiredGeneration_);
+        Images_[FrameIndex].reset();
+        AcquiredGeneration_ = 0;
+        AcquiredFrameToken_ = 0;
+        State_ = RHI::ERHISwapchainState::ResizeRequired;
+        return RHI::ERHIResult::ResizeRequired;
+    }
     Core::TSharedPtr<FMetalSemaphore> NativeWait;
     if (WaitSemaphore)
     {
@@ -158,7 +313,7 @@ RHI::ERHIResult FMetalSwapchain::Present(
             return RHI::ERHIResult::InvalidState;
     }
     const auto Result = Surface_->GetContext()->Present(
-        FrameIndex, AcquiredGeneration_, NativeWait);
+        FrameIndex, AcquiredGeneration_, FrameToken, NativeWait);
     if (Result != RHI::ERHIResult::Success)
     {
         if (Result == RHI::ERHIResult::NotReady)
@@ -167,6 +322,7 @@ RHI::ERHIResult FMetalSwapchain::Present(
             FrameIndex, AcquiredGeneration_);
         Images_[FrameIndex].reset();
         AcquiredGeneration_ = 0;
+        AcquiredFrameToken_ = 0;
         State_ = Result == RHI::ERHIResult::ResizeRequired
             ? RHI::ERHISwapchainState::ResizeRequired
             : RHI::ERHISwapchainState::Unavailable;
@@ -175,6 +331,7 @@ RHI::ERHIResult FMetalSwapchain::Present(
     Images_[FrameIndex].reset();
     CurrentFrameIndex_ = (CurrentFrameIndex_ + 1) % Desc_.FramesInFlight;
     AcquiredGeneration_ = 0;
+    AcquiredFrameToken_ = 0;
     State_ = RHI::ERHISwapchainState::Ready;
     return RHI::ERHIResult::Success;
 }

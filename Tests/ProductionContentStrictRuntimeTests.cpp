@@ -286,8 +286,8 @@ RunProductionContentStrictRuntimeTests()
             SessionClosure.Dependencies.Shaders.size() > 0 &&
             SessionClosure.Dependencies.ShaderPayloads.size() > 0 &&
             SessionClosure.Dependencies.Textures.size() > 0 &&
-            SessionClosure.RenderShaders.size() == 5 &&
-            SessionClosure.RenderShaderPayloads.size() == 9 &&
+            SessionClosure.RenderShaders.size() == 6 &&
+            SessionClosure.RenderShaderPayloads.size() == 11 &&
             SessionInspection.bPublished &&
             SessionInspection.Manager.ResolverExecutions == 0 &&
             SessionInspection.Manager.ImporterExecutions == 0 &&

@@ -2524,7 +2524,7 @@ void TestCompressedFormatAndUploadContracts(
     Record(
         Result,
         bTotalFormatTable &&
-            ValidFormatCount == 29 &&
+            ValidFormatCount == 30 &&
             !GetRHIFormatInfo(ERHIFormat::Unknown).IsValid() &&
             !GetRHIFormatInfo(
                 static_cast<ERHIFormat>(255)).IsValid(),

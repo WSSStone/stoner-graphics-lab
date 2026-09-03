@@ -4,6 +4,7 @@
 #include "FDemoValidationMonitor.h"
 #include "FProductionContentComposition.h"
 #include "FProductionContentDeferredExecution.h"
+#include "FOutputTransformValidationCommand.h"
 #include "FProductionAuthorityWindowExtent.h"
 #include "FProductionPresentationPixels.h"
 #include "RendererStaticModelRealizationTestSupport.h"
@@ -61,12 +62,13 @@ bool BuildDeferredShaderClosure(
 {
     using namespace Stoner::Tests::StaticModelRealization;
     const auto Append = [&OutShaders, &OutPayloads](
-        const char* Leaf,
+        const char* Directory, const char* Leaf,
         Core::TArray<Asset::FShaderInterfaceBinding> Bindings) -> bool
     {
+        const std::string LogicalPath =
+            std::string("Engine/Shaders/") + Directory + "/" + Leaf;
         Asset::FShaderAssetDesc Desc;
-        Desc.Id = Id("ShaderProgram",
-            (std::string("Engine/Shaders/Deferred/") + Leaf).c_str());
+        Desc.Id = Id("ShaderProgram", LogicalPath.c_str());
         Desc.Version = Version(Leaf);
         Desc.InterfaceBindings = std::move(Bindings);
         Asset::FShaderVariantDefinition Variant;
@@ -79,8 +81,7 @@ bool BuildDeferredShaderClosure(
                 ? "vertex" : "fragment";
             const auto Bytes = Spirv(Stage);
             const Asset::FAssetId PayloadId = Id(
-                "ShaderPayload",
-                (std::string("Engine/Shaders/Deferred/") + Leaf).c_str(),
+                "ShaderPayload", LogicalPath.c_str(),
                 (std::string("payload.vulkan.") + Suffix).c_str());
             Asset::FAssetVersion PayloadVersion;
             PayloadVersion.SourceDigest =
@@ -105,7 +106,7 @@ bool BuildDeferredShaderClosure(
                 std::string(Leaf) + "." + Suffix);
             Source.ExpectedDigest = Version(Source.Locator.View()).ContentDigest;
             const auto SourceId = Id("ShaderSource",
-                (std::string("Engine/Shaders/Deferred/") + Leaf).c_str(),
+                LogicalPath.c_str(),
                 (std::string("source.") + Suffix).c_str());
             (void)Asset::TSoftAssetRef<Asset::FShaderSourceAsset>::Create(
                 SourceId, Source.Source);
@@ -168,10 +169,10 @@ bool BuildDeferredShaderClosure(
             bFrame ? Both : Fragment));
         return Result;
     };
-    return Append("DirectionalLight", GBuffer(false)) &&
-        Append("PointLight", GBuffer(true)) &&
-        Append("SpotLight", GBuffer(true)) &&
-        Append("Composition", {
+    return Append("Deferred", "DirectionalLight", GBuffer(false)) &&
+        Append("Deferred", "PointLight", GBuffer(true)) &&
+        Append("Deferred", "SpotLight", GBuffer(true)) &&
+        Append("Deferred", "Composition", {
             Binding(2, 0,
                 Asset::EShaderResourceKind::CombinedTextureSampler,
                 Fragment),
@@ -180,6 +181,13 @@ bool BuildDeferredShaderClosure(
                 Fragment),
             Binding(2, 4,
                 Asset::EShaderResourceKind::CombinedTextureSampler,
+                Fragment)}) &&
+        Append("PostProcess", "OutputTransform", {
+            Binding(0, 0,
+                Asset::EShaderResourceKind::CombinedTextureSampler,
+                Fragment),
+            Binding(0, 1,
+                Asset::EShaderResourceKind::UniformBuffer,
                 Fragment)});
 }
 
@@ -188,6 +196,80 @@ bool BuildDeferredShaderClosure(
 FProductionContentDemoTestResult RunProductionContentDemoTests()
 {
     FProductionContentDemoTestResult Result;
+    Core::FString Reason;
+
+    FOutputTransformValidationProbeInput Probe;
+    Probe.HostPlatform = "macos";
+    Probe.Backend = "metal";
+    Probe.ProfileKind = "native-hdr-nonvisual";
+    Probe.WorkloadRevision = "production-content-lantern-v3";
+    Probe.DeviceClass = "macos.apple8.metal.hdr-v1";
+    Probe.CapabilityDigest = Core::FString(std::string(64, '1'));
+    Probe.OutputDeviceProfileId = "Hdr.PQ.Rec2020.1000.v1";
+    Probe.TransformVersion =
+        "Hdr.ACES2.0.0_2025-04-04.Rec2020D65.v1";
+    Probe.InsertionDigest = Core::FString(std::string(64, '2'));
+    Probe.ReadbackDigest = Core::FString(std::string(64, '3'));
+    Probe.Width = 512;
+    Probe.Height = 512;
+    Probe.FirstFrameToken = 1;
+    Probe.LastFrameToken = 17;
+    Probe.SettledFrameToken = 17;
+    Probe.Execution.Result = Renderer::EOutputTransformResult::Success;
+    Probe.Execution.FinalState =
+        Renderer::EOutputTransformPlanState::Published;
+    Probe.Execution.bFormalOutputPublished = true;
+    Probe.Execution.PublishedFormalOutputId = 1;
+    Probe.Execution.FrameToken = 17;
+    Probe.Execution.bNativeFrameAcquired = true;
+    Probe.Execution.bNativeSubmitted = true;
+    Probe.Execution.bNativeCompletionObserved = true;
+    Probe.Execution.bNativeReadbackCompleted = true;
+    Probe.Execution.bNativePresented = true;
+    auto& State = Probe.Execution.ResolvedPresentationState;
+    State.ModeGeneration = 4;
+    State.SwapchainImageGeneration = 4;
+    State.Width = 512;
+    State.Height = 512;
+    State.Format = RHI::ERHIFormat::R10G10B10A2_UNorm;
+    State.ColorSpace = RHI::ERHIPresentationColorSpace::Hdr10St2084;
+    State.NativeEncoding = RHI::ERHIPresentationNativeEncoding::Pq;
+    State.DisplayAdaptation =
+        RHI::ERHIPresentationDisplayAdaptation::SystemColorManagement;
+    State.ReferenceWhiteNits = 100.0f;
+    State.TargetPeakNits = 1000.0f;
+    auto& Frame = Probe.Execution.PresentationFrame;
+    Frame.FrameToken = 17;
+    Frame.ModeGeneration = 4;
+    Frame.SwapchainImageGeneration = 4;
+    Frame.Width = 512;
+    Frame.Height = 512;
+    Frame.Format = State.Format;
+    Frame.ColorSpace = State.ColorSpace;
+    Frame.DisplayAdaptation = State.DisplayAdaptation;
+    Core::FString ProbeJson;
+    Record(Result,
+        FOutputTransformValidationCommand::SerializeNormalizedNativeProbe(
+            Probe, ProbeJson, &Reason) &&
+            ProbeJson.View().find("\"outstandingTerminalOwnerCount\":0") !=
+                std::string_view::npos &&
+            ProbeJson.View().find("\"hdrMetadataDigest\":null") !=
+                std::string_view::npos &&
+            ProbeJson.View().find(
+                "\"displayAdaptation\":\"system-color-management\"") !=
+                std::string_view::npos &&
+            ProbeJson.View().find("visualAuthority") ==
+                std::string_view::npos &&
+            ProbeJson.View().find("visualDecision") ==
+                std::string_view::npos,
+        "output transform probe serializes same-frame native facts without HDR visual authority");
+    Probe.Execution.OutstandingTerminalOwnerCount = 1;
+    Record(Result,
+        !FOutputTransformValidationCommand::SerializeNormalizedNativeProbe(
+            Probe, ProbeJson, &Reason) &&
+            Reason == Core::FString(
+                "successful native probe lacks same-frame completion or retained a terminal owner"),
+        "output transform probe rejects terminal owner leaks");
 
     const Core::TArray<Core::uint8> SourcePixels = {
         255, 0, 0, 255, 0, 255, 0, 255,
@@ -226,7 +308,6 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
         "formal production authority derives an exact drawable client extent without image scaling");
     FDemoConfiguration Vulkan;
     FDemoConfiguration Metal;
-    Core::FString Reason;
     Record(Result,
         ParseArray(RegularArguments("vulkan"), Vulkan, Reason) ==
                 EDemoExitCode::Success &&
@@ -293,6 +374,17 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
                 FDemoConfiguration::ProductionImageAcceptanceExtent,
         "formal image acceptance freezes the render extent at exactly 512x512");
 
+    auto CaptureArguments = VisibleArguments;
+    CaptureArguments.insert(CaptureArguments.end(), {
+        "--production-capture-root",
+        "Build/Validation/029/test-captures"});
+    Record(Result,
+        ParseArray(std::move(CaptureArguments), Visible, Reason) ==
+                EDemoExitCode::Success &&
+            Visible.ProductionCaptureRoot == Core::FString(
+                "Build/Validation/029/test-captures"),
+        "visible SDR authority exposes an exact native capture root");
+
     for (Core::usize Index = 0; Index + 1 < VisibleArguments.size(); ++Index)
         if (Core::FString(VisibleArguments[Index]) == Core::FString("--width"))
             VisibleArguments[Index + 1] = "256";
@@ -318,6 +410,93 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
             Metal.GraphicsBackend == EDemoGraphicsBackend::Metal &&
             Vulkan.GraphicsBackend == EDemoGraphicsBackend::Vulkan,
         "Vulkan and Metal consume the same backend-neutral workload identity");
+
+    const auto MakeHdrArguments = [](const char* Profile)
+    {
+        auto Arguments = RegularArguments("metal");
+        for (Core::usize Index = 0; Index + 1 < Arguments.size(); ++Index)
+        {
+            const Core::FString Option(Arguments[Index]);
+            if (Option == Core::FString("--mode"))
+                Arguments[Index + 1] = "validate";
+            else if (Option == Core::FString("--target-profile"))
+                Arguments[Index + 1] =
+                    "Config/AssetCooker/Profiles/Mac-Metal-Arm64.json";
+            else if (Option == Core::FString("--workload-revision"))
+                Arguments[Index + 1] = "production-content-lantern-v3";
+        }
+        Arguments.insert(Arguments.end(), {
+            "--visible-capture", "--width", "512", "--height", "512",
+            "--output-device-profile", Profile,
+            "--output-transform-version",
+            Renderer::GInitialHDRViewingVersion,
+            "--output-exposure-stops", "0"});
+        return Arguments;
+    };
+    FDemoConfiguration MetalPq;
+    Renderer::FOutputTransformSettings MetalPqSettings;
+    Renderer::FResolvedOutputTransformSettings MetalPqResolved;
+    Record(Result,
+        ParseArray(MakeHdrArguments("Hdr.PQ.Rec2020.1000.v1"),
+            MetalPq, Reason) == EDemoExitCode::Success &&
+            ResolveDemoOutputTransformSettings(
+                MetalPq, 100.0f, MetalPqSettings, &MetalPqResolved,
+                &Reason) &&
+            MetalPqResolved.OutputFormat ==
+                RHI::ERHIFormat::R10G10B10A2_UNorm &&
+            MetalPqResolved.ColorSpace ==
+                RHI::ERHIPresentationColorSpace::Hdr10St2084 &&
+            MetalPqResolved.NativeEncoding ==
+                RHI::ERHIPresentationNativeEncoding::Pq,
+        "visible Metal PQ profile resolves the Renderer-owned packed10/PQ policy");
+
+    auto PqProbeArguments =
+        MakeHdrArguments("Hdr.PQ.Rec2020.1000.v1");
+    PqProbeArguments.insert(PqProbeArguments.end(), {
+        "--output-native-probe",
+        "Build/Validation/029/test-pq-probe.json",
+        "--output-native-profile", "native-hdr-nonvisual"});
+    Record(Result,
+        ParseArray(std::move(PqProbeArguments), MetalPq, Reason) ==
+                EDemoExitCode::Success &&
+            MetalPq.OutputNativeProbeProfile == Core::FString(
+                "native-hdr-nonvisual"),
+        "visible Metal HDR v3 accepts a machine-only native probe destination");
+
+    FDemoConfiguration MetalEdr;
+    Renderer::FOutputTransformSettings MetalEdrSettings;
+    Renderer::FResolvedOutputTransformSettings MetalEdrResolved;
+    Record(Result,
+        ParseArray(MakeHdrArguments("Hdr.Linear.2000.v1"),
+            MetalEdr, Reason) == EDemoExitCode::Success &&
+            ResolveDemoOutputTransformSettings(
+                MetalEdr, 203.0f, MetalEdrSettings, &MetalEdrResolved,
+                &Reason) &&
+            MetalEdrResolved.OutputFormat ==
+                RHI::ERHIFormat::R16G16B16A16_Float &&
+            MetalEdrResolved.ColorSpace ==
+                RHI::ERHIPresentationColorSpace::ExtendedSrgbLinear &&
+            MetalEdrResolved.NativeEncoding ==
+                RHI::ERHIPresentationNativeEncoding::MetalEdr &&
+            MetalEdrResolved.ReferenceWhiteNits == 203.0f,
+        "visible Metal EDR profile preserves the native-resolved reference white");
+
+    auto InvalidVulkanHdr = MakeHdrArguments("Hdr.PQ.Rec2020.1000.v1");
+    for (Core::usize Index = 0;
+         Index + 1 < InvalidVulkanHdr.size(); ++Index)
+    {
+        const Core::FString Option(InvalidVulkanHdr[Index]);
+        if (Option == Core::FString("--backend"))
+            InvalidVulkanHdr[Index + 1] = "vulkan";
+    }
+    FDemoConfiguration InvalidVulkanHdrConfig;
+    Record(Result,
+        ParseArray(std::move(InvalidVulkanHdr), InvalidVulkanHdrConfig,
+            Reason) ==
+            EDemoExitCode::InvalidConfiguration &&
+            Reason == Core::FString(
+                "Feature 029 HDR presentation is Metal-only"),
+        "Feature 029 rejects Vulkan HDR presentation without an authority claim");
 
     auto ForwardArguments = RegularArguments("vulkan");
     for (Core::usize Index = 0; Index + 1 < ForwardArguments.size(); ++Index)
@@ -528,6 +707,55 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
                 SponzaV2Composition.ForwardInputs.View.ViewProjectionMatrix),
         "Sponza v2 frozen camera is exact and backend-neutral across Deferred and Forward");
 
+    FProductionCameraPreset LanternV2Preset;
+    FProductionCameraPreset LanternV3Preset;
+    FProductionCameraPreset SponzaV3Preset;
+    FProductionContentCompositionConfig LanternV3Config = CompositionConfig;
+    LanternV3Config.WorkloadRevision = "production-content-lantern-v3";
+    FProductionContentComposition LanternV3Composition;
+    FProductionContentCompositionConfig SponzaV3Config = CompositionConfig;
+    SponzaV3Config.WorkloadRevision = "production-content-sponza-v3";
+    FProductionContentComposition SponzaV3Composition;
+    const bool bV3PreservesFrozenScene =
+        ResolveProductionCameraPreset(
+            CompositionConfig.WorkloadRevision, LanternV2Preset,
+            &CompositionReason) &&
+        ResolveProductionCameraPreset(
+            LanternV3Config.WorkloadRevision, LanternV3Preset,
+            &CompositionReason) &&
+        ResolveProductionCameraPreset(
+            SponzaV3Config.WorkloadRevision, SponzaV3Preset,
+            &CompositionReason) &&
+        FProductionContentCompositionBuilder::Build(
+            Snapshot, LanternV3Config, LanternV3Composition,
+            &CompositionReason) &&
+        FProductionContentCompositionBuilder::Build(
+            Snapshot, SponzaV3Config, SponzaV3Composition,
+            &CompositionReason);
+    Record(Result,
+        bV3PreservesFrozenScene &&
+            LanternV3Preset.WorkloadRevision ==
+                Core::FString("production-content-lantern-v3") &&
+            SponzaV3Preset.WorkloadRevision ==
+                Core::FString("production-content-sponza-v3") &&
+            LanternV3Preset.View.NearlyEquals(LanternV2Preset.View) &&
+            LanternV3Preset.Projection.NearlyEquals(
+                LanternV2Preset.Projection) &&
+            SponzaV3Preset.View.NearlyEquals(SponzaV2Preset.View) &&
+            SponzaV3Preset.Projection.NearlyEquals(
+                SponzaV2Preset.Projection) &&
+            !Composition.DeferredInputs.DirectionalLights.empty() &&
+            !LanternV3Composition.DeferredInputs.DirectionalLights.empty() &&
+            !SponzaV2Composition.DeferredInputs.DirectionalLights.empty() &&
+            !SponzaV3Composition.DeferredInputs.DirectionalLights.empty() &&
+            LanternV3Composition.DeferredInputs.DirectionalLights.front().
+                Direction == Composition.DeferredInputs.DirectionalLights.front().
+                    Direction &&
+            SponzaV3Composition.DeferredInputs.DirectionalLights.front().
+                Direction == SponzaV2Composition.DeferredInputs.
+                    DirectionalLights.front().Direction,
+        "Feature 029 v3 aliases preserve the exact v2 camera and scene lighting");
+
     Renderer::FDeferredRendererConfiguration DeferredConfig;
     DeferredConfig.bEnableValidationReadback = true;
     Renderer::FDeferredFramePlan DeferredPlan;
@@ -650,6 +878,14 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
     Record(Result,
         bForwardPrepared && ForwardExecution.Succeeded() &&
             NativeForwardBindings.OutputTexture &&
+            NativeForwardBindings.OutputTexture->GetFormat() ==
+                RHI::ERHIFormat::R16G16B16A16_Float &&
+            RHI::HasRHIFlag(
+                NativeForwardBindings.OutputTexture->GetUsage(),
+                RHI::ERHITextureUsage::Sampled) &&
+            RHI::HasRHIFlag(
+                NativeForwardBindings.OutputTexture->GetUsage(),
+                RHI::ERHITextureUsage::CopySource) &&
             NativeForwardBindings.AuxiliaryColorTextures.size() == 2 &&
             NativeForwardBindings.DepthTexture &&
             NativeForwardBindings.DepthTexture->GetFormat() ==
@@ -669,15 +905,31 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
                 ForwardPlan.OutputTarget.Extent.Width &&
             NativeForwardBindings.ReadbackRegion.Height ==
                 ForwardPlan.OutputTarget.Extent.Height &&
+            ForwardPlan.SceneColorHandoff.GetState() ==
+                Renderer::EHDRSceneColorState::Declared &&
+            ForwardPlan.SceneColorHandoff.GetFormat() ==
+                RHI::ERHIFormat::R16G16B16A16_Float &&
             ForwardExecution.RecordedDrawCount ==
                 NativeForwardBindings.Draws.size(),
-        "Forward smoke records the same aggregate draws and native color readback contract");
+        "Forward smoke records aggregate draws and hands SceneColor to the shared output pipeline");
 
     FProductionContentDeferredExecutionResources DeferredResources;
+    Renderer::FOutputTransformSettings DefaultOutputSettings;
+    DefaultOutputSettings.ManualExposureStops = 0.0f;
+    DefaultOutputSettings.DynamicRange = Renderer::EOutputDynamicRange::SDR;
+    DefaultOutputSettings.SDRToneMapVersion =
+        Renderer::GDefaultSDRToneMapVersion;
+    DefaultOutputSettings.OutputDeviceProfileId =
+        Renderer::GDefaultSDROutputDeviceProfile;
+    DefaultOutputSettings.PreferredNativeEncoding =
+        RHI::ERHIPresentationNativeEncoding::SdrExplicit;
+    DefaultOutputSettings.bRequirePresentation = true;
+    DefaultOutputSettings.bRequireReadback = true;
     const auto MissingDeferredShaders = bComposed
         ? FProductionContentDeferredExecutionBuilder::Build(
             Fixture.Request.Device, *Snapshot, Composition, {}, {},
-            *Fixture.Request.TargetEvidence, DeferredResources,
+            *Fixture.Request.TargetEvidence, DefaultOutputSettings,
+            DeferredResources,
             &CompositionReason)
         : RHI::ERHIResult::Failed;
     Record(Result,
@@ -694,7 +946,8 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
         ? FProductionContentDeferredExecutionBuilder::Build(
             Fixture.Request.Device, *Snapshot, Composition,
             RenderShaders, RenderPayloads,
-            *Fixture.Request.TargetEvidence, DeferredResources,
+            *Fixture.Request.TargetEvidence, DefaultOutputSettings,
+            DeferredResources,
             &CompositionReason)
         : RHI::ERHIResult::Failed;
     const auto DeferredExecution =
@@ -721,9 +974,12 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
             LifecycleBindings.Readbacks.front().Name ==
                 Core::FString("FinalOutput") &&
             LifecycleBindings.Readbacks.front().Source ==
+                DeferredResources.Bindings.FormalOutput &&
+            DeferredResources.Bindings.FormalOutput !=
                 DeferredResources.Bindings.FinalOutput &&
+            DeferredResources.Bindings.OutputTransformStages.size() == 3 &&
             AuthoritativeBindings.Readbacks.size() == 6,
-        "lifecycle reads only final output while post-lifecycle extraction retains all authoritative attachments");
+        "lifecycle reads only the three-stage formal output while post-lifecycle extraction retains all authoritative attachments");
 
     FProductionContentComposition InvalidComposition;
     CompositionConfig.FrameToken = 0;

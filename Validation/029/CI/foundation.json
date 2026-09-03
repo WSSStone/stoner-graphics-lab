@@ -1,0 +1,70 @@
+{
+  "schema": "stoner.feature-029-foundation",
+  "schemaVersion": 1,
+  "status": "passed",
+  "sourceState": {
+    "kind": "working-tree",
+    "baseRevision": "e66f848d5537db2f5f98b79ae9892b8f1ee9da26"
+  },
+  "contracts": {
+    "presentation": {
+      "exactFormatColorSpacePairs": true,
+      "versionedHdrMetadata": true,
+      "monotonicCapabilityGeneration": true,
+      "immutableResolvedState": true,
+      "unsupportedFallbackAllowed": false,
+      "zeroDrawableResult": "paused",
+      "staleImageGenerationRejectedBeforeLookup": true
+    },
+    "renderGraph": {
+      "typedTextureSidecar": [
+        "extent",
+        "format",
+        "sample-count",
+        "usage",
+        "color-domain"
+      ],
+      "externalSideEffects": [
+        "readback",
+        "presentation"
+      ],
+      "scheduleAuthority": "existing-render-graph",
+      "transitionsInterleavedBeforeOwningPass": true,
+      "secondGraphIntroduced": false
+    }
+  },
+  "checks": [
+    {
+      "name": "strict-debug-build",
+      "command": "conda run -n godot scons config=debug strict=1 -j8",
+      "result": "passed"
+    },
+    {
+      "name": "rhi-presentation-output",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite rhi-presentation-output",
+      "result": "passed",
+      "passedAssertions": 14,
+      "failedAssertions": 0
+    },
+    {
+      "name": "renderer-render-graph",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite renderer-render-graph",
+      "result": "passed",
+      "passedAssertions": 62,
+      "failedAssertions": 0
+    },
+    {
+      "name": "rhi-regression",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite rhi",
+      "result": "passed",
+      "passedAssertions": 256,
+      "failedAssertions": 0
+    }
+  ],
+  "boundedEvidence": {
+    "checkedInJsonFiles": 1,
+    "rawReportsCheckedIn": false,
+    "pngFiles": 0,
+    "automatedVisualDecision": false
+  }
+}

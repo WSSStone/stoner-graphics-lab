@@ -1,0 +1,56 @@
+{
+  "schema": "stoner.feature-029-prepush-repair",
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-09-03T03:21:11Z",
+  "sourceState": {
+    "kind": "working-tree-before-first-implementation-commit",
+    "baseRevision": "e66f848d5537db2f5f98b79ae9892b8f1ee9da26",
+    "exactCommitCaptureClaim": false
+  },
+  "digests": {
+    "releaseTestBinarySha256": "502d3ab11a279e36fc741e3975d244e07f9d59c048a99ceb76f8dc8687b9d76c",
+    "releaseDemoBinarySha256": "e669729927175533e888f0f2c7996fbd935389cc592c95fad47a95d8411b13f8",
+    "acesCpuSourceSha256": "edac461d16260b20bf9432718a28d1bc1031b9d5187dc85a252e0c2a4831b655",
+    "outputShaderSourceSha256": "927dbc992806e7e69528e2df0a6a0a6b8d30809b73bd8face4c9ea8c80e264df",
+    "vectorManifestSha256": "77aabc634d565862079cc6aa55625bccfc934632d7d4068d360654952aaa121d",
+    "unchangedVectorsSha256": "16189846ba601040696fbb1db6120eed36253feffeae02362a691e250c24aa76",
+    "unchangedSpirvSha256": "3d4faf6d5ba0fdfb1f92e557ef3e1a107816bf0f2bbd8cea463f2fb2216df2fa",
+    "productionRunnerSummarySha256": "d3e26399bcb829ee84c9144c758be35fc486d02bd93ecede555eaac35491b626",
+    "productionRunnerManifestSha256": "cd7476fa03c85676534cc09fcb5d071ebfce599b04011bcc23fa15569945f353"
+  },
+  "checks": {
+    "strictReleaseBuild": "passed",
+    "pythonTestFiles": 8,
+    "pythonTestsPassed": 66,
+    "focusedCppSuites": "passed",
+    "offlineMetalDerivationAndFinalization": "passed",
+    "glslRecompileTarget": "vulkan1.3",
+    "recompiledSpirvByteIdentical": true,
+    "vectorFindings": 0,
+    "shaderAssetFindings": 0,
+    "architectureFindings": 0,
+    "roadmapNumberDependencyAnchorTaskOldPhaseFindings": 0,
+    "stagedWhitespaceFindings": 0
+  },
+  "feature028Regression": {
+    "executionClass": "local-diagnostic",
+    "backend": "metal",
+    "profile": "regular",
+    "cleanRuns": 20,
+    "semanticEquivalence": "passed",
+    "strictRuntime": "passed",
+    "nativeLifecycle": "passed",
+    "terminalOwnerCount": 0,
+    "note": "Environment-dependent tests were rerun through the producer with a fresh publication after direct invocation correctly rejected missing roots. No native deferral was used."
+  },
+  "authority": {
+    "completedTasks": 109,
+    "totalTasks": 118,
+    "pendingTasks": ["T101", "T102", "T103", "T104", "T105", "T106", "T112", "T117", "T118"],
+    "windowsHdrClaim": false,
+    "automaticSdrAcceptance": false,
+    "automaticHdrVisualDecision": false,
+    "preliminaryM4CapturesRelabeled": false,
+    "closeoutClaim": false
+  }
+}

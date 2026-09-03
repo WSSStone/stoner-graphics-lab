@@ -1,6 +1,6 @@
 # Stoner Graphics Lab - Engine Development Roadmap
 
-> **Version**: 2.3.0 | **Created**: 2026-04-21 | **Last Updated**: 2026-09-01 | **Status**: Active
+> **Version**: 2.3.1 | **Created**: 2026-04-21 | **Last Updated**: 2026-09-02 | **Status**: Active
 > **Constitution**: v1.4.0
 > **Numbering Rule**: Every runtime phase number equals its Speckit feature number. The roadmap is a standalone governance document and does not occupy a feature number; runtime phases begin at 003.
 > **Completed Baseline**: Features 001 and 003 through 028 are implemented and verified.
@@ -210,7 +210,7 @@ depend on Tools.
 | 026 | Runtime Asset Manager | Asset | 020, 025 | XL | Yes | ✅ Done |
 | 027 | Metal Backend | Backend | 008, 016, 018, 023, 025 | XL | No | ✅ Done |
 | 028 | Production Content Integration & Acceptance | Asset | 018, 019, 022, 024, 026, 027 | L | Yes | ✅ Done |
-| 029 | HDR Post-Processing & Output Transform | Renderer | 013, 015, 018, 019, 027, 028 | L | Yes | ⬜ Todo |
+| 029 | HDR Post-Processing & Output Transform | Renderer | 013, 015, 018, 019, 027, 028 | XL | Yes | ⬜ Todo |
 | 030 | Anti-Aliasing & Temporal Reconstruction | Renderer | 004, 013, 015, 017, 019, 028, 029 | XL | Yes | ⬜ Todo |
 | 031 | Meshlet Derived Data | Asset | 024, 025, 026, 028 | XL | No | ⬜ Todo |
 | 032 | GPU-Driven Visibility & LOD | Renderer | 013, 031 | XL | No | ⬜ Todo |
@@ -1065,38 +1065,51 @@ Implement Production Content Integration and Acceptance on Features 018, 019, 02
 
 **Layer**: Renderer
 **Dependencies**: 013, 015, 018, 019, 027, 028
-**Complexity**: L (1-2 weeks)
+**Complexity**: XL (2-4 weeks)
 **Critical Path**: ✅ Yes — all subsequent image-quality work needs one formal HDR-to-display contract
 
 #### Scope
 Establish the backend-neutral output pipeline from HDR `SceneColor` to the
 display target. Forward and Deferred feed the same Render Graph contract, with
 explicit pre-tonemap and post-tonemap insertion points, deterministic manual
-exposure, versioned tone mapping, and explicit sRGB/output transfer.
+exposure, and an RGBA16F scene-referred linear Rec.709/sRGB-D65 working space.
+SDR implements versioned Khronos PBR Neutral, ACES fitted, and Extended
+Reinhard tone maps with Khronos PBR Neutral as the default, followed by explicit
+sRGB, Rec.709, or gamma output transfer. HDR instead uses a separate versioned
+ACES-style viewing transform and 1000/2000-nit PQ Rec.2020 or scRGB/EDR output-
+device transform; SDR curves must not pre-compress the HDR path.
+
 Vulkan and Metal execute the same Renderer policy for native presentation and
-readback, including resize and a diagnostic bypass that can expose the declared
-intermediate without silently changing the formal output path.
+readback, including output-device-aware swapchain/drawable creation, resize,
+mode changes, and a diagnostic bypass that can expose the declared intermediate
+without silently changing the formal output path. Windows retains required SDR
+validation but claims no HDR validation. macOS Metal is the sole HDR visual
+authority for PQ and EDR/scRGB; a maintainer must inspect the live output and
+record the decision, while automation may validate only non-visual transform,
+format, metadata, submission, readback, and attestation-completeness contracts.
 
 Feature 028's v2 `sampleCount=1` output with no general post-processing remains
 historical correctness evidence. Once this phase changes formal output, every
 affected workload must increment its workload revision, generate a new
-Candidate, and receive explicit maintainer acceptance. Comparison tooling must
-reject automatic alignment, cropping, scaling, or resampling and must retain
-the bounded PNG/JSON evidence policy.
+exact-dimension SDR Candidate, and receive explicit maintainer acceptance.
+SDR comparison tooling must reject automatic alignment, cropping, scaling, or
+resampling. HDR visual acceptance uses a bounded manual JSON attestation rather
+than automated perceptual scoring or Candidate/reference image comparison. All
+paths retain the bounded PNG/JSON evidence policy.
 
 #### Key Deliverables
-- `FHDRPostProcessPipeline`, `FOutputTransformSettings`, `EPostProcessInsertionPoint`, and a versioned tone-mapping contract
+- `FHDRPostProcessPipeline`, `FOutputTransformSettings`, `EPostProcessInsertionPoint`, versioned SDR tone maps, and a separate versioned HDR viewing-transform contract
 - Render Graph `SceneColor` input/output declarations plus explicit pre-tonemap and post-tonemap extension points
-- Deterministic manual exposure, tone mapping, sRGB/output transfer, and debug-bypass modes
-- One Forward/Deferred composition path with Vulkan/Metal native presentation, readback, resize, and lifecycle validation
-- Revisioned exact-dimension Candidate/reference reports with explicit maintainer acceptance and bounded PNG/JSON artifacts
+- Deterministic manual exposure; RGBA16F linear Rec.709/sRGB-D65 working space; SDR sRGB/Rec.709/gamma and HDR PQ/scRGB output-device transforms; debug-bypass modes
+- One Forward/Deferred composition path with Vulkan/Metal native presentation, HDR-capable applicable swapchains/drawables, readback, resize/mode-change, and lifecycle validation
+- Revisioned exact-dimension SDR Candidate/reference reports plus macOS Metal live-view PQ/EDR maintainer attestations, all with explicit acceptance and bounded PNG/JSON artifacts
 
 #### What's Excluded
-- Anti-aliasing, bloom, depth of field, motion blur, automatic exposure, HDR10/EDR output, vendor upscalers, and a post-processing editor
+- Anti-aliasing, bloom, depth of field, motion blur, automatic exposure, vendor upscalers, and a post-processing editor
 
 #### Speckit Prompt
 ```text
-Implement Renderer HDR Post-Processing and Output Transform on Features 013, 015, 018, 019, 027, and 028: define a backend-neutral HDR SceneColor-to-display Render Graph pipeline shared by Forward and Deferred; explicit pre-tonemap and post-tonemap insertion points; deterministic manual exposure; versioned tone mapping; explicit sRGB/output transfer; Vulkan and Metal native presentation/readback parity; resize-safe resource recreation; and a diagnostic debug bypass. Preserve Feature 028 v2 sampleCount=1/no-general-post-processing output as historical correctness evidence. Any formal output change must increment the affected workload revision, generate a new exact-dimension Candidate, and require explicit maintainer acceptance; reject automatic alignment, cropping, scaling, and resampling, and retain bounded PNG/JSON evidence. Exclude anti-aliasing, bloom, depth of field, motion blur, automatic exposure, HDR10/EDR, vendor upscalers, and a post-processing editor.
+Implement Renderer HDR Post-Processing and Output Transform on Features 013, 015, 018, 019, 027, and 028: define one Forward/Deferred Render Graph path from RGBA16F scene-referred linear Rec.709/sRGB-D65 SceneColor through manual exposure and explicit pre/post-tonemap insertion points. Implement versioned SDR Khronos PBR Neutral, ACES fitted, and Extended Reinhard tone maps with Khronos PBR Neutral as default, then explicit sRGB, Rec.709, or gamma output transfer. For HDR, do not run an SDR curve first; use a separate versioned ACES-style HDR viewing transform plus 1000/2000-nit PQ Rec.2020 and scRGB/EDR output-device transforms, including applicable HDR swapchains/drawables, native presentation/readback, resize/mode changes, and diagnostic bypass. Windows retains SDR validation but claims no HDR validation. macOS Metal alone performs PQ and EDR/scRGB HDR visual authority through live maintainer inspection; automation may check only non-visual contracts and attestation completeness and must not score or accept HDR appearance. Preserve Feature 028 v2 sampleCount=1/no-general-post-processing output as historical evidence. Changed SDR output increments workload revision, generates an exact-dimension Candidate, requires explicit maintainer acceptance, rejects alignment/cropping/scaling/resampling, and retains bounded PNG/JSON evidence. HDR visual output uses a bounded explicit maintainer JSON attestation rather than automated Candidate/reference comparison. Exclude anti-aliasing, bloom, depth of field, motion blur, automatic exposure, vendor upscalers, and a post-processing editor.
 ```
 
 ### Phase 030 — Renderer: Anti-Aliasing & Temporal Reconstruction
@@ -1616,6 +1629,7 @@ Post-Processing & Output Transform is the next roadmap phase.
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-02 | 2.3.1 | Expanded Feature 029 from SDR-only output to the clarified Unreal-style SDR/PQ/scRGB output-device matrix; froze the Rec.709/sRGB-D65 working space and SDR/HDR transform split; made macOS Metal live human review the sole HDR visual authority; retained Windows SDR but no Windows HDR validation; and separated SDR Candidate/reference automation from bounded HDR maintainer attestations. |
 | 2026-09-01 | 2.3.0 | Inserted Feature 029 HDR Post-Processing & Output Transform and Feature 030 Anti-Aliasing & Temporal Reconstruction after completed Feature 028; shifted the former future Features 029-039 to 031-041; preserved Meshlet dependencies; made Screen-Space GI reuse the Feature 030 temporal foundation; and retained Feature 028 v2 as immutable historical correctness evidence with revisioned, exact-dimension, maintainer-accepted future Candidates. |
 | 2026-09-01 | 2.2.2 | Marked Feature 028 complete at implementation revision `588d245` after hosted run 33467298777 and final M4 Metal authority passed; recorded the maintainer-approved one-time Windows physical-evidence carry-forward without fabricating a final-revision run; activated Meshlet Derived Data under the then-current numbering, subsequently renumbered to Feature 031 by Roadmap 2.3. |
 | 2026-08-21 | 2.2.1 | Marked Feature 027 complete after the ten-job hosted matrix and required hardware run 32394691067 passed physical M4 Pro arm64 Metal/Vulkan and hosted Intel x86_64 Metal-only native acceptance; activated Feature 028 Production Content Integration & Acceptance. |

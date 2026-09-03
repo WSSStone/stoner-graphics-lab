@@ -87,10 +87,9 @@ FShaderTargetRequest MakeShaderTarget(
 
 const FShaderAsset* FindProgram(
     const TArray<TSharedPtr<const FShaderAsset>>& Programs,
-    const char* Leaf)
+    const char* LogicalPath)
 {
-    const FString Expected(
-        std::string("Engine/Shaders/Deferred/") + Leaf);
+    const FString Expected(LogicalPath);
     const auto Found = std::find_if(
         Programs.begin(), Programs.end(),
         [&Expected](const auto& Program)
@@ -356,6 +355,84 @@ bool CreateDescriptors(
     return true;
 }
 
+bool CreateOutputTransformDescriptors(
+    IRHIDevice& Device,
+    const TSharedPtr<IRHIPipelineLayout>& Layout,
+    const TSharedPtr<IRHITexture>& Input,
+    const TSharedPtr<IRHISampler>& Sampler,
+    const TSharedPtr<IRHIBuffer>& Parameters,
+    FProductionContentDeferredExecutionResources& Owner,
+    TArray<TSharedPtr<IRHIDescriptorSet>>& Out)
+{
+    if (!Layout || !Input || !Sampler || !Parameters) return false;
+    auto Created = Device.CreateDescriptorSet(Layout, 0);
+    if (!Created.Succeeded() ||
+        Created.Object->UpdateCombinedTextureSampler(
+            0, 0, Input, Sampler) != ERHIResult::Success ||
+        Created.Object->UpdateBuffer(1, 0, Parameters) != ERHIResult::Success)
+        return false;
+    Out.push_back(Created.Object);
+    Owner.OwnedDescriptorSets.push_back(std::move(Created.Object));
+    return true;
+}
+
+bool CreateOutputTransformStage(
+    IRHIDevice& Device,
+    const FProgramResources& Program,
+    const TSharedPtr<IRHITexture>& Input,
+    const TSharedPtr<IRHITexture>& Output,
+    const TSharedPtr<IRHISampler>& Sampler,
+    const FOutputTransformShaderParameterPayload& Parameters,
+    const char* Name,
+    FProductionContentDeferredExecutionResources& Owner)
+{
+    if (!Parameters.IsValid() || !Input || !Output) return false;
+    FDeferredPostProcessStageBinding Stage;
+    Stage.Name = Name;
+    Stage.Input = Input;
+    Stage.Output = Output;
+    if (!CreatePass(Device,
+            {{ERHIAttachmentRole::Color, Output->GetFormat(),
+                ERHISampleCount::One, ERHIAttachmentLoadOp::Clear,
+                ERHIAttachmentStoreOp::Store}},
+            {{Output, 0, 0}}, Output->GetDesc().Width,
+            Output->GetDesc().Height, Owner, Stage.Stage.RenderPass,
+            Stage.Stage.Framebuffer) ||
+        !CreatePipeline(Device, Program, GetDeferredFullscreenVertexLayout(),
+            {Output->GetFormat()}, ERHIFormat::Unknown, false,
+            ERHICullMode::None, Name, Owner, Stage.Stage.Pipeline))
+        return false;
+    TSharedPtr<IRHIBuffer> ParameterBuffer;
+    if (!CreateUploadedBuffer(Device, Parameters.Bytes.data(),
+            Parameters.Bytes.size(), ERHIBufferUsage::Uniform, Owner,
+            ParameterBuffer) ||
+        !CreateOutputTransformDescriptors(Device, Program.Layout, Input,
+            Sampler, ParameterBuffer, Owner, Stage.Stage.DescriptorSets))
+        return false;
+    Owner.Bindings.OutputTransformStages.push_back(std::move(Stage));
+    return true;
+}
+
+bool BuildOutputTransformPlan(
+    const FProductionContentComposition& Composition,
+    const FOutputTransformSettings& Settings,
+    FOutputTransformPlan& OutPlan)
+{
+    FHDRSceneColorHandoffDesc Desc;
+    Desc.SceneColorId = Composition.FrameToken;
+    Desc.Producer = EHDRSceneColorProducer::Deferred;
+    Desc.ViewId = Composition.FrameToken;
+    Desc.FrameToken = Composition.FrameToken;
+    Desc.Width = Composition.DeferredInputs.View.Extent.Width;
+    Desc.Height = Composition.DeferredInputs.View.Extent.Height;
+    auto Handoff = FHDRSceneColorHandoff::Declare(Desc);
+    if (!Handoff.BindProducer({1, 0}) || !Handoff.MarkProduced()) return false;
+    const auto Prepared = FHDRPostProcessPipeline().Prepare(Handoff, Settings);
+    if (!Prepared.Succeeded()) return false;
+    OutPlan = Prepared.Plan;
+    return OutPlan.IsValid();
+}
+
 bool AddReadback(
     IRHIDevice& Device,
     const char* Name,
@@ -384,10 +461,12 @@ bool AddReadback(
 
 bool FProductionContentDeferredExecutionResources::IsValid() const noexcept
 {
-    return Plan.IsValid() && Graph.bValid && Bindings.CommandBuffer &&
+    return Plan.IsValid() && Graph.bValid && OutputTransformPlan.IsValid() &&
+        Bindings.CommandBuffer &&
         Bindings.BaseColorAO && Bindings.NormalRoughness &&
         Bindings.EmissiveMetallic && Bindings.Depth &&
         Bindings.LightingAccumulation && Bindings.FinalOutput &&
+        Bindings.FormalOutput && Bindings.OutputTransformStages.size() == 3 &&
         !Bindings.SurfaceDraws.empty() && Bindings.FullscreenVertexBuffer &&
         Bindings.SphereVertexBuffer && Bindings.SphereIndexBuffer &&
         Bindings.ConeVertexBuffer && Bindings.ConeIndexBuffer &&
@@ -425,6 +504,7 @@ void FProductionContentDeferredExecutionResources::Release() noexcept
     InvalidateReverse(OwnedBuffers);
     Plan = {};
     Graph = {};
+    OutputTransformPlan = {};
 }
 
 ERHIResult FProductionContentDeferredExecutionBuilder::Build(
@@ -434,6 +514,7 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
     const TArray<TSharedPtr<const FShaderAsset>>& RenderShaders,
     const TArray<TSharedPtr<const FShaderPayloadAsset>>& RenderShaderPayloads,
     const FAssetTargetProfileEvidence& TargetEvidence,
+    const FOutputTransformSettings& OutputSettings,
     FProductionContentDeferredExecutionResources& OutResources,
     FString* OutReason)
 {
@@ -445,12 +526,19 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
         Fail(OutReason, "invalid Deferred production execution input");
         return ERHIResult::InvalidState;
     }
-    const auto* Directional = FindProgram(RenderShaders, "DirectionalLight");
-    const auto* Point = FindProgram(RenderShaders, "PointLight");
-    const auto* Spot = FindProgram(RenderShaders, "SpotLight");
-    const auto* CompositionProgram = FindProgram(RenderShaders, "Composition");
+    const auto* Directional = FindProgram(
+        RenderShaders, "Engine/Shaders/Deferred/DirectionalLight");
+    const auto* Point = FindProgram(
+        RenderShaders, "Engine/Shaders/Deferred/PointLight");
+    const auto* Spot = FindProgram(
+        RenderShaders, "Engine/Shaders/Deferred/SpotLight");
+    const auto* CompositionProgram = FindProgram(
+        RenderShaders, "Engine/Shaders/Deferred/Composition");
+    const auto* OutputTransformProgram = FindProgram(
+        RenderShaders, "Engine/Shaders/PostProcess/OutputTransform");
     const FShaderTargetRequest Target = MakeShaderTarget(TargetEvidence);
     if (!Directional || !Point || !Spot || !CompositionProgram ||
+        !OutputTransformProgram ||
         Target.AcceptableProfiles.empty())
     {
         Fail(OutReason, "strict Deferred shader closure is incomplete");
@@ -469,6 +557,8 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
     }
     Candidate.Graph = BuildDeferredRenderGraphDeclaration(Candidate.Plan);
     if (!Candidate.Graph.bValid ||
+        !BuildOutputTransformPlan(
+            Composition, OutputSettings, Candidate.OutputTransformPlan) ||
         !BindProductionDeferredDraws(
             Snapshot, Candidate.Plan, Candidate.Bindings, OutReason) ||
         !UploadProductionDeferredUniforms(
@@ -480,6 +570,7 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
     FProgramResources PointResources;
     FProgramResources SpotResources;
     FProgramResources CompositionResources;
+    FProgramResources OutputTransformResources;
     if (!CreateProgram(*Device, *Directional, Target, Lookup, Candidate,
             DirectionalResources) ||
         !CreateProgram(*Device, *Point, Target, Lookup, Candidate,
@@ -487,7 +578,9 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
         !CreateProgram(*Device, *Spot, Target, Lookup, Candidate,
             SpotResources) ||
         !CreateProgram(*Device, *CompositionProgram, Target, Lookup, Candidate,
-            CompositionResources))
+            CompositionResources) ||
+        !CreateProgram(*Device, *OutputTransformProgram, Target, Lookup,
+            Candidate, OutputTransformResources))
     {
         Fail(OutReason, "Deferred strict shader realization failed");
         return ERHIResult::InvalidState;
@@ -515,7 +608,8 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
             ERHIFormat::R16G16B16A16_Float, GBufferUsage, Candidate,
             Candidate.Bindings.LightingAccumulation) ||
         !CreateTexture(*Device, Width, Height, Candidate.Plan.Output.Format,
-            ERHITextureUsage::ColorAttachment | ERHITextureUsage::CopySource,
+            ERHITextureUsage::ColorAttachment | ERHITextureUsage::Sampled |
+                ERHITextureUsage::CopySource,
             Candidate, Candidate.Bindings.FinalOutput))
     {
         Fail(OutReason, "Deferred attachment creation failed");
@@ -530,6 +624,25 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
     }
     const auto SharedSampler = Sampler.Object;
     Candidate.OwnedSamplers.push_back(std::move(Sampler.Object));
+
+    const ERHITextureUsage IntermediateOutputUsage =
+        ERHITextureUsage::ColorAttachment | ERHITextureUsage::Sampled;
+    TSharedPtr<IRHITexture> ExposedSceneColor;
+    TSharedPtr<IRHITexture> DisplayLinear;
+    if (!CreateTexture(*Device, Width, Height,
+            ERHIFormat::R16G16B16A16_Float, IntermediateOutputUsage,
+            Candidate, ExposedSceneColor) ||
+        !CreateTexture(*Device, Width, Height,
+            ERHIFormat::R16G16B16A16_Float, IntermediateOutputUsage,
+            Candidate, DisplayLinear) ||
+        !CreateTexture(*Device, Width, Height,
+            Candidate.OutputTransformPlan.OutputDesc.Format,
+            ERHITextureUsage::ColorAttachment | ERHITextureUsage::CopySource,
+            Candidate, Candidate.Bindings.FormalOutput))
+    {
+        Fail(OutReason, "formal output transform attachment creation failed");
+        return ERHIResult::Failed;
+    }
 
     TArray<FDeferredLightUniform> Lights;
     Lights.reserve(Candidate.Plan.Lights.Accepted.size());
@@ -674,6 +787,35 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
     Candidate.Bindings.Transparency.Pipeline =
         Candidate.Bindings.Composition.Pipeline;
 
+    const FHDRPostProcessPipeline OutputPipeline;
+    const auto ExposureParameters = OutputPipeline.BuildShaderParameterPayload(
+        Candidate.OutputTransformPlan.ResolvedSettings,
+        EOutputTransformStageKind::ManualExposure);
+    const auto ToneParameters = OutputPipeline.BuildShaderParameterPayload(
+        Candidate.OutputTransformPlan.ResolvedSettings,
+        Candidate.OutputTransformPlan.ResolvedSettings.DynamicRange ==
+                EOutputDynamicRange::SDR
+            ? EOutputTransformStageKind::SDRToneMap
+            : EOutputTransformStageKind::HDRViewingTransform);
+    const auto DeviceParameters = OutputPipeline.BuildShaderParameterPayload(
+        Candidate.OutputTransformPlan.ResolvedSettings,
+        EOutputTransformStageKind::OutputDeviceTransform);
+    if (!CreateOutputTransformStage(*Device, OutputTransformResources,
+            Candidate.Bindings.FinalOutput, ExposedSceneColor, SharedSampler,
+            ExposureParameters, "production-output-manual-exposure",
+            Candidate) ||
+        !CreateOutputTransformStage(*Device, OutputTransformResources,
+            ExposedSceneColor, DisplayLinear, SharedSampler, ToneParameters,
+            "production-output-tone-map", Candidate) ||
+        !CreateOutputTransformStage(*Device, OutputTransformResources,
+            DisplayLinear, Candidate.Bindings.FormalOutput, SharedSampler,
+            DeviceParameters, "production-output-device-transform",
+            Candidate))
+    {
+        Fail(OutReason, "formal output transform realization failed");
+        return ERHIResult::Failed;
+    }
+
     const auto FrameBuffer = FindFrameBuffer(Snapshot);
     const std::array<TSharedPtr<IRHITexture>, 5> GBufferTextures = {
         Candidate.Bindings.BaseColorAO,
@@ -717,7 +859,7 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
         !AddReadback(*Device, "LightingAccumulation",
             Candidate.Bindings.LightingAccumulation, Width, Height,
             Candidate) ||
-        !AddReadback(*Device, "FinalOutput", Candidate.Bindings.FinalOutput,
+        !AddReadback(*Device, "FinalOutput", Candidate.Bindings.FormalOutput,
             Width, Height, Candidate))
     {
         Fail(OutReason, "Deferred readback allocation failed");

@@ -1,0 +1,34 @@
+{
+  "schema": "stoner.shader-program",
+  "version": 1,
+  "id": {"type": "ShaderProgram", "path": "Engine/Shaders/PostProcess/OutputTransform"},
+  "requiredExtensions": [],
+  "programKind": "graphics",
+  "stages": [
+    {"stage": "vertex", "entryPoint": "main", "language": "glsl", "source": {"asset": {"type": "ShaderSource", "path": "Engine/Shaders/PostProcess/Fullscreen", "subresource": "source.vertex"}, "locator": "Fullscreen.vert", "digest": "sha256:aeb7401391e688b8b91972973ef84138020733f7d40146027309be6b71921995"}},
+    {"stage": "fragment", "entryPoint": "main", "language": "glsl", "source": {"asset": {"type": "ShaderSource", "path": "Engine/Shaders/PostProcess/OutputTransform", "subresource": "source.fragment"}, "locator": "OutputTransform.frag", "digest": "sha256:927dbc992806e7e69528e2df0a6a0a6b8d30809b73bd8face4c9ea8c80e264df"}}
+  ],
+  "allowedPermutationFlags": [],
+  "requiredParameters": [],
+  "interface": {"bindings": [
+    {"set": 0, "binding": 0, "kind": "combinedTextureSampler", "arrayCount": 1, "visibility": ["fragment"], "name": "InputColorTexture"},
+    {"set": 0, "binding": 1, "kind": "uniformBuffer", "arrayCount": 1, "visibility": ["fragment"], "name": "OutputTransformParameters"}
+  ], "constantRanges": []},
+  "variants": [{"name": "default", "flags": [], "payloads": [
+    {"backend": "vulkan", "profile": "vulkan-1.3", "format": "spirv", "stage": "vertex", "entryPoint": "main", "asset": {"type": "ShaderPayload", "path": "Engine/Shaders/PostProcess/Fullscreen", "subresource": "payload.vulkan.vertex"}, "locator": "Fullscreen.vert.spv", "digest": "sha256:347c12d94126663d233b9baa37d4a1e9a2bbcc015f79d8e587cf3992cfacce36", "producer": "Stoner.CheckedInSpirv", "producerVersion": "029-v1"},
+    {"backend": "vulkan", "profile": "vulkan-1.3", "format": "spirv", "stage": "fragment", "entryPoint": "main", "asset": {"type": "ShaderPayload", "path": "Engine/Shaders/PostProcess/OutputTransform", "subresource": "payload.vulkan.fragment"}, "locator": "OutputTransform.frag.spv", "digest": "sha256:3d4faf6d5ba0fdfb1f92e557ef3e1a107816bf0f2bbd8cea463f2fb2216df2fa", "producer": "Stoner.CheckedInSpirv", "producerVersion": "029-v2"}
+  ]}],
+  "extensions": {
+    "stoner.outputTransform": {
+      "defaultToneMap": "Sdr.KhronosPbrNeutral.v1",
+      "defaultProfile": "Sdr.sRGB.v1",
+      "stageModes": {"manualExposure": 0, "sdrToneMap": 1, "outputDeviceTransform": 2},
+      "profileRegistry": {"id": "output-transform-profiles-v1", "digest": "sha256:6e3373ab31b36aff9e91d1b6b854d75d1171226e57bc3c236f8a1bbce1e1f7d9"},
+      "referenceVectors": {"id": "output-transform-vectors-v1", "digest": "sha256:16189846ba601040696fbb1db6120eed36253feffeae02362a691e250c24aa76", "manifestDigest": "sha256:77aabc634d565862079cc6aa55625bccfc934632d7d4068d360654952aaa121d"},
+      "constantsDigest": "sha256:71cdf65fd28460f58a26b94cdc4c722320f240864fddb8e2173c7210e7aff9ae",
+      "tolerancePolicyDigest": "sha256:4e3665150d985cfb6b2e05ac46490f5dde295be52730f8afd3f18f4bf20015ce",
+      "transformVersions": ["Sdr.KhronosPbrNeutral.v1", "Sdr.NarkowiczAcesFit.v1", "Sdr.ExtendedReinhardRec709.v1", "Hdr.ACES2.0.0_2025-04-04.Rec2020D65.v1"],
+      "outputProfiles": ["Sdr.sRGB.v1", "Sdr.BT709.v1", "Sdr.ExplicitGamma22.v1", "Hdr.PQ.Rec2020.1000.v1", "Hdr.PQ.Rec2020.2000.v1", "Hdr.Linear.1000.v1", "Hdr.Linear.2000.v1"]
+    }
+  }
+}

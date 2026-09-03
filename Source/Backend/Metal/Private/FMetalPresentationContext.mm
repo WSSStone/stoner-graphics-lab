@@ -1,5 +1,6 @@
 #include "FMetalPresentationContext.h"
 
+#include "FMetalCapabilities.h"
 #include "FMetalFormat.h"
 #include "FMetalSynchronization.h"
 #include "FMetalTexture.h"
@@ -20,6 +21,7 @@ struct GLFWwindow;
 
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
 #include <mutex>
 #include <new>
 #include <vector>
@@ -34,6 +36,7 @@ struct FMetalPresentationContext::FImpl
         __strong id<CAMetalDrawable> Drawable;
         Core::TSharedPtr<FMetalTexture> Texture;
         Core::uint64 Generation = 0;
+        Core::uint64 FrameToken = 0;
         bool bInFlight = false;
     };
 
@@ -54,8 +57,131 @@ struct FMetalPresentationContext::FImpl
     Core::uint64 Generation = 1;
     Core::uint32 InFlightCount = 0;
     RHI::ERHIFormat Format = RHI::ERHIFormat::Unknown;
+    RHI::FRHIResolvedPresentationState ResolvedState;
+    FMetalPresentationLayerSnapshot LayerSnapshot;
     std::vector<FFrame> Frames;
 };
+
+namespace
+{
+
+CGColorSpaceRef CreateMetalPresentationColorSpace(
+    RHI::ERHIPresentationColorSpace ColorSpace) noexcept
+{
+    CFStringRef Name = nullptr;
+    switch (ColorSpace)
+    {
+    case RHI::ERHIPresentationColorSpace::SrgbNonlinear:
+        Name = kCGColorSpaceSRGB;
+        break;
+    case RHI::ERHIPresentationColorSpace::Bt709Nonlinear:
+        Name = kCGColorSpaceITUR_709;
+        break;
+    case RHI::ERHIPresentationColorSpace::Hdr10St2084:
+        Name = kCGColorSpaceITUR_2100_PQ;
+        break;
+    case RHI::ERHIPresentationColorSpace::ExtendedSrgbLinear:
+        Name = kCGColorSpaceExtendedLinearSRGB;
+        break;
+    case RHI::ERHIPresentationColorSpace::SdrPassThrough:
+    case RHI::ERHIPresentationColorSpace::Unknown:
+        break;
+    }
+    return Name ? CGColorSpaceCreateWithName(Name) : nullptr;
+}
+
+bool ApplyMetalPresentationLayerPolicy(
+    CAMetalLayer* Layer,
+    const RHI::FRHISwapchainDesc& Request,
+    const FMetalPresentationLayerPolicy& Policy,
+    Core::uint32 Width,
+    Core::uint32 Height,
+    CGFloat DisplayScale) noexcept
+{
+    if (!Layer || !Policy.IsValid()) return false;
+    CGColorSpaceRef ColorSpace = CreateMetalPresentationColorSpace(
+        Policy.ColorSpace);
+    if (Policy.ColorSpace !=
+            RHI::ERHIPresentationColorSpace::SdrPassThrough &&
+        !ColorSpace)
+        return false;
+    Layer.pixelFormat = static_cast<MTLPixelFormat>(Policy.PixelFormat);
+    Layer.colorspace = ColorSpace;
+    if (ColorSpace) CGColorSpaceRelease(ColorSpace);
+    Layer.wantsExtendedDynamicRangeContent =
+        Policy.bWantsExtendedDynamicRangeContent;
+    // Both Feature 029 Metal HDR paths keep this nil. PQ relies only on the
+    // ITU-R 2100 PQ colorspace for Core Animation color management; EDR uses
+    // Renderer-owned extended-linear packing. Neither requests Apple's system
+    // tone mapper, whose documented input contract is extended-linear FP16.
+    Layer.EDRMetadata = nil;
+    Layer.framebufferOnly = NO;
+    Layer.maximumDrawableCount = Request.FramesInFlight;
+    Layer.displaySyncEnabled = Request.bVSync;
+    Layer.drawableSize = CGSizeMake(Width, Height);
+    Layer.contentsScale = DisplayScale;
+    Layer.opaque = YES;
+    return true;
+}
+
+} // namespace
+
+FMetalPresentationLayerPolicy ResolveMetalPresentationLayerPolicy(
+    const RHI::FRHISwapchainDesc& Request) noexcept
+{
+    FMetalPresentationLayerPolicy Result;
+    if (!Request.IsExactPresentationRequestValid()) return Result;
+    Result.PixelFormat = ToMetalPixelFormat(Request.PreferredFormat);
+    Result.ColorSpace = Request.PreferredColorSpace;
+    Result.DisplayAdaptation = Request.DisplayAdaptation;
+    using RHI::ERHIFormat;
+    using RHI::ERHIPresentationColorSpace;
+    using RHI::ERHIPresentationDisplayAdaptation;
+    using RHI::ERHIPresentationNativeEncoding;
+    switch (Request.NativeEncoding)
+    {
+    case ERHIPresentationNativeEncoding::SdrExplicit:
+        if ((Request.PreferredFormat != ERHIFormat::B8G8R8A8_UNorm &&
+             Request.PreferredFormat != ERHIFormat::R8G8B8A8_UNorm) ||
+            (Request.PreferredColorSpace !=
+                 ERHIPresentationColorSpace::SrgbNonlinear &&
+             Request.PreferredColorSpace !=
+                 ERHIPresentationColorSpace::Bt709Nonlinear &&
+             Request.PreferredColorSpace !=
+                 ERHIPresentationColorSpace::SdrPassThrough) ||
+            Request.bHasHDRMetadata ||
+            Request.DisplayAdaptation !=
+                ERHIPresentationDisplayAdaptation::None)
+            return {};
+        break;
+    case ERHIPresentationNativeEncoding::Pq:
+        if (Request.PreferredFormat != ERHIFormat::R10G10B10A2_UNorm ||
+            Request.PreferredColorSpace !=
+                ERHIPresentationColorSpace::Hdr10St2084 ||
+            Request.bHasHDRMetadata ||
+            Request.DisplayAdaptation !=
+                ERHIPresentationDisplayAdaptation::SystemColorManagement)
+            return {};
+        Result.bWantsExtendedDynamicRangeContent = true;
+        Result.bHasEDRMetadata = false;
+        break;
+    case ERHIPresentationNativeEncoding::MetalEdr:
+        if (Request.PreferredFormat != ERHIFormat::R16G16B16A16_Float ||
+            Request.PreferredColorSpace !=
+                ERHIPresentationColorSpace::ExtendedSrgbLinear ||
+            Request.bHasHDRMetadata ||
+            Request.DisplayAdaptation !=
+                ERHIPresentationDisplayAdaptation::None)
+            return {};
+        Result.bWantsExtendedDynamicRangeContent = true;
+        Result.bHasEDRMetadata = false;
+        break;
+    case ERHIPresentationNativeEncoding::ScRgb80:
+    case ERHIPresentationNativeEncoding::Unknown:
+        return {};
+    }
+    return Result;
+}
 
 FMetalPresentationContext::FMetalPresentationContext(
     Core::TSharedPtr<FMetalDeviceOwnerState> Owner,
@@ -77,20 +203,79 @@ RHI::ERHIResult FMetalPresentationContext::Attach(
     Core::uint32 MaximumDrawableCount,
     bool bVSync) noexcept
 {
+    RHI::FRHISwapchainDesc Request;
+    Request.Width = 1;
+    Request.Height = 1;
+    Request.FramesInFlight = MaximumDrawableCount;
+    Request.PreferredFormat = Format;
+    Request.PreferredColorSpace =
+        RHI::ERHIPresentationColorSpace::SrgbNonlinear;
+    Request.NativeEncoding =
+        RHI::ERHIPresentationNativeEncoding::SdrExplicit;
+    Request.SurfaceCapabilityGeneration = 1;
+    Request.bVSync = bVSync;
+    return Attach(PlatformWindow, Request);
+}
+
+RHI::ERHIResult FMetalPresentationContext::QueryCapabilities(
+    const RHI::FRHIPresentationSurfaceDesc& Surface,
+    Core::uint64 CapabilityGeneration,
+    RHI::FRHIPresentationCapabilities& OutCapabilities) const noexcept
+{
+    if (!Impl_ || !Owner_ || !Surface.IsValid())
+    {
+        OutCapabilities = {};
+        return RHI::ERHIResult::InvalidState;
+    }
+    Core::uint64 SurfaceId = Surface.SurfaceId;
+    if (SurfaceId == 0)
+    {
+        SurfaceId = static_cast<Core::uint64>(
+            reinterpret_cast<std::uintptr_t>(
+                Surface.Window.GetNativeHandle()));
+    }
+    return QueryMetalPresentationCapabilities(
+        NativeDevice_, Surface.Window, SurfaceId, CapabilityGeneration,
+        OutCapabilities);
+}
+
+RHI::ERHIResult FMetalPresentationContext::Attach(
+    const Core::FPlatformWindow& PlatformWindow,
+    const RHI::FRHISwapchainDesc& Request) noexcept
+{
 #if !defined(STONER_GLFW_AVAILABLE) || !STONER_GLFW_AVAILABLE
     (void)PlatformWindow;
-    (void)Format;
-    (void)MaximumDrawableCount;
-    (void)bVSync;
+    (void)Request;
     (void)NativeDevice_;
     (void)NativeQueue_;
     return RHI::ERHIResult::Unsupported;
 #else
     if (!Impl_ || !Owner_ || !PlatformWindow.IsValid() ||
         NativeDevice_ == nullptr || NativeQueue_ == nullptr ||
-        MaximumDrawableCount < 2 || MaximumDrawableCount > 3 ||
-        ToMetalPixelFormat(Format) == MTLPixelFormatInvalid)
+        Request.FramesInFlight < 2 || Request.FramesInFlight > 3)
         return RHI::ERHIResult::InvalidState;
+    const FMetalPresentationLayerPolicy LayerPolicy =
+        ResolveMetalPresentationLayerPolicy(Request);
+    if (!LayerPolicy.IsValid()) return RHI::ERHIResult::Unsupported;
+
+    RHI::FRHIPresentationCapabilities Capabilities;
+    Core::uint64 SurfaceId = static_cast<Core::uint64>(
+        reinterpret_cast<std::uintptr_t>(
+            PlatformWindow.GetNativeHandle()));
+    if (SurfaceId == 0) SurfaceId = 1;
+    const RHI::ERHIResult CapabilityResult =
+        QueryMetalPresentationCapabilities(
+            NativeDevice_, PlatformWindow, SurfaceId,
+            Request.SurfaceCapabilityGeneration, Capabilities);
+    if (CapabilityResult != RHI::ERHIResult::Success)
+        return CapabilityResult;
+    if (!Capabilities.SupportsPair(
+            Request.PreferredFormat, Request.PreferredColorSpace) ||
+        (Request.bHasHDRMetadata && !Capabilities.bSupportsHDRMetadata) ||
+        (Request.NativeEncoding ==
+             RHI::ERHIPresentationNativeEncoding::MetalEdr &&
+         !Capabilities.bSupportsExtendedRange))
+        return RHI::ERHIResult::Unsupported;
 
     __block bool bSuccess = false;
     __block Core::uint32 LogicalWidth = 0;
@@ -120,18 +305,9 @@ RHI::ERHIResult FMetalPresentationContext::Attach(
 
         CAMetalLayer* Layer = [CAMetalLayer layer];
         Layer.device = (__bridge id<MTLDevice>)NativeDevice_;
-        Layer.pixelFormat = static_cast<MTLPixelFormat>(ToMetalPixelFormat(Format));
-        CGColorSpaceRef ColorSpace =
-            CGColorSpaceCreateWithName(kCGColorSpaceLinearSRGB);
-        if (!ColorSpace) return;
-        Layer.colorspace = ColorSpace;
-        CGColorSpaceRelease(ColorSpace);
-        Layer.framebufferOnly = NO;
-        Layer.maximumDrawableCount = MaximumDrawableCount;
-        Layer.displaySyncEnabled = bVSync;
-        Layer.drawableSize = CGSizeMake(Width, Height);
-        Layer.contentsScale = DisplayScale;
-        Layer.opaque = YES;
+        if (!ApplyMetalPresentationLayerPolicy(
+                Layer, Request, LayerPolicy, Width, Height, DisplayScale))
+            return;
 
         Impl_->Window = Window;
         Impl_->View = View;
@@ -153,20 +329,180 @@ RHI::ERHIResult FMetalPresentationContext::Attach(
         Impl_->Width = Width;
         Impl_->Height = Height;
         Impl_->DisplayScale = DisplayScale;
-        Impl_->Format = Format;
+        Impl_->Format = Request.PreferredFormat;
+        Impl_->ResolvedState.ModeGeneration = Impl_->Generation;
+        Impl_->ResolvedState.Width = Width;
+        Impl_->ResolvedState.Height = Height;
+        Impl_->ResolvedState.Format = Request.PreferredFormat;
+        Impl_->ResolvedState.ColorSpace = Request.PreferredColorSpace;
+        Impl_->ResolvedState.NativeEncoding = Request.NativeEncoding;
+        Impl_->ResolvedState.DisplayAdaptation = Request.DisplayAdaptation;
+        Impl_->ResolvedState.bHasHDRMetadata = Request.bHasHDRMetadata;
+        Impl_->ResolvedState.MetadataDigest = Request.bHasHDRMetadata
+            ? Request.HDRMetadata.CanonicalDigest : Core::FString{};
+        Impl_->ResolvedState.ReferenceWhiteNits =
+            Request.NativeEncoding ==
+                RHI::ERHIPresentationNativeEncoding::MetalEdr
+            ? Capabilities.NativeReferenceWhiteNits
+            : Request.ReferenceWhiteNits;
+        Impl_->ResolvedState.TargetPeakNits = Request.TargetPeakNits;
+        Impl_->ResolvedState.SwapchainImageGeneration = Impl_->Generation;
+        Impl_->LayerSnapshot.Policy = LayerPolicy;
+        Impl_->LayerSnapshot.ModeGeneration = Impl_->Generation;
+        Impl_->LayerSnapshot.Width = Width;
+        Impl_->LayerSnapshot.Height = Height;
+        Impl_->LayerSnapshot.NativeReferenceWhiteNits =
+            Capabilities.NativeReferenceWhiteNits;
+        Impl_->LayerSnapshot.CurrentHeadroom =
+            Capabilities.CurrentHeadroom;
+        Impl_->LayerSnapshot.PotentialHeadroom =
+            Capabilities.PotentialHeadroom;
+        Impl_->LayerSnapshot.MetadataDigest =
+            Impl_->ResolvedState.MetadataDigest;
         Impl_->bAttached = true;
         Impl_->bAcceptingFrames = true;
     }
     try
     {
         std::lock_guard Lock(Impl_->Mutex);
-        Impl_->Frames.resize(MaximumDrawableCount);
+        Impl_->Frames.resize(Request.FramesInFlight);
     }
     catch (const std::bad_alloc&)
     {
         (void)Shutdown();
         return RHI::ERHIResult::Failed;
     }
+    return RHI::ERHIResult::Success;
+#endif
+}
+
+RHI::ERHIResult FMetalPresentationContext::Reconfigure(
+    const Core::FPlatformWindow& PlatformWindow,
+    const RHI::FRHISwapchainDesc& Request) noexcept
+{
+#if !defined(STONER_GLFW_AVAILABLE) || !STONER_GLFW_AVAILABLE
+    (void)PlatformWindow;
+    (void)Request;
+    return RHI::ERHIResult::Unsupported;
+#else
+    if (!Impl_ || !Owner_ || !PlatformWindow.IsValid() ||
+        NativeDevice_ == nullptr || NativeQueue_ == nullptr)
+        return RHI::ERHIResult::InvalidState;
+    if (!IsAttached()) return Attach(PlatformWindow, Request);
+    const FMetalPresentationLayerPolicy LayerPolicy =
+        ResolveMetalPresentationLayerPolicy(Request);
+    if (!LayerPolicy.IsValid()) return RHI::ERHIResult::Unsupported;
+
+    RHI::FRHIPresentationCapabilities Capabilities;
+    Core::uint64 SurfaceId = static_cast<Core::uint64>(
+        reinterpret_cast<std::uintptr_t>(
+            PlatformWindow.GetNativeHandle()));
+    const RHI::ERHIResult CapabilityResult =
+        QueryMetalPresentationCapabilities(
+            NativeDevice_, PlatformWindow, SurfaceId,
+            Request.SurfaceCapabilityGeneration, Capabilities);
+    if (CapabilityResult != RHI::ERHIResult::Success)
+        return CapabilityResult;
+    if (!Capabilities.SupportsPair(
+            Request.PreferredFormat, Request.PreferredColorSpace) ||
+        (Request.bHasHDRMetadata && !Capabilities.bSupportsHDRMetadata) ||
+        (Request.NativeEncoding ==
+             RHI::ERHIPresentationNativeEncoding::MetalEdr &&
+         !Capabilities.bSupportsExtendedRange))
+        return RHI::ERHIResult::Unsupported;
+
+    std::vector<FImpl::FFrame> NewFrames;
+    try
+    {
+        NewFrames.resize(Request.FramesInFlight);
+    }
+    catch (const std::bad_alloc&)
+    {
+        return RHI::ERHIResult::Failed;
+    }
+
+    std::unique_lock Lock(Impl_->Mutex);
+    if (!Impl_->bAttached || !Impl_->bAcceptingFrames)
+        return RHI::ERHIResult::InvalidState;
+    if (Impl_->InFlightCount != 0)
+        return RHI::ERHIResult::NotReady;
+    for (const FImpl::FFrame& Frame : Impl_->Frames)
+    {
+        if (Frame.Drawable || Frame.bInFlight)
+            return RHI::ERHIResult::NotReady;
+    }
+
+    __block Core::uint32 LogicalWidth = 0;
+    __block Core::uint32 LogicalHeight = 0;
+    __block Core::uint32 Width = 0;
+    __block Core::uint32 Height = 0;
+    __block CGFloat DisplayScale = 1.0;
+    __block bool bSuccess = false;
+    const auto ReconfigureOnMain = ^{
+        auto* Window = static_cast<GLFWwindow*>(
+            PlatformWindow.GetNativeHandle());
+        if (!Window || glfwWindowShouldClose(Window) == GLFW_TRUE ||
+            Window != Impl_->Window || !Impl_->Layer)
+            return;
+        int WindowWidth = 0;
+        int WindowHeight = 0;
+        int PixelWidth = 0;
+        int PixelHeight = 0;
+        glfwGetWindowSize(Window, &WindowWidth, &WindowHeight);
+        glfwGetFramebufferSize(Window, &PixelWidth, &PixelHeight);
+        LogicalWidth = WindowWidth > 0
+            ? static_cast<Core::uint32>(WindowWidth) : 0;
+        LogicalHeight = WindowHeight > 0
+            ? static_cast<Core::uint32>(WindowHeight) : 0;
+        Width = PixelWidth > 0
+            ? static_cast<Core::uint32>(PixelWidth) : 0;
+        Height = PixelHeight > 0
+            ? static_cast<Core::uint32>(PixelHeight) : 0;
+        NSWindow* CocoaWindow = glfwGetCocoaWindow(Window);
+        if (!CocoaWindow || Width == 0 || Height == 0) return;
+        DisplayScale = CocoaWindow.backingScaleFactor;
+        bSuccess = ApplyMetalPresentationLayerPolicy(
+            Impl_->Layer, Request, LayerPolicy, Width, Height, DisplayScale);
+    };
+    if ([NSThread isMainThread]) ReconfigureOnMain();
+    else dispatch_sync(dispatch_get_main_queue(), ReconfigureOnMain);
+    if (!bSuccess) return RHI::ERHIResult::Unavailable;
+
+    ++Impl_->Generation;
+    Impl_->LogicalWidth = LogicalWidth;
+    Impl_->LogicalHeight = LogicalHeight;
+    Impl_->Width = Width;
+    Impl_->Height = Height;
+    Impl_->DisplayScale = DisplayScale;
+    Impl_->Format = Request.PreferredFormat;
+    Impl_->Frames = std::move(NewFrames);
+    Impl_->ResolvedState.ModeGeneration = Impl_->Generation;
+    Impl_->ResolvedState.Width = Width;
+    Impl_->ResolvedState.Height = Height;
+    Impl_->ResolvedState.Format = Request.PreferredFormat;
+    Impl_->ResolvedState.ColorSpace = Request.PreferredColorSpace;
+    Impl_->ResolvedState.NativeEncoding = Request.NativeEncoding;
+    Impl_->ResolvedState.DisplayAdaptation = Request.DisplayAdaptation;
+    Impl_->ResolvedState.bHasHDRMetadata = Request.bHasHDRMetadata;
+    Impl_->ResolvedState.MetadataDigest = Request.bHasHDRMetadata
+        ? Request.HDRMetadata.CanonicalDigest : Core::FString{};
+    Impl_->ResolvedState.ReferenceWhiteNits =
+        Request.NativeEncoding ==
+            RHI::ERHIPresentationNativeEncoding::MetalEdr
+        ? Capabilities.NativeReferenceWhiteNits
+        : Request.ReferenceWhiteNits;
+    Impl_->ResolvedState.TargetPeakNits = Request.TargetPeakNits;
+    Impl_->ResolvedState.SwapchainImageGeneration = Impl_->Generation;
+    Impl_->LayerSnapshot.Policy = LayerPolicy;
+    Impl_->LayerSnapshot.ModeGeneration = Impl_->Generation;
+    Impl_->LayerSnapshot.Width = Width;
+    Impl_->LayerSnapshot.Height = Height;
+    Impl_->LayerSnapshot.NativeReferenceWhiteNits =
+        Capabilities.NativeReferenceWhiteNits;
+    Impl_->LayerSnapshot.CurrentHeadroom = Capabilities.CurrentHeadroom;
+    Impl_->LayerSnapshot.PotentialHeadroom = Capabilities.PotentialHeadroom;
+    Impl_->LayerSnapshot.MetadataDigest =
+        Impl_->ResolvedState.MetadataDigest;
     return RHI::ERHIResult::Success;
 #endif
 }
@@ -181,6 +517,7 @@ bool FMetalPresentationContext::IsAttached() const noexcept
 
 RHI::ERHIResult FMetalPresentationContext::Acquire(
     Core::uint32 FrameSlot,
+    Core::uint64 FrameToken,
     Core::TSharedPtr<RHI::IRHITexture>& OutTexture,
     Core::uint64& OutGeneration) noexcept
 {
@@ -188,9 +525,10 @@ RHI::ERHIResult FMetalPresentationContext::Acquire(
     OutGeneration = 0;
 #if !defined(STONER_GLFW_AVAILABLE) || !STONER_GLFW_AVAILABLE
     (void)FrameSlot;
+    (void)FrameToken;
     return RHI::ERHIResult::Unsupported;
 #else
-    if (!Impl_) return RHI::ERHIResult::InvalidState;
+    if (!Impl_ || FrameToken == 0) return RHI::ERHIResult::InvalidState;
     std::lock_guard Lock(Impl_->Mutex);
     if (!Impl_->bAttached || !Impl_->bAcceptingFrames ||
         FrameSlot >= Impl_->Frames.size())
@@ -245,6 +583,14 @@ RHI::ERHIResult FMetalPresentationContext::Acquire(
         ++Impl_->Generation;
         Impl_->Layer.contentsScale = DisplayScale;
         Impl_->Layer.drawableSize = CGSizeMake(Width, Height);
+        Impl_->ResolvedState.ModeGeneration = Impl_->Generation;
+        Impl_->ResolvedState.Width = Width;
+        Impl_->ResolvedState.Height = Height;
+        Impl_->ResolvedState.SwapchainImageGeneration = Impl_->Generation;
+        Impl_->LayerSnapshot.ModeGeneration = Impl_->Generation;
+        Impl_->LayerSnapshot.Width = Width;
+        Impl_->LayerSnapshot.Height = Height;
+        return RHI::ERHIResult::ResizeRequired;
     }
 
     @autoreleasepool
@@ -257,7 +603,8 @@ RHI::ERHIResult FMetalPresentationContext::Acquire(
         Desc.Format = Impl_->Format;
         Desc.Usage = RHI::ERHITextureUsage::ColorAttachment |
             RHI::ERHITextureUsage::Present |
-            RHI::ERHITextureUsage::CopySource;
+            RHI::ERHITextureUsage::CopySource |
+            RHI::ERHITextureUsage::CopyDestination;
         try
         {
             Frame.Texture = Core::MakeShared<FMetalTexture>(
@@ -269,6 +616,8 @@ RHI::ERHIResult FMetalPresentationContext::Acquire(
         }
         Frame.Drawable = Drawable;
         Frame.Generation = Impl_->Generation;
+        Frame.FrameToken = FrameToken;
+        Impl_->LayerSnapshot.LastAcquiredFrameToken = FrameToken;
         OutTexture = Frame.Texture;
         OutGeneration = Frame.Generation;
         return RHI::ERHIResult::Success;
@@ -279,15 +628,18 @@ RHI::ERHIResult FMetalPresentationContext::Acquire(
 RHI::ERHIResult FMetalPresentationContext::Present(
     Core::uint32 FrameSlot,
     Core::uint64 Generation,
+    Core::uint64 FrameToken,
     const Core::TSharedPtr<FMetalSemaphore>& WaitSemaphore) noexcept
 {
 #if !defined(STONER_GLFW_AVAILABLE) || !STONER_GLFW_AVAILABLE
     (void)FrameSlot;
     (void)Generation;
+    (void)FrameToken;
     (void)WaitSemaphore;
     return RHI::ERHIResult::Unsupported;
 #else
-    if (!Impl_ || !Owner_) return RHI::ERHIResult::InvalidState;
+    if (!Impl_ || !Owner_ || FrameToken == 0)
+        return RHI::ERHIResult::InvalidState;
     std::unique_lock Lock(Impl_->Mutex);
     if (!Impl_->bAttached || !Impl_->bAcceptingFrames ||
         FrameSlot >= Impl_->Frames.size())
@@ -346,12 +698,20 @@ RHI::ERHIResult FMetalPresentationContext::Present(
             ++Impl_->Generation;
             Impl_->Layer.contentsScale = DisplayScale;
             Impl_->Layer.drawableSize = CGSizeMake(Width, Height);
+            Impl_->ResolvedState.ModeGeneration = Impl_->Generation;
+            Impl_->ResolvedState.Width = Width;
+            Impl_->ResolvedState.Height = Height;
+            Impl_->ResolvedState.SwapchainImageGeneration = Impl_->Generation;
+            Impl_->LayerSnapshot.ModeGeneration = Impl_->Generation;
+            Impl_->LayerSnapshot.Width = Width;
+            Impl_->LayerSnapshot.Height = Height;
         }
         return Width == 0 || Height == 0 || bClosing || bPaused
             ? RHI::ERHIResult::Unavailable
             : RHI::ERHIResult::ResizeRequired;
     }
     if (!Frame.Drawable || Frame.bInFlight ||
+        Frame.FrameToken != FrameToken ||
         Frame.Generation != Generation || Generation != Impl_->Generation)
         return Generation != Impl_->Generation
             ? RHI::ERHIResult::ResizeRequired
@@ -403,6 +763,7 @@ RHI::ERHIResult FMetalPresentationContext::Present(
             {
                 Completed.Drawable = nil;
                 Completed.Texture.reset();
+                Completed.FrameToken = 0;
                 Completed.bInFlight = false;
             }
             if (Self->Impl_->InFlightCount > 0)
@@ -417,6 +778,8 @@ RHI::ERHIResult FMetalPresentationContext::Present(
         if (WaitSemaphore)
             WaitSemaphore->CommitSubmissionWait(WaitEpoch);
         [Commands commit];
+        Impl_->LayerSnapshot.LastSubmittedFrameToken = FrameToken;
+        Impl_->LayerSnapshot.LastPresentedFrameToken = FrameToken;
         return RHI::ERHIResult::Success;
     }
 #endif
@@ -434,6 +797,7 @@ void FMetalPresentationContext::CancelAcquire(
     {
         Frame.Drawable = nil;
         Frame.Texture.reset();
+        Frame.FrameToken = 0;
     }
 }
 
@@ -483,6 +847,22 @@ Core::uint64 FMetalPresentationContext::GetGeneration() const noexcept
     if (!Impl_) return 0;
     std::lock_guard Lock(Impl_->Mutex);
     return Impl_->Generation;
+}
+
+RHI::FRHIResolvedPresentationState
+FMetalPresentationContext::GetResolvedPresentationState() const noexcept
+{
+    if (!Impl_) return {};
+    std::lock_guard Lock(Impl_->Mutex);
+    return Impl_->ResolvedState;
+}
+
+FMetalPresentationLayerSnapshot
+FMetalPresentationContext::GetLayerSnapshot() const noexcept
+{
+    if (!Impl_) return {};
+    std::lock_guard Lock(Impl_->Mutex);
+    return Impl_->LayerSnapshot;
 }
 
 } // namespace Stoner::Backend::Metal::Private

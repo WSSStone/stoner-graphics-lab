@@ -1,0 +1,107 @@
+{
+  "schema": "stoner.feature-029-us3-insertion-contract",
+  "schemaVersion": 1,
+  "status": "passed",
+  "sourceState": {
+    "kind": "working-tree",
+    "baseRevision": "e66f848d5537db2f5f98b79ae9892b8f1ee9da26"
+  },
+  "redFirstEvidence": {
+    "observed": true,
+    "initialFailures": [
+      "inserted operations were absent from the declared render graph",
+      "named diagnostic bypass produced no separate resource or record"
+    ],
+    "productionCodeAddedAfterFailure": true
+  },
+  "insertionContract": {
+    "maximumOperationsPerPoint": 16,
+    "maximumReadsPerOperation": 8,
+    "maximumWritesPerOperation": 8,
+    "preTonemapDomain": "SceneLinearRec709D65",
+    "postTonemapDomain": "DisplayLinearProfileDeclared",
+    "inheritedSampleCount": 1,
+    "stableUniqueOperationIds": true,
+    "stableUniqueOrderKeys": true,
+    "explicitAcyclicDependencies": true,
+    "declaredAuxiliaryResources": true,
+    "duplicateWriterRejected": true,
+    "readBeforeWriteRejected": true,
+    "extentChangeRejected": true,
+    "sampleCountChangeRejected": true,
+    "domainChangeRejected": true,
+    "toneOrViewingOwnershipRejected": true,
+    "outputTransferOwnershipRejected": true,
+    "formalOutputOwnershipRejected": true,
+    "externalOutputOwnershipRejected": true
+  },
+  "feature030Seams": {
+    "taaInsertionPoint": "PreTonemap",
+    "taaInputDomain": "SceneLinearRec709D65",
+    "fxaaInsertionPoint": "PostTonemap",
+    "fxaaInputDomain": "DisplayLinearProfileDeclared",
+    "feature029RuntimeTemporalResources": 0,
+    "feature029JitterState": false,
+    "feature029MotionVectorState": false,
+    "feature029HistoryState": false,
+    "feature029ReprojectionState": false,
+    "feature029AntiAliasingImplementation": false,
+    "temporalOwnershipDeclarationIsRejected": true
+  },
+  "debugBypass": {
+    "namedStageSelection": true,
+    "hdrPreservingReadback": true,
+    "boundedVisualization": true,
+    "separateGraphResources": true,
+    "nonAuthoritativeRecord": true,
+    "formalOutputIdUnchanged": true,
+    "formalOutputDescriptorUnchanged": true,
+    "formalPresentationReplacement": false
+  },
+  "checks": [
+    {
+      "name": "strict-debug-build",
+      "command": "conda run -n godot scons config=debug strict=1 -j8",
+      "result": "passed"
+    },
+    {
+      "name": "renderer-post-process-insertion",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite renderer-post-process-insertion",
+      "result": "passed",
+      "passedAssertions": 13,
+      "failedAssertions": 0
+    },
+    {
+      "name": "renderer-post-process-graph",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite renderer-post-process-graph",
+      "result": "passed",
+      "passedAssertions": 17,
+      "failedAssertions": 0
+    },
+    {
+      "name": "renderer-output-transform",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite renderer-output-transform",
+      "result": "passed",
+      "passedAssertions": 21,
+      "failedAssertions": 0
+    },
+    {
+      "name": "renderer-render-graph-regression",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite renderer-render-graph",
+      "result": "passed"
+    },
+    {
+      "name": "production-content-demo-regression",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite production-content-demo",
+      "result": "passed",
+      "passedAssertions": 33,
+      "failedAssertions": 0
+    }
+  ],
+  "boundedEvidence": {
+    "checkedInJsonFiles": 1,
+    "checkedInPngFiles": 0,
+    "rawLogsCheckedIn": false,
+    "automatedHdrVisualDecision": false
+  }
+}

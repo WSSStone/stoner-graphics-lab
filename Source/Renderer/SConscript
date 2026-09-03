@@ -14,6 +14,11 @@ shader_env = env.Clone()
 shader_targets = StageContent(
     shader_env,
     [
+        'Content/Shaders/PostProcess/Fullscreen.vert',
+        'Content/Shaders/PostProcess/Fullscreen.vert.spv',
+        'Content/Shaders/PostProcess/OutputTransform.frag',
+        'Content/Shaders/PostProcess/OutputTransform.frag.spv',
+        'Content/Shaders/PostProcess/OutputTransform.shader.json',
         'Content/Shaders/Deferred/Composition.frag',
         'Content/Shaders/Deferred/Composition.frag.spv',
         'Content/Shaders/Deferred/Composition.shader.json',

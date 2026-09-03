@@ -1,6 +1,7 @@
 #include "ProductionAssetClosureTestSupport.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <fstream>
 #include <iterator>
@@ -82,19 +83,30 @@ public:
         if (Locator.starts_with("production/"))
             Locator.erase(0, std::string("production/").size());
         std::filesystem::path Path;
-        constexpr std::string_view DeferredPrefix =
-            "Engine/Shaders/Deferred/";
-        if (Locator.starts_with(DeferredPrefix))
+        bool bShaderPath = false;
+        constexpr std::array ShaderPrefixes = {
+            std::pair<std::string_view, std::string_view>{
+                "Engine/Shaders/Deferred/", "Deferred"},
+            std::pair<std::string_view, std::string_view>{
+                "Engine/Shaders/PostProcess/", "PostProcess"},
+        };
+        const auto ShaderPrefix = std::find_if(
+            ShaderPrefixes.begin(), ShaderPrefixes.end(),
+            [&Locator](const auto& Candidate)
+            { return Locator.starts_with(Candidate.first); });
+        if (ShaderPrefix != ShaderPrefixes.end())
         {
             const std::string ProgramName =
-                Locator.substr(DeferredPrefix.size());
+                Locator.substr(ShaderPrefix->first.size());
             const std::filesystem::path Relative(ProgramName);
             if (ProgramName.empty() || Relative.has_parent_path())
             {
                 Result.Result = EAssetResult::AccessDenied;
                 return Result;
             }
-            Path = ShaderRoot_ / (ProgramName + ".shader.json");
+            Path = ShaderRoot_ / ShaderPrefix->second /
+                (ProgramName + ".shader.json");
+            bShaderPath = true;
         }
         else
         {
@@ -113,7 +125,10 @@ public:
             if (std::filesystem::is_regular_file(PackageCandidate))
                 Path = PackageCandidate;
             else if (std::filesystem::is_regular_file(ShaderCandidate))
+            {
                 Path = ShaderCandidate;
+                bShaderPath = true;
+            }
             else
             {
                 Result.Result = EAssetResult::NotFound;
@@ -132,9 +147,12 @@ public:
             std::istreambuf_iterator<char>()};
         auto Source = Core::MakeShared<FFileSource>(std::move(Bytes));
         FAssetSourceLocator Location;
+        const std::filesystem::path DescriptorLocator = bShaderPath
+            ? Path.lexically_relative(ShaderRoot_)
+            : Path.filename();
         if (FAssetSourceLocator::Create(
                 Core::FString("asset"),
-                Core::FString(Path.filename().generic_string()),
+                Core::FString(DescriptorLocator.generic_string()),
                 Location) != EAssetResult::Success)
         {
             Result.Result = EAssetResult::InvalidInput;

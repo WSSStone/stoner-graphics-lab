@@ -178,9 +178,14 @@ void TestOpaqueFramePreparation(FRendererForwardPipelineTestResult& Result)
             Plan.PassOrder[0].Stage == EForwardPassStage::Depth &&
             Plan.PassOrder[1].Stage == EForwardPassStage::Opaque,
         "Forward frame declares depth before opaque work");
-    Record(Result, !Plan.GraphDeclaration.GetOutputs().empty() &&
-            Plan.GraphDeclaration.GetOutputs()[0].ColorTargetName == "SceneColor",
-        "Forward frame declares final color output");
+    Record(Result, Plan.GraphDeclaration.GetOutputs().empty() &&
+            Plan.SceneColorHandoff.GetProducer() ==
+                EHDRSceneColorProducer::Forward &&
+            Plan.SceneColorHandoff.GetFormat() ==
+                Stoner::RHI::ERHIFormat::R16G16B16A16_Float &&
+            Plan.SceneColorHandoff.GetSampleCount() ==
+                Stoner::RHI::ERHISampleCount::One,
+        "Forward frame declares one canonical SceneColor handoff without owning formal output");
     Record(Result,
         HasGraphAccess(Plan, "ForwardOpaqueLighting", "Textures/OpaqueA", EForwardGraphAccess::Read) &&
         HasGraphAccess(Plan, "ForwardTransparent", "Textures/GlassFar", EForwardGraphAccess::Read),
@@ -390,7 +395,8 @@ void TestForwardFrameExecution(FRendererForwardPipelineTestResult& Result)
     TextureDesc.Width = 1280;
     TextureDesc.Height = 720;
     TextureDesc.Format = ERHIFormat::R8G8B8A8_UNorm;
-    TextureDesc.Usage = ERHITextureUsage::ColorAttachment | ERHITextureUsage::Present;
+    TextureDesc.Usage = ERHITextureUsage::ColorAttachment |
+        ERHITextureUsage::CopySource | ERHITextureUsage::Present;
     auto Texture = Device.CreateTexture(TextureDesc);
     auto VertexBuffer = Device.CreateBuffer({60, ERHIBufferUsage::Vertex | ERHIBufferUsage::CopyDestination, ERHIMemoryAccess::HostVisible});
     auto RenderPass = Device.CreateRenderPass({{{ERHIAttachmentRole::Color, ERHIFormat::R8G8B8A8_UNorm, ERHISampleCount::One}}});
@@ -429,8 +435,27 @@ void TestForwardFrameExecution(FRendererForwardPipelineTestResult& Result)
     Bindings.Framebuffer = Framebuffer.Object;
     Bindings.CommandBuffer = Commands.Object;
     const FForwardFrameExecutionResult Execution = FForwardFrameExecutor().Execute(Prepare(RepresentativeInputs()), Bindings);
-    Record(Result, Execution.Succeeded() && Execution.RecordedDrawCount == 1 && Execution.RecordedCommandCount == 9,
-        "Forward executor records transition render bindings three-vertex draw and present transition");
+    Record(Result, Execution.Succeeded() && Execution.RecordedDrawCount == 1 &&
+            Execution.RecordedCommandCount == 8,
+        "Forward executor records only the RGBA16F SceneColor producer work");
+
+    Bindings.bTransitionToPresent = true;
+    auto Readback = Device.CreateBuffer({1280u * 720u * 4u,
+        ERHIBufferUsage::CopyDestination, ERHIMemoryAccess::HostVisible});
+    Bindings.ReadbackBuffer = Readback.Object;
+    Bindings.ReadbackRegion.Width = 1280;
+    Bindings.ReadbackRegion.Height = 720;
+    Bindings.ReadbackRegion.DestinationRowLengthTexels = 1280;
+    Bindings.ReadbackRegion.DestinationImageHeightTexels = 720;
+    auto TerminalCommands = Device.CreateCommandBuffer(ERHIQueueType::Graphics);
+    Bindings.CommandBuffer = TerminalCommands.Object;
+    const auto TerminalExecution = FForwardFrameExecutor().Execute(
+        Prepare(RepresentativeInputs()), Bindings);
+    Record(Result, TerminalExecution.Succeeded() &&
+            TerminalExecution.RecordedCommandCount == 11,
+        "Forward executor records exact readback before Present in one command sequence");
+    Bindings.bTransitionToPresent = false;
+    Bindings.ReadbackBuffer.reset();
 
     Bindings.DepthTexture = Texture.Object;
     Record(Result,

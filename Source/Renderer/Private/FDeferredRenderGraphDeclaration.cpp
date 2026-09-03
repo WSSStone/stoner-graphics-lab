@@ -21,7 +21,9 @@ const FDeferredGraphResource* FDeferredRenderGraphDeclaration::FindResource(
 Stoner::Core::FString FDeferredRenderGraphDeclaration::Dump() const
 {
     std::ostringstream Stream;
-    Stream << "DeferredGraph valid=" << (bValid ? 1 : 0) << " output=" << FinalOutput.CStr() << '\n';
+    Stream << "DeferredGraph valid=" << (bValid ? 1 : 0)
+        << " sceneColor=" << SceneColorOutput.CStr()
+        << " formalOutput=" << FinalOutput.CStr() << '\n';
     for (const FDeferredGraphResource& Resource : Resources)
     {
         Stream << "Resource " << Resource.Name.CStr() << " format="
@@ -64,8 +66,8 @@ FDeferredRenderGraphDeclaration BuildDeferredRenderGraphDeclaration(
     }
     Graph.Resources.push_back({"LightingAccumulation", ERenderGraphResourceKind::Texture,
         ERenderGraphResourceOwnership::Transient, Stoner::RHI::ERHIFormat::R16G16B16A16_Float, Extent});
-    Graph.Resources.push_back({Plan.Output.Name, ERenderGraphResourceKind::External,
-        ERenderGraphResourceOwnership::Imported, Plan.Output.Format, Extent});
+    Graph.Resources.push_back({Plan.Output.Name, ERenderGraphResourceKind::Texture,
+        ERenderGraphResourceOwnership::Exported, Plan.Output.Format, Extent});
     if (Plan.FindPass(EDeferredPassStage::ValidationReadback))
     {
         Graph.Resources.push_back({"ReadbackBuffers", ERenderGraphResourceKind::Buffer,
@@ -109,8 +111,10 @@ FDeferredRenderGraphDeclaration BuildDeferredRenderGraphDeclaration(
                 ERenderGraphResourceState::Write});
         }
     }
-    Graph.FinalOutput = Plan.Output.Name;
-    Graph.bValid = !Graph.FinalOutput.IsEmpty() && Graph.FindResource(Graph.FinalOutput) != nullptr;
+    Graph.SceneColorOutput = Plan.Output.Name;
+    Graph.FinalOutput.Clear();
+    Graph.bValid = !Graph.SceneColorOutput.IsEmpty() &&
+        Graph.FindResource(Graph.SceneColorOutput) != nullptr;
     return Graph;
 }
 

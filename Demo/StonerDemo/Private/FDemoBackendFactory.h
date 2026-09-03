@@ -3,6 +3,9 @@
 #include "Core/CoreMinimal.h"
 #include "FDemoConfiguration.h"
 #include "RHI/FRHIRuntimeSnapshot.h"
+#include "RHI/FRHIPresentationCapabilities.h"
+#include "RHI/FRHIResolvedPresentationState.h"
+#include "RHI/FRHISwapchainDesc.h"
 #include "RHI/FRHIShaderModuleDesc.h"
 #include "RHI/ERHIResult.h"
 #include "Renderer/FForwardFrameExecutor.h"
@@ -31,6 +34,11 @@ struct FDemoProductionPresentationResult
     Core::uint32 Width = 0;
     Core::uint32 Height = 0;
     Core::uint32 RowPitchBytes = 0;
+    Core::uint64 FrameToken = 0;
+    RHI::ERHIFormat Format = RHI::ERHIFormat::Unknown;
+    RHI::FRHIResolvedPresentationState ResolvedState;
+    Core::FString CapabilityDigest;
+    Core::FString FailureStage;
     bool bPresented = false;
 };
 
@@ -60,12 +68,34 @@ public:
     [[nodiscard]] virtual RHI::ERHIResult PrepareProductionPresentation(
         Core::uint32 Width,
         Core::uint32 Height) = 0;
+    [[nodiscard]] virtual RHI::ERHIResult
+    QueryProductionPresentationCapabilities(
+        RHI::FRHIPresentationCapabilities&) const
+    {
+        return RHI::ERHIResult::Unsupported;
+    }
+    [[nodiscard]] virtual RHI::ERHIResult PrepareProductionPresentationMode(
+        const RHI::FRHISwapchainDesc&,
+        RHI::FRHIResolvedPresentationState*)
+    {
+        return RHI::ERHIResult::Unsupported;
+    }
     [[nodiscard]] virtual RHI::ERHIResult PresentProductionImage(
         std::span<const Core::uint8> Rgba8,
         Core::uint32 Width,
         Core::uint32 Height,
         Core::uint32 RowPitchBytes,
         FDemoProductionPresentationResult& OutResult) = 0;
+    // Feature 029 authority path: exact GPU-native formal output only. The
+    // legacy byte/image method remains available solely for Feature 028-era
+    // preview and non-authoritative compatibility probes.
+    [[nodiscard]] virtual RHI::ERHIResult PresentProductionFormalOutput(
+        const Core::TSharedPtr<RHI::IRHITexture>&,
+        Core::uint64,
+        FDemoProductionPresentationResult&)
+    {
+        return RHI::ERHIResult::Unsupported;
+    }
     [[nodiscard]] virtual RHI::ERHIResult ExecuteOffscreenTriangle(
         const Renderer::FForwardFramePlan& Plan,
         const RHI::FRHIShaderModuleDesc& VertexShader,

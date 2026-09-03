@@ -3,6 +3,8 @@
 #include "Renderer/FRenderGraphDiagnostics.h"
 #include "Renderer/FRenderGraphPass.h"
 
+#include <functional>
+
 namespace Stoner::Renderer
 {
 
@@ -34,6 +36,22 @@ struct FRenderGraphDependencyEdge
     FRenderGraphResourceHandle Resource;
 };
 
+enum class ERenderGraphScheduleEventKind
+{
+    Transition,
+    Pass
+};
+
+struct FRenderGraphScheduleEvent
+{
+    ERenderGraphScheduleEventKind Kind = ERenderGraphScheduleEventKind::Pass;
+    Stoner::Core::uint32 PassIndex = FRenderGraphPassHandle::InvalidIndex;
+    const FRenderGraphTransitionRecord* Transition = nullptr;
+};
+
+using FRenderGraphScheduleVisitor = std::function<ERenderGraphResult(
+    const FRenderGraphScheduleEvent&)>;
+
 class FCompiledRenderGraph
 {
 public:
@@ -48,6 +66,8 @@ public:
     FRenderGraphDiagnosticLog Diagnostics;
 
     [[nodiscard]] bool IsExecutable() const noexcept;
+    [[nodiscard]] ERenderGraphResult VisitSchedule(
+        const FRenderGraphScheduleVisitor& Visitor) const;
     [[nodiscard]] Stoner::Core::FString Dump(const FRenderGraph& Graph) const;
 };
 

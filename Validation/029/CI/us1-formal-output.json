@@ -1,0 +1,123 @@
+{
+  "schema": "stoner.feature-029-us1-formal-output",
+  "schemaVersion": 1,
+  "status": "passed",
+  "sourceState": {
+    "kind": "working-tree",
+    "baseRevision": "e66f848d5537db2f5f98b79ae9892b8f1ee9da26"
+  },
+  "redFirstEvidence": {
+    "observed": true,
+    "failureClass": "compile-time missing Feature 029 handoff, output-plan, graph, and executor contracts",
+    "productionCodeAddedAfterFailure": true
+  },
+  "formalLayout": {
+    "sceneColor": {
+      "format": "R16G16B16A16_Float",
+      "domain": "scene-linear-rec709-d65",
+      "sampleCount": 1,
+      "alpha": "opaque-one",
+      "producers": [
+        "Forward",
+        "Deferred"
+      ],
+      "producerFormalOutputCount": 0
+    },
+    "canonicalStages": [
+      "ManualExposure",
+      "PreTonemapInsertion",
+      "SDRToneMap",
+      "PostTonemapInsertion",
+      "OutputDeviceTransform",
+      "FormalReadback",
+      "Presentation"
+    ],
+    "formalOutputWriterCount": 1,
+    "scheduleAuthority": "existing-render-graph"
+  },
+  "boundedEmptyInsertionPath": {
+    "fullscreenPassCount": 3,
+    "fullImageVisitCount": 3,
+    "textureResourceCount": 4,
+    "bufferResourceCountWithoutReadback": 0,
+    "bufferResourceCountWithReadback": 1,
+    "gpuCopyCountWithoutReadback": 0,
+    "gpuCopyCountWithReadback": 1,
+    "cpuReadbackInitiationCountPresentationOnly": 0
+  },
+  "checks": [
+    {
+      "name": "strict-debug-build",
+      "command": "conda run -n godot scons config=debug strict=1 -j8",
+      "result": "passed",
+      "elapsedSecondsObserved": 4.6,
+      "elapsedTimeIsQualifyingEvidence": false
+    },
+    {
+      "name": "renderer-output-transform",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite renderer-output-transform",
+      "result": "passed",
+      "passedAssertions": 12,
+      "failedAssertions": 0,
+      "elapsedSecondsObserved": 0.7,
+      "elapsedTimeIsQualifyingEvidence": false
+    },
+    {
+      "name": "renderer-post-process-graph",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite renderer-post-process-graph",
+      "result": "passed",
+      "passedAssertions": 8,
+      "failedAssertions": 0,
+      "elapsedSecondsObserved": 0.7,
+      "elapsedTimeIsQualifyingEvidence": false
+    },
+    {
+      "name": "renderer-forward",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite renderer-forward",
+      "result": "passed",
+      "passedAssertions": 35,
+      "failedAssertions": 0
+    },
+    {
+      "name": "deferred-renderer",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite deferred-renderer",
+      "result": "passed",
+      "passedAssertions": 38,
+      "failedAssertions": 0
+    },
+    {
+      "name": "production-content-demo-migration",
+      "command": "Build/Mac/Debug/Tests/StonerTest --suite production-content-demo",
+      "result": "passed",
+      "passedAssertions": 33,
+      "failedAssertions": 0
+    },
+    {
+      "name": "repository-shader-assets",
+      "command": "python3 Tests/verify_repository_shader_assets.py --root .",
+      "result": "passed",
+      "programCount": 8,
+      "sourceCount": 14,
+      "payloadCount": 14
+    },
+    {
+      "name": "checked-in-spirv-validation",
+      "command": "spirv-val Content/Shaders/PostProcess/Fullscreen.vert.spv && spirv-val Content/Shaders/PostProcess/OutputTransform.frag.spv && spirv-val Content/Shaders/Deferred/Composition.frag.spv",
+      "result": "passed"
+    }
+  ],
+  "shaderDigests": {
+    "fullscreenVertexSourceSha256": "aeb7401391e688b8b91972973ef84138020733f7d40146027309be6b71921995",
+    "fullscreenVertexSpirvSha256": "347c12d94126663d233b9baa37d4a1e9a2bbcc015f79d8e587cf3992cfacce36",
+    "outputTransformFragmentSourceSha256": "60121a05674806e8ffcc5928d66e77f9839fd88a3c0139503ca659cba0ee7c75",
+    "outputTransformFragmentSpirvSha256": "3d4faf6d5ba0fdfb1f92e557ef3e1a107816bf0f2bbd8cea463f2fb2216df2fa",
+    "deferredCompositionFragmentSourceSha256": "2156170483357b6646bd7fbf8c1dc288fbdde0892ece3de6aac7d866bb17def1",
+    "deferredCompositionFragmentSpirvSha256": "8040c49da862c044b838e768582bbc583083ce5895cd96b9da89cc620bee8c34"
+  },
+  "boundedEvidence": {
+    "checkedInJsonFiles": 1,
+    "rawReportsCheckedIn": false,
+    "pngFiles": 0,
+    "automatedVisualDecision": false
+  }
+}

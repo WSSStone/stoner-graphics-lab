@@ -55,6 +55,13 @@ public:
     [[nodiscard]] FVulkanAllocationSnapshot GetAllocationSnapshot() const noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult EnableNativeShaderRuntime();
     [[nodiscard]] bool HasNativeShaderRuntime() const noexcept;
+    [[nodiscard]] Stoner::Core::TSharedPtr<FVulkanNativeContext>
+    GetNativeShaderContext() const noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult EnableNativePresentationRuntime(
+        const Stoner::Core::FPlatformWindow& Window);
+    [[nodiscard]] bool HasNativePresentationRuntime() const noexcept;
+    [[nodiscard]] Stoner::Core::TSharedPtr<FVulkanNativeContext>
+    GetNativePresentationContext() const noexcept;
     [[nodiscard]] Stoner::Core::uint32 GetDescriptorPoolCapacity() const noexcept;
     [[nodiscard]] Stoner::Core::uint32 GetDescriptorPoolAllocatedCount() const noexcept;
     [[nodiscard]] Stoner::Core::uint32 GetCommandBufferCapacity() const noexcept;
@@ -137,6 +144,7 @@ private:
     FVulkanAdapterCandidate SelectedAdapter;
     FVulkanDiagnostics Diagnostics;
     Stoner::Core::TSharedPtr<FVulkanNativeContext> NativeShaderContext;
+    Stoner::Core::TSharedPtr<FVulkanNativeContext> NativePresentationContext;
     Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanQueue>> Queues;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandPool>> CommandPools;
     Stoner::Core::TArray<Stoner::Core::TWeakPtr<FVulkanFence>> Fences;

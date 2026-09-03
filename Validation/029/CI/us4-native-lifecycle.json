@@ -1,0 +1,41 @@
+{
+  "schema": "stoner.output-transform-us4-native-lifecycle",
+  "schemaVersion": 1,
+  "referenceRevision": "db573ab",
+  "featureRevision": "worktree-uncommitted",
+  "host": "maintainer-local-macos",
+  "automatedVisualDecision": false,
+  "results": [
+    {
+      "name": "rhi-presentation-output",
+      "result": "passed",
+      "scope": "exact-pair generation acquire present pause restore and stale-token contracts"
+    },
+    {
+      "name": "output-presentation-lifecycle",
+      "result": "passed",
+      "transitions": 100,
+      "terminalOwners": 0
+    },
+    {
+      "name": "vulkan-output-transform-native",
+      "result": "passed",
+      "nativePresentation": "unsupported",
+      "reason": "visible native presentation probe requires explicit opt-in and was not claimed by this local run"
+    },
+    {
+      "name": "metal-output-transform-native",
+      "result": "passed",
+      "nativePresentation": "unsupported",
+      "reason": "visible native presentation probe requires explicit opt-in and was not claimed by this local run"
+    }
+  ],
+  "metalHdrReviewPreparation": {
+    "state": "manual-review-required",
+    "requestContract": "passed",
+    "physicalFourProfilePreflight": "not-run",
+    "visualResult": null,
+    "policy": "PQ and EDR retain EDRMetadata=nil; automation cannot decide appearance"
+  },
+  "windowsHdrClaim": "none"
+}
