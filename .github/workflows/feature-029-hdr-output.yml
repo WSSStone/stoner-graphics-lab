@@ -4,10 +4,12 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - '.gitattributes'
       - '.github/scripts/*output_transform*'
       - '.github/workflows/feature-029-hdr-output.yml'
       - 'Config/Validation/OutputTransform/**'
       - 'Content/Shaders/PostProcess/**'
+      - 'Content/Shaders/**/*.comp'
       - 'Demo/StonerDemo/**'
       - 'Source/**'
       - 'Tests/**'
@@ -15,10 +17,12 @@ on:
   push:
     branches: ['029-hdr-output-transform', 'master']
     paths:
+      - '.gitattributes'
       - '.github/scripts/*output_transform*'
       - '.github/workflows/feature-029-hdr-output.yml'
       - 'Config/Validation/OutputTransform/**'
       - 'Content/Shaders/PostProcess/**'
+      - 'Content/Shaders/**/*.comp'
       - 'Demo/StonerDemo/**'
       - 'Source/**'
       - 'Tests/**'
@@ -66,6 +70,29 @@ jobs:
           --suite renderer-output-transform
           --suite rhi-presentation-output
           --suite output-presentation-lifecycle
+
+  windows-python-validation:
+    name: Windows Python validation with CRLF checkout defaults
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Exercise Windows checkout defaults
+        run: git config --global core.autocrlf true
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Validate portable evidence and frozen inputs
+        shell: bash
+        run: |
+          python .github/scripts/test_verify_output_transform_evidence.py
+          python .github/scripts/test_run_output_transform_validation.py
+          python .github/scripts/test_hdr_live_review_contract.py
+          python .github/scripts/test_aggregate_output_transform_validation.py
+          python .github/scripts/test_output_transform_workflows.py
+          python .github/scripts/test_run_production_image_calibration.py
+          python .github/scripts/test_verify_output_transform_vectors.py
+          python Tests/test_verify_repository_shader_assets.py
 
   linux-sanitizers:
     name: Linux ${{ matrix.name }}
@@ -156,7 +183,7 @@ jobs:
 
   aggregate:
     name: Aggregate machine gates without visual authority
-    needs: [strict-build, linux-sanitizers, lavapipe-native, metal-nonvisual, artifact-consumer]
+    needs: [strict-build, windows-python-validation, linux-sanitizers, lavapipe-native, metal-nonvisual, artifact-consumer]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

@@ -98,6 +98,14 @@ def _sha(value: Any) -> bool:
     return isinstance(value, str) and SHA256_RE.fullmatch(value) is not None
 
 
+def _safe_relative_path(value: Any) -> bool:
+    if (not isinstance(value, str) or not value or len(value) > 240 or
+            "\\" in value or ":" in value):
+        return False
+    path = PurePosixPath(value)
+    return not path.is_absolute() and ".." not in path.parts
+
+
 def _walk_keys(value: Any) -> Iterable[str]:
     if isinstance(value, dict):
         for key, child in value.items():
@@ -124,10 +132,7 @@ def validate_artifacts(artifacts: Any, root: Path,
                             ("path", "sha256", "sizeBytes"), label))
         path_value = artifact.get("path")
         size = artifact.get("sizeBytes")
-        if (not isinstance(path_value, str) or not path_value or
-                "\\" in path_value or Path(path_value).is_absolute() or
-                ":" in path_value or len(path_value) > 240 or
-                ".." in PurePosixPath(path_value).parts):
+        if not _safe_relative_path(path_value):
             errors.append(f"{label}: path must be safe repository-relative POSIX")
             continue
         if path_value in paths:
@@ -301,10 +306,7 @@ def validate_sdr_baseline(record: Any) -> list[str]:
             not -16 <= exposure <= 16):
         errors.append("SDR baseline: exposureStops is invalid")
     reference_path = record.get("referencePath")
-    if (not isinstance(reference_path, str) or not reference_path or
-            len(reference_path) > 240 or "\\" in reference_path or
-            Path(reference_path).is_absolute() or
-            ".." in PurePosixPath(reference_path).parts or
+    if (not _safe_relative_path(reference_path) or
             PurePosixPath(reference_path).suffix.lower() != ".png"):
         errors.append("SDR baseline: referencePath must be safe lossless PNG")
     for key in ("capabilityDigest", "settingsDigest", "compressedSha256",

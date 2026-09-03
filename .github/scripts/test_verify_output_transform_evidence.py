@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,7 +47,66 @@ def valid_report() -> dict:
     }
 
 
+def valid_baseline() -> dict:
+    return {
+        "schema": "stoner.sdr-image-baseline", "schemaVersion": 3,
+        "baselineId": "candidate.one", "state": "candidate",
+        "workloadRevision": "production-content-lantern-v3",
+        "backend": "metal", "deviceClass": "macos.apple8.metal",
+        "capabilityDigest": "1" * 64, "outputDeviceProfileId": "Sdr.sRGB.v1",
+        "transformVersion": "Sdr.KhronosPbrNeutral.v1", "exposureStops": 0,
+        "settingsDigest": "2" * 64, "width": 512, "height": 512,
+        "sampleCount": 1, "referencePath": "candidate.png",
+        "compressedSha256": "3" * 64, "decodedSha256": "4" * 64,
+        "calibrationEvidenceSha256": "5" * 64,
+        "flipPolicy": {"meanMax": .0005, "p95Max": .001,
+                       "maximumMax": .01, "badPixelThreshold": .05,
+                       "badPixelFractionMax": .001}, "acceptance": None}
+
+
 class OutputTransformEvidenceTests(unittest.TestCase):
+    def test_unsafe_paths_are_rejected_before_filesystem_lookup(self) -> None:
+        paths = (
+            "/private/candidate.png", "C:/private/candidate.png",
+            "C:candidate.png", "//server/share/candidate.png",
+            r"\\server\share\candidate.png", r"nested\candidate.png",
+            "../candidate.png", "nested/../candidate.png",
+            "nested/stream:candidate.png", "a" * 237 + ".png", "", None,
+        )
+        for value in paths:
+            with self.subTest(path=value), patch.object(
+                    Path, "resolve", side_effect=AssertionError("unsafe path reached filesystem")):
+                entry = {"path": value, "sha256": "a" * 64, "sizeBytes": 1}
+                self.assertEqual(
+                    ["artifacts[0]: path must be safe repository-relative POSIX"],
+                    VERIFY.validate_artifacts([entry], ROOT))
+                record = valid_baseline()
+                record["referencePath"] = value
+                self.assertEqual(
+                    ["SDR baseline: referencePath must be safe lossless PNG"],
+                    VERIFY.validate_sdr_baseline(record))
+
+    def test_nested_relative_paths_preserve_digest_verification(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            relative = "nested/evidence/probe.json"
+            path = root / relative
+            path.parent.mkdir(parents=True)
+            path.write_bytes(b"{}\n")
+            entry = {"path": relative, "sha256": VERIFY.sha256_bytes(b"{}\n"),
+                     "sizeBytes": 3}
+            self.assertEqual([], VERIFY.validate_artifacts([entry], root))
+            entry["sha256"] = "0" * 64
+            self.assertEqual(["artifacts[0]: size or digest does not match file"],
+                             VERIFY.validate_artifacts([entry], root))
+        for relative in ("nested/evidence/candidate.png", "a" * 236 + ".png"):
+            record = valid_baseline()
+            record["referencePath"] = relative
+            self.assertEqual([], VERIFY.validate_sdr_baseline(record))
+        record["referencePath"] = "nested/candidate.jpg"
+        self.assertEqual(["SDR baseline: referencePath must be safe lossless PNG"],
+                         VERIFY.validate_sdr_baseline(record))
+
     def test_duplicate_keys_and_nonfinite_json_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "report.json"
@@ -101,20 +161,8 @@ class OutputTransformEvidenceTests(unittest.TestCase):
     def test_v3_registry_key_and_explicit_acceptance(self) -> None:
         registry = json.loads((ROOT / "Config/Validation/OutputTransform/SDR/Baselines-v3.json").read_text())
         self.assertEqual([], VERIFY.validate_sdr_registry(registry))
-        record = {
-            "schema": "stoner.sdr-image-baseline", "schemaVersion": 3,
-            "baselineId": "candidate.one", "state": "accepted",
-            "workloadRevision": "production-content-lantern-v3",
-            "backend": "metal", "deviceClass": "macos.apple8.metal",
-            "capabilityDigest": "1" * 64, "outputDeviceProfileId": "Sdr.sRGB.v1",
-            "transformVersion": "Sdr.KhronosPbrNeutral.v1", "exposureStops": 0,
-            "settingsDigest": "2" * 64, "width": 512, "height": 512,
-            "sampleCount": 1, "referencePath": "candidate.png",
-            "compressedSha256": "3" * 64, "decodedSha256": "4" * 64,
-            "calibrationEvidenceSha256": "5" * 64,
-            "flipPolicy": {"meanMax": .0005, "p95Max": .001,
-                           "maximumMax": .01, "badPixelThreshold": .05,
-                           "badPixelFractionMax": .001}, "acceptance": None}
+        record = valid_baseline()
+        record["state"] = "accepted"
         self.assertTrue(any("maintainer" in item for item in
                             VERIFY.validate_sdr_baseline(record)))
 
