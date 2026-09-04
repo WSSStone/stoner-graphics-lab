@@ -1,12 +1,12 @@
 # Feature 029 CI and Authority Evidence
 
-This index records bounded evidence captured from the implementation working
-tree before its first commit. It is not a completion record or an exact-commit
-execution claim, even after this index is committed. It does not supply hosted
-run IDs, same-revision M4/Windows SDR v3
-authority, maintainer SDR acceptance, or maintainer-authored HDR visual
-attestations. Raw logs, readbacks, cooked generations, and machine probes remain
-under ignored `Build/Validation/029/`.
+This index preserves the original implementation working-tree evidence and
+separately records the frozen-revision Windows T102 run below. The original
+captures remain preliminary; committing this index does not change their
+provenance. This index does not establish Feature completion, hosted run IDs,
+same-revision M4 SDR authority, maintainer SDR acceptance, or maintainer-authored
+HDR visual attestations. Windows raw evidence is archived on the evidence share
+under `Build/Validation/029/`; its current cooked packages remain on local NTFS.
 
 ## Source State
 
@@ -66,12 +66,57 @@ under a fresh subdirectory, including calibration and native linkage.
 | Lantern v3 | `da2c0971143930a22dff75a2d13224afce66743550aed3e0543fa33ba4c55211` | `7a3c6aaac225471a408a27b1457df0848818ec03b587091e19279e8a25afb49b` | `candidate` |
 | Sponza v3 | `7aee802ac71c934417a720037755ee045a2aa4449a7881ca4585f0e128bf3615` | `4f72c4871fe51280f7db47f026059ca31150b2130d9f53f0d65eb9281eb249e7` | `candidate` |
 
-The independently synchronized physical Windows Vulkan authority must generate
-its own Lantern and Sponza v3 Candidates. Feature 028 carry-forward is forbidden.
+The physical Windows Vulkan authority has generated its own frozen-revision
+Lantern and Sponza v3 Candidates as recorded below. Feature 028 carry-forward
+is forbidden.
 After both platforms have fresh Candidates, only an explicit maintainer edit to
 `Config/Validation/OutputTransform/SDR/Baselines-v3.json` may admit or reject
 each exact record. No alignment, crop, scale, warp, resize, or resampling is
 permitted.
+
+## Physical Windows T102 — 2026-09-04
+
+T102 passed on physical x86_64 Windows, an NVIDIA RTX 3080 Vulkan device, and
+an active local Console session. The tested software revision is exactly
+`1f463520006d2ade3d1b4375a51ad947dd7f1847`. The later documentation commit that
+records this result is not the tested software revision; consumers must check
+out the full SHA above rather than the moving branch tip.
+
+Strict Debug (serial) and Release builds, both configurations' seven output
+contract suites, all eight Python checks, and the applicable cook, image,
+Vulkan and Deferred regressions passed. Both workloads were freshly cooked and
+captured on local NTFS at 512x512, `sampleCount=1`, without image alignment,
+cropping, scaling or resampling. Calibration used three independent processes
+with twenty captures each, measured zero cross-process pixel differences, and
+rejected all eight existing mutations. Native readback, same-frame presentation,
+Candidate linkage and both SDR reports passed with zero verifier findings.
+
+| Workload | Fresh cook / warm reuse | Strict runtime | SDR report SHA-256 |
+| --- | --- | --- | --- |
+| Lantern v3 | 42 / 42 | 27/27, zero source fallback | `0aa99bd90f835bef85e8f2f641680a7498221c2d0dbb58093d6b0774410543e7` |
+| Sponza v3 | 194 / 194 | 27/27, zero source fallback | `4e67bc1b9ae342ac921af60644934a96ff833fd0c2a98eb429e52267c0ff2ea5` |
+
+The evidence share is `Y:\stoner` on this Windows host. Paths below are relative
+to that share, not files required in a fresh repository checkout:
+
+- Archive: `Build/Validation/029/windows-vulkan-repair-20260904-09/feature-029-windows-t102-evidence-only.zip`.
+- Archive SHA-256: `ec7a041bce19aecd51349de6b8f96d721bc94ddb9b6b1111eb0fce30c1a47abe`.
+- Archive size: 2,571,279 bytes; 33 entries; all 325 original evidence records
+  independently reconstructed and verified after transfer.
+- Exact commands, outcomes, input and binary identities: the same run's
+  `exact-commands.json`, archive inventory and `local-final-check.json`.
+- Bounded summary: `Validation/029/CI/windows-vulkan-1f46352-20260904-09/summary.json`.
+- Candidate bundles: `Validation/029/SDR/Windows-Vulkan/{Lantern,Sponza}/1f46352-20260904-09/`.
+- Source bundle, patch and exact-commit checkout instructions: the same run's
+  `software-fix.bundle`, `software-fix.patch` and `SOURCE-HANDOFF.txt`.
+
+Extract the archive at a repository root to preserve report-relative artifact
+paths. Earlier failed runs remain historical records and were not relabeled.
+Candidates retain `acceptance=null`; T103 and the Accepted registry are
+unchanged. This run establishes the Windows local portion of T112 only; the
+other same-revision platform and sanitizer jobs remain outstanding. macOS must
+rebuild and recapture against the tested software SHA. No Windows HDR or
+Console/RDP equivalence validation is claimed.
 
 ## macOS HDR Preflight and Human Authority
 
@@ -99,7 +144,6 @@ settled mode and manually author the linked immutable decisions.
 
 - T101: rerun M4 Metal SDR Candidates/calibration/native capture at the frozen
   software SHA; the preliminary working-tree files cannot be relabeled.
-- T102: physical Windows Vulkan Lantern/Sponza SDR v3 Candidates.
 - T103: explicit maintainer SDR v3 acceptance or rejection.
 - T104: exact-commit four-profile HDR preflight and machine-authored request.
 - T105: maintainer live PQ/EDR visual observations.
@@ -127,8 +171,9 @@ non-finite numbers, oversized data, and duplicate artifacts fail closed.
 The eight focused Python test files pass 66 tests, including synthetic
 positive/negative authority fixtures stored only in temporary test directories.
 They do not create real maintainer acceptance or HDR attestations. T101 was
-reopened to reflect the enforced exact-revision requirement accurately: 109/118
-tasks are complete, with nine real external/same-revision gates remaining.
+reopened to reflect the enforced exact-revision requirement accurately. At that
+pre-push point, 109/118 tasks were complete, with nine real external/same-revision
+gates remaining; the later Windows T102 result is recorded separately above.
 
 The full staged-file whitespace scan also removed trailing whitespace from the
 new GLSL/CPU ACES implementation and specification prose. Repository source
