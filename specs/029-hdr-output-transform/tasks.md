@@ -13,6 +13,17 @@ and tested as an increment. Contract mapping is: output-pipeline to US1/US3,
 output-device-profiles to US2, presentation-readback-lifecycle to the foundation
 and US4, and validation-evidence to US5.
 
+**Closeout status (2026-09-04)**: 112/118 tasks recorded complete. The four
+`1f46352` +3 EV hidden-background HDR runs passed 1,000/20 lifecycle validation;
+the maintainer's separate live-review feedback is preserved in
+`Validation/029/HDR/README.md`, but T105 still requires the manually authored
+attestation. Hosted run 33847099909 failed strict platform-only compilation.
+The local portability repair passes its available checks but changes software
+inputs; T112 requires a new frozen SHA and passing platform/sanitizer results.
+T101/T102/T104 remain records of completed `1f46352` captures, not evidence for
+that future SHA. No old evidence or human decision may be automatically promoted
+to the new revision. T103/T105/T106/T112/T117/T118 remain open.
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: May run in parallel because it changes different files and has no

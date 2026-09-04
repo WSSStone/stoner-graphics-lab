@@ -160,6 +160,62 @@ the maintainer's live four-profile observations. This is 112/118 tasks, not
 Feature completion. Raw logs, commands, PPMs, DDC and cooked packages remain in
 ignored `Build/Validation/029/m4-formal-1f46352-20260904-01/`.
 
+## +3 EV Live Feedback and Background Endurance — 2026-09-04
+
+`Validation/029/HDR/README.md` indexes the unchanged +3 EV live-review request,
+settings, preflights, explicit conversation feedback, and incomplete foreground
+replay history. The maintainer's "可以接受。关闭它们" applies to the +3 EV live
+presentation only. It is not a separate manually authored T105 attestation and
+does not accept macOS SDR Candidates or the earlier zero-EV HDR request.
+
+All four subsequent hidden-background native runs passed 1,000 lifecycle
+cycles after 20 warmup cycles at the frozen `1f46352` software revision.
+Their probe/report pairs and summary are in
+`Validation/029/HDR/Endurance/1f46352-ev3-background-20260904-02/`: nine JSON
+files, 18,019 bytes, no image artifacts. Each reached same-frame token 2001,
+completed command/readback/presentation, and left zero terminal owners.
+These are non-visual endurance results, not automated HDR acceptance.
+
+## Hosted CI Portability Repair — 2026-09-04
+
+[Hosted run 33847099909](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/33847099909)
+tested `efbf3611bf6904ca66e097d92937217e0319e7f0`, not the physical evidence's
+`1f46352`. Windows strict Debug/Release, Windows Python, and machine
+producer/consumer passed. Linux strict/sanitizer/Lavapipe and macOS strict/native
+jobs failed during compilation; the aggregate was skipped. This is not a
+passing T112 run. No hosted Feature 029 run at the exact `1f46352` SHA was found
+when inspected on 2026-09-04.
+
+Two platform-only helpers were compiled without their callers:
+
+- Linux: `HostArchitecture` in `Tests/MetalShaderDerivationTests.cpp` was
+  unused outside macOS, failing `-Werror=unused-function`.
+- macOS without GLFW: `ApplyMetalPresentationLayerPolicy` in
+  `FMetalPresentationContext.mm` was unused, failing the same strict gate.
+
+The repair guards each helper with its caller's platform/availability condition.
+It does not suppress warnings or alter color equations, shader bytes, expected
+vectors, or tolerances. The native Metal job also now installs and checks GLFW,
+exports its detected prefix before building, and retains mandatory native
+presentation checks. A new workflow regression test first failed without that
+provisioning and passes with it. The no-GLFW compilation error was reproduced
+locally before the fix; strict syntax checks now pass with GLFW both disabled
+and enabled.
+
+Local working-tree verification passed full strict Release, all 72 focused
+Python tests, the seven output contract suites, Metal presentation policy and
+shader derivation/offline finalization, hidden native Metal output presentation,
+and Metal/Vulkan GPU conformance (288 samples x 20 repeats each). Frozen vectors,
+shader assets, output architecture, bounded endurance reports, roadmap numbering,
+dependencies, anchors, task references, stale-phase references, and whitespace
+checks passed. These checks do not replace a new hosted Linux/sanitizer run.
+
+The repair changes software inputs and is not evidence-only. It must be committed
+and frozen before a new formal validation round; old physical captures and human
+feedback retain their original SHA. They cannot be relabeled or automatically
+carried forward. `portability-repair-20260904.json` records this working-tree
+diagnostic scope. T112 and final same-revision closeout remain open.
+
 ## Preliminary macOS HDR Preflight History
 
 The physical M4 completed non-visual preflights for all four required modes:
@@ -185,10 +241,11 @@ settled mode and manually author the linked immutable decisions.
 ## Remaining Closeout Gates
 
 - T103: Windows Lantern/Sponza accepted; macOS SDR review remains pending.
-- T105: maintainer live PQ/EDR visual observations.
+- T105: separate maintainer-authored HDR attestation; +3 EV conversation
+  acceptance is preserved but is not an automatically authored substitute.
 - T106: accepted-SDR and current four-pass HDR authority aggregation.
-- T112: exact-revision hosted Windows/macOS/Linux strict Release and Linux
-  sanitizer run IDs and artifact digests.
+- T112: freeze the portability repair, then obtain passing exact-revision
+  Windows/macOS/Linux strict Release and Linux sanitizer run IDs and digests.
 - T117: roadmap/AGENTS completion status, only after every gate passes.
 - T118: final same-revision producer/consumer closeout aggregation.
 

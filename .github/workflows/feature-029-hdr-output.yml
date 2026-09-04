@@ -134,6 +134,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: python -m pip install scons==4.10.1
+      - name: Provision GLFW presentation dependency
+        shell: bash
+        run: |
+          brew install glfw
+          GLFW_PREFIX="$(brew --prefix glfw)"
+          test -f "$GLFW_PREFIX/include/GLFW/glfw3.h"
+          test -e "$GLFW_PREFIX/lib/libglfw.3.dylib"
+          echo "GLFW_ROOT=$GLFW_PREFIX" >> "$GITHUB_ENV"
       - run: scons config=debug strict=1
       - run: Build/Mac/Debug/Tests/StonerTest --suite metal-output-transform-native
       # No automated HDR visual acceptance: this lane checks native state,

@@ -78,6 +78,21 @@ class OutputTransformWorkflowTests(unittest.TestCase):
                       "STONER_REQUIRE_METAL_OUTPUT_PRESENTATION"):
             self.assertIn(token, self.text)
 
+    def test_metal_presentation_dependency_is_verified_before_build(self) -> None:
+        job = self.job("metal-nonvisual")
+        build = "scons config=debug strict=1"
+        for command in (
+            "brew install glfw",
+            'GLFW_PREFIX="$(brew --prefix glfw)"',
+            'test -f "$GLFW_PREFIX/include/GLFW/glfw3.h"',
+            'test -e "$GLFW_PREFIX/lib/libglfw.3.dylib"',
+            'echo "GLFW_ROOT=$GLFW_PREFIX" >> "$GITHUB_ENV"',
+        ):
+            with self.subTest(command=command):
+                self.assertIn(command, job)
+                self.assertLess(job.index(command), job.index(build))
+        self.assertIn("STONER_REQUIRE_METAL_OUTPUT_PRESENTATION: '1'", job)
+
     def test_producer_consumer_revalidation_and_aggregate_are_separate(self) -> None:
         for job in ("artifact-producer:", "artifact-consumer:", "aggregate:"):
             self.assertIn(job, self.text)

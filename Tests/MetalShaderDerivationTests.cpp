@@ -22,6 +22,7 @@ using namespace Stoner::Asset;
 using namespace Stoner::AssetCooker::Private;
 using namespace Stoner::Core;
 
+#if SG_PLATFORM_MAC
 const char* HostArchitecture()
 {
 #if defined(__aarch64__) || defined(__arm64__)
@@ -32,6 +33,7 @@ const char* HostArchitecture()
     return "unsupported";
 #endif
 }
+#endif
 
 void Record(
     FMetalShaderDerivationTestResult& Result,

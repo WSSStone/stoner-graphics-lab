@@ -1,0 +1,98 @@
+{
+  "schema": "stoner.local-output-portability-repair",
+  "schemaVersion": 1,
+  "recordedDate": "2026-09-04",
+  "provenance": "working-tree-diagnostic-not-exact-commit-closeout",
+  "baseRevision": "efbf3611bf6904ca66e097d92937217e0319e7f0",
+  "priorPhysicalEvidenceRevision": "1f463520006d2ade3d1b4375a51ad947dd7f1847",
+  "softwareInputsChanged": true,
+  "formalTestedRevision": null,
+  "sourceFiles": [
+    {
+      "path": ".github/scripts/test_output_transform_workflows.py",
+      "sha256": "560712e84ae79cc19a917a2642957c004e9e895d8588ac82cf4d5a7dee0e2645"
+    },
+    {
+      "path": ".github/workflows/feature-029-hdr-output.yml",
+      "sha256": "33152e9212a23d8bc44d2d00c2e29e8c31fca02d523c962fb8f447e831f86799"
+    },
+    {
+      "path": "Source/Backend/Metal/Private/FMetalPresentationContext.mm",
+      "sha256": "ebc0acddaee9dbfb6179ef81f4a4bf90800ac63efa218b446b85932f3ed7ca08"
+    },
+    {
+      "path": "Tests/MetalShaderDerivationTests.cpp",
+      "sha256": "6790fe9ad61ae5f68404de01bef769ed0dc08a8e4bcdf6841c88ef1e9b9c730d"
+    }
+  ],
+  "observedHostedRun": {
+    "runId": 33847099909,
+    "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/33847099909",
+    "headSha": "efbf3611bf6904ca66e097d92937217e0319e7f0",
+    "conclusion": "failure",
+    "errors": [
+      {
+        "platform": "linux",
+        "file": "Tests/MetalShaderDerivationTests.cpp",
+        "function": "HostArchitecture",
+        "diagnostic": "-Werror=unused-function"
+      },
+      {
+        "platform": "macos-without-glfw",
+        "file": "Source/Backend/Metal/Private/FMetalPresentationContext.mm",
+        "function": "ApplyMetalPresentationLayerPolicy",
+        "diagnostic": "-Werror,-Wunused-function"
+      }
+    ],
+    "noHostedRunAtPriorPhysicalRevisionFound": true
+  },
+  "localChecks": {
+    "noGlfwStrictSyntaxBefore": "failed-unused-function",
+    "noGlfwStrictSyntaxAfter": "passed",
+    "withGlfwStrictSyntaxAfter": "passed",
+    "glfwWorkflowRegressionBefore": "failed-missing-provisioning",
+    "glfwWorkflowRegressionAfter": "passed",
+    "strictReleaseBuild": "passed",
+    "pythonTests": {
+      "passed": 72,
+      "failed": 0
+    },
+    "outputContractSuites": {
+      "passed": 7,
+      "failed": 0
+    },
+    "metalShaderDerivationAndOfflineFinalization": "passed",
+    "metalPresentationPolicy": "passed",
+    "hiddenMetalNativeOutputPresentation": "passed",
+    "gpuConformance": [
+      {
+        "backend": "metal",
+        "samples": 288,
+        "repeats": 20,
+        "status": "passed"
+      },
+      {
+        "backend": "vulkan",
+        "samples": 288,
+        "repeats": 20,
+        "status": "passed"
+      }
+    ],
+    "outputArchitectureFindings": 0,
+    "frozenVectorFindings": 0,
+    "repositoryShaderAssetFindings": 0,
+    "enduranceReportFindings": 0,
+    "roadmapConsistencyFindings": 0,
+    "whitespaceCheck": "passed"
+  },
+  "demoSha256": "c42355f1f08ee4fe1b6a0f001db0c9616873ed04c070594342ee2e4674208c27",
+  "testsSha256": "8f350cdbe328ec640e14d0d3dc6146ea9afde3bbf87faac50f08c9f754253d29",
+  "protectedUserFilesSha256": "b0bb9e806a26359c4d0faf7cdcb0087506a6b34dc4828f29510c68afa0e935d7",
+  "limitations": [
+    "No hosted run has tested these uncommitted repairs.",
+    "Linux compiler and sanitizer reruns remain pending; macOS checks are not Linux evidence.",
+    "No physical Windows evidence is claimed for this working-tree repair.",
+    "Old 1f46352 captures and human feedback are unchanged, not carried forward.",
+    "No HDR attestation was authored and no Feature completion gate was closed."
+  ]
+}

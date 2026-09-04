@@ -62,6 +62,7 @@ struct FMetalPresentationContext::FImpl
     std::vector<FFrame> Frames;
 };
 
+#if defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
 namespace
 {
 
@@ -125,6 +126,7 @@ bool ApplyMetalPresentationLayerPolicy(
 }
 
 } // namespace
+#endif
 
 FMetalPresentationLayerPolicy ResolveMetalPresentationLayerPolicy(
     const RHI::FRHISwapchainDesc& Request) noexcept
