@@ -1,10 +1,10 @@
 # Feature 029 CI and Authority Evidence
 
 This index preserves the original implementation working-tree evidence and
-separately records the frozen-revision Windows T102 run below. The original
+separately records the frozen-revision Windows T102 and M4 T101/T104 runs below. The original
 captures remain preliminary; committing this index does not change their
 provenance. This index does not establish Feature completion, hosted run IDs,
-same-revision M4 SDR authority, complete maintainer SDR acceptance, or maintainer-authored
+complete maintainer SDR acceptance, or maintainer-authored
 HDR visual attestations. Windows raw evidence is archived on the evidence share
 under `Build/Validation/029/`; its current cooked packages remain on local NTFS.
 
@@ -54,7 +54,7 @@ The normalized regression inventory is
 dependency, anchor, task-reference, old-phase-reference, and whitespace scans
 currently report zero findings.
 
-## SDR v3 Candidate State
+## Preliminary SDR v3 Candidate History
 
 The physical M4 produced preliminary exact 512-by-512, `sampleCount=1`,
 lossless v3 Candidates. Neither Candidate is Accepted or valid same-revision
@@ -126,7 +126,41 @@ other same-revision platform and sanitizer jobs remain outstanding. macOS must
 rebuild and recapture against the tested software SHA. No Windows HDR or
 Console/RDP equivalence validation is claimed.
 
-## macOS HDR Preflight and Human Authority
+## Physical M4 T101/T104 — 2026-09-04
+
+Fresh captures used the exact checkout
+`1f463520006d2ade3d1b4375a51ad947dd7f1847`, with software-input guards before
+and after every command. Strict Release was rebuilt, including the changed
+native writer/test translation units and linked executables. No earlier probe
+was relabeled. `m4-metal-1f46352-20260904-01/summary.json` records binary,
+command, log, cook, and bounded artifact digests.
+
+- Fresh Lantern cook: 42 assets, followed by 42/42 warm reuse.
+- Fresh Sponza cook: 194 assets, followed by 194/194 warm reuse.
+- Both SDR workloads: three independent processes, twenty captures each,
+  zero cross-process pixel noise, all eight mutations rejected, exact 512x512
+  native readback/Candidate/calibration linkage, and zero verifier findings.
+- Formal SDR bundles: `Validation/029/SDR/M4-Metal/{Lantern,Sponza}/1f46352-20260904-01/`.
+  Both remain Candidates; the Windows acceptance does not admit macOS images.
+- PQ1000, PQ2000, EDR1000, and EDR2000 completed fresh same-frame native
+  preflights, with `EDRMetadata=nil` and their declared platform adaptation.
+  Their probes/reports are under `Validation/029/HDR/{Probes,Reports}/1f46352-20260904-01/`.
+- `Validation/029/HDR/hdr-live-review-request.json` is
+  `ready-for-live-review`, with no human visual decision. The accompanying
+  display-capabilities JSON records the ordered profile-capability digest
+  derivation; it makes no photometric or achieved-peak claim.
+- 71 Python tests passed. The seven output contract suites, Metal policy and
+  opt-in native presentation checks passed. Metal and Vulkan each passed
+  288 shader samples over 20 repeats. Architecture, frozen-vector, evidence,
+  numbering, dependency, anchor, task-reference, and stale-phase scans passed.
+
+These evidence-storage commits do not change the tested software identity.
+T101/T104 are complete; T103 remains open for macOS review, and T105 requires
+the maintainer's live four-profile observations. This is 112/118 tasks, not
+Feature completion. Raw logs, commands, PPMs, DDC and cooked packages remain in
+ignored `Build/Validation/029/m4-formal-1f46352-20260904-01/`.
+
+## Preliminary macOS HDR Preflight History
 
 The physical M4 completed non-visual preflights for all four required modes:
 
@@ -150,10 +184,7 @@ settled mode and manually author the linked immutable decisions.
 
 ## Remaining Closeout Gates
 
-- T101: rerun M4 Metal SDR Candidates/calibration/native capture at the frozen
-  software SHA; the preliminary working-tree files cannot be relabeled.
 - T103: Windows Lantern/Sponza accepted; macOS SDR review remains pending.
-- T104: exact-commit four-profile HDR preflight and machine-authored request.
 - T105: maintainer live PQ/EDR visual observations.
 - T106: accepted-SDR and current four-pass HDR authority aggregation.
 - T112: exact-revision hosted Windows/macOS/Linux strict Release and Linux
