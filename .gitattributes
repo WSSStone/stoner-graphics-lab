@@ -28,3 +28,6 @@ Source/Renderer/Private/FOutputTransformReference.h text eol=lf
 Source/Renderer/Private/FOutputTransformReference.cpp text eol=lf
 Source/Renderer/Private/FOutputTransformAces2Reference.h text eol=lf
 Source/Renderer/Private/FOutputTransformAces2Reference.cpp text eol=lf
+# Received Windows calibration evidence must retain its original hashed bytes.
+Validation/029/SDR/Windows-Vulkan/Lantern/1f46352-20260904-09/calibration.json -text
+Validation/029/SDR/Windows-Vulkan/Sponza/1f46352-20260904-09/calibration.json -text
