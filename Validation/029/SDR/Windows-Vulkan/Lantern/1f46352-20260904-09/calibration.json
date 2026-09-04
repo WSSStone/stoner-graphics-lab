@@ -1,0 +1,83 @@
+{
+  "backend": "vulkan",
+  "candidateOnly": true,
+  "capturesPerProcess": 20,
+  "gitRevision": "1f463520006d2ade3d1b4375a51ad947dd7f1847",
+  "modes": [
+    {
+      "calibrationEvidenceSha256": "ebe4b773a001af8876d4973e09edd2164fc83166c6ad46fce6363820da8b534f",
+      "candidatePng": "candidate-mode-1.png",
+      "candidatePngSha256": "f67c022b9aa01cd3986610a235efe62d04699f595d24ec53a64d0e06d2767ac5",
+      "crossProcessNoise": {
+        "badPixelFraction": 0.0,
+        "maximum": 0.0,
+        "mean": 0.0,
+        "p95": 0.0
+      },
+      "decodedPixelSha256": "23ac57adaf34d8ae059d3ae03400e4d351d72cd8b6dfdfdd78727e4473740fa6",
+      "flipPolicy": {
+        "badPixelFractionMax": 0.001,
+        "badPixelThreshold": 0.05,
+        "maximumMax": 0.01,
+        "meanMax": 0.0005,
+        "p95Max": 0.001
+      },
+      "modeId": "mode-1",
+      "mutationsRejected": [
+        "blank",
+        "stale",
+        "origin",
+        "translation-one-pixel",
+        "missing-geometry",
+        "material-swap",
+        "color-space",
+        "opposite-normal"
+      ],
+      "processOrdinals": [
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "pairwiseModeFlip": [],
+  "processCount": 3,
+  "processes": [
+    {
+      "decodedPixelSha256": "23ac57adaf34d8ae059d3ae03400e4d351d72cd8b6dfdfdd78727e4473740fa6",
+      "firstFrameToken": 1,
+      "lastFrameToken": 39,
+      "ordinal": 1,
+      "staleFrameMutation": {
+        "expectedFrameToken": 39,
+        "observedFrameToken": 1,
+        "rejected": true
+      }
+    },
+    {
+      "decodedPixelSha256": "23ac57adaf34d8ae059d3ae03400e4d351d72cd8b6dfdfdd78727e4473740fa6",
+      "firstFrameToken": 1,
+      "lastFrameToken": 39,
+      "ordinal": 2,
+      "staleFrameMutation": {
+        "expectedFrameToken": 39,
+        "observedFrameToken": 1,
+        "rejected": true
+      }
+    },
+    {
+      "decodedPixelSha256": "23ac57adaf34d8ae059d3ae03400e4d351d72cd8b6dfdfdd78727e4473740fa6",
+      "firstFrameToken": 1,
+      "lastFrameToken": 39,
+      "ordinal": 3,
+      "staleFrameMutation": {
+        "expectedFrameToken": 39,
+        "observedFrameToken": 1,
+        "rejected": true
+      }
+    }
+  ],
+  "schema": "stoner.production-cross-process-calibration",
+  "schemaVersion": 1,
+  "workloadRevision": "production-content-lantern-v3"
+}

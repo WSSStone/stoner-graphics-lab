@@ -1,0 +1,47 @@
+{
+  "schema": "stoner.output-transform-sdr-maintainer-decision",
+  "schemaVersion": 1,
+  "gitRevision": "1f463520006d2ade3d1b4375a51ad947dd7f1847",
+  "maintainerId": "stonewswang",
+  "maintainerIdSource": "repository git user.name",
+  "reviewedAt": "2026-09-04T06:27:55Z",
+  "sourceDecision": {
+    "channel": "maintainer conversation",
+    "statement": "acceptable",
+    "scope": "Both Windows SDR Candidates displayed immediately before this decision: Lantern and Sponza."
+  },
+  "registryPath": "Config/Validation/OutputTransform/SDR/Baselines-v3.json",
+  "sourceArchiveSha256": "ec7a041bce19aecd51349de6b8f96d721bc94ddb9b6b1111eb0fce30c1a47abe",
+  "decisions": [
+    {
+      "workloadRevision": "production-content-lantern-v3",
+      "backend": "vulkan",
+      "deviceClass": "windows.discrete-vulkan.rgba8",
+      "decision": "accepted",
+      "candidatePath": "Validation/029/SDR/Windows-Vulkan/Lantern/1f46352-20260904-09/candidate.json",
+      "candidateJsonSha256": "a09f184a7426a007e141bb57089e944d6025e1a083f6d45b78f144b200786525",
+      "pngSha256": "f67c022b9aa01cd3986610a235efe62d04699f595d24ec53a64d0e06d2767ac5",
+      "decodedPixelSha256": "23ac57adaf34d8ae059d3ae03400e4d351d72cd8b6dfdfdd78727e4473740fa6",
+      "sdrReportPath": "Validation/029/SDR/Windows-Vulkan/Lantern/1f46352-20260904-09/sdr-report.json",
+      "sdrReportSha256": "0aa99bd90f835bef85e8f2f641680a7498221c2d0dbb58093d6b0774410543e7"
+    },
+    {
+      "workloadRevision": "production-content-sponza-v3",
+      "backend": "vulkan",
+      "deviceClass": "windows.discrete-vulkan.rgba8",
+      "decision": "accepted",
+      "candidatePath": "Validation/029/SDR/Windows-Vulkan/Sponza/1f46352-20260904-09/candidate.json",
+      "candidateJsonSha256": "802c41c760a0e2ceeec0a5de94bf7ca7b34946560fb446d235d47f430f85fe05",
+      "pngSha256": "6d93309e0bd939a85e6c8bcf6d4251de6e1e6b54b0ce25699f1867648a982950",
+      "decodedPixelSha256": "d85636cd7b43846ec60290379456b5258a811570b162ee6b0d2b0a49b37ddbe5",
+      "sdrReportPath": "Validation/029/SDR/Windows-Vulkan/Sponza/1f46352-20260904-09/sdr-report.json",
+      "sdrReportSha256": "4e67bc1b9ae342ac921af60644934a96ff833fd0c2a98eb429e52267c0ff2ea5"
+    }
+  ],
+  "originalCandidateBytesUnchanged": true,
+  "imageTransformsApplied": [],
+  "automaticVisualDecision": false,
+  "macosSdrAcceptedByThisDecision": false,
+  "hdrVisualAuthorityGrantedByThisDecision": false,
+  "featureCloseoutGrantedByThisDecision": false
+}

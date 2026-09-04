@@ -1,0 +1,13 @@
+{
+  "checkedUtc": "2026-09-04T03:24:59.7648004Z",
+  "gitRevision": "1f463520006d2ade3d1b4375a51ad947dd7f1847",
+  "native64BitOperatingSystem": true,
+  "networkStorageUsedForCookedPackages": false,
+  "osArchitecture": "64 \u4f4d",
+  "osBuildNumber": "26100",
+  "osCaption": "Microsoft Windows 11 \u4e13\u4e1a\u7248",
+  "osVersion": "10.0.26100",
+  "processArchitecture": "X64",
+  "validationAndTempUseSameLocalVolume": true,
+  "validationFileSystem": "NTFS"
+}

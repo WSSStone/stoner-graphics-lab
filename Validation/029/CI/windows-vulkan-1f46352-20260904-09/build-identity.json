@@ -1,0 +1,22 @@
+{
+  "contractsPerConfiguration": [
+    "output-device-profile",
+    "renderer-output-transform-math",
+    "renderer-post-process-insertion",
+    "renderer-post-process-graph",
+    "renderer-output-transform",
+    "rhi-presentation-output",
+    "output-presentation-lifecycle"
+  ],
+  "freshBuildThisRun": true,
+  "gitRevision": "1f463520006d2ade3d1b4375a51ad947dd7f1847",
+  "releaseBinaries": {
+    "Demo/StonerDemo/StonerDemo.exe": "11fe13d873ed1b6eec733737950197ddd3e4ef9d90bcdf64160e7ee27c688749",
+    "Tests/StonerTest.exe": "edd6839f8989410409606d87be2444d9fb39b1740ae2c16f22f24a5f5b5669d6",
+    "Tools/AssetCooker/StonerAssetCooker.exe": "079814bb8941b0e265ecf93cfdc01491508a1a6a0017193f23474bc92f76c20f"
+  },
+  "sconsVersion": "4.10.1",
+  "status": "passed",
+  "strictDebugSerial": true,
+  "strictRelease": true
+}

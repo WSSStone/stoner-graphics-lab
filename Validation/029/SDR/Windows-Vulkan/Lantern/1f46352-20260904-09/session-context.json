@@ -1,0 +1,36 @@
+{
+  "consoleRdpEquivalenceClaim": false,
+  "deviceClass": "windows.discrete-vulkan.rgba8",
+  "deviceID": "0x2216",
+  "driverVersion": "581.32.0.0",
+  "evidenceScope": "application GPU readback and same-frame native window presentation in the recorded session",
+  "gitRevision": "1f463520006d2ade3d1b4375a51ad947dd7f1847",
+  "nativeRuntime": true,
+  "physicalDeviceType": "PHYSICAL_DEVICE_TYPE_DISCRETE_GPU",
+  "physicalMonitorScanoutClaim": false,
+  "sdrReportSha256": "0aa99bd90f835bef85e8f2f641680a7498221c2d0dbb58093d6b0774410543e7",
+  "sessionAfter": {
+    "checkedUtc": "2026-09-04T03:31:04.330683+00:00",
+    "desktopMonitorCount": 2,
+    "inputDesktop": "Default",
+    "remoteSessionMetric": false,
+    "sessionType": "console",
+    "status": "passed",
+    "wtsClientProtocolType": 0,
+    "wtsConnectState": 0
+  },
+  "sessionBefore": {
+    "checkedUtc": "2026-09-04T03:30:24.178499+00:00",
+    "desktopMonitorCount": 2,
+    "inputDesktop": "Default",
+    "remoteSessionMetric": false,
+    "sessionType": "console",
+    "status": "passed",
+    "wtsClientProtocolType": 0,
+    "wtsConnectState": 0
+  },
+  "sessionPolicyDiffSha256": "eb514904ce7a23ab6b8d623e2253377aeb82189e284a8c8006997044dc8501cb",
+  "softwareDevice": false,
+  "vendorID": "0x10de",
+  "windowsHdrClaim": false
+}

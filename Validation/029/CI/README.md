@@ -4,7 +4,7 @@ This index preserves the original implementation working-tree evidence and
 separately records the frozen-revision Windows T102 run below. The original
 captures remain preliminary; committing this index does not change their
 provenance. This index does not establish Feature completion, hosted run IDs,
-same-revision M4 SDR authority, maintainer SDR acceptance, or maintainer-authored
+same-revision M4 SDR authority, complete maintainer SDR acceptance, or maintainer-authored
 HDR visual attestations. Windows raw evidence is archived on the evidence share
 under `Build/Validation/029/`; its current cooked packages remain on local NTFS.
 
@@ -110,10 +110,18 @@ to that share, not files required in a fresh repository checkout:
 - Source bundle, patch and exact-commit checkout instructions: the same run's
   `software-fix.bundle`, `software-fix.patch` and `SOURCE-HANDOFF.txt`.
 
-Extract the archive at a repository root to preserve report-relative artifact
-paths. Earlier failed runs remain historical records and were not relabeled.
-Candidates retain `acceptance=null`; T103 and the Accepted registry are
-unchanged. This run establishes the Windows local portion of T112 only; the
+The bounded CI JSON and both complete SDR bundles are now imported at their
+original repository-relative paths. The archive manifest also indexes raw
+files retained only on the share; it is an archive inventory, not a claim that
+those raw files are checked in. Earlier failed runs remain historical records
+and were not relabeled. Source Candidates retain `acceptance=null` unchanged.
+
+On 2026-09-04 the maintainer viewed both exact Windows Candidate PNGs and
+explicitly replied "acceptable". The two Accepted registry copies and
+`Validation/029/SDR/Windows-Vulkan/acceptance-1f46352-20260904.json` record
+that decision and immutable hashes. It covers Windows Lantern/Sponza only;
+T103 remains open for macOS, and no HDR decision is implied. This run
+establishes the Windows local portion of T112 only; the
 other same-revision platform and sanitizer jobs remain outstanding. macOS must
 rebuild and recapture against the tested software SHA. No Windows HDR or
 Console/RDP equivalence validation is claimed.
@@ -144,7 +152,7 @@ settled mode and manually author the linked immutable decisions.
 
 - T101: rerun M4 Metal SDR Candidates/calibration/native capture at the frozen
   software SHA; the preliminary working-tree files cannot be relabeled.
-- T103: explicit maintainer SDR v3 acceptance or rejection.
+- T103: Windows Lantern/Sponza accepted; macOS SDR review remains pending.
 - T104: exact-commit four-profile HDR preflight and machine-authored request.
 - T105: maintainer live PQ/EDR visual observations.
 - T106: accepted-SDR and current four-pass HDR authority aggregation.

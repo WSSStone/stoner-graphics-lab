@@ -1,0 +1,35 @@
+{
+  "consoleEquivalenceClaim": false,
+  "documentInputs": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "a34cfc93ba3c1c2a85802d3f7d8e92b2fb8bbb2c120ee6346b82b8d928dc2829"
+    },
+    {
+      "path": "specs/029-hdr-output-transform/windows-handoff.md",
+      "sha256": "fc9a436614663f16a757d45ea50281168034db336e71dd627674dcad8d1c3baa"
+    },
+    {
+      "path": "specs/029-hdr-output-transform/tasks.md",
+      "sha256": "f4f6c40d12b8bd5066fb2671e5176aadb424776167ebb339bfb76c6da8a0bae7"
+    },
+    {
+      "path": "specs/029-hdr-output-transform/quickstart.md",
+      "sha256": "ac94b6a253407297fa8c7af78c190375372a0ce265ecef4220e3ec0e40893e0b"
+    },
+    {
+      "path": "specs/029-hdr-output-transform/spec.md",
+      "sha256": "1512802c97d2c2e05d4a56c3d291c57c4a32f45d3589fd9eec9482aa40620886"
+    },
+    {
+      "path": "specs/029-hdr-output-transform/contracts/validation-evidence.md",
+      "sha256": "f6d647fe9c0e5c12dd36199223a7dda7967cd7585ad68615d51a365ae4716a04"
+    }
+  ],
+  "gitRevision": "1f463520006d2ade3d1b4375a51ad947dd7f1847",
+  "physicalMonitorScanoutClaim": false,
+  "policy": "Active unlocked Console or RDP; physical discrete Vulkan GPU readback and same-frame window presentation",
+  "policyDiffSha256": "eb514904ce7a23ab6b8d623e2253377aeb82189e284a8c8006997044dc8501cb",
+  "policyInSoftwareCommit": true,
+  "windowsHdrClaim": false
+}

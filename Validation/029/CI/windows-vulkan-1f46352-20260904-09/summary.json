@@ -1,0 +1,67 @@
+{
+  "T102Complete": true,
+  "T102MachineCaptureComplete": true,
+  "T103MaintainerAcceptance": "pending",
+  "T112OtherPlatformAndSanitizerJobs": "not established by this run",
+  "T112WindowsLocalBuilds": "passed",
+  "acceptedRegistryModified": false,
+  "actualSessionTypes": [
+    "console"
+  ],
+  "baseSoftwareRevision": "0b9418c7c85e6c4a35627c98421d447e63613563",
+  "builtBinariesTransferred": false,
+  "consoleRdpEquivalenceTested": false,
+  "cookedPackagesTransferred": false,
+  "featureComplete": false,
+  "findings": [
+    "Original wrong-digest probe retained in diagnostic red-test records.",
+    "Pre-freeze shader-asset test initially hit sandbox access denial; unchanged test passed with required access.",
+    "A transient inaccessible input desktop prevented a native-regression launch; the actual later visible run passed.",
+    "Existing LNK4098 linker warnings preserved."
+  ],
+  "finishedUtc": "2026-09-04T03:33:19.727165+00:00",
+  "freshBuild": true,
+  "freshCalibration": true,
+  "freshCook": true,
+  "freshNativeCapture": true,
+  "gitRevision": "1f463520006d2ade3d1b4375a51ad947dd7f1847",
+  "physicalMonitorScanoutClaim": false,
+  "policyDiffSha256": "eb514904ce7a23ab6b8d623e2253377aeb82189e284a8c8006997044dc8501cb",
+  "preFreezeRegressionRejectedOriginalDefect": true,
+  "previousFailuresPreserved": true,
+  "schema": "stoner.feature029.windows-sdr-handoff",
+  "schemaVersion": 1,
+  "softwareBranch": "codex/029-native-probe-digest-fix",
+  "softwareCommitLocalOnly": true,
+  "status": "passed",
+  "taskMarkerDiffSha256": "f32068f21e1bcf0ef21331d98d6bad0fc5e1a90c90248efb6f7e2b0420565323",
+  "windowsHdrValidated": false,
+  "workloads": {
+    "lantern": {
+      "acceptance": null,
+      "actualSessionType": "console",
+      "candidateSha256": "a09f184a7426a007e141bb57089e944d6025e1a083f6d45b78f144b200786525",
+      "decodedPixelSha256": "23ac57adaf34d8ae059d3ae03400e4d351d72cd8b6dfdfdd78727e4473740fa6",
+      "generationId": "2b08525910b37501999fc3e0c78b4aa14368fca7311ec634c86f04e0f05addb0",
+      "manifestDigest": "7d0b95aeabc14db2a503988a4b5a8a73df660a58c18932b18fb6f54bf88de9dc",
+      "pngSha256": "f67c022b9aa01cd3986610a235efe62d04699f595d24ec53a64d0e06d2767ac5",
+      "sdrReport": "Validation/029/SDR/Windows-Vulkan/Lantern/1f46352-20260904-09/sdr-report.json",
+      "sdrReportSha256": "0aa99bd90f835bef85e8f2f641680a7498221c2d0dbb58093d6b0774410543e7",
+      "state": "candidate",
+      "status": "passed"
+    },
+    "sponza": {
+      "acceptance": null,
+      "actualSessionType": "console",
+      "candidateSha256": "802c41c760a0e2ceeec0a5de94bf7ca7b34946560fb446d235d47f430f85fe05",
+      "decodedPixelSha256": "d85636cd7b43846ec60290379456b5258a811570b162ee6b0d2b0a49b37ddbe5",
+      "generationId": "80879c7d463858dc12625a318674b39870143f5628a15cef6efd21ded66b69c5",
+      "manifestDigest": "4576c15fcf9bfa8952fd0a9ecae59df43dc10e2d40ed358bd971eae9526be2ee",
+      "pngSha256": "6d93309e0bd939a85e6c8bcf6d4251de6e1e6b54b0ce25699f1867648a982950",
+      "sdrReport": "Validation/029/SDR/Windows-Vulkan/Sponza/1f46352-20260904-09/sdr-report.json",
+      "sdrReportSha256": "4e67bc1b9ae342ac921af60644934a96ff833fd0c2a98eb429e52267c0ff2ea5",
+      "state": "candidate",
+      "status": "passed"
+    }
+  }
+}

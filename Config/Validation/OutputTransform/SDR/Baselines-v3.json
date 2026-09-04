@@ -2,5 +2,74 @@
   "schema": "stoner.sdr-image-baseline-registry",
   "schemaVersion": 3,
   "registryId": "output-transform-sdr-baselines-v3",
-  "records": []
+  "records": [
+    {
+      "schema": "stoner.sdr-image-baseline",
+      "schemaVersion": 3,
+      "baselineId": "production-content-lantern-v3.vulkan.windows.discrete-vulkan.rgba8",
+      "state": "accepted",
+      "workloadRevision": "production-content-lantern-v3",
+      "backend": "vulkan",
+      "deviceClass": "windows.discrete-vulkan.rgba8",
+      "capabilityDigest": "c7cfed63c497d185858cb2f4bf693b568eb1df940d1b261a7cc4146b0fd7b03d",
+      "outputDeviceProfileId": "Sdr.sRGB.v1",
+      "transformVersion": "Sdr.KhronosPbrNeutral.v1",
+      "exposureStops": 0,
+      "settingsDigest": "2e9ec7a45efe6537db4e806e05cca54043d4a841aa013c67c941866e35d20d34",
+      "width": 512,
+      "height": 512,
+      "sampleCount": 1,
+      "referencePath": "Validation/029/SDR/Windows-Vulkan/Lantern/1f46352-20260904-09/production-content-lantern-v3-vulkan-windows.discrete-vulkan.rgba8-candidate.png",
+      "compressedSha256": "f67c022b9aa01cd3986610a235efe62d04699f595d24ec53a64d0e06d2767ac5",
+      "decodedSha256": "23ac57adaf34d8ae059d3ae03400e4d351d72cd8b6dfdfdd78727e4473740fa6",
+      "calibrationEvidenceSha256": "ebe4b773a001af8876d4973e09edd2164fc83166c6ad46fce6363820da8b534f",
+      "flipPolicy": {
+        "meanMax": 0.0005,
+        "p95Max": 0.001,
+        "maximumMax": 0.01,
+        "badPixelThreshold": 0.05,
+        "badPixelFractionMax": 0.001
+      },
+      "acceptance": {
+        "maintainerId": "stonewswang",
+        "reviewedAt": "2026-09-04T06:27:55Z",
+        "candidateSha256": "f67c022b9aa01cd3986610a235efe62d04699f595d24ec53a64d0e06d2767ac5",
+        "decision": "accepted"
+      }
+    },
+    {
+      "schema": "stoner.sdr-image-baseline",
+      "schemaVersion": 3,
+      "baselineId": "production-content-sponza-v3.vulkan.windows.discrete-vulkan.rgba8",
+      "state": "accepted",
+      "workloadRevision": "production-content-sponza-v3",
+      "backend": "vulkan",
+      "deviceClass": "windows.discrete-vulkan.rgba8",
+      "capabilityDigest": "c7cfed63c497d185858cb2f4bf693b568eb1df940d1b261a7cc4146b0fd7b03d",
+      "outputDeviceProfileId": "Sdr.sRGB.v1",
+      "transformVersion": "Sdr.KhronosPbrNeutral.v1",
+      "exposureStops": 0,
+      "settingsDigest": "2e9ec7a45efe6537db4e806e05cca54043d4a841aa013c67c941866e35d20d34",
+      "width": 512,
+      "height": 512,
+      "sampleCount": 1,
+      "referencePath": "Validation/029/SDR/Windows-Vulkan/Sponza/1f46352-20260904-09/production-content-sponza-v3-vulkan-windows.discrete-vulkan.rgba8-candidate.png",
+      "compressedSha256": "6d93309e0bd939a85e6c8bcf6d4251de6e1e6b54b0ce25699f1867648a982950",
+      "decodedSha256": "d85636cd7b43846ec60290379456b5258a811570b162ee6b0d2b0a49b37ddbe5",
+      "calibrationEvidenceSha256": "dca4e41a117767f41b78760acea1277324110b305cdcca7e205581e381f25975",
+      "flipPolicy": {
+        "meanMax": 0.0005,
+        "p95Max": 0.001,
+        "maximumMax": 0.01,
+        "badPixelThreshold": 0.05,
+        "badPixelFractionMax": 0.001
+      },
+      "acceptance": {
+        "maintainerId": "stonewswang",
+        "reviewedAt": "2026-09-04T06:27:55Z",
+        "candidateSha256": "6d93309e0bd939a85e6c8bcf6d4251de6e1e6b54b0ce25699f1867648a982950",
+        "decision": "accepted"
+      }
+    }
+  ]
 }

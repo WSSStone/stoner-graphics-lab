@@ -1,0 +1,100 @@
+{
+  "checks": {
+    "architecture": {
+      "exitCode": 0,
+      "logSha256": "f0b6ebdc5dedb9eca241aaab9041bb856c1d977d5e074d9eb608e9097a3db58c",
+      "passedAssertions": 0
+    },
+    "bounded-sdr-evidence": {
+      "exitCode": 0,
+      "logSha256": "4936ea305fc41647d96b7c4bea5f7261d1736780dbde698aeaab562a1bc6284f",
+      "passedAssertions": 0
+    },
+    "debug-output-contracts": {
+      "exitCode": 0,
+      "logSha256": "fff47578835601430769724f0962f5d4712749ed501aced22c46064d60b4499c",
+      "passedAssertions": 109
+    },
+    "diff-check": {
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "passedAssertions": 0
+    },
+    "frozen-python-test_aggregate_output_transform_validation": {
+      "exitCode": 0,
+      "logSha256": "b337166f3604eb8049d37397ffacd96fe6e95ea02eee29bb0fd6f778bddb30ef",
+      "passedAssertions": 0
+    },
+    "frozen-python-test_hdr_live_review_contract": {
+      "exitCode": 0,
+      "logSha256": "638d287c0b0a39696192d173099f90dfd19c0b1b2df974802576f431e7c9eb0b",
+      "passedAssertions": 0
+    },
+    "frozen-python-test_output_transform_workflows": {
+      "exitCode": 0,
+      "logSha256": "c6b52cd21d03e10422e71177e9477c57f6e1019057522ba5877540b55de7d451",
+      "passedAssertions": 0
+    },
+    "frozen-python-test_run_output_transform_validation": {
+      "exitCode": 0,
+      "logSha256": "1b15deb1971b75a5d3196740c8713a91013a5e8c20ab9e00da40b49e2d8b350b",
+      "passedAssertions": 0
+    },
+    "frozen-python-test_run_production_image_calibration": {
+      "exitCode": 0,
+      "logSha256": "b6335b93c991bf96c40fad0236eea41f9ca6cb4e6872bad0b478d4c0e91d6b33",
+      "passedAssertions": 0
+    },
+    "frozen-python-test_verify_output_transform_evidence": {
+      "exitCode": 0,
+      "logSha256": "2651ed41efc027d20b6f577492c85049f2a57b1e79b846a072cbd3f0f3cad715",
+      "passedAssertions": 0
+    },
+    "frozen-python-test_verify_output_transform_vectors": {
+      "exitCode": 0,
+      "logSha256": "5465d2fc56668826b4c3f49ed0d9a459a7b7811f0b630efe92dee5760a2f6361",
+      "passedAssertions": 0
+    },
+    "frozen-python-test_verify_repository_shader_assets": {
+      "exitCode": 0,
+      "logSha256": "a06ed560666cdb857c3131a6ad656110b95bf640de4334d2847a07472506bbf7",
+      "passedAssertions": 0
+    },
+    "release-native-regressions": {
+      "exitCode": 0,
+      "logSha256": "e7a1b9b16354c72970585b81c94e83b680100bc36386fcf14ffaae8a6ae1b948",
+      "passedAssertions": 36
+    },
+    "release-output-contracts": {
+      "exitCode": 0,
+      "logSha256": "fff47578835601430769724f0962f5d4712749ed501aced22c46064d60b4499c",
+      "passedAssertions": 109
+    },
+    "release-regressions": {
+      "exitCode": 0,
+      "logSha256": "85e6d859ffb86c934854c863a397005645d90f6e9e2f37bc268881e9935be69a",
+      "passedAssertions": 361
+    },
+    "roadmap": {
+      "exitCode": 0,
+      "logSha256": "b45589646604545e0c98acae3197105691f9e5f1062506474b079f39eb7086b9",
+      "passedAssertions": 0
+    },
+    "strict-debug-build": {
+      "exitCode": 0,
+      "logSha256": "de320391b042e9e16e83b3fdbc310273d59501a219f0949fa6d56ec24b59ca12",
+      "passedAssertions": 0
+    },
+    "strict-release-build": {
+      "exitCode": 0,
+      "logSha256": "256e29e342e05f2e8502a30288d7efe8c33d45cdc7c65c4a0d44d366d4ee950a",
+      "passedAssertions": 0
+    },
+    "vectors": {
+      "exitCode": 0,
+      "logSha256": "39d8c3d71e5297168184a643d71bd1604c32e261ec96ea8728d2dcd9fc046e79",
+      "passedAssertions": 0
+    }
+  },
+  "gitRevision": "1f463520006d2ade3d1b4375a51ad947dd7f1847"
+}
