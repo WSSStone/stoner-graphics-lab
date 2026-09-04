@@ -9,8 +9,12 @@
 
 #include <algorithm>
 #include <charconv>
+#include <chrono>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <string_view>
 
 namespace
@@ -251,10 +255,47 @@ bool RunPath(
     Config.ProductionWarmupCycles = WarmupCycles;
     Config.bVisibleCapture = bVisible;
 
+    const bool bCheckNativeProbe = bVisible &&
+        Path == EDemoRenderPath::DeferredFull &&
+        Config.WorkloadRevision.View().ends_with("-v3");
+    std::filesystem::path NativeProbePath;
+    if (bCheckNativeProbe)
+    {
+        NativeProbePath = std::filesystem::path(Lease) /
+            ("output-transform-native-probe-" + std::to_string(
+                std::chrono::steady_clock::now().time_since_epoch().count()) +
+                ".json");
+        Config.OutputNativeProbePath = NativeProbePath.string().c_str();
+        Config.OutputNativeProbeProfile = "native-sdr";
+    }
     FStonerDemoApplication Application(std::move(Config));
     const bool bPassed = Application.Run() == EDemoExitCode::Success;
     OutInspection = Application.GetProductionExecutionInspection();
     OutDiagnostics = Application.GetDiagnostics().BuildStableText();
+    if (bCheckNativeProbe)
+    {
+        std::ifstream Input(NativeProbePath, std::ios::binary);
+        const std::string ProbeJson{std::istreambuf_iterator<char>(Input), {}};
+        // SHA-256 of the canonical JSON empty array followed by one LF.
+        // Read the real producer output so a serializer-only fixture cannot
+        // hide drift between native capture and the SDR provenance verifier.
+        const bool bCanonicalProbe = bPassed &&
+            ProbeJson.find("\"status\":\"passed\"") != std::string::npos &&
+            ProbeJson.find("\"insertionDigest\":\""
+                "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+                "\"") != std::string::npos;
+        Input.close();
+        if (!bCanonicalProbe)
+        {
+            std::cerr << "Vulkan v3 native probe must contain the canonical "
+                         "empty-insertion digest; retained at "
+                      << NativeProbePath.string() << '\n';
+            return false;
+        }
+        std::error_code Error;
+        std::filesystem::remove(NativeProbePath, Error);
+        if (Error) return false;
+    }
     return bPassed || (IsTwentyFrameImageAcceptance(Cycles) &&
         OutInspection.CompletedCycles == Cycles &&
         OutInspection.Runtime.ProvesNativeExecution() &&

@@ -24,6 +24,14 @@ L1 for applicable SDR/readback, not HDR display authority.
   resampling, automatic alignment, or best-match search is forbidden.
 - Candidate generation is automated; acceptance is an explicit maintainer
   review action. Fresh M4 Metal and Windows Vulkan evidence is required.
+- Windows T102 permits an active Console or RDP session on physical discrete
+  Vulkan hardware. Candidate pixels must originate in the application's GPU
+  readback, and native application-window presentation must still complete for
+  the linked frame. Record the actual session, native adapter, and policy-diff
+  identity beside the bounded bundle. RDP-client screenshots/video are excluded.
+  RDP evidence covers that session's GPU output and presentation; it does not
+  establish physical-monitor scanout, display calibration, client video fidelity,
+  or Console/RDP equivalence. The macOS physical/live-view requirements remain.
 - Each required Lantern/Sponza × Metal/Vulkan tuple needs exactly one
   `sdr-image-authority` report at the target software `gitRevision`. Its four
   SHA-checked artifacts are the immutable source Candidate JSON, exact PNG,
@@ -46,6 +54,8 @@ Rebuild executables and recook the platform closure at that frozen revision.
 The guard is not a cryptographic proof of execution or human review. Reviewers
 must check the build/cook provenance as well. Evidence-only and documentation
 commits can follow the tested software commit without changing its identity.
+Documentation-only session-policy changes are identified separately by their
+exact diff/digest while all executable validation inputs retain the frozen SHA.
 Never relabel a previous run as a newer commit. Changes to software inputs
 require a new frozen revision and fresh applicable cross-platform evidence.
 Unrelated tutorial edits and the explicit Accepted registry edit are excluded

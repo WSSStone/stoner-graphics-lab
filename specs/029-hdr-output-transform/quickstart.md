@@ -178,6 +178,17 @@ Windows carry-forward cannot satisfy Feature 029. A maintainer admits or rejects
 each exact v3 tuple only by an explicit repository edit to
 `Config/Validation/OutputTransform/SDR/Baselines-v3.json`.
 
+Windows T102 permits an active, unlocked Console or RDP session when the visible
+application executes on a physical discrete Vulkan GPU. Record the actual
+session and adapter before/after capture. Use the application's exact GPU
+readback for Candidate pixels; retain all native same-frame presentation and
+calibration checks. An RDP run claims only that session's GPU output and window
+presentation, without physical-monitor scanout or Console-equivalence claims.
+See `windows-handoff.md`; RDP-client screenshots and video are not input evidence.
+Documentation-only policy changes are recorded by diff/digest separately from
+the frozen software SHA. Validation/TEMP and cooked packages remain on local
+NTFS; move verified bounded evidence to network storage after the run.
+
 ## 5. Prepare macOS Metal HDR Live Review
 
 Run the StonerDemo probe command four times in this exact order, replacing the

@@ -9,8 +9,17 @@ Windows build/regression evidence for T112, not Feature 029 completion.
 - Read repository `AGENTS.md`, `tasks.md`, `quickstart.md`, and
   `contracts/validation-evidence.md` in this feature directory first.
 - Use native x86_64 Windows, a physical discrete Vulkan device, and a visible
-  application window. Hosted runners, software rendering, and remote desktop
-  captures cannot substitute for physical image authority.
+  application window in an active, unlocked session. T102 permits either a
+  local Console or an RDP session when Candidate pixels come directly from the
+  application's same-frame GPU readback. Record the actual session type and
+  runtime adapter; require native discrete-GPU execution and successful native
+  window presentation. Hosted/software rendering and screenshots or decoded
+  video from an RDP client cannot supply these pixels.
+- An RDP run establishes GPU-readback SDR authority and presentation in that
+  recorded session. It makes no claim about physical-monitor scanout, display
+  calibration, client-side video fidelity, or equivalence to a Console run.
+  Preserve session changes or presentation/capability failures as failures;
+  do not disconnect RDP merely to satisfy a Console-only preflight.
 - Windows validates **SDR only**. Do not run or claim Windows HDR native,
   swapchain, image, physical, or visual acceptance. macOS PQ/EDR remains a
   separate maintainer live-view gate; never author those decisions.
@@ -28,6 +37,9 @@ Windows build/regression evidence for T112, not Feature 029 completion.
    setup and pinned SCons 4.10.1. Run strict Debug and Release builds; fresh
    formal capture uses `Build/Win64/Release/Tests/StonerTest.exe` and
    `Build/Win64/Release/Demo/StonerDemo/StonerDemo.exe`.
+   Keep validation, temporary files, DDC, and cooked packages on local NTFS.
+   Transfer bounded evidence to network storage only after local validation;
+   retain build binaries and cooked packages locally.
 2. Run the deterministic/native suites and Python evidence tests listed in
    `quickstart.md` and `.github/workflows/feature-029-hdr-output.yml`. Add the
    existing production-content, strict-runtime, image-acceptance, and applicable
@@ -52,7 +64,9 @@ Windows build/regression evidence for T112, not Feature 029 completion.
    `STONER_PRODUCTION_VULKAN_GENERATION`,
    `STONER_PRODUCTION_VULKAN_TARGET_PROFILE`,
    `STONER_PRODUCTION_ROOT`, and `STONER_PRODUCTION_VISIBLE=1` must identify
-   the real run. Do not set flags that force Accepted state.
+   the real run. `visible=true` applies to the actual Console or RDP application
+   window; it does not claim physical-monitor presentation. Record session and
+   adapter evidence before/after capture. Do not set flags that force Accepted state.
 5. Run `.github/scripts/run_production_image_calibration.py` with
    `--backend vulkan`, the exact `--git-revision`, and respectively
    `production-content-lantern-v3` / `production-content-sponza-v3`.
@@ -96,7 +110,8 @@ cropping, translation, scaling, warping, resizing, or resampling is permitted.
 
 Keep Candidate `acceptance=null`; do not modify `Baselines-v3.json`, T103–T106,
 roadmap completion, or Speckit completion hooks. Mark T102 only when both
-physical workload bundles pass all machine/provenance checks. Hosted Windows
+physical-GPU workload bundles pass all machine/provenance checks, with their
+actual session and the scope above recorded. Hosted Windows
 success does not replace the physical run. T112 also needs the other hosted
 platform/sanitizer run IDs at the same SHA.
 
@@ -105,3 +120,6 @@ failure. A newly fixed software SHA requires coordinated fresh M4/Windows/HDR
 evidence, not a mixture of revisions. Report before implementing a new fix in
 this handoff. Do not commit or push evidence unless the maintainer separately
 authorizes it; evidence-only commits must retain the tested software SHA.
+Documentation-only changes to this session policy retain the frozen software
+SHA and must be accompanied by the exact policy diff/digest in the handoff.
+They do not turn earlier blocked runs into completed captures.

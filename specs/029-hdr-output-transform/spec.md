@@ -562,7 +562,12 @@ macOS live-view maintainer attestation can accept visual output.
   generalized to Feature 029. Changed SDR production output MUST pass fresh
   physical image authority on the required maintainer M4 Metal and x86_64
   Windows Vulkan devices at the same frozen Feature 029 revision; neither
-  substitutes for the other. Changed HDR production output uses only the fresh
+  substitutes for the other. For Windows T102, physical authority requires a
+  physical discrete Vulkan GPU; an active Console or RDP session is permitted
+  for exact application GPU readback with successful same-frame native window
+  presentation and recorded session/adapter evidence. RDP evidence does not
+  claim physical-monitor scanout or equivalence to Console presentation, and
+  RDP-client screenshots/video cannot replace GPU readback. Changed HDR production output uses only the fresh
   macOS Metal human-visual authority defined by FR-045 and MUST NOT claim
   Windows HDR validation.
 - **FR-040**: Formal production authority MUST preserve Feature 028's exact

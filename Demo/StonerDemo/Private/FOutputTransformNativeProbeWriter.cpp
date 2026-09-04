@@ -56,8 +56,10 @@ bool FStonerDemoApplication::WriteConfiguredOutputTransformNativeProbe()
             CapabilityText.size())).ToLowerHex();
     Probe.OutputDeviceProfileId = Configuration.OutputDeviceProfileId;
     Probe.TransformVersion = Configuration.OutputTransformVersion;
+    // Canonical JSON uses one LF, not the two literal characters backslash-n.
+    constexpr Core::uint8 EmptyInsertions[] = {'[', ']', '\n'};
     Probe.InsertionDigest =
-        "8638959e24c38d61150dcd702ebf38af16867f72ed5b53c1dc7359e3e63a85f2";
+        Asset::FAssetDigest::FromBytes(EmptyInsertions).ToLowerHex();
     Probe.ReadbackDigest = Inspection.FormalOutputReadbackDigest;
     Probe.Width = Inspection.ResolvedPresentationState.Width;
     Probe.Height = Inspection.ResolvedPresentationState.Height;

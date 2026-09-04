@@ -48,6 +48,11 @@ authority links four native reports/probes to the same-SHA request. Evidence-onl
 commits retain the tested software revision. Preliminary working-tree captures
 cannot be relabeled or promoted as exact-commit evidence. Follow
 `specs/029-hdr-output-transform/windows-handoff.md` for the physical Windows SDR lane.
+Windows T102 permits active Console or RDP sessions on physical discrete Vulkan
+hardware for exact application GPU readback and same-frame window presentation.
+Record session/adapter and policy-diff identity; an RDP run claims no physical-
+monitor scanout or Console equivalence. Keep its validation/TEMP and cooked
+packages on local NTFS and transfer bounded evidence only after validation.
 <!-- SPECKIT END -->
 
 ## Active Technologies
