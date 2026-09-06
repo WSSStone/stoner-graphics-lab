@@ -3,12 +3,161 @@
 This index preserves the original implementation working-tree evidence and
 separately records the frozen-revision Windows T102 and M4 T101/T104 runs below. The original
 captures remain preliminary; committing this index does not change their
-provenance. This index does not establish Feature completion, hosted run IDs,
-complete maintainer SDR acceptance, or maintainer-authored
-HDR visual attestations. Windows raw evidence is archived on the evidence share
+provenance. Feature 029 is now complete by the explicit maintainer exception
+recorded below, not by passing the original strict same-SHA authority gate. Windows raw evidence is archived on the evidence share
 under `Build/Validation/029/`; its current cooked packages remain on local NTFS.
 
+## Final closeout — explicit maintainer exception, 2026-09-06
+
+Software `2ee7116ffb382c021ed575aff223c7b760a2ce7d` is closed by the
+maintainer's explicit **“agree”** to the fully scoped question in
+[closeout.md](../../../specs/029-hdr-output-transform/closeout.md).
+There are **118 closed task dispositions: 114 completed as scoped and four
+exceptions (T102/T105/T106/T118)**, not 118 original gates passed.
+
+- Current physical M4 Metal Lantern/Sponza SDR Candidates are explicitly
+  accepted in the v3 registry, with a separate
+  [acceptance record](../SDR/M4-Metal/acceptance-2ee7116-20260906.json).
+- Current Windows physical SDR rerun is waived. Previously accepted physical
+  `1f46352` Windows bundles retain their exact SHA and session/adapter limits;
+  no `2ee7116` Windows hardware execution is claimed.
+- Four exact-`2ee7116` +3 EV HDR hidden 1,000/20 runs passed. The maintainer
+  expressly retained the `1f46352` +3 EV live acceptance and waived repeat
+  viewing plus the separate attestation. No current-SHA live observation or
+  synthetic HDR attestation is created; the request remains ready-for-live-review.
+- Hosted run 34002580090 passed 14/14 at `2ee7116`, including machine
+  producer/consumer and sanitizers. This is not physical/human aggregate authority.
+- [closeout-2ee7116-20260906.json](closeout-2ee7116-20260906.json) pins the
+  decision and evidence digests. [us5-authority.json](us5-authority.json)
+  explicitly records `strictSameRevisionGatePassed=false`.
+  Strict validators remain unchanged and are expected to reject this
+  mixed-revision/no-attestation set; no general exception flag was added.
+
+The dated capture summaries below remain immutable point-in-time facts,
+including their then-pending review/Feature-completion fields. The expanded
+Accepted registry is a later explicit human admission, not the registry consumed
+by the earlier hosted run. Old failed foreground replays remain failed;
+successful background reruns are separately identified. Feature 028 v2 is
+unchanged, Windows HDR is not claimed, and this exception is not reusable.
+Feature 030 is next; Meshlet 031 keeps 024/025/026/028 dependencies.
+
+[closeout-audit-2ee7116-20260906.json](closeout-audit-2ee7116-20260906.json)
+records zero disposition/provenance findings, four SDR bundles verified at
+original SHAs, all four current HDR bundles, and unchanged strict rejection.
+The five expected strict-gate rejections (two stale Windows reports, two missing
+current Windows reports, one missing independent HDR attestation) are preserved
+as a negative-test result, not hidden or converted into a strict pass.
+Closeout decision SHA-256:
+`627199fe3c88428ad5497f5e403a93c221b6294acf923fd73fae9508d59f327a`.
+Current M4 SDR admission SHA-256:
+`c4c589d70db28f513cb8646a4f4f872d5ab2be32a5b20ffc3ac730d9332eecc4`.
+Accepted registry after admission SHA-256:
+`9e13dfc7d51658a8940f80a9109e27981d739fe6d5b378125b7fc03ac605d7ab`.
+
+## Current Hosted Gate — 2026-09-06
+
+Storage retention update: the later user-authorized cleanup is recorded in
+[cleanup-20260906.json](cleanup-20260906.json). It permanently removed 1,743
+untracked files (2,005,580,792 logical bytes): both runs' regenerable DDC, the
+older publication copies verified byte-identical to the retained current
+publications, 80 raw PPMs, and five Finder caches. All 149 existing formal
+evidence files, Accepted references, original commands/logs, and human-review
+records were verified unchanged. Historical raw PPM/DDC/publication paths in
+earlier receipts describe capture-time locations, not current retention.
+Current `m4-formal-2ee7116-20260906-01/{Lantern,Sponza}/publication/` packages
+are retained; replay of an older command requires restoring its publication
+path from the verified identical current package or recooking at its original
+SHA. Deleted PPM bytes have no retained raw copy; formal PNG/JSON remain.
+
+Post-decision verification passed 52 focused Python tests, the unchanged
+output-architecture scan, and the roadmap numbering/dependency/anchor/task/stale-
+phase scan (zero findings). All 89 checked relative document links/HTML anchors
+resolved; `git diff --check` passed. The nine-section delivered HTML was updated
+through the mandatory `speckit.docs.implement` completion-document workflow.
+The protected `.gitignore`, tutorial workflow, `Tools/Tutorial/`, and
+`doc/tutorial/` content digest remained
+`b0bb9e806a26359c4d0faf7cdcb0087506a6b34dc4828f29510c68afa0e935d7`.
+This closeout changes documentation and explicit SDR admission only; no new
+renderer build, Windows recapture, or human HDR review was performed for it.
+
+T112 passed at frozen software revision
+`2ee7116ffb382c021ed575aff223c7b760a2ce7d` in
+[run 34002580090](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34002580090),
+attempt 1: fourteen jobs passed, zero failed, zero skipped. This includes all
+three platforms' strict Debug/Release builds, Linux ASan/UBSan/TSan, Lavapipe,
+Metal PQ/EDR non-visual checks, Windows Python, and machine producer/consumer
+and aggregate jobs. The workflow completed at 2026-09-06T01:20:21Z.
+
+`hosted-34002580090/summary.json` records each job ID, result, step result, URL,
+and SHA-256 of its downloaded log stream. Its SHA-256 is
+`2291a04397dccc9c275c44b3a777a7336b2c9eb47c3fe353bd3b3061f77a7f0d`.
+The 1,993-byte machine artifact (ID 9979923166) was downloaded and its ZIP
+SHA-256 matched GitHub's advertised digest:
+`877f5239347fde35ee94f7b46138170d48c4d66a2aefc51880cf702ffdaae603`.
+Its two original JSON members are archived byte-for-byte beside the summary
+and passed local consumer revalidation. Job logs were streamed through hashing;
+no large log copies were retained. The CI artifact's advertised expiry is
+2026-12-05T00:56:15Z.
+
+The archived registry is the CI input snapshot, not new physical SDR authority.
+Current-SHA physical M4/Windows bundles and explicit SDR/HDR review are still
+required. Windows rerun instructions are in
+`specs/029-hdr-output-transform/windows-prompt-2ee7116.md`.
+
+## Current M4 T101/T104 — 2026-09-06
+
+Fresh physical M4 captures used exact software revision
+`2ee7116ffb382c021ed575aff223c7b760a2ce7d`, with clean software-input checks
+before and after every command. Strict Release rebuilt successfully, the
+output contracts/Metal native presentation/offline shader finalization passed,
+and Metal/Vulkan each passed 288 GPU samples over twenty repeats.
+
+- Lantern: 42 freshly cooked assets and 42/42 warm reuse; Sponza: 194 freshly
+  cooked assets and 194/194 warm reuse. Sources were checked against corpus
+  digests, and fresh publications/strict native captures used these generations.
+- Each SDR workload passed three independent processes of twenty captures,
+  zero measured cross-process noise, and all eight mutation checks. Exact
+  512x512 Candidate/native/calibration bundles are under
+  `Validation/029/SDR/M4-Metal/{Lantern,Sponza}/2ee7116-20260906-01/`.
+  Both immutable source Candidates retain `acceptance=null`; the later explicit
+  admission is recorded separately in the Accepted registry and closeout above.
+- At +3 EV, PQ1000/PQ2000/EDR1000/EDR2000 each passed 1,000 lifecycle cycles
+  after twenty warmup cycles, sequentially in hidden background applications.
+  Elapsed times were 146.153/157.306/143.044/152.491 seconds. All four completed
+  submission, readback, and presentation for token 2001 with zero outstanding
+  terminal owners and no native first failure. Applications and the temporary
+  sleep-prevention process exited at completion.
+- HDR probe/report pairs are in
+  `Validation/029/HDR/Endurance/2ee7116-ev3-background-20260906-02/`.
+  The matching request is
+  `Validation/029/HDR/Requests/2ee7116-ev3-background-20260906-02/hdr-live-review-request.json`,
+  SHA-256 `008e9c05e788cd54f4f93f85ca15870488d87f835ce3c14189726cef19dfe6fc`.
+  It is `ready-for-live-review`, with no human decision.
+
+`m4-metal-2ee7116-20260906-01/summary.json` indexes 25 bounded PNG/JSON artifacts
+totaling 1,208,400 bytes, plus binary, cook, command, and log digests. Its SHA-256
+is `03b4b8c9b0938c583aec1f4953e07e8e120fdbf25e63de086284b64ca7ff5f50`.
+The evidence verifier passed with zero findings. No HDR image artifacts were
+created. Raw PPMs, command receipts, logs, DDC, and publications remain under
+ignored `Build/Validation/029/m4-formal-2ee7116-20260906-01/`.
+
+The first local HDR launcher attempt lacked its temporary app's Info.plist and
+failed before StonerDemo executed. Its receipt remains a failed setup attempt.
+The corrected temporary bundles launched fresh captures into the `-02` directory;
+no engine or executable validation inputs changed. No incomplete capture was
+promoted. Historical `1f46352` evidence and live feedback retain their identity.
+
+## Historical implementation and repair snapshots
+
+The following sections preserve what was known at each capture/repair date.
+Their then-open tasks and pending-review wording are historical, superseded by
+the final closeout disposition above; they are not current action requests.
+
 ## Source State
+
+The sections following this heading retain implementation history. The current
+frozen software revision and current physical results are recorded above
+in the explicitly dated current-gate sections.
 
 - Working-tree base:
   `e66f848d5537db2f5f98b79ae9892b8f1ee9da26`
@@ -260,20 +409,14 @@ implementation revision before review. HDR appearance cannot be scored,
 inferred, or accepted by automation; the maintainer must personally view every
 settled mode and manually author the linked immutable decisions.
 
-## Remaining Closeout Gates
+## Original Closeout Gates — resolved on 2026-09-06
 
-- T103: Windows Lantern/Sponza accepted; macOS SDR review remains pending.
-- T105: separate maintainer-authored HDR attestation; +3 EV conversation
-  acceptance is preserved but is not an automatically authored substitute.
-- T106: accepted-SDR and current four-pass HDR authority aggregation.
-- T112: freeze the portability repair, then obtain passing exact-revision
-  Windows/macOS/Linux strict Release and Linux sanitizer run IDs and digests.
-- T117: roadmap/AGENTS completion status, only after every gate passes.
-- T118: final same-revision producer/consumer closeout aggregation.
-
-Until those gates are complete, Feature 029 remains active and no Windows HDR
-validation, automated HDR visual decision, or Feature 028 v2 reinterpretation
-is claimed.
+T103 was completed by current M4 SDR admission, retaining prior Windows
+acceptance. T117 updates the roadmap and project memory. T102 and T105 are
+explicitly waived as described above; T106 and T118 are resolved by a separate
+maintainer exception record, **not successful strict same-revision aggregation**.
+There are no remaining Feature 029 obligations under this approved disposition.
+The original strict contract still applies to future work.
 
 ## Evidence-Gate Repair Before Push
 

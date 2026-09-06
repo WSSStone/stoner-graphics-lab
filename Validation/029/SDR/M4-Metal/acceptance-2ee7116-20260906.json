@@ -1,0 +1,47 @@
+{
+  "schema": "stoner.output-transform-sdr-maintainer-decision",
+  "schemaVersion": 1,
+  "gitRevision": "2ee7116ffb382c021ed575aff223c7b760a2ce7d",
+  "maintainerId": "stonewswang",
+  "maintainerIdSource": "repository git user.name",
+  "reviewedAt": "2026-09-06T02:05:07Z",
+  "timestampMeaning": "Decision recorded by the agent after the maintainer's explicit conversation approval; not a measured live-view time.",
+  "sourceDecision": {
+    "channel": "maintainer conversation",
+    "statement": "agree",
+    "scope": "Accept the two displayed current macOS Metal SDR Lantern/Sponza Candidates; the separately approved closeout exceptions are recorded in specs/029-hdr-output-transform/closeout.md."
+  },
+  "registryPath": "Config/Validation/OutputTransform/SDR/Baselines-v3.json",
+  "decisions": [
+    {
+      "workloadRevision": "production-content-lantern-v3",
+      "backend": "metal",
+      "deviceClass": "macos.apple8.metal.rgba8",
+      "decision": "accepted",
+      "candidatePath": "Validation/029/SDR/M4-Metal/Lantern/2ee7116-20260906-01/candidate.json",
+      "candidateJsonSha256": "a1ffdefa732378c0d30deb7094ea74301ea87204e6ca81d386cd98d6a9b0691f",
+      "pngSha256": "7a3c6aaac225471a408a27b1457df0848818ec03b587091e19279e8a25afb49b",
+      "decodedPixelSha256": "a5772a59ecda027bd0898d6982a38435382f6e5e630de11a11d9d4c6806469fb",
+      "sdrReportPath": "Validation/029/SDR/M4-Metal/Lantern/2ee7116-20260906-01/sdr-report.json",
+      "sdrReportSha256": "d0cd99b1134de44bf58e0f9a69b596e66ecb48d27037e2a708cd9fe3aeb0c770"
+    },
+    {
+      "workloadRevision": "production-content-sponza-v3",
+      "backend": "metal",
+      "deviceClass": "macos.apple8.metal.rgba8",
+      "decision": "accepted",
+      "candidatePath": "Validation/029/SDR/M4-Metal/Sponza/2ee7116-20260906-01/candidate.json",
+      "candidateJsonSha256": "d860ae98babab74d0ea7ea69d4cb039e414e2ea30f645327a5af552fddad4309",
+      "pngSha256": "4f72c4871fe51280f7db47f026059ca31150b2130d9f53f0d65eb9281eb249e7",
+      "decodedPixelSha256": "98d26a5201f6d8294d0e9162ee2f006ec820dd243dc7b1ce2c3efe52d26e7fee",
+      "sdrReportPath": "Validation/029/SDR/M4-Metal/Sponza/2ee7116-20260906-01/sdr-report.json",
+      "sdrReportSha256": "00cad7c43b356db8a66e449a69690714b25ff827fce510651c094897987d397c"
+    }
+  ],
+  "originalCandidateBytesUnchanged": true,
+  "imageTransformsApplied": [],
+  "automaticVisualDecision": false,
+  "windowsSdrAcceptedByThisDecision": false,
+  "hdrVisualAuthorityGrantedByThisDecision": false,
+  "featureCloseoutGrantedByThisDecision": false
+}

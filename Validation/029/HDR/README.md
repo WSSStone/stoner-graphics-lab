@@ -1,10 +1,49 @@
 # Feature 029 HDR review and endurance history
 
-These records identify tested software
-`1f463520006d2ade3d1b4375a51ad947dd7f1847`. They are not evidence for a later
-software revision and do not establish Feature completion.
+The dated bundles below retain their own tested software identities. Current
+software is `2ee7116ffb382c021ed575aff223c7b760a2ce7d`; older `1f46352` records
+remain historical. The later explicit maintainer exception closes Feature 029
+without generating automatic HDR visual acceptance.
+
+## Closeout disposition — 2026-09-06
+
+The maintainer explicitly replied **“agree”** to accepting the current M4 SDR
+Candidates and retaining the earlier +3 EV live HDR conclusion for this one
+closeout, with repeat HDR viewing and the separate attestation requirement
+waived. See [the full decision](../../../specs/029-hdr-output-transform/closeout.md)
+and [digest record](../CI/closeout-2ee7116-20260906.json).
+This is a governance exception, not a new current-SHA live observation,
+a four-profile attestation, or a strict same-SHA authority pass. No files under
+`Attestations/` are generated; neither historical nor current machine requests
+are modified. The earlier zero-EV output was not accepted.
+
+## Current +3 EV request — 2026-09-06
+
+`Endurance/2ee7116-ev3-background-20260906-02/` contains fresh PQ1000, PQ2000,
+EDR1000, and EDR2000 native probe/report pairs at the current software SHA.
+Each passed 1,000 cycles after twenty warmup cycles at +3 EV, 512x512,
+sampleCount=1, in a sequential hidden-background run. All reached token 2001
+with completed command/readback/presentation, no first failure, and zero
+outstanding terminal owners. No HDR images were generated.
+
+The new machine request is
+`Requests/2ee7116-ev3-background-20260906-02/hdr-live-review-request.json`,
+SHA-256 `008e9c05e788cd54f4f93f85ca15870488d87f835ce3c14189726cef19dfe6fc`.
+It binds the ordered four current probe/report digests and remains
+`ready-for-live-review`. Its display-capability derivation is archived beside
+it. Repeated current-SHA inspection and the separate attestation are waived by
+the later explicit decision above; earlier visual feedback is not rewritten as
+an attestation for this request. The root-level zero-EV request is unchanged.
+
+The first temporary app wrapper lacked Info.plist and failed before native
+execution. The corrected `-02` run used fresh paths. This setup failure is
+preserved separately in `Validation/029/CI/m4-metal-2ee7116-20260906-01/summary.json`;
+it is not a failed GPU capture.
 
 ## Live review at +3 EV
+
+This section and the following endurance section describe the historical
+`1f463520006d2ade3d1b4375a51ad947dd7f1847` captures.
 
 `ReviewHistory/1f46352-ev3-20260904-01/` preserves thirteen original JSON files
 byte-for-byte from ignored
@@ -58,5 +97,6 @@ windows is not required. PQ keeps BGR10A2Unorm, ITU-R 2100 PQ, EDR opt-in,
 Core Animation color management, and EDRMetadata=nil. Extended-linear EDR also
 keeps EDRMetadata=nil. Neither path enables CAEDRMetadata system tone mapping.
 
-T105 still requires the separate maintainer-authored immutable attestation.
+At capture time T105 still required the separate maintainer-authored immutable
+attestation; the later 2026-09-06 exception explicitly waived that obligation.
 Background machine success cannot author, infer, or replace that decision.

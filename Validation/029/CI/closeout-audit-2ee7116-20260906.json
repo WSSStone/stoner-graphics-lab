@@ -1,0 +1,97 @@
+{
+  "schema": "stoner.output-transform-closeout-disposition-audit",
+  "schemaVersion": 1,
+  "status": "passed",
+  "findingCount": 0,
+  "findings": [],
+  "scope": "Decision transcription, immutable provenance, admitted SDR, bounds and documentation; not strict authority pass or HDR visual judgment.",
+  "softwareRevision": "2ee7116ffb382c021ed575aff223c7b760a2ce7d",
+  "closeoutPath": "Validation/029/CI/closeout-2ee7116-20260906.json",
+  "closeoutSha256": "627199fe3c88428ad5497f5e403a93c221b6294acf923fd73fae9508d59f327a",
+  "governanceArtifactCount": 10,
+  "governanceArtifactBytes": 52406,
+  "m4ArtifactCount": 25,
+  "m4ArtifactBytes": 1208400,
+  "sdrBundlesVerifiedAtOriginalRevision": 4,
+  "currentHdrBundlesVerified": 4,
+  "sourceCandidateBytesUnchanged": true,
+  "historicalWindowsRegistryUnchanged": true,
+  "reportPaths": [
+    "Validation/029/SDR/Windows-Vulkan/Lantern/1f46352-20260904-09/sdr-report.json",
+    "Validation/029/SDR/Windows-Vulkan/Sponza/1f46352-20260904-09/sdr-report.json",
+    "Validation/029/SDR/M4-Metal/Lantern/2ee7116-20260906-01/sdr-report.json",
+    "Validation/029/SDR/M4-Metal/Sponza/2ee7116-20260906-01/sdr-report.json",
+    "Validation/029/HDR/Endurance/2ee7116-ev3-background-20260906-02/edr1000-report.json",
+    "Validation/029/HDR/Endurance/2ee7116-ev3-background-20260906-02/edr2000-report.json",
+    "Validation/029/HDR/Endurance/2ee7116-ev3-background-20260906-02/pq1000-report.json",
+    "Validation/029/HDR/Endurance/2ee7116-ev3-background-20260906-02/pq2000-report.json"
+  ],
+  "strictGateNegativeCheck": {
+    "status": "passed-expected-rejection",
+    "actualAggregate": {
+      "schema": "stoner.output-transform-validation-aggregate",
+      "schemaVersion": 1,
+      "gitRevision": "2ee7116ffb382c021ed575aff223c7b760a2ce7d",
+      "status": "blocked",
+      "findingCount": 5,
+      "windowsHdrClaim": "none",
+      "sdrAcceptedRecordCount": 4,
+      "hdrAuthoritySource": "missing",
+      "hdrDecisions": [],
+      "automaticHdrVisualDecision": false
+    },
+    "expectedRejections": [
+      "report[0]: stale or mixed git revision",
+      "report[1]: stale or mixed git revision",
+      "SDR authority: required exactly one Accepted record and physical report for production-content-lantern-v3/vulkan",
+      "SDR authority: required exactly one Accepted record and physical report for production-content-sponza-v3/vulkan",
+      "HDR closeout: exactly one current human attestation required"
+    ]
+  },
+  "closedTaskDispositions": 118,
+  "exceptionTasks": [
+    "T102",
+    "T105",
+    "T106",
+    "T118"
+  ],
+  "runtimeShadersTestsValidatorsAnd028Unchanged": true,
+  "automaticHdrVisualDecision": false,
+  "finalChecks": {
+    "focusedPythonTests": {
+      "passed": 52,
+      "failed": 0,
+      "commands": [
+        "python3 -m unittest discover -s .github/scripts -p 'test_*output_transform*.py'",
+        "python3 -m unittest discover -s .github/scripts -p 'test_hdr_live_review_contract.py'"
+      ]
+    },
+    "roadmapConsistency": {
+      "findingCount": 0,
+      "runtimePhases": 39,
+      "internalAnchors": 50,
+      "feature029Tasks": 118,
+      "frozenDependencies": [
+        "029",
+        "030",
+        "031",
+        "039"
+      ]
+    },
+    "outputArchitecture": {
+      "findingCount": 0
+    },
+    "changedDocumentLinksAndNextPhase": {
+      "findingCount": 0,
+      "linkCount": 89
+    },
+    "gitDiffCheck": "passed",
+    "protectedUserFilesSha256": "b0bb9e806a26359c4d0faf7cdcb0087506a6b34dc4828f29510c68afa0e935d7",
+    "completionDocumentationHook": {
+      "command": "speckit.docs.implement",
+      "disposition": "updated-existing-nine-section-delivered-document-after-task-dispositions-closed",
+      "path": "doc/029-hdr-output-transform.html"
+    },
+    "newCommitCreated": false
+  }
+}

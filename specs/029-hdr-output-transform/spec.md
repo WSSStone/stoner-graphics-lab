@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-01
 
-**Status**: Draft
+**Status**: Complete — maintainer exception closeout, 2026-09-06
 
 **Input**: User description: "Define Roadmap Feature 029 as the backend-neutral
 HDR SceneColor-to-display pipeline shared by Forward and Deferred, with explicit
@@ -16,6 +16,20 @@ dimension, maintainer-accepted Candidates for changed SDR output and explicit
 macOS live-view maintainer attestations for HDR visual output. Do not implement
 anti-aliasing, bloom, depth of field, motion blur, automatic exposure, vendor
 upscalers, or a post-processing editor."
+
+## Maintainer exception closeout — 2026-09-06
+
+Feature 029 is complete by the explicit, one-time maintainer decision recorded
+in [closeout.md](closeout.md), for software
+`2ee7116ffb382c021ed575aff223c7b760a2ce7d`. Current macOS SDR Candidates are
+accepted; the current Windows physical rerun and repeat HDR viewing/separate
+attestation are waived. Historical Windows SDR and +3 EV HDR visual evidence
+retain software `1f463520006d2ade3d1b4375a51ad947dd7f1847`.
+This disposition supersedes only this revision's original closeout obligations
+in T102/T105/T106/T118; the strict same-SHA aggregate is **not passed**.
+No evidence is relabeled, no HDR attestation or visual pass is generated, and
+no verifier bypass or automatic carry-forward is introduced. All implementation
+contracts and the default gates for subsequent revisions/features remain intact.
 
 ## Clarifications
 

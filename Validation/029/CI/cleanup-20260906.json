@@ -1,0 +1,80 @@
+{
+  "schema": "stoner.validation-cleanup-receipt",
+  "schemaVersion": 1,
+  "status": "deleted-and-retained-evidence-reverified",
+  "root": "/Users/wangshi/Documents/UGit/stoner-graphics-lab",
+  "planSha256": "fa9eb19561e387d4a472443c52d82787ea2036b46bbb7e9114597fdbd01b55fe",
+  "fileCount": 1743,
+  "logicalBytes": 2005580792,
+  "groups": [
+    {
+      "path": "Build/Validation/029/m4-formal-1f46352-20260904-01/Lantern/ddc",
+      "files": 126,
+      "bytes": 127883427,
+      "reason": "rebuildable-ddc"
+    },
+    {
+      "path": "Build/Validation/029/m4-formal-1f46352-20260904-01/Sponza/ddc",
+      "files": 582,
+      "bytes": 519691165,
+      "reason": "rebuildable-ddc"
+    },
+    {
+      "path": "Build/Validation/029/m4-formal-2ee7116-20260906-01/Lantern/ddc",
+      "files": 126,
+      "bytes": 127883427,
+      "reason": "rebuildable-ddc"
+    },
+    {
+      "path": "Build/Validation/029/m4-formal-2ee7116-20260906-01/Sponza/ddc",
+      "files": 582,
+      "bytes": 519691165,
+      "reason": "rebuildable-ddc"
+    },
+    {
+      "path": "Build/Validation/029/m4-formal-1f46352-20260904-01/Lantern/publication",
+      "files": 45,
+      "bytes": 127866944,
+      "reason": "byte-identical-old-publication"
+    },
+    {
+      "path": "Build/Validation/029/m4-formal-1f46352-20260904-01/Sponza/publication",
+      "files": 197,
+      "bytes": 519616116,
+      "reason": "byte-identical-old-publication"
+    },
+    {
+      "category": "raw-ppm-superseded-by-bounded-evidence",
+      "files": 80,
+      "bytes": 62915760
+    },
+    {
+      "category": "finder-directory-cache",
+      "files": 5,
+      "bytes": 32788
+    }
+  ],
+  "retainedDuplicateCounterpartCount": 242,
+  "retainedDuplicateCounterpartsSha256": "98b2d56826c6ddac85538ead1b9da9f72d9d0007c797004f2406a595ad593fed",
+  "retainedCurrentPublications": [
+    "/Users/wangshi/Documents/UGit/stoner-graphics-lab/Build/Validation/029/m4-formal-2ee7116-20260906-01/Lantern/publication",
+    "/Users/wangshi/Documents/UGit/stoner-graphics-lab/Build/Validation/029/m4-formal-2ee7116-20260906-01/Sponza/publication"
+  ],
+  "recovery": "Permanent deletion, not Trash. Old publication bytes remain in the checked identical current publication directories; DDC can be recooked. Deleted raw PPM bytes are not retained; formal PNG/JSON authority remains intact.",
+  "trackedEvidenceDeleted": false,
+  "commandsLogsHumanReviewAndScriptsPreserved": true,
+  "retainedEvidenceFileCount": 149,
+  "retainedEvidenceSnapshotSha256": "59e68ffd32f5cd3337679c338732d731487915cabdeea82524d049ac55f7d949",
+  "filesystemAvailableBytesBefore": 627971252224,
+  "filesystemAvailableBytesAfter": 630016368640,
+  "retainedEvidenceBytesUnchanged": true,
+  "recordedAtUtc": "2026-09-06 02:26:00 UTC",
+  "postChecks": {
+    "closeoutDispositionAudit": "passed-zero-findings",
+    "roadmapConsistency": "passed-zero-findings",
+    "protectedUserFilesSha256": "b0bb9e806a26359c4d0faf7cdcb0087506a6b34dc4828f29510c68afa0e935d7",
+    "buildValidationDuAfter": "636 MiB",
+    "validationDuAfter": "4.6 MiB",
+    "sizeNote": "logicalBytes sums removed file lengths; filesystem available-space delta may include allocation accounting and unrelated activity."
+  }
+}

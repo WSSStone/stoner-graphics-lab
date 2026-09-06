@@ -1,5 +1,10 @@
 # Specification Quality Checklist: Renderer HDR Post-Processing & Output Transform
 
+**Closeout disposition (2026-09-06)**: Complete by the explicit revision-scoped
+maintainer exception in [closeout.md](../closeout.md). Checked exception items
+mean resolved obligations, not successful original gates. Strict same-SHA
+physical/human aggregation is not passed; validators remain unchanged.
+
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-09-01
 **Feature**: [spec.md](../spec.md)
@@ -70,21 +75,21 @@ preflight, or missing external run into acceptance.
 | FR-028 | T069-T080, T086-T087 | Vulkan/Metal native suites | `CI/us4-native-lifecycle.json` — applicable non-visual paths passed |
 | FR-029 | T069-T071, T079-T081, T085 | same-frame token and exact-extent cases | `CI/us4-native-lifecycle.json`; physical M4 probes passed |
 | FR-030 | T031, T071, T080, T083-T085 | failure injection/terminal-owner cases | `CI/us4-native-lifecycle.json` — passed |
-| FR-031 | T107-T112 | workflow matrix and strict build/sanitizer jobs | Workflow defined; final same-revision hosted run pending T112 |
-| FR-032 | T070, T076-T079, T084-T087, T104 | Metal PQ/EDR native suite and four live probes | Four exact-`1f46352` M4 probes passed; request ready, human review pending |
-| FR-033 | T093-T103 | v3 workload/baseline/Candidate state machine | Windows v3 accepted at `1f46352`; same-SHA M4 Candidates ready for review |
+| FR-031 | T107-T112 | workflow matrix and strict build/sanitizer jobs | Run 34002580090 passed 14/14 at `2ee7116`; T112 artifact/log digests verified |
+| FR-032 | T070, T076-T079, T084-T087, T104 | Metal PQ/EDR native suite and four live probes | Four exact-`2ee7116` M4 1,000/20 runs passed; historical +3 EV human conclusion explicitly retained by exception |
+| FR-033 | T093-T103 | v3 workload/baseline/Candidate state machine | Current `2ee7116` M4 Candidates explicitly accepted; prior Windows acceptance retained, new capture waived |
 | FR-034 | T088, T094, T100 | immutable-v2 byte/digest preservation | `SDR/feature-028-v2-preservation.json` — passed |
 | FR-035 | T088-T090, T094-T096 | Candidate-only and missing-Accepted tests | M4 Candidate manifests prove fail-closed state |
 | FR-036 | T090, T095 | exact-dimension/mismatch-before-FLIP cases | Python runner tests and M4 exact PNGs — passed |
 | FR-037 | T090, T095 | translation/normalization/one-pixel mutation cases | calibration and runner tests — passed |
-| FR-038 | T088, T093-T103 | fresh-authority key/revision/calibration rules | Windows exact-SHA bundles accepted at `1f46352`; same-SHA M4 bundles verified, review pending |
-| FR-039 | T092, T099-T103 | carry-forward rejection aggregation tests | Rejection test passed; fresh Windows T102 complete, with explicit acceptance |
+| FR-038 | T088, T093-T103 | fresh-authority key/revision/calibration rules | M4 `2ee7116` bundles verified and accepted; Windows `1f46352` acceptance retained by explicit exception |
+| FR-039 | T092, T099-T103 | carry-forward rejection aggregation tests | Rejection test passed unchanged; T102 rerun waived explicitly, no old report relabeled |
 | FR-040 | T093, T095, T100-T102 | exact 512×512, sampleCount=1 and bounded run | v2 preservation + M4 Candidate records — passed locally |
-| FR-041 | T089, T095-T096, T109 | lossless PNG/canonical JSON/bounds verifier | M4 bundle within bounds; closeout bundle pending |
+| FR-041 | T089, T095-T096, T109 | lossless PNG/canonical JSON/bounds verifier | M4 and closeout records bounded; digest index in `CI/closeout-2ee7116-20260906.json` |
 | FR-042 | T026, T047, T065, T075, T078-T085 | normalized diagnostic/probe identity tests | `CI/us1-*`, `CI/us4-*`; physical M4 probe identity complete |
 | FR-043 | T021-T023, T036-T037, T057-T067 | Forward/Deferred and insertion matrices | `CI/us1-formal-output.json`, `CI/us3-insertion-contract.json` — passed |
 | FR-044 | T067, T110 | architecture/scope scan | `verify_output_transform_architecture.py` — zero scope findings |
-| FR-045 | T091-T092, T097-T099, T104-T106 | request/attestation/aggregation contract tests | Machine preflight passed; live human observations pending |
+| FR-045 | T091-T092, T097-T099, T104-T106 | request/attestation/aggregation contract tests | Machine preflight passed; repeat live review/separate attestation waived explicitly, no inferred HDR pass |
 | FR-046 | T084, T092, T099, T108 | Windows-HDR-no-claim tests/workflow record | Contract passed; no Windows HDR lane or claim exists |
 
 ### Success Criteria
@@ -99,30 +104,36 @@ preflight, or missing external run into acceptance.
 | SC-006 | T059, T064-T065 | bypass stage identity/non-authority cases | `CI/us3-insertion-contract.json` — passed |
 | SC-007 | T068-T071, T083, T087 | three extents + zero + restore + mode/failure matrix | `CI/us4-native-lifecycle.json` — passed |
 | SC-008 | T069-T087 | successful native same-frame/extent/owner checks | `CI/us4-native-lifecycle.json`; M4 probes passed |
-| SC-009 | T107-T112 | three-platform strict/sanitizer/Lavapipe workflow | Definition/tests passed; final hosted same-revision run pending |
+| SC-009 | T107-T112 | three-platform strict/sanitizer/Lavapipe workflow | Run 34002580090 passed 14/14 at `2ee7116`; `CI/hosted-34002580090/summary.json` |
 | SC-010 | T088, T093-T100 | v2 byte preservation and separate v3 authority | `SDR/feature-028-v2-preservation.json` — passed |
 | SC-011 | T090, T095 | mismatch, translation, normalization, one-pixel rejection | Python tests and calibration — passed |
-| SC-012 | T101-T103 | explicit acceptance for every new SDR reference | Windows Lantern/Sponza accepted at `1f46352`; same-SHA M4 captured, review pending |
-| SC-013 | T089, T096, T109 | evidence count/size/type/digest/privacy bounds | Verifier tests passed; final closeout bundle pending |
+| SC-012 | T101-T103 | explicit acceptance for every new SDR reference | Current `2ee7116` M4 accepted explicitly; `1f46352` Windows acceptance retained by exception |
+| SC-013 | T089, T096, T109 | evidence count/size/type/digest/privacy bounds | Verifier tests passed; bounded closeout digest record archived |
 | SC-014 | T111 | Features 013/015/018/019/027/028 + 029 regressions | `CI/regressions.json` — local pass; refresh after final edits |
-| SC-015 | T091-T099, T104-T106 | four Metal HDR preflights + four live observations | Four exact-`1f46352` probes passed and request ready; live human observations pending |
+| SC-015 | T091-T099, T104-T106 | four Metal HDR preflights + four live observations | Four exact-`2ee7116` +3 EV native runs passed; historical live acceptance retained by exception, no new attestation |
 | SC-016 | T023, T030-T031, T037 | pass/resource/full-image/readback-count checks | `CI/us1-formal-output.json` — passed |
 
 ### External Closeout Gates
 
 - [x] Reproduce physical M4 Metal Lantern and Sponza v3 exact SDR Candidates
-  at the frozen software revision with calibration/native sidecars; retain the
+  at frozen `2ee7116` with calibration/native sidecars; retain the
   preliminary working-tree Candidates without promotion or relabeling.
 - [x] Physical M4 Metal PQ1000/PQ2000/EDR1000/EDR2000 machine preflights
-  complete with `EDRMetadata=nil`; no visual decision inferred.
+  complete at `2ee7116`, +3 EV, 1,000/20 cycles, with `EDRMetadata=nil`;
+  no visual decision inferred.
 - [x] Reproduce the HDR preflight from the exact committed revision and create
-  `Validation/029/HDR/hdr-live-review-request.json`.
-- [x] Generate fresh physical Windows Vulkan Lantern and Sponza v3 Candidates
-  at `1f46352`; both explicitly accepted by the maintainer on 2026-09-04.
-- [ ] Maintainer explicitly accepts or rejects all four SDR tuples.
-- [ ] Maintainer personally views all four HDR modes and authors immutable
-  linked attestations.
-- [ ] Run final same-revision hosted matrix and closeout aggregation.
+  `Validation/029/HDR/Requests/2ee7116-ev3-background-20260906-02/hdr-live-review-request.json`;
+  the root-level request retains its historical identity.
+- [x] EXCEPTION: current physical Windows rerun waived; accepted `1f46352`
+  bundles retain their historical SHA and session/adapter limitations.
+- [x] Maintainer explicitly accepts current M4 SDR; prior two Windows Accepted
+  records remain unchanged. All four tuples are admitted at their own revisions.
+- [x] EXCEPTION: prior +3 EV live acceptance explicitly retained; repeat viewing
+  and separate attestation waived. No new current-SHA observation is claimed.
+- [x] Run final same-revision hosted matrix: 34002580090 passed 14/14 at
+  `2ee7116`; job/artifact digests archived and revalidated.
+- [x] EXCEPTION: record closed-by-maintainer-exception with strict same-SHA
+  physical/human gate not passed; do not fabricate an aggregate success.
 
 ## Notes
 

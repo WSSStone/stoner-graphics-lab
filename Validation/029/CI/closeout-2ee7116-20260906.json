@@ -1,0 +1,122 @@
+{
+  "schema": "stoner.output-transform-maintainer-exception-closeout",
+  "schemaVersion": 1,
+  "decisionId": "feature-029-closeout-2ee7116-20260906",
+  "recordedAtUtc": "2026-09-06T02:05:07Z",
+  "feature": "029",
+  "status": "closed-by-maintainer-exception",
+  "featureComplete": true,
+  "softwareRevision": "2ee7116ffb382c021ed575aff223c7b760a2ce7d",
+  "historicalSoftwareRevision": "1f463520006d2ade3d1b4375a51ad947dd7f1847",
+  "maintainerId": "stonewswang",
+  "decisionSource": {
+    "channel": "maintainer conversation",
+    "statement": "agree",
+    "fullScopePath": "specs/029-hdr-output-transform/closeout.md",
+    "priorSkipStatement": "不需要，跳过。是不是可以直接收尾029？"
+  },
+  "strictSameRevisionGatePassed": false,
+  "strictValidatorsModified": false,
+  "taskDispositions": {
+    "total": 118,
+    "completedAsScoped": 114,
+    "exceptionTasks": [
+      "T102",
+      "T105",
+      "T106",
+      "T118"
+    ],
+    "open": 0
+  },
+  "macosSdr": {
+    "status": "accepted",
+    "softwareRevision": "2ee7116ffb382c021ed575aff223c7b760a2ce7d",
+    "decisionPath": "Validation/029/SDR/M4-Metal/acceptance-2ee7116-20260906.json"
+  },
+  "windowsSdr": {
+    "currentPhysicalRun": "waived-not-run",
+    "evidenceRevision": "1f463520006d2ade3d1b4375a51ad947dd7f1847",
+    "authority": "existing-explicitly-accepted-records-retained-by-maintainer-exception",
+    "sessionLimitationsPreserved": true
+  },
+  "hdr": {
+    "currentMachineRevision": "2ee7116ffb382c021ed575aff223c7b760a2ce7d",
+    "currentMachineResult": "four-profiles-passed-1000-cycles-20-warmups-hidden-background",
+    "exposureStops": 3,
+    "currentRequestState": "ready-for-live-review",
+    "liveFeedbackRevision": "1f463520006d2ade3d1b4375a51ad947dd7f1847",
+    "liveFeedbackStatement": "可以接受。关闭它们",
+    "liveFeedbackDisposition": "explicitly-retained-by-maintainer-exception",
+    "repeatLiveReview": "waived-not-performed",
+    "separateAttestation": "waived-not-created",
+    "newCurrentRevisionLiveObservationClaimed": false,
+    "automatedVisualDecision": false,
+    "photometricClaim": false
+  },
+  "hostedCI": {
+    "runId": 34002580090,
+    "attempt": 1,
+    "gitRevision": "2ee7116ffb382c021ed575aff223c7b760a2ce7d",
+    "passed": 14,
+    "failed": 0,
+    "skipped": 0
+  },
+  "windowsHdrClaim": false,
+  "oldEvidenceRelabeled": false,
+  "imageTransformsApplied": [],
+  "appliesToFutureRevisions": false,
+  "artifacts": [
+    {
+      "path": "Config/Validation/OutputTransform/SDR/Baselines-v3.json",
+      "sha256": "9e13dfc7d51658a8940f80a9109e27981d739fe6d5b378125b7fc03ac605d7ab",
+      "bytes": 6487
+    },
+    {
+      "path": "Validation/029/SDR/M4-Metal/acceptance-2ee7116-20260906.json",
+      "sha256": "c4c589d70db28f513cb8646a4f4f872d5ab2be32a5b20ffc3ac730d9332eecc4",
+      "bytes": 2546
+    },
+    {
+      "path": "Validation/029/CI/hosted-34002580090/summary.json",
+      "sha256": "2291a04397dccc9c275c44b3a777a7336b2c9eb47c3fe353bd3b3061f77a7f0d",
+      "bytes": 13589
+    },
+    {
+      "path": "Validation/029/CI/m4-metal-2ee7116-20260906-01/summary.json",
+      "sha256": "03b4b8c9b0938c583aec1f4953e07e8e120fdbf25e63de086284b64ca7ff5f50",
+      "bytes": 11981
+    },
+    {
+      "path": "Validation/029/SDR/Windows-Vulkan/acceptance-1f46352-20260904.json",
+      "sha256": "eb9ac56fc8f1175d269cccf4f18e19bb14c9bdc042d63170fba6439221edfe34",
+      "bytes": 2448
+    },
+    {
+      "path": "Validation/029/HDR/ReviewHistory/1f46352-ev3-20260904-01/maintainer-feedback.json",
+      "sha256": "d116c5c9afa0d5cbc9de1001b8834a989abc42503052b4ac3b765c21db6e0792",
+      "bytes": 1638
+    },
+    {
+      "path": "Validation/029/HDR/ReviewHistory/1f46352-ev3-20260904-01/hdr-live-review-request.json",
+      "sha256": "1ec4de438c8fd72b1306584f7c31fcd345d35bef9ff74635f50b46274ed63e35",
+      "bytes": 2106
+    },
+    {
+      "path": "Validation/029/HDR/Requests/2ee7116-ev3-background-20260906-02/hdr-live-review-request.json",
+      "sha256": "008e9c05e788cd54f4f93f85ca15870488d87f835ce3c14189726cef19dfe6fc",
+      "bytes": 2144
+    },
+    {
+      "path": "Validation/029/HDR/Endurance/2ee7116-ev3-background-20260906-02/summary.json",
+      "sha256": "81a26ec9b523a998995f764cee54a893ca47b6c8e8a8c2c899ee27db04c04b01",
+      "bytes": 4160
+    },
+    {
+      "path": "specs/029-hdr-output-transform/closeout.md",
+      "sha256": "edb032d935dbce0beb79af4cedb4701c3cd1d90cefb92a726dcd4d78aa185b10",
+      "bytes": 5307
+    }
+  ],
+  "artifactCount": 10,
+  "artifactBytes": 52406
+}

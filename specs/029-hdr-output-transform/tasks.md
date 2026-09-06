@@ -13,19 +13,22 @@ and tested as an increment. Contract mapping is: output-pipeline to US1/US3,
 output-device-profiles to US2, presentation-readback-lifecycle to the foundation
 and US4, and validation-evidence to US5.
 
-**Closeout status (2026-09-06)**: 112/118 tasks recorded complete. The four
-`1f46352` +3 EV hidden-background HDR runs passed 1,000/20 lifecycle validation;
-the maintainer's separate live-review feedback is preserved in
-`Validation/029/HDR/README.md`, but T105 still requires the manually authored
-attestation. Hosted run 33853340448 passed ten jobs, including Windows/Linux
-strict builds and Linux sanitizers, but all three macOS jobs failed on the
-unguarded Vulkan shader helper. Its local conditional-compilation repair
-passes all eight Debug/Release x Vulkan/GLFW availability combinations for the
-affected translation unit; T112 still requires a passing full hosted run at
-the new frozen SHA.
-T101/T102/T104 remain records of completed `1f46352` captures, not evidence for
-that future SHA. No old evidence or human decision may be automatically promoted
-to the new revision. T103/T105/T106/T112/T117/T118 remain open.
+**Closeout status (2026-09-06)**: Complete by explicit maintainer exception.
+All 118 task dispositions are closed: 114 completed as scoped and four
+exception dispositions (T102/T105/T106/T118), **not 118 original gates passed**.
+A checked exception task means resolved by the approved governance decision,
+not executed or passed. See [closeout.md](closeout.md) and
+`Validation/029/CI/closeout-2ee7116-20260906.json`.
+
+Hosted run 34002580090 passed 14/14 at software
+`2ee7116ffb382c021ed575aff223c7b760a2ce7d`. Current M4 Lantern/Sponza v3 SDR
+Candidates are explicitly accepted; four +3 EV HDR modes passed fresh hidden
+1,000/20 runs. The maintainer waived the current Windows physical rerun,
+authorized one-time use of the earlier `1f46352` Windows SDR evidence and
++3 EV live HDR acceptance, and waived repeated HDR viewing and the separate
+attestation requirement. Original captures/requests remain immutable;
+strict same-SHA human/physical aggregation is not claimed as passed.
+Feature 030 is next; no Feature 028 v2 evidence or Feature 031 dependency changed.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -271,12 +274,12 @@ request but cannot write, infer, score, or replace a maintainer live decision.
 - [X] T098 [US5] Implement attestation structure, exact request-SHA linkage, immutable supersession, four live observations, acknowledgements, forbidden-field validation, and the rule that every current profile decision must be `pass` for closeout without adding an attestation writer in `.github/scripts/verify_output_transform_evidence.py`
 - [X] T099 [US5] Implement deterministic/native/SDR aggregation that may quote only a matching human attestation and explicitly emits no Windows HDR validation claim in `.github/scripts/aggregate_output_transform_validation.py`
 - [X] T100 [US5] Prove all Feature 028 v2 baseline/policy/reference files remain byte-identical and record their historical `sampleCount=1`/no-general-post-processing interpretation in `Validation/029/SDR/feature-028-v2-preservation.json`
-- [X] T101 [P] [US5] Generate fresh exact-size Lantern and Sponza v3 SDR Candidates on the physical M4 Metal authority and store bounded review manifests in `Validation/029/SDR/M4-Metal/` (fresh `1f46352-20260904-01` calibration/native bundles; earlier working-tree Candidates remain preliminary)
-- [X] T102 [P] [US5] Generate fresh exact-size Lantern and Sponza v3 SDR Candidates from same-frame GPU readback on physical Windows discrete Vulkan hardware without carry-forward; permit active Console or RDP sessions with recorded session/native-adapter evidence and successful application-window presentation, without claiming physical-monitor scanout; store bounded review manifests in `Validation/029/SDR/Windows-Vulkan/`
-- [ ] T103 [US5] Have the maintainer review and explicitly admit or reject each exact v3 backend/device/workload record through repository changes in `Config/Validation/OutputTransform/SDR/Baselines-v3.json`
-- [X] T104 [P] [US5] Run the four-profile PQ1000/PQ2000/EDR1000/EDR2000 non-visual preflight and create the machine-authored request in `Validation/029/HDR/hdr-live-review-request.json`
-- [ ] T105 [US5] Have the maintainer personally view all four settled modes on the physical M4 Metal HDR/EDR display and manually author each immutable linked `pass` or `fail` attestation as a new file under `Validation/029/HDR/Attestations/`, with any correction appended as a new superseding record
-- [ ] T106 [US5] Verify the accepted SDR records, HDR request/attestation linkage, evidence bounds, and current non-superseded `pass` for all four HDR profiles before recording a successful result in `Validation/029/CI/us5-authority.json`
+- [X] T101 [P] [US5] Generate fresh exact-size Lantern and Sponza v3 SDR Candidates on the physical M4 Metal authority and store bounded review manifests in `Validation/029/SDR/M4-Metal/` (fresh `2ee7116-20260906-01` calibration/native bundles; earlier revisions retain their original identities)
+- [X] T102 [P] [US5] [EXCEPTION — current rerun waived] Retain the accepted physical Windows Vulkan Lantern/Sponza v3 bundles at `1f46352`; do not claim a `2ee7116` physical Windows run. Resolve the original fresh-capture requirement by the one-time explicit maintainer decision in `specs/029-hdr-output-transform/closeout.md`, preserving session/adapter and original SHA in `Validation/029/SDR/Windows-Vulkan/`.
+- [X] T103 [US5] Record explicit maintainer admission of current `2ee7116` M4 Metal Lantern/Sponza v3 Candidates in `Config/Validation/OutputTransform/SDR/Baselines-v3.json` and `Validation/029/SDR/M4-Metal/acceptance-2ee7116-20260906.json`; retain the two original accepted Windows records unchanged.
+- [X] T104 [P] [US5] Run the four-profile PQ1000/PQ2000/EDR1000/EDR2000 non-visual preflight and create the machine-authored request in `Validation/029/HDR/Requests/2ee7116-ev3-background-20260906-02/hdr-live-review-request.json` (the root-level `hdr-live-review-request.json` remains historical)
+- [X] T105 [US5] [EXCEPTION — repeat review and separate attestation waived] Preserve the prior `1f46352` +3 EV four-mode live maintainer acceptance and current `2ee7116` machine request. Record the explicit decision to reuse that visual conclusion for this closeout in `specs/029-hdr-output-transform/closeout.md`; do not create a synthetic file under `Validation/029/HDR/Attestations/` or a current-SHA live-review claim.
+- [X] T106 [US5] [EXCEPTION — governance disposition, not strict aggregate pass] Verify SDR admission, original evidence identities/digests and bounds; record `closed-by-maintainer-exception` with `strictSameRevisionGatePassed=false` in `Validation/029/CI/us5-authority.json`, linked to the explicit decision and without manufacturing four current HDR attestations.
 
 **Checkpoint**: Changed SDR output has fresh explicit authority, HDR visual
 acceptance is a real human observation, and Feature 028 remains immutable
@@ -295,13 +298,13 @@ complete.
 - [X] T109 [P] Enforce JSON <=1 MiB, <=64 artifacts, each <=64 MiB, aggregate <=256 MiB, bounded PNG/JSON-only SDR evidence, and JSON/digest-only HDR authority in `.github/scripts/verify_output_transform_evidence.py`
 - [X] T110 [P] Add architecture/scope scans that reject Renderer native API calls, backend-private color policy, runtime shader compilation, temporal/AA state, bloom/DoF/motion-blur/auto-exposure/upscaler/editor scope, and a second post-process graph in `.github/scripts/verify_output_transform_architecture.py`
 - [X] T111 Run Feature 013/015/018/019/027/028 regression suites plus all Feature 029 suites and record normalized results in `Validation/029/CI/regressions.json`
-- [ ] T112 Run Windows/macOS/Linux strict Release and Linux sanitizer jobs locally or in hosted CI and record exact revisions/run IDs/digests in `Validation/029/CI/README.md`
+- [X] T112 Run Windows/macOS/Linux strict Release and Linux sanitizer jobs locally or in hosted CI and record exact revisions/run IDs/digests in `Validation/029/CI/README.md` (`2ee7116`, hosted run 34002580090, fourteen passing jobs and verified artifact/log digests)
 - [X] T113 [P] Update implementation-facing usage, diagnostic, unsupported-mode, and human-review instructions from verified commands in `specs/029-hdr-output-transform/quickstart.md`
 - [X] T114 [P] Update the delivered Feature 029 architecture/evidence documentation without rewriting historical Feature 028 claims in `doc/029-hdr-output-transform.html`
 - [X] T115 Reconcile requirement-to-task-to-test-to-evidence coverage for all FR-001 through FR-046 and SC-001 through SC-016 in `specs/029-hdr-output-transform/checklists/requirements.md`
 - [X] T116 Run numbering, dependency, anchor, task-reference, and old-phase consistency scans until zero findings and store the normalized scan in `Validation/029/CI/consistency-scan.json`
-- [ ] T117 Update Feature 029 completion status, delivered evidence, Feature 030 insertion-contract dependency, and unchanged Feature 031 dependencies only after all gates pass in `doc/roadmap.md`, `specs/002-engine-development-roadmap/spec.md`, and `AGENTS.md`
-- [ ] T118 Complete the final same-revision producer/consumer aggregation, require explicit maintainer SDR acceptance and four current non-superseded HDR `pass` observations, and record closeout digests without auto-acceptance in `Validation/029/CI/README.md`
+- [X] T117 Update Feature 029 completion by explicit maintainer exception, delivered evidence, and Feature 030 as next in `doc/roadmap.md`, `specs/002-engine-development-roadmap/spec.md`, and `AGENTS.md`; preserve the Feature 030 insertion-contract dependency and unchanged Feature 031 dependencies.
+- [X] T118 [EXCEPTION — final mixed-revision closeout] Record current hosted producer/consumer and M4 machine evidence, historical Windows/HDR authority, exact digests, and the maintainer's scoped waivers in `Validation/029/CI/README.md` and `Validation/029/CI/closeout-2ee7116-20260906.json`. Do not claim successful strict same-revision physical/human aggregation; complete the delivered-document hook.
 
 ---
 
@@ -411,6 +414,10 @@ T103 + T105 -> T106 authority merge
    consistency gates at one exact revision.
 
 ### Validation Discipline
+
+The following is the normal contract. Only the specific final-revision
+obligations in the closeout status above were disposed of by the maintainer's
+one-time exception; implementation tests and future validation retain these rules.
 
 - M0 tests precede the CPU oracle and vectors; story tests precede runtime,
   shader, native, evidence, and workflow implementation and fail for the missing

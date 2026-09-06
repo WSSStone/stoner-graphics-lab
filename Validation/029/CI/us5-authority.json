@@ -1,0 +1,28 @@
+{
+  "schema": "stoner.output-transform-us5-maintainer-disposition",
+  "schemaVersion": 1,
+  "softwareRevision": "2ee7116ffb382c021ed575aff223c7b760a2ce7d",
+  "status": "closed-by-maintainer-exception",
+  "strictSameRevisionGatePassed": false,
+  "decisionPath": "Validation/029/CI/closeout-2ee7116-20260906.json",
+  "decisionSha256": "627199fe3c88428ad5497f5e403a93c221b6294acf923fd73fae9508d59f327a",
+  "auditPath": "Validation/029/CI/closeout-audit-2ee7116-20260906.json",
+  "taskDispositions": {
+    "T103": "explicit-current-M4-SDR-admission-and-existing-Windows-admission",
+    "T102": "current-Windows-rerun-waived",
+    "T105": "prior-live-conclusion-retained-repeat-and-attestation-waived",
+    "T106": "exception-disposition-not-strict-aggregate-pass",
+    "T118": "mixed-revision-exception-closeout-not-strict-aggregate-pass"
+  },
+  "strictGateState": "blocked",
+  "originalStrictGateUnsatisfiedReasons": [
+    "report[0]: stale or mixed git revision",
+    "report[1]: stale or mixed git revision",
+    "SDR authority: required exactly one Accepted record and physical report for production-content-lantern-v3/vulkan",
+    "SDR authority: required exactly one Accepted record and physical report for production-content-sponza-v3/vulkan",
+    "HDR closeout: exactly one current human attestation required"
+  ],
+  "hdrAttestationCreated": false,
+  "automaticHdrVisualDecision": false,
+  "windowsHdrClaim": false
+}

@@ -28,8 +28,8 @@
 <main>
 <header>
   <h1>029 - Renderer HDR Post-Processing &amp; Output Transform</h1>
-  <div class="meta">版本 0.9 · 2026-09-03 · 实现完成、权威收尾待外部门禁 · 分支 029-hdr-output-transform</div>
-  <div class="callout"><strong>工程结论：</strong>Feature 029 已把 Forward/Deferred 的正式输出收敛为一个 Renderer 与 Render Graph 共同拥有的管线：RGBA16F linear Rec.709/D65 SceneColor 经过 manual exposure、pre-tonemap 插入、版本化 SDR tone map 或 ACES 2 HDR viewing transform、post-tonemap 插入、output-device gamut/transfer，再以同一 frame token readback 和 present。当前代码与 M4 非视觉验证已完成；Windows fresh SDR、维护者 SDR 接受和四模式 HDR 肉眼验收仍是明确阻塞门禁，因此不得把本阶段标为完成。</div>
+  <div class="meta">版本 1.0 · 2026-09-06 · 已交付（维护者明确例外收尾） · 分支 029-hdr-output-transform</div>
+  <div class="callout"><strong>工程结论：</strong>Feature 029 已把 Forward/Deferred 的正式输出收敛为一个 Renderer 与 Render Graph 共同拥有的管线：RGBA16F linear Rec.709/D65 SceneColor 经过 manual exposure、pre-tonemap 插入、版本化 SDR tone map 或 ACES 2 HDR viewing transform、post-tonemap 插入、output-device gamut/transfer，再以同一 frame token readback 和 present。受测软件 <code>2ee7116</code> 的 hosted CI 14/14、当前 M4 SDR 与四模式 HDR 后台 1,000/20 均通过。维护者明确接受当前 M4 SDR，豁免本轮 Windows 物理重跑及 HDR 重复展示／独立 attestation，特批沿用 <code>1f46352</code> 的 Windows SDR 与 +3 EV HDR 人眼结论。本阶段以例外收尾，不声称 strict same-SHA 人工／物理门禁全部通过。</div>
 </header>
 
 <section id="context">
@@ -42,7 +42,7 @@
 <tr><td>主要源码</td><td><code>Source/Renderer/</code>、<code>Source/RHI/</code>、<code>Source/Backend/Vulkan/</code>、<code>Source/Backend/Metal/</code>、<code>Demo/StonerDemo/</code></td></tr>
 <tr><td>颜色与 shader 权威</td><td><code>Config/Validation/OutputTransform/Profiles.json</code>、<code>Tests/Fixtures/OutputTransform/</code>、<code>Content/Shaders/PostProcess/</code></td></tr>
 <tr><td>测试入口</td><td><code>renderer-output-transform*</code>、<code>output-device-profile</code>、<code>rhi-presentation-output</code>、<code>output-presentation-lifecycle</code>、Vulkan/Metal native suites 与 Python contract tests</td></tr>
-<tr><td>证据状态</td><td><code>Validation/029/</code> 保存有界 JSON/PNG；M4 Lantern/Sponza v3 Candidate 已生成但未接受，HDR live attestation 尚未由维护者创建</td></tr>
+<tr><td>证据状态</td><td><code>Validation/029/</code> 保存有界 JSON/PNG；当前 M4 Lantern/Sponza v3 已由维护者明确接受；历史 Windows/HDR 权威按单次例外保留；无新 HDR attestation，详见 <a href="../specs/029-hdr-output-transform/closeout.md">closeout.md</a></td></tr>
 </tbody></table>
 
 <h3>2. 本期核心摘要</h3>
@@ -183,19 +183,24 @@ HDR review: Preflight -> ReadyForLiveReview -> Human Attestation</code></pre>
 <li>统一 Forward/Deferred handoff，建立 plan/graph/executor 和 checked-in shader。</li>
 <li>接入 Vulkan/Metal native presentation、readback、resize/paused/failure lifecycle。</li>
 <li>建立 v3 SDR Candidate、HDR request/attestation、bounded evidence 与 aggregation contract。</li>
-<li>补 workflow、architecture scan、回归、quickstart 和本文；外部 authority 完成后才更新 roadmap 状态。</li>
+<li>补 workflow、architecture scan、回归、quickstart 和本文；根据明确的维护者例外完成 roadmap 收尾，030 为下一阶段。</li>
 </ol>
 
 <h3>2. 验收标准与当前结果</h3>
 <table><thead><tr><th>门禁</th><th>当前结果</th><th>意义</th></tr></thead><tbody>
 <tr><td>macOS strict Debug/Release 与 Feature 029 suites</td><td>已通过本地构建与回归</td><td>代码、contract 与 deterministic behavior 可执行</td></tr>
-<tr><td>M4 SDR v3</td><td>Lantern、Sponza exact 512×512 Candidate 已生成；尚未接受</td><td>fresh physical output 存在，不等于 authority</td></tr>
-<tr><td>M4 HDR non-visual</td><td>PQ1000/PQ2000/EDR1000/EDR2000 command/readback/present 通过</td><td>native contract 可用，不等于观感 pass</td></tr>
-<tr><td>Windows Vulkan fresh SDR</td><td>待独立物理环境</td><td>Feature 028 carry-forward 不可复用</td></tr>
-<tr><td>Maintainer SDR/HDR review</td><td>待明确接受与现场肉眼观察</td><td>缺失时 Feature 029 必须保持进行中</td></tr>
-<tr><td>Hosted/sanitizer same-revision closeout</td><td>待实现提交后的 CI</td><td>run ID/digest 必须绑定最终 revision</td></tr>
+<tr><td>M4 SDR v3</td><td><code>2ee7116</code> Lantern、Sponza exact 512×512，维护者明确接受</td><td>原始 Candidate 不变，另建 Accepted registry 与决定记录</td></tr>
+<tr><td>M4 HDR non-visual</td><td><code>2ee7116</code> +3 EV 四模式隐藏后台 1,000/20，token 2001、零残留，通过</td><td>native contract 可用，不等于观感 pass；全部应用已退出</td></tr>
+<tr><td>Windows Vulkan SDR</td><td>特批保留 <code>1f46352</code> 已接受物理证据；本轮重跑豁免</td><td>无 <code>2ee7116</code> Windows 硬件声明；028 v2 未复用</td></tr>
+<tr><td>Maintainer SDR/HDR review</td><td>当前 M4 SDR 接受；历史 +3 EV HDR 人眼结论明确特批沿用</td><td>重复现场观察与独立 attestation 豁免；不伪造新观察</td></tr>
+<tr><td>Hosted/sanitizer machine gate</td><td>34002580090，<code>2ee7116</code>，14/14 通过</td><td>日志、artifact 摘要已归档；不是严格人工／物理 aggregate pass</td></tr>
 </tbody></table>
 
+<p>完整证据与命令见 <a href="../Validation/029/CI/README.md">Validation/029/CI/README.md</a>；
+<a href="../Validation/029/CI/closeout-2ee7116-20260906.json">closeout JSON</a>
+绑定原始 SHA 和批准范围。118 项任务均已处置：114 项按原范围完成，T102/T105/T106/T118 四项按明确例外关闭，
+不是 118 项原始门禁全部通过。严格 verifier 不新增 bypass，仍拒绝混合 SHA／缺独立 attestation 的普通 closeout。
+本次例外不继承到 030。</p>
 <h3>3. 测试矩阵与覆盖意图</h3>
 <table><thead><tr><th>类别</th><th>覆盖风险</th><th>主要入口</th></tr></thead><tbody>
 <tr><td>CPU math/vector</td><td>公式、常量、exposure、negative/nonfinite、容差漂移</td><td><code>RendererOutputTransformMathTests</code>、vector verifier</td></tr>

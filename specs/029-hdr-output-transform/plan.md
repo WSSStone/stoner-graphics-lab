@@ -3,6 +3,20 @@
 **Branch**: `029-hdr-output-transform` | **Date**: 2026-09-02 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `/specs/029-hdr-output-transform/spec.md`
 
+## Maintainer exception closeout — 2026-09-06
+
+Feature 029 is complete by the explicit, one-time maintainer decision recorded
+in [closeout.md](closeout.md), for software
+`2ee7116ffb382c021ed575aff223c7b760a2ce7d`. Current macOS SDR Candidates are
+accepted; the current Windows physical rerun and repeat HDR viewing/separate
+attestation are waived. Historical Windows SDR and +3 EV HDR visual evidence
+retain software `1f463520006d2ade3d1b4375a51ad947dd7f1847`.
+This disposition supersedes only this revision's original closeout obligations
+in T102/T105/T106/T118; the strict same-SHA aggregate is **not passed**.
+No evidence is relabeled, no HDR attestation or visual pass is generated, and
+no verifier bypass or automatic carry-forward is introduced. All implementation
+contracts and the default gates for subsequent revisions/features remain intact.
+
 ## Summary
 
 Feature 029 creates one backend-neutral, Render Graph-owned path from Forward
