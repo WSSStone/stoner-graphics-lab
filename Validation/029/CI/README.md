@@ -216,6 +216,28 @@ feedback retain their original SHA. They cannot be relabeled or automatically
 carried forward. `portability-repair-20260904.json` records this working-tree
 diagnostic scope. T112 and final same-revision closeout remain open.
 
+## Vulkan-disabled macOS Build Repair — 2026-09-06
+
+[Hosted run 33853340448](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/33853340448)
+tested `ac0cdf455003498421cf0e95a353e1d95433c9a5` and completed with ten passing
+jobs, three failed macOS jobs, and a skipped aggregate. Windows and Linux
+strict Debug/Release, Linux ASan/UBSan/TSan, Lavapipe, Windows Python, and the
+machine producer/consumer passed. All three macOS jobs stopped at the same
+`BuildVulkanShader` unused-function error in
+`Tests/OutputTransformGPUConformanceTests.cpp`; native HDR execution was not
+reached.
+
+The helper now uses the same `STONER_TEST_VULKAN_RUNTIME_AVAILABLE` guard as
+its callers. The failure was reproduced locally with Vulkan disabled. After
+the repair, strict syntax checks passed all eight Debug/Release x Vulkan
+enabled/disabled x GLFW enabled/disabled combinations for that translation
+unit. The strict Release test target rebuilt successfully; Metal and Vulkan
+each passed 288 GPU conformance samples over twenty repeats. The roadmap
+consistency scan reported zero findings and the whitespace check passed.
+These are local working-tree checks; the next hosted run must validate the new committed
+revision before T112 can close. Existing physical evidence remains attributed
+to its original software SHA.
+
 ## Preliminary macOS HDR Preflight History
 
 The physical M4 completed non-visual preflights for all four required modes:

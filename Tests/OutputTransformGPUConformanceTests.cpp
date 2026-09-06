@@ -519,6 +519,7 @@ void AddRhiInterfaceMetadata(
     }
 }
 
+#if STONER_TEST_VULKAN_RUNTIME_AVAILABLE
 bool BuildVulkanShader(
     const std::filesystem::path& Path,
     Asset::EShaderStage Stage,
@@ -540,6 +541,7 @@ bool BuildVulkanShader(
     AddRhiInterfaceMetadata(OutputTransformInterface(Stage), Stage, Out);
     return RHI::IsValidRHIShaderModuleDesc(Out);
 }
+#endif
 
 #if SG_PLATFORM_MAC
 
