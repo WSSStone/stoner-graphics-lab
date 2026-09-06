@@ -1,18 +1,24 @@
 # Implementation Plan: Engine Development Roadmap
 
-**Branch**: `002-engine-development-roadmap` | **Date**: 2026-04-21 | **Last Amended**: 2026-09-02 | **Spec**: [spec.md](./spec.md)
+**Branch**: `002-engine-development-roadmap` | **Date**: 2026-04-21 | **Last Amended**: 2026-09-06 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/002-engine-development-roadmap/spec.md`
 
 ## Summary
 
 Maintain a comprehensive, phased, modular, agent-friendly development roadmap
 (`doc/roadmap.md`) for the Stoner Graphics Lab cross-platform graphics engine.
-Roadmap 2.3.1 contains runtime Features 003 through 041 across Core, Asset, RHI,
+Roadmap 3.1.0 contains runtime Features 003 through 053 across Core, Asset, RHI,
 Backend, Renderer, and Application ownership areas. It preserves completed
-Features 003-028, inserts the backend-neutral HDR output and AA/temporal phases
-at 029-030, and renumbers only the former future Features 029-039 to 031-041.
-Each phase maps to one Speckit feature cycle and uses the same number as its
-feature.
+Features 003-029, inserts next 030 interactive rendering lab/ImGui before 031 temporal,
+and prioritizes 032-040 raster shadows,
+atmosphere/environment, fog/clouds, post-processing and AO/SSR, followed by
+041 full profiling and 042 integrated quality. Effects do not depend on full
+profiling; they retain debug outputs, resource/sample counters and bounded execution.
+Only unstarted former 030-052 migrate to 031-053; extra backends
+are optional independent tracks. Each phase retains a responsibility boundary.
+Feature 029 is now complete by the explicit revision-scoped maintainer
+exception in `specs/029-hdr-output-transform/closeout.md`; Feature 030 is next.
+This records a governance disposition, not a strict same-SHA authority pass.
 
 ## Technical Context
 
@@ -24,7 +30,7 @@ feature.
 **Project Type**: Documentation / planning artifact
 **Performance Goals**: N/A
 **Constraints**: Must be self-contained; must follow all constitution principles in phase ordering; must be agent-parseable for `/speckit.specify` prompts; must preserve and exclude user-owned tutorial, workflow, and `.gitignore` changes from the roadmap commit
-**Scale/Scope**: 39 runtime phases across 6 ownership areas, ~1500+ lines of structured Markdown
+**Scale/Scope**: 51 runtime phases across 6 ownership areas; 24 future phases with bounded milestones
 
 ## Constitution Check
 
@@ -35,8 +41,8 @@ feature.
 - [x] **Spec-Driven Development**: Feature spec exists at `specs/002-engine-development-roadmap/spec.md` with full requirements, user stories, and acceptance criteria.
 - [x] **Decoupled Architecture**: The roadmap enforces constitution v1.4.0 dependency directions for Core, Asset, RHI, Backend, Renderer, Application, and offline Tools.
 - [x] **Design Pattern Discipline**: The roadmap notes Strategy/Composite pattern requirements in the Architecture Principles section. No god-classes are planned.
-- [x] **Multi-API Support**: Vulkan and Metal are implemented; Features 034 (DX12), 035 (OpenGL), and 036 (GLES) remain planned behind RHI.
-- [x] **Advanced Graphics Readiness**: Features 029-033 and 037-041 split output transform, temporal reconstruction, derived data, GPU execution, backend infrastructure, renderer effects, and GI integration into bounded Speckit cycles.
+- [x] **Multi-API Support**: Vulkan and Metal are implemented; Features 051 (DX12), 052 (OpenGL), and 053 (GLES) remain planned behind RHI.
+- [x] **Advanced Graphics Readiness**: Features 030-042 prioritize the full raster renderer; 043-050 split derived data, GPU execution, residency, RT and GI; 051-053 provide optional backend tracks. Each is bounded by explicit milestones.
 - [x] **Naming Conventions**: All deliverable names in the roadmap follow UE5-style PascalCase with appropriate prefixes (F, I, E, T).
 - [x] **Cross-Platform Compatibility**: Every platform-sensitive phase notes Windows/macOS/Linux support. Platform-specific native backends are separate, and GLES explicitly excludes Android application lifecycle/packaging.
 
@@ -62,9 +68,11 @@ doc/
 └── roadmap.md           # The single master roadmap document (ALREADY EXISTS as draft)
 ```
 
-**Structure Decision**: This remains a documentation-only feature. Roadmap 2.3
-synchronizes its Feature 002 contracts and the completed Feature 028 evidence
-policy. It plans, but does not implement, Features 029-041.
+**Structure Decision**: This remains a documentation-only feature. Roadmap 3.1
+synchronizes Feature 002 contracts and active references without rewriting
+completed 028/029 evidence. `phase-index.json` and `migration-3.1.md` describe
+current identities and historical-number resolution. It plans, but does not
+implement, Features 031-053.
 
 ## Constitution Re-Check (Post Phase 1 Design)
 
@@ -83,6 +91,15 @@ policy. It plans, but does not implement, Features 029-041.
 
 No constitution violations to justify. This is a documentation feature that plans future code — it does not introduce any architectural decisions itself.
 
+## Amendment execution and validation
+
+1. Freeze current completed 003-029 detail text and user-owned changes.
+2. Define 031-053 identities, semantic dependencies and migration mapping.
+3. Update the master roadmap, explicit frame layout, milestones and quality gates.
+4. Synchronize governance and AGENTS; retain dated historical references.
+5. Extend the read-only scanner and mutation tests, then scan until zero findings.
+6. Retain bounded scan results; do not implement runtime features or commit unrelated edits.
+
 ## Generated Artifacts
 
 | Artifact | Path | Status |
@@ -93,4 +110,15 @@ No constitution violations to justify. This is a documentation feature that plan
 | Quickstart | `specs/002-engine-development-roadmap/quickstart.md` | ✅ Complete |
 | Contracts | `specs/002-engine-development-roadmap/contracts/roadmap-phase-schema.md` | ✅ Complete |
 | Constitution | `.specify/memory/constitution.md` | ✅ Amended to v1.4.0 |
-| Master Roadmap | `doc/roadmap.md` | ✅ Updated to v2.3.1 |
+| Phase Index | `specs/002-engine-development-roadmap/phase-index.json` | Current 3.1 identities |
+| Migration | `specs/002-engine-development-roadmap/migration-3.1.md` | Current mapping and historical-reference chain |
+| Master Roadmap | `doc/roadmap.md` | ✅ Updated to v3.1.0 |
+
+## Interactive-first amendment execution
+
+T091-T096 add the 030 phase and shift unstarted 030-052 to 031-053, synchronize
+the index/table/graph/prompts and active references, add input/UI/HDR evidence
+contracts, and extend read-only mutation checks. This plans ImGui integration;
+it does not vendor a library, create a runtime feature spec or implement the UI.
+Full Profiling remains 041 after effects, before integrated acceptance 042.
+Current mapping: [migration-3.1.md](migration-3.1.md).

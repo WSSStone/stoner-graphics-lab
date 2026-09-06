@@ -1,0 +1,423 @@
+{
+  "schema": "stoner.roadmap-phase-index",
+  "schemaVersion": 1,
+  "roadmapVersion": "3.1.0",
+  "amendedAt": "2026-09-06",
+  "activeRuntimeRange": "003-053",
+  "completedRuntimeRange": "003-029",
+  "nextPhase": "030",
+  "sourceRoadmapVersion": "2.3.2",
+  "oldToNew": {
+    "030": "031",
+    "031": "043",
+    "032": "044",
+    "033": "045",
+    "034": "051",
+    "035": "052",
+    "036": "053",
+    "037": "047",
+    "038": "048",
+    "039": "046",
+    "040": "049",
+    "041": "050"
+  },
+  "frozenHistoricalReferences": [
+    "specs/028-production-content-acceptance/",
+    "specs/029-hdr-output-transform/",
+    "doc/028-production-content-acceptance.html",
+    "doc/029-hdr-output-transform.html",
+    "Validation/028/",
+    "Validation/029/"
+  ],
+  "futurePhases": [
+    {
+      "number": "030",
+      "name": "Interactive Rendering Lab & ImGui Integration",
+      "layer": "Application",
+      "dependencies": [
+        "004",
+        "008",
+        "013",
+        "015",
+        "016",
+        "017",
+        "018",
+        "019",
+        "027",
+        "028",
+        "029"
+      ],
+      "track": "complete-renderer"
+    },
+    {
+      "number": "031",
+      "name": "Anti-Aliasing & Temporal Reconstruction",
+      "layer": "Renderer",
+      "dependencies": [
+        "004",
+        "013",
+        "015",
+        "017",
+        "019",
+        "028",
+        "029",
+        "030"
+      ],
+      "track": "complete-renderer"
+    },
+    {
+      "number": "032",
+      "name": "Raster Shadow Maps & Cascades",
+      "layer": "Renderer",
+      "dependencies": [
+        "013",
+        "015",
+        "017",
+        "019",
+        "027",
+        "028",
+        "029",
+        "030"
+      ],
+      "track": "complete-renderer"
+    },
+    {
+      "number": "033",
+      "name": "Screen-Space Shadows & Shadow Filtering",
+      "layer": "Renderer",
+      "dependencies": [
+        "013",
+        "019",
+        "031",
+        "032"
+      ],
+      "track": "complete-renderer"
+    },
+    {
+      "number": "034",
+      "name": "Sky Atmosphere & Environment Lighting",
+      "layer": "Renderer",
+      "dependencies": [
+        "013",
+        "015",
+        "019",
+        "027",
+        "029",
+        "032"
+      ],
+      "track": "complete-renderer"
+    },
+    {
+      "number": "035",
+      "name": "Height Fog & Volumetric Fog",
+      "layer": "Renderer",
+      "dependencies": [
+        "013",
+        "019",
+        "027",
+        "029",
+        "031",
+        "032",
+        "034"
+      ],
+      "track": "complete-renderer"
+    },
+    {
+      "number": "036",
+      "name": "Volumetric Clouds",
+      "layer": "Renderer",
+      "dependencies": [
+        "013",
+        "019",
+        "027",
+        "029",
+        "031",
+        "032",
+        "034",
+        "035"
+      ],
+      "track": "complete-renderer"
+    },
+    {
+      "number": "037",
+      "name": "Exposure, Bloom & Color Grading",
+      "layer": "Renderer",
+      "dependencies": [
+        "013",
+        "029",
+        "031"
+      ],
+      "track": "complete-renderer"
+    },
+    {
+      "number": "038",
+      "name": "Depth of Field & Motion Blur",
+      "layer": "Renderer",
+      "dependencies": [
+        "013",
+        "019",
+        "029",
+        "031",
+        "037"
+      ],
+      "track": "complete-renderer"
+    },
+    {
+      "number": "039",
+      "name": "Virtual Shadow Maps",
+      "layer": "Renderer",
+      "dependencies": [
+        "008",
+        "013",
+        "017",
+        "019",
+        "027",
+        "031",
+        "032",
+        "033"
+      ],
+      "track": "complete-renderer"
+    },
+    {
+      "number": "040",
+      "name": "Screen-Space Ambient Occlusion & Reflections",
+      "layer": "Renderer",
+      "dependencies": [
+        "013",
+        "019",
+        "029",
+        "031",
+        "033",
+        "034"
+      ],
+      "track": "complete-renderer"
+    },
+    {
+      "number": "041",
+      "name": "Frame Profiling & Render Diagnostics",
+      "layer": "Renderer",
+      "dependencies": [
+        "008",
+        "013",
+        "018",
+        "019",
+        "027",
+        "029",
+        "036",
+        "038",
+        "039",
+        "040"
+      ],
+      "track": "complete-renderer"
+    },
+    {
+      "number": "042",
+      "name": "Complete Rendering Pipeline Integration & Quality Baseline",
+      "layer": "Renderer",
+      "dependencies": [
+        "028",
+        "031",
+        "036",
+        "038",
+        "039",
+        "040",
+        "041"
+      ],
+      "track": "complete-renderer"
+    },
+    {
+      "number": "043",
+      "name": "Meshlet Derived Data",
+      "layer": "Asset",
+      "dependencies": [
+        "024",
+        "025",
+        "026",
+        "028"
+      ],
+      "track": "advanced-geometry-lighting"
+    },
+    {
+      "number": "044",
+      "name": "GPU-Driven Visibility & LOD",
+      "layer": "Renderer",
+      "dependencies": [
+        "008",
+        "013",
+        "033",
+        "041",
+        "043"
+      ],
+      "track": "advanced-geometry-lighting"
+    },
+    {
+      "number": "045",
+      "name": "Streaming & Residency",
+      "layer": "Asset",
+      "dependencies": [
+        "022",
+        "026",
+        "043",
+        "044"
+      ],
+      "track": "advanced-geometry-lighting"
+    },
+    {
+      "number": "046",
+      "name": "Screen-Space GI & Temporal",
+      "layer": "Renderer",
+      "dependencies": [
+        "013",
+        "019",
+        "031",
+        "040",
+        "041"
+      ],
+      "track": "advanced-geometry-lighting"
+    },
+    {
+      "number": "047",
+      "name": "Ray Tracing & Vulkan Backend Foundation",
+      "layer": "RHI",
+      "dependencies": [
+        "008",
+        "012",
+        "024",
+        "025",
+        "026",
+        "041"
+      ],
+      "track": "advanced-geometry-lighting"
+    },
+    {
+      "number": "048",
+      "name": "Ray-Traced Renderer Effects",
+      "layer": "Renderer",
+      "dependencies": [
+        "013",
+        "019",
+        "026",
+        "031",
+        "032",
+        "040",
+        "047"
+      ],
+      "track": "advanced-geometry-lighting"
+    },
+    {
+      "number": "049",
+      "name": "SDF & Surface Cache Assets",
+      "layer": "Asset",
+      "dependencies": [
+        "024",
+        "025",
+        "026",
+        "045"
+      ],
+      "track": "advanced-geometry-lighting"
+    },
+    {
+      "number": "050",
+      "name": "Hybrid GI Integration",
+      "layer": "Renderer",
+      "dependencies": [
+        "031",
+        "041",
+        "045",
+        "046",
+        "048",
+        "049"
+      ],
+      "track": "advanced-geometry-lighting"
+    },
+    {
+      "number": "051",
+      "name": "DirectX 12 Backend",
+      "layer": "Backend",
+      "dependencies": [
+        "008",
+        "016",
+        "018",
+        "023",
+        "025",
+        "029",
+        "041"
+      ],
+      "track": "optional-backend"
+    },
+    {
+      "number": "052",
+      "name": "OpenGL Backend",
+      "layer": "Backend",
+      "dependencies": [
+        "008",
+        "016",
+        "018",
+        "023",
+        "025",
+        "029",
+        "041"
+      ],
+      "track": "optional-backend"
+    },
+    {
+      "number": "053",
+      "name": "GLES Backend",
+      "layer": "Backend",
+      "dependencies": [
+        "008",
+        "016",
+        "018",
+        "023",
+        "025",
+        "029",
+        "041"
+      ],
+      "track": "optional-backend"
+    }
+  ],
+  "previousRoadmapVersion": "3.0.1",
+  "previousToCurrent": {
+    "030": "031",
+    "031": "032",
+    "032": "033",
+    "033": "034",
+    "034": "035",
+    "035": "036",
+    "036": "037",
+    "037": "038",
+    "038": "039",
+    "039": "040",
+    "040": "041",
+    "041": "042",
+    "042": "043",
+    "043": "044",
+    "044": "045",
+    "045": "046",
+    "046": "047",
+    "047": "048",
+    "048": "049",
+    "049": "050",
+    "050": "051",
+    "051": "052",
+    "052": "053"
+  },
+  "migrationHistory": [
+    {
+      "sourceRoadmapVersion": "3.0.0",
+      "targetRoadmapVersion": "3.0.1",
+      "mapping": {
+        "031": "040",
+        "032": "031",
+        "033": "032",
+        "034": "033",
+        "035": "034",
+        "036": "035",
+        "037": "036",
+        "038": "037",
+        "039": "038",
+        "040": "039"
+      }
+    }
+  ]
+}

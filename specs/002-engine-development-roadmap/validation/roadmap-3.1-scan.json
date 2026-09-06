@@ -1,0 +1,44 @@
+{
+  "checks": {
+    "activeReferenceFileCount": 11,
+    "completedPhaseDetailSha256": "1d1adc6036ae8c2786053c6414f110a2ed76d5989dc7c53d97db2d54c2dc64fd",
+    "feature029RequirementCount": 46,
+    "feature029SuccessCriterionCount": 16,
+    "feature029TaskCount": 118,
+    "frozenDependencyPhases": [
+      "029",
+      "030",
+      "031",
+      "043",
+      "046"
+    ],
+    "futurePhaseCount": 24,
+    "internalAnchorCount": 63,
+    "roadmapRequirementCount": 33,
+    "roadmapSuccessCriterionCount": 8,
+    "roadmapTaskCount": 96,
+    "runtimePhaseCount": 51,
+    "runtimePhaseRange": "003-053"
+  },
+  "findingCount": 0,
+  "findings": [],
+  "schema": "stoner.roadmap-consistency-scan",
+  "schemaVersion": 2,
+  "status": "passed",
+  "roadmapVersion": "3.1.0",
+  "amendedAt": "2026-09-06",
+  "amendmentScope": "Planning/governance/scanner only: insert interactive Application 030; shift unstarted 030-052 to 031-053; no runtime implementation or VT insertion.",
+  "mutationTests": {
+    "command": "python3 -m unittest discover -s .github/scripts -p test_verify_roadmap_consistency.py",
+    "passed": 30,
+    "failed": 0
+  },
+  "additionalChecks": {
+    "gitDiffCheck": "passed",
+    "protectedUserFilesSha256": "b0bb9e806a26359c4d0faf7cdcb0087506a6b34dc4828f29510c68afa0e935d7",
+    "closeoutAcceptanceAndRegistryHashesVerified": 4,
+    "historicalMigrationDocumentsVerifiedUnchanged": 2,
+    "stagedFileCount": 0
+  },
+  "historicalReferencePolicy": "Completed 003-029, 028/029 artifacts and previous migration/task/clarification/scan records retain delivery-time identities. migration-3.1.md and phase-index.json resolve current identities, including old temporal 030 now 031."
+}

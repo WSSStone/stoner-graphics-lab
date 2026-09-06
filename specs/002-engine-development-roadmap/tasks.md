@@ -177,7 +177,7 @@ responsibility per Speckit cycle.
 
 ---
 
-## Phase 10: Roadmap 2.3 HDR Output and Temporal Amendment
+## Phase 10: Roadmap 2.3 HDR Output and Temporal Amendment (Historical Numbering)
 
 **Purpose**: Insert the formal output-transform and anti-aliasing/temporal
 foundations without renumbering completed work or weakening Feature 028
@@ -194,6 +194,53 @@ evidence provenance.
 - [X] T072 Update `AGENTS.md`, Feature 028 documentation, and stale completed-document references to future phase identities without changing completed Feature 003-028 identities
 - [X] T073 Run numbering, dependency, DAG, anchor, task-reference, and stale-future-phase scans; remediate until all current-authority checks report zero findings
 - [X] T074 Review and stage only the roadmap amendment, preserving and excluding user-owned `.gitignore`, `.github/workflows/tutorial-docs.yml`, `Tools/Tutorial/`, and `doc/tutorial/` changes before the conventional roadmap commit
+
+---
+
+## Phase 11: Roadmap 3.0 Complete Renderer First
+
+**Purpose**: Prioritize the requested complete raster/environment/post-processing
+pipeline, preserving completed 003-029 and the delivery-time references above.
+This phase changes planning documents and scanner tests, not runtime features.
+
+- [X] T075 Freeze completed phase details/evidence and preserve user-owned .gitignore/tutorial changes
+- [X] T076 Define current 030-052 names/dependencies in `specs/002-engine-development-roadmap/phase-index.json` and historical mapping in `migration-3.0.md`
+- [X] T077 Add conventional maps/CSM, contact shadows/variance filtering, and virtual shadows as separate milestones in `doc/roadmap.md`
+- [X] T078 Add atmosphere/environment, height/volumetric fog and volumetric clouds with composition/temporal contracts in `doc/roadmap.md`
+- [X] T079 Add exposure/bloom/grading, camera effects and explicit pre/post-tonemap ordering in `doc/roadmap.md`
+- [X] T080 Refine 030 temporal semantics and add AO/SSR with shared depth/history contracts in `doc/roadmap.md`
+- [X] T081 Add profiling 031 and integrated quality milestone 041 with budgets/evidence gates in `doc/roadmap.md`
+- [X] T082 Move only unstarted geometry/GI/RT/backends, preserve Meshlet dependencies and repair RHI/temporal/cache ownership in `doc/roadmap.md`
+- [X] T083 Synchronize TOC/table/DAG/detail prompts, complete frame layout, tracks and solo order in `doc/roadmap.md`
+- [X] T084 Synchronize active Feature 002 spec/plan/research/data-model/quickstart/contracts/checklist and `AGENTS.md`
+- [X] T085 Extend `.github/scripts/verify_roadmap_consistency.py` and add mutation tests in `.github/scripts/test_verify_roadmap_consistency.py`
+- [X] T086 Run numbering/dependency/anchor/task/stale-reference/semantic and protected-file scans until zero findings; retain bounded scan evidence without changing historical receipts
+
+---
+
+## Phase 12: Roadmap 3.0.1 Profiling After Effects
+
+**Purpose**: Apply the maintainer's explicit scheduling decision. Phase 11 above
+records 3.0.0 delivery-time numbers; its Profiling 031 is now 040.
+
+- [X] T087 Move former 032-040 effects to 031-039 and full Profiling to 040 across roadmap/index/anchors/prompts/tracks
+- [X] T088 Remove full-profiling prerequisites from effects, retain bounded diagnostics, and require 040 before acceptance 041
+- [X] T089 Synchronize active Feature 002 governance and AGENTS; record the 3.0.1 mapping without rewriting historical receipts
+- [X] T090 Extend mutation tests and run numbering/dependency/anchor/task/stale-reference/preservation scans until zero findings
+
+---
+
+## Phase 13: Roadmap 3.1 Interactive Lab First
+
+**Purpose**: Implement the accepted roadmap amendment only. Phases 10-12 above
+retain their delivery-time numbering; current work identities use the index.
+
+- [X] T091 Define next Application 030 interactive lab/ImGui scope, milestones, exclusions and self-contained prompt
+- [X] T092 Shift only former future 030-052 to 031-053; synchronize table/TOC/DAG/dependencies/prompts/layout/tracks and solo order
+- [X] T093 Specify input arbitration, reusable camera, native presentation, backend-neutral UI and display-linear HDR composition
+- [X] T094 Preserve UI-free formal evidence policy, completed 003-029 and historical receipts; synchronize active governance and AGENTS
+- [X] T095 Extend read-only scanner/mutation tests for interactive-first, shifted temporal/profiling identities and UI safety contracts
+- [X] T096 Run consistency and preservation checks until zero findings and retain bounded 3.1 scan evidence
 
 ---
 

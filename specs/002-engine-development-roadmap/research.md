@@ -3,7 +3,7 @@
 **Feature**: 002-engine-development-roadmap
 **Date**: 2026-04-21
 **Status**: Complete
-**Last Amended**: 2026-09-01
+**Last Amended**: 2026-09-06
 
 ## Research Tasks
 
@@ -117,7 +117,7 @@ Renderer would couple generic content management to rendering, while placing
 GPU objects in Asset would reverse the RHI boundary.
 
 **Impact on Roadmap**: Features 020 through 026 establish the Asset delivery
-foundation before Meshlets. Feature 033 adds budget-driven streaming after
+foundation before Meshlets. Feature 045 adds budget-driven streaming after
 meshlet-derived data and GPU visibility expose chunk and residency behavior.
 
 ---
@@ -201,7 +201,7 @@ profiles, Render Graph integration, Vulkan/Metal native presentation/readback,
 resize/mode changes, and debug bypass. Windows retains SDR validation but no HDR
 authority. macOS Metal PQ/EDR visual acceptance is a live maintainer decision;
 automation is limited to non-visual contracts and attestation completeness.
-Feature 030 is separate: TAA is the pre-tonemap primary path and FXAA is the
+Feature 031 is separate: TAA is the pre-tonemap primary path and FXAA is the
 post-tonemap fallback.
 
 **Rationale**: Tone mapping and output transfer define the color domain in
@@ -218,10 +218,10 @@ ordering testable.
 
 ## Decision 12: One Reusable Temporal Foundation
 
-**Decision**: Feature 030 owns deterministic jitter, previous/current
+**Decision**: Feature 031 owns deterministic jitter, previous/current
 `ViewProjection`, static/dynamic motion vectors, history ping-pong,
 reprojection, depth/normal rejection, disocclusion handling, neighborhood
-clamp, and camera-cut/resize/FOV invalidation. Feature 039 Screen-Space GI must
+clamp, and camera-cut/resize/FOV invalidation. Feature 046 Screen-Space GI must
 reuse and may extend these contracts; it must not create a duplicate temporal
 framework.
 
@@ -236,7 +236,7 @@ comparable across paths.
 
 **Decision**: Feature 028 v2 `sampleCount=1` and no-general-post-processing
 references remain immutable historical correctness evidence. Features 029 and
-030 must increment affected workload revisions. Changed SDR output generates
+031 must increment affected workload revisions. Changed SDR output generates
 exact-dimension Candidates, requires explicit maintainer acceptance, and rejects
 alignment, cropping, scaling, and resampling. HDR visual output uses a bounded
 macOS live-view maintainer JSON attestation and no automated image comparison.
@@ -258,7 +258,7 @@ geometric normalization could hide presentation-size or projection defects.
 | Vulkan SDK | First graphics API | 009-012 | Yes |
 | GLFW | Initial windowing | 016 | Yes |
 | VMA | Vulkan memory allocation | 010 | Yes (optional) |
-| SPIRV-Cross | Shader cross-compilation | 012, 027, 034-036 | Yes |
+| SPIRV-Cross | Shader cross-compilation | 012, 027, 051-053 | Yes |
 | glTF 2.0/GLB | Initial static-model source interchange | 024 | Standard |
 | PNG/JPEG/HDR | Initial image source formats | 021 | Codec library selected during feature research |
 | KTX2/Basis | Cooked cross-platform textures | 022 | Khronos standard/tooling |
@@ -271,3 +271,77 @@ geometric normalization could hide presentation-size or projection defects.
 ## Open Questions (None)
 
 All clarifications have been resolved. No remaining unknowns block implementation.
+
+## Decision 15: Complete raster renderer before backend breadth (2026-09-06)
+
+**Decision (current numbering, updated by 3.1)**: Put 030 interactive lab before
+031 temporal and prioritize 032-040 shadows,
+environment, fog/clouds, camera effects and AO/SSR, then 041 full profiling
+and 042 integrated quality (retaining the profiling-after-effects decision). Move
+unstarted phases per [migration-3.1.md](migration-3.1.md), which links the historical 3.0 migration.
+Extra backends do not block SSGI or the Vulkan/Metal renderer.
+
+**Shadow terminology**: Conventional maps/CSM are the baseline; screen-space
+contact shadows are a limited supplement. VarianceShadowMaps filters stored
+depth moments, while VirtualShadowMaps virtualizes page storage. Use explicit
+names, separate strategy choices and fallback tests.
+Sources: [Epic contact shadows](https://dev.epicgames.com/documentation/unreal-engine/contact-shadows-in-unreal-engine?lang=en-US),
+[NVIDIA variance-shadow discussion](https://developer.nvidia.com/gpugems/gpugems3/part-ii-light-and-shadows/chapter-8-summed-area-variance-shadow-maps).
+
+**Deliberate platform difference**: Epic designs virtual shadows around Nanite;
+our earlier phase instead starts with indexed meshes and a bounded physical
+atlas. The portable prototype retains conventional maps/CSM and makes no
+equivalent large-scene efficiency claim.
+Source: [Epic Virtual Shadow Maps](https://dev.epicgames.com/documentation/unreal-engine/virtual-shadow-maps-in-unreal-engine).
+
+**Environment coupling**: Sky, sun, environment lighting, fog and clouds need
+explicit radiance/transmittance ordering. Volume temporal adapters share
+lifecycle but account for density/light changes; opaque motion alone is
+insufficient. Sources:
+[Epic environmental lighting](https://dev.epicgames.com/documentation/en-us/unreal-engine/environmental-light-with-fog-clouds-sky-and-atmosphere-in-unreal-engine),
+[Epic volumetric fog](https://dev.epicgames.com/documentation/en-us/unreal-engine/volumetric-fog-in-unreal-engine).
+
+**Post-processing**: Keep 029's unique output transform and declare effect
+domains/order. The chosen DOF -> TAA -> motion blur/bloom ordering follows the
+same broad ordering described for Unreal's temporal upscaling chain, without
+claiming a TSR implementation. Auto exposure is optional; deterministic image
+acceptance remains manually exposed.
+Sources: [Epic rendering overview](https://dev.epicgames.com/documentation/unreal-engine/introduction-to-rendering-in-unreal-engine-for-unity-developers),
+[Epic post-process effects](https://dev.epicgames.com/documentation/unreal-engine/post-process-effects-in-unreal-engine?lang=en-US).
+
+**Tradeoff**: More near-term renderer phases, but each owns bounded milestones.
+Full profiling at 041 makes the completed effects' cost measurable; 042 tests
+interactions and quality presets. This intentionally delays performance-bottleneck
+discovery: 031-040 keep debug outputs, resource/sample counters and bounded
+execution, not a prerequisite on GPU query infrastructure or performance panels. Runtime
+DDC/publishing policy is not mixed into residency; explicit manifest-based
+cleanup is a cross-cutting maintenance obligation.
+
+## Decision 16: Interactive lab before more effects (2026-09-06)
+
+The maintainer accepted next Feature 030 Interactive Rendering Lab & ImGui
+Integration. The current calibration controller already implements free-camera
+keys and right-drag/FOV/reset/export, but configuration excludes HDR preview,
+there is no GUI and the preview loop waits for/readbacks every rendered frame.
+This phase promotes the useful controller instead of mistaking it for a complete
+interactive app. Evidence: `Demo/StonerDemo/Private/FProductionCameraPreview.cpp`,
+`FProductionCameraPreviewRun.cpp` and `FDemoConfiguration.cpp` in that directory.
+
+Choose pinned Dear ImGui behind private adapters, with Application-owned input
+and Renderer/RHI-owned draw snapshots. Keep engine input callbacks authoritative;
+capture mouse/keyboard for widgets before deciding camera input. Add basic text,
+clipboard, HiDPI and texture lifecycle integration. Dear ImGui distinguishes
+platform and rendering adapters and supports custom renderer integration:
+[official integration guide](https://github.com/ocornut/imgui/wiki/Getting-Started),
+[backend contracts](https://github.com/ocornut/imgui/blob/master/docs/BACKENDS.md).
+Select and record the exact dependency revision during the runtime feature plan.
+
+Project decision: compose UI after all scene effects in display-linear output
+gamut with explicit reference white, then use 029 transfer/packing. Widgets do
+not inherit exposure or temporal/lens effects. Formal captures default to UI off;
+manual scene/output changes are not baseline acceptance. No new HDR observations
+or software evidence are claimed by this roadmap amendment.
+
+Do not add full profiling, a full editor or VT here. The earlier VT placement
+was a discussion proposal, not accepted phase creation. Migration is in
+[migration-3.1.md](migration-3.1.md); full profiling stays after the effects.

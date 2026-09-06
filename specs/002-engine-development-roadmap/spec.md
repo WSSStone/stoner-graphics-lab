@@ -2,7 +2,7 @@
 
 **Feature Branch**: `002-engine-development-roadmap`
 **Created**: 2026-04-21
-**Status**: Complete (living roadmap; amended 2026-09-02)
+**Status**: Complete (living roadmap; amended 2026-09-06)
 **Input**: User description: "Research and create a comprehensive, phased, modular, agent-friendly development roadmap for the Stoner Graphics Lab cross-platform graphics engine. Create doc/ directory at project root and produce the roadmap as markdown documents."
 
 ## User Scenarios & Testing *(mandatory)*
@@ -91,9 +91,22 @@ A project lead wants to understand the overall scope of the graphics engine and 
 - **FR-017**: The roadmap MUST place one backend-neutral HDR SceneColor-to-display phase after completed Feature 028, with RGBA16F linear Rec.709/sRGB-D65 SceneColor, explicit pre-tonemap/post-tonemap insertion points, manual exposure, three versioned SDR tone maps, a separate versioned ACES-style HDR viewing transform, SDR sRGB/Rec.709/gamma plus 1000/2000-nit PQ/scRGB output-device profiles, Forward/Deferred unification, Render Graph integration, Vulkan/Metal presentation/readback, resize/mode changes, and debug bypass. Windows retains SDR validation but no HDR authority; macOS Metal PQ/EDR visual acceptance requires live maintainer inspection and MUST NOT be automated.
 - **FR-018**: The roadmap MUST place a separate TAA-primary/FXAA-fallback phase after the HDR output phase. TAA MUST run before tone mapping, FXAA MUST run after tone mapping, and Deferred MUST retain `sampleCount=1` as its default rather than adopting MSAA.
 - **FR-019**: The temporal phase MUST own deterministic jitter, previous/current `ViewProjection`, motion vectors, history ping-pong, reprojection, depth/normal rejection, disocclusion handling, neighborhood clamp, and camera-cut/resize/FOV invalidation. Later Screen-Space GI MUST reuse that foundation and MUST NOT create a duplicate temporal framework.
-- **FR-020**: Completed Features 003-028 MUST retain their identifiers. Inserting Features 029-030 MUST renumber only the former future Features 029-039 to 031-041, and Meshlet Derived Data at 031 MUST retain dependencies 024, 025, 026, and 028 without depending on post-processing.
+- **FR-020**: Completed Features 003-029 MUST retain their identifiers and delivered evidence. Roadmap 3.1 MUST insert 030 Application Interactive Rendering Lab & ImGui Integration as the next phase, move TAA to 031, and migrate only the unstarted former 030-052 phases according to `phase-index.json`. Meshlet Derived Data at 043 MUST retain exactly 024/025/026/028 dependencies without depending on post-processing or virtual shadows. Historical completed documents retain delivery-time numbering, resolved through `migration-3.1.md` and its historical mapping chain.
 - **FR-021**: Feature 028 v2 `sampleCount=1`/no-general-post-processing references MUST remain historical correctness evidence. Later SDR output changes MUST increment workload revision, generate a new exact-dimension Candidate, require explicit maintainer acceptance, prohibit automatic alignment/cropping/scaling/resampling, and retain bounded PNG/JSON evidence. HDR visual output MUST use a bounded macOS Metal live-view maintainer attestation; automation MUST NOT score, compare, or accept HDR appearance.
-- **FR-022**: The Roadmap 2.3 amendment commit MUST contain only roadmap, Feature 002 governance, Feature 028 policy/reference, project-memory, and stale-future-reference corrections. User-owned `.gitignore`, `.github/workflows/tutorial-docs.yml`, `Tools/Tutorial/`, and `doc/tutorial/` changes MUST remain untouched and unstaged.
+- **FR-022**: A Roadmap 3.1 amendment commit, if requested, MUST include only the roadmap, Feature 002 governance/migration/index, project memory, consistency scanner/tests and bounded amendment evidence. It MUST NOT rewrite completed 028/029 evidence or mix in runtime implementation. User-owned `.gitignore`, `.github/workflows/tutorial-docs.yml`, `Tools/Tutorial/`, and `doc/tutorial/` changes MUST remain untouched and unstaged.
+
+- **FR-023**: Features 030-042 MUST prioritize a complete raster/environment/post-processing renderer on Vulkan/Metal before optional extra backends and advanced geometry/GI in the recommended queue; independent DAG branches MUST remain independently executable.
+- **FR-024**: Shadow development MUST establish directional/local depth maps and stable CSM, add screen-space contact shadows as an off-screen-limited supplement, distinguish VarianceShadowMaps filtering from VirtualShadowMaps virtualization, and retain a conventional-map fallback for virtual-page cache/atlas failures.
+- **FR-025**: Atmosphere/environment lighting, height/volumetric fog and volumetric clouds MUST have separate responsibility-focused phases, explicit HDR radiance/transmittance ownership, sun/sky/cloud-shadow coupling, transparent participation and tests preventing double extinction.
+- **FR-026**: Post-processing phases MUST reuse 029 output ownership and 031 temporal services; cover optional auto exposure, HDR bloom, HDR-safe grading, display finishing, DOF and motion blur; explicitly declare effect domains/order and exposure-history behavior without adding a second tone map or transfer.
+- **FR-027**: Feature 041 MUST establish capability-correct GPU/CPU profiling, memory reporting, performance views and scene/device/resolution-specific budget checks after rendering effects 031-040. Effects 031-040 MUST retain debug outputs, resource/sample counters and bounded execution without depending on full profiling. Feature 042 MUST explicitly depend on 041. New phases MUST state bounded milestones and Feature 042 MUST validate their integrated indoor/outdoor/day-night/weather/camera interactions, not merely isolated outputs.
+- **FR-028**: Feature 033 MUST own a reusable SceneDepthPyramid; 039/040/044/046 MUST reuse it directly or transitively. Temporal effects MUST reuse 031 services through signal-specific adapters; 048 MUST explicitly depend on 031, and 049 MUST keep runtime radiance ownership in Renderer.
+- **FR-029**: The migration MUST preserve completed phase text and evidence hashes, synchronize active roadmap/index/spec/plan/research/model/quickstart/contracts/checklist/tasks/AGENTS references, add mutation-tested consistency checks, and keep user-owned tutorial/.gitignore changes untouched and unstaged.
+
+- **FR-030**: Feature 030 MUST deliver the interactive rendering lab before 031 TAA and subsequent effects: reusable WASD/QE/Shift/right-mouse camera, cursor/focus lifecycle, FOV/speed/reset/presets and a pinned Dear ImGui control surface for existing scene/output/debug settings. It MUST NOT become a full editor or require full profiling.
+- **FR-031**: Application MUST own input/UI state behind private ImGui adapters; Renderer MUST consume backend-neutral draw snapshots through Render Graph/RHI on Vulkan/Metal. UI keyboard/mouse capture, UTF-8 text, clipboard basics, HiDPI scissor/font/texture lifetime and bounded frames-in-flight MUST be explicit. Interactive presentation MUST NOT require synchronous CPU readback every frame.
+- **FR-032**: UI MUST composite in display-linear output space after scene effects and before 029 transfer/packing with explicit reference-white brightness, color decoding/gamut conversion and alpha blending. It MUST bypass scene exposure, TAA, DOF, motion blur and bloom; live SDR/PQ/EDR switching MUST handle capability/lifecycle failures.
+- **FR-033**: Formal scene captures MUST default to UI disabled and frozen settings; preview/preset exports MUST NOT become Accepted evidence. The phase MUST include maintainer hands-on controls/navigation review, bounded separate UI smoke evidence and human-only macOS HDR appearance review. Later effects and profiling MUST reuse the shell; VT remains outside this amendment.
 
 ### Key Entities
 
@@ -106,12 +119,15 @@ A project lead wants to understand the overall scope of the graphics engine and 
 
 ### Measurable Outcomes
 
-- **SC-001**: The roadmap contains runtime phases 003 through 041 and covers all 6 runtime ownership areas.
+- **SC-001**: The roadmap contains runtime phases 003 through 053 (51 phases) and covers all 6 runtime ownership areas.
 - **SC-002**: Any developer can read a phase description and produce a `/speckit.specify` prompt within 2 minutes.
 - **SC-003**: The dependency graph has zero circular dependencies and forms a valid topological order.
 - **SC-004**: 100% of phases include all required fields (name, scope, deliverables, dependencies, complexity, speckit prompt).
 - **SC-005**: The roadmap clearly distinguishes critical-path phases from parallelizable phases.
 - **SC-006**: The document is self-contained — no external references are required to understand the development plan.
+
+- **SC-007**: All 24 future phases 030-053 have complete owner/dependency/scope/deliverable/exclusion/prompt/milestone records, and the active index matches TOC/table/DAG/details.
+- **SC-008**: Structural and semantic consistency scans report zero findings; mutation tests reject wrong phase identities/dependencies, missing sections, stale active numbering, duplicate temporal/depth ownership and missing quality gates.
 
 ## Clarifications
 
@@ -149,6 +165,41 @@ A project lead wants to understand the overall scope of the graphics engine and 
 - Q: Which color and display profiles does Feature 029 own? → A: Freeze RGBA16F linear Rec.709/sRGB-D65 SceneColor; implement SDR sRGB/Rec.709/gamma with Khronos PBR Neutral, ACES fitted, and Extended Reinhard tone maps, plus separate ACES-style 1000/2000-nit PQ Rec.2020 and scRGB/EDR HDR transforms.
 - Q: How is HDR visual output accepted? → A: Windows performs no HDR validation. macOS Metal validates PQ and EDR/scRGB through live maintainer inspection; automation may validate non-visual contracts and attestation completeness but may not judge HDR appearance.
 - Q: How does the Feature 028 evidence policy extend? → A: v2 remains historical; SDR uses successor exact-dimension Candidates and the existing no-alignment policy, while HDR uses bounded manual JSON attestations rather than automated image reference comparison.
+
+### Session 2026-09-06
+
+- Feature 029 is complete by the maintainer's explicit one-time exception at
+  `2ee7116`; see [closeout.md](../029-hdr-output-transform/closeout.md).
+  Hosted 14/14 and current M4 SDR/four HDR machine runs passed. The maintainer
+  accepted current M4 SDR, waived a current Windows physical rerun and repeat
+  HDR viewing/separate attestation, and authorized use of historical
+  `1f46352` Windows SDR and +3 EV live HDR acceptance without relabeling.
+  This revision-specific decision supersedes only the corresponding original
+  closeout obligations, including the independent attestation form required
+  by FR-021; the strict same-SHA aggregate is not passed and future gates
+  remain unchanged. Feature 030 is next; 031 dependencies remain 024/025/026/028,
+  and 039 reuses the Feature 030 temporal framework.
+
+### Session 2026-09-06 — Complete renderer first (Roadmap 3.0)
+
+- Request: prioritize raster shadows (screen-space, shadow maps, CSM, variance
+  and virtual shadow maps), atmosphere, volumetric clouds, fog and post-processing.
+- Decision: retain completed 003-029 and next 030; add 031-041 complete-renderer
+  work, migrate only unstarted phases to 042-052, and move additional backends
+  off the mandatory solo queue. See [migration-3.0.md](migration-3.0.md).
+- Clarification: earlier sessions and closeout notes above describe their dated
+  numbering. Current semantic identities are pinned in [phase-index.json](phase-index.json).
+
+### Session 2026-09-06 — Interactive lab first (Roadmap 3.1)
+
+- The maintainer accepted Application Interactive Rendering Lab & ImGui Integration
+  as next 030 before TAA; unstarted former 030-052 shift to 031-053.
+- Existing calibration camera controls are reused; a formal GUI/native interactive
+  SDR/PQ/EDR path is planned, not claimed delivered by this amendment.
+- Full Profiling remains after effects (041), before acceptance (042). The separate
+  VT discussion remains a proposal, not an inserted feature.
+- Earlier clarification sessions retain historical numbers; use
+  [migration-3.1.md](migration-3.1.md) and the current phase index.
 
 ## Assumptions
 

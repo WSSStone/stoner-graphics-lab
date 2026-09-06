@@ -1,0 +1,43 @@
+{
+  "checks": {
+    "activeReferenceFileCount": 10,
+    "completedPhaseDetailSha256": "1d1adc6036ae8c2786053c6414f110a2ed76d5989dc7c53d97db2d54c2dc64fd",
+    "feature029RequirementCount": 46,
+    "feature029SuccessCriterionCount": 16,
+    "feature029TaskCount": 118,
+    "frozenDependencyPhases": [
+      "029",
+      "030",
+      "042",
+      "045"
+    ],
+    "futurePhaseCount": 23,
+    "internalAnchorCount": 62,
+    "roadmapRequirementCount": 29,
+    "roadmapSuccessCriterionCount": 8,
+    "roadmapTaskCount": 86,
+    "runtimePhaseCount": 50,
+    "runtimePhaseRange": "003-052"
+  },
+  "findingCount": 0,
+  "findings": [],
+  "schema": "stoner.roadmap-consistency-scan",
+  "schemaVersion": 2,
+  "status": "passed",
+  "roadmapVersion": "3.0.0",
+  "amendmentScope": "Planning/governance and roadmap scanner only; no runtime feature implementation or historical evidence relabeling.",
+  "mutationTests": {
+    "command": "python3 -m unittest discover -s .github/scripts -p test_verify_roadmap_consistency.py",
+    "passed": 16,
+    "failed": 0,
+    "initialResult": "16 expected errors before the scanner acquired the scan(root) test seam"
+  },
+  "additionalChecks": {
+    "relativeLinksChecked": 74,
+    "closeoutAndM4ArtifactsChecked": 35,
+    "findings": [],
+    "gitDiffCheck": "passed",
+    "protectedUserFilesSha256": "b0bb9e806a26359c4d0faf7cdcb0087506a6b34dc4828f29510c68afa0e935d7"
+  },
+  "historicalReferencePolicy": "Completed 028/029 artifacts and dated roadmap task/clarification/change-log history keep delivery-time numbers; migration-3.0.md and phase-index.json resolve them."
+}

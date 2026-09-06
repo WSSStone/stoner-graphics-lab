@@ -1,0 +1,42 @@
+{
+  "checks": {
+    "activeReferenceFileCount": 10,
+    "completedPhaseDetailSha256": "1d1adc6036ae8c2786053c6414f110a2ed76d5989dc7c53d97db2d54c2dc64fd",
+    "feature029RequirementCount": 46,
+    "feature029SuccessCriterionCount": 16,
+    "feature029TaskCount": 118,
+    "frozenDependencyPhases": [
+      "029",
+      "030",
+      "042",
+      "045"
+    ],
+    "futurePhaseCount": 23,
+    "internalAnchorCount": 62,
+    "roadmapRequirementCount": 29,
+    "roadmapSuccessCriterionCount": 8,
+    "roadmapTaskCount": 90,
+    "runtimePhaseCount": 50,
+    "runtimePhaseRange": "003-052"
+  },
+  "findingCount": 0,
+  "findings": [],
+  "schema": "stoner.roadmap-consistency-scan",
+  "schemaVersion": 2,
+  "status": "passed",
+  "roadmapVersion": "3.0.1",
+  "amendedAt": "2026-09-06",
+  "amendmentScope": "Full profiling after effects 030-039 and before integrated acceptance 041; planning/governance/scanner only.",
+  "mutationTests": {
+    "command": "python3 -m unittest discover -s .github/scripts -p test_verify_roadmap_consistency.py",
+    "passed": 22,
+    "failed": 0
+  },
+  "additionalChecks": {
+    "gitDiffCheck": "passed",
+    "protectedUserFilesSha256": "b0bb9e806a26359c4d0faf7cdcb0087506a6b34dc4828f29510c68afa0e935d7",
+    "closeoutAcceptanceAndRegistryHashesVerified": 4,
+    "stagedFileCount": 0
+  },
+  "historicalReferencePolicy": "Completed 003-029 details, 028/029 artifacts and 3.0.0 migration/task/scan records retain delivery-time numbering. Current identities are in phase-index.json; the new mapping is in migration-3.0.1.md."
+}

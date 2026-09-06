@@ -17,11 +17,55 @@ The maintainer explicitly closed Windows through a one-time carry-forward of
 the complete physical evidence at `0cf0182`, the subsequently admitted exact
 Accepted references, and the final-revision hosted Windows producer/consumer;
 no Windows hardware run is claimed at `588d245`. Digests and the provenance
-limitation are recorded in `Validation/028/CI/README.md`. Roadmap 2.3.1 inserts
-Feature 029 Renderer HDR Post-Processing & Output Transform and Feature 030
-Renderer Anti-Aliasing & Temporal Reconstruction next, and places Meshlet
-Derived Data at Feature 031 without changing its 024/025/026/028 dependencies.
-Feature 029 now freezes RGBA16F linear Rec.709/sRGB-D65 SceneColor, three SDR
+limitation are recorded in `Validation/028/CI/README.md`. Roadmap 3.1.0 keeps completed
+Features 003-029 and makes 030 Application Interactive Rendering Lab & ImGui
+Integration next; 031 Anti-Aliasing & Temporal Reconstruction follows.
+The near-term complete-renderer track is 032 shadow maps/CSM,
+033 screen-space contact shadows/variance filtering, 034 atmosphere/environment
+lighting, 035 height/volumetric fog, 036 clouds, 037 exposure/bloom/grading,
+038 DOF/motion blur, 039 Virtual Shadow Maps, 040 AO/SSR, 041 full profiling and 042 integrated
+quality. Meshlet Derived Data is now 043 with unchanged 024/025/026/028
+dependencies; 044 GPU visibility, 045 residency, 046 SSGI, 047 RT foundation,
+048 RT effects, 049 SDF/surface cache and 050 hybrid GI follow. Optional
+DX12/OpenGL/GLES backends are 051-053 and do not gate the Vulkan/Metal renderer.
+Current identities/dependencies are in
+`specs/002-engine-development-roadmap/phase-index.json`; historical future
+numbers inside completed 028/029 docs and evidence resolve through
+`specs/002-engine-development-roadmap/migration-3.1.md` without rewriting
+their bytes or authority.
+Feature 029 is complete at software revision
+`2ee7116ffb382c021ed575aff223c7b760a2ce7d` by the explicit 2026-09-06
+maintainer exception in `specs/029-hdr-output-transform/closeout.md`.
+Hosted run 34002580090 passed 14/14; current M4 Metal SDR and four +3 EV
+PQ/EDR 1,000/20 runs passed. The maintainer accepted current M4 SDR and waived
+current Windows physical recapture plus repeated HDR viewing/separate
+attestation, explicitly retaining accepted `1f46352` Windows SDR and earlier
++3 EV HDR live feedback. This is not a successful strict same-SHA authority
+aggregate, a new HDR attestation, or a current-SHA Windows hardware claim.
+Original evidence and strict validators remain unchanged; this one-time
+exception does not authorize future carry-forward. Evidence and decision
+digests are in `Validation/029/CI/README.md`. Feature 031 follows interactive 030 and places
+TAA before tone mapping, FXAA after; Feature 046 and all temporal consumers
+must reuse its temporal framework through signal-specific adapters. Feature 033 owns one SceneDepthPyramid
+for contact shadows, virtual-shadow requests, AO/SSR, GPU visibility and SSGI.
+VarianceShadowMaps means moment filtering; VirtualShadowMaps means page/cache
+virtualization. Conventional shadow maps/CSM remain the fallback and virtual
+shadows must not require future meshlet production. Scene-linear atmosphere,
+fog and cloud composition must avoid double extinction; 037/038 reuse 029's
+sole output transform and 031's exposure-aware histories. Feature 041 makes
+GPU/CPU/memory cost measurable after the effects; 031-040 retain debug outputs,
+resource/sample counters and bounded execution without a full-profiling prerequisite.
+Feature 042 requires 041 and closes combined quality/performance. The current
+renumbering is recorded in `specs/002-engine-development-roadmap/migration-3.1.md`.
+Feature 030 reuses the calibration camera for WASD/QE/Shift/right-mouse navigation,
+adds pinned Dear ImGui private adapters and Renderer/RHI draw packets, and supports
+live SDR/PQ/EDR controls without mandatory per-frame synchronous CPU readback.
+UI capture prevents camera input leakage; UI uses display-linear composition and
+reference-white brightness after scene effects, before 029 output transfer.
+Formal scene captures default to UI disabled and frozen settings; interactive
+previews never update Accepted baselines. No full editor, native widget toolkit,
+full profiler or VT implementation is included in 030.
+Feature 029 freezes RGBA16F linear Rec.709/sRGB-D65 SceneColor, three SDR
 tone maps, and separate 1000/2000-nit PQ plus scRGB/EDR HDR output-device
 transforms. Windows retains SDR validation but claims no HDR validation; macOS
 Metal PQ/EDR visual authority requires live maintainer inspection and cannot be
@@ -31,7 +75,7 @@ apply `VK_EXT_hdr_metadata` when available, while Metal PQ uses
 Animation color management is allowed but `CAEDRMetadata` system tone mapping
 is not. Metal EDR also keeps `EDRMetadata=nil` and uses Renderer-owned
 native-reference-white packing. The
-active specification and implementation plan are
+delivered specification and implementation plan are
 `specs/029-hdr-output-transform/spec.md` and
 `specs/029-hdr-output-transform/plan.md`.
 Feature 028 v2
@@ -122,6 +166,8 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - 025-asset-cooker-derived-data: Implemented deterministic target profiles, cook graph/input snapshots, typed payload envelopes, canonical manifests, local immutable DDC, incremental invalidation, native leases, long-path-safe atomic generation publication, standalone validation, normalized CLI reports, corruption/concurrency/performance gates, and passing Windows/macOS/Linux Debug and strict Release plus Linux ASan/UBSan/TSan in CI run 31827665459
 - 027-metal-backend: Implemented the native Metal RHI backend, responsibility-specific Objective-C++ ownership, complete applicable RHI resource/command/sync/presentation paths, deterministic SPIR-V-to-MSL and offline metallib cooking, strict-cooked triangle/deferred GPU readback, Metal/Vulkan comparison, diagnostics/failure/lifecycle gates, and passing ten-job hosted plus physical M4 Pro arm64/GitHub Intel x86_64 hardware CI
 - 028-production-content-acceptance: Implemented the real Lantern/Sponza source-to-cooked-to-visible acceptance path, strict-cooked closure loading, transactional Renderer realization, deterministic Vulkan/Metal image authority with semantic probes and CPU FLIP, calibration camera presets, bounded lifecycle/evidence contracts, accepted per-device references, and passing final hosted plus M4 Metal closeout; Windows closed through the explicitly documented one-time physical-evidence carry-forward
+
+- 029-hdr-output-transform: Delivered the shared HDR SceneColor-to-display pipeline, versioned SDR/HDR transforms, Apple PQ/EDR metadata policy, typed graph and native lifecycle; closed at `2ee7116` with 14/14 hosted jobs and fresh M4 machine evidence, current M4 SDR acceptance, and explicit one-time Windows/HDR human-evidence exceptions (not strict same-SHA authority pass).
 
 ## Git Commit Style
 - Commit messages must start with a conventional type prefix such as `feat`, `docs`, `fix`, `chore`, `refactor`, `test`, or `build`.

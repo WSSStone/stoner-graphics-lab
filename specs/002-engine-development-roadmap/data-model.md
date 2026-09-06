@@ -2,7 +2,7 @@
 
 **Feature**: 002-engine-development-roadmap
 **Date**: 2026-04-21
-**Last Amended**: 2026-09-01
+**Last Amended**: 2026-09-06
 
 ## Overview
 
@@ -35,7 +35,7 @@ The primary unit of work in the roadmap. Each Phase maps to exactly one speckit 
 - `dependencies` must not create circular references
 - Every phase must have at least 1 deliverable
 - `speckit_prompt` must be self-contained (no external references needed)
-- Completed runtime phase numbers 003-028 are immutable; current future phases occupy 029-041
+- Completed runtime phase numbers 003-029 are immutable; current future phases occupy 031-053
 
 **State Transitions**:
 ```
@@ -137,17 +137,32 @@ resampling, and retains only bounded PNG/JSON evidence.
 
 ### Temporal Contract
 
-Feature 030 is the single owner of Renderer jitter, previous/current
+Feature 031 is the single owner of Renderer jitter, previous/current
 `ViewProjection`, motion vectors, history ping-pong, reprojection,
 depth/normal rejection, disocclusion, neighborhood clamp, and camera-cut/
-resize/FOV invalidation. Feature 039 consumes and extends this contract for GI;
+resize/FOV invalidation. Feature 046 consumes and extends this contract for GI;
 it cannot define an independent temporal framework.
+
+### Shared Depth and Volume Signals
+
+Feature 033 owns SceneDepthPyramid (extent, mip count, depth convention,
+reduction and lifetime). Virtual-shadow requests, AO/SSR, GPU visibility and
+SSGI consume the same contract. Volume histories use the shared temporal
+lifecycle with density/light/advection-specific state, not surface velocity alone.
+
+### Frame Quality Budget
+
+A budget binds device/backend, scene/camera, extent, quality preset, warmup,
+CPU/GPU timing availability, pass percentiles and resource bytes. Unknown GPU
+timing is unavailable, not zero. Features 041/042 own measurement/integration.
 
 ### Renumbering Map
 
-The Roadmap 2.3 amendment inserts 029-030 and maps the former not-yet-started
-029-039 phases to 031-041. Feature 031 Meshlet Derived Data retains dependencies
-024, 025, 026, and 028 and therefore remains independent of post-processing.
+Roadmap 3.1 keeps completed 003-029, inserts interactive 030, and moves
+all former unstarted 030-052 phases to 031-053 per `phase-index.json` and
+`migration-3.1.md`. Feature 043 Meshlet Derived Data retains exactly
+024/025/026/028 dependencies and remains independent of post-processing.
+Dated completed artifacts are not rewritten to change their historical numbers.
 
 ---
 
@@ -170,3 +185,23 @@ Each section maps to the entities above:
 - **Phase Overview Table** → renders all Phase entities as rows
 - **Dependency Graph** → renders all Dependency relationships as edges
 - **Phase Details** → renders each Phase with all fields expanded
+
+### Profiling scheduling amendment (3.0.1)
+
+The full measurement stage is 040, after effects 030-039 and before acceptance
+041. Before 040, diagnostics contain debug outputs, resource/sample counts and
+bounded execution outcomes; they do not imply GPU timing or measured budget
+acceptance. The index records `previousRoadmapVersion` and `previousToCurrent`
+for the 3.0.0-to-3.0.1 move without replacing the original 2.3.2 migration.
+
+### Current interactive UI contracts (3.1)
+
+Feature 030 owns the application interaction session: captured-input state,
+camera/settings commands and bounded presets. Renderer owns immutable UI draw
+snapshots (vertices/indices, clip rectangles, texture identities) and RHI lifetime.
+ImGui types remain private. Display-linear UI color/reference white is distinct
+from exposed scene color. Capture policy separates interactive/UI smoke output
+from frozen-camera, UI-disabled formal scene evidence. Feature 031 owns temporal
+state, 041 owns full measurement and 042 integrated acceptance.
+The earlier 3.0.1 subsection above is a historical scheduling record, not current
+phase numbering. The index now maps 3.0.1 to 3.1 and retains prior migration history.

@@ -1,9 +1,9 @@
 # Stoner Graphics Lab - Engine Development Roadmap
 
-> **Version**: 2.3.1 | **Created**: 2026-04-21 | **Last Updated**: 2026-09-02 | **Status**: Active
+> **Version**: 3.1.0 | **Created**: 2026-04-21 | **Last Updated**: 2026-09-06 | **Status**: Active
 > **Constitution**: v1.4.0
 > **Numbering Rule**: Every runtime phase number equals its Speckit feature number. The roadmap is a standalone governance document and does not occupy a feature number; runtime phases begin at 003.
-> **Completed Baseline**: Features 001 and 003 through 028 are implemented and verified.
+> **Completed Baseline**: Features 001 and 003 through 028 are implemented and verified; Feature 029 is complete by the explicitly recorded maintainer exception at `2ee7116`.
 
 ---
 
@@ -41,24 +41,37 @@
    - [Phase 027 - Backend: Metal](#phase-027--backend-metal)
    - [Phase 028 - Asset: Production Content Integration & Acceptance](#phase-028--asset-production-content-integration--acceptance)
    - [Phase 029 - Renderer: HDR Post-Processing & Output Transform](#phase-029--renderer-hdr-post-processing--output-transform)
-   - [Phase 030 - Renderer: Anti-Aliasing & Temporal Reconstruction](#phase-030--renderer-anti-aliasing--temporal-reconstruction)
-   - [Phase 031 - Asset: Meshlet Derived Data](#phase-031--asset-meshlet-derived-data)
-   - [Phase 032 - Renderer: GPU-Driven Visibility & LOD](#phase-032--renderer-gpu-driven-visibility--lod)
-   - [Phase 033 - Asset: Streaming & Residency](#phase-033--asset-streaming--residency)
-   - [Phase 034 - Backend: DirectX 12](#phase-034--backend-directx-12)
-   - [Phase 035 - Backend: OpenGL](#phase-035--backend-opengl)
-   - [Phase 036 - Backend: GLES](#phase-036--backend-gles)
-   - [Phase 037 - RHI: Ray Tracing & Vulkan Backend Foundation](#phase-037--rhi-ray-tracing--vulkan-backend-foundation)
-   - [Phase 038 - Renderer: Ray-Traced Effects](#phase-038--renderer-ray-traced-effects)
-   - [Phase 039 - Renderer: Screen-Space GI & Temporal](#phase-039--renderer-screen-space-gi--temporal)
-   - [Phase 040 - Asset: SDF & Surface Cache](#phase-040--asset-sdf--surface-cache)
-   - [Phase 041 - Renderer: Hybrid GI Integration](#phase-041--renderer-hybrid-gi-integration)
-6. [Parallel Development Tracks](#parallel-development-tracks)
-7. [Future Asset Extensions](#future-asset-extensions)
-8. [Risk Register](#risk-register)
-9. [Constitution Compliance](#constitution-compliance)
-10. [How to Use This Roadmap](#how-to-use-this-roadmap)
-11. [Change Log](#change-log)
+   - [Phase 030 - Application: Interactive Rendering Lab & ImGui Integration](#phase-030--application-interactive-rendering-lab--imgui-integration)
+   - [Phase 031 - Renderer: Anti-Aliasing & Temporal Reconstruction](#phase-031--renderer-anti-aliasing--temporal-reconstruction)
+   - [Phase 032 - Renderer: Raster Shadow Maps & Cascades](#phase-032--renderer-raster-shadow-maps--cascades)
+   - [Phase 033 - Renderer: Screen-Space Shadows & Shadow Filtering](#phase-033--renderer-screen-space-shadows--shadow-filtering)
+   - [Phase 034 - Renderer: Sky Atmosphere & Environment Lighting](#phase-034--renderer-sky-atmosphere--environment-lighting)
+   - [Phase 035 - Renderer: Height Fog & Volumetric Fog](#phase-035--renderer-height-fog--volumetric-fog)
+   - [Phase 036 - Renderer: Volumetric Clouds](#phase-036--renderer-volumetric-clouds)
+   - [Phase 037 - Renderer: Exposure, Bloom & Color Grading](#phase-037--renderer-exposure-bloom--color-grading)
+   - [Phase 038 - Renderer: Depth of Field & Motion Blur](#phase-038--renderer-depth-of-field--motion-blur)
+   - [Phase 039 - Renderer: Virtual Shadow Maps](#phase-039--renderer-virtual-shadow-maps)
+   - [Phase 040 - Renderer: Screen-Space Ambient Occlusion & Reflections](#phase-040--renderer-screen-space-ambient-occlusion--reflections)
+   - [Phase 041 - Renderer: Frame Profiling & Render Diagnostics](#phase-041--renderer-frame-profiling--render-diagnostics)
+   - [Phase 042 - Renderer: Complete Rendering Pipeline Integration & Quality Baseline](#phase-042--renderer-complete-rendering-pipeline-integration--quality-baseline)
+   - [Phase 043 - Asset: Meshlet Derived Data](#phase-043--asset-meshlet-derived-data)
+   - [Phase 044 - Renderer: GPU-Driven Visibility & LOD](#phase-044--renderer-gpu-driven-visibility--lod)
+   - [Phase 045 - Asset: Streaming & Residency](#phase-045--asset-streaming--residency)
+   - [Phase 046 - Renderer: Screen-Space GI & Temporal](#phase-046--renderer-screen-space-gi--temporal)
+   - [Phase 047 - RHI: Ray Tracing & Vulkan Backend Foundation](#phase-047--rhi-ray-tracing--vulkan-backend-foundation)
+   - [Phase 048 - Renderer: Ray-Traced Renderer Effects](#phase-048--renderer-ray-traced-renderer-effects)
+   - [Phase 049 - Asset: SDF & Surface Cache Assets](#phase-049--asset-sdf--surface-cache-assets)
+   - [Phase 050 - Renderer: Hybrid GI Integration](#phase-050--renderer-hybrid-gi-integration)
+   - [Phase 051 - Backend: DirectX 12 Backend](#phase-051--backend-directx-12-backend)
+   - [Phase 052 - Backend: OpenGL Backend](#phase-052--backend-opengl-backend)
+   - [Phase 053 - Backend: GLES Backend](#phase-053--backend-gles-backend)
+6. [Complete Rendering Pipeline Layout](#complete-rendering-pipeline-layout)
+7. [Parallel Development Tracks](#parallel-development-tracks)
+8. [Future Asset Extensions](#future-asset-extensions)
+9. [Risk Register](#risk-register)
+10. [Constitution Compliance](#constitution-compliance)
+11. [How to Use This Roadmap](#how-to-use-this-roadmap)
+12. [Change Log](#change-log)
 
 ---
 
@@ -77,7 +90,10 @@ and passed its local and required remote cross-platform/sanitizer gates. Feature
 hosted x86_64 native acceptance. Feature 028 has closed the remaining content-
 realism gap with selected production assets and an end-to-end source-to-visible-
 render acceptance path. Feature 029 HDR Post-Processing & Output Transform is
-now next.
+complete at `2ee7116` by an explicit maintainer exception; Feature 030
+Interactive Rendering Lab & ImGui Integration is next, followed by 031
+Anti-Aliasing & Temporal Reconstruction. The exception preserves older
+Windows SDR and +3 EV HDR visual provenance and is not a strict all-gates pass.
 
 Roadmap 2.1 added Asset as an independent runtime layer. It separates source
 interchange, cooked delivery, runtime management, and GPU realization so that
@@ -89,9 +105,9 @@ backend and advanced asset work. Format-valid synthetic fixtures remain the
 fast contract suite; licensed artist-authored content proves composition,
 scale, cooking, runtime loading, and visible rendering as one system.
 
-Roadmap 2.3 inserts a backend-neutral HDR output pipeline and a separate
+Historically, Roadmap 2.3 inserted a backend-neutral HDR output pipeline and a separate
 anti-aliasing/temporal-reconstruction phase immediately after production
-content acceptance. The former future Features 029-039 move to 031-041 without
+content acceptance. The then-future Features 029-039 moved to 031-041 without
 renumbering or changing completed Features 003-028.
 
 It also enforces one principal responsibility per future feature: persistent
@@ -99,6 +115,21 @@ material schemas precede model ingestion; offline cooking is separate from the
 runtime manager; meshlet data is separate from GPU visibility; ray-tracing
 backend infrastructure is separate from renderer effects; and GI is staged
 through screen-space, derived-data, and hybrid integration milestones.
+
+Roadmap 3.1.0 now prioritizes a complete raster/environment/post-processing
+renderer on Vulkan/Metal: 030-042 are the near-term track, beginning with a
+hands-on application/UI shell before temporal reconstruction and visual effects. Meshlet data, GPU
+visibility, residency, advanced GI/RT and additional backends move to 043-053.
+Only unstarted phases move; 003-029 implementation identities, historical
+phase text, signed acceptance and evidence digests remain unchanged.
+[The historical 2.3.2-to-3.0 migration map](../specs/002-engine-development-roadmap/migration-3.0.md)
+resolves old future references inside completed 028/029 documents and receipts.
+Those historical references are not current work assignments.
+[The 3.0.0-to-3.0.1 amendment](../specs/002-engine-development-roadmap/migration-3.0.1.md)
+records the earlier profiling move. [The current 3.1 migration](../specs/002-engine-development-roadmap/migration-3.1.md)
+inserts interactive Feature 030 and shifts only unstarted 030-052 to 031-053.
+The current phase index composes those historical mappings, including old 030
+TAA now at 031. Full profiling is 041 after effects, followed by acceptance 042.
 
 ### Roadmap-Wide Decisions
 
@@ -110,8 +141,14 @@ through screen-space, derived-data, and hybrid integration milestones.
 - Initial source formats are glTF 2.0/GLB and PNG/JPEG/HDR. KTX2/Basis is the cooked texture standard.
 - FBX, OBJ, USD, and TGA are future importer/resolver plugins, not initial format commitments.
 - HDR SceneColor, tone mapping, output transfer, and presentation/readback policy remain backend-neutral Renderer responsibilities; backends only execute and present the declared work.
+- Feature 030 delivers the interactive camera/ImGui shell before effects, reusing existing inputs and Renderer/RHI. Full profiling remains 041, not a prerequisite of this shell. UI is display-referred, excluded from scene effects and off in formal scene captures by default.
 - TAA operates before tone mapping and FXAA operates after tone mapping. Later temporal effects reuse the shared jitter, motion-vector, history, and reprojection contracts instead of creating parallel frameworks.
 - Windows, macOS, and Linux automated validation is mandatory for platform-sensitive features.
+- Conventional shadow maps/CSM establish the shadow baseline; screen-space contact shadows supplement it, and VirtualShadowMaps is a later page-cache strategy with explicit fallback. VarianceShadowMaps names the moment-filtering alternative, not virtualization.
+- Atmosphere, environment lighting, fog, clouds and camera/post-processing effects precede extra backends and advanced GI in the recommended work queue.
+- Temporal consumers share Feature 031 lifecycle/reprojection services with signal-specific histories; shared services do not mean mixing surface color, fog density and cloud radiance in one buffer.
+- Feature 033 owns one SceneDepthPyramid reused by contact shadows, VirtualShadowMaps, AO/SSR, GPU culling and SSGI.
+- Features 031-040 retain debug outputs, resource/sample counters and bounded execution; they do not depend on full profiling. Feature 041 measures the completed effects with GPU/CPU timing, performance views and budget checks before Feature 042 acceptance. Unavailable GPU timing is not a zero-cost pass.
 
 ### Research Basis
 
@@ -120,7 +157,7 @@ through screen-space, derived-data, and hybrid integration milestones.
 - [OpenUSD Asset Resolution](https://openusd.org/release/api/ar_page_front.html) informs logical identifiers and replaceable resolver strategies; USD composition itself remains a later Scene/Prefab concern.
 - [Unreal Asset Management](https://dev.epicgames.com/documentation/en-us/unreal-engine/asset-management-in-unreal-engine) supports separating unloaded metadata, soft references, asynchronous loading, and residency ownership.
 
-### Current State (Feature 028 Complete; Feature 029 Next)
+### Current State (Feature 029 Complete by Exception; Feature 030 Next)
 
 | Ownership Area | Status | Current Capability |
 |---|---|---|
@@ -129,8 +166,8 @@ through screen-space, derived-data, and hybrid integration milestones.
 | Tools | Asset Cooker done | Deterministic graph/snapshot scheduling, local immutable DDC, incremental invalidation, atomic generation publication, strict validation, CLI, and normalized reports |
 | RHI | Static-mesh transfer contracts done | Device/resources plus compressed formats, bounded buffer upload, and complete indexed-draw arguments |
 | Backend/Vulkan | Static-mesh native evidence done | Native/fallback resources plus compressed formats, buffer upload, indexed draw mapping, cleanup, and Lavapipe attachment readback |
-| Renderer | Static-mesh realization done | Material schema-v2 conversion plus transactional packing, RHI allocation/upload, immutable snapshots, sections, and rollback diagnostics |
-| Application | Done foundation | Window/input, ECS scene organization, visible triangle integration |
+| Renderer | HDR output delivered; closeout by maintainer exception | Shared Forward/Deferred RGBA16F SceneColor, pre/post-tonemap seams, manual exposure, versioned SDR/HDR output transforms, typed Render Graph, native presentation/readback and lifecycle |
+| Application | Done foundation | Window/input, ECS scene organization, visible triangle and calibration-only camera preview; formal interactive lab/GUI is next at 030 |
 | Additional Backends | Metal done | Native Metal device/resources/commands/synchronization/presentation plus strict-cooked shader execution; DX12, desktop OpenGL, and GLES remain planned |
 
 ---
@@ -210,21 +247,35 @@ depend on Tools.
 | 026 | Runtime Asset Manager | Asset | 020, 025 | XL | Yes | ✅ Done |
 | 027 | Metal Backend | Backend | 008, 016, 018, 023, 025 | XL | No | ✅ Done |
 | 028 | Production Content Integration & Acceptance | Asset | 018, 019, 022, 024, 026, 027 | L | Yes | ✅ Done |
-| 029 | HDR Post-Processing & Output Transform | Renderer | 013, 015, 018, 019, 027, 028 | XL | Yes | ⬜ Todo |
-| 030 | Anti-Aliasing & Temporal Reconstruction | Renderer | 004, 013, 015, 017, 019, 028, 029 | XL | Yes | ⬜ Todo |
-| 031 | Meshlet Derived Data | Asset | 024, 025, 026, 028 | XL | No | ⬜ Todo |
-| 032 | GPU-Driven Visibility & LOD | Renderer | 013, 031 | XL | No | ⬜ Todo |
-| 033 | Streaming & Residency | Asset | 022, 026, 031, 032 | XL | No | ⬜ Todo |
-| 034 | DirectX 12 Backend | Backend | 008, 016, 018, 023, 025 | XL | No | ⬜ Todo |
-| 035 | OpenGL Backend | Backend | 008, 016, 018, 023, 025 | XL | No | ⬜ Todo |
-| 036 | GLES Backend | Backend | 008, 016, 018, 023, 025 | XL | No | ⬜ Todo |
-| 037 | Ray Tracing & Vulkan Backend Foundation | RHI | 012, 024, 025, 026 | XL | No | ⬜ Todo |
-| 038 | Ray-Traced Renderer Effects | Renderer | 019, 026, 037 | XL | No | ⬜ Todo |
-| 039 | Screen-Space GI & Temporal | Renderer | 013, 019, 030 | XL | No | ⬜ Todo |
-| 040 | SDF & Surface Cache Assets | Asset | 024, 025, 026, 033 | XL | No | ⬜ Todo |
-| 041 | Hybrid GI Integration | Renderer | 033, 038, 039, 040 | XL | No | ⬜ Todo |
+| 029 | HDR Post-Processing & Output Transform | Renderer | 013, 015, 018, 019, 027, 028 | XL | Yes | ✅ Done (maintainer exception) |
+| 030 | Interactive Rendering Lab & ImGui Integration | Application | 004, 008, 013, 015, 016, 017, 018, 019, 027, 028, 029 | XL | Yes | ⬜ Todo |
+| 031 | Anti-Aliasing & Temporal Reconstruction | Renderer | 004, 013, 015, 017, 019, 028, 029, 030 | XL | Yes | ⬜ Todo |
+| 032 | Raster Shadow Maps & Cascades | Renderer | 013, 015, 017, 019, 027, 028, 029, 030 | XL | Yes | ⬜ Todo |
+| 033 | Screen-Space Shadows & Shadow Filtering | Renderer | 013, 019, 031, 032 | XL | Yes | ⬜ Todo |
+| 034 | Sky Atmosphere & Environment Lighting | Renderer | 013, 015, 019, 027, 029, 032 | XL | Yes | ⬜ Todo |
+| 035 | Height Fog & Volumetric Fog | Renderer | 013, 019, 027, 029, 031, 032, 034 | XL | Yes | ⬜ Todo |
+| 036 | Volumetric Clouds | Renderer | 013, 019, 027, 029, 031, 032, 034, 035 | XL | Yes | ⬜ Todo |
+| 037 | Exposure, Bloom & Color Grading | Renderer | 013, 029, 031 | XL | Yes | ⬜ Todo |
+| 038 | Depth of Field & Motion Blur | Renderer | 013, 019, 029, 031, 037 | XL | Yes | ⬜ Todo |
+| 039 | Virtual Shadow Maps | Renderer | 008, 013, 017, 019, 027, 031, 032, 033 | XL | Yes | ⬜ Todo |
+| 040 | Screen-Space Ambient Occlusion & Reflections | Renderer | 013, 019, 029, 031, 033, 034 | XL | Yes | ⬜ Todo |
+| 041 | Frame Profiling & Render Diagnostics | Renderer | 008, 013, 018, 019, 027, 029, 036, 038, 039, 040 | L | Yes | ⬜ Todo |
+| 042 | Complete Rendering Pipeline Integration & Quality Baseline | Renderer | 028, 031, 036, 038, 039, 040, 041 | L | Yes | ⬜ Todo |
+| 043 | Meshlet Derived Data | Asset | 024, 025, 026, 028 | XL | No | ⬜ Todo |
+| 044 | GPU-Driven Visibility & LOD | Renderer | 008, 013, 033, 041, 043 | XL | No | ⬜ Todo |
+| 045 | Streaming & Residency | Asset | 022, 026, 043, 044 | XL | No | ⬜ Todo |
+| 046 | Screen-Space GI & Temporal | Renderer | 013, 019, 031, 040, 041 | XL | No | ⬜ Todo |
+| 047 | Ray Tracing & Vulkan Backend Foundation | RHI | 008, 012, 024, 025, 026, 041 | XL | No | ⬜ Todo |
+| 048 | Ray-Traced Renderer Effects | Renderer | 013, 019, 026, 031, 032, 040, 047 | XL | No | ⬜ Todo |
+| 049 | SDF & Surface Cache Assets | Asset | 024, 025, 026, 045 | XL | No | ⬜ Todo |
+| 050 | Hybrid GI Integration | Renderer | 031, 041, 045, 046, 048, 049 | XL | No | ⬜ Todo |
+| 051 | DirectX 12 Backend | Backend | 008, 016, 018, 023, 025, 029, 041 | XL | No | ⬜ Todo |
+| 052 | OpenGL Backend | Backend | 008, 016, 018, 023, 025, 029, 041 | XL | No | ⬜ Todo |
+| 053 | GLES Backend | Backend | 008, 016, 018, 023, 025, 029, 041 | XL | No | ⬜ Todo |
 
-Complexity: S = 1-2 days, M = 3-5 days, L = 1-2 weeks, XL = 2-4 weeks.
+Historical estimates remain unchanged for completed phases. For future phases,
+L/XL indicate scope/risk only, not an automatic 1-4 week promise. Each phase
+specification estimates its bounded milestones and native evidence workload.
 
 ---
 
@@ -303,56 +354,183 @@ graph TD
     P019 --> P029
     P027 --> P029
     P028 --> P029
-    P004 --> P030[030 AA and Temporal Reconstruction]
+    P030[030 Interactive Rendering Lab and ImGui]
+    P031[031 Anti-Aliasing and Temporal Reconstruction]
+    P041[041 Frame Profiling and Render Diagnostics]
+    P032[032 Raster Shadow Maps and Cascades]
+    P033[033 Screen-Space Shadows and Shadow Filtering]
+    P034[034 Sky Atmosphere and Environment Lighting]
+    P035[035 Height Fog and Volumetric Fog]
+    P036[036 Volumetric Clouds]
+    P037[037 Exposure, Bloom and Color Grading]
+    P038[038 Depth of Field and Motion Blur]
+    P039[039 Virtual Shadow Maps]
+    P040[040 Screen-Space Ambient Occlusion and Reflections]
+    P042[042 Complete Rendering Pipeline Integration and Quality Baseline]
+    P043[043 Meshlet Derived Data]
+    P044[044 GPU-Driven Visibility and LOD]
+    P045[045 Streaming and Residency]
+    P046[046 Screen-Space GI and Temporal]
+    P047[047 Ray Tracing and Vulkan Backend Foundation]
+    P048[048 Ray-Traced Renderer Effects]
+    P049[049 SDF and Surface Cache Assets]
+    P050[050 Hybrid GI Integration]
+    P051[051 DirectX 12 Backend]
+    P052[052 OpenGL Backend]
+    P053[053 GLES Backend]
+    P004 --> P030
+    P008 --> P030
     P013 --> P030
     P015 --> P030
+    P016 --> P030
     P017 --> P030
+    P018 --> P030
     P019 --> P030
+    P027 --> P030
     P028 --> P030
     P029 --> P030
-    P024 --> P031[031 Meshlet Derived Data]
-    P025 --> P031
-    P026 --> P031
+    P004 --> P031
+    P013 --> P031
+    P015 --> P031
+    P017 --> P031
+    P019 --> P031
     P028 --> P031
-    P013 --> P032[032 GPU Visibility and LOD]
-    P031 --> P032
-    P022 --> P033[033 Streaming and Residency]
-    P026 --> P033
+    P029 --> P031
+    P030 --> P031
+    P013 --> P032
+    P015 --> P032
+    P017 --> P032
+    P019 --> P032
+    P027 --> P032
+    P028 --> P032
+    P029 --> P032
+    P030 --> P032
+    P013 --> P033
+    P019 --> P033
     P031 --> P033
     P032 --> P033
-    P008 --> P034[034 DX12]
-    P016 --> P034
-    P018 --> P034
-    P023 --> P034
-    P025 --> P034
-    P008 --> P035[035 OpenGL]
-    P016 --> P035
-    P018 --> P035
-    P023 --> P035
-    P025 --> P035
-    P008 --> P036[036 GLES]
-    P016 --> P036
-    P018 --> P036
-    P023 --> P036
-    P025 --> P036
-    P012 --> P037[037 RT Foundation]
-    P024 --> P037
-    P025 --> P037
-    P026 --> P037
-    P019 --> P038[038 Ray Traced Effects]
-    P026 --> P038
+    P013 --> P034
+    P015 --> P034
+    P019 --> P034
+    P027 --> P034
+    P029 --> P034
+    P032 --> P034
+    P013 --> P035
+    P019 --> P035
+    P027 --> P035
+    P029 --> P035
+    P031 --> P035
+    P032 --> P035
+    P034 --> P035
+    P013 --> P036
+    P019 --> P036
+    P027 --> P036
+    P029 --> P036
+    P031 --> P036
+    P032 --> P036
+    P034 --> P036
+    P035 --> P036
+    P013 --> P037
+    P029 --> P037
+    P031 --> P037
+    P013 --> P038
+    P019 --> P038
+    P029 --> P038
+    P031 --> P038
     P037 --> P038
-    P013 --> P039[039 Screen Space GI]
+    P008 --> P039
+    P013 --> P039
+    P017 --> P039
     P019 --> P039
-    P030 --> P039
-    P024 --> P040[040 SDF and Surface Cache]
-    P025 --> P040
-    P026 --> P040
+    P027 --> P039
+    P031 --> P039
+    P032 --> P039
+    P033 --> P039
+    P013 --> P040
+    P019 --> P040
+    P029 --> P040
+    P031 --> P040
     P033 --> P040
-    P033 --> P041[041 Hybrid GI]
+    P034 --> P040
+    P008 --> P041
+    P013 --> P041
+    P018 --> P041
+    P019 --> P041
+    P027 --> P041
+    P029 --> P041
+    P036 --> P041
     P038 --> P041
     P039 --> P041
     P040 --> P041
+    P028 --> P042
+    P031 --> P042
+    P036 --> P042
+    P038 --> P042
+    P039 --> P042
+    P040 --> P042
+    P041 --> P042
+    P024 --> P043
+    P025 --> P043
+    P026 --> P043
+    P028 --> P043
+    P008 --> P044
+    P013 --> P044
+    P033 --> P044
+    P041 --> P044
+    P043 --> P044
+    P022 --> P045
+    P026 --> P045
+    P043 --> P045
+    P044 --> P045
+    P013 --> P046
+    P019 --> P046
+    P031 --> P046
+    P040 --> P046
+    P041 --> P046
+    P008 --> P047
+    P012 --> P047
+    P024 --> P047
+    P025 --> P047
+    P026 --> P047
+    P041 --> P047
+    P013 --> P048
+    P019 --> P048
+    P026 --> P048
+    P031 --> P048
+    P032 --> P048
+    P040 --> P048
+    P047 --> P048
+    P024 --> P049
+    P025 --> P049
+    P026 --> P049
+    P045 --> P049
+    P031 --> P050
+    P041 --> P050
+    P045 --> P050
+    P046 --> P050
+    P048 --> P050
+    P049 --> P050
+    P008 --> P051
+    P016 --> P051
+    P018 --> P051
+    P023 --> P051
+    P025 --> P051
+    P029 --> P051
+    P041 --> P051
+    P008 --> P052
+    P016 --> P052
+    P018 --> P052
+    P023 --> P052
+    P025 --> P052
+    P029 --> P052
+    P041 --> P052
+    P008 --> P053
+    P016 --> P053
+    P018 --> P053
+    P023 --> P053
+    P025 --> P053
+    P029 --> P053
+    P041 --> P053
 ```
 
 ---
@@ -1063,6 +1241,16 @@ Implement Production Content Integration and Acceptance on Features 018, 019, 02
 
 ### Phase 029 — Renderer: HDR Post-Processing & Output Transform
 
+**Status**: Complete by explicit maintainer exception on 2026-09-06 at software
+`2ee7116ffb382c021ed575aff223c7b760a2ce7d`. Hosted run 34002580090 passed
+14/14 and current M4 SDR/four-mode HDR 1,000/20 captures passed. Current M4
+SDR is accepted; Windows recapture and repeated HDR viewing/separate attestation
+were waived, retaining the older `1f46352` evidence and human decision.
+The strict same-SHA physical/human aggregate is not passed. See
+[closeout decision](../specs/029-hdr-output-transform/closeout.md) and
+[evidence index](../Validation/029/CI/README.md). Scope and normal gates below
+remain the default contract, not a reusable exception.
+
 **Layer**: Renderer
 **Dependencies**: 013, 015, 018, 019, 027, 028
 **Complexity**: XL (2-4 weeks)
@@ -1112,325 +1300,739 @@ paths retain the bounded PNG/JSON evidence policy.
 Implement Renderer HDR Post-Processing and Output Transform on Features 013, 015, 018, 019, 027, and 028: define one Forward/Deferred Render Graph path from RGBA16F scene-referred linear Rec.709/sRGB-D65 SceneColor through manual exposure and explicit pre/post-tonemap insertion points. Implement versioned SDR Khronos PBR Neutral, ACES fitted, and Extended Reinhard tone maps with Khronos PBR Neutral as default, then explicit sRGB, Rec.709, or gamma output transfer. For HDR, do not run an SDR curve first; use a separate versioned ACES-style HDR viewing transform plus 1000/2000-nit PQ Rec.2020 and scRGB/EDR output-device transforms, including applicable HDR swapchains/drawables, native presentation/readback, resize/mode changes, and diagnostic bypass. Windows retains SDR validation but claims no HDR validation. macOS Metal alone performs PQ and EDR/scRGB HDR visual authority through live maintainer inspection; automation may check only non-visual contracts and attestation completeness and must not score or accept HDR appearance. Preserve Feature 028 v2 sampleCount=1/no-general-post-processing output as historical evidence. Changed SDR output increments workload revision, generates an exact-dimension Candidate, requires explicit maintainer acceptance, rejects alignment/cropping/scaling/resampling, and retains bounded PNG/JSON evidence. HDR visual output uses a bounded explicit maintainer JSON attestation rather than automated Candidate/reference comparison. Exclude anti-aliasing, bloom, depth of field, motion blur, automatic exposure, vendor upscalers, and a post-processing editor.
 ```
 
-### Phase 030 — Renderer: Anti-Aliasing & Temporal Reconstruction
+### Phase 030 — Application: Interactive Rendering Lab & ImGui Integration
 
-**Layer**: Renderer
-**Dependencies**: 004, 013, 015, 017, 019, 028, 029
-**Complexity**: XL (2-4 weeks)
-**Critical Path**: ✅ Yes — later temporal effects must share one motion/history/reprojection foundation
+**Layer**: Application
+**Dependencies**: 004, 008, 013, 015, 016, 017, 018, 019, 027, 028, 029
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ✅ Yes — next, interactive foundation for the complete-renderer track
 
 #### Scope
-Implement TAA as the primary path before tone mapping and FXAA as a
-post-tonemap fallback. The shared temporal foundation owns deterministic
-jitter, previous/current `ViewProjection`, per-pixel motion vectors, history
-ping-pong, reprojection, depth/normal rejection, disocclusion handling, and
-neighborhood clamping across the supported Forward/Deferred scene paths.
-
-History invalidates deterministically on camera cuts, resize, and FOV changes.
-Validation covers dynamic-object motion, static-scene convergence, rejection
-and ghosting behavior, and native Vulkan/Metal output. Deferred keeps
-`sampleCount=1` as the default; this phase does not introduce an MSAA path.
-Affected formal image workloads follow the same revisioned Candidate,
-exact-dimension, explicit-maintainer-acceptance, and bounded PNG/JSON rules
-established by Feature 029.
+Promote the existing calibration-only camera preview into a reusable interactive rendering lab before TAA and subsequent effects. Application owns camera controls, input routing, UI state and commands; Renderer owns backend-neutral UI draw packets and Render Graph execution through RHI. Integrate a pinned Dear ImGui revision behind private adapters, without exposing ImGui types in public engine contracts or calling Vulkan/Metal directly from Application/Renderer. Use an engine input adapter rather than installing competing GLFW callbacks.
 
 #### Key Deliverables
-- `FTemporalReconstruction`, deterministic camera jitter sequence, and previous/current `ViewProjection` state
-- Backend-neutral static-camera and dynamic-object motion-vector production for Forward/Deferred consumers
-- Ping-pong history resources, reprojection, depth/normal rejection, disocclusion handling, and neighborhood clamp
-- Camera-cut, resize, and FOV-change history invalidation with inspectable reasons and debug views
-- Pre-tonemap TAA main path, post-tonemap FXAA fallback, quality controls, and explicit fallback diagnostics
-- Static convergence, dynamic motion, ghosting, disocclusion, lifecycle, Vulkan/Metal native, and bounded image-evidence validation
+- Reusable WASD/QE/Shift free camera, right-mouse look, cursor capture/release, focus-loss recovery, speed/FOV controls, reset and bounded camera/settings presets; distinguish camera cut/reset/FOV changes for the later temporal consumer
+- Dear ImGui controls for the loaded scene, camera, manual exposure, existing tone maps, SDR/PQ/EDR output modes and debug bypass; expose capability failures explicitly and recover safely from unsupported mode changes; later effects extend this shell
+- Keyboard, mouse, scroll and UTF-8 text events, clipboard basics and explicit UI capture arbitration; typing or dragging widgets must not also move the camera; start with one native window and a HiDPI-correct viewport
+- Immutable UI draw snapshots, font/texture upload lifecycle, indexed triangles, clip/scissor rectangles and alpha blending through Renderer/RHI on Vulkan and Metal; no third-party ownership leakage or parallel backend-specific demo renderer
+- Interactive native presentation must not require synchronous CPU readback every frame; bound frames in flight, resource retirement and idle/minimized behavior; explicit captures may use a separate bounded readback path
+- Display-linear UI composition after scene post-processing and before the sole Feature 029 output transfer/native packing; define UI reference-white brightness, input color decoding/gamut conversion and linear alpha blending for SDR/PQ/EDR; UI bypasses scene exposure, TAA, DOF, motion blur and bloom
+- Formal scene captures default to UI disabled with frozen camera/settings; interactive previews and preset exports are not Accepted evidence. Bounded UI-specific smoke evidence is separate; no automatic baseline update or HDR appearance scoring
 
 #### What's Excluded
-- Deferred-default MSAA, a general MSAA path, DLSS, FSR, XeSS, other vendor upscalers, and unrelated post-processing effects
+- Full editor/world authoring, native OS widget toolkit, material/node editors, docking or multi-window viewports, general IME/accessibility framework, full GPU profiling and new rendering algorithms; no VT foundation or texture-streaming implementation
+
+#### Delivery Milestones
+- M0: reusable camera/input arbitration and one-window native presentation without a mandatory per-frame CPU readback
+- M1: pinned ImGui/private adapters, font/texture lifecycle, HiDPI and Vulkan/Metal UI rendering
+- M2: live scene/output controls, SDR/PQ/EDR UI composition and resize/focus/minimize/mode-switch recovery
+- M3: bounded automated input/lifecycle/off-parity checks and maintainer hands-on navigation/control review; macOS HDR appearance remains human-only
 
 #### Speckit Prompt
 ```text
-Implement Renderer Anti-Aliasing and Temporal Reconstruction on Features 004, 013, 015, 017, 019, 028, and 029: make TAA the pre-tonemap primary path and FXAA the post-tonemap fallback; add deterministic jitter, previous/current ViewProjection state, backend-neutral motion vectors for static and dynamic geometry, history ping-pong, reprojection, depth/normal rejection, disocclusion handling, neighborhood clamp, and explicit camera-cut/resize/FOV invalidation; integrate through Render Graph and validate Forward/Deferred behavior plus Vulkan/Metal native presentation/readback. Prove static-scene convergence and dynamic-object motion without ghosting regressions. Keep Deferred sampleCount=1 by default; exclude a general MSAA path and DLSS/FSR/XeSS. For every changed formal output, increment workload revision, generate an exact-dimension Candidate, require explicit maintainer acceptance, prohibit alignment/cropping/scaling/resampling, and retain bounded PNG/JSON evidence.
+Implement Application Interactive Rendering Lab & ImGui Integration on Features 004, 008, 013, 015, 016, 017, 018, 019, 027, 028, 029. Promote the existing calibration-only camera preview into a reusable interactive rendering lab before TAA and subsequent effects. Application owns camera controls, input routing, UI state and commands; Renderer owns backend-neutral UI draw packets and Render Graph execution through RHI. Integrate a pinned Dear ImGui revision behind private adapters, without exposing ImGui types in public engine contracts or calling Vulkan/Metal directly from Application/Renderer. Use an engine input adapter rather than installing competing GLFW callbacks. Deliver Reusable WASD/QE/Shift free camera, right-mouse look, cursor capture/release, focus-loss recovery, speed/FOV controls, reset and bounded camera/settings presets; distinguish camera cut/reset/FOV changes for the later temporal consumer; Dear ImGui controls for the loaded scene, camera, manual exposure, existing tone maps, SDR/PQ/EDR output modes and debug bypass; expose capability failures explicitly and recover safely from unsupported mode changes; later effects extend this shell; Keyboard, mouse, scroll and UTF-8 text events, clipboard basics and explicit UI capture arbitration; typing or dragging widgets must not also move the camera; start with one native window and a HiDPI-correct viewport; Immutable UI draw snapshots, font/texture upload lifecycle, indexed triangles, clip/scissor rectangles and alpha blending through Renderer/RHI on Vulkan and Metal; no third-party ownership leakage or parallel backend-specific demo renderer; Interactive native presentation must not require synchronous CPU readback every frame; bound frames in flight, resource retirement and idle/minimized behavior; explicit captures may use a separate bounded readback path; Display-linear UI composition after scene post-processing and before the sole Feature 029 output transfer/native packing; define UI reference-white brightness, input color decoding/gamut conversion and linear alpha blending for SDR/PQ/EDR; UI bypasses scene exposure, TAA, DOF, motion blur and bloom; Formal scene captures default to UI disabled with frozen camera/settings; interactive previews and preset exports are not Accepted evidence. Bounded UI-specific smoke evidence is separate; no automatic baseline update or HDR appearance scoring. Milestones: M0: reusable camera/input arbitration and one-window native presentation without a mandatory per-frame CPU readback; M1: pinned ImGui/private adapters, font/texture lifecycle, HiDPI and Vulkan/Metal UI rendering; M2: live scene/output controls, SDR/PQ/EDR UI composition and resize/focus/minimize/mode-switch recovery; M3: bounded automated input/lifecycle/off-parity checks and maintainer hands-on navigation/control review; macOS HDR appearance remains human-only. Exclude Full editor/world authoring, native OS widget toolkit, material/node editors, docking or multi-window viewports, general IME/accessibility framework, full GPU profiling and new rendering algorithms; no VT foundation or texture-streaming implementation. Preserve completed 003-029 identities and evidence. Changed formal SDR scene output requires a workload revision bump, exact-dimension Candidate and explicit maintainer acceptance; prohibit alignment/cropping/scaling/resampling. Keep bounded PNG/JSON evidence. Windows claims SDR validation only; macOS PQ/EDR appearance requires live maintainer review under Feature 029 Apple metadata governance.
 ```
 
-### Phase 031 — Asset: Meshlet Derived Data
+### Phase 031 — Renderer: Anti-Aliasing & Temporal Reconstruction
+
+**Layer**: Renderer
+**Dependencies**: 004, 013, 015, 017, 019, 028, 029, 030
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ✅ Yes — near-term complete-renderer track
+
+#### Scope
+TAA is the pre-tonemap primary path and FXAA the post-tonemap fallback. Feature 031 owns deterministic jitter, previous/current ViewProjection and object transforms, motion-vector conventions, history ping-pong, reprojection, depth/normal rejection, disocclusion, neighborhood clamp, and camera-cut/resize/FOV invalidation. Deferred defaults to sampleCount=1.
+
+Define velocity units/sign and jitter removal explicitly. Handle spawn/despawn, exposure-ratio compensation or explicit history reset, transparent/reactive coverage boundaries, and fixed input/output extent for the first milestone. Later consumers reuse lifetime, invalidation and reprojection services with signal-specific history; volume advection is not represented by opaque-surface velocity.
+
+#### Key Deliverables
+- Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+- FTemporalReconstruction and debug views for velocity, jitter, rejection and history age
+- Static convergence, thin geometry, dynamic-object motion, disocclusion and exposure-step fixtures
+- Forward/Deferred and Vulkan/Metal native presentation/readback; exact-size v3-successor Candidate review
+
+#### What's Excluded
+- General MSAA, dynamic-resolution upscaling, DLSS/FSR/XeSS and unrelated effects
+
+#### Delivery Milestones
+- M0: motion-vector conventions and previous-state lifecycle; deterministic FXAA fallback
+- M1: native TAA, history rejection and static/dynamic image-quality gates
+- M2: reusable temporal signal adapters and exposure-change regression
+
+#### Speckit Prompt
+```text
+Implement Renderer Anti-Aliasing & Temporal Reconstruction on Features 004, 013, 015, 017, 019, 028, 029, 030. TAA is the pre-tonemap primary path and FXAA the post-tonemap fallback. Feature 031 owns deterministic jitter, previous/current ViewProjection and object transforms, motion-vector conventions, history ping-pong, reprojection, depth/normal rejection, disocclusion, neighborhood clamp, and camera-cut/resize/FOV invalidation. Deferred defaults to sampleCount=1.  Define velocity units/sign and jitter removal explicitly. Handle spawn/despawn, exposure-ratio compensation or explicit history reset, transparent/reactive coverage boundaries, and fixed input/output extent for the first milestone. Later consumers reuse lifetime, invalidation and reprojection services with signal-specific history; volume advection is not represented by opaque-surface velocity. Deliver FTemporalReconstruction and debug views for velocity, jitter, rejection and history age; Static convergence, thin geometry, dynamic-object motion, disocclusion and exposure-step fixtures; Forward/Deferred and Vulkan/Metal native presentation/readback; exact-size v3-successor Candidate review. Milestones: M0: motion-vector conventions and previous-state lifecycle; deterministic FXAA fallback; M1: native TAA, history rejection and static/dynamic image-quality gates; M2: reusable temporal signal adapters and exposure-change regression. Exclude General MSAA, dynamic-resolution upscaling, DLSS/FSR/XeSS and unrelated effects. Retain debug outputs, resource/sample counters and bounded execution; full GPU/CPU timing, performance views and measured budget checks are deferred to Feature 041 and are not prerequisites of this effect. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it. Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+```
+
+### Phase 032 — Renderer: Raster Shadow Maps & Cascades
+
+**Layer**: Renderer
+**Dependencies**: 013, 015, 017, 019, 027, 028, 029, 030
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ✅ Yes — near-term complete-renderer track
+
+#### Scope
+Establish the non-ray-traced shadow authority for directional, spot and point lights. Directional lights use stable Cascaded Shadow Maps (CSM); local lights use bounded atlases/cubemap faces. Separate caster collection, light-space rendering and receiver sampling. Conventional depth shadow maps remain the correctness fallback when later screen-space or virtual paths are disabled.
+
+#### Key Deliverables
+- Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+- FShadowView and FShadowMapRenderer; caster/receiver policies for opaque and explicitly supported masked materials
+- Stable cascade splits, texel snapping, transition blending, depth/normal bias and PCF
+- Atlas allocation, resize/light movement invalidation, off-screen caster tests and Forward/Deferred lighting integration
+
+#### What's Excluded
+- Virtual page caches, ray-traced shadows, arbitrary translucent colored shadows
+
+#### Delivery Milestones
+- M0: single directional shadow and native depth correctness
+- M1: stable CSM, spot/point atlases and filtering
+- M2: acne/peter-panning, moving-caster, cascade-seam and bounded resource/sample evidence
+
+#### Speckit Prompt
+```text
+Implement Renderer Raster Shadow Maps & Cascades on Features 013, 015, 017, 019, 027, 028, 029, 030. Establish the non-ray-traced shadow authority for directional, spot and point lights. Directional lights use stable Cascaded Shadow Maps (CSM); local lights use bounded atlases/cubemap faces. Separate caster collection, light-space rendering and receiver sampling. Conventional depth shadow maps remain the correctness fallback when later screen-space or virtual paths are disabled. Deliver FShadowView and FShadowMapRenderer; caster/receiver policies for opaque and explicitly supported masked materials; Stable cascade splits, texel snapping, transition blending, depth/normal bias and PCF; Atlas allocation, resize/light movement invalidation, off-screen caster tests and Forward/Deferred lighting integration. Milestones: M0: single directional shadow and native depth correctness; M1: stable CSM, spot/point atlases and filtering; M2: acne/peter-panning, moving-caster, cascade-seam and bounded resource/sample evidence. Exclude Virtual page caches, ray-traced shadows, arbitrary translucent colored shadows. Retain debug outputs, resource/sample counters and bounded execution; full GPU/CPU timing, performance views and measured budget checks are deferred to Feature 041 and are not prerequisites of this effect. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it. Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+```
+
+### Phase 033 — Renderer: Screen-Space Shadows & Shadow Filtering
+
+**Layer**: Renderer
+**Dependencies**: 013, 019, 031, 032
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ✅ Yes — near-term complete-renderer track
+
+#### Scope
+Add screen-space contact shadows as a supplement to Feature 032, not a replacement for off-screen occluders. Own one backend-neutral SceneDepthPyramid with explicit StandardZ/ReversedZ reduction and extent/mip contracts, reusable by virtual-shadow requests, AO/SSR, GPU culling and SSGI.
+
+Compare PCF/PCSS against an explicitly named Variance Shadow Maps filtering mode with moment precision, minimum variance and light-bleeding controls. Use VarianceShadowMaps for that technique; reserve VirtualShadowMaps for page-based virtualization. They are alternatives on different design axes, not mandatory sequential filters.
+
+#### Key Deliverables
+- Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+- Hierarchical depth build, contact ray marching, thickness/confidence and screen-edge fallback
+- Bounded shadow filter strategy and variance-moment diagnostics; explicit sample budgets
+- Feature 031 motion-vector/jitter/history/reprojection adapters where accumulation is used
+
+#### What's Excluded
+- Off-screen occluder recovery from screen depth, virtual pages, mandatory moment filtering for every light
+
+#### Delivery Milestones
+- M0: depth-pyramid contract and short contact rays
+- M1: stable PCF/PCSS and variance-filter comparison
+- M2: silhouette, light-bleeding, disocclusion and native execution and resource/sample limits
+
+#### Speckit Prompt
+```text
+Implement Renderer Screen-Space Shadows & Shadow Filtering on Features 013, 019, 031, 032. Add screen-space contact shadows as a supplement to Feature 032, not a replacement for off-screen occluders. Own one backend-neutral SceneDepthPyramid with explicit StandardZ/ReversedZ reduction and extent/mip contracts, reusable by virtual-shadow requests, AO/SSR, GPU culling and SSGI.  Compare PCF/PCSS against an explicitly named Variance Shadow Maps filtering mode with moment precision, minimum variance and light-bleeding controls. Use VarianceShadowMaps for that technique; reserve VirtualShadowMaps for page-based virtualization. They are alternatives on different design axes, not mandatory sequential filters. Deliver Hierarchical depth build, contact ray marching, thickness/confidence and screen-edge fallback; Bounded shadow filter strategy and variance-moment diagnostics; explicit sample budgets; Feature 031 motion-vector/jitter/history/reprojection adapters where accumulation is used. Milestones: M0: depth-pyramid contract and short contact rays; M1: stable PCF/PCSS and variance-filter comparison; M2: silhouette, light-bleeding, disocclusion and native execution and resource/sample limits. Exclude Off-screen occluder recovery from screen depth, virtual pages, mandatory moment filtering for every light. Retain debug outputs, resource/sample counters and bounded execution; full GPU/CPU timing, performance views and measured budget checks are deferred to Feature 041 and are not prerequisites of this effect. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it. Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+```
+
+### Phase 034 — Renderer: Sky Atmosphere & Environment Lighting
+
+**Layer**: Renderer
+**Dependencies**: 013, 015, 019, 027, 029, 032
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ✅ Yes — near-term complete-renderer track
+
+#### Scope
+Create a coherent outdoor-lighting baseline: physically parameterized sun/sky, Rayleigh/Mie scattering, absorption, transmittance/multiple-scattering/sky-view LUTs and aerial perspective. Feed a bounded sky irradiance/specular environment path into Forward/Deferred, with pinned input units and explicit environment update cadence. Existing Asset owns only CPU/cooked parameters or textures; Renderer owns LUTs, captures and GPU lighting.
+
+#### Key Deliverables
+- Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+- FSkyAtmosphere and FEnvironmentLighting with sun direction/intensity and time-of-day controls
+- Diffuse irradiance, prefiltered specular environment and BRDF integration LUT
+- Ground/horizon/day-night tests, HDR energy/finite checks and sky/geometry aerial-perspective composition
+
+#### What's Excluded
+- Clouds, weather simulation, production light-probe volumes, full planetary simulation
+
+#### Delivery Milestones
+- M0: static sky and environment-lighting reference
+- M1: scattering LUTs, sun and aerial perspective
+- M2: bounded dynamic sky updates and native quality and bounded resource/sample gates
+
+#### Speckit Prompt
+```text
+Implement Renderer Sky Atmosphere & Environment Lighting on Features 013, 015, 019, 027, 029, 032. Create a coherent outdoor-lighting baseline: physically parameterized sun/sky, Rayleigh/Mie scattering, absorption, transmittance/multiple-scattering/sky-view LUTs and aerial perspective. Feed a bounded sky irradiance/specular environment path into Forward/Deferred, with pinned input units and explicit environment update cadence. Existing Asset owns only CPU/cooked parameters or textures; Renderer owns LUTs, captures and GPU lighting. Deliver FSkyAtmosphere and FEnvironmentLighting with sun direction/intensity and time-of-day controls; Diffuse irradiance, prefiltered specular environment and BRDF integration LUT; Ground/horizon/day-night tests, HDR energy/finite checks and sky/geometry aerial-perspective composition. Milestones: M0: static sky and environment-lighting reference; M1: scattering LUTs, sun and aerial perspective; M2: bounded dynamic sky updates and native quality and bounded resource/sample gates. Exclude Clouds, weather simulation, production light-probe volumes, full planetary simulation. Retain debug outputs, resource/sample counters and bounded execution; full GPU/CPU timing, performance views and measured budget checks are deferred to Feature 041 and are not prerequisites of this effect. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it. Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+```
+
+### Phase 035 — Renderer: Height Fog & Volumetric Fog
+
+**Layer**: Renderer
+**Dependencies**: 013, 019, 027, 029, 031, 032, 034
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ✅ Yes — near-term complete-renderer track
+
+#### Scope
+Add an inexpensive analytic height-fog baseline, then camera-frustum froxel participating media with extinction, scattering and shadowed directional/local-light injection. Compose radiance and transmittance in scene-linear HDR, accounting for overlap with atmosphere without applying the same extinction twice. Define opaque-depth and transparent-object participation explicitly.
+
+#### Key Deliverables
+- Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+- FHeightFog and FVolumetricFog; density/height/local-volume controls and bounded froxel grid
+- Feature 031 history lifecycle, jitter and reprojection services with volume-specific depth, light-change and density-change rejection
+- Light-shaft, moving-light trail, camera-cut, inside-volume and resize fixtures; analytic fallback
+
+#### What's Excluded
+- Fluid simulation, arbitrary sparse-volume asset pipeline, a second global temporal manager
+
+#### Delivery Milestones
+- M0: analytic height fog and atmosphere composition
+- M1: froxel injection/integration and shadowed lighting
+- M2: temporal stability, local volumes and quality-tier resource/sample limits
+
+#### Speckit Prompt
+```text
+Implement Renderer Height Fog & Volumetric Fog on Features 013, 019, 027, 029, 031, 032, 034. Add an inexpensive analytic height-fog baseline, then camera-frustum froxel participating media with extinction, scattering and shadowed directional/local-light injection. Compose radiance and transmittance in scene-linear HDR, accounting for overlap with atmosphere without applying the same extinction twice. Define opaque-depth and transparent-object participation explicitly. Deliver FHeightFog and FVolumetricFog; density/height/local-volume controls and bounded froxel grid; Feature 031 history lifecycle, jitter and reprojection services with volume-specific depth, light-change and density-change rejection; Light-shaft, moving-light trail, camera-cut, inside-volume and resize fixtures; analytic fallback. Milestones: M0: analytic height fog and atmosphere composition; M1: froxel injection/integration and shadowed lighting; M2: temporal stability, local volumes and quality-tier resource/sample limits. Exclude Fluid simulation, arbitrary sparse-volume asset pipeline, a second global temporal manager. Retain debug outputs, resource/sample counters and bounded execution; full GPU/CPU timing, performance views and measured budget checks are deferred to Feature 041 and are not prerequisites of this effect. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it. Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+```
+
+### Phase 036 — Renderer: Volumetric Clouds
+
+**Layer**: Renderer
+**Dependencies**: 013, 019, 027, 029, 031, 032, 034, 035
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ✅ Yes — near-term complete-renderer track
+
+#### Scope
+Ray-march a bounded cloud layer from reproducible density/noise/weather inputs. Couple cloud illumination to sky atmosphere and sun; declare cloud-shadow/transmittance dependencies before affected scene lighting. Composite cloud radiance/depth/transmittance consistently with fog and aerial perspective, including ground/below/inside/above-cloud camera cases.
+
+#### Key Deliverables
+- Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+- FVolumetricCloudRenderer; density shaping, ray bounds, empty-space skipping and adaptive step limits
+- Low-resolution cloud integration, depth-aware reconstruction and shared Feature 031 history services with wind/advection-aware reprojection
+- Cloud-to-ground shadow map, self-shadow approximation, sun/sky coupling and moving-weather fixtures
+
+#### What's Excluded
+- Meteorological simulation, fluid dynamics, unrestricted planet-scale streaming
+
+#### Delivery Milestones
+- M0: static cloud density and reference integration
+- M1: temporal reconstruction, sun illumination and cloud shadows
+- M2: fog/atmosphere overlap, weather motion and resource/sample-limit validation
+
+#### Speckit Prompt
+```text
+Implement Renderer Volumetric Clouds on Features 013, 019, 027, 029, 031, 032, 034, 035. Ray-march a bounded cloud layer from reproducible density/noise/weather inputs. Couple cloud illumination to sky atmosphere and sun; declare cloud-shadow/transmittance dependencies before affected scene lighting. Composite cloud radiance/depth/transmittance consistently with fog and aerial perspective, including ground/below/inside/above-cloud camera cases. Deliver FVolumetricCloudRenderer; density shaping, ray bounds, empty-space skipping and adaptive step limits; Low-resolution cloud integration, depth-aware reconstruction and shared Feature 031 history services with wind/advection-aware reprojection; Cloud-to-ground shadow map, self-shadow approximation, sun/sky coupling and moving-weather fixtures. Milestones: M0: static cloud density and reference integration; M1: temporal reconstruction, sun illumination and cloud shadows; M2: fog/atmosphere overlap, weather motion and resource/sample-limit validation. Exclude Meteorological simulation, fluid dynamics, unrestricted planet-scale streaming. Retain debug outputs, resource/sample counters and bounded execution; full GPU/CPU timing, performance views and measured budget checks are deferred to Feature 041 and are not prerequisites of this effect. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it. Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+```
+
+### Phase 037 — Renderer: Exposure, Bloom & Color Grading
+
+**Layer**: Renderer
+**Dependencies**: 013, 029, 031
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ✅ Yes — near-term complete-renderer track
+
+#### Scope
+Extend the delivered Feature 029 seams rather than introducing another output pipeline. Add opt-in histogram auto exposure with metering masks, EV bounds and adaptation rates; manual exposure remains the deterministic acceptance mode. Apply HDR bloom and scene-referred grading before the existing SDR/HDR viewing transform; explicitly typed display-referred finishing follows it and precedes the sole output transfer.
+
+#### Key Deliverables
+- Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+- FExposureController, histogram/metering diagnostics and exposure-to-Feature-031 history compensation/reset contract
+- FBloomPipeline downsample/upsample chain, energy and threshold controls
+- Versioned color-grading/LUT settings, vignette, grain/dither and optional bounded lens-flare/chromatic-aberration controls; all individually bypassable
+
+#### What's Excluded
+- A second tone mapper/output transfer, a post-processing editor, local exposure and convolution bloom in the first milestone
+
+#### Delivery Milestones
+- M0: manual-mode equivalence and histogram adaptation
+- M1: HDR bloom and HDR-safe grading with neutral bypass
+- M2: display finishing, optional lens effects and SDR/PQ/EDR acceptance
+
+#### Speckit Prompt
+```text
+Implement Renderer Exposure, Bloom & Color Grading on Features 013, 029, 031. Extend the delivered Feature 029 seams rather than introducing another output pipeline. Add opt-in histogram auto exposure with metering masks, EV bounds and adaptation rates; manual exposure remains the deterministic acceptance mode. Apply HDR bloom and scene-referred grading before the existing SDR/HDR viewing transform; explicitly typed display-referred finishing follows it and precedes the sole output transfer. Deliver FExposureController, histogram/metering diagnostics and exposure-to-Feature-031 history compensation/reset contract; FBloomPipeline downsample/upsample chain, energy and threshold controls; Versioned color-grading/LUT settings, vignette, grain/dither and optional bounded lens-flare/chromatic-aberration controls; all individually bypassable. Milestones: M0: manual-mode equivalence and histogram adaptation; M1: HDR bloom and HDR-safe grading with neutral bypass; M2: display finishing, optional lens effects and SDR/PQ/EDR acceptance. Exclude A second tone mapper/output transfer, a post-processing editor, local exposure and convolution bloom in the first milestone. Retain debug outputs, resource/sample counters and bounded execution; full GPU/CPU timing, performance views and measured budget checks are deferred to Feature 041 and are not prerequisites of this effect. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it. Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+```
+
+### Phase 038 — Renderer: Depth of Field & Motion Blur
+
+**Layer**: Renderer
+**Dependencies**: 013, 019, 029, 031, 037
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ✅ Yes — near-term complete-renderer track
+
+#### Scope
+Add camera-lens and shutter effects with explicit depth/velocity domains. Define circle-of-confusion units, near/far separation and foreground dilation for depth of field (DOF); motion blur uses the shared camera/object motion vectors with shutter-time and maximum-radius controls. Keep the chosen order visible in the graph: DOF before TAA, then motion blur and bloom before tone mapping.
+
+#### Key Deliverables
+- Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+- FDepthOfField with bounded gather/bokeh quality tiers and depth-edge handling
+- FMotionBlur with velocity dilation/tile bounds, sample budgets and camera-cut suppression
+- Exposure-aware histories, transparent coverage rules, debug bypass and controlled focus/motion fixtures
+
+#### What's Excluded
+- Film-renderer lens simulation, offline accumulation, skeletal animation implementation or separate motion-vector framework
+
+#### Delivery Milestones
+- M0: circle-of-confusion and camera/velocity semantics
+- M1: near/far DOF and bounded shutter blur
+- M2: temporal order, thin-geometry/disocclusion and native execution and resource/sample limits
+
+#### Speckit Prompt
+```text
+Implement Renderer Depth of Field & Motion Blur on Features 013, 019, 029, 031, 037. Add camera-lens and shutter effects with explicit depth/velocity domains. Define circle-of-confusion units, near/far separation and foreground dilation for depth of field (DOF); motion blur uses the shared camera/object motion vectors with shutter-time and maximum-radius controls. Keep the chosen order visible in the graph: DOF before TAA, then motion blur and bloom before tone mapping. Deliver FDepthOfField with bounded gather/bokeh quality tiers and depth-edge handling; FMotionBlur with velocity dilation/tile bounds, sample budgets and camera-cut suppression; Exposure-aware histories, transparent coverage rules, debug bypass and controlled focus/motion fixtures. Milestones: M0: circle-of-confusion and camera/velocity semantics; M1: near/far DOF and bounded shutter blur; M2: temporal order, thin-geometry/disocclusion and native execution and resource/sample limits. Exclude Film-renderer lens simulation, offline accumulation, skeletal animation implementation or separate motion-vector framework. Retain debug outputs, resource/sample counters and bounded execution; full GPU/CPU timing, performance views and measured budget checks are deferred to Feature 041 and are not prerequisites of this effect. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it. Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+```
+
+### Phase 039 — Renderer: Virtual Shadow Maps
+
+**Layer**: Renderer
+**Dependencies**: 008, 013, 017, 019, 027, 031, 032, 033
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ✅ Yes — near-term complete-renderer track
+
+#### Scope
+Evolve the conventional shadow interface into VirtualShadowMaps: virtual address/clipmap tables, depth-driven page requests, a bounded physical atlas, dirty-page rasterization and explicit cache invalidation for moving lights/casters. Retain Feature 032 shadow maps/CSM when unavailable or over budget. This is a portable learning implementation on conventional indexed meshes, not a Nanite-dependent Unreal implementation or a claim of equivalent performance.
+
+#### Key Deliverables
+- Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+- FVirtualShadowMapCache; page-table translation, allocation/eviction, request compaction and safe update/read ordering
+- Directional clipmaps and local-light virtual addressing; missing-page policy and stable fallback
+- RHI/backend capability and buffer/atomic/barrier work explicitly scoped here; ordinary texture-array/atlas baseline, no mandatory hardware sparse residency
+
+#### What's Excluded
+- Nanite/virtual geometry, dependency on future meshlet production, mandatory mesh shaders or production-scale sparse-texture management
+
+#### Delivery Milestones
+- M0: static virtual addressing and physical atlas
+- M1: request generation, page rendering/cache and invalidation
+- M2: atlas overflow, moving casters, cache hit/miss and PCF fallback resource limits
+
+#### Speckit Prompt
+```text
+Implement Renderer Virtual Shadow Maps on Features 008, 013, 017, 019, 027, 031, 032, 033. Evolve the conventional shadow interface into VirtualShadowMaps: virtual address/clipmap tables, depth-driven page requests, a bounded physical atlas, dirty-page rasterization and explicit cache invalidation for moving lights/casters. Retain Feature 032 shadow maps/CSM when unavailable or over budget. This is a portable learning implementation on conventional indexed meshes, not a Nanite-dependent Unreal implementation or a claim of equivalent performance. Deliver FVirtualShadowMapCache; page-table translation, allocation/eviction, request compaction and safe update/read ordering; Directional clipmaps and local-light virtual addressing; missing-page policy and stable fallback; RHI/backend capability and buffer/atomic/barrier work explicitly scoped here; ordinary texture-array/atlas baseline, no mandatory hardware sparse residency. Milestones: M0: static virtual addressing and physical atlas; M1: request generation, page rendering/cache and invalidation; M2: atlas overflow, moving casters, cache hit/miss and PCF fallback resource limits. Exclude Nanite/virtual geometry, dependency on future meshlet production, mandatory mesh shaders or production-scale sparse-texture management. Retain debug outputs, resource/sample counters and bounded execution; full GPU/CPU timing, performance views and measured budget checks are deferred to Feature 041 and are not prerequisites of this effect. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it. Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+```
+
+### Phase 040 — Renderer: Screen-Space Ambient Occlusion & Reflections
+
+**Layer**: Renderer
+**Dependencies**: 013, 019, 029, 031, 033, 034
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ✅ Yes — near-term complete-renderer track
+
+#### Scope
+Complete the raster image-quality baseline with SSAO/GTAO-class ambient occlusion and screen-space reflections (SSR). Reuse Feature 033 SceneDepthPyramid and Feature 031 temporal services. Apply AO to the intended indirect-lighting terms, not indiscriminately to all direct light; SSR has explicit roughness/confidence, thickness and screen-edge rules, falling back to Feature 034 environment lighting.
+
+#### Key Deliverables
+- Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+- FScreenSpaceOcclusion and FScreenSpaceReflections with depth/normal/roughness contracts
+- Signal-specific temporal rejection/denoising adapters and shared history diagnostics
+- Off-screen/disocclusion/transparent-boundary fixtures and optional-feature resource/sample tiers
+
+#### What's Excluded
+- Off-screen GI recovery, hardware ray tracing, a separate depth pyramid or temporal framework
+
+#### Delivery Milestones
+- M0: bounded AO and unfiltered SSR hits
+- M1: environment fallback and temporal confidence
+- M2: lighting composition, roughness/edge stability and native resource/sample limits
+
+#### Speckit Prompt
+```text
+Implement Renderer Screen-Space Ambient Occlusion & Reflections on Features 013, 019, 029, 031, 033, 034. Complete the raster image-quality baseline with SSAO/GTAO-class ambient occlusion and screen-space reflections (SSR). Reuse Feature 033 SceneDepthPyramid and Feature 031 temporal services. Apply AO to the intended indirect-lighting terms, not indiscriminately to all direct light; SSR has explicit roughness/confidence, thickness and screen-edge rules, falling back to Feature 034 environment lighting. Deliver FScreenSpaceOcclusion and FScreenSpaceReflections with depth/normal/roughness contracts; Signal-specific temporal rejection/denoising adapters and shared history diagnostics; Off-screen/disocclusion/transparent-boundary fixtures and optional-feature resource/sample tiers. Milestones: M0: bounded AO and unfiltered SSR hits; M1: environment fallback and temporal confidence; M2: lighting composition, roughness/edge stability and native resource/sample limits. Exclude Off-screen GI recovery, hardware ray tracing, a separate depth pyramid or temporal framework. Retain debug outputs, resource/sample counters and bounded execution; full GPU/CPU timing, performance views and measured budget checks are deferred to Feature 041 and are not prerequisites of this effect. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it. Expose this effect's relevant controls and debug views through Feature 030's interactive lab; do not create a separate GUI or input framework.
+```
+
+### Phase 041 — Renderer: Frame Profiling & Render Diagnostics
+
+**Layer**: Renderer
+**Dependencies**: 008, 013, 018, 019, 027, 029, 036, 038, 039, 040
+**Complexity**: L (milestone-scoped; estimate after specification)
+**Critical Path**: ✅ Yes — near-term complete-renderer track
+
+#### Scope
+Profile the completed 031-040 raster/environment/post-processing pipeline before Feature 042 integrated acceptance. Earlier effects retain debug outputs, resource/sample counters and bounded execution without depending on this full profiling stage. Extend RHI with capability-correct GPU timestamp/query contracts and Vulkan/Metal implementations; connect frame/pass markers, CPU timings and memory accounting to the existing Render Graph and Feature 030's UI shell; do not introduce a second GUI framework. Unsupported timing reports unavailable, never a fabricated zero. Read query results asynchronously without imposing per-frame GPU readback stalls.
+
+#### Key Deliverables
+- FRenderFrameMetrics, per-pass GPU/CPU timing and resource-memory summaries
+- Fixed device/resolution/scene/warmup benchmark presets, percentile statistics and debug overlays
+- Explicit budgets for full-frame cost, individual effects, resident bytes and query latency
+
+#### What's Excluded
+- A full external GPU debugger, telemetry service, performance guarantees independent of hardware
+
+#### Delivery Milestones
+- M0: RHI query capability and deterministic tests
+- M1: Vulkan/Metal timestamps and reproducible baseline reports
+- M2: budget checks and pass/resource debug views
+
+#### Speckit Prompt
+```text
+Implement Renderer Frame Profiling & Render Diagnostics on Features 008, 013, 018, 019, 027, 029, 036, 038, 039, 040. Profile the completed 031-040 raster/environment/post-processing pipeline before Feature 042 integrated acceptance. Earlier effects retain debug outputs, resource/sample counters and bounded execution without depending on this full profiling stage. Extend RHI with capability-correct GPU timestamp/query contracts and Vulkan/Metal implementations; connect frame/pass markers, CPU timings and memory accounting to the existing Render Graph and Feature 030's UI shell; do not introduce a second GUI framework. Unsupported timing reports unavailable, never a fabricated zero. Read query results asynchronously without imposing per-frame GPU readback stalls. Deliver FRenderFrameMetrics, per-pass GPU/CPU timing and resource-memory summaries; Fixed device/resolution/scene/warmup benchmark presets, percentile statistics and debug overlays; Explicit budgets for full-frame cost, individual effects, resident bytes and query latency. Milestones: M0: RHI query capability and deterministic tests; M1: Vulkan/Metal timestamps and reproducible baseline reports; M2: budget checks and pass/resource debug views. Exclude A full external GPU debugger, telemetry service, performance guarantees independent of hardware. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it.
+```
+
+### Phase 042 — Renderer: Complete Rendering Pipeline Integration & Quality Baseline
+
+**Layer**: Renderer
+**Dependencies**: 028, 031, 036, 038, 039, 040, 041
+**Complexity**: L (milestone-scoped; estimate after specification)
+**Critical Path**: ✅ Yes — near-term complete-renderer track
+
+#### Scope
+Deliver an integrated indoor/outdoor renderer on the existing Vulkan/Metal pair before advanced geometry, extra backends or hybrid GI becomes the default work queue. Validate feature interactions, not just isolated screenshots: sun/shadow transitions, sky/environment lighting, fog/cloud overlap, exposure adaptation, camera effects, temporal stability and final SDR/PQ/EDR output.
+
+#### Key Deliverables
+- A bounded daylight/night/interior-to-exterior/weather/camera-motion scene matrix with production-content fixtures
+- Coherent Low/Medium/High quality presets, per-pass GPU timings, memory limits and explicit fallback combinations
+- Same-frame presentation/readback, all-features-off parity, invalidation matrix and revisioned exact-size SDR/human HDR evidence
+
+#### What's Excluded
+- New core rendering algorithms, editor/world authoring, film-quality completeness, feature count used as proof of performance
+
+#### Delivery Milestones
+- M0: assembled graph and all-off/minimum-preset regression
+- M1: coupled lighting/atmosphere/post-processing correctness
+- M2: physical-device quality/performance review and bounded release baseline
+
+#### Speckit Prompt
+```text
+Implement Renderer Complete Rendering Pipeline Integration & Quality Baseline on Features 028, 031, 036, 038, 039, 040, 041. Deliver an integrated indoor/outdoor renderer on the existing Vulkan/Metal pair before advanced geometry, extra backends or hybrid GI becomes the default work queue. Validate feature interactions, not just isolated screenshots: sun/shadow transitions, sky/environment lighting, fog/cloud overlap, exposure adaptation, camera effects, temporal stability and final SDR/PQ/EDR output. Deliver A bounded daylight/night/interior-to-exterior/weather/camera-motion scene matrix with production-content fixtures; Coherent Low/Medium/High quality presets, per-pass GPU timings, memory limits and explicit fallback combinations; Same-frame presentation/readback, all-features-off parity, invalidation matrix and revisioned exact-size SDR/human HDR evidence. Milestones: M0: assembled graph and all-off/minimum-preset regression; M1: coupled lighting/atmosphere/post-processing correctness; M2: physical-device quality/performance review and bounded release baseline. Exclude New core rendering algorithms, editor/world authoring, film-quality completeness, feature count used as proof of performance. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it.
+```
+
+### Phase 043 — Asset: Meshlet Derived Data
 
 **Layer**: Asset
 **Dependencies**: 024, 025, 026, 028
-**Complexity**: XL (2-4 weeks)
-**Critical Path**: ❌ No — conventional indexed meshes remain authoritative
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ❌ No — independent later expansion or portability track
 
 #### Scope
-Derive versioned meshlet clusters and LOD metadata from cooked static meshes.
-This phase establishes deterministic data and CPU validation only; it does not
-implement GPU culling or drawing.
+Derive versioned meshlet clusters and LOD metadata from canonical cooked static meshes. Asset owns deterministic CPU data, build keys and validation, not GPU culling/drawing. Dependencies remain exactly 024/025/026/028; neither post-processing nor virtual shadows is a prerequisite.
 
 #### Key Deliverables
-- `FMeshletAsset`, `FMeshletBuilder`, and cooker extension
-- Vertex/primitive clusters, bounds, cones, hierarchy, and LOD records
-- Deterministic build keys, validation, serialization, and indexed fallback mapping
-- Quality metrics, malformed-input tests, and reproducible fixtures
+- FMeshletAsset and FMeshletBuilder; clusters, bounds, cones, hierarchy and LOD records
+- Deterministic cooker serialization, indexed fallback mapping and quality metrics
 
 #### What's Excluded
-- GPU visibility, HZB, mesh-shader execution, streaming, and virtual geometry
+- GPU visibility, streaming, mesh-shader execution and virtual geometry
+
+#### Delivery Milestones
+- M0: validated clusters and indexed equivalence
+- M1: hierarchy/LOD quality and reproducibility
 
 #### Speckit Prompt
 ```text
-Implement Meshlet Derived Data on Features 024, 025, 026, and 028: derive versioned FMeshletAsset payloads from canonical cooked FStaticMeshAsset data and the accepted production corpus; FMeshletBuilder; vertex and primitive clusters, bounds, cones, hierarchy and LOD records; deterministic cooker keys; serialization and validation; indexed fallback mapping; quality metrics; reproducibility tests; and cross-platform CI. Meshlets must never become hand-authored source authority. Exclude GPU culling, HZB, mesh-shader execution, streaming, and virtual geometry.
+Implement Asset Meshlet Derived Data on Features 024, 025, 026, 028. Derive versioned meshlet clusters and LOD metadata from canonical cooked static meshes. Asset owns deterministic CPU data, build keys and validation, not GPU culling/drawing. Dependencies remain exactly 024/025/026/028; neither post-processing nor virtual shadows is a prerequisite. Deliver FMeshletAsset and FMeshletBuilder; clusters, bounds, cones, hierarchy and LOD records; Deterministic cooker serialization, indexed fallback mapping and quality metrics. Milestones: M0: validated clusters and indexed equivalence; M1: hierarchy/LOD quality and reproducibility. Exclude GPU visibility, streaming, mesh-shader execution and virtual geometry. Keep Asset CPU-only; Renderer owns GPU realization. Use reproducible derived-data tests and cross-platform CI.
 ```
 
-### Phase 032 — Renderer: GPU-Driven Visibility & LOD
+### Phase 044 — Renderer: GPU-Driven Visibility & LOD
 
 **Layer**: Renderer
-**Dependencies**: 013, 031
-**Complexity**: XL (2-4 weeks)
-**Critical Path**: ❌ No — CPU visibility and indexed drawing remain valid
+**Dependencies**: 008, 013, 033, 041, 043
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ❌ No — independent later expansion or portability track
 
 #### Scope
-Consume meshlet assets for GPU-driven instance/cluster visibility, LOD
-selection, and indirect drawing with capability-based execution paths.
+Consume Feature 043 data for instance/cluster visibility, LOD and indirect drawing. Reuse the shared SceneDepthPyramid rather than building another HZB. Explicitly extend RHI/backend indirect draw/count/dispatch, buffer usage and compute-to-draw synchronization contracts; native implementations and capability tests are part of this phase, not hidden prerequisites.
 
 #### Key Deliverables
-- `FMeshletRenderer`, instance/cluster buffers, and indirect draw generation
-- Frustum, cone, and HZB occlusion culling with deterministic CPU reference
-- Mesh-shader path where supported and compute/indexed fallback elsewhere
-- Render Graph integration, counters, benchmarks, and native validation
+- FMeshletRenderer; frustum/cone/HZB culling and deterministic CPU reference
+- Compute/indexed indirect baseline with counters and GPU timing; optional mesh-shader milestone
 
 #### What's Excluded
-- Asset streaming, virtual geometry, and software rasterization
+- Asset streaming, virtual geometry and software rasterization
+
+#### Delivery Milestones
+- M0: RHI indirect contract and native indexed fallback
+- M1: GPU culling/LOD and equivalence/performance gates
+- M2: separately bounded capability-dependent mesh-shader path
 
 #### Speckit Prompt
 ```text
-Implement GPU-Driven Visibility and LOD on Features 013 and 031: FMeshletRenderer; instance and cluster buffers; frustum, cone, and HZB occlusion culling; deterministic CPU reference results; LOD selection; indirect drawing; mesh-shader execution where supported; compute/indexed fallback; Render Graph integration; capability diagnostics; counters; benchmarks; and native validation. Exclude asset streaming, virtual geometry, and software rasterization.
+Implement Renderer GPU-Driven Visibility & LOD on Features 008, 013, 033, 041, 043. Consume Feature 043 data for instance/cluster visibility, LOD and indirect drawing. Reuse the shared SceneDepthPyramid rather than building another HZB. Explicitly extend RHI/backend indirect draw/count/dispatch, buffer usage and compute-to-draw synchronization contracts; native implementations and capability tests are part of this phase, not hidden prerequisites. Deliver FMeshletRenderer; frustum/cone/HZB culling and deterministic CPU reference; Compute/indexed indirect baseline with counters and GPU timing; optional mesh-shader milestone. Milestones: M0: RHI indirect contract and native indexed fallback; M1: GPU culling/LOD and equivalence/performance gates; M2: separately bounded capability-dependent mesh-shader path. Exclude Asset streaming, virtual geometry and software rasterization. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it.
 ```
 
-### Phase 033 — Asset: Streaming & Residency
+### Phase 045 — Asset: Streaming & Residency
 
 **Layer**: Asset
-**Dependencies**: 022, 026, 031, 032
-**Complexity**: XL (2-4 weeks)
-**Critical Path**: ❌ No — fully resident assets remain a valid baseline
+**Dependencies**: 022, 026, 043, 044
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ❌ No — independent later expansion or portability track
 
 #### Scope
-Add chunk manifests, priorities, prefetch, cancellation, CPU/GPU budgets,
-deterministic eviction, and residency telemetry for texture mips and meshlet
-clusters. Renderer retains ownership of RHI/GPU realization.
+Add chunk manifests, priority/prefetch/cancellation, CPU/GPU budgets and deterministic eviction for texture mips and meshlet clusters. Asset owns CPU/cooked scheduling; Renderer owns RHI realization and synchronization-safe release. Separate runtime residency from offline DDC/generation retention.
 
 #### Key Deliverables
-- Texture-mip and meshlet-cluster chunk descriptors
-- Priority, prefetch, cancellation, budget, and eviction policies
-- Renderer GPU-residency adapter with synchronization-safe release
-- Telemetry, pressure tests, long-run stress validation, and CI reports
+- Chunk records and scheduling, budget/eviction telemetry
+- Renderer residency adapter, fully resident fallback and pressure/endurance tests
 
 #### What's Excluded
-- CDN delivery, virtual texture, virtual geometry, and editor hot reload
+- CDN delivery, virtual textures/geometry and editor hot reload
+
+#### Delivery Milestones
+- M0: immutable chunks and bounded requests
+- M1: budget eviction and safe GPU retirement
+- M2: memory-pressure/native stress
 
 #### Speckit Prompt
 ```text
-Implement Asset Streaming and Residency on Features 022, 026, 031, and 032: chunk manifests for texture mips and meshlet clusters; priority requests, prefetch, cancellation, CPU/GPU budgets, deterministic eviction, and residency telemetry; Asset-side CPU/cooked scheduling; Renderer-owned RHI/GPU realization and synchronization-safe release; fully resident fallback; memory-pressure and long-run stress tests; normalized CI reports; and diagnostics. Exclude CDN delivery, virtual texture, virtual geometry, and editor hot reload.
+Implement Asset Streaming & Residency on Features 022, 026, 043, 044. Add chunk manifests, priority/prefetch/cancellation, CPU/GPU budgets and deterministic eviction for texture mips and meshlet clusters. Asset owns CPU/cooked scheduling; Renderer owns RHI realization and synchronization-safe release. Separate runtime residency from offline DDC/generation retention. Deliver Chunk records and scheduling, budget/eviction telemetry; Renderer residency adapter, fully resident fallback and pressure/endurance tests. Milestones: M0: immutable chunks and bounded requests; M1: budget eviction and safe GPU retirement; M2: memory-pressure/native stress. Exclude CDN delivery, virtual textures/geometry and editor hot reload. Keep Asset CPU-only; Renderer owns GPU realization. Use reproducible derived-data tests and cross-platform CI.
 ```
 
-### Phase 034 — Backend: DirectX 12
+### Phase 046 — Renderer: Screen-Space GI & Temporal
 
-**Layer**: Backend
-**Dependencies**: 008, 016, 018, 023, 025
-**Complexity**: XL (2-4 weeks)
-**Critical Path**: ❌ No — Vulkan remains available on Windows
+**Layer**: Renderer
+**Dependencies**: 013, 019, 031, 040, 041
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ❌ No — independent later expansion or portability track
 
 #### Scope
-Implement DX12 RHI resources, descriptor heaps, command lists, pipelines,
-DXGI presentation, and Asset-backed DXIL payload consumption.
+Implement bounded screen-space indirect lighting on deferred surfaces and the shared hierarchical-depth path. Feature 046 reuses Feature 031 motion-vector, jitter, history and reprojection services, rejection and invalidation; it may specialize GI confidence and denoising but may not define a duplicate temporal framework.
 
 #### Key Deliverables
-- DX12 device, resources, descriptors, commands, synchronization, and pipelines
-- DXGI swapchain, resize/lifecycle handling, and capability reporting
-- DXIL payload cooking/consumption and backend-neutral demo validation
-- Windows native, failure, cleanup, and comparison tests
+- Hierarchical ray marching, hit validation and bounded indirect radiance
+- GI-specific temporal/denoising adapters; quality/debug controls and energy checks
 
 #### What's Excluded
-- Xbox and DX12 Ultimate-only rendering features
+- SDF tracing, surface caches, hardware RT and final hybrid policy
+
+#### Delivery Milestones
+- M0: direct screen-space GI reference
+- M1: temporal stability and disocclusion
+- M2: combined renderer and GPU-budget evidence
 
 #### Speckit Prompt
 ```text
-Implement a DirectX 12 backend on Features 008, 016, 018, 023, and 025: RHI device, resources, descriptor heaps, command lists, synchronization, pipelines, DXGI presentation, resize and lifecycle handling, capability reporting, DXIL shader payload cooking and consumption, backend-neutral demo validation, diagnostics, failure injection, and Windows native tests. Exclude Xbox and DX12 Ultimate-only rendering features.
+Implement Renderer Screen-Space GI & Temporal on Features 013, 019, 031, 040, 041. Implement bounded screen-space indirect lighting on deferred surfaces and the shared hierarchical-depth path. Feature 046 reuses Feature 031 motion-vector, jitter, history and reprojection services, rejection and invalidation; it may specialize GI confidence and denoising but may not define a duplicate temporal framework. Deliver Hierarchical ray marching, hit validation and bounded indirect radiance; GI-specific temporal/denoising adapters; quality/debug controls and energy checks. Milestones: M0: direct screen-space GI reference; M1: temporal stability and disocclusion; M2: combined renderer and GPU-budget evidence. Exclude SDF tracing, surface caches, hardware RT and final hybrid policy. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it.
 ```
 
-### Phase 035 — Backend: OpenGL
-
-**Layer**: Backend
-**Dependencies**: 008, 016, 018, 023, 025
-**Complexity**: XL (2-4 weeks)
-**Critical Path**: ❌ No — this is a desktop compatibility path
-
-#### Scope
-Implement a desktop OpenGL 4.5 backend, explicitly adapting the RHI's command
-and pipeline model to a stateful API.
-
-#### Key Deliverables
-- Desktop GL device, resources, commands, pipelines, synchronization, and presentation
-- State cache, command emulation, capability reporting, and GLSL payload consumption
-- Windows/Linux/macOS availability policy and backend-neutral demo tests
-- State-leak, context-loss, lifecycle, and comparison diagnostics
-
-#### What's Excluded
-- GLES, WebGL, and OpenGL versions below 4.5
-
-#### Speckit Prompt
-```text
-Implement a desktop OpenGL 4.5 backend on Features 008, 016, 018, 023, and 025: RHI resources, state-cached command and pipeline emulation, synchronization, presentation, capability reporting, GLSL asset payload consumption, explicit platform availability policy, backend-neutral demo validation, state-leak and context-lifecycle diagnostics, and native tests. Exclude GLES, WebGL, and OpenGL versions below 4.5.
-```
-
-### Phase 036 — Backend: GLES
-
-**Layer**: Backend
-**Dependencies**: 008, 016, 018, 023, 025
-**Complexity**: XL (2-4 weeks)
-**Critical Path**: ❌ No — this is a constrained-device compatibility path
-
-#### Scope
-Implement a GLES 3.2 backend with explicit reduced capabilities and fallbacks.
-Validate the graphics backend independently of any Android application shell.
-
-#### Key Deliverables
-- GLES resources, command/pipeline emulation, synchronization, and presentation bridge
-- Capability reduction table, GLSL ES payloads, and fallback diagnostics
-- Desktop EGL or equivalent headless/visible validation harness
-- Precision, context-loss, lifecycle, and compatibility tests
-
-#### What's Excluded
-- Android lifecycle, packaging, input, store delivery, WebGL, and GLES below 3.2
-
-#### Speckit Prompt
-```text
-Implement a GLES 3.2 backend on Features 008, 016, 018, 023, and 025: reduced-capability RHI resources, command and pipeline emulation, synchronization, presentation bridge, GLSL ES shader payload cooking and consumption, explicit fallback table, desktop EGL or equivalent validation, precision and context-loss diagnostics, backend-neutral demo tests, and CI. Exclude Android application lifecycle, packaging, input, store delivery, WebGL, and GLES below 3.2.
-```
-
-### Phase 037 — RHI: Ray Tracing & Vulkan Backend Foundation
+### Phase 047 — RHI: Ray Tracing & Vulkan Backend Foundation
 
 **Layer**: RHI
-**Dependencies**: 012, 024, 025, 026
-**Complexity**: XL (2-4 weeks)
-**Critical Path**: ❌ No — raster rendering remains supported
+**Dependencies**: 008, 012, 024, 025, 026, 041
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ❌ No — independent later expansion or portability track
 
 #### Scope
-Define backend-neutral acceleration-structure and ray-pipeline contracts, then
-implement Vulkan BLAS/TLAS, shader binding tables, synchronization, and
-capability fallbacks. No visual ray-traced effect belongs here.
+Define backend-neutral acceleration-structure/ray-pipeline/SBT contracts and implement Vulkan BLAS/TLAS build/update/compaction, synchronization and dispatch. Version derived keys from cooked static meshes; no visual effect belongs here. Native evidence requires supported physical Vulkan RT hardware; unsupported Metal/other devices make no RT execution claim.
 
 #### Key Deliverables
-- RHI acceleration-structure, ray-pipeline, SBT, and command contracts
-- Vulkan BLAS/TLAS build/update, compaction, barriers, pipelines, and dispatch
-- Versioned BLAS derived keys from cooked static meshes
-- Capability, lifecycle, failure, memory, and native execution tests
+- RHI acceleration structures and explicit ownership/barriers
+- Vulkan pipelines/SBT/dispatch, memory accounting and capability/lifecycle tests
 
 #### What's Excluded
-- Reflections, shadows, AO, path tracing, and denoising
+- Renderer reflections/shadows/AO, denoising and path tracing
+
+#### Delivery Milestones
+- M0: native BLAS/TLAS and lifecycle
+- M1: ray pipeline/SBT/dispatch correctness
+- M2: update/compaction/memory and capability gates
 
 #### Speckit Prompt
 ```text
-Implement the Ray Tracing RHI and Vulkan Backend Foundation on Features 012, 024, 025, and 026: backend-neutral acceleration-structure, ray-pipeline, shader-binding-table, and command contracts; Vulkan BLAS/TLAS build, update, compaction, barriers, pipelines, and dispatch; versioned BLAS derived keys from cooked static meshes; capability fallback; lifecycle and failure diagnostics; memory accounting; and native tests. Exclude renderer effects, path tracing, and denoising.
+Implement RHI Ray Tracing & Vulkan Backend Foundation on Features 008, 012, 024, 025, 026, 041. Define backend-neutral acceleration-structure/ray-pipeline/SBT contracts and implement Vulkan BLAS/TLAS build/update/compaction, synchronization and dispatch. Version derived keys from cooked static meshes; no visual effect belongs here. Native evidence requires supported physical Vulkan RT hardware; unsupported Metal/other devices make no RT execution claim. Deliver RHI acceleration structures and explicit ownership/barriers; Vulkan pipelines/SBT/dispatch, memory accounting and capability/lifecycle tests. Milestones: M0: native BLAS/TLAS and lifecycle; M1: ray pipeline/SBT/dispatch correctness; M2: update/compaction/memory and capability gates. Exclude Renderer reflections/shadows/AO, denoising and path tracing. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it.
 ```
 
-### Phase 038 — Renderer: Ray-Traced Effects
+### Phase 048 — Renderer: Ray-Traced Renderer Effects
 
 **Layer**: Renderer
-**Dependencies**: 019, 026, 037
-**Complexity**: XL (2-4 weeks)
-**Critical Path**: ❌ No — raster lighting remains supported
+**Dependencies**: 013, 019, 026, 031, 032, 040, 047
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ❌ No — independent later expansion or portability track
 
 #### Scope
-Build scene-level ray-tracing integration and bounded reflection, shadow, and
-ambient-occlusion effects on the RHI/backend foundation.
+Integrate FRayTracingScene and bounded reflections, shadows and AO. Reuse Feature 031 temporal inputs/history services, conventional raster shadows from 032 and screen-space/environment fallbacks from 040. Admit one effect at a time and state whether each quality tier uses accumulation or only a noisy diagnostic result.
 
 #### Key Deliverables
-- `FRayTracingScene` instance collection and update policy
-- Ray-traced reflection, shadow, and ambient-occlusion passes
-- Render Graph integration, temporal inputs, and raster fallbacks
-- Quality presets, comparison evidence, performance counters, and tests
+- Scene instance collection/update policy and separate reflection/shadow/AO passes
+- Shared temporal adapters, explicit fallback routing, quality/performance evidence
 
 #### What's Excluded
-- Full path tracing, production denoising, and GI integration
+- Full path tracing, production denoiser suite and GI integration
+
+#### Delivery Milestones
+- M0: one ray-traced effect with raster fallback
+- M1: signal-specific temporal stabilization
+- M2: remaining effects with individual budgets
 
 #### Speckit Prompt
 ```text
-Implement Ray-Traced Renderer Effects on Features 019, 026, and 037: FRayTracingScene collection and updates; ray-traced reflections, shadows, and ambient occlusion; Render Graph integration; temporal inputs; deterministic raster fallbacks; quality presets; diagnostics; comparison evidence; performance counters; and native tests. Exclude full path tracing, production denoising, and global-illumination integration.
+Implement Renderer Ray-Traced Renderer Effects on Features 013, 019, 026, 031, 032, 040, 047. Integrate FRayTracingScene and bounded reflections, shadows and AO. Reuse Feature 031 temporal inputs/history services, conventional raster shadows from 032 and screen-space/environment fallbacks from 040. Admit one effect at a time and state whether each quality tier uses accumulation or only a noisy diagnostic result. Deliver Scene instance collection/update policy and separate reflection/shadow/AO passes; Shared temporal adapters, explicit fallback routing, quality/performance evidence. Milestones: M0: one ray-traced effect with raster fallback; M1: signal-specific temporal stabilization; M2: remaining effects with individual budgets. Exclude Full path tracing, production denoiser suite and GI integration. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it.
 ```
 
-### Phase 039 — Renderer: Screen-Space GI & Temporal
-
-**Layer**: Renderer
-**Dependencies**: 013, 019, 030
-**Complexity**: XL (2-4 weeks)
-**Critical Path**: ❌ No — direct lighting remains complete
-
-#### Scope
-Implement a self-contained screen-space indirect-lighting baseline using the
-deferred surfaces, hierarchical depth, temporal accumulation, and denoising.
-Its temporal accumulation must reuse Feature 030's motion-vector, jitter,
-history ping-pong, reprojection, rejection, and invalidation contracts; this
-phase may extend those contracts for GI signals but may not create a parallel
-temporal framework.
-
-#### Key Deliverables
-- Screen-space ray marching, hierarchical depth, and hit validation
-- Feature 030 temporal-framework integration for GI history rejection, neighborhood filtering, and denoising
-- Render Graph passes, quality presets, debug views, and deterministic fixtures
-- Camera-cut, disocclusion, ghosting, performance, and native tests
-
-#### What's Excluded
-- SDF tracing, surface caches, hardware RT, and final hybrid GI policy
-
-#### Speckit Prompt
-```text
-Implement Screen-Space GI on Features 013, 019, and 030: deferred-surface ray marching, hierarchical depth, hit validation, temporal accumulation and denoising, Render Graph passes, quality presets, debug views, deterministic fixtures, camera-cut and disocclusion handling, ghosting diagnostics, performance counters, and native tests. Reuse and extend Feature 030's motion vectors, deterministic jitter, previous/current ViewProjection state, history ping-pong, reprojection, rejection, and neighborhood-clamp contracts; do not create a duplicate temporal framework. Exclude SDF tracing, surface caches, hardware ray tracing, and hybrid GI integration.
-```
-
-### Phase 040 — Asset: SDF & Surface Cache
+### Phase 049 — Asset: SDF & Surface Cache Assets
 
 **Layer**: Asset
-**Dependencies**: 024, 025, 026, 033
-**Complexity**: XL (2-4 weeks)
-**Critical Path**: ❌ No — screen-space and ray-traced effects remain usable
+**Dependencies**: 024, 025, 026, 045
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ❌ No — independent later expansion or portability track
 
 #### Scope
-Cook, load, stream, and validate mesh SDF and surface-cache derived assets.
-Asset owns CPU/cooked representations; Renderer owns GPU realization.
+Cook and stream mesh SDF plus immutable surface/card descriptors and material attributes. Renderer owns runtime surface capture, dynamic lighting/radiance updates and GPU residency; dynamic radiance must not be serialized as immutable Asset authority. Keep offline representation and runtime cache lifecycles explicit before hybrid GI.
 
 #### Key Deliverables
-- `FMeshSDFAsset`, `FSurfaceCacheAsset`, page/chunk records, and derived keys
-- Deterministic voxelization, distance-field generation, and surface capture cooking
-- Runtime requests, streaming/residency integration, and Renderer adapters
-- Error bounds, invalidation, memory-pressure, and visualization tests
+- FMeshSDFAsset and FSurfaceCacheAsset; bounded voxelization, page/chunk records and derived keys
+- Surface parameterization/material descriptors, Renderer capture adapters and invalidation diagnostics
 
 #### What's Excluded
-- GI tracing/integration, world partition, and production virtual geometry
+- GI tracing/integration, world partition and production virtual geometry
+
+#### Delivery Milestones
+- M0: SDF error-bound and reproducibility tests
+- M1: static surface descriptors and Renderer update boundary
+- M2: residency pressure and cache invalidation
 
 #### Speckit Prompt
 ```text
-Implement SDF and Surface Cache Assets on Features 024, 025, 026, and 033: FMeshSDFAsset and FSurfaceCacheAsset; deterministic voxelization, distance-field and surface-capture cooking; versioned derived keys; page and chunk records; runtime requests; streaming and residency integration; Renderer-owned GPU adapters; error-bound validation; invalidation diagnostics; memory-pressure tests; and debug visualization. Exclude GI tracing, world partition, and production virtual geometry.
+Implement Asset SDF & Surface Cache Assets on Features 024, 025, 026, 045. Cook and stream mesh SDF plus immutable surface/card descriptors and material attributes. Renderer owns runtime surface capture, dynamic lighting/radiance updates and GPU residency; dynamic radiance must not be serialized as immutable Asset authority. Keep offline representation and runtime cache lifecycles explicit before hybrid GI. Deliver FMeshSDFAsset and FSurfaceCacheAsset; bounded voxelization, page/chunk records and derived keys; Surface parameterization/material descriptors, Renderer capture adapters and invalidation diagnostics. Milestones: M0: SDF error-bound and reproducibility tests; M1: static surface descriptors and Renderer update boundary; M2: residency pressure and cache invalidation. Exclude GI tracing/integration, world partition and production virtual geometry. Keep Asset CPU-only; Renderer owns GPU realization. Use reproducible derived-data tests and cross-platform CI.
 ```
 
-### Phase 041 — Renderer: Hybrid GI Integration
+### Phase 050 — Renderer: Hybrid GI Integration
 
 **Layer**: Renderer
-**Dependencies**: 033, 038, 039, 040
-**Complexity**: XL (2-4 weeks)
-**Critical Path**: ❌ No — all component lighting paths remain independently usable
+**Dependencies**: 031, 041, 045, 046, 048, 049
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ❌ No — independent later expansion or portability track
 
 #### Scope
-Combine screen-space, SDF/surface-cache, and hardware ray-traced signals into a
-quality-scalable dynamic GI strategy with deterministic fallback policy.
+Compose screen-space, SDF/surface-cache and hardware RT signals with explicit confidence, energy accounting and fallback priority. Reuse the Feature 031 temporal framework through 046/048; keep each component independently usable and profile routing/denoising costs.
 
 #### Key Deliverables
-- `FHybridGlobalIllumination` policy and signal-composition passes
-- Screen-space, SDF/cache, and hardware RT routing and fallback hierarchy
-- Radiance history/cache management, temporal stabilization, and denoising
-- Quality presets, residency coordination, benchmarks, diagnostics, and tests
+- FHybridGlobalIllumination; routing and signal composition
+- Radiance cache update policy, residency coordination and temporal stabilization
+- Quality presets, reference scenes, budgets and native evidence
 
 #### What's Excluded
-- Baked lightmaps, full path tracing, and production-scale world partition
+- Baked lightmaps, full path tracing and production world partition
+
+#### Delivery Milestones
+- M0: screen-space plus one fallback
+- M1: three-source routing and cache updates
+- M2: combined-scene quality/performance closeout
 
 #### Speckit Prompt
 ```text
-Implement Hybrid Global Illumination on Features 033, 038, 039, and 040: FHybridGlobalIllumination; composition of screen-space, SDF/surface-cache, and hardware ray-traced signals; explicit fallback hierarchy; radiance history and cache management; temporal stabilization and denoising; streaming/residency coordination; Render Graph integration; quality presets; benchmarks; diagnostics; comparison evidence; and native tests. Reuse the Feature 030 motion-vector, jitter, history, and reprojection framework through Feature 039 rather than introducing another temporal framework. Exclude baked lightmaps, full path tracing, and production world partition.
+Implement Renderer Hybrid GI Integration on Features 031, 041, 045, 046, 048, 049. Compose screen-space, SDF/surface-cache and hardware RT signals with explicit confidence, energy accounting and fallback priority. Reuse the Feature 031 temporal framework through 046/048; keep each component independently usable and profile routing/denoising costs. Deliver FHybridGlobalIllumination; routing and signal composition; Radiance cache update policy, residency coordination and temporal stabilization; Quality presets, reference scenes, budgets and native evidence. Milestones: M0: screen-space plus one fallback; M1: three-source routing and cache updates; M2: combined-scene quality/performance closeout. Exclude Baked lightmaps, full path tracing and production world partition. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it.
 ```
+
+### Phase 051 — Backend: DirectX 12 Backend
+
+**Layer**: Backend
+**Dependencies**: 008, 016, 018, 023, 025, 029, 041
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ❌ No — independent later expansion or portability track
+
+#### Scope
+Implement DX12 as an independent optional portability track: DXGI presentation, descriptor heaps, command lists, synchronization and cooked DXIL bytecode. Consume current RHI/output/timing contracts with explicit capability fallbacks. These backends do not gate the Vulkan/Metal complete-renderer baseline or screen-space GI.
+
+#### Key Deliverables
+- DX12 resources, commands, pipelines, presentation and native lifecycle tests
+- Shader asset cooking/consumption, output-profile support matrix and backend-neutral demo evidence
+
+#### What's Excluded
+- Xbox and DX12 Ultimate-only features
+- Automatic equivalence to Vulkan/Metal on unsupported effects
+
+#### Delivery Milestones
+- M0: device/resources and strict cooked triangle
+- M1: applicable renderer/output contracts
+- M2: native comparison, failures and performance
+
+#### Speckit Prompt
+```text
+Implement Backend DirectX 12 Backend on Features 008, 016, 018, 023, 025, 029, 041. Implement DX12 as an independent optional portability track: DXGI presentation, descriptor heaps, command lists, synchronization and cooked DXIL bytecode. Consume current RHI/output/timing contracts with explicit capability fallbacks. These backends do not gate the Vulkan/Metal complete-renderer baseline or screen-space GI. Deliver DX12 resources, commands, pipelines, presentation and native lifecycle tests; Shader asset cooking/consumption, output-profile support matrix and backend-neutral demo evidence. Milestones: M0: device/resources and strict cooked triangle; M1: applicable renderer/output contracts; M2: native comparison, failures and performance. Exclude Xbox and DX12 Ultimate-only features; Automatic equivalence to Vulkan/Metal on unsupported effects. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it.
+```
+
+### Phase 052 — Backend: OpenGL Backend
+
+**Layer**: Backend
+**Dependencies**: 008, 016, 018, 023, 025, 029, 041
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ❌ No — independent later expansion or portability track
+
+#### Scope
+Implement OpenGL 4.5 as an independent optional portability track: state-cached command/pipeline emulation, synchronization and cooked GLSL; explicit Windows/Linux availability and unsupported macOS 4.5 policy. Consume current RHI/output/timing contracts with explicit capability fallbacks. These backends do not gate the Vulkan/Metal complete-renderer baseline or screen-space GI.
+
+#### Key Deliverables
+- OpenGL 4.5 resources, commands, pipelines, presentation and native lifecycle tests
+- Shader asset cooking/consumption, output-profile support matrix and backend-neutral demo evidence
+
+#### What's Excluded
+- GLES, WebGL and versions below 4.5
+- Automatic equivalence to Vulkan/Metal on unsupported effects
+
+#### Delivery Milestones
+- M0: device/resources and strict cooked triangle
+- M1: applicable renderer/output contracts
+- M2: native comparison, failures and performance
+
+#### Speckit Prompt
+```text
+Implement Backend OpenGL Backend on Features 008, 016, 018, 023, 025, 029, 041. Implement OpenGL 4.5 as an independent optional portability track: state-cached command/pipeline emulation, synchronization and cooked GLSL; explicit Windows/Linux availability and unsupported macOS 4.5 policy. Consume current RHI/output/timing contracts with explicit capability fallbacks. These backends do not gate the Vulkan/Metal complete-renderer baseline or screen-space GI. Deliver OpenGL 4.5 resources, commands, pipelines, presentation and native lifecycle tests; Shader asset cooking/consumption, output-profile support matrix and backend-neutral demo evidence. Milestones: M0: device/resources and strict cooked triangle; M1: applicable renderer/output contracts; M2: native comparison, failures and performance. Exclude GLES, WebGL and versions below 4.5; Automatic equivalence to Vulkan/Metal on unsupported effects. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it.
+```
+
+### Phase 053 — Backend: GLES Backend
+
+**Layer**: Backend
+**Dependencies**: 008, 016, 018, 023, 025, 029, 041
+**Complexity**: XL (milestone-scoped; estimate after specification)
+**Critical Path**: ❌ No — independent later expansion or portability track
+
+#### Scope
+Implement GLES 3.2 as an independent optional portability track: reduced-capability tables, GLSL ES, precision/context-loss tests and desktop EGL validation. Consume current RHI/output/timing contracts with explicit capability fallbacks. These backends do not gate the Vulkan/Metal complete-renderer baseline or screen-space GI.
+
+#### Key Deliverables
+- GLES 3.2 resources, commands, pipelines, presentation and native lifecycle tests
+- Shader asset cooking/consumption, output-profile support matrix and backend-neutral demo evidence
+
+#### What's Excluded
+- Android lifecycle/packaging/input/deployment, WebGL and versions below 3.2
+- Automatic equivalence to Vulkan/Metal on unsupported effects
+
+#### Delivery Milestones
+- M0: device/resources and strict cooked triangle
+- M1: applicable renderer/output contracts
+- M2: native comparison, failures and performance
+
+#### Speckit Prompt
+```text
+Implement Backend GLES Backend on Features 008, 016, 018, 023, 025, 029, 041. Implement GLES 3.2 as an independent optional portability track: reduced-capability tables, GLSL ES, precision/context-loss tests and desktop EGL validation. Consume current RHI/output/timing contracts with explicit capability fallbacks. These backends do not gate the Vulkan/Metal complete-renderer baseline or screen-space GI. Deliver GLES 3.2 resources, commands, pipelines, presentation and native lifecycle tests; Shader asset cooking/consumption, output-profile support matrix and backend-neutral demo evidence. Milestones: M0: device/resources and strict cooked triangle; M1: applicable renderer/output contracts; M2: native comparison, failures and performance. Exclude Android lifecycle/packaging/input/deployment, WebGL and versions below 3.2; Automatic equivalence to Vulkan/Metal on unsupported effects. Use the existing Render Graph and backend-neutral Renderer/RHI ownership. Validate applicable Vulkan/Metal native execution and explicit Unsupported/fallback cases. Changed formal SDR output requires a workload revision bump, exact-dimension Candidate, explicit maintainer acceptance, no alignment/cropping/scaling/resampling, and bounded PNG/JSON evidence. HDR appearance remains live maintainer authority under the Feature 029 platform policy; automation must not score or accept it.
+```
+
+---
+
+## Complete Rendering Pipeline Layout
+
+This is a dependency layout, not a claim that each row is one serial GPU pass.
+The target is a complete baseline raster renderer, not every production-engine
+feature. Water, animation, general OIT, fluid simulation and a post-process
+editor remain explicit later extensions.
+
+| Order / branch | Color or data domain | Owner and rules |
+|---|---|---|
+| View/scene preparation | Current/previous transforms and jitter | 017 + 031; define exposure-history compensation and cut/resize/FOV invalidation |
+| Shadow preparation | Light-space depth and visibility | 032 conventional maps/CSM; 033 filtering; 039 virtual page/cache alternative |
+| Depth/GBuffer and shared depth pyramid | Depth, normal, material, velocity | 019 + 031 + 033; depth requests can schedule dirty virtual-shadow pages before lighting |
+| Sun/sky LUTs and cloud-shadow branch | Scene-linear lighting inputs | 034 + 036; cloud shadow/transmittance needed by lighting must be produced first |
+| Opaque lighting, AO and reflections | Unexposed linear HDR | 032/033 shadows + 034 environment + 040 AO/SSR; lighting consumes only valid shadow pages |
+| Sky, atmosphere, cloud/fog and transparency composition | Linear HDR radiance + transmittance/depth | 034-036; define medium ordering and transparency participation; avoid double extinction |
+| Exposure measurement/control | Histogram/EV, not display color | 037 computes optional adaptation from the declared pre-exposure source; manual mode stays available |
+| Manual/resolved exposure and ordered pre-tonemap effects | Exposed linear HDR | 029 + 038 DOF -> 031 TAA -> 038 motion blur -> 037 bloom and scene-referred grading |
+| One SDR/HDR viewing transform | Display-linear output | 029 remains sole owner; HDR does not first run an SDR curve |
+| Post-tonemap effects | Explicit display-referred domain | 031 FXAA fallback, 037 display finishing; FXAA replaces TAA in the fallback mode, not a mandatory second AA |
+| UI composition | Display-linear RGB in the output gamut | 030 UI after scene post-processing; defined reference white and linear alpha blend; bypass exposure/TAA/DOF/bloom; UI disabled for formal scene captures by default |
+| Output transfer/native packing and terminals | Encoded SDR/PQ or linear EDR | 029 alone owns output transfer/packing; native presentation and separate bounded captures; interactive display does not require per-frame synchronous CPU readback |
+
+Not all effects belong in a generic fullscreen post-process list: shadow
+visibility feeds lighting; sky/fog/cloud composition produces SceneColor;
+bloom/DOF/motion blur use the established pre-tonemap contract. Interactive UI
+uses Feature 030's display-referred composition contract instead of silently inheriting
+HDR exposure. Volume-specific reprojection extends the shared temporal services;
+opaque motion vectors alone cannot model changing participating media.
+
+### Shared implementation and evidence gates
+
+- Vulkan and Metal are the baseline native pair. New effects extend the RHI
+  only where needed (timestamps, volume resources, shadow views/samplers,
+  indirect buffers), with capability tests included in the owning phase.
+- Each effect gets neutral/off parity, isolated correctness, combined-graph,
+  invalidation and bounded resource/sample checks. Full GPU/CPU timing and
+  measured performance-budget gates are deferred to Feature 041; Feature 042 validates interactions with
+  a bounded indoor/outdoor/time-of-day/weather/camera-motion corpus.
+- Static image tests use manual exposure and a pinned temporal settle point.
+  Dynamic tests use reproducible camera/light/weather sequences and bounded
+  summary/sample evidence, not unlimited per-frame captures.
+- Keep formal Accepted PNG/JSON and human decisions; raw PPMs and DDC are
+  regenerable. Use explicit manifests, reader-lease checks and retain-current
+  policies for pruning. Evidence-impact decisions must be explicit, never
+  an automatic visual acceptance or reuse of the 029 closeout exception.
+- Later features changing formal output bump workload revision and need fresh
+  exact-dimension Candidates and explicit acceptance. No automatic alignment,
+  crop, scale or resampling; HDR visual authority remains live human review.
 
 ---
 
@@ -1488,47 +2090,69 @@ ray-tracing, and GI work. Its v2 `sampleCount=1`, no-general-post-processing
 references remain historical correctness evidence rather than Candidates that
 future output changes may silently overwrite.
 
-### Advanced Rendering
+### Near-Term Complete Renderer
 
 ```text
-013 + 015 + 018 + 019 + 027 + 028 -> 029 HDR Output Transform
-004 + 013 + 015 + 017 + 019 + 028 + 029 -> 030 AA/Temporal Reconstruction
-
-024 + 025 + 026 + 028 -> 031 Meshlet Derived Data
-031 -> 032 GPU Visibility/LOD
-022 + 026 + 031 + 032 -> 033 Streaming/Residency
-
-012 + 024 + 025 + 026 -> 037 RT RHI/Backend Foundation
-019 + 026 + 037 -> 038 Ray-Traced Effects
-013 + 019 + 030 -> 039 Screen-Space GI
-024 + 025 + 026 + 033 -> 040 SDF/Surface Cache
-033 + 038 + 039 + 040 -> 041 Hybrid GI
+030 interactive rendering lab/ImGui -> 031 AA/temporal
+032 shadow maps/CSM -> 033 contact shadows/filtering/shared depth pyramid
+034 atmosphere/environment -> 035 height/volumetric fog -> 036 clouds
+037 exposure/bloom/grading -> 038 DOF/motion blur
+039 virtual shadows + 040 AO/SSR -> 041 full profiling
+-> 042 integrated raster quality baseline
 ```
 
-Feature 031 deliberately retains the original Meshlet dependencies on 024,
-025, 026, and 028; neither 029 nor 030 is a prerequisite for derived mesh
-data. Feature 039 consumes and extends Feature 030's temporal contracts instead
-of defining duplicate motion-vector, jitter, history, or reprojection systems.
+This is the recommended work queue, not additional hidden dependency edges.
+The phase table/DAG is authoritative: atmosphere and post-processing can overlap
+once their own prerequisites are complete. Virtual shadows refine, rather than
+replace the existence of, the conventional shadow-map fallback.
 
-### Additional Backends
+### Advanced Geometry and Lighting
 
 ```text
-008 + 016 + 018 + 023 + 025 -> 034 DX12
-008 + 016 + 018 + 023 + 025 -> 035 OpenGL
-008 + 016 + 018 + 023 + 025 -> 036 GLES
+024 + 025 + 026 + 028 -> 043 Meshlet Derived Data
+008 + 013 + 041 + 033 + 043 -> 044 GPU Visibility/LOD
+022 + 026 + 043 + 044 -> 045 Streaming/Residency
+
+013 + 019 + 031 + 041 + 040 -> 046 Screen-Space GI
+008 + 012 + 024 + 025 + 026 + 041 -> 047 RT RHI/Vulkan Foundation
+013 + 019 + 026 + 031 + 032 + 040 + 047 -> 048 Ray-Traced Effects
+024 + 025 + 026 + 045 -> 049 SDF/Surface Cache
+031 + 041 + 045 + 046 + 048 + 049 -> 050 Hybrid GI
 ```
 
-These backend phases may run in parallel after shader assets and cooked payloads
-are stable. GLES validates graphics capabilities only; Android lifecycle,
-packaging, input, and deployment require a future Application/platform phase.
+Feature 043 retains the original Meshlet dependencies on 024/025/026/028,
+without a post-processing or virtual-shadow prerequisite. Feature 046 can be
+explored after the raster baseline without waiting for RT or another backend.
+Features 046/048/050 reuse Feature 031's motion-vector, jitter, history and
+reprojection contracts; volume effects use appropriate signal-specific adapters.
+
+### Optional Additional Backends
+
+```text
+008 + 016 + 018 + 023 + 025 + 029 + 041 -> 051 DX12
+008 + 016 + 018 + 023 + 025 + 029 + 041 -> 052 OpenGL
+008 + 016 + 018 + 023 + 025 + 029 + 041 -> 053 GLES
+```
+
+These are independent portability/learning tracks, not prerequisites for the
+Vulkan/Metal complete renderer or SSGI. Platform availability and reduced
+capabilities must be explicit. GLES does not deliver an Android application.
 
 ### Recommended Solo Order
 
 ```text
-020 -> 021 -> 022 -> 023 -> 024 -> 025 -> 026 -> 027
--> 028 -> 029 -> 030 -> 031 -> 032 -> 033 -> 034
--> 035 -> 036 -> 037 -> 038 -> 039 -> 040 -> 041
+Completed 003-029
+-> 030 interactive lab/ImGui -> 031 -> 032 -> 033 -> 034 -> 035 -> 036
+-> 037 -> 038 -> 039 -> 040 -> 041 full profiling -> 042
+-> choose 043/044/045 geometry-residency or 046 screen-space GI
+-> 047/048 RT -> 049/050 hybrid lighting when prerequisites are ready
+
+051/052/053 extra backends: independent, demand-driven tracks
 ```
+
+Numbering is stable identity and a valid topological listing, not a requirement
+to wait for unrelated earlier-numbered phases. Feature 049 still needs 045;
+choosing the SSGI track first does not waive that dependency.
 
 At each batch boundary, address accepted S0-S2 debt that affects the next
 feature. Feature 020 closed CR001-B09-F003 with the reusable test-suite
@@ -1568,16 +2192,21 @@ Meshlets:
 | Compressed formats expand RHI/backend scope | High | High | Isolate Feature 022 and require per-format backend capability tests |
 | Async cancellation races with unload | High | Medium | Explicit request state machine, retained handles, idempotent cleanup, stress tests |
 | Offline cooker and runtime manager drift | High | Medium | Separate Features 025/026 but require identical AssetId, manifest, and payload contracts |
-| Immutable generations and local DDC grow without bound | Medium | High | Feature 026 exposes reader leases; a future Tools/Packaging track owns retention, pruning, quarantine cleanup, and DDC GC |
+| Immutable generations and local DDC grow without bound | Medium | High | Feature 026 exposes reader leases; manifest-driven Tools maintenance owns retention/pruning now; larger packaging/remote-DDC services remain later work |
 | Meshlet/BLAS/SDF data becomes a second authority | High | Medium | Treat all as versioned derived assets from canonical static meshes |
 | Vulkan assumptions leak before a second backend | High | Medium | Implement native Metal at 027 before advanced rendering expands |
 | Advanced rendering phases become multi-subsystem rewrites | High | High | Separate data, backend contracts, renderer effects, temporal methods, and final integration |
 | Forward and Deferred or Vulkan and Metal apply different output transforms | High | Medium | Feature 029 owns one backend-neutral HDR SceneColor, tone-map version, transfer, presentation, and readback contract |
 | Image acceptance hides output changes through geometric normalization | High | Medium | Require exact dimensions, workload revision bumps, new Candidates, explicit maintainer acceptance, and reject alignment, crop, scale, or resampling |
-| Temporal consumers duplicate motion/history infrastructure or retain stale history | High | High | Feature 030 owns jitter, motion vectors, history, reprojection, rejection, and invalidation; Feature 039 must reuse it |
+| Temporal consumers duplicate motion/history infrastructure or retain stale history | High | High | Feature 031 owns shared lifetime/jitter/reprojection services; 033/035/036/038/039/040/046/048/050 use signal-specific adapters instead of another framework |
 | Desktop GL and GLES capability policy diverges | Medium | High | Separate phases and explicit fallback tables; keep Android app concerns outside GLES |
 | Oversized Vulkan validation responsibility propagates into another native backend | High | Medium | Decompose CR001-B09-F005 before Feature 027; CR001-B09-F003 was closed by Feature 020 |
 | Third-party format dependency changes | Medium | Medium | Vendor pinned versions, record licenses, wrap behind importer/cooker contracts |
+| Virtual shadows grow beyond bounded atlas/performance budgets | High | High | 039 uses conventional indexed meshes and explicit overflow/CSM fallback; no Nanite-equivalent scale claim |
+| Atmosphere, clouds and fog double-apply extinction or lose shadow ordering | High | Medium | Declare radiance/transmittance ownership and pre-light cloud-shadow dependencies; validate combined scenes in 042 |
+| Camera effects violate HDR/temporal order | High | High | 029 owns output transform; 031 owns temporal services; 037/038 declare domains, exposure policy and effect order |
+| Optional backends delay a complete renderer | High | High | 031-042 is the near-term queue; 051-053 remain independent |
+| UI input steals camera control or HDR widgets inherit scene exposure | High | Medium | 030 owns capture arbitration, focus/cursor lifecycle and display-linear reference-white composition; later effects reuse its controls and keep formal scene captures UI-free |
 | Roadmap number drift returns | High | Low | Enforce feature/phase parity across TOC, table, DAG, and details |
 | Hosted CI lacks a real GPU | Medium | High | Deterministic tests everywhere, Lavapipe native gates, manual visible evidence when required |
 | Contract fixtures pass while production content exposes untested composition or scale behavior | High | High | Feature 028 adds licensed artist-authored assets, strict-cooked end-to-end loading, tiered corpus gates, and visible Vulkan/Metal evidence before later image and geometry work |
@@ -1612,7 +2241,9 @@ regular producer/consumer, sanitizer, medium shard, and aggregate job, and the
 same revision passed both full 1,000/20 packages on maintainer-local M4 Metal.
 Windows closed through the explicitly recorded one-time physical-evidence
 carry-forward without claiming a final-revision hardware run. Feature 029 HDR
-Post-Processing & Output Transform is the next roadmap phase.
+Post-Processing & Output Transform subsequently closed by its own explicit,
+revision-scoped maintainer exception at `2ee7116`; see its phase evidence above.
+Feature 031 Anti-Aliasing & Temporal Reconstruction is the next roadmap phase.
 
 ### Status Legend
 
@@ -1629,6 +2260,10 @@ Post-Processing & Output Transform is the next roadmap phase.
 
 | Date | Version | Change |
 |---|---|---|
+| 2026-09-06 | 3.1.0 | Inserted Application Interactive Rendering Lab & ImGui Integration as next 030; shifted unstarted 030-052 to 031-053. Preserved completed 003-029, Meshlet dependencies and historical evidence. TAA is 031, full Profiling 041, integration 042; no VT insertion. |
+| 2026-09-06 | 3.0.1 | Moved full Profiling from 031 to 040 after rendering effects; shifted former 032-040 to 031-039, removed their profiling prerequisites, and made 040 a prerequisite of 041 integrated acceptance. Completed 003-029 and historical evidence remain unchanged. |
+| 2026-09-06 | 3.0.0 | Prioritized a complete Vulkan/Metal raster renderer: kept 030 temporal next; added 031-041 profiling, raster/CSM/contact/variance/virtual shadows, atmosphere/environment, fog, clouds, post-processing, AO/SSR and integration. Moved only unstarted geometry/GI/RT/backend phases to 042-052; preserved Meshlet dependencies and completed 003-029 evidence. Added shared depth/temporal contracts, milestone budgets and explicit migration mapping. |
+| 2026-09-06 | 2.3.2 | Closed Feature 029 at `2ee7116` by explicit maintainer exception: hosted 14/14 and current M4 SDR/HDR machine evidence passed; current M4 SDR accepted; historical `1f46352` Windows SDR and +3 EV HDR visual conclusion retained with current Windows rerun and repeated HDR viewing/separate attestation waived. No strict same-SHA aggregate pass is claimed. Feature 030 is next; Feature 031 and Feature 039 dependencies remain unchanged. |
 | 2026-09-02 | 2.3.1 | Expanded Feature 029 from SDR-only output to the clarified Unreal-style SDR/PQ/scRGB output-device matrix; froze the Rec.709/sRGB-D65 working space and SDR/HDR transform split; made macOS Metal live human review the sole HDR visual authority; retained Windows SDR but no Windows HDR validation; and separated SDR Candidate/reference automation from bounded HDR maintainer attestations. |
 | 2026-09-01 | 2.3.0 | Inserted Feature 029 HDR Post-Processing & Output Transform and Feature 030 Anti-Aliasing & Temporal Reconstruction after completed Feature 028; shifted the former future Features 029-039 to 031-041; preserved Meshlet dependencies; made Screen-Space GI reuse the Feature 030 temporal foundation; and retained Feature 028 v2 as immutable historical correctness evidence with revisioned, exact-dimension, maintainer-accepted future Candidates. |
 | 2026-09-01 | 2.2.2 | Marked Feature 028 complete at implementation revision `588d245` after hosted run 33467298777 and final M4 Metal authority passed; recorded the maintainer-approved one-time Windows physical-evidence carry-forward without fabricating a final-revision run; activated Meshlet Derived Data under the then-current numbering, subsequently renumbered to Feature 031 by Roadmap 2.3. |
