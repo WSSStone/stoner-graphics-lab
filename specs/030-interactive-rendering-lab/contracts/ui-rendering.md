@@ -1,0 +1,55 @@
+# UI Draw, Texture and Display Composition Contract
+
+## Public value boundary
+
+Renderer exposes proposed `FUIDrawSnapshot`, `FUIVertex`, `FUIDrawCommand`, `FUITextureId`, `FUITextureRequest`, `FUITextureResult` and `FUICompositionSettings`. Application-private adapters translate ImGui into these values. `FUITextureId` is a slot plus generation, not a pointer. A snapshot owns copied arrays and texture-generation leases; it is immutable after preparation. Renderer never includes ImGui headers.
+
+`FUIVertex`: float2 logical position, float2 UV, packed RGBA8 sRGB RGB and linear coverage alpha. `FUIDrawCommand`: first index, index count, base vertex, texture identity, finite logical clip rectangle and typed operation (Draw or ResetState). Normalize upstream 16/32-bit indices into uint32 before bounded packet validation; retain nonzero first-index/base-vertex behavior. ResetState rebinds known engine state; arbitrary callbacks are rejected.
+
+Validate checked byte products, triangle-multiple index counts, effective vertex bounds (including base vertex), complete texture leases, finite position/UV/clip values and monotonic frame/settings/display identities before publishing. Empty/clipped commands are no-ops. Clamp scissors after translating `(ClipRect - DisplayPos) * FramebufferScale`, floor minimum and ceil maximum, then intersect drawable bounds. Never cast a negative scissor coordinate to unsigned before clamping.
+
+## Pinned private integration
+
+Dear ImGui v1.92.5 at `6d910d5487d11ca567b61c7824b0c78c569d62f0` uses one uniform private config. Enable 32-bit Unicode; disable default Win32/shell/file functions and automatic ini/log persistence. Only four core source files build; no official renderer/platform backend or docking support. Retain MIT and font notices plus per-file SHA-256 provenance. Cousine-Regular from the same commit is embedded as a build-generated immutable font blob; no runtime font/source search. This built-in font is distinct from strict-cooked scene loading.
+
+Application owns the context, font CPU storage, platform clipboard callbacks and texture-state acknowledgements. Advertise RendererHasTextures only when the complete create/update/destroy path is operational. Fixed UI and validated bounded user text prevent unbounded widget creation. Report ImGui allocation failure as a terminal UI-initialization failure or cleanly disable UI before publishing a frame; do not return a null allocation into an unchecked library path and claim graceful recovery.
+
+## Texture state and retirement
+
+Application-to-Renderer CPU texture requests contain `RequestId`, operation, logical texture slot, expected generation, width/height, format/color-domain and copied full pixel payload. Normalize alpha-only fonts to RGBA8 with RGB white and linear alpha. Updates produce a new GPU generation from the complete retained CPU image; the first milestone does not mutate an in-flight texture. Bilinear clamp sampling is fixed.
+
+Renderer-produced diagnostic textures use a separate Renderer-private registration operation in `FUITextureRegistry`, not a CPU pixel request. Register a retained RHI texture/resource-generation lease, extent/format/color-domain, producer pass and frame/settings/display identities; return only an ordinary `FUITextureId` to Application. This registration creates no CPU shadow, upload or readback. The producing Render Graph pass must precede every UI sample, and the snapshot lease keeps that exact GPU generation valid until its rendering use completes. A per-slot diagnostic target cannot be rewritten while any earlier snapshot still reads it. Reject stale identities, unsupported sampling formats and producer dependencies that are absent, cyclic or later than the terminal UI operation.
+
+These GPU registrations count toward the same 256 slots, 512 generations and 64 MiB GPU texture budget. Their <=1024x1024 diagnostic allocations also count in the slot-target 1 GiB preflight; these are two independent ceilings on the same allocation, not two physical allocations. CPU shadow bytes for such a registration are zero. Registry unregistration releases only its lease after render consumers finish; the Renderer target owner performs destruction when all owners release it. No upstream ImGui create/update/destroy acknowledgement is associated with this Renderer-owned source.
+
+CPUUpload request states: Requested -> Prepared -> UploadQueued -> Ready -> Retiring -> Destroyed; preparation failure returns an error without changing the current ID. Preparation results are acknowledged to ImGui only after engine resource creation succeeds. UploadQueued generations may appear in snapshots only with an explicit ordered upload-before-draw dependency; they are never reported GPU-completed prematurely. Old IDs remain leased by queued frames. Destroy acknowledgement requires zero prepared/queued snapshot leases and completion of every upload/render submission that uses that texture generation. The presentation engine consumes the composed output image, not font/widget textures; do not retain their leases until presentation release.
+
+If a request cannot fit the total active+retired budgets, defer one frame while retiring ready work, up to 120 eligible frames or 5 seconds, whichever comes first. Then disable UI with a diagnostic, retaining valid scene presentation. No indefinite accumulation. Minimized time consumes no eligible-frame retries and issues no uploads; close cancels CPU-pending requests. A new valid UI initialization/retry command can recreate state.
+
+## Composition domains and equations
+
+Scene post-processing and tone/viewing transform execute as in Feature 029. UI is the final display-linear insertion, ordered after every scene post-tonemap operation and before `OutputDeviceTransform`.
+
+| Effective profile | Scene/UI blend domain | UI unit-white contribution |
+| --- | --- | --- |
+| SDR sRGB/BT709/gamma22 | normalized display-linear Rec.709 D65 | UIWhiteMultiplier |
+| PQ 1000/2000 | display-linear Rec.2020 D65, nits | 100 * UIWhiteMultiplier nits |
+| Metal EDR 1000/2000 | display-linear Rec.709 D65, nits | native-resolved UIReferenceWhiteNits * UIWhiteMultiplier |
+
+`UIWhiteMultiplier` defaults to 1 and accepts [0.25, 2]. `UIReferenceWhiteNits`, output profile and final native packing denominator are captured from one effective display generation; EDR never uses a stale or hardcoded 100-nit packing white. SDR multiplier above one may clip at the existing final SDR output transform; show this fact rather than extending the profile's peak. UI is bounded and display-referred, not a new HDR viewing transform.
+
+Decode vertex RGB in the vertex stage before interpolation. SRGBRec709 textures use a sampled sRGB format that decodes texels before bilinear filtering (or equivalent predecoded linear storage); never shader-decode an already filtered encoded-UNorm sample. LinearRec709 and AlphaCoverage sample/filter linearly without another RGB decode. Multiply the resulting linear vertex and texture RGB, transform Rec.709 to Rec.2020 once for PQ, then apply unit-white contribution. Linear-Rec.709 texture RGB skips sRGB decode. Coverage is vertex alpha times texture alpha; it is never gamma-decoded. The renderer computes `Cout = Csrc * coverage + Cdst * (1 - coverage)` in the domain above. RGB may be HDR after white scaling; alpha remains [0,1]. Texture color-domain tags are restricted to SRGBRec709, LinearRec709 or AlphaCoverage; other tags reject before submission.
+
+A scene-copy pass initializes a distinct RGBA16F composition target with scene RGB and alpha one. An indexed UI pass loads that target, writes RGB only, disables depth test/write and culling, and uses source-alpha/one-minus-source-alpha/Add. New RHI `ERHIColorWriteMask` flags map to native Vulkan/Metal masks; default RGBA preserves old behavior. Validate flags, pipeline cache fingerprints and failure paths. No general independent-alpha extension is required.
+
+The sole final output transfer consumes the composite. Existing tone/viewing already performs scene gamut conversion; final transfer must not add a second conversion. UI bypasses exposure, TAA, bloom, DOF and motion blur. Hidden/empty UI uses the unchanged scene graph without a UI target. Future effects register before this terminal UI operation; duplicate/late scene insertions reject.
+
+## Failure and shader ownership
+
+Validate all UI requests, geometry and targets before native submission. On preparation failure, select original scene-only post-tonemap input and mark UI failed. A native execution failure cannot be relabeled as a successful fallback; retire/drain or terminate with the original error.
+
+New repository-owned `Content/Shaders/UI/{UIDraw.vert,UIDraw.frag,UICopy.frag}` and shader descriptors use existing offline GLSL/SPIR-V validation and deterministic MSL/metallib derivation. UI may reuse `PostProcess/Fullscreen.vert` for the copy. UI-enabled lab cooking explicitly adds UI shader roots alongside production roots into new immutable generations for each target. UI-off lab startup (`--lab-ui off`) requires only the existing scene/output closure and performs no UI shader/font/texture preparation. UI-on startup requires scene plus UI shader closure in the selected immutable generation; missing UI dependencies fail startup explicitly. Later F1/UI-enable attempts validate UI dependencies in that same generation before changing visibility: if missing, keep UI off with an Unavailable diagnostic and continue the scene. Do not cook, switch generations or load shader source at runtime. An initially UI-off session with a complete lab generation may enable UI after this preflight succeeds. Formal UI-off consumers continue requiring only their existing closure. No runtime source compilation, raw-file shader fallback or changes to historical cooked packages.
+
+## Conformance
+
+Test RGB-only mask preserves alpha=1 on both backends; default RGBA retains old pipelines. Cover textured alpha, nonzero offsets, invalid bounds, unknown callbacks, scale/clipping, queued texture replacement and budget saturation. Numeric fixtures use black/white/primary colors and alpha 0/0.5/1 at exposure -3/0/+3. CPU linear reference tolerance is 1e-6 absolute + 1e-6 relative. GPU half-float composition tolerance is 0.002 absolute + 0.005 relative in the declared blend domain; output transfer keeps the existing profile-specific tolerance (including native quantization). Existing formal image tolerances are not widened. HDR numeric checks never judge physical appearance.

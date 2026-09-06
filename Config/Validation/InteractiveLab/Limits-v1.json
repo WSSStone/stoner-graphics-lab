@@ -1,0 +1,329 @@
+{
+  "schema": "stoner.interactive-lab-limits",
+  "schemaVersion": 1,
+  "limitsId": "interactive-lab-limits-v1",
+  "units": {
+    "bytesPerMiB": 1048576,
+    "bytesPerGiB": 1073741824,
+    "angles": "radians unless a field is explicitly named Degrees",
+    "time": "seconds",
+    "drawableExtent": "pixels",
+    "uiCoordinates": "logical pixels"
+  },
+  "camera": {
+    "basis": {
+      "forward": "+X",
+      "right": "+Y",
+      "up": "+Z",
+      "projection": "positive-X StandardZ",
+      "yConvention": "existing"
+    },
+    "pose": {
+      "position": "finite",
+      "orientation": "finite-normalized",
+      "roll": "disabled"
+    },
+    "movement": {
+      "defaultSpeedWorldUnitsPerSecond": 1.5,
+      "minimumSpeedWorldUnitsPerSecond": 0.01,
+      "maximumSpeedWorldUnitsPerSecond": 100,
+      "shiftMultiplier": 4,
+      "forwardKeys": [
+        "W",
+        "S"
+      ],
+      "horizontalKeys": [
+        "A",
+        "D"
+      ],
+      "verticalKeys": [
+        "E",
+        "Q"
+      ],
+      "summedAxes": "normalize"
+    },
+    "look": {
+      "owner": "right-mouse",
+      "radiansPerLogicalPixel": 0.003,
+      "pitchClampDegrees": {
+        "minimum": -89,
+        "maximum": 89
+      }
+    },
+    "verticalFovDegrees": {
+      "minimum": 20,
+      "maximum": 90,
+      "default": "workload",
+      "wheelRadiansPerUnit": -0.035
+    },
+    "clipping": {
+      "workloadDefaults": {
+        "nearPlane": 0.1,
+        "farPlane": 100
+      },
+      "import": {
+        "minimumNearPlane": 0.0001,
+        "maximumFarPlane": 1000000,
+        "requiresNearLessThanFar": true
+      }
+    },
+    "aspect": "current-drawable-width-divided-by-current-drawable-height",
+    "noJitter": true,
+    "elapsed": {
+      "rejectNonFinite": true,
+      "rejectNegative": true,
+      "maximumStepSeconds": 0.25,
+      "firstActiveIntervalSeconds": 0,
+      "firstResumedIntervalSeconds": 0
+    }
+  },
+  "tolerances": {
+    "cameraMatrixAffineOrthonormal": 0.0001,
+    "cameraMatrixInverseIdentity": 0.0005,
+    "cameraRepeatability": {
+      "straightMotionPositionUnits": 0.0001,
+      "lookOrientationOrMatrix": 0.0001,
+      "cadencesHz": [
+        30,
+        60,
+        120
+      ],
+      "durationSeconds": 1
+    },
+    "uiCompositionCpu": {
+      "absolute": 1e-06,
+      "relative": 1e-06
+    },
+    "uiCompositionGpuHalfFloat": {
+      "absolute": 0.002,
+      "relative": 0.005
+    },
+    "outputTransform": {
+      "registry": "Config/Validation/OutputTransform/Profiles.json",
+      "cpuDouble": {
+        "absoluteFloor": 1e-10,
+        "relativeFraction": 1e-10
+      },
+      "sdrLinearRgb": {
+        "absoluteChannelError": 0.00784313725490196
+      },
+      "hdrPq10Decoded": {
+        "absoluteFloorNits": 0.02,
+        "relativeFraction": 0.0025,
+        "nativeStepMultiplier": 1.5,
+        "xyzPropagationEpsilon": 1e-06
+      },
+      "hdrFp16Decoded": {
+        "absoluteFloorNits": 0.02,
+        "relativeFraction": 0.0025,
+        "nativeStepMultiplier": 2,
+        "xyzPropagationEpsilon": 1e-06
+      },
+      "formalImagePolicy": "inherited-output-transform-policy-without-widening"
+    }
+  },
+  "display": {
+    "drawable": {
+      "maximumWidth": 4096,
+      "maximumHeight": 4096,
+      "maximumPixels": 7864320,
+      "zeroExtent": "pause",
+      "unsupportedExtent": "reject-without-resampling",
+      "laterValidResize": "recover"
+    },
+    "contentScale": {
+      "minimum": 0.5,
+      "maximum": 4
+    },
+    "aspectSource": "current-drawable",
+    "scaleRatios": [
+      1,
+      1.5,
+      2
+    ]
+  },
+  "runtime": {
+    "nativeWindows": 1,
+    "loadedWorkloads": 1,
+    "framesInFlight": {
+      "exact": 2,
+      "maximum": 2,
+      "busySlotBehavior": "yield-event-service",
+      "thirdSlot": "never-allocate"
+    },
+    "swapchain": {
+      "maximumImagesPerActiveGeneration": 8,
+      "maximumPresentationLeasesPerActiveGeneration": 8,
+      "recreate": "mode-specific-retirement-see-contract",
+      "minimumAboveLimit": "unsupported",
+      "maximumImagesPerGeneration": 8,
+      "maximumPresentationLeasesPerGeneration": 8,
+      "fallback": {
+        "maximumActiveGenerations": 1,
+        "maximumRetiringGenerations": 1,
+        "maximumTotalGenerations": 2,
+        "maximumTotalAcquisitionPresentationRecords": 16,
+        "aggregateEstimatedColorStorageMaximumBytes": 536870912,
+        "opaqueDriverOverheadExcluded": true,
+        "overflow": "coalesce-latest-request-pause-then-transition-timeout",
+        "terminalCleanupAssurance": "IdleAssumed",
+        "terminalDeviceIdleMaximumCalls": 1
+      }
+    },
+    "slotRenderTargets": {
+      "aggregateMaximumBytes": 1073741824,
+      "aggregateMaximumMiB": 1024,
+      "includes": [
+        "both-slots",
+        "retiring-targets"
+      ],
+      "backendMemoryLimitMayBeLower": true,
+      "uiEnabledDeferredBytesPerPixelPerSlot": 64,
+      "borrowedFinalTargetExcluded": true,
+      "maximumDrawableFootprintBytes": 1006632960,
+      "maximumDrawableFootprintMiB": 960,
+      "remainingDiagnosticAlignmentBytes": 67108864,
+      "preflightExtraAttachments": true
+    },
+    "submission": {
+      "maximumActiveOutputRequests": 1,
+      "maximumPendingOutputRequests": 1,
+      "deferredCompletion": "accepted-is-not-completed",
+      "captureDisabledReadbackCopies": 0,
+      "captureDisabledReadbackMappings": 0,
+      "captureDisabledReadbackWaits": 0,
+      "captureDisabledPerFrameQueueDeviceIdleCalls": 0
+    },
+    "pendingPreset": {
+      "maximumRecords": 1,
+      "zeroExtentBehavior": "hold-until-non-zero-extent-cancel-or-close",
+      "partialCommit": false,
+      "renderingWhilePaused": false
+    }
+  },
+  "settings": {
+    "manualExposureStops": {
+      "minimum": -16,
+      "maximum": 16
+    },
+    "outputRequests": {
+      "maximumActive": 1,
+      "maximumPending": 1,
+      "newestValidReplacesPending": true,
+      "invalidRequestReplacesValidState": false
+    }
+  },
+  "input": {
+    "eventsPerInterval": 4096,
+    "overflow": "cancel-gestures-quarantine-input-and-latch-close-focus",
+    "committedTextUtf8BytesPerInterval": 4096,
+    "editableValueOrClipboardUtf8Bytes": 65536,
+    "embeddedNul": "reject",
+    "invalidUtf8": "reject"
+  },
+  "ui": {
+    "verticesPerSnapshot": 262144,
+    "indicesPerSnapshot": 786432,
+    "vertexBytes": 20,
+    "indexType": "uint32",
+    "commandsPerSnapshot": 4096,
+    "snapshotStaging": {
+      "immutablePacketCount": 2,
+      "immutablePacketMaximumBytes": 9437184,
+      "immutablePacketMaximumMiB": 9,
+      "constructionBufferMaximumBytes": 9437184,
+      "constructionBufferMaximumMiB": 9
+    },
+    "logicalTextureSlots": 256,
+    "textureGenerations": 512,
+    "textures": {
+      "maximumWidth": 2048,
+      "maximumHeight": 2048,
+      "format": "rgba8",
+      "gpuAggregateMaximumBytes": 67108864,
+      "gpuAggregateMaximumMiB": 64,
+      "cpuShadowAggregateMaximumBytes": 67108864,
+      "cpuShadowAggregateMaximumMiB": 64
+    },
+    "upload": {
+      "maximumPayloadPerEligibleFrameBytes": 16777216,
+      "maximumPayloadPerEligibleFrameMiB": 16,
+      "maximumRequestsPerEligibleFrame": 64
+    },
+    "diagnosticVisualization": {
+      "maximumWidth": 1024,
+      "maximumHeight": 1024,
+      "gpuBudgetCountsTowardTextureBudget": true,
+      "slotTargetBudgetCountsTowardSameAllocation": true,
+      "countsTowardGpuTextureBudgetBytes": 67108864,
+      "countsTowardSlotTargetBudgetBytes": 1073741824,
+      "cpuShadowBytes": 0
+    },
+    "font": {
+      "supportedContentScaleMinimum": 0.5,
+      "supportedContentScaleMaximum": 4,
+      "rasterSizeCacheMaximum": 16
+    },
+    "whiteMultiplier": {
+      "default": 1,
+      "minimum": 0.25,
+      "maximum": 2
+    }
+  },
+  "preset": {
+    "maximumBytes": 65536,
+    "maximumKiB": 64,
+    "maximumJsonDepth": 8,
+    "maximumJsonValues": 256,
+    "maximumIdentityStringBytes": 4096,
+    "pendingValidatedRecords": 1
+  },
+  "capture": {
+    "maximumQueuedRequestsIncludingActive": 2,
+    "maximumReadbackCompletionsProcessedPerFrame": 1,
+    "stagingAggregateMaximumBytes": 134217728,
+    "stagingAggregateMaximumMiB": 128,
+    "implicitReadback": false,
+    "hiddenResampling": false
+  },
+  "diagnostics": {
+    "ringEntries": 256,
+    "maximumUtf8BytesPerEntry": 1024,
+    "aggregateCounters": "monotonic",
+    "overflow": "evict-oldest-detail-retain-counts-and-first-terminal-failure"
+  },
+  "deadlines": {
+    "textureRetry": {
+      "maximumEligibleFrames": 120,
+      "maximumSeconds": 5,
+      "expiry": "first-reached"
+    },
+    "outputTransitionSeconds": 5,
+    "outputDrainSeconds": 5,
+    "captureSeconds": 5,
+    "eventServiceWait": {
+      "busyMaximumMilliseconds": 16,
+      "minimizedMaximumMilliseconds": 50
+    },
+    "watchdog": {
+      "validationChildHungProcessMaximumSeconds": 10,
+      "forcedTermination": "record-residual-owners-and-failure",
+      "terminalShutdownMaximumSeconds": 10,
+      "appliesTo": [
+        "interactive-lab",
+        "validation-child"
+      ]
+    }
+  },
+  "evidence": {
+    "maximumReportBytes": 1048576,
+    "maximumReferencedArtifactsPerReport": 64,
+    "maximumArtifactBytes": 67108864,
+    "maximumReferencedArtifactAggregateBytes": 268435456,
+    "optionalRssGrowthDiagnosticBytes": 16777216,
+    "gpuTime": "unavailable-until-feature-041",
+    "formalSdr": "current-frozen-software-with-inherited-exact-dimension-policy",
+    "humanHdr": "current-maintainer-record-required",
+    "historicalCarryForward": false
+  }
+}

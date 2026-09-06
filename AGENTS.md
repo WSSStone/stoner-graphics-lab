@@ -1,4 +1,16 @@
 <!-- SPECKIT START -->
+Feature 030 implementation is partial (19/127 reviewed tasks); native closeout remains pending. Read
+`specs/030-interactive-rendering-lab/spec.md` and
+`specs/030-interactive-rendering-lab/plan.md` plus its contracts before task generation.
+The plan fixes private Dear ImGui v1.92.5 at
+`6d910d5487d11ca567b61c7824b0c78c569d62f0`, current-drawable preset adaptation,
+UI-first input ownership, terminal display-linear UI composition, and real
+bounded Vulkan/Metal deferred submission with two frame slots. Formal evidence
+and current human HDR authority remain separate; no 030 hardware pass is claimed.
+Vulkan must query optional maintenance1 support and select presentation fences or
+bounded acquire-history fallback; missing extension inventory does not block
+implementation. See the 030 runtime contract for transition limits and
+explicitly qualified terminal compatibility cleanup.
 Feature 027 Backend: Metal is complete. Hosted matrix run 32392504204 passed all
 ten Windows/macOS/Linux build, strict Release, sanitizer, derivation, and native
 probe jobs for revision `f3e8b12`; required hardware run 32394691067 passed the
@@ -144,8 +156,11 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Checked-in bounded Lantern GLB and corpus metadata; externally staged hash-pinned Sponza medium package; local immutable DDC and cooked generations; checked-in baseline policy/reference images and bounded validation evidence; no database, archive, remote cache, or runtime source fallback (028-production-content-acceptance)
 - C++20 with traditional public/private headers and sources; Objective-C++20 remains private to Metal; GLSL with checked-in SPIR-V; Python 3 standard-library validation scripts + Existing Core, RHI, Renderer, Application, Asset, AssetCooker, Vulkan, Metal, Demo, Render Graph, production-content acceptance, SCons 4.10.1, offline GLSL/SPIR-V validation, existing SPIRV-Cross/offline metallib path; official ACES package `v2.0.0+2025.04.04` (`35e1e6a`) is the pinned reference authority for a repository-owned deterministic CPU/GLSL implementation and vectors, not a runtime dependency (029-hdr-output-transform)
 - Process-local frame plans, graph declarations, presentation capability snapshots, native resources, readback records, and diagnostics; checked-in shader source/SPIR-V, canonical profile/schema files, bounded PNG/JSON evidence, and immutable accepted SDR references; raw readbacks/logs remain under ignored `Build/Validation/029/`; no database, runtime shader compilation, automatic exposure history, or temporal state (029-hdr-output-transform)
+- C++20 with traditional public/private headers and sources; private Objective-C++20 remains in Metal; C for existing yyjson; Python 3 standard-library validation scripts + Existing Core, Application, Asset, Renderer, RHI, Vulkan and Metal; SCons 4.10.1; GLFW desktop adapter; optional VK_EXT_swapchain_maintenance1 presentation fences with runtime detection and bounded acquire-history fallback; private Dear ImGui v1.92.5 at 6d910d5487d11ca567b61c7824b0c78c569d62f0; existing yyjson 0.12.0; existing offline GLSL/SPIR-V, SPIRV-Cross and metallib pipeline (030-interactive-rendering-lab)
+- Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
+- 030-interactive-rendering-lab: Camera/RHI foundations and Metal asynchronous presentation are partially implemented; remaining work includes Vulkan capability-selected presentation-fence/acquire-history paths, ImGui integration and current-evidence validation. Optional maintenance1 is not an implementation gate.
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system
 - 007-rhi-core-interfaces: Planned RHI device, capabilities, command buffer, queue, synchronization, headless swapchain, result/status, and mock-test contracts
 - 008-rhi-resource-pipeline: Planned RHI buffer, texture, sampler, shader module, descriptor, pipeline, render pass, framebuffer, lifecycle invalidation, and mock-test contracts
