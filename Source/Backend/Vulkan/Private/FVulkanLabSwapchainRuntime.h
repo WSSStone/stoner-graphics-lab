@@ -95,6 +95,7 @@ struct FVulkanLabSwapchainRuntimeSnapshot
     Stoner::Core::uint32 OutstandingNativeRecordCount = 0;
     Stoner::Core::uint32 PendingAcquireCount = 0;
     Stoner::Core::uint64 EstimatedColorBytes = 0;
+    Stoner::Core::uint64 PeakEstimatedColorBytes = 0;
     VkResult FirstNativeFailure = VK_SUCCESS;
     Stoner::Core::uint32 AbandonedNativeOwnerCount = 0;
     Stoner::Core::uint32 ResidualNativeOwnerCount = 0;
@@ -335,6 +336,7 @@ private:
     // while the sixteen per-image records remain available for retirement.
     std::array<FNativeAcquire, 2> PendingAcquires_{};
     FVulkanLabSwapchainCreateDesc PendingResize_;
+    Stoner::Core::uint64 PeakEstimatedColorBytes_ = 0;
     bool bHasPendingResize_ = false;
     bool bPausedZeroExtent_ = false;
     bool bInitialized_ = false;

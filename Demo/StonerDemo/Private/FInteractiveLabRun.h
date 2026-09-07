@@ -1,6 +1,7 @@
 #pragma once
 
 #include "FDemoBackendFactory.h"
+#include "FLabProductionFrameContext.h"
 
 #include <functional>
 
@@ -14,6 +15,9 @@ struct FInteractiveLabRunResult
     Core::uint32 SubmittedFrames = 0;
     Core::uint32 RenderCompletedFrames = 0;
     Core::uint32 PresentedFrames = 0;
+    FLabProductionFrameContextSnapshot FinalFrameState;
+    FDemoLabPresentationStatus BeforeNativeShutdown;
+    FDemoLabPresentationStatus AfterNativeShutdown;
     RHI::ERHIShutdownAssurance ShutdownAssurance = RHI::ERHIShutdownAssurance::Unknown;
     Core::FString FirstFailure;
 };

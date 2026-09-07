@@ -191,6 +191,11 @@ RunMetalNativeIntegrationTests(bool bRequireNative)
         "native Metal queues preserve transfer ordering and retained resources");
     Record(Result, RunUnalignedTextureReadback(Created.Device),
         "native Metal normalizes unaligned texture readback rows");
+    const auto Operations = Created.Device->GetRuntimeSnapshot().NativeOperations;
+    Record(Result, Operations.bAvailable && Operations.ImageReadbackCopyCount > 0 &&
+        Operations.ReadbackMapCount > 0 && Operations.SubmittedRenderCount > 0 &&
+        Operations.SuccessfulRenderCompletionCount > 0,
+        "native Metal counters observe actual encoded readback and render completion");
     const auto Shutdown = Created.Device->Shutdown();
     FMetalBackendInspection Inspection;
     Record(Result,

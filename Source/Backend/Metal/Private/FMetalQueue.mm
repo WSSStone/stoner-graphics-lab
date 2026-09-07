@@ -245,7 +245,7 @@ RHI::ERHIResult FMetalQueue::SubmitInternal(
             else
             {
                 Result = EncodeMetalBlitCommand(
-                    (__bridge void*)Native, Records[Index]);
+                    (__bridge void*)Native, Records[Index], GetOwner().get());
                 Consumed = 1;
             }
             if (Result != RHI::ERHIResult::Success || Consumed == 0)
@@ -294,8 +294,11 @@ RHI::ERHIResult FMetalQueue::SubmitInternal(
             Commands->CompleteSubmission(); GetOwner()->EndSubmission();
             return RHI::ERHIResult::InvalidState;
         }
+        const bool bHasReadback = std::any_of(Records.begin(), Records.end(), [](const auto& Record) {
+            return Record.Type == RHI::ERHISymbolicCommandType::TextureToBufferCopy;
+        });
         const Core::uint64 FenceEpoch = NativeFence
-            ? NativeFence->ReserveSubmissionSignal() : 0;
+            ? NativeFence->ReserveSubmissionSignal(bHasReadback) : 0;
         if (NativeFence && FenceEpoch == 0)
         {
             for (Core::usize Index = 0; Index < SignalEpochs.size(); ++Index)
@@ -366,6 +369,7 @@ RHI::ERHIResult FMetalQueue::SubmitInternal(
         for (Core::usize Index = 0; Index < Waits.size(); ++Index)
             Waits[Index]->CommitSubmissionWait(WaitEpochs[Index]);
         [Native commit];
+        GetOwner()->RecordNativeOperation(EMetalNativeOperation::RenderSubmit);
         PruneCompleted();
         return RHI::ERHIResult::Success;
     }
@@ -373,6 +377,7 @@ RHI::ERHIResult FMetalQueue::SubmitInternal(
 
 RHI::ERHIResult FMetalQueue::WaitIdle()
 {
+    if (GetOwner()) GetOwner()->RecordNativeOperation(EMetalNativeOperation::QueueIdle);
     Core::TArray<Core::TSharedPtr<FMetalSubmission>> Snapshot;
     try
     {

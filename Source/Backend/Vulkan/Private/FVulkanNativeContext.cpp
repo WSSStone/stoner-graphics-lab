@@ -28,6 +28,7 @@
 #endif
 
 #include <algorithm>
+#include <chrono>
 #include <array>
 #include <cctype>
 #include <cstdint>
@@ -683,6 +684,60 @@ struct FVulkanNativeContext::FImpl
     Stoner::RHI::ERHIShutdownAssurance LabShutdownAssurance =
         Stoner::RHI::ERHIShutdownAssurance::Unknown;
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    void UpdateLabStatistics() noexcept
+    {
+        if (!LabRuntime) return;
+        const auto Native = LabRuntime->GetSnapshot();
+        auto& Out = Snapshot.NativePresentation;
+        Out.bAvailable = true;
+        Out.ActiveGeneration = Native.ActiveGeneration;
+        Out.RetiringGeneration = Native.RetiringGeneration;
+        Out.ActiveImageCount = Native.ActiveImageCount;
+        Out.RetiringImageCount = Native.RetiringImageCount;
+        Out.PendingAcquireCount = Native.PendingAcquireCount;
+        Out.AcquisitionRecordCount = Native.OutstandingNativeRecordCount;
+        Out.EstimatedColorBytes = Native.EstimatedColorBytes;
+        Out.PeakEstimatedColorBytes = Native.PeakEstimatedColorBytes;
+        Out.ResidualNativeOwners = Native.ResidualNativeOwnerCount;
+        Out.AbandonedNativeOwners = Native.AbandonedNativeOwnerCount;
+        Out.PresentationOwnerCount = 0;
+        for (const auto& Bridge : LabTokens)
+            Out.PresentationOwnerCount += Bridge.bOccupied && Bridge.bPresentQueued ? 1 : 0;
+    }
+
+    VkResult WaitForFences(uint32_t Count, const VkFence* Fences, VkBool32 All, uint64_t Timeout) noexcept
+    {
+        ++Snapshot.NativeOperations.FenceWaitCallCount;
+        return vkWaitForFences(Device, Count, Fences, All, Timeout);
+    }
+    VkResult WaitForReadbackFences(uint32_t Count, const VkFence* Fences, VkBool32 All, uint64_t Timeout) noexcept
+    {
+        ++Snapshot.NativeOperations.ReadbackWaitCount;
+        return WaitForFences(Count, Fences, All, Timeout);
+    }
+    VkResult WaitDeviceIdle() noexcept
+    {
+        ++Snapshot.NativeOperations.DeviceIdleCallCount;
+        return vkDeviceWaitIdle(Device);
+    }
+    VkResult WaitQueueIdle() noexcept
+    {
+        ++Snapshot.NativeOperations.QueueIdleCallCount;
+        return vkQueueWaitIdle(GraphicsQueue);
+    }
+    void CopyImageToBuffer(VkCommandBuffer Commands, VkImage Source, VkImageLayout Layout,
+        VkBuffer Destination, uint32_t Count, const VkBufferImageCopy* Regions) noexcept
+    {
+        ++Snapshot.NativeOperations.ImageReadbackCopyCount;
+        vkCmdCopyImageToBuffer(Commands, Source, Layout, Destination, Count, Regions);
+    }
+    VkResult MapReadbackMemory(VkDeviceMemory Memory, VkDeviceSize Offset, VkDeviceSize Size,
+        VkMemoryMapFlags Flags, void** Data) noexcept
+    {
+        ++Snapshot.NativeOperations.ReadbackMapCount;
+        return vkMapMemory(Device, Memory, Offset, Size, Flags, Data);
+    }
+
     using ERHIResult = Stoner::RHI::ERHIResult;
     using FRHIDescriptorBinding = Stoner::RHI::FRHIDescriptorBinding;
     using FRHIPipelineLayoutDesc = Stoner::RHI::FRHIPipelineLayoutDesc;
@@ -2152,7 +2207,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     ReadbackRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     ReadbackRegion.imageSubresource.layerCount = 1;
     ReadbackRegion.imageExtent = {64, 64, 1};
-    vkCmdCopyImageToBuffer(
+    Impl->CopyImageToBuffer(
         Impl->CommandBuffer,
         Impl->ColorImage,
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -2166,10 +2221,9 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteOffscreenTriangle(
     VkSubmitInfo Submit = MakeVulkanStruct<VkSubmitInfo>(VK_STRUCTURE_TYPE_SUBMIT_INFO);
     Submit.commandBufferCount = 1; Submit.pCommandBuffers = &Impl->CommandBuffer;
     if (vkQueueSubmit(Impl->GraphicsQueue, 1, &Submit, Impl->Fence) != VK_SUCCESS ||
-        vkWaitForFences(Impl->Device, 1, &Impl->Fence, VK_TRUE, 30ull * 1000ull * 1000ull * 1000ull) != VK_SUCCESS) return Fail();
+        Impl->WaitForReadbackFences(1, &Impl->Fence, VK_TRUE, 30ull * 1000ull * 1000ull * 1000ull) != VK_SUCCESS) return Fail();
     void* Readback = nullptr;
-    if (vkMapMemory(
-            Impl->Device, Impl->ReadbackMemory, 0,
+    if (Impl->MapReadbackMemory(Impl->ReadbackMemory, 0,
             ReadbackSize, 0, &Readback) != VK_SUCCESS)
     {
         return Fail();
@@ -2350,7 +2404,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleTriangle(
     Impl->VisibleVertexShader = VertexShader;
     Impl->VisibleFragmentShader = FragmentShader;
     Impl->bHasVisibleShaders = true;
-    vkDeviceWaitIdle(Impl->Device);
+    Impl->WaitDeviceIdle();
     Impl->DestroyFrameResources();
     const auto Fail = [this]() { Impl->DestroyFrameResources(); return Stoner::RHI::ERHIResult::Failed; };
 
@@ -2588,7 +2642,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleImage(
         return Stoner::RHI::ERHIResult::InvalidState;
     if (Width == 0 || Height == 0)
         return Stoner::RHI::ERHIResult::Unavailable;
-    vkDeviceWaitIdle(Impl->Device);
+    Impl->WaitDeviceIdle();
     Impl->DestroyFrameResources();
     Impl->bHasVisibleShaders = false;
     const auto Fail = [this]() {
@@ -3426,6 +3480,7 @@ void FVulkanNativeContext::SweepLabRetirements() noexcept
         {
             continue;
         }
+        if (bPresentationProof) ++Impl->Snapshot.NativeOperations.ProvenPresentationReleaseCount;
         if (Bridge.PresentationFenceState)
         {
             if (bPresentationProof)
@@ -4019,6 +4074,9 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::BeginLabTerminalCleanup() noexcept
     {
         return Stoner::RHI::ERHIResult::Success;
     }
+    Impl->UpdateLabStatistics();
+    Impl->Snapshot.NativePresentation.PreCleanupPresentationOwners =
+        Impl->Snapshot.NativePresentation.PresentationOwnerCount;
     return Impl->LabRuntime->BeginTerminalCleanup();
 #else
     return Stoner::RHI::ERHIResult::Unsupported;
@@ -4063,6 +4121,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::DestroyLabAfterTerminalProof() noe
     {
         return Result;
     }
+    Impl->UpdateLabStatistics();
     Impl->LabShutdownAssurance = Impl->LabRuntime->GetSnapshot().ShutdownAssurance;
     Impl->bLabCallbackEnabled = false;
     Impl->LabRuntime->SetPresentationRetirementCallback(nullptr, nullptr);
@@ -4099,6 +4158,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::DestroyLabAfterTerminalProof() noe
         }
         Bridge = {};
     }
+    Impl->Snapshot.NativePresentation.PresentationOwnerCount = 0;
     Impl->LabRuntime.reset();
     Impl->bLabPresentationStartup = false;
     Impl->LabResolvedState = {};
@@ -4144,8 +4204,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleTextureExact(
 
     const Stoner::Core::uint32 FrameSlot = Impl->CurrentFrameSlot %
         static_cast<Stoner::Core::uint32>(Impl->VisibleFences.size());
-    const VkResult Wait = vkWaitForFences(
-        Impl->Device, 1, &Impl->VisibleFences[FrameSlot], VK_TRUE,
+    const VkResult Wait = Impl->WaitForFences(1, &Impl->VisibleFences[FrameSlot], VK_TRUE,
         30ull * 1000ull * 1000ull * 1000ull);
     if (Wait != VK_SUCCESS)
         return Wait == VK_TIMEOUT ? Stoner::RHI::ERHIResult::Timeout
@@ -4241,8 +4300,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleTextureExact(
         Impl->bAcquiredSuboptimal = false;
         return Stoner::RHI::ERHIResult::Failed;
     }
-    const VkResult Completed = vkWaitForFences(
-        Impl->Device, 1, &Impl->VisibleFences[FrameSlot], VK_TRUE,
+    const VkResult Completed = Impl->WaitForFences(1, &Impl->VisibleFences[FrameSlot], VK_TRUE,
         30ull * 1000ull * 1000ull * 1000ull);
     if (Completed != VK_SUCCESS)
     {
@@ -4349,8 +4407,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
 
     const Stoner::Core::uint32 FrameSlot = Impl->CurrentFrameSlot %
         static_cast<Stoner::Core::uint32>(Impl->VisibleFences.size());
-    const VkResult Wait = vkWaitForFences(
-        Impl->Device, 1, &Impl->VisibleFences[FrameSlot], VK_TRUE,
+    const VkResult Wait = Impl->WaitForFences(1, &Impl->VisibleFences[FrameSlot], VK_TRUE,
         30ull * 1000ull * 1000ull * 1000ull);
     if (Wait != VK_SUCCESS)
         return Wait == VK_TIMEOUT
@@ -4417,7 +4474,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
         Commands, VK_PIPELINE_STAGE_TRANSFER_BIT,
         VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr,
         1, &ToSource);
-    vkCmdCopyImageToBuffer(
+    Impl->CopyImageToBuffer(
         Commands, Impl->SwapchainImages[ImageIndex],
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         Impl->VisibleImageReadbackBuffer, 1, &Region);
@@ -4457,8 +4514,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
         Impl->bAcquiredSuboptimal = false;
         return Stoner::RHI::ERHIResult::Failed;
     }
-    const VkResult Completed = vkWaitForFences(
-        Impl->Device, 1, &Impl->VisibleFences[FrameSlot], VK_TRUE,
+    const VkResult Completed = Impl->WaitForReadbackFences(1, &Impl->VisibleFences[FrameSlot], VK_TRUE,
         30ull * 1000ull * 1000ull * 1000ull);
     if (Completed != VK_SUCCESS)
     {
@@ -4469,8 +4525,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PresentVisibleRgba8(
             : Stoner::RHI::ERHIResult::Failed;
     }
     Mapped = nullptr;
-    if (vkMapMemory(
-            Impl->Device, Impl->VisibleImageReadbackMemory, 0,
+    if (Impl->MapReadbackMemory(Impl->VisibleImageReadbackMemory, 0,
             TargetByteCount, 0, &Mapped) != VK_SUCCESS)
     {
         Impl->AbandonAcquiredVisibleFrame();
@@ -4554,7 +4609,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::AcquireVisibleFrame(
         Impl->bFrameAcquired)
         return Stoner::RHI::ERHIResult::InvalidState;
     const Stoner::Core::uint32 FrameSlot = Impl->CurrentFrameSlot % static_cast<Stoner::Core::uint32>(Impl->VisibleFences.size());
-    const VkResult WaitResult = vkWaitForFences(Impl->Device, 1, &Impl->VisibleFences[FrameSlot], VK_TRUE, 30ull * 1000ull * 1000ull * 1000ull);
+    const VkResult WaitResult = Impl->WaitForFences(1, &Impl->VisibleFences[FrameSlot], VK_TRUE, 30ull * 1000ull * 1000ull * 1000ull);
     if (WaitResult == VK_TIMEOUT) return Stoner::RHI::ERHIResult::Timeout;
     if (WaitResult != VK_SUCCESS) return Stoner::RHI::ERHIResult::Failed;
     Stoner::Core::uint32 ImageIndex = 0;
@@ -4768,7 +4823,19 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()
             Impl->bLabTerminalDeviceIdleProven;
         if (!bLabIdleAlreadyProven)
         {
-            IdleResult = vkDeviceWaitIdle(Impl->Device);
+            auto& Terminal = Impl->Snapshot.NativePresentation;
+            const bool LabTerminal = Impl->bLabPresentationStartup;
+            if (LabTerminal) ++Terminal.TerminalIdleCallCount;
+            const auto IdleStarted = std::chrono::steady_clock::now();
+            IdleResult = Impl->WaitDeviceIdle();
+            if (LabTerminal)
+            {
+                Terminal.TerminalIdleNanoseconds += static_cast<Stoner::Core::uint64>(
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        std::chrono::steady_clock::now() - IdleStarted).count());
+                Terminal.TerminalIdleNativeResult = static_cast<Stoner::Core::int32>(IdleResult);
+                Terminal.bTerminalIdleCompleted = true;
+            }
             if (IdleResult == VK_SUCCESS && Impl->LabRuntime)
             {
                 // Retain this lifecycle proof for a retryable preferred-mode
@@ -4868,7 +4935,11 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()
     Impl->LabPresentationSelection = {};
     Impl->bLabPresentationStartup = false;
 #endif
+    const auto NativePresentation = Impl->Snapshot.NativePresentation;
+    const auto NativeOperations = Impl->Snapshot.NativeOperations;
     Impl->Snapshot = {};
+    Impl->Snapshot.NativeOperations = NativeOperations;
+    Impl->Snapshot.NativePresentation = NativePresentation;
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
     if (IdleResult != VK_SUCCESS)
     {
@@ -4887,7 +4958,37 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()
     return Stoner::RHI::ERHIResult::Success;
 }
 
-const Stoner::RHI::FRHIRuntimeSnapshot& FVulkanNativeContext::GetSnapshot() const noexcept { return Impl->Snapshot; }
+const Stoner::RHI::FRHIRuntimeSnapshot& FVulkanNativeContext::GetSnapshot() const noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (Impl->Device) Impl->Snapshot.NativeOperations.bAvailable = true;
+    Impl->UpdateLabStatistics();
+    Impl->Snapshot.NativeOperations.RetainedSubmissionOwnerCount =
+        Impl->DeferredSubmissions.size() + Impl->FailedSynchronousSubmissions.size();
+#endif
+    return Impl->Snapshot;
+}
+
+void FVulkanNativeContext::RecordNativeRenderOperation(bool bCompletion) noexcept
+{
+    if (!Impl) return;
+    if (bCompletion) ++Impl->Snapshot.NativeOperations.SuccessfulRenderCompletionCount;
+    else ++Impl->Snapshot.NativeOperations.SubmittedRenderCount;
+}
+
+void FVulkanNativeContext::RecordNativeImageReadback(bool bMapping) noexcept
+{
+    if (!Impl) return;
+    if (bMapping) ++Impl->Snapshot.NativeOperations.ReadbackMapCount;
+    else ++Impl->Snapshot.NativeOperations.ImageReadbackCopyCount;
+}
+
+void FVulkanNativeContext::RecordNativeSubmissionWait(bool bReadback) noexcept
+{
+    if (!Impl) return;
+    ++Impl->Snapshot.NativeOperations.FenceWaitCallCount;
+    if (bReadback) ++Impl->Snapshot.NativeOperations.ReadbackWaitCount;
+}
 bool FVulkanNativeContext::IsAvailable() const noexcept { return Impl && Impl->Snapshot.ProvesNativeExecution(); }
 
 Stoner::RHI::ERHIResult FVulkanNativeContext::CreateOwnedShaderModule(
@@ -5665,7 +5766,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::UploadOwnedTexture(
         if (bSubmitted &&
             Impl->GraphicsQueue != VK_NULL_HANDLE)
         {
-            (void)vkQueueWaitIdle(Impl->GraphicsQueue);
+            (void)Impl->WaitQueueIdle();
             bSubmitted = false;
         }
         if (Fence != VK_NULL_HANDLE)
@@ -5885,9 +5986,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::UploadOwnedTexture(
         return Fail(ERHIResult::Failed);
     }
     bSubmitted = true;
-    NativeResult = vkWaitForFences(
-        Impl->Device,
-        1,
+    NativeResult = Impl->WaitForFences(1,
         &Fence,
         VK_TRUE,
         30ULL * 1000ULL * 1000ULL * 1000ULL);
@@ -5980,7 +6079,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ReadbackOwnedTexture(
         if (bSubmitted &&
             Impl->GraphicsQueue != VK_NULL_HANDLE)
         {
-            (void)vkQueueWaitIdle(Impl->GraphicsQueue);
+            (void)Impl->WaitQueueIdle();
             bSubmitted = false;
         }
         if (Fence != VK_NULL_HANDLE)
@@ -6118,7 +6217,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ReadbackOwnedTexture(
         Width,
         Height,
         Depth};
-    vkCmdCopyImageToBuffer(
+    Impl->CopyImageToBuffer(
         CommandBuffer,
         Texture.Image,
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -6169,9 +6268,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ReadbackOwnedTexture(
         return Fail(ERHIResult::Failed);
     }
     bSubmitted = true;
-    NativeResult = vkWaitForFences(
-        Impl->Device,
-        1,
+    NativeResult = Impl->WaitForReadbackFences(1,
         &Fence,
         VK_TRUE,
         30ULL * 1000ULL * 1000ULL * 1000ULL);
@@ -6185,9 +6282,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ReadbackOwnedTexture(
     bSubmitted = false;
 
     void* Mapped = nullptr;
-    NativeResult = vkMapMemory(
-        Impl->Device,
-        ReadbackMemory,
+    NativeResult = Impl->MapReadbackMemory(ReadbackMemory,
         0,
         ByteSize,
         0,
@@ -6981,7 +7076,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommandsInternal(
                     static_cast<Stoner::Core::int32>(Record.TextureToBufferCopy.SourceZ)};
                 Copy.imageExtent = {Record.TextureToBufferCopy.Width,
                     Record.TextureToBufferCopy.Height, Record.TextureToBufferCopy.Depth};
-                vkCmdCopyImageToBuffer(CommandBuffer, NativeTexture->Image,
+                Impl->CopyImageToBuffer(CommandBuffer, NativeTexture->Image,
                     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Buffer->Buffer, 1, &Copy);
                 ReadbackBuffers.insert(Record.BufferA.get());
                 if (!Submission->MarkReadbackBuffer(Record.BufferA.get()))
@@ -7560,7 +7655,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::FinalizeDeferredSubmission(
         if (Found == Impl->PersistentNativeBuffers.end())
             return ERHIResult::InvalidState;
         void* Mapped = nullptr;
-        if (vkMapMemory(Impl->Device, Found->second.Memory, 0,
+        if (Impl->MapReadbackMemory(Found->second.Memory, 0,
                 Buffer->GetSizeInBytes(), 0, &Mapped) != VK_SUCCESS)
             return ERHIResult::Failed;
         try

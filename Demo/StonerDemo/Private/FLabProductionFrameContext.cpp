@@ -177,6 +177,10 @@ struct FLabProductionFrameContext::FImpl
     std::array<FSlot, FLabProductionFrameLimits::MaxSlots> Slots;
     TArray<FPresentationRecord> Presentations;
     FString FailureReason;
+    uint64 SubmittedFrameCount = 0;
+    uint64 RenderCompletedFrameCount = 0;
+    uint64 RenderRetiredFrameCount = 0;
+    uint64 ProvenPresentationReleaseCount = 0;
     uint64 ActiveAttachmentBytes = 0;
     uint64 PeakAttachmentBytes = 0;
     uint64 LastFrameToken = 0;
@@ -765,6 +769,7 @@ RHI::ERHIResult FLabProductionFrameContext::SubmitFrame(
         Fail(OutReason, "interactive deferred submission failed");
         return Submission.Result;
     }
+    ++Impl_->SubmittedFrameCount;
     Slot->bSubmitted = true;
     Slot->State = ELabProductionFrameState::Submitted;
     Impl_->LastFrameState = Slot->State;
@@ -857,6 +862,7 @@ RHI::ERHIResult FLabProductionFrameContext::PollRender(
         // Completion and execution result are independent facts. Preserve
         // the completed owner even when the harness reports its first native
         // failure, so terminal cleanup can still drain/reset it later.
+        if (!Slot->bRenderComplete) ++Impl_->RenderCompletedFrameCount;
         Slot->bRenderComplete = true;
         if (Slot->State == ELabProductionFrameState::Submitted)
             Slot->State = ELabProductionFrameState::RenderCompleted;
@@ -933,6 +939,7 @@ RHI::ERHIResult FLabProductionFrameContext::PollPresentation(
     if (!Found->Lease.PresentationCompletionFence ||
         !Found->Lease.PresentationCompletionFence->IsSignaled())
         return RHI::ERHIResult::NotReady;
+    ++Impl_->ProvenPresentationReleaseCount;
     Impl_->Presentations.erase(Found);
     bOutRetired = true;
     return RHI::ERHIResult::Success;
@@ -995,6 +1002,7 @@ RHI::ERHIResult FLabProductionFrameContext::RetireCancelled(
     const RHI::ERHIResult RetireResult = Retire.Result;
     if (RetireResult != RHI::ERHIResult::Success)
         Impl_->SetFailure("cancelled frame retirement reported a failure");
+    if (Slot->bSubmitted) ++Impl_->RenderRetiredFrameCount;
     Slot->Target = {};
     Slot->FrameToken = 0;
     Slot->State = ELabProductionFrameState::Free;
@@ -1021,6 +1029,11 @@ FLabProductionFrameContextSnapshot FLabProductionFrameContext::Snapshot() const
 {
     FLabProductionFrameContextSnapshot Out;
     if (!Impl_) return Out;
+    if (Impl_->Device) Out.NativeOperations = Impl_->Device->GetRuntimeSnapshot().NativeOperations;
+    Out.SubmittedFrameCount = Impl_->SubmittedFrameCount;
+    Out.RenderCompletedFrameCount = Impl_->RenderCompletedFrameCount;
+    Out.RenderRetiredFrameCount = Impl_->RenderRetiredFrameCount;
+    Out.ProvenPresentationReleaseCount = Impl_->ProvenPresentationReleaseCount;
     Out.ActiveAttachmentBytes = Impl_->ActiveAttachmentBytes;
     Out.PeakAttachmentBytes = Impl_->PeakAttachmentBytes;
     Out.RetainedPresentationCount =
@@ -1070,6 +1083,7 @@ RHI::ERHIResult FLabProductionFrameContext::RetireRenderResources(
     const RHI::ERHIResult RetireResult = Retire.Result;
     if (RetireResult != RHI::ERHIResult::Success)
         Impl_->SetFailure("render resource retirement reported a failure");
+    if (Slot->bSubmitted) ++Impl_->RenderRetiredFrameCount;
     Slot->Target = {};
     Slot->FrameToken = 0;
     Slot->State = ELabProductionFrameState::Free;

@@ -58,6 +58,8 @@ RHI::ERHIResult FMetalFence::Wait(Core::uint64 TimeoutMicroseconds)
     if (!Ready())
     {
         if (TimeoutMicroseconds == 0) return RHI::ERHIResult::NotReady;
+        GetOwner()->RecordNativeOperation(EMetalNativeOperation::FenceWait);
+        if (bReadbackSubmission_) GetOwner()->RecordNativeOperation(EMetalNativeOperation::ReadbackWait);
         if (!Condition_.wait_for(
                 Lock, std::chrono::microseconds(TimeoutMicroseconds), Ready))
             return RHI::ERHIResult::Timeout;
@@ -78,6 +80,7 @@ RHI::ERHIResult FMetalFence::Reset()
         return RHI::ERHIResult::InvalidState;
     State_ = RHI::ERHIFenceState::Unsignaled;
     bTerminalFailure_ = false;
+    bReadbackSubmission_ = false;
     Condition_.notify_all();
     return RHI::ERHIResult::Success;
 }
@@ -106,13 +109,14 @@ bool FMetalFence::CanSignalForSubmission(
         State_ == RHI::ERHIFenceState::Unsignaled;
 }
 
-Core::uint64 FMetalFence::ReserveSubmissionSignal() noexcept
+Core::uint64 FMetalFence::ReserveSubmissionSignal(bool bReadback) noexcept
 {
     std::lock_guard Lock(Mutex_);
     if (!IsCompatible(GetOwner()) || PendingEpoch_ != 0 ||
         bTerminalFailure_ ||
         State_ != RHI::ERHIFenceState::Unsignaled)
         return 0;
+    bReadbackSubmission_ = bReadback;
     PendingEpoch_ = Epoch_ + 1;
     return PendingEpoch_;
 }

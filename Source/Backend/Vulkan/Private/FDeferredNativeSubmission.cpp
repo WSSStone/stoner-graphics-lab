@@ -123,6 +123,7 @@ Stoner::RHI::ERHIResult FDeferredNativeSubmission::Submit(
         return Result_;
     }
     bSubmitted_ = true;
+    if (Context_) Context_->RecordNativeRenderOperation(false);
     return ERHIResult::Success;
 }
 
@@ -156,6 +157,7 @@ Stoner::RHI::ERHIResult FDeferredNativeSubmission::Poll(
             TimeoutMicroseconds > MaxFiniteTimeout / NanosecondsPerMicrosecond
             ? MaxFiniteTimeout
             : TimeoutMicroseconds * NanosecondsPerMicrosecond;
+        if (Context_) Context_->RecordNativeSubmissionWait(!GetReadbackBuffers().empty());
         NativeResult = vkWaitForFences(
             Device_, 1, &Fence_, VK_TRUE, TimeoutNanoseconds);
     }
@@ -179,6 +181,7 @@ Stoner::RHI::ERHIResult FDeferredNativeSubmission::WaitForCompletion() noexcept
             ? Result_ : ERHIResult::InvalidState;
     if (bComplete_)
         return Result_;
+    if (Context_) Context_->RecordNativeSubmissionWait(!GetReadbackBuffers().empty());
     const VkResult NativeResult = vkWaitForFences(
         Device_, 1, &Fence_, VK_TRUE, std::numeric_limits<uint64_t>::max());
     if (NativeResult != VK_SUCCESS)
@@ -531,6 +534,7 @@ Stoner::RHI::ERHIResult FDeferredNativeSubmission::Complete(
     }
     bComplete_ = true;
     bCompletionProven_ = bSucceeded;
+    if (bSubmitted_ && bSucceeded && Context_) Context_->RecordNativeRenderOperation(true);
     if (bSucceeded)
     {
         Result_ = Stoner::RHI::ERHIResult::Success;

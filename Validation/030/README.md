@@ -849,3 +849,76 @@ same-SHA evidence or HDR visual acceptance. T033 actual native-operation counter
 T034 `us1.json`, remaining failure-boundary tests, hosted/physical closeout and
 current human HDR authority remain open. No formal output or Accepted baseline
 was generated or changed by these preview smokes.
+
+
+## T033 actual native-operation accounting (2026-09-07)
+
+T033 is reviewed complete, bringing implementation to **32/127**. Work pauses
+here at the maintainer's request; T015 and T034 remain unchecked. Native Vulkan
+and Metal operation sites count image-to-buffer copies, CPU readback access,
+readback waits, ordinary fence waits and queue/device idle calls. Successful
+render submissions/completions and independently proven presentation releases
+are distinct totals. Upload mappings are excluded from readback counts.
+
+The Demo retains pre/post-shutdown runtime snapshots and frame retirement
+totals. Native snapshots expose active/retiring generation identities, actual
+image counts, estimated color bytes and their high-water, pending acquisition
+and presentation owners, residual/abandoned owners, and terminal idle call
+count/duration/result. Native owner gauges describe live native objects, not
+retained policy history. Terminal compatibility cleanup may remove owners
+without increasing proven presentation-release totals. Metal native callbacks
+and Vulkan presentation fences/acquire-history proof remain separate from
+render completion. Selected retirement mode/reason and cleanup assurance stay
+in the existing presentation status alongside these counters.
+
+Strict Debug and Release builds passed. The earlier T033 regression run passed
+**391/391** related assertions and **129/129** native assertions per configuration:
+38 Demo lab counters, 47 Vulkan borrowed-target, 13 deferred-native, 4 Metal
+native, 18 Vulkan native, 6 Metal command and 3 Metal resource. The explicit
+readback controls observe nonzero actual copy/map/wait counters where those
+operations execute. Final counter-only root integration was rechecked with
+38 native counter assertions and 101 related Demo/session/watchdog assertions
+per configuration. The architecture guard passes with zero findings; the UI
+startup diagnostic uses backend-neutral terminology.
+
+Five final short scene smokes per configuration each presented eight frames:
+Lantern/Sponza Metal, Lantern/Sponza automatic Vulkan, and Lantern forced Vulkan
+AcquireHistory. Every smoke recorded available native statistics, zero image
+readback copies/maps/waits, zero live queue/device idle calls, eight render
+retirements and zero final presentation owners. Vulkan recorded one separately
+measured terminal device-idle call. Automatic Vulkan and Metal ended Proven;
+forced AcquireHistory ended IdleAssumed, with five proven presentation releases
+for eight presentations in the recorded final Release smoke. The latter three
+were not relabeled as proof by compatibility cleanup.
+
+Current logs are under `Build/Validation/030/deferred-review/`:
+`build-{debug,release}-t033-close.log`,
+`demo-lab-presentation-native-t033-close-{debug,release}.log`,
+`{production-content-demo,interactive-lab-lifecycle,interactive-lab-watchdog}-t033-close-{debug,release}.log`,
+`lab-*-t033-close-{debug,release}.log` and `architecture-t033-close.log`.
+The earlier full regression/positive-control logs use `*-t033-{debug,release}.log`
+or `*-t033-final-debug.log`. The final build includes only diagnostic wording
+and indentation cleanup after the short smoke verification; no runtime behavior
+changed after those smokes. These are preliminary working-tree implementation
+checks, not formal same-SHA hardware evidence, Accepted updates or HDR authority.
+
+### Open lifecycle failure discovered during T033 validation
+
+The optional real-scene resize/minimize/restore fixture is intermittent despite
+the initial successful T032 runs. Metal can stop with an operation failure after
+resize (`lab-lantern-metal-lifecycle-t033-debug.log`). Forced Vulkan acquire
+history can reach `lab-transition-timed-out` after resize
+(`lab-lantern-vulkan-lifecycle-t033-release.log`); its counters still showed zero
+ordinary readbacks/idles and qualified terminal cleanup. A temporary attempt to
+handle duplicate transitions reached the independent terminal watchdog with
+two retained owners (`lab-lantern-vulkan-lifecycle-t033-final-debug.log`, exit 124).
+That experimental transition change was reverted and is not delivered here.
+Successful experimental Metal repetitions are likewise not final-source proof.
+
+These failures are retained, not counted as passing lifecycle evidence. T015
+failure-boundary coverage and T034 integrated checkpoint must resolve transition
+progress, especially acquire-history replacement retirement during overlapping
+surface changes, and rerun bounded scene lifecycle checks before US1 acceptance.
+No `us1.json` checkpoint or full phase completion is claimed. UI-on integration,
+remaining feature tasks, hosted/physical closeout and current human HDR authority
+are pending.

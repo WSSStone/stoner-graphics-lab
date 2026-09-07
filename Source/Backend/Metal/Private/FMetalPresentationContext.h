@@ -44,6 +44,7 @@ struct FMetalPresentationLayerPolicy
 struct FMetalPresentationLayerSnapshot
 {
     FMetalPresentationLayerPolicy Policy;
+    RHI::FRHINativePresentationStatistics NativeStatistics;
     Core::uint64 ModeGeneration = 0;
     Core::uint32 Width = 0;
     Core::uint32 Height = 0;

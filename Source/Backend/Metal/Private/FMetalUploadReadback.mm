@@ -12,9 +12,10 @@ namespace Stoner::Backend::Metal::Private
 namespace
 {
 
-bool Complete(id<MTLCommandBuffer> CommandBuffer) noexcept
+bool Complete(id<MTLCommandBuffer> CommandBuffer, FMetalDeviceOwnerState* ReadbackOwner = nullptr) noexcept
 {
     [CommandBuffer commit];
+    if (ReadbackOwner) ReadbackOwner->RecordNativeOperation(EMetalNativeOperation::ReadbackWait);
     [CommandBuffer waitUntilCompleted];
     return CommandBuffer.status == MTLCommandBufferStatusCompleted;
 }
@@ -140,7 +141,8 @@ RHI::ERHIResult ReadbackMetalBuffer(
     id<MTLBuffer> Source,
     Core::uint64 Offset,
     Core::uint64 Size,
-    Core::TArray<Core::uint8>& OutBytes) noexcept
+    Core::TArray<Core::uint8>& OutBytes,
+    FMetalDeviceOwnerState* Owner) noexcept
 {
     OutBytes.clear();
     if (Queue == nil || Source == nil || Size == 0 ||
@@ -153,6 +155,7 @@ RHI::ERHIResult ReadbackMetalBuffer(
         {
             const auto CopySourceBytes = [&]()
             {
+                if (Owner) Owner->RecordNativeOperation(EMetalNativeOperation::ReadbackMap);
                 if (Source.contents == nullptr)
                     return RHI::ERHIResult::Failed;
                 OutBytes.resize(static_cast<Core::usize>(Size));
@@ -173,7 +176,7 @@ RHI::ERHIResult ReadbackMetalBuffer(
                     return RHI::ERHIResult::Failed;
                 [Blit synchronizeResource:Source];
                 [Blit endEncoding];
-                return Complete(Commands)
+                return Complete(Commands, Owner)
                     ? CopySourceBytes()
                     : RHI::ERHIResult::Failed;
             }
@@ -189,8 +192,9 @@ RHI::ERHIResult ReadbackMetalBuffer(
             [Blit copyFromBuffer:Source sourceOffset:Offset
                         toBuffer:Readback destinationOffset:0 size:Size];
             [Blit endEncoding];
-            if (!Complete(Commands)) return RHI::ERHIResult::Failed;
+            if (!Complete(Commands, Owner)) return RHI::ERHIResult::Failed;
             OutBytes.resize(static_cast<Core::usize>(Size));
+            if (Owner) Owner->RecordNativeOperation(EMetalNativeOperation::ReadbackMap);
             std::memcpy(
                 OutBytes.data(), Readback.contents,
                 static_cast<std::size_t>(Size));
@@ -209,7 +213,8 @@ RHI::ERHIResult ReadbackMetalTexture(
     id<MTLTexture> Source,
     Core::uint64 TightRowBytes,
     Core::uint32 Height,
-    Core::TArray<Core::uint8>& OutBytes) noexcept
+    Core::TArray<Core::uint8>& OutBytes,
+    FMetalDeviceOwnerState* Owner) noexcept
 {
     OutBytes.clear();
     if (Queue == nil || Source == nil || TightRowBytes == 0 || Height == 0 ||
@@ -239,6 +244,7 @@ RHI::ERHIResult ReadbackMetalTexture(
         id<MTLBlitCommandEncoder> Blit = [Commands blitCommandEncoder];
         if (Buffer == nil || Commands == nil || Blit == nil)
             return RHI::ERHIResult::Unavailable;
+        if (Owner) Owner->RecordNativeOperation(EMetalNativeOperation::ImageReadbackCopy);
         [Blit copyFromTexture:Source sourceSlice:0 sourceLevel:0
             sourceOrigin:MTLOriginMake(0, 0, 0)
             sourceSize:MTLSizeMake(Source.width, Source.height, 1)
@@ -247,6 +253,7 @@ RHI::ERHIResult ReadbackMetalTexture(
             destinationBytesPerImage:ByteCount];
         [Blit endEncoding];
         [Commands commit];
+        if (Owner) Owner->RecordNativeOperation(EMetalNativeOperation::ReadbackWait);
         [Commands waitUntilCompleted];
         if (Commands.status != MTLCommandBufferStatusCompleted)
             return RHI::ERHIResult::Failed;
@@ -258,6 +265,7 @@ RHI::ERHIResult ReadbackMetalTexture(
         {
             return RHI::ERHIResult::Unavailable;
         }
+        if (Owner) Owner->RecordNativeOperation(EMetalNativeOperation::ReadbackMap);
         const auto* SourceBytes = static_cast<const Core::uint8*>(
             Buffer.contents);
         for (Core::uint32 Row = 0; Row < Height; ++Row)

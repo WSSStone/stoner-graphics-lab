@@ -215,6 +215,12 @@ RHI::ERHIRuntimeMode FMetalDevice::GetRuntimeMode() const noexcept
 RHI::FRHIRuntimeSnapshot FMetalDevice::GetRuntimeSnapshot() const noexcept
 {
     RHI::FRHIRuntimeSnapshot Result;
+    if (Owner_)
+    {
+        Result.NativeOperations = Owner_->InspectNativeOperations();
+        Result.NativePresentation.bAvailable = true;
+        Result.NativePresentation.PeakEstimatedColorBytes = Owner_->GetPeakPresentationBytes();
+    }
     Result.RequestedMode = RHI::ERHIRuntimeMode::NativeHeadless;
     Result.ObjectMode = IsActive()
         ? RHI::ERHIRuntimeObjectMode::RealRuntime
@@ -224,6 +230,7 @@ RHI::FRHIRuntimeSnapshot FMetalDevice::GetRuntimeSnapshot() const noexcept
     Result.LiveInstances = IsActive() ? 1 : 0;
     Result.LiveDevices = IsActive() ? 1 : 0;
     const FMetalBackendInspection Inspection = Inspect();
+    Result.NativeOperations.RetainedSubmissionOwnerCount = Inspection.SubmissionOwnershipCount;
     Result.LiveBuffers = static_cast<Core::uint32>(std::min<Core::uint64>(
         Inspection.ResourceOwnershipCount,
         std::numeric_limits<Core::uint32>::max()));
@@ -254,6 +261,7 @@ RHI::FRHIRuntimeSnapshot FMetalDevice::GetRuntimeSnapshot() const noexcept
                 Surface->GetContext()->GetResolvedPresentationState();
             const FMetalPresentationLayerSnapshot Layer =
                 Surface->GetContext()->GetLayerSnapshot();
+            Result.NativePresentation = Layer.NativeStatistics;
             if (!Resolved.IsValid()) continue;
             Result.PresentationModeGeneration = Resolved.ModeGeneration;
             Result.PresentationWidth = Resolved.Width;
@@ -1055,7 +1063,7 @@ RHI::ERHIResult FMetalDevice::ReadbackTextureForTesting(
         (__bridge id<MTLCommandQueue>)GetNativeQueue(),
         Native->GetNativeTexture(),
         static_cast<Core::uint64>(Desc.Width) * BytesPerPixel,
-        Desc.Height, OutBytes);
+        Desc.Height, OutBytes, Owner_.get());
 }
 
 } // namespace Stoner::Backend::Metal::Private
@@ -1165,7 +1173,7 @@ RHI::ERHIResult ReadMetalBufferForValidation(
         return RHI::ERHIResult::InvalidState;
     return Private::ReadbackMetalBuffer(
         (__bridge id<MTLCommandQueue>)NativeDevice->GetNativeQueue(),
-        NativeBuffer->GetNativeBuffer(), Offset, Size, OutBytes);
+        NativeBuffer->GetNativeBuffer(), Offset, Size, OutBytes, NativeDevice->GetOwner().get());
 }
 
 } // namespace Stoner::Backend::Metal

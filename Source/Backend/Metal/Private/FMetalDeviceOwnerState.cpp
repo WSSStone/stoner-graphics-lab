@@ -201,4 +201,37 @@ FMetalBackendInspection FMetalDeviceOwnerState::Inspect() const noexcept
     return Result;
 }
 
+void FMetalDeviceOwnerState::RecordPresentationBytes(Core::uint64 Bytes) noexcept
+{
+    auto Peak = PeakPresentationBytes_.load(std::memory_order_relaxed);
+    while (Peak < Bytes && !PeakPresentationBytes_.compare_exchange_weak(
+        Peak, Bytes, std::memory_order_relaxed)) {}
+}
+
+void FMetalDeviceOwnerState::RecordNativeOperation(EMetalNativeOperation Operation) noexcept
+{
+    const auto Index = static_cast<Core::usize>(Operation);
+    if (Index < static_cast<Core::usize>(EMetalNativeOperation::Count))
+        NativeOperations_[Index].fetch_add(1, std::memory_order_relaxed);
+}
+
+RHI::FRHINativeExecutionStatistics FMetalDeviceOwnerState::InspectNativeOperations() const noexcept
+{
+    RHI::FRHINativeExecutionStatistics Out;
+    Out.bAvailable = true;
+    const auto Read = [this](EMetalNativeOperation Operation) {
+        return NativeOperations_[static_cast<Core::usize>(Operation)].load(std::memory_order_relaxed);
+    };
+    Out.ImageReadbackCopyCount = Read(EMetalNativeOperation::ImageReadbackCopy);
+    Out.ReadbackMapCount = Read(EMetalNativeOperation::ReadbackMap);
+    Out.ReadbackWaitCount = Read(EMetalNativeOperation::ReadbackWait);
+    Out.FenceWaitCallCount = Read(EMetalNativeOperation::FenceWait);
+    Out.QueueIdleCallCount = Read(EMetalNativeOperation::QueueIdle);
+    Out.DeviceIdleCallCount = Read(EMetalNativeOperation::DeviceIdle);
+    Out.SubmittedRenderCount = Read(EMetalNativeOperation::RenderSubmit);
+    Out.SuccessfulRenderCompletionCount = Read(EMetalNativeOperation::RenderComplete);
+    Out.ProvenPresentationReleaseCount = Read(EMetalNativeOperation::PresentationRelease);
+    return Out;
+}
+
 } // namespace Stoner::Backend::Metal::Private

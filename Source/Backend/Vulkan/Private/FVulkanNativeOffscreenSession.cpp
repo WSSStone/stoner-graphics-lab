@@ -153,6 +153,7 @@ struct FVulkanNativeOffscreenSession::FImpl
         void* Mapped = nullptr;
     };
 
+    FVulkanNativeContext* NativeContext = nullptr;
     FVulkanNativeDeviceAccess Access;
     std::array<FImage, 6> Images;
     std::array<FImage, 5> SurfaceTextures;
@@ -396,6 +397,7 @@ struct FVulkanNativeOffscreenSession::FImpl
         {
             if (Fence)
             {
+                if (NativeContext) NativeContext->RecordNativeSubmissionWait(true);
                 (void)vkWaitForFences(Access.Device, 1, &Fence, VK_TRUE,
                     CompletionTimeoutNanoseconds);
             }
@@ -1134,6 +1136,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
     (void)UniformPayload;
     return Stoner::RHI::ERHIResult::Unsupported;
 #else
+    Impl->NativeContext = &Context;
     if (!Context.GetNativeDeviceAccess(Impl->Access))
     {
         return Stoner::RHI::ERHIResult::Unavailable;
@@ -1578,6 +1581,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
             Copy.imageSubresource.aspectMask = Impl->Images[Index].Aspect;
             Copy.imageSubresource.layerCount = 1;
             Copy.imageExtent = {ValidationWidth, ValidationHeight, 1};
+            Context.RecordNativeImageReadback(false);
             vkCmdCopyImageToBuffer(Impl->CommandBuffer, Impl->Images[Index].Image,
                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                 Impl->Readbacks[Index].Buffer, 1, &Copy);
@@ -1605,6 +1609,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
             OutReport.PrimaryFailureStage = "Fence";
             return false;
         }
+        Context.RecordNativeSubmissionWait(true);
         if (vkWaitForFences(Impl->Access.Device, 1, &Impl->Fence, VK_TRUE,
                 CompletionTimeoutNanoseconds) != VK_SUCCESS)
         {
@@ -1618,6 +1623,7 @@ Stoner::RHI::ERHIResult FVulkanNativeOffscreenSession::Execute(
         }
         for (std::size_t Index = 0; Index < Impl->Readbacks.size(); ++Index)
         {
+            Context.RecordNativeImageReadback(true);
             if (vkMapMemory(Impl->Access.Device, Impl->Readbacks[Index].Memory, 0,
                     Impl->Readbacks[Index].Size, 0,
                     &Impl->Readbacks[Index].Mapped) != VK_SUCCESS)

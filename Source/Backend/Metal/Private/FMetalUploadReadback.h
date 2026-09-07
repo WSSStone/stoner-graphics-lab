@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/CoreMinimal.h"
+#include "FMetalDeviceOwnerState.h"
 #include "RHI/ERHIResult.h"
 #include "RHI/FRHITextureUploadDesc.h"
 
@@ -27,13 +28,15 @@ namespace Stoner::Backend::Metal::Private
     id<MTLBuffer> Source,
     Core::uint64 Offset,
     Core::uint64 Size,
-    Core::TArray<Core::uint8>& OutBytes) noexcept;
+    Core::TArray<Core::uint8>& OutBytes,
+    FMetalDeviceOwnerState* Owner) noexcept;
 
 [[nodiscard]] RHI::ERHIResult ReadbackMetalTexture(
     id<MTLCommandQueue> Queue,
     id<MTLTexture> Source,
     Core::uint64 TightRowBytes,
     Core::uint32 Height,
-    Core::TArray<Core::uint8>& OutBytes) noexcept;
+    Core::TArray<Core::uint8>& OutBytes,
+    FMetalDeviceOwnerState* Owner) noexcept;
 
 } // namespace Stoner::Backend::Metal::Private

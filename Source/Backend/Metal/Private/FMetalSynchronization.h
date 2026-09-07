@@ -27,7 +27,7 @@ public:
 
     [[nodiscard]] bool CanSignalForSubmission(
         const Core::TSharedPtr<FMetalDeviceOwnerState>& Owner) const noexcept;
-    [[nodiscard]] Core::uint64 ReserveSubmissionSignal() noexcept;
+    [[nodiscard]] Core::uint64 ReserveSubmissionSignal(bool bReadback = false) noexcept;
     void EncodeSubmissionSignal(
         void* CommandBuffer,
         Core::uint64 Epoch) noexcept;
@@ -44,6 +44,7 @@ private:
     // fence.  ERHIFenceState has no failure value, so keep that proof private
     // while leaving IsSignaled false.
     bool bTerminalFailure_ = false;
+    bool bReadbackSubmission_ = false;
 };
 
 class FMetalSemaphore final

@@ -345,6 +345,10 @@ FVulkanNativeIntegrationTestResult RunVulkanNativeIntegrationTests()
             NativeUNormTexture.Object, 0, UNormReadback) ==
             ERHIResult::Success &&
         UNormReadback.size() == UNormPixels.size();
+    const auto ReadbackOperations = ShaderDevice.GetRuntimeSnapshot().NativeOperations;
+    Record(Result, ReadbackOperations.bAvailable && ReadbackOperations.ImageReadbackCopyCount > 0 &&
+        ReadbackOperations.ReadbackMapCount > 0 && ReadbackOperations.ReadbackWaitCount > 0,
+        "native Vulkan counters observe real texture copy, mapping and readback wait");
     if (bUNormWithinTolerance)
     {
         for (std::size_t Index = 0;

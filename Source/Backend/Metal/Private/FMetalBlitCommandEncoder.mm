@@ -25,7 +25,8 @@ bool AlignUp(Core::uint64 Value, Core::uint64 Alignment, Core::uint64& Out) noex
 
 RHI::ERHIResult EncodeMetalBlitCommand(
     void* NativeCommandBuffer,
-    const FMetalCommandRecord& Record) noexcept
+    const FMetalCommandRecord& Record,
+    FMetalDeviceOwnerState* Owner) noexcept
 {
     if (Record.Type == RHI::ERHISymbolicCommandType::Barrier ||
         Record.Type == RHI::ERHISymbolicCommandType::LayoutTransition)
@@ -120,6 +121,7 @@ RHI::ERHIResult EncodeMetalBlitCommand(
             CopyTarget = Staging;
             CopyOffset = 0;
         }
+        if (Owner) Owner->RecordNativeOperation(EMetalNativeOperation::ImageReadbackCopy);
         [Encoder copyFromTexture:Source->GetNativeTexture()
                      sourceSlice:Region.SourceArrayLayer
                      sourceLevel:Region.SourceMipLevel

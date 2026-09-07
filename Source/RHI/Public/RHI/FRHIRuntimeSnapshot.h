@@ -4,12 +4,15 @@
 #include "RHI/ERHIRuntimeMode.h"
 #include "RHI/ERHIFormat.h"
 #include "RHI/ERHIPresentationColorSpace.h"
+#include "RHI/FRHINativeExecutionStatistics.h"
 
 namespace Stoner::RHI
 {
 
 struct FRHIRuntimeSnapshot
 {
+    FRHINativeExecutionStatistics NativeOperations;
+    FRHINativePresentationStatistics NativePresentation;
     ERHIRuntimeMode RequestedMode = ERHIRuntimeMode::Deterministic;
     ERHIRuntimeObjectMode ObjectMode = ERHIRuntimeObjectMode::DeterministicFallback;
     Stoner::Core::FString AdapterName = "Deterministic";

@@ -403,11 +403,17 @@ public:
         Out.RetainedOwnerCount = BusySlots() + Presentations.size() + 1;
         if (!bDeviceClosed)
         {
+            if (!bRecordedPreShutdown)
+            {
+                (void)Backend->QueryLabPresentation(BeforeShutdown);
+                bRecordedPreShutdown = true;
+            }
             const bool HadDevice = Backend->GetDevice() != nullptr;
             const auto Result = HadDevice ? Backend->Shutdown() : ERHIResult::Success;
             FDemoLabPresentationStatus Terminal;
             if (Backend->QueryLabPresentation(Terminal) == ERHIResult::Success && Terminal.bTerminalDrainComplete)
             {
+                AfterShutdown = Terminal;
                 Assurance = Terminal.ShutdownAssurance;
                 bDeviceClosed = true;
             }
@@ -453,7 +459,8 @@ public:
     FProductionContentComposition Composition;
     Renderer::FOutputTransformSettings OutputSettings;
     Renderer::FResolvedOutputTransformSettings OutputResolved;
-    FDemoLabPresentationStatus Status;
+    FDemoLabPresentationStatus Status, BeforeShutdown, AfterShutdown;
+    bool bRecordedPreShutdown = false;
     std::array<FSlot, 2> Slots;
     Core::TArray<FPresentation> Presentations;
     FWindowExtent CurrentExtent;
@@ -476,7 +483,7 @@ FInteractiveLabRunResult RunInteractiveLab(
     if (!Config.bInteractiveLab || !Config.IsValid(&Out.FirstFailure))
     { Out.ExitCode = EDemoExitCode::InvalidConfiguration; return Out; }
     if (Config.bLabUI)
-    { Out.FirstFailure = "UI-enabled lab startup requires the pending ImGui integration; use --lab-ui off"; return Out; }
+    { Out.FirstFailure = "UI-enabled lab startup requires the pending UI integration; use --lab-ui off"; return Out; }
     FProductionCameraPreset Preset;
     if (!ResolveProductionCameraPreset(Config.WorkloadRevision, Preset, &Out.FirstFailure)) return Out;
     Application::FWindow Window;
@@ -573,6 +580,9 @@ FInteractiveLabRunResult RunInteractiveLab(
     Out.SubmittedFrames = Owner->Submitted;
     Out.RenderCompletedFrames = Owner->Completed;
     Out.PresentedFrames = Owner->Presented;
+    Out.FinalFrameState = Owner->Frames->Snapshot();
+    Out.BeforeNativeShutdown = Owner->BeforeShutdown;
+    Out.AfterNativeShutdown = Owner->AfterShutdown;
     Out.ShutdownAssurance = Owner->Assurance;
     Out.FirstFailure = Session.GetFirstFailure();
     if (Out.FirstFailure.IsEmpty()) Out.FirstFailure = Owner->FirstFailure;
@@ -581,6 +591,18 @@ FInteractiveLabRunResult RunInteractiveLab(
     std::cout << "InteractiveLab preview: submitted=" << Out.SubmittedFrames
         << " render-completed=" << Out.RenderCompletedFrames << " present-queued=" << Out.PresentedFrames
         << " shutdown=" << Application::FInteractiveLabSession::ToString(Session.GetShutdownAssurance()) << '\n';
+    const auto& LiveOps = Out.BeforeNativeShutdown.RuntimeSnapshot.NativeOperations;
+    const auto& FinalOps = Out.AfterNativeShutdown.RuntimeSnapshot.NativeOperations;
+    const auto& Native = Out.AfterNativeShutdown.RuntimeSnapshot.NativePresentation;
+    std::cout << "InteractiveLab native: available=" << LiveOps.bAvailable
+        << " image-readback-copies=" << LiveOps.ImageReadbackCopyCount
+        << " readback-maps=" << LiveOps.ReadbackMapCount << " readback-waits=" << LiveOps.ReadbackWaitCount
+        << " live-queue-idles=" << LiveOps.QueueIdleCallCount << " live-device-idles=" << LiveOps.DeviceIdleCallCount
+        << " terminal-device-idles=" << Native.TerminalIdleCallCount
+        << " terminal-idle-ns=" << Native.TerminalIdleNanoseconds
+        << " proven-present-releases=" << FinalOps.ProvenPresentationReleaseCount
+        << " render-retired=" << Out.FinalFrameState.RenderRetiredFrameCount
+        << " final-presentation-owners=" << Native.PresentationOwnerCount << '\n';
     if (!Out.FirstFailure.IsEmpty()) std::cerr << "InteractiveLab failed: " << Out.FirstFailure.CStr() << '\n';
     (void)Window.Destroy();
     return Out;

@@ -2,6 +2,7 @@
 
 #include "FMetalCapabilities.h"
 #include "FMetalFormat.h"
+#include "RHI/FRHIFormatInfo.h"
 #include "FMetalSynchronization.h"
 #include "FMetalTexture.h"
 
@@ -132,6 +133,7 @@ Core::uint32 FMetalPresentationTracker::GetPendingCount() const noexcept
 
 struct FMetalPresentationCompletionState
 {
+    Core::TSharedPtr<FMetalDeviceOwnerState> Owner;
     Core::TSharedPtr<FMetalTexture> Texture;
     Core::TSharedPtr<FMetalSemaphore> RenderFinishedSemaphore;
     Core::TSharedPtr<FMetalFence> PresentationFence;
@@ -146,6 +148,7 @@ struct FMetalPresentationCompletionState
         bool bActuallyPresented = false) noexcept
     {
         if (bCompleted.exchange(true, std::memory_order_acq_rel)) return;
+        if (bReleaseSucceeded && Owner) Owner->RecordNativeOperation(EMetalNativeOperation::PresentationRelease);
         // Invalidate the external borrowed wrapper before publishing the
         // independent presentation completion proof.
         if (Texture) (void)Texture->Invalidate();
@@ -274,6 +277,12 @@ struct FMetalPresentationContext::FImpl
     RHI::ERHIFormat Format = RHI::ERHIFormat::Unknown;
     RHI::FRHIResolvedPresentationState ResolvedState;
     FMetalPresentationLayerSnapshot LayerSnapshot;
+    [[nodiscard]] Core::uint64 EstimatedColorBytes() const noexcept
+    {
+        return static_cast<Core::uint64>(Width) * Height *
+            RHI::GetRHIFormatInfo(Format).BytesPerBlock *
+            static_cast<Core::uint64>(Layer ? Layer.maximumDrawableCount : 0);
+    }
     std::vector<FFrame> Frames;
     Core::TSharedPtr<FMetalPresentationTracker> PresentationTracker =
         Core::MakeShared<FMetalPresentationTracker>();
@@ -575,6 +584,7 @@ RHI::ERHIResult FMetalPresentationContext::Attach(
         Impl_->LayerSnapshot.ModeGeneration = Impl_->Generation;
         Impl_->LayerSnapshot.Width = Width;
         Impl_->LayerSnapshot.Height = Height;
+        if (Owner_) Owner_->RecordPresentationBytes(Impl_->EstimatedColorBytes());
         Impl_->LayerSnapshot.NativeReferenceWhiteNits =
             Capabilities.NativeReferenceWhiteNits;
         Impl_->LayerSnapshot.CurrentHeadroom =
@@ -755,6 +765,7 @@ RHI::ERHIResult FMetalPresentationContext::Reconfigure(
     Impl_->LayerSnapshot.ModeGeneration = Impl_->Generation;
     Impl_->LayerSnapshot.Width = Width;
     Impl_->LayerSnapshot.Height = Height;
+    if (Owner_) Owner_->RecordPresentationBytes(Impl_->EstimatedColorBytes());
     Impl_->LayerSnapshot.NativeReferenceWhiteNits =
         Capabilities.NativeReferenceWhiteNits;
     Impl_->LayerSnapshot.CurrentHeadroom = Capabilities.CurrentHeadroom;
@@ -990,6 +1001,7 @@ RHI::ERHIResult FMetalPresentationContext::AcquireInternal(
         Impl_->LayerSnapshot.ModeGeneration = Impl_->Generation;
         Impl_->LayerSnapshot.Width = Width;
         Impl_->LayerSnapshot.Height = Height;
+        if (Owner_) Owner_->RecordPresentationBytes(Impl_->EstimatedColorBytes());
         ClearPendingFrame();
         ReleasePresentationReservation();
         return RHI::ERHIResult::ResizeRequired;
@@ -1185,6 +1197,7 @@ RHI::ERHIResult FMetalPresentationContext::Present(
             Impl_->LayerSnapshot.ModeGeneration = Impl_->Generation;
             Impl_->LayerSnapshot.Width = Width;
             Impl_->LayerSnapshot.Height = Height;
+            if (Owner_) Owner_->RecordPresentationBytes(Impl_->EstimatedColorBytes());
         }
         return Width == 0 || Height == 0 || bClosing || bPaused
             ? RHI::ERHIResult::Unavailable
@@ -1393,6 +1406,7 @@ RHI::ERHIResult FMetalPresentationContext::PresentBorrowedInternal(
         Impl_->LayerSnapshot.ModeGeneration = Impl_->Generation;
         Impl_->LayerSnapshot.Width = Width;
         Impl_->LayerSnapshot.Height = Height;
+        if (Owner_) Owner_->RecordPresentationBytes(Impl_->EstimatedColorBytes());
         return RHI::ERHIResult::ResizeRequired;
     }
 
@@ -1445,6 +1459,7 @@ RHI::ERHIResult FMetalPresentationContext::PresentBorrowedInternal(
             Owner_->EndSubmission();
             return RHI::ERHIResult::InvalidState;
         }
+        Completion->Owner = Owner_;
         Completion->Texture = NativeTexture;
         Completion->RenderFinishedSemaphore = RenderFinishedSemaphore;
         Completion->PresentationFence = PresentationFence;
@@ -1890,6 +1905,19 @@ FMetalPresentationContext::GetLayerSnapshot() const noexcept
     if (!Impl_) return {};
     std::lock_guard Lock(Impl_->Mutex);
     FMetalPresentationLayerSnapshot Snapshot = Impl_->LayerSnapshot;
+    auto& Native = Snapshot.NativeStatistics;
+    Native.bAvailable = true;
+    if (Impl_->bAttached)
+    {
+        Native.ActiveGeneration = Impl_->Generation;
+        Native.ActiveImageCount = static_cast<Core::uint32>(Impl_->Layer.maximumDrawableCount);
+        Native.EstimatedColorBytes = Impl_->EstimatedColorBytes();
+    }
+    Native.PeakEstimatedColorBytes = Owner_ ? Owner_->GetPeakPresentationBytes() : 0;
+    Native.PendingAcquireCount = Impl_->PendingDrawableAcquireCount;
+    Native.AcquisitionRecordCount = Impl_->PresentationTracker ? Impl_->PresentationTracker->GetPendingCount() : 0;
+    Native.PresentationOwnerCount = Native.AcquisitionRecordCount;
+    Native.ResidualNativeOwners = Native.AcquisitionRecordCount + Native.PendingAcquireCount;
     if (Impl_->PresentationTracker &&
         Impl_->PresentationTracker->HasPresentedFrame())
         Snapshot.LastPresentedFrameToken =

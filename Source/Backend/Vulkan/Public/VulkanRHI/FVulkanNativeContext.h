@@ -223,6 +223,9 @@ private:
     friend class FVulkanNativeOffscreenSession;
     friend class FVulkanFence;
     friend class FDeferredNativeSubmission;
+    void RecordNativeSubmissionWait(bool bReadback) noexcept;
+    void RecordNativeImageReadback(bool bMapping) noexcept;
+    void RecordNativeRenderOperation(bool bCompletion) noexcept;
     void AdoptDeviceOwnerState(
         Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> InOwner) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult ConfigureLabPresentation(

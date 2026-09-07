@@ -885,6 +885,8 @@ public:
             if (!LabTerminalStatus_.bTerminalDrainStarted)
             {
                 (void)QueryLabPresentation(LabTerminalStatus_);
+                LabTerminalStatus_.RuntimeSnapshot.NativePresentation.PreCleanupPresentationOwners =
+                    LabTerminalStatus_.RuntimeSnapshot.NativePresentation.PresentationOwnerCount;
                 LabTerminalStatus_.bTerminalDrainStarted = true;
             }
             const RHI::ERHIResult Result = Device_->Shutdown();
@@ -899,6 +901,7 @@ public:
                         LabFailureReason_,
                         "Vulkan lab device cleanup completed with failure");
                 }
+                if (Context_) LabTerminalStatus_.RuntimeSnapshot = Context_->GetSnapshot();
                 LabTerminalStatus_.ShutdownAssurance = Context_
                     ? Context_->GetLabShutdownAssurance() : RHI::ERHIShutdownAssurance::Unknown;
                 LabTerminalStatus_.bTerminalDrainComplete = bDeviceReachedTerminalState;
@@ -2037,6 +2040,8 @@ public:
             if (!LabTerminalStatus_.bTerminalDrainStarted)
             {
                 (void)QueryLabPresentation(LabTerminalStatus_);
+                LabTerminalStatus_.RuntimeSnapshot.NativePresentation.PreCleanupPresentationOwners =
+                    LabTerminalStatus_.RuntimeSnapshot.NativePresentation.PresentationOwnerCount;
                 LabTerminalStatus_.bTerminalDrainStarted = true;
             }
             const RHI::ERHIResult Result = Device_->Shutdown();
@@ -2051,6 +2056,9 @@ public:
                         LabFailureReason_,
                         "Metal lab device cleanup completed with failure");
                 }
+                const auto PreCleanupOwners = LabTerminalStatus_.RuntimeSnapshot.NativePresentation.PreCleanupPresentationOwners;
+                LabTerminalStatus_.RuntimeSnapshot = Device_->GetRuntimeSnapshot();
+                LabTerminalStatus_.RuntimeSnapshot.NativePresentation.PreCleanupPresentationOwners = PreCleanupOwners;
                 // Successful Metal shutdown has drained both nextDrawable
                 // jobs and native presentation callbacks before device release.
                 // Reaching Shutdown requires those native owners to drain

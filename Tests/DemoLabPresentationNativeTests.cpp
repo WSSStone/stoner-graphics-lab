@@ -258,6 +258,13 @@ void RunCase(int& Failed, Demo::EDemoGraphicsBackend Backend, bool ForceAcquireH
             After == ERHIResult::Success && Status.PendingAcquireCount == 0,
             "pending Metal cancellation waits for its native job without acquiring a public target");
     }
+    (void)Runtime.QueryLabPresentation(Status);
+    const auto& LiveOperations = Status.RuntimeSnapshot.NativeOperations;
+    Check(Failed, LiveOperations.bAvailable && LiveOperations.ImageReadbackCopyCount == 0 &&
+        LiveOperations.ReadbackMapCount == 0 && LiveOperations.ReadbackWaitCount == 0 &&
+        LiveOperations.QueueIdleCallCount == 0 && LiveOperations.DeviceIdleCallCount == 0 &&
+        LiveOperations.SubmittedRenderCount >= 10 && LiveOperations.SuccessfulRenderCompletionCount >= 10,
+        "native clear preview records real submissions with zero readback and ordinary idle calls");
     // Terminal native teardown is permitted here. The test runner imposes an
     // external process deadline; this is not the Application T030 watchdog.
     const auto Shutdown = PollBounded(Window, [&] { return Runtime.Shutdown(); });
@@ -270,6 +277,19 @@ void RunCase(int& Failed, Demo::EDemoGraphicsBackend Backend, bool ForceAcquireH
     Check(Failed, TerminalQuery == ERHIResult::Success && Terminal.bTerminalDrainComplete &&
         Terminal.ShutdownAssurance == ExpectedAssurance && Terminal.RetainedFacadeOwnerCount == 0,
         "terminal status preserves actual native retirement assurance after facade owners are released");
+    const auto& NativeTerminal = Terminal.RuntimeSnapshot.NativePresentation;
+    const auto& TerminalOperations = Terminal.RuntimeSnapshot.NativeOperations;
+    Check(Failed, NativeTerminal.bAvailable && NativeTerminal.ActiveGeneration == 0 &&
+        NativeTerminal.RetiringGeneration == 0 && NativeTerminal.PresentationOwnerCount == 0 &&
+        NativeTerminal.AcquisitionRecordCount == 0 && NativeTerminal.PendingAcquireCount == 0 &&
+        NativeTerminal.ResidualNativeOwners == 0 && NativeTerminal.AbandonedNativeOwners == 0 &&
+        NativeTerminal.PeakEstimatedColorBytes > 0 && TerminalOperations.RetainedSubmissionOwnerCount == 0 &&
+        TerminalOperations.ProvenPresentationReleaseCount >= LiveOperations.ProvenPresentationReleaseCount &&
+        (Backend == Demo::EDemoGraphicsBackend::Metal
+            ? NativeTerminal.TerminalIdleCallCount == 0
+            : NativeTerminal.TerminalIdleCallCount == 1 && NativeTerminal.bTerminalIdleCompleted &&
+                NativeTerminal.TerminalIdleNativeResult == 0),
+        "native terminal accounting retains actual idle result, byte high-water and zero remaining owners");
     Leases.clear();
     Device.reset();
     (void)Window.Destroy();
@@ -343,6 +363,20 @@ void RunSceneLifecycle(int& Failed)
     std::cout << "[INFO] scene lifecycle exit=" << static_cast<int>(Result.ExitCode)
         << " stage=" << Stage << " actions=" << ActionsSucceeded << " minimized=" << ObservedMinimized
         << " restored=" << ObservedRestored << " failure=" << Result.FirstFailure.CStr() << '\n';
+    const auto& Before = Result.BeforeNativeShutdown.RuntimeSnapshot.NativeOperations;
+    const auto& After = Result.AfterNativeShutdown.RuntimeSnapshot.NativeOperations;
+    const auto& Frames = Result.FinalFrameState;
+    Check(Failed, Before.bAvailable && After.bAvailable && After.RetainedSubmissionOwnerCount == 0 &&
+        Before.ImageReadbackCopyCount == 0 &&
+        Before.ReadbackMapCount == 0 && Before.ReadbackWaitCount == 0 &&
+        Before.QueueIdleCallCount == 0 && Before.DeviceIdleCallCount == 0 &&
+        Frames.SubmittedFrameCount == Result.SubmittedFrames &&
+        Frames.RenderCompletedFrameCount == Result.RenderCompletedFrames &&
+        Frames.RenderRetiredFrameCount == Result.SubmittedFrames &&
+        Frames.BusySlotCount == 0 && Frames.ActiveAttachmentBytes == 0 &&
+        Frames.RetainedPresentationCount == 0 &&
+        Frames.ProvenPresentationReleaseCount <= After.ProvenPresentationReleaseCount,
+        "real scene lifecycle has zero native readbacks/idles and separately counted render/presentation retirement");
     Check(Failed, Result.ExitCode == Demo::EDemoExitCode::Success && Result.PresentedFrames >= 8 && Stage == 4 &&
         Result.RenderCompletedFrames >= Result.PresentedFrames && ActionsSucceeded && ObservedMinimized && ObservedRestored &&
         Result.FirstFailure.IsEmpty() &&

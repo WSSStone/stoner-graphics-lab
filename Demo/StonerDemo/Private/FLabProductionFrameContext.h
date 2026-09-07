@@ -57,6 +57,11 @@ struct FLabProductionFrameContextConfig
 
 struct FLabProductionFrameContextSnapshot
 {
+    RHI::FRHINativeExecutionStatistics NativeOperations;
+    Core::uint64 SubmittedFrameCount = 0;
+    Core::uint64 RenderCompletedFrameCount = 0;
+    Core::uint64 RenderRetiredFrameCount = 0;
+    Core::uint64 ProvenPresentationReleaseCount = 0;
     Core::uint32 ActiveSlotCount = 0;
     Core::uint32 BusySlotCount = 0;
     Core::uint32 RetainedPresentationCount = 0;

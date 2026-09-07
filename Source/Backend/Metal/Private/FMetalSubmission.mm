@@ -38,6 +38,7 @@ void FMetalSubmission::Complete(bool bSucceeded) noexcept
     {
         if (!bSucceeded_)
             Owner_->RecordTerminalFailure(Core::FString("metal-command-buffer-failed"));
+        if (bSucceeded_) Owner_->RecordNativeOperation(EMetalNativeOperation::RenderComplete);
         Owner_->EndSubmission();
     }
     Records_.clear();
@@ -55,6 +56,13 @@ RHI::ERHIResult FMetalSubmission::Wait(Core::uint64 TimeoutMicroseconds) noexcep
     std::unique_lock Lock(Mutex_);
     if (!bComplete_)
     {
+        if (Owner_)
+        {
+            Owner_->RecordNativeOperation(EMetalNativeOperation::FenceWait);
+            for (const auto& Record : Records_)
+                if (Record.Type == RHI::ERHISymbolicCommandType::TextureToBufferCopy)
+                { Owner_->RecordNativeOperation(EMetalNativeOperation::ReadbackWait); break; }
+        }
         if (TimeoutMicroseconds == 0)
             Condition_.wait(Lock, [this] { return bComplete_; });
         else if (!Condition_.wait_for(

@@ -684,6 +684,20 @@ ERHIResult FVulkanLabSwapchainRuntime::CreateGeneration(
         }
     }
 
+    uint64 TotalBytes = 0;
+    auto CreatedDesc = OutGeneration.Desc;
+    CreatedDesc.MinImageCount = OutGeneration.ImageCount;
+    (void)TryEstimateColorBytes(CreatedDesc, TotalBytes);
+    for (const auto& Existing : Generations_)
+    {
+        if (!Existing.bOccupied) continue;
+        auto ExistingDesc = Existing.Desc;
+        ExistingDesc.MinImageCount = Existing.ImageCount;
+        uint64 Bytes = 0;
+        (void)TryEstimateColorBytes(ExistingDesc, Bytes);
+        TotalBytes += Bytes;
+    }
+    PeakEstimatedColorBytes_ = std::max(PeakEstimatedColorBytes_, TotalBytes);
     OutGeneration.bOccupied = true;
     return ERHIResult::Success;
 }
@@ -2161,22 +2175,28 @@ FVulkanLabSwapchainRuntime::GetSnapshot() const noexcept
     Snapshot.ResidualNativeOwnerCount =
         Snapshot.AbandonedNativeOwnerCount +
         Snapshot.OutstandingNativeRecordCount + Snapshot.PendingAcquireCount;
-    const FVulkanLabPresentationGenerationView Active =
-        Policy_.GetActiveGeneration();
-    const FVulkanLabPresentationGenerationView Retiring =
-        Policy_.GetRetiringGeneration();
-    if (Active.bValid)
+    // Native gauges describe native owners, not policy history. Preferred
+    // cleanup can retain its proven policy identity after destroying objects.
+    for (const auto& Generation : Generations_)
     {
-        Snapshot.ActiveGeneration = Active.Desc.Generation;
-        Snapshot.ActiveImageCount = Active.Desc.ImageCount;
-        Snapshot.EstimatedColorBytes += Active.EstimatedColorBytes;
+        if (!Generation.bOccupied) continue;
+        if (Generation.bRetiring)
+        {
+            Snapshot.RetiringGeneration = Generation.Desc.Generation;
+            Snapshot.RetiringImageCount = Generation.ImageCount;
+        }
+        else
+        {
+            Snapshot.ActiveGeneration = Generation.Desc.Generation;
+            Snapshot.ActiveImageCount = Generation.ImageCount;
+        }
+        auto Estimate = Generation.Desc;
+        Estimate.MinImageCount = Generation.ImageCount;
+        uint64 Bytes = 0;
+        (void)TryEstimateColorBytes(Estimate, Bytes);
+        Snapshot.EstimatedColorBytes += Bytes;
     }
-    if (Retiring.bValid)
-    {
-        Snapshot.RetiringGeneration = Retiring.Desc.Generation;
-        Snapshot.RetiringImageCount = Retiring.Desc.ImageCount;
-        Snapshot.EstimatedColorBytes += Retiring.EstimatedColorBytes;
-    }
+    Snapshot.PeakEstimatedColorBytes = PeakEstimatedColorBytes_;
     return Snapshot;
 }
 

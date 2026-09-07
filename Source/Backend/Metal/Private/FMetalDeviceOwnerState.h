@@ -3,6 +3,7 @@
 #include "Core/CoreMinimal.h"
 #include "FMetalDiagnostics.h"
 #include "MetalRHI/FMetalBackendInspection.h"
+#include "RHI/FRHINativeExecutionStatistics.h"
 
 #include <atomic>
 #include <mutex>
@@ -18,6 +19,11 @@ enum class EMetalOwnershipCategory : Core::uint8
     Synchronization,
     Presentation,
     Count
+};
+
+enum class EMetalNativeOperation : Core::uint8
+{
+    ImageReadbackCopy, ReadbackMap, ReadbackWait, FenceWait, QueueIdle, DeviceIdle, RenderSubmit, RenderComplete, PresentationRelease, Count
 };
 
 class FMetalDeviceOwnerState
@@ -51,6 +57,11 @@ public:
     [[nodiscard]] FMetalBackendDiagnostics SnapshotDiagnostics() const;
     [[nodiscard]] bool IsShutdownReady() const noexcept;
     [[nodiscard]] FMetalBackendInspection Inspect() const noexcept;
+    void RecordNativeOperation(EMetalNativeOperation Operation) noexcept;
+    void RecordPresentationBytes(Core::uint64 Bytes) noexcept;
+    [[nodiscard]] Core::uint64 GetPeakPresentationBytes() const noexcept
+    { return PeakPresentationBytes_.load(std::memory_order_relaxed); }
+    [[nodiscard]] RHI::FRHINativeExecutionStatistics InspectNativeOperations() const noexcept;
 
 private:
     const Core::uint64 OwnerIdentity_;
@@ -68,6 +79,8 @@ private:
     mutable std::mutex FailureMutex_;
     Core::FString TerminalFailureReason_;
     FMetalDiagnostics Diagnostics_;
+    std::atomic<Core::uint64> PeakPresentationBytes_{0};
+    std::atomic<Core::uint64> NativeOperations_[static_cast<Core::usize>(EMetalNativeOperation::Count)]{};
 };
 
 } // namespace Stoner::Backend::Metal::Private
