@@ -86,10 +86,19 @@ FMetalPresentationSurface::NotifyPresentationEnvironmentChanged()
 
 RHI::ERHIResult FMetalPresentationSurface::Invalidate()
 {
-    const auto Result = InvalidateObject();
-    if (Result != RHI::ERHIResult::Success) return Result;
-    if (Context_ && Context_->IsAttached()) return Context_->Shutdown();
-    return RHI::ERHIResult::Success;
+    if (GetLifecycle() != RHI::ERHIResourceLifecycleState::Valid)
+        return RHI::ERHIResult::InvalidState;
+    // Drain the context before invalidating the public surface.  A timeout
+    // must leave the surface usable so the caller can provide the borrowed
+    // render-completion proof and retry; invalidating first would strand that
+    // still-live drawable behind an unretryable surface.
+    if (Context_ && Context_->IsAttached())
+    {
+        const auto ShutdownResult = Context_->Shutdown();
+        if (ShutdownResult != RHI::ERHIResult::Success)
+            return ShutdownResult;
+    }
+    return InvalidateObject();
 }
 
 const Core::TSharedPtr<FMetalPresentationContext>&

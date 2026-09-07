@@ -20,6 +20,9 @@ class FVulkanShaderModule;
 class FVulkanTexture;
 struct FVulkanNativeDeviceAccess;
 class FVulkanNativeOffscreenSession;
+class FVulkanFence;
+class FVulkanSemaphore;
+class FDeferredNativeSubmission;
 
 enum class EVulkanDeferredProbeMetric
 {
@@ -129,6 +132,9 @@ public:
 
     [[nodiscard]] Stoner::RHI::ERHIResult Initialize(Stoner::RHI::ERHIRuntimeMode Mode,
         const Stoner::Core::FPlatformWindow& PlatformWindow = {});
+    [[nodiscard]] Stoner::RHI::ERHIResult InitializeLabPresentation(
+        const Stoner::Core::FPlatformWindow& Window,
+        bool bForceAcquireHistory = false);
     [[nodiscard]] Stoner::RHI::ERHIResult ExecuteOffscreenTriangle(
         const Stoner::RHI::FRHIShaderModuleDesc& VertexShader,
         const Stoner::RHI::FRHIShaderModuleDesc& FragmentShader);
@@ -185,6 +191,23 @@ public:
     [[nodiscard]] const Stoner::RHI::FRHIRuntimeSnapshot& GetSnapshot() const noexcept;
     [[nodiscard]] bool IsAvailable() const noexcept;
 
+    // Native-only diagnostics used by the deferred submission acceptance
+    // suite. These controls do not participate in normal frame execution.
+    void ConfigureDeferredCompletionInjection(bool bEnabled) noexcept;
+    // Test-only post-submit observation failure; the submitted record remains
+    // owned until device-idle teardown and no completion is fabricated.
+    void ConfigureSynchronousObservationFailureForTesting(
+        bool bEnabled) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult SignalDeferredCompletionForTesting(
+        Stoner::Core::uint64 SubmissionId) noexcept;
+    [[nodiscard]] Stoner::Core::uint32
+    GetPendingDeferredSubmissionCount() noexcept;
+    [[nodiscard]] Stoner::Core::uint32
+    GetPersistentNativeBufferRealizationCount() const noexcept;
+    [[nodiscard]] Stoner::Core::uint64
+    GetPersistentNativeBufferUploadedRevisionForTesting(
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Buffer) const noexcept;
+
 private:
     friend class FVulkanDevice;
     friend class FVulkanQueue;
@@ -193,6 +216,18 @@ private:
     friend class FVulkanShaderModule;
     friend class FVulkanTexture;
     friend class FVulkanNativeOffscreenSession;
+    friend class FVulkanFence;
+    friend class FDeferredNativeSubmission;
+    [[nodiscard]] Stoner::RHI::ERHIResult InitializeInternal(
+        Stoner::RHI::ERHIRuntimeMode Mode,
+        const Stoner::Core::FPlatformWindow& PlatformWindow,
+        bool bLabPresentation,
+        bool bForceAcquireHistory);
+    [[nodiscard]] bool CopyLabStartupFailureForDiagnostics(
+        Stoner::Core::FString& OutDetail,
+        Stoner::RHI::ERHIPresentationRetirementReason& OutReason,
+        Stoner::Core::int32& OutNativeResult,
+        bool& OutHasNativeResult) const noexcept;
     [[nodiscard]] bool GetNativeDeviceAccess(
         FVulkanNativeDeviceAccess& OutAccess) const noexcept;
     [[nodiscard]] Stoner::Core::TArray<
@@ -223,7 +258,38 @@ private:
         Stoner::Core::uint32 MipLevel,
         Stoner::Core::TArray<Stoner::Core::uint8>& OutBytes) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult ExecuteRecordedCommands(
-        const FVulkanCommandBuffer& Commands) noexcept;
+        const Stoner::Core::TSharedPtr<FVulkanCommandBuffer>& Commands) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult SubmitDeferredCommands(
+        const Stoner::Core::TSharedPtr<FVulkanCommandBuffer>& Commands,
+        const Stoner::Core::TSharedPtr<FVulkanFence>& CompletionFence,
+        Stoner::Core::uint64& OutSubmissionId) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult ExecuteRecordedCommandsInternal(
+        const Stoner::Core::TSharedPtr<FVulkanCommandBuffer>& Commands,
+        const FVulkanCommandBuffer& CommandView,
+        const Stoner::Core::TSharedPtr<FVulkanFence>& CompletionFence,
+        bool bDeferred,
+        Stoner::Core::uint64* OutSubmissionId) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult WaitDeferredSubmission(
+        Stoner::Core::uint64 SubmissionId,
+        Stoner::Core::uint64 TimeoutMicroseconds) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult WaitAllDeferredSubmissions() noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult FinalizeDeferredSubmission(
+        const Stoner::Core::TSharedPtr<FDeferredNativeSubmission>& Submission) noexcept;
+    void ReapCompletedDeferredSubmissions() noexcept;
+    [[nodiscard]] bool AcquireDeferredTextureUse(
+        Stoner::Core::uint64 Token,
+        Stoner::Core::TArray<Stoner::Core::uint32>& OutLayouts) noexcept;
+    void ReleaseDeferredTextureUse(Stoner::Core::uint64 Token) noexcept;
+    [[nodiscard]] bool AcquireDeferredPipelineUse(
+        Stoner::Core::uint64 Token) noexcept;
+    void ReleaseDeferredPipelineUse(Stoner::Core::uint64 Token) noexcept;
+    [[nodiscard]] bool HasPendingDeferredTextureUse(
+        Stoner::Core::uint64 Token) const noexcept;
+    [[nodiscard]] bool CanCommitDeferredTextureLayouts(
+        const FDeferredNativeSubmission& Submission) const noexcept;
+    void CommitDeferredTextureLayouts(
+        const FDeferredNativeSubmission& Submission) noexcept;
+    void ReclaimPersistentNativeBuffers() noexcept;
     void DestroyOwnedTexture(Stoner::Core::uint64 Token) noexcept;
     struct FImpl;
     std::unique_ptr<FImpl> Impl;

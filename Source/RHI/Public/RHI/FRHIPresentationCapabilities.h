@@ -3,6 +3,7 @@
 #include "Core/CoreMinimal.h"
 #include "RHI/ERHIFormat.h"
 #include "RHI/ERHIPresentationColorSpace.h"
+#include "RHI/ERHIPresentationRetirement.h"
 
 #include <cmath>
 
@@ -36,6 +37,23 @@ struct FRHIPresentationCapabilities
     float CurrentHeadroom = 1.0f;
     float PotentialHeadroom = 1.0f;
     Stoner::Core::FString CapabilityDigest;
+
+    // True only when presentation completion can be observed independently
+    // from render-fence completion (for example, Vulkan maintenance1). Keep
+    // this extension at the end so established aggregate initialization stays
+    // source-compatible.
+    bool bSupportsIndependentPresentationCompletion = false;
+
+    // Backend-neutral presentation-retirement selection.  These fields are
+    // appended so established aggregate initialization remains source-
+    // compatible.  The selected mode is deliberately separate from the
+    // device's deferred-submit capability.
+    ERHIPresentationRetirementMode PresentationRetirementMode =
+        ERHIPresentationRetirementMode::Unknown;
+    ERHIPresentationRetirementReason PresentationRetirementReason =
+        ERHIPresentationRetirementReason::Unknown;
+    bool bOptionalPresentationFenceAdvertised = false;
+    bool bOptionalPresentationFenceEnabled = false;
 
     [[nodiscard]] bool HasUniqueSupportedPairs() const noexcept
     {

@@ -963,12 +963,22 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
     Record(Result,
         DeferredBuild == RHI::ERHIResult::Success &&
             DeferredResources.IsValid() && DeferredExecution.Succeeded() &&
+            DeferredResources.ExecutionPurpose ==
+                Renderer::EFrameExecutionPurpose::FormalValidation &&
+            DeferredResources.ReadbackSelection ==
+                Renderer::EFrameReadbackSelection::Formal &&
             DeferredExecution.FinalState ==
                 Renderer::EDeferredExecutionState::Recorded &&
             DeferredResources.Bindings.Readbacks.size() == 6 &&
             DeferredExecution.RecordedDrawCount >=
                 DeferredResources.Plan.AcceptedDraws.size(),
         "strict shader closure records aggregate production Deferred attachments and readbacks");
+    FProductionContentDeferredExecutionResources InvalidFormalSelection =
+        DeferredResources;
+    InvalidFormalSelection.ReadbackSelection =
+        Renderer::EFrameReadbackSelection::None;
+    Record(Result, !InvalidFormalSelection.IsValid(),
+        "Deferred formal resources reject an explicit no-readback selection");
     Record(Result,
         LifecycleBindings.Readbacks.size() == 1 &&
             LifecycleBindings.Readbacks.front().Name ==

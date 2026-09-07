@@ -22,12 +22,217 @@ struct GLFWwindow;
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
+#include <atomic>
+#include <array>
 #include <mutex>
 #include <new>
 #include <vector>
 
 namespace Stoner::Backend::Metal::Private
 {
+
+bool FMetalPresentationTracker::TryReserve(
+    Core::uint32& OutImageIndex) noexcept
+{
+    std::lock_guard Lock(Mutex);
+    for (Core::uint32 Index = 0;
+         Index < RHI::MaxRHIPresentationImageLeases; ++Index)
+    {
+        if (!ActiveImageLeases[Index])
+        {
+            ActiveImageLeases[Index] = true;
+            ++PendingCount;
+            OutImageIndex = Index;
+            return true;
+        }
+    }
+    OutImageIndex = 0;
+    return false;
+}
+
+void FMetalPresentationTracker::Reset() noexcept
+{
+    std::lock_guard Lock(Mutex);
+    if (PendingCount != 0) return;
+    ActiveImageLeases.fill(false);
+    LastPresentedFrameToken = 0;
+    bHasPresentedFrame = false;
+}
+
+void FMetalPresentationTracker::Release(Core::uint32 ImageIndex) noexcept
+{
+    std::lock_guard Lock(Mutex);
+    if (ImageIndex < RHI::MaxRHIPresentationImageLeases &&
+        ActiveImageLeases[ImageIndex])
+    {
+        ActiveImageLeases[ImageIndex] = false;
+        if (PendingCount > 0) --PendingCount;
+    }
+    Condition.notify_all();
+}
+
+void FMetalPresentationTracker::Complete(
+    Core::uint32 ImageIndex,
+    Core::uint64 FrameToken,
+    bool bActuallyPresented) noexcept
+{
+    std::lock_guard Lock(Mutex);
+    if (ImageIndex < RHI::MaxRHIPresentationImageLeases &&
+        ActiveImageLeases[ImageIndex])
+    {
+        ActiveImageLeases[ImageIndex] = false;
+        if (PendingCount > 0) --PendingCount;
+    }
+    if (bActuallyPresented && FrameToken != 0)
+    {
+        LastPresentedFrameToken = FrameToken;
+        bHasPresentedFrame = true;
+    }
+    Condition.notify_all();
+}
+
+bool FMetalPresentationTracker::IsEmpty() const noexcept
+{
+    std::lock_guard Lock(Mutex);
+    return PendingCount == 0;
+}
+
+bool FMetalPresentationTracker::HasOtherLeases() const noexcept
+{
+    std::lock_guard Lock(Mutex);
+    return PendingCount > 1;
+}
+
+bool FMetalPresentationTracker::WaitForZero(
+    std::chrono::milliseconds Timeout) noexcept
+{
+    std::unique_lock Lock(Mutex);
+    return Condition.wait_for(
+        Lock, Timeout, [this] { return PendingCount == 0; });
+}
+
+Core::uint64 FMetalPresentationTracker::GetLastPresentedFrameToken()
+    const noexcept
+{
+    std::lock_guard Lock(Mutex);
+    return LastPresentedFrameToken;
+}
+
+bool FMetalPresentationTracker::HasPresentedFrame() const noexcept
+{
+    std::lock_guard Lock(Mutex);
+    return bHasPresentedFrame;
+}
+
+Core::uint32 FMetalPresentationTracker::GetPendingCount() const noexcept
+{
+    std::lock_guard Lock(Mutex);
+    return PendingCount;
+}
+
+struct FMetalPresentationCompletionState
+{
+    Core::TSharedPtr<FMetalTexture> Texture;
+    Core::TSharedPtr<FMetalSemaphore> RenderFinishedSemaphore;
+    Core::TSharedPtr<FMetalFence> PresentationFence;
+    Core::TSharedPtr<FMetalPresentationTracker> Tracker;
+    Core::uint64 FrameToken = 0;
+    Core::uint32 ImageIndex = 0;
+    Core::uint64 PresentationEpoch = 0;
+    std::atomic<bool> bCompleted{false};
+
+    void Complete(
+        bool bReleaseSucceeded,
+        bool bActuallyPresented = false) noexcept
+    {
+        if (bCompleted.exchange(true, std::memory_order_acq_rel)) return;
+        // Invalidate the external borrowed wrapper before publishing the
+        // independent presentation completion proof.
+        if (Texture) (void)Texture->Invalidate();
+        if (PresentationFence && PresentationEpoch != 0)
+            PresentationFence->CompleteSubmissionSignal(
+                PresentationEpoch, bReleaseSucceeded);
+        if (Tracker)
+            Tracker->Complete(ImageIndex, FrameToken, bActuallyPresented);
+        // The command buffer/frame owns the drawable until native command
+        // completion.  The callback state retains only the independent
+        // presentation proof and sampled resources, avoiding a drawable <-
+        // handler <- completion <- drawable cycle.
+        Texture.reset();
+        RenderFinishedSemaphore.reset();
+        PresentationFence.reset();
+        Tracker.reset();
+    }
+};
+
+// CAMetalLayer::nextDrawable may wait for the native layer pool.  Keep that
+// potentially blocking operation off the application thread and retain only
+// the layer/job state until the caller polls the acquired drawable.
+struct FMetalDrawableAcquireState
+{
+    mutable std::mutex Mutex;
+    std::condition_variable Condition;
+    __strong CAMetalLayer* Layer = nil;
+    __strong id<CAMetalDrawable> Drawable = nil;
+    bool bComplete = false;
+    bool bCancelled = false;
+    bool bTaken = false;
+
+    [[nodiscard]] bool TryTake(
+        __strong id<CAMetalDrawable>& OutDrawable,
+        bool& OutCancelled) noexcept
+    {
+        std::lock_guard Lock(Mutex);
+        if (!bComplete || bTaken) return false;
+        bTaken = true;
+        OutDrawable = Drawable;
+        Drawable = nil;
+        OutCancelled = bCancelled;
+        return true;
+    }
+
+    // A canceled result is retired by the context itself once the worker has
+    // returned.  Do not consume a live, non-canceled result here: the caller
+    // still needs to poll and publish that drawable as its borrowed target.
+    [[nodiscard]] bool TryTakeCancelled(
+        __strong id<CAMetalDrawable>& OutDrawable) noexcept
+    {
+        std::lock_guard Lock(Mutex);
+        if (!bComplete || !bCancelled || bTaken) return false;
+        bTaken = true;
+        OutDrawable = Drawable;
+        Drawable = nil;
+        return true;
+    }
+
+    [[nodiscard]] bool IsCancelled() const noexcept
+    {
+        std::lock_guard Lock(Mutex);
+        return bCancelled;
+    }
+
+    void Cancel() noexcept
+    {
+        std::lock_guard Lock(Mutex);
+        bCancelled = true;
+    }
+
+    [[nodiscard]] bool WaitFor(
+        std::chrono::milliseconds Timeout) noexcept
+    {
+        std::unique_lock Lock(Mutex);
+        return Condition.wait_for(
+            Lock, Timeout, [this] { return bComplete; });
+    }
+
+    void Complete(__strong id<CAMetalDrawable> InDrawable) noexcept
+    {
+        std::lock_guard Lock(Mutex);
+        Drawable = bCancelled ? nil : InDrawable;
+        bComplete = true;
+        Condition.notify_all();
+    }
+};
 
 struct FMetalPresentationContext::FImpl
 {
@@ -37,6 +242,11 @@ struct FMetalPresentationContext::FImpl
         Core::TSharedPtr<FMetalTexture> Texture;
         Core::uint64 Generation = 0;
         Core::uint64 FrameToken = 0;
+        Core::uint32 ImageIndex = 0;
+        Core::TSharedPtr<FMetalDrawableAcquireState> PendingDrawableAcquire;
+        RHI::FRHIPresentationFrame BorrowedFrame;
+        bool bBorrowedLeaseActive = false;
+        bool bPresentationSubmitted = false;
         bool bInFlight = false;
     };
 
@@ -56,10 +266,17 @@ struct FMetalPresentationContext::FImpl
     CGFloat DisplayScale = 1.0;
     Core::uint64 Generation = 1;
     Core::uint32 InFlightCount = 0;
+    // A pending job includes a native layer owner and its image admission
+    // until the worker has returned and the job has been consumed.  Keeping
+    // this count separate makes the two-job bound explicit even when a
+    // completed job has not yet been polled by its caller.
+    Core::uint32 PendingDrawableAcquireCount = 0;
     RHI::ERHIFormat Format = RHI::ERHIFormat::Unknown;
     RHI::FRHIResolvedPresentationState ResolvedState;
     FMetalPresentationLayerSnapshot LayerSnapshot;
     std::vector<FFrame> Frames;
+    Core::TSharedPtr<FMetalPresentationTracker> PresentationTracker =
+        Core::MakeShared<FMetalPresentationTracker>();
 };
 
 #if defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
@@ -256,6 +473,10 @@ RHI::ERHIResult FMetalPresentationContext::Attach(
         NativeDevice_ == nullptr || NativeQueue_ == nullptr ||
         Request.FramesInFlight < 2 || Request.FramesInFlight > 3)
         return RHI::ERHIResult::InvalidState;
+    {
+        std::lock_guard Lock(Impl_->Mutex);
+        if (Impl_->bAttached) return RHI::ERHIResult::InvalidState;
+    }
     const FMetalPresentationLayerPolicy LayerPolicy =
         ResolveMetalPresentationLayerPolicy(Request);
     if (!LayerPolicy.IsValid()) return RHI::ERHIResult::Unsupported;
@@ -326,6 +547,7 @@ RHI::ERHIResult FMetalPresentationContext::Attach(
 
     {
         std::lock_guard Lock(Impl_->Mutex);
+        if (Impl_->bAttached) return RHI::ERHIResult::InvalidState;
         Impl_->LogicalWidth = LogicalWidth;
         Impl_->LogicalHeight = LogicalHeight;
         Impl_->Width = Width;
@@ -361,6 +583,9 @@ RHI::ERHIResult FMetalPresentationContext::Attach(
             Capabilities.PotentialHeadroom;
         Impl_->LayerSnapshot.MetadataDigest =
             Impl_->ResolvedState.MetadataDigest;
+        if (Impl_->PresentationTracker)
+            Impl_->PresentationTracker->Reset();
+        Impl_->PendingDrawableAcquireCount = 0;
         Impl_->bAttached = true;
         Impl_->bAcceptingFrames = true;
     }
@@ -426,7 +651,38 @@ RHI::ERHIResult FMetalPresentationContext::Reconfigure(
     std::unique_lock Lock(Impl_->Mutex);
     if (!Impl_->bAttached || !Impl_->bAcceptingFrames)
         return RHI::ERHIResult::InvalidState;
-    if (Impl_->InFlightCount != 0)
+    bool bPendingAcquire = false;
+    for (auto& Frame : Impl_->Frames)
+    {
+        if (!Frame.PendingDrawableAcquire) continue;
+        const auto Pending = Frame.PendingDrawableAcquire;
+        Pending->Cancel();
+        __strong id<CAMetalDrawable> Drawable = nil;
+        bool bCancelled = false;
+        if (!Pending->TryTake(Drawable, bCancelled))
+        {
+            // The worker still owns a potentially blocking nextDrawable
+            // call.  Poll it on a later reconfigure attempt; never detach
+            // the layer or release its image lease while it is running.
+            bPendingAcquire = true;
+            continue;
+        }
+        Frame.PendingDrawableAcquire.reset();
+        if (Impl_->PendingDrawableAcquireCount > 0)
+            --Impl_->PendingDrawableAcquireCount;
+        const Core::uint32 ImageIndex = Frame.ImageIndex;
+        Frame.FrameToken = 0;
+        Frame.Generation = 0;
+        Frame.ImageIndex = 0;
+        Frame.BorrowedFrame = {};
+        if (Impl_->PresentationTracker)
+            Impl_->PresentationTracker->Release(ImageIndex);
+        (void)bCancelled;
+    }
+    if (bPendingAcquire) return RHI::ERHIResult::NotReady;
+    if (Impl_->InFlightCount != 0 ||
+        (Impl_->PresentationTracker &&
+         !Impl_->PresentationTracker->IsEmpty()))
         return RHI::ERHIResult::NotReady;
     for (const FImpl::FFrame& Frame : Impl_->Frames)
     {
@@ -523,11 +779,39 @@ RHI::ERHIResult FMetalPresentationContext::Acquire(
     Core::TSharedPtr<RHI::IRHITexture>& OutTexture,
     Core::uint64& OutGeneration) noexcept
 {
+    Core::uint32 UnusedImageIndex = 0;
+    return AcquireInternal(
+        FrameSlot, FrameToken, OutTexture, OutGeneration,
+        UnusedImageIndex, false);
+}
+
+RHI::ERHIResult FMetalPresentationContext::AcquireBorrowed(
+    Core::uint32 FrameSlot,
+    Core::uint64 FrameToken,
+    Core::TSharedPtr<RHI::IRHITexture>& OutTexture,
+    Core::uint64& OutGeneration,
+    Core::uint32& OutImageIndex) noexcept
+{
+    return AcquireInternal(
+        FrameSlot, FrameToken, OutTexture, OutGeneration,
+        OutImageIndex, true);
+}
+
+RHI::ERHIResult FMetalPresentationContext::AcquireInternal(
+    Core::uint32 FrameSlot,
+    Core::uint64 FrameToken,
+    Core::TSharedPtr<RHI::IRHITexture>& OutTexture,
+    Core::uint64& OutGeneration,
+    Core::uint32& OutImageIndex,
+    bool bBorrowed) noexcept
+{
     OutTexture.reset();
     OutGeneration = 0;
+    OutImageIndex = 0;
 #if !defined(STONER_GLFW_AVAILABLE) || !STONER_GLFW_AVAILABLE
     (void)FrameSlot;
     (void)FrameToken;
+    (void)bBorrowed;
     return RHI::ERHIResult::Unsupported;
 #else
     if (!Impl_ || FrameToken == 0) return RHI::ERHIResult::InvalidState;
@@ -536,7 +820,109 @@ RHI::ERHIResult FMetalPresentationContext::Acquire(
         FrameSlot >= Impl_->Frames.size())
         return RHI::ERHIResult::InvalidState;
     auto& Frame = Impl_->Frames[FrameSlot];
-    if (Frame.Drawable || Frame.bInFlight) return RHI::ERHIResult::NotReady;
+    if (Frame.Drawable || Frame.bInFlight ||
+        (!bBorrowed && Frame.PendingDrawableAcquire))
+        return RHI::ERHIResult::NotReady;
+
+    Core::uint32 ReservedImageIndex = 0;
+    bool bReservedPresentationLease = false;
+    __strong id<CAMetalDrawable> Drawable = nil;
+    if (bBorrowed && Frame.PendingDrawableAcquire)
+    {
+        const auto Pending = Frame.PendingDrawableAcquire;
+        bool bPendingCancelled = Pending->IsCancelled();
+        if (Frame.FrameToken != FrameToken && !bPendingCancelled)
+        {
+            // A newer token supersedes an unpublished acquisition.  Keep the
+            // reservation until the worker has actually returned so callers
+            // cannot create unbounded native nextDrawable jobs.
+            Pending->Cancel();
+            bPendingCancelled = true;
+        }
+        if (!Pending->TryTake(Drawable, bPendingCancelled))
+            return RHI::ERHIResult::NotReady;
+        ReservedImageIndex = Frame.ImageIndex;
+        Frame.PendingDrawableAcquire.reset();
+        if (Impl_->PendingDrawableAcquireCount > 0)
+            --Impl_->PendingDrawableAcquireCount;
+        Frame.FrameToken = 0;
+        Frame.Generation = 0;
+        Frame.ImageIndex = 0;
+        Frame.BorrowedFrame = {};
+        // Cancellation wins even if it raced a worker that had already
+        // returned a drawable.  That drawable was never published and must
+        // not be turned into a fresh borrowed lease by this poll.
+        if (bPendingCancelled)
+            Drawable = nil;
+        if (!bPendingCancelled && Drawable)
+        {
+            // The image admission belongs to the published borrowed target
+            // now.  Keep it held until presentation completion or a proven
+            // pre-submit release; releasing here would let the tracker report
+            // fewer leases than the native layer actually owns.
+            bReservedPresentationLease = true;
+        }
+        else if (Impl_->PresentationTracker)
+        {
+            // A cancelled or empty job never published a drawable.  Its
+            // admission can be released only after the worker has completed
+            // and TryTake has consumed the result.
+            Impl_->PresentationTracker->Release(ReservedImageIndex);
+        }
+    }
+    if (bBorrowed && !bReservedPresentationLease && !Drawable)
+    {
+        bReservedPresentationLease = Impl_->PresentationTracker &&
+            Impl_->PresentationTracker->TryReserve(ReservedImageIndex);
+        if (!bReservedPresentationLease)
+            return RHI::ERHIResult::NotReady;
+    }
+    else if (Frame.PendingDrawableAcquire)
+    {
+        return RHI::ERHIResult::NotReady;
+    }
+    const auto ReleasePresentationReservation = [&]() noexcept {
+        if (bReservedPresentationLease)
+        {
+            Impl_->PresentationTracker->Release(ReservedImageIndex);
+            bReservedPresentationLease = false;
+        }
+    };
+    const auto ClearPendingFrame = [&]() noexcept {
+        if (bBorrowed && !Frame.bBorrowedLeaseActive &&
+            Frame.FrameToken == FrameToken)
+        {
+            if (Frame.PendingDrawableAcquire)
+            {
+                // Keep the pending slot and image lease until the worker
+                // returns from nextDrawable; only the worker owns that
+                // potentially blocking native call.
+                const auto Pending = Frame.PendingDrawableAcquire;
+                Pending->Cancel();
+                __strong id<CAMetalDrawable> Discarded = nil;
+                bool bCancelled = false;
+                if (Pending->TryTake(Discarded, bCancelled))
+                {
+                    Frame.PendingDrawableAcquire.reset();
+                    if (Impl_->PendingDrawableAcquireCount > 0)
+                        --Impl_->PendingDrawableAcquireCount;
+                    const Core::uint32 ImageIndex = Frame.ImageIndex;
+                    Frame.FrameToken = 0;
+                    Frame.Generation = 0;
+                    Frame.ImageIndex = 0;
+                    Frame.BorrowedFrame = {};
+                    if (Impl_->PresentationTracker)
+                        Impl_->PresentationTracker->Release(ImageIndex);
+                }
+                bReservedPresentationLease = false;
+                return;
+            }
+            Frame.FrameToken = 0;
+            Frame.Generation = 0;
+            Frame.ImageIndex = 0;
+            Frame.BorrowedFrame = {};
+        }
+    };
 
     __block Core::uint32 LogicalWidth = 0;
     __block Core::uint32 LogicalHeight = 0;
@@ -572,11 +958,23 @@ RHI::ERHIResult FMetalPresentationContext::Acquire(
     if ([NSThread isMainThread]) RefreshOnMain();
     else dispatch_sync(dispatch_get_main_queue(), RefreshOnMain);
     if (bClosing || bPaused || Width == 0 || Height == 0)
+    {
+        ClearPendingFrame();
+        ReleasePresentationReservation();
         return RHI::ERHIResult::Unavailable;
+    }
     if (LogicalWidth != Impl_->LogicalWidth ||
         LogicalHeight != Impl_->LogicalHeight || Width != Impl_->Width ||
         Height != Impl_->Height || DisplayScale != Impl_->DisplayScale)
     {
+        if (Impl_->PresentationTracker &&
+            (bBorrowed ? Impl_->PresentationTracker->HasOtherLeases()
+                       : !Impl_->PresentationTracker->IsEmpty()))
+        {
+            ClearPendingFrame();
+            ReleasePresentationReservation();
+            return RHI::ERHIResult::NotReady;
+        }
         Impl_->LogicalWidth = LogicalWidth;
         Impl_->LogicalHeight = LogicalHeight;
         Impl_->Width = Width;
@@ -592,13 +990,63 @@ RHI::ERHIResult FMetalPresentationContext::Acquire(
         Impl_->LayerSnapshot.ModeGeneration = Impl_->Generation;
         Impl_->LayerSnapshot.Width = Width;
         Impl_->LayerSnapshot.Height = Height;
+        ClearPendingFrame();
+        ReleasePresentationReservation();
         return RHI::ERHIResult::ResizeRequired;
+    }
+
+    if (bBorrowed && !Drawable)
+    {
+        if (Impl_->PendingDrawableAcquireCount >= RHI::MaxRHIFrameSlots)
+        {
+            ReleasePresentationReservation();
+            return RHI::ERHIResult::NotReady;
+        }
+        Core::TSharedPtr<FMetalDrawableAcquireState> Pending;
+        try
+        {
+            Pending = Core::MakeShared<FMetalDrawableAcquireState>();
+        }
+        catch (const std::bad_alloc&)
+        {
+            ReleasePresentationReservation();
+            return RHI::ERHIResult::Failed;
+        }
+        Pending->Layer = Impl_->Layer;
+        Frame.Generation = Impl_->Generation;
+        Frame.FrameToken = FrameToken;
+        Frame.ImageIndex = ReservedImageIndex;
+        Frame.PendingDrawableAcquire = Pending;
+        ++Impl_->PendingDrawableAcquireCount;
+        const auto WeakContext = weak_from_this();
+        dispatch_async(
+            dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0),
+            ^{
+                @autoreleasepool
+                {
+                    id<CAMetalDrawable> Acquired = Pending->Layer
+                        ? [Pending->Layer nextDrawable] : nil;
+                    Pending->Complete(Acquired);
+                    // A canceled worker may finish after its owning
+                    // swapchain has been destroyed.  Retire that completed
+                    // unpublished frame through the still-live context so
+                    // its bounded image admission cannot remain stranded.
+                    if (const auto Context = WeakContext.lock())
+                        Context->PollCompletedUnpublishedBorrowedAcquires();
+                }
+            });
+        return RHI::ERHIResult::NotReady;
     }
 
     @autoreleasepool
     {
-        id<CAMetalDrawable> Drawable = [Impl_->Layer nextDrawable];
-        if (!Drawable) return RHI::ERHIResult::Unavailable;
+        if (!bBorrowed)
+            Drawable = [Impl_->Layer nextDrawable];
+        if (!Drawable)
+        {
+            ReleasePresentationReservation();
+            return RHI::ERHIResult::Unavailable;
+        }
         RHI::FRHITextureDesc Desc;
         Desc.Width = Width;
         Desc.Height = Height;
@@ -614,11 +1062,34 @@ RHI::ERHIResult FMetalPresentationContext::Acquire(
         }
         catch (const std::bad_alloc&)
         {
+            ReleasePresentationReservation();
             return RHI::ERHIResult::Failed;
         }
         Frame.Drawable = Drawable;
         Frame.Generation = Impl_->Generation;
         Frame.FrameToken = FrameToken;
+        if (bBorrowed)
+        {
+            Frame.ImageIndex = ReservedImageIndex;
+            Frame.BorrowedFrame.FrameToken = FrameToken;
+            Frame.BorrowedFrame.ModeGeneration =
+                Impl_->ResolvedState.ModeGeneration;
+            Frame.BorrowedFrame.SwapchainImageGeneration =
+                Impl_->ResolvedState.SwapchainImageGeneration;
+            Frame.BorrowedFrame.ImageIndex = ReservedImageIndex;
+            Frame.BorrowedFrame.Width = Impl_->ResolvedState.Width;
+            Frame.BorrowedFrame.Height = Impl_->ResolvedState.Height;
+            Frame.BorrowedFrame.Format = Impl_->ResolvedState.Format;
+            Frame.BorrowedFrame.ColorSpace =
+                Impl_->ResolvedState.ColorSpace;
+            Frame.BorrowedFrame.DisplayAdaptation =
+                Impl_->ResolvedState.DisplayAdaptation;
+            Frame.BorrowedFrame.MetadataDigest =
+                Impl_->ResolvedState.MetadataDigest;
+            Frame.bBorrowedLeaseActive = true;
+            Frame.bPresentationSubmitted = false;
+            OutImageIndex = ReservedImageIndex;
+        }
         Impl_->LayerSnapshot.LastAcquiredFrameToken = FrameToken;
         OutTexture = Frame.Texture;
         OutGeneration = Frame.Generation;
@@ -685,6 +1156,13 @@ RHI::ERHIResult FMetalPresentationContext::Present(
         LogicalHeight != Impl_->LogicalHeight || Width != Impl_->Width ||
         Height != Impl_->Height || DisplayScale != Impl_->DisplayScale)
     {
+        if ((LogicalWidth != Impl_->LogicalWidth ||
+             LogicalHeight != Impl_->LogicalHeight ||
+             Width != Impl_->Width || Height != Impl_->Height ||
+             DisplayScale != Impl_->DisplayScale) &&
+            Impl_->PresentationTracker &&
+            !Impl_->PresentationTracker->IsEmpty())
+            return RHI::ERHIResult::NotReady;
         Frame.Drawable = nil;
         Frame.Texture.reset();
         if (LogicalWidth != Impl_->LogicalWidth ||
@@ -787,40 +1265,568 @@ RHI::ERHIResult FMetalPresentationContext::Present(
 #endif
 }
 
-void FMetalPresentationContext::CancelAcquire(
+RHI::ERHIResult FMetalPresentationContext::PresentBorrowed(
+    const RHI::FRHIBorrowedAcquiredTarget& Target,
+    const Core::TSharedPtr<FMetalSemaphore>& RenderFinishedSemaphore,
+    RHI::FRHIPresentationLease& OutPresentationLease) noexcept
+{
+    return PresentBorrowedInternal(
+        Target, RenderFinishedSemaphore, nullptr, OutPresentationLease);
+}
+
+RHI::ERHIResult FMetalPresentationContext::PresentBorrowedAfterRender(
+    const RHI::FRHIBorrowedAcquiredTarget& Target,
+    const Core::TSharedPtr<FMetalFence>& RenderCompletionFence,
+    RHI::FRHIPresentationLease& OutPresentationLease) noexcept
+{
+    return PresentBorrowedInternal(
+        Target, nullptr, RenderCompletionFence, OutPresentationLease);
+}
+
+RHI::ERHIResult FMetalPresentationContext::PresentBorrowedInternal(
+    const RHI::FRHIBorrowedAcquiredTarget& Target,
+    const Core::TSharedPtr<FMetalSemaphore>& RenderFinishedSemaphore,
+    const Core::TSharedPtr<FMetalFence>& RenderCompletionFence,
+    RHI::FRHIPresentationLease& OutPresentationLease) noexcept
+{
+    OutPresentationLease = {};
+#if !defined(STONER_GLFW_AVAILABLE) || !STONER_GLFW_AVAILABLE
+    (void)Target;
+    (void)RenderFinishedSemaphore;
+    (void)RenderCompletionFence;
+    return RHI::ERHIResult::Unsupported;
+#else
+    if (!Impl_ || !Owner_ || !Target.IsValid() ||
+        (!RenderFinishedSemaphore && !RenderCompletionFence))
+        return RHI::ERHIResult::InvalidState;
+    const auto NativeTexture =
+        std::dynamic_pointer_cast<FMetalTexture>(Target.Texture);
+    if (!NativeTexture || !NativeTexture->IsCompatible(Owner_))
+        return RHI::ERHIResult::InvalidState;
+    if (RenderFinishedSemaphore &&
+        !RenderFinishedSemaphore->IsCompatible(Owner_))
+        return RHI::ERHIResult::InvalidState;
+    if (RenderCompletionFence)
+    {
+        if (!RenderCompletionFence->IsCompatible(Owner_))
+            return RHI::ERHIResult::InvalidState;
+        // A null render-finished semaphore is only valid with an explicit
+        // caller-owned render completion proof.  Poll it without waiting so
+        // presentation never races a separate render queue.
+        const auto RenderCompletion = RenderCompletionFence->Wait(0);
+        if (RenderCompletion == RHI::ERHIResult::NotReady)
+            return RHI::ERHIResult::NotReady;
+        if (RenderCompletion != RHI::ERHIResult::Success)
+            return RHI::ERHIResult::Failed;
+    }
+
+    std::unique_lock Lock(Impl_->Mutex);
+    if (!Impl_->bAttached || !Impl_->bAcceptingFrames ||
+        Target.FrameSlotIndex >= Impl_->Frames.size())
+        return RHI::ERHIResult::InvalidState;
+    auto& Frame = Impl_->Frames[Target.FrameSlotIndex];
+    if (!Frame.Drawable || Frame.bInFlight ||
+        Frame.Texture != NativeTexture ||
+        !Frame.BorrowedFrame.IsValid() ||
+        Frame.BorrowedFrame != Target.Frame ||
+        Frame.Generation != Impl_->Generation)
+        return Frame.Generation != Impl_->Generation
+            ? RHI::ERHIResult::ResizeRequired
+            : RHI::ERHIResult::InvalidState;
+
+    __block Core::uint32 LogicalWidth = 0;
+    __block Core::uint32 LogicalHeight = 0;
+    __block Core::uint32 Width = 0;
+    __block Core::uint32 Height = 0;
+    __block CGFloat DisplayScale = 1.0;
+    __block bool bClosing = false;
+    __block bool bPaused = false;
+    const auto RefreshOnMain = ^{
+        if (!Impl_->Window)
+        {
+            bClosing = true;
+            return;
+        }
+        bClosing = glfwWindowShouldClose(Impl_->Window) == GLFW_TRUE;
+        bPaused = glfwGetWindowAttrib(
+            Impl_->Window, GLFW_ICONIFIED) == GLFW_TRUE;
+        int WindowWidth = 0;
+        int WindowHeight = 0;
+        int PixelWidth = 0;
+        int PixelHeight = 0;
+        glfwGetWindowSize(Impl_->Window, &WindowWidth, &WindowHeight);
+        glfwGetFramebufferSize(Impl_->Window, &PixelWidth, &PixelHeight);
+        LogicalWidth = WindowWidth > 0
+            ? static_cast<Core::uint32>(WindowWidth) : 0;
+        LogicalHeight = WindowHeight > 0
+            ? static_cast<Core::uint32>(WindowHeight) : 0;
+        Width = PixelWidth > 0 ? static_cast<Core::uint32>(PixelWidth) : 0;
+        Height = PixelHeight > 0 ? static_cast<Core::uint32>(PixelHeight) : 0;
+        NSWindow* Window = glfwGetCocoaWindow(Impl_->Window);
+        if (Window) DisplayScale = Window.backingScaleFactor;
+    };
+    if ([NSThread isMainThread]) RefreshOnMain();
+    else dispatch_sync(dispatch_get_main_queue(), RefreshOnMain);
+    if (bClosing || bPaused || Width == 0 || Height == 0)
+        return RHI::ERHIResult::Unavailable;
+    if (LogicalWidth != Impl_->LogicalWidth ||
+        LogicalHeight != Impl_->LogicalHeight || Width != Impl_->Width ||
+        Height != Impl_->Height || DisplayScale != Impl_->DisplayScale)
+    {
+        if (Impl_->PresentationTracker &&
+            !Impl_->PresentationTracker->IsEmpty())
+            return RHI::ERHIResult::NotReady;
+        // Keep the borrowed drawable alive. It may still be referenced by
+        // work recorded by the caller; a failed present never recycles it.
+        Impl_->LogicalWidth = LogicalWidth;
+        Impl_->LogicalHeight = LogicalHeight;
+        Impl_->Width = Width;
+        Impl_->Height = Height;
+        Impl_->DisplayScale = DisplayScale;
+        ++Impl_->Generation;
+        Impl_->Layer.contentsScale = DisplayScale;
+        Impl_->Layer.drawableSize = CGSizeMake(Width, Height);
+        Impl_->ResolvedState.ModeGeneration = Impl_->Generation;
+        Impl_->ResolvedState.Width = Width;
+        Impl_->ResolvedState.Height = Height;
+        Impl_->ResolvedState.SwapchainImageGeneration = Impl_->Generation;
+        Impl_->LayerSnapshot.ModeGeneration = Impl_->Generation;
+        Impl_->LayerSnapshot.Width = Width;
+        Impl_->LayerSnapshot.Height = Height;
+        return RHI::ERHIResult::ResizeRequired;
+    }
+
+    const Core::uint64 WaitEpoch = RenderFinishedSemaphore
+        ? RenderFinishedSemaphore->ReserveSubmissionWait() : 0;
+    if (RenderFinishedSemaphore && WaitEpoch == 0)
+        return RHI::ERHIResult::NotReady;
+    if (!Owner_->TryBeginSubmission())
+    {
+        if (RenderFinishedSemaphore)
+            RenderFinishedSemaphore->CancelSubmissionWait(WaitEpoch);
+        return RHI::ERHIResult::InvalidState;
+    }
+
+    @autoreleasepool
+    {
+        id<MTLCommandQueue> Queue =
+            (__bridge id<MTLCommandQueue>)NativeQueue_;
+        id<MTLCommandBuffer> Commands = Queue ? [Queue commandBuffer] : nil;
+        if (!Commands)
+        {
+            if (RenderFinishedSemaphore)
+                RenderFinishedSemaphore->CancelSubmissionWait(WaitEpoch);
+            Owner_->EndSubmission();
+            return RHI::ERHIResult::Failed;
+        }
+
+        Core::TSharedPtr<FMetalFence> PresentationFence;
+        Core::TSharedPtr<FMetalPresentationCompletionState> Completion;
+        try
+        {
+            PresentationFence = Core::MakeShared<FMetalFence>(
+                Owner_, nullptr, false);
+            Completion = Core::MakeShared<
+                FMetalPresentationCompletionState>();
+        }
+        catch (const std::bad_alloc&)
+        {
+            if (RenderFinishedSemaphore)
+                RenderFinishedSemaphore->CancelSubmissionWait(WaitEpoch);
+            Owner_->EndSubmission();
+            return RHI::ERHIResult::Failed;
+        }
+        const Core::uint64 PresentationEpoch =
+            PresentationFence->ReserveSubmissionSignal();
+        if (PresentationEpoch == 0)
+        {
+            if (RenderFinishedSemaphore)
+                RenderFinishedSemaphore->CancelSubmissionWait(WaitEpoch);
+            Owner_->EndSubmission();
+            return RHI::ERHIResult::InvalidState;
+        }
+        Completion->Texture = NativeTexture;
+        Completion->RenderFinishedSemaphore = RenderFinishedSemaphore;
+        Completion->PresentationFence = PresentationFence;
+        Completion->Tracker = Impl_->PresentationTracker;
+        Completion->FrameToken = Target.Frame.FrameToken;
+        Completion->ImageIndex = Target.Frame.ImageIndex;
+        Completion->PresentationEpoch = PresentationEpoch;
+
+        if (RenderFinishedSemaphore)
+            RenderFinishedSemaphore->EncodeSubmissionWait(
+                (__bridge void*)Commands, WaitEpoch);
+        [Frame.Drawable addPresentedHandler:
+            ^(id<MTLDrawable> PresentedDrawable) {
+                // A drawable can be skipped while a window is being
+                // minimized or resized.  presentedTime==0 is not display
+                // proof, but the native release itself is still a successful
+                // terminal presentation completion.  Keep those outcomes
+                // separate so a dropped frame cannot advance presented state.
+                Completion->Complete(
+                    true, PresentedDrawable.presentedTime > 0.0);
+        }];
+        [Commands presentDrawable:Frame.Drawable];
+
+        Frame.bInFlight = true;
+        Frame.bPresentationSubmitted = true;
+        ++Impl_->InFlightCount;
+        const auto WeakContext = weak_from_this();
+        const auto SubmissionOwner = Owner_;
+        const Core::uint32 FrameSlot = Target.FrameSlotIndex;
+        const Core::uint64 Generation = Frame.Generation;
+        const Core::uint64 FrameToken = Target.Frame.FrameToken;
+        [Commands addCompletedHandler:^(id<MTLCommandBuffer> Buffer) {
+            // Dropping the frame's drawable can invoke its release handler.
+            // Publish a native failure first so that callback cannot turn a
+            // failed presentation command into a successful lease result.
+            if (Buffer.status != MTLCommandBufferStatusCompleted ||
+                Buffer.error)
+            {
+                Completion->Complete(false, false);
+                SubmissionOwner->RecordTerminalFailure(
+                    Core::FString("metal-presentation-command-failed"));
+            }
+            if (auto Context = WeakContext.lock())
+            {
+                std::lock_guard CompletionLock(Context->Impl_->Mutex);
+                auto& Completed = Context->Impl_->Frames[FrameSlot];
+                if (Completed.Generation == Generation &&
+                    Completed.FrameToken == FrameToken)
+                {
+                    Completed.Drawable = nil;
+                    Completed.Texture.reset();
+                    Completed.FrameToken = 0;
+                    Completed.Generation = 0;
+                    Completed.ImageIndex = 0;
+                    Completed.BorrowedFrame = {};
+                    Completed.bBorrowedLeaseActive = false;
+                    Completed.bPresentationSubmitted = false;
+                    Completed.bInFlight = false;
+                }
+                if (Context->Impl_->InFlightCount > 0)
+                    --Context->Impl_->InFlightCount;
+                Context->Impl_->Condition.notify_all();
+            }
+            SubmissionOwner->EndSubmission();
+        }];
+
+        // Publish the lease before commit. The presentation callback only
+        // touches Completion, so it cannot race context destruction or retain
+        // sampled render resources.
+        OutPresentationLease.Frame = Target.Frame;
+        OutPresentationLease.RenderFinishedSemaphore =
+            RenderFinishedSemaphore;
+        OutPresentationLease.PresentationCompletionFence = PresentationFence;
+        if (RenderFinishedSemaphore)
+            RenderFinishedSemaphore->CommitSubmissionWait(WaitEpoch);
+        Impl_->LayerSnapshot.LastSubmittedFrameToken =
+            Target.Frame.FrameToken;
+        [Commands commit];
+        return RHI::ERHIResult::Success;
+    }
+#endif
+}
+
+RHI::ERHIResult FMetalPresentationContext::ReleaseBorrowed(
+    const RHI::FRHIBorrowedAcquiredTarget& Target,
+    const Core::TSharedPtr<RHI::IRHIFence>& RenderCompletionFence) noexcept
+{
+#if !defined(STONER_GLFW_AVAILABLE) || !STONER_GLFW_AVAILABLE
+    (void)Target;
+    (void)RenderCompletionFence;
+    return RHI::ERHIResult::Unsupported;
+#else
+    if (!Impl_ || !Owner_ || !Target.IsValid())
+        return RHI::ERHIResult::InvalidState;
+    const auto NativeTexture =
+        std::dynamic_pointer_cast<FMetalTexture>(Target.Texture);
+    if (!NativeTexture || !NativeTexture->IsCompatible(Owner_))
+        return RHI::ERHIResult::InvalidState;
+    if (RenderCompletionFence)
+    {
+        const auto NativeFence =
+            std::dynamic_pointer_cast<FMetalFence>(RenderCompletionFence);
+        if (!NativeFence || !NativeFence->IsCompatible(Owner_))
+            return RHI::ERHIResult::InvalidState;
+        const auto RenderCompletion = RenderCompletionFence->Wait(0);
+        if (RenderCompletion == RHI::ERHIResult::NotReady)
+            return RHI::ERHIResult::NotReady;
+        if (RenderCompletion != RHI::ERHIResult::Success &&
+            RenderCompletion != RHI::ERHIResult::Failed)
+            return RenderCompletion;
+    }
+
+    std::lock_guard Lock(Impl_->Mutex);
+    if (Target.FrameSlotIndex >= Impl_->Frames.size())
+        return RHI::ERHIResult::InvalidState;
+    auto& Frame = Impl_->Frames[Target.FrameSlotIndex];
+    if (!Frame.bBorrowedLeaseActive || Frame.bInFlight ||
+        Frame.Texture != NativeTexture ||
+        Frame.BorrowedFrame != Target.Frame)
+        return Frame.bInFlight
+            ? RHI::ERHIResult::NotReady : RHI::ERHIResult::InvalidState;
+    (void)NativeTexture->Invalidate();
+    Frame.Drawable = nil;
+    Frame.Texture.reset();
+    Frame.FrameToken = 0;
+    Frame.Generation = 0;
+    Frame.ImageIndex = 0;
+    Frame.BorrowedFrame = {};
+    Frame.bBorrowedLeaseActive = false;
+    Frame.bPresentationSubmitted = false;
+    if (Impl_->PresentationTracker)
+        Impl_->PresentationTracker->Release(Target.Frame.ImageIndex);
+    Impl_->Condition.notify_all();
+    return RHI::ERHIResult::Success;
+#endif
+}
+
+void FMetalPresentationContext::ReleaseBorrowedAcquire(
     Core::uint32 FrameSlot,
-    Core::uint64 Generation) noexcept
+    Core::uint64 Generation,
+    Core::uint64 FrameToken) noexcept
 {
     if (!Impl_) return;
     std::lock_guard Lock(Impl_->Mutex);
     if (FrameSlot >= Impl_->Frames.size()) return;
     auto& Frame = Impl_->Frames[FrameSlot];
-    if (!Frame.bInFlight && Frame.Generation == Generation)
+    if (!Frame.bBorrowedLeaseActive || Frame.bInFlight ||
+        Frame.bPresentationSubmitted || Frame.Generation != Generation ||
+        Frame.FrameToken != FrameToken)
+        return;
+    if (Frame.Texture) (void)Frame.Texture->Invalidate();
+    const Core::uint32 ImageIndex = Frame.ImageIndex;
+    Frame.Drawable = nil;
+    Frame.Texture.reset();
+    Frame.FrameToken = 0;
+    Frame.Generation = 0;
+    Frame.ImageIndex = 0;
+    Frame.BorrowedFrame = {};
+    Frame.bBorrowedLeaseActive = false;
+    if (Impl_->PresentationTracker)
+        Impl_->PresentationTracker->Release(ImageIndex);
+    Impl_->Condition.notify_all();
+}
+
+void FMetalPresentationContext::CancelAcquire(
+    Core::uint32 FrameSlot,
+    Core::uint64 FrameToken) noexcept
+{
+    CancelAcquire(FrameSlot, 0, FrameToken);
+}
+
+void FMetalPresentationContext::PollCompletedUnpublishedBorrowedAcquires()
+    noexcept
+{
+    if (!Impl_) return;
+    std::lock_guard Lock(Impl_->Mutex);
+    for (auto& Frame : Impl_->Frames)
     {
+        if (!Frame.PendingDrawableAcquire || Frame.bBorrowedLeaseActive ||
+            Frame.bInFlight)
+            continue;
+        __strong id<CAMetalDrawable> Discarded = nil;
+        if (!Frame.PendingDrawableAcquire->TryTakeCancelled(Discarded))
+            continue;
+
+        Frame.PendingDrawableAcquire.reset();
+        if (Impl_->PendingDrawableAcquireCount > 0)
+            --Impl_->PendingDrawableAcquireCount;
+        const Core::uint32 ImageIndex = Frame.ImageIndex;
         Frame.Drawable = nil;
         Frame.Texture.reset();
         Frame.FrameToken = 0;
+        Frame.Generation = 0;
+        Frame.ImageIndex = 0;
+        Frame.BorrowedFrame = {};
+        if (Impl_->PresentationTracker)
+            Impl_->PresentationTracker->Release(ImageIndex);
     }
+    Impl_->Condition.notify_all();
+}
+
+void FMetalPresentationContext::CancelAllUnpublishedBorrowedAcquires()
+    noexcept
+{
+    if (!Impl_) return;
+    {
+        std::lock_guard Lock(Impl_->Mutex);
+        for (auto& Frame : Impl_->Frames)
+        {
+            if (Frame.PendingDrawableAcquire &&
+                !Frame.bBorrowedLeaseActive && !Frame.bInFlight)
+                Frame.PendingDrawableAcquire->Cancel();
+        }
+    }
+    // Consume any jobs that completed before or during the cancellation
+    // pass.  Jobs still inside nextDrawable remain in their frame records;
+    // the worker completion callback will call the same poll once it returns.
+    PollCompletedUnpublishedBorrowedAcquires();
+}
+
+void FMetalPresentationContext::CancelAcquire(
+    Core::uint32 FrameSlot,
+    Core::uint64 Generation,
+    Core::uint64 FrameToken) noexcept
+{
+    if (!Impl_ || FrameToken == 0) return;
+    std::lock_guard Lock(Impl_->Mutex);
+    if (FrameSlot >= Impl_->Frames.size()) return;
+    auto& Frame = Impl_->Frames[FrameSlot];
+    const bool bGenerationMatches = Generation == 0 ||
+        Frame.Generation == Generation;
+    if (Frame.bInFlight || Frame.bBorrowedLeaseActive ||
+        !bGenerationMatches || Frame.FrameToken != FrameToken)
+        return;
+
+    if (Frame.PendingDrawableAcquire)
+    {
+        // A cancellation request cannot revoke nextDrawable.  Keep both the
+        // worker's layer owner and the image admission in the bounded frame
+        // slot until the worker returns.  If it already returned, consume the
+        // completed unpublished result here so a caller does not need a
+        // second lifecycle operation to release the admission.
+        const auto Pending = Frame.PendingDrawableAcquire;
+        Pending->Cancel();
+        __strong id<CAMetalDrawable> Discarded = nil;
+        bool bCancelled = false;
+        if (Pending->TryTake(Discarded, bCancelled))
+        {
+            (void)bCancelled;
+            Frame.PendingDrawableAcquire.reset();
+            if (Impl_->PendingDrawableAcquireCount > 0)
+                --Impl_->PendingDrawableAcquireCount;
+            const Core::uint32 ImageIndex = Frame.ImageIndex;
+            Frame.Drawable = nil;
+            Frame.Texture.reset();
+            Frame.FrameToken = 0;
+            Frame.Generation = 0;
+            Frame.ImageIndex = 0;
+            Frame.BorrowedFrame = {};
+            if (Impl_->PresentationTracker)
+                Impl_->PresentationTracker->Release(ImageIndex);
+        }
+        Impl_->Condition.notify_all();
+        return;
+    }
+
+    Frame.Drawable = nil;
+    Frame.Texture.reset();
+    Frame.FrameToken = 0;
+    Frame.Generation = 0;
+    Frame.ImageIndex = 0;
+    Frame.BorrowedFrame = {};
+    Impl_->Condition.notify_all();
 }
 
 RHI::ERHIResult FMetalPresentationContext::Shutdown() noexcept
 {
     if (!Impl_) return RHI::ERHIResult::InvalidState;
+    const auto Deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    std::array<Core::TSharedPtr<FMetalDrawableAcquireState>,
+        RHI::MaxRHIFrameSlots> PendingJobs{};
+    Core::uint32 PendingJobCount = 0;
     {
         std::unique_lock Lock(Impl_->Mutex);
         if (!Impl_->bAttached) return RHI::ERHIResult::InvalidState;
         Impl_->bAcceptingFrames = false;
         for (auto& Frame : Impl_->Frames)
         {
+            if (Frame.PendingDrawableAcquire)
+            {
+                const auto Pending = Frame.PendingDrawableAcquire;
+                Pending->Cancel();
+                __strong id<CAMetalDrawable> Discarded = nil;
+                bool bCancelled = false;
+                if (Pending->TryTake(Discarded, bCancelled))
+                {
+                    (void)bCancelled;
+                    Frame.PendingDrawableAcquire.reset();
+                    if (Impl_->PendingDrawableAcquireCount > 0)
+                        --Impl_->PendingDrawableAcquireCount;
+                    const Core::uint32 ImageIndex = Frame.ImageIndex;
+                    Frame.FrameToken = 0;
+                    Frame.Generation = 0;
+                    Frame.ImageIndex = 0;
+                    Frame.BorrowedFrame = {};
+                    if (Impl_->PresentationTracker)
+                        Impl_->PresentationTracker->Release(ImageIndex);
+                }
+                else if (PendingJobCount < PendingJobs.size())
+                {
+                    // The worker still owns the layer and may be blocked in
+                    // nextDrawable.  Keep the shared job until its actual
+                    // completion, even though shutdown has stopped new
+                    // submissions.
+                    PendingJobs[PendingJobCount++] = Pending;
+                }
+            }
             if (!Frame.bInFlight)
             {
+                // An acquired borrowed drawable may still be referenced by
+                // render work submitted by the caller.  Shutdown has no
+                // completion proof for that work, so keep the target and its
+                // image lease until ReleaseBorrowed supplies one.
+                if (Frame.bBorrowedLeaseActive ||
+                    Frame.PendingDrawableAcquire)
+                    continue;
                 Frame.Drawable = nil;
                 Frame.Texture.reset();
+                Frame.BorrowedFrame = {};
             }
         }
         if (!Impl_->Condition.wait_for(
-                Lock, std::chrono::seconds(5),
+                Lock, std::chrono::duration_cast<std::chrono::milliseconds>(
+                    Deadline - std::chrono::steady_clock::now()),
                 [this] { return Impl_->InFlightCount == 0; }))
+            return RHI::ERHIResult::Timeout;
+    }
+    for (Core::uint32 Index = 0; Index < PendingJobCount; ++Index)
+    {
+        const auto Remaining = Deadline - std::chrono::steady_clock::now();
+        if (Remaining <= std::chrono::steady_clock::duration::zero() ||
+            !PendingJobs[Index]->WaitFor(
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    Remaining)))
+            return RHI::ERHIResult::Timeout;
+    }
+    if (PendingJobCount != 0)
+    {
+        std::lock_guard Lock(Impl_->Mutex);
+        for (Core::uint32 Index = 0; Index < PendingJobCount; ++Index)
+        {
+            for (auto& Frame : Impl_->Frames)
+            {
+                if (Frame.PendingDrawableAcquire != PendingJobs[Index])
+                    continue;
+                __strong id<CAMetalDrawable> Drawable = nil;
+                bool bCancelled = false;
+                if (!PendingJobs[Index]->TryTake(Drawable, bCancelled))
+                    return RHI::ERHIResult::Timeout;
+                (void)bCancelled;
+                Frame.PendingDrawableAcquire.reset();
+                if (Impl_->PendingDrawableAcquireCount > 0)
+                    --Impl_->PendingDrawableAcquireCount;
+                const Core::uint32 ImageIndex = Frame.ImageIndex;
+                Frame.FrameToken = 0;
+                Frame.Generation = 0;
+                Frame.ImageIndex = 0;
+                Frame.BorrowedFrame = {};
+                if (Impl_->PresentationTracker)
+                    Impl_->PresentationTracker->Release(ImageIndex);
+                break;
+            }
+        }
+    }
+    if (Impl_->PresentationTracker)
+    {
+        const auto Remaining = Deadline - std::chrono::steady_clock::now();
+        if (Remaining <= std::chrono::steady_clock::duration::zero() ||
+            !Impl_->PresentationTracker->WaitForZero(
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    Remaining)))
             return RHI::ERHIResult::Timeout;
     }
     const auto DetachOnMain = ^{
@@ -864,7 +1870,27 @@ FMetalPresentationContext::GetLayerSnapshot() const noexcept
 {
     if (!Impl_) return {};
     std::lock_guard Lock(Impl_->Mutex);
-    return Impl_->LayerSnapshot;
+    FMetalPresentationLayerSnapshot Snapshot = Impl_->LayerSnapshot;
+    if (Impl_->PresentationTracker &&
+        Impl_->PresentationTracker->HasPresentedFrame())
+        Snapshot.LastPresentedFrameToken =
+            Impl_->PresentationTracker->GetLastPresentedFrameToken();
+    return Snapshot;
+}
+
+Core::uint32 FMetalPresentationContext::GetPendingPresentationLeaseCount()
+    const noexcept
+{
+    if (!Impl_ || !Impl_->PresentationTracker) return 0;
+    return Impl_->PresentationTracker->GetPendingCount();
+}
+
+Core::uint32 FMetalPresentationContext::GetPendingDrawableAcquireCount()
+    const noexcept
+{
+    if (!Impl_) return 0;
+    std::lock_guard Lock(Impl_->Mutex);
+    return Impl_->PendingDrawableAcquireCount;
 }
 
 } // namespace Stoner::Backend::Metal::Private

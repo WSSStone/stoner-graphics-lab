@@ -1,6 +1,7 @@
 #include "VulkanRHI/FVulkanBuffer.h"
 
 #include <cstring>
+#include <limits>
 #include <new>
 #include <stdexcept>
 
@@ -53,6 +54,11 @@ const FVulkanResourceAllocation& FVulkanBuffer::GetAllocation() const noexcept {
 
 Stoner::RHI::ERHIResult FVulkanBuffer::Invalidate()
 {
+    if (NativeUseCount != 0)
+    {
+        bInvalidationPending = true;
+        return Stoner::RHI::ERHIResult::NotReady;
+    }
     if (LifecycleState == Stoner::RHI::ERHIResourceLifecycleState::Invalidated)
     {
         return Stoner::RHI::ERHIResult::InvalidState;
@@ -66,6 +72,10 @@ Stoner::RHI::ERHIResult FVulkanBuffer::Invalidate()
 
 Stoner::RHI::ERHIResult FVulkanBuffer::Upload(const void* Data, Stoner::Core::uint64 SizeBytes, Stoner::Core::uint64 OffsetBytes)
 {
+    if (NativeUseCount != 0)
+    {
+        return Stoner::RHI::ERHIResult::NotReady;
+    }
     if (LifecycleState != Stoner::RHI::ERHIResourceLifecycleState::Valid || Data == nullptr || SizeBytes == 0 ||
         Desc.MemoryAccess != Stoner::RHI::ERHIMemoryAccess::HostVisible || OffsetBytes > Desc.SizeInBytes ||
         SizeBytes > Desc.SizeInBytes - OffsetBytes)
@@ -97,6 +107,10 @@ Stoner::RHI::ERHIResult FVulkanBuffer::Upload(const void* Data, Stoner::Core::ui
         return Stoner::RHI::ERHIResult::Unavailable;
     }
     std::memcpy(UploadedBytes.data() + static_cast<Stoner::Core::usize>(OffsetBytes), Data, static_cast<Stoner::Core::usize>(SizeBytes));
+    UploadRevision = UploadRevision ==
+            std::numeric_limits<Stoner::Core::uint64>::max()
+        ? 1
+        : UploadRevision + 1;
     return Stoner::RHI::ERHIResult::Success;
 }
 
@@ -105,6 +119,10 @@ Stoner::RHI::ERHIResult FVulkanBuffer::RecordNativeUpload(
     Stoner::Core::uint64 SizeBytes,
     Stoner::Core::uint64 OffsetBytes)
 {
+    if (NativeUseCount != 0)
+    {
+        return Stoner::RHI::ERHIResult::NotReady;
+    }
     if (LifecycleState != Stoner::RHI::ERHIResourceLifecycleState::Valid ||
         Data == nullptr || SizeBytes == 0 || OffsetBytes > Desc.SizeInBytes ||
         SizeBytes > Desc.SizeInBytes - OffsetBytes)
@@ -127,7 +145,35 @@ Stoner::RHI::ERHIResult FVulkanBuffer::RecordNativeUpload(
     }
     std::memcpy(UploadedBytes.data() + static_cast<Stoner::Core::usize>(OffsetBytes),
         Data, static_cast<Stoner::Core::usize>(SizeBytes));
+    UploadRevision = UploadRevision ==
+            std::numeric_limits<Stoner::Core::uint64>::max()
+        ? 1
+        : UploadRevision + 1;
     return Stoner::RHI::ERHIResult::Success;
+}
+
+bool FVulkanBuffer::AcquireNativeUse() noexcept
+{
+    if (LifecycleState != Stoner::RHI::ERHIResourceLifecycleState::Valid ||
+        NativeUseCount == std::numeric_limits<Stoner::Core::uint32>::max())
+        return false;
+    ++NativeUseCount;
+    return true;
+}
+
+void FVulkanBuffer::ReleaseNativeUse() noexcept
+{
+    if (NativeUseCount != 0)
+        --NativeUseCount;
+    if (NativeUseCount == 0 && bInvalidationPending &&
+        LifecycleState == Stoner::RHI::ERHIResourceLifecycleState::Valid)
+    {
+        bInvalidationPending = false;
+        LifecycleState = Stoner::RHI::ERHIResourceLifecycleState::Invalidated;
+        decltype(UploadedBytes){}.swap(UploadedBytes);
+        if (Allocator)
+            (void)Allocator->Release(Allocation);
+    }
 }
 
 } // namespace Stoner::Backend::Vulkan

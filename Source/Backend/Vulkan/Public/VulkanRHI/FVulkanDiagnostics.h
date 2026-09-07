@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/CoreMinimal.h"
+#include "RHI/ERHIPresentationRetirement.h"
 
 namespace Stoner::Backend::Vulkan
 {
@@ -52,6 +53,17 @@ struct FVulkanDiagnostics
     const char* PipelineCacheReason = "";
     const char* PipelineBindingReason = "";
     const char* RuntimeModeReason = "";
+
+    // Lab startup keeps native failure evidence in Device-owned storage after
+    // its temporary Context is cleaned up.  PresentationSkipReason remains a
+    // stable literal summary because diagnostics are copied by value.  A zero
+    // result is meaningful only when the validity flag is true; local
+    // validation/allocation failures never invent a VkResult.
+    Stoner::Core::FString PresentationFailureDetail;
+    Stoner::Core::int32 PresentationFailureNativeResult = 0;
+    bool bPresentationFailureHasNativeResult = false;
+    Stoner::RHI::ERHIPresentationRetirementReason PresentationFailureReason =
+        Stoner::RHI::ERHIPresentationRetirementReason::Unknown;
 };
 
 void MarkUnsupportedRuntime(FVulkanDiagnostics& Diagnostics, const char* Reason) noexcept;

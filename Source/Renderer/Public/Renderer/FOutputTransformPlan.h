@@ -34,6 +34,42 @@ enum class EOutputTransformPlanState
     Released
 };
 
+enum class EFrameExecutionPurpose : Stoner::Core::uint8
+{
+    InteractivePreview,
+    FormalValidation
+};
+
+enum class EFrameReadbackSelection : Stoner::Core::uint8
+{
+    None,
+    Formal
+};
+
+[[nodiscard]] constexpr bool IsValidFrameExecutionPurpose(
+    EFrameExecutionPurpose Purpose) noexcept
+{
+    switch (Purpose)
+    {
+    case EFrameExecutionPurpose::InteractivePreview:
+    case EFrameExecutionPurpose::FormalValidation:
+        return true;
+    }
+    return false;
+}
+
+[[nodiscard]] constexpr bool IsValidFrameReadbackSelection(
+    EFrameReadbackSelection Selection) noexcept
+{
+    switch (Selection)
+    {
+    case EFrameReadbackSelection::None:
+    case EFrameReadbackSelection::Formal:
+        return true;
+    }
+    return false;
+}
+
 struct FOutputTransformStage
 {
     Stoner::Core::uint32 StageId = 0;
@@ -81,6 +117,10 @@ struct FOutputTransformPlan
     Stoner::Core::FString PlanFingerprint;
     FOutputTransformDiagnosticLog Diagnostics;
     EOutputTransformPlanState State = EOutputTransformPlanState::Failed;
+    EFrameExecutionPurpose ExecutionPurpose =
+        EFrameExecutionPurpose::FormalValidation;
+    EFrameReadbackSelection ReadbackSelection =
+        EFrameReadbackSelection::Formal;
 
     [[nodiscard]] bool IsValid() const noexcept;
 };

@@ -737,6 +737,12 @@ Stoner::RHI::ERHIResult FVulkanCommandBuffer::MarkSubmitted() noexcept
     return Stoner::RHI::ERHIResult::Success;
 }
 
+void FVulkanCommandBuffer::RollbackSubmitted() noexcept
+{
+    if (bValid && State == Stoner::RHI::ERHICommandBufferState::Submitted)
+        State = Stoner::RHI::ERHICommandBufferState::Completed;
+}
+
 Stoner::RHI::ERHIResult FVulkanCommandBuffer::MarkCompletedOrResettable() noexcept
 {
     if (!bValid || State != Stoner::RHI::ERHICommandBufferState::Submitted)

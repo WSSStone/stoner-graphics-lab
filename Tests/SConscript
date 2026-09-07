@@ -122,6 +122,15 @@ private_include_paths_by_source = {
     'VulkanBackendTests.cpp': [
         Dir('#Source/Backend/Vulkan/Private').abspath,
     ],
+    'VulkanLabPresentationPolicyTests.cpp': [
+        Dir('#Source/Backend/Vulkan/Private').abspath,
+    ],
+    'VulkanDeferredNativeTests.cpp': [
+        Dir('#Source/Backend/Vulkan/Private').abspath,
+    ],
+    'VulkanLabCapabilityNativeTests.cpp': [
+        Dir('#Source/Backend/Vulkan/Private').abspath,
+    ],
     'VulkanOutputTransformNativeTests.cpp': [
         Dir('#Source/Backend/Vulkan/Private').abspath,
     ],
@@ -165,7 +174,15 @@ private_include_paths_by_source = {
 
 private_defines_by_source = {
     'AssetKTX2Tests.cpp': ['KHRONOS_STATIC'],
+    'VulkanLabStartupIntegrationTests.cpp': [
+        ('STONER_VULKAN_NATIVE_AVAILABLE',
+            int(graphics_deps['vulkan_available'])),
+    ],
     'VulkanOutputTransformNativeTests.cpp': [
+        ('STONER_VULKAN_NATIVE_AVAILABLE',
+            int(graphics_deps['vulkan_available'])),
+    ],
+    'VulkanLabCapabilityNativeTests.cpp': [
         ('STONER_VULKAN_NATIVE_AVAILABLE',
             int(graphics_deps['vulkan_available'])),
     ],
@@ -251,6 +268,37 @@ engine_libs = [
 ]
 engine_libs.extend(['RHI', 'Asset', 'Core'])
 test_env.Append(LIBS=engine_libs)
+
+# Keep helper probes attached to the generated archive nodes as well as to
+# their linker names.  The layer SConscripts create these archives in their
+# own variant directories; a target-only test build must therefore see an
+# archive rebuild when one of its objects (for example Application/FWindow)
+# is newer than the archive.
+_library_extension = '.lib' if platform == 'Win64' else '.a'
+_library_prefix = '' if platform == 'Win64' else 'lib'
+_engine_library_locations = [
+    (os.path.join('Demo', 'StonerDemo'), 'StonerDemoRuntime'),
+    ('Application', 'Application'),
+    ('Renderer', 'Renderer'),
+    (os.path.join('Backend', 'Vulkan'), 'VulkanRHI'),
+    (os.path.join('Backend', 'Metal'), 'MetalRHI'),
+    ('RHI', 'RHI'),
+    ('Asset', 'Asset'),
+    ('Core', 'Core'),
+]
+_engine_library_nodes = [
+    File(os.path.join(
+        build_base,
+        location,
+        _library_prefix + name + _library_extension,
+    ))
+    for location, name in _engine_library_locations
+]
+# A layer archive can otherwise remain "up to date" during the first
+# target-only scan that discovers a newly changed private source/object
+# dependency.  The probe's Application ABI is the affected contract here;
+# retain that source edge so its archive is rebuilt in the same invocation.
+Depends(_engine_library_nodes[1], Glob('#Source/Application/Private/*.cpp'))
 if platform == 'Mac':
     test_env.Append(FRAMEWORKS=['Metal', 'QuartzCore', 'Cocoa', 'Foundation'])
 test_env.Append(LIBS=env.get('STONER_ASSET_THIRD_PARTY_LIBS', []))
@@ -287,6 +335,7 @@ if platform == 'Mac':
         'MetalPresentationProbe',
         [File('#Tests/Helpers/MetalPresentationProbe.mm')],
     )
+    presentation_probe_env.Depends(presentation_probe, _engine_library_nodes)
     test_env.Depends(program, presentation_probe)
 
 lease_probe = test_env.Program(

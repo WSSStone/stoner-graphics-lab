@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Application/FFreeCameraController.h"
 #include "Application/FInputEvent.h"
 #include "FProductionCameraPreset.h"
 
@@ -39,9 +40,17 @@ public:
     [[nodiscard]] FProductionCameraPreviewUpdate Update(
         const Core::TArray<Application::FInputEvent>& Events,
         double DeltaSeconds);
+    [[nodiscard]] FProductionCameraPreviewUpdate Update(
+        const Core::TArray<Application::FInputEvent>& Events,
+        double DeltaSeconds,
+        const Application::FWindowDisplayState& CurrentDisplay);
     [[nodiscard]] const FProductionCameraPreset& GetCamera() const noexcept
     {
         return Camera;
+    }
+    [[nodiscard]] bool IsLookCaptured() const noexcept
+    {
+        return bRightMouseHeld;
     }
     [[nodiscard]] FProductionCameraCandidate BuildCandidate(
         const char* Backend,
@@ -49,20 +58,28 @@ public:
     void Reset() noexcept;
 
 private:
-    void RebuildCamera();
+    [[nodiscard]] bool BuildInitialCameraState(
+        const FProductionCameraPreset& Preset,
+        Core::uint32 InWidth,
+        Core::uint32 InHeight,
+        Application::FFreeCameraState& OutState,
+        Core::FString* OutReason) const;
+    [[nodiscard]] bool SyncCameraFromController() noexcept;
+    void ClearInputState() noexcept;
     [[nodiscard]] bool IsHeld(Application::EKey Key) const;
+    [[nodiscard]] static bool IsNavigationKey(Application::EKey Key) noexcept;
 
     FProductionCameraPreset InitialCamera;
     FProductionCameraPreset Camera;
+    Application::FFreeCameraState InitialCameraState;
+    Application::FFreeCameraController CameraController;
+    Application::FWindowDisplayState DisplayState;
     Core::uint32 Width = 0;
     Core::uint32 Height = 0;
-    Core::FVector3 Position = Core::FVector3::Zero();
-    float YawRadians = 0.0f;
-    float PitchRadians = 0.0f;
-    float VerticalFovRadians = 1.0471975512f;
-    float Aspect = 1.0f;
     bool bRightMouseHeld = false;
     bool bHasPointer = false;
+    bool bInputQuarantined = false;
+    bool bNeedsZeroInterval = false;
     float PointerX = 0.0f;
     float PointerY = 0.0f;
     std::set<Application::EKey> HeldKeys;

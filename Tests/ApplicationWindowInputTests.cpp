@@ -3,6 +3,7 @@
 #include "Application/ApplicationMinimal.h"
 #include "FWindowDriver.h"
 
+#include <algorithm>
 #include <iostream>
 #include <string>
 
@@ -24,6 +25,14 @@ public:
         return bCreated ? EApplicationResult::Success : EApplicationResult::RuntimeUnavailable;
     }
     void Destroy() override { bCreated = false; }
+    void Poll() override
+    {
+        if (!bQueueFocusLossOnNextPoll) return;
+        WindowEvents.push_back(FWindowEvent::FocusLost(NextSequence++));
+        InputEvents.push_back(FInputEvent::FocusLost(NextSequence++));
+        InputEvents.push_back(FInputEvent::KeyDown(EKey::W, NextSequence++));
+        bQueueFocusLossOnNextPoll = false;
+    }
     void RequestClose() override { WindowEvents.push_back(FWindowEvent::CloseRequested(NextSequence++)); }
     EApplicationResult SetClientSize(
         Stoner::Core::uint32 Width, Stoner::Core::uint32 Height) override
@@ -67,6 +76,7 @@ public:
     EWindowRuntimeAvailability Availability = EWindowRuntimeAvailability::Available;
     bool bCreated = false;
     bool bHighDensityFramebuffer = true;
+    bool bQueueFocusLossOnNextPoll = false;
     int NativeToken = 7;
     Stoner::Core::uint32 DrawableWidth = 2560;
     Stoner::Core::uint32 DrawableHeight = 1440;
@@ -215,9 +225,240 @@ void TestPrivateDriverAndRealWindowEvents(FApplicationWindowInputTestResult& Res
     Script->QueueWindow(FWindowEvent::CloseRequested(106));
     const auto Input = Window.PollInputEvents();
     Events = Window.PollEvents();
-    Record(Result, !Input.empty() && Input.front().Key == EKey::Escape && Window.IsCloseRequested() && !Events.empty(),
+    Record(Result, std::any_of(Input.begin(), Input.end(),
+            [](const FInputEvent& Event)
+            {
+                return Event.EventType == EInputEventType::KeyDown &&
+                    Event.Key == EKey::Escape;
+            }) && Window.IsCloseRequested() && !Events.empty(),
         "Application translates Escape and close callbacks while the window loop remains pollable");
     (void)Window.Destroy();
+}
+
+void TestCursorAndDisplayServices(FApplicationWindowInputTestResult& Result)
+{
+    FWindow Window;
+    Record(Result, Window.Create(ValidDesc()) == EApplicationResult::Success,
+        "headless window starts with a usable display service");
+
+    const FWindowDisplayState InitialDisplay = Window.GetDisplayState();
+    Record(Result, InitialDisplay.IsValid() &&
+            InitialDisplay.LogicalExtent == FWindowExtent{1280, 720} &&
+            InitialDisplay.DrawableExtent == FWindowExtent{1280, 720} &&
+            InitialDisplay.DisplayGeneration != 0 &&
+            InitialDisplay.bFocused && !InitialDisplay.bMinimized,
+        "headless display snapshot reports logical and drawable extents");
+
+    Record(Result, Window.SetCursorMode(ECursorMode::Disabled) ==
+            EApplicationResult::Success &&
+            Window.GetCursorMode() == ECursorMode::Disabled,
+        "headless window accepts engine cursor capture mode");
+
+    Window.QueueEvent(FWindowEvent::FocusLost(20));
+    (void)Window.PollEvents();
+    const auto FocusLossInput = Window.PollInputEvents();
+    const bool bFocusReset = std::any_of(FocusLossInput.begin(),
+        FocusLossInput.end(), [](const FInputEvent& Event)
+        {
+            return Event.EventType == EInputEventType::FocusLost;
+        });
+    const FWindowDisplayState UnfocusedDisplay = Window.GetDisplayState();
+    Record(Result, bFocusReset && Window.GetCursorMode() == ECursorMode::Normal &&
+            !Window.IsFocused() && !UnfocusedDisplay.bFocused &&
+            UnfocusedDisplay.DisplayGeneration > InitialDisplay.DisplayGeneration,
+        "focus loss restores normal cursor and emits input baseline reset");
+    Record(Result, Window.SetCursorMode(ECursorMode::Disabled) !=
+            EApplicationResult::Success,
+        "unfocused window cannot reacquire a disabled cursor");
+
+    Window.QueueEvent(FWindowEvent::FocusGained(21));
+    (void)Window.PollEvents();
+    Record(Result, Window.SetCursorMode(ECursorMode::Disabled) ==
+            EApplicationResult::Success,
+        "focused window can request cursor capture again");
+
+    Window.QueueEvent(FWindowEvent::Minimized(22));
+    (void)Window.PollEvents();
+    const auto MinimizedInput = Window.PollInputEvents();
+    const FWindowDisplayState MinimizedDisplay = Window.GetDisplayState();
+    Record(Result, std::any_of(MinimizedInput.begin(), MinimizedInput.end(),
+            [](const FInputEvent& Event)
+            {
+                return Event.EventType == EInputEventType::FocusLost;
+            }) && Window.GetCursorMode() == ECursorMode::Normal &&
+            MinimizedDisplay.IsValid() && MinimizedDisplay.DrawableExtent.IsZero() &&
+            MinimizedDisplay.LogicalExtent == FWindowExtent{1280, 720} &&
+            MinimizedDisplay.bMinimized,
+        "minimize retains logical size while pausing drawable input");
+    Record(Result, Window.SetCursorMode(ECursorMode::Disabled) !=
+            EApplicationResult::Success,
+        "minimized window cannot reacquire a disabled cursor");
+
+    Window.QueueEvent(FWindowEvent::Restored(800, 600, 23));
+    (void)Window.PollEvents();
+    const FWindowDisplayState RestoredDisplay = Window.GetDisplayState();
+    Record(Result, RestoredDisplay.IsValid() &&
+            RestoredDisplay.DrawableExtent == FWindowExtent{800, 600} &&
+            !RestoredDisplay.bMinimized && RestoredDisplay.bFocused &&
+            RestoredDisplay.DisplayGeneration > MinimizedDisplay.DisplayGeneration,
+        "restore publishes a new valid drawable generation");
+
+    auto ResizeDriver = std::make_unique<FScriptedWindowDriver>();
+    FScriptedWindowDriver* ResizeScript = ResizeDriver.get();
+    FWindow ResizeWindow;
+    FWindowTestAccess::InstallDriver(ResizeWindow, std::move(ResizeDriver));
+    (void)ResizeWindow.CreateRealWindow(ValidDesc());
+    ResizeScript->QueueWindow(FWindowEvent::Resized(900, 450, 25));
+    (void)ResizeWindow.PollEvents();
+    const FWindowDisplayState LogicalResize = ResizeWindow.GetDisplayState();
+    Record(Result, LogicalResize.IsValid() &&
+            LogicalResize.LogicalExtent == FWindowExtent{900, 450} &&
+            LogicalResize.DrawableExtent == FWindowExtent{2560, 1440} &&
+            Stoner::Core::FMath::IsNearlyEqual(LogicalResize.FramebufferScale.X,
+                2560.0f / 900.0f, 1.0e-4f) &&
+            Stoner::Core::FMath::IsNearlyEqual(LogicalResize.FramebufferScale.Y,
+                1440.0f / 450.0f, 1.0e-4f),
+        "logical resize recomputes framebuffer scale when drawable extent is unchanged");
+
+    ResizeScript->SetDrawable(0, 0);
+    ResizeScript->QueueWindow(FWindowEvent::DrawableResized(0, 0, 26));
+    (void)ResizeWindow.PollEvents();
+    const FWindowDisplayState ZeroDrawable = ResizeWindow.GetDisplayState();
+    const auto ZeroDrawableInput = ResizeWindow.PollInputEvents();
+    Record(Result, ZeroDrawable.IsValid() &&
+            ZeroDrawable.DrawableExtent.IsZero() && !ZeroDrawable.bMinimized &&
+            !ResizeWindow.HasDrawableArea() &&
+            std::any_of(ZeroDrawableInput.begin(), ZeroDrawableInput.end(),
+                [](const FInputEvent& Event)
+                {
+                    return Event.EventType == EInputEventType::FocusLost;
+                }) &&
+            ResizeWindow.SetCursorMode(ECursorMode::Disabled) !=
+                EApplicationResult::Success,
+        "zero framebuffer extent pauses independently of native minimization");
+
+    ResizeScript->SetDrawable(1024, 576);
+    ResizeScript->QueueWindow(FWindowEvent::DrawableResized(1024, 576, 27));
+    (void)ResizeWindow.PollEvents();
+    Record(Result, ResizeWindow.GetDisplayState().IsValid() &&
+            ResizeWindow.HasDrawableArea() &&
+            !ResizeWindow.IsMinimized(),
+        "non-zero framebuffer callback resumes an unminimized zero-drawable window");
+
+    ResizeScript->SetDrawable(2048, 1536);
+    ResizeScript->QueueWindow(FWindowEvent::Restored(1024, 768, 28));
+    (void)ResizeWindow.PollEvents();
+    const FWindowDisplayState HighDpiRestore = ResizeWindow.GetDisplayState();
+    Record(Result, HighDpiRestore.IsValid() &&
+            HighDpiRestore.LogicalExtent == FWindowExtent{1024, 768} &&
+            HighDpiRestore.DrawableExtent == FWindowExtent{2048, 1536} &&
+            Stoner::Core::FMath::IsNearlyEqual(HighDpiRestore.FramebufferScale.X,
+                2.0f, 1.0e-4f) &&
+            Stoner::Core::FMath::IsNearlyEqual(HighDpiRestore.FramebufferScale.Y,
+                2.0f, 1.0e-4f),
+        "high DPI restore preserves logical size and actual drawable ratio");
+
+    (void)Window.SetCursorMode(ECursorMode::Disabled);
+    Record(Result, Window.RequestClose() == EApplicationResult::Success &&
+            Window.GetCursorMode() == ECursorMode::Normal &&
+            Window.IsCloseRequested(),
+        "close request releases engine cursor capture immediately");
+    (void)Window.PollEvents();
+    const auto CloseInput = Window.PollInputEvents();
+    const auto CloseResetCount = std::count_if(CloseInput.begin(), CloseInput.end(),
+        [](const FInputEvent& Event)
+        {
+            return Event.EventType == EInputEventType::FocusLost;
+        });
+    Record(Result, CloseResetCount == 1,
+        "close request and its polled callback emit one input baseline reset");
+    Record(Result, std::any_of(CloseInput.begin(), CloseInput.end(),
+            [](const FInputEvent& Event)
+            {
+                return Event.EventType == EInputEventType::FocusLost;
+            }),
+        "close event carries the input baseline reset");
+    Record(Result, Window.SetCursorMode(ECursorMode::Disabled) !=
+            EApplicationResult::Success,
+        "closing window cannot reacquire a disabled cursor");
+
+    const auto DestroyInput = [&Window]()
+    {
+        (void)Window.Destroy();
+        return Window.PollInputEvents();
+    }();
+    Record(Result, std::any_of(DestroyInput.begin(), DestroyInput.end(),
+            [](const FInputEvent& Event)
+            {
+                return Event.EventType == EInputEventType::FocusLost;
+            }),
+        "engine initiated destruction emits a final input baseline reset");
+
+    auto Driver = std::make_unique<FScriptedWindowDriver>();
+    FScriptedWindowDriver* Script = Driver.get();
+    FWindow EscapeWindow;
+    FWindowTestAccess::InstallDriver(EscapeWindow, std::move(Driver));
+    (void)EscapeWindow.CreateRealWindow(ValidDesc());
+    Script->QueueInput(FInputEvent::KeyDown(EKey::Escape, 24));
+    const auto EscapeInput = EscapeWindow.PollInputEvents();
+    Record(Result, !EscapeInput.empty() &&
+            EscapeInput.front().Key == EKey::Escape &&
+            !EscapeWindow.IsCloseRequested(),
+        "Escape input remains an application action and does not close a window");
+
+    Script->bQueueFocusLossOnNextPoll = true;
+    const auto ImmediateFocusInput = EscapeWindow.PollInputEvents();
+    const auto FocusReset = std::find_if(ImmediateFocusInput.begin(),
+        ImmediateFocusInput.end(), [](const FInputEvent& Event)
+        {
+            return Event.EventType == EInputEventType::FocusLost;
+        });
+    const auto QueuedDown = std::find_if(ImmediateFocusInput.begin(),
+        ImmediateFocusInput.end(), [](const FInputEvent& Event)
+        {
+            return Event.EventType == EInputEventType::KeyDown &&
+                Event.Key == EKey::W;
+        });
+    Record(Result, FocusReset != ImmediateFocusInput.end() &&
+            QueuedDown != ImmediateFocusInput.end() &&
+            FocusReset->Sequence < QueuedDown->Sequence &&
+            EscapeWindow.GetCursorMode() == ECursorMode::Normal,
+        "a focus loss discovered by a later input poll delivers reset before queued downs");
+}
+
+void TestDistinctFocusLossResets(FApplicationWindowInputTestResult& Result)
+{
+    auto Driver = std::make_unique<FScriptedWindowDriver>();
+    FScriptedWindowDriver* Script = Driver.get();
+    FWindow Window;
+    FWindowTestAccess::InstallDriver(Window, std::move(Driver));
+    (void)Window.CreateRealWindow(ValidDesc());
+
+    Script->QueueWindow(FWindowEvent::FocusLost(30));
+    Script->QueueInput(FInputEvent::KeyDown(EKey::W, 31));
+    Script->QueueWindow(FWindowEvent::FocusGained(32));
+    Script->QueueWindow(FWindowEvent::FocusLost(33));
+    (void)Window.PollEvents();
+    const auto Input = Window.PollInputEvents();
+
+    Stoner::Core::TArray<Stoner::Core::uint64> ResetSequences;
+    for (const FInputEvent& Event : Input)
+    {
+        if (Event.EventType == EInputEventType::FocusLost)
+            ResetSequences.push_back(Event.Sequence);
+    }
+    const auto KeyIt = std::find_if(Input.begin(), Input.end(),
+        [](const FInputEvent& Event)
+        {
+            return Event.EventType == EInputEventType::KeyDown &&
+                Event.Key == EKey::W;
+        });
+    Record(Result, ResetSequences.size() == 2 &&
+            ResetSequences[0] == 30 && ResetSequences[1] == 33 &&
+            KeyIt != Input.end() &&
+            ResetSequences[0] < KeyIt->Sequence &&
+            KeyIt->Sequence < ResetSequences[1],
+        "distinct focus loss transitions retain ordered input baseline resets");
 }
 
 void TestInputTransitions(FApplicationWindowInputTestResult& Result)
@@ -430,6 +671,8 @@ FApplicationWindowInputTestResult RunApplicationWindowInputTests()
     TestWindowLifecycle(Result);
     TestWindowValidationAndRuntime(Result);
     TestPrivateDriverAndRealWindowEvents(Result);
+    TestCursorAndDisplayServices(Result);
+    TestDistinctFocusLossResets(Result);
     TestInputTransitions(Result);
     TestFocusLossAndUnknownInput(Result);
     TestPlatformInputMapping(Result);

@@ -3,11 +3,15 @@
 #include "FVulkanNativeOffscreenSession.h"
 #include "FVulkanRasterizationConvention.h"
 #include "FVulkanStruct.h"
+#include "FDeferredNativeSubmission.h"
+#include "FVulkanLabCapabilityQuery.h"
+#include "FVulkanLabDeviceStartup.h"
 #include "VulkanRHI/FVulkanBuffer.h"
 #include "VulkanRHI/FVulkanCommandBuffer.h"
 #include "VulkanRHI/FVulkanDescriptorSet.h"
 #include "VulkanRHI/FVulkanFramebuffer.h"
 #include "VulkanRHI/FVulkanGraphicsPipeline.h"
+#include "VulkanRHI/FVulkanFence.h"
 #include "VulkanRHI/FVulkanRenderPass.h"
 #include "VulkanRHI/FVulkanSampler.h"
 #include "VulkanRHI/FVulkanTexture.h"
@@ -34,7 +38,9 @@
 #include <sstream>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #endif
 
@@ -571,6 +577,7 @@ struct FVulkanNativeContext::FImpl
         VkPipelineLayout PipelineLayout = VK_NULL_HANDLE;
         VkRenderPass RenderPass = VK_NULL_HANDLE;
         std::vector<VkDescriptorSetLayout> DescriptorSetLayouts;
+        bool bDestructionPending = false;
     };
     Stoner::Core::uint64 NextOwnedPipelineToken = 1;
     std::unordered_map<Stoner::Core::uint64, FOwnedPipelineResources>
@@ -581,10 +588,42 @@ struct FVulkanNativeContext::FImpl
         VkImage Image = VK_NULL_HANDLE;
         VkDeviceMemory Memory = VK_NULL_HANDLE;
         std::vector<VkImageLayout> MipLayouts;
+        bool bDestructionPending = false;
     };
     Stoner::Core::uint64 NextOwnedTextureToken = 1;
     std::unordered_map<Stoner::Core::uint64, FOwnedTextureResources>
         OwnedTextures;
+
+    struct FPersistentNativeBuffer
+    {
+        Stoner::Core::TWeakPtr<FVulkanBuffer> Owner;
+        VkBuffer Buffer = VK_NULL_HANDLE;
+        VkDeviceMemory Memory = VK_NULL_HANDLE;
+        Stoner::Core::uint64 UploadedRevision = 0;
+    };
+    std::unordered_map<const Stoner::RHI::IRHIBuffer*, FPersistentNativeBuffer>
+        PersistentNativeBuffers;
+    std::unordered_map<Stoner::Core::uint64, Stoner::Core::uint32>
+        PendingDeferredTextureUses;
+    std::unordered_map<Stoner::Core::uint64, Stoner::Core::uint32>
+        PendingDeferredPipelineUses;
+    std::vector<Stoner::Core::TSharedPtr<FDeferredNativeSubmission>>
+        DeferredSubmissions;
+    // A synchronous facade call can fail after vkQueueSubmit (for example on
+    // a native wait/device error). Keep that submitted record reachable until
+    // the context's device-idle teardown can safely release it.
+    std::vector<Stoner::Core::TSharedPtr<FDeferredNativeSubmission>>
+        FailedSynchronousSubmissions;
+    // A post-submit synchronous failure leaves the device's native work
+    // state terminal for this context. Preserve the first concrete result and
+    // reject further native command work until Shutdown tears the device down.
+    ERHIResult SynchronousSubmissionFailure = ERHIResult::Success;
+    Stoner::Core::uint64 NextDeferredSubmissionId = 1;
+    bool bInjectDeferredCompletionDelay = false;
+    // Test-only post-submit observation failure. The native command is still
+    // submitted and remains owned until device-idle teardown; this flag never
+    // fabricates a completed fence or forces a GPU hang.
+    bool bInjectSynchronousObservationFailure = false;
 
     VkBuffer VertexBuffer = VK_NULL_HANDLE;
     VkDeviceMemory VertexMemory = VK_NULL_HANDLE;
@@ -620,6 +659,16 @@ struct FVulkanNativeContext::FImpl
     bool bFrameAcquired = false;
     bool bAcquiredSuboptimal = false;
     bool bSupportsHDRMetadata = false;
+    Private::FVulkanLabPresentationCapabilityObservation
+        LabCapabilityObservation;
+    Private::FVulkanLabPresentationPolicySelection LabPresentationSelection;
+    bool bLabPresentationStartup = false;
+    Stoner::Core::FString LastLabStartupFailureDetail;
+    Stoner::RHI::ERHIPresentationRetirementReason LastLabStartupFailureReason =
+        Stoner::RHI::ERHIPresentationRetirementReason::Unknown;
+    Stoner::Core::int32 LastLabStartupFailureNativeResult = 0;
+    bool bLastLabStartupFailureHasNativeResult = false;
+    bool bHasLastLabStartupFailure = false;
     Stoner::Core::uint64 PresentationCapabilityGeneration = 1;
     Stoner::Core::uint64 PresentationModeGeneration = 0;
     Stoner::Core::uint64 NextVisibleFrameToken = 1;
@@ -632,6 +681,40 @@ struct FVulkanNativeContext::FImpl
         {
             return std::strcmp(Item.extensionName, Name) == 0;
         });
+    }
+
+    void ClearLabStartupFailure() noexcept
+    {
+        LastLabStartupFailureDetail.Clear();
+        LastLabStartupFailureReason =
+            Stoner::RHI::ERHIPresentationRetirementReason::Unknown;
+        LastLabStartupFailureNativeResult = 0;
+        bLastLabStartupFailureHasNativeResult = false;
+        bHasLastLabStartupFailure = false;
+    }
+
+    void RecordLabStartupFailure(
+        Stoner::RHI::ERHIPresentationRetirementReason Reason,
+        std::string_view Detail,
+        Stoner::Core::int32 NativeResult,
+        bool bHasNativeResult) noexcept
+    {
+        LastLabStartupFailureReason = Reason;
+        LastLabStartupFailureNativeResult = NativeResult;
+        bLastLabStartupFailureHasNativeResult = bHasNativeResult;
+        bHasLastLabStartupFailure = true;
+        constexpr std::size_t MaxDiagnosticBytes = 1024;
+        try
+        {
+            LastLabStartupFailureDetail = Detail.substr(
+                0, std::min(Detail.size(), MaxDiagnosticBytes));
+        }
+        catch (...)
+        {
+            // Scalar and typed evidence remain authoritative if bounded
+            // diagnostic storage itself is exhausted.
+            LastLabStartupFailureDetail.Clear();
+        }
     }
 
     [[nodiscard]] Stoner::Core::uint32 GetLiveShaderModuleCount() const noexcept
@@ -916,6 +999,50 @@ struct FVulkanNativeContext::FImpl
         VisibleImageNativePixels.shrink_to_fit();
     }
 
+    void DestroyPersistentNativeBuffers() noexcept
+    {
+        if (Device != VK_NULL_HANDLE)
+        {
+            for (auto& [Key, Native] : PersistentNativeBuffers)
+            {
+                (void)Key;
+                if (Native.Buffer != VK_NULL_HANDLE)
+                    vkDestroyBuffer(Device, Native.Buffer, nullptr);
+                if (Native.Memory != VK_NULL_HANDLE)
+                    vkFreeMemory(Device, Native.Memory, nullptr);
+            }
+        }
+        PersistentNativeBuffers.clear();
+    }
+
+    void ReclaimPersistentNativeBuffers() noexcept
+    {
+        if (Device == VK_NULL_HANDLE)
+            return;
+        for (auto Iterator = PersistentNativeBuffers.begin();
+             Iterator != PersistentNativeBuffers.end();)
+        {
+            const auto Owner = Iterator->second.Owner.lock();
+            if (Owner && Owner->HasPendingNativeUse())
+            {
+                ++Iterator;
+                continue;
+            }
+            if (Owner &&
+                Owner->GetLifecycleState() ==
+                    Stoner::RHI::ERHIResourceLifecycleState::Valid)
+            {
+                ++Iterator;
+                continue;
+            }
+            if (Iterator->second.Buffer != VK_NULL_HANDLE)
+                vkDestroyBuffer(Device, Iterator->second.Buffer, nullptr);
+            if (Iterator->second.Memory != VK_NULL_HANDLE)
+                vkFreeMemory(Device, Iterator->second.Memory, nullptr);
+            Iterator = PersistentNativeBuffers.erase(Iterator);
+        }
+    }
+
     [[nodiscard]] bool PrepareVisibleImageTransferResources(
         Stoner::Core::uint64 ByteCount)
     {
@@ -1100,10 +1227,39 @@ FVulkanNativeContext::FVulkanNativeContext() : Impl(std::make_unique<FImpl>()) {
 FVulkanNativeContext::~FVulkanNativeContext() { (void)Shutdown(); }
 
 Stoner::RHI::ERHIResult FVulkanNativeContext::Initialize(
-    Stoner::RHI::ERHIRuntimeMode Mode, const Stoner::Core::FPlatformWindow& PlatformWindow)
+    Stoner::RHI::ERHIRuntimeMode Mode,
+    const Stoner::Core::FPlatformWindow& PlatformWindow)
+{
+    return InitializeInternal(Mode, PlatformWindow, false, false);
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::InitializeLabPresentation(
+    const Stoner::Core::FPlatformWindow& Window,
+    bool bForceAcquireHistory)
+{
+    return InitializeInternal(
+        Stoner::RHI::ERHIRuntimeMode::Native,
+        Window,
+        true,
+        bForceAcquireHistory);
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::InitializeInternal(
+    Stoner::RHI::ERHIRuntimeMode Mode,
+    const Stoner::Core::FPlatformWindow& PlatformWindow,
+    bool bLabPresentation,
+    bool bForceAcquireHistory)
 {
     if (!Impl || Impl->Snapshot.LiveInstances != 0) return Stoner::RHI::ERHIResult::InvalidState;
     Impl->Snapshot = {};
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    Impl->SynchronousSubmissionFailure = FImpl::ERHIResult::Success;
+    Impl->bInjectSynchronousObservationFailure = false;
+    Impl->bLabPresentationStartup = false;
+    Impl->LabCapabilityObservation = {};
+    Impl->LabPresentationSelection = {};
+    Impl->ClearLabStartupFailure();
+#endif
     Impl->Snapshot.RequestedMode = Mode;
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
     Stoner::Core::uint32 ExtensionCount = 0;
@@ -1115,10 +1271,47 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Initialize(
 
     std::vector<const char*> EnabledExtensions;
     VkInstanceCreateFlags InstanceFlags = 0;
+    constexpr const char* SurfaceExtension = "VK_KHR_surface";
+    constexpr const char* SurfaceCapabilities2Extension =
+        "VK_KHR_get_surface_capabilities2";
+    constexpr const char* SurfaceMaintenance1Extension =
+        "VK_EXT_surface_maintenance1";
     constexpr const char* PhysicalDeviceProperties2Extension =
         "VK_KHR_get_physical_device_properties2";
+    bool bKHRProperties2Enabled = false;
+    bool bSurfaceMaintenance1Enabled = false;
+    auto AddInstanceExtension = [&EnabledExtensions](const char* Name)
+    {
+        if (std::find_if(EnabledExtensions.begin(), EnabledExtensions.end(),
+                [Name](const char* Existing) {
+                    return std::strcmp(Existing, Name) == 0;
+                }) ==
+            EnabledExtensions.end())
+        {
+            EnabledExtensions.push_back(Name);
+        }
+    };
     if (FImpl::HasName(Extensions, PhysicalDeviceProperties2Extension))
-        EnabledExtensions.push_back(PhysicalDeviceProperties2Extension);
+    {
+        AddInstanceExtension(PhysicalDeviceProperties2Extension);
+        bKHRProperties2Enabled = true;
+    }
+
+    // The EXT surface-maintenance dependency chain is opt-in for the lab.
+    // With an API 1.0 instance the properties2 extension is also required by
+    // the extension's transitive dependency, so do not enable a partial chain.
+    const bool bCanEnableSurfaceMaintenance1 = bLabPresentation &&
+        FImpl::HasName(Extensions, SurfaceExtension) &&
+        FImpl::HasName(Extensions, SurfaceCapabilities2Extension) &&
+        FImpl::HasName(Extensions, SurfaceMaintenance1Extension) &&
+        bKHRProperties2Enabled;
+    if (bCanEnableSurfaceMaintenance1)
+    {
+        AddInstanceExtension(SurfaceExtension);
+        AddInstanceExtension(SurfaceCapabilities2Extension);
+        AddInstanceExtension(SurfaceMaintenance1Extension);
+        bSurfaceMaintenance1Enabled = true;
+    }
 #ifdef VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
     if (FImpl::HasName(Extensions, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME))
     {
@@ -1197,13 +1390,31 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Initialize(
     }
 
     Stoner::Core::uint32 DeviceExtensionCount = 0;
-    vkEnumerateDeviceExtensionProperties(Impl->PhysicalDevice, nullptr, &DeviceExtensionCount, nullptr);
+    if (vkEnumerateDeviceExtensionProperties(
+            Impl->PhysicalDevice,
+            nullptr,
+            &DeviceExtensionCount,
+            nullptr) != VK_SUCCESS)
+    {
+        (void)Shutdown();
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
     std::vector<VkExtensionProperties> DeviceExtensions(DeviceExtensionCount);
-    vkEnumerateDeviceExtensionProperties(Impl->PhysicalDevice, nullptr, &DeviceExtensionCount, DeviceExtensions.data());
+    if (vkEnumerateDeviceExtensionProperties(
+            Impl->PhysicalDevice,
+            nullptr,
+            &DeviceExtensionCount,
+            DeviceExtensions.data()) != VK_SUCCESS)
+    {
+        (void)Shutdown();
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
     std::vector<const char*> EnabledDeviceExtensions;
+    const bool bKHRSwapchainAdvertised = FImpl::HasName(
+        DeviceExtensions, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     if (Impl->Surface != VK_NULL_HANDLE)
     {
-        if (!FImpl::HasName(DeviceExtensions, VK_KHR_SWAPCHAIN_EXTENSION_NAME))
+        if (!bKHRSwapchainAdvertised)
         {
             (void)Shutdown();
             return Stoner::RHI::ERHIResult::Unsupported;
@@ -1231,7 +1442,123 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Initialize(
     DeviceInfo.pQueueCreateInfos = &QueueInfo;
     DeviceInfo.enabledExtensionCount = static_cast<Stoner::Core::uint32>(EnabledDeviceExtensions.size());
     DeviceInfo.ppEnabledExtensionNames = EnabledDeviceExtensions.data();
-    if (vkCreateDevice(Impl->PhysicalDevice, &DeviceInfo, nullptr, &Impl->Device) != VK_SUCCESS)
+
+    if (bLabPresentation)
+    {
+        Private::FVulkanLabCapabilityQueryFacts QueryFacts;
+        // The instance is deliberately negotiated as Vulkan 1.0.  The
+        // KHR properties2 extension is therefore the only valid feature
+        // query mechanism for this startup path.
+        QueryFacts.NegotiatedApiVersion = VK_API_VERSION_1_0;
+        QueryFacts.bKHRGetPhysicalDeviceProperties2Enabled =
+            bKHRProperties2Enabled;
+        QueryFacts.bSurfaceMaintenance1Enabled =
+            bSurfaceMaintenance1Enabled;
+        QueryFacts.bKHRSwapchainRequested = bKHRSwapchainAdvertised &&
+            Impl->Surface != VK_NULL_HANDLE;
+
+        Private::FVulkanLabPresentationCapabilityObservation Observation =
+            Private::FVulkanLabCapabilityQuery::Query(
+                Impl->Instance, Impl->PhysicalDevice, QueryFacts);
+        const bool bQueryFailed =
+            Observation.QueryState ==
+            Private::EVulkanLabCapabilityQueryState::Failed;
+        if (bQueryFailed && !bForceAcquireHistory)
+        {
+            const std::string_view QueryFailure =
+                Observation.QueryFailure.IsEmpty()
+                ? std::string_view("Vulkan lab capability query failed")
+                : Observation.QueryFailure.View();
+            Impl->RecordLabStartupFailure(
+                Stoner::RHI::ERHIPresentationRetirementReason::QueryFailed,
+                QueryFailure,
+                Observation.NativeQueryResult,
+                Observation.NativeQueryResult != 0);
+            (void)Shutdown();
+            return Stoner::RHI::ERHIResult::Failed;
+        }
+
+        Private::FVulkanLabPresentationPolicyRequest PolicyRequest;
+        PolicyRequest.bForceAcquireHistory = bForceAcquireHistory;
+        PolicyRequest.bAllowOptionalPresentationFence =
+            !bForceAcquireHistory;
+        Private::FVulkanLabDeviceStartupResult Startup =
+            Private::FVulkanLabDeviceStartup::Create(
+                Impl->PhysicalDevice,
+                DeviceInfo,
+                PolicyRequest,
+                Observation);
+        if (!Startup.bSucceeded || Startup.Device == VK_NULL_HANDLE)
+        {
+            const VkResult FinalCreateResult =
+                Startup.bFallbackCreationAttempted
+                ? Startup.FallbackCreationResult
+                : Startup.CreationResult;
+            const bool bHasNativeCreateResult =
+                (Startup.bOptionalCreationAttempted ||
+                    Startup.bBaselineCreationAttempted ||
+                    Startup.bFallbackCreationAttempted) &&
+                FinalCreateResult != VK_NOT_READY &&
+                FinalCreateResult != VK_SUCCESS;
+            Stoner::RHI::ERHIPresentationRetirementReason FailureReason =
+                Startup.Selection.Reason;
+            std::string_view FailureDetail =
+                "Vulkan lab logical-device startup failed";
+            if (Startup.bMandatoryPresentationEntryPointMissing)
+            {
+                FailureReason =
+                    Stoner::RHI::ERHIPresentationRetirementReason::EntryPointsUnavailable;
+                FailureDetail =
+                    "Vulkan lab mandatory presentation entry point is unavailable";
+            }
+            else if (Startup.bInputRejected)
+            {
+                FailureReason =
+                    Stoner::RHI::ERHIPresentationRetirementReason::Unknown;
+                FailureDetail =
+                    "Vulkan lab logical-device startup input was rejected";
+            }
+            else if (Startup.bFallbackCreationAttempted ||
+                Startup.bBaselineCreationAttempted)
+            {
+                FailureReason =
+                    Stoner::RHI::ERHIPresentationRetirementReason::FallbackCreationFailed;
+                FailureDetail =
+                    "Vulkan lab ordinary logical-device creation failed";
+            }
+            else if (Startup.bOptionalCreationAttempted)
+            {
+                FailureReason =
+                    Stoner::RHI::ERHIPresentationRetirementReason::OptionalEnablementFailed;
+                FailureDetail =
+                    "Vulkan lab optional logical-device creation failed";
+            }
+            Impl->RecordLabStartupFailure(
+                FailureReason,
+                FailureDetail,
+                bHasNativeCreateResult
+                ? static_cast<Stoner::Core::int32>(FinalCreateResult)
+                : 0,
+                bHasNativeCreateResult);
+            (void)Shutdown();
+            if (Startup.bMandatoryPresentationEntryPointMissing ||
+                Startup.bInputRejected || bQueryFailed)
+            {
+                return Stoner::RHI::ERHIResult::Failed;
+            }
+            return (FinalCreateResult == VK_NOT_READY ||
+                    FinalCreateResult == VK_SUCCESS)
+                ? Stoner::RHI::ERHIResult::Failed
+                : MapVulkanCreationResult(FinalCreateResult);
+        }
+        Impl->Device = Startup.Device;
+        Impl->LabCapabilityObservation = std::move(Observation);
+        Impl->LabPresentationSelection = std::move(Startup.Selection);
+        Impl->bLabPresentationStartup = true;
+    }
+    else if (vkCreateDevice(
+                 Impl->PhysicalDevice, &DeviceInfo, nullptr,
+                 &Impl->Device) != VK_SUCCESS)
     {
         (void)Shutdown();
         return Stoner::RHI::ERHIResult::Unavailable;
@@ -1249,9 +1576,44 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Initialize(
     Impl->Snapshot.LiveDevices = 1;
     return Stoner::RHI::ERHIResult::Success;
 #else
+    (void)bLabPresentation;
+    (void)bForceAcquireHistory;
     (void)Mode;
     (void)PlatformWindow;
     return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+bool FVulkanNativeContext::CopyLabStartupFailureForDiagnostics(
+    Stoner::Core::FString& OutDetail,
+    Stoner::RHI::ERHIPresentationRetirementReason& OutReason,
+    Stoner::Core::int32& OutNativeResult,
+    bool& OutHasNativeResult) const noexcept
+{
+    OutDetail.Clear();
+    OutReason = Stoner::RHI::ERHIPresentationRetirementReason::Unknown;
+    OutNativeResult = 0;
+    OutHasNativeResult = false;
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || !Impl->bHasLastLabStartupFailure)
+    {
+        return false;
+    }
+    OutReason = Impl->LastLabStartupFailureReason;
+    OutNativeResult = Impl->LastLabStartupFailureNativeResult;
+    OutHasNativeResult = Impl->bLastLabStartupFailureHasNativeResult;
+    try
+    {
+        OutDetail = Impl->LastLabStartupFailureDetail;
+    }
+    catch (...)
+    {
+        // Typed and scalar evidence remain available when copying text fails.
+        OutDetail.Clear();
+    }
+    return true;
+#else
+    return false;
 #endif
 }
 
@@ -2226,6 +2588,21 @@ FVulkanNativeContext::QueryVisiblePresentationCapabilities(
     OutCapabilities.CurrentHeadroom = 1.0f;
     OutCapabilities.PotentialHeadroom =
         OutCapabilities.bSupportsExtendedRange ? 25.0f : 1.0f;
+    if (Impl->bLabPresentationStartup)
+    {
+        // The startup slice records native facts, but the borrowed-image
+        // presentation path has not yet established independent completion.
+        // Keep the public retirement choice Unknown until that path exists.
+        OutCapabilities.bSupportsIndependentPresentationCompletion = false;
+        OutCapabilities.PresentationRetirementMode =
+            Stoner::RHI::ERHIPresentationRetirementMode::Unknown;
+        OutCapabilities.PresentationRetirementReason =
+            Stoner::RHI::ERHIPresentationRetirementReason::Unknown;
+        OutCapabilities.bOptionalPresentationFenceAdvertised =
+            Impl->LabCapabilityObservation.bExtensionAdvertised;
+        OutCapabilities.bOptionalPresentationFenceEnabled =
+            Impl->LabPresentationSelection.bOptionalEnabled;
+    }
     std::ostringstream Digest;
     Digest << "vulkan-native-surface-formats-v2|generation="
            << OutCapabilities.CapabilityGeneration
@@ -2235,6 +2612,20 @@ FVulkanNativeContext::QueryVisiblePresentationCapabilities(
     {
         Digest << "|pair=" << static_cast<int>(Pair.Format)
                << ':' << static_cast<int>(Pair.ColorSpace);
+    }
+    if (Impl->bLabPresentationStartup)
+    {
+        Digest << "|lab=1"
+               << "|optional-advertised="
+               << (Impl->LabCapabilityObservation.bExtensionAdvertised ? 1 : 0)
+               << "|optional-enabled="
+               << (Impl->LabPresentationSelection.bOptionalEnabled ? 1 : 0)
+               << "|query-state="
+               << static_cast<int>(Impl->LabCapabilityObservation.QueryState)
+               << "|selection-reason="
+               << static_cast<int>(Impl->LabPresentationSelection.Reason)
+               << "|selection-mode="
+               << static_cast<int>(Impl->LabPresentationSelection.Mode);
     }
     OutCapabilities.CapabilityDigest = Digest.str().c_str();
     return OutCapabilities.IsValid()
@@ -2920,9 +3311,54 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()
 {
     if (!Impl) return Stoner::RHI::ERHIResult::InvalidState;
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    Stoner::RHI::ERHIResult DeferredResult =
+        Stoner::RHI::ERHIResult::Success;
+    const auto SynchronousResult = Impl->SynchronousSubmissionFailure;
+    VkResult IdleResult = VK_SUCCESS;
     if (Impl->Device)
     {
-        vkDeviceWaitIdle(Impl->Device);
+        // Retained records own command pools, descriptor objects and the
+        // native completion fence. Drain them before destroying persistent
+        // resources or the device; a failed fence query stays retained until
+        // this device-idle teardown boundary.
+        DeferredResult = WaitAllDeferredSubmissions();
+        IdleResult = vkDeviceWaitIdle(Impl->Device);
+        if (IdleResult == VK_SUCCESS)
+        {
+            for (const auto& Submission : Impl->DeferredSubmissions)
+            {
+                if (Submission)
+                    Submission->ForceReleaseNativeResourcesAfterDeviceIdle();
+            }
+            for (const auto& Submission : Impl->FailedSynchronousSubmissions)
+            {
+                if (Submission)
+                    Submission->ForceReleaseNativeResourcesAfterDeviceIdle();
+            }
+        }
+        else
+        {
+            // A failed idle wait is a device-loss/teardown error. Abandon
+            // handles without upgrading the records to proven completion.
+            for (const auto& Submission : Impl->DeferredSubmissions)
+            {
+                if (Submission)
+                    Submission->AbandonNativeResourcesAfterDeviceLoss();
+            }
+            for (const auto& Submission : Impl->FailedSynchronousSubmissions)
+            {
+                if (Submission)
+                    Submission->AbandonNativeResourcesAfterDeviceLoss();
+            }
+        }
+        Impl->DeferredSubmissions.clear();
+        Impl->FailedSynchronousSubmissions.clear();
+        Impl->SynchronousSubmissionFailure =
+            Stoner::RHI::ERHIResult::Success;
+        Impl->bInjectSynchronousObservationFailure = false;
+        Impl->PendingDeferredTextureUses.clear();
+        Impl->PendingDeferredPipelineUses.clear();
+        Impl->DestroyPersistentNativeBuffers();
         Impl->DestroyFrameResources();
         Impl->DestroyAllOwnedPipelines();
         Impl->DestroyAllOwnedTextures();
@@ -2946,8 +3382,19 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()
         vkDestroyInstance(Impl->Instance, nullptr);
         Impl->Instance = VK_NULL_HANDLE;
     }
+    Impl->LabCapabilityObservation = {};
+    Impl->LabPresentationSelection = {};
+    Impl->bLabPresentationStartup = false;
 #endif
     Impl->Snapshot = {};
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (IdleResult != VK_SUCCESS)
+        return MapVulkanCreationResult(IdleResult);
+    if (DeferredResult != Stoner::RHI::ERHIResult::Success)
+        return DeferredResult;
+    if (SynchronousResult != Stoner::RHI::ERHIResult::Success)
+        return SynchronousResult;
+#endif
     return Stoner::RHI::ERHIResult::Success;
 }
 
@@ -3469,6 +3916,16 @@ void FVulkanNativeContext::DestroyOwnedPipeline(
     {
         return;
     }
+    // A submitted command buffer may still reference the native pipeline and
+    // its layout even when the public wrapper is invalidated. Defer all native
+    // destruction until every retained submission releases this token.
+    const auto Pending = Impl->PendingDeferredPipelineUses.find(Token);
+    if (Pending != Impl->PendingDeferredPipelineUses.end() &&
+        Pending->second != 0)
+    {
+        Found->second.bDestructionPending = true;
+        return;
+    }
     Impl->DestroyOwnedPipelineResources(Found->second);
     Impl->OwnedPipelines.erase(Found);
     Impl->Snapshot.LivePipelines = Impl->GetLivePipelineCount();
@@ -3681,6 +4138,13 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::UploadOwnedTexture(
     if (Found == Impl->OwnedTextures.end())
     {
         return ERHIResult::InvalidState;
+    }
+    // A deferred command may still read this image.  Reject host writes before
+    // creating staging work or changing the tracked layout; the submission's
+    // native lease is the only safe owner of the in-flight contents.
+    if (HasPendingDeferredTextureUse(Token))
+    {
+        return ERHIResult::NotReady;
     }
     FImpl::FOwnedTextureResources& Texture = Found->second;
     Stoner::Core::uint64 RequiredBytes = 0;
@@ -3974,6 +4438,10 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ReadbackOwnedTexture(
         MipLevel >= Found->second.MipLayouts.size())
     {
         return ERHIResult::InvalidState;
+    }
+    if (HasPendingDeferredTextureUse(Token))
+    {
+        return ERHIResult::NotReady;
     }
     FImpl::FOwnedTextureResources& Texture = Found->second;
     if (!HasRHIFlag(
@@ -4281,9 +4749,13 @@ void FVulkanNativeContext::DestroyOwnedTexture(
     {
         return;
     }
-    if (Impl->Device != VK_NULL_HANDLE)
+    // Invalidation releases the public wrapper immediately, but native image
+    // ownership remains in the context until every submitted command that
+    // retained this token has completed.
+    if (HasPendingDeferredTextureUse(Token))
     {
-        (void)vkDeviceWaitIdle(Impl->Device);
+        Found->second.bDestructionPending = true;
+        return;
     }
     Impl->DestroyOwnedTextureResources(Found->second);
     Impl->OwnedTextures.erase(Found);
@@ -4295,63 +4767,96 @@ void FVulkanNativeContext::DestroyOwnedTexture(
 }
 
 Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommands(
-    const FVulkanCommandBuffer& Commands) noexcept
+    const Stoner::Core::TSharedPtr<FVulkanCommandBuffer>& Commands) noexcept
+{
+    if (!Commands) return Stoner::RHI::ERHIResult::InvalidState;
+    return ExecuteRecordedCommandsInternal(
+        Commands, *Commands, {}, false, nullptr);
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommandsInternal(
+    const Stoner::Core::TSharedPtr<FVulkanCommandBuffer>& CommandOwner,
+    const FVulkanCommandBuffer& Commands,
+    const Stoner::Core::TSharedPtr<FVulkanFence>& CompletionFence,
+    bool bDeferred,
+    Stoner::Core::uint64* OutSubmissionId) noexcept
 {
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
     using namespace Stoner::RHI;
+    using FNativeBuffer = FImpl::FPersistentNativeBuffer;
+    if (OutSubmissionId != nullptr) *OutSubmissionId = 0;
     if (!Impl || Impl->Device == VK_NULL_HANDLE ||
         Impl->GraphicsQueue == VK_NULL_HANDLE ||
         Commands.GetRecordedCommands().empty())
     {
         return ERHIResult::InvalidState;
     }
+    if (Impl->SynchronousSubmissionFailure != ERHIResult::Success)
+        return Impl->SynchronousSubmissionFailure;
 
-    struct FNativeBuffer
+    if (bDeferred && !CommandOwner)
+        return ERHIResult::InvalidState;
+    if (bDeferred && !CompletionFence)
+        return ERHIResult::InvalidState;
+    const Stoner::Core::uint64 SubmissionId = Impl->NextDeferredSubmissionId++;
+    if (SubmissionId == 0)
+        return ERHIResult::Unavailable;
+    Stoner::Core::TSharedPtr<FDeferredNativeSubmission> Submission;
+    try
     {
-        Stoner::Core::TSharedPtr<FVulkanBuffer> Owner;
-        VkBuffer Buffer = VK_NULL_HANDLE;
-        VkDeviceMemory Memory = VK_NULL_HANDLE;
-        bool bReadback = false;
-    };
-    VkCommandPool CommandPool = VK_NULL_HANDLE;
-    VkCommandBuffer CommandBuffer = VK_NULL_HANDLE;
-    VkFence Fence = VK_NULL_HANDLE;
-    bool bSubmitted = false;
-    std::unordered_map<const IRHIBuffer*, FNativeBuffer> Buffers;
-    std::unordered_map<Stoner::Core::uint64, std::vector<VkImageLayout>> Layouts;
-    std::vector<VkImageView> ImageViews;
-    std::vector<VkSampler> Samplers;
-    std::vector<VkDescriptorPool> DescriptorPools;
-    std::vector<VkRenderPass> RenderPasses;
-    std::vector<VkFramebuffer> Framebuffers;
+        Submission = Stoner::Core::MakeShared<FDeferredNativeSubmission>(
+            Impl->Device,
+            Impl->GraphicsQueue,
+            Impl->GraphicsQueueFamily,
+            this,
+            CommandOwner,
+            CompletionFence,
+            SubmissionId);
+    }
+    catch (const std::bad_alloc&)
+    {
+        return ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        return ERHIResult::Unavailable;
+    }
+    if (bDeferred)
+        Submission->ConfigureHostCompletionDelay(
+            Impl->bInjectDeferredCompletionDelay);
+    const auto InitResult = Submission->Initialize();
+    if (InitResult != ERHIResult::Success)
+        return InitResult;
+    const VkCommandPool NativeCommandPool = Submission->GetCommandPool();
+    VkCommandBuffer NativeCommandBuffer = Submission->GetCommandBuffer();
+    VkFence NativeFence = Submission->GetNativeFence();
+    std::unordered_map<const IRHIBuffer*, FImpl::FPersistentNativeBuffer>& Buffers =
+        Impl->PersistentNativeBuffers;
+    auto& Layouts = Submission->GetTextureLayouts();
+    auto& ImageViews = Submission->GetImageViews();
+    auto& Samplers = Submission->GetSamplers();
+    auto& DescriptorPools = Submission->GetDescriptorPools();
+    auto& RenderPasses = Submission->GetRenderPasses();
+    auto& Framebuffers = Submission->GetFramebuffers();
+    const auto& CommandBuffer = NativeCommandBuffer;
+    std::unordered_set<const IRHIBuffer*> ReadbackBuffers;
 
     const auto Cleanup = [&]() noexcept
     {
-        if (bSubmitted && Fence != VK_NULL_HANDLE)
-            (void)vkWaitForFences(Impl->Device, 1, &Fence, VK_TRUE, UINT64_MAX);
-        for (VkFramebuffer Value : Framebuffers)
-            if (Value != VK_NULL_HANDLE) vkDestroyFramebuffer(Impl->Device, Value, nullptr);
-        for (VkRenderPass Value : RenderPasses)
-            if (Value != VK_NULL_HANDLE) vkDestroyRenderPass(Impl->Device, Value, nullptr);
-        for (VkDescriptorPool Value : DescriptorPools)
-            if (Value != VK_NULL_HANDLE) vkDestroyDescriptorPool(Impl->Device, Value, nullptr);
-        for (VkSampler Value : Samplers)
-            if (Value != VK_NULL_HANDLE) vkDestroySampler(Impl->Device, Value, nullptr);
-        for (VkImageView Value : ImageViews)
-            if (Value != VK_NULL_HANDLE) vkDestroyImageView(Impl->Device, Value, nullptr);
-        for (auto& [Key, Value] : Buffers)
-        {
-            (void)Key;
-            if (Value.Buffer != VK_NULL_HANDLE) vkDestroyBuffer(Impl->Device, Value.Buffer, nullptr);
-            if (Value.Memory != VK_NULL_HANDLE) vkFreeMemory(Impl->Device, Value.Memory, nullptr);
-        }
-        if (Fence != VK_NULL_HANDLE) vkDestroyFence(Impl->Device, Fence, nullptr);
-        if (CommandPool != VK_NULL_HANDLE) vkDestroyCommandPool(Impl->Device, CommandPool, nullptr);
+        if (!Submission->IsSubmitted() || Submission->IsComplete())
+            Submission->ReleaseNativeResources();
     };
     const auto Fail = [&](ERHIResult Result) noexcept
     {
         Cleanup();
         return Result;
+    };
+    const auto LatchSynchronousFailure = [&](ERHIResult Result) noexcept
+    {
+        if (Result == ERHIResult::Success)
+            Result = ERHIResult::Failed;
+        if (Impl->SynchronousSubmissionFailure == ERHIResult::Success)
+            Impl->SynchronousSubmissionFailure = Result;
     };
 
     const auto ToLayout = [](ERHIResourceLayout Layout, bool bDepth) noexcept
@@ -4391,17 +4896,48 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommands(
         const auto Found = Impl->OwnedTextures.find(Texture->NativeToken);
         if (Found == Impl->OwnedTextures.end()) return {nullptr, nullptr};
         if (!Layouts.contains(Texture->NativeToken))
-            Layouts.emplace(Texture->NativeToken, Found->second.MipLayouts);
+        {
+            std::vector<VkImageLayout> ScheduledLayouts;
+            if (!Submission->RetainTexture(
+                    Texture->NativeToken, ScheduledLayouts))
+                return {nullptr, nullptr};
+            Layouts.emplace(Texture->NativeToken,
+                std::move(ScheduledLayouts));
+        }
         return {Texture.get(), &Found->second};
     };
     const auto GetBuffer = [&](const Stoner::Core::TSharedPtr<IRHIBuffer>& Base)
         -> FNativeBuffer*
     {
         if (!Base) return nullptr;
-        const auto Existing = Buffers.find(Base.get());
-        if (Existing != Buffers.end()) return &Existing->second;
+        Impl->ReclaimPersistentNativeBuffers();
+        auto Existing = Buffers.find(Base.get());
         auto Owner = std::dynamic_pointer_cast<FVulkanBuffer>(Base);
-        if (!Owner || Owner->GetSizeInBytes() == 0) return nullptr;
+        if (!Owner || Owner->GetSizeInBytes() == 0 ||
+            Owner->GetLifecycleState() != ERHIResourceLifecycleState::Valid)
+            return nullptr;
+        if (Existing != Buffers.end())
+        {
+            const auto CachedOwner = Existing->second.Owner.lock();
+            if (CachedOwner.get() != Owner.get() ||
+                !Submission->RetainBuffer(Owner))
+                return nullptr;
+            if (Existing->second.UploadedRevision != Owner->GetUploadRevision())
+            {
+                void* Mapped = nullptr;
+                if (vkMapMemory(Impl->Device, Existing->second.Memory, 0,
+                        Owner->GetSizeInBytes(), 0, &Mapped) != VK_SUCCESS)
+                    return nullptr;
+                std::memset(Mapped, 0, static_cast<std::size_t>(Owner->GetSizeInBytes()));
+                const auto& Uploaded = Owner->GetUploadedBytes();
+                if (!Uploaded.empty())
+                    std::memcpy(Mapped, Uploaded.data(), std::min<std::size_t>(
+                        Uploaded.size(), static_cast<std::size_t>(Owner->GetSizeInBytes())));
+                vkUnmapMemory(Impl->Device, Existing->second.Memory);
+                Existing->second.UploadedRevision = Owner->GetUploadRevision();
+            }
+            return &Existing->second;
+        }
         FNativeBuffer Native;
         Native.Owner = Owner;
         VkBufferCreateInfo BufferInfo = MakeVulkanStruct<VkBufferCreateInfo>(
@@ -4448,10 +4984,28 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommands(
             std::memcpy(Mapped, Uploaded.data(), std::min<std::size_t>(
                 Uploaded.size(), static_cast<std::size_t>(Owner->GetSizeInBytes())));
         vkUnmapMemory(Impl->Device, Native.Memory);
+        Native.UploadedRevision = Owner->GetUploadRevision();
         try
         {
             const auto [Found, bInserted] = Buffers.emplace(Base.get(), std::move(Native));
-            return bInserted ? &Found->second : nullptr;
+            if (!bInserted)
+            {
+                if (Native.Buffer != VK_NULL_HANDLE)
+                    vkDestroyBuffer(Impl->Device, Native.Buffer, nullptr);
+                if (Native.Memory != VK_NULL_HANDLE)
+                    vkFreeMemory(Impl->Device, Native.Memory, nullptr);
+                return nullptr;
+            }
+            if (!Submission->RetainBuffer(Owner))
+            {
+                if (Found->second.Buffer != VK_NULL_HANDLE)
+                    vkDestroyBuffer(Impl->Device, Found->second.Buffer, nullptr);
+                if (Found->second.Memory != VK_NULL_HANDLE)
+                    vkFreeMemory(Impl->Device, Found->second.Memory, nullptr);
+                Buffers.erase(Found);
+                return nullptr;
+            }
+            return &Found->second;
         }
         catch (...)
         {
@@ -4515,25 +5069,31 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommands(
 
     try
     {
-        VkCommandPoolCreateInfo PoolInfo = MakeVulkanStruct<VkCommandPoolCreateInfo>(
-            VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO);
-        PoolInfo.queueFamilyIndex = Impl->GraphicsQueueFamily;
-        PoolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-        if (vkCreateCommandPool(Impl->Device, &PoolInfo, nullptr, &CommandPool) != VK_SUCCESS)
-            return Fail(ERHIResult::Failed);
-        VkCommandBufferAllocateInfo Allocate = MakeVulkanStruct<VkCommandBufferAllocateInfo>(
-            VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO);
-        Allocate.commandPool = CommandPool;
-        Allocate.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        Allocate.commandBufferCount = 1;
-        if (vkAllocateCommandBuffers(Impl->Device, &Allocate, &CommandBuffer) != VK_SUCCESS)
+        if (NativeCommandPool == VK_NULL_HANDLE ||
+            NativeCommandBuffer == VK_NULL_HANDLE ||
+            NativeFence == VK_NULL_HANDLE)
             return Fail(ERHIResult::Failed);
         VkCommandBufferBeginInfo Begin = MakeVulkanStruct<VkCommandBufferBeginInfo>(
             VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO);
         Begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         if (vkBeginCommandBuffer(CommandBuffer, &Begin) != VK_SUCCESS)
             return Fail(ERHIResult::Failed);
-
+        if (bDeferred || !Impl->DeferredSubmissions.empty())
+        {
+            // Queue order alone does not provide a memory dependency between
+            // submissions. Make prior writes visible to the next retained
+            // submission without requiring a host wait or new extension.
+            VkMemoryBarrier SubmissionBarrier =
+                MakeVulkanStruct<VkMemoryBarrier>(VK_STRUCTURE_TYPE_MEMORY_BARRIER);
+            SubmissionBarrier.srcAccessMask =
+                VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+            SubmissionBarrier.dstAccessMask =
+                VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+            vkCmdPipelineBarrier(CommandBuffer,
+                VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                0, 1, &SubmissionBarrier, 0, nullptr, 0, nullptr);
+        }
         FImpl::FOwnedPipelineResources* BoundPipeline = nullptr;
         bool bInsideRenderPass = false;
         struct FActiveAttachment
@@ -4677,7 +5237,9 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommands(
                 if (!bInsideRenderPass || !Pipeline || Pipeline->NativeContext.get() != this)
                     return Fail(ERHIResult::InvalidState);
                 const auto Found = Impl->OwnedPipelines.find(Pipeline->NativeToken);
-                if (Found == Impl->OwnedPipelines.end()) return Fail(ERHIResult::InvalidState);
+                if (Found == Impl->OwnedPipelines.end() ||
+                    !Submission->RetainPipeline(Pipeline->NativeToken))
+                    return Fail(ERHIResult::InvalidState);
                 BoundPipeline = &Found->second;
                 vkCmdBindPipeline(CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, BoundPipeline->Pipeline);
                 break;
@@ -4884,7 +5446,9 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommands(
                     Record.TextureToBufferCopy.Height, Record.TextureToBufferCopy.Depth};
                 vkCmdCopyImageToBuffer(CommandBuffer, NativeTexture->Image,
                     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, Buffer->Buffer, 1, &Copy);
-                Buffer->bReadback = true;
+                ReadbackBuffers.insert(Record.BufferA.get());
+                if (!Submission->MarkReadbackBuffer(Record.BufferA.get()))
+                    return Fail(ERHIResult::Unavailable);
                 break;
             }
             case ERHISymbolicCommandType::BufferCopy:
@@ -4895,7 +5459,9 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommands(
                 VkBufferCopy Copy{Record.BufferCopy.SourceOffsetBytes,
                     Record.BufferCopy.DestinationOffsetBytes, Record.BufferCopy.SizeBytes};
                 vkCmdCopyBuffer(CommandBuffer, Source->Buffer, Destination->Buffer, 1, &Copy);
-                Destination->bReadback = true;
+                ReadbackBuffers.insert(Record.BufferB.get());
+                if (!Submission->MarkReadbackBuffer(Record.BufferB.get()))
+                    return Fail(ERHIResult::Unavailable);
                 break;
             }
             case ERHISymbolicCommandType::TextureCopy:
@@ -4907,49 +5473,617 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommands(
         }
         if (bInsideRenderPass || vkEndCommandBuffer(CommandBuffer) != VK_SUCCESS)
             return Fail(ERHIResult::InvalidState);
-        VkFenceCreateInfo FenceInfo = MakeVulkanStruct<VkFenceCreateInfo>(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
-        if (vkCreateFence(Impl->Device, &FenceInfo, nullptr, &Fence) != VK_SUCCESS)
-            return Fail(ERHIResult::Failed);
-        VkSubmitInfo Submit = MakeVulkanStruct<VkSubmitInfo>(VK_STRUCTURE_TYPE_SUBMIT_INFO);
-        Submit.commandBufferCount = 1;
-        Submit.pCommandBuffers = &CommandBuffer;
-        if (vkQueueSubmit(Impl->GraphicsQueue, 1, &Submit, Fence) != VK_SUCCESS)
-            return Fail(ERHIResult::Failed);
-        bSubmitted = true;
-        if (vkWaitForFences(Impl->Device, 1, &Fence, VK_TRUE, UINT64_MAX) != VK_SUCCESS)
-            return Fail(ERHIResult::Failed);
-        bSubmitted = false;
-        for (auto& [Key, Native] : Buffers)
+        if (bDeferred)
         {
-            (void)Key;
-            if (!Native.bReadback) continue;
-            void* Mapped = nullptr;
-            if (vkMapMemory(Impl->Device, Native.Memory, 0,
-                    Native.Owner->GetSizeInBytes(), 0, &Mapped) != VK_SUCCESS)
-                return Fail(ERHIResult::Failed);
-            Native.Owner->UploadedBytes.resize(static_cast<std::size_t>(Native.Owner->GetSizeInBytes()));
-            std::memcpy(Native.Owner->UploadedBytes.data(), Mapped, Native.Owner->UploadedBytes.size());
-            vkUnmapMemory(Impl->Device, Native.Memory);
+            if (!CanCommitDeferredTextureLayouts(*Submission))
+                return Fail(ERHIResult::InvalidState);
+            try
+            {
+                if (Impl->DeferredSubmissions.size() >= 2)
+                    return Fail(ERHIResult::NotReady);
+                Impl->DeferredSubmissions.push_back(Submission);
+            }
+            catch (const std::bad_alloc&)
+            {
+                return Fail(ERHIResult::Unavailable);
+            }
+            catch (const std::length_error&)
+            {
+                return Fail(ERHIResult::Unavailable);
+            }
+            const ERHIResult SubmitResult = Submission->Submit();
+            if (SubmitResult != ERHIResult::Success)
+            {
+                Impl->DeferredSubmissions.pop_back();
+                return Fail(SubmitResult);
+            }
+            CommitDeferredTextureLayouts(*Submission);
+            if (CompletionFence)
+                CompletionFence->AttachNativeSubmission(this, SubmissionId);
+            if (OutSubmissionId != nullptr)
+                *OutSubmissionId = SubmissionId;
+            return ERHIResult::Success;
         }
-        for (const auto& [Token, Values] : Layouts)
+
+        try
         {
-            const auto Found = Impl->OwnedTextures.find(Token);
-            if (Found != Impl->OwnedTextures.end()) Found->second.MipLayouts = Values;
+            // Admit the record before submitting.  A failed allocation cannot
+            // leave a submitted native command without an owner for teardown.
+            if (!Impl->FailedSynchronousSubmissions.empty())
+            {
+                LatchSynchronousFailure(ERHIResult::Failed);
+                return Fail(Impl->SynchronousSubmissionFailure);
+            }
+            Impl->FailedSynchronousSubmissions.push_back(Submission);
         }
+        catch (const std::bad_alloc&)
+        {
+            return Fail(ERHIResult::Unavailable);
+        }
+        catch (const std::length_error&)
+        {
+            return Fail(ERHIResult::Unavailable);
+        }
+        const ERHIResult SubmitResult = Submission->Submit();
+        if (SubmitResult != ERHIResult::Success)
+        {
+            Impl->FailedSynchronousSubmissions.pop_back();
+            return Fail(SubmitResult);
+        }
+        if (!bDeferred && Impl->bInjectSynchronousObservationFailure)
+        {
+            // Simulate a post-submit fence observation error. Leave the
+            // submitted record in FailedSynchronousSubmissions so teardown
+            // owns its command resources until the device-idle boundary.
+            LatchSynchronousFailure(ERHIResult::Failed);
+            return Fail(ERHIResult::Failed);
+        }
+        const ERHIResult WaitResult = Submission->WaitForCompletion();
+        if (WaitResult != ERHIResult::Success)
+        {
+            LatchSynchronousFailure(WaitResult);
+            return Fail(WaitResult);
+        }
+        const ERHIResult FinalizeResult = FinalizeDeferredSubmission(Submission);
+        if (FinalizeResult != ERHIResult::Success)
+        {
+            Submission->MarkCompletionProcessingFailure(FinalizeResult);
+            LatchSynchronousFailure(FinalizeResult);
+            return Fail(FinalizeResult);
+        }
+        Impl->FailedSynchronousSubmissions.pop_back();
         Cleanup();
         return ERHIResult::Success;
     }
     catch (const std::bad_alloc&)
     {
+        if (!bDeferred && Submission && Submission->IsSubmitted())
+            LatchSynchronousFailure(ERHIResult::Unavailable);
         return Fail(ERHIResult::Unavailable);
     }
     catch (const std::length_error&)
     {
+        if (!bDeferred && Submission && Submission->IsSubmitted())
+            LatchSynchronousFailure(ERHIResult::Unavailable);
         return Fail(ERHIResult::Unavailable);
     }
 #else
+    (void)CommandOwner;
     (void)Commands;
+    (void)CompletionFence;
+    (void)bDeferred;
+    (void)OutSubmissionId;
     return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::SubmitDeferredCommands(
+    const Stoner::Core::TSharedPtr<FVulkanCommandBuffer>& Commands,
+    const Stoner::Core::TSharedPtr<FVulkanFence>& CompletionFence,
+    Stoner::Core::uint64& OutSubmissionId) noexcept
+{
+    OutSubmissionId = 0;
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || !Impl->Device || !Impl->GraphicsQueue || !Commands ||
+        !CompletionFence)
+        return Stoner::RHI::ERHIResult::InvalidState;
+    if (Impl->SynchronousSubmissionFailure !=
+        Stoner::RHI::ERHIResult::Success)
+        return Impl->SynchronousSubmissionFailure;
+    ReapCompletedDeferredSubmissions();
+    if (Impl->DeferredSubmissions.size() >= 2)
+        return Stoner::RHI::ERHIResult::NotReady;
+    return ExecuteRecordedCommandsInternal(
+        Commands, *Commands, CompletionFence, true, &OutSubmissionId);
+#else
+    (void)Commands;
+    (void)CompletionFence;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+void FVulkanNativeContext::ReapCompletedDeferredSubmissions() noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl)
+        return;
+    for (std::size_t Index = 0; Index < Impl->DeferredSubmissions.size();)
+    {
+        const auto& Submission = Impl->DeferredSubmissions[Index];
+        if (!Submission)
+        {
+            Impl->DeferredSubmissions.erase(
+                Impl->DeferredSubmissions.begin() + static_cast<std::ptrdiff_t>(Index));
+            continue;
+        }
+        if (!Submission->IsComplete())
+            (void)Submission->Poll(0);
+        if (Submission->IsComplete() && Submission->IsCompletionProven() &&
+            Submission->GetResult() == Stoner::RHI::ERHIResult::Success)
+        {
+            const auto FinalizeResult = FinalizeDeferredSubmission(Submission);
+            if (FinalizeResult == Stoner::RHI::ERHIResult::Success)
+            {
+                Impl->DeferredSubmissions.erase(
+                    Impl->DeferredSubmissions.begin() + static_cast<std::ptrdiff_t>(Index));
+                continue;
+            }
+            Submission->MarkCompletionProcessingFailure(FinalizeResult);
+        }
+        ++Index;
+    }
+#endif
+}
+
+bool FVulkanNativeContext::AcquireDeferredTextureUse(
+    Stoner::Core::uint64 Token,
+    Stoner::Core::TArray<Stoner::Core::uint32>& OutLayouts) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    OutLayouts.clear();
+    if (!Impl || Token == 0)
+        return false;
+    const auto Texture = Impl->OwnedTextures.find(Token);
+    if (Texture == Impl->OwnedTextures.end() ||
+        Texture->second.bDestructionPending)
+        return false;
+    try
+    {
+        OutLayouts.reserve(Texture->second.MipLayouts.size());
+        for (const VkImageLayout Layout : Texture->second.MipLayouts)
+            OutLayouts.push_back(static_cast<Stoner::Core::uint32>(Layout));
+        const auto Found = Impl->PendingDeferredTextureUses.find(Token);
+        if (Found == Impl->PendingDeferredTextureUses.end())
+            Impl->PendingDeferredTextureUses.emplace(Token, 1);
+        else if (Found->second != std::numeric_limits<Stoner::Core::uint32>::max())
+            ++Found->second;
+        else
+        {
+            OutLayouts.clear();
+            return false;
+        }
+    }
+    catch (const std::bad_alloc&)
+    {
+        OutLayouts.clear();
+        return false;
+    }
+    catch (const std::length_error&)
+    {
+        OutLayouts.clear();
+        return false;
+    }
+    return true;
+#else
+    (void)Token;
+    (void)OutLayouts;
+    return false;
+#endif
+}
+
+bool FVulkanNativeContext::AcquireDeferredPipelineUse(
+    Stoner::Core::uint64 Token) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || Token == 0)
+        return false;
+    const auto Pipeline = Impl->OwnedPipelines.find(Token);
+    if (Pipeline == Impl->OwnedPipelines.end() ||
+        Pipeline->second.bDestructionPending)
+    {
+        return false;
+    }
+    try
+    {
+        const auto Found = Impl->PendingDeferredPipelineUses.find(Token);
+        if (Found == Impl->PendingDeferredPipelineUses.end())
+        {
+            Impl->PendingDeferredPipelineUses.emplace(Token, 1);
+        }
+        else if (Found->second !=
+            std::numeric_limits<Stoner::Core::uint32>::max())
+        {
+            ++Found->second;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    catch (const std::bad_alloc&)
+    {
+        return false;
+    }
+    catch (const std::length_error&)
+    {
+        return false;
+    }
+    return true;
+#else
+    (void)Token;
+    return false;
+#endif
+}
+
+void FVulkanNativeContext::ReleaseDeferredPipelineUse(
+    Stoner::Core::uint64 Token) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || Token == 0)
+        return;
+    const auto Pending = Impl->PendingDeferredPipelineUses.find(Token);
+    if (Pending == Impl->PendingDeferredPipelineUses.end())
+        return;
+    if (Pending->second > 1)
+    {
+        --Pending->second;
+        return;
+    }
+    Impl->PendingDeferredPipelineUses.erase(Pending);
+    const auto Pipeline = Impl->OwnedPipelines.find(Token);
+    if (Pipeline != Impl->OwnedPipelines.end() &&
+        Pipeline->second.bDestructionPending)
+    {
+        Impl->DestroyOwnedPipelineResources(Pipeline->second);
+        Impl->OwnedPipelines.erase(Pipeline);
+        Impl->Snapshot.LivePipelines = Impl->GetLivePipelineCount();
+    }
+#else
+    (void)Token;
+#endif
+}
+
+void FVulkanNativeContext::ReleaseDeferredTextureUse(
+    Stoner::Core::uint64 Token) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || Token == 0)
+        return;
+    const auto Found = Impl->PendingDeferredTextureUses.find(Token);
+    if (Found == Impl->PendingDeferredTextureUses.end())
+        return;
+    if (Found->second > 1)
+        --Found->second;
+    else
+    {
+        Impl->PendingDeferredTextureUses.erase(Found);
+        const auto Texture = Impl->OwnedTextures.find(Token);
+        if (Texture != Impl->OwnedTextures.end() &&
+            Texture->second.bDestructionPending)
+        {
+            Impl->DestroyOwnedTextureResources(Texture->second);
+            Impl->OwnedTextures.erase(Texture);
+            Impl->Snapshot.LiveTextures = Impl->GetLiveTextureCount();
+        }
+    }
+#else
+    (void)Token;
+#endif
+}
+
+bool FVulkanNativeContext::HasPendingDeferredTextureUse(
+    Stoner::Core::uint64 Token) const noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || Token == 0)
+        return false;
+    const auto Found = Impl->PendingDeferredTextureUses.find(Token);
+    return Found != Impl->PendingDeferredTextureUses.end() && Found->second != 0;
+#else
+    (void)Token;
+    return false;
+#endif
+}
+
+bool FVulkanNativeContext::CanCommitDeferredTextureLayouts(
+    const FDeferredNativeSubmission& Submission) const noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl)
+        return false;
+    for (const auto& [Token, Layouts] : Submission.GetTextureLayouts())
+    {
+        const auto Texture = Impl->OwnedTextures.find(Token);
+        if (Texture == Impl->OwnedTextures.end() ||
+            Texture->second.MipLayouts.size() != Layouts.size())
+            return false;
+    }
+    return true;
+#else
+    (void)Submission;
+    return false;
+#endif
+}
+
+void FVulkanNativeContext::CommitDeferredTextureLayouts(
+    const FDeferredNativeSubmission& Submission) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl)
+        return;
+    for (const auto& [Token, Layouts] : Submission.GetTextureLayouts())
+    {
+        const auto Texture = Impl->OwnedTextures.find(Token);
+        if (Texture != Impl->OwnedTextures.end() &&
+            Texture->second.MipLayouts.size() == Layouts.size())
+        {
+            std::copy(Layouts.begin(), Layouts.end(),
+                Texture->second.MipLayouts.begin());
+        }
+    }
+#else
+    (void)Submission;
+#endif
+}
+
+void FVulkanNativeContext::ReclaimPersistentNativeBuffers() noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (Impl)
+        Impl->ReclaimPersistentNativeBuffers();
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::FinalizeDeferredSubmission(
+    const Stoner::Core::TSharedPtr<FDeferredNativeSubmission>& Submission) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    using namespace Stoner::RHI;
+    if (!Impl || !Submission || !Submission->IsComplete() ||
+        !Submission->IsCompletionProven())
+        return ERHIResult::InvalidState;
+    for (const auto& Buffer : Submission->GetReadbackBuffers())
+    {
+        if (!Buffer || Buffer->GetLifecycleState() !=
+                ERHIResourceLifecycleState::Valid)
+            return ERHIResult::InvalidState;
+        const auto Found = Impl->PersistentNativeBuffers.find(Buffer.get());
+        if (Found == Impl->PersistentNativeBuffers.end())
+            return ERHIResult::InvalidState;
+        void* Mapped = nullptr;
+        if (vkMapMemory(Impl->Device, Found->second.Memory, 0,
+                Buffer->GetSizeInBytes(), 0, &Mapped) != VK_SUCCESS)
+            return ERHIResult::Failed;
+        try
+        {
+            Buffer->UploadedBytes.resize(static_cast<std::size_t>(
+                Buffer->GetSizeInBytes()));
+            std::memcpy(Buffer->UploadedBytes.data(), Mapped,
+                Buffer->UploadedBytes.size());
+        }
+        catch (const std::bad_alloc&)
+        {
+            vkUnmapMemory(Impl->Device, Found->second.Memory);
+            return ERHIResult::Unavailable;
+        }
+        catch (const std::length_error&)
+        {
+            vkUnmapMemory(Impl->Device, Found->second.Memory);
+            return ERHIResult::Unavailable;
+        }
+        vkUnmapMemory(Impl->Device, Found->second.Memory);
+    }
+    // Deferred submissions commit their predicted layouts transactionally at
+    // successful queue admission.  Copying an older record back here would
+    // roll the shared ledger behind a later submission.  Synchronous submits
+    // still finalize their layout state here because they have no retained
+    // successor that can observe it before return.
+    if (!Submission->IsDeferredSubmission())
+    {
+        for (const auto& [Token, Values] : Submission->GetTextureLayouts())
+        {
+            const auto Found = Impl->OwnedTextures.find(Token);
+            if (Found != Impl->OwnedTextures.end())
+            {
+                try
+                {
+                    Found->second.MipLayouts = Values;
+                }
+                catch (const std::bad_alloc&)
+                {
+                    return ERHIResult::Unavailable;
+                }
+                catch (const std::length_error&)
+                {
+                    return ERHIResult::Unavailable;
+                }
+            }
+        }
+    }
+    // Keep the public RHI fence unsignaled until every completion-side
+    // operation has succeeded. Native fence completion is already proven by
+    // this point, but a readback/layout failure must remain observable as a
+    // terminal fence failure rather than a false success.
+    Submission->PublishCompletion();
+    Submission->ReleaseNativeResources();
+    return ERHIResult::Success;
+#else
+    (void)Submission;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::WaitDeferredSubmission(
+    Stoner::Core::uint64 SubmissionId,
+    Stoner::Core::uint64 TimeoutMicroseconds) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || SubmissionId == 0)
+        return Stoner::RHI::ERHIResult::InvalidState;
+    const auto Found = std::find_if(Impl->DeferredSubmissions.begin(),
+        Impl->DeferredSubmissions.end(),
+        [SubmissionId](const auto& Submission)
+        {
+            return Submission && Submission->GetSubmissionId() == SubmissionId;
+        });
+    if (Found == Impl->DeferredSubmissions.end())
+        return Stoner::RHI::ERHIResult::InvalidState;
+    const auto& Submission = *Found;
+    const Stoner::RHI::ERHIResult PollResult =
+        Submission->Poll(TimeoutMicroseconds);
+    if (PollResult == Stoner::RHI::ERHIResult::Timeout ||
+        PollResult == Stoner::RHI::ERHIResult::NotReady)
+        return PollResult;
+    if (PollResult != Stoner::RHI::ERHIResult::Success)
+        return PollResult;
+    const Stoner::RHI::ERHIResult FinalizeResult =
+        FinalizeDeferredSubmission(Submission);
+    if (FinalizeResult != Stoner::RHI::ERHIResult::Success)
+    {
+        Submission->MarkCompletionProcessingFailure(FinalizeResult);
+        return FinalizeResult;
+    }
+    Impl->DeferredSubmissions.erase(Found);
+    return Stoner::RHI::ERHIResult::Success;
+#else
+    (void)SubmissionId;
+    (void)TimeoutMicroseconds;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::WaitAllDeferredSubmissions() noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl)
+        return Stoner::RHI::ERHIResult::InvalidState;
+    Stoner::RHI::ERHIResult FirstFailure = Stoner::RHI::ERHIResult::Success;
+    for (std::size_t Index = 0; Index < Impl->DeferredSubmissions.size();)
+    {
+        const auto& Submission = Impl->DeferredSubmissions[Index];
+        if (!Submission)
+        {
+            Impl->DeferredSubmissions.erase(
+                Impl->DeferredSubmissions.begin() + static_cast<std::ptrdiff_t>(Index));
+            continue;
+        }
+        const auto WaitResult = Submission->WaitForCompletion();
+        if (WaitResult == Stoner::RHI::ERHIResult::Success)
+        {
+            const auto FinalizeResult = FinalizeDeferredSubmission(Submission);
+            if (FinalizeResult == Stoner::RHI::ERHIResult::Success)
+            {
+                Impl->DeferredSubmissions.erase(
+                    Impl->DeferredSubmissions.begin() + static_cast<std::ptrdiff_t>(Index));
+                continue;
+            }
+            Submission->MarkCompletionProcessingFailure(FinalizeResult);
+            if (FirstFailure == Stoner::RHI::ERHIResult::Success)
+                FirstFailure = FinalizeResult;
+        }
+        else if (FirstFailure == Stoner::RHI::ERHIResult::Success)
+        {
+            FirstFailure = WaitResult;
+        }
+        ++Index;
+    }
+    return FirstFailure;
+#else
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+void FVulkanNativeContext::ConfigureDeferredCompletionInjection(bool bEnabled) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (Impl)
+        Impl->bInjectDeferredCompletionDelay = bEnabled;
+#else
+    (void)bEnabled;
+#endif
+}
+
+void FVulkanNativeContext::ConfigureSynchronousObservationFailureForTesting(
+    bool bEnabled) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (Impl)
+        Impl->bInjectSynchronousObservationFailure = bEnabled;
+#else
+    (void)bEnabled;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::SignalDeferredCompletionForTesting(
+    Stoner::Core::uint64 SubmissionId) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || SubmissionId == 0)
+        return Stoner::RHI::ERHIResult::InvalidState;
+    const auto Found = std::find_if(Impl->DeferredSubmissions.begin(),
+        Impl->DeferredSubmissions.end(),
+        [SubmissionId](const auto& Submission)
+        {
+            return Submission && Submission->GetSubmissionId() == SubmissionId;
+        });
+    if (Found == Impl->DeferredSubmissions.end())
+        return Stoner::RHI::ERHIResult::InvalidState;
+    return (*Found)->SignalHostCompletion();
+#else
+    (void)SubmissionId;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::Core::uint32
+FVulkanNativeContext::GetPendingDeferredSubmissionCount() noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    ReapCompletedDeferredSubmissions();
+    ReclaimPersistentNativeBuffers();
+    return Impl ? static_cast<Stoner::Core::uint32>(
+        Impl->DeferredSubmissions.size()) : 0;
+#else
+    return 0;
+#endif
+}
+
+Stoner::Core::uint32
+FVulkanNativeContext::GetPersistentNativeBufferRealizationCount() const noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    const_cast<FVulkanNativeContext*>(this)->ReclaimPersistentNativeBuffers();
+    return Impl ? static_cast<Stoner::Core::uint32>(
+        Impl->PersistentNativeBuffers.size()) : 0;
+#else
+    return 0;
+#endif
+}
+
+Stoner::Core::uint64
+FVulkanNativeContext::GetPersistentNativeBufferUploadedRevisionForTesting(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Buffer) const noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || !Buffer)
+        return 0;
+    const auto Found = Impl->PersistentNativeBuffers.find(Buffer.get());
+    return Found == Impl->PersistentNativeBuffers.end()
+        ? 0
+        : Found->second.UploadedRevision;
+#else
+    (void)Buffer;
+    return 0;
 #endif
 }
 

@@ -16,5 +16,17 @@ application_env.Append(CPPDEFINES=[('STONER_GLFW_AVAILABLE', int(deps['glfw_avai
 if deps['glfw_include_dir']:
     application_env.Append(CPPPATH=[deps['glfw_include_dir']])
 
-lib = BuildLayer(application_env, 'Application', ['Renderer', 'Asset', 'Core'])
+lib = BuildLayer(
+    application_env,
+    'Application',
+    ['Renderer', 'Asset', 'Core'],
+    private_cpp_settings={
+        # The lab settings value includes the existing Renderer color-domain
+        # contract, whose public definition includes RHI format types. Keep
+        # this transitive include scoped to its validation implementation.
+        'FInteractiveLabValueValidation.cpp': {
+            'include_paths': ['Source/RHI/Public'],
+        },
+    },
+)
 Return('lib')

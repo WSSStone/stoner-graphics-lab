@@ -34,6 +34,7 @@ RHI::FRHIDeviceCapabilities QueryMetalCapabilities(
         Result.bSupportsPresentQueue = true;
         Result.bSupportsPresentation = true;
         Result.bSupportsSynchronization = true;
+        Result.bSupportsDeferredSubmission = true;
         Result.MaxInFlightFrames = 3;
         Result.MaxCommandBuffersPerQueue = 4096;
         Result.MaxQueuesPerType = 1;
@@ -155,6 +156,14 @@ RHI::ERHIResult QueryMetalPresentationCapabilities(
     // be applied by backends with a compatible native mechanism (Vulkan).
     OutCapabilities.bSupportsHDRMetadata = false;
     OutCapabilities.bSupportsExtendedRange = bExtendedRange;
+    // CAMetalDrawable's presented handler is the native completion signal for
+    // the borrowed preview path.  This is advertised only after the native
+    // surface query succeeds; the public default remains unsupported.
+    OutCapabilities.bSupportsIndependentPresentationCompletion = true;
+    OutCapabilities.PresentationRetirementMode =
+        RHI::ERHIPresentationRetirementMode::NativeCallback;
+    OutCapabilities.PresentationRetirementReason =
+        RHI::ERHIPresentationRetirementReason::Preferred;
     // Apple EDR code value 1.0 denotes the SDR/reference-white signal. The
     // public API exposes headroom ratios rather than physical panel nits, so
     // Feature 029 uses its declared 100-nit reference signal and never claims

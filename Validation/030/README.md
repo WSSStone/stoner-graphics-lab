@@ -2,9 +2,9 @@
 
 This file records the T001 baseline inventory for the Interactive Rendering Lab.
 It was written on 2026-09-06 from the repository working tree at
-`c2b2a614961e315e0c750b0838f5746611de6d74`. The workspace is still a planning
-and setup state; this record contains no Feature 030 implementation result,
-native-lane pass, formal acceptance, or human approval.
+`c2b2a614961e315e0c750b0838f5746611de6d74`. That initial inventory was a planning/setup record, not an implementation
+result. Later local implementation checkpoints and capability observations are
+recorded separately below; none claims formal acceptance or human approval.
 
 ## Existing regression commands
 
@@ -271,3 +271,168 @@ execution evidence remains pending. The former optional-extension design
 blocker is removed; complete runtime detection and the bounded fallback, then
 run the actual target lanes. The 19/127 implementation checkpoint is unchanged
 by this documentation/policy revision.
+
+## Current Mac optional-capability inventory (partial)
+
+On 2026-09-06, an unsandboxed `vulkaninfo --show-all` inspection of Apple M4
+Pro / MoltenVK 1.4.1 listed `VK_EXT_swapchain_maintenance1` revision 1 and
+`swapchainMaintenance1=true`. The utility subsequently aborted (exit -6) while
+querying unsupported cooperative-matrix properties. This is a partial advertised
+capability observation, not enabled-device proof, a successful full probe or a
+030 native gate. It says nothing about Windows or hosted Linux support.
+
+The 106,497-byte partial output is retained at
+`Build/Validation/030/current-mac-vulkaninfo.txt` (SHA256
+`a1f5738e36e836dcfe97a53214b68143095125a6fc58a847acabbee1a268d303`);
+`Build/Validation/030/current-mac-vulkaninfo-status.json` preserves the failed
+exit and no-claim classification. Actual engine auto/forced-fallback execution
+is still pending.
+
+The later project-owned targeted capability helper passed a required native run
+on the same Apple M4 Pro using the Vulkan 1.0 + enabled KHR properties2 query
+path: extension advertised true, feature advertised true, seven assertions
+passed (exit 0). Independent strict compilation and native output are in
+`Build/Validation/030/capability-review/compile-native.log` and `native-m4.log`.
+The minimal query fixture intentionally creates no logical device or surface;
+it proves the selected-device query, not extension enablement, lab startup or
+native presentation acceptance. The earlier failed full utility output remains
+preserved above.
+
+## Vulkan policy review checkpoint
+
+The frozen private presentation-policy helper and its tests passed independent
+`clang++ -std=c++20 -Wall -Wextra -Werror` compilation and all 48 assertions.
+Logs are `Build/Validation/030/policy-review/compile-frozen.log` and
+`Build/Validation/030/policy-review/tests-frozen.log`. This verifies deterministic
+selection/retry, bounded image and generation ownership, and terminal-assurance
+transitions. It does not verify native swapchain synchronization or the process
+watchdog. An earlier compile against files still being edited failed; its
+`compile-final.log` is preserved separately and is not a passing build.
+
+Two later regressions reproduced lost query-failure diagnostics and stale
+post-create entrypoint evidence (`tests-diagnostic-before.log`, two failures).
+Their fixes passed strict compilation and all 50 assertions in
+`compile-diagnostic-fixed.log` and `tests-diagnostic-fixed.log` in the same
+directory. This supersedes the 48-assertion policy checkpoint only.
+
+Metal's added backend-neutral NativeCallback capability and its integration-test
+assertion also passed strict Debug object compilation, recorded in
+`Build/Validation/030/retirement-metal-capability-compile.log`; that compile is
+not a new native presentation run. No additional whole task is marked complete
+at this intermediate checkpoint.
+
+## Vulkan render submission checkpoint (partial)
+
+Strict Debug integration passed after correcting the capability test's
+source-scoped Vulkan macro registration. The first failed link and corrected
+build remain in `Build/Validation/030/deferred-review/build-debug.log` and
+`build-debug-registration-fixed.log`. Required M4 native execution passed 20
+deferred-submission assertions and seven capability-query assertions in
+`native-debug-first.log`. The delayed case holds observation of a real native
+submission; it does not claim a physically stalled GPU. Separate GPU copies
+verify data, upload revisions, in-flight protection and dropped-buffer cleanup.
+
+Seven affected regression suites passed 367 assertions (`debug-regressions.json`).
+The default output suite only opts out of its native presentation portion; a
+separate explicitly required legacy native presentation run passed all eight
+assertions (`debug-vulkan-output-presentation-required.log`). These are local
+working-tree checks, not formal authority or a completed lab. Shared-texture
+two-frame ownership, actual capability enablement/presentation fallback, Metal
+review corrections and Release integration remain open at this checkpoint.
+`deferred-review/checkpoint.json` records that scope; no additional whole task
+is checked off.
+
+
+## Subsequent review checks (working tree)
+
+The logical-device startup fixture now enables the available instance dependencies
+and checks actual device creation. On the M4 Pro it passed all 12 assertions,
+including optional maintenance1 enablement and an explicitly forced ordinary
+swapchain device. Logs are `Build/Validation/030/capability-review/compile-startup-fixed.log`
+and `startup-m4-fixed.log`. The earlier `startup-m4.log` failed one stale test
+expectation that assumed a fallback-only candidate; that failure is preserved.
+This fixture creates no swapchain and does not close native lab presentation.
+
+Metal's paused-target and mixed legacy/borrowed-acquire corrections passed the
+Debug unit suites (`Build/Validation/030/metal-review/debug-unit-fixed.log`).
+The native borrowed-preview helper then completed two frames and one lifecycle
+with clean ownership and released presentation leases (`borrowed-preview-fixed.json`
+and `.log` in the same directory). This is a backend lifecycle probe, not a
+production scene or physical scanout claim.
+
+The shared-texture strict Debug build passed
+(`Build/Validation/030/deferred-review/build-debug-shared-textures.log`), but its
+first required native run failed three new shared-texture assertions while the
+existing 20 submission/buffer assertions passed (`native-shared-textures-debug.log`).
+The shared-texture correction remains under review; no whole task is closed by
+this intermediate check.
+
+
+The subsequent native fixture correction omitted an invalid no-op
+`CopySource -> CopySource` declaration. The required shared-texture run then
+passed all 25 assertions (`deferred-review/build-debug-noop-transition-fixed.log`
+and `native-noop-transition-fixed-debug.log`). The intermediate diagnostic run
+is retained as `native-texture-diagnostic-debug.log`; its four failures preceded
+that correction. These checks cover two pending texture uses, reverse completion
+observation, native copied bytes and deferred invalidation retirement.
+
+The capability fixture also corrected ordinary `KHR_surface` enablement to be
+independent of optional surface-maintenance dependencies. Auto selection and
+force-off startup were tested with those optional dependencies both enabled and
+omitted, passing 21 assertions (`capability-review/compile-no-optional-instance.log`
+and `startup-no-optional-instance.log`). Required platform/feature-query instance
+extensions remain available; this is not an assertion that every instance
+extension was disabled. Real borrowed Vulkan swapchain presentation is pending.
+
+Review continues on retained native pipeline ownership and terminal synchronous
+failure reporting before the Vulkan implementation tasks can be closed.
+
+
+The integrated startup strict Debug build passed on 2026-09-07. The required
+native deferred and capability suites passed 50 assertions, including retained
+pipeline invalidation and simulated post-submit observation failure. The first
+startup test was incorrectly compiled without its native availability macro;
+that failure is retained in `deferred-review/native-startup-integration-debug.log`.
+After registration was corrected, the real visible startup and legacy output
+presentation suites passed all 17 assertions in
+`deferred-review/native-startup-macro-fixed-debug.log`: auto enabled maintenance1
+on this device, while force-off created an ordinary device without enabling it.
+Public retirement remains Unknown until borrowed swapchain integration exists.
+
+The seven related Debug suites passed 354 assertions in
+`deferred-review/debug-integration-regressions-fixed.log`; the initial invocation
+used an unknown suite name and is retained separately. Architecture validation
+reported zero findings. These are working-tree integration checks, not formal
+030 acceptance. Release verification and startup failure-diagnostic propagation
+remain pending at this checkpoint; no additional task is marked complete.
+
+
+The corresponding strict Release build and four required Vulkan native suites
+then passed (`deferred-review/build-release-startup-integration.log` and
+`native-startup-integration-release.log`, 67 assertions). The seven related
+Release suites passed 354 assertions in `release-integration-regressions.log`.
+Metal's Release borrowed-preview helper also completed two frames/one cycle
+with clean shutdown (`metal-review/borrowed-preview-release.log` and `.json`).
+These results precede the startup-diagnostic propagation correction and do not
+close the remaining native borrowed Vulkan presentation or scene-level lab work.
+
+
+The retained Vulkan render-submission slice is now reviewed: T017, T019 and T020
+are complete, bringing reviewed implementation to **22/127**. The native deferred
+suite contributed 29 of the 67 Release assertions above; it covers actual GPU
+submission and copied bytes, with explicit simulated host observation delays
+and failure injection. Presentation semaphore wiring, generation-owned borrowed
+images, independent presentation retirement and terminal lab cleanup remain open
+under T015/T021/T022 and later Application tasks. No US1 or Feature030 native
+acceptance is claimed.
+
+
+The startup-diagnostic correction subsequently passed strict Debug and Release
+builds and each configuration's 17 required startup/legacy-presentation assertions
+(`deferred-review/build-{debug,release}-startup-diagnostics.log` and
+`native-startup-diagnostics-{debug,release}.log`). Native query/create failures
+now retain bounded owned detail, typed reason and a valid exact native error
+where available after temporary Context cleanup. Local failures do not invent
+native results. Failure propagation was code-reviewed; no artificial production
+startup injection API was introduced, and these successful device runs do not
+claim runtime coverage of every native allocation/query failure.

@@ -11,6 +11,7 @@ namespace Stoner::RHI
 {
 
 class IRHITexture;
+class IRHIFence;
 
 enum class ERHISwapchainState
 {
@@ -109,6 +110,58 @@ public:
         Stoner::Core::uint32,
         const Stoner::Core::TSharedPtr<IRHISemaphore>&)
     {
+        return ERHIResult::Unsupported;
+    }
+
+    // Preview rendering borrows the native presentation image directly. The
+    // default remains unsupported so legacy swapchains do not accidentally
+    // claim the independent image/render/presentation lifetime contract.
+    virtual ERHIResult AcquireBorrowedTarget(
+        Stoner::Core::uint64 FrameToken,
+        Stoner::Core::uint32 FrameSlotIndex,
+        FRHIBorrowedAcquiredTarget& OutTarget)
+    {
+        (void)FrameToken;
+        (void)FrameSlotIndex;
+        OutTarget = {};
+        return ERHIResult::Unsupported;
+    }
+
+    virtual ERHIResult PresentBorrowedTarget(
+        const FRHIBorrowedAcquiredTarget& Target,
+        const Stoner::Core::TSharedPtr<IRHISemaphore>&
+            RenderFinishedSemaphore,
+        FRHIPresentationLease& OutPresentationLease)
+    {
+        (void)Target;
+        (void)RenderFinishedSemaphore;
+        OutPresentationLease = {};
+        return ERHIResult::Unsupported;
+    }
+
+    // A caller that has no render-finished semaphore may present only after
+    // providing the matching typed render-completion proof.  This overload
+    // keeps that proof distinct from the presentation lease.
+    virtual ERHIResult PresentBorrowedTarget(
+        const FRHIBorrowedAcquiredTarget& Target,
+        const FRHIRenderLease& RenderLease,
+        FRHIPresentationLease& OutPresentationLease)
+    {
+        (void)Target;
+        (void)RenderLease;
+        OutPresentationLease = {};
+        return ERHIResult::Unsupported;
+    }
+
+    // A borrowed target that was acquired but never submitted can be
+    // cancelled. When render work was recorded, callers provide its fence;
+    // backends release the drawable only after that fence is signaled.
+    virtual ERHIResult ReleaseBorrowedTarget(
+        const FRHIBorrowedAcquiredTarget& Target,
+        const Stoner::Core::TSharedPtr<IRHIFence>& RenderCompletionFence)
+    {
+        (void)Target;
+        (void)RenderCompletionFence;
         return ERHIResult::Unsupported;
     }
 };

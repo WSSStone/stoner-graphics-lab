@@ -23,6 +23,10 @@ struct FProductionContentDeferredExecutionResources
     Core::TArray<Core::TSharedPtr<RHI::IRHIRenderPass>> OwnedRenderPasses;
     Core::TArray<Core::TSharedPtr<RHI::IRHIFramebuffer>> OwnedFramebuffers;
     Core::TArray<Core::TSharedPtr<RHI::IRHIDescriptorSet>> OwnedDescriptorSets;
+    Renderer::EFrameExecutionPurpose ExecutionPurpose =
+        Renderer::EFrameExecutionPurpose::FormalValidation;
+    Renderer::EFrameReadbackSelection ReadbackSelection =
+        Renderer::EFrameReadbackSelection::Formal;
 
     [[nodiscard]] bool IsValid() const noexcept;
     [[nodiscard]] Renderer::FDeferredFrameExecutionBindings

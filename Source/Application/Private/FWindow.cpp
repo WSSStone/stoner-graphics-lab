@@ -2,6 +2,9 @@
 
 #include "FWindowDriver.h"
 
+#include <algorithm>
+#include <limits>
+
 namespace Stoner::Application
 {
 
@@ -20,6 +23,11 @@ Stoner::Core::uint32 NextStableWindowId()
 {
     static Stoner::Core::uint32 NextId = 1;
     return NextId++;
+}
+
+[[nodiscard]] bool IsValidCursorMode(ECursorMode Mode) noexcept
+{
+    return Mode == ECursorMode::Normal || Mode == ECursorMode::Disabled;
 }
 
 } // namespace
@@ -65,6 +73,7 @@ EApplicationResult FWindow::Create(const FWindowDesc& InDesc, EWindowRuntimeAvai
 {
     Diagnostics.Clear();
     PendingEvents.clear();
+    PendingInputEvents.clear();
     if (RuntimeAvailability != EWindowRuntimeAvailability::Available)
     {
         LifecycleState = EWindowLifecycleState::Uncreated;
@@ -87,9 +96,17 @@ EApplicationResult FWindow::Create(const FWindowDesc& InDesc, EWindowRuntimeAvai
     DisplayMode = Desc.DisplayMode;
     ClientWidth = Desc.ClientWidth;
     ClientHeight = Desc.ClientHeight;
+    DrawableWidth = ClientWidth;
+    DrawableHeight = ClientHeight;
     bVisible = Desc.bVisible;
     bFocused = true;
     bMinimized = false;
+    CursorMode = ECursorMode::Normal;
+    ContentScaleX = 1.0f;
+    ContentScaleY = 1.0f;
+    FramebufferScaleX = 1.0f;
+    FramebufferScaleY = 1.0f;
+    DisplayGeneration = 1;
     UpdateDrawableState();
     QueueEvent(FWindowEvent::Created(WindowId, ClientWidth, ClientHeight, NextSequence++));
     Diagnostics.Add(EApplicationDiagnosticSeverity::Info, EApplicationDiagnosticCategory::Window,
@@ -102,6 +119,7 @@ EApplicationResult FWindow::CreateRealWindow(const FWindowDesc& InDesc, EWindowR
 {
     Diagnostics.Clear();
     PendingEvents.clear();
+    PendingInputEvents.clear();
     if (RuntimeAvailability != EWindowRuntimeAvailability::Available)
         return Create(InDesc, RuntimeAvailability);
     if (!Driver) Driver = CreateGlfwWindowDriver();
@@ -130,10 +148,18 @@ EApplicationResult FWindow::CreateRealWindow(const FWindowDesc& InDesc, EWindowR
     ClientHeight = InDesc.ClientHeight;
     DrawableWidth = Driver->GetDrawableWidth();
     DrawableHeight = Driver->GetDrawableHeight();
+    ContentScaleX = Driver->GetContentScaleX();
+    ContentScaleY = Driver->GetContentScaleY();
     PlatformWindow = Driver->GetPlatformWindow();
     bVisible = InDesc.bVisible;
     bFocused = true;
-    bMinimized = DrawableWidth == 0 || DrawableHeight == 0;
+    // A zero native drawable can occur without an iconify/minimize event.
+    // Keep the native minimized fact independent from presentation pause.
+    bMinimized = false;
+    CursorMode = ECursorMode::Normal;
+    FramebufferScaleX = 1.0f;
+    FramebufferScaleY = 1.0f;
+    DisplayGeneration = 1;
     UpdateDrawableState();
     QueueEvent(FWindowEvent::Created(WindowId, ClientWidth, ClientHeight, NextSequence++));
     return EApplicationResult::Success;
@@ -149,6 +175,7 @@ EApplicationResult FWindow::RequestClose()
         return EApplicationResult::InvalidLifecycle;
     }
     LifecycleState = EWindowLifecycleState::CloseRequested;
+    ClearPointerCapture();
     if (Driver) Driver->RequestClose();
     QueueEvent(FWindowEvent::CloseRequested(NextSequence++));
     return EApplicationResult::Success;
@@ -163,6 +190,8 @@ EApplicationResult FWindow::Destroy()
         Diagnostics.SortStable();
         return EApplicationResult::Success;
     }
+    if (Driver) (void)Driver->SetCursorMode(ECursorMode::Normal);
+    CursorMode = ECursorMode::Normal;
     if (Driver) Driver->Destroy();
     Driver.reset();
     PlatformWindow.Clear();
@@ -171,11 +200,47 @@ EApplicationResult FWindow::Destroy()
     bFocused = false;
     bMinimized = false;
     UpdateDrawableState();
+    // The native driver cannot emit its callback reset after it has been
+    // destroyed, so make the engine-initiated teardown reset observable too.
+    ClearPointerCapture();
     QueueEvent(FWindowEvent::Destroyed(NextSequence++));
     Diagnostics.Add(EApplicationDiagnosticSeverity::Info, EApplicationDiagnosticCategory::Window,
         EApplicationResult::Success, "APP-WINDOW-DESTROYED", "Window", "Primary window destroyed");
     Diagnostics.SortStable();
     return EApplicationResult::Success;
+}
+
+EApplicationResult FWindow::SetCursorMode(ECursorMode NewMode)
+{
+    if (!IsValidCursorMode(NewMode))
+        return EApplicationResult::InvalidInput;
+    if (LifecycleState == EWindowLifecycleState::Uncreated ||
+        LifecycleState == EWindowLifecycleState::Destroyed)
+        return EApplicationResult::InvalidLifecycle;
+    if (NewMode == ECursorMode::Disabled &&
+        (LifecycleState != EWindowLifecycleState::Active || !bFocused ||
+            bMinimized || !bDrawable))
+        return EApplicationResult::InvalidLifecycle;
+    if (Driver)
+    {
+        const EApplicationResult Result = Driver->SetCursorMode(NewMode);
+        if (Result != EApplicationResult::Success) return Result;
+    }
+    CursorMode = NewMode;
+    return EApplicationResult::Success;
+}
+
+FWindowDisplayState FWindow::GetDisplayState() const noexcept
+{
+    FWindowDisplayState State;
+    State.LogicalExtent = {ClientWidth, ClientHeight};
+    State.DrawableExtent = {DrawableWidth, DrawableHeight};
+    State.ContentScale = {ContentScaleX, ContentScaleY};
+    State.FramebufferScale = {FramebufferScaleX, FramebufferScaleY};
+    State.DisplayGeneration = DisplayGeneration;
+    State.bFocused = bFocused;
+    State.bMinimized = bMinimized;
+    return State;
 }
 
 EApplicationResult FWindow::SetDisplayMode(EWindowDisplayMode NewMode, bool bRuntimeAllowsMode)
@@ -235,12 +300,14 @@ void FWindow::QueueEvent(const FWindowEvent& Event)
 
 Stoner::Core::TArray<FWindowEvent> FWindow::PollEvents()
 {
+    const Stoner::Core::uint32 PreviousDrawableWidth = DrawableWidth;
+    const Stoner::Core::uint32 PreviousDrawableHeight = DrawableHeight;
+    const float PreviousContentScaleX = ContentScaleX;
+    const float PreviousContentScaleY = ContentScaleY;
     if (Driver)
     {
         Driver->Poll();
         for (const FWindowEvent& Event : Driver->ConsumeWindowEvents()) QueueEvent(Event);
-        DrawableWidth = Driver->GetDrawableWidth();
-        DrawableHeight = Driver->GetDrawableHeight();
     }
     SortWindowEventsStable(PendingEvents);
     Stoner::Core::TArray<FWindowEvent> Events = PendingEvents;
@@ -249,14 +316,45 @@ Stoner::Core::TArray<FWindowEvent> FWindow::PollEvents()
     {
         ApplyEvent(Event);
     }
+    if (Driver)
+    {
+        if (!bMinimized)
+        {
+            DrawableWidth = Driver->GetDrawableWidth();
+            DrawableHeight = Driver->GetDrawableHeight();
+        }
+        ContentScaleX = Driver->GetContentScaleX();
+        ContentScaleY = Driver->GetContentScaleY();
+        if (DrawableWidth != PreviousDrawableWidth ||
+            DrawableHeight != PreviousDrawableHeight)
+        {
+            UpdateDrawableState();
+            BumpDisplayGeneration();
+        }
+        if (ContentScaleX != PreviousContentScaleX ||
+            ContentScaleY != PreviousContentScaleY)
+            BumpDisplayGeneration();
+    }
     return Events;
 }
 
 Stoner::Core::TArray<FInputEvent> FWindow::PollInputEvents()
 {
-    if (!Driver) return {};
-    Driver->Poll();
-    return Driver->ConsumeInputEvents();
+    Stoner::Core::TArray<FInputEvent> Events = std::move(PendingInputEvents);
+    PendingInputEvents.clear();
+    if (Driver)
+    {
+        Driver->Poll();
+        const auto DriverEvents = Driver->ConsumeInputEvents();
+        Events.insert(Events.end(), DriverEvents.begin(), DriverEvents.end());
+    }
+    SortInputEventsStable(Events);
+    if (std::any_of(Events.begin(), Events.end(), [](const FInputEvent& Event)
+        {
+            return Event.EventType == EInputEventType::FocusLost;
+        }))
+        CursorMode = ECursorMode::Normal;
+    return Events;
 }
 
 void FWindow::ApplyEvent(const FWindowEvent& Event)
@@ -275,20 +373,23 @@ void FWindow::ApplyEvent(const FWindowEvent& Event)
             DrawableHeight = Event.ClientHeight;
         }
         UpdateDrawableState();
+        BumpDisplayGeneration();
         break;
     case EWindowEventType::DrawableResized:
         DrawableWidth = Event.ClientWidth;
         DrawableHeight = Event.ClientHeight;
-        bMinimized = DrawableWidth == 0 || DrawableHeight == 0;
         UpdateDrawableState();
+        if (DrawableWidth == 0 || DrawableHeight == 0)
+            ClearPointerCapture(Event.Sequence);
+        BumpDisplayGeneration();
         break;
     case EWindowEventType::Minimized:
         bMinimized = true;
-        ClientWidth = 0;
-        ClientHeight = 0;
         DrawableWidth = 0;
         DrawableHeight = 0;
         UpdateDrawableState();
+        ClearPointerCapture(Event.Sequence);
+        BumpDisplayGeneration();
         Diagnostics.Add(EApplicationDiagnosticSeverity::Info, EApplicationDiagnosticCategory::Loop,
             EApplicationResult::Success, "APP-WINDOW-PRESENTATION-PAUSED", "Window", "Window has no drawable area");
         break;
@@ -299,25 +400,37 @@ void FWindow::ApplyEvent(const FWindowEvent& Event)
         DrawableWidth = Event.ClientWidth;
         DrawableHeight = Event.ClientHeight;
         UpdateDrawableState();
+        BumpDisplayGeneration();
         break;
     case EWindowEventType::FocusGained:
         bFocused = true;
+        BumpDisplayGeneration();
         break;
     case EWindowEventType::FocusLost:
         bFocused = false;
+        ClearPointerCapture(Event.Sequence);
+        BumpDisplayGeneration();
         break;
     case EWindowEventType::CloseRequested:
+    {
+        const bool bAlreadyClosing =
+            LifecycleState == EWindowLifecycleState::CloseRequested;
         if (LifecycleState == EWindowLifecycleState::Active)
         {
             LifecycleState = EWindowLifecycleState::CloseRequested;
         }
+        if (!bAlreadyClosing) ClearPointerCapture(Event.Sequence);
+        BumpDisplayGeneration();
         break;
+    }
     case EWindowEventType::Destroyed:
         LifecycleState = EWindowLifecycleState::Destroyed;
         bVisible = false;
         bFocused = false;
         bMinimized = false;
         UpdateDrawableState();
+        ClearPointerCapture(Event.Sequence);
+        BumpDisplayGeneration();
         break;
     case EWindowEventType::UnavailableRuntime:
         Diagnostics.Add(EApplicationDiagnosticSeverity::Error, EApplicationDiagnosticCategory::RuntimeAvailability,
@@ -338,6 +451,7 @@ void FWindow::ResetRuntimeState()
     WindowId = 0;
     LifecycleState = EWindowLifecycleState::Uncreated;
     DisplayMode = EWindowDisplayMode::Windowed;
+    CursorMode = ECursorMode::Normal;
     ClientWidth = 0;
     ClientHeight = 0;
     DrawableWidth = 0;
@@ -347,17 +461,55 @@ void FWindow::ResetRuntimeState()
     bMinimized = false;
     bDrawable = false;
     bPresentationPaused = false;
+    ContentScaleX = 1.0f;
+    ContentScaleY = 1.0f;
+    FramebufferScaleX = 1.0f;
+    FramebufferScaleY = 1.0f;
+    DisplayGeneration = 0;
 }
 
 void FWindow::UpdateDrawableState()
 {
-    if (!Driver)
+    if (ClientWidth > 0 && ClientHeight > 0 &&
+        DrawableWidth > 0 && DrawableHeight > 0)
     {
-        DrawableWidth = ClientWidth;
-        DrawableHeight = ClientHeight;
+        FramebufferScaleX = static_cast<float>(DrawableWidth) /
+            static_cast<float>(ClientWidth);
+        FramebufferScaleY = static_cast<float>(DrawableHeight) /
+            static_cast<float>(ClientHeight);
     }
     bDrawable = LifecycleState != EWindowLifecycleState::Destroyed && !bMinimized && DrawableWidth > 0 && DrawableHeight > 0;
     bPresentationPaused = !bDrawable && LifecycleState != EWindowLifecycleState::Destroyed;
+}
+
+void FWindow::ClearPointerCapture(Stoner::Core::uint64 Sequence)
+{
+    if (Driver) (void)Driver->SetCursorMode(ECursorMode::Normal);
+    CursorMode = ECursorMode::Normal;
+    if (Driver && Driver->EmitsLifecycleInputResets()) return;
+    const Stoner::Core::uint64 ResetSequence =
+        Sequence == 0 ? NextSequence++ : Sequence;
+    if (std::any_of(PendingInputEvents.begin(), PendingInputEvents.end(),
+        [ResetSequence](const FInputEvent& Event)
+        {
+            return Event.EventType == EInputEventType::FocusLost &&
+                Event.Sequence == ResetSequence;
+        }))
+        return;
+    PendingInputEvents.push_back(FInputEvent::FocusLost(ResetSequence));
+}
+
+void FWindow::BumpDisplayGeneration() noexcept
+{
+    if (DisplayGeneration == 0)
+    {
+        DisplayGeneration = 1;
+    }
+    else if (DisplayGeneration !=
+        std::numeric_limits<Stoner::Core::uint64>::max())
+    {
+        ++DisplayGeneration;
+    }
 }
 
 const char* ToString(EWindowLifecycleState State) noexcept

@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (19/127 reviewed tasks); native closeout remains pending. Read
+Feature 030 implementation is partial (22/127 reviewed tasks); native closeout remains pending. Read
 `specs/030-interactive-rendering-lab/spec.md` and
 `specs/030-interactive-rendering-lab/plan.md` plus its contracts before task generation.
 The plan fixes private Dear ImGui v1.92.5 at
@@ -160,7 +160,7 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
-- 030-interactive-rendering-lab: Camera/RHI foundations and Metal asynchronous presentation are partially implemented; remaining work includes Vulkan capability-selected presentation-fence/acquire-history paths, ImGui integration and current-evidence validation. Optional maintenance1 is not an implementation gate.
+- 030-interactive-rendering-lab: Camera/RHI foundations, retained Vulkan deferred render submission and Metal asynchronous presentation are reviewed locally. Vulkan optional-capability startup is implemented; borrowed swapchain presentation-fence/acquire-history integration, ImGui and current-evidence validation remain pending. Optional maintenance1 is not an implementation gate.
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system
 - 007-rhi-core-interfaces: Planned RHI device, capabilities, command buffer, queue, synchronization, headless swapchain, result/status, and mock-test contracts
 - 008-rhi-resource-pipeline: Planned RHI buffer, texture, sampler, shader module, descriptor, pipeline, render pass, framebuffer, lifecycle invalidation, and mock-test contracts

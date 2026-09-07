@@ -38,6 +38,38 @@ Core::TArray<FInputEvent> NavigationEvents()
     };
 }
 
+Application::FWindowDisplayState DisplayState(
+    Core::uint32 Width,
+    Core::uint32 Height,
+    Core::uint64 Generation = 1)
+{
+    Application::FWindowDisplayState Display;
+    Display.LogicalExtent = {Width, Height};
+    Display.DrawableExtent = {Width, Height};
+    Display.ContentScale = {1.0f, 1.0f};
+    Display.FramebufferScale = {1.0f, 1.0f};
+    Display.DisplayGeneration = Generation;
+    Display.bFocused = true;
+    Display.bMinimized = false;
+    return Display;
+}
+
+const std::string& FrozenSponzaCandidateBytes()
+{
+    static const std::string Bytes =
+        "{\"schema\":\"stoner.production-camera-candidate\","
+        "\"schemaVersion\":1,"
+        "\"workloadRevision\":\"production-content-sponza-v2\","
+        "\"backend\":\"metal\",\"width\":512,\"height\":512,"
+        "\"view\":[-0.136053622,-0.986105621,-0.0953160524,1.61162198,"
+        "0.990615845,-0.136675894,0,-3.93525147,"
+        "-0.0130274063,-0.0944215953,0.995447159,0.12801826,"
+        "0,0,0,1],\"projection\":[0,1.7320509,0,0,0,0,-1.7320509,0,"
+        "1.001001,0,0,-0.1001001,1,0,0,0],"
+        "\"matrixSha256\":\"34ac58edc10864b3294d6a97c41101bbd006dce5313715e49ad14547a7eab8a7\"}\n";
+    return Bytes;
+}
+
 } // namespace
 
 FProductionCameraPreviewTestResult RunProductionCameraPreviewTests()
@@ -87,6 +119,27 @@ FProductionCameraPreviewTestResult RunProductionCameraPreviewTests()
             "invalid-projection", Core::FMatrix4x4::Identity(),
             Core::FMatrix4x4::Identity(), Missing, &Reason),
         "camera preset rejects a non-perspective Projection");
+
+    FProductionCameraPreviewController Frozen;
+    const bool bFrozenInitialized = Frozen.Initialize(
+        SponzaV2, 512, 512, &Reason);
+    const FProductionCameraCandidate FrozenBefore =
+        Frozen.BuildCandidate("metal", "production-content-sponza-v2");
+    const auto FrozenNoOp = Frozen.Update({}, 0.0);
+    const FProductionCameraCandidate FrozenAfter =
+        Frozen.BuildCandidate("metal", "production-content-sponza-v2");
+    Record(Result,
+        bFrozenInitialized && !FrozenNoOp.bCameraChanged &&
+            Frozen.GetCamera().View.NearlyEquals(SponzaV2.View, 1.0e-6f) &&
+            Frozen.GetCamera().Projection.NearlyEquals(
+                SponzaV2.Projection, 1.0e-6f) &&
+            FrozenBefore.MatrixSha256 ==
+                "34ac58edc10864b3294d6a97c41101bbd006dce5313715e49ad14547a7eab8a7" &&
+            FrozenBefore.CanonicalJson.ToStdString() ==
+                FrozenSponzaCandidateBytes() &&
+            FrozenBefore.CanonicalJson == FrozenAfter.CanonicalJson &&
+            FrozenBefore.MatrixSha256 == FrozenAfter.MatrixSha256,
+        "an untouched frozen preset preserves candidate matrix bytes");
 
     FProductionCameraPreviewController First;
     FProductionCameraPreviewController Second;
@@ -173,6 +226,78 @@ FProductionCameraPreviewTestResult RunProductionCameraPreviewTests()
             First.GetCamera().Projection.NearlyEquals(Lantern.Projection),
         "camera reset restores the exact workload preset");
 
+    FProductionCameraPreviewController ChangedAspect;
+    const bool bChangedAspectInitialized = ChangedAspect.Initialize(
+        Lantern, 512, 512, &Reason);
+    const auto AspectUpdate = ChangedAspect.Update(
+        {}, 0.0, DisplayState(1024, 768, 2));
+    const auto AspectCandidate = ChangedAspect.BuildCandidate(
+        "metal", "production-content-lantern-v2");
+    Record(Result,
+        bChangedAspectInitialized && AspectUpdate.bCameraChanged &&
+            ChangedAspect.GetCamera().View.NearlyEquals(Lantern.View) &&
+            !ChangedAspect.GetCamera().Projection.NearlyEquals(
+                Lantern.Projection) &&
+            AspectCandidate.Width == 512 && AspectCandidate.Height == 512,
+        "interactive drawable aspect rebuilds projection without changing export context");
+
+    FProductionCameraPreviewController NonSquareInitial;
+    const bool bNonSquareInitialized = NonSquareInitial.Initialize(
+        Lantern, 1024, 768, &Reason);
+    const auto NonSquareCandidate = NonSquareInitial.BuildCandidate(
+        "metal", "production-content-lantern-v2");
+    Record(Result,
+        bNonSquareInitialized &&
+            NonSquareInitial.GetCamera().View.NearlyEquals(Lantern.View) &&
+            !NonSquareInitial.GetCamera().Projection.NearlyEquals(
+                Lantern.Projection) &&
+            NonSquareCandidate.Width == 1024 &&
+            NonSquareCandidate.Height == 768,
+        "interactive initialization adopts a non-square drawable aspect");
+
+    FProductionCameraPreviewController OrderedLens;
+    const bool bOrderedLensInitialized = OrderedLens.Initialize(
+        Lantern, 512, 512, &Reason);
+    const auto OrderedLensUpdate = OrderedLens.Update({
+        FInputEvent::Scroll(0.0f, 100.0f, 20),
+        FInputEvent::Scroll(0.0f, -100.0f, 21)}, 0.0);
+    Record(Result,
+        bOrderedLensInitialized && OrderedLensUpdate.bCameraChanged &&
+            Core::FMath::IsNearlyEqual(
+                OrderedLens.GetCamera().Projection.M[1][2], -1.0f,
+                1.0e-4f),
+        "ordered wheel events preserve sequential FOV clamping");
+
+    FProductionCameraPreviewController LookRelease;
+    const bool bLookReleaseInitialized = LookRelease.Initialize(
+        Lantern, 512, 512, &Reason);
+    const auto LookReleaseUpdate = LookRelease.Update({
+        FInputEvent::PointerMove(100.0f, 100.0f, 30),
+        FInputEvent::MouseDown(EMouseButton::Right, 31),
+        FInputEvent::PointerMove(140.0f, 100.0f, 32),
+        FInputEvent::MouseUp(EMouseButton::Right, 33)}, 0.0);
+    Record(Result,
+        bLookReleaseInitialized && LookReleaseUpdate.bCameraChanged &&
+            !LookRelease.IsLookCaptured() &&
+            !LookRelease.GetCamera().View.NearlyEquals(Lantern.View),
+        "a final captured look delta survives same-batch mouse release");
+
+    FProductionCameraPreviewController ExactReset;
+    const bool bExactResetInitialized = ExactReset.Initialize(
+        SponzaV2, 512, 512, &Reason);
+    const FProductionCameraCandidate BeforeExactReset =
+        ExactReset.BuildCandidate("metal", "production-content-sponza-v2");
+    (void)ExactReset.Update(NavigationEvents(), 0.125);
+    (void)ExactReset.Update(
+        {FInputEvent::KeyDown(EKey::R, 34)}, 0.0);
+    const FProductionCameraCandidate AfterExactReset =
+        ExactReset.BuildCandidate("metal", "production-content-sponza-v2");
+    Record(Result,
+        bExactResetInitialized &&
+            BeforeExactReset.CanonicalJson == AfterExactReset.CanonicalJson &&
+            BeforeExactReset.MatrixSha256 == AfterExactReset.MatrixSha256,
+        "reset restores the original frozen candidate bytes at its aspect");
+
     const Core::FMatrix4x4 BeforeFocusLoss = First.GetCamera().View;
     const auto FocusUpdate = First.Update({
         FInputEvent::KeyDown(EKey::W, 10),
@@ -181,6 +306,29 @@ FProductionCameraPreviewTestResult RunProductionCameraPreviewTests()
         !FocusUpdate.bCameraChanged &&
             First.GetCamera().View.NearlyEquals(BeforeFocusLoss),
         "focus loss clears preview movement and mouse state");
+
+    FProductionCameraPreviewController Resumed;
+    const bool bResumedInitialized = Resumed.Initialize(
+        Lantern, 512, 512, &Reason);
+    const auto ResumeLoss = Resumed.Update({
+        FInputEvent::KeyDown(EKey::W, 40),
+        FInputEvent::FocusLost(41)}, 0.25, DisplayState(512, 512, 3));
+    const Core::FVector3 BeforeResume = Resumed.GetCamera().CameraPosition;
+    const auto ResumeBatch = Resumed.Update({
+        FInputEvent::Scroll(0.0f, 1.0f, 42),
+        FInputEvent::KeyDown(EKey::W, 43)}, 0.25,
+        DisplayState(512, 512, 4));
+    const Core::FVector3 DuringResume = Resumed.GetCamera().CameraPosition;
+    const auto ResumeNext = Resumed.Update({}, 0.25,
+        DisplayState(512, 512, 4));
+    Record(Result,
+        bResumedInitialized && !ResumeLoss.bCameraChanged &&
+            ResumeBatch.bCameraChanged &&
+            DuringResume == BeforeResume &&
+            ResumeNext.bCameraChanged &&
+            Resumed.GetCamera().CameraPosition != BeforeResume,
+        "focus resume applies lens changes before allowing translation");
+
     const auto ExitUpdate = First.Update(
         {FInputEvent::KeyDown(EKey::Escape, 12)}, 0.0);
     Record(Result, ExitUpdate.bExitRequested,

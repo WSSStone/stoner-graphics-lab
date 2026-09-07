@@ -45,6 +45,14 @@ EDemoExitCode FStonerDemoApplication::RunProductionCameraPreview()
             Reason.IsEmpty() ? "camera preview initialization failed" :
                 Reason.CStr());
 
+    // The production output dimensions remain the legacy capture context,
+    // while the interactive camera uses the drawable extent actually owned
+    // by the current window before the first frame is applied.
+    const auto InitialDisplay = Window->Value.GetDisplayState();
+    const FProductionCameraPreviewUpdate InitialDisplayUpdate = Controller.Update(
+        {}, 0.0, InitialDisplay);
+    (void)InitialDisplayUpdate;
+
     const auto ApplyCamera = [&]() -> bool
     {
         Renderer::FDeferredFramePlan DeferredPlan;
@@ -94,6 +102,7 @@ EDemoExitCode FStonerDemoApplication::RunProductionCameraPreview()
 
     LifecycleState = EDemoLifecycleState::Running;
     bool bSnapshotPending = false;
+    bool bCursorCaptured = false;
     auto PreviousTime = Clock::now();
     while (!Window->Value.IsCloseRequested())
     {
@@ -102,8 +111,26 @@ EDemoExitCode FStonerDemoApplication::RunProductionCameraPreview()
         const double DeltaSeconds =
             std::chrono::duration<double>(Now - PreviousTime).count();
         PreviousTime = Now;
+        const Application::FWindowDisplayState Display =
+            Window->Value.GetDisplayState();
         const FProductionCameraPreviewUpdate Update = Controller.Update(
-            Window->Value.PollInputEvents(), DeltaSeconds);
+            Window->Value.PollInputEvents(), DeltaSeconds, Display);
+        const bool bWantCursorCapture = Controller.IsLookCaptured() &&
+            Display.bFocused && !Display.bMinimized &&
+            Display.DrawableExtent.IsPositive();
+        if (bWantCursorCapture != bCursorCaptured)
+        {
+            const Application::EApplicationResult CursorResult =
+                Window->Value.SetCursorMode(
+                    bWantCursorCapture
+                        ? Application::ECursorMode::Disabled
+                        : Application::ECursorMode::Normal);
+            if (CursorResult != Application::EApplicationResult::Success)
+                return FailInitialize(EDemoStage::Window,
+                    EDemoExitCode::FrameFailed, "ProductionCameraPreview",
+                    "camera preview cursor capture transition failed");
+            bCursorCaptured = bWantCursorCapture;
+        }
         if (Update.bExitRequested) break;
         bSnapshotPending = bSnapshotPending || Update.bSnapshotRequested;
         if (Update.bCameraChanged && !ApplyCamera())

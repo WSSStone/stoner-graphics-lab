@@ -12,6 +12,7 @@ class FVulkanCommandSubmission;
 class FVulkanDevice;
 class FVulkanGraphicsPipeline;
 class FVulkanQueue;
+class FDeferredNativeSubmission;
 class FVulkanRenderPass;
 class FVulkanUploadRequest;
 struct FVulkanDeviceOwnerState;
@@ -100,6 +101,7 @@ private:
     friend class FVulkanCommandSubmission;
     friend class FVulkanDevice;
     friend class FVulkanQueue;
+    friend class FDeferredNativeSubmission;
 
     FVulkanCommandBuffer(Stoner::RHI::ERHIQueueType InQueueType,
         FVulkanDiagnostics* InDiagnostics,
@@ -107,6 +109,7 @@ private:
     [[nodiscard]] bool BelongsTo(
         const Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState>& InOwner) const noexcept;
     Stoner::RHI::ERHIResult MarkSubmitted() noexcept;
+    void RollbackSubmitted() noexcept;
     Stoner::RHI::ERHIResult MarkCompletedOrResettable() noexcept;
     void Invalidate() noexcept;
 

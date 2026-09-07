@@ -44,6 +44,23 @@ public:
     RHI::ERHIResult Present(
         Core::uint32 FrameIndex,
         const Core::TSharedPtr<RHI::IRHISemaphore>& WaitSemaphore) override;
+    RHI::ERHIResult AcquireBorrowedTarget(
+        Core::uint64 FrameToken,
+        Core::uint32 FrameSlotIndex,
+        RHI::FRHIBorrowedAcquiredTarget& OutTarget) override;
+    RHI::ERHIResult PresentBorrowedTarget(
+        const RHI::FRHIBorrowedAcquiredTarget& Target,
+        const Core::TSharedPtr<RHI::IRHISemaphore>&
+            RenderFinishedSemaphore,
+        RHI::FRHIPresentationLease& OutPresentationLease) override;
+    RHI::ERHIResult PresentBorrowedTarget(
+        const RHI::FRHIBorrowedAcquiredTarget& Target,
+        const RHI::FRHIRenderLease& RenderLease,
+        RHI::FRHIPresentationLease& OutPresentationLease) override;
+    RHI::ERHIResult ReleaseBorrowedTarget(
+        const RHI::FRHIBorrowedAcquiredTarget& Target,
+        const Core::TSharedPtr<RHI::IRHIFence>&
+            RenderCompletionFence) override;
 
 private:
     RHI::ERHIResult AcquireNextFrameLocked(

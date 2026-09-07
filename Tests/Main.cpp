@@ -111,6 +111,15 @@
 #include <string>
 #include <vector>
 
+[[nodiscard]] int RunRHILabContractTests();
+[[nodiscard]] int RunInteractiveLabValueTests();
+[[nodiscard]] int RunApplicationFreeCameraTests();
+[[nodiscard]] int RunRHIDeferredSubmissionTests();
+[[nodiscard]] int RunVulkanDeferredNativeTests();
+[[nodiscard]] int RunVulkanLabPresentationPolicyTests();
+[[nodiscard]] int RunVulkanLabCapabilityNativeTests();
+[[nodiscard]] int RunVulkanLabStartupIntegrationTests();
+
 int main(int ArgCount, char* Arguments[])
 {
     if (ArgCount == 2 &&
@@ -365,6 +374,12 @@ int main(int ArgCount, char* Arguments[])
     FTestSuiteRegistry Registry;
     Registry.Register("application-scene", [] { return RunApplicationSceneEcsTests().Failed == 0 ? 0 : 1; });
     Registry.Register("application-window", [] { return RunApplicationWindowInputTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("application-free-camera", [] {
+        return RunApplicationFreeCameraTests();
+    });
+    Registry.Register("interactive-lab-values", [] {
+        return RunInteractiveLabValueTests();
+    });
     Registry.Register("asset", [KTX2Options, MaterialShaderOptions, StaticModelOptions, AssetManagerOptions] {
         return RunAssetTests(KTX2Options, MaterialShaderOptions, StaticModelOptions, AssetManagerOptions).Failed == 0 ? 0 : 1;
     });
@@ -704,6 +719,23 @@ int main(int ArgCount, char* Arguments[])
             : 1;
     });
     Registry.Register("rhi", [] { return RunRHICoreTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("rhi-deferred-submission", [] {
+        const int SubmissionFailures = RunRHIDeferredSubmissionTests();
+        const int PresentationFailures = RunVulkanLabPresentationPolicyTests();
+        return SubmissionFailures + PresentationFailures;
+    });
+    Registry.Register("vulkan-deferred-native", [] {
+        return RunVulkanDeferredNativeTests();
+    });
+    Registry.Register("vulkan-lab-capability-native", [] {
+        return RunVulkanLabCapabilityNativeTests();
+    });
+    Registry.Register("vulkan-lab-startup-native", [] {
+        return RunVulkanLabStartupIntegrationTests();
+    });
+    Registry.Register("rhi-lab-contract", [] {
+        return RunRHILabContractTests();
+    });
     Registry.Register("rhi-presentation-output", [] {
         return RunRHIPresentationOutputTests().Failed == 0 ? 0 : 1;
     });

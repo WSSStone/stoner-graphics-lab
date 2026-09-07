@@ -40,6 +40,10 @@ private:
     RHI::ERHIFenceState State_ = RHI::ERHIFenceState::Unsignaled;
     Core::uint64 Epoch_ = 0;
     Core::uint64 PendingEpoch_ = 0;
+    // Submission failure is terminal until the caller explicitly resets the
+    // fence.  ERHIFenceState has no failure value, so keep that proof private
+    // while leaving IsSignaled false.
+    bool bTerminalFailure_ = false;
 };
 
 class FMetalSemaphore final

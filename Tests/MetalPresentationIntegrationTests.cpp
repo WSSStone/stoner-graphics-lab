@@ -5,6 +5,9 @@
 #include "Core/SGPlatform.h"
 #include "MetalRHI/FMetalDeviceFactory.h"
 #include "RHI/RHIMinimal.h"
+#if SG_PLATFORM_MAC
+#include "../Source/Backend/Metal/Private/FMetalPresentationSurface.h"
+#endif
 
 #if defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
     #define GLFW_INCLUDE_NONE
@@ -13,6 +16,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <thread>
 
 namespace
@@ -68,6 +72,85 @@ ERHIResult AcquireAfterRestore(
 }
 #endif
 
+#if SG_PLATFORM_MAC && defined(STONER_GLFW_AVAILABLE) && \
+    STONER_GLFW_AVAILABLE
+bool TestBorrowedAcquireCancellation(
+    Core::TSharedPtr<RHI::IRHISwapchain>& Swapchain,
+    const Core::TSharedPtr<RHI::IRHIPresentationSurface>& Surface)
+{
+    using namespace Stoner::Backend::Metal::Private;
+    if (!Swapchain || !Surface) return false;
+    const auto NativeSurface =
+        std::dynamic_pointer_cast<FMetalPresentationSurface>(Surface);
+    const auto Context = NativeSurface ? NativeSurface->GetContext() : nullptr;
+    if (!Context) return false;
+    const auto Fail = [&](const char* Stage) {
+        std::cout << "[INFO] borrowed-cancel-regression"
+                  << " stage=" << Stage
+                  << " pending=" << Context->GetPendingDrawableAcquireCount()
+                  << " leases=" << Context->GetPendingPresentationLeaseCount()
+                  << '\n';
+        return false;
+    };
+
+    // Fill both production frame slots with unpublished async acquisitions.
+    // Slot zero may still be completing the formal presentation above, so
+    // retry only until its pending record is admitted; do not poll it and
+    // accidentally publish a drawable before the reset regression.
+    const auto StartPending = [&](Core::uint32 FrameSlot,
+                                  Core::uint64 FrameToken) {
+        const auto Deadline = std::chrono::steady_clock::now() +
+            std::chrono::seconds(2);
+        do
+        {
+            RHI::FRHIBorrowedAcquiredTarget Target;
+            const RHI::ERHIResult AcquireResult =
+                Swapchain->AcquireBorrowedTarget(
+                    FrameToken, FrameSlot, Target);
+            const Core::uint32 PendingCount =
+                Context->GetPendingDrawableAcquireCount();
+            if (PendingCount > RHI::MaxRHIFrameSlots ||
+                Context->GetPendingPresentationLeaseCount() >
+                    RHI::MaxRHIPresentationImageLeases)
+                return Fail("bound");
+            if (PendingCount >= FrameSlot + 1)
+                return AcquireResult == RHI::ERHIResult::NotReady;
+            if (AcquireResult != RHI::ERHIResult::NotReady &&
+                AcquireResult != RHI::ERHIResult::Unavailable &&
+                AcquireResult != RHI::ERHIResult::ResizeRequired)
+                return Fail("start-result");
+            glfwPollEvents();
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        }
+        while (std::chrono::steady_clock::now() < Deadline);
+        return false;
+    };
+
+    if (!StartPending(0, 4001)) return Fail("slot-zero");
+    if (!StartPending(1, 4002)) return Fail("slot-one");
+    const bool bTwoPending =
+        Context->GetPendingDrawableAcquireCount() == 2 &&
+        Context->GetPendingPresentationLeaseCount() == 2;
+    if (!bTwoPending) return Fail("two-pending");
+
+    // Destruction must cancel every frame record owned by the context.  The
+    // surface remains alive, allowing each worker's completion callback to
+    // retire its canceled record without a new render or surface shutdown.
+    Swapchain.reset();
+    const auto Deadline = std::chrono::steady_clock::now() +
+        std::chrono::seconds(5);
+    do
+    {
+        if (Context->GetPendingDrawableAcquireCount() == 0 &&
+            Context->GetPendingPresentationLeaseCount() == 0)
+            return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    while (std::chrono::steady_clock::now() < Deadline);
+    return Fail("retire-timeout");
+}
+#endif
+
 } // namespace
 
 FMetalPresentationIntegrationTestResult
@@ -109,6 +192,12 @@ RunMetalPresentationIntegrationTests(bool bRequireVisible)
     const ERHIResult CapabilityResult = Surface.Succeeded()
         ? Surface.Object->QueryCapabilities(PresentationCapabilities)
         : ERHIResult::InvalidState;
+    Record(Result,
+        CapabilityResult == ERHIResult::Success &&
+            PresentationCapabilities.bSupportsIndependentPresentationCompletion &&
+            PresentationCapabilities.PresentationRetirementMode ==
+                ERHIPresentationRetirementMode::NativeCallback,
+        "Metal native surface identifies callback presentation retirement");
     SwapchainDesc.SurfaceCapabilityGeneration =
         PresentationCapabilities.CapabilityGeneration;
     auto Swapchain = CapabilityResult == ERHIResult::Success
@@ -126,6 +215,8 @@ RunMetalPresentationIntegrationTests(bool bRequireVisible)
         : ERHIResult::InvalidState;
     const bool Presented = Acquired && InitialPresent == ERHIResult::Success;
 
+    bool bBorrowedCancellation = false;
+
     bool bLifecycle = false;
 #if defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
     auto* NativeWindow = static_cast<GLFWwindow*>(
@@ -136,7 +227,7 @@ RunMetalPresentationIntegrationTests(bool bRequireVisible)
     (void)Window.PollEvents();
     Core::uint32 ResizedFrame = 0;
     const ERHIResult ResizeAcquire = Presented
-        ? Swapchain.Object->AcquireNextFrame(ResizedFrame)
+        ? AcquireAfterRestore(Swapchain.Object, ResizedFrame)
         : ERHIResult::InvalidState;
     const bool bResized = Presented && ResizeAcquire == ERHIResult::Success &&
         Swapchain.Object->GetImage(ResizedFrame) != nullptr &&
@@ -167,7 +258,21 @@ RunMetalPresentationIntegrationTests(bool bRequireVisible)
     const bool bCloseRejected =
         Swapchain.Object->AcquireNextFrame(ClosingFrame) ==
             ERHIResult::Unavailable;
-    bLifecycle = bResized && bPaused && bRestored && bCloseRejected;
+
+    // The close rejection above intentionally leaves the native window's
+    // should-close bit set.  Restore that bit for the focused destruction
+    // regression; FWindow remains close-requested and is destroyed below.
+    glfwSetWindowShouldClose(NativeWindow, GLFW_FALSE);
+#if SG_PLATFORM_MAC && defined(STONER_GLFW_AVAILABLE) && \
+    STONER_GLFW_AVAILABLE
+    if (Acquired && Presented && Swapchain.Succeeded() && Surface.Succeeded())
+        bBorrowedCancellation = TestBorrowedAcquireCancellation(
+            Swapchain.Object, Surface.Object);
+#else
+    bBorrowedCancellation = true;
+#endif
+    bLifecycle = bResized && bPaused && bRestored && bCloseRejected &&
+        bBorrowedCancellation;
     if (!bLifecycle)
     {
         std::cout << "[INFO] visible-metal-lifecycle"
@@ -178,7 +283,8 @@ RunMetalPresentationIntegrationTests(bool bRequireVisible)
                   << " paused-acquire=" << static_cast<int>(PauseAcquire)
                   << " uniconified=" << bUniconified
                   << " restore-acquire=" << static_cast<int>(RestoreAcquire)
-                  << " close-rejected=" << bCloseRejected << '\n';
+                  << " close-rejected=" << bCloseRejected
+                  << " borrowed-cancel=" << bBorrowedCancellation << '\n';
     }
 #endif
     if (Surface.Succeeded()) (void)Surface.Object->Invalidate();

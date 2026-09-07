@@ -234,7 +234,11 @@ bool FOutputTransformPlan::IsValid() const noexcept
         PlanFingerprint.Len() != 64 || !SceneColor.IsReadyForConsumption() ||
         !ResolvedSettings.IsValid() || !OutputDesc.IsValid() ||
         Stages.size() < 4 || !PreTonemapOperations.Succeeded() ||
-        !PostTonemapOperations.Succeeded() || !DiagnosticBypass.IsValid())
+        !PostTonemapOperations.Succeeded() || !DiagnosticBypass.IsValid() ||
+        !IsValidFrameExecutionPurpose(ExecutionPurpose) ||
+        !IsValidFrameReadbackSelection(ReadbackSelection) ||
+        (ExecutionPurpose == EFrameExecutionPurpose::FormalValidation &&
+            ReadbackSelection == EFrameReadbackSelection::None))
     {
         return false;
     }

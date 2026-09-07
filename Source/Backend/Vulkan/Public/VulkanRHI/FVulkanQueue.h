@@ -24,9 +24,15 @@ public:
         const Stoner::Core::TArray<Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>>& WaitSemaphores = {},
         const Stoner::Core::TArray<Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>>& SignalSemaphores = {},
         const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIFence>& Fence = nullptr) override;
+    Stoner::RHI::ERHIResult SubmitDeferred(
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHICommandBuffer>& CommandBuffer,
+        const Stoner::Core::TArray<Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>>& WaitSemaphores,
+        const Stoner::Core::TArray<Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>>& SignalSemaphores,
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIFence>& CompletionFence) override;
     Stoner::RHI::ERHIResult WaitIdle() override;
     Stoner::RHI::ERHIResult ObserveLastSubmissionCompletion(Stoner::Core::uint64 TimeoutMicroseconds = 0) noexcept;
     void ConfigureCompletionInjection(FVulkanCompletionInjectionConfig InInjection) noexcept;
+    [[nodiscard]] Stoner::Core::uint64 GetLastDeferredSubmissionId() const noexcept;
 
 private:
     friend class FVulkanDevice;
@@ -47,6 +53,7 @@ private:
     Stoner::Core::TSharedPtr<FVulkanNativeContext> NativeContext;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<FVulkanCommandSubmission>> Submissions;
     bool bHasCompletedSubmission = false;
+    Stoner::Core::uint64 LastDeferredSubmissionId = 0;
     bool bValid = true;
 };
 

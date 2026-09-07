@@ -3,6 +3,7 @@
 #include "Core/CoreMinimal.h"
 #include "RHI/ERHIFormat.h"
 #include "RHI/ERHIPipelineState.h"
+#include "RHI/ERHIResourceUsage.h"
 #include "RHI/FRHIShaderModuleDesc.h"
 
 namespace Stoner::RHI
@@ -10,6 +11,59 @@ namespace Stoner::RHI
 
 class IRHIPipelineLayout;
 class IRHIShaderModule;
+
+enum class ERHIColorWriteMask : Stoner::Core::uint32
+{
+    None = 0,
+    Red = 1u << 0,
+    Green = 1u << 1,
+    Blue = 1u << 2,
+    Alpha = 1u << 3,
+    RGB = Red | Green | Blue,
+    RGBA = RGB | Alpha
+};
+
+[[nodiscard]] constexpr ERHIColorWriteMask operator|(
+    ERHIColorWriteMask Left,
+    ERHIColorWriteMask Right) noexcept
+{
+    return static_cast<ERHIColorWriteMask>(
+        static_cast<Stoner::Core::uint32>(Left) |
+        static_cast<Stoner::Core::uint32>(Right));
+}
+
+[[nodiscard]] constexpr ERHIColorWriteMask operator&(
+    ERHIColorWriteMask Left,
+    ERHIColorWriteMask Right) noexcept
+{
+    return static_cast<ERHIColorWriteMask>(
+        static_cast<Stoner::Core::uint32>(Left) &
+        static_cast<Stoner::Core::uint32>(Right));
+}
+
+constexpr ERHIColorWriteMask& operator|=(
+    ERHIColorWriteMask& Left,
+    ERHIColorWriteMask Right) noexcept
+{
+    Left = Left | Right;
+    return Left;
+}
+
+inline constexpr ERHIColorWriteMask RHIColorWriteMaskValidMask =
+    ERHIColorWriteMask::RGBA;
+
+[[nodiscard]] constexpr bool IsValidRHIColorWriteMask(
+    ERHIColorWriteMask Value) noexcept
+{
+    return HasOnlyRHIFlags(Value, RHIColorWriteMaskValidMask);
+}
+
+[[nodiscard]] constexpr bool HasRHIFlag(
+    ERHIColorWriteMask Value,
+    ERHIColorWriteMask Flag) noexcept
+{
+    return (Value & Flag) != ERHIColorWriteMask::None;
+}
 
 struct FRHIVertexAttributeDesc
 {
@@ -37,6 +91,7 @@ struct FRHIBlendState
     ERHIBlendFactor SourceColor = ERHIBlendFactor::One;
     ERHIBlendFactor DestinationColor = ERHIBlendFactor::Zero;
     ERHIBlendOp ColorOp = ERHIBlendOp::Add;
+    ERHIColorWriteMask ColorWriteMask = ERHIColorWriteMask::RGBA;
 };
 
 struct FRHIDepthStencilState
@@ -143,6 +198,7 @@ struct FRHIGraphicsPipelineDesc
         IsValidRHIBlendFactor(Desc.Blend.SourceColor) &&
         IsValidRHIBlendFactor(Desc.Blend.DestinationColor) &&
         IsValidRHIBlendOp(Desc.Blend.ColorOp) &&
+        IsValidRHIColorWriteMask(Desc.Blend.ColorWriteMask) &&
         IsValidRHICompareOp(Desc.DepthStencil.DepthCompare) &&
         IsValidRHISampleCount(Desc.Multisample.SampleCount) &&
         Desc.Multisample.SampleCount == Desc.RenderTargets.SampleCount &&

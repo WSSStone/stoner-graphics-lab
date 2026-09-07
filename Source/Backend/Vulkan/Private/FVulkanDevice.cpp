@@ -230,6 +230,7 @@ Stoner::RHI::ERHIResult FVulkanDevice::EnableNativeShaderRuntime()
         }
         Capabilities.Formats = std::move(NativeFormats);
         NativeShaderContext = NativePresentationContext;
+        Capabilities.bSupportsDeferredSubmission = true;
         MarkRuntimeMode(Diagnostics,
             "native shader runtime shares the visible presentation Vulkan device");
         return Stoner::RHI::ERHIResult::Success;
@@ -254,6 +255,7 @@ Stoner::RHI::ERHIResult FVulkanDevice::EnableNativeShaderRuntime()
         }
         Capabilities.Formats = std::move(NativeFormats);
         NativeShaderContext = std::move(Context);
+        Capabilities.bSupportsDeferredSubmission = true;
     }
     catch (const std::bad_alloc&)
     {
@@ -280,6 +282,38 @@ FVulkanDevice::GetNativeShaderContext() const noexcept
     return NativeShaderContext;
 }
 
+bool FVulkanDevice::HasCreatedNativeObjects() const noexcept
+{
+    return !Queues.empty() || !CommandPools.empty() || !Fences.empty() ||
+        !Semaphores.empty() || !Buffers.empty() || !Textures.empty() ||
+        !Samplers.empty() || !RenderPasses.empty() || !Framebuffers.empty() ||
+        !PipelineLayouts.empty() || !ShaderModules.empty() ||
+        !GraphicsPipelines.empty() || !ComputePipelines.empty() ||
+        !DescriptorSets.empty() || !UploadRequests.empty();
+}
+
+Stoner::RHI::ERHIResult FVulkanDevice::RegisterNativePresentationContext(
+    Stoner::Core::TSharedPtr<FVulkanNativeContext> Context,
+    const char* RuntimeReason)
+{
+    if (!Context)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    auto NativeFormats = Context->QueryTextureFormatCapabilities();
+    if (NativeFormats.empty())
+    {
+        (void)Context->Shutdown();
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
+    Capabilities.Formats = std::move(NativeFormats);
+    NativePresentationContext = Context;
+    NativeShaderContext = std::move(Context);
+    Capabilities.bSupportsDeferredSubmission = true;
+    MarkRuntimeMode(Diagnostics, RuntimeReason);
+    return Stoner::RHI::ERHIResult::Success;
+}
+
 Stoner::RHI::ERHIResult FVulkanDevice::EnableNativePresentationRuntime(
     const Stoner::Core::FPlatformWindow& Window)
 {
@@ -295,14 +329,7 @@ Stoner::RHI::ERHIResult FVulkanDevice::EnableNativePresentationRuntime(
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
-    const bool bHasCreatedNativeObjects =
-        !Queues.empty() || !CommandPools.empty() || !Fences.empty() ||
-        !Semaphores.empty() || !Buffers.empty() || !Textures.empty() ||
-        !Samplers.empty() || !RenderPasses.empty() || !Framebuffers.empty() ||
-        !PipelineLayouts.empty() || !ShaderModules.empty() ||
-        !GraphicsPipelines.empty() || !ComputePipelines.empty() ||
-        !DescriptorSets.empty() || !UploadRequests.empty();
-    if (bHasCreatedNativeObjects)
+    if (HasCreatedNativeObjects())
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
@@ -325,15 +352,9 @@ Stoner::RHI::ERHIResult FVulkanDevice::EnableNativePresentationRuntime(
         {
             return Result;
         }
-        auto NativeFormats = Context->QueryTextureFormatCapabilities();
-        if (NativeFormats.empty())
-        {
-            (void)Context->Shutdown();
-            return Stoner::RHI::ERHIResult::Unsupported;
-        }
-        Capabilities.Formats = std::move(NativeFormats);
-        NativePresentationContext = Context;
-        NativeShaderContext = std::move(Context);
+        return RegisterNativePresentationContext(
+            std::move(Context),
+            "native Vulkan presentation runtime enabled behind RHI surface/swapchain contracts");
     }
     catch (const std::bad_alloc&)
     {
@@ -343,9 +364,110 @@ Stoner::RHI::ERHIResult FVulkanDevice::EnableNativePresentationRuntime(
     {
         return Stoner::RHI::ERHIResult::Unavailable;
     }
-    MarkRuntimeMode(Diagnostics,
-        "native Vulkan presentation runtime enabled behind RHI surface/swapchain contracts");
-    return Stoner::RHI::ERHIResult::Success;
+}
+
+Stoner::RHI::ERHIResult FVulkanDevice::EnableNativeLabPresentationRuntime(
+    const Stoner::Core::FPlatformWindow& Window,
+    bool bForceAcquireHistory)
+{
+    if (!IsActive() || !Window.IsValid())
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    // Lab startup selects the retirement path once, before any native context,
+    // surface, swapchain, or resource is admitted.  A later request could not
+    // safely replace those owners without changing the selected device.
+    if (NativePresentationContext || NativeShaderContext ||
+        !Surfaces.empty() || !Swapchains.empty() ||
+        HasCreatedNativeObjects() || DescriptorPool != nullptr)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+
+    Diagnostics.PresentationFailureDetail.Clear();
+    Diagnostics.PresentationFailureNativeResult = 0;
+    Diagnostics.bPresentationFailureHasNativeResult = false;
+    Diagnostics.PresentationFailureReason =
+        Stoner::RHI::ERHIPresentationRetirementReason::Unknown;
+    Diagnostics.PresentationSkipReason = "";
+
+    const auto PublishLabStartupFailure =
+        [this](
+            const Stoner::Core::TSharedPtr<FVulkanNativeContext>& Context,
+            const char* FallbackDetail) noexcept
+    {
+        Stoner::Core::FString Detail;
+        Stoner::RHI::ERHIPresentationRetirementReason Reason =
+            Stoner::RHI::ERHIPresentationRetirementReason::Unknown;
+        Stoner::Core::int32 NativeResult = 0;
+        bool bHasNativeResult = false;
+        const bool bCaptured = Context &&
+            Context->CopyLabStartupFailureForDiagnostics(
+                Detail, Reason, NativeResult, bHasNativeResult);
+        Diagnostics.PresentationFailureReason = bCaptured
+            ? Reason
+            : Stoner::RHI::ERHIPresentationRetirementReason::Unknown;
+        Diagnostics.PresentationFailureNativeResult = bCaptured
+            ? NativeResult
+            : 0;
+        Diagnostics.bPresentationFailureHasNativeResult = bCaptured &&
+            bHasNativeResult;
+        try
+        {
+            if (bCaptured && !Detail.IsEmpty())
+            {
+                Diagnostics.PresentationFailureDetail = Detail;
+            }
+            else
+            {
+                Diagnostics.PresentationFailureDetail = FallbackDetail;
+            }
+        }
+        catch (...)
+        {
+            Diagnostics.PresentationFailureDetail.Clear();
+        }
+        MarkPresentationSkipped(
+            Diagnostics,
+            FallbackDetail != nullptr ? FallbackDetail :
+                "native Vulkan lab startup failed");
+    };
+
+    try
+    {
+        auto Context = Stoner::Core::MakeShared<FVulkanNativeContext>();
+        const Stoner::RHI::ERHIResult Result =
+            Context->InitializeLabPresentation(Window, bForceAcquireHistory);
+        if (Result != Stoner::RHI::ERHIResult::Success)
+        {
+            PublishLabStartupFailure(
+                Context, "native Vulkan lab startup failed");
+            return Result;
+        }
+        const Stoner::RHI::ERHIResult RegistrationResult =
+            RegisterNativePresentationContext(
+            std::move(Context),
+            "native Vulkan interactive lab presentation runtime enabled");
+        if (RegistrationResult != Stoner::RHI::ERHIResult::Success)
+        {
+            PublishLabStartupFailure(
+                nullptr,
+                "native Vulkan lab presentation capability registration failed");
+        }
+        return RegistrationResult;
+    }
+    catch (const std::bad_alloc&)
+    {
+        PublishLabStartupFailure(
+            nullptr, "native Vulkan lab startup allocation failed");
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        PublishLabStartupFailure(
+            nullptr, "native Vulkan lab startup capacity failed");
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
 }
 
 bool FVulkanDevice::HasNativePresentationRuntime() const noexcept
@@ -439,24 +561,34 @@ Stoner::RHI::ERHIResult FVulkanDevice::Shutdown()
         return Stoner::RHI::ERHIResult::InvalidState;
     }
 
-    InvalidateOwnedObjects();
+    Stoner::RHI::ERHIResult ShutdownResult =
+        Stoner::RHI::ERHIResult::Success;
+    const auto PreserveFailure = [&](Stoner::RHI::ERHIResult Result)
+    {
+        if (ShutdownResult == Stoner::RHI::ERHIResult::Success &&
+            Result != Stoner::RHI::ERHIResult::Success)
+            ShutdownResult = Result;
+    };
+    // Native completion still needs the command and fence owners to be valid.
+    // Drain retained submissions before invalidating their public wrappers.
     if (NativeShaderContext &&
         NativeShaderContext != NativePresentationContext)
     {
-        (void)NativeShaderContext->Shutdown();
+        PreserveFailure(NativeShaderContext->Shutdown());
     }
-    NativeShaderContext.reset();
     if (NativePresentationContext)
     {
-        (void)NativePresentationContext->Shutdown();
-        NativePresentationContext.reset();
+        PreserveFailure(NativePresentationContext->Shutdown());
     }
+    InvalidateOwnedObjects();
+    NativeShaderContext.reset();
+    NativePresentationContext.reset();
     if (Instance.IsInitialized())
     {
-        (void)Instance.Shutdown();
+        PreserveFailure(Instance.Shutdown());
     }
     State = Stoner::RHI::ERHIDeviceState::Shutdown;
-    return Stoner::RHI::ERHIResult::Success;
+    return ShutdownResult;
 }
 
 void FVulkanDevice::ConfigureAllocationBudget(Stoner::Core::uint64 MaxBytes) noexcept

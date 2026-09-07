@@ -17,6 +17,8 @@ namespace Stoner::Backend::Metal::Private
 namespace
 {
 
+constexpr Core::uint32 MaxDeferredSubmissions = 2;
+
 template <typename T>
 bool HasDuplicate(const Core::TArray<Core::TSharedPtr<T>>& Values) noexcept
 {
@@ -59,12 +61,51 @@ Core::uint32 FMetalQueue::GetSubmittedCommandBufferCount() const noexcept
     return SubmittedCount_;
 }
 
+FMetalQueueInspection FMetalQueue::Inspect() noexcept
+{
+    std::lock_guard Lock(Mutex_);
+    PruneCompletedLocked();
+    FMetalQueueInspection Result;
+    Result.AcceptedCount = SubmittedCount_;
+    Result.PendingCount =
+        static_cast<Core::uint64>(Submissions_.size()) +
+        DeferredPendingReservations_;
+    Result.RenderCompletedCount = RenderCompletedCount_;
+    return Result;
+}
+
 RHI::ERHIResult FMetalQueue::Submit(
     const Core::TSharedPtr<RHI::IRHICommandBuffer>& CommandBuffer,
     const Core::TArray<Core::TSharedPtr<RHI::IRHISemaphore>>& WaitSemaphores,
     const Core::TArray<Core::TSharedPtr<RHI::IRHISemaphore>>& SignalSemaphores,
     const Core::TSharedPtr<RHI::IRHIFence>& Fence)
 {
+    return SubmitInternal(
+        CommandBuffer, WaitSemaphores, SignalSemaphores, Fence, false);
+}
+
+RHI::ERHIResult FMetalQueue::SubmitDeferred(
+    const Core::TSharedPtr<RHI::IRHICommandBuffer>& CommandBuffer,
+    const Core::TArray<Core::TSharedPtr<RHI::IRHISemaphore>>& WaitSemaphores,
+    const Core::TArray<Core::TSharedPtr<RHI::IRHISemaphore>>& SignalSemaphores,
+    const Core::TSharedPtr<RHI::IRHIFence>& CompletionFence)
+{
+    if (!CompletionFence) return RHI::ERHIResult::InvalidState;
+    if (!Capabilities_.bSupportsDeferredSubmission)
+        return RHI::ERHIResult::Unsupported;
+    return SubmitInternal(
+        CommandBuffer, WaitSemaphores, SignalSemaphores,
+        CompletionFence, true);
+}
+
+RHI::ERHIResult FMetalQueue::SubmitInternal(
+    const Core::TSharedPtr<RHI::IRHICommandBuffer>& CommandBuffer,
+    const Core::TArray<Core::TSharedPtr<RHI::IRHISemaphore>>& WaitSemaphores,
+    const Core::TArray<Core::TSharedPtr<RHI::IRHISemaphore>>& SignalSemaphores,
+    const Core::TSharedPtr<RHI::IRHIFence>& Fence,
+    bool bDeferred)
+{
+    if (bDeferred && !Fence) return RHI::ERHIResult::InvalidState;
     if (FMetalFailureInjector::ShouldFail(
             EMetalFailurePoint::CommandSubmission))
     {
@@ -116,6 +157,20 @@ RHI::ERHIResult FMetalQueue::Submit(
     if (Fence && (!NativeFence ||
         !NativeFence->CanSignalForSubmission(GetOwner())))
         return RHI::ERHIResult::InvalidState;
+    bool bDeferredReservation = false;
+    if (bDeferred)
+    {
+        if (!TryReserveDeferredSlot())
+            return RHI::ERHIResult::NotReady;
+        bDeferredReservation = true;
+    }
+    const auto ReleaseDeferredReservation = [&]() noexcept {
+        if (bDeferredReservation)
+        {
+            ReleaseDeferredSlot();
+            bDeferredReservation = false;
+        }
+    };
     try
     {
         WaitEpochs.reserve(Waits.size());
@@ -126,6 +181,7 @@ RHI::ERHIResult FMetalQueue::Submit(
             {
                 for (Core::usize Index = 0; Index < WaitEpochs.size(); ++Index)
                     Waits[Index]->CancelSubmissionWait(WaitEpochs[Index]);
+                ReleaseDeferredReservation();
                 return RHI::ERHIResult::NotReady;
             }
             WaitEpochs.push_back(Epoch);
@@ -135,12 +191,14 @@ RHI::ERHIResult FMetalQueue::Submit(
     {
         for (Core::usize Index = 0; Index < WaitEpochs.size(); ++Index)
             Waits[Index]->CancelSubmissionWait(WaitEpochs[Index]);
+        ReleaseDeferredReservation();
         return RHI::ERHIResult::Failed;
     }
     if (!GetOwner()->TryBeginSubmission())
     {
         for (Core::usize Index = 0; Index < WaitEpochs.size(); ++Index)
             Waits[Index]->CancelSubmissionWait(WaitEpochs[Index]);
+        ReleaseDeferredReservation();
         return RHI::ERHIResult::InvalidState;
     }
 
@@ -150,6 +208,7 @@ RHI::ERHIResult FMetalQueue::Submit(
         for (Core::usize Index = 0; Index < WaitEpochs.size(); ++Index)
             Waits[Index]->CancelSubmissionWait(WaitEpochs[Index]);
         GetOwner()->EndSubmission();
+        ReleaseDeferredReservation();
         return RHI::ERHIResult::InvalidState;
     }
 
@@ -161,6 +220,7 @@ RHI::ERHIResult FMetalQueue::Submit(
         {
             for (Core::usize Index = 0; Index < WaitEpochs.size(); ++Index)
                 Waits[Index]->CancelSubmissionWait(WaitEpochs[Index]);
+            ReleaseDeferredReservation();
             Commands->CompleteSubmission(); GetOwner()->EndSubmission();
             return RHI::ERHIResult::Failed;
         }
@@ -194,6 +254,7 @@ RHI::ERHIResult FMetalQueue::Submit(
                      WaitIndex < WaitEpochs.size(); ++WaitIndex)
                     Waits[WaitIndex]->CancelSubmissionWait(
                         WaitEpochs[WaitIndex]);
+                ReleaseDeferredReservation();
                 Commands->CompleteSubmission(); GetOwner()->EndSubmission();
                 return Result;
             }
@@ -213,8 +274,12 @@ RHI::ERHIResult FMetalQueue::Submit(
         }
         catch (const std::bad_alloc&)
         {
+            for (Core::usize Index = 0; Index < SignalEpochs.size(); ++Index)
+                Signals[Index]->CompleteSubmissionSignal(
+                    SignalEpochs[Index], false);
             for (Core::usize Index = 0; Index < WaitEpochs.size(); ++Index)
                 Waits[Index]->CancelSubmissionWait(WaitEpochs[Index]);
+            ReleaseDeferredReservation();
             Commands->CompleteSubmission(); GetOwner()->EndSubmission();
             return RHI::ERHIResult::Failed;
         }
@@ -225,6 +290,7 @@ RHI::ERHIResult FMetalQueue::Submit(
                     SignalEpochs[Index], false);
             for (Core::usize Index = 0; Index < WaitEpochs.size(); ++Index)
                 Waits[Index]->CancelSubmissionWait(WaitEpochs[Index]);
+            ReleaseDeferredReservation();
             Commands->CompleteSubmission(); GetOwner()->EndSubmission();
             return RHI::ERHIResult::InvalidState;
         }
@@ -237,6 +303,7 @@ RHI::ERHIResult FMetalQueue::Submit(
                     SignalEpochs[Index], false);
             for (Core::usize Index = 0; Index < WaitEpochs.size(); ++Index)
                 Waits[Index]->CancelSubmissionWait(WaitEpochs[Index]);
+            ReleaseDeferredReservation();
             Commands->CompleteSubmission(); GetOwner()->EndSubmission();
             return RHI::ERHIResult::InvalidState;
         }
@@ -247,18 +314,7 @@ RHI::ERHIResult FMetalQueue::Submit(
             NativeFence->EncodeSubmissionSignal(
                 (__bridge void*)Native, FenceEpoch);
 
-        Core::TSharedPtr<FMetalSubmission> Submission;
-        try
-        {
-            Submission = Core::MakeShared<FMetalSubmission>(
-                GetOwner(), Commands, std::move(Records), Waits, Signals,
-                SignalEpochs, NativeFence, FenceEpoch);
-            std::lock_guard Lock(Mutex_);
-            Submissions_.push_back(Submission);
-            ++SubmittedCount_;
-        }
-        catch (const std::bad_alloc&)
-        {
+        const auto Rollback = [&](RHI::ERHIResult Result) noexcept {
             for (Core::usize Index = 0; Index < Signals.size(); ++Index)
                 Signals[Index]->CompleteSubmissionSignal(
                     SignalEpochs[Index], false);
@@ -267,7 +323,40 @@ RHI::ERHIResult FMetalQueue::Submit(
             for (Core::usize Index = 0; Index < WaitEpochs.size(); ++Index)
                 Waits[Index]->CancelSubmissionWait(WaitEpochs[Index]);
             Commands->CompleteSubmission(); GetOwner()->EndSubmission();
-            return RHI::ERHIResult::Failed;
+            ReleaseDeferredReservation();
+            return Result;
+        };
+
+        Core::TSharedPtr<FMetalSubmission> Submission;
+        bool bInsertedSubmission = false;
+        try
+        {
+            Submission = Core::MakeShared<FMetalSubmission>(
+                GetOwner(), Commands, std::move(Records), Waits, Signals,
+                SignalEpochs, NativeFence, FenceEpoch);
+            std::lock_guard Lock(Mutex_);
+            PruneCompletedLocked();
+            Submissions_.push_back(Submission);
+            bInsertedSubmission = true;
+            if (bDeferred)
+            {
+                DeferredSubmissions_.push_back(Submission);
+                if (DeferredPendingReservations_ > 0)
+                    --DeferredPendingReservations_;
+                bDeferredReservation = false;
+            }
+            ++SubmittedCount_;
+        }
+        catch (const std::bad_alloc&)
+        {
+            if (bInsertedSubmission)
+            {
+                std::lock_guard Lock(Mutex_);
+                const auto It = std::find(
+                    Submissions_.begin(), Submissions_.end(), Submission);
+                if (It != Submissions_.end()) Submissions_.erase(It);
+            }
+            return Rollback(RHI::ERHIResult::Failed);
         }
         [Native addCompletedHandler:^(id<MTLCommandBuffer> Buffer) {
             const bool bSucceeded = Buffer.status == MTLCommandBufferStatusCompleted &&
@@ -307,12 +396,51 @@ RHI::ERHIResult FMetalQueue::WaitIdle()
 void FMetalQueue::PruneCompleted() noexcept
 {
     std::lock_guard Lock(Mutex_);
-    Submissions_.erase(
-        std::remove_if(Submissions_.begin(), Submissions_.end(),
+    PruneCompletedLocked();
+}
+
+void FMetalQueue::PruneCompletedLocked() noexcept
+{
+    for (auto It = Submissions_.begin(); It != Submissions_.end();)
+    {
+        if (!*It)
+        {
+            It = Submissions_.erase(It);
+            continue;
+        }
+        if (!(*It)->IsComplete())
+        {
+            ++It;
+            continue;
+        }
+        if ((*It)->Wait(0) == RHI::ERHIResult::Success)
+            ++RenderCompletedCount_;
+        It = Submissions_.erase(It);
+    }
+    DeferredSubmissions_.erase(
+        std::remove_if(DeferredSubmissions_.begin(), DeferredSubmissions_.end(),
             [](const auto& Submission) {
-                return Submission && Submission->IsComplete();
+                return !Submission || Submission->IsComplete();
             }),
-        Submissions_.end());
+        DeferredSubmissions_.end());
+}
+
+bool FMetalQueue::TryReserveDeferredSlot() noexcept
+{
+    std::lock_guard Lock(Mutex_);
+    PruneCompletedLocked();
+    if (DeferredSubmissions_.size() + DeferredPendingReservations_ >=
+        MaxDeferredSubmissions)
+        return false;
+    ++DeferredPendingReservations_;
+    return true;
+}
+
+void FMetalQueue::ReleaseDeferredSlot() noexcept
+{
+    std::lock_guard Lock(Mutex_);
+    if (DeferredPendingReservations_ > 0)
+        --DeferredPendingReservations_;
 }
 
 } // namespace Stoner::Backend::Metal::Private

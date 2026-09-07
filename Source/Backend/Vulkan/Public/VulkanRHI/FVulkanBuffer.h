@@ -10,6 +10,7 @@ namespace Stoner::Backend::Vulkan
 
 class FVulkanDevice;
 class FVulkanNativeContext;
+class FDeferredNativeSubmission;
 
 class FVulkanBuffer final : public Stoner::RHI::IRHIBuffer
 {
@@ -27,10 +28,13 @@ public:
     Stoner::RHI::ERHIResult Invalidate() override;
     Stoner::RHI::ERHIResult Upload(const void* Data, Stoner::Core::uint64 SizeBytes, Stoner::Core::uint64 OffsetBytes = 0) override;
     [[nodiscard]] const Stoner::Core::TArray<Stoner::Core::uint8>& GetUploadedBytes() const noexcept { return UploadedBytes; }
+    [[nodiscard]] Stoner::Core::uint64 GetUploadRevision() const noexcept { return UploadRevision; }
+    [[nodiscard]] bool HasPendingNativeUse() const noexcept { return NativeUseCount != 0; }
 
 private:
     friend class FVulkanDevice;
     friend class FVulkanNativeContext;
+    friend class FDeferredNativeSubmission;
 
     FVulkanBuffer(
         const Stoner::RHI::FRHIBufferDesc& InDesc,
@@ -46,6 +50,12 @@ private:
     std::shared_ptr<FVulkanMemoryAllocator> Allocator;
     Stoner::RHI::ERHIResourceLifecycleState LifecycleState = Stoner::RHI::ERHIResourceLifecycleState::Valid;
     Stoner::Core::TArray<Stoner::Core::uint8> UploadedBytes;
+    Stoner::Core::uint64 UploadRevision = 1;
+    Stoner::Core::uint32 NativeUseCount = 0;
+    bool bInvalidationPending = false;
+
+    [[nodiscard]] bool AcquireNativeUse() noexcept;
+    void ReleaseNativeUse() noexcept;
 };
 
 } // namespace Stoner::Backend::Vulkan

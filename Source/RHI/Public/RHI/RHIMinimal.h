@@ -4,6 +4,7 @@
 #include "RHI/ERHIDescriptorType.h"
 #include "RHI/ERHIFormat.h"
 #include "RHI/ERHIPresentationColorSpace.h"
+#include "RHI/ERHIPresentationRetirement.h"
 #include "RHI/ERHIIndexType.h"
 #include "RHI/ERHIPipelineState.h"
 #include "RHI/ERHIQueueType.h"

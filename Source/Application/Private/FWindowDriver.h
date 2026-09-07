@@ -2,6 +2,7 @@
 
 #include "Application/FInputEvent.h"
 #include "Application/FWindowEvent.h"
+#include "Application/FWindowDisplayState.h"
 #include "Core/FPlatformWindow.h"
 
 #include <memory>
@@ -25,6 +26,10 @@ public:
     virtual EApplicationResult SetClientSize(
         Stoner::Core::uint32, Stoner::Core::uint32)
     { return EApplicationResult::UnsupportedMode; }
+    virtual EApplicationResult SetCursorMode(ECursorMode)
+    { return EApplicationResult::UnsupportedMode; }
+    [[nodiscard]] virtual bool EmitsLifecycleInputResets() const noexcept
+    { return false; }
     virtual EApplicationResult Minimize()
     { return EApplicationResult::UnsupportedMode; }
     virtual EApplicationResult Restore()
@@ -32,6 +37,8 @@ public:
     [[nodiscard]] virtual Stoner::Core::FPlatformWindow GetPlatformWindow() const noexcept { return {}; }
     [[nodiscard]] virtual Stoner::Core::uint32 GetDrawableWidth() const noexcept { return 0; }
     [[nodiscard]] virtual Stoner::Core::uint32 GetDrawableHeight() const noexcept { return 0; }
+    [[nodiscard]] virtual float GetContentScaleX() const noexcept { return 1.0f; }
+    [[nodiscard]] virtual float GetContentScaleY() const noexcept { return 1.0f; }
     [[nodiscard]] virtual Stoner::Core::TArray<FWindowEvent> ConsumeWindowEvents() = 0;
     [[nodiscard]] virtual Stoner::Core::TArray<FInputEvent> ConsumeInputEvents() = 0;
 };

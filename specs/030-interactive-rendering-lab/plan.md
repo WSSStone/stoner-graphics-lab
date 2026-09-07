@@ -2,13 +2,13 @@
 
 **Branch**: `030-interactive-rendering-lab` | **Date**: 2026-09-06 | **Spec**: [spec.md](spec.md)\
 **Input**: Feature specification from `specs/030-interactive-rendering-lab/spec.md`\
-**Status**: Design complete; implementation and hardware acceptance have not run.
+**Status**: Design complete; implementation is in progress. Reviewed task completion and local checks are recorded in tasks.md and Validation/030/README.md; required hardware acceptance remains pending.
 
 ## Summary
 
 Promote the proven calibration navigation into an Application-owned single-window lab for existing strict-cooked Lantern/Sponza workloads. Private Dear ImGui adapters consume engine events and produce immutable Renderer draw/texture packets; Renderer composes display-linear UI immediately before Feature 029's sole output transfer. Live settings, capability failures, bounded presets and lifecycle recovery share a coherent session state. Imported presets preserve pose and vertical FOV and rebuild projection for the current drawable, as explicitly clarified.
 
-The largest implementation risk is native presentation: the current preview performs per-frame readback/reupload, the output executor waits after submission, and Vulkan's generic command executor itself waits indefinitely and tears down per-call resources. M0 therefore includes backend-private persistent deferred submission and a direct acquired-target Renderer path, not just a UI loop around existing synchronous code. Existing formal APIs and evidence authority remain separate.
+The largest implementation risk is native presentation: the current preview performs per-frame readback/reupload, the output executor waits after submission, and the original Vulkan generic command executor waited indefinitely and tore down per-call resources. The retained Vulkan render-submission seam is now reviewed locally; direct borrowed swapchain presentation remains in progress. M0 therefore includes backend-private persistent deferred submission and a direct acquired-target Renderer path, not just a UI loop around existing synchronous code. Existing formal APIs and evidence authority remain separate.
 
 Detailed decisions and rejected alternatives are in [research.md](research.md). Public values/state relationships are in [data-model.md](data-model.md); the five contracts freeze behavior and budgets before implementation.
 
@@ -65,7 +65,7 @@ specs/030-interactive-rendering-lab/
 
 ### Source Code (repository root)
 
-The following is the planned placement; named new files do not yet exist.
+The following is the planned placement; tasks.md tracks which parts have been implemented.
 
 ```text
 Source/Application/

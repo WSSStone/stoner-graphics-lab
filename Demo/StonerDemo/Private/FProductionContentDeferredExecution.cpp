@@ -462,6 +462,12 @@ bool AddReadback(
 bool FProductionContentDeferredExecutionResources::IsValid() const noexcept
 {
     return Plan.IsValid() && Graph.bValid && OutputTransformPlan.IsValid() &&
+        Renderer::IsValidFrameExecutionPurpose(ExecutionPurpose) &&
+        Renderer::IsValidFrameReadbackSelection(ReadbackSelection) &&
+        !(ExecutionPurpose == Renderer::EFrameExecutionPurpose::FormalValidation &&
+            ReadbackSelection == Renderer::EFrameReadbackSelection::None) &&
+        ExecutionPurpose == OutputTransformPlan.ExecutionPurpose &&
+        ReadbackSelection == OutputTransformPlan.ReadbackSelection &&
         Bindings.CommandBuffer &&
         Bindings.BaseColorAO && Bindings.NormalRoughness &&
         Bindings.EmissiveMetallic && Bindings.Depth &&

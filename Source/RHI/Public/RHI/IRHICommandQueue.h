@@ -24,6 +24,27 @@ public:
         const Stoner::Core::TArray<Stoner::Core::TSharedPtr<IRHISemaphore>>& WaitSemaphores = {},
         const Stoner::Core::TArray<Stoner::Core::TSharedPtr<IRHISemaphore>>& SignalSemaphores = {},
         const Stoner::Core::TSharedPtr<IRHIFence>& Fence = nullptr) = 0;
+
+    // Interactive preview submission is explicitly asynchronous. The
+    // completion fence is mandatory so acceptance can never be confused with
+    // render completion. Backends opt in by overriding this seam; legacy
+    // queues remain available and fail closed without forwarding to Submit.
+    virtual ERHIResult SubmitDeferred(
+        const Stoner::Core::TSharedPtr<IRHICommandBuffer>& CommandBuffer,
+        const Stoner::Core::TArray<Stoner::Core::TSharedPtr<IRHISemaphore>>& WaitSemaphores,
+        const Stoner::Core::TArray<Stoner::Core::TSharedPtr<IRHISemaphore>>& SignalSemaphores,
+        const Stoner::Core::TSharedPtr<IRHIFence>& CompletionFence)
+    {
+        (void)CommandBuffer;
+        (void)WaitSemaphores;
+        (void)SignalSemaphores;
+        if (!CompletionFence)
+        {
+            return ERHIResult::InvalidState;
+        }
+        return ERHIResult::Unsupported;
+    }
+
     virtual ERHIResult WaitIdle() = 0;
 };
 

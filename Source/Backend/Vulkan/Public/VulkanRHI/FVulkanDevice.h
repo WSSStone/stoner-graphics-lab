@@ -59,6 +59,9 @@ public:
     GetNativeShaderContext() const noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult EnableNativePresentationRuntime(
         const Stoner::Core::FPlatformWindow& Window);
+    [[nodiscard]] Stoner::RHI::ERHIResult EnableNativeLabPresentationRuntime(
+        const Stoner::Core::FPlatformWindow& Window,
+        bool bForceAcquireHistory = false);
     [[nodiscard]] bool HasNativePresentationRuntime() const noexcept;
     [[nodiscard]] Stoner::Core::TSharedPtr<FVulkanNativeContext>
     GetNativePresentationContext() const noexcept;
@@ -126,6 +129,10 @@ private:
     }
 
     void InvalidateOwnedObjects() noexcept;
+    [[nodiscard]] bool HasCreatedNativeObjects() const noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult RegisterNativePresentationContext(
+        Stoner::Core::TSharedPtr<FVulkanNativeContext> Context,
+        const char* RuntimeReason);
     void MapCapabilities(const FVulkanAdapterCandidate& Adapter);
     [[nodiscard]] bool SupportsBufferDesc(const Stoner::RHI::FRHIBufferDesc& Desc) noexcept;
     [[nodiscard]] bool SupportsTextureDesc(const Stoner::RHI::FRHITextureDesc& Desc) const noexcept;

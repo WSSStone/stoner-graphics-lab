@@ -238,6 +238,10 @@ void TestDefaultPlanAndStageOrder(FRendererOutputTransformTestResult& Result)
                 "Sdr.KhronosPbrNeutral.v1" &&
             Prepared.Plan.ResolvedSettings.OutputDeviceProfileId ==
                 "Sdr.sRGB.v1" &&
+            Prepared.Plan.ExecutionPurpose ==
+                EFrameExecutionPurpose::FormalValidation &&
+            Prepared.Plan.ReadbackSelection ==
+                EFrameReadbackSelection::Formal &&
             Prepared.Plan.PlanFingerprint.Len() == 64,
         "Default SDR preparation resolves and fingerprints explicit version identities");
 
@@ -263,6 +267,19 @@ void TestDefaultPlanAndStageOrder(FRendererOutputTransformTestResult& Result)
         FHDRPostProcessPipeline().Prepare(Handoff, InvalidSettings);
     Record(Result, !Invalid.Succeeded() && Invalid.Diagnostics.HasError(),
         "Preparation rejects a request without presentation or readback");
+
+    FOutputTransformPlan InvalidFormalSelection = Prepared.Plan;
+    InvalidFormalSelection.ReadbackSelection = EFrameReadbackSelection::None;
+    Record(Result, !InvalidFormalSelection.IsValid(),
+        "Formal validation rejects an explicit no-readback selection");
+
+    FOutputTransformPlan PreviewSelection = Prepared.Plan;
+    PreviewSelection.ExecutionPurpose = EFrameExecutionPurpose::InteractivePreview;
+    PreviewSelection.ReadbackSelection = EFrameReadbackSelection::None;
+    Record(Result, PreviewSelection.IsValid() &&
+            PreviewSelection.PlanFingerprint == Prepared.Plan.PlanFingerprint &&
+            PreviewSelection.FormalOutputId == Prepared.Plan.FormalOutputId,
+        "Interactive preview selection permits no readback without changing formal identity");
 }
 
 void TestHDRPlanAndAuthorityFingerprint(

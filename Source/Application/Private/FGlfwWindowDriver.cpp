@@ -66,11 +66,30 @@ public:
         if (glfwWindowShouldClose(Window) == GLFW_TRUE && !bCloseEventQueued)
         {
             WindowEvents.push_back(FWindowEvent::CloseRequested(NextSequence++));
+            InputEvents.push_back(FInputEvent::FocusLost(NextSequence++));
             bCloseEventQueued = true;
         }
     }
 
     void RequestClose() override { if (Window) glfwSetWindowShouldClose(Window, GLFW_TRUE); }
+    EApplicationResult SetCursorMode(ECursorMode NewMode) override
+    {
+        if (!Window) return EApplicationResult::InvalidLifecycle;
+        switch (NewMode)
+        {
+        case ECursorMode::Normal:
+            glfwSetInputMode(Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            return EApplicationResult::Success;
+        case ECursorMode::Disabled:
+            glfwSetInputMode(Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            return EApplicationResult::Success;
+        }
+        return EApplicationResult::InvalidInput;
+    }
+    [[nodiscard]] bool EmitsLifecycleInputResets() const noexcept override
+    {
+        return true;
+    }
     EApplicationResult SetClientSize(
         Stoner::Core::uint32 Width, Stoner::Core::uint32 Height) override
     {
@@ -93,6 +112,20 @@ public:
     [[nodiscard]] Stoner::Core::FPlatformWindow GetPlatformWindow() const noexcept override { return Stoner::Core::FPlatformWindow(Window); }
     [[nodiscard]] Stoner::Core::uint32 GetDrawableWidth() const noexcept override { return DrawableWidth; }
     [[nodiscard]] Stoner::Core::uint32 GetDrawableHeight() const noexcept override { return DrawableHeight; }
+    [[nodiscard]] float GetContentScaleX() const noexcept override
+    {
+        float X = 1.0f;
+        float Y = 1.0f;
+        if (Window) glfwGetWindowContentScale(Window, &X, &Y);
+        return X > 0.0f ? X : 1.0f;
+    }
+    [[nodiscard]] float GetContentScaleY() const noexcept override
+    {
+        float X = 1.0f;
+        float Y = 1.0f;
+        if (Window) glfwGetWindowContentScale(Window, &X, &Y);
+        return Y > 0.0f ? Y : 1.0f;
+    }
 
     [[nodiscard]] Stoner::Core::TArray<FWindowEvent> ConsumeWindowEvents() override
     {
@@ -120,9 +153,19 @@ private:
             auto* Driver = Self(Native);
             Driver->DrawableWidth = Width > 0 ? static_cast<Stoner::Core::uint32>(Width) : 0;
             Driver->DrawableHeight = Height > 0 ? static_cast<Stoner::Core::uint32>(Height) : 0;
-            Driver->WindowEvents.push_back(Width == 0 || Height == 0
-                ? FWindowEvent::Minimized(Driver->NextSequence++)
-                : FWindowEvent::DrawableResized(Driver->DrawableWidth, Driver->DrawableHeight, Driver->NextSequence++));
+            if (Width == 0 || Height == 0)
+            {
+                (void)Driver->SetCursorMode(ECursorMode::Normal);
+                Driver->InputEvents.push_back(FInputEvent::FocusLost(Driver->NextSequence++));
+                Driver->WindowEvents.push_back(FWindowEvent::DrawableResized(
+                    0, 0, Driver->NextSequence++));
+            }
+            else
+            {
+                Driver->WindowEvents.push_back(FWindowEvent::DrawableResized(
+                    Driver->DrawableWidth, Driver->DrawableHeight,
+                    Driver->NextSequence++));
+            }
         });
         glfwSetWindowSizeCallback(Window, [](GLFWwindow* Native, int Width, int Height)
         {
@@ -134,18 +177,33 @@ private:
         glfwSetWindowIconifyCallback(Window, [](GLFWwindow* Native, int Iconified)
         {
             auto* Driver = Self(Native);
-            if (Iconified == GLFW_TRUE) Driver->WindowEvents.push_back(FWindowEvent::Minimized(Driver->NextSequence++));
+            if (Iconified == GLFW_TRUE)
+            {
+                (void)Driver->SetCursorMode(ECursorMode::Normal);
+                Driver->InputEvents.push_back(FInputEvent::FocusLost(Driver->NextSequence++));
+                Driver->WindowEvents.push_back(FWindowEvent::Minimized(Driver->NextSequence++));
+            }
             else
             {
                 Driver->RefreshFramebufferExtent();
-                Driver->WindowEvents.push_back(FWindowEvent::Restored(Driver->DrawableWidth, Driver->DrawableHeight, Driver->NextSequence++));
+                int LogicalWidth = 0;
+                int LogicalHeight = 0;
+                glfwGetWindowSize(Native, &LogicalWidth, &LogicalHeight);
+                Driver->WindowEvents.push_back(FWindowEvent::Restored(
+                    LogicalWidth > 0 ? static_cast<Stoner::Core::uint32>(LogicalWidth) : 0,
+                    LogicalHeight > 0 ? static_cast<Stoner::Core::uint32>(LogicalHeight) : 0,
+                    Driver->NextSequence++));
             }
         });
         glfwSetWindowFocusCallback(Window, [](GLFWwindow* Native, int Focused)
         {
             auto* Driver = Self(Native);
             Driver->WindowEvents.push_back(Focused == GLFW_TRUE ? FWindowEvent::FocusGained(Driver->NextSequence++) : FWindowEvent::FocusLost(Driver->NextSequence++));
-            if (Focused != GLFW_TRUE) Driver->InputEvents.push_back(FInputEvent::FocusLost(Driver->NextSequence++));
+            if (Focused != GLFW_TRUE)
+            {
+                (void)Driver->SetCursorMode(ECursorMode::Normal);
+                Driver->InputEvents.push_back(FInputEvent::FocusLost(Driver->NextSequence++));
+            }
         });
         glfwSetKeyCallback(Window, [](GLFWwindow* Native, int Key, int, int Action, int)
         {
@@ -154,7 +212,6 @@ private:
             if (Action == GLFW_PRESS)
             {
                 Driver->InputEvents.push_back(FInputEvent::KeyDown(Translated, Driver->NextSequence++));
-                if (Translated == EKey::Escape) glfwSetWindowShouldClose(Native, GLFW_TRUE);
             }
             else if (Action == GLFW_RELEASE) Driver->InputEvents.push_back(FInputEvent::KeyUp(Translated, Driver->NextSequence++));
         });

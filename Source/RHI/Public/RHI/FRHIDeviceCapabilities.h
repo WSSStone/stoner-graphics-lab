@@ -132,6 +132,12 @@ struct FRHIDeviceCapabilities
 
     Stoner::Core::TArray<FRHIFormatCapabilities> Formats;
 
+    // This capability is opt-in for the interactive lab. Existing backends
+    // do not advertise it until their native lifetime contract is implemented
+    // and validated. Keep it at the end to preserve aggregate initialization
+    // of the established capability fields.
+    bool bSupportsDeferredSubmission = false;
+
     [[nodiscard]] bool SupportsQueue(ERHIQueueType QueueType) const noexcept
     {
         switch (QueueType)

@@ -52,6 +52,7 @@ RHI::ERHIResult FMetalFence::Wait(Core::uint64 TimeoutMicroseconds)
     const auto Ready = [this] {
         return State_ == RHI::ERHIFenceState::Signaled ||
             State_ == RHI::ERHIFenceState::Waited ||
+            bTerminalFailure_ ||
             !IsCompatible(GetOwner());
     };
     if (!Ready())
@@ -63,6 +64,8 @@ RHI::ERHIResult FMetalFence::Wait(Core::uint64 TimeoutMicroseconds)
     }
     if (!IsCompatible(GetOwner()))
         return RHI::ERHIResult::InvalidState;
+    if (bTerminalFailure_)
+        return RHI::ERHIResult::Failed;
     State_ = RHI::ERHIFenceState::Waited;
     return RHI::ERHIResult::Success;
 }
@@ -74,6 +77,8 @@ RHI::ERHIResult FMetalFence::Reset()
         PendingEpoch_ != 0)
         return RHI::ERHIResult::InvalidState;
     State_ = RHI::ERHIFenceState::Unsignaled;
+    bTerminalFailure_ = false;
+    Condition_.notify_all();
     return RHI::ERHIResult::Success;
 }
 
@@ -81,7 +86,8 @@ RHI::ERHIResult FMetalFence::Signal()
 {
     std::lock_guard Lock(Mutex_);
     if (!IsCompatible(GetOwner()) ||
-        PendingEpoch_ != 0 || State_ == RHI::ERHIFenceState::Signaled)
+        PendingEpoch_ != 0 || bTerminalFailure_ ||
+        State_ == RHI::ERHIFenceState::Signaled)
         return RHI::ERHIResult::InvalidState;
     ++Epoch_;
     id<MTLSharedEvent> Event = (__bridge id<MTLSharedEvent>)Event_;
@@ -96,6 +102,7 @@ bool FMetalFence::CanSignalForSubmission(
 {
     std::lock_guard Lock(Mutex_);
     return IsCompatible(Owner) && PendingEpoch_ == 0 &&
+        !bTerminalFailure_ &&
         State_ == RHI::ERHIFenceState::Unsignaled;
 }
 
@@ -103,6 +110,7 @@ Core::uint64 FMetalFence::ReserveSubmissionSignal() noexcept
 {
     std::lock_guard Lock(Mutex_);
     if (!IsCompatible(GetOwner()) || PendingEpoch_ != 0 ||
+        bTerminalFailure_ ||
         State_ != RHI::ERHIFenceState::Unsignaled)
         return 0;
     PendingEpoch_ = Epoch_ + 1;
@@ -129,6 +137,13 @@ void FMetalFence::CompleteSubmissionSignal(
     {
         Epoch_ = Epoch;
         State_ = RHI::ERHIFenceState::Signaled;
+    }
+    else
+    {
+        // Keep the fence unsignaled, but make the failed submission a
+        // terminal, observable result until an explicit Reset.
+        State_ = RHI::ERHIFenceState::Unsignaled;
+        bTerminalFailure_ = true;
     }
     Condition_.notify_all();
 }

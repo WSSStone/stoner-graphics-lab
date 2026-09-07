@@ -10,6 +10,13 @@ class FHeadlessWindowDriver final : public IWindowDriver
 public:
     [[nodiscard]] const char* GetDriverName() const noexcept override { return "Headless"; }
     [[nodiscard]] EWindowRuntimeAvailability GetRuntimeAvailability() const noexcept override { return EWindowRuntimeAvailability::Available; }
+    EApplicationResult SetCursorMode(ECursorMode NewMode) override
+    {
+        if (NewMode != ECursorMode::Normal && NewMode != ECursorMode::Disabled)
+            return EApplicationResult::InvalidInput;
+        CursorMode = NewMode;
+        return EApplicationResult::Success;
+    }
 
     void QueueWindowEvent(const FWindowEvent& Event) { WindowEvents.push_back(Event); }
     void QueueInputEvent(const FInputEvent& Event) { InputEvents.push_back(Event); }
@@ -33,6 +40,7 @@ public:
 private:
     Stoner::Core::TArray<FWindowEvent> WindowEvents;
     Stoner::Core::TArray<FInputEvent> InputEvents;
+    ECursorMode CursorMode = ECursorMode::Normal;
 };
 
 std::unique_ptr<IWindowDriver> CreateHeadlessWindowDriver()

@@ -2,6 +2,7 @@
 
 #include "Application/FWindowEvent.h"
 #include "Application/FInputEvent.h"
+#include "Application/FWindowDisplayState.h"
 #include "Core/FPlatformWindow.h"
 
 #include <memory>
@@ -26,6 +27,7 @@ public:
     [[nodiscard]] EApplicationResult RequestClose();
     [[nodiscard]] EApplicationResult Destroy();
     [[nodiscard]] EApplicationResult SetDisplayMode(EWindowDisplayMode NewMode, bool bRuntimeAllowsMode = true);
+    [[nodiscard]] EApplicationResult SetCursorMode(ECursorMode NewMode);
     [[nodiscard]] EApplicationResult SetClientSize(
         Stoner::Core::uint32 Width, Stoner::Core::uint32 Height);
     [[nodiscard]] EApplicationResult Minimize();
@@ -40,6 +42,8 @@ public:
     [[nodiscard]] const FWindowDesc& GetDescription() const noexcept { return Desc; }
     [[nodiscard]] EWindowLifecycleState GetLifecycleState() const noexcept { return LifecycleState; }
     [[nodiscard]] EWindowDisplayMode GetDisplayMode() const noexcept { return DisplayMode; }
+    [[nodiscard]] ECursorMode GetCursorMode() const noexcept { return CursorMode; }
+    [[nodiscard]] FWindowDisplayState GetDisplayState() const noexcept;
     [[nodiscard]] Stoner::Core::uint32 GetClientWidth() const noexcept { return ClientWidth; }
     [[nodiscard]] Stoner::Core::uint32 GetClientHeight() const noexcept { return ClientHeight; }
     [[nodiscard]] Stoner::Core::uint32 GetDrawableWidth() const noexcept { return DrawableWidth; }
@@ -61,15 +65,23 @@ private:
     friend class FWindowTestAccess;
     void ResetRuntimeState();
     void UpdateDrawableState();
+    void ClearPointerCapture(Stoner::Core::uint64 Sequence = 0);
+    void BumpDisplayGeneration() noexcept;
 
     Stoner::Core::uint32 WindowId = 0;
     FWindowDesc Desc;
     EWindowLifecycleState LifecycleState = EWindowLifecycleState::Uncreated;
     EWindowDisplayMode DisplayMode = EWindowDisplayMode::Windowed;
+    ECursorMode CursorMode = ECursorMode::Normal;
     Stoner::Core::uint32 ClientWidth = 0;
     Stoner::Core::uint32 ClientHeight = 0;
     Stoner::Core::uint32 DrawableWidth = 0;
     Stoner::Core::uint32 DrawableHeight = 0;
+    float ContentScaleX = 1.0f;
+    float ContentScaleY = 1.0f;
+    float FramebufferScaleX = 1.0f;
+    float FramebufferScaleY = 1.0f;
+    Stoner::Core::uint64 DisplayGeneration = 0;
     bool bVisible = false;
     bool bFocused = false;
     bool bMinimized = false;
@@ -77,6 +89,7 @@ private:
     bool bPresentationPaused = false;
     Stoner::Core::uint64 NextSequence = 1;
     Stoner::Core::TArray<FWindowEvent> PendingEvents;
+    Stoner::Core::TArray<FInputEvent> PendingInputEvents;
     FApplicationDiagnosticLog Diagnostics;
     Stoner::Core::FPlatformWindow PlatformWindow;
     std::unique_ptr<IWindowDriver> Driver;

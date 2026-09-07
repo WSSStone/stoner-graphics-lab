@@ -38,6 +38,11 @@ Stoner::Core::uint32 FVulkanQueue::GetSubmittedCommandBufferCount() const noexce
     return SubmittedCommandBufferCount;
 }
 
+Stoner::Core::uint64 FVulkanQueue::GetLastDeferredSubmissionId() const noexcept
+{
+    return LastDeferredSubmissionId;
+}
+
 bool FVulkanQueue::IsValid() const noexcept
 {
     return bValid && Owner && Owner->bActive;
@@ -137,7 +142,7 @@ Stoner::RHI::ERHIResult FVulkanQueue::Submit(
     if (NativeContext && NativeContext->IsAvailable())
     {
         const Stoner::RHI::ERHIResult NativeResult =
-            NativeContext->ExecuteRecordedCommands(*VulkanCommandBuffer);
+            NativeContext->ExecuteRecordedCommands(VulkanCommandBuffer);
         if (NativeResult != Stoner::RHI::ERHIResult::Success)
         {
             if (Diagnostics)
@@ -204,11 +209,69 @@ Stoner::RHI::ERHIResult FVulkanQueue::Submit(
     return Stoner::RHI::ERHIResult::Success;
 }
 
+Stoner::RHI::ERHIResult FVulkanQueue::SubmitDeferred(
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHICommandBuffer>& CommandBuffer,
+    const Stoner::Core::TArray<Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>>& WaitSemaphores,
+    const Stoner::Core::TArray<Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>>& SignalSemaphores,
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIFence>& CompletionFence)
+{
+    if (!IsValid())
+        return Stoner::RHI::ERHIResult::InvalidState;
+    // Native semaphore ownership is still presentation-specific. Failing
+    // closed keeps this render seam from falsely toggling CPU semaphores.
+    if (!WaitSemaphores.empty() || !SignalSemaphores.empty())
+        return Stoner::RHI::ERHIResult::Unsupported;
+    if (!CompletionFence || !CommandBuffer ||
+        CommandBuffer->GetState() != Stoner::RHI::ERHICommandBufferState::Completed ||
+        CommandBuffer->GetRecordedCommandCount() == 0)
+        return Stoner::RHI::ERHIResult::InvalidState;
+    if (CommandBuffer->GetCompatibleQueueType() != QueueType)
+        return Stoner::RHI::ERHIResult::Unsupported;
+
+    const auto VulkanCommandBuffer =
+        std::dynamic_pointer_cast<FVulkanCommandBuffer>(CommandBuffer);
+    const auto VulkanFence =
+        std::dynamic_pointer_cast<FVulkanFence>(CompletionFence);
+    if (!VulkanCommandBuffer || !VulkanCommandBuffer->BelongsTo(Owner) ||
+        !VulkanFence || !VulkanFence->BelongsTo(Owner) ||
+        !VulkanFence->CanSignalForSubmission())
+        return Stoner::RHI::ERHIResult::InvalidState;
+    if (!NativeContext || !NativeContext->IsAvailable())
+        return Stoner::RHI::ERHIResult::Unsupported;
+    if (NativeContext->GetPendingDeferredSubmissionCount() >= 2)
+        return Stoner::RHI::ERHIResult::NotReady;
+    if (VulkanCommandBuffer->MarkSubmitted() !=
+        Stoner::RHI::ERHIResult::Success)
+        return Stoner::RHI::ERHIResult::InvalidState;
+
+    Stoner::Core::uint64 SubmissionId = 0;
+    const auto Result = NativeContext->SubmitDeferredCommands(
+        VulkanCommandBuffer, VulkanFence, SubmissionId);
+    if (Result != Stoner::RHI::ERHIResult::Success)
+    {
+        VulkanCommandBuffer->RollbackSubmitted();
+        return Result;
+    }
+    LastDeferredSubmissionId = SubmissionId;
+    ++SubmittedCommandBufferCount;
+    if (Diagnostics)
+        MarkSubmission(*Diagnostics,
+            "native Vulkan deferred submission accepted; completion remains fence-owned");
+    return Stoner::RHI::ERHIResult::Success;
+}
+
 Stoner::RHI::ERHIResult FVulkanQueue::WaitIdle()
 {
     if (!IsValid())
     {
         return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    if (NativeContext && NativeContext->IsAvailable())
+    {
+        const auto Result = NativeContext->WaitAllDeferredSubmissions();
+        if (Result != Stoner::RHI::ERHIResult::Success)
+            return Result;
+        LastDeferredSubmissionId = 0;
     }
     for (const auto& Submission : Submissions)
     {
@@ -248,6 +311,18 @@ Stoner::RHI::ERHIResult FVulkanQueue::ObserveLastSubmissionCompletion(Stoner::Co
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
+    if (LastDeferredSubmissionId != 0 && NativeContext &&
+        NativeContext->IsAvailable())
+    {
+        const auto Result = NativeContext->WaitDeferredSubmission(
+            LastDeferredSubmissionId, TimeoutMicroseconds);
+        if (Result == Stoner::RHI::ERHIResult::Success)
+        {
+            LastDeferredSubmissionId = 0;
+            bHasCompletedSubmission = true;
+        }
+        return Result;
+    }
     if (Submissions.empty())
         return bHasCompletedSubmission
             ? Stoner::RHI::ERHIResult::Success
@@ -280,6 +355,7 @@ void FVulkanQueue::Invalidate() noexcept
     NativeContext.reset();
     Diagnostics = nullptr;
     bHasCompletedSubmission = false;
+    LastDeferredSubmissionId = 0;
 }
 
 } // namespace Stoner::Backend::Vulkan
