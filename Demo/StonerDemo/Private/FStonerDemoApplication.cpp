@@ -1408,6 +1408,15 @@ EDemoExitCode FStonerDemoApplication::RunVisible()
 
 EDemoExitCode FStonerDemoApplication::Run()
 {
+    // T032 connects strict-cooked lab composition. Until then the new flag
+    // cannot silently enter a formal/synchronous production loop.
+    if (Configuration.bInteractiveLab)
+    {
+        Diagnostics.Add(EDemoStage::Runtime, EDemoExitCode::InitializationFailed,
+            "InteractiveLab", "interactive lab scene startup is not connected");
+        LifecycleState = EDemoLifecycleState::Failed;
+        return EDemoExitCode::InitializationFailed;
+    }
     RunStartMilliseconds = NowMilliseconds();
     EDemoExitCode Result = Initialize();
     if (Result == EDemoExitCode::Success)

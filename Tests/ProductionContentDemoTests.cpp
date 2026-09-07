@@ -651,9 +651,65 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
 
 } // namespace
 
+namespace
+{
+void TestInteractiveLabConfiguration(FProductionContentDemoTestResult& Result)
+{
+    const auto ParseLab = [](std::initializer_list<const char*> Extra, FDemoConfiguration& Config) {
+        Core::TArray<const char*> Args = {"StonerDemo", "--interactive-lab", "--mode", "interactive",
+            "--backend", "vulkan", "--workload", "production-content", "--render-path", "deferred-full",
+            "--production-root", "StaticModel:Lantern.glb#idx.scene.0", "--strict-generation", "generation-test",
+            "--workload-revision", "production-content-lantern-v3", "--cooked-root", "Build/Lab/Cooked",
+            "--lease-root", "Build/Lab/Lease", "--target-profile", "Config/AssetCooker/Profiles/Mac-Vulkan.json"};
+        Args.insert(Args.end(), Extra.begin(), Extra.end());
+        Core::FString Reason;
+        return FDemoConfiguration::Parse(static_cast<int>(Args.size()), Args.data(), Config, Reason);
+    };
+    FDemoConfiguration Config;
+    Record(Result, ParseLab({}, Config) == EDemoExitCode::Success && Config.bInteractiveLab &&
+        Config.bLabUI && !Config.bLabForceAcquireHistory && !Config.bVisibleCapture && Config.BaselineRoot.IsEmpty(),
+        "lab defaults enable UI and optional retirement selection without requiring an Accepted registry");
+    Record(Result, ParseLab({"--lab-ui", "off"}, Config) == EDemoExitCode::Success && !Config.bLabUI,
+        "lab UI-off is an explicit preview configuration");
+    Record(Result, ParseLab({"--mode", "validate", "--frames", "120"}, Config) == EDemoExitCode::Success &&
+        Config.FrameBudget == 120 && Config.WarmupFrames == 0,
+        "bounded lab smoke requires no inherited 1000-frame warmup or RSS sample matrix");
+    Record(Result, ParseLab({"--mode", "validate"}, Config) == EDemoExitCode::InvalidConfiguration,
+        "bounded lab requires an explicitly supplied positive frame budget");
+    Record(Result, ParseLab({"--mode", "validate", "--frames", "120", "--lab-vulkan-retirement", "acquire-history"}, Config) ==
+        EDemoExitCode::Success && Config.bLabForceAcquireHistory,
+        "forced acquire history is accepted for bounded Vulkan lab validation");
+    Record(Result, ParseLab({"--lab-vulkan-retirement", "acquire-history"}, Config) == EDemoExitCode::InvalidConfiguration &&
+        ParseLab({"--mode", "validate", "--frames", "120", "--backend", "metal", "--lab-vulkan-retirement", "acquire-history"}, Config) == EDemoExitCode::InvalidConfiguration,
+        "forced Vulkan fallback cannot alter ordinary interactive or Metal runs");
+    bool ConflictsRejected = true;
+    for (const auto& Extra : {std::initializer_list<const char*>{"--visible-capture"},
+        {"--production-camera-preview", "--camera-preset-output", "Build/Camera.json"},
+        {"--production-capture-root", "Build/Capture"}, {"--output-native-probe", "Build/Probe", "--output-native-profile", "native-sdr"}})
+        ConflictsRejected &= ParseLab(Extra, Config) == EDemoExitCode::InvalidConfiguration;
+    Record(Result, ConflictsRejected, "lab mode rejects calibration and every formal capture/probe entry");
+    bool ModesRejected = true;
+    for (const auto& Extra : {std::initializer_list<const char*>{"--mode", "headless"},
+        {"--mode", "headless-vulkan"}, {"--render-path", "forward-smoke"}, {"--frames-in-flight", "3"},
+        {"--width", "4097"}, {"--width", "4096", "--height", "4096"}})
+        ModesRejected &= ParseLab(Extra, Config) == EDemoExitCode::InvalidConfiguration;
+    Record(Result, ModesRejected, "lab admission enforces native Deferred mode and frozen frame/extent bounds");
+    Record(Result, ParseLab({"--backend", "metal", "--output-device-profile", "Hdr.Linear.2000.v1",
+        "--output-transform-version", "Hdr.ACES2.0.0_2025-04-04.Rec2020D65.v1"}, Config) == EDemoExitCode::Success,
+        "live HDR configuration remains preview without formal visible capture");
+    Core::FString Reason;
+    const char* NonLab[] = {"StonerDemo", "--lab-ui", "on"};
+    Record(Result, FDemoConfiguration::Parse(3, NonLab, Config, Reason) == EDemoExitCode::InvalidConfiguration &&
+        ParseLab({"--lab-ui", "maybe"}, Config) == EDemoExitCode::InvalidConfiguration &&
+        ParseLab({"--lab-vulkan-retirement", "force-extension"}, Config) == EDemoExitCode::InvalidConfiguration,
+        "lab-only and unknown UI/retirement option values are rejected");
+}
+} // namespace
+
 FProductionContentDemoTestResult RunProductionContentDemoTests()
 {
     FProductionContentDemoTestResult Result;
+    TestInteractiveLabConfiguration(Result);
     TestPreviewSubmissionHarness(Result);
     Core::FString Reason;
 

@@ -66,6 +66,15 @@ void ApplyProfileDefaults(FDemoConfiguration& Config)
     {
         return;
     }
+    if (Config.bInteractiveLab)
+    {
+        // Lab smoke/endurance budgets are supplied explicitly. RSS is an
+        // optional diagnostic; it does not impose the legacy sample matrix.
+        if (Config.MemorySampleInterval == 0) Config.MemorySampleInterval = 120;
+        if (Config.MaxMemoryGrowthBytes == 0) Config.MaxMemoryGrowthBytes = 16ULL * 1024ULL * 1024ULL;
+        if (Config.MaxMemoryGrowthPercent == 0) Config.MaxMemoryGrowthPercent = 10.0;
+        return;
+    }
     if (Config.FrameBudget == 0) Config.FrameBudget = Config.RunMode == EDemoRunMode::BoundedNative ? 10000 : 4096;
     if (Config.WarmupFrames == 0) Config.WarmupFrames = Config.RunMode == EDemoRunMode::BoundedNative ? 1000 : 512;
     if (Config.MemorySampleInterval == 0) Config.MemorySampleInterval = Config.RunMode == EDemoRunMode::BoundedNative ? 120 : 128;
@@ -126,6 +135,23 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
         if (OutReason) *OutReason = Reason;
         return false;
     };
+    if (bInteractiveLab)
+    {
+        if (!RequiresNativeRuntime() || !RequiresVisibleWindow() ||
+            Workload != EDemoWorkload::ProductionContent || RenderPath != EDemoRenderPath::DeferredFull)
+            return Fail("interactive lab requires native visible production-content Deferred mode");
+        if (bProductionCameraPreview || bVisibleCapture || !ProductionCameraPresetOutput.IsEmpty() ||
+            !ProductionCaptureRoot.IsEmpty() || !OutputNativeProbePath.IsEmpty() || !OutputNativeProbeProfile.IsEmpty())
+            return Fail("interactive lab is incompatible with calibration and formal capture/probe options");
+        if (MaxFramesInFlight != 2 || ClientWidth > 4096 || ClientHeight > 4096 ||
+            static_cast<Core::uint64>(ClientWidth) * ClientHeight > 7864320)
+            return Fail("interactive lab requires two frame slots and bounded drawable dimensions");
+        if (bLabForceAcquireHistory &&
+            (RunMode != EDemoRunMode::BoundedNative || GraphicsBackend != EDemoGraphicsBackend::Vulkan))
+            return Fail("forced acquire history requires bounded Vulkan lab validation");
+    }
+    else if (bLabOptionsSpecified || !bLabUI || bLabForceAcquireHistory)
+        return Fail("lab options require --interactive-lab");
     if (ClientWidth == 0 || ClientHeight == 0 || ClientWidth > 16384 || ClientHeight > 16384)
         return Fail("width and height must be in range 1..16384");
     if (MaxFramesInFlight == 0) return Fail("frames-in-flight must be positive");
@@ -138,7 +164,7 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
         if (FrameBudget == 0) return Fail("bounded modes require a positive frame budget");
         if (WarmupFrames >= FrameBudget) return Fail("warmup-frames must be smaller than frames");
         if (MemorySampleInterval == 0) return Fail("memory-sample-interval must be positive");
-        if ((FrameBudget - WarmupFrames) / MemorySampleInterval < 10)
+        if (!bInteractiveLab && (FrameBudget - WarmupFrames) / MemorySampleInterval < 10)
             return Fail("profile must permit at least ten post-warmup memory samples");
         if (MaxMemoryGrowthBytes == 0 || !(MaxMemoryGrowthPercent > 0.0))
             return Fail("memory growth limits must be positive");
@@ -173,7 +199,7 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
         if (ProductionRoot.IsEmpty() || StrictGeneration.IsEmpty() ||
             WorkloadRevision.IsEmpty() || CookedPublicationRoot.IsEmpty() ||
             LeaseCoordinationRoot.IsEmpty() || TargetProfilePath.IsEmpty() ||
-            DeviceClassRegistryPath.IsEmpty())
+            (!bInteractiveLab && DeviceClassRegistryPath.IsEmpty()))
             return Fail("production workload requires strict root, generation, revision, paths, and registry");
         const bool bRegular = ProductionLifecycleCycles == 20 &&
             ProductionWarmupCycles == 2;
@@ -224,7 +250,7 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
             return Fail("camera preset output requires camera preview mode");
 
         if (OutputDeviceProfileId.View().starts_with("Hdr.") &&
-            !bVisibleCapture)
+            !bVisibleCapture && !bInteractiveLab)
             return Fail("HDR output requires the explicit visible production path");
 
         Renderer::FOutputTransformSettings OutputSettings;
@@ -248,6 +274,11 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
     for (int Index = 1; Index < ArgCount; ++Index)
     {
         const std::string_view Option(Arguments[Index]);
+        if (Option == "--interactive-lab")
+        {
+            Parsed.bInteractiveLab = true;
+            continue;
+        }
         if (Option == "--enable-validation")
         {
             Parsed.bEnableValidationLayers = true;
@@ -279,7 +310,21 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
             return EDemoExitCode::InvalidConfiguration;
         }
         const char* Value = Arguments[++Index];
-        if (Option == "--mode")
+        if (Option == "--lab-ui")
+        {
+            Parsed.bLabOptionsSpecified = true;
+            if (std::string_view(Value) == "on") Parsed.bLabUI = true;
+            else if (std::string_view(Value) == "off") Parsed.bLabUI = false;
+            else { OutReason = "lab-ui must be on or off"; return EDemoExitCode::InvalidConfiguration; }
+        }
+        else if (Option == "--lab-vulkan-retirement")
+        {
+            Parsed.bLabOptionsSpecified = true;
+            if (std::string_view(Value) == "auto") Parsed.bLabForceAcquireHistory = false;
+            else if (std::string_view(Value) == "acquire-history") Parsed.bLabForceAcquireHistory = true;
+            else { OutReason = "lab-vulkan-retirement must be auto or acquire-history"; return EDemoExitCode::InvalidConfiguration; }
+        }
+        else if (Option == "--mode")
         {
             const std::string_view Mode(Value);
             if (Mode == "interactive") Parsed.RunMode = EDemoRunMode::InteractiveNative;
@@ -434,6 +479,11 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
         else { OutReason = "unknown option"; return EDemoExitCode::InvalidConfiguration; }
     }
 
+    if (Parsed.bInteractiveLab && Parsed.IsBounded() && !bFrameBudgetSpecified)
+    {
+        OutReason = "bounded lab validation requires explicit positive --frames";
+        return EDemoExitCode::InvalidConfiguration;
+    }
     const Stoner::Core::uint32 ExplicitFrames = Parsed.FrameBudget;
     const Stoner::Core::uint32 ExplicitWarmup = Parsed.WarmupFrames;
     const Stoner::Core::uint32 ExplicitInterval = Parsed.MemorySampleInterval;

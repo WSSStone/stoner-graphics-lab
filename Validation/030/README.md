@@ -776,3 +776,22 @@ T032 still composes the strict-cooked scene loop and T026 preview adapter; T033
 records actual native-operation/terminal counters and assurance. Integrated
 Lantern/Sponza acceptance, formal Feature 030 physical/hosted closeout and current
 human HDR authority remain open. No prior authority exception is carried forward.
+
+## T031 lab configuration review (2026-09-07)
+
+T031 is reviewed complete, bringing implementation to **30/127**. The lab flags
+select native visible strict-cooked Deferred preview, default UI on and automatic
+retirement selection. Forced acquire history is limited to bounded Vulkan lab
+validation. Calibration, formal capture and native-probe options are rejected.
+Bounded lab runs require an explicit positive frame budget and do not inherit
+the formal endurance warmup/RSS sample matrix or Accepted registry requirement.
+Live Metal HDR remains distinct from formal visible capture.
+
+Strict Debug and Release builds passed. Each configuration passed 75
+production-content-demo assertions and 37 triangle-demo regressions; the output
+transform architecture check passed. Logs are under
+`Build/Validation/030/deferred-review/*-t031-*.log`.
+
+T032 startup is still pending: the new flag currently fails explicitly before
+the legacy application loop. These configuration checks do not claim an
+operational scene lab, native scene smoke or hardware acceptance.

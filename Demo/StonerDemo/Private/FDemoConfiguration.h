@@ -87,6 +87,10 @@ struct FDemoConfiguration
         16ULL * 1024ULL * 1024ULL;
     bool bVisibleCapture = false;
     bool bProductionCameraPreview = false;
+    bool bInteractiveLab = false;
+    bool bLabUI = true;
+    bool bLabForceAcquireHistory = false;
+    bool bLabOptionsSpecified = false;
     Stoner::Core::FString ValidationOutputPath = "Build/triangle-demo-validation.txt";
     Stoner::Core::FString EvidenceRunId = "local";
 
