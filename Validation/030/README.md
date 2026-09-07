@@ -456,3 +456,97 @@ presentations and incomplete render uses, and preserves replacement failure,
 forced-termination and device-loss distinctions. The staged native helper and
 its real borrowed-window integration remain under review; these deterministic
 policy results are not GPU presentation evidence or additional completed tasks.
+
+The frozen staged swapchain helper passed 37 independently rerun assertions
+against controlled Vulkan entrypoints (`swapchain-runtime-review/root-compile.log`
+and `root-results.log`). They exercise preferred same-image waits, canceled
+acquire-history proof, pending-slot reuse, canceled preferred terminal cleanup,
+and first-failure preservation. These are simulated native calls, not GPU
+evidence. The submitted semaphore adapter separately passed strict Debug build
+and 29 existing required native deferred assertions
+(`deferred-review/build-debug-semaphore-adapter.log` and
+`native-semaphore-adapter-debug.log`); those regressions use the preserved
+no-semaphore overload and do not validate the new window synchronization path.
+The helper has now been copied into Source for backend integration. The new
+`vulkan-lab-borrowed-native` suite is registered for explicit native window
+verification; it has not yet run, and T021/T022 remain open.
+
+Positive presentation notifications were then independently checked with 68
+controlled-call assertions (`swapchain-runtime-review/root-callback-compile.log`
+and `root-callback-results.log`). The first agent run needed a temporary name
+qualification shim; the primary run instead compiled the corrected helper
+directly from `callback-reviewed/`. Coverage includes callback timing on either
+side of render completion, exactly-once old-token notification, canceled
+reacquisition, generation retirement, and no promoted-token notification during
+terminal compatibility cleanup. This remains simulated-call evidence while the
+Context/queue/swapchain bridge and native tests are under implementation.
+
+The first unified strict Debug bridge build passed, but both required native
+cases failed the device factory's historical pre-acquire `GetImage(0)` check
+(`deferred-review/build-debug-borrowed-integration.log` and
+`native-borrowed-integration-debug.log`). After the factory checked actual image
+count for lab creation, auto completed all twelve native clear/present frames
+and cleanup; forced acquire-history failed presentation at frame six
+(`build-debug-borrowed-factory-fixed.log` and
+`native-borrowed-factory-fixed-debug.log`, 22 passing/2 failing assertions).
+Repeated same-image cycles isolated an uncleared presentation-attempt substate.
+Independent controlled-call runs reproduced 6 failures in 81 assertions before
+the fix and passed 85/85 afterward (`swapchain-runtime-review/repeated-reviewed/`
+compile/results logs), without a namespace shim. These failures remain recorded;
+the complete revised native bridge has not yet passed both modes.
+
+The integrated boundary review then passed strict Debug compilation. The required
+native suite first passed 32 assertions and failed two zero-extent assertions
+(`deferred-review/build-debug-borrowed-boundaries.log` and
+`native-borrowed-boundaries-debug.log`): the helper returned Unavailable for a
+paused acquisition instead of retryable NotReady. Both modes already completed
+twelve real clear/present frames, typed and semaphore leases, finite render
+completion, positive presentation release, resume, cancellation and cleanup.
+After correcting that return value, the unchanged required suite passed 34/34
+(`build-debug-borrowed-pause-fixed.log` and
+`native-borrowed-pause-fixed-debug.log`). Negative cases additionally reject a
+wrong same-device acquire semaphore, a foreign-device render semaphore and a
+duplicate typed render lease before allowing the valid frame to proceed.
+Zero extent here is an explicit public Reconfigure request; it is not a claim
+of OS-driven minimize/focus coverage.
+
+The same strict Debug binary passed the existing required Vulkan deferred,
+capability, startup and output-transform native suites (29+21+9+8 assertions),
+and seven related RHI/Renderer/Metal/Vulkan suites (374 assertions). Logs use
+`deferred-review/*-borrowed-review-debug.log`. The output-transform architecture
+checker reported zero findings. These are current working-tree backend probes,
+not Lantern/Sponza lab acceptance, formal same-SHA evidence or HDR visual
+attestation. Release integration and final bridge review remain pending.
+
+The final bridge review closed generic-submit and canceled-target bypasses,
+immutable image/generation identity checks, ordinary Submit's logical consumption
+of lab semaphores, and logical release after wrapper invalidation. Forty-seven
+required borrowed native assertions now pass in both strict Debug and Release.
+The current M4 auto run reports mode=1/reason=1 (PresentationFence/Preferred,
+optional enabled); force-off reports mode=2/reason=2
+(AcquireHistory/ForcedOff, optional disabled). Surface queries refresh the lab
+selection after generation creation while preserving the display generation.
+A preceding 45-pass/2-fail run exposed the initial cached Unknown mode; that
+failure and the intermediate surface-access compile error remain in the ignored
+logs rather than being relabeled as successful runs.
+
+Final evidence is under `deferred-review/`: strict build logs
+`build-debug-borrowed-surface-access-fixed.log` and
+`build-release-borrowed-surface-refresh.log`; required borrowed logs
+`native-borrowed-surface-refresh-debug.log` and
+`vulkan-lab-borrowed-native-surface-refresh-release.log`. Existing required
+native regressions passed 67/67 in both configurations (Debug
+`*-published-mode-debug.log`, Release `*-surface-refresh-release.log`), and the
+seven related suites passed 374/374 per configuration
+(`*-surface-refresh-{debug,release}.log`). Nonnative guarded syntax passed in
+`nonnative-borrowed-surface-refresh.log`; architecture review again reported
+zero findings. The final controlled-call helper snapshot also passed 85/85 in
+`swapchain-runtime-review/owner-guards-reviewed/`, including the cancellation
+eligibility guard exercised by the native cancellation probes.
+
+T021/T022 are now reviewed complete, bringing implementation to **24/127**.
+These are working-tree backend integration checks. The full scene/UI lab,
+application terminal worker/watchdog, remaining failure fixtures, cross-platform
+closeout and current human HDR acceptance remain pending. IdleAssumed terminal
+fallback cleanup is never counted as proven presentation release. Nothing here
+updates Accepted images or claims a successful formal Feature 030 hardware gate.

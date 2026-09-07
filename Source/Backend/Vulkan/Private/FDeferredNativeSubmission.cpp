@@ -86,14 +86,35 @@ Stoner::RHI::ERHIResult FDeferredNativeSubmission::Initialize() noexcept
 
 Stoner::RHI::ERHIResult FDeferredNativeSubmission::Submit() noexcept
 {
+    return Submit(VK_NULL_HANDLE, VK_NULL_HANDLE);
+}
+
+Stoner::RHI::ERHIResult FDeferredNativeSubmission::Submit(
+    VkSemaphore AcquireWait,
+    VkSemaphore RenderFinishedSignal) noexcept
+{
     using namespace Stoner::RHI;
     if (Result_ != ERHIResult::Success || CommandBuffer_ == VK_NULL_HANDLE ||
         Fence_ == VK_NULL_HANDLE || bSubmitted_ || bComplete_)
         return ERHIResult::InvalidState;
+
     VkSubmitInfo SubmitInfo{};
     SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    // This recorder can transition/copy the acquired image before attachment
+    // output. Keep acquisition ahead of every command until the caller can
+    // provide a narrower scope matched to its first image access/barrier.
+    VkPipelineStageFlags WaitStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    SubmitInfo.waitSemaphoreCount = AcquireWait != VK_NULL_HANDLE ? 1 : 0;
+    SubmitInfo.pWaitSemaphores =
+        AcquireWait != VK_NULL_HANDLE ? &AcquireWait : nullptr;
+    SubmitInfo.pWaitDstStageMask =
+        AcquireWait != VK_NULL_HANDLE ? &WaitStageMask : nullptr;
     SubmitInfo.commandBufferCount = 1;
     SubmitInfo.pCommandBuffers = &CommandBuffer_;
+    SubmitInfo.signalSemaphoreCount =
+        RenderFinishedSignal != VK_NULL_HANDLE ? 1 : 0;
+    SubmitInfo.pSignalSemaphores =
+        RenderFinishedSignal != VK_NULL_HANDLE ? &RenderFinishedSignal : nullptr;
     const VkResult NativeResult = vkQueueSubmit(
         Queue_, 1, &SubmitInfo, Fence_);
     if (NativeResult != VK_SUCCESS)

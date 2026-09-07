@@ -156,6 +156,72 @@ Stoner::RHI::ERHIResult FVulkanSwapchain::Reconfigure(
     {
         return ERHIResult::NotReady;
     }
+    const auto NativeContext = Surface->GetNativeContext();
+    if (NativeContext && NativeContext->IsLabPresentationActive())
+    {
+        FRHIResolvedPresentationState LabResolvedState;
+        const ERHIResult LabResult = NativeContext->ConfigureLabPresentation(
+            Request, LabResolvedState);
+        if (Request.IsZeroDrawable())
+        {
+            // ConfigureLabPresentation keeps the native runtime owners alive
+            // while it pauses. Clear only this wrapper's borrowed-image view;
+            // the Context remains responsible for native retirement.
+            if (LabResult != ERHIResult::NotReady)
+            {
+                return LabResult;
+            }
+            for (FLabBorrowedImage& Image : LabBorrowedImages)
+            {
+                Image = {};
+            }
+            Images.clear();
+            Desc = Request;
+            CurrentFrameIndex = 0;
+            AcquiredGeneration = 0;
+            AcquiredFrameToken = 0;
+            NativeFrameBindings = {};
+            ResolvedState = {};
+            State = ERHISwapchainState::Paused;
+            bLabPresentation = true;
+            return ERHIResult::NotReady;
+        }
+        if (LabResult != ERHIResult::Success)
+        {
+            // A pending replacement leaves the currently published wrapper
+            // generation untouched. The Context owns the pending request.
+            return LabResult;
+        }
+        if (!LabResolvedState.IsValid() ||
+            LabResolvedState.ModeGeneration == 0 ||
+            LabResolvedState.SwapchainImageGeneration == 0)
+        {
+            return ERHIResult::Failed;
+        }
+        const Stoner::Core::uint32 NativeImageCount =
+            NativeContext->GetVisiblePresentationImageCount();
+        if (NativeImageCount == 0 ||
+            NativeImageCount > Stoner::RHI::MaxRHIPresentationImageLeases)
+        {
+            return ERHIResult::Failed;
+        }
+        for (FLabBorrowedImage& Image : LabBorrowedImages)
+        {
+            Image = {};
+        }
+        Images.clear();
+        Desc = Request;
+        FrameCount = NativeImageCount;
+        CurrentFrameIndex = 0;
+        AcquiredGeneration = 0;
+        AcquiredFrameToken = 0;
+        NativeFrameBindings = {};
+        Generation = LabResolvedState.ModeGeneration;
+        ResolvedState = std::move(LabResolvedState);
+        State = ERHISwapchainState::Ready;
+        bLabPresentation = true;
+        return ERHIResult::Success;
+    }
     if (Request.IsZeroDrawable())
     {
         InvalidateImages();
@@ -190,7 +256,6 @@ Stoner::RHI::ERHIResult FVulkanSwapchain::Reconfigure(
 
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<IRHITexture>> NewImages;
     FRHIResolvedPresentationState NativeResolved;
-    const auto NativeContext = Surface->GetNativeContext();
     if (NativeContext)
     {
         const ERHIResult NativeResult =
@@ -270,11 +335,151 @@ Stoner::Core::uint32 FVulkanSwapchain::GetCurrentFrameIndex() const noexcept
 Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>
 FVulkanSwapchain::GetImage(Stoner::Core::uint32 ImageIndex) const
 {
-    if (!bValid || (Surface && !Surface->IsValid()) || ImageIndex >= Images.size())
+    if (!bValid || (Surface && !Surface->IsValid()))
+    {
+        return nullptr;
+    }
+    if (bLabPresentation)
+    {
+        if (State != Stoner::RHI::ERHISwapchainState::Ready ||
+            ImageIndex >= LabBorrowedImages.size())
+        {
+            return nullptr;
+        }
+        const FLabBorrowedImage& Borrowed = LabBorrowedImages[ImageIndex];
+        if (Borrowed.Generation != Generation || !Borrowed.Texture ||
+            Borrowed.Texture->GetLifecycleState() !=
+                Stoner::RHI::ERHIResourceLifecycleState::Valid)
+        {
+            return nullptr;
+        }
+        return Borrowed.Texture;
+    }
+    if (ImageIndex >= Images.size())
     {
         return nullptr;
     }
     return Images[ImageIndex];
+}
+
+Stoner::RHI::ERHIResult FVulkanSwapchain::AcquireBorrowedTarget(
+    Stoner::Core::uint64 FrameToken,
+    Stoner::Core::uint32 FrameSlotIndex,
+    Stoner::RHI::FRHIBorrowedAcquiredTarget& OutTarget)
+{
+    OutTarget = {};
+    if (!bValid || (Surface && !Surface->IsValid()))
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    const auto NativeContext = Surface ? Surface->GetNativeContext() : nullptr;
+    if (!NativeContext || !NativeContext->IsLabPresentationActive())
+    {
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
+
+    const Stoner::RHI::ERHIResult Result =
+        NativeContext->AcquireLabBorrowedTarget(
+            FrameToken, FrameSlotIndex, OutTarget);
+    if (Result != Stoner::RHI::ERHIResult::Success)
+    {
+        return Result;
+    }
+    if (!bLabPresentation || State != Stoner::RHI::ERHISwapchainState::Ready ||
+        !OutTarget.IsValid() || !OutTarget.Frame.Matches(ResolvedState) ||
+        OutTarget.Frame.ModeGeneration != Generation ||
+        OutTarget.Frame.ImageIndex >= LabBorrowedImages.size())
+    {
+        (void)NativeContext->ReleaseLabBorrowedTarget(OutTarget, nullptr);
+        OutTarget = {};
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+
+    FLabBorrowedImage& Borrowed = LabBorrowedImages[OutTarget.Frame.ImageIndex];
+    Borrowed.Texture = OutTarget.Texture;
+    Borrowed.Generation = OutTarget.Frame.ModeGeneration;
+    Borrowed.FrameToken = OutTarget.Frame.FrameToken;
+    CurrentFrameIndex = OutTarget.Frame.ImageIndex;
+    return Stoner::RHI::ERHIResult::Success;
+}
+
+Stoner::RHI::ERHIResult FVulkanSwapchain::PresentBorrowedTarget(
+    const Stoner::RHI::FRHIBorrowedAcquiredTarget& Target,
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>&
+        RenderFinishedSemaphore,
+    Stoner::RHI::FRHIPresentationLease& OutPresentationLease)
+{
+    OutPresentationLease = {};
+    if (!bValid || (Surface && !Surface->IsValid()))
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    const auto NativeContext = Surface ? Surface->GetNativeContext() : nullptr;
+    if (!NativeContext || !NativeContext->IsLabPresentationActive())
+    {
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
+    if (!bLabPresentation || !Target.IsValid() ||
+        !Target.Frame.Matches(ResolvedState) ||
+        Target.Frame.ModeGeneration != Generation)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    return NativeContext->PresentLabBorrowedTarget(
+        Target, RenderFinishedSemaphore, OutPresentationLease);
+}
+
+Stoner::RHI::ERHIResult FVulkanSwapchain::PresentBorrowedTarget(
+    const Stoner::RHI::FRHIBorrowedAcquiredTarget& Target,
+    const Stoner::RHI::FRHIRenderLease& RenderLease,
+    Stoner::RHI::FRHIPresentationLease& OutPresentationLease)
+{
+    OutPresentationLease = {};
+    if (!bValid || (Surface && !Surface->IsValid()))
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    const auto NativeContext = Surface ? Surface->GetNativeContext() : nullptr;
+    if (!NativeContext || !NativeContext->IsLabPresentationActive())
+    {
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
+    if (!bLabPresentation || !Target.IsValid() ||
+        !Target.Frame.Matches(ResolvedState) ||
+        Target.Frame.ModeGeneration != Generation)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    return NativeContext->PresentLabBorrowedTarget(
+        Target, RenderLease, OutPresentationLease);
+}
+
+Stoner::RHI::ERHIResult FVulkanSwapchain::ReleaseBorrowedTarget(
+    const Stoner::RHI::FRHIBorrowedAcquiredTarget& Target,
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIFence>&
+        RenderCompletionFence)
+{
+    if (Surface && !Surface->IsValid())
+    {
+        return Stoner::RHI::ERHIResult::Unavailable;
+    }
+    const auto NativeContext = Surface ? Surface->GetNativeContext() : nullptr;
+    if (!NativeContext || !NativeContext->IsLabPresentationActive())
+    {
+        return Stoner::RHI::ERHIResult::Unsupported;
+    }
+    // Cancellation remains valid after the borrowed wrapper has been
+    // invalidated: Context owns the native image/acquire record until the
+    // runtime proves retirement. Keep structural identity checks here, while
+    // Context performs the complete bridge lookup and lifecycle handling.
+    if (!bLabPresentation || !Target.Texture || !Target.Frame.IsValid() ||
+        Target.Frame.ImageIndex >= Stoner::RHI::MaxRHIPresentationImageLeases ||
+        Target.FrameSlotIndex >= Stoner::RHI::MaxRHIFrameSlots)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    return NativeContext->ReleaseLabBorrowedTarget(
+        Target, RenderCompletionFence);
 }
 
 const FVulkanNativeFrameBindings*
@@ -320,6 +525,14 @@ void FVulkanSwapchain::CommitAcquire(Stoner::Core::uint32& OutFrameIndex) noexce
 Stoner::RHI::ERHIResult FVulkanSwapchain::AcquireNextFrame(
     Stoner::Core::uint32& OutFrameIndex)
 {
+    if (Surface)
+    {
+        const auto NativeContext = Surface->GetNativeContext();
+        if (NativeContext && NativeContext->IsLabPresentationActive())
+        {
+            return Stoner::RHI::ERHIResult::Unsupported;
+        }
+    }
     if (Surface && Surface->GetNativeContext())
     {
         Stoner::RHI::FRHIPresentationFrame Frame;
@@ -347,6 +560,14 @@ Stoner::RHI::ERHIResult FVulkanSwapchain::AcquireNextFrame(
     if (FrameToken == 0)
     {
         return ERHIResult::InvalidState;
+    }
+    if (Surface)
+    {
+        const auto NativeContext = Surface->GetNativeContext();
+        if (NativeContext && NativeContext->IsLabPresentationActive())
+        {
+            return ERHIResult::Unsupported;
+        }
     }
     const ERHIResult Validation = ValidateAcquire();
     if (Validation != ERHIResult::Success)
@@ -407,6 +628,14 @@ Stoner::RHI::ERHIResult FVulkanSwapchain::AcquireNextFrame(
     Stoner::Core::uint32& OutFrameIndex,
     const Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>& SignalSemaphore)
 {
+    if (Surface)
+    {
+        const auto NativeContext = Surface->GetNativeContext();
+        if (NativeContext && NativeContext->IsLabPresentationActive())
+        {
+            return Stoner::RHI::ERHIResult::Unsupported;
+        }
+    }
     if (!SignalSemaphore)
     {
         return AcquireNextFrame(OutFrameIndex);
@@ -477,6 +706,14 @@ void FVulkanSwapchain::CommitPresent() noexcept
 Stoner::RHI::ERHIResult FVulkanSwapchain::Present(
     Stoner::Core::uint32 FrameIndex)
 {
+    if (Surface)
+    {
+        const auto NativeContext = Surface->GetNativeContext();
+        if (NativeContext && NativeContext->IsLabPresentationActive())
+        {
+            return Stoner::RHI::ERHIResult::Unsupported;
+        }
+    }
     const Stoner::RHI::ERHIResult Result = ValidatePresent(FrameIndex);
     if (Result != Stoner::RHI::ERHIResult::Success)
     {
@@ -509,6 +746,14 @@ Stoner::RHI::ERHIResult FVulkanSwapchain::Present(
 Stoner::RHI::ERHIResult FVulkanSwapchain::Present(
     const Stoner::RHI::FRHIPresentationFrame& Frame)
 {
+    if (Surface)
+    {
+        const auto NativeContext = Surface->GetNativeContext();
+        if (NativeContext && NativeContext->IsLabPresentationActive())
+        {
+            return Stoner::RHI::ERHIResult::Unsupported;
+        }
+    }
     if (!Frame.Matches(ResolvedState) ||
         Frame.FrameToken != AcquiredFrameToken ||
         Frame.ImageIndex != CurrentFrameIndex)
@@ -522,6 +767,14 @@ Stoner::RHI::ERHIResult FVulkanSwapchain::Present(
     Stoner::Core::uint32 FrameIndex,
     const Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>& WaitSemaphore)
 {
+    if (Surface)
+    {
+        const auto NativeContext = Surface->GetNativeContext();
+        if (NativeContext && NativeContext->IsLabPresentationActive())
+        {
+            return Stoner::RHI::ERHIResult::Unsupported;
+        }
+    }
     if (!WaitSemaphore)
     {
         return Present(FrameIndex);
@@ -683,7 +936,21 @@ void FVulkanSwapchain::Invalidate() noexcept
     {
         return;
     }
-    InvalidateImages();
+    if (bLabPresentation)
+    {
+        // Borrowed target textures are owned by the native Context and may
+        // still be held by the renderer. Dropping this wrapper's cache does
+        // not establish presentation or render completion proof.
+        for (FLabBorrowedImage& Image : LabBorrowedImages)
+        {
+            Image = {};
+        }
+        Images.clear();
+    }
+    else
+    {
+        InvalidateImages();
+    }
     bValid = false;
     AcquiredGeneration = 0;
     AcquiredFrameToken = 0;

@@ -84,6 +84,21 @@ Stoner::RHI::ERHIResult FVulkanSurface::QueryCapabilities(
     {
         return Stoner::RHI::ERHIResult::InvalidState;
     }
+    if (State->NativeContext && State->NativeContext->IsLabPresentationActive())
+    {
+        // Lab generation creation can resolve the retirement mode after the
+        // surface's initial snapshot. Expose those current facts without
+        // inventing a display-environment generation change.
+        Stoner::RHI::FRHIPresentationCapabilities Current;
+        const auto Result = State->NativeContext
+            ->QueryVisiblePresentationCapabilities(Current);
+        if (Result != Stoner::RHI::ERHIResult::Success)
+        {
+            return Result;
+        }
+        Current.SurfaceId = State->Desc.SurfaceId;
+        State->Capabilities = std::move(Current);
+    }
     OutCapabilities = State->Capabilities;
     return Stoner::RHI::ERHIResult::Success;
 }

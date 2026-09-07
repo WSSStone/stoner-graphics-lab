@@ -46,6 +46,30 @@ FVulkanTexture::FVulkanTexture(
     }
 }
 
+FVulkanTexture::FVulkanTexture(
+    const Stoner::RHI::FRHITextureDesc& InDesc,
+    Stoner::Core::uint64 InNativeToken,
+    Stoner::Core::uint64 InBorrowedContextIdentity,
+    Stoner::Core::uint64 InBorrowedGeneration,
+    Stoner::Core::uint32 InBorrowedImageIndex,
+    Stoner::Core::uint64 InBorrowedAcquisitionToken) noexcept
+    : Desc(InDesc)
+    , NativeToken(InNativeToken)
+    , BorrowedContextIdentity(InBorrowedContextIdentity)
+    , BorrowedGeneration(InBorrowedGeneration)
+    , BorrowedImageIndex(InBorrowedImageIndex)
+    , BorrowedAcquisitionToken(InBorrowedAcquisitionToken)
+    , bBorrowedPresentation(true)
+{
+    if (NativeToken == 0 || BorrowedContextIdentity == 0 ||
+        BorrowedGeneration == 0 ||
+        BorrowedAcquisitionToken == 0)
+    {
+        LifecycleState =
+            Stoner::RHI::ERHIResourceLifecycleState::Invalidated;
+    }
+}
+
 FVulkanTexture::~FVulkanTexture()
 {
     if (LifecycleState == Stoner::RHI::ERHIResourceLifecycleState::Valid)
@@ -97,6 +121,15 @@ Stoner::RHI::ERHIResult FVulkanTexture::Invalidate()
     }
     LifecycleState = Stoner::RHI::ERHIResourceLifecycleState::Invalidated;
     UploadedMips.clear();
+    if (bBorrowedPresentation)
+    {
+        // The runtime owns the native swapchain image/view. A borrowed RHI
+        // wrapper can become invalid independently without destroying or
+        // erasing the runtime's native owner record.
+        NativeToken = 0;
+        NativeContext.reset();
+        return Stoner::RHI::ERHIResult::Success;
+    }
     if (NativeContext && NativeToken != 0)
     {
         NativeContext->DestroyOwnedTexture(NativeToken);

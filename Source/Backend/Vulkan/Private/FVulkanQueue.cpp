@@ -26,6 +26,10 @@ FVulkanQueue::FVulkanQueue(
     , CompletionInjection(InInjection)
     , NativeContext(std::move(InNativeContext))
 {
+    if (NativeContext)
+    {
+        NativeContext->AdoptDeviceOwnerState(Owner);
+    }
 }
 
 Stoner::RHI::ERHIQueueType FVulkanQueue::GetQueueType() const noexcept
@@ -89,6 +93,14 @@ Stoner::RHI::ERHIResult FVulkanQueue::Submit(
         {
             return Stoner::RHI::ERHIResult::InvalidState;
         }
+        // Lab-bound acquire semaphores carry native presentation ownership and
+        // must only enter the deferred overload that forwards their native
+        // wait to vkQueueSubmit. The legacy Submit path has no native wait
+        // parameters and would otherwise consume the logical semaphore only.
+        if (VulkanSemaphore->GetLabBindingToken() != 0)
+        {
+            return Stoner::RHI::ERHIResult::InvalidState;
+        }
         if (!VulkanSemaphore->CanConsumeForSubmission())
         {
             return Stoner::RHI::ERHIResult::NotReady;
@@ -108,6 +120,10 @@ Stoner::RHI::ERHIResult FVulkanQueue::Submit(
             std::dynamic_pointer_cast<FVulkanSemaphore>(SignalSemaphores[Index]);
         if (!VulkanSemaphore || !VulkanSemaphore->BelongsTo(Owner) ||
             !VulkanSemaphore->CanSignalForSubmission())
+        {
+            return Stoner::RHI::ERHIResult::InvalidState;
+        }
+        if (VulkanSemaphore->GetLabBindingToken() != 0)
         {
             return Stoner::RHI::ERHIResult::InvalidState;
         }
@@ -217,9 +233,8 @@ Stoner::RHI::ERHIResult FVulkanQueue::SubmitDeferred(
 {
     if (!IsValid())
         return Stoner::RHI::ERHIResult::InvalidState;
-    // Native semaphore ownership is still presentation-specific. Failing
-    // closed keeps this render seam from falsely toggling CPU semaphores.
-    if (!WaitSemaphores.empty() || !SignalSemaphores.empty())
+    if (WaitSemaphores.size() > 1 || SignalSemaphores.size() > 1 ||
+        (WaitSemaphores.empty() && !SignalSemaphores.empty()))
         return Stoner::RHI::ERHIResult::Unsupported;
     if (!CompletionFence || !CommandBuffer ||
         CommandBuffer->GetState() != Stoner::RHI::ERHICommandBufferState::Completed ||
@@ -245,12 +260,44 @@ Stoner::RHI::ERHIResult FVulkanQueue::SubmitDeferred(
         return Stoner::RHI::ERHIResult::InvalidState;
 
     Stoner::Core::uint64 SubmissionId = 0;
-    const auto Result = NativeContext->SubmitDeferredCommands(
-        VulkanCommandBuffer, VulkanFence, SubmissionId);
+    const auto Result = (WaitSemaphores.empty()
+        ? NativeContext->SubmitDeferredCommands(
+            VulkanCommandBuffer, VulkanFence, SubmissionId)
+        : NativeContext->SubmitDeferredCommands(
+            VulkanCommandBuffer, VulkanFence,
+            WaitSemaphores.front(),
+            SignalSemaphores.empty() ? nullptr : SignalSemaphores.front(),
+            SubmissionId));
     if (Result != Stoner::RHI::ERHIResult::Success)
     {
-        VulkanCommandBuffer->RollbackSubmitted();
+        if (SubmissionId == 0)
+        {
+            VulkanCommandBuffer->RollbackSubmitted();
+        }
+        else
+        {
+            for (const auto& Semaphore : WaitSemaphores)
+            {
+                std::dynamic_pointer_cast<FVulkanSemaphore>(Semaphore)
+                    ->CommitConsumeForSubmission();
+            }
+            for (const auto& Semaphore : SignalSemaphores)
+            {
+                std::dynamic_pointer_cast<FVulkanSemaphore>(Semaphore)
+                    ->CommitSignalForSubmission();
+            }
+        }
         return Result;
+    }
+    for (const auto& Semaphore : WaitSemaphores)
+    {
+        std::dynamic_pointer_cast<FVulkanSemaphore>(Semaphore)
+            ->CommitConsumeForSubmission();
+    }
+    for (const auto& Semaphore : SignalSemaphores)
+    {
+        std::dynamic_pointer_cast<FVulkanSemaphore>(Semaphore)
+            ->CommitSignalForSubmission();
     }
     LastDeferredSubmissionId = SubmissionId;
     ++SubmittedCommandBufferCount;

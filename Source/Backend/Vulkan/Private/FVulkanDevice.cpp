@@ -579,6 +579,14 @@ Stoner::RHI::ERHIResult FVulkanDevice::Shutdown()
     if (NativePresentationContext)
     {
         PreserveFailure(NativePresentationContext->Shutdown());
+        if (NativePresentationContext->IsLabPresentationActive())
+        {
+            // A pending/failed terminal proof still owns native resources.
+            // Keep the device, command owners and Context available for the
+            // caller's bounded cleanup retry instead of invalidating them.
+            return ShutdownResult == Stoner::RHI::ERHIResult::Success
+                ? Stoner::RHI::ERHIResult::NotReady : ShutdownResult;
+        }
     }
     InvalidateOwnedObjects();
     NativeShaderContext.reset();
@@ -2119,8 +2127,12 @@ FVulkanDevice::CreateSurfaceBackedSwapchain(
 
     auto Swapchain = Stoner::Core::MakeShared<FVulkanSwapchain>(
         Surface, Desc, Capabilities.MaxInFlightFrames);
+    const auto NativeContext = Surface->GetNativeContext();
+    const bool bBorrowedLab = NativeContext &&
+        NativeContext->IsLabPresentationActive();
     if (Swapchain->GetState() != Stoner::RHI::ERHISwapchainState::Ready ||
-        !Swapchain->GetImage(0))
+        (bBorrowedLab ? Swapchain->GetFrameCount() == 0
+                      : !Swapchain->GetImage(0)))
     {
         return {Stoner::RHI::ERHIResult::Failed, nullptr};
     }

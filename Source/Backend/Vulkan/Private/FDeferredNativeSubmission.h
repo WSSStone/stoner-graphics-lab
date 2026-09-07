@@ -43,6 +43,14 @@ public:
 
     [[nodiscard]] Stoner::RHI::ERHIResult Initialize() noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult Submit() noexcept;
+    // The optional semaphores are borrowed from the owning native context:
+    // AcquireWait is signaled by the image acquire and RenderFinishedSignal
+    // is consumed by presentation.  They must outlive queue submission and
+    // native presentation retirement; this record never destroys or retains
+    // their handles.  Passing both as VK_NULL_HANDLE preserves Submit().
+    [[nodiscard]] Stoner::RHI::ERHIResult Submit(
+        VkSemaphore AcquireWait,
+        VkSemaphore RenderFinishedSignal) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult Poll(
         Stoner::Core::uint64 TimeoutMicroseconds) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult WaitForCompletion() noexcept;

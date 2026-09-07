@@ -6,12 +6,15 @@
 #include "FDeferredNativeSubmission.h"
 #include "FVulkanLabCapabilityQuery.h"
 #include "FVulkanLabDeviceStartup.h"
+#include "FVulkanLabSwapchainRuntime.h"
 #include "VulkanRHI/FVulkanBuffer.h"
 #include "VulkanRHI/FVulkanCommandBuffer.h"
 #include "VulkanRHI/FVulkanDescriptorSet.h"
 #include "VulkanRHI/FVulkanFramebuffer.h"
 #include "VulkanRHI/FVulkanGraphicsPipeline.h"
 #include "VulkanRHI/FVulkanFence.h"
+#include "VulkanRHI/FVulkanSemaphore.h"
+#include "VulkanRHI/FVulkanDeviceOwnerState.h"
 #include "VulkanRHI/FVulkanRenderPass.h"
 #include "VulkanRHI/FVulkanSampler.h"
 #include "VulkanRHI/FVulkanTexture.h"
@@ -39,6 +42,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -52,6 +56,34 @@ namespace
 {
 
 using namespace Stoner::RHI;
+
+template <typename T>
+[[nodiscard]] Stoner::Core::uint64 ToOpaqueNativeHandle(T Handle) noexcept
+{
+    if constexpr (std::is_pointer_v<T>)
+    {
+        return static_cast<Stoner::Core::uint64>(
+            reinterpret_cast<std::uintptr_t>(Handle));
+    }
+    else
+    {
+        return static_cast<Stoner::Core::uint64>(Handle);
+    }
+}
+
+template <typename T>
+[[nodiscard]] T FromOpaqueNativeHandle(
+    Stoner::Core::uint64 Value) noexcept
+{
+    if constexpr (std::is_pointer_v<T>)
+    {
+        return reinterpret_cast<T>(static_cast<std::uintptr_t>(Value));
+    }
+    else
+    {
+        return static_cast<T>(Value);
+    }
+}
 
 [[nodiscard]] ERHIResult MapVulkanCreationResult(VkResult Result) noexcept
 {
@@ -543,6 +575,108 @@ private:
 } // namespace
 #endif
 
+struct FLabPresentationFenceState
+{
+    using FPollCallback = void (*)(void*) noexcept;
+    Stoner::RHI::ERHIFenceState State =
+        Stoner::RHI::ERHIFenceState::Unsignaled;
+    bool bProof = false;
+    bool bFailure = false;
+    FPollCallback Poll = nullptr;
+    void* PollUserData = nullptr;
+};
+
+class FLabPresentationFence final : public Stoner::RHI::IRHIFence
+{
+public:
+    explicit FLabPresentationFence(
+        Stoner::Core::TSharedPtr<FLabPresentationFenceState> InState) noexcept
+        : State(std::move(InState))
+    {
+    }
+
+    [[nodiscard]] Stoner::RHI::ERHIFenceState GetState() const noexcept override
+    {
+        return State ? State->State :
+            Stoner::RHI::ERHIFenceState::Unsignaled;
+    }
+
+    [[nodiscard]] bool IsSignaled() const noexcept override
+    {
+        if (State && State->Poll)
+        {
+            State->Poll(State->PollUserData);
+        }
+        return State != nullptr &&
+            (State->State == Stoner::RHI::ERHIFenceState::Signaled ||
+             State->State == Stoner::RHI::ERHIFenceState::Waited);
+    }
+
+    Stoner::RHI::ERHIResult Wait(
+        Stoner::Core::uint64 TimeoutMicroseconds = 0) override
+    {
+        if (!State)
+        {
+            return Stoner::RHI::ERHIResult::InvalidState;
+        }
+        if (State->Poll)
+        {
+            State->Poll(State->PollUserData);
+        }
+        if (State->bFailure)
+        {
+            return Stoner::RHI::ERHIResult::Failed;
+        }
+        if (!IsSignaled())
+        {
+            return TimeoutMicroseconds == 0
+                ? Stoner::RHI::ERHIResult::NotReady
+                : Stoner::RHI::ERHIResult::Timeout;
+        }
+        State->State = Stoner::RHI::ERHIFenceState::Waited;
+        return Stoner::RHI::ERHIResult::Success;
+    }
+
+    Stoner::RHI::ERHIResult Reset() override
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+
+    Stoner::RHI::ERHIResult Signal() override
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+
+private:
+    Stoner::Core::TSharedPtr<FLabPresentationFenceState> State;
+};
+
+struct FLabTokenBridge
+{
+    bool bOccupied = false;
+    bool bRetirementEvent = false;
+    bool bGenerationRetired = false;
+    Stoner::Core::uint64 TextureToken = 0;
+    Stoner::Core::uint64 AcquisitionToken = 0;
+    Stoner::Core::uint64 FrameToken = 0;
+    Stoner::Core::uint64 Generation = 0;
+    Stoner::Core::uint32 ImageIndex = 0;
+    Stoner::Core::uint32 FrameSlotIndex = 0;
+    Stoner::Core::TSharedPtr<FVulkanTexture> Texture;
+    Stoner::Core::TSharedPtr<FVulkanSemaphore> AcquireSemaphore;
+    Stoner::Core::TSharedPtr<FVulkanSemaphore> RenderSemaphore;
+    Stoner::Core::TSharedPtr<FVulkanSemaphore> CallerRenderSemaphore;
+    Stoner::Core::TSharedPtr<FVulkanFence> RenderFence;
+    Stoner::Core::TSharedPtr<FLabPresentationFenceState>
+        PresentationFenceState;
+    Stoner::Core::uint64 SubmissionId = 0;
+    bool bRenderSubmitted = false;
+    bool bRenderComplete = false;
+    bool bRenderSucceeded = false;
+    bool bPresentAttempted = false;
+    bool bPresentQueued = false;
+};
+
 struct FVulkanNativeContext::FImpl
 {
     Stoner::RHI::FRHIRuntimeSnapshot Snapshot;
@@ -588,11 +722,34 @@ struct FVulkanNativeContext::FImpl
         VkImage Image = VK_NULL_HANDLE;
         VkDeviceMemory Memory = VK_NULL_HANDLE;
         std::vector<VkImageLayout> MipLayouts;
+        bool bBorrowedPresentation = false;
+        Stoner::Core::uint64 BorrowedGeneration = 0;
+        Stoner::Core::uint32 BorrowedImageIndex = 0;
+        Stoner::Core::uint64 BorrowedAcquisitionToken = 0;
         bool bDestructionPending = false;
     };
     Stoner::Core::uint64 NextOwnedTextureToken = 1;
     std::unordered_map<Stoner::Core::uint64, FOwnedTextureResources>
         OwnedTextures;
+    std::unique_ptr<Private::FVulkanLabSwapchainRuntime> LabRuntime;
+    std::array<FLabTokenBridge,
+        Private::FVulkanLabPresentationPolicy::MaxPresentationRecords>
+        LabTokens{};
+    bool bLabCallbackEnabled = false;
+    bool bLabPolling = false;
+    Stoner::RHI::FRHIResolvedPresentationState LabResolvedState;
+    // One latest requested profile is retained while the native runtime
+    // coalesces a bounded replacement.  The effective resolved state above
+    // remains unchanged until the corresponding native generation is active.
+    Stoner::RHI::FRHISwapchainDesc LabPendingRequest;
+    Stoner::RHI::FRHIResolvedPresentationState LabPendingResolvedState;
+    Private::FVulkanLabSwapchainCreateDesc LabPendingNativeDesc;
+    Stoner::Core::FString LabPendingSnapshotMetadataDigest;
+    Stoner::Core::uint64 LabPendingGeneration = 0;
+    bool bHasLabPendingRequest = false;
+    bool bLabPendingRuntimeAccepted = false;
+    bool bLabTerminalDeviceIdleProven = false;
+    Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> DeviceOwner;
 
     struct FPersistentNativeBuffer
     {
@@ -774,7 +931,7 @@ struct FVulkanNativeContext::FImpl
     void DestroyOwnedTextureResources(
         FOwnedTextureResources& Resources) noexcept
     {
-        if (Device != VK_NULL_HANDLE)
+        if (Device != VK_NULL_HANDLE && !Resources.bBorrowedPresentation)
         {
             if (Resources.Image != VK_NULL_HANDLE)
             {
@@ -1224,7 +1381,80 @@ struct FVulkanNativeContext::FImpl
 };
 
 FVulkanNativeContext::FVulkanNativeContext() : Impl(std::make_unique<FImpl>()) {}
-FVulkanNativeContext::~FVulkanNativeContext() { (void)Shutdown(); }
+FVulkanNativeContext::~FVulkanNativeContext()
+{
+    (void)Shutdown();
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl)
+    {
+        return;
+    }
+    // Shutdown may be retryable while a preferred presentation fence is
+    // still unproven. External leases can outlive this Context, so sever all
+    // polling callbacks before FImpl is destroyed. Keep native owners alive
+    // for the caller's retained lifecycle proof; an unproven lease remains
+    // unsignaled and reports failure rather than claiming retirement.
+    Impl->bLabCallbackEnabled = false;
+    if (Impl->LabRuntime)
+    {
+        Impl->LabRuntime->SetPresentationRetirementCallback(nullptr, nullptr);
+    }
+    for (auto& Bridge : Impl->LabTokens)
+    {
+        if (Bridge.PresentationFenceState)
+        {
+            Bridge.PresentationFenceState->Poll = nullptr;
+            Bridge.PresentationFenceState->PollUserData = nullptr;
+            if (!Bridge.PresentationFenceState->bProof)
+            {
+                Bridge.PresentationFenceState->bFailure = true;
+                Bridge.PresentationFenceState->State =
+                    Stoner::RHI::ERHIFenceState::Unsignaled;
+            }
+        }
+    }
+#endif
+}
+
+void FVulkanNativeContext::AdoptDeviceOwnerState(
+    Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> InOwner) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || !InOwner || !InOwner->bActive)
+    {
+        return;
+    }
+    if (!Impl->DeviceOwner)
+    {
+        Impl->DeviceOwner = std::move(InOwner);
+    }
+    if (!Impl->DeviceOwner)
+    {
+        return;
+    }
+    for (auto& Bridge : Impl->LabTokens)
+    {
+        if (!Bridge.bOccupied)
+        {
+            continue;
+        }
+        if (Bridge.AcquireSemaphore)
+        {
+            Bridge.AcquireSemaphore->AdoptOwner(Impl->DeviceOwner);
+        }
+        if (Bridge.RenderSemaphore)
+        {
+            Bridge.RenderSemaphore->AdoptOwner(Impl->DeviceOwner);
+        }
+        if (Bridge.CallerRenderSemaphore)
+        {
+            Bridge.CallerRenderSemaphore->AdoptOwner(Impl->DeviceOwner);
+        }
+    }
+#else
+    (void)InOwner;
+#endif
+}
 
 Stoner::RHI::ERHIResult FVulkanNativeContext::Initialize(
     Stoner::RHI::ERHIRuntimeMode Mode,
@@ -1564,6 +1794,34 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::InitializeInternal(
         return Stoner::RHI::ERHIResult::Unavailable;
     }
     vkGetDeviceQueue(Impl->Device, Impl->GraphicsQueueFamily, 0, &Impl->GraphicsQueue);
+    if (bLabPresentation)
+    {
+        try
+        {
+            Impl->LabRuntime = std::make_unique<
+                Private::FVulkanLabSwapchainRuntime>(
+                    Impl->PhysicalDevice, Impl->Device, Impl->Surface,
+                    Impl->GraphicsQueue, Impl->GraphicsQueueFamily,
+                    Impl->LabPresentationSelection);
+        }
+        catch (const std::bad_alloc&)
+        {
+            (void)Shutdown();
+            return Stoner::RHI::ERHIResult::Unavailable;
+        }
+        Impl->LabRuntime->SetPresentationRetirementCallback(
+            [](void* UserData, Stoner::Core::uint8 Event,
+               Stoner::Core::uint64 AcquisitionToken,
+               Stoner::Core::uint64 Generation,
+               Stoner::Core::uint32 ImageIndex) noexcept
+            {
+                FVulkanNativeContext::ReceiveLabRetirementEvent(
+                    UserData, Event, AcquisitionToken, Generation,
+                    ImageIndex);
+            },
+            this);
+        Impl->bLabCallbackEnabled = true;
+    }
     VkPhysicalDeviceProperties Properties{};
     vkGetPhysicalDeviceProperties(Impl->PhysicalDevice, &Properties);
     Impl->Snapshot.ObjectMode = Stoner::RHI::ERHIRuntimeObjectMode::RealRuntime;
@@ -2590,14 +2848,23 @@ FVulkanNativeContext::QueryVisiblePresentationCapabilities(
         OutCapabilities.bSupportsExtendedRange ? 25.0f : 1.0f;
     if (Impl->bLabPresentationStartup)
     {
-        // The startup slice records native facts, but the borrowed-image
-        // presentation path has not yet established independent completion.
-        // Keep the public retirement choice Unknown until that path exists.
-        OutCapabilities.bSupportsIndependentPresentationCompletion = false;
-        OutCapabilities.PresentationRetirementMode =
-            Stoner::RHI::ERHIPresentationRetirementMode::Unknown;
-        OutCapabilities.PresentationRetirementReason =
-            Stoner::RHI::ERHIPresentationRetirementReason::Unknown;
+        // Device startup alone has no usable borrowed generation. Publish
+        // the selected mode once native generation ownership exists, and
+        // retain that selection when a later runtime failure is reported.
+        const auto LabSnapshot = Impl->LabRuntime
+            ? Impl->LabRuntime->GetSnapshot()
+            : Private::FVulkanLabSwapchainRuntimeSnapshot{};
+        const bool bHasLabGeneration = LabSnapshot.ActiveGeneration != 0 ||
+            LabSnapshot.RetiringGeneration != 0 || LabSnapshot.bFailed;
+        OutCapabilities.PresentationRetirementMode = bHasLabGeneration
+            ? Impl->LabPresentationSelection.Mode
+            : Stoner::RHI::ERHIPresentationRetirementMode::Unknown;
+        OutCapabilities.PresentationRetirementReason = bHasLabGeneration
+            ? Impl->LabPresentationSelection.Reason
+            : Stoner::RHI::ERHIPresentationRetirementReason::Unknown;
+        OutCapabilities.bSupportsIndependentPresentationCompletion =
+            OutCapabilities.PresentationRetirementMode ==
+                Stoner::RHI::ERHIPresentationRetirementMode::PresentationFence;
         OutCapabilities.bOptionalPresentationFenceAdvertised =
             Impl->LabCapabilityObservation.bExtensionAdvertised;
         OutCapabilities.bOptionalPresentationFenceEnabled =
@@ -2623,9 +2890,9 @@ FVulkanNativeContext::QueryVisiblePresentationCapabilities(
                << "|query-state="
                << static_cast<int>(Impl->LabCapabilityObservation.QueryState)
                << "|selection-reason="
-               << static_cast<int>(Impl->LabPresentationSelection.Reason)
+               << static_cast<int>(OutCapabilities.PresentationRetirementReason)
                << "|selection-mode="
-               << static_cast<int>(Impl->LabPresentationSelection.Mode);
+               << static_cast<int>(OutCapabilities.PresentationRetirementMode);
     }
     OutCapabilities.CapabilityDigest = Digest.str().c_str();
     return OutCapabilities.IsValid()
@@ -2706,6 +2973,1123 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::PrepareVisibleImage(
         : Stoner::RHI::ERHIResult::Failed;
 #else
     (void)Request;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::ConfigureLabPresentation(
+    const Stoner::RHI::FRHISwapchainDesc& Request,
+    Stoner::RHI::FRHIResolvedPresentationState& OutResolvedState) noexcept
+{
+    OutResolvedState = {};
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    using namespace Stoner::RHI;
+    const auto IsRequestFieldsValid = [](const FRHISwapchainDesc& Value) noexcept
+    {
+        return Value.FramesInFlight != 0 &&
+            Value.SurfaceCapabilityGeneration != 0 &&
+            IsValidRHIFormat(Value.PreferredFormat) &&
+            IsValidPresentationColorSpace(Value.PreferredColorSpace) &&
+            IsValidPresentationNativeEncoding(Value.NativeEncoding) &&
+            Value.ReferenceWhiteNits > 0.0f &&
+            Value.TargetPeakNits >= Value.ReferenceWhiteNits &&
+            Value.bHasHDRMetadata == Value.HDRMetadata.bPresent &&
+            Value.HDRMetadata.IsValid();
+    };
+    const auto RequestsEqual = [](const FRHISwapchainDesc& Left,
+                                  const FRHISwapchainDesc& Right) noexcept
+    {
+        return Left.Width == Right.Width && Left.Height == Right.Height &&
+            Left.FramesInFlight == Right.FramesInFlight &&
+            Left.PreferredFormat == Right.PreferredFormat &&
+            Left.PreferredColorSpace == Right.PreferredColorSpace &&
+            Left.NativeEncoding == Right.NativeEncoding &&
+            Left.DisplayAdaptation == Right.DisplayAdaptation &&
+            Left.SurfaceCapabilityGeneration ==
+                Right.SurfaceCapabilityGeneration &&
+            Left.ReferenceWhiteNits == Right.ReferenceWhiteNits &&
+            Left.TargetPeakNits == Right.TargetPeakNits &&
+            Left.bHasHDRMetadata == Right.bHasHDRMetadata &&
+            Left.HDRMetadata == Right.HDRMetadata &&
+            Left.bVSync == Right.bVSync;
+    };
+    const auto ClearPending = [&]() noexcept
+    {
+        Impl->LabPendingRequest = {};
+        Impl->LabPendingResolvedState = {};
+        Impl->LabPendingNativeDesc = {};
+        Impl->LabPendingSnapshotMetadataDigest.Clear();
+        Impl->LabPendingGeneration = 0;
+        Impl->bHasLabPendingRequest = false;
+        Impl->bLabPendingRuntimeAccepted = false;
+    };
+    const auto CommitResolved =
+        [&](FRHIResolvedPresentationState Resolved,
+            FRHIResolvedPresentationState Output,
+            Stoner::Core::FString SnapshotMetadata,
+            Stoner::Core::uint64 Generation) noexcept
+        {
+            if (!Resolved.IsValid() || !Output.IsValid())
+            {
+                return ERHIResult::Failed;
+            }
+            Impl->PresentationModeGeneration = Generation;
+            Impl->Snapshot.PresentationModeGeneration = Generation;
+            Impl->Snapshot.PresentationWidth = Resolved.Width;
+            Impl->Snapshot.PresentationHeight = Resolved.Height;
+            Impl->Snapshot.PresentationFormat = Resolved.Format;
+            Impl->Snapshot.PresentationColorSpace = Resolved.ColorSpace;
+            Impl->Snapshot.PresentationNativeEncoding = Resolved.NativeEncoding;
+            Impl->Snapshot.PresentationDisplayAdaptation =
+                Resolved.DisplayAdaptation;
+            Impl->Snapshot.PresentationMetadataDigest =
+                std::move(SnapshotMetadata);
+            Impl->LabResolvedState = std::move(Resolved);
+            OutResolvedState = std::move(Output);
+            ClearPending();
+            return ERHIResult::Success;
+        };
+
+    if (!Impl || !Impl->LabRuntime || !Impl->bLabPresentationStartup ||
+        Impl->LabRuntime->GetSnapshot().bTerminalCleanupStarted ||
+        !IsRequestFieldsValid(Request) ||
+        Request.FramesInFlight > MaxRHIFrameSlots ||
+        Impl->Surface == VK_NULL_HANDLE)
+    {
+        return ERHIResult::InvalidState;
+    }
+
+    try
+    {
+        auto RuntimeSnapshot = Impl->LabRuntime->GetSnapshot();
+        if (Request.IsZeroDrawable())
+        {
+            if (RuntimeSnapshot.ActiveGeneration == 0)
+            {
+                return ERHIResult::NotReady;
+            }
+            Private::FVulkanLabSwapchainCreateDesc ZeroDesc;
+            ZeroDesc.Generation = std::max<Stoner::Core::uint64>(
+                Impl->PresentationModeGeneration + 1u, 1u);
+            ZeroDesc.ColorFormat = Request.PreferredFormat;
+            const ERHIResult Result = Impl->LabRuntime->RequestResize(ZeroDesc);
+            if (Result == ERHIResult::Success)
+            {
+                // The runtime's zero extent transition clears only its
+                // replacement request. Drop the matching Context request as
+                // well while retaining the effective resolved profile.
+                ClearPending();
+                return ERHIResult::NotReady;
+            }
+            return Result;
+        }
+
+        if (RuntimeSnapshot.ActiveGeneration != 0)
+        {
+            const ERHIResult PollResult = Impl->LabRuntime->Poll();
+            if (PollResult != ERHIResult::Success &&
+                PollResult != ERHIResult::NotReady)
+            {
+                return PollResult;
+            }
+            RuntimeSnapshot = Impl->LabRuntime->GetSnapshot();
+        }
+
+        if (Impl->bHasLabPendingRequest &&
+            Impl->bLabPendingRuntimeAccepted &&
+            RuntimeSnapshot.ActiveGeneration == Impl->LabPendingGeneration)
+        {
+            // The native runtime may have published between calls. Copy the
+            // output before moving the retained effective profile so an
+            // allocation failure cannot partially commit Context state.
+            FRHIResolvedPresentationState Output;
+            try
+            {
+                Output = Impl->LabPendingResolvedState;
+            }
+            catch (const std::bad_alloc&)
+            {
+                return ERHIResult::Unavailable;
+            }
+            catch (const std::length_error&)
+            {
+                return ERHIResult::Unavailable;
+            }
+            const bool bPublishedRequestMatches =
+                RequestsEqual(Request, Impl->LabPendingRequest);
+            const ERHIResult CommitResult = CommitResolved(
+                std::move(Impl->LabPendingResolvedState),
+                std::move(Output),
+                std::move(Impl->LabPendingSnapshotMetadataDigest),
+                Impl->LabPendingGeneration);
+            if (CommitResult != ERHIResult::Success)
+            {
+                return CommitResult;
+            }
+            // A newer request may have arrived after the pending generation
+            // was published. Keep B as the effective profile, but continue
+            // below to validate and queue C rather than reporting B as C.
+            if (bPublishedRequestMatches)
+            {
+                return ERHIResult::Success;
+            }
+            OutResolvedState = {};
+            RuntimeSnapshot = Impl->LabRuntime->GetSnapshot();
+        }
+
+        const bool bSamePendingRequest = Impl->bHasLabPendingRequest &&
+            RequestsEqual(Request, Impl->LabPendingRequest);
+        if (bSamePendingRequest && Impl->bLabPendingRuntimeAccepted)
+        {
+            return ERHIResult::NotReady;
+        }
+
+        Private::FVulkanLabSwapchainCreateDesc NativeDesc;
+        FRHIResolvedPresentationState CandidateResolved;
+        FRHIResolvedPresentationState CandidateOutput;
+        Stoner::Core::FString CandidateSnapshotMetadata;
+        FRHISwapchainDesc CandidateRequest;
+        if (bSamePendingRequest)
+        {
+            NativeDesc = Impl->LabPendingNativeDesc;
+            CandidateResolved = Impl->LabPendingResolvedState;
+            CandidateOutput = CandidateResolved;
+            CandidateSnapshotMetadata =
+                Impl->LabPendingSnapshotMetadataDigest;
+            CandidateRequest = Impl->LabPendingRequest;
+        }
+        else
+        {
+            FRHIPresentationCapabilities Capabilities;
+            const ERHIResult CapabilityResult =
+                QueryVisiblePresentationCapabilities(Capabilities);
+            if (CapabilityResult != ERHIResult::Success ||
+                Request.SurfaceCapabilityGeneration !=
+                    Capabilities.CapabilityGeneration ||
+                !Capabilities.SupportsPair(
+                    Request.PreferredFormat, Request.PreferredColorSpace))
+            {
+                return ERHIResult::Unsupported;
+            }
+            VkSurfaceCapabilitiesKHR SurfaceCapabilities{};
+            if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+                    Impl->PhysicalDevice, Impl->Surface,
+                    &SurfaceCapabilities) != VK_SUCCESS)
+            {
+                return ERHIResult::Unavailable;
+            }
+            const VkFormat RequestedFormat = ToVulkanPresentationFormat(
+                Request.PreferredFormat);
+            const VkColorSpaceKHR RequestedColorSpace =
+                ToVulkanPresentationColorSpace(Request.PreferredColorSpace);
+            if (RequestedFormat == VK_FORMAT_UNDEFINED ||
+                RequestedColorSpace == VK_COLOR_SPACE_MAX_ENUM_KHR)
+            {
+                return ERHIResult::Unsupported;
+            }
+            Stoner::Core::uint32 FormatCount = 0;
+            if (vkGetPhysicalDeviceSurfaceFormatsKHR(
+                    Impl->PhysicalDevice, Impl->Surface, &FormatCount, nullptr) !=
+                    VK_SUCCESS || FormatCount == 0)
+            {
+                return ERHIResult::Unavailable;
+            }
+            std::vector<VkSurfaceFormatKHR> Formats(FormatCount);
+            if (vkGetPhysicalDeviceSurfaceFormatsKHR(
+                    Impl->PhysicalDevice, Impl->Surface, &FormatCount,
+                    Formats.data()) != VK_SUCCESS)
+            {
+                return ERHIResult::Unavailable;
+            }
+            const bool bSupportedPair = std::any_of(
+                Formats.begin(), Formats.end(),
+                [RequestedFormat, RequestedColorSpace](
+                    const VkSurfaceFormatKHR& Pair)
+                {
+                    return Pair.format == RequestedFormat &&
+                        Pair.colorSpace == RequestedColorSpace;
+                });
+            if (!bSupportedPair)
+            {
+                return ERHIResult::Unsupported;
+            }
+            VkExtent2D Extent = SurfaceCapabilities.currentExtent;
+            if (Extent.width ==
+                std::numeric_limits<Stoner::Core::uint32>::max())
+            {
+                Extent.width = std::clamp(
+                    Request.Width, SurfaceCapabilities.minImageExtent.width,
+                    SurfaceCapabilities.maxImageExtent.width);
+                Extent.height = std::clamp(
+                    Request.Height, SurfaceCapabilities.minImageExtent.height,
+                    SurfaceCapabilities.maxImageExtent.height);
+            }
+            if (Extent.width == 0 || Extent.height == 0)
+            {
+                return ERHIResult::NotReady;
+            }
+            Stoner::Core::uint32 MinImageCount = std::max(
+                SurfaceCapabilities.minImageCount + 1u, 2u);
+            if (SurfaceCapabilities.maxImageCount != 0)
+            {
+                MinImageCount = std::min(
+                    MinImageCount, SurfaceCapabilities.maxImageCount);
+            }
+            if (MinImageCount == 0 ||
+                MinImageCount >
+                    Private::FVulkanLabPresentationPolicy::MaxImagesPerGeneration)
+            {
+                return ERHIResult::Unsupported;
+            }
+            const Stoner::Core::uint64 BaseGeneration =
+                Impl->bHasLabPendingRequest
+                ? Impl->LabPendingGeneration
+                : RuntimeSnapshot.ActiveGeneration;
+            if (BaseGeneration == std::numeric_limits<Stoner::Core::uint64>::max())
+            {
+                return ERHIResult::Unavailable;
+            }
+            NativeDesc.Generation = std::max<Stoner::Core::uint64>(
+                BaseGeneration + 1u, 1u);
+            NativeDesc.Width = Extent.width;
+            NativeDesc.Height = Extent.height;
+            NativeDesc.MinImageCount = MinImageCount;
+            NativeDesc.ColorFormat = Request.PreferredFormat;
+            NativeDesc.VulkanFormat = RequestedFormat;
+            NativeDesc.ColorSpace = RequestedColorSpace;
+            NativeDesc.ImageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            NativeDesc.PresentMode = VK_PRESENT_MODE_FIFO_KHR;
+            NativeDesc.PreTransform =
+                (SurfaceCapabilities.supportedTransforms &
+                    VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
+                ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
+                : SurfaceCapabilities.currentTransform;
+            NativeDesc.CompositeAlpha =
+                (SurfaceCapabilities.supportedCompositeAlpha &
+                    VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
+                ? VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
+                : VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
+
+            CandidateRequest = Request;
+            CandidateResolved.ModeGeneration = NativeDesc.Generation;
+            CandidateResolved.Width = Extent.width;
+            CandidateResolved.Height = Extent.height;
+            CandidateResolved.Format = Request.PreferredFormat;
+            CandidateResolved.ColorSpace = Request.PreferredColorSpace;
+            CandidateResolved.NativeEncoding = Request.NativeEncoding;
+            CandidateResolved.DisplayAdaptation = Request.DisplayAdaptation;
+            CandidateResolved.bHasHDRMetadata = Request.bHasHDRMetadata;
+            CandidateResolved.MetadataDigest = Request.bHasHDRMetadata
+                ? Request.HDRMetadata.CanonicalDigest : Stoner::Core::FString{};
+            CandidateResolved.ReferenceWhiteNits = Request.ReferenceWhiteNits;
+            CandidateResolved.TargetPeakNits = Request.TargetPeakNits;
+            CandidateResolved.SwapchainImageGeneration = NativeDesc.Generation;
+            CandidateOutput = CandidateResolved;
+            CandidateSnapshotMetadata = Request.bHasHDRMetadata
+                ? Request.HDRMetadata.CanonicalDigest : Stoner::Core::FString{};
+        }
+
+        const bool bWasInitialized = RuntimeSnapshot.ActiveGeneration != 0;
+        const ERHIResult RuntimeResult = bWasInitialized
+            ? Impl->LabRuntime->RequestResize(NativeDesc)
+            : Impl->LabRuntime->Initialize(NativeDesc);
+        if (RuntimeResult != ERHIResult::Success &&
+            RuntimeResult != ERHIResult::NotReady)
+        {
+            return RuntimeResult;
+        }
+
+        // Keep the latest request and its resolved identity until the native
+        // generation is observable. Moves are nonallocating; all copies were
+        // completed above while the native state was still unchanged.
+        Impl->LabPendingRequest = std::move(CandidateRequest);
+        Impl->LabPendingResolvedState = std::move(CandidateResolved);
+        Impl->LabPendingNativeDesc = NativeDesc;
+        Impl->LabPendingSnapshotMetadataDigest =
+            std::move(CandidateSnapshotMetadata);
+        Impl->LabPendingGeneration = NativeDesc.Generation;
+        Impl->bHasLabPendingRequest = true;
+        Impl->bLabPendingRuntimeAccepted =
+            RuntimeResult == ERHIResult::Success;
+
+        const ERHIResult PollResult = Impl->LabRuntime->Poll();
+        if (PollResult != ERHIResult::Success &&
+            PollResult != ERHIResult::NotReady)
+        {
+            return PollResult;
+        }
+        RuntimeSnapshot = Impl->LabRuntime->GetSnapshot();
+        if (RuntimeSnapshot.ActiveGeneration != NativeDesc.Generation)
+        {
+            return ERHIResult::NotReady;
+        }
+        return CommitResolved(
+            std::move(Impl->LabPendingResolvedState),
+            std::move(CandidateOutput),
+            std::move(Impl->LabPendingSnapshotMetadataDigest),
+            NativeDesc.Generation);
+    }
+    catch (const std::bad_alloc&)
+    {
+        return ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        return ERHIResult::Unavailable;
+    }
+#else
+    (void)Request;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+void FVulkanNativeContext::ReceiveLabRetirementEvent(
+    void* UserData,
+    Stoner::Core::uint8 Event,
+    Stoner::Core::uint64 AcquisitionToken,
+    Stoner::Core::uint64 Generation,
+    Stoner::Core::uint32 ImageIndex) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    auto* Context = static_cast<FVulkanNativeContext*>(UserData);
+    if (!Context || !Context->Impl || !Context->Impl->bLabCallbackEnabled)
+    {
+        return;
+    }
+    (void)ImageIndex;
+    const auto RetirementEvent = static_cast<Private::
+        EVulkanLabPresentationRetirementEvent>(Event);
+    if (RetirementEvent == Private::
+            EVulkanLabPresentationRetirementEvent::PresentationProof)
+    {
+        for (auto& Bridge : Context->Impl->LabTokens)
+        {
+            if (Bridge.bOccupied && Bridge.bPresentQueued &&
+                Bridge.AcquisitionToken == AcquisitionToken)
+            {
+                Bridge.bRetirementEvent = true;
+                break;
+            }
+        }
+    }
+    else if (RetirementEvent == Private::
+                 EVulkanLabPresentationRetirementEvent::GenerationRetired)
+    {
+        for (auto& Bridge : Context->Impl->LabTokens)
+        {
+            if (Bridge.bOccupied && Bridge.Generation == Generation)
+            {
+                Bridge.bGenerationRetired = true;
+            }
+        }
+    }
+#else
+    (void)UserData;
+    (void)Event;
+    (void)AcquisitionToken;
+    (void)Generation;
+    (void)ImageIndex;
+#endif
+}
+
+void FVulkanNativeContext::SweepLabRetirements() noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl)
+    {
+        return;
+    }
+    for (auto& Bridge : Impl->LabTokens)
+    {
+        if (!Bridge.bOccupied)
+        {
+            continue;
+        }
+        const bool bPresentationProof = Bridge.bRetirementEvent &&
+            Bridge.bPresentQueued;
+        const bool bCanceledGenerationOwner = Bridge.bGenerationRetired &&
+            !Bridge.bPresentQueued;
+        if (!bPresentationProof && !bCanceledGenerationOwner)
+        {
+            continue;
+        }
+        if (Bridge.bRenderSubmitted && !Bridge.bRenderComplete)
+        {
+            // Presentation-fence proof can arrive before the separately
+            // reported render fence. Keep the borrowed image and bridge
+            // addressable until both proofs have been observed.
+            continue;
+        }
+        if (Bridge.bRenderSubmitted && !Bridge.bRenderSucceeded)
+        {
+            continue;
+        }
+        if (Bridge.PresentationFenceState)
+        {
+            if (bPresentationProof)
+            {
+                Bridge.PresentationFenceState->bProof = true;
+                Bridge.PresentationFenceState->State =
+                    Stoner::RHI::ERHIFenceState::Signaled;
+            }
+            Bridge.PresentationFenceState->Poll = nullptr;
+            Bridge.PresentationFenceState->PollUserData = nullptr;
+        }
+        if (Bridge.AcquireSemaphore)
+        {
+            Bridge.AcquireSemaphore->RetireLabBinding();
+        }
+        if (Bridge.RenderSemaphore)
+        {
+            Bridge.RenderSemaphore->RetireLabBinding();
+        }
+        if (Bridge.CallerRenderSemaphore)
+        {
+            Bridge.CallerRenderSemaphore->RetireLabBinding();
+        }
+        if (Bridge.Texture)
+        {
+            (void)Bridge.Texture->Invalidate();
+        }
+        if (Bridge.TextureToken != 0)
+        {
+            const auto Found = Impl->OwnedTextures.find(Bridge.TextureToken);
+            if (Found != Impl->OwnedTextures.end() &&
+                Found->second.bBorrowedPresentation)
+            {
+                Impl->OwnedTextures.erase(Found);
+            }
+        }
+        Bridge = {};
+    }
+    Impl->Snapshot.LiveTextures = Impl->GetLiveTextureCount();
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::AcquireLabBorrowedTarget(
+    Stoner::Core::uint64 FrameToken,
+    Stoner::Core::uint32 FrameSlotIndex,
+    Stoner::RHI::FRHIBorrowedAcquiredTarget& OutTarget) noexcept
+{
+    OutTarget = {};
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    using namespace Stoner::RHI;
+    if (!Impl || !Impl->LabRuntime || !Impl->bLabPresentationStartup ||
+        Impl->LabRuntime->GetSnapshot().bTerminalCleanupStarted ||
+        FrameToken == 0 || FrameSlotIndex >= MaxRHIFrameSlots ||
+        Impl->LabResolvedState.IsZeroDrawable())
+    {
+        return Impl && Impl->LabRuntime && Impl->LabRuntime->IsPausedZeroExtent()
+            ? ERHIResult::NotReady : ERHIResult::InvalidState;
+    }
+    const ERHIResult PollResult = PollLabPresentation();
+    if (PollResult != ERHIResult::Success &&
+        PollResult != ERHIResult::NotReady)
+    {
+        return PollResult;
+    }
+    Private::FVulkanLabNativeImageRecord Record;
+    const ERHIResult AcquireResult = Impl->LabRuntime->Acquire(
+        FrameToken, FrameSlotIndex, Record);
+    SweepLabRetirements();
+    if (AcquireResult != ERHIResult::Success)
+    {
+        return AcquireResult;
+    }
+    auto Existing = std::find_if(Impl->LabTokens.begin(), Impl->LabTokens.end(),
+        [&Record](const FLabTokenBridge& Bridge)
+        {
+            return Bridge.bOccupied &&
+                Bridge.AcquisitionToken == Record.AcquisitionToken;
+        });
+    if (Existing != Impl->LabTokens.end())
+    {
+        OutTarget.Texture = Existing->Texture;
+        OutTarget.AcquireSemaphore = Existing->AcquireSemaphore;
+        OutTarget.Frame.FrameToken = Record.FrameToken;
+        OutTarget.Frame.ModeGeneration = Record.Generation;
+        OutTarget.Frame.SwapchainImageGeneration = Record.Generation;
+        OutTarget.Frame.ImageIndex = Record.ImageIndex;
+        OutTarget.Frame.Width = Record.Width;
+        OutTarget.Frame.Height = Record.Height;
+        OutTarget.Frame.Format = Record.ColorFormat;
+        OutTarget.Frame.ColorSpace = Impl->LabResolvedState.ColorSpace;
+        OutTarget.Frame.DisplayAdaptation =
+            Impl->LabResolvedState.DisplayAdaptation;
+        OutTarget.Frame.MetadataDigest = Impl->LabResolvedState.MetadataDigest;
+        OutTarget.FrameSlotIndex = FrameSlotIndex;
+        return OutTarget.IsValid() ? ERHIResult::Success
+                                   : ERHIResult::InvalidState;
+    }
+    auto Free = std::find_if(Impl->LabTokens.begin(), Impl->LabTokens.end(),
+        [](const FLabTokenBridge& Bridge) { return !Bridge.bOccupied; });
+    if (Free == Impl->LabTokens.end())
+    {
+        // The native runtime owns this acquired image. A later poll can
+        // deliver the positive retirement event that makes one bounded bridge
+        // slot available; retrying the same frame token publishes it then.
+        return ERHIResult::NotReady;
+    }
+    if (!Impl->DeviceOwner || !Impl->DeviceOwner->bActive)
+    {
+        (void)Impl->LabRuntime->Cancel(Record.AcquisitionToken);
+        return ERHIResult::InvalidState;
+    }
+    Stoner::Core::uint64 TextureToken = Impl->NextOwnedTextureToken++;
+    if (TextureToken == 0)
+    {
+        TextureToken = Impl->NextOwnedTextureToken++;
+    }
+    while (TextureToken == 0 || Impl->OwnedTextures.contains(TextureToken))
+    {
+        TextureToken = Impl->NextOwnedTextureToken++;
+        if (TextureToken == 0)
+        {
+            return ERHIResult::Unavailable;
+        }
+    }
+    FRHITextureDesc TextureDesc;
+    TextureDesc.Width = Record.Width;
+    TextureDesc.Height = Record.Height;
+    TextureDesc.Format = Record.ColorFormat;
+    TextureDesc.Usage = ERHITextureUsage::ColorAttachment |
+        ERHITextureUsage::Present;
+    if (!IsValidRHITextureDesc(TextureDesc))
+    {
+        (void)Impl->LabRuntime->Cancel(Record.AcquisitionToken);
+        return ERHIResult::InvalidState;
+    }
+    try
+    {
+        Stoner::Core::TSharedPtr<FVulkanTexture> Texture;
+        Texture.reset(new FVulkanTexture(
+            TextureDesc, TextureToken,
+            static_cast<Stoner::Core::uint64>(reinterpret_cast<std::uintptr_t>(this)),
+            Record.Generation, Record.ImageIndex, Record.AcquisitionToken));
+        Stoner::Core::TSharedPtr<FVulkanSemaphore> AcquireSemaphore;
+        AcquireSemaphore.reset(new FVulkanSemaphore(Impl->DeviceOwner));
+        Stoner::Core::TSharedPtr<FVulkanSemaphore> RenderSemaphore;
+        RenderSemaphore.reset(new FVulkanSemaphore(Impl->DeviceOwner));
+        if (!AcquireSemaphore->BindLabAcquireSemaphore(
+                Record.AcquisitionToken,
+                ToOpaqueNativeHandle(Record.AcquireSemaphore)) ||
+            !RenderSemaphore->BindLabRenderSemaphore(
+                Record.AcquisitionToken,
+                ToOpaqueNativeHandle(Record.RenderFinishedSemaphore)))
+        {
+            (void)Impl->LabRuntime->Cancel(Record.AcquisitionToken);
+            return ERHIResult::Unavailable;
+        }
+        AcquireSemaphore->MarkLabAcquireReady();
+        FImpl::FOwnedTextureResources Resources;
+        Resources.Desc = TextureDesc;
+        Resources.Image = Record.Image;
+        Resources.MipLayouts = {VK_IMAGE_LAYOUT_UNDEFINED};
+        Resources.bBorrowedPresentation = true;
+        Resources.BorrowedGeneration = Record.Generation;
+        Resources.BorrowedImageIndex = Record.ImageIndex;
+        Resources.BorrowedAcquisitionToken = Record.AcquisitionToken;
+        Impl->OwnedTextures.emplace(TextureToken, std::move(Resources));
+        Free->bOccupied = true;
+        Free->TextureToken = TextureToken;
+        Free->AcquisitionToken = Record.AcquisitionToken;
+        Free->FrameToken = Record.FrameToken;
+        Free->Generation = Record.Generation;
+        Free->ImageIndex = Record.ImageIndex;
+        Free->FrameSlotIndex = FrameSlotIndex;
+        Free->Texture = std::move(Texture);
+        Free->AcquireSemaphore = std::move(AcquireSemaphore);
+        Free->RenderSemaphore = std::move(RenderSemaphore);
+        OutTarget.Texture = Free->Texture;
+        OutTarget.AcquireSemaphore = Free->AcquireSemaphore;
+        OutTarget.Frame.FrameToken = Record.FrameToken;
+        OutTarget.Frame.ModeGeneration = Record.Generation;
+        OutTarget.Frame.SwapchainImageGeneration = Record.Generation;
+        OutTarget.Frame.ImageIndex = Record.ImageIndex;
+        OutTarget.Frame.Width = Record.Width;
+        OutTarget.Frame.Height = Record.Height;
+        OutTarget.Frame.Format = Record.ColorFormat;
+        OutTarget.Frame.ColorSpace = Impl->LabResolvedState.ColorSpace;
+        OutTarget.Frame.DisplayAdaptation =
+            Impl->LabResolvedState.DisplayAdaptation;
+        OutTarget.Frame.MetadataDigest = Impl->LabResolvedState.MetadataDigest;
+        OutTarget.FrameSlotIndex = FrameSlotIndex;
+        if (!OutTarget.IsValid())
+        {
+            Free->Texture->Invalidate();
+            Impl->OwnedTextures.erase(TextureToken);
+            (void)Impl->LabRuntime->Cancel(Record.AcquisitionToken);
+            *Free = {};
+            OutTarget = {};
+            return ERHIResult::InvalidState;
+        }
+        Impl->Snapshot.LiveTextures = Impl->GetLiveTextureCount();
+        return ERHIResult::Success;
+    }
+    catch (const std::bad_alloc&)
+    {
+        (void)Impl->LabRuntime->Cancel(Record.AcquisitionToken);
+        return ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        (void)Impl->LabRuntime->Cancel(Record.AcquisitionToken);
+        return ERHIResult::Unavailable;
+    }
+#else
+    (void)FrameToken;
+    (void)FrameSlotIndex;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::PresentLabBorrowedTarget(
+    const Stoner::RHI::FRHIBorrowedAcquiredTarget& Target,
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>&
+        RenderFinishedSemaphore,
+    Stoner::RHI::FRHIPresentationLease& OutPresentationLease) noexcept
+{
+    OutPresentationLease = {};
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    using namespace Stoner::RHI;
+    if (!Impl || !Impl->LabRuntime || !Target.IsValid() ||
+        !RenderFinishedSemaphore ||
+        !Target.Frame.Matches(Impl->LabResolvedState))
+    {
+        return ERHIResult::InvalidState;
+    }
+    const auto Texture = std::dynamic_pointer_cast<FVulkanTexture>(
+        Target.Texture);
+    const auto RenderSemaphore = std::dynamic_pointer_cast<FVulkanSemaphore>(
+        RenderFinishedSemaphore);
+    if (!Texture || !RenderSemaphore ||
+        Texture->GetBorrowedContextToken() != static_cast<Stoner::Core::uint64>(
+            reinterpret_cast<std::uintptr_t>(this)))
+    {
+        return ERHIResult::InvalidState;
+    }
+    auto Bridge = std::find_if(Impl->LabTokens.begin(), Impl->LabTokens.end(),
+        [&Target, &Texture](const FLabTokenBridge& Candidate)
+        {
+            return Candidate.bOccupied && Candidate.Texture == Texture &&
+                Candidate.AcquisitionToken ==
+                    Texture->GetBorrowedAcquisitionToken() &&
+                Candidate.Generation == Texture->GetBorrowedGeneration() &&
+                Candidate.Generation == Target.Frame.ModeGeneration &&
+                Candidate.Generation == Target.Frame.SwapchainImageGeneration &&
+                Candidate.ImageIndex == Texture->GetBorrowedImageIndex() &&
+                Candidate.ImageIndex == Target.Frame.ImageIndex &&
+                Candidate.AcquireSemaphore == Target.AcquireSemaphore &&
+                Candidate.FrameToken == Target.Frame.FrameToken &&
+                Candidate.FrameSlotIndex == Target.FrameSlotIndex;
+        });
+    if (Bridge == Impl->LabTokens.end())
+    {
+        return ERHIResult::InvalidState;
+    }
+    if (!Bridge->bRenderSubmitted || Bridge->bPresentAttempted ||
+        !Bridge->CallerRenderSemaphore ||
+        Bridge->CallerRenderSemaphore != RenderSemaphore ||
+        !RenderSemaphore->BelongsTo(Impl->DeviceOwner) ||
+        !RenderSemaphore->IsLabBoundTo(Bridge->AcquisitionToken))
+    {
+        return ERHIResult::InvalidState;
+    }
+    Private::FVulkanLabNativeImageRecord Record;
+    if (!Impl->LabRuntime->GetNativeImageRecord(
+            Bridge->AcquisitionToken, Record) || !Record.IsValid())
+    {
+        return ERHIResult::InvalidState;
+    }
+    const auto TextureResources = Impl->OwnedTextures.find(
+        Bridge->TextureToken);
+    if (TextureResources == Impl->OwnedTextures.end() ||
+        !TextureResources->second.bBorrowedPresentation ||
+        TextureResources->second.MipLayouts.size() != 1 ||
+        TextureResources->second.MipLayouts[0] !=
+            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+    {
+        return ERHIResult::InvalidState;
+    }
+    Stoner::Core::TSharedPtr<FLabPresentationFenceState> PresentationState;
+    Stoner::Core::TSharedPtr<FLabPresentationFence> PresentationFence;
+    FRHIPresentationLease CandidateLease;
+    try
+    {
+        PresentationState =
+            Stoner::Core::MakeShared<FLabPresentationFenceState>();
+        PresentationState->Poll =
+            &FVulkanNativeContext::PollLabPresentationCallback;
+        PresentationState->PollUserData = this;
+        PresentationFence = Stoner::Core::MakeShared<FLabPresentationFence>(
+            PresentationState);
+        // MetadataDigest is an owning FString. Build the complete lease
+        // before native present so a copy failure cannot follow a successful
+        // queue admission without a returned observer.
+        CandidateLease.Frame = Target.Frame;
+        CandidateLease.RenderFinishedSemaphore = RenderSemaphore;
+        CandidateLease.PresentationCompletionFence = PresentationFence;
+        if (!CandidateLease.IsValid())
+        {
+            return ERHIResult::Unavailable;
+        }
+    }
+    catch (const std::bad_alloc&)
+    {
+        return ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        return ERHIResult::Unavailable;
+    }
+    Bridge->bPresentAttempted = true;
+    const ERHIResult PresentResult = Impl->LabRuntime->QueuePresent(Record);
+    if (PresentResult != ERHIResult::Success)
+    {
+        return PresentResult;
+    }
+    Bridge->bPresentQueued = true;
+    Bridge->PresentationFenceState = std::move(PresentationState);
+    OutPresentationLease = std::move(CandidateLease);
+    return ERHIResult::Success;
+#else
+    (void)Target;
+    (void)RenderFinishedSemaphore;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::PresentLabBorrowedTarget(
+    const Stoner::RHI::FRHIBorrowedAcquiredTarget& Target,
+    const Stoner::RHI::FRHIRenderLease& RenderLease,
+    Stoner::RHI::FRHIPresentationLease& OutPresentationLease) noexcept
+{
+    OutPresentationLease = {};
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    using namespace Stoner::RHI;
+    if (!Impl || !Impl->LabRuntime || !Target.IsValid() ||
+        !RenderLease.Matches(Target) ||
+        !Target.Frame.Matches(Impl->LabResolvedState))
+    {
+        return ERHIResult::InvalidState;
+    }
+    const auto Texture = std::dynamic_pointer_cast<FVulkanTexture>(
+        Target.Texture);
+    const auto RenderFence = std::dynamic_pointer_cast<FVulkanFence>(
+        RenderLease.CompletionFence);
+    if (!Texture || !RenderFence ||
+        Texture->GetBorrowedContextToken() != static_cast<Stoner::Core::uint64>(
+            reinterpret_cast<std::uintptr_t>(this)))
+    {
+        return ERHIResult::InvalidState;
+    }
+    auto Bridge = std::find_if(Impl->LabTokens.begin(), Impl->LabTokens.end(),
+        [&Target, &Texture](const FLabTokenBridge& Candidate)
+        {
+            return Candidate.bOccupied && Candidate.Texture == Texture &&
+                Candidate.AcquisitionToken ==
+                    Texture->GetBorrowedAcquisitionToken() &&
+                Candidate.Generation == Texture->GetBorrowedGeneration() &&
+                Candidate.Generation == Target.Frame.ModeGeneration &&
+                Candidate.Generation == Target.Frame.SwapchainImageGeneration &&
+                Candidate.ImageIndex == Texture->GetBorrowedImageIndex() &&
+                Candidate.ImageIndex == Target.Frame.ImageIndex &&
+                Candidate.AcquireSemaphore == Target.AcquireSemaphore &&
+                Candidate.FrameToken == Target.Frame.FrameToken &&
+                Candidate.FrameSlotIndex == Target.FrameSlotIndex;
+        });
+    if (Bridge == Impl->LabTokens.end() || !Bridge->bRenderSubmitted ||
+        Bridge->bPresentAttempted || Bridge->RenderFence != RenderFence)
+    {
+        return ERHIResult::InvalidState;
+    }
+    if (!Bridge->bRenderComplete)
+    {
+        return ERHIResult::NotReady;
+    }
+    if (!Bridge->bRenderSucceeded)
+    {
+        return ERHIResult::InvalidState;
+    }
+    Private::FVulkanLabNativeImageRecord Record;
+    if (!Impl->LabRuntime->GetNativeImageRecord(
+            Bridge->AcquisitionToken, Record) || !Record.IsValid())
+    {
+        return ERHIResult::InvalidState;
+    }
+    const auto TextureResources = Impl->OwnedTextures.find(
+        Bridge->TextureToken);
+    if (TextureResources == Impl->OwnedTextures.end() ||
+        !TextureResources->second.bBorrowedPresentation ||
+        TextureResources->second.MipLayouts.size() != 1 ||
+        TextureResources->second.MipLayouts[0] !=
+            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+    {
+        return ERHIResult::InvalidState;
+    }
+    Stoner::Core::TSharedPtr<FLabPresentationFenceState> PresentationState;
+    Stoner::Core::TSharedPtr<FLabPresentationFence> PresentationFence;
+    FRHIPresentationLease CandidateLease;
+    try
+    {
+        PresentationState =
+            Stoner::Core::MakeShared<FLabPresentationFenceState>();
+        PresentationState->Poll =
+            &FVulkanNativeContext::PollLabPresentationCallback;
+        PresentationState->PollUserData = this;
+        PresentationFence = Stoner::Core::MakeShared<FLabPresentationFence>(
+            PresentationState);
+        CandidateLease.Frame = Target.Frame;
+        CandidateLease.RenderFinishedSemaphore = Bridge->RenderSemaphore;
+        CandidateLease.PresentationCompletionFence = PresentationFence;
+        if (!CandidateLease.IsValid())
+        {
+            return ERHIResult::Unavailable;
+        }
+    }
+    catch (const std::bad_alloc&)
+    {
+        return ERHIResult::Unavailable;
+    }
+    catch (const std::length_error&)
+    {
+        return ERHIResult::Unavailable;
+    }
+    Bridge->bPresentAttempted = true;
+    const ERHIResult PresentResult = Impl->LabRuntime->QueuePresent(Record);
+    if (PresentResult != ERHIResult::Success)
+    {
+        return PresentResult;
+    }
+    Bridge->bPresentQueued = true;
+    Bridge->PresentationFenceState = std::move(PresentationState);
+    OutPresentationLease = std::move(CandidateLease);
+    return ERHIResult::Success;
+#else
+    (void)Target;
+    (void)RenderLease;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::ReleaseLabBorrowedTarget(
+    const Stoner::RHI::FRHIBorrowedAcquiredTarget& Target,
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIFence>&
+        RenderCompletionFence) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    using namespace Stoner::RHI;
+    // Logical release remains available after the caller invalidates the
+    // texture wrapper. Immutable bridge identity below still guards ownership.
+    if (!Impl || !Impl->LabRuntime || !Target.Texture ||
+        !Target.Frame.IsValid() || Target.FrameSlotIndex >= MaxRHIFrameSlots ||
+        Target.Frame.ImageIndex >= MaxRHIPresentationImageLeases)
+    {
+        return ERHIResult::InvalidState;
+    }
+    const auto Texture = std::dynamic_pointer_cast<FVulkanTexture>(
+        Target.Texture);
+    if (!Texture || Texture->GetBorrowedContextToken() != static_cast<
+            Stoner::Core::uint64>(reinterpret_cast<std::uintptr_t>(this)))
+    {
+        return ERHIResult::InvalidState;
+    }
+    auto Bridge = std::find_if(Impl->LabTokens.begin(), Impl->LabTokens.end(),
+        [&Target, &Texture](const FLabTokenBridge& Candidate)
+        {
+            return Candidate.bOccupied && Candidate.Texture == Texture &&
+                Candidate.AcquisitionToken ==
+                    Texture->GetBorrowedAcquisitionToken() &&
+                Candidate.Generation == Texture->GetBorrowedGeneration() &&
+                Candidate.Generation == Target.Frame.ModeGeneration &&
+                Candidate.Generation == Target.Frame.SwapchainImageGeneration &&
+                Candidate.ImageIndex == Texture->GetBorrowedImageIndex() &&
+                Candidate.ImageIndex == Target.Frame.ImageIndex &&
+                Candidate.AcquireSemaphore == Target.AcquireSemaphore &&
+                Candidate.FrameToken == Target.Frame.FrameToken &&
+                Candidate.FrameSlotIndex == Target.FrameSlotIndex;
+        });
+    if (Bridge == Impl->LabTokens.end() || Bridge->bPresentAttempted)
+    {
+        return ERHIResult::InvalidState;
+    }
+    if (Bridge->bRenderSubmitted)
+    {
+        const auto Fence = std::dynamic_pointer_cast<FVulkanFence>(
+            RenderCompletionFence);
+        if (!Fence || Fence != Bridge->RenderFence ||
+            !Bridge->bRenderComplete)
+        {
+            return ERHIResult::NotReady;
+        }
+        if (!Bridge->bRenderSucceeded)
+        {
+            return ERHIResult::Failed;
+        }
+    }
+    const ERHIResult Result = Impl->LabRuntime->Cancel(
+        Bridge->AcquisitionToken);
+    if (Result != ERHIResult::Success)
+    {
+        return Result;
+    }
+    Bridge->bRetirementEvent = false;
+    return ERHIResult::Success;
+#else
+    (void)Target;
+    (void)RenderCompletionFence;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+void FVulkanNativeContext::PollLabPresentationCallback(void* UserData) noexcept
+{
+    auto* Context = static_cast<FVulkanNativeContext*>(UserData);
+    if (Context)
+    {
+        (void)Context->PollLabPresentation();
+    }
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::PollLabPresentation() noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || !Impl->LabRuntime)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    if (Impl->bLabPolling)
+    {
+        return Stoner::RHI::ERHIResult::NotReady;
+    }
+    Impl->bLabPolling = true;
+    ReapCompletedDeferredSubmissions();
+    const auto Result = Impl->LabRuntime->Poll();
+    SweepLabRetirements();
+    Impl->bLabPolling = false;
+    return Result;
+#else
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+bool FVulkanNativeContext::IsLabPresentationActive() const noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    return Impl != nullptr && Impl->bLabPresentationStartup &&
+        Impl->LabRuntime != nullptr;
+#else
+    return false;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::BeginLabTerminalCleanup() noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || !Impl->LabRuntime)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    // Shutdown can be retried after an incomplete preferred-mode drain. The
+    // runtime keeps ownership and its terminal accounting across those
+    // attempts, so the facade must make this transition idempotent as well.
+    if (Impl->LabRuntime->GetSnapshot().bTerminalCleanupStarted)
+    {
+        return Stoner::RHI::ERHIResult::Success;
+    }
+    return Impl->LabRuntime->BeginTerminalCleanup();
+#else
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::CompleteLabTerminalIdle(
+    bool bCallerConfirmedIdle,
+    bool bDeviceLost) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || !Impl->LabRuntime)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    ReapCompletedDeferredSubmissions();
+    const auto Result = Impl->LabRuntime->CompleteTerminalIdle(
+        bCallerConfirmedIdle, bDeviceLost);
+    if (Result == Stoner::RHI::ERHIResult::Success ||
+        Result == Stoner::RHI::ERHIResult::Failed)
+    {
+        SweepLabRetirements();
+    }
+    return Result;
+#else
+    (void)bCallerConfirmedIdle;
+    (void)bDeviceLost;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::DestroyLabAfterTerminalProof() noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || !Impl->LabRuntime)
+    {
+        return Stoner::RHI::ERHIResult::InvalidState;
+    }
+    const auto Result = Impl->LabRuntime->DestroyAfterTerminalProof();
+    if (Result != Stoner::RHI::ERHIResult::Success &&
+        Result != Stoner::RHI::ERHIResult::Failed)
+    {
+        return Result;
+    }
+    Impl->bLabCallbackEnabled = false;
+    Impl->LabRuntime->SetPresentationRetirementCallback(nullptr, nullptr);
+    for (auto& Bridge : Impl->LabTokens)
+    {
+        if (!Bridge.bOccupied)
+        {
+            continue;
+        }
+        if (Bridge.AcquireSemaphore)
+        {
+            Bridge.AcquireSemaphore->Invalidate();
+        }
+        if (Bridge.RenderSemaphore)
+        {
+            Bridge.RenderSemaphore->Invalidate();
+        }
+        if (Bridge.CallerRenderSemaphore)
+        {
+            Bridge.CallerRenderSemaphore->Invalidate();
+        }
+        if (Bridge.PresentationFenceState)
+        {
+            Bridge.PresentationFenceState->Poll = nullptr;
+            Bridge.PresentationFenceState->PollUserData = nullptr;
+        }
+        if (Bridge.Texture)
+        {
+            (void)Bridge.Texture->Invalidate();
+        }
+        if (Bridge.TextureToken != 0)
+        {
+            Impl->OwnedTextures.erase(Bridge.TextureToken);
+        }
+        Bridge = {};
+    }
+    Impl->LabRuntime.reset();
+    Impl->bLabPresentationStartup = false;
+    Impl->LabResolvedState = {};
+    Impl->LabPendingRequest = {};
+    Impl->LabPendingResolvedState = {};
+    Impl->LabPendingNativeDesc = {};
+    Impl->LabPendingSnapshotMetadataDigest.Clear();
+    Impl->LabPendingGeneration = 0;
+    Impl->bHasLabPendingRequest = false;
+    Impl->bLabPendingRuntimeAccepted = false;
+    Impl->bLabTerminalDeviceIdleProven = false;
+    Impl->Snapshot.LiveTextures = Impl->GetLiveTextureCount();
+    return Result;
+#else
     return Stoner::RHI::ERHIResult::Unsupported;
 #endif
 }
@@ -3252,6 +4636,10 @@ Stoner::Core::uint32
 FVulkanNativeContext::GetVisiblePresentationImageCount() const noexcept
 {
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (Impl && Impl->bLabPresentationStartup && Impl->LabRuntime)
+    {
+        return Impl->LabRuntime->GetSnapshot().ActiveImageCount;
+    }
     return Impl ? static_cast<Stoner::Core::uint32>(
         Impl->SwapchainImages.size()) : 0;
 #else
@@ -3313,16 +4701,84 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
     Stoner::RHI::ERHIResult DeferredResult =
         Stoner::RHI::ERHIResult::Success;
+    Stoner::RHI::ERHIResult LabResult =
+        Stoner::RHI::ERHIResult::Success;
     const auto SynchronousResult = Impl->SynchronousSubmissionFailure;
     VkResult IdleResult = VK_SUCCESS;
     if (Impl->Device)
     {
+        if (Impl->LabRuntime)
+        {
+            const auto LabSnapshot = Impl->LabRuntime->GetSnapshot();
+            const bool bHasLabOwners = LabSnapshot.ActiveGeneration != 0 ||
+                LabSnapshot.RetiringGeneration != 0 ||
+                LabSnapshot.OutstandingNativeRecordCount != 0 ||
+                LabSnapshot.PendingAcquireCount != 0 ||
+                LabSnapshot.bFailed;
+            if (bHasLabOwners)
+            {
+                LabResult = BeginLabTerminalCleanup();
+                if (LabResult != Stoner::RHI::ERHIResult::Success)
+                {
+                    return LabResult;
+                }
+            }
+            else
+            {
+                Impl->bLabCallbackEnabled = false;
+                Impl->LabRuntime->SetPresentationRetirementCallback(nullptr,
+                    nullptr);
+                Impl->LabRuntime.reset();
+                Impl->bLabPresentationStartup = false;
+                Impl->bLabTerminalDeviceIdleProven = false;
+            }
+        }
         // Retained records own command pools, descriptor objects and the
         // native completion fence. Drain them before destroying persistent
         // resources or the device; a failed fence query stays retained until
         // this device-idle teardown boundary.
         DeferredResult = WaitAllDeferredSubmissions();
-        IdleResult = vkDeviceWaitIdle(Impl->Device);
+        const bool bLabIdleAlreadyProven = Impl->LabRuntime != nullptr &&
+            Impl->bLabTerminalDeviceIdleProven;
+        if (!bLabIdleAlreadyProven)
+        {
+            IdleResult = vkDeviceWaitIdle(Impl->Device);
+            if (IdleResult == VK_SUCCESS && Impl->LabRuntime)
+            {
+                // Retain this lifecycle proof for a retryable preferred-mode
+                // drain. Repeating device idle is unnecessary and would not
+                // establish presentation-fence retirement by itself.
+                Impl->bLabTerminalDeviceIdleProven = true;
+            }
+        }
+        if (Impl->LabRuntime)
+        {
+            if (IdleResult == VK_SUCCESS)
+            {
+                (void)PollLabPresentation();
+                LabResult = CompleteLabTerminalIdle(true, false);
+            }
+            else
+            {
+                // A failed idle call is not evidence of device loss unless
+                // Vulkan reported that exact cause. Preserve the runtime's
+                // existing failure/owner accounting and leave cleanup
+                // retryable for other native errors.
+                LabResult = CompleteLabTerminalIdle(
+                    false, IdleResult == VK_ERROR_DEVICE_LOST);
+            }
+            if (LabResult != Stoner::RHI::ERHIResult::Success &&
+                LabResult != Stoner::RHI::ERHIResult::Failed)
+            {
+                return LabResult;
+            }
+            const auto DestroyLabResult = DestroyLabAfterTerminalProof();
+            if (DestroyLabResult != Stoner::RHI::ERHIResult::Success &&
+                DestroyLabResult != Stoner::RHI::ERHIResult::Failed)
+            {
+                return DestroyLabResult;
+            }
+        }
         if (IdleResult == VK_SUCCESS)
         {
             for (const auto& Submission : Impl->DeferredSubmissions)
@@ -3394,6 +4850,8 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()
         return DeferredResult;
     if (SynchronousResult != Stoner::RHI::ERHIResult::Success)
         return SynchronousResult;
+    if (LabResult != Stoner::RHI::ERHIResult::Success)
+        return LabResult;
 #endif
     return Stoner::RHI::ERHIResult::Success;
 }
@@ -4779,7 +6237,9 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommandsInternal(
     const FVulkanCommandBuffer& Commands,
     const Stoner::Core::TSharedPtr<FVulkanFence>& CompletionFence,
     bool bDeferred,
-    Stoner::Core::uint64* OutSubmissionId) noexcept
+    Stoner::Core::uint64* OutSubmissionId,
+    Stoner::Core::uint64 NativeAcquireWait,
+    Stoner::Core::uint64 NativeRenderSignal) noexcept
 {
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
     using namespace Stoner::RHI;
@@ -4791,6 +6251,11 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommandsInternal(
     {
         return ERHIResult::InvalidState;
     }
+    if (Impl->LabRuntime &&
+        Impl->LabRuntime->GetSnapshot().bTerminalCleanupStarted)
+    {
+        return ERHIResult::InvalidState;
+    }
     if (Impl->SynchronousSubmissionFailure != ERHIResult::Success)
         return Impl->SynchronousSubmissionFailure;
 
@@ -4798,6 +6263,11 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommandsInternal(
         return ERHIResult::InvalidState;
     if (bDeferred && !CompletionFence)
         return ERHIResult::InvalidState;
+    if (bDeferred && Impl->DeviceOwner &&
+        !CompletionFence->BelongsTo(Impl->DeviceOwner))
+    {
+        return ERHIResult::InvalidState;
+    }
     const Stoner::Core::uint64 SubmissionId = Impl->NextDeferredSubmissionId++;
     if (SubmissionId == 0)
         return ERHIResult::Unavailable;
@@ -4891,10 +6361,46 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommandsInternal(
         -> std::pair<FVulkanTexture*, FImpl::FOwnedTextureResources*>
     {
         auto Texture = std::dynamic_pointer_cast<FVulkanTexture>(Base);
-        if (!Texture || Texture->NativeContext.get() != this || Texture->NativeToken == 0)
+        if (!Texture || Texture->NativeToken == 0)
             return {nullptr, nullptr};
+        if (Texture->IsBorrowedPresentation())
+        {
+            if (!bDeferred || !Impl->LabRuntime || NativeAcquireWait == 0 ||
+                NativeRenderSignal == 0 ||
+                Texture->GetBorrowedContextToken() != static_cast<
+                    Stoner::Core::uint64>(reinterpret_cast<std::uintptr_t>(this)) ||
+                Texture->GetBorrowedGeneration() == 0 ||
+                Texture->GetBorrowedAcquisitionToken() == 0)
+                return {nullptr, nullptr};
+            // Every borrowed attachment must belong to the acquisition whose
+            // render use this submission will register. The generic overload
+            // and a different image's semaphore pair cannot bypass that owner.
+            Private::FVulkanLabNativeImageRecord BorrowedRecord;
+            if (!Impl->LabRuntime->GetNativeImageRecord(
+                    Texture->GetBorrowedAcquisitionToken(), BorrowedRecord) ||
+                !BorrowedRecord.IsValid() ||
+                ToOpaqueNativeHandle(BorrowedRecord.AcquireSemaphore) !=
+                    NativeAcquireWait ||
+                ToOpaqueNativeHandle(BorrowedRecord.RenderFinishedSemaphore) !=
+                    NativeRenderSignal)
+                return {nullptr, nullptr};
+        }
+        else if (Texture->NativeContext.get() != this)
+        {
+            return {nullptr, nullptr};
+        }
         const auto Found = Impl->OwnedTextures.find(Texture->NativeToken);
-        if (Found == Impl->OwnedTextures.end()) return {nullptr, nullptr};
+        if (Found == Impl->OwnedTextures.end() ||
+            (Texture->IsBorrowedPresentation() !=
+                Found->second.bBorrowedPresentation) ||
+            (Texture->IsBorrowedPresentation() &&
+                (Found->second.BorrowedGeneration !=
+                    Texture->GetBorrowedGeneration() ||
+                 Found->second.BorrowedImageIndex !=
+                    Texture->GetBorrowedImageIndex() ||
+                 Found->second.BorrowedAcquisitionToken !=
+                    Texture->GetBorrowedAcquisitionToken())))
+            return {nullptr, nullptr};
         if (!Layouts.contains(Texture->NativeToken))
         {
             std::vector<VkImageLayout> ScheduledLayouts;
@@ -5491,7 +6997,9 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommandsInternal(
             {
                 return Fail(ERHIResult::Unavailable);
             }
-            const ERHIResult SubmitResult = Submission->Submit();
+            const ERHIResult SubmitResult = Submission->Submit(
+                FromOpaqueNativeHandle<VkSemaphore>(NativeAcquireWait),
+                FromOpaqueNativeHandle<VkSemaphore>(NativeRenderSignal));
             if (SubmitResult != ERHIResult::Success)
             {
                 Impl->DeferredSubmissions.pop_back();
@@ -5524,7 +7032,9 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommandsInternal(
         {
             return Fail(ERHIResult::Unavailable);
         }
-        const ERHIResult SubmitResult = Submission->Submit();
+        const ERHIResult SubmitResult = Submission->Submit(
+            FromOpaqueNativeHandle<VkSemaphore>(NativeAcquireWait),
+            FromOpaqueNativeHandle<VkSemaphore>(NativeRenderSignal));
         if (SubmitResult != ERHIResult::Success)
         {
             Impl->FailedSynchronousSubmissions.pop_back();
@@ -5573,6 +7083,8 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommandsInternal(
     (void)CompletionFence;
     (void)bDeferred;
     (void)OutSubmissionId;
+    (void)NativeAcquireWait;
+    (void)NativeRenderSignal;
     return Stoner::RHI::ERHIResult::Unsupported;
 #endif
 }
@@ -5585,7 +7097,11 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::SubmitDeferredCommands(
     OutSubmissionId = 0;
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
     if (!Impl || !Impl->Device || !Impl->GraphicsQueue || !Commands ||
-        !CompletionFence)
+        !CompletionFence || !Impl->DeviceOwner ||
+        !CompletionFence->BelongsTo(Impl->DeviceOwner))
+        return Stoner::RHI::ERHIResult::InvalidState;
+    if (Impl->LabRuntime &&
+        Impl->LabRuntime->GetSnapshot().bTerminalCleanupStarted)
         return Stoner::RHI::ERHIResult::InvalidState;
     if (Impl->SynchronousSubmissionFailure !=
         Stoner::RHI::ERHIResult::Success)
@@ -5599,6 +7115,150 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::SubmitDeferredCommands(
     (void)Commands;
     (void)CompletionFence;
     return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+Stoner::RHI::ERHIResult FVulkanNativeContext::SubmitDeferredCommands(
+    const Stoner::Core::TSharedPtr<FVulkanCommandBuffer>& Commands,
+    const Stoner::Core::TSharedPtr<FVulkanFence>& CompletionFence,
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>&
+        AcquireWaitSemaphore,
+    const Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>&
+        RenderSignalSemaphore,
+    Stoner::Core::uint64& OutSubmissionId) noexcept
+{
+    OutSubmissionId = 0;
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    using namespace Stoner::RHI;
+    if (!Impl || !Impl->LabRuntime || !Impl->bLabPresentationStartup ||
+        !Commands || !CompletionFence || !AcquireWaitSemaphore ||
+        !Impl->DeviceOwner ||
+        !CompletionFence->BelongsTo(Impl->DeviceOwner))
+    {
+        return ERHIResult::InvalidState;
+    }
+    if (Impl->LabRuntime->GetSnapshot().bTerminalCleanupStarted)
+    {
+        return ERHIResult::InvalidState;
+    }
+    const auto AcquireSemaphore =
+        std::dynamic_pointer_cast<FVulkanSemaphore>(AcquireWaitSemaphore);
+    const auto RenderSemaphore = RenderSignalSemaphore
+        ? std::dynamic_pointer_cast<FVulkanSemaphore>(RenderSignalSemaphore)
+        : nullptr;
+    if (!AcquireSemaphore || !AcquireSemaphore->IsLabAcquireSemaphore() ||
+        !AcquireSemaphore->BelongsTo(Impl->DeviceOwner) ||
+        !AcquireSemaphore->CanConsumeForSubmission())
+    {
+        return ERHIResult::InvalidState;
+    }
+    if (RenderSignalSemaphore && !RenderSemaphore)
+    {
+        return ERHIResult::InvalidState;
+    }
+    const Stoner::Core::uint64 AcquisitionToken =
+        AcquireSemaphore->GetLabBindingToken();
+    if (AcquisitionToken == 0)
+    {
+        return ERHIResult::InvalidState;
+    }
+    auto Bridge = std::find_if(Impl->LabTokens.begin(), Impl->LabTokens.end(),
+        [AcquisitionToken](const FLabTokenBridge& Candidate)
+        {
+            return Candidate.bOccupied &&
+                Candidate.AcquisitionToken == AcquisitionToken;
+        });
+    if (Bridge == Impl->LabTokens.end() || Bridge->bRenderSubmitted ||
+        !Bridge->AcquireSemaphore || AcquireSemaphore != Bridge->AcquireSemaphore ||
+        !Bridge->Texture || Bridge->Texture->GetBorrowedContextToken() !=
+            static_cast<Stoner::Core::uint64>(reinterpret_cast<std::uintptr_t>(this)))
+    {
+        return ERHIResult::InvalidState;
+    }
+    Private::FVulkanLabNativeImageRecord Record;
+    if (!Impl->LabRuntime->GetNativeImageRecord(AcquisitionToken, Record) ||
+        !Record.IsValid() || Record.AcquisitionToken != AcquisitionToken ||
+        ToOpaqueNativeHandle(Record.AcquireSemaphore) !=
+            AcquireSemaphore->GetNativeHandleValue())
+    {
+        return ERHIResult::InvalidState;
+    }
+    if (RenderSemaphore)
+    {
+        if (!RenderSemaphore->BelongsTo(Impl->DeviceOwner) ||
+            !RenderSemaphore->CanSignalForSubmission())
+        {
+            return ERHIResult::InvalidState;
+        }
+        if (!RenderSemaphore->BindLabRenderSemaphore(
+                AcquisitionToken,
+                ToOpaqueNativeHandle(Record.RenderFinishedSemaphore)))
+        {
+            return ERHIResult::InvalidState;
+        }
+        Bridge->CallerRenderSemaphore = RenderSemaphore;
+    }
+    const auto Result = ExecuteRecordedCommandsInternal(
+        Commands, *Commands, CompletionFence, true, &OutSubmissionId,
+        ToOpaqueNativeHandle(Record.AcquireSemaphore),
+        ToOpaqueNativeHandle(Record.RenderFinishedSemaphore));
+    if (Result != ERHIResult::Success)
+    {
+        if (RenderSemaphore)
+        {
+            RenderSemaphore->RetireLabBinding();
+            Bridge->CallerRenderSemaphore.reset();
+        }
+        return Result;
+    }
+    Bridge->RenderFence = CompletionFence;
+    Bridge->SubmissionId = OutSubmissionId;
+    Bridge->bRenderSubmitted = true;
+    const auto ReportResult = Impl->LabRuntime->ReportRenderSubmitted(
+        AcquisitionToken);
+    if (ReportResult != ERHIResult::Success)
+    {
+        Bridge->bRenderSucceeded = false;
+        return ReportResult;
+    }
+    return ERHIResult::Success;
+#else
+    (void)Commands;
+    (void)CompletionFence;
+    (void)AcquireWaitSemaphore;
+    (void)RenderSignalSemaphore;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
+void FVulkanNativeContext::NotifyLabRenderCompletion(
+    Stoner::Core::uint64 SubmissionId,
+    bool bSucceeded) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || SubmissionId == 0)
+    {
+        return;
+    }
+    for (auto& Bridge : Impl->LabTokens)
+    {
+        if (!Bridge.bOccupied || Bridge.SubmissionId != SubmissionId ||
+            !Bridge.bRenderSubmitted || Bridge.bRenderComplete)
+        {
+            continue;
+        }
+        Bridge.bRenderComplete = true;
+        Bridge.bRenderSucceeded = bSucceeded;
+        if (Impl->LabRuntime)
+        {
+            (void)Impl->LabRuntime->ReportRenderComplete(
+                Bridge.AcquisitionToken, bSucceeded);
+        }
+        return;
+    }
+#else
+    (void)SubmissionId;
+    (void)bSucceeded;
 #endif
 }
 
@@ -5624,11 +7284,19 @@ void FVulkanNativeContext::ReapCompletedDeferredSubmissions() noexcept
             const auto FinalizeResult = FinalizeDeferredSubmission(Submission);
             if (FinalizeResult == Stoner::RHI::ERHIResult::Success)
             {
+                NotifyLabRenderCompletion(
+                    Submission->GetSubmissionId(), true);
                 Impl->DeferredSubmissions.erase(
                     Impl->DeferredSubmissions.begin() + static_cast<std::ptrdiff_t>(Index));
                 continue;
             }
             Submission->MarkCompletionProcessingFailure(FinalizeResult);
+        }
+        else if (Submission->IsComplete() &&
+            Submission->IsCompletionProven())
+        {
+            NotifyLabRenderCompletion(
+                Submission->GetSubmissionId(), false);
         }
         ++Index;
     }
@@ -5945,7 +7613,13 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::WaitDeferredSubmission(
         PollResult == Stoner::RHI::ERHIResult::NotReady)
         return PollResult;
     if (PollResult != Stoner::RHI::ERHIResult::Success)
+    {
+        if (Submission->IsComplete() && Submission->IsCompletionProven())
+        {
+            NotifyLabRenderCompletion(Submission->GetSubmissionId(), false);
+        }
         return PollResult;
+    }
     const Stoner::RHI::ERHIResult FinalizeResult =
         FinalizeDeferredSubmission(Submission);
     if (FinalizeResult != Stoner::RHI::ERHIResult::Success)
@@ -5953,6 +7627,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::WaitDeferredSubmission(
         Submission->MarkCompletionProcessingFailure(FinalizeResult);
         return FinalizeResult;
     }
+    NotifyLabRenderCompletion(Submission->GetSubmissionId(), true);
     Impl->DeferredSubmissions.erase(Found);
     return Stoner::RHI::ERHIResult::Success;
 #else
@@ -5983,6 +7658,8 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::WaitAllDeferredSubmissions() noexc
             const auto FinalizeResult = FinalizeDeferredSubmission(Submission);
             if (FinalizeResult == Stoner::RHI::ERHIResult::Success)
             {
+                NotifyLabRenderCompletion(
+                    Submission->GetSubmissionId(), true);
                 Impl->DeferredSubmissions.erase(
                     Impl->DeferredSubmissions.begin() + static_cast<std::ptrdiff_t>(Index));
                 continue;
@@ -5993,6 +7670,11 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::WaitAllDeferredSubmissions() noexc
         }
         else if (FirstFailure == Stoner::RHI::ERHIResult::Success)
         {
+            if (Submission->IsComplete() && Submission->IsCompletionProven())
+            {
+                NotifyLabRenderCompletion(
+                    Submission->GetSubmissionId(), false);
+            }
             FirstFailure = WaitResult;
         }
         ++Index;

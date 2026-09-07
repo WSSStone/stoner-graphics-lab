@@ -22,6 +22,7 @@ struct FVulkanNativeDeviceAccess;
 class FVulkanNativeOffscreenSession;
 class FVulkanFence;
 class FVulkanSemaphore;
+struct FVulkanDeviceOwnerState;
 class FDeferredNativeSubmission;
 
 enum class EVulkanDeferredProbeMetric
@@ -211,6 +212,8 @@ public:
 private:
     friend class FVulkanDevice;
     friend class FVulkanQueue;
+    friend class FVulkanSwapchain;
+    friend class FVulkanSurface;
     friend class FVulkanComputePipeline;
     friend class FVulkanGraphicsPipeline;
     friend class FVulkanShaderModule;
@@ -218,6 +221,11 @@ private:
     friend class FVulkanNativeOffscreenSession;
     friend class FVulkanFence;
     friend class FDeferredNativeSubmission;
+    void AdoptDeviceOwnerState(
+        Stoner::Core::TSharedPtr<FVulkanDeviceOwnerState> InOwner) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult ConfigureLabPresentation(
+        const Stoner::RHI::FRHISwapchainDesc& Request,
+        Stoner::RHI::FRHIResolvedPresentationState& OutResolvedState) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult InitializeInternal(
         Stoner::RHI::ERHIRuntimeMode Mode,
         const Stoner::Core::FPlatformWindow& PlatformWindow,
@@ -263,12 +271,22 @@ private:
         const Stoner::Core::TSharedPtr<FVulkanCommandBuffer>& Commands,
         const Stoner::Core::TSharedPtr<FVulkanFence>& CompletionFence,
         Stoner::Core::uint64& OutSubmissionId) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult SubmitDeferredCommands(
+        const Stoner::Core::TSharedPtr<FVulkanCommandBuffer>& Commands,
+        const Stoner::Core::TSharedPtr<FVulkanFence>& CompletionFence,
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>&
+            AcquireWaitSemaphore,
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>&
+            RenderSignalSemaphore,
+        Stoner::Core::uint64& OutSubmissionId) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult ExecuteRecordedCommandsInternal(
         const Stoner::Core::TSharedPtr<FVulkanCommandBuffer>& Commands,
         const FVulkanCommandBuffer& CommandView,
         const Stoner::Core::TSharedPtr<FVulkanFence>& CompletionFence,
         bool bDeferred,
-        Stoner::Core::uint64* OutSubmissionId) noexcept;
+        Stoner::Core::uint64* OutSubmissionId,
+        Stoner::Core::uint64 NativeAcquireWait = 0,
+        Stoner::Core::uint64 NativeRenderSignal = 0) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult WaitDeferredSubmission(
         Stoner::Core::uint64 SubmissionId,
         Stoner::Core::uint64 TimeoutMicroseconds) noexcept;
@@ -291,6 +309,41 @@ private:
         const FDeferredNativeSubmission& Submission) noexcept;
     void ReclaimPersistentNativeBuffers() noexcept;
     void DestroyOwnedTexture(Stoner::Core::uint64 Token) noexcept;
+    [[nodiscard]] bool IsLabPresentationActive() const noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult AcquireLabBorrowedTarget(
+        Stoner::Core::uint64 FrameToken,
+        Stoner::Core::uint32 FrameSlotIndex,
+        Stoner::RHI::FRHIBorrowedAcquiredTarget& OutTarget) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult PresentLabBorrowedTarget(
+        const Stoner::RHI::FRHIBorrowedAcquiredTarget& Target,
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>&
+            RenderFinishedSemaphore,
+        Stoner::RHI::FRHIPresentationLease& OutPresentationLease) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult PresentLabBorrowedTarget(
+        const Stoner::RHI::FRHIBorrowedAcquiredTarget& Target,
+        const Stoner::RHI::FRHIRenderLease& RenderLease,
+        Stoner::RHI::FRHIPresentationLease& OutPresentationLease) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult ReleaseLabBorrowedTarget(
+        const Stoner::RHI::FRHIBorrowedAcquiredTarget& Target,
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIFence>&
+            RenderCompletionFence) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult PollLabPresentation() noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult BeginLabTerminalCleanup() noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult CompleteLabTerminalIdle(
+        bool bCallerConfirmedIdle,
+        bool bDeviceLost = false) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult DestroyLabAfterTerminalProof() noexcept;
+    void NotifyLabRenderCompletion(
+        Stoner::Core::uint64 SubmissionId,
+        bool bSucceeded) noexcept;
+    void SweepLabRetirements() noexcept;
+    static void PollLabPresentationCallback(void* UserData) noexcept;
+    static void ReceiveLabRetirementEvent(
+        void* UserData,
+        Stoner::Core::uint8 Event,
+        Stoner::Core::uint64 AcquisitionToken,
+        Stoner::Core::uint64 Generation,
+        Stoner::Core::uint32 ImageIndex) noexcept;
     struct FImpl;
     std::unique_ptr<FImpl> Impl;
 };

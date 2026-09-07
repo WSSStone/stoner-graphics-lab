@@ -4,6 +4,8 @@
 #include "VulkanRHI/FVulkanNativeContext.h"
 #include "VulkanRHI/FVulkanSurface.h"
 
+#include <array>
+
 namespace Stoner::Backend::Vulkan
 {
 
@@ -46,6 +48,23 @@ public:
     Stoner::RHI::ERHIResult Present(
         Stoner::Core::uint32 FrameIndex,
         const Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>& WaitSemaphore) override;
+    Stoner::RHI::ERHIResult AcquireBorrowedTarget(
+        Stoner::Core::uint64 FrameToken,
+        Stoner::Core::uint32 FrameSlotIndex,
+        Stoner::RHI::FRHIBorrowedAcquiredTarget& OutTarget) override;
+    Stoner::RHI::ERHIResult PresentBorrowedTarget(
+        const Stoner::RHI::FRHIBorrowedAcquiredTarget& Target,
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>&
+            RenderFinishedSemaphore,
+        Stoner::RHI::FRHIPresentationLease& OutPresentationLease) override;
+    Stoner::RHI::ERHIResult PresentBorrowedTarget(
+        const Stoner::RHI::FRHIBorrowedAcquiredTarget& Target,
+        const Stoner::RHI::FRHIRenderLease& RenderLease,
+        Stoner::RHI::FRHIPresentationLease& OutPresentationLease) override;
+    Stoner::RHI::ERHIResult ReleaseBorrowedTarget(
+        const Stoner::RHI::FRHIBorrowedAcquiredTarget& Target,
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIFence>&
+            RenderCompletionFence) override;
     Stoner::RHI::ERHIResult Recreate(Stoner::Core::uint32 NewFrameCount);
     Stoner::RHI::ERHIResult Reconfigure(
         const Stoner::RHI::FRHISwapchainDesc& Request) override;
@@ -68,6 +87,13 @@ private:
             Stoner::RHI::IRHITexture>>& OutImages) const;
     void InvalidateImages() noexcept;
 
+    struct FLabBorrowedImage
+    {
+        Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> Texture;
+        Stoner::Core::uint64 Generation = 0;
+        Stoner::Core::uint64 FrameToken = 0;
+    };
+
     Stoner::Core::uint32 FrameCount = 2;
     Stoner::Core::uint32 MaxFrameCount = 3;
     Stoner::Core::uint32 CurrentFrameIndex = 0;
@@ -81,6 +107,9 @@ private:
     Stoner::RHI::FRHIResolvedPresentationState ResolvedState;
     FVulkanNativeFrameBindings NativeFrameBindings;
     Stoner::Core::TArray<Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>> Images;
+    std::array<FLabBorrowedImage,
+        Stoner::RHI::MaxRHIPresentationImageLeases> LabBorrowedImages{};
+    bool bLabPresentation = false;
     bool bValid = true;
 };
 

@@ -28,6 +28,26 @@ public:
     [[nodiscard]] bool HasUploadedMip(Stoner::Core::uint32 MipLevel) const noexcept;
     [[nodiscard]] std::span<const Stoner::Core::uint8> GetUploadedMipData(
         Stoner::Core::uint32 MipLevel) const noexcept;
+    [[nodiscard]] bool IsBorrowedPresentation() const noexcept
+    {
+        return bBorrowedPresentation;
+    }
+    [[nodiscard]] Stoner::Core::uint64 GetBorrowedContextToken() const noexcept
+    {
+        return bBorrowedPresentation ? BorrowedContextIdentity : 0;
+    }
+    [[nodiscard]] Stoner::Core::uint64 GetBorrowedGeneration() const noexcept
+    {
+        return bBorrowedPresentation ? BorrowedGeneration : 0;
+    }
+    [[nodiscard]] Stoner::Core::uint32 GetBorrowedImageIndex() const noexcept
+    {
+        return bBorrowedPresentation ? BorrowedImageIndex : 0;
+    }
+    [[nodiscard]] Stoner::Core::uint64 GetBorrowedAcquisitionToken() const noexcept
+    {
+        return bBorrowedPresentation ? BorrowedAcquisitionToken : 0;
+    }
 
     Stoner::RHI::ERHIResult Invalidate() override;
 
@@ -41,6 +61,13 @@ private:
         std::shared_ptr<FVulkanMemoryAllocator> InAllocator,
         Stoner::Core::TSharedPtr<FVulkanNativeContext> InNativeContext,
         Stoner::Core::uint64 InNativeToken);
+    FVulkanTexture(
+        const Stoner::RHI::FRHITextureDesc& InDesc,
+        Stoner::Core::uint64 InNativeToken,
+        Stoner::Core::uint64 InBorrowedContextIdentity,
+        Stoner::Core::uint64 InBorrowedGeneration,
+        Stoner::Core::uint32 InBorrowedImageIndex,
+        Stoner::Core::uint64 InBorrowedAcquisitionToken) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult RecordUploadedMip(
         Stoner::Core::uint32 MipLevel,
         Stoner::Core::TArray<Stoner::Core::uint8> Bytes);
@@ -52,6 +79,11 @@ private:
         UploadedMips;
     Stoner::Core::TSharedPtr<FVulkanNativeContext> NativeContext;
     Stoner::Core::uint64 NativeToken = 0;
+    Stoner::Core::uint64 BorrowedContextIdentity = 0;
+    Stoner::Core::uint64 BorrowedGeneration = 0;
+    Stoner::Core::uint32 BorrowedImageIndex = 0;
+    Stoner::Core::uint64 BorrowedAcquisitionToken = 0;
+    bool bBorrowedPresentation = false;
     Stoner::RHI::ERHIResourceLifecycleState LifecycleState = Stoner::RHI::ERHIResourceLifecycleState::Valid;
 };
 
