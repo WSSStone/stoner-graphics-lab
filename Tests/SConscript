@@ -146,6 +146,9 @@ private_include_paths_by_source = {
     'ProductionContentDemoTests.cpp': [
         Dir('#Demo/StonerDemo/Private').abspath,
     ],
+    'DemoLabPresentationNativeTests.cpp': [
+        Dir('#Demo/StonerDemo/Private').abspath,
+    ],
     'ProductionCameraPreviewTests.cpp': [
         Dir('#Demo/StonerDemo/Private').abspath,
     ],

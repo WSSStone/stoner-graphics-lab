@@ -669,3 +669,52 @@ T033 supplies full native-operation counters. Integrated UI-off Lantern/Sponza
 execution, formal Feature 030 hardware acceptance and human HDR authority remain
 open. Context destruction is not a native completion proof; the session must keep
 it alive until explicit drain or qualified terminal teardown.
+
+
+## T029 borrowed-target facade review (2026-09-07)
+
+T029 is reviewed complete, bringing implementation to **28/127**. The Demo
+backend facade now initializes and prepares the lab independently, borrows
+native output targets, accepts exact typed render proof, and tracks separate
+presentation leases. Old implementations return Unsupported without calling
+formal presentation methods. The facade bounds acquisition records to two and
+presentation records to sixteen. Its owner counts describe facade records only;
+they do not imply native retirement. Logical cancellation is not presentation
+proof, and terminal cleanup preserves failure results and pending owners.
+
+Vulkan creates its first lab swapchain at the actual drawable size. Review found
+that a 1x1 bootstrap generation consumed the retirement budget and stalled the
+first pause/resume; removing that generation passed the bounded resume check.
+Metal device Shutdown now retains its native owner and registries while surface
+cleanup or submissions remain pending; ordinary pending submissions return
+NotReady without poisoning the terminal result. A native owner test verifies
+retention on the first call and successful cleanup after completion.
+
+Strict Debug and Release builds passed. The final borrowed-target native suite
+passed **27/27 in each configuration**, covering Vulkan automatic selection,
+forced acquire history, and Metal: actual-size preparation, zero-extent pause,
+bounded resume, repeated/conflicting acquisition identity, rejected fabricated
+presentation proof, ten direct clear-frame presentations, logical cancellation,
+and terminal facade cleanup. Existing required native deferred tests passed
+**13/13 per configuration**. Native Metal device/command/presentation/native
+suites passed **25/25 per configuration**. Release deterministic regressions
+passed **256/256** across triangle-demo, production-content-demo,
+renderer-output-transform, rhi-deferred-submission, metal-device,
+metal-failure-injection and metal-presentation. Debug passed the same seven
+suites before the final Vulkan bootstrap fix; final Debug triangle-demo and
+production-content-demo regressions passed **102/102**. Architecture validation
+reports zero findings.
+
+Logs remain under `Build/Validation/030/deferred-review/`: `build-release-t029.log`,
+`build-debug-t029-bootstrap-fix.log`, `demo-lab-presentation-native-t029-debug-bootstrap-fix.log`,
+`*-t029-final-native-{debug,release}.log`, `*-t029-native-debug.log`,
+`*-t029-final-{debug,release}.log`, and `architecture-t029.log`. Earlier failing
+pause/resume diagnostic logs are preserved; they are not passing evidence.
+
+These are working-tree implementation regressions, not formal Feature 030
+hardware acceptance, integrated Lantern/Sponza lab execution, or HDR human
+viewing authority. T030 must connect pending-acquire cancellation and terminal
+worker/watchdog ownership; an empty public target is not proof that a native
+acquisition has finished. T032 still owns scene-loop integration and T033 actual
+native counters and qualified terminal diagnostics. The test process deadline
+does not implement or validate T030's in-process shutdown watchdog.

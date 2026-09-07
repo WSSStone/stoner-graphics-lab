@@ -21,6 +21,205 @@ namespace Stoner::Demo
 namespace
 {
 
+struct FLabTargetRecord
+{
+    RHI::FRHIBorrowedAcquiredTarget Target;
+    Core::uint64 FrameToken = 0;
+    bool bPendingAcquire = false;
+    bool bCancelRequested = false;
+};
+
+struct FLabPresentationLeaseRecord
+{
+    RHI::FRHIPresentationLease Lease;
+    bool bActive = false;
+};
+
+inline constexpr Core::uint32 MaxLabPresentationLeaseRecords = 16;
+
+[[nodiscard]] bool SameLabTargetIdentity(
+    const RHI::FRHIBorrowedAcquiredTarget& Left,
+    const RHI::FRHIBorrowedAcquiredTarget& Right) noexcept
+{
+    // Do not use FRHIBorrowedAcquiredTarget::Matches here.  A backend may
+    // permit logical cancellation after its public texture wrapper has been
+    // invalidated while retaining the native acquisition owner.
+    return Left.Texture == Right.Texture &&
+        Left.AcquireSemaphore == Right.AcquireSemaphore &&
+        Left.Frame == Right.Frame &&
+        Left.FrameSlotIndex == Right.FrameSlotIndex;
+}
+
+[[nodiscard]] bool IsLabTargetShapeValid(
+    const RHI::FRHIBorrowedAcquiredTarget& Target) noexcept
+{
+    if (!Target.IsValid()) return false;
+    const RHI::FRHITextureDesc& Desc = Target.Texture->GetDesc();
+    return Desc.Dimension == RHI::ERHITextureDimension::Texture2D &&
+        Desc.Depth == 1 && Desc.MipLevels == 1 && Desc.ArrayLayers == 1 &&
+        Desc.SampleCount == RHI::ERHISampleCount::One &&
+        RHI::HasRHIFlag(
+            Desc.Usage, RHI::ERHITextureUsage::ColorAttachment) &&
+        RHI::HasRHIFlag(Desc.Usage, RHI::ERHITextureUsage::Present);
+}
+
+void SetLabReason(Core::FString* OutReason, const char* Reason)
+{
+    if (OutReason) *OutReason = Reason != nullptr ? Reason : "";
+}
+
+void RememberLabFailure(Core::FString& FirstFailure, const char* Reason)
+{
+    if (FirstFailure.IsEmpty() && Reason != nullptr)
+    {
+        FirstFailure = Reason;
+    }
+}
+
+[[nodiscard]] RHI::ERHIResult PopulateLabStatus(
+    const Core::TSharedPtr<RHI::IRHIDevice>& Device,
+    const Core::TSharedPtr<RHI::IRHIPresentationSurface>& Surface,
+    const Core::TSharedPtr<RHI::IRHISwapchain>& Swapchain,
+    bool bPrepared,
+    Core::uint32 PendingAcquireCount,
+    Core::uint32 ActiveTargetCount,
+    Core::uint32 PendingPresentationCount,
+    const Core::FString& FirstFailure,
+    FDemoLabPresentationStatus& OutStatus)
+{
+    OutStatus = {};
+    if (Device) OutStatus.RuntimeSnapshot = Device->GetRuntimeSnapshot();
+    if (!Surface || !Surface->IsValid()) return RHI::ERHIResult::InvalidState;
+
+    const RHI::ERHIResult CapabilitiesResult =
+        Surface->QueryCapabilities(OutStatus.Capabilities);
+    if (Swapchain)
+    {
+        OutStatus.ResolvedState = Swapchain->GetResolvedPresentationState();
+    }
+    if (CapabilitiesResult != RHI::ERHIResult::Success)
+    {
+        OutStatus = {};
+        if (Device) OutStatus.RuntimeSnapshot = Device->GetRuntimeSnapshot();
+        return CapabilitiesResult;
+    }
+    OutStatus.RetirementMode =
+        OutStatus.Capabilities.PresentationRetirementMode;
+    OutStatus.RetirementReason =
+        OutStatus.Capabilities.PresentationRetirementReason;
+    OutStatus.ShutdownAssurance = RHI::ERHIShutdownAssurance::Unknown;
+    OutStatus.PendingAcquireCount = PendingAcquireCount;
+    OutStatus.PendingPresentationLeaseCount = PendingPresentationCount;
+    OutStatus.RetainedFacadeOwnerCount = PendingAcquireCount +
+        ActiveTargetCount + PendingPresentationCount;
+    OutStatus.bPrepared = bPrepared;
+    OutStatus.FailureReason = FirstFailure;
+    return RHI::ERHIResult::Success;
+}
+
+[[nodiscard]] bool HasFreeLabLeaseRecord(
+    const std::array<FLabPresentationLeaseRecord,
+        MaxLabPresentationLeaseRecords>& Records) noexcept
+{
+    for (const auto& Record : Records)
+    {
+        if (!Record.bActive) return true;
+    }
+    return false;
+}
+
+template <typename Records>
+[[nodiscard]] Core::uint32 CountActiveLabLeases(
+    const Records& RecordsArray) noexcept
+{
+    Core::uint32 Count = 0;
+    for (const auto& Record : RecordsArray)
+    {
+        Count += Record.bActive ? 1u : 0u;
+    }
+    return Count;
+}
+
+template <typename Records>
+[[nodiscard]] bool RememberLabLease(
+    Records& RecordsArray,
+    const RHI::FRHIPresentationLease& Lease)
+{
+    for (auto& Record : RecordsArray)
+    {
+        if (Record.bActive && Record.Lease.Frame == Lease.Frame &&
+            Record.Lease.PresentationCompletionFence ==
+                Lease.PresentationCompletionFence)
+        {
+            return true;
+        }
+    }
+    for (auto& Record : RecordsArray)
+    {
+        if (!Record.bActive)
+        {
+            Record.Lease = Lease;
+            Record.bActive = true;
+            return true;
+        }
+    }
+    return false;
+}
+
+template <typename Records>
+void RetireLabLease(
+    Records& RecordsArray,
+    const RHI::FRHIPresentationLease& Lease) noexcept
+{
+    for (auto& Record : RecordsArray)
+    {
+        if (Record.bActive && Record.Lease.Frame == Lease.Frame &&
+            Record.Lease.PresentationCompletionFence ==
+                Lease.PresentationCompletionFence)
+        {
+            Record = {};
+            return;
+        }
+    }
+}
+
+template <typename Records>
+[[nodiscard]] bool IsTrackedLabLease(
+    const Records& RecordsArray,
+    const RHI::FRHIPresentationLease& Lease) noexcept
+{
+    for (const auto& Record : RecordsArray)
+    {
+        if (Record.bActive && Record.Lease.Frame == Lease.Frame &&
+            Record.Lease.RenderFinishedSemaphore ==
+                Lease.RenderFinishedSemaphore &&
+            Record.Lease.PresentationCompletionFence ==
+                Lease.PresentationCompletionFence)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+[[nodiscard]] bool FindLabSdrPair(
+    const RHI::FRHIPresentationCapabilities& Capabilities,
+    RHI::FRHIPresentationFormatColorSpacePair& OutPair) noexcept
+{
+    for (const auto& Pair : Capabilities.SupportedPairs)
+    {
+        if ((Pair.ColorSpace == RHI::ERHIPresentationColorSpace::SrgbNonlinear ||
+             Pair.ColorSpace == RHI::ERHIPresentationColorSpace::SdrPassThrough) &&
+            (Pair.Format == RHI::ERHIFormat::B8G8R8A8_UNorm ||
+             Pair.Format == RHI::ERHIFormat::R8G8B8A8_UNorm))
+        {
+            OutPair = Pair;
+            return true;
+        }
+    }
+    return false;
+}
+
 #if SG_PLATFORM_MAC
 bool NormalizePresentationPixels(
     std::span<const Core::uint8> Native,
@@ -87,6 +286,99 @@ public:
             : Device_->GetNativePresentationContext();
         return Context_ ? RHI::ERHIResult::Success
                         : RHI::ERHIResult::Unavailable;
+    }
+
+    RHI::ERHIResult InitializeLab(
+        const Core::FPlatformWindow& Window,
+        Core::uint32 FramesInFlight,
+        bool bEnableValidation,
+        bool bForceAcquireHistory) override
+    {
+        if (bLabInitialized_ || Device_ || Context_ ||
+            !Window.IsValid() || FramesInFlight != RHI::MaxRHIFrameSlots)
+        {
+            return RHI::ERHIResult::InvalidState;
+        }
+        LabFailureReason_.Clear();
+        Mode_ = EDemoRunMode::InteractiveNative;
+        LabFramesInFlight_ = FramesInFlight;
+        Device_ = Core::MakeShared<Backend::Vulkan::FVulkanDevice>();
+        Device_->ConfigureDescriptorPoolCapacity(4096);
+        Backend::Vulkan::FVulkanInstanceDesc DeviceDesc;
+        DeviceDesc.RuntimeMode =
+            Backend::Vulkan::EVulkanInstanceRuntimeMode::DeterministicFallback;
+        DeviceDesc.bRequestValidation = bEnableValidation;
+        RHI::ERHIResult Result = Device_->Initialize(DeviceDesc);
+        if (Result == RHI::ERHIResult::Success)
+        {
+            Result = Device_->EnableNativeLabPresentationRuntime(
+                Window, bForceAcquireHistory);
+        }
+        if (Result == RHI::ERHIResult::Success)
+        {
+            Result = Device_->EnableNativeShaderRuntime();
+        }
+        if (Result != RHI::ERHIResult::Success)
+        {
+            RememberLabFailure(
+                LabFailureReason_, "Vulkan lab device initialization failed");
+            if (Device_) (void)Device_->Shutdown();
+            Device_.reset();
+            Context_.reset();
+            return Result;
+        }
+        Context_ = Device_->GetNativePresentationContext();
+        if (!Context_)
+        {
+            RememberLabFailure(
+                LabFailureReason_, "Vulkan lab presentation context unavailable");
+            (void)Device_->Shutdown();
+            Device_.reset();
+            return RHI::ERHIResult::Unavailable;
+        }
+
+        RHI::FRHIPresentationSurfaceDesc SurfaceDesc;
+        SurfaceDesc.Window = Window;
+        auto Surface = Device_->CreatePresentationSurface(SurfaceDesc);
+        RHI::FRHIPresentationCapabilities Capabilities;
+        if (Surface.Succeeded())
+        {
+            Result = Surface.Object->QueryCapabilities(Capabilities);
+        }
+        else
+        {
+            Result = Surface.Result;
+        }
+        RHI::FRHIPresentationFormatColorSpacePair Pair;
+        if (Result == RHI::ERHIResult::Success &&
+            (!Capabilities.IsValid() || !FindLabSdrPair(Capabilities, Pair)))
+        {
+            Result = RHI::ERHIResult::Unsupported;
+        }
+        if (Result == RHI::ERHIResult::Success)
+        {
+            // Keep startup capability-only. Creating a 1x1 generation here
+            // would consume one of the native runtime's two generation
+            // records before the first real drawable is prepared.
+            (void)Pair;
+            LabSurface_ = std::move(Surface.Object);
+        }
+        if (Result != RHI::ERHIResult::Success)
+        {
+            RememberLabFailure(
+                LabFailureReason_, "Vulkan lab presentation setup failed");
+            if (Device_) (void)Device_->Shutdown();
+            LabSwapchain_.reset();
+            LabSurface_.reset();
+            Context_.reset();
+            Device_.reset();
+            return Result;
+        }
+        bLabInitialized_ = true;
+        bLabPrepared_ = false;
+        LabTargets_ = {};
+        LabPresentationLeases_ = {};
+        return RHI::ERHIResult::Success;
     }
 
     RHI::ERHIResult PrepareTriangle(
@@ -198,6 +490,309 @@ public:
         return Result;
     }
 
+    RHI::ERHIResult PrepareLabPresentation(
+        const RHI::FRHISwapchainDesc& Request,
+        FDemoLabPresentationStatus& OutStatus,
+        Core::FString* OutReason) override
+    {
+        return ConfigureLabPresentation(Request, OutStatus, OutReason);
+    }
+
+    RHI::ERHIResult ReconfigureLabPresentation(
+        const RHI::FRHISwapchainDesc& Request,
+        FDemoLabPresentationStatus& OutStatus,
+        Core::FString* OutReason) override
+    {
+        return ConfigureLabPresentation(Request, OutStatus, OutReason);
+    }
+
+    RHI::ERHIResult QueryLabPresentation(
+        FDemoLabPresentationStatus& OutStatus) const override
+    {
+        return PopulateLabStatus(
+            Device_, LabSurface_, LabSwapchain_, bLabPrepared_,
+            CountPendingLabAcquires(), CountActiveLabTargets(),
+            CountActiveLabLeases(LabPresentationLeases_), LabFailureReason_,
+            OutStatus);
+    }
+
+    RHI::ERHIResult AcquireLabTarget(
+        Core::uint64 FrameToken,
+        Core::uint32 FrameSlotIndex,
+        RHI::FRHIBorrowedAcquiredTarget& OutTarget,
+        Core::FString* OutReason) override
+    {
+        OutTarget = {};
+        if (OutReason) OutReason->Clear();
+        if (!bLabInitialized_ || !LabSwapchain_ || FrameToken == 0 ||
+            FrameSlotIndex >= RHI::MaxRHIFrameSlots)
+        {
+            SetLabReason(OutReason, "Vulkan lab target acquisition is unavailable");
+            return RHI::ERHIResult::InvalidState;
+        }
+        const RHI::ERHISwapchainState SwapchainState =
+            LabSwapchain_->GetState();
+        if (!bLabPrepared_ || SwapchainState == RHI::ERHISwapchainState::Paused)
+        {
+            // A paused/unprepared drawable must not reserve a token.  The
+            // caller can retry the same token after a successful prepare.
+            SetLabReason(OutReason, "Vulkan lab drawable is not ready");
+            return RHI::ERHIResult::NotReady;
+        }
+        if (SwapchainState == RHI::ERHISwapchainState::ResizeRequired)
+        {
+            SetLabReason(OutReason, "Vulkan lab drawable requires resize");
+            return RHI::ERHIResult::ResizeRequired;
+        }
+        if (SwapchainState == RHI::ERHISwapchainState::Unavailable)
+        {
+            SetLabReason(OutReason, "Vulkan lab drawable is unavailable");
+            return RHI::ERHIResult::Unavailable;
+        }
+        if (SwapchainState != RHI::ERHISwapchainState::Ready)
+        {
+            SetLabReason(OutReason, "Vulkan lab swapchain is not ready");
+            return RHI::ERHIResult::InvalidState;
+        }
+        FLabTargetRecord& Record = LabTargets_[FrameSlotIndex];
+        if (Record.FrameToken != 0 && Record.FrameToken != FrameToken)
+        {
+            SetLabReason(OutReason, "Vulkan lab frame slot remains owned");
+            return RHI::ERHIResult::NotReady;
+        }
+        if (Record.bCancelRequested)
+        {
+            SetLabReason(OutReason, "Vulkan lab target cancellation is pending");
+            return RHI::ERHIResult::NotReady;
+        }
+        if (Record.Target.Texture)
+        {
+            if (!IsLabTargetShapeValid(Record.Target))
+            {
+                SetLabReason(OutReason, "Vulkan lab target shape is invalid");
+                return RHI::ERHIResult::InvalidState;
+            }
+            OutTarget = Record.Target;
+            return RHI::ERHIResult::Success;
+        }
+        Record.FrameToken = FrameToken;
+        Record.bPendingAcquire = true;
+        RHI::FRHIBorrowedAcquiredTarget Candidate;
+        const RHI::ERHIResult Result = LabSwapchain_->AcquireBorrowedTarget(
+            FrameToken, FrameSlotIndex, Candidate);
+        if (Result == RHI::ERHIResult::Success)
+        {
+            Record.Target = Candidate;
+            Record.bPendingAcquire = false;
+            if (!Candidate.IsValid() || Candidate.Frame.FrameToken != FrameToken ||
+                Candidate.FrameSlotIndex != FrameSlotIndex ||
+                !IsLabTargetShapeValid(Candidate))
+            {
+                RememberLabFailure(
+                    LabFailureReason_, "Vulkan lab backend returned an invalid target");
+                SetLabReason(OutReason, "Vulkan lab backend returned an invalid target");
+                return RHI::ERHIResult::Failed;
+            }
+            OutTarget = Candidate;
+            return RHI::ERHIResult::Success;
+        }
+        // Keep the token in the slot for every non-success result.  A backend
+        // may have retained a native acquire owner even when its public call
+        // reports Failed; only a later cancellation or terminal drain may
+        // release that owner.
+        Record.bPendingAcquire = true;
+        if (Result != RHI::ERHIResult::NotReady &&
+            Result != RHI::ERHIResult::Timeout)
+        {
+            RememberLabFailure(
+                LabFailureReason_, "Vulkan lab target acquisition failed");
+            SetLabReason(OutReason, "Vulkan lab target acquisition failed");
+        }
+        return Result;
+    }
+
+    RHI::ERHIResult PresentLabTarget(
+        const RHI::FRHIBorrowedAcquiredTarget& Target,
+        const RHI::FRHIRenderLease& RenderLease,
+        RHI::FRHIPresentationLease& OutLease,
+        Core::FString* OutReason) override
+    {
+        OutLease = {};
+        if (OutReason) OutReason->Clear();
+        if (!bLabInitialized_ || !LabSwapchain_ || !IsLabTargetShapeValid(Target) ||
+            !RenderLease.Matches(Target) ||
+            Target.FrameSlotIndex >= RHI::MaxRHIFrameSlots)
+        {
+            SetLabReason(OutReason, "Vulkan lab presentation proof is invalid");
+            return RHI::ERHIResult::InvalidState;
+        }
+        FLabTargetRecord& Record = LabTargets_[Target.FrameSlotIndex];
+        if (Record.FrameToken != Target.Frame.FrameToken ||
+            !Record.Target.Texture || !SameLabTargetIdentity(Record.Target, Target) ||
+            Record.bCancelRequested)
+        {
+            SetLabReason(OutReason, "Vulkan lab target is stale or not acquired");
+            return RHI::ERHIResult::InvalidState;
+        }
+        if (!HasFreeLabLeaseRecord(LabPresentationLeases_))
+        {
+            SetLabReason(OutReason, "Vulkan lab presentation lease budget is full");
+            return RHI::ERHIResult::NotReady;
+        }
+        RHI::FRHIPresentationLease Candidate;
+        const RHI::ERHIResult Result = LabSwapchain_->PresentBorrowedTarget(
+            Target, RenderLease, Candidate);
+        if (Candidate.IsValid() && Candidate.Matches(Target))
+        {
+            try
+            {
+                OutLease = std::move(Candidate);
+            }
+            catch (...)
+            {
+                RememberLabFailure(
+                    LabFailureReason_, "Vulkan lab presentation lease publication failed");
+                SetLabReason(OutReason, "Vulkan lab presentation lease publication failed");
+                return RHI::ERHIResult::Failed;
+            }
+            try
+            {
+                (void)RememberLabLease(LabPresentationLeases_, OutLease);
+            }
+            catch (...)
+            {
+                // The backend owns the native presentation record and the
+                // caller owns OutLease. Do not turn a successful native
+                // admission into a target leak because diagnostics overflow.
+                RememberLabFailure(
+                    LabFailureReason_, "Vulkan lab presentation lease tracking failed");
+            }
+            Record = {};
+            if (Result != RHI::ERHIResult::Success)
+            {
+                RememberLabFailure(
+                    LabFailureReason_, "Vulkan lab presentation reported failure after admission");
+                SetLabReason(OutReason,
+                    "Vulkan lab presentation reported failure after admission");
+            }
+            return Result;
+        }
+        if (Result == RHI::ERHIResult::Success)
+        {
+            RememberLabFailure(
+                LabFailureReason_, "Vulkan lab presentation returned no valid lease");
+            SetLabReason(OutReason, "Vulkan lab presentation returned no valid lease");
+            return RHI::ERHIResult::Failed;
+        }
+        if (Result != RHI::ERHIResult::NotReady &&
+            Result != RHI::ERHIResult::Timeout)
+        {
+            RememberLabFailure(
+                LabFailureReason_, "Vulkan lab presentation failed");
+            SetLabReason(OutReason, "Vulkan lab presentation failed");
+        }
+        return Result;
+    }
+
+    RHI::ERHIResult CancelLabTarget(
+        Core::uint64 FrameToken,
+        Core::uint32 FrameSlotIndex,
+        const Core::TSharedPtr<RHI::IRHIFence>& RenderCompletionFence,
+        bool& bOutCancellationAcknowledged,
+        Core::FString* OutReason) override
+    {
+        bOutCancellationAcknowledged = false;
+        if (OutReason) OutReason->Clear();
+        if (!bLabInitialized_ || !LabSwapchain_ || FrameToken == 0 ||
+            FrameSlotIndex >= RHI::MaxRHIFrameSlots)
+        {
+            SetLabReason(OutReason, "Vulkan lab target cancellation is unavailable");
+            return RHI::ERHIResult::InvalidState;
+        }
+        FLabTargetRecord& Record = LabTargets_[FrameSlotIndex];
+        if (Record.FrameToken != FrameToken)
+        {
+            SetLabReason(OutReason, "Vulkan lab cancellation token is stale");
+            return RHI::ERHIResult::InvalidState;
+        }
+        Record.bCancelRequested = true;
+        if (!Record.Target.Texture)
+        {
+            Record.bPendingAcquire = true;
+            RHI::FRHIBorrowedAcquiredTarget Candidate;
+            const RHI::ERHIResult AcquireResult =
+                LabSwapchain_->AcquireBorrowedTarget(
+                    FrameToken, FrameSlotIndex, Candidate);
+            if (AcquireResult != RHI::ERHIResult::Success)
+            {
+                if (AcquireResult != RHI::ERHIResult::NotReady &&
+                    AcquireResult != RHI::ERHIResult::Timeout)
+                {
+                    RememberLabFailure(
+                        LabFailureReason_, "Vulkan lab pending target acquisition failed during cancellation");
+                    SetLabReason(OutReason,
+                        "Vulkan lab pending target acquisition failed during cancellation");
+                }
+                return AcquireResult;
+            }
+            Record.Target = Candidate;
+            Record.bPendingAcquire = false;
+        }
+        const RHI::ERHIResult Result = LabSwapchain_->ReleaseBorrowedTarget(
+            Record.Target, RenderCompletionFence);
+        if (Result == RHI::ERHIResult::Success)
+        {
+            bOutCancellationAcknowledged = true;
+            Record = {};
+            return Result;
+        }
+        if (Result != RHI::ERHIResult::NotReady &&
+            Result != RHI::ERHIResult::Timeout)
+        {
+            RememberLabFailure(
+                LabFailureReason_, "Vulkan lab target cancellation failed");
+            SetLabReason(OutReason, "Vulkan lab target cancellation failed");
+        }
+        return Result;
+    }
+
+    RHI::ERHIResult PollLabPresentation(
+        const RHI::FRHIPresentationLease& Lease,
+        bool& bOutPresentationComplete,
+        Core::FString* OutReason) override
+    {
+        bOutPresentationComplete = false;
+        if (OutReason) OutReason->Clear();
+        if (!Lease.IsValid())
+        {
+            SetLabReason(OutReason, "Vulkan lab presentation lease is invalid");
+            return RHI::ERHIResult::InvalidState;
+        }
+        if (!IsTrackedLabLease(LabPresentationLeases_, Lease))
+        {
+            SetLabReason(OutReason,
+                "Vulkan lab presentation lease is foreign or stale");
+            return RHI::ERHIResult::InvalidState;
+        }
+        const RHI::ERHIResult Result =
+            Lease.PresentationCompletionFence->Wait(0);
+        if (Result == RHI::ERHIResult::Success)
+        {
+            bOutPresentationComplete = true;
+            RetireLabLease(LabPresentationLeases_, Lease);
+            return Result;
+        }
+        if (Result != RHI::ERHIResult::NotReady &&
+            Result != RHI::ERHIResult::Timeout)
+        {
+            RememberLabFailure(
+                LabFailureReason_, "Vulkan lab presentation completion polling failed");
+            SetLabReason(OutReason,
+                "Vulkan lab presentation completion polling failed");
+        }
+        return Result;
+    }
+
     RHI::ERHIResult PresentProductionFormalOutput(
         const Core::TSharedPtr<RHI::IRHITexture>& FormalOutput,
         Core::uint64 FrameToken,
@@ -284,6 +879,43 @@ public:
     RHI::ERHIResult Shutdown() override
     {
         LastNativeFrame_ = {};
+        if (bLabInitialized_)
+        {
+            if (!Device_) return RHI::ERHIResult::InvalidState;
+            const RHI::ERHIResult Result = Device_->Shutdown();
+            const bool bDeviceReachedTerminalState =
+                Device_->GetState() == RHI::ERHIDeviceState::Shutdown;
+            if (Result == RHI::ERHIResult::Success ||
+                bDeviceReachedTerminalState)
+            {
+                if (Result != RHI::ERHIResult::Success)
+                {
+                    RememberLabFailure(
+                        LabFailureReason_,
+                        "Vulkan lab device cleanup completed with failure");
+                }
+                LabSwapchain_.reset();
+                LabSurface_.reset();
+                Context_.reset();
+                Device_.reset();
+                LabTargets_ = {};
+                LabPresentationLeases_ = {};
+                bLabInitialized_ = false;
+                bLabPrepared_ = false;
+            }
+            else
+            {
+                if (Result != RHI::ERHIResult::NotReady &&
+                    Result != RHI::ERHIResult::Timeout)
+                {
+                    RememberLabFailure(
+                        LabFailureReason_, "Vulkan lab terminal cleanup failed");
+                }
+            }
+            // A failed/not-ready lab shutdown keeps every native owner and
+            // wrapper alive for the qualified terminal drain owned by T030.
+            return Result;
+        }
         RHI::ERHIResult DeviceResult = RHI::ERHIResult::Success;
         if (Device_)
         {
@@ -295,10 +927,137 @@ public:
     }
 
 private:
+    RHI::ERHIResult ConfigureLabPresentation(
+        const RHI::FRHISwapchainDesc& InRequest,
+        FDemoLabPresentationStatus& OutStatus,
+        Core::FString* OutReason)
+    {
+        OutStatus = {};
+        if (OutReason) OutReason->Clear();
+        if (!bLabInitialized_ || !Device_ || !LabSurface_)
+        {
+            SetLabReason(OutReason, "Vulkan lab presentation is not initialized");
+            return RHI::ERHIResult::InvalidState;
+        }
+        RHI::FRHISwapchainDesc Request = InRequest;
+        if (Request.FramesInFlight == 0)
+            Request.FramesInFlight = LabFramesInFlight_;
+        if (Request.FramesInFlight != LabFramesInFlight_)
+        {
+            SetLabReason(OutReason, "Vulkan lab frame count must remain two slots");
+            return RHI::ERHIResult::InvalidState;
+        }
+        if (Request.IsZeroDrawable() && Request.SurfaceCapabilityGeneration == 0)
+        {
+            RHI::FRHIPresentationCapabilities Capabilities;
+            if (LabSurface_->QueryCapabilities(Capabilities) !=
+                    RHI::ERHIResult::Success)
+            {
+                SetLabReason(OutReason,
+                    "Vulkan lab capability query failed while pausing");
+                return RHI::ERHIResult::Unavailable;
+            }
+            Request.SurfaceCapabilityGeneration =
+                Capabilities.CapabilityGeneration;
+        }
+        if (!LabSwapchain_)
+        {
+            if (Request.IsZeroDrawable())
+            {
+                bLabPrepared_ = false;
+                (void)PopulateLabStatus(
+                    Device_, LabSurface_, LabSwapchain_, bLabPrepared_,
+                    CountPendingLabAcquires(), CountActiveLabTargets(),
+                    CountActiveLabLeases(LabPresentationLeases_), LabFailureReason_,
+                    OutStatus);
+                return RHI::ERHIResult::NotReady;
+            }
+            auto Swapchain = Device_->CreateSwapchain(LabSurface_, Request);
+            if (!Swapchain.Succeeded())
+            {
+                if (Swapchain.Result != RHI::ERHIResult::NotReady &&
+                    Swapchain.Result != RHI::ERHIResult::Timeout)
+                {
+                    RememberLabFailure(
+                        LabFailureReason_, "Vulkan lab presentation creation failed");
+                    SetLabReason(OutReason,
+                        "Vulkan lab presentation creation failed");
+                }
+                (void)PopulateLabStatus(
+                    Device_, LabSurface_, LabSwapchain_, bLabPrepared_,
+                    CountPendingLabAcquires(), CountActiveLabTargets(),
+                    CountActiveLabLeases(LabPresentationLeases_), LabFailureReason_,
+                    OutStatus);
+                return Swapchain.Result;
+            }
+            LabSwapchain_ = std::move(Swapchain.Object);
+            bLabPrepared_ = true;
+            (void)PopulateLabStatus(
+                Device_, LabSurface_, LabSwapchain_, bLabPrepared_,
+                CountPendingLabAcquires(), CountActiveLabTargets(),
+                CountActiveLabLeases(LabPresentationLeases_), LabFailureReason_,
+                OutStatus);
+            return RHI::ERHIResult::Success;
+        }
+        const RHI::ERHIResult Result = LabSwapchain_->Reconfigure(Request);
+        if (Result == RHI::ERHIResult::Success)
+        {
+            bLabPrepared_ = true;
+        }
+        else if (Request.IsZeroDrawable() &&
+            Result == RHI::ERHIResult::NotReady)
+        {
+            bLabPrepared_ = false;
+        }
+        else if (Result != RHI::ERHIResult::NotReady &&
+            Result != RHI::ERHIResult::Timeout)
+        {
+            RememberLabFailure(
+                LabFailureReason_, "Vulkan lab presentation reconfiguration failed");
+            SetLabReason(OutReason,
+                "Vulkan lab presentation reconfiguration failed");
+        }
+        (void)PopulateLabStatus(
+            Device_, LabSurface_, LabSwapchain_, bLabPrepared_,
+            CountPendingLabAcquires(), CountActiveLabTargets(),
+            CountActiveLabLeases(LabPresentationLeases_), LabFailureReason_,
+            OutStatus);
+        return Result;
+    }
+
+    [[nodiscard]] Core::uint32 CountPendingLabAcquires() const noexcept
+    {
+        Core::uint32 Count = 0;
+        for (const auto& Record : LabTargets_)
+        {
+            Count += Record.bPendingAcquire && !Record.Target.Texture ? 1u : 0u;
+        }
+        return Count;
+    }
+
+    [[nodiscard]] Core::uint32 CountActiveLabTargets() const noexcept
+    {
+        Core::uint32 Count = 0;
+        for (const auto& Record : LabTargets_)
+        {
+            Count += Record.Target.Texture ? 1u : 0u;
+        }
+        return Count;
+    }
+
     EDemoRunMode Mode_ = EDemoRunMode::InteractiveNative;
     Core::TSharedPtr<Backend::Vulkan::FVulkanNativeContext> Context_;
     Core::TSharedPtr<Backend::Vulkan::FVulkanDevice> Device_;
+    Core::TSharedPtr<RHI::IRHIPresentationSurface> LabSurface_;
+    Core::TSharedPtr<RHI::IRHISwapchain> LabSwapchain_;
     Backend::Vulkan::FVulkanNativeFrameBindings LastNativeFrame_;
+    std::array<FLabTargetRecord, RHI::MaxRHIFrameSlots> LabTargets_{};
+    std::array<FLabPresentationLeaseRecord,
+        MaxLabPresentationLeaseRecords> LabPresentationLeases_{};
+    Core::uint32 LabFramesInFlight_ = RHI::MaxRHIFrameSlots;
+    bool bLabInitialized_ = false;
+    bool bLabPrepared_ = false;
+    Core::FString LabFailureReason_;
     bool bProductionPresentation_ = false;
     Core::uint32 ProductionPresentationWidth_ = 0;
     Core::uint32 ProductionPresentationHeight_ = 0;
@@ -356,6 +1115,35 @@ public:
         if (!Queue.Succeeded()) return Queue.Result;
         Queue_ = std::move(Queue.Object);
         return RHI::ERHIResult::Success;
+    }
+
+    RHI::ERHIResult InitializeLab(
+        const Core::FPlatformWindow& Window,
+        Core::uint32 FramesInFlight,
+        bool bEnableValidation,
+        bool) override
+    {
+        if (bLabInitialized_ || Device_ || !Window.IsValid() ||
+            FramesInFlight != RHI::MaxRHIFrameSlots)
+        {
+            return RHI::ERHIResult::InvalidState;
+        }
+        LabFailureReason_.Clear();
+        const RHI::ERHIResult Result = Initialize(
+            EDemoRunMode::InteractiveNative, Window, FramesInFlight,
+            bEnableValidation);
+        if (Result != RHI::ERHIResult::Success)
+        {
+            RememberLabFailure(
+                LabFailureReason_, "Metal lab device initialization failed");
+            return Result;
+        }
+        LabFramesInFlight_ = FramesInFlight;
+        bLabInitialized_ = true;
+        bLabPrepared_ = false;
+        LabTargets_ = {};
+        LabPresentationLeases_ = {};
+        return Result;
     }
 
     RHI::ERHIResult PrepareTriangle(
@@ -577,6 +1365,300 @@ public:
             *OutResolved = ResolvedProductionPresentationState_;
         bProductionPresentation_ = true;
         return RHI::ERHIResult::Success;
+    }
+
+    RHI::ERHIResult PrepareLabPresentation(
+        const RHI::FRHISwapchainDesc& Request,
+        FDemoLabPresentationStatus& OutStatus,
+        Core::FString* OutReason) override
+    {
+        return ConfigureLabPresentation(Request, OutStatus, OutReason);
+    }
+
+    RHI::ERHIResult ReconfigureLabPresentation(
+        const RHI::FRHISwapchainDesc& Request,
+        FDemoLabPresentationStatus& OutStatus,
+        Core::FString* OutReason) override
+    {
+        return ConfigureLabPresentation(Request, OutStatus, OutReason);
+    }
+
+    RHI::ERHIResult QueryLabPresentation(
+        FDemoLabPresentationStatus& OutStatus) const override
+    {
+        return PopulateLabStatus(
+            Device_, Surface_, Swapchain_, bLabPrepared_,
+            CountPendingLabAcquires(), CountActiveLabTargets(),
+            CountActiveLabLeases(LabPresentationLeases_), LabFailureReason_,
+            OutStatus);
+    }
+
+    RHI::ERHIResult AcquireLabTarget(
+        Core::uint64 FrameToken,
+        Core::uint32 FrameSlotIndex,
+        RHI::FRHIBorrowedAcquiredTarget& OutTarget,
+        Core::FString* OutReason) override
+    {
+        OutTarget = {};
+        if (OutReason) OutReason->Clear();
+        if (!bLabInitialized_ || !Swapchain_ || FrameToken == 0 ||
+            FrameSlotIndex >= RHI::MaxRHIFrameSlots)
+        {
+            SetLabReason(OutReason, "Metal lab target acquisition is unavailable");
+            return RHI::ERHIResult::InvalidState;
+        }
+        const RHI::ERHISwapchainState SwapchainState =
+            Swapchain_->GetState();
+        if (!bLabPrepared_ || SwapchainState == RHI::ERHISwapchainState::Paused)
+        {
+            // Do not reserve a token while the drawable is paused or has not
+            // been prepared.  Retry the same token after the next prepare.
+            SetLabReason(OutReason, "Metal lab drawable is not ready");
+            return RHI::ERHIResult::NotReady;
+        }
+        if (SwapchainState == RHI::ERHISwapchainState::ResizeRequired)
+        {
+            SetLabReason(OutReason, "Metal lab drawable requires resize");
+            return RHI::ERHIResult::ResizeRequired;
+        }
+        if (SwapchainState == RHI::ERHISwapchainState::Unavailable)
+        {
+            SetLabReason(OutReason, "Metal lab drawable is unavailable");
+            return RHI::ERHIResult::Unavailable;
+        }
+        if (SwapchainState != RHI::ERHISwapchainState::Ready)
+        {
+            SetLabReason(OutReason, "Metal lab swapchain is not ready");
+            return RHI::ERHIResult::InvalidState;
+        }
+        FLabTargetRecord& Record = LabTargets_[FrameSlotIndex];
+        if (Record.FrameToken != 0 && Record.FrameToken != FrameToken)
+        {
+            SetLabReason(OutReason, "Metal lab frame slot remains owned");
+            return RHI::ERHIResult::NotReady;
+        }
+        if (Record.bCancelRequested)
+        {
+            SetLabReason(OutReason, "Metal lab target cancellation is pending");
+            return RHI::ERHIResult::NotReady;
+        }
+        if (Record.Target.Texture)
+        {
+            if (!IsLabTargetShapeValid(Record.Target))
+            {
+                SetLabReason(OutReason, "Metal lab target shape is invalid");
+                return RHI::ERHIResult::InvalidState;
+            }
+            OutTarget = Record.Target;
+            return RHI::ERHIResult::Success;
+        }
+        Record.FrameToken = FrameToken;
+        Record.bPendingAcquire = true;
+        RHI::FRHIBorrowedAcquiredTarget Candidate;
+        const RHI::ERHIResult Result = Swapchain_->AcquireBorrowedTarget(
+            FrameToken, FrameSlotIndex, Candidate);
+        if (Result == RHI::ERHIResult::Success)
+        {
+            Record.Target = Candidate;
+            Record.bPendingAcquire = false;
+            if (!Candidate.IsValid() || Candidate.Frame.FrameToken != FrameToken ||
+                Candidate.FrameSlotIndex != FrameSlotIndex ||
+                !IsLabTargetShapeValid(Candidate))
+            {
+                RememberLabFailure(
+                    LabFailureReason_, "Metal lab backend returned an invalid target");
+                SetLabReason(OutReason, "Metal lab backend returned an invalid target");
+                return RHI::ERHIResult::Failed;
+            }
+            OutTarget = Candidate;
+            return RHI::ERHIResult::Success;
+        }
+        Record.bPendingAcquire = true;
+        if (Result != RHI::ERHIResult::NotReady &&
+            Result != RHI::ERHIResult::Timeout)
+        {
+            RememberLabFailure(
+                LabFailureReason_, "Metal lab target acquisition failed");
+            SetLabReason(OutReason, "Metal lab target acquisition failed");
+        }
+        return Result;
+    }
+
+    RHI::ERHIResult PresentLabTarget(
+        const RHI::FRHIBorrowedAcquiredTarget& Target,
+        const RHI::FRHIRenderLease& RenderLease,
+        RHI::FRHIPresentationLease& OutLease,
+        Core::FString* OutReason) override
+    {
+        OutLease = {};
+        if (OutReason) OutReason->Clear();
+        if (!bLabInitialized_ || !Swapchain_ || !IsLabTargetShapeValid(Target) ||
+            !RenderLease.Matches(Target) ||
+            Target.FrameSlotIndex >= RHI::MaxRHIFrameSlots)
+        {
+            SetLabReason(OutReason, "Metal lab presentation proof is invalid");
+            return RHI::ERHIResult::InvalidState;
+        }
+        FLabTargetRecord& Record = LabTargets_[Target.FrameSlotIndex];
+        if (Record.FrameToken != Target.Frame.FrameToken ||
+            !Record.Target.Texture || !SameLabTargetIdentity(Record.Target, Target) ||
+            Record.bCancelRequested)
+        {
+            SetLabReason(OutReason, "Metal lab target is stale or not acquired");
+            return RHI::ERHIResult::InvalidState;
+        }
+        if (!HasFreeLabLeaseRecord(LabPresentationLeases_))
+        {
+            SetLabReason(OutReason, "Metal lab presentation lease budget is full");
+            return RHI::ERHIResult::NotReady;
+        }
+        RHI::FRHIPresentationLease Candidate;
+        const RHI::ERHIResult Result = Swapchain_->PresentBorrowedTarget(
+            Target, RenderLease, Candidate);
+        if (Candidate.IsValid() && Candidate.Matches(Target))
+        {
+            try
+            {
+                OutLease = std::move(Candidate);
+            }
+            catch (...)
+            {
+                RememberLabFailure(
+                    LabFailureReason_, "Metal lab presentation lease publication failed");
+                SetLabReason(OutReason, "Metal lab presentation lease publication failed");
+                return RHI::ERHIResult::Failed;
+            }
+            try
+            {
+                (void)RememberLabLease(LabPresentationLeases_, OutLease);
+            }
+            catch (...)
+            {
+                RememberLabFailure(
+                    LabFailureReason_, "Metal lab presentation lease tracking failed");
+            }
+            Record = {};
+            if (Result != RHI::ERHIResult::Success)
+            {
+                RememberLabFailure(
+                    LabFailureReason_, "Metal lab presentation reported failure after admission");
+                SetLabReason(OutReason,
+                    "Metal lab presentation reported failure after admission");
+            }
+            return Result;
+        }
+        if (Result == RHI::ERHIResult::Success)
+        {
+            RememberLabFailure(
+                LabFailureReason_, "Metal lab presentation returned no valid lease");
+            SetLabReason(OutReason, "Metal lab presentation returned no valid lease");
+            return RHI::ERHIResult::Failed;
+        }
+        if (Result != RHI::ERHIResult::NotReady &&
+            Result != RHI::ERHIResult::Timeout)
+        {
+            RememberLabFailure(LabFailureReason_, "Metal lab presentation failed");
+            SetLabReason(OutReason, "Metal lab presentation failed");
+        }
+        return Result;
+    }
+
+    RHI::ERHIResult CancelLabTarget(
+        Core::uint64 FrameToken,
+        Core::uint32 FrameSlotIndex,
+        const Core::TSharedPtr<RHI::IRHIFence>& RenderCompletionFence,
+        bool& bOutCancellationAcknowledged,
+        Core::FString* OutReason) override
+    {
+        bOutCancellationAcknowledged = false;
+        if (OutReason) OutReason->Clear();
+        if (!bLabInitialized_ || !Swapchain_ || FrameToken == 0 ||
+            FrameSlotIndex >= RHI::MaxRHIFrameSlots)
+        {
+            SetLabReason(OutReason, "Metal lab target cancellation is unavailable");
+            return RHI::ERHIResult::InvalidState;
+        }
+        FLabTargetRecord& Record = LabTargets_[FrameSlotIndex];
+        if (Record.FrameToken != FrameToken)
+        {
+            SetLabReason(OutReason, "Metal lab cancellation token is stale");
+            return RHI::ERHIResult::InvalidState;
+        }
+        Record.bCancelRequested = true;
+        if (!Record.Target.Texture)
+        {
+            Record.bPendingAcquire = true;
+            RHI::FRHIBorrowedAcquiredTarget Candidate;
+            const RHI::ERHIResult AcquireResult = Swapchain_->AcquireBorrowedTarget(
+                FrameToken, FrameSlotIndex, Candidate);
+            if (AcquireResult != RHI::ERHIResult::Success)
+            {
+                if (AcquireResult != RHI::ERHIResult::NotReady &&
+                    AcquireResult != RHI::ERHIResult::Timeout)
+                {
+                    RememberLabFailure(LabFailureReason_,
+                        "Metal lab pending target acquisition failed during cancellation");
+                    SetLabReason(OutReason,
+                        "Metal lab pending target acquisition failed during cancellation");
+                }
+                return AcquireResult;
+            }
+            Record.Target = Candidate;
+            Record.bPendingAcquire = false;
+        }
+        const RHI::ERHIResult Result = Swapchain_->ReleaseBorrowedTarget(
+            Record.Target, RenderCompletionFence);
+        if (Result == RHI::ERHIResult::Success)
+        {
+            bOutCancellationAcknowledged = true;
+            Record = {};
+            return Result;
+        }
+        if (Result != RHI::ERHIResult::NotReady &&
+            Result != RHI::ERHIResult::Timeout)
+        {
+            RememberLabFailure(
+                LabFailureReason_, "Metal lab target cancellation failed");
+            SetLabReason(OutReason, "Metal lab target cancellation failed");
+        }
+        return Result;
+    }
+
+    RHI::ERHIResult PollLabPresentation(
+        const RHI::FRHIPresentationLease& Lease,
+        bool& bOutPresentationComplete,
+        Core::FString* OutReason) override
+    {
+        bOutPresentationComplete = false;
+        if (OutReason) OutReason->Clear();
+        if (!Lease.IsValid())
+        {
+            SetLabReason(OutReason, "Metal lab presentation lease is invalid");
+            return RHI::ERHIResult::InvalidState;
+        }
+        if (!IsTrackedLabLease(LabPresentationLeases_, Lease))
+        {
+            SetLabReason(OutReason,
+                "Metal lab presentation lease is foreign or stale");
+            return RHI::ERHIResult::InvalidState;
+        }
+        const RHI::ERHIResult Result =
+            Lease.PresentationCompletionFence->Wait(0);
+        if (Result == RHI::ERHIResult::Success)
+        {
+            bOutPresentationComplete = true;
+            RetireLabLease(LabPresentationLeases_, Lease);
+            return Result;
+        }
+        if (Result != RHI::ERHIResult::NotReady &&
+            Result != RHI::ERHIResult::Timeout)
+        {
+            RememberLabFailure(
+                LabFailureReason_, "Metal lab presentation completion polling failed");
+            SetLabReason(OutReason,
+                "Metal lab presentation completion polling failed");
+        }
+        return Result;
     }
 
     RHI::ERHIResult PresentProductionFormalOutput(
@@ -930,6 +2012,47 @@ public:
 
     RHI::ERHIResult Shutdown() override
     {
+        if (bLabInitialized_)
+        {
+            // Lab shutdown is a qualified terminal operation.  Keep the
+            // queue, swapchain, surface, and device wrappers alive when the
+            // native runtime reports that work is still in flight; T030 owns
+            // the eventual drain/teardown decision.
+            if (!Device_) return RHI::ERHIResult::InvalidState;
+            const RHI::ERHIResult Result = Device_->Shutdown();
+            const bool bDeviceReachedTerminalState =
+                Device_->GetState() == RHI::ERHIDeviceState::Shutdown;
+            if (Result == RHI::ERHIResult::Success ||
+                bDeviceReachedTerminalState)
+            {
+                if (Result != RHI::ERHIResult::Success)
+                {
+                    RememberLabFailure(
+                        LabFailureReason_,
+                        "Metal lab device cleanup completed with failure");
+                }
+                LabTargets_ = {};
+                LabPresentationLeases_ = {};
+                if (Surface_) (void)Surface_->Invalidate();
+                ProductionReadbackFence_.reset();
+                Queue_.reset();
+                Swapchain_.reset();
+                Surface_.reset();
+                Device_.reset();
+                bLabInitialized_ = false;
+                bLabPrepared_ = false;
+            }
+            else
+            {
+                if (Result != RHI::ERHIResult::NotReady &&
+                    Result != RHI::ERHIResult::Timeout)
+                {
+                    RememberLabFailure(
+                        LabFailureReason_, "Metal lab terminal cleanup failed");
+                }
+            }
+            return Result;
+        }
         ClearPendingFrame();
         ResetTriangleResources();
         ProductionReadbackFence_.reset();
@@ -947,6 +2070,85 @@ public:
     }
 
 private:
+    RHI::ERHIResult ConfigureLabPresentation(
+        const RHI::FRHISwapchainDesc& InRequest,
+        FDemoLabPresentationStatus& OutStatus,
+        Core::FString* OutReason)
+    {
+        OutStatus = {};
+        if (OutReason) OutReason->Clear();
+        if (!bLabInitialized_ || !Device_ || !Surface_ || !Swapchain_)
+        {
+            SetLabReason(OutReason, "Metal lab presentation is not initialized");
+            return RHI::ERHIResult::InvalidState;
+        }
+        RHI::FRHISwapchainDesc Request = InRequest;
+        if (Request.FramesInFlight == 0)
+            Request.FramesInFlight = LabFramesInFlight_;
+        if (Request.FramesInFlight != LabFramesInFlight_)
+        {
+            SetLabReason(OutReason, "Metal lab frame count must remain two slots");
+            return RHI::ERHIResult::InvalidState;
+        }
+        if (Request.IsZeroDrawable() && Request.SurfaceCapabilityGeneration == 0)
+        {
+            RHI::FRHIPresentationCapabilities Capabilities;
+            if (Surface_->QueryCapabilities(Capabilities) !=
+                    RHI::ERHIResult::Success)
+            {
+                SetLabReason(OutReason,
+                    "Metal lab capability query failed while pausing");
+                return RHI::ERHIResult::Unavailable;
+            }
+            Request.SurfaceCapabilityGeneration =
+                Capabilities.CapabilityGeneration;
+        }
+        const RHI::ERHIResult Result = Swapchain_->Reconfigure(Request);
+        if (Result == RHI::ERHIResult::Success)
+        {
+            bLabPrepared_ = true;
+        }
+        else if (Request.IsZeroDrawable() &&
+            Result == RHI::ERHIResult::NotReady)
+        {
+            bLabPrepared_ = false;
+        }
+        else if (Result != RHI::ERHIResult::NotReady &&
+            Result != RHI::ERHIResult::Timeout)
+        {
+            RememberLabFailure(
+                LabFailureReason_, "Metal lab presentation reconfiguration failed");
+            SetLabReason(OutReason,
+                "Metal lab presentation reconfiguration failed");
+        }
+        (void)PopulateLabStatus(
+            Device_, Surface_, Swapchain_, bLabPrepared_,
+            CountPendingLabAcquires(), CountActiveLabTargets(),
+            CountActiveLabLeases(LabPresentationLeases_), LabFailureReason_,
+            OutStatus);
+        return Result;
+    }
+
+    [[nodiscard]] Core::uint32 CountPendingLabAcquires() const noexcept
+    {
+        Core::uint32 Count = 0;
+        for (const auto& Record : LabTargets_)
+        {
+            Count += Record.bPendingAcquire && !Record.Target.Texture ? 1u : 0u;
+        }
+        return Count;
+    }
+
+    [[nodiscard]] Core::uint32 CountActiveLabTargets() const noexcept
+    {
+        Core::uint32 Count = 0;
+        for (const auto& Record : LabTargets_)
+        {
+            Count += Record.Target.Texture ? 1u : 0u;
+        }
+        return Count;
+    }
+
     void ClearPendingFrame() noexcept
     {
         PendingCommand_.reset();
@@ -993,6 +2195,13 @@ private:
     Core::TSharedPtr<RHI::IRHICommandBuffer> PendingCommand_;
     Core::TSharedPtr<RHI::IRHIFramebuffer> PendingFramebuffer_;
     Core::TSharedPtr<RHI::IRHISemaphore> PendingRenderComplete_;
+    std::array<FLabTargetRecord, RHI::MaxRHIFrameSlots> LabTargets_{};
+    std::array<FLabPresentationLeaseRecord,
+        MaxLabPresentationLeaseRecords> LabPresentationLeases_{};
+    Core::uint32 LabFramesInFlight_ = RHI::MaxRHIFrameSlots;
+    bool bLabInitialized_ = false;
+    bool bLabPrepared_ = false;
+    Core::FString LabFailureReason_;
 };
 #endif
 

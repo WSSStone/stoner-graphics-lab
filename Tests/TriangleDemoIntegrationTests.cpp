@@ -20,6 +20,7 @@ struct FBackendCallState
     int InitializeCalls = 0;
     int ExecuteCalls = 0;
     int ShutdownCalls = 0;
+    int LegacyPresentationCalls = 0;
 };
 
 class FRecordingBackendRuntime final : public IDemoBackendRuntime
@@ -54,10 +55,12 @@ public:
     }
     Stoner::RHI::ERHIResult AcquireFrame(FDemoBackendFrame&) override
     {
+        ++State_->LegacyPresentationCalls;
         return Stoner::RHI::ERHIResult::Unsupported;
     }
     Stoner::RHI::ERHIResult SubmitFrame(const FDemoBackendFrame&) override
     {
+        ++State_->LegacyPresentationCalls;
         return Stoner::RHI::ERHIResult::Unsupported;
     }
     Stoner::RHI::ERHIResult RecreatePresentation(
@@ -70,6 +73,7 @@ public:
         Stoner::Core::uint32,
         Stoner::Core::uint32) override
     {
+        ++State_->LegacyPresentationCalls;
         return Stoner::RHI::ERHIResult::Unsupported;
     }
     Stoner::RHI::ERHIResult PresentProductionImage(
@@ -79,6 +83,7 @@ public:
         Stoner::Core::uint32,
         FDemoProductionPresentationResult&) override
     {
+        ++State_->LegacyPresentationCalls;
         return Stoner::RHI::ERHIResult::Unsupported;
     }
     Stoner::RHI::ERHIResult ExecuteOffscreenTriangle(
@@ -608,6 +613,35 @@ void TestStableDiagnosticsAndReports(FTriangleDemoIntegrationTestResult& Result)
         "Triangle demo maps an unwritable validation output path to exit code seven");
 }
 
+void TestUnsupportedLabIsolation(FTriangleDemoIntegrationTestResult& Result)
+{
+    using namespace Stoner::RHI;
+    auto Calls = Stoner::Core::MakeShared<FBackendCallState>();
+    FRecordingBackendRuntime Runtime(Calls);
+    FDemoLabPresentationStatus Status;
+    Status.bPrepared = true;
+    FRHIBorrowedAcquiredTarget Target;
+    Target.Frame.FrameToken = 123;
+    FRHIPresentationLease Lease;
+    Lease.Frame.FrameToken = 123;
+    bool Acknowledged = true;
+    bool Completed = true;
+    const auto Initialized = Runtime.InitializeLab({}, 2, false, false);
+    const auto Prepared = Runtime.PrepareLabPresentation({}, Status);
+    const auto Acquired = Runtime.AcquireLabTarget(123, 0, Target);
+    const auto Presented = Runtime.PresentLabTarget(Target, {}, Lease);
+    const auto Cancelled = Runtime.CancelLabTarget(123, 0, nullptr, Acknowledged);
+    const auto Polled = Runtime.PollLabPresentation(Lease, Completed);
+    Record(Result, Initialized == ERHIResult::Unsupported &&
+            Prepared == ERHIResult::Unsupported && Acquired == ERHIResult::Unsupported &&
+            Presented == ERHIResult::Unsupported && Cancelled == ERHIResult::Unsupported &&
+            Polled == ERHIResult::Unsupported && !Status.bPrepared &&
+            Target.Frame.FrameToken == 0 && Lease.Frame.FrameToken == 0 &&
+            !Acknowledged && !Completed && Calls->InitializeCalls == 0 &&
+            Calls->LegacyPresentationCalls == 0,
+        "Legacy backends reject lab operations and clear outputs without invoking formal presentation");
+}
+
 } // namespace
 
 FTriangleDemoIntegrationTestResult RunTriangleDemoIntegrationTests()
@@ -617,6 +651,7 @@ FTriangleDemoIntegrationTestResult RunTriangleDemoIntegrationTests()
     TestDeterministicLifecycle(Result);
     TestNativeFallbackRejection(Result);
     TestSharedBackendComposition(Result);
+    TestUnsupportedLabIsolation(Result);
     TestInitializationContractAndShaderStages(Result);
     TestPresentationRecovery(Result);
     TestFailureInjectionAndFirstFailure(Result);

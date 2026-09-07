@@ -4,6 +4,7 @@
 #include "Core/SGPlatform.h"
 #if SG_PLATFORM_MAC
 #include "FMetalAdapter.h"
+#include "FMetalDevice.h"
 #include "FMetalDeviceOwnerState.h"
 #endif
 #include "RHI/FRHIBufferDesc.h"
@@ -179,6 +180,49 @@ void TestOwnershipAndFailure(FMetalDeviceTestResult& Result)
 #endif
 }
 
+void TestShutdownRetainsPendingOwner(FMetalDeviceTestResult& Result)
+{
+#if SG_PLATFORM_MAC
+    const auto Created = CreateMetalDevice();
+    if (!Created.Succeeded())
+    {
+        Record(Result, Created.Result == ERHIResult::Unavailable,
+            "pending-owner shutdown probe is controlled unavailable without Metal");
+        return;
+    }
+    const auto Device = std::dynamic_pointer_cast<Private::FMetalDevice>(Created.Device);
+    const auto Owner = Device ? Device->GetOwner() : nullptr;
+    if (!Owner)
+    {
+        Record(Result, false, "Metal shutdown probe can inspect its private owner");
+        return;
+    }
+    // Hold one controlled submission owner without submitting GPU commands.
+    // Shutdown must retain the device until this independent proof is released.
+    const auto Generation = Owner->GetGeneration();
+    void* const NativeDevice = Device->GetNativeDevice();
+    const bool Begun = Owner->TryBeginSubmission();
+    const auto Pending = Device->Shutdown();
+    const auto Retained = Owner->Inspect();
+    Record(Result, Begun && Pending == ERHIResult::NotReady &&
+            Device->GetState() != ERHIDeviceState::Shutdown &&
+            Device->GetNativeDevice() == NativeDevice && NativeDevice != nullptr &&
+            Retained.DeviceOwnershipCount == 1 && Retained.InFlightSubmissionCount == 1 &&
+            Retained.Generation == Generation && !Retained.bAcceptingWork,
+        "Metal shutdown retains the native device and generation while a submission owner is pending");
+    if (Begun) Owner->EndSubmission();
+    const auto Retried = Device->Shutdown();
+    const auto Released = Owner->Inspect();
+    Record(Result, Retried == ERHIResult::Success &&
+            Device->GetState() == ERHIDeviceState::Shutdown &&
+            Released.DeviceOwnershipCount == 0 && Released.InFlightSubmissionCount == 0 &&
+            Released.Generation > Generation,
+        "Metal shutdown retry releases the device only after the pending owner completes");
+#else
+    Record(Result, true, "pending-owner Metal shutdown probe is macOS-only");
+#endif
+}
+
 } // namespace
 
 FMetalDeviceTestResult RunMetalDeviceTests()
@@ -186,5 +230,6 @@ FMetalDeviceTestResult RunMetalDeviceTests()
     FMetalDeviceTestResult Result;
     TestSelection(Result);
     TestOwnershipAndFailure(Result);
+    TestShutdownRetainsPendingOwner(Result);
     return Result;
 }

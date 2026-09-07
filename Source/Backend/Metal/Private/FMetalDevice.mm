@@ -287,22 +287,12 @@ RHI::ERHIResult FMetalDevice::Shutdown()
     RHI::ERHIResult DrainResult = RHI::ERHIResult::Success;
     if (Impl_)
     {
-        Core::TArray<Core::TSharedPtr<FMetalQueue>> Queues;
-        try
-        {
-            std::lock_guard Lock(Impl_->QueueMutex);
-            for (const auto& WeakQueue : Impl_->Queues)
-                if (auto Queue = WeakQueue.lock()) Queues.push_back(std::move(Queue));
-        }
-        catch (const std::bad_alloc&)
-        {
-            DrainResult = RHI::ERHIResult::Failed;
-        }
-        for (const auto& Queue : Queues)
-        {
-            const auto Result = Queue->WaitIdle();
-            if (Result != RHI::ERHIResult::Success) DrainResult = Result;
-        }
+        // Presentation owns drawable and lease state independently from the
+        // command queues.  Drain it first so its existing five-second
+        // deadline remains effective.  In particular, do not call
+        // FMetalQueue::WaitIdle here: FMetalSubmission::Wait(0) is an
+        // unbounded condition-variable wait, whereas IRHIFence::Wait(0) is
+        // the nonblocking RHI query used by the deferred path.
         Core::TArray<Core::TSharedPtr<FMetalPresentationSurface>> Surfaces;
         try
         {
@@ -313,21 +303,81 @@ RHI::ERHIResult FMetalDevice::Shutdown()
         }
         catch (const std::bad_alloc&)
         {
-            DrainResult = RHI::ERHIResult::Failed;
+            // Keep Impl_ and every native owner intact so the same owner can
+            // retry the terminal operation after the host allocation failure.
+            return RHI::ERHIResult::Failed;
         }
+
         for (const auto& Surface : Surfaces)
         {
             const auto Result = Surface->Invalidate();
             if (Result != RHI::ERHIResult::Success &&
                 Result != RHI::ERHIResult::InvalidState)
-                DrainResult = Result;
+            {
+                // A timeout/not-ready result means that the Context still
+                // owns a drawable, presentation lease, or in-flight work.
+                // Do not clear the device's weak registries or release the
+                // device owner; a later call must be able to retry.
+                return Result;
+            }
         }
-        if (Owner_ && !Owner_->IsShutdownReady())
+
+        Core::TArray<Core::TSharedPtr<FMetalQueue>> Queues;
+        try
         {
-            Owner_->RecordTerminalFailure(
-                Core::FString("metal-shutdown-in-flight-work-remains"));
-            DrainResult = RHI::ERHIResult::Failed;
+            std::lock_guard Lock(Impl_->QueueMutex);
+            for (const auto& WeakQueue : Impl_->Queues)
+                if (auto Queue = WeakQueue.lock())
+                    Queues.push_back(std::move(Queue));
         }
+        catch (const std::bad_alloc&)
+        {
+            return RHI::ERHIResult::Failed;
+        }
+
+        // Inspect() prunes records whose native completion callback already
+        // ran, but never waits for an incomplete submission.  Its PendingCount
+        // includes both ordinary and deferred records plus deferred admission
+        // reservations, so an incomplete queue remains owned for retry.
+        for (const auto& Queue : Queues)
+        {
+            if (Queue && Queue->Inspect().PendingCount != 0)
+                return RHI::ERHIResult::NotReady;
+        }
+
+        // A submission can be admitted through a caller-owned queue or other
+        // native path and therefore be absent from the weak queue snapshot.
+        // Owner state is the final admission proof; never release the device
+        // owner while it still reports in-flight work.  This is an ordinary
+        // drain wait, not a failure: the completion callback may still own the
+        // submission after its queue wrapper has been released.
+        if (Owner_ && !Owner_->IsShutdownReady())
+            return RHI::ERHIResult::NotReady;
+
+
+        // A completed failed submission is no longer pending, but its first
+        // failure remains authoritative for the shutdown result.
+        if (Owner_ && Owner_->Inspect().bTerminalFailure)
+            DrainResult = RHI::ERHIResult::Failed;
+
+        // The failure injector is intentionally handled after the bounded
+        // drain checks.  Preserve all owners so the injected failure is
+        // retryable and cannot be mistaken for successful cleanup.
+        if (bInjectedShutdownFailure)
+        {
+            if (Owner_)
+            {
+                Owner_->RecordTerminalFailure(
+                    Core::FString(ToStableName(EMetalFailurePoint::Shutdown)));
+                Owner_->RecordDiagnostic(
+                    Core::FString("Shutdown"), Core::FString("device"),
+                    RHI::ERHIResult::Failed,
+                    Core::FString(ToStableName(EMetalFailurePoint::Shutdown)),
+                    0, 0, {}, Core::FString("terminal-owners-retained"));
+            }
+            return RHI::ERHIResult::Failed;
+        }
+
         {
             std::lock_guard Lock(Impl_->PipelineCacheMutex);
             Impl_->GraphicsPipelineCache.clear();
@@ -341,20 +391,6 @@ RHI::ERHIResult FMetalDevice::Shutdown()
             std::lock_guard Lock(Impl_->SurfaceMutex);
             Impl_->Surfaces.clear();
         }
-    }
-    if (bInjectedShutdownFailure)
-    {
-        if (Owner_)
-        {
-            Owner_->RecordTerminalFailure(
-                Core::FString(ToStableName(EMetalFailurePoint::Shutdown)));
-            Owner_->RecordDiagnostic(
-                Core::FString("Shutdown"), Core::FString("device"),
-                RHI::ERHIResult::Failed,
-                Core::FString(ToStableName(EMetalFailurePoint::Shutdown)),
-                0, 0, {}, Core::FString("terminal-cleanup-complete"));
-        }
-        DrainResult = RHI::ERHIResult::Failed;
     }
     if (Owner_)
     {

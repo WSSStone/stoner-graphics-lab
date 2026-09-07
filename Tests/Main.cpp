@@ -120,6 +120,7 @@
 [[nodiscard]] int RunVulkanLabCapabilityNativeTests();
 [[nodiscard]] int RunVulkanLabStartupIntegrationTests();
 [[nodiscard]] int RunVulkanLabBorrowedNativeTests();
+[[nodiscard]] int RunDemoLabPresentationNativeTests();
 
 int main(int ArgCount, char* Arguments[])
 {
@@ -736,6 +737,9 @@ int main(int ArgCount, char* Arguments[])
     });
     Registry.Register("vulkan-lab-borrowed-native", [] {
         return RunVulkanLabBorrowedNativeTests();
+    });
+    Registry.Register("demo-lab-presentation-native", [] {
+        return RunDemoLabPresentationNativeTests();
     });
     Registry.Register("rhi-lab-contract", [] {
         return RunRHILabContractTests();

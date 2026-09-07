@@ -4,10 +4,14 @@
 #include "FDemoConfiguration.h"
 #include "RHI/FRHIRuntimeSnapshot.h"
 #include "RHI/FRHIPresentationCapabilities.h"
+#include "RHI/FRHIPresentationFrame.h"
 #include "RHI/FRHIResolvedPresentationState.h"
 #include "RHI/FRHISwapchainDesc.h"
 #include "RHI/FRHIShaderModuleDesc.h"
+#include "RHI/ERHIPresentationRetirement.h"
 #include "RHI/ERHIResult.h"
+#include "RHI/IRHIFence.h"
+#include "RHI/IRHISwapchain.h"
 #include "Renderer/FForwardFrameExecutor.h"
 
 #include <span>
@@ -42,6 +46,31 @@ struct FDemoProductionPresentationResult
     bool bPresented = false;
 };
 
+// Backend-neutral state for the interactive lab presentation path.  The
+// runtime snapshot and capability/resolved objects remain the authoritative
+// source for device and presentation identity.  The owner counts describe
+// only records visible at this facade boundary; native backends retain any
+// additional owners until their own retirement proof.
+struct FDemoLabPresentationStatus
+{
+    RHI::FRHIPresentationCapabilities Capabilities;
+    RHI::FRHIResolvedPresentationState ResolvedState;
+    RHI::FRHIRuntimeSnapshot RuntimeSnapshot;
+    RHI::ERHIPresentationRetirementMode RetirementMode =
+        RHI::ERHIPresentationRetirementMode::Unknown;
+    RHI::ERHIPresentationRetirementReason RetirementReason =
+        RHI::ERHIPresentationRetirementReason::Unknown;
+    RHI::ERHIShutdownAssurance ShutdownAssurance =
+        RHI::ERHIShutdownAssurance::Unknown;
+    Core::uint32 PendingAcquireCount = 0;
+    Core::uint32 PendingPresentationLeaseCount = 0;
+    Core::uint32 RetainedFacadeOwnerCount = 0;
+    bool bPrepared = false;
+    bool bTerminalDrainStarted = false;
+    bool bTerminalDrainComplete = false;
+    Core::FString FailureReason;
+};
+
 class IDemoBackendRuntime
 {
 public:
@@ -53,6 +82,17 @@ public:
         const Core::FPlatformWindow& Window,
         Core::uint32 FramesInFlight,
         bool bEnableValidation) = 0;
+    // Interactive lab startup is deliberately separate from the legacy
+    // runtime initializer.  Legacy implementations retain the old path and
+    // do not claim borrowed-target support by default.
+    [[nodiscard]] virtual RHI::ERHIResult InitializeLab(
+        const Core::FPlatformWindow&,
+        Core::uint32 = 2,
+        bool = false,
+        bool = false)
+    {
+        return RHI::ERHIResult::Unsupported;
+    }
     [[nodiscard]] virtual RHI::ERHIResult PrepareTriangle(
         const RHI::FRHIShaderModuleDesc& VertexShader,
         const RHI::FRHIShaderModuleDesc& FragmentShader,
@@ -78,6 +118,67 @@ public:
         const RHI::FRHISwapchainDesc&,
         RHI::FRHIResolvedPresentationState*)
     {
+        return RHI::ERHIResult::Unsupported;
+    }
+    // Borrowed-target presentation for the interactive lab.  Every default
+    // remains Unsupported so an old runtime cannot fall back to formal
+    // acquisition, readback, or synchronous presentation.
+    [[nodiscard]] virtual RHI::ERHIResult PrepareLabPresentation(
+        const RHI::FRHISwapchainDesc&,
+        FDemoLabPresentationStatus& OutStatus,
+        Core::FString* = nullptr)
+    {
+        OutStatus = {};
+        return RHI::ERHIResult::Unsupported;
+    }
+    [[nodiscard]] virtual RHI::ERHIResult ReconfigureLabPresentation(
+        const RHI::FRHISwapchainDesc&,
+        FDemoLabPresentationStatus& OutStatus,
+        Core::FString* = nullptr)
+    {
+        OutStatus = {};
+        return RHI::ERHIResult::Unsupported;
+    }
+    [[nodiscard]] virtual RHI::ERHIResult QueryLabPresentation(
+        FDemoLabPresentationStatus& OutStatus) const
+    {
+        OutStatus = {};
+        return RHI::ERHIResult::Unsupported;
+    }
+    [[nodiscard]] virtual RHI::ERHIResult AcquireLabTarget(
+        Core::uint64,
+        Core::uint32,
+        RHI::FRHIBorrowedAcquiredTarget& OutTarget,
+        Core::FString* = nullptr)
+    {
+        OutTarget = {};
+        return RHI::ERHIResult::Unsupported;
+    }
+    [[nodiscard]] virtual RHI::ERHIResult PresentLabTarget(
+        const RHI::FRHIBorrowedAcquiredTarget&,
+        const RHI::FRHIRenderLease&,
+        RHI::FRHIPresentationLease& OutLease,
+        Core::FString* = nullptr)
+    {
+        OutLease = {};
+        return RHI::ERHIResult::Unsupported;
+    }
+    [[nodiscard]] virtual RHI::ERHIResult CancelLabTarget(
+        Core::uint64,
+        Core::uint32,
+        const Core::TSharedPtr<RHI::IRHIFence>&,
+        bool& bOutCancellationAcknowledged,
+        Core::FString* = nullptr)
+    {
+        bOutCancellationAcknowledged = false;
+        return RHI::ERHIResult::Unsupported;
+    }
+    [[nodiscard]] virtual RHI::ERHIResult PollLabPresentation(
+        const RHI::FRHIPresentationLease&,
+        bool& bOutPresentationComplete,
+        Core::FString* = nullptr)
+    {
+        bOutPresentationComplete = false;
         return RHI::ERHIResult::Unsupported;
     }
     [[nodiscard]] virtual RHI::ERHIResult PresentProductionImage(
