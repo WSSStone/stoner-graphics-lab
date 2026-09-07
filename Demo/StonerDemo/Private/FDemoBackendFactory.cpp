@@ -300,6 +300,7 @@ public:
             return RHI::ERHIResult::InvalidState;
         }
         LabFailureReason_.Clear();
+        LabTerminalStatus_ = {};
         Mode_ = EDemoRunMode::InteractiveNative;
         LabFramesInFlight_ = FramesInFlight;
         Device_ = Core::MakeShared<Backend::Vulkan::FVulkanDevice>();
@@ -509,6 +510,11 @@ public:
     RHI::ERHIResult QueryLabPresentation(
         FDemoLabPresentationStatus& OutStatus) const override
     {
+        if (LabTerminalStatus_.bTerminalDrainStarted)
+        {
+            OutStatus = LabTerminalStatus_;
+            return RHI::ERHIResult::Success;
+        }
         return PopulateLabStatus(
             Device_, LabSurface_, LabSwapchain_, bLabPrepared_,
             CountPendingLabAcquires(), CountActiveLabTargets(),
@@ -609,6 +615,11 @@ public:
             SetLabReason(OutReason, "Vulkan lab target acquisition failed");
         }
         return Result;
+    }
+
+    bool OwnsLabAcquireAttempt(Core::uint64 Token, Core::uint32 Slot) const noexcept override
+    {
+        return Token != 0 && Slot < LabTargets_.size() && LabTargets_[Slot].FrameToken == Token;
     }
 
     RHI::ERHIResult PresentLabTarget(
@@ -871,6 +882,11 @@ public:
         if (bLabInitialized_)
         {
             if (!Device_) return RHI::ERHIResult::InvalidState;
+            if (!LabTerminalStatus_.bTerminalDrainStarted)
+            {
+                (void)QueryLabPresentation(LabTerminalStatus_);
+                LabTerminalStatus_.bTerminalDrainStarted = true;
+            }
             const RHI::ERHIResult Result = Device_->Shutdown();
             const bool bDeviceReachedTerminalState =
                 Device_->GetState() == RHI::ERHIDeviceState::Shutdown;
@@ -883,6 +899,14 @@ public:
                         LabFailureReason_,
                         "Vulkan lab device cleanup completed with failure");
                 }
+                LabTerminalStatus_.ShutdownAssurance = Context_
+                    ? Context_->GetLabShutdownAssurance() : RHI::ERHIShutdownAssurance::Unknown;
+                LabTerminalStatus_.bTerminalDrainComplete = bDeviceReachedTerminalState;
+                LabTerminalStatus_.bPrepared = false;
+                LabTerminalStatus_.PendingAcquireCount = 0;
+                LabTerminalStatus_.PendingPresentationLeaseCount = 0;
+                LabTerminalStatus_.RetainedFacadeOwnerCount = 0;
+                LabTerminalStatus_.FailureReason = LabFailureReason_;
                 LabSwapchain_.reset();
                 LabSurface_.reset();
                 Context_.reset();
@@ -1046,6 +1070,7 @@ private:
     Core::uint32 LabFramesInFlight_ = RHI::MaxRHIFrameSlots;
     bool bLabInitialized_ = false;
     bool bLabPrepared_ = false;
+    FDemoLabPresentationStatus LabTerminalStatus_;
     Core::FString LabFailureReason_;
     bool bProductionPresentation_ = false;
     Core::uint32 ProductionPresentationWidth_ = 0;
@@ -1118,6 +1143,7 @@ public:
             return RHI::ERHIResult::InvalidState;
         }
         LabFailureReason_.Clear();
+        LabTerminalStatus_ = {};
         const RHI::ERHIResult Result = Initialize(
             EDemoRunMode::InteractiveNative, Window, FramesInFlight,
             bEnableValidation);
@@ -1375,6 +1401,11 @@ public:
     RHI::ERHIResult QueryLabPresentation(
         FDemoLabPresentationStatus& OutStatus) const override
     {
+        if (LabTerminalStatus_.bTerminalDrainStarted)
+        {
+            OutStatus = LabTerminalStatus_;
+            return RHI::ERHIResult::Success;
+        }
         return PopulateLabStatus(
             Device_, Surface_, Swapchain_, bLabPrepared_,
             CountPendingLabAcquires(), CountActiveLabTargets(),
@@ -1471,6 +1502,11 @@ public:
             SetLabReason(OutReason, "Metal lab target acquisition failed");
         }
         return Result;
+    }
+
+    bool OwnsLabAcquireAttempt(Core::uint64 Token, Core::uint32 Slot) const noexcept override
+    {
+        return Token != 0 && Slot < LabTargets_.size() && LabTargets_[Slot].FrameToken == Token;
     }
 
     RHI::ERHIResult PresentLabTarget(
@@ -1998,6 +2034,11 @@ public:
             // native runtime reports that work is still in flight; T030 owns
             // the eventual drain/teardown decision.
             if (!Device_) return RHI::ERHIResult::InvalidState;
+            if (!LabTerminalStatus_.bTerminalDrainStarted)
+            {
+                (void)QueryLabPresentation(LabTerminalStatus_);
+                LabTerminalStatus_.bTerminalDrainStarted = true;
+            }
             const RHI::ERHIResult Result = Device_->Shutdown();
             const bool bDeviceReachedTerminalState =
                 Device_->GetState() == RHI::ERHIDeviceState::Shutdown;
@@ -2010,6 +2051,18 @@ public:
                         LabFailureReason_,
                         "Metal lab device cleanup completed with failure");
                 }
+                // Successful Metal shutdown has drained both nextDrawable
+                // jobs and native presentation callbacks before device release.
+                // Reaching Shutdown requires those native owners to drain
+                // even when a completed command's earlier failure is retained.
+                LabTerminalStatus_.ShutdownAssurance = bDeviceReachedTerminalState
+                    ? RHI::ERHIShutdownAssurance::Proven : RHI::ERHIShutdownAssurance::Unknown;
+                LabTerminalStatus_.bTerminalDrainComplete = bDeviceReachedTerminalState;
+                LabTerminalStatus_.bPrepared = false;
+                LabTerminalStatus_.PendingAcquireCount = 0;
+                LabTerminalStatus_.PendingPresentationLeaseCount = 0;
+                LabTerminalStatus_.RetainedFacadeOwnerCount = 0;
+                LabTerminalStatus_.FailureReason = LabFailureReason_;
                 LabTargets_ = {};
                 LabPresentationLeases_ = {};
                 if (Surface_) (void)Surface_->Invalidate();
@@ -2180,6 +2233,7 @@ private:
     Core::uint32 LabFramesInFlight_ = RHI::MaxRHIFrameSlots;
     bool bLabInitialized_ = false;
     bool bLabPrepared_ = false;
+    FDemoLabPresentationStatus LabTerminalStatus_;
     Core::FString LabFailureReason_;
 };
 #endif

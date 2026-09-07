@@ -1130,4 +1130,35 @@ RHI::ERHIResult FLabProductionFrameContext::Shutdown(FString* OutReason) noexcep
     return RHI::ERHIResult::Success;
 }
 
+RHI::ERHIResult FLabProductionFrameContext::ReleaseAfterDeviceShutdown(
+    RHI::ERHIShutdownAssurance Assurance, FString* OutReason) noexcept
+{
+    if (OutReason) OutReason->Clear();
+    if (!Impl_ || !Impl_->bInitialized) return RHI::ERHIResult::Success;
+    if (!Impl_->Device || Impl_->Device->GetState() != RHI::ERHIDeviceState::Shutdown ||
+        (Assurance != RHI::ERHIShutdownAssurance::Proven &&
+         Assurance != RHI::ERHIShutdownAssurance::IdleAssumed &&
+         Assurance != RHI::ERHIShutdownAssurance::DeviceLost))
+    {
+        Fail(OutReason, "terminal host release requires completed device teardown and qualified assurance");
+        return RHI::ERHIResult::InvalidState;
+    }
+    // Native teardown owns its own proofs. Do not poll/reset presentation
+    // fences after it, or turn compatibility cleanup into completion evidence.
+    Impl_->bShutdownStarted = true;
+    Impl_->Presentations.clear();
+    for (auto& Slot : Impl_->Slots)
+    {
+        if (Slot.bResourcesBuilt) Slot.Resources.Release();
+        Slot = {};
+    }
+    Impl_->SubmissionHarness.reset();
+    Impl_->SceneLease.reset();
+    Impl_->Config = {};
+    Impl_->Device.reset();
+    Impl_->RefreshAttachmentBytes();
+    Impl_->bInitialized = false;
+    return RHI::ERHIResult::Success;
+}
+
 } // namespace Stoner::Demo

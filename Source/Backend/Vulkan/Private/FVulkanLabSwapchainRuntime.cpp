@@ -1409,8 +1409,9 @@ ERHIResult FVulkanLabSwapchainRuntime::Cancel(uint64 AcquisitionToken) noexcept
     }
     if (bReacquisition)
     {
+        if (Acquire->bReacquisitionRenderSubmitted && !Acquire->bReacquisitionRenderComplete)
+            return ERHIResult::NotReady;
         if (Acquire->bReacquisitionPresentQueued ||
-            Acquire->bReacquisitionRenderSubmitted ||
             Acquire->bReacquisitionCanceled)
         {
             LatchFailure(ERHIResult::Failed);
@@ -1424,13 +1425,14 @@ ERHIResult FVulkanLabSwapchainRuntime::Cancel(uint64 AcquisitionToken) noexcept
             return MapPolicyResult(PolicyResult);
         }
         Acquire->bReacquisitionCanceled = true;
-        Acquire->bReacquisitionRenderSucceeded = false;
         return ERHIResult::Success;
     }
     if (Acquire->bPresentQueued)
     {
         return ERHIResult::InvalidState;
     }
+    if (Acquire->bRenderSubmitted && !Acquire->bRenderComplete)
+        return ERHIResult::NotReady;
     const EVulkanLabPresentationPolicyResult PolicyResult =
         Policy_.CancelAcquisition(
             Acquire->Generation, Acquire->ImageIndex, AcquisitionToken);
@@ -1439,13 +1441,9 @@ ERHIResult FVulkanLabSwapchainRuntime::Cancel(uint64 AcquisitionToken) noexcept
         return MapPolicyResult(PolicyResult);
     }
     Acquire->bCanceled = true;
-    if (Acquire->bRenderSubmitted)
-    {
-        // A queue submission may still be waiting on this image's acquire
-        // semaphore. Preserve the owner and make the failure sticky.
-        LatchFailure(ERHIResult::Failed);
-        return ERHIResult::Failed;
-    }
+    // Completed rendering permits logical cancellation. Keep the native
+    // acquisition against its generation budget until real retirement; this
+    // does not return an unpresented image or prove presentation completion.
     return ERHIResult::Success;
 }
 

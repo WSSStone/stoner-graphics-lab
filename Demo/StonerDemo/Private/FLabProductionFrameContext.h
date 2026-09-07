@@ -7,6 +7,7 @@
 #include "Renderer/FOutputTransformSettings.h"
 #include "Renderer/FStaticModelRealization.h"
 #include "RHI/FRHIPresentationFrame.h"
+#include "RHI/ERHIPresentationRetirement.h"
 #include "RHI/IRHICommandBuffer.h"
 #include "RHI/IRHIFence.h"
 #include "RHI/IRHIDevice.h"
@@ -192,6 +193,12 @@ public:
         Core::FString* OutReason = nullptr);
     [[nodiscard]] RHI::ERHIResult Shutdown(
         Core::FString* OutReason = nullptr) noexcept;
+
+    // Terminal host cleanup after the device has independently completed
+    // teardown. Pending presentation records are discarded without signaling
+    // their fences or claiming a proven release. Never legal on an active device.
+    [[nodiscard]] RHI::ERHIResult ReleaseAfterDeviceShutdown(
+        RHI::ERHIShutdownAssurance Assurance, Core::FString* OutReason = nullptr) noexcept;
 
 private:
     struct FImpl;

@@ -3,6 +3,7 @@
 #include <array>
 
 #include "RHI/RHIMinimal.h"
+#include "RHI/ERHIPresentationRetirement.h"
 #include "Core/FPlatformWindow.h"
 
 #include <memory>
@@ -190,6 +191,7 @@ public:
         Stoner::Core::uint32 Height);
     [[nodiscard]] Stoner::RHI::ERHIResult Shutdown();
     [[nodiscard]] const Stoner::RHI::FRHIRuntimeSnapshot& GetSnapshot() const noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIShutdownAssurance GetLabShutdownAssurance() const noexcept;
     [[nodiscard]] bool IsAvailable() const noexcept;
 
     // Native-only diagnostics used by the deferred submission acceptance

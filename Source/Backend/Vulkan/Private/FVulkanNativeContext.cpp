@@ -680,6 +680,8 @@ struct FLabTokenBridge
 struct FVulkanNativeContext::FImpl
 {
     Stoner::RHI::FRHIRuntimeSnapshot Snapshot;
+    Stoner::RHI::ERHIShutdownAssurance LabShutdownAssurance =
+        Stoner::RHI::ERHIShutdownAssurance::Unknown;
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
     using ERHIResult = Stoner::RHI::ERHIResult;
     using FRHIDescriptorBinding = Stoner::RHI::FRHIDescriptorBinding;
@@ -3998,6 +4000,11 @@ bool FVulkanNativeContext::IsLabPresentationActive() const noexcept
 #endif
 }
 
+Stoner::RHI::ERHIShutdownAssurance FVulkanNativeContext::GetLabShutdownAssurance() const noexcept
+{
+    return Impl ? Impl->LabShutdownAssurance : Stoner::RHI::ERHIShutdownAssurance::Unknown;
+}
+
 Stoner::RHI::ERHIResult FVulkanNativeContext::BeginLabTerminalCleanup() noexcept
 {
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
@@ -4056,6 +4063,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::DestroyLabAfterTerminalProof() noe
     {
         return Result;
     }
+    Impl->LabShutdownAssurance = Impl->LabRuntime->GetSnapshot().ShutdownAssurance;
     Impl->bLabCallbackEnabled = false;
     Impl->LabRuntime->SetPresentationRetirementCallback(nullptr, nullptr);
     for (auto& Bridge : Impl->LabTokens)
@@ -4722,6 +4730,8 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()
     VkResult IdleResult = VK_SUCCESS;
     if (Impl->Device)
     {
+        if (Impl->bLabPresentationStartup && !Impl->LabRuntime)
+            Impl->LabShutdownAssurance = Stoner::RHI::ERHIShutdownAssurance::Proven;
         if (Impl->LabRuntime)
         {
             const auto LabSnapshot = Impl->LabRuntime->GetSnapshot();
@@ -4744,6 +4754,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()
                 Impl->LabRuntime->SetPresentationRetirementCallback(nullptr,
                     nullptr);
                 Impl->LabRuntime.reset();
+                Impl->LabShutdownAssurance = Stoner::RHI::ERHIShutdownAssurance::Proven;
                 Impl->bLabPresentationStartup = false;
                 Impl->bLabTerminalDeviceIdleProven = false;
             }
@@ -4860,7 +4871,12 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::Shutdown()
     Impl->Snapshot = {};
 #if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
     if (IdleResult != VK_SUCCESS)
+    {
+        Impl->LabShutdownAssurance = IdleResult == VK_ERROR_DEVICE_LOST
+            ? Stoner::RHI::ERHIShutdownAssurance::DeviceLost
+            : Stoner::RHI::ERHIShutdownAssurance::Unknown;
         return MapVulkanCreationResult(IdleResult);
+    }
     if (DeferredResult != Stoner::RHI::ERHIResult::Success)
         return DeferredResult;
     if (SynchronousResult != Stoner::RHI::ERHIResult::Success)

@@ -6,6 +6,7 @@
 #include "FProductionContentDeferredExecution.h"
 #include "FProductionSubmissionHarness.h"
 #include "FLabProductionFrameContext.h"
+#include "FLabProductionPreviewExecutor.h"
 #include "FOutputTransformValidationCommand.h"
 #include "FProductionAuthorityWindowExtent.h"
 #include "FProductionPresentationPixels.h"
@@ -522,10 +523,104 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
         Target.Frame.ColorSpace = RHI::ERHIPresentationColorSpace::SrgbNonlinear;
         return Target;
     };
+    // Exercise the upper Renderer preview ticket with real Demo frame
+    // resources and independently controlled render/presentation fences.
+    {
+        auto TicketContext = Core::MakeShared<FLabProductionFrameContext>();
+        (void)TicketContext->Initialize(Config);
+        const auto Target = MakeTarget(99, 0, 0);
+        (void)TicketContext->ReserveFrame(99, 0);
+        (void)TicketContext->BeginFrame(99, 0, Target);
+        auto Frame = Config.Composition;
+        Frame.FrameToken = 99;
+        Renderer::FResolvedOutputTransformSettings Output;
+        Core::FString Reason;
+        Output = Renderer::FOutputTransformSettingsValidator().Validate(Config.OutputSettings).Settings;
+        RHI::FRHIResolvedPresentationState Resolved;
+        Resolved.ModeGeneration = Target.Frame.ModeGeneration;
+        Resolved.SwapchainImageGeneration = Target.Frame.SwapchainImageGeneration;
+        Resolved.Width = Width; Resolved.Height = Height;
+        Resolved.Format = OutputFormat;
+        Resolved.ColorSpace = Target.Frame.ColorSpace;
+        Resolved.NativeEncoding = Output.NativeEncoding;
+        Resolved.ReferenceWhiteNits = Output.ReferenceWhiteNits;
+        Resolved.TargetPeakNits = Output.TargetPeakNits;
+        Renderer::FOutputTransformPreviewTicket Ticket;
+        Core::uint32 Cancels = 0;
+        FLabPreviewCancelCallback Cancel = [&Cancels](Core::uint64, Core::uint32,
+            const Core::TSharedPtr<RHI::IRHIFence>&, bool& Ack) {
+            ++Cancels; Ack = true; return RHI::ERHIResult::Success;
+        };
+        const auto FenceIndex = Device->TestQueue->SubmittedFences.size();
+        const auto Recorded = RecordLabProductionPreview(TicketContext, Frame, 0, Resolved, Cancel, Ticket);
+        Renderer::FOutputTransformExecutor Executor;
+        if (Recorded.Result != Renderer::EOutputTransformResult::Success)
+            std::cerr << "Preview record failed: result=" << static_cast<int>(Recorded.Result)
+                << " native=" << static_cast<int>(Recorded.NativeResult)
+                << " state=" << static_cast<int>(TicketContext->GetFrameState(99, 0))
+                << " reason=" << TicketContext->Snapshot().FailureReason.CStr()
+                << " diagnostics=" << Recorded.Diagnostics.Dump().CStr() << std::endl;
+        const auto Submitted = Executor.SubmitPreview(Ticket);
+        const auto Pending = Executor.PollPreview(Ticket);
+        const auto EarlyRetire = Executor.RetirePreview(Ticket);
+        Record(Result, Recorded.Result == Renderer::EOutputTransformResult::Success &&
+            Ticket.IsValid() && Submitted.bQueued && !Submitted.bRenderCompleted &&
+            !Submitted.Execution.Succeeded() && !Pending.bRenderCompleted && !EarlyRetire.bRetired &&
+            Cancels == 0 && Device->TestQueue->OrdinarySubmits == 0 && Device->TestQueue->IdleCalls == 0,
+            "Demo preview ticket queues the recorded scene without readback, synchronous wait or early retirement");
+        if (Device->TestQueue->SubmittedFences.size() > FenceIndex)
+        {
+            const auto Fence = std::dynamic_pointer_cast<FPreviewSubmissionFence>(
+                Device->TestQueue->SubmittedFences[FenceIndex]);
+            Fence->WaitResult = RHI::ERHIResult::Success;
+            const auto Complete = Executor.PollPreview(Ticket);
+            RHI::FRHIPresentationLease PresentLease;
+            PresentLease.Frame = Target.Frame;
+            auto PresentFence = Core::MakeShared<FPreviewSubmissionFence>();
+            PresentLease.PresentationCompletionFence = PresentFence;
+            (void)TicketContext->QueuePresentation(99, 0, PresentLease);
+            const auto Retired = Executor.RetirePreview(Ticket);
+            Record(Result, Complete.bRenderCompleted && Retired.bRetired && Cancels == 0 &&
+                TicketContext->Snapshot().BusySlotCount == 0 &&
+                TicketContext->Snapshot().RetainedPresentationCount == 1 && !PresentFence->IsSignaled(),
+                "Renderer ticket retires the render slot while the independent presentation lease remains pending");
+            PresentFence->WaitResult = RHI::ERHIResult::Success;
+            bool Released = false;
+            (void)TicketContext->PollPresentation(99, 0, Released);
+            const auto CancelTarget = MakeTarget(100, 0, 1);
+            (void)TicketContext->ReserveFrame(100, 0);
+            (void)TicketContext->BeginFrame(100, 0, CancelTarget);
+            Frame.FrameToken = 100;
+            Renderer::FOutputTransformPreviewTicket CancelTicket;
+            const auto CancelRecorded = RecordLabProductionPreview(
+                TicketContext, Frame, 0, Resolved, Cancel, CancelTicket);
+            const auto* CancelResources = TicketContext->GetResources(100, 0);
+            const auto Commands = CancelResources ? std::dynamic_pointer_cast<
+                Stoner::Tests::StaticModelRealization::FTrackedCommandBuffer>(
+                    CancelResources->Bindings.CommandBuffer) : nullptr;
+            if (Commands)
+            {
+                Commands->ResetResult = RHI::ERHIResult::NotReady;
+                const auto CancelPending = Executor.RetirePreview(CancelTicket);
+                Commands->ResetResult = RHI::ERHIResult::Success;
+                const auto CancelRetired = Executor.RetirePreview(CancelTicket);
+                Record(Result, CancelRecorded.Result == Renderer::EOutputTransformResult::Success &&
+                    !CancelPending.bRetired && CancelRetired.bRetired && Cancels == 1 &&
+                    TicketContext->Snapshot().BusySlotCount == 0 &&
+                    Device->TestQueue->SubmittedFences.size() == FenceIndex + 1,
+                    "Unsubmitted preview cancellation retains acknowledgement across a delayed command reset without reacquiring or resubmitting");
+            }
+            (void)TicketContext->Shutdown();
+        }
+        Device->TestQueue->SubmittedFences.clear();
+    }
     FLabProductionFrameContext Context;
     const auto SceneOwnersBefore = Config.SceneLease.use_count();
     const auto DeviceOwnersBefore = Config.Device.use_count();
     const auto Initialized = Context.Initialize(Config);
+    Record(Result, Context.ReleaseAfterDeviceShutdown(RHI::ERHIShutdownAssurance::IdleAssumed) ==
+        RHI::ERHIResult::InvalidState && Context.Snapshot().bInitialized,
+        "IdleAssumed cannot authorize host resource release while the native device is active");
     const auto CreatesBeforeInvalid = Device->Ledger()->Created.size();
     const auto TooWide = Context.Reconfigure(4097, 1);
     const auto TooManyPixels = Context.Reconfigure(4096, 1921);

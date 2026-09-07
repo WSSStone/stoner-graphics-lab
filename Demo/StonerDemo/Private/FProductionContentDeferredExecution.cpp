@@ -677,6 +677,13 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
         Options.ExecutionPurpose;
     Candidate.OutputTransformPlan.ReadbackSelection =
         Options.ReadbackSelection;
+    if (Options.ExecutionPurpose == EFrameExecutionPurpose::InteractivePreview &&
+        (!Options.BorrowedFinalOutput || !FHDRPostProcessPipeline().BindPreviewTargetFormat(
+            Candidate.OutputTransformPlan, Options.BorrowedFinalOutput->GetFormat())))
+    {
+        Fail(OutReason, "borrowed preview target storage is incompatible with the output profile");
+        return ERHIResult::Unsupported;
+    }
     if (!Candidate.OutputTransformPlan.IsValid())
     {
         Fail(OutReason,
@@ -1109,7 +1116,8 @@ ERHIResult FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
     }
     CandidateOutputPlan.ExecutionPurpose = EFrameExecutionPurpose::InteractivePreview;
     CandidateOutputPlan.ReadbackSelection = EFrameReadbackSelection::None;
-    if (!CandidateOutputPlan.IsValid() ||
+    if (!FHDRPostProcessPipeline().BindPreviewTargetFormat(CandidateOutputPlan,
+            InOutResources.Bindings.FormalOutput->GetFormat()) || !CandidateOutputPlan.IsValid() ||
         CandidateOutputPlan.OutputDesc.Format !=
             InOutResources.OutputTransformPlan.OutputDesc.Format)
     {

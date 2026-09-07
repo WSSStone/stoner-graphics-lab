@@ -795,3 +795,57 @@ transform architecture check passed. Logs are under
 T032 startup is still pending: the new flag currently fails explicitly before
 the legacy application loop. These configuration checks do not claim an
 operational scene lab, native scene smoke or hardware acceptance.
+
+## T032 strict-cooked scene lab review (2026-09-07)
+
+T032 is reviewed complete, bringing implementation to **31/127**. UI-off startup
+loads scene/output-only immutable generations and creates the real native lab
+window, current-drawable camera and two deferred frame slots. The Renderer
+preview ticket records the existing scene/output chain once, borrows the native
+final target and retains render and presentation ownership independently.
+It does not enter the formal capture/Accepted authority loop. UI-on fails
+explicitly until the subsequent ImGui tasks are implemented.
+
+An advertised BGRA8 UNorm SDR native target can now bind equivalent preview
+storage with its own plan fingerprint. Canonical output profiles and formal
+capture format remain unchanged. Resize/exit cancellation now admits an already
+completed Vulkan render while keeping its unpresented acquisition against the
+native generation budget. An incomplete render still returns NotReady.
+Terminal status preserves native cleanup assurance after facade owners release;
+qualified device-shutdown cleanup releases host frame records without fabricating
+presentation completion.
+
+Strict Debug and Release builds passed. Each configuration passed **391/391**
+related assertions: production-content-demo 79, renderer-output-transform 49,
+rhi-deferred-submission 91, interactive-lab-lifecycle 21,
+interactive-lab-watchdog 1, application-free-camera 31, application-window 60,
+production-camera-preview 22 and triangle-demo 37. Each also passed **67/67**
+additional native assertions (borrowed Vulkan 47, Metal presentation 7,
+deferred-native 13), plus two **33/33** native bridge/scene lifecycle invocations.
+The latter run an actual Lantern scene, resize its client area, minimize/restore
+the OS window, observe resumed rendering, then close. The fixture waits for the
+asynchronous OS events with a 10-second scenario/4096-frame limit; the earlier
+8-frame fixture could finish before observing the animation and was corrected.
+
+Five Release scene-only smokes each presented eight frames: Lantern and Sponza
+on Metal; Lantern and Sponza on automatic Vulkan; Lantern on forced Vulkan
+AcquireHistory. The same five scene/backend combinations also passed preliminary
+Debug smokes. On this M4 host, automatic Vulkan selected presentation fences;
+Metal and automatic Vulkan ended Proven, forced fallback ended IdleAssumed.
+Resize may cancel completed submissions, so submitted/render-completed counts
+can exceed successfully queued presentations. Assumed terminal cleanup is not
+counted as proven presentation release. Architecture validation passed.
+
+Logs and local argv are under `Build/Validation/030/deferred-review/`:
+`build-{debug,release}-t032-final.log`, named suite `*-t032-final-{debug,release}.log`,
+`lab-lantern-{metal,vulkan}-lifecycle-t032-final-{debug,release}.log`,
+`lab-*-t032-argv.json`, and `architecture-t032-final.log`. Metal reuses the
+unchanged scene/output cooked generations from the earlier 029 source package;
+Vulkan scene/output packages were freshly cooked under this working directory.
+Those packages supply content, not inherited hardware authority.
+
+These are preliminary local working-tree implementation checks, not formal
+same-SHA evidence or HDR visual acceptance. T033 actual native-operation counters,
+T034 `us1.json`, remaining failure-boundary tests, hosted/physical closeout and
+current human HDR authority remain open. No formal output or Accepted baseline
+was generated or changed by these preview smokes.

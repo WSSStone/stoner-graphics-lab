@@ -242,6 +242,15 @@ bool FOutputTransformPlan::IsValid() const noexcept
     {
         return false;
     }
+    const bool CanonicalStorage = PreviewTargetFormat == Stoner::RHI::ERHIFormat::Unknown &&
+        OutputDesc.Format == ResolvedSettings.OutputFormat;
+    const bool NativePreviewStorage = ExecutionPurpose == EFrameExecutionPurpose::InteractivePreview &&
+        ReadbackSelection == EFrameReadbackSelection::None && !ResolvedSettings.bRequireReadback &&
+        ResolvedSettings.DynamicRange == EOutputDynamicRange::SDR &&
+        ResolvedSettings.NativeEncoding == Stoner::RHI::ERHIPresentationNativeEncoding::SdrExplicit &&
+        ResolvedSettings.OutputFormat == Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm &&
+        PreviewTargetFormat == Stoner::RHI::ERHIFormat::B8G8R8A8_UNorm && OutputDesc.Format == PreviewTargetFormat;
+    if (!CanonicalStorage && !NativePreviewStorage) return false;
     if (InsertionDiagnostics.size() !=
             PreTonemapOperations.Operations.size() +
                 PostTonemapOperations.Operations.size() ||
@@ -312,6 +321,30 @@ bool FOutputTransformPlan::IsValid() const noexcept
          Stages[Cursor++].Kind != EOutputTransformStageKind::Presentation))
         return false;
     return Cursor == Stages.size();
+}
+
+bool FHDRPostProcessPipeline::BindPreviewTargetFormat(FOutputTransformPlan& Plan,
+    Stoner::RHI::ERHIFormat Format) const
+{
+    using namespace Stoner::RHI;
+    if (!Plan.IsValid() || Plan.ExecutionPurpose != EFrameExecutionPurpose::InteractivePreview ||
+        Plan.ReadbackSelection != EFrameReadbackSelection::None || Plan.ResolvedSettings.bRequireReadback)
+        return false;
+    if (Format == Plan.OutputDesc.Format) return true;
+    if (Plan.PreviewTargetFormat != ERHIFormat::Unknown || Format != ERHIFormat::B8G8R8A8_UNorm ||
+        Plan.ResolvedSettings.DynamicRange != EOutputDynamicRange::SDR ||
+        Plan.ResolvedSettings.NativeEncoding != ERHIPresentationNativeEncoding::SdrExplicit ||
+        Plan.OutputDesc.Format != ERHIFormat::R8G8B8A8_UNorm) return false;
+    auto Candidate = Plan;
+    Candidate.PreviewTargetFormat = Format;
+    Candidate.OutputDesc.Format = Format;
+    const auto Digest = DigestText(Stoner::Core::FString(
+        Plan.PlanFingerprint.ToStdString() + "|preview-storage-bgra8-unorm-v1"));
+    Candidate.PlanFingerprint = Digest.ToLowerHex();
+    Candidate.PlanId = MakeStableId(Digest, 0);
+    if (!Candidate.IsValid()) return false;
+    Plan = std::move(Candidate);
+    return true;
 }
 
 const char* ToString(EOutputTransformStageKind Kind) noexcept

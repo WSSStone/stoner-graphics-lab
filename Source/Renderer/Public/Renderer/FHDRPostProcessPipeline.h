@@ -45,6 +45,8 @@ public:
     [[nodiscard]] FOutputTransformPrepareResult Prepare(
         const FHDRSceneColorHandoff& SceneColor,
         const FOutputTransformSettings& Settings) const;
+    [[nodiscard]] bool BindPreviewTargetFormat(FOutputTransformPlan& Plan,
+        Stoner::RHI::ERHIFormat Format) const;
     [[nodiscard]] FOutputTransformGraphDeclaration DeclareGraph(
         FRenderGraph& Graph, const FOutputTransformPlan& Plan) const;
     [[nodiscard]] bool ValidateOutputGraph(const FRenderGraph& Graph,

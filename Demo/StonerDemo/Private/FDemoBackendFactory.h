@@ -154,6 +154,12 @@ public:
         OutTarget = {};
         return RHI::ERHIResult::Unsupported;
     }
+    // Exact admission provenance, including a private pending acquisition.
+    // Rejected/paused calls may have produced no backend owner at all.
+    [[nodiscard]] virtual bool OwnsLabAcquireAttempt(Core::uint64, Core::uint32) const noexcept
+    {
+        return false;
+    }
     [[nodiscard]] virtual RHI::ERHIResult PresentLabTarget(
         const RHI::FRHIBorrowedAcquiredTarget&,
         const RHI::FRHIRenderLease&,

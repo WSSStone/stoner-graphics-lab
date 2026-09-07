@@ -673,6 +673,34 @@ struct FPreviewGraphFixture
     }
 };
 
+void TestPreviewNativeStorage(FRendererOutputTransformTestResult& Result)
+{
+    FRenderGraph Graph("PreviewNativeStorage");
+    auto Plan = FHDRPostProcessPipeline().Prepare(MakeProducedSceneColor(Graph), {}).Plan;
+    const auto Formal = Plan;
+    Plan.ExecutionPurpose = EFrameExecutionPurpose::InteractivePreview;
+    Plan.ReadbackSelection = EFrameReadbackSelection::None;
+    const bool Bound = FHDRPostProcessPipeline().BindPreviewTargetFormat(Plan, ERHIFormat::B8G8R8A8_UNorm);
+    const auto Fingerprint = Plan.PlanFingerprint;
+    const auto Declaration = FHDRPostProcessPipeline().DeclareGraph(Graph, Plan);
+    Record(Result, Bound && Plan.IsValid() && Plan.OutputDesc.Format == ERHIFormat::B8G8R8A8_UNorm &&
+        Plan.ResolvedSettings.OutputFormat == ERHIFormat::R8G8B8A8_UNorm &&
+        Plan.FormalOutputId == Formal.FormalOutputId && Plan.PlanFingerprint != Formal.PlanFingerprint &&
+        Declaration.IsValid() && Graph.Compile() == ERenderGraphResult::Success &&
+        FHDRPostProcessPipeline().BindPreviewTargetFormat(Plan, ERHIFormat::B8G8R8A8_UNorm) &&
+        Plan.PlanFingerprint == Fingerprint,
+        "Preview BGRA8 binds native channel storage without changing the canonical SDR transform or adding a pass");
+    auto Rejected = Formal;
+    Record(Result, !FHDRPostProcessPipeline().BindPreviewTargetFormat(Rejected, ERHIFormat::B8G8R8A8_UNorm) &&
+        Rejected.OutputDesc.Format == ERHIFormat::R8G8B8A8_UNorm && Rejected.PlanFingerprint == Formal.PlanFingerprint &&
+        !FHDRPostProcessPipeline().BindPreviewTargetFormat(Plan, ERHIFormat::R8G8B8A8_sRGB),
+        "Native storage adaptation rejects formal plans and hardware transfer changes");
+    auto Forged = Plan;
+    Forged.ExecutionPurpose = EFrameExecutionPurpose::FormalValidation;
+    Forged.ReadbackSelection = EFrameReadbackSelection::Formal;
+    Record(Result, !Forged.IsValid(), "A native preview storage override cannot be promoted to formal authority");
+}
+
 void TestAsynchronousPreviewLifecycle(
     FRendererOutputTransformTestResult& Result)
 {
@@ -985,6 +1013,7 @@ FRendererOutputTransformTestResult RunRendererOutputTransformTests()
     TestSameFrameNativeTerminalSequence(Result);
     TestDiagnosticBypassDoesNotMutateFormalOutput(Result);
     TestBoundedVisualizationAndInvalidDebugSelection(Result);
+    TestPreviewNativeStorage(Result);
     TestAsynchronousPreviewLifecycle(Result);
     return Result;
 }

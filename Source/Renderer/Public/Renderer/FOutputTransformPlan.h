@@ -114,6 +114,9 @@ struct FOutputTransformPlan
     Stoner::Core::TArray<FOutputTransformStage> Stages;
     Stoner::Core::uint64 FormalOutputId = 0;
     FOutputTransformOutputDesc OutputDesc;
+    // Only a zero-readback SDR preview may bind equivalent BGRA8 native
+    // storage. Canonical profile output and formal captures remain RGBA8.
+    Stoner::RHI::ERHIFormat PreviewTargetFormat = Stoner::RHI::ERHIFormat::Unknown;
     Stoner::Core::FString PlanFingerprint;
     FOutputTransformDiagnosticLog Diagnostics;
     EOutputTransformPlanState State = EOutputTransformPlanState::Failed;

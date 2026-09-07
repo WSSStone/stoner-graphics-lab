@@ -1,4 +1,5 @@
 #include "FDemoBackendFactory.h"
+#include "FInteractiveLabRun.h"
 #include "Application/FWindow.h"
 #include "Application/FWindowDesc.h"
 #include "RHI/RHIMinimal.h"
@@ -262,9 +263,92 @@ void RunCase(int& Failed, Demo::EDemoGraphicsBackend Backend, bool ForceAcquireH
     const auto Shutdown = PollBounded(Window, [&] { return Runtime.Shutdown(); });
     Check(Failed, Shutdown == ERHIResult::Success,
         "Demo lab terminal shutdown completes without reusing formal presentation APIs");
+    Demo::FDemoLabPresentationStatus Terminal;
+    const auto TerminalQuery = Runtime.QueryLabPresentation(Terminal);
+    const auto ExpectedAssurance = Status.RetirementMode == RHI::ERHIPresentationRetirementMode::AcquireHistory
+        ? RHI::ERHIShutdownAssurance::IdleAssumed : RHI::ERHIShutdownAssurance::Proven;
+    Check(Failed, TerminalQuery == ERHIResult::Success && Terminal.bTerminalDrainComplete &&
+        Terminal.ShutdownAssurance == ExpectedAssurance && Terminal.RetainedFacadeOwnerCount == 0,
+        "terminal status preserves actual native retirement assurance after facade owners are released");
     Leases.clear();
     Device.reset();
     (void)Window.Destroy();
+}
+void RunSceneLifecycle(int& Failed)
+{
+    const auto Env = [](const char* Name) { const char* Value = std::getenv(Name); return Core::FString(Value ? Value : ""); };
+    if (Env("STONER_LAB_SCENE_COOK_ROOT").IsEmpty()) return;
+    Demo::FDemoConfiguration Config;
+    Config.bInteractiveLab = true; Config.bLabUI = false;
+    Config.RunMode = Demo::EDemoRunMode::BoundedNative;
+    Config.GraphicsBackend = Env("STONER_LAB_SCENE_BACKEND") == "metal"
+        ? Demo::EDemoGraphicsBackend::Metal : Demo::EDemoGraphicsBackend::Vulkan;
+    Config.bLabForceAcquireHistory = Env("STONER_LAB_SCENE_FORCE_FALLBACK") == "1";
+    Config.Workload = Demo::EDemoWorkload::ProductionContent;
+    Config.RenderPath = Demo::EDemoRenderPath::DeferredFull;
+    Config.ClientWidth = 320; Config.ClientHeight = 180;
+    // OS minimize/restore is asynchronous. Close after observing the whole
+    // scenario instead of racing an eight-frame budget against its callbacks.
+    Config.FrameBudget = 4096; Config.MemorySampleInterval = 120;
+    Config.MaxMemoryGrowthBytes = 16ULL * 1024ULL * 1024ULL; Config.MaxMemoryGrowthPercent = 10;
+    Config.CookedPublicationRoot = Env("STONER_LAB_SCENE_COOK_ROOT");
+    Config.StrictGeneration = Env("STONER_LAB_SCENE_GENERATION");
+    Config.ProductionRoot = Env("STONER_LAB_SCENE_ROOT");
+    Config.WorkloadRevision = Env("STONER_LAB_SCENE_WORKLOAD");
+    Config.TargetProfilePath = Env("STONER_LAB_SCENE_PROFILE");
+    Config.LeaseCoordinationRoot = Env("STONER_LAB_SCENE_LEASE_ROOT");
+    bool ActionsSucceeded = true, ObservedMinimized = false, ObservedRestored = false;
+    int Stage = 0;
+    Core::uint32 PresentedAtRestore = 0;
+    const auto ScenarioStarted = std::chrono::steady_clock::now();
+    auto MinimizeStarted = std::chrono::steady_clock::now();
+    const auto Result = Demo::RunInteractiveLab(Config, Demo::FDemoBackendFactory(),
+        [&](Application::FWindow& Window, Core::uint32 Presented) {
+            if (std::chrono::steady_clock::now() - ScenarioStarted > std::chrono::seconds(10))
+            {
+                ActionsSucceeded = false;
+                (void)Window.RequestClose();
+                return;
+            }
+            if (Stage == 0 && Presented >= 2)
+            {
+                ActionsSucceeded &= Window.SetClientSize(352, 198) == Application::EApplicationResult::Success;
+                Stage = 1;
+            }
+            else if (Stage == 1 && Presented >= 4)
+            {
+                ActionsSucceeded &= Window.Minimize() == Application::EApplicationResult::Success;
+                MinimizeStarted = std::chrono::steady_clock::now(); Stage = 2;
+            }
+            else if (Stage == 2)
+            {
+                ObservedMinimized |= Window.IsMinimized();
+                if (ObservedMinimized && std::chrono::steady_clock::now() - MinimizeStarted > std::chrono::milliseconds(150))
+                {
+                    ActionsSucceeded &= Window.Restore() == Application::EApplicationResult::Success;
+                    PresentedAtRestore = Presented;
+                    Stage = 3;
+                }
+            }
+            else if (Stage == 3 && !Window.IsMinimized() && Window.HasDrawableArea())
+            {
+                ObservedRestored = true;
+                if (Presented >= 8 && Presented >= PresentedAtRestore + 2)
+                {
+                    ActionsSucceeded &= Window.RequestClose() == Application::EApplicationResult::Success;
+                    Stage = 4;
+                }
+            }
+        });
+    std::cout << "[INFO] scene lifecycle exit=" << static_cast<int>(Result.ExitCode)
+        << " stage=" << Stage << " actions=" << ActionsSucceeded << " minimized=" << ObservedMinimized
+        << " restored=" << ObservedRestored << " failure=" << Result.FirstFailure.CStr() << '\n';
+    Check(Failed, Result.ExitCode == Demo::EDemoExitCode::Success && Result.PresentedFrames >= 8 && Stage == 4 &&
+        Result.RenderCompletedFrames >= Result.PresentedFrames && ActionsSucceeded && ObservedMinimized && ObservedRestored &&
+        Result.FirstFailure.IsEmpty() &&
+        (Result.ShutdownAssurance == ERHIShutdownAssurance::Proven ||
+         Result.ShutdownAssurance == ERHIShutdownAssurance::IdleAssumed),
+        "strict cooked scene lab resumes current-drawable rendering after resize/minimize and terminates with qualified native cleanup");
 }
 } // namespace
 
@@ -281,5 +365,6 @@ int RunDemoLabPresentationNativeTests()
 #if defined(__APPLE__)
     RunCase(Failed, Demo::EDemoGraphicsBackend::Metal, false);
 #endif
+    RunSceneLifecycle(Failed);
     return Failed == 0 ? 0 : 1;
 }
