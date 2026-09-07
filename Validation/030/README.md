@@ -550,3 +550,35 @@ application terminal worker/watchdog, remaining failure fixtures, cross-platform
 closeout and current human HDR acceptance remain pending. IdleAssumed terminal
 fallback cleanup is never counted as proven presentation release. Nothing here
 updates Accepted images or claims a successful formal Feature 030 hardware gate.
+
+
+## T026 Renderer asynchronous preview review (2026-09-07)
+
+T026 is reviewed complete, bringing implementation to **25/127**. Renderer now
+records a validated zero-readback preview graph into a shared opaque ticket and
+exposes explicit submit, poll and retire operations. Native admission/completion
+flags are independent of success/failure results. Pending admission/cancellation
+and retirement remain retryable; a real first failure survives later completion
+or successful cleanup. Render-ticket retirement releases its executor/target
+references while retaining diagnostics for independently owned presentation
+leases. Preview never publishes formal output or calls the legacy synchronous
+wait/readback/presentation facade. Formal execution explicitly rejects a preview
+plan.
+
+Strict Debug and Release builds passed. Each configuration passed 46
+renderer-output-transform assertions (including 19 preview assertions), 20
+output-transform math, 22 RHI presentation-output and seven output-presentation
+lifecycle assertions: **95/95 per configuration**. Architecture validation passed
+with zero findings. Logs are under `Build/Validation/030/deferred-review/`:
+`build-{debug,release}-preview-final.log` and
+`{renderer-output-transform,renderer-output-transform-math,rhi-presentation-output,output-presentation-lifecycle}-preview-final-{debug,release}.log`.
+An earlier test failure remains in `renderer-preview-debug.log`; its weak-owner
+fixture mistakenly retained the caller's shared binding, which the final test
+explicitly releases before checking retired-ticket ownership.
+
+These are working-tree deterministic seam/regression checks, not native scene
+preview acceptance. Non-successful acquisition produces no Renderer ticket;
+the adapter independently retains pending acquisition and its persistent session
+owner must retry or drain it. T027/T028/T029 still own the Demo resource,
+submission and acquired-target integration. No scene/HDR/hardware closeout or
+Accepted baseline update is claimed.
