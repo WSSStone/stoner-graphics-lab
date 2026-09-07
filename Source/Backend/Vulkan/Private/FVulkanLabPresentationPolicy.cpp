@@ -861,6 +861,15 @@ FVulkanLabPresentationPolicy::MarkRenderComplete(
         PromoteReacquisitionIfReady(*Record);
         return EVulkanLabPresentationPolicyResult::Accepted;
     }
+    // A canceled unsubmitted reacquisition can be promoted into this base
+    // record after it proves the predecessor's release. It must remain
+    // canceled and cannot acquire a render-complete/released state. A
+    // cancellation after submission still needs its submitted render use
+    // drained so the owner can be cleaned up safely.
+    if (Record->bCanceled && !Record->bRenderSubmitted)
+    {
+        return EVulkanLabPresentationPolicyResult::Invalid;
+    }
     Record->bRenderComplete = true;
     ReleaseRecordIfComplete(*Record);
     return EVulkanLabPresentationPolicyResult::Accepted;
@@ -911,8 +920,7 @@ FVulkanLabPresentationPolicy::MarkAcquireSynchronizationComplete(
         Reacquisition != nullptr &&
         IsReacquisitionRecord(*Reacquisition, ReacquisitionToken);
     if (Reacquisition == nullptr || GenerationRecord == nullptr ||
-        Reacquisition->bCanceled ||
-        (bPendingReacquisition && Reacquisition->bReacquisitionCanceled))
+        Reacquisition->bCanceled)
     {
         return EVulkanLabPresentationPolicyResult::Invalid;
     }
@@ -950,8 +958,11 @@ FVulkanLabPresentationPolicy::MarkAcquireSynchronizationComplete(
     if (bPendingReacquisition)
     {
         Reacquisition->bReacquisitionSynchronized = true;
-        // The old render state remains in the same record until it has
-        // completed; promotion then preserves the current acquisition state.
+        // The acquire signal still proves release of the prior presentation
+        // even when the newly acquired image was logically canceled. The old
+        // render state remains in this record until it has completed; any
+        // later promotion preserves that cancellation and keeps the image
+        // owned rather than treating it as presented or released.
         PromoteReacquisitionIfReady(*Reacquisition);
     }
 
@@ -1124,6 +1135,75 @@ uint32 FVulkanLabPresentationPolicy::GetOutstandingRecordCount() const noexcept
         }
     }
     return Count;
+}
+
+EVulkanLabPresentationPolicyResult
+FVulkanLabPresentationPolicy::ResolveTerminalNonPresentedOwners() noexcept
+{
+    // This is deliberately a caller-proven terminal operation.  The native
+    // shutdown path must have checked every acquire signal and submitted
+    // render use before asking the policy to release a non-presented owner.
+    // Keep it separate from the AcquireHistory idle compatibility escape so
+    // that it cannot turn an unproven owner into a presentation-release proof.
+    if (!bTerminalCleanupStarted_ || bTerminalIdleSucceeded_ ||
+        (Mode_ != ERHIPresentationRetirementMode::AcquireHistory &&
+         Mode_ != ERHIPresentationRetirementMode::PresentationFence) ||
+        ShutdownAssurance_ != Stoner::RHI::ERHIShutdownAssurance::Unknown)
+    {
+        return EVulkanLabPresentationPolicyResult::StateConflict;
+    }
+
+    bool bOwnershipPending = false;
+    for (FPresentationRecord& Record : Records_)
+    {
+        if (!Record.bOccupied)
+        {
+            continue;
+        }
+
+        bool bCanResolve = true;
+        if (Record.ReacquisitionToken != 0)
+        {
+            // A pending reacquisition still carries the predecessor proof.
+            // Until that proof is observed, or while the newly acquired
+            // image has a queued presentation or incomplete render, retain
+            // the entire fixed-capacity owner record.
+            bCanResolve = Record.bReacquisitionSynchronized &&
+                !Record.bReacquisitionPresented &&
+                (!Record.bReacquisitionRenderSubmitted ||
+                 Record.bReacquisitionRenderComplete) &&
+                (!Record.bReacquisitionObserved ||
+                 Record.bPresentationRetired);
+        }
+        else if (Record.bPresented && !Record.bPresentationRetired)
+        {
+            // A queued presentation remains owned until its native
+            // presentation completion proof arrives.
+            bCanResolve = false;
+        }
+
+        // Cancellation does not waive a render submission.  This check also
+        // covers the base portion of a pending reacquisition record.
+        if (Record.bRenderSubmitted && !Record.bRenderComplete)
+        {
+            bCanResolve = false;
+        }
+
+        if (!bCanResolve)
+        {
+            bOwnershipPending = true;
+            continue;
+        }
+
+        // The record was acquired but never presented.  The caller's native
+        // acquire/render proofs authorize dropping ownership without making
+        // it look like a presented image or a presentation-fence proof.
+        Record = {};
+    }
+
+    return bOwnershipPending
+        ? EVulkanLabPresentationPolicyResult::ImageOwnershipPending
+        : EVulkanLabPresentationPolicyResult::Accepted;
 }
 
 EVulkanLabPresentationPolicyResult

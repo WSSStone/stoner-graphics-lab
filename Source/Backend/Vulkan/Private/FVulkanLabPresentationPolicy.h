@@ -266,6 +266,14 @@ public:
     }
     [[nodiscard]] EVulkanLabPresentationPolicyResult
     ResolveTerminalOwnersForCompatibility() noexcept;
+    // The terminal caller must have independently proved that every native
+    // acquire has completed and that each submitted render use is complete.
+    // This clears only non-presented owners at terminal cleanup; queued or
+    // unretired presentations and reacquisitions whose predecessor proof is
+    // incomplete remain retained. It never changes a record into presented
+    // state and never authorizes cleanup after forced/device-lost failure.
+    [[nodiscard]] EVulkanLabPresentationPolicyResult
+    ResolveTerminalNonPresentedOwners() noexcept;
     [[nodiscard]] EVulkanLabPresentationPolicyResult
     CompleteTerminalIdle(bool bIdleSucceeded) noexcept;
     void MarkForcedTermination() noexcept;

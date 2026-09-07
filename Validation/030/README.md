@@ -446,3 +446,13 @@ more than eight images and an actual-count aggregate budget overflow. Rejected
 replacement publication keeps the predecessor retired and cannot resume it.
 The new native runtime helper is still staged separately pending integration;
 this policy correction does not add a completed task or native acceptance claim.
+
+Terminal policy review subsequently passed 70 independent optimized strict
+standalone assertions (`policy-review/compile-terminal-owner-reviewed.log` and
+`terminal-owner-reviewed.log`). A canceled reacquisition can still prove release
+of its predecessor without releasing its own canceled image. Explicit terminal
+resolution requires caller-proven acquire/render completion, retains unretired
+presentations and incomplete render uses, and preserves replacement failure,
+forced-termination and device-loss distinctions. The staged native helper and
+its real borrowed-window integration remain under review; these deterministic
+policy results are not GPU presentation evidence or additional completed tasks.

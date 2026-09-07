@@ -273,6 +273,44 @@ void TestImageIndexedRetirement(FTestState& State)
             Policy.GetOutstandingRecordCount() == 1,
         "same-image acquire synchronization retires the prior presentation");
 
+    FVulkanLabPresentationPolicy CanceledReacquisition(
+        ERHIPresentationRetirementMode::AcquireHistory);
+    (void)CanceledReacquisition.AdmitInitialGeneration(
+        MakeGeneration(1, 1, 64, 64));
+    (void)CanceledReacquisition.RecordAcquisition(1, 0, 301);
+    (void)CanceledReacquisition.RecordPresentationQueued(1, 0, 301);
+    (void)CanceledReacquisition.MarkRenderComplete(1, 0, 301);
+    Check(State,
+        CanceledReacquisition.RecordAcquisition(1, 0, 302) ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            CanceledReacquisition.CancelAcquisition(1, 0, 302) ==
+                EVulkanLabPresentationPolicyResult::Accepted,
+        "an acquired replacement image may be logically canceled before presentation");
+    Check(State,
+        CanceledReacquisition.MarkAcquireSynchronizationComplete(1, 0, 302) ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            CanceledReacquisition.GetActiveGeneration().bFirstPresentationRetired &&
+            CanceledReacquisition.RecordPresentationQueued(1, 0, 302) ==
+                EVulkanLabPresentationPolicyResult::Invalid &&
+            CanceledReacquisition.MarkRenderComplete(1, 0, 302) ==
+                EVulkanLabPresentationPolicyResult::Invalid &&
+            CanceledReacquisition.GetOutstandingRecordCount() == 1 &&
+            !CanceledReacquisition.IsImageReusable(1, 0) &&
+            CanceledReacquisition.RecordAcquisition(1, 0, 303) ==
+                EVulkanLabPresentationPolicyResult::ImageOwnershipPending,
+        "canceled reacquisition still proves the prior presentation but remains owned");
+    CanceledReacquisition.BeginTerminalCleanup();
+    Check(State,
+        CanceledReacquisition.GetTerminalOutstandingRecordCount() == 1 &&
+            CanceledReacquisition.RecordAcquisition(1, 0, 304) ==
+                EVulkanLabPresentationPolicyResult::StateConflict &&
+            CanceledReacquisition.CompleteTerminalIdle(true) ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            CanceledReacquisition.ResolveTerminalOwnersForCompatibility() ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            CanceledReacquisition.GetOutstandingRecordCount() == 0,
+        "canceled reacquisition stays retained until explicit terminal cleanup");
+
     Check(State,
         Policy.CancelAcquisition(1, 1, 201) ==
                 EVulkanLabPresentationPolicyResult::Invalid,
@@ -524,6 +562,169 @@ void TestActualImageCountCompletion(FTestState& State)
         "an actual-count aggregate budget failure retires the predecessor without rollback");
 }
 
+void TestTerminalNonPresentedOwners(FTestState& State)
+{
+    FVulkanLabPresentationPolicy BeforeTerminal(
+        ERHIPresentationRetirementMode::PresentationFence);
+    (void)BeforeTerminal.AdmitInitialGeneration(MakeGeneration(1, 1));
+    (void)BeforeTerminal.RecordAcquisition(1, 0, 401);
+    (void)BeforeTerminal.CancelAcquisition(1, 0, 401);
+    Check(State,
+        BeforeTerminal.ResolveTerminalNonPresentedOwners() ==
+            EVulkanLabPresentationPolicyResult::StateConflict,
+        "non-presented terminal resolution is unavailable before terminal cleanup");
+
+    FVulkanLabPresentationPolicy CanceledUnsubmitted(
+        ERHIPresentationRetirementMode::PresentationFence);
+    (void)CanceledUnsubmitted.AdmitInitialGeneration(MakeGeneration(1, 1));
+    (void)CanceledUnsubmitted.RecordAcquisition(1, 0, 402);
+    (void)CanceledUnsubmitted.CancelAcquisition(1, 0, 402);
+    Check(State,
+        !CanceledUnsubmitted.IsImageReusable(1, 0) &&
+            CanceledUnsubmitted.RecordAcquisition(1, 0, 403) ==
+                EVulkanLabPresentationPolicyResult::ImageOwnershipPending,
+        "canceled unsubmitted ownership remains retained during normal operation");
+    CanceledUnsubmitted.BeginTerminalCleanup();
+    Check(State,
+        CanceledUnsubmitted.CompleteTerminalIdle(true) ==
+                EVulkanLabPresentationPolicyResult::ImageOwnershipPending &&
+            CanceledUnsubmitted.ResolveTerminalNonPresentedOwners() ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            CanceledUnsubmitted.GetOutstandingRecordCount() == 0 &&
+            CanceledUnsubmitted.CompleteTerminalIdle(true) ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            CanceledUnsubmitted.GetShutdownAssurance() ==
+                ERHIShutdownAssurance::Proven,
+        "caller-proven terminal cleanup releases a canceled unsubmitted owner");
+
+    FVulkanLabPresentationPolicy CanceledSubmitted(
+        ERHIPresentationRetirementMode::PresentationFence);
+    (void)CanceledSubmitted.AdmitInitialGeneration(MakeGeneration(1, 1));
+    (void)CanceledSubmitted.RecordAcquisition(1, 0, 404);
+    (void)CanceledSubmitted.MarkRenderSubmitted(1, 0, 404);
+    (void)CanceledSubmitted.CancelAcquisition(1, 0, 404);
+    Check(State,
+        CanceledSubmitted.MarkRenderComplete(1, 0, 404) ==
+                EVulkanLabPresentationPolicyResult::Accepted,
+        "a canceled submitted owner can drain its render use");
+    CanceledSubmitted.BeginTerminalCleanup();
+    Check(State,
+        CanceledSubmitted.ResolveTerminalNonPresentedOwners() ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            CanceledSubmitted.GetOutstandingRecordCount() == 0 &&
+            CanceledSubmitted.CompleteTerminalIdle(true) ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            CanceledSubmitted.GetShutdownAssurance() ==
+                ERHIShutdownAssurance::Proven,
+        "terminal cleanup releases a canceled owner after submitted render completion");
+
+    FVulkanLabPresentationPolicy LiveSubmitted(
+        ERHIPresentationRetirementMode::PresentationFence);
+    (void)LiveSubmitted.AdmitInitialGeneration(MakeGeneration(1, 1));
+    (void)LiveSubmitted.RecordAcquisition(1, 0, 405);
+    (void)LiveSubmitted.MarkRenderSubmitted(1, 0, 405);
+    LiveSubmitted.BeginTerminalCleanup();
+    Check(State,
+        LiveSubmitted.ResolveTerminalNonPresentedOwners() ==
+                EVulkanLabPresentationPolicyResult::ImageOwnershipPending &&
+            LiveSubmitted.GetOutstandingRecordCount() == 1 &&
+            LiveSubmitted.CompleteTerminalIdle(true) ==
+                EVulkanLabPresentationPolicyResult::ImageOwnershipPending,
+        "terminal resolution retains a submitted render until completion");
+    (void)LiveSubmitted.MarkRenderComplete(1, 0, 405);
+    Check(State,
+        LiveSubmitted.ResolveTerminalNonPresentedOwners() ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            LiveSubmitted.CompleteTerminalIdle(true) ==
+                EVulkanLabPresentationPolicyResult::Accepted,
+        "terminal resolution proceeds after the submitted render drains");
+
+    FVulkanLabPresentationPolicy QueuedPresentation(
+        ERHIPresentationRetirementMode::PresentationFence);
+    (void)QueuedPresentation.AdmitInitialGeneration(MakeGeneration(1, 1));
+    (void)QueuedPresentation.RecordAcquisition(1, 0, 406);
+    (void)QueuedPresentation.RecordPresentationQueued(1, 0, 406);
+    (void)QueuedPresentation.MarkRenderComplete(1, 0, 406);
+    QueuedPresentation.BeginTerminalCleanup();
+    Check(State,
+        QueuedPresentation.ResolveTerminalNonPresentedOwners() ==
+                EVulkanLabPresentationPolicyResult::ImageOwnershipPending &&
+            QueuedPresentation.GetOutstandingRecordCount() == 1 &&
+            QueuedPresentation.CompleteTerminalIdle(true) ==
+                EVulkanLabPresentationPolicyResult::ImageOwnershipPending,
+        "terminal resolution retains a queued presentation without its completion proof");
+
+    FVulkanLabPresentationPolicy UnresolvedReacquisition(
+        ERHIPresentationRetirementMode::AcquireHistory);
+    (void)UnresolvedReacquisition.AdmitInitialGeneration(MakeGeneration(1, 1));
+    (void)UnresolvedReacquisition.RecordAcquisition(1, 0, 407);
+    (void)UnresolvedReacquisition.RecordPresentationQueued(1, 0, 407);
+    (void)UnresolvedReacquisition.MarkRenderComplete(1, 0, 407);
+    (void)UnresolvedReacquisition.RecordAcquisition(1, 0, 408);
+    (void)UnresolvedReacquisition.CancelAcquisition(1, 0, 408);
+    UnresolvedReacquisition.BeginTerminalCleanup();
+    Check(State,
+        UnresolvedReacquisition.ResolveTerminalNonPresentedOwners() ==
+                EVulkanLabPresentationPolicyResult::ImageOwnershipPending &&
+            UnresolvedReacquisition.GetOutstandingRecordCount() == 1,
+        "terminal resolution retains a canceled reacquisition before predecessor proof");
+    Check(State,
+        UnresolvedReacquisition.MarkAcquireSynchronizationComplete(1, 0, 408) ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            UnresolvedReacquisition.ResolveTerminalNonPresentedOwners() ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            UnresolvedReacquisition.GetOutstandingRecordCount() == 0 &&
+            UnresolvedReacquisition.CompleteTerminalIdle(true) ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            UnresolvedReacquisition.GetShutdownAssurance() ==
+                ERHIShutdownAssurance::IdleAssumed,
+        "acquire synchronization proves only the predecessor before terminal owner release");
+
+    FVulkanLabPresentationPolicy Failed(
+        ERHIPresentationRetirementMode::AcquireHistory);
+    (void)Failed.AdmitInitialGeneration(MakeGeneration(1, 1));
+    (void)Failed.RecordAcquisition(1, 0, 409);
+    (void)Failed.QueueReplacement(MakeGeneration(2, 1));
+    (void)Failed.BeginPendingReplacement();
+    (void)Failed.CompletePendingReplacement(false);
+    Failed.BeginTerminalCleanup();
+    Check(State,
+        Failed.WasReplacementCreationFailed() &&
+            Failed.GetRetiringGeneration().bCreationFailed &&
+            Failed.ResolveTerminalNonPresentedOwners() ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            Failed.GetOutstandingRecordCount() == 0 &&
+            Failed.WasReplacementCreationFailed() &&
+            Failed.GetRetiringGeneration().bCreationFailed,
+        "failed replacement state remains diagnosed while safe terminal owners resolve");
+
+    FVulkanLabPresentationPolicy Forced(
+        ERHIPresentationRetirementMode::PresentationFence);
+    (void)Forced.AdmitInitialGeneration(MakeGeneration(1, 1));
+    (void)Forced.RecordAcquisition(1, 0, 410);
+    (void)Forced.CancelAcquisition(1, 0, 410);
+    Forced.BeginTerminalCleanup();
+    Forced.MarkForcedTermination();
+    Check(State,
+        Forced.ResolveTerminalNonPresentedOwners() ==
+                EVulkanLabPresentationPolicyResult::StateConflict &&
+            Forced.GetOutstandingRecordCount() == 1,
+        "forced termination blocks terminal owner relabeling");
+
+    FVulkanLabPresentationPolicy DeviceLost(
+        ERHIPresentationRetirementMode::PresentationFence);
+    (void)DeviceLost.AdmitInitialGeneration(MakeGeneration(1, 1));
+    (void)DeviceLost.RecordAcquisition(1, 0, 411);
+    (void)DeviceLost.CancelAcquisition(1, 0, 411);
+    DeviceLost.BeginTerminalCleanup();
+    DeviceLost.MarkDeviceLost();
+    Check(State,
+        DeviceLost.ResolveTerminalNonPresentedOwners() ==
+                EVulkanLabPresentationPolicyResult::StateConflict &&
+            DeviceLost.GetOutstandingRecordCount() == 1,
+        "device loss blocks terminal owner relabeling");
+}
+
 void TestPredecessorProofAndTerminalAssurance(FTestState& State)
 {
     FVulkanLabPresentationPolicy Policy(
@@ -640,6 +841,7 @@ int RunVulkanLabPresentationPolicyTests()
     TestFenceRetirement(State);
     TestGenerationBoundsAndReplacement(State);
     TestActualImageCountCompletion(State);
+    TestTerminalNonPresentedOwners(State);
     TestPredecessorProofAndTerminalAssurance(State);
     return State.Failed;
 }
