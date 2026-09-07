@@ -188,6 +188,12 @@ public:
         const FVulkanLabPresentationGenerationDesc& Desc) noexcept;
     [[nodiscard]] EVulkanLabPresentationPolicyResult
     BeginPendingReplacement() noexcept;
+    // The native caller supplies the image count returned by
+    // vkGetSwapchainImagesKHR.  This count may differ from the requested
+    // minimum recorded in the in-flight descriptor and must be validated
+    // before the replacement becomes active.
+    [[nodiscard]] EVulkanLabPresentationPolicyResult
+    CompletePendingReplacement(Stoner::Core::uint32 ActualImageCount) noexcept;
     [[nodiscard]] EVulkanLabPresentationPolicyResult
     CompletePendingReplacement(bool bCreated) noexcept;
 
@@ -335,6 +341,9 @@ private:
     [[nodiscard]] bool CanReleaseRecord(
         const FPresentationRecord& Record) const noexcept;
     void ReleaseRecordIfComplete(FPresentationRecord& Record) noexcept;
+    [[nodiscard]] EVulkanLabPresentationPolicyResult
+    FailPendingReplacementCreation(
+        EVulkanLabPresentationPolicyResult Failure) noexcept;
 
     Stoner::RHI::ERHIPresentationRetirementMode Mode_ =
         Stoner::RHI::ERHIPresentationRetirementMode::Unknown;

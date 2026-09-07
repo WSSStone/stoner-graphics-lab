@@ -453,6 +453,77 @@ void TestGenerationBoundsAndReplacement(FTestState& State)
         "failed oldSwapchain creation invalidates rollback to the old handle");
 }
 
+void TestActualImageCountCompletion(FTestState& State)
+{
+    FVulkanLabPresentationPolicy ActualCount(
+        ERHIPresentationRetirementMode::AcquireHistory);
+    (void)ActualCount.AdmitInitialGeneration(MakeGeneration(1, 1, 64, 64));
+    (void)ActualCount.QueueReplacement(MakeGeneration(2, 2, 64, 64));
+    (void)ActualCount.BeginPendingReplacement();
+    Check(State,
+        ActualCount.CompletePendingReplacement(static_cast<uint32>(4)) ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            ActualCount.GetActiveGeneration().Desc.Generation == 2 &&
+            ActualCount.GetActiveGeneration().Desc.ImageCount == 4 &&
+            ActualCount.GetActiveGeneration().EstimatedColorBytes ==
+                static_cast<uint64>(4) * 64 * 64 * 4 &&
+            ActualCount.GetRetiringGeneration().Desc.Generation == 1,
+        "replacement publication uses the actual image count returned by Vulkan");
+
+    FVulkanLabPresentationPolicy TooManyImages(
+        ERHIPresentationRetirementMode::AcquireHistory);
+    (void)TooManyImages.AdmitInitialGeneration(MakeGeneration(1, 1, 64, 64));
+    (void)TooManyImages.QueueReplacement(MakeGeneration(2, 2, 64, 64));
+    (void)TooManyImages.BeginPendingReplacement();
+    Check(State,
+        TooManyImages.CompletePendingReplacement(static_cast<uint32>(9)) ==
+                EVulkanLabPresentationPolicyResult::Invalid &&
+            !TooManyImages.GetActiveGeneration().bValid &&
+            TooManyImages.GetRetiringGeneration().bRetiring &&
+            TooManyImages.GetRetiringGeneration().bCreationFailed &&
+            TooManyImages.WasReplacementCreationFailed() &&
+            TooManyImages.RecordAcquisition(1, 0, 1) ==
+                EVulkanLabPresentationPolicyResult::Invalid,
+        "an actual image count above the bound fails without resuming the predecessor");
+
+    // The requested count fits the aggregate limit, but the actual count
+    // returned by vkGetSwapchainImagesKHR pushes the two generations over
+    // the checked 512 MiB cap.  This exercises the completion-time check
+    // rather than QueueReplacement's minimum-count estimate.
+    const auto LargeOld = MakeGeneration(
+        1,
+        1,
+        4096,
+        1920,
+        ERHIFormat::R32G32B32A32_Float);
+    const auto LargeRequested = MakeGeneration(
+        2,
+        3,
+        4096,
+        1920,
+        ERHIFormat::R32G32B32A32_Float);
+    FVulkanLabPresentationPolicy ActualBudget(
+        ERHIPresentationRetirementMode::AcquireHistory);
+    Check(State,
+        ActualBudget.AdmitInitialGeneration(LargeOld) ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            ActualBudget.QueueReplacement(LargeRequested) ==
+                EVulkanLabPresentationPolicyResult::Accepted &&
+            ActualBudget.BeginPendingReplacement() ==
+                EVulkanLabPresentationPolicyResult::Accepted,
+        "a replacement minimum count can fit before actual image enumeration");
+    Check(State,
+        ActualBudget.CompletePendingReplacement(static_cast<uint32>(4)) ==
+                EVulkanLabPresentationPolicyResult::BudgetExceeded &&
+            !ActualBudget.GetActiveGeneration().bValid &&
+            ActualBudget.GetRetiringGeneration().Desc.Generation == 1 &&
+            ActualBudget.GetRetiringGeneration().bCreationFailed &&
+            ActualBudget.WasReplacementCreationFailed() &&
+            ActualBudget.RecordAcquisition(1, 0, 1) ==
+                EVulkanLabPresentationPolicyResult::Invalid,
+        "an actual-count aggregate budget failure retires the predecessor without rollback");
+}
+
 void TestPredecessorProofAndTerminalAssurance(FTestState& State)
 {
     FVulkanLabPresentationPolicy Policy(
@@ -568,6 +639,7 @@ int RunVulkanLabPresentationPolicyTests()
     TestImageIndexedRetirement(State);
     TestFenceRetirement(State);
     TestGenerationBoundsAndReplacement(State);
+    TestActualImageCountCompletion(State);
     TestPredecessorProofAndTerminalAssurance(State);
     return State.Failed;
 }

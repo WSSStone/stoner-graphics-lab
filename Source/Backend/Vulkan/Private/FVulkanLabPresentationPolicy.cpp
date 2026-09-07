@@ -622,7 +622,8 @@ FVulkanLabPresentationPolicy::BeginPendingReplacement() noexcept
 }
 
 EVulkanLabPresentationPolicyResult
-FVulkanLabPresentationPolicy::CompletePendingReplacement(bool bCreated) noexcept
+FVulkanLabPresentationPolicy::FailPendingReplacementCreation(
+    EVulkanLabPresentationPolicyResult Failure) noexcept
 {
     if (!bReplacementInFlight_)
     {
@@ -630,36 +631,85 @@ FVulkanLabPresentationPolicy::CompletePendingReplacement(bool bCreated) noexcept
     }
 
     bReplacementInFlight_ = false;
-    if (!bCreated)
+    if (FGenerationRecord* Retiring = FindRetiringGeneration())
     {
-        if (FGenerationRecord* Retiring = FindRetiringGeneration())
-        {
-            Retiring->bCreationFailed = true;
-        }
-        ReplacementInFlight_ = {};
-        bReplacementCreationFailed_ = true;
-        return EVulkanLabPresentationPolicyResult::CreationFailed;
+        // vkCreateSwapchainKHR retires oldSwapchain even when creation fails.
+        // Keep that predecessor retired and failed so callers cannot resume
+        // using its handle after any completion-time validation failure.
+        Retiring->bCreationFailed = true;
+    }
+    ReplacementInFlight_ = {};
+    bReplacementCreationFailed_ = true;
+    return Failure;
+}
+
+EVulkanLabPresentationPolicyResult
+FVulkanLabPresentationPolicy::CompletePendingReplacement(
+    uint32 ActualImageCount) noexcept
+{
+    if (!bReplacementInFlight_)
+    {
+        return EVulkanLabPresentationPolicyResult::StateConflict;
+    }
+
+    FVulkanLabPresentationGenerationDesc ActualDesc = ReplacementInFlight_;
+    ActualDesc.ImageCount = ActualImageCount;
+    if (!IsValidGenerationDesc(ActualDesc))
+    {
+        return FailPendingReplacementCreation(
+            EVulkanLabPresentationPolicyResult::Invalid);
     }
 
     uint64 EstimatedBytes = 0;
-    if (!TryEstimateColorBytes(ReplacementInFlight_, EstimatedBytes))
+    if (!TryEstimateColorBytes(ActualDesc, EstimatedBytes))
     {
-        return EVulkanLabPresentationPolicyResult::BudgetExceeded;
+        return FailPendingReplacementCreation(
+            EVulkanLabPresentationPolicyResult::BudgetExceeded);
     }
+
+    const FGenerationRecord* Retiring = FindRetiringGeneration();
+    if (Retiring == nullptr ||
+        Retiring->EstimatedColorBytes >
+            MaxEstimatedColorBytes - EstimatedBytes)
+    {
+        return FailPendingReplacementCreation(
+            EVulkanLabPresentationPolicyResult::BudgetExceeded);
+    }
+
     for (FGenerationRecord& Record : Generations_)
     {
         if (!Record.bOccupied)
         {
+            bReplacementInFlight_ = false;
             Record = {};
             Record.bOccupied = true;
             Record.bActive = true;
-            Record.Desc = ReplacementInFlight_;
+            Record.Desc = ActualDesc;
             Record.EstimatedColorBytes = EstimatedBytes;
             ReplacementInFlight_ = {};
             return EVulkanLabPresentationPolicyResult::Accepted;
         }
     }
-    return EVulkanLabPresentationPolicyResult::GenerationLimit;
+    return FailPendingReplacementCreation(
+        EVulkanLabPresentationPolicyResult::GenerationLimit);
+}
+
+EVulkanLabPresentationPolicyResult
+FVulkanLabPresentationPolicy::CompletePendingReplacement(bool bCreated) noexcept
+{
+    if (!bCreated)
+    {
+        return FailPendingReplacementCreation(
+            EVulkanLabPresentationPolicyResult::CreationFailed);
+    }
+    if (!bReplacementInFlight_)
+    {
+        return EVulkanLabPresentationPolicyResult::StateConflict;
+    }
+    // Preserve the deterministic policy-test API: a boolean success means
+    // the requested count was also the actual count.  Native callers should
+    // use the uint32 overload after vkGetSwapchainImagesKHR instead.
+    return CompletePendingReplacement(ReplacementInFlight_.ImageCount);
 }
 
 EVulkanLabPresentationPolicyResult

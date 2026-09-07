@@ -436,3 +436,13 @@ where available after temporary Context cleanup. Local failures do not invent
 native results. Failure propagation was code-reviewed; no artificial production
 startup injection API was introduced, and these successful device runs do not
 claim runtime coverage of every native allocation/query failure.
+
+
+After checkpoint commit `681afac`, replacement policy was extended to finalize
+against the actual driver image count. An independent strict optimized standalone
+build passed 54 assertions (`policy-review/compile-actual-count-reviewed.log`
+and `actual-count-reviewed.log`), including requested/actual count differences,
+more than eight images and an actual-count aggregate budget overflow. Rejected
+replacement publication keeps the predecessor retired and cannot resume it.
+The new native runtime helper is still staged separately pending integration;
+this policy correction does not add a completed task or native acceptance claim.
