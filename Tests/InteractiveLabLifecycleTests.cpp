@@ -191,6 +191,44 @@ void TestTerminalOwnership()
     Check(Close(F.S) && F.S.GetShutdownAssurance() == Assurance::IdleAssumed,
         "compatibility cleanup retains IdleAssumed without inventing proof");
 }
+void TestTerminalFailureBoundaries()
+{
+    FFixture F;
+    std::atomic<bool> Release{false}, Entered{false};
+    Check(F.Start([&](const auto& Q) {
+        auto R = Complete(Assurance::DeviceLost);
+        if (Q.Phase == Phase::TerminalCleanup)
+        {
+            Entered = true;
+            R.Status = Status::DeviceLost; R.bDeviceLost = true;
+            R.RetainedOwnerCount = Release ? 0 : 1;
+            R.FirstFailure = "injected-native-device-loss";
+        }
+        return R;
+    }), "terminal device-loss fixture starts");
+    (void)F.S.RequestExit();
+    const auto Deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+    while (!Entered && std::chrono::steady_clock::now() < Deadline) std::this_thread::yield();
+    (void)F.S.Service(0);
+    Check(Entered && F.S.GetState() != State::Closed,
+        "completed terminal response with retained native owners cannot close the session");
+    Release = true;
+    Check(Close(F.S) && F.S.GetShutdownAssurance() == Assurance::DeviceLost &&
+        F.S.GetFirstFailure() == "injected-native-device-loss",
+        "device-loss cleanup preserves the first failure and distinct assurance after owner release");
+
+    FFixture Drain;
+    Drain.Config.DrainTimeoutMilliseconds = 20;
+    Check(Drain.Start([](const auto& Q) {
+        auto R = Complete(Assurance::IdleAssumed);
+        if (Q.Phase == Phase::Drain)
+        { R.bCompleted = false; R.Status = Status::NotReady; R.RetainedOwnerCount = 1; }
+        return R;
+    }), "finite terminal drain fixture starts");
+    Check(Close(Drain.S) && Drain.S.GetShutdownAssurance() == Assurance::IdleAssumed &&
+        Drain.S.GetFirstFailure() == "lab-terminal-drain-timed-out",
+        "successful compatibility cleanup cannot erase an earlier terminal drain timeout");
+}
 void TestTimeout()
 {
     FFixture F;
@@ -213,7 +251,7 @@ void TestTimeout()
 int RunInteractiveLabLifecycleTests()
 {
     Failures = 0;
-    TestSession(); TestTransitions(); TestTerminalOwnership(); TestTimeout();
+    TestSession(); TestTransitions(); TestTerminalOwnership(); TestTerminalFailureBoundaries(); TestTimeout();
     return Failures == 0 ? 0 : 1;
 }
 

@@ -108,7 +108,17 @@ public:
 
     void Fail(const Core::FString& Reason)
     {
-        if (FirstFailure.IsEmpty()) FirstFailure = Reason.IsEmpty() ? "interactive lab operation failed" : Reason;
+        if (FirstFailure.IsEmpty())
+        {
+            FirstFailure = Reason.IsEmpty() ? "interactive lab operation failed" : Reason;
+            std::cerr << "InteractiveLab first failure: " << FirstFailure.CStr() << std::endl;
+        }
+    }
+
+    void FailOperation(const char* Operation, ERHIResult Result, const Core::FString& Reason)
+    {
+        Fail(std::string(Operation) + ": result=" + std::to_string(static_cast<int>(Result)) +
+            "; " + Reason.ToStdString());
     }
 
     bool Load(const FDemoConfiguration& Config, FWindowExtent Extent)
@@ -184,7 +194,7 @@ public:
         return true;
     }
 
-    void Progress(bool bStop)
+    void Progress(bool bStop, bool bPaused = false)
     {
         // Poll leases independently; a pending presentation never keeps a
         // completed frame's mutable uniforms or attachments busy.
@@ -230,6 +240,7 @@ public:
                 }
                 if (!Slot.bRenderCounted) { Slot.bRenderCounted = true; ++Completed; }
                 if (Poll.Result != Renderer::EOutputTransformResult::Success) Fail("lab render completed with failure");
+                if (bPaused) continue;
                 if (!bStop && FirstFailure.IsEmpty() && !Slot.bPresentQueued)
                 {
                     if (Presentations.size() >= 16) continue;
@@ -250,10 +261,11 @@ public:
                             Fail(Reason);
                     }
                     if (PresentResult == ERHIResult::ResizeRequired) bNeedsResize = true;
-                    else if (PresentResult != ERHIResult::Success && !Pending(PresentResult)) Fail(Reason);
+                    else if (PresentResult != ERHIResult::Success && !Pending(PresentResult)) FailOperation("present", PresentResult, Reason);
                     if (!Slot.bPresentQueued && FirstFailure.IsEmpty()) continue;
                 }
             }
+            if (bPaused) continue;
             const auto Retired = Executor.RetirePreview(Slot.Ticket);
             if (Retired.bRetired)
             {
@@ -267,7 +279,7 @@ public:
 
     void Admit(const Application::FFreeCameraState& Camera, Core::uint32 Budget)
     {
-        if (!bSceneReady || !FirstFailure.IsEmpty() || (Budget && Submitted - CancelledSubmissions >= Budget)) return;
+        if (!bSceneReady || bNeedsResize || !FirstFailure.IsEmpty() || (Budget && Submitted - CancelledSubmissions >= Budget)) return;
         for (Core::uint32 Index = 0; Index < Slots.size(); ++Index)
         {
             auto& Slot = Slots[Index];
@@ -296,9 +308,10 @@ public:
             Slot.bAcquireAttempted = Backend->OwnsLabAcquireAttempt(Slot.Token, Index);
             if (Acquired == ERHIResult::ResizeRequired) { bNeedsResize = true; return; }
             if (Pending(Acquired)) continue;
-            if (Acquired != ERHIResult::Success) { Fail(Reason); return; }
-            if (Frames->BeginFrame(Slot.Token, Index, Slot.Target, &Reason) != ERHIResult::Success)
-            { Fail(Reason); return; }
+            if (Acquired != ERHIResult::Success) { FailOperation("acquire", Acquired, Reason); return; }
+            const auto Begun = Frames->BeginFrame(Slot.Token, Index, Slot.Target, &Reason);
+            if (Begun != ERHIResult::Success)
+            { FailOperation("begin-frame", Begun, Reason); return; }
             auto Frame = Composition;
             Frame.FrameToken = Slot.Token;
             Frame.CameraPosition = Camera.Position;
@@ -368,6 +381,16 @@ public:
         if (Request.Phase == EInteractiveLabServicePhase::Transition)
         {
             if (!bSceneReady) { Out.Status = EInteractiveLabServiceStatus::Invalid; return Out; }
+            // Focus/restore notifications can change the Application display
+            // generation without changing native output. Preserve in-flight
+            // acquisitions: canceling them here can exhaust acquire history.
+            if (!bNeedsResize && CurrentExtent == Request.Transition.DrawableExtent &&
+                !bReconfigurationStarted)
+            {
+                Out.bCompleted = true; Out.Status = EInteractiveLabServiceStatus::Success;
+                return Out;
+            }
+            bReconfigurationStarted = true;
             Progress(true);
             if (BusySlots() != 0) return Out;
             if (Backend->QueryLabPresentation(Status) != ERHIResult::Success)
@@ -378,14 +401,16 @@ public:
             Core::FString Reason;
             const auto Result = Backend->ReconfigureLabPresentation(Change, Status, &Reason);
             if (Pending(Result)) return Out;
-            if (Result != ERHIResult::Success ||
-                Frames->Reconfigure(Change.Width, Change.Height, &Reason) != ERHIResult::Success)
+            const auto FrameResult = Result == ERHIResult::Success
+                ? Frames->Reconfigure(Change.Width, Change.Height, &Reason) : Result;
+            if (FrameResult != ERHIResult::Success)
             {
-                Fail(Reason); Out.Status = EInteractiveLabServiceStatus::Failed;
+                FailOperation("reconfigure", FrameResult, Reason); Out.Status = EInteractiveLabServiceStatus::Failed;
                 Out.FirstFailure = FirstFailure; return Out;
             }
             CurrentExtent = Request.Transition.DrawableExtent;
             bNeedsResize = false;
+            bReconfigurationStarted = false;
             Out.bCompleted = true; Out.Status = EInteractiveLabServiceStatus::Success;
             return Out;
         }
@@ -461,6 +486,7 @@ public:
     Renderer::FResolvedOutputTransformSettings OutputResolved;
     FDemoLabPresentationStatus Status, BeforeShutdown, AfterShutdown;
     bool bRecordedPreShutdown = false;
+    bool bReconfigurationStarted = false;
     std::array<FSlot, 2> Slots;
     Core::TArray<FPresentation> Presentations;
     FWindowExtent CurrentExtent;
@@ -559,7 +585,9 @@ FInteractiveLabRunResult RunInteractiveLab(
                 }
                 else if (State == EInteractiveLabSessionState::PausedZeroExtent)
                 {
-                    Owner->Progress(true);
+                    // Keep the bounded borrowed targets across a pause. A
+                    // canceled Vulkan acquisition cannot simply be reacquired.
+                    Owner->Progress(false, true);
                     LastProgress = Now;
                 }
                 else LastProgress = Now;

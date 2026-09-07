@@ -922,3 +922,82 @@ surface changes, and rerun bounded scene lifecycle checks before US1 acceptance.
 No `us1.json` checkpoint or full phase completion is claimed. UI-on integration,
 remaining feature tasks, hosted/physical closeout and current human HDR authority
 are pending.
+
+
+## T015/T034 US1 local checkpoint (2026-09-07)
+
+T015 and T034 are reviewed complete, bringing implementation to **34/127**.
+This supersedes the open local lifecycle status in the T033 section above;
+the earlier failed logs remain failures. No US2 implementation is included.
+
+The new regression injects four ordered engine focus-loss/gain notifications
+following resize, then minimizes/restores the actual OS window. It repeats the
+sequence three times. Before the fix, forced acquire history reproducibly
+stopped after four queued presentations and reached `lab-transition-timed-out`.
+The failure is retained in
+`Build/Validation/030/deferred-review/lab-lantern-vulkan-fallback-t034-before-fix.log`.
+Focus injection tests the production event/session path; it is not a claim of
+physical user interaction or an OS-driven focus-switch experiment.
+
+The Application display generation includes focus changes. The Demo previously
+treated every such notification as native output recreation, canceled active
+acquisitions and could consume the fallback predecessor budget before the new
+generation had reacquisition proof. Unchanged native extent now completes the
+coordination request without cancellation/recreation, unless native presentation
+has reported ResizeRequired or recreation is already in progress. Minimized
+sessions poll completion while retaining their bounded borrowed targets for
+resume. Actual resize still drains old render work; native ResizeRequired now
+stops further frame admission in the same iteration. Stage/result diagnostics
+preserve the first failure before a possible watchdog termination. This adds no
+ordinary idle wait, extension requirement or assumed presentation proof.
+
+T015 coverage is intentionally split across the existing responsibilities:
+
+| Boundary | Current verification |
+| --- | --- |
+| Deferred/default/formal contracts, retained Metal completion and independent presentation | 21 assertions in RHIDeferredSubmissionTests |
+| Optional capability selection/retry/errors, reacquisition, predecessor/canceled ownership, terminal assurance | 70 VulkanLabPresentationPolicyTests assertions, registered with rhi-deferred-submission |
+| Real Vulkan retained submission, delayed observation, finite waits and failure ownership | 29 vulkan-deferred-native assertions |
+| Native borrowed identity, cancellation and independent presentation | 47 vulkan-lab-borrowed-native assertions and 38 Demo bridge assertions |
+| Session transitions, input quarantine, retained terminal owners, device loss and drain timeout | 26 interactive-lab-lifecycle assertions |
+| Independent forced termination with retained owners | 1 child-process interactive-lab-watchdog assertion |
+
+The new terminal tests reject a completed response that still retains a native
+owner, keep DeviceLost distinct after owners release, and keep a drain timeout
+failed despite later IdleAssumed cleanup. Failure injection is explicitly
+synthetic around production ownership paths, not an observed hardware failure.
+
+Strict Debug and Release builds both pass. Each configuration passes **396**
+related assertions, **120** additional native regressions, and **six 40-assertion**
+bridge/scene invocations. Scene combinations are Lantern and Sponza on Metal,
+automatic Vulkan and forced Vulkan AcquireHistory. Each completes three cycles;
+all report zero ordinary image-copy/map/readback-wait/queue-idle/device-idle
+counts and zero final native/host owners. M4 automatic Vulkan selects enabled
+presentation fences (Proven), forced fallback reports advertised but disabled
+support (IdleAssumed), and Metal reports NativeCallback (Proven). Peak estimated
+swapchain color storage was 6,110,208 bytes on Vulkan and 2,230,272 on Metal,
+below the 512 MiB bound; these estimates exclude opaque driver overhead.
+
+`Build/Validation/030/us1.json` records cases, counters, selected capability and
+failure identity, assertion counts and log/source hashes. SHA-256:
+`7ec2b885febf6fbbc00449a6b0320ba2b611e127e9f217578ba02d3d1f3da951`.
+Logs use `deferred-review/*-t034-{debug,release}.log`, strict build logs use
+`build-{debug,release}-t034-final.log`, and architecture validation is
+`architecture-t034.log` (zero findings). The report identifies its tested
+working-tree source files over base commit d9742dd; these checks are not
+retroactively labeled final frozen-software authority by the subsequent commit.
+
+For reproduction, the registered `demo-lab-presentation-native` suite requires
+`STONER_REQUIRE_DEMO_LAB_NATIVE=1`. Its existing optional scene fixture takes
+`STONER_LAB_SCENE_BACKEND`, `STONER_LAB_SCENE_COOK_ROOT`,
+`STONER_LAB_SCENE_GENERATION`, `STONER_LAB_SCENE_ROOT`,
+`STONER_LAB_SCENE_WORKLOAD`, `STONER_LAB_SCENE_PROFILE` and
+`STONER_LAB_SCENE_LEASE_ROOT` from the corresponding strict-cooked Demo arguments;
+`STONER_LAB_SCENE_FORCE_FALLBACK=1` selects forced acquire history. Use scene/output
+only generations and run native processes serially. No new validation executable
+or public input-script parser was introduced.
+
+US1 local implementation is complete. Full US6 stress and live output transition
+coverage, UI implementation, required Windows/Linux lanes, frozen-software
+physical closeout and current human HDR decisions remain pending in their own
+tasks. No Accepted reference, formal capture or prior exception was changed.

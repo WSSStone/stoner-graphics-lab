@@ -319,24 +319,37 @@ void RunSceneLifecycle(int& Failed)
     Config.LeaseCoordinationRoot = Env("STONER_LAB_SCENE_LEASE_ROOT");
     bool ActionsSucceeded = true, ObservedMinimized = false, ObservedRestored = false;
     int Stage = 0;
+    Core::uint32 Cycle = 0, CycleStartPresented = 0;
+    int FocusStep = 0;
     Core::uint32 PresentedAtRestore = 0;
-    const auto ScenarioStarted = std::chrono::steady_clock::now();
+    auto ScenarioStarted = std::chrono::steady_clock::now();
+    bool ScenarioEntered = false;
     auto MinimizeStarted = std::chrono::steady_clock::now();
     const auto Result = Demo::RunInteractiveLab(Config, Demo::FDemoBackendFactory(),
         [&](Application::FWindow& Window, Core::uint32 Presented) {
-            if (std::chrono::steady_clock::now() - ScenarioStarted > std::chrono::seconds(10))
+            if (!ScenarioEntered) { ScenarioStarted = std::chrono::steady_clock::now(); ScenarioEntered = true; }
+            if (std::chrono::steady_clock::now() - ScenarioStarted > std::chrono::seconds(20))
             {
                 ActionsSucceeded = false;
                 (void)Window.RequestClose();
                 return;
             }
-            if (Stage == 0 && Presented >= 2)
+            if (Stage == 0 && Presented >= CycleStartPresented + 2)
             {
-                ActionsSucceeded &= Window.SetClientSize(352, 198) == Application::EApplicationResult::Success;
+                ActionsSucceeded &= Window.SetClientSize(Cycle % 2 == 0 ? 352 : 320, Cycle % 2 == 0 ? 198 : 180) == Application::EApplicationResult::Success;
                 Stage = 1;
             }
-            else if (Stage == 1 && Presented >= 4)
+            else if (Stage == 1 && Presented >= CycleStartPresented + 4)
             {
+                if (FocusStep < 4)
+                {
+                    Window.QueueEvent(FocusStep % 2 == 0 ? Application::FWindowEvent::FocusLost() :
+                        Application::FWindowEvent::FocusGained());
+                    ++FocusStep;
+                    return;
+                }
+                ObservedMinimized = false;
+                ObservedRestored = false;
                 ActionsSucceeded &= Window.Minimize() == Application::EApplicationResult::Success;
                 MinimizeStarted = std::chrono::steady_clock::now(); Stage = 2;
             }
@@ -353,19 +366,32 @@ void RunSceneLifecycle(int& Failed)
             else if (Stage == 3 && !Window.IsMinimized() && Window.HasDrawableArea())
             {
                 ObservedRestored = true;
-                if (Presented >= 8 && Presented >= PresentedAtRestore + 2)
+                if (Presented >= CycleStartPresented + 8 && Presented >= PresentedAtRestore + 2)
                 {
-                    ActionsSucceeded &= Window.RequestClose() == Application::EApplicationResult::Success;
-                    Stage = 4;
+                    ++Cycle;
+                    if (Cycle == 3)
+                    {
+                        ActionsSucceeded &= Window.RequestClose() == Application::EApplicationResult::Success;
+                        Stage = 4;
+                    }
+                    else { CycleStartPresented = Presented; Stage = 0; FocusStep = 0; }
                 }
             }
         });
     std::cout << "[INFO] scene lifecycle exit=" << static_cast<int>(Result.ExitCode)
-        << " stage=" << Stage << " actions=" << ActionsSucceeded << " minimized=" << ObservedMinimized
+        << " cycles=" << Cycle << " stage=" << Stage << " actions=" << ActionsSucceeded << " minimized=" << ObservedMinimized
         << " restored=" << ObservedRestored << " failure=" << Result.FirstFailure.CStr() << '\n';
     const auto& Before = Result.BeforeNativeShutdown.RuntimeSnapshot.NativeOperations;
     const auto& After = Result.AfterNativeShutdown.RuntimeSnapshot.NativeOperations;
     const auto& Frames = Result.FinalFrameState;
+    const auto& Presentation = Result.AfterNativeShutdown.RuntimeSnapshot.NativePresentation;
+    const auto& Status = Result.BeforeNativeShutdown;
+    std::cout << "[INFO] scene capability: adapter=" << Status.RuntimeSnapshot.AdapterName.CStr()
+        << " mode=" << static_cast<int>(Status.RetirementMode)
+        << " reason=" << static_cast<int>(Status.RetirementReason)
+        << " optional-advertised=" << Status.Capabilities.bOptionalPresentationFenceAdvertised
+        << " optional-enabled=" << Status.Capabilities.bOptionalPresentationFenceEnabled
+        << " peak-color-bytes=" << Presentation.PeakEstimatedColorBytes << '\n';
     Check(Failed, Before.bAvailable && After.bAvailable && After.RetainedSubmissionOwnerCount == 0 &&
         Before.ImageReadbackCopyCount == 0 &&
         Before.ReadbackMapCount == 0 && Before.ReadbackWaitCount == 0 &&
@@ -374,14 +400,18 @@ void RunSceneLifecycle(int& Failed)
         Frames.RenderCompletedFrameCount == Result.RenderCompletedFrames &&
         Frames.RenderRetiredFrameCount == Result.SubmittedFrames &&
         Frames.BusySlotCount == 0 && Frames.ActiveAttachmentBytes == 0 &&
-        Frames.RetainedPresentationCount == 0 &&
+        Frames.RetainedPresentationCount == 0 && Presentation.PendingAcquireCount == 0 &&
+        Presentation.AcquisitionRecordCount == 0 && Presentation.PresentationOwnerCount == 0 &&
+        Presentation.ActiveGeneration == 0 && Presentation.RetiringGeneration == 0 &&
+        Presentation.ResidualNativeOwners == 0 && Presentation.AbandonedNativeOwners == 0 &&
+        Presentation.PeakEstimatedColorBytes > 0 && Presentation.PeakEstimatedColorBytes <= 512ULL * 1024 * 1024 &&
         Frames.ProvenPresentationReleaseCount <= After.ProvenPresentationReleaseCount,
         "real scene lifecycle has zero native readbacks/idles and separately counted render/presentation retirement");
-    Check(Failed, Result.ExitCode == Demo::EDemoExitCode::Success && Result.PresentedFrames >= 8 && Stage == 4 &&
+    Check(Failed, Result.ExitCode == Demo::EDemoExitCode::Success && Result.PresentedFrames >= 24 && Stage == 4 && Cycle == 3 &&
         Result.RenderCompletedFrames >= Result.PresentedFrames && ActionsSucceeded && ObservedMinimized && ObservedRestored &&
         Result.FirstFailure.IsEmpty() &&
-        (Result.ShutdownAssurance == ERHIShutdownAssurance::Proven ||
-         Result.ShutdownAssurance == ERHIShutdownAssurance::IdleAssumed),
+        Result.ShutdownAssurance == (Status.RetirementMode == ERHIPresentationRetirementMode::AcquireHistory
+            ? ERHIShutdownAssurance::IdleAssumed : ERHIShutdownAssurance::Proven),
         "strict cooked scene lab resumes current-drawable rendering after resize/minimize and terminates with qualified native cleanup");
 }
 } // namespace
