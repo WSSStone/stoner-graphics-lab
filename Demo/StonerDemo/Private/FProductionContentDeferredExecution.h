@@ -34,6 +34,17 @@ struct FProductionContentDeferredExecutionResources
     void Release() noexcept;
 };
 
+struct FProductionContentDeferredExecutionBuildOptions
+{
+    Renderer::EFrameExecutionPurpose ExecutionPurpose =
+        Renderer::EFrameExecutionPurpose::FormalValidation;
+    Renderer::EFrameReadbackSelection ReadbackSelection =
+        Renderer::EFrameReadbackSelection::Formal;
+    // Interactive preview renders directly to this borrowed drawable target.
+    // The builder never adds it to OwnedTextures or invalidates it on Release.
+    Core::TSharedPtr<RHI::IRHITexture> BorrowedFinalOutput;
+};
+
 class FProductionContentDeferredExecutionBuilder
 {
 public:
@@ -48,7 +59,8 @@ public:
         const Asset::FAssetTargetProfileEvidence& TargetEvidence,
         const Renderer::FOutputTransformSettings& OutputSettings,
         FProductionContentDeferredExecutionResources& OutResources,
-        Core::FString* OutReason = nullptr);
+        Core::FString* OutReason = nullptr,
+        const FProductionContentDeferredExecutionBuildOptions& Options = {});
 };
 
 } // namespace Stoner::Demo

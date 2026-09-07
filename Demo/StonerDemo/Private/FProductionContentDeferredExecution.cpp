@@ -457,17 +457,96 @@ bool AddReadback(
     return true;
 }
 
+[[nodiscard]] bool IsBorrowedPreviewTarget(
+    const TSharedPtr<IRHITexture>& Target,
+    const FOutputTransformPlan& Plan) noexcept
+{
+    return Target &&
+        Target->GetLifecycleState() == ERHIResourceLifecycleState::Valid &&
+        Target->GetDesc().Dimension == ERHITextureDimension::Texture2D &&
+        Target->GetFormat() == Plan.OutputDesc.Format &&
+        Target->GetDesc().Width == Plan.OutputDesc.Width &&
+        Target->GetDesc().Height == Plan.OutputDesc.Height &&
+        Target->GetDesc().Depth == 1 &&
+        Target->GetDesc().MipLevels == 1 &&
+        Target->GetDesc().ArrayLayers == 1 &&
+        Target->GetDesc().SampleCount == Plan.OutputDesc.SampleCount &&
+        HasRHIFlag(Target->GetUsage(), ERHITextureUsage::ColorAttachment) &&
+        HasRHIFlag(Target->GetUsage(), ERHITextureUsage::Present);
+}
+
+[[nodiscard]] bool IsOwnedTexture(
+    const TArray<TSharedPtr<IRHITexture>>& Textures,
+    const TSharedPtr<IRHITexture>& Target) noexcept
+{
+    return std::find(Textures.begin(), Textures.end(), Target) !=
+        Textures.end();
+}
+
+[[nodiscard]] bool ValidateBuildOptions(
+    const FProductionContentDeferredExecutionBuildOptions& Options,
+    const FOutputTransformSettings& OutputSettings,
+    const FProductionContentComposition& Composition,
+    FString* OutReason)
+{
+    const bool bValidPurpose =
+        IsValidFrameExecutionPurpose(Options.ExecutionPurpose);
+    const bool bValidSelection =
+        IsValidFrameReadbackSelection(Options.ReadbackSelection);
+    const bool bFormal = Options.ExecutionPurpose ==
+        EFrameExecutionPurpose::FormalValidation;
+    const bool bPreview = Options.ExecutionPurpose ==
+        EFrameExecutionPurpose::InteractivePreview;
+    const auto& Extent = Composition.DeferredInputs.View.Extent;
+    const bool bTargetShapeValid = !Options.BorrowedFinalOutput ||
+        (Options.BorrowedFinalOutput->GetDesc().Width == Extent.Width &&
+         Options.BorrowedFinalOutput->GetDesc().Height == Extent.Height);
+    if (!bValidPurpose || !bValidSelection || (!bFormal && !bPreview) ||
+        (bFormal && (Options.ReadbackSelection !=
+                EFrameReadbackSelection::Formal ||
+            !OutputSettings.bRequireReadback || Options.BorrowedFinalOutput)) ||
+        (bPreview && (Options.ReadbackSelection !=
+                EFrameReadbackSelection::None ||
+            OutputSettings.bRequireReadback ||
+            !OutputSettings.bRequirePresentation ||
+            !Options.BorrowedFinalOutput || !bTargetShapeValid)) )
+    {
+        Fail(OutReason,
+            "Deferred execution purpose/readback selection does not match its resource contract");
+        return false;
+    }
+    return true;
+}
+
 } // namespace
 
 bool FProductionContentDeferredExecutionResources::IsValid() const noexcept
 {
+    const bool bFormal = ExecutionPurpose ==
+        Renderer::EFrameExecutionPurpose::FormalValidation &&
+        ReadbackSelection == Renderer::EFrameReadbackSelection::Formal;
+    const bool bPreview = ExecutionPurpose ==
+        Renderer::EFrameExecutionPurpose::InteractivePreview &&
+        ReadbackSelection == Renderer::EFrameReadbackSelection::None;
+    const bool bReadbacksValid = bFormal
+        ? Bindings.Readbacks.size() == 6
+        : bPreview && Bindings.Readbacks.empty();
+    const bool bValidationPassValid = bFormal
+        ? Plan.FindPass(Renderer::EDeferredPassStage::ValidationReadback) != nullptr
+        : bPreview &&
+            Plan.FindPass(Renderer::EDeferredPassStage::ValidationReadback) == nullptr;
+    const bool bOutputTargetValid = bFormal
+        ? IsOwnedTexture(OwnedTextures, Bindings.FormalOutput)
+        : bPreview && !IsOwnedTexture(OwnedTextures, Bindings.FormalOutput) &&
+            IsBorrowedPreviewTarget(Bindings.FormalOutput, OutputTransformPlan);
     return Plan.IsValid() && Graph.bValid && OutputTransformPlan.IsValid() &&
         Renderer::IsValidFrameExecutionPurpose(ExecutionPurpose) &&
         Renderer::IsValidFrameReadbackSelection(ReadbackSelection) &&
-        !(ExecutionPurpose == Renderer::EFrameExecutionPurpose::FormalValidation &&
-            ReadbackSelection == Renderer::EFrameReadbackSelection::None) &&
+        ((bFormal && OutputTransformPlan.ResolvedSettings.bRequireReadback) ||
+            (bPreview && !OutputTransformPlan.ResolvedSettings.bRequireReadback)) &&
         ExecutionPurpose == OutputTransformPlan.ExecutionPurpose &&
         ReadbackSelection == OutputTransformPlan.ReadbackSelection &&
+        bValidationPassValid && bReadbacksValid && bOutputTargetValid &&
         Bindings.CommandBuffer &&
         Bindings.BaseColorAO && Bindings.NormalRoughness &&
         Bindings.EmissiveMetallic && Bindings.Depth &&
@@ -476,7 +555,7 @@ bool FProductionContentDeferredExecutionResources::IsValid() const noexcept
         !Bindings.SurfaceDraws.empty() && Bindings.FullscreenVertexBuffer &&
         Bindings.SphereVertexBuffer && Bindings.SphereIndexBuffer &&
         Bindings.ConeVertexBuffer && Bindings.ConeIndexBuffer &&
-        Bindings.Readbacks.size() == 6;
+        (!bPreview || Bindings.bTransitionFinalOutputToPresent);
 }
 
 FDeferredFrameExecutionBindings
@@ -484,7 +563,11 @@ FProductionContentDeferredExecutionResources::BuildCycleBindings(
     bool bAuthoritativeReadbacks) const
 {
     FDeferredFrameExecutionBindings Selected = Bindings;
-    if (!bAuthoritativeReadbacks)
+    if (ExecutionPurpose == Renderer::EFrameExecutionPurpose::InteractivePreview)
+    {
+        Selected.Readbacks.clear();
+    }
+    else if (!bAuthoritativeReadbacks)
     {
         Selected.Readbacks.erase(std::remove_if(
             Selected.Readbacks.begin(), Selected.Readbacks.end(),
@@ -522,10 +605,14 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
     const FAssetTargetProfileEvidence& TargetEvidence,
     const FOutputTransformSettings& OutputSettings,
     FProductionContentDeferredExecutionResources& OutResources,
-    FString* OutReason)
+    FString* OutReason,
+    const FProductionContentDeferredExecutionBuildOptions& Options)
 {
     OutResources = {};
     if (OutReason) OutReason->Clear();
+    if (!ValidateBuildOptions(Options, OutputSettings, Composition,
+            OutReason))
+        return ERHIResult::InvalidState;
     if (!Device || !Device->IsActive() ||
         TargetEvidence.Validate() != EAssetResult::Success)
     {
@@ -553,7 +640,8 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
 
     FProductionContentDeferredExecutionResources Candidate;
     FDeferredRendererConfiguration RendererConfig;
-    RendererConfig.bEnableValidationReadback = true;
+    RendererConfig.bEnableValidationReadback = Options.ExecutionPurpose ==
+        EFrameExecutionPurpose::FormalValidation;
     if (FDeferredRenderer(RendererConfig).PrepareFrame(
             Composition.DeferredInputs, Candidate.Plan) !=
             EDeferredResult::Success)
@@ -564,8 +652,29 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
     Candidate.Graph = BuildDeferredRenderGraphDeclaration(Candidate.Plan);
     if (!Candidate.Graph.bValid ||
         !BuildOutputTransformPlan(
-            Composition, OutputSettings, Candidate.OutputTransformPlan) ||
-        !BindProductionDeferredDraws(
+            Composition, OutputSettings, Candidate.OutputTransformPlan))
+        return ERHIResult::InvalidState;
+    Candidate.ExecutionPurpose = Options.ExecutionPurpose;
+    Candidate.ReadbackSelection = Options.ReadbackSelection;
+    Candidate.OutputTransformPlan.ExecutionPurpose =
+        Options.ExecutionPurpose;
+    Candidate.OutputTransformPlan.ReadbackSelection =
+        Options.ReadbackSelection;
+    if (!Candidate.OutputTransformPlan.IsValid())
+    {
+        Fail(OutReason,
+            "output transform plan does not match the requested execution purpose");
+        return ERHIResult::InvalidState;
+    }
+    if (Options.ExecutionPurpose == EFrameExecutionPurpose::InteractivePreview &&
+        !IsBorrowedPreviewTarget(Options.BorrowedFinalOutput,
+            Candidate.OutputTransformPlan))
+    {
+        Fail(OutReason,
+            "preview requires a valid borrowed ColorAttachment|Present output target");
+        return ERHIResult::InvalidState;
+    }
+    if (!BindProductionDeferredDraws(
             Snapshot, Candidate.Plan, Candidate.Bindings, OutReason) ||
         !UploadProductionDeferredUniforms(
             *Device, Snapshot, Candidate.Plan, OutReason))
@@ -596,10 +705,12 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
     const uint32 Height = Candidate.Plan.SurfaceLayout.Extent.Height;
     const ERHITextureUsage GBufferUsage =
         ERHITextureUsage::ColorAttachment | ERHITextureUsage::Sampled |
-        ERHITextureUsage::CopySource;
+        (Options.ExecutionPurpose == EFrameExecutionPurpose::FormalValidation
+            ? ERHITextureUsage::CopySource : ERHITextureUsage::None);
     const ERHITextureUsage DepthUsage =
         ERHITextureUsage::DepthStencilAttachment | ERHITextureUsage::Sampled |
-        ERHITextureUsage::CopySource;
+        (Options.ExecutionPurpose == EFrameExecutionPurpose::FormalValidation
+            ? ERHITextureUsage::CopySource : ERHITextureUsage::None);
     if (!CreateTexture(*Device, Width, Height, ERHIFormat::R8G8B8A8_UNorm,
             GBufferUsage, Candidate, Candidate.Bindings.BaseColorAO) ||
         !CreateTexture(*Device, Width, Height,
@@ -615,7 +726,8 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
             Candidate.Bindings.LightingAccumulation) ||
         !CreateTexture(*Device, Width, Height, Candidate.Plan.Output.Format,
             ERHITextureUsage::ColorAttachment | ERHITextureUsage::Sampled |
-                ERHITextureUsage::CopySource,
+                (Options.ExecutionPurpose == EFrameExecutionPurpose::FormalValidation
+                    ? ERHITextureUsage::CopySource : ERHITextureUsage::None),
             Candidate, Candidate.Bindings.FinalOutput))
     {
         Fail(OutReason, "Deferred attachment creation failed");
@@ -640,8 +752,16 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
             Candidate, ExposedSceneColor) ||
         !CreateTexture(*Device, Width, Height,
             ERHIFormat::R16G16B16A16_Float, IntermediateOutputUsage,
-            Candidate, DisplayLinear) ||
-        !CreateTexture(*Device, Width, Height,
+            Candidate, DisplayLinear))
+    {
+        Fail(OutReason, "formal output transform attachment creation failed");
+        return ERHIResult::Failed;
+    }
+    if (Options.ExecutionPurpose == EFrameExecutionPurpose::InteractivePreview)
+    {
+        Candidate.Bindings.FormalOutput = Options.BorrowedFinalOutput;
+    }
+    else if (!CreateTexture(*Device, Width, Height,
             Candidate.OutputTransformPlan.OutputDesc.Format,
             ERHITextureUsage::ColorAttachment | ERHITextureUsage::CopySource,
             Candidate, Candidate.Bindings.FormalOutput))
@@ -649,6 +769,8 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
         Fail(OutReason, "formal output transform attachment creation failed");
         return ERHIResult::Failed;
     }
+    Candidate.Bindings.bTransitionFinalOutputToPresent =
+        Options.ExecutionPurpose == EFrameExecutionPurpose::InteractivePreview;
 
     TArray<FDeferredLightUniform> Lights;
     Lights.reserve(Candidate.Plan.Lights.Accepted.size());
@@ -854,19 +976,20 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
     Candidate.Bindings.Transparency.DescriptorSets =
         Candidate.Bindings.Composition.DescriptorSets;
 
-    if (!AddReadback(*Device, "BaseColorAO", Candidate.Bindings.BaseColorAO,
-            Width, Height, Candidate) ||
-        !AddReadback(*Device, "NormalRoughness",
-            Candidate.Bindings.NormalRoughness, Width, Height, Candidate) ||
-        !AddReadback(*Device, "EmissiveMetallic",
-            Candidate.Bindings.EmissiveMetallic, Width, Height, Candidate) ||
-        !AddReadback(*Device, "Depth", Candidate.Bindings.Depth,
-            Width, Height, Candidate) ||
-        !AddReadback(*Device, "LightingAccumulation",
-            Candidate.Bindings.LightingAccumulation, Width, Height,
-            Candidate) ||
-        !AddReadback(*Device, "FinalOutput", Candidate.Bindings.FormalOutput,
-            Width, Height, Candidate))
+    if (Options.ExecutionPurpose == EFrameExecutionPurpose::FormalValidation &&
+        (!AddReadback(*Device, "BaseColorAO", Candidate.Bindings.BaseColorAO,
+                Width, Height, Candidate) ||
+            !AddReadback(*Device, "NormalRoughness",
+                Candidate.Bindings.NormalRoughness, Width, Height, Candidate) ||
+            !AddReadback(*Device, "EmissiveMetallic",
+                Candidate.Bindings.EmissiveMetallic, Width, Height, Candidate) ||
+            !AddReadback(*Device, "Depth", Candidate.Bindings.Depth,
+                Width, Height, Candidate) ||
+            !AddReadback(*Device, "LightingAccumulation",
+                Candidate.Bindings.LightingAccumulation, Width, Height,
+                Candidate) ||
+            !AddReadback(*Device, "FinalOutput", Candidate.Bindings.FormalOutput,
+                Width, Height, Candidate)))
     {
         Fail(OutReason, "Deferred readback allocation failed");
         return ERHIResult::Failed;

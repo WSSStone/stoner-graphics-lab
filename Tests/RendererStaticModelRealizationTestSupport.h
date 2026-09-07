@@ -377,6 +377,9 @@ private:
 class FTrackedCommandBuffer final : public IRHICommandBuffer
 {
 public:
+    TArray<TSharedPtr<IRHIFramebuffer>> DrawFramebuffers;
+    uint32 ReadbackCopies = 0;
+    uint32 PresentTransitions = 0;
     ERHICommandBufferState GetState() const noexcept override { return State_; }
     ERHIQueueType GetCompatibleQueueType() const noexcept override
     { return ERHIQueueType::Graphics; }
@@ -389,6 +392,8 @@ public:
         State_ = ERHICommandBufferState::Recording;
         Count_ = 0;
         bInRenderPass_ = false;
+        DrawFramebuffers.clear();
+        ReadbackCopies = PresentTransitions = 0;
         return ERHIResult::Success;
     }
     ERHIResult End() override
@@ -406,7 +411,11 @@ public:
         return ERHIResult::Success;
     }
     ERHIResult RecordDraw(uint32 Vertices, uint32 Instances) override
-    { return Record(Vertices > 0 && Instances > 0 && bInRenderPass_); }
+    {
+        const auto Result = Record(Vertices > 0 && Instances > 0 && bInRenderPass_);
+        if (Result == ERHIResult::Success) DrawFramebuffers.push_back(CurrentFramebuffer_);
+        return Result;
+    }
     ERHIResult RecordDrawIndexed(
         uint32 Indices, uint32 Instances, uint32) override
     { return Record(Indices > 0 && Instances > 0 && bInRenderPass_); }
@@ -431,7 +440,12 @@ public:
     { return Record(!bInRenderPass_); }
     ERHIResult RecordLayoutTransition(
         const FRHIResourceBarrierDesc& Value) override
-    { return Record(!bInRenderPass_ && (Value.Texture || Value.Buffer)); }
+    {
+        const auto Result = Record(!bInRenderPass_ && (Value.Texture || Value.Buffer));
+        if (Result == ERHIResult::Success && Value.After == ERHIResourceLayout::Present)
+            ++PresentTransitions;
+        return Result;
+    }
     ERHIResult BeginRenderPass(
         const TSharedPtr<IRHIRenderPass>& Pass,
         const TSharedPtr<IRHIFramebuffer>& Framebuffer) override
@@ -440,6 +454,7 @@ public:
             State_ != ERHICommandBufferState::Recording || bInRenderPass_)
             return ERHIResult::InvalidState;
         bInRenderPass_ = true;
+        CurrentFramebuffer_ = Framebuffer;
         ++Count_;
         return ERHIResult::Success;
     }
@@ -454,6 +469,7 @@ public:
     {
         if (!bInRenderPass_) return ERHIResult::InvalidState;
         bInRenderPass_ = false;
+        CurrentFramebuffer_.reset();
         ++Count_;
         return ERHIResult::Success;
     }
@@ -470,7 +486,11 @@ public:
         const TSharedPtr<IRHITexture>& Source,
         const TSharedPtr<IRHIBuffer>& Destination,
         FRHITextureBufferCopyRegion) override
-    { return Record(Source && Destination && !bInRenderPass_); }
+    {
+        const auto Result = Record(Source && Destination && !bInRenderPass_);
+        if (Result == ERHIResult::Success) ++ReadbackCopies;
+        return Result;
+    }
     ERHIResult SetViewport(const FRHIViewport&) override
     { return Record(bInRenderPass_); }
     ERHIResult SetScissor(const FRHIScissorRect&) override
@@ -486,9 +506,10 @@ private:
     ERHICommandBufferState State_ = ERHICommandBufferState::Idle;
     uint32 Count_ = 0;
     bool bInRenderPass_ = false;
+    TSharedPtr<IRHIFramebuffer> CurrentFramebuffer_;
 };
 
-class FDevice final : public IRHIDevice
+class FDevice : public IRHIDevice
 {
 public:
     explicit FDevice(TSharedPtr<FResourceLedger> Ledger = MakeShared<FResourceLedger>())

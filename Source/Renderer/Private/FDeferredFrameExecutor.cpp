@@ -206,8 +206,8 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
             Stoner::RHI::ERHITextureUsage::ColorAttachment) &&
         ArePostProcessStagesValid(Bindings, Extent) &&
         (!Bindings.bTransitionFinalOutputToPresent ||
-            Stoner::RHI::HasRHIFlag(FormalOutput->GetUsage(),
-                Stoner::RHI::ERHITextureUsage::Present));
+            (FormalOutput && Stoner::RHI::HasRHIFlag(FormalOutput->GetUsage(),
+                Stoner::RHI::ERHITextureUsage::Present)));
     if (!bBaseValid)
     {
         Out.FinalState = EDeferredExecutionState::Failed;
@@ -256,53 +256,77 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
     const Stoner::RHI::FRHIScissorRect FullScissor{0, 0, Extent.Width, Extent.Height};
     bool bFinalOutputCopied = false;
     bool bOutputTransformRecorded = false;
+    bool bFinalOutputTransitionedToPresent = false;
+
+    const auto RecordOutputTransform = [&]() -> bool
+    {
+        if (bOutputTransformRecorded)
+            return true;
+        for (const auto& Post : Bindings.OutputTransformStages)
+        {
+            if (!TransitionTexture(Commands, Post.Input,
+                    Stoner::RHI::ERHITextureUsage::Sampled,
+                    Stoner::RHI::ERHIResourceLayout::ColorAttachment,
+                    Stoner::RHI::ERHIResourceLayout::ShaderReadOnly) ||
+                !TransitionTexture(Commands, Post.Output,
+                    Stoner::RHI::ERHITextureUsage::ColorAttachment,
+                    Stoner::RHI::ERHIResourceLayout::Undefined,
+                    Stoner::RHI::ERHIResourceLayout::ColorAttachment) ||
+                Commands.BeginRenderPass(
+                    Post.Stage.RenderPass, Post.Stage.Framebuffer) !=
+                    Stoner::RHI::ERHIResult::Success ||
+                Commands.SetViewport(Viewport) !=
+                    Stoner::RHI::ERHIResult::Success ||
+                Commands.SetScissor(FullScissor) !=
+                    Stoner::RHI::ERHIResult::Success ||
+                Commands.BindGraphicsPipeline(Post.Stage.Pipeline) !=
+                    Stoner::RHI::ERHIResult::Success ||
+                !BindDescriptorSets(Commands, Post.Stage) ||
+                Commands.BindVertexBuffer(
+                    Bindings.FullscreenVertexBuffer) !=
+                    Stoner::RHI::ERHIResult::Success ||
+                Commands.RecordDraw(3, 1) !=
+                    Stoner::RHI::ERHIResult::Success ||
+                Commands.EndRenderPass() !=
+                    Stoner::RHI::ERHIResult::Success)
+            {
+                Out.Result = EDeferredResult::RecordFailed;
+                Out.FinalState = EDeferredExecutionState::Failed;
+                Out.Diagnostics.Add(EDeferredDiagnosticSeverity::Error,
+                    EDeferredPassStage::ValidationReadback,
+                    EDeferredResult::RecordFailed,
+                    "DEF-EXEC-OUTPUT-TRANSFORM", Post.Name,
+                    "output transform stopped at the first failed exact native stage");
+                return false;
+            }
+            ++Out.RecordedPassCount;
+        }
+        bOutputTransformRecorded = true;
+        return true;
+    };
+
+    const auto TransitionOutputToPresent = [&]() -> bool
+    {
+        if (!Bindings.bTransitionFinalOutputToPresent ||
+            bFinalOutputTransitionedToPresent)
+            return true;
+        if (!TransitionTexture(Commands, FormalOutput,
+                Stoner::RHI::ERHITextureUsage::Present,
+                bFinalOutputCopied
+                    ? Stoner::RHI::ERHIResourceLayout::CopySource
+                    : Stoner::RHI::ERHIResourceLayout::ColorAttachment,
+                Stoner::RHI::ERHIResourceLayout::Present))
+            return false;
+        bFinalOutputTransitionedToPresent = true;
+        return true;
+    };
 
     for (const FDeferredPassRecord& Pass : Plan.Passes)
     {
         if (Pass.Stage == EDeferredPassStage::ValidationReadback)
         {
-            if (!bOutputTransformRecorded)
-            {
-                for (const auto& Post : Bindings.OutputTransformStages)
-                {
-                    if (!TransitionTexture(Commands, Post.Input,
-                            Stoner::RHI::ERHITextureUsage::Sampled,
-                            Stoner::RHI::ERHIResourceLayout::ColorAttachment,
-                            Stoner::RHI::ERHIResourceLayout::ShaderReadOnly) ||
-                        !TransitionTexture(Commands, Post.Output,
-                            Stoner::RHI::ERHITextureUsage::ColorAttachment,
-                            Stoner::RHI::ERHIResourceLayout::Undefined,
-                            Stoner::RHI::ERHIResourceLayout::ColorAttachment) ||
-                        Commands.BeginRenderPass(
-                            Post.Stage.RenderPass, Post.Stage.Framebuffer) !=
-                            Stoner::RHI::ERHIResult::Success ||
-                        Commands.SetViewport(Viewport) !=
-                            Stoner::RHI::ERHIResult::Success ||
-                        Commands.SetScissor(FullScissor) !=
-                            Stoner::RHI::ERHIResult::Success ||
-                        Commands.BindGraphicsPipeline(Post.Stage.Pipeline) !=
-                            Stoner::RHI::ERHIResult::Success ||
-                        !BindDescriptorSets(Commands, Post.Stage) ||
-                        Commands.BindVertexBuffer(
-                            Bindings.FullscreenVertexBuffer) !=
-                            Stoner::RHI::ERHIResult::Success ||
-                        Commands.RecordDraw(3, 1) !=
-                            Stoner::RHI::ERHIResult::Success ||
-                        Commands.EndRenderPass() !=
-                            Stoner::RHI::ERHIResult::Success)
-                    {
-                        Out.Result = EDeferredResult::RecordFailed;
-                        Out.FinalState = EDeferredExecutionState::Failed;
-                        Out.Diagnostics.Add(EDeferredDiagnosticSeverity::Error,
-                            Pass.Stage, EDeferredResult::RecordFailed,
-                            "DEF-EXEC-OUTPUT-TRANSFORM", Post.Name,
-                            "formal output transform stopped at the first failed exact native stage");
-                        return Out;
-                    }
-                    ++Out.RecordedPassCount;
-                }
-                bOutputTransformRecorded = true;
-            }
+            if (!RecordOutputTransform())
+                return Out;
             for (const FDeferredReadbackBinding& Readback : Bindings.Readbacks)
             {
                 Stoner::RHI::FRHIResourceBarrierDesc Transition;
@@ -334,13 +358,7 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
                 bFinalOutputCopied = bFinalOutputCopied ||
                     Readback.Source == FormalOutput;
             }
-            if (Bindings.bTransitionFinalOutputToPresent &&
-                !TransitionTexture(Commands, FormalOutput,
-                    Stoner::RHI::ERHITextureUsage::Present,
-                    bFinalOutputCopied
-                        ? Stoner::RHI::ERHIResourceLayout::CopySource
-                        : Stoner::RHI::ERHIResourceLayout::ColorAttachment,
-                    Stoner::RHI::ERHIResourceLayout::Present))
+            if (!TransitionOutputToPresent())
             {
                 Out.Result = EDeferredResult::RecordFailed;
                 Out.FinalState = EDeferredExecutionState::Failed;
@@ -555,12 +573,7 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
         Out.RecordedDrawCount += Pass.DrawCount;
         Out.LastCompletedStage = Pass.Stage;
     }
-    if (Bindings.bTransitionFinalOutputToPresent &&
-        Plan.FindPass(EDeferredPassStage::ValidationReadback) == nullptr &&
-        !TransitionTexture(Commands, Bindings.FinalOutput,
-            Stoner::RHI::ERHITextureUsage::Present,
-            Stoner::RHI::ERHIResourceLayout::ColorAttachment,
-            Stoner::RHI::ERHIResourceLayout::Present))
+    if (!RecordOutputTransform() || !TransitionOutputToPresent())
     {
         Out.Result = EDeferredResult::RecordFailed;
         Out.FinalState = EDeferredExecutionState::Failed;

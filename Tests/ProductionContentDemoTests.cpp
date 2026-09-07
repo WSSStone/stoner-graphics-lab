@@ -4,6 +4,7 @@
 #include "FDemoValidationMonitor.h"
 #include "FProductionContentComposition.h"
 #include "FProductionContentDeferredExecution.h"
+#include "FProductionSubmissionHarness.h"
 #include "FOutputTransformValidationCommand.h"
 #include "FProductionAuthorityWindowExtent.h"
 #include "FProductionPresentationPixels.h"
@@ -191,11 +192,156 @@ bool BuildDeferredShaderClosure(
                 Fragment)});
 }
 
+class FPreviewSubmissionFence final : public RHI::IRHIFence
+{
+public:
+    RHI::ERHIResult WaitResult = RHI::ERHIResult::NotReady;
+    RHI::ERHIResult ResetResult = RHI::ERHIResult::Success;
+    int WaitCalls = 0;
+    int ResetCalls = 0;
+    bool bOnlyZeroWaits = true;
+    RHI::ERHIFenceState GetState() const noexcept override
+    { return IsSignaled() ? RHI::ERHIFenceState::Signaled : RHI::ERHIFenceState::Unsignaled; }
+    bool IsSignaled() const noexcept override
+    { return WaitResult == RHI::ERHIResult::Success; }
+    RHI::ERHIResult Wait(Core::uint64 Timeout = 0) override
+    { ++WaitCalls; bOnlyZeroWaits = bOnlyZeroWaits && Timeout == 0; return WaitResult; }
+    RHI::ERHIResult Reset() override
+    {
+        ++ResetCalls;
+        if (ResetResult == RHI::ERHIResult::Success) WaitResult = RHI::ERHIResult::NotReady;
+        return ResetResult;
+    }
+    RHI::ERHIResult Signal() override
+    { WaitResult = RHI::ERHIResult::Success; return RHI::ERHIResult::Success; }
+};
+
+class FPreviewSubmissionQueue final : public RHI::IRHICommandQueue
+{
+public:
+    int OrdinarySubmits = 0;
+    int DeferredSubmits = 0;
+    int IdleCalls = 0;
+    RHI::ERHIResult DeferredResult = RHI::ERHIResult::Success;
+    RHI::ERHIQueueType GetQueueType() const noexcept override
+    { return RHI::ERHIQueueType::Graphics; }
+    Core::uint32 GetSubmittedCommandBufferCount() const noexcept override
+    { return static_cast<Core::uint32>(DeferredSubmits); }
+    RHI::ERHIResult Submit(const Core::TSharedPtr<RHI::IRHICommandBuffer>&,
+        const Core::TArray<Core::TSharedPtr<RHI::IRHISemaphore>>&,
+        const Core::TArray<Core::TSharedPtr<RHI::IRHISemaphore>>&,
+        const Core::TSharedPtr<RHI::IRHIFence>&) override
+    { ++OrdinarySubmits; return RHI::ERHIResult::Failed; }
+    RHI::ERHIResult SubmitDeferred(const Core::TSharedPtr<RHI::IRHICommandBuffer>&,
+        const Core::TArray<Core::TSharedPtr<RHI::IRHISemaphore>>&,
+        const Core::TArray<Core::TSharedPtr<RHI::IRHISemaphore>>&,
+        const Core::TSharedPtr<RHI::IRHIFence>&) override
+    { ++DeferredSubmits; return DeferredResult; }
+    RHI::ERHIResult WaitIdle() override
+    { ++IdleCalls; return RHI::ERHIResult::Failed; }
+};
+
+class FPreviewSubmissionDevice final : public Stoner::Tests::StaticModelRealization::FDevice
+{
+public:
+    Core::TSharedPtr<FPreviewSubmissionQueue> TestQueue =
+        Core::MakeShared<FPreviewSubmissionQueue>();
+    RHI::TRHIObjectResult<RHI::IRHICommandQueue> CreateCommandQueue(RHI::ERHIQueueType) override
+    { return {RHI::ERHIResult::Success, TestQueue}; }
+    RHI::TRHIObjectResult<RHI::IRHIFence> CreateFence(bool) override
+    { return {RHI::ERHIResult::Success, Core::MakeShared<FPreviewSubmissionFence>()}; }
+};
+
+void TestPreviewSubmissionHarness(FProductionContentDemoTestResult& Result)
+{
+    using namespace Stoner::Tests::StaticModelRealization;
+    const auto Device = Core::MakeShared<FPreviewSubmissionDevice>();
+    FProductionSubmissionHarness Harness;
+    const auto Initialized = Harness.Initialize(Device);
+    auto Commands = Core::MakeShared<FTrackedCommandBuffer>();
+    (void)Commands->Begin();
+    (void)Commands->End();
+    const auto Fence = Core::MakeShared<FPreviewSubmissionFence>();
+    const auto Submitted = Harness.SubmitDeferred(Commands, {}, {}, Fence);
+    const auto Duplicate = Harness.SubmitDeferred(Commands, {}, {},
+        Core::MakeShared<FPreviewSubmissionFence>());
+    const auto Pending = Harness.PollDeferred(Fence);
+    const auto EarlyRetire = Harness.RetireDeferred(Fence);
+    const auto EarlyRelease = Harness.Release();
+    const auto EarlyReinitialize = Harness.Initialize(Device);
+    Record(Result, Initialized == RHI::ERHIResult::Success &&
+            Submitted.bSubmissionAccepted && !Submitted.bCompletionObserved &&
+            !Duplicate.bSubmissionAccepted && Device->TestQueue->DeferredSubmits == 1 &&
+            !Pending.bCompletionObserved && !EarlyRetire.bRetired &&
+            EarlyRelease == RHI::ERHIResult::NotReady &&
+            EarlyReinitialize == RHI::ERHIResult::NotReady && Fence->ResetCalls == 0 &&
+            Device->TestQueue->OrdinarySubmits == 0 && Device->TestQueue->IdleCalls == 0,
+        "Production deferred harness retains pending ownership through poll, retire, release and reinitialization without synchronous fallback");
+    std::weak_ptr<FTrackedCommandBuffer> WeakCommands = Commands;
+    Commands.reset();
+    const bool bRetainedBeforeCompletion = !WeakCommands.expired();
+    Fence->WaitResult = RHI::ERHIResult::Failed;
+    const auto FailedPoll = Harness.PollDeferred(Fence);
+    const auto FailedRetire = Harness.RetireDeferred(Fence);
+    Fence->WaitResult = RHI::ERHIResult::Success;
+    const auto Completed = Harness.PollDeferred(Fence);
+    const auto Retired = Harness.RetireDeferred(Fence);
+    Record(Result, bRetainedBeforeCompletion && !FailedPoll.bCompletionObserved &&
+            !FailedRetire.bRetired && Completed.bCompletionObserved &&
+            Completed.Result == RHI::ERHIResult::Failed && Retired.bRetired &&
+            Retired.Result == RHI::ERHIResult::Failed && WeakCommands.expired() &&
+            Fence->ResetCalls == 1 && Fence->bOnlyZeroWaits &&
+            Harness.Release() == RHI::ERHIResult::Success,
+        "Deferred poll failure cannot prove completion; later completion releases owners once and preserves first failure");
+
+    (void)Harness.Initialize(Device);
+    Core::TArray<Core::TSharedPtr<FPreviewSubmissionFence>> Fences;
+    Core::TArray<Core::TSharedPtr<FTrackedCommandBuffer>> CommandBuffers;
+    for (int Index = 0; Index < 3; ++Index)
+    {
+        auto Command = Core::MakeShared<FTrackedCommandBuffer>();
+        (void)Command->Begin();
+        (void)Command->End();
+        CommandBuffers.push_back(Command);
+        Fences.push_back(Core::MakeShared<FPreviewSubmissionFence>());
+    }
+    const auto First = Harness.SubmitDeferred(CommandBuffers[0], {}, {}, Fences[0]);
+    const auto Second = Harness.SubmitDeferred(CommandBuffers[1], {}, {}, Fences[1]);
+    const auto Third = Harness.SubmitDeferred(CommandBuffers[2], {}, {}, Fences[2]);
+    Record(Result, First.bSubmissionAccepted && Second.bSubmissionAccepted &&
+            !Third.bSubmissionAccepted && Third.Result == RHI::ERHIResult::NotReady &&
+            Device->TestQueue->DeferredSubmits == 3,
+        "Production deferred harness bounds accepted work to two frame slots");
+    bool bRetryRetainedCompletion = true;
+    for (int Index = 0; Index < 2; ++Index)
+    {
+        Fences[Index]->WaitResult = RHI::ERHIResult::Success;
+        (void)Harness.PollDeferred(Fences[Index]);
+        Fences[Index]->ResetResult = RHI::ERHIResult::NotReady;
+        const auto ResetPending = Harness.RetireDeferred(Fences[Index]);
+        Fences[Index]->ResetResult = RHI::ERHIResult::Success;
+        const auto ResetComplete = Harness.RetireDeferred(Fences[Index]);
+        bRetryRetainedCompletion = bRetryRetainedCompletion &&
+            ResetPending.bCompletionObserved && !ResetPending.bRetired &&
+            ResetPending.Result == RHI::ERHIResult::NotReady &&
+            ResetComplete.bRetired && ResetComplete.Result == RHI::ERHIResult::Success;
+    }
+    Record(Result, bRetryRetainedCompletion,
+        "Deferred fence reset NotReady retains completion proof and permits successful retirement retry");
+    Device->TestQueue->DeferredResult = RHI::ERHIResult::Unsupported;
+    const auto Unsupported = Harness.SubmitDeferred(CommandBuffers[2], {}, {}, Fences[2]);
+    Record(Result, Unsupported.Result == RHI::ERHIResult::Unsupported &&
+            !Unsupported.bSubmissionAccepted && Harness.Release() == RHI::ERHIResult::Success &&
+            Device->TestQueue->OrdinarySubmits == 0 && Device->TestQueue->IdleCalls == 0,
+        "Unsupported deferred submission releases unaccepted owners without ordinary Submit fallback");
+}
+
 } // namespace
 
 FProductionContentDemoTestResult RunProductionContentDemoTests()
 {
     FProductionContentDemoTestResult Result;
+    TestPreviewSubmissionHarness(Result);
     Core::FString Reason;
 
     FOutputTransformValidationProbeInput Probe;
@@ -990,6 +1136,71 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
             DeferredResources.Bindings.OutputTransformStages.size() == 3 &&
             AuthoritativeBindings.Readbacks.size() == 6,
         "lifecycle reads only the three-stage formal output while post-lifecycle extraction retains all authoritative attachments");
+
+    RHI::FRHITextureDesc BorrowedDesc =
+        DeferredResources.Bindings.FormalOutput
+            ? DeferredResources.Bindings.FormalOutput->GetDesc() : RHI::FRHITextureDesc{};
+    BorrowedDesc.Usage = RHI::ERHITextureUsage::ColorAttachment |
+        RHI::ERHITextureUsage::Present;
+    const auto BorrowedTarget = Fixture.Request.Device->CreateTexture(BorrowedDesc);
+    FProductionContentDeferredExecutionBuildOptions PreviewOptions;
+    PreviewOptions.ExecutionPurpose = Renderer::EFrameExecutionPurpose::InteractivePreview;
+    PreviewOptions.ReadbackSelection = Renderer::EFrameReadbackSelection::None;
+    PreviewOptions.BorrowedFinalOutput = BorrowedTarget.Object;
+    auto PreviewSettings = DefaultOutputSettings;
+    PreviewSettings.bRequireReadback = false;
+    FProductionContentDeferredExecutionResources PreviewResources;
+    const auto PreviewBuild = FProductionContentDeferredExecutionBuilder::Build(
+        Fixture.Request.Device, *Snapshot, Composition, RenderShaders, RenderPayloads,
+        *Fixture.Request.TargetEvidence, PreviewSettings, PreviewResources,
+        &CompositionReason, PreviewOptions);
+    const auto PreviewBindings = PreviewResources.BuildCycleBindings(false);
+    const auto PreviewExecution = Renderer::FDeferredFrameExecutor().Execute(
+        PreviewResources.Plan, PreviewResources.Graph, PreviewBindings);
+    const auto PreviewCommands = std::dynamic_pointer_cast<
+        Stoner::Tests::StaticModelRealization::FTrackedCommandBuffer>(
+            PreviewBindings.CommandBuffer);
+    bool bOutputDrawsOnce = PreviewCommands &&
+        PreviewBindings.OutputTransformStages.size() == 3;
+    if (PreviewCommands)
+    {
+        for (const auto& Stage : PreviewBindings.OutputTransformStages)
+            bOutputDrawsOnce = bOutputDrawsOnce && std::count(
+                PreviewCommands->DrawFramebuffers.begin(),
+                PreviewCommands->DrawFramebuffers.end(), Stage.Stage.Framebuffer) == 1;
+    }
+    const bool bNoReadbackBuffers = std::none_of(
+        PreviewResources.OwnedBuffers.begin(), PreviewResources.OwnedBuffers.end(),
+        [](const auto& Buffer) {
+            return Buffer && Buffer->GetUsage() == RHI::ERHIBufferUsage::CopyDestination;
+        });
+    Record(Result, PreviewBuild == RHI::ERHIResult::Success && PreviewResources.IsValid() &&
+            PreviewResources.Bindings.Readbacks.empty() && PreviewBindings.Readbacks.empty() &&
+            bNoReadbackBuffers && PreviewResources.Plan.FindPass(
+                Renderer::EDeferredPassStage::ValidationReadback) == nullptr &&
+            PreviewResources.Bindings.FormalOutput == BorrowedTarget.Object &&
+            std::find(PreviewResources.OwnedTextures.begin(), PreviewResources.OwnedTextures.end(),
+                BorrowedTarget.Object) == PreviewResources.OwnedTextures.end(),
+        "Preview production bindings allocate no readback and borrow the exact present-only terminal target");
+    Record(Result, PreviewExecution.Succeeded() && bOutputDrawsOnce &&
+            PreviewCommands && PreviewCommands->ReadbackCopies == 0 &&
+            PreviewCommands->PresentTransitions == 1,
+        "Preview without a validation pass still records all three output stages once and a single Present transition");
+
+    FProductionContentDeferredExecutionResources RejectedPreview;
+    auto InvalidPurpose = PreviewOptions;
+    InvalidPurpose.ExecutionPurpose = Renderer::EFrameExecutionPurpose::FormalValidation;
+    const auto InvalidPurposeBuild = FProductionContentDeferredExecutionBuilder::Build(
+        Fixture.Request.Device, *Snapshot, Composition, RenderShaders, RenderPayloads,
+        *Fixture.Request.TargetEvidence, PreviewSettings, RejectedPreview,
+        &CompositionReason, InvalidPurpose);
+    Record(Result, InvalidPurposeBuild == RHI::ERHIResult::InvalidState &&
+            RejectedPreview.OwnedTextures.empty() && RejectedPreview.OwnedBuffers.empty(),
+        "Formal purpose with preview readback selection is rejected before resource allocation");
+    PreviewResources.Release();
+    Record(Result, BorrowedTarget.Object && BorrowedTarget.Object->GetLifecycleState() ==
+            RHI::ERHIResourceLifecycleState::Valid,
+        "Releasing preview resources leaves the borrowed presentation target valid");
 
     FProductionContentComposition InvalidComposition;
     CompositionConfig.FrameToken = 0;

@@ -582,3 +582,43 @@ the adapter independently retains pending acquisition and its persistent session
 owner must retry or drain it. T027/T028/T029 still own the Demo resource,
 submission and acquired-target integration. No scene/HDR/hardware closeout or
 Accepted baseline update is claimed.
+
+
+## T027 zero-readback production bindings review (2026-09-07)
+
+T027 is reviewed complete, bringing implementation to **26/127**. Explicit
+InteractivePreview/None resources use a validated borrowed single-sample 2D
+ColorAttachment|Present target and allocate no readback buffers. Formal callers
+retain six authoritative readbacks and the existing FinalOutput-only lifecycle
+selection. Renderer records output-transform stages independently of the
+validation-readback pass and transitions the actual terminal output once.
+Releasing the builder's resources does not invalidate the borrowed target.
+
+The production submission harness accepts at most two deferred submissions,
+rejects duplicate pending commands, retains owners before native admission,
+polls fences only with Wait(0), and retires only after observed completion.
+First failures survive cleanup; reset NotReady remains retryable. Release and
+reinitialization return NotReady while pending owners exist. The harness invokes
+neither ordinary Submit nor WaitIdle on this path. Its session owner must outlive
+pending work; destructor execution is not completion evidence.
+
+Strict Debug and Release builds passed. Each configuration passed 51
+production-content-demo assertions (nine new preview/submission checks), 39
+deferred-renderer, 46 renderer-output-transform and 91 rhi-deferred-submission
+assertions: **227/227**. Required real Vulkan and Metal deferred regression also
+passed **13/13 per configuration**, including native GBuffer readback, matrix
+packing and frozen cross-backend semantic tolerances. Architecture validation
+reported zero findings. Logs under `Build/Validation/030/deferred-review/` are
+`build-{debug,release}-t027.log`, the four named suite
+`*-t027-{debug,release}.log` files, and
+`deferred-native-t027-{debug,release}.log`.
+
+These are working-tree implementation/regression checks. The native regression
+exercises existing deferred rendering; zero-readback preview command inspection
+and asynchronous harness lifecycle are deterministic tests. They do not claim
+integrated Lantern/Sponza preview or Feature 030 hardware acceptance. T028 must
+replace preview's shared-snapshot uniform updates with slot-local resources
+before concurrent scene frames are supported; T029 supplies the native lab
+adapter. The RHI currently returns a result without an explicit acceptance flag;
+the harness retains successful submissions or commands observed Submitted after
+the call, after rejecting any already-pending command before admission.
