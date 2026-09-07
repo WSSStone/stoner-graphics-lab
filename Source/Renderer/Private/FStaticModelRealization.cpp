@@ -643,6 +643,8 @@ RHI::ERHIResult FStaticModelRealizer::Realize(
             Sets.insert(Binding.SetIndex);
         std::map<Core::uint32, Core::TSharedPtr<IRHIDescriptorSet>> DescriptorSets;
         Core::TArray<FStaticModelBufferBindingResource> BufferBindings;
+        Core::TArray<FStaticModelDescriptorBindingResource>
+            DescriptorBindingResources;
         for (Core::uint32 Set : Sets)
         {
             if (OutInspection.DescriptorSetCount >= Request.Limits.MaxDescriptors)
@@ -717,6 +719,10 @@ RHI::ERHIResult FStaticModelRealizer::Realize(
                             "renderer.static-model.buffer-binding",
                             Planned.AssetId.ToString(),
                             "material buffer upload or binding failed");
+                    DescriptorBindingResources.push_back({
+                        Binding.SetIndex, Binding.BindingSlot, Element,
+                        ERHIDescriptorResourceKind::Buffer, Buffer.Object,
+                        nullptr, nullptr});
                 }
                 else if (Binding.DescriptorType ==
                              ERHIDescriptorType::SampledTexture ||
@@ -754,6 +760,10 @@ RHI::ERHIResult FStaticModelRealizer::Realize(
                                 "renderer.static-model.texture-binding",
                                 Planned.AssetId.ToString(),
                                 "sampled texture descriptor update failed");
+                        DescriptorBindingResources.push_back({
+                            Binding.SetIndex, Binding.BindingSlot, Element,
+                            ERHIDescriptorResourceKind::Texture, nullptr,
+                            Texture, nullptr});
                     }
                     else
                     {
@@ -788,6 +798,16 @@ RHI::ERHIResult FStaticModelRealizer::Realize(
                                 "renderer.static-model.combined-binding",
                                 Planned.AssetId.ToString(),
                                 "combined texture sampler update failed");
+                        DescriptorBindingResources.push_back({
+                            Binding.SetIndex, Binding.BindingSlot, Element,
+                            Binding.DescriptorType ==
+                                    ERHIDescriptorType::Sampler
+                                ? ERHIDescriptorResourceKind::Sampler
+                                : ERHIDescriptorResourceKind::CombinedTextureSampler,
+                            nullptr,
+                            Binding.DescriptorType == ERHIDescriptorType::Sampler
+                                ? nullptr : Texture,
+                            Sampler.Object});
                     }
                 }
             }
@@ -845,6 +865,8 @@ RHI::ERHIResult FStaticModelRealizer::Realize(
             Resources.DescriptorSets.push_back(Descriptor);
         }
         Resources.BufferBindings = std::move(BufferBindings);
+        Resources.DescriptorBindings =
+            std::move(DescriptorBindingResources);
         Resources.Pipeline = Pipeline.Object;
         Impl->MaterialResources.push_back(std::move(Resources));
         ++OutInspection.PipelineCount;
@@ -867,6 +889,7 @@ RHI::ERHIResult FStaticModelRealizer::Realize(
         FStaticModelDrawResources DrawResources;
         DrawResources.DescriptorSets = Material.DescriptorSets;
         DrawResources.BufferBindings = Material.BufferBindings;
+        DrawResources.DescriptorBindings = Material.DescriptorBindings;
         if (UseCount++ != 0)
         {
             const auto& Planned = Plan.Materials[Draw.MaterialIndex];
@@ -904,6 +927,9 @@ RHI::ERHIResult FStaticModelRealizer::Realize(
                 ++OutInspection.DescriptorSetCount;
 
                 std::erase_if(DrawResources.BufferBindings,
+                    [DrawSet](const auto& Binding)
+                    { return Binding.SetIndex == DrawSet; });
+                std::erase_if(DrawResources.DescriptorBindings,
                     [DrawSet](const auto& Binding)
                     { return Binding.SetIndex == DrawSet; });
                 for (const auto& Binding : Layout->GetDesc().Bindings)
@@ -960,6 +986,10 @@ RHI::ERHIResult FStaticModelRealizer::Realize(
                             DrawResources.BufferBindings.push_back({
                                 Binding.SetIndex, Binding.BindingSlot,
                                 Buffer.Object});
+                            DrawResources.DescriptorBindings.push_back({
+                                Binding.SetIndex, Binding.BindingSlot, Element,
+                                ERHIDescriptorResourceKind::Buffer,
+                                Buffer.Object, nullptr, nullptr});
                         }
                         else if (Binding.DescriptorType ==
                                      ERHIDescriptorType::SampledTexture ||
@@ -1000,6 +1030,11 @@ RHI::ERHIResult FStaticModelRealizer::Realize(
                                         "renderer.static-model.draw-texture-bind",
                                         Draw.StableKey,
                                         "per-draw texture update failed");
+                                DrawResources.DescriptorBindings.push_back({
+                                    Binding.SetIndex, Binding.BindingSlot,
+                                    Element,
+                                    ERHIDescriptorResourceKind::Texture,
+                                    nullptr, Texture, nullptr});
                             }
                             else
                             {
@@ -1038,6 +1073,18 @@ RHI::ERHIResult FStaticModelRealizer::Realize(
                                         "renderer.static-model.draw-sampler-bind",
                                         Draw.StableKey,
                                         "per-draw sampler update failed");
+                                DrawResources.DescriptorBindings.push_back({
+                                    Binding.SetIndex, Binding.BindingSlot,
+                                    Element,
+                                    Binding.DescriptorType ==
+                                            ERHIDescriptorType::Sampler
+                                        ? ERHIDescriptorResourceKind::Sampler
+                                        : ERHIDescriptorResourceKind::CombinedTextureSampler,
+                                    nullptr,
+                                    Binding.DescriptorType ==
+                                            ERHIDescriptorType::Sampler
+                                        ? nullptr : Texture,
+                                    Sampler.Object});
                             }
                         }
                     }

@@ -14,6 +14,7 @@
 #include "Renderer/FStaticMeshRealization.h"
 #include "Renderer/FTextureTargetProfile.h"
 #include "RHI/FRHIGraphicsPipelineDesc.h"
+#include "RHI/IRHIDescriptorSet.h"
 
 #include <optional>
 
@@ -169,18 +170,36 @@ struct FStaticModelBufferBindingResource
     Core::TSharedPtr<RHI::IRHIBuffer> Buffer;
 };
 
+// Retains the resources originally written into a descriptor binding so a
+// frame slot can clone mutable descriptor sets without mutating the immutable
+// published snapshot.  This is deliberately a realization detail rather than
+// a general descriptor reflection API.
+struct FStaticModelDescriptorBindingResource
+{
+    Core::uint32 SetIndex = 0;
+    Core::uint32 BindingSlot = 0;
+    Core::uint32 ArrayIndex = 0;
+    RHI::ERHIDescriptorResourceKind Kind =
+        RHI::ERHIDescriptorResourceKind::None;
+    Core::TSharedPtr<RHI::IRHIBuffer> Buffer;
+    Core::TSharedPtr<RHI::IRHITexture> Texture;
+    Core::TSharedPtr<RHI::IRHISampler> Sampler;
+};
+
 struct FStaticModelMaterialResources
 {
     Core::TSharedPtr<RHI::IRHIPipelineLayout> PipelineLayout;
     Core::TArray<Core::TSharedPtr<RHI::IRHIDescriptorSet>> DescriptorSets;
     Core::TArray<FStaticModelBufferBindingResource> BufferBindings;
     Core::TSharedPtr<RHI::IRHIGraphicsPipeline> Pipeline;
+    Core::TArray<FStaticModelDescriptorBindingResource> DescriptorBindings;
 };
 
 struct FStaticModelDrawResources
 {
     Core::TArray<Core::TSharedPtr<RHI::IRHIDescriptorSet>> DescriptorSets;
     Core::TArray<FStaticModelBufferBindingResource> BufferBindings;
+    Core::TArray<FStaticModelDescriptorBindingResource> DescriptorBindings;
 };
 
 class FStaticModelRenderSnapshot

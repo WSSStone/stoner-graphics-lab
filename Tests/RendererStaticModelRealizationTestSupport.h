@@ -260,18 +260,53 @@ public:
     { return State_; }
     ERHIResult UpdateBuffer(uint32 Slot, uint32 Element,
         const TSharedPtr<IRHIBuffer>& Value) override
-    { return Bind(Slot, Element, Value != nullptr, ERHIDescriptorResourceKind::Buffer); }
+    {
+        const auto Result = Bind(Slot, Element, Value != nullptr, ERHIDescriptorResourceKind::Buffer);
+        if (Result == ERHIResult::Success) BoundBuffers_[{Slot, Element}] = Value;
+        return Result;
+    }
+    TSharedPtr<IRHIBuffer> GetBoundBuffer(uint32 Slot, uint32 Element = 0) const
+    {
+        const auto Found = BoundBuffers_.find({Slot, Element});
+        return Found == BoundBuffers_.end() ? nullptr : Found->second;
+    }
     ERHIResult UpdateTexture(uint32 Slot, uint32 Element,
         const TSharedPtr<IRHITexture>& Value) override
-    { return Bind(Slot, Element, Value != nullptr, ERHIDescriptorResourceKind::Texture); }
+    {
+        const auto Result = Bind(Slot, Element, Value != nullptr, ERHIDescriptorResourceKind::Texture);
+        if (Result == ERHIResult::Success) BoundTextures_[{Slot, Element}] = Value;
+        return Result;
+    }
     ERHIResult UpdateSampler(uint32 Slot, uint32 Element,
         const TSharedPtr<IRHISampler>& Value) override
-    { return Bind(Slot, Element, Value != nullptr, ERHIDescriptorResourceKind::Sampler); }
+    {
+        const auto Result = Bind(Slot, Element, Value != nullptr, ERHIDescriptorResourceKind::Sampler);
+        if (Result == ERHIResult::Success) BoundSamplers_[{Slot, Element}] = Value;
+        return Result;
+    }
     ERHIResult UpdateCombinedTextureSampler(uint32 Slot, uint32 Element,
         const TSharedPtr<IRHITexture>& Texture,
         const TSharedPtr<IRHISampler>& Sampler) override
-    { return Bind(Slot, Element, Texture && Sampler,
-        ERHIDescriptorResourceKind::CombinedTextureSampler); }
+    {
+        const auto Result = Bind(Slot, Element, Texture && Sampler,
+            ERHIDescriptorResourceKind::CombinedTextureSampler);
+        if (Result == ERHIResult::Success)
+        {
+            BoundTextures_[{Slot, Element}] = Texture;
+            BoundSamplers_[{Slot, Element}] = Sampler;
+        }
+        return Result;
+    }
+    TSharedPtr<IRHITexture> GetBoundTexture(uint32 Slot, uint32 Element = 0) const
+    {
+        const auto Found = BoundTextures_.find({Slot, Element});
+        return Found == BoundTextures_.end() ? nullptr : Found->second;
+    }
+    TSharedPtr<IRHISampler> GetBoundSampler(uint32 Slot, uint32 Element = 0) const
+    {
+        const auto Found = BoundSamplers_.find({Slot, Element});
+        return Found == BoundSamplers_.end() ? nullptr : Found->second;
+    }
     ERHIResult Invalidate() override
     {
         if (State_ == ERHIResourceLifecycleState::Invalidated)
@@ -296,6 +331,9 @@ private:
     TSharedPtr<FResourceLedger> Ledger_;
     FString Id_;
     std::map<std::pair<uint32, uint32>, ERHIDescriptorResourceKind> Bound_;
+    std::map<std::pair<uint32, uint32>, TSharedPtr<IRHIBuffer>> BoundBuffers_;
+    std::map<std::pair<uint32, uint32>, TSharedPtr<IRHITexture>> BoundTextures_;
+    std::map<std::pair<uint32, uint32>, TSharedPtr<IRHISampler>> BoundSamplers_;
     ERHIResourceLifecycleState State_ = ERHIResourceLifecycleState::Valid;
 };
 
@@ -380,6 +418,8 @@ public:
     TArray<TSharedPtr<IRHIFramebuffer>> DrawFramebuffers;
     uint32 ReadbackCopies = 0;
     uint32 PresentTransitions = 0;
+    ERHIResult ResetResult = ERHIResult::Success;
+    uint32 ResetCalls = 0;
     ERHICommandBufferState GetState() const noexcept override { return State_; }
     ERHIQueueType GetCompatibleQueueType() const noexcept override
     { return ERHIQueueType::Graphics; }
@@ -405,6 +445,8 @@ public:
     }
     ERHIResult Reset() override
     {
+        ++ResetCalls;
+        if (ResetResult != ERHIResult::Success) return ResetResult;
         State_ = ERHICommandBufferState::Idle;
         Count_ = 0;
         bInRenderPass_ = false;

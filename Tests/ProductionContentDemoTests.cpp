@@ -5,10 +5,12 @@
 #include "FProductionContentComposition.h"
 #include "FProductionContentDeferredExecution.h"
 #include "FProductionSubmissionHarness.h"
+#include "FLabProductionFrameContext.h"
 #include "FOutputTransformValidationCommand.h"
 #include "FProductionAuthorityWindowExtent.h"
 #include "FProductionPresentationPixels.h"
 #include "RendererStaticModelRealizationTestSupport.h"
+#include "Renderer/FDeferredFrameUniformResources.h"
 
 #include <algorithm>
 #include <cstring>
@@ -223,6 +225,7 @@ public:
     int DeferredSubmits = 0;
     int IdleCalls = 0;
     RHI::ERHIResult DeferredResult = RHI::ERHIResult::Success;
+    Core::TArray<Core::TSharedPtr<RHI::IRHIFence>> SubmittedFences;
     RHI::ERHIQueueType GetQueueType() const noexcept override
     { return RHI::ERHIQueueType::Graphics; }
     Core::uint32 GetSubmittedCommandBufferCount() const noexcept override
@@ -235,8 +238,12 @@ public:
     RHI::ERHIResult SubmitDeferred(const Core::TSharedPtr<RHI::IRHICommandBuffer>&,
         const Core::TArray<Core::TSharedPtr<RHI::IRHISemaphore>>&,
         const Core::TArray<Core::TSharedPtr<RHI::IRHISemaphore>>&,
-        const Core::TSharedPtr<RHI::IRHIFence>&) override
-    { ++DeferredSubmits; return DeferredResult; }
+        const Core::TSharedPtr<RHI::IRHIFence>& Fence) override
+    {
+        ++DeferredSubmits;
+        if (DeferredResult == RHI::ERHIResult::Success) SubmittedFences.push_back(Fence);
+        return DeferredResult;
+    }
     RHI::ERHIResult WaitIdle() override
     { ++IdleCalls; return RHI::ERHIResult::Failed; }
 };
@@ -334,6 +341,312 @@ void TestPreviewSubmissionHarness(FProductionContentDemoTestResult& Result)
             !Unsupported.bSubmissionAccepted && Harness.Release() == RHI::ERHIResult::Success &&
             Device->TestQueue->OrdinarySubmits == 0 && Device->TestQueue->IdleCalls == 0,
         "Unsupported deferred submission releases unaccepted owners without ordinary Submit fallback");
+}
+
+void TestSlotUniformIsolation(FProductionContentDemoTestResult& Result,
+    const Core::TSharedPtr<RHI::IRHIDevice>& Device,
+    const Core::TSharedPtr<const Renderer::FStaticModelRenderSnapshot>& Snapshot,
+    const Renderer::FDeferredFramePlan& Plan)
+{
+    using namespace Stoner::Tests::StaticModelRealization;
+    const auto TestDevice = std::dynamic_pointer_cast<FDevice>(Device);
+    const auto Ledger = TestDevice->Ledger();
+    const auto FirstOwnedRecord = Ledger->Created.size();
+    const auto ReadBuffers = [](const auto& Buffers) {
+        Core::TArray<Core::TArray<Core::uint8>> Bytes;
+        for (const auto& Buffer : Buffers)
+        {
+            const auto Tracked = std::dynamic_pointer_cast<FTrackedBuffer>(Buffer);
+            Bytes.push_back(Tracked ? Tracked->GetData() : Core::TArray<Core::uint8>{});
+        }
+        return Bytes;
+    };
+    Core::TArray<Core::TSharedPtr<RHI::IRHIBuffer>> SnapshotBuffers;
+    for (const auto& Draw : Snapshot->GetDrawResources())
+        for (const auto& Binding : Draw.BufferBindings)
+            SnapshotBuffers.push_back(Binding.Buffer);
+    const auto OriginalBytes = ReadBuffers(SnapshotBuffers);
+    Renderer::FDeferredFrameUniformResources Slot0;
+    Renderer::FDeferredFrameUniformResources Slot1;
+    const auto Init0 = Slot0.Initialize(Device, Snapshot, Plan);
+    const auto Init1 = Slot1.Initialize(Device, Snapshot, Plan);
+    bool bPrivateBindings = Init0 == RHI::ERHIResult::Success &&
+        Init1 == RHI::ERHIResult::Success && Slot0.IsValid() && Slot1.IsValid() &&
+        Slot0.GetSurfaceDraws().size() == Plan.AcceptedDraws.size() &&
+        Slot1.GetSurfaceDraws().size() == Plan.AcceptedDraws.size();
+    bool bImmutableImagesPreserved = bPrivateBindings;
+    Core::uint32 ComparedImages = 0;
+    if (bPrivateBindings)
+    {
+        for (Core::usize Index = 0; Index < Slot0.GetSurfaceDraws().size(); ++Index)
+        {
+            const auto& Draw0 = Slot0.GetSurfaceDraws()[Index];
+            const auto& Draw1 = Slot1.GetSurfaceDraws()[Index];
+            bPrivateBindings = bPrivateBindings && Draw0.VertexBuffer == Draw1.VertexBuffer &&
+                Draw0.IndexBuffer == Draw1.IndexBuffer && Draw0.Pipeline == Draw1.Pipeline;
+            for (const auto& BaseSet : Draw0.DescriptorSets)
+            {
+                if (BaseSet->GetSetIndex() > 1) continue;
+                const auto Set0 = std::dynamic_pointer_cast<FTrackedDescriptorSet>(BaseSet);
+                const auto Found1 = std::find_if(Draw1.DescriptorSets.begin(), Draw1.DescriptorSets.end(),
+                    [&BaseSet](const auto& Set) { return Set->GetSetIndex() == BaseSet->GetSetIndex(); });
+                const auto Set1 = Found1 == Draw1.DescriptorSets.end() ? nullptr :
+                    std::dynamic_pointer_cast<FTrackedDescriptorSet>(*Found1);
+                const auto Buffer0 = Set0 ? Set0->GetBoundBuffer(0) : nullptr;
+                const auto Buffer1 = Set1 ? Set1->GetBoundBuffer(0) : nullptr;
+                bPrivateBindings = bPrivateBindings && Set0 && Set1 && Set0 != Set1 &&
+                    Buffer0 && Buffer1 && Buffer0 != Buffer1 &&
+                    std::find(Slot0.GetOwnedBuffers().begin(), Slot0.GetOwnedBuffers().end(), Buffer0) != Slot0.GetOwnedBuffers().end() &&
+                    std::find(Slot1.GetOwnedBuffers().begin(), Slot1.GetOwnedBuffers().end(), Buffer1) != Slot1.GetOwnedBuffers().end() &&
+                    std::find(SnapshotBuffers.begin(), SnapshotBuffers.end(), Buffer0) == SnapshotBuffers.end();
+                const auto& OriginalSets = Snapshot->GetDrawResources()[
+                    Plan.AcceptedDraws[Index].Candidate.Identity.Slot - 1].DescriptorSets;
+                const auto Original = std::find_if(OriginalSets.begin(), OriginalSets.end(),
+                    [&BaseSet](const auto& Set) { return Set->GetSetIndex() == BaseSet->GetSetIndex(); });
+                const auto SourceSet = Original == OriginalSets.end() ? nullptr :
+                    std::dynamic_pointer_cast<FTrackedDescriptorSet>(*Original);
+                if (!SourceSet || !Set0 || !Set1)
+                {
+                    bImmutableImagesPreserved = false;
+                    continue;
+                }
+                for (const auto& Binding : SourceSet->GetPipelineLayout()->GetDesc().Bindings)
+                {
+                    if (Binding.SetIndex != SourceSet->GetSetIndex()) continue;
+                    for (Core::uint32 Element = 0; Element < Binding.ArrayCount; ++Element)
+                    {
+                        const auto Image = SourceSet->GetBoundTexture(Binding.BindingSlot, Element);
+                        const auto Sampler = SourceSet->GetBoundSampler(Binding.BindingSlot, Element);
+                        if (Image || Sampler)
+                        {
+                            ++ComparedImages;
+                            bImmutableImagesPreserved = bImmutableImagesPreserved &&
+                                Set0->GetBoundTexture(Binding.BindingSlot, Element) == Image &&
+                                Set1->GetBoundTexture(Binding.BindingSlot, Element) == Image &&
+                                Set0->GetBoundSampler(Binding.BindingSlot, Element) == Sampler &&
+                                Set1->GetBoundSampler(Binding.BindingSlot, Element) == Sampler;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Record(Result, bPrivateBindings && ReadBuffers(SnapshotBuffers) == OriginalBytes,
+        "Renderer slot uniforms and descriptors are private while immutable scene geometry and pipelines remain shared");
+    Record(Result, bImmutableImagesPreserved && ComparedImages > 0,
+        "Cloned mutable descriptor sets preserve the exact immutable material texture and sampler bindings");
+    const auto Slot0Before = ReadBuffers(Slot0.GetOwnedBuffers());
+    const auto Slot1Before = ReadBuffers(Slot1.GetOwnedBuffers());
+    const auto Slot1BuffersBefore = Slot1.GetOwnedBuffers();
+    const auto Slot1DrawsBefore = Slot1.GetSurfaceDraws();
+    const auto Slot1FrameBefore = Slot1.GetFrameUniformBuffer();
+    const auto CreatesBeforeUpdate = Ledger->Created.size();
+    auto MovedPlan = Plan;
+    MovedPlan.View.CameraPosition.X += 1.0f;
+    const auto Updated = Slot1.Update(Device, MovedPlan);
+    bool bDescriptorsStable = Slot1DrawsBefore.size() == Slot1.GetSurfaceDraws().size();
+    if (bDescriptorsStable)
+        for (Core::usize Index = 0; Index < Slot1DrawsBefore.size(); ++Index)
+            bDescriptorsStable = bDescriptorsStable && Slot1DrawsBefore[Index].DescriptorSets ==
+                Slot1.GetSurfaceDraws()[Index].DescriptorSets;
+    Record(Result, Updated == RHI::ERHIResult::Success &&
+            ReadBuffers(Slot1.GetOwnedBuffers()) != Slot1Before &&
+            ReadBuffers(Slot0.GetOwnedBuffers()) == Slot0Before &&
+            ReadBuffers(SnapshotBuffers) == OriginalBytes,
+        "Updating one slot changes its camera bytes without modifying another slot or the immutable snapshot");
+    Record(Result, Updated == RHI::ERHIResult::Success && bDescriptorsStable &&
+            Slot1.GetOwnedBuffers() == Slot1BuffersBefore &&
+            Slot1.GetFrameUniformBuffer() == Slot1FrameBefore &&
+            Ledger->Created.size() == CreatesBeforeUpdate,
+        "Slot update preserves buffer and descriptor identities and creates no new GPU resources");
+    auto InvalidPlan = Plan;
+    if (!InvalidPlan.AcceptedDraws.empty()) InvalidPlan.AcceptedDraws.front().Candidate.Identity.Slot = 0;
+    const auto BeforeInvalid = ReadBuffers(Slot1.GetOwnedBuffers());
+    const auto Rejected = Slot1.Update(Device, InvalidPlan);
+    Record(Result, Rejected != RHI::ERHIResult::Success &&
+            ReadBuffers(Slot1.GetOwnedBuffers()) == BeforeInvalid &&
+            ReadBuffers(Slot0.GetOwnedBuffers()) == Slot0Before,
+        "Invalid slot draw identity is rejected before any uniform upload");
+    Slot0.Release();
+    Slot1.Release();
+    bool bOwnedReleasedOnce = true;
+    for (Core::usize Index = FirstOwnedRecord; Index < Ledger->Created.size(); ++Index)
+        bOwnedReleasedOnce = bOwnedReleasedOnce &&
+            Ledger->ReleaseCounts[Ledger->Created[Index].ToStdString()] == 1;
+    Record(Result, !Slot0.IsValid() && !Slot1.IsValid() &&
+            bOwnedReleasedOnce &&
+            std::all_of(SnapshotBuffers.begin(), SnapshotBuffers.end(), [](const auto& Buffer) {
+                return Buffer && Buffer->GetLifecycleState() == RHI::ERHIResourceLifecycleState::Valid;
+            }) && Snapshot->GetMeshes().front().VertexBuffer->GetLifecycleState() ==
+                RHI::ERHIResourceLifecycleState::Valid,
+        "Slot uniform cleanup leaves shared scene buffers and geometry valid");
+
+    const auto BeforeFailedBuild = Ledger->Created.size();
+    Ledger->Failure = EFailurePoint::BufferUpload;
+    Ledger->FailureOccurrence = Ledger->Calls[EFailurePoint::BufferUpload] + 1;
+    Renderer::FDeferredFrameUniformResources FailedSlot;
+    const auto FailedBuild = FailedSlot.Initialize(Device, Snapshot, Plan);
+    FailedSlot.Release();
+    Ledger->Failure = EFailurePoint::None;
+    bool bFailedBuildReleased = Ledger->Created.size() > BeforeFailedBuild;
+    for (Core::usize Index = BeforeFailedBuild; Index < Ledger->Created.size(); ++Index)
+        bFailedBuildReleased = bFailedBuildReleased &&
+            Ledger->ReleaseCounts[Ledger->Created[Index].ToStdString()] == 1;
+    Record(Result, FailedBuild != RHI::ERHIResult::Success && !FailedSlot.IsValid() &&
+            bFailedBuildReleased && ReadBuffers(SnapshotBuffers) == OriginalBytes,
+        "Slot initialization upload failure releases every partial private allocation exactly once");
+}
+
+void TestLabFrameContext(FProductionContentDemoTestResult& Result,
+    const FLabProductionFrameContextConfig& Config, RHI::ERHIFormat OutputFormat)
+{
+    const auto Device = std::dynamic_pointer_cast<FPreviewSubmissionDevice>(Config.Device);
+    const auto Width = Config.Composition.DeferredInputs.View.Extent.Width;
+    const auto Height = Config.Composition.DeferredInputs.View.Extent.Height;
+    const auto MakeTarget = [&](Core::uint64 Token, Core::uint32 Slot, Core::uint32 Image) {
+        RHI::FRHITextureDesc Desc;
+        Desc.Width = Width;
+        Desc.Height = Height;
+        Desc.Format = OutputFormat;
+        Desc.Usage = RHI::ERHITextureUsage::ColorAttachment | RHI::ERHITextureUsage::Present;
+        RHI::FRHIBorrowedAcquiredTarget Target;
+        Target.Texture = Device->CreateTexture(Desc).Object;
+        Target.FrameSlotIndex = Slot;
+        Target.Frame.FrameToken = Token;
+        Target.Frame.ModeGeneration = 7;
+        Target.Frame.SwapchainImageGeneration = 9;
+        Target.Frame.ImageIndex = Image;
+        Target.Frame.Width = Width;
+        Target.Frame.Height = Height;
+        Target.Frame.Format = OutputFormat;
+        Target.Frame.ColorSpace = RHI::ERHIPresentationColorSpace::SrgbNonlinear;
+        return Target;
+    };
+    FLabProductionFrameContext Context;
+    const auto SceneOwnersBefore = Config.SceneLease.use_count();
+    const auto DeviceOwnersBefore = Config.Device.use_count();
+    const auto Initialized = Context.Initialize(Config);
+    const auto CreatesBeforeInvalid = Device->Ledger()->Created.size();
+    const auto TooWide = Context.Reconfigure(4097, 1);
+    const auto TooManyPixels = Context.Reconfigure(4096, 1921);
+    Record(Result, Initialized == RHI::ERHIResult::Success &&
+            TooWide != RHI::ERHIResult::Success && TooManyPixels != RHI::ERHIResult::Success &&
+            Device->Ledger()->Created.size() == CreatesBeforeInvalid,
+        "Lab drawable axis and pixel limits reject requests before attachment allocation");
+    (void)Context.Reconfigure(0, Height);
+    const bool bPaused = Context.Snapshot().bPausedZeroExtent;
+    const auto PausedReserve = Context.ReserveFrame(100, 0);
+    const auto Resumed = Context.Reconfigure(Width, Height);
+    Record(Result, bPaused && PausedReserve == RHI::ERHIResult::NotReady &&
+            Resumed == RHI::ERHIResult::Success,
+        "A zero drawable axis pauses admission and a valid later extent resumes");
+
+    const auto Target0 = MakeTarget(101, 0, 0);
+    const auto Target1 = MakeTarget(102, 1, 1);
+    auto Frame0 = Config.Composition;
+    auto Frame1 = Config.Composition;
+    Frame0.FrameToken = 101;
+    Frame1.FrameToken = 102;
+    Frame1.DeferredInputs.View.CameraPosition.X += 1.0f;
+    Frame1.CameraPosition = Frame1.DeferredInputs.View.CameraPosition;
+    const auto Reserved0 = Context.ReserveFrame(101, 0);
+    const auto Begun0 = Context.BeginFrame(101, 0, Target0);
+    const auto Recorded0 = Context.RecordFrame(101, 0, Frame0);
+    const auto* Resources0 = Context.GetResources(101, 0);
+    const auto Attachments0 = Resources0 ? Resources0->OwnedTextures :
+        Core::TArray<Core::TSharedPtr<RHI::IRHITexture>>{};
+    const auto Submitted0 = Context.SubmitFrame(101, 0);
+    const auto Reserved1 = Context.ReserveFrame(102, 1);
+    const auto Begun1 = Context.BeginFrame(102, 1, Target1);
+    const auto Recorded1 = Context.RecordFrame(102, 1, Frame1);
+    const auto Submitted1 = Context.SubmitFrame(102, 1);
+    const auto Third = Context.ReserveFrame(103, 0);
+    bool bCompleted = true;
+    const auto Pending = Context.PollRender(101, 0, bCompleted);
+    RHI::FRHIRenderLease EarlyLease;
+    Record(Result, Reserved0 == RHI::ERHIResult::Success && Begun0 == RHI::ERHIResult::Success &&
+            Recorded0 == RHI::ERHIResult::Success && Submitted0 == RHI::ERHIResult::Success &&
+            Reserved1 == RHI::ERHIResult::Success && Begun1 == RHI::ERHIResult::Success &&
+            Recorded1 == RHI::ERHIResult::Success && Submitted1 == RHI::ERHIResult::Success &&
+            Third == RHI::ERHIResult::NotReady && Pending == RHI::ERHIResult::NotReady &&
+            !bCompleted && !Context.GetRenderLease(101, 0, EarlyLease) &&
+            Context.Snapshot().BusySlotCount == 2 &&
+            Device->TestQueue->OrdinarySubmits == 0 && Device->TestQueue->IdleCalls == 0,
+        "Lab context submits exactly two deferred frames and exposes no completion proof while they are pending");
+    if (Device->TestQueue->SubmittedFences.size() != 2)
+        return;
+    const auto Render0 = std::dynamic_pointer_cast<FPreviewSubmissionFence>(Device->TestQueue->SubmittedFences[0]);
+    const auto Render1 = std::dynamic_pointer_cast<FPreviewSubmissionFence>(Device->TestQueue->SubmittedFences[1]);
+    Render0->WaitResult = RHI::ERHIResult::Success;
+    const auto Completed0 = Context.PollRender(101, 0, bCompleted);
+    bool bCompletedAgain = false;
+    const auto CompletedAgain = Context.PollRender(101, 0, bCompletedAgain);
+    RHI::FRHIRenderLease Lease0;
+    const bool bTypedProof = Context.GetRenderLease(101, 0, Lease0);
+    const auto EarlyRetire = Context.RetireRenderResources(101, 0);
+    RHI::FRHIPresentationLease Presentation0;
+    Presentation0.Frame = Target0.Frame;
+    const auto PresentFence0 = Core::MakeShared<FPreviewSubmissionFence>();
+    Presentation0.PresentationCompletionFence = PresentFence0;
+    const auto Queued0 = Context.QueuePresentation(101, 0, Presentation0);
+    const auto Command0 = std::dynamic_pointer_cast<
+        Stoner::Tests::StaticModelRealization::FTrackedCommandBuffer>(
+            Resources0->Bindings.CommandBuffer);
+    Command0->ResetResult = RHI::ERHIResult::NotReady;
+    const auto PendingReset0 = Context.RetireRenderResources(101, 0);
+    Command0->ResetResult = RHI::ERHIResult::Success;
+    const auto Retired0 = Context.RetireRenderResources(101, 0);
+    const auto ReuseReserve = Context.ReserveFrame(103, 0);
+    const auto Target2 = MakeTarget(103, 0, 2);
+    const auto ReuseBegin = Context.BeginFrame(103, 0, Target2);
+    const auto* Reused = Context.GetResources(103, 0);
+    Record(Result, Completed0 == RHI::ERHIResult::Success &&
+            CompletedAgain == RHI::ERHIResult::Success && bCompletedAgain &&
+            PendingReset0 == RHI::ERHIResult::NotReady &&
+            bTypedProof && Lease0.Matches(Target0) &&
+            EarlyRetire == RHI::ERHIResult::NotReady && Queued0 == RHI::ERHIResult::Success &&
+            Retired0 == RHI::ERHIResult::Success && ReuseReserve == RHI::ERHIResult::Success &&
+            ReuseBegin == RHI::ERHIResult::Success && Reused && Reused->OwnedTextures == Attachments0 &&
+            Context.Snapshot().RetainedPresentationCount == 1 && !PresentFence0->IsSignaled(),
+        "Render-complete slot reuse preserves scene attachments while its independent presentation lease remains pending");
+    auto Frame2 = Config.Composition;
+    Frame2.FrameToken = 103;
+    const auto Recorded2 = Context.RecordFrame(103, 0, Frame2);
+    const auto Cancelled2 = Context.CancelFrame(103, 0);
+    Command0->ResetResult = RHI::ERHIResult::Unavailable;
+    const auto CancelResetFailure = Context.RetireCancelled(103, 0);
+    Command0->ResetResult = RHI::ERHIResult::Success;
+    const auto CancelRetired2 = Context.RetireCancelled(103, 0);
+    Record(Result, Recorded2 == RHI::ERHIResult::Success &&
+            Cancelled2 == RHI::ERHIResult::Success &&
+            CancelResetFailure == RHI::ERHIResult::Unavailable &&
+            CancelRetired2 == RHI::ERHIResult::Unavailable &&
+            Command0->GetState() == RHI::ERHICommandBufferState::Idle,
+        "Cancellation resets recorded commands and retains the first reset failure through successful retry");
+    Render1->WaitResult = RHI::ERHIResult::Failed;
+    const auto FailedPoll = Context.PollRender(102, 1, bCompleted);
+    const bool bFailureDidNotComplete = !bCompleted;
+    Render1->WaitResult = RHI::ERHIResult::Success;
+    const auto CompletedFailure = Context.PollRender(102, 1, bCompleted);
+    const auto Cancelled1 = Context.CancelFrame(102, 1);
+    const auto Retired1 = Context.RetireCancelled(102, 1);
+    Record(Result, FailedPoll == RHI::ERHIResult::Failed && bFailureDidNotComplete &&
+            CompletedFailure == RHI::ERHIResult::Failed && bCompleted &&
+            Cancelled1 == RHI::ERHIResult::Success &&
+            Retired1 == RHI::ERHIResult::Failed && Context.Snapshot().BusySlotCount == 0,
+        "Lab context can drain a failed frame after later render completion without hiding its first failure");
+    PresentFence0->WaitResult = RHI::ERHIResult::Success;
+    bool bPresentRetired = false;
+    (void)Context.PollPresentation(101, 0, bPresentRetired);
+    const auto Shutdown = Context.Shutdown();
+    Record(Result, bPresentRetired && Shutdown == RHI::ERHIResult::Success &&
+            Context.Snapshot().ActiveAttachmentBytes == 0 &&
+            Config.SceneLease.use_count() == SceneOwnersBefore &&
+            Config.Device.use_count() == DeviceOwnersBefore &&
+            Target0.Texture->GetLifecycleState() == RHI::ERHIResourceLifecycleState::Valid &&
+            Target1.Texture->GetLifecycleState() == RHI::ERHIResourceLifecycleState::Valid &&
+            Target2.Texture->GetLifecycleState() == RHI::ERHIResourceLifecycleState::Valid,
+        "Lab shutdown drains render owners and leaves all borrowed native targets uninvalidated");
 }
 
 } // namespace
@@ -796,6 +1109,8 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
         "production demo runtime does not link Tools or AssetCooker");
 
     auto Fixture = Stoner::Tests::StaticModelRealization::MakeFixture();
+    const auto LabTestDevice = Core::MakeShared<FPreviewSubmissionDevice>();
+    Fixture.Request.Device = LabTestDevice;
     Fixture.Request.RenderTargets.ColorFormats = {
         RHI::ERHIFormat::R8G8B8A8_UNorm,
         RHI::ERHIFormat::R16G16B16A16_Float,
@@ -924,6 +1239,7 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
             DeferredPlan.View.CameraPosition ==
                 ForwardPlan.ViewData.CameraPosition,
         "Deferred full and Forward smoke share one backend-neutral composition");
+    TestSlotUniformIsolation(Result, Fixture.Request.Device, Snapshot, DeferredPlan);
 
     FProductionCameraPreset MovedCamera;
     Renderer::FDeferredFramePlan CameraDeferredPlan;
@@ -1147,6 +1463,7 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
     PreviewOptions.ExecutionPurpose = Renderer::EFrameExecutionPurpose::InteractivePreview;
     PreviewOptions.ReadbackSelection = Renderer::EFrameReadbackSelection::None;
     PreviewOptions.BorrowedFinalOutput = BorrowedTarget.Object;
+    PreviewOptions.SceneLease = Snapshot;
     auto PreviewSettings = DefaultOutputSettings;
     PreviewSettings.bRequireReadback = false;
     FProductionContentDeferredExecutionResources PreviewResources;
@@ -1201,6 +1518,15 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
     Record(Result, BorrowedTarget.Object && BorrowedTarget.Object->GetLifecycleState() ==
             RHI::ERHIResourceLifecycleState::Valid,
         "Releasing preview resources leaves the borrowed presentation target valid");
+    FLabProductionFrameContextConfig LabConfig;
+    LabConfig.Device = LabTestDevice;
+    LabConfig.SceneLease = Snapshot;
+    LabConfig.Composition = Composition;
+    LabConfig.RenderShaders = RenderShaders;
+    LabConfig.RenderShaderPayloads = RenderPayloads;
+    LabConfig.TargetEvidence = *Fixture.Request.TargetEvidence;
+    LabConfig.OutputSettings = PreviewSettings;
+    TestLabFrameContext(Result, LabConfig, BorrowedDesc.Format);
 
     FProductionContentComposition InvalidComposition;
     CompositionConfig.FrameToken = 0;

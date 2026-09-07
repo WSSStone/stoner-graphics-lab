@@ -1,6 +1,7 @@
 #include "FProductionContentDeferredExecution.h"
 
 #include "Renderer/FShaderAssetConversion.h"
+#include "Renderer/FDeferredFrameUniformResources.h"
 #include "RHI/FRHIBufferUploadDesc.h"
 #include "RHI/IRHIBuffer.h"
 #include "RHI/IRHIFramebuffer.h"
@@ -509,7 +510,8 @@ bool AddReadback(
                 EFrameReadbackSelection::None ||
             OutputSettings.bRequireReadback ||
             !OutputSettings.bRequirePresentation ||
-            !Options.BorrowedFinalOutput || !bTargetShapeValid)) )
+            !Options.BorrowedFinalOutput || !bTargetShapeValid ||
+            !Options.SceneLease)) )
     {
         Fail(OutReason,
             "Deferred execution purpose/readback selection does not match its resource contract");
@@ -547,6 +549,8 @@ bool FProductionContentDeferredExecutionResources::IsValid() const noexcept
         ExecutionPurpose == OutputTransformPlan.ExecutionPurpose &&
         ReadbackSelection == OutputTransformPlan.ReadbackSelection &&
         bValidationPassValid && bReadbacksValid && bOutputTargetValid &&
+        (bFormal || (PreviewUniformResources &&
+            PreviewUniformResources->IsValid())) &&
         Bindings.CommandBuffer &&
         Bindings.BaseColorAO && Bindings.NormalRoughness &&
         Bindings.EmissiveMetallic && Bindings.Depth &&
@@ -594,6 +598,10 @@ void FProductionContentDeferredExecutionResources::Release() noexcept
     Plan = {};
     Graph = {};
     OutputTransformPlan = {};
+    PreviewUniformResources.reset();
+    SceneLease.reset();
+    OutputSettings = {};
+    AttachmentBytes = 0;
 }
 
 ERHIResult FProductionContentDeferredExecutionBuilder::Build(
@@ -617,6 +625,13 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
         TargetEvidence.Validate() != EAssetResult::Success)
     {
         Fail(OutReason, "invalid Deferred production execution input");
+        return ERHIResult::InvalidState;
+    }
+    if (Options.ExecutionPurpose == EFrameExecutionPurpose::InteractivePreview &&
+        (!Options.SceneLease || Options.SceneLease.get() != &Snapshot))
+    {
+        Fail(OutReason,
+            "preview requires a strong scene lease for the exact snapshot");
         return ERHIResult::InvalidState;
     }
     const auto* Directional = FindProgram(
@@ -656,6 +671,8 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
         return ERHIResult::InvalidState;
     Candidate.ExecutionPurpose = Options.ExecutionPurpose;
     Candidate.ReadbackSelection = Options.ReadbackSelection;
+    Candidate.SceneLease = Options.SceneLease;
+    Candidate.OutputSettings = OutputSettings;
     Candidate.OutputTransformPlan.ExecutionPurpose =
         Options.ExecutionPurpose;
     Candidate.OutputTransformPlan.ReadbackSelection =
@@ -674,10 +691,27 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
             "preview requires a valid borrowed ColorAttachment|Present output target");
         return ERHIResult::InvalidState;
     }
-    if (!BindProductionDeferredDraws(
-            Snapshot, Candidate.Plan, Candidate.Bindings, OutReason) ||
-        !UploadProductionDeferredUniforms(
-            *Device, Snapshot, Candidate.Plan, OutReason))
+    if (Options.ExecutionPurpose == EFrameExecutionPurpose::InteractivePreview)
+    {
+        Candidate.PreviewUniformResources =
+            Core::MakeShared<Renderer::FDeferredFrameUniformResources>();
+        const ERHIResult UniformResult =
+            Candidate.PreviewUniformResources->Initialize(
+                Device, Options.SceneLease, Candidate.Plan, OutReason);
+        if (UniformResult != ERHIResult::Success)
+            return UniformResult;
+        if (!Candidate.PreviewUniformResources->IsValid())
+        {
+            Fail(OutReason, "preview slot uniform resources are invalid");
+            return ERHIResult::InvalidState;
+        }
+        Candidate.Bindings.SurfaceDraws =
+            Candidate.PreviewUniformResources->GetSurfaceDraws();
+    }
+    else if (!BindProductionDeferredDraws(
+                 Snapshot, Candidate.Plan, Candidate.Bindings, OutReason) ||
+             !UploadProductionDeferredUniforms(
+                 *Device, Snapshot, Candidate.Plan, OutReason))
         return ERHIResult::InvalidState;
 
     FPayloadLookup Lookup(RenderShaderPayloads);
@@ -944,7 +978,10 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
         return ERHIResult::Failed;
     }
 
-    const auto FrameBuffer = FindFrameBuffer(Snapshot);
+    const auto FrameBuffer =
+        Candidate.PreviewUniformResources
+            ? Candidate.PreviewUniformResources->GetFrameUniformBuffer()
+            : FindFrameBuffer(Snapshot);
     const std::array<TSharedPtr<IRHITexture>, 5> GBufferTextures = {
         Candidate.Bindings.BaseColorAO,
         Candidate.Bindings.NormalRoughness,
@@ -1007,6 +1044,155 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
         return ERHIResult::InvalidState;
     }
     OutResources = std::move(Candidate);
+    return ERHIResult::Success;
+}
+
+ERHIResult FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
+    const TSharedPtr<IRHIDevice>& Device,
+    const FStaticModelRenderSnapshot& Snapshot,
+    const TSharedPtr<const FStaticModelRenderSnapshot>& SceneLease,
+    const FProductionContentComposition& Composition,
+    FProductionContentDeferredExecutionResources& InOutResources,
+    FString* OutReason)
+{
+    if (OutReason) OutReason->Clear();
+    if (!Device || !Device->IsActive() || !SceneLease ||
+        SceneLease.get() != &Snapshot ||
+        InOutResources.ExecutionPurpose !=
+            EFrameExecutionPurpose::InteractivePreview ||
+        InOutResources.ReadbackSelection != EFrameReadbackSelection::None ||
+        !InOutResources.PreviewUniformResources ||
+        !InOutResources.PreviewUniformResources->IsValid())
+    {
+        Fail(OutReason, "invalid preview frame update ownership");
+        return ERHIResult::InvalidState;
+    }
+    const auto& Extent = Composition.DeferredInputs.View.Extent;
+    if (Extent.Width == 0 || Extent.Height == 0 ||
+        Composition.DeferredInputs.Output.Extent.Width != Extent.Width ||
+        Composition.DeferredInputs.Output.Extent.Height != Extent.Height ||
+        !InOutResources.Bindings.FormalOutput ||
+        InOutResources.Bindings.FormalOutput->GetDesc().Width != Extent.Width ||
+        InOutResources.Bindings.FormalOutput->GetDesc().Height != Extent.Height)
+    {
+        Fail(OutReason, "preview frame update extent does not match slot resources");
+        return ERHIResult::InvalidState;
+    }
+
+    FDeferredRendererConfiguration RendererConfig;
+    RendererConfig.bEnableValidationReadback = false;
+    FDeferredFramePlan CandidatePlan;
+    if (FDeferredRenderer(RendererConfig).PrepareFrame(
+            Composition.DeferredInputs, CandidatePlan) !=
+            EDeferredResult::Success)
+    {
+        Fail(OutReason, "preview frame planning failed");
+        return ERHIResult::InvalidState;
+    }
+    if (CandidatePlan.Output.Format != InOutResources.Plan.Output.Format ||
+        CandidatePlan.SurfaceLayout.Extent.Width !=
+            InOutResources.Plan.SurfaceLayout.Extent.Width ||
+        CandidatePlan.SurfaceLayout.Extent.Height !=
+            InOutResources.Plan.SurfaceLayout.Extent.Height)
+    {
+        Fail(OutReason, "preview update would change persistent slot attachments");
+        return ERHIResult::ResizeRequired;
+    }
+    FDeferredRenderGraphDeclaration CandidateGraph =
+        BuildDeferredRenderGraphDeclaration(CandidatePlan);
+    FOutputTransformPlan CandidateOutputPlan;
+    if (!CandidateGraph.bValid || !BuildOutputTransformPlan(
+            Composition, InOutResources.OutputSettings, CandidateOutputPlan))
+    {
+        Fail(OutReason, "preview output transform update failed");
+        return ERHIResult::InvalidState;
+    }
+    CandidateOutputPlan.ExecutionPurpose = EFrameExecutionPurpose::InteractivePreview;
+    CandidateOutputPlan.ReadbackSelection = EFrameReadbackSelection::None;
+    if (!CandidateOutputPlan.IsValid() ||
+        CandidateOutputPlan.OutputDesc.Format !=
+            InOutResources.OutputTransformPlan.OutputDesc.Format)
+    {
+        Fail(OutReason, "preview output settings would change slot format");
+        return ERHIResult::ResizeRequired;
+    }
+    const ERHIResult UniformResult =
+        InOutResources.PreviewUniformResources->Update(
+            Device, CandidatePlan, OutReason);
+    if (UniformResult != ERHIResult::Success)
+        return UniformResult;
+
+    InOutResources.Plan = std::move(CandidatePlan);
+    InOutResources.Graph = std::move(CandidateGraph);
+    InOutResources.OutputTransformPlan = std::move(CandidateOutputPlan);
+    InOutResources.Bindings.SurfaceDraws =
+        InOutResources.PreviewUniformResources->GetSurfaceDraws();
+    return ERHIResult::Success;
+}
+
+ERHIResult FProductionContentDeferredExecutionBuilder::RebindPreviewOutput(
+    const TSharedPtr<IRHIDevice>& Device,
+    const TSharedPtr<IRHITexture>& BorrowedFinalOutput,
+    FProductionContentDeferredExecutionResources& InOutResources,
+    FString* OutReason)
+{
+    if (OutReason) OutReason->Clear();
+    const bool bPreview = InOutResources.ExecutionPurpose ==
+        EFrameExecutionPurpose::InteractivePreview &&
+        InOutResources.ReadbackSelection == EFrameReadbackSelection::None;
+    const auto* Stage = InOutResources.Bindings.OutputTransformStages.empty()
+        ? nullptr : &InOutResources.Bindings.OutputTransformStages.back();
+    if (!Device || !Device->IsActive() || !bPreview || !Stage ||
+        !Stage->Stage.RenderPass || !BorrowedFinalOutput ||
+        BorrowedFinalOutput->GetLifecycleState() !=
+            ERHIResourceLifecycleState::Valid ||
+        BorrowedFinalOutput->GetDesc().Dimension !=
+            ERHITextureDimension::Texture2D ||
+        BorrowedFinalOutput->GetDesc().Depth != 1 ||
+        BorrowedFinalOutput->GetDesc().MipLevels != 1 ||
+        BorrowedFinalOutput->GetDesc().ArrayLayers != 1 ||
+        BorrowedFinalOutput->GetDesc().SampleCount != ERHISampleCount::One ||
+        BorrowedFinalOutput->GetFormat() !=
+            InOutResources.OutputTransformPlan.OutputDesc.Format ||
+        BorrowedFinalOutput->GetDesc().Width !=
+            InOutResources.OutputTransformPlan.OutputDesc.Width ||
+        BorrowedFinalOutput->GetDesc().Height !=
+            InOutResources.OutputTransformPlan.OutputDesc.Height ||
+        !HasRHIFlag(BorrowedFinalOutput->GetUsage(),
+            ERHITextureUsage::ColorAttachment) ||
+        !HasRHIFlag(BorrowedFinalOutput->GetUsage(), ERHITextureUsage::Present))
+    {
+        Fail(OutReason, "borrowed preview output does not match the slot");
+        return ERHIResult::InvalidState;
+    }
+    FRHIFramebufferDesc Desc;
+    Desc.RenderPass = Stage->Stage.RenderPass;
+    Desc.Attachments = {{BorrowedFinalOutput, 0, 0}};
+    Desc.Width = InOutResources.OutputTransformPlan.OutputDesc.Width;
+    Desc.Height = InOutResources.OutputTransformPlan.OutputDesc.Height;
+    auto Created = Device->CreateFramebuffer(Desc);
+    if (!Created.Succeeded())
+    {
+        Fail(OutReason, "borrowed preview output framebuffer creation failed");
+        return Created.Result;
+    }
+
+    auto& MutableStage = InOutResources.Bindings.OutputTransformStages.back();
+    const TSharedPtr<IRHIFramebuffer> Old = MutableStage.Stage.Framebuffer;
+    if (Old)
+    {
+        const auto Found = std::find(
+            InOutResources.OwnedFramebuffers.begin(),
+            InOutResources.OwnedFramebuffers.end(), Old);
+        if (Found != InOutResources.OwnedFramebuffers.end())
+            InOutResources.OwnedFramebuffers.erase(Found);
+        (void)Old->Invalidate();
+    }
+    MutableStage.Output = BorrowedFinalOutput;
+    MutableStage.Stage.Framebuffer = std::move(Created.Object);
+    InOutResources.OwnedFramebuffers.push_back(
+        MutableStage.Stage.Framebuffer);
+    InOutResources.Bindings.FormalOutput = BorrowedFinalOutput;
     return ERHIResult::Success;
 }
 

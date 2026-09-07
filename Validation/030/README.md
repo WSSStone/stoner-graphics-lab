@@ -622,3 +622,50 @@ before concurrent scene frames are supported; T029 supplies the native lab
 adapter. The RHI currently returns a result without an explicit acceptance flag;
 the harness retains successful submissions or commands observed Submitted after
 the call, after rejecting any already-pending command before admission.
+
+## T028 two-slot production frame context review (2026-09-07)
+
+T028 is reviewed complete, bringing implementation to **27/127**. Each slot
+owns private mutable frame/draw buffers and cloned mutable descriptor sets;
+immutable scene geometry, material textures/samplers and pipelines retain their
+exact snapshot bindings. Per-frame updates preserve buffer/descriptor identity
+and do not allocate replacement GPU resources. Invalid input is rejected before
+upload; native upload failure invalidates only the affected slot. Partial
+initialization and explicit release invalidate each private allocation once.
+
+The Demo context retains a real shared scene lease and at most two render slots.
+It preflights drawable axis/pixel limits and checked aggregate attachment bytes
+before allocation, then checks the realized descriptors. Either zero axis pauses
+admission. Unchanged extents reuse scene attachments and rebind only the borrowed
+terminal output framebuffer. The current UI-off attachment footprint is 56
+bytes/pixel/slot; the 1 GiB aggregate limit remains unchanged. Borrowed outputs
+are excluded from this budget and are never invalidated by the context.
+
+Submission, polling and submission retirement reuse T027's deferred harness.
+A typed render lease becomes available only after observed completion; its fence
+is not reset until presentation or backend-confirmed logical cancellation.
+Up to 16 independent presentation records cover active and retiring generations.
+Render-complete slots can be reused while those presentation leases remain
+pending. Recorded cancellation resets commands; retryable reset NotReady and
+failed-then-completed native work retain their owners and first error. Successful
+Shutdown requires drained owners and releases duplicate scene/device references.
+
+Strict Debug and Release builds passed. Each configuration passed **269/269**
+assertions: production-content-demo 65 (14 new slot/context checks),
+renderer-static-model 28, deferred-renderer 39, renderer-output-transform 46,
+and rhi-deferred-submission 91. Required native Vulkan/Metal deferred regressions
+passed **13/13 per configuration**. Architecture validation reports zero findings.
+Logs are under `Build/Validation/030/deferred-review/`:
+`build-{debug,release}-t028.log`, the five named suite
+`*-t028-{debug,release}.log` files, `deferred-native-t028-{debug,release}.log`,
+and `architecture-t028.log`.
+
+These are working-tree implementation and regression checks. Slot isolation and
+failure sequencing use deterministic RHI fixtures; native regression covers the
+existing deferred renderer. T029/T032 must connect the backend presentation
+facade and T026 upper preview-ticket adapter to this frame context. T030 retains
+responsibility for event service, terminal draining and watchdog ownership;
+T033 supplies full native-operation counters. Integrated UI-off Lantern/Sponza
+execution, formal Feature 030 hardware acceptance and human HDR authority remain
+open. Context destruction is not a native completion proof; the session must keep
+it alive until explicit drain or qualified terminal teardown.
