@@ -77,6 +77,12 @@ private:
 
 struct FPlatformProcess
 {
+    // Last-resort process watchdog exit. Skips stack/static destructors and
+    // exit handlers so they cannot race native work that failed to drain.
+    // The caller must publish bounded diagnostics before invoking this.
+    // Zero or out-of-range codes are normalized to failure (1).
+    [[noreturn]] static void TerminateCurrentProcess(int32 ExitCode) noexcept;
+
     [[nodiscard]] static FProcessExecutionResult Execute(
         const FProcessExecutionRequest& Request);
     [[nodiscard]] static FDynamicModuleHandle LoadDynamicModule(const FString& ExplicitPath);

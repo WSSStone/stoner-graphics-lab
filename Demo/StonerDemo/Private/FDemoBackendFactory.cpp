@@ -718,25 +718,14 @@ public:
         Record.bCancelRequested = true;
         if (!Record.Target.Texture)
         {
-            Record.bPendingAcquire = true;
-            RHI::FRHIBorrowedAcquiredTarget Candidate;
-            const RHI::ERHIResult AcquireResult =
-                LabSwapchain_->AcquireBorrowedTarget(
-                    FrameToken, FrameSlotIndex, Candidate);
-            if (AcquireResult != RHI::ERHIResult::Success)
+            if (RenderCompletionFence) return RHI::ERHIResult::InvalidState;
+            const auto CancelResult = LabSwapchain_->CancelPendingBorrowedAcquire(FrameToken, FrameSlotIndex);
+            if (CancelResult == RHI::ERHIResult::Success)
             {
-                if (AcquireResult != RHI::ERHIResult::NotReady &&
-                    AcquireResult != RHI::ERHIResult::Timeout)
-                {
-                    RememberLabFailure(
-                        LabFailureReason_, "Vulkan lab pending target acquisition failed during cancellation");
-                    SetLabReason(OutReason,
-                        "Vulkan lab pending target acquisition failed during cancellation");
-                }
-                return AcquireResult;
+                bOutCancellationAcknowledged = true;
+                Record = {};
             }
-            Record.Target = Candidate;
-            Record.bPendingAcquire = false;
+            return CancelResult;
         }
         const RHI::ERHIResult Result = LabSwapchain_->ReleaseBorrowedTarget(
             Record.Target, RenderCompletionFence);
@@ -1587,24 +1576,14 @@ public:
         Record.bCancelRequested = true;
         if (!Record.Target.Texture)
         {
-            Record.bPendingAcquire = true;
-            RHI::FRHIBorrowedAcquiredTarget Candidate;
-            const RHI::ERHIResult AcquireResult = Swapchain_->AcquireBorrowedTarget(
-                FrameToken, FrameSlotIndex, Candidate);
-            if (AcquireResult != RHI::ERHIResult::Success)
+            if (RenderCompletionFence) return RHI::ERHIResult::InvalidState;
+            const auto CancelResult = Swapchain_->CancelPendingBorrowedAcquire(FrameToken, FrameSlotIndex);
+            if (CancelResult == RHI::ERHIResult::Success)
             {
-                if (AcquireResult != RHI::ERHIResult::NotReady &&
-                    AcquireResult != RHI::ERHIResult::Timeout)
-                {
-                    RememberLabFailure(LabFailureReason_,
-                        "Metal lab pending target acquisition failed during cancellation");
-                    SetLabReason(OutReason,
-                        "Metal lab pending target acquisition failed during cancellation");
-                }
-                return AcquireResult;
+                bOutCancellationAcknowledged = true;
+                Record = {};
             }
-            Record.Target = Candidate;
-            Record.bPendingAcquire = false;
+            return CancelResult;
         }
         const RHI::ERHIResult Result = Swapchain_->ReleaseBorrowedTarget(
             Record.Target, RenderCompletionFence);

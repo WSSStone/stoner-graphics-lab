@@ -5,6 +5,7 @@
 #include "RHI/FRHISwapchainDesc.h"
 #include "RHI/IRHISwapchain.h"
 
+#include <array>
 #include <mutex>
 
 namespace Stoner::Backend::Metal::Private
@@ -48,6 +49,8 @@ public:
         Core::uint64 FrameToken,
         Core::uint32 FrameSlotIndex,
         RHI::FRHIBorrowedAcquiredTarget& OutTarget) override;
+    RHI::ERHIResult CancelPendingBorrowedAcquire(
+        Core::uint64 FrameToken, Core::uint32 FrameSlotIndex) override;
     RHI::ERHIResult PresentBorrowedTarget(
         const RHI::FRHIBorrowedAcquiredTarget& Target,
         const Core::TSharedPtr<RHI::IRHISemaphore>&
@@ -81,6 +84,9 @@ private:
     Core::uint64 AcquiredFrameToken_ = 0;
     RHI::FRHIResolvedPresentationState ResolvedState_;
     Core::TArray<Core::TSharedPtr<RHI::IRHITexture>> Images_;
+    std::array<Core::uint64, RHI::MaxRHIFrameSlots> PendingLabTokens{};
+    std::array<bool, RHI::MaxRHIFrameSlots> PendingLabNativeAttempts{};
+
 };
 
 } // namespace Stoner::Backend::Metal::Private

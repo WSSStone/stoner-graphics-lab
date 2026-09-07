@@ -314,6 +314,8 @@ private:
         Stoner::Core::uint64 FrameToken,
         Stoner::Core::uint32 FrameSlotIndex,
         Stoner::RHI::FRHIBorrowedAcquiredTarget& OutTarget) noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult CancelPendingLabAcquire(
+        Stoner::Core::uint64 FrameToken, Stoner::Core::uint32 FrameSlotIndex) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult PresentLabBorrowedTarget(
         const Stoner::RHI::FRHIBorrowedAcquiredTarget& Target,
         const Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>&

@@ -3466,6 +3466,21 @@ void FVulkanNativeContext::SweepLabRetirements() noexcept
 #endif
 }
 
+Stoner::RHI::ERHIResult FVulkanNativeContext::CancelPendingLabAcquire(
+    Stoner::Core::uint64 FrameToken, Stoner::Core::uint32 FrameSlotIndex) noexcept
+{
+#if defined(STONER_VULKAN_NATIVE_AVAILABLE) && STONER_VULKAN_NATIVE_AVAILABLE
+    if (!Impl || !Impl->LabRuntime) return Stoner::RHI::ERHIResult::InvalidState;
+    for (const auto& B : Impl->LabTokens)
+        if (B.bOccupied && B.FrameToken == FrameToken && B.FrameSlotIndex == FrameSlotIndex)
+            return Stoner::RHI::ERHIResult::InvalidState;
+    return Impl->LabRuntime->CancelUnpublishedAcquire(FrameToken, FrameSlotIndex);
+#else
+    (void)FrameToken; (void)FrameSlotIndex;
+    return Stoner::RHI::ERHIResult::Unsupported;
+#endif
+}
+
 Stoner::RHI::ERHIResult FVulkanNativeContext::AcquireLabBorrowedTarget(
     Stoner::Core::uint64 FrameToken,
     Stoner::Core::uint32 FrameSlotIndex,

@@ -52,6 +52,8 @@ public:
         Stoner::Core::uint64 FrameToken,
         Stoner::Core::uint32 FrameSlotIndex,
         Stoner::RHI::FRHIBorrowedAcquiredTarget& OutTarget) override;
+    Stoner::RHI::ERHIResult CancelPendingBorrowedAcquire(
+        Stoner::Core::uint64 FrameToken, Stoner::Core::uint32 FrameSlotIndex) override;
     Stoner::RHI::ERHIResult PresentBorrowedTarget(
         const Stoner::RHI::FRHIBorrowedAcquiredTarget& Target,
         const Stoner::Core::TSharedPtr<Stoner::RHI::IRHISemaphore>&
@@ -111,6 +113,9 @@ private:
         Stoner::RHI::MaxRHIPresentationImageLeases> LabBorrowedImages{};
     bool bLabPresentation = false;
     bool bValid = true;
+    std::array<Stoner::Core::uint64, Stoner::RHI::MaxRHIFrameSlots> PendingLabTokens{};
+    std::array<bool, Stoner::RHI::MaxRHIFrameSlots> PendingLabNativeAttempts{};
+
 };
 
 } // namespace Stoner::Backend::Vulkan

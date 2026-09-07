@@ -378,6 +378,13 @@ Stoner::RHI::ERHIResult FVulkanSwapchain::AcquireBorrowedTarget(
         return Stoner::RHI::ERHIResult::Unsupported;
     }
 
+    if (State == Stoner::RHI::ERHISwapchainState::Paused)
+        return Stoner::RHI::ERHIResult::NotReady;
+    if (FrameToken == 0 || FrameSlotIndex >= PendingLabTokens.size() ||
+        (PendingLabTokens[FrameSlotIndex] != 0 && PendingLabTokens[FrameSlotIndex] != FrameToken))
+        return Stoner::RHI::ERHIResult::InvalidState;
+    PendingLabTokens[FrameSlotIndex] = FrameToken;
+    PendingLabNativeAttempts[FrameSlotIndex] = true;
     const Stoner::RHI::ERHIResult Result =
         NativeContext->AcquireLabBorrowedTarget(
             FrameToken, FrameSlotIndex, OutTarget);
@@ -390,17 +397,34 @@ Stoner::RHI::ERHIResult FVulkanSwapchain::AcquireBorrowedTarget(
         OutTarget.Frame.ModeGeneration != Generation ||
         OutTarget.Frame.ImageIndex >= LabBorrowedImages.size())
     {
-        (void)NativeContext->ReleaseLabBorrowedTarget(OutTarget, nullptr);
+        if (NativeContext->ReleaseLabBorrowedTarget(OutTarget, nullptr) == Stoner::RHI::ERHIResult::Success)
+            PendingLabNativeAttempts[FrameSlotIndex] = false;
         OutTarget = {};
         return Stoner::RHI::ERHIResult::InvalidState;
     }
 
+    PendingLabTokens[FrameSlotIndex] = 0;
     FLabBorrowedImage& Borrowed = LabBorrowedImages[OutTarget.Frame.ImageIndex];
     Borrowed.Texture = OutTarget.Texture;
     Borrowed.Generation = OutTarget.Frame.ModeGeneration;
     Borrowed.FrameToken = OutTarget.Frame.FrameToken;
     CurrentFrameIndex = OutTarget.Frame.ImageIndex;
     return Stoner::RHI::ERHIResult::Success;
+}
+
+Stoner::RHI::ERHIResult FVulkanSwapchain::CancelPendingBorrowedAcquire(
+    Stoner::Core::uint64 FrameToken, Stoner::Core::uint32 FrameSlotIndex)
+{
+    if (!bValid || FrameToken == 0 || FrameSlotIndex >= PendingLabTokens.size() ||
+        PendingLabTokens[FrameSlotIndex] != FrameToken)
+        return Stoner::RHI::ERHIResult::InvalidState;
+    const auto Context = Surface ? Surface->GetNativeContext() : nullptr;
+    if (!Context) return Stoner::RHI::ERHIResult::InvalidState;
+    const auto Result = PendingLabNativeAttempts[FrameSlotIndex]
+        ? Context->CancelPendingLabAcquire(FrameToken, FrameSlotIndex)
+        : Stoner::RHI::ERHIResult::Success;
+    if (Result == Stoner::RHI::ERHIResult::Success) PendingLabTokens[FrameSlotIndex] = 0;
+    return Result;
 }
 
 Stoner::RHI::ERHIResult FVulkanSwapchain::PresentBorrowedTarget(

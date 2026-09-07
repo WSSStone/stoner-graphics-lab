@@ -8,3 +8,7 @@ struct FCorePlatformProcessTestResult
 
 [[nodiscard]] FCorePlatformProcessTestResult RunCorePlatformProcessTests(
     const char* ProbeExecutable);
+
+[[nodiscard]] FCorePlatformProcessTestResult RunCorePlatformTerminationTests(
+    const char* TestExecutable);
+[[noreturn]] void RunCorePlatformTerminationChild(int ExitCode);

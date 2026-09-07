@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cerrno>
+#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <thread>
@@ -28,6 +29,11 @@
 
 namespace Stoner::Core
 {
+
+[[noreturn]] void FPlatformProcess::TerminateCurrentProcess(int32 ExitCode) noexcept
+{
+    std::_Exit(ExitCode > 0 && ExitCode <= 255 ? ExitCode : 1);
+}
 
 namespace
 {

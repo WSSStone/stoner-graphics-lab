@@ -69,6 +69,7 @@ void TestBorrowedSwapchainDefaults(FMetalPresentationTestResult& Result)
                 ERHIResult::Unsupported && Lease.Frame.FrameToken == 0 &&
             Swapchain.PresentBorrowedTarget(Target, RenderLease, Lease) ==
                 ERHIResult::Unsupported && Lease.Frame.FrameToken == 0 &&
+            Swapchain.CancelPendingBorrowedAcquire(77, 0) == ERHIResult::Unsupported &&
             Swapchain.ReleaseBorrowedTarget(Target, nullptr) ==
                 ERHIResult::Unsupported,
         "legacy swapchains keep borrowed ownership seams unsupported");

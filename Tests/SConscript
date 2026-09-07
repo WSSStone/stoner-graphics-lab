@@ -57,6 +57,7 @@ cpp_files = sorted(
 rel_src_dir = os.path.relpath(tests_src_dir, Dir('.').srcnode().abspath)
 
 private_include_paths_by_source = {
+    'InteractiveLabLifecycleTests.cpp': [Dir('#Source/Application/Private').abspath],
     'ApplicationWindowInputTests.cpp': [
         Dir('#Source/Application/Private').abspath,
     ],

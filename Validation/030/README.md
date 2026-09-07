@@ -718,3 +718,61 @@ worker/watchdog ownership; an empty public target is not proof that a native
 acquisition has finished. T032 still owns scene-loop integration and T033 actual
 native counters and qualified terminal diagnostics. The test process deadline
 does not implement or validate T030's in-process shutdown watchdog.
+
+
+## T030 Application session and terminal ownership review (2026-09-07)
+
+T030 is reviewed complete, bringing implementation to **29/127**. Application
+now coordinates the UI-off camera session, one active/latest-pending transition,
+zero-extent pause, fresh-input resume and explicit exit. Unsupported extents
+pause and permit a later valid resize; minimized time does not exhaust the
+resume transition deadline. Camera actions use raw window releases to rearm
+quarantined keys. Escape releases capture without closing. The session collects
+window/input diagnostics into one 256-entry ring with bounded UTF-8 detail and
+monotonic aggregate count.
+
+Terminal entry transfers the service callback and its captured native owners
+exclusively to a worker. The main thread continues window/input service and
+never calls the same backend after handoff. An independent steady-clock
+watchdog latches drain timeout at five seconds and terminates a failed process
+at ten seconds if cleanup cannot finish, without unwinding live native owners.
+Core's existing process facade supplies the final no-destructor failure exit.
+First failure and IdleAssumed/Proven/Forced/DeviceLost remain distinct. Successful
+cleanup requires an explicit completed response with zero retained owners and
+an appropriate terminal assurance; no render/presentation fence is fabricated.
+
+The additive pending-acquire cancellation seam defaults to Unsupported. Native
+swapchains retain exact attempted token/slot identities. Metal acknowledges only
+after its unpublished nextDrawable job has finished; Vulkan cancels pending or
+unpublished acquisitions without a new acquire call and retains acquired image
+ownership for later retirement/terminal teardown. The Demo facade no longer
+tries to acquire a public target merely to cancel a pending request.
+
+Strict Debug and Release builds passed. Each configuration passed **337/337**
+assertions: interactive-lab-lifecycle 21, interactive-lab-watchdog 1,
+core-platform-termination 2, core-platform-process 7, application-free-camera 31,
+application-window 60, production-camera-preview 22, rhi-deferred-submission 91,
+triangle-demo 37, production-content-demo 65. Each configuration also passed
+**96/96 native assertions**: demo-lab-presentation-native 29,
+vulkan-lab-borrowed-native 47, metal-presentation 7, deferred-native 13.
+The two new native Demo checks cover private asynchronous Metal acquisition,
+foreign-token rejection and cancellation acknowledgment without publishing a
+target. Architecture validation reports zero findings.
+
+Logs are under `Build/Validation/030/deferred-review/`:
+`build-{debug,release}-t030-bounds.log`, the ten named suite
+`*-t030-bounds-debug.log` / `*-t030-final-release.log` files,
+`*-t030-native-{debug,release}.log`, and `architecture-t030-final.log`.
+Earlier failing lifecycle fixture logs are retained. The final fixtures feed
+raw driver release events and explicit focus restoration, matching session input
+ownership. A separate temporary Core test driver also passed the process-exit
+checks before they were integrated into StonerTest; no new shipped executable
+was added.
+
+These are working-tree implementation/regression checks. Session worker and
+watchdog fixtures use deterministic callback ownership, shortened timeout bounds
+and a deliberately blocked child; they do not claim a real GPU idle timeout.
+T032 still composes the strict-cooked scene loop and T026 preview adapter; T033
+records actual native-operation/terminal counters and assurance. Integrated
+Lantern/Sponza acceptance, formal Feature 030 physical/hosted closeout and current
+human HDR authority remain open. No prior authority exception is carried forward.

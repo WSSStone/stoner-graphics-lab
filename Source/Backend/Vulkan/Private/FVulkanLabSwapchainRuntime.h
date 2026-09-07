@@ -131,6 +131,9 @@ public:
         Stoner::Core::uint64 FrameToken,
         Stoner::Core::uint32 FrameSlotIndex,
         FVulkanLabNativeImageRecord& OutRecord) noexcept;
+    // Caller checked that no public target was issued for this identity.
+    [[nodiscard]] Stoner::RHI::ERHIResult CancelUnpublishedAcquire(
+        Stoner::Core::uint64 FrameToken, Stoner::Core::uint32 FrameSlotIndex) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult CancelPendingAcquire(
         Stoner::Core::uint64 FrameToken,
         Stoner::Core::uint32 FrameSlotIndex) noexcept;

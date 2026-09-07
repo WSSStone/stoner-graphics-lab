@@ -4,8 +4,10 @@
 #include "Core/SGPlatform.h"
 
 #include <chrono>
+#include <cstdlib>
 #include <iostream>
 #include <string>
+#include <thread>
 
 namespace
 {
@@ -38,6 +40,44 @@ FProcessExecutionRequest RequestFor(const char* ProbeExecutable)
 }
 
 } // namespace
+
+[[noreturn]] void RunCorePlatformTerminationChild(int ExitCode)
+{
+    struct FOwner
+    {
+        ~FOwner() { std::cout << "owner-destroyed" << std::flush; }
+    };
+    static FOwner StaticOwner;
+    FOwner StackOwner;
+    (void)StaticOwner;
+    (void)StackOwner;
+    (void)std::atexit([] { std::cout << "exit-handler-ran" << std::flush; });
+    // Its destructor would terminate the process. Watchdog exit must not
+    // unwind owners or wait for work which is deliberately still pending.
+    std::thread Pending([] { std::this_thread::sleep_for(std::chrono::seconds(30)); });
+    std::cout << "forced-with-live-owner" << std::flush;
+    FPlatformProcess::TerminateCurrentProcess(ExitCode);
+}
+
+FCorePlatformProcessTestResult RunCorePlatformTerminationTests(
+    const char* TestExecutable)
+{
+    FCorePlatformProcessTestResult Result;
+    for (const bool bZeroCode : {false, true})
+    {
+        auto Request = RequestFor(TestExecutable);
+        Request.Arguments = {FString(bZeroCode
+            ? "--core-termination-zero-child" : "--core-termination-child")};
+        const auto Execution = FPlatformProcess::Execute(Request);
+        Record(Result, Execution.Status == EProcessExecutionStatus::Completed &&
+            Execution.ExitCode == (bZeroCode ? 1 : 124) &&
+            Execution.StandardOutput == FString("forced-with-live-owner") &&
+            Execution.StandardError.IsEmpty(), bZeroCode
+                ? "forced process termination cannot report success"
+                : "forced process termination skips live-owner destructors and exit handlers");
+    }
+    return Result;
+}
 
 FCorePlatformProcessTestResult RunCorePlatformProcessTests(
     const char* ProbeExecutable)

@@ -127,6 +127,15 @@ public:
         return ERHIResult::Unsupported;
     }
 
+    // Cancel one exact acquisition attempt which has not published a target.
+    // NotReady retains its admission/native job; retry the same identity.
+    // Success acknowledges logical cancellation only, never image retirement.
+    virtual ERHIResult CancelPendingBorrowedAcquire(
+        Stoner::Core::uint64, Stoner::Core::uint32)
+    {
+        return ERHIResult::Unsupported;
+    }
+
     virtual ERHIResult PresentBorrowedTarget(
         const FRHIBorrowedAcquiredTarget& Target,
         const Stoner::Core::TSharedPtr<IRHISemaphore>&

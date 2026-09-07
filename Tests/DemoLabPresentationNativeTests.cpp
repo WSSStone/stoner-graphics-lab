@@ -240,6 +240,23 @@ void RunCase(int& Failed, Demo::EDemoGraphicsBackend Backend, bool ForceAcquireH
                 Cancelled == ERHIResult::Success && Acknowledged,
             "Demo cancellation acknowledges an unsubmitted borrowed frame without claiming presentation completion");
     }
+    if (FramesPassed && Backend == Demo::EDemoGraphicsBackend::Metal)
+    {
+        FRHIBorrowedAcquiredTarget PendingTarget;
+        const auto Pending = Runtime.AcquireLabTarget(600001, 0, PendingTarget);
+        bool Acknowledged = true;
+        const auto Wrong = Runtime.CancelLabTarget(600002, 0, nullptr, Acknowledged);
+        Check(Failed, Pending == ERHIResult::NotReady && !PendingTarget.IsValid() &&
+            Wrong == ERHIResult::InvalidState && !Acknowledged,
+            "pending Metal acquire remains private and rejects a foreign cancellation token");
+        const auto Cancelled = PollBounded(Window, [&] {
+            return Runtime.CancelLabTarget(600001, 0, nullptr, Acknowledged);
+        });
+        const auto After = Runtime.QueryLabPresentation(Status);
+        Check(Failed, Cancelled == ERHIResult::Success && Acknowledged &&
+            After == ERHIResult::Success && Status.PendingAcquireCount == 0,
+            "pending Metal cancellation waits for its native job without acquiring a public target");
+    }
     // Terminal native teardown is permitted here. The test runner imposes an
     // external process deadline; this is not the Application T030 watchdog.
     const auto Shutdown = PollBounded(Window, [&] { return Runtime.Shutdown(); });

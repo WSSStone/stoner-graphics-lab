@@ -1609,6 +1609,25 @@ void FMetalPresentationContext::ReleaseBorrowedAcquire(
     Impl_->Condition.notify_all();
 }
 
+RHI::ERHIResult FMetalPresentationContext::CancelPendingBorrowedAcquire(
+    Core::uint32 FrameSlot, Core::uint64 FrameToken) noexcept
+{
+    if (!Impl_ || FrameToken == 0) return RHI::ERHIResult::InvalidState;
+    {
+        std::lock_guard Lock(Impl_->Mutex);
+        if (FrameSlot >= Impl_->Frames.size()) return RHI::ERHIResult::InvalidState;
+        const auto& Frame = Impl_->Frames[FrameSlot];
+        // A completed canceled job may already have been reaped by its callback.
+        if (Frame.FrameToken == 0) return RHI::ERHIResult::Success;
+        if (Frame.FrameToken != FrameToken || Frame.bInFlight || Frame.bBorrowedLeaseActive)
+            return RHI::ERHIResult::InvalidState;
+    }
+    CancelAcquire(FrameSlot, FrameToken);
+    std::lock_guard Lock(Impl_->Mutex);
+    return Impl_->Frames[FrameSlot].FrameToken == 0
+        ? RHI::ERHIResult::Success : RHI::ERHIResult::NotReady;
+}
+
 void FMetalPresentationContext::CancelAcquire(
     Core::uint32 FrameSlot,
     Core::uint64 FrameToken) noexcept

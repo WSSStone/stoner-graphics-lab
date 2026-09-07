@@ -1336,6 +1336,33 @@ void FVulkanLabSwapchainRuntime::ReleaseCompletedAcquire(
     Acquire = {};
 }
 
+ERHIResult FVulkanLabSwapchainRuntime::CancelUnpublishedAcquire(
+    uint64 FrameToken, uint32 FrameSlotIndex) noexcept
+{
+    if (!bInitialized_ || bClosed_ || FrameToken == 0 || FrameSlotIndex >= 2)
+        return ERHIResult::InvalidState;
+    if (FindPendingAcquire(FrameToken, FrameSlotIndex))
+        return CancelPendingAcquire(FrameToken, FrameSlotIndex);
+    for (auto& A : Acquires_)
+    {
+        if (!A.bOccupied) continue;
+        if (A.bHasReacquisition && A.ReacquisitionFrameToken == FrameToken &&
+            A.ReacquisitionFrameSlotIndex == FrameSlotIndex)
+        {
+            if (A.bReacquisitionCanceled) return ERHIResult::Success;
+            return Cancel(A.ReacquisitionToken);
+        }
+        if (A.FrameToken == FrameToken && A.FrameSlotIndex == FrameSlotIndex)
+        {
+            if (A.bCanceled) return ERHIResult::Success;
+            return Cancel(A.AcquisitionToken);
+        }
+    }
+    // The timeout-zero attempt already returned without acquiring an image.
+    // The swapchain wrapper retains the exact attempted identity until here.
+    return ERHIResult::Success;
+}
+
 ERHIResult FVulkanLabSwapchainRuntime::CancelPendingAcquire(
     uint64 FrameToken,
     uint32 FrameSlotIndex) noexcept

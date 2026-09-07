@@ -113,6 +113,9 @@
 
 [[nodiscard]] int RunRHILabContractTests();
 [[nodiscard]] int RunInteractiveLabValueTests();
+[[nodiscard]] int RunInteractiveLabLifecycleTests();
+[[nodiscard]] int RunInteractiveLabWatchdogChild();
+[[nodiscard]] int RunInteractiveLabWatchdogTests(const char* Executable);
 [[nodiscard]] int RunApplicationFreeCameraTests();
 [[nodiscard]] int RunRHIDeferredSubmissionTests();
 [[nodiscard]] int RunVulkanDeferredNativeTests();
@@ -124,6 +127,14 @@
 
 int main(int ArgCount, char* Arguments[])
 {
+    if (ArgCount == 2 && std::strcmp(Arguments[1], "--interactive-lab-watchdog-child") == 0)
+        return RunInteractiveLabWatchdogChild();
+    if (ArgCount == 2 &&
+        std::strcmp(Arguments[1], "--core-termination-child") == 0)
+        RunCorePlatformTerminationChild(124);
+    if (ArgCount == 2 &&
+        std::strcmp(Arguments[1], "--core-termination-zero-child") == 0)
+        RunCorePlatformTerminationChild(0);
     if (ArgCount == 2 &&
         std::strcmp(Arguments[1], GLoggingFatalChildArgument) == 0)
     {
@@ -379,6 +390,8 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("application-free-camera", [] {
         return RunApplicationFreeCameraTests();
     });
+    Registry.Register("interactive-lab-watchdog", [Arguments] { return RunInteractiveLabWatchdogTests(Arguments[0]); });
+    Registry.Register("interactive-lab-lifecycle", [] { return RunInteractiveLabLifecycleTests(); });
     Registry.Register("interactive-lab-values", [] {
         return RunInteractiveLabValueTests();
     });
@@ -578,6 +591,9 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("core-platform-process", [ProcessProbePath] {
         return RunCorePlatformProcessTests(
             ProcessProbePath.string().c_str()).Failed == 0 ? 0 : 1;
+    });
+    Registry.Register("core-platform-termination", [Arguments] {
+        return RunCorePlatformTerminationTests(Arguments[0]).Failed == 0 ? 0 : 1;
     });
     Registry.Register("core-file-transaction", [] {
         return RunCorePlatformFileTransactionTests().Failed == 0 ? 0 : 1;

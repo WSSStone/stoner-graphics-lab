@@ -147,6 +147,8 @@ public:
         Core::uint32 FrameSlot,
         Core::uint64 Generation,
         Core::uint64 FrameToken) noexcept;
+    [[nodiscard]] RHI::ERHIResult CancelPendingBorrowedAcquire(
+        Core::uint32 FrameSlot, Core::uint64 FrameToken) noexcept;
     void CancelAcquire(
         Core::uint32 FrameSlot,
         Core::uint64 FrameToken) noexcept;

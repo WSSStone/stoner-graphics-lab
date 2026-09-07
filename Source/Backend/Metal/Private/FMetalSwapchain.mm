@@ -273,6 +273,10 @@ RHI::ERHIResult FMetalSwapchain::AcquireBorrowedTarget(
     if (State_ == RHI::ERHISwapchainState::Paused ||
         Desc_.IsZeroDrawable() || ResolvedState_.IsZeroDrawable())
         return RHI::ERHIResult::NotReady;
+    if (PendingLabTokens[FrameSlotIndex] != 0 && PendingLabTokens[FrameSlotIndex] != FrameToken)
+        return RHI::ERHIResult::InvalidState;
+    PendingLabTokens[FrameSlotIndex] = FrameToken;
+    // Preserve whether an earlier retry already entered nextDrawable.
     if (FrameSlotIndex >= Desc_.FramesInFlight ||
         Surface_->GetCapabilityGeneration() !=
             Desc_.SurfaceCapabilityGeneration)
@@ -284,6 +288,7 @@ RHI::ERHIResult FMetalSwapchain::AcquireBorrowedTarget(
     Core::TSharedPtr<RHI::IRHITexture> Texture;
     Core::uint64 Generation = 0;
     Core::uint32 ImageIndex = 0;
+    PendingLabNativeAttempts[FrameSlotIndex] = true;
     const RHI::ERHIResult Result = Surface_->GetContext()->AcquireBorrowed(
         FrameSlotIndex, FrameToken, Texture, Generation, ImageIndex);
     ResolvedState_ = Surface_->GetContext()->GetResolvedPresentationState();
@@ -318,7 +323,27 @@ RHI::ERHIResult FMetalSwapchain::AcquireBorrowedTarget(
         OutTarget = {};
         return RHI::ERHIResult::InvalidState;
     }
+    PendingLabTokens[FrameSlotIndex] = 0;
+    PendingLabNativeAttempts[FrameSlotIndex] = false;
     return RHI::ERHIResult::Success;
+}
+
+RHI::ERHIResult FMetalSwapchain::CancelPendingBorrowedAcquire(
+    Core::uint64 FrameToken, Core::uint32 FrameSlotIndex)
+{
+    std::lock_guard Lock(Mutex_);
+    if (!Surface_ || FrameToken == 0 || FrameSlotIndex >= PendingLabTokens.size() ||
+        PendingLabTokens[FrameSlotIndex] != FrameToken)
+        return RHI::ERHIResult::InvalidState;
+    const auto Result = PendingLabNativeAttempts[FrameSlotIndex]
+        ? Surface_->GetContext()->CancelPendingBorrowedAcquire(FrameSlotIndex, FrameToken)
+        : RHI::ERHIResult::Success;
+    if (Result == RHI::ERHIResult::Success)
+    {
+        PendingLabTokens[FrameSlotIndex] = 0;
+        PendingLabNativeAttempts[FrameSlotIndex] = false;
+    }
+    return Result;
 }
 
 RHI::ERHIResult FMetalSwapchain::PresentBorrowedTarget(
