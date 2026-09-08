@@ -1,4 +1,5 @@
 #include "MetalRHI/FMetalDeviceFactory.h"
+#include "FUITextureRegistry.h"
 #include "VulkanRHI/FVulkanDevice.h"
 
 #include <array>
@@ -109,6 +110,48 @@ int TestUpload(const Core::TSharedPtr<IRHIDevice>& Device, bool bMetal)
         for (std::size_t Byte = 0; Byte < 16; ++Byte)
             Match = Match && Actual[Row * 256 + Byte] == Bytes[256 + Row * 256 + Byte];
     Check(Match, "padded nonzero-offset upload roundtrips exact texels");
+    {
+        using namespace Stoner::Renderer;
+        FUITextureRegistry Registry(Device);
+        Registry.BeginEligibleFrame(1, true);
+        FUITextureRequest Request;
+        Request.RequestId = 1; Request.LogicalSlot = 1;
+        Request.Width = 4; Request.Height = 3;
+        Request.Format = ERHIFormat::R8G8B8A8_UNorm;
+        Request.ColorDomain = EUITextureColorDomain::AlphaCoverage;
+        Request.PixelBytes.assign(48, 255);
+        const auto RegistryBefore = Device->GetRuntimeSnapshot().NativeOperations;
+        const auto Prepared = Registry.Prepare(Request);
+        auto Lease = Registry.Acquire(Prepared.TextureId);
+        auto UploadCommand = Device->CreateCommandBuffer(ERHIQueueType::Graphics).Object;
+        auto UploadFence = Device->CreateFence(false).Object;
+        FUITextureSubmission Submission;
+        const bool Submitted = Prepared.Succeeded() && Lease.IsValid() && UploadCommand && UploadFence &&
+            UploadCommand->Begin() == ERHIResult::Success &&
+            Registry.RecordSubmission({&Lease, 1}, UploadCommand, Submission) == ERHIResult::Success &&
+            UploadCommand->End() == ERHIResult::Success &&
+            Queue.Object->SubmitDeferred(UploadCommand, {}, {}, UploadFence) == ERHIResult::Success &&
+            Submission.Commit(UploadFence) == ERHIResult::Success;
+        if (!Check(Submitted, "registry records and commits a real deferred upload")) return Failed;
+        const auto RegistryAfter = Device->GetRuntimeSnapshot().NativeOperations;
+        Check(RegistryAfter.ImageReadbackCopyCount == RegistryBefore.ImageReadbackCopyCount &&
+            RegistryAfter.ReadbackMapCount == RegistryBefore.ReadbackMapCount &&
+            RegistryAfter.ReadbackWaitCount == RegistryBefore.ReadbackWaitCount &&
+            RegistryAfter.FenceWaitCallCount == RegistryBefore.FenceWaitCallCount &&
+            RegistryAfter.QueueIdleCallCount == RegistryBefore.QueueIdleCallCount &&
+            RegistryAfter.DeviceIdleCallCount == RegistryBefore.DeviceIdleCallCount,
+            "registry preparation and upload add no synchronous wait or readback");
+        FUITextureRequest Destroy;
+        Destroy.RequestId = 2; Destroy.Operation = EUITextureOperation::Destroy;
+        Destroy.TextureId = Prepared.TextureId; Destroy.ExpectedGeneration = Prepared.TextureId.Generation;
+        Check(Registry.Prepare(Destroy).Result == ERHIResult::NotReady,
+            "registry native destroy retains prepared snapshot owners");
+        const bool Completed = UploadFence->Wait(5000000) == ERHIResult::Success;
+        Lease = {}; Submission = {}; UploadCommand.reset(); Registry.Poll();
+        Check(Completed && Registry.GetStatistics().Generations == 0 &&
+            Registry.GetStatistics().StagingBytes == 0 && Registry.GetStatistics().CPUShadowBytes == 0,
+            "registry drains texture shadow and staging after real render completion");
+    }
     return Failed;
 }
 }
