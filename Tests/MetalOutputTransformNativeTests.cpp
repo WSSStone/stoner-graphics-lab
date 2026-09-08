@@ -211,6 +211,14 @@ ENativeProbeOutcome ProbeNativePresentationMode(
         ? Swapchain.Object->Present(Frame)
         : ERHIResult::InvalidState;
     const auto After = NativeSurface->GetContext()->GetLayerSnapshot();
+    const bool bPolicyPreserved =
+        After.Policy.PixelFormat == Before.Policy.PixelFormat &&
+        After.Policy.ColorSpace == Before.Policy.ColorSpace &&
+        After.Policy.DisplayAdaptation == Before.Policy.DisplayAdaptation &&
+        After.Policy.bWantsExtendedDynamicRangeContent == Before.Policy.bWantsExtendedDynamicRangeContent &&
+        !Acquired.Policy.bHasEDRMetadata && !After.Policy.bHasEDRMetadata &&
+        Acquired.MetadataDigest.IsEmpty() && After.MetadataDigest.IsEmpty() &&
+        Swapchain.Object->GetResolvedPresentationState() == Resolved;
     const bool bProvenance = Frame.Matches(Resolved) &&
         Acquired.LastAcquiredFrameToken == FrameToken &&
         PresentResult == ERHIResult::Success &&
@@ -221,7 +229,7 @@ ENativeProbeOutcome ProbeNativePresentationMode(
     const ERHIResult SurfaceResult = Surface.Object->Invalidate();
     const ERHIResult ShutdownResult = Created.Device->Shutdown();
     const EApplicationResult DestroyResult = Window.Destroy();
-    const bool bPassed = bExactState && bReadback && bProvenance &&
+    const bool bPassed = bExactState && bReadback && bProvenance && bPolicyPreserved &&
             SurfaceResult == ERHIResult::Success &&
             ShutdownResult == ERHIResult::Success &&
             DestroyResult == EApplicationResult::Success;
@@ -237,6 +245,7 @@ ENativeProbeOutcome ProbeNativePresentationMode(
                   << " bytes=" << Readback.size()
                   << " present=" << static_cast<int>(PresentResult)
                   << " provenance=" << bProvenance
+                  << " policy-preserved=" << bPolicyPreserved
                   << " surface=" << static_cast<int>(SurfaceResult)
                   << " shutdown=" << static_cast<int>(ShutdownResult)
                   << " destroy=" << static_cast<int>(DestroyResult)
