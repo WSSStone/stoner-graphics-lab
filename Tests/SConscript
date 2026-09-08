@@ -63,6 +63,7 @@ private_include_paths_by_source = {
     'UITextureRegistryTests.cpp': [Dir('#Source/Renderer/Private').abspath],
     'RendererUIDrawTests.cpp': [Dir('#Source/Renderer/Private').abspath],
     'ApplicationUIInputTests.cpp': [Dir('#Source/Application/Private').abspath],
+    'InteractiveLabSettingsTests.cpp': [Dir('#Source/Application/Private').abspath],
     'InteractiveLabLifecycleTests.cpp': [Dir('#Source/Application/Private').abspath],
     'ApplicationWindowInputTests.cpp': [
         Dir('#Source/Application/Private').abspath,

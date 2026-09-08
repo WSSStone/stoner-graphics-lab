@@ -72,6 +72,9 @@ lib = BuildLayer(
         'FInteractiveLabSession.cpp': {
             'include_paths': ['Source/RHI/Public'],
         },
+        'FLabSettingsController.cpp': {
+            'include_paths': ['Source/RHI/Public'],
+        },
         'FInteractiveLabValueValidation.cpp': {
             'include_paths': ['Source/RHI/Public'],
         },
