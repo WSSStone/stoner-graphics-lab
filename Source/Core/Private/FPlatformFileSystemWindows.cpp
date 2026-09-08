@@ -348,6 +348,51 @@ FPlatformFileStatus PlatformMoveDirectoryNoReplace(
     return {};
 }
 
+FPlatformFileStatus PlatformPublishFileNoReplace(
+    const std::filesystem::path& Source,
+    const std::filesystem::path& Destination)
+{
+    const DWORD Attributes = ::GetFileAttributesW(Source.c_str());
+    if (Attributes == INVALID_FILE_ATTRIBUTES)
+        return FromWindowsError(::GetLastError(), "publish-file:attributes");
+    if ((Attributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) != 0)
+        return MakeFileStatus(EPlatformFileResult::NotRegularFile, 0, "publish-file:type");
+    HANDLE File = ::CreateFileW(Source.c_str(), GENERIC_WRITE | FILE_READ_ATTRIBUTES,
+        FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+        FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_WRITE_THROUGH, nullptr);
+    if (File == INVALID_HANDLE_VALUE)
+        return FromWindowsError(::GetLastError(), "publish-file:open");
+    FILE_ATTRIBUTE_TAG_INFO Info{};
+    if (!::GetFileInformationByHandleEx(File, FileAttributeTagInfo, &Info, sizeof(Info)))
+    {
+        const DWORD Error = ::GetLastError();
+        (void)::CloseHandle(File);
+        return FromWindowsError(Error, "publish-file:stat");
+    }
+    if ((Info.FileAttributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) != 0)
+    {
+        (void)::CloseHandle(File);
+        return MakeFileStatus(EPlatformFileResult::NotRegularFile, 0, "publish-file:type");
+    }
+    const bool Synced = ::FlushFileBuffers(File) != 0;
+    const DWORD SyncError = Synced ? ERROR_SUCCESS : ::GetLastError();
+    const bool Closed = ::CloseHandle(File) != 0;
+    if (!Synced) return FromWindowsError(SyncError, "publish-file:sync-source");
+    if (!Closed) return FromWindowsError(::GetLastError(), "publish-file:close-source");
+    // No REPLACE_EXISTING or COPY_ALLOWED: one same-volume atomic winner.
+    // The caller owns Source and its parent across the close/rename interval.
+    if (!::MoveFileExW(Source.c_str(), Destination.c_str(), MOVEFILE_WRITE_THROUGH))
+    {
+        const DWORD Error = ::GetLastError();
+        if (::GetFileAttributesW(Destination.c_str()) != INVALID_FILE_ATTRIBUTES)
+            return MakeFileStatus(EPlatformFileResult::AlreadyExists, Error, "publish-file:no-replace");
+        if (Error == ERROR_NOT_SUPPORTED || Error == ERROR_CALL_NOT_IMPLEMENTED)
+            return MakeFileStatus(EPlatformFileResult::Unsupported, Error, "publish-file:no-replace");
+        return FromWindowsError(Error, "publish-file:no-replace");
+    }
+    return {};
+}
+
 FPlatformFileStatus PlatformReplaceFileAtomic(
     const std::filesystem::path& Source,
     const std::filesystem::path& Destination)

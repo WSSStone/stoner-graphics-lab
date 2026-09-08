@@ -29,6 +29,9 @@ namespace Stoner::Core::Detail
 [[nodiscard]] FPlatformFileStatus PlatformReplaceFileAtomic(
     const std::filesystem::path& Source,
     const std::filesystem::path& Destination);
+[[nodiscard]] FPlatformFileStatus PlatformPublishFileNoReplace(
+    const std::filesystem::path& Source,
+    const std::filesystem::path& Destination);
 [[nodiscard]] FPlatformFileStatus PlatformWriteFileDurable(
     const std::filesystem::path& Path,
     const TArray<uint8>& Data);

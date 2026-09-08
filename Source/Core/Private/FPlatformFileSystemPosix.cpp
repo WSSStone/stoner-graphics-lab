@@ -171,6 +171,51 @@ FPlatformFileStatus PlatformMoveDirectoryNoReplace(
     return SyncParentDirectory(Destination, "move-directory:sync-parent");
 }
 
+FPlatformFileStatus PlatformPublishFileNoReplace(
+    const std::filesystem::path& Source,
+    const std::filesystem::path& Destination)
+{
+    const int File = ::open(Source.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
+    if (File < 0)
+        return errno == ELOOP
+            ? MakeFileStatus(EPlatformFileResult::NotRegularFile, errno, "publish-file:symlink")
+            : FromErrno(errno, "publish-file:open");
+    struct stat Info{};
+    if (::fstat(File, &Info) != 0)
+    {
+        const int Error = errno;
+        (void)::close(File);
+        return FromErrno(Error, "publish-file:stat");
+    }
+    if (!S_ISREG(Info.st_mode))
+    {
+        (void)::close(File);
+        return MakeFileStatus(EPlatformFileResult::NotRegularFile, 0, "publish-file:type");
+    }
+    const int Sync = ::fsync(File);
+    const int SyncError = Sync == 0 ? 0 : errno;
+    const int Closed = ::close(File);
+    if (SyncError != 0) return FromErrno(SyncError, "publish-file:sync-source");
+    if (Closed != 0) return FromErrno(errno, "publish-file:close-source");
+    int Renamed = -1;
+#if SG_PLATFORM_MAC
+    Renamed = ::renamex_np(Source.c_str(), Destination.c_str(), RENAME_EXCL);
+#elif SG_PLATFORM_LINUX
+    Renamed = static_cast<int>(::syscall(SYS_renameat2, AT_FDCWD, Source.c_str(),
+        AT_FDCWD, Destination.c_str(), RENAME_NOREPLACE));
+#endif
+    if (Renamed != 0)
+    {
+        const int Error = errno;
+        if (Error == ENOSYS || Error == EOPNOTSUPP || Error == EINVAL)
+            return MakeFileStatus(EPlatformFileResult::Unsupported, Error, "publish-file:no-replace");
+        return FromErrno(Error, "publish-file:no-replace");
+    }
+    const auto Persisted = SyncParentDirectory(Destination, "publish-file:published-sync-destination");
+    if (!Persisted.IsSuccess() || Source.parent_path() == Destination.parent_path()) return Persisted;
+    return SyncParentDirectory(Source, "publish-file:published-sync-source");
+}
+
 FPlatformFileStatus PlatformReplaceFileAtomic(
     const std::filesystem::path& Source,
     const std::filesystem::path& Destination)

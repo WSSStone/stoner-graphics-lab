@@ -534,6 +534,17 @@ FPlatformFileStatus FPlatformFileSystem::WriteFileDurable(
     return Detail::PlatformWriteFileDurable(Detail::ToNativePath(Path), Data);
 }
 
+FPlatformFileStatus FPlatformFileSystem::PublishFileNoReplace(
+    const FString& Source, const FString& Destination)
+{
+    if (Source.IsEmpty() || Destination.IsEmpty() ||
+        Source.View().find('\0') != std::string_view::npos ||
+        Destination.View().find('\0') != std::string_view::npos)
+        return Detail::MakeFileStatus(EPlatformFileResult::InvalidArgument, 0, "publish-file:path");
+    return Detail::PlatformPublishFileNoReplace(
+        Detail::ToNativePath(Source), Detail::ToNativePath(Destination));
+}
+
 FPlatformFileStatus FPlatformFileSystem::RemoveTreeContained(
     const FString& AllowedRoot,
     const FString& Candidate,

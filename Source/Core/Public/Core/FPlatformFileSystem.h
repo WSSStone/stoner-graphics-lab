@@ -83,6 +83,15 @@ struct FPlatformFileSystem
     [[nodiscard]] static FPlatformFileStatus ReplaceFileAtomic(
         const FString& Source,
         const FString& Destination);
+    // Publish a caller-owned regular temporary file without replacing any
+    // destination entry (including a symlink). Success consumes Source and
+    // persists file/directory metadata. Source and its parent must remain
+    // exclusively controlled by the caller until this operation returns.
+    // A sync error after rename can leave Destination published; Context
+    // identifies that durability boundary. Never retry by overwriting it.
+    [[nodiscard]] static FPlatformFileStatus PublishFileNoReplace(
+        const FString& Source,
+        const FString& Destination);
     [[nodiscard]] static FPlatformFileStatus WriteFileDurable(
         const FString& Path,
         const TArray<uint8>& Data);
