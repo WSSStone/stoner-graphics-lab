@@ -46,6 +46,9 @@ struct FUIDrawCommand
     Stoner::Core::FVector4 ClipRect;
     FUITextureId TextureId;
     EUIDrawOperation Operation = EUIDrawOperation::Draw;
+    // CPU layout request; Renderer must resolve it into a new snapshot before
+    // native preparation. The placeholder texture must never be rendered.
+    bool bDiagnosticWidget = false;
 };
 
 // A snapshot is assembled by copying value ranges before publication. Once

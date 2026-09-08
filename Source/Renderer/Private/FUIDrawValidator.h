@@ -15,6 +15,7 @@ struct FUIDrawValidationContext
     // The caller owns these generation leases until every upload/render use
     // completes. This check must not infer readiness from a slot number alone.
     std::function<bool(FUITextureId)> HasTextureLease;
+    bool bAllowDiagnosticRequests = false;
 };
 struct FUIValidatedCommand
 {

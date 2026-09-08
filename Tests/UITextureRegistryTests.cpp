@@ -1,4 +1,5 @@
 #include "FUITextureRegistry.h"
+#include "FUIDrawValidator.h"
 #include "VulkanRHI/FVulkanDevice.h"
 #include "VulkanRHI/FVulkanCommandBuffer.h"
 #include <iostream>
@@ -310,6 +311,48 @@ int RunUITextureRegistryTests()
         Wrong=Context; ++Wrong.DisplayGeneration;
         Check(Registry.CanRecordSubmission({&Lease,1},&Wrong)==ERHIResult::InvalidState,
             "a changed display generation invalidates GPU widget sampling");
+        {
+            const auto Placeholder = Registry.Prepare(Create(2));
+            auto PlaceholderLease = Registry.Acquire(Placeholder.TextureId);
+            FUIDrawSnapshot Source(1,1,2,3), Resolved;
+            const FUIVertex Vertices[] = {{{0,0},{0,0},0xFFFFFFFFu},
+                {{4,0},{1,0},0xFFFFFFFFu},{{0,4},{0,1},0xFFFFFFFFu}};
+            const Core::uint32 Indices[] = {0,1,2};
+            FUIDrawCommand Draw{0,3,0,{0,0,4,4},Placeholder.TextureId};
+            Draw.bDiagnosticWidget = true;
+            Check(Source.SetDisplay({0,0},{4,4},{1,1}) && Source.SetVertices(Vertices) &&
+                Source.SetIndices(Indices) && Source.SetCommands({&Draw,1}) &&
+                Source.SetTextureLeases({&PlaceholderLease,1}) && Source.Publish() &&
+                Source.ValidateOwnedGeometry(4,4), "diagnostic layout owns valid immutable placeholder geometry");
+            FUIDrawValidationContext Validation{1,2,3,0,4,4,[](FUITextureId) { return true; }};
+            Check(!FUIDrawValidator::Validate(Source,Validation).bValid,
+                "native validation rejects unresolved diagnostic layout even with a valid placeholder lease");
+            Check(Registry.ResolveDiagnosticSnapshot(Source,Lease,Context,4,4,Resolved)==ERHIResult::Success &&
+                Resolved.GetCommands()[0].TextureId==Id && !Resolved.GetCommands()[0].bDiagnosticWidget &&
+                Resolved.GetTextureLeases().size()==1 && Resolved.GetTextureLeases()[0].GetId()==Id &&
+                FUIDrawValidator::Validate(Resolved,Validation).bValid &&
+                Source.GetCommands()[0].bDiagnosticWidget && Source.GetCommands()[0].TextureId==Placeholder.TextureId,
+                "GPU binding publishes a new validated snapshot and drops the unused placeholder lease");
+            Wrong=Context; ++Wrong.FrameId;
+            Check(Registry.ResolveDiagnosticSnapshot(Source,Lease,Wrong,4,4,Resolved)==ERHIResult::InvalidState &&
+                Resolved.GetCommands()[0].TextureId==Id &&
+                Registry.ResolveDiagnosticSnapshot(Source,PlaceholderLease,Context,4,4,Resolved)==ERHIResult::InvalidState &&
+                Registry.ResolveDiagnosticSnapshot(Source,Lease,Context,4,4,Source)==ERHIResult::InvalidState &&
+                Registry.ResolveDiagnosticSnapshot(Resolved,Lease,Context,4,4,Resolved)==ERHIResult::InvalidState,
+                "stale identity, CPU target and in-place resolution preserve published snapshots");
+            FUIDrawSnapshot Duplicate(1,1,2,3);
+            const FUIDrawCommand Duplicates[] = {Draw,Draw};
+            Check(Duplicate.SetDisplay({0,0},{4,4},{1,1}) && Duplicate.SetCommands(Duplicates) && !Duplicate.Publish(),
+                "one frame cannot publish multiple diagnostic layout requests");
+            FUIDrawSnapshot Reset(1,1,2,3);
+            Draw.Operation=EUIDrawOperation::ResetState;
+            Check(Reset.SetDisplay({0,0},{4,4},{1,1}) && Reset.SetCommands({&Draw,1}) && !Reset.Publish(),
+                "reset-state commands cannot carry diagnostic layout requests");
+            FUITextureRequest Destroy; Destroy.RequestId=901; Destroy.Operation=EUITextureOperation::Destroy;
+            Destroy.TextureId=Placeholder.TextureId; Destroy.ExpectedGeneration=Placeholder.TextureId.Generation;
+            (void)Registry.Prepare(Destroy);
+        }
+        Registry.Poll();
         FUITextureRequest CpuDestroy; CpuDestroy.RequestId=900; CpuDestroy.Operation=EUITextureOperation::Destroy;
         CpuDestroy.TextureId=Id; CpuDestroy.ExpectedGeneration=Id.Generation;
         Check(Registry.Prepare(CpuDestroy).Result==ERHIResult::InvalidState && Registry.Acquire(Id).IsValid(),

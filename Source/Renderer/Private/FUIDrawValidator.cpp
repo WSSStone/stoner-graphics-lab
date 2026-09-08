@@ -57,6 +57,8 @@ FUIDrawValidationResult FUIDrawValidator::Validate(
     const auto Origin = Snapshot.GetDisplayPos();
     for (const auto& Command : Commands)
     {
+        if (Command.bDiagnosticWidget && !Context.bAllowDiagnosticRequests)
+            return Reject("ui-packet-unresolved-diagnostic-widget");
         if (Command.Operation == EUIDrawOperation::ResetState)
         {
             Result.Commands.push_back({Command, 0, 0, 0, 0});

@@ -156,6 +156,7 @@ bool FUIDrawSnapshot::ValidateOwnedGeometry(Stoner::Core::uint32 Width,
             return std::any_of(TextureLeases.begin(), TextureLeases.end(),
                 [Id](const auto& Lease) { return Lease.IsValid() && Lease.GetId() == Id; });
         }};
+    Context.bAllowDiagnosticRequests = true;
     return FUIDrawValidator::Validate(*this, Context).bValid;
 }
 
@@ -206,8 +207,15 @@ bool FUIDrawSnapshot::IsValid() const noexcept
         }
     }
 
+    bool bHasDiagnosticWidget = false;
     for (const FUIDrawCommand& Command : Commands)
     {
+        if (Command.bDiagnosticWidget)
+        {
+            if (bHasDiagnosticWidget || Command.Operation != EUIDrawOperation::Draw ||
+                Command.IndexCount == 0) return false;
+            bHasDiagnosticWidget = true;
+        }
         if (!IsValidOperation(Command.Operation) ||
             !IsFinite(Command.ClipRect))
         {

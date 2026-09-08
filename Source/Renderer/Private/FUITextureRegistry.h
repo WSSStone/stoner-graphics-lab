@@ -1,5 +1,6 @@
 #pragma once
 #include "Renderer/FUITextureLease.h"
+#include "Renderer/FUIDrawSnapshot.h"
 #include "RHI/IRHIDevice.h"
 #include "RHI/IRHICommandBuffer.h"
 #include "RHI/IRHIFence.h"
@@ -72,6 +73,13 @@ public:
     [[nodiscard]] Stoner::RHI::ERHIResult RegisterGpuTexture(
         const FUIGpuTextureRegistration&, const FUIGpuTextureContext&, FUITextureId& OutId);
     [[nodiscard]] Stoner::RHI::ERHIResult RetireGpuTexture(FUITextureId) noexcept;
+    // Resolves exactly one layout request without mutating the published source.
+    // Failure preserves OutSnapshot; no upload, submission or allocation of a
+    // native texture occurs here.
+    [[nodiscard]] Stoner::RHI::ERHIResult ResolveDiagnosticSnapshot(
+        const FUIDrawSnapshot& Source, const FUITextureLease& Diagnostic,
+        const FUIGpuTextureContext& Context, Stoner::Core::uint32 DrawableWidth,
+        Stoner::Core::uint32 DrawableHeight, FUIDrawSnapshot& OutSnapshot) const;
     [[nodiscard]] FUITextureLease Acquire(FUITextureId Id) const noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult CanRecordSubmission(std::span<const FUITextureLease> Leases,
         const FUIGpuTextureContext* Context = nullptr) const noexcept;

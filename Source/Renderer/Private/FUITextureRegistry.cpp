@@ -318,6 +318,65 @@ ERHIResult FUITextureRegistry::RetireGpuTexture(FUITextureId Id) noexcept
     Record.reset(); Poll();
     return Find(Id) ? ERHIResult::NotReady : ERHIResult::Success;
 }
+ERHIResult FUITextureRegistry::ResolveDiagnosticSnapshot(const FUIDrawSnapshot& Source,
+    const FUITextureLease& Diagnostic, const FUIGpuTextureContext& Context,
+    Stoner::Core::uint32 DrawableWidth, Stoner::Core::uint32 DrawableHeight,
+    FUIDrawSnapshot& OutSnapshot) const
+{
+    if (&Source == &OutSnapshot || !Diagnostic.IsValid() ||
+        Find(Diagnostic.GetId()) != Diagnostic.Record || !Diagnostic.Record->bGpuOwned ||
+        Source.GetFrameId() != Context.FrameId ||
+        Source.GetSettingsRevision() != Context.SettingsRevision ||
+        Source.GetDisplayGeneration() != Context.DisplayGeneration)
+        return ERHIResult::InvalidState;
+    const auto Ready = CanRecordSubmission({&Diagnostic, 1}, &Context);
+    if (Ready != ERHIResult::Success) return Ready;
+    try
+    {
+        if (!Source.ValidateOwnedGeometry(DrawableWidth, DrawableHeight))
+            return ERHIResult::InvalidState;
+        auto Commands = Source.GetCommands();
+        bool bResolved = false;
+        for (auto& Command : Commands)
+        {
+            if (!Command.bDiagnosticWidget) continue;
+            Command.TextureId = Diagnostic.GetId();
+            Command.bDiagnosticWidget = false;
+            bResolved = true;
+        }
+        if (!bResolved) return ERHIResult::InvalidState;
+        Stoner::Core::TArray<FUITextureLease> Leases;
+        for (const auto& Command : Commands)
+        {
+            if (Command.Operation != EUIDrawOperation::Draw || Command.IndexCount == 0) continue;
+            if (std::any_of(Leases.begin(), Leases.end(), [&](const auto& Lease) {
+                return Lease.GetId() == Command.TextureId;
+            })) continue;
+            if (Command.TextureId == Diagnostic.GetId()) Leases.push_back(Diagnostic);
+            else
+            {
+                const auto& Original = Source.GetTextureLeases();
+                const auto Found = std::find_if(Original.begin(), Original.end(), [&](const auto& Lease) {
+                    return Lease.GetId() == Command.TextureId;
+                });
+                if (Found == Original.end()) return ERHIResult::InvalidState;
+                Leases.push_back(*Found);
+            }
+        }
+        const auto CanRecord = CanRecordSubmission(Leases, &Context);
+        if (CanRecord != ERHIResult::Success) return CanRecord;
+        FUIDrawSnapshot Candidate(Source.GetSessionId(), Source.GetFrameId(),
+            Source.GetSettingsRevision(), Source.GetDisplayGeneration());
+        if (!Candidate.SetDisplay(Source.GetDisplayPos(), Source.GetDisplaySize(), Source.GetFramebufferScale()) ||
+            !Candidate.SetVertices(Source.GetVertices()) || !Candidate.SetIndices(Source.GetIndices()) ||
+            !Candidate.SetCommands(Commands) || !Candidate.SetTextureLeases(Leases) ||
+            !Candidate.Publish() || !Candidate.ValidateOwnedGeometry(DrawableWidth, DrawableHeight))
+            return ERHIResult::InvalidState;
+        OutSnapshot = std::move(Candidate);
+        return ERHIResult::Success;
+    }
+    catch (const std::bad_alloc&) { return ERHIResult::Unavailable; }
+}
 ERHIResult FUITextureRegistry::CanRecordSubmission(std::span<const FUITextureLease> Leases,
     const FUIGpuTextureContext* Context) const noexcept
 {
