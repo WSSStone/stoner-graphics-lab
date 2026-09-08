@@ -1,0 +1,109 @@
+{
+  "schema": "stoner.shader-program",
+  "version": 1,
+  "id": {
+    "type": "ShaderProgram",
+    "path": "Engine/Shaders/UI/UIDraw"
+  },
+  "requiredExtensions": [],
+  "programKind": "graphics",
+  "stages": [
+    {
+      "stage": "vertex",
+      "entryPoint": "main",
+      "language": "glsl",
+      "source": {
+        "asset": {
+          "type": "ShaderSource",
+          "path": "Engine/Shaders/UI/UIDraw",
+          "subresource": "source.vertex"
+        },
+        "locator": "UIDraw.vert",
+        "digest": "sha256:35441ecda486f052ae38b88c0b21e5d346c02cb246c3629fdb49703506912bc6"
+      }
+    },
+    {
+      "stage": "fragment",
+      "entryPoint": "main",
+      "language": "glsl",
+      "source": {
+        "asset": {
+          "type": "ShaderSource",
+          "path": "Engine/Shaders/UI/UIDraw",
+          "subresource": "source.fragment"
+        },
+        "locator": "UIDraw.frag",
+        "digest": "sha256:37886333d3cf732a46bbadbed3562e4bb3ca1ea4f3bdfc50233cbc39dbe13d55"
+      }
+    }
+  ],
+  "allowedPermutationFlags": [],
+  "requiredParameters": [],
+  "interface": {
+    "bindings": [
+      {
+        "set": 0,
+        "binding": 0,
+        "kind": "combinedTextureSampler",
+        "arrayCount": 1,
+        "visibility": [
+          "fragment"
+        ],
+        "name": "UITexture"
+      },
+      {
+        "set": 0,
+        "binding": 1,
+        "kind": "uniformBuffer",
+        "arrayCount": 1,
+        "visibility": [
+          "vertex",
+          "fragment"
+        ],
+        "name": "UIParameters"
+      }
+    ],
+    "constantRanges": []
+  },
+  "variants": [
+    {
+      "name": "default",
+      "flags": [],
+      "payloads": [
+        {
+          "backend": "vulkan",
+          "profile": "vulkan-1.3",
+          "format": "spirv",
+          "stage": "vertex",
+          "entryPoint": "main",
+          "asset": {
+            "type": "ShaderPayload",
+            "path": "Engine/Shaders/UI/UIDraw",
+            "subresource": "payload.vulkan.vertex"
+          },
+          "locator": "UIDraw.vert.spv",
+          "digest": "sha256:e7ce7c867d60ce1477e9edd70034ec3745fd24759dfbef9b06f76029f757d2a3",
+          "producer": "Stoner.CheckedInSpirv",
+          "producerVersion": "030-v1"
+        },
+        {
+          "backend": "vulkan",
+          "profile": "vulkan-1.3",
+          "format": "spirv",
+          "stage": "fragment",
+          "entryPoint": "main",
+          "asset": {
+            "type": "ShaderPayload",
+            "path": "Engine/Shaders/UI/UIDraw",
+            "subresource": "payload.vulkan.fragment"
+          },
+          "locator": "UIDraw.frag.spv",
+          "digest": "sha256:9e6b31063fdd5258b525cdf074916c60654334834fc538a7f20c525f17328d00",
+          "producer": "Stoner.CheckedInSpirv",
+          "producerVersion": "030-v1"
+        }
+      ]
+    }
+  ],
+  "extensions": {}
+}

@@ -8,6 +8,7 @@
 #include "FSpirvCrossMslDeriver.h"
 
 #include <filesystem>
+#include <array>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -456,6 +457,41 @@ void TestOutputTransformDerivation(
 #endif
 }
 
+void TestUIShaderDerivation(FMetalShaderDerivationTestResult& Result)
+{
+    struct FCase { const char* Path; EShaderStage Stage; const char* Name; bool bCopy; };
+    const std::array<FCase, 3> Cases{{
+        {"Content/Shaders/UI/UIDraw.vert.spv", EShaderStage::Vertex, "UI vertex MSL derivation is deterministic", false},
+        {"Content/Shaders/UI/UIDraw.frag.spv", EShaderStage::Fragment, "UI textured fragment MSL derivation is deterministic", false},
+        {"Content/Shaders/UI/UICopy.frag.spv", EShaderStage::Fragment, "UI scene-copy MSL derivation is deterministic", true}}};
+    for (const auto& Case : Cases)
+    {
+        FSpirvCrossMslRequest Request;
+        const auto Bytes = ReadBytes(Case.Path);
+        Request.SpirvBytes = Bytes;
+        Request.Stage = Case.Stage; Request.EntryPoint = "main";
+        TArray<FShaderInterfaceBinding> Bindings = {Binding(0, 0, EShaderResourceKind::CombinedTextureSampler, 1, EShaderStage::Fragment)};
+        if (!Case.bCopy)
+        {
+            auto Uniform = Binding(0, 1, EShaderResourceKind::UniformBuffer, 1, EShaderStage::Vertex);
+            Uniform.Visibility = {EShaderStage::Vertex, EShaderStage::Fragment};
+            Bindings.push_back(Uniform);
+        }
+        Request.InterfaceBindings = Bindings;
+        FSpirvCrossMslResult First, Second;
+        const bool Stable = DeriveMetalShaderSource(Request, First) == EAssetResult::Success &&
+            DeriveMetalShaderSource(Request, Second) == EAssetResult::Success &&
+            First.IsValid() && Second.IsValid() && First.NormalizedMsl == Second.NormalizedMsl &&
+            First.NormalizedMslDigest == Second.NormalizedMslDigest &&
+            First.OptionsDigest == Second.OptionsDigest && First.BindingEvidence == Second.BindingEvidence;
+        Record(Result, Stable, Case.Name);
+        if (Stable)
+            std::cout << "[EVIDENCE] ui-shader=" << Case.Path << " msl="
+                      << First.NormalizedMslDigest.ToLowerHex().ToStdString() << " binding="
+                      << First.BindingEvidence.CanonicalDigest.ToLowerHex().ToStdString() << '\n';
+    }
+}
+
 } // namespace
 
 FMetalShaderDerivationTestResult RunMetalShaderDerivationTests()
@@ -466,5 +502,6 @@ FMetalShaderDerivationTestResult RunMetalShaderDerivationTests()
     TestReflectedBindingAndEvidence(Result);
     TestDeferredCombinedTextureSamplers(Result);
     TestOutputTransformDerivation(Result);
+    TestUIShaderDerivation(Result);
     return Result;
 }

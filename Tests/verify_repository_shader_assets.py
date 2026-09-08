@@ -10,6 +10,8 @@ from pathlib import Path
 
 
 PROGRAM_FILES = {
+    "Content/Shaders/UI/UIDraw.shader.json",
+    "Content/Shaders/UICopy.shader.json",
     "Content/Shaders/Triangle/Triangle.shader.json",
     "Content/Shaders/Deferred/Surface.shader.json",
     "Content/Shaders/Deferred/Composition.shader.json",
@@ -21,6 +23,8 @@ PROGRAM_FILES = {
 }
 
 PROGRAM_IDENTITIES = {
+    "Content/Shaders/UI/UIDraw.shader.json": ("ShaderProgram", "Engine/Shaders/UI/UIDraw", ""),
+    "Content/Shaders/UICopy.shader.json": ("ShaderProgram", "Engine/Shaders/UI/UICopy", ""),
     "Content/Shaders/Triangle/Triangle.shader.json":
         ("ShaderProgram", "Engine/Shaders/Triangle", ""),
     "Content/Shaders/Deferred/Surface.shader.json":
@@ -45,7 +49,10 @@ FEATURE_029_PAYLOADS = {
     ("ShaderPayload", "Engine/Shaders/PostProcess/OutputTransform", "payload.vulkan.fragment"),
 }
 
-FEATURE_029_PAYLOAD_VERSIONS = {
+PAYLOAD_VERSION_OVERRIDES = {
+    ("ShaderPayload", "Engine/Shaders/UI/UIDraw", "payload.vulkan.vertex"): "030-v1",
+    ("ShaderPayload", "Engine/Shaders/UI/UIDraw", "payload.vulkan.fragment"): "030-v1",
+    ("ShaderPayload", "Engine/Shaders/UI/UICopy", "payload.vulkan.fragment"): "030-v1",
     ("ShaderPayload", "Engine/Shaders/Deferred/Composition", "payload.vulkan.fragment"):
         "029-v1",
     ("ShaderPayload", "Engine/Shaders/PostProcess/Fullscreen", "payload.vulkan.vertex"):
@@ -154,11 +161,11 @@ def verify(root: Path) -> list[str]:
     }
     if owned_files != actual_files:
         errors.append("dependency-inventory")
-    if len([p for p in owned_files if p.suffix == ".spv"]) != 14:
+    if len([p for p in owned_files if p.suffix == ".spv"]) != 17:
         errors.append("spirv-count")
     if len([
         p for p in owned_files if p.suffix in {".vert", ".frag", ".comp"}
-    ]) != 14:
+    ]) != 17:
         errors.append("source-count")
 
     point = (
@@ -209,9 +216,9 @@ def write_report(path: Path, errors: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         "feature=023",
-        "programs=8",
-        "sources=14",
-        "payloads=14",
+        "programs=10",
+        "sources=17",
+        "payloads=17",
         "result=" + ("pass" if not errors else "fail"),
     ]
     lines.extend(
@@ -257,7 +264,7 @@ def _verify_dependency(
         or record.get("format") != "spirv"
         or record.get("producer") != "Stoner.CheckedInSpirv"
         or record.get("producerVersion") !=
-            FEATURE_029_PAYLOAD_VERSIONS.get(identity, "023-v1")
+            PAYLOAD_VERSION_OVERRIDES.get(identity, "023-v1")
     ):
         errors.append(f"dependency-target:{definition}:{locator}")
     target = parent / locator
@@ -280,7 +287,9 @@ def _verify_dependency(
     actual = "sha256:" + sha256(target)
     if digest != actual:
         errors.append(f"dependency-digest:{definition}:{locator}")
-    fact = (locator, digest)
+    # Different definition directories may name the same owned source using
+    # different relative locators. Identity follows the resolved destination.
+    fact = (target.as_posix(), digest)
     previous = identities.get(identity)
     if previous is not None and previous != fact:
         errors.append(f"dependency-identity-conflict:{definition}:{locator}")
@@ -299,7 +308,7 @@ def main() -> int:
         for error in errors:
             print("ERROR " + error)
         return 1
-    print("Repository shader assets passed: programs=8 sources=14 payloads=14")
+    print("Repository shader assets passed: programs=10 sources=17 payloads=17")
     return 0
 
 

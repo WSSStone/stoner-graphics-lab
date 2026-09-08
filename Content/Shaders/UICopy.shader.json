@@ -1,0 +1,98 @@
+{
+  "schema": "stoner.shader-program",
+  "version": 1,
+  "id": {
+    "type": "ShaderProgram",
+    "path": "Engine/Shaders/UI/UICopy"
+  },
+  "requiredExtensions": [],
+  "programKind": "graphics",
+  "stages": [
+    {
+      "stage": "vertex",
+      "entryPoint": "main",
+      "language": "glsl",
+      "source": {
+        "asset": {
+          "type": "ShaderSource",
+          "path": "Engine/Shaders/PostProcess/Fullscreen",
+          "subresource": "source.vertex"
+        },
+        "locator": "PostProcess/Fullscreen.vert",
+        "digest": "sha256:aeb7401391e688b8b91972973ef84138020733f7d40146027309be6b71921995"
+      }
+    },
+    {
+      "stage": "fragment",
+      "entryPoint": "main",
+      "language": "glsl",
+      "source": {
+        "asset": {
+          "type": "ShaderSource",
+          "path": "Engine/Shaders/UI/UICopy",
+          "subresource": "source.fragment"
+        },
+        "locator": "UI/UICopy.frag",
+        "digest": "sha256:e7dcac89a73d6fdf0a96dc67c3a9b2b01ffa540a775a80a2086571669646bff9"
+      }
+    }
+  ],
+  "allowedPermutationFlags": [],
+  "requiredParameters": [],
+  "interface": {
+    "bindings": [
+      {
+        "set": 0,
+        "binding": 0,
+        "kind": "combinedTextureSampler",
+        "arrayCount": 1,
+        "visibility": [
+          "fragment"
+        ],
+        "name": "InputColorTexture"
+      }
+    ],
+    "constantRanges": []
+  },
+  "variants": [
+    {
+      "name": "default",
+      "flags": [],
+      "payloads": [
+        {
+          "backend": "vulkan",
+          "profile": "vulkan-1.3",
+          "format": "spirv",
+          "stage": "vertex",
+          "entryPoint": "main",
+          "asset": {
+            "type": "ShaderPayload",
+            "path": "Engine/Shaders/PostProcess/Fullscreen",
+            "subresource": "payload.vulkan.vertex"
+          },
+          "locator": "PostProcess/Fullscreen.vert.spv",
+          "digest": "sha256:347c12d94126663d233b9baa37d4a1e9a2bbcc015f79d8e587cf3992cfacce36",
+          "producer": "Stoner.CheckedInSpirv",
+          "producerVersion": "029-v1"
+        },
+        {
+          "backend": "vulkan",
+          "profile": "vulkan-1.3",
+          "format": "spirv",
+          "stage": "fragment",
+          "entryPoint": "main",
+          "asset": {
+            "type": "ShaderPayload",
+            "path": "Engine/Shaders/UI/UICopy",
+            "subresource": "payload.vulkan.fragment"
+          },
+          "locator": "UI/UICopy.frag.spv",
+          "digest": "sha256:cb48b4b861f8d14ea9c407625f0e6f66a4bb222b69463d9eccc3d45acf8e5e2e",
+          "producer": "Stoner.CheckedInSpirv",
+          "producerVersion": "030-v1"
+        }
+      ]
+    }
+  ],
+  "extensions": {}
+}

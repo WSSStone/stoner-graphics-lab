@@ -34,9 +34,9 @@ class RepositoryShaderVerifierTests(unittest.TestCase):
         verifier.write_report(report, verifier.verify(root))
         expected = (
             "feature=023\n"
-            "programs=8\n"
-            "sources=14\n"
-            "payloads=14\n"
+            "programs=10\n"
+            "sources=17\n"
+            "payloads=17\n"
             "result=pass\n"
         )
         self.assertEqual(expected, report.read_text(encoding="utf-8"))
@@ -50,6 +50,19 @@ class RepositoryShaderVerifierTests(unittest.TestCase):
             ),
             report.read_text(encoding="utf-8"),
         )
+
+    def test_shared_identity_cannot_move_to_another_file_with_same_bytes(self):
+        temporary, root = self.make_repo()
+        self.addCleanup(temporary.cleanup)
+        source = root / "Content/Shaders/PostProcess/Fullscreen.vert"
+        shadow = root / "Content/Shaders/UI/Fullscreen.vert"
+        shutil.copyfile(source, shadow)
+        path = root / "Content/Shaders/UICopy.shader.json"
+        value = json.loads(path.read_text())
+        value["stages"][0]["source"]["locator"] = "UI/Fullscreen.vert"
+        path.write_text(json.dumps(value))
+        self.assertTrue(any("dependency-identity-conflict" in error
+                            for error in verifier.verify(root)))
 
     def test_missing_payload_is_reported(self):
         temporary, root = self.make_repo()

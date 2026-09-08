@@ -1,0 +1,20 @@
+{
+  "schema": "stoner.interactive-lab-cook-roots",
+  "schemaVersion": 1,
+  "contentPackage": "sponza",
+  "sourceRoots": [
+    "Content/ProductionAcceptance/External/Sponza",
+    "Content/Shaders"
+  ],
+  "roots": [
+    "StaticModel:Sponza.gltf#idx.scene.0",
+    "ShaderProgram:Engine/Shaders/Deferred/Surface",
+    "ShaderProgram:Engine/Shaders/Deferred/DirectionalLight",
+    "ShaderProgram:Engine/Shaders/Deferred/PointLight",
+    "ShaderProgram:Engine/Shaders/Deferred/SpotLight",
+    "ShaderProgram:Engine/Shaders/Deferred/Composition",
+    "ShaderProgram:Engine/Shaders/PostProcess/OutputTransform",
+    "ShaderProgram:Engine/Shaders/UI/UIDraw",
+    "ShaderProgram:Engine/Shaders/UI/UICopy"
+  ]
+}

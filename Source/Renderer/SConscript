@@ -14,6 +14,14 @@ shader_env = env.Clone()
 shader_targets = StageContent(
     shader_env,
     [
+        'Content/Shaders/UI/UIDraw.vert',
+        'Content/Shaders/UI/UIDraw.vert.spv',
+        'Content/Shaders/UI/UIDraw.frag',
+        'Content/Shaders/UI/UIDraw.frag.spv',
+        'Content/Shaders/UI/UIDraw.shader.json',
+        'Content/Shaders/UI/UICopy.frag',
+        'Content/Shaders/UI/UICopy.frag.spv',
+        'Content/Shaders/UICopy.shader.json',
         'Content/Shaders/PostProcess/Fullscreen.vert',
         'Content/Shaders/PostProcess/Fullscreen.vert.spv',
         'Content/Shaders/PostProcess/OutputTransform.frag',
