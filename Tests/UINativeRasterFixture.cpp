@@ -1,5 +1,6 @@
 #include "UINativeRasterFixture.h"
 #include "FUICompositionExecutor.h"
+#include "FOutputTransformReference.h"
 #include "RHI/IRHICommandQueue.h"
 #include "RHI/IRHIFramebuffer.h"
 #include "RHI/IRHIBuffer.h"
@@ -124,7 +125,7 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
     {
         float Scale; uint8 Alpha; bool Gradient;
         const char* Profile="Sdr.sRGB.v1";
-        float White=100, Multiplier=1;
+        float White=100, Multiplier=1, ExposureStops=0;
     };
     std::ifstream VectorFile("Tests/Fixtures/InteractiveLab/ui-color-v1.json",std::ios::binary);
     const std::string Json((std::istreambuf_iterator<char>(VectorFile)),{});
@@ -142,13 +143,15 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
         auto* Scale=yyjson_obj_get(Row,"scale"); auto* Alpha=yyjson_obj_get(Row,"alpha");
         auto* Gradient=yyjson_obj_get(Row,"gradient"); auto* Profile=yyjson_obj_get(Row,"profile");
         auto* White=yyjson_obj_get(Row,"whiteNits"); auto* Multiplier=yyjson_obj_get(Row,"multiplier");
+        auto* Exposure=yyjson_obj_get(Row,"exposureStops");
         if (!Check(yyjson_is_num(Scale) && yyjson_get_num(Scale)>=1 && yyjson_get_num(Scale)<=2 &&
             yyjson_is_uint(Alpha) && yyjson_get_uint(Alpha)<=255 && yyjson_is_bool(Gradient) &&
-            yyjson_is_str(Profile) && yyjson_is_num(White) && yyjson_is_num(Multiplier),
+            yyjson_is_str(Profile) && yyjson_is_num(White) && yyjson_is_num(Multiplier) &&
+            yyjson_is_num(Exposure) && yyjson_get_num(Exposure)>=-3 && yyjson_get_num(Exposure)<=3,
             "native UI color vector fields satisfy the bounded raster fixture")) return Failed;
         Cases.push_back({static_cast<float>(yyjson_get_num(Scale)),static_cast<uint8>(yyjson_get_uint(Alpha)),
             yyjson_get_bool(Gradient),yyjson_get_str(Profile),static_cast<float>(yyjson_get_num(White)),
-            static_cast<float>(yyjson_get_num(Multiplier))});
+            static_cast<float>(yyjson_get_num(Multiplier)),static_cast<float>(yyjson_get_num(Exposure))});
     }
     for (const auto& Case : Cases)
     {
@@ -156,7 +159,7 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
         const auto Alpha=Case.Alpha;
         std::cout << "[INFO] UI raster scale=" << Scale << " alpha=" << static_cast<unsigned>(Alpha)
             << " vertex-gradient=" << Case.Gradient << " profile=" << Case.Profile
-            << " white=" << Case.White << " multiplier=" << Case.Multiplier << '\n';
+            << " white=" << Case.White << " multiplier=" << Case.Multiplier << " exposure=" << Case.ExposureStops << '\n';
         const uint32 Extent = static_cast<uint32>(16 * Scale);
         const auto Before = Device->GetRuntimeSnapshot().NativeOperations;
         FUITextureRegistry Registry(Device); Registry.BeginEligibleFrame(1,true);
@@ -197,6 +200,14 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
         const FOutputTransformSettingsValidator ProfileValidator;
         const auto* Profile=ProfileValidator.FindProfile(Settings.OutputProfileId);
         if (!Check(Profile!=nullptr,"native color fixture resolves its output profile")) continue;
+        const auto Exposed=FOutputTransformReference::ApplyManualExposure({0.125,0.25,0.5},Case.ExposureStops);
+        const auto Viewed=Profile->DynamicRange==EOutputDynamicRange::SDR
+            ? FOutputTransformReference::ApplySdrToneMap(Exposed.Value,EOutputTransformReferenceSdrToneMap::KhronosPbrNeutral)
+            : FOutputTransformReference::ApplyAces2HdrViewing(Exposed.Value,Profile->TargetPeakNits,
+                Profile->DisplayLinearDomain==ERenderGraphColorDomain::DisplayLinearRec2020D65
+                ? EOutputTransformReferenceColorSpace::Rec2020D65 : EOutputTransformReferenceColorSpace::Rec709D65);
+        if (!Check(Exposed.IsSuccess() && Viewed.IsSuccess(),"UI vector background resolves scene exposure through the existing CPU reference")) continue;
+        const float Background[]={static_cast<float>(Viewed.Value.R),static_cast<float>(Viewed.Value.G),static_cast<float>(Viewed.Value.B)};
         Settings.BlendDomain = Profile->DisplayLinearDomain;
         Settings.UIReferenceWhiteNits = Settings.NativePackingWhiteNits = Case.White;
         Settings.UIWhiteMultiplier=Case.Multiplier; Settings.DisplayGeneration = 1;
@@ -215,7 +226,7 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
         FRHIResourceBarrierDesc Transition; Transition.Texture = Scene; Transition.After = ERHIResourceLayout::ColorAttachment;
         bool Recorded = Command && Fence && Pass && Target && Command->Begin() == ERHIResult::Success &&
             Command->RecordLayoutTransition(Transition) == ERHIResult::Success &&
-            Command->BeginRenderPass(Pass,Target,{{{0.125f,0.25f,0.5f,0.25f}}}) == ERHIResult::Success &&
+            Command->BeginRenderPass(Pass,Target,{{{Background[0],Background[1],Background[2],0.25f}}}) == ERHIResult::Success &&
             Command->EndRenderPass() == ERHIResult::Success;
         Transition.Before = ERHIResourceLayout::ColorAttachment; Transition.After = ERHIResourceLayout::ShaderReadOnly;
         Recorded = Recorded && Command->RecordLayoutTransition(Transition) == ERHIResult::Success &&
@@ -298,7 +309,6 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
             const float Gray = std::pow((128.0f/255.0f+0.055f)/1.055f,2.4f);
             const float AlphaValue = Alpha/255.0f;
 
-            const float Background[] = {0.125f,0.25f,0.5f};
             const int LeftEnd = static_cast<int>(std::ceil(8.2f*Scale));
             const int RightStart = static_cast<int>(std::floor(8.2f*Scale));
             bool RGB = true, Opaque = true;
