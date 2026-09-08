@@ -261,13 +261,14 @@ RHI::ERHIResult EncodeMetalRenderCommands(
             case RHI::ERHISymbolicCommandType::DrawIndexed:
                 if (!Pipeline || !IndexBuffer)
                     return Fail(RHI::ERHIResult::InvalidState);
+                // Draw records do not carry the bound index type; use encoder state.
                 [Encoder drawIndexedPrimitives:ToPrimitive(Pipeline->GetDesc().Topology)
                                      indexCount:Record.IndexedDraw.IndexCount
                                       indexType:IndexType
                                     indexBuffer:IndexBuffer
                               indexBufferOffset:IndexOffset +
                                   Record.IndexedDraw.FirstIndex *
-                                      RHI::GetRHIIndexTypeSize(Record.IndexType)
+                                      (IndexType == MTLIndexTypeUInt32 ? 4ULL : 2ULL)
                                   instanceCount:Record.IndexedDraw.InstanceCount
                                      baseVertex:Record.IndexedDraw.VertexOffset
                                    baseInstance:Record.IndexedDraw.FirstInstance];

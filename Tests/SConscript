@@ -150,6 +150,7 @@ private_include_paths_by_source = {
     'TriangleDemoIntegrationTests.cpp': [
         Dir('#Demo/StonerDemo/Private').abspath,
     ],
+    'UINativeRasterFixture.cpp': [Dir('#Source/Renderer/Private').abspath],
     'UICompositionTests.cpp': [Dir('#Source/Renderer/Private').abspath, Dir('#Demo/StonerDemo/Private').abspath],
     'InteractiveLabShaderTests.cpp': [Dir('#Demo/StonerDemo/Private').abspath],
     'ProductionContentDemoTests.cpp': [

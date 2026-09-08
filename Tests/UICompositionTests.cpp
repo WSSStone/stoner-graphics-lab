@@ -1,4 +1,5 @@
 #include "FUICompositionExecutor.h"
+#include "UINativeRasterFixture.h"
 #include "Renderer/FUIRenderSession.h"
 #include "FInteractiveLabShaders.h"
 #include "VulkanRHI/FVulkanDevice.h"
@@ -205,6 +206,8 @@ int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders&
         Check(FUICompositionExecutor::Prepare(Device,Empty,Context,Settings,Registry,Scene,{}, {},NoUI) == ERHIResult::Success &&
             !NoUI.HasDraws() && NoUI.GetOutput() == Scene, "empty UI retains scene output without shader or composition-target preparation");
     }
+    if (Native) Failed += Metal ? RunMetalUINativeTests(Device,Shaders.Draw.ModuleDescriptions,Shaders.Copy.ModuleDescriptions)
+        : RunVulkanUINativeTests(Device,Shaders.Draw.ModuleDescriptions,Shaders.Copy.ModuleDescriptions);
     (void)Device->Shutdown();
     return Failed;
 }
