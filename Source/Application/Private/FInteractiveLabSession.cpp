@@ -55,6 +55,7 @@ struct FInteractiveLabSession::FImpl
     TUniquePtr<FLabSettingsController> Settings;
     uint64 SettingsStart = 0;
     TArray<FLabControlSection> ControlSections;
+    std::optional<FLabRuntimeInfo> RuntimeInfo;
     bool bInvokingControl = false, bControlsFrozen = false;
     TUniquePtr<FImGuiLabAdapter> UI;
     FInteractiveLabUICallbacks UICallbacks;
@@ -372,7 +373,9 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
             S.UICallbacks.BeginFrame(++S.UIFrameId, Eligible);
             const auto UIResult = S.UI->Frame(Raw,S.Display,DeltaSeconds,Eligible,S.ControlSections,
                 [this](const FString& Section,const FString& Control) { return InvokeSectionControl(Section,Control); },
-                S.Settings && !S.Settings->GetActive() && !S.PendingIntent.IsValid() && !S.ActiveIntent.IsValid());
+                S.Settings && !S.Settings->GetActive() && !S.PendingIntent.IsValid() && !S.ActiveIntent.IsValid(),
+                S.RuntimeInfo ? &*S.RuntimeInfo : nullptr,&S.Camera.GetState(),GetRequestedSettings(),
+                GetPendingSettings(),GetEffectiveSettings(),&GetSettingsFailure());
             Capture = S.UI->GetCapture();
             if (UIResult == EApplicationResult::Success) S.UIFailure.Clear();
             else if (S.UI->GetTextureResult() != Stoner::RHI::ERHIResult::NotReady)
@@ -462,6 +465,22 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
     S.bFreshInterval = !S.Display.bFocused || !Input.IsFocused();
     S.SessionState = State::Running;
     return EApplicationResult::Success;
+}
+
+bool FInteractiveLabSession::UpdateRuntimeInfo(const FLabRuntimeInfo& Info)
+{
+    auto& S = *Impl;
+    if (!S.Window || S.Terminal || S.SessionState == State::Closed || !std::isfinite(Info.ExposureStops) ||
+        Info.ExposureStops < -16 || Info.ExposureStops > 16 || Info.RenderCompleted > Info.Submitted ||
+        Info.PresentQueued > Info.Submitted || Info.UIFrames > Info.Submitted || Info.SceneFallbackFrames > Info.Submitted)
+        return false;
+    for (const auto* Text : {&Info.Workload,&Info.RootIdentity,&Info.CookedGeneration,&Info.RequestedProfile,
+        &Info.EffectiveProfile,&Info.TransformVersion,&Info.Failure})
+        if (Text->View().size() > 1024 || Text->View().find('\0') != std::string_view::npos) return false;
+    if (Info.Workload.IsEmpty() || Info.RootIdentity.IsEmpty() || Info.CookedGeneration.IsEmpty() ||
+        Info.RequestedProfile.IsEmpty() || Info.EffectiveProfile.IsEmpty() || Info.TransformVersion.IsEmpty()) return false;
+    S.RuntimeInfo = Info;
+    return true;
 }
 
 bool FInteractiveLabSession::RegisterControlSection(const FLabControlSection& Section)

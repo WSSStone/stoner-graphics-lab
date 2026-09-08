@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (60/127 reviewed tasks); native closeout remains pending.
+Feature 030 implementation is partial (61/127 reviewed tasks); native closeout remains pending.
 The maintainer explicitly skips Intel x86_64 macOS validation for Feature 030
 on 2026-09-08; record it as skipped, not passed, and do not block implementation
 on Intel cooking/derivation/native checks. Existing Intel support and historical
@@ -164,6 +164,7 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
+- 030 runtime panels: T062 complete (61/127). Loaded-scene/navigation/output/diagnostics/instruction sections display actual Demo state and explicit unavailable measurements in a bounded scrollable panel. Strict Debug/Release each pass 248 related assertions and two Metal/Vulkan UI previews with zero capture-disabled readbacks/live idles. Live edits and native output switching remain pending.
 - 030 control registration: T061 complete (60/127). Bounded startup-frozen feature sections/commands/debug selections render through private ImGui and submit only complete settings candidates. Strict Debug/Release each pass 244 related assertions; built-in panels and native live switching remain pending.
 - 030 settings session integration: T060 complete (59/127). Session-owned value transactions gate busy/minimized/lifecycle states, prevent concurrent native resize, reject stale display completions and enforce bounded timeout. Strict Debug/Release each pass 145 related assertions. Live controls and Demo/native transaction consumption remain pending; no US3 checkpoint is claimed.
 - 030 settings policy increment: T058 complete (58/127); T060 integration remains pending. Strict Debug/Release each pass 132 settings/value/lifecycle assertions for bounded active/pending transactions, invalid-edit preservation, stale completion rejection and capability-loss fallback/pause. This is private policy coverage, not live native output-switch acceptance.

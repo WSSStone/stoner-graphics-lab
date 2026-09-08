@@ -1,6 +1,7 @@
 #include "FInteractiveLabRun.h"
 
 #include "Application/FInteractiveLabSession.h"
+#include "Application/FLabSettingsSnapshot.h"
 #include "Asset/FAssetCookContractCodec.h"
 #include "Core/FPlatformFileSystem.h"
 #include "FLabProductionPreviewExecutor.h"
@@ -634,6 +635,20 @@ FInteractiveLabRunResult RunInteractiveLab(
             if (WindowService && EventThreadOwnsBackend()) WindowService(Window, Owner->Presented);
             if (EventThreadOwnsBackend() && (Session.GetState() == EInteractiveLabSessionState::Running ||
                     Session.GetState() == EInteractiveLabSessionState::Ready)) Owner->Progress(false);
+            if (EventThreadOwnsBackend() && Owner->bSceneReady)
+            {
+                Application::FLabRuntimeInfo Info;
+                Info.Workload = Config.WorkloadRevision; Info.RootIdentity = Config.ProductionRoot;
+                Info.CookedGeneration = Config.StrictGeneration;
+                Info.RequestedProfile = Owner->OutputSettings.OutputDeviceProfileId;
+                Info.EffectiveProfile = Owner->OutputResolved.OutputDeviceProfileId;
+                Info.TransformVersion = Owner->OutputResolved.TransformStrategyVersion;
+                Info.ExposureStops = Owner->OutputResolved.ManualExposureStops;
+                Info.Submitted = Owner->Submitted; Info.RenderCompleted = Owner->Completed;
+                Info.PresentQueued = Owner->Presented; Info.UIFrames = Owner->UIFramesSubmitted;
+                Info.SceneFallbackFrames = Owner->UISceneFallbackFrames; Info.Failure = Owner->FirstFailure;
+                (void)Session.UpdateRuntimeInfo(Info);
+            }
             (void)Session.Service(Delta,EventThreadOwnsBackend() && Owner->CanPrepareUI());
             if (Session.GetUIFailure() != LastUIFailure)
             {

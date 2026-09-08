@@ -5,6 +5,7 @@
 #include "FImGuiDrawAdapter.h"
 #include <memory>
 #include "Application/FLabSettingsSnapshot.h"
+#include "Application/FFreeCameraState.h"
 #include <span>
 
 namespace Stoner::Application
@@ -22,7 +23,12 @@ public:
         const FWindowDisplayState& Display, double DeltaSeconds, bool bRenderEligible = true,
         std::span<const FLabControlSection> Sections = {},
         const std::function<bool(const Stoner::Core::FString&,const Stoner::Core::FString&)>& Invoke = {},
-        bool bEditsEnabled = true);
+        bool bEditsEnabled = true, const FLabRuntimeInfo* Runtime = nullptr,
+        const FFreeCameraState* Camera = nullptr,
+        const FLabSettingsSnapshot* Requested = nullptr,
+        const FLabSettingsSnapshot* Pending = nullptr,
+        const FLabSettingsSnapshot* Effective = nullptr,
+        const Stoner::Core::FString* SettingsFailure = nullptr);
     // Hidden/minimized intervals discard stale UI input and unpublished draws.
     void Suspend() noexcept;
     using FAcquireTexture = std::function<Stoner::Renderer::FUITextureLease(Stoner::Renderer::FUITextureId)>;

@@ -27,6 +27,7 @@ struct FLabSettingsSnapshot;
 struct FLabSettingsCapabilities;
 struct FLabSettingsTransaction;
 struct FLabControlSection;
+struct FLabRuntimeInfo;
 
 // This state belongs to the Application coordinator.  It deliberately has no
 // RHI or platform presentation values; the Demo supplies those through the
@@ -189,6 +190,8 @@ public:
     [[nodiscard]] const Stoner::Core::FString& GetUIFailure() const noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult ExtractUIDrawSnapshot(
         Stoner::Renderer::FUIDrawSnapshot& OutSnapshot) const;
+
+    [[nodiscard]] bool UpdateRuntimeInfo(const FLabRuntimeInfo&);
 
     // Startup-only registration: <=8 sections, <=64 commands and <=32 debug
     // views in total; identities/labels <=128 bytes. Invocation uses the same

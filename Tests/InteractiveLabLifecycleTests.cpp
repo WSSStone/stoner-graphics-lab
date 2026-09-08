@@ -111,6 +111,14 @@ void TestSettingsSession()
     Caps.Outputs = {{"Sdr.sRGB.v1",100,100}};
     Check(F.S.ConfigureSettings(Initial,Caps) && !F.S.ConfigureSettings(Initial,Caps),
         "session owns one settings controller initialized to its current camera and display");
+    FLabRuntimeInfo Runtime;
+    Runtime.Workload = "fixture"; Runtime.RootIdentity = "Scene/Fixture"; Runtime.CookedGeneration = "generation";
+    Runtime.RequestedProfile = Runtime.EffectiveProfile = "Sdr.sRGB.v1"; Runtime.TransformVersion = GDefaultSDRToneMapVersion;
+    Check(F.S.UpdateRuntimeInfo(Runtime),"session accepts bounded actual runtime panel facts");
+    Runtime.RenderCompleted = 1;
+    Check(!F.S.UpdateRuntimeInfo(Runtime),"runtime panel rejects impossible completion counters");
+    Runtime.RenderCompleted = 0; Runtime.ExposureStops = 17;
+    Check(!F.S.UpdateRuntimeInfo(Runtime),"runtime panel rejects invalid exposure facts");
     FLabControlSection Section; Section.Id = "exposure"; Section.Title = "Feature output";
     Section.Commands = {{"increase","Increase exposure",[](FLabSettingsSnapshot& S) { S.ExposureStops += 1; return true; }},
         {"invalid","Invalid request",[](FLabSettingsSnapshot& S) { S.ExposureStops = 100; return true; }},

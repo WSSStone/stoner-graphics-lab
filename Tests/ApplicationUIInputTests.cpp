@@ -238,6 +238,16 @@ int RunApplicationUIInputTests()
         Check(UI.Frame({},Display,1.0/60.0,false,{&Section,1},Invoke,false) == EApplicationResult::Success &&
             UI.GetVertexCount() > 0 && Invocations == 0,
             "busy section controls remain visible and disabled while input frames stay live");
+        FLabRuntimeInfo Runtime;
+        Runtime.Workload = "Lantern fixture"; Runtime.RootIdentity = "Scene/Fixture";
+        Runtime.CookedGeneration = "bounded generation identity";
+        Runtime.RequestedProfile = "Hdr.Linear.1000.v1"; Runtime.EffectiveProfile = "Sdr.sRGB.v1";
+        Runtime.TransformVersion = "Sdr.KhronosPbrNeutral.v1";
+        Runtime.Failure = "Requested output unavailable";
+        FFreeCameraState PanelCamera;
+        Check(UI.Frame({},Display,1.0/60.0,true,{}, {},false,&Runtime,&PanelCamera) == EApplicationResult::Success &&
+            UI.GetVertexCount() > ShellVertices,
+            "real UI builds loaded-scene navigation output diagnostics and instruction panels");
         auto StaleDisplay = Display;
         --StaleDisplay.DisplayGeneration;
         Check(UI.Frame({}, StaleDisplay, 0.1) == EApplicationResult::InvalidInput && UI.GetVertexCount() == 0,

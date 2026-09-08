@@ -98,7 +98,9 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     const FWindowDisplayState& Display, double DeltaSeconds, bool bRenderEligible,
     std::span<const FLabControlSection> Sections,
     const std::function<bool(const Stoner::Core::FString&,const Stoner::Core::FString&)>& Invoke,
-    bool bEditsEnabled)
+    bool bEditsEnabled, const FLabRuntimeInfo* Runtime, const FFreeCameraState* Camera,
+    const FLabSettingsSnapshot* Requested, const FLabSettingsSnapshot* Pending,
+    const FLabSettingsSnapshot* Effective, const Stoner::Core::FString* SettingsFailure)
 {
     Impl->Capture = {};
     Impl->bDrawReady = false;
@@ -119,7 +121,7 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     Impl->Input.Feed(IO, Events, Display.bFocused);
     ImGui::NewFrame();
     ImGui::SetNextWindowPos(ImVec2(16, 16), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(360, 220), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(Runtime ? std::max(128.0f,std::min(360.0f,IO.DisplaySize.x-32)) : 360.0f, Runtime ? std::max(120.0f,std::min(680.0f,IO.DisplaySize.y-32)) : 220.0f), ImGuiCond_Always);
     ImGui::Begin("Rendering Lab", nullptr, ImGuiWindowFlags_NoSavedSettings);
     ImGui::TextUnformatted("WASD/QE move | RMB look | F1 toggle UI");
     ImGui::InputText("Input test", Impl->Text.data(), Impl->Text.size());
@@ -142,6 +144,50 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     if (Impl->ClipboardResult != EApplicationResult::Success)
         ImGui::TextUnformatted("Clipboard unavailable or rejected; text preserved.");
     const bool HideRequested = ImGui::Button("Hide UI (F1)");
+    if (Runtime)
+    {
+        if (ImGui::CollapsingHeader("Loaded scene",ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::TextWrapped("Workload: %s",Runtime->Workload.CStr());
+            ImGui::TextWrapped("Root: %s",Runtime->RootIdentity.CStr());
+            ImGui::TextWrapped("Cooked generation: %s",Runtime->CookedGeneration.CStr());
+        }
+        if (ImGui::CollapsingHeader("Navigation",ImGuiTreeNodeFlags_DefaultOpen) && Camera)
+        {
+            ImGui::Text("Position: %.3f, %.3f, %.3f",Camera->Position.X,Camera->Position.Y,Camera->Position.Z);
+            ImGui::Text("Yaw / pitch: %.1f / %.1f deg",Camera->YawRadians*57.2957795f,Camera->PitchRadians*57.2957795f);
+            ImGui::Text("Speed: %.3f units/s [0.01, 100]",Camera->MovementSpeed);
+            ImGui::Text("Vertical FOV: %.1f deg [20, 90]",Camera->VerticalFovRadians*57.2957795f);
+        }
+        if (ImGui::CollapsingHeader("Output",ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::TextWrapped("Requested: %s",Requested ? Requested->RequestedProfileId.CStr() : Runtime->RequestedProfile.CStr());
+            ImGui::TextWrapped("Pending: %s",Pending ? Pending->EffectiveProfileId.CStr() : "none");
+            ImGui::TextWrapped("Effective: %s",Effective ? Effective->EffectiveProfileId.CStr() : Runtime->EffectiveProfile.CStr());
+            ImGui::Text("Manual exposure: %.2f EV [-16, 16]",Effective ? Effective->ExposureStops : Runtime->ExposureStops);
+            ImGui::TextWrapped("Active tone map / viewing transform: %s",Runtime->TransformVersion.CStr());
+            if (Effective)
+            {
+                ImGui::TextWrapped("Remembered SDR: %s",Effective->SdrToneMapVersion.CStr());
+                ImGui::TextWrapped("Remembered HDR: %s",Effective->HdrViewingVersion.CStr());
+                ImGui::TextWrapped("Debug stage: %s",Effective->DebugBypass.StageName.IsEmpty() ? "disabled" : Effective->DebugBypass.StageName.CStr());
+            }
+            else ImGui::TextUnformatted("Live settings/debug controls: not configured");
+            if (SettingsFailure && !SettingsFailure->IsEmpty()) ImGui::TextWrapped("Settings failure: %s",SettingsFailure->CStr());
+        }
+        if (ImGui::CollapsingHeader("Diagnostics",ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Text("Submitted / render complete: %llu / %llu",static_cast<unsigned long long>(Runtime->Submitted),static_cast<unsigned long long>(Runtime->RenderCompleted));
+            ImGui::Text("Present queued: %llu",static_cast<unsigned long long>(Runtime->PresentQueued));
+            ImGui::Text("UI / scene fallback: %llu / %llu",static_cast<unsigned long long>(Runtime->UIFrames),static_cast<unsigned long long>(Runtime->SceneFallbackFrames));
+            ImGui::Text("Drawable: %u x %u",Display.DrawableExtent.Width,Display.DrawableExtent.Height);
+            ImGui::Text("Display generation: %llu",static_cast<unsigned long long>(Display.DisplayGeneration));
+            ImGui::TextUnformatted("GPU time / full memory profiling: unavailable");
+            if (!Runtime->Failure.IsEmpty()) ImGui::TextWrapped("Runtime failure: %s",Runtime->Failure.CStr());
+        }
+        if (ImGui::CollapsingHeader("Instructions"))
+            ImGui::TextWrapped("WASD/QE: move. Shift: accelerate. Right mouse: look. Viewport wheel: FOV. F1: show/hide UI. Escape: cancel interaction. UI-owned input cannot move the camera. Preview is not an Accepted baseline; HDR export is diagnostic, not visual acceptance.");
+    }
     for (const auto& Section : Sections)
     {
         ImGui::PushID(Section.Id.CStr());

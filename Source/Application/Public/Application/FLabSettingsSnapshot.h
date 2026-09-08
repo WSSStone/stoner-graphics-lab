@@ -49,6 +49,18 @@ struct FLabSettingsSnapshot
     [[nodiscard]] bool IsValid() const noexcept;
 };
 
+// Sampled facts from the live composition root; unavailable GPU timing is
+// intentionally absent instead of represented as a fabricated zero.
+struct FLabRuntimeInfo
+{
+    Stoner::Core::FString Workload, RootIdentity, CookedGeneration;
+    Stoner::Core::FString RequestedProfile, EffectiveProfile, TransformVersion;
+    Stoner::Core::FString Failure;
+    float ExposureStops = 0;
+    Stoner::Core::uint64 Submitted = 0, RenderCompleted = 0, PresentQueued = 0;
+    Stoner::Core::uint64 UIFrames = 0, SceneFallbackFrames = 0;
+};
+
 // Feature-owned controls prepare a complete candidate; only the session may
 // admit it. Callbacks must be bounded and must not perform native/UI work.
 struct FLabSectionCommand
