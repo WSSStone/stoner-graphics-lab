@@ -269,6 +269,16 @@ int RunApplicationUIInputTests()
         Check(UI.Frame({},Display,1.0/60.0,true,{}, {},true,&Runtime,&PanelCamera,
             &Selection,nullptr,&Selection,nullptr,EditProfile,&Caps) == EApplicationResult::Success && ProfileEdits == 0,
             "stale output capabilities keep UI servicing live without changing settings");
+        int PresetActions=0;
+        FLabPresetActions Presets;
+        Presets.bPending=true;
+        Presets.Import=[&](const FString&) { ++PresetActions; return true; };
+        Presets.Cancel=[&] { ++PresetActions; return true; };
+        Presets.Export=[&](const FString&,bool) { ++PresetActions; return FString("exported"); };
+        Check(UI.Frame({},Display,1.0/60.0,true,{}, {},false,&Runtime,&PanelCamera,
+            &Selection,nullptr,&Selection,nullptr,EditProfile,&Caps,{}, {},&Presets)==EApplicationResult::Success &&
+            PresetActions==0,
+            "preset panel servicing never automatically imports cancels exports or overwrites files");
         auto StaleDisplay = Display;
         --StaleDisplay.DisplayGeneration;
         Check(UI.Frame({}, StaleDisplay, 0.1) == EApplicationResult::InvalidInput && UI.GetVertexCount() == 0,

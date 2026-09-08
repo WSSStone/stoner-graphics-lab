@@ -27,6 +27,9 @@ struct FImGuiLabAdapter::FImpl
     Stoner::Core::FString Clipboard;
     EApplicationResult ClipboardResult = EApplicationResult::Success;
     std::array<char, 65537> Text{};
+    std::array<char, 4097> PresetInput{};
+    std::array<char, 129> PresetFilename{'l','a','b','-','p','r','e','s','e','t','.','j','s','o','n',0};
+    Stoner::Core::FString PresetActionStatus;
     Stoner::Core::uint32 VertexCount = 0;
     Stoner::Core::uint64 FallbackCount = 0;
     Stoner::Core::uint64 DisplayGeneration = 0;
@@ -105,7 +108,7 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     const std::function<bool(const FLabSettingsSnapshot&)>& EditSettings,
     const FLabSettingsCapabilities* Capabilities,
     const std::function<bool(float,float)>& EditNavigation,
-    const std::function<bool()>& ResetCamera)
+    const std::function<bool()>& ResetCamera, const FLabPresetActions* Presets)
 {
     Impl->Capture = {};
     Impl->bDrawReady = false;
@@ -318,6 +321,31 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
             ImGui::TreePop();
         }
         ImGui::PopID();
+    }
+    if (Presets && ImGui::CollapsingHeader("Local presets"))
+    {
+        ImGui::TextUnformatted(Presets->bPending ? "Pending import; ordinary camera/output edits are disabled." : "No pending import.");
+        ImGui::BeginDisabled(Presets->bNativeActive || !Presets->Import);
+        ImGui::InputText("Preset input path",Impl->PresetInput.data(),Impl->PresetInput.size());
+        if (ImGui::Button("Import preset") && Presets->Import)
+            Impl->PresetActionStatus = Presets->Import(Impl->PresetInput.data()) ? "Import accepted for preparation." : "Import rejected.";
+        ImGui::EndDisabled();
+        ImGui::BeginDisabled(!Presets->bPending || Presets->bNativeActive || !Presets->Cancel);
+        if (ImGui::Button("Cancel pending import") && Presets->Cancel)
+            Impl->PresetActionStatus = Presets->Cancel() ? "Pending import cancelled." : "Cancellation unavailable.";
+        ImGui::EndDisabled();
+        ImGui::BeginDisabled(!Presets->bCanExport || !Presets->Export);
+        ImGui::InputText("Export filename",Impl->PresetFilename.data(),Impl->PresetFilename.size());
+        if (ImGui::Button("Export new preset") && Presets->Export)
+            Impl->PresetActionStatus = Presets->Export(Impl->PresetFilename.data(),false);
+        ImGui::SameLine();
+        if (ImGui::Button("Overwrite preset") && Presets->Export)
+            Impl->PresetActionStatus = Presets->Export(Impl->PresetFilename.data(),true);
+        ImGui::EndDisabled();
+        if (!Presets->bCanExport) ImGui::TextWrapped("Export is unavailable until the export directory is configured and the session is stable.");
+        if (Presets->bNativeActive) ImGui::TextUnformatted("Waiting for native output completion.");
+        if (!Impl->PresetActionStatus.IsEmpty()) ImGui::TextWrapped("%s",Impl->PresetActionStatus.CStr());
+        if (Presets->Failure && !Presets->Failure->IsEmpty()) ImGui::TextWrapped("%s",Presets->Failure->CStr());
     }
     const bool Active = ImGui::IsAnyItemActive();
     Impl->Capture = {};

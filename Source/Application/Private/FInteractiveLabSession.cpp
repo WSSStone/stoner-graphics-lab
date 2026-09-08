@@ -390,6 +390,20 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
                 !S.ActiveIntent.IsValid() && !S.bDrainOnly &&
                 (!S.Settings || (!S.Settings->GetActive() && !S.Settings->IsPaused()));
             S.UICallbacks.BeginFrame(++S.UIFrameId, Eligible);
+            FLabPresetActions Presets;
+            Presets.bPending = S.PendingPreset.has_value();
+            Presets.bNativeActive = S.Settings && S.Settings->GetActive().has_value();
+            Presets.bCanExport = S.PresetExports && !Presets.bPending && !Presets.bNativeActive &&
+                !S.Display.bMinimized && S.Display.DrawableExtent.IsPositive();
+            Presets.Failure = &S.PresetFailure;
+            Presets.Import = [this](const FString& Path) { return RequestPresetFile(Path); };
+            Presets.Cancel = [this] { return CancelPreset(); };
+            Presets.Export = [this](const FString& Name,bool Overwrite) {
+                const auto Result = ExportPreset(Name,Overwrite);
+                if (Result.bPublished) return FString(Result.Status.IsSuccess()
+                    ? "Preset exported." : "Preset published; durability confirmation failed. Do not retry as a new export.");
+                return FString(Result.bTemporaryRetained ? "Export failed; temporary cleanup requires attention." : "Export rejected; destination was not published.");
+            };
             const auto UIResult = S.UI->Frame(Raw,S.Display,DeltaSeconds,Eligible,S.ControlSections,
                 [this](const FString& Section,const FString& Control) { return InvokeSectionControl(Section,Control); },
                 S.Settings && !S.PendingPreset && !S.Settings->GetActive() && !S.PendingIntent.IsValid() && !S.ActiveIntent.IsValid(),
@@ -402,7 +416,8 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
                     return RequestSettings(Candidate);
                 },S.Settings ? &S.Settings->GetCapabilities() : nullptr,
                 [this](float Speed,float Fov) { return SetNavigationParameters(Speed,Fov) == EApplicationResult::Success; },
-                [this] { return ExecuteCameraCommand(EInteractiveLabCameraCommand::Reset) == EApplicationResult::Success; });
+                [this] { return ExecuteCameraCommand(EInteractiveLabCameraCommand::Reset) == EApplicationResult::Success; },
+                S.PresetWorkload ? &Presets : nullptr);
             Capture = S.UI->GetCapture();
             if (UIResult == EApplicationResult::Success) S.UIFailure.Clear();
             else if (S.UI->GetTextureResult() != Stoner::RHI::ERHIResult::NotReady)

@@ -10,6 +10,14 @@
 
 namespace Stoner::Application
 {
+struct FLabPresetActions
+{
+    bool bPending = false, bNativeActive = false, bCanExport = false;
+    const Stoner::Core::FString* Failure = nullptr;
+    std::function<bool(const Stoner::Core::FString&)> Import;
+    std::function<bool()> Cancel;
+    std::function<Stoner::Core::FString(const Stoner::Core::FString&,bool)> Export;
+};
 // Private engine-facing shell. Third-party context/draw pointers never escape.
 class FImGuiLabAdapter
 {
@@ -32,7 +40,8 @@ public:
         const std::function<bool(const FLabSettingsSnapshot&)>& EditSettings = {},
         const FLabSettingsCapabilities* Capabilities = nullptr,
         const std::function<bool(float,float)>& EditNavigation = {},
-        const std::function<bool()>& ResetCamera = {});
+        const std::function<bool()>& ResetCamera = {},
+        const FLabPresetActions* Presets = nullptr);
     // Hidden/minimized intervals discard stale UI input and unpublished draws.
     void Suspend() noexcept;
     using FAcquireTexture = std::function<Stoner::Renderer::FUITextureLease(Stoner::Renderer::FUITextureId)>;
