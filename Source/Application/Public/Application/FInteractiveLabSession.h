@@ -26,6 +26,7 @@ namespace Stoner::Application
 struct FLabSettingsSnapshot;
 struct FLabSettingsCapabilities;
 struct FLabSettingsTransaction;
+struct FLabControlSection;
 
 // This state belongs to the Application coordinator.  It deliberately has no
 // RHI or platform presentation values; the Demo supplies those through the
@@ -188,6 +189,13 @@ public:
     [[nodiscard]] const Stoner::Core::FString& GetUIFailure() const noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult ExtractUIDrawSnapshot(
         Stoner::Renderer::FUIDrawSnapshot& OutSnapshot) const;
+
+    // Startup-only registration: <=8 sections, <=64 commands and <=32 debug
+    // views in total; identities/labels <=128 bytes. Invocation uses the same
+    // settings transaction path as built-in controls, never direct GPU work.
+    [[nodiscard]] bool RegisterControlSection(const FLabControlSection&);
+    [[nodiscard]] bool InvokeSectionControl(const Stoner::Core::FString& SectionId, const Stoner::Core::FString& ControlId);
+    [[nodiscard]] Stoner::Core::uint32 GetControlSectionCount() const noexcept;
 
     // The composition root polls these value transactions after Service and
     // before admitting a frame. It owns native preparation and reports its

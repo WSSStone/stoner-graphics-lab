@@ -95,7 +95,10 @@ EApplicationResult FImGuiLabAdapter::Initialize(FWindow& Window, FImGuiTextureAd
 }
 
 EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEvent>& Events,
-    const FWindowDisplayState& Display, double DeltaSeconds, bool bRenderEligible)
+    const FWindowDisplayState& Display, double DeltaSeconds, bool bRenderEligible,
+    std::span<const FLabControlSection> Sections,
+    const std::function<bool(const Stoner::Core::FString&,const Stoner::Core::FString&)>& Invoke,
+    bool bEditsEnabled)
 {
     Impl->Capture = {};
     Impl->bDrawReady = false;
@@ -139,6 +142,26 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     if (Impl->ClipboardResult != EApplicationResult::Success)
         ImGui::TextUnformatted("Clipboard unavailable or rejected; text preserved.");
     const bool HideRequested = ImGui::Button("Hide UI (F1)");
+    for (const auto& Section : Sections)
+    {
+        ImGui::PushID(Section.Id.CStr());
+        // Visible labels are separate from IDs; feature labels cannot inject
+        // ImGui's hidden-identity suffix into command dispatch.
+        if (ImGui::TreeNodeEx("section",ImGuiTreeNodeFlags_DefaultOpen,"%s",Section.Title.CStr()))
+        {
+            ImGui::BeginDisabled(!bEditsEnabled || !Invoke);
+            const auto Control = [&](const auto& Item) {
+                ImGui::PushID(Item.Id.CStr());
+                if (ImGui::Button(Item.Label.CStr()) && Invoke) (void)Invoke(Section.Id,Item.Id);
+                ImGui::PopID();
+            };
+            for (const auto& Command : Section.Commands) Control(Command);
+            for (const auto& View : Section.DebugViews) Control(View);
+            ImGui::EndDisabled();
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
+    }
     const bool Active = ImGui::IsAnyItemActive();
     Impl->Capture = {};
     Impl->Capture.bHideUIRequested = HideRequested;

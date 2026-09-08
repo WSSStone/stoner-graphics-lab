@@ -111,12 +111,35 @@ void TestSettingsSession()
     Caps.Outputs = {{"Sdr.sRGB.v1",100,100}};
     Check(F.S.ConfigureSettings(Initial,Caps) && !F.S.ConfigureSettings(Initial,Caps),
         "session owns one settings controller initialized to its current camera and display");
+    FLabControlSection Section; Section.Id = "exposure"; Section.Title = "Feature output";
+    Section.Commands = {{"increase","Increase exposure",[](FLabSettingsSnapshot& S) { S.ExposureStops += 1; return true; }},
+        {"invalid","Invalid request",[](FLabSettingsSnapshot& S) { S.ExposureStops = 100; return true; }},
+        {"throw","Throwing request",[](FLabSettingsSnapshot&) -> bool { throw 1; }}};
+    Section.DebugViews = {{"disable-debug","Disable debug",{}}};
+    Check(F.S.RegisterControlSection(Section) && !F.S.RegisterControlSection(Section) && F.S.GetControlSectionCount() == 1,
+        "feature section registration owns copied controls and rejects duplicate section IDs");
+    auto BadSection = Section; BadSection.Id = "duplicate-command";
+    BadSection.Commands.push_back(BadSection.Commands.front());
+    Check(!F.S.RegisterControlSection(BadSection) && F.S.GetControlSectionCount() == 1,
+        "duplicate control IDs reject atomically without publishing a section");
+    BadSection = Section; BadSection.Id = "oversized"; BadSection.Commands.resize(65);
+    Check(!F.S.RegisterControlSection(BadSection),"registered command count is bounded before allocation into session");
+    Check(F.S.InvokeSectionControl("exposure","increase") && F.S.GetPendingSettings()->ExposureStops == 1 &&
+        F.S.GetEffectiveSettings()->ExposureStops == 0,
+        "feature command routes a complete candidate through pending settings transaction");
+    Check(!F.S.InvokeSectionControl("exposure","invalid") && !F.S.InvokeSectionControl("exposure","throw") &&
+        F.S.GetPendingSettings()->ExposureStops == 1,
+        "invalid and throwing feature edits preserve the last valid pending settings");
+    Check(F.S.InvokeSectionControl("exposure","disable-debug") &&
+        F.S.GetPendingSettings()->DebugBypass.Mode == EOutputTransformDebugBypassMode::Disabled,
+        "registered debug selection uses the same settings admission path");
     auto Edit = Initial; Edit.ExposureStops = 2;
     Check(F.S.RequestSettings(Edit) && F.S.GetPendingSettings() && !F.S.BeginSettingsTransaction(false),
         "session retains pending edits while rendering is busy");
     (void)F.S.Service(0);
     const auto* Active = F.S.BeginSettingsTransaction(true);
     const auto Token = Active ? Active->Token : 0;
+    Check(!F.S.InvokeSectionControl("exposure","increase"),"registered controls cannot mutate an active settings transaction");
     Check(Active && F.S.GetEffectiveSettings()->ExposureStops == 0,
         "session exposes immutable transaction before native completion");
     F.Driver->Width = 640;
@@ -128,6 +151,8 @@ void TestSettingsSession()
         "display event rejects stale settings completion even before capability refresh");
     (void)F.S.Service(0);
     Check(Transitions == 1,"resize proceeds after stale settings native work has completed");
+    BadSection = Section; BadSection.Id = "late-registration";
+    Check(!F.S.RegisterControlSection(BadSection),"section registration stays frozen after lifecycle returns to Ready");
     Caps.DisplayGeneration = F.S.GetDisplayState().DisplayGeneration;
     Check(F.S.RefreshSettingsCapabilities(Caps,false),"session admits only current-generation capability refresh");
     Active = F.S.BeginSettingsTransaction(true);

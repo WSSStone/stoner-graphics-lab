@@ -225,6 +225,19 @@ int RunApplicationUIInputTests()
         }
         Check(UI.Frame({}, Display, 1.0e-300) == EApplicationResult::Success,
             "positive sub-float UI time remains valid without a zero delta assertion");
+        UI.Suspend();
+        (void)UI.Frame({},Display,1.0/60.0);
+        const auto ShellVertices = UI.GetVertexCount();
+        FLabControlSection Section; Section.Id = "test-feature"; Section.Title = "Feature controls";
+        Section.Commands = {{"exposure","Exposure preset",[](FLabSettingsSnapshot& S) { S.ExposureStops = 1; return true; }}};
+        uint32 Invocations = 0;
+        const auto Invoke = [&](const FString&,const FString&) { ++Invocations; return true; };
+        Check(UI.Frame({},Display,1.0/60.0,true,{&Section,1},Invoke) == EApplicationResult::Success &&
+            UI.GetVertexCount() > ShellVertices && Invocations == 0,
+            "real UI renders feature-owned section controls without invoking hidden work");
+        Check(UI.Frame({},Display,1.0/60.0,false,{&Section,1},Invoke,false) == EApplicationResult::Success &&
+            UI.GetVertexCount() > 0 && Invocations == 0,
+            "busy section controls remain visible and disabled while input frames stay live");
         auto StaleDisplay = Display;
         --StaleDisplay.DisplayGeneration;
         Check(UI.Frame({}, StaleDisplay, 0.1) == EApplicationResult::InvalidInput && UI.GetVertexCount() == 0,

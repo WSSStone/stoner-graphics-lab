@@ -4,6 +4,8 @@
 #include "FImGuiTextureAdapter.h"
 #include "FImGuiDrawAdapter.h"
 #include <memory>
+#include "Application/FLabSettingsSnapshot.h"
+#include <span>
 
 namespace Stoner::Application
 {
@@ -17,7 +19,10 @@ public:
     FImGuiLabAdapter& operator=(const FImGuiLabAdapter&) = delete;
     [[nodiscard]] EApplicationResult Initialize(FWindow& Window, FImGuiTextureAdapter::FPrepare PrepareTexture = {});
     [[nodiscard]] EApplicationResult Frame(const Stoner::Core::TArray<FInputEvent>& Events,
-        const FWindowDisplayState& Display, double DeltaSeconds, bool bRenderEligible = true);
+        const FWindowDisplayState& Display, double DeltaSeconds, bool bRenderEligible = true,
+        std::span<const FLabControlSection> Sections = {},
+        const std::function<bool(const Stoner::Core::FString&,const Stoner::Core::FString&)>& Invoke = {},
+        bool bEditsEnabled = true);
     // Hidden/minimized intervals discard stale UI input and unpublished draws.
     void Suspend() noexcept;
     using FAcquireTexture = std::function<Stoner::Renderer::FUITextureLease(Stoner::Renderer::FUITextureId)>;

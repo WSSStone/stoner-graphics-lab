@@ -3,6 +3,7 @@
 #include "Core/CoreMinimal.h"
 #include "Renderer/FPostProcessInsertion.h"
 #include "Renderer/FRenderGraphResource.h"
+#include <functional>
 
 namespace Stoner::Application
 {
@@ -46,6 +47,25 @@ struct FLabSettingsSnapshot
     float NativePackingWhiteNits = 100.0f;
 
     [[nodiscard]] bool IsValid() const noexcept;
+};
+
+// Feature-owned controls prepare a complete candidate; only the session may
+// admit it. Callbacks must be bounded and must not perform native/UI work.
+struct FLabSectionCommand
+{
+    Stoner::Core::FString Id, Label;
+    std::function<bool(FLabSettingsSnapshot&)> PrepareEdit;
+};
+struct FLabSectionDebugView
+{
+    Stoner::Core::FString Id, Label;
+    FLabDebugBypass Selection;
+};
+struct FLabControlSection
+{
+    Stoner::Core::FString Id, Title;
+    Stoner::Core::TArray<FLabSectionCommand> Commands;
+    Stoner::Core::TArray<FLabSectionDebugView> DebugViews;
 };
 
 // Resolved by the composition root from one display capability generation.

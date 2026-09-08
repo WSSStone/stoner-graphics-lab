@@ -54,6 +54,8 @@ struct FInteractiveLabSession::FImpl
     FLabInputRouter Router;
     TUniquePtr<FLabSettingsController> Settings;
     uint64 SettingsStart = 0;
+    TArray<FLabControlSection> ControlSections;
+    bool bInvokingControl = false, bControlsFrozen = false;
     TUniquePtr<FImGuiLabAdapter> UI;
     FInteractiveLabUICallbacks UICallbacks;
     uint64 UIFrameId = 0;
@@ -307,6 +309,7 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
 {
     auto& S = *Impl;
     if (!S.Window || S.SessionState == State::Closed) return EApplicationResult::InvalidLifecycle;
+    S.bControlsFrozen = true;
     const auto PreviousDisplay = S.Display;
     const auto Events = S.Window->PollEvents();
     auto Raw = S.Window->PollInputEvents();
@@ -367,7 +370,9 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
                 !S.ActiveIntent.IsValid() && !S.bDrainOnly &&
                 (!S.Settings || (!S.Settings->GetActive() && !S.Settings->IsPaused()));
             S.UICallbacks.BeginFrame(++S.UIFrameId, Eligible);
-            const auto UIResult = S.UI->Frame(Raw,S.Display,DeltaSeconds,Eligible);
+            const auto UIResult = S.UI->Frame(Raw,S.Display,DeltaSeconds,Eligible,S.ControlSections,
+                [this](const FString& Section,const FString& Control) { return InvokeSectionControl(Section,Control); },
+                S.Settings && !S.Settings->GetActive() && !S.PendingIntent.IsValid() && !S.ActiveIntent.IsValid());
             Capture = S.UI->GetCapture();
             if (UIResult == EApplicationResult::Success) S.UIFailure.Clear();
             else if (S.UI->GetTextureResult() != Stoner::RHI::ERHIResult::NotReady)
@@ -459,6 +464,64 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
     return EApplicationResult::Success;
 }
 
+bool FInteractiveLabSession::RegisterControlSection(const FLabControlSection& Section)
+{
+    auto& S = *Impl;
+    if (!S.Window || S.Terminal || S.SessionState != State::Ready || S.bControlsFrozen || S.bInvokingControl ||
+        S.ControlSections.size() >= 8) return false;
+    const auto Text = [](const FString& V, bool Identity) {
+        if (V.IsEmpty() || V.View().size() > 128) return false;
+        return std::all_of(V.View().begin(),V.View().end(),[&](unsigned char C) {
+            return Identity ? ((C >= 'a' && C <= 'z') || (C >= 'A' && C <= 'Z') ||
+                (C >= '0' && C <= '9') || C == '-' || C == '_' || C == '.') : (C >= 32 && C != 127 && C != '#');
+        });
+    };
+    if (!Text(Section.Id,true) || !Text(Section.Title,false)) return false;
+    std::size_t Commands = Section.Commands.size(), Views = Section.DebugViews.size();
+    for (const auto& Existing : S.ControlSections)
+    {
+        if (Existing.Id == Section.Id) return false;
+        Commands += Existing.Commands.size(); Views += Existing.DebugViews.size();
+    }
+    if (Commands > 64 || Views > 32) return false;
+    TArray<FString> Ids;
+    const auto Item = [&](const FString& Id,const FString& Label) {
+        if (!Text(Id,true) || !Text(Label,false) || std::find(Ids.begin(),Ids.end(),Id) != Ids.end()) return false;
+        Ids.push_back(Id); return true;
+    };
+    for (const auto& Command : Section.Commands)
+        if (!Command.PrepareEdit || !Item(Command.Id,Command.Label)) return false;
+    for (const auto& View : Section.DebugViews)
+        if (!View.Selection.IsValid() || !Item(View.Id,View.Label)) return false;
+    S.ControlSections.push_back(Section);
+    return true;
+}
+bool FInteractiveLabSession::InvokeSectionControl(const FString& SectionId, const FString& ControlId)
+{
+    auto& S = *Impl;
+    if (!S.Settings || S.Terminal || S.SessionState == State::Closed || S.bInvokingControl ||
+        S.Settings->GetActive() || S.PendingIntent.IsValid() || S.ActiveIntent.IsValid()) return false;
+    auto Candidate = S.Settings->GetRequested();
+    Candidate.CameraRevision = S.Camera.GetState().CameraRevision;
+    Candidate.DisplayGeneration = S.Display.DisplayGeneration;
+    for (const auto& Section : S.ControlSections) if (Section.Id == SectionId)
+    {
+        for (const auto& Command : Section.Commands) if (Command.Id == ControlId)
+        {
+            S.bInvokingControl = true;
+            bool Prepared = false;
+            try { Prepared = Command.PrepareEdit(Candidate); } catch (...) { Prepared = false; }
+            S.bInvokingControl = false;
+            return Prepared && RequestSettings(Candidate);
+        }
+        for (const auto& View : Section.DebugViews) if (View.Id == ControlId)
+        { Candidate.DebugBypass = View.Selection; return RequestSettings(Candidate); }
+    }
+    return false;
+}
+uint32 FInteractiveLabSession::GetControlSectionCount() const noexcept
+{ return static_cast<uint32>(Impl->ControlSections.size()); }
+
 bool FInteractiveLabSession::ConfigureSettings(const FLabSettingsSnapshot& Initial, const FLabSettingsCapabilities& Caps)
 {
     auto& S = *Impl;
@@ -473,7 +536,7 @@ bool FInteractiveLabSession::ConfigureSettings(const FLabSettingsSnapshot& Initi
 bool FInteractiveLabSession::RequestSettings(const FLabSettingsSnapshot& Request)
 {
     auto& S = *Impl;
-    return S.Settings && !S.Terminal && S.SessionState != State::Closed &&
+    return S.Settings && !S.Terminal && !S.bInvokingControl && S.SessionState != State::Closed &&
         Request.DisplayGeneration == S.Display.DisplayGeneration && S.Settings->Request(Request);
 }
 bool FInteractiveLabSession::RefreshSettingsCapabilities(const FLabSettingsCapabilities& Caps, bool FormerUsable)
