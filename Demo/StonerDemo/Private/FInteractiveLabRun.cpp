@@ -15,6 +15,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <optional>
 #include <thread>
 
 namespace Stoner::Demo
@@ -224,39 +225,160 @@ public:
         Initial.ExposureStops = OutputResolved.ManualExposureStops; Initial.bUIVisible = Session.IsUIEnabled();
         Initial.UIReferenceWhiteNits = OutputResolved.ReferenceWhiteNits;
         Initial.NativePackingWhiteNits = Status.ResolvedState.ReferenceWhiteNits;
-        Application::FLabSettingsCapabilities Caps;
-        Caps.DisplayGeneration = Initial.DisplayGeneration;
-        Caps.Outputs = {{Initial.EffectiveProfileId,Initial.UIReferenceWhiteNits,Initial.NativePackingWhiteNits}};
-        return Session.ConfigureSettings(Initial,Caps);
+        const auto Caps = OutputCapabilities(Initial.DisplayGeneration);
+        if (!Session.ConfigureSettings(Initial,Caps)) return false;
+        Application::FLabControlSection Outputs;
+        Outputs.Id = "OutputProfiles"; Outputs.Title = "Output profiles";
+        for (const auto& Output : Caps.Outputs)
+        {
+            const auto Id = Output.ProfileId;
+            Outputs.Commands.push_back({Id,Id,[Id](Application::FLabSettingsSnapshot& Edit) {
+                Edit.RequestedProfileId = Id; return true;
+            }});
+        }
+        return Session.RegisterControlSection(Outputs);
     }
 
-    void ApplySessionSettings(Application::FInteractiveLabSession& Session)
+    bool ResolveOutput(const Application::FLabSettingsSnapshot& Settings,
+        Renderer::FOutputTransformSettings& Candidate,
+        Renderer::FResolvedOutputTransformSettings& Resolved,
+        RHI::ERHIFormat& Format, Core::FString& Reason) const
+    {
+        FDemoConfiguration Config;
+        Config.GraphicsBackend = Backend->GetBackend();
+        Config.OutputDeviceProfileId = Settings.EffectiveProfileId;
+        Config.OutputExposureStops = Settings.ExposureStops;
+        Config.OutputTransformVersion = Settings.EffectiveProfileId.View().starts_with("Hdr.")
+            ? Settings.HdrViewingVersion : Settings.SdrToneMapVersion;
+        if (!ResolveDemoOutputTransformSettings(Config,
+                Status.Capabilities.NativeReferenceWhiteNits, Candidate, &Resolved, &Reason)) return false;
+        Candidate.bRequireReadback = false;
+        const auto Validation = Renderer::FOutputTransformSettingsValidator().Validate(Candidate);
+        if (!Validation.Succeeded()) { Reason = Validation.Diagnostics.Dump(); return false; }
+        Resolved = Validation.Settings;
+        Format = Resolved.OutputFormat;
+        if (!Status.Capabilities.SupportsPair(Format,Resolved.ColorSpace) &&
+            Resolved.DynamicRange == Renderer::EOutputDynamicRange::SDR &&
+            Format == RHI::ERHIFormat::R8G8B8A8_UNorm &&
+            Status.Capabilities.SupportsPair(RHI::ERHIFormat::B8G8R8A8_UNorm,Resolved.ColorSpace))
+            Format = RHI::ERHIFormat::B8G8R8A8_UNorm;
+        if (!Status.Capabilities.SupportsPair(Format,Resolved.ColorSpace) ||
+            (Resolved.NativeEncoding == RHI::ERHIPresentationNativeEncoding::MetalEdr &&
+             !Status.Capabilities.bSupportsExtendedRange))
+        { Reason = "Output profile is unavailable on the current display"; return false; }
+        return true;
+    }
+
+    Application::FLabSettingsCapabilities OutputCapabilities(Core::uint64 Generation) const
+    {
+        Application::FLabSettingsCapabilities Caps;
+        Caps.DisplayGeneration = Generation;
+        for (const auto& Profile : Renderer::FOutputTransformSettingsValidator().GetProfiles())
+        {
+            Application::FLabSettingsSnapshot Settings;
+            Settings.EffectiveProfileId = Profile.ProfileId;
+            Settings.SdrToneMapVersion = Renderer::GDefaultSDRToneMapVersion;
+            Settings.HdrViewingVersion = Renderer::GInitialHDRViewingVersion;
+            Renderer::FOutputTransformSettings Candidate;
+            Renderer::FResolvedOutputTransformSettings Resolved;
+            RHI::ERHIFormat Format;
+            Core::FString Reason;
+            if (ResolveOutput(Settings,Candidate,Resolved,Format,Reason))
+                Caps.Outputs.push_back({Profile.ProfileId,Resolved.ReferenceWhiteNits,Resolved.ReferenceWhiteNits});
+        }
+        return Caps;
+    }
+
+    void ApplySessionSettings(Application::FInteractiveLabSession& Session, Core::uint32 Budget)
     {
         const auto* Effective = Session.GetEffectiveSettings();
-        if (!Effective || !CanPrepareUI()) return;
-        const auto Generation = Session.GetDisplayState().DisplayGeneration;
-        if (Effective->DisplayGeneration != Generation && Session.GetRequestedSettings()->DisplayGeneration != Generation)
+        if (!Effective || !bSceneReady || !FirstFailure.IsEmpty()) return;
+        const auto& Display = Session.GetDisplayState();
+        // A stale operation must relinquish its token before the session can
+        // process the newer resize. No stale native result may become effective.
+        if (ModeTransaction && ModeTransaction->Settings.DisplayGeneration != Display.DisplayGeneration)
         {
-            Application::FLabSettingsCapabilities Caps;
-            Caps.DisplayGeneration = Generation;
-            Caps.Outputs = {{OutputResolved.OutputDeviceProfileId,OutputResolved.ReferenceWhiteNits,Status.ResolvedState.ReferenceWhiteNits}};
-            (void)Session.RefreshSettingsCapabilities(Caps,true);
+            (void)Session.CompleteSettingsTransaction(ModeTransaction->Token,false,false);
+            ModeTransaction.reset();
+            return;
         }
-        const auto* Transaction = Session.BeginSettingsTransaction(true);
-        if (!Transaction) return;
-        auto Candidate = OutputSettings;
-        Candidate.ManualExposureStops = Transaction->Settings.ExposureStops;
-        Candidate.SDRToneMapVersion = Candidate.DynamicRange == Renderer::EOutputDynamicRange::SDR
-            ? Transaction->Settings.SdrToneMapVersion : Core::FString{};
-        Candidate.HDRViewingVersion = Candidate.DynamicRange == Renderer::EOutputDynamicRange::HDR
-            ? Transaction->Settings.HdrViewingVersion : Core::FString{};
-        Candidate.OutputDeviceProfileId = Transaction->Settings.EffectiveProfileId;
+        if (Display.bMinimized || !Display.DrawableExtent.IsPositive()) return;
         Core::FString Reason;
-        const auto Resolved = Renderer::FOutputTransformSettingsValidator().Validate(Candidate);
-        const bool Accepted = Resolved.Succeeded() && Frames->UpdateOutputSettings(Candidate,&Reason) == ERHIResult::Success;
-        if (Accepted && Session.CompleteSettingsTransaction(Transaction->Token,true,true))
-        { OutputSettings = std::move(Candidate); OutputResolved = Resolved.Settings; }
-        else if (!Accepted) (void)Session.CompleteSettingsTransaction(Transaction->Token,false,true);
+        if (Backend->QueryLabPresentation(Status) != ERHIResult::Success)
+        { Fail("lab settings capability query failed"); return; }
+        if (!ModeTransaction)
+        {
+            if (!CanPrepareUI()) return;
+            if (Session.GetRequestedSettings()->DisplayGeneration != Display.DisplayGeneration)
+                (void)Session.RefreshSettingsCapabilities(OutputCapabilities(Display.DisplayGeneration),Status.bPrepared);
+            const auto* Transaction = Session.BeginSettingsTransaction(true);
+            if (!Transaction) return;
+            Renderer::FOutputTransformSettings Candidate;
+            Renderer::FResolvedOutputTransformSettings Resolved;
+            RHI::ERHIFormat Format;
+            if (!ResolveOutput(Transaction->Settings,Candidate,Resolved,Format,Reason))
+            {
+                (void)Session.CompleteSettingsTransaction(Transaction->Token,false,Status.bPrepared);
+                return;
+            }
+            const auto Updated = Frames->UpdateOutputSettings(Candidate,&Reason);
+            if (Updated == ERHIResult::Success && Status.bPrepared)
+            {
+                if (Session.CompleteSettingsTransaction(Transaction->Token,true,true))
+                { OutputSettings = std::move(Candidate); OutputResolved = Resolved; }
+                return;
+            }
+            if (Updated != ERHIResult::ResizeRequired && Updated != ERHIResult::Success)
+            { (void)Session.CompleteSettingsTransaction(Transaction->Token,false,Status.bPrepared); return; }
+            ModeTransaction = *Transaction;
+        }
+
+        // Acquire-history retirement needs continued acquisitions from the
+        // current generation. Keep that output until its predecessor retires;
+        // the native backend still owns the two-generation admission limit.
+        if (Status.RuntimeSnapshot.NativePresentation.RetiringGeneration != 0 && Status.bPrepared &&
+            !bNeedsResize && CurrentExtent == Display.DrawableExtent && !Session.IsSettingsPaused())
+        {
+            Progress(false);
+            Admit(Session,Budget);
+            return;
+        }
+        Progress(true);
+        if (BusySlots() != 0 || !FirstFailure.IsEmpty()) return;
+        Renderer::FOutputTransformSettings Candidate;
+        Renderer::FResolvedOutputTransformSettings Resolved;
+        RHI::ERHIFormat Format;
+        if (!ResolveOutput(ModeTransaction->Settings,Candidate,Resolved,Format,Reason) ||
+            Resolved.ReferenceWhiteNits != ModeTransaction->Settings.NativePackingWhiteNits)
+        {
+            (void)Session.CompleteSettingsTransaction(ModeTransaction->Token,false,Status.bPrepared);
+            ModeTransaction.reset();
+            return;
+        }
+        auto Change = PresentationRequest(Resolved,Display.DrawableExtent);
+        Change.PreferredFormat = Format;
+        Change.SurfaceCapabilityGeneration = Status.Capabilities.CapabilityGeneration;
+        const auto Result = Backend->ReconfigureLabPresentation(Change,Status,&Reason);
+        if (Result == ERHIResult::NotReady || Result == ERHIResult::Timeout) return;
+        const auto Token = ModeTransaction->Token;
+        ModeTransaction.reset();
+        if (Result != ERHIResult::Success)
+        { (void)Session.CompleteSettingsTransaction(Token,false,Status.bPrepared); return; }
+        // Native replacement has succeeded: even a later CPU/frame failure
+        // cannot make the retired previous swapchain usable again.
+        OutputSettings = std::move(Candidate); OutputResolved = Resolved;
+        PresentationFormat = Format; CurrentExtent = Display.DrawableExtent;
+        const auto ExtentResult = Frames->Reconfigure(Change.Width,Change.Height,&Reason);
+        const auto FrameResult = ExtentResult == ERHIResult::Success
+            ? Frames->ReconfigureOutputSettings(OutputSettings,&Reason) : ExtentResult;
+        if (FrameResult != ERHIResult::Success)
+        {
+            (void)Session.CompleteSettingsTransaction(Token,false,false);
+            FailOperation("output frame reconfiguration",FrameResult,Reason);
+            return;
+        }
+        bNeedsResize = false;
+        (void)Session.CompleteSettingsTransaction(Token,true,true);
     }
 
     bool CanPrepareUI() const noexcept
@@ -595,6 +717,7 @@ public:
     Core::TSharedPtr<Renderer::FUIRenderSession> UI;
     Core::TSharedPtr<const Renderer::FStaticModelRenderSnapshot> Scene;
     FProductionContentComposition Composition;
+    std::optional<Application::FLabSettingsTransaction> ModeTransaction;
     Renderer::FOutputTransformSettings OutputSettings;
     Renderer::FResolvedOutputTransformSettings OutputResolved;
     FDemoLabPresentationStatus Status, BeforeShutdown, AfterShutdown;
@@ -679,7 +802,7 @@ FInteractiveLabRunResult RunInteractiveLab(
     auto Previous = Clock::now();
     auto LastProgress = Previous;
     Core::uint32 LastPresented = 0;
-    Core::FString LastUIFailure;
+    Core::FString LastUIFailure, LastSettingsFailure;
     const auto EventThreadOwnsBackend = [&Session] {
         const auto Current = Session.GetState();
         return Current == EInteractiveLabSessionState::Running || Current == EInteractiveLabSessionState::Ready ||
@@ -700,7 +823,8 @@ FInteractiveLabRunResult RunInteractiveLab(
                 Application::FLabRuntimeInfo Info;
                 Info.Workload = Config.WorkloadRevision; Info.RootIdentity = Config.ProductionRoot;
                 Info.CookedGeneration = Config.StrictGeneration;
-                Info.RequestedProfile = Owner->OutputSettings.OutputDeviceProfileId;
+                Info.RequestedProfile = Session.GetRequestedSettings()
+                    ? Session.GetRequestedSettings()->RequestedProfileId : Owner->OutputSettings.OutputDeviceProfileId;
                 Info.EffectiveProfile = Owner->OutputResolved.OutputDeviceProfileId;
                 Info.TransformVersion = Owner->OutputResolved.TransformStrategyVersion;
                 Info.ExposureStops = Owner->OutputResolved.ManualExposureStops;
@@ -711,6 +835,11 @@ FInteractiveLabRunResult RunInteractiveLab(
             }
             (void)Session.Service(Delta,EventThreadOwnsBackend() && Owner->CanPrepareUI());
             if (SessionService && EventThreadOwnsBackend()) SessionService(Session,Owner->Presented);
+            if (Session.GetSettingsFailure() != LastSettingsFailure)
+            {
+                LastSettingsFailure = Session.GetSettingsFailure();
+                if (!LastSettingsFailure.IsEmpty()) std::cerr << "InteractiveLab settings: " << LastSettingsFailure.CStr() << std::endl;
+            }
             if (Session.GetUIFailure() != LastUIFailure)
             {
                 LastUIFailure = Session.GetUIFailure();
@@ -725,10 +854,10 @@ FInteractiveLabRunResult RunInteractiveLab(
         {
             try
             {
+                Owner->ApplySessionSettings(Session, Config.IsBounded() ? Config.FrameBudget : 0);
                 if (State == EInteractiveLabSessionState::Running || State == EInteractiveLabSessionState::Ready)
                 {
-                    Owner->ApplySessionSettings(Session);
-                    Owner->Admit(Session, Config.IsBounded() ? Config.FrameBudget : 0);
+                    if (!Owner->ModeTransaction) Owner->Admit(Session, Config.IsBounded() ? Config.FrameBudget : 0);
                     if (Owner->bNeedsResize)
                     {
                         const auto& Display = Session.GetDisplayState();

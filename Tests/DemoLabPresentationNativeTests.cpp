@@ -497,6 +497,99 @@ void RunSceneLifecycle(int& Failed)
             ? ERHIShutdownAssurance::IdleAssumed : ERHIShutdownAssurance::Proven),
         "strict cooked scene lab resumes current-drawable rendering after resize/minimize and terminates with qualified native cleanup");
 }
+void RunOutputSwitches(int& Failed)
+{
+    const auto Env = [](const char* Name) { const char* Value = std::getenv(Name); return Core::FString(Value ? Value : ""); };
+    if (Env("STONER_LAB_SCENE_COOK_ROOT").IsEmpty()) return;
+    Demo::FDemoConfiguration Config;
+    Config.bInteractiveLab = true; Config.bLabUI = true;
+    Config.RunMode = Demo::EDemoRunMode::BoundedNative;
+    Config.GraphicsBackend = Env("STONER_LAB_SCENE_BACKEND") == "metal"
+        ? Demo::EDemoGraphicsBackend::Metal : Demo::EDemoGraphicsBackend::Vulkan;
+    Config.bLabForceAcquireHistory = Env("STONER_LAB_SCENE_FORCE_FALLBACK") == "1";
+    Config.Workload = Demo::EDemoWorkload::ProductionContent;
+    Config.RenderPath = Demo::EDemoRenderPath::DeferredFull;
+    Config.ClientWidth = 320; Config.ClientHeight = 180; Config.FrameBudget = 4096;
+    Config.MemorySampleInterval = 120;
+    Config.MaxMemoryGrowthBytes = 16ULL * 1024ULL * 1024ULL; Config.MaxMemoryGrowthPercent = 10;
+    Config.CookedPublicationRoot = Env("STONER_LAB_SCENE_COOK_ROOT");
+    Config.StrictGeneration = Env("STONER_LAB_SCENE_GENERATION");
+    Config.ProductionRoot = Env("STONER_LAB_SCENE_ROOT");
+    Config.WorkloadRevision = Env("STONER_LAB_SCENE_WORKLOAD");
+    Config.TargetProfilePath = Env("STONER_LAB_SCENE_PROFILE");
+    Config.LeaseCoordinationRoot = Env("STONER_LAB_SCENE_LEASE_ROOT");
+    std::vector<Core::FString> Profiles;
+    if (Config.GraphicsBackend == Demo::EDemoGraphicsBackend::Metal)
+        Profiles = {"Hdr.PQ.Rec2020.1000.v1", "Hdr.PQ.Rec2020.2000.v1",
+            "Hdr.Linear.1000.v1", "Hdr.Linear.2000.v1"};
+    Profiles.insert(Profiles.end(),{"Sdr.BT709.v1","Sdr.ExplicitGamma22.v1","Sdr.sRGB.v1"});
+    Core::usize Step = 0;
+    Core::uint32 EffectiveAt = 0;
+    Core::uint64 LastMode = 1;
+    Core::FString PreviousProfile;
+    Core::usize Switched = 0, Unsupported = 0;
+    bool Requested = false, Observed = false, Passed = true;
+    auto Started = std::chrono::steady_clock::now();
+    const auto Result = Demo::RunInteractiveLab(Config, Demo::FDemoBackendFactory(), {},
+        [&](Application::FInteractiveLabSession& Session, Core::uint32 Presented) {
+            if (std::chrono::steady_clock::now() - Started > std::chrono::seconds(20))
+            { Passed = false; (void)Session.RequestExit("output switch fixture timed out"); return; }
+            const auto* Effective = Session.GetEffectiveSettings();
+            if (!Effective || Presented < 2) return;
+            if (Step == Profiles.size()) { (void)Session.RequestExit(); return; }
+            if (!Requested)
+            {
+                if (Session.GetState() != Application::EInteractiveLabSessionState::Ready &&
+                    Session.GetState() != Application::EInteractiveLabSessionState::Running) return;
+                auto Edit = *Effective;
+                Edit.DisplayGeneration = Session.GetDisplayState().DisplayGeneration;
+                Edit.CameraRevision = Session.GetCameraState().CameraRevision;
+                Edit.RequestedProfileId = Profiles[Step];
+                Edit.ExposureStops = 1.0f;
+                PreviousProfile = Effective->EffectiveProfileId;
+                LastMode = Effective->OutputModeGeneration;
+                Requested = Session.RequestSettings(Edit);
+                if (!Requested)
+                {
+                    if (Session.GetSettingsFailure() == "Requested output unavailable; no permitted output transition")
+                    {
+                        Passed &= Session.GetEffectiveSettings()->EffectiveProfileId == PreviousProfile &&
+                            !Session.GetPendingSettings();
+                        std::cout << "[INFO] output unsupported=" << Profiles[Step].CStr() << '\n';
+                        ++Unsupported; ++Step;
+                    }
+                    else { Passed = false; (void)Session.RequestExit("output switch request rejected"); }
+                }
+                return;
+            }
+            if (Effective->EffectiveProfileId != Profiles[Step]) return;
+            if (!Observed)
+            {
+                Passed &= Effective->OutputModeGeneration >= LastMode && !Session.IsSettingsPaused();
+                if (PreviousProfile != Profiles[Step])
+                { Passed &= Effective->OutputModeGeneration > LastMode; ++Switched; }
+                LastMode = Effective->OutputModeGeneration; EffectiveAt = Presented; Observed = true;
+            }
+            if (Presented >= EffectiveAt + 2)
+            {
+                std::cout << "[INFO] output active=" << Profiles[Step].CStr()
+                          << " mode=" << LastMode << " presented=" << Presented << '\n';
+                ++Step; Requested = Observed = false;
+            }
+        });
+    const auto& Ops = Result.BeforeNativeShutdown.RuntimeSnapshot.NativeOperations;
+    const auto& Native = Result.AfterNativeShutdown.RuntimeSnapshot.NativePresentation;
+    std::cout << "[INFO] output mode changes=" << Switched << " unavailable=" << Unsupported << '\n';
+    Check(Failed, Passed && Step == Profiles.size() && Result.ExitCode == Demo::EDemoExitCode::Success &&
+        Result.FirstFailure.IsEmpty() && Result.LastRecordedExposureStops == 1.0f && Result.UIFramesSubmitted > 0 &&
+        Result.BeforeNativeShutdown.ResolvedState.NativeEncoding == ERHIPresentationNativeEncoding::SdrExplicit,
+        "supported native output profiles commit and present with UI while unavailable profiles preserve effective state");
+    Check(Failed, Ops.bAvailable && Ops.ImageReadbackCopyCount == 0 && Ops.ReadbackMapCount == 0 &&
+        Ops.ReadbackWaitCount == 0 && Ops.QueueIdleCallCount == 0 && Ops.DeviceIdleCallCount == 0 &&
+        Native.bAvailable && Native.ResidualNativeOwners == 0 && Native.PresentationOwnerCount == 0 &&
+        Native.PeakEstimatedColorBytes <= 512ULL * 1024 * 1024,
+        "native output switching keeps bounded presentation storage without readbacks or live idle waits");
+}
 } // namespace
 
 int RunDemoLabPresentationNativeTests()
@@ -513,5 +606,6 @@ int RunDemoLabPresentationNativeTests()
     RunCase(Failed, Demo::EDemoGraphicsBackend::Metal, false);
 #endif
     RunSceneLifecycle(Failed);
+    RunOutputSwitches(Failed);
     return Failed == 0 ? 0 : 1;
 }
