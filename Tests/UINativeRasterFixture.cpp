@@ -116,9 +116,25 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
         };
         RunDiagnostic();
     }
-    for (float Scale : {1.0f,1.5f,2.0f}) for (uint8 Alpha : {uint8{0},uint8{128},uint8{255}})
+    struct FRasterCase
     {
-        std::cout << "[INFO] UI raster scale=" << Scale << " alpha=" << static_cast<unsigned>(Alpha) << '\n';
+        float Scale; uint8 Alpha; bool Gradient;
+        const char* Profile="Sdr.sRGB.v1";
+        float White=100, Multiplier=1;
+    };
+    const FRasterCase Cases[]={{1,0,false},{1,128,false},{1,255,false},
+        {1.5f,0,false},{1.5f,128,false},{1.5f,255,false},
+        {2,0,false},{2,128,false},{2,255,false},{1,255,true},
+        {1,255,true,"Sdr.sRGB.v1",100,0.25f},
+        {1,128,true,"Hdr.PQ.Rec2020.1000.v1",100,2},
+        {1,255,true,"Hdr.Linear.1000.v1",160,1}};
+    for (const auto& Case : Cases)
+    {
+        const auto Scale=Case.Scale;
+        const auto Alpha=Case.Alpha;
+        std::cout << "[INFO] UI raster scale=" << Scale << " alpha=" << static_cast<unsigned>(Alpha)
+            << " vertex-gradient=" << Case.Gradient << " profile=" << Case.Profile
+            << " white=" << Case.White << " multiplier=" << Case.Multiplier << '\n';
         const uint32 Extent = static_cast<uint32>(16 * Scale);
         const auto Before = Device->GetRuntimeSnapshot().NativeOperations;
         FUITextureRegistry Registry(Device); Registry.BeginEligibleFrame(1,true);
@@ -134,9 +150,14 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
         FUITextureLease Leases[] = {Registry.Acquire(Color.TextureId),Registry.Acquire(Coverage.TextureId)};
         FUIDrawSnapshot Snapshot(1,1,1,1);
         // Unreferenced sentinels make ignoring either indexed offset observable.
-        const FUIVertex Vertices[] = {{{999,999},{0,0},0},
+        FUIVertex Vertices[] = {{{999,999},{0,0},0},
             {{10,20},{0.5f,0.5f},0xff808080},{{26,20},{0.5f,0.5f},0xff808080},
             {{10,36},{0.5f,0.5f},0xff808080},{{26,36},{0.5f,0.5f},0xff808080}};
+        if (Case.Gradient)
+        {
+            Vertices[1].PackedRGBA8=Vertices[3].PackedRGBA8=0xff000000;
+            Vertices[2].PackedRGBA8=Vertices[4].PackedRGBA8=0xffffffff;
+        }
         const uint32 Indices[] = {999,999,999,0,1,2,2,1,3};
         FUIDrawCommand Left; Left.FirstIndex = 3; Left.BaseVertex = 1; Left.IndexCount = 6;
         Left.TextureId = Color.TextureId; Left.ClipRect = {9.25f,19.25f,18.2f,28.2f};
@@ -150,9 +171,13 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
         Desc.Format = ERHIFormat::R16G16B16A16_Float;
         Desc.Usage = ERHITextureUsage::ColorAttachment | ERHITextureUsage::Sampled;
         const auto Scene = Device->CreateTexture(Desc).Object;
-        FUICompositionSettings Settings; Settings.OutputProfileId = "Sdr.sRGB.v1";
-        Settings.BlendDomain = ERenderGraphColorDomain::DisplayLinearRec709D65;
-        Settings.UIReferenceWhiteNits = Settings.NativePackingWhiteNits = 100; Settings.DisplayGeneration = 1;
+        FUICompositionSettings Settings; Settings.OutputProfileId = Case.Profile;
+        const FOutputTransformSettingsValidator ProfileValidator;
+        const auto* Profile=ProfileValidator.FindProfile(Settings.OutputProfileId);
+        if (!Check(Profile!=nullptr,"native color fixture resolves its output profile")) continue;
+        Settings.BlendDomain = Profile->DisplayLinearDomain;
+        Settings.UIReferenceWhiteNits = Settings.NativePackingWhiteNits = Case.White;
+        Settings.UIWhiteMultiplier=Case.Multiplier; Settings.DisplayGeneration = 1;
         FUIDrawValidationContext Validation{1,1,1,0,Extent,Extent,{}};
         FUICompositionFrame Frame;
         if (!Check(Published && Scene && FUICompositionExecutor::Prepare(Device,Snapshot,Validation,Settings,
@@ -174,7 +199,7 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
         Recorded = Recorded && Command->RecordLayoutTransition(Transition) == ERHIResult::Success &&
             FUICompositionExecutor::Record(Frame,Registry,Command,Submission) == ERHIResult::Success &&
             Command->End() == ERHIResult::Success;
-        const bool ReplaceFont = Scale == 1.0f && Alpha == 128;
+        const bool ReplaceFont = Scale == 1.0f && Alpha == 128 && !Case.Gradient;
         FUICompositionFrame ReplacementFrame;
         TSharedPtr<IRHICommandBuffer> ReplacementCommand;
         TSharedPtr<IRHIFence> ReplacementFence;
@@ -250,7 +275,7 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
         {
             const float Gray = std::pow((128.0f/255.0f+0.055f)/1.055f,2.4f);
             const float AlphaValue = Alpha/255.0f;
-            const float Source[] = {Gray*Gray*0.5f,0,Gray*0.5f};
+
             const float Background[] = {0.125f,0.25f,0.5f};
             const int LeftEnd = static_cast<int>(std::ceil(8.2f*Scale));
             const int RightStart = static_cast<int>(std::floor(8.2f*Scale));
@@ -262,11 +287,24 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
                 const int Exp = (V>>10)&31;
                 const float Actual = (V&32768 ? -1.0f : 1.0f)*std::ldexp(static_cast<float>((V&1023)+(Exp?1024:0)),Exp?Exp-25:-24);
                 if (C==3) { Opaque &= Actual == 1.0f; continue; }
+                // Black/white endpoint decoding is exact. Linear interpolation
+                // must yield the pixel-center fraction, not decodeSrgb(fraction).
+                const float Vertex=Case.Gradient ? (static_cast<float>(X)+0.5f)/Extent : Gray;
+                const float UnitWhite=(Profile->DynamicRange==EOutputDynamicRange::SDR ? 1 : Case.White)*Case.Multiplier;
+                float Source[]={Vertex*Gray*0.5f,0,Vertex*0.5f};
+                if (Profile->DisplayLinearDomain==ERenderGraphColorDomain::DisplayLinearRec2020D65)
+                {
+                    const float R=Source[0],B=Source[2];
+                    Source[0]=0.62740389593469903f*R+0.04331306568741722f*B;
+                    Source[1]=0.06909728935823199f*R+0.01136231556630916f*B;
+                    Source[2]=0.01639143887515023f*R+0.89559525324762401f*B;
+                }
+                for (auto& Value : Source) Value*=UnitWhite;
                 float Expected = Background[C];
                 if (OutputIndex == 0 && static_cast<int>(X)<LeftEnd && static_cast<int>(Y)<LeftEnd)
                     Expected = Source[C]*AlphaValue + Background[C]*(1-AlphaValue);
                 if (static_cast<int>(X)>=RightStart)
-                    Expected = OutputIndex == 0 ? Gray : Gray*(64.0f/255.0f)+Background[C]*(191.0f/255.0f);
+                    Expected = OutputIndex == 0 ? Vertex*UnitWhite : Vertex*UnitWhite*(64.0f/255.0f)+Background[C]*(191.0f/255.0f);
                 const bool Match = std::isfinite(Actual) && std::abs(Actual-Expected) <= 0.002f+0.005f*std::abs(Expected);
                 if (!Match && RGB) std::cout << "[INFO] first mismatch x=" << X << " y=" << Y << " channel=" << C
                     << " expected=" << Expected << " actual=" << Actual << '\n';
