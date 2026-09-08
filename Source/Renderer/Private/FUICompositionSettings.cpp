@@ -30,12 +30,14 @@ bool FUICompositionSettings::IsValid() const noexcept
     case EOutputDynamicRange::SDR:
         // SDR UI is normalized display-linear Rec.709 in the shader, while
         // these copied fields retain the profile's physical reference white.
-        return UIReferenceWhiteNits == Profile->ReferenceWhiteNits;
+        return UIReferenceWhiteNits == Profile->ReferenceWhiteNits &&
+            NativePackingWhiteNits == Profile->ReferenceWhiteNits;
     case EOutputDynamicRange::HDR:
         if (Profile->MetadataPolicy == EOutputMetadataPolicy::HDR10Static)
         {
             // PQ's reference white is the frozen 100-nit UI contribution.
-            return UIReferenceWhiteNits == Profile->ReferenceWhiteNits;
+            return UIReferenceWhiteNits == Profile->ReferenceWhiteNits &&
+                NativePackingWhiteNits == Profile->ReferenceWhiteNits;
         }
         if (Profile->MetadataPolicy == EOutputMetadataPolicy::EDRState)
         {
