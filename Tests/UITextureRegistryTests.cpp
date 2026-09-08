@@ -259,6 +259,85 @@ int RunUITextureRegistryTests()
         Check(Registry.GetStatistics().Generations == 0,
             "final render completion retires the unleased destroyed generation");
     }
+    {
+        FUITextureRegistry Registry(Device);
+        Registry.BeginEligibleFrame(1,true);
+        FRenderGraph Graph("GPU widget");
+        auto Builder=Graph.CreateBuilder();
+        const auto Usage=ERHITextureUsage::ColorAttachment | ERHITextureUsage::Sampled;
+        const auto Resource=Builder.CreateTexture("widget",4,4,ERHIFormat::R8G8B8A8_sRGB,
+            ERHISampleCount::One,Usage,ERenderGraphColorDomain::EncodedSrgb);
+        auto ProducerDesc=FRenderGraphPassDesc::Make("diagnostic",ERenderGraphPassType::Graphics);
+        ProducerDesc.Accesses.push_back({Resource,ERenderGraphAccessType::Write,ERenderGraphResourceState::Write});
+        const auto Producer=Builder.AddPass(ProducerDesc);
+        auto ConsumerDesc=FRenderGraphPassDesc::Make("terminal UI",ERenderGraphPassType::Graphics);
+        ConsumerDesc.bPreserveForSideEffects=true;
+        ConsumerDesc.Accesses.push_back({Resource,ERenderGraphAccessType::Read,ERenderGraphResourceState::Read});
+        const auto Consumer=Builder.AddPass(ConsumerDesc);
+        Check(Graph.Compile()==ERenderGraphResult::Success,"GPU widget compiles a producer-before-sample dependency");
+        FRHITextureDesc Desc; Desc.Width=Desc.Height=4; Desc.Format=ERHIFormat::R8G8B8A8_sRGB; Desc.Usage=Usage;
+        auto Texture=Device->CreateTexture(Desc).Object;
+        FUIGpuTextureRegistration Request{1,{},Texture,Resource,Producer};
+        FUIGpuTextureContext Context{&Graph,Consumer,1,2,3};
+        FUITextureId Id;
+        auto Wrong=Context; Wrong.Consumer=Producer;
+        Check(Registry.RegisterGpuTexture(Request,Wrong,Id)==ERHIResult::InvalidState && !Id.IsValid(),
+            "GPU widget rejects missing or self-referential consumer dependency");
+        Check(Registry.RegisterGpuTexture(Request,Context,Id)==ERHIResult::Success && Id.IsValid() &&
+            Registry.GetStatistics().GPUBytes==64 && Registry.GetStatistics().CPUShadowBytes==0 &&
+            Registry.GetStatistics().StagingBytes==0,"GPU registration retains a sampled sRGB target without CPU shadow or upload");
+        FUITextureId Rejected;
+        Request.Previous=Id;
+        Check(Registry.RegisterGpuTexture(Request,Context,Rejected)==ERHIResult::NotReady && !Rejected.IsValid(),
+            "a live GPU target cannot be registered again for rewriting under a new generation");
+        Request.Previous={}; Request.LogicalSlot=2;
+        auto InvalidDesc=Desc; InvalidDesc.Format=ERHIFormat::R8G8B8A8_UNorm;
+        Request.Texture=Device->CreateTexture(InvalidDesc).Object;
+        Check(Registry.RegisterGpuTexture(Request,Context,Rejected)==ERHIResult::InvalidState,
+            "encoded diagnostic pixels require sampled sRGB rather than encoded UNorm filtering");
+        Request.Texture=Texture; Request.LogicalSlot=1;
+        Wrong=Context; ++Wrong.FrameId;
+        Check(Registry.RegisterGpuTexture(Request,Wrong,Rejected)==ERHIResult::NotReady,
+            "GPU registration cannot use a different eligible frame");
+        auto Lease=Registry.Acquire(Id);
+        Check(Registry.CanRecordSubmission({&Lease,1})==ERHIResult::InvalidState,
+            "GPU widget sampling requires its exact graph and frame identities");
+        Wrong=Context; ++Wrong.SettingsRevision;
+        Check(Registry.CanRecordSubmission({&Lease,1},&Wrong)==ERHIResult::InvalidState &&
+            Registry.CanRecordSubmission({&Lease,1},&Context)==ERHIResult::Success,
+            "stale settings cannot sample a GPU widget generation");
+        Wrong=Context; ++Wrong.DisplayGeneration;
+        Check(Registry.CanRecordSubmission({&Lease,1},&Wrong)==ERHIResult::InvalidState,
+            "a changed display generation invalidates GPU widget sampling");
+        FUITextureRequest CpuDestroy; CpuDestroy.RequestId=900; CpuDestroy.Operation=EUITextureOperation::Destroy;
+        CpuDestroy.TextureId=Id; CpuDestroy.ExpectedGeneration=Id.Generation;
+        Check(Registry.Prepare(CpuDestroy).Result==ERHIResult::InvalidState && Registry.Acquire(Id).IsValid(),
+            "CPU texture acknowledgements cannot destroy Renderer-owned widget generations");
+        auto Command=Device->CreateCommandBuffer(ERHIQueueType::Graphics).Object;
+        (void)Command->Begin(); FUITextureSubmission Submission;
+        Check(Registry.RecordSubmission({&Lease,1},Command,Submission,&Context)==ERHIResult::Success &&
+            std::dynamic_pointer_cast<Backend::Vulkan::FVulkanCommandBuffer>(Command)->GetRecordedCommands().empty(),
+            "GPU registration records no upload, readback or implicit transition");
+        auto Fence=Device->CreateFence(false).Object;
+        (void)Submission.Commit(Fence);
+        Check(Registry.RetireGpuTexture(Id)==ERHIResult::NotReady && !Registry.Acquire(Id).IsValid(),
+            "GPU unregistration stops new leases while preserving queued consumers");
+        Lease={}; Submission={}; Registry.Poll();
+        Check(Registry.GetStatistics().Generations==1,"GPU generation remains retained until its render fence completes");
+        (void)Fence->Signal(); Registry.Poll();
+        Check(Registry.GetStatistics().Generations==0 && Texture,
+            "GPU retirement releases the registry lease without destroying the target owner's texture");
+        Request.Texture=Texture; Request.Previous={};
+        FUITextureId Next;
+        Check(Registry.RegisterGpuTexture(Request,Context,Next)==ERHIResult::Success && Next.IsNewerThan(Id),
+            "fully retired GPU storage can be registered with a new monotonic texture identity");
+        auto NextLease=Registry.Acquire(Next);
+        (void)Builder.AddDependency(Consumer,Producer);
+        Check(Graph.Compile()!=ERenderGraphResult::Success &&
+            Registry.CanRecordSubmission({&NextLease,1},&Context)==ERHIResult::InvalidState,
+            "a graph made cyclic after registration cannot authorize GPU sampling");
+
+    }
     (void)Device->Shutdown();
     return Failed;
 }

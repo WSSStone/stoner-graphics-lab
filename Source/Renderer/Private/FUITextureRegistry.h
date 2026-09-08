@@ -3,11 +3,26 @@
 #include "RHI/IRHIDevice.h"
 #include "RHI/IRHICommandBuffer.h"
 #include "RHI/IRHIFence.h"
+#include "Renderer/FRenderGraph.h"
 #include <array>
 #include <span>
 
 namespace Stoner::Renderer
 {
+struct FUIGpuTextureContext
+{
+    const FRenderGraph* Graph = nullptr;
+    FRenderGraphPassHandle Consumer;
+    Stoner::Core::uint64 FrameId = 0, SettingsRevision = 0, DisplayGeneration = 0;
+};
+struct FUIGpuTextureRegistration
+{
+    Stoner::Core::uint32 LogicalSlot = 0;
+    FUITextureId Previous;
+    Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> Texture;
+    FRenderGraphResourceHandle Resource;
+    FRenderGraphPassHandle Producer;
+};
 struct FUITextureRegistryStatistics
 {
     Stoner::Core::uint32 Generations = 0;
@@ -53,12 +68,17 @@ public:
     FUITextureRegistry& operator=(const FUITextureRegistry&) = delete;
     void BeginEligibleFrame(Stoner::Core::uint64 FrameId, bool bEligible) noexcept;
     [[nodiscard]] FUITextureResult Prepare(const FUITextureRequest& Request);
+    // Renderer-owned targets have no CPU request/acknowledgement or staging.
+    [[nodiscard]] Stoner::RHI::ERHIResult RegisterGpuTexture(
+        const FUIGpuTextureRegistration&, const FUIGpuTextureContext&, FUITextureId& OutId);
+    [[nodiscard]] Stoner::RHI::ERHIResult RetireGpuTexture(FUITextureId) noexcept;
     [[nodiscard]] FUITextureLease Acquire(FUITextureId Id) const noexcept;
-    [[nodiscard]] Stoner::RHI::ERHIResult CanRecordSubmission(std::span<const FUITextureLease> Leases) const noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult CanRecordSubmission(std::span<const FUITextureLease> Leases,
+        const FUIGpuTextureContext* Context = nullptr) const noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult RecordSubmission(
         std::span<const FUITextureLease> Leases,
         const Stoner::Core::TSharedPtr<Stoner::RHI::IRHICommandBuffer>& Command,
-        FUITextureSubmission& OutSubmission);
+        FUITextureSubmission& OutSubmission, const FUIGpuTextureContext* Context = nullptr);
     // Private Renderer binding lookup preserves registry/lease identity checks.
     [[nodiscard]] Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> ResolveTexture(
         const FUITextureLease& Lease) const noexcept;
