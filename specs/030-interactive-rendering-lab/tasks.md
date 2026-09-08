@@ -122,6 +122,8 @@
 - [X] T035 [P] [US2] Add first-click, held-key quarantine, drag-outside, wheel, queued focus-loss/down, Escape/F1, UTF-8/clipboard and input-overflow fixtures in `Tests/ApplicationUIInputTests.cpp`. (depends on T034)
 - [ ] T036 [P] [US2] Add copied-packet range/offset/scissor, reset-callback, texture create/update/destroy and active-retired budgets and render-complete/present-pending texture retirement fixtures in `Tests/RendererUIDrawTests.cpp`. (depends on T034)
 
+**T036/T050 work in progress**: Copied-packet/index/base-vertex, signed/fractional/extreme clipping, typed reset, identity and declared-generation lease checks now have 25 executable fixtures and a private validator. Texture create/update/destroy, active-retired budgets and actual completion/lease tests remain pending, so T036/T050 are not marked complete. T044 implementation inspection found that existing Metal UploadTexture waits synchronously; UI updates must instead record a bounded buffer-to-texture copy into the deferred command stream, preserving the existing synchronous API for its callers. Add only the required backend-neutral command/region with default Unsupported and native Vulkan/Metal recording; retain upload staging through the existing submission fence. This is part of T044's upload-before-draw ownership work, not a separate upload service or optional-extension gate.
+
 ### Implementation and verification
 
 - [X] T037 [US2] Vendor unmodified ImGui v1.92.5 commit 6d910d5487d11ca567b61c7824b0c78c569d62f0 core and Cousine font/notices; record verified per-file hashes and source in `ThirdParty/imgui/UPSTREAM.md` and `ThirdParty/imgui/manifest.json`. (depends on T035)

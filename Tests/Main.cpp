@@ -112,6 +112,7 @@
 #include <vector>
 
 [[nodiscard]] int RunRHILabContractTests();
+[[nodiscard]] int RunRendererUIDrawTests();
 [[nodiscard]] int RunApplicationUIInputTests();
 [[nodiscard]] int RunInteractiveLabValueTests();
 [[nodiscard]] int RunInteractiveLabLifecycleTests();
@@ -388,6 +389,7 @@ int main(int ArgCount, char* Arguments[])
     FTestSuiteRegistry Registry;
     Registry.Register("application-scene", [] { return RunApplicationSceneEcsTests().Failed == 0 ? 0 : 1; });
     Registry.Register("application-window", [] { return RunApplicationWindowInputTests().Failed == 0 ? 0 : 1; });
+    Registry.Register("renderer-ui-draw", [] { return RunRendererUIDrawTests(); });
     Registry.Register("application-ui-input", [] { return RunApplicationUIInputTests(); });
     Registry.Register("application-free-camera", [] {
         return RunApplicationFreeCameraTests();
