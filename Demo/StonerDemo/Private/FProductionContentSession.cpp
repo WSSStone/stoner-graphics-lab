@@ -437,6 +437,17 @@ EAssetResult FProductionContentSession::Load(
             if (ModelClosure.insert(Dependency.AssetId).second)
                 Pending.push_back(Dependency.AssetId);
     }
+    if (Config.bCollectSourceIdentity)
+    {
+        const auto IdentityResult = BuildProductionSourceIdentity(
+            Validated.Manifest, *Root, Candidate.SourceIdentity);
+        if (IdentityResult != EAssetResult::Success)
+        {
+            Impl_->Inspection.FirstFailure = "model-source-identity-invalid";
+            (void)Shutdown();
+            return IdentityResult;
+        }
+    }
     struct FPendingRecord
     {
         const FAssetCookManifestRecord* Record = nullptr;

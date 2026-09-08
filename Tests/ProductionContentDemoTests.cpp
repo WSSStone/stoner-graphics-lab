@@ -3,6 +3,7 @@
 #include "FDemoConfiguration.h"
 #include "FDemoValidationMonitor.h"
 #include "FProductionContentComposition.h"
+#include "FProductionContentSession.h"
 #include "FProductionContentDeferredExecution.h"
 #include "FProductionSubmissionHarness.h"
 #include "FLabProductionFrameContext.h"
@@ -1072,6 +1073,46 @@ void TestInteractiveLabConfiguration(FProductionContentDemoTestResult& Result)
 FProductionContentDemoTestResult RunProductionContentDemoTests()
 {
     FProductionContentDemoTestResult Result;
+    {
+        using namespace Asset;
+        const auto MakeId = [](const char* Name) {
+            FAssetId Id;
+            (void)FAssetId::Create("StaticModel", Name, std::nullopt, Id);
+            return Id;
+        };
+        const auto Digest = [](Core::uint8 Byte) { return FAssetDigest::FromBytes({&Byte, 1}); };
+        FAssetCookManifest Manifest;
+        FAssetCookManifestRecord RootRecord, Child;
+        RootRecord.AssetId = MakeId("root"); RootRecord.SourceVersion = Digest(1);
+        Child.AssetId = MakeId("child"); Child.SourceVersion = Digest(2);
+        RootRecord.Dependencies.push_back({Child.AssetId, "model", {}});
+        RootRecord.SourceManifest.push_back({MakeId("source"), Digest(3), "primary"});
+        Manifest.Records = {RootRecord, Child};
+        FAssetDigest Original, Other;
+        Record(Result, BuildProductionSourceIdentity(Manifest, RootRecord.AssetId, Original) == EAssetResult::Success,
+            "source identity hashes a selected root and its source/version closure");
+        auto Equivalent = Manifest;
+        std::reverse(Equivalent.Records.begin(), Equivalent.Records.end());
+        Equivalent.GenerationId = Digest(9);
+        for (auto& Entry : Equivalent.Records) { Entry.EnvelopeDigest = Digest(8); Entry.PayloadBytes = 999; }
+        auto Unrelated = Child; Unrelated.AssetId = MakeId("unrelated"); Unrelated.SourceVersion = Digest(7);
+        Equivalent.Records.push_back(Unrelated);
+        Record(Result, BuildProductionSourceIdentity(Equivalent, RootRecord.AssetId, Other) == EAssetResult::Success && Other == Original,
+            "source identity excludes target payloads, generation, record order and unrelated roots");
+        Equivalent = Manifest; Equivalent.Records[1].SourceVersion = Digest(4);
+        Record(Result, BuildProductionSourceIdentity(Equivalent, RootRecord.AssetId, Other) == EAssetResult::Success && Other != Original,
+            "source identity changes when a transitive source version changes");
+        Equivalent = Manifest; Equivalent.Records.pop_back(); Other = Original;
+        Record(Result, BuildProductionSourceIdentity(Equivalent, RootRecord.AssetId, Other) == EAssetResult::UnresolvedDependency && Other == Original,
+            "missing source closure rejects without replacing the prior digest");
+        Equivalent = Manifest;
+        Equivalent.Records[1].SourceManifest.push_back({RootRecord.AssetId, Digest(5), "conflict"});
+        Record(Result, BuildProductionSourceIdentity(Equivalent, RootRecord.AssetId, Other) == EAssetResult::SourceChanged && Other == Original,
+            "conflicting versions of one source identity reject the entire closure");
+        Equivalent = Manifest; Equivalent.Records.push_back(Child);
+        Record(Result, BuildProductionSourceIdentity(Equivalent, RootRecord.AssetId, Other) == EAssetResult::InvalidIdentity && Other == Original,
+            "duplicate manifest identities cannot hide ambiguous source versions");
+    }
     TestInteractiveLabConfiguration(Result);
     TestPreviewSubmissionHarness(Result);
     Core::FString Reason;

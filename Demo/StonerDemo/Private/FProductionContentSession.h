@@ -17,6 +17,7 @@ struct FProductionContentSessionConfig
     Core::uint32 WorkerCount = 4;
     Core::uint64 RequestTimeoutMilliseconds = 30000;
     bool bLoadManifestDependencyFirst = false;
+    bool bCollectSourceIdentity = false;
     bool bReuseCookedEnvelopeAuthentication = false;
 
     [[nodiscard]] bool IsValid() const noexcept;
@@ -36,9 +37,16 @@ struct FProductionContentSessionConfig
     Asset::EAssetGraphicsBackend GraphicsBackend,
     Asset::EAssetTargetCpuArchitecture CpuArchitecture) noexcept;
 
+// Hashes only the selected root source identity/version closure. Output is
+// unchanged on failure; target-derived bytes and unrelated roots are excluded.
+[[nodiscard]] Asset::EAssetResult BuildProductionSourceIdentity(
+    const Asset::FAssetCookManifest& Manifest, const Asset::FAssetId& Root,
+    Asset::FAssetDigest& OutDigest);
+
 struct FProductionContentLoadedClosure
 {
     Asset::FAssetDigest GenerationIdentity;
+    Asset::FAssetDigest SourceIdentity;
     Core::TSharedPtr<const Asset::FStaticModelAsset> Model;
     Renderer::FStaticModelRealizationDependencies Dependencies;
     Core::TArray<Core::TSharedPtr<const Asset::FShaderAsset>> RenderShaders;

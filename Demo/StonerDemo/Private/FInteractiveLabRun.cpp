@@ -140,6 +140,7 @@ public:
         LoadConfig.PublicationRoot = Config.CookedPublicationRoot;
         LoadConfig.LeaseCoordinationRoot = Config.LeaseCoordinationRoot;
         LoadConfig.RootAssetIdentity = Config.ProductionRoot;
+        LoadConfig.bCollectSourceIdentity = true;
         LoadConfig.ExpectedGeneration = Generation;
         LoadConfig.TargetEvidence = Core::MakeShared<const Asset::FAssetTargetProfileEvidence>(Evidence);
         Assets = Core::MakeShared<FProductionContentSession>();
