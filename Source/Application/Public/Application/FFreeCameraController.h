@@ -52,6 +52,11 @@ public:
     [[nodiscard]] bool SetNavigationParameters(float MovementSpeed, float VerticalFovRadians,
         const FWindowDisplayState& CurrentDisplay, FCameraChangeSet* OutChangeSet = nullptr) noexcept;
 
+    // Restore persistent scalar fields only. The caller may prepare this on a
+    // controller copy and publish it together with a settings transaction.
+    [[nodiscard]] bool RestorePreset(const FFreeCameraState& Preset,
+        const FWindowDisplayState& CurrentDisplay, FCameraChangeSet* OutChangeSet = nullptr) noexcept;
+
     [[nodiscard]] const FFreeCameraState& GetState() const noexcept
     {
         return State;

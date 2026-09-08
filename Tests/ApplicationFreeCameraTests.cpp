@@ -411,6 +411,41 @@ void TestNavigationParameters(FApplicationFreeCameraTestResult& Result)
         Controller.GetState().Position.NearlyEquals(Pose) && Controller.Reset(Display),
         "explicit navigation commands work without focus while unfocused movement remains suppressed");
 }
+void TestPresetRestore(FApplicationFreeCameraTestResult& Result)
+{
+    FFreeCameraController Controller;
+    auto Display = MakeDisplay({1024,1024});
+    const auto Initial = MakeInitialCamera();
+    (void)Controller.Initialize(Initial,Display);
+    auto Saved = Initial;
+    Saved.Position = {2,3,4}; Saved.MovementSpeed = 7;
+    Saved.CameraRevision = 0; Saved.DrawableExtent = {};
+    Saved.Projection = FMatrix4x4::Identity();
+    FCameraChangeSet Change;
+    Record(Result,Controller.RestorePreset(Saved,Display,&Change) && Controller.GetState().IsValid() &&
+        Controller.GetState().Position.NearlyEquals(Saved.Position) && Controller.GetState().MovementSpeed == 7 &&
+        Change.HasFlag(ECameraChangeFlags::PresetRestore) && Change.HasFlag(ECameraChangeFlags::Cut),
+        "preset restore rebuilds ignored derived state and records a camera cut");
+    const auto Previous = Controller.GetState();
+    Display = MakeDisplay({2048,1024});
+    Record(Result,Controller.RestorePreset(Saved,Display,&Change) &&
+        Controller.GetState().Projection.NearlyEquals(ExpectedProjection(0.8660254f),MatrixTolerance) &&
+        Controller.GetState().VerticalFovRadians == Saved.VerticalFovRadians &&
+        Controller.GetState().CameraRevision == Previous.CameraRevision+1 &&
+        Change.HasFlag(ECameraChangeFlags::ExtentChanged),
+        "preset restore preserves vertical FOV and rebuilds current-aspect projection in one revision");
+    const auto Stable = Controller.GetState();
+    Display.bMinimized=true; Display.DrawableExtent={};
+    Record(Result,!Controller.RestorePreset(Saved,Display,&Change) &&
+        Controller.GetState().CameraRevision == Stable.CameraRevision && Change.Flags == ECameraChangeFlags::None,
+        "zero drawable cannot partially restore the camera");
+    Display = MakeDisplay({2048,1024});
+    Saved.NearPlane = Saved.FarPlane;
+    Record(Result,!Controller.RestorePreset(Saved,Display) && Controller.GetState().CameraRevision == Stable.CameraRevision,
+        "invalid preset clip planes leave camera unchanged");
+    Record(Result,Controller.Reset(Display) && Controller.GetState().Position.NearlyEquals(Initial.Position),
+        "restoring a preset does not replace the startup reset camera");
+}
 } // namespace
 
 int RunApplicationFreeCameraTests()
@@ -423,6 +458,7 @@ int RunApplicationFreeCameraTests()
     TestLookAndFov(Result);
     TestResetAndCadence(Result);
     TestNavigationParameters(Result);
+    TestPresetRestore(Result);
     std::cout << "[INFO] Application free-camera tests passed="
               << Result.Passed << " failed=" << Result.Failed << '\n';
     return Result.Failed == 0 ? 0 : 1;

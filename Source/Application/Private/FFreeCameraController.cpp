@@ -313,6 +313,37 @@ bool FFreeCameraController::SetNavigationParameters(float MovementSpeed, float V
     return true;
 }
 
+bool FFreeCameraController::RestorePreset(const FFreeCameraState& Preset,
+    const FWindowDisplayState& Display, FCameraChangeSet* OutChangeSet) noexcept
+{
+    if (OutChangeSet) *OutChangeSet = {};
+    if (!bInitialized || !Display.IsValid() || Display.bMinimized || !Display.DrawableExtent.IsPositive() ||
+        !std::isfinite(Preset.YawRadians) || !std::isfinite(Preset.PitchRadians) ||
+        Preset.PitchRadians < MinimumPitch || Preset.PitchRadians > MaximumPitch ||
+        !std::isfinite(Preset.VerticalFovRadians) || Preset.VerticalFovRadians < MinimumFov || Preset.VerticalFovRadians > MaximumFov ||
+        !std::isfinite(Preset.NearPlane) || !std::isfinite(Preset.FarPlane) ||
+        Preset.NearPlane < 0.0001f || Preset.NearPlane >= Preset.FarPlane || Preset.FarPlane > 1000000.0f ||
+        !std::isfinite(Preset.MovementSpeed) || Preset.MovementSpeed < 0.01f || Preset.MovementSpeed > 100.0f)
+        return false;
+    auto Candidate = State;
+    Candidate.Position = Preset.Position;
+    Candidate.YawRadians = Preset.YawRadians; Candidate.PitchRadians = Preset.PitchRadians;
+    Candidate.VerticalFovRadians = Preset.VerticalFovRadians;
+    Candidate.NearPlane = Preset.NearPlane; Candidate.FarPlane = Preset.FarPlane;
+    Candidate.MovementSpeed = Preset.MovementSpeed;
+    if (!RebuildDerivedCamera(Candidate,Display.DrawableExtent)) return false;
+    auto Flags = ECameraChangeFlags::PresetRestore | ECameraChangeFlags::Cut;
+    if (State.VerticalFovRadians != Candidate.VerticalFovRadians || State.NearPlane != Candidate.NearPlane || State.FarPlane != Candidate.FarPlane)
+        Flags |= ECameraChangeFlags::ProjectionChanged;
+    if (State.DrawableExtent != Candidate.DrawableExtent)
+        Flags |= ECameraChangeFlags::ExtentChanged | ECameraChangeFlags::ProjectionChanged;
+    FFreeCameraUpdateResult Result;
+    if (!Commit(std::move(Candidate),Flags,State.DrawableExtent,Result)) return false;
+    bNeedsZeroInterval = true;
+    if (OutChangeSet) *OutChangeSet = Result.ChangeSet;
+    return true;
+}
+
 bool FFreeCameraController::Reset(
     const FWindowDisplayState& CurrentDisplay,
     FCameraChangeSet* OutChangeSet) noexcept
