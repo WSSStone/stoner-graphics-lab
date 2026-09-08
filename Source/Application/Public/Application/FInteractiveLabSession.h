@@ -23,6 +23,8 @@ namespace Stoner::RHI { enum class ERHIResult; }
 namespace Stoner::Application
 {
 
+struct FLabPreset;
+struct FLabPresetWorkload;
 struct FLabSettingsSnapshot;
 struct FLabSettingsCapabilities;
 struct FLabSettingsTransaction;
@@ -204,6 +206,12 @@ public:
     // before admitting a frame. It owns native preparation and reports its
     // actual completion; no success is inferred from merely queueing work.
     [[nodiscard]] bool ConfigureSettings(const FLabSettingsSnapshot&, const FLabSettingsCapabilities&);
+    [[nodiscard]] bool ConfigurePresetWorkload(const FLabPresetWorkload&);
+    [[nodiscard]] bool RequestPreset(const FLabPreset&);
+    [[nodiscard]] bool CancelPreset();
+    [[nodiscard]] bool HasPendingPreset() const noexcept;
+    [[nodiscard]] const Stoner::Core::FString& GetPresetFailure() const noexcept;
+
     [[nodiscard]] bool RequestSettings(const FLabSettingsSnapshot&);
     [[nodiscard]] bool RefreshSettingsCapabilities(const FLabSettingsCapabilities&, bool bFormerOutputUsable);
     [[nodiscard]] const FLabSettingsTransaction* BeginSettingsTransaction(bool bRenderEligible);

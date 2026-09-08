@@ -4,6 +4,7 @@
 #include "FImGuiLabAdapter.h"
 #include "FLabInputRouter.h"
 #include "FLabSettingsController.h"
+#include "FLabPresetCodec.h"
 
 #include <algorithm>
 #include <atomic>
@@ -53,6 +54,11 @@ struct FInteractiveLabSession::FImpl
     FFreeCameraController Camera;
     FLabInputRouter Router;
     TUniquePtr<FLabSettingsController> Settings;
+    std::optional<FLabPresetWorkload> PresetWorkload;
+    std::optional<FLabPreset> PendingPreset;
+    TUniquePtr<FLabSettingsController> BeforePreset;
+    std::optional<FFreeCameraController> PresetCamera;
+    FString PresetFailure;
     uint64 SettingsStart = 0;
     TArray<FLabControlSection> ControlSections;
     std::optional<FLabRuntimeInfo> RuntimeInfo;
@@ -77,7 +83,7 @@ struct FInteractiveLabSession::FImpl
         return Window && !Terminal && (SessionState == State::Ready || SessionState == State::Running) &&
             !Display.bMinimized && Display.DrawableExtent.IsPositive() &&
             !PendingIntent.IsValid() && !ActiveIntent.IsValid() && !bDrainOnly &&
-            (!Settings || !Settings->GetActive());
+            !PendingPreset && (!Settings || !Settings->GetActive());
     }
     FString FirstFailure;
     FApplicationDiagnosticLog Diagnostics;
@@ -145,6 +151,7 @@ struct FInteractiveLabSession::FImpl
     void StartTerminal()
     {
         if (Terminal) return;
+        PendingPreset.reset(); PresetCamera.reset(); BeforePreset.reset();
         UI.reset(); UICallbacks = {}; bUIEnabled = false;
         SessionState = FirstFailure.IsEmpty() ? State::Draining : State::Failed;
         // No callback may run on the event thread after this ownership handoff.
@@ -308,6 +315,7 @@ EApplicationResult FInteractiveLabSession::BeginDrain()
 EApplicationResult FInteractiveLabSession::RequestExit(const Core::FString& Failure)
 {
     if (!Impl->Window) return EApplicationResult::InvalidLifecycle;
+    Impl->PendingPreset.reset(); Impl->PresetCamera.reset(); Impl->BeforePreset.reset();
     if (!Failure.IsEmpty()) Impl->Fail(Failure);
     if (Impl->SessionState != State::Closed) Impl->StartTerminal();
     return EApplicationResult::Success;
@@ -380,7 +388,7 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
             S.UICallbacks.BeginFrame(++S.UIFrameId, Eligible);
             const auto UIResult = S.UI->Frame(Raw,S.Display,DeltaSeconds,Eligible,S.ControlSections,
                 [this](const FString& Section,const FString& Control) { return InvokeSectionControl(Section,Control); },
-                S.Settings && !S.Settings->GetActive() && !S.PendingIntent.IsValid() && !S.ActiveIntent.IsValid(),
+                S.Settings && !S.PendingPreset && !S.Settings->GetActive() && !S.PendingIntent.IsValid() && !S.ActiveIntent.IsValid(),
                 S.RuntimeInfo ? &*S.RuntimeInfo : nullptr,&S.Camera.GetState(),GetRequestedSettings(),
                 GetPendingSettings(),GetEffectiveSettings(),&GetSettingsFailure(),
                 [this,&S](const FLabSettingsSnapshot& Edit) {
@@ -476,7 +484,7 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
     }
     if (S.bFreshInterval) A.LookDeltaX = A.LookDeltaY = 0;
     if (!S.Display.bFocused || !Input.IsFocused()) { A = {}; S.bFreshInterval = true; }
-    (void)S.Camera.Update(A, S.Display, S.bFreshInterval ? 0.0 : DeltaSeconds);
+    if (!S.PendingPreset) (void)S.Camera.Update(A, S.Display, S.bFreshInterval ? 0.0 : DeltaSeconds);
     S.bFreshInterval = !S.Display.bFocused || !Input.IsFocused();
     S.SessionState = State::Running;
     return EApplicationResult::Success;
@@ -533,7 +541,7 @@ bool FInteractiveLabSession::RegisterControlSection(const FLabControlSection& Se
 bool FInteractiveLabSession::InvokeSectionControl(const FString& SectionId, const FString& ControlId)
 {
     auto& S = *Impl;
-    if (!S.Settings || S.Terminal || S.SessionState == State::Closed || S.bInvokingControl ||
+    if (!S.Settings || S.PendingPreset || S.Terminal || S.SessionState == State::Closed || S.bInvokingControl ||
         S.Settings->GetActive() || S.PendingIntent.IsValid() || S.ActiveIntent.IsValid()) return false;
     auto Candidate = S.Settings->GetRequested();
     Candidate.CameraRevision = S.Camera.GetState().CameraRevision;
@@ -567,17 +575,59 @@ bool FInteractiveLabSession::ConfigureSettings(const FLabSettingsSnapshot& Initi
     S.Settings = std::move(Candidate);
     return true;
 }
+bool FInteractiveLabSession::ConfigurePresetWorkload(const FLabPresetWorkload& Workload)
+{
+    auto& S = *Impl;
+    if (!S.Settings || S.PresetWorkload || S.Terminal || Workload.Revision.IsEmpty() ||
+        Workload.ProductionRoot.IsEmpty() || Workload.Revision.View().size() > 4096 ||
+        Workload.ProductionRoot.View().size() > 4096 || Workload.SourceIdentityDigest.View().size() != 64) return false;
+    S.PresetWorkload = Workload;
+    return true;
+}
+bool FInteractiveLabSession::RequestPreset(const FLabPreset& Preset)
+{
+    auto& S = *Impl;
+    if (!S.Settings || !S.PresetWorkload || S.Terminal || S.bDrainOnly || S.SessionState == State::Closed ||
+        S.BeforePreset || S.Settings->GetActive()) return false;
+    if (Preset.Workload != *S.PresetWorkload) { S.PresetFailure = "Preset workload mismatch"; return false; }
+    TArray<uint8> Bytes;
+    if (!FLabPresetCodec::Encode(Preset,S.Settings->GetCapabilities().DebugStages,Bytes,S.PresetFailure)) return false;
+    auto Settings = *S.Settings;
+    auto Candidate = S.Settings->GetRequested();
+    Candidate.RequestedProfileId = Preset.Output.RequestedProfileId;
+    Candidate.SdrToneMapVersion = Preset.Output.SdrToneMapVersion;
+    Candidate.HdrViewingVersion = Preset.Output.HdrViewingVersion;
+    Candidate.ExposureStops = Preset.Output.ExposureStops;
+    Candidate.UIWhiteMultiplier = Preset.Output.UIWhiteMultiplier;
+    Candidate.DebugBypass = Preset.Output.DebugBypass;
+    Candidate.DisplayGeneration = Settings.GetCapabilities().DisplayGeneration;
+    Candidate.CameraRevision = S.Camera.GetState().CameraRevision;
+    if (!Settings.RequestStrict(Candidate)) { S.PresetFailure = Settings.GetFailure(); return false; }
+    S.PendingPreset = Preset; S.PresetFailure.Clear(); S.ReleaseInput();
+    return true;
+}
+bool FInteractiveLabSession::CancelPreset()
+{
+    auto& S = *Impl;
+    if (!S.PendingPreset || S.BeforePreset) return false;
+    S.PendingPreset.reset(); S.PresetFailure.Clear(); S.ReleaseInput();
+    return true;
+}
+bool FInteractiveLabSession::HasPendingPreset() const noexcept { return Impl->PendingPreset.has_value(); }
+const FString& FInteractiveLabSession::GetPresetFailure() const noexcept { return Impl->PresetFailure; }
+
 bool FInteractiveLabSession::RequestSettings(const FLabSettingsSnapshot& Request)
 {
     auto& S = *Impl;
-    return S.Settings && !S.Terminal && !S.bInvokingControl && S.SessionState != State::Closed &&
+    return S.Settings && !S.PendingPreset && !S.Terminal && !S.bInvokingControl && S.SessionState != State::Closed &&
         Request.DisplayGeneration == S.Display.DisplayGeneration && S.Settings->Request(Request);
 }
 bool FInteractiveLabSession::RefreshSettingsCapabilities(const FLabSettingsCapabilities& Caps, bool FormerUsable)
 {
     auto& S = *Impl;
-    return S.Settings && !S.Terminal && S.SessionState != State::Closed &&
-        Caps.DisplayGeneration == S.Display.DisplayGeneration && S.Settings->RefreshCapabilities(Caps,FormerUsable);
+    if (!S.Settings || S.Terminal || S.SessionState == State::Closed || Caps.DisplayGeneration != S.Display.DisplayGeneration) return false;
+    if (S.BeforePreset) (void)S.BeforePreset->RefreshCapabilities(Caps,FormerUsable);
+    return S.Settings->RefreshCapabilities(Caps,FormerUsable);
 }
 const FLabSettingsTransaction* FInteractiveLabSession::BeginSettingsTransaction(bool Eligible)
 {
@@ -586,14 +636,61 @@ const FLabSettingsTransaction* FInteractiveLabSession::BeginSettingsTransaction(
         (S.SessionState != State::Ready && S.SessionState != State::Running) ||
         S.Display.bMinimized || !S.Display.DrawableExtent.IsPositive()) return nullptr;
     if (S.Settings->GetPending() && S.Settings->GetPending()->DisplayGeneration != S.Display.DisplayGeneration) return nullptr;
+    if (S.BeforePreset && S.Settings->GetActive()) return nullptr;
+    if (S.PendingPreset && !S.BeforePreset && Eligible)
+    {
+        if (S.Settings->GetActive() || S.Settings->GetCapabilities().DisplayGeneration != S.Display.DisplayGeneration) return nullptr;
+        auto Camera = S.Camera;
+        auto Settings = MakeUnique<FLabSettingsController>(*S.Settings);
+        auto Candidate = S.Settings->GetRequested();
+        const auto& Output = S.PendingPreset->Output;
+        Candidate.RequestedProfileId = Output.RequestedProfileId;
+        Candidate.SdrToneMapVersion = Output.SdrToneMapVersion;
+        Candidate.HdrViewingVersion = Output.HdrViewingVersion;
+        Candidate.ExposureStops = Output.ExposureStops;
+        Candidate.UIWhiteMultiplier = Output.UIWhiteMultiplier;
+        Candidate.DebugBypass = Output.DebugBypass;
+        Candidate.DisplayGeneration = S.Display.DisplayGeneration;
+        if (!Camera.RestorePreset(S.PendingPreset->Camera,S.Display))
+        { S.PresetFailure = "Preset camera cannot be prepared for current drawable"; S.PendingPreset.reset(); return nullptr; }
+        Candidate.CameraRevision = Camera.GetState().CameraRevision;
+        if (!Settings->RequestStrict(Candidate))
+        { S.PresetFailure = Settings->GetFailure(); S.PendingPreset.reset(); return nullptr; }
+        S.PresetCamera = Camera;
+        S.BeforePreset = std::move(S.Settings); S.Settings = std::move(Settings);
+    }
     const auto* Transaction = S.Settings->BeginEligible(Eligible);
     if (Transaction) S.SettingsStart = S.Now();
+    else if (S.BeforePreset)
+    {
+        S.PresetFailure = S.Settings->GetFailure();
+        S.Settings = std::move(S.BeforePreset); S.PresetCamera.reset(); S.PendingPreset.reset();
+    }
     return Transaction;
 }
 bool FInteractiveLabSession::CompleteSettingsTransaction(uint64 Token, bool Success, bool FormerUsable)
 {
     auto& S = *Impl;
     if (!S.Settings || S.Terminal || S.SessionState == State::Closed) return false;
+    if (S.BeforePreset)
+    {
+        const auto& Active = S.Settings->GetActive();
+        if (!Active || Active->Token != Token) return false;
+        const bool Current = Active->Settings.DisplayGeneration == S.Display.DisplayGeneration &&
+            S.PresetCamera && S.PresetCamera->GetState().DrawableExtent == S.Display.DrawableExtent &&
+            !S.Display.bMinimized && S.Display.DrawableExtent.IsPositive();
+        const bool Completed = S.Settings->Complete(Token,Success && Current,FormerUsable);
+        const bool Publish = Completed && Success && Current;
+        if (Publish) { S.Camera = *S.PresetCamera; S.BeforePreset.reset(); S.PresetFailure.Clear(); }
+        else
+        {
+            S.PresetFailure = Current ? "Preset native output preparation failed" : "Preset display changed before commit";
+            S.Settings = std::move(S.BeforePreset);
+            if (!Current || !FormerUsable) S.Settings->MarkOutputUnusable();
+        }
+        S.PendingPreset.reset(); S.PresetCamera.reset(); S.ReleaseInput();
+        return Publish;
+    }
     const auto& Active = S.Settings->GetActive();
     if (Active && Active->Token == Token && Active->Settings.DisplayGeneration != S.Display.DisplayGeneration)
     {
@@ -603,11 +700,11 @@ bool FInteractiveLabSession::CompleteSettingsTransaction(uint64 Token, bool Succ
     return S.Settings->Complete(Token,Success,FormerUsable);
 }
 const FLabSettingsSnapshot* FInteractiveLabSession::GetEffectiveSettings() const noexcept
-{ return Impl->Settings ? &Impl->Settings->GetEffective() : nullptr; }
+{ return Impl->BeforePreset ? &Impl->BeforePreset->GetEffective() : Impl->Settings ? &Impl->Settings->GetEffective() : nullptr; }
 const FLabSettingsSnapshot* FInteractiveLabSession::GetRequestedSettings() const noexcept
-{ return Impl->Settings ? &Impl->Settings->GetRequested() : nullptr; }
+{ return Impl->BeforePreset ? &Impl->BeforePreset->GetRequested() : Impl->Settings ? &Impl->Settings->GetRequested() : nullptr; }
 const FLabSettingsSnapshot* FInteractiveLabSession::GetPendingSettings() const noexcept
-{ return Impl->Settings && Impl->Settings->GetPending() ? &*Impl->Settings->GetPending() : nullptr; }
+{ const auto* Settings = Impl->BeforePreset ? Impl->BeforePreset.get() : Impl->Settings.get(); return Settings && Settings->GetPending() ? &*Settings->GetPending() : nullptr; }
 const FString& FInteractiveLabSession::GetSettingsFailure() const noexcept
 { static const FString Empty; return Impl->Settings ? Impl->Settings->GetFailure() : Empty; }
 bool FInteractiveLabSession::IsSettingsPaused() const noexcept

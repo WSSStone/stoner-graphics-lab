@@ -1,5 +1,6 @@
 #include "Application/FInteractiveLabSession.h"
 #include "Application/FLabSettingsSnapshot.h"
+#include "Application/FLabPreset.h"
 #include "Renderer/FOutputTransformSettings.h"
 #include "Core/FPlatformProcess.h"
 #include "FWindowDriver.h"
@@ -141,6 +142,72 @@ void TestCapabilityNotification()
         Transitions == 1,
         "output capability notification advances display identity without inventing resize or focus changes");
     Check(Close(F.S), "capability notification fixture closes");
+}
+void TestPresetSession()
+{
+    using namespace Stoner::Renderer;
+    FFixture F;
+    Check(F.Start(),"preset session starts");
+    FLabSettingsSnapshot Initial;
+    Initial.CameraRevision=F.S.GetCameraState().CameraRevision;
+    Initial.SettingsRevision=Initial.OutputModeGeneration=1;
+    Initial.DisplayGeneration=F.S.GetDisplayState().DisplayGeneration;
+    Initial.RequestedProfileId=Initial.EffectiveProfileId="Sdr.sRGB.v1";
+    Initial.SdrToneMapVersion=GDefaultSDRToneMapVersion; Initial.HdrViewingVersion=GInitialHDRViewingVersion;
+    FLabSettingsCapabilities Caps; Caps.DisplayGeneration=Initial.DisplayGeneration;
+    Caps.Outputs={{"Sdr.sRGB.v1",100,100}};
+    FLabPreset P; P.Workload={"fixture","StaticModel:fixture",FString(std::string(64,'1'))};
+    P.SourceContext={{1024,1024},"Metal",FString(std::string(64,'2')),"test"};
+    P.Camera=Camera(); P.Camera.Position={2,3,4}; P.Output=Initial; P.Output.ExposureStops=-2;
+    Check(F.S.ConfigureSettings(Initial,Caps) && F.S.ConfigurePresetWorkload(P.Workload),"preset workload configured after settings");
+    auto Ordinary=Initial; Ordinary.ExposureStops=1;
+    Check(F.S.RequestSettings(Ordinary),"ordinary request precedes preset transaction");
+    const auto Revision=F.S.GetCameraState().CameraRevision;
+    auto Bad=P; Bad.Output.RequestedProfileId="Hdr.Linear.1000.v1";
+    Check(!F.S.RequestPreset(Bad) && F.S.GetPendingSettings()->ExposureStops==1 && !F.S.HasPendingPreset(),
+        "unsupported whole preset preserves the ordinary pending request");
+    Check(F.S.RequestPreset(P) && !F.S.RequestSettings(Ordinary) &&
+        F.S.SetNavigationParameters(3,1)==EApplicationResult::InvalidLifecycle,
+        "pending preset disables ordinary camera and output edits");
+    const auto* Active=F.S.BeginSettingsTransaction(true);
+    const auto Token=Active ? Active->Token : 0;
+    Check(Active && Active->Settings.ExposureStops==-2 && F.S.GetRequestedSettings()->ExposureStops==1 &&
+        F.S.GetEffectiveSettings()->ExposureStops==0 && F.S.GetCameraState().CameraRevision==Revision &&
+        !F.S.BeginSettingsTransaction(true),"preset native preparation exposes old session state and keeps one active operation");
+    Check(!F.S.CompleteSettingsTransaction(Token,false,true) && !F.S.HasPendingPreset() &&
+        F.S.GetPendingSettings() && F.S.GetPendingSettings()->ExposureStops==1 && F.S.GetCameraState().CameraRevision==Revision,
+        "failed native preset preparation restores the original pending request and camera");
+    Check(F.S.RequestPreset(P),"preset may be explicitly retried after failure");
+    Active=F.S.BeginSettingsTransaction(true);
+    Check(Active && F.S.CompleteSettingsTransaction(Active->Token,true,true) &&
+        F.S.GetCameraState().CameraRevision==Revision+1 && F.S.GetCameraState().Position.NearlyEquals(P.Camera.Position) &&
+        F.S.GetCameraState().DrawableExtent==F.S.GetDisplayState().DrawableExtent &&
+        F.S.GetEffectiveSettings()->ExposureStops==-2 && F.S.GetRequestedSettings()->ExposureStops==-2 &&
+        !F.S.HasPendingPreset(),"successful native completion atomically publishes preset camera and settings at current aspect");
+    Check(F.S.RequestPreset(P) && F.S.CancelPreset() && !F.S.HasPendingPreset(),"explicit cancellation discards an unsubmitted preset");
+    const auto StableRevision=F.S.GetCameraState().CameraRevision;
+    F.Driver->Width=0; F.Driver->Height=0;
+    (void)F.S.Service(0);
+    Check(F.S.RequestPreset(P) && F.S.HasPendingPreset() && !F.S.BeginSettingsTransaction(true) &&
+        F.S.GetCameraState().CameraRevision==StableRevision,
+        "zero-extent import waits without applying camera fields");
+    P.Output.ExposureStops=4;
+    Check(F.S.RequestPreset(P) && F.S.CancelPreset() && !F.S.HasPendingPreset(),
+        "a new explicit minimized import supersedes the pending record and can be cancelled");
+    Check(F.S.RequestPreset(P),"minimized preset can await restored drawable");
+    F.Driver->Width=640; F.Driver->Height=360;
+    (void)F.S.Service(0);
+    Caps.DisplayGeneration=F.S.GetDisplayState().DisplayGeneration;
+    Check(F.S.RefreshSettingsCapabilities(Caps,true),"restored preset revalidates current display capabilities");
+    Active=F.S.BeginSettingsTransaction(true);
+    const auto StaleToken=Active ? Active->Token : 0;
+    Check(Active && Active->Settings.ExposureStops==4,"resumed preset uses the latest whole record");
+    F.Driver->Width=800;
+    (void)F.S.Service(0);
+    Check(!F.S.CompleteSettingsTransaction(StaleToken,true,true) && F.S.IsSettingsPaused() &&
+        F.S.GetCameraState().CameraRevision==StableRevision && F.S.GetRequestedSettings()->ExposureStops==-2,
+        "display change before preset commit rejects all imported fields and pauses stale output");
+    Check(Close(F.S),"preset session closes");
 }
 void TestSettingsSession()
 {
@@ -457,6 +524,7 @@ int RunInteractiveLabLifecycleTests()
     TestNavigationSession();
     TestCapabilityNotification();
     TestSettingsSession();
+    TestPresetSession();
     TestUISession(); TestSession(); TestTransitions(); TestTerminalOwnership(); TestTerminalFailureBoundaries(); TestTimeout();
     return Failures == 0 ? 0 : 1;
 }

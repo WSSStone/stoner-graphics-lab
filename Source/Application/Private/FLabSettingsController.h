@@ -23,6 +23,7 @@ public:
     const std::optional<FLabSettingsSnapshot>& GetPending() const { return Pending; }
     const Stoner::Core::FString& GetFailure() const { return Failure; }
     bool IsPaused() const { return bPaused; }
+    void MarkOutputUnusable() { bPaused = true; }
 private:
     bool Resolve(const FLabSettingsSnapshot&, FLabSettingsSnapshot&, bool bAllowFallback);
     bool Queue(const FLabSettingsSnapshot&, bool bAllowFallback);
