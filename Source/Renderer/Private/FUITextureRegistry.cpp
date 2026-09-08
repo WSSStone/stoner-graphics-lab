@@ -274,11 +274,18 @@ FUITextureResult FUITextureRegistry::Prepare(const FUITextureRequest& Request)
 ERHIResult FUITextureRegistry::RegisterGpuTexture(const FUIGpuTextureRegistration& Request,
     const FUIGpuTextureContext& Context, FUITextureId& OutId)
 {
-    if (!Device || Request.LogicalSlot==0 || Request.LogicalSlot>=Current.size() ||
+    if (!Device || Request.LogicalSlot>=Current.size() ||
         !ValidGpuDependency(Request,Context)) return ERHIResult::InvalidState;
     if (!bFrameEligible || Context.FrameId!=LastFrame || FrameRequests>=64) return ERHIResult::NotReady;
     Poll();
-    const auto Slot=Request.LogicalSlot;
+    auto Slot=Request.LogicalSlot;
+    if (Slot==0)
+    {
+        if (Request.Previous.IsValid()) return ERHIResult::InvalidState;
+        for (std::size_t I=Current.size()-1; I>0; --I)
+            if (!Current[I].IsValid()) { Slot=static_cast<uint32>(I); break; }
+        if (Slot==0) return ERHIResult::NotReady;
+    }
     const auto Previous=Find(Request.Previous);
     if (Current[Slot]!=Request.Previous || (Request.Previous.IsValid() &&
         (!Previous || !Previous->bGpuOwned || Previous->bRetiring))) return ERHIResult::InvalidState;

@@ -18,6 +18,7 @@ struct FUIGpuTextureContext
 };
 struct FUIGpuTextureRegistration
 {
+    // Zero chooses a free logical slot from the shared bounded namespace.
     Stoner::Core::uint32 LogicalSlot = 0;
     FUITextureId Previous;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> Texture;

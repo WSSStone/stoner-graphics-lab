@@ -162,10 +162,11 @@ int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders&
             Session.BeginEligibleFrame(1,true);
             const auto PreparedTexture = Session.PrepareTexture(Request);
             const auto SessionLease = Session.AcquireTexture(PreparedTexture.TextureId);
-            const auto MakePacket = [&](Core::uint64 Id)
+            const auto MakePacket = [&](Core::uint64 Id, bool Diagnostic = false)
             {
                 FUIDrawSnapshot PacketValue(7,Id,1,1);
                 auto CommandValue = Item; CommandValue.TextureId = PreparedTexture.TextureId;
+                CommandValue.bDiagnosticWidget = Diagnostic;
                 (void)PacketValue.SetDisplay({0,0},{16,16},{1,1}); (void)PacketValue.SetVertices(Vertices);
                 (void)PacketValue.SetIndices(Indices); (void)PacketValue.SetCommands({&CommandValue,1});
                 (void)PacketValue.SetTextureLeases({&SessionLease,1}); (void)PacketValue.Publish();
@@ -193,6 +194,53 @@ int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders&
             }
             if (Second) (void)Second->CancelAfterCommandDiscard();
             if (Third) (void)Third->CancelAfterCommandDiscard();
+            Session.BeginEligibleFrame(4,true);
+            auto Graph = Core::MakeShared<FRenderGraph>("session diagnostic");
+            auto Builder = Graph->CreateBuilder();
+            const auto Resource = Builder.CreateTexture("widget",16,16,ERHIFormat::R8G8B8A8_sRGB,
+                ERHISampleCount::One,ERHITextureUsage::Sampled | ERHITextureUsage::ColorAttachment,
+                ERenderGraphColorDomain::EncodedSrgb);
+            auto ProducerDesc = FRenderGraphPassDesc::Make("diagnostic",ERenderGraphPassType::Graphics);
+            ProducerDesc.Accesses.push_back({Resource,ERenderGraphAccessType::Write,ERenderGraphResourceState::Write});
+            const auto Producer = Builder.AddPass(ProducerDesc);
+            auto ConsumerDesc = FRenderGraphPassDesc::Make("terminal UI",ERenderGraphPassType::Graphics);
+            ConsumerDesc.bPreserveForSideEffects=true;
+            ConsumerDesc.Accesses.push_back({Resource,ERenderGraphAccessType::Read,ERenderGraphResourceState::Read});
+            const auto Consumer = Builder.AddPass(ConsumerDesc);
+            Check(Graph->Compile()==ERenderGraphResult::Success,"session diagnostic graph compiles producer before UI");
+            FUIDiagnosticRenderInput Diagnostic;
+            Diagnostic.Source=Scene; Diagnostic.Graph=Graph; Diagnostic.Resource=Resource;
+            Diagnostic.Producer=Producer; Diagnostic.Consumer=Consumer;
+            Diagnostic.Selection.SourceStageId=1; Diagnostic.Selection.SourceStageName="SDRToneMap";
+            Diagnostic.Selection.SourceDomain=ERenderGraphColorDomain::DisplayLinearRec709D65;
+            Diagnostic.Selection.ReferenceWhiteNits=100; Diagnostic.Selection.TargetPeakNits=100;
+            Diagnostic.Selection.Mode=EOutputTransformDebugBypassMode::BoundedVisualization;
+            Diagnostic.Selection.VisualizationMinimum=0; Diagnostic.Selection.VisualizationMaximum=1;
+            Diagnostic.Shaders=Shaders.Diagnostic.ModuleDescriptions;
+            Diagnostic.RemainingAttachmentBytes=16*16*4-1;
+            Core::TSharedPtr<FUIRenderFrame> Widget;
+            const auto PrepareWidget = [&]() { return Session.PrepareFrame(MakePacket(4,true),Settings,1,0,Scene,
+                Shaders.Draw.ModuleDescriptions,Shaders.Copy.ModuleDescriptions,Widget,&Diagnostic); };
+            Check(PrepareWidget()==ERHIResult::NotReady && !Widget,
+                "session diagnostic budget failure leaves the frame slot available");
+            Diagnostic.RemainingAttachmentBytes=16*16*4;
+            Check(PrepareWidget()==ERHIResult::Success && Widget && Widget->HasDiagnostic() &&
+                Widget->GetDiagnosticAttachmentBytes()==16*16*4 && Widget->CanRecord(),
+                "session retains a bounded diagnostic producer and resolves its UI snapshot");
+            if (Widget)
+            {
+                auto WidgetCommand=Device->CreateCommandBuffer(ERHIQueueType::Graphics).Object;
+                Check(Widget->Record(WidgetCommand)==ERHIResult::InvalidState && Widget->CanRecord(),
+                    "idle command rejection preserves diagnostic frame recording eligibility");
+                (void)WidgetCommand->Begin();
+                Check(Widget->Record(WidgetCommand)==ERHIResult::Success && !Widget->CanRecord(),
+                    "session records diagnostic production before UI sampling in one command");
+                WidgetCommand.reset();
+                Check(Widget->CancelAfterCommandDiscard()==ERHIResult::Success && !Widget->HasDiagnostic() &&
+                    Widget->GetDiagnosticAttachmentBytes()==0,
+                    "discarded diagnostic frame releases producer and registry ownership together");
+            }
+
         }
         FUIDrawSnapshot Clipped(1,2,1,1);
         Item.ClipRect = {-20,-20,-10,-10};
