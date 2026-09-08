@@ -960,6 +960,23 @@ void TestPipelineCacheKeyAndStateValidation(FVulkanBackendTestResult& Result)
     Record(Result, P1Again.Succeeded() && P1Again.Object == P1.Object,
         "Vulkan pipeline cache still reuses identical graphics pipeline descriptions");
 
+    auto RGBDesc = Base;
+    RGBDesc.Blend.ColorWriteMask = ERHIColorWriteMask::RGB;
+    const auto RGBPipeline = Device.CreateGraphicsPipeline(RGBDesc);
+    Record(Result, RGBPipeline.Succeeded() && RGBPipeline.Object != P1.Object &&
+        Device.CreateGraphicsPipeline(RGBDesc).Object == RGBPipeline.Object,
+        "Vulkan RGB write mask has a distinct reusable pipeline identity");
+    auto NoColorDesc = Base;
+    NoColorDesc.Blend.ColorWriteMask = ERHIColorWriteMask::None;
+    const auto NoColorPipeline = Device.CreateGraphicsPipeline(NoColorDesc);
+    Record(Result, NoColorPipeline.Succeeded() && NoColorPipeline.Object != P1.Object &&
+        NoColorPipeline.Object != RGBPipeline.Object,
+        "Vulkan no-color-write mask remains a distinct valid pipeline");
+    auto InvalidMaskDesc = Base;
+    InvalidMaskDesc.Blend.ColorWriteMask = static_cast<ERHIColorWriteMask>(16);
+    Record(Result, Device.CreateGraphicsPipeline(InvalidMaskDesc).Result == ERHIResult::InvalidState,
+        "Vulkan unknown color-write bits reject before pipeline creation");
+
     FRHIShaderModuleDesc InterfaceVariantDesc =
         ShaderDesc(ERHIShaderStage::Vertex, "MainVS", "vs_cache");
     InterfaceVariantDesc.InterfaceMetadata.Bindings.clear();

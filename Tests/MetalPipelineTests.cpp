@@ -6,6 +6,7 @@
 #include "FMetalDescriptorSet.h"
 #include "FMetalDeviceOwnerState.h"
 #include "FMetalPipelineLayout.h"
+#include "FMetalGraphicsPipelineKey.h"
 #include "FMetalRasterizationConvention.h"
 #include "MetalRHI/FMetalDeviceFactory.h"
 #endif
@@ -15,6 +16,7 @@
 #include "RHI/FRHIRenderPassDesc.h"
 
 #include <iostream>
+#include <set>
 
 namespace
 {
@@ -203,6 +205,16 @@ void TestLayoutAndNativeProbe(FMetalPipelineTestResult& Result)
     auto Owner = MakeShared<Backend::Metal::Private::FMetalDeviceOwnerState>(91);
     auto Layout = MakeShared<Backend::Metal::Private::FMetalPipelineLayout>(
         Owner, MakeLayout());
+    FRHIGraphicsPipelineDesc KeyDesc;
+    KeyDesc.PipelineLayout = Layout;
+    std::set<std::string> MaskKeys;
+    for (uint32 Bits = 0; Bits < 16; ++Bits)
+    {
+        KeyDesc.Blend.ColorWriteMask = static_cast<ERHIColorWriteMask>(Bits);
+        MaskKeys.emplace(Backend::Metal::Private::BuildMetalGraphicsPipelineKey(KeyDesc).View());
+    }
+    Record(Result, MaskKeys.size() == 16,
+        "Metal pipeline identity distinguishes every color-write mask including RGB and RGBA");
     auto Set = MakeShared<Backend::Metal::Private::FMetalDescriptorSet>(
         Owner, Layout, 0);
     const bool Lifecycle = Layout->GetSetCount() == 1 &&

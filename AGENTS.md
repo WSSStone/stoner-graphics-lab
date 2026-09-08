@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (45/127 reviewed tasks); native closeout remains pending. Read
+Feature 030 implementation is partial (47/127 reviewed tasks); native closeout remains pending. Read
 `specs/030-interactive-rendering-lab/spec.md` and
 `specs/030-interactive-rendering-lab/plan.md` plus its contracts before task generation.
 The plan fixes private Dear ImGui v1.92.5 at
@@ -160,6 +160,7 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
+- 030 native color-write masks: T046/T047 complete (47/127). Vulkan/Metal pipeline keys and native mappings preserve RGBA defaults; strict Debug/Release each pass 210 Vulkan and 9 Metal pipeline assertions. Actual UI alpha-preservation fixtures and visible composition remain pending.
 - 030 private ImGui texture requests: T045 complete (45/127). Renderer-backed dynamic font frames exercise create/update/destroy acknowledgement, copied alpha/RGBA payloads, opaque ID mapping, bounded retries and close cancellation. Strict Debug/Release each pass 200 CPU assertions plus 30 native upload regressions. RendererHasTextures is conditional on a configured request service; snapshot extraction, session wiring and visible composition remain pending.
 - 030 UI packet/texture ownership: T036/T044/T050 complete (44/127). Strict Debug/Release each pass 182 CPU assertions and 30 Vulkan/Metal native upload assertions. The bounded registry uses full-shadow copy-on-write generations and deferred buffer-to-texture commands, retains all render consumers, and retires sampled textures independently of presentation. Private ImGui texture acknowledgements, snapshot extraction and visible composition remain pending; no formal native UI acceptance is claimed.
 - 030 private UI context/event adaptation: T041/T042 complete (41/127). Real CPU UI frames validate text activation, non-BMP paste/editing and 100/150/200% frame scales; strict Debug/Release each pass 287 related assertions including 44 input/UI assertions. RendererHasTextures, GPU composition and session UI-first camera integration remain pending; no visible/native UI acceptance is claimed.

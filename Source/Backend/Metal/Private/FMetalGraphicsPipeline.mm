@@ -179,6 +179,7 @@ Core::FString BuildMetalGraphicsPipelineKey(
            << static_cast<int>(Desc.Blend.SourceColor) << ','
            << static_cast<int>(Desc.Blend.DestinationColor) << ','
            << static_cast<int>(Desc.Blend.ColorOp) << ','
+           << static_cast<unsigned int>(Desc.Blend.ColorWriteMask) << ','
            << Desc.DepthStencil.bDepthTestEnabled << ','
            << Desc.DepthStencil.bDepthWriteEnabled << ','
            << static_cast<int>(Desc.DepthStencil.DepthCompare) << ','
@@ -254,6 +255,13 @@ CreateMetalGraphicsPipeline(
             auto* Attachment = NativeDesc.colorAttachments[Index];
             Attachment.pixelFormat = static_cast<MTLPixelFormat>(
                 ToMetalPixelFormat(Desc.RenderTargets.ColorFormats[Index]));
+            const auto Mask = Desc.Blend.ColorWriteMask;
+            // Metal component bits have a different order from the RHI flags.
+            Attachment.writeMask = static_cast<MTLColorWriteMask>(
+                (RHI::HasRHIFlag(Mask, RHI::ERHIColorWriteMask::Red) ? MTLColorWriteMaskRed : 0) |
+                (RHI::HasRHIFlag(Mask, RHI::ERHIColorWriteMask::Green) ? MTLColorWriteMaskGreen : 0) |
+                (RHI::HasRHIFlag(Mask, RHI::ERHIColorWriteMask::Blue) ? MTLColorWriteMaskBlue : 0) |
+                (RHI::HasRHIFlag(Mask, RHI::ERHIColorWriteMask::Alpha) ? MTLColorWriteMaskAlpha : 0));
             Attachment.blendingEnabled = Desc.Blend.bEnabled;
             Attachment.sourceRGBBlendFactor =
                 ToBlendFactor(Desc.Blend.SourceColor);

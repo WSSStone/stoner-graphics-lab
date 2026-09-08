@@ -1,6 +1,7 @@
 #pragma once
 
 #include "FMetalNativeObject.h"
+#include "FMetalGraphicsPipelineKey.h"
 #include "RHI/IRHIDevice.h"
 #include "RHI/IRHIGraphicsPipeline.h"
 
@@ -41,8 +42,6 @@ private:
     __strong id<MTLDepthStencilState> DepthStencil_;
 };
 
-[[nodiscard]] Core::FString BuildMetalGraphicsPipelineKey(
-    const RHI::FRHIGraphicsPipelineDesc& Desc);
 [[nodiscard]] RHI::TRHIObjectResult<RHI::IRHIGraphicsPipeline>
 CreateMetalGraphicsPipeline(
     const Core::TSharedPtr<FMetalDeviceOwnerState>& Owner,

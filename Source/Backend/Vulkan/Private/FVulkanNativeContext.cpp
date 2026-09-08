@@ -5353,11 +5353,11 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::CreateOwnedGraphicsPipeline(
         BlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         BlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
         BlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-        BlendAttachment.colorWriteMask =
-            VK_COLOR_COMPONENT_R_BIT |
-            VK_COLOR_COMPONENT_G_BIT |
-            VK_COLOR_COMPONENT_B_BIT |
-            VK_COLOR_COMPONENT_A_BIT;
+        static_assert(static_cast<unsigned int>(Stoner::RHI::ERHIColorWriteMask::Red) == VK_COLOR_COMPONENT_R_BIT &&
+            static_cast<unsigned int>(Stoner::RHI::ERHIColorWriteMask::Green) == VK_COLOR_COMPONENT_G_BIT &&
+            static_cast<unsigned int>(Stoner::RHI::ERHIColorWriteMask::Blue) == VK_COLOR_COMPONENT_B_BIT &&
+            static_cast<unsigned int>(Stoner::RHI::ERHIColorWriteMask::Alpha) == VK_COLOR_COMPONENT_A_BIT);
+        BlendAttachment.colorWriteMask = static_cast<VkColorComponentFlags>(Desc.Blend.ColorWriteMask);
         std::vector<VkPipelineColorBlendAttachmentState> BlendAttachments(
             Desc.RenderTargets.ColorFormats.size(), BlendAttachment);
         VkPipelineColorBlendStateCreateInfo Blend =
