@@ -119,5 +119,41 @@ int RunInteractiveLabSettingsTests()
         White.GetEffective().UIReferenceWhiteNits == 100 && White.GetEffective().NativePackingWhiteNits == 100 &&
         White.GetEffective().OutputModeGeneration == 2,
         "reference-white and packing changes become effective together after native completion");
+    FLabSettingsController Fallback;
+    WhiteCaps.DisplayGeneration=1;
+    WhiteCaps.Outputs={{"Hdr.Linear.1000.v1",203,203},{"Sdr.sRGB.v1",100,100}};
+    Check(Fallback.Initialize(HdrInitial,WhiteCaps),"fallback edit fixture starts with accepted HDR intent");
+    WhiteCaps.DisplayGeneration=2; WhiteCaps.Outputs={{"Sdr.sRGB.v1",100,100}};
+    Check(Fallback.RefreshCapabilities(WhiteCaps,false),"fallback edit fixture loses HDR capability");
+    auto ParameterEdit=Fallback.GetRequested();
+    ParameterEdit.ExposureStops=2;
+    ParameterEdit.SdrToneMapVersion="Sdr.NarkowiczAcesFit.v1";
+    Check(Fallback.Request(ParameterEdit) && Fallback.GetPending() &&
+        Fallback.GetPending()->EffectiveProfileId == "Sdr.sRGB.v1" && Fallback.GetPending()->ExposureStops == 2 &&
+        Fallback.GetRequested().RequestedProfileId == "Hdr.Linear.1000.v1",
+        "parameter edit supersedes pending SDR fallback while preserving accepted unavailable HDR intent");
+    auto* FallbackTransaction=Fallback.BeginEligible(true);
+    Check(FallbackTransaction && Fallback.Complete(FallbackTransaction->Token,true,false) &&
+        Fallback.GetEffective().ExposureStops == 2 && Fallback.GetEffective().SdrToneMapVersion == ParameterEdit.SdrToneMapVersion,
+        "fallback commits the latest exposure and SDR tone map together");
+    auto UnsupportedEdit=Fallback.GetRequested(); UnsupportedEdit.RequestedProfileId="Hdr.Linear.2000.v1";
+    Check(!Fallback.Request(UnsupportedEdit) && Fallback.GetRequested().RequestedProfileId == "Hdr.Linear.1000.v1",
+        "retaining accepted HDR intent does not authorize a different unavailable output profile");
+    ParameterEdit=Fallback.GetRequested(); ParameterEdit.ExposureStops=3;
+    const auto FallbackMode=Fallback.GetEffective().OutputModeGeneration;
+    const bool QueuedFallbackEdit=Fallback.Request(ParameterEdit);
+    FallbackTransaction=Fallback.BeginEligible(true);
+    Check(QueuedFallbackEdit && FallbackTransaction && !FallbackTransaction->bRequiresOutputTransition &&
+        Fallback.Complete(FallbackTransaction->Token,true,true) && Fallback.GetEffective().ExposureStops == 3 &&
+        Fallback.GetEffective().OutputModeGeneration == FallbackMode,
+        "ordinary edits in an effective SDR fallback do not recreate the native output");
+    WhiteCaps.DisplayGeneration=3;
+    WhiteCaps.Outputs={{"Hdr.Linear.1000.v1",203,203},{"Sdr.sRGB.v1",100,100}};
+    const bool Restored=Fallback.RefreshCapabilities(WhiteCaps,true);
+    FallbackTransaction=Fallback.BeginEligible(true);
+    Check(Restored && FallbackTransaction && Fallback.Complete(FallbackTransaction->Token,true,true) &&
+        Fallback.GetEffective().EffectiveProfileId == "Hdr.Linear.1000.v1" && Fallback.GetEffective().ExposureStops == 3 &&
+        Fallback.GetEffective().SdrToneMapVersion == "Sdr.NarkowiczAcesFit.v1",
+        "restored HDR consumes parameter edits made during fallback and retains the remembered SDR strategy");
     return Failed;
 }

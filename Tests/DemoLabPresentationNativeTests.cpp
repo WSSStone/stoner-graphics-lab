@@ -534,6 +534,18 @@ void RunCapabilityRecovery(int& Failed, const Demo::FDemoConfiguration& Config)
             {
                 Passed &= Requested.RequestedProfileId == "Hdr.PQ.Rec2020.1000.v1" &&
                     !Session.IsSettingsPaused() && !Session.GetSettingsFailure().IsEmpty();
+                auto Edit=Requested;
+                Edit.CameraRevision=Session.GetCameraState().CameraRevision;
+                Edit.DisplayGeneration=Session.GetDisplayState().DisplayGeneration;
+                Edit.ExposureStops=2;
+                Edit.SdrToneMapVersion="Sdr.NarkowiczAcesFit.v1";
+                Passed &= Session.RequestSettings(Edit);
+                Stage=31;
+            }
+            else if (Stage == 31 && Effective->ExposureStops == 2 && Effective->SdrToneMapVersion == "Sdr.NarkowiczAcesFit.v1")
+            {
+                Passed &= Effective->EffectiveProfileId == "Sdr.sRGB.v1" &&
+                    Requested.RequestedProfileId == "Hdr.PQ.Rec2020.1000.v1";
                 At=Presented; Stage=30;
             }
             else if (Stage == 30 && Presented >= At+2) { Mask.Mode=Mode::None; Stage=4; }
@@ -550,7 +562,10 @@ void RunCapabilityRecovery(int& Failed, const Demo::FDemoConfiguration& Config)
                 { Mask.Mode=Mode::All; Stage=6; }
             }
             else if (Stage == 6 && Effective->EffectiveProfileId == "Hdr.PQ.Rec2020.1000.v1" && !Session.IsSettingsPaused())
-            { At=Presented; Stage=7; }
+            {
+                Passed &= Effective->ExposureStops == 2 && Effective->SdrToneMapVersion == "Sdr.NarkowiczAcesFit.v1";
+                At=Presented; Stage=7;
+            }
             else if (Stage == 7 && Presented >= At+2)
             { ExpectedExtent=Session.GetDisplayState().DrawableExtent; Stage=8; (void)Session.RequestExit(); }
         });
@@ -558,7 +573,8 @@ void RunCapabilityRecovery(int& Failed, const Demo::FDemoConfiguration& Config)
               << " resized=" << Resized << " extent=" << Result.BeforeNativeShutdown.ResolvedState.Width
               << 'x' << Result.BeforeNativeShutdown.ResolvedState.Height
               << " failure=" << Result.FirstFailure.CStr() << '\n';
-    Check(Failed, Passed && Resized && Stage == 8 && PausedServices > 10 && Result.ExitCode == Demo::EDemoExitCode::Success,
+    Check(Failed, Passed && Resized && Stage == 8 && PausedServices > 10 && Result.ExitCode == Demo::EDemoExitCode::Success &&
+        Result.LastRecordedExposureStops == 2,
         "injected HDR loss falls back to SDR, all-output loss pauses beyond five seconds, and restored capability resumes requested HDR");
     const auto& Ops=Result.BeforeNativeShutdown.RuntimeSnapshot.NativeOperations;
     Check(Failed, Ops.bAvailable && Ops.ImageReadbackCopyCount == 0 && Ops.ReadbackMapCount == 0 &&

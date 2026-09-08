@@ -99,7 +99,10 @@ bool FLabSettingsController::Request(const FLabSettingsSnapshot& Input)
     if (!bInitialized || Input.DisplayGeneration != Capabilities.DisplayGeneration ||
         Input.CameraRevision < Effective.CameraRevision || Input.CameraRevision < Requested.CameraRevision)
     { Failure = "Stale settings display or camera identity"; return false; }
-    if (!Queue(Input,false)) return false;
+    // Editing parameters does not abandon previously accepted output intent
+    // merely because a display change currently requires SDR fallback. A new
+    // unavailable profile still rejects without replacing that intent.
+    if (!Queue(Input,Input.RequestedProfileId == Requested.RequestedProfileId)) return false;
     Requested = Input; Requested.SettingsRevision = Revision;
     return true;
 }

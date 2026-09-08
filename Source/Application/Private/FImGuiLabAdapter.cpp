@@ -187,7 +187,7 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
                 else if (Capabilities->Outputs.empty()) ImGui::TextUnformatted("No supported output; rendering paused");
                 if (ImGui::SliderFloat("Exposure (EV)",&Candidate.ExposureStops,-16,16,"%.2f"))
                     (void)EditSettings(Candidate);
-                const bool SDR = Candidate.RequestedProfileId.View().starts_with("Sdr.");
+                const bool SDR = (Effective ? Effective->EffectiveProfileId : Candidate.RequestedProfileId).View().starts_with("Sdr.");
                 ImGui::BeginDisabled(!SDR);
                 if (ImGui::BeginCombo("SDR tone map",Candidate.SdrToneMapVersion.CStr()))
                 {
