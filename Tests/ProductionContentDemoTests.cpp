@@ -546,8 +546,10 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
         Vertex.Stage = ERHIShaderStage::Vertex; Fragment.Stage = ERHIShaderStage::Fragment;
         const FRHIShaderModuleDesc Modules[] = {Vertex,Fragment}; // tracked RHI; no native shader claim
         Core::uint64 PacketId = 1;
+        Core::TSharedPtr<FProductionContentPreviewGraph> LastPreparedGraph;
         const FLabProductionFrameContext::FPrepareUI PrepareUI = [&](const auto& FrameResources,
-            Core::uint64 Budget, Core::TSharedPtr<FUIRenderFrame>& Out) {
+            Core::uint64 Budget, Core::TSharedPtr<FUIRenderFrame>& Out,
+            Core::TSharedPtr<FProductionContentPreviewGraph>& OutGraph) {
             const auto& Scene = FrameResources.Bindings.OutputTransformStages.back().Input;
             if (FrameResources.OutputTransformPlan.FrameToken == 0 ||
                 FrameResources.Bindings.FinalOutput == nullptr ||
@@ -561,7 +563,15 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
             if (!Draw.SetDisplay({0,0},{static_cast<float>(Width),static_cast<float>(Height)},{1,1}) ||
                 !Draw.SetVertices(Vertices) || !Draw.SetIndices(Indices) || !Draw.SetCommands({&Command,1}) ||
                 !Draw.SetTextureLeases({&Lease,1}) || !Draw.Publish()) return ERHIResult::InvalidState;
-            return UI.PrepareFrame(Draw,UISettings,1,0,Scene,Modules,Modules,Out);
+            auto GraphComposition=Config.Composition;
+            GraphComposition.FrameToken=FrameResources.OutputTransformPlan.FrameToken;
+            Core::TSharedPtr<FProductionContentPreviewGraph> Graph;
+            if (!FProductionContentDeferredExecutionBuilder::BuildPreviewGraph(GraphComposition,
+                FrameResources.OutputSettings,&UISettings,FrameResources.Bindings.FormalOutput->GetFormat(),Graph))
+                return ERHIResult::InvalidState;
+            const auto Prepared=UI.PrepareFrame(Draw,UISettings,1,0,Scene,Modules,Modules,Out);
+            if (Prepared==ERHIResult::Success) { OutGraph=Graph; LastPreparedGraph=Graph; }
+            return Prepared;
         };
         auto UIContextOwner = Core::MakeShared<FLabProductionFrameContext>();
         auto& UIContext = *UIContextOwner;
@@ -587,6 +597,17 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
         Record(Result, TicketRecorded.Result == EOutputTransformResult::Success && UITicket.IsValid(),
             "Lab preview ticket validates the terminal UI graph against its already-recorded deferred command");
         const auto* Resources = UIContext.GetResources(81,0);
+        Record(Result,Resources && Resources->PreviewOutputGraph==LastPreparedGraph && LastPreparedGraph &&
+            LastPreparedGraph->Plan.PlanFingerprint==Resources->OutputTransformPlan.PlanFingerprint &&
+            LastPreparedGraph->Graph.GetState()==ERenderGraphState::Executed,
+            "preview submission retains the exact output graph built during UI preparation");
+        auto InvalidGraphSettings=Config.OutputSettings;
+        InvalidGraphSettings.DiagnosticBypass.StageName="missing-stage";
+        InvalidGraphSettings.DiagnosticBypass.Mode=EOutputTransformDebugBypassMode::BoundedVisualization;
+        auto PreservedGraph=LastPreparedGraph;
+        Record(Result,!FProductionContentDeferredExecutionBuilder::BuildPreviewGraph(Composition,
+            InvalidGraphSettings,&UISettings,OutputFormat,PreservedGraph) && PreservedGraph==LastPreparedGraph,
+            "failed output graph preparation preserves the prior compiled graph owner");
         const auto Frame = Resources && Resources->Bindings.OutputTransformStages.size() == 4
             ? Resources->Bindings.OutputTransformStages[2].UIFrame : nullptr;
         const auto FenceIndex = Device->TestQueue->SubmittedFences.size();
@@ -651,7 +672,8 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
             if (FailureCommand) FailureCommand->BufferTextureCopyResult = ERHIResult::Timeout;
             Core::uint64 FailurePacketId = 1;
             const FLabProductionFrameContext::FPrepareUI PrepareFailure =
-                [&](const auto& FrameResources,Core::uint64,Core::TSharedPtr<FUIRenderFrame>& Out) {
+                [&](const auto& FrameResources,Core::uint64,Core::TSharedPtr<FUIRenderFrame>& Out,
+                    Core::TSharedPtr<FProductionContentPreviewGraph>&) {
                     const auto& Stages = FrameResources.Bindings.OutputTransformStages;
                     const auto& Scene = Stages.size() == 4 ? Stages[2].Input : Stages.back().Input;
                     FUIDrawSnapshot Draw(73,FailurePacketId++,1,1);
@@ -665,10 +687,11 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
                 };
             const auto FailedRecord = UIContext.RecordFrame(84,0,Composition,nullptr,PrepareFailure);
             Core::TSharedPtr<FUIRenderFrame> Retry;
-            const auto BeforeDiscard = PrepareFailure(*Resources,0,Retry);
+            Core::TSharedPtr<FProductionContentPreviewGraph> RetryGraph;
+            const auto BeforeDiscard = PrepareFailure(*Resources,0,Retry,RetryGraph);
             (void)UIContext.CancelFrame(84,0);
             const auto FailedRetire = UIContext.RetireCancelled(84,0);
-            const auto AfterDiscard = PrepareFailure(*Resources,0,Retry);
+            const auto AfterDiscard = PrepareFailure(*Resources,0,Retry,RetryGraph);
             Record(Result, BeforeDiscard == ERHIResult::NotReady && AfterDiscard == ERHIResult::Success,
                 "Partial upload failure retains reservations until the command is discarded");
             if (Retry) (void)Retry->CancelAfterCommandDiscard();

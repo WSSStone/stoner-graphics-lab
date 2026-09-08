@@ -135,7 +135,8 @@ public:
     using FPrepareUI = std::function<RHI::ERHIResult(
         const FProductionContentDeferredExecutionResources& Resources,
         Core::uint64 AvailableAttachmentBytes,
-        Core::TSharedPtr<Renderer::FUIRenderFrame>& OutFrame)>;
+        Core::TSharedPtr<Renderer::FUIRenderFrame>& OutFrame,
+        Core::TSharedPtr<FProductionContentPreviewGraph>& OutGraph)>;
     [[nodiscard]] RHI::ERHIResult RecordFrame(
         Core::uint64 FrameToken,
         Core::uint32 SlotIndex,

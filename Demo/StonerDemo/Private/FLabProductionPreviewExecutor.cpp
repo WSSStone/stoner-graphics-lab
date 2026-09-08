@@ -204,41 +204,20 @@ Renderer::FOutputTransformPreviewResult RecordLabProductionPreview(
     }
     const auto* Resources = Context->GetResources(Composition.FrameToken, Slot);
     if (!Resources || !Resources->Bindings.Readbacks.empty()) return Failure;
-    Renderer::FRenderGraph Graph("LabProductionPreview");
-    auto SceneDesc = Renderer::FRenderGraphResourceDesc::TypedTexture2D(
-        "Lab.SceneColor", Target.Frame.Width, Target.Frame.Height,
-        RHI::ERHIFormat::R16G16B16A16_Float, RHI::ERHISampleCount::One,
-        RHI::ERHITextureUsage::Sampled | RHI::ERHITextureUsage::ColorAttachment,
-        Renderer::ERenderGraphColorDomain::SceneLinearRec709D65);
-    SceneDesc.Ownership = Renderer::ERenderGraphResourceOwnership::Imported;
-    SceneDesc.InitialState = Renderer::ERenderGraphResourceState::External;
-    SceneDesc.AliasPolicy = Renderer::ERenderGraphAliasPolicy::Disabled;
-    const auto Scene = Graph.CreateBuilder().ImportResource(SceneDesc);
-    Renderer::FHDRSceneColorHandoffDesc HandoffDesc;
-    HandoffDesc.SceneColorId = Composition.FrameToken;
-    HandoffDesc.ViewId = Composition.FrameToken;
-    HandoffDesc.FrameToken = Composition.FrameToken;
-    HandoffDesc.Producer = Renderer::EHDRSceneColorProducer::Deferred;
-    HandoffDesc.Width = Target.Frame.Width; HandoffDesc.Height = Target.Frame.Height;
-    auto Handoff = Renderer::FHDRSceneColorHandoff::Declare(HandoffDesc);
-    if (!Handoff.BindProducer(Scene) || !Handoff.MarkProduced()) return Failure;
-    auto Prepared = Renderer::FHDRPostProcessPipeline().Prepare(Handoff, Resources->OutputSettings,
-        Resources->OutputTransformPlan.TerminalUI ? &*Resources->OutputTransformPlan.TerminalUI : nullptr);
-    if (!Prepared.Succeeded()) return Failure;
-    auto Plan = std::move(Prepared.Plan);
-    Plan.ExecutionPurpose = Renderer::EFrameExecutionPurpose::InteractivePreview;
-    Plan.ReadbackSelection = Renderer::EFrameReadbackSelection::None;
-    if (!Renderer::FHDRPostProcessPipeline().BindPreviewTargetFormat(Plan, Target.Frame.Format) ||
-        Plan.PlanFingerprint != Resources->OutputTransformPlan.PlanFingerprint) return Failure;
-    const auto Declaration = Renderer::FHDRPostProcessPipeline().DeclareGraph(Graph, Plan);
-    if (!Declaration.IsValid() || Graph.Compile() != Renderer::ERenderGraphResult::Success)
-        return Failure;
+    auto OutputGraph=Resources->PreviewOutputGraph;
+    if (!OutputGraph && !FProductionContentDeferredExecutionBuilder::BuildPreviewGraph(
+        Composition,Resources->OutputSettings,
+        Resources->OutputTransformPlan.TerminalUI ? &*Resources->OutputTransformPlan.TerminalUI : nullptr,
+        Target.Frame.Format,OutputGraph)) return Failure;
+    const auto& Plan=OutputGraph->Plan;
+    if (Plan.FrameToken!=Composition.FrameToken ||
+        Plan.PlanFingerprint!=Resources->OutputTransformPlan.PlanFingerprint) return Failure;
     Renderer::FOutputTransformExecutionBindings Bindings;
     Bindings.SceneColorExternalToken = Composition.FrameToken;
     Bindings.PreviewFrameExecutor = Core::MakeShared<FLabPreviewExecutor>(
         Context, Target, Resolved, Plan.PlanFingerprint, std::move(Cancel));
     return Renderer::FOutputTransformExecutor().RecordPreview(
-        Plan, Graph, Declaration, Bindings, OutTicket);
+        Plan, OutputGraph->Graph, OutputGraph->Declaration, Bindings, OutTicket);
 }
 
 } // namespace Stoner::Demo

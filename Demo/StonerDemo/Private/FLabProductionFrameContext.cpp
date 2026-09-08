@@ -791,11 +791,12 @@ RHI::ERHIResult FLabProductionFrameContext::RecordFrame(
         // Reject before invoking a preparer that could allocate a new target.
         const uint64 Required = static_cast<uint64>(Impl_->Width) * Impl_->Height * 8ULL;
         TSharedPtr<Renderer::FUIRenderFrame> UI;
+        TSharedPtr<FProductionContentPreviewGraph> OutputGraph;
         auto Prepared = ERHIResult::Unavailable;
         try
         {
             if (Required <= Available)
-                Prepared = PrepareUI(Slot->Resources, Available, UI);
+                Prepared = PrepareUI(Slot->Resources, Available, UI, OutputGraph);
         }
         catch (const std::bad_alloc&) { Prepared = ERHIResult::Unavailable; }
         if (Prepared == ERHIResult::Success && UI && UI->HasDraws())
@@ -804,7 +805,7 @@ RHI::ERHIResult FLabProductionFrameContext::RecordFrame(
             // The preparer receives the aggregate allowance before allocation.
             // Verify its returned owner before binding or recording any pass.
             Prepared = DiagnosticBytes > Available - Required ? ERHIResult::Unavailable
-                : FProductionContentDeferredExecutionBuilder::BindPreviewUI(UI, Slot->Resources);
+                : FProductionContentDeferredExecutionBuilder::BindPreviewUI(UI, Slot->Resources, OutputGraph);
             if (Prepared == ERHIResult::Success)
             {
                 Slot->UIFrame = UI;

@@ -13,11 +13,19 @@ class FDeferredFrameUniformResources;
 namespace Stoner::Demo
 {
 
+struct FProductionContentPreviewGraph
+{
+    Renderer::FRenderGraph Graph{"LabProductionPreview"};
+    Renderer::FOutputTransformPlan Plan;
+    Renderer::FOutputTransformGraphDeclaration Declaration;
+};
+
 struct FProductionContentDeferredExecutionResources
 {
     Renderer::FDeferredFramePlan Plan;
     Renderer::FDeferredRenderGraphDeclaration Graph;
     Renderer::FOutputTransformPlan OutputTransformPlan;
+    Core::TSharedPtr<FProductionContentPreviewGraph> PreviewOutputGraph;
     Renderer::FDeferredFrameExecutionBindings Bindings;
     Core::TArray<Core::TSharedPtr<RHI::IRHIBuffer>> OwnedBuffers;
     Core::TArray<Core::TSharedPtr<RHI::IRHITexture>> OwnedTextures;
@@ -97,13 +105,20 @@ public:
 
     // Only while the slot command is idle. Null removes the terminal UI stage.
     // The caller retains/cancels the frame according to actual submission state.
+    [[nodiscard]] static bool BuildPreviewGraph(
+        const FProductionContentComposition& Composition,
+        const Renderer::FOutputTransformSettings& Settings,
+        const Renderer::FUICompositionSettings* UISettings,
+        RHI::ERHIFormat TargetFormat,
+        Core::TSharedPtr<FProductionContentPreviewGraph>& OutGraph);
     // CPU-only complete stage/range validation before accepting a live edit.
     [[nodiscard]] static bool ValidatePreviewOutputSettings(
         const FProductionContentComposition& Composition,
         const Renderer::FOutputTransformSettings& Settings);
     [[nodiscard]] static RHI::ERHIResult BindPreviewUI(
         const Core::TSharedPtr<Renderer::FUIRenderFrame>& Frame,
-        FProductionContentDeferredExecutionResources& InOutResources);
+        FProductionContentDeferredExecutionResources& InOutResources,
+        const Core::TSharedPtr<FProductionContentPreviewGraph>& OutputGraph = {});
 
     [[nodiscard]] static RHI::ERHIResult RebindPreviewOutput(
         const Core::TSharedPtr<RHI::IRHIDevice>& Device,

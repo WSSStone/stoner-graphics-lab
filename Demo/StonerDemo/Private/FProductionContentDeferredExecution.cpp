@@ -602,6 +602,7 @@ void FProductionContentDeferredExecutionResources::Release() noexcept
     Plan = {};
     Graph = {};
     OutputTransformPlan = {};
+    PreviewOutputGraph.reset();
     PreviewUniformResources.reset();
     SceneLease.reset();
     OutputSettings = {};
@@ -1178,9 +1179,47 @@ ERHIResult FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
     InOutResources.Plan = std::move(CandidatePlan);
     InOutResources.Graph = std::move(CandidateGraph);
     InOutResources.OutputTransformPlan = std::move(CandidateOutputPlan);
+    InOutResources.PreviewOutputGraph.reset();
     InOutResources.Bindings.SurfaceDraws =
         InOutResources.PreviewUniformResources->GetSurfaceDraws();
     return ERHIResult::Success;
+}
+
+bool FProductionContentDeferredExecutionBuilder::BuildPreviewGraph(
+    const FProductionContentComposition& Composition, const FOutputTransformSettings& Settings,
+    const FUICompositionSettings* UISettings, ERHIFormat TargetFormat,
+    TSharedPtr<FProductionContentPreviewGraph>& OutGraph)
+{
+    try
+    {
+        auto Candidate=Core::MakeShared<FProductionContentPreviewGraph>();
+        auto& Graph=Candidate->Graph;
+        const auto Extent=Composition.DeferredInputs.View.Extent;
+        auto SceneDesc=FRenderGraphResourceDesc::TypedTexture2D("Lab.SceneColor",Extent.Width,Extent.Height,
+            ERHIFormat::R16G16B16A16_Float,ERHISampleCount::One,
+            ERHITextureUsage::Sampled | ERHITextureUsage::ColorAttachment,
+            ERenderGraphColorDomain::SceneLinearRec709D65);
+        SceneDesc.Ownership=ERenderGraphResourceOwnership::Imported;
+        SceneDesc.InitialState=ERenderGraphResourceState::External;
+        SceneDesc.AliasPolicy=ERenderGraphAliasPolicy::Disabled;
+        const auto Scene=Graph.CreateBuilder().ImportResource(SceneDesc);
+        FHDRSceneColorHandoffDesc Desc;
+        Desc.SceneColorId=Desc.ViewId=Desc.FrameToken=Composition.FrameToken;
+        Desc.Producer=EHDRSceneColorProducer::Deferred; Desc.Width=Extent.Width; Desc.Height=Extent.Height;
+        auto Handoff=FHDRSceneColorHandoff::Declare(Desc);
+        if (!Handoff.BindProducer(Scene) || !Handoff.MarkProduced()) return false;
+        auto Prepared=FHDRPostProcessPipeline().Prepare(Handoff,Settings,UISettings);
+        if (!Prepared.Succeeded()) return false;
+        auto& Plan=Candidate->Plan; Plan=std::move(Prepared.Plan);
+        Plan.ExecutionPurpose=EFrameExecutionPurpose::InteractivePreview;
+        Plan.ReadbackSelection=EFrameReadbackSelection::None;
+        if (!FHDRPostProcessPipeline().BindPreviewTargetFormat(Plan,TargetFormat)) return false;
+        Candidate->Declaration=FHDRPostProcessPipeline().DeclareGraph(Graph,Plan);
+        if (!Candidate->Declaration.IsValid() || Graph.Compile()!=ERenderGraphResult::Success) return false;
+        OutGraph=std::move(Candidate);
+        return true;
+    }
+    catch (const std::bad_alloc&) { return false; }
 }
 
 bool FProductionContentDeferredExecutionBuilder::ValidatePreviewOutputSettings(
@@ -1197,7 +1236,8 @@ bool FProductionContentDeferredExecutionBuilder::ValidatePreviewOutputSettings(
 
 ERHIResult FProductionContentDeferredExecutionBuilder::BindPreviewUI(
     const TSharedPtr<FUIRenderFrame>& Frame,
-    FProductionContentDeferredExecutionResources& Resources)
+    FProductionContentDeferredExecutionResources& Resources,
+    const TSharedPtr<FProductionContentPreviewGraph>& OutputGraph)
 {
     auto& Stages = Resources.Bindings.OutputTransformStages;
     if (Resources.ExecutionPurpose != EFrameExecutionPurpose::InteractivePreview ||
@@ -1223,6 +1263,11 @@ ERHIResult FProductionContentDeferredExecutionBuilder::BindPreviewUI(
         if (!FHDRPostProcessPipeline().BindPreviewTargetFormat(Plan,
                 Resources.Bindings.FormalOutput->GetFormat()) || !Plan.IsValid())
             return ERHIResult::InvalidState;
+        if ((Frame && Frame->HasDiagnostic() && !OutputGraph) ||
+            (OutputGraph && (OutputGraph->Plan.PlanFingerprint!=Plan.PlanFingerprint ||
+             OutputGraph->Plan.FrameToken!=Plan.FrameToken ||
+             OutputGraph->Graph.GetState()!=ERenderGraphState::Compiled || !OutputGraph->Declaration.IsValid())))
+            return ERHIResult::InvalidState;
         if (Frame && Frame->HasDiagnostic() != Plan.HasDiagnosticWidget())
             return ERHIResult::InvalidState;
         auto Candidate = Stages;
@@ -1241,6 +1286,7 @@ ERHIResult FProductionContentDeferredExecutionBuilder::BindPreviewUI(
         if (Updated != ERHIResult::Success) return Updated;
         Stages = std::move(Candidate);
         Resources.OutputTransformPlan = std::move(Plan);
+        Resources.PreviewOutputGraph=HasUI ? OutputGraph : nullptr;
         return ERHIResult::Success;
     }
     catch (const std::bad_alloc&) { return ERHIResult::Unavailable; }

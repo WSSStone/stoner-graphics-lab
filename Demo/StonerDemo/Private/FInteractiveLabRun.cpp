@@ -549,7 +549,8 @@ public:
             if (Session.IsUIEnabled() && UI)
             {
                 PrepareUI = [&, Token=Slot.Token](const auto& Resources,Core::uint64 Available,
-                    Core::TSharedPtr<Renderer::FUIRenderFrame>& OutFrame) {
+                    Core::TSharedPtr<Renderer::FUIRenderFrame>& OutFrame,
+                    Core::TSharedPtr<FProductionContentPreviewGraph>& OutGraph) {
                     const auto& SceneInput = Resources.Bindings.OutputTransformStages.back().Input;
                     const auto& Display = Session.GetDisplayState();
                     const auto Required = static_cast<Core::uint64>(Display.DrawableExtent.Width) *
@@ -565,8 +566,32 @@ public:
                     Settings.UIReferenceWhiteNits = OutputResolved.ReferenceWhiteNits;
                     Settings.NativePackingWhiteNits = Status.ResolvedState.ReferenceWhiteNits;
                     Settings.DisplayGeneration = Display.DisplayGeneration;
+                    Core::TSharedPtr<FProductionContentPreviewGraph> Graph;
+                    Renderer::FUIDiagnosticRenderInput Diagnostic;
+                    const bool HasWidget=std::any_of(Snapshot.GetCommands().begin(),Snapshot.GetCommands().end(),
+                        [](const auto& Command) { return Command.bDiagnosticWidget; });
+                    if (HasWidget)
+                    {
+                        if (!FProductionContentDeferredExecutionBuilder::BuildPreviewGraph(Frame,
+                            Resources.OutputSettings,&Settings,Resources.Bindings.FormalOutput->GetFormat(),Graph) ||
+                            !Graph->Plan.HasDiagnosticWidget()) return ERHIResult::Unavailable;
+                        Diagnostic.Selection=Graph->Plan.DiagnosticBypass;
+                        if (Diagnostic.Selection.SourceStageName==Core::FString("SceneColorHandoff"))
+                            Diagnostic.Source=Resources.Bindings.FinalOutput;
+                        else
+                            for (const auto& Stage : Resources.Bindings.OutputTransformStages)
+                                if (Stage.Name==Diagnostic.Selection.SourceStageName) Diagnostic.Source=Stage.Output;
+                        if (!Diagnostic.Source) return ERHIResult::Unavailable;
+                        Diagnostic.Graph=Core::TSharedPtr<const Renderer::FRenderGraph>(Graph,&Graph->Graph);
+                        Diagnostic.Resource=Graph->Declaration.DiagnosticOutput;
+                        Diagnostic.Producer=Graph->Declaration.DiagnosticVisualizationPass;
+                        Diagnostic.Consumer=Graph->Declaration.UIPass;
+                        Diagnostic.Shaders=UIShaders.Diagnostic.ModuleDescriptions;
+                        Diagnostic.RemainingAttachmentBytes=Available-Required;
+                    }
                     const auto Prepared = UI->PrepareFrame(Snapshot,Settings,Revision,0,SceneInput,
-                        UIShaders.Draw.ModuleDescriptions,UIShaders.Copy.ModuleDescriptions,OutFrame);
+                        UIShaders.Draw.ModuleDescriptions,UIShaders.Copy.ModuleDescriptions,OutFrame,HasWidget ? &Diagnostic : nullptr);
+                    if (Prepared==ERHIResult::Success) OutGraph=std::move(Graph);
                     return Prepared == ERHIResult::InvalidState || Prepared == ERHIResult::Unsupported
                         ? ERHIResult::Unavailable : Prepared;
                 };
