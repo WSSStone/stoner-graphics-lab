@@ -6,6 +6,9 @@
 #include <filesystem>
 
 int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders& Shaders, bool RequireNative);
+int RunInteractiveLabForwardNativeParity(const Stoner::Demo::FProductionContentLoadedClosure& Closure,
+    const Stoner::Asset::FAssetTargetProfileEvidence& Target,
+    const Stoner::Demo::FInteractiveLabShaders& Shaders);
 
 static int RunShaderFixture(bool RequireNative, int ExpectedBackend)
 {
@@ -64,6 +67,8 @@ static int RunShaderFixture(bool RequireNative, int ExpectedBackend)
     {
         if (RequireNative || Target.Profile.GraphicsBackend == Asset::EAssetGraphicsBackend::Vulkan || std::getenv("STONER_REQUIRE_UI_COMPOSITION"))
             Failed += RunUICompositionPreparationTests(Shaders,RequireNative);
+        if (RequireNative)
+            Failed += RunInteractiveLabForwardNativeParity(Closure,Target,Shaders);
         auto Bad = Closure;
         Bad.RenderShaders.clear();
         Check(PrepareInteractiveLabShaders(Bad, Pointer.GenerationId, Target, Shaders, Reason) != Asset::EAssetResult::Success &&
