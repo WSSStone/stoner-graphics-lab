@@ -92,3 +92,5 @@ Required reports remain <=1 MiB each with <=64 bounded artifact references. Miss
 ## Traceability
 
 FR-001–FR-010 map to input/camera fixtures and hands-on review; FR-011–FR-015 to transactional settings/lifecycle; FR-016–FR-018 to native draw/color/UI-off parity; FR-019–FR-020 to preset/path tests; FR-021–FR-024 to instrumented deferred submission and budgets; FR-025–FR-029 to evidence isolation and closeout. SC-001–SC-008 are all covered; no new full-profiler, editor or rendering-effect acceptance is introduced.
+
+Runtime metadata observations carry an explicit availability bit; an unavailable backend observation cannot prove metadata absence. Metal reads the actual layer EDRMetadata property through its private snapshot. Native presentation submission token association proves which rendered UI frame was queued, while the presentedTime-derived token separately records actual display observation. A zero displayed token must not be relabeled as scanout success or human HDR authority.

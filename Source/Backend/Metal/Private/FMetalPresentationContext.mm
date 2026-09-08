@@ -1923,6 +1923,7 @@ FMetalPresentationContext::GetLayerSnapshot() const noexcept
     Native.bAvailable = true;
     if (Impl_->bAttached)
     {
+        Snapshot.Policy.bHasEDRMetadata = Impl_->Layer.EDRMetadata != nil;
         Native.ActiveGeneration = Impl_->Generation;
         Native.ActiveImageCount = static_cast<Core::uint32>(Impl_->Layer.maximumDrawableCount);
         Native.EstimatedColorBytes = Impl_->EstimatedColorBytes();

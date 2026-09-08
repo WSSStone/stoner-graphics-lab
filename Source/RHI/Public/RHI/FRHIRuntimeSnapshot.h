@@ -41,6 +41,9 @@ struct FRHIRuntimeSnapshot
     Stoner::Core::uint64 LastSubmittedFrameToken = 0;
     Stoner::Core::uint64 LastPresentedFrameToken = 0;
     Stoner::Core::FString PresentationMetadataDigest;
+    // Availability is explicit: unsupported backends do not imply metadata absence.
+    bool bNativePresentationMetadataObserved = false;
+    bool bNativeSystemToneMappingEnabled = false;
 
     [[nodiscard]] Stoner::Core::uint64 GetTotalLiveObjectCount() const noexcept
     {

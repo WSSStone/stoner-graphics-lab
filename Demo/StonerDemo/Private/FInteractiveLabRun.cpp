@@ -642,7 +642,10 @@ public:
                 {
                     LastRecordedExposureStops = Resources->OutputTransformPlan.ResolvedSettings.ManualExposureStops;
                     if (Resources->OutputTransformPlan.TerminalUI)
+                    {
                         LastRecordedUIWhiteMultiplier = Resources->OutputTransformPlan.TerminalUI->UIWhiteMultiplier;
+                        LastRecordedUIFrameToken = Slot.Token;
+                    }
                     LastRecordedTransformVersion = Resources->OutputTransformPlan.ResolvedSettings.TransformStrategyVersion;
                     LastRecordedSettingsRevision = Session.GetEffectiveSettings() ? Session.GetEffectiveSettings()->SettingsRevision : 1;
                 }
@@ -848,6 +851,7 @@ public:
     Core::uint64 LastRecordedSettingsRevision = 0;
     float LastRecordedExposureStops = 0;
     float LastRecordedUIWhiteMultiplier = 0;
+    Core::uint64 LastRecordedUIFrameToken = 0;
     Core::FString LastRecordedTransformVersion;
     Core::FString FirstFailure;
     RHI::ERHIShutdownAssurance Assurance = RHI::ERHIShutdownAssurance::Unknown;
@@ -1016,6 +1020,7 @@ FInteractiveLabRunResult RunInteractiveLab(
     Out.LastRecordedSettingsRevision = Owner->LastRecordedSettingsRevision;
     Out.LastRecordedExposureStops = Owner->LastRecordedExposureStops;
     Out.LastRecordedUIWhiteMultiplier = Owner->LastRecordedUIWhiteMultiplier;
+    Out.LastRecordedUIFrameToken = Owner->LastRecordedUIFrameToken;
     Out.LastRecordedTransformVersion = Owner->LastRecordedTransformVersion;
     Out.UIFramesSubmitted = Owner->UIFramesSubmitted;
     Out.DiagnosticFramesSubmitted = Owner->DiagnosticFramesSubmitted;

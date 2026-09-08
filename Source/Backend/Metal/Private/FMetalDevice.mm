@@ -272,6 +272,8 @@ RHI::FRHIRuntimeSnapshot FMetalDevice::GetRuntimeSnapshot() const noexcept
             Result.PresentationDisplayAdaptation =
                 Resolved.DisplayAdaptation;
             Result.PresentationMetadataDigest = Resolved.MetadataDigest;
+            Result.bNativePresentationMetadataObserved = true;
+            Result.bNativeSystemToneMappingEnabled = Layer.Policy.bHasEDRMetadata;
             Result.LastAcquiredFrameToken = Layer.LastAcquiredFrameToken;
             Result.LastSubmittedFrameToken = Layer.LastSubmittedFrameToken;
             Result.LastPresentedFrameToken = Layer.LastPresentedFrameToken;

@@ -706,9 +706,13 @@ void RunDiagnosticPanel(int& Failed)
     Config.WorkloadRevision = Env("STONER_LAB_SCENE_WORKLOAD");
     Config.TargetProfilePath = Env("STONER_LAB_SCENE_PROFILE");
     Config.LeaseCoordinationRoot = Env("STONER_LAB_SCENE_LEASE_ROOT");
-    for (int Case=0; Case<4; ++Case)
+    const bool Metal=Config.GraphicsBackend==Demo::EDemoGraphicsBackend::Metal;
+    for (int Case=0; Case<(Metal ? 6 : 4); ++Case)
     {
         Config.bLabUI=Case!=3;
+        Config.OutputDeviceProfileId=Case==4 ? "Hdr.PQ.Rec2020.1000.v1" :
+            Case==5 ? "Hdr.Linear.1000.v1" : "Sdr.sRGB.v1";
+        Config.OutputTransformVersion=Case>=4 ? Renderer::GInitialHDRViewingVersion : Renderer::GDefaultSDRToneMapVersion;
         bool Edited=false;
         const auto Result=Demo::RunInteractiveLab(Config,Demo::FDemoBackendFactory(),{},
             [&](Application::FInteractiveLabSession& Session,Core::uint32 Presented) {
@@ -723,7 +727,7 @@ void RunDiagnosticPanel(int& Failed)
                 Edit.UIWhiteMultiplier=0.25f;
                 Edited=Session.RequestSettings(Edit);
             });
-        const bool Widget=Case<2;
+        const bool Widget=Case<2 || Case>=4;
         std::cout << "[INFO] diagnostic case=" << Case << " submitted=" << Result.DiagnosticFramesSubmitted
                   << " ui=" << Result.UIFramesSubmitted << " prepare=" << static_cast<int>(Result.FinalFrameState.LastUIPreparationResult)
                   << " peak=" << Result.FinalFrameState.PeakAttachmentBytes << " failure=" << Result.FirstFailure.CStr() << '\n';
@@ -732,6 +736,19 @@ void RunDiagnosticPanel(int& Failed)
             "native diagnostic selection renders visible image modes and skips numeric or UI-hidden images");
         Check(Failed,Case==3 ? Result.LastRecordedUIWhiteMultiplier==0 : Result.LastRecordedUIWhiteMultiplier==0.25f,
             "native submitted UI uses the accepted brightness while UI-off allocates no UI state");
+        if (Case>=4)
+        {
+            const auto& Native=Result.BeforeNativeShutdown.RuntimeSnapshot;
+            std::cout << "[INFO] UI metadata observed=" << Native.bNativePresentationMetadataObserved
+                << " system=" << Native.bNativeSystemToneMappingEnabled << " presented=" << Native.LastPresentedFrameToken
+                << " submitted=" << Native.LastSubmittedFrameToken << " UI=" << Result.LastRecordedUIFrameToken << " encoding=" << static_cast<int>(Native.PresentationNativeEncoding)
+                << " digest=" << Native.PresentationMetadataDigest.CStr() << '\n';
+            Check(Failed,Native.bNativePresentationMetadataObserved && !Native.bNativeSystemToneMappingEnabled &&
+                Native.PresentationMetadataDigest.IsEmpty() && Result.LastRecordedUIFrameToken!=0 &&
+                Native.LastSubmittedFrameToken==Result.LastRecordedUIFrameToken &&
+                Native.PresentationNativeEncoding==(Case==4 ? RHI::ERHIPresentationNativeEncoding::Pq : RHI::ERHIPresentationNativeEncoding::MetalEdr),
+                "PQ/EDR presentation submission matches the actual UI frame and preserves native EDRMetadata absence");
+        }
         const auto& Ops=Result.BeforeNativeShutdown.RuntimeSnapshot.NativeOperations;
         Check(Failed,Ops.bAvailable && Ops.ImageReadbackCopyCount==0 && Ops.ReadbackMapCount==0 &&
             Ops.ReadbackWaitCount==0 && Ops.QueueIdleCallCount==0 && Ops.DeviceIdleCallCount==0 &&
