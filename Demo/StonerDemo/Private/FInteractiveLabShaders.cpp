@@ -62,6 +62,7 @@ Asset::EAssetResult PrepareInteractiveLabShaders(const FProductionContentLoadedC
         };
         if (!Select("Engine/Shaders/UI/UIDraw", Candidate.Draw) ||
             !Select("Engine/Shaders/UI/UICopy", Candidate.Copy)) return EAssetResult::TargetUnavailable;
+        if (!Select("Engine/Shaders/UI/UIDiagnostic",Candidate.Diagnostic)) return EAssetResult::TargetUnavailable;
         OutShaders = std::move(Candidate);
         OutReason = {};
         return EAssetResult::Success;

@@ -1,4 +1,9 @@
 #include "Renderer/FHDRPostProcessPipeline.h"
+#include "FUICompositionExecutor.h"
+#include "VulkanRHI/FVulkanDevice.h"
+#include "VulkanRHI/FVulkanCommandBuffer.h"
+#include <fstream>
+#include <iterator>
 #include <algorithm>
 #include <iostream>
 #include <string_view>
@@ -79,5 +84,62 @@ int RunInteractiveLabDebugTests()
     Prepared.Plan.ExecutionPurpose=EFrameExecutionPurpose::InteractivePreview;
     Prepared.Plan.ReadbackSelection=EFrameReadbackSelection::None;
     Check(!Prepared.Plan.IsValid(),"same-frame UI cannot sample its own final output transfer");
+    auto Device=Stoner::Core::MakeShared<Stoner::Backend::Vulkan::FVulkanDevice>();
+    Stoner::Backend::Vulkan::FVulkanInstanceDesc DeviceDesc;
+    DeviceDesc.RuntimeMode=Stoner::Backend::Vulkan::EVulkanInstanceRuntimeMode::DeterministicFallback;
+    if (Device->Initialize(DeviceDesc)!=ERHIResult::Success) return Failed+1;
+    {
+        Stoner::Core::TArray<FRHIShaderModuleDesc> Shaders;
+        for (const auto Stage : {ERHIShaderStage::Vertex,ERHIShaderStage::Fragment})
+        {
+            FRHIShaderModuleDesc Shader; Shader.Stage=Stage; Shader.EntryPoint="main";
+            const char* Path=Stage==ERHIShaderStage::Vertex ? "Content/Shaders/PostProcess/Fullscreen.vert.spv" : "Content/Shaders/UI/UIDiagnostic.frag.spv";
+            std::ifstream Input(Path,std::ios::binary);
+            Shader.Payload.Bytes.assign(std::istreambuf_iterator<char>(Input),{});
+            Shader.Payload.Format=ERHIShaderPayloadFormat::SPIRV; Shader.Payload.PayloadIdentity=Path;
+            Shader.Payload.PayloadDigest=ComputeRHISha256(Shader.Payload.Bytes); Shader.Payload.TargetProfile="vulkan-1.3";
+            if (Stage==ERHIShaderStage::Fragment) Shader.InterfaceMetadata.Bindings={
+                {0,0,ERHIDescriptorType::CombinedTextureSampler,1,ERHIShaderStageFlags::Fragment},
+                {0,1,ERHIDescriptorType::UniformBuffer,1,ERHIShaderStageFlags::Fragment}};
+            Shaders.push_back(std::move(Shader));
+        }
+        FRHITextureDesc Desc; Desc.Width=2048; Desc.Height=512; Desc.Format=ERHIFormat::R16G16B16A16_Float;
+        Desc.Usage=ERHITextureUsage::Sampled | ERHITextureUsage::ColorAttachment;
+        auto Source=Device->CreateTexture(Desc).Object;
+        FResolvedOutputTransformDebugBypass Selection;
+        Selection.SourceStageId=1; Selection.SourceStageName="SceneColorHandoff";
+        Selection.SourceDomain=ERenderGraphColorDomain::SceneLinearRec709D65;
+        Selection.Mode=EOutputTransformDebugBypassMode::BoundedVisualization;
+        Selection.VisualizationMinimum=-2; Selection.VisualizationMaximum=6;
+        FUIDiagnosticFrame Frame;
+        Check(FUICompositionExecutor::PrepareDiagnostic(Device,Source,Selection,Shaders,1024*256*4-1,Frame)==ERHIResult::NotReady &&
+            !Frame.GetOutput(),"diagnostic attachment budget rejects before publishing a target");
+        Check(FUICompositionExecutor::PrepareDiagnostic(Device,Source,Selection,Shaders,1024*256*4,Frame)==ERHIResult::Success &&
+            Frame.CanRecord() && Frame.GetOutput()->GetDesc().Width==1024 && Frame.GetOutput()->GetDesc().Height==256 &&
+            !HasRHIFlag(Frame.GetOutput()->GetUsage(),ERHITextureUsage::CopySource),
+            "diagnostic producer prepares actual RHI resources at the exact bounded footprint");
+        const auto Prior=Frame.GetOutput(); Selection.Mode=EOutputTransformDebugBypassMode::HDRPreservingReadback;
+        Check(FUICompositionExecutor::PrepareDiagnostic(Device,Source,Selection,Shaders,1024*256*4,Frame)==ERHIResult::InvalidState &&
+            Frame.GetOutput()==Prior,"numeric capture selection cannot replace a GPU widget producer");
+        auto Command=Device->CreateCommandBuffer(ERHIQueueType::Graphics).Object;
+        Check(FUICompositionExecutor::RecordDiagnostic(Frame,Command)==ERHIResult::InvalidState && Frame.CanRecord(),
+            "an idle command cannot consume a prepared diagnostic producer");
+        (void)Command->Begin();
+        FRHIResourceBarrierDesc Transition; Transition.Texture=Source; Transition.After=ERHIResourceLayout::ShaderReadOnly;
+        (void)Command->RecordLayoutTransition(Transition);
+        const auto Status=FUICompositionExecutor::RecordDiagnostic(Frame,Command);
+        const auto Native=std::dynamic_pointer_cast<Stoner::Backend::Vulkan::FVulkanCommandBuffer>(Command);
+        bool Copies=false;
+        for (const auto& C : Native->GetRecordedCommands()) Copies |= C.Type==ERHISymbolicCommandType::BufferToTextureCopy ||
+            C.Type==ERHISymbolicCommandType::TextureToBufferCopy;
+        Check(Status==ERHIResult::Success && !Copies && !Frame.CanRecord() &&
+            FUICompositionExecutor::RecordDiagnostic(Frame,Command)==ERHIResult::InvalidState,
+            "diagnostic producer records one bounded raster pass without copies and cannot be replayed");
+        Selection.Mode=EOutputTransformDebugBypassMode::BoundedVisualization;
+        Check(FUICompositionExecutor::PrepareDiagnostic(Device,Source,Selection,Shaders,1024*256*4,Frame)==ERHIResult::InvalidState &&
+            Frame.GetOutput()==Prior,"a recorded diagnostic producer cannot be overwritten before its owner retires");
+        (void)Command->End(); (void)Command->Reset();
+    }
+    (void)Device->Shutdown();
     return Failed;
 }

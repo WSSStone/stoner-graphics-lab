@@ -15,6 +15,7 @@
     "ShaderProgram:Engine/Shaders/Deferred/Composition",
     "ShaderProgram:Engine/Shaders/PostProcess/OutputTransform",
     "ShaderProgram:Engine/Shaders/UI/UIDraw",
-    "ShaderProgram:Engine/Shaders/UI/UICopy"
+    "ShaderProgram:Engine/Shaders/UI/UICopy",
+    "ShaderProgram:Engine/Shaders/UI/UIDiagnostic"
   ]
 }

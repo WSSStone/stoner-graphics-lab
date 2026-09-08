@@ -1,6 +1,7 @@
 #include "FInteractiveLabShaders.h"
 #include "Core/FPlatformFileSystem.h"
 #include <cstdlib>
+#include <algorithm>
 #include <iostream>
 #include <filesystem>
 
@@ -57,7 +58,8 @@ static int RunShaderFixture(bool RequireNative, int ExpectedBackend)
     const bool Prepared = PrepareInteractiveLabShaders(Closure, Pointer.GenerationId, Target, Shaders, Reason) ==
         Asset::EAssetResult::Success;
     Check(Prepared && Shaders.Draw.ModuleDescriptions.size() == 2 && Shaders.Copy.ModuleDescriptions.size() == 2 &&
-        Shaders.Generation == Closure.GenerationIdentity, "UI draw and copy bytecode select from the same cooked generation and target");
+        Shaders.Diagnostic.ModuleDescriptions.size() == 2 &&
+        Shaders.Generation == Closure.GenerationIdentity, "UI draw, copy and diagnostic bytecode select from the same cooked generation and target");
     if (Prepared)
     {
         if (RequireNative || Target.Profile.GraphicsBackend == Asset::EAssetGraphicsBackend::Vulkan || std::getenv("STONER_REQUIRE_UI_COMPOSITION"))
@@ -66,6 +68,12 @@ static int RunShaderFixture(bool RequireNative, int ExpectedBackend)
         Bad.RenderShaders.clear();
         Check(PrepareInteractiveLabShaders(Bad, Pointer.GenerationId, Target, Shaders, Reason) != Asset::EAssetResult::Success &&
             Shaders.Draw.ModuleDescriptions.size() == 2, "scene-only closure rejects UI enable without replacing prepared shaders");
+        Bad = Closure;
+        std::erase_if(Bad.RenderShaders,[](const auto& Program) {
+            return Program && Program->GetDesc().Id.GetLogicalPath()==Core::FString("Engine/Shaders/UI/UIDiagnostic"); });
+        Check(PrepareInteractiveLabShaders(Bad,Pointer.GenerationId,Target,Shaders,Reason)!=Asset::EAssetResult::Success &&
+            Shaders.Diagnostic.ModuleDescriptions.size()==2,
+            "missing diagnostic program rejects complete UI preflight without replacing prepared shader bytes");
         Bad = Closure; Bad.RenderShaderPayloads.clear();
         Check(PrepareInteractiveLabShaders(Bad, Pointer.GenerationId, Target, Shaders, Reason) != Asset::EAssetResult::Success,
             "missing cooked UI payloads cannot fall back to source bytes");

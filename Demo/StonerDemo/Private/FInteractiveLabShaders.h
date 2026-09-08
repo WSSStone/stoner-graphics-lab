@@ -11,6 +11,7 @@ struct FInteractiveLabShaders
     Asset::FAssetDigest Generation;
     Renderer::FShaderAssetSnapshot Draw;
     Renderer::FShaderAssetSnapshot Copy;
+    Renderer::FShaderAssetSnapshot Diagnostic;
 };
 [[nodiscard]] Asset::EAssetResult PrepareInteractiveLabShaders(
     const FProductionContentLoadedClosure& Closure,

@@ -460,10 +460,11 @@ void TestOutputTransformDerivation(
 void TestUIShaderDerivation(FMetalShaderDerivationTestResult& Result)
 {
     struct FCase { const char* Path; EShaderStage Stage; const char* Name; bool bCopy; };
-    const std::array<FCase, 3> Cases{{
+    const std::array<FCase, 4> Cases{{
         {"Content/Shaders/UI/UIDraw.vert.spv", EShaderStage::Vertex, "UI vertex MSL derivation is deterministic", false},
         {"Content/Shaders/UI/UIDraw.frag.spv", EShaderStage::Fragment, "UI textured fragment MSL derivation is deterministic", false},
-        {"Content/Shaders/UI/UICopy.frag.spv", EShaderStage::Fragment, "UI scene-copy MSL derivation is deterministic", true}}};
+        {"Content/Shaders/UI/UICopy.frag.spv", EShaderStage::Fragment, "UI scene-copy MSL derivation is deterministic", true},
+        {"Content/Shaders/UI/UIDiagnostic.frag.spv", EShaderStage::Fragment, "UI diagnostic MSL derivation is deterministic", false}}};
     for (const auto& Case : Cases)
     {
         FSpirvCrossMslRequest Request;
@@ -474,7 +475,8 @@ void TestUIShaderDerivation(FMetalShaderDerivationTestResult& Result)
         if (!Case.bCopy)
         {
             auto Uniform = Binding(0, 1, EShaderResourceKind::UniformBuffer, 1, EShaderStage::Vertex);
-            Uniform.Visibility = {EShaderStage::Vertex, EShaderStage::Fragment};
+            Uniform.Visibility = std::string_view(Case.Path).find("UIDiagnostic")!=std::string_view::npos
+                ? TArray<EShaderStage>{EShaderStage::Fragment} : TArray<EShaderStage>{EShaderStage::Vertex, EShaderStage::Fragment};
             Bindings.push_back(Uniform);
         }
         Request.InterfaceBindings = Bindings;

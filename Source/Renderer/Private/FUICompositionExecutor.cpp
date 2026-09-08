@@ -30,7 +30,7 @@ struct FPass
     TSharedPtr<IRHIFramebuffer> Framebuffer;
 };
 bool MakePass(IRHIDevice& Device, std::span<const FRHIShaderModuleDesc> Shaders,
-    const TSharedPtr<IRHITexture>& Target, bool Draw, FPass& Out)
+    const TSharedPtr<IRHITexture>& Target, bool Draw, FPass& Out, bool Diagnostic = false)
 {
     if (Shaders.size() != 2) return false;
     bool Vertex = false, Fragment = false;
@@ -45,8 +45,8 @@ bool MakePass(IRHIDevice& Device, std::span<const FRHIShaderModuleDesc> Shaders,
     }
     FRHIPipelineLayoutDesc Layout;
     Layout.Bindings.push_back({0,0,ERHIDescriptorType::CombinedTextureSampler,1,ERHIShaderStageFlags::Fragment});
-    if (Draw) Layout.Bindings.push_back({0,1,ERHIDescriptorType::UniformBuffer,1,
-        ERHIShaderStageFlags::Vertex | ERHIShaderStageFlags::Fragment});
+    if (Draw || Diagnostic) Layout.Bindings.push_back({0,1,ERHIDescriptorType::UniformBuffer,1,
+        Draw ? ERHIShaderStageFlags::Vertex | ERHIShaderStageFlags::Fragment : ERHIShaderStageFlags::Fragment});
     auto CreatedLayout = Device.CreatePipelineLayout(Layout);
     if (!CreatedLayout.Succeeded()) return false;
     Out.Layout = std::move(CreatedLayout.Object);
@@ -60,13 +60,13 @@ bool MakePass(IRHIDevice& Device, std::span<const FRHIShaderModuleDesc> Shaders,
     Pipeline.Blend.SourceColor = Draw ? ERHIBlendFactor::SourceAlpha : ERHIBlendFactor::One;
     Pipeline.Blend.DestinationColor = Draw ? ERHIBlendFactor::OneMinusSourceAlpha : ERHIBlendFactor::Zero;
     Pipeline.Blend.ColorWriteMask = Draw ? ERHIColorWriteMask::RGB : ERHIColorWriteMask::RGBA;
-    Pipeline.RenderTargets.ColorFormats = {ERHIFormat::R16G16B16A16_Float};
+    Pipeline.RenderTargets.ColorFormats = {Target->GetFormat()};
     Pipeline.RuntimeMode = Device.GetRuntimeSnapshot().ObjectMode;
-    Pipeline.CompatibilitySummary = Draw ? "Lab.UIDraw" : "Lab.UICopy";
+    Pipeline.CompatibilitySummary = Draw ? "Lab.UIDraw" : Diagnostic ? "Lab.UIDiagnostic" : "Lab.UICopy";
     auto CreatedPipeline = Device.CreateGraphicsPipeline(Pipeline);
     if (!CreatedPipeline.Succeeded()) return false;
     Out.Pipeline = std::move(CreatedPipeline.Object);
-    auto Pass = Device.CreateRenderPass({{{ERHIAttachmentRole::Color,ERHIFormat::R16G16B16A16_Float,
+    auto Pass = Device.CreateRenderPass({{{ERHIAttachmentRole::Color,Target->GetFormat(),
         ERHISampleCount::One, Draw ? ERHIAttachmentLoadOp::Load : ERHIAttachmentLoadOp::Clear,
         ERHIAttachmentStoreOp::Store}}});
     if (!Pass.Succeeded()) return false;
@@ -86,10 +86,86 @@ TSharedPtr<IRHIBuffer> Buffer(IRHIDevice& Device, const void* Data, uint64 Size,
     return Created.Object;
 }
 }
+struct FUIDiagnosticFrame::FImpl
+{
+    TSharedPtr<IRHITexture> Source, Output;
+    FPass Pass;
+    TSharedPtr<IRHIBuffer> Fullscreen, Parameters;
+    TSharedPtr<IRHISampler> Sampler;
+    TSharedPtr<IRHIDescriptorSet> Set;
+    bool bAttempted = false;
+};
+TSharedPtr<IRHITexture> FUIDiagnosticFrame::GetOutput() const noexcept { return Impl ? Impl->Output : nullptr; }
+bool FUIDiagnosticFrame::CanRecord() const noexcept
+{
+    return Impl && !Impl->bAttempted && Impl->Source->GetLifecycleState()==ERHIResourceLifecycleState::Valid &&
+        Impl->Output->GetLifecycleState()==ERHIResourceLifecycleState::Valid;
+}
+ERHIResult FUICompositionExecutor::PrepareDiagnostic(const TSharedPtr<IRHIDevice>& Device,
+    const TSharedPtr<IRHITexture>& Source, const FResolvedOutputTransformDebugBypass& Selection,
+    std::span<const FRHIShaderModuleDesc> Shaders, uint64 RemainingBytes, FUIDiagnosticFrame& OutFrame)
+{
+    if (OutFrame.Impl && OutFrame.Impl->bAttempted) return ERHIResult::InvalidState;
+    if (!Device || !Device->IsActive() || !Source || Source->GetLifecycleState()!=ERHIResourceLifecycleState::Valid ||
+        !Selection.IsValid() || Selection.Mode!=EOutputTransformDebugBypassMode::BoundedVisualization ||
+        (Selection.SourceDomain!=ERenderGraphColorDomain::SceneLinearRec709D65 &&
+         Selection.SourceDomain!=ERenderGraphColorDomain::DisplayLinearRec709D65 &&
+         Selection.SourceDomain!=ERenderGraphColorDomain::DisplayLinearRec2020D65)) return ERHIResult::InvalidState;
+    const auto& Desc=Source->GetDesc();
+    if (Desc.Format!=ERHIFormat::R16G16B16A16_Float || Desc.Dimension!=ERHITextureDimension::Texture2D ||
+        Desc.Width==0 || Desc.Height==0 || Desc.MipLevels!=1 || Desc.ArrayLayers!=1 || Desc.Depth!=1 ||
+        Desc.SampleCount!=ERHISampleCount::One || !HasRHIFlag(Desc.Usage,ERHITextureUsage::Sampled)) return ERHIResult::InvalidState;
+    const uint64 Largest=std::max<uint64>(1024,std::max(Desc.Width,Desc.Height));
+    const auto Width=static_cast<uint32>(std::max<uint64>(1,uint64{Desc.Width}*1024/Largest));
+    const auto Height=static_cast<uint32>(std::max<uint64>(1,uint64{Desc.Height}*1024/Largest));
+    if (uint64{Width}*Height*4>RemainingBytes) return ERHIResult::NotReady;
+    try
+    {
+        auto Candidate=MakeShared<FUIDiagnosticFrame::FImpl>(); Candidate->Source=Source;
+        FRHITextureDesc Target; Target.Width=Width; Target.Height=Height; Target.Format=ERHIFormat::R8G8B8A8_sRGB;
+        Target.Usage=ERHITextureUsage::ColorAttachment | ERHITextureUsage::Sampled;
+        auto Output=Device->CreateTexture(Target); if (!Output.Succeeded()) return Output.Result;
+        Candidate->Output=std::move(Output.Object);
+        if (!MakePass(*Device,Shaders,Candidate->Output,false,Candidate->Pass,true)) return ERHIResult::Unavailable;
+        constexpr float Vertices[]={-1,-1,3,-1,-1,3};
+        const std::array<float,4> Parameters{Selection.VisualizationMinimum,Selection.VisualizationMaximum,0,0};
+        Candidate->Fullscreen=Buffer(*Device,Vertices,sizeof(Vertices),ERHIBufferUsage::Vertex);
+        Candidate->Parameters=Buffer(*Device,Parameters.data(),sizeof(Parameters),ERHIBufferUsage::Uniform);
+        FRHISamplerDesc Sampling; Sampling.MinFilter=Sampling.MagFilter=ERHISamplerFilter::Linear;
+        Sampling.MipFilter=ERHISamplerMipFilter::None;
+        Sampling.AddressU=Sampling.AddressV=Sampling.AddressW=ERHISamplerAddressMode::ClampToEdge;
+        auto Sampler=Device->CreateSampler(Sampling); auto Set=Device->CreateDescriptorSet(Candidate->Pass.Layout,0);
+        if (!Candidate->Fullscreen || !Candidate->Parameters || !Sampler.Succeeded() || !Set.Succeeded()) return ERHIResult::Unavailable;
+        Candidate->Sampler=std::move(Sampler.Object); Candidate->Set=std::move(Set.Object);
+        auto Status=Candidate->Set->UpdateCombinedTextureSampler(0,0,Source,Candidate->Sampler);
+        if (Status==ERHIResult::Success) Status=Candidate->Set->UpdateBuffer(1,0,Candidate->Parameters);
+        if (Status!=ERHIResult::Success) return Status;
+        OutFrame.Impl=std::move(Candidate); return ERHIResult::Success;
+    }
+    catch (const std::bad_alloc&) { return ERHIResult::Unavailable; }
+}
+ERHIResult FUICompositionExecutor::RecordDiagnostic(FUIDiagnosticFrame& Frame, const TSharedPtr<IRHICommandBuffer>& Command)
+{
+    if (!Command || Command->GetState()!=ERHICommandBufferState::Recording || !Frame.CanRecord()) return ERHIResult::InvalidState;
+    auto& S=*Frame.Impl; S.bAttempted=true;
+    ERHIResult Status=ERHIResult::Success;
+    const auto Step=[&](ERHIResult R) { Status=R; return R==ERHIResult::Success; };
+    FRHIResourceBarrierDesc Transition; Transition.Texture=S.Output; Transition.After=ERHIResourceLayout::ColorAttachment;
+    const auto& Desc=S.Output->GetDesc();
+    if (!Step(Command->RecordLayoutTransition(Transition)) ||
+        !Step(Command->BeginRenderPass(S.Pass.Pass,S.Pass.Framebuffer)) ||
+        !Step(Command->SetViewport({0,0,float(Desc.Width),float(Desc.Height),0,1})) ||
+        !Step(Command->SetScissor({0,0,Desc.Width,Desc.Height})) ||
+        !Step(Command->BindGraphicsPipeline(S.Pass.Pipeline)) || !Step(Command->BindVertexBuffer(S.Fullscreen)) ||
+        !Step(Command->BindDescriptorSet(S.Set)) || !Step(Command->RecordDraw(3)) || !Step(Command->EndRenderPass())) return Status;
+    Transition.Before=ERHIResourceLayout::ColorAttachment; Transition.After=ERHIResourceLayout::ShaderReadOnly;
+    return Command->RecordLayoutTransition(Transition);
+}
 struct FUICompositionFrame::FImpl
 {
     TSharedPtr<IRHITexture> Scene, Output;
     FUIDrawSnapshot Snapshot;
+    FUIGpuTextureContext GpuContext;
     TArray<FUIValidatedCommand> Commands;
     FPass Copy, Draw;
     TSharedPtr<IRHIBuffer> Vertices, Indices, Fullscreen, Uniform;
@@ -102,12 +178,13 @@ TSharedPtr<IRHITexture> FUICompositionFrame::GetOutput() const noexcept { return
 bool FUICompositionFrame::HasDraws() const noexcept { return Impl && Impl->Output != Impl->Scene; }
 bool FUICompositionFrame::CanRecord(const FUITextureRegistry& Registry) const noexcept
 { return Impl && !Impl->bRecorded && (!HasDraws() ||
-    Registry.CanRecordSubmission(Impl->Snapshot.GetTextureLeases()) == ERHIResult::Success); }
+    Registry.CanRecordSubmission(Impl->Snapshot.GetTextureLeases(),Impl->GpuContext.Graph ? &Impl->GpuContext : nullptr) == ERHIResult::Success); }
 ERHIResult FUICompositionExecutor::Prepare(const TSharedPtr<IRHIDevice>& Device,
     const FUIDrawSnapshot& Snapshot, const FUIDrawValidationContext& Context,
     const FUICompositionSettings& Settings, FUITextureRegistry& Registry,
     const TSharedPtr<IRHITexture>& Scene, std::span<const FRHIShaderModuleDesc> DrawShaders,
-    std::span<const FRHIShaderModuleDesc> CopyShaders, FUICompositionFrame& OutFrame)
+    std::span<const FRHIShaderModuleDesc> CopyShaders, FUICompositionFrame& OutFrame,
+    const FUIGpuTextureContext* GpuContext)
 {
     if (!Device || !Device->IsActive() || !Scene || Scene->GetLifecycleState() != ERHIResourceLifecycleState::Valid ||
         !Settings.IsValid() || Settings.DisplayGeneration != Context.DisplayGeneration ||
@@ -116,6 +193,8 @@ ERHIResult FUICompositionExecutor::Prepare(const TSharedPtr<IRHIDevice>& Device,
         Scene->GetDesc().MipLevels != 1 || Scene->GetDesc().SampleCount != ERHISampleCount::One ||
         Scene->GetDesc().Width != Context.DrawableWidth || Scene->GetDesc().Height != Context.DrawableHeight ||
         !HasRHIFlag(Scene->GetUsage(),ERHITextureUsage::Sampled)) return ERHIResult::InvalidState;
+    if (GpuContext && (GpuContext->FrameId!=Snapshot.GetFrameId() || GpuContext->SettingsRevision!=Context.SettingsRevision ||
+        GpuContext->DisplayGeneration!=Context.DisplayGeneration)) return ERHIResult::InvalidState;
     try
     {
         auto OwnedContext = Context;
@@ -134,10 +213,11 @@ ERHIResult FUICompositionExecutor::Prepare(const TSharedPtr<IRHIDevice>& Device,
         Candidate->Scene = Candidate->Output = Scene;
         if (!HasDraws) { OutFrame.Impl = std::move(Candidate); return ERHIResult::Success; }
         Registry.Poll();
-        const auto Available = Registry.CanRecordSubmission(Snapshot.GetTextureLeases());
+        const auto Available = Registry.CanRecordSubmission(Snapshot.GetTextureLeases(),GpuContext);
         if (Available != ERHIResult::Success) return Available;
         if (DrawShaders.size() != 2 || CopyShaders.size() != 2) return ERHIResult::InvalidState;
         Candidate->Snapshot = Snapshot;
+        if (GpuContext) Candidate->GpuContext=*GpuContext;
         Candidate->Commands = std::move(Validated.Commands);
         FRHITextureDesc Target = Scene->GetDesc();
         Target.Usage = ERHITextureUsage::ColorAttachment | ERHITextureUsage::Sampled | ERHITextureUsage::CopySource;
@@ -201,7 +281,7 @@ ERHIResult FUICompositionExecutor::Record(FUICompositionFrame& Frame, FUITexture
     auto& S = *Frame.Impl;
     S.bRecorded = true;
     if (!Frame.HasDraws()) return ERHIResult::Success;
-    auto Result = Registry.RecordSubmission(S.Snapshot.GetTextureLeases(),Command,Submission);
+    auto Result = Registry.RecordSubmission(S.Snapshot.GetTextureLeases(),Command,Submission,S.GpuContext.Graph ? &S.GpuContext : nullptr);
     if (Result != ERHIResult::Success) return Result;
     const auto Width = S.Output->GetDesc().Width, Height = S.Output->GetDesc().Height;
     const auto Step = [&](ERHIResult R) { if (Result == ERHIResult::Success) Result = R; return R == ERHIResult::Success; };
