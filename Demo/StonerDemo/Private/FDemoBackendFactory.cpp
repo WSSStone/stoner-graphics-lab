@@ -112,7 +112,18 @@ void RememberLabFailure(Core::FString& FirstFailure, const char* Reason)
     OutStatus.PendingPresentationLeaseCount = PendingPresentationCount;
     OutStatus.RetainedFacadeOwnerCount = PendingAcquireCount +
         ActiveTargetCount + PendingPresentationCount;
-    OutStatus.bPrepared = bPrepared;
+    // Failed replacement can retire the old native generation without
+    // replacing the facade's last resolved state. Never resume that output
+    // merely because an earlier preparation succeeded.
+    const auto& Native = OutStatus.RuntimeSnapshot.NativePresentation;
+    const auto State = Swapchain ? Swapchain->GetState()
+        : RHI::ERHISwapchainState::Unavailable;
+    OutStatus.bPrepared = bPrepared && OutStatus.ResolvedState.IsValid() &&
+        (State == RHI::ERHISwapchainState::Ready ||
+         State == RHI::ERHISwapchainState::Acquired) &&
+        Native.bAvailable && Native.ActiveGeneration != 0 &&
+        Native.ActiveGeneration ==
+            OutStatus.ResolvedState.SwapchainImageGeneration;
     OutStatus.FailureReason = FirstFailure;
     return RHI::ERHIResult::Success;
 }

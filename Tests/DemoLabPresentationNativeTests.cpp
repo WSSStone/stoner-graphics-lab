@@ -66,6 +66,8 @@ void RunCase(int& Failed, Demo::EDemoGraphicsBackend Backend, bool ForceAcquireH
     auto Device = Runtime.GetDevice();
     Demo::FDemoLabPresentationStatus Status;
     const auto Query = Runtime.QueryLabPresentation(Status);
+    Check(Failed, Query == ERHIResult::Success && !Status.bPrepared,
+        "Demo unprepared surface does not claim a usable output");
     FRHIPresentationFormatColorSpacePair Pair;
     for (const auto& Candidate : Status.Capabilities.SupportedPairs)
     {
@@ -89,6 +91,8 @@ void RunCase(int& Failed, Demo::EDemoGraphicsBackend Backend, bool ForceAcquireH
         ? Runtime.PrepareLabPresentation(Request, Status) : ERHIResult::Unsupported;
     Check(Failed, Query == ERHIResult::Success && Prepared == ERHIResult::Success &&
             Status.bPrepared && Status.ResolvedState.IsValid() &&
+            Status.RuntimeSnapshot.NativePresentation.ActiveGeneration ==
+                Status.ResolvedState.SwapchainImageGeneration &&
             (!ForceAcquireHistory ||
                 Status.RetirementMode == ERHIPresentationRetirementMode::AcquireHistory),
         "Demo lab capabilities prepare a native SDR target and honor forced acquire history");
@@ -102,13 +106,17 @@ void RunCase(int& Failed, Demo::EDemoGraphicsBackend Backend, bool ForceAcquireH
         FRHIBorrowedAcquiredTarget PausedTarget;
         const auto PausedAcquire = Runtime.AcquireLabTarget(499999, 0, PausedTarget);
         const auto PausedQuery = Runtime.QueryLabPresentation(Status);
+        const bool PausedUnprepared = !Status.bPrepared;
         Request.SurfaceCapabilityGeneration = Status.Capabilities.CapabilityGeneration;
         const auto Resumed = PollBounded(Window, [&] {
             return Runtime.ReconfigureLabPresentation(Request, Status);
         });
         FramesPassed = Paused == ERHIResult::NotReady &&
             PausedAcquire == ERHIResult::NotReady && !PausedTarget.IsValid() &&
-            Resumed == ERHIResult::Success;
+            PausedQuery == ERHIResult::Success && PausedUnprepared &&
+            Resumed == ERHIResult::Success && Status.bPrepared &&
+            Status.RuntimeSnapshot.NativePresentation.ActiveGeneration ==
+                Status.ResolvedState.SwapchainImageGeneration;
         if (!FramesPassed)
             std::cerr << "lab pause=" << static_cast<int>(Paused)
                       << " acquire=" << static_cast<int>(PausedAcquire)
@@ -259,6 +267,59 @@ void RunCase(int& Failed, Demo::EDemoGraphicsBackend Backend, bool ForceAcquireH
         Check(Failed, Cancelled == ERHIResult::Success && Acknowledged &&
             After == ERHIResult::Success && Status.PendingAcquireCount == 0,
             "pending Metal cancellation waits for its native job without acquiring a public target");
+
+        FRHIBorrowedAcquiredTarget ClosingTarget;
+        const auto ClosingAcquire = PollBounded(Window, [&] {
+            return Runtime.AcquireLabTarget(600003, 0, ClosingTarget);
+        });
+        const auto ClosingCommand = Device->CreateCommandBuffer(ERHIQueueType::Graphics);
+        const auto ClosingFence = Device->CreateFence(false);
+        FRHIRenderPassDesc ClosingPassDesc;
+        ClosingPassDesc.Attachments = {{ERHIAttachmentRole::Color, ClosingTarget.Frame.Format,
+            ERHISampleCount::One, ERHIAttachmentLoadOp::Clear, ERHIAttachmentStoreOp::Store}};
+        const auto ClosingPass = Device->CreateRenderPass(ClosingPassDesc);
+        FRHIFramebufferDesc ClosingFramebufferDesc;
+        ClosingFramebufferDesc.RenderPass = ClosingPass.Object;
+        ClosingFramebufferDesc.Attachments = {{ClosingTarget.Texture}};
+        ClosingFramebufferDesc.Width = ClosingTarget.Frame.Width;
+        ClosingFramebufferDesc.Height = ClosingTarget.Frame.Height;
+        const auto ClosingFramebuffer = Device->CreateFramebuffer(ClosingFramebufferDesc);
+        FRHIRenderPassClearValues ClosingClear;
+        ClosingClear.Colors = {{0.0f, 0.0f, 0.0f, 1.0f}};
+        const bool Rendered = ClosingAcquire == ERHIResult::Success &&
+            ClosingCommand.Succeeded() && ClosingFence.Succeeded() &&
+            ClosingPass.Succeeded() && ClosingFramebuffer.Succeeded() &&
+            ClosingCommand.Object->Begin() == ERHIResult::Success &&
+            ClosingCommand.Object->BeginRenderPass(ClosingPass.Object,
+                ClosingFramebuffer.Object, ClosingClear) == ERHIResult::Success &&
+            ClosingCommand.Object->EndRenderPass() == ERHIResult::Success &&
+            ClosingCommand.Object->End() == ERHIResult::Success &&
+            Queue.Object->SubmitDeferred(ClosingCommand.Object, {}, {},
+                ClosingFence.Object) == ERHIResult::Success &&
+            PollBounded(Window, [&] { return ClosingFence.Object->Wait(0); }) == ERHIResult::Success;
+        FRHIRenderLease ClosingRender;
+        ClosingRender.Frame = ClosingTarget.Frame;
+        ClosingRender.FrameSlotIndex = 0;
+        ClosingRender.CompletionFence = ClosingFence.Object;
+        FRHIPresentationLease ClosingPresentation;
+        const bool Closed = Window.RequestClose() == Application::EApplicationResult::Success;
+        const auto ClosingPresent = Rendered && Closed
+            ? Runtime.PresentLabTarget(ClosingTarget, ClosingRender, ClosingPresentation)
+            : ERHIResult::Failed;
+        Acknowledged = false;
+        const auto ClosingCancel = Rendered ? PollBounded(Window, [&] {
+            return Runtime.CancelLabTarget(600003, 0, ClosingFence.Object, Acknowledged);
+        }) : ERHIResult::Failed;
+        if (ClosingPresent != ERHIResult::NotReady ||
+            ClosingCancel != ERHIResult::Success || !Acknowledged)
+            std::cerr << "close regression acquire=" << static_cast<int>(ClosingAcquire)
+                      << " rendered=" << Rendered << " closed=" << Closed
+                      << " present=" << static_cast<int>(ClosingPresent)
+                      << " cancel=" << static_cast<int>(ClosingCancel)
+                      << " acknowledged=" << Acknowledged << '\n';
+        Check(Failed, ClosingPresent == ERHIResult::NotReady &&
+            !ClosingPresentation.IsValid() && ClosingCancel == ERHIResult::Success && Acknowledged,
+            "Metal close between render and present preserves the target for bounded cancellation");
     }
     (void)Runtime.QueryLabPresentation(Status);
     const auto& LiveOperations = Status.RuntimeSnapshot.NativeOperations;

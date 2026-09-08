@@ -65,6 +65,8 @@ struct FDemoLabPresentationStatus
     Core::uint32 PendingAcquireCount = 0;
     Core::uint32 PendingPresentationLeaseCount = 0;
     Core::uint32 RetainedFacadeOwnerCount = 0;
+    // Current resolved output still belongs to a usable active native
+    // generation; successful preparation in the past alone is insufficient.
     bool bPrepared = false;
     bool bTerminalDrainStarted = false;
     bool bTerminalDrainComplete = false;

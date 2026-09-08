@@ -1381,7 +1381,11 @@ RHI::ERHIResult FMetalPresentationContext::PresentBorrowedInternal(
     if ([NSThread isMainThread]) RefreshOnMain();
     else dispatch_sync(dispatch_get_main_queue(), RefreshOnMain);
     if (bClosing || bPaused || Width == 0 || Height == 0)
-        return RHI::ERHIResult::Unavailable;
+        // Window events can arrive between the session's event snapshot and
+        // this native presentation check. Keep the unsubmitted borrowed
+        // drawable for resume or lifecycle cancellation, rather than turning
+        // an ordinary close/minimize into a terminal device failure.
+        return RHI::ERHIResult::NotReady;
     if (LogicalWidth != Impl_->LogicalWidth ||
         LogicalHeight != Impl_->LogicalHeight || Width != Impl_->Width ||
         Height != Impl_->Height || DisplayScale != Impl_->DisplayScale)
