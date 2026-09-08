@@ -69,6 +69,9 @@ lib = BuildLayer(
         # The lab settings value includes the existing Renderer color-domain
         # contract, whose public definition includes RHI format types. Keep
         # this transitive include scoped to its validation implementation.
+        'FInteractiveLabSession.cpp': {
+            'include_paths': ['Source/RHI/Public'],
+        },
         'FInteractiveLabValueValidation.cpp': {
             'include_paths': ['Source/RHI/Public'],
         },

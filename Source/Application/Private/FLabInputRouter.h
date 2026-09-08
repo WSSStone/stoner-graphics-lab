@@ -14,6 +14,7 @@ struct FUILabCapture
     bool bScroll = false;
     bool bTextEditing = false;
     bool bVisibilityChanged = false;
+    bool bHideUIRequested = false;
 };
 struct FLabRoutedInput
 {
@@ -27,6 +28,8 @@ public:
     [[nodiscard]] FLabRoutedInput Resolve(
         const Stoner::Core::TArray<FInputEvent>& Events,
         const FUILabCapture& Capture, bool bFocused, bool bOverflow = false);
+    void CancelInteraction() noexcept { Quarantine(); }
+    void InvalidatePointerBaseline() noexcept { Ownership.bPointerBaselineValid = false; }
     [[nodiscard]] const FInputOwnershipSnapshot& GetOwnership() const noexcept { return Ownership; }
 private:
     void Quarantine() noexcept;

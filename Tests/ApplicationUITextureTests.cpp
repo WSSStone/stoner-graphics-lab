@@ -3,6 +3,7 @@
 #include "FUITextureRegistry.h"
 #include "VulkanRHI/FVulkanDevice.h"
 #include "imgui.h"
+#include "imgui_internal.h"
 #include <array>
 #include <iostream>
 
@@ -219,6 +220,22 @@ int RunApplicationUITextureTests()
             Check(UI.ExtractSnapshot([&](FUITextureId Id) { return Registry.Acquire(Id); }, Stale) ==
                 ERHIResult::InvalidState && !Stale.IsPublished(),
                 "context extraction rejects a mismatched display generation");
+            const auto RequestsBeforeBusy = Creates + Updates;
+            Registry.BeginEligibleFrame(4, false);
+            const auto Busy = UI.Frame({FInputEvent::Text('z')},Display,1.0/60.0,false);
+            FUIDrawSnapshot BusyDraw(1,5,1,Display.DisplayGeneration);
+            Check(Busy == EApplicationResult::RuntimeUnavailable && UI.GetTextureResult() == ERHIResult::NotReady &&
+                UI.GetCapture().bTextEditing && UI.GetText().View().find('z') != std::string_view::npos &&
+                Creates + Updates == RequestsBeforeBusy &&
+                UI.ExtractSnapshot([&](FUITextureId Id) { return Registry.Acquire(Id); },BusyDraw) == ERHIResult::InvalidState,
+                "busy render interval services active UI text without texture requests or publishing stale draws");
+            UI.Suspend();
+            Check(!UI.GetCapture().bTextEditing && UI.GetVertexCount() == 0 &&
+                ImGui::GetCurrentContext()->InputEventsQueue.empty() && ImGui::GetCurrentContext()->ActiveId == 0,
+                "hidden/minimized UI clears active input and queued events without destroying font ownership");
+            Registry.BeginEligibleFrame(5,true);
+            Check(UI.Frame({},Display,1.0/60.0) == EApplicationResult::Success && UI.GetVertexCount() > 0,
+                "UI resumes eligible texture preparation after a suspended interval");
         }
         Registry.Poll();
         Check(Registry.GetStatistics().Generations == 0,

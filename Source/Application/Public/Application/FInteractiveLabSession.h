@@ -5,8 +5,20 @@
 #include "Application/FInputManager.h"
 #include "Application/FWindow.h"
 #include "Core/CoreMinimal.h"
+#include "Application/FInputOwnershipSnapshot.h"
+
 
 #include <functional>
+
+namespace Stoner::Renderer
+{
+class FUIDrawSnapshot;
+class FUITextureLease;
+struct FUITextureId;
+struct FUITextureRequest;
+struct FUITextureResult;
+}
+namespace Stoner::RHI { enum class ERHIResult; }
 
 namespace Stoner::Application
 {
@@ -134,6 +146,16 @@ struct FInteractiveLabSessionCallbacks
     FServiceCallback Service;
 };
 
+// Value-only bridge to the Demo-owned Renderer UI session. No third-party
+// context or graphics resource crosses this Application boundary.
+struct FInteractiveLabUICallbacks
+{
+    std::function<EApplicationResult()> PreflightEnable;
+    std::function<void(Stoner::Core::uint64, bool)> BeginFrame;
+    std::function<Stoner::Renderer::FUITextureResult(const Stoner::Renderer::FUITextureRequest&)> PrepareTexture;
+    std::function<Stoner::Renderer::FUITextureLease(Stoner::Renderer::FUITextureId)> AcquireTexture;
+};
+
 class FInteractiveLabSession
 {
 public:
@@ -154,9 +176,18 @@ public:
         FInteractiveLabSessionCallbacks Callbacks = {},
         FInteractiveLabSessionConfig Config = {});
 
-    // Polls window/input, performs one UI-off camera update and makes at most
+    [[nodiscard]] EApplicationResult ConfigureUI(FInteractiveLabUICallbacks Callbacks, bool bEnabled);
+    [[nodiscard]] EApplicationResult SetUIEnabled(bool bEnabled);
+    [[nodiscard]] bool IsUIEnabled() const noexcept;
+    [[nodiscard]] Stoner::Core::uint64 GetSessionId() const noexcept;
+    [[nodiscard]] const FInputOwnershipSnapshot& GetInputOwnership() const noexcept;
+    [[nodiscard]] const Stoner::Core::FString& GetUIFailure() const noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult ExtractUIDrawSnapshot(
+        Stoner::Renderer::FUIDrawSnapshot& OutSnapshot) const;
+
+    // Polls window/input, builds UI before one camera update and makes at most
     // one bounded transition/drain callback. It never sleeps.
-    [[nodiscard]] EApplicationResult Service(double DeltaSeconds);
+    [[nodiscard]] EApplicationResult Service(double DeltaSeconds, bool bRenderEligible = true);
 
     [[nodiscard]] EApplicationResult RequestTransition(
         FInteractiveLabTransitionIntent Intent);

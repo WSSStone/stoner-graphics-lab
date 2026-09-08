@@ -17,7 +17,9 @@ public:
     FImGuiLabAdapter& operator=(const FImGuiLabAdapter&) = delete;
     [[nodiscard]] EApplicationResult Initialize(FWindow& Window, FImGuiTextureAdapter::FPrepare PrepareTexture = {});
     [[nodiscard]] EApplicationResult Frame(const Stoner::Core::TArray<FInputEvent>& Events,
-        const FWindowDisplayState& Display, double DeltaSeconds);
+        const FWindowDisplayState& Display, double DeltaSeconds, bool bRenderEligible = true);
+    // Hidden/minimized intervals discard stale UI input and unpublished draws.
+    void Suspend() noexcept;
     using FAcquireTexture = std::function<Stoner::Renderer::FUITextureLease(Stoner::Renderer::FUITextureId)>;
     [[nodiscard]] Stoner::RHI::ERHIResult ExtractSnapshot(const FAcquireTexture& AcquireTexture,
         Stoner::Renderer::FUIDrawSnapshot& OutSnapshot) const;

@@ -95,7 +95,7 @@ EApplicationResult FImGuiLabAdapter::Initialize(FWindow& Window, FImGuiTextureAd
 }
 
 EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEvent>& Events,
-    const FWindowDisplayState& Display, double DeltaSeconds)
+    const FWindowDisplayState& Display, double DeltaSeconds, bool bRenderEligible)
 {
     Impl->Capture = {};
     Impl->bDrawReady = false;
@@ -138,8 +138,11 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     if (Impl->FallbackCount) ImGui::TextUnformatted("Bundled font: some characters use replacement glyphs.");
     if (Impl->ClipboardResult != EApplicationResult::Success)
         ImGui::TextUnformatted("Clipboard unavailable or rejected; text preserved.");
+    const bool HideRequested = ImGui::Button("Hide UI (F1)");
     const bool Active = ImGui::IsAnyItemActive();
     Impl->Capture = {};
+    Impl->Capture.bHideUIRequested = HideRequested;
+    Impl->Capture.bVisibilityChanged = HideRequested;
     Impl->Capture.bKeyboard = TextActive || (Active && IO.WantCaptureKeyboard);
     Impl->Capture.bTextEditing = TextActive;
     bool MouseDown = false;
@@ -156,7 +159,7 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
             std::chrono::steady_clock::now().time_since_epoch()).count());
         Impl->TextureResult = Impl->Textures->Process(Data->Textures
             ? std::span<ImTextureData* const>(Data->Textures->Data, static_cast<std::size_t>(Data->Textures->Size))
-            : std::span<ImTextureData* const>{}, ++Impl->TextureFrame, true, Now);
+            : std::span<ImTextureData* const>{}, ++Impl->TextureFrame, bRenderEligible, Now);
         if (Impl->TextureResult != Stoner::RHI::ERHIResult::Success)
             return EApplicationResult::RuntimeUnavailable;
     }
@@ -165,6 +168,17 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     Impl->DrawableHeight = Display.DrawableExtent.Height;
     Impl->bDrawReady = true;
     return EApplicationResult::Success;
+}
+
+void FImGuiLabAdapter::Suspend() noexcept
+{
+    Impl->Capture = {}; Impl->bDrawReady = false; Impl->VertexCount = 0;
+    Impl->Input = {};
+    if (!Impl->Context) return;
+    ImGui::SetCurrentContext(Impl->Context);
+    auto& IO = ImGui::GetIO();
+    IO.ClearEventsQueue(); IO.ClearInputKeys(); IO.ClearInputMouse();
+    ImGui::ClearActiveID();
 }
 
 Stoner::RHI::ERHIResult FImGuiLabAdapter::ExtractSnapshot(const FAcquireTexture& AcquireTexture,

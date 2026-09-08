@@ -5,6 +5,8 @@
 #include "Core/FPlatformFileSystem.h"
 #include "FLabProductionPreviewExecutor.h"
 #include "FProductionContentSession.h"
+#include "FInteractiveLabShaders.h"
+#include "Renderer/FUIRenderSession.h"
 
 #include <algorithm>
 #include <array>
@@ -189,9 +191,30 @@ public:
         FrameConfig.TargetEvidence = Evidence; FrameConfig.OutputSettings = OutputSettings;
         if (Frames->Initialize(FrameConfig, &Reason) != ERHIResult::Success)
         { Fail(Reason); return false; }
+        TargetEvidence = Evidence;
         CurrentExtent = Extent;
         bSceneReady = true;
         return true;
+    }
+
+    Application::EApplicationResult EnableUI(Core::uint64 SessionId)
+    {
+        FInteractiveLabShaders Candidate;
+        Core::FString Reason;
+        if (!bSceneReady || PrepareInteractiveLabShaders(Closure,Closure.GenerationIdentity,
+                TargetEvidence,Candidate,Reason) != Asset::EAssetResult::Success)
+        {
+            std::cerr << "InteractiveLab UI unavailable: " << Reason.CStr() << std::endl;
+            return Application::EApplicationResult::RuntimeUnavailable;
+        }
+        if (!UI) UI = Core::MakeShared<Renderer::FUIRenderSession>(Backend->GetDevice(),SessionId);
+        UIShaders = std::move(Candidate);
+        return Application::EApplicationResult::Success;
+    }
+    bool CanPrepareUI() const noexcept
+    {
+        return bSceneReady && !bNeedsResize && FirstFailure.IsEmpty() &&
+            std::any_of(Slots.begin(),Slots.end(),[](const auto& Slot) { return !Slot.Ticket.IsValid(); });
     }
 
     void Progress(bool bStop, bool bPaused = false)
@@ -277,8 +300,9 @@ public:
         }
     }
 
-    void Admit(const Application::FFreeCameraState& Camera, Core::uint32 Budget)
+    void Admit(Application::FInteractiveLabSession& Session, Core::uint32 Budget)
     {
+        const auto& Camera = Session.GetCameraState();
         if (!bSceneReady || bNeedsResize || !FirstFailure.IsEmpty() || (Budget && Submitted - CancelledSubmissions >= Budget)) return;
         for (Core::uint32 Index = 0; Index < Slots.size(); ++Index)
         {
@@ -327,16 +351,45 @@ public:
             View.Extent = {CurrentExtent.Width, CurrentExtent.Height};
             Frame.DeferredInputs.Output.Extent = View.Extent;
             const auto RetainedBackend = Backend;
+            FLabProductionFrameContext::FPrepareUI PrepareUI;
+            if (Session.IsUIEnabled() && UI)
+            {
+                PrepareUI = [&, Token=Slot.Token](const auto& SceneInput,Core::uint64 Available,
+                    Core::TSharedPtr<Renderer::FUIRenderFrame>& OutFrame) {
+                    const auto& Display = Session.GetDisplayState();
+                    const auto Required = static_cast<Core::uint64>(Display.DrawableExtent.Width) *
+                        Display.DrawableExtent.Height * 8ULL;
+                    if (Required > Available) return ERHIResult::Unavailable;
+                    Renderer::FUIDrawSnapshot Snapshot(Session.GetSessionId(),Token,1,Display.DisplayGeneration);
+                    if (Session.ExtractUIDrawSnapshot(Snapshot) != ERHIResult::Success) return ERHIResult::NotReady;
+                    Renderer::FUICompositionSettings Settings;
+                    Settings.OutputProfileId = OutputResolved.OutputDeviceProfileId;
+                    Settings.BlendDomain = OutputResolved.DisplayLinearDomain;
+                    Settings.UIReferenceWhiteNits = OutputResolved.ReferenceWhiteNits;
+                    Settings.NativePackingWhiteNits = Status.ResolvedState.ReferenceWhiteNits;
+                    Settings.DisplayGeneration = Display.DisplayGeneration;
+                    const auto Prepared = UI->PrepareFrame(Snapshot,Settings,1,0,SceneInput,
+                        UIShaders.Draw.ModuleDescriptions,UIShaders.Copy.ModuleDescriptions,OutFrame);
+                    return Prepared == ERHIResult::InvalidState || Prepared == ERHIResult::Unsupported
+                        ? ERHIResult::Unavailable : Prepared;
+                };
+            }
             const auto Recorded = RecordLabProductionPreview(Frames, Frame, Index, Status.ResolvedState,
                 [RetainedBackend](Core::uint64 Token, Core::uint32 SlotIndex,
                     const Core::TSharedPtr<RHI::IRHIFence>& Fence, bool& Acknowledged) {
                     return RetainedBackend->CancelLabTarget(Token, SlotIndex, Fence, Acknowledged);
-                }, Slot.Ticket);
+                }, Slot.Ticket, PrepareUI);
             if (Recorded.Result != Renderer::EOutputTransformResult::Success)
             { Fail("lab preview graph recording failed"); return; }
             const auto Queued = Renderer::FOutputTransformExecutor().SubmitPreview(Slot.Ticket);
             Slot.bSubmitted = Queued.bQueued;
-            if (Slot.bSubmitted) ++Submitted;
+            if (Slot.bSubmitted)
+            {
+                ++Submitted;
+                const auto* Resources = Frames->GetResources(Slot.Token,Index);
+                if (Resources && Resources->OutputTransformPlan.TerminalUI) ++UIFramesSubmitted;
+                else if (Session.IsUIEnabled()) ++UISceneFallbackFrames;
+            }
             if (!Queued.Accepted()) { Fail("lab preview submission failed"); return; }
             if (Budget && Submitted - CancelledSubmissions >= Budget) return;
         }
@@ -455,6 +508,7 @@ public:
         { Fail(Reason); Out.FirstFailure = FirstFailure; return Out; }
         Slots = {};
         Presentations.clear();
+        UI.reset(); UIShaders = {};
         Scene.reset(); Closure = {};
         if (Assets && Assets->Shutdown() != Asset::EAssetResult::Success)
         { Fail("lab cooked session shutdown failed"); Out.FirstFailure = FirstFailure; return Out; }
@@ -480,6 +534,9 @@ public:
     Core::TSharedPtr<FLabProductionFrameContext> Frames;
     Core::TSharedPtr<FProductionContentSession> Assets;
     FProductionContentLoadedClosure Closure;
+    Asset::FAssetTargetProfileEvidence TargetEvidence;
+    FInteractiveLabShaders UIShaders;
+    Core::TSharedPtr<Renderer::FUIRenderSession> UI;
     Core::TSharedPtr<const Renderer::FStaticModelRenderSnapshot> Scene;
     FProductionContentComposition Composition;
     Renderer::FOutputTransformSettings OutputSettings;
@@ -493,6 +550,7 @@ public:
     RHI::ERHIFormat PresentationFormat = RHI::ERHIFormat::Unknown;
     Core::uint64 NextToken = 1;
     Core::uint32 Submitted = 0, Completed = 0, Presented = 0, CancelledSubmissions = 0;
+    Core::uint32 UIFramesSubmitted = 0, UISceneFallbackFrames = 0;
     Core::FString FirstFailure;
     RHI::ERHIShutdownAssurance Assurance = RHI::ERHIShutdownAssurance::Unknown;
     bool bNeedsResize = false;
@@ -508,8 +566,6 @@ FInteractiveLabRunResult RunInteractiveLab(
     FInteractiveLabRunResult Out;
     if (!Config.bInteractiveLab || !Config.IsValid(&Out.FirstFailure))
     { Out.ExitCode = EDemoExitCode::InvalidConfiguration; return Out; }
-    if (Config.bLabUI)
-    { Out.FirstFailure = "UI-enabled lab startup requires the pending UI integration; use --lab-ui off"; return Out; }
     FProductionCameraPreset Preset;
     if (!ResolveProductionCameraPreset(Config.WorkloadRevision, Preset, &Out.FirstFailure)) return Out;
     Application::FWindow Window;
@@ -539,12 +595,30 @@ FInteractiveLabRunResult RunInteractiveLab(
         if (Result != ERHIResult::Success)
         { Out.ExitCode = EDemoExitCode::RuntimeUnavailable; Owner->Fail("native lab backend initialization failed"); }
         else Started = Owner->Load(Config, Window.GetDisplayState().DrawableExtent);
+        if (Started)
+        {
+            Application::FInteractiveLabUICallbacks UICallbacks;
+            UICallbacks.PreflightEnable = [Owner,SessionId=Session.GetSessionId()] { return Owner->EnableUI(SessionId); };
+            UICallbacks.BeginFrame = [Owner](Core::uint64 Id,bool Eligible) {
+                if (Owner->UI) Owner->UI->BeginEligibleFrame(Id,Eligible);
+            };
+            UICallbacks.PrepareTexture = [Owner](const auto& Request) {
+                return Owner->UI ? Owner->UI->PrepareTexture(Request) : Renderer::FUITextureResult{};
+            };
+            UICallbacks.AcquireTexture = [Owner](Renderer::FUITextureId Id) {
+                return Owner->UI ? Owner->UI->AcquireTexture(Id) : Renderer::FUITextureLease{};
+            };
+            if (Session.ConfigureUI(std::move(UICallbacks),Config.bLabUI) != Application::EApplicationResult::Success)
+            { Owner->Fail("UI-on startup requires both UI shaders in the selected cooked generation"); Started = false; }
+            else std::cout << "InteractiveLab: F1 toggles UI; WASD/QE move; Shift accelerates; RMB looks; Escape cancels interaction." << std::endl;
+        }
     }
     catch (const std::exception& Error) { Owner->Fail(Core::FString(Error.what())); }
     if (!Started) (void)Session.RequestExit(Owner->FirstFailure);
     auto Previous = Clock::now();
     auto LastProgress = Previous;
     Core::uint32 LastPresented = 0;
+    Core::FString LastUIFailure;
     const auto EventThreadOwnsBackend = [&Session] {
         const auto Current = Session.GetState();
         return Current == EInteractiveLabSessionState::Running || Current == EInteractiveLabSessionState::Ready ||
@@ -558,7 +632,14 @@ FInteractiveLabRunResult RunInteractiveLab(
         try
         {
             if (WindowService && EventThreadOwnsBackend()) WindowService(Window, Owner->Presented);
-            (void)Session.Service(Delta);
+            if (EventThreadOwnsBackend() && (Session.GetState() == EInteractiveLabSessionState::Running ||
+                    Session.GetState() == EInteractiveLabSessionState::Ready)) Owner->Progress(false);
+            (void)Session.Service(Delta,EventThreadOwnsBackend() && Owner->CanPrepareUI());
+            if (Session.GetUIFailure() != LastUIFailure)
+            {
+                LastUIFailure = Session.GetUIFailure();
+                if (!LastUIFailure.IsEmpty()) std::cerr << "InteractiveLab UI: " << LastUIFailure.CStr() << std::endl;
+            }
         }
         catch (const std::exception& Error)
         { (void)Session.RequestExit(Core::FString(Error.what())); }
@@ -570,8 +651,7 @@ FInteractiveLabRunResult RunInteractiveLab(
             {
                 if (State == EInteractiveLabSessionState::Running || State == EInteractiveLabSessionState::Ready)
                 {
-                    Owner->Progress(false);
-                    Owner->Admit(Session.GetCameraState(), Config.IsBounded() ? Config.FrameBudget : 0);
+                    Owner->Admit(Session, Config.IsBounded() ? Config.FrameBudget : 0);
                     if (Owner->bNeedsResize)
                     {
                         const auto& Display = Session.GetDisplayState();
@@ -608,6 +688,8 @@ FInteractiveLabRunResult RunInteractiveLab(
     Out.SubmittedFrames = Owner->Submitted;
     Out.RenderCompletedFrames = Owner->Completed;
     Out.PresentedFrames = Owner->Presented;
+    Out.UIFramesSubmitted = Owner->UIFramesSubmitted;
+    Out.UISceneFallbackFrames = Owner->UISceneFallbackFrames;
     Out.FinalFrameState = Owner->Frames->Snapshot();
     Out.BeforeNativeShutdown = Owner->BeforeShutdown;
     Out.AfterNativeShutdown = Owner->AfterShutdown;
@@ -618,6 +700,7 @@ FInteractiveLabRunResult RunInteractiveLab(
         (Started ? EDemoExitCode::FrameFailed : Out.ExitCode);
     std::cout << "InteractiveLab preview: submitted=" << Out.SubmittedFrames
         << " render-completed=" << Out.RenderCompletedFrames << " present-queued=" << Out.PresentedFrames
+        << " ui-submitted=" << Out.UIFramesSubmitted << " ui-scene-fallback=" << Out.UISceneFallbackFrames
         << " shutdown=" << Application::FInteractiveLabSession::ToString(Session.GetShutdownAssurance()) << '\n';
     const auto& LiveOps = Out.BeforeNativeShutdown.RuntimeSnapshot.NativeOperations;
     const auto& FinalOps = Out.AfterNativeShutdown.RuntimeSnapshot.NativeOperations;

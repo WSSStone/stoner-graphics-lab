@@ -15,6 +15,8 @@ struct FInteractiveLabRunResult
     Core::uint32 SubmittedFrames = 0;
     Core::uint32 RenderCompletedFrames = 0;
     Core::uint32 PresentedFrames = 0;
+    Core::uint32 UIFramesSubmitted = 0;
+    Core::uint32 UISceneFallbackFrames = 0;
     FLabProductionFrameContextSnapshot FinalFrameState;
     FDemoLabPresentationStatus BeforeNativeShutdown;
     FDemoLabPresentationStatus AfterNativeShutdown;

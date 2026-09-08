@@ -1,6 +1,8 @@
 #include "Application/FInteractiveLabSession.h"
 #include "Application/FInputOwnershipSnapshot.h"
 #include "Core/FPlatformProcess.h"
+#include "FImGuiLabAdapter.h"
+#include "FLabInputRouter.h"
 
 #include <algorithm>
 #include <atomic>
@@ -48,6 +50,12 @@ struct FInteractiveLabSession::FImpl
     FWindow* Window = nullptr;
     FInputManager* Input = nullptr;
     FFreeCameraController Camera;
+    FLabInputRouter Router;
+    TUniquePtr<FImGuiLabAdapter> UI;
+    FInteractiveLabUICallbacks UICallbacks;
+    uint64 UIFrameId = 0;
+    bool bUIEnabled = false, bUIConfigured = false;
+    FString UIFailure;
     FWindowDisplayState Display;
     FInteractiveLabSessionCallbacks Callbacks;
     FInteractiveLabSessionConfig Config;
@@ -58,8 +66,6 @@ struct FInteractiveLabSession::FImpl
     FWindowDisplayState ActiveDisplay;
     bool bActivePoll = false, bDrainOnly = false, bFreshInterval = true;
     bool bLook = false;
-    std::array<bool, GInputKeyCount> Quarantine{};
-    bool bRightQuarantined = false;
     FString FirstFailure;
     FApplicationDiagnosticLog Diagnostics;
     uint64 DiagnosticCount = 0;
@@ -112,10 +118,8 @@ struct FInteractiveLabSession::FImpl
     }
     void ReleaseInput()
     {
-        for (auto K : Input->GetState().GetHeldKeys())
-            if (IsKnownKey(K)) Quarantine[static_cast<std::size_t>(K)] = true;
-        bRightQuarantined |= Input->GetState().IsMouseButtonHeld(EMouseButton::Right);
         bLook = false; bFreshInterval = true;
+        Router.CancelInteraction();
         (void)Window->SetCursorMode(ECursorMode::Normal);
     }
     FInteractiveLabServiceRequest Request(Phase P) const
@@ -128,6 +132,7 @@ struct FInteractiveLabSession::FImpl
     void StartTerminal()
     {
         if (Terminal) return;
+        UI.reset(); UICallbacks = {}; bUIEnabled = false;
         SessionState = FirstFailure.IsEmpty() ? State::Draining : State::Failed;
         // No callback may run on the event thread after this ownership handoff.
         try { Terminal = MakeUnique<FTerminal>(); }
@@ -259,6 +264,7 @@ EApplicationResult FInteractiveLabSession::Initialize(FWindow& W, FInputManager&
     Impl->SessionId = Identity; Impl->Window = &W; Impl->Input = &I;
     Impl->Display = D; Impl->Callbacks = std::move(Callbacks); Impl->Config = std::move(Config);
     Impl->SessionState = D.DrawableExtent.IsPositive() ? State::Ready : State::PausedZeroExtent;
+    (void)Impl->Router.Resolve({}, {}, D.bFocused);
     (void)Impl->Now();
     return EApplicationResult::Success;
 }
@@ -294,7 +300,7 @@ EApplicationResult FInteractiveLabSession::RequestExit(const Core::FString& Fail
     return EApplicationResult::Success;
 }
 
-EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds)
+EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRenderEligible)
 {
     auto& S = *Impl;
     if (!S.Window || S.SessionState == State::Closed) return EApplicationResult::InvalidLifecycle;
@@ -313,23 +319,14 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds)
     S.Input->QueueEvents(Raw);
     S.Input->PollFrame(S.Window->GetLifecycleState(), S.Display.bFocused);
     Overflow |= S.Input->DidOverflow();
+    Raw = S.Input->GetFrameEvents();
     if (Overflow)
     {
         S.ReleaseInput();
-        S.Quarantine.fill(true);
-        S.Quarantine[0] = false;
-        S.bRightQuarantined = true;
         Raw.clear();
     }
     S.CollectDiagnostics();
     const auto& Input = S.Input->GetState();
-    for (auto K : Input.GetReleasedKeys()) if (IsKnownKey(K)) S.Quarantine[static_cast<std::size_t>(K)] = false;
-    for (const auto& E : Raw)
-    {
-        if (E.EventType == EInputEventType::KeyUp && IsKnownKey(E.Key)) S.Quarantine[static_cast<std::size_t>(E.Key)] = false;
-        if (E.EventType == EInputEventType::MouseButtonUp && E.MouseButton == EMouseButton::Right) S.bRightQuarantined = false;
-    }
-    if (Input.WasMouseButtonReleased(EMouseButton::Right)) S.bRightQuarantined = false;
     if (!S.Display.bFocused || !S.Display.DrawableExtent.IsPositive() || Lost || Overflow) S.ReleaseInput();
     if (S.Window->IsCloseRequested() || S.Window->IsDestroyed()) (void)RequestExit();
     if (S.Terminal)
@@ -343,6 +340,8 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds)
     if (!ValidExtent(S.Display.DrawableExtent))
     {
         S.ReleaseInput();
+        (void)S.Router.Resolve(Raw,{},false,Overflow);
+        if (S.UI) S.UI->Suspend();
         S.SessionState = State::PausedZeroExtent;
         return EApplicationResult::ValidationFailed;
     }
@@ -354,6 +353,32 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds)
         if (!PreviousDisplay.DrawableExtent.IsPositive() || !ValidExtent(PreviousDisplay.DrawableExtent))
             S.TransitionStart = S.Now();
     }
+    FUILabCapture Capture;
+    if (S.UI && S.bUIEnabled)
+    {
+        if (!S.Display.DrawableExtent.IsPositive() || S.Display.bMinimized || Overflow)
+            S.UI->Suspend();
+        else
+        {
+            const bool Eligible = bRenderEligible && !S.PendingIntent.IsValid() &&
+                !S.ActiveIntent.IsValid() && !S.bDrainOnly;
+            S.UICallbacks.BeginFrame(++S.UIFrameId, Eligible);
+            const auto UIResult = S.UI->Frame(Raw,S.Display,DeltaSeconds,Eligible);
+            Capture = S.UI->GetCapture();
+            if (UIResult == EApplicationResult::Success) S.UIFailure.Clear();
+            else if (S.UI->GetTextureResult() != Stoner::RHI::ERHIResult::NotReady)
+                S.UIFailure = S.UI->GetTextureDiagnostic();
+        }
+    }
+    const auto Routed = S.Router.Resolve(Raw,Capture,
+        S.Display.bFocused && S.Display.DrawableExtent.IsPositive() && !S.Display.bMinimized,Overflow);
+    if (Routed.bCancelInteraction)
+    {
+        if (S.UI) S.UI->Suspend();
+        S.ReleaseInput();
+    }
+    if (Capture.bHideUIRequested && S.bUIConfigured) (void)SetUIEnabled(false);
+    else if (Routed.bToggleUI && S.bUIConfigured) (void)SetUIEnabled(!S.bUIEnabled);
     if (!S.Display.DrawableExtent.IsPositive() || S.Display.bMinimized)
     { S.SessionState = State::PausedZeroExtent; return EApplicationResult::Success; }
     if (S.SessionState == State::PausedZeroExtent)
@@ -399,31 +424,68 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds)
         if (S.PendingIntent.IsValid()) return EApplicationResult::Success;
         S.SessionState = State::Ready; S.bFreshInterval = true;
     }
-    FFreeCameraActions A;
-    if (S.Display.bFocused && Input.IsFocused() && !Lost && !Overflow)
+    FFreeCameraActions A = Routed.Actions;
+    if (Routed.bCancelInteraction || Routed.bToggleUI || Capture.bHideUIRequested) A = {};
+    if (A.bLookCaptured)
     {
-        const auto Held = [&](EKey K) { return Input.IsKeyHeld(K) && !S.Quarantine[static_cast<std::size_t>(K)]; };
-        A.ForwardAxis = float(Held(EKey::W)) - float(Held(EKey::S));
-        A.RightAxis = float(Held(EKey::D)) - float(Held(EKey::A));
-        A.UpAxis = float(Held(EKey::E)) - float(Held(EKey::Q));
-        A.bFast = Held(EKey::LeftShift) || Held(EKey::RightShift);
-        if (Input.WasKeyPressed(EKey::Escape)) S.ReleaseInput();
-        if (!Input.IsMouseButtonHeld(EMouseButton::Right)) S.bLook = false;
-        if (Input.WasMouseButtonPressed(EMouseButton::Right) && !S.bRightQuarantined && !Input.WasKeyPressed(EKey::Escape))
-        {
-            S.bLook = S.Window->SetCursorMode(ECursorMode::Disabled) == EApplicationResult::Success;
-            S.bFreshInterval = true;
-        }
-        if (!S.bLook) (void)S.Window->SetCursorMode(ECursorMode::Normal);
-        A.bLookCaptured = S.bLook;
-        if (S.bLook && !S.bFreshInterval) { A.LookDeltaX = Input.GetPointerDeltaX(); A.LookDeltaY = Input.GetPointerDeltaY(); }
-        for (const auto& E : Raw) if (E.EventType == EInputEventType::Scroll) A.ScrollDeltaY += E.DeltaY;
+        const bool Captured = S.Window->SetCursorMode(ECursorMode::Disabled) == EApplicationResult::Success;
+        if (!S.bLook) { S.bFreshInterval = true; S.Router.InvalidatePointerBaseline(); }
+        S.bLook = Captured;
+        if (!Captured) { S.Router.CancelInteraction(); A.bLookCaptured = false; }
     }
+    else
+    {
+        S.bLook = false;
+        (void)S.Window->SetCursorMode(ECursorMode::Normal);
+    }
+    if (S.bFreshInterval) A.LookDeltaX = A.LookDeltaY = 0;
     if (!S.Display.bFocused || !Input.IsFocused()) { A = {}; S.bFreshInterval = true; }
     (void)S.Camera.Update(A, S.Display, S.bFreshInterval ? 0.0 : DeltaSeconds);
     S.bFreshInterval = !S.Display.bFocused || !Input.IsFocused();
     S.SessionState = State::Running;
     return EApplicationResult::Success;
+}
+
+EApplicationResult FInteractiveLabSession::ConfigureUI(FInteractiveLabUICallbacks Callbacks, bool bEnabled)
+{
+    if (!Impl->Window || Impl->Terminal || Impl->bUIConfigured ||
+        !Callbacks.PreflightEnable || !Callbacks.BeginFrame || !Callbacks.PrepareTexture || !Callbacks.AcquireTexture)
+        return EApplicationResult::InvalidLifecycle;
+    Impl->UICallbacks = std::move(Callbacks); Impl->bUIConfigured = true;
+    return SetUIEnabled(bEnabled);
+}
+EApplicationResult FInteractiveLabSession::SetUIEnabled(bool bEnabled)
+{
+    auto& S = *Impl;
+    if (!S.bUIConfigured || S.Terminal || S.SessionState == State::Closed)
+        return EApplicationResult::InvalidLifecycle;
+    if (S.bUIEnabled == bEnabled) return EApplicationResult::Success;
+    if (bEnabled)
+    {
+        auto Result = S.UICallbacks.PreflightEnable();
+        if (Result == EApplicationResult::Success && !S.UI)
+        {
+            auto Candidate = MakeUnique<FImGuiLabAdapter>();
+            Result = Candidate->Initialize(*S.Window,S.UICallbacks.PrepareTexture);
+            if (Result == EApplicationResult::Success) S.UI = std::move(Candidate);
+        }
+        if (Result != EApplicationResult::Success)
+        { S.UIFailure = "ui-enable-preflight-failed"; return Result; }
+    }
+    S.bUIEnabled = bEnabled; S.UIFailure.Clear();
+    if (S.UI) S.UI->Suspend();
+    S.ReleaseInput();
+    return EApplicationResult::Success;
+}
+bool FInteractiveLabSession::IsUIEnabled() const noexcept { return Impl->bUIEnabled; }
+Stoner::Core::uint64 FInteractiveLabSession::GetSessionId() const noexcept { return Impl->SessionId; }
+const FInputOwnershipSnapshot& FInteractiveLabSession::GetInputOwnership() const noexcept { return Impl->Router.GetOwnership(); }
+const FString& FInteractiveLabSession::GetUIFailure() const noexcept { return Impl->UIFailure; }
+Stoner::RHI::ERHIResult FInteractiveLabSession::ExtractUIDrawSnapshot(Stoner::Renderer::FUIDrawSnapshot& Out) const
+{
+    if (!Impl->UI || !Impl->bUIEnabled || Impl->Terminal || Out.GetSessionId() != Impl->SessionId)
+        return Stoner::RHI::ERHIResult::InvalidState;
+    return Impl->UI->ExtractSnapshot(Impl->UICallbacks.AcquireTexture,Out);
 }
 
 EApplicationResult FInteractiveLabSession::ExecuteCameraCommand(EInteractiveLabCameraCommand C) noexcept

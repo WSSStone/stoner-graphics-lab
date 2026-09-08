@@ -1137,3 +1137,24 @@ ordering and mismatched profiles reject. Legacy native executors fail before
 acquisition for an unsupported terminal UI stage. The actual lab bindings remain
 pending. Required native composition checks now fail if either cooked fixture
 environment variable is absent; both configurations verify that failure control.
+
+## Local live UI integration increment (2026-09-08)
+
+T043/T049/T052–T054 are now implemented (54/127 reviewed tasks). Strict
+Debug/Release each pass 390 related input/session/texture/renderer assertions.
+Each configuration completes six local eight-frame UI-on Lantern/Sponza runs
+on M4 Metal, Vulkan automatic and forced acquire-history fallback. All twelve
+runs submit actual UI, retain zero final presentation owners, and report zero
+image readback copies/maps/waits and live queue/device idle calls. Atlas-pending
+or initially empty UI frames use scene fallback. Qualified terminal fallback
+cleanup may report `IdleAssumed`; it does not prove presentation release.
+
+Three Debug UI-off regressions still load historical scene-only generations,
+and a UI-on missing-root startup rejects. UI-only Windows/Linux shader cooking
+succeeds locally; this does not claim Windows/Linux native rendering. Intel
+macOS validation remains skipped by the maintainer decision above. Local logs
+and argv are under ignored `Build/Validation/030/us2/ui-live-*`; target cooking
+reports are in its `ui-shaders-windows-vulkan/` and `ui-shaders-linux-vulkan/`
+subdirectories. These are working-tree implementation checks, not same-SHA
+formal evidence, Accepted baselines, HDR viewing authority or T055/T056 full
+native conformance. Those checks and T057 remain pending.

@@ -1,6 +1,8 @@
 #include "Application/FInteractiveLabSession.h"
 #include "Core/FPlatformProcess.h"
 #include "FWindowDriver.h"
+#include "Renderer/FUITextureRequest.h"
+#include "Renderer/FUITextureLease.h"
 
 #include <atomic>
 #include <chrono>
@@ -90,6 +92,74 @@ struct FFixture
         return S.Initialize(W, I, Camera(), {std::move(Callback)}, Config) == EApplicationResult::Success;
     }
 };
+void TestUISession()
+{
+    using namespace Stoner::Renderer;
+    using Stoner::RHI::ERHIResult;
+    FFixture F;
+    Check(F.Start(), "UI session fixture initializes");
+    uint64 EnableCalls = 0, TextureCalls = 0, TextureGeneration = 0;
+    bool AllowEnable = true;
+    FInteractiveLabUICallbacks UI;
+    UI.PreflightEnable = [&] { ++EnableCalls; return AllowEnable ? EApplicationResult::Success : EApplicationResult::RuntimeUnavailable; };
+    UI.BeginFrame = [](uint64,bool) {};
+    UI.PrepareTexture = [&](const FUITextureRequest& Request) {
+        ++TextureCalls;
+        FUITextureResult Result;
+        Result.RequestId = Request.RequestId; Result.Result = ERHIResult::Success;
+        Result.State = Request.Operation == EUITextureOperation::Destroy ? EUITextureState::Destroyed : EUITextureState::Prepared;
+        Result.TextureId = Request.Operation == EUITextureOperation::Destroy ? Request.TextureId : FUITextureId{1,++TextureGeneration};
+        return Result;
+    };
+    UI.AcquireTexture = [](FUITextureId) { return FUITextureLease{}; };
+    Check(F.S.ConfigureUI(std::move(UI),false) == EApplicationResult::Success && !F.S.IsUIEnabled() &&
+        EnableCalls == 0 && TextureCalls == 0, "UI-off session creates no UI context or texture requests");
+    F.Driver->QueueEvent(FInputEvent::KeyDown(EKey::W));
+    (void)F.S.Service(0); (void)F.S.Service(0.25);
+    const auto BeforeToggle = F.S.GetCameraState().Position;
+    F.Driver->QueueEvent(FInputEvent::KeyDown(EKey::F1));
+    (void)F.S.Service(0.25); (void)F.S.Service(0.25);
+    Check(F.S.IsUIEnabled() && EnableCalls == 1 && TextureCalls > 0 &&
+        F.S.GetCameraState().Position == BeforeToggle,
+        "F1 enables a preflighted real UI context and quarantines held camera movement");
+    F.Driver->QueueEvent(FInputEvent::KeyUp(EKey::F1));
+    F.Driver->QueueEvent(FInputEvent::KeyUp(EKey::W));
+    F.Driver->QueueEvent(FInputEvent::PointerMove(60,70));
+    F.Driver->QueueEvent(FInputEvent::MouseDown(EMouseButton::Left));
+    F.Driver->QueueEvent(FInputEvent::KeyDown(EKey::W));
+    (void)F.S.Service(0.25);
+    Check(F.S.GetInputOwnership().KeyboardOwner == EInputOwner::UI &&
+        F.S.GetCameraState().Position == BeforeToggle,
+        "actual same-interval text activation wins before the session camera can move");
+    const auto BeforeBusy = TextureCalls;
+    F.Driver->QueueEvent(FInputEvent::MouseUp(EMouseButton::Left));
+    F.Driver->QueueEvent(FInputEvent::Text('x'));
+    F.Driver->QueueEvent(FInputEvent::KeyDown(EKey::F1));
+    (void)F.S.Service(0.25,false);
+    Check(F.S.IsUIEnabled() && F.S.GetInputOwnership().KeyboardOwner == EInputOwner::UI &&
+        F.S.GetCameraState().Position == BeforeToggle && TextureCalls == BeforeBusy,
+        "busy session still gives text editing F1 ownership without speculative camera or texture work");
+    F.Driver->QueueEvent(FInputEvent::KeyDown(EKey::Escape)); (void)F.S.Service(0);
+    F.Driver->QueueEvent(FInputEvent::KeyUp(EKey::F1));
+    F.Driver->QueueEvent(FInputEvent::KeyDown(EKey::F1)); (void)F.S.Service(0.25); (void)F.S.Service(0.25);
+    Check(!F.S.IsUIEnabled() && !F.W.IsCloseRequested() && F.S.GetCameraState().Position == BeforeToggle,
+        "Escape cancels the widget; hiding UI preserves held-key quarantine and never exits");
+    F.Driver->QueueEvent(FInputEvent::KeyUp(EKey::W));
+    F.Driver->QueueEvent(FInputEvent::KeyDown(EKey::W)); (void)F.S.Service(0.25);
+    Check(F.S.GetCameraState().Position.X > BeforeToggle.X,
+        "fresh release and press rearms the session camera after UI ownership");
+    Check(F.S.SetUIEnabled(true) == EApplicationResult::Success, "UI can be restored after keyboard navigation");
+    F.Driver->QueueEvent(FInputEvent::KeyUp(EKey::W)); (void)F.S.Service(0);
+    F.Driver->QueueEvent(FInputEvent::PointerMove(60,92));
+    F.Driver->QueueEvent(FInputEvent::MouseDown(EMouseButton::Left)); (void)F.S.Service(0);
+    F.Driver->QueueEvent(FInputEvent::MouseUp(EMouseButton::Left)); (void)F.S.Service(0);
+    Check(!F.S.IsUIEnabled(), "visible panel Hide UI control disables composition and releases input ownership");
+    AllowEnable = false;
+    Check(F.S.SetUIEnabled(true) == EApplicationResult::RuntimeUnavailable && !F.S.IsUIEnabled() &&
+        !F.S.GetUIFailure().IsEmpty() && F.S.GetFirstFailure().IsEmpty(),
+        "later UI preflight failure keeps the scene session active with a UI diagnostic");
+    Check(Close(F.S), "UI context closes before terminal callback ownership transfer");
+}
 void TestSession()
 {
     FFixture F;
@@ -251,7 +321,7 @@ void TestTimeout()
 int RunInteractiveLabLifecycleTests()
 {
     Failures = 0;
-    TestSession(); TestTransitions(); TestTerminalOwnership(); TestTerminalFailureBoundaries(); TestTimeout();
+    TestUISession(); TestSession(); TestTransitions(); TestTerminalOwnership(); TestTerminalFailureBoundaries(); TestTimeout();
     return Failures == 0 ? 0 : 1;
 }
 
