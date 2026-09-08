@@ -1,4 +1,6 @@
 #include "Renderer/FUIDrawSnapshot.h"
+#include "FUIDrawValidator.h"
+#include <algorithm>
 
 #include <cmath>
 
@@ -129,6 +131,34 @@ bool FUIDrawSnapshot::SetTextureIds(
     return true;
 }
 
+bool FUIDrawSnapshot::SetTextureLeases(std::span<const FUITextureLease> InLeases)
+{
+    if (bPublished || InLeases.size() > MaximumTextureGenerations) return false;
+    Stoner::Core::TArray<FUITextureId> Ids;
+    Ids.reserve(InLeases.size());
+    for (const auto& Lease : InLeases)
+    {
+        if (!Lease.IsValid() || std::find(Ids.begin(), Ids.end(), Lease.GetId()) != Ids.end()) return false;
+        Ids.push_back(Lease.GetId());
+    }
+    Stoner::Core::TArray<FUITextureLease> Owners(InLeases.begin(), InLeases.end());
+    TextureIds = std::move(Ids); TextureLeases = std::move(Owners);
+    return true;
+}
+
+bool FUIDrawSnapshot::ValidateOwnedGeometry(Stoner::Core::uint32 Width,
+    Stoner::Core::uint32 Height) const
+{
+    if (TextureIds.size() != TextureLeases.size()) return false;
+    FUIDrawValidationContext Context{SessionId, SettingsRevision, DisplayGeneration, 0, Width, Height,
+        [this](FUITextureId Id)
+        {
+            return std::any_of(TextureLeases.begin(), TextureLeases.end(),
+                [Id](const auto& Lease) { return Lease.IsValid() && Lease.GetId() == Id; });
+        }};
+    return FUIDrawValidator::Validate(*this, Context).bValid;
+}
+
 bool FUIDrawSnapshot::Publish() noexcept
 {
     if (bPublished || !IsValid())
@@ -151,6 +181,13 @@ bool FUIDrawSnapshot::IsValid() const noexcept
         TextureIds.size() > MaximumTextureGenerations)
     {
         return false;
+    }
+
+    if (!TextureLeases.empty())
+    {
+        if (TextureLeases.size() != TextureIds.size()) return false;
+        for (std::size_t I = 0; I < TextureLeases.size(); ++I)
+            if (!TextureLeases[I].IsValid() || TextureLeases[I].GetId() != TextureIds[I]) return false;
     }
 
     for (const FUITextureId& TextureId : TextureIds)

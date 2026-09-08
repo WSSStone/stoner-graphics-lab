@@ -41,7 +41,8 @@ FUIDrawValidationResult FUIDrawValidator::Validate(
     if (!AddBytes(Vertices.size(), sizeof(FUIVertex)) ||
         !AddBytes(Indices.size(), sizeof(Stoner::Core::uint32)) ||
         !AddBytes(Commands.size(), sizeof(FUIDrawCommand)) ||
-        !AddBytes(TextureIds.size(), sizeof(FUITextureId)))
+        !AddBytes(TextureIds.size(), sizeof(FUITextureId)) ||
+        !AddBytes(Snapshot.GetTextureLeases().size(), sizeof(FUITextureLease)))
         return Reject("ui-packet-staging-budget");
     for (std::size_t I = 0; I < TextureIds.size(); ++I)
     {

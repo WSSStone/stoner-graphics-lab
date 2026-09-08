@@ -2,6 +2,7 @@
 
 #include "Core/CoreMinimal.h"
 #include "Renderer/FUITextureRequest.h"
+#include "Renderer/FUITextureLease.h"
 
 #include <cstddef>
 #include <span>
@@ -81,6 +82,13 @@ public:
     [[nodiscard]] bool SetTextureIds(
         std::span<const FUITextureId> InTextureIds);
 
+    [[nodiscard]] bool SetTextureLeases(std::span<const FUITextureLease> InLeases);
+    [[nodiscard]] const Stoner::Core::TArray<FUITextureLease>& GetTextureLeases() const noexcept { return TextureLeases; }
+    // Used by the Application extraction boundary before exposing a snapshot.
+    // Native preparation additionally validates against the current session.
+    [[nodiscard]] bool ValidateOwnedGeometry(Stoner::Core::uint32 DrawableWidth,
+        Stoner::Core::uint32 DrawableHeight) const;
+
     // Publication performs structural value checks and freezes the snapshot.
     // Full index, texture-lease, and native-preparation validation belongs to
     // T050; a published snapshot makes no GPU-readiness claim.
@@ -154,6 +162,7 @@ private:
     Stoner::Core::TArray<Stoner::Core::uint32> Indices;
     Stoner::Core::TArray<FUIDrawCommand> Commands;
     Stoner::Core::TArray<FUITextureId> TextureIds;
+    Stoner::Core::TArray<FUITextureLease> TextureLeases;
     bool bPublished = false;
 };
 

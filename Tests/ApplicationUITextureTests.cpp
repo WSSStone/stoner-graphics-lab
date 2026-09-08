@@ -200,12 +200,25 @@ int RunApplicationUITextureTests()
             Check(UI.Frame({}, Display, 1.0 / 60.0) == EApplicationResult::Success && Creates > 0 &&
                 UI.GetTextureResult() == ERHIResult::Success && UI.GetVertexCount() > 0,
                 "real dynamic font frame prepares and acknowledges its Renderer atlas generation");
+            FUIDrawSnapshot Copied(1, 1, 1, Display.DisplayGeneration);
+            Check(UI.ExtractSnapshot([&](FUITextureId Id) { return Registry.Acquire(Id); }, Copied) ==
+                ERHIResult::Success && Copied.IsPublished() && !Copied.GetTextureLeases().empty(),
+                "real ImGui context exports an immutable leased draw snapshot");
+            const auto CopiedVertexCount = Copied.GetVertices().size();
+            const auto CopiedTexture = Copied.GetTextureLeases().empty() ? FUITextureId{} : Copied.GetTextureLeases()[0].GetId();
             Registry.BeginEligibleFrame(2, true);
             (void)UI.Frame({FInputEvent::PointerMove(60, 70), FInputEvent::MouseDown(EMouseButton::Left)}, Display, 1.0 / 60.0);
             Registry.BeginEligibleFrame(3, true);
             Check(UI.Frame({FInputEvent::MouseUp(EMouseButton::Left), FInputEvent::Text(0x00E9)}, Display,
                 1.0 / 60.0) == EApplicationResult::Success && Updates > 0 && UI.GetFallbackScalarCount() == 0,
                 "new real font glyphs flow through full-image copy-on-write atlas updates");
+            Check(Copied.GetVertices().size() == CopiedVertexCount && CopiedTexture.IsValid() &&
+                Copied.GetTextureLeases()[0].GetId() == CopiedTexture && Registry.GetStatistics().Generations >= 2,
+                "subsequent real font frame preserves the queued snapshot and its old atlas");
+            FUIDrawSnapshot Stale(1, 4, 1, Display.DisplayGeneration + 1);
+            Check(UI.ExtractSnapshot([&](FUITextureId Id) { return Registry.Acquire(Id); }, Stale) ==
+                ERHIResult::InvalidState && !Stale.IsPublished(),
+                "context extraction rejects a mismatched display generation");
         }
         Registry.Poll();
         Check(Registry.GetStatistics().Generations == 0,

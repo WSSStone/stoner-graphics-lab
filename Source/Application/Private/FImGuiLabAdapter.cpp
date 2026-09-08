@@ -30,6 +30,8 @@ struct FImGuiLabAdapter::FImpl
     Stoner::Core::uint64 FallbackCount = 0;
     Stoner::Core::uint64 DisplayGeneration = 0;
     bool bReady = false;
+    bool bDrawReady = false;
+    Stoner::Core::uint32 DrawableWidth = 0, DrawableHeight = 0;
     ~FImpl() { Textures.reset(); if (Context) ImGui::DestroyContext(Context); }
 };
 
@@ -54,7 +56,7 @@ EApplicationResult FImGuiLabAdapter::Initialize(FWindow& Window, FImGuiTextureAd
     IO.ConfigInputTrickleEventQueue = false;
     IO.ConfigFlags = ImGuiConfigFlags_NavEnableKeyboard;
     if (PrepareTexture) Impl->Textures = std::make_unique<FImGuiTextureAdapter>(std::move(PrepareTexture));
-    IO.BackendFlags = Impl->Textures ? ImGuiBackendFlags_RendererHasTextures : ImGuiBackendFlags_None;
+    IO.BackendFlags = Impl->Textures ? (ImGuiBackendFlags_RendererHasTextures | ImGuiBackendFlags_RendererHasVtxOffset) : ImGuiBackendFlags_None;
     IO.BackendRendererName = Impl->Textures ? "Stoner.Renderer" : nullptr;
     IO.Fonts->TexMaxWidth = IO.Fonts->TexMaxHeight = 2048;
     IO.BackendPlatformName = "Stoner.Application";
@@ -96,6 +98,7 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     const FWindowDisplayState& Display, double DeltaSeconds)
 {
     Impl->Capture = {};
+    Impl->bDrawReady = false;
     Impl->VertexCount = 0;
     if (!Impl->bReady || !Impl->Context || !Impl->Window || !Impl->Window->IsActive()) return EApplicationResult::InvalidLifecycle;
     if (Events.size() > 4096 || Display.DisplayGeneration < Impl->DisplayGeneration ||
@@ -158,7 +161,22 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
             return EApplicationResult::RuntimeUnavailable;
     }
     Impl->VertexCount = static_cast<Stoner::Core::uint32>(ImGui::GetDrawData()->TotalVtxCount);
+    Impl->DrawableWidth = Display.DrawableExtent.Width;
+    Impl->DrawableHeight = Display.DrawableExtent.Height;
+    Impl->bDrawReady = true;
     return EApplicationResult::Success;
+}
+
+Stoner::RHI::ERHIResult FImGuiLabAdapter::ExtractSnapshot(const FAcquireTexture& AcquireTexture,
+    Stoner::Renderer::FUIDrawSnapshot& OutSnapshot) const
+{
+    if (!Impl->bDrawReady || !Impl->Textures || !AcquireTexture ||
+        OutSnapshot.GetDisplayGeneration() != Impl->DisplayGeneration)
+        return Stoner::RHI::ERHIResult::InvalidState;
+    ImGui::SetCurrentContext(Impl->Context);
+    return FImGuiDrawAdapter::Extract(*ImGui::GetDrawData(),
+        [&](Stoner::Core::uint64 Token) { return AcquireTexture(Impl->Textures->Resolve(Token)); },
+        Impl->DrawableWidth, Impl->DrawableHeight, OutSnapshot);
 }
 
 const char* FImGuiLabAdapter::GetTextureDiagnostic() const noexcept { return Impl->Textures ? Impl->Textures->GetDiagnostic() : "ui-textures-unavailable"; }

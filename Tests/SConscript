@@ -58,6 +58,7 @@ rel_src_dir = os.path.relpath(tests_src_dir, Dir('.').srcnode().abspath)
 
 private_include_paths_by_source = {
     'ApplicationUITextureTests.cpp': [Dir('#Source/Application/Private').abspath, Dir('#Source/Renderer/Private').abspath, Dir('#ThirdParty/imgui').abspath],
+    'ApplicationUIDrawTests.cpp': [Dir('#Source/Application/Private').abspath, Dir('#Source/Renderer/Private').abspath, Dir('#ThirdParty/imgui').abspath],
     'UITextureUploadNativeTests.cpp': [Dir('#Source/Renderer/Private').abspath],
     'UITextureRegistryTests.cpp': [Dir('#Source/Renderer/Private').abspath],
     'RendererUIDrawTests.cpp': [Dir('#Source/Renderer/Private').abspath],
@@ -183,6 +184,7 @@ private_include_paths_by_source = {
 
 private_defines_by_source = {
     'ApplicationUITextureTests.cpp': [('IMGUI_USER_CONFIG', '\\"ImGuiUserConfig.h\\"')],
+    'ApplicationUIDrawTests.cpp': [('IMGUI_USER_CONFIG', '\\"ImGuiUserConfig.h\\"')],
     'AssetKTX2Tests.cpp': ['KHRONOS_STATIC'],
     'VulkanLabBorrowedNativeTests.cpp': [
         ('STONER_VULKAN_NATIVE_AVAILABLE',

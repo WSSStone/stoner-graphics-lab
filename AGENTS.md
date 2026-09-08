@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (48/127 reviewed tasks); native closeout remains pending. Read
+Feature 030 implementation is partial (49/127 reviewed tasks); native closeout remains pending. Read
 `specs/030-interactive-rendering-lab/spec.md` and
 `specs/030-interactive-rendering-lab/plan.md` plus its contracts before task generation.
 The plan fixes private Dear ImGui v1.92.5 at
@@ -160,6 +160,7 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
+- 030 immutable UI extraction: T051 complete (49/127). Real private ImGui contexts export copied uint32 geometry and opaque generation leases; old snapshots survive atlas replacement. Strict Debug/Release each pass 216 related assertions. Four Lantern/Sponza Vulkan/arm64 Metal lab recipes cook successfully; visible composition and startup/enable integration remain pending.
 - 030 display-linear UI shaders: T048 complete (48/127). Three GLSL/SPIR-V stages, shared fullscreen scene-copy program and explicit lab cook-root recipes are present. Strict Debug/Release each pass 14 Metal derivation/finalization assertions; shader ownership tests pass. Full lab cooking, startup/enable preflight and visible composition remain pending.
 - 030 native color-write masks: T046/T047 complete (47/127). Vulkan/Metal pipeline keys and native mappings preserve RGBA defaults; strict Debug/Release each pass 210 Vulkan and 9 Metal pipeline assertions. Actual UI alpha-preservation fixtures and visible composition remain pending.
 - 030 private ImGui texture requests: T045 complete (45/127). Renderer-backed dynamic font frames exercise create/update/destroy acknowledgement, copied alpha/RGBA payloads, opaque ID mapping, bounded retries and close cancellation. Strict Debug/Release each pass 200 CPU assertions plus 30 native upload regressions. RendererHasTextures is conditional on a configured request service; snapshot extraction, session wiring and visible composition remain pending.
