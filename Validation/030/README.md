@@ -1086,8 +1086,8 @@ The attempted UI-only `Mac-Metal-X86_64` cook returned `graph-failure` before
 publishing any generation. Existing `FMetalLibraryCompiler.cpp` requires
 `Request.Architecture == HostArchitecture()`; the current arm64 cooker cannot
 finalize the x86_64 target. The argv, log and normalized failure report are in
-`Build/Validation/030/us2/ui-shaders-metal-x86/`. Repeat these two UI roots with
-an x86_64 macOS cooker in the Intel lane, using fresh absolute output/DDC paths.
-Do not relax target provenance or claim an Intel pass from the arm64 run.
-Remaining local composition/input implementation can proceed independently;
-this is a target-specific validation handoff, not a Vulkan extension gate.
+`Build/Validation/030/us2/ui-shaders-metal-x86/`. The maintainer explicitly directed on 2026-09-08: skip Intel-chip macOS
+validation. This Feature 030 target is therefore **skipped by maintainer decision**,
+with no pending Intel handoff and no Intel pass claim. Preserve the failed attempt
+and existing target provenance. Continue local composition/input implementation;
+Apple Silicon macOS, Windows and Linux requirements remain applicable.

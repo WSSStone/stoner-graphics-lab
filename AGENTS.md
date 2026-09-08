@@ -1,5 +1,9 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (49/127 reviewed tasks); native closeout remains pending. Read
+Feature 030 implementation is partial (49/127 reviewed tasks); native closeout remains pending.
+The maintainer explicitly skips Intel x86_64 macOS validation for Feature 030
+on 2026-09-08; record it as skipped, not passed, and do not block implementation
+on Intel cooking/derivation/native checks. Existing Intel support and historical
+027 evidence remain unchanged. Read
 `specs/030-interactive-rendering-lab/spec.md` and
 `specs/030-interactive-rendering-lab/plan.md` plus its contracts before task generation.
 The plan fixes private Dear ImGui v1.92.5 at

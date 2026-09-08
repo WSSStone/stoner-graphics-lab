@@ -26,6 +26,8 @@ Detailed decisions and rejected alternatives are in [research.md](research.md). 
 
 Architecture choices and exact limits/tolerances are documented in the contracts. Query native capabilities at runtime before selecting the presentation path; extension support is not a verified fact from planning. Missing optional maintenance1 support selects the bounded fallback and does not block backend implementation. Collect target-device inventory when accessible; actual native execution remains required for platform acceptance. Design changes must update the relevant contract before implementation/evidence collection.
 
+**Validation scope update (2026-09-08)**: The maintainer explicitly skips Intel x86_64 macOS validation for Feature 030, including target cooking/derivation and native checks. macOS validation uses Apple Silicon arm64; Windows/Linux requirements remain as specified. Keep existing Intel support and historical evidence intact and report skipped cases without claiming a pass. This removes the Intel handoff as a phase blocker.
+
 ## Constitution Check
 
 Pre-research and post-design review both pass at the design level. These checks do not claim that future builds/tests have passed. The constitution's actual dependency directions supersede the template's abbreviated layering wording.
