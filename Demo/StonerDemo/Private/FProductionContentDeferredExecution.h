@@ -36,6 +36,7 @@ struct FProductionContentDeferredExecutionResources
     Core::TSharedPtr<const Renderer::FStaticModelRenderSnapshot>
         SceneLease;
     Renderer::FOutputTransformSettings OutputSettings;
+    Core::TArray<Core::TSharedPtr<RHI::IRHIBuffer>> OutputParameterBuffers;
     Core::uint64 AttachmentBytes = 0;
     Core::TSharedPtr<RHI::IRHISampler> OutputSampler;
     Renderer::EFrameExecutionPurpose ExecutionPurpose =
@@ -91,7 +92,8 @@ public:
             SceneLease,
         const FProductionContentComposition& Composition,
         FProductionContentDeferredExecutionResources& InOutResources,
-        Core::FString* OutReason = nullptr);
+        Core::FString* OutReason = nullptr,
+        const Renderer::FOutputTransformSettings* NewOutputSettings = nullptr);
 
     // Only while the slot command is idle. Null removes the terminal UI stage.
     // The caller retains/cancels the frame according to actual submission state.

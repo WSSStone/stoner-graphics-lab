@@ -215,12 +215,12 @@ bool CreateUploadedBuffer(
     uint64 ByteCount,
     ERHIBufferUsage Usage,
     FProductionContentDeferredExecutionResources& Owner,
-    TSharedPtr<IRHIBuffer>& Out)
+    TSharedPtr<IRHIBuffer>& Out, ERHIMemoryAccess Access = ERHIMemoryAccess::DeviceLocal)
 {
     if (!Bytes || ByteCount == 0) return false;
     auto Buffer = Device.CreateBuffer({
         ByteCount, Usage | ERHIBufferUsage::CopyDestination,
-        ERHIMemoryAccess::DeviceLocal});
+        Access});
     if (!Buffer.Succeeded() ||
         Device.UploadBuffer(Buffer.Object, {0, Bytes, ByteCount}) !=
             ERHIResult::Success)
@@ -407,10 +407,12 @@ bool CreateOutputTransformStage(
     TSharedPtr<IRHIBuffer> ParameterBuffer;
     if (!CreateUploadedBuffer(Device, Parameters.Bytes.data(),
             Parameters.Bytes.size(), ERHIBufferUsage::Uniform, Owner,
-            ParameterBuffer) ||
+            ParameterBuffer, Owner.ExecutionPurpose == EFrameExecutionPurpose::InteractivePreview
+                ? ERHIMemoryAccess::HostVisible : ERHIMemoryAccess::DeviceLocal) ||
         !CreateOutputTransformDescriptors(Device, Program.Layout, Input,
             Sampler, ParameterBuffer, Owner, Stage.Stage.DescriptorSets))
         return false;
+    Owner.OutputParameterBuffers.push_back(ParameterBuffer);
     Owner.Bindings.OutputTransformStages.push_back(std::move(Stage));
     return true;
 }
@@ -603,6 +605,7 @@ void FProductionContentDeferredExecutionResources::Release() noexcept
     PreviewUniformResources.reset();
     SceneLease.reset();
     OutputSettings = {};
+    OutputParameterBuffers.clear();
     OutputSampler.reset();
     AttachmentBytes = 0;
 }
@@ -1064,7 +1067,7 @@ ERHIResult FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
     const TSharedPtr<const FStaticModelRenderSnapshot>& SceneLease,
     const FProductionContentComposition& Composition,
     FProductionContentDeferredExecutionResources& InOutResources,
-    FString* OutReason)
+    FString* OutReason, const FOutputTransformSettings* NewOutputSettings)
 {
     if (OutReason) OutReason->Clear();
     if (!Device || !Device->IsActive() || !SceneLease ||
@@ -1078,6 +1081,18 @@ ERHIResult FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
         Fail(OutReason, "invalid preview frame update ownership");
         return ERHIResult::InvalidState;
     }
+    if (!InOutResources.Bindings.CommandBuffer ||
+        InOutResources.Bindings.CommandBuffer->GetState() != ERHICommandBufferState::Idle ||
+        InOutResources.OutputTransformPlan.TerminalUI)
+    { Fail(OutReason,"preview settings update requires an idle slot without UI bindings"); return ERHIResult::InvalidState; }
+    const auto& Settings = NewOutputSettings ? *NewOutputSettings : InOutResources.OutputSettings;
+    if (Settings.OutputDeviceProfileId != InOutResources.OutputSettings.OutputDeviceProfileId ||
+        Settings.PreferredNativeEncoding != InOutResources.OutputSettings.PreferredNativeEncoding ||
+        Settings.NativeReferenceWhiteNits != InOutResources.OutputSettings.NativeReferenceWhiteNits ||
+        Settings.DiagnosticBypass.Mode != EOutputTransformDebugBypassMode::Disabled || Settings.bRequireReadback ||
+        !Settings.bRequirePresentation || (NewOutputSettings &&
+            (!Settings.PreTonemapOperations.IsEmpty() || !Settings.PostTonemapOperations.IsEmpty())))
+    { Fail(OutReason,"preview output mode or diagnostic change requires its transition path"); return ERHIResult::Unsupported; }
     const auto& Extent = Composition.DeferredInputs.View.Extent;
     if (Extent.Width == 0 || Extent.Height == 0 ||
         Composition.DeferredInputs.Output.Extent.Width != Extent.Width ||
@@ -1113,7 +1128,7 @@ ERHIResult FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
         BuildDeferredRenderGraphDeclaration(CandidatePlan);
     FOutputTransformPlan CandidateOutputPlan;
     if (!CandidateGraph.bValid || !BuildOutputTransformPlan(
-            Composition, InOutResources.OutputSettings, CandidateOutputPlan))
+            Composition, Settings, CandidateOutputPlan))
     {
         Fail(OutReason, "preview output transform update failed");
         return ERHIResult::InvalidState;
@@ -1128,12 +1143,38 @@ ERHIResult FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
         Fail(OutReason, "preview output settings would change slot format");
         return ERHIResult::ResizeRequired;
     }
+    if (NewOutputSettings)
+    {
+        const FHDRPostProcessPipeline Pipeline;
+        const EOutputTransformStageKind Kinds[] = {EOutputTransformStageKind::ManualExposure,
+            CandidateOutputPlan.ResolvedSettings.DynamicRange == EOutputDynamicRange::SDR
+                ? EOutputTransformStageKind::SDRToneMap : EOutputTransformStageKind::HDRViewingTransform,
+            EOutputTransformStageKind::OutputDeviceTransform};
+        if (InOutResources.OutputParameterBuffers.size() != 3) return ERHIResult::InvalidState;
+        std::array<FOutputTransformShaderParameterPayload,3> Payloads;
+        for (std::size_t I = 0; I < 3; ++I)
+        {
+            Payloads[I] = Pipeline.BuildShaderParameterPayload(CandidateOutputPlan.ResolvedSettings,Kinds[I]);
+            const auto& Buffer = InOutResources.OutputParameterBuffers[I];
+            if (!Payloads[I].IsValid() || !Buffer || Buffer->GetDesc().MemoryAccess != ERHIMemoryAccess::HostVisible)
+                return ERHIResult::InvalidState;
+        }
+        // A failed upload leaves this idle slot unrecordable; the caller must
+        // cancel/retry it. Submitted slots and their parameters are untouched.
+        for (std::size_t I = 0; I < 3; ++I)
+        {
+            const auto R = Device->UploadBuffer(InOutResources.OutputParameterBuffers[I],
+                {0,Payloads[I].Bytes.data(),Payloads[I].Bytes.size()});
+            if (R != ERHIResult::Success) return R;
+        }
+    }
     const ERHIResult UniformResult =
         InOutResources.PreviewUniformResources->Update(
             Device, CandidatePlan, OutReason);
     if (UniformResult != ERHIResult::Success)
         return UniformResult;
 
+    InOutResources.OutputSettings = Settings;
     InOutResources.Plan = std::move(CandidatePlan);
     InOutResources.Graph = std::move(CandidateGraph);
     InOutResources.OutputTransformPlan = std::move(CandidateOutputPlan);

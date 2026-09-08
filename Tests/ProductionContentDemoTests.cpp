@@ -1773,6 +1773,37 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
         Fixture.Request.Device, *Snapshot, Composition, RenderShaders, RenderPayloads,
         *Fixture.Request.TargetEvidence, PreviewSettings, PreviewResources,
         &CompositionReason, PreviewOptions);
+    if (PreviewBuild == RHI::ERHIResult::Success)
+    {
+        const auto Buffers = PreviewResources.OutputParameterBuffers;
+        const auto Textures = PreviewResources.OwnedTextures;
+        auto Changed = PreviewSettings;
+        Changed.ManualExposureStops = 3; Changed.SDRToneMapVersion = "Sdr.NarkowiczAcesFit.v1";
+        const auto Updated = FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
+            Fixture.Request.Device,*Snapshot,Snapshot,Composition,PreviewResources,&CompositionReason,&Changed);
+        bool BytesMatch = Buffers.size() == 3;
+        const Renderer::EOutputTransformStageKind Kinds[] = {Renderer::EOutputTransformStageKind::ManualExposure,
+            Renderer::EOutputTransformStageKind::SDRToneMap,Renderer::EOutputTransformStageKind::OutputDeviceTransform};
+        for (std::size_t I = 0; I < Buffers.size() && I < 3; ++I)
+        {
+            const auto B = std::dynamic_pointer_cast<Stoner::Tests::StaticModelRealization::FTrackedBuffer>(Buffers[I]);
+            const auto Expected = Renderer::FHDRPostProcessPipeline().BuildShaderParameterPayload(
+                PreviewResources.OutputTransformPlan.ResolvedSettings,Kinds[I]);
+            BytesMatch &= B && B->GetDesc().MemoryAccess == RHI::ERHIMemoryAccess::HostVisible &&
+                B->GetData() == Expected.Bytes;
+        }
+        Record(Result,Updated == RHI::ERHIResult::Success && BytesMatch &&
+            PreviewResources.OutputSettings.ManualExposureStops == 3 &&
+            PreviewResources.OutputTransformPlan.ResolvedSettings.TransformStrategyVersion == "Sdr.NarkowiczAcesFit.v1" &&
+            PreviewResources.OutputParameterBuffers == Buffers &&
+            PreviewResources.OwnedTextures == Textures,
+            "idle preview slot updates exact exposure/tone shader bytes without replacing buffers or attachments");
+        Changed.ManualExposureStops = 17;
+        const auto Rejected = FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
+            Fixture.Request.Device,*Snapshot,Snapshot,Composition,PreviewResources,&CompositionReason,&Changed);
+        Record(Result,Rejected != RHI::ERHIResult::Success && PreviewResources.OutputSettings.ManualExposureStops == 3,
+            "invalid preview edit rejects before replacing effective slot settings");
+    }
     const auto PreviewBindings = PreviewResources.BuildCycleBindings(false);
     const auto PreviewExecution = Renderer::FDeferredFrameExecutor().Execute(
         PreviewResources.Plan, PreviewResources.Graph, PreviewBindings);
@@ -1806,6 +1837,11 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
             PreviewCommands->PresentTransitions == 1,
         "Preview without a validation pass still records all three output stages once and a single Present transition");
 
+    auto RecordedEdit = PreviewSettings; RecordedEdit.ManualExposureStops = -3;
+    Record(Result,FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
+        Fixture.Request.Device,*Snapshot,Snapshot,Composition,PreviewResources,&CompositionReason,&RecordedEdit) ==
+        RHI::ERHIResult::InvalidState && PreviewResources.OutputSettings.ManualExposureStops == 3,
+        "recorded preview slot rejects parameter mutation before completion and command reset");
     FProductionContentDeferredExecutionResources RejectedPreview;
     auto InvalidPurpose = PreviewOptions;
     InvalidPurpose.ExecutionPurpose = Renderer::EFrameExecutionPurpose::FormalValidation;
