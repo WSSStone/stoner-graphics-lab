@@ -68,6 +68,20 @@ int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders&
             Check(FUICompositionExecutor::Prepare(Device,Draw,Bad,Settings,Registry,Scene,
                 Shaders.Draw.ModuleDescriptions,Shaders.Copy.ModuleDescriptions,Frame) != ERHIResult::Success &&
                 Frame.GetOutput() == Original, "stale UI preflight preserves the existing prepared frame");
+            auto NewWhite=Settings;
+            NewWhite.OutputProfileId="Hdr.Linear.1000.v1";
+            NewWhite.UIReferenceWhiteNits=NewWhite.NativePackingWhiteNits=160;
+            NewWhite.DisplayGeneration=2;
+            Check(FUICompositionExecutor::Prepare(Device,Draw,Context,NewWhite,Registry,Scene,
+                Shaders.Draw.ModuleDescriptions,Shaders.Copy.ModuleDescriptions,Frame)==ERHIResult::InvalidState &&
+                Frame.GetOutput()==Original,
+                "new-generation EDR white cannot consume an old-generation UI packet");
+            NewWhite.DisplayGeneration=1;
+            NewWhite.NativePackingWhiteNits=100;
+            Check(FUICompositionExecutor::Prepare(Device,Draw,Context,NewWhite,Registry,Scene,
+                Shaders.Draw.ModuleDescriptions,Shaders.Copy.ModuleDescriptions,Frame)==ERHIResult::InvalidState &&
+                Frame.GetOutput()==Original,
+                "mixed EDR reference and packing whites reject without replacing a prepared frame");
             Check(FUICompositionExecutor::Prepare(Device,Draw,Context,Settings,Registry,Scene,{},
                 Shaders.Copy.ModuleDescriptions,Frame) != ERHIResult::Success && Frame.GetOutput() == Original,
                 "missing draw shader cannot publish a partial composition frame");
