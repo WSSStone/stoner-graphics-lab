@@ -3,6 +3,7 @@
 #include "Core/FPlatformProcess.h"
 #include "FImGuiLabAdapter.h"
 #include "FLabInputRouter.h"
+#include "FLabSettingsController.h"
 
 #include <algorithm>
 #include <atomic>
@@ -51,6 +52,8 @@ struct FInteractiveLabSession::FImpl
     FInputManager* Input = nullptr;
     FFreeCameraController Camera;
     FLabInputRouter Router;
+    TUniquePtr<FLabSettingsController> Settings;
+    uint64 SettingsStart = 0;
     TUniquePtr<FImGuiLabAdapter> UI;
     FInteractiveLabUICallbacks UICallbacks;
     uint64 UIFrameId = 0;
@@ -361,7 +364,8 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
         else
         {
             const bool Eligible = bRenderEligible && !S.PendingIntent.IsValid() &&
-                !S.ActiveIntent.IsValid() && !S.bDrainOnly;
+                !S.ActiveIntent.IsValid() && !S.bDrainOnly &&
+                (!S.Settings || (!S.Settings->GetActive() && !S.Settings->IsPaused()));
             S.UICallbacks.BeginFrame(++S.UIFrameId, Eligible);
             const auto UIResult = S.UI->Frame(Raw,S.Display,DeltaSeconds,Eligible);
             Capture = S.UI->GetCapture();
@@ -384,14 +388,18 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
     if (S.SessionState == State::PausedZeroExtent)
     {
         S.TransitionStart = S.Now(); // zero extent suspends transition progress
+        if (S.Settings && S.Settings->GetActive()) S.SettingsStart = S.Now();
         S.SessionState = S.PendingIntent.IsValid() ? State::TransitionPending : State::Ready;
         S.bFreshInterval = true;
     }
+    if (S.Settings && S.Settings->GetActive() && S.Now() - S.SettingsStart >= S.Config.TransitionTimeoutMilliseconds)
+    { S.Fail("lab-settings-transition-timed-out"); S.StartTerminal(); return EApplicationResult::RuntimeUnavailable; }
     if (S.PendingIntent.IsValid() || S.ActiveIntent.IsValid() || S.bDrainOnly)
     {
         S.ReleaseInput();
         if (S.Now() - S.TransitionStart >= (S.bDrainOnly ? S.Config.DrainTimeoutMilliseconds : S.Config.TransitionTimeoutMilliseconds))
         { S.Fail("lab-transition-timed-out"); S.StartTerminal(); return EApplicationResult::RuntimeUnavailable; }
+        if (S.Settings && S.Settings->GetActive()) return EApplicationResult::Success;
         if (!S.bDrainOnly && !S.ActiveIntent.IsValid())
         {
             S.ActiveIntent = S.PendingIntent; S.ActiveDisplay = S.Display;
@@ -424,6 +432,11 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
         if (S.PendingIntent.IsValid()) return EApplicationResult::Success;
         S.SessionState = State::Ready; S.bFreshInterval = true;
     }
+    if (S.Settings && S.Settings->GetActive() && S.Settings->GetActive()->bRequiresOutputTransition)
+    {
+        S.ReleaseInput(); S.SessionState = State::TransitionPending;
+        return EApplicationResult::Success;
+    }
     FFreeCameraActions A = Routed.Actions;
     if (Routed.bCancelInteraction || Routed.bToggleUI || Capture.bHideUIRequested) A = {};
     if (A.bLookCaptured)
@@ -445,6 +458,63 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
     S.SessionState = State::Running;
     return EApplicationResult::Success;
 }
+
+bool FInteractiveLabSession::ConfigureSettings(const FLabSettingsSnapshot& Initial, const FLabSettingsCapabilities& Caps)
+{
+    auto& S = *Impl;
+    if (!S.Window || S.Terminal || S.Settings || S.SessionState == State::Closed ||
+        Caps.DisplayGeneration != S.Display.DisplayGeneration || Initial.CameraRevision != S.Camera.GetState().CameraRevision)
+        return false;
+    auto Candidate = MakeUnique<FLabSettingsController>();
+    if (!Candidate->Initialize(Initial,Caps)) return false;
+    S.Settings = std::move(Candidate);
+    return true;
+}
+bool FInteractiveLabSession::RequestSettings(const FLabSettingsSnapshot& Request)
+{
+    auto& S = *Impl;
+    return S.Settings && !S.Terminal && S.SessionState != State::Closed &&
+        Request.DisplayGeneration == S.Display.DisplayGeneration && S.Settings->Request(Request);
+}
+bool FInteractiveLabSession::RefreshSettingsCapabilities(const FLabSettingsCapabilities& Caps, bool FormerUsable)
+{
+    auto& S = *Impl;
+    return S.Settings && !S.Terminal && S.SessionState != State::Closed &&
+        Caps.DisplayGeneration == S.Display.DisplayGeneration && S.Settings->RefreshCapabilities(Caps,FormerUsable);
+}
+const FLabSettingsTransaction* FInteractiveLabSession::BeginSettingsTransaction(bool Eligible)
+{
+    auto& S = *Impl;
+    if (!S.Settings || S.Terminal || S.PendingIntent.IsValid() || S.ActiveIntent.IsValid() || S.bDrainOnly ||
+        (S.SessionState != State::Ready && S.SessionState != State::Running) ||
+        S.Display.bMinimized || !S.Display.DrawableExtent.IsPositive()) return nullptr;
+    if (S.Settings->GetPending() && S.Settings->GetPending()->DisplayGeneration != S.Display.DisplayGeneration) return nullptr;
+    const auto* Transaction = S.Settings->BeginEligible(Eligible);
+    if (Transaction) S.SettingsStart = S.Now();
+    return Transaction;
+}
+bool FInteractiveLabSession::CompleteSettingsTransaction(uint64 Token, bool Success, bool FormerUsable)
+{
+    auto& S = *Impl;
+    if (!S.Settings || S.Terminal || S.SessionState == State::Closed) return false;
+    const auto& Active = S.Settings->GetActive();
+    if (Active && Active->Token == Token && Active->Settings.DisplayGeneration != S.Display.DisplayGeneration)
+    {
+        (void)S.Settings->Complete(Token,false,false);
+        return false;
+    }
+    return S.Settings->Complete(Token,Success,FormerUsable);
+}
+const FLabSettingsSnapshot* FInteractiveLabSession::GetEffectiveSettings() const noexcept
+{ return Impl->Settings ? &Impl->Settings->GetEffective() : nullptr; }
+const FLabSettingsSnapshot* FInteractiveLabSession::GetRequestedSettings() const noexcept
+{ return Impl->Settings ? &Impl->Settings->GetRequested() : nullptr; }
+const FLabSettingsSnapshot* FInteractiveLabSession::GetPendingSettings() const noexcept
+{ return Impl->Settings && Impl->Settings->GetPending() ? &*Impl->Settings->GetPending() : nullptr; }
+const FString& FInteractiveLabSession::GetSettingsFailure() const noexcept
+{ static const FString Empty; return Impl->Settings ? Impl->Settings->GetFailure() : Empty; }
+bool FInteractiveLabSession::IsSettingsPaused() const noexcept
+{ return Impl->Settings && Impl->Settings->IsPaused(); }
 
 EApplicationResult FInteractiveLabSession::ConfigureUI(FInteractiveLabUICallbacks Callbacks, bool bEnabled)
 {

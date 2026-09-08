@@ -48,4 +48,31 @@ struct FLabSettingsSnapshot
     [[nodiscard]] bool IsValid() const noexcept;
 };
 
+// Resolved by the composition root from one display capability generation.
+// No native handles, UI types or device queries belong to this policy service.
+struct FLabOutputCapability
+{
+    Stoner::Core::FString ProfileId;
+    float ReferenceWhiteNits = 100;
+    float NativePackingWhiteNits = 100;
+};
+struct FLabDebugStage
+{
+    Stoner::Core::FString Name;
+    Stoner::Renderer::ERenderGraphColorDomain Domain =
+        Stoner::Renderer::ERenderGraphColorDomain::Unspecified;
+};
+struct FLabSettingsCapabilities
+{
+    Stoner::Core::uint64 DisplayGeneration = 0;
+    Stoner::Core::TArray<FLabOutputCapability> Outputs;
+    Stoner::Core::TArray<FLabDebugStage> DebugStages;
+};
+struct FLabSettingsTransaction
+{
+    Stoner::Core::uint64 Token = 0;
+    FLabSettingsSnapshot Settings;
+    bool bRequiresOutputTransition = false;
+};
+
 } // namespace Stoner::Application

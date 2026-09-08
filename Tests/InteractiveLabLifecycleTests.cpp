@@ -1,4 +1,6 @@
 #include "Application/FInteractiveLabSession.h"
+#include "Application/FLabSettingsSnapshot.h"
+#include "Renderer/FOutputTransformSettings.h"
 #include "Core/FPlatformProcess.h"
 #include "FWindowDriver.h"
 #include "Renderer/FUITextureRequest.h"
@@ -92,6 +94,56 @@ struct FFixture
         return S.Initialize(W, I, Camera(), {std::move(Callback)}, Config) == EApplicationResult::Success;
     }
 };
+void TestSettingsSession()
+{
+    using namespace Stoner::Renderer;
+    FFixture F;
+    uint64 Transitions = 0;
+    Check(F.Start([&](const auto& Q) { if (Q.Phase == Phase::Transition) ++Transitions; return Complete(); }),
+        "settings session starts with native lifecycle callback");
+    FLabSettingsSnapshot Initial;
+    Initial.CameraRevision = F.S.GetCameraState().CameraRevision;
+    Initial.SettingsRevision = Initial.OutputModeGeneration = 1;
+    Initial.DisplayGeneration = F.S.GetDisplayState().DisplayGeneration;
+    Initial.RequestedProfileId = Initial.EffectiveProfileId = "Sdr.sRGB.v1";
+    Initial.SdrToneMapVersion = GDefaultSDRToneMapVersion; Initial.HdrViewingVersion = GInitialHDRViewingVersion;
+    FLabSettingsCapabilities Caps; Caps.DisplayGeneration = Initial.DisplayGeneration;
+    Caps.Outputs = {{"Sdr.sRGB.v1",100,100}};
+    Check(F.S.ConfigureSettings(Initial,Caps) && !F.S.ConfigureSettings(Initial,Caps),
+        "session owns one settings controller initialized to its current camera and display");
+    auto Edit = Initial; Edit.ExposureStops = 2;
+    Check(F.S.RequestSettings(Edit) && F.S.GetPendingSettings() && !F.S.BeginSettingsTransaction(false),
+        "session retains pending edits while rendering is busy");
+    (void)F.S.Service(0);
+    const auto* Active = F.S.BeginSettingsTransaction(true);
+    const auto Token = Active ? Active->Token : 0;
+    Check(Active && F.S.GetEffectiveSettings()->ExposureStops == 0,
+        "session exposes immutable transaction before native completion");
+    F.Driver->Width = 640;
+    (void)F.S.Service(0);
+    Check(Transitions == 0 && !F.S.BeginSettingsTransaction(true),
+        "resize cannot enter native service while settings transaction is outstanding");
+    Check(!F.S.CompleteSettingsTransaction(Token,true,true) && F.S.IsSettingsPaused() &&
+        F.S.GetEffectiveSettings()->ExposureStops == 0,
+        "display event rejects stale settings completion even before capability refresh");
+    (void)F.S.Service(0);
+    Check(Transitions == 1,"resize proceeds after stale settings native work has completed");
+    Caps.DisplayGeneration = F.S.GetDisplayState().DisplayGeneration;
+    Check(F.S.RefreshSettingsCapabilities(Caps,false),"session admits only current-generation capability refresh");
+    Active = F.S.BeginSettingsTransaction(true);
+    Check(Active && F.S.CompleteSettingsTransaction(Active->Token,true,false) &&
+        !F.S.IsSettingsPaused() && F.S.GetEffectiveSettings()->ExposureStops == 2,
+        "latest settings resume after refreshed output completion");
+    Edit = *F.S.GetEffectiveSettings(); Edit.ExposureStops = 3;
+    Check(F.S.RequestSettings(Edit),"session accepts next settings intent");
+    Active = F.S.BeginSettingsTransaction(true);
+    Check(Active != nullptr,"timeout fixture has an actual outstanding transaction");
+    F.Clock += F.Config.TransitionTimeoutMilliseconds;
+    (void)F.S.Service(0);
+    Check(F.S.GetFirstFailure() == "lab-settings-transition-timed-out" && !F.S.RequestSettings(Edit),
+        "settings transition deadline enters bounded terminal cleanup and rejects further edits");
+    Check(Close(F.S),"settings session completes terminal cleanup");
+}
 void TestUISession()
 {
     using namespace Stoner::Renderer;
@@ -321,6 +373,7 @@ void TestTimeout()
 int RunInteractiveLabLifecycleTests()
 {
     Failures = 0;
+    TestSettingsSession();
     TestUISession(); TestSession(); TestTransitions(); TestTerminalOwnership(); TestTerminalFailureBoundaries(); TestTimeout();
     return Failures == 0 ? 0 : 1;
 }

@@ -5,32 +5,6 @@
 
 namespace Stoner::Application
 {
-// Resolved by the composition root from one display capability generation.
-// No native handles, UI types or device queries belong to this policy service.
-struct FLabOutputCapability
-{
-    Stoner::Core::FString ProfileId;
-    float ReferenceWhiteNits = 100;
-    float NativePackingWhiteNits = 100;
-};
-struct FLabDebugStage
-{
-    Stoner::Core::FString Name;
-    Stoner::Renderer::ERenderGraphColorDomain Domain =
-        Stoner::Renderer::ERenderGraphColorDomain::Unspecified;
-};
-struct FLabSettingsCapabilities
-{
-    Stoner::Core::uint64 DisplayGeneration = 0;
-    Stoner::Core::TArray<FLabOutputCapability> Outputs;
-    Stoner::Core::TArray<FLabDebugStage> DebugStages;
-};
-struct FLabSettingsTransaction
-{
-    Stoner::Core::uint64 Token = 0;
-    FLabSettingsSnapshot Settings;
-    bool bRequiresOutputTransition = false;
-};
 class FLabSettingsController
 {
 public:
@@ -40,6 +14,7 @@ public:
     const FLabSettingsTransaction* BeginEligible(bool bEligible);
     bool Complete(Stoner::Core::uint64 Token, bool bSuccess, bool bFormerOutputUsable);
     bool RefreshCapabilities(const FLabSettingsCapabilities&, bool bFormerOutputUsable);
+    const std::optional<FLabSettingsTransaction>& GetActive() const { return Active; }
     const FLabSettingsSnapshot& GetRequested() const { return Requested; }
     const FLabSettingsSnapshot& GetEffective() const { return Effective; }
     const std::optional<FLabSettingsSnapshot>& GetPending() const { return Pending; }

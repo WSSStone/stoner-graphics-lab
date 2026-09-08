@@ -23,6 +23,10 @@ namespace Stoner::RHI { enum class ERHIResult; }
 namespace Stoner::Application
 {
 
+struct FLabSettingsSnapshot;
+struct FLabSettingsCapabilities;
+struct FLabSettingsTransaction;
+
 // This state belongs to the Application coordinator.  It deliberately has no
 // RHI or platform presentation values; the Demo supplies those through the
 // value callback below.
@@ -184,6 +188,20 @@ public:
     [[nodiscard]] const Stoner::Core::FString& GetUIFailure() const noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult ExtractUIDrawSnapshot(
         Stoner::Renderer::FUIDrawSnapshot& OutSnapshot) const;
+
+    // The composition root polls these value transactions after Service and
+    // before admitting a frame. It owns native preparation and reports its
+    // actual completion; no success is inferred from merely queueing work.
+    [[nodiscard]] bool ConfigureSettings(const FLabSettingsSnapshot&, const FLabSettingsCapabilities&);
+    [[nodiscard]] bool RequestSettings(const FLabSettingsSnapshot&);
+    [[nodiscard]] bool RefreshSettingsCapabilities(const FLabSettingsCapabilities&, bool bFormerOutputUsable);
+    [[nodiscard]] const FLabSettingsTransaction* BeginSettingsTransaction(bool bRenderEligible);
+    [[nodiscard]] bool CompleteSettingsTransaction(Stoner::Core::uint64 Token, bool bSuccess, bool bFormerOutputUsable);
+    [[nodiscard]] const FLabSettingsSnapshot* GetEffectiveSettings() const noexcept;
+    [[nodiscard]] const FLabSettingsSnapshot* GetRequestedSettings() const noexcept;
+    [[nodiscard]] const FLabSettingsSnapshot* GetPendingSettings() const noexcept;
+    [[nodiscard]] const Stoner::Core::FString& GetSettingsFailure() const noexcept;
+    [[nodiscard]] bool IsSettingsPaused() const noexcept;
 
     // Polls window/input, builds UI before one camera update and makes at most
     // one bounded transition/drain callback. It never sleeps.

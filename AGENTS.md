@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (58/127 reviewed tasks); native closeout remains pending.
+Feature 030 implementation is partial (59/127 reviewed tasks); native closeout remains pending.
 The maintainer explicitly skips Intel x86_64 macOS validation for Feature 030
 on 2026-09-08; record it as skipped, not passed, and do not block implementation
 on Intel cooking/derivation/native checks. Existing Intel support and historical
@@ -164,6 +164,7 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
+- 030 settings session integration: T060 complete (59/127). Session-owned value transactions gate busy/minimized/lifecycle states, prevent concurrent native resize, reject stale display completions and enforce bounded timeout. Strict Debug/Release each pass 145 related assertions. Live controls and Demo/native transaction consumption remain pending; no US3 checkpoint is claimed.
 - 030 settings policy increment: T058 complete (58/127); T060 integration remains pending. Strict Debug/Release each pass 132 settings/value/lifecycle assertions for bounded active/pending transactions, invalid-edit preservation, stale completion rejection and capability-loss fallback/pause. This is private policy coverage, not live native output-switch acceptance.
 - 030 US2 local checkpoint: T055–T057 complete (57/127). Strict Debug/Release each pass 406 related CPU assertions and 83 native UI assertions per Vulkan/Metal backend, including distinct queued atlas generations, scaled real-widget hit tests, explicit Unsupported fixtures and backend-mismatch rejection. `Build/Validation/030/us2.json` records working-tree checks; formal platform/human closeout remains pending and Intel macOS stays skipped.
 - 030 native raster conformance increment (54/127): shared Vulkan/Metal UI fixtures cover three scales and three alpha values with indexed offsets, state reset, two textures, signed scissors and every-pixel RGB/alpha comparison. They exposed and fixed Metal using a default UInt16 draw-record type instead of the bound index type for FirstIndex byte offsets. Strict Debug/Release each pass 150 cooked/native UI assertions plus 15 Metal command/pipeline regressions. T055/T056 queued-generation coverage and T057 remain open.
