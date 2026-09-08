@@ -125,6 +125,13 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
         static_cast<float>(Display.DrawableExtent.Height) / Display.LogicalExtent.Height);
     IO.DeltaTime = static_cast<float>(DeltaSeconds > 0 ? std::clamp(DeltaSeconds, 0.000001, 0.25) : 1.0 / 60.0);
     Impl->Input.Feed(IO, Events, Display.bFocused);
+    if (Impl->Textures && IO.Fonts->Builder &&
+        IO.Fonts->Builder->BakedPool.Size-IO.Fonts->Builder->BakedDiscardedCount>=16)
+    {
+        // Only unused CPU bakes are discarded. Published draw/texture snapshots
+        // own copied geometry and GPU generations independently of these bakes.
+        ImFontAtlasBuildDiscardBakes(IO.Fonts,1);
+    }
     ImGui::NewFrame();
     ImGui::SetNextWindowPos(ImVec2(16, 16), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(Runtime ? std::max(128.0f,std::min(360.0f,IO.DisplaySize.x-32)) : 360.0f, Runtime ? std::max(120.0f,std::min(680.0f,IO.DisplaySize.y-32)) : 220.0f), ImGuiCond_Always);

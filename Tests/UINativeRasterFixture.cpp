@@ -144,7 +144,7 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
         auto* Gradient=yyjson_obj_get(Row,"gradient"); auto* Profile=yyjson_obj_get(Row,"profile");
         auto* White=yyjson_obj_get(Row,"whiteNits"); auto* Multiplier=yyjson_obj_get(Row,"multiplier");
         auto* Exposure=yyjson_obj_get(Row,"exposureStops");
-        if (!Check(yyjson_is_num(Scale) && yyjson_get_num(Scale)>=1 && yyjson_get_num(Scale)<=2 &&
+        if (!Check(yyjson_is_num(Scale) && yyjson_get_num(Scale)>=0.5 && yyjson_get_num(Scale)<=4 &&
             yyjson_is_uint(Alpha) && yyjson_get_uint(Alpha)<=255 && yyjson_is_bool(Gradient) &&
             yyjson_is_str(Profile) && yyjson_is_num(White) && yyjson_is_num(Multiplier) &&
             yyjson_is_num(Exposure) && yyjson_get_num(Exposure)>=-3 && yyjson_get_num(Exposure)<=3,
@@ -292,9 +292,10 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
         {
         auto ReadCommand = Device->CreateCommandBuffer(ERHIQueueType::Graphics).Object;
         const auto ReadFence = Device->CreateFence(false).Object;
-        const uint64 Bytes = static_cast<uint64>(Extent)*256;
+        const uint32 RowPitch=(Extent*8+255)/256*256;
+        const uint64 Bytes = static_cast<uint64>(Extent)*RowPitch;
         const auto Buffer = Device->CreateBuffer({Bytes,ERHIBufferUsage::CopyDestination,ERHIMemoryAccess::HostVisible}).Object;
-        FRHITextureBufferCopyRegion Region; Region.Width = Region.Height = Extent; Region.DestinationRowLengthTexels = 32;
+        FRHITextureBufferCopyRegion Region; Region.Width = Region.Height = Extent; Region.DestinationRowLengthTexels = RowPitch/8;
         const auto Output = OutputIndex == 0 ? Frame.GetOutput() : ReplacementFrame.GetOutput();
         Transition.Texture = Output; Transition.Before = ERHIResourceLayout::ShaderReadOnly;
         Transition.After = ERHIResourceLayout::CopySource;
@@ -314,7 +315,7 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
             bool RGB = true, Opaque = true;
             for (uint32 Y=0;Y<Extent;++Y) for (uint32 X=0;X<Extent;++X) for (int C=0;C<4;++C)
             {
-                const auto Offset = Y*256+X*8+static_cast<uint32>(C)*2;
+                const auto Offset = Y*RowPitch+X*8+static_cast<uint32>(C)*2;
                 const unsigned V = Pixels[Offset] | (static_cast<unsigned>(Pixels[Offset+1])<<8);
                 const int Exp = (V>>10)&31;
                 const float Actual = (V&32768 ? -1.0f : 1.0f)*std::ldexp(static_cast<float>((V&1023)+(Exp?1024:0)),Exp?Exp-25:-24);

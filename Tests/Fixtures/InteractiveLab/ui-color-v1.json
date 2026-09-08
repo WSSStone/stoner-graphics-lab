@@ -117,6 +117,24 @@
       "whiteNits": 160,
       "multiplier": 1,
       "exposureStops": 0
+    },
+    {
+      "scale": 0.5,
+      "alpha": 255,
+      "gradient": true,
+      "profile": "Sdr.sRGB.v1",
+      "whiteNits": 100,
+      "multiplier": 1,
+      "exposureStops": 0
+    },
+    {
+      "scale": 4,
+      "alpha": 255,
+      "gradient": true,
+      "profile": "Sdr.sRGB.v1",
+      "whiteNits": 100,
+      "multiplier": 1,
+      "exposureStops": 0
     }
   ]
 }

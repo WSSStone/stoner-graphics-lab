@@ -208,9 +208,10 @@ int RunApplicationUIInputTests()
             FInputEvent::Text(0x1F642)}, Display, 1.0 / 60.0);
         Check(UI.GetFallbackScalarCount() > 0 && UI.GetText().Len() > Unicode.Len(),
             "committed non-BMP text stays editable while font fallback is diagnosed");
-        for (float Scale : {1.0f, 1.5f, 2.0f})
+        Display.LogicalExtent={640,360};
+        for (float Scale : {0.5f, 1.0f, 1.5f, 2.0f, 4.0f})
         {
-            Display.DrawableExtent = {static_cast<uint32>(1280 * Scale), static_cast<uint32>(720 * Scale)};
+            Display.DrawableExtent = {static_cast<uint32>(640 * Scale), static_cast<uint32>(360 * Scale)};
             Display.FramebufferScale = {Scale, Scale};
             Display.ContentScale = {Scale, Scale};
             ++Display.DisplayGeneration;
@@ -220,7 +221,7 @@ int RunApplicationUIInputTests()
             (void)UI.Frame({},Display,1.0/60.0);
             (void)UI.Frame({FInputEvent::PointerMove(60,70),FInputEvent::MouseDown(EMouseButton::Left)},Display,1.0/60.0);
             Check(UI.GetCapture().bTextEditing && UI.GetCapture().bKeyboard,
-                "100/150/200 percent drawing retains the same logical input-widget hit target");
+                "0.5 through 4 scale drawing retains the same logical input-widget hit target");
             (void)UI.Frame({FInputEvent::MouseUp(EMouseButton::Left)},Display,1.0/60.0);
         }
         Check(UI.Frame({}, Display, 1.0e-300) == EApplicationResult::Success,

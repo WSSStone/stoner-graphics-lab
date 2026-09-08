@@ -6,6 +6,7 @@
 #include "imgui_internal.h"
 #include <array>
 #include <iostream>
+#include <cmath>
 
 int RunApplicationUITextureTests()
 {
@@ -278,6 +279,33 @@ int RunApplicationUITextureTests()
             Selection.DebugBypass.Mode=EOutputTransformDebugBypassMode::HDRPreservingReadback;
             Check(DiagnosticFrame()==0 && Edits==0,
                 "real numeric diagnostic panel publishes UI without an image request or automatic action");
+            auto ScaledDisplay=Display;
+            ScaledDisplay.LogicalExtent={640,360};
+            bool ScalesValid=true,CacheBounded=true,DensityMatches=true;
+            for (int Step=0;Step<=35;++Step)
+            {
+                const float Scale=0.5f+0.1f*Step;
+                ScaledDisplay.ContentScale={Scale,Scale};
+                ScaledDisplay.DrawableExtent={static_cast<Core::uint32>(640*Scale),static_cast<Core::uint32>(360*Scale)};
+                ScaledDisplay.FramebufferScale={static_cast<float>(ScaledDisplay.DrawableExtent.Width)/640,
+                    static_cast<float>(ScaledDisplay.DrawableExtent.Height)/360};
+                ++ScaledDisplay.DisplayGeneration;
+                Registry.BeginEligibleFrame(++ServiceFrame,true);
+                ScalesValid &= UI.Frame({},ScaledDisplay,1.0/60.0)==EApplicationResult::Success;
+                auto* Builder=ImGui::GetIO().Fonts->Builder;
+                CacheBounded &= Builder && Builder->BakedPool.Size-Builder->BakedDiscardedCount<=16;
+                bool UsedDensity=false;
+                if (Builder) for (int I=0;I<Builder->BakedPool.Size;++I)
+                {
+                    const auto& Baked=Builder->BakedPool[I];
+                    UsedDensity |= !Baked.WantDestroy && Baked.LastUsedFrame==Builder->FrameCount &&
+                        std::abs(Baked.RasterizerDensity-ScaledDisplay.FramebufferScale.X)<0.001f;
+                }
+                DensityMatches &= UsedDensity;
+            }
+            Check(ScalesValid,"dynamic fonts prepare scales from 0.5 through 4 without disabling UI");
+            Check(CacheBounded,"dynamic font raster cache never exceeds sixteen live sizes");
+            Check(DensityMatches,"dynamic font raster density follows the drawable ratio exactly once");
         }
         Registry.Poll();
         Check(Registry.GetStatistics().Generations == 0,
