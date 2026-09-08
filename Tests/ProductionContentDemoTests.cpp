@@ -872,6 +872,13 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
         Core::TArray<Core::TSharedPtr<RHI::IRHITexture>>{};
     const auto Submitted0 = Context.SubmitFrame(101, 0);
     auto LiveSettings = Config.OutputSettings; LiveSettings.ManualExposureStops = 2;
+    LiveSettings.DiagnosticBypass.StageName="ManualExposure";
+    LiveSettings.DiagnosticBypass.Mode=Renderer::EOutputTransformDebugBypassMode::HDRPreservingReadback;
+    LiveSettings.DiagnosticBypass.VisualizationMinimum=-2;
+    LiveSettings.DiagnosticBypass.VisualizationMaximum=6;
+    auto InvalidDebug=LiveSettings; InvalidDebug.DiagnosticBypass.StageName="missing-stage";
+    Record(Result,Context.UpdateOutputSettings(InvalidDebug)==RHI::ERHIResult::InvalidState,
+        "unknown diagnostic stage rejects before a live settings transaction is accepted");
     const auto StagedSettings = Context.UpdateOutputSettings(LiveSettings);
     Record(Result,StagedSettings == RHI::ERHIResult::Success && Resources0 &&
         Resources0->OutputSettings.ManualExposureStops == Config.OutputSettings.ManualExposureStops,
@@ -883,6 +890,15 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
     Record(Result,SettingsResources1 && SettingsResources1->OutputSettings.ManualExposureStops == 2 &&
         Resources0->OutputSettings.ManualExposureStops == Config.OutputSettings.ManualExposureStops,
         "next acquired slot consumes live settings while old slot retains its recorded state");
+    Record(Result,SettingsResources1 &&
+        SettingsResources1->OutputTransformPlan.DiagnosticBypass.SourceStageName==Core::FString("ManualExposure") &&
+        SettingsResources1->OutputTransformPlan.DiagnosticBypass.SourceDomain==Renderer::ERenderGraphColorDomain::SceneLinearRec709D65 &&
+        SettingsResources1->OutputTransformPlan.DiagnosticBypass.VisualizationMinimum==-2 &&
+        SettingsResources1->OutputTransformPlan.DiagnosticBypass.VisualizationMaximum==6 &&
+        !SettingsResources1->OutputTransformPlan.RequiresDiagnosticReadback() &&
+        SettingsResources1->Bindings.Readbacks.empty() &&
+        Resources0->OutputSettings.DiagnosticBypass.Mode==Renderer::EOutputTransformDebugBypassMode::Disabled,
+        "numeric selection retains stage/domain/range without readback or mutation of the submitted slot");
     const auto Submitted1 = Context.SubmitFrame(102, 1);
     const auto Third = Context.ReserveFrame(103, 0);
     bool bCompleted = true;
@@ -1876,6 +1892,19 @@ FProductionContentDemoTestResult RunProductionContentDemoTests()
             PreviewResources.OutputParameterBuffers == Buffers &&
             PreviewResources.OwnedTextures == Textures,
             "idle preview slot updates exact exposure/tone shader bytes without replacing buffers or attachments");
+        Changed.DiagnosticBypass.StageName="SDRToneMap";
+        Changed.DiagnosticBypass.Mode=Renderer::EOutputTransformDebugBypassMode::BoundedVisualization;
+        Changed.DiagnosticBypass.VisualizationMinimum=2;
+        Changed.DiagnosticBypass.VisualizationMaximum=8;
+        const auto DebugUpdated=FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
+            Fixture.Request.Device,*Snapshot,Snapshot,Composition,PreviewResources,&CompositionReason,&Changed);
+        Record(Result,DebugUpdated==RHI::ERHIResult::Success &&
+            PreviewResources.OutputTransformPlan.DiagnosticBypass.SourceDomain==Renderer::ERenderGraphColorDomain::DisplayLinearRec709D65 &&
+            PreviewResources.OutputTransformPlan.DiagnosticBypass.VisualizationMinimum==2 &&
+            PreviewResources.OutputTransformPlan.DiagnosticBypass.VisualizationMaximum==8 &&
+            !PreviewResources.OutputTransformPlan.HasDiagnosticWidget() &&
+            PreviewResources.Bindings.Readbacks.empty() && PreviewResources.OwnedTextures==Textures,
+            "hidden bounded selection preserves resolved display-linear stage/range without allocating widget or readback targets");
         Changed.ManualExposureStops = 17;
         const auto Rejected = FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
             Fixture.Request.Device,*Snapshot,Snapshot,Composition,PreviewResources,&CompositionReason,&Changed);

@@ -1089,7 +1089,7 @@ ERHIResult FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
     if (Settings.OutputDeviceProfileId != InOutResources.OutputSettings.OutputDeviceProfileId ||
         Settings.PreferredNativeEncoding != InOutResources.OutputSettings.PreferredNativeEncoding ||
         Settings.NativeReferenceWhiteNits != InOutResources.OutputSettings.NativeReferenceWhiteNits ||
-        Settings.DiagnosticBypass.Mode != EOutputTransformDebugBypassMode::Disabled || Settings.bRequireReadback ||
+        Settings.bRequireReadback ||
         !Settings.bRequirePresentation || (NewOutputSettings &&
             (!Settings.PreTonemapOperations.IsEmpty() || !Settings.PostTonemapOperations.IsEmpty())))
     { Fail(OutReason,"preview output mode or diagnostic change requires its transition path"); return ERHIResult::Unsupported; }
@@ -1181,6 +1181,18 @@ ERHIResult FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
     InOutResources.Bindings.SurfaceDraws =
         InOutResources.PreviewUniformResources->GetSurfaceDraws();
     return ERHIResult::Success;
+}
+
+bool FProductionContentDeferredExecutionBuilder::ValidatePreviewOutputSettings(
+    const FProductionContentComposition& Composition, const FOutputTransformSettings& Settings)
+{
+    if (Settings.bRequireReadback || !Settings.bRequirePresentation ||
+        !Settings.PreTonemapOperations.IsEmpty() || !Settings.PostTonemapOperations.IsEmpty()) return false;
+    FOutputTransformPlan Plan;
+    if (!BuildOutputTransformPlan(Composition,Settings,Plan)) return false;
+    Plan.ExecutionPurpose=EFrameExecutionPurpose::InteractivePreview;
+    Plan.ReadbackSelection=EFrameReadbackSelection::None;
+    return Plan.IsValid();
 }
 
 ERHIResult FProductionContentDeferredExecutionBuilder::BindPreviewUI(

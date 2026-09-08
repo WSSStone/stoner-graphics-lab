@@ -692,7 +692,7 @@ RHI::ERHIResult FLabProductionFrameContext::UpdateOutputSettings(
     const auto Validated = Renderer::FOutputTransformSettingsValidator().Validate(Settings);
     const auto& Old = Impl_->Config.OutputSettings;
     if (!Validated.Succeeded() || Settings.bRequireReadback || !Settings.bRequirePresentation ||
-        Settings.DiagnosticBypass.Mode != Renderer::EOutputTransformDebugBypassMode::Disabled ||
+        !FProductionContentDeferredExecutionBuilder::ValidatePreviewOutputSettings(Impl_->Config.Composition,Settings) ||
         !Settings.PreTonemapOperations.IsEmpty() || !Settings.PostTonemapOperations.IsEmpty())
     { Fail(OutReason,"invalid ordinary preview output settings"); return ERHIResult::InvalidState; }
     if (Settings.OutputDeviceProfileId != Old.OutputDeviceProfileId ||
@@ -709,7 +709,7 @@ RHI::ERHIResult FLabProductionFrameContext::ReconfigureOutputSettings(
     if (!Impl_ || !Impl_->bInitialized || Impl_->bFailed || Impl_->bShutdownStarted) return ERHIResult::InvalidState;
     if (!Renderer::FOutputTransformSettingsValidator().Validate(Settings).Succeeded() ||
         Settings.bRequireReadback || !Settings.bRequirePresentation ||
-        Settings.DiagnosticBypass.Mode != Renderer::EOutputTransformDebugBypassMode::Disabled ||
+        !FProductionContentDeferredExecutionBuilder::ValidatePreviewOutputSettings(Impl_->Config.Composition,Settings) ||
         !Settings.PreTonemapOperations.IsEmpty() || !Settings.PostTonemapOperations.IsEmpty())
     { Fail(OutReason,"invalid preview output recreation settings"); return ERHIResult::InvalidState; }
     if (Impl_->bPausedZeroExtent) return ERHIResult::NotReady;
@@ -768,7 +768,11 @@ RHI::ERHIResult FLabProductionFrameContext::RecordFrame(
     const auto& RecordedSettings = Slot->Resources.OutputSettings;
     const bool SettingsChanged = PendingSettings.ManualExposureStops != RecordedSettings.ManualExposureStops ||
         PendingSettings.SDRToneMapVersion != RecordedSettings.SDRToneMapVersion ||
-        PendingSettings.HDRViewingVersion != RecordedSettings.HDRViewingVersion;
+        PendingSettings.HDRViewingVersion != RecordedSettings.HDRViewingVersion ||
+        PendingSettings.DiagnosticBypass.Mode != RecordedSettings.DiagnosticBypass.Mode ||
+        PendingSettings.DiagnosticBypass.StageName != RecordedSettings.DiagnosticBypass.StageName ||
+        PendingSettings.DiagnosticBypass.VisualizationMinimum != RecordedSettings.DiagnosticBypass.VisualizationMinimum ||
+        PendingSettings.DiagnosticBypass.VisualizationMaximum != RecordedSettings.DiagnosticBypass.VisualizationMaximum;
     const RHI::ERHIResult Update =
         FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
             Impl_->Device, *Impl_->SceneLease, Impl_->SceneLease, Candidate,

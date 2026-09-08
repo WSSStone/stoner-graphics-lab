@@ -97,6 +97,10 @@ public:
 
     // Only while the slot command is idle. Null removes the terminal UI stage.
     // The caller retains/cancels the frame according to actual submission state.
+    // CPU-only complete stage/range validation before accepting a live edit.
+    [[nodiscard]] static bool ValidatePreviewOutputSettings(
+        const FProductionContentComposition& Composition,
+        const Renderer::FOutputTransformSettings& Settings);
     [[nodiscard]] static RHI::ERHIResult BindPreviewUI(
         const Core::TSharedPtr<Renderer::FUIRenderFrame>& Frame,
         FProductionContentDeferredExecutionResources& InOutResources);
