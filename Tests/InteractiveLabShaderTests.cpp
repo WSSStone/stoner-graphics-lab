@@ -4,9 +4,9 @@
 #include <iostream>
 #include <filesystem>
 
-int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders& Shaders);
+int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders& Shaders, bool RequireNative);
 
-int RunInteractiveLabShaderTests()
+static int RunShaderFixture(bool RequireNative, int ExpectedBackend)
 {
     using namespace Stoner;
     using namespace Stoner::Demo;
@@ -21,7 +21,7 @@ int RunInteractiveLabShaderTests()
     const char* Profile = std::getenv("STONER_LAB_SHADER_TEST_PROFILE");
     if (!Root || !Profile)
     {
-        const bool Required = std::getenv("STONER_REQUIRE_UI_COMPOSITION") || Root || Profile;
+        const bool Required = RequireNative || std::getenv("STONER_REQUIRE_UI_COMPOSITION") || Root || Profile;
         std::cout << (Required ? "[FAIL] " : "[SKIP] ")
             << "cooked UI shader selection requires STONER_LAB_SHADER_TEST_PUBLICATION and PROFILE\n";
         return Failed + (Required ? 1 : 0);
@@ -36,6 +36,12 @@ int RunInteractiveLabShaderTests()
         Asset::FAssetCookContractCodec::ParseTargetProfile(Bytes, Target) == Asset::EAssetResult::Success;
     Check(Parsed, "cooked UI shader fixture parses target and current generation");
     if (!Parsed) return Failed;
+    if (ExpectedBackend >= 0)
+    {
+        const auto Expected = ExpectedBackend == 1 ? Asset::EAssetGraphicsBackend::Metal : Asset::EAssetGraphicsBackend::Vulkan;
+        Check(Target.Profile.GraphicsBackend == Expected,"native UI suite requires its exact backend target profile");
+        if (Target.Profile.GraphicsBackend != Expected) return Failed;
+    }
     FProductionContentSession Session;
     FProductionContentSessionConfig Config;
     Config.PublicationRoot = Root;
@@ -54,8 +60,8 @@ int RunInteractiveLabShaderTests()
         Shaders.Generation == Closure.GenerationIdentity, "UI draw and copy bytecode select from the same cooked generation and target");
     if (Prepared)
     {
-        if (Target.Profile.GraphicsBackend == Asset::EAssetGraphicsBackend::Vulkan || std::getenv("STONER_REQUIRE_UI_COMPOSITION"))
-            Failed += RunUICompositionPreparationTests(Shaders);
+        if (RequireNative || Target.Profile.GraphicsBackend == Asset::EAssetGraphicsBackend::Vulkan || std::getenv("STONER_REQUIRE_UI_COMPOSITION"))
+            Failed += RunUICompositionPreparationTests(Shaders,RequireNative);
         auto Bad = Closure;
         Bad.RenderShaders.clear();
         Check(PrepareInteractiveLabShaders(Bad, Pointer.GenerationId, Target, Shaders, Reason) != Asset::EAssetResult::Success &&
@@ -77,4 +83,15 @@ int RunInteractiveLabShaderTests()
     }
     Check(Session.Shutdown() == Asset::EAssetResult::Success, "cooked shader fixture shuts down cleanly");
     return Failed;
+}
+
+int RunInteractiveLabShaderTests() { return RunShaderFixture(false,-1); }
+int RunInteractiveLabNativeShaderTests(bool Metal)
+{
+    if (!std::getenv("STONER_LAB_SHADER_TEST_PUBLICATION") && !std::getenv("STONER_LAB_SHADER_TEST_PROFILE"))
+    {
+        std::cout << "[UNSUPPORTED] native UI suite requires an explicit cooked fixture; no native pass claimed\n";
+        return std::getenv("STONER_REQUIRE_UI_COMPOSITION") ? 1 : 0;
+    }
+    return RunShaderFixture(true,Metal ? 1 : 0);
 }

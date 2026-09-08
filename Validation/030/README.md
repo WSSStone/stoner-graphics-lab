@@ -1158,3 +1158,22 @@ reports are in its `ui-shaders-windows-vulkan/` and `ui-shaders-linux-vulkan/`
 subdirectories. These are working-tree implementation checks, not same-SHA
 formal evidence, Accepted baselines, HDR viewing authority or T055/T056 full
 native conformance. Those checks and T057 remain pending.
+
+## Local US2 checkpoint (2026-09-08)
+
+T055–T057 are complete, bringing reviewed implementation to 57/127 tasks.
+Strict Debug/Release each pass 406 related CPU assertions and 83 native UI
+assertions per Vulkan/Metal backend. The font replacement fixture records the
+old generation, prepares a distinct new generation, submits both before waits,
+and compares opaque versus quarter-coverage pixels independently. Old atlas
+destruction remains blocked until render completion and final lease release.
+Actual text-widget hit tests now cover 100/150/200% scales.
+
+The standalone native suites report missing optional fixtures as Unsupported
+without native-pass assertions. Required missing fixtures and wrong backend
+profiles reject. All 14 positive/negative-control runs are recorded with log
+SHA-256 digests in ignored `Build/Validation/030/us2.json`; logs are
+`Build/Validation/030/us2/us2-*.log`. Architecture checks have zero findings.
+This closes the local US2 checkpoint together with the preceding live previews.
+These working-tree checks do not establish formal same-SHA, Windows/Linux native,
+Accepted or human HDR authority. Intel macOS remains explicitly skipped.

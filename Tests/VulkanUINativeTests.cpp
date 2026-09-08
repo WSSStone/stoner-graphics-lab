@@ -12,3 +12,6 @@ int RunVulkanUINativeTests(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDevic
         return Vulkan->ReadbackBufferForTesting(Buffer,0,Bytes,Out);
     });
 }
+
+int RunInteractiveLabNativeShaderTests(bool Metal);
+int RunVulkanUINativeTests() { return RunInteractiveLabNativeShaderTests(false); }

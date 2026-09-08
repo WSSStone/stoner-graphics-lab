@@ -11,3 +11,6 @@ int RunMetalUINativeTests(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDevice
         return Stoner::Backend::Metal::ReadMetalBufferForValidation(Device,Buffer,0,Bytes,Out);
     });
 }
+
+int RunInteractiveLabNativeShaderTests(bool Metal);
+int RunMetalUINativeTests() { return RunInteractiveLabNativeShaderTests(true); }

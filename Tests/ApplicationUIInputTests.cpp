@@ -216,6 +216,12 @@ int RunApplicationUIInputTests()
             ++Display.DisplayGeneration;
             Check(UI.Frame({}, Display, 1.0 / 60.0) == EApplicationResult::Success && UI.GetVertexCount() > 0,
                 "UI logical coordinates accept distinct content and drawable scales");
+            UI.Suspend();
+            (void)UI.Frame({},Display,1.0/60.0);
+            (void)UI.Frame({FInputEvent::PointerMove(60,70),FInputEvent::MouseDown(EMouseButton::Left)},Display,1.0/60.0);
+            Check(UI.GetCapture().bTextEditing && UI.GetCapture().bKeyboard,
+                "100/150/200 percent drawing retains the same logical input-widget hit target");
+            (void)UI.Frame({FInputEvent::MouseUp(EMouseButton::Left)},Display,1.0/60.0);
         }
         Check(UI.Frame({}, Display, 1.0e-300) == EApplicationResult::Success,
             "positive sub-float UI time remains valid without a zero delta assertion");

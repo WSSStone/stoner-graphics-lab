@@ -8,7 +8,7 @@
 #include <cstdlib>
 #include <cmath>
 
-int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders& Shaders)
+int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders& Shaders, bool RequireNative)
 {
     using namespace Stoner;
     using namespace Stoner::Renderer;
@@ -16,7 +16,7 @@ int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders&
     int Failed = 0;
     const auto Check = [&](bool OK, const char* Name)
     { std::cout << (OK ? "[PASS] " : "[FAIL] ") << Name << '\n'; if (!OK) ++Failed; return OK; };
-    const bool Native = std::getenv("STONER_REQUIRE_UI_COMPOSITION") != nullptr;
+    const bool Native = RequireNative || std::getenv("STONER_REQUIRE_UI_COMPOSITION") != nullptr;
     const bool Metal = Shaders.Draw.SelectedTarget.Backend == Asset::EShaderBackendFamily::Metal;
     Core::TSharedPtr<IRHIDevice> Device;
     if (Metal) Device = Backend::Metal::CreateMetalDevice().Device;
@@ -28,6 +28,8 @@ int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders&
         if (Vulkan->Initialize(Init) == ERHIResult::Success &&
             (!Native || Vulkan->EnableNativeShaderRuntime() == ERHIResult::Success)) Device = Vulkan;
     }
+    if (Native && (!Device || !Device->IsActive()))
+    { std::cout << "[UNSUPPORTED] native UI device unavailable; requested native validation cannot pass\n"; return 1; }
     if (!Check(Device && Device->IsActive(), "UI composition fixture initializes")) return Failed;
     {
         FUITextureRegistry Registry(Device);

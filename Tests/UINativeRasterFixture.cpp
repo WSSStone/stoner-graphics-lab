@@ -37,7 +37,7 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
         Request.Format = ERHIFormat::R8G8B8A8_UNorm; Request.ColorDomain = EUITextureColorDomain::AlphaCoverage;
         Request.PixelBytes = {255,255,255,255};
         const auto Coverage = Registry.Prepare(Request);
-        const FUITextureLease Leases[] = {Registry.Acquire(Color.TextureId),Registry.Acquire(Coverage.TextureId)};
+        FUITextureLease Leases[] = {Registry.Acquire(Color.TextureId),Registry.Acquire(Coverage.TextureId)};
         FUIDrawSnapshot Snapshot(1,1,1,1);
         // Unreferenced sentinels make ignoring either indexed offset observable.
         const FUIVertex Vertices[] = {{{999,999},{0,0},0},
@@ -80,8 +80,51 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
         Recorded = Recorded && Command->RecordLayoutTransition(Transition) == ERHIResult::Success &&
             FUICompositionExecutor::Record(Frame,Registry,Command,Submission) == ERHIResult::Success &&
             Command->End() == ERHIResult::Success;
+        const bool ReplaceFont = Scale == 1.0f && Alpha == 128;
+        FUICompositionFrame ReplacementFrame;
+        TSharedPtr<IRHICommandBuffer> ReplacementCommand;
+        TSharedPtr<IRHIFence> ReplacementFence;
+        FUITextureSubmission ReplacementSubmission;
+        bool ReplacementRecorded = false;
+        FUITextureRequest DestroyOld;
+        if (ReplaceFont && Recorded)
+        {
+            // Replace the alpha-coverage atlas while the old immutable draw is
+            // already recorded. Submit both generations before any validation wait.
+            Request.Operation = EUITextureOperation::Update; Request.RequestId = 3;
+            Request.TextureId = Coverage.TextureId; Request.ExpectedGeneration = Coverage.TextureId.Generation;
+            Request.PixelBytes = {255,255,255,64};
+            const auto Updated = Registry.Prepare(Request);
+            const auto NewLease = Registry.Acquire(Updated.TextureId);
+            Check(Updated.Succeeded() && Updated.TextureId.Slot == Coverage.TextureId.Slot &&
+                Updated.TextureId.Generation > Coverage.TextureId.Generation &&
+                Registry.ResolveTexture(NewLease) != Registry.ResolveTexture(Leases[1]) &&
+                Snapshot.GetTextureLeases()[1].GetId() == Coverage.TextureId,
+                "recorded font snapshot preserves its exact old generation across atlas replacement");
+            auto NewDraw = Right; NewDraw.TextureId = Updated.TextureId;
+            FUIDrawSnapshot NewSnapshot(1,2,1,1);
+            const bool NewPublished = NewSnapshot.SetDisplay({10,20},{16,16},{Scale,Scale}) &&
+                NewSnapshot.SetVertices(Vertices) && NewSnapshot.SetIndices(Indices) &&
+                NewSnapshot.SetCommands({&NewDraw,1}) && NewSnapshot.SetTextureLeases({&NewLease,1}) && NewSnapshot.Publish();
+            ReplacementCommand = Device->CreateCommandBuffer(ERHIQueueType::Graphics).Object;
+            ReplacementFence = Device->CreateFence(false).Object;
+            ReplacementRecorded = NewPublished && ReplacementCommand && ReplacementFence &&
+                FUICompositionExecutor::Prepare(Device,NewSnapshot,Validation,Settings,Registry,Scene,
+                    DrawShaders,CopyShaders,ReplacementFrame) == ERHIResult::Success &&
+                ReplacementCommand->Begin() == ERHIResult::Success &&
+                FUICompositionExecutor::Record(ReplacementFrame,Registry,ReplacementCommand,ReplacementSubmission) == ERHIResult::Success &&
+                ReplacementCommand->End() == ERHIResult::Success;
+            DestroyOld.Operation = EUITextureOperation::Destroy; DestroyOld.RequestId = 4;
+            DestroyOld.TextureId = Coverage.TextureId; DestroyOld.ExpectedGeneration = Coverage.TextureId.Generation;
+            Check(Registry.Prepare(DestroyOld).Result == ERHIResult::NotReady,
+                "old atlas destruction cannot acknowledge while recorded draw leases remain");
+        }
         const bool Submitted = Recorded && Queue->SubmitDeferred(Command,{}, {},Fence) == ERHIResult::Success &&
             Submission.Commit(Fence) == ERHIResult::Success;
+        const bool ReplacementSubmitted = ReplaceFont && Submitted && ReplacementRecorded &&
+            Queue->SubmitDeferred(ReplacementCommand,{}, {},ReplacementFence) == ERHIResult::Success &&
+            ReplacementSubmission.Commit(ReplacementFence) == ERHIResult::Success;
+        if (ReplaceFont) Check(ReplacementSubmitted,"both native atlas generations are submitted before validation waits");
         const auto After = Device->GetRuntimeSnapshot().NativeOperations;
         Check(Submitted && After.FenceWaitCallCount == Before.FenceWaitCallCount &&
             After.QueueIdleCallCount == Before.QueueIdleCallCount && After.DeviceIdleCallCount == Before.DeviceIdleCallCount &&
@@ -90,18 +133,23 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
             "offset/scissor UI submission introduces no synchronous wait or readback");
         if (!Submitted || Fence->Wait(5000000) != ERHIResult::Success)
         { Check(false,"native raster completion required"); Command.reset(); continue; }
+        if (ReplaceFont && (!ReplacementSubmitted || ReplacementFence->Wait(5000000) != ERHIResult::Success))
+        { Check(false,"replacement atlas render completion required"); ReplacementCommand.reset(); Command.reset(); continue; }
         Registry.Poll();
+        for (int OutputIndex = 0; OutputIndex < (ReplaceFont ? 2 : 1); ++OutputIndex)
+        {
         auto ReadCommand = Device->CreateCommandBuffer(ERHIQueueType::Graphics).Object;
         const auto ReadFence = Device->CreateFence(false).Object;
         const uint64 Bytes = static_cast<uint64>(Extent)*256;
         const auto Buffer = Device->CreateBuffer({Bytes,ERHIBufferUsage::CopyDestination,ERHIMemoryAccess::HostVisible}).Object;
         FRHITextureBufferCopyRegion Region; Region.Width = Region.Height = Extent; Region.DestinationRowLengthTexels = 32;
-        Transition.Texture = Frame.GetOutput(); Transition.Before = ERHIResourceLayout::ShaderReadOnly;
+        const auto Output = OutputIndex == 0 ? Frame.GetOutput() : ReplacementFrame.GetOutput();
+        Transition.Texture = Output; Transition.Before = ERHIResourceLayout::ShaderReadOnly;
         Transition.After = ERHIResourceLayout::CopySource;
         TArray<uint8> Pixels;
         const bool Read = ReadCommand && ReadFence && Buffer && ReadCommand->Begin() == ERHIResult::Success &&
             ReadCommand->RecordLayoutTransition(Transition) == ERHIResult::Success &&
-            ReadCommand->RecordTextureToBufferCopy(Frame.GetOutput(),Buffer,Region) == ERHIResult::Success &&
+            ReadCommand->RecordTextureToBufferCopy(Output,Buffer,Region) == ERHIResult::Success &&
             ReadCommand->End() == ERHIResult::Success && Queue->SubmitDeferred(ReadCommand,{}, {},ReadFence) == ERHIResult::Success &&
             ReadFence->Wait(5000000) == ERHIResult::Success && Readback(Buffer,Bytes,Pixels) == ERHIResult::Success && Pixels.size() == Bytes;
         if (Check(Read,"independent native raster readback completes"))
@@ -121,18 +169,29 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
                 const float Actual = (V&32768 ? -1.0f : 1.0f)*std::ldexp(static_cast<float>((V&1023)+(Exp?1024:0)),Exp?Exp-25:-24);
                 if (C==3) { Opaque &= Actual == 1.0f; continue; }
                 float Expected = Background[C];
-                if (static_cast<int>(X)<LeftEnd && static_cast<int>(Y)<LeftEnd)
+                if (OutputIndex == 0 && static_cast<int>(X)<LeftEnd && static_cast<int>(Y)<LeftEnd)
                     Expected = Source[C]*AlphaValue + Background[C]*(1-AlphaValue);
-                if (static_cast<int>(X)>=RightStart) Expected = Gray;
+                if (static_cast<int>(X)>=RightStart)
+                    Expected = OutputIndex == 0 ? Gray : Gray*(64.0f/255.0f)+Background[C]*(191.0f/255.0f);
                 const bool Match = std::isfinite(Actual) && std::abs(Actual-Expected) <= 0.002f+0.005f*std::abs(Expected);
                 if (!Match && RGB) std::cout << "[INFO] first mismatch x=" << X << " y=" << Y << " channel=" << C
                     << " expected=" << Expected << " actual=" << Actual << '\n';
                 RGB &= Match;
             }
-            Check(RGB,"all pixels match sRGB-before-filtering, indexed offsets, state reset and signed scaled scissors");
+            Check(RGB,OutputIndex == 0 ? "all pixels match sRGB-before-filtering, indexed offsets, state reset and signed scaled scissors"
+                : "replacement atlas pixels use new coverage without changing the already-submitted old draw");
             Check(Opaque,"RGB-only UI preserves copied alpha one at every native pixel");
         }
-        ReadCommand.reset(); Command.reset();
+        ReadCommand.reset();
+        }
+        ReplacementCommand.reset(); Command.reset();
+        if (ReplaceFont)
+        {
+            Frame = {}; Snapshot = {}; Submission = {}; Leases[1] = {};
+            Registry.Poll();
+            Check(Registry.Prepare(DestroyOld).Result == ERHIResult::Success,
+                "old atlas destruction acknowledges after native completion and final draw lease release");
+        }
     }
     return Failed;
 }

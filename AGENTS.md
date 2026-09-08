@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (54/127 reviewed tasks); native closeout remains pending.
+Feature 030 implementation is partial (57/127 reviewed tasks); native closeout remains pending.
 The maintainer explicitly skips Intel x86_64 macOS validation for Feature 030
 on 2026-09-08; record it as skipped, not passed, and do not block implementation
 on Intel cooking/derivation/native checks. Existing Intel support and historical
@@ -164,6 +164,7 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
+- 030 US2 local checkpoint: T055–T057 complete (57/127). Strict Debug/Release each pass 406 related CPU assertions and 83 native UI assertions per Vulkan/Metal backend, including distinct queued atlas generations, scaled real-widget hit tests, explicit Unsupported fixtures and backend-mismatch rejection. `Build/Validation/030/us2.json` records working-tree checks; formal platform/human closeout remains pending and Intel macOS stays skipped.
 - 030 native raster conformance increment (54/127): shared Vulkan/Metal UI fixtures cover three scales and three alpha values with indexed offsets, state reset, two textures, signed scissors and every-pixel RGB/alpha comparison. They exposed and fixed Metal using a default UInt16 draw-record type instead of the bound index type for FirstIndex byte offsets. Strict Debug/Release each pass 150 cooked/native UI assertions plus 15 Metal command/pipeline regressions. T055/T056 queued-generation coverage and T057 remain open.
 - 030 live UI integration: T043/T049/T052–T054 complete (54/127). Real UI-first session input, F1/Hide UI, same-generation startup/enable preflight and leased native deferred composition are connected. Strict Debug/Release each pass 390 related assertions and six M4 Metal/Vulkan UI-on Lantern/Sponza previews; historical scene-only UI-off remains usable and missing-root UI-on rejects. Windows/Linux UI shader cooking passes; Intel macOS validation stays explicitly skipped. T055/T056 conformance, T057 checkpoint and formal cross-platform/human closeout remain pending.
 - 030 UI slot integration increment: 49/127 reviewed tasks; T052/T053 remain open until the Application UI path is connected. Public two-frame UI ownership now connects deferred terminal composition to actual render fences and preview graph tickets, with bounded target accounting, pre-record scene fallback and reservation retention after partial upload failure. Strict Debug/Release each pass 363 related assertions plus 58 M4 Vulkan/arm64 Metal cooked/native checks; three eight-frame UI-off previews pass. Live startup/F1/input integration and formal evidence remain pending.
