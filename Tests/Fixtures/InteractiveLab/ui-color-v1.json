@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "scale": 1,
+      "alpha": 0,
+      "gradient": false,
+      "profile": "Sdr.sRGB.v1",
+      "whiteNits": 100,
+      "multiplier": 1
+    },
+    {
+      "scale": 1,
+      "alpha": 128,
+      "gradient": false,
+      "profile": "Sdr.sRGB.v1",
+      "whiteNits": 100,
+      "multiplier": 1
+    },
+    {
+      "scale": 1,
+      "alpha": 255,
+      "gradient": false,
+      "profile": "Sdr.sRGB.v1",
+      "whiteNits": 100,
+      "multiplier": 1
+    },
+    {
+      "scale": 1.5,
+      "alpha": 0,
+      "gradient": false,
+      "profile": "Sdr.sRGB.v1",
+      "whiteNits": 100,
+      "multiplier": 1
+    },
+    {
+      "scale": 1.5,
+      "alpha": 128,
+      "gradient": false,
+      "profile": "Sdr.sRGB.v1",
+      "whiteNits": 100,
+      "multiplier": 1
+    },
+    {
+      "scale": 1.5,
+      "alpha": 255,
+      "gradient": false,
+      "profile": "Sdr.sRGB.v1",
+      "whiteNits": 100,
+      "multiplier": 1
+    },
+    {
+      "scale": 2,
+      "alpha": 0,
+      "gradient": false,
+      "profile": "Sdr.sRGB.v1",
+      "whiteNits": 100,
+      "multiplier": 1
+    },
+    {
+      "scale": 2,
+      "alpha": 128,
+      "gradient": false,
+      "profile": "Sdr.sRGB.v1",
+      "whiteNits": 100,
+      "multiplier": 1
+    },
+    {
+      "scale": 2,
+      "alpha": 255,
+      "gradient": false,
+      "profile": "Sdr.sRGB.v1",
+      "whiteNits": 100,
+      "multiplier": 1
+    },
+    {
+      "scale": 1,
+      "alpha": 255,
+      "gradient": true,
+      "profile": "Sdr.sRGB.v1",
+      "whiteNits": 100,
+      "multiplier": 1
+    },
+    {
+      "scale": 1,
+      "alpha": 255,
+      "gradient": true,
+      "profile": "Sdr.sRGB.v1",
+      "whiteNits": 100,
+      "multiplier": 0.25
+    },
+    {
+      "scale": 1,
+      "alpha": 128,
+      "gradient": true,
+      "profile": "Hdr.PQ.Rec2020.1000.v1",
+      "whiteNits": 100,
+      "multiplier": 2
+    },
+    {
+      "scale": 1,
+      "alpha": 255,
+      "gradient": true,
+      "profile": "Hdr.Linear.1000.v1",
+      "whiteNits": 160,
+      "multiplier": 1
+    }
+  ]
+}

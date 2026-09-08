@@ -6,6 +6,10 @@
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
+#include <iterator>
+#include <memory>
+#include "../ThirdParty/yyjson/yyjson.h"
 
 int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDevice>& Device,
     std::span<const Stoner::RHI::FRHIShaderModuleDesc> DrawShaders,
@@ -122,12 +126,30 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
         const char* Profile="Sdr.sRGB.v1";
         float White=100, Multiplier=1;
     };
-    const FRasterCase Cases[]={{1,0,false},{1,128,false},{1,255,false},
-        {1.5f,0,false},{1.5f,128,false},{1.5f,255,false},
-        {2,0,false},{2,128,false},{2,255,false},{1,255,true},
-        {1,255,true,"Sdr.sRGB.v1",100,0.25f},
-        {1,128,true,"Hdr.PQ.Rec2020.1000.v1",100,2},
-        {1,255,true,"Hdr.Linear.1000.v1",160,1}};
+    std::ifstream VectorFile("Tests/Fixtures/InteractiveLab/ui-color-v1.json",std::ios::binary);
+    const std::string Json((std::istreambuf_iterator<char>(VectorFile)),{});
+    std::unique_ptr<yyjson_doc,decltype(&yyjson_doc_free)> Vectors(
+        Json.size()<=65536 ? yyjson_read(Json.data(),Json.size(),0) : nullptr,yyjson_doc_free);
+    auto* Root=Vectors ? yyjson_doc_get_root(Vectors.get()) : nullptr;
+    auto* Array=Root ? yyjson_obj_get(Root,"cases") : nullptr;
+    if (!Check(Root && yyjson_get_uint(yyjson_obj_get(Root,"version"))==1 &&
+        yyjson_is_arr(Array) && yyjson_arr_size(Array)>0 && yyjson_arr_size(Array)<=32,
+        "native UI color vectors load from the bounded version-one fixture")) return Failed;
+    TArray<FRasterCase> Cases;
+    size_t Index,Count; yyjson_val* Row;
+    yyjson_arr_foreach(Array,Index,Count,Row)
+    {
+        auto* Scale=yyjson_obj_get(Row,"scale"); auto* Alpha=yyjson_obj_get(Row,"alpha");
+        auto* Gradient=yyjson_obj_get(Row,"gradient"); auto* Profile=yyjson_obj_get(Row,"profile");
+        auto* White=yyjson_obj_get(Row,"whiteNits"); auto* Multiplier=yyjson_obj_get(Row,"multiplier");
+        if (!Check(yyjson_is_num(Scale) && yyjson_get_num(Scale)>=1 && yyjson_get_num(Scale)<=2 &&
+            yyjson_is_uint(Alpha) && yyjson_get_uint(Alpha)<=255 && yyjson_is_bool(Gradient) &&
+            yyjson_is_str(Profile) && yyjson_is_num(White) && yyjson_is_num(Multiplier),
+            "native UI color vector fields satisfy the bounded raster fixture")) return Failed;
+        Cases.push_back({static_cast<float>(yyjson_get_num(Scale)),static_cast<uint8>(yyjson_get_uint(Alpha)),
+            yyjson_get_bool(Gradient),yyjson_get_str(Profile),static_cast<float>(yyjson_get_num(White)),
+            static_cast<float>(yyjson_get_num(Multiplier))});
+    }
     for (const auto& Case : Cases)
     {
         const auto Scale=Case.Scale;

@@ -277,6 +277,8 @@ Strict Debug/Release each pass 390 related assertions. Both configurations compl
 
 - [ ] T070 [P] [US4] Add exact-dimension UI-disabled formal-versus-preview-path and bounded Forward integration fixtures in `Tests/InteractiveLabUIOffParityTests.cpp`; detect new passes/targets, altered matrices and probe changes rather than adapting comparisons. (depends on T068)
 
+**T069/T070 artifact and graph-parity increment (2026-09-09)**: `ui-color-v1.json` now owns the 13 targeted native raster cases; the shared fixture reads its bounded version/rows using the already linked private yyjson implementation, without a new parser or runtime dependency. Metal Debug and Vulkan Release each pass 145 native assertions. The new `interactive-lab-ui-off-parity` suite independently compiles Forward/Deferred formal-capture and preview graphs at exactly 64x32, retains three fullscreen stages with no UI targets, compares all three color-stage parameter payloads byte-for-byte, and verifies formal-only explicit readback. This is output-graph/parameter parity, not native scene pixel or camera-matrix proof. Logs: `Build/Validation/030/us4-parity-*` and current `us2/color-gradient-*`. Architecture verification has zero findings. The contract's -3/0/+3 EV numeric combinations, native scene/Forward parity and metadata checks remain pending; T069/T070 stay open at 68/127.
+
 ### Implementation and verification
 
 - [ ] T071 [US4] Implement profile reference-white resolution and multiplier validation in `Source/Renderer/Private/FUICompositionSettings.cpp`; use normalized SDR white, 100-nit PQ white and the same-generation EDR packing denominator with no second gamut/view/transfer operation. (depends on T069)

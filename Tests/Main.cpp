@@ -121,6 +121,7 @@
 int RunInteractiveLabShaderTests();
 int RunInteractiveLabSettingsTests();
 int RunRendererUIColorTests();
+int RunInteractiveLabUIOffParityTests();
 int RunInteractiveLabDebugTests();
 int RunVulkanUINativeTests();
 int RunMetalUINativeTests();
@@ -403,6 +404,7 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("ui-texture-registry", [] { return RunUITextureRegistryTests(); });
     Registry.Register("ui-texture-upload-native", [] { return RunUITextureUploadNativeTests(); });
     Registry.Register("renderer-ui-draw", [] { return RunRendererUIDrawTests(); });
+    Registry.Register("interactive-lab-ui-off-parity", [] { return RunInteractiveLabUIOffParityTests(); });
     Registry.Register("renderer-ui-color", [] { return RunRendererUIColorTests(); });
     Registry.Register("interactive-lab-debug", [] { return RunInteractiveLabDebugTests(); });
     Registry.Register("interactive-lab-settings", [] { return RunInteractiveLabSettingsTests(); });
