@@ -44,7 +44,10 @@ class FHDRPostProcessPipeline
 public:
     [[nodiscard]] FOutputTransformPrepareResult Prepare(
         const FHDRSceneColorHandoff& SceneColor,
-        const FOutputTransformSettings& Settings) const;
+        const FOutputTransformSettings& Settings,
+        // Pass only after nonempty UI geometry/resource preflight succeeds;
+        // hidden/empty UI passes null and preserves the existing scene plan.
+        const FUICompositionSettings* TerminalUI = nullptr) const;
     [[nodiscard]] bool BindPreviewTargetFormat(FOutputTransformPlan& Plan,
         Stoner::RHI::ERHIFormat Format) const;
     [[nodiscard]] FOutputTransformGraphDeclaration DeclareGraph(

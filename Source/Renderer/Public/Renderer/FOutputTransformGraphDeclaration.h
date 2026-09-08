@@ -32,6 +32,8 @@ struct FOutputTransformGraphDeclaration
     Stoner::Core::TArray<FRenderGraphResourceHandle> InsertionResources;
     Stoner::Core::TArray<FRenderGraphPassHandle> InsertionPasses;
     Stoner::Core::TArray<FOutputTransformStageResource> StageResources;
+    FRenderGraphResourceHandle UIComposite;
+    FRenderGraphPassHandle UIPass;
     FRenderGraphResourceHandle FormalOutput;
     FRenderGraphResourceHandle ReadbackBuffer;
     FRenderGraphResourceHandle DiagnosticOutput;

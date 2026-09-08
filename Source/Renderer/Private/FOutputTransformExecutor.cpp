@@ -423,6 +423,13 @@ FOutputTransformExecutionResult FOutputTransformExecutor::Execute(
             "native execution was required but no backend-neutral frame executor was bound");
         return Out;
     }
+    if (Plan.TerminalUI && Native && !Native->SupportsTerminalUI())
+    {
+        Out.NativeResult = Stoner::RHI::ERHIResult::Unsupported;
+        Fail(Out,EOutputTransformResult::Unsupported,"OT-UI-NATIVE-UNSUPPORTED","Binding",
+            "native executor cannot record terminal UI composition");
+        return Out;
+    }
     FOutputTransformNativeFrameBinding NativeFrame;
     if (Native)
     {
@@ -660,6 +667,10 @@ FOutputTransformPreviewResult FOutputTransformExecutor::RecordPreview(
             "Acquire", "NativeExecutor",
             "preview requires a shared executor with asynchronous admission");
     }
+
+    if (Plan.TerminalUI && !Bindings.PreviewFrameExecutor->SupportsTerminalUI())
+        return MakePreviewFailure(EOutputTransformResult::Unsupported,Stoner::RHI::ERHIResult::Unsupported,
+            "OT-UI-NATIVE-UNSUPPORTED","Binding","TerminalUI","native executor cannot record terminal UI composition");
 
     const Stoner::Core::TSharedPtr<FOutputTransformPreviewTicketState> State =
         Stoner::Core::MakeShared<FOutputTransformPreviewTicketState>();

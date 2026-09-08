@@ -1116,3 +1116,24 @@ retain resources to completion, and discard partial recording on failure.
 This is local working-tree component evidence. T052 still awaits actual lab
 output-chain/fallback integration; terminal graph insertion, full UI conformance,
 visible interaction, hosted/physical closeout and human HDR authority remain open.
+
+## Local terminal UI graph increment
+
+Strict Debug/Release each pass 175 related output/math/presentation/value
+assertions, including eleven new terminal UI graph checks, in
+`Build/Validation/030/us2/ui-terminal-regressions-{debug,release}.log`.
+Existing Vulkan/Metal native output/presentation suites each configuration pass
+18 checks with both `STONER_REQUIRE_VULKAN_OUTPUT_PRESENTATION=1` and
+`STONER_REQUIRE_METAL_OUTPUT_PRESENTATION=1`; logs are
+`ui-terminal-native-output-{debug,release}.log` in the same directory.
+These native regressions retain UI-off behavior; they do not prove native graph
+integration of the new terminal UI operation.
+
+The optional terminal stage follows all post-tonemap scene insertions, precedes
+the sole output transfer, and contributes one composition target/fullscreen-copy
+visit. UI-off has neither and retains the original three fullscreen stages.
+Plan identity includes active UI white/display generation; duplicate/late UI
+ordering and mismatched profiles reject. Legacy native executors fail before
+acquisition for an unsupported terminal UI stage. The actual lab bindings remain
+pending. Required native composition checks now fail if either cooked fixture
+environment variable is absent; both configurations verify that failure control.

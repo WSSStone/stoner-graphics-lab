@@ -4,6 +4,8 @@
 #include "Renderer/FHDRSceneColorHandoff.h"
 #include "Renderer/FOutputTransformDiagnostics.h"
 #include "Renderer/FOutputTransformSettings.h"
+#include "Renderer/FUICompositionSettings.h"
+#include <optional>
 
 namespace Stoner::Renderer
 {
@@ -18,7 +20,8 @@ enum class EOutputTransformStageKind
     PostTonemap,
     OutputDeviceTransform,
     FormalReadback,
-    Presentation
+    Presentation,
+    TerminalUI
 };
 
 enum class EOutputTransformPlanState
@@ -105,6 +108,7 @@ struct FOutputTransformPlan
     Stoner::Core::uint64 FrameToken = 0;
     FHDRSceneColorHandoff SceneColor;
     FResolvedOutputTransformSettings ResolvedSettings;
+    std::optional<FUICompositionSettings> TerminalUI;
     FPostProcessCompositeResolution PreTonemapOperations;
     FPostProcessCompositeResolution PostTonemapOperations;
     FResolvedOutputTransformDebugBypass DiagnosticBypass;

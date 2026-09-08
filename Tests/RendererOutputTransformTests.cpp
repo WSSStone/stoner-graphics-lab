@@ -1001,11 +1001,93 @@ void TestAsynchronousPreviewLifecycle(
         "Pending acquire retains frame attribution and independently owned native acquisition diagnostics");
 }
 
+void TestTerminalUIInsertion(FRendererOutputTransformTestResult& Result)
+{
+    FRenderGraph Graph("TerminalUI");
+    const auto Scene = MakeProducedSceneColor(Graph);
+    FOutputTransformSettings Settings;
+    FPostProcessOperationDesc Effect;
+    Effect.OperationId = "LateSceneEffect"; Effect.StrategyVersion = "test-v1";
+    Effect.InsertionPoint = EPostProcessInsertionPoint::PostTonemap;
+    Effect.OrderKey = 100000;
+    Effect.InputDomain = Effect.OutputDomain = ERenderGraphColorDomain::DisplayLinearRec709D65;
+    (void)Settings.PostTonemapOperations.Add(Effect);
+    FUICompositionSettings UI;
+    UI.OutputProfileId = "Sdr.sRGB.v1";
+    UI.BlendDomain = ERenderGraphColorDomain::DisplayLinearRec709D65;
+    UI.UIReferenceWhiteNits = UI.NativePackingWhiteNits = 100;
+    UI.DisplayGeneration = 3;
+    FHDRPostProcessPipeline Pipeline;
+    const auto Plain = Pipeline.Prepare(Scene,Settings);
+    auto Prepared = Pipeline.Prepare(Scene,Settings,&UI);
+    Record(Result, Plain.Succeeded() && Prepared.Succeeded() && Prepared.Plan.TerminalUI.has_value() &&
+        Plain.Plan.PlanFingerprint != Prepared.Plan.PlanFingerprint,
+        "terminal UI changes output identity while UI-off keeps its existing preparation path");
+    if (!Prepared.Succeeded()) return;
+    const auto& Stages = Prepared.Plan.Stages;
+    std::size_t Index = 0;
+    while (Index < Stages.size() && Stages[Index].Kind != EOutputTransformStageKind::TerminalUI) ++Index;
+    Record(Result, Index > 0 && Index + 1 < Stages.size() && Stages[Index-1].Name == "LateSceneEffect" &&
+        Stages[Index+1].Kind == EOutputTransformStageKind::OutputDeviceTransform,
+        "UI follows every scene post-tonemap insertion and precedes the sole output transfer");
+    auto Duplicate = Prepared.Plan;
+    Duplicate.Stages.insert(Duplicate.Stages.begin()+Index,Duplicate.Stages[Index]);
+    Record(Result,!Duplicate.IsValid(),"duplicate terminal UI stages reject");
+    auto LateScene = Prepared.Plan;
+    std::swap(LateScene.Stages[Index-1],LateScene.Stages[Index]);
+    for (std::size_t I=0;I<LateScene.Stages.size();++I) LateScene.Stages[I].StageId=static_cast<Stoner::Core::uint32>(I+1);
+    Record(Result,!LateScene.IsValid(),"scene insertion after terminal UI rejects even with sequential stage IDs");
+    const auto Declaration = Pipeline.DeclareGraph(Graph,Prepared.Plan);
+    Record(Result,Declaration.IsValid() && Declaration.UIComposite.IsValid() && Declaration.UIPass.IsValid() &&
+        Declaration.FullscreenPassCount == 5 && Pipeline.ValidateOutputGraph(Graph,Prepared.Plan,Declaration),
+        "UI graph adds one composition target and one fullscreen scene-copy visit");
+    if (!Declaration.IsValid()) return;
+    bool TransferReadsUI = false;
+    for (const auto& Pass : Graph.GetPasses()) if (Pass.Desc.Name == "OutputDeviceTransform")
+        for (const auto& Access : Pass.Desc.Accesses)
+            TransferReadsUI |= Access.Resource == Declaration.UIComposite && Access.Access == ERenderGraphAccessType::Read;
+    Record(Result,TransferReadsUI,"output transfer consumes the terminal UI composite");
+    FOutputTerminalProbe Legacy;
+    FOutputTransformExecutionBindings Bindings;
+    Bindings.SceneColorExternalToken = 101; Bindings.NativeFrameExecutor = &Legacy;
+    Bindings.bRequireNativeExecution = true;
+    (void)Graph.Compile();
+    const auto Rejected = FOutputTransformExecutor().Execute(Prepared.Plan,Graph,Declaration,Bindings);
+    Record(Result,!Rejected.Succeeded() && Rejected.NativeResult == ERHIResult::Unsupported && Legacy.Owners == 0,
+        "legacy native executor cannot silently accept an unimplemented UI pass");
+    FRenderGraph PreviewGraph("TerminalUIPreview");
+    const auto PreviewScene = MakeProducedSceneColor(PreviewGraph);
+    auto PreviewSettings = Settings; PreviewSettings.bRequireReadback = false;
+    auto Preview = Pipeline.Prepare(PreviewScene,PreviewSettings,&UI);
+    Preview.Plan.ExecutionPurpose = EFrameExecutionPurpose::InteractivePreview;
+    Preview.Plan.ReadbackSelection = EFrameReadbackSelection::None;
+    const auto PreviewDeclaration = Pipeline.DeclareGraph(PreviewGraph,Preview.Plan);
+    (void)PreviewGraph.Compile();
+    const auto PreviewLegacy = Stoner::Core::MakeShared<FOutputTerminalProbe>();
+    Bindings.PreviewFrameExecutor = PreviewLegacy;
+    FOutputTransformPreviewTicket Ticket;
+    const auto PreviewRejected = FOutputTransformExecutor().RecordPreview(Preview.Plan,PreviewGraph,PreviewDeclaration,Bindings,Ticket);
+    Record(Result,PreviewRejected.NativeResult == ERHIResult::Unsupported && !Ticket.IsValid() && PreviewLegacy->Owners == 0,
+        "legacy preview executor rejects terminal UI before acquiring any native owner");
+    FRenderGraph NoUIGraph("NoTerminalUI");
+    const auto NoUI = Pipeline.Prepare(MakeProducedSceneColor(NoUIGraph),FOutputTransformSettings{});
+    const auto NoUIDeclaration = Pipeline.DeclareGraph(NoUIGraph,NoUI.Plan);
+    Record(Result,NoUIDeclaration.IsValid() && !NoUIDeclaration.UIComposite.IsValid() && !NoUIDeclaration.UIPass.IsValid() &&
+        NoUIDeclaration.FullscreenPassCount == 3,"UI-off declares no composition target/pass and retains three fullscreen stages");
+    UI.UIWhiteMultiplier = 1.5f;
+    const auto Brighter = Pipeline.Prepare(Scene,Settings,&UI);
+    Record(Result,Brighter.Succeeded() && Brighter.Plan.PlanFingerprint != Prepared.Plan.PlanFingerprint,
+        "UI white contribution participates in plan identity");
+    UI.OutputProfileId = "Hdr.PQ.1000.v1";
+    Record(Result,!Pipeline.Prepare(Scene,Settings,&UI).Succeeded(),"UI blend settings must match the resolved output profile");
+}
+
 } // namespace
 
 FRendererOutputTransformTestResult RunRendererOutputTransformTests()
 {
     FRendererOutputTransformTestResult Result;
+    TestTerminalUIInsertion(Result);
     TestHandoffStateAndMetadata(Result);
     TestDefaultPlanAndStageOrder(Result);
     TestHDRPlanAndAuthorityFingerprint(Result);

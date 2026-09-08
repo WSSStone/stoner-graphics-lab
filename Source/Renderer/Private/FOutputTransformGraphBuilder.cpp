@@ -251,7 +251,7 @@ bool FOutputTransformGraphDeclaration::IsValid() const noexcept
     const Stoner::Core::uint32 ExpectedFullscreen = 3U +
         static_cast<Stoner::Core::uint32>(PreTonemapOutputs.size()) +
         static_cast<Stoner::Core::uint32>(PostTonemapOutputs.size()) +
-        DiagnosticFullscreenPassCount;
+        DiagnosticFullscreenPassCount + (UIPass.IsValid() ? 1U : 0U);
     const bool bDiagnosticConsistent =
         (!bDiagnosticOutputNonAuthoritative &&
             DiagnosticReadbackCopyCount == 0 &&
@@ -269,6 +269,7 @@ bool FOutputTransformGraphDeclaration::IsValid() const noexcept
         PlanFingerprint.Len() == 64 && SceneColor.IsValid() &&
         ExposedSceneColor.IsValid() && ToneOrViewedColor.IsValid() &&
         FormalOutput.IsValid() && FormalWriterCount == 1 &&
+        UIComposite.IsValid() == UIPass.IsValid() &&
         PreTonemapOutputs.size() <= FPostProcessComposite::MaximumOperations &&
         PostTonemapOutputs.size() <= FPostProcessComposite::MaximumOperations &&
         InsertionPasses.size() ==
@@ -352,6 +353,16 @@ FOutputTransformGraphDeclaration FHDRPostProcessPipeline::DeclareGraph(
             "Output.PostTonemap.", CurrentColor, Out.PostTonemapOutputs, Out))
         return Out;
 
+    if (Plan.TerminalUI)
+    {
+        Out.UIComposite = CreateIntermediate(Builder,"Output.UIComposite",Plan,Plan.ResolvedSettings.DisplayLinearDomain);
+        Out.UIPass = AddStagePass(Builder,"TerminalUI",ERenderGraphPassType::Graphics,CurrentColor,Out.UIComposite);
+        if (!Out.UIComposite.IsValid() || !Out.UIPass.IsValid() ||
+            !AddStageResource(Out,Plan,"TerminalUI",Out.UIComposite)) return Out;
+        Out.OrderedPasses.push_back(Out.UIPass);
+        CurrentColor = Out.UIComposite;
+    }
+
     Stoner::RHI::ERHITextureUsage OutputUsage =
         Stoner::RHI::ERHITextureUsage::ColorAttachment |
         Stoner::RHI::ERHITextureUsage::Sampled;
@@ -402,7 +413,7 @@ FOutputTransformGraphDeclaration FHDRPostProcessPipeline::DeclareGraph(
 
     Out.FullscreenPassCount = 3U +
         static_cast<Stoner::Core::uint32>(Out.InsertionPasses.size()) +
-        Out.DiagnosticFullscreenPassCount;
+        Out.DiagnosticFullscreenPassCount + (Out.UIPass.IsValid() ? 1U : 0U);
     Out.FullImageVisitCount = Out.FullscreenPassCount;
     bool bDependenciesValid = true;
     for (Stoner::Core::uint32 Index = 1; Index < Out.OrderedPasses.size(); ++Index)
@@ -477,7 +488,7 @@ bool FHDRPostProcessPipeline::ValidateOutputGraph(const FRenderGraph& Graph,
         Plan.DiagnosticBypass.Mode ==
             EOutputTransformDebugBypassMode::BoundedVisualization ? 1U : 0U;
     const Stoner::Core::uint32 ExpectedFullscreen =
-        3U + ExpectedInsertionCount + ExpectedDiagnosticFullscreen;
+        3U + ExpectedInsertionCount + ExpectedDiagnosticFullscreen + (Plan.TerminalUI ? 1U : 0U);
     const Stoner::Core::uint32 OutputReferences =
         static_cast<Stoner::Core::uint32>(std::count(
             Graph.GetOutputs().begin(), Graph.GetOutputs().end(),
@@ -485,6 +496,8 @@ bool FHDRPostProcessPipeline::ValidateOutputGraph(const FRenderGraph& Graph,
     const bool bDiagnosticExpected = Plan.DiagnosticBypass.Mode !=
         EOutputTransformDebugBypassMode::Disabled;
     if (OutputReferences != 1 ||
+        Declaration.UIComposite.IsValid() != Plan.TerminalUI.has_value() ||
+        Declaration.UIPass.IsValid() != Plan.TerminalUI.has_value() ||
         Declaration.InsertionPasses.size() != ExpectedInsertionCount ||
         Declaration.PreTonemapOutputs.size() !=
             Plan.PreTonemapOperations.Operations.size() ||
@@ -504,6 +517,41 @@ bool FHDRPostProcessPipeline::ValidateOutputGraph(const FRenderGraph& Graph,
             "OT-GRAPH-BOUNDS",
             "formal output insertion and diagnostic work must remain bounded");
         return false;
+    }
+
+    if (Plan.TerminalUI)
+    {
+        const auto* Target = Graph.FindResource(Declaration.UIComposite);
+        const auto ExpectedInput = Declaration.PostTonemapOutputs.empty()
+            ? Declaration.ToneOrViewedColor : Declaration.PostTonemapOutputs.back();
+        Stoner::Core::uint32 UIWrites = 0, UIReads = 0, Transfers = 0;
+        bool CorrectInput = false;
+        for (const auto& Pass : Graph.GetPasses())
+        {
+            for (const auto& Access : Pass.Desc.Accesses)
+            {
+                if (Access.Resource == Declaration.UIComposite)
+                {
+                    if (WritesResource(Access.Access))
+                    {
+                        ++UIWrites;
+                        if (Pass.Handle != Declaration.UIPass) return false;
+                    }
+                    if (ReadsResource(Access.Access))
+                    {
+                        ++UIReads;
+                        if (Pass.Desc.Name == "OutputDeviceTransform") ++Transfers;
+                    }
+                }
+                if (Pass.Handle == Declaration.UIPass && Access.Resource == ExpectedInput && ReadsResource(Access.Access))
+                    CorrectInput = true;
+            }
+        }
+        if (!Target || !Target->Desc.Texture.bIsTyped ||
+            Target->Desc.Texture.SampleCount != Stoner::RHI::ERHISampleCount::One || Target->Desc.Width != Plan.OutputDesc.Width || Target->Desc.Height != Plan.OutputDesc.Height ||
+            Target->Desc.Texture.Format != Stoner::RHI::ERHIFormat::R16G16B16A16_Float ||
+            Target->Desc.Texture.ColorDomain != Plan.ResolvedSettings.DisplayLinearDomain ||
+            UIWrites != 1 || UIReads == 0 || Transfers != 1 || !CorrectInput) return false;
     }
 
     for (const FOutputTransformStage& Stage : Plan.Stages)

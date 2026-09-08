@@ -22,7 +22,8 @@ Stoner::Core::FString BuildFingerprintText(
     const FResolvedOutputTransformSettings& Settings,
     const FPostProcessCompositeResolution& PreTonemap,
     const FPostProcessCompositeResolution& PostTonemap,
-    const Stoner::Core::TArray<FOutputTransformStage>& Stages)
+    const Stoner::Core::TArray<FOutputTransformStage>& Stages,
+    const std::optional<FUICompositionSettings>& TerminalUI)
 {
     std::ostringstream Stream;
     Stream.imbue(std::locale::classic());
@@ -105,6 +106,10 @@ Stoner::Core::FString BuildFingerprintText(
                 Stream << ":write=" << Write.CStr();
         }
     };
+    if (TerminalUI)
+        Stream << "|terminalUI=" << TerminalUI->OutputProfileId.CStr() << ':'
+            << TerminalUI->UIWhiteMultiplier << ':' << TerminalUI->UIReferenceWhiteNits << ':'
+            << TerminalUI->NativePackingWhiteNits << ':' << TerminalUI->DisplayGeneration;
     AppendComposite("pre", PreTonemap);
     AppendComposite("post", PostTonemap);
     return Stoner::Core::FString(Stream.str());
@@ -242,6 +247,10 @@ bool FOutputTransformPlan::IsValid() const noexcept
     {
         return false;
     }
+    if (TerminalUI && (!TerminalUI->IsValid() ||
+        TerminalUI->OutputProfileId != ResolvedSettings.OutputDeviceProfileId ||
+        TerminalUI->BlendDomain != ResolvedSettings.DisplayLinearDomain ||
+        TerminalUI->UIReferenceWhiteNits != ResolvedSettings.ReferenceWhiteNits)) return false;
     const bool CanonicalStorage = PreviewTargetFormat == Stoner::RHI::ERHIFormat::Unknown &&
         OutputDesc.Format == ResolvedSettings.OutputFormat;
     const bool NativePreviewStorage = ExecutionPurpose == EFrameExecutionPurpose::InteractivePreview &&
@@ -309,6 +318,14 @@ bool FOutputTransformPlan::IsValid() const noexcept
             return false;
         ++Cursor;
     }
+    if (TerminalUI)
+    {
+        if (Cursor >= Stages.size() || Stages[Cursor].Kind != EOutputTransformStageKind::TerminalUI ||
+            Stages[Cursor].Name != "TerminalUI" || Stages[Cursor].VersionId != "UI.DisplayLinear.v1" ||
+            Stages[Cursor].InputDomain != ResolvedSettings.DisplayLinearDomain ||
+            Stages[Cursor].OutputDomain != ResolvedSettings.DisplayLinearDomain) return false;
+        ++Cursor;
+    }
     if (Cursor >= Stages.size() ||
         Stages[Cursor++].Kind != EOutputTransformStageKind::OutputDeviceTransform)
         return false;
@@ -360,6 +377,7 @@ const char* ToString(EOutputTransformStageKind Kind) noexcept
     case EOutputTransformStageKind::OutputDeviceTransform: return "OutputDeviceTransform";
     case EOutputTransformStageKind::FormalReadback: return "FormalReadback";
     case EOutputTransformStageKind::Presentation: return "Presentation";
+    case EOutputTransformStageKind::TerminalUI: return "TerminalUI";
     }
     return "Unknown";
 }
@@ -383,7 +401,7 @@ const char* ToString(EOutputTransformPlanState State) noexcept
 
 FOutputTransformPrepareResult FHDRPostProcessPipeline::Prepare(
     const FHDRSceneColorHandoff& SceneColor,
-    const FOutputTransformSettings& Settings) const
+    const FOutputTransformSettings& Settings, const FUICompositionSettings* TerminalUI) const
 {
     FOutputTransformPrepareResult Out;
     if (!SceneColor.IsReadyForConsumption())
@@ -408,6 +426,19 @@ FOutputTransformPrepareResult FHDRPostProcessPipeline::Prepare(
     Plan.ViewId = SceneColor.GetViewId();
     Plan.FrameToken = SceneColor.GetFrameToken();
     Plan.ResolvedSettings = Validation.Settings;
+    if (TerminalUI)
+    {
+        if (!TerminalUI->IsValid() || TerminalUI->OutputProfileId != Validation.Settings.OutputDeviceProfileId ||
+            TerminalUI->BlendDomain != Validation.Settings.DisplayLinearDomain ||
+            TerminalUI->UIReferenceWhiteNits != Validation.Settings.ReferenceWhiteNits)
+        {
+            Out.Result = EOutputTransformResult::InvalidSettings;
+            Out.Diagnostics.Add(EOutputTransformDiagnosticSeverity::Error,Out.Result,
+                "OT-UI-SETTINGS", "Prepare", "TerminalUI", "UI settings must match the resolved display-linear output");
+            return Out;
+        }
+        Plan.TerminalUI = *TerminalUI;
+    }
     Plan.OutputDesc.Width = SceneColor.GetWidth();
     Plan.OutputDesc.Height = SceneColor.GetHeight();
     Plan.OutputDesc.Format = Validation.Settings.OutputFormat;
@@ -480,6 +511,9 @@ FOutputTransformPrepareResult FHDRPostProcessPipeline::Prepare(
             Operation.Declaration.StrategyVersion,
             Operation.ColorDomain, Operation.ColorDomain);
     }
+    if (Plan.TerminalUI)
+        AppendStage(Plan,EOutputTransformStageKind::TerminalUI,"TerminalUI","UI.DisplayLinear.v1",
+            Validation.Settings.DisplayLinearDomain,Validation.Settings.DisplayLinearDomain);
     AppendStage(Plan, EOutputTransformStageKind::OutputDeviceTransform,
         "OutputDeviceTransform", Validation.Settings.OutputDeviceProfileId,
         Validation.Settings.DisplayLinearDomain,
@@ -549,7 +583,7 @@ FOutputTransformPrepareResult FHDRPostProcessPipeline::Prepare(
 
     const Stoner::Core::FString FormalFingerprintText = BuildFingerprintText(
         SceneColor, Validation.Settings, Plan.PreTonemapOperations,
-        Plan.PostTonemapOperations, Plan.Stages);
+        Plan.PostTonemapOperations, Plan.Stages, Plan.TerminalUI);
     const Stoner::Asset::FAssetDigest FormalDigest =
         DigestText(FormalFingerprintText);
     std::ostringstream PlanFingerprintStream;

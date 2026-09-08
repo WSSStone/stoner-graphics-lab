@@ -21,8 +21,10 @@ int RunInteractiveLabShaderTests()
     const char* Profile = std::getenv("STONER_LAB_SHADER_TEST_PROFILE");
     if (!Root || !Profile)
     {
-        std::cout << "[SKIP] cooked UI shader selection requires STONER_LAB_SHADER_TEST_PUBLICATION and PROFILE\n";
-        return Failed;
+        const bool Required = std::getenv("STONER_REQUIRE_UI_COMPOSITION") || Root || Profile;
+        std::cout << (Required ? "[FAIL] " : "[SKIP] ")
+            << "cooked UI shader selection requires STONER_LAB_SHADER_TEST_PUBLICATION and PROFILE\n";
+        return Failed + (Required ? 1 : 0);
     }
     Core::TArray<Core::uint8> Bytes;
     Asset::FCurrentGenerationPointer Pointer;
