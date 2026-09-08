@@ -25,7 +25,14 @@ wamr_library = BuildPrivateCMakeLibrary(
     os.path.join('lib', library_prefix + 'stoner_wamr' + library_extension),
     config,
 )
-env['STONER_ASSET_THIRD_PARTY_LIBS'] = ktx_library + wamr_library
+yyjson_library = SConscript(
+    '#ThirdParty/yyjson/SConscript',
+    variant_dir='#' + os.path.join(build_base, 'ThirdParty', 'yyjson'),
+    duplicate=0,
+    exports={'env': env, 'platform': platform},
+)
+env['STONER_YYJSON_LIBRARY'] = yyjson_library
+env['STONER_ASSET_THIRD_PARTY_LIBS'] = ktx_library + wamr_library + yyjson_library
 
 stb_warning_flags = ['/w'] if platform == 'Win64' else ['-w']
 third_party_c_warning_flags = ['/w'] if platform == 'Win64' else ['-w']
@@ -154,9 +161,9 @@ lib = BuildLayer(
     private_c_sources=[
         'ThirdParty/cgltf/cgltf.c',
         'ThirdParty/mikktspace/mikktspace.c',
-        'ThirdParty/yyjson/yyjson.c',
     ],
     third_party_cflags=third_party_c_warning_flags,
     private_objects=embedded_module_object,
+    private_libraries=yyjson_library,
 )
 Return('lib')

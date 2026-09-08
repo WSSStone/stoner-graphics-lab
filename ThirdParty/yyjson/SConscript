@@ -1,0 +1,8 @@
+"""One private yyjson implementation shared by Asset and Application."""
+Import('env', 'platform')
+json_env = env.Clone()
+json_env.Replace(CPPPATH=[])
+json_env.Append(CFLAGS=['/w'] if platform == 'Win64' else ['-w'])
+objects = json_env.Object('yyjson', File('#ThirdParty/yyjson/yyjson.c'))
+lib = json_env.StaticLibrary('stoner_yyjson', objects)
+Return('lib')

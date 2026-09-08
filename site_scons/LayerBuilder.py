@@ -75,6 +75,7 @@ def BuildLayer(
     third_party_cflags=None,
     private_cpp_settings=None,
     private_objects=None,
+    private_libraries=None,
 ):
     """Build a source layer as a static library with dependency-controlled include paths.
 
@@ -100,6 +101,8 @@ def BuildLayer(
         private_cpp_settings: Optional mapping from a private C++ basename to
                               isolated include_paths, cppdefines, and ccflags.
         private_objects: Optional prebuilt object nodes to append to the layer.
+        private_libraries: Build dependencies only; final consumers link these
+                           once through the existing private-library list.
 
     Returns:
         SCons StaticLibrary node, or None if no source files found.
@@ -162,6 +165,8 @@ def BuildLayer(
     sources.extend(private_objects or [])
 
     lib = layer_env.StaticLibrary(layer_name, sources)
+    if private_libraries:
+        layer_env.Depends(lib, private_libraries)
     logger.info(
         "Layer '%s': building from %d C++ and %d private C source file(s)",
         layer_name,

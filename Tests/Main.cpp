@@ -139,6 +139,7 @@ int RunMetalUINativeTests();
 [[nodiscard]] int RunDemoLabPresentationNativeTests();
 [[nodiscard]] int RunDemoLabDiagnosticsNativeTests();
 int RunPlatformFileNoReplaceTests();
+int RunApplicationLabPresetTests();
 
 int main(int ArgCount, char* Arguments[])
 {
@@ -627,6 +628,7 @@ int main(int ArgCount, char* Arguments[])
         return RunCorePlatformFileTransactionTests().Failed == 0 ? 0 : 1;
     });
     Registry.Register("core-file-no-replace", [] { return RunPlatformFileNoReplaceTests(); });
+    Registry.Register("application-lab-preset", [] { return RunApplicationLabPresetTests(); });
     Registry.Register("core-file-lease", [LeaseProbePath] {
         return RunCorePlatformFileLeaseTests(
             LeaseProbePath.string().c_str()).Failed == 0 ? 0 : 1;

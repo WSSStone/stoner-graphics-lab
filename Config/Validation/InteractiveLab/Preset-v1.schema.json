@@ -1,0 +1,286 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:stoner:interactive-lab-preset:1",
+  "$comment": "Runtime additionally enforces UTF-8 <=65536 bytes, depth <=8, <=256 values, <=4096 UTF-8 bytes per identity, duplicate-key rejection, finite float32 conversion, near < far, width*height <=7864320, finite positive debug range difference, freshly resolved stage/profile/domain identity, and the pinned-writer digest. No derived camera matrices or UI visibility are persisted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaVersion",
+    "authority",
+    "workload",
+    "sourceContext",
+    "camera",
+    "output",
+    "ui",
+    "digest"
+  ],
+  "properties": {
+    "schema": {
+      "const": "stoner.interactive-lab-preset"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "type": "integer"
+    },
+    "authority": {
+      "const": "interactive-preview"
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "revision",
+        "productionRoot",
+        "sourceIdentityDigest"
+      ],
+      "properties": {
+        "revision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "pattern": "^[^\\u0000]*$"
+        },
+        "productionRoot": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "pattern": "^[^\\u0000]*$"
+        },
+        "sourceIdentityDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "sourceContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drawableWidth",
+        "drawableHeight",
+        "backend",
+        "cookedGeneration",
+        "softwareRevision"
+      ],
+      "properties": {
+        "drawableWidth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "drawableHeight": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "backend": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "pattern": "^[^\\u0000]*$"
+        },
+        "cookedGeneration": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "softwareRevision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "pattern": "^[^\\u0000]*$"
+        }
+      }
+    },
+    "camera": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "position",
+        "yawRadians",
+        "pitchRadians",
+        "verticalFovRadians",
+        "nearPlane",
+        "farPlane",
+        "movementSpeed"
+      ],
+      "properties": {
+        "position": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number",
+            "minimum": -3.4028234663852886e+38,
+            "maximum": 3.4028234663852886e+38
+          }
+        },
+        "yawRadians": {
+          "type": "number",
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38
+        },
+        "pitchRadians": {
+          "type": "number",
+          "minimum": -1.5533430576324463,
+          "maximum": 1.5533430576324463
+        },
+        "verticalFovRadians": {
+          "type": "number",
+          "minimum": 0.3490658402442932,
+          "maximum": 1.5707963705062866
+        },
+        "nearPlane": {
+          "type": "number",
+          "minimum": 9.999999747378752e-05,
+          "maximum": 1000000
+        },
+        "farPlane": {
+          "type": "number",
+          "minimum": 9.999999747378752e-05,
+          "maximum": 1000000
+        },
+        "movementSpeed": {
+          "type": "number",
+          "minimum": 0.009999999776482582,
+          "maximum": 100
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requestedProfileId",
+        "sdrToneMapVersion",
+        "hdrViewingVersion",
+        "exposureStops",
+        "debugBypass"
+      ],
+      "properties": {
+        "requestedProfileId": {
+          "enum": [
+            "Sdr.sRGB.v1",
+            "Sdr.BT709.v1",
+            "Sdr.ExplicitGamma22.v1",
+            "Hdr.PQ.Rec2020.1000.v1",
+            "Hdr.PQ.Rec2020.2000.v1",
+            "Hdr.Linear.1000.v1",
+            "Hdr.Linear.2000.v1"
+          ]
+        },
+        "sdrToneMapVersion": {
+          "enum": [
+            "Sdr.KhronosPbrNeutral.v1",
+            "Sdr.NarkowiczAcesFit.v1",
+            "Sdr.ExtendedReinhardRec709.v1"
+          ]
+        },
+        "hdrViewingVersion": {
+          "const": "Hdr.ACES2.0.0_2025-04-04.Rec2020D65.v1"
+        },
+        "exposureStops": {
+          "type": "number",
+          "minimum": -16,
+          "maximum": 16
+        },
+        "debugBypass": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "stageName",
+            "sourceDomain",
+            "visualizationMinimum",
+            "visualizationMaximum"
+          ],
+          "properties": {
+            "mode": {
+              "enum": [
+                "Disabled",
+                "BoundedVisualization",
+                "HDRPreservingReadback"
+              ]
+            },
+            "stageName": {
+              "type": "string",
+              "minLength": 0,
+              "maxLength": 4096,
+              "pattern": "^[^\\u0000]*$"
+            },
+            "sourceDomain": {
+              "enum": [
+                "Unspecified",
+                "SceneLinearRec709D65",
+                "DisplayLinearRec709D65",
+                "DisplayLinearRec2020D65",
+                "EncodedSrgb",
+                "EncodedBt709",
+                "EncodedGamma22",
+                "EncodedPqRec2020D65",
+                "ExtendedSrgbLinear"
+              ]
+            },
+            "visualizationMinimum": {
+              "type": "number",
+              "minimum": -3.4028234663852886e+38,
+              "maximum": 3.4028234663852886e+38
+            },
+            "visualizationMaximum": {
+              "type": "number",
+              "minimum": -3.4028234663852886e+38,
+              "maximum": 3.4028234663852886e+38
+            }
+          },
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "Disabled"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stageName": {
+                "const": ""
+              },
+              "sourceDomain": {
+                "const": "Unspecified"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "stageName": {
+                "minLength": 1
+              },
+              "sourceDomain": {
+                "not": {
+                  "const": "Unspecified"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "whiteMultiplier"
+      ],
+      "properties": {
+        "whiteMultiplier": {
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 2
+        }
+      }
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
