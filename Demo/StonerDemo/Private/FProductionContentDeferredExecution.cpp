@@ -1211,6 +1211,8 @@ ERHIResult FProductionContentDeferredExecutionBuilder::BindPreviewUI(
         if (!FHDRPostProcessPipeline().BindPreviewTargetFormat(Plan,
                 Resources.Bindings.FormalOutput->GetFormat()) || !Plan.IsValid())
             return ERHIResult::InvalidState;
+        if (Frame && Frame->HasDiagnostic() != Plan.HasDiagnosticWidget())
+            return ERHIResult::InvalidState;
         auto Candidate = Stages;
         if (Candidate.size() == 4) Candidate.erase(Candidate.begin() + 2);
         const auto Input = HasUI ? Frame->GetOutput() : Scene;

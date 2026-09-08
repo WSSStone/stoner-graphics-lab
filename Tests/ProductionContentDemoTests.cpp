@@ -546,8 +546,12 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
         Vertex.Stage = ERHIShaderStage::Vertex; Fragment.Stage = ERHIShaderStage::Fragment;
         const FRHIShaderModuleDesc Modules[] = {Vertex,Fragment}; // tracked RHI; no native shader claim
         Core::uint64 PacketId = 1;
-        const FLabProductionFrameContext::FPrepareUI PrepareUI = [&](const auto& Scene,
+        const FLabProductionFrameContext::FPrepareUI PrepareUI = [&](const auto& FrameResources,
             Core::uint64 Budget, Core::TSharedPtr<FUIRenderFrame>& Out) {
+            const auto& Scene = FrameResources.Bindings.OutputTransformStages.back().Input;
+            if (FrameResources.OutputTransformPlan.FrameToken == 0 ||
+                FrameResources.Bindings.FinalOutput == nullptr ||
+                FrameResources.Bindings.OutputTransformStages.size() != 3) return ERHIResult::InvalidState;
             if (Budget < static_cast<Core::uint64>(Width) * Height * 8) return ERHIResult::Unavailable;
             FUIDrawSnapshot Draw(73,PacketId++,1,1);
             const FUIVertex Vertices[] = {{{0,0},{0,0},0xffffffff},{{16,0},{1,0},0xffffffff},{{0,16},{0,1},0xffffffff}};
@@ -647,7 +651,9 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
             if (FailureCommand) FailureCommand->BufferTextureCopyResult = ERHIResult::Timeout;
             Core::uint64 FailurePacketId = 1;
             const FLabProductionFrameContext::FPrepareUI PrepareFailure =
-                [&](const auto& Scene,Core::uint64,Core::TSharedPtr<FUIRenderFrame>& Out) {
+                [&](const auto& FrameResources,Core::uint64,Core::TSharedPtr<FUIRenderFrame>& Out) {
+                    const auto& Stages = FrameResources.Bindings.OutputTransformStages;
+                    const auto& Scene = Stages.size() == 4 ? Stages[2].Input : Stages.back().Input;
                     FUIDrawSnapshot Draw(73,FailurePacketId++,1,1);
                     const FUIVertex V[] = {{{0,0},{0,0},0xffffffff},{{16,0},{1,0},0xffffffff},{{0,16},{0,1},0xffffffff}};
                     const Core::uint32 I[] = {0,1,2};
@@ -658,12 +664,11 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
                     return FailingUI.PrepareFrame(Draw,UISettings,1,0,Scene,Modules,Modules,Out);
                 };
             const auto FailedRecord = UIContext.RecordFrame(84,0,Composition,nullptr,PrepareFailure);
-            const auto FailureScene = Resources->Bindings.OutputTransformStages[2].Input;
             Core::TSharedPtr<FUIRenderFrame> Retry;
-            const auto BeforeDiscard = PrepareFailure(FailureScene,0,Retry);
+            const auto BeforeDiscard = PrepareFailure(*Resources,0,Retry);
             (void)UIContext.CancelFrame(84,0);
             const auto FailedRetire = UIContext.RetireCancelled(84,0);
-            const auto AfterDiscard = PrepareFailure(FailureScene,0,Retry);
+            const auto AfterDiscard = PrepareFailure(*Resources,0,Retry);
             Record(Result, BeforeDiscard == ERHIResult::NotReady && AfterDiscard == ERHIResult::Success,
                 "Partial upload failure retains reservations until the command is discarded");
             if (Retry) (void)Retry->CancelAfterCommandDiscard();

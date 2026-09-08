@@ -423,13 +423,14 @@ public:
             if (Complete)
             {
                 bool Retired = false;
-                if (Frames->PollPresentation(Record.Lease.Frame.FrameToken, Record.Slot, Retired, &Reason) !=
-                    ERHIResult::Success || !Retired) { Fail(Reason); ++Index; }
+                const auto RetireResult = Frames->PollPresentation(Record.Lease.Frame.FrameToken, Record.Slot, Retired, &Reason);
+                if (RetireResult != ERHIResult::Success || !Retired)
+                { FailOperation("retire-presentation",RetireResult,Reason); ++Index; }
                 else Presentations.erase(Presentations.begin() + Index);
             }
             else
             {
-                if (Result != ERHIResult::Success && !Pending(Result)) Fail(Reason);
+                if (Result != ERHIResult::Success && !Pending(Result)) FailOperation("poll-presentation",Result,Reason);
                 ++Index;
             }
         }
@@ -516,7 +517,7 @@ public:
                 if (Reserved != ERHIResult::Success)
                 {
                     Slot = {};
-                    if (!Pending(Reserved)) Fail(Reason);
+                    if (!Pending(Reserved)) FailOperation("reserve-frame",Reserved,Reason);
                     return;
                 }
             }
@@ -538,7 +539,7 @@ public:
             FProductionCameraPreset FrameCamera;
             if (!BuildProductionCameraPreset(Composition.WorkloadRevision,
                 Camera.View, Camera.Projection, FrameCamera, &Reason))
-            { Fail(Reason); return; }
+            { Fail(std::string("frame-camera: ")+Reason.ToStdString()); return; }
             View.InverseViewProjection = FrameCamera.InverseViewProjection;
             View.CameraPosition = Camera.Position;
             View.Extent = {CurrentExtent.Width, CurrentExtent.Height};
@@ -547,8 +548,9 @@ public:
             FLabProductionFrameContext::FPrepareUI PrepareUI;
             if (Session.IsUIEnabled() && UI)
             {
-                PrepareUI = [&, Token=Slot.Token](const auto& SceneInput,Core::uint64 Available,
+                PrepareUI = [&, Token=Slot.Token](const auto& Resources,Core::uint64 Available,
                     Core::TSharedPtr<Renderer::FUIRenderFrame>& OutFrame) {
+                    const auto& SceneInput = Resources.Bindings.OutputTransformStages.back().Input;
                     const auto& Display = Session.GetDisplayState();
                     const auto Required = static_cast<Core::uint64>(Display.DrawableExtent.Width) *
                         Display.DrawableExtent.Height * 8ULL;
@@ -607,17 +609,20 @@ public:
                 Backend->CancelLabTarget(Slot.Token, Index, nullptr, Ack, &Reason);
             if (!Ack || Result != ERHIResult::Success)
             {
-                if (!Pending(Result) && Result != ERHIResult::Success) Fail(Reason);
+                if (!Pending(Result) && Result != ERHIResult::Success) FailOperation("cancel-native-target",Result,Reason);
                 return;
             }
             Slot.bCancellationAcknowledged = true;
         }
-        if (Frames->GetFrameState(Slot.Token, Index) != ELabProductionFrameState::Cancelled &&
-            Frames->CancelFrame(Slot.Token, Index, &Reason) != ERHIResult::Success)
-        { Fail(Reason); return; }
+        if (Frames->GetFrameState(Slot.Token, Index) != ELabProductionFrameState::Cancelled)
+        {
+            const auto Cancelled = Frames->CancelFrame(Slot.Token, Index, &Reason);
+            if (Cancelled != ERHIResult::Success)
+            { FailOperation("cancel-frame",Cancelled,Reason); return; }
+        }
         const auto Result = Frames->RetireCancelled(Slot.Token, Index, &Reason);
         if (Frames->GetFrameState(Slot.Token, Index) == ELabProductionFrameState::Free) Slot = {};
-        if (Result != ERHIResult::Success && !Pending(Result)) Fail(Reason);
+        if (Result != ERHIResult::Success && !Pending(Result)) FailOperation("retire-cancelled",Result,Reason);
     }
 
     Core::uint32 BusySlots() const noexcept

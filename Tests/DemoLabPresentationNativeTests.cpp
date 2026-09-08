@@ -129,7 +129,7 @@ void RunCase(int& Failed, Demo::EDemoGraphicsBackend Backend, bool ForceAcquireH
             "Demo lab zero-axis reconfiguration pauses acquisition and resumes on a valid drawable");
     }
     std::vector<FRHIPresentationLease> Leases;
-    Core::uint32 CompletedFrames = 0;
+    Core::uint32 CompletedFrames = 0, CancelledSuccessors = 0;
     for (Core::uint32 Index = 0; FramesPassed && Index < 10; ++Index)
     {
         const auto Token = static_cast<Core::uint64>(500000 + Index);
@@ -220,6 +220,22 @@ void RunCase(int& Failed, Demo::EDemoGraphicsBackend Backend, bool ForceAcquireH
                       << static_cast<int>(Presented) << '\n';
             break;
         }
+        if (Backend == Demo::EDemoGraphicsBackend::Metal)
+        {
+            // Reuse the logical slot before polling the predecessor's native
+            // presentation. NotReady does not prove this new token owns a job.
+            const auto SuccessorToken = Token + 200000;
+            FRHIBorrowedAcquiredTarget Successor;
+            const auto Attempt = Runtime.AcquireLabTarget(SuccessorToken,Slot,Successor);
+            bool Acknowledged = false;
+            const auto Cancelled = PollBounded(Window,[&] {
+                return Runtime.CancelLabTarget(SuccessorToken,Slot,nullptr,Acknowledged);
+            });
+            if ((Attempt == ERHIResult::Success || Attempt == ERHIResult::NotReady) &&
+                Cancelled == ERHIResult::Success && Acknowledged && Lease.Matches(Target))
+                ++CancelledSuccessors;
+            else FramesPassed = false;
+        }
         Leases.push_back(Lease);
         ++CompletedFrames;
         for (auto It = Leases.begin(); It != Leases.end();)
@@ -237,6 +253,9 @@ void RunCase(int& Failed, Demo::EDemoGraphicsBackend Backend, bool ForceAcquireH
     }
     Check(Failed, FramesPassed && CompletedFrames == 10,
         "Demo lab renders ten borrowed native clear frames with deferred submission and typed presentation");
+    if (Backend == Demo::EDemoGraphicsBackend::Metal)
+        Check(Failed,CancelledSuccessors == 10,
+            "Metal cancels ten successor acquires without cancelling their predecessor presentations");
     if (FramesPassed)
     {
         FRHIBorrowedAcquiredTarget CancelTarget;

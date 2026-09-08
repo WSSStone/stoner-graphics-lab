@@ -133,7 +133,7 @@ public:
     // output chain into the slot command buffer.  It does not recreate shader,
     // pipeline or scene attachment resources when the extent is unchanged.
     using FPrepareUI = std::function<RHI::ERHIResult(
-        const Core::TSharedPtr<RHI::IRHITexture>& Scene,
+        const FProductionContentDeferredExecutionResources& Resources,
         Core::uint64 AvailableAttachmentBytes,
         Core::TSharedPtr<Renderer::FUIRenderFrame>& OutFrame)>;
     [[nodiscard]] RHI::ERHIResult RecordFrame(

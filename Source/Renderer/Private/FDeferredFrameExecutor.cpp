@@ -295,7 +295,7 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
                         EDeferredResult::RecordFailed,"DEF-EXEC-UI",Post.Name,"terminal UI recording failed; discard the whole command");
                     return false;
                 }
-                Out.RecordedPassCount += 2;
+                Out.RecordedPassCount += Post.UIFrame->HasDiagnostic() ? 3 : 2;
                 bInputAlreadySampled = true;
                 continue;
             }

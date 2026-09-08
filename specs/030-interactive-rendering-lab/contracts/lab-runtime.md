@@ -120,3 +120,7 @@ Retain existing `--mode interactive|validate`, backend, strict-cooked and output
 ## Implementation mapping
 
 FR-001, FR-011–FR-015, FR-021–FR-026; US3/US6/US7. Add planned Application session/settings services; Demo lab composition and explicit preview submission adapter; Renderer preview recording and RHI borrowed-present/deferred-submit capability; backend-private Vulkan submission records and Metal completion integration. The session orchestrates values and never absorbs camera math, JSON parsing, UI translation or native queue implementation.
+
+### Metal unpublished acquire cancellation implementation note
+
+A logical acquire attempt returning NotReady may still be blocked by an older presentation in the native slot. Cancellation must distinguish that case from an unpublished native drawable job owned by the requested token. The private Metal context checks exact token/job ownership; a request with no native job releases its logical reservation without cancelling its predecessor. Actual pending jobs retain the existing bounded cancellation/worker-completion rule, and foreign tokens remain invalid. Window regressions exercise immediate successor cancellation before polling predecessor presentations.

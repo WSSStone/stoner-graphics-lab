@@ -1628,6 +1628,16 @@ void FMetalPresentationContext::ReleaseBorrowedAcquire(
     Impl_->Condition.notify_all();
 }
 
+bool FMetalPresentationContext::HasPendingBorrowedAcquire(
+    Core::uint32 FrameSlot, Core::uint64 FrameToken) const noexcept
+{
+    if (!Impl_ || FrameToken == 0) return false;
+    std::lock_guard Lock(Impl_->Mutex);
+    return FrameSlot < Impl_->Frames.size() &&
+        Impl_->Frames[FrameSlot].FrameToken == FrameToken &&
+        Impl_->Frames[FrameSlot].PendingDrawableAcquire != nullptr;
+}
+
 RHI::ERHIResult FMetalPresentationContext::CancelPendingBorrowedAcquire(
     Core::uint32 FrameSlot, Core::uint64 FrameToken) noexcept
 {

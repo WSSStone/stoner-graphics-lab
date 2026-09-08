@@ -791,16 +791,20 @@ RHI::ERHIResult FLabProductionFrameContext::RecordFrame(
         try
         {
             if (Required <= Available)
-                Prepared = PrepareUI(Slot->Resources.Bindings.OutputTransformStages.back().Input, Available, UI);
+                Prepared = PrepareUI(Slot->Resources, Available, UI);
         }
         catch (const std::bad_alloc&) { Prepared = ERHIResult::Unavailable; }
         if (Prepared == ERHIResult::Success && UI && UI->HasDraws())
         {
-            Prepared = FProductionContentDeferredExecutionBuilder::BindPreviewUI(UI, Slot->Resources);
+            const auto DiagnosticBytes = UI->GetDiagnosticAttachmentBytes();
+            // The preparer receives the aggregate allowance before allocation.
+            // Verify its returned owner before binding or recording any pass.
+            Prepared = DiagnosticBytes > Available - Required ? ERHIResult::Unavailable
+                : FProductionContentDeferredExecutionBuilder::BindPreviewUI(UI, Slot->Resources);
             if (Prepared == ERHIResult::Success)
             {
                 Slot->UIFrame = UI;
-                Slot->Resources.AttachmentBytes += Required;
+                Slot->Resources.AttachmentBytes += Required + DiagnosticBytes;
                 Impl_->RefreshAttachmentBytes();
             }
         }

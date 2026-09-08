@@ -288,9 +288,14 @@ RHI::ERHIResult FMetalSwapchain::AcquireBorrowedTarget(
     Core::TSharedPtr<RHI::IRHITexture> Texture;
     Core::uint64 Generation = 0;
     Core::uint32 ImageIndex = 0;
-    PendingLabNativeAttempts[FrameSlotIndex] = true;
     const RHI::ERHIResult Result = Surface_->GetContext()->AcquireBorrowed(
         FrameSlotIndex, FrameToken, Texture, Generation, ImageIndex);
+    // A NotReady attempt may still be blocked by the previous presentation in
+    // this native slot. Only this token's actual reservation authorizes native
+    // cancellation; never cancel the predecessor on behalf of a newer token.
+    PendingLabNativeAttempts[FrameSlotIndex] = PendingLabNativeAttempts[FrameSlotIndex] ||
+        Result == RHI::ERHIResult::Success ||
+        Surface_->GetContext()->HasPendingBorrowedAcquire(FrameSlotIndex, FrameToken);
     ResolvedState_ = Surface_->GetContext()->GetResolvedPresentationState();
     if (Result != RHI::ERHIResult::Success)
         return Result;
