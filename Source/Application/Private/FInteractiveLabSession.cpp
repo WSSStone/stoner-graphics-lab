@@ -375,7 +375,13 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
                 [this](const FString& Section,const FString& Control) { return InvokeSectionControl(Section,Control); },
                 S.Settings && !S.Settings->GetActive() && !S.PendingIntent.IsValid() && !S.ActiveIntent.IsValid(),
                 S.RuntimeInfo ? &*S.RuntimeInfo : nullptr,&S.Camera.GetState(),GetRequestedSettings(),
-                GetPendingSettings(),GetEffectiveSettings(),&GetSettingsFailure());
+                GetPendingSettings(),GetEffectiveSettings(),&GetSettingsFailure(),
+                [this,&S](const FLabSettingsSnapshot& Edit) {
+                    auto Candidate = Edit;
+                    Candidate.CameraRevision = S.Camera.GetState().CameraRevision;
+                    Candidate.DisplayGeneration = S.Display.DisplayGeneration;
+                    return RequestSettings(Candidate);
+                });
             Capture = S.UI->GetCapture();
             if (UIResult == EApplicationResult::Success) S.UIFailure.Clear();
             else if (S.UI->GetTextureResult() != Stoner::RHI::ERHIResult::NotReady)

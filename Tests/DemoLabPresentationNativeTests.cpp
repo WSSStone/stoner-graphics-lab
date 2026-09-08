@@ -1,6 +1,8 @@
 #include "FDemoBackendFactory.h"
 #include "FInteractiveLabRun.h"
 #include "Application/FWindow.h"
+#include "Application/FInteractiveLabSession.h"
+#include "Application/FLabSettingsSnapshot.h"
 #include "Application/FWindowDesc.h"
 #include "RHI/RHIMinimal.h"
 
@@ -317,6 +319,7 @@ void RunSceneLifecycle(int& Failed)
     Config.WorkloadRevision = Env("STONER_LAB_SCENE_WORKLOAD");
     Config.TargetProfilePath = Env("STONER_LAB_SCENE_PROFILE");
     Config.LeaseCoordinationRoot = Env("STONER_LAB_SCENE_LEASE_ROOT");
+    bool SettingsEdited = false;
     bool ActionsSucceeded = true, ObservedMinimized = false, ObservedRestored = false;
     int Stage = 0;
     Core::uint32 Cycle = 0, CycleStartPresented = 0;
@@ -377,7 +380,26 @@ void RunSceneLifecycle(int& Failed)
                     else { CycleStartPresented = Presented; Stage = 0; FocusStep = 0; }
                 }
             }
+        }, [&](Application::FInteractiveLabSession& Session,Core::uint32 Presented) {
+            const auto* Effective = Session.GetEffectiveSettings();
+            if (SettingsEdited || Presented < 2 || !Effective || Effective->DisplayGeneration != Session.GetDisplayState().DisplayGeneration ||
+                (Session.GetState() != Application::EInteractiveLabSessionState::Ready &&
+                 Session.GetState() != Application::EInteractiveLabSessionState::Running)) return;
+            auto Edit = *Effective; Edit.CameraRevision = Session.GetCameraState().CameraRevision;
+            Edit.ExposureStops = 3; Edit.SdrToneMapVersion = "Sdr.NarkowiczAcesFit.v1";
+            SettingsEdited = Session.RequestSettings(Edit);
+            if (SettingsEdited)
+            {
+                Edit.ExposureStops = 100;
+                ActionsSucceeded &= !Session.RequestSettings(Edit) && Session.GetPendingSettings() &&
+                    Session.GetPendingSettings()->ExposureStops == 3;
+            }
         });
+    std::cout << "[INFO] live edit=" << SettingsEdited << " revision=" << Result.LastRecordedSettingsRevision
+        << " exposure=" << Result.LastRecordedExposureStops << " transform=" << Result.LastRecordedTransformVersion.CStr() << '\n';
+    Check(Failed,SettingsEdited && Result.LastRecordedSettingsRevision > 1 && Result.LastRecordedExposureStops == 3 &&
+        Result.LastRecordedTransformVersion == "Sdr.NarkowiczAcesFit.v1",
+        "native scene frames consume revised exposure and tone map across resize while invalid edits preserve intent");
     std::cout << "[INFO] scene lifecycle exit=" << static_cast<int>(Result.ExitCode)
         << " cycles=" << Cycle << " stage=" << Stage << " actions=" << ActionsSucceeded << " minimized=" << ObservedMinimized
         << " restored=" << ObservedRestored << " failure=" << Result.FirstFailure.CStr() << '\n';

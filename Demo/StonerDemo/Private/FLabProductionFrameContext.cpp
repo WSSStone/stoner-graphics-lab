@@ -684,6 +684,24 @@ RHI::ERHIResult FLabProductionFrameContext::ReserveFrame(
     return RHI::ERHIResult::Success;
 }
 
+RHI::ERHIResult FLabProductionFrameContext::UpdateOutputSettings(
+    const Renderer::FOutputTransformSettings& Settings, FString* OutReason)
+{
+    if (OutReason) OutReason->Clear();
+    if (!Impl_ || !Impl_->bInitialized || Impl_->bFailed || Impl_->bShutdownStarted) return ERHIResult::InvalidState;
+    const auto Validated = Renderer::FOutputTransformSettingsValidator().Validate(Settings);
+    const auto& Old = Impl_->Config.OutputSettings;
+    if (!Validated.Succeeded() || Settings.bRequireReadback || !Settings.bRequirePresentation ||
+        Settings.DiagnosticBypass.Mode != Renderer::EOutputTransformDebugBypassMode::Disabled ||
+        !Settings.PreTonemapOperations.IsEmpty() || !Settings.PostTonemapOperations.IsEmpty())
+    { Fail(OutReason,"invalid ordinary preview output settings"); return ERHIResult::InvalidState; }
+    if (Settings.OutputDeviceProfileId != Old.OutputDeviceProfileId ||
+        Settings.PreferredNativeEncoding != Old.PreferredNativeEncoding || Settings.NativeReferenceWhiteNits != Old.NativeReferenceWhiteNits)
+    { Fail(OutReason,"output profile change requires presentation recreation"); return ERHIResult::ResizeRequired; }
+    Impl_->Config.OutputSettings = Settings;
+    return ERHIResult::Success;
+}
+
 RHI::ERHIResult FLabProductionFrameContext::RecordFrame(
     uint64 FrameToken, uint32 SlotIndex,
     const FProductionContentComposition& FrameComposition,
@@ -717,10 +735,15 @@ RHI::ERHIResult FLabProductionFrameContext::RecordFrame(
         return RHI::ERHIResult::InvalidState;
     }
     const FProductionContentComposition& Candidate = FrameComposition;
+    const auto& PendingSettings = Impl_->Config.OutputSettings;
+    const auto& RecordedSettings = Slot->Resources.OutputSettings;
+    const bool SettingsChanged = PendingSettings.ManualExposureStops != RecordedSettings.ManualExposureStops ||
+        PendingSettings.SDRToneMapVersion != RecordedSettings.SDRToneMapVersion ||
+        PendingSettings.HDRViewingVersion != RecordedSettings.HDRViewingVersion;
     const RHI::ERHIResult Update =
         FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
             Impl_->Device, *Impl_->SceneLease, Impl_->SceneLease, Candidate,
-            Slot->Resources, OutReason);
+            Slot->Resources, OutReason, SettingsChanged ? &PendingSettings : nullptr);
     if (Update != RHI::ERHIResult::Success)
     {
         Slot->State = ELabProductionFrameState::Failed;

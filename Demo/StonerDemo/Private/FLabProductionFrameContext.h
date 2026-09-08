@@ -103,6 +103,11 @@ public:
         Core::uint32 Height,
         Core::FString* OutReason = nullptr);
 
+    // Stage ordinary output parameters for future recordings. Existing queued
+    // slots retain their captured settings and buffers until render completion.
+    [[nodiscard]] RHI::ERHIResult UpdateOutputSettings(
+        const Renderer::FOutputTransformSettings& Settings, Core::FString* OutReason = nullptr);
+
     // BeginFrame binds the exact acquired target to a reusable slot.  The
     // target is borrowed and remains backend-owned; this call never invalidates
     // it.  Repeating the same token/slot while pending is idempotent.

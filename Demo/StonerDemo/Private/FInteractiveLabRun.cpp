@@ -212,6 +212,53 @@ public:
         UIShaders = std::move(Candidate);
         return Application::EApplicationResult::Success;
     }
+    bool ConfigureSessionSettings(Application::FInteractiveLabSession& Session)
+    {
+        Application::FLabSettingsSnapshot Initial;
+        Initial.CameraRevision = Session.GetCameraState().CameraRevision;
+        Initial.SettingsRevision = Initial.OutputModeGeneration = 1;
+        Initial.DisplayGeneration = Session.GetDisplayState().DisplayGeneration;
+        Initial.RequestedProfileId = Initial.EffectiveProfileId = OutputResolved.OutputDeviceProfileId;
+        Initial.SdrToneMapVersion = OutputSettings.SDRToneMapVersion.IsEmpty() ? Core::FString(Renderer::GDefaultSDRToneMapVersion) : OutputSettings.SDRToneMapVersion;
+        Initial.HdrViewingVersion = OutputSettings.HDRViewingVersion.IsEmpty() ? Core::FString(Renderer::GInitialHDRViewingVersion) : OutputSettings.HDRViewingVersion;
+        Initial.ExposureStops = OutputResolved.ManualExposureStops; Initial.bUIVisible = Session.IsUIEnabled();
+        Initial.UIReferenceWhiteNits = OutputResolved.ReferenceWhiteNits;
+        Initial.NativePackingWhiteNits = Status.ResolvedState.ReferenceWhiteNits;
+        Application::FLabSettingsCapabilities Caps;
+        Caps.DisplayGeneration = Initial.DisplayGeneration;
+        Caps.Outputs = {{Initial.EffectiveProfileId,Initial.UIReferenceWhiteNits,Initial.NativePackingWhiteNits}};
+        return Session.ConfigureSettings(Initial,Caps);
+    }
+
+    void ApplySessionSettings(Application::FInteractiveLabSession& Session)
+    {
+        const auto* Effective = Session.GetEffectiveSettings();
+        if (!Effective || !CanPrepareUI()) return;
+        const auto Generation = Session.GetDisplayState().DisplayGeneration;
+        if (Effective->DisplayGeneration != Generation && Session.GetRequestedSettings()->DisplayGeneration != Generation)
+        {
+            Application::FLabSettingsCapabilities Caps;
+            Caps.DisplayGeneration = Generation;
+            Caps.Outputs = {{OutputResolved.OutputDeviceProfileId,OutputResolved.ReferenceWhiteNits,Status.ResolvedState.ReferenceWhiteNits}};
+            (void)Session.RefreshSettingsCapabilities(Caps,true);
+        }
+        const auto* Transaction = Session.BeginSettingsTransaction(true);
+        if (!Transaction) return;
+        auto Candidate = OutputSettings;
+        Candidate.ManualExposureStops = Transaction->Settings.ExposureStops;
+        Candidate.SDRToneMapVersion = Candidate.DynamicRange == Renderer::EOutputDynamicRange::SDR
+            ? Transaction->Settings.SdrToneMapVersion : Core::FString{};
+        Candidate.HDRViewingVersion = Candidate.DynamicRange == Renderer::EOutputDynamicRange::HDR
+            ? Transaction->Settings.HdrViewingVersion : Core::FString{};
+        Candidate.OutputDeviceProfileId = Transaction->Settings.EffectiveProfileId;
+        Core::FString Reason;
+        const auto Resolved = Renderer::FOutputTransformSettingsValidator().Validate(Candidate);
+        const bool Accepted = Resolved.Succeeded() && Frames->UpdateOutputSettings(Candidate,&Reason) == ERHIResult::Success;
+        if (Accepted && Session.CompleteSettingsTransaction(Transaction->Token,true,true))
+        { OutputSettings = std::move(Candidate); OutputResolved = Resolved.Settings; }
+        else if (!Accepted) (void)Session.CompleteSettingsTransaction(Transaction->Token,false,true);
+    }
+
     bool CanPrepareUI() const noexcept
     {
         return bSceneReady && !bNeedsResize && FirstFailure.IsEmpty() &&
@@ -304,7 +351,7 @@ public:
     void Admit(Application::FInteractiveLabSession& Session, Core::uint32 Budget)
     {
         const auto& Camera = Session.GetCameraState();
-        if (!bSceneReady || bNeedsResize || !FirstFailure.IsEmpty() || (Budget && Submitted - CancelledSubmissions >= Budget)) return;
+        if (!bSceneReady || Session.IsSettingsPaused() || bNeedsResize || !FirstFailure.IsEmpty() || (Budget && Submitted - CancelledSubmissions >= Budget)) return;
         for (Core::uint32 Index = 0; Index < Slots.size(); ++Index)
         {
             auto& Slot = Slots[Index];
@@ -361,7 +408,9 @@ public:
                     const auto Required = static_cast<Core::uint64>(Display.DrawableExtent.Width) *
                         Display.DrawableExtent.Height * 8ULL;
                     if (Required > Available) return ERHIResult::Unavailable;
-                    Renderer::FUIDrawSnapshot Snapshot(Session.GetSessionId(),Token,1,Display.DisplayGeneration);
+                    const auto* Effective = Session.GetEffectiveSettings();
+                    const auto Revision = Effective ? Effective->SettingsRevision : 1;
+                    Renderer::FUIDrawSnapshot Snapshot(Session.GetSessionId(),Token,Revision,Display.DisplayGeneration);
                     if (Session.ExtractUIDrawSnapshot(Snapshot) != ERHIResult::Success) return ERHIResult::NotReady;
                     Renderer::FUICompositionSettings Settings;
                     Settings.OutputProfileId = OutputResolved.OutputDeviceProfileId;
@@ -369,7 +418,7 @@ public:
                     Settings.UIReferenceWhiteNits = OutputResolved.ReferenceWhiteNits;
                     Settings.NativePackingWhiteNits = Status.ResolvedState.ReferenceWhiteNits;
                     Settings.DisplayGeneration = Display.DisplayGeneration;
-                    const auto Prepared = UI->PrepareFrame(Snapshot,Settings,1,0,SceneInput,
+                    const auto Prepared = UI->PrepareFrame(Snapshot,Settings,Revision,0,SceneInput,
                         UIShaders.Draw.ModuleDescriptions,UIShaders.Copy.ModuleDescriptions,OutFrame);
                     return Prepared == ERHIResult::InvalidState || Prepared == ERHIResult::Unsupported
                         ? ERHIResult::Unavailable : Prepared;
@@ -388,6 +437,12 @@ public:
             {
                 ++Submitted;
                 const auto* Resources = Frames->GetResources(Slot.Token,Index);
+                if (Resources)
+                {
+                    LastRecordedExposureStops = Resources->OutputTransformPlan.ResolvedSettings.ManualExposureStops;
+                    LastRecordedTransformVersion = Resources->OutputTransformPlan.ResolvedSettings.TransformStrategyVersion;
+                    LastRecordedSettingsRevision = Session.GetEffectiveSettings() ? Session.GetEffectiveSettings()->SettingsRevision : 1;
+                }
                 if (Resources && Resources->OutputTransformPlan.TerminalUI) ++UIFramesSubmitted;
                 else if (Session.IsUIEnabled()) ++UISceneFallbackFrames;
             }
@@ -552,6 +607,9 @@ public:
     Core::uint64 NextToken = 1;
     Core::uint32 Submitted = 0, Completed = 0, Presented = 0, CancelledSubmissions = 0;
     Core::uint32 UIFramesSubmitted = 0, UISceneFallbackFrames = 0;
+    Core::uint64 LastRecordedSettingsRevision = 0;
+    float LastRecordedExposureStops = 0;
+    Core::FString LastRecordedTransformVersion;
     Core::FString FirstFailure;
     RHI::ERHIShutdownAssurance Assurance = RHI::ERHIShutdownAssurance::Unknown;
     bool bNeedsResize = false;
@@ -562,7 +620,7 @@ public:
 
 FInteractiveLabRunResult RunInteractiveLab(
     const FDemoConfiguration& Config, const IDemoBackendFactory& Factory,
-    FInteractiveLabWindowService WindowService)
+    FInteractiveLabWindowService WindowService, FInteractiveLabSessionService SessionService)
 {
     FInteractiveLabRunResult Out;
     if (!Config.bInteractiveLab || !Config.IsValid(&Out.FirstFailure))
@@ -611,6 +669,8 @@ FInteractiveLabRunResult RunInteractiveLab(
             };
             if (Session.ConfigureUI(std::move(UICallbacks),Config.bLabUI) != Application::EApplicationResult::Success)
             { Owner->Fail("UI-on startup requires both UI shaders in the selected cooked generation"); Started = false; }
+            else if (!Owner->ConfigureSessionSettings(Session))
+            { Owner->Fail("initial lab settings could not match native output"); Started = false; }
             else std::cout << "InteractiveLab: F1 toggles UI; WASD/QE move; Shift accelerates; RMB looks; Escape cancels interaction." << std::endl;
         }
     }
@@ -650,6 +710,7 @@ FInteractiveLabRunResult RunInteractiveLab(
                 (void)Session.UpdateRuntimeInfo(Info);
             }
             (void)Session.Service(Delta,EventThreadOwnsBackend() && Owner->CanPrepareUI());
+            if (SessionService && EventThreadOwnsBackend()) SessionService(Session,Owner->Presented);
             if (Session.GetUIFailure() != LastUIFailure)
             {
                 LastUIFailure = Session.GetUIFailure();
@@ -666,6 +727,7 @@ FInteractiveLabRunResult RunInteractiveLab(
             {
                 if (State == EInteractiveLabSessionState::Running || State == EInteractiveLabSessionState::Ready)
                 {
+                    Owner->ApplySessionSettings(Session);
                     Owner->Admit(Session, Config.IsBounded() ? Config.FrameBudget : 0);
                     if (Owner->bNeedsResize)
                     {
@@ -703,6 +765,9 @@ FInteractiveLabRunResult RunInteractiveLab(
     Out.SubmittedFrames = Owner->Submitted;
     Out.RenderCompletedFrames = Owner->Completed;
     Out.PresentedFrames = Owner->Presented;
+    Out.LastRecordedSettingsRevision = Owner->LastRecordedSettingsRevision;
+    Out.LastRecordedExposureStops = Owner->LastRecordedExposureStops;
+    Out.LastRecordedTransformVersion = Owner->LastRecordedTransformVersion;
     Out.UIFramesSubmitted = Owner->UIFramesSubmitted;
     Out.UISceneFallbackFrames = Owner->UISceneFallbackFrames;
     Out.FinalFrameState = Owner->Frames->Snapshot();

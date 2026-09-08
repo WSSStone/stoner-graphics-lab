@@ -100,7 +100,8 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     const std::function<bool(const Stoner::Core::FString&,const Stoner::Core::FString&)>& Invoke,
     bool bEditsEnabled, const FLabRuntimeInfo* Runtime, const FFreeCameraState* Camera,
     const FLabSettingsSnapshot* Requested, const FLabSettingsSnapshot* Pending,
-    const FLabSettingsSnapshot* Effective, const Stoner::Core::FString* SettingsFailure)
+    const FLabSettingsSnapshot* Effective, const Stoner::Core::FString* SettingsFailure,
+    const std::function<bool(const FLabSettingsSnapshot&)>& EditSettings)
 {
     Impl->Capture = {};
     Impl->bDrawReady = false;
@@ -166,6 +167,25 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
             ImGui::TextWrapped("Effective: %s",Effective ? Effective->EffectiveProfileId.CStr() : Runtime->EffectiveProfile.CStr());
             ImGui::Text("Manual exposure: %.2f EV [-16, 16]",Effective ? Effective->ExposureStops : Runtime->ExposureStops);
             ImGui::TextWrapped("Active tone map / viewing transform: %s",Runtime->TransformVersion.CStr());
+            if (Requested && EditSettings)
+            {
+                auto Candidate = *Requested;
+                ImGui::BeginDisabled(!bEditsEnabled);
+                if (ImGui::SliderFloat("Exposure (EV)",&Candidate.ExposureStops,-16,16,"%.2f"))
+                    (void)EditSettings(Candidate);
+                const bool SDR = Candidate.RequestedProfileId.View().starts_with("Sdr.");
+                ImGui::BeginDisabled(!SDR);
+                if (ImGui::BeginCombo("SDR tone map",Candidate.SdrToneMapVersion.CStr()))
+                {
+                    for (const char* Version : {"Sdr.KhronosPbrNeutral.v1","Sdr.NarkowiczAcesFit.v1","Sdr.ExtendedReinhardRec709.v1"})
+                        if (ImGui::Selectable(Version,Candidate.SdrToneMapVersion == Version))
+                        { Candidate.SdrToneMapVersion = Version; (void)EditSettings(Candidate); }
+                    ImGui::EndCombo();
+                }
+                ImGui::EndDisabled();
+                if (!SDR) ImGui::TextUnformatted("HDR uses its viewing transform; SDR tone map is remembered.");
+                ImGui::EndDisabled();
+            }
             if (Effective)
             {
                 ImGui::TextWrapped("Remembered SDR: %s",Effective->SdrToneMapVersion.CStr());
@@ -212,8 +232,8 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     Impl->Capture = {};
     Impl->Capture.bHideUIRequested = HideRequested;
     Impl->Capture.bVisibilityChanged = HideRequested;
-    Impl->Capture.bKeyboard = TextActive || (Active && IO.WantCaptureKeyboard);
-    Impl->Capture.bTextEditing = TextActive;
+    Impl->Capture.bKeyboard = TextActive || IO.WantTextInput || (Active && IO.WantCaptureKeyboard);
+    Impl->Capture.bTextEditing = TextActive || IO.WantTextInput;
     bool MouseDown = false;
     for (bool Down : IO.MouseDown) MouseDown |= Down;
     Impl->Capture.bPointer = IO.WantCaptureMouse && (MouseDown || Active);

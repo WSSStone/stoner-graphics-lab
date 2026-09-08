@@ -802,9 +802,18 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
     const auto Attachments0 = Resources0 ? Resources0->OwnedTextures :
         Core::TArray<Core::TSharedPtr<RHI::IRHITexture>>{};
     const auto Submitted0 = Context.SubmitFrame(101, 0);
+    auto LiveSettings = Config.OutputSettings; LiveSettings.ManualExposureStops = 2;
+    const auto StagedSettings = Context.UpdateOutputSettings(LiveSettings);
+    Record(Result,StagedSettings == RHI::ERHIResult::Success && Resources0 &&
+        Resources0->OutputSettings.ManualExposureStops == Config.OutputSettings.ManualExposureStops,
+        "staging live output settings cannot mutate an already submitted slot");
     const auto Reserved1 = Context.ReserveFrame(102, 1);
     const auto Begun1 = Context.BeginFrame(102, 1, Target1);
     const auto Recorded1 = Context.RecordFrame(102, 1, Frame1);
+    const auto* SettingsResources1 = Context.GetResources(102,1);
+    Record(Result,SettingsResources1 && SettingsResources1->OutputSettings.ManualExposureStops == 2 &&
+        Resources0->OutputSettings.ManualExposureStops == Config.OutputSettings.ManualExposureStops,
+        "next acquired slot consumes live settings while old slot retains its recorded state");
     const auto Submitted1 = Context.SubmitFrame(102, 1);
     const auto Third = Context.ReserveFrame(103, 0);
     bool bCompleted = true;

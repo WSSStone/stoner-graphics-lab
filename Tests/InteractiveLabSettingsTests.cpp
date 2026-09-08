@@ -29,7 +29,7 @@ int RunInteractiveLabSettingsTests()
     auto Bad = Edit; Bad.ExposureStops = std::numeric_limits<float>::quiet_NaN();
     Check(!C.Request(Bad) && C.GetPending()->ExposureStops == 2 && C.GetRequested().ExposureStops == 2,
         "invalid edit preserves latest valid intent and effective settings");
-    Bad = Edit; Bad.RequestedProfileId = "Hdr.PQ.2000.v1";
+    Bad = Edit; Bad.RequestedProfileId = "Hdr.PQ.Rec2020.2000.v1";
     Check(!C.Request(Bad) && !C.IsPaused() && C.GetPending()->ExposureStops == 2,
         "unsupported ordinary request neither forces fallback nor replaces pending intent");
     Edit.ExposureStops = 3;
