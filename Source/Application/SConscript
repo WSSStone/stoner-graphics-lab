@@ -62,7 +62,7 @@ lib = BuildLayer(
     ['Renderer', 'Asset', 'Core'],
     private_objects=ui_objects,
     private_cpp_settings={
-        **{name: {'include_paths': ['ThirdParty/imgui', 'Source/Application/Private'],
+        **{name: {'include_paths': ['ThirdParty/imgui', 'Source/Application/Private', 'Source/RHI/Public'],
                   'cppdefines': ui_defines}
            for name in ('FImGuiLabAdapter.cpp', 'FImGuiInputAdapter.cpp',
                         'FImGuiTextureAdapter.cpp', 'FImGuiDrawAdapter.cpp')},

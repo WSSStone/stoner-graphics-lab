@@ -3,9 +3,11 @@
 #include "FEmbeddedLabFont.h"
 #include "Core/FPlatformProcess.h"
 #include "imgui.h"
+#include "imgui_internal.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <limits>
@@ -17,6 +19,9 @@ struct FImGuiLabAdapter::FImpl
     ImGuiContext* Context = nullptr;
     FWindow* Window = nullptr;
     FImGuiInputAdapter Input;
+    std::unique_ptr<FImGuiTextureAdapter> Textures;
+    Stoner::RHI::ERHIResult TextureResult = Stoner::RHI::ERHIResult::Unsupported;
+    Stoner::Core::uint64 TextureFrame = 0;
     FUILabCapture Capture;
     Stoner::Core::FString Clipboard;
     EApplicationResult ClipboardResult = EApplicationResult::Success;
@@ -25,13 +30,13 @@ struct FImGuiLabAdapter::FImpl
     Stoner::Core::uint64 FallbackCount = 0;
     Stoner::Core::uint64 DisplayGeneration = 0;
     bool bReady = false;
-    ~FImpl() { if (Context) ImGui::DestroyContext(Context); }
+    ~FImpl() { Textures.reset(); if (Context) ImGui::DestroyContext(Context); }
 };
 
 FImGuiLabAdapter::FImGuiLabAdapter() : Impl(std::make_unique<FImpl>()) {}
 FImGuiLabAdapter::~FImGuiLabAdapter() = default;
 
-EApplicationResult FImGuiLabAdapter::Initialize(FWindow& Window)
+EApplicationResult FImGuiLabAdapter::Initialize(FWindow& Window, FImGuiTextureAdapter::FPrepare PrepareTexture)
 {
     if (!Window.IsActive() || Impl->Context) return EApplicationResult::InvalidLifecycle;
     if (ImGui::GetCurrentContext()) return EApplicationResult::UnsupportedMode;
@@ -48,9 +53,10 @@ EApplicationResult FImGuiLabAdapter::Initialize(FWindow& Window)
     IO.LogFilename = nullptr;
     IO.ConfigInputTrickleEventQueue = false;
     IO.ConfigFlags = ImGuiConfigFlags_NavEnableKeyboard;
-    // Do not advertise texture support until create/update/destroy acknowledgements
-    // are connected. This CPU-only context milestone cannot submit UI geometry.
-    IO.BackendFlags = ImGuiBackendFlags_None;
+    if (PrepareTexture) Impl->Textures = std::make_unique<FImGuiTextureAdapter>(std::move(PrepareTexture));
+    IO.BackendFlags = Impl->Textures ? ImGuiBackendFlags_RendererHasTextures : ImGuiBackendFlags_None;
+    IO.BackendRendererName = Impl->Textures ? "Stoner.Renderer" : nullptr;
+    IO.Fonts->TexMaxWidth = IO.Fonts->TexMaxHeight = 2048;
     IO.BackendPlatformName = "Stoner.Application";
     ImFontConfig FontConfig;
     FontConfig.FontDataOwnedByAtlas = false;
@@ -59,11 +65,14 @@ EApplicationResult FImGuiLabAdapter::Initialize(FWindow& Window)
         return EApplicationResult::ValidationFailed;
     IO.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(Font.data()),
         static_cast<int>(Font.size()), 16.0f, &FontConfig);
-    unsigned char* Pixels = nullptr;
-    int Width = 0, Height = 0;
-    IO.Fonts->GetTexDataAsRGBA32(&Pixels, &Width, &Height);
-    if (!Pixels || Width <= 0 || Height <= 0 || Width > 2048 || Height > 2048)
-        return EApplicationResult::ValidationFailed;
+    if (!Impl->Textures)
+    {
+        unsigned char* Pixels = nullptr;
+        int Width = 0, Height = 0;
+        IO.Fonts->GetTexDataAsRGBA32(&Pixels, &Width, &Height);
+        if (!Pixels || Width <= 0 || Height <= 0 || Width > 2048 || Height > 2048)
+            return EApplicationResult::ValidationFailed;
+    }
     auto& Platform = ImGui::GetPlatformIO();
     Platform.Platform_ClipboardUserData = Impl.get();
     Platform.Platform_GetClipboardTextFn = [](ImGuiContext*) -> const char* {
@@ -93,6 +102,7 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
         !Display.IsValid() || !Display.DrawableExtent.IsPositive() ||
         !Display.LogicalExtent.IsPositive() || !std::isfinite(DeltaSeconds) || DeltaSeconds < 0)
         return EApplicationResult::InvalidInput;
+    if (Impl->Textures && Impl->Textures->IsFailed()) return EApplicationResult::RuntimeUnavailable;
     ImGui::SetCurrentContext(Impl->Context);
     auto& IO = ImGui::GetIO();
     IO.DisplaySize = ImVec2(static_cast<float>(Display.LogicalExtent.Width), static_cast<float>(Display.LogicalExtent.Height));
@@ -108,12 +118,20 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     ImGui::TextUnformatted("WASD/QE move | RMB look | F1 toggle UI");
     ImGui::InputText("Input test", Impl->Text.data(), Impl->Text.size());
     const bool TextActive = ImGui::IsItemActive();
-    // The pinned legacy atlas covers U+0020..U+00FF. Count UTF-8 leading
-    // bytes for scalars above that range in the actual retained editable value,
-    // including pasted text; do not count rejected/overflowed event payloads.
+    // Dynamic atlases can load the bundled font's extended glyphs on demand.
+    // The legacy CPU fixture remains restricted to its prebaked Latin range.
     Impl->FallbackCount = 0;
-    for (unsigned char Byte : std::string_view(Impl->Text.data()))
-        if (Byte >= 0xC4 && Byte <= 0xF4) ++Impl->FallbackCount;
+    const char* Cursor = Impl->Text.data();
+    const char* End = Cursor + std::string_view(Cursor).size();
+    while (Cursor < End)
+    {
+        unsigned int Scalar = 0;
+        const int Bytes = ImTextCharFromUtf8(&Scalar, Cursor, End);
+        if (Bytes <= 0) break;
+        if ((!Impl->Textures && Scalar > 0xFF) || !ImGui::GetFont()->IsGlyphInFont(Scalar))
+            ++Impl->FallbackCount;
+        Cursor += Bytes;
+    }
     if (Impl->FallbackCount) ImGui::TextUnformatted("Bundled font: some characters use replacement glyphs.");
     if (Impl->ClipboardResult != EApplicationResult::Success)
         ImGui::TextUnformatted("Clipboard unavailable or rejected; text preserved.");
@@ -128,10 +146,23 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     ImGui::End();
     ImGui::Render();
     Impl->DisplayGeneration = Display.DisplayGeneration;
+    if (Impl->Textures)
+    {
+        auto* Data = ImGui::GetDrawData();
+        const auto Now = static_cast<Stoner::Core::uint64>(std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count());
+        Impl->TextureResult = Impl->Textures->Process(Data->Textures
+            ? std::span<ImTextureData* const>(Data->Textures->Data, static_cast<std::size_t>(Data->Textures->Size))
+            : std::span<ImTextureData* const>{}, ++Impl->TextureFrame, true, Now);
+        if (Impl->TextureResult != Stoner::RHI::ERHIResult::Success)
+            return EApplicationResult::RuntimeUnavailable;
+    }
     Impl->VertexCount = static_cast<Stoner::Core::uint32>(ImGui::GetDrawData()->TotalVtxCount);
     return EApplicationResult::Success;
 }
 
+const char* FImGuiLabAdapter::GetTextureDiagnostic() const noexcept { return Impl->Textures ? Impl->Textures->GetDiagnostic() : "ui-textures-unavailable"; }
+Stoner::RHI::ERHIResult FImGuiLabAdapter::GetTextureResult() const noexcept { return Impl->TextureResult; }
 FUILabCapture FImGuiLabAdapter::GetCapture() const noexcept { return Impl->Capture; }
 Stoner::Core::uint32 FImGuiLabAdapter::GetVertexCount() const noexcept { return Impl->VertexCount; }
 Stoner::Core::uint64 FImGuiLabAdapter::GetFallbackScalarCount() const noexcept { return Impl->FallbackCount; }

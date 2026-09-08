@@ -1,6 +1,7 @@
 #pragma once
 #include "Application/FWindow.h"
 #include "FLabInputRouter.h"
+#include "FImGuiTextureAdapter.h"
 #include <memory>
 
 namespace Stoner::Application
@@ -13,9 +14,11 @@ public:
     ~FImGuiLabAdapter();
     FImGuiLabAdapter(const FImGuiLabAdapter&) = delete;
     FImGuiLabAdapter& operator=(const FImGuiLabAdapter&) = delete;
-    [[nodiscard]] EApplicationResult Initialize(FWindow& Window);
+    [[nodiscard]] EApplicationResult Initialize(FWindow& Window, FImGuiTextureAdapter::FPrepare PrepareTexture = {});
     [[nodiscard]] EApplicationResult Frame(const Stoner::Core::TArray<FInputEvent>& Events,
         const FWindowDisplayState& Display, double DeltaSeconds);
+    [[nodiscard]] const char* GetTextureDiagnostic() const noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult GetTextureResult() const noexcept;
     [[nodiscard]] FUILabCapture GetCapture() const noexcept;
     [[nodiscard]] Stoner::Core::uint32 GetVertexCount() const noexcept;
     [[nodiscard]] Stoner::Core::uint64 GetFallbackScalarCount() const noexcept;

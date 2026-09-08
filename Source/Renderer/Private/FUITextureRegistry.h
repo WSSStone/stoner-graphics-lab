@@ -49,6 +49,8 @@ class FUITextureRegistry
 public:
     explicit FUITextureRegistry(
         Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDevice> InDevice);
+    FUITextureRegistry(const FUITextureRegistry&) = delete;
+    FUITextureRegistry& operator=(const FUITextureRegistry&) = delete;
     void BeginEligibleFrame(Stoner::Core::uint64 FrameId, bool bEligible) noexcept;
     [[nodiscard]] FUITextureResult Prepare(const FUITextureRequest& Request);
     [[nodiscard]] FUITextureLease Acquire(FUITextureId Id) const noexcept;
