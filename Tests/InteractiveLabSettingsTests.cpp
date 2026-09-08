@@ -132,6 +132,17 @@ int RunInteractiveLabSettingsTests()
         Fallback.GetPending()->EffectiveProfileId == "Sdr.sRGB.v1" && Fallback.GetPending()->ExposureStops == 2 &&
         Fallback.GetRequested().RequestedProfileId == "Hdr.Linear.1000.v1",
         "parameter edit supersedes pending SDR fallback while preserving accepted unavailable HDR intent");
+    auto Import = Fallback.GetRequested(); Import.ExposureStops = -4;
+    const auto BeforeImportRevision = Fallback.GetPending()->SettingsRevision;
+    Check(!Fallback.RequestStrict(Import) && Fallback.GetRequested().ExposureStops == 2 &&
+        Fallback.GetEffective().ExposureStops == HdrInitial.ExposureStops &&
+        Fallback.GetPending()->SettingsRevision == BeforeImportRevision,
+        "strict preset request rejects unavailable retained HDR intent without disturbing an ordinary pending edit");
+    auto Prepared = Fallback;
+    Import.RequestedProfileId = "Sdr.sRGB.v1";
+    Check(Prepared.RequestStrict(Import) && Prepared.GetPending()->EffectiveProfileId == "Sdr.sRGB.v1" &&
+        Prepared.GetPending()->SettingsRevision == BeforeImportRevision+1 && Fallback.GetRequested().ExposureStops == 2,
+        "strict preset preparation on a copy consumes one revision without publishing session intent");
     auto* FallbackTransaction=Fallback.BeginEligible(true);
     Check(FallbackTransaction && Fallback.Complete(FallbackTransaction->Token,true,false) &&
         Fallback.GetEffective().ExposureStops == 2 && Fallback.GetEffective().SdrToneMapVersion == ParameterEdit.SdrToneMapVersion,

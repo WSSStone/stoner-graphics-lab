@@ -10,6 +10,8 @@ class FLabSettingsController
 public:
     bool Initialize(const FLabSettingsSnapshot&, const FLabSettingsCapabilities&);
     bool Request(const FLabSettingsSnapshot&);
+    // Preset preparation never substitutes fallback for unsupported intent.
+    bool RequestStrict(const FLabSettingsSnapshot&);
     // Caller supplies eligibility and completes only after required native work.
     const FLabSettingsTransaction* BeginEligible(bool bEligible);
     bool Complete(Stoner::Core::uint64 Token, bool bSuccess, bool bFormerOutputUsable);

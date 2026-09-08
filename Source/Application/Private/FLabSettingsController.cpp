@@ -116,6 +116,16 @@ bool FLabSettingsController::Request(const FLabSettingsSnapshot& Input)
     return true;
 }
 
+bool FLabSettingsController::RequestStrict(const FLabSettingsSnapshot& Input)
+{
+    if (!bInitialized || Active || Input.DisplayGeneration != Capabilities.DisplayGeneration ||
+        Input.CameraRevision < Effective.CameraRevision || Input.CameraRevision < Requested.CameraRevision)
+    { Failure = "Preset settings require an idle, current display and camera identity"; return false; }
+    if (!Queue(Input,false)) return false;
+    Requested = Input; Requested.SettingsRevision = Revision;
+    return true;
+}
+
 const FLabSettingsTransaction* FLabSettingsController::BeginEligible(bool Eligible)
 {
     if (!bInitialized || !Eligible || Active || !Pending) return nullptr;
