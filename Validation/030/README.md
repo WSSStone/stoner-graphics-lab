@@ -1062,3 +1062,32 @@ request acknowledgement path. The initial CPU font atlas has no submitted GPU
 texture, and the control shell has no copied draw packet. T043 session integration,
 T036 texture/draw fixtures and the remaining US2 native composition tasks remain
 open. This is not the complete US2 checkpoint.
+
+## 2026-09-08 local UI extraction and shader selection checkpoint
+
+T051 is committed at `37e74cf`: actual private ImGui frames export immutable
+uint32 geometry with opaque texture-generation leases. Strict Debug/Release
+each pass 216 related assertions, including 13 extraction and 26 texture/context
+checks. Four new Lantern/Sponza Vulkan/arm64 Metal lab packages cooked successfully
+under ignored `Build/Validation/030/us2/lab-{lantern,sponza}-{vulkan,metal}/`.
+These are working-tree implementation checks, not formal accepted evidence.
+
+The subsequent `interactive-lab-shaders` suite uses the new Lantern packages:
+set `STONER_LAB_SHADER_TEST_PUBLICATION` to the absolute publication directory
+and `STONER_LAB_SHADER_TEST_PROFILE` to its absolute production target profile.
+Strict Debug/Release each pass ten checks per backend (20 each configuration),
+covering owned target bytecode, missing closure/payload, duplicate program,
+generation/backend mismatch and clean shutdown. Logs are under
+`Build/Validation/030/us2/shader-preflight-{debug,release}-{metal,vulkan}.log`.
+Without both variables, the cooked checks explicitly skip. Startup/F1 use of this
+helper and native UI composition remain pending; T049 is not complete.
+
+The attempted UI-only `Mac-Metal-X86_64` cook returned `graph-failure` before
+publishing any generation. Existing `FMetalLibraryCompiler.cpp` requires
+`Request.Architecture == HostArchitecture()`; the current arm64 cooker cannot
+finalize the x86_64 target. The argv, log and normalized failure report are in
+`Build/Validation/030/us2/ui-shaders-metal-x86/`. Repeat these two UI roots with
+an x86_64 macOS cooker in the Intel lane, using fresh absolute output/DDC paths.
+Do not relax target provenance or claim an Intel pass from the arm64 run.
+Remaining local composition/input implementation can proceed independently;
+this is a target-specific validation handoff, not a Vulkan extension gate.

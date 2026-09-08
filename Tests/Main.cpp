@@ -118,6 +118,7 @@
 [[nodiscard]] int RunApplicationUIInputTests();
 [[nodiscard]] int RunApplicationUITextureTests();
 [[nodiscard]] int RunApplicationUIDrawTests();
+int RunInteractiveLabShaderTests();
 [[nodiscard]] int RunInteractiveLabValueTests();
 [[nodiscard]] int RunInteractiveLabLifecycleTests();
 [[nodiscard]] int RunInteractiveLabWatchdogChild();
@@ -396,6 +397,7 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("ui-texture-registry", [] { return RunUITextureRegistryTests(); });
     Registry.Register("ui-texture-upload-native", [] { return RunUITextureUploadNativeTests(); });
     Registry.Register("renderer-ui-draw", [] { return RunRendererUIDrawTests(); });
+    Registry.Register("interactive-lab-shaders", [] { return RunInteractiveLabShaderTests(); });
     Registry.Register("application-ui-draw", [] { return RunApplicationUIDrawTests(); });
     Registry.Register("application-ui-texture", [] { return RunApplicationUITextureTests(); });
     Registry.Register("application-ui-input", [] { return RunApplicationUIInputTests(); });
