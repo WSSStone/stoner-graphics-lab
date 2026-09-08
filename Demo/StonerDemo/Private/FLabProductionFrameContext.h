@@ -108,6 +108,11 @@ public:
     [[nodiscard]] RHI::ERHIResult UpdateOutputSettings(
         const Renderer::FOutputTransformSettings& Settings, Core::FString* OutReason = nullptr);
 
+    // After native output recreation, retire idle render-only bundles even
+    // when extent is unchanged. Independent presentation leases stay retained.
+    [[nodiscard]] RHI::ERHIResult ReconfigureOutputSettings(
+        const Renderer::FOutputTransformSettings& Settings, Core::FString* OutReason = nullptr);
+
     // BeginFrame binds the exact acquired target to a reusable slot.  The
     // target is borrowed and remains backend-owned; this call never invalidates
     // it.  Repeating the same token/slot while pending is idempotent.

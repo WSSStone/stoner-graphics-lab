@@ -702,6 +702,35 @@ RHI::ERHIResult FLabProductionFrameContext::UpdateOutputSettings(
     return ERHIResult::Success;
 }
 
+RHI::ERHIResult FLabProductionFrameContext::ReconfigureOutputSettings(
+    const Renderer::FOutputTransformSettings& Settings, FString* OutReason)
+{
+    if (OutReason) OutReason->Clear();
+    if (!Impl_ || !Impl_->bInitialized || Impl_->bFailed || Impl_->bShutdownStarted) return ERHIResult::InvalidState;
+    if (!Renderer::FOutputTransformSettingsValidator().Validate(Settings).Succeeded() ||
+        Settings.bRequireReadback || !Settings.bRequirePresentation ||
+        Settings.DiagnosticBypass.Mode != Renderer::EOutputTransformDebugBypassMode::Disabled ||
+        !Settings.PreTonemapOperations.IsEmpty() || !Settings.PostTonemapOperations.IsEmpty())
+    { Fail(OutReason,"invalid preview output recreation settings"); return ERHIResult::InvalidState; }
+    if (Impl_->bPausedZeroExtent) return ERHIResult::NotReady;
+    for (const auto& Slot : Impl_->Slots)
+        if (!Impl_->IsRenderSlotReusable(Slot))
+        { Fail(OutReason,"output recreation waits for render completion and command retirement"); return ERHIResult::NotReady; }
+    // Validate and copy before releasing old resources. No new slot allocation
+    // occurs here; BeginFrame applies the normal aggregate attachment budget.
+    auto Candidate = Settings;
+    for (auto& Slot : Impl_->Slots)
+    {
+        if (!Slot.bResourcesBuilt) continue;
+        Slot.Resources.Release();
+        Slot.bResourcesBuilt = false;
+        Slot.RenderFence.reset();
+    }
+    Impl_->RefreshAttachmentBytes();
+    Impl_->Config.OutputSettings = std::move(Candidate);
+    return ERHIResult::Success;
+}
+
 RHI::ERHIResult FLabProductionFrameContext::RecordFrame(
     uint64 FrameToken, uint32 SlotIndex,
     const FProductionContentComposition& FrameComposition,

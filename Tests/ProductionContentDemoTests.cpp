@@ -765,6 +765,70 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
         }
         Device->TestQueue->SubmittedFences.clear();
     }
+    {
+        FLabProductionFrameContext ModeContext;
+        auto ModeSettings = Config.OutputSettings;
+        ModeSettings.DynamicRange = Renderer::EOutputDynamicRange::HDR;
+        ModeSettings.OutputDeviceProfileId = "Hdr.Linear.1000.v1";
+        ModeSettings.SDRToneMapVersion.Clear();
+        ModeSettings.PreferredNativeEncoding = RHI::ERHIPresentationNativeEncoding::ScRgb80;
+        ModeSettings.NativeReferenceWhiteNits = 0;
+        ModeSettings.HDRViewingVersion = Renderer::GInitialHDRViewingVersion;
+        const auto OldTarget = MakeTarget(90,0,0);
+        auto OldFrame = Config.Composition; OldFrame.FrameToken = 90;
+        bool Ready = ModeContext.Initialize(Config) == RHI::ERHIResult::Success &&
+            ModeContext.ReserveFrame(90,0) == RHI::ERHIResult::Success &&
+            ModeContext.BeginFrame(90,0,OldTarget) == RHI::ERHIResult::Success &&
+            ModeContext.RecordFrame(90,0,OldFrame) == RHI::ERHIResult::Success &&
+            ModeContext.SubmitFrame(90,0) == RHI::ERHIResult::Success;
+        const auto BeforeMode = ModeContext.Snapshot();
+        Record(Result,Ready && ModeContext.ReconfigureOutputSettings(ModeSettings) == RHI::ERHIResult::NotReady &&
+            ModeContext.Snapshot().ActiveAttachmentBytes == BeforeMode.ActiveAttachmentBytes,
+            "output format recreation retains old attachments while their render fence is pending");
+        if (Ready && !Device->TestQueue->SubmittedFences.empty())
+        {
+            const auto Render = std::dynamic_pointer_cast<FPreviewSubmissionFence>(Device->TestQueue->SubmittedFences.back());
+            Render->WaitResult = RHI::ERHIResult::Success;
+            bool Completed = false;
+            Ready = ModeContext.PollRender(90,0,Completed) == RHI::ERHIResult::Success && Completed;
+            const auto PresentationFence = Core::MakeShared<FPreviewSubmissionFence>();
+            RHI::FRHIPresentationLease Presentation; Presentation.Frame = OldTarget.Frame;
+            Presentation.PresentationCompletionFence = PresentationFence;
+            Ready = Ready && ModeContext.QueuePresentation(90,0,Presentation) == RHI::ERHIResult::Success &&
+                ModeContext.RetireRenderResources(90,0) == RHI::ERHIResult::Success;
+            const auto Bytes = ModeContext.Snapshot().ActiveAttachmentBytes;
+            auto InvalidMode = ModeSettings; InvalidMode.ManualExposureStops = 17;
+            Record(Result,Ready && ModeContext.ReconfigureOutputSettings(InvalidMode) != RHI::ERHIResult::Success &&
+                ModeContext.Snapshot().ActiveAttachmentBytes == Bytes,
+                "invalid output recreation preserves the drained reusable render bundles");
+            const auto Reconfigured = ModeContext.ReconfigureOutputSettings(ModeSettings);
+            Record(Result,Ready && Reconfigured == RHI::ERHIResult::Success &&
+                ModeContext.Snapshot().ActiveAttachmentBytes == 0 && ModeContext.Snapshot().RetainedPresentationCount == 1 &&
+                !PresentationFence->IsSignaled() && OldTarget.Texture->GetLifecycleState() == RHI::ERHIResourceLifecycleState::Valid,
+                "same-extent format change releases render-only bundles without retiring old presentation ownership");
+            auto NewTarget = MakeTarget(91,0,1);
+            const auto Resolved = Renderer::FOutputTransformSettingsValidator().Validate(ModeSettings).Settings;
+            auto Desc = NewTarget.Texture->GetDesc(); Desc.Format = Resolved.OutputFormat;
+            NewTarget.Texture = Device->CreateTexture(Desc).Object;
+            NewTarget.Frame.Format = Resolved.OutputFormat; NewTarget.Frame.ColorSpace = Resolved.ColorSpace;
+            ++NewTarget.Frame.ModeGeneration; ++NewTarget.Frame.SwapchainImageGeneration;
+            auto NewFrame = Config.Composition; NewFrame.FrameToken = 91;
+            const bool NewRecorded = ModeContext.ReserveFrame(91,0) == RHI::ERHIResult::Success &&
+                ModeContext.BeginFrame(91,0,NewTarget) == RHI::ERHIResult::Success &&
+                ModeContext.RecordFrame(91,0,NewFrame) == RHI::ERHIResult::Success;
+            const auto* Resources = ModeContext.GetResources(91,0);
+            Record(Result,NewRecorded && Resources && Resources->OutputTransformPlan.OutputDesc.Format == Resolved.OutputFormat &&
+                Resources->OutputTransformPlan.ResolvedSettings.DynamicRange == Renderer::EOutputDynamicRange::HDR &&
+                ModeContext.Snapshot().ActiveAttachmentBytes <= FLabProductionFrameLimits::MaxAttachmentBytes,
+                "new borrowed HDR format rebuilds a bounded slot with the new output policy");
+            (void)ModeContext.CancelFrame(91,0); (void)ModeContext.RetireCancelled(91,0);
+            PresentationFence->WaitResult = RHI::ERHIResult::Success;
+            bool Retired = false; (void)ModeContext.PollPresentation(90,0,Retired);
+            Record(Result,Retired && ModeContext.Shutdown() == RHI::ERHIResult::Success,
+                "output recreation fixture retires presentation only after its separate completion");
+        }
+        Device->TestQueue->SubmittedFences.clear();
+    }
     FLabProductionFrameContext Context;
     const auto SceneOwnersBefore = Config.SceneLease.use_count();
     const auto DeviceOwnersBefore = Config.Device.use_count();
