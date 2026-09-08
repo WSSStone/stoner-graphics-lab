@@ -23,6 +23,7 @@ struct FImGuiLabAdapter::FImpl
     Stoner::RHI::ERHIResult TextureResult = Stoner::RHI::ERHIResult::Unsupported;
     Stoner::Core::uint64 TextureFrame = 0;
     FUILabCapture Capture;
+    FImGuiDiagnosticRange DiagnosticRange;
     Stoner::Core::FString Clipboard;
     EApplicationResult ClipboardResult = EApplicationResult::Success;
     std::array<char, 65537> Text{};
@@ -108,6 +109,7 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
 {
     Impl->Capture = {};
     Impl->bDrawReady = false;
+    Impl->DiagnosticRange = {};
     Impl->VertexCount = 0;
     if (!Impl->bReady || !Impl->Context || !Impl->Window || !Impl->Window->IsActive()) return EApplicationResult::InvalidLifecycle;
     if (Events.size() > 4096 || Display.DisplayGeneration < Impl->DisplayGeneration ||
@@ -150,6 +152,56 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     const bool HideRequested = ImGui::Button("Hide UI (F1)");
     if (Runtime)
     {
+        if (Requested && Effective && EditSettings && Capabilities &&
+            ImGui::CollapsingHeader("Diagnostic view",ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (Effective->DebugBypass.Mode==Stoner::Renderer::EOutputTransformDebugBypassMode::BoundedVisualization && Impl->Textures)
+            {
+                auto* List=ImGui::GetWindowDrawList();
+                const auto First=static_cast<Stoner::Core::uint32>(List->IdxBuffer.Size);
+                const float Width=std::max(1.0f,std::min(384.0f,ImGui::GetContentRegionAvail().x));
+                ImGui::Image(IO.Fonts->TexRef,ImVec2(Width,Width*Display.DrawableExtent.Height/Display.DrawableExtent.Width));
+                const auto Count=static_cast<Stoner::Core::uint32>(List->IdxBuffer.Size)-First;
+                if (Count) Impl->DiagnosticRange={List,First,Count};
+            }
+            auto Candidate=*Requested;
+            ImGui::BeginDisabled(!bEditsEnabled);
+            const char* Mode=Candidate.DebugBypass.Mode==Stoner::Renderer::EOutputTransformDebugBypassMode::Disabled
+                ? "Disabled" : Candidate.DebugBypass.Mode==Stoner::Renderer::EOutputTransformDebugBypassMode::BoundedVisualization
+                ? "Image" : "NumericReadback";
+            const auto SetMode=[&](Stoner::Renderer::EOutputTransformDebugBypassMode Value) {
+                if (Value==Stoner::Renderer::EOutputTransformDebugBypassMode::Disabled) Candidate.DebugBypass={};
+                else
+                {
+                    Candidate.DebugBypass.Mode=Value;
+                    if (Candidate.DebugBypass.StageName.IsEmpty())
+                    { Candidate.DebugBypass.StageName="SceneColorHandoff";
+                      Candidate.DebugBypass.SourceDomain=Stoner::Renderer::ERenderGraphColorDomain::SceneLinearRec709D65; }
+                }
+                (void)EditSettings(Candidate);
+            };
+            if (ImGui::BeginCombo("Diagnostic mode",Mode))
+            {
+                if (ImGui::Selectable("Disabled")) SetMode(Stoner::Renderer::EOutputTransformDebugBypassMode::Disabled);
+                if (ImGui::Selectable("Image")) SetMode(Stoner::Renderer::EOutputTransformDebugBypassMode::BoundedVisualization);
+                if (ImGui::Selectable("NumericReadback")) SetMode(Stoner::Renderer::EOutputTransformDebugBypassMode::HDRPreservingReadback);
+                ImGui::EndCombo();
+            }
+            ImGui::BeginDisabled(Candidate.DebugBypass.Mode==Stoner::Renderer::EOutputTransformDebugBypassMode::Disabled);
+            if (ImGui::BeginCombo("Diagnostic stage",Candidate.DebugBypass.StageName.CStr()))
+            {
+                for (const auto& Stage : Capabilities->DebugStages)
+                    if ((Stage.ProfileId.IsEmpty() || Stage.ProfileId==Effective->EffectiveProfileId) &&
+                        ImGui::Selectable(Stage.Name.CStr(),Candidate.DebugBypass.StageName==Stage.Name))
+                    { Candidate.DebugBypass.StageName=Stage.Name; Candidate.DebugBypass.SourceDomain=Stage.Domain; (void)EditSettings(Candidate); }
+                ImGui::EndCombo();
+            }
+            const bool Minimum=ImGui::InputFloat("Range minimum",&Candidate.DebugBypass.VisualizationMinimum);
+            const bool Maximum=ImGui::InputFloat("Range maximum",&Candidate.DebugBypass.VisualizationMaximum);
+            if (Minimum || Maximum) (void)EditSettings(Candidate);
+            ImGui::EndDisabled(); ImGui::EndDisabled();
+            ImGui::TextUnformatted("Diagnostic only. Selection does not request a capture.");
+        }
         if (ImGui::CollapsingHeader("Loaded scene",ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::TextWrapped("Workload: %s",Runtime->Workload.CStr());
@@ -307,7 +359,8 @@ Stoner::RHI::ERHIResult FImGuiLabAdapter::ExtractSnapshot(const FAcquireTexture&
     ImGui::SetCurrentContext(Impl->Context);
     return FImGuiDrawAdapter::Extract(*ImGui::GetDrawData(),
         [&](Stoner::Core::uint64 Token) { return AcquireTexture(Impl->Textures->Resolve(Token)); },
-        Impl->DrawableWidth, Impl->DrawableHeight, OutSnapshot);
+        Impl->DrawableWidth, Impl->DrawableHeight, OutSnapshot,
+        Impl->DiagnosticRange.IndexCount ? &Impl->DiagnosticRange : nullptr);
 }
 
 const char* FImGuiLabAdapter::GetTextureDiagnostic() const noexcept { return Impl->Textures ? Impl->Textures->GetDiagnostic() : "ui-textures-unavailable"; }

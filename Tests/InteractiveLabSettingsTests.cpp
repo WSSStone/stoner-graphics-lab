@@ -155,5 +155,36 @@ int RunInteractiveLabSettingsTests()
         Fallback.GetEffective().EffectiveProfileId == "Hdr.Linear.1000.v1" && Fallback.GetEffective().ExposureStops == 3 &&
         Fallback.GetEffective().SdrToneMapVersion == "Sdr.NarkowiczAcesFit.v1",
         "restored HDR consumes parameter edits made during fallback and retains the remembered SDR strategy");
+    {
+        auto ScopedCaps=Caps; ScopedCaps.DisplayGeneration=1;
+        ScopedCaps.Outputs={{"Sdr.sRGB.v1",100,100},{"Hdr.Linear.1000.v1",203,203}};
+        ScopedCaps.DebugStages={{"SDRToneMap",ERenderGraphColorDomain::DisplayLinearRec709D65,"Sdr.sRGB.v1"},
+            {"HDRViewingTransform",ERenderGraphColorDomain::DisplayLinearRec709D65,"Hdr.Linear.1000.v1"}};
+        FLabSettingsController Scoped;
+        auto ScopedEdit=Initial;
+        Check(Scoped.Initialize(Initial,ScopedCaps),"diagnostic stages can be scoped to output profiles");
+        ScopedEdit.DebugBypass={EOutputTransformDebugBypassMode::BoundedVisualization,"HDRViewingTransform",
+            ERenderGraphColorDomain::DisplayLinearRec709D65,2,8};
+        Check(!Scoped.Request(ScopedEdit),"a stage from another output profile rejects despite sharing its color domain");
+        ScopedEdit.RequestedProfileId="Hdr.Linear.1000.v1";
+        Check(Scoped.Request(ScopedEdit),"HDR diagnostic intent is accepted with its matching output");
+        auto Transaction=Scoped.BeginEligible(true);
+        Check(Transaction && Scoped.Complete(Transaction->Token,true,true),"HDR diagnostic commits as one complete settings snapshot");
+        ScopedCaps.DisplayGeneration=2; ScopedCaps.Outputs.resize(1);
+        const bool Lost=Scoped.RefreshCapabilities(ScopedCaps,false);
+        Transaction=Scoped.BeginEligible(true);
+        Check(Lost && Transaction && Scoped.Complete(Transaction->Token,true,true) &&
+            Scoped.GetEffective().EffectiveProfileId=="Sdr.sRGB.v1" &&
+            Scoped.GetEffective().DebugBypass.Mode==EOutputTransformDebugBypassMode::Disabled &&
+            Scoped.GetRequested().DebugBypass.StageName=="HDRViewingTransform",
+            "SDR fallback disables an incompatible effective widget while preserving requested HDR diagnostic intent");
+        ScopedCaps.DisplayGeneration=3; ScopedCaps.Outputs.push_back({"Hdr.Linear.1000.v1",203,203});
+        const bool Recovered=Scoped.RefreshCapabilities(ScopedCaps,true);
+        Transaction=Scoped.BeginEligible(true);
+        Check(Recovered && Transaction && Scoped.Complete(Transaction->Token,true,true) &&
+            Scoped.GetEffective().DebugBypass.StageName=="HDRViewingTransform" &&
+            Scoped.GetEffective().DebugBypass.VisualizationMinimum==2 && Scoped.GetEffective().DebugBypass.VisualizationMaximum==8,
+            "HDR recovery restores the exact requested diagnostic stage and range");
+    }
     return Failed;
 }

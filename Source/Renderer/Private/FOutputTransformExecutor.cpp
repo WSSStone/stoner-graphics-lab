@@ -293,8 +293,8 @@ bool ContainsPass(const FOutputTransformGraphDeclaration& Declaration,
             Desc.Usage, Stoner::RHI::ERHITextureUsage::ColorAttachment) ||
         (Settings.bRequirePresentation && !Stoner::RHI::HasRHIFlag(
             Desc.Usage, Stoner::RHI::ERHITextureUsage::Present)) ||
-        ((Settings.bRequireReadback ||
-             Plan.DiagnosticBypass.Mode !=
+        (Plan.ExecutionPurpose != EFrameExecutionPurpose::InteractivePreview &&
+            (Settings.bRequireReadback || Plan.DiagnosticBypass.Mode !=
                  EOutputTransformDebugBypassMode::Disabled) &&
             !Stoner::RHI::HasRHIFlag(
                 Desc.Usage, Stoner::RHI::ERHITextureUsage::CopySource)))

@@ -131,7 +131,7 @@ struct FOutputTransformPlan
 
     [[nodiscard]] bool HasDiagnosticWidget() const noexcept
     {
-        return ExecutionPurpose == EFrameExecutionPurpose::InteractivePreview && TerminalUI.has_value() &&
+        return ExecutionPurpose == EFrameExecutionPurpose::InteractivePreview && TerminalUI.has_value() && TerminalUI->bDiagnosticWidgetVisible &&
             DiagnosticBypass.Mode == EOutputTransformDebugBypassMode::BoundedVisualization;
     }
     [[nodiscard]] bool RequiresDiagnosticReadback() const noexcept

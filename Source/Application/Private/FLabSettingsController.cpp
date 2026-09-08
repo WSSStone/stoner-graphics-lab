@@ -32,8 +32,10 @@ bool ValidCapabilities(const FLabSettingsCapabilities& C)
     {
         FLabDebugBypass B; B.Mode = EOutputTransformDebugBypassMode::BoundedVisualization;
         B.StageName = C.DebugStages[I].Name; B.SourceDomain = C.DebugStages[I].Domain;
-        if (!B.IsValid()) return false;
-        for (std::size_t J = 0; J < I; ++J) if (C.DebugStages[J].Name == B.StageName) return false;
+        if (!B.IsValid() || (!C.DebugStages[I].ProfileId.IsEmpty() &&
+            !Validator.FindProfile(C.DebugStages[I].ProfileId))) return false;
+        for (std::size_t J = 0; J < I; ++J) if (C.DebugStages[J].Name == B.StageName &&
+            C.DebugStages[J].ProfileId == C.DebugStages[I].ProfileId) return false;
     }
     return true;
 }
@@ -59,11 +61,18 @@ bool FLabSettingsController::Resolve(const FLabSettingsSnapshot& Input, FLabSett
     }
     if (Found == Capabilities.Outputs.end()) { Failure = "Requested output unavailable; no permitted output transition"; return false; }
     const auto& Debug = Input.DebugBypass;
-    if (Debug.Mode != EOutputTransformDebugBypassMode::Disabled &&
+    const bool DebugUnavailable = Debug.Mode != EOutputTransformDebugBypassMode::Disabled &&
         std::none_of(Capabilities.DebugStages.begin(),Capabilities.DebugStages.end(),[&](const auto& Stage) {
-            return Debug.IsValidForResolvedStageDomain(Stage.Name,Stage.Domain);
-        })) { Failure = "Debug stage or color domain unavailable"; return false; }
+            return (Stage.ProfileId.IsEmpty() || Stage.ProfileId == Found->ProfileId) &&
+                Debug.IsValidForResolvedStageDomain(Stage.Name,Stage.Domain);
+        });
+    const auto& Prior = Requested.DebugBypass;
+    const bool RetainedFallback = Fallback && Found->ProfileId != Input.RequestedProfileId &&
+        Debug.Mode == Prior.Mode && Debug.StageName == Prior.StageName && Debug.SourceDomain == Prior.SourceDomain &&
+        Debug.VisualizationMinimum == Prior.VisualizationMinimum && Debug.VisualizationMaximum == Prior.VisualizationMaximum;
+    if (DebugUnavailable && !RetainedFallback) { Failure = "Debug stage or color domain unavailable"; return false; }
     Out = Input;
+    if (DebugUnavailable) Out.DebugBypass = {};
     Out.EffectiveProfileId = Found->ProfileId;
     Out.DisplayGeneration = Capabilities.DisplayGeneration;
     Out.UIReferenceWhiteNits = Found->ReferenceWhiteNits;

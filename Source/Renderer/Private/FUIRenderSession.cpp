@@ -39,7 +39,7 @@ struct FUIRenderSession::FImpl
 {
     TSharedPtr<IRHIDevice> Device;
     TSharedPtr<FUITextureRegistry> Registry;
-    uint64 SessionId = 0, LastPreparedFrameId = 0;
+    uint64 SessionId = 0, LastPreparedFrameId = 0, TextureServiceFrameId = 0;
     std::array<std::weak_ptr<FUIRenderFrame::FImpl>,2> Frames;
 };
 FUIRenderSession::FUIRenderSession(TSharedPtr<IRHIDevice> Device, uint64 SessionId)
@@ -50,7 +50,7 @@ FUIRenderSession::FUIRenderSession(TSharedPtr<IRHIDevice> Device, uint64 Session
 }
 FUIRenderSession::~FUIRenderSession() = default;
 void FUIRenderSession::BeginEligibleFrame(uint64 FrameId,bool bEligible) noexcept
-{ Impl->Registry->BeginEligibleFrame(FrameId,bEligible); }
+{ Impl->Registry->BeginEligibleFrame(FrameId,bEligible); Impl->TextureServiceFrameId=std::max(Impl->TextureServiceFrameId,FrameId); }
 FUITextureResult FUIRenderSession::PrepareTexture(const FUITextureRequest& Request)
 { return Impl->Registry->Prepare(Request); }
 FUITextureLease FUIRenderSession::AcquireTexture(FUITextureId Id) const noexcept
@@ -89,7 +89,7 @@ ERHIResult FUIRenderSession::PrepareFrame(const FUIDrawSnapshot& Snapshot,
                 Diagnostic->Selection,Diagnostic->Shaders,Diagnostic->RemainingAttachmentBytes,Candidate->Impl->Diagnostic);
             if (Result != ERHIResult::Success) return Result;
             Candidate->Impl->DiagnosticGraph = Diagnostic->Graph;
-            GpuContext = {Diagnostic->Graph.get(),Diagnostic->Consumer,Snapshot.GetFrameId(),Revision,Settings.DisplayGeneration};
+            GpuContext = {Diagnostic->Graph.get(),Diagnostic->Consumer,Snapshot.GetFrameId(),Revision,Settings.DisplayGeneration,Impl->TextureServiceFrameId};
             FUIGpuTextureRegistration Registration{0,{},Candidate->Impl->Diagnostic.GetOutput(),Diagnostic->Resource,Diagnostic->Producer};
             Result = Impl->Registry->RegisterGpuTexture(Registration,GpuContext,Candidate->Impl->DiagnosticId);
             if (Result != ERHIResult::Success) return Result;

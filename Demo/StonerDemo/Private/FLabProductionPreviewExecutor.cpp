@@ -20,6 +20,7 @@ public:
           Cancel(std::move(InCancel)) {}
 
     bool SupportsTerminalUI() const noexcept override { return true; }
+    bool SupportsDiagnosticWidgets() const noexcept override { return true; }
 
     ERHIResult Acquire(const FOutputTransformPlan&,
         FOutputTransformNativeFrameBinding&) override { return ERHIResult::Unsupported; }
@@ -187,31 +188,36 @@ Renderer::FOutputTransformPreviewResult RecordLabProductionPreview(
     const FProductionContentComposition& Composition, Core::uint32 Slot,
     const RHI::FRHIResolvedPresentationState& Resolved,
     FLabPreviewCancelCallback Cancel, Renderer::FOutputTransformPreviewTicket& OutTicket,
-    const FLabProductionFrameContext::FPrepareUI& PrepareUI)
+    const FLabProductionFrameContext::FPrepareUI& PrepareUI, Core::FString* OutReason)
 {
+    if (OutReason) OutReason->Clear();
     Renderer::FOutputTransformPreviewResult Failure;
     Failure.Result = Renderer::EOutputTransformResult::InvalidBinding;
     Failure.NativeResult = RHI::ERHIResult::InvalidState;
     RHI::FRHIBorrowedAcquiredTarget Target;
     if (!Context || !Cancel || OutTicket.GetTicketId() != 0 ||
         !Context->GetAcquiredTarget(Composition.FrameToken, Slot, Target) ||
-        !Target.Frame.Matches(Resolved)) return Failure;
-    const auto Recorded = Context->RecordFrame(Composition.FrameToken, Slot, Composition, nullptr, PrepareUI);
+        !Target.Frame.Matches(Resolved))
+    { if (OutReason) *OutReason="preview acquired target identity mismatch"; return Failure; }
+    const auto Recorded = Context->RecordFrame(Composition.FrameToken, Slot, Composition, OutReason, PrepareUI);
     if (Recorded != RHI::ERHIResult::Success)
     {
         Failure.NativeResult = Recorded;
         return Failure;
     }
     const auto* Resources = Context->GetResources(Composition.FrameToken, Slot);
-    if (!Resources || !Resources->Bindings.Readbacks.empty()) return Failure;
+    if (!Resources || !Resources->Bindings.Readbacks.empty())
+    { if (OutReason) *OutReason="preview resources unavailable or contain readbacks"; return Failure; }
     auto OutputGraph=Resources->PreviewOutputGraph;
     if (!OutputGraph && !FProductionContentDeferredExecutionBuilder::BuildPreviewGraph(
         Composition,Resources->OutputSettings,
         Resources->OutputTransformPlan.TerminalUI ? &*Resources->OutputTransformPlan.TerminalUI : nullptr,
-        Target.Frame.Format,OutputGraph)) return Failure;
+        Target.Frame.Format,OutputGraph))
+    { if (OutReason) *OutReason="preview output graph construction failed"; return Failure; }
     const auto& Plan=OutputGraph->Plan;
     if (Plan.FrameToken!=Composition.FrameToken ||
-        Plan.PlanFingerprint!=Resources->OutputTransformPlan.PlanFingerprint) return Failure;
+        Plan.PlanFingerprint!=Resources->OutputTransformPlan.PlanFingerprint)
+    { if (OutReason) *OutReason="preview output graph fingerprint mismatch"; return Failure; }
     Renderer::FOutputTransformExecutionBindings Bindings;
     Bindings.SceneColorExternalToken = Composition.FrameToken;
     Bindings.PreviewFrameExecutor = Core::MakeShared<FLabPreviewExecutor>(

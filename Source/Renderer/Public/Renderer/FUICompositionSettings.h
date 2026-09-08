@@ -17,6 +17,7 @@ struct FUICompositionSettings
     float UIReferenceWhiteNits = 0.0f;
     float NativePackingWhiteNits = 0.0f;
     Stoner::Core::uint64 DisplayGeneration = 0;
+    bool bDiagnosticWidgetVisible = true;
 
     [[nodiscard]] bool IsValid() const noexcept;
 };

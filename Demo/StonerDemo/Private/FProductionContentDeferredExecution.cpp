@@ -1151,14 +1151,15 @@ ERHIResult FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
             CandidateOutputPlan.ResolvedSettings.DynamicRange == EOutputDynamicRange::SDR
                 ? EOutputTransformStageKind::SDRToneMap : EOutputTransformStageKind::HDRViewingTransform,
             EOutputTransformStageKind::OutputDeviceTransform};
-        if (InOutResources.OutputParameterBuffers.size() != 3) return ERHIResult::InvalidState;
+        if (InOutResources.OutputParameterBuffers.size() != 3)
+        { Fail(OutReason,"preview output requires three parameter buffers"); return ERHIResult::InvalidState; }
         std::array<FOutputTransformShaderParameterPayload,3> Payloads;
         for (std::size_t I = 0; I < 3; ++I)
         {
             Payloads[I] = Pipeline.BuildShaderParameterPayload(CandidateOutputPlan.ResolvedSettings,Kinds[I]);
             const auto& Buffer = InOutResources.OutputParameterBuffers[I];
             if (!Payloads[I].IsValid() || !Buffer || Buffer->GetDesc().MemoryAccess != ERHIMemoryAccess::HostVisible)
-                return ERHIResult::InvalidState;
+            { Fail(OutReason,"preview output parameter payload or host-visible buffer invalid"); return ERHIResult::InvalidState; }
         }
         // A failed upload leaves this idle slot unrecordable; the caller must
         // cancel/retry it. Submitted slots and their parameters are untouched.
@@ -1166,7 +1167,8 @@ ERHIResult FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
         {
             const auto R = Device->UploadBuffer(InOutResources.OutputParameterBuffers[I],
                 {0,Payloads[I].Bytes.data(),Payloads[I].Bytes.size()});
-            if (R != ERHIResult::Success) return R;
+            if (R != ERHIResult::Success)
+            { Fail(OutReason,"preview output parameter upload failed"); return R; }
         }
     }
     const ERHIResult UniformResult =

@@ -244,6 +244,12 @@ public:
         if (!ResolveDemoOutputTransformSettings(Config,
                 Status.Capabilities.NativeReferenceWhiteNits, Candidate, &Resolved, &Reason)) return false;
         Candidate.bRequireReadback = false;
+        Candidate.DiagnosticBypass.StageName=Settings.DebugBypass.StageName;
+        Candidate.DiagnosticBypass.Mode=Settings.DebugBypass.Mode;
+        Candidate.DiagnosticBypass.VisualizationMinimum=Settings.DebugBypass.VisualizationMinimum;
+        Candidate.DiagnosticBypass.VisualizationMaximum=Settings.DebugBypass.VisualizationMaximum;
+        if (!FProductionContentDeferredExecutionBuilder::ValidatePreviewOutputSettings(Composition,Candidate))
+        { Reason="Diagnostic selection is unavailable for this output"; return false; }
         const auto Validation = Renderer::FOutputTransformSettingsValidator().Validate(Candidate);
         if (!Validation.Succeeded()) { Reason = Validation.Diagnostics.Dump(); return false; }
         Resolved = Validation.Settings;
@@ -264,6 +270,8 @@ public:
     {
         Application::FLabSettingsCapabilities Caps;
         Caps.DisplayGeneration = Generation;
+        Caps.DebugStages.push_back({"SceneColorHandoff",Renderer::ERenderGraphColorDomain::SceneLinearRec709D65,{}});
+        Caps.DebugStages.push_back({"ManualExposure",Renderer::ERenderGraphColorDomain::SceneLinearRec709D65,{}});
         for (const auto& Profile : Renderer::FOutputTransformSettingsValidator().GetProfiles())
         {
             Application::FLabSettingsSnapshot Settings;
@@ -275,7 +283,11 @@ public:
             RHI::ERHIFormat Format;
             Core::FString Reason;
             if (ResolveOutput(Settings,Candidate,Resolved,Format,Reason))
+            {
                 Caps.Outputs.push_back({Profile.ProfileId,Resolved.ReferenceWhiteNits,Resolved.ReferenceWhiteNits});
+                Caps.DebugStages.push_back({Resolved.DynamicRange==Renderer::EOutputDynamicRange::SDR
+                    ? "SDRToneMap" : "HDRViewingTransform",Resolved.DisplayLinearDomain,Profile.ProfileId});
+            }
         }
         return Caps;
     }
@@ -559,7 +571,8 @@ public:
                     const auto* Effective = Session.GetEffectiveSettings();
                     const auto Revision = Effective ? Effective->SettingsRevision : 1;
                     Renderer::FUIDrawSnapshot Snapshot(Session.GetSessionId(),Token,Revision,Display.DisplayGeneration);
-                    if (Session.ExtractUIDrawSnapshot(Snapshot) != ERHIResult::Success) return ERHIResult::NotReady;
+                    if (Session.ExtractUIDrawSnapshot(Snapshot) != ERHIResult::Success)
+                        return ERHIResult::NotReady;
                     Renderer::FUICompositionSettings Settings;
                     Settings.OutputProfileId = OutputResolved.OutputDeviceProfileId;
                     Settings.BlendDomain = OutputResolved.DisplayLinearDomain;
@@ -570,6 +583,7 @@ public:
                     Renderer::FUIDiagnosticRenderInput Diagnostic;
                     const bool HasWidget=std::any_of(Snapshot.GetCommands().begin(),Snapshot.GetCommands().end(),
                         [](const auto& Command) { return Command.bDiagnosticWidget; });
+                    Settings.bDiagnosticWidgetVisible=HasWidget;
                     if (HasWidget)
                     {
                         if (!FProductionContentDeferredExecutionBuilder::BuildPreviewGraph(Frame,
@@ -578,9 +592,20 @@ public:
                         Diagnostic.Selection=Graph->Plan.DiagnosticBypass;
                         if (Diagnostic.Selection.SourceStageName==Core::FString("SceneColorHandoff"))
                             Diagnostic.Source=Resources.Bindings.FinalOutput;
-                        else
-                            for (const auto& Stage : Resources.Bindings.OutputTransformStages)
-                                if (Stage.Name==Diagnostic.Selection.SourceStageName) Diagnostic.Source=Stage.Output;
+                        else if (Resources.Bindings.OutputTransformStages.size()==3)
+                            for (const auto& Stage : Resources.OutputTransformPlan.Stages)
+                            {
+                                if (Stage.StageId!=Diagnostic.Selection.SourceStageId ||
+                                    Stage.Name!=Diagnostic.Selection.SourceStageName ||
+                                    Stage.OutputDomain!=Diagnostic.Selection.SourceDomain) continue;
+                                // This realization owns exactly exposure, tone/viewing and
+                                // output-transfer stages. Their log labels are not graph IDs.
+                                if (Stage.Kind==Renderer::EOutputTransformStageKind::ManualExposure)
+                                    Diagnostic.Source=Resources.Bindings.OutputTransformStages[0].Output;
+                                else if (Stage.Kind==Renderer::EOutputTransformStageKind::SDRToneMap ||
+                                    Stage.Kind==Renderer::EOutputTransformStageKind::HDRViewingTransform)
+                                    Diagnostic.Source=Resources.Bindings.OutputTransformStages[1].Output;
+                            }
                         if (!Diagnostic.Source) return ERHIResult::Unavailable;
                         Diagnostic.Graph=Core::TSharedPtr<const Renderer::FRenderGraph>(Graph,&Graph->Graph);
                         Diagnostic.Resource=Graph->Declaration.DiagnosticOutput;
@@ -600,9 +625,12 @@ public:
                 [RetainedBackend](Core::uint64 Token, Core::uint32 SlotIndex,
                     const Core::TSharedPtr<RHI::IRHIFence>& Fence, bool& Acknowledged) {
                     return RetainedBackend->CancelLabTarget(Token, SlotIndex, Fence, Acknowledged);
-                }, Slot.Ticket, PrepareUI);
+                }, Slot.Ticket, PrepareUI, &Reason);
             if (Recorded.Result != Renderer::EOutputTransformResult::Success)
-            { Fail("lab preview graph recording failed"); return; }
+            {
+                if (const auto* Error = Recorded.Diagnostics.GetFirstError()) Reason = Error->Message;
+                FailOperation("lab preview graph recording", Recorded.NativeResult, Reason); return;
+            }
             const auto Queued = Renderer::FOutputTransformExecutor().SubmitPreview(Slot.Ticket);
             Slot.bSubmitted = Queued.bQueued;
             if (Slot.bSubmitted)
@@ -617,6 +645,7 @@ public:
                 }
                 if (Resources && Resources->OutputTransformPlan.TerminalUI) ++UIFramesSubmitted;
                 else if (Session.IsUIEnabled()) ++UISceneFallbackFrames;
+                if (Resources && Resources->OutputTransformPlan.HasDiagnosticWidget()) ++DiagnosticFramesSubmitted;
             }
             if (!Queued.Accepted()) { Fail("lab preview submission failed"); return; }
             if (Budget && Submitted - CancelledSubmissions >= Budget) return;
@@ -812,7 +841,7 @@ public:
     RHI::ERHIFormat PresentationFormat = RHI::ERHIFormat::Unknown;
     Core::uint64 NextToken = 1;
     Core::uint32 Submitted = 0, Completed = 0, Presented = 0, CancelledSubmissions = 0;
-    Core::uint32 UIFramesSubmitted = 0, UISceneFallbackFrames = 0;
+    Core::uint32 UIFramesSubmitted = 0, UISceneFallbackFrames = 0, DiagnosticFramesSubmitted = 0;
     Core::uint64 LastRecordedSettingsRevision = 0;
     float LastRecordedExposureStops = 0;
     Core::FString LastRecordedTransformVersion;
@@ -984,6 +1013,7 @@ FInteractiveLabRunResult RunInteractiveLab(
     Out.LastRecordedExposureStops = Owner->LastRecordedExposureStops;
     Out.LastRecordedTransformVersion = Owner->LastRecordedTransformVersion;
     Out.UIFramesSubmitted = Owner->UIFramesSubmitted;
+    Out.DiagnosticFramesSubmitted = Owner->DiagnosticFramesSubmitted;
     Out.UISceneFallbackFrames = Owner->UISceneFallbackFrames;
     Out.FinalFrameState = Owner->Frames->Snapshot();
     Out.BeforeNativeShutdown = Owner->BeforeShutdown;
@@ -995,7 +1025,7 @@ FInteractiveLabRunResult RunInteractiveLab(
         (Started ? EDemoExitCode::FrameFailed : Out.ExitCode);
     std::cout << "InteractiveLab preview: submitted=" << Out.SubmittedFrames
         << " render-completed=" << Out.RenderCompletedFrames << " present-queued=" << Out.PresentedFrames
-        << " ui-submitted=" << Out.UIFramesSubmitted << " ui-scene-fallback=" << Out.UISceneFallbackFrames
+        << " diagnostic-submitted=" << Out.DiagnosticFramesSubmitted << " ui-submitted=" << Out.UIFramesSubmitted << " ui-scene-fallback=" << Out.UISceneFallbackFrames
         << " shutdown=" << Application::FInteractiveLabSession::ToString(Session.GetShutdownAssurance()) << '\n';
     const auto& LiveOps = Out.BeforeNativeShutdown.RuntimeSnapshot.NativeOperations;
     const auto& FinalOps = Out.AfterNativeShutdown.RuntimeSnapshot.NativeOperations;

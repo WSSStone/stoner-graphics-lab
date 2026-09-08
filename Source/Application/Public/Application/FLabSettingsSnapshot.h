@@ -93,6 +93,8 @@ struct FLabDebugStage
     Stoner::Core::FString Name;
     Stoner::Renderer::ERenderGraphColorDomain Domain =
         Stoner::Renderer::ERenderGraphColorDomain::Unspecified;
+    // Empty applies to every supported output; otherwise this exact profile.
+    Stoner::Core::FString ProfileId{};
 };
 struct FLabSettingsCapabilities
 {

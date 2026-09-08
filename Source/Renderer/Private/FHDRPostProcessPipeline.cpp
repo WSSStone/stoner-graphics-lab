@@ -109,7 +109,7 @@ Stoner::Core::FString BuildFingerprintText(
     if (TerminalUI)
         Stream << "|terminalUI=" << TerminalUI->OutputProfileId.CStr() << ':'
             << TerminalUI->UIWhiteMultiplier << ':' << TerminalUI->UIReferenceWhiteNits << ':'
-            << TerminalUI->NativePackingWhiteNits << ':' << TerminalUI->DisplayGeneration;
+            << TerminalUI->NativePackingWhiteNits << ':' << TerminalUI->DisplayGeneration << ':' << TerminalUI->bDiagnosticWidgetVisible;
     AppendComposite("pre", PreTonemap);
     AppendComposite("post", PostTonemap);
     return Stoner::Core::FString(Stream.str());

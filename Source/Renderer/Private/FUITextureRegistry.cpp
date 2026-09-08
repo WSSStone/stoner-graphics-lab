@@ -276,7 +276,7 @@ ERHIResult FUITextureRegistry::RegisterGpuTexture(const FUIGpuTextureRegistratio
 {
     if (!Device || Request.LogicalSlot>=Current.size() ||
         !ValidGpuDependency(Request,Context)) return ERHIResult::InvalidState;
-    if (!bFrameEligible || Context.FrameId!=LastFrame || FrameRequests>=64) return ERHIResult::NotReady;
+    if (!bFrameEligible || Context.TextureServiceFrameId!=LastFrame || FrameRequests>=64) return ERHIResult::NotReady;
     Poll();
     auto Slot=Request.LogicalSlot;
     if (Slot==0)
@@ -397,6 +397,7 @@ ERHIResult FUITextureRegistry::CanRecordSubmission(std::span<const FUITextureLea
             if (Leases[J].GetId() == Lease.GetId()) return ERHIResult::InvalidState;
         const auto& Record = *Lease.Record;
         if (Record.bGpuOwned && (!Context || Context->FrameId!=Record.Identity.FrameId ||
+            Context->TextureServiceFrameId!=Record.Identity.TextureServiceFrameId ||
             Context->SettingsRevision!=Record.Identity.SettingsRevision || Context->DisplayGeneration!=Record.Identity.DisplayGeneration ||
             Context->Consumer!=Record.Identity.Consumer || !ValidGpuDependency(Record.Gpu,*Context))) return ERHIResult::InvalidState;
         if (Record.State == EUITextureState::UploadQueued ||

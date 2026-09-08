@@ -685,6 +685,58 @@ void RunReplacementRecovery(int& Failed, const Demo::FDemoConfiguration& Config)
         Result.AfterNativeShutdown.RuntimeSnapshot.NativePresentation.ResidualNativeOwners == 0,
         "replacement failure recovery retains zero readbacks, live idle waits and residual native owners");
 }
+void RunDiagnosticPanel(int& Failed)
+{
+    const auto Env = [](const char* Name) { const char* Value = std::getenv(Name); return Core::FString(Value ? Value : ""); };
+    if (Env("STONER_LAB_SCENE_COOK_ROOT").IsEmpty()) return;
+    Demo::FDemoConfiguration Config;
+    Config.bInteractiveLab = true; Config.bLabUI = true;
+    Config.RunMode = Demo::EDemoRunMode::BoundedNative;
+    Config.GraphicsBackend = Env("STONER_LAB_SCENE_BACKEND") == "metal"
+        ? Demo::EDemoGraphicsBackend::Metal : Demo::EDemoGraphicsBackend::Vulkan;
+    Config.bLabForceAcquireHistory = Env("STONER_LAB_SCENE_FORCE_FALLBACK") == "1";
+    Config.Workload = Demo::EDemoWorkload::ProductionContent;
+    Config.RenderPath = Demo::EDemoRenderPath::DeferredFull;
+    Config.ClientWidth = 640; Config.ClientHeight = 480; Config.FrameBudget = 18;
+    Config.MemorySampleInterval = 120;
+    Config.MaxMemoryGrowthBytes = 16ULL * 1024ULL * 1024ULL; Config.MaxMemoryGrowthPercent = 10;
+    Config.CookedPublicationRoot = Env("STONER_LAB_SCENE_COOK_ROOT");
+    Config.StrictGeneration = Env("STONER_LAB_SCENE_GENERATION");
+    Config.ProductionRoot = Env("STONER_LAB_SCENE_ROOT");
+    Config.WorkloadRevision = Env("STONER_LAB_SCENE_WORKLOAD");
+    Config.TargetProfilePath = Env("STONER_LAB_SCENE_PROFILE");
+    Config.LeaseCoordinationRoot = Env("STONER_LAB_SCENE_LEASE_ROOT");
+    for (int Case=0; Case<4; ++Case)
+    {
+        Config.bLabUI=Case!=3;
+        bool Edited=false;
+        const auto Result=Demo::RunInteractiveLab(Config,Demo::FDemoBackendFactory(),{},
+            [&](Application::FInteractiveLabSession& Session,Core::uint32 Presented) {
+                if (Edited || Presented<2 || !Session.GetRequestedSettings()) return;
+                auto Edit=*Session.GetRequestedSettings();
+                Edit.DebugBypass.Mode=Case==2 ? Renderer::EOutputTransformDebugBypassMode::HDRPreservingReadback
+                    : Renderer::EOutputTransformDebugBypassMode::BoundedVisualization;
+                Edit.DebugBypass.StageName=Case==1 ? "SDRToneMap" : "ManualExposure";
+                Edit.DebugBypass.SourceDomain=Case==1 ? Renderer::ERenderGraphColorDomain::DisplayLinearRec709D65
+                    : Renderer::ERenderGraphColorDomain::SceneLinearRec709D65;
+                Edit.DebugBypass.VisualizationMinimum=2; Edit.DebugBypass.VisualizationMaximum=8;
+                Edited=Session.RequestSettings(Edit);
+            });
+        const bool Widget=Case<2;
+        std::cout << "[INFO] diagnostic case=" << Case << " submitted=" << Result.DiagnosticFramesSubmitted
+                  << " ui=" << Result.UIFramesSubmitted << " prepare=" << static_cast<int>(Result.FinalFrameState.LastUIPreparationResult)
+                  << " peak=" << Result.FinalFrameState.PeakAttachmentBytes << " failure=" << Result.FirstFailure.CStr() << '\n';
+        Check(Failed,Edited && Result.ExitCode==Demo::EDemoExitCode::Success && Result.PresentedFrames==18 &&
+            (Widget ? Result.DiagnosticFramesSubmitted>0 : Result.DiagnosticFramesSubmitted==0),
+            "native diagnostic selection renders visible image modes and skips numeric or UI-hidden images");
+        const auto& Ops=Result.BeforeNativeShutdown.RuntimeSnapshot.NativeOperations;
+        Check(Failed,Ops.bAvailable && Ops.ImageReadbackCopyCount==0 && Ops.ReadbackMapCount==0 &&
+            Ops.ReadbackWaitCount==0 && Ops.QueueIdleCallCount==0 && Ops.DeviceIdleCallCount==0 &&
+            Result.FinalFrameState.ActiveAttachmentBytes==0 && Result.FinalFrameState.BusySlotCount==0 &&
+            Result.AfterNativeShutdown.RuntimeSnapshot.NativePresentation.ResidualNativeOwners==0,
+            "diagnostic panel submissions retain zero implicit readbacks, live idles and final owners");
+    }
+}
 void RunOutputSwitches(int& Failed)
 {
     const auto Env = [](const char* Name) { const char* Value = std::getenv(Name); return Core::FString(Value ? Value : ""); };
@@ -820,5 +872,13 @@ int RunDemoLabPresentationNativeTests()
 #endif
     RunSceneLifecycle(Failed);
     RunOutputSwitches(Failed);
+    RunDiagnosticPanel(Failed);
     return Failed == 0 ? 0 : 1;
+}
+
+int RunDemoLabDiagnosticsNativeTests()
+{
+    if (std::getenv("STONER_REQUIRE_DEMO_LAB_NATIVE") == nullptr)
+    { std::cout << "[SKIP] diagnostic panel requires native lab fixtures\n"; return 0; }
+    int Failed=0; RunDiagnosticPanel(Failed); return Failed==0 ? 0 : 1;
 }

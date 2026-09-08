@@ -194,7 +194,7 @@ int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders&
             }
             if (Second) (void)Second->CancelAfterCommandDiscard();
             if (Third) (void)Third->CancelAfterCommandDiscard();
-            Session.BeginEligibleFrame(4,true);
+            Session.BeginEligibleFrame(140,true);
             auto Graph = Core::MakeShared<FRenderGraph>("session diagnostic");
             auto Builder = Graph->CreateBuilder();
             const auto Resource = Builder.CreateTexture("widget",16,16,ERHIFormat::R8G8B8A8_sRGB,

@@ -15,6 +15,8 @@ struct FUIGpuTextureContext
     const FRenderGraph* Graph = nullptr;
     FRenderGraphPassHandle Consumer;
     Stoner::Core::uint64 FrameId = 0, SettingsRevision = 0, DisplayGeneration = 0;
+    // UI service cadence owns request budgets; it is not the GPU frame token.
+    Stoner::Core::uint64 TextureServiceFrameId = 0;
 };
 struct FUIGpuTextureRegistration
 {

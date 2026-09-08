@@ -55,7 +55,7 @@ int RunUINativeRasterFixture(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDev
             P.Accesses.push_back({Resource,ERenderGraphAccessType::Read,ERenderGraphResourceState::Read});
             const auto Consumer=Builder.AddPass(P); (void)Builder.AddDependency(Producer,Consumer);
             (void)Graph.Compile();
-            FUIGpuTextureContext Gpu{&Graph,Consumer,1,1,1};
+            FUIGpuTextureContext Gpu{&Graph,Consumer,1,1,1,1};
             FUITextureRegistry Registry(Device); Registry.BeginEligibleFrame(1,true); FUITextureId Id;
             if (!Check(Registry.RegisterGpuTexture({1,{},Diagnostic.GetOutput(),Resource,Producer},Gpu,Id)==ERHIResult::Success,
                 "native GPU diagnostic registers the exact producer and sampled texture generation")) return;

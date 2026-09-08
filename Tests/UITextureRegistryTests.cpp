@@ -280,7 +280,7 @@ int RunUITextureRegistryTests()
         FRHITextureDesc Desc; Desc.Width=Desc.Height=4; Desc.Format=ERHIFormat::R8G8B8A8_sRGB; Desc.Usage=Usage;
         auto Texture=Device->CreateTexture(Desc).Object;
         FUIGpuTextureRegistration Request{1,{},Texture,Resource,Producer};
-        FUIGpuTextureContext Context{&Graph,Consumer,1,2,3};
+        FUIGpuTextureContext Context{&Graph,Consumer,1,2,3,1};
         FUITextureId Id;
         auto Wrong=Context; Wrong.Consumer=Producer;
         Check(Registry.RegisterGpuTexture(Request,Wrong,Id)==ERHIResult::InvalidState && !Id.IsValid(),
@@ -298,7 +298,7 @@ int RunUITextureRegistryTests()
         Check(Registry.RegisterGpuTexture(Request,Context,Rejected)==ERHIResult::InvalidState,
             "encoded diagnostic pixels require sampled sRGB rather than encoded UNorm filtering");
         Request.Texture=Texture; Request.LogicalSlot=1;
-        Wrong=Context; ++Wrong.FrameId;
+        Wrong=Context; ++Wrong.TextureServiceFrameId;
         Check(Registry.RegisterGpuTexture(Request,Wrong,Rejected)==ERHIResult::NotReady,
             "GPU registration cannot use a different eligible frame");
         auto Lease=Registry.Acquire(Id);
