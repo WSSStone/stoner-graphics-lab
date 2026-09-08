@@ -28,6 +28,7 @@ struct FMetalCommandRecord
     RHI::FRHIBufferCopyRange BufferCopy;
     RHI::FRHITextureCopyRegion TextureCopy;
     RHI::FRHITextureBufferCopyRegion TextureToBufferCopy;
+    RHI::FRHIBufferTextureCopyRegion BufferToTextureCopy;
     RHI::FRHIIndexedDrawArguments IndexedDraw;
     RHI::FRHIViewport Viewport;
     RHI::FRHIScissorRect Scissor;
@@ -99,6 +100,10 @@ public:
         Core::uint64 OffsetBytes = 0) override;
     RHI::ERHIResult BindDescriptorSet(
         const Core::TSharedPtr<RHI::IRHIDescriptorSet>& DescriptorSet) override;
+    RHI::ERHIResult RecordBufferToTextureCopy(
+        const Core::TSharedPtr<RHI::IRHIBuffer>& Source,
+        const Core::TSharedPtr<RHI::IRHITexture>& Destination,
+        RHI::FRHIBufferTextureCopyRegion Region) override;
     RHI::ERHIResult RecordTextureToBufferCopy(
         const Core::TSharedPtr<RHI::IRHITexture>& Source,
         const Core::TSharedPtr<RHI::IRHIBuffer>& Destination,

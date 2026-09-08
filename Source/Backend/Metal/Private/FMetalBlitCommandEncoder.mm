@@ -72,6 +72,29 @@ RHI::ERHIResult EncodeMetalBlitCommand(
                     Region.DestinationX, Region.DestinationY,
                     Region.DestinationZ)];
     }
+    else if (Record.Type == RHI::ERHISymbolicCommandType::BufferToTextureCopy)
+    {
+        const auto Source = std::dynamic_pointer_cast<FMetalBuffer>(Record.BufferA);
+        const auto Destination = std::dynamic_pointer_cast<FMetalTexture>(Record.TextureA);
+        if (!Source || !Destination) return Fail(RHI::ERHIResult::InvalidState);
+        const auto& Region = Record.BufferToTextureCopy;
+        RHI::FRHITextureFootprint Footprint;
+        const auto RowTexels = Region.SourceRowLengthTexels ? Region.SourceRowLengthTexels : Region.Width;
+        const auto ImageRows = Region.SourceImageHeightTexels ? Region.SourceImageHeightTexels : Region.Height;
+        if (!RHI::TryGetRHITextureFootprint(Destination->GetFormat(), RowTexels, ImageRows, 1, Footprint))
+            return Fail(RHI::ERHIResult::Unsupported);
+        if (Footprint.TightRowBytes % 256 != 0 || Region.SourceOffsetBytes % 256 != 0)
+            return Fail(RHI::ERHIResult::Unsupported);
+        [Encoder copyFromBuffer:Source->GetNativeBuffer()
+                   sourceOffset:Region.SourceOffsetBytes
+              sourceBytesPerRow:Footprint.TightRowBytes
+            sourceBytesPerImage:Footprint.TotalBytes
+                     sourceSize:MTLSizeMake(Region.Width, Region.Height, Region.Depth)
+                      toTexture:Destination->GetNativeTexture()
+               destinationSlice:Region.DestinationArrayLayer
+               destinationLevel:Region.DestinationMipLevel
+              destinationOrigin:MTLOriginMake(Region.DestinationX, Region.DestinationY, Region.DestinationZ)];
+    }
     else if (Record.Type == RHI::ERHISymbolicCommandType::TextureToBufferCopy)
     {
         const auto Source = std::dynamic_pointer_cast<FMetalTexture>(Record.TextureA);

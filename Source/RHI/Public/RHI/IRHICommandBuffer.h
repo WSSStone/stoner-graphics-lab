@@ -9,6 +9,7 @@
 #include "RHI/ERHIResult.h"
 #include "RHI/FRHIRenderPassDesc.h"
 #include "RHI/FRHITextureBufferCopyRegion.h"
+#include "RHI/FRHIBufferTextureCopyRegion.h"
 
 namespace Stoner::RHI
 {
@@ -49,7 +50,8 @@ enum class ERHISymbolicCommandType
     BindDescriptorSet,
     TextureToBufferCopy,
     SetViewport,
-    SetScissor
+    SetScissor,
+    BufferToTextureCopy
 };
 
 struct FRHIBufferCopyRange
@@ -182,6 +184,11 @@ public:
     }
     virtual ERHIResult RecordTextureToBufferCopy(const Stoner::Core::TSharedPtr<IRHITexture>&,
         const Stoner::Core::TSharedPtr<IRHIBuffer>&, FRHITextureBufferCopyRegion)
+    {
+        return ERHIResult::Unsupported;
+    }
+    virtual ERHIResult RecordBufferToTextureCopy(const Stoner::Core::TSharedPtr<IRHIBuffer>&,
+        const Stoner::Core::TSharedPtr<IRHITexture>&, FRHIBufferTextureCopyRegion)
     {
         return ERHIResult::Unsupported;
     }

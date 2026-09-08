@@ -497,6 +497,44 @@ RHI::ERHIResult FMetalCommandBuffer::BindDescriptorSet(
     return Append(std::move(Record));
 }
 
+RHI::ERHIResult FMetalCommandBuffer::RecordBufferToTextureCopy(
+    const Core::TSharedPtr<RHI::IRHIBuffer>& Source,
+    const Core::TSharedPtr<RHI::IRHITexture>& Destination,
+    RHI::FRHIBufferTextureCopyRegion Region)
+{
+    std::lock_guard Lock(Mutex_);
+    const auto DestinationTexture = std::dynamic_pointer_cast<FMetalTexture>(Destination);
+    const auto SourceBuffer = std::dynamic_pointer_cast<FMetalBuffer>(Source);
+    Core::uint64 ByteSize = 0;
+    if (!IsRecording() || !SupportsTransfer() || ActiveRenderPass_ ||
+        !DestinationTexture || !SourceBuffer || !DestinationTexture->IsCompatible(GetOwner()) ||
+        !SourceBuffer->IsCompatible(GetOwner()) ||
+        !TextureRegionFits(Destination, Region.DestinationMipLevel,
+            Region.DestinationArrayLayer, Region.DestinationX, Region.DestinationY,
+            Region.DestinationZ, Region.Width, Region.Height, Region.Depth) ||
+        !RHI::TryGetRHIBufferTextureCopyByteSize(
+            Region, Destination->GetFormat(), ByteSize) ||
+        !BufferRangeFits(Source, Region.SourceOffsetBytes, ByteSize) ||
+        !RHI::HasRHIFlag(Destination->GetUsage(), RHI::ERHITextureUsage::CopyDestination) ||
+        !RHI::HasRHIFlag(
+            Source->GetUsage(), RHI::ERHIBufferUsage::CopySource))
+        return RHI::ERHIResult::InvalidState;
+    const Core::uint64 RowTexels = Region.SourceRowLengthTexels == 0
+        ? Region.Width : Region.SourceRowLengthTexels;
+    if (Destination->GetDesc().Dimension != RHI::ERHITextureDimension::Texture2D ||
+        Destination->GetDesc().SampleCount != RHI::ERHISampleCount::One ||
+        (Destination->GetFormat() != RHI::ERHIFormat::R8G8B8A8_UNorm &&
+         Destination->GetFormat() != RHI::ERHIFormat::R8G8B8A8_sRGB) ||
+        (RowTexels * 4) % 256 != 0 || Region.SourceOffsetBytes % 256 != 0)
+        return RHI::ERHIResult::Unsupported;
+    FMetalCommandRecord Record;
+    Record.Type = RHI::ERHISymbolicCommandType::BufferToTextureCopy;
+    Record.TextureA = Destination; Record.BufferA = Source;
+    Record.BufferToTextureCopy = Region;
+    return Append(std::move(Record));
+}
+
+
 RHI::ERHIResult FMetalCommandBuffer::RecordTextureToBufferCopy(
     const Core::TSharedPtr<RHI::IRHITexture>& Source,
     const Core::TSharedPtr<RHI::IRHIBuffer>& Destination,

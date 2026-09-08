@@ -7058,6 +7058,29 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ExecuteRecordedCommandsInternal(
                     return Fail(ERHIResult::InvalidState);
                 break;
             }
+            case ERHISymbolicCommandType::BufferToTextureCopy:
+            {
+                const auto [Texture, NativeTexture] = GetTexture(Record.TextureA);
+                FNativeBuffer* Buffer = GetBuffer(Record.BufferA);
+                if (!Texture || !NativeTexture || !Buffer) return Fail(ERHIResult::InvalidState);
+                VkBufferImageCopy Copy{};
+                Copy.bufferOffset = Record.BufferToTextureCopy.SourceOffsetBytes;
+                Copy.bufferRowLength = Record.BufferToTextureCopy.SourceRowLengthTexels;
+                Copy.bufferImageHeight = Record.BufferToTextureCopy.SourceImageHeightTexels;
+                Copy.imageSubresource.aspectMask = AspectFor(Texture->Desc.Format);
+                Copy.imageSubresource.mipLevel = Record.BufferToTextureCopy.DestinationMipLevel;
+                Copy.imageSubresource.baseArrayLayer = Record.BufferToTextureCopy.DestinationArrayLayer;
+                Copy.imageSubresource.layerCount = 1;
+                Copy.imageOffset = {static_cast<Stoner::Core::int32>(Record.BufferToTextureCopy.DestinationX),
+                    static_cast<Stoner::Core::int32>(Record.BufferToTextureCopy.DestinationY),
+                    static_cast<Stoner::Core::int32>(Record.BufferToTextureCopy.DestinationZ)};
+                Copy.imageExtent = {Record.BufferToTextureCopy.Width,
+                    Record.BufferToTextureCopy.Height, Record.BufferToTextureCopy.Depth};
+                if (bInsideRenderPass) return Fail(ERHIResult::InvalidState);
+                vkCmdCopyBufferToImage(CommandBuffer, Buffer->Buffer, NativeTexture->Image,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &Copy);
+                break;
+            }
             case ERHISymbolicCommandType::TextureToBufferCopy:
             {
                 const auto [Texture, NativeTexture] = GetTexture(Record.TextureA);

@@ -1,6 +1,7 @@
 // T036: packet failure fixtures precede the private validator implementation.
 // Native texture lifecycle fixtures join this suite with the registry.
 #include "FUIDrawValidator.h"
+#include "RHI/FRHIBufferTextureCopyRegion.h"
 #include <iostream>
 #include <limits>
 
@@ -39,6 +40,15 @@ FUIDrawSnapshot Packet(FUIDrawCommand Command = {3, 3, 1, {8.5f, 18.5f, 30.1f, 4
 int RunRendererUIDrawTests()
 {
     Passed = Failed = 0;
+    Stoner::RHI::FRHIBufferTextureCopyRegion Upload;
+    Upload.Width = 4; Upload.Height = 3; Upload.SourceRowLengthTexels = 64;
+    uint64 Required = 0;
+    Check(Stoner::RHI::TryGetRHIBufferTextureCopyByteSize(Upload,
+        Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm, Required) && Required == 528,
+        "upload footprint includes aligned row gaps and final tight row");
+    Upload.SourceRowLengthTexels = 3;
+    Check(!Stoner::RHI::TryGetRHIBufferTextureCopyByteSize(Upload,
+        Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm, Required), "upload rejects an undersized source pitch");
     auto C = Context();
     auto Good = Packet();
     auto V = FUIDrawValidator::Validate(Good, C);

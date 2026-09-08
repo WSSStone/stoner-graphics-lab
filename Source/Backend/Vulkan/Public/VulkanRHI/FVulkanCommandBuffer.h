@@ -40,6 +40,7 @@ struct FVulkanRecordedCommand
     Stoner::RHI::FRHIBufferCopyRange BufferCopy;
     Stoner::RHI::FRHITextureCopyRegion TextureCopy;
     Stoner::RHI::FRHITextureBufferCopyRegion TextureToBufferCopy;
+    Stoner::RHI::FRHIBufferTextureCopyRegion BufferToTextureCopy;
     Stoner::RHI::FRHIIndexedDrawArguments IndexedDraw;
     Stoner::RHI::FRHIViewport Viewport;
     Stoner::RHI::FRHIScissorRect Scissor;
@@ -88,6 +89,10 @@ public:
     Stoner::RHI::ERHIResult BindIndexBuffer(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Buffer,
         Stoner::RHI::ERHIIndexType IndexType, Stoner::Core::uint64 OffsetBytes = 0) override;
     Stoner::RHI::ERHIResult BindDescriptorSet(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIDescriptorSet>& DescriptorSet) override;
+    Stoner::RHI::ERHIResult RecordBufferToTextureCopy(
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Source,
+        const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Destination,
+        Stoner::RHI::FRHIBufferTextureCopyRegion Region) override;
     Stoner::RHI::ERHIResult RecordTextureToBufferCopy(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture>& Source,
         const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIBuffer>& Destination,
         Stoner::RHI::FRHITextureBufferCopyRegion Region) override;
