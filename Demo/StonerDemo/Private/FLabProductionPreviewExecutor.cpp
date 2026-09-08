@@ -19,6 +19,8 @@ public:
           Resolved(std::move(InResolved)), Fingerprint(std::move(InFingerprint)),
           Cancel(std::move(InCancel)) {}
 
+    bool SupportsTerminalUI() const noexcept override { return true; }
+
     ERHIResult Acquire(const FOutputTransformPlan&,
         FOutputTransformNativeFrameBinding&) override { return ERHIResult::Unsupported; }
     ERHIResult Submit(const FOutputTransformPlan&,
@@ -54,7 +56,7 @@ public:
             PassIndex >= Declaration.OrderedPasses.size() ||
             Event.PassIndex != Declaration.OrderedPasses[PassIndex].Index)
             return ERHIResult::InvalidState;
-        // RecordFrame batches the scene and its three output stages in one
+        // RecordFrame batches the scene and its prepared output/UI stages in one
         // existing Deferred command buffer. Here the exact compiled output
         // schedule is matched to that batch; it must not record a second draw.
         ++PassIndex;
@@ -184,7 +186,8 @@ Renderer::FOutputTransformPreviewResult RecordLabProductionPreview(
     const Core::TSharedPtr<FLabProductionFrameContext>& Context,
     const FProductionContentComposition& Composition, Core::uint32 Slot,
     const RHI::FRHIResolvedPresentationState& Resolved,
-    FLabPreviewCancelCallback Cancel, Renderer::FOutputTransformPreviewTicket& OutTicket)
+    FLabPreviewCancelCallback Cancel, Renderer::FOutputTransformPreviewTicket& OutTicket,
+    const FLabProductionFrameContext::FPrepareUI& PrepareUI)
 {
     Renderer::FOutputTransformPreviewResult Failure;
     Failure.Result = Renderer::EOutputTransformResult::InvalidBinding;
@@ -193,7 +196,7 @@ Renderer::FOutputTransformPreviewResult RecordLabProductionPreview(
     if (!Context || !Cancel || OutTicket.GetTicketId() != 0 ||
         !Context->GetAcquiredTarget(Composition.FrameToken, Slot, Target) ||
         !Target.Frame.Matches(Resolved)) return Failure;
-    const auto Recorded = Context->RecordFrame(Composition.FrameToken, Slot, Composition);
+    const auto Recorded = Context->RecordFrame(Composition.FrameToken, Slot, Composition, nullptr, PrepareUI);
     if (Recorded != RHI::ERHIResult::Success)
     {
         Failure.NativeResult = Recorded;
@@ -219,7 +222,8 @@ Renderer::FOutputTransformPreviewResult RecordLabProductionPreview(
     HandoffDesc.Width = Target.Frame.Width; HandoffDesc.Height = Target.Frame.Height;
     auto Handoff = Renderer::FHDRSceneColorHandoff::Declare(HandoffDesc);
     if (!Handoff.BindProducer(Scene) || !Handoff.MarkProduced()) return Failure;
-    auto Prepared = Renderer::FHDRPostProcessPipeline().Prepare(Handoff, Resources->OutputSettings);
+    auto Prepared = Renderer::FHDRPostProcessPipeline().Prepare(Handoff, Resources->OutputSettings,
+        Resources->OutputTransformPlan.TerminalUI ? &*Resources->OutputTransformPlan.TerminalUI : nullptr);
     if (!Prepared.Succeeded()) return Failure;
     auto Plan = std::move(Prepared.Plan);
     Plan.ExecutionPurpose = Renderer::EFrameExecutionPurpose::InteractivePreview;

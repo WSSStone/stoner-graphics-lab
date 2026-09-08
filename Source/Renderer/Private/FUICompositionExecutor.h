@@ -13,6 +13,7 @@ class FUICompositionFrame
 public:
     [[nodiscard]] Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> GetOutput() const noexcept;
     [[nodiscard]] bool HasDraws() const noexcept;
+    [[nodiscard]] bool CanRecord(const FUITextureRegistry& Registry) const noexcept;
 private:
     struct FImpl;
     Stoner::Core::TSharedPtr<FImpl> Impl;

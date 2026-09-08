@@ -419,6 +419,7 @@ public:
     uint32 ReadbackCopies = 0;
     uint32 PresentTransitions = 0;
     ERHIResult ResetResult = ERHIResult::Success;
+    ERHIResult BufferTextureCopyResult = ERHIResult::Success;
     uint32 ResetCalls = 0;
     ERHICommandBufferState GetState() const noexcept override { return State_; }
     ERHIQueueType GetCompatibleQueueType() const noexcept override
@@ -476,6 +477,11 @@ public:
         const TSharedPtr<IRHIBuffer>&, const TSharedPtr<IRHIBuffer>&,
         FRHIBufferCopyRange) override
     { return Record(!bInRenderPass_); }
+    ERHIResult RecordBufferToTextureCopy(
+        const TSharedPtr<IRHIBuffer>& Buffer, const TSharedPtr<IRHITexture>& Texture,
+        FRHIBufferTextureCopyRegion) override
+    { return BufferTextureCopyResult == ERHIResult::Success
+        ? Record(Buffer && Texture && !bInRenderPass_) : BufferTextureCopyResult; }
     ERHIResult RecordTextureCopy(
         const TSharedPtr<IRHITexture>&, const TSharedPtr<IRHITexture>&,
         FRHITextureCopyRegion) override

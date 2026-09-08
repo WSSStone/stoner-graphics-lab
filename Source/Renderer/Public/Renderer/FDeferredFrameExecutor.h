@@ -85,12 +85,15 @@ struct FDeferredReadbackBinding
     Stoner::RHI::FRHITextureBufferCopyRegion Region;
 };
 
+class FUIRenderFrame;
+
 struct FDeferredPostProcessStageBinding
 {
     Stoner::Core::FString Name;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> Input;
     Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> Output;
     FDeferredStageBindings Stage;
+    Stoner::Core::TSharedPtr<FUIRenderFrame> UIFrame;
 };
 
 struct FDeferredSurfaceDrawBinding
@@ -147,6 +150,7 @@ struct FDeferredFrameExecutionBindings
 struct FDeferredFrameExecutionResult
 {
     EDeferredResult Result = EDeferredResult::InvalidBinding;
+    Stoner::RHI::ERHIResult NativeResult = Stoner::RHI::ERHIResult::Success;
     EDeferredExecutionState FinalState = EDeferredExecutionState::Uninitialized;
     EDeferredPassStage LastCompletedStage = EDeferredPassStage::SurfaceData;
     Stoner::Core::uint32 RecordedPassCount = 0;

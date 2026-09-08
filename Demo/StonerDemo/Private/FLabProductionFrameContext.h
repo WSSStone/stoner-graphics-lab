@@ -11,6 +11,7 @@
 #include "RHI/IRHICommandBuffer.h"
 #include "RHI/IRHIFence.h"
 #include "RHI/IRHIDevice.h"
+#include <functional>
 
 namespace Stoner::Demo
 {
@@ -72,6 +73,7 @@ struct FLabProductionFrameContextSnapshot
     ELabProductionFrameState LastFrameState =
         ELabProductionFrameState::Free;
     Core::FString FailureReason;
+    RHI::ERHIResult LastUIPreparationResult = RHI::ERHIResult::Success;
     bool bInitialized = false;
     bool bPausedZeroExtent = false;
     bool bFailed = false;
@@ -120,11 +122,16 @@ public:
     // Updates camera/frame parameters and records the existing scene plus
     // output chain into the slot command buffer.  It does not recreate shader,
     // pipeline or scene attachment resources when the extent is unchanged.
+    using FPrepareUI = std::function<RHI::ERHIResult(
+        const Core::TSharedPtr<RHI::IRHITexture>& Scene,
+        Core::uint64 AvailableAttachmentBytes,
+        Core::TSharedPtr<Renderer::FUIRenderFrame>& OutFrame)>;
     [[nodiscard]] RHI::ERHIResult RecordFrame(
         Core::uint64 FrameToken,
         Core::uint32 SlotIndex,
         const FProductionContentComposition& FrameComposition,
-        Core::FString* OutReason = nullptr);
+        Core::FString* OutReason = nullptr,
+        const FPrepareUI& PrepareUI = {});
 
     // Submit uses the backend's asynchronous queue. Success is admission only;
     // render completion is observed separately by PollRender.

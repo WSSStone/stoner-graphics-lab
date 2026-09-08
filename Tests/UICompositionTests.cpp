@@ -1,4 +1,5 @@
 #include "FUICompositionExecutor.h"
+#include "Renderer/FUIRenderSession.h"
 #include "FInteractiveLabShaders.h"
 #include "VulkanRHI/FVulkanDevice.h"
 #include "MetalRHI/FMetalDeviceFactory.h"
@@ -152,6 +153,43 @@ int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders&
                 }
             }
             Command.reset(); // discard command before cancellation of upload reservations
+        }
+        {
+            FUIRenderSession Session(Device,7);
+            Session.BeginEligibleFrame(1,true);
+            const auto PreparedTexture = Session.PrepareTexture(Request);
+            const auto SessionLease = Session.AcquireTexture(PreparedTexture.TextureId);
+            const auto MakePacket = [&](Core::uint64 Id)
+            {
+                FUIDrawSnapshot PacketValue(7,Id,1,1);
+                auto CommandValue = Item; CommandValue.TextureId = PreparedTexture.TextureId;
+                (void)PacketValue.SetDisplay({0,0},{16,16},{1,1}); (void)PacketValue.SetVertices(Vertices);
+                (void)PacketValue.SetIndices(Indices); (void)PacketValue.SetCommands({&CommandValue,1});
+                (void)PacketValue.SetTextureLeases({&SessionLease,1}); (void)PacketValue.Publish();
+                return PacketValue;
+            };
+            Core::TSharedPtr<FUIRenderFrame> First,Second,Third;
+            const auto Prepare = [&](Core::uint64 Id,Core::TSharedPtr<FUIRenderFrame>& Out)
+            { return Session.PrepareFrame(MakePacket(Id),Settings,1,0,Scene,
+                Shaders.Draw.ModuleDescriptions,Shaders.Copy.ModuleDescriptions,Out); };
+            Check(Prepare(1,First) == ERHIResult::Success && First && First->HasDraws() &&
+                First->GetInput() == Scene && First->GetOutput() != Scene,
+                "public Renderer UI session prepares an opaque frame with private texture ownership");
+            Check(Prepare(1,Third) != ERHIResult::Success && !Third,
+                "Renderer UI session rejects replay of an already prepared frame identity");
+            Check(Prepare(2,Second) == ERHIResult::Success && Prepare(3,Third) == ERHIResult::NotReady && !Third,
+                "Renderer UI session bounds outstanding prepared frames to two");
+            if (First)
+            {
+                Check(First->ReleaseCompleted() == ERHIResult::InvalidState &&
+                    First->Commit(Device->CreateFence(false).Object) == ERHIResult::InvalidState,
+                    "unrecorded UI frame cannot claim submission or completion");
+                Check(First->CancelAfterCommandDiscard() == ERHIResult::Success && !First->GetOutput() &&
+                    Prepare(3,Third) == ERHIResult::Success,
+                    "cancelled UI frame releases its bounded preparation slot");
+            }
+            if (Second) (void)Second->CancelAfterCommandDiscard();
+            if (Third) (void)Third->CancelAfterCommandDiscard();
         }
         FUIDrawSnapshot Clipped(1,2,1,1);
         Item.ClipRect = {-20,-20,-10,-10};

@@ -21,6 +21,7 @@ using FLabPreviewCancelCallback = std::function<RHI::ERHIResult(
     Core::uint32 Slot,
     const RHI::FRHIResolvedPresentationState& Resolved,
     FLabPreviewCancelCallback Cancel,
-    Renderer::FOutputTransformPreviewTicket& OutTicket);
+    Renderer::FOutputTransformPreviewTicket& OutTicket,
+    const FLabProductionFrameContext::FPrepareUI& PrepareUI = {});
 
 } // namespace Stoner::Demo

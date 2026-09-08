@@ -12,6 +12,7 @@
 #include "FProductionPresentationPixels.h"
 #include "RendererStaticModelRealizationTestSupport.h"
 #include "Renderer/FDeferredFrameUniformResources.h"
+#include "Renderer/FUIRenderSession.h"
 
 #include <algorithm>
 #include <cstring>
@@ -523,6 +524,156 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
         Target.Frame.ColorSpace = RHI::ERHIPresentationColorSpace::SrgbNonlinear;
         return Target;
     };
+    {
+        using namespace Renderer;
+        using namespace RHI;
+        FUIRenderSession UI(Device, 73);
+        UI.BeginEligibleFrame(1, true);
+        FUITextureRequest TextureRequest;
+        TextureRequest.RequestId = 1; TextureRequest.LogicalSlot = 1;
+        TextureRequest.Width = TextureRequest.Height = 1;
+        TextureRequest.Format = ERHIFormat::R8G8B8A8_UNorm;
+        TextureRequest.ColorDomain = EUITextureColorDomain::AlphaCoverage;
+        TextureRequest.PixelBytes = {255,255,255,255};
+        const auto Texture = UI.PrepareTexture(TextureRequest);
+        const auto Lease = UI.AcquireTexture(Texture.TextureId);
+        FUICompositionSettings UISettings;
+        UISettings.OutputProfileId = "Sdr.sRGB.v1";
+        UISettings.BlendDomain = ERenderGraphColorDomain::DisplayLinearRec709D65;
+        UISettings.UIReferenceWhiteNits = UISettings.NativePackingWhiteNits = 100;
+        UISettings.DisplayGeneration = 1;
+        FRHIShaderModuleDesc Vertex, Fragment;
+        Vertex.Stage = ERHIShaderStage::Vertex; Fragment.Stage = ERHIShaderStage::Fragment;
+        const FRHIShaderModuleDesc Modules[] = {Vertex,Fragment}; // tracked RHI; no native shader claim
+        Core::uint64 PacketId = 1;
+        const FLabProductionFrameContext::FPrepareUI PrepareUI = [&](const auto& Scene,
+            Core::uint64 Budget, Core::TSharedPtr<FUIRenderFrame>& Out) {
+            if (Budget < static_cast<Core::uint64>(Width) * Height * 8) return ERHIResult::Unavailable;
+            FUIDrawSnapshot Draw(73,PacketId++,1,1);
+            const FUIVertex Vertices[] = {{{0,0},{0,0},0xffffffff},{{16,0},{1,0},0xffffffff},{{0,16},{0,1},0xffffffff}};
+            const Core::uint32 Indices[] = {0,1,2};
+            FUIDrawCommand Command; Command.IndexCount = 3; Command.TextureId = Texture.TextureId;
+            Command.ClipRect = {0,0,16,16};
+            if (!Draw.SetDisplay({0,0},{static_cast<float>(Width),static_cast<float>(Height)},{1,1}) ||
+                !Draw.SetVertices(Vertices) || !Draw.SetIndices(Indices) || !Draw.SetCommands({&Command,1}) ||
+                !Draw.SetTextureLeases({&Lease,1}) || !Draw.Publish()) return ERHIResult::InvalidState;
+            return UI.PrepareFrame(Draw,UISettings,1,0,Scene,Modules,Modules,Out);
+        };
+        auto UIContextOwner = Core::MakeShared<FLabProductionFrameContext>();
+        auto& UIContext = *UIContextOwner;
+        auto Composition = Config.Composition; Composition.FrameToken = 81;
+        const auto Target = MakeTarget(81,0,0);
+        (void)UIContext.Initialize(Config); (void)UIContext.ReserveFrame(81,0);
+        (void)UIContext.BeginFrame(81,0,Target);
+        const auto BaseBytes = UIContext.Snapshot().ActiveAttachmentBytes;
+        const auto Output = FOutputTransformSettingsValidator().Validate(Config.OutputSettings).Settings;
+        FRHIResolvedPresentationState Resolved;
+        Resolved.ModeGeneration = Target.Frame.ModeGeneration;
+        Resolved.SwapchainImageGeneration = Target.Frame.SwapchainImageGeneration;
+        Resolved.Width = Width; Resolved.Height = Height; Resolved.Format = OutputFormat;
+        Resolved.ColorSpace = Target.Frame.ColorSpace; Resolved.NativeEncoding = Output.NativeEncoding;
+        Resolved.ReferenceWhiteNits = Output.ReferenceWhiteNits; Resolved.TargetPeakNits = Output.TargetPeakNits;
+        FOutputTransformPreviewTicket UITicket;
+        FOutputTransformExecutor UIExecutor;
+        const auto TicketRecorded = RecordLabProductionPreview(UIContextOwner,Composition,0,Resolved,
+            [](Core::uint64,Core::uint32,const Core::TSharedPtr<IRHIFence>&,bool& Ack) {
+                Ack = true; return ERHIResult::Success;
+            },UITicket,PrepareUI);
+        const auto Recorded = TicketRecorded.NativeResult;
+        Record(Result, TicketRecorded.Result == EOutputTransformResult::Success && UITicket.IsValid(),
+            "Lab preview ticket validates the terminal UI graph against its already-recorded deferred command");
+        const auto* Resources = UIContext.GetResources(81,0);
+        const auto Frame = Resources && Resources->Bindings.OutputTransformStages.size() == 4
+            ? Resources->Bindings.OutputTransformStages[2].UIFrame : nullptr;
+        const auto FenceIndex = Device->TestQueue->SubmittedFences.size();
+        const auto Submitted = UIExecutor.SubmitPreview(UITicket).NativeResult;
+        Record(Result, Recorded == ERHIResult::Success && Submitted == ERHIResult::Success &&
+            Frame && Resources->IsValid() && Resources->OutputTransformPlan.TerminalUI &&
+            Resources->Bindings.OutputTransformStages.back().Input == Frame->GetOutput() &&
+            UIContext.Snapshot().ActiveAttachmentBytes == BaseBytes + static_cast<Core::uint64>(Width)*Height*8,
+            "Lab slot records leased terminal UI before the sole output transfer and counts its target budget");
+        // The same atlas cannot be sampled by a second frame until its upload completes.
+        auto BusyComposition = Composition; BusyComposition.FrameToken = 82;
+        (void)UIContext.ReserveFrame(82,1); (void)UIContext.BeginFrame(82,1,MakeTarget(82,1,1));
+        const auto BusyRecorded = UIContext.RecordFrame(82,1,BusyComposition,nullptr,PrepareUI);
+        const auto* BusyResources = UIContext.GetResources(82,1);
+        Record(Result, BusyRecorded == ERHIResult::Success &&
+            UIContext.Snapshot().LastUIPreparationResult == ERHIResult::NotReady &&
+            BusyResources && BusyResources->Bindings.OutputTransformStages.size() == 3,
+            "Pending UI upload falls back before recording and preserves a valid scene-only frame");
+        (void)UIContext.CancelFrame(82,1); (void)UIContext.RetireCancelled(82,1);
+        if (Frame && Device->TestQueue->SubmittedFences.size() > FenceIndex)
+        {
+            Record(Result, Frame->ReleaseCompleted() == ERHIResult::NotReady,
+                "Lab UI owner cannot release resources before its actual render fence");
+            const auto Fence = std::dynamic_pointer_cast<FPreviewSubmissionFence>(
+                Device->TestQueue->SubmittedFences[FenceIndex]);
+            Fence->WaitResult = ERHIResult::Success;
+            bool Complete = false;
+            const auto TicketPoll = UIExecutor.PollPreview(UITicket);
+            Complete = TicketPoll.bRenderCompleted;
+            const auto Polled = TicketPoll.NativeResult;
+            FRHIPresentationLease Presentation; Presentation.Frame = Target.Frame;
+            auto PresentFence = Core::MakeShared<FPreviewSubmissionFence>();
+            Presentation.PresentationCompletionFence = PresentFence;
+            const auto Queued = UIContext.QueuePresentation(81,0,Presentation);
+            const auto Retired = UIExecutor.RetirePreview(UITicket).NativeResult;
+            Record(Result, Polled == ERHIResult::Success && Complete && !Frame->GetOutput() &&
+                Queued == ERHIResult::Success && Retired == ERHIResult::Success &&
+                UIContext.Snapshot().RetainedPresentationCount == 1 && !PresentFence->IsSignaled(),
+                "UI render owners retire while the independent native presentation lease remains pending");
+            PresentFence->WaitResult = ERHIResult::Success;
+            bool Released = false; (void)UIContext.PollPresentation(81,0,Released);
+            Composition.FrameToken = 83;
+            (void)UIContext.ReserveFrame(83,0); (void)UIContext.BeginFrame(83,0,MakeTarget(83,0,2));
+            const auto CancelRecorded = UIContext.RecordFrame(83,0,Composition,nullptr,PrepareUI);
+            Resources = UIContext.GetResources(83,0);
+            const auto CancelFrame = Resources && Resources->Bindings.OutputTransformStages.size() == 4
+                ? Resources->Bindings.OutputTransformStages[2].UIFrame : nullptr;
+            (void)UIContext.CancelFrame(83,0);
+            const auto CancelRetired = UIContext.RetireCancelled(83,0);
+            Record(Result, CancelRecorded == ERHIResult::Success && CancelFrame &&
+                CancelRetired == ERHIResult::Success && !CancelFrame->GetOutput(),
+                "Unsubmitted UI recording is reset before cancellation releases its texture reservations");
+            FUIRenderSession FailingUI(Device,73);
+            FailingUI.BeginEligibleFrame(1,true);
+            const auto NewTexture = FailingUI.PrepareTexture(TextureRequest);
+            const auto NewLease = FailingUI.AcquireTexture(NewTexture.TextureId);
+            Composition.FrameToken = 84;
+            (void)UIContext.ReserveFrame(84,0); (void)UIContext.BeginFrame(84,0,MakeTarget(84,0,0));
+            Resources = UIContext.GetResources(84,0);
+            const auto FailureCommand = Resources ? std::dynamic_pointer_cast<
+                Stoner::Tests::StaticModelRealization::FTrackedCommandBuffer>(Resources->Bindings.CommandBuffer) : nullptr;
+            if (FailureCommand) FailureCommand->BufferTextureCopyResult = ERHIResult::Timeout;
+            Core::uint64 FailurePacketId = 1;
+            const FLabProductionFrameContext::FPrepareUI PrepareFailure =
+                [&](const auto& Scene,Core::uint64,Core::TSharedPtr<FUIRenderFrame>& Out) {
+                    FUIDrawSnapshot Draw(73,FailurePacketId++,1,1);
+                    const FUIVertex V[] = {{{0,0},{0,0},0xffffffff},{{16,0},{1,0},0xffffffff},{{0,16},{0,1},0xffffffff}};
+                    const Core::uint32 I[] = {0,1,2};
+                    FUIDrawCommand C; C.IndexCount = 3; C.TextureId = NewTexture.TextureId; C.ClipRect = {0,0,16,16};
+                    (void)Draw.SetDisplay({0,0},{static_cast<float>(Width),static_cast<float>(Height)},{1,1});
+                    (void)Draw.SetVertices(V); (void)Draw.SetIndices(I); (void)Draw.SetCommands({&C,1});
+                    (void)Draw.SetTextureLeases({&NewLease,1}); (void)Draw.Publish();
+                    return FailingUI.PrepareFrame(Draw,UISettings,1,0,Scene,Modules,Modules,Out);
+                };
+            const auto FailedRecord = UIContext.RecordFrame(84,0,Composition,nullptr,PrepareFailure);
+            const auto FailureScene = Resources->Bindings.OutputTransformStages[2].Input;
+            Core::TSharedPtr<FUIRenderFrame> Retry;
+            const auto BeforeDiscard = PrepareFailure(FailureScene,0,Retry);
+            (void)UIContext.CancelFrame(84,0);
+            const auto FailedRetire = UIContext.RetireCancelled(84,0);
+            const auto AfterDiscard = PrepareFailure(FailureScene,0,Retry);
+            Record(Result, BeforeDiscard == ERHIResult::NotReady && AfterDiscard == ERHIResult::Success,
+                "Partial upload failure retains reservations until the command is discarded");
+            if (Retry) (void)Retry->CancelAfterCommandDiscard();
+            Record(Result, FailedRecord == ERHIResult::Timeout && UIContext.Snapshot().bFailed &&
+                FailedRetire == ERHIResult::Success && Device->TestQueue->SubmittedFences.size() == FenceIndex + 1,
+                "Partial UI recording preserves Timeout and discards the command without scene fallback or submission");
+        }
+        (void)UIContext.Shutdown();
+        Device->TestQueue->SubmittedFences.clear();
+    }
     // Exercise the upper Renderer preview ticket with real Demo frame
     // resources and independently controlled render/presentation fences.
     {

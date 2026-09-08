@@ -100,6 +100,9 @@ struct FUICompositionFrame::FImpl
 };
 TSharedPtr<IRHITexture> FUICompositionFrame::GetOutput() const noexcept { return Impl ? Impl->Output : nullptr; }
 bool FUICompositionFrame::HasDraws() const noexcept { return Impl && Impl->Output != Impl->Scene; }
+bool FUICompositionFrame::CanRecord(const FUITextureRegistry& Registry) const noexcept
+{ return Impl && !Impl->bRecorded && (!HasDraws() ||
+    Registry.CanRecordSubmission(Impl->Snapshot.GetTextureLeases()) == ERHIResult::Success); }
 ERHIResult FUICompositionExecutor::Prepare(const TSharedPtr<IRHIDevice>& Device,
     const FUIDrawSnapshot& Snapshot, const FUIDrawValidationContext& Context,
     const FUICompositionSettings& Settings, FUITextureRegistry& Registry,
@@ -130,6 +133,9 @@ ERHIResult FUICompositionExecutor::Prepare(const TSharedPtr<IRHIDevice>& Device,
         auto Candidate = MakeShared<FUICompositionFrame::FImpl>();
         Candidate->Scene = Candidate->Output = Scene;
         if (!HasDraws) { OutFrame.Impl = std::move(Candidate); return ERHIResult::Success; }
+        Registry.Poll();
+        const auto Available = Registry.CanRecordSubmission(Snapshot.GetTextureLeases());
+        if (Available != ERHIResult::Success) return Available;
         if (DrawShaders.size() != 2 || CopyShaders.size() != 2) return ERHIResult::InvalidState;
         Candidate->Snapshot = Snapshot;
         Candidate->Commands = std::move(Validated.Commands);

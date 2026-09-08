@@ -1,6 +1,7 @@
 #include "FProductionContentDeferredExecution.h"
 
 #include "Renderer/FShaderAssetConversion.h"
+#include "Renderer/FUIRenderSession.h"
 #include "Renderer/FDeferredFrameUniformResources.h"
 #include "RHI/FRHIBufferUploadDesc.h"
 #include "RHI/IRHIBuffer.h"
@@ -555,7 +556,8 @@ bool FProductionContentDeferredExecutionResources::IsValid() const noexcept
         Bindings.BaseColorAO && Bindings.NormalRoughness &&
         Bindings.EmissiveMetallic && Bindings.Depth &&
         Bindings.LightingAccumulation && Bindings.FinalOutput &&
-        Bindings.FormalOutput && Bindings.OutputTransformStages.size() == 3 &&
+        Bindings.FormalOutput && Bindings.OutputTransformStages.size() ==
+            (OutputTransformPlan.TerminalUI ? 4U : 3U) &&
         !Bindings.SurfaceDraws.empty() && Bindings.FullscreenVertexBuffer &&
         Bindings.SphereVertexBuffer && Bindings.SphereIndexBuffer &&
         Bindings.ConeVertexBuffer && Bindings.ConeIndexBuffer &&
@@ -601,6 +603,7 @@ void FProductionContentDeferredExecutionResources::Release() noexcept
     PreviewUniformResources.reset();
     SceneLease.reset();
     OutputSettings = {};
+    OutputSampler.reset();
     AttachmentBytes = 0;
 }
 
@@ -782,6 +785,7 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
         return ERHIResult::Failed;
     }
     const auto SharedSampler = Sampler.Object;
+    Candidate.OutputSampler = SharedSampler;
     Candidate.OwnedSamplers.push_back(std::move(Sampler.Object));
 
     const ERHITextureUsage IntermediateOutputUsage =
@@ -1136,6 +1140,55 @@ ERHIResult FProductionContentDeferredExecutionBuilder::UpdatePreviewFrame(
     InOutResources.Bindings.SurfaceDraws =
         InOutResources.PreviewUniformResources->GetSurfaceDraws();
     return ERHIResult::Success;
+}
+
+ERHIResult FProductionContentDeferredExecutionBuilder::BindPreviewUI(
+    const TSharedPtr<FUIRenderFrame>& Frame,
+    FProductionContentDeferredExecutionResources& Resources)
+{
+    auto& Stages = Resources.Bindings.OutputTransformStages;
+    if (Resources.ExecutionPurpose != EFrameExecutionPurpose::InteractivePreview ||
+        !Resources.Bindings.CommandBuffer ||
+        Resources.Bindings.CommandBuffer->GetState() != ERHICommandBufferState::Idle ||
+        !Resources.OutputSampler || (Stages.size() != 3 && Stages.size() != 4) ||
+        (Stages.size() == 4 && (!Stages[2].UIFrame || Stages[2].Name != FString("TerminalUI"))) ||
+        Stages.back().Stage.DescriptorSets.size() != 1 ||
+        !Stages.back().Stage.DescriptorSets[0])
+        return ERHIResult::InvalidState;
+    const auto Scene = Stages.size() == 4 ? Stages[2].Input : Stages.back().Input;
+    const bool HasUI = Frame && Frame->HasDraws();
+    if (Frame && (!Frame->CanRecord() || Frame->GetInput() != Scene || !Frame->GetSettings()))
+        return ERHIResult::InvalidState;
+    try
+    {
+        auto Prepared = FHDRPostProcessPipeline().Prepare(Resources.OutputTransformPlan.SceneColor,
+            Resources.OutputSettings, HasUI ? Frame->GetSettings() : nullptr);
+        if (!Prepared.Succeeded()) return ERHIResult::InvalidState;
+        auto& Plan = Prepared.Plan;
+        Plan.ExecutionPurpose = Resources.ExecutionPurpose;
+        Plan.ReadbackSelection = Resources.ReadbackSelection;
+        if (!FHDRPostProcessPipeline().BindPreviewTargetFormat(Plan,
+                Resources.Bindings.FormalOutput->GetFormat()) || !Plan.IsValid())
+            return ERHIResult::InvalidState;
+        auto Candidate = Stages;
+        if (Candidate.size() == 4) Candidate.erase(Candidate.begin() + 2);
+        const auto Input = HasUI ? Frame->GetOutput() : Scene;
+        Candidate.back().Input = Input;
+        if (HasUI)
+        {
+            FDeferredPostProcessStageBinding UI;
+            UI.Name = "TerminalUI"; UI.Input = Scene; UI.Output = Input; UI.UIFrame = Frame;
+            Candidate.insert(Candidate.end() - 1, std::move(UI));
+        }
+        // All allocations and plan validation precede the sole descriptor mutation.
+        const auto Updated = Stages.back().Stage.DescriptorSets[0]->UpdateCombinedTextureSampler(
+            0, 0, Input, Resources.OutputSampler);
+        if (Updated != ERHIResult::Success) return Updated;
+        Stages = std::move(Candidate);
+        Resources.OutputTransformPlan = std::move(Plan);
+        return ERHIResult::Success;
+    }
+    catch (const std::bad_alloc&) { return ERHIResult::Unavailable; }
 }
 
 ERHIResult FProductionContentDeferredExecutionBuilder::RebindPreviewOutput(

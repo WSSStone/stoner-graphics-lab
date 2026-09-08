@@ -4,6 +4,7 @@
 #include "RHI/FRHIFormatInfo.h"
 #include "RHI/IRHISemaphore.h"
 #include "Renderer/FDeferredFrameExecutor.h"
+#include "Renderer/FUIRenderSession.h"
 
 #include <algorithm>
 #include <array>
@@ -150,6 +151,8 @@ struct FLabProductionFrameContext::FImpl
         FRHIBorrowedAcquiredTarget Target;
         uint64 FrameToken = 0;
         ELabProductionFrameState State = ELabProductionFrameState::Free;
+        TSharedPtr<Renderer::FUIRenderFrame> UIFrame;
+        bool bUIReleased = false;
         bool bResourcesBuilt = false;
         bool bRecorded = false;
         bool bSubmitted = false;
@@ -177,6 +180,7 @@ struct FLabProductionFrameContext::FImpl
     std::array<FSlot, FLabProductionFrameLimits::MaxSlots> Slots;
     TArray<FPresentationRecord> Presentations;
     FString FailureReason;
+    RHI::ERHIResult LastUIPreparationResult = RHI::ERHIResult::Success;
     uint64 SubmittedFrameCount = 0;
     uint64 RenderCompletedFrameCount = 0;
     uint64 RenderRetiredFrameCount = 0;
@@ -294,6 +298,22 @@ struct FLabProductionFrameContext::FImpl
             }
             return {GetRetainedRetireResult(Slot), false};
         }
+        if (Slot.UIFrame)
+        {
+            // Reset has discarded all unsubmitted commands before upload cancellation.
+            if (!Slot.bUIReleased)
+            {
+                const auto Released = Slot.bSubmitted ? Slot.UIFrame->ReleaseCompleted()
+                    : Slot.UIFrame->CancelAfterCommandDiscard();
+                if (Released != ERHIResult::Success) return {Released, false};
+                Slot.bUIReleased = true;
+            }
+            const auto Removed = FProductionContentDeferredExecutionBuilder::BindPreviewUI(nullptr, Slot.Resources);
+            if (Removed != ERHIResult::Success) return {Removed, false};
+            Slot.UIFrame.reset(); Slot.bUIReleased = false;
+            Slot.Resources.AttachmentBytes = GetAttachmentBytes(Slot.Resources);
+            RefreshAttachmentBytes();
+        }
         return {GetRetainedRetireResult(Slot), true};
     }
 
@@ -317,6 +337,12 @@ struct FLabProductionFrameContext::FImpl
             !Slot.RenderFence || !Slot.Resources.Bindings.CommandBuffer)
             return {RHI::ERHIResult::NotReady, false};
 
+        if (Slot.UIFrame && !Slot.bUIReleased)
+        {
+            const auto Released = Slot.UIFrame->ReleaseCompleted();
+            if (Released != ERHIResult::Success) return {Released, false};
+            Slot.bUIReleased = true;
+        }
         const FProductionDeferredSubmissionResult Retire =
             SubmissionHarness->RetireDeferred(Slot.RenderFence);
         if (!Retire.bRetired)
@@ -661,7 +687,7 @@ RHI::ERHIResult FLabProductionFrameContext::ReserveFrame(
 RHI::ERHIResult FLabProductionFrameContext::RecordFrame(
     uint64 FrameToken, uint32 SlotIndex,
     const FProductionContentComposition& FrameComposition,
-    FString* OutReason)
+    FString* OutReason, const FPrepareUI& PrepareUI)
 {
     if (OutReason) OutReason->Clear();
     if (!Impl_ || !Impl_->bInitialized || Impl_->bFailed ||
@@ -701,6 +727,43 @@ RHI::ERHIResult FLabProductionFrameContext::RecordFrame(
         Impl_->SetFailure("interactive preview frame parameter update failed");
         return Update;
     }
+    Impl_->LastUIPreparationResult = ERHIResult::Success;
+    if (PrepareUI)
+    {
+        const uint64 Available = FLabProductionFrameLimits::MaxAttachmentBytes -
+            std::min(Impl_->ActiveAttachmentBytes, FLabProductionFrameLimits::MaxAttachmentBytes);
+        // Reject before invoking a preparer that could allocate a new target.
+        const uint64 Required = static_cast<uint64>(Impl_->Width) * Impl_->Height * 8ULL;
+        TSharedPtr<Renderer::FUIRenderFrame> UI;
+        auto Prepared = ERHIResult::Unavailable;
+        try
+        {
+            if (Required <= Available)
+                Prepared = PrepareUI(Slot->Resources.Bindings.OutputTransformStages.back().Input, Available, UI);
+        }
+        catch (const std::bad_alloc&) { Prepared = ERHIResult::Unavailable; }
+        if (Prepared == ERHIResult::Success && UI && UI->HasDraws())
+        {
+            Prepared = FProductionContentDeferredExecutionBuilder::BindPreviewUI(UI, Slot->Resources);
+            if (Prepared == ERHIResult::Success)
+            {
+                Slot->UIFrame = UI;
+                Slot->Resources.AttachmentBytes += Required;
+                Impl_->RefreshAttachmentBytes();
+            }
+        }
+        if (UI && !Slot->UIFrame)
+            (void)UI->CancelAfterCommandDiscard(); // command is still idle
+        Impl_->LastUIPreparationResult = Prepared;
+        if (Prepared != ERHIResult::Success && Prepared != ERHIResult::NotReady &&
+            Prepared != ERHIResult::Unavailable)
+        {
+            Slot->State = ELabProductionFrameState::Failed;
+            Impl_->SetFailure("interactive UI preflight failed");
+            Fail(OutReason, "interactive UI preflight failed");
+            return Prepared;
+        }
+    }
     const Renderer::FDeferredFrameExecutionResult Execution =
         Renderer::FDeferredFrameExecutor().Execute(
             Slot->Resources.Plan, Slot->Resources.Graph,
@@ -710,7 +773,7 @@ RHI::ERHIResult FLabProductionFrameContext::RecordFrame(
         Slot->State = ELabProductionFrameState::Failed;
         Impl_->SetFailure("interactive deferred frame recording failed");
         Fail(OutReason, "interactive deferred frame recording failed");
-        return RHI::ERHIResult::Failed;
+        return Execution.NativeResult != ERHIResult::Success ? Execution.NativeResult : ERHIResult::Failed;
     }
     Slot->State = ELabProductionFrameState::Recorded;
     Impl_->LastFrameState = Slot->State;
@@ -773,6 +836,16 @@ RHI::ERHIResult FLabProductionFrameContext::SubmitFrame(
     Slot->bSubmitted = true;
     Slot->State = ELabProductionFrameState::Submitted;
     Impl_->LastFrameState = Slot->State;
+    if (Slot->UIFrame)
+    {
+        const auto Committed = Slot->UIFrame->Commit(Slot->RenderFence);
+        if (Committed != ERHIResult::Success)
+        {
+            Impl_->SetFailure("submitted UI frame ownership commit failed");
+            Fail(OutReason, "submitted UI frame ownership commit failed");
+            return Submission.Result != ERHIResult::Success ? Submission.Result : Committed;
+        }
+    }
     if (Submission.Result != RHI::ERHIResult::Success)
     {
         Impl_->SetFailure("interactive deferred submission reported a native failure");
@@ -866,6 +939,17 @@ RHI::ERHIResult FLabProductionFrameContext::PollRender(
         Slot->bRenderComplete = true;
         if (Slot->State == ELabProductionFrameState::Submitted)
             Slot->State = ELabProductionFrameState::RenderCompleted;
+        if (Slot->UIFrame && !Slot->bUIReleased)
+        {
+            const auto Released = Slot->UIFrame->ReleaseCompleted();
+            if (Released != ERHIResult::Success)
+            {
+                Impl_->SetFailure("completed UI frame release failed");
+                Fail(OutReason, "completed UI frame release failed");
+                return Poll.Result != ERHIResult::Success ? Poll.Result : Released;
+            }
+            Slot->bUIReleased = true;
+        }
         if (Poll.Result != RHI::ERHIResult::Success)
         {
             Slot->State = ELabProductionFrameState::Failed;
@@ -1034,6 +1118,7 @@ FLabProductionFrameContextSnapshot FLabProductionFrameContext::Snapshot() const
     Out.RenderCompletedFrameCount = Impl_->RenderCompletedFrameCount;
     Out.RenderRetiredFrameCount = Impl_->RenderRetiredFrameCount;
     Out.ProvenPresentationReleaseCount = Impl_->ProvenPresentationReleaseCount;
+    Out.LastUIPreparationResult = Impl_->LastUIPreparationResult;
     Out.ActiveAttachmentBytes = Impl_->ActiveAttachmentBytes;
     Out.PeakAttachmentBytes = Impl_->PeakAttachmentBytes;
     Out.RetainedPresentationCount =

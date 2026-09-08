@@ -54,6 +54,7 @@ public:
     void BeginEligibleFrame(Stoner::Core::uint64 FrameId, bool bEligible) noexcept;
     [[nodiscard]] FUITextureResult Prepare(const FUITextureRequest& Request);
     [[nodiscard]] FUITextureLease Acquire(FUITextureId Id) const noexcept;
+    [[nodiscard]] Stoner::RHI::ERHIResult CanRecordSubmission(std::span<const FUITextureLease> Leases) const noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult RecordSubmission(
         std::span<const FUITextureLease> Leases,
         const Stoner::Core::TSharedPtr<Stoner::RHI::IRHICommandBuffer>& Command,

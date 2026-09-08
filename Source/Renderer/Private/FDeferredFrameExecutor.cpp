@@ -1,4 +1,5 @@
 #include "Renderer/FDeferredFrameExecutor.h"
+#include "Renderer/FUIRenderSession.h"
 #include "Renderer/FDeferredLightVolume.h"
 
 #include <cmath>
@@ -60,6 +61,18 @@ namespace
     auto ExpectedInput = Bindings.FinalOutput;
     for (const auto& Stage : Bindings.OutputTransformStages)
     {
+        if (Stage.UIFrame)
+        {
+            if (Stage.Name != "TerminalUI" || Bindings.OutputTransformStages.size() < 2 || &Stage != &Bindings.OutputTransformStages[Bindings.OutputTransformStages.size()-2] ||
+                !Stage.UIFrame->HasDraws() || !Stage.UIFrame->CanRecord() || Stage.Input != ExpectedInput ||
+                Stage.UIFrame->GetInput() != Stage.Input || Stage.UIFrame->GetOutput() != Stage.Output ||
+                !Stage.Input || !Stage.Output || Stage.Input->GetDesc().Width != Extent.Width ||
+                Stage.Input->GetDesc().Height != Extent.Height || Stage.Output->GetDesc().Width != Extent.Width ||
+                Stage.Output->GetDesc().Height != Extent.Height) return false;
+            ExpectedInput = Stage.Output;
+            continue;
+        }
+        if (Stage.Name == "TerminalUI") return false;
         if (Stage.Name.IsEmpty() || Stage.Input != ExpectedInput ||
             !Stage.Output || !IsStageValid(Stage.Stage) ||
             Stage.Stage.Framebuffer->GetDesc().Attachments.size() != 1 ||
@@ -262,12 +275,34 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
     {
         if (bOutputTransformRecorded)
             return true;
+        bool bInputAlreadySampled = false;
         for (const auto& Post : Bindings.OutputTransformStages)
         {
-            if (!TransitionTexture(Commands, Post.Input,
+            if (Post.UIFrame)
+            {
+                Stoner::RHI::FRHIResourceBarrierDesc Transition;
+                Transition.Texture = Post.Input;
+                Transition.RequiredTextureUsage = Stoner::RHI::ERHITextureUsage::Sampled;
+                Transition.Before = Stoner::RHI::ERHIResourceLayout::ColorAttachment;
+                Transition.After = Stoner::RHI::ERHIResourceLayout::ShaderReadOnly;
+                Out.NativeResult = Commands.RecordLayoutTransition(Transition);
+                if (Out.NativeResult == Stoner::RHI::ERHIResult::Success)
+                    Out.NativeResult = Post.UIFrame->Record(Bindings.CommandBuffer);
+                if (Out.NativeResult != Stoner::RHI::ERHIResult::Success)
+                {
+                    Out.Result = EDeferredResult::RecordFailed; Out.FinalState = EDeferredExecutionState::Failed;
+                    Out.Diagnostics.Add(EDeferredDiagnosticSeverity::Error,EDeferredPassStage::ValidationReadback,
+                        EDeferredResult::RecordFailed,"DEF-EXEC-UI",Post.Name,"terminal UI recording failed; discard the whole command");
+                    return false;
+                }
+                Out.RecordedPassCount += 2;
+                bInputAlreadySampled = true;
+                continue;
+            }
+            if ((!bInputAlreadySampled && !TransitionTexture(Commands, Post.Input,
                     Stoner::RHI::ERHITextureUsage::Sampled,
                     Stoner::RHI::ERHIResourceLayout::ColorAttachment,
-                    Stoner::RHI::ERHIResourceLayout::ShaderReadOnly) ||
+                    Stoner::RHI::ERHIResourceLayout::ShaderReadOnly)) ||
                 !TransitionTexture(Commands, Post.Output,
                     Stoner::RHI::ERHITextureUsage::ColorAttachment,
                     Stoner::RHI::ERHIResourceLayout::Undefined,
@@ -300,6 +335,7 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
                 return false;
             }
             ++Out.RecordedPassCount;
+            bInputAlreadySampled = false;
         }
         bOutputTransformRecorded = true;
         return true;

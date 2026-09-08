@@ -37,6 +37,7 @@ struct FProductionContentDeferredExecutionResources
         SceneLease;
     Renderer::FOutputTransformSettings OutputSettings;
     Core::uint64 AttachmentBytes = 0;
+    Core::TSharedPtr<RHI::IRHISampler> OutputSampler;
     Renderer::EFrameExecutionPurpose ExecutionPurpose =
         Renderer::EFrameExecutionPurpose::FormalValidation;
     Renderer::EFrameReadbackSelection ReadbackSelection =
@@ -91,6 +92,12 @@ public:
         const FProductionContentComposition& Composition,
         FProductionContentDeferredExecutionResources& InOutResources,
         Core::FString* OutReason = nullptr);
+
+    // Only while the slot command is idle. Null removes the terminal UI stage.
+    // The caller retains/cancels the frame according to actual submission state.
+    [[nodiscard]] static RHI::ERHIResult BindPreviewUI(
+        const Core::TSharedPtr<Renderer::FUIRenderFrame>& Frame,
+        FProductionContentDeferredExecutionResources& InOutResources);
 
     [[nodiscard]] static RHI::ERHIResult RebindPreviewOutput(
         const Core::TSharedPtr<RHI::IRHIDevice>& Device,

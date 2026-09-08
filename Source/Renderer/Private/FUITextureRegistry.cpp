@@ -226,6 +226,24 @@ FUITextureResult FUITextureRegistry::Prepare(const FUITextureRequest& Request)
         return Result(Request, ERHIResult::Unavailable, EUITextureState::Rejected);
     }
 }
+ERHIResult FUITextureRegistry::CanRecordSubmission(std::span<const FUITextureLease> Leases) const noexcept
+{
+    if (!bFrameEligible) return ERHIResult::NotReady;
+    if (Leases.size() > Records.size()) return ERHIResult::InvalidState;
+    for (std::size_t I = 0; I < Leases.size(); ++I)
+    {
+        const auto& Lease = Leases[I];
+        if (!Lease.IsValid() || Find(Lease.GetId()) != Lease.Record) return ERHIResult::InvalidState;
+        for (std::size_t J = 0; J < I; ++J)
+            if (Leases[J].GetId() == Lease.GetId()) return ERHIResult::InvalidState;
+        const auto& Record = *Lease.Record;
+        if (Record.State == EUITextureState::UploadQueued ||
+            (Record.State == EUITextureState::Prepared && HasUses(Record)) ||
+            std::all_of(Record.Uses.begin(),Record.Uses.end(),[](const auto& Use) { return Use.bReserved; }))
+            return ERHIResult::NotReady;
+    }
+    return ERHIResult::Success;
+}
 ERHIResult FUITextureRegistry::RecordSubmission(std::span<const FUITextureLease> Leases,
     const TSharedPtr<IRHICommandBuffer>& Command, FUITextureSubmission& OutSubmission)
 {
@@ -253,7 +271,10 @@ ERHIResult FUITextureRegistry::RecordSubmission(std::span<const FUITextureLease>
         Record.Uses[Index].bUpload = Record.State == EUITextureState::Prepared;
         Pending.Entries.push_back({Lease, Index});
     }
-    for (const auto& Entry : Pending.Entries)
+    // Once recording starts, even a failed partial command owns the reservations
+    // until its caller discards that command and cancels this ticket.
+    OutSubmission = std::move(Pending);
+    for (const auto& Entry : OutSubmission.Entries)
     {
         const auto& Record = *Entry.Lease.Record;
         if (!Record.Uses[Entry.UseIndex].bUpload) continue;
@@ -271,7 +292,6 @@ ERHIResult FUITextureRegistry::RecordSubmission(std::span<const FUITextureLease>
         Status = Command->RecordLayoutTransition(Transition);
         if (Status != ERHIResult::Success) return Status;
     }
-    OutSubmission = std::move(Pending);
     return ERHIResult::Success;
 }
 }
