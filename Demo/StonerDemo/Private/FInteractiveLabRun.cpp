@@ -645,6 +645,10 @@ public:
                     {
                         LastRecordedUIWhiteMultiplier = Resources->OutputTransformPlan.TerminalUI->UIWhiteMultiplier;
                         LastRecordedUIFrameToken = Slot.Token;
+                        LastRecordedUISettings = *Resources->OutputTransformPlan.TerminalUI;
+                        LastRecordedUIOutputTransferCount = static_cast<Core::uint32>(std::count_if(
+                            Resources->OutputTransformPlan.Stages.begin(),Resources->OutputTransformPlan.Stages.end(),
+                            [](const auto& Stage) { return Stage.Kind==Renderer::EOutputTransformStageKind::OutputDeviceTransform; }));
                     }
                     LastRecordedTransformVersion = Resources->OutputTransformPlan.ResolvedSettings.TransformStrategyVersion;
                     LastRecordedSettingsRevision = Session.GetEffectiveSettings() ? Session.GetEffectiveSettings()->SettingsRevision : 1;
@@ -852,6 +856,8 @@ public:
     float LastRecordedExposureStops = 0;
     float LastRecordedUIWhiteMultiplier = 0;
     Core::uint64 LastRecordedUIFrameToken = 0;
+    Renderer::FUICompositionSettings LastRecordedUISettings;
+    Core::uint32 LastRecordedUIOutputTransferCount = 0;
     Core::FString LastRecordedTransformVersion;
     Core::FString FirstFailure;
     RHI::ERHIShutdownAssurance Assurance = RHI::ERHIShutdownAssurance::Unknown;
@@ -1021,6 +1027,8 @@ FInteractiveLabRunResult RunInteractiveLab(
     Out.LastRecordedExposureStops = Owner->LastRecordedExposureStops;
     Out.LastRecordedUIWhiteMultiplier = Owner->LastRecordedUIWhiteMultiplier;
     Out.LastRecordedUIFrameToken = Owner->LastRecordedUIFrameToken;
+    Out.LastRecordedUISettings = Owner->LastRecordedUISettings;
+    Out.LastRecordedUIOutputTransferCount = Owner->LastRecordedUIOutputTransferCount;
     Out.LastRecordedTransformVersion = Owner->LastRecordedTransformVersion;
     Out.UIFramesSubmitted = Owner->UIFramesSubmitted;
     Out.DiagnosticFramesSubmitted = Owner->DiagnosticFramesSubmitted;

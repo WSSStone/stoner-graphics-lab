@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (73/127 reviewed tasks); native closeout remains pending.
+Feature 030 implementation is partial (74/127 reviewed tasks); native closeout remains pending.
 The maintainer explicitly skips Intel x86_64 macOS validation for Feature 030
 on 2026-09-08; record it as skipped, not passed, and do not block implementation
 on Intel cooking/derivation/native checks. Existing Intel support and historical
@@ -164,6 +164,7 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
+- 030 T075 native UI output review complete (74/127): actual submitted UI settings retain resolved native whites and one output transfer; Metal PQ/EDR submission tokens match rendered UI, with actual layer EDRMetadata absence observed. Current Metal Debug/Vulkan Release fallback checks pass 25/15, and both strict configurations pass 290 related CPU assertions. Native display observation remains zero and no scanout/human HDR authority is claimed. Full scene/Forward parity and US4 aggregate remain pending.
 - 030 T074 scale review complete (73/127): real 0.5–4 dynamic-font sweep validates drawable density and <=16 cached sizes; both extreme scales pass logical hit tests and native pixel vectors. Unused CPU bakes are discarded at the bound while queued GPU generations remain leased. Strict configurations each pass 159 related assertions; Metal Debug/Vulkan Release each pass 174 native assertions. Output metadata and full UI-off/Forward scene parity remain pending.
 - 030 UI color/white increment reviewed (72/127): T069/T071–T073 complete. Versioned vectors exercise decoded vertex gradients, sampled-sRGB filtering, alpha, SDR/PQ/EDR white and -3/0/+3 EV CPU-reference backgrounds through native UI composition. Current Metal Debug/Vulkan Release each pass 158 assertions; actual submitted brightness and stale-white rejection are covered. Full scene/Forward parity, scale bounds, metadata, presets, capture and final platform/human evidence remain pending. Intel macOS remains skipped.
 - 030 US3 local implementation checkpoint complete (68/127): T063–T068 reviewed against full live settings/output switching, capability/replacement recovery and GPU diagnostic selection. Current strict Debug/Release each pass 616 CPU assertions; full Debug Metal and Release forced-fallback Vulkan native suites pass 60/56. Local evidence and provenance are in `Build/Validation/030/us3.json`; no formal/human HDR authority is claimed. UI color/white/parity, presets, explicit capture queue/export and final platform acceptance remain pending; Intel macOS is skipped.

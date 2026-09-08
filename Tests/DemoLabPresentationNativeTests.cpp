@@ -736,6 +736,15 @@ void RunDiagnosticPanel(int& Failed)
             "native diagnostic selection renders visible image modes and skips numeric or UI-hidden images");
         Check(Failed,Case==3 ? Result.LastRecordedUIWhiteMultiplier==0 : Result.LastRecordedUIWhiteMultiplier==0.25f,
             "native submitted UI uses the accepted brightness while UI-off allocates no UI state");
+        if (Case!=3)
+        {
+            const auto& UI=Result.LastRecordedUISettings;
+            const auto& Native=Result.BeforeNativeShutdown.ResolvedState;
+            Check(Failed,UI.IsValid() && UI.OutputProfileId==Config.OutputDeviceProfileId &&
+                UI.UIReferenceWhiteNits==Native.ReferenceWhiteNits && UI.NativePackingWhiteNits==Native.ReferenceWhiteNits &&
+                Result.LastRecordedUIOutputTransferCount==1,
+                "submitted UI retains the resolved native white and exactly one final output transfer");
+        }
         if (Case>=4)
         {
             const auto& Native=Result.BeforeNativeShutdown.RuntimeSnapshot;

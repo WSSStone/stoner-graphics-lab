@@ -22,6 +22,8 @@ struct FInteractiveLabRunResult
     float LastRecordedExposureStops = 0;
     float LastRecordedUIWhiteMultiplier = 0;
     Core::uint64 LastRecordedUIFrameToken = 0;
+    Renderer::FUICompositionSettings LastRecordedUISettings;
+    Core::uint32 LastRecordedUIOutputTransferCount = 0;
     Core::FString LastRecordedTransformVersion;
     FLabProductionFrameContextSnapshot FinalFrameState;
     FDemoLabPresentationStatus BeforeNativeShutdown;
