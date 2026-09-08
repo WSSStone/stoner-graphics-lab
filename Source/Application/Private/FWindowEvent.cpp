@@ -61,6 +61,14 @@ FWindowEvent FWindowEvent::Minimized(Stoner::Core::uint64 Sequence)
     return Event;
 }
 
+FWindowEvent FWindowEvent::DisplayCapabilitiesChanged(Stoner::Core::uint64 Sequence)
+{
+    FWindowEvent Event;
+    Event.EventType = EWindowEventType::DisplayCapabilitiesChanged;
+    Event.Sequence = Sequence;
+    return Event;
+}
+
 FWindowEvent FWindowEvent::Restored(Stoner::Core::uint32 Width,
     Stoner::Core::uint32 Height,
     Stoner::Core::uint64 Sequence)
@@ -132,6 +140,7 @@ const char* ToString(EWindowEventType Type) noexcept
     case EWindowEventType::CloseRequested: return "CloseRequested";
     case EWindowEventType::Destroyed: return "Destroyed";
     case EWindowEventType::UnavailableRuntime: return "UnavailableRuntime";
+    case EWindowEventType::DisplayCapabilitiesChanged: return "DisplayCapabilitiesChanged";
     }
     return "Unknown";
 }

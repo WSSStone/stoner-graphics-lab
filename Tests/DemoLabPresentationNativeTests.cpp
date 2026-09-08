@@ -1,5 +1,6 @@
 #include "FDemoBackendFactory.h"
 #include "FInteractiveLabRun.h"
+#include "Helpers/LabCapabilityTestBackend.h"
 #include "Application/FWindow.h"
 #include "Application/FInteractiveLabSession.h"
 #include "Application/FLabSettingsSnapshot.h"
@@ -497,6 +498,76 @@ void RunSceneLifecycle(int& Failed)
             ? ERHIShutdownAssurance::IdleAssumed : ERHIShutdownAssurance::Proven),
         "strict cooked scene lab resumes current-drawable rendering after resize/minimize and terminates with qualified native cleanup");
 }
+void RunCapabilityRecovery(int& Failed, const Demo::FDemoConfiguration& Config)
+{
+    if (Config.GraphicsBackend != Demo::EDemoGraphicsBackend::Metal) return;
+    Demo::Tests::FLabCapabilityMask Mask;
+    Demo::Tests::FCapabilityFactory Factory(Mask);
+    using Mode = Demo::Tests::FLabCapabilityMask::EMode;
+    Core::uint32 Stage = 0, At = 0, PausedFrames = 0, PausedServices = 0;
+    Application::FWindowExtent ExpectedExtent;
+    bool Passed = true, Resized = false;
+    auto Started = std::chrono::steady_clock::now(), PausedAt = Started;
+    const auto Result = Demo::RunInteractiveLab(Config,Factory,
+        [&](Application::FWindow& Window, Core::uint32) {
+            if (Stage == 4 && !Resized)
+                Resized = Window.SetClientSize(352,198) == Application::EApplicationResult::Success;
+        }, [&](Application::FInteractiveLabSession& Session,Core::uint32 Presented) {
+            if (std::chrono::steady_clock::now()-Started > std::chrono::seconds(20))
+            { Passed=false; (void)Session.RequestExit("capability fixture timed out"); return; }
+            const auto* Effective=Session.GetEffectiveSettings();
+            if (!Effective || Presented < 2) return;
+            const auto& Requested=*Session.GetRequestedSettings();
+            if (Stage == 0)
+            {
+                auto Edit=*Effective; Edit.CameraRevision=Session.GetCameraState().CameraRevision;
+                Edit.DisplayGeneration=Session.GetDisplayState().DisplayGeneration;
+                Edit.RequestedProfileId="Hdr.PQ.Rec2020.1000.v1";
+                if (!Session.RequestSettings(Edit)) { Passed=false; (void)Session.RequestExit("HDR fixture unavailable"); }
+                else Stage=1;
+            }
+            else if (Stage == 1 && Effective->EffectiveProfileId == "Hdr.PQ.Rec2020.1000.v1")
+            { Stage=2; At=Presented; }
+            else if (Stage == 2 && Presented >= At+2)
+            { Mask.Mode=Mode::SdrOnly; Stage=3; }
+            else if (Stage == 3 && Effective->EffectiveProfileId == "Sdr.sRGB.v1")
+            {
+                Passed &= Requested.RequestedProfileId == "Hdr.PQ.Rec2020.1000.v1" &&
+                    !Session.IsSettingsPaused() && !Session.GetSettingsFailure().IsEmpty();
+                At=Presented; Stage=30;
+            }
+            else if (Stage == 30 && Presented >= At+2) { Mask.Mode=Mode::None; Stage=4; }
+            else if (Stage == 4 && Session.IsSettingsPaused())
+            { PausedFrames=Presented; PausedAt=std::chrono::steady_clock::now(); Stage=5; }
+            else if (Stage == 5)
+            {
+                ++PausedServices;
+                Passed &= Session.IsSettingsPaused() && Presented == PausedFrames &&
+                    Requested.RequestedProfileId == "Hdr.PQ.Rec2020.1000.v1";
+                // Exceed the ordinary progress watchdog: a capability pause is
+                // intentional and must continue servicing window/input events.
+                if (std::chrono::steady_clock::now()-PausedAt > std::chrono::milliseconds(5200))
+                { Mask.Mode=Mode::All; Stage=6; }
+            }
+            else if (Stage == 6 && Effective->EffectiveProfileId == "Hdr.PQ.Rec2020.1000.v1" && !Session.IsSettingsPaused())
+            { At=Presented; Stage=7; }
+            else if (Stage == 7 && Presented >= At+2)
+            { ExpectedExtent=Session.GetDisplayState().DrawableExtent; Stage=8; (void)Session.RequestExit(); }
+        });
+    std::cout << "[INFO] capability recovery stage=" << Stage << " paused-services=" << PausedServices
+              << " resized=" << Resized << " extent=" << Result.BeforeNativeShutdown.ResolvedState.Width
+              << 'x' << Result.BeforeNativeShutdown.ResolvedState.Height
+              << " failure=" << Result.FirstFailure.CStr() << '\n';
+    Check(Failed, Passed && Resized && Stage == 8 && PausedServices > 10 && Result.ExitCode == Demo::EDemoExitCode::Success,
+        "injected HDR loss falls back to SDR, all-output loss pauses beyond five seconds, and restored capability resumes requested HDR");
+    const auto& Ops=Result.BeforeNativeShutdown.RuntimeSnapshot.NativeOperations;
+    Check(Failed, Ops.bAvailable && Ops.ImageReadbackCopyCount == 0 && Ops.ReadbackMapCount == 0 &&
+        Ops.ReadbackWaitCount == 0 && Ops.QueueIdleCallCount == 0 && Ops.DeviceIdleCallCount == 0 &&
+        Result.AfterNativeShutdown.RuntimeSnapshot.NativePresentation.ResidualNativeOwners == 0 &&
+        ExpectedExtent.IsPositive() && Result.BeforeNativeShutdown.ResolvedState.Width == ExpectedExtent.Width &&
+        Result.BeforeNativeShutdown.ResolvedState.Height == ExpectedExtent.Height,
+        "capability recovery rebuilds the current extent without readback, live idle or residual owners");
+}
 void RunOutputSwitches(int& Failed)
 {
     const auto Env = [](const char* Name) { const char* Value = std::getenv(Name); return Core::FString(Value ? Value : ""); };
@@ -589,6 +660,7 @@ void RunOutputSwitches(int& Failed)
         Native.bAvailable && Native.ResidualNativeOwners == 0 && Native.PresentationOwnerCount == 0 &&
         Native.PeakEstimatedColorBytes <= 512ULL * 1024 * 1024,
         "native output switching keeps bounded presentation storage without readbacks or live idle waits");
+    RunCapabilityRecovery(Failed,Config);
 }
 } // namespace
 

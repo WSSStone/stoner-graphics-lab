@@ -17,7 +17,8 @@ enum class EWindowEventType
     FocusLost,
     CloseRequested,
     Destroyed,
-    UnavailableRuntime
+    UnavailableRuntime,
+    DisplayCapabilitiesChanged
 };
 
 struct FWindowEvent
@@ -43,6 +44,7 @@ struct FWindowEvent
         Stoner::Core::uint32 Height,
         Stoner::Core::uint64 Sequence = 0);
     [[nodiscard]] static FWindowEvent ContentScaleChanged(float X, float Y, Stoner::Core::uint64 Sequence = 0);
+    [[nodiscard]] static FWindowEvent DisplayCapabilitiesChanged(Stoner::Core::uint64 Sequence = 0);
     [[nodiscard]] static FWindowEvent Minimized(Stoner::Core::uint64 Sequence = 0);
     [[nodiscard]] static FWindowEvent Restored(Stoner::Core::uint32 Width,
         Stoner::Core::uint32 Height,

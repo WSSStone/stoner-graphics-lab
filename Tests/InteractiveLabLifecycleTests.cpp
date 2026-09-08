@@ -94,6 +94,24 @@ struct FFixture
         return S.Initialize(W, I, Camera(), {std::move(Callback)}, Config) == EApplicationResult::Success;
     }
 };
+void TestCapabilityNotification()
+{
+    FFixture F;
+    uint64 Transitions = 0;
+    Check(F.Start([&](const auto& Q) {
+        if (Q.Phase == Phase::Transition) ++Transitions;
+        return Complete();
+    }), "capability notification fixture starts");
+    const auto Before = F.S.GetDisplayState();
+    F.W.QueueEvent(FWindowEvent::DisplayCapabilitiesChanged());
+    (void)F.S.Service(0.0);
+    const auto After = F.S.GetDisplayState();
+    Check(After.DisplayGeneration > Before.DisplayGeneration &&
+        After.DrawableExtent == Before.DrawableExtent && After.bFocused == Before.bFocused &&
+        Transitions == 1,
+        "output capability notification advances display identity without inventing resize or focus changes");
+    Check(Close(F.S), "capability notification fixture closes");
+}
 void TestSettingsSession()
 {
     using namespace Stoner::Renderer;
@@ -406,6 +424,7 @@ void TestTimeout()
 int RunInteractiveLabLifecycleTests()
 {
     Failures = 0;
+    TestCapabilityNotification();
     TestSettingsSession();
     TestUISession(); TestSession(); TestTransitions(); TestTerminalOwnership(); TestTerminalFailureBoundaries(); TestTimeout();
     return Failures == 0 ? 0 : 1;

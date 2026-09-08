@@ -195,6 +195,7 @@ public:
         { Fail(Reason); return false; }
         TargetEvidence = Evidence;
         CurrentExtent = Extent;
+        ObservedCapabilities = Status.Capabilities;
         bSceneReady = true;
         return true;
     }
@@ -289,6 +290,24 @@ public:
         return Caps;
     }
 
+    bool OutputCapabilitiesChanged() const
+    {
+        const auto& Caps = Status.Capabilities;
+        return Caps.SupportedPairs != ObservedCapabilities.SupportedPairs ||
+            Caps.NativeReferenceWhiteNits != ObservedCapabilities.NativeReferenceWhiteNits ||
+            Caps.bSupportsExtendedRange != ObservedCapabilities.bSupportsExtendedRange;
+    }
+
+    bool ObserveOutputCapabilities(Application::FWindow& Window)
+    {
+        if (!bSceneReady || Backend->QueryLabPresentation(Status) != ERHIResult::Success) return false;
+        const auto& Caps = Status.Capabilities;
+        const bool Changed = OutputCapabilitiesChanged();
+        ObservedCapabilities = Caps;
+        if (Changed) Window.QueueEvent(Application::FWindowEvent::DisplayCapabilitiesChanged());
+        return Changed;
+    }
+
     void ApplySessionSettings(Application::FInteractiveLabSession& Session, Core::uint32 Budget)
     {
         const auto* Effective = Session.GetEffectiveSettings();
@@ -306,6 +325,10 @@ public:
         Core::FString Reason;
         if (Backend->QueryLabPresentation(Status) != ERHIResult::Success)
         { Fail("lab settings capability query failed"); return; }
+        // Capabilities may change after event polling but before admission.
+        // Hold new frames until the next observation tags that change in the
+        // window/session generation and the lifecycle drain acknowledges it.
+        if (OutputCapabilitiesChanged()) { bCapabilityRecovery = true; return; }
         if (!ModeTransaction)
         {
             if (!CanPrepareUI()) return;
@@ -322,7 +345,8 @@ public:
                 return;
             }
             const auto Updated = Frames->UpdateOutputSettings(Candidate,&Reason);
-            if (Updated == ERHIResult::Success && Status.bPrepared)
+            if (Updated == ERHIResult::Success && Status.bPrepared &&
+                !bCapabilityRecovery && CurrentExtent == Display.DrawableExtent)
             {
                 if (Session.CompleteSettingsTransaction(Transaction->Token,true,true))
                 { OutputSettings = std::move(Candidate); OutputResolved = Resolved; }
@@ -378,6 +402,7 @@ public:
             return;
         }
         bNeedsResize = false;
+        bCapabilityRecovery = false;
         (void)Session.CompleteSettingsTransaction(Token,true,true);
     }
 
@@ -612,6 +637,33 @@ public:
         if (Request.Phase == EInteractiveLabServicePhase::Transition)
         {
             if (!bSceneReady) { Out.Status = EInteractiveLabServiceStatus::Invalid; return Out; }
+            if (Backend->QueryLabPresentation(Status) != ERHIResult::Success)
+            { Fail("lab transition capability query failed"); Out.Status = EInteractiveLabServiceStatus::Failed; return Out; }
+            Application::FLabSettingsSnapshot Current;
+            Current.EffectiveProfileId = OutputResolved.OutputDeviceProfileId;
+            Current.SdrToneMapVersion = OutputSettings.SDRToneMapVersion.IsEmpty()
+                ? Core::FString(Renderer::GDefaultSDRToneMapVersion) : OutputSettings.SDRToneMapVersion;
+            Current.HdrViewingVersion = OutputSettings.HDRViewingVersion.IsEmpty()
+                ? Core::FString(Renderer::GInitialHDRViewingVersion) : OutputSettings.HDRViewingVersion;
+            Renderer::FOutputTransformSettings Candidate;
+            Renderer::FResolvedOutputTransformSettings Resolved;
+            RHI::ERHIFormat Format;
+            Core::FString CapabilityReason;
+            if (!ResolveOutput(Current,Candidate,Resolved,Format,CapabilityReason) ||
+                Resolved.ReferenceWhiteNits != OutputResolved.ReferenceWhiteNits || !Status.bPrepared ||
+                !Status.Capabilities.SupportsPair(Status.ResolvedState.Format,Status.ResolvedState.ColorSpace))
+                bCapabilityRecovery = true;
+            if (bCapabilityRecovery)
+            {
+                // Finish only the lifecycle drain. The settings controller
+                // resolves requested intent against the new capabilities and
+                // owns fallback/pause before any new target is admitted.
+                Progress(true);
+                if (BusySlots() != 0) return Out;
+                bNeedsResize = false; bReconfigurationStarted = false;
+                Out.bCompleted = true; Out.Status = EInteractiveLabServiceStatus::Success;
+                return Out;
+            }
             // Focus/restore notifications can change the Application display
             // generation without changing native output. Preserve in-flight
             // acquisitions: canceling them here can exhaust acquire history.
@@ -721,6 +773,8 @@ public:
     Renderer::FOutputTransformSettings OutputSettings;
     Renderer::FResolvedOutputTransformSettings OutputResolved;
     FDemoLabPresentationStatus Status, BeforeShutdown, AfterShutdown;
+    RHI::FRHIPresentationCapabilities ObservedCapabilities;
+    bool bCapabilityRecovery = false;
     bool bRecordedPreShutdown = false;
     bool bReconfigurationStarted = false;
     std::array<FSlot, 2> Slots;
@@ -816,7 +870,8 @@ FInteractiveLabRunResult RunInteractiveLab(
         try
         {
             if (WindowService && EventThreadOwnsBackend()) WindowService(Window, Owner->Presented);
-            if (EventThreadOwnsBackend() && (Session.GetState() == EInteractiveLabSessionState::Running ||
+            const bool CapabilitiesChanged = EventThreadOwnsBackend() && Owner->ObserveOutputCapabilities(Window);
+            if (EventThreadOwnsBackend() && !CapabilitiesChanged && !Owner->bCapabilityRecovery && !Session.IsSettingsPaused() && (Session.GetState() == EInteractiveLabSessionState::Running ||
                     Session.GetState() == EInteractiveLabSessionState::Ready)) Owner->Progress(false);
             if (EventThreadOwnsBackend() && Owner->bSceneReady)
             {
@@ -857,7 +912,8 @@ FInteractiveLabRunResult RunInteractiveLab(
                 Owner->ApplySessionSettings(Session, Config.IsBounded() ? Config.FrameBudget : 0);
                 if (State == EInteractiveLabSessionState::Running || State == EInteractiveLabSessionState::Ready)
                 {
-                    if (!Owner->ModeTransaction) Owner->Admit(Session, Config.IsBounded() ? Config.FrameBudget : 0);
+                    if (!Owner->ModeTransaction && !Owner->bCapabilityRecovery)
+                        Owner->Admit(Session, Config.IsBounded() ? Config.FrameBudget : 0);
                     if (Owner->bNeedsResize)
                     {
                         const auto& Display = Session.GetDisplayState();
@@ -866,6 +922,7 @@ FInteractiveLabRunResult RunInteractiveLab(
                     if (Owner->Presented != LastPresented) { LastPresented = Owner->Presented; LastProgress = Now; }
                     if (Config.IsBounded() && Owner->Presented >= Config.FrameBudget)
                         (void)Session.RequestExit();
+                    else if (Session.IsSettingsPaused() && !Owner->ModeTransaction) LastProgress = Now;
                     else if (Now - LastProgress > std::chrono::seconds(5))
                         (void)Session.RequestExit("lab frame progress timed out");
                 }

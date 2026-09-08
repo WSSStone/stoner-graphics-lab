@@ -367,6 +367,9 @@ void FWindow::ApplyEvent(const FWindowEvent& Event)
     {
     case EWindowEventType::Created:
         break;
+    case EWindowEventType::DisplayCapabilitiesChanged:
+        BumpDisplayGeneration();
+        break;
     case EWindowEventType::Resized:
         ClientWidth = Event.ClientWidth;
         ClientHeight = Event.ClientHeight;
