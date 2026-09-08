@@ -672,6 +672,10 @@ FOutputTransformPreviewResult FOutputTransformExecutor::RecordPreview(
         return MakePreviewFailure(EOutputTransformResult::Unsupported,Stoner::RHI::ERHIResult::Unsupported,
             "OT-UI-NATIVE-UNSUPPORTED","Binding","TerminalUI","native executor cannot record terminal UI composition");
 
+    if (Plan.HasDiagnosticWidget() && !Bindings.PreviewFrameExecutor->SupportsDiagnosticWidgets())
+        return MakePreviewFailure(EOutputTransformResult::Unsupported,Stoner::RHI::ERHIResult::Unsupported,
+            "OT-WIDGET-NATIVE-UNSUPPORTED","Binding","DiagnosticWidget","native executor cannot record GPU diagnostic widgets");
+
     const Stoner::Core::TSharedPtr<FOutputTransformPreviewTicketState> State =
         Stoner::Core::MakeShared<FOutputTransformPreviewTicketState>();
     State->TicketId = GNextPreviewTicketId.fetch_add(1,

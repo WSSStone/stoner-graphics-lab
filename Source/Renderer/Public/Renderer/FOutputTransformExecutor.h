@@ -22,6 +22,7 @@ class IOutputTransformNativeFrameExecutor
 public:
     virtual ~IOutputTransformNativeFrameExecutor() = default;
     [[nodiscard]] virtual bool SupportsTerminalUI() const noexcept { return false; }
+    [[nodiscard]] virtual bool SupportsDiagnosticWidgets() const noexcept { return false; }
 
     virtual Stoner::RHI::ERHIResult Acquire(
         const FOutputTransformPlan& Plan,

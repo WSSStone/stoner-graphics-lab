@@ -76,7 +76,7 @@ bool ValidGpuDependency(const FUIGpuTextureRegistration& Request, const FUIGpuTe
         for (const auto& A : Graph.GetPasses()[*It].Desc.Accesses)
             if (A.Resource==Request.Resource && WritesResource(A.Access)) return false;
     return std::any_of(Compiled.DependencyEdges.begin(),Compiled.DependencyEdges.end(),[&](const auto& Edge) {
-        return Edge.Resource==Request.Resource && Edge.FromPassIndex==Request.Producer.Index &&
+        return Edge.FromPassIndex==Request.Producer.Index &&
             Edge.ToPassIndex==Context.Consumer.Index; });
 }
 FUITextureResult Result(const FUITextureRequest& Request, ERHIResult Code,

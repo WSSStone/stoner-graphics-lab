@@ -274,7 +274,8 @@ int RunUITextureRegistryTests()
         ConsumerDesc.bPreserveForSideEffects=true;
         ConsumerDesc.Accesses.push_back({Resource,ERenderGraphAccessType::Read,ERenderGraphResourceState::Read});
         const auto Consumer=Builder.AddPass(ConsumerDesc);
-        Check(Graph.Compile()==ERenderGraphResult::Success,"GPU widget compiles a producer-before-sample dependency");
+        (void)Builder.AddDependency(Producer,Consumer);
+        Check(Graph.Compile()==ERenderGraphResult::Success,"GPU widget compiles explicit and resource producer-before-sample dependencies");
         FRHITextureDesc Desc; Desc.Width=Desc.Height=4; Desc.Format=ERHIFormat::R8G8B8A8_sRGB; Desc.Usage=Usage;
         auto Texture=Device->CreateTexture(Desc).Object;
         FUIGpuTextureRegistration Request{1,{},Texture,Resource,Producer};

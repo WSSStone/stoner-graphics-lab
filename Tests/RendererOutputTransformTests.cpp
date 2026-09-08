@@ -43,6 +43,8 @@ private:
 class FOutputTerminalProbe final : public IOutputTransformNativeFrameExecutor
 {
 public:
+    bool bSupportsUI = false;
+    bool SupportsTerminalUI() const noexcept override { return bSupportsUI; }
     enum class EFailure { None, AcquirePaused, Submit, Readback, Present, Mismatch };
 
     explicit FOutputTerminalProbe(EFailure InFailure = EFailure::None)
@@ -1069,6 +1071,18 @@ void TestTerminalUIInsertion(FRendererOutputTransformTestResult& Result)
     const auto PreviewRejected = FOutputTransformExecutor().RecordPreview(Preview.Plan,PreviewGraph,PreviewDeclaration,Bindings,Ticket);
     Record(Result,PreviewRejected.NativeResult == ERHIResult::Unsupported && !Ticket.IsValid() && PreviewLegacy->Owners == 0,
         "legacy preview executor rejects terminal UI before acquiring any native owner");
+    FRenderGraph WidgetGraph("DiagnosticWidgetPreview");
+    PreviewSettings.DiagnosticBypass.Mode=EOutputTransformDebugBypassMode::BoundedVisualization;
+    PreviewSettings.DiagnosticBypass.StageName="ManualExposure";
+    auto Widget=Pipeline.Prepare(MakeProducedSceneColor(WidgetGraph),PreviewSettings,&UI);
+    Widget.Plan.ExecutionPurpose=EFrameExecutionPurpose::InteractivePreview;
+    Widget.Plan.ReadbackSelection=EFrameReadbackSelection::None;
+    const auto WidgetDeclaration=Pipeline.DeclareGraph(WidgetGraph,Widget.Plan);
+    (void)WidgetGraph.Compile(); PreviewLegacy->bSupportsUI=true;
+    const auto WidgetRejected=FOutputTransformExecutor().RecordPreview(Widget.Plan,WidgetGraph,WidgetDeclaration,Bindings,Ticket);
+    Record(Result,WidgetDeclaration.IsValid() && WidgetRejected.NativeResult==ERHIResult::Unsupported &&
+        !Ticket.IsValid() && PreviewLegacy->Owners==0,
+        "UI-capable executor cannot silently skip an unimplemented GPU diagnostic widget");
     FRenderGraph NoUIGraph("NoTerminalUI");
     const auto NoUI = Pipeline.Prepare(MakeProducedSceneColor(NoUIGraph),FOutputTransformSettings{});
     const auto NoUIDeclaration = Pipeline.DeclareGraph(NoUIGraph,NoUI.Plan);

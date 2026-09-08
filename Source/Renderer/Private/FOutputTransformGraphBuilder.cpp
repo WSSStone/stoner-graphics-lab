@@ -157,13 +157,19 @@ bool AddInsertionComposite(FRenderGraphBuilder& Builder,
     return true;
 }
 
+std::pair<Stoner::Core::uint32,Stoner::Core::uint32> WidgetExtent(const FOutputTransformPlan& Plan)
+{
+    using namespace Stoner::Core;
+    const uint64 Largest=std::max<uint64>(1024,std::max(Plan.OutputDesc.Width,Plan.OutputDesc.Height));
+    return {static_cast<uint32>(std::max<uint64>(1,uint64{Plan.OutputDesc.Width}*1024/Largest)),
+        static_cast<uint32>(std::max<uint64>(1,uint64{Plan.OutputDesc.Height}*1024/Largest))};
+}
 bool AddDiagnosticBypass(FRenderGraphBuilder& Builder,
     const FOutputTransformPlan& Plan,
     FOutputTransformGraphDeclaration& Declaration)
 {
-    if (Plan.DiagnosticBypass.Mode ==
-        EOutputTransformDebugBypassMode::Disabled)
-        return true;
+    const bool Widget=Plan.HasDiagnosticWidget();
+    if (!Widget && !Plan.RequiresDiagnosticReadback()) return true;
     const FRenderGraphResourceHandle Source = Declaration.FindStageResource(
         Plan.DiagnosticBypass.SourceStageId);
     if (!Source.IsValid()) return false;
@@ -173,15 +179,15 @@ bool AddDiagnosticBypass(FRenderGraphBuilder& Builder,
     if (Plan.DiagnosticBypass.Mode ==
         EOutputTransformDebugBypassMode::BoundedVisualization)
     {
+        const auto [Width,Height]=Widget ? WidgetExtent(Plan) : std::pair{Plan.OutputDesc.Width,Plan.OutputDesc.Height};
+        auto Usage=Stoner::RHI::ERHITextureUsage::Sampled | Stoner::RHI::ERHITextureUsage::ColorAttachment;
+        if (!Widget) Usage |= Stoner::RHI::ERHITextureUsage::CopySource;
         FRenderGraphResourceDesc DebugOutput =
             FRenderGraphResourceDesc::TypedTexture2D(
-                "Output.DiagnosticVisualization", Plan.OutputDesc.Width,
-                Plan.OutputDesc.Height,
-                Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm,
+                "Output.DiagnosticVisualization", Width, Height,
+                Widget ? Stoner::RHI::ERHIFormat::R8G8B8A8_sRGB : Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm,
                 Stoner::RHI::ERHISampleCount::One,
-                Stoner::RHI::ERHITextureUsage::Sampled |
-                    Stoner::RHI::ERHITextureUsage::ColorAttachment |
-                    Stoner::RHI::ERHITextureUsage::CopySource,
+                Usage,
                 ERenderGraphColorDomain::EncodedSrgb);
         DebugOutput.AliasPolicy = ERenderGraphAliasPolicy::Disabled;
         Declaration.DiagnosticOutput = Builder.CreateResource(DebugOutput);
@@ -193,6 +199,12 @@ bool AddDiagnosticBypass(FRenderGraphBuilder& Builder,
         Declaration.OrderedPasses.push_back(
             Declaration.DiagnosticVisualizationPass);
         Declaration.DiagnosticFullscreenPassCount = 1;
+        if (Widget)
+        {
+            Declaration.bDiagnosticWidget=true;
+            Declaration.bDiagnosticOutputNonAuthoritative=true;
+            return true;
+        }
         ReadbackSource = Declaration.DiagnosticOutput;
         if (!Stoner::RHI::TryGetRHITextureFootprint(
                 Stoner::RHI::ERHIFormat::R8G8B8A8_UNorm,
@@ -253,11 +265,15 @@ bool FOutputTransformGraphDeclaration::IsValid() const noexcept
         static_cast<Stoner::Core::uint32>(PostTonemapOutputs.size()) +
         DiagnosticFullscreenPassCount + (UIPass.IsValid() ? 1U : 0U);
     const bool bDiagnosticConsistent =
-        (!bDiagnosticOutputNonAuthoritative &&
+        (!bDiagnosticWidget && !bDiagnosticOutputNonAuthoritative &&
+            DiagnosticFullscreenPassCount == 0 && !DiagnosticOutput.IsValid() && !DiagnosticVisualizationPass.IsValid() &&
             DiagnosticReadbackCopyCount == 0 &&
             !DiagnosticReadbackBuffer.IsValid() &&
             !DiagnosticReadbackPass.IsValid()) ||
-        (bDiagnosticOutputNonAuthoritative &&
+        (bDiagnosticWidget && bDiagnosticOutputNonAuthoritative && UIPass.IsValid() &&
+            DiagnosticFullscreenPassCount == 1 && DiagnosticOutput.IsValid() && DiagnosticVisualizationPass.IsValid() &&
+            DiagnosticReadbackCopyCount == 0 && !DiagnosticReadbackBuffer.IsValid() && !DiagnosticReadbackPass.IsValid()) ||
+        (!bDiagnosticWidget && bDiagnosticOutputNonAuthoritative &&
             DiagnosticReadbackCopyCount == 1 &&
             DiagnosticReadbackBuffer.IsValid() &&
             DiagnosticReadbackPass.IsValid() &&
@@ -353,12 +369,15 @@ FOutputTransformGraphDeclaration FHDRPostProcessPipeline::DeclareGraph(
             "Output.PostTonemap.", CurrentColor, Out.PostTonemapOutputs, Out))
         return Out;
 
+    if (Plan.HasDiagnosticWidget() && !AddDiagnosticBypass(Builder,Plan,Out)) return Out;
     if (Plan.TerminalUI)
     {
         Out.UIComposite = CreateIntermediate(Builder,"Output.UIComposite",Plan,Plan.ResolvedSettings.DisplayLinearDomain);
         Out.UIPass = AddStagePass(Builder,"TerminalUI",ERenderGraphPassType::Graphics,CurrentColor,Out.UIComposite);
         if (!Out.UIComposite.IsValid() || !Out.UIPass.IsValid() ||
             !AddStageResource(Out,Plan,"TerminalUI",Out.UIComposite)) return Out;
+        if (Out.bDiagnosticWidget && Builder.AddAccess(Out.UIPass,Out.DiagnosticOutput,ERenderGraphAccessType::Read) !=
+            ERenderGraphResult::Success) return Out;
         Out.OrderedPasses.push_back(Out.UIPass);
         CurrentColor = Out.UIComposite;
     }
@@ -388,7 +407,7 @@ FOutputTransformGraphDeclaration FHDRPostProcessPipeline::DeclareGraph(
         return Out;
     Out.FormalWriterCount = 1;
 
-    if (!AddDiagnosticBypass(Builder, Plan, Out)) return Out;
+    if (Plan.RequiresDiagnosticReadback() && !AddDiagnosticBypass(Builder, Plan, Out)) return Out;
 
     if (Plan.ResolvedSettings.bRequireReadback)
     {
@@ -485,16 +504,15 @@ bool FHDRPostProcessPipeline::ValidateOutputGraph(const FRenderGraph& Graph,
             Plan.PreTonemapOperations.Operations.size() +
             Plan.PostTonemapOperations.Operations.size());
     const Stoner::Core::uint32 ExpectedDiagnosticFullscreen =
-        Plan.DiagnosticBypass.Mode ==
-            EOutputTransformDebugBypassMode::BoundedVisualization ? 1U : 0U;
+        (Plan.HasDiagnosticWidget() || (Plan.RequiresDiagnosticReadback() &&
+            Plan.DiagnosticBypass.Mode == EOutputTransformDebugBypassMode::BoundedVisualization)) ? 1U : 0U;
     const Stoner::Core::uint32 ExpectedFullscreen =
         3U + ExpectedInsertionCount + ExpectedDiagnosticFullscreen + (Plan.TerminalUI ? 1U : 0U);
     const Stoner::Core::uint32 OutputReferences =
         static_cast<Stoner::Core::uint32>(std::count(
             Graph.GetOutputs().begin(), Graph.GetOutputs().end(),
             Declaration.FormalOutput));
-    const bool bDiagnosticExpected = Plan.DiagnosticBypass.Mode !=
-        EOutputTransformDebugBypassMode::Disabled;
+    const bool bDiagnosticExpected = Plan.HasDiagnosticWidget() || Plan.RequiresDiagnosticReadback();
     if (OutputReferences != 1 ||
         Declaration.UIComposite.IsValid() != Plan.TerminalUI.has_value() ||
         Declaration.UIPass.IsValid() != Plan.TerminalUI.has_value() ||
@@ -510,13 +528,45 @@ bool FHDRPostProcessPipeline::ValidateOutputGraph(const FRenderGraph& Graph,
         Declaration.DiagnosticFullscreenPassCount !=
             ExpectedDiagnosticFullscreen ||
         Declaration.DiagnosticReadbackCopyCount !=
-            (bDiagnosticExpected ? 1U : 0U) ||
+            (Plan.RequiresDiagnosticReadback() ? 1U : 0U) ||
+        Declaration.bDiagnosticWidget != Plan.HasDiagnosticWidget() ||
         Declaration.bDiagnosticOutputNonAuthoritative != bDiagnosticExpected)
     {
         AddGraphFailure(Diagnostics, EOutputTransformResult::InvalidGraph,
             "OT-GRAPH-BOUNDS",
             "formal output insertion and diagnostic work must remain bounded");
         return false;
+    }
+
+    if (Plan.HasDiagnosticWidget())
+    {
+        const auto* Target=Graph.FindResource(Declaration.DiagnosticOutput);
+        const auto* Producer=Graph.FindPass(Declaration.DiagnosticVisualizationPass);
+        const auto* UI=Graph.FindPass(Declaration.UIPass);
+        const auto [Width,Height]=WidgetExtent(Plan);
+        if (!Target || !Producer || !UI || Target->Desc.Width!=Width || Target->Desc.Height!=Height ||
+            Target->Desc.Texture.Format!=Stoner::RHI::ERHIFormat::R8G8B8A8_sRGB ||
+            Target->Desc.Texture.ColorDomain!=ERenderGraphColorDomain::EncodedSrgb ||
+            Target->Desc.Texture.SampleCount!=Stoner::RHI::ERHISampleCount::One ||
+            Target->Desc.Texture.Usage!=(Stoner::RHI::ERHITextureUsage::Sampled | Stoner::RHI::ERHITextureUsage::ColorAttachment)) return false;
+        const auto Source=Declaration.FindStageResource(Plan.DiagnosticBypass.SourceStageId);
+        const auto HasAccess=[](const auto* Pass,auto Resource,auto Access) {
+            return std::any_of(Pass->Desc.Accesses.begin(),Pass->Desc.Accesses.end(),[&](const auto& A) {
+                return A.Resource==Resource && A.Access==Access; });
+        };
+        if (!HasAccess(Producer,Source,ERenderGraphAccessType::Read) ||
+            !HasAccess(Producer,Declaration.DiagnosticOutput,ERenderGraphAccessType::Write) ||
+            !HasAccess(UI,Declaration.DiagnosticOutput,ERenderGraphAccessType::Read)) return false;
+        if (Graph.GetState()!=ERenderGraphState::Draft)
+        {
+            if (Graph.GetState()!=ERenderGraphState::Compiled) return false;
+            const auto& Compiled=Graph.GetCompiledGraph();
+            const auto Before=std::find(Compiled.ScheduledPasses.begin(),Compiled.ScheduledPasses.end(),Producer->Handle.Index);
+            const auto After=std::find(Compiled.ScheduledPasses.begin(),Compiled.ScheduledPasses.end(),UI->Handle.Index);
+            if (Before==Compiled.ScheduledPasses.end() || After==Compiled.ScheduledPasses.end() || Before>=After ||
+                !std::any_of(Compiled.DependencyEdges.begin(),Compiled.DependencyEdges.end(),[&](const auto& Edge) {
+                    return Edge.FromPassIndex==Producer->Handle.Index && Edge.ToPassIndex==UI->Handle.Index; })) return false;
+        }
     }
 
     if (Plan.TerminalUI)

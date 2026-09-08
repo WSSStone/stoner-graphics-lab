@@ -251,6 +251,13 @@ bool FOutputTransformPlan::IsValid() const noexcept
         TerminalUI->OutputProfileId != ResolvedSettings.OutputDeviceProfileId ||
         TerminalUI->BlendDomain != ResolvedSettings.DisplayLinearDomain ||
         TerminalUI->UIReferenceWhiteNits != ResolvedSettings.ReferenceWhiteNits)) return false;
+    if (HasDiagnosticWidget())
+    {
+        const auto Source=std::find_if(Stages.begin(),Stages.end(),[this](const auto& Stage) {
+            return Stage.StageId==DiagnosticBypass.SourceStageId; });
+        if (Source==Stages.end() || Source->Kind==EOutputTransformStageKind::TerminalUI ||
+            Source->Kind==EOutputTransformStageKind::OutputDeviceTransform || IsTerminalStage(Source->Kind)) return false;
+    }
     const bool CanonicalStorage = PreviewTargetFormat == Stoner::RHI::ERHIFormat::Unknown &&
         OutputDesc.Format == ResolvedSettings.OutputFormat;
     const bool NativePreviewStorage = ExecutionPurpose == EFrameExecutionPurpose::InteractivePreview &&

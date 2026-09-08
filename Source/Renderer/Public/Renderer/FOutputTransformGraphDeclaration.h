@@ -51,6 +51,7 @@ struct FOutputTransformGraphDeclaration
     Stoner::Core::uint32 DiagnosticFullscreenPassCount = 0;
     Stoner::Core::uint32 DiagnosticReadbackCopyCount = 0;
     bool bDiagnosticOutputNonAuthoritative = false;
+    bool bDiagnosticWidget = false;
     bool bValid = false;
 
     [[nodiscard]] bool IsValid() const noexcept;

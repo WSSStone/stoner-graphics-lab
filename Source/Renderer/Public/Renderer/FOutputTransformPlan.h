@@ -129,6 +129,16 @@ struct FOutputTransformPlan
     EFrameReadbackSelection ReadbackSelection =
         EFrameReadbackSelection::Formal;
 
+    [[nodiscard]] bool HasDiagnosticWidget() const noexcept
+    {
+        return ExecutionPurpose == EFrameExecutionPurpose::InteractivePreview && TerminalUI.has_value() &&
+            DiagnosticBypass.Mode == EOutputTransformDebugBypassMode::BoundedVisualization;
+    }
+    [[nodiscard]] bool RequiresDiagnosticReadback() const noexcept
+    {
+        return ExecutionPurpose == EFrameExecutionPurpose::FormalValidation &&
+            DiagnosticBypass.Mode != EOutputTransformDebugBypassMode::Disabled;
+    }
     [[nodiscard]] bool IsValid() const noexcept;
 };
 
