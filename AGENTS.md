@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (76/127 reviewed tasks); native closeout remains pending.
+Feature 030 implementation is partial (77/127 reviewed tasks); native closeout remains pending.
 The maintainer explicitly skips Intel x86_64 macOS validation for Feature 030
 on 2026-09-08; record it as skipped, not passed, and do not block implementation
 on Intel cooking/derivation/native checks. Existing Intel support and historical
@@ -164,6 +164,8 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
+- 030 US4 local checkpoint complete (77/127): `Build/Validation/030/us4.json` records revision `eb0160c`, six runs and log/vector digests. Debug/Release each pass 353 CPU assertions and 216 native assertions per M4 Metal/Vulkan backend, including color/scale, Forward terminal UI and exact Deferred UI-off parity. Presets, capture and final platform/human acceptance remain pending; Intel macOS is skipped.
+
 - 030 T070/T076 native parity complete (76/127): strict-cooked Forward mesh uses shared terminal UI and output transfer; empty UI preserves all pixels and the bounded widget affects only its region. Full Deferred formal/preview offscreen final pixels match at frozen 64x32/+3 EV with unchanged matrices and zero preview implicit readback. Metal/Vulkan Debug/Release each pass 216 native assertions. US4 aggregate, both-workload formal platform acceptance and human HDR authority remain pending; Intel macOS stays skipped.
 
 - 030 T075 native UI output review complete (74/127): actual submitted UI settings retain resolved native whites and one output transfer; Metal PQ/EDR submission tokens match rendered UI, with actual layer EDRMetadata absence observed. Current Metal Debug/Vulkan Release fallback checks pass 25/15, and both strict configurations pass 290 related CPU assertions. Native display observation remains zero and no scanout/human HDR authority is claimed. Full scene/Forward parity and US4 aggregate remain pending.
