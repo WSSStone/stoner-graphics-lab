@@ -94,6 +94,36 @@ struct FFixture
         return S.Initialize(W, I, Camera(), {std::move(Callback)}, Config) == EApplicationResult::Success;
     }
 };
+void TestNavigationSession()
+{
+    FFixture F;
+    bool Hold=false;
+    Check(F.Start([&](const auto& Q) {
+        auto R=Complete();
+        if (Hold && Q.Phase == Phase::Transition) { R.Status=Status::NotReady; R.bCompleted=false; }
+        return R;
+    }),"navigation session starts");
+    const auto Initial=F.S.GetCameraState();
+    Check(F.S.SetNavigationParameters(3,FMath::DegreesToRadians(50)) == EApplicationResult::Success &&
+        F.S.GetCameraState().CameraRevision > Initial.CameraRevision && F.S.GetCameraState().MovementSpeed == 3,
+        "session commits valid navigation parameters before subsequent frames");
+    const auto Revision=F.S.GetCameraState().CameraRevision;
+    Check(F.S.SetNavigationParameters(200,FMath::DegreesToRadians(60)) == EApplicationResult::ValidationFailed &&
+        F.S.GetCameraState().CameraRevision == Revision,"session rejects invalid navigation edits atomically");
+    Hold=true;
+    const auto D=F.S.GetDisplayState();
+    (void)F.S.RequestTransition({0,D.DisplayGeneration,D.DrawableExtent});
+    (void)F.S.Service(0);
+    Check(F.S.SetNavigationParameters(1,FMath::DegreesToRadians(60)) == EApplicationResult::InvalidLifecycle &&
+        F.S.ExecuteCameraCommand(EInteractiveLabCameraCommand::Reset) == EApplicationResult::InvalidLifecycle &&
+        F.S.GetCameraState().CameraRevision == Revision,"transition ownership blocks navigation edits and reset");
+    Hold=false; (void)F.S.Service(0);
+    Check(F.S.ExecuteCameraCommand(EInteractiveLabCameraCommand::Reset) == EApplicationResult::Success &&
+        F.S.GetCameraState().MovementSpeed == Initial.MovementSpeed && F.S.IsInputFreshRequired(),
+        "session reset restores initial speed and requires fresh input");
+    Check(Close(F.S) && F.S.SetNavigationParameters(1,1) == EApplicationResult::InvalidLifecycle,
+        "closed session rejects navigation edits");
+}
 void TestCapabilityNotification()
 {
     FFixture F;
@@ -424,6 +454,7 @@ void TestTimeout()
 int RunInteractiveLabLifecycleTests()
 {
     Failures = 0;
+    TestNavigationSession();
     TestCapabilityNotification();
     TestSettingsSession();
     TestUISession(); TestSession(); TestTransitions(); TestTerminalOwnership(); TestTerminalFailureBoundaries(); TestTimeout();

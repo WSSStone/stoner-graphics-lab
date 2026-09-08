@@ -288,13 +288,48 @@ FFreeCameraUpdateResult FFreeCameraController::Update(
         ? Result : FFreeCameraUpdateResult{};
 }
 
+bool FFreeCameraController::SetNavigationParameters(float MovementSpeed, float VerticalFovRadians,
+    const FWindowDisplayState& Display, FCameraChangeSet* OutChangeSet) noexcept
+{
+    if (OutChangeSet) *OutChangeSet = {};
+    if (!bInitialized || !Display.IsValid() || Display.bMinimized || !Display.DrawableExtent.IsPositive() ||
+        !std::isfinite(MovementSpeed) || MovementSpeed < 0.01f || MovementSpeed > 100.0f ||
+        !std::isfinite(VerticalFovRadians) || VerticalFovRadians < MinimumFov || VerticalFovRadians > MaximumFov)
+        return false;
+    if (State.MovementSpeed == MovementSpeed && State.VerticalFovRadians == VerticalFovRadians &&
+        State.DrawableExtent == Display.DrawableExtent) return true;
+    auto Candidate = State;
+    Candidate.MovementSpeed = MovementSpeed;
+    Candidate.VerticalFovRadians = VerticalFovRadians;
+    auto Flags = ECameraChangeFlags::None;
+    if (VerticalFovRadians != State.VerticalFovRadians) Flags |= ECameraChangeFlags::ProjectionChanged;
+    if (State.DrawableExtent != Display.DrawableExtent)
+        Flags |= ECameraChangeFlags::ExtentChanged | ECameraChangeFlags::ProjectionChanged;
+    if (HasCameraChangeFlag(Flags,ECameraChangeFlags::ProjectionChanged) &&
+        !RebuildDerivedCamera(Candidate,Display.DrawableExtent)) return false;
+    FFreeCameraUpdateResult Result;
+    if (!Commit(std::move(Candidate),Flags,State.DrawableExtent,Result)) return false;
+    if (OutChangeSet) *OutChangeSet = Result.ChangeSet;
+    return true;
+}
+
 bool FFreeCameraController::Reset(
     const FWindowDisplayState& CurrentDisplay,
     FCameraChangeSet* OutChangeSet) noexcept
 {
     if (OutChangeSet) *OutChangeSet = FCameraChangeSet{};
-    const FFreeCameraUpdateResult Result = Update(
-        FFreeCameraActions{.bReset = true}, CurrentDisplay, 0.0);
+    if (!bInitialized || !CurrentDisplay.IsValid() || CurrentDisplay.bMinimized ||
+        !CurrentDisplay.DrawableExtent.IsPositive()) return false;
+    auto Candidate=InitialState;
+    if (!RebuildDerivedCamera(Candidate,CurrentDisplay.DrawableExtent)) return false;
+    auto Flags=ECameraChangeFlags::Reset | ECameraChangeFlags::Cut;
+    if (State.VerticalFovRadians != Candidate.VerticalFovRadians ||
+        State.NearPlane != Candidate.NearPlane || State.FarPlane != Candidate.FarPlane)
+        Flags |= ECameraChangeFlags::ProjectionChanged;
+    if (State.DrawableExtent != Candidate.DrawableExtent)
+        Flags |= ECameraChangeFlags::ExtentChanged | ECameraChangeFlags::ProjectionChanged;
+    FFreeCameraUpdateResult Result;
+    if (!Commit(std::move(Candidate),Flags,State.DrawableExtent,Result)) return false;
     if (OutChangeSet && Result.bCameraChanged)
         *OutChangeSet = Result.ChangeSet;
     return Result.bCameraChanged;

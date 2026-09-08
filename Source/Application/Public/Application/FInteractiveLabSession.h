@@ -226,6 +226,7 @@ public:
 
     [[nodiscard]] EApplicationResult ExecuteCameraCommand(
         EInteractiveLabCameraCommand Command) noexcept;
+    [[nodiscard]] EApplicationResult SetNavigationParameters(float MovementSpeed, float VerticalFovRadians) noexcept;
 
     [[nodiscard]] EInteractiveLabSessionState GetState() const noexcept;
     [[nodiscard]] EInteractiveLabShutdownAssurance GetShutdownAssurance() const noexcept;

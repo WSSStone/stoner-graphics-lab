@@ -697,6 +697,9 @@ void RunOutputSwitches(int& Failed)
     Core::uint64 LastMode = 1;
     Core::FString PreviousProfile;
     Core::usize Switched = 0, Unsupported = 0;
+    bool NavigationEdited=false, NavigationReset=false;
+    float InitialFov=0, InitialSpeed=0;
+    Core::uint32 ResetAt=0;
     bool Requested = false, Observed = false, Passed = true;
     auto Started = std::chrono::steady_clock::now();
     const auto Result = Demo::RunInteractiveLab(Config, Demo::FDemoBackendFactory(), {},
@@ -705,7 +708,27 @@ void RunOutputSwitches(int& Failed)
             { Passed = false; (void)Session.RequestExit("output switch fixture timed out"); return; }
             const auto* Effective = Session.GetEffectiveSettings();
             if (!Effective || Presented < 2) return;
-            if (Step == Profiles.size()) { (void)Session.RequestExit(); return; }
+            if (!NavigationEdited)
+            {
+                InitialFov=Session.GetCameraState().VerticalFovRadians;
+                InitialSpeed=Session.GetCameraState().MovementSpeed;
+                NavigationEdited=Session.SetNavigationParameters(3,Core::FMath::DegreesToRadians(50)) == Application::EApplicationResult::Success;
+                if (!NavigationEdited) return;
+            }
+            if (Step == Profiles.size())
+            {
+                if (!NavigationReset)
+                {
+                    NavigationReset=Session.ExecuteCameraCommand(Application::EInteractiveLabCameraCommand::Reset) == Application::EApplicationResult::Success;
+                    if (NavigationReset)
+                    {
+                        Passed &= Session.GetCameraState().VerticalFovRadians == InitialFov && Session.GetCameraState().MovementSpeed == InitialSpeed;
+                        ResetAt=Presented;
+                    }
+                }
+                else if (Presented >= ResetAt+2) (void)Session.RequestExit();
+                return;
+            }
             if (!Requested)
             {
                 if (Session.GetState() != Application::EInteractiveLabSessionState::Ready &&
@@ -749,10 +772,10 @@ void RunOutputSwitches(int& Failed)
     const auto& Ops = Result.BeforeNativeShutdown.RuntimeSnapshot.NativeOperations;
     const auto& Native = Result.AfterNativeShutdown.RuntimeSnapshot.NativePresentation;
     std::cout << "[INFO] output mode changes=" << Switched << " unavailable=" << Unsupported << '\n';
-    Check(Failed, Passed && Step == Profiles.size() && Result.ExitCode == Demo::EDemoExitCode::Success &&
+    Check(Failed, Passed && NavigationEdited && NavigationReset && Step == Profiles.size() && Result.ExitCode == Demo::EDemoExitCode::Success &&
         Result.FirstFailure.IsEmpty() && Result.LastRecordedExposureStops == 1.0f && Result.UIFramesSubmitted > 0 &&
         Result.BeforeNativeShutdown.ResolvedState.NativeEncoding == ERHIPresentationNativeEncoding::SdrExplicit,
-        "supported native output profiles commit and present with UI while unavailable profiles preserve effective state");
+        "native navigation edits and reset coexist with UI output switching and unavailable-profile rejection");
     Check(Failed, Ops.bAvailable && Ops.ImageReadbackCopyCount == 0 && Ops.ReadbackMapCount == 0 &&
         Ops.ReadbackWaitCount == 0 && Ops.QueueIdleCallCount == 0 && Ops.DeviceIdleCallCount == 0 &&
         Native.bAvailable && Native.ResidualNativeOwners == 0 && Native.PresentationOwnerCount == 0 &&

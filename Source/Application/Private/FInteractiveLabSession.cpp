@@ -72,6 +72,13 @@ struct FInteractiveLabSession::FImpl
     FWindowDisplayState ActiveDisplay;
     bool bActivePoll = false, bDrainOnly = false, bFreshInterval = true;
     bool bLook = false;
+    bool CanEditNavigation() const noexcept
+    {
+        return Window && !Terminal && (SessionState == State::Ready || SessionState == State::Running) &&
+            !Display.bMinimized && Display.DrawableExtent.IsPositive() &&
+            !PendingIntent.IsValid() && !ActiveIntent.IsValid() && !bDrainOnly &&
+            (!Settings || !Settings->GetActive());
+    }
     FString FirstFailure;
     FApplicationDiagnosticLog Diagnostics;
     uint64 DiagnosticCount = 0;
@@ -381,7 +388,9 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
                     Candidate.CameraRevision = S.Camera.GetState().CameraRevision;
                     Candidate.DisplayGeneration = S.Display.DisplayGeneration;
                     return RequestSettings(Candidate);
-                },S.Settings ? &S.Settings->GetCapabilities() : nullptr);
+                },S.Settings ? &S.Settings->GetCapabilities() : nullptr,
+                [this](float Speed,float Fov) { return SetNavigationParameters(Speed,Fov) == EApplicationResult::Success; },
+                [this] { return ExecuteCameraCommand(EInteractiveLabCameraCommand::Reset) == EApplicationResult::Success; });
             Capture = S.UI->GetCapture();
             if (UIResult == EApplicationResult::Success) S.UIFailure.Clear();
             else if (S.UI->GetTextureResult() != Stoner::RHI::ERHIResult::NotReady)
@@ -650,8 +659,16 @@ EApplicationResult FInteractiveLabSession::ExecuteCameraCommand(EInteractiveLabC
 {
     if (!Impl->Window || Impl->Terminal || Impl->SessionState == State::Closed) return EApplicationResult::InvalidLifecycle;
     if (C == EInteractiveLabCameraCommand::ReleaseCapture) { Impl->ReleaseInput(); return EApplicationResult::Success; }
+    if (!Impl->CanEditNavigation()) return EApplicationResult::InvalidLifecycle;
     if (C != EInteractiveLabCameraCommand::Reset || !Impl->Camera.Reset(Impl->Display)) return EApplicationResult::ValidationFailed;
+    Impl->ReleaseInput();
     return EApplicationResult::Success;
+}
+EApplicationResult FInteractiveLabSession::SetNavigationParameters(float Speed, float Fov) noexcept
+{
+    if (!Impl->CanEditNavigation()) return EApplicationResult::InvalidLifecycle;
+    return Impl->Camera.SetNavigationParameters(Speed,Fov,Impl->Display)
+        ? EApplicationResult::Success : EApplicationResult::ValidationFailed;
 }
 State FInteractiveLabSession::GetState() const noexcept { return Impl->SessionState; }
 Assurance FInteractiveLabSession::GetShutdownAssurance() const noexcept { return Impl->ShutdownAssurance; }

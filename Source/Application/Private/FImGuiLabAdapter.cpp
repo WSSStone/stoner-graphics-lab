@@ -102,7 +102,9 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     const FLabSettingsSnapshot* Requested, const FLabSettingsSnapshot* Pending,
     const FLabSettingsSnapshot* Effective, const Stoner::Core::FString* SettingsFailure,
     const std::function<bool(const FLabSettingsSnapshot&)>& EditSettings,
-    const FLabSettingsCapabilities* Capabilities)
+    const FLabSettingsCapabilities* Capabilities,
+    const std::function<bool(float,float)>& EditNavigation,
+    const std::function<bool()>& ResetCamera)
 {
     Impl->Capture = {};
     Impl->bDrawReady = false;
@@ -160,6 +162,18 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
             ImGui::Text("Yaw / pitch: %.1f / %.1f deg",Camera->YawRadians*57.2957795f,Camera->PitchRadians*57.2957795f);
             ImGui::Text("Speed: %.3f units/s [0.01, 100]",Camera->MovementSpeed);
             ImGui::Text("Vertical FOV: %.1f deg [20, 90]",Camera->VerticalFovRadians*57.2957795f);
+            ImGui::BeginDisabled(!bEditsEnabled);
+            if (EditNavigation)
+            {
+                float Speed=Camera->MovementSpeed;
+                float Fov=Stoner::Core::FMath::RadiansToDegrees(Camera->VerticalFovRadians);
+                const bool SpeedEdited=ImGui::SliderFloat("Movement speed",&Speed,0.01f,100.0f,"%.2f",ImGuiSliderFlags_Logarithmic);
+                const bool FovEdited=ImGui::SliderFloat("Vertical FOV (degrees)",&Fov,20.0f,90.0f,"%.1f");
+                if (SpeedEdited || FovEdited) (void)EditNavigation(Speed,
+                    FovEdited ? Stoner::Core::FMath::DegreesToRadians(Fov) : Camera->VerticalFovRadians);
+            }
+            if (ResetCamera && ImGui::Button("Reset camera")) (void)ResetCamera();
+            ImGui::EndDisabled();
         }
         if (ImGui::CollapsingHeader("Output",ImGuiTreeNodeFlags_DefaultOpen))
         {

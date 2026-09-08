@@ -365,6 +365,52 @@ void TestResetAndCadence(FApplicationFreeCameraTestResult& Result)
         "thirty sixty and one-hundred-twenty hertz integrate identically");
 }
 
+void TestNavigationParameters(FApplicationFreeCameraTestResult& Result)
+{
+    FFreeCameraController Controller;
+    const auto Initial=MakeInitialCamera();
+    auto Display=MakeDisplay();
+    Record(Result,Controller.Initialize(Initial,Display),"navigation controls initialize at current aspect");
+    const auto Before=Controller.GetState();
+    FCameraChangeSet Change;
+    Record(Result,Controller.SetNavigationParameters(4,Before.VerticalFovRadians,Display,&Change) &&
+        Controller.GetState().CameraRevision == Before.CameraRevision+1 && Change.IsValid() &&
+        Change.Flags == ECameraChangeFlags::None &&
+        Controller.GetState().Projection.M[0][1] == Before.Projection.M[0][1] &&
+        Controller.GetState().ViewProjection.M[1][2] == Before.ViewProjection.M[1][2],
+        "speed edit advances camera identity without inventing a projection change or cut");
+    const auto Revision=Controller.GetState().CameraRevision;
+    Record(Result,!Controller.SetNavigationParameters(8,std::numeric_limits<float>::quiet_NaN(),Display) &&
+        !Controller.SetNavigationParameters(101,FMath::DegreesToRadians(60),Display) &&
+        !Controller.SetNavigationParameters(1,FMath::DegreesToRadians(19),Display) &&
+        Controller.GetState().MovementSpeed == 4 && Controller.GetState().CameraRevision == Revision,
+        "invalid speed or FOV rejects the entire navigation edit");
+    Display=MakeDisplay({800,400});
+    Record(Result,Controller.SetNavigationParameters(4,FMath::DegreesToRadians(90),Display,&Change) &&
+        Change.HasFlag(ECameraChangeFlags::ProjectionChanged) && Change.HasFlag(ECameraChangeFlags::ExtentChanged) &&
+        !Change.HasFlag(ECameraChangeFlags::Cut) &&
+        NearlyEqual(Controller.GetState().Projection.M[0][1],0.5f) &&
+        NearlyEqual(Controller.GetState().Projection.M[1][2],-1.0f),
+        "ninety-degree lens edit rebuilds the current two-to-one aspect projection");
+    const auto LensRevision=Controller.GetState().CameraRevision;
+    Record(Result,Controller.SetNavigationParameters(4,FMath::DegreesToRadians(90),Display,&Change) &&
+        Controller.GetState().CameraRevision == LensRevision && !Change.IsValid(),
+        "unchanged navigation settings do not advance camera revision");
+    auto Paused=Display; Paused.bMinimized=true;
+    Record(Result,!Controller.SetNavigationParameters(2,FMath::DegreesToRadians(60),Paused) &&
+        Controller.GetState().CameraRevision == LensRevision,"paused navigation edits preserve the prior camera");
+    Record(Result,Controller.Reset(Display,&Change) && Change.HasFlag(ECameraChangeFlags::Reset) &&
+        Change.HasFlag(ECameraChangeFlags::Cut) && Controller.GetState().MovementSpeed == Initial.MovementSpeed &&
+        Controller.GetState().VerticalFovRadians == Initial.VerticalFovRadians &&
+        Controller.GetState().DrawableExtent == Display.DrawableExtent,
+        "reset restores initial navigation parameters while retaining current drawable aspect");
+    Display.bFocused=false;
+    const auto Pose=Controller.GetState().Position;
+    Record(Result,Controller.SetNavigationParameters(2,FMath::DegreesToRadians(60),Display) &&
+        !Controller.Update(FFreeCameraActions{.ForwardAxis=1},Display,0.2).bCameraChanged &&
+        Controller.GetState().Position.NearlyEquals(Pose) && Controller.Reset(Display),
+        "explicit navigation commands work without focus while unfocused movement remains suppressed");
+}
 } // namespace
 
 int RunApplicationFreeCameraTests()
@@ -376,6 +422,7 @@ int RunApplicationFreeCameraTests()
     TestDeltaAndResume(Result);
     TestLookAndFov(Result);
     TestResetAndCadence(Result);
+    TestNavigationParameters(Result);
     std::cout << "[INFO] Application free-camera tests passed="
               << Result.Passed << " failed=" << Result.Failed << '\n';
     return Result.Failed == 0 ? 0 : 1;

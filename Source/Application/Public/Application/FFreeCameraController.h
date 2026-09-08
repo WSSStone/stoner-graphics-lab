@@ -47,6 +47,11 @@ public:
         const FWindowDisplayState& CurrentDisplay,
         FCameraChangeSet* OutChangeSet = nullptr) noexcept;
 
+    // Explicit commands are independent of keyboard focus. Update still owns
+    // the focus-gated movement/look path; both require a valid drawable.
+    [[nodiscard]] bool SetNavigationParameters(float MovementSpeed, float VerticalFovRadians,
+        const FWindowDisplayState& CurrentDisplay, FCameraChangeSet* OutChangeSet = nullptr) noexcept;
+
     [[nodiscard]] const FFreeCameraState& GetState() const noexcept
     {
         return State;

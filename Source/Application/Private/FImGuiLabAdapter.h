@@ -30,7 +30,9 @@ public:
         const FLabSettingsSnapshot* Effective = nullptr,
         const Stoner::Core::FString* SettingsFailure = nullptr,
         const std::function<bool(const FLabSettingsSnapshot&)>& EditSettings = {},
-        const FLabSettingsCapabilities* Capabilities = nullptr);
+        const FLabSettingsCapabilities* Capabilities = nullptr,
+        const std::function<bool(float,float)>& EditNavigation = {},
+        const std::function<bool()>& ResetCamera = {});
     // Hidden/minimized intervals discard stale UI input and unpublished draws.
     void Suspend() noexcept;
     using FAcquireTexture = std::function<Stoner::Renderer::FUITextureLease(Stoner::Renderer::FUITextureId)>;
