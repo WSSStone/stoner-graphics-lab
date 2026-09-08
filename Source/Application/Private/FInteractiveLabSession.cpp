@@ -53,6 +53,7 @@ struct FInteractiveLabSession::FImpl
     FWindow* Window = nullptr;
     FInputManager* Input = nullptr;
     FFreeCameraController Camera;
+    FCameraChangeSet CameraChange, PresetCameraChange;
     FLabInputRouter Router;
     TUniquePtr<FLabSettingsController> Settings;
     std::optional<FLabPresetWorkload> PresetWorkload;
@@ -503,7 +504,11 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
     }
     if (S.bFreshInterval) A.LookDeltaX = A.LookDeltaY = 0;
     if (!S.Display.bFocused || !Input.IsFocused()) { A = {}; S.bFreshInterval = true; }
-    if (!S.PendingPreset) (void)S.Camera.Update(A, S.Display, S.bFreshInterval ? 0.0 : DeltaSeconds);
+    if (!S.PendingPreset)
+    {
+        const auto Update = S.Camera.Update(A,S.Display,S.bFreshInterval ? 0.0 : DeltaSeconds);
+        if (Update.bCameraChanged) S.CameraChange = Update.ChangeSet;
+    }
     S.bFreshInterval = !S.Display.bFocused || !Input.IsFocused();
     S.SessionState = State::Running;
     return EApplicationResult::Success;
@@ -726,7 +731,7 @@ const FLabSettingsTransaction* FInteractiveLabSession::BeginSettingsTransaction(
         Candidate.UIWhiteMultiplier = Output.UIWhiteMultiplier;
         Candidate.DebugBypass = Output.DebugBypass;
         Candidate.DisplayGeneration = S.Display.DisplayGeneration;
-        if (!Camera.RestorePreset(S.PendingPreset->Camera,S.Display))
+        if (!Camera.RestorePreset(S.PendingPreset->Camera,S.Display,&S.PresetCameraChange))
         { S.PresetFailure = "Preset camera cannot be prepared for current drawable"; S.PendingPreset.reset(); return nullptr; }
         Candidate.CameraRevision = Camera.GetState().CameraRevision;
         if (!Settings->RequestStrict(Candidate))
@@ -756,7 +761,7 @@ bool FInteractiveLabSession::CompleteSettingsTransaction(uint64 Token, bool Succ
             !S.Display.bMinimized && S.Display.DrawableExtent.IsPositive();
         const bool Completed = S.Settings->Complete(Token,Success && Current,FormerUsable);
         const bool Publish = Completed && Success && Current;
-        if (Publish) { S.Camera = *S.PresetCamera; S.BeforePreset.reset(); S.PresetFailure.Clear(); }
+        if (Publish) { S.Camera = *S.PresetCamera; S.CameraChange = S.PresetCameraChange; S.BeforePreset.reset(); S.PresetFailure.Clear(); }
         else
         {
             S.PresetFailure = Current ? "Preset native output preparation failed" : "Preset display changed before commit";
@@ -832,19 +837,24 @@ EApplicationResult FInteractiveLabSession::ExecuteCameraCommand(EInteractiveLabC
     if (!Impl->Window || Impl->Terminal || Impl->SessionState == State::Closed) return EApplicationResult::InvalidLifecycle;
     if (C == EInteractiveLabCameraCommand::ReleaseCapture) { Impl->ReleaseInput(); return EApplicationResult::Success; }
     if (!Impl->CanEditNavigation()) return EApplicationResult::InvalidLifecycle;
-    if (C != EInteractiveLabCameraCommand::Reset || !Impl->Camera.Reset(Impl->Display)) return EApplicationResult::ValidationFailed;
+    FCameraChangeSet Change;
+    if (C != EInteractiveLabCameraCommand::Reset || !Impl->Camera.Reset(Impl->Display,&Change)) return EApplicationResult::ValidationFailed;
+    Impl->CameraChange = Change;
     Impl->ReleaseInput();
     return EApplicationResult::Success;
 }
 EApplicationResult FInteractiveLabSession::SetNavigationParameters(float Speed, float Fov) noexcept
 {
     if (!Impl->CanEditNavigation()) return EApplicationResult::InvalidLifecycle;
-    return Impl->Camera.SetNavigationParameters(Speed,Fov,Impl->Display)
-        ? EApplicationResult::Success : EApplicationResult::ValidationFailed;
+    FCameraChangeSet Change;
+    if (!Impl->Camera.SetNavigationParameters(Speed,Fov,Impl->Display,&Change)) return EApplicationResult::ValidationFailed;
+    if (Change.CameraRevision) Impl->CameraChange = Change;
+    return EApplicationResult::Success;
 }
 State FInteractiveLabSession::GetState() const noexcept { return Impl->SessionState; }
 Assurance FInteractiveLabSession::GetShutdownAssurance() const noexcept { return Impl->ShutdownAssurance; }
 const FFreeCameraState& FInteractiveLabSession::GetCameraState() const noexcept { return Impl->Camera.GetState(); }
+const FCameraChangeSet& FInteractiveLabSession::GetCameraChangeSet() const noexcept { return Impl->CameraChange; }
 const FWindowDisplayState& FInteractiveLabSession::GetDisplayState() const noexcept { return Impl->Display; }
 const FInputState& FInteractiveLabSession::GetInputState() const noexcept
 { static const FInputState Empty; return Impl->Input ? Impl->Input->GetState() : Empty; }

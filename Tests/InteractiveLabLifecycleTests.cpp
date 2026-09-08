@@ -191,7 +191,10 @@ void TestPresetSession()
         F.S.GetCameraState().CameraRevision==Revision+1 && F.S.GetCameraState().Position.NearlyEquals(P.Camera.Position) &&
         F.S.GetCameraState().DrawableExtent==F.S.GetDisplayState().DrawableExtent &&
         F.S.GetEffectiveSettings()->ExposureStops==-2 && F.S.GetRequestedSettings()->ExposureStops==-2 &&
-        !F.S.HasPendingPreset(),"successful native completion atomically publishes preset camera and settings at current aspect");
+        !F.S.HasPendingPreset() && F.S.GetCameraChangeSet().HasFlag(ECameraChangeFlags::PresetRestore) &&
+        F.S.GetCameraChangeSet().HasFlag(ECameraChangeFlags::Cut) &&
+        F.S.GetCameraChangeSet().CameraRevision==F.S.GetCameraState().CameraRevision,
+        "successful native completion atomically publishes preset camera settings and discontinuity at current aspect");
     Check(F.S.RequestPreset(P) && F.S.CancelPreset() && !F.S.HasPendingPreset(),"explicit cancellation discards an unsubmitted preset");
     const auto ExportDirectory=std::filesystem::temp_directory_path()/
         ("LabSessionExport-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));

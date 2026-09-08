@@ -245,6 +245,7 @@ public:
     [[nodiscard]] EInteractiveLabSessionState GetState() const noexcept;
     [[nodiscard]] EInteractiveLabShutdownAssurance GetShutdownAssurance() const noexcept;
     [[nodiscard]] const FFreeCameraState& GetCameraState() const noexcept;
+    [[nodiscard]] const FCameraChangeSet& GetCameraChangeSet() const noexcept;
     [[nodiscard]] const FWindowDisplayState& GetDisplayState() const noexcept;
     [[nodiscard]] const FInputState& GetInputState() const noexcept;
     [[nodiscard]] const FInteractiveLabTransitionIntent& GetPendingTransition() const noexcept;
