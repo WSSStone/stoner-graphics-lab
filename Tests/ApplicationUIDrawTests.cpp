@@ -84,6 +84,45 @@ int RunApplicationUIDrawTests()
                 Data.CmdLists.pop_back(); Data.CmdListsCount = 1;
                 Data.TotalVtxCount = 4; Data.TotalIdxCount = 6;
             }
+            {
+                ImDrawList Merged(ImGui::GetDrawListSharedData());
+                Merged.VtxBuffer = List.VtxBuffer;
+                Merged.IdxBuffer.resize(12);
+                for (int I=0; I<12; ++I) Merged.IdxBuffer[I]=static_cast<ImDrawIdx>(I%3);
+                Merged.CmdBuffer = List.CmdBuffer;
+                Merged.CmdBuffer[0].IdxOffset=0; Merged.CmdBuffer[0].ElemCount=12;
+                ImDrawData Images;
+                Images.Valid=true; Images.CmdLists.push_back(&Merged); Images.CmdListsCount=1;
+                Images.TotalVtxCount=4; Images.TotalIdxCount=12;
+                Images.DisplayPos=Data.DisplayPos; Images.DisplaySize=Data.DisplaySize;
+                Images.FramebufferScale=Data.FramebufferScale;
+                FImGuiDiagnosticRange Range{&Merged,3,6};
+                FUIDrawSnapshot Image(7,10,3,4);
+                Check(FImGuiDrawAdapter::Extract(Images,Resolve,150,120,Image,&Range)==ERHIResult::Success &&
+                    Image.GetCommands().size()==3 && Image.GetCommands()[0].FirstIndex==0 &&
+                    Image.GetCommands()[0].IndexCount==3 && !Image.GetCommands()[0].bDiagnosticWidget &&
+                    Image.GetCommands()[1].FirstIndex==3 && Image.GetCommands()[1].IndexCount==6 &&
+                    Image.GetCommands()[1].bDiagnosticWidget && Image.GetCommands()[1].BaseVertex==1 &&
+                    Image.GetCommands()[2].FirstIndex==9 && Image.GetCommands()[2].IndexCount==3 &&
+                    !Image.GetCommands()[2].bDiagnosticWidget && Image.GetTextureLeases().size()==1,
+                    "merged image extraction splits only its index range and preserves neighboring geometry");
+                const auto RejectRange = [&](FImGuiDiagnosticRange BadRange)
+                {
+                    FUIDrawSnapshot Bad(7,10,3,4);
+                    return FImGuiDrawAdapter::Extract(Images,Resolve,150,120,Bad,&BadRange)!=ERHIResult::Success &&
+                        !Bad.IsPublished() && Bad.GetCommands().empty();
+                };
+                Check(RejectRange({&Merged,1,6}) && RejectRange({&Merged,3,0}) &&
+                    RejectRange({&Merged,9,6}) && RejectRange({&List,3,6}) &&
+                    RejectRange({&Merged,std::numeric_limits<Core::uint32>::max(),6}),
+                    "unmatched, unaligned, empty and overflowing image ranges cannot publish partial packets");
+                Merged.CmdBuffer[0].UserCallback=ImDrawCallback_ResetRenderState;
+                Check(RejectRange(Range),"diagnostic image range cannot attach to a reset callback");
+                Merged.CmdBuffer[0].UserCallback=nullptr;
+                Merged.CmdBuffer.resize(4096);
+                for (int I=1; I<4096; ++I) Merged.CmdBuffer[I].UserCallback=ImDrawCallback_ResetRenderState;
+                Check(RejectRange(Range),"image splitting respects the existing command budget before allocation");
+            }
             const auto Rejects = [&]()
             {
                 FUIDrawSnapshot Bad(7, 10, 3, 4);

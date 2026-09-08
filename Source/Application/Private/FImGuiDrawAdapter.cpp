@@ -22,7 +22,7 @@ bool Finite(const ImVec4& V)
 }
 ERHIResult FImGuiDrawAdapter::Extract(const ImDrawData& Data,
     const FResolveTexture& ResolveTexture, uint32 Width, uint32 Height,
-    FUIDrawSnapshot& OutSnapshot)
+    FUIDrawSnapshot& OutSnapshot, const FImGuiDiagnosticRange* Diagnostic)
 {
     static_assert(sizeof(ImDrawIdx) == 2 || sizeof(ImDrawIdx) == 4);
     static_assert(sizeof(ImTextureID) == sizeof(uint64));
@@ -72,6 +72,30 @@ ERHIResult FImGuiDrawAdapter::Extract(const ImDrawData& Data,
     }
     if (VertexCount != static_cast<uint64>(Data.TotalVtxCount) ||
         IndexCount != static_cast<uint64>(Data.TotalIdxCount)) return ERHIResult::InvalidState;
+    if (Diagnostic)
+    {
+        if (!Diagnostic->List || Diagnostic->IndexCount == 0 || Diagnostic->IndexCount % 3 != 0)
+            return ERHIResult::InvalidState;
+        uint32 Matches = 0;
+        for (const auto* List : Data.CmdLists)
+        {
+            if (List != Diagnostic->List) continue;
+            const uint64 Begin = Diagnostic->FirstIndex;
+            const uint64 End = Begin + Diagnostic->IndexCount;
+            for (const auto& Command : List->CmdBuffer)
+            {
+                if (Command.UserCallback || Command.ElemCount == 0) continue;
+                const uint64 CommandEnd = static_cast<uint64>(Command.IdxOffset) + Command.ElemCount;
+                if (End <= Command.IdxOffset || Begin >= CommandEnd) continue;
+                if (Begin < Command.IdxOffset || End > CommandEnd ||
+                    (Begin - Command.IdxOffset) % 3 != 0 || ++Matches != 1)
+                    return ERHIResult::InvalidState;
+                CommandCount += (Begin > Command.IdxOffset ? 1 : 0) + (End < CommandEnd ? 1 : 0);
+            }
+        }
+        if (Matches != 1) return ERHIResult::InvalidState;
+        if (CommandCount > 4096) return ERHIResult::Unavailable;
+    }
     try
     {
         TArray<FUIVertex> Vertices; TArray<uint32> Indices;
@@ -116,7 +140,32 @@ ERHIResult FImGuiDrawAdapter::Extract(const ImDrawData& Data,
                     Command.BaseVertex = static_cast<int32>(VertexBase + Source.VtxOffset);
                     Command.ClipRect = {Source.ClipRect.x, Source.ClipRect.y, Source.ClipRect.z, Source.ClipRect.w};
                 }
-                Commands.push_back(Command);
+                if (Diagnostic && List == Diagnostic->List &&
+                    Command.Operation == EUIDrawOperation::Draw &&
+                    Diagnostic->FirstIndex >= Source.IdxOffset &&
+                    static_cast<uint64>(Diagnostic->FirstIndex) + Diagnostic->IndexCount <=
+                        static_cast<uint64>(Source.IdxOffset) + Source.ElemCount)
+                {
+                    const auto PrefixCount = Diagnostic->FirstIndex - Source.IdxOffset;
+                    const auto SuffixCount = Source.ElemCount - PrefixCount - Diagnostic->IndexCount;
+                    if (PrefixCount)
+                    {
+                        auto Prefix = Command; Prefix.IndexCount = PrefixCount;
+                        Commands.push_back(Prefix);
+                    }
+                    Command.FirstIndex += PrefixCount;
+                    Command.IndexCount = Diagnostic->IndexCount;
+                    Command.bDiagnosticWidget = true;
+                    Commands.push_back(Command);
+                    if (SuffixCount)
+                    {
+                        Command.FirstIndex += Command.IndexCount;
+                        Command.IndexCount = SuffixCount;
+                        Command.bDiagnosticWidget = false;
+                        Commands.push_back(Command);
+                    }
+                }
+                else Commands.push_back(Command);
             }
         }
         FUIDrawSnapshot Candidate(OutSnapshot.GetSessionId(), OutSnapshot.GetFrameId(),
