@@ -90,6 +90,7 @@ struct FDemoConfiguration
     bool bInteractiveLab = false;
     bool bLabUI = true;
     Core::FString LabPresetInput;
+    Core::FString LabExportRoot = "Build/InteractiveLab/Exports";
     bool bLabForceAcquireHistory = false;
     bool bLabOptionsSpecified = false;
     Stoner::Core::FString ValidationOutputPath = "Build/triangle-demo-validation.txt";

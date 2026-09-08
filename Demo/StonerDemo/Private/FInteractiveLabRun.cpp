@@ -1,4 +1,5 @@
 #include "Application/FLabPreset.h"
+#include "Application/FLabPresetStorage.h"
 #include "FInteractiveLabRun.h"
 
 #include "Application/FInteractiveLabSession.h"
@@ -19,6 +20,9 @@
 #include <optional>
 #include <thread>
 
+#define STONER_LAB_STRINGIFY_VALUE(Value) #Value
+#define STONER_LAB_STRINGIFY(Value) STONER_LAB_STRINGIFY_VALUE(Value)
+
 namespace Stoner::Demo
 {
 namespace
@@ -30,6 +34,37 @@ using Application::EInteractiveLabSessionState;
 using Application::FInteractiveLabServiceResponse;
 using Application::FWindowExtent;
 using Clock = std::chrono::steady_clock;
+
+bool ConfigureLabExports(Application::FInteractiveLabSession& Session, const FDemoConfiguration& Config,
+    Core::FString& Reason)
+{
+    Application::FLabPresetStoreConfig Store;
+    Core::TArray<Core::FString> Protected = {"Content","Config","Validation","Build/Validation",
+        "Build/Content","Build/ProductionContent",Config.CookedPublicationRoot};
+    if (!Config.BaselineRoot.IsEmpty()) Protected.push_back(Config.BaselineRoot);
+    for (const auto& Path : Protected)
+    {
+        if (!Core::FPlatformFileSystem::Exists(Path)) continue;
+        Core::FString Canonical;
+        if (!Core::FPlatformFileSystem::CanonicalizeExistingPath(Path,Canonical).IsSuccess())
+        { Reason="Cannot resolve protected preset destination"; return false; }
+        bool Inside=false;
+        if (!Core::FPlatformFileSystem::CheckContainedPath(Canonical,Config.LabExportRoot,Inside).IsSuccess() || Inside)
+        { Reason="Preset export root is inside protected content or evidence"; return false; }
+        if (std::find(Store.ProtectedPaths.begin(),Store.ProtectedPaths.end(),Canonical)==Store.ProtectedPaths.end())
+            Store.ProtectedPaths.push_back(Canonical);
+    }
+    if (!Core::FPlatformFileSystem::CreateDirectory(Config.LabExportRoot) ||
+        !Core::FPlatformFileSystem::CanonicalizeExistingPath(Config.LabExportRoot,Store.ExportRoot).IsSuccess())
+    { Reason="Cannot create or resolve preset export directory"; return false; }
+    Application::FLabPresetSourceContext Context;
+    Context.Backend=Config.GraphicsBackend==EDemoGraphicsBackend::Metal ? "Metal" : "Vulkan";
+    Context.CookedGeneration=Config.StrictGeneration;
+    Context.SoftwareRevision=STONER_LAB_STRINGIFY(STONER_DEMO_SOFTWARE_REVISION);
+    if (!Session.ConfigurePresetExports(Store,Context))
+    { Reason="Cannot configure preset export provenance or protection"; return false; }
+    return true;
+}
 
 bool Pending(ERHIResult Result) noexcept
 {
@@ -924,6 +959,8 @@ FInteractiveLabRunResult RunInteractiveLab(
             { Owner->Fail("initial lab settings could not match native output"); Started = false; }
             else if (!Session.ConfigurePresetWorkload({Config.WorkloadRevision,Config.ProductionRoot,Owner->Closure.SourceIdentity.ToLowerHex()}))
             { Owner->Fail("preset workload identity could not be registered"); Started = false; }
+            else if (!ConfigureLabExports(Session,Config,Owner->FirstFailure))
+            { Started = false; }
             else if (!Config.LabPresetInput.IsEmpty() && !Session.RequestPresetFile(Config.LabPresetInput))
             { std::cerr << "InteractiveLab preset rejected: " << Session.GetPresetFailure().CStr() << std::endl; }
             else std::cout << "InteractiveLab: F1 toggles UI; WASD/QE move; Shift accelerates; RMB looks; Escape cancels interaction." << std::endl;

@@ -150,7 +150,7 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
             (RunMode != EDemoRunMode::BoundedNative || GraphicsBackend != EDemoGraphicsBackend::Vulkan))
             return Fail("forced acquire history requires bounded Vulkan lab validation");
     }
-    else if (bLabOptionsSpecified || !bLabUI || bLabForceAcquireHistory || !LabPresetInput.IsEmpty())
+    else if (bLabOptionsSpecified || !bLabUI || bLabForceAcquireHistory || !LabPresetInput.IsEmpty() || LabExportRoot != "Build/InteractiveLab/Exports")
         return Fail("lab options require --interactive-lab");
     if (ClientWidth == 0 || ClientHeight == 0 || ClientWidth > 16384 || ClientHeight > 16384)
         return Fail("width and height must be in range 1..16384");
@@ -323,6 +323,13 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
             Parsed.LabPresetInput = Value;
             if (Parsed.LabPresetInput.IsEmpty() || Parsed.LabPresetInput.View().size() > 4096)
             { OutReason = "lab-preset-input requires a bounded nonempty path"; return EDemoExitCode::InvalidConfiguration; }
+        }
+        else if (Option == "--lab-export-root")
+        {
+            Parsed.bLabOptionsSpecified = true;
+            Parsed.LabExportRoot = Value;
+            if (Parsed.LabExportRoot.IsEmpty() || Parsed.LabExportRoot.View().size() > 4096)
+            { OutReason = "lab-export-root requires a bounded nonempty path"; return EDemoExitCode::InvalidConfiguration; }
         }
         else if (Option == "--lab-vulkan-retirement")
         {

@@ -1037,6 +1037,15 @@ void TestInteractiveLabConfiguration(FProductionContentDemoTestResult& Result)
         Config.LabPresetInput=="Build/preset.json", "lab preset input is an explicit bounded path");
     Record(Result, ParseLab({"--lab-preset-input",""},Config)==EDemoExitCode::InvalidConfiguration,
         "empty lab preset input rejects before runtime");
+    Record(Result,ParseLab({},Config)==EDemoExitCode::Success && Config.LabExportRoot=="Build/InteractiveLab/Exports" &&
+        ParseLab({"--lab-export-root","Build/CustomExports"},Config)==EDemoExitCode::Success &&
+        Config.LabExportRoot=="Build/CustomExports", "lab exports use the default directory or an explicit bounded override");
+    Record(Result,ParseLab({"--lab-export-root",""},Config)==EDemoExitCode::InvalidConfiguration,
+        "empty export-root override rejects before creating a directory");
+    const char* FormalExport[]={"StonerDemo","--lab-export-root","Build/CustomExports"};
+    Core::FString ExportReason;
+    Record(Result,FDemoConfiguration::Parse(3,FormalExport,Config,ExportReason)==EDemoExitCode::InvalidConfiguration,
+        "export-root override cannot enter a non-lab run");
     const char* FormalPreset[]={"StonerDemo","--lab-preset-input","Build/preset.json"};
     Core::FString PresetReason;
     Record(Result,FDemoConfiguration::Parse(3,FormalPreset,Config,PresetReason)==EDemoExitCode::InvalidConfiguration,

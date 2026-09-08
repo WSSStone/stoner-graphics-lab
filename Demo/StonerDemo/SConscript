@@ -2,6 +2,7 @@
 
 Import('env', 'platform', 'config')
 import os
+import subprocess
 from GraphicsDependencyDetect import DetectGraphicsDependencies
 from ContentStaging import StageContent
 
@@ -26,6 +27,21 @@ demo_env.Append(CPPDEFINES=[
     ('STONER_VULKAN_RUNTIME_AVAILABLE', int(deps['vulkan_available'])),
     ('STONER_GLFW_AVAILABLE', int(deps['glfw_available'])),
 ])
+
+# Diagnostic provenance describes the source checkout used for this build.
+# A dirty checkout is explicitly qualified; source archives remain unversioned.
+software_revision = 'unversioned-build'
+try:
+    revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=Dir('#').abspath,
+                                       stderr=subprocess.DEVNULL, text=True).strip()
+    if len(revision) == 40 and all(c in '0123456789abcdef' for c in revision):
+        dirty = subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=normal', '--',
+            'Source', 'Demo', 'ThirdParty', 'Content', 'Config', 'Tools', 'site_scons', 'SConstruct'],
+            cwd=Dir('#').abspath, stderr=subprocess.DEVNULL, text=True)
+        software_revision = revision + ('+working-tree' if dirty else '')
+except (OSError, subprocess.CalledProcessError):
+    pass
+demo_env.Append(CPPDEFINES=[('STONER_DEMO_SOFTWARE_REVISION', software_revision)])
 
 if platform == 'Mac':
     demo_env.Append(CCFLAGS=['-Werror=unguarded-availability-new'])
