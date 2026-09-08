@@ -42,6 +42,11 @@ FUITextureResult Result(const FUITextureRequest& Request, ERHIResult Code,
     return {Request.RequestId, Code, State, Id, ToString(State)};
 }
 }
+TSharedPtr<IRHITexture> FUITextureRegistry::ResolveTexture(const FUITextureLease& Lease) const noexcept
+{
+    if (!Lease.Record || Find(Lease.GetId()) != Lease.Record) return {};
+    return Lease.Record->Texture;
+}
 bool FUITextureLease::IsValid() const noexcept { return Record && Record->Texture; }
 FUITextureId FUITextureLease::GetId() const noexcept { return Record ? Record->Id : FUITextureId{}; }
 FUITextureSubmission::~FUITextureSubmission() { Cancel(); }

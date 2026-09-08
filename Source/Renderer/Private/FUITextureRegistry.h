@@ -58,6 +58,9 @@ public:
         std::span<const FUITextureLease> Leases,
         const Stoner::Core::TSharedPtr<Stoner::RHI::IRHICommandBuffer>& Command,
         FUITextureSubmission& OutSubmission);
+    // Private Renderer binding lookup preserves registry/lease identity checks.
+    [[nodiscard]] Stoner::Core::TSharedPtr<Stoner::RHI::IRHITexture> ResolveTexture(
+        const FUITextureLease& Lease) const noexcept;
     void Poll() noexcept;
     [[nodiscard]] FUITextureRegistryStatistics GetStatistics() const noexcept;
 private:

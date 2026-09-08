@@ -1091,3 +1091,28 @@ validation. This Feature 030 target is therefore **skipped by maintainer decisio
 with no pending Intel handoff and no Intel pass claim. Preserve the failed attempt
 and existing target provenance. Continue local composition/input implementation;
 Apple Silicon macOS, Windows and Linux requirements remain applicable.
+
+## Local native UI composition component
+
+The T052 component uses the new cooked Lantern UI shader packages on M4 Vulkan
+and arm64 Metal. Strict Debug/Release each pass 24 checks per backend (48 per
+configuration) in `interactive-lab-shaders` with
+`STONER_REQUIRE_UI_COMPOSITION=1` plus the publication/profile variables above.
+Logs: `Build/Validation/030/us2/ui-composition-native-{debug,release}-{vulkan,metal}.log`.
+Each configuration separately passes 216 existing input/texture/snapshot/value
+assertions in `ui-composition-regressions-{debug,release}.log`.
+
+A real deferred native submission samples the staged coverage texture, copies
+scene RGB into a distinct RGBA16F target with alpha one, and executes indexed
+source-alpha RGB-only draws. Independent bounded validation readback verifies
+linear coverage, unchanged uncovered scene RGB and alpha one at all 256 pixels.
+Native operation counters show no added synchronous waits or image readbacks
+through the composition submission itself. Tests additionally cover stale display
+identity, foreign-registry leases, missing shaders, repeated recording rejection
+and empty/fully clipped UI omission. The production component records commands
+only; the existing frame owner must commit texture uses with its render fence,
+retain resources to completion, and discard partial recording on failure.
+
+This is local working-tree component evidence. T052 still awaits actual lab
+output-chain/fallback integration; terminal graph insertion, full UI conformance,
+visible interaction, hosted/physical closeout and human HDR authority remain open.

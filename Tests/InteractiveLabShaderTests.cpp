@@ -4,6 +4,8 @@
 #include <iostream>
 #include <filesystem>
 
+int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders& Shaders);
+
 int RunInteractiveLabShaderTests()
 {
     using namespace Stoner;
@@ -50,6 +52,8 @@ int RunInteractiveLabShaderTests()
         Shaders.Generation == Closure.GenerationIdentity, "UI draw and copy bytecode select from the same cooked generation and target");
     if (Prepared)
     {
+        if (Target.Profile.GraphicsBackend == Asset::EAssetGraphicsBackend::Vulkan || std::getenv("STONER_REQUIRE_UI_COMPOSITION"))
+            Failed += RunUICompositionPreparationTests(Shaders);
         auto Bad = Closure;
         Bad.RenderShaders.clear();
         Check(PrepareInteractiveLabShaders(Bad, Pointer.GenerationId, Target, Shaders, Reason) != Asset::EAssetResult::Success &&
