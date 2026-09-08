@@ -2,16 +2,19 @@
 
 #include "FDemoBackendFactory.h"
 
-// Typed capability restriction over a real native runtime. Only the advertised
-// inventory is changed: resource creation, frame submission and retirement are
-// still performed by the actual backend. This is fault-injection evidence,
-// never a claim that a physical display was disconnected.
+// Typed capability and replacement-result faults over a real native runtime.
+// Actual resource creation, submission and retirement remain native. These
+// fixtures do not claim a physical disconnect or a spontaneous driver failure.
 namespace Stoner::Demo::Tests
 {
 struct FLabCapabilityMask
 {
     enum class EMode { All, SdrOnly, None };
     EMode Mode = EMode::All;
+    enum class EReplacementFailure { None, BeforeReplacement, AfterReplacement };
+    EReplacementFailure NextFailure = EReplacementFailure::None;
+    Core::uint32 InjectedFailures = 0;
+    Core::uint64 FormerGeneration = 0, ReplacementGeneration = 0;
     void Apply(FDemoLabPresentationStatus& Status) const
     {
         auto& Caps = Status.Capabilities;
@@ -51,8 +54,31 @@ public:
     {
         const auto Q=QueryLabPresentation(S);
         if (Q != RHI::ERHIResult::Success) return Q;
+        if (bDeferredReplacementFailure)
+        {
+            bDeferredReplacementFailure=false; ++Mask.InjectedFailures;
+            if (E) *E="injected delayed failure after native replacement";
+            return RHI::ERHIResult::Failed;
+        }
         if (!S.Capabilities.SupportsPair(D.PreferredFormat,D.PreferredColorSpace)) return RHI::ERHIResult::Unsupported;
-        const auto R=Inner->ReconfigureLabPresentation(D,S,E); Mask.Apply(S); return R;
+        using Failure = FLabCapabilityMask::EReplacementFailure;
+        if (Mask.NextFailure == Failure::BeforeReplacement)
+        {
+            Mask.NextFailure=Failure::None; ++Mask.InjectedFailures;
+            if (E) *E="injected rejection before native replacement";
+            return RHI::ERHIResult::Failed;
+        }
+        const auto Former=S.ResolvedState.SwapchainImageGeneration;
+        const auto R=Inner->ReconfigureLabPresentation(D,S,E); Mask.Apply(S);
+        if (R == RHI::ERHIResult::Success && Mask.NextFailure == Failure::AfterReplacement)
+        {
+            Mask.NextFailure=Failure::None; bDeferredReplacementFailure=true;
+            Mask.FormerGeneration=Former;
+            Mask.ReplacementGeneration=S.ResolvedState.SwapchainImageGeneration;
+            if (E) *E="injected failure after native replacement";
+            return RHI::ERHIResult::NotReady;
+        }
+        return R;
     }
     RHI::ERHIResult AcquireLabTarget(Core::uint64 T,Core::uint32 I,RHI::FRHIBorrowedAcquiredTarget& O,Core::FString* E) override { return Inner->AcquireLabTarget(T,I,O,E); }
     bool OwnsLabAcquireAttempt(Core::uint64 T,Core::uint32 I) const noexcept override { return Inner->OwnsLabAcquireAttempt(T,I); }
@@ -62,6 +88,7 @@ public:
 private:
     Core::TUniquePtr<IDemoBackendRuntime> Inner;
     FLabCapabilityMask& Mask;
+    bool bDeferredReplacementFailure = false;
 };
 class FCapabilityFactory final : public IDemoBackendFactory
 {

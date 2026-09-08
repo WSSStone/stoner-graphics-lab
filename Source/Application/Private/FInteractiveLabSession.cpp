@@ -381,7 +381,7 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
                     Candidate.CameraRevision = S.Camera.GetState().CameraRevision;
                     Candidate.DisplayGeneration = S.Display.DisplayGeneration;
                     return RequestSettings(Candidate);
-                });
+                },S.Settings ? &S.Settings->GetCapabilities() : nullptr);
             Capture = S.UI->GetCapture();
             if (UIResult == EApplicationResult::Success) S.UIFailure.Clear();
             else if (S.UI->GetTextureResult() != Stoner::RHI::ERHIResult::NotReady)

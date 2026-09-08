@@ -568,6 +568,88 @@ void RunCapabilityRecovery(int& Failed, const Demo::FDemoConfiguration& Config)
         Result.BeforeNativeShutdown.ResolvedState.Height == ExpectedExtent.Height,
         "capability recovery rebuilds the current extent without readback, live idle or residual owners");
 }
+void RunReplacementRecovery(int& Failed, const Demo::FDemoConfiguration& Config)
+{
+    if (Config.GraphicsBackend != Demo::EDemoGraphicsBackend::Metal) return;
+    Demo::Tests::FLabCapabilityMask Faults;
+    Demo::Tests::FCapabilityFactory Factory(Faults);
+    using Failure = Demo::Tests::FLabCapabilityMask::EReplacementFailure;
+    Core::uint32 Stage=0, At=0, PausedServices=0;
+    bool Passed=true, RejectedPausedRetry=false;
+    auto Started=std::chrono::steady_clock::now(), PausedAt=Started;
+    const auto Result=Demo::RunInteractiveLab(Config,Factory,{},
+        [&](Application::FInteractiveLabSession& Session,Core::uint32 Presented) {
+            if (std::chrono::steady_clock::now()-Started > std::chrono::seconds(15))
+            { Passed=false; (void)Session.RequestExit("replacement fixture timed out"); return; }
+            const auto* Effective=Session.GetEffectiveSettings();
+            if (!Effective || Presented < 2) return;
+            const auto Request=[&](const char* Profile) {
+                auto Edit=*Session.GetRequestedSettings();
+                Edit.CameraRevision=Session.GetCameraState().CameraRevision;
+                Edit.DisplayGeneration=Session.GetDisplayState().DisplayGeneration;
+                Edit.RequestedProfileId=Profile;
+                return Session.RequestSettings(Edit);
+            };
+            if (Stage == 0)
+            {
+                Faults.NextFailure=Failure::BeforeReplacement;
+                Passed &= Request("Hdr.PQ.Rec2020.1000.v1"); Stage=1;
+            }
+            else if (Stage == 1 && Faults.InjectedFailures == 1)
+            {
+                Passed &= Effective->EffectiveProfileId == "Sdr.sRGB.v1" && !Session.IsSettingsPaused() &&
+                    Session.GetRequestedSettings()->RequestedProfileId == "Hdr.PQ.Rec2020.1000.v1" &&
+                    !Session.GetSettingsFailure().IsEmpty();
+                At=Presented; Stage=2;
+            }
+            else if (Stage == 2 && Presented >= At+2)
+            { Passed &= Request("Hdr.PQ.Rec2020.1000.v1"); Stage=3; }
+            else if (Stage == 3 && Effective->EffectiveProfileId == "Hdr.PQ.Rec2020.1000.v1")
+            { At=Presented; Stage=4; }
+            else if (Stage == 4 && Presented >= At+2)
+            {
+                Faults.NextFailure=Failure::AfterReplacement;
+                Passed &= Request("Hdr.Linear.1000.v1"); Stage=5;
+            }
+            else if (Stage == 5 && Faults.InjectedFailures == 2)
+            {
+                Passed &= Effective->EffectiveProfileId == "Hdr.PQ.Rec2020.1000.v1" && Session.IsSettingsPaused() &&
+                    Session.GetRequestedSettings()->RequestedProfileId == "Hdr.Linear.1000.v1" &&
+                    Faults.ReplacementGeneration > Faults.FormerGeneration;
+                At=Presented; PausedAt=std::chrono::steady_clock::now(); Stage=6;
+            }
+            else if (Stage == 6)
+            {
+                ++PausedServices;
+                Passed &= Session.IsSettingsPaused() && Presented == At;
+                if (std::chrono::steady_clock::now()-PausedAt > std::chrono::milliseconds(100))
+                {
+                    Faults.NextFailure=Failure::BeforeReplacement;
+                    Passed &= Request("Hdr.Linear.1000.v1"); Stage=7;
+                }
+            }
+            else if (Stage == 7 && Faults.InjectedFailures == 3 && !RejectedPausedRetry)
+            {
+                Passed &= Session.IsSettingsPaused() && Presented == At &&
+                    Session.GetSettingsFailure().View().find("unusable") != std::string_view::npos;
+                RejectedPausedRetry=true;
+                Passed &= Request("Hdr.Linear.1000.v1");
+            }
+            else if (Stage == 7 && Effective->EffectiveProfileId == "Hdr.Linear.1000.v1" && !Session.IsSettingsPaused())
+            { At=Presented; Stage=8; }
+            else if (Stage == 8 && Presented >= At+2) { Stage=9; (void)Session.RequestExit(); }
+        });
+    std::cout << "[INFO] replacement recovery stage=" << Stage << " injected=" << Faults.InjectedFailures
+              << " old-generation=" << Faults.FormerGeneration << " new-generation=" << Faults.ReplacementGeneration
+              << " paused-services=" << PausedServices << " failure=" << Result.FirstFailure.CStr() << '\n';
+    Check(Failed, Passed && RejectedPausedRetry && Stage == 9 && PausedServices > 1 && Result.ExitCode == Demo::EDemoExitCode::Success,
+        "replacement failures retain usable old output, pause after actual generation replacement, and recover on retry");
+    const auto& Ops=Result.BeforeNativeShutdown.RuntimeSnapshot.NativeOperations;
+    Check(Failed, Ops.bAvailable && Ops.ImageReadbackCopyCount == 0 && Ops.ReadbackMapCount == 0 &&
+        Ops.ReadbackWaitCount == 0 && Ops.QueueIdleCallCount == 0 && Ops.DeviceIdleCallCount == 0 &&
+        Result.AfterNativeShutdown.RuntimeSnapshot.NativePresentation.ResidualNativeOwners == 0,
+        "replacement failure recovery retains zero readbacks, live idle waits and residual native owners");
+}
 void RunOutputSwitches(int& Failed)
 {
     const auto Env = [](const char* Name) { const char* Value = std::getenv(Name); return Core::FString(Value ? Value : ""); };
@@ -661,6 +743,7 @@ void RunOutputSwitches(int& Failed)
         Native.PeakEstimatedColorBytes <= 512ULL * 1024 * 1024,
         "native output switching keeps bounded presentation storage without readbacks or live idle waits");
     RunCapabilityRecovery(Failed,Config);
+    RunReplacementRecovery(Failed,Config);
 }
 } // namespace
 

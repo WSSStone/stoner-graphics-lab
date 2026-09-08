@@ -101,7 +101,8 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     bool bEditsEnabled, const FLabRuntimeInfo* Runtime, const FFreeCameraState* Camera,
     const FLabSettingsSnapshot* Requested, const FLabSettingsSnapshot* Pending,
     const FLabSettingsSnapshot* Effective, const Stoner::Core::FString* SettingsFailure,
-    const std::function<bool(const FLabSettingsSnapshot&)>& EditSettings)
+    const std::function<bool(const FLabSettingsSnapshot&)>& EditSettings,
+    const FLabSettingsCapabilities* Capabilities)
 {
     Impl->Capture = {};
     Impl->bDrawReady = false;
@@ -171,6 +172,19 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
             {
                 auto Candidate = *Requested;
                 ImGui::BeginDisabled(!bEditsEnabled);
+                const bool CurrentCapabilities = Capabilities && Capabilities->DisplayGeneration == Display.DisplayGeneration;
+                ImGui::BeginDisabled(!CurrentCapabilities || Capabilities->Outputs.empty());
+                if (ImGui::BeginCombo("Output profile",Candidate.RequestedProfileId.CStr()))
+                {
+                    if (CurrentCapabilities)
+                        for (const auto& Output : Capabilities->Outputs)
+                            if (ImGui::Selectable(Output.ProfileId.CStr(),Candidate.RequestedProfileId == Output.ProfileId))
+                            { Candidate.RequestedProfileId = Output.ProfileId; (void)EditSettings(Candidate); }
+                    ImGui::EndCombo();
+                }
+                ImGui::EndDisabled();
+                if (!CurrentCapabilities) ImGui::TextUnformatted("Refreshing output capabilities");
+                else if (Capabilities->Outputs.empty()) ImGui::TextUnformatted("No supported output; rendering paused");
                 if (ImGui::SliderFloat("Exposure (EV)",&Candidate.ExposureStops,-16,16,"%.2f"))
                     (void)EditSettings(Candidate);
                 const bool SDR = Candidate.RequestedProfileId.View().starts_with("Sdr.");

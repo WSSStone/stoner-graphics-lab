@@ -227,17 +227,7 @@ public:
         Initial.UIReferenceWhiteNits = OutputResolved.ReferenceWhiteNits;
         Initial.NativePackingWhiteNits = Status.ResolvedState.ReferenceWhiteNits;
         const auto Caps = OutputCapabilities(Initial.DisplayGeneration);
-        if (!Session.ConfigureSettings(Initial,Caps)) return false;
-        Application::FLabControlSection Outputs;
-        Outputs.Id = "OutputProfiles"; Outputs.Title = "Output profiles";
-        for (const auto& Output : Caps.Outputs)
-        {
-            const auto Id = Output.ProfileId;
-            Outputs.Commands.push_back({Id,Id,[Id](Application::FLabSettingsSnapshot& Edit) {
-                Edit.RequestedProfileId = Id; return true;
-            }});
-        }
-        return Session.RegisterControlSection(Outputs);
+        return Session.ConfigureSettings(Initial,Caps);
     }
 
     bool ResolveOutput(const Application::FLabSettingsSnapshot& Settings,
@@ -355,6 +345,7 @@ public:
             if (Updated != ERHIResult::ResizeRequired && Updated != ERHIResult::Success)
             { (void)Session.CompleteSettingsTransaction(Transaction->Token,false,Status.bPrepared); return; }
             ModeTransaction = *Transaction;
+            ModeFormerGeneration = Status.ResolvedState.SwapchainImageGeneration;
         }
 
         // Acquire-history retirement needs continued acquisitions from the
@@ -387,7 +378,14 @@ public:
         const auto Token = ModeTransaction->Token;
         ModeTransaction.reset();
         if (Result != ERHIResult::Success)
-        { (void)Session.CompleteSettingsTransaction(Token,false,Status.bPrepared); return; }
+        {
+            // A usable replacement is not proof that our former bindings can
+            // resume. Failure after native replacement must leave them paused.
+            const bool FormerUsable = !Session.IsSettingsPaused() && Status.bPrepared && ModeFormerGeneration != 0 &&
+                Status.ResolvedState.SwapchainImageGeneration == ModeFormerGeneration;
+            (void)Session.CompleteSettingsTransaction(Token,false,FormerUsable);
+            return;
+        }
         // Native replacement has succeeded: even a later CPU/frame failure
         // cannot make the retired previous swapchain usable again.
         OutputSettings = std::move(Candidate); OutputResolved = Resolved;
@@ -770,6 +768,7 @@ public:
     Core::TSharedPtr<const Renderer::FStaticModelRenderSnapshot> Scene;
     FProductionContentComposition Composition;
     std::optional<Application::FLabSettingsTransaction> ModeTransaction;
+    Core::uint64 ModeFormerGeneration = 0;
     Renderer::FOutputTransformSettings OutputSettings;
     Renderer::FResolvedOutputTransformSettings OutputResolved;
     FDemoLabPresentationStatus Status, BeforeShutdown, AfterShutdown;

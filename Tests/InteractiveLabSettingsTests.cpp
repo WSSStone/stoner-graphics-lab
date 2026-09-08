@@ -100,5 +100,24 @@ int RunInteractiveLabSettingsTests()
     Active = C.BeginEligible(true);
     Check(Active && C.Complete(Active->Token,true,true) && C.GetEffective().CameraRevision == 5 &&
         C.GetEffective().SettingsRevision > Revision,"camera and settings revisions commit atomically and monotonically");
+    FLabSettingsController White;
+    auto HdrInitial=Initial;
+    HdrInitial.RequestedProfileId=HdrInitial.EffectiveProfileId="Hdr.Linear.1000.v1";
+    HdrInitial.UIReferenceWhiteNits=HdrInitial.NativePackingWhiteNits=203;
+    FLabSettingsCapabilities WhiteCaps;
+    WhiteCaps.DisplayGeneration=1; WhiteCaps.Outputs={{"Hdr.Linear.1000.v1",203,203}};
+    Check(White.Initialize(HdrInitial,WhiteCaps),"reference-white transition starts from a coherent HDR snapshot");
+    WhiteCaps.DisplayGeneration=2; WhiteCaps.Outputs[0]={"Hdr.Linear.1000.v1",100,100};
+    Check(White.RefreshCapabilities(WhiteCaps,true) && White.IsPaused() && White.GetPending() &&
+        White.GetPending()->NativePackingWhiteNits == 100 && White.GetEffective().NativePackingWhiteNits == 203 &&
+        White.GetCapabilities().DisplayGeneration == 2,
+        "same-profile reference-white change pauses old packing while publishing fresh capability facts");
+    const auto* WhiteTransaction=White.BeginEligible(true);
+    Check(WhiteTransaction && WhiteTransaction->bRequiresOutputTransition,
+        "reference-white change requires native output transition even when profile identity is unchanged");
+    Check(WhiteTransaction && White.Complete(WhiteTransaction->Token,true,false) && !White.IsPaused() &&
+        White.GetEffective().UIReferenceWhiteNits == 100 && White.GetEffective().NativePackingWhiteNits == 100 &&
+        White.GetEffective().OutputModeGeneration == 2,
+        "reference-white and packing changes become effective together after native completion");
     return Failed;
 }

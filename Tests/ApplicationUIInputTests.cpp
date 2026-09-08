@@ -248,6 +248,26 @@ int RunApplicationUIInputTests()
         Check(UI.Frame({},Display,1.0/60.0,true,{}, {},false,&Runtime,&PanelCamera) == EApplicationResult::Success &&
             UI.GetVertexCount() > ShellVertices,
             "real UI builds loaded-scene navigation output diagnostics and instruction panels");
+        FLabSettingsSnapshot Selection;
+        Selection.RequestedProfileId="Sdr.sRGB.v1";
+        Selection.SdrToneMapVersion="Sdr.KhronosPbrNeutral.v1";
+        FLabSettingsCapabilities Caps;
+        Caps.DisplayGeneration=Display.DisplayGeneration;
+        Caps.Outputs={{"Sdr.sRGB.v1",100,100},{"Hdr.Linear.1000.v1",100,100}};
+        int ProfileEdits=0;
+        const auto EditProfile=[&](const FLabSettingsSnapshot&) { ++ProfileEdits; return true; };
+        Check(UI.Frame({},Display,1.0/60.0,true,{}, {},true,&Runtime,&PanelCamera,
+            &Selection,nullptr,&Selection,nullptr,EditProfile,&Caps) == EApplicationResult::Success &&
+            UI.GetVertexCount() > 0 && ProfileEdits == 0,
+            "output selector consumes current capabilities without automatically changing requested intent");
+        Caps.Outputs.clear();
+        Check(UI.Frame({},Display,1.0/60.0,true,{}, {},true,&Runtime,&PanelCamera,
+            &Selection,nullptr,&Selection,nullptr,EditProfile,&Caps) == EApplicationResult::Success && ProfileEdits == 0,
+            "output selector survives loss of every supported profile without emitting an edit");
+        --Caps.DisplayGeneration;
+        Check(UI.Frame({},Display,1.0/60.0,true,{}, {},true,&Runtime,&PanelCamera,
+            &Selection,nullptr,&Selection,nullptr,EditProfile,&Caps) == EApplicationResult::Success && ProfileEdits == 0,
+            "stale output capabilities keep UI servicing live without changing settings");
         auto StaleDisplay = Display;
         --StaleDisplay.DisplayGeneration;
         Check(UI.Frame({}, StaleDisplay, 0.1) == EApplicationResult::InvalidInput && UI.GetVertexCount() == 0,

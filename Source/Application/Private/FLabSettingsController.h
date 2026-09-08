@@ -17,6 +17,7 @@ public:
     const std::optional<FLabSettingsTransaction>& GetActive() const { return Active; }
     const FLabSettingsSnapshot& GetRequested() const { return Requested; }
     const FLabSettingsSnapshot& GetEffective() const { return Effective; }
+    const FLabSettingsCapabilities& GetCapabilities() const { return Capabilities; }
     const std::optional<FLabSettingsSnapshot>& GetPending() const { return Pending; }
     const Stoner::Core::FString& GetFailure() const { return Failure; }
     bool IsPaused() const { return bPaused; }
