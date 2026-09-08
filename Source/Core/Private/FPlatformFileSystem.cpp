@@ -513,13 +513,22 @@ FPlatformFileStatus FPlatformFileSystem::ReplaceFileAtomic(
     const FString& Source,
     const FString& Destination)
 {
-    if (Source.IsEmpty() || Destination.IsEmpty())
+    bool Published = false;
+    return ReplaceFileAtomic(Source, Destination, Published);
+}
+
+FPlatformFileStatus FPlatformFileSystem::ReplaceFileAtomic(
+    const FString& Source, const FString& Destination, bool& OutPublished)
+{
+    OutPublished = false;
+    if (Source.IsEmpty() || Destination.IsEmpty() ||
+        Source.View().find('\0') != std::string_view::npos || Destination.View().find('\0') != std::string_view::npos)
     {
         return Detail::MakeFileStatus(
             EPlatformFileResult::InvalidArgument, 0, "replace-file:path");
     }
     return Detail::PlatformReplaceFileAtomic(
-        Detail::ToNativePath(Source), Detail::ToNativePath(Destination));
+        Detail::ToNativePath(Source), Detail::ToNativePath(Destination), OutPublished);
 }
 
 FPlatformFileStatus FPlatformFileSystem::WriteFileDurable(
@@ -531,18 +540,36 @@ FPlatformFileStatus FPlatformFileSystem::WriteFileDurable(
         return Detail::MakeFileStatus(
             EPlatformFileResult::InvalidArgument, 0, "durable-write:path");
     }
-    return Detail::PlatformWriteFileDurable(Detail::ToNativePath(Path), Data);
+    bool Created = false;
+    return Detail::PlatformWriteFileDurable(Detail::ToNativePath(Path), Data, false, Created);
+}
+
+FPlatformFileStatus FPlatformFileSystem::WriteFileExclusiveDurable(
+    const FString& Path, const TArray<uint8>& Data, bool& OutCreated)
+{
+    OutCreated = false;
+    if (Path.IsEmpty() || Path.View().find('\0') != std::string_view::npos)
+        return Detail::MakeFileStatus(EPlatformFileResult::InvalidArgument, 0, "exclusive-write:path");
+    return Detail::PlatformWriteFileDurable(Detail::ToNativePath(Path), Data, true, OutCreated);
 }
 
 FPlatformFileStatus FPlatformFileSystem::PublishFileNoReplace(
     const FString& Source, const FString& Destination)
 {
+    bool Published = false;
+    return PublishFileNoReplace(Source, Destination, Published);
+}
+
+FPlatformFileStatus FPlatformFileSystem::PublishFileNoReplace(
+    const FString& Source, const FString& Destination, bool& OutPublished)
+{
+    OutPublished = false;
     if (Source.IsEmpty() || Destination.IsEmpty() ||
         Source.View().find('\0') != std::string_view::npos ||
         Destination.View().find('\0') != std::string_view::npos)
         return Detail::MakeFileStatus(EPlatformFileResult::InvalidArgument, 0, "publish-file:path");
     return Detail::PlatformPublishFileNoReplace(
-        Detail::ToNativePath(Source), Detail::ToNativePath(Destination));
+        Detail::ToNativePath(Source), Detail::ToNativePath(Destination), OutPublished);
 }
 
 FPlatformFileStatus FPlatformFileSystem::RemoveTreeContained(
@@ -613,6 +640,31 @@ FPlatformFileStatus FPlatformFileSystem::RemoveTreeContained(
             ClassifyError(Error), Error.value(), "remove-tree:remove");
     }
     return {};
+}
+
+FPlatformFileStatus FPlatformFileSystem::RemoveFileContained(
+    const FString& AllowedRoot, const FString& Candidate)
+{
+    if (AllowedRoot.IsEmpty() || Candidate.IsEmpty() ||
+        AllowedRoot.View().find('\0') != std::string_view::npos || Candidate.View().find('\0') != std::string_view::npos)
+        return Detail::MakeFileStatus(EPlatformFileResult::InvalidArgument, 0, "remove-file:path");
+    FPlatformFileInfo Info;
+    const auto Regular = QueryRegularFile(Candidate, std::numeric_limits<uint64>::max(), Info);
+    if (!Regular.IsSuccess()) return Regular;
+    bool Contained = false;
+    const auto Containment = CheckContainedPath(AllowedRoot, Candidate, Contained);
+    if (!Containment.IsSuccess()) return Containment;
+    FString CanonicalRoot;
+    const auto Canonical = CanonicalizeExistingPath(AllowedRoot, CanonicalRoot);
+    if (!Canonical.IsSuccess()) return Canonical;
+    if (!Contained || CanonicalRoot == Info.Path)
+        return Detail::MakeFileStatus(EPlatformFileResult::OutsideRoot, 0, "remove-file:containment");
+    std::error_code Error;
+    // Remove the named entry, never a canonicalized symlink referent. The
+    // caller retains ownership of its parent directory across this operation.
+    const bool Removed = std::filesystem::remove(Detail::ToNativePath(Candidate), Error);
+    if (Error) return Detail::MakeFileStatus(ClassifyError(Error), Error.value(), "remove-file:remove");
+    return Detail::MakeFileStatus(Removed ? EPlatformFileResult::Success : EPlatformFileResult::NotFound, 0, "remove-file:remove");
 }
 
 } // namespace Stoner::Core

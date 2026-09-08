@@ -64,6 +64,7 @@ lib = BuildLayer(
     private_libraries=env['STONER_YYJSON_LIBRARY'],
     private_cpp_settings={
         'FLabPresetCodec.cpp': {'include_paths': ['ThirdParty', 'Source/RHI/Public']},
+        'FLabPresetStore.cpp': {'include_paths': ['Source/RHI/Public']},
         **{name: {'include_paths': ['ThirdParty/imgui', 'Source/Application/Private', 'Source/RHI/Public'],
                   'cppdefines': ui_defines}
            for name in ('FImGuiLabAdapter.cpp', 'FImGuiInputAdapter.cpp',

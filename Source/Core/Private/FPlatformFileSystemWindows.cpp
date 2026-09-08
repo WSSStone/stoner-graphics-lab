@@ -350,8 +350,9 @@ FPlatformFileStatus PlatformMoveDirectoryNoReplace(
 
 FPlatformFileStatus PlatformPublishFileNoReplace(
     const std::filesystem::path& Source,
-    const std::filesystem::path& Destination)
+    const std::filesystem::path& Destination, bool& OutPublished)
 {
+    OutPublished = false;
     const DWORD Attributes = ::GetFileAttributesW(Source.c_str());
     if (Attributes == INVALID_FILE_ATTRIBUTES)
         return FromWindowsError(::GetLastError(), "publish-file:attributes");
@@ -390,13 +391,15 @@ FPlatformFileStatus PlatformPublishFileNoReplace(
             return MakeFileStatus(EPlatformFileResult::Unsupported, Error, "publish-file:no-replace");
         return FromWindowsError(Error, "publish-file:no-replace");
     }
+    OutPublished = true;
     return {};
 }
 
 FPlatformFileStatus PlatformReplaceFileAtomic(
     const std::filesystem::path& Source,
-    const std::filesystem::path& Destination)
+    const std::filesystem::path& Destination, bool& OutPublished)
 {
+    OutPublished = false;
     constexpr int MaxReplaceAttempts = 64;
     DWORD LastError = ERROR_SUCCESS;
     for (int Attempt = 0; Attempt < MaxReplaceAttempts; ++Attempt)
@@ -405,6 +408,7 @@ FPlatformFileStatus PlatformReplaceFileAtomic(
                 Destination.c_str(), Source.c_str(), nullptr,
                 REPLACEFILE_WRITE_THROUGH, nullptr, nullptr))
         {
+            OutPublished = true;
             return {};
         }
 
@@ -416,6 +420,7 @@ FPlatformFileStatus PlatformReplaceFileAtomic(
                     Source.c_str(), Destination.c_str(),
                     MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
             {
+                OutPublished = true;
                 return {};
             }
             LastError = ::GetLastError();
@@ -431,21 +436,26 @@ FPlatformFileStatus PlatformReplaceFileAtomic(
 
 FPlatformFileStatus PlatformWriteFileDurable(
     const std::filesystem::path& Path,
-    const TArray<uint8>& Data)
+    const TArray<uint8>& Data, bool bExclusive, bool& OutCreated)
 {
+    OutCreated = false;
     HANDLE File = ::CreateFileW(
         Path.c_str(),
         GENERIC_WRITE,
         FILE_SHARE_READ,
         nullptr,
-        CREATE_ALWAYS,
+        bExclusive ? CREATE_NEW : CREATE_ALWAYS,
         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH,
         nullptr);
     if (File == INVALID_HANDLE_VALUE)
     {
-        return FromWindowsError(GetLastError(), "durable-write:open");
+        const DWORD Error = ::GetLastError();
+        if (bExclusive && ::GetFileAttributesW(Path.c_str()) != INVALID_FILE_ATTRIBUTES)
+            return MakeFileStatus(EPlatformFileResult::AlreadyExists, Error, "exclusive-write:exists");
+        return FromWindowsError(Error, "durable-write:open");
     }
 
+    OutCreated = bExclusive;
     usize Offset = 0;
     while (Offset < Data.size())
     {

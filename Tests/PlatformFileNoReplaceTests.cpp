@@ -39,6 +39,20 @@ int RunPlatformFileNoReplaceTests()
         FPlatformFileSystem::PublishFileNoReplace(Path("loser"),Path("final")).Result==EPlatformFileResult::AlreadyExists &&
         Read(Path("final"),{1,2,3}) && Read(Path("loser"),{4,5,6}),
         "collision preserves both the existing destination and losing temporary bytes");
+    bool Created=false;
+    Check(FPlatformFileSystem::WriteFileExclusiveDurable(Path("exclusive"),{7,8},Created).IsSuccess() && Created,
+        "exclusive durable write grants ownership only for a newly created entry");
+    Check(FPlatformFileSystem::WriteFileExclusiveDurable(Path("exclusive"),{9},Created).Result==EPlatformFileResult::AlreadyExists &&
+        !Created && Read(Path("exclusive"),{7,8}),"exclusive durable write preserves an existing temporary file");
+    bool Published=true;
+    Check(FPlatformFileSystem::PublishFileNoReplace(Path("exclusive"),Path("final"),Published).Result==EPlatformFileResult::AlreadyExists &&
+        !Published,"no-replace collision explicitly reports no publication");
+    Check(FPlatformFileSystem::PublishFileNoReplace(Path("exclusive"),Path("published"),Published).IsSuccess() && Published,
+        "successful no-replace explicitly reports committed publication");
+    Check(FPlatformFileSystem::RemoveFileContained(Path("published"),Path("published")).Result==EPlatformFileResult::OutsideRoot &&
+        Read(Path("published"),{7,8}),"file cleanup refuses to remove its allowed root");
+    Check(FPlatformFileSystem::RemoveFileContained(FString(Root.string()),Path("published")).IsSuccess() && !fs::exists(Root/"published"),
+        "contained file cleanup removes the owned entry without recursive traversal");
     fs::create_directory(Root/"directory");
     Check(FPlatformFileSystem::PublishFileNoReplace(Path("directory"),Path("not-file")).Result==EPlatformFileResult::NotRegularFile &&
         fs::is_directory(Root/"directory") && !fs::exists(Root/"not-file"),
@@ -47,6 +61,10 @@ int RunPlatformFileNoReplaceTests()
     fs::create_symlink(Root/"final",Root/"link",LinkError);
     if (!LinkError)
     {
+        Check(FPlatformFileSystem::WriteFileExclusiveDurable(Path("link"),{9},Created).Result==EPlatformFileResult::AlreadyExists &&
+            !Created && Read(Path("final"),{1,2,3}),"exclusive write cannot follow an existing symlink");
+        Check(FPlatformFileSystem::RemoveFileContained(FString(Root.string()),Path("link")).Result==EPlatformFileResult::NotRegularFile &&
+            fs::is_symlink(Root/"link") && Read(Path("final"),{1,2,3}),"temporary cleanup cannot remove a symlink referent");
         Check(FPlatformFileSystem::PublishFileNoReplace(Path("link"),Path("link-copy")).Result==EPlatformFileResult::NotRegularFile &&
             fs::is_symlink(Root/"link") && !fs::exists(Root/"link-copy"),
             "publication refuses to follow or publish a symlink source");

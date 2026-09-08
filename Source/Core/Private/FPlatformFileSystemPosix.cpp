@@ -173,8 +173,9 @@ FPlatformFileStatus PlatformMoveDirectoryNoReplace(
 
 FPlatformFileStatus PlatformPublishFileNoReplace(
     const std::filesystem::path& Source,
-    const std::filesystem::path& Destination)
+    const std::filesystem::path& Destination, bool& OutPublished)
 {
+    OutPublished = false;
     const int File = ::open(Source.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
     if (File < 0)
         return errno == ELOOP
@@ -211,6 +212,7 @@ FPlatformFileStatus PlatformPublishFileNoReplace(
             return MakeFileStatus(EPlatformFileResult::Unsupported, Error, "publish-file:no-replace");
         return FromErrno(Error, "publish-file:no-replace");
     }
+    OutPublished = true;
     const auto Persisted = SyncParentDirectory(Destination, "publish-file:published-sync-destination");
     if (!Persisted.IsSuccess() || Source.parent_path() == Destination.parent_path()) return Persisted;
     return SyncParentDirectory(Source, "publish-file:published-sync-source");
@@ -218,28 +220,32 @@ FPlatformFileStatus PlatformPublishFileNoReplace(
 
 FPlatformFileStatus PlatformReplaceFileAtomic(
     const std::filesystem::path& Source,
-    const std::filesystem::path& Destination)
+    const std::filesystem::path& Destination, bool& OutPublished)
 {
+    OutPublished = false;
     if (::rename(Source.c_str(), Destination.c_str()) != 0)
     {
         return FromErrno(errno, "replace-file:rename");
     }
+    OutPublished = true;
     return SyncParentDirectory(Destination, "replace-file:sync-parent");
 }
 
 FPlatformFileStatus PlatformWriteFileDurable(
     const std::filesystem::path& Path,
-    const TArray<uint8>& Data)
+    const TArray<uint8>& Data, bool bExclusive, bool& OutCreated)
 {
+    OutCreated = false;
     const int Descriptor = ::open(
         Path.c_str(),
-        O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
+        O_WRONLY | O_CREAT | O_CLOEXEC | (bExclusive ? O_EXCL | O_NOFOLLOW : O_TRUNC),
         0666);
     if (Descriptor < 0)
     {
         return FromErrno(errno, "durable-write:open");
     }
 
+    OutCreated = bExclusive;
     usize Offset = 0;
     while (Offset < Data.size())
     {

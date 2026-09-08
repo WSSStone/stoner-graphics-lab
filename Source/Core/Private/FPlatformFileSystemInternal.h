@@ -28,13 +28,13 @@ namespace Stoner::Core::Detail
     const std::filesystem::path& Destination);
 [[nodiscard]] FPlatformFileStatus PlatformReplaceFileAtomic(
     const std::filesystem::path& Source,
-    const std::filesystem::path& Destination);
+    const std::filesystem::path& Destination, bool& OutPublished);
 [[nodiscard]] FPlatformFileStatus PlatformPublishFileNoReplace(
     const std::filesystem::path& Source,
-    const std::filesystem::path& Destination);
+    const std::filesystem::path& Destination, bool& OutPublished);
 [[nodiscard]] FPlatformFileStatus PlatformWriteFileDurable(
     const std::filesystem::path& Path,
-    const TArray<uint8>& Data);
+    const TArray<uint8>& Data, bool bExclusive, bool& OutCreated);
 [[nodiscard]] FPlatformFileStatus PlatformReadRegularFileBounded(
     const std::filesystem::path& Path,
     uint64 MaxBytes,

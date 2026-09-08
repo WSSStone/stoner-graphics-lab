@@ -83,6 +83,10 @@ struct FPlatformFileSystem
     [[nodiscard]] static FPlatformFileStatus ReplaceFileAtomic(
         const FString& Source,
         const FString& Destination);
+    // OutPublished is reset on entry and becomes true after native replacement,
+    // even if a subsequent directory durability operation reports failure.
+    [[nodiscard]] static FPlatformFileStatus ReplaceFileAtomic(
+        const FString& Source, const FString& Destination, bool& OutPublished);
     // Publish a caller-owned regular temporary file without replacing any
     // destination entry (including a symlink). Success consumes Source and
     // persists file/directory metadata. Source and its parent must remain
@@ -92,9 +96,19 @@ struct FPlatformFileSystem
     [[nodiscard]] static FPlatformFileStatus PublishFileNoReplace(
         const FString& Source,
         const FString& Destination);
+    // Same publication indicator as ReplaceFileAtomic; failure with true must
+    // not be retried as though the destination had remained unchanged.
+    [[nodiscard]] static FPlatformFileStatus PublishFileNoReplace(
+        const FString& Source, const FString& Destination, bool& OutPublished);
     [[nodiscard]] static FPlatformFileStatus WriteFileDurable(
         const FString& Path,
         const TArray<uint8>& Data);
+    // Atomically creates a new entry. OutCreated grants cleanup ownership
+    // even when a later write/flush fails; existing entries remain untouched.
+    [[nodiscard]] static FPlatformFileStatus WriteFileExclusiveDurable(
+        const FString& Path, const TArray<uint8>& Data, bool& OutCreated);
+    [[nodiscard]] static FPlatformFileStatus RemoveFileContained(
+        const FString& AllowedRoot, const FString& Candidate);
     [[nodiscard]] static FPlatformFileStatus RemoveTreeContained(
         const FString& AllowedRoot,
         const FString& Candidate,
