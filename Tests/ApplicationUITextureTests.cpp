@@ -236,6 +236,48 @@ int RunApplicationUITextureTests()
             Registry.BeginEligibleFrame(5,true);
             Check(UI.Frame({},Display,1.0/60.0) == EApplicationResult::Success && UI.GetVertexCount() > 0,
                 "UI resumes eligible texture preparation after a suspended interval");
+            FLabRuntimeInfo Runtime;
+            Runtime.Workload="Diagnostic fixture";
+            FLabSettingsSnapshot Selection;
+            Selection.RequestedProfileId=Selection.EffectiveProfileId="Sdr.sRGB.v1";
+            Selection.DebugBypass.Mode=EOutputTransformDebugBypassMode::BoundedVisualization;
+            Selection.DebugBypass.StageName="ManualExposure";
+            Selection.DebugBypass.SourceDomain=ERenderGraphColorDomain::SceneLinearRec709D65;
+            Selection.DebugBypass.VisualizationMinimum=2;
+            Selection.DebugBypass.VisualizationMaximum=8;
+            FLabSettingsCapabilities Caps;
+            Caps.DisplayGeneration=Display.DisplayGeneration;
+            Caps.Outputs={{"Sdr.sRGB.v1",100,100}};
+            Caps.DebugStages={{"ManualExposure",ERenderGraphColorDomain::SceneLinearRec709D65,{}}};
+            Core::uint32 Edits=0;
+            const auto Edit=[&](const FLabSettingsSnapshot&) { ++Edits; return true; };
+            Core::uint64 ServiceFrame=5;
+            const auto DiagnosticFrame=[&]() {
+                Registry.BeginEligibleFrame(++ServiceFrame,true);
+                if (UI.Frame({},Display,1.0/60.0,true,{}, {},true,&Runtime,nullptr,
+                    &Selection,nullptr,&Selection,nullptr,Edit,&Caps)!=EApplicationResult::Success) return -1;
+                FUIDrawSnapshot Draw(1,ServiceFrame,1,Display.DisplayGeneration);
+                if (UI.ExtractSnapshot([&](FUITextureId Id) { return Registry.Acquire(Id); },Draw)!=ERHIResult::Success) return -1;
+                int Images=0;
+                for (const auto& Command : Draw.GetCommands()) Images+=Command.bDiagnosticWidget ? 1 : 0;
+                return Images;
+            };
+            Check(DiagnosticFrame()==1 && Edits==0,
+                "visible real diagnostic panel emits exactly one unresolved GPU image without an edit");
+            auto* Panel=ImGui::FindWindowByName("Rendering Lab");
+            const auto Header=Panel->GetID("Diagnostic view");
+            // Exercise the persisted state read by the real collapsing header;
+            // no renderer visibility flag or synthetic draw packet is substituted.
+            Panel->StateStorage.SetInt(Header,0);
+            Check(DiagnosticFrame()==0 && Edits==0 && Selection.DebugBypass.VisualizationMinimum==2 &&
+                Selection.DebugBypass.VisualizationMaximum==8,
+                "collapsed diagnostic panel emits no image request and preserves selected range");
+            Panel->StateStorage.SetInt(Header,1);
+            Check(DiagnosticFrame()==1 && Edits==0,
+                "reopened diagnostic panel restores its GPU image request without a settings edit");
+            Selection.DebugBypass.Mode=EOutputTransformDebugBypassMode::HDRPreservingReadback;
+            Check(DiagnosticFrame()==0 && Edits==0,
+                "real numeric diagnostic panel publishes UI without an image request or automatic action");
         }
         Registry.Poll();
         Check(Registry.GetStatistics().Generations == 0,

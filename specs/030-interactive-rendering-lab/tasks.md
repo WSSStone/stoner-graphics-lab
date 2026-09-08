@@ -192,7 +192,9 @@ Strict Debug/Release each pass 390 related assertions. Both configurations compl
 ### Tests (write before implementation)
 
 - [X] T058 [P] [US3] Add next-eligible-frame, invalid/unsupported edit, latest-valid pending request, generation invalidation and fallback and rejected-ordinary-edit-versus-independent-capability-loss fixtures in `Tests/InteractiveLabSettingsTests.cpp`. (depends on T057)
-- [ ] T059 [P] [US3] Add preview GPU-only visualization versus explicit numeric/formal readback selection, non-default debug stage/domain/range, Renderer-produced GPU texture registration/stale-generation/producer-order/budget and hidden-widget no-work tests in `Tests/InteractiveLabDebugTests.cpp`. (depends on T057)
+- [X] T059 [P] [US3] Add preview GPU-only visualization versus explicit numeric/formal readback selection, non-default debug stage/domain/range, Renderer-produced GPU texture registration/stale-generation/producer-order/budget and hidden-widget no-work tests in `Tests/InteractiveLabDebugTests.cpp`. (depends on T057)
+
+**T059 review (2026-09-09)**: The completed debug fixtures cover both non-default source domains/ranges, bounded versus numeric selection, UI-off and UI-visible/widget-collapsed graph planning, exact target budget rejection, producer ordering, stale GPU leases and unchanged formal readback behavior through the existing output regression suite. Real ImGui texture-backed frames additionally prove one pending image when expanded, none when collapsed or NumericReadback, and restoration without changing selected range or emitting settings actions. The collapse fixture sets the actual ImGui header storage and executes normal frame/extraction; it does not claim mouse hit-testing. Strict Debug/Release each pass 181 texture/debug/registry/composition assertions (`Build/Validation/030/us2/diagnostic-visibility-{debug,release}.log`); the preceding panel increment supplies native zero-readback checks. Architecture verification has zero findings. T059 is complete (62/127 reviewed tasks); implementation review T063–T068 and later explicit capture queue/export remain open.
 
 ### Implementation and verification
 

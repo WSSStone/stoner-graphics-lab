@@ -37,10 +37,12 @@ int RunInteractiveLabDebugTests()
     UI.OutputProfileId="Sdr.sRGB.v1"; UI.BlendDomain=ERenderGraphColorDomain::DisplayLinearRec709D65;
     UI.UIReferenceWhiteNits=UI.NativePackingWhiteNits=100; UI.DisplayGeneration=1;
     for (const auto* StageName : {"ManualExposure","SDRToneMap"})
-    for (const bool Visible : {false,true})
+    for (const int Visibility : {0,1,2})
         for (const auto Mode : {EOutputTransformDebugBypassMode::BoundedVisualization,
                 EOutputTransformDebugBypassMode::HDRPreservingReadback})
         {
+            const bool Visible=Visibility!=0;
+            UI.bDiagnosticWidgetVisible=Visibility==1;
             FRenderGraph Graph("preview diagnostic");
             FOutputTransformSettings Settings;
             Settings.DiagnosticBypass.Mode=Mode; Settings.DiagnosticBypass.StageName=StageName;
@@ -55,7 +57,7 @@ int RunInteractiveLabDebugTests()
             Check(Declaration.DiagnosticReadbackCopyCount==0 && !Declaration.DiagnosticReadbackBuffer.IsValid() &&
                 !Declaration.DiagnosticReadbackPass.IsValid() && Declaration.GpuReadbackCopyCount==0,
                 "selecting a preview diagnostic never schedules numeric or formal readback");
-            const bool Widget=Visible && Mode==EOutputTransformDebugBypassMode::BoundedVisualization;
+            const bool Widget=Visible && UI.bDiagnosticWidgetVisible && Mode==EOutputTransformDebugBypassMode::BoundedVisualization;
             Check(Declaration.DiagnosticOutput.IsValid()==Widget && Declaration.DiagnosticFullscreenPassCount==(Widget ? 1u : 0u),
                 "hidden UI and numeric selection retain settings without allocating a visualization target");
             Check(Prepared.Plan.DiagnosticBypass.SourceStageName==StageName &&
@@ -76,6 +78,7 @@ int RunInteractiveLabDebugTests()
                         E.ToPassIndex==Declaration.UIPass.Index; }),"diagnostic producer is an actual dependency of terminal UI sampling");
             }
         }
+    UI.bDiagnosticWidgetVisible=true;
     FRenderGraph Feedback("feedback rejected");
     FOutputTransformSettings Settings;
     Settings.DiagnosticBypass.Mode=EOutputTransformDebugBypassMode::BoundedVisualization;

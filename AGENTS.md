@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (61/127 reviewed tasks); native closeout remains pending.
+Feature 030 implementation is partial (62/127 reviewed tasks); native closeout remains pending.
 The maintainer explicitly skips Intel x86_64 macOS validation for Feature 030
 on 2026-09-08; record it as skipped, not passed, and do not block implementation
 on Intel cooking/derivation/native checks. Existing Intel support and historical
@@ -164,6 +164,7 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
+- 030 T059 debug fixture review complete (62/127): real GPU-backed diagnostic panel submission works on local Metal/Vulkan, including forced fallback. Preview selection does not require presentation CopySource; formal validation remains strict. Real ImGui header-state collapse/reopen and numeric selection emit the correct pending image count without settings actions, and compiled graphs omit collapsed widget targets while retaining UI. Strict Debug/Release each pass 181 focused assertions; implementation review T063–T068 and explicit capture queue/export remain pending. No formal/human HDR authority is claimed.
 - 030 native diagnostic producer: bounded sRGB diagnostic targets now render and sample through the GPU texture registry/UI component on Metal and Vulkan. Strict Debug/Release each pass 202 focused CPU/derivation assertions; each backend/configuration passes 90 native assertions. UI preflight now requires draw/copy/diagnostic programs from one cooked generation; updated recipes include the new root. Live panel/frame-slot integration remains pending at 61/127; no formal or human HDR authority is claimed.
 - 030 preview diagnostic graph: bounded visible widgets get a <=1024x1024 sRGB target before UI; hidden/numeric selections schedule no diagnostic work or readback, and same-frame output feedback rejects. Strict Debug/Release each pass 278 focused assertions plus 51 existing Debug Metal native regressions. Native diagnostic drawing/widget binding remain pending; no visible debug-view pass is claimed and count stays 61/127.
 - 030 GPU widget registry foundation: private Renderer-owned sampled-sRGB target registration retains graph/frame/settings/display identity without CPU shadow or staging; stale/cyclic producer dependencies and live-storage reuse reject. Strict Debug/Release each pass 125 related assertions and Debug Metal passes 51 existing native regressions. Live diagnostic pass/widget integration remains pending; count stays 61/127.
