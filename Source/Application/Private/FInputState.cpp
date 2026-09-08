@@ -69,9 +69,14 @@ void FInputState::ClearKeyAndMouseState()
 
 void FInputState::ApplyEvent(const FInputEvent& Event, FApplicationDiagnosticLog* Diagnostics)
 {
+    if (!bFocused && (Event.EventType == EInputEventType::KeyDown ||
+        Event.EventType == EInputEventType::MouseButtonDown ||
+        Event.EventType == EInputEventType::PointerMove ||
+        Event.EventType == EInputEventType::Scroll)) return;
     switch (Event.EventType)
     {
     case EInputEventType::KeyDown:
+        if (Event.bRepeat) return;
         if (!IsKnownKey(Event.Key))
         {
             if (Diagnostics != nullptr)
@@ -152,14 +157,23 @@ void FInputState::ApplyEvent(const FInputEvent& Event, FApplicationDiagnosticLog
         break;
     case EInputEventType::Scroll:
         break;
+    case EInputEventType::Overflow:
     case EInputEventType::FocusLost:
-        bFocused = false;
-        ClearKeyAndMouseState();
+        ClearAll();
         if (Diagnostics != nullptr)
         {
             Diagnostics->Add(EApplicationDiagnosticSeverity::Info, EApplicationDiagnosticCategory::Input,
                 EApplicationResult::Success, "APP-INPUT-FOCUS-CLEAR", "Focus", "Focus loss cleared held input state");
         }
+        break;
+    case EInputEventType::FocusGained:
+        bFocused = true;
+        break;
+    case EInputEventType::CursorEntered:
+        bHasPointerPosition = false;
+        PointerDeltaX = PointerDeltaY = 0.0f;
+        break;
+    case EInputEventType::Text:
         break;
     case EInputEventType::Unknown:
         if (Diagnostics != nullptr)

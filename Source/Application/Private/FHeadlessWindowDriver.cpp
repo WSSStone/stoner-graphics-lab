@@ -1,6 +1,7 @@
 #include "Application/FInputEvent.h"
 #include "Application/FWindowEvent.h"
 #include "FWindowDriver.h"
+#include "FWindowEventBuffer.h"
 
 namespace Stoner::Application
 {
@@ -18,28 +19,22 @@ public:
         return EApplicationResult::Success;
     }
 
-    void QueueWindowEvent(const FWindowEvent& Event) { WindowEvents.push_back(Event); }
-    void QueueInputEvent(const FInputEvent& Event) { InputEvents.push_back(Event); }
+    EApplicationResult ReadClipboardUtf8(Stoner::Core::FString& Out) override
+    { Out = Clipboard; return EApplicationResult::Success; }
+    EApplicationResult WriteClipboardUtf8(const Stoner::Core::FString& Text) override
+    { Clipboard = Text; return EApplicationResult::Success; }
+
+    void QueueWindowEvent(const FWindowEvent& Event) { Events.Push(Event); }
+    void QueueInputEvent(const FInputEvent& Event) { Events.Push(Event); }
 
     [[nodiscard]] Stoner::Core::TArray<FWindowEvent> ConsumeWindowEvents() override
-    {
-        SortWindowEventsStable(WindowEvents);
-        Stoner::Core::TArray<FWindowEvent> Result = WindowEvents;
-        WindowEvents.clear();
-        return Result;
-    }
-
+    { return Events.TakeWindow(); }
     [[nodiscard]] Stoner::Core::TArray<FInputEvent> ConsumeInputEvents() override
-    {
-        SortInputEventsStable(InputEvents);
-        Stoner::Core::TArray<FInputEvent> Result = InputEvents;
-        InputEvents.clear();
-        return Result;
-    }
+    { return Events.TakeInput(); }
 
 private:
-    Stoner::Core::TArray<FWindowEvent> WindowEvents;
-    Stoner::Core::TArray<FInputEvent> InputEvents;
+    FWindowEventBuffer Events;
+    Stoner::Core::FString Clipboard;
     ECursorMode CursorMode = ECursorMode::Normal;
 };
 

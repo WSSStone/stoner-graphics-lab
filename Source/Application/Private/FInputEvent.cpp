@@ -77,6 +77,40 @@ FInputEvent FInputEvent::Unknown(Stoner::Core::uint64 Sequence)
     return Event;
 }
 
+FInputEvent FInputEvent::Overflow(Stoner::Core::uint64 Sequence)
+{
+    FInputEvent Event;
+    Event.EventType = EInputEventType::Overflow;
+    Event.Sequence = Sequence;
+    return Event;
+}
+
+FInputEvent FInputEvent::Text(Stoner::Core::uint32 Scalar, Stoner::Core::uint64 Sequence)
+{
+    FInputEvent Event;
+    Event.EventType = EInputEventType::Text;
+    Event.UnicodeScalar = Scalar;
+    Event.Sequence = Sequence;
+    return Event;
+}
+
+FInputEvent FInputEvent::FocusGained(Stoner::Core::uint64 Sequence)
+{
+    FInputEvent Event;
+    Event.EventType = EInputEventType::FocusGained;
+    Event.Sequence = Sequence;
+    return Event;
+}
+
+FInputEvent FInputEvent::CursorEntered(bool bEntered, Stoner::Core::uint64 Sequence)
+{
+    FInputEvent Event;
+    Event.EventType = EInputEventType::CursorEntered;
+    Event.bCursorEntered = bEntered;
+    Event.Sequence = Sequence;
+    return Event;
+}
+
 const char* ToString(EInputEventType Type) noexcept
 {
     switch (Type)
@@ -88,6 +122,10 @@ const char* ToString(EInputEventType Type) noexcept
     case EInputEventType::PointerMove: return "PointerMove";
     case EInputEventType::Scroll: return "Scroll";
     case EInputEventType::FocusLost: return "FocusLost";
+    case EInputEventType::Overflow: return "Overflow";
+    case EInputEventType::Text: return "Text";
+    case EInputEventType::FocusGained: return "FocusGained";
+    case EInputEventType::CursorEntered: return "CursorEntered";
     case EInputEventType::Unknown: return "Unknown";
     }
     return "Unknown";

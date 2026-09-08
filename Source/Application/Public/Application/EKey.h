@@ -63,6 +63,8 @@ enum class EKey
     RightControl,
     LeftAlt,
     RightAlt,
+    LeftSuper,
+    RightSuper,
     F1,
     F2,
     F3,

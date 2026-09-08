@@ -293,6 +293,7 @@ FProductionCameraPreviewUpdate FProductionCameraPreviewController::Update(
         switch (Event.EventType)
         {
         case EInputEventType::KeyDown:
+            if (Event.bRepeat) break;
             if (Event.Key == EKey::Enter)
                 Result.bSnapshotRequested = true;
             else if (Event.Key == EKey::Escape)
@@ -347,6 +348,7 @@ FProductionCameraPreviewUpdate FProductionCameraPreviewController::Update(
                     Application::FFreeCameraActions{
                         .ScrollDeltaY = Event.DeltaY});
             break;
+        case EInputEventType::Overflow:
         case EInputEventType::FocusLost:
             ClearInputState();
             bInputQuarantined = true;
@@ -354,6 +356,9 @@ FProductionCameraPreviewUpdate FProductionCameraPreviewController::Update(
             OrderedActions.clear();
             bSawFocusLoss = true;
             break;
+        case EInputEventType::FocusGained:
+        case EInputEventType::Text:
+        case EInputEventType::CursorEntered:
         case EInputEventType::Unknown:
             break;
         }

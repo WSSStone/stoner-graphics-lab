@@ -307,10 +307,20 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds)
     });
     Lost |= std::any_of(Raw.begin(), Raw.end(), [](const auto& E) { return E.EventType == EInputEventType::FocusLost; });
     if (Lost || !S.Display.bFocused || !S.Display.DrawableExtent.IsPositive()) S.ReleaseInput();
-    const bool Overflow = Raw.size() > 4096;
-    if (Overflow) { S.ReleaseInput(); Raw.clear(); S.Input->Clear(); }
+    bool Overflow = Raw.size() > FInputManager::MaximumEventsPerInterval ||
+        std::any_of(Raw.begin(), Raw.end(), [](const auto& E) { return E.EventType == EInputEventType::Overflow; });
+    if (Overflow) S.ReleaseInput();
     S.Input->QueueEvents(Raw);
     S.Input->PollFrame(S.Window->GetLifecycleState(), S.Display.bFocused);
+    Overflow |= S.Input->DidOverflow();
+    if (Overflow)
+    {
+        S.ReleaseInput();
+        S.Quarantine.fill(true);
+        S.Quarantine[0] = false;
+        S.bRightQuarantined = true;
+        Raw.clear();
+    }
     S.CollectDiagnostics();
     const auto& Input = S.Input->GetState();
     for (auto K : Input.GetReleasedKeys()) if (IsKnownKey(K)) S.Quarantine[static_cast<std::size_t>(K)] = false;

@@ -43,6 +43,16 @@ FWindowEvent FWindowEvent::DrawableResized(Stoner::Core::uint32 Width,
     return Event;
 }
 
+FWindowEvent FWindowEvent::ContentScaleChanged(float X, float Y, Stoner::Core::uint64 Sequence)
+{
+    FWindowEvent Event;
+    Event.EventType = EWindowEventType::ContentScaleChanged;
+    Event.ContentScaleX = X;
+    Event.ContentScaleY = Y;
+    Event.Sequence = Sequence;
+    return Event;
+}
+
 FWindowEvent FWindowEvent::Minimized(Stoner::Core::uint64 Sequence)
 {
     FWindowEvent Event;
@@ -114,6 +124,7 @@ const char* ToString(EWindowEventType Type) noexcept
     case EWindowEventType::Created: return "Created";
     case EWindowEventType::Resized: return "Resized";
     case EWindowEventType::DrawableResized: return "DrawableResized";
+    case EWindowEventType::ContentScaleChanged: return "ContentScaleChanged";
     case EWindowEventType::Minimized: return "Minimized";
     case EWindowEventType::Restored: return "Restored";
     case EWindowEventType::FocusGained: return "FocusGained";

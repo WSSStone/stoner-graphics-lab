@@ -9,6 +9,10 @@ namespace Stoner::Application
 class FInputManager
 {
 public:
+    static constexpr std::size_t MaximumEventsPerInterval = 4096;
+    [[nodiscard]] bool DidOverflow() const noexcept { return bFrameOverflow; }
+    [[nodiscard]] const Stoner::Core::TArray<FInputEvent>& GetFrameEvents() const noexcept { return FrameEvents; }
+
     void QueueEvent(const FInputEvent& Event);
     void QueueEvents(const Stoner::Core::TArray<FInputEvent>& Events);
     void BeginFrame();
@@ -22,6 +26,9 @@ public:
 
 private:
     Stoner::Core::TArray<FInputEvent> PendingEvents;
+    Stoner::Core::TArray<FInputEvent> FrameEvents;
+    bool bPendingOverflow = false;
+    bool bFrameOverflow = false;
     FInputState CurrentState;
     FApplicationDiagnosticLog Diagnostics;
 };

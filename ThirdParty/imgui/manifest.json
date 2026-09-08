@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "upstream": "https://github.com/ocornut/imgui",
+  "commit": "6d910d5487d11ca567b61c7824b0c78c569d62f0",
+  "version": "1.92.5",
+  "archiveSha256": "b715a3226320aaebaea79dc6af6405ae37cdcb479817fddaef12a17d8bd15a3a",
+  "files": [
+    {
+      "path": "imgui.cpp",
+      "bytes": 941022,
+      "sha256": "86f0fe3e1ebb1f74d1594f01d5b30c14d0ac096caf27f09903174bca800cc8e1"
+    },
+    {
+      "path": "imgui_draw.cpp",
+      "bytes": 324020,
+      "sha256": "2aa2312c2e1aa1eee51a8d86322ce1a7d640ff79e3a63598ce329f0e5e74cc17"
+    },
+    {
+      "path": "imgui_tables.cpp",
+      "bytes": 249396,
+      "sha256": "c39e859e844406098dbc5e1387fcdac328878ad1f9360aa44677374e5e2806fd"
+    },
+    {
+      "path": "imgui_widgets.cpp",
+      "bytes": 536508,
+      "sha256": "1a97693653262484ebc16ef18449cbbf5fe1291e0574f11288ac6013ae44b7f8"
+    },
+    {
+      "path": "imgui.h",
+      "bytes": 416672,
+      "sha256": "768cf03c079e1ce198d207c7a3cfbcf2bdebe84d930829f73e09ae340daa265a"
+    },
+    {
+      "path": "imgui_internal.h",
+      "bytes": 297716,
+      "sha256": "cdc85290bed18d70b2875aa12dbc4b58e6c4f8fac37e44cb7889ccd002cb4f91"
+    },
+    {
+      "path": "imconfig.h",
+      "bytes": 12142,
+      "sha256": "6e5687893594ebfaf8569280cfea83d025904a8a4e23bec073086f6c5bc8f7fb"
+    },
+    {
+      "path": "imstb_rectpack.h",
+      "bytes": 20344,
+      "sha256": "2efa3d5f7d003c19743b15155dad9f46d9f9fc783a18893d703b431d3c990972"
+    },
+    {
+      "path": "imstb_textedit.h",
+      "bytes": 60111,
+      "sha256": "a985f5fa0ed97353d493b497961e9eef52082edcd045cf6954b69990ec9d0741"
+    },
+    {
+      "path": "imstb_truetype.h",
+      "bytes": 199503,
+      "sha256": "88f0a25e27f5eefd6ec50c42fc5fe3026aa8170603efa08aa18d622db8660923"
+    },
+    {
+      "path": "LICENSE.txt",
+      "bytes": 1083,
+      "sha256": "c80c5789748d955c4a650562baa0d750494e2c7128c2ca66aaebe2e3c4e198bf"
+    },
+    {
+      "path": "docs/FONTS.md",
+      "bytes": 29882,
+      "sha256": "db244ce7f5c4aea14039cdb032be6cedb82c6e13952e31ece929377ae405db42"
+    },
+    {
+      "path": "misc/fonts/Cousine-Regular.ttf",
+      "bytes": 43912,
+      "sha256": "0d5d5eeb6a342432bd63a3c0d16e8470160e019933ee5af3e159d06d665dacce"
+    }
+  ],
+  "fontLicense": {
+    "path": "FONT-LICENSE.txt",
+    "sha256": "1a36e1f0907019290848a66ec56947a336e7904642cf70f9596766c1c6a584ed",
+    "copyrightSource": "misc/fonts/Cousine-Regular.ttf name record 0",
+    "licenseTextSource": "https://raw.githubusercontent.com/google/fonts/main/ofl/cousine/OFL.txt",
+    "note": "Standard OFL 1.1 text with the fixed font binary copyright; not the newer font revision copyright."
+  }
+}

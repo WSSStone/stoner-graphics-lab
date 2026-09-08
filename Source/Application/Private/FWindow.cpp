@@ -1,4 +1,5 @@
 #include "Application/FWindow.h"
+#include <cmath>
 
 #include "FWindowDriver.h"
 
@@ -351,9 +352,12 @@ Stoner::Core::TArray<FInputEvent> FWindow::PollInputEvents()
     SortInputEventsStable(Events);
     if (std::any_of(Events.begin(), Events.end(), [](const FInputEvent& Event)
         {
-            return Event.EventType == EInputEventType::FocusLost;
+            return Event.EventType == EInputEventType::FocusLost || Event.EventType == EInputEventType::Overflow;
         }))
+    {
         CursorMode = ECursorMode::Normal;
+        if (Driver) (void)Driver->SetCursorMode(ECursorMode::Normal);
+    }
     return Events;
 }
 
@@ -382,6 +386,15 @@ void FWindow::ApplyEvent(const FWindowEvent& Event)
         if (DrawableWidth == 0 || DrawableHeight == 0)
             ClearPointerCapture(Event.Sequence);
         BumpDisplayGeneration();
+        break;
+    case EWindowEventType::ContentScaleChanged:
+        if (std::isfinite(Event.ContentScaleX) && std::isfinite(Event.ContentScaleY) &&
+            Event.ContentScaleX > 0.0f && Event.ContentScaleY > 0.0f)
+        {
+            ContentScaleX = Event.ContentScaleX;
+            ContentScaleY = Event.ContentScaleY;
+            BumpDisplayGeneration();
+        }
         break;
     case EWindowEventType::Minimized:
         bMinimized = true;

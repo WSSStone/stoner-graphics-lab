@@ -33,6 +33,9 @@ public:
     [[nodiscard]] EApplicationResult Minimize();
     [[nodiscard]] EApplicationResult Restore();
 
+    [[nodiscard]] EApplicationResult ReadClipboardUtf8(Stoner::Core::FString& OutText);
+    [[nodiscard]] EApplicationResult WriteClipboardUtf8(const Stoner::Core::FString& Text);
+
     void QueueEvent(const FWindowEvent& Event);
     Stoner::Core::TArray<FWindowEvent> PollEvents();
     Stoner::Core::TArray<FInputEvent> PollInputEvents();

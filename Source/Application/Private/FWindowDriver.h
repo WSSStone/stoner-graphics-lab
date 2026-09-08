@@ -30,6 +30,10 @@ public:
     { return EApplicationResult::UnsupportedMode; }
     [[nodiscard]] virtual bool EmitsLifecycleInputResets() const noexcept
     { return false; }
+    virtual EApplicationResult ReadClipboardUtf8(Stoner::Core::FString&)
+    { return EApplicationResult::UnsupportedMode; }
+    virtual EApplicationResult WriteClipboardUtf8(const Stoner::Core::FString&)
+    { return EApplicationResult::UnsupportedMode; }
     virtual EApplicationResult Minimize()
     { return EApplicationResult::UnsupportedMode; }
     virtual EApplicationResult Restore()

@@ -16,6 +16,10 @@ enum class EInputEventType
     PointerMove,
     Scroll,
     FocusLost,
+    FocusGained,
+    Text,
+    CursorEntered,
+    Overflow,
     Unknown
 };
 
@@ -29,6 +33,9 @@ struct FInputEvent
     float DeltaX = 0.0f;
     float DeltaY = 0.0f;
     Stoner::Core::uint64 Sequence = 0;
+    Stoner::Core::uint32 UnicodeScalar = 0;
+    bool bRepeat = false;
+    bool bCursorEntered = false;
 
     [[nodiscard]] static FInputEvent KeyDown(EKey Key, Stoner::Core::uint64 Sequence = 0);
     [[nodiscard]] static FInputEvent KeyUp(EKey Key, Stoner::Core::uint64 Sequence = 0);
@@ -37,6 +44,10 @@ struct FInputEvent
     [[nodiscard]] static FInputEvent PointerMove(float X, float Y, Stoner::Core::uint64 Sequence = 0);
     [[nodiscard]] static FInputEvent Scroll(float DeltaX, float DeltaY, Stoner::Core::uint64 Sequence = 0);
     [[nodiscard]] static FInputEvent FocusLost(Stoner::Core::uint64 Sequence = 0);
+    [[nodiscard]] static FInputEvent Overflow(Stoner::Core::uint64 Sequence = 0);
+    [[nodiscard]] static FInputEvent Text(Stoner::Core::uint32 Scalar, Stoner::Core::uint64 Sequence = 0);
+    [[nodiscard]] static FInputEvent FocusGained(Stoner::Core::uint64 Sequence = 0);
+    [[nodiscard]] static FInputEvent CursorEntered(bool bEntered, Stoner::Core::uint64 Sequence = 0);
     [[nodiscard]] static FInputEvent Unknown(Stoner::Core::uint64 Sequence = 0);
 };
 

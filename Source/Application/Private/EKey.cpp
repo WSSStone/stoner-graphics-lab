@@ -5,7 +5,7 @@ namespace Stoner::Application
 
 bool IsKnownKey(EKey Key) noexcept
 {
-    return Key != EKey::Unknown;
+    return Key > EKey::Unknown && Key <= EKey::F12;
 }
 
 const char* ToString(EKey Key) noexcept
@@ -70,6 +70,8 @@ const char* ToString(EKey Key) noexcept
     case EKey::RightControl: return "RightControl";
     case EKey::LeftAlt: return "LeftAlt";
     case EKey::RightAlt: return "RightAlt";
+    case EKey::LeftSuper: return "LeftSuper";
+    case EKey::RightSuper: return "RightSuper";
     case EKey::F1: return "F1";
     case EKey::F2: return "F2";
     case EKey::F3: return "F3";

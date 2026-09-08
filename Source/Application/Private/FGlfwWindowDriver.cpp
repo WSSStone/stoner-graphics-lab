@@ -1,6 +1,7 @@
 #include "Application/FInputEvent.h"
 #include "Application/FWindowEvent.h"
 #include "FWindowDriver.h"
+#include "FWindowEventBuffer.h"
 
 #if defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
 #define GLFW_INCLUDE_NONE
@@ -65,10 +66,29 @@ public:
         RefreshFramebufferExtent();
         if (glfwWindowShouldClose(Window) == GLFW_TRUE && !bCloseEventQueued)
         {
-            WindowEvents.push_back(FWindowEvent::CloseRequested(NextSequence++));
-            InputEvents.push_back(FInputEvent::FocusLost(NextSequence++));
+            Events.Push(FWindowEvent::CloseRequested(NextSequence++));
+            Events.Push(FInputEvent::FocusLost(NextSequence++));
             bCloseEventQueued = true;
         }
+    }
+
+    EApplicationResult ReadClipboardUtf8(Stoner::Core::FString& Out) override
+    {
+        if (!Window) return EApplicationResult::InvalidLifecycle;
+        const char* Text = glfwGetClipboardString(Window);
+        if (!Text) return EApplicationResult::UnsupportedMode;
+        std::size_t Length = 0;
+        while (Length <= 65536 && Text[Length] != '\0') ++Length;
+        if (Length > 65536) return EApplicationResult::InvalidInput;
+        Out = Stoner::Core::FString(std::string_view(Text, Length));
+        return EApplicationResult::Success;
+    }
+    EApplicationResult WriteClipboardUtf8(const Stoner::Core::FString& Text) override
+    {
+        if (!Window) return EApplicationResult::InvalidLifecycle;
+        (void)glfwGetError(nullptr);
+        glfwSetClipboardString(Window, Text.CStr());
+        return glfwGetError(nullptr) == GLFW_NO_ERROR ? EApplicationResult::Success : EApplicationResult::UnsupportedMode;
     }
 
     void RequestClose() override { if (Window) glfwSetWindowShouldClose(Window, GLFW_TRUE); }
@@ -128,20 +148,9 @@ public:
     }
 
     [[nodiscard]] Stoner::Core::TArray<FWindowEvent> ConsumeWindowEvents() override
-    {
-        SortWindowEventsStable(WindowEvents);
-        auto Result = WindowEvents;
-        WindowEvents.clear();
-        return Result;
-    }
-
+    { return Events.TakeWindow(); }
     [[nodiscard]] Stoner::Core::TArray<FInputEvent> ConsumeInputEvents() override
-    {
-        SortInputEventsStable(InputEvents);
-        auto Result = InputEvents;
-        InputEvents.clear();
-        return Result;
-    }
+    { return Events.TakeInput(); }
 
 private:
     static FGlfwWindowDriver* Self(GLFWwindow* Window) { return static_cast<FGlfwWindowDriver*>(glfwGetWindowUserPointer(Window)); }
@@ -156,13 +165,13 @@ private:
             if (Width == 0 || Height == 0)
             {
                 (void)Driver->SetCursorMode(ECursorMode::Normal);
-                Driver->InputEvents.push_back(FInputEvent::FocusLost(Driver->NextSequence++));
-                Driver->WindowEvents.push_back(FWindowEvent::DrawableResized(
+                Driver->Events.Push(FInputEvent::FocusLost(Driver->NextSequence++));
+                Driver->Events.Push(FWindowEvent::DrawableResized(
                     0, 0, Driver->NextSequence++));
             }
             else
             {
-                Driver->WindowEvents.push_back(FWindowEvent::DrawableResized(
+                Driver->Events.Push(FWindowEvent::DrawableResized(
                     Driver->DrawableWidth, Driver->DrawableHeight,
                     Driver->NextSequence++));
             }
@@ -171,7 +180,7 @@ private:
         {
             auto* Driver = Self(Native);
             if (Width > 0 && Height > 0)
-                Driver->WindowEvents.push_back(FWindowEvent::Resized(
+                Driver->Events.Push(FWindowEvent::Resized(
                     static_cast<Stoner::Core::uint32>(Width), static_cast<Stoner::Core::uint32>(Height), Driver->NextSequence++));
         });
         glfwSetWindowIconifyCallback(Window, [](GLFWwindow* Native, int Iconified)
@@ -180,8 +189,8 @@ private:
             if (Iconified == GLFW_TRUE)
             {
                 (void)Driver->SetCursorMode(ECursorMode::Normal);
-                Driver->InputEvents.push_back(FInputEvent::FocusLost(Driver->NextSequence++));
-                Driver->WindowEvents.push_back(FWindowEvent::Minimized(Driver->NextSequence++));
+                Driver->Events.Push(FInputEvent::FocusLost(Driver->NextSequence++));
+                Driver->Events.Push(FWindowEvent::Minimized(Driver->NextSequence++));
             }
             else
             {
@@ -189,7 +198,7 @@ private:
                 int LogicalWidth = 0;
                 int LogicalHeight = 0;
                 glfwGetWindowSize(Native, &LogicalWidth, &LogicalHeight);
-                Driver->WindowEvents.push_back(FWindowEvent::Restored(
+                Driver->Events.Push(FWindowEvent::Restored(
                     LogicalWidth > 0 ? static_cast<Stoner::Core::uint32>(LogicalWidth) : 0,
                     LogicalHeight > 0 ? static_cast<Stoner::Core::uint32>(LogicalHeight) : 0,
                     Driver->NextSequence++));
@@ -198,40 +207,59 @@ private:
         glfwSetWindowFocusCallback(Window, [](GLFWwindow* Native, int Focused)
         {
             auto* Driver = Self(Native);
-            Driver->WindowEvents.push_back(Focused == GLFW_TRUE ? FWindowEvent::FocusGained(Driver->NextSequence++) : FWindowEvent::FocusLost(Driver->NextSequence++));
+            Driver->Events.Push(Focused == GLFW_TRUE ? FWindowEvent::FocusGained(Driver->NextSequence++) : FWindowEvent::FocusLost(Driver->NextSequence++));
+            if (Focused == GLFW_TRUE)
+                Driver->Events.Push(FInputEvent::FocusGained(Driver->NextSequence++));
             if (Focused != GLFW_TRUE)
             {
                 (void)Driver->SetCursorMode(ECursorMode::Normal);
-                Driver->InputEvents.push_back(FInputEvent::FocusLost(Driver->NextSequence++));
+                Driver->Events.Push(FInputEvent::FocusLost(Driver->NextSequence++));
             }
+        });
+        glfwSetWindowContentScaleCallback(Window, [](GLFWwindow* Native, float X, float Y)
+        {
+            auto* Driver = Self(Native);
+            Driver->Events.Push(FWindowEvent::ContentScaleChanged(X, Y, Driver->NextSequence++));
+        });
+        glfwSetCharCallback(Window, [](GLFWwindow* Native, unsigned int Scalar)
+        {
+            auto* Driver = Self(Native);
+            Driver->Events.Push(FInputEvent::Text(Scalar, Driver->NextSequence++));
+        });
+        glfwSetCursorEnterCallback(Window, [](GLFWwindow* Native, int Entered)
+        {
+            auto* Driver = Self(Native);
+            Driver->Events.Push(FInputEvent::CursorEntered(Entered == GLFW_TRUE, Driver->NextSequence++));
         });
         glfwSetKeyCallback(Window, [](GLFWwindow* Native, int Key, int, int Action, int)
         {
             auto* Driver = Self(Native);
             const EKey Translated = TranslateGlfwKeyCode(Key);
-            if (Action == GLFW_PRESS)
+            if (Action == GLFW_PRESS || Action == GLFW_REPEAT)
             {
-                Driver->InputEvents.push_back(FInputEvent::KeyDown(Translated, Driver->NextSequence++));
+                auto Event = FInputEvent::KeyDown(Translated, Driver->NextSequence++);
+                Event.bRepeat = Action == GLFW_REPEAT;
+                Driver->Events.Push(Event);
             }
-            else if (Action == GLFW_RELEASE) Driver->InputEvents.push_back(FInputEvent::KeyUp(Translated, Driver->NextSequence++));
+            else if (Action == GLFW_RELEASE) Driver->Events.Push(FInputEvent::KeyUp(Translated, Driver->NextSequence++));
         });
         glfwSetMouseButtonCallback(Window, [](GLFWwindow* Native, int Button, int Action, int)
         {
             auto* Driver = Self(Native);
             const EMouseButton Translated = TranslateGlfwMouseButtonCode(Button);
-            Driver->InputEvents.push_back(Action == GLFW_PRESS
+            Driver->Events.Push(Action == GLFW_PRESS
                 ? FInputEvent::MouseDown(Translated, Driver->NextSequence++)
                 : FInputEvent::MouseUp(Translated, Driver->NextSequence++));
         });
         glfwSetCursorPosCallback(Window, [](GLFWwindow* Native, double X, double Y)
         {
             auto* Driver = Self(Native);
-            Driver->InputEvents.push_back(FInputEvent::PointerMove(static_cast<float>(X), static_cast<float>(Y), Driver->NextSequence++));
+            Driver->Events.Push(FInputEvent::PointerMove(static_cast<float>(X), static_cast<float>(Y), Driver->NextSequence++));
         });
         glfwSetScrollCallback(Window, [](GLFWwindow* Native, double X, double Y)
         {
             auto* Driver = Self(Native);
-            Driver->InputEvents.push_back(FInputEvent::Scroll(static_cast<float>(X), static_cast<float>(Y), Driver->NextSequence++));
+            Driver->Events.Push(FInputEvent::Scroll(static_cast<float>(X), static_cast<float>(Y), Driver->NextSequence++));
         });
     }
 
@@ -251,8 +279,7 @@ private:
     Stoner::Core::uint64 NextSequence = 1;
     bool bOwnsGlfw = false;
     bool bCloseEventQueued = false;
-    Stoner::Core::TArray<FWindowEvent> WindowEvents;
-    Stoner::Core::TArray<FInputEvent> InputEvents;
+    FWindowEventBuffer Events;
 };
 
 } // namespace
@@ -303,6 +330,8 @@ EKey TranslateGlfwKeyCode(int Key) noexcept
     case GLFW_KEY_RIGHT_SHIFT: return EKey::RightShift;
     case GLFW_KEY_LEFT_CONTROL: return EKey::LeftControl;
     case GLFW_KEY_RIGHT_CONTROL: return EKey::RightControl;
+    case GLFW_KEY_LEFT_SUPER: return EKey::LeftSuper;
+    case GLFW_KEY_RIGHT_SUPER: return EKey::RightSuper;
     case GLFW_KEY_LEFT_ALT: return EKey::LeftAlt;
     case GLFW_KEY_RIGHT_ALT: return EKey::RightAlt;
     default: return EKey::Unknown;

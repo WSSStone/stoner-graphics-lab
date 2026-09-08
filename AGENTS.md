@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (34/127 reviewed tasks); native closeout remains pending. Read
+Feature 030 implementation is partial (39/127 reviewed tasks); native closeout remains pending. Read
 `specs/030-interactive-rendering-lab/spec.md` and
 `specs/030-interactive-rendering-lab/plan.md` plus its contracts before task generation.
 The plan fixes private Dear ImGui v1.92.5 at
@@ -160,6 +160,7 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
+- 030 US2 input/build increment: T035 and T037–T040 complete (39/127). Pinned private UI core/font build and bounded Unicode/clipboard/window events are in place; 33 input fixtures and 276 related assertions pass in strict Debug/Release, plus 38 Debug native preview regressions. The private input-router kernel is tested but visible UI routing/composition and the US2 checkpoint remain pending.
 - 030-interactive-rendering-lab: US1 local implementation checkpoint is complete: strict-cooked UI-off Lantern/Sponza, two-slot deferred preview, actual native-operation accounting and bounded lifecycle. Focus-only display changes preserve native output; minimized sessions retain borrowed images for resume. Strict Debug/Release each pass 396 related assertions, 120 native regressions and six three-cycle scene checks on M4 Metal/Vulkan (automatic and forced fallback). ImGui and final cross-platform/physical/human evidence remain pending; optional maintenance1 is not a gate.
 - 006-core-platform-abstraction: Added C++20 (traditional header/source separation; no C++20 Modules) + C++ standard library where portable (`<chrono>`, `<filesystem>`, `<fstream>`, `<system_error>`, `<thread>`); platform system libraries guarded behind Core implementation boundaries; SCons 4.10.1 build system
 - 007-rhi-core-interfaces: Planned RHI device, capabilities, command buffer, queue, synchronization, headless swapchain, result/status, and mock-test contracts

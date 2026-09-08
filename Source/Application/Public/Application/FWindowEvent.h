@@ -10,6 +10,7 @@ enum class EWindowEventType
     Created,
     Resized,
     DrawableResized,
+    ContentScaleChanged,
     Minimized,
     Restored,
     FocusGained,
@@ -26,6 +27,8 @@ struct FWindowEvent
     Stoner::Core::uint32 ClientWidth = 0;
     Stoner::Core::uint32 ClientHeight = 0;
     Stoner::Core::uint64 Sequence = 0;
+    float ContentScaleX = 1.0f;
+    float ContentScaleY = 1.0f;
     EWindowRuntimeAvailability RuntimeAvailability = EWindowRuntimeAvailability::Available;
     Stoner::Core::FString Message;
 
@@ -39,6 +42,7 @@ struct FWindowEvent
     [[nodiscard]] static FWindowEvent DrawableResized(Stoner::Core::uint32 Width,
         Stoner::Core::uint32 Height,
         Stoner::Core::uint64 Sequence = 0);
+    [[nodiscard]] static FWindowEvent ContentScaleChanged(float X, float Y, Stoner::Core::uint64 Sequence = 0);
     [[nodiscard]] static FWindowEvent Minimized(Stoner::Core::uint64 Sequence = 0);
     [[nodiscard]] static FWindowEvent Restored(Stoner::Core::uint32 Width,
         Stoner::Core::uint32 Height,

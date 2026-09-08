@@ -1001,3 +1001,39 @@ US1 local implementation is complete. Full US6 stress and live output transition
 coverage, UI implementation, required Windows/Linux lanes, frozen-software
 physical closeout and current human HDR decisions remain pending in their own
 tasks. No Accepted reference, formal capture or prior exception was changed.
+
+
+## US2 input and dependency increment (T035, T037–T040)
+
+The input manager now rejects queued navigation downs after focus loss and cancels
+an over-budget interval. The native window driver shares a 4096-event buffer across
+its input/window callback streams, with independent close/focus-loss latches and
+bounded latest extent/restore/scale state. Overflow is an explicit cancellation,
+not an invented native focus change; sessions quarantine navigation until release.
+Unicode scalar, Super, repeat, cursor-enter and content-scale events remain typed
+engine values. Repeat reaches the raw UI stream without rearming camera movement.
+
+Result-bearing clipboard reads/writes preserve original UTF-8 bytes, including
+non-BMP/decomposed text, reject embedded NUL and invalid/over-64-KiB input, and leave
+the destination/current clipboard unchanged on failure. Headless clipboard tests
+exercise the same public validation path without changing the system clipboard.
+The private router kernel has first-activation, held-key, drag-outside, independent
+wheel, focus, Escape/F1 and overflow fixtures. It is not yet connected to real
+widgets or the session camera commit; T042/T043/T054 remain open.
+
+Dear ImGui v1.92.5 at 6d910d5487d11ca567b61c7824b0c78c569d62f0 is copied unchanged
+with Cousine-Regular and upstream font/MIT notices. ThirdParty/imgui/manifest.json
+records 13 upstream files and supplemental OFL provenance. Application builds only
+four upstream core sources with uniform private configuration and a generated font
+array. Existing Demo/Test Application archive linkage needs no duplicate UI library
+or public includes. File, shell and default platform handlers are disabled; context
+setup, texture acknowledgements and visible composition remain later tasks.
+
+Validation is local working-tree evidence based on 6a0d453, not exact-commit formal
+authority. Strict Debug/Release each pass 276 related assertions (including 33 new
+input assertions); Debug additionally passes all 38 required native preview checks.
+Both architecture checks pass. Logs and their hashes are in ignored
+Build/Validation/030/us2/input-foundation.json. The initial input regression failed
+all four assertions before the fix, and the router fixtures initially failed to
+link before implementation. No US2/native-UI/HDR-human/hardware closeout is claimed.
+T036 (draw packets and texture lifecycle fixtures) is the next dependency frontier.

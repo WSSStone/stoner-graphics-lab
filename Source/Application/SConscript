@@ -9,6 +9,10 @@ stubs that remain hidden behind Application implementation boundaries.
 Import('env', 'platform', 'config')
 from LayerBuilder import BuildLayer
 from GraphicsDependencyDetect import DetectGraphicsDependencies
+from SCons.Script import Action
+from pathlib import Path
+import hashlib
+import json
 
 application_env = env.Clone()
 deps = DetectGraphicsDependencies(platform)
@@ -16,11 +20,52 @@ application_env.Append(CPPDEFINES=[('STONER_GLFW_AVAILABLE', int(deps['glfw_avai
 if deps['glfw_include_dir']:
     application_env.Append(CPPPATH=[deps['glfw_include_dir']])
 
+# Verify immutable upstream bytes whenever configuring this dependency.
+ui_root = Dir('#ThirdParty/imgui').abspath
+ui_manifest = json.loads(Path(ui_root, 'manifest.json').read_text())
+if ui_manifest['commit'] != '6d910d5487d11ca567b61c7824b0c78c569d62f0':
+    raise RuntimeError('Unexpected private UI dependency revision')
+for entry in ui_manifest['files']:
+    payload = Path(ui_root, entry['path']).read_bytes()
+    if len(payload) != entry['bytes'] or hashlib.sha256(payload).hexdigest() != entry['sha256']:
+        raise RuntimeError('Private UI dependency digest mismatch: ' + entry['path'])
+
+ui_defines = [('IMGUI_USER_CONFIG', '\\"ImGuiUserConfig.h\\"')]
+ui_env = env.Clone()
+ui_env.Append(CPPPATH=[ui_root, Dir('#Source/Application/Private').abspath])
+ui_env.Append(CPPDEFINES=ui_defines)
+# Warning suppression is confined to untouched third-party translation units.
+ui_env.Append(CCFLAGS=['/w'] if platform == 'Win64' else ['-w'])
+ui_objects = [ui_env.Object('ThirdParty/' + name.removesuffix('.cpp'),
+    File('#ThirdParty/imgui/' + name)) for name in
+    ('imgui.cpp', 'imgui_draw.cpp', 'imgui_tables.cpp', 'imgui_widgets.cpp')]
+
+def embed_lab_font(target, source, env):
+    data = Path(source[0].srcnode().abspath).read_bytes()
+    rows = [', '.join(str(v) for v in data[i:i+24]) for i in range(0, len(data), 24)]
+    text = '#include "FEmbeddedLabFont.h"\nnamespace Stoner::Application {\n'
+    text += 'namespace { const unsigned char Font[] = {\n' + ',\n'.join(rows) + '\n}; }\n'
+    text += 'std::span<const unsigned char> GetEmbeddedLabFont() noexcept { return Font; }\n}\n'
+    Path(target[0].abspath).write_text(text)
+    return 0
+
+font_source = env.Command('Generated/FEmbeddedLabFont.cpp',
+    File('#ThirdParty/imgui/misc/fonts/Cousine-Regular.ttf'),
+    Action(embed_lab_font, 'Embedding fixed lab font'))
+font_env = env.Clone()
+font_env.Append(CPPPATH=[Dir('#Source/Application/Private').abspath])
+ui_objects.extend(font_env.Object(font_source))
+
 lib = BuildLayer(
     application_env,
     'Application',
     ['Renderer', 'Asset', 'Core'],
+    private_objects=ui_objects,
     private_cpp_settings={
+        **{name: {'include_paths': ['ThirdParty/imgui', 'Source/Application/Private'],
+                  'cppdefines': ui_defines}
+           for name in ('FImGuiLabAdapter.cpp', 'FImGuiInputAdapter.cpp',
+                        'FImGuiTextureAdapter.cpp', 'FImGuiDrawAdapter.cpp')},
         # The lab settings value includes the existing Renderer color-domain
         # contract, whose public definition includes RHI format types. Keep
         # this transitive include scoped to its validation implementation.
