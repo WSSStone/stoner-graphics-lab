@@ -720,6 +720,7 @@ void RunDiagnosticPanel(int& Failed)
                 Edit.DebugBypass.SourceDomain=Case==1 ? Renderer::ERenderGraphColorDomain::DisplayLinearRec709D65
                     : Renderer::ERenderGraphColorDomain::SceneLinearRec709D65;
                 Edit.DebugBypass.VisualizationMinimum=2; Edit.DebugBypass.VisualizationMaximum=8;
+                Edit.UIWhiteMultiplier=0.25f;
                 Edited=Session.RequestSettings(Edit);
             });
         const bool Widget=Case<2;
@@ -729,6 +730,8 @@ void RunDiagnosticPanel(int& Failed)
         Check(Failed,Edited && Result.ExitCode==Demo::EDemoExitCode::Success && Result.PresentedFrames==18 &&
             (Widget ? Result.DiagnosticFramesSubmitted>0 : Result.DiagnosticFramesSubmitted==0),
             "native diagnostic selection renders visible image modes and skips numeric or UI-hidden images");
+        Check(Failed,Case==3 ? Result.LastRecordedUIWhiteMultiplier==0 : Result.LastRecordedUIWhiteMultiplier==0.25f,
+            "native submitted UI uses the accepted brightness while UI-off allocates no UI state");
         const auto& Ops=Result.BeforeNativeShutdown.RuntimeSnapshot.NativeOperations;
         Check(Failed,Ops.bAvailable && Ops.ImageReadbackCopyCount==0 && Ops.ReadbackMapCount==0 &&
             Ops.ReadbackWaitCount==0 && Ops.QueueIdleCallCount==0 && Ops.DeviceIdleCallCount==0 &&

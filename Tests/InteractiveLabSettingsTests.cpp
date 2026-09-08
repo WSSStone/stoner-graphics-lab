@@ -186,5 +186,26 @@ int RunInteractiveLabSettingsTests()
             Scoped.GetEffective().DebugBypass.VisualizationMinimum==2 && Scoped.GetEffective().DebugBypass.VisualizationMaximum==8,
             "HDR recovery restores the exact requested diagnostic stage and range");
     }
+    {
+        FLabSettingsController White;
+        auto BrightnessCaps=Caps; BrightnessCaps.DisplayGeneration=Initial.DisplayGeneration;
+        Check(White.Initialize(Initial,BrightnessCaps),"UI brightness transaction fixture initializes");
+        auto Candidate=Initial; Candidate.UIWhiteMultiplier=0.25f;
+        Check(White.Request(Candidate) && White.GetEffective().UIWhiteMultiplier==1 &&
+            White.GetPending()->UIWhiteMultiplier==0.25f,
+            "UI brightness changes remain pending without mutating the effective frame");
+        auto Invalid=Candidate; Invalid.UIWhiteMultiplier=2.01f;
+        Check(!White.Request(Invalid) && White.GetPending()->UIWhiteMultiplier==0.25f,
+            "invalid brightness preserves the prior complete pending request");
+        const auto* ActiveWhite=White.BeginEligible(true);
+        const auto WhiteToken=ActiveWhite ? ActiveWhite->Token : 0;
+        Candidate.UIWhiteMultiplier=2;
+        Check(ActiveWhite && !ActiveWhite->bRequiresOutputTransition && White.Request(Candidate) &&
+            White.GetActive()->Settings.UIWhiteMultiplier==0.25f,
+            "brightness supersession preserves an already active immutable frame snapshot");
+        Check(White.Complete(WhiteToken,true,true) && White.GetEffective().UIWhiteMultiplier==0.25f &&
+            White.GetPending()->UIWhiteMultiplier==2,
+            "brightness completion publishes one snapshot and retains the newer pending value");
+    }
     return Failed;
 }

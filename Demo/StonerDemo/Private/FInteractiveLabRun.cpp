@@ -574,6 +574,7 @@ public:
                     if (Session.ExtractUIDrawSnapshot(Snapshot) != ERHIResult::Success)
                         return ERHIResult::NotReady;
                     Renderer::FUICompositionSettings Settings;
+                    Settings.UIWhiteMultiplier = Effective ? Effective->UIWhiteMultiplier : 1.0f;
                     Settings.OutputProfileId = OutputResolved.OutputDeviceProfileId;
                     Settings.BlendDomain = OutputResolved.DisplayLinearDomain;
                     Settings.UIReferenceWhiteNits = OutputResolved.ReferenceWhiteNits;
@@ -640,6 +641,8 @@ public:
                 if (Resources)
                 {
                     LastRecordedExposureStops = Resources->OutputTransformPlan.ResolvedSettings.ManualExposureStops;
+                    if (Resources->OutputTransformPlan.TerminalUI)
+                        LastRecordedUIWhiteMultiplier = Resources->OutputTransformPlan.TerminalUI->UIWhiteMultiplier;
                     LastRecordedTransformVersion = Resources->OutputTransformPlan.ResolvedSettings.TransformStrategyVersion;
                     LastRecordedSettingsRevision = Session.GetEffectiveSettings() ? Session.GetEffectiveSettings()->SettingsRevision : 1;
                 }
@@ -844,6 +847,7 @@ public:
     Core::uint32 UIFramesSubmitted = 0, UISceneFallbackFrames = 0, DiagnosticFramesSubmitted = 0;
     Core::uint64 LastRecordedSettingsRevision = 0;
     float LastRecordedExposureStops = 0;
+    float LastRecordedUIWhiteMultiplier = 0;
     Core::FString LastRecordedTransformVersion;
     Core::FString FirstFailure;
     RHI::ERHIShutdownAssurance Assurance = RHI::ERHIShutdownAssurance::Unknown;
@@ -1011,6 +1015,7 @@ FInteractiveLabRunResult RunInteractiveLab(
     Out.PresentedFrames = Owner->Presented;
     Out.LastRecordedSettingsRevision = Owner->LastRecordedSettingsRevision;
     Out.LastRecordedExposureStops = Owner->LastRecordedExposureStops;
+    Out.LastRecordedUIWhiteMultiplier = Owner->LastRecordedUIWhiteMultiplier;
     Out.LastRecordedTransformVersion = Owner->LastRecordedTransformVersion;
     Out.UIFramesSubmitted = Owner->UIFramesSubmitted;
     Out.DiagnosticFramesSubmitted = Owner->DiagnosticFramesSubmitted;

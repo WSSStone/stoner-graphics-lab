@@ -263,6 +263,10 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
                     ImGui::EndCombo();
                 }
                 ImGui::EndDisabled();
+                if (ImGui::SliderFloat("UI brightness",&Candidate.UIWhiteMultiplier,0.25f,2.0f,"%.2fx"))
+                    (void)EditSettings(Candidate);
+                if (SDR && Candidate.UIWhiteMultiplier>1.0f)
+                    ImGui::TextWrapped("SDR UI brightness above 1 may clip at the output limit.");
                 if (!SDR) ImGui::TextUnformatted("HDR uses its viewing transform; SDR tone map is remembered.");
                 ImGui::EndDisabled();
             }
