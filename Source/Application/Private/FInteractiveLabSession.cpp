@@ -61,6 +61,8 @@ struct FInteractiveLabSession::FImpl
     std::optional<FFreeCameraController> PresetCamera;
     FString PresetFailure;
     TArray<FString> ReadOnlyPresetPaths;
+    std::optional<FLabPresetStoreConfig> PresetExports;
+    FLabPresetSourceContext PresetSourceContext;
     uint64 SettingsStart = 0;
     TArray<FLabControlSection> ControlSections;
     std::optional<FLabRuntimeInfo> RuntimeInfo;
@@ -626,6 +628,43 @@ bool FInteractiveLabSession::RequestPresetFile(const FString& Path)
     const auto Status = FLabPresetStore::Read(Path,*S.PresetWorkload,S.Settings->GetCapabilities().DebugStages,Candidate);
     if (!Status.IsSuccess()) { S.PresetFailure = Status.Context; return false; }
     return RequestPreset(Candidate);
+}
+bool FInteractiveLabSession::ConfigurePresetExports(const FLabPresetStoreConfig& Config, const FLabPresetSourceContext& Context)
+{
+    auto& S = *Impl;
+    if (!S.PresetWorkload || !S.Settings || S.PresetExports || S.Terminal || Config.ExportRoot.IsEmpty() ||
+        Config.ExportRoot.View().size() > 4096 || Config.ProtectedPaths.empty() || Config.ProtectedPaths.size() > 48) return false;
+    if (Config.ExportRoot.View().find('\0') != std::string_view::npos) return false;
+    for (const auto& Path : Config.ProtectedPaths)
+        if (Path.IsEmpty() || Path.View().size() > 4096 || Path.View().find('\0') != std::string_view::npos) return false;
+    FLabPreset Candidate{*S.PresetWorkload,Context,S.Camera.GetState(),S.Settings->GetRequested()};
+    Candidate.SourceContext.DrawableExtent = S.Display.DrawableExtent;
+    TArray<uint8> Bytes;
+    if (!FLabPresetCodec::Encode(Candidate,S.Settings->GetCapabilities().DebugStages,Bytes,S.PresetFailure)) return false;
+    S.PresetExports = Config; S.PresetSourceContext = Context;
+    return true;
+}
+FLabPresetExportResult FInteractiveLabSession::ExportPreset(const FString& Filename, bool Overwrite)
+{
+    auto& S = *Impl;
+    FLabPresetExportResult Result;
+    if (!S.PresetExports || !S.PresetWorkload || !S.Settings || S.Terminal || S.bDrainOnly ||
+        S.SessionState == State::Closed || S.PendingPreset || S.Settings->GetActive() ||
+        S.Display.bMinimized || !S.Display.DrawableExtent.IsPositive())
+    {
+        S.PresetFailure = "Preset export requires a configured, stable drawable session";
+        Result.Status = {EPlatformFileResult::InvalidArgument,0,S.PresetFailure};
+        return Result;
+    }
+    auto Config = *S.PresetExports;
+    for (const auto& Path : S.ReadOnlyPresetPaths)
+        if (std::find(Config.ProtectedPaths.begin(),Config.ProtectedPaths.end(),Path) == Config.ProtectedPaths.end())
+            Config.ProtectedPaths.push_back(Path);
+    FLabPreset Candidate{*S.PresetWorkload,S.PresetSourceContext,S.Camera.GetState(),S.Settings->GetRequested()};
+    Candidate.SourceContext.DrawableExtent = S.Display.DrawableExtent;
+    Result = FLabPresetStore::Export(Config,Filename,Candidate,S.Settings->GetCapabilities().DebugStages,Overwrite);
+    S.PresetFailure = Result.Status.IsSuccess() ? FString{} : Result.Status.Context;
+    return Result;
 }
 bool FInteractiveLabSession::CancelPreset()
 {

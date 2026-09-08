@@ -1,25 +1,10 @@
 #pragma once
 #include "FLabPresetCodec.h"
-#include "Core/FPlatformFileSystem.h"
+#include "Application/FLabPresetStorage.h"
 #include <functional>
 
 namespace Stoner::Application
 {
-struct FLabPresetStoreConfig
-{
-    // Existing canonical directory, owned by the application/user for export.
-    Stoner::Core::FString ExportRoot;
-    // Existing canonical content/cooked/baseline/formal roots and read-only
-    // imported files. The composition root supplies the full protection set.
-    Stoner::Core::TArray<Stoner::Core::FString> ProtectedPaths;
-};
-struct FLabPresetExportResult
-{
-    Stoner::Core::FPlatformFileStatus Status;
-    Stoner::Core::FString TargetPath;
-    bool bPublished=false;
-    bool bTemporaryRetained=false;
-};
 class FLabPresetStore
 {
 public:

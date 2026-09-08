@@ -1,6 +1,9 @@
 #include "Application/FInteractiveLabSession.h"
 #include "Application/FLabSettingsSnapshot.h"
 #include "Application/FLabPreset.h"
+#include "Application/FLabPresetStorage.h"
+#include "FLabPresetCodec.h"
+#include <filesystem>
 #include "Renderer/FOutputTransformSettings.h"
 #include "Core/FPlatformProcess.h"
 #include "FWindowDriver.h"
@@ -190,6 +193,29 @@ void TestPresetSession()
         F.S.GetEffectiveSettings()->ExposureStops==-2 && F.S.GetRequestedSettings()->ExposureStops==-2 &&
         !F.S.HasPendingPreset(),"successful native completion atomically publishes preset camera and settings at current aspect");
     Check(F.S.RequestPreset(P) && F.S.CancelPreset() && !F.S.HasPendingPreset(),"explicit cancellation discards an unsubmitted preset");
+    const auto ExportDirectory=std::filesystem::temp_directory_path()/
+        ("LabSessionExport-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(ExportDirectory);
+    FString ExportRoot,ProtectedRoot;
+    const bool Canonical=FPlatformFileSystem::CanonicalizeExistingPath(FString(ExportDirectory.string()),ExportRoot).IsSuccess() &&
+        FPlatformFileSystem::CanonicalizeExistingPath("Tests/Fixtures/InteractiveLab",ProtectedRoot).IsSuccess();
+    FLabPresetSourceContext Provenance{{1,1},"Vulkan",FString(std::string(64,'3')),"current-software"};
+    Check(Canonical && F.S.ConfigurePresetExports({ExportRoot,{ProtectedRoot}},Provenance),
+        "session configures bounded export protection and separate current provenance");
+    const auto Exported=F.S.ExportPreset("current.json");
+    TArray<uint8> ExportBytes; FLabPreset Decoded; FString DecodeReason;
+    Check(Exported.bPublished && Exported.Status.IsSuccess() &&
+        FPlatformFileSystem::ReadRegularFileBounded(Exported.TargetPath,65536,ExportBytes).IsSuccess() &&
+        FLabPresetCodec::Decode(ExportBytes,P.Workload,Caps.DebugStages,Decoded,DecodeReason) &&
+        Decoded.Output.ExposureStops==-2 && Decoded.SourceContext.Backend=="Vulkan" &&
+        Decoded.SourceContext.DrawableExtent==F.S.GetDisplayState().DrawableExtent &&
+        Decoded.SourceContext.SoftwareRevision=="current-software",
+        "session export records committed setup and current source context without restoring exported extent");
+    Check(F.S.ExportPreset("current.json").Status.Result==EPlatformFileResult::AlreadyExists,
+        "repeated session export cannot infer overwrite approval");
+    Check(F.S.RequestPresetFile(Exported.TargetPath) && F.S.CancelPreset() &&
+        !F.S.ExportPreset("current.json",true).bPublished,
+        "a file imported by this session is protected even from explicit overwrite");
     const auto StableRevision=F.S.GetCameraState().CameraRevision;
     F.Driver->Width=0; F.Driver->Height=0;
     (void)F.S.Service(0);
@@ -213,6 +239,7 @@ void TestPresetSession()
         F.S.GetCameraState().CameraRevision==StableRevision && F.S.GetRequestedSettings()->ExposureStops==-2,
         "display change before preset commit rejects all imported fields and pauses stale output");
     Check(Close(F.S),"preset session closes");
+    std::filesystem::remove_all(ExportDirectory);
 }
 void TestSettingsSession()
 {

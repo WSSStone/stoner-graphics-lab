@@ -25,6 +25,9 @@ namespace Stoner::Application
 
 struct FLabPreset;
 struct FLabPresetWorkload;
+struct FLabPresetStoreConfig;
+struct FLabPresetSourceContext;
+struct FLabPresetExportResult;
 struct FLabSettingsSnapshot;
 struct FLabSettingsCapabilities;
 struct FLabSettingsTransaction;
@@ -209,6 +212,8 @@ public:
     [[nodiscard]] bool ConfigurePresetWorkload(const FLabPresetWorkload&);
     [[nodiscard]] bool RequestPreset(const FLabPreset&);
     [[nodiscard]] bool RequestPresetFile(const Stoner::Core::FString&);
+    [[nodiscard]] bool ConfigurePresetExports(const FLabPresetStoreConfig&, const FLabPresetSourceContext&);
+    [[nodiscard]] FLabPresetExportResult ExportPreset(const Stoner::Core::FString& Filename, bool bOverwrite = false);
     [[nodiscard]] bool CancelPreset();
     [[nodiscard]] bool HasPendingPreset() const noexcept;
     [[nodiscard]] const Stoner::Core::FString& GetPresetFailure() const noexcept;
