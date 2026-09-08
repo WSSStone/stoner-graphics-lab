@@ -156,10 +156,15 @@ void TestPresetSession()
     Initial.SdrToneMapVersion=GDefaultSDRToneMapVersion; Initial.HdrViewingVersion=GInitialHDRViewingVersion;
     FLabSettingsCapabilities Caps; Caps.DisplayGeneration=Initial.DisplayGeneration;
     Caps.Outputs={{"Sdr.sRGB.v1",100,100}};
-    FLabPreset P; P.Workload={"fixture","StaticModel:fixture",FString(std::string(64,'1'))};
+    Caps.DebugStages={{"ManualExposure",ERenderGraphColorDomain::SceneLinearRec709D65,{}}};
+    FLabPreset P; P.Workload={"fixture-lantern-v1","StaticModel:灯笼😀.glb#idx.scene.0",FString(std::string(64,'1'))};
     P.SourceContext={{1024,1024},"Metal",FString(std::string(64,'2')),"test"};
     P.Camera=Camera(); P.Camera.Position={2,3,4}; P.Output=Initial; P.Output.ExposureStops=-2;
     Check(F.S.ConfigureSettings(Initial,Caps) && F.S.ConfigurePresetWorkload(P.Workload),"preset workload configured after settings");
+    Check(F.S.RequestPresetFile("Tests/Fixtures/InteractiveLab/preset-v1.json") && F.S.CancelPreset(),
+        "session reads and validates a bounded preset file without applying it before native completion");
+    Check(!F.S.RequestPresetFile("Tests/Fixtures/InteractiveLab/missing-preset.json") && !F.S.HasPendingPreset(),
+        "missing preset file preserves the current session");
     auto Ordinary=Initial; Ordinary.ExposureStops=1;
     Check(F.S.RequestSettings(Ordinary),"ordinary request precedes preset transaction");
     const auto Revision=F.S.GetCameraState().CameraRevision;

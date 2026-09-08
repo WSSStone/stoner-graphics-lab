@@ -1,3 +1,4 @@
+#include "Application/FLabPreset.h"
 #include "FInteractiveLabRun.h"
 
 #include "Application/FInteractiveLabSession.h"
@@ -921,6 +922,10 @@ FInteractiveLabRunResult RunInteractiveLab(
             { Owner->Fail("UI-on startup requires both UI shaders in the selected cooked generation"); Started = false; }
             else if (!Owner->ConfigureSessionSettings(Session))
             { Owner->Fail("initial lab settings could not match native output"); Started = false; }
+            else if (!Session.ConfigurePresetWorkload({Config.WorkloadRevision,Config.ProductionRoot,Owner->Closure.SourceIdentity.ToLowerHex()}))
+            { Owner->Fail("preset workload identity could not be registered"); Started = false; }
+            else if (!Config.LabPresetInput.IsEmpty() && !Session.RequestPresetFile(Config.LabPresetInput))
+            { std::cerr << "InteractiveLab preset rejected: " << Session.GetPresetFailure().CStr() << std::endl; }
             else std::cout << "InteractiveLab: F1 toggles UI; WASD/QE move; Shift accelerates; RMB looks; Escape cancels interaction." << std::endl;
         }
     }

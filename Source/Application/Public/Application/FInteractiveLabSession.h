@@ -208,6 +208,7 @@ public:
     [[nodiscard]] bool ConfigureSettings(const FLabSettingsSnapshot&, const FLabSettingsCapabilities&);
     [[nodiscard]] bool ConfigurePresetWorkload(const FLabPresetWorkload&);
     [[nodiscard]] bool RequestPreset(const FLabPreset&);
+    [[nodiscard]] bool RequestPresetFile(const Stoner::Core::FString&);
     [[nodiscard]] bool CancelPreset();
     [[nodiscard]] bool HasPendingPreset() const noexcept;
     [[nodiscard]] const Stoner::Core::FString& GetPresetFailure() const noexcept;

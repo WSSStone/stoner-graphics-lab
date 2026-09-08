@@ -5,6 +5,7 @@
 #include "FLabInputRouter.h"
 #include "FLabSettingsController.h"
 #include "FLabPresetCodec.h"
+#include "FLabPresetStore.h"
 
 #include <algorithm>
 #include <atomic>
@@ -59,6 +60,7 @@ struct FInteractiveLabSession::FImpl
     TUniquePtr<FLabSettingsController> BeforePreset;
     std::optional<FFreeCameraController> PresetCamera;
     FString PresetFailure;
+    TArray<FString> ReadOnlyPresetPaths;
     uint64 SettingsStart = 0;
     TArray<FLabControlSection> ControlSections;
     std::optional<FLabRuntimeInfo> RuntimeInfo;
@@ -605,6 +607,25 @@ bool FInteractiveLabSession::RequestPreset(const FLabPreset& Preset)
     if (!Settings.RequestStrict(Candidate)) { S.PresetFailure = Settings.GetFailure(); return false; }
     S.PendingPreset = Preset; S.PresetFailure.Clear(); S.ReleaseInput();
     return true;
+}
+bool FInteractiveLabSession::RequestPresetFile(const FString& Path)
+{
+    auto& S = *Impl;
+    if (!S.PresetWorkload || !S.Settings || S.Terminal || S.BeforePreset || S.bDrainOnly) return false;
+    if (Path.IsEmpty() || Path.View().size() > 4096 || Path.View().find('\0') != std::string_view::npos)
+    { S.PresetFailure = "Invalid preset input path"; return false; }
+    FString Canonical;
+    if (!FPlatformFileSystem::CanonicalizeExistingPath(Path,Canonical).IsSuccess())
+    { S.PresetFailure = "Preset input path unavailable"; return false; }
+    if (std::find(S.ReadOnlyPresetPaths.begin(),S.ReadOnlyPresetPaths.end(),Canonical) == S.ReadOnlyPresetPaths.end())
+    {
+        if (S.ReadOnlyPresetPaths.size() >= 16) { S.PresetFailure = "Read-only preset path budget exhausted"; return false; }
+        S.ReadOnlyPresetPaths.push_back(Canonical);
+    }
+    FLabPreset Candidate;
+    const auto Status = FLabPresetStore::Read(Path,*S.PresetWorkload,S.Settings->GetCapabilities().DebugStages,Candidate);
+    if (!Status.IsSuccess()) { S.PresetFailure = Status.Context; return false; }
+    return RequestPreset(Candidate);
 }
 bool FInteractiveLabSession::CancelPreset()
 {

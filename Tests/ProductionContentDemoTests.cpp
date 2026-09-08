@@ -1033,6 +1033,14 @@ void TestInteractiveLabConfiguration(FProductionContentDemoTestResult& Result)
     Record(Result, ParseLab({}, Config) == EDemoExitCode::Success && Config.bInteractiveLab &&
         Config.bLabUI && !Config.bLabForceAcquireHistory && !Config.bVisibleCapture && Config.BaselineRoot.IsEmpty(),
         "lab defaults enable UI and optional retirement selection without requiring an Accepted registry");
+    Record(Result, ParseLab({"--lab-preset-input","Build/preset.json"},Config)==EDemoExitCode::Success &&
+        Config.LabPresetInput=="Build/preset.json", "lab preset input is an explicit bounded path");
+    Record(Result, ParseLab({"--lab-preset-input",""},Config)==EDemoExitCode::InvalidConfiguration,
+        "empty lab preset input rejects before runtime");
+    const char* FormalPreset[]={"StonerDemo","--lab-preset-input","Build/preset.json"};
+    Core::FString PresetReason;
+    Record(Result,FDemoConfiguration::Parse(3,FormalPreset,Config,PresetReason)==EDemoExitCode::InvalidConfiguration,
+        "preset input cannot override a non-lab formal run");
     Record(Result, ParseLab({"--lab-ui", "off"}, Config) == EDemoExitCode::Success && !Config.bLabUI,
         "lab UI-off is an explicit preview configuration");
     Record(Result, ParseLab({"--mode", "validate", "--frames", "120"}, Config) == EDemoExitCode::Success &&

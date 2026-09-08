@@ -89,6 +89,7 @@ struct FDemoConfiguration
     bool bProductionCameraPreview = false;
     bool bInteractiveLab = false;
     bool bLabUI = true;
+    Core::FString LabPresetInput;
     bool bLabForceAcquireHistory = false;
     bool bLabOptionsSpecified = false;
     Stoner::Core::FString ValidationOutputPath = "Build/triangle-demo-validation.txt";

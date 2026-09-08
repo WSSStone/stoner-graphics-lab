@@ -150,7 +150,7 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
             (RunMode != EDemoRunMode::BoundedNative || GraphicsBackend != EDemoGraphicsBackend::Vulkan))
             return Fail("forced acquire history requires bounded Vulkan lab validation");
     }
-    else if (bLabOptionsSpecified || !bLabUI || bLabForceAcquireHistory)
+    else if (bLabOptionsSpecified || !bLabUI || bLabForceAcquireHistory || !LabPresetInput.IsEmpty())
         return Fail("lab options require --interactive-lab");
     if (ClientWidth == 0 || ClientHeight == 0 || ClientWidth > 16384 || ClientHeight > 16384)
         return Fail("width and height must be in range 1..16384");
@@ -316,6 +316,13 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
             if (std::string_view(Value) == "on") Parsed.bLabUI = true;
             else if (std::string_view(Value) == "off") Parsed.bLabUI = false;
             else { OutReason = "lab-ui must be on or off"; return EDemoExitCode::InvalidConfiguration; }
+        }
+        else if (Option == "--lab-preset-input")
+        {
+            Parsed.bLabOptionsSpecified = true;
+            Parsed.LabPresetInput = Value;
+            if (Parsed.LabPresetInput.IsEmpty() || Parsed.LabPresetInput.View().size() > 4096)
+            { OutReason = "lab-preset-input requires a bounded nonempty path"; return EDemoExitCode::InvalidConfiguration; }
         }
         else if (Option == "--lab-vulkan-retirement")
         {
