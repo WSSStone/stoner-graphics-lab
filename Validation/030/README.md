@@ -1037,3 +1037,28 @@ Build/Validation/030/us2/input-foundation.json. The initial input regression fai
 all four assertions before the fix, and the router fixtures initially failed to
 link before implementation. No US2/native-UI/HDR-human/hardware closeout is claimed.
 T036 (draw packets and texture lifecycle fixtures) is the next dependency frontier.
+
+
+### Private context/event adapter increment (T041/T042)
+
+The Application-private context now builds real CPU UI frames using the embedded
+Cousine font. Ini/log persistence remains disabled, platform clipboard callbacks
+use the bounded FWindow services, and UI allocation failure terminates explicitly
+rather than returning null into unchecked upstream allocation paths. The bounded
+input adapter forwards committed Unicode, modifiers/editing keys, pointer/buttons,
+scroll and focus before NewFrame even after capture. Framebuffer scaling derives
+once from actual drawable/logical extents. Invalid time and stale display identity
+reject without exposing previous geometry; tiny positive time remains positive.
+
+The focused suite now has 44 assertions, including an actual first text-widget
+click, Application clipboard paste of non-BMP/decomposed text, subsequent Unicode
+editing, font-fallback diagnostics and CPU frames at 100/150/200% scales. Strict
+Debug/Release each pass 287 related assertions; both architecture checks pass.
+Logs/digests are in Build/Validation/030/us2/context-foundation.json, based on the
+064ca96 working tree. No physical scale/readability or native UI claim is made.
+
+RendererHasTextures is intentionally unadvertised until T045 completes the full
+request acknowledgement path. The initial CPU font atlas has no submitted GPU
+texture, and the control shell has no copied draw packet. T043 session integration,
+T036 texture/draw fixtures and the remaining US2 native composition tasks remain
+open. This is not the complete US2 checkpoint.

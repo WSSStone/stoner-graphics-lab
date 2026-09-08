@@ -7,6 +7,7 @@
 #include "FWindowDriver.h"
 #include "FLabInputRouter.h"
 #include "FWindowEventBuffer.h"
+#include "FImGuiLabAdapter.h"
 #include <iostream>
 #include <string>
 
@@ -181,6 +182,50 @@ int RunApplicationUIInputTests()
     Check(Window.WriteClipboardUtf8("") == EApplicationResult::Success &&
         Window.ReadClipboardUtf8(Output) == EApplicationResult::Success && Output.IsEmpty(),
         "empty clipboard is valid");
+    {
+        FImGuiLabAdapter UI;
+        Check(UI.Initialize(Window) == EApplicationResult::Success,
+            "private UI context initializes with the embedded font");
+        auto Display = Window.GetDisplayState();
+        Check(UI.Frame({}, Display, 1.0 / 60.0) == EApplicationResult::Success &&
+            UI.Frame({}, Display, 1.0 / 60.0) == EApplicationResult::Success && UI.GetVertexCount() > 0,
+            "real UI core builds bounded control-shell geometry");
+        (void)UI.Frame({FInputEvent::PointerMove(60, 70),
+            FInputEvent::MouseDown(EMouseButton::Left)}, Display, 1.0 / 60.0);
+        Check(UI.GetCapture().bTextEditing && UI.GetCapture().bKeyboard,
+            "actual first input-widget click captures keyboard in the same frame");
+        (void)UI.Frame({FInputEvent::MouseUp(EMouseButton::Left)}, Display, 1.0 / 60.0);
+        (void)Window.WriteClipboardUtf8(Unicode);
+#if defined(__APPLE__)
+        const auto Shortcut = EKey::LeftSuper;
+#else
+        const auto Shortcut = EKey::LeftControl;
+#endif
+        (void)UI.Frame({FInputEvent::KeyDown(Shortcut), FInputEvent::KeyDown(EKey::V)}, Display, 1.0 / 60.0);
+        Check(UI.GetClipboardResult() == EApplicationResult::Success && UI.GetText() == Unicode,
+            "actual UI paste uses the Application clipboard callback and preserves non-BMP text");
+        (void)UI.Frame({FInputEvent::KeyUp(Shortcut), FInputEvent::KeyUp(EKey::V),
+            FInputEvent::Text(0x1F642)}, Display, 1.0 / 60.0);
+        Check(UI.GetFallbackScalarCount() > 0 && UI.GetText().Len() > Unicode.Len(),
+            "committed non-BMP text stays editable while font fallback is diagnosed");
+        for (float Scale : {1.0f, 1.5f, 2.0f})
+        {
+            Display.DrawableExtent = {static_cast<uint32>(1280 * Scale), static_cast<uint32>(720 * Scale)};
+            Display.FramebufferScale = {Scale, Scale};
+            Display.ContentScale = {Scale, Scale};
+            ++Display.DisplayGeneration;
+            Check(UI.Frame({}, Display, 1.0 / 60.0) == EApplicationResult::Success && UI.GetVertexCount() > 0,
+                "UI logical coordinates accept distinct content and drawable scales");
+        }
+        Check(UI.Frame({}, Display, 1.0e-300) == EApplicationResult::Success,
+            "positive sub-float UI time remains valid without a zero delta assertion");
+        auto StaleDisplay = Display;
+        --StaleDisplay.DisplayGeneration;
+        Check(UI.Frame({}, StaleDisplay, 0.1) == EApplicationResult::InvalidInput && UI.GetVertexCount() == 0,
+            "stale UI display generations reject without exposing previous geometry");
+        Check(UI.Frame({}, Display, -1.0) == EApplicationResult::InvalidInput,
+            "UI rejects invalid time before starting a frame");
+    }
     (void)Window.Destroy();
     std::cout << "Application UI input: " << Passed << " passed, "
               << Failed << " failed\n";
