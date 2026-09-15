@@ -6,11 +6,11 @@ The thin run/verify/closeout tool reuses inherited 029 provenance and image chec
 
 Follow `specs/030-interactive-rendering-lab/hardware-validation.md` for exact command files, lifecycle recipes, strict cooking, session provenance and human linkage. A missing or failed gate leaves closeout open. Final software freeze and hosted run identities will be recorded after source commit.
 
-## Frozen software and current blocker
+## Current frozen software
 
-Software: `31519b15dc44fea61151eac3ce6345cf5a340129`. `software-freeze.json` records policy identities; a clean detached checkout is prepared at `Build/Worktrees/030-frozen-31519b15`. The preflight remains working-tree evidence and is not relabeled.
+Software: `783d135b1a8ed43cb7c56cd07a09ba804b1ada28`. `software-freeze.json` records current policy identities. The clean detached checkout at `Build/Worktrees/030-frozen-97c09338` now contains this revision; its directory name reflects its initial creation only. Original preflight remains preliminary evidence.
 
-T114 is blocked: automatic approval review rejected pushing the committed contents to `git@github.com:WSSStone/stoner-graphics-lab.git` without explicit destination authorization. No push, workflow dispatch or hosted pass occurred. After approval, push the frozen source commit with `git push origin 31519b15dc44fea61151eac3ce6345cf5a340129:refs/heads/030-interactive-rendering-lab` and verify all thirteen jobs at that revision; evidence-only commits must not replace the named tested revision. T115 onward and current human decisions remain pending.
+The maintainer authorized pushing and running CI. T114 run [34966098179](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34966098179) is in progress. Earlier attempts below retain their actual failures and are not final acceptance. T115 onward and current human decisions remain pending.
 
 ## Hosted attempt 1
 
@@ -23,3 +23,7 @@ Run [34963871700](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/3
 ## Hosted attempt 3
 
 Run [34964673886](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34964673886) at `c3e5742b` passed shader production, macOS focused suites and native UI drawing. Remaining failures were GNU ld GLFW ordering, a Windows local-name shadow warning, misplaced independent verification in strict jobs and an unprepared relative lease root in native commands. Corrected absolute paths plus an existing lease directory passed the same frozen Metal 120-frame command and a fresh verifier locally. The workflow test now executes all three strict-platform control flows with mocked commands and checks the actual check list. This attempt remains incomplete; no hosted aggregate or physical authority is claimed.
+
+## Hosted attempt 4
+
+Run [34966098179](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34966098179) at `783d135b` passed macOS Debug, Release, native and shader-producer jobs. Linux reached test compilation and rejected two Metal-only helpers incorrectly enabled whenever GLFW existed; their guard now also requires macOS. Windows remained in progress when the next corrected run superseded it, so no Windows success/failure is inferred. A local non-UTF-8 stdout fixture independently reproduced a log-reader UnicodeEncodeError; raw-byte forwarding fixes this risk. Thirteen lab-tool tests pass, including ordinary-failure versus forced-exit classification and strict schema-version types.

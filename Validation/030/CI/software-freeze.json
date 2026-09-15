@@ -1,7 +1,7 @@
 {
   "schema": "stoner.interactive-lab-software-freeze",
   "schemaVersion": 1,
-  "softwareRevision": "c3e5742bbbaeea6134000d9123ac865cdc955f55",
+  "softwareRevision": "783d135b1a8ed43cb7c56cd07a09ba804b1ada28",
   "status": "invalidated",
   "cleanCheckout": "Build/Worktrees/030-frozen-97c09338",
   "policyIdentities": [
@@ -119,7 +119,7 @@
     },
     {
       "path": ".github/scripts/test_interactive_lab_validation.py",
-      "sha256": "69dc7c54ac7a3c3863c2f4e2be57b684bcbbbf0e9b92320c512be01602398d4c"
+      "sha256": "6b440c820ad2972ae0d77e3998e29e0d5b9d047c87cb0b9107002b2e3276d6ca"
     },
     {
       "path": ".github/scripts/test_output_transform_workflows.py",
@@ -223,7 +223,7 @@
     },
     {
       "path": ".github/workflows/feature-030-interactive-lab.yml",
-      "sha256": "f0390a5936ae95e2928bed964482ea9a0145fb89ab87ee3016573e6c0bb66171"
+      "sha256": "984207b0f388695555f935c726967fabff9e9af5b5c5bf6ea01f6859c688e410"
     },
     {
       "path": "Config/AssetCooker/Profiles/Production/Linux-Vulkan.json",
@@ -331,7 +331,7 @@
     },
     {
       "path": "Tests/SConscript",
-      "sha256": "14bf950fd5c865c37ca3ecddee4c8154c26c099fecb945127ad30ba3662cea6c"
+      "sha256": "bef2b65b943eaf3a61b198bfdae4af708d298867040015757cb9fcbdf3656249"
     }
   ],
   "intelMacos": "skipped-by-maintainer-2026-09-08",
@@ -341,7 +341,7 @@
   "invalidation": "Any implementation or validation-policy change requires a new freeze and repetition of affected runs.",
   "evidenceOnlyCommits": "Later evidence/documentation commits retain this tested software revision; run producers from the exact frozen checkout.",
   "preflight": "Validation/030/CI/preflight.json",
-  "hostedRunUrl": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34964673886",
-  "supersedes": "97c09338eb321a6df5f1fef1fd3bb9161eee4ce0",
-  "invalidationReason": "GNU ld GLFW ordering, Windows shadow warning and hosted command/consumer orchestration fixes require new policy/source identity."
+  "hostedRunUrl": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34966098179",
+  "supersedes": "c3e5742bbbaeea6134000d9123ac865cdc955f55",
+  "invalidationReason": "Linux Metal-test guards and bounded runner output/schema/failure-classification fixes require a new freeze."
 }

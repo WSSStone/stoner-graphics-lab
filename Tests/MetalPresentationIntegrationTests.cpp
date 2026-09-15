@@ -34,7 +34,7 @@ void Record(FMetalPresentationIntegrationTestResult& Result, bool bPassed,
     std::cout << (bPassed ? "[PASS] " : "[FAIL] ") << Name << '\n';
 }
 
-#if defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
+#if SG_PLATFORM_MAC && defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
 bool WaitForWindowAttribute(GLFWwindow* Window, int Attribute, int Expected)
 {
     const auto Deadline = std::chrono::steady_clock::now() +

@@ -35,6 +35,7 @@ def load_json(path: Path) -> dict:
     return value
 
 def schema_keys(value: dict, name: str) -> None:
+    require(type(value.get('schemaVersion')) is int and value['schemaVersion']==1,'unsupported schema version')
     definition=load_json(Path(__file__).resolve().parents[2]/'Config/Validation/InteractiveLab/Report-v1.schema.json')['$defs'][name]
     errors=_keys(value,definition['required'],definition['properties'],name)
     require(not errors,'; '.join(errors))
@@ -263,7 +264,12 @@ def _execute(argv: list[str], root: Path, timeout: int, max_output: int=1048576,
             size+=len(chunk)
             if size>max_output:overflow=True;process.kill();break
             digest.update(chunk)
-            if echo:sys.stdout.write(chunk.decode('utf-8',errors='replace'));sys.stdout.flush()
+            if echo:
+                # Preserve child bytes even when the host console uses a
+                # legacy code page; a dead reader can block the child pipe.
+                target=getattr(sys.stdout,'buffer',None)
+                if target is not None:target.write(chunk);target.flush()
+                else:sys.stdout.write(chunk.decode('utf-8',errors='replace'));sys.stdout.flush()
     reader=threading.Thread(target=read,daemon=True);reader.start()
     try:code=process.wait(timeout=timeout)
     except subprocess.TimeoutExpired:process.kill();process.wait();code=124
@@ -294,7 +300,7 @@ def run(command_file: Path, revision: str, output: Path, root: Path) -> dict:
             'gateKind':c['gateKind'],'status':'failed','errors':[],'artifacts':[],
             'nativeReport':npath.relative_to(root.resolve()).as_posix(),'coverageSha256':sha256((root/COVERAGE).read_bytes()),'limitsSha256':sha256((root/LIMITS).read_bytes()),
             'exitCode':code,'stdoutSha256':digest,'stdoutBytes':size,
-            'forcedTermination':code!=0,'compatibilityLimitation':'', 'warmupPresented':0,'measuredPresented':0,
+            'forcedTermination':code<0 or code in (124,125),'compatibilityLimitation':'', 'warmupPresented':0,'measuredPresented':0,
             'session':{'name':os.environ.get('SESSIONNAME','unavailable')[:256],
                        'display':os.environ.get('DISPLAY','unavailable')[:256],'scanoutAuthority':False}}
     try:

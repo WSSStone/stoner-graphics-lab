@@ -110,6 +110,15 @@ class ValidationTests(unittest.TestCase):
                 self.assertEqual([x['name'] for x in record['checks']],['build','focused','architecture','output-architecture','validator'])
                 self.assertIn('-j1' if platform=='Windows' else '-j2',run.call_args_list[0].args[0])
 
+    def test_execute_echo_preserves_unicode_bytes(self):
+        import io,sys
+        payload='路径'.encode('utf-8');buffer=io.BytesIO()
+        output=io.TextIOWrapper(buffer,encoding='ascii',write_through=True)
+        with mock.patch.object(sys,'stdout',output):
+            code,digest,size=lab._execute([sys.executable,'-c',"import sys;sys.stdout.buffer.write(bytes.fromhex('"+payload.hex()+"'))"],ROOT,10,echo=True)
+        self.assertEqual(code,0);self.assertEqual(size,len(payload));self.assertEqual(digest,lab.sha256(payload))
+        self.assertEqual(buffer.getvalue(),payload)
+
     def test_command_bounds(self):
         a=['Build/StonerDemo','--interactive-lab','--mode','validate','--frames','1120','--lab-report','Build/native.json']
         lab.validate_command(a,CASE)
@@ -136,7 +145,7 @@ class ValidationTests(unittest.TestCase):
                     'compatibilityLimitation':'','warmupPresented':120,'measuredPresented':1000,
                     'session':dict(name='unavailable',display='unavailable',scanoutAuthority=False)}
             p=root/'report.json'; p.write_text(json.dumps(report));lab.verify(p,root)
-            for edit in [dict(caseId='wrong-case'),dict(gateKind='smoke'),dict(status='failed'),dict(exitCode=124),dict(gitRevision='d'*40)]:
+            for edit in [dict(schemaVersion=True),dict(schemaVersion=2),dict(caseId='wrong-case'),dict(gateKind='smoke'),dict(status='failed'),dict(exitCode=124),dict(gitRevision='d'*40)]:
                 p.write_text(json.dumps(dict(report,**edit)))
                 with self.subTest(edit=edit),self.assertRaises(ValueError):lab.verify(p,root)
             for field,value in [('sha256','e'*64),('sizeBytes',1),('path','../native.json')]:
@@ -162,8 +171,11 @@ class ValidationTests(unittest.TestCase):
                 execute.assert_not_called()
             npath.unlink()
             with mock.patch.object(lab,'require_frozen_revision'),mock.patch.object(lab,'_execute',return_value=(124,'0'*64,0)):
-                self.assertEqual(lab.run(command,REV,output,root)['status'],'failed')
+                result=lab.run(command,REV,output,root);self.assertEqual(result['status'],'failed');self.assertTrue(result['forcedTermination'])
             with self.assertRaises(ValueError):lab.verify(output,root)
+            output.unlink()
+            with mock.patch.object(lab,'require_frozen_revision'),mock.patch.object(lab,'_execute',return_value=(4,'0'*64,0)):
+                result=lab.run(command,REV,output,root);self.assertEqual(result['status'],'failed');self.assertFalse(result['forcedTermination'])
             output.unlink()
             with mock.patch.object(lab,'require_frozen_revision',side_effect=[None,ValueError('software changed')]),mock.patch.object(lab,'_execute',side_effect=lambda *a:(0,'0'*64,0)):
                 with self.assertRaises(ValueError):lab.run(command,REV,output,root)
