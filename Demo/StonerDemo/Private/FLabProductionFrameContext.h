@@ -155,7 +155,8 @@ public:
         Core::uint32 SlotIndex,
         const FProductionContentComposition& FrameComposition,
         Core::FString* OutReason = nullptr,
-        const FPrepareUI& PrepareUI = {});
+        const FPrepareUI& PrepareUI = {},
+        const FLabCaptureFrame* CaptureFrame = nullptr, Core::uint64 CaptureNow = 0);
 
     // Submit uses the backend's asynchronous queue. Success is admission only;
     // render completion is observed separately by PollRender.

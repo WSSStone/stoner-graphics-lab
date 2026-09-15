@@ -23,6 +23,7 @@ using FLabPreviewCancelCallback = std::function<RHI::ERHIResult(
     FLabPreviewCancelCallback Cancel,
     Renderer::FOutputTransformPreviewTicket& OutTicket,
     const FLabProductionFrameContext::FPrepareUI& PrepareUI = {},
-    Core::FString* OutReason = nullptr);
+    Core::FString* OutReason = nullptr,
+    const FLabCaptureFrame* CaptureFrame = nullptr, Core::uint64 CaptureNow = 0);
 
 } // namespace Stoner::Demo

@@ -188,7 +188,8 @@ Renderer::FOutputTransformPreviewResult RecordLabProductionPreview(
     const FProductionContentComposition& Composition, Core::uint32 Slot,
     const RHI::FRHIResolvedPresentationState& Resolved,
     FLabPreviewCancelCallback Cancel, Renderer::FOutputTransformPreviewTicket& OutTicket,
-    const FLabProductionFrameContext::FPrepareUI& PrepareUI, Core::FString* OutReason)
+    const FLabProductionFrameContext::FPrepareUI& PrepareUI, Core::FString* OutReason,
+    const FLabCaptureFrame* CaptureFrame, Core::uint64 CaptureNow)
 {
     if (OutReason) OutReason->Clear();
     Renderer::FOutputTransformPreviewResult Failure;
@@ -199,7 +200,7 @@ Renderer::FOutputTransformPreviewResult RecordLabProductionPreview(
         !Context->GetAcquiredTarget(Composition.FrameToken, Slot, Target) ||
         !Target.Frame.Matches(Resolved))
     { if (OutReason) *OutReason="preview acquired target identity mismatch"; return Failure; }
-    const auto Recorded = Context->RecordFrame(Composition.FrameToken, Slot, Composition, OutReason, PrepareUI);
+    const auto Recorded = Context->RecordFrame(Composition.FrameToken, Slot, Composition, OutReason, PrepareUI, CaptureFrame, CaptureNow);
     if (Recorded != RHI::ERHIResult::Success)
     {
         Failure.NativeResult = Recorded;

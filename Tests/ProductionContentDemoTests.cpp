@@ -862,6 +862,38 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
         }
         Device->TestQueue->SubmittedFences.clear();
     }
+    for (const bool MismatchedUI : {false,true})
+    {
+        FLabProductionFrameContext UnsupportedCapture;
+        (void)UnsupportedCapture.Initialize(Config);
+        const auto Target=MakeTarget(95,0,0); // intentionally has no CopySource
+        auto Frame=Config.Composition; Frame.FrameToken=95;
+        (void)UnsupportedCapture.ReserveFrame(95,0);
+        (void)UnsupportedCapture.BeginFrame(95,0,Target);
+        FLabCaptureRequest Capture; Capture.RequestId=1;
+        Capture.Target.SettingsGeneration=Capture.Target.DisplayGeneration=1;
+        Capture.Target.OutputGeneration=Target.Frame.ModeGeneration;
+        Capture.Target.Width=Width; Capture.Target.Height=Height;
+        Capture.Target.Format=OutputFormat;
+        Capture.Target.OutputProfile=UnsupportedCapture.GetResources(95,0)->OutputTransformPlan.ResolvedSettings.OutputDeviceProfileId;
+        Capture.Target.Stage="FinalOutput";
+        Capture.Target.bIncludeUI=MismatchedUI;
+        const FLabCaptureFrame CaptureFrame{95,Capture.Target,Renderer::EFrameExecutionPurpose::InteractivePreview,true};
+        (void)UnsupportedCapture.RequestCapture(Capture,100);
+        const auto Recorded=UnsupportedCapture.RecordFrame(95,0,Frame,nullptr,{},&CaptureFrame,101);
+        const auto Command=std::dynamic_pointer_cast<Stoner::Tests::StaticModelRealization::FTrackedCommandBuffer>(
+            UnsupportedCapture.GetResources(95,0)->Bindings.CommandBuffer);
+        Record(Result,Recorded==RHI::ERHIResult::Success && Command->ReadbackCopies==0,
+            "unsupported CopySource or mismatched actual UI rejects capture without blocking scene recording");
+        (void)UnsupportedCapture.CancelFrame(95,0);
+        (void)UnsupportedCapture.RetireCancelled(95,0);
+        FLabCaptureCompletion Completion;
+        Record(Result,UnsupportedCapture.ProcessCapture(1,102,{},Completion) &&
+            Completion.Status==(MismatchedUI ? ELabCaptureStatus::GenerationMismatch : ELabCaptureStatus::InvalidRequest) &&
+            UnsupportedCapture.Shutdown()==RHI::ERHIResult::Success,
+            "unsupported capture preserves its explicit failure and releases staging after command discard");
+    }
+
     FLabProductionFrameContext Context;
     const auto SceneOwnersBefore = Config.SceneLease.use_count();
     const auto DeviceOwnersBefore = Config.Device.use_count();
@@ -894,7 +926,21 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
     Frame1.CameraPosition = Frame1.DeferredInputs.View.CameraPosition;
     const auto Reserved0 = Context.ReserveFrame(101, 0);
     const auto Begun0 = Context.BeginFrame(101, 0, Target0);
-    const auto Recorded0 = Context.RecordFrame(101, 0, Frame0);
+    FLabCaptureRequest Capture;
+    Capture.RequestId=1;
+    Capture.Target.SettingsGeneration=Capture.Target.DisplayGeneration=1;
+    Capture.Target.OutputGeneration=Target0.Frame.ModeGeneration;
+    Capture.Target.Width=Width; Capture.Target.Height=Height;
+    Capture.Target.Format=RHI::ERHIFormat::R16G16B16A16_Float;
+    Capture.Target.OutputProfile=Context.GetResources(101,0)->OutputTransformPlan.ResolvedSettings.OutputDeviceProfileId;
+    Capture.Target.Stage="SceneColorHandoff";
+    Capture.Target.Purpose=ELabCapturePurpose::HDRNumeric;
+    const FLabCaptureFrame CaptureFrame{101,Capture.Target,Renderer::EFrameExecutionPurpose::InteractivePreview,true};
+    Record(Result,Context.RequestCapture(Capture,100)==ELabCaptureStatus::Pending,
+        "frame context admits an explicit exact-identity capture");
+    const auto Recorded0 = Context.RecordFrame(101, 0, Frame0,nullptr,{},&CaptureFrame,101);
+    Record(Result,Context.Snapshot().Captures.StagingBytes==static_cast<Core::uint64>(Width)*Height*8,
+        "capture reserves exact staging while the real scene command is recording");
     const auto* Resources0 = Context.GetResources(101, 0);
     const auto Attachments0 = Resources0 ? Resources0->OwnedTextures :
         Core::TArray<Core::TSharedPtr<RHI::IRHITexture>>{};
@@ -973,6 +1019,14 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
     const auto PendingReset0 = Context.RetireRenderResources(101, 0);
     Command0->ResetResult = RHI::ERHIResult::Success;
     const auto Retired0 = Context.RetireRenderResources(101, 0);
+    FLabCaptureCompletion CaptureCompletion;
+    unsigned ReadCount=0;
+    Record(Result,Context.ProcessCapture(1,102,[&](const auto& Completed,const auto& Buffer,const auto&) {
+        ++ReadCount;
+        return Completed.FrameToken==101 && Buffer->GetSizeInBytes()==static_cast<Core::uint64>(Width)*Height*8;
+    },CaptureCompletion) && ReadCount==1 && CaptureCompletion.Status==ELabCaptureStatus::Success &&
+        Context.Snapshot().Captures.Requests==0,
+        "frame retirement consumes one capture before reusing its command buffer");
     const auto ReuseReserve = Context.ReserveFrame(103, 0);
     const auto Target2 = MakeTarget(103, 0, 2);
     const auto ReuseBegin = Context.BeginFrame(103, 0, Target2);

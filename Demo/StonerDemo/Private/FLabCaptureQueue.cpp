@@ -21,6 +21,7 @@ void FLabCaptureQueue::RefreshStatistics() noexcept
     Statistics.Requests=0; Statistics.StagingBytes=0;
     for (const auto& R : Records)
         if (R.State!=EState::Empty) { ++Statistics.Requests; Statistics.StagingBytes+=R.Bytes; }
+    if (!Statistics.Requests) OwnerDevice.reset();
     Statistics.PeakRequests=std::max(Statistics.PeakRequests,Statistics.Requests);
     Statistics.PeakStagingBytes=std::max(Statistics.PeakStagingBytes,Statistics.StagingBytes);
 }
@@ -95,12 +96,13 @@ bool FLabCaptureQueue::Submit(uint64 Id,uint64 Frame,const TSharedPtr<IRHIFence>
         }
     return false;
 }
-bool FLabCaptureQueue::Cancel(uint64 Id)
+bool FLabCaptureQueue::Cancel(uint64 Id,ELabCaptureStatus Reason)
 {
-    if (bProcessing) return false;
+    if (bProcessing || (Reason!=ELabCaptureStatus::Cancelled &&
+        Reason!=ELabCaptureStatus::InvalidRequest && Reason!=ELabCaptureStatus::ReadbackFailed)) return false;
     for (auto& R : Records)
         if (R.State!=EState::Empty && R.Completion.Request.RequestId==Id)
-        { Stop(R,ELabCaptureStatus::Cancelled); return true; }
+        { Stop(R,Reason); return true; }
     return false;
 }
 void FLabCaptureQueue::CancelAll() noexcept
@@ -124,6 +126,10 @@ void FLabCaptureQueue::Poll(uint64 Now) noexcept
         }
         if (R.State==EState::Prepared && R.Command->GetState()==ERHICommandBufferState::Idle)
         { Stop(R,ELabCaptureStatus::Cancelled); R.State=EState::Ready; }
+        // Once reset is observed, the readback owns only its staging buffer.
+        // Later reuse of the render command must not delay an already safe read.
+        if (R.State==EState::Ready && R.Command && R.Command->GetState()==ERHICommandBufferState::Idle)
+            R.Command.reset();
     }
 }
 bool FLabCaptureQueue::ProcessOne(uint64 ServiceFrame,uint64 Now,const FReadback& Readback,FLabCaptureCompletion& Out)
@@ -146,11 +152,14 @@ bool FLabCaptureQueue::ProcessOne(uint64 ServiceFrame,uint64 Now,const FReadback
     {
         R->Completion.Status=ELabCaptureStatus::Success;
         bool OK=false;
-        try { OK=Readback && R->Staging && Readback(R->Completion,*R->Staging,R->Region); }
+        try { OK=Readback && R->Staging && Readback(R->Completion,R->Staging,R->Region); }
         catch (...) { OK=false; }
         if (!OK) R->Completion.Status=ELabCaptureStatus::ReadbackFailed;
     }
     bProcessing=false;
+    // A backend consumer may retain the shared handle. Keep the completed
+    // record charged until that final alias disappears, without reading again.
+    if (R->Staging && R->Staging.use_count()!=1) return false;
     Out=R->Completion;
     *R={}; ++Statistics.Completed; RefreshStatistics();
     return true;

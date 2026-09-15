@@ -3,6 +3,7 @@
 #include "Renderer/FDeferredRenderGraphDeclaration.h"
 #include "Renderer/FShaderMatrixPacking.h"
 #include "RHI/RHIMinimal.h"
+#include <functional>
 
 namespace Stoner::Renderer
 {
@@ -167,9 +168,14 @@ struct FDeferredFrameExecutionResult
 class FDeferredFrameExecutor
 {
 public:
+    // Optional explicit preview capture, prepared only while the frame command
+    // is recording. An empty binding records no copy. Formal readback plans
+    // reject this separate path before beginning commands.
+    using FPreparePreviewReadback = std::function<FDeferredReadbackBinding()>;
     [[nodiscard]] FDeferredFrameExecutionResult Execute(const FDeferredFramePlan& Plan,
         const FDeferredRenderGraphDeclaration& Graph,
-        const FDeferredFrameExecutionBindings& Bindings) const;
+        const FDeferredFrameExecutionBindings& Bindings,
+        const FPreparePreviewReadback& PrepareReadback = {}) const;
 };
 
 [[nodiscard]] Stoner::Core::TArray<FDeferredShaderBindingContract>

@@ -1,4 +1,5 @@
 #include "FInteractiveLabShaders.h"
+#include "FLabCaptureQueue.h"
 #include "FProductionContentDeferredExecution.h"
 #include "FUICompositionExecutor.h"
 #include "MetalRHI/FMetalDeviceFactory.h"
@@ -427,6 +428,68 @@ static int RunDeferredNativeUIOffParity(const Stoner::Core::TSharedPtr<Stoner::R
             for (size_t I=0;I<Pixels.size();I+=4) NonBlack|=Pixels[I]!=0 || Pixels[I+1]!=0 || Pixels[I+2]!=0;
             Check(NonBlack,"formal UI-off comparison contains actual rendered scene pixels");
         }
+    }
+    // Real native copy is inserted in the same command as the selected preview.
+    // The test alone waits for completion; the capture queue only polls it.
+    for (const bool Numeric : {false,true})
+    {
+        FLabCaptureQueue Captures;
+        FLabCaptureRequest Capture;
+        Capture.RequestId=1;
+        Capture.Target.SettingsGeneration=Capture.Target.DisplayGeneration=Capture.Target.OutputGeneration=1;
+        Capture.Target.Width=64; Capture.Target.Height=32;
+        Capture.Target.Format=Numeric ? ERHIFormat::R16G16B16A16_Float : TargetDesc.Format;
+        Capture.Target.OutputProfile=Preview.OutputTransformPlan.ResolvedSettings.OutputDeviceProfileId;
+        Capture.Target.Stage=Numeric ? "ManualExposure" : "FinalOutput";
+        Capture.Target.Purpose=Numeric ? ELabCapturePurpose::HDRNumeric : ELabCapturePurpose::SDRPreview;
+        const FLabCaptureFrame Frame{100,Capture.Target,EFrameExecutionPurpose::InteractivePreview,true};
+        auto Bindings=Preview.Bindings;
+        Bindings.bTransitionFinalOutputToPresent=false;
+        if (!Check(Bindings.CommandBuffer->Reset()==ERHIResult::Success &&
+            Captures.Request(Capture,100)==ELabCaptureStatus::Pending,
+            "native explicit capture starts with an idle command and bounded request")) return Failed;
+        const auto Before=Device->GetRuntimeSnapshot().NativeOperations;
+        FLabCapturePrepared Prepared;
+        const auto Execution=FDeferredFrameExecutor().Execute(Preview.Plan,Preview.Graph,Bindings,[&] {
+            FDeferredReadbackBinding Copy;
+            if (Captures.PrepareNext(Frame,Device,Bindings.CommandBuffer,101,Prepared)==ELabCaptureStatus::Success)
+            {
+                Copy.Name=Capture.Target.Stage;
+                Copy.Source=Numeric ? Bindings.OutputTransformStages[0].Output : Bindings.FormalOutput;
+                Copy.Destination=Prepared.Staging;
+                Copy.Region=Prepared.Region;
+            }
+            return Copy;
+        });
+        auto Fence=Device->CreateFence(false).Object;
+        if (!Check(Execution.Succeeded() && Prepared.Staging && Fence &&
+            Queue->SubmitDeferred(Bindings.CommandBuffer,{}, {},Fence)==ERHIResult::Success &&
+            Captures.Submit(1,100,Fence),
+            "native explicit capture shares the selected render command and completion fence")) return Failed;
+        Prepared={};
+        if (!Check(Fence->Wait(5000000)==ERHIResult::Success,
+            "native capture fixture observes actual GPU completion")) return Failed;
+        Captures.Poll(102);
+        if (!Check(Bindings.CommandBuffer->Reset()==ERHIResult::Success,
+            "native capture releases command references before consumer readback")) return Failed;
+        TArray<uint8> Pixels;
+        FLabCaptureCompletion Completion;
+        unsigned Reads=0;
+        const auto Consumed=Captures.ProcessOne(1,103,[&](const auto&,const auto& Buffer,const auto& Region) {
+            ++Reads;
+            uint64 Bytes=0;
+            return TryGetRHITextureBufferCopyByteSize(Region,Capture.Target.Format,Bytes) &&
+                Read(Buffer,Bytes,Pixels)==ERHIResult::Success && Pixels.size()==Bytes;
+        },Completion);
+        const auto After=Device->GetRuntimeSnapshot().NativeOperations;
+        Check(Consumed && Reads==1 && Completion.Status==ELabCaptureStatus::Success &&
+            Completion.FrameToken==100 && Completion.Request.Target==Capture.Target &&
+            Captures.GetStatistics().Requests==0 && Captures.GetStatistics().StagingBytes==0 &&
+            After.ImageReadbackCopyCount-Before.ImageReadbackCopyCount==1 &&
+            After.QueueIdleCallCount==Before.QueueIdleCallCount && After.DeviceIdleCallCount==Before.DeviceIdleCallCount,
+            "explicit native capture copies once, preserves identity, drains staging and performs no idle");
+        Check(Numeric ? Pixels.size()==64*32*8 : Pixels==Baseline,
+            "native capture preserves float16 numeric bytes or exact formal-equivalent SDR pixels");
     }
     return Failed;
 }

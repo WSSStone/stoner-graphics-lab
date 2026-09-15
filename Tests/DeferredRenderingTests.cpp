@@ -418,6 +418,56 @@ void TestShaderAndExecutionContracts(FDeferredRenderingTestResult& Result)
     Record(Result, bPresentedFixture && PresentedExecution.Succeeded(),
         "Deferred executor records a direct formal-output Present transition");
 
+    FExecutionFixture CaptureFixture;
+    (void)CaptureFixture.Initialize(Plan);
+    CaptureFixture.Bindings.bTransitionFinalOutputToPresent = true;
+    unsigned Preparations = 0;
+    const auto Captured = FDeferredFrameExecutor().Execute(Plan, Graph, CaptureFixture.Bindings, [&] {
+        ++Preparations;
+        FDeferredReadbackBinding Copy;
+        Copy.Name = "ExplicitPreview";
+        Copy.Source = CaptureFixture.Bindings.FinalOutput;
+        Copy.Region.Width = Plan.SurfaceLayout.Extent.Width;
+        Copy.Region.Height = Plan.SurfaceLayout.Extent.Height;
+        Copy.Destination = CaptureFixture.Device.CreateBuffer({
+            static_cast<uint64>(Copy.Region.Width) * Copy.Region.Height * 8,
+            ERHIBufferUsage::CopyDestination, ERHIMemoryAccess::HostVisible}).Object;
+        return Copy;
+    });
+    const auto CaptureCommands = std::dynamic_pointer_cast<FVulkanCommandBuffer>(CaptureFixture.Bindings.CommandBuffer);
+    unsigned Copies = 0;
+    bool Restored = false;
+    if (CaptureCommands)
+        for (const auto& Command : CaptureCommands->GetRecordedCommands())
+        {
+            if (Command.Type == ERHISymbolicCommandType::TextureToBufferCopy) ++Copies;
+            if (Copies == 1 && Command.Type == ERHISymbolicCommandType::LayoutTransition &&
+                Command.Barrier.Before == ERHIResourceLayout::CopySource &&
+                Command.Barrier.After == ERHIResourceLayout::ColorAttachment) Restored = true;
+        }
+    Record(Result, Captured.Succeeded() && Preparations == 1 && Copies == 1 && Restored,
+        "explicit preview readback records one copy and restores output before presentation");
+
+    for (const bool Empty : {true, false})
+    {
+        FExecutionFixture OptionalFixture;
+        (void)OptionalFixture.Initialize(Plan);
+        const auto Optional = FDeferredFrameExecutor().Execute(Plan, Graph, OptionalFixture.Bindings, [&] {
+            FDeferredReadbackBinding Copy;
+            if (!Empty) Copy.Source = OptionalFixture.Bindings.FinalOutput;
+            return Copy;
+        });
+        const auto OptionalCommands = std::dynamic_pointer_cast<FVulkanCommandBuffer>(OptionalFixture.Bindings.CommandBuffer);
+        unsigned OptionalCopies = 0;
+        for (const auto& Command : OptionalCommands->GetRecordedCommands())
+            OptionalCopies += Command.Type == ERHISymbolicCommandType::TextureToBufferCopy ? 1 : 0;
+        Record(Result, Optional.Succeeded() == Empty && OptionalCopies == 0,
+            "empty capture callback performs no copy and incomplete binding rejects before copy");
+        if (OptionalFixture.Bindings.CommandBuffer->GetState() == ERHICommandBufferState::Recording)
+            (void)OptionalFixture.Bindings.CommandBuffer->End();
+        (void)OptionalFixture.Bindings.CommandBuffer->Reset();
+    }
+
     FDeferredFrameExecutionBindings Invalid = Fixture.Bindings;
     Invalid.Depth.reset();
     const auto InvalidExecution = FDeferredFrameExecutor().Execute(Plan, Graph, Invalid);
@@ -467,6 +517,14 @@ void TestShaderAndExecutionContracts(FDeferredRenderingTestResult& Result)
     const bool bReadbackFixture = ReadbackFixture.Initialize(ReadbackPlan);
     ReadbackFixture.Bindings.Readbacks.push_back(
         {"InvalidReadback", ReadbackFixture.Bindings.FinalOutput, nullptr, {}});
+    unsigned FormalPreparations = 0;
+    const auto Isolated = FDeferredFrameExecutor().Execute(ReadbackPlan, ReadbackGraph, ReadbackFixture.Bindings, [&] {
+        ++FormalPreparations;
+        return FDeferredReadbackBinding{};
+    });
+    Record(Result, !Isolated.Succeeded() && FormalPreparations == 0 &&
+        ReadbackFixture.Bindings.CommandBuffer->GetState() == ERHICommandBufferState::Idle,
+        "formal readback plan rejects interactive capture callback before command recording");
     const auto FailedExecution =
         FDeferredFrameExecutor().Execute(ReadbackPlan, ReadbackGraph, ReadbackFixture.Bindings);
     const FDeferredDiagnostic* Failure = FailedExecution.Diagnostics.GetFirstError();

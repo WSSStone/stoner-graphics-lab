@@ -196,9 +196,16 @@ Stoner::RHI::FRHIRenderPassClearValues MakeClearValues(const FDeferredFramePlan&
 
 FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFramePlan& Plan,
     const FDeferredRenderGraphDeclaration& Graph,
-    const FDeferredFrameExecutionBindings& Bindings) const
+    const FDeferredFrameExecutionBindings& Bindings,
+    const FPreparePreviewReadback& PrepareReadback) const
 {
     FDeferredFrameExecutionResult Out;
+    if (PrepareReadback && (!Bindings.Readbacks.empty() ||
+        Plan.FindPass(EDeferredPassStage::ValidationReadback)))
+    {
+        Out.FinalState = EDeferredExecutionState::Failed;
+        return Out;
+    }
     const FDeferredExtent2D Extent = Plan.SurfaceLayout.Extent;
     const auto FormalOutput = Bindings.FormalOutput
         ? Bindings.FormalOutput : Bindings.FinalOutput;
@@ -609,7 +616,36 @@ FDeferredFrameExecutionResult FDeferredFrameExecutor::Execute(const FDeferredFra
         Out.RecordedDrawCount += Pass.DrawCount;
         Out.LastCompletedStage = Pass.Stage;
     }
-    if (!RecordOutputTransform() || !TransitionOutputToPresent())
+    const auto RecordPreviewReadback = [&]() -> bool
+    {
+        if (!PrepareReadback) return true;
+        FDeferredReadbackBinding Copy;
+        try { Copy = PrepareReadback(); }
+        catch (...) { return false; }
+        if (!Copy.Source && !Copy.Destination) return true;
+        using namespace Stoner::RHI;
+        bool KnownSource = Copy.Source == Bindings.FinalOutput || Copy.Source == FormalOutput;
+        for (const auto& Stage : Bindings.OutputTransformStages)
+            KnownSource = KnownSource || Copy.Source == Stage.Output;
+        const auto& Region = Copy.Region;
+        Stoner::Core::uint64 Bytes = 0;
+        if (!KnownSource || !Copy.Source || !Copy.Destination ||
+            !IsTextureValid(Copy.Source, Copy.Source->GetFormat(), Extent, ERHITextureUsage::CopySource) ||
+            !IsBufferValid(Copy.Destination, ERHIBufferUsage::CopyDestination) ||
+            Region.SourceMipLevel || Region.SourceArrayLayer || Region.SourceX || Region.SourceY || Region.SourceZ ||
+            Region.Width != Extent.Width || Region.Height != Extent.Height || Region.Depth != 1 ||
+            Region.DestinationOffsetBytes || Region.DestinationRowLengthTexels || Region.DestinationImageHeightTexels ||
+            !TryGetRHITextureBufferCopyByteSize(Region, Copy.Source->GetFormat(), Bytes) ||
+            Bytes != Copy.Destination->GetSizeInBytes()) return false;
+        const auto Previous = Copy.Source == FormalOutput
+            ? ERHIResourceLayout::ColorAttachment : ERHIResourceLayout::ShaderReadOnly;
+        return TransitionTexture(Commands, Copy.Source, ERHITextureUsage::CopySource,
+                Previous, ERHIResourceLayout::CopySource) &&
+            Commands.RecordTextureToBufferCopy(Copy.Source, Copy.Destination, Region) == ERHIResult::Success &&
+            TransitionTexture(Commands, Copy.Source, ERHITextureUsage::CopySource,
+                ERHIResourceLayout::CopySource, Previous);
+    };
+    if (!RecordOutputTransform() || !RecordPreviewReadback() || !TransitionOutputToPresent())
     {
         Out.Result = EDeferredResult::RecordFailed;
         Out.FinalState = EDeferredExecutionState::Failed;

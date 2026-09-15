@@ -79,15 +79,16 @@ public:
         Core::uint64 Now, FLabCapturePrepared& Out);
     [[nodiscard]] bool Submit(Core::uint64 RequestId, Core::uint64 FrameToken,
         const Core::TSharedPtr<RHI::IRHIFence>& Fence);
-    [[nodiscard]] bool Cancel(Core::uint64 RequestId);
+    [[nodiscard]] bool Cancel(Core::uint64 RequestId, ELabCaptureStatus Reason = ELabCaptureStatus::Cancelled);
     void CancelAll() noexcept;
     // Call before resetting a render fence or reusing a discarded command.
     void Poll(Core::uint64 Now) noexcept;
     // At most one terminal record per monotonically increasing service frame.
     // Reader runs only for successful, fence-complete explicit captures. The
-    // borrowed staging reference must not escape this synchronous consumer.
+    // shared staging handle supports backend readers. Escaping aliases retain
+    // queue capacity until released; a consumer is never invoked twice.
     using FReadback = std::function<bool(const FLabCaptureCompletion&,
-        const RHI::IRHIBuffer&, const RHI::FRHITextureBufferCopyRegion&)>;
+        const Core::TSharedPtr<RHI::IRHIBuffer>&, const RHI::FRHITextureBufferCopyRegion&)>;
     [[nodiscard]] bool ProcessOne(Core::uint64 ServiceFrame, Core::uint64 Now,
         const FReadback&, FLabCaptureCompletion& Out);
     [[nodiscard]] bool ReleaseAfterDeviceShutdown(const RHI::IRHIDevice&) noexcept;

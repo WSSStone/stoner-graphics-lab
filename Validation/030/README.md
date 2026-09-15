@@ -1189,3 +1189,9 @@ T093/T094 reviewed; overall 94/127. Strict Debug/Release each pass 322 focused a
 ## US6 resource bounds review — 2026-09-15
 
 T095/T096 complete; overall 96/127. UI frames retain validated commands and texture leases after geometry upload, eliminating the redundant CPU geometry copy. Pending-resize tests verify retained target accounting and no premature replacement allocation. Strict Debug/Release each pass 366 focused assertions; Metal Debug/Vulkan Release each pass 217 native UI/diagnostic/parity assertions. Local log digests and the red regression are in `Build/Validation/030/us6-bounds.json`. T097 onward remains pending; these working-tree checks claim no formal/human authority, and Intel macOS remains skipped.
+
+### T098/T099 — explicit capture recording and retirement (2026-09-15)
+
+The Demo queue now prepares a capture during actual Deferred command recording, with a single exact-size copy after output composition and before presentation. It validates actual extent/output/UI identity, rejects unsupported copy capability without stopping the scene, and keeps staging charged until native completion, command reset and any consumer aliases have retired. Ordinary frames allocate no capture staging and issue no readback. The preview ticket exposes the same optional path; T100 event-loop actions, consumer/export publication and UI controls remain pending.
+
+Strict Debug/Release each pass 217 CPU assertions. Metal Debug/Vulkan Release each pass 229 native assertions: explicit SDR capture equals the existing formal result byte-for-byte; the exposure-stage capture retains the exact float16 footprint; both issue one native copy and no idle. This is local working-tree implementation evidence under `Build/Validation/030/us6-explicit-capture.json`, not same-SHA formal authority, live HDR appearance acceptance or complete US6 validation. Overall reviewed tasks: 99/127. Intel macOS remains skipped.

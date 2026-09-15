@@ -121,9 +121,32 @@ int RunInteractiveLabCaptureTests()
         Q.Poll(201);
         Check(Fence->Reset()==ERHIResult::Success && Command->Reset()==ERHIResult::Success,
             "render retirement resets fence and command after completion observation");
-        Check(Q.ProcessOne(2,202,Read,C) && C.Status==ELabCaptureStatus::Success && Reads==1 &&
-            Q.GetStatistics().StagingBytes==0,"observed capture survives fence reuse and reads exact UI-inclusive identity once");
+        Q.Poll(202);
         Check(Command->Begin()==ERHIResult::Success,"capture fixture reuses retired command");
+        Check(Q.ProcessOne(2,202,Read,C) && C.Status==ELabCaptureStatus::Success && Reads==1 &&
+            Q.GetStatistics().StagingBytes==0,"observed capture survives fence and command reuse and reads exact UI-inclusive identity once");
+    }
+    {
+        FLabCaptureQueue Q; (void)Q.Request(Request(),100);
+        FLabCapturePrepared P;
+        (void)Q.PrepareNext(Frame(Request()),Device,Command,100,P);
+        auto Fence=Device->CreateFence(false).Object;
+        (void)Command->End(); (void)Q.Submit(1,1,Fence); P={};
+        (void)Fence->Signal(); Q.Poll(101); (void)Command->Reset();
+        Core::TSharedPtr<IRHIBuffer> Retained;
+        int Reads=0;
+        auto Reader=[&](const auto&,const auto& Buffer,const auto&) { ++Reads; Retained=Buffer; return true; };
+        FLabCaptureCompletion C;
+        Check(!Q.ProcessOne(1,101,Reader,C) && Reads==1 && Q.GetStatistics().Requests==1 &&
+            Q.GetStatistics().StagingBytes==1024,
+            "consumer staging alias retains request capacity and bytes after readback");
+        Check(!Q.ProcessOne(2,102,Reader,C) && Reads==1,
+            "retained consumer alias cannot trigger another readback");
+        Retained.reset();
+        Check(Q.ProcessOne(3,103,Reader,C) && Reads==1 && C.Status==ELabCaptureStatus::Success &&
+            Q.GetStatistics().Requests==0 && Q.GetStatistics().StagingBytes==0,
+            "releasing consumer alias publishes the saved result without repeating readback");
+        (void)Command->Begin();
     }
     for (bool Timeout : {false,true})
     {

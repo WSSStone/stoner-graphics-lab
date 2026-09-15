@@ -773,9 +773,7 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
             ERHIFormat::R16G16B16A16_Float, GBufferUsage, Candidate,
             Candidate.Bindings.LightingAccumulation) ||
         !CreateTexture(*Device, Width, Height, Candidate.Plan.Output.Format,
-            ERHITextureUsage::ColorAttachment | ERHITextureUsage::Sampled |
-                (Options.ExecutionPurpose == EFrameExecutionPurpose::FormalValidation
-                    ? ERHITextureUsage::CopySource : ERHITextureUsage::None),
+            ERHITextureUsage::ColorAttachment | ERHITextureUsage::Sampled | ERHITextureUsage::CopySource,
             Candidate, Candidate.Bindings.FinalOutput))
     {
         Fail(OutReason, "Deferred attachment creation failed");
@@ -793,7 +791,7 @@ ERHIResult FProductionContentDeferredExecutionBuilder::Build(
     Candidate.OwnedSamplers.push_back(std::move(Sampler.Object));
 
     const ERHITextureUsage IntermediateOutputUsage =
-        ERHITextureUsage::ColorAttachment | ERHITextureUsage::Sampled;
+        ERHITextureUsage::ColorAttachment | ERHITextureUsage::Sampled | ERHITextureUsage::CopySource;
     TSharedPtr<IRHITexture> ExposedSceneColor;
     TSharedPtr<IRHITexture> DisplayLinear;
     if (!CreateTexture(*Device, Width, Height,

@@ -449,12 +449,14 @@ ELabCaptureStatus FLabProductionFrameContext::PrepareCapture(const FLabCaptureFr
     auto* Slot=Impl_ ? Impl_->FindSlot(Frame.FrameToken,SlotIndex) : nullptr;
     if (!Slot || Impl_->bFailed || Impl_->bShutdownStarted ||
         Slot->State!=ELabProductionFrameState::Recording || Slot->CaptureRequestId ||
-        !Slot->Target.IsValid() || Frame.Identity.Width!=Slot->Target.Frame.Width ||
-        Frame.Identity.Height!=Slot->Target.Frame.Height ||
-        Frame.Identity.OutputGeneration!=Slot->Target.Frame.ModeGeneration ||
-        Frame.Identity.OutputProfile!=Slot->Resources.OutputTransformPlan.ResolvedSettings.OutputDeviceProfileId ||
-        Frame.Identity.bIncludeUI!=static_cast<bool>(Slot->UIFrame)) return ELabCaptureStatus::InvalidRequest;
-    const auto Result=Impl_->Captures.PrepareNext(Frame,Impl_->Device,
+        !Slot->Target.IsValid()) return ELabCaptureStatus::InvalidRequest;
+    auto Observed=Frame;
+    Observed.Identity.Width=Slot->Target.Frame.Width;
+    Observed.Identity.Height=Slot->Target.Frame.Height;
+    Observed.Identity.OutputGeneration=Slot->Target.Frame.ModeGeneration;
+    Observed.Identity.OutputProfile=Slot->Resources.OutputTransformPlan.ResolvedSettings.OutputDeviceProfileId;
+    Observed.Identity.bIncludeUI=static_cast<bool>(Slot->UIFrame);
+    const auto Result=Impl_->Captures.PrepareNext(Observed,Impl_->Device,
         Slot->Resources.Bindings.CommandBuffer,Now,Out);
     if (Result==ELabCaptureStatus::Success) Slot->CaptureRequestId=Out.RequestId;
     return Result;
@@ -774,7 +776,8 @@ RHI::ERHIResult FLabProductionFrameContext::ReconfigureOutputSettings(
 RHI::ERHIResult FLabProductionFrameContext::RecordFrame(
     uint64 FrameToken, uint32 SlotIndex,
     const FProductionContentComposition& FrameComposition,
-    FString* OutReason, const FPrepareUI& PrepareUI)
+    FString* OutReason, const FPrepareUI& PrepareUI,
+    const FLabCaptureFrame* CaptureFrame, uint64 CaptureNow)
 {
     if (OutReason) OutReason->Clear();
     if (!Impl_ || !Impl_->bInitialized || Impl_->bFailed ||
@@ -866,10 +869,46 @@ RHI::ERHIResult FLabProductionFrameContext::RecordFrame(
             return Prepared;
         }
     }
+    Renderer::FDeferredFrameExecutor::FPreparePreviewReadback PrepareReadback;
+    if (CaptureFrame)
+        PrepareReadback = [&]() {
+            Renderer::FDeferredReadbackBinding Copy;
+            FLabCapturePrepared Prepared;
+            if (PrepareCapture(*CaptureFrame, SlotIndex, CaptureNow, Prepared) != ELabCaptureStatus::Success)
+                return Copy;
+            const auto& Identity = CaptureFrame->Identity;
+            const auto& Bindings = Slot->Resources.Bindings;
+            if (Identity.Stage == FString("FinalOutput")) Copy.Source = Bindings.FormalOutput;
+            else if (Identity.Stage == FString("SceneColorHandoff")) Copy.Source = Bindings.FinalOutput;
+            else if (Bindings.OutputTransformStages.size() >= 3)
+                for (const auto& Stage : Slot->Resources.OutputTransformPlan.Stages)
+                {
+                    if (Stage.Name != Identity.Stage) continue;
+                    if (Stage.Kind == Renderer::EOutputTransformStageKind::ManualExposure)
+                        Copy.Source = Bindings.OutputTransformStages[0].Output;
+                    else if (Stage.Kind == Renderer::EOutputTransformStageKind::SDRToneMap ||
+                        Stage.Kind == Renderer::EOutputTransformStageKind::HDRViewingTransform)
+                        Copy.Source = Bindings.OutputTransformStages[1].Output;
+                }
+            if ((Identity.bIncludeUI && Identity.Stage != FString("FinalOutput")) ||
+                (Identity.Purpose == ELabCapturePurpose::SDRPreview &&
+                    (Identity.Stage != FString("FinalOutput") ||
+                        Slot->Resources.OutputTransformPlan.ResolvedSettings.DynamicRange != Renderer::EOutputDynamicRange::SDR)) ||
+                !Copy.Source || Copy.Source->GetFormat() != Identity.Format ||
+                !RHI::HasRHIFlag(Copy.Source->GetUsage(), RHI::ERHITextureUsage::CopySource))
+            {
+                (void)Impl_->Captures.Cancel(Prepared.RequestId, ELabCaptureStatus::InvalidRequest);
+                return Renderer::FDeferredReadbackBinding{};
+            }
+            Copy.Name = Identity.Stage;
+            Copy.Destination = std::move(Prepared.Staging);
+            Copy.Region = Prepared.Region;
+            return Copy;
+        };
     const Renderer::FDeferredFrameExecutionResult Execution =
         Renderer::FDeferredFrameExecutor().Execute(
             Slot->Resources.Plan, Slot->Resources.Graph,
-            Slot->Resources.Bindings);
+            Slot->Resources.Bindings, PrepareReadback);
     if (!Execution.Succeeded())
     {
         Slot->State = ELabProductionFrameState::Failed;
