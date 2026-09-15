@@ -100,6 +100,7 @@ public:
         const FLabProductionFrameContextConfig& Config,
         Core::FString* OutReason = nullptr);
 
+    [[nodiscard]] bool GetPendingCapture(FLabCaptureRequest& Out) const;
     [[nodiscard]] ELabCaptureStatus RequestCapture(const FLabCaptureRequest&, Core::uint64 Now);
     [[nodiscard]] bool CancelCapture(Core::uint64 RequestId);
     // Called at the explicit copy insertion point while the exact slot command

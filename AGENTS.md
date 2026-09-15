@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (99/127 reviewed tasks); native closeout remains pending.
+Feature 030 implementation is partial (100/127 reviewed tasks); native closeout remains pending.
 The maintainer explicitly skips Intel x86_64 macOS validation for Feature 030
 on 2026-09-08; record it as skipped, not passed, and do not block implementation
 on Intel cooking/derivation/native checks. Existing Intel support and historical
@@ -164,6 +164,7 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
+- 030 T100 reviewed (100/127): capture UI exports exact-drawable SDR PNG/JSON or numeric-only HDR/stage raw/report through protected publication. Optional Vulkan CopySource is capability-derived. Strict Debug/Release each pass 333 CPU assertions; Metal Debug/Vulkan Release native pass 86/69; nine payloads independently verified. T101 capture-time event-service latency and subsequent closeout remain pending; no formal/human authority, Intel macOS skipped.
 
 - 030 T098/T099 reviewed (99/127): explicit capture prepares within real frame recording, copies only the exact requested scene/output stage, and consumes after observed completion/reset. Actual UI/output identity rejects mismatch; missing CopySource fails only capture. Queue aliases retain capacity, reused commands do not starve completed reads, and empty queues release device ownership. Strict Debug/Release each pass 217 focused assertions; Metal Debug/Vulkan Release each pass 229 native assertions. Evidence: `Build/Validation/030/us6-explicit-capture.json`. T100 UI/actions/event-loop export integration and formal/human closeout remain pending; Intel macOS is skipped.
 - 030 T097 reviewed (97/127): bounded session diagnostics expose overflow intervals, pointer/UI-enable failures, capability pauses and diagnostic evictions without guessing dropped-event counts. The UI displays actual counters; existing owner bytes and camera change sets remain exposed. Strict Debug/Release each pass 317 related assertions; architecture passes. Evidence: `Build/Validation/030/us6-stats.json`; T098 onward remains pending.

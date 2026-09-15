@@ -434,6 +434,8 @@ RHI::ERHIResult FLabProductionFrameContext::Initialize(
         ? RHI::ERHIResult::NotReady : RHI::ERHIResult::Success;
 }
 
+bool FLabProductionFrameContext::GetPendingCapture(FLabCaptureRequest& Out) const
+{ Out={}; return Impl_ && Impl_->Captures.GetPendingRequest(Out); }
 ELabCaptureStatus FLabProductionFrameContext::RequestCapture(const FLabCaptureRequest& Request,uint64 Now)
 {
     if (!Impl_ || !Impl_->bInitialized || Impl_->bFailed || Impl_->bShutdownStarted)

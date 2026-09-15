@@ -51,7 +51,9 @@ struct FImGuiLabAdapter::FImpl
     std::array<char, 65537> Text{};
     std::array<char, 4097> PresetInput{};
     std::array<char, 129> PresetFilename{'l','a','b','-','p','r','e','s','e','t','.','j','s','o','n',0};
-    Stoner::Core::FString PresetActionStatus;
+    Stoner::Core::FString PresetActionStatus, CaptureActionStatus;
+    std::array<char,97> CaptureName{'c','a','p','t','u','r','e',0};
+    bool IncludeCaptureUI=false;
     Stoner::Core::uint32 VertexCount = 0;
     Stoner::Core::uint64 FallbackCount = 0;
     Stoner::Core::uint64 DisplayGeneration = 0;
@@ -131,7 +133,7 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     const FLabSettingsCapabilities* Capabilities,
     const std::function<bool(float,float)>& EditNavigation,
     const std::function<bool()>& ResetCamera, const FLabPresetActions* Presets,
-    const FLabSessionStatistics* Statistics)
+    const FLabSessionStatistics* Statistics,const FLabCaptureActions* Captures)
 {
     Impl->Capture = {};
     Impl->bDrawReady = false;
@@ -382,6 +384,18 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
         if (Presets->bNativeActive) ImGui::TextUnformatted("Waiting for native output completion.");
         if (!Impl->PresetActionStatus.IsEmpty()) ImGui::TextWrapped("%s",Impl->PresetActionStatus.CStr());
         if (Presets->Failure && !Presets->Failure->IsEmpty()) ImGui::TextWrapped("%s",Presets->Failure->CStr());
+    }
+    if (Captures && ImGui::CollapsingHeader("Capture"))
+    {
+        ImGui::InputText("Capture name",Impl->CaptureName.data(),Impl->CaptureName.size());
+        ImGui::Checkbox("Include UI in output capture",&Impl->IncludeCaptureUI);
+        if (ImGui::Button("Capture output") && Captures->Request)
+            Impl->CaptureActionStatus=Captures->Request(Impl->CaptureName.data(),Impl->IncludeCaptureUI,false);
+        if (ImGui::Button("Capture selected numeric stage") && Captures->Request)
+            Impl->CaptureActionStatus=Captures->Request(Impl->CaptureName.data(),false,true);
+        ImGui::TextWrapped("SDR: exact-size PNG and JSON. HDR: numeric diagnostics only; no appearance comparison. Exports never update Accepted baselines.");
+        if (!Impl->CaptureActionStatus.IsEmpty()) ImGui::TextWrapped("%s",Impl->CaptureActionStatus.CStr());
+        if (Captures->Status) { const auto Status=Captures->Status(); if (!Status.IsEmpty()) ImGui::TextWrapped("%s",Status.CStr()); }
     }
     const bool Active = ImGui::IsAnyItemActive();
     Impl->Capture = {};

@@ -175,9 +175,19 @@ struct FInteractiveLabUICallbacks
     std::function<Stoner::Renderer::FUITextureLease(Stoner::Renderer::FUITextureId)> AcquireTexture;
 };
 
+struct FLabCaptureActions
+{
+    std::function<Stoner::Core::FString(const Stoner::Core::FString&,bool,bool)> Request;
+    std::function<Stoner::Core::FString()> Status;
+};
+
 class FInteractiveLabSession
 {
 public:
+    [[nodiscard]] bool ConfigureCaptureActions(FLabCaptureActions Actions);
+    [[nodiscard]] Stoner::Core::FString RequestCaptureExport(const Stoner::Core::FString& Name,
+        bool bIncludeUI=false,bool bNumeric=false);
+    [[nodiscard]] Stoner::Core::FString GetCaptureExportStatus() const;
     FInteractiveLabSession();
     ~FInteractiveLabSession();
 

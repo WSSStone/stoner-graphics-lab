@@ -439,7 +439,7 @@ void FVulkanLabSwapchainRuntime::DestroyAcquireSync(
 ERHIResult FVulkanLabSwapchainRuntime::ValidateSurfaceCompatibility(
     const FVulkanLabSwapchainCreateDesc& Desc,
     VkFormat& OutFormat,
-    VkColorSpaceKHR& OutColorSpace) noexcept
+    VkColorSpaceKHR& OutColorSpace,VkImageUsageFlags* OutImageUsage) noexcept
 {
     if (PhysicalDevice_ == VK_NULL_HANDLE || Surface_ == VK_NULL_HANDLE ||
         Desc.Width == 0 || Desc.Height == 0 ||
@@ -487,6 +487,17 @@ ERHIResult FVulkanLabSwapchainRuntime::ValidateSurfaceCompatibility(
 
     OutFormat = Desc.VulkanFormat == VK_FORMAT_UNDEFINED
         ? ToVulkanPresentationFormat(Desc.ColorFormat) : Desc.VulkanFormat;
+    if (OutImageUsage)
+    {
+        *OutImageUsage=Desc.ImageUsage;
+        VkFormatProperties Properties{};
+        vkGetPhysicalDeviceFormatProperties(PhysicalDevice_,OutFormat,&Properties);
+        // Capture is optional. Never add a usage unsupported by the surface
+        // or selected format, and never require it for ordinary presentation.
+        if ((Capabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) &&
+            (Properties.optimalTilingFeatures & VK_FORMAT_FEATURE_TRANSFER_SRC_BIT))
+            *OutImageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    }
     OutColorSpace = Desc.ColorSpace == VK_COLOR_SPACE_MAX_ENUM_KHR
         ? ToVulkanPresentationColorSpace(
             Stoner::RHI::ERHIPresentationColorSpace::SrgbNonlinear)
@@ -585,8 +596,9 @@ ERHIResult FVulkanLabSwapchainRuntime::CreateGeneration(
 
     VkFormat RequestedFormat = VK_FORMAT_UNDEFINED;
     VkColorSpaceKHR RequestedColorSpace = VK_COLOR_SPACE_MAX_ENUM_KHR;
+    VkImageUsageFlags ImageUsage=Desc.ImageUsage;
     const ERHIResult Compatibility = ValidateSurfaceCompatibility(
-        Desc, RequestedFormat, RequestedColorSpace);
+        Desc, RequestedFormat, RequestedColorSpace,&ImageUsage);
     if (Compatibility != ERHIResult::Success)
     {
         return Compatibility;
@@ -601,7 +613,7 @@ ERHIResult FVulkanLabSwapchainRuntime::CreateGeneration(
     SwapchainInfo.imageColorSpace = RequestedColorSpace;
     SwapchainInfo.imageExtent = {Desc.Width, Desc.Height};
     SwapchainInfo.imageArrayLayers = 1;
-    SwapchainInfo.imageUsage = Desc.ImageUsage;
+    SwapchainInfo.imageUsage = ImageUsage;
     SwapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     SwapchainInfo.preTransform = Desc.PreTransform;
     SwapchainInfo.compositeAlpha = Desc.CompositeAlpha;
@@ -647,6 +659,7 @@ ERHIResult FVulkanLabSwapchainRuntime::CreateGeneration(
     }
 
     OutGeneration.Desc = Desc;
+    OutGeneration.Desc.ImageUsage = ImageUsage;
     OutGeneration.Desc.VulkanFormat = RequestedFormat;
     OutGeneration.Desc.ColorSpace = RequestedColorSpace;
     OutGeneration.ImageCount = ImageCount;
@@ -1084,6 +1097,7 @@ ERHIResult FVulkanLabSwapchainRuntime::FillNativeImageRecord(
     OutRecord.Width = Generation->Desc.Width;
     OutRecord.Height = Generation->Desc.Height;
     OutRecord.ColorFormat = Generation->Desc.ColorFormat;
+    OutRecord.ImageUsage = Generation->Desc.ImageUsage;
     OutRecord.Swapchain = Generation->Swapchain;
     OutRecord.Image = Image.Image;
     OutRecord.ImageView = Image.ImageView;

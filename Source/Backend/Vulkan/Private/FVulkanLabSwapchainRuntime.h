@@ -50,6 +50,7 @@ struct FVulkanLabNativeImageRecord
     Stoner::Core::uint32 Height = 0;
     Stoner::RHI::ERHIFormat ColorFormat =
         Stoner::RHI::ERHIFormat::Unknown;
+    VkImageUsageFlags ImageUsage = 0;
     VkSwapchainKHR Swapchain = VK_NULL_HANDLE;
     VkImage Image = VK_NULL_HANDLE;
     VkImageView ImageView = VK_NULL_HANDLE;
@@ -266,7 +267,8 @@ private:
     [[nodiscard]] Stoner::RHI::ERHIResult ValidateSurfaceCompatibility(
         const FVulkanLabSwapchainCreateDesc& Desc,
         VkFormat& OutFormat,
-        VkColorSpaceKHR& OutColorSpace) noexcept;
+        VkColorSpaceKHR& OutColorSpace,
+        VkImageUsageFlags* OutImageUsage = nullptr) noexcept;
     void DestroyGeneration(FNativeGeneration& Generation) noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult CreateAcquireSync(
         FNativeAcquire& Acquire) noexcept;

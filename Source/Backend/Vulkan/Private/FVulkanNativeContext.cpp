@@ -3626,6 +3626,8 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::AcquireLabBorrowedTarget(
     TextureDesc.Format = Record.ColorFormat;
     TextureDesc.Usage = ERHITextureUsage::ColorAttachment |
         ERHITextureUsage::Present;
+    if (Record.ImageUsage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
+        TextureDesc.Usage |= ERHITextureUsage::CopySource;
     if (!IsValidRHITextureDesc(TextureDesc))
     {
         (void)Impl->LabRuntime->Cancel(Record.AcquisitionToken);

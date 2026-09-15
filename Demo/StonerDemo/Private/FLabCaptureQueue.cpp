@@ -32,6 +32,13 @@ void FLabCaptureQueue::Stop(FRecord& R,ELabCaptureStatus Status) noexcept
     if (Status==ELabCaptureStatus::TimedOut) ++Statistics.TimedOut;
     if (R.State==EState::Pending) R.State=EState::Ready;
 }
+bool FLabCaptureQueue::GetPendingRequest(FLabCaptureRequest& Out) const
+{
+    Out={};
+    for (const auto& R : Records)
+        if (R.State==EState::Pending && (!Out.RequestId || R.Completion.Request.RequestId<Out.RequestId)) Out=R.Completion.Request;
+    return Out.RequestId!=0;
+}
 ELabCaptureStatus FLabCaptureQueue::Request(const FLabCaptureRequest& Request,uint64 Now)
 {
     if (bClosed || bProcessing || !Request.RequestId || Request.RequestId<=LastRequest || !Request.Target.IsValid())

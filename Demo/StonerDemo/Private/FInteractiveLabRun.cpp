@@ -1,6 +1,8 @@
 #include "Application/FLabPreset.h"
 #include "Application/FLabPresetStorage.h"
 #include "FInteractiveLabRun.h"
+#include "FLabCaptureExport.h"
+#include "FProductionContentRuntime.h"
 
 #include "Application/FInteractiveLabSession.h"
 #include "Application/FLabSettingsSnapshot.h"
@@ -36,7 +38,7 @@ using Application::FWindowExtent;
 using Clock = std::chrono::steady_clock;
 
 bool ConfigureLabExports(Application::FInteractiveLabSession& Session, const FDemoConfiguration& Config,
-    Core::FString& Reason)
+    Core::FString& Reason, Application::FLabPresetStoreConfig* CaptureStore=nullptr)
 {
     Application::FLabPresetStoreConfig Store;
     Core::TArray<Core::FString> Protected = {"Content","Config","Validation","Build/Validation",
@@ -63,6 +65,7 @@ bool ConfigureLabExports(Application::FInteractiveLabSession& Session, const FDe
     Context.SoftwareRevision=STONER_LAB_STRINGIFY(STONER_DEMO_SOFTWARE_REVISION);
     if (!Session.ConfigurePresetExports(Store,Context))
     { Reason="Cannot configure preset export provenance or protection"; return false; }
+    if (CaptureStore) *CaptureStore=Store;
     return true;
 }
 
@@ -159,6 +162,99 @@ public:
     {
         Fail(std::string(Operation) + ": result=" + std::to_string(static_cast<int>(Result)) +
             "; " + Reason.ToStdString());
+    }
+
+    static Core::uint64 CaptureNow()
+    { return static_cast<Core::uint64>(std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now().time_since_epoch()).count()); }
+    Core::FString RequestCapture(Application::FInteractiveLabSession& Session,const Core::FString& Name,bool IncludeUI,bool Numeric)
+    {
+        if (!bSceneReady || ModeTransaction || bCapabilityRecovery || bNeedsResize || !FirstFailure.IsEmpty() ||
+            CaptureStore.ExportRoot.IsEmpty() || !Session.GetEffectiveSettings()) return "Capture unavailable until output is stable.";
+        const auto Text=Name.View();
+        if (Text.empty() || Text.size()>80 || !std::all_of(Text.begin(),Text.end(),[](char C) {
+            return (C>='a' && C<='z') || (C>='A' && C<='Z') || (C>='0' && C<='9') || C=='-' || C=='_';
+        })) return "Use 1-80 letters, digits, hyphens or underscores for the capture name.";
+        auto Slot=std::find_if(CaptureExports.begin(),CaptureExports.end(),[](const auto& E) { return !E.Id; });
+        if (Slot==CaptureExports.end()) return "Capture queue busy (two requests).";
+        if (NextCapture==std::numeric_limits<Core::uint64>::max()) return "Capture identity exhausted.";
+        const auto& Effective=*Session.GetEffectiveSettings();
+        FLabCaptureRequest R; R.RequestId=NextCapture++;
+        auto& I=R.Target;
+        I.SettingsGeneration=Effective.SettingsRevision;
+        I.DisplayGeneration=Session.GetDisplayState().DisplayGeneration;
+        I.OutputGeneration=Status.ResolvedState.ModeGeneration;
+        I.Width=CurrentExtent.Width; I.Height=CurrentExtent.Height;
+        I.OutputProfile=OutputResolved.OutputDeviceProfileId;
+        I.Stage=Numeric ? Effective.DebugBypass.StageName : Core::FString("FinalOutput");
+        if (I.Stage.IsEmpty()) return "Select a numeric diagnostic stage first.";
+        I.Format=Numeric ? RHI::ERHIFormat::R16G16B16A16_Float : Status.ResolvedState.Format;
+        I.bIncludeUI=IncludeUI && !Numeric;
+        if (I.bIncludeUI && !Session.IsUIEnabled()) return "Enable UI before requesting a UI-inclusive capture.";
+        I.Purpose=Numeric || OutputResolved.DynamicRange==Renderer::EOutputDynamicRange::HDR
+            ? ELabCapturePurpose::HDRNumeric : ELabCapturePurpose::SDRPreview;
+        const auto Result=Frames->RequestCapture(R,CaptureNow());
+        if (Result!=ELabCaptureStatus::Pending) return "Capture request rejected or busy.";
+        Slot->Id=R.RequestId; Slot->Stem=Core::FString(Name.ToStdString()+"-"+std::to_string(R.RequestId));
+        CaptureStatus="Capture queued."; return CaptureStatus;
+    }
+    void ConsumeCaptures(bool Stop=false)
+    {
+        if (Stop) for (const auto& E : CaptureExports) if (E.Id) (void)Frames->CancelCapture(E.Id);
+        FLabCaptureCompletion Completion;
+        Core::FString Failure;
+        const auto Done=Frames->ProcessCapture(++CaptureServiceFrame,CaptureNow(),[&](const auto& C,const auto& Buffer,const auto& Region) {
+            const auto Export=std::find_if(CaptureExports.begin(),CaptureExports.end(),[&](const auto& E) { return E.Id==C.Request.RequestId; });
+            Core::uint64 Bytes=0; Core::TArray<Core::uint8> Data;
+            if (Stop || Export==CaptureExports.end() ||
+                !RHI::TryGetRHITextureBufferCopyByteSize(Region,C.Request.Target.Format,Bytes) ||
+                ReadProductionBuffer(CaptureBackend,Backend->GetDevice(),Buffer,Bytes,Data)!=ERHIResult::Success)
+            { Failure="Capture readback failed."; return false; }
+            FLabCaptureEncoded Encoded;
+            if (!EncodeLabCapture(C,Data,STONER_LAB_STRINGIFY(STONER_DEMO_SOFTWARE_REVISION),Encoded))
+            { Failure="Capture encoding rejected."; return false; }
+            auto PayloadStore=CaptureStore;
+            if (!Encoded.bPNG)
+            {
+                Core::FString BuildRoot;
+                if (!Core::FPlatformFileSystem::CreateDirectory("Build/InteractiveLab/Raw") ||
+                    !Core::FPlatformFileSystem::CanonicalizeExistingPath("Build",BuildRoot).IsSuccess() ||
+                    !Core::FPlatformFileSystem::CanonicalizeExistingPath("Build/InteractiveLab/Raw",PayloadStore.ExportRoot).IsSuccess())
+                { Failure="Cannot prepare ignored raw capture storage."; return false; }
+                bool Inside=false;
+                if (!Core::FPlatformFileSystem::CheckContainedPath(BuildRoot,PayloadStore.ExportRoot,Inside).IsSuccess() || !Inside)
+                { Failure="Raw capture storage escaped Build."; return false; }
+            }
+            const auto Payload=Application::ExportLabFile(PayloadStore,Core::FString(Export->Stem.ToStdString()+(Encoded.bPNG ? ".png" : ".raw")),Encoded.Payload);
+            if (!Payload.bPublished || !Payload.Status.IsSuccess())
+            { Failure=Payload.bPublished ? "Capture payload published; durability confirmation failed." :
+                Payload.bTemporaryRetained ? "Capture export failed; temporary cleanup needs attention." :
+                "Capture payload export rejected; choose a new name."; return false; }
+            const auto Report=Application::ExportLabFile(CaptureStore,Core::FString(Export->Stem.ToStdString()+".json"),Encoded.Report);
+            if (!Report.bPublished || !Report.Status.IsSuccess())
+            { Failure=Report.bPublished ? "Capture payload and report published; durability confirmation failed." :
+                Report.bTemporaryRetained ? "Capture payload published; report temporary cleanup needs attention." :
+                "Capture payload published, but report publication failed; choose a new name."; return false; }
+            CaptureStatus=Core::FString("Capture exported: "+Report.TargetPath.ToStdString());
+            return true;
+        },Completion);
+        if (Done)
+        {
+            for (auto& E : CaptureExports) if (E.Id==Completion.Request.RequestId) E={};
+            if (Completion.Status!=ELabCaptureStatus::Success)
+            {
+                if (!Failure.IsEmpty()) CaptureStatus=Failure;
+                else switch (Completion.Status)
+                {
+                case ELabCaptureStatus::InvalidRequest: CaptureStatus="Capture unavailable: the selected image or output cannot be copied."; break;
+                case ELabCaptureStatus::GenerationMismatch: CaptureStatus="Capture cancelled: settings, output or UI changed before recording."; break;
+                case ELabCaptureStatus::TimedOut: CaptureStatus="Capture timed out; GPU resources have now retired."; break;
+                case ELabCaptureStatus::AllocationFailed: CaptureStatus="Capture staging allocation failed."; break;
+                case ELabCaptureStatus::DeviceLost: CaptureStatus="Capture cancelled because the graphics device stopped."; break;
+                case ELabCaptureStatus::Cancelled: CaptureStatus="Capture cancelled."; break;
+                default: CaptureStatus="Capture readback or export failed."; break;
+                }
+            }
+        }
     }
 
     bool Load(const FDemoConfiguration& Config, FWindowExtent Extent)
@@ -602,8 +698,20 @@ public:
             View.Extent = {CurrentExtent.Width, CurrentExtent.Height};
             Frame.DeferredInputs.Output.Extent = View.Extent;
             const auto RetainedBackend = Backend;
+            FLabCaptureRequest PendingCapture;
+            const bool HasCapture=Frames->GetPendingCapture(PendingCapture);
+            FLabCaptureFrame CaptureFrame;
+            if (HasCapture)
+            {
+                CaptureFrame={Slot.Token,PendingCapture.Target,Renderer::EFrameExecutionPurpose::InteractivePreview,true};
+                CaptureFrame.Identity.SettingsGeneration=Session.GetEffectiveSettings()->SettingsRevision;
+                CaptureFrame.Identity.DisplayGeneration=Session.GetDisplayState().DisplayGeneration;
+                CaptureFrame.Identity.OutputGeneration=Status.ResolvedState.ModeGeneration;
+                CaptureFrame.Identity.OutputProfile=OutputResolved.OutputDeviceProfileId;
+                CaptureFrame.Identity.Width=CurrentExtent.Width; CaptureFrame.Identity.Height=CurrentExtent.Height;
+            }
             FLabProductionFrameContext::FPrepareUI PrepareUI;
-            if (Session.IsUIEnabled() && UI)
+            if (Session.IsUIEnabled() && UI && (!HasCapture || PendingCapture.Target.bIncludeUI))
             {
                 PrepareUI = [&, Token=Slot.Token](const auto& Resources,Core::uint64 Available,
                     Core::TSharedPtr<Renderer::FUIRenderFrame>& OutFrame,
@@ -671,7 +779,7 @@ public:
                 [RetainedBackend](Core::uint64 Token, Core::uint32 SlotIndex,
                     const Core::TSharedPtr<RHI::IRHIFence>& Fence, bool& Acknowledged) {
                     return RetainedBackend->CancelLabTarget(Token, SlotIndex, Fence, Acknowledged);
-                }, Slot.Ticket, PrepareUI, &Reason);
+                }, Slot.Ticket, PrepareUI, &Reason,HasCapture ? &CaptureFrame : nullptr,CaptureNow());
             if (Recorded.Result != Renderer::EOutputTransformResult::Success)
             {
                 if (const auto* Error = Recorded.Diagnostics.GetFirstError()) Reason = Error->Message;
@@ -699,7 +807,7 @@ public:
                     LastRecordedSettingsRevision = Session.GetEffectiveSettings() ? Session.GetEffectiveSettings()->SettingsRevision : 1;
                 }
                 if (Resources && Resources->OutputTransformPlan.TerminalUI) ++UIFramesSubmitted;
-                else if (Session.IsUIEnabled())
+                else if (Session.IsUIEnabled() && (!HasCapture || PendingCapture.Target.bIncludeUI))
                 {
                     ++UISceneFallbackFrames;
                     if (UISceneFallbackFrames <= 8)
@@ -820,8 +928,9 @@ public:
         if (Request.Phase == EInteractiveLabServicePhase::Drain)
         {
             Progress(true);
+            ConsumeCaptures(true);
             Out.RetainedOwnerCount = BusySlots() + Presentations.size() + (Backend->GetDevice() ? 1 : 0);
-            Out.bCompleted = BusySlots() == 0 &&
+            Out.bCompleted = BusySlots() == 0 && Frames->Snapshot().Captures.Requests==0 &&
                 (Presentations.empty() || Status.RetirementMode == RHI::ERHIPresentationRetirementMode::AcquireHistory);
             Out.Status = Out.bCompleted ? EInteractiveLabServiceStatus::Success : EInteractiveLabServiceStatus::NotReady;
             Out.FirstFailure = FirstFailure;
@@ -856,6 +965,9 @@ public:
         Core::FString Reason;
         if (Frames->ReleaseAfterDeviceShutdown(Assurance, &Reason) != ERHIResult::Success)
         { Fail(Reason); Out.FirstFailure = FirstFailure; return Out; }
+        ConsumeCaptures(true);
+        if (Frames->Snapshot().Captures.Requests)
+        { Out.Status=EInteractiveLabServiceStatus::NotReady; return Out; }
         Slots = {};
         Presentations.clear();
         UI.reset(); UIShaders = {};
@@ -902,6 +1014,12 @@ public:
     Core::TArray<FPresentation> Presentations;
     FWindowExtent CurrentExtent;
     RHI::ERHIFormat PresentationFormat = RHI::ERHIFormat::Unknown;
+    struct FCaptureExport { Core::uint64 Id=0; Core::FString Stem; };
+    std::array<FCaptureExport,2> CaptureExports;
+    Application::FLabPresetStoreConfig CaptureStore;
+    EDemoGraphicsBackend CaptureBackend=EDemoGraphicsBackend::Vulkan;
+    Core::FString CaptureStatus;
+    Core::uint64 NextCapture=1, CaptureServiceFrame=0;
     Core::uint64 NextToken = 1;
     Core::uint32 Submitted = 0, Completed = 0, Presented = 0, CancelledSubmissions = 0;
     Core::uint32 UIFramesSubmitted = 0, UISceneFallbackFrames = 0, DiagnosticFramesSubmitted = 0;
@@ -975,7 +1093,7 @@ FInteractiveLabRunResult RunInteractiveLab(
             { Owner->Fail("initial lab settings could not match native output"); Started = false; }
             else if (!Session.ConfigurePresetWorkload({Config.WorkloadRevision,Config.ProductionRoot,Owner->Closure.SourceIdentity.ToLowerHex()}))
             { Owner->Fail("preset workload identity could not be registered"); Started = false; }
-            else if (!ConfigureLabExports(Session,Config,Owner->FirstFailure))
+            else if (!ConfigureLabExports(Session,Config,Owner->FirstFailure,&Owner->CaptureStore))
             { Started = false; }
             else if (!Config.LabPresetInput.IsEmpty() && !Session.RequestPresetFile(Config.LabPresetInput))
             { std::cerr << "InteractiveLab preset rejected: " << Session.GetPresetFailure().CStr() << std::endl; }
@@ -984,6 +1102,11 @@ FInteractiveLabRunResult RunInteractiveLab(
     }
     catch (const std::exception& Error) { Owner->Fail(Core::FString(Error.what())); }
     if (!Started) (void)Session.RequestExit(Owner->FirstFailure);
+    Owner->CaptureBackend=Config.GraphicsBackend;
+    if (Started)
+        (void)Session.ConfigureCaptureActions({
+            [Owner,&Session](const Core::FString& Name,bool IncludeUI,bool Numeric) { return Owner->RequestCapture(Session,Name,IncludeUI,Numeric); },
+            [Owner] { return Owner->CaptureStatus; }});
     auto Previous = Clock::now();
     auto LastProgress = Previous;
     Core::uint32 LastPresented = 0;
@@ -1019,6 +1142,7 @@ FInteractiveLabRunResult RunInteractiveLab(
                 Info.SceneFallbackFrames = Owner->UISceneFallbackFrames; Info.Failure = Owner->FirstFailure;
                 (void)Session.UpdateRuntimeInfo(Info);
             }
+            if (EventThreadOwnsBackend()) Owner->ConsumeCaptures();
             (void)Session.Service(Delta,EventThreadOwnsBackend() && Owner->CanPrepareUI());
             if (SessionService && EventThreadOwnsBackend()) SessionService(Session,Owner->Presented);
             if (Session.GetSettingsFailure() != LastSettingsFailure)

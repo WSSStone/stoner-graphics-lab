@@ -63,6 +63,7 @@ struct FInteractiveLabSession::FImpl
     FString PresetFailure;
     TArray<FString> ReadOnlyPresetPaths;
     std::optional<FLabPresetStoreConfig> PresetExports;
+    FLabCaptureActions CaptureActions;
     FLabPresetSourceContext PresetSourceContext;
     uint64 SettingsStart = 0;
     TArray<FLabControlSection> ControlSections;
@@ -407,6 +408,9 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
                     ? "Preset exported." : "Preset published; durability confirmation failed. Do not retry as a new export.");
                 return FString(Result.bTemporaryRetained ? "Export failed; temporary cleanup requires attention." : "Export rejected; destination was not published.");
             };
+            FLabCaptureActions Captures;
+            Captures.Request=[this](const FString& Name,bool IncludeUI,bool Numeric) { return RequestCaptureExport(Name,IncludeUI,Numeric); };
+            Captures.Status=[this] { return GetCaptureExportStatus(); };
             const auto Statistics=GetStatistics();
             const auto UIResult = S.UI->Frame(Raw,S.Display,DeltaSeconds,Eligible,S.ControlSections,
                 [this](const FString& Section,const FString& Control) { return InvokeSectionControl(Section,Control); },
@@ -421,7 +425,8 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
                 },S.Settings ? &S.Settings->GetCapabilities() : nullptr,
                 [this](float Speed,float Fov) { return SetNavigationParameters(Speed,Fov) == EApplicationResult::Success; },
                 [this] { return ExecuteCameraCommand(EInteractiveLabCameraCommand::Reset) == EApplicationResult::Success; },
-                S.PresetWorkload ? &Presets : nullptr,&Statistics);
+                S.PresetWorkload ? &Presets : nullptr,&Statistics,
+                S.CaptureActions.Request ? &Captures : nullptr);
             Capture = S.UI->GetCapture();
             if (UIResult == EApplicationResult::Success) S.UIFailure.Clear();
             else if (S.UI->GetTextureResult() != Stoner::RHI::ERHIResult::NotReady)
@@ -654,6 +659,26 @@ bool FInteractiveLabSession::RequestPresetFile(const FString& Path)
     const auto Status = FLabPresetStore::Read(InputPath,*S.PresetWorkload,S.Settings->GetCapabilities().DebugStages,Candidate);
     if (!Status.IsSuccess()) { S.PresetFailure = FString("Cannot import preset: "+InputPath.ToStdString()+" ("+Status.Context.ToStdString()+")"); return false; }
     return RequestPreset(Candidate);
+}
+bool FInteractiveLabSession::ConfigureCaptureActions(FLabCaptureActions Actions)
+{
+    auto& S=*Impl;
+    if (S.Terminal || S.CaptureActions.Request || !Actions.Request || !Actions.Status) return false;
+    S.CaptureActions=std::move(Actions); return true;
+}
+FString FInteractiveLabSession::RequestCaptureExport(const FString& Name,bool IncludeUI,bool Numeric)
+{
+    auto& S=*Impl;
+    if (S.Terminal || S.bDrainOnly || !S.CaptureActions.Request || !S.Settings ||
+        S.PendingPreset || S.Settings->GetActive() || S.Settings->IsPaused() ||
+        S.PendingIntent.IsValid() || S.ActiveIntent.IsValid() || S.Display.bMinimized ||
+        !S.Display.DrawableExtent.IsPositive()) return "Capture unavailable until the session is stable.";
+    return S.CaptureActions.Request(Name,IncludeUI,Numeric);
+}
+FString FInteractiveLabSession::GetCaptureExportStatus() const
+{
+    const auto& S=*Impl;
+    return !S.Terminal && !S.bDrainOnly && S.CaptureActions.Status ? S.CaptureActions.Status() : FString{};
 }
 bool FInteractiveLabSession::ConfigurePresetExports(const FLabPresetStoreConfig& Config, const FLabPresetSourceContext& Context)
 {

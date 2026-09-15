@@ -1,4 +1,6 @@
 #include "FLabCaptureQueue.h"
+#include "FLabCaptureExport.h"
+#include "Core/FPlatformFileSystem.h"
 #include "VulkanRHI/FVulkanDevice.h"
 #include <iostream>
 #include <limits>
@@ -25,6 +27,41 @@ int RunInteractiveLabCaptureTests()
 {
     int Failed=0;
     auto Check=[&](bool OK,const char* Name) { std::cout<<(OK ? "[PASS] " : "[FAIL] ")<<Name<<'\n'; if (!OK) ++Failed; };
+    {
+        FLabCaptureCompletion C{Request(),7,ELabCaptureStatus::Success};
+        Core::TArray<Core::uint8> RGBA;
+        for (unsigned I=0;I<256;++I) RGBA.insert(RGBA.end(),{17,34,51,255});
+        FLabCaptureEncoded Encoded;
+        Check(EncodeLabCapture(C,RGBA,"fixture-software",Encoded) && Encoded.bPNG &&
+            Encoded.Payload.size()>8 && Encoded.Payload[0]==137 && !Encoded.Report.empty(),
+            "SDR capture encodes a bounded PNG and identity report");
+        auto BGRA=RGBA;
+        for (size_t I=0;I<BGRA.size();I+=4) std::swap(BGRA[I],BGRA[I+2]);
+        C.Request.Target.Format=ERHIFormat::B8G8R8A8_UNorm;
+        FLabCaptureEncoded Swizzled;
+        Check(EncodeLabCapture(C,BGRA,"fixture-software",Swizzled) && Swizzled.Payload==Encoded.Payload,
+            "BGRA capture preserves exact channels when encoding PNG");
+        (void)Core::FPlatformFileSystem::CreateDirectory("Build/Validation/030");
+        Check(Core::FPlatformFileSystem::WriteFile("Build/Validation/030/capture-codec.png",Encoded.Payload) &&
+            Core::FPlatformFileSystem::WriteFile("Build/Validation/030/capture-codec.json",Encoded.Report),
+            "capture codec writes ignored artifacts for independent PNG and JSON verification");
+        C.Request.Target.Format=ERHIFormat::R16G16B16A16_Float;
+        C.Request.Target.Purpose=ELabCapturePurpose::HDRNumeric;
+        C.Request.Target.Stage="ManualExposure";
+        const Core::TArray<Core::uint8> Numeric(16*16*8,0);
+        Check(EncodeLabCapture(C,Numeric,"fixture-software",Swizzled) && !Swizzled.bPNG && Swizzled.Payload==Numeric,
+            "numeric capture preserves raw bytes without generating an HDR PNG");
+        C.Request.Target.Purpose=ELabCapturePurpose::SDRPreview;
+        Check(!EncodeLabCapture(C,Numeric,"fixture-software",Swizzled),
+            "SDR encoder rejects float16 diagnostic data instead of converting appearance");
+        C.Request.Target=Request().Target;
+        C.Status=ELabCaptureStatus::Cancelled;
+        Check(!EncodeLabCapture(C,RGBA,"fixture-software",Swizzled),
+            "cancelled capture cannot publish encoded success");
+        C.Status=ELabCaptureStatus::Success; RGBA.pop_back();
+        Check(!EncodeLabCapture(C,RGBA,"fixture-software",Swizzled),
+            "capture codec rejects a truncated exact-size readback");
+    }
     auto Device=Core::MakeShared<Backend::Vulkan::FVulkanDevice>();
     Backend::Vulkan::FVulkanInstanceDesc Desc;
     Desc.RuntimeMode=Backend::Vulkan::EVulkanInstanceRuntimeMode::DeterministicFallback;

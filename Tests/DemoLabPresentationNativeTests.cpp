@@ -687,6 +687,59 @@ void RunReplacementRecovery(int& Failed, const Demo::FDemoConfiguration& Config)
         Result.AfterNativeShutdown.RuntimeSnapshot.NativePresentation.ResidualNativeOwners == 0,
         "replacement failure recovery retains zero readbacks, live idle waits and residual native owners");
 }
+void RunCaptureExports(int& Failed,Demo::FDemoConfiguration Config,bool HDR=false)
+{
+    Config.bLabUI=true; Config.FrameBudget=4096;
+    Config.ClientWidth=320; Config.ClientHeight=180;
+    Config.OutputDeviceProfileId=HDR ? "Hdr.PQ.Rec2020.1000.v1" : "Sdr.sRGB.v1";
+    Config.OutputTransformVersion=HDR ? Renderer::GInitialHDRViewingVersion : Renderer::GDefaultSDRToneMapVersion;
+    const auto Name="native-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+    const auto Root=std::filesystem::path("Build/InteractiveLab/Exports")/Name;
+    Config.LabExportRoot=Core::FString(Root.string());
+    unsigned Stage=0; bool Passed=true,Busy=false;
+    const auto Start=std::chrono::steady_clock::now();
+    const auto Result=Demo::RunInteractiveLab(Config,Demo::FDemoBackendFactory(),{},
+        [&](Application::FInteractiveLabSession& Session,Core::uint32 Presented) {
+            if (std::chrono::steady_clock::now()-Start>std::chrono::seconds(15))
+            { Passed=false; std::cout<<"[INFO] capture failure="<<Session.GetCaptureExportStatus().CStr()<<'\n'; (void)Session.RequestExit("capture fixture timed out"); return; }
+            if (Presented<3 || !Session.GetEffectiveSettings()) return;
+            if (Stage==0)
+            {
+                Passed &= Session.RequestCaptureExport(Name,false,false)==Core::FString("Capture queued.");
+                Passed &= Session.RequestCaptureExport(Name,true,false)==Core::FString("Capture queued.");
+                Busy=Session.RequestCaptureExport(Name,false,false).ToStdString().find("busy")!=std::string::npos;
+                Stage=1;
+            }
+            else if (Stage==1 && std::filesystem::exists(Root/(Name+"-2.json")))
+            {
+                auto Edit=*Session.GetRequestedSettings();
+                Edit.DebugBypass.Mode=Renderer::EOutputTransformDebugBypassMode::HDRPreservingReadback;
+                Edit.DebugBypass.StageName="ManualExposure";
+                Edit.DebugBypass.SourceDomain=Renderer::ERenderGraphColorDomain::SceneLinearRec709D65;
+                Passed &= Session.RequestSettings(Edit); Stage=2;
+            }
+            else if (Stage==2 && Session.GetEffectiveSettings()->DebugBypass.StageName==Core::FString("ManualExposure"))
+            { Passed &= Session.RequestCaptureExport(Name,false,true)==Core::FString("Capture queued."); Stage=3; }
+            else if (Stage==3 && std::filesystem::exists(Root/(Name+"-3.json")))
+            { Stage=4; (void)Session.RequestExit(); }
+        });
+    std::cout<<"[INFO] capture-root="<<Root.string()<<" stage="<<Stage<<" failure="<<Result.FirstFailure.CStr()<<'\n';
+    Check(Failed,Passed && Busy && Stage==4 && Result.ExitCode==Demo::EDemoExitCode::Success,
+        "native capture actions queue scene/UI output and numeric capture while rejecting a third request");
+    const auto& Ops=Result.BeforeNativeShutdown.RuntimeSnapshot.NativeOperations;
+    Check(Failed,Ops.ImageReadbackCopyCount==3 && Ops.ReadbackMapCount==3 && Ops.ReadbackWaitCount==0 &&
+        Ops.QueueIdleCallCount==0 && Ops.DeviceIdleCallCount==0 &&
+        Result.UISceneFallbackFrames+Result.UIFramesSubmitted+2==Result.SubmittedFrames &&
+        Result.FinalFrameState.Captures.Requests==0 && Result.FinalFrameState.Captures.StagingBytes==0,
+        "native capture consumer performs exactly three explicit copies and drains without live idle");
+    const auto PayloadRoot=HDR ? std::filesystem::path("Build/InteractiveLab/Raw") : Root;
+    const auto Extension=HDR ? ".raw" : ".png";
+    Check(Failed,std::filesystem::exists(PayloadRoot/(Name+"-1"+Extension)) && std::filesystem::exists(PayloadRoot/(Name+"-2"+Extension)) &&
+        (!HDR || (!std::filesystem::exists(Root/(Name+"-1.png")) && !std::filesystem::exists(Root/(Name+"-2.png")))) &&
+        !std::filesystem::exists(Root/(Name+"-3.png")) && std::filesystem::exists(std::filesystem::path("Build/InteractiveLab/Raw")/(Name+"-3.raw")),
+        "native exports retain PNG only for SDR output and keep numeric raw data under ignored Build storage");
+}
+
 void RunDiagnosticPanel(int& Failed)
 {
     const auto Env = [](const char* Name) { const char* Value = std::getenv(Name); return Core::FString(Value ? Value : ""); };
@@ -708,6 +761,8 @@ void RunDiagnosticPanel(int& Failed)
     Config.WorkloadRevision = Env("STONER_LAB_SCENE_WORKLOAD");
     Config.TargetProfilePath = Env("STONER_LAB_SCENE_PROFILE");
     Config.LeaseCoordinationRoot = Env("STONER_LAB_SCENE_LEASE_ROOT");
+    RunCaptureExports(Failed,Config);
+    if (Config.GraphicsBackend==Demo::EDemoGraphicsBackend::Metal) RunCaptureExports(Failed,Config,true);
     const bool Metal=Config.GraphicsBackend==Demo::EDemoGraphicsBackend::Metal;
     for (int Case=0; Case<(Metal ? 6 : 4); ++Case)
     {

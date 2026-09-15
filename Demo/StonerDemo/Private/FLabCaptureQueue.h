@@ -72,6 +72,7 @@ public:
     FLabCaptureQueue() = default;
     FLabCaptureQueue(const FLabCaptureQueue&) = delete;
     FLabCaptureQueue& operator=(const FLabCaptureQueue&) = delete;
+    [[nodiscard]] bool GetPendingRequest(FLabCaptureRequest& Out) const;
     [[nodiscard]] ELabCaptureStatus Request(const FLabCaptureRequest&, Core::uint64 Now);
     [[nodiscard]] ELabCaptureStatus PrepareNext(const FLabCaptureFrame&,
         const Core::TSharedPtr<RHI::IRHIDevice>&,
