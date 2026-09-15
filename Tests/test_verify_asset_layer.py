@@ -40,6 +40,19 @@ class AssetArchitectureVerifierTests(unittest.TestCase):
     def test_minimal_layout_passes(self) -> None:
         self.assertEqual([], _MODULE.verify(self.root))
 
+    def test_shared_private_json_library(self) -> None:
+        asset=self.root/'Source/Asset/SConscript'
+        asset.write_text(asset.read_text().replace('ThirdParty/yyjson/yyjson.c',
+            '#ThirdParty/yyjson/SConscript\nprivate_libraries=yyjson_library'))
+        shared=self.root/'ThirdParty/yyjson/SConscript';shared.parent.mkdir(parents=True)
+        shared.write_text("json_env.Object('yyjson', File('#ThirdParty/yyjson/yyjson.c'))\n")
+        self.assertEqual([], _MODULE.verify(self.root))
+        asset.write_text(asset.read_text()+'\nThirdParty/yyjson/yyjson.c\n')
+        self.assertTrue(any('yyjson' in error for error in _MODULE.verify(self.root)))
+        asset.write_text(asset.read_text().replace('\nThirdParty/yyjson/yyjson.c\n',''))
+        shared.write_text('')
+        self.assertTrue(any('yyjson' in error for error in _MODULE.verify(self.root)))
+
     def test_detects_public_native_and_third_party_leaks(self) -> None:
         header = self.root / "Source/Asset/Public/Asset/Leak.h"
         header.write_text("#include <cgltf.h>\nVkImage Image;\n", encoding="utf-8")

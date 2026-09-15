@@ -184,9 +184,17 @@ def verify(root: pathlib.Path) -> list[str]:
             "Source/Asset/SConscript: do not expose the yyjson directory as "
             "an include path because VERSION shadows standard <version>"
         )
-    if "ThirdParty/yyjson/yyjson.c" not in sconscript:
+    shared_json = root / "ThirdParty/yyjson/SConscript"
+    direct_json = "ThirdParty/yyjson/yyjson.c" in sconscript
+    uses_shared_json = "#ThirdParty/yyjson/SConscript" in sconscript
+    shared_json_valid = (shared_json.is_file() and
+        "ThirdParty/yyjson/yyjson.c" in shared_json.read_text(encoding="utf-8") and
+        "private_libraries=yyjson_library" in sconscript)
+    if (uses_shared_json and (direct_json or not shared_json_valid)) or (
+        not uses_shared_json and not direct_json
+    ):
         errors.append(
-            "Source/Asset/SConscript: yyjson must compile as a private C source"
+            "Source/Asset/SConscript: yyjson must compile once as a private C source or shared private library"
         )
     for source in (
         "ThirdParty/cgltf/cgltf.c",

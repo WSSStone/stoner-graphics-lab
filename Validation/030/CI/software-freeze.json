@@ -1,9 +1,9 @@
 {
   "schema": "stoner.interactive-lab-software-freeze",
   "schemaVersion": 1,
-  "softwareRevision": "31519b15dc44fea61151eac3ce6345cf5a340129",
+  "softwareRevision": "97c09338eb321a6df5f1fef1fd3bb9161eee4ce0",
   "status": "invalidated",
-  "cleanCheckout": "Build/Worktrees/030-frozen-31519b15",
+  "cleanCheckout": "Build/Worktrees/030-frozen-97c09338",
   "policyIdentities": [
     {
       "path": ".github/scripts/acquire_production_corpus.py",
@@ -223,7 +223,7 @@
     },
     {
       "path": ".github/workflows/feature-030-interactive-lab.yml",
-      "sha256": "386ff9e4a16a0a1fda59264a89ebd883c4bbb9a1f878e5b981609617a7b0ad0b"
+      "sha256": "f0390a5936ae95e2928bed964482ea9a0145fb89ab87ee3016573e6c0bb66171"
     },
     {
       "path": "Config/AssetCooker/Profiles/Production/Linux-Vulkan.json",
@@ -323,11 +323,13 @@
     }
   ],
   "intelMacos": "skipped-by-maintainer-2026-09-08",
-  "hostedStatus": "blocked-push-authorization",
+  "hostedStatus": "running",
   "physicalStatus": "pending",
   "humanStatus": "pending-current-review",
   "invalidation": "Any implementation or validation-policy change requires a new freeze and repetition of affected runs.",
   "evidenceOnlyCommits": "Later evidence/documentation commits retain this tested software revision; run producers from the exact frozen checkout.",
   "preflight": "Validation/030/CI/preflight.json",
-  "invalidationReason": "First hosted run exposed GLFW 3.3 header incompatibility and Windows parallel PDB writes; source/workflow corrections require a new freeze."
+  "hostedRunUrl": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34963871700",
+  "supersedes": "31519b15dc44fea61151eac3ce6345cf5a340129",
+  "invalidationReason": "GCC temporary-validator warning and stale Asset yyjson build-boundary rule require source/checker corrections."
 }

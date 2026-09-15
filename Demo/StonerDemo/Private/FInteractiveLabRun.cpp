@@ -425,7 +425,8 @@ public:
         Caps.DisplayGeneration = Generation;
         Caps.DebugStages.push_back({"SceneColorHandoff",Renderer::ERenderGraphColorDomain::SceneLinearRec709D65,{}});
         Caps.DebugStages.push_back({"ManualExposure",Renderer::ERenderGraphColorDomain::SceneLinearRec709D65,{}});
-        for (const auto& Profile : Renderer::FOutputTransformSettingsValidator().GetProfiles())
+        const Renderer::FOutputTransformSettingsValidator ProfileValidator;
+        for (const auto& Profile : ProfileValidator.GetProfiles())
         {
             Application::FLabSettingsSnapshot Settings;
             Settings.EffectiveProfileId = Profile.ProfileId;

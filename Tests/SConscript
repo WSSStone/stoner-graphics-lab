@@ -454,6 +454,9 @@ asset_layer_boundary = test_env.Command(
     [asset_layer_script, architecture_script],
     Action(_verify_asset_layer, 'Verifying Asset -> Core architecture boundary'),
 )
+# The verifier scans source/build boundaries beyond its two entry scripts.
+# Do not reuse a stamp after those scanned files change.
+test_env.AlwaysBuild(asset_layer_boundary)
 test_env.Depends(program, asset_layer_boundary)
 
 asset_cooker_contract_script = File('#Tests/verify_asset_cooker_contracts.py')

@@ -100,7 +100,8 @@ int RunApplicationLabPresetTests()
     Bad.Workload.Revision=Bad.Workload.ProductionRoot=Bad.SourceContext.Backend=Bad.SourceContext.SoftwareRevision=
         FString(std::string(4096,'\1'));
     Reject(Bad,"escaped identity expansion cannot exceed the complete encoded byte budget");
-    for (const auto& Profile : FOutputTransformSettingsValidator().GetProfiles())
+    const FOutputTransformSettingsValidator ProfileValidator;
+    for (const auto& Profile : ProfileValidator.GetProfiles())
     {
         auto Changed=P; Changed.Output.RequestedProfileId=Profile.ProfileId;
         Changed.Camera.YawRadians=std::numeric_limits<float>::denorm_min();
