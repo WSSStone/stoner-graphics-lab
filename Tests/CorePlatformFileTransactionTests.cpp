@@ -130,8 +130,16 @@ FCorePlatformFileTransactionTestResult RunCorePlatformFileTransactionTests()
             ToString(Root), ToString(Outside), bContained).IsSuccess() &&
         !bContained,
         "Canonical containment rejects sibling paths");
+    Record(Result,
+        FPlatformFileSystem::CheckContainedPath(
+            ToString(Root), ToString(Root / "new-parent" / "new.bin"), bContained).IsSuccess() &&
+        bContained && !std::filesystem::exists(Root / "new-parent"),
+        "Canonical containment accepts an uncreated suffix without creating it");
+    Record(Result,
+        FPlatformFileSystem::CheckContainedPath(
+            ToString(Root), ToString(Outside / "new.bin"), bContained).IsSuccess() && !bContained,
+        "Canonical containment rejects an uncreated sibling destination");
 
-#if !SG_PLATFORM_WINDOWS
     std::filesystem::create_directory_symlink(Outside, Root / "Escape", Error);
     if (!Error)
     {
@@ -141,15 +149,17 @@ FCorePlatformFileTransactionTestResult RunCorePlatformFileTransactionTests()
                     .IsSuccess() &&
             !bContained,
             "Canonical containment rejects symlink escape");
+        Record(Result,
+            FPlatformFileSystem::CheckContainedPath(
+                ToString(Root), ToString(Root / "Escape" / "new.bin"), bContained).IsSuccess() &&
+            !bContained,
+            "Canonical containment resolves links before appending an uncreated suffix");
     }
     else
     {
-        Record(Result, true, "Symlink escape fixture unavailable on host");
+        std::cout << "[UNSUPPORTED] Symlink escape fixture unavailable on host\n";
         Error.clear();
     }
-#else
-    Record(Result, true, "Junction escape coverage runs in Windows CI");
-#endif
 
     const std::filesystem::path MoveSource = Root / "MoveSource";
     const std::filesystem::path MoveDestination = Root / "MoveDestination";

@@ -82,7 +82,8 @@ jobs:
                   'application-ui-input','application-ui-texture','application-ui-draw','ui-texture-registry','renderer-ui-draw',
                   'renderer-ui-color','production-content-demo','renderer-output-transform','output-presentation-lifecycle',
                   'rhi-deferred-submission','rhi-lab-contract','rhi-presentation-output','application-window',
-                  'production-camera-preview','renderer-output-transform-math','asset-material-shader']
+                  'production-camera-preview','renderer-output-transform-math','asset-material-shader',
+                  'core-file-transaction','core-file-no-replace']
               if job.endswith(('debug','release')) or os.environ.get('LAB_SANITIZERS'):
                   check('focused',[test]+[a for s in suites for a in ['--suite',s]],600)
               if job.endswith(('debug','release')):

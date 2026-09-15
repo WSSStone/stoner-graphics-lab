@@ -103,6 +103,39 @@ std::filesystem::path CanonicalExisting(
 #endif
 }
 
+std::filesystem::path CanonicalCandidate(
+    const std::filesystem::path& Path, std::error_code& Error)
+{
+#if SG_PLATFORM_WINDOWS
+    // A publication destination need not exist yet. Resolve its nearest
+    // existing ancestor through a handle so junctions still participate in
+    // containment, then append only the missing suffix.
+    auto Ancestor = std::filesystem::absolute(Path, Error);
+    if (Error) return {};
+    std::filesystem::path Suffix;
+    for (;;)
+    {
+        std::filesystem::path Resolved;
+        const auto Status = Detail::PlatformCanonicalPath(Ancestor, Resolved);
+        if (Status.IsSuccess())
+        {
+            Error.clear();
+            return (Suffix.empty() ? Resolved : Resolved / Suffix).lexically_normal();
+        }
+        const auto Parent = Ancestor.parent_path();
+        if (Status.Result != EPlatformFileResult::NotFound || Parent == Ancestor || Parent.empty())
+        {
+            Error = std::error_code(static_cast<int>(Status.NativeError), std::system_category());
+            return {};
+        }
+        Suffix = Suffix.empty() ? Ancestor.filename() : Ancestor.filename() / Suffix;
+        Ancestor = Parent;
+    }
+#else
+    return CanonicalExisting(Path, Error);
+#endif
+}
+
 } // namespace
 
 std::filesystem::path Detail::ToNativePath(const FString& Path)
@@ -485,14 +518,14 @@ FPlatformFileStatus FPlatformFileSystem::CheckContainedPath(
         return Detail::MakeFileStatus(
             ClassifyError(Error), Error.value(), "containment:root");
     }
-    const auto CanonicalCandidate =
-        CanonicalExisting(Detail::ToNativePath(Candidate), Error);
+    const auto ResolvedCandidate =
+        CanonicalCandidate(Detail::ToNativePath(Candidate), Error);
     if (Error)
     {
         return Detail::MakeFileStatus(
             ClassifyError(Error), Error.value(), "containment:candidate");
     }
-    OutContained = IsContainedCanonical(CanonicalRoot, CanonicalCandidate);
+    OutContained = IsContainedCanonical(CanonicalRoot, ResolvedCandidate);
     return {};
 }
 
