@@ -153,6 +153,9 @@ private:
     static constexpr std::size_t MaximumVertices = 262144;
     static constexpr std::size_t MaximumIndices = 786432;
     static constexpr std::size_t MaximumCommands = 4096;
+    static_assert(MaximumVertices*sizeof(FUIVertex) + MaximumIndices*sizeof(Stoner::Core::uint32) +
+        MaximumCommands*sizeof(FUIDrawCommand) + 512*(sizeof(FUITextureId)+sizeof(FUITextureLease)) <=
+        9ull*1024*1024, "bounded UI packet storage must fit the frozen 9 MiB allowance");
 
     Stoner::Core::uint64 SessionId = 0;
     Stoner::Core::uint64 FrameId = 0;

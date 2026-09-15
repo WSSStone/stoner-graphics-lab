@@ -618,6 +618,10 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
             Resources->Bindings.OutputTransformStages.back().Input == Frame->GetOutput() &&
             UIContext.Snapshot().ActiveAttachmentBytes == BaseBytes + static_cast<Core::uint64>(Width)*Height*8,
             "Lab slot records leased terminal UI before the sole output transfer and counts its target budget");
+        Record(Result,UIContext.Snapshot().ActiveUIDrawBytes>0 &&
+            UIContext.Snapshot().ActiveUIDrawBytes<=FLabProductionFrameLimits::MaxUIDrawPacketBytes &&
+            UIContext.Snapshot().PeakUIDrawBytes==UIContext.Snapshot().ActiveUIDrawBytes,
+            "lab accounts actual retained UI commands and leases within the per-slot packet allowance");
         // The same atlas cannot be sampled by a second frame until its upload completes.
         auto BusyComposition = Composition; BusyComposition.FrameToken = 82;
         (void)UIContext.ReserveFrame(82,1); (void)UIContext.BeginFrame(82,1,MakeTarget(82,1,1));
@@ -924,6 +928,15 @@ void TestLabFrameContext(FProductionContentDemoTestResult& Result,
         Resources0->OutputSettings.DiagnosticBypass.Mode==Renderer::EOutputTransformDebugBypassMode::Disabled,
         "numeric selection retains stage/domain/range without readback or mutation of the submitted slot");
     const auto Submitted1 = Context.SubmitFrame(102, 1);
+    const auto LiveBytes = Context.Snapshot().ActiveAttachmentBytes;
+    const auto BeforeResize = Device->Ledger()->Created.size();
+    Record(Result,Resources0 && SettingsResources1 && LiveBytes==
+        Resources0->AttachmentBytes+SettingsResources1->AttachmentBytes &&
+        Context.Snapshot().PeakAttachmentBytes==LiveBytes &&
+        Context.Reconfigure(Width+1,Height)==RHI::ERHIResult::NotReady &&
+        Context.Snapshot().ActiveAttachmentBytes==LiveBytes &&
+        Device->Ledger()->Created.size()==BeforeResize,
+        "pending resize retains and counts both live slot targets without allocating replacement attachments");
     const auto Third = Context.ReserveFrame(103, 0);
     bool bCompleted = true;
     const auto Pending = Context.PollRender(101, 0, bCompleted);

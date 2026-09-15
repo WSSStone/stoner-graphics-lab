@@ -189,6 +189,7 @@ struct FLabProductionFrameContext::FImpl
     uint64 ProvenPresentationReleaseCount = 0;
     uint64 ActiveAttachmentBytes = 0;
     uint64 PeakAttachmentBytes = 0;
+    uint64 PeakUIDrawBytes = 0;
     uint64 LastFrameToken = 0;
     uint32 LastFrameSlot = 0;
     ELabProductionFrameState LastFrameState =
@@ -232,8 +233,10 @@ struct FLabProductionFrameContext::FImpl
     void RefreshAttachmentBytes() noexcept
     {
         ActiveAttachmentBytes = 0;
+        uint64 DrawBytes = 0;
         for (const FSlot& Slot : Slots)
         {
+            if (Slot.UIFrame) DrawBytes += Slot.UIFrame->GetRetainedDrawBytes();
             if (!Slot.bResourcesBuilt) continue;
             uint64 NewTotal = 0;
             if (!AddBytes(ActiveAttachmentBytes,
@@ -247,6 +250,7 @@ struct FLabProductionFrameContext::FImpl
         }
         PeakAttachmentBytes = std::max(PeakAttachmentBytes,
             ActiveAttachmentBytes);
+        PeakUIDrawBytes = std::max(PeakUIDrawBytes,DrawBytes);
     }
 
     bool IsRenderSlotReusable(const FSlot& Slot) const noexcept
@@ -840,7 +844,8 @@ RHI::ERHIResult FLabProductionFrameContext::RecordFrame(
             const auto DiagnosticBytes = UI->GetDiagnosticAttachmentBytes();
             // The preparer receives the aggregate allowance before allocation.
             // Verify its returned owner before binding or recording any pass.
-            Prepared = DiagnosticBytes > Available - Required ? ERHIResult::Unavailable
+            Prepared = DiagnosticBytes > Available - Required ||
+                UI->GetRetainedDrawBytes() > FLabProductionFrameLimits::MaxUIDrawPacketBytes ? ERHIResult::Unavailable
                 : FProductionContentDeferredExecutionBuilder::BindPreviewUI(UI, Slot->Resources, OutputGraph);
             if (Prepared == ERHIResult::Success)
             {
@@ -1230,6 +1235,9 @@ FLabProductionFrameContextSnapshot FLabProductionFrameContext::Snapshot() const
     Out.LastUIPreparationResult = Impl_->LastUIPreparationResult;
     Out.ActiveAttachmentBytes = Impl_->ActiveAttachmentBytes;
     Out.PeakAttachmentBytes = Impl_->PeakAttachmentBytes;
+    Out.PeakUIDrawBytes = Impl_->PeakUIDrawBytes;
+    for (const auto& Slot : Impl_->Slots)
+        if (Slot.UIFrame) Out.ActiveUIDrawBytes += Slot.UIFrame->GetRetainedDrawBytes();
     Out.Captures = Impl_->Captures.GetStatistics();
     Out.RetainedPresentationCount =
         static_cast<uint32>(Impl_->Presentations.size());

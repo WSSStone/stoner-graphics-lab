@@ -164,7 +164,7 @@ ERHIResult FUICompositionExecutor::RecordDiagnostic(FUIDiagnosticFrame& Frame, c
 struct FUICompositionFrame::FImpl
 {
     TSharedPtr<IRHITexture> Scene, Output;
-    FUIDrawSnapshot Snapshot;
+    TArray<FUITextureLease> TextureLeases;
     FUIGpuTextureContext GpuContext;
     TArray<FUIValidatedCommand> Commands;
     FPass Copy, Draw;
@@ -176,9 +176,16 @@ struct FUICompositionFrame::FImpl
 };
 TSharedPtr<IRHITexture> FUICompositionFrame::GetOutput() const noexcept { return Impl ? Impl->Output : nullptr; }
 bool FUICompositionFrame::HasDraws() const noexcept { return Impl && Impl->Output != Impl->Scene; }
+uint64 FUICompositionFrame::GetRetainedDrawBytes() const noexcept
+{
+    // Geometry has already been uploaded. Only validated commands and texture
+    // generation leases remain CPU-owned until render retirement.
+    return Impl ? Impl->TextureLeases.capacity()*sizeof(FUITextureLease) +
+        Impl->Commands.capacity()*sizeof(FUIValidatedCommand) : 0;
+}
 bool FUICompositionFrame::CanRecord(const FUITextureRegistry& Registry) const noexcept
 { return Impl && !Impl->bRecorded && (!HasDraws() ||
-    Registry.CanRecordSubmission(Impl->Snapshot.GetTextureLeases(),Impl->GpuContext.Graph ? &Impl->GpuContext : nullptr) == ERHIResult::Success); }
+    Registry.CanRecordSubmission(Impl->TextureLeases,Impl->GpuContext.Graph ? &Impl->GpuContext : nullptr) == ERHIResult::Success); }
 ERHIResult FUICompositionExecutor::Prepare(const TSharedPtr<IRHIDevice>& Device,
     const FUIDrawSnapshot& Snapshot, const FUIDrawValidationContext& Context,
     const FUICompositionSettings& Settings, FUITextureRegistry& Registry,
@@ -216,7 +223,7 @@ ERHIResult FUICompositionExecutor::Prepare(const TSharedPtr<IRHIDevice>& Device,
         const auto Available = Registry.CanRecordSubmission(Snapshot.GetTextureLeases(),GpuContext);
         if (Available != ERHIResult::Success) return Available;
         if (DrawShaders.size() != 2 || CopyShaders.size() != 2) return ERHIResult::InvalidState;
-        Candidate->Snapshot = Snapshot;
+        Candidate->TextureLeases.assign(Snapshot.GetTextureLeases().begin(),Snapshot.GetTextureLeases().end());
         if (GpuContext) Candidate->GpuContext=*GpuContext;
         Candidate->Commands = std::move(Validated.Commands);
         FRHITextureDesc Target = Scene->GetDesc();
@@ -281,7 +288,7 @@ ERHIResult FUICompositionExecutor::Record(FUICompositionFrame& Frame, FUITexture
     auto& S = *Frame.Impl;
     S.bRecorded = true;
     if (!Frame.HasDraws()) return ERHIResult::Success;
-    auto Result = Registry.RecordSubmission(S.Snapshot.GetTextureLeases(),Command,Submission,S.GpuContext.Graph ? &S.GpuContext : nullptr);
+    auto Result = Registry.RecordSubmission(S.TextureLeases,Command,Submission,S.GpuContext.Graph ? &S.GpuContext : nullptr);
     if (Result != ERHIResult::Success) return Result;
     const auto Width = S.Output->GetDesc().Width, Height = S.Output->GetDesc().Height;
     const auto Step = [&](ERHIResult R) { if (Result == ERHIResult::Success) Result = R; return R == ERHIResult::Success; };
@@ -308,7 +315,7 @@ ERHIResult FUICompositionExecutor::Record(FUICompositionFrame& Frame, FUITexture
     {
         if (C.Draw.Operation == EUIDrawOperation::ResetState)
         { if (!BindState()) return Result; continue; }
-        const auto& Leases = S.Snapshot.GetTextureLeases();
+        const auto& Leases = S.TextureLeases;
         const auto It = std::find_if(Leases.begin(),Leases.end(),[&](const auto& L) { return L.GetId() == C.Draw.TextureId; });
         if (It == Leases.end()) return ERHIResult::InvalidState;
         if (!Step(Command->SetScissor({C.ScissorX,C.ScissorY,C.ScissorWidth,C.ScissorHeight})) ||

@@ -27,6 +27,7 @@ struct FLabProductionFrameLimits
     static constexpr Core::uint64 MaxDrawablePixels = 7864320;
     static constexpr Core::uint64 MaxAttachmentBytes =
         1024ULL * 1024ULL * 1024ULL;
+    static constexpr Core::uint64 MaxUIDrawPacketBytes = 9ULL * 1024ULL * 1024ULL;
 };
 
 enum class ELabProductionFrameState : Core::uint8
@@ -69,6 +70,7 @@ struct FLabProductionFrameContextSnapshot
     Core::uint32 RetainedPresentationCount = 0;
     Core::uint64 ActiveAttachmentBytes = 0;
     Core::uint64 PeakAttachmentBytes = 0;
+    Core::uint64 ActiveUIDrawBytes = 0, PeakUIDrawBytes = 0;
     FLabCaptureStatistics Captures;
     Core::uint64 LastFrameToken = 0;
     Core::uint32 LastFrameSlot = 0;

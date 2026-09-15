@@ -39,6 +39,7 @@ public:
     [[nodiscard]] bool HasDraws() const noexcept;
     [[nodiscard]] bool HasDiagnostic() const noexcept;
     [[nodiscard]] Stoner::Core::uint64 GetDiagnosticAttachmentBytes() const noexcept;
+    [[nodiscard]] Stoner::Core::uint64 GetRetainedDrawBytes() const noexcept;
     [[nodiscard]] bool CanRecord() const noexcept;
     [[nodiscard]] Stoner::RHI::ERHIResult Record(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHICommandBuffer>& Command);
     [[nodiscard]] Stoner::RHI::ERHIResult Commit(const Stoner::Core::TSharedPtr<Stoner::RHI::IRHIFence>& RenderFence) noexcept;

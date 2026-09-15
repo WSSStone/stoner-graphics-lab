@@ -44,8 +44,10 @@ int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders&
         FUIDrawSnapshot Draw(1,1,1,1);
         const FUIVertex Vertices[] = {{{0,0},{0,0},0xffffffff},{{16,0},{1,0},0xffffffff},{{0,16},{0,1},0xffffffff}};
         const Core::uint32 Indices[] = {0,1,2};
+        Core::TArray<FUIVertex> PaddedVertices(1024,Vertices[0]);
+        std::copy(std::begin(Vertices),std::end(Vertices),PaddedVertices.begin());
         FUIDrawCommand Item; Item.IndexCount = 3; Item.TextureId = Texture.TextureId; Item.ClipRect = {0,0,16,16};
-        const bool Packet = Draw.SetDisplay({0,0},{16,16},{1,1}) && Draw.SetVertices(Vertices) &&
+        const bool Packet = Draw.SetDisplay({0,0},{16,16},{1,1}) && Draw.SetVertices(PaddedVertices) &&
             Draw.SetIndices(Indices) && Draw.SetCommands({&Item,1}) && Draw.SetTextureLeases({&Lease,1}) && Draw.Publish();
         FUIDrawValidationContext Context{1,1,1,0,16,16,{}};
         FUICompositionSettings Settings;
@@ -63,6 +65,8 @@ int RunUICompositionPreparationTests(const Stoner::Demo::FInteractiveLabShaders&
             Frame.HasDraws() && Frame.GetOutput() && Frame.GetOutput() != Scene,
             "composition preflight prepares a distinct target and complete leased resources"))
         {
+            Check(Frame.GetRetainedDrawBytes()<1024,
+                "prepared UI retains commands and texture leases without duplicating uploaded CPU geometry");
             const auto Original = Frame.GetOutput();
             auto Bad = Context; Bad.DisplayGeneration = 2;
             Check(FUICompositionExecutor::Prepare(Device,Draw,Bad,Settings,Registry,Scene,

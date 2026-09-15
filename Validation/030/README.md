@@ -1185,3 +1185,7 @@ T078–T092 reviewed; overall 92/127. `Build/Validation/030/us5.json` records so
 ## US6 lifecycle and capture queue checkpoint — 2026-09-15
 
 T093/T094 reviewed; overall 94/127. Strict Debug/Release each pass 322 focused assertions, including 48 capture queue assertions. Metal Debug and Vulkan Release existing native UI/preset regressions pass 80/66 with zero implicit readbacks/live idles/final owners. The Xcode license blocker is resolved. Queue ownership, capacity, exact identity, cancellation and timeout tests do not establish native captured-image correctness; GPU copy, consumer/export and remaining US6 implementation review stay pending. Local working-tree log digests are in `Build/Validation/030/us6-lifecycle-capture.json`; no formal/human hardware authority is claimed, and Intel macOS remains skipped.
+
+## US6 resource bounds review — 2026-09-15
+
+T095/T096 complete; overall 96/127. UI frames retain validated commands and texture leases after geometry upload, eliminating the redundant CPU geometry copy. Pending-resize tests verify retained target accounting and no premature replacement allocation. Strict Debug/Release each pass 366 focused assertions; Metal Debug/Vulkan Release each pass 217 native UI/diagnostic/parity assertions. Local log digests and the red regression are in `Build/Validation/030/us6-bounds.json`. T097 onward remains pending; these working-tree checks claim no formal/human authority, and Intel macOS remains skipped.

@@ -111,6 +111,8 @@ ERHIResult FUIRenderSession::PrepareFrame(const FUIDrawSnapshot& Snapshot,
 }
 TSharedPtr<IRHITexture> FUIRenderFrame::GetInput() const noexcept
 { return Impl && !Impl->bRetired ? Impl->Scene : nullptr; }
+uint64 FUIRenderFrame::GetRetainedDrawBytes() const noexcept
+{ return Impl && !Impl->bRetired ? Impl->Composition.GetRetainedDrawBytes() : 0; }
 TSharedPtr<IRHITexture> FUIRenderFrame::GetOutput() const noexcept
 { return Impl && !Impl->bRetired ? Impl->Composition.GetOutput() : nullptr; }
 const FUICompositionSettings* FUIRenderFrame::GetSettings() const noexcept
