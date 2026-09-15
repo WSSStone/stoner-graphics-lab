@@ -199,6 +199,13 @@ public:
     }
     void ConsumeCaptures(bool Stop=false)
     {
+        if (CaptureTask.IsActive())
+        {
+            Core::FString Result;
+            if (!CaptureTask.Poll(Result)) return;
+            CaptureStatus=std::move(Result);
+            CaptureStaging.reset();
+        }
         if (Stop) for (const auto& E : CaptureExports) if (E.Id) (void)Frames->CancelCapture(E.Id);
         FLabCaptureCompletion Completion;
         Core::FString Failure;
@@ -209,32 +216,38 @@ public:
                 !RHI::TryGetRHITextureBufferCopyByteSize(Region,C.Request.Target.Format,Bytes) ||
                 ReadProductionBuffer(CaptureBackend,Backend->GetDevice(),Buffer,Bytes,Data)!=ERHIResult::Success)
             { Failure="Capture readback failed."; return false; }
+            const auto Store=CaptureStore;
+            const auto Stem=Export->Stem;
+            if (!CaptureTask.Start([C,Data=std::move(Data),Store,Stem]() -> Core::FString {
             FLabCaptureEncoded Encoded;
             if (!EncodeLabCapture(C,Data,STONER_LAB_STRINGIFY(STONER_DEMO_SOFTWARE_REVISION),Encoded))
-            { Failure="Capture encoding rejected."; return false; }
-            auto PayloadStore=CaptureStore;
+            { return "Capture encoding rejected."; }
+            auto PayloadStore=Store;
             if (!Encoded.bPNG)
             {
                 Core::FString BuildRoot;
                 if (!Core::FPlatformFileSystem::CreateDirectory("Build/InteractiveLab/Raw") ||
                     !Core::FPlatformFileSystem::CanonicalizeExistingPath("Build",BuildRoot).IsSuccess() ||
                     !Core::FPlatformFileSystem::CanonicalizeExistingPath("Build/InteractiveLab/Raw",PayloadStore.ExportRoot).IsSuccess())
-                { Failure="Cannot prepare ignored raw capture storage."; return false; }
+                { return "Cannot prepare ignored raw capture storage."; }
                 bool Inside=false;
                 if (!Core::FPlatformFileSystem::CheckContainedPath(BuildRoot,PayloadStore.ExportRoot,Inside).IsSuccess() || !Inside)
-                { Failure="Raw capture storage escaped Build."; return false; }
+                { return "Raw capture storage escaped Build."; }
             }
-            const auto Payload=Application::ExportLabFile(PayloadStore,Core::FString(Export->Stem.ToStdString()+(Encoded.bPNG ? ".png" : ".raw")),Encoded.Payload);
+            const auto Payload=Application::ExportLabFile(PayloadStore,Core::FString(Stem.ToStdString()+(Encoded.bPNG ? ".png" : ".raw")),Encoded.Payload);
             if (!Payload.bPublished || !Payload.Status.IsSuccess())
-            { Failure=Payload.bPublished ? "Capture payload published; durability confirmation failed." :
+            { return Payload.bPublished ? "Capture payload published; durability confirmation failed." :
                 Payload.bTemporaryRetained ? "Capture export failed; temporary cleanup needs attention." :
-                "Capture payload export rejected; choose a new name."; return false; }
-            const auto Report=Application::ExportLabFile(CaptureStore,Core::FString(Export->Stem.ToStdString()+".json"),Encoded.Report);
+                "Capture payload export rejected; choose a new name."; }
+            const auto Report=Application::ExportLabFile(Store,Core::FString(Stem.ToStdString()+".json"),Encoded.Report);
             if (!Report.bPublished || !Report.Status.IsSuccess())
-            { Failure=Report.bPublished ? "Capture payload and report published; durability confirmation failed." :
+            { return Report.bPublished ? "Capture payload and report published; durability confirmation failed." :
                 Report.bTemporaryRetained ? "Capture payload published; report temporary cleanup needs attention." :
-                "Capture payload published, but report publication failed; choose a new name."; return false; }
-            CaptureStatus=Core::FString("Capture exported: "+Report.TargetPath.ToStdString());
+                "Capture payload published, but report publication failed; choose a new name."; }
+            return Core::FString("Capture exported: "+Report.TargetPath.ToStdString());
+            })) { Failure="Cannot start capture export worker."; return false; }
+            CaptureStaging=Buffer;
+            CaptureStatus="Capture encoding/export in progress.";
             return true;
         },Completion);
         if (Done)
@@ -938,6 +951,14 @@ public:
         }
         if (!Request.bTerminalOnly) { Out.Status = EInteractiveLabServiceStatus::Invalid; return Out; }
         Out.RetainedOwnerCount = BusySlots() + Presentations.size() + 1;
+        // Publication owns CPU bytes only, but keep its charged staging alias
+        // until it finishes. The session watchdog bounds a blocked filesystem.
+        if (CaptureTask.IsActive())
+        {
+            Core::FString Result;
+            if (!CaptureTask.Poll(Result)) return Out;
+            CaptureStatus=std::move(Result); CaptureStaging.reset();
+        }
         if (!bDeviceClosed)
         {
             if (!bRecordedPreShutdown)
@@ -1016,6 +1037,8 @@ public:
     RHI::ERHIFormat PresentationFormat = RHI::ERHIFormat::Unknown;
     struct FCaptureExport { Core::uint64 Id=0; Core::FString Stem; };
     std::array<FCaptureExport,2> CaptureExports;
+    FLabCaptureExportTask CaptureTask;
+    Core::TSharedPtr<RHI::IRHIBuffer> CaptureStaging;
     Application::FLabPresetStoreConfig CaptureStore;
     EDemoGraphicsBackend CaptureBackend=EDemoGraphicsBackend::Vulkan;
     Core::FString CaptureStatus;

@@ -10,6 +10,30 @@
 
 namespace Stoner::Demo
 {
+FLabCaptureExportTask::~FLabCaptureExportTask()
+{ if (Worker.joinable()) Worker.join(); }
+bool FLabCaptureExportTask::Start(std::function<Core::FString()> Work)
+{
+    if (Worker.joinable() || !Work) return false;
+    Done.store(false,std::memory_order_relaxed);
+    try
+    {
+        Worker=std::thread([this,Work=std::move(Work)]() mutable {
+            try { Result=Work(); }
+            catch (...) { Result="Capture export failed unexpectedly."; }
+            Work={};
+            Done.store(true,std::memory_order_release);
+        });
+    }
+    catch (...) { return false; }
+    return true;
+}
+bool FLabCaptureExportTask::Poll(Core::FString& Out)
+{
+    if (!Worker.joinable() || !Done.load(std::memory_order_acquire)) return false;
+    Worker.join(); Out=std::move(Result); return true;
+}
+
 namespace
 {
 using namespace Core;

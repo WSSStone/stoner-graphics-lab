@@ -28,6 +28,28 @@ int RunInteractiveLabCaptureTests()
     int Failed=0;
     auto Check=[&](bool OK,const char* Name) { std::cout<<(OK ? "[PASS] " : "[FAIL] ")<<Name<<'\n'; if (!OK) ++Failed; };
     {
+        FLabCaptureExportTask Task;
+        std::atomic<bool> Release{false},Entered{false};
+        Core::FString Result;
+        const bool Started=Task.Start([&] {
+            Entered.store(true);
+            while (!Release.load()) std::this_thread::yield();
+            return Core::FString("published");
+        });
+        Check(Started && !Task.Start([] { return Core::FString("extra"); }),
+            "capture export task admits exactly one worker");
+        while (Started && !Entered.load()) std::this_thread::yield();
+        bool Pending=true;
+        for (unsigned I=0;I<1000;++I) Pending=Pending && !Task.Poll(Result);
+        Check(Pending && Task.IsActive(),"blocked publication leaves event polling available and retains worker ownership");
+        Release.store(true);
+        while (Task.IsActive() && !Task.Poll(Result)) std::this_thread::yield();
+        Check(Result=="published" && !Task.IsActive(),"completed publication is collected exactly once");
+        Check(Task.Start([]() -> Core::FString { throw 1; }),"capture worker can be reused after retirement");
+        while (Task.IsActive() && !Task.Poll(Result)) std::this_thread::yield();
+        Check(Result=="Capture export failed unexpectedly.","capture worker exception becomes a controlled failure");
+    }
+    {
         FLabCaptureCompletion C{Request(),7,ELabCaptureStatus::Success};
         Core::TArray<Core::uint8> RGBA;
         for (unsigned I=0;I<256;++I) RGBA.insert(RGBA.end(),{17,34,51,255});
