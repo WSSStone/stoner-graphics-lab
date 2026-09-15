@@ -14,6 +14,12 @@ namespace
 {
 using namespace Stoner::Renderer;
 using namespace Stoner::RHI;
+// Hosted CPU Vulkan can spend several seconds executing the first output
+// shader. This is a finite offscreen-test wait, not a live-loop allowance.
+Stoner::Core::uint64 NativeParityWaitBudget(const IRHIDevice& Device)
+{
+    return Device.GetRuntimeSnapshot().bSoftwareDevice ? 30'000'000 : 5'000'000;
+}
 FForwardFramePlan ForwardFixture()
 {
     using namespace Stoner::Core;
@@ -204,7 +210,7 @@ int RunInteractiveLabForwardNativeParity(const Stoner::Demo::FProductionContentL
     const auto Before=Device->GetRuntimeSnapshot().NativeOperations;
     if (!Check(Queue && SceneFence && FForwardFrameExecutor().Execute(Plan,Bindings).Succeeded() &&
         Queue->SubmitDeferred(Bindings.CommandBuffer,{}, {},SceneFence)==ERHIResult::Success &&
-        SceneFence->Wait(5000000)==ERHIResult::Success,
+        SceneFence->Wait(NativeParityWaitBudget(*Device))==ERHIResult::Success,
         "Forward parity executes the actual cooked mesh on the GPU")) return Failed;
     auto& Stages=Output.Bindings.OutputTransformStages;
     Stages[0].Input=Bindings.OutputTexture;
@@ -278,7 +284,7 @@ int RunInteractiveLabForwardNativeParity(const Stoner::Demo::FProductionContentL
             ? Queue->SubmitDeferred(Command,{}, {},Fence) : ERHIResult::InvalidState;
         OK=OK && EndResult==ERHIResult::Success && SubmitResult==ERHIResult::Success;
         if (OK && Mode==2) OK=Submission.Commit(Fence)==ERHIResult::Success;
-        const auto WaitResult=OK ? Fence->Wait(5000000) : ERHIResult::InvalidState;
+        const auto WaitResult=OK ? Fence->Wait(NativeParityWaitBudget(*Device)) : ERHIResult::InvalidState;
         if (!OK || WaitResult!=ERHIResult::Success)
             std::cout << "[INFO] Forward terminal mode=" << Mode << " end=" << static_cast<int>(EndResult)
                 << " submit=" << static_cast<int>(SubmitResult) << " wait=" << static_cast<int>(WaitResult) << '\n';
@@ -299,7 +305,7 @@ int RunInteractiveLabForwardNativeParity(const Stoner::Demo::FProductionContentL
             ReadCommand->RecordLayoutTransition(Barrier)==ERHIResult::Success &&
             ReadCommand->RecordTextureToBufferCopy(Stages.back().Output,Buffer,Region)==ERHIResult::Success &&
             ReadCommand->End()==ERHIResult::Success && Queue->SubmitDeferred(ReadCommand,{}, {},ReadFence)==ERHIResult::Success &&
-            ReadFence->Wait(5000000)==ERHIResult::Success;
+            ReadFence->Wait(NativeParityWaitBudget(*Device))==ERHIResult::Success;
         if (OK) OK=(Metal ? Backend::Metal::ReadMetalBufferForValidation(Device,Buffer,0,8192,Pixels) :
             std::dynamic_pointer_cast<Backend::Vulkan::FVulkanDevice>(Device)->ReadbackBufferForTesting(Buffer,0,8192,Pixels))==ERHIResult::Success;
         if (!Check(OK && Pixels.size()==8192,"Forward fixture captures exact 64x32 encoded output")) return Failed;
@@ -399,7 +405,7 @@ static int RunDeferredNativeUIOffParity(const Stoner::Core::TSharedPtr<Stoner::R
         auto Fence=Device->CreateFence(false).Object;
         const auto Before=Device->GetRuntimeSnapshot().NativeOperations;
         if (!Check(Queue && Fence && FDeferredFrameExecutor().Execute(Resources->Plan,Resources->Graph,Bindings).Succeeded() &&
-            Queue->SubmitDeferred(Bindings.CommandBuffer,{}, {},Fence)==ERHIResult::Success && Fence->Wait(5000000)==ERHIResult::Success,
+            Queue->SubmitDeferred(Bindings.CommandBuffer,{}, {},Fence)==ERHIResult::Success && Fence->Wait(NativeParityWaitBudget(*Device))==ERHIResult::Success,
             "UI-off formal and preview execute the complete native Deferred scene and output chain")) return Failed;
         const auto After=Device->GetRuntimeSnapshot().NativeOperations;
         Check(After.ImageReadbackCopyCount-Before.ImageReadbackCopyCount==(IsPreview ? 0U : 6U) &&
@@ -423,7 +429,7 @@ static int RunDeferredNativeUIOffParity(const Stoner::Core::TSharedPtr<Stoner::R
                 Command->RecordLayoutTransition(Barrier)==ERHIResult::Success &&
                 Command->RecordTextureToBufferCopy(Borrowed,It->Destination,It->Region)==ERHIResult::Success &&
                 Command->End()==ERHIResult::Success && Queue->SubmitDeferred(Command,{}, {},ReadFence)==ERHIResult::Success &&
-                ReadFence->Wait(5000000)==ERHIResult::Success,
+                ReadFence->Wait(NativeParityWaitBudget(*Device))==ERHIResult::Success,
                 "preview comparison explicitly captures only after ordinary rendering completes")) return Failed;
         }
         TArray<uint8> Pixels;
@@ -476,7 +482,7 @@ static int RunDeferredNativeUIOffParity(const Stoner::Core::TSharedPtr<Stoner::R
             Captures.Submit(1,100,Fence),
             "native explicit capture shares the selected render command and completion fence")) return Failed;
         Prepared={};
-        if (!Check(Fence->Wait(5000000)==ERHIResult::Success,
+        if (!Check(Fence->Wait(NativeParityWaitBudget(*Device))==ERHIResult::Success,
             "native capture fixture observes actual GPU completion")) return Failed;
         Captures.Poll(102);
         if (!Check(Bindings.CommandBuffer->Reset()==ERHIResult::Success,

@@ -29,3 +29,7 @@ Run [34966098179](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/3
 ## Hosted attempt 5
 
 Run [34968637036](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34968637036) at `5675abd2` passed all three macOS jobs, shader producer, medium integration and Linux TSan. Linux focused tests crashed; ASan located the empty snapshot access at `ApplicationUIDrawTests.cpp:69`. The fixture used constructor-free `ImVector::resize` for draw commands, leaving callback fields uninitialized. Explicit element initialization and guarded snapshot reads correct this undefined fixture state. Windows focused tests timed out after the same extraction assertion failed; its resolution still requires rerun. Linux native separately failed Forward terminal submission; detailed recording/end/submit/wait diagnostics are being added without relaxing its gate.
+
+## Hosted attempt 6
+
+Run [34979771796](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34979771796) at `d6e4244f` passed Linux Debug/Release, ASan/UBSan and TSan, all three macOS jobs, medium integration and shader producer. The ImGui fixture correction removes the Linux crash. Linux native now reports Forward terminal `end=Success`, `submit=Success`, `wait=Timeout`: the five-second offscreen fence budget expires on software Vulkan. The fixture gives observed software devices a finite thirty-second wait; hardware keeps five seconds and application lifecycle deadlines are unchanged. Windows and the next run still require verification.
