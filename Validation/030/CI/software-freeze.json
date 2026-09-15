@@ -2,7 +2,7 @@
   "schema": "stoner.interactive-lab-software-freeze",
   "schemaVersion": 1,
   "softwareRevision": "31519b15dc44fea61151eac3ce6345cf5a340129",
-  "status": "frozen",
+  "status": "invalidated",
   "cleanCheckout": "Build/Worktrees/030-frozen-31519b15",
   "policyIdentities": [
     {
@@ -328,5 +328,6 @@
   "humanStatus": "pending-current-review",
   "invalidation": "Any implementation or validation-policy change requires a new freeze and repetition of affected runs.",
   "evidenceOnlyCommits": "Later evidence/documentation commits retain this tested software revision; run producers from the exact frozen checkout.",
-  "preflight": "Validation/030/CI/preflight.json"
+  "preflight": "Validation/030/CI/preflight.json",
+  "invalidationReason": "First hosted run exposed GLFW 3.3 header incompatibility and Windows parallel PDB writes; source/workflow corrections require a new freeze."
 }

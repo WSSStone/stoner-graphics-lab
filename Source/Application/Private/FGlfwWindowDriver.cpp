@@ -32,8 +32,12 @@ public:
         bOwnsGlfw = true;
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_VISIBLE, Desc.bVisible ? GLFW_TRUE : GLFW_FALSE);
+#if defined(GLFW_SCALE_FRAMEBUFFER)
+        // GLFW 3.4 adds the cross-platform framebuffer scaling hint. Older
+        // headers keep their platform default and the Cocoa hint below.
         glfwWindowHint(GLFW_SCALE_FRAMEBUFFER,
             Desc.bHighDensityFramebuffer ? GLFW_TRUE : GLFW_FALSE);
+#endif
         glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER,
             Desc.bHighDensityFramebuffer ? GLFW_TRUE : GLFW_FALSE);
         Window = glfwCreateWindow(static_cast<int>(Desc.ClientWidth), static_cast<int>(Desc.ClientHeight), Desc.Title.CStr(), nullptr, nullptr);

@@ -73,7 +73,7 @@ jobs:
               print(name,code,size,flush=True)
               if code:raise RuntimeError(name+' failed: '+str(code))
           try:
-              build=[sys.executable,'-m','SCons','config='+config,'strict=1','-j2']
+              build=[sys.executable,'-m','SCons','config='+config,'strict=1','-j1' if platform=='Win64' else '-j2']
               if os.environ.get('LAB_SANITIZERS'):build+=['sanitizers='+os.environ['LAB_SANITIZERS']]
               check('build',build,4200)
               suites=['interactive-lab-values','interactive-lab-settings','interactive-lab-lifecycle','interactive-lab-capture',
