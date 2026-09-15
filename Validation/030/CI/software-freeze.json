@@ -1,0 +1,332 @@
+{
+  "schema": "stoner.interactive-lab-software-freeze",
+  "schemaVersion": 1,
+  "softwareRevision": "31519b15dc44fea61151eac3ce6345cf5a340129",
+  "status": "frozen",
+  "cleanCheckout": "Build/Worktrees/030-frozen-31519b15",
+  "policyIdentities": [
+    {
+      "path": ".github/scripts/acquire_production_corpus.py",
+      "sha256": "a2d0f8bc689de9723ba2cda49dee694c42667ee00632bebcddb4cada1c99e361"
+    },
+    {
+      "path": ".github/scripts/aggregate_output_transform_validation.py",
+      "sha256": "99aee0d7141a1f3e6765c4b3c2c8fcd921cafc0dc6aa16587e0285c1bd8cbc92"
+    },
+    {
+      "path": ".github/scripts/aggregate_production_medium.py",
+      "sha256": "5236a3be917206c289fb256f5001a0d336093ada4a9062449a3663240048a2a6"
+    },
+    {
+      "path": ".github/scripts/build_production_corpus_manifest.py",
+      "sha256": "92a6cb1bddac2231ca3e678d9a662004cd9019f1c47a69f18f0f4199f0c3c537"
+    },
+    {
+      "path": ".github/scripts/compare_output_transform_images.py",
+      "sha256": "6525221a007c4d6472edf18d8afb000d6a58dfff2c2724d6a3b0545de66ef281"
+    },
+    {
+      "path": ".github/scripts/compare_production_images.py",
+      "sha256": "3b578475dfae00bd25b7daabb8132859d4f5550e1c0a5d1cbdf19e1e6c57bca9"
+    },
+    {
+      "path": ".github/scripts/interactive_lab_validation.py",
+      "sha256": "a97e3b1e241581bf1fd8e02b935d239ee47bc3e4e6c694f551fc11de27e373af"
+    },
+    {
+      "path": ".github/scripts/output_transform_common.py",
+      "sha256": "15a641bf9cb3cf43a7d7898e6af590a9822e321a651a95dea901f79709dcfabe"
+    },
+    {
+      "path": ".github/scripts/output_transform_provenance.py",
+      "sha256": "a7ab39e9769ffa00a38659fe3ef124c3d41b2646b8874e6afd2aa6e8d308c292"
+    },
+    {
+      "path": ".github/scripts/production_acceptance_report.py",
+      "sha256": "23096908c6b84c887f6def0945bb1b01d99a219e6c45d7d58dad29b6b23fadd4"
+    },
+    {
+      "path": ".github/scripts/production_content_manifest.py",
+      "sha256": "6a4dd9ab03b4b8be28e518440d84f453c036aa0a8924ab6dc708019139d27370"
+    },
+    {
+      "path": ".github/scripts/resolve_production_artifact.py",
+      "sha256": "9a57f70cd8e14ed66468f656b22af5715dfd9cddc16666d9659602e2e6b771e9"
+    },
+    {
+      "path": ".github/scripts/run_asset_cooker_validation.py",
+      "sha256": "4661a49e0609e966e56dbc1efcc6e555c9d93d6750c02aa0b489be388d7588cf"
+    },
+    {
+      "path": ".github/scripts/run_deferred_validation.py",
+      "sha256": "ee82ee14694773d7247fc41a2d72208ccb10675a290da17f59f190a812204617"
+    },
+    {
+      "path": ".github/scripts/run_metal_native_cook.py",
+      "sha256": "d20e510bcd71682e9eb176b753e3c658c659d0f15b3e93225459cf4e0d3f5563"
+    },
+    {
+      "path": ".github/scripts/run_metal_render_acceptance.py",
+      "sha256": "faf12024941f3f7239265e567cc55423d264543448e6fc258cb30fe86f0aa660"
+    },
+    {
+      "path": ".github/scripts/run_metal_validation.py",
+      "sha256": "5af85d1dc2bfe5a43b2e5570e59c9f69854614e46a40ba6352b3ab82eac1ab5a"
+    },
+    {
+      "path": ".github/scripts/run_output_transform_validation.py",
+      "sha256": "591747694c3f959ff73c142ec728776dcf73c10274e1e54c0cda14f33c8d7d96"
+    },
+    {
+      "path": ".github/scripts/run_production_content_validation.py",
+      "sha256": "8d21717588fa181658a2a2ae754a9e7b575bd27ccfd424fe417f899b3dda7470"
+    },
+    {
+      "path": ".github/scripts/run_production_image_calibration.py",
+      "sha256": "18aedbff59d653ff93a82863f9fe4d03416026fb0399266dd90eb491e0dd5794"
+    },
+    {
+      "path": ".github/scripts/run_runtime_asset_manager_validation.py",
+      "sha256": "218c2c44cada6f76231cefe126a8fb1b2b5dba29ed7450deaf7699dcd48264c7"
+    },
+    {
+      "path": ".github/scripts/run_static_model_validation.py",
+      "sha256": "a0508897e1e1f4ed9043c85fbc900dcc0f902052e8a6bf10b7e0142db7472e6b"
+    },
+    {
+      "path": ".github/scripts/run_triangle_demo_validation.py",
+      "sha256": "4e425368ec02d95c8c5b49b713d39b317e8bfa1e1bbb5ba046c7f41a536406fd"
+    },
+    {
+      "path": ".github/scripts/test_acquire_production_corpus.py",
+      "sha256": "4d97327c62e4937b5a4364bbea0545dfb57269cc8631749765c7590171c6f7f8"
+    },
+    {
+      "path": ".github/scripts/test_aggregate_output_transform_validation.py",
+      "sha256": "279f1c2e27ab7d5a0004de2610c38e2e504811d47c777c011f9086cd960f0fd1"
+    },
+    {
+      "path": ".github/scripts/test_aggregate_production_medium.py",
+      "sha256": "0de9065eca8294a884d75a03664cab67661dbc4409f9023a972081776dadd56e"
+    },
+    {
+      "path": ".github/scripts/test_compare_production_images.py",
+      "sha256": "089cd5d72d6715633db5b70a3927758b86ff518d91937e9a33c1a3fcbfdaeb65"
+    },
+    {
+      "path": ".github/scripts/test_hdr_live_review_contract.py",
+      "sha256": "16937418a6a40187728731e3ef7cd165389efae53fa9b686c51ea4b85d149c39"
+    },
+    {
+      "path": ".github/scripts/test_interactive_lab_validation.py",
+      "sha256": "69dc7c54ac7a3c3863c2f4e2be57b684bcbbbf0e9b92320c512be01602398d4c"
+    },
+    {
+      "path": ".github/scripts/test_output_transform_workflows.py",
+      "sha256": "560712e84ae79cc19a917a2642957c004e9e895d8588ac82cf4d5a7dee0e2645"
+    },
+    {
+      "path": ".github/scripts/test_production_acceptance_report.py",
+      "sha256": "41d032497b46370ea9a7f52275e155418ed7eb548e8e369022738a1ebfa3a948"
+    },
+    {
+      "path": ".github/scripts/test_production_content_workflows.py",
+      "sha256": "cc331e46ef3821a85dd6e167825740c81dbaed9efc15e8a9cc8dcb4a6cdc6831"
+    },
+    {
+      "path": ".github/scripts/test_production_evidence_privacy.py",
+      "sha256": "c386b28dd733e7c6ba6447c71a14e03432a9c432327e0cc7d085793fa62ccd6e"
+    },
+    {
+      "path": ".github/scripts/test_resolve_production_artifact.py",
+      "sha256": "4f3b7b9880e67bf5d1de14308770b8f85a356207c1ed11399b80d12bd3629562"
+    },
+    {
+      "path": ".github/scripts/test_run_asset_cooker_validation.py",
+      "sha256": "fcfda95e6766598d936e2fb2704b3c644d8c9d3d2f54348a5a937350df96473b"
+    },
+    {
+      "path": ".github/scripts/test_run_deferred_validation.py",
+      "sha256": "9b59e58801c2e52507762f1b5539e82e42842dea68914ef07496db33ad6514fa"
+    },
+    {
+      "path": ".github/scripts/test_run_metal_native_cook.py",
+      "sha256": "3c4b3054d841eafaa956c6dfe7841be18c32d48dcec24e0110e3cff4eb5051c1"
+    },
+    {
+      "path": ".github/scripts/test_run_metal_render_acceptance.py",
+      "sha256": "55ed951d0feb159b2842e9dbc345222f8e8e7581c71aa384f3111d282dc61419"
+    },
+    {
+      "path": ".github/scripts/test_run_metal_validation.py",
+      "sha256": "3c4401f892fa6259db7fa073b982f0bac4de3acd2046a48ed50677a71b463669"
+    },
+    {
+      "path": ".github/scripts/test_run_output_transform_validation.py",
+      "sha256": "8ae3a47105ab4dad0391777b1c975e86bc8128a14a9ba6d0a571f460a8a93045"
+    },
+    {
+      "path": ".github/scripts/test_run_production_content_validation.py",
+      "sha256": "e56a597db2deb749c9eae4be738bca0b07327c1264cf3b6d5520cde3e5dfaadd"
+    },
+    {
+      "path": ".github/scripts/test_run_production_image_calibration.py",
+      "sha256": "b5271c173260583f583e016de2f66012031f3f82f77c68d7ff2e90748802946d"
+    },
+    {
+      "path": ".github/scripts/test_run_runtime_asset_manager_validation.py",
+      "sha256": "681e575a7f4f50b6303c9360b4ca259cab0944fdd711529b6a7a9a053236672d"
+    },
+    {
+      "path": ".github/scripts/test_run_static_model_validation.py",
+      "sha256": "7615ce1daa1eb1e670536e2e177c6de3422537da058ddfdaef32059c5cb8896b"
+    },
+    {
+      "path": ".github/scripts/test_verify_output_transform_evidence.py",
+      "sha256": "66978e79baaf012cf54caded6e39dfc5ef67f6344df48f99233d9f8b743684c2"
+    },
+    {
+      "path": ".github/scripts/test_verify_output_transform_vectors.py",
+      "sha256": "b73de18351962d9c042be05b8c111dbf879b74271702b2e187f4050204a273d8"
+    },
+    {
+      "path": ".github/scripts/test_verify_production_corpus.py",
+      "sha256": "1dad2fb91de4c5f35135d2479105c5718065323680ee38d6f4361b4d410be43b"
+    },
+    {
+      "path": ".github/scripts/test_verify_roadmap_consistency.py",
+      "sha256": "618b17aec41b161c777ca8d36d499a8cb50476e35bad4fb6461f9f1b16387766"
+    },
+    {
+      "path": ".github/scripts/verify_output_transform_architecture.py",
+      "sha256": "462f54d3cdbdde2497e29142828f7a64c0a87eed640941ff1329973db78b6f85"
+    },
+    {
+      "path": ".github/scripts/verify_output_transform_evidence.py",
+      "sha256": "854edbb1eeafc37a1fc70a98cacca4d0ee3ec9048464b5822f9495dd10dd4fff"
+    },
+    {
+      "path": ".github/scripts/verify_output_transform_vectors.py",
+      "sha256": "be6e7abeff15e097aaf362b8b375192ff27410bce13d011a328bb79c0efd4de3"
+    },
+    {
+      "path": ".github/scripts/verify_production_corpus.py",
+      "sha256": "723c4bdc3dbcaf5bceaa5a6cf36558a7cfa5b6149661aed05a86a00a733b8600"
+    },
+    {
+      "path": ".github/scripts/verify_production_evidence.py",
+      "sha256": "46a22ba7dcb30d17d15cd7fc3246509fb01bd6bf14f38ba370490d4954374e96"
+    },
+    {
+      "path": ".github/scripts/verify_roadmap_consistency.py",
+      "sha256": "dbbc7a06de2e858ab97ec3fd579e0540a01b110ee81ee1231141591df01e503a"
+    },
+    {
+      "path": ".github/workflows/feature-030-interactive-lab.yml",
+      "sha256": "386ff9e4a16a0a1fda59264a89ebd883c4bbb9a1f878e5b981609617a7b0ad0b"
+    },
+    {
+      "path": "Config/AssetCooker/Profiles/Production/Linux-Vulkan.json",
+      "sha256": "9b33ab4b64d6badafc484882bc46749ec4555e50bfaa0970b7de0ad424f8a18d"
+    },
+    {
+      "path": "Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json",
+      "sha256": "82681655db59befc20366978759ae42ace9ed805e2d4e0adc7de7980854f4c8f"
+    },
+    {
+      "path": "Config/AssetCooker/Profiles/Production/Mac-Metal-X86_64.json",
+      "sha256": "4a6a2bedb1b15ca645c01235d5037d6beccbea526f98cc33ffd4bd1ee5f8322e"
+    },
+    {
+      "path": "Config/AssetCooker/Profiles/Production/Mac-Vulkan.json",
+      "sha256": "d4805fbce24ab907f2d8da45ef9583260c50b33f43ac9cbac4ffc225c0797fee"
+    },
+    {
+      "path": "Config/AssetCooker/Profiles/Production/Windows-Vulkan.json",
+      "sha256": "c157918a460ea086d8089753ad6f04c46484bed2d653d07193310a2397064058"
+    },
+    {
+      "path": "Config/Validation/InteractiveLab/Cook/Lantern.json",
+      "sha256": "8b18d627c5e0c327087db3d5490bcb75da8b823afd0c83b810741d850b4f99b1"
+    },
+    {
+      "path": "Config/Validation/InteractiveLab/Cook/Sponza.json",
+      "sha256": "fbd6e6800767407dc4e8ec3547153fe9ad691157c0aeb5f3ab0f9a293e21f547"
+    },
+    {
+      "path": "Config/Validation/InteractiveLab/Coverage-v1.json",
+      "sha256": "e6ebf852076de0d8320f1db1edf7fc837867af483c4de7a1443cba0c8645f56c"
+    },
+    {
+      "path": "Config/Validation/InteractiveLab/Limits-v1.json",
+      "sha256": "a8ae1d9cd1c55d3a402c68fe70f8cf4973ab4331e41caf594da9672fa35953a1"
+    },
+    {
+      "path": "Config/Validation/InteractiveLab/Preset-v1.schema.json",
+      "sha256": "a4866321d2ff99be77b06cd5629735108e9aacf60399c0c96e849f0c94d339c0"
+    },
+    {
+      "path": "Config/Validation/InteractiveLab/Report-v1.schema.json",
+      "sha256": "9bea27dff0e51bc2dd4e241943b3ae31fb70048b5097d334ea7bc9cf843c77ce"
+    },
+    {
+      "path": "Config/Validation/InteractiveLab/Scripts/Lifecycle-v1.json",
+      "sha256": "7abcdaba1f20ab3fc121ac7415b34fe199efae94b4191df2af87e00fd9256b35"
+    },
+    {
+      "path": "Config/Validation/InteractiveLab/Scripts/Settings-v1.json",
+      "sha256": "8738adc6d88a47e163b53f12cac0912040d12209743d51679673c3d3146b03aa"
+    },
+    {
+      "path": "Config/Validation/OutputTransform/Profiles.json",
+      "sha256": "6e3373ab31b36aff9e91d1b6b854d75d1171226e57bc3c236f8a1bbce1e1f7d9"
+    },
+    {
+      "path": "Config/Validation/OutputTransform/SDR/Baselines-v3.json",
+      "sha256": "9e13dfc7d51658a8940f80a9109e27981d739fe6d5b378125b7fc03ac605d7ab"
+    },
+    {
+      "path": "Config/Validation/OutputTransform/Schemas/hdr-live-review-request.schema.json",
+      "sha256": "07457a1dd89016db668a6fa305f0881d7b3d46cdc281965bd5e0febfdf57e733"
+    },
+    {
+      "path": "Config/Validation/OutputTransform/Schemas/hdr-live-view-attestation.schema.json",
+      "sha256": "b12345767c13f805f024bb589d480fc293aec1471459d4ad95b84124955029d1"
+    },
+    {
+      "path": "Config/Validation/OutputTransform/Schemas/output-device-profile.schema.json",
+      "sha256": "2237dcb355e27ade8c606888241bb46499d732e2c18a2d2413e642a4568b78c4"
+    },
+    {
+      "path": "Config/Validation/OutputTransform/Schemas/output-validation-report.schema.json",
+      "sha256": "2617b1e4d7a320e4e272f50240179011c84a4f46a6100ca8a1b0c24567b5c730"
+    },
+    {
+      "path": "Config/Validation/OutputTransform/Schemas/sdr-image-baseline-v3.schema.json",
+      "sha256": "4a3cda6d032a7da4ee069b965b685e281fd40fc30f551dfa9e8ecdc67400f02d"
+    },
+    {
+      "path": "Config/Validation/OutputTransform/Workloads/Lantern-v3.json",
+      "sha256": "d6c18185f08cdc1429c05c90c0b2c7ee4e8f53af50bf774c48548427b5715c37"
+    },
+    {
+      "path": "Config/Validation/OutputTransform/Workloads/Sponza-v3.json",
+      "sha256": "6f35158767e6f9beae50735b56db020d1639bd86b75b6c794230323aca6f658a"
+    },
+    {
+      "path": "Tests/verify_architecture.py",
+      "sha256": "cc8e3a6f370af05d48175ea76a3477992122352aca1de3937c6ee29358e58f4c"
+    },
+    {
+      "path": "Tests/verify_repository_shader_assets.py",
+      "sha256": "b460e05c95baadebfd22a4b7106207015508f3888295e9cba15daa18fb9e2cec"
+    }
+  ],
+  "intelMacos": "skipped-by-maintainer-2026-09-08",
+  "hostedStatus": "blocked-push-authorization",
+  "physicalStatus": "pending",
+  "humanStatus": "pending-current-review",
+  "invalidation": "Any implementation or validation-policy change requires a new freeze and repetition of affected runs.",
+  "evidenceOnlyCommits": "Later evidence/documentation commits retain this tested software revision; run producers from the exact frozen checkout.",
+  "preflight": "Validation/030/CI/preflight.json"
+}
