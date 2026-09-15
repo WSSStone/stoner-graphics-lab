@@ -150,6 +150,7 @@ struct FLabProductionFrameContext::FImpl
         TSharedPtr<IRHIFence> RenderFence;
         FRHIBorrowedAcquiredTarget Target;
         uint64 FrameToken = 0;
+        uint64 CaptureRequestId = 0;
         ELabProductionFrameState State = ELabProductionFrameState::Free;
         TSharedPtr<Renderer::FUIRenderFrame> UIFrame;
         bool bUIReleased = false;
@@ -177,6 +178,7 @@ struct FLabProductionFrameContext::FImpl
     Core::TUniquePtr<FProductionSubmissionHarness> SubmissionHarness;
     TSharedPtr<const Renderer::FStaticModelRenderSnapshot> SceneLease;
     FLabProductionFrameContextConfig Config;
+    FLabCaptureQueue Captures;
     std::array<FSlot, FLabProductionFrameLimits::MaxSlots> Slots;
     TArray<FPresentationRecord> Presentations;
     FString FailureReason;
@@ -298,6 +300,8 @@ struct FLabProductionFrameContext::FImpl
             }
             return {GetRetainedRetireResult(Slot), false};
         }
+        Captures.Poll(0); // acknowledge discarded unsubmitted capture commands
+        Slot.CaptureRequestId = 0;
         if (Slot.UIFrame)
         {
             // Reset has discarded all unsubmitted commands before upload cancellation.
@@ -424,6 +428,38 @@ RHI::ERHIResult FLabProductionFrameContext::Initialize(
     Impl_->ClearFailure();
     return Impl_->bPausedZeroExtent
         ? RHI::ERHIResult::NotReady : RHI::ERHIResult::Success;
+}
+
+ELabCaptureStatus FLabProductionFrameContext::RequestCapture(const FLabCaptureRequest& Request,uint64 Now)
+{
+    if (!Impl_ || !Impl_->bInitialized || Impl_->bFailed || Impl_->bShutdownStarted)
+        return ELabCaptureStatus::InvalidRequest;
+    return Impl_->Captures.Request(Request,Now);
+}
+bool FLabProductionFrameContext::CancelCapture(uint64 RequestId)
+{ return Impl_ && Impl_->Captures.Cancel(RequestId); }
+ELabCaptureStatus FLabProductionFrameContext::PrepareCapture(const FLabCaptureFrame& Frame,uint32 SlotIndex,
+    uint64 Now,FLabCapturePrepared& Out)
+{
+    Out={};
+    auto* Slot=Impl_ ? Impl_->FindSlot(Frame.FrameToken,SlotIndex) : nullptr;
+    if (!Slot || Impl_->bFailed || Impl_->bShutdownStarted ||
+        Slot->State!=ELabProductionFrameState::Recording || Slot->CaptureRequestId ||
+        !Slot->Target.IsValid() || Frame.Identity.Width!=Slot->Target.Frame.Width ||
+        Frame.Identity.Height!=Slot->Target.Frame.Height ||
+        Frame.Identity.OutputGeneration!=Slot->Target.Frame.ModeGeneration ||
+        Frame.Identity.OutputProfile!=Slot->Resources.OutputTransformPlan.ResolvedSettings.OutputDeviceProfileId ||
+        Frame.Identity.bIncludeUI!=static_cast<bool>(Slot->UIFrame)) return ELabCaptureStatus::InvalidRequest;
+    const auto Result=Impl_->Captures.PrepareNext(Frame,Impl_->Device,
+        Slot->Resources.Bindings.CommandBuffer,Now,Out);
+    if (Result==ELabCaptureStatus::Success) Slot->CaptureRequestId=Out.RequestId;
+    return Result;
+}
+bool FLabProductionFrameContext::ProcessCapture(uint64 ServiceFrame,uint64 Now,
+    const FLabCaptureQueue::FReadback& Readback,FLabCaptureCompletion& Out)
+{
+    Out={};
+    return Impl_ && Impl_->Captures.ProcessOne(ServiceFrame,Now,Readback,Out);
 }
 
 RHI::ERHIResult FLabProductionFrameContext::Reconfigure(
@@ -897,6 +933,14 @@ RHI::ERHIResult FLabProductionFrameContext::SubmitFrame(
     Slot->bSubmitted = true;
     Slot->State = ELabProductionFrameState::Submitted;
     Impl_->LastFrameState = Slot->State;
+    if (Slot->CaptureRequestId &&
+        !Impl_->Captures.Submit(Slot->CaptureRequestId,FrameToken,Slot->RenderFence))
+    {
+        (void)Impl_->Captures.Cancel(Slot->CaptureRequestId);
+        Impl_->SetFailure("submitted capture ownership commit failed");
+        Fail(OutReason,"submitted capture ownership commit failed");
+        return ERHIResult::Failed;
+    }
     if (Slot->UIFrame)
     {
         const auto Committed = Slot->UIFrame->Commit(Slot->RenderFence);
@@ -909,6 +953,7 @@ RHI::ERHIResult FLabProductionFrameContext::SubmitFrame(
     }
     if (Submission.Result != RHI::ERHIResult::Success)
     {
+        if (Slot->CaptureRequestId) (void)Impl_->Captures.Cancel(Slot->CaptureRequestId);
         Impl_->SetFailure("interactive deferred submission reported a native failure");
         Fail(OutReason, "interactive deferred submission reported a native failure");
     }
@@ -993,6 +1038,9 @@ RHI::ERHIResult FLabProductionFrameContext::PollRender(
     bOutCompleted = Poll.bCompletionObserved;
     if (Poll.bCompletionObserved)
     {
+        if (Poll.Result!=ERHIResult::Success && Slot->CaptureRequestId)
+            (void)Impl_->Captures.Cancel(Slot->CaptureRequestId);
+        Impl_->Captures.Poll(0); // latch before RetireDeferred resets the fence
         // Completion and execution result are independent facts. Preserve
         // the completed owner even when the harness reports its first native
         // failure, so terminal cleanup can still drain/reset it later.
@@ -1182,6 +1230,7 @@ FLabProductionFrameContextSnapshot FLabProductionFrameContext::Snapshot() const
     Out.LastUIPreparationResult = Impl_->LastUIPreparationResult;
     Out.ActiveAttachmentBytes = Impl_->ActiveAttachmentBytes;
     Out.PeakAttachmentBytes = Impl_->PeakAttachmentBytes;
+    Out.Captures = Impl_->Captures.GetStatistics();
     Out.RetainedPresentationCount =
         static_cast<uint32>(Impl_->Presentations.size());
     Out.LastFrameToken = Impl_->LastFrameToken;
@@ -1250,6 +1299,13 @@ RHI::ERHIResult FLabProductionFrameContext::Shutdown(FString* OutReason) noexcep
     if (OutReason) OutReason->Clear();
     if (!Impl_ || !Impl_->bInitialized) return RHI::ERHIResult::Success;
     Impl_->bShutdownStarted = true;
+    Impl_->Captures.CancelAll();
+    Impl_->Captures.Poll(0);
+    if (Impl_->Captures.GetStatistics().Requests)
+    {
+        Fail(OutReason,"interactive capture results or native owners remain retained");
+        return ERHIResult::NotReady;
+    }
     for (const auto& Slot : Impl_->Slots)
     {
         if (Slot.State != ELabProductionFrameState::Free)
@@ -1306,6 +1362,7 @@ RHI::ERHIResult FLabProductionFrameContext::ReleaseAfterDeviceShutdown(
     // Native teardown owns its own proofs. Do not poll/reset presentation
     // fences after it, or turn compatibility cleanup into completion evidence.
     Impl_->bShutdownStarted = true;
+    (void)Impl_->Captures.ReleaseAfterDeviceShutdown(*Impl_->Device);
     Impl_->Presentations.clear();
     for (auto& Slot : Impl_->Slots)
     {

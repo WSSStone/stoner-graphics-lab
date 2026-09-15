@@ -810,6 +810,11 @@ EApplicationResult FInteractiveLabSession::SetUIEnabled(bool bEnabled)
     if (bEnabled)
     {
         auto Result = S.UICallbacks.PreflightEnable();
+        // An explicit re-enable starts a fresh upload budget only after preflight.
+        // Destroy requests retire old textures through the renderer's retained leases.
+        if (Result == EApplicationResult::Success && S.UI &&
+            S.UI->GetTextureResult() == Stoner::RHI::ERHIResult::Unavailable)
+            S.UI.reset();
         if (Result == EApplicationResult::Success && !S.UI)
         {
             auto Candidate = MakeUnique<FImGuiLabAdapter>();

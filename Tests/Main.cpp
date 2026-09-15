@@ -127,6 +127,7 @@ int RunVulkanUINativeTests();
 int RunMetalUINativeTests();
 [[nodiscard]] int RunInteractiveLabValueTests();
 [[nodiscard]] int RunInteractiveLabLifecycleTests();
+[[nodiscard]] int RunInteractiveLabCaptureTests();
 [[nodiscard]] int RunInteractiveLabWatchdogChild();
 [[nodiscard]] int RunInteractiveLabWatchdogTests(const char* Executable);
 [[nodiscard]] int RunApplicationFreeCameraTests();
@@ -422,6 +423,7 @@ int main(int ArgCount, char* Arguments[])
     });
     Registry.Register("interactive-lab-watchdog", [Arguments] { return RunInteractiveLabWatchdogTests(Arguments[0]); });
     Registry.Register("interactive-lab-lifecycle", [] { return RunInteractiveLabLifecycleTests(); });
+    Registry.Register("interactive-lab-capture", [] { return RunInteractiveLabCaptureTests(); });
     Registry.Register("interactive-lab-values", [] {
         return RunInteractiveLabValueTests();
     });

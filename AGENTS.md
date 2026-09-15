@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (92/127 reviewed tasks); native closeout remains pending.
+Feature 030 implementation is partial (94/127 reviewed tasks); native closeout remains pending.
 The maintainer explicitly skips Intel x86_64 macOS validation for Feature 030
 on 2026-09-08; record it as skipped, not passed, and do not block implementation
 on Intel cooking/derivation/native checks. Existing Intel support and historical
@@ -164,6 +164,7 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
+- 030 US6 lifecycle/capture tests reviewed (94/127): T093/T094 cover focus/pointer and output/scale failures, bounded UI recovery, and a two-request/128 MiB capture queue with exact identity, cancellation/timeouts and retained staging. Strict Debug/Release each pass 322 focused assertions, including 48 capture assertions; architecture passes. Xcode license blocker is resolved. Native copy/consumer/export wiring and T095–T104 implementation closeout remain pending; no formal/human authority is claimed. Local evidence: `Build/Validation/030/us6-lifecycle-capture.json`.
 - 030 US5 local checkpoint complete (92/127): whole-session presets, protected export, current-window restore and usability corrections reviewed. Strict Debug/Release each pass 634 CPU assertions; Metal Debug/Vulkan Release native suites pass 80/66, including whole-preset roundtrip and overwrite protection. Maintainer confirms no flicker/stutter and exposure/camera restore. Evidence: `Build/Validation/030/us5.json`. US6 captures/lifecycle and final Windows/Linux/platform/human closeout remain pending; Intel macOS skipped.
 
 - 030 US5 codec increment (77/127 reviewed): strict bounded preset codec/schema/pinned fixture and a single private yyjson library are implemented. Debug/Release each pass 165 preset/JSON assertions plus 372 Asset/DDC/profile assertions; 39 yyjson public symbols each have one definition. Whole-session import, protected export store and UI actions remain pending; no US5 completion is claimed.

@@ -3,6 +3,7 @@
 #include "Asset/AssetMinimal.h"
 #include "FProductionContentComposition.h"
 #include "FProductionContentDeferredExecution.h"
+#include "FLabCaptureQueue.h"
 #include "Renderer/FOutputTransformExecutor.h"
 #include "Renderer/FOutputTransformSettings.h"
 #include "Renderer/FStaticModelRealization.h"
@@ -68,6 +69,7 @@ struct FLabProductionFrameContextSnapshot
     Core::uint32 RetainedPresentationCount = 0;
     Core::uint64 ActiveAttachmentBytes = 0;
     Core::uint64 PeakAttachmentBytes = 0;
+    FLabCaptureStatistics Captures;
     Core::uint64 LastFrameToken = 0;
     Core::uint32 LastFrameSlot = 0;
     ELabProductionFrameState LastFrameState =
@@ -95,6 +97,15 @@ public:
     [[nodiscard]] RHI::ERHIResult Initialize(
         const FLabProductionFrameContextConfig& Config,
         Core::FString* OutReason = nullptr);
+
+    [[nodiscard]] ELabCaptureStatus RequestCapture(const FLabCaptureRequest&, Core::uint64 Now);
+    [[nodiscard]] bool CancelCapture(Core::uint64 RequestId);
+    // Called at the explicit copy insertion point while the exact slot command
+    // is recording. Ordinary RecordFrame never implicitly requests a capture.
+    [[nodiscard]] ELabCaptureStatus PrepareCapture(const FLabCaptureFrame&, Core::uint32 SlotIndex,
+        Core::uint64 Now, FLabCapturePrepared& Out);
+    [[nodiscard]] bool ProcessCapture(Core::uint64 ServiceFrame, Core::uint64 Now,
+        const FLabCaptureQueue::FReadback&, FLabCaptureCompletion& Out);
 
     // A zero extent pauses admission while retaining all live owners.  A
     // non-zero change is admitted only after all slot render uses have drained.

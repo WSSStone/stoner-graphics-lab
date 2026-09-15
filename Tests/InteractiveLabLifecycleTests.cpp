@@ -66,11 +66,13 @@ class FInputDriver final : public IWindowDriver
 public:
     TArray<FInputEvent> Events;
     uint32 Width = 320, Height = 240;
+    EApplicationResult CursorResult = EApplicationResult::Success;
     const char* GetDriverName() const noexcept override { return "LabFixture"; }
     EWindowRuntimeAvailability GetRuntimeAvailability() const noexcept override { return EWindowRuntimeAvailability::Available; }
     uint32 GetDrawableWidth() const noexcept override { return Width; }
     uint32 GetDrawableHeight() const noexcept override { return Height; }
-    EApplicationResult SetCursorMode(ECursorMode) override { return EApplicationResult::Success; }
+    EApplicationResult SetCursorMode(ECursorMode Mode) override
+    { return Mode == ECursorMode::Disabled ? CursorResult : EApplicationResult::Success; }
     TArray<FWindowEvent> ConsumeWindowEvents() override { return {}; }
     TArray<FInputEvent> ConsumeInputEvents() override { auto Copy = std::move(Events); Events.clear(); return Copy; }
     void QueueEvent(const FInputEvent& E) { Events.push_back(E); }
@@ -397,6 +399,48 @@ void TestUISession()
         "later UI preflight failure keeps the scene session active with a UI diagnostic");
     Check(Close(F.S), "UI context closes before terminal callback ownership transfer");
 }
+void TestUIRetryRecovery()
+{
+    using namespace Stoner::Renderer;
+    using Stoner::RHI::ERHIResult;
+    FFixture F;
+    Check(F.Start(),"UI retry recovery session starts");
+    bool Pending=true,PreflightAvailable=true;
+    uint64 Preflights=0,Requests=0,Generation=0;
+    FInteractiveLabUICallbacks UI;
+    UI.PreflightEnable=[&] { ++Preflights; return PreflightAvailable
+        ? EApplicationResult::Success : EApplicationResult::RuntimeUnavailable; };
+    UI.BeginFrame=[](uint64,bool) {};
+    UI.PrepareTexture=[&](const FUITextureRequest& Q) {
+        ++Requests;
+        if (Q.Operation==EUITextureOperation::Destroy)
+            return FUITextureResult{Q.RequestId,ERHIResult::Success,EUITextureState::Destroyed,Q.TextureId,"destroyed"};
+        if (Pending) return FUITextureResult{Q.RequestId,ERHIResult::NotReady,EUITextureState::Requested,{},"delayed"};
+        return FUITextureResult{Q.RequestId,ERHIResult::Success,EUITextureState::Prepared,{Q.LogicalSlot,++Generation},"prepared"};
+    };
+    UI.AcquireTexture=[](FUITextureId) { return FUITextureLease{}; };
+    Check(F.S.ConfigureUI(std::move(UI),true)==EApplicationResult::Success,"UI retry fixture preflights once");
+    for (int I=0;I<125;++I) (void)F.S.Service(0.01);
+    const auto ExhaustedRequests=Requests;
+    Check(!F.S.GetUIFailure().IsEmpty() && F.S.GetFirstFailure().IsEmpty(),
+        "exhausted UI upload retries report UI unavailability without failing the scene");
+    Pending=false;
+    for (int I=0;I<5;++I) (void)F.S.Service(0.01);
+    Check(Requests==ExhaustedRequests && !F.S.GetUIFailure().IsEmpty(),
+        "UI failure never silently retries past its exhausted budget");
+    Check(F.S.SetUIEnabled(false)==EApplicationResult::Success,"failed UI can be explicitly disabled");
+    PreflightAvailable=false;
+    Check(F.S.SetUIEnabled(true)==EApplicationResult::RuntimeUnavailable && !F.S.IsUIEnabled() &&
+        Requests==ExhaustedRequests && F.S.GetFirstFailure().IsEmpty(),
+        "failed recovery preflight preserves exhausted uploads and keeps the scene alive");
+    PreflightAvailable=true;
+    Check(F.S.SetUIEnabled(true)==EApplicationResult::Success,
+        "explicit UI off/on requests coherent recovery");
+    (void)F.S.Service(0.01);
+    Check(Preflights==3 && Requests>ExhaustedRequests && F.S.GetUIFailure().IsEmpty(),
+        "explicit UI recovery reinitializes the failed adapter after renewed preflight");
+    Check(Close(F.S),"recovered UI fixture closes");
+}
 void TestSession()
 {
     FFixture F;
@@ -467,6 +511,72 @@ void TestTransitions()
     Check(ActiveId == 3 && !F.S.HasPendingTransition() && TransitionCalls == 3,
         "one active and one latest pending transition complete with exact identity");
     Check(Close(F.S), "transition fixture closes");
+}
+void TestLifecycleFaults()
+{
+    FFixture F;
+    Check(F.Start(),"focus and pointer-failure fixture starts");
+    (void)F.S.Service(0);
+    F.Driver->QueueEvent(FInputEvent::KeyDown(EKey::W));
+    (void)F.S.Service(0.1);
+    const auto Before=F.S.GetCameraState();
+    F.W.QueueEvent(FWindowEvent::FocusLost());
+    (void)F.S.Service(0.25);
+    F.Clock+=60000;
+    F.W.QueueEvent(FWindowEvent::FocusGained());
+    (void)F.S.Service(0.25);
+    (void)F.S.Service(0.25);
+    Check(F.S.GetCameraState().Position==Before.Position && F.S.GetFirstFailure().IsEmpty(),
+        "focus loss and long resume quarantine held movement without native failure");
+    F.Driver->QueueEvent(FInputEvent::KeyUp(EKey::W));
+    (void)F.S.Service(0);
+    F.Driver->CursorResult=EApplicationResult::RuntimeUnavailable;
+    F.Driver->QueueEvent(FInputEvent::PointerMove(20,20));
+    F.Driver->QueueEvent(FInputEvent::MouseDown(EMouseButton::Right));
+    (void)F.S.Service(0.1);
+    F.Driver->QueueEvent(FInputEvent::PointerMove(200,100));
+    (void)F.S.Service(0.1);
+    Check(F.S.GetCameraState().View==Before.View && F.S.GetFirstFailure().IsEmpty(),
+        "failed native pointer capture cannot leak look motion or fail the scene");
+    F.Driver->CursorResult=EApplicationResult::Success;
+    F.Driver->QueueEvent(FInputEvent::MouseUp(EMouseButton::Right));
+    (void)F.S.Service(0);
+    F.Driver->QueueEvent(FInputEvent::KeyDown(EKey::W));
+    (void)F.S.Service(0.1);
+    Check(F.S.GetCameraState().Position!=Before.Position,"fresh input recovers after failed pointer capture");
+    Check(Close(F.S),"focus and pointer-failure fixture closes");
+
+    for (bool ScaleFailure : {false,true})
+    {
+        FFixture G;
+        bool Pending=true;
+        uint64 Token=0,Generation=0;
+        Check(G.Start([&](const auto& Q) {
+            if (Q.Phase!=Phase::Transition) return Complete();
+            if (!Q.bPoll) { Token=Q.RequestId; Generation=Q.DisplayGeneration; }
+            if (Q.bPoll && (Q.RequestId!=Token || Q.DisplayGeneration!=Generation)) ++Failures;
+            auto R=Complete(); R.bCompleted=false;
+            R.Status=Pending ? Status::NotReady : Status::Failed;
+            if (!Pending) R.FirstFailure=ScaleFailure ? "injected-scale-recreation-failure" : "injected-output-recreation-failure";
+            return R;
+        }),"recreation fault fixture starts");
+        const auto CameraBefore=G.S.GetCameraState();
+        if (ScaleFailure) G.W.QueueEvent(FWindowEvent::ContentScaleChanged(2,2));
+        else (void)G.S.RequestTransition({0,G.S.GetDisplayState().DisplayGeneration,G.S.GetDisplayState().DrawableExtent});
+        (void)G.S.Service(0.1);
+        G.W.QueueEvent(FWindowEvent::FocusLost());
+        G.Driver->QueueEvent(FInputEvent::KeyDown(EKey::W));
+        for (int I=0;I<4;++I) (void)G.S.Service(0.25);
+        Check(Token!=0 && G.S.GetCameraState().Position==CameraBefore.Position &&
+            G.S.GetRecommendedServiceWaitMilliseconds()<=16 && G.S.GetFirstFailure().IsEmpty(),
+            "delayed scale/output recreation retains exact request and services focus without camera motion");
+        Pending=false;
+        Check(G.S.Service(0)==EApplicationResult::RuntimeUnavailable,
+            "injected scale/output recreation failure enters terminal cleanup");
+        const auto First=G.S.GetFirstFailure();
+        Check(Close(G.S) && !First.IsEmpty() && G.S.GetFirstFailure()==First,
+            "successful terminal cleanup cannot erase scale/output recreation failure");
+    }
 }
 void TestTerminalOwnership()
 {
@@ -562,7 +672,7 @@ int RunInteractiveLabLifecycleTests()
     TestCapabilityNotification();
     TestSettingsSession();
     TestPresetSession();
-    TestUISession(); TestSession(); TestTransitions(); TestTerminalOwnership(); TestTerminalFailureBoundaries(); TestTimeout();
+    TestUIRetryRecovery(); TestUISession(); TestSession(); TestTransitions(); TestLifecycleFaults(); TestTerminalOwnership(); TestTerminalFailureBoundaries(); TestTimeout();
     return Failures == 0 ? 0 : 1;
 }
 

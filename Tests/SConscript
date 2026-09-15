@@ -66,6 +66,7 @@ private_include_paths_by_source = {
     'InteractiveLabDebugTests.cpp': [Dir('#Source/Renderer/Private').abspath],
     'InteractiveLabSettingsTests.cpp': [Dir('#Source/Application/Private').abspath],
     'InteractiveLabLifecycleTests.cpp': [Dir('#Source/Application/Private').abspath],
+    'InteractiveLabCaptureTests.cpp': [Dir('#Demo/StonerDemo/Private').abspath],
     'ApplicationWindowInputTests.cpp': [
         Dir('#Source/Application/Private').abspath,
     ],
