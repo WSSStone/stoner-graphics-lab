@@ -83,6 +83,33 @@ class ValidationTests(unittest.TestCase):
                 self.assertEqual(any(relative in f and 'yyjson' in f for f in findings),not allowed)
                 path.unlink()
 
+    def test_hosted_strict_workflow_executes_checks(self):
+        import ast, os, textwrap
+        workflow=(ROOT/'.github/workflows/feature-030-interactive-lab.yml').read_text()
+        block=workflow.split('        shell: python\n        run: |\n',1)[1]
+        lines=[]
+        for line in block.splitlines():
+            if line and not line.startswith('          '):break
+            lines.append(line)
+        code=textwrap.dedent('\n'.join(lines));tree=ast.parse(code)
+        self.assertFalse(any(isinstance(n,ast.Expr) and isinstance(n.value,ast.Tuple) for n in ast.walk(tree)))
+        for platform in ['Windows','macOS','Linux']:
+            with tempfile.TemporaryDirectory() as t:
+                env=dict(LAB_JOB={'Windows':'windows-debug','macOS':'macos-debug','Linux':'linux-debug'}[platform],
+                    LAB_CONFIG='debug',LAB_SANITIZERS='',RUNNER_OS=platform,GITHUB_SERVER_URL='https://github.com',
+                    GITHUB_REPOSITORY='example/repo',GITHUB_RUN_ID='1')
+                with mock.patch.dict(os.environ,env),mock.patch('pathlib.Path.cwd',return_value=Path(t)), \
+                     mock.patch('subprocess.check_output',return_value=REV),mock.patch.object(lab,'_execute',return_value=(0,'0'*64,0)) as run, \
+                     mock.patch.object(lab,'write_new') as write:
+                    # The workflow uses repository-relative output directories.
+                    previous=os.getcwd();os.chdir(t)
+                    try:exec(compile(tree,'workflow','exec'),{})
+                    finally:os.chdir(previous)
+                record=write.call_args.args[1]
+                self.assertTrue(record['passed'])
+                self.assertEqual([x['name'] for x in record['checks']],['build','focused','architecture','output-architecture','validator'])
+                self.assertIn('-j1' if platform=='Windows' else '-j2',run.call_args_list[0].args[0])
+
     def test_command_bounds(self):
         a=['Build/StonerDemo','--interactive-lab','--mode','validate','--frames','1120','--lab-report','Build/native.json']
         lab.validate_command(a,CASE)

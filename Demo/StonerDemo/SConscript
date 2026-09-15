@@ -77,7 +77,11 @@ if deps['vulkan_library']:
     if platform == 'Mac':
         demo_env.Append(LINKFLAGS=['-Wl,-rpath,' + os.path.dirname(deps['vulkan_library'])])
 if deps['glfw_library']:
-    demo_env.Append(LINKFLAGS=[deps['glfw_library']])
+    if platform == 'Linux':
+        # GNU ld --as-needed must see consumers before the GLFW library.
+        demo_env.Append(LIBS=[File(deps['glfw_library'])])
+    else:
+        demo_env.Append(LINKFLAGS=[deps['glfw_library']])
     if platform in ('Mac', 'Linux'):
         demo_env.Append(LINKFLAGS=['-Wl,-rpath,' + os.path.dirname(deps['glfw_library'])])
 if platform == 'Mac' and deps['glfw_available']:

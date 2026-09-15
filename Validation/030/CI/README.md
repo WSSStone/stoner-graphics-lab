@@ -19,3 +19,7 @@ The maintainer authorized execution. Commit `31519b15` was pushed and run [34963
 ## Hosted attempt 2
 
 Run [34963871700](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34963871700) at `97c09338` passed the first compilation blockers, then found GCC temporary-validator span warnings and an obsolete Asset boundary rule requiring direct yyjson compilation. Named validator lifetimes, shared-private-library verification, six boundary tests and an always-run boundary stamp address these findings. No prior result is promoted to final acceptance.
+
+## Hosted attempt 3
+
+Run [34964673886](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34964673886) at `c3e5742b` passed shader production, macOS focused suites and native UI drawing. Remaining failures were GNU ld GLFW ordering, a Windows local-name shadow warning, misplaced independent verification in strict jobs and an unprepared relative lease root in native commands. Corrected absolute paths plus an existing lease directory passed the same frozen Metal 120-frame command and a fresh verifier locally. The workflow test now executes all three strict-platform control flows with mocked commands and checks the actual check list. This attempt remains incomplete; no hosted aggregate or physical authority is claimed.

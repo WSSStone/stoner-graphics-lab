@@ -1,7 +1,7 @@
 {
   "schema": "stoner.interactive-lab-software-freeze",
   "schemaVersion": 1,
-  "softwareRevision": "97c09338eb321a6df5f1fef1fd3bb9161eee4ce0",
+  "softwareRevision": "c3e5742bbbaeea6134000d9123ac865cdc955f55",
   "status": "invalidated",
   "cleanCheckout": "Build/Worktrees/030-frozen-97c09338",
   "policyIdentities": [
@@ -320,6 +320,18 @@
     {
       "path": "Tests/verify_repository_shader_assets.py",
       "sha256": "b460e05c95baadebfd22a4b7106207015508f3888295e9cba15daa18fb9e2cec"
+    },
+    {
+      "path": "Tests/verify_asset_layer.py",
+      "sha256": "afee1ac62f976eb31ddf711d87bc4499ac4e1cbe93b383226886aea96fbd6910"
+    },
+    {
+      "path": "Tests/test_verify_asset_layer.py",
+      "sha256": "557690e18e981e4f8f35d7b535c294941f1b00fa0507e3736a8acdd11f808462"
+    },
+    {
+      "path": "Tests/SConscript",
+      "sha256": "14bf950fd5c865c37ca3ecddee4c8154c26c099fecb945127ad30ba3662cea6c"
     }
   ],
   "intelMacos": "skipped-by-maintainer-2026-09-08",
@@ -329,7 +341,7 @@
   "invalidation": "Any implementation or validation-policy change requires a new freeze and repetition of affected runs.",
   "evidenceOnlyCommits": "Later evidence/documentation commits retain this tested software revision; run producers from the exact frozen checkout.",
   "preflight": "Validation/030/CI/preflight.json",
-  "hostedRunUrl": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34963871700",
-  "supersedes": "31519b15dc44fea61151eac3ce6345cf5a340129",
-  "invalidationReason": "GCC temporary-validator warning and stale Asset yyjson build-boundary rule require source/checker corrections."
+  "hostedRunUrl": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34964673886",
+  "supersedes": "97c09338eb321a6df5f1fef1fd3bb9161eee4ce0",
+  "invalidationReason": "GNU ld GLFW ordering, Windows shadow warning and hosted command/consumer orchestration fixes require new policy/source identity."
 }

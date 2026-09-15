@@ -343,7 +343,11 @@ if graphics_deps['vulkan_library']:
     if platform == 'Mac':
         test_env.Append(LINKFLAGS=['-Wl,-rpath,' + os.path.dirname(graphics_deps['vulkan_library'])])
 if graphics_deps['glfw_library']:
-    test_env.Append(LINKFLAGS=[graphics_deps['glfw_library']])
+    if platform == 'Linux':
+        # GNU ld --as-needed must see consumers before the GLFW library.
+        test_env.Append(LIBS=[File(graphics_deps['glfw_library'])])
+    else:
+        test_env.Append(LINKFLAGS=[graphics_deps['glfw_library']])
     if platform in ('Mac', 'Linux'):
         test_env.Append(LINKFLAGS=['-Wl,-rpath,' + os.path.dirname(graphics_deps['glfw_library'])])
 if platform == 'Mac' and graphics_deps['glfw_available']:
