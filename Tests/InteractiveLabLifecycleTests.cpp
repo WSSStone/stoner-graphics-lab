@@ -216,6 +216,8 @@ void TestPresetSession()
         "session export records committed setup and current source context without restoring exported extent");
     Check(F.S.ExportPreset("current.json").Status.Result==EPlatformFileResult::AlreadyExists,
         "repeated session export cannot infer overwrite approval");
+    Check(F.S.RequestPresetFile("current.json") && F.S.CancelPreset(),
+        "bare preset filename resolves inside the configured export directory");
     Check(F.S.RequestPresetFile(Exported.TargetPath) && F.S.CancelPreset() &&
         !F.S.ExportPreset("current.json",true).bPublished,
         "a file imported by this session is protected even from explicit overwrite");

@@ -65,7 +65,23 @@ ERHIResult FImGuiTextureAdapter::Process(std::span<ImTextureData* const> Texture
 {
     if (bFailed) return ERHIResult::Unavailable;
     LastTime = std::max(LastTime, NowMilliseconds);
-    if (!bEligible || FrameId == 0 || FrameId <= LastFrame) return ERHIResult::NotReady;
+    if (FrameId == 0 || FrameId <= LastFrame) return ERHIResult::NotReady;
+    if (!bEligible)
+    {
+        // A busy frame slot forbids uploads, not drawing already prepared
+        // textures. Do not hide the UI merely because no update can run now.
+        if (Textures.size() > Bindings.size()) return Fail();
+        for (const auto* Texture : Textures)
+        {
+            if (!Texture) return Fail();
+            if (Texture->Status == ImTextureStatus_Destroyed) continue;
+            if (Texture->Status != ImTextureStatus_OK) return ERHIResult::NotReady;
+            const auto It = std::find_if(Bindings.begin(), Bindings.end(),
+                [Texture](const auto& Binding) { return Binding.Source == Texture; });
+            if (It == Bindings.end() || !It->Id.IsValid() || It->Token != Texture->GetTexID()) return Fail();
+        }
+        return ERHIResult::Success;
+    }
     LastFrame = FrameId;
     if (bPending && LastTime - PendingSince >= 5000) return Fail("ui-texture-retry-deadline");
     if (Textures.size() > Bindings.size()) return Fail();

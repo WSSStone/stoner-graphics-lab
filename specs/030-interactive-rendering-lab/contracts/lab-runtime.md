@@ -110,7 +110,7 @@ Retain existing `--mode interactive|validate`, backend, strict-cooked and output
 | `--interactive-lab` | Select lab behavior for native production-content Deferred runs; incompatible with calibration preview, formal visible capture and formal production-capture root |
 | `--lab-vulkan-retirement auto\|acquire-history` | Default auto; acquire-history is allowed only with `--mode validate --interactive-lab --backend vulkan` and disables optional maintenance1 before device creation for fallback coverage. Never forces unsupported extension support or changes formal mode |
 | `--lab-ui on\|off` | Default on in lab; off requires only scene/output closure, on requires UI closure too; enabling later preflights the same generation as defined in ui-rendering.md. UI-off remains preview unless invoking separate formal validation |
-| `--lab-preset-input PATH` | Explicit bounded local preset import; exact workload revision/root/source digest checks; target/backend/cooked generation are provenance only |
+| `--lab-preset-input PATH` | Explicit bounded local preset import; bare filename resolves in configured export root, folder-qualified relative path in working directory; absolute paths supported. Exact workload revision/root/source digest checks; target/backend/cooked generation are provenance only |
 | `--lab-export-root PATH` | Dedicated output directory for explicit preset/UI-smoke actions; default `Build/InteractiveLab/Exports` |
 | `--lab-input-script PATH` | Bounded deterministic event/settings sequence in validate mode only |
 | `--lab-report PATH` | Bounded lab JSON, distinct from formal probe/acceptance reports |

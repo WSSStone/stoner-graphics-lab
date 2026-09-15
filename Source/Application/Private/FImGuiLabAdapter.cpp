@@ -8,12 +8,32 @@
 #include <array>
 #include <cmath>
 #include <chrono>
+#include <sstream>
+#include <locale>
 #include <cstdio>
 #include <cstdlib>
 #include <limits>
 
 namespace Stoner::Application
 {
+namespace
+{
+bool ExactValue(const char* Label, float& Value, std::array<char,64>& Buffer)
+{
+    if (ImGui::GetActiveID() != ImGui::GetID(Label))
+        std::snprintf(Buffer.data(),Buffer.size(),"%.9g",static_cast<double>(Value));
+    if (!ImGui::InputText(Label,Buffer.data(),Buffer.size(),ImGuiInputTextFlags_EnterReturnsTrue)) return false;
+    const char* Begin=Buffer.data();
+    if (*Begin=='+') ++Begin;
+    float Parsed=0;
+    std::istringstream Input(Begin);
+    Input.imbue(std::locale::classic());
+    Input >> std::noskipws >> Parsed;
+    if (Input.fail() || !Input.eof() || !std::isfinite(Parsed)) return false;
+    Value=Parsed;
+    return true;
+}
+}
 struct FImGuiLabAdapter::FImpl
 {
     ImGuiContext* Context = nullptr;
@@ -23,6 +43,7 @@ struct FImGuiLabAdapter::FImpl
     Stoner::RHI::ERHIResult TextureResult = Stoner::RHI::ERHIResult::Unsupported;
     Stoner::Core::uint64 TextureFrame = 0;
     FUILabCapture Capture;
+    std::array<char,64> ExactSpeed{}, ExactFov{}, ExactExposure{}, ExactBrightness{};
     FImGuiDiagnosticRange DiagnosticRange;
     Stoner::Core::FString Clipboard;
     EApplicationResult ClipboardResult = EApplicationResult::Success;
@@ -136,8 +157,8 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
         ImFontAtlasBuildDiscardBakes(IO.Fonts,1);
     }
     ImGui::NewFrame();
-    ImGui::SetNextWindowPos(ImVec2(16, 16), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(Runtime ? std::max(128.0f,std::min(360.0f,IO.DisplaySize.x-32)) : 360.0f, Runtime ? std::max(120.0f,std::min(680.0f,IO.DisplaySize.y-32)) : 220.0f), ImGuiCond_Always);
+    ImGui::SetNextWindowPos(ImVec2(16, 16), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(Runtime ? std::max(128.0f,std::min(360.0f,IO.DisplaySize.x-32)) : 360.0f, Runtime ? std::max(120.0f,std::min(680.0f,IO.DisplaySize.y-32)) : 220.0f), ImGuiCond_FirstUseEver);
     ImGui::Begin("Rendering Lab", nullptr, ImGuiWindowFlags_NoSavedSettings);
     ImGui::TextUnformatted("WASD/QE move | RMB look | F1 toggle UI");
     ImGui::InputText("Input test", Impl->Text.data(), Impl->Text.size());
@@ -229,8 +250,10 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
             {
                 float Speed=Camera->MovementSpeed;
                 float Fov=Stoner::Core::FMath::RadiansToDegrees(Camera->VerticalFovRadians);
-                const bool SpeedEdited=ImGui::SliderFloat("Movement speed",&Speed,0.01f,100.0f,"%.2f",ImGuiSliderFlags_Logarithmic);
-                const bool FovEdited=ImGui::SliderFloat("Vertical FOV (degrees)",&Fov,20.0f,90.0f,"%.1f");
+                bool SpeedEdited=ImGui::SliderFloat("Movement speed",&Speed,0.01f,100.0f,"%.2f",ImGuiSliderFlags_Logarithmic);
+                SpeedEdited |= ExactValue("Exact speed (Enter)",Speed,Impl->ExactSpeed);
+                bool FovEdited=ImGui::SliderFloat("Vertical FOV (degrees)",&Fov,20.0f,90.0f,"%.1f");
+                FovEdited |= ExactValue("Exact FOV (Enter)",Fov,Impl->ExactFov);
                 if (SpeedEdited || FovEdited) (void)EditNavigation(Speed,
                     FovEdited ? Stoner::Core::FMath::DegreesToRadians(Fov) : Camera->VerticalFovRadians);
             }
@@ -263,6 +286,8 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
                 else if (Capabilities->Outputs.empty()) ImGui::TextUnformatted("No supported output; rendering paused");
                 if (ImGui::SliderFloat("Exposure (EV)",&Candidate.ExposureStops,-16,16,"%.2f"))
                     (void)EditSettings(Candidate);
+                if (ExactValue("Exact exposure (Enter)",Candidate.ExposureStops,Impl->ExactExposure))
+                    (void)EditSettings(Candidate);
                 const bool SDR = (Effective ? Effective->EffectiveProfileId : Candidate.RequestedProfileId).View().starts_with("Sdr.");
                 ImGui::BeginDisabled(!SDR);
                 if (ImGui::BeginCombo("SDR tone map",Candidate.SdrToneMapVersion.CStr()))
@@ -274,6 +299,8 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
                 }
                 ImGui::EndDisabled();
                 if (ImGui::SliderFloat("UI brightness",&Candidate.UIWhiteMultiplier,0.25f,2.0f,"%.2fx"))
+                    (void)EditSettings(Candidate);
+                if (ExactValue("Exact brightness (Enter)",Candidate.UIWhiteMultiplier,Impl->ExactBrightness))
                     (void)EditSettings(Candidate);
                 if (SDR && Candidate.UIWhiteMultiplier>1.0f)
                     ImGui::TextWrapped("SDR UI brightness above 1 may clip at the output limit.");
@@ -325,6 +352,7 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     if (Presets && ImGui::CollapsingHeader("Local presets"))
     {
         ImGui::TextUnformatted(Presets->bPending ? "Pending import; ordinary camera/output edits are disabled." : "No pending import.");
+        ImGui::TextWrapped("A filename imports from the export directory. Paths with folders are relative to the working directory; absolute paths are also supported.");
         ImGui::BeginDisabled(Presets->bNativeActive || !Presets->Import);
         ImGui::InputText("Preset input path",Impl->PresetInput.data(),Impl->PresetInput.size());
         if (ImGui::Button("Import preset") && Presets->Import)

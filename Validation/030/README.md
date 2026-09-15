@@ -1177,3 +1177,7 @@ SHA-256 digests in ignored `Build/Validation/030/us2.json`; logs are
 This closes the local US2 checkpoint together with the preceding live previews.
 These working-tree checks do not establish formal same-SHA, Windows/Linux native,
 Accepted or human HDR authority. Intel macOS remains explicitly skipped.
+
+## US5 local implementation checkpoint — 2026-09-15
+
+T078–T092 reviewed; overall 92/127. `Build/Validation/030/us5.json` records source qualification, commands and independent log digests. Strict Debug/Release each pass 634 CPU assertions, Metal Debug passes 80 native assertions and Vulkan Release passes 66. Native tests export, explicitly overwrite, edit and restore whole camera/output/debug settings and reject overwriting an imported file, with zero implicit readbacks/live idles/final owners. The maintainer confirmed no flicker/stutter and restored exposure/camera in the corrected local Lantern build. This interaction feedback is not final hardware or HDR appearance authority. Windows/Linux execution remains in US7 and Intel macOS is explicitly skipped. US6 capture/lifecycle, final evidence and delivered documentation remain pending.

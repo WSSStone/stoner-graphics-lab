@@ -4,11 +4,13 @@
 #include "Application/FWindow.h"
 #include "Application/FInteractiveLabSession.h"
 #include "Application/FLabSettingsSnapshot.h"
+#include "Application/FLabPresetStorage.h"
 #include "Application/FWindowDesc.h"
 #include "RHI/RHIMinimal.h"
 
 #include <chrono>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <thread>
 #include <vector>
@@ -714,8 +716,47 @@ void RunDiagnosticPanel(int& Failed)
             Case==5 ? "Hdr.Linear.1000.v1" : "Sdr.sRGB.v1";
         Config.OutputTransformVersion=Case>=4 ? Renderer::GInitialHDRViewingVersion : Renderer::GDefaultSDRToneMapVersion;
         bool Edited=false;
+        const auto PresetDirectory=std::filesystem::temp_directory_path()/
+            ("LabNativePreset-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        Config.LabExportRoot=Core::FString(PresetDirectory.string());
+        bool Exported=false,Changed=false,Imported=false,Restored=false,NoReplace=false,ExplicitOverwrite=false,Protected=false;
+        Application::FFreeCameraState ExportCamera;
         const auto Result=Demo::RunInteractiveLab(Config,Demo::FDemoBackendFactory(),{},
             [&](Application::FInteractiveLabSession& Session,Core::uint32 Presented) {
+                if (Case==0 && Edited && Presented>=4 && Session.GetEffectiveSettings())
+                {
+                    const auto* Effective=Session.GetEffectiveSettings();
+                    if (!Exported && Effective->DebugBypass.Mode==Renderer::EOutputTransformDebugBypassMode::BoundedVisualization)
+                    {
+                        const auto Export=Session.ExportPreset("roundtrip.json");
+                        Exported=Export.bPublished && Export.Status.IsSuccess();
+                        if (Exported)
+                        {
+                            ExportCamera=Session.GetCameraState();
+                            NoReplace=!Session.ExportPreset("roundtrip.json").bPublished;
+                            ExplicitOverwrite=Session.ExportPreset("roundtrip.json",true).bPublished;
+                        }
+                    }
+                    if (Exported && !Changed)
+                    {
+                        auto Edit=*Session.GetRequestedSettings(); Edit.ExposureStops=3;
+                        const bool Navigation=Session.SetNavigationParameters(2.0f,1.2f)==Application::EApplicationResult::Success;
+                        Edit.CameraRevision=Session.GetCameraState().CameraRevision;
+                        Changed=Navigation && Session.RequestSettings(Edit);
+                    }
+                    else if (Changed && !Imported && Presented>=8 && Effective->ExposureStops==3)
+                        Imported=Session.RequestPresetFile("roundtrip.json");
+                    else if (Imported && !Session.HasPendingPreset() && Effective->ExposureStops==0)
+                    {
+                        const auto& Camera=Session.GetCameraState();
+                        Restored=Camera.VerticalFovRadians==ExportCamera.VerticalFovRadians &&
+                            Camera.MovementSpeed==ExportCamera.MovementSpeed &&
+                            Effective->DebugBypass.Mode==Renderer::EOutputTransformDebugBypassMode::BoundedVisualization &&
+                            Effective->DebugBypass.VisualizationMinimum==2 && Effective->DebugBypass.VisualizationMaximum==8 &&
+                            Effective->UIWhiteMultiplier==0.25f;
+                        Protected=!Session.ExportPreset("roundtrip.json",true).bPublished;
+                    }
+                }
                 if (Edited || Presented<2 || !Session.GetRequestedSettings()) return;
                 auto Edit=*Session.GetRequestedSettings();
                 Edit.DebugBypass.Mode=Case==2 ? Renderer::EOutputTransformDebugBypassMode::HDRPreservingReadback
@@ -727,6 +768,15 @@ void RunDiagnosticPanel(int& Failed)
                 Edit.UIWhiteMultiplier=0.25f;
                 Edited=Session.RequestSettings(Edit);
             });
+        if (Case==0)
+        {
+            Check(Failed,Exported && NoReplace && ExplicitOverwrite,
+                "native preset export requires an explicit overwrite action");
+            Check(Failed,Changed && Imported && Restored && Result.LastRecordedExposureStops==0,
+                "native whole-preset import restores camera exposure and complete debug settings");
+            Check(Failed,Protected,"native imported preset remains protected against explicit overwrite");
+        }
+        std::filesystem::remove_all(PresetDirectory);
         const bool Widget=Case<2 || Case>=4;
         std::cout << "[INFO] diagnostic case=" << Case << " submitted=" << Result.DiagnosticFramesSubmitted
                   << " ui=" << Result.UIFramesSubmitted << " prepare=" << static_cast<int>(Result.FinalFrameState.LastUIPreparationResult)

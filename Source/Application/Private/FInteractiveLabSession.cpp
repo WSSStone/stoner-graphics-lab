@@ -636,8 +636,11 @@ bool FInteractiveLabSession::RequestPresetFile(const FString& Path)
     if (!S.PresetWorkload || !S.Settings || S.Terminal || S.BeforePreset || S.bDrainOnly) return false;
     if (Path.IsEmpty() || Path.View().size() > 4096 || Path.View().find('\0') != std::string_view::npos)
     { S.PresetFailure = "Invalid preset input path"; return false; }
+    const bool BareName = Path.View().find_first_of("/\\:") == std::string_view::npos && Path != "." && Path != "..";
+    const FString InputPath = BareName && S.PresetExports
+        ? FString(S.PresetExports->ExportRoot.ToStdString()+"/"+Path.ToStdString()) : Path;
     FString Canonical;
-    if (!FPlatformFileSystem::CanonicalizeExistingPath(Path,Canonical).IsSuccess())
+    if (!FPlatformFileSystem::CanonicalizeExistingPath(InputPath,Canonical).IsSuccess())
     { S.PresetFailure = "Preset input path unavailable"; return false; }
     if (std::find(S.ReadOnlyPresetPaths.begin(),S.ReadOnlyPresetPaths.end(),Canonical) == S.ReadOnlyPresetPaths.end())
     {
@@ -645,8 +648,8 @@ bool FInteractiveLabSession::RequestPresetFile(const FString& Path)
         S.ReadOnlyPresetPaths.push_back(Canonical);
     }
     FLabPreset Candidate;
-    const auto Status = FLabPresetStore::Read(Path,*S.PresetWorkload,S.Settings->GetCapabilities().DebugStages,Candidate);
-    if (!Status.IsSuccess()) { S.PresetFailure = Status.Context; return false; }
+    const auto Status = FLabPresetStore::Read(InputPath,*S.PresetWorkload,S.Settings->GetCapabilities().DebugStages,Candidate);
+    if (!Status.IsSuccess()) { S.PresetFailure = FString("Cannot import preset: "+InputPath.ToStdString()+" ("+Status.Context.ToStdString()+")"); return false; }
     return RequestPreset(Candidate);
 }
 bool FInteractiveLabSession::ConfigurePresetExports(const FLabPresetStoreConfig& Config, const FLabPresetSourceContext& Context)

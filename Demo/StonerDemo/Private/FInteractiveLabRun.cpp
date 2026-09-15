@@ -547,7 +547,12 @@ public:
     {
         const auto& Camera = Session.GetCameraState();
         if (!bSceneReady || Session.IsSettingsPaused() || bNeedsResize || !FirstFailure.IsEmpty() || (Budget && Submitted - CancelledSubmissions >= Budget)) return;
-        for (Core::uint32 Index = 0; Index < Slots.size(); ++Index)
+        std::array<Core::uint32,2> AdmissionOrder{0,1};
+        const auto Priority = [&](Core::uint32 Index) {
+            return Slots[Index].Token ? Slots[Index].Token : std::numeric_limits<Core::uint64>::max();
+        };
+        if (Priority(1)<Priority(0)) std::swap(AdmissionOrder[0],AdmissionOrder[1]);
+        for (const auto Index : AdmissionOrder)
         {
             auto& Slot = Slots[Index];
             if (Slot.Ticket.IsValid()) continue;
@@ -574,7 +579,10 @@ public:
             const auto Acquired = Backend->AcquireLabTarget(Slot.Token, Index, Slot.Target, &Reason);
             Slot.bAcquireAttempted = Backend->OwnsLabAcquireAttempt(Slot.Token, Index);
             if (Acquired == ERHIResult::ResizeRequired) { bNeedsResize = true; return; }
-            if (Pending(Acquired)) continue;
+            // Finish older acquisition before preparing a newer frame. Do not
+            // let delayed slot tokens reach the UI validator out of order.
+            // Presentation/retirement remains free to progress on the next poll.
+            if (Pending(Acquired)) return;
             if (Acquired != ERHIResult::Success) { FailOperation("acquire", Acquired, Reason); return; }
             const auto Begun = Frames->BeginFrame(Slot.Token, Index, Slot.Target, &Reason);
             if (Begun != ERHIResult::Success)
@@ -691,7 +699,15 @@ public:
                     LastRecordedSettingsRevision = Session.GetEffectiveSettings() ? Session.GetEffectiveSettings()->SettingsRevision : 1;
                 }
                 if (Resources && Resources->OutputTransformPlan.TerminalUI) ++UIFramesSubmitted;
-                else if (Session.IsUIEnabled()) ++UISceneFallbackFrames;
+                else if (Session.IsUIEnabled())
+                {
+                    ++UISceneFallbackFrames;
+                    if (UISceneFallbackFrames <= 8)
+                        std::cerr << "InteractiveLab UI fallback: frame=" << Slot.Token
+                            << " preparation=" << static_cast<int>(Frames->Snapshot().LastUIPreparationResult)
+                            << " attachments=" << Frames->Snapshot().ActiveAttachmentBytes
+                            << " reason=" << Session.GetUIFailure().CStr() << '\n';
+                }
                 if (Resources && Resources->OutputTransformPlan.HasDiagnosticWidget()) ++DiagnosticFramesSubmitted;
             }
             if (!Queued.Accepted()) { Fail("lab preview submission failed"); return; }

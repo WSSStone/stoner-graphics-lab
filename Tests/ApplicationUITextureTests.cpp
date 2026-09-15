@@ -54,7 +54,14 @@ int RunApplicationUITextureTests()
             Last.ColorDomain == EUITextureColorDomain::AlphaCoverage,
             "alpha-only atlas normalizes to white RGB and unchanged linear coverage");
         const auto OldToken = Texture.GetTexID();
+        const auto PreparedRequest = Last.RequestId;
+        Check(Adapter.Process(Textures, 3, false, 2) == ERHIResult::Success &&
+            Last.RequestId == PreparedRequest && Texture.GetTexID() == OldToken,
+            "busy frame slots keep prepared UI textures drawable without another upload");
         Texture.Pixels[3] = 99; Texture.SetStatus(ImTextureStatus_WantUpdates);
+        Check(Adapter.Process(Textures, 3, false, 2) == ERHIResult::NotReady &&
+            Last.RequestId == PreparedRequest,
+            "busy frame slots still defer changed atlas data without acknowledging it");
         Next = ERHIResult::NotReady;
         Check(Adapter.Process(Textures, 3, true, 2) == ERHIResult::NotReady &&
             Texture.Status == ImTextureStatus_WantUpdates && Texture.GetTexID() == OldToken,
