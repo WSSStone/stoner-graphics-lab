@@ -690,7 +690,12 @@ FPlatformFileStatus FPlatformFileSystem::RemoveFileContained(
     FString CanonicalRoot;
     const auto Canonical = CanonicalizeExistingPath(AllowedRoot, CanonicalRoot);
     if (!Canonical.IsSuccess()) return Canonical;
-    if (!Contained || CanonicalRoot == Info.Path)
+    // QueryRegularFile preserves native path casing, while canonical public
+    // paths normalize it on Windows. Compare the same canonical representation.
+    FString CanonicalFile;
+    const auto FileCanonical = CanonicalizeExistingPath(Info.Path, CanonicalFile);
+    if (!FileCanonical.IsSuccess()) return FileCanonical;
+    if (!Contained || CanonicalRoot == CanonicalFile)
         return Detail::MakeFileStatus(EPlatformFileResult::OutsideRoot, 0, "remove-file:containment");
     std::error_code Error;
     // Remove the named entry, never a canonicalized symlink referent. The
