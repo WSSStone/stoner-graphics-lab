@@ -10,6 +10,7 @@
 
 namespace Stoner::Application
 {
+struct FLabSessionStatistics;
 struct FLabPresetActions
 {
     bool bPending = false, bNativeActive = false, bCanExport = false;
@@ -41,7 +42,8 @@ public:
         const FLabSettingsCapabilities* Capabilities = nullptr,
         const std::function<bool(float,float)>& EditNavigation = {},
         const std::function<bool()>& ResetCamera = {},
-        const FLabPresetActions* Presets = nullptr);
+        const FLabPresetActions* Presets = nullptr,
+        const FLabSessionStatistics* Statistics = nullptr);
     // Hidden/minimized intervals discard stale UI input and unpublished draws.
     void Suspend() noexcept;
     using FAcquireTexture = std::function<Stoner::Renderer::FUITextureLease(Stoner::Renderer::FUITextureId)>;

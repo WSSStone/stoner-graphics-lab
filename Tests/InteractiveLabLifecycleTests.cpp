@@ -331,6 +331,27 @@ void TestSettingsSession()
         "settings transition deadline enters bounded terminal cleanup and rejects further edits");
     Check(Close(F.S),"settings session completes terminal cleanup");
 }
+void TestCapabilityCounters()
+{
+    FFixture F;
+    Check(F.Start(),"capability statistics fixture starts");
+    FLabSettingsSnapshot Initial;
+    Initial.CameraRevision=F.S.GetCameraState().CameraRevision;
+    Initial.SettingsRevision=Initial.OutputModeGeneration=1;
+    Initial.DisplayGeneration=F.S.GetDisplayState().DisplayGeneration;
+    Initial.RequestedProfileId=Initial.EffectiveProfileId="Sdr.sRGB.v1";
+    Initial.SdrToneMapVersion=Stoner::Renderer::GDefaultSDRToneMapVersion;
+    Initial.HdrViewingVersion=Stoner::Renderer::GInitialHDRViewingVersion;
+    FLabSettingsCapabilities Caps; Caps.DisplayGeneration=Initial.DisplayGeneration;
+    Caps.Outputs={{"Sdr.sRGB.v1",100,100}};
+    Check(F.S.ConfigureSettings(Initial,Caps),"capability statistics configure current output");
+    F.W.QueueEvent(FWindowEvent::DisplayCapabilitiesChanged()); (void)F.S.Service(0);
+    Caps.DisplayGeneration=F.S.GetDisplayState().DisplayGeneration; Caps.Outputs.clear();
+    Check(F.S.RefreshSettingsCapabilities(Caps,false) && F.S.IsSettingsPaused() &&
+        F.S.GetStatistics().CapabilityPauses==1 && !F.S.RefreshSettingsCapabilities(Caps,false) &&
+        F.S.GetStatistics().CapabilityPauses==1,"capability pause counts an actual transition once, not repeated rejected updates");
+    Check(Close(F.S),"capability statistics fixture closes");
+}
 void TestUISession()
 {
     using namespace Stoner::Renderer;
@@ -433,6 +454,7 @@ void TestUIRetryRecovery()
     Check(F.S.SetUIEnabled(true)==EApplicationResult::RuntimeUnavailable && !F.S.IsUIEnabled() &&
         Requests==ExhaustedRequests && F.S.GetFirstFailure().IsEmpty(),
         "failed recovery preflight preserves exhausted uploads and keeps the scene alive");
+    Check(F.S.GetStatistics().UIEnableFailures==1,"UI preflight failures remain observable after later recovery");
     PreflightAvailable=true;
     Check(F.S.SetUIEnabled(true)==EApplicationResult::Success,
         "explicit UI off/on requests coherent recovery");
@@ -482,6 +504,8 @@ void TestSession()
     Check(F.S.GetDiagnosticCount() >= 400 && F.S.GetDiagnostics().GetRecords().size() <= 256 &&
         F.W.GetDiagnostics().IsEmpty() && F.I.GetDiagnostics().IsEmpty(),
         "session keeps one bounded diagnostic ring and preserves monotonic totals");
+    Check(F.S.GetStatistics().DiagnosticEvictions==F.S.GetDiagnosticCount()-F.S.GetDiagnostics().GetRecords().size(),
+        "diagnostic evictions expose exact dropped detail without losing aggregate totals");
     Check(Close(F.S) && F.S.GetShutdownAssurance() == Assurance::Proven,
         "explicit exit closes only after terminal completion");
 }
@@ -538,12 +562,18 @@ void TestLifecycleFaults()
     (void)F.S.Service(0.1);
     Check(F.S.GetCameraState().View==Before.View && F.S.GetFirstFailure().IsEmpty(),
         "failed native pointer capture cannot leak look motion or fail the scene");
+    Check(F.S.GetStatistics().CursorCaptureFailures==1,"pointer capability failure is counted once per failed gesture");
     F.Driver->CursorResult=EApplicationResult::Success;
     F.Driver->QueueEvent(FInputEvent::MouseUp(EMouseButton::Right));
     (void)F.S.Service(0);
     F.Driver->QueueEvent(FInputEvent::KeyDown(EKey::W));
     (void)F.S.Service(0.1);
     Check(F.S.GetCameraState().Position!=Before.Position,"fresh input recovers after failed pointer capture");
+    for (int I=0;I<4097;++I) F.Driver->QueueEvent(FInputEvent::KeyDown(EKey::W));
+    (void)F.S.Service(0);
+    (void)F.S.Service(0);
+    Check(F.S.GetStatistics().InputOverflowIntervals==1,
+        "input overflow reports a dropped interval once rather than inventing an upstream event count");
     Check(Close(F.S),"focus and pointer-failure fixture closes");
 
     for (bool ScaleFailure : {false,true})
@@ -671,6 +701,7 @@ int RunInteractiveLabLifecycleTests()
     TestNavigationSession();
     TestCapabilityNotification();
     TestSettingsSession();
+    TestCapabilityCounters();
     TestPresetSession();
     TestUIRetryRecovery(); TestUISession(); TestSession(); TestTransitions(); TestLifecycleFaults(); TestTerminalOwnership(); TestTerminalFailureBoundaries(); TestTimeout();
     return Failures == 0 ? 0 : 1;

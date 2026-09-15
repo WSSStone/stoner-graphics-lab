@@ -33,6 +33,14 @@ struct FLabSettingsCapabilities;
 struct FLabSettingsTransaction;
 struct FLabControlSection;
 struct FLabRuntimeInfo;
+struct FLabSessionStatistics
+{
+    Stoner::Core::uint64 InputOverflowIntervals = 0;
+    Stoner::Core::uint64 CursorCaptureFailures = 0;
+    Stoner::Core::uint64 UIEnableFailures = 0;
+    Stoner::Core::uint64 CapabilityPauses = 0;
+    Stoner::Core::uint64 DiagnosticEvictions = 0;
+};
 
 // This state belongs to the Application coordinator.  It deliberately has no
 // RHI or platform presentation values; the Demo supplies those through the
@@ -256,6 +264,7 @@ public:
     [[nodiscard]] const Stoner::Core::FString& GetFirstFailure() const noexcept;
     [[nodiscard]] const FApplicationDiagnosticLog& GetDiagnostics() const noexcept;
     [[nodiscard]] Stoner::Core::uint64 GetDiagnosticCount() const noexcept;
+    [[nodiscard]] FLabSessionStatistics GetStatistics() const noexcept;
 
     [[nodiscard]] static const char* ToString(
         EInteractiveLabSessionState State) noexcept;

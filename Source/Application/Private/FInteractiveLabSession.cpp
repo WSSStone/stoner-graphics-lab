@@ -93,6 +93,7 @@ struct FInteractiveLabSession::FImpl
     FString FirstFailure;
     FApplicationDiagnosticLog Diagnostics;
     uint64 DiagnosticCount = 0;
+    FLabSessionStatistics Statistics;
 
     struct FTerminal
     {
@@ -349,6 +350,7 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
     Raw = S.Input->GetFrameEvents();
     if (Overflow)
     {
+        ++S.Statistics.InputOverflowIntervals;
         S.ReleaseInput();
         Raw.clear();
     }
@@ -405,6 +407,7 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
                     ? "Preset exported." : "Preset published; durability confirmation failed. Do not retry as a new export.");
                 return FString(Result.bTemporaryRetained ? "Export failed; temporary cleanup requires attention." : "Export rejected; destination was not published.");
             };
+            const auto Statistics=GetStatistics();
             const auto UIResult = S.UI->Frame(Raw,S.Display,DeltaSeconds,Eligible,S.ControlSections,
                 [this](const FString& Section,const FString& Control) { return InvokeSectionControl(Section,Control); },
                 S.Settings && !S.PendingPreset && !S.Settings->GetActive() && !S.PendingIntent.IsValid() && !S.ActiveIntent.IsValid(),
@@ -418,7 +421,7 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
                 },S.Settings ? &S.Settings->GetCapabilities() : nullptr,
                 [this](float Speed,float Fov) { return SetNavigationParameters(Speed,Fov) == EApplicationResult::Success; },
                 [this] { return ExecuteCameraCommand(EInteractiveLabCameraCommand::Reset) == EApplicationResult::Success; },
-                S.PresetWorkload ? &Presets : nullptr);
+                S.PresetWorkload ? &Presets : nullptr,&Statistics);
             Capture = S.UI->GetCapture();
             if (UIResult == EApplicationResult::Success) S.UIFailure.Clear();
             else if (S.UI->GetTextureResult() != Stoner::RHI::ERHIResult::NotReady)
@@ -495,7 +498,7 @@ EApplicationResult FInteractiveLabSession::Service(double DeltaSeconds, bool bRe
         const bool Captured = S.Window->SetCursorMode(ECursorMode::Disabled) == EApplicationResult::Success;
         if (!S.bLook) { S.bFreshInterval = true; S.Router.InvalidatePointerBaseline(); }
         S.bLook = Captured;
-        if (!Captured) { S.Router.CancelInteraction(); A.bLookCaptured = false; }
+        if (!Captured) { ++S.Statistics.CursorCaptureFailures; S.Router.CancelInteraction(); A.bLookCaptured = false; }
     }
     else
     {
@@ -710,7 +713,10 @@ bool FInteractiveLabSession::RefreshSettingsCapabilities(const FLabSettingsCapab
     auto& S = *Impl;
     if (!S.Settings || S.Terminal || S.SessionState == State::Closed || Caps.DisplayGeneration != S.Display.DisplayGeneration) return false;
     if (S.BeforePreset) (void)S.BeforePreset->RefreshCapabilities(Caps,FormerUsable);
-    return S.Settings->RefreshCapabilities(Caps,FormerUsable);
+    const bool WasPaused=S.Settings->IsPaused();
+    const bool Refreshed=S.Settings->RefreshCapabilities(Caps,FormerUsable);
+    if (Refreshed && !WasPaused && S.Settings->IsPaused()) ++S.Statistics.CapabilityPauses;
+    return Refreshed;
 }
 const FLabSettingsTransaction* FInteractiveLabSession::BeginSettingsTransaction(bool Eligible)
 {
@@ -822,7 +828,7 @@ EApplicationResult FInteractiveLabSession::SetUIEnabled(bool bEnabled)
             if (Result == EApplicationResult::Success) S.UI = std::move(Candidate);
         }
         if (Result != EApplicationResult::Success)
-        { S.UIFailure = "ui-enable-preflight-failed"; return Result; }
+        { ++S.Statistics.UIEnableFailures; S.UIFailure = "ui-enable-preflight-failed"; return Result; }
     }
     S.bUIEnabled = bEnabled; S.UIFailure.Clear();
     if (S.UI) S.UI->Suspend();
@@ -880,6 +886,12 @@ uint32 FInteractiveLabSession::GetRecommendedServiceWaitMilliseconds() const noe
 const FString& FInteractiveLabSession::GetFirstFailure() const noexcept { return Impl->FirstFailure; }
 const FApplicationDiagnosticLog& FInteractiveLabSession::GetDiagnostics() const noexcept { return Impl->Diagnostics; }
 uint64 FInteractiveLabSession::GetDiagnosticCount() const noexcept { return Impl->DiagnosticCount; }
+FLabSessionStatistics FInteractiveLabSession::GetStatistics() const noexcept
+{
+    auto Out=Impl->Statistics;
+    Out.DiagnosticEvictions=Impl->DiagnosticCount-Impl->Diagnostics.GetRecords().size();
+    return Out;
+}
 const char* FInteractiveLabSession::ToString(State S) noexcept
 {
     switch (S) {

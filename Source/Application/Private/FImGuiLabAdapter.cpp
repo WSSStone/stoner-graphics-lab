@@ -1,4 +1,5 @@
 #include "FImGuiLabAdapter.h"
+#include "Application/FInteractiveLabSession.h"
 #include "FImGuiInputAdapter.h"
 #include "FEmbeddedLabFont.h"
 #include "Core/FPlatformProcess.h"
@@ -129,7 +130,8 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
     const std::function<bool(const FLabSettingsSnapshot&)>& EditSettings,
     const FLabSettingsCapabilities* Capabilities,
     const std::function<bool(float,float)>& EditNavigation,
-    const std::function<bool()>& ResetCamera, const FLabPresetActions* Presets)
+    const std::function<bool()>& ResetCamera, const FLabPresetActions* Presets,
+    const FLabSessionStatistics* Statistics)
 {
     Impl->Capture = {};
     Impl->bDrawReady = false;
@@ -323,6 +325,12 @@ EApplicationResult FImGuiLabAdapter::Frame(const Stoner::Core::TArray<FInputEven
             ImGui::Text("UI / scene fallback: %llu / %llu",static_cast<unsigned long long>(Runtime->UIFrames),static_cast<unsigned long long>(Runtime->SceneFallbackFrames));
             ImGui::Text("Drawable: %u x %u",Display.DrawableExtent.Width,Display.DrawableExtent.Height);
             ImGui::Text("Display generation: %llu",static_cast<unsigned long long>(Display.DisplayGeneration));
+            if (Statistics)
+            {
+                ImGui::Text("Input overflow intervals: %llu",static_cast<unsigned long long>(Statistics->InputOverflowIntervals));
+                ImGui::Text("Cursor / UI enable failures: %llu / %llu",static_cast<unsigned long long>(Statistics->CursorCaptureFailures),static_cast<unsigned long long>(Statistics->UIEnableFailures));
+                ImGui::Text("Capability pauses / evicted diagnostics: %llu / %llu",static_cast<unsigned long long>(Statistics->CapabilityPauses),static_cast<unsigned long long>(Statistics->DiagnosticEvictions));
+            }
             ImGui::TextUnformatted("GPU time / full memory profiling: unavailable");
             if (!Runtime->Failure.IsEmpty()) ImGui::TextWrapped("Runtime failure: %s",Runtime->Failure.CStr());
         }

@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (96/127 reviewed tasks); native closeout remains pending.
+Feature 030 implementation is partial (97/127 reviewed tasks); native closeout remains pending.
 The maintainer explicitly skips Intel x86_64 macOS validation for Feature 030
 on 2026-09-08; record it as skipped, not passed, and do not block implementation
 on Intel cooking/derivation/native checks. Existing Intel support and historical
@@ -164,6 +164,7 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
+- 030 T097 reviewed (97/127): bounded session diagnostics expose overflow intervals, pointer/UI-enable failures, capability pauses and diagnostic evictions without guessing dropped-event counts. The UI displays actual counters; existing owner bytes and camera change sets remain exposed. Strict Debug/Release each pass 317 related assertions; architecture passes. Evidence: `Build/Validation/030/us6-stats.json`; T098 onward remains pending.
 - 030 T095/T096 reviewed (96/127): uploaded UI geometry is no longer duplicated in retained CPU snapshots; commands/texture leases remain through render retirement. Active/peak draw-byte counters, packet allowance and pending-resize target accounting are verified. Strict Debug/Release each pass 366 focused assertions; native Metal Debug/Vulkan Release each pass 217. Existing registry/upload/retry limits and explicit UI recovery are reviewed. Evidence: `Build/Validation/030/us6-bounds.json`; T097 onward and formal/human closeout remain pending.
 - 030 US6 lifecycle/capture tests reviewed (94/127): T093/T094 cover focus/pointer and output/scale failures, bounded UI recovery, and a two-request/128 MiB capture queue with exact identity, cancellation/timeouts and retained staging. Strict Debug/Release each pass 322 focused assertions, including 48 capture assertions; architecture passes. Xcode license blocker is resolved. Native copy/consumer/export wiring and T095–T104 implementation closeout remain pending; no formal/human authority is claimed. Local evidence: `Build/Validation/030/us6-lifecycle-capture.json`.
 - 030 US5 local checkpoint complete (92/127): whole-session presets, protected export, current-window restore and usability corrections reviewed. Strict Debug/Release each pass 634 CPU assertions; Metal Debug/Vulkan Release native suites pass 80/66, including whole-preset roundtrip and overwrite protection. Maintainer confirms no flicker/stutter and exposure/camera restore. Evidence: `Build/Validation/030/us5.json`. US6 captures/lifecycle and final Windows/Linux/platform/human closeout remain pending; Intel macOS skipped.
