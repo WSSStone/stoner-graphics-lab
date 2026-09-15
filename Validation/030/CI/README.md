@@ -8,7 +8,7 @@ Follow `specs/030-interactive-rendering-lab/hardware-validation.md` for exact co
 
 ## Current frozen software
 
-The latest completed attempt, [34968637036](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34968637036), tested `5675abd202533210bb8ec232964149da93423f08`. The freeze is invalidated while runtime failures are corrected. No final hosted aggregate or physical/human authority is claimed. Push and rerun authorization is already granted.
+Software `9357028a62a74868b47847d413163cc3d2130d82` is frozen in the clean checkout `Build/Worktrees/030-frozen-97c09338`. Run [34983045938](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34983045938) is in progress. Earlier attempts retain their actual outcomes below; no final hosted aggregate or physical/human authority is claimed. Push and rerun authorization is already granted.
 
 ## Hosted attempt 1
 
@@ -33,3 +33,7 @@ Run [34968637036](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/3
 ## Hosted attempt 6
 
 Run [34979771796](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34979771796) at `d6e4244f` passed Linux Debug/Release, ASan/UBSan and TSan, all three macOS jobs, medium integration and shader producer. The ImGui fixture correction removes the Linux crash. Linux native now reports Forward terminal `end=Success`, `submit=Success`, `wait=Timeout`: the five-second offscreen fence budget expires on software Vulkan. The fixture gives observed software devices a finite thirty-second wait; hardware keeps five seconds and application lifecycle deadlines are unchanged. Both Windows jobs completed without timeout but failed the same twelve preset/artifact export assertions. Windows canonical containment required an existing candidate, so a new export destination failed before publication. The Core candidate resolver now follows the nearest existing ancestor through a native handle before appending missing components; new descendant/sibling/link checks join the hosted focused suite. The next run must verify these corrections.
+
+## Hosted attempt 7
+
+Run [34983045938](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34983045938) at `9357028a` passed Linux Debug/Release and both sanitizers, all macOS jobs, medium integration and shader producer. Linux Forward submission still timed out with the software wait adjustment; this is not resolved. The next bounded diagnostic records actual adapter/software classification and elapsed fence time, allowing up to 120 seconds only for software devices while keeping five seconds on hardware. Local M4 Vulkan retains 229 passing assertions and observed 0–4 ms waits. Windows results remain pending at this checkpoint.
