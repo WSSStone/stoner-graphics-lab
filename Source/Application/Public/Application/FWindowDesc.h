@@ -39,6 +39,7 @@ struct FWindowDesc
     bool bVisible = true;
     bool bHighDensityFramebuffer = true;
     Stoner::Core::FString DebugName = "PrimaryWindow";
+    bool bValidationOverrides = false;
 
     [[nodiscard]] bool IsValid(FApplicationDiagnosticLog* Diagnostics = nullptr) const;
 };

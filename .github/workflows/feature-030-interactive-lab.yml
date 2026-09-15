@@ -1,0 +1,200 @@
+name: Feature 030 Interactive Lab
+on:
+  workflow_dispatch:
+  push:
+    branches: ['030-interactive-rendering-lab']
+    paths: ['Source/**', 'Demo/**', 'Tests/**', 'Config/**', 'Content/**', '.github/scripts/**', '.github/workflows/feature-030-interactive-lab.yml']
+  pull_request:
+    paths: ['Source/**', 'Demo/**', 'Tests/**', 'Config/Validation/InteractiveLab/**', '.github/scripts/*interactive_lab*', '.github/workflows/feature-030-interactive-lab.yml']
+permissions:
+  contents: read
+concurrency:
+  group: feature-030-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validation:
+    name: ${{ matrix.id }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {id: windows-debug, os: windows-latest, config: debug}
+          - {id: windows-release, os: windows-latest, config: release}
+          - {id: linux-debug, os: ubuntu-latest, config: debug}
+          - {id: linux-release, os: ubuntu-latest, config: release}
+          - {id: macos-debug, os: macos-26, config: debug}
+          - {id: macos-release, os: macos-26, config: release}
+          - {id: linux-asan-ubsan, os: ubuntu-latest, config: debug, sanitizers: 'address,undefined'}
+          - {id: linux-tsan, os: ubuntu-latest, config: debug, sanitizers: thread}
+          - {id: linux-native, os: ubuntu-latest, config: debug}
+          - {id: macos-native, os: macos-26, config: debug}
+          - {id: medium-integration, os: ubuntu-latest, config: release}
+          - {id: shader-producer, os: macos-26, config: release}
+    env:
+      LAB_JOB: ${{ matrix.id }}
+      LAB_CONFIG: ${{ matrix.config }}
+      LAB_SANITIZERS: ${{ matrix.sanitizers }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      - run: python -m pip install scons==4.10.1
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers libglfw3-dev xvfb glslang-tools spirv-tools
+      - if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew install glfw
+          xcrun metal --version || xcodebuild -downloadComponent MetalToolchain
+          echo "GLFW_ROOT=$(brew --prefix glfw)" >> "$GITHUB_ENV"
+      - if: matrix.id == 'medium-integration'
+        run: python .github/scripts/acquire_production_corpus.py --package khronos-sponza-gltf --content-root Content/ProductionAcceptance
+      - name: Execute bounded checks and retain actual exit identities
+        shell: python
+        run: |
+          import json, os, pathlib, subprocess, sys
+          sys.path.insert(0,'.github/scripts')
+          import interactive_lab_validation as lab
+          root=pathlib.Path.cwd(); job=os.environ['LAB_JOB']; config=os.environ['LAB_CONFIG']
+          revision=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+          platform={'Windows':'Win64','Linux':'Linux','macOS':'Mac'}[os.environ['RUNNER_OS']]
+          base=pathlib.Path('Build')/platform/config.title(); suffix='.exe' if platform=='Win64' else ''
+          test=str(base/'Tests'/('StonerTest'+suffix)); cooker=str(base/'Tools/AssetCooker'/('StonerAssetCooker'+suffix))
+          out=pathlib.Path('Build/Validation/030/hosted')/job;out.mkdir(parents=True)
+          checks=[]; reports=[]
+          def check(name,argv,timeout=600):
+              code,digest,size=lab._execute(argv,root,timeout,67108864,echo=True)
+              checks.append(dict(name=name,exitCode=code,logSha256=digest))
+              print(name,code,size,flush=True)
+              if code:raise RuntimeError(name+' failed: '+str(code))
+          try:
+              build=[sys.executable,'-m','SCons','config='+config,'strict=1','-j2']
+              if os.environ.get('LAB_SANITIZERS'):build+=['sanitizers='+os.environ['LAB_SANITIZERS']]
+              check('build',build,4200)
+              suites=['interactive-lab-values','interactive-lab-settings','interactive-lab-lifecycle','interactive-lab-capture',
+                  'interactive-lab-preset-export','interactive-lab-watchdog','interactive-lab-watchdog-full',
+                  'interactive-lab-ui-off-parity','interactive-lab-debug','application-lab-preset','application-free-camera',
+                  'application-ui-input','application-ui-texture','application-ui-draw','ui-texture-registry','renderer-ui-draw',
+                  'renderer-ui-color','production-content-demo','renderer-output-transform','output-presentation-lifecycle',
+                  'rhi-deferred-submission','rhi-lab-contract','rhi-presentation-output','application-window',
+                  'production-camera-preview','renderer-output-transform-math','asset-material-shader']
+              if job.endswith(('debug','release')) or os.environ.get('LAB_SANITIZERS'):
+                  check('focused',[test]+[a for s in suites for a in ['--suite',s]],600)
+              if job.endswith(('debug','release')):
+                  check('architecture',[sys.executable,'Tests/verify_architecture.py'])
+                  check('output-architecture',[sys.executable,'.github/scripts/verify_output_transform_architecture.py'])
+                  check('independent-native-verify',[sys.executable,'.github/scripts/interactive_lab_validation.py','verify','--report','Build/Validation/030/hosted/macos-native/hosted-macos-lantern.json']),
+              ('validator',[sys.executable,'-m','unittest','discover','-s','.github/scripts','-p','test_interactive_lab_validation.py'])
+              if job in {'linux-native','macos-native','medium-integration','shader-producer'}:
+                  scene='Sponza' if job=='medium-integration' else 'Lantern';backend='metal' if platform=='Mac' else 'vulkan'
+                  profile='Config/AssetCooker/Profiles/Production/'+('Mac-Metal-Arm64' if platform=='Mac' else 'Linux-Vulkan')+'.json'
+                  pub=out/'publication'; recipe=lab.load_json(root/('Config/Validation/InteractiveLab/Cook/'+scene+'.json'))
+                  args=[cooker,'cook','--target-profile',profile,'--output',str(pub.resolve()),'--ddc',str((out/'ddc').resolve()),'--workers','2']
+                  for source in recipe['sourceRoots']:args+=['--source-root',str((root/source).resolve())]
+                  for asset in recipe['roots']:args+=['--root',asset]
+                  check('cook',args,1200)
+                  if job=='shader-producer':
+                      check('derive',[test,'--suite','metal-shader-compiler','--suite','metal-shader-derivation','--suite','metal-shader-cooker'])
+                      check('shader-verify',[sys.executable,'Tests/verify_repository_shader_assets.py','--root','.'])
+                  else:
+                      os.environ.update(STONER_REQUIRE_UI_COMPOSITION='1',STONER_REQUIRE_UI_DIAGNOSTIC='1',
+                          STONER_LAB_SHADER_TEST_PUBLICATION=str(pub.resolve()),STONER_LAB_SHADER_TEST_PROFILE=str((root/profile).resolve()))
+                      if job!='medium-integration':check('native-ui',[test,'--suite',backend+'-ui-native'])
+                      generation=lab.load_json(pub/'Current.json')['generationId']
+                      case_ids={'linux-native':['hosted-linux-lantern-auto','hosted-linux-lantern-fallback'],
+                          'macos-native':['hosted-macos-lantern'],'medium-integration':['hosted-linux-sponza']}[job]
+                      # Xvfb supplies the real window. It is hosted software Vulkan, never physical evidence.
+                      server=None
+                      if platform=='Linux':
+                          os.environ['DISPLAY']=':99';server=subprocess.Popen(['Xvfb',':99','-screen','0','1280x720x24'])
+                          import time; time.sleep(1)
+                      try:
+                          for case_id in case_ids:
+                              command=out/(case_id+'-command.json'); report=out/(case_id+'.json')
+                              args=[str(base/'Demo/StonerDemo'/('StonerDemo'+suffix)),'--interactive-lab','--lab-ui','on','--mode','validate',
+                                  '--frames','120','--width','320','--height','180','--backend',backend,'--workload','production-content',
+                                  '--render-path','deferred-full','--cooked-root',str(pub),'--strict-generation',generation,
+                                  '--production-root',recipe['roots'][0],'--workload-revision','production-content-'+scene.lower()+'-v3',
+                                  '--lease-root',str(out/'leases'),'--target-profile',profile,'--output-device-profile','Sdr.sRGB.v1',
+                                  '--output-transform-version','Sdr.KhronosPbrNeutral.v1','--lab-report',str(out/(case_id+'-native.json'))]
+                              if case_id.endswith('fallback'):
+                                  script=lab.load_json(root/'Config/Validation/InteractiveLab/Scripts/Lifecycle-v1.json')
+                                  script['steps'] += [dict(afterPresented=0,action='scale',value=2),dict(afterPresented=0,action='scale',value=1)]
+                                  for step in script['steps']:step['afterPresented']=0
+                                  script_path=out/'fallback-script.json';lab.write_new(script_path,script)
+                                  args+=['--lab-vulkan-retirement','acquire-history','--lab-input-script',str(script_path)]
+                              lab.write_new(command,dict(caseId=case_id,gateKind=lab.cases(root)[case_id]['gateKind'],nativeCommand=args,timeoutSeconds=600))
+                              check('native-lab',[sys.executable,'.github/scripts/interactive_lab_validation.py','run','--command-file',str(command),
+                                  '--git-revision',revision,'--output',str(report)])
+                              check('independent-verify',[sys.executable,'.github/scripts/interactive_lab_validation.py','verify','--report',str(report)])
+                              reports.append(str(report))
+                      finally:
+                          if server:server.terminate();server.wait(timeout=10)
+          finally:
+              lab.write_new(out/'hosted.json',dict(schema='stoner.interactive-lab-hosted',schemaVersion=1,gitRevision=revision,
+                  jobId=job,runUrl=os.environ['GITHUB_SERVER_URL']+'/'+os.environ['GITHUB_REPOSITORY']+'/actions/runs/'+os.environ['GITHUB_RUN_ID'],
+                  passed=sys.exc_info()[0] is None and bool(checks) and all(x['exitCode']==0 for x in checks),checks=checks,
+                  artifacts=[lab.artifact(root/p,root) for p in reports],nativeReports=reports))
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: lab-${{ matrix.id }}
+          path: Build/Validation/030/hosted/${{ matrix.id }}/*.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v6
+        if: matrix.id == 'shader-producer'
+        with:
+          name: lab-metal-publication
+          path: Build/Validation/030/hosted/shader-producer/publication
+          if-no-files-found: error
+  shader-consumer:
+    needs: validation
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - run: python -m pip install scons==4.10.1
+      - uses: actions/download-artifact@v7
+        with:
+          name: lab-metal-publication
+          path: Build/Validation/030/hosted/shader-producer/publication
+      - uses: actions/download-artifact@v7
+        with:
+          name: lab-macos-native
+          path: Build/Validation/030/hosted/macos-native
+      - run: scons config=release strict=1 -j2
+      - name: Strict independent consumer
+        shell: python
+        run: |
+          import os, pathlib, subprocess, sys
+          sys.path.insert(0,'.github/scripts')
+          import interactive_lab_validation as lab
+          root=pathlib.Path.cwd();out=root/'Build/Validation/030/hosted/shader-consumer';out.mkdir(parents=True)
+          checks=[]
+          os.environ.update(STONER_LAB_SHADER_TEST_PUBLICATION=str(root/'Build/Validation/030/hosted/shader-producer/publication'),
+              STONER_LAB_SHADER_TEST_PROFILE=str(root/'Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json'))
+          commands=[('strict-load',['Build/Mac/Release/Tools/AssetCooker/StonerAssetCooker','validate','--output',
+              'Build/Validation/030/hosted/shader-producer/publication','--strict-files']),
+              ('strict-shader-load',['Build/Mac/Release/Tests/StonerTest','--suite','interactive-lab-shaders']),
+              ('shader-verify',[sys.executable,'Tests/verify_repository_shader_assets.py','--root','.']),
+              ('independent-native-verify',[sys.executable,'.github/scripts/interactive_lab_validation.py','verify','--report','Build/Validation/030/hosted/macos-native/hosted-macos-lantern.json']),
+              ('validator',[sys.executable,'-m','unittest','discover','-s','.github/scripts','-p','test_interactive_lab_validation.py'])]
+          for name,argv in commands:
+              code,digest,size=lab._execute(argv,root,600,echo=True)
+              checks.append(dict(name=name,exitCode=code,logSha256=digest))
+          lab.write_new(out/'hosted.json',dict(schema='stoner.interactive-lab-hosted',schemaVersion=1,
+              gitRevision=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),jobId='shader-consumer',
+              runUrl=os.environ['GITHUB_SERVER_URL']+'/'+os.environ['GITHUB_REPOSITORY']+'/actions/runs/'+os.environ['GITHUB_RUN_ID'],
+              passed=all(x['exitCode']==0 for x in checks),checks=checks,artifacts=[],nativeReports=[]))
+          assert all(x['exitCode']==0 for x in checks),checks
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: lab-shader-consumer
+          path: Build/Validation/030/hosted/shader-consumer/*.json
+          if-no-files-found: error

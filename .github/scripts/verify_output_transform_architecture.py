@@ -134,12 +134,18 @@ def _feature_030_checks(root: Path, findings: list[str]) -> None:
             text = path.read_text(encoding="utf-8", errors="replace")
             if not (yyjson_include.search(text) or yyjson_api.search(text)):
                 continue
+            # 030's bounded CLI script reader and report writer also consume
+            # the same single private yyjson library; no public type exposes it.
+            lab_json_entrypoints = {
+                "Demo/StonerDemo/Private/FLabInputScript.cpp",
+                "Demo/StonerDemo/Private/FInteractiveLabRun.cpp",
+            }
             if _is_under(path, root, "Source/Asset/Private") or _is_under(
                 path, root, FEATURE_030_PRIVATE_IMGUI_ROOT
-            ):
+            ) or path.relative_to(root).as_posix() in lab_json_entrypoints:
                 continue
             findings.append(
-                f"{path.relative_to(root)}: yyjson is build-only and private to Asset/Application implementations"
+                f"{path.relative_to(root)}: yyjson is build-only and private to Asset/Application and bounded lab CLI implementations"
             )
 
     legacy_runtime_compile = re.compile(

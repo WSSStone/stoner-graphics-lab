@@ -86,9 +86,9 @@ struct FFixture
     FInteractiveLabSession S;
     uint64 Clock = 100;
     FInteractiveLabSessionConfig Config;
-    FFixture()
+    explicit FFixture(bool ValidationOverrides=false)
     {
-        FWindowDesc D; D.Title = "Lab lifecycle"; D.ClientWidth = 320; D.ClientHeight = 240;
+        FWindowDesc D; D.bValidationOverrides=ValidationOverrides; D.Title = "Lab lifecycle"; D.ClientWidth = 320; D.ClientHeight = 240;
         (void)W.Create(D);
         auto InputDriver = std::make_unique<FInputDriver>();
         Driver = InputDriver.get();
@@ -677,6 +677,21 @@ void TestTerminalFailureBoundaries()
         Drain.S.GetFirstFailure() == "lab-terminal-drain-timed-out",
         "successful compatibility cleanup cannot erase an earlier terminal drain timeout");
 }
+void TestValidationScale()
+{
+    FFixture Ordinary;
+    Check(Ordinary.Start() && Ordinary.W.SetValidationContentScale(3)==EApplicationResult::InvalidLifecycle,
+        "ordinary windows reject synthetic validation scale");
+    Check(Close(Ordinary.S),"ordinary scale guard fixture closes");
+    FFixture F(true);
+    Check(F.Start() && F.W.SetValidationContentScale(3)==EApplicationResult::Success,
+        "explicit validation window admits bounded synthetic scale");
+    (void)F.S.Service(0.01); (void)F.S.Service(0.01);
+    Check(F.S.GetDisplayState().ContentScale.X==3 && F.S.GetDisplayState().ContentScale.Y==3 &&
+        F.W.SetValidationContentScale(5)==EApplicationResult::InvalidInput,
+        "validation scale survives driver polling and rejects out-of-budget values");
+    Check(Close(F.S),"synthetic scale fixture drains");
+}
 void TestScriptRecovery()
 {
     FFixture F;
@@ -717,6 +732,7 @@ void TestTimeout()
 int RunInteractiveLabLifecycleTests()
 {
     Failures = 0;
+    TestValidationScale();
     TestScriptRecovery();
     TestNavigationSession();
     TestCapabilityNotification();

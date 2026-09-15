@@ -36,6 +36,8 @@ public:
     [[nodiscard]] EApplicationResult ReadClipboardUtf8(Stoner::Core::FString& OutText);
     [[nodiscard]] EApplicationResult WriteClipboardUtf8(const Stoner::Core::FString& Text);
 
+    // Synthetic content scale for explicitly configured validation windows only.
+    [[nodiscard]] EApplicationResult SetValidationContentScale(float Scale);
     void QueueEvent(const FWindowEvent& Event);
     Stoner::Core::TArray<FWindowEvent> PollEvents();
     Stoner::Core::TArray<FInputEvent> PollInputEvents();
@@ -73,6 +75,7 @@ private:
 
     Stoner::Core::uint32 WindowId = 0;
     FWindowDesc Desc;
+    float ValidationContentScale = 0;
     EWindowLifecycleState LifecycleState = EWindowLifecycleState::Uncreated;
     EWindowDisplayMode DisplayMode = EWindowDisplayMode::Windowed;
     ECursorMode CursorMode = ECursorMode::Normal;

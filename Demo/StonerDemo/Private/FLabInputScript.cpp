@@ -76,6 +76,7 @@ bool FLabInputScript::Decode(const TArray<uint8>& Bytes,FString& Reason)
         else if (Second) return Fail();
         if (S.Action=="exposure") { if (S.Value < -16 || S.Value > 16) return Fail(); }
         else if (S.Action=="debug") { if (S.Value!=0 && S.Value!=1 && S.Value!=2) return Fail(); }
+        else if (S.Action=="scale") { if (S.Value<0.5 || S.Value>4) return Fail(); }
         else if (S.Action=="white") { if (S.Value<0.5 || S.Value>4) return Fail(); }
         else if (S.Action=="ui" || S.Action=="focus") { if (S.Value!=0 && S.Value!=1) return Fail(); }
         else if (S.Action=="minimize" || S.Action=="close") { if (S.Value!=0) return Fail(); }
@@ -83,7 +84,7 @@ bool FLabInputScript::Decode(const TArray<uint8>& Bytes,FString& Reason)
         if (!Parsed.empty() && Parsed.back().Action=="close") return Fail();
         Parsed.push_back(std::move(S));
     }
-    Steps=std::move(Parsed); Cursor=0; Expected.reset(); ProgressTime={}; LastPresented=0; LastCursor=0;
+    Steps=std::move(Parsed); Cursor=0; Expected.reset(); ProgressTime={}; LastPresented=0; ResumeAfterPresented=0; LastCursor=0;
     Digest=Asset::FAssetDigest::FromBytes(Bytes).ToLowerHex(); Reason={}; return true;
 }
 bool FLabInputScript::Service(Application::FWindow& W,Application::FInteractiveLabSession& S,uint32 Presented,FString& Reason)
@@ -104,13 +105,14 @@ bool FLabInputScript::Service(Application::FWindow& W,Application::FInteractiveL
         { Reason="script settings did not become effective"; return false; }
         Expected.reset();
     }
-    if (Cursor==Steps.size() || Presented<Steps[Cursor].AfterPresented) return true;
+    if (Cursor==Steps.size() || Presented<ResumeAfterPresented || Presented<Steps[Cursor].AfterPresented) return true;
     const auto& Step=Steps[Cursor]; const auto& A=Step.Action;
     const bool Recovery=A=="restore" || A=="focus" || A=="close";
     if (!Recovery && (S.GetPendingSettings() || S.HasPendingTransition())) return true;
     bool OK=true;
     if (A=="resize") OK=W.SetClientSize(static_cast<uint32>(Step.Value),static_cast<uint32>(Step.Value2))==Application::EApplicationResult::Success;
     else if (A=="restore") W.QueueEvent(Application::FWindowEvent::Restored(static_cast<uint32>(Step.Value),static_cast<uint32>(Step.Value2)));
+    else if (A=="scale") OK=W.SetValidationContentScale(static_cast<float>(Step.Value))==Application::EApplicationResult::Success;
     else if (A=="minimize") W.QueueEvent(Application::FWindowEvent::Minimized());
     else if (A=="focus") W.QueueEvent(Step.Value ? Application::FWindowEvent::FocusGained() : Application::FWindowEvent::FocusLost());
     else if (A=="ui") OK=S.SetUIEnabled(Step.Value!=0)==Application::EApplicationResult::Success;
@@ -138,6 +140,7 @@ bool FLabInputScript::Service(Application::FWindow& W,Application::FInteractiveL
         else if (OK) Expected=Edit;
     }
     if (!OK) { Reason="script action rejected: "+A.ToStdString(); return false; }
+    if (A!="minimize" && A!="close") ResumeAfterPresented=Presented+3;
     ++Cursor; return true;
 }
 }

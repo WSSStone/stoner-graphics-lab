@@ -9,7 +9,9 @@
 #include "Application/FInteractiveLabSession.h"
 #include "Application/FLabSettingsSnapshot.h"
 #include "Asset/FAssetCookContractCodec.h"
+#include "Asset/FAssetDigest.h"
 #include "Core/FPlatformFileSystem.h"
+#include "Core/SGPlatform.h"
 #include "FLabProductionPreviewExecutor.h"
 #include "FProductionContentSession.h"
 #include "FInteractiveLabShaders.h"
@@ -38,6 +40,8 @@ using Application::EInteractiveLabSessionState;
 using Application::FInteractiveLabServiceResponse;
 using Application::FWindowExtent;
 using Clock = std::chrono::steady_clock;
+constexpr std::array<const char*,7> LabProfiles={"Sdr.sRGB.v1","Sdr.BT709.v1","Sdr.ExplicitGamma22.v1",
+    "Hdr.PQ.Rec2020.1000.v1","Hdr.PQ.Rec2020.2000.v1","Hdr.Linear.1000.v1","Hdr.Linear.2000.v1"};
 
 bool ConfigureLabExports(Application::FInteractiveLabSession& Session, const FDemoConfiguration& Config,
     Core::FString& Reason, Application::FLabPresetStoreConfig* CaptureStore=nullptr)
@@ -131,6 +135,7 @@ public:
     struct FSlot
     {
         Core::uint64 Token = 0;
+        Core::FString OutputProfile;
         Renderer::FOutputTransformPreviewTicket Ticket;
         RHI::FRHIBorrowedAcquiredTarget Target;
         bool bAcquireAttempted = false;
@@ -634,6 +639,8 @@ public:
                         Presentations.push_back({Lease, Index});
                         Slot.bPresentQueued = true;
                         ++Presented;
+                        for (Core::usize P=0;P<LabProfiles.size();++P)
+                            if (Slot.OutputProfile==LabProfiles[P]) ++ProfilePresentCounts[P];
                         if (Frames->QueuePresentation(Slot.Token, Index, Lease, &Reason) != ERHIResult::Success)
                             Fail(Reason);
                     }
@@ -805,6 +812,7 @@ public:
             if (Slot.bSubmitted)
             {
                 ++Submitted;
+                Slot.OutputProfile=OutputResolved.OutputDeviceProfileId;
                 const auto* Resources = Frames->GetResources(Slot.Token,Index);
                 if (Resources)
                 {
@@ -1044,9 +1052,11 @@ public:
     Application::FLabPresetStoreConfig CaptureStore;
     EDemoGraphicsBackend CaptureBackend=EDemoGraphicsBackend::Vulkan;
     Core::FString CaptureStatus;
+    Core::FString SourceDigest;
     Core::uint64 NextCapture=1, CaptureServiceFrame=0;
     Core::uint64 NextToken = 1;
     Core::uint32 Submitted = 0, Completed = 0, Presented = 0, CancelledSubmissions = 0;
+    std::array<Core::uint64,7> ProfilePresentCounts{};
     Core::uint32 UIFramesSubmitted = 0, UISceneFallbackFrames = 0, DiagnosticFramesSubmitted = 0;
     Core::uint64 LastRecordedSettingsRevision = 0;
     float LastRecordedExposureStops = 0;
@@ -1078,6 +1088,7 @@ FInteractiveLabRunResult RunInteractiveLab(
     Application::FWindow Window;
     Application::FWindowDesc Desc;
     Desc.Title = "Stoner Interactive Rendering Lab";
+    Desc.bValidationOverrides=Config.IsBounded();
     Desc.ClientWidth = Config.ClientWidth; Desc.ClientHeight = Config.ClientHeight;
     if (Window.CreateRealWindow(Desc) != Application::EApplicationResult::Success)
     { Out.ExitCode = EDemoExitCode::RuntimeUnavailable; Out.FirstFailure = "native lab window unavailable"; return Out; }
@@ -1131,6 +1142,7 @@ FInteractiveLabRunResult RunInteractiveLab(
     catch (const std::exception& Error) { Owner->Fail(Core::FString(Error.what())); }
     if (!Started) (void)Session.RequestExit(Owner->FirstFailure);
     Owner->CaptureBackend=Config.GraphicsBackend;
+    Owner->SourceDigest=Owner->Closure.SourceIdentity.ToLowerHex();
     if (Started)
         (void)Session.ConfigureCaptureActions({
             [Owner,&Session](const Core::FString& Name,bool IncludeUI,bool Numeric) { return Owner->RequestCapture(Session,Name,IncludeUI,Numeric); },
@@ -1288,7 +1300,66 @@ FInteractiveLabRunResult RunInteractiveLab(
             yyjson_mut_obj_add_str(Doc,Root,"humanStatus","pending-human-review");
             yyjson_mut_obj_add_str(Doc,Root,"softwareRevision",STONER_LAB_STRINGIFY(STONER_DEMO_SOFTWARE_REVISION));
             yyjson_mut_obj_add_str(Doc,Root,"backend",ToString(Config.GraphicsBackend));
+#if SG_PLATFORM_WINDOWS
+            yyjson_mut_obj_add_str(Doc,Root,"platform","windows");
+#elif SG_PLATFORM_MAC
+            yyjson_mut_obj_add_str(Doc,Root,"platform","macos");
+#else
+            yyjson_mut_obj_add_str(Doc,Root,"platform","linux");
+#endif
+            const auto& Before=Out.BeforeNativeShutdown;
+            const auto& Runtime=Before.RuntimeSnapshot;
+            const auto Mode=Before.RetirementMode;
+            yyjson_mut_obj_add_str(Doc,Root,"adapter",Runtime.AdapterName.CStr());
+            yyjson_mut_obj_add_bool(Doc,Root,"nativeAvailable",Runtime.ProvesNativeExecution() && LiveOps.bAvailable);
+            yyjson_mut_obj_add_bool(Doc,Root,"softwareDevice",Runtime.bSoftwareDevice);
+            yyjson_mut_obj_add_bool(Doc,Root,"discreteDevice",Runtime.bDiscreteDevice);
+            yyjson_mut_obj_add_str(Doc,Root,"outputProfileId",Owner->OutputResolved.OutputDeviceProfileId.CStr());
+            const auto CapabilityText=Before.Capabilities.CapabilityDigest.View();
+            const auto CapabilityDigest=Asset::FAssetDigest::FromBytes({reinterpret_cast<const Core::uint8*>(CapabilityText.data()),CapabilityText.size()}).ToLowerHex();
+            yyjson_mut_obj_add_str(Doc,Root,"capabilityDigest",CapabilityDigest.CStr());
+            yyjson_mut_obj_add_uint(Doc,Root,"settingsGeneration",Out.LastRecordedSettingsRevision);
+            yyjson_mut_obj_add_uint(Doc,Root,"displayGeneration",Session.GetDisplayState().DisplayGeneration);
+            yyjson_mut_obj_add_uint(Doc,Root,"outputGeneration",Before.ResolvedState.ModeGeneration);
+            yyjson_mut_obj_add_uint(Doc,Root,"frameToken",Out.FinalFrameState.LastFrameToken);
+            yyjson_mut_obj_add_uint(Doc,Root,"width",Owner->CurrentExtent.Width);
+            yyjson_mut_obj_add_uint(Doc,Root,"height",Owner->CurrentExtent.Height);
+            yyjson_mut_obj_add_uint(Doc,Root,"logicalWidth",Window.GetClientWidth());
+            yyjson_mut_obj_add_uint(Doc,Root,"logicalHeight",Window.GetClientHeight());
+            yyjson_mut_obj_add_uint(Doc,Root,"completedRenderSubmissions",FinalOps.SuccessfulRenderCompletionCount);
+            yyjson_mut_obj_add_uint(Doc,Root,"provenPresentationReleases",FinalOps.ProvenPresentationReleaseCount);
+            yyjson_mut_obj_add_uint(Doc,Root,"finalAcquisitionRecords",Native.AcquisitionRecordCount);
+            yyjson_mut_obj_add_uint(Doc,Root,"uiFrames",Out.UIFramesSubmitted);
+            yyjson_mut_obj_add_real(Doc,Root,"uiWhiteMultiplier",Out.LastRecordedUIWhiteMultiplier);
+            yyjson_mut_obj_add_real(Doc,Root,"referenceWhiteNits",Owner->OutputResolved.ReferenceWhiteNits);
+            yyjson_mut_obj_add_real(Doc,Root,"exposureStops",Out.LastRecordedExposureStops);
+            yyjson_mut_obj_add_str(Doc,Root,"retirementMode",Mode==RHI::ERHIPresentationRetirementMode::PresentationFence ? "PresentationFence" :
+                Mode==RHI::ERHIPresentationRetirementMode::AcquireHistory ? "AcquireHistory" :
+                Mode==RHI::ERHIPresentationRetirementMode::NativeCallback ? "NativeCallback" : "Unknown");
+            yyjson_mut_obj_add_uint(Doc,Root,"retirementReason",static_cast<unsigned>(Before.RetirementReason));
+            yyjson_mut_obj_add_bool(Doc,Root,"optionalFenceAdvertised",Before.Capabilities.bOptionalPresentationFenceAdvertised);
+            yyjson_mut_obj_add_bool(Doc,Root,"optionalFenceEnabled",Before.Capabilities.bOptionalPresentationFenceEnabled);
+            yyjson_mut_obj_add_uint(Doc,Root,"presentationImageCount",Runtime.NativePresentation.ActiveImageCount);
+            yyjson_mut_obj_add_uint(Doc,Root,"retiringImageCount",Runtime.NativePresentation.RetiringImageCount);
+            yyjson_mut_obj_add_uint(Doc,Root,"peakPresentationBytes",Native.PeakEstimatedColorBytes);
+            yyjson_mut_obj_add_uint(Doc,Root,"preCleanupPresentationOwners",Native.PreCleanupPresentationOwners);
+            yyjson_mut_obj_add_uint(Doc,Root,"residualOwners",Native.ResidualNativeOwners);
+            yyjson_mut_obj_add_uint(Doc,Root,"abandonedOwners",Native.AbandonedNativeOwners);
+            yyjson_mut_obj_add_uint(Doc,Root,"terminalIdleCalls",Native.TerminalIdleCallCount);
+            yyjson_mut_obj_add_bool(Doc,Root,"terminalIdleCompleted",Native.bTerminalIdleCompleted);
+            yyjson_mut_obj_add_int(Doc,Root,"terminalIdleResult",Native.TerminalIdleNativeResult);
+            yyjson_mut_obj_add_uint(Doc,Root,"terminalIdleNanoseconds",Native.TerminalIdleNanoseconds);
+            yyjson_mut_obj_add_uint(Doc,Root,"finalNativeOwners",FinalOps.RetainedSubmissionOwnerCount+Native.PresentationOwnerCount+
+                Native.AcquisitionRecordCount+Native.ResidualNativeOwners+Native.AbandonedNativeOwners);
+            // This older snapshot also counts abstract RHI wrappers before
+            // the owner releases scene/UI state; it is not a final native gauge.
+            yyjson_mut_obj_add_uint(Doc,Root,"terminalObjectSnapshotCount",Out.AfterNativeShutdown.RuntimeSnapshot.GetTotalLiveObjectCount());
+            yyjson_mut_obj_add_bool(Doc,Root,"nativeMetadataObserved",Runtime.bNativePresentationMetadataObserved);
+            yyjson_mut_obj_add_bool(Doc,Root,"nativeSystemToneMapping",Runtime.bNativeSystemToneMappingEnabled);
+
             yyjson_mut_obj_add_str(Doc,Root,"workload",Config.WorkloadRevision.CStr());
+            yyjson_mut_obj_add_str(Doc,Root,"rootIdentity",Config.ProductionRoot.CStr());
+            yyjson_mut_obj_add_str(Doc,Root,"sourceDigest",Owner->SourceDigest.CStr());
             yyjson_mut_obj_add_str(Doc,Root,"cookedGeneration",Config.StrictGeneration.CStr());
             yyjson_mut_obj_add_str(Doc,Root,"scriptSha256",Script.GetDigest().CStr());
             yyjson_mut_obj_add_str(Doc,Root,"firstFailure",Out.FirstFailure.CStr());
@@ -1299,6 +1370,10 @@ FInteractiveLabRunResult RunInteractiveLab(
             yyjson_mut_obj_add_uint(Doc,Root,"completedScriptSteps",Script.GetCompletedSteps());
             yyjson_mut_obj_add_uint(Doc,Root,"submittedFrames",Out.SubmittedFrames);
             yyjson_mut_obj_add_uint(Doc,Root,"presentQueuedFrames",Out.PresentedFrames);
+            auto* ProfileCounts=yyjson_mut_obj_add_obj(Doc,Root,"presentQueuedByProfile");
+            for (Core::usize P=0;P<LabProfiles.size();++P)
+                yyjson_mut_obj_add_uint(Doc,ProfileCounts,LabProfiles[P],Owner->ProfilePresentCounts[P]);
+            yyjson_mut_obj_add_uint(Doc,Root,"outputTransferCount",Out.LastRecordedUIOutputTransferCount);
             yyjson_mut_obj_add_uint(Doc,Root,"imageReadbackCopies",LiveOps.ImageReadbackCopyCount);
             yyjson_mut_obj_add_uint(Doc,Root,"readbackMaps",LiveOps.ReadbackMapCount);
             yyjson_mut_obj_add_uint(Doc,Root,"readbackWaits",LiveOps.ReadbackWaitCount);

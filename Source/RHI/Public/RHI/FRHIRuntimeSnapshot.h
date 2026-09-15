@@ -45,6 +45,8 @@ struct FRHIRuntimeSnapshot
     bool bNativePresentationMetadataObserved = false;
     bool bNativeSystemToneMappingEnabled = false;
 
+    bool bDiscreteDevice = false;
+
     [[nodiscard]] Stoner::Core::uint64 GetTotalLiveObjectCount() const noexcept
     {
         return static_cast<Stoner::Core::uint64>(LiveInstances) + LiveDevices + LiveSurfaces + LiveSwapchains + LiveBuffers + LiveTextures +

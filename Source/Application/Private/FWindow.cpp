@@ -92,6 +92,7 @@ EApplicationResult FWindow::Create(const FWindowDesc& InDesc, EWindowRuntimeAvai
     }
 
     Desc = InDesc;
+    ValidationContentScale=0;
     WindowId = NextStableWindowId();
     LifecycleState = EWindowLifecycleState::Active;
     DisplayMode = Desc.DisplayMode;
@@ -142,6 +143,7 @@ EApplicationResult FWindow::CreateRealWindow(const FWindowDesc& InDesc, EWindowR
         return DriverResult;
     }
     Desc = InDesc;
+    ValidationContentScale=0;
     WindowId = StableId;
     LifecycleState = EWindowLifecycleState::Active;
     DisplayMode = InDesc.DisplayMode;
@@ -289,6 +291,14 @@ EApplicationResult FWindow::Restore()
     return Driver->Restore();
 }
 
+EApplicationResult FWindow::SetValidationContentScale(float Scale)
+{
+    if (!IsActive() || !Desc.bValidationOverrides) return EApplicationResult::InvalidLifecycle;
+    if (!std::isfinite(Scale) || Scale<0.5f || Scale>4.0f) return EApplicationResult::InvalidInput;
+    ValidationContentScale=Scale;
+    return EApplicationResult::Success;
+}
+
 void FWindow::QueueEvent(const FWindowEvent& Event)
 {
     FWindowEvent Copy = Event;
@@ -324,8 +334,8 @@ Stoner::Core::TArray<FWindowEvent> FWindow::PollEvents()
             DrawableWidth = Driver->GetDrawableWidth();
             DrawableHeight = Driver->GetDrawableHeight();
         }
-        ContentScaleX = Driver->GetContentScaleX();
-        ContentScaleY = Driver->GetContentScaleY();
+        ContentScaleX = ValidationContentScale>0 ? ValidationContentScale : Driver->GetContentScaleX();
+        ContentScaleY = ValidationContentScale>0 ? ValidationContentScale : Driver->GetContentScaleY();
         if (DrawableWidth != PreviousDrawableWidth ||
             DrawableHeight != PreviousDrawableHeight)
         {

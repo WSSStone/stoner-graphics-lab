@@ -1884,6 +1884,7 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::InitializeInternal(
     Impl->Snapshot.ObjectMode = Stoner::RHI::ERHIRuntimeObjectMode::RealRuntime;
     Impl->Snapshot.AdapterName = Properties.deviceName;
     Impl->Snapshot.bSoftwareDevice = Properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU;
+    Impl->Snapshot.bDiscreteDevice = Properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
     std::string LowerName(Properties.deviceName);
     std::transform(LowerName.begin(), LowerName.end(), LowerName.begin(), [](unsigned char Character) { return static_cast<char>(std::tolower(Character)); });
     Impl->Snapshot.bSoftwareDevice = Impl->Snapshot.bSoftwareDevice || LowerName.find("lavapipe") != std::string::npos || LowerName.find("llvmpipe") != std::string::npos;

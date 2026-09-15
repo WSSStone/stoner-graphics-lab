@@ -841,5 +841,79 @@
     "nativePreferredPath": "exercise-when-available-otherwise-report-optional-branch-unavailable",
     "fallbackPassRequiresDeclaredLimitations": true,
     "forcedTerminationIsPass": false
-  }
+  },
+  "hostedCases": [
+    {
+      "caseId": "hosted-linux-lantern-auto",
+      "gateKind": "smoke",
+      "hosted": true,
+      "platform": "linux",
+      "backend": "vulkan",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "authority": "hosted-native-machine-only"
+    },
+    {
+      "caseId": "hosted-linux-lantern-fallback",
+      "gateKind": "lifecycle",
+      "hosted": true,
+      "platform": "linux",
+      "backend": "vulkan",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "authority": "hosted-native-machine-only",
+      "requiredPresentationRetirementMode": "AcquireHistory",
+      "requiredAdditionalCycles": {
+        "resize": 1,
+        "uiToggle": 1,
+        "focusRecovery": 1,
+        "minimizeRestore": 1,
+        "fontScaleReplacement": 1
+      }
+    },
+    {
+      "caseId": "hosted-macos-lantern",
+      "gateKind": "smoke",
+      "hosted": true,
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "authority": "hosted-native-machine-only"
+    },
+    {
+      "caseId": "hosted-linux-sponza",
+      "gateKind": "smoke",
+      "hosted": true,
+      "platform": "linux",
+      "backend": "vulkan",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "authority": "hosted-native-machine-only"
+    }
+  ]
 }

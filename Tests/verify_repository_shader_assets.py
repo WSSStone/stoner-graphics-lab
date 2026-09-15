@@ -12,6 +12,7 @@ from pathlib import Path
 PROGRAM_FILES = {
     "Content/Shaders/UI/UIDraw.shader.json",
     "Content/Shaders/UICopy.shader.json",
+    "Content/Shaders/UIDiagnostic.shader.json",
     "Content/Shaders/Triangle/Triangle.shader.json",
     "Content/Shaders/Deferred/Surface.shader.json",
     "Content/Shaders/Deferred/Composition.shader.json",
@@ -23,6 +24,7 @@ PROGRAM_FILES = {
 }
 
 PROGRAM_IDENTITIES = {
+    "Content/Shaders/UIDiagnostic.shader.json": ("ShaderProgram", "Engine/Shaders/UI/UIDiagnostic", ""),
     "Content/Shaders/UI/UIDraw.shader.json": ("ShaderProgram", "Engine/Shaders/UI/UIDraw", ""),
     "Content/Shaders/UICopy.shader.json": ("ShaderProgram", "Engine/Shaders/UI/UICopy", ""),
     "Content/Shaders/Triangle/Triangle.shader.json":
@@ -50,6 +52,7 @@ FEATURE_029_PAYLOADS = {
 }
 
 PAYLOAD_VERSION_OVERRIDES = {
+    ("ShaderPayload", "Engine/Shaders/UI/UIDiagnostic", "payload.vulkan.fragment"): "030-v1",
     ("ShaderPayload", "Engine/Shaders/UI/UIDraw", "payload.vulkan.vertex"): "030-v1",
     ("ShaderPayload", "Engine/Shaders/UI/UIDraw", "payload.vulkan.fragment"): "030-v1",
     ("ShaderPayload", "Engine/Shaders/UI/UICopy", "payload.vulkan.fragment"): "030-v1",
@@ -161,11 +164,11 @@ def verify(root: Path) -> list[str]:
     }
     if owned_files != actual_files:
         errors.append("dependency-inventory")
-    if len([p for p in owned_files if p.suffix == ".spv"]) != 17:
+    if len([p for p in owned_files if p.suffix == ".spv"]) != 18:
         errors.append("spirv-count")
     if len([
         p for p in owned_files if p.suffix in {".vert", ".frag", ".comp"}
-    ]) != 17:
+    ]) != 18:
         errors.append("source-count")
 
     point = (
