@@ -19,4 +19,8 @@ struct FLabPresetExportResult
     bool bPublished=false;
     bool bTemporaryRetained=false;
 };
+// Shared protected publication for explicit lab artifacts. The caller encodes
+// content; each file is bounded to 64 MiB and defaults to atomic no-replace.
+[[nodiscard]] FLabPresetExportResult ExportLabFile(const FLabPresetStoreConfig& Config,
+    const Stoner::Core::FString& Filename, const Stoner::Core::TArray<Stoner::Core::uint8>& Bytes);
 }

@@ -64,17 +64,15 @@ FPlatformFileStatus FLabPresetStore::Read(const FString& Path,const FLabPresetWo
         return {EPlatformFileResult::InvalidArgument,0,Reason};
     return {};
 }
-FLabPresetExportResult FLabPresetStore::Export(const FLabPresetStoreConfig& Config,const FString& Filename,
-    const FLabPreset& Preset,std::span<const FLabDebugStage> Stages,bool Overwrite,
+static FLabPresetExportResult PublishBytes(const FLabPresetStoreConfig& Config,const FString& Filename,
+    const TArray<uint8>& Bytes,bool Overwrite,
     const std::function<bool(const FString&,const FString&)>& BeforePublish)
 {
     FLabPresetExportResult Result;
     Result.Status=Validate(Config,Filename,Result.TargetPath);
     if (!Result.Status.IsSuccess()) return Result;
-    TArray<uint8> Bytes;
-    FString Reason;
-    if (!FLabPresetCodec::Encode(Preset,Stages,Bytes,Reason))
-    { Result.Status={EPlatformFileResult::InvalidArgument,0,Reason}; return Result; }
+    if (Bytes.empty() || Bytes.size()>64ull*1024*1024)
+    { Result.Status=Fail(EPlatformFileResult::InvalidArgument,"lab-export:payload-bound"); return Result; }
     static std::atomic<uint64> Counter=0;
     FString Temporary;
     bool Created=false;
@@ -101,8 +99,8 @@ FLabPresetExportResult FLabPresetStore::Export(const FLabPresetStoreConfig& Conf
     }
     Result.Status=Validate(Config,Filename,Result.TargetPath);
     TArray<uint8> Verified;
-    if (Result.Status.IsSuccess()) Result.Status=FPlatformFileSystem::ReadRegularFileBounded(Temporary,FLabPresetCodec::MaximumBytes,Verified);
-    if (Result.Status.IsSuccess() && Verified!=Bytes) Result.Status=Fail(EPlatformFileResult::InvalidArgument,"preset-export:temporary-changed");
+    if (Result.Status.IsSuccess()) Result.Status=FPlatformFileSystem::ReadRegularFileBounded(Temporary,Bytes.size(),Verified);
+    if (Result.Status.IsSuccess() && (Verified.size()!=Bytes.size() || !std::equal(Verified.begin(),Verified.end(),Bytes.begin()))) Result.Status=Fail(EPlatformFileResult::InvalidArgument,"preset-export:temporary-changed");
     if (!Result.Status.IsSuccess()) { Cleanup(); return Result; }
     Result.Status=Overwrite
         ? FPlatformFileSystem::ReplaceFileAtomic(Temporary,Result.TargetPath,Result.bPublished)
@@ -112,4 +110,22 @@ FLabPresetExportResult FLabPresetStore::Export(const FLabPresetStoreConfig& Conf
     Cleanup();
     return Result;
 }
+FLabPresetExportResult FLabPresetStore::Export(const FLabPresetStoreConfig& Config,const FString& Filename,
+    const FLabPreset& Preset,std::span<const FLabDebugStage> Stages,bool Overwrite,
+    const std::function<bool(const FString&,const FString&)>& BeforePublish)
+{
+    FLabPresetExportResult Result;
+    Result.Status=Validate(Config,Filename,Result.TargetPath);
+    if (!Result.Status.IsSuccess()) return Result;
+    TArray<uint8> Bytes;
+    FString Reason;
+    if (!FLabPresetCodec::Encode(Preset,Stages,Bytes,Reason))
+    { Result.Status={EPlatformFileResult::InvalidArgument,0,Reason}; return Result; }
+    return PublishBytes(Config,Filename,Bytes,Overwrite,BeforePublish);
+}
+FLabPresetExportResult ExportLabFile(const FLabPresetStoreConfig& Config,const FString& Filename,const TArray<uint8>& Bytes)
+{
+    return PublishBytes(Config,Filename,Bytes,false,{});
+}
+
 }

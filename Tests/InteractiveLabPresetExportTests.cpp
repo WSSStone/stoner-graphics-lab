@@ -24,6 +24,28 @@ int RunInteractiveLabPresetExportTests()
         FPlatformFileSystem::CanonicalizeExistingPath(FString((Scratch/"protected").string()),Protected).IsSuccess(),
         "preset store fixture resolves owned export and protected roots");
     FLabPresetStoreConfig Config{Root,{Protected}};
+    const TArray<uint8> Artifact={0,1,2,3,255};
+    const auto File=ExportLabFile(Config,"preview.raw",Artifact);
+    TArray<uint8> RoundTrip;
+    Check(File.bPublished && File.Status.IsSuccess() &&
+        FPlatformFileSystem::ReadRegularFileBounded(File.TargetPath,Artifact.size(),RoundTrip).IsSuccess() && RoundTrip==Artifact,
+        "lab artifact publication preserves arbitrary bytes through protected no-replace export");
+    Check(!ExportLabFile(Config,"preview.raw",TArray<uint8>{9}).bPublished &&
+        !ExportLabFile(Config,"../escape.raw",Artifact).bPublished &&
+        !ExportLabFile({Protected,{Protected}},"denied.raw",Artifact).bPublished,
+        "lab artifact publication rejects collisions, traversal and protected roots");
+    Check(!ExportLabFile(Config,"empty.raw",{}).bPublished,
+        "lab artifact publication rejects empty payloads");
+    {
+        const TArray<uint8> Large(1024*1024,0x5a);
+        const auto LargeFile=ExportLabFile(Config,"large.raw",Large);
+        Check(LargeFile.bPublished && LargeFile.Status.IsSuccess(),
+            "capture artifacts may exceed the preset codec limit within their separate byte bound");
+        const TArray<uint8> TooLarge(64ull*1024*1024+1,0);
+        Check(!ExportLabFile(Config,"oversize.raw",TooLarge).bPublished &&
+            !FPlatformFileSystem::Exists(FString(Root.ToStdString()+"/oversize.raw")),
+            "oversized lab artifacts reject before temporary publication");
+    }
     const FLabDebugStage Stage{"ManualExposure",ERenderGraphColorDomain::SceneLinearRec709D65,{}};
     const std::span<const FLabDebugStage> Stages{&Stage,1};
     const FLabPresetWorkload Workload{"fixture-lantern-v1","StaticModel:灯笼😀.glb#idx.scene.0",FString(std::string(64,'1'))};
