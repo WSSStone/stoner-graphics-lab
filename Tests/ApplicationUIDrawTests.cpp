@@ -49,7 +49,8 @@ int RunApplicationUIDrawTests()
             List.IdxBuffer.resize(6);
             for (int I = 0; I < 3; ++I) List.IdxBuffer[I] = static_cast<ImDrawIdx>(999);
             for (int I = 0; I < 3; ++I) List.IdxBuffer[3 + I] = static_cast<ImDrawIdx>(I);
-            List.CmdBuffer.resize(1);
+            // ImVector::resize does not run constructors for new elements.
+            List.CmdBuffer.resize(1, ImDrawCmd{});
             auto& Cmd = List.CmdBuffer[0];
             Cmd.ElemCount = 3; Cmd.IdxOffset = 3; Cmd.VtxOffset = 1;
             Cmd.ClipRect = ImVec4(8.5f, 18.5f, 30.1f, 40.1f);
@@ -61,12 +62,14 @@ int RunApplicationUIDrawTests()
             Data.FramebufferScale = ImVec2(1.5f, 1.5f);
             FUIDrawSnapshot Snapshot(7, 9, 3, 4);
             Check(FImGuiDrawAdapter::Extract(Data, Resolve, 150, 120, Snapshot) == ERHIResult::Success &&
-                Snapshot.IsPublished() && Snapshot.GetCommands()[0].FirstIndex == 3 &&
+                Snapshot.IsPublished() && Snapshot.GetCommands().size() == 1 &&
+                Snapshot.GetVertices().size() == 4 && Snapshot.GetCommands()[0].FirstIndex == 3 &&
                 Snapshot.GetCommands()[0].BaseVertex == 1 && Snapshot.GetTextureLeases().size() == 1 &&
                 Snapshot.GetVertices()[0].PackedRGBA8 == 0x7F204080u,
                 "ImGui draw extraction preserves offsets, canonical packed channels and a real generation lease");
             List.VtxBuffer[1].pos.x = 999; List.IdxBuffer[3] = 999;
-            Check(Snapshot.GetVertices()[1].Position.X == 11 && Snapshot.GetIndices()[3] == 0,
+            Check(Snapshot.GetVertices().size() == 4 && Snapshot.GetIndices().size() == 6 &&
+                Snapshot.GetVertices()[1].Position.X == 11 && Snapshot.GetIndices()[3] == 0,
                 "queued snapshot cannot observe later ImGui buffer mutation");
             List.VtxBuffer[1].pos.x = 11; List.IdxBuffer[3] = 0;
             {
@@ -119,7 +122,7 @@ int RunApplicationUIDrawTests()
                 Merged.CmdBuffer[0].UserCallback=ImDrawCallback_ResetRenderState;
                 Check(RejectRange(Range),"diagnostic image range cannot attach to a reset callback");
                 Merged.CmdBuffer[0].UserCallback=nullptr;
-                Merged.CmdBuffer.resize(4096);
+                Merged.CmdBuffer.resize(4096, ImDrawCmd{});
                 for (int I=1; I<4096; ++I) Merged.CmdBuffer[I].UserCallback=ImDrawCallback_ResetRenderState;
                 Check(RejectRange(Range),"image splitting respects the existing command budget before allocation");
             }

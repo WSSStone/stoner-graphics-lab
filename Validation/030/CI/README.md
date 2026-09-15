@@ -8,9 +8,7 @@ Follow `specs/030-interactive-rendering-lab/hardware-validation.md` for exact co
 
 ## Current frozen software
 
-Software: `783d135b1a8ed43cb7c56cd07a09ba804b1ada28`. `software-freeze.json` records current policy identities. The clean detached checkout at `Build/Worktrees/030-frozen-97c09338` now contains this revision; its directory name reflects its initial creation only. Original preflight remains preliminary evidence.
-
-The maintainer authorized pushing and running CI. T114 run [34966098179](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34966098179) is in progress. Earlier attempts below retain their actual failures and are not final acceptance. T115 onward and current human decisions remain pending.
+The latest completed attempt, [34968637036](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34968637036), tested `5675abd202533210bb8ec232964149da93423f08`. The freeze is invalidated while runtime failures are corrected. No final hosted aggregate or physical/human authority is claimed. Push and rerun authorization is already granted.
 
 ## Hosted attempt 1
 
@@ -27,3 +25,7 @@ Run [34964673886](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/3
 ## Hosted attempt 4
 
 Run [34966098179](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34966098179) at `783d135b` passed macOS Debug, Release, native and shader-producer jobs. Linux reached test compilation and rejected two Metal-only helpers incorrectly enabled whenever GLFW existed; their guard now also requires macOS. Windows remained in progress when the next corrected run superseded it, so no Windows success/failure is inferred. A local non-UTF-8 stdout fixture independently reproduced a log-reader UnicodeEncodeError; raw-byte forwarding fixes this risk. Thirteen lab-tool tests pass, including ordinary-failure versus forced-exit classification and strict schema-version types.
+
+## Hosted attempt 5
+
+Run [34968637036](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34968637036) at `5675abd2` passed all three macOS jobs, shader producer, medium integration and Linux TSan. Linux focused tests crashed; ASan located the empty snapshot access at `ApplicationUIDrawTests.cpp:69`. The fixture used constructor-free `ImVector::resize` for draw commands, leaving callback fields uninitialized. Explicit element initialization and guarded snapshot reads correct this undefined fixture state. Windows focused tests timed out after the same extraction assertion failed; its resolution still requires rerun. Linux native separately failed Forward terminal submission; detailed recording/end/submit/wait diagnostics are being added without relaxing its gate.

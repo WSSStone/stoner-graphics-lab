@@ -270,10 +270,19 @@ int RunInteractiveLabForwardNativeParity(const Stoner::Demo::FProductionContentL
             for (const auto& Set : Stage.Stage.DescriptorSets) OK=OK && Command->BindDescriptorSet(Set)==ERHIResult::Success;
             OK=OK && Command->BindVertexBuffer(Output.Bindings.FullscreenVertexBuffer)==ERHIResult::Success &&
                 Command->RecordDraw(3,1)==ERHIResult::Success && Command->EndRenderPass()==ERHIResult::Success;
+            if (!OK) std::cout << "[INFO] Forward terminal recording failed mode=" << Mode
+                << " stage=" << StageIndex << '\n';
         }
-        OK=OK && Command->End()==ERHIResult::Success && Queue->SubmitDeferred(Command,{}, {},Fence)==ERHIResult::Success;
+        const auto EndResult=OK ? Command->End() : ERHIResult::InvalidState;
+        const auto SubmitResult=EndResult==ERHIResult::Success
+            ? Queue->SubmitDeferred(Command,{}, {},Fence) : ERHIResult::InvalidState;
+        OK=OK && EndResult==ERHIResult::Success && SubmitResult==ERHIResult::Success;
         if (OK && Mode==2) OK=Submission.Commit(Fence)==ERHIResult::Success;
-        if (!Check(OK && Fence->Wait(5000000)==ERHIResult::Success,"Forward terminal chain completes native GPU submission")) return Failed;
+        const auto WaitResult=OK ? Fence->Wait(5000000) : ERHIResult::InvalidState;
+        if (!OK || WaitResult!=ERHIResult::Success)
+            std::cout << "[INFO] Forward terminal mode=" << Mode << " end=" << static_cast<int>(EndResult)
+                << " submit=" << static_cast<int>(SubmitResult) << " wait=" << static_cast<int>(WaitResult) << '\n';
+        if (!Check(OK && WaitResult==ERHIResult::Success,"Forward terminal chain completes native GPU submission")) return Failed;
         Registry.Poll();
         const auto After=Device->GetRuntimeSnapshot().NativeOperations;
         Check(After.ImageReadbackCopyCount==Before.ImageReadbackCopyCount+static_cast<uint64>(Mode) &&
