@@ -146,11 +146,13 @@ bool FDemoConfiguration::IsValid(Stoner::Core::FString* OutReason) const
         if (MaxFramesInFlight != 2 || ClientWidth > 4096 || ClientHeight > 4096 ||
             static_cast<Core::uint64>(ClientWidth) * ClientHeight > 7864320)
             return Fail("interactive lab requires two frame slots and bounded drawable dimensions");
+        if (!LabInputScript.IsEmpty() && RunMode != EDemoRunMode::BoundedNative)
+            return Fail("lab input scripts require validate mode");
         if (bLabForceAcquireHistory &&
             (RunMode != EDemoRunMode::BoundedNative || GraphicsBackend != EDemoGraphicsBackend::Vulkan))
             return Fail("forced acquire history requires bounded Vulkan lab validation");
     }
-    else if (bLabOptionsSpecified || !bLabUI || bLabForceAcquireHistory || !LabPresetInput.IsEmpty() || LabExportRoot != "Build/InteractiveLab/Exports")
+    else if (!LabInputScript.IsEmpty() || !LabReport.IsEmpty() || bLabOptionsSpecified || !bLabUI || bLabForceAcquireHistory || !LabPresetInput.IsEmpty() || LabExportRoot != "Build/InteractiveLab/Exports")
         return Fail("lab options require --interactive-lab");
     if (ClientWidth == 0 || ClientHeight == 0 || ClientWidth > 16384 || ClientHeight > 16384)
         return Fail("width and height must be in range 1..16384");
@@ -316,6 +318,15 @@ EDemoExitCode FDemoConfiguration::Parse(int ArgCount, const char* const* Argumen
             if (std::string_view(Value) == "on") Parsed.bLabUI = true;
             else if (std::string_view(Value) == "off") Parsed.bLabUI = false;
             else { OutReason = "lab-ui must be on or off"; return EDemoExitCode::InvalidConfiguration; }
+        }
+        else if (Option == "--lab-input-script" || Option == "--lab-report")
+        {
+            Parsed.bLabOptionsSpecified = true;
+            Core::FString Path=Value;
+            if (Path.IsEmpty() || Path.View().size()>4096)
+            { OutReason="lab script/report requires a bounded nonempty path"; return EDemoExitCode::InvalidConfiguration; }
+            if (Option=="--lab-input-script") Parsed.LabInputScript=Path;
+            else Parsed.LabReport=Path;
         }
         else if (Option == "--lab-preset-input")
         {

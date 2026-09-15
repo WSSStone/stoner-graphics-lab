@@ -2,6 +2,8 @@
 #include "Application/FLabPresetStorage.h"
 #include "FInteractiveLabRun.h"
 #include "FLabCaptureExport.h"
+#include "FLabInputScript.h"
+#include "yyjson/yyjson.h"
 #include "FProductionContentRuntime.h"
 
 #include "Application/FInteractiveLabSession.h"
@@ -1068,6 +1070,9 @@ FInteractiveLabRunResult RunInteractiveLab(
     FInteractiveLabRunResult Out;
     if (!Config.bInteractiveLab || !Config.IsValid(&Out.FirstFailure))
     { Out.ExitCode = EDemoExitCode::InvalidConfiguration; return Out; }
+    FLabInputScript Script;
+    if (!Config.LabInputScript.IsEmpty() && !Script.Load(Config.LabInputScript,Out.FirstFailure))
+    { Out.ExitCode=EDemoExitCode::InvalidConfiguration; return Out; }
     FProductionCameraPreset Preset;
     if (!ResolveProductionCameraPreset(Config.WorkloadRevision, Preset, &Out.FirstFailure)) return Out;
     Application::FWindow Window;
@@ -1146,6 +1151,11 @@ FInteractiveLabRunResult RunInteractiveLab(
         Previous = Now;
         try
         {
+            if (EventThreadOwnsBackend() && !Config.LabInputScript.IsEmpty())
+            {
+                Core::FString Reason;
+                if (!Script.Service(Window,Session,Owner->Presented,Reason)) (void)Session.RequestExit(Reason);
+            }
             if (WindowService && EventThreadOwnsBackend()) WindowService(Window, Owner->Presented);
             const bool CapabilitiesChanged = EventThreadOwnsBackend() && Owner->ObserveOutputCapabilities(Window);
             if (EventThreadOwnsBackend() && !CapabilitiesChanged && !Owner->bCapabilityRecovery && !Session.IsSettingsPaused() && (Session.GetState() == EInteractiveLabSessionState::Running ||
@@ -1245,6 +1255,7 @@ FInteractiveLabRunResult RunInteractiveLab(
     Out.ShutdownAssurance = Owner->Assurance;
     Out.FirstFailure = Session.GetFirstFailure();
     if (Out.FirstFailure.IsEmpty()) Out.FirstFailure = Owner->FirstFailure;
+    if (Out.FirstFailure.IsEmpty() && !Script.IsComplete()) Out.FirstFailure="lab script did not finish before run ended";
     Out.ExitCode = Out.FirstFailure.IsEmpty() ? EDemoExitCode::Success :
         (Started ? EDemoExitCode::FrameFailed : Out.ExitCode);
     std::cout << "InteractiveLab preview: submitted=" << Out.SubmittedFrames
@@ -1264,6 +1275,70 @@ FInteractiveLabRunResult RunInteractiveLab(
         << " render-retired=" << Out.FinalFrameState.RenderRetiredFrameCount
         << " final-presentation-owners=" << Native.PresentationOwnerCount << '\n';
     if (!Out.FirstFailure.IsEmpty()) std::cerr << "InteractiveLab failed: " << Out.FirstFailure.CStr() << '\n';
+    if (!Config.LabReport.IsEmpty())
+    {
+        auto* Doc=yyjson_mut_doc_new(nullptr);
+        auto* Root=Doc ? yyjson_mut_obj(Doc) : nullptr;
+        bool Written=false;
+        if (Root)
+        {
+            yyjson_mut_doc_set_root(Doc,Root);
+            yyjson_mut_obj_add_uint(Doc,Root,"schemaVersion",1);
+            yyjson_mut_obj_add_str(Doc,Root,"evidenceClass","local-native-script");
+            yyjson_mut_obj_add_str(Doc,Root,"humanStatus","pending-human-review");
+            yyjson_mut_obj_add_str(Doc,Root,"softwareRevision",STONER_LAB_STRINGIFY(STONER_DEMO_SOFTWARE_REVISION));
+            yyjson_mut_obj_add_str(Doc,Root,"backend",ToString(Config.GraphicsBackend));
+            yyjson_mut_obj_add_str(Doc,Root,"workload",Config.WorkloadRevision.CStr());
+            yyjson_mut_obj_add_str(Doc,Root,"cookedGeneration",Config.StrictGeneration.CStr());
+            yyjson_mut_obj_add_str(Doc,Root,"scriptSha256",Script.GetDigest().CStr());
+            yyjson_mut_obj_add_str(Doc,Root,"firstFailure",Out.FirstFailure.CStr());
+            yyjson_mut_obj_add_str(Doc,Root,"shutdownAssurance",Application::FInteractiveLabSession::ToString(Session.GetShutdownAssurance()));
+            yyjson_mut_obj_add_bool(Doc,Root,"passed",Out.ExitCode==EDemoExitCode::Success);
+            yyjson_mut_obj_add_bool(Doc,Root,"scriptComplete",Script.IsComplete());
+            yyjson_mut_obj_add_uint(Doc,Root,"scriptSteps",Script.GetStepCount());
+            yyjson_mut_obj_add_uint(Doc,Root,"completedScriptSteps",Script.GetCompletedSteps());
+            yyjson_mut_obj_add_uint(Doc,Root,"submittedFrames",Out.SubmittedFrames);
+            yyjson_mut_obj_add_uint(Doc,Root,"presentQueuedFrames",Out.PresentedFrames);
+            yyjson_mut_obj_add_uint(Doc,Root,"imageReadbackCopies",LiveOps.ImageReadbackCopyCount);
+            yyjson_mut_obj_add_uint(Doc,Root,"readbackMaps",LiveOps.ReadbackMapCount);
+            yyjson_mut_obj_add_uint(Doc,Root,"readbackWaits",LiveOps.ReadbackWaitCount);
+            yyjson_mut_obj_add_uint(Doc,Root,"liveQueueIdles",LiveOps.QueueIdleCallCount);
+            yyjson_mut_obj_add_uint(Doc,Root,"liveDeviceIdles",LiveOps.DeviceIdleCallCount);
+            yyjson_mut_obj_add_uint(Doc,Root,"finalPresentationOwners",Native.PresentationOwnerCount);
+            yyjson_mut_obj_add_str(Doc,Root,"scriptEventSource","deterministic-typed-injection");
+            yyjson_mut_obj_add_uint(Doc,Root,"peakAttachmentBytes",Out.FinalFrameState.PeakAttachmentBytes);
+            yyjson_mut_obj_add_uint(Doc,Root,"activeAttachmentBytes",Out.FinalFrameState.ActiveAttachmentBytes);
+            yyjson_mut_obj_add_uint(Doc,Root,"peakUIDrawBytes",Out.FinalFrameState.PeakUIDrawBytes);
+            yyjson_mut_obj_add_uint(Doc,Root,"activeUIDrawBytes",Out.FinalFrameState.ActiveUIDrawBytes);
+            yyjson_mut_obj_add_uint(Doc,Root,"activeSlots",Out.FinalFrameState.ActiveSlotCount);
+            yyjson_mut_obj_add_uint(Doc,Root,"busySlots",Out.FinalFrameState.BusySlotCount);
+            yyjson_mut_obj_add_uint(Doc,Root,"captureRequests",Out.FinalFrameState.Captures.Requests);
+            yyjson_mut_obj_add_uint(Doc,Root,"captureStagingBytes",Out.FinalFrameState.Captures.StagingBytes);
+
+            size_t Size=0; char* JSON=yyjson_mut_write(Doc,0,&Size);
+            const auto Path=Config.LabReport.ToStdString(); const auto Slash=Path.find_last_of("/\\");
+            if (JSON && Size<=1048576 && Slash!=std::string::npos)
+            {
+                Application::FLabPresetStoreConfig Store;
+                Store.ExportRoot=Path.substr(0,Slash);
+                Core::FString Build,Canonical; bool Inside=false;
+                if (Core::FPlatformFileSystem::CanonicalizeExistingPath("Build",Build).IsSuccess() &&
+                    Core::FPlatformFileSystem::CanonicalizeExistingPath(Store.ExportRoot,Canonical).IsSuccess() &&
+                    Core::FPlatformFileSystem::CheckContainedPath(Build,Canonical,Inside).IsSuccess() && Inside)
+                {
+                    Store.ExportRoot=Canonical;
+                    Store.ProtectedPaths={"Content","Config","Validation",Config.CookedPublicationRoot};
+                    if (!Config.LabInputScript.IsEmpty()) Store.ProtectedPaths.push_back(Config.LabInputScript);
+                    Core::TArray<Core::uint8> Bytes(JSON,JSON+Size);
+                    const auto R=Application::ExportLabFile(Store,Path.substr(Slash+1),Bytes);
+                    Written=R.bPublished && R.Status.IsSuccess();
+                }
+            }
+            free(JSON);
+        }
+        if (Doc) yyjson_mut_doc_free(Doc);
+        if (!Written) { Out.FirstFailure="lab report publication failed (new path under Build required)"; Out.ExitCode=EDemoExitCode::ReportFailed; }
+    }
     (void)Window.Destroy();
     return Out;
 }

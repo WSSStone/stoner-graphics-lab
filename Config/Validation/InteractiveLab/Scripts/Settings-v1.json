@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "steps": [
+    {
+      "afterPresented": 3,
+      "action": "exposure",
+      "value": 3
+    },
+    {
+      "afterPresented": 5,
+      "action": "white",
+      "value": 1.5
+    },
+    {
+      "afterPresented": 7,
+      "action": "exposure",
+      "value": 0
+    },
+    {
+      "afterPresented": 9,
+      "action": "white",
+      "value": 1
+    },
+    {
+      "afterPresented": 11,
+      "action": "tone",
+      "value": "Sdr.NarkowiczAcesFit.v1"
+    },
+    {
+      "afterPresented": 13,
+      "action": "debug",
+      "value": 1
+    },
+    {
+      "afterPresented": 16,
+      "action": "debug",
+      "value": 2
+    },
+    {
+      "afterPresented": 19,
+      "action": "debug",
+      "value": 0
+    },
+    {
+      "afterPresented": 23,
+      "action": "rejectProfile",
+      "value": "Unsupported.Script.Profile"
+    }
+  ]
+}

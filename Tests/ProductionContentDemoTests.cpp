@@ -1,6 +1,7 @@
 #include "ProductionContentDemoTests.h"
 
 #include "FDemoConfiguration.h"
+#include "FLabInputScript.h"
 #include "FDemoValidationMonitor.h"
 #include "FProductionContentComposition.h"
 #include "FProductionContentSession.h"
@@ -1097,6 +1098,27 @@ void TestInteractiveLabConfiguration(FProductionContentDemoTestResult& Result)
         return FDemoConfiguration::Parse(static_cast<int>(Args.size()), Args.data(), Config, Reason);
     };
     FDemoConfiguration Config;
+    Record(Result, ParseLab({"--lab-input-script","script.json"},Config)==EDemoExitCode::InvalidConfiguration &&
+        ParseLab({"--lab-report","Build/report.json"},Config)==EDemoExitCode::Success,
+        "input scripts require validation while bounded reports remain available interactively");
+    Record(Result, ParseLab({"--mode","validate","--frames","120","--lab-input-script","script.json","--lab-report","Build/report.json"},Config)==EDemoExitCode::Success &&
+        Config.LabInputScript=="script.json" && Config.LabReport=="Build/report.json",
+        "validate lab admits bounded explicit script and report paths");
+    {
+        FLabInputScript Script; Core::FString Reason;
+        auto Decode=[&](const std::string& Text) { return Script.Decode({Text.begin(),Text.end()},Reason); };
+        Record(Result,Script.Load("Config/Validation/InteractiveLab/Scripts/Settings-v1.json",Reason) && Script.GetStepCount()==9 &&
+            Script.Load("Config/Validation/InteractiveLab/Scripts/Lifecycle-v1.json",Reason) && Script.GetStepCount()==7,
+            "versioned settings and lifecycle scripts decode with bounded step counts");
+        Record(Result,!Decode(R"({"schemaVersion":1,"schemaVersion":1,"steps":[]})") &&
+            !Decode(R"({"schemaVersion":1,"steps":[{"afterPresented":2,"action":"exposure","value":0},{"afterPresented":1,"action":"exposure","value":0}]})") &&
+            !Decode(R"({"schemaVersion":1,"steps":[{"afterPresented":0,"action":"unknown","value":0}]})") &&
+            !Decode(std::string(65537,' ')),"script duplicate fields, reversed order, unknown actions and oversize reject");
+        Record(Result,!Decode(R"({"schemaVersion":1,"steps":[{"afterPresented":0,"action":"exposure","value":17}]})") &&
+            !Decode(R"({"schemaVersion":1,"steps":[{"afterPresented":0,"action":"resize","value":4096,"value2":4096}]})") &&
+            !Decode(R"({"schemaVersion":1,"steps":[{"afterPresented":0,"action":"close","value":0},{"afterPresented":0,"action":"exposure","value":0}]})"),
+            "script setting and drawable limits and terminal action order reject");
+    }
     Record(Result, ParseLab({}, Config) == EDemoExitCode::Success && Config.bInteractiveLab &&
         Config.bLabUI && !Config.bLabForceAcquireHistory && !Config.bVisibleCapture && Config.BaselineRoot.IsEmpty(),
         "lab defaults enable UI and optional retirement selection without requiring an Accepted registry");

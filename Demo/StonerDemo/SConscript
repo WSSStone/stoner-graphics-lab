@@ -18,6 +18,7 @@ include_paths = [
     Dir('#Source/Backend/Vulkan/Public').abspath,
     Dir('#Source/Backend/Metal/Public').abspath,
     Dir('#Demo/StonerDemo/Private').abspath,
+    Dir('#ThirdParty').abspath,
 ]
 for key in ('vulkan_include_dir', 'glfw_include_dir'):
     if deps[key]:

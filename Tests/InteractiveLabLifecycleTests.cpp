@@ -3,6 +3,7 @@
 #include "Application/FLabPreset.h"
 #include "Application/FLabPresetStorage.h"
 #include "FLabPresetCodec.h"
+#include "FLabInputScript.h"
 #include <filesystem>
 #include "Renderer/FOutputTransformSettings.h"
 #include "Core/FPlatformProcess.h"
@@ -676,6 +677,24 @@ void TestTerminalFailureBoundaries()
         Drain.S.GetFirstFailure() == "lab-terminal-drain-timed-out",
         "successful compatibility cleanup cannot erase an earlier terminal drain timeout");
 }
+void TestScriptRecovery()
+{
+    FFixture F;
+    Stoner::Demo::FLabInputScript Script; FString Reason;
+    const std::string Text=R"({"schemaVersion":1,"steps":[{"afterPresented":2,"action":"minimize","value":0},{"afterPresented":2,"action":"restore","value":320,"value2":240},{"afterPresented":2,"action":"focus","value":0},{"afterPresented":2,"action":"focus","value":1}]})";
+    Check(F.Start() && Script.Decode({Text.begin(),Text.end()},Reason),
+        "ordered lifecycle script fixture starts");
+    uint32 Presented=0; bool OK=true;
+    for (unsigned I=0;I<200 && !Script.IsComplete();++I)
+    {
+        OK=Script.Service(F.W,F.S,Presented,Reason) && OK;
+        (void)F.S.Service(0.01);
+        if (F.S.GetState()==State::Ready || F.S.GetState()==State::Running) ++Presented;
+    }
+    Check(OK && Script.IsComplete() && Script.GetCompletedSteps()==4 && F.S.GetState()!=State::PausedZeroExtent,
+        "ordered script restores a minimized session before awaiting further presentations");
+    Check(Close(F.S),"script lifecycle fixture closes with native ownership service intact");
+}
 void TestTimeout()
 {
     FFixture F;
@@ -698,6 +717,7 @@ void TestTimeout()
 int RunInteractiveLabLifecycleTests()
 {
     Failures = 0;
+    TestScriptRecovery();
     TestNavigationSession();
     TestCapabilityNotification();
     TestSettingsSession();
@@ -707,11 +727,11 @@ int RunInteractiveLabLifecycleTests()
     return Failures == 0 ? 0 : 1;
 }
 
-int RunInteractiveLabWatchdogChild()
+int RunInteractiveLabWatchdogChild(bool FullDuration)
 {
     FFixture F;
-    F.Config.DrainTimeoutMilliseconds = 20;
-    F.Config.TerminalWatchdogMilliseconds = 100;
+    F.Config.DrainTimeoutMilliseconds = FullDuration ? 5000 : 20;
+    F.Config.TerminalWatchdogMilliseconds = FullDuration ? 10000 : 100;
     if (!F.Start([](const auto& Q) {
         FInteractiveLabServiceResponse R;
         R.Status = Status::NotReady; R.RetainedOwnerCount = 17;
@@ -736,5 +756,20 @@ int RunInteractiveLabWatchdogTests(const char* Executable)
         R.StandardError.ToStdString().find("Forced; retained-owners=17; failed") != std::string::npos;
     std::cout << (Passed ? "[PASS] " : "[FAIL] ")
         << "independent session watchdog exits a failed child with retained native-owner diagnostics\n";
+    return Passed ? 0 : 1;
+}
+
+int RunInteractiveLabFullWatchdogTests(const char* Executable)
+{
+    FProcessExecutionRequest Request;
+    Request.ExecutablePath=FString(Executable);
+    Request.Arguments={FString("--interactive-lab-watchdog-full-child")};
+    Request.Limits.TimeoutMilliseconds=15000;
+    const auto Start=std::chrono::steady_clock::now();
+    const auto R=FPlatformProcess::Execute(Request);
+    const auto Elapsed=std::chrono::duration<double>(std::chrono::steady_clock::now()-Start).count();
+    const bool Passed=R.Status==EProcessExecutionStatus::Completed && R.ExitCode==124 && Elapsed>=9.5 && Elapsed<14 &&
+        R.StandardError.ToStdString().find("Forced; retained-owners=17; failed")!=std::string::npos;
+    std::cout<<(Passed ? "[PASS] " : "[FAIL] ")<<"ten-second watchdog terminates blocked cleanup with retained owners; elapsed="<<Elapsed<<'\n';
     return Passed ? 0 : 1;
 }

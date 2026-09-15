@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (101/127 reviewed tasks); native closeout remains pending.
+Feature 030 implementation is partial (104/127 reviewed tasks); native closeout remains pending.
 The maintainer explicitly skips Intel x86_64 macOS validation for Feature 030
 on 2026-09-08; record it as skipped, not passed, and do not block implementation
 on Intel cooking/derivation/native checks. Existing Intel support and historical
@@ -164,6 +164,7 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
+- 030 US6 checkpoint complete (104/127): bounded ordered CLI scripts/reports and full ten-second watchdog are reviewed. Debug/Release each pass 320 focused assertions; Metal Debug/Vulkan Release each pass 229 native assertions. Eight 120-frame Lantern/Sponza settings/lifecycle runs have zero implicit readbacks/live idles and final attachment/capture ownership. Evidence: Build/Validation/030/us6.json. US7 final hosted/physical/human authority remains pending; Intel macOS skipped.
 - 030 T101 reviewed (101/127): single CPU-only export worker removes PNG encoding/publication from event servicing; staging/queue charge remains retained until completion and terminal watchdog guards pending work. Strict Debug/Release each pass 338 focused assertions plus watchdog fixture; Metal Debug/Vulkan Release pass 86/69. T102 scripts/reports and remaining final authority are pending; Intel macOS skipped.
 - 030 T100 reviewed (100/127): capture UI exports exact-drawable SDR PNG/JSON or numeric-only HDR/stage raw/report through protected publication. Optional Vulkan CopySource is capability-derived. Strict Debug/Release each pass 333 CPU assertions; Metal Debug/Vulkan Release native pass 86/69; nine payloads independently verified. T101 capture-time event-service latency and subsequent closeout remain pending; no formal/human authority, Intel macOS skipped.
 

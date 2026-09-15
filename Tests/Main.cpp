@@ -128,7 +128,8 @@ int RunMetalUINativeTests();
 [[nodiscard]] int RunInteractiveLabValueTests();
 [[nodiscard]] int RunInteractiveLabLifecycleTests();
 [[nodiscard]] int RunInteractiveLabCaptureTests();
-[[nodiscard]] int RunInteractiveLabWatchdogChild();
+[[nodiscard]] int RunInteractiveLabWatchdogChild(bool FullDuration);
+[[nodiscard]] int RunInteractiveLabFullWatchdogTests(const char* Executable);
 [[nodiscard]] int RunInteractiveLabWatchdogTests(const char* Executable);
 [[nodiscard]] int RunApplicationFreeCameraTests();
 [[nodiscard]] int RunRHIDeferredSubmissionTests();
@@ -146,7 +147,9 @@ int RunInteractiveLabPresetExportTests();
 int main(int ArgCount, char* Arguments[])
 {
     if (ArgCount == 2 && std::strcmp(Arguments[1], "--interactive-lab-watchdog-child") == 0)
-        return RunInteractiveLabWatchdogChild();
+        return RunInteractiveLabWatchdogChild(false);
+    if (ArgCount == 2 && std::strcmp(Arguments[1], "--interactive-lab-watchdog-full-child") == 0)
+        return RunInteractiveLabWatchdogChild(true);
     if (ArgCount == 2 &&
         std::strcmp(Arguments[1], "--core-termination-child") == 0)
         RunCorePlatformTerminationChild(124);
@@ -421,6 +424,7 @@ int main(int ArgCount, char* Arguments[])
     Registry.Register("application-free-camera", [] {
         return RunApplicationFreeCameraTests();
     });
+    Registry.Register("interactive-lab-watchdog-full", [Arguments] { return RunInteractiveLabFullWatchdogTests(Arguments[0]); });
     Registry.Register("interactive-lab-watchdog", [Arguments] { return RunInteractiveLabWatchdogTests(Arguments[0]); });
     Registry.Register("interactive-lab-lifecycle", [] { return RunInteractiveLabLifecycleTests(); });
     Registry.Register("interactive-lab-capture", [] { return RunInteractiveLabCaptureTests(); });

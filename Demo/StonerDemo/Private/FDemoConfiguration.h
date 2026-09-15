@@ -90,6 +90,7 @@ struct FDemoConfiguration
     bool bInteractiveLab = false;
     bool bLabUI = true;
     Core::FString LabPresetInput;
+    Core::FString LabInputScript, LabReport;
     Core::FString LabExportRoot = "Build/InteractiveLab/Exports";
     bool bLabForceAcquireHistory = false;
     bool bLabOptionsSpecified = false;
