@@ -1,0 +1,310 @@
+{
+  "schemaVersion": 1,
+  "steps": [
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "rejectProfile",
+      "value": "Hdr.PQ.Rec2020.1000.v1"
+    }
+  ]
+}

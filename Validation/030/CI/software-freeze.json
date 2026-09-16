@@ -336,7 +336,7 @@
   ],
   "intelMacos": "skipped-by-maintainer-2026-09-08",
   "hostedStatus": "passed",
-  "physicalStatus": "m4-14-machine-cases-passed-windows-and-formal-pending",
+  "physicalStatus": "m4-14-windows-3-machine-cases-passed-windows-2-lifecycle-failed-formal-pending",
   "humanStatus": "pending-current-review",
   "invalidation": "Any implementation or validation-policy change requires a new freeze and repetition of affected runs.",
   "evidenceOnlyCommits": "Later evidence/documentation commits retain this tested software revision; run producers from the exact frozen checkout.",

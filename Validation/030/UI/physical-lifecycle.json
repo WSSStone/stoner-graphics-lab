@@ -71,10 +71,42 @@
       "shutdownAssurance": "Proven",
       "peakAttachmentBytes": 117964800,
       "peakUIDrawBytes": 320
+    },
+    {
+      "caseId": "windows-vulkan-sponza-sdr-lifecycle-stress",
+      "status": "passed",
+      "adapter": "NVIDIA GeForce RTX 3080",
+      "submittedFrames": 1158,
+      "presentQueuedFrames": 1120,
+      "completedRenderSubmissions": 1158,
+      "provenPresentationReleases": 1120,
+      "completedScriptSteps": 180,
+      "scriptSteps": 180,
+      "imageReadbackCopies": 0,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "liveQueueIdles": 0,
+      "liveDeviceIdles": 0,
+      "finalNativeOwners": 0,
+      "finalPresentationOwners": 0,
+      "shutdownAssurance": "Proven",
+      "retirementMode": "PresentationFence",
+      "optionalFenceAdvertised": true,
+      "optionalFenceEnabled": true,
+      "preCleanupPresentationOwners": 0,
+      "terminalIdleCalls": 1,
+      "terminalIdleCompleted": true,
+      "terminalIdleResult": 0,
+      "peakAttachmentBytes": 29491200,
+      "peakUIDrawBytes": 320,
+      "peakPresentationBytes": 3993600,
+      "firstFailure": "",
+      "warmupPresented": 0,
+      "measuredPresented": 1120,
+      "compatibilityLimitation": ""
     }
   ],
   "pendingCases": [
-    "windows-vulkan-sponza-sdr-lifecycle-stress",
     "windows-vulkan-sponza-mode-transition-stress",
     "windows-vulkan-lantern-lifecycle-integration"
   ],
@@ -138,7 +170,145 @@
       "path": "Validation/030/UI/M4-Metal/9154e421/macos-metal-sponza-sdr-lifecycle-stress-script.json",
       "sha256": "1fca1b97d7edf61551b6ed90afb1ba865e217e90094ad55a6cf2049e7841b808",
       "originalPath": "Build/Validation/030/physical/macos-metal-sponza-sdr-lifecycle-stress-script.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-native.json",
+      "sha256": "1ee42bf13987b8d0bd67652971bbd934466cf0e09025ae05ec5da76e373e9dbb",
+      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-native.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-report.json",
+      "sha256": "8cde818ecf532a004d32f162f2516a71df822d597484990a9601a965e8400903",
+      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-report.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-script.json",
+      "sha256": "1fca1b97d7edf61551b6ed90afb1ba865e217e90094ad55a6cf2049e7841b808",
+      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-script.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-session-before.json",
+      "sha256": "2d3cb94e7b6a5762b32990e1ee446717fe7bfbcd68835cad73c12f6e24c90716",
+      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-session-before.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-session-after.json",
+      "sha256": "3e6d30e0ad640d44cba5c06d49644545dca52b38f395ac01c73e52d10ac76872",
+      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-session-after.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/windows-vulkan-sponza-mode-transition-stress-native.json",
+      "sha256": "f987c2cbc6886251b4199d5f8168fdfab792da7807becb5908e5463253e839ff",
+      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-sponza-mode-transition-stress-native.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/windows-vulkan-sponza-mode-transition-stress-report.json",
+      "sha256": "681ec620c85abead26e6a2df0686ccbf81bdf338d4430c6d5018d4e6f31bb0dd",
+      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-sponza-mode-transition-stress-report.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/windows-vulkan-sponza-mode-transition-stress-script.json",
+      "sha256": "7d79076cc0079897ff43d58857d03dd36c14372024031ca76ef43ec2332e0cd7",
+      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-sponza-mode-transition-stress-script.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/windows-vulkan-sponza-mode-transition-stress-session-before.json",
+      "sha256": "1f5a6cb3bf369385ba372ea7c14a783fb34df279b2e8e26b32c88e2c389e03f5",
+      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-sponza-mode-transition-stress-session-before.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/windows-vulkan-lantern-lifecycle-integration-native.json",
+      "sha256": "171fd952f416ced0a870633e5dff2760ebde8b1c69bb354050ef7b9ee4914dc0",
+      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-lantern-lifecycle-integration-native.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/windows-vulkan-lantern-lifecycle-integration-report.json",
+      "sha256": "da34ad7321553b6e06112c46744377025726b257c3abb96ee785ae98fbe3d1be",
+      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-lantern-lifecycle-integration-report.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/windows-vulkan-lantern-lifecycle-integration-script.json",
+      "sha256": "c8b01209489f4a825696b91d481d0fa6b3bb02a2a448e7413281f5ff102a4767",
+      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-lantern-lifecycle-integration-script.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/windows-vulkan-lantern-lifecycle-integration-session-before.json",
+      "sha256": "222b424866551433e669a0a65edd4db08af7f3ed784e2f7f9b59bc68056871e5",
+      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-lantern-lifecycle-integration-session-before.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/windows-vulkan-lantern-lifecycle-integration-session-after.json",
+      "sha256": "6642d4ed98bc1b572fca057ae51a67c22e2048614eac91b70e58f059b989a796",
+      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-lantern-lifecycle-integration-session-after.json"
     }
   ],
-  "humanAuthority": false
+  "humanAuthority": false,
+  "failedCases": [
+    {
+      "caseId": "windows-vulkan-sponza-mode-transition-stress",
+      "status": "failed",
+      "adapter": "NVIDIA GeForce RTX 3080",
+      "submittedFrames": 0,
+      "presentQueuedFrames": 0,
+      "completedRenderSubmissions": 0,
+      "provenPresentationReleases": 0,
+      "completedScriptSteps": 0,
+      "scriptSteps": 61,
+      "imageReadbackCopies": 0,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "liveQueueIdles": 0,
+      "liveDeviceIdles": 0,
+      "finalNativeOwners": 0,
+      "finalPresentationOwners": 0,
+      "shutdownAssurance": "Proven",
+      "retirementMode": "PresentationFence",
+      "optionalFenceAdvertised": true,
+      "optionalFenceEnabled": true,
+      "preCleanupPresentationOwners": 0,
+      "terminalIdleCalls": 1,
+      "terminalIdleCompleted": true,
+      "terminalIdleResult": 0,
+      "peakAttachmentBytes": 0,
+      "peakUIDrawBytes": 0,
+      "peakPresentationBytes": 691200,
+      "firstFailure": "script action rejected: profile",
+      "warmupPresented": 0,
+      "measuredPresented": 0,
+      "compatibilityLimitation": ""
+    },
+    {
+      "caseId": "windows-vulkan-lantern-lifecycle-integration",
+      "status": "failed",
+      "adapter": "NVIDIA GeForce RTX 3080",
+      "submittedFrames": 33,
+      "presentQueuedFrames": 31,
+      "completedRenderSubmissions": 33,
+      "provenPresentationReleases": 31,
+      "completedScriptSteps": 9,
+      "scriptSteps": 12,
+      "imageReadbackCopies": 0,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "liveQueueIdles": 0,
+      "liveDeviceIdles": 0,
+      "finalNativeOwners": 0,
+      "finalPresentationOwners": 0,
+      "shutdownAssurance": "Proven",
+      "retirementMode": "PresentationFence",
+      "optionalFenceAdvertised": true,
+      "optionalFenceEnabled": true,
+      "preCleanupPresentationOwners": 0,
+      "terminalIdleCalls": 1,
+      "terminalIdleCompleted": true,
+      "terminalIdleResult": 0,
+      "peakAttachmentBytes": 13107200,
+      "peakUIDrawBytes": 320,
+      "peakPresentationBytes": 1920000,
+      "firstFailure": "script action rejected: profile",
+      "warmupPresented": 0,
+      "measuredPresented": 0,
+      "compatibilityLimitation": ""
+    }
+  ]
 }

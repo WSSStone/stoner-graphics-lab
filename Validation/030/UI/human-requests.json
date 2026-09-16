@@ -53,6 +53,16 @@
       "path": "Validation/030/UI/Requests/9154e421/macos-metal-sponza-pq2000-current-human-hdr-request.json",
       "sha256": "9e3fa8dfa9472811ecc71bfb5cd2d6d3a0e15aa241b563e97547007b9b56d9a8",
       "originalPath": "Build/Validation/030/physical/macos-metal-sponza-pq2000-current-human-hdr-request.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/lantern-human-request.json",
+      "sha256": "d57e4d77829d86ca69928638c1bc694752a2d0c8056f24f9dec466f81dd26eff",
+      "originalPath": "Build/Validation/030/local-20260916/lantern-human-request.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/sponza-human-request.json",
+      "sha256": "dfc8af633c1d9405a50edb31b41e3263709f528ce52f91012c87a413ae4598da",
+      "originalPath": "Build/Validation/030/local-20260916/sponza-human-request.json"
     }
   ],
   "decisions": []

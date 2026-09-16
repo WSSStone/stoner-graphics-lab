@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "steps": [
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    }
+  ]
+}

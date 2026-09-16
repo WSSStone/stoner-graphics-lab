@@ -1,0 +1,50 @@
+{
+  "gitRevision": "9154e421eaaf5a01755d80736af322a1caab9215",
+  "checks": [
+    {
+      "check": "windows-vulkan-sponza-sdr-endurance-independent",
+      "exitCode": 0,
+      "result": "passed",
+      "logSha256": "f0fa441e2eb0818fa2883d1538424ae71ad5e2dec04f440edebabfa1214ec45e"
+    },
+    {
+      "check": "windows-vulkan-lantern-sdr-smoke-independent",
+      "exitCode": 0,
+      "result": "passed",
+      "logSha256": "b74e233a315d23ffadf6c716ac6931edccd688a6a9d2eff8c1cadc0060c27750"
+    },
+    {
+      "check": "windows-vulkan-sponza-sdr-lifecycle-stress-independent",
+      "exitCode": 0,
+      "result": "passed",
+      "logSha256": "5e8f5d4a1b12cfec30a5bcbd5d3b2ecf00c42fe3f906f2c67800af9150d613d1"
+    },
+    {
+      "check": "windows-vulkan-sponza-mode-transition-stress-independent",
+      "exitCode": 1,
+      "result": "rejected-failed-report",
+      "logSha256": "bd7356a49238da5233ac41ac0043b7ef3220a382059e2bff299216fb324c4766"
+    },
+    {
+      "check": "windows-vulkan-lantern-lifecycle-integration-independent",
+      "exitCode": 1,
+      "result": "rejected-failed-report",
+      "logSha256": "bd7356a49238da5233ac41ac0043b7ef3220a382059e2bff299216fb324c4766"
+    },
+    {
+      "check": "full-attempt-closeout",
+      "exitCode": 1,
+      "result": "rejected-failed-report",
+      "logSha256": "bd7356a49238da5233ac41ac0043b7ef3220a382059e2bff299216fb324c4766"
+    },
+    {
+      "check": "passing-subset-closeout",
+      "exitCode": 1,
+      "result": "incomplete-required-gates",
+      "logSha256": "0260af8582412c5d804f180d74a1b9ae3e3b2aeb06c6e2bcf3e42bb989248ba7"
+    }
+  ],
+  "complete": false,
+  "missingCount": 18,
+  "interpretation": "Full attempted bundle rejects the two failed native cases. The passing-only partial bundle verifies 17 machine cases and 13 hosted jobs, retaining two machine, four formal and twelve human gates as incomplete."
+}

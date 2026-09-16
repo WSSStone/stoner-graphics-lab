@@ -1,0 +1,81 @@
+{
+  "schema": "stoner.interactive-lab-windows-failure-analysis",
+  "schemaVersion": 1,
+  "gitRevision": "9154e421eaaf5a01755d80736af322a1caab9215",
+  "status": "blocked-at-T118",
+  "completedTasks": [
+    "T115"
+  ],
+  "reviewedTaskCount": 117,
+  "session": "Console",
+  "desktop": "Default",
+  "adapter": "NVIDIA GeForce RTX 3080",
+  "inventoryLogSha256": "9ab3b0b146c749db96ba7bd2bb3ba8153944ff768b57a030714d0c7c69c6919b",
+  "surfacePairs": [
+    {
+      "format": "FORMAT_B8G8R8A8_UNORM",
+      "colorSpace": "COLOR_SPACE_SRGB_NONLINEAR_KHR"
+    },
+    {
+      "format": "FORMAT_B8G8R8A8_SRGB",
+      "colorSpace": "COLOR_SPACE_SRGB_NONLINEAR_KHR"
+    },
+    {
+      "format": "FORMAT_R8G8B8A8_UNORM",
+      "colorSpace": "COLOR_SPACE_SRGB_NONLINEAR_KHR"
+    },
+    {
+      "format": "FORMAT_R8G8B8A8_SRGB",
+      "colorSpace": "COLOR_SPACE_SRGB_NONLINEAR_KHR"
+    },
+    {
+      "format": "FORMAT_A2B10G10R10_UNORM_PACK32",
+      "colorSpace": "COLOR_SPACE_SRGB_NONLINEAR_KHR"
+    }
+  ],
+  "findings": [
+    {
+      "caseId": "windows-vulkan-sponza-mode-transition-stress",
+      "firstFailure": "script action rejected: profile",
+      "failedAction": "profile",
+      "requestedProfile": "Sdr.BT709.v1",
+      "completedScriptSteps": 0,
+      "exitCode": 5,
+      "forcedTermination": false
+    },
+    {
+      "caseId": "windows-vulkan-lantern-lifecycle-integration",
+      "firstFailure": "script action rejected: profile",
+      "failedAction": "profile",
+      "requestedProfile": "Sdr.BT709.v1",
+      "completedScriptSteps": 9,
+      "exitCode": 5,
+      "forcedTermination": false
+    }
+  ],
+  "sourceAnalysis": "At the frozen revision, ToVulkanPresentationColorSpace maps sRGB, BT709 and SDR pass-through to SRGB_NONLINEAR_KHR; reverse capability enumeration reports only SrgbNonlinear. ResolveOutput checks the exact requested engine pair before advertising profiles, so BT709 is unavailable to RequestSettings. Both fixed scripts reject the first BT709 request. The actual surface inventory likewise contains only SRGB_NONLINEAR_KHR. This is a profile/capability contract mismatch, not absent optional maintenance1 or a presentation timeout.",
+  "sourceLocations": [
+    "Source/Backend/Vulkan/Private/FVulkanStruct.h:66",
+    "Source/Backend/Vulkan/Private/FVulkanNativeContext.cpp:2881",
+    "Demo/StonerDemo/Private/FInteractiveLabRun.cpp:407",
+    "Source/Application/Private/FLabSettingsController.cpp:39",
+    "Demo/StonerDemo/Private/FLabInputScript.cpp:137"
+  ],
+  "requiredResolution": "Reconcile Vulkan SDR profile/native-color-space semantics, capability advertisement and the frozen required matrix. Do not merely bypass support checks or claim unsupported color spaces. Any implementation or validation-policy correction requires a new software freeze and coordinated repetition of affected hosted/M4/Windows runs.",
+  "sourceOrPolicyChanged": false,
+  "formalSdr": "not-run: full T118 prerequisite not met",
+  "humanDecisions": [],
+  "humanRequestsPrepared": 2,
+  "artifacts": [
+    {
+      "path": "Validation/030/CI/Windows-Vulkan/9154e421-20260916/session-unlocked.json",
+      "sha256": "3155bc236b74dbb009c87440cd20d5a7bb0203ab16f02783076123c028a5bce6",
+      "originalPath": "Build/Validation/030/local-20260916/session-unlocked.json"
+    },
+    {
+      "path": "Validation/030/CI/Windows-Vulkan/9154e421-20260916/session-after-machine-cases.json",
+      "sha256": "102de1adbdb75ce8962bb974794042a9efaeceea40f3eed7031bc6c157eed428",
+      "originalPath": "Build/Validation/030/local-20260916/session-after-machine-cases.json"
+    }
+  ]
+}

@@ -152,6 +152,16 @@
       "path": "Build/Validation/030/local-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-report.json",
       "sha256": "8cde818ecf532a004d32f162f2516a71df822d597484990a9601a965e8400903",
       "sizeBytes": 1298
+    },
+    {
+      "path": "Build/Validation/030/local-20260916/windows-vulkan-sponza-mode-transition-stress-report.json",
+      "sha256": "681ec620c85abead26e6a2df0686ccbf81bdf338d4430c6d5018d4e6f31bb0dd",
+      "sizeBytes": 849
+    },
+    {
+      "path": "Build/Validation/030/local-20260916/windows-vulkan-lantern-lifecycle-integration-report.json",
+      "sha256": "da34ad7321553b6e06112c46744377025726b257c3abb96ee785ae98fbe3d1be",
+      "sizeBytes": 850
     }
   ],
   "reports": [
@@ -171,7 +181,9 @@
     "Build/Validation/030/physical/macos-metal-sponza-sdr-lifecycle-stress-report.json",
     "Build/Validation/030/local-20260916/windows-vulkan-sponza-sdr-endurance-report.json",
     "Build/Validation/030/local-20260916/windows-vulkan-lantern-sdr-smoke-report.json",
-    "Build/Validation/030/local-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-report.json"
+    "Build/Validation/030/local-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-report.json",
+    "Build/Validation/030/local-20260916/windows-vulkan-sponza-mode-transition-stress-report.json",
+    "Build/Validation/030/local-20260916/windows-vulkan-lantern-lifecycle-integration-report.json"
   ],
   "formalSdr": [],
   "humanDecisions": [],
