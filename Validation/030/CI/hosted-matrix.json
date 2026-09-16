@@ -5,5 +5,5 @@
   "conclusion": "pending",
   "independentHostedValidation": "pending",
   "jobs": [],
-  "blocker": "Remote push was rejected by automatic approval review; explicit approval requested for origin WSSStone/stoner-graphics-lab."
+  "blocker": "Source branch pushed with approval. GitHub dispatch returned HTTP 403 because current token lacks Actions write; browser login requested."
 }

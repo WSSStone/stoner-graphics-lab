@@ -2,11 +2,11 @@
 
 Frozen software: `74e1c435ecd79056ef3d72c563ab4cd865a6ca19`.
 Source branch: `codex/030-sdr-capability-validation`.
-This commit is currently local; remote publication awaits explicit approval. Do not fetch a different SHA or treat the old `9154e421` evidence as current.
+This exact commit is pushed to origin with maintainer approval. Hosted dispatch awaits Actions write permission on the current token. Do not fetch a different SHA or treat the old `9154e421` evidence as current.
 
 ## M4 operator
 
-After the source branch is available, create a clean detached checkout at the exact SHA above. Build strict Release with the existing M4 environment, acquire the pinned Sponza corpus, cook both recipes with `Production/Mac-Metal-Arm64.json`, and run `validate --strict-files` on both new publications. Follow [hardware-validation.md](hardware-validation.md) using Coverage-v2 and new output paths. Keep the Metal profile actions strict (`profile`), with the existing 20-cycle sequence; only Windows uses `profileByCapability`.
+Create a clean detached checkout at the exact SHA above. Build strict Release with the existing M4 environment, acquire the pinned Sponza corpus, cook both recipes with `Production/Mac-Metal-Arm64.json`, and run `validate --strict-files` on both new publications. Follow [hardware-validation.md](hardware-validation.md) using Coverage-v2 and new output paths. Keep the Metal profile actions strict (`profile`), with the existing 20-cycle sequence; only Windows uses `profileByCapability`.
 
 | Required case | Presented-frame budget |
 | --- | ---: |

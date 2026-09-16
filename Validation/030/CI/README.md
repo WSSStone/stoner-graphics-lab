@@ -1,14 +1,19 @@
 # Current capability-v2 freeze — 2026-09-16
 
-Current tested software: `74e1c435ecd79056ef3d72c563ab4cd865a6ca19` on `codex/030-sdr-capability-validation` (local, not pushed).
+Current tested software: `74e1c435ecd79056ef3d72c563ab4cd865a6ca19` on `codex/030-sdr-capability-validation` (pushed to origin with maintainer approval).
 
 The Vulkan mapping now preserves sRGB/BT709/PassThrough identities. Windows lifecycle requests use actual native capabilities and prove successful presentation or unsupported rejection without settings/native-output mutation. Coverage-v2/native Report-v2 distinguish actual switches, retained-current requests and expected rejections; the fixed matrix and budgets remain unchanged.
 
 Debug and strict Release implementation checks each passed 619 assertions; four Python suites passed 44 tests and both architecture checks passed. The clean frozen SHA was rebuilt in Release and passed the 619-assertion regression. Fresh Lantern and Sponza packages passed strict-files validation. Five Windows command files are prepared, including unchanged 180/61/12-step scripts.
 
-**Acceptance remains incomplete (113/127 tasks).** Windows Console session 1 is locked (confirmed outside the sandbox); no new-SHA physical case ran. Hosted publication was rejected by automatic approval review pending explicit permission to push to `WSSStone/stoner-graphics-lab`; the 13 jobs have not started. M4 requires fourteen new-SHA cases and a physical operator/remote handoff. Formal SDR and current human acceptance remain pending. No scanout or human pass is claimed.
+**Acceptance remains incomplete (113/127 tasks).** All five Windows cases passed run and independent verify on the physical RTX 3080 in unlocked Console session 1. Endurance and both Sponza lifecycle cases each presented 1120 frames; Lantern smoke and integration each presented 120. All cases recorded zero captures/readbacks/live idles/final native or presentation owners. Forced AcquireHistory smoke remains **IdleAssumed**, with 117 proven releases and three pre-cleanup owners retired through compatibility terminal idle; no scanout proof is claimed.
 
-See [checkpoint](Windows-Vulkan/74e1c435-20260916/checkpoint.json), [local verification](Windows-Vulkan/74e1c435-20260916/frozen-local-validation.json), [prepared cases](Windows-Vulkan/74e1c435-20260916/prepared-cases.json), [aggregate](aggregate.json), and [M4/acceptance handoff](../../../specs/030-interactive-rendering-lab/capability-v2-handoff.md). The independent new-SHA closeout returns incomplete with 48 missing gates.
+Sponza mode stress completed all 61 requests: 41 unsupported rejections, 20 retained-current requests, zero actual switches. Lantern completed all 12 integration steps, including two unsupported rejections and one retained-current request. The real surface exposes sRGB color space only; capability-constrained request checks pass without claiming cross-mode switching. All three Windows lifecycle cases passed; T118 remains partial pending four new-SHA M4 lifecycle cases. T115 machine requirements are satisfied but its T114 hosted predecessor remains open, so the task checkbox stays pending.
+
+The source branch was pushed after explicit approval. Workflow dispatch returned GitHub HTTP 403 because the current token lacks Actions write; the maintainer is updating that permission. All thirteen hosted jobs and fourteen M4 machine cases remain pending. Formal SDR awaits complete same-SHA lifecycle evidence. Two current Windows human requests are archived with no decisions.
+
+See [checkpoint](Windows-Vulkan/74e1c435-20260916/checkpoint.json), [local verification](Windows-Vulkan/74e1c435-20260916/frozen-local-validation.json), [Windows SDR](../SDR/windows-vulkan.json), [lifecycle](../UI/physical-lifecycle.json), [aggregate](aggregate.json), and [M4/acceptance handoff](../../../specs/030-interactive-rendering-lab/capability-v2-handoff.md). Independent closeout consumes all five successful original report bytes and returns incomplete with 43 missing gates (14 M4 machine, 4 formal SDR, 12 human, 13 hosted). Raw commands/logs remain in ignored `Build/Validation/030/capability-v2-20260916` in the clean frozen checkout.
+
 
 Old summary bytes are preserved in [the 9154e421 history index](History/9154e421/index.json). Original hosted/M4/Windows reports, including both failed Windows cases, remain in their original artifact directories. They do not satisfy this freeze.
 

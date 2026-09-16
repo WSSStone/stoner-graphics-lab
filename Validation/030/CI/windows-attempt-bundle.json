@@ -2,8 +2,40 @@
   "schema": "stoner.interactive-lab-bundle",
   "schemaVersion": 1,
   "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
-  "artifacts": [],
-  "reports": [],
+  "artifacts": [
+    {
+      "path": "Build/Validation/030/capability-v2-20260916/windows-vulkan-sponza-sdr-endurance-report.json",
+      "sha256": "86943bc55bd098cbf6e7f4f14a4962fc71aec8957ec1d1ddf98d9d9eab97eb7c",
+      "sizeBytes": 997
+    },
+    {
+      "path": "Build/Validation/030/capability-v2-20260916/windows-vulkan-lantern-sdr-smoke-report.json",
+      "sha256": "a40bc2349b8644f97a05eb0108c9e397fb1337e3b3656f09e4baccfca9652280",
+      "sizeBytes": 1087
+    },
+    {
+      "path": "Build/Validation/030/capability-v2-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-report.json",
+      "sha256": "a3f75042e95c084db52ad245b11748ad8010defa86b1fc4b3d0212dae0175a10",
+      "sizeBytes": 1330
+    },
+    {
+      "path": "Build/Validation/030/capability-v2-20260916/windows-vulkan-sponza-mode-transition-stress-report.json",
+      "sha256": "951ed5ba89dbeaae91a3071dc8a08be630ccd354aa16220cda6a655fe3c164e1",
+      "sizeBytes": 1339
+    },
+    {
+      "path": "Build/Validation/030/capability-v2-20260916/windows-vulkan-lantern-lifecycle-integration-report.json",
+      "sha256": "c8313d3c686d98cb08a1aae7c90421e1009f1890db1a16622edfdcfc1af556b0",
+      "sizeBytes": 1338
+    }
+  ],
+  "reports": [
+    "Build/Validation/030/capability-v2-20260916/windows-vulkan-sponza-sdr-endurance-report.json",
+    "Build/Validation/030/capability-v2-20260916/windows-vulkan-lantern-sdr-smoke-report.json",
+    "Build/Validation/030/capability-v2-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-report.json",
+    "Build/Validation/030/capability-v2-20260916/windows-vulkan-sponza-mode-transition-stress-report.json",
+    "Build/Validation/030/capability-v2-20260916/windows-vulkan-lantern-lifecycle-integration-report.json"
+  ],
   "formalSdr": [],
   "humanDecisions": [],
   "hosted": []

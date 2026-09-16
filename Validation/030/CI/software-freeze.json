@@ -343,8 +343,8 @@
     }
   ],
   "intelMacos": "skipped-by-maintainer-2026-09-08",
-  "hostedStatus": "pending-explicit-remote-push-approval",
-  "physicalStatus": "pending-new-sha-windows-desktop-locked-m4-handoff-required",
+  "hostedStatus": "pending-github-actions-write-or-browser-login",
+  "physicalStatus": "windows-five-passed-m4-fourteen-pending",
   "humanStatus": "pending-new-sha-machine-requests",
   "invalidation": "Any implementation or validation-policy change requires a new freeze and repetition of affected runs.",
   "evidenceOnlyCommits": "Later evidence/documentation commits retain this tested software revision; run producers from the exact frozen checkout.",

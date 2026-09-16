@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "status": "requests-prepared-no-decision",
+  "workloads": [
+    "lantern",
+    "sponza"
+  ],
+  "prerequisite": "Complete same-SHA lifecycle and formal SDR gates before final human acceptance.",
+  "observations": [
+    "WASD/QE/Shift movement and RMB look",
+    "Escape/RMB release restores cursor",
+    "Typing, dragging and scrolling in UI do not leak camera input",
+    "Text and controls are readable",
+    "Exposure and available SDR output controls behave correctly; record unavailable modes honestly",
+    "Export preset, change window aspect, import; pose/FOV restore while current aspect remains",
+    "UI toggle, actual focus changes, minimize/restore, and exit recover cleanly"
+  ],
+  "decisionAuthor": "maintainer only"
+}
