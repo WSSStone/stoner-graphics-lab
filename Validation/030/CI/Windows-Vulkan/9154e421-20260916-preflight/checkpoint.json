@@ -1,0 +1,242 @@
+{
+  "schema": "stoner.interactive-lab-windows-preflight",
+  "schemaVersion": 1,
+  "gitRevision": "9154e421eaaf5a01755d80736af322a1caab9215",
+  "evidenceBaseRevision": "8edab68fa2b6f88d92cbccb196cb73627a07d010",
+  "status": "blocked-before-physical-execution",
+  "taskCompletionUnchanged": "116/127",
+  "checks": [
+    {
+      "name": "architecture",
+      "exitCode": 0,
+      "logSha256": "f0b6ebdc5dedb9eca241aaab9041bb856c1d977d5e074d9eb608e9097a3db58c",
+      "localCommandSha256": "3e3e060246cdc1bb837a197f8e89ed834f4bd66fdb3fa6f1cb9bb6d5417223d4"
+    },
+    {
+      "name": "calibration-tool-tests",
+      "exitCode": 0,
+      "logSha256": "bfb1e150ee730f0f695ffbd1abc68a80d2e6bb3ec40be7733674eb3fc893fedd",
+      "localCommandSha256": "aeeda1fbac73e77f2b471551f6298ca48a1a421d6b592fefb5e8a8a4d76a386e"
+    },
+    {
+      "name": "debug-focused",
+      "exitCode": 0,
+      "logSha256": "e9cfc402452a78a2f098f3a97e98e9c0cbeeeac29c58dbaebfa6bbe73bb2e858",
+      "localCommandSha256": "d05f9db326f18567c3ae88d173589a1994d8186d964d0f2460149e9ec3eaf568"
+    },
+    {
+      "name": "evidence-tool-tests",
+      "exitCode": 0,
+      "logSha256": "b44ef96aceecab969729d357a7a8e96d18f96aa3f4651813b41a82844a2776eb",
+      "localCommandSha256": "775102aa19fd0986ea9fb2895f8ef4ec8f949d123eef3d8c75640afe1a330779"
+    },
+    {
+      "name": "formal-evidence-tests",
+      "exitCode": 0,
+      "logSha256": "6ba5859ae26e0254e052a12847ca201c0f98761f37b0291971d69ec0c060adcd",
+      "localCommandSha256": "20599af079a7d6d2dff1172370549238df399e5f54a62c16f9e03a8dd80efc84"
+    },
+    {
+      "name": "lantern-cook",
+      "exitCode": 0,
+      "logSha256": "87b64d10ccb3e3c9dd20eae564afb077f568044690532d8491c86ed1735912bb",
+      "localCommandSha256": "72589922c6b5a28be3d54262c022604f9027cd3f8e0ed06976d4dad0b2147f9a"
+    },
+    {
+      "name": "lantern-strict-validate",
+      "exitCode": 0,
+      "logSha256": "e41174b5d4c219b40bef1bb87fd99c623aff5203a0f86fcbd41527fbf3228879",
+      "localCommandSha256": "ab3e1886cc0097090a919d7167ead4d06ac748d0f86a856df243f0ddd982fd09"
+    },
+    {
+      "name": "output-validation-tests",
+      "exitCode": 0,
+      "logSha256": "748b5b0b8b2ab1f6774b01ceb870e764dcac3d74469d6e8b3d2aaab76eaea170",
+      "localCommandSha256": "f002e95a4f1b8e8b317ab8d8badfdd325b68fb1dc8da1f485cf8b4cc47e5caa8"
+    },
+    {
+      "name": "release-focused",
+      "exitCode": 0,
+      "logSha256": "e9cfc402452a78a2f098f3a97e98e9c0cbeeeac29c58dbaebfa6bbe73bb2e858",
+      "localCommandSha256": "6ea9ecdfc1e980ccde5f510a3a4e4359b48531b4ebb818879a08aa0ae9ac6b16"
+    },
+    {
+      "name": "roadmap",
+      "exitCode": 0,
+      "logSha256": "367d8adfe69c18bc68b44ffd20765e8b0096fe38c0c8e02414a39b46d7a282fd",
+      "localCommandSha256": "c3482bbd2735208b8b84d7ac4080aa31ed66090ddf67d937e9f13af3d038a445"
+    },
+    {
+      "name": "shader-inventory",
+      "exitCode": 0,
+      "logSha256": "090ed9197c0a5ffb9b852ad4a039e6d86955eb6754ed93358111d48ec6f8cdb6",
+      "localCommandSha256": "d7bfd95fbda2035c397afa368761cb6633d87c76fd2d15b42a48efcec4626767"
+    },
+    {
+      "name": "sponza-cook",
+      "exitCode": 0,
+      "logSha256": "5519131e537a06acd6089dcc9beca42dc0e829834dc72f62d4e9be5b0c2e92e5",
+      "localCommandSha256": "0f90ef8a052533568488033682bca03aa3567d2b8252b091cd3493060e247e02"
+    },
+    {
+      "name": "sponza-strict-validate",
+      "exitCode": 0,
+      "logSha256": "e2456c2f9b46e245a4871628b95c755b0f7cd80bab39dc0e09e22e086e620404",
+      "localCommandSha256": "88c9a0327e8a365150c50a6fced7bca0a7e3a23982ff8bde090d4418729d6e5e"
+    },
+    {
+      "name": "strict-debug-glfw",
+      "exitCode": 0,
+      "logSha256": "71439d1e8a006f5f6adde87b76dfde70e40520f624fc56a496dca6a882932abb",
+      "localCommandSha256": "b7cce27c88aeef4cd423ed2ed0bbd8c86b87c467326b7a9cfc9c895d6072922d"
+    },
+    {
+      "name": "strict-release-glfw",
+      "exitCode": 0,
+      "logSha256": "9c38b42a3133be747defab50fbde50ee610a5be9e3521e70dadefed6eb497e1e",
+      "localCommandSha256": "d496d0c2ad2c944acd3041fe4619ab747875dcb34b3fc1bde2a02bb6d6f413a9"
+    }
+  ],
+  "focusedAssertions": {
+    "debug": 570,
+    "release": 570
+  },
+  "buildNote": "Both strict builds exited 0. Linker emitted LNK4098 runtime-library conflict warnings; raw logs are retained. No native window run has occurred.",
+  "hardware": {
+    "manufacturer": "LENOVO",
+    "model": "30FNSDL000",
+    "adapter": "NVIDIA GeForce RTX 3080",
+    "deviceType": "PHYSICAL_DEVICE_TYPE_DISCRETE_GPU",
+    "vendorId": "0x10de",
+    "deviceId": "0x2216",
+    "driver": "581.32",
+    "vulkanApi": "1.4.312",
+    "maintenance1Advertised": true,
+    "swapchainMaintenance1Feature": true,
+    "actualLabRetirementMode": null
+  },
+  "storage": {
+    "cooked": "local fixed NTFS",
+    "lease": "local fixed NTFS",
+    "temp": "local fixed NTFS",
+    "validation": "local fixed NTFS"
+  },
+  "session": {
+    "activeConsoleSessionId": 1,
+    "checkedUtc": "2026-09-16T06:41:23.849649+00:00",
+    "desktopMonitorCount": 2,
+    "findings": [
+      "unlocked input desktop is not accessible"
+    ],
+    "inputDesktop": null,
+    "processSessionId": 1,
+    "remoteSessionMetric": false,
+    "status": "blocked",
+    "wtsClientProtocolType": 0,
+    "wtsConnectState": 0,
+    "wtsSessionName": "Console"
+  },
+  "blocker": "The active Console session has no accessible unlocked input desktop, including outside the tool sandbox. Visible application validation has not started.",
+  "policy": {
+    "frozenIdentitiesVerified": 82,
+    "checkoutBytes": "Restored original committed bytes before final build; no source or policy edits.",
+    "inputDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "windowsHandoffSha256": "e6fb3d13a81ae2d2255d060ea0e5be195d63520e2d3f67d1ac308b03ee930c9c"
+  },
+  "packages": [
+    {
+      "workload": "lantern",
+      "generationId": "d070931078115d8884e7c850e4df4d9763e12a107417f8dba28be13b833e0b83",
+      "manifestDigest": "27a05100d1733c188166545899a47ee4625008e40a30f0560165c8eabce6d938",
+      "targetProfileSha256": "c157918a460ea086d8089753ad6f04c46484bed2d653d07193310a2397064058",
+      "strictValidation": "passed",
+      "source": "fresh cook at frozen software"
+    },
+    {
+      "workload": "sponza",
+      "generationId": "3983c62435f9c7ed2288721a0fb9548b1147ac7f721651052d0bd08c11928508",
+      "manifestDigest": "7ceab2eed887f43bb68e9564f1d509c62e006a0d31c124c6037758c46ec0954c",
+      "targetProfileSha256": "c157918a460ea086d8089753ad6f04c46484bed2d653d07193310a2397064058",
+      "strictValidation": "passed",
+      "source": "fresh cook at frozen software"
+    }
+  ],
+  "binaries": [
+    {
+      "configuration": "Release",
+      "file": "Demo/StonerDemo/StonerDemo.exe",
+      "sha256": "46a37a8ff42865f42cddf5b964e50adac39cd4a8f4dfc3c160148dc581c458db"
+    },
+    {
+      "configuration": "Release",
+      "file": "Tests/StonerTest.exe",
+      "sha256": "6873ea37b4b5bd5dbc56a903d331aa8ae8e9bfa5b77818c43875e356a5910e7b"
+    },
+    {
+      "configuration": "Release",
+      "file": "Tools/AssetCooker/StonerAssetCooker.exe",
+      "sha256": "04e1c863ce22b1fee5cd0e9672235c086ee7c9c44eb6a3de8b872af442857a25"
+    },
+    {
+      "configuration": "Debug",
+      "file": "Demo/StonerDemo/StonerDemo.exe",
+      "sha256": "698b59c3f8e4dd83a3ef72d60a1d99853ebbb71c9aa96d35f549def1b29bb07c"
+    },
+    {
+      "configuration": "Debug",
+      "file": "Tests/StonerTest.exe",
+      "sha256": "05f79b61c20f8002e2e43343de697525ae64ae71d0c9b7bf426e0d1a04988e21"
+    },
+    {
+      "configuration": "Debug",
+      "file": "Tools/AssetCooker/StonerAssetCooker.exe",
+      "sha256": "d07ea3c8ed9be2c2ae3de125751f46c0eee7c034e930333f008ed626eff03e59"
+    }
+  ],
+  "preparedMachineCases": [
+    "windows-vulkan-lantern-lifecycle-integration",
+    "windows-vulkan-lantern-sdr-smoke",
+    "windows-vulkan-sponza-mode-transition-stress",
+    "windows-vulkan-sponza-sdr-endurance",
+    "windows-vulkan-sponza-sdr-lifecycle-stress"
+  ],
+  "preparedLifecycleSteps": {
+    "windows-vulkan-lantern-lifecycle-integration-script.json": 12,
+    "windows-vulkan-sponza-mode-transition-stress-script.json": 61,
+    "windows-vulkan-sponza-sdr-lifecycle-stress-script.json": 180
+  },
+  "formalSdr": "Both exact 512x512 frozen-input commands prepared; not executed because T115/T118 cannot run.",
+  "humanRequests": "Launch inputs prepared only. No machine-linked Windows review request or human decision emitted.",
+  "hostedAndM4Reverification": {
+    "originalArtifacts": 64,
+    "hostedJobs": 13,
+    "m4MachineCases": 14,
+    "result": "passed independent closeout checks; expected aggregate remains incomplete"
+  },
+  "counters": null,
+  "physicalScanoutClaim": false,
+  "windowsHdrClaim": false,
+  "artifacts": [
+    {
+      "path": "Validation/030/CI/Windows-Vulkan/9154e421-20260916-preflight/session-before.json",
+      "sha256": "c268483e5825069f6be561f1c93486ec3c3e8858137cf1b366685d1f22952ff7"
+    },
+    {
+      "path": "Validation/030/CI/Windows-Vulkan/9154e421-20260916-preflight/session-native-before.json",
+      "sha256": "5f974a947ba78e994fcfca0e9a004e0f8ade78f0449ff156c593b8459bfcbed3"
+    },
+    {
+      "path": "Validation/030/CI/Windows-Vulkan/9154e421-20260916-preflight/session-native-recheck.json",
+      "sha256": "74662fb587fbfa2d2be743b310b6dc6e7e01c47996702af842de73dc903c0716"
+    },
+    {
+      "path": "Validation/030/CI/Windows-Vulkan/9154e421-20260916-preflight/session-final.json",
+      "sha256": "a0658c2a34e8bc22bc7d16201918f2252a12200369a49f486a2ac90dfa67f3e8"
+    },
+    {
+      "path": "Validation/030/CI/Windows-Vulkan/9154e421-20260916-preflight/aggregate-recheck.json",
+      "sha256": "b5061fda26ff72bd8a3e6bf6572d853941edecc0201d81f6de8a1c3bd4dda2c9"
+    }
+  ],
+  "resume": "Unlock the current Windows desktop and keep the session active. Recheck session, run the five prepared fixed cases in order through run/verify, then complete formal SDR and request current human navigation review."
+}
