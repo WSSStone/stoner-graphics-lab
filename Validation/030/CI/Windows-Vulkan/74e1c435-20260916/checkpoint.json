@@ -2,17 +2,22 @@
   "schema": "stoner.interactive-lab-capability-fix-checkpoint",
   "schemaVersion": 1,
   "softwareRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
-  "status": "windows-five-cases-passed-hosted-m4-pending",
+  "status": "hosted-and-windows-passed-m4-pending",
   "nativeEvidenceVersion": 2,
   "coverage": "Config/Validation/InteractiveLab/Coverage-v2.json",
   "implementationTests": "Debug and strict Release each passed 619 assertions; implementation tests ran before freeze and are not physical acceptance.",
   "windows": "Physical RTX 3080, unlocked Console session 1 Default desktop; all five new-SHA run/verify cases passed",
   "m4": "Maintainer will execute 14 new-SHA cases and return original evidence",
-  "hosted": "Permission issue resolved; run 35078558137 started at exact frozen SHA",
+  "hosted": "Run 35078558137 passed 13/13 jobs at exact frozen SHA; independent closeout verified all original hosted reports",
   "formalSdr": "Blocked on current-SHA lifecycle gates",
   "human": "Two current-SHA Windows requests prepared; no acceptance authored",
   "historicalEvidence": "Validation/030/CI/History/9154e421/index.json",
   "frozenLocalValidation": "Validation/030/CI/Windows-Vulkan/74e1c435-20260916/frozen-local-validation.json",
   "cookedPackages": "Validation/030/CI/Windows-Vulkan/74e1c435-20260916/cooked-packages.json",
-  "preparedCases": "Validation/030/CI/Windows-Vulkan/74e1c435-20260916/prepared-cases.json"
+  "preparedCases": "Validation/030/CI/Windows-Vulkan/74e1c435-20260916/prepared-cases.json",
+  "completedTasks": [
+    "T114",
+    "T115"
+  ],
+  "reviewedTaskCount": 115
 }
