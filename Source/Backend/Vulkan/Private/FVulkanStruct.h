@@ -64,9 +64,11 @@ FromVulkanPresentationFormat(VkFormat Format) noexcept
     switch (ColorSpace)
     {
     case Stoner::RHI::ERHIPresentationColorSpace::SrgbNonlinear:
-    case Stoner::RHI::ERHIPresentationColorSpace::Bt709Nonlinear:
-    case Stoner::RHI::ERHIPresentationColorSpace::SdrPassThrough:
         return VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+    case Stoner::RHI::ERHIPresentationColorSpace::Bt709Nonlinear:
+        return VK_COLOR_SPACE_BT709_NONLINEAR_EXT;
+    case Stoner::RHI::ERHIPresentationColorSpace::SdrPassThrough:
+        return VK_COLOR_SPACE_PASS_THROUGH_EXT;
     case Stoner::RHI::ERHIPresentationColorSpace::Hdr10St2084:
         return VK_COLOR_SPACE_HDR10_ST2084_EXT;
     case Stoner::RHI::ERHIPresentationColorSpace::ExtendedSrgbLinear:
@@ -84,6 +86,10 @@ FromVulkanPresentationColorSpace(VkColorSpaceKHR ColorSpace) noexcept
     {
     case VK_COLOR_SPACE_SRGB_NONLINEAR_KHR:
         return Stoner::RHI::ERHIPresentationColorSpace::SrgbNonlinear;
+    case VK_COLOR_SPACE_BT709_NONLINEAR_EXT:
+        return Stoner::RHI::ERHIPresentationColorSpace::Bt709Nonlinear;
+    case VK_COLOR_SPACE_PASS_THROUGH_EXT:
+        return Stoner::RHI::ERHIPresentationColorSpace::SdrPassThrough;
     case VK_COLOR_SPACE_HDR10_ST2084_EXT:
         return Stoner::RHI::ERHIPresentationColorSpace::Hdr10St2084;
     case VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT:

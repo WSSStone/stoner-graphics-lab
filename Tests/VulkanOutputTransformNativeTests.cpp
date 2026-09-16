@@ -78,6 +78,22 @@ RunVulkanOutputTransformNativeTests()
             VK_FORMAT_B8G8R8A8_SRGB,
         "Vulkan native mapping does not silently replace UNorm with an sRGB format");
 
+    for (const auto Space : {ERHIPresentationColorSpace::SrgbNonlinear,
+        ERHIPresentationColorSpace::Bt709Nonlinear, ERHIPresentationColorSpace::SdrPassThrough})
+        Record(Result, FromVulkanPresentationColorSpace(ToVulkanPresentationColorSpace(Space)) == Space,
+            "Vulkan SDR spaces round-trip without aliases");
+    Record(Result, ToVulkanPresentationColorSpace(ERHIPresentationColorSpace::Bt709Nonlinear) == VK_COLOR_SPACE_BT709_NONLINEAR_EXT &&
+        ToVulkanPresentationColorSpace(ERHIPresentationColorSpace::SdrPassThrough) == VK_COLOR_SPACE_PASS_THROUGH_EXT &&
+        ToVulkanPresentationColorSpace(ERHIPresentationColorSpace::Unknown) == VK_COLOR_SPACE_MAX_ENUM_KHR &&
+        FromVulkanPresentationColorSpace(VK_COLOR_SPACE_MAX_ENUM_KHR) == ERHIPresentationColorSpace::Unknown,
+        "Vulkan exact SDR native constants and unknown rejection");
+
+    FRHIPresentationCapabilities Exact;
+    Exact.SupportedPairs={{ERHIFormat::B8G8R8A8_UNorm,ERHIPresentationColorSpace::SrgbNonlinear}};
+    Record(Result, Exact.SupportsPair(ERHIFormat::B8G8R8A8_UNorm,ERHIPresentationColorSpace::SrgbNonlinear) &&
+        !Exact.SupportsPair(ERHIFormat::B8G8R8A8_UNorm,ERHIPresentationColorSpace::Bt709Nonlinear) &&
+        !Exact.SupportsPair(ERHIFormat::B8G8R8A8_UNorm,ERHIPresentationColorSpace::SdrPassThrough),
+        "Vulkan identical storage never implies support for a different native color space");
     const char* RequireVisible =
         std::getenv("STONER_REQUIRE_VULKAN_OUTPUT_PRESENTATION");
     if (!RequireVisible || std::strcmp(RequireVisible, "1") != 0)

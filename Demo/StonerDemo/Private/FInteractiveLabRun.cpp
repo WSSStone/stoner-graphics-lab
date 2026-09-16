@@ -43,6 +43,64 @@ using Clock = std::chrono::steady_clock;
 constexpr std::array<const char*,7> LabProfiles={"Sdr.sRGB.v1","Sdr.BT709.v1","Sdr.ExplicitGamma22.v1",
     "Hdr.PQ.Rec2020.1000.v1","Hdr.PQ.Rec2020.2000.v1","Hdr.Linear.1000.v1","Hdr.Linear.2000.v1"};
 
+const char* EvidenceFormatName(RHI::ERHIFormat F)
+{
+    using RHI::ERHIFormat;
+    switch(F) {
+    case ERHIFormat::R8G8B8A8_UNorm: return "rgba8-unorm";
+    case ERHIFormat::B8G8R8A8_UNorm: return "bgra8-unorm";
+    case ERHIFormat::R8G8B8A8_sRGB: return "rgba8-srgb";
+    case ERHIFormat::R10G10B10A2_UNorm: return "rgb10a2-unorm";
+    case ERHIFormat::R16G16B16A16_Float: return "rgba16-float";
+    default: return "unknown";
+    }
+}
+void WriteProfileEvidence(const FLabInputScript& Script,yyjson_mut_doc* D,yyjson_mut_val* Root)
+{
+    auto* A=yyjson_mut_obj_add_arr(D,Root,"profileRequests");
+    Core::uint64 Switched=0,Retained=0,Rejected=0;
+    for (const auto& R:Script.GetProfileResults())
+    {
+        auto* V=yyjson_mut_obj(D); yyjson_mut_arr_append(A,V);
+        yyjson_mut_obj_add_uint(D,V,"stepIndex",R.StepIndex);
+        yyjson_mut_obj_add_strcpy(D,V,"requestedProfile",R.RequestedProfile.CStr());
+        yyjson_mut_obj_add_bool(D,V,"supported",R.bSupported);
+        yyjson_mut_obj_add_bool(D,V,"complete",R.bComplete);
+        yyjson_mut_obj_add_strcpy(D,V,"outcome",R.Outcome.CStr());
+        yyjson_mut_obj_add_strcpy(D,V,"reason",R.Reason.CStr());
+        yyjson_mut_obj_add_strcpy(D,V,"beforeStateSha256",R.BeforeState.CStr());
+        yyjson_mut_obj_add_strcpy(D,V,"afterStateSha256",R.AfterState.CStr());
+        yyjson_mut_obj_add_strcpy(D,V,"beforeProfile",R.Before.EffectiveProfileId.CStr());
+        yyjson_mut_obj_add_strcpy(D,V,"afterProfile",R.After.EffectiveProfileId.CStr());
+        yyjson_mut_obj_add_uint(D,V,"beforeSettings",R.Before.SettingsRevision);
+        yyjson_mut_obj_add_uint(D,V,"afterSettings",R.After.SettingsRevision);
+        yyjson_mut_obj_add_uint(D,V,"beforeOutput",R.Before.OutputModeGeneration);
+        yyjson_mut_obj_add_uint(D,V,"afterOutput",R.After.OutputModeGeneration);
+        yyjson_mut_obj_add_uint(D,V,"beforeNativeOutput",R.Start.NativeOutputGeneration);
+        yyjson_mut_obj_add_uint(D,V,"afterNativeOutput",R.Finish.NativeOutputGeneration);
+        yyjson_mut_obj_add_uint(D,V,"beforeFrame",R.Start.FrameToken);
+        yyjson_mut_obj_add_uint(D,V,"frameToken",R.Finish.FrameToken);
+        yyjson_mut_obj_add_strcpy(D,V,"frameProfile",R.Finish.ProfileId.CStr());
+        yyjson_mut_obj_add_uint(D,V,"frameSettings",R.Finish.SettingsRevision);
+        yyjson_mut_obj_add_uint(D,V,"frameOutput",R.Finish.OutputGeneration);
+        yyjson_mut_obj_add_strcpy(D,V,"nativeCapabilityIdentity",R.Start.Capabilities.CapabilityDigest.CStr());
+        yyjson_mut_obj_add_uint(D,V,"capabilityGeneration",R.Start.Capabilities.CapabilityGeneration);
+        yyjson_mut_obj_add_uint(D,V,"afterCapabilityGeneration",R.Finish.Capabilities.CapabilityGeneration);
+        auto* Pairs=yyjson_mut_obj_add_arr(D,V,"supportedPairs");
+        for (const auto& P:R.Start.Capabilities.SupportedPairs)
+        {
+            auto* Pair=yyjson_mut_obj(D); yyjson_mut_arr_append(Pairs,Pair);
+            yyjson_mut_obj_add_str(D,Pair,"format",EvidenceFormatName(P.Format));
+            yyjson_mut_obj_add_str(D,Pair,"colorSpace",RHI::ToString(P.ColorSpace));
+        }
+        if (R.bComplete) { Switched+=R.Outcome=="switched"; Retained+=R.Outcome=="retained"; Rejected+=R.Outcome=="rejected-unsupported"; }
+    }
+    auto* Counts=yyjson_mut_obj_add_obj(D,Root,"profileRequestCounts");
+    yyjson_mut_obj_add_uint(D,Counts,"switched",Switched);
+    yyjson_mut_obj_add_uint(D,Counts,"retained",Retained);
+    yyjson_mut_obj_add_uint(D,Counts,"rejectedUnsupported",Rejected);
+}
+
 bool ConfigureLabExports(Application::FInteractiveLabSession& Session, const FDemoConfiguration& Config,
     Core::FString& Reason, Application::FLabPresetStoreConfig* CaptureStore=nullptr)
 {
@@ -136,6 +194,7 @@ public:
     {
         Core::uint64 Token = 0;
         Core::FString OutputProfile;
+        Core::uint64 SettingsRevision=0, OutputGeneration=0;
         Renderer::FOutputTransformPreviewTicket Ticket;
         RHI::FRHIBorrowedAcquiredTarget Target;
         bool bAcquireAttempted = false;
@@ -640,6 +699,10 @@ public:
                         Presentations.push_back({Lease, Index});
                         Slot.bPresentQueued = true;
                         ++Presented;
+                        LastPresentedProfile.FrameToken=Slot.Token;
+                        LastPresentedProfile.ProfileId=Slot.OutputProfile;
+                        LastPresentedProfile.SettingsRevision=Slot.SettingsRevision;
+                        LastPresentedProfile.OutputGeneration=Slot.OutputGeneration;
                         for (Core::usize P=0;P<LabProfiles.size();++P)
                             if (Slot.OutputProfile==LabProfiles[P]) ++ProfilePresentCounts[P];
                         if (Frames->QueuePresentation(Slot.Token, Index, Lease, &Reason) != ERHIResult::Success)
@@ -814,6 +877,8 @@ public:
             {
                 ++Submitted;
                 Slot.OutputProfile=OutputResolved.OutputDeviceProfileId;
+                if (const auto* E=Session.GetEffectiveSettings())
+                { Slot.SettingsRevision=E->SettingsRevision; Slot.OutputGeneration=E->OutputModeGeneration; }
                 const auto* Resources = Frames->GetResources(Slot.Token,Index);
                 if (Resources)
                 {
@@ -1056,6 +1121,7 @@ public:
     Core::FString SourceDigest;
     Core::uint64 NextCapture=1, CaptureServiceFrame=0;
     Core::uint64 NextToken = 1;
+    FLabProfileObservation LastPresentedProfile;
     Core::uint32 Submitted = 0, Completed = 0, Presented = 0, CancelledSubmissions = 0;
     std::array<Core::uint64,7> ProfilePresentCounts{};
     Core::uint32 UIFramesSubmitted = 0, UISceneFallbackFrames = 0, DiagnosticFramesSubmitted = 0;
@@ -1167,6 +1233,12 @@ FInteractiveLabRunResult RunInteractiveLab(
             if (EventThreadOwnsBackend() && !Config.LabInputScript.IsEmpty())
             {
                 Core::FString Reason;
+                Script.ObserveProfile=[&](FLabProfileObservation& O) {
+                    if (!Owner->bSceneReady) return false;
+                    if (Owner->Backend->QueryLabPresentation(Owner->Status)!=ERHIResult::Success) return false;
+                    O=Owner->LastPresentedProfile; O.Capabilities=Owner->Status.Capabilities;
+                    O.NativeOutputGeneration=Owner->Status.ResolvedState.ModeGeneration; return true;
+                };
                 if (!Script.Service(Window,Session,Owner->Presented,Reason)) (void)Session.RequestExit(Reason);
             }
             if (WindowService && EventThreadOwnsBackend()) WindowService(Window, Owner->Presented);
@@ -1296,7 +1368,8 @@ FInteractiveLabRunResult RunInteractiveLab(
         if (Root)
         {
             yyjson_mut_doc_set_root(Doc,Root);
-            yyjson_mut_obj_add_uint(Doc,Root,"schemaVersion",1);
+            yyjson_mut_obj_add_uint(Doc,Root,"schemaVersion",2);
+            WriteProfileEvidence(Script,Doc,Root);
             yyjson_mut_obj_add_str(Doc,Root,"evidenceClass","local-native-script");
             yyjson_mut_obj_add_str(Doc,Root,"humanStatus","pending-human-review");
             yyjson_mut_obj_add_str(Doc,Root,"softwareRevision",STONER_LAB_STRINGIFY(STONER_DEMO_SOFTWARE_REVISION));

@@ -12,7 +12,7 @@ Windows follows [029 Windows handoff](../029-hdr-output-transform/windows-handof
 
 ## One command file per fixed case
 
-Select a case ID from `Config/Validation/InteractiveLab/Coverage-v1.json`. There are four endurance, eight additional smoke and seven lifecycle cases; do not multiply the profile/endurance matrix. The command JSON has `caseId`, `gateKind`, `timeoutSeconds` (10–600), and a `nativeCommand` array. Example shape for `macos-metal-lantern-sdr-smoke`:
+Select a case ID from `Config/Validation/InteractiveLab/Coverage-v2.json`. There are four endurance, eight additional smoke and seven lifecycle cases; do not multiply the profile/endurance matrix. The command JSON has `caseId`, `gateKind`, `timeoutSeconds` (10–600), and a `nativeCommand` array. Example shape for `macos-metal-lantern-sdr-smoke`:
 
 ```json
 {"caseId":"macos-metal-lantern-sdr-smoke","gateKind":"smoke","timeoutSeconds":600,"nativeCommand":["Build/Mac/Release/Demo/StonerDemo/StonerDemo","--interactive-lab","--lab-ui","on","--mode","validate","--frames","120","--width","320","--height","180","--backend","metal","--workload","production-content","--render-path","deferred-full","--cooked-root","Build/lab-publication","--strict-generation","REPLACE_WITH_CURRENT_GENERATION","--production-root","StaticModel:Lantern.glb#idx.scene.0","--workload-revision","production-content-lantern-v3","--lease-root","Build/lab-leases","--target-profile","Config/AssetCooker/Profiles/Production/Mac-Metal-Arm64.json","--output-device-profile","Sdr.sRGB.v1","--output-transform-version","Sdr.KhronosPbrNeutral.v1","--lab-report","Build/Validation/030/native-new.json"]}
@@ -33,7 +33,7 @@ For lifecycle command files add `--lab-input-script` and use a sufficient bounde
 
 For each Sponza stress cycle append: resize to alternating 320x320 / 640x360, ui 0 then 1, focus 0 then 1, minimize 0 then restore with the selected width/height, scale 2 then 1. Repeat 20 times (180 steps). `resize`/`restore` use `value` width and `value2` height. Scale uses the validation-only persistent content-scale override; focus/minimize/restore are typed injections, not physical monitor/window actions. Human review separately exercises actual focus/minimize/input.
 
-For mode stress append each `profileSequence` after its initial entry, repeat 20 times. Windows then appends `rejectProfile` for its declared unavailable HDR profile. Remaining integration cases append only their `requiredAdditionalCycles`, with Windows Lantern using the SDR sequence sRGB → BT709 → ExplicitGamma22 → sRGB once. The verifier checks the script digest, completion and required cycles. A five-second no-progress deadline is a failure, not coverage.
+For mode stress append each `profileSequence` after its initial entry, repeat 20 times. Windows uses `profileByCapability` for each request and then appends the `capabilityProfileProbe` using that same action. The HDR probe may succeed if the exact native pair exists; this is machine presentation evidence only, not HDR appearance authority. Remaining integration cases append only their `requiredAdditionalCycles`, with Windows Lantern using the SDR sequence sRGB → BT709 → ExplicitGamma22 → sRGB once. The verifier checks the script digest, completion and required cycles. A five-second no-progress deadline is a failure, not coverage.
 
 ## Formal and current human gates
 
@@ -48,3 +48,9 @@ python .github/scripts/interactive_lab_validation.py closeout --manifest Build/V
 ```
 
 Missing or rejected gates remain incomplete. The implementation owner reruns failed machine cases at the frozen commit; the maintainer owns Windows machine access and current hands-on decisions. If a required native environment is unavailable, retain the failed/unavailable report and rerun the exact command above on the required machine. Never substitute hosted, historical or Intel-skipped evidence. T114–T123 track these follow-ups; no completion is claimed by this guide.
+
+## Capability-constrained profile requests (v2)
+
+The Windows sequence keeps 61 requests for Sponza and 12 total integration steps for Lantern, with unchanged cycles/frame/time/resource budgets. Use `profileByCapability` for the Windows SDR sequence; Metal keeps strict `profile` transitions. Supported requests must become effective and queue a subsequent frame with matching settings/output identities. Unsupported requests must reject specifically for the absent format/color-space pair, preserve effective/requested/pending settings and queue another frame of the former output. Requesting the current profile retains it and is not a cross-mode transition. A single-mode surface may pass request handling with zero actual transitions, explicitly recorded as such. Failed queries, changed capability generations, failed native transitions and timeouts fail the case.
+
+The v2 native/wrapper reports require digest-bound capability pairs and per-request results. The v1 coverage/schema and old original reports remain historical; never consume them as v2 evidence. Human/bundle/hosted envelope versions remain 1 because their field contracts are unchanged, but all new machine links must resolve to v2 at the new exact SHA. PassThrough does not certify monitor Gamma2.2 calibration. Formal SDR policy and Accepted references are unchanged.

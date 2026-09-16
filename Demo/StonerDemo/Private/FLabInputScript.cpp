@@ -8,6 +8,9 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <sstream>
+#include <iomanip>
+#include "Renderer/FOutputTransformSettings.h"
 namespace Stoner::Demo
 {
 using namespace Core;
@@ -64,7 +67,7 @@ bool FLabInputScript::Decode(const TArray<uint8>& Bytes,FString& Reason)
         S.AfterPresented=static_cast<uint32>(yyjson_get_uint(At));
         if (!Parsed.empty() && S.AfterPresented<Parsed.back().AfterPresented) return Fail();
         auto Value=yyjson_obj_get(V,"value"),Second=yyjson_obj_get(V,"value2");
-        const bool String=S.Action=="profile" || S.Action=="rejectProfile" || S.Action=="tone";
+        const bool String=S.Action=="profileByCapability" || S.Action=="profile" || S.Action=="rejectProfile" || S.Action=="tone";
         if (String) { if (!Text(Value,S.Text)) return Fail(); }
         else { if (!yyjson_is_num(Value)) return Fail(); S.Value=yyjson_get_num(Value); if (!std::isfinite(S.Value)) return Fail(); }
         if (S.Action=="resize" || S.Action=="restore")
@@ -84,7 +87,7 @@ bool FLabInputScript::Decode(const TArray<uint8>& Bytes,FString& Reason)
         if (!Parsed.empty() && Parsed.back().Action=="close") return Fail();
         Parsed.push_back(std::move(S));
     }
-    Steps=std::move(Parsed); Cursor=0; Expected.reset(); ProgressTime={}; LastPresented=0; ResumeAfterPresented=0; LastCursor=0;
+    ProfileResults.clear(); PendingProfile.reset(); Steps=std::move(Parsed); Cursor=0; Expected.reset(); ProgressTime={}; LastPresented=0; ResumeAfterPresented=0; LastCursor=0;
     Digest=Asset::FAssetDigest::FromBytes(Bytes).ToLowerHex(); Reason={}; return true;
 }
 bool FLabInputScript::Service(Application::FWindow& W,Application::FInteractiveLabSession& S,uint32 Presented,FString& Reason)
@@ -94,7 +97,20 @@ bool FLabInputScript::Service(Application::FWindow& W,Application::FInteractiveL
     { ProgressTime=Now; LastPresented=Presented; LastCursor=Cursor; }
     if (!IsComplete() && Now-ProgressTime>=std::chrono::seconds(5))
     { Reason="lab script made no progress for five seconds"; return false; }
+    if (!PendingProfile && !ProfileResults.empty())
+    {
+        FLabProfileObservation O;
+        if (!ObserveProfile || !ObserveProfile(O) ||
+            O.Capabilities.CapabilityGeneration!=ProfileResults.front().Start.Capabilities.CapabilityGeneration ||
+            O.Capabilities.CapabilityDigest!=ProfileResults.front().Start.Capabilities.CapabilityDigest)
+        { Reason="profile capability query failed or changed after request"; return false; }
+    }
     const auto* Effective=S.GetEffectiveSettings();
+    if (PendingProfile)
+    {
+        if (!ServiceProfile(S,Reason)) return false;
+        if (PendingProfile) return true;
+    }
     if (Expected)
     {
         if (!S.GetSettingsFailure().IsEmpty()) { Reason="script settings transition failed"; return false; }
@@ -110,7 +126,8 @@ bool FLabInputScript::Service(Application::FWindow& W,Application::FInteractiveL
     const bool Recovery=A=="restore" || A=="focus" || A=="close";
     if (!Recovery && (S.GetPendingSettings() || S.HasPendingTransition())) return true;
     bool OK=true;
-    if (A=="resize") OK=W.SetClientSize(static_cast<uint32>(Step.Value),static_cast<uint32>(Step.Value2))==Application::EApplicationResult::Success;
+    if (A=="profileByCapability") OK=StartProfile(S,Step,Reason);
+    else if (A=="resize") OK=W.SetClientSize(static_cast<uint32>(Step.Value),static_cast<uint32>(Step.Value2))==Application::EApplicationResult::Success;
     else if (A=="restore") W.QueueEvent(Application::FWindowEvent::Restored(static_cast<uint32>(Step.Value),static_cast<uint32>(Step.Value2)));
     else if (A=="scale") OK=W.SetValidationContentScale(static_cast<float>(Step.Value))==Application::EApplicationResult::Success;
     else if (A=="minimize") W.QueueEvent(Application::FWindowEvent::Minimized());
@@ -139,8 +156,104 @@ bool FLabInputScript::Service(Application::FWindow& W,Application::FInteractiveL
         if (A=="rejectProfile") OK=!OK;
         else if (OK) Expected=Edit;
     }
-    if (!OK) { Reason="script action rejected: "+A.ToStdString(); return false; }
+    if (!OK) { if (Reason.IsEmpty()) Reason="script action rejected: "+A.ToStdString(); return false; }
     if (A!="minimize" && A!="close") ResumeAfterPresented=Presented+3;
     ++Cursor; return true;
 }
+namespace
+{
+FString SettingsState(const Application::FInteractiveLabSession& S)
+{
+    std::ostringstream Text;
+    Text.imbue(std::locale::classic()); Text << std::setprecision(9);
+    for (const auto* V : {S.GetEffectiveSettings(), S.GetRequestedSettings(), S.GetPendingSettings()})
+    {
+        if (!V) { Text << "null;"; continue; }
+        Text << V->CameraRevision << ',' << V->SettingsRevision << ',' << V->DisplayGeneration << ',' << V->OutputModeGeneration
+            << ',' << V->RequestedProfileId.CStr() << ',' << V->EffectiveProfileId.CStr() << ',' << V->SdrToneMapVersion.CStr()
+            << ',' << V->HdrViewingVersion.CStr() << ',' << V->ExposureStops << ',' << V->bUIVisible << ',' << V->UIWhiteMultiplier
+            << ',' << V->UIReferenceWhiteNits << ',' << V->NativePackingWhiteNits << ',' << static_cast<int>(V->DebugBypass.Mode)
+            << ',' << V->DebugBypass.StageName.CStr() << ',' << static_cast<int>(V->DebugBypass.SourceDomain)
+            << ',' << V->DebugBypass.VisualizationMinimum << ',' << V->DebugBypass.VisualizationMaximum << ';';
+    }
+    const auto Bytes=Text.str();
+    return Asset::FAssetDigest::FromBytes({reinterpret_cast<const uint8*>(Bytes.data()),Bytes.size()}).ToLowerHex();
+}
+bool SameCapabilities(const RHI::FRHIPresentationCapabilities& A,const RHI::FRHIPresentationCapabilities& B)
+{
+    return A.SurfaceId==B.SurfaceId && A.CapabilityGeneration==B.CapabilityGeneration &&
+        A.CapabilityDigest==B.CapabilityDigest && A.SupportedPairs==B.SupportedPairs && A.NativeReferenceWhiteNits==B.NativeReferenceWhiteNits &&
+        A.bSupportsExtendedRange==B.bSupportsExtendedRange;
+}
+const char* FormatName(RHI::ERHIFormat F)
+{
+    using RHI::ERHIFormat;
+    switch(F) {
+    case ERHIFormat::R8G8B8A8_UNorm: return "rgba8-unorm";
+    case ERHIFormat::B8G8R8A8_UNorm: return "bgra8-unorm";
+    case ERHIFormat::R8G8B8A8_sRGB: return "rgba8-srgb";
+    case ERHIFormat::R10G10B10A2_UNorm: return "rgb10a2-unorm";
+    case ERHIFormat::R16G16B16A16_Float: return "rgba16-float";
+    default: return "unknown";
+    }
+}
+}
+bool FLabInputScript::StartProfile(Application::FInteractiveLabSession& S,const FLabScriptStep& Step,FString& Reason)
+{
+    FLabProfileResult R; R.StepIndex=static_cast<uint32>(Cursor); R.RequestedProfile=Step.Text;
+    const Renderer::FOutputTransformSettingsValidator Validator;
+    const auto* P=Validator.FindProfile(Step.Text);
+    if (!P || !ObserveProfile || !ObserveProfile(R.Start) || !R.Start.Capabilities.IsValid())
+    { Reason="profile capability query failed: "+Step.Text.ToStdString(); return false; }
+    if (!ProfileResults.empty() && !SameCapabilities(ProfileResults.front().Start.Capabilities,R.Start.Capabilities))
+    { Reason="profile capability generation changed: "+Step.Text.ToStdString(); return false; }
+    if (!S.GetEffectiveSettings() || !S.GetRequestedSettings() || S.GetPendingSettings())
+    { Reason="profile request requires idle settings"; return false; }
+    R.Before=*S.GetEffectiveSettings(); R.BeforeState=SettingsState(S);
+    const auto& C=R.Start.Capabilities;
+    R.bSupported=C.SupportsPair(P->Format,P->ColorSpace) ||
+        (P->StorageClass==Renderer::EOutputProfileStorageClass::UNorm8 && C.SupportsPair(RHI::ERHIFormat::B8G8R8A8_UNorm,P->ColorSpace));
+    auto Edit=*S.GetRequestedSettings(); Edit.RequestedProfileId=Step.Text;
+    if (R.bSupported && R.Before.EffectiveProfileId==Step.Text)
+        R.Outcome="retained";
+    else
+    {
+        const bool Accepted=S.RequestSettings(Edit);
+        if (Accepted!=R.bSupported)
+        { Reason="profile admission disagrees with capability: "+Step.Text.ToStdString()+" requires "+FormatName(P->Format)+" / "+RHI::ToString(P->ColorSpace)+"; "+S.GetSettingsFailure().ToStdString(); return false; }
+        if (!Accepted)
+        {
+            if (S.GetSettingsFailure()!="Requested output unavailable; no permitted output transition" || SettingsState(S)!=R.BeforeState)
+            { Reason="profile rejection was not unsupported/no-mutation: "+Step.Text.ToStdString(); return false; }
+            R.Outcome="rejected-unsupported"; R.Reason="unsupported-format-color-space";
+        }
+        else R.Outcome="switched";
+    }
+    ProfileResults.push_back(std::move(R)); PendingProfile=ProfileResults.size()-1;
+    ProfileStarted=ProfileClock ? ProfileClock() : std::chrono::steady_clock::now();
+    return true;
+}
+bool FLabInputScript::ServiceProfile(Application::FInteractiveLabSession& S,FString& Reason)
+{
+    auto& R=ProfileResults[*PendingProfile]; FLabProfileObservation O;
+    if ((ProfileClock ? ProfileClock() : std::chrono::steady_clock::now())-ProfileStarted>=std::chrono::seconds(5))
+    { Reason="profile request timed out: "+R.RequestedProfile.ToStdString(); return false; }
+    if (!ObserveProfile || !ObserveProfile(O) || !SameCapabilities(R.Start.Capabilities,O.Capabilities))
+    { Reason="profile capability query failed or generation changed: "+R.RequestedProfile.ToStdString(); return false; }
+    const auto* E=S.GetEffectiveSettings();
+    if (!E) { Reason="profile effective settings disappeared"; return false; }
+    if (R.Outcome=="switched")
+    {
+        if (!S.GetSettingsFailure().IsEmpty()) { Reason="profile execution failed: "+R.RequestedProfile.ToStdString()+"; "+S.GetSettingsFailure().ToStdString(); return false; }
+        if (S.GetPendingSettings() || E->SettingsRevision<=R.Before.SettingsRevision) return true;
+        if (O.NativeOutputGeneration<=R.Start.NativeOutputGeneration || E->EffectiveProfileId!=R.RequestedProfile || E->RequestedProfileId!=R.RequestedProfile || E->OutputModeGeneration<=R.Before.OutputModeGeneration)
+        { Reason="profile transaction resolved incorrectly: "+R.RequestedProfile.ToStdString(); return false; }
+    }
+    else if (SettingsState(S)!=R.BeforeState || O.NativeOutputGeneration!=R.Start.NativeOutputGeneration)
+    { Reason="profile rejection/retention mutated settings: "+R.RequestedProfile.ToStdString(); return false; }
+    if (O.FrameToken<=R.Start.FrameToken || O.ProfileId!=E->EffectiveProfileId || O.SettingsRevision!=E->SettingsRevision || O.OutputGeneration!=E->OutputModeGeneration) return true;
+    R.After=*E; R.AfterState=SettingsState(S); R.Finish=std::move(O); R.bComplete=true; PendingProfile.reset();
+    return true;
+}
+
 }

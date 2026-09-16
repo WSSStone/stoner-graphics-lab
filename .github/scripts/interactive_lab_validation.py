@@ -15,7 +15,7 @@ from typing import Any
 from output_transform_provenance import require_frozen_revision, artifact, canonical, validate_sdr_bundle
 from verify_output_transform_evidence import load_bounded_json, validate_artifacts, validate_output_report, validate_sdr_baseline, _keys
 
-COVERAGE = 'Config/Validation/InteractiveLab/Coverage-v1.json'
+COVERAGE = 'Config/Validation/InteractiveLab/Coverage-v2.json'
 LIMITS = 'Config/Validation/InteractiveLab/Limits-v1.json'
 HOSTED = {'windows-debug','windows-release','linux-debug','linux-release','macos-debug','macos-release',
           'linux-asan-ubsan','linux-tsan','linux-native','macos-native','medium-integration','shader-producer','shader-consumer'}
@@ -35,8 +35,8 @@ def load_json(path: Path) -> dict:
     return value
 
 def schema_keys(value: dict, name: str) -> None:
-    require(type(value.get('schemaVersion')) is int and value['schemaVersion']==1,'unsupported schema version')
-    definition=load_json(Path(__file__).resolve().parents[2]/'Config/Validation/InteractiveLab/Report-v1.schema.json')['$defs'][name]
+    require(type(value.get('schemaVersion')) is int and value['schemaVersion']==(2 if name in {'nativeReport','report'} else 1),'unsupported schema version')
+    definition=load_json(Path(__file__).resolve().parents[2]/'Config/Validation/InteractiveLab/Report-v2.schema.json')['$defs'][name]
     errors=_keys(value,definition['required'],definition['properties'],name)
     require(not errors,'; '.join(errors))
 
@@ -55,14 +55,14 @@ def cases(root: Path) -> dict:
 def verify_native(v: dict, case: dict, revision: str) -> None:
     schema_keys(v,"nativeReport")
     require(v.get("evidenceClass")=="local-native-script" and v.get("humanStatus")=="pending-human-review","native report cannot claim human authority")
-    require(type(v.get('schemaVersion')) is int and v.get('schemaVersion')==1 and v.get('passed') is True and v.get('firstFailure')=='','native run failed')
+    require(type(v.get('schemaVersion')) is int and v.get('schemaVersion')==2 and v.get('passed') is True and v.get('firstFailure')=='','native run failed')
     require(v.get('nativeAvailable') is True,'native execution unavailable')
     if not case.get('hosted',False):require(v.get('softwareDevice') is False,'physical case requires non-software device')
     if case.get('laneId')=='windows-vulkan-discrete':require(v.get('discreteDevice') is True,'Windows physical lane requires observed discrete adapter')
     if case.get('laneId')=='macos-metal-m4':require(str(v.get('adapter','')).startswith('Apple M4'),'physical M4 lane requires observed M4 adapter')
     require(v.get('backend')==case['backend'] and v.get('platform')==case['platform'],'wrong platform/backend case')
     require(v.get('workload')==case['workloadRevision'],'wrong workload case')
-    require(v.get('outputProfileId')==case.get('outputProfileId',case.get('initialOutputProfileId')),'wrong effective output')
+    require(v.get('outputProfileId')==(v['profileRequests'][-1]['afterProfile'] if case.get('profileAction')=='profileByCapability' and v.get('profileRequests') else case.get('outputProfileId',case.get('initialOutputProfileId'))),'wrong effective output')
     require(isinstance(v.get('adapter'),str) and 0<len(v['adapter'])<=256,'missing adapter identity')
     require(v.get('rootIdentity')=={'lantern':'StaticModel:Lantern.glb#idx.scene.0','sponza':'StaticModel:Sponza.gltf#idx.scene.0'}.get(case['workloadId']),'wrong strict-cooked root')
     for key in ('cookedGeneration','capabilityDigest','sourceDigest'):
@@ -99,6 +99,9 @@ def verify_native(v: dict, case: dict, revision: str) -> None:
         require(not enabled and assurance=='IdleAssumed','fallback cannot claim presentation proof')
         require(v['terminalIdleCalls']==1 and v.get('terminalIdleCompleted') is True and v.get('terminalIdleResult')==0,'fallback terminal idle failed')
     else:raise ValueError('unknown presentation retirement mode')
+    if case.get('profileAction')!='profileByCapability':require(v.get('profileRequests')==[],'unexpected capability profile requests')
+    else:require(bool(v.get('profileRequests')) and v['profileRequests'][0]['beforeProfile']==case.get('initialOutputProfileId',case.get('outputProfileId')),'wrong initial profile state')
+    verify_profile_requests(v,None,Path(__file__).resolve().parents[2])
     required_mode=case.get('requiredPresentationRetirementMode')
     if case.get('presentationRetirementSelection')=='acquire-history':required_mode='AcquireHistory'
     if required_mode:require(mode==required_mode,'required forced fallback not exercised')
@@ -125,11 +128,12 @@ def validate_command(argv: Any, case: dict) -> dict:
     require(str(options.get('--frames','')).isdigit() and int(options['--frames'])>=case.get('frames',{}).get('totalPresented',1),'insufficient frame budget')
     require('--lab-report' in options,'native report path required')
     if case['gateKind']!='lifecycle':require('--lab-input-script' not in options,'smoke/endurance script override forbidden')
+    else:require('--lab-input-script' in options,'lifecycle requires its fixed script')
     return options
 
 def verify(path: Path, root: Path) -> dict:
     v=load_json(path);schema_keys(v,'report')
-    require(v.get('schema')=='stoner.interactive-lab-report' and v.get('schemaVersion')==1,'wrong report schema')
+    require(v.get('schema')=='stoner.interactive-lab-report' and v.get('schemaVersion')==2,'wrong report schema')
     require(v.get('status')=='passed' and v.get('errors')==[] and v.get('exitCode')==0,'failed or incomplete report')
     count(v,'exitCode',0,0); count(v,'stdoutBytes',0,1064960)
     require(isinstance(v.get('stdoutSha256'),str) and SHA.fullmatch(v['stdoutSha256']),'stdout digest missing')
@@ -151,10 +155,13 @@ def verify(path: Path, root: Path) -> dict:
         s=load_json(root/v['script']);require(sha256((root/v['script']).read_bytes())==n['scriptSha256'],'script digest mismatch')
         require(len(s.get('steps',[]))==n['scriptSteps'],'script step count mismatch')
         verify_cycles(s['steps'],c)
+        verify_profile_requests(n,s['steps'],root)
     return v
 
 def verify_cycles(steps: list, case: dict) -> None:
     need=case.get('cycles',case.get('requiredAdditionalCycles',{}))
+    adaptive=case.get('profileAction')=='profileByCapability'
+    require(not any(s.get('action') in ({'profile','rejectProfile'} if adaptive else {'profileByCapability'}) for s in steps),'wrong profile assertion action')
     def values(action):return [s.get('value') for s in steps if s.get('action')==action]
     def pairs(sequence, down, up):
         armed=False;total=0
@@ -172,13 +179,74 @@ def verify_cycles(steps: list, case: dict) -> None:
     if not sequence and need.get('modeTransition') and case['backend']=='vulkan':
         sequence=['Sdr.sRGB.v1','Sdr.BT709.v1','Sdr.ExplicitGamma22.v1','Sdr.sRGB.v1']
     if sequence:
-        expected=sequence[1:];observed=values('profile')
+        expected=sequence[1:];observed=values(case.get('profileAction','profile'))
+        if case.get('capabilityProfileProbe'):expected=expected*need.get('modeTransition',1)+[case['capabilityProfileProbe']]
         cycles=need.get('modeTransition',1)
-        require(observed==expected*cycles,'mode transition sequence/cycles mismatch')
+        require(observed==(expected if case.get('capabilityProfileProbe') else expected*cycles),'mode transition sequence/cycles mismatch')
         counts['modeTransition']=cycles
     for key,n in need.items():require(counts.get(key,0)>=n,f'missing lifecycle cycles: {key}')
     rejection=case.get('unavailableProfileRejection')
     if rejection:require(rejection['profileId'] in values('rejectProfile'),'unavailable profile rejection missing')
+
+def verify_profile_requests(native: dict, steps: list | None, root: Path) -> None:
+    requests=native.get('profileRequests')
+    require(isinstance(requests,list) and len(requests)<=256 and all(isinstance(r,dict) for r in requests),'missing/bounded profile requests')
+    if steps is not None:
+        expected=[(i,s['value']) for i,s in enumerate(steps) if s['action']=='profileByCapability']
+        require([(r.get('stepIndex'),r.get('requestedProfile')) for r in requests]==expected,'profile request script linkage mismatch')
+    totals={'switched':0,'retained':0,'rejectedUnsupported':0}
+    registry={p['profileId']:p for p in load_json(Path(__file__).resolve().parents[2]/'Config/Validation/OutputTransform/Profiles.json')['profiles']} if requests else {}
+    previous=None
+    for r in requests:
+        required={'stepIndex','requestedProfile','supported','complete','outcome','reason','beforeStateSha256','afterStateSha256',
+                  'beforeNativeOutput','afterNativeOutput','beforeProfile','afterProfile','beforeSettings','afterSettings','beforeOutput','afterOutput','beforeFrame','frameToken',
+                  'frameProfile','frameSettings','frameOutput','capabilityGeneration','afterCapabilityGeneration','supportedPairs','nativeCapabilityIdentity'}
+        require(isinstance(r,dict) and set(r)==required,'invalid profile request fields')
+        count(r,'stepIndex',0,255);require(r['complete'] is True,'profile request incomplete')
+        profile=registry.get(r['requestedProfile']);require(profile is not None,'unknown requested profile')
+        pairs=r['supportedPairs'];require(isinstance(pairs,list) and 1<=len(pairs)<=64,'invalid capability pairs')
+        require(all(isinstance(p,dict) and set(p)=={'format','colorSpace'} and isinstance(p['format'],str) and isinstance(p['colorSpace'],str) and len(p['format'])<=64 and len(p['colorSpace'])<=64 for p in pairs),'invalid capability pair')
+        inventory={(p['format'],p['colorSpace']) for p in pairs};require(len(inventory)==len(pairs),'duplicate capability pair')
+        identity=r['nativeCapabilityIdentity']
+        require(isinstance(identity,str) and len(identity)<=8192 and sha256(identity.encode())==native['capabilityDigest'],'capability snapshot digest mismatch')
+        fields=identity.split('|');require(fields[0]=='vulkan-native-surface-formats-v2','unsupported native capability identity')
+        format_ids={3:'rgba8-unorm',4:'rgba8-srgb',5:'bgra8-unorm',6:'rgb10a2-unorm',7:'rgba16-float'}
+        color_ids={1:'srgb-nonlinear',2:'bt709-nonlinear',3:'sdr-pass-through',4:'hdr10-st2084',5:'extended-srgb-linear'}
+        native_pairs=[]
+        for field in fields:
+            if field.startswith('pair='):
+                ids=field[5:].split(':');require(len(ids)==2 and all(i.isdigit() for i in ids),'invalid native pair identity')
+                native_pairs.append((format_ids.get(int(ids[0]),'unknown'),color_ids.get(int(ids[1]),'unknown')))
+        require(native_pairs==[(p['format'],p['colorSpace']) for p in pairs],'snapshot pairs differ from native identity')
+        require('generation='+str(r['capabilityGeneration']) in fields,'snapshot generation differs from native identity')
+
+        formats={'unorm8':{'rgba8-unorm','bgra8-unorm'},'packed10-unorm':{'rgb10a2-unorm'},'rgba16-float':{'rgba16-float'}}
+        require(profile['storageClass'] in formats,'unsupported profile storage class')
+        supported=any((f,profile['nativeColorSpace']) in inventory for f in formats[profile['storageClass']])
+        require(type(r['supported']) is bool and r['supported']==supported,'false capability support claim')
+        generation=count(r,'capabilityGeneration',1)
+        require(count(r,'afterCapabilityGeneration',1)==generation,'capability changed during request')
+        for field in ('beforeNativeOutput','afterNativeOutput','beforeSettings','afterSettings','beforeOutput','afterOutput','frameSettings','frameOutput'):count(r,field,1)
+        require(count(r,'frameToken',1)>count(r,'beforeFrame'),'profile request has no subsequent presentation')
+        require(r['frameToken']<=native['frameToken'],'profile presentation exceeds run frame identity')
+        for field in ('beforeStateSha256','afterStateSha256'):require(isinstance(r[field],str) and SHA.fullmatch(r[field]),'invalid settings state digest')
+        outcome='rejected-unsupported' if not supported else ('retained' if r['beforeProfile']==r['requestedProfile'] else 'switched')
+        require(r['outcome']==outcome,'profile outcome disagrees with native capabilities')
+        if outcome=='switched':
+            require(r['reason']=='' and r['afterProfile']==r['requestedProfile'] and r['afterSettings']>r['beforeSettings'] and r['afterOutput']>r['beforeOutput'] and r['afterNativeOutput']>r['beforeNativeOutput'],'profile did not become effective')
+            totals['switched']+=1
+        else:
+            require(r['afterStateSha256']==r['beforeStateSha256'] and r['beforeProfile']==r['afterProfile'] and r['beforeSettings']==r['afterSettings'] and r['beforeOutput']==r['afterOutput'] and r['beforeNativeOutput']==r['afterNativeOutput'],'rejected/retained request mutated state')
+            require(r['reason']==('unsupported-format-color-space' if not supported else ''),'wrong rejection reason')
+            totals['retained' if supported else 'rejectedUnsupported']+=1
+        require(r['frameProfile']==r['afterProfile'] and r['frameSettings']==r['afterSettings'] and r['frameOutput']==r['afterOutput'],'presentation is not from effective settings')
+        require(native['presentQueuedByProfile'].get(r['frameProfile'],0)>0,'profile presentation not counted')
+        if previous:
+            require(r['stepIndex']>previous['stepIndex'] and r['beforeFrame']>=previous['frameToken'],'profile request order/frame mismatch')
+            require(r['capabilityGeneration']==previous['capabilityGeneration'] and r['supportedPairs']==previous['supportedPairs'],'capability changed between requests')
+        previous=r
+    require(native.get('profileRequestCounts')==totals and all(type(n) is int for n in native['profileRequestCounts'].values()),'false profile request counts')
+
 
 def verify_human(request: dict, decision: dict, request_bytes: bytes, revision: str) -> None:
     schema_keys(request,'humanRequest');schema_keys(decision,'humanDecision')
@@ -293,10 +361,16 @@ def run(command_file: Path, revision: str, output: Path, root: Path) -> dict:
     if command.get('humanRequest'):
         human_path=(root/command['humanRequest']).resolve();human_path.relative_to(root.resolve())
         require(not human_path.exists() and human_path not in {npath,output.resolve()},'stale/human output collision')
+    script=None
+    script_digest=None
+    if '--lab-input-script' in options:
+        script=(root/options['--lab-input-script']).resolve();script.relative_to(root.resolve())
+        verify_cycles(load_json(script)['steps'],c)
+        script_digest=sha256(script.read_bytes())
     timeout=command.get('timeoutSeconds',600);require(type(timeout) is int and 10<=timeout<=600,'invalid command timeout')
     code,digest,size=_execute(argv,root,timeout)
     require_frozen_revision(root,revision)
-    report={'schema':'stoner.interactive-lab-report','schemaVersion':1,'gitRevision':revision,'caseId':c['caseId'],
+    report={'schema':'stoner.interactive-lab-report','schemaVersion':2,'gitRevision':revision,'caseId':c['caseId'],
             'gateKind':c['gateKind'],'status':'failed','errors':[],'artifacts':[],
             'nativeReport':npath.relative_to(root.resolve()).as_posix(),'coverageSha256':sha256((root/COVERAGE).read_bytes()),'limitsSha256':sha256((root/LIMITS).read_bytes()),
             'exitCode':code,'stdoutSha256':digest,'stdoutBytes':size,
@@ -304,11 +378,16 @@ def run(command_file: Path, revision: str, output: Path, root: Path) -> dict:
             'session':{'name':os.environ.get('SESSIONNAME','unavailable')[:256],
                        'display':os.environ.get('DISPLAY','unavailable')[:256],'scanoutAuthority':False}}
     try:
+        if npath.is_file():report['artifacts']=[artifact(npath,root)]
+        if script is not None:
+            report['script']=script.relative_to(root.resolve()).as_posix();report['artifacts'].append(artifact(script,root))
+            require(sha256(script.read_bytes())==script_digest,'script changed during execution')
         require(code==0,'native process failed/forced/timed out: '+str(code))
-        n=load_json(npath);verify_native(n,c,revision);report['artifacts']=[artifact(npath,root)]
+        n=load_json(npath);verify_native(n,c,revision)
         if '--lab-input-script' in options:
-            script=(root/options['--lab-input-script']).resolve();report['script']=script.relative_to(root.resolve()).as_posix();report['artifacts'].append(artifact(script,root))
+            assert script is not None
             verify_cycles(load_json(script)['steps'],c)
+            verify_profile_requests(n,load_json(script)['steps'],root)
             require(sha256(script.read_bytes())==n['scriptSha256'],'script changed during execution')
         report['compatibilityLimitation']=FALLBACK_LIMITATION if n['retirementMode']=='AcquireHistory' else ''
         report['warmupPresented']=c.get('frames',{}).get('warmupPresented',0)

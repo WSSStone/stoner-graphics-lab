@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CASE = json.loads((ROOT / lab.COVERAGE).read_text())['enduranceCases'][1]
 
 def native():
-    return dict(schemaVersion=1, evidenceClass='local-native-script', humanStatus='pending-human-review',
+    return dict(schemaVersion=2, profileRequests=[],profileRequestCounts=dict(switched=0,retained=0,rejectedUnsupported=0), evidenceClass='local-native-script', humanStatus='pending-human-review',
         softwareRevision=REV, backend='metal', platform='macos', adapter='Apple M4 Pro', softwareDevice=False, discreteDevice=False,
         nativeAvailable=True, workload=CASE['workloadRevision'], cookedGeneration='b'*64,
         rootIdentity='StaticModel:Sponza.gltf#idx.scene.0',sourceDigest='d'*64,
@@ -34,6 +34,39 @@ def native():
         referenceWhiteNits=100, exposureStops=0)
 
 class ValidationTests(unittest.TestCase):
+    def test_capability_request_evidence(self):
+        base=dict(nativeCapabilityIdentity='vulkan-native-surface-formats-v2|generation=1|pair=5:1',stepIndex=0,requestedProfile='Sdr.BT709.v1',supported=False,complete=True,
+            outcome='rejected-unsupported',reason='unsupported-format-color-space',
+            beforeStateSha256='a'*64,afterStateSha256='a'*64,beforeProfile='Sdr.sRGB.v1',afterProfile='Sdr.sRGB.v1',
+            beforeNativeOutput=1,afterNativeOutput=1,beforeSettings=1,afterSettings=1,beforeOutput=1,afterOutput=1,beforeFrame=3,frameToken=4,
+            frameProfile='Sdr.sRGB.v1',frameSettings=1,frameOutput=1,capabilityGeneration=1,afterCapabilityGeneration=1,
+            supportedPairs=[dict(format='bgra8-unorm',colorSpace='srgb-nonlinear')])
+        steps=[dict(action='profileByCapability',value='Sdr.BT709.v1')]
+        n=native();n['capabilityDigest']=lab.sha256(base['nativeCapabilityIdentity'].encode());n.update(profileRequests=[base],profileRequestCounts=dict(switched=0,retained=0,rejectedUnsupported=1))
+        lab.verify_profile_requests(n,steps,ROOT)
+        for key,value in [('supported',True),('complete',False),('outcome','switched'),('reason','timeout'),
+                ('afterStateSha256','b'*64),('afterSettings',2),('afterOutput',2),('afterNativeOutput',2),('afterCapabilityGeneration',2),
+                ('frameToken',3),('frameProfile','Sdr.BT709.v1'),('frameSettings',2),('frameOutput',2),('stepIndex',1),
+                ('supportedPairs',[dict(format='bgra8-unorm',colorSpace='bt709-nonlinear')])]:
+            with self.subTest(key=key),self.assertRaises(ValueError):
+                bad=copy.deepcopy(n);bad['profileRequests'][0][key]=value;lab.verify_profile_requests(bad,steps,ROOT)
+        switched=copy.deepcopy(base);switched.update(supported=True,outcome='switched',reason='',afterStateSha256='b'*64,
+            afterNativeOutput=2,afterProfile='Sdr.BT709.v1',afterSettings=2,afterOutput=2,frameProfile='Sdr.BT709.v1',frameSettings=2,frameOutput=2)
+        switched['supportedPairs'].append(dict(format='bgra8-unorm',colorSpace='bt709-nonlinear'))
+        switched['nativeCapabilityIdentity']+='|pair=5:2'
+        n['capabilityDigest']=lab.sha256(switched['nativeCapabilityIdentity'].encode())
+        n.update(profileRequests=[switched],profileRequestCounts=dict(switched=1,retained=0,rejectedUnsupported=0),presentQueuedByProfile={'Sdr.sRGB.v1':1119,'Sdr.BT709.v1':1})
+        lab.verify_profile_requests(n,steps,ROOT)
+        retained=copy.deepcopy(base);retained.update(requestedProfile='Sdr.sRGB.v1',supported=True,outcome='retained',reason='')
+        n['capabilityDigest']=lab.sha256(retained['nativeCapabilityIdentity'].encode())
+        n.update(profileRequests=[retained],profileRequestCounts=dict(switched=0,retained=1,rejectedUnsupported=0))
+        lab.verify_profile_requests(n,[dict(action='profileByCapability',value='Sdr.sRGB.v1')],ROOT)
+        case=lab.cases(ROOT)['windows-vulkan-sponza-mode-transition-stress']
+        sequence=case['profileSequence'][1:]*20+[case['capabilityProfileProbe']]
+        script=[dict(action='profileByCapability',value=p) for p in sequence]
+        lab.verify_cycles(script,case)
+        with self.assertRaises(ValueError):lab.verify_cycles(script[:-1],case)
+
     def test_native_contract(self):
         lab.verify_native(native(), CASE, REV)
 
@@ -138,14 +171,14 @@ class ValidationTests(unittest.TestCase):
             root=Path(t); (root/lab.COVERAGE).parent.mkdir(parents=True)
             (root/lab.COVERAGE).write_bytes((ROOT/lab.COVERAGE).read_bytes());(root/lab.LIMITS).write_bytes((ROOT/lab.LIMITS).read_bytes())
             n=root/'native.json'; n.write_text(json.dumps(native()))
-            report={'schema':'stoner.interactive-lab-report','schemaVersion':1,'gitRevision':REV,
+            report={'schema':'stoner.interactive-lab-report','schemaVersion':2,'gitRevision':REV,
                     'caseId':CASE['caseId'],'gateKind':'endurance','status':'passed','errors':[],
                     'artifacts':[lab.artifact(n,root)],'nativeReport':'native.json','exitCode':0,'stdoutSha256':'0'*64,'stdoutBytes':0,
                     'coverageSha256':lab.sha256((root/lab.COVERAGE).read_bytes()),'limitsSha256':lab.sha256((root/lab.LIMITS).read_bytes()),'forcedTermination':False,
                     'compatibilityLimitation':'','warmupPresented':120,'measuredPresented':1000,
                     'session':dict(name='unavailable',display='unavailable',scanoutAuthority=False)}
             p=root/'report.json'; p.write_text(json.dumps(report));lab.verify(p,root)
-            for edit in [dict(schemaVersion=True),dict(schemaVersion=2),dict(caseId='wrong-case'),dict(gateKind='smoke'),dict(status='failed'),dict(exitCode=124),dict(gitRevision='d'*40)]:
+            for edit in [dict(schemaVersion=True),dict(schemaVersion=1),dict(caseId='wrong-case'),dict(gateKind='smoke'),dict(status='failed'),dict(exitCode=124),dict(gitRevision='d'*40)]:
                 p.write_text(json.dumps(dict(report,**edit)))
                 with self.subTest(edit=edit),self.assertRaises(ValueError):lab.verify(p,root)
             for field,value in [('sha256','e'*64),('sizeBytes',1),('path','../native.json')]:

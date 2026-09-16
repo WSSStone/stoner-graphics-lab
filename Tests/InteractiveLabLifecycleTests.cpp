@@ -692,6 +692,61 @@ void TestValidationScale()
         "validation scale survives driver polling and rejects out-of-budget values");
     Check(Close(F.S),"synthetic scale fixture drains");
 }
+void TestCapabilityProfileScript()
+{
+    using namespace Stoner::Demo;
+    using namespace Stoner::RHI;
+    for (unsigned Scenario=0;Scenario<7;++Scenario)
+    {
+        const unsigned Supported=Scenario<3 ? Scenario : 2;
+        FFixture F; Check(F.Start(),"capability script session starts");
+        FLabSettingsSnapshot Initial;
+        Initial.CameraRevision=F.S.GetCameraState().CameraRevision;
+        Initial.DisplayGeneration=F.S.GetDisplayState().DisplayGeneration;
+        Initial.SettingsRevision=1; Initial.OutputModeGeneration=1;
+        Initial.RequestedProfileId="Sdr.sRGB.v1"; Initial.EffectiveProfileId=Initial.RequestedProfileId;
+        Initial.SdrToneMapVersion=Stoner::Renderer::GDefaultSDRToneMapVersion;
+        Initial.HdrViewingVersion=Stoner::Renderer::GInitialHDRViewingVersion;
+        FLabSettingsCapabilities Caps; Caps.DisplayGeneration=Initial.DisplayGeneration;
+        Caps.Outputs={{"Sdr.sRGB.v1",100,100}};
+        FLabProfileObservation Observation;
+        auto& Native=Observation.Capabilities;
+        Native.SurfaceId=1;Native.CapabilityGeneration=1;Native.CapabilityDigest="fixture";
+        Native.SupportedPairs={{ERHIFormat::B8G8R8A8_UNorm,ERHIPresentationColorSpace::SrgbNonlinear}};
+        if (Supported>=1) { Caps.Outputs.push_back({"Sdr.BT709.v1",100,100}); Native.SupportedPairs.push_back({ERHIFormat::B8G8R8A8_UNorm,ERHIPresentationColorSpace::Bt709Nonlinear}); }
+        if (Supported>=2) { Caps.Outputs.push_back({"Sdr.ExplicitGamma22.v1",100,100}); Native.SupportedPairs.push_back({ERHIFormat::B8G8R8A8_UNorm,ERHIPresentationColorSpace::SdrPassThrough}); }
+        Check(F.S.ConfigureSettings(Initial,Caps),"capability script settings configured");
+        FLabInputScript Script;FString Reason;
+        const std::string Text=R"({"schemaVersion":1,"steps":[{"afterPresented":0,"action":"profileByCapability","value":"Sdr.BT709.v1"},{"afterPresented":0,"action":"profileByCapability","value":"Sdr.ExplicitGamma22.v1"},{"afterPresented":0,"action":"profileByCapability","value":"Sdr.sRGB.v1"}]})";
+        Check(Script.Decode({Text.begin(),Text.end()},Reason),"capability script decodes");
+        auto Now=std::chrono::steady_clock::now();
+        Script.ProfileClock=[&] { return Now; };
+        Script.ObserveProfile=[&](auto& O) { O=Observation;return !(Scenario==3 && Observation.FrameToken>0); };
+        bool OK=true;
+        for (uint32 Frame=0;Frame<30 && !Script.IsComplete();++Frame)
+        {
+            const auto* E=F.S.GetEffectiveSettings();
+            Observation.FrameToken=Frame;Observation.SettingsRevision=E->SettingsRevision;
+            Observation.OutputGeneration=E->OutputModeGeneration;Observation.NativeOutputGeneration=E->OutputModeGeneration;Observation.ProfileId=E->EffectiveProfileId;
+            if (Frame==1 && Scenario==4) ++Observation.Capabilities.CapabilityGeneration;
+            if (Frame==1 && Scenario==6) Now+=std::chrono::seconds(5);
+            OK=Script.Service(F.W,F.S,Frame,Reason) && OK;
+            if (!OK) break;
+            if (const auto* T=F.S.BeginSettingsTransaction(true))
+                OK=F.S.CompleteSettingsTransaction(T->Token,Scenario!=5,true) && OK;
+        }
+        if (Scenario>=3) Check(!OK && !Script.IsComplete() && !Reason.IsEmpty(),"capability query/change/asynchronous failure/timeout cannot become expected rejection");
+        else Check(OK && Script.IsComplete() && Script.GetProfileResults().size()==3,"capability script completes supported and rejected requests with presentation evidence");
+        if (Script.GetProfileResults().size()==3)
+        {
+            const auto& R=Script.GetProfileResults();
+            Check(R[0].Outcome==(Supported ? "switched" : "rejected-unsupported") &&
+                R[1].Outcome==(Supported==2 ? "switched" : "rejected-unsupported") &&
+                R[2].Outcome==(Supported ? "switched" : "retained"),"capability script reports actual transitions separately from rejection/no-op");
+        }
+        Check(Close(F.S),"capability script session closes");
+    }
+}
 void TestScriptRecovery()
 {
     FFixture F;
@@ -734,6 +789,7 @@ int RunInteractiveLabLifecycleTests()
     Failures = 0;
     TestValidationScale();
     TestScriptRecovery();
+    TestCapabilityProfileScript();
     TestNavigationSession();
     TestCapabilityNotification();
     TestSettingsSession();

@@ -1,0 +1,917 @@
+{
+  "schema": "stoner.interactive-lab-coverage",
+  "schemaVersion": 2,
+  "coverageId": "interactive-lab-coverage-v2",
+  "limits": "Config/Validation/InteractiveLab/Limits-v1.json",
+  "outputTransform": {
+    "profiles": "Config/Validation/OutputTransform/Profiles.json",
+    "workloads": {
+      "lantern": "Config/Validation/OutputTransform/Workloads/Lantern-v3.json",
+      "sponza": "Config/Validation/OutputTransform/Workloads/Sponza-v3.json"
+    },
+    "supportedProfileIds": [
+      "Sdr.sRGB.v1",
+      "Sdr.BT709.v1",
+      "Sdr.ExplicitGamma22.v1",
+      "Hdr.PQ.Rec2020.1000.v1",
+      "Hdr.PQ.Rec2020.2000.v1",
+      "Hdr.Linear.1000.v1",
+      "Hdr.Linear.2000.v1"
+    ],
+    "defaultSdrProfileId": "Sdr.sRGB.v1",
+    "hdrProfileIds": [
+      "Hdr.PQ.Rec2020.1000.v1",
+      "Hdr.PQ.Rec2020.2000.v1",
+      "Hdr.Linear.1000.v1",
+      "Hdr.Linear.2000.v1"
+    ],
+    "sdrToneMapVersionIds": [
+      "Sdr.KhronosPbrNeutral.v1",
+      "Sdr.NarkowiczAcesFit.v1",
+      "Sdr.ExtendedReinhardRec709.v1"
+    ],
+    "hdrViewingVersionId": "Hdr.ACES2.0.0_2025-04-04.Rec2020D65.v1"
+  },
+  "workloads": [
+    {
+      "workloadId": "lantern",
+      "contentPackage": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "config": "Config/Validation/OutputTransform/Workloads/Lantern-v3.json"
+    },
+    {
+      "workloadId": "sponza",
+      "contentPackage": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "config": "Config/Validation/OutputTransform/Workloads/Sponza-v3.json"
+    }
+  ],
+  "functionalSmokeRequirements": {
+    "requiredVisibleUi": true,
+    "requiredTextureAndTextValidity": true,
+    "requiredEffectiveOutputIdentity": true,
+    "requiredZeroCaptureDisabledReadbacks": true
+  },
+  "physicalLanes": [
+    {
+      "laneId": "windows-vulkan-discrete",
+      "platform": "windows",
+      "backend": "vulkan",
+      "deviceAuthority": "physical-discrete-gpu",
+      "requiredProfiles": [
+        "Sdr.sRGB.v1"
+      ],
+      "hdrAppearanceAuthority": false,
+      "preferredPresentationCapability": "VK_EXT_swapchain_maintenance1",
+      "acceptedPresentationRetirementModes": [
+        "PresentationFence",
+        "AcquireHistory"
+      ],
+      "acceptedShutdownAssurances": [
+        "Proven",
+        "IdleAssumed"
+      ]
+    },
+    {
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "deviceAuthority": "physical-M4",
+      "requiredProfiles": [
+        "Sdr.sRGB.v1",
+        "Hdr.PQ.Rec2020.1000.v1",
+        "Hdr.PQ.Rec2020.2000.v1",
+        "Hdr.Linear.1000.v1",
+        "Hdr.Linear.2000.v1"
+      ],
+      "hdrAppearanceAuthority": true,
+      "hdrMetadataPolicy": "EDRMetadata=nil"
+    }
+  ],
+  "enduranceCases": [
+    {
+      "caseId": "windows-vulkan-sponza-sdr-endurance",
+      "gateKind": "endurance",
+      "laneId": "windows-vulkan-discrete",
+      "platform": "windows",
+      "backend": "vulkan",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "contentPackage": "sponza",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "frames": {
+        "warmupPresented": 120,
+        "measuredPresented": 1000,
+        "totalPresented": 1120
+      },
+      "capturesEnabled": false,
+      "functionalSmokeRequirements": {
+        "requiredVisibleUi": true,
+        "requiredTextureAndTextValidity": true,
+        "requiredEffectiveOutputIdentity": true,
+        "requiredZeroCaptureDisabledReadbacks": true
+      },
+      "authority": "interactive-lab-endurance"
+    },
+    {
+      "caseId": "macos-metal-sponza-sdr-endurance",
+      "gateKind": "endurance",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "contentPackage": "sponza",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "frames": {
+        "warmupPresented": 120,
+        "measuredPresented": 1000,
+        "totalPresented": 1120
+      },
+      "capturesEnabled": false,
+      "functionalSmokeRequirements": {
+        "requiredVisibleUi": true,
+        "requiredTextureAndTextValidity": true,
+        "requiredEffectiveOutputIdentity": true,
+        "requiredZeroCaptureDisabledReadbacks": true
+      },
+      "authority": "interactive-lab-endurance"
+    },
+    {
+      "caseId": "macos-metal-lantern-pq2000-endurance",
+      "gateKind": "endurance",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "contentPackage": "lantern",
+      "outputProfileId": "Hdr.PQ.Rec2020.2000.v1",
+      "frames": {
+        "warmupPresented": 120,
+        "measuredPresented": 1000,
+        "totalPresented": 1120
+      },
+      "capturesEnabled": false,
+      "functionalSmokeRequirements": {
+        "requiredVisibleUi": true,
+        "requiredTextureAndTextValidity": true,
+        "requiredEffectiveOutputIdentity": true,
+        "requiredZeroCaptureDisabledReadbacks": true
+      },
+      "authority": "interactive-lab-endurance"
+    },
+    {
+      "caseId": "macos-metal-lantern-edr2000-endurance",
+      "gateKind": "endurance",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "contentPackage": "lantern",
+      "outputProfileId": "Hdr.Linear.2000.v1",
+      "frames": {
+        "warmupPresented": 120,
+        "measuredPresented": 1000,
+        "totalPresented": 1120
+      },
+      "capturesEnabled": false,
+      "functionalSmokeRequirements": {
+        "requiredVisibleUi": true,
+        "requiredTextureAndTextValidity": true,
+        "requiredEffectiveOutputIdentity": true,
+        "requiredZeroCaptureDisabledReadbacks": true
+      },
+      "authority": "interactive-lab-endurance"
+    }
+  ],
+  "smokeCases": [
+    {
+      "caseId": "windows-vulkan-lantern-sdr-smoke",
+      "gateKind": "smoke",
+      "laneId": "windows-vulkan-discrete",
+      "platform": "windows",
+      "backend": "vulkan",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "contentPackage": "lantern",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "capturesEnabled": false,
+      "requiredVisibleUi": true,
+      "requiredTextureAndTextValidity": true,
+      "requiredEffectiveOutputIdentity": true,
+      "requiredZeroCaptureDisabledReadbacks": true,
+      "authority": "interactive-lab-functional-smoke",
+      "presentationRetirementSelection": "acquire-history"
+    },
+    {
+      "caseId": "macos-metal-lantern-sdr-smoke",
+      "gateKind": "smoke",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "contentPackage": "lantern",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "capturesEnabled": false,
+      "requiredVisibleUi": true,
+      "requiredTextureAndTextValidity": true,
+      "requiredEffectiveOutputIdentity": true,
+      "requiredZeroCaptureDisabledReadbacks": true,
+      "authority": "interactive-lab-functional-smoke"
+    },
+    {
+      "caseId": "macos-metal-lantern-pq1000-smoke",
+      "gateKind": "smoke",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "contentPackage": "lantern",
+      "outputProfileId": "Hdr.PQ.Rec2020.1000.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "capturesEnabled": false,
+      "requiredVisibleUi": true,
+      "requiredTextureAndTextValidity": true,
+      "requiredEffectiveOutputIdentity": true,
+      "requiredZeroCaptureDisabledReadbacks": true,
+      "authority": "interactive-lab-functional-smoke"
+    },
+    {
+      "caseId": "macos-metal-lantern-edr1000-smoke",
+      "gateKind": "smoke",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "contentPackage": "lantern",
+      "outputProfileId": "Hdr.Linear.1000.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "capturesEnabled": false,
+      "requiredVisibleUi": true,
+      "requiredTextureAndTextValidity": true,
+      "requiredEffectiveOutputIdentity": true,
+      "requiredZeroCaptureDisabledReadbacks": true,
+      "authority": "interactive-lab-functional-smoke"
+    },
+    {
+      "caseId": "macos-metal-sponza-pq1000-smoke",
+      "gateKind": "smoke",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "contentPackage": "sponza",
+      "outputProfileId": "Hdr.PQ.Rec2020.1000.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "capturesEnabled": false,
+      "requiredVisibleUi": true,
+      "requiredTextureAndTextValidity": true,
+      "requiredEffectiveOutputIdentity": true,
+      "requiredZeroCaptureDisabledReadbacks": true,
+      "authority": "interactive-lab-functional-smoke"
+    },
+    {
+      "caseId": "macos-metal-sponza-pq2000-smoke",
+      "gateKind": "smoke",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "contentPackage": "sponza",
+      "outputProfileId": "Hdr.PQ.Rec2020.2000.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "capturesEnabled": false,
+      "requiredVisibleUi": true,
+      "requiredTextureAndTextValidity": true,
+      "requiredEffectiveOutputIdentity": true,
+      "requiredZeroCaptureDisabledReadbacks": true,
+      "authority": "interactive-lab-functional-smoke"
+    },
+    {
+      "caseId": "macos-metal-sponza-edr1000-smoke",
+      "gateKind": "smoke",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "contentPackage": "sponza",
+      "outputProfileId": "Hdr.Linear.1000.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "capturesEnabled": false,
+      "requiredVisibleUi": true,
+      "requiredTextureAndTextValidity": true,
+      "requiredEffectiveOutputIdentity": true,
+      "requiredZeroCaptureDisabledReadbacks": true,
+      "authority": "interactive-lab-functional-smoke"
+    },
+    {
+      "caseId": "macos-metal-sponza-edr2000-smoke",
+      "gateKind": "smoke",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "contentPackage": "sponza",
+      "outputProfileId": "Hdr.Linear.2000.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "capturesEnabled": false,
+      "requiredVisibleUi": true,
+      "requiredTextureAndTextValidity": true,
+      "requiredEffectiveOutputIdentity": true,
+      "requiredZeroCaptureDisabledReadbacks": true,
+      "authority": "interactive-lab-functional-smoke"
+    }
+  ],
+  "functionalProfileCoverage": {
+    "requiredCombinationCount": 12,
+    "matrix": [
+      {
+        "laneId": "windows-vulkan-discrete",
+        "workloadId": "lantern",
+        "outputProfileId": "Sdr.sRGB.v1",
+        "caseId": "windows-vulkan-lantern-sdr-smoke"
+      },
+      {
+        "laneId": "windows-vulkan-discrete",
+        "workloadId": "sponza",
+        "outputProfileId": "Sdr.sRGB.v1",
+        "caseId": "windows-vulkan-sponza-sdr-endurance"
+      },
+      {
+        "laneId": "macos-metal-m4",
+        "workloadId": "lantern",
+        "outputProfileId": "Sdr.sRGB.v1",
+        "caseId": "macos-metal-lantern-sdr-smoke"
+      },
+      {
+        "laneId": "macos-metal-m4",
+        "workloadId": "lantern",
+        "outputProfileId": "Hdr.PQ.Rec2020.1000.v1",
+        "caseId": "macos-metal-lantern-pq1000-smoke"
+      },
+      {
+        "laneId": "macos-metal-m4",
+        "workloadId": "lantern",
+        "outputProfileId": "Hdr.PQ.Rec2020.2000.v1",
+        "caseId": "macos-metal-lantern-pq2000-endurance"
+      },
+      {
+        "laneId": "macos-metal-m4",
+        "workloadId": "lantern",
+        "outputProfileId": "Hdr.Linear.1000.v1",
+        "caseId": "macos-metal-lantern-edr1000-smoke"
+      },
+      {
+        "laneId": "macos-metal-m4",
+        "workloadId": "lantern",
+        "outputProfileId": "Hdr.Linear.2000.v1",
+        "caseId": "macos-metal-lantern-edr2000-endurance"
+      },
+      {
+        "laneId": "macos-metal-m4",
+        "workloadId": "sponza",
+        "outputProfileId": "Sdr.sRGB.v1",
+        "caseId": "macos-metal-sponza-sdr-endurance"
+      },
+      {
+        "laneId": "macos-metal-m4",
+        "workloadId": "sponza",
+        "outputProfileId": "Hdr.PQ.Rec2020.1000.v1",
+        "caseId": "macos-metal-sponza-pq1000-smoke"
+      },
+      {
+        "laneId": "macos-metal-m4",
+        "workloadId": "sponza",
+        "outputProfileId": "Hdr.PQ.Rec2020.2000.v1",
+        "caseId": "macos-metal-sponza-pq2000-smoke"
+      },
+      {
+        "laneId": "macos-metal-m4",
+        "workloadId": "sponza",
+        "outputProfileId": "Hdr.Linear.1000.v1",
+        "caseId": "macos-metal-sponza-edr1000-smoke"
+      },
+      {
+        "laneId": "macos-metal-m4",
+        "workloadId": "sponza",
+        "outputProfileId": "Hdr.Linear.2000.v1",
+        "caseId": "macos-metal-sponza-edr2000-smoke"
+      }
+    ]
+  },
+  "lifecycleCases": [
+    {
+      "caseId": "windows-vulkan-sponza-sdr-lifecycle-stress",
+      "gateKind": "lifecycle",
+      "caseKind": "lifecycle-stress",
+      "laneId": "windows-vulkan-discrete",
+      "platform": "windows",
+      "backend": "vulkan",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "cycles": {
+        "resize": 20,
+        "uiToggle": 20,
+        "focusRecovery": 20,
+        "minimizeRestore": 20,
+        "fontScaleReplacement": 20
+      },
+      "capturesEnabled": false
+    },
+    {
+      "caseId": "macos-metal-sponza-sdr-lifecycle-stress",
+      "gateKind": "lifecycle",
+      "caseKind": "lifecycle-stress",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "cycles": {
+        "resize": 20,
+        "uiToggle": 20,
+        "focusRecovery": 20,
+        "minimizeRestore": 20,
+        "fontScaleReplacement": 20
+      },
+      "capturesEnabled": false
+    },
+    {
+      "caseId": "windows-vulkan-sponza-mode-transition-stress",
+      "gateKind": "lifecycle",
+      "caseKind": "mode-transition-stress",
+      "laneId": "windows-vulkan-discrete",
+      "platform": "windows",
+      "backend": "vulkan",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "initialOutputProfileId": "Sdr.sRGB.v1",
+      "profileSequence": [
+        "Sdr.sRGB.v1",
+        "Sdr.BT709.v1",
+        "Sdr.ExplicitGamma22.v1",
+        "Sdr.sRGB.v1"
+      ],
+      "cycles": {
+        "modeTransition": 20
+      },
+      "capturesEnabled": false,
+      "profileAction": "profileByCapability",
+      "capabilityProfileProbe": "Hdr.PQ.Rec2020.1000.v1"
+    },
+    {
+      "caseId": "macos-metal-lantern-mode-transition-stress",
+      "gateKind": "lifecycle",
+      "caseKind": "mode-transition-stress",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "initialOutputProfileId": "Sdr.sRGB.v1",
+      "profileSequence": [
+        "Sdr.sRGB.v1",
+        "Hdr.PQ.Rec2020.1000.v1",
+        "Hdr.PQ.Rec2020.2000.v1",
+        "Hdr.Linear.1000.v1",
+        "Hdr.Linear.2000.v1",
+        "Sdr.sRGB.v1"
+      ],
+      "cycles": {
+        "modeTransition": 20
+      },
+      "capturesEnabled": false
+    },
+    {
+      "caseId": "windows-vulkan-lantern-lifecycle-integration",
+      "gateKind": "lifecycle",
+      "caseKind": "remaining-integration",
+      "laneId": "windows-vulkan-discrete",
+      "platform": "windows",
+      "backend": "vulkan",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "requiredAdditionalCycles": {
+        "resize": 1,
+        "uiToggle": 1,
+        "focusRecovery": 1,
+        "minimizeRestore": 1,
+        "fontScaleReplacement": 1,
+        "modeTransition": 1
+      },
+      "capturesEnabled": false,
+      "profileAction": "profileByCapability"
+    },
+    {
+      "caseId": "macos-metal-lantern-lifecycle-integration",
+      "gateKind": "lifecycle",
+      "caseKind": "remaining-integration",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "requiredAdditionalCycles": {
+        "resize": 1,
+        "uiToggle": 1,
+        "focusRecovery": 1,
+        "minimizeRestore": 1,
+        "fontScaleReplacement": 1
+      },
+      "alreadyCoveredByCase": {
+        "modeTransition": "macos-metal-lantern-mode-transition-stress"
+      },
+      "capturesEnabled": false
+    },
+    {
+      "caseId": "macos-metal-sponza-lifecycle-integration",
+      "gateKind": "lifecycle",
+      "caseKind": "remaining-integration",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "profileSequence": [
+        "Sdr.sRGB.v1",
+        "Hdr.PQ.Rec2020.1000.v1",
+        "Hdr.PQ.Rec2020.2000.v1",
+        "Hdr.Linear.1000.v1",
+        "Hdr.Linear.2000.v1",
+        "Sdr.sRGB.v1"
+      ],
+      "requiredAdditionalCycles": {
+        "modeTransition": 1
+      },
+      "alreadyCoveredByCase": {
+        "resize": "macos-metal-sponza-sdr-lifecycle-stress",
+        "uiToggle": "macos-metal-sponza-sdr-lifecycle-stress",
+        "focusRecovery": "macos-metal-sponza-sdr-lifecycle-stress",
+        "minimizeRestore": "macos-metal-sponza-sdr-lifecycle-stress",
+        "fontScaleReplacement": "macos-metal-sponza-sdr-lifecycle-stress"
+      },
+      "capturesEnabled": false
+    }
+  ],
+  "formalSdrGates": [
+    {
+      "gateId": "windows-vulkan-lantern-formal-sdr-parity",
+      "gateKind": "formal-sdr",
+      "laneId": "windows-vulkan-discrete",
+      "platform": "windows",
+      "backend": "vulkan",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "uiVisibility": "off",
+      "procedure": "inherited-feature-029-exact-dimension-probe-calibration",
+      "softwareGuard": "frozen-before-and-after",
+      "authority": "formal-sdr-only"
+    },
+    {
+      "gateId": "windows-vulkan-sponza-formal-sdr-parity",
+      "gateKind": "formal-sdr",
+      "laneId": "windows-vulkan-discrete",
+      "platform": "windows",
+      "backend": "vulkan",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "uiVisibility": "off",
+      "procedure": "inherited-feature-029-exact-dimension-probe-calibration",
+      "softwareGuard": "frozen-before-and-after",
+      "authority": "formal-sdr-only"
+    },
+    {
+      "gateId": "macos-metal-lantern-formal-sdr-parity",
+      "gateKind": "formal-sdr",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "uiVisibility": "off",
+      "procedure": "inherited-feature-029-exact-dimension-probe-calibration",
+      "softwareGuard": "frozen-before-and-after",
+      "authority": "formal-sdr-only"
+    },
+    {
+      "gateId": "macos-metal-sponza-formal-sdr-parity",
+      "gateKind": "formal-sdr",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "uiVisibility": "off",
+      "procedure": "inherited-feature-029-exact-dimension-probe-calibration",
+      "softwareGuard": "frozen-before-and-after",
+      "authority": "formal-sdr-only"
+    }
+  ],
+  "currentHumanNavigationGates": [
+    {
+      "gateId": "windows-vulkan-lantern-current-human-navigation",
+      "gateKind": "current-human-navigation",
+      "laneId": "windows-vulkan-discrete",
+      "platform": "windows",
+      "backend": "vulkan",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "requiredDecision": "maintainer-hands-on-current-software-device"
+    },
+    {
+      "gateId": "windows-vulkan-sponza-current-human-navigation",
+      "gateKind": "current-human-navigation",
+      "laneId": "windows-vulkan-discrete",
+      "platform": "windows",
+      "backend": "vulkan",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "requiredDecision": "maintainer-hands-on-current-software-device"
+    },
+    {
+      "gateId": "macos-metal-lantern-current-human-navigation",
+      "gateKind": "current-human-navigation",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "requiredDecision": "maintainer-hands-on-current-software-device"
+    },
+    {
+      "gateId": "macos-metal-sponza-current-human-navigation",
+      "gateKind": "current-human-navigation",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "requiredDecision": "maintainer-hands-on-current-software-device"
+    }
+  ],
+  "currentHumanHdrGates": [
+    {
+      "gateId": "macos-metal-lantern-pq1000-current-human-hdr",
+      "gateKind": "current-human-hdr",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Hdr.PQ.Rec2020.1000.v1",
+      "requiredDecision": "current-maintainer-appearance-and-readability",
+      "machineCannotSatisfy": true
+    },
+    {
+      "gateId": "macos-metal-lantern-pq2000-current-human-hdr",
+      "gateKind": "current-human-hdr",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Hdr.PQ.Rec2020.2000.v1",
+      "requiredDecision": "current-maintainer-appearance-and-readability",
+      "machineCannotSatisfy": true
+    },
+    {
+      "gateId": "macos-metal-lantern-edr1000-current-human-hdr",
+      "gateKind": "current-human-hdr",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Hdr.Linear.1000.v1",
+      "requiredDecision": "current-maintainer-appearance-and-readability",
+      "machineCannotSatisfy": true
+    },
+    {
+      "gateId": "macos-metal-lantern-edr2000-current-human-hdr",
+      "gateKind": "current-human-hdr",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Hdr.Linear.2000.v1",
+      "requiredDecision": "current-maintainer-appearance-and-readability",
+      "machineCannotSatisfy": true
+    },
+    {
+      "gateId": "macos-metal-sponza-pq1000-current-human-hdr",
+      "gateKind": "current-human-hdr",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "outputProfileId": "Hdr.PQ.Rec2020.1000.v1",
+      "requiredDecision": "current-maintainer-appearance-and-readability",
+      "machineCannotSatisfy": true
+    },
+    {
+      "gateId": "macos-metal-sponza-pq2000-current-human-hdr",
+      "gateKind": "current-human-hdr",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "outputProfileId": "Hdr.PQ.Rec2020.2000.v1",
+      "requiredDecision": "current-maintainer-appearance-and-readability",
+      "machineCannotSatisfy": true
+    },
+    {
+      "gateId": "macos-metal-sponza-edr1000-current-human-hdr",
+      "gateKind": "current-human-hdr",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "outputProfileId": "Hdr.Linear.1000.v1",
+      "requiredDecision": "current-maintainer-appearance-and-readability",
+      "machineCannotSatisfy": true
+    },
+    {
+      "gateId": "macos-metal-sponza-edr2000-current-human-hdr",
+      "gateKind": "current-human-hdr",
+      "laneId": "macos-metal-m4",
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "outputProfileId": "Hdr.Linear.2000.v1",
+      "requiredDecision": "current-maintainer-appearance-and-readability",
+      "machineCannotSatisfy": true
+    }
+  ],
+  "authoritySeparation": {
+    "interactiveSmoke": "non-authoritative",
+    "interactiveEndurance": "non-authoritative",
+    "formalSdr": "existing-frozen-input-policy",
+    "currentHumanHdr": "append-only-maintainer-decision",
+    "automationMayNot": [
+      "promote-smoke-to-formal",
+      "author-human-observation",
+      "recycle-historical-feedback",
+      "replace-unavailable-required-case"
+    ]
+  },
+  "presentationPolicyCoverage": {
+    "optionalExtension": "VK_EXT_swapchain_maintenance1",
+    "extensionAbsenceBlocksStartup": false,
+    "deterministicBranches": [
+      "PresentationFence",
+      "AcquireHistory"
+    ],
+    "selectionCases": [
+      "present",
+      "absent",
+      "feature-false",
+      "forced-off",
+      "optional-enable-failure",
+      "query-failure"
+    ],
+    "forcedFallbackArgument": [
+      "--lab-vulkan-retirement",
+      "acquire-history"
+    ],
+    "forcedFallbackPhysicalCaseId": "windows-vulkan-lantern-sdr-smoke",
+    "hostedFallback": "existing-linux-lavapipe-lantern-auto-and-forced-lifecycle-close",
+    "nativePreferredPath": "exercise-when-available-otherwise-report-optional-branch-unavailable",
+    "fallbackPassRequiresDeclaredLimitations": true,
+    "forcedTerminationIsPass": false
+  },
+  "hostedCases": [
+    {
+      "caseId": "hosted-linux-lantern-auto",
+      "gateKind": "smoke",
+      "hosted": true,
+      "platform": "linux",
+      "backend": "vulkan",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "authority": "hosted-native-machine-only"
+    },
+    {
+      "caseId": "hosted-linux-lantern-fallback",
+      "gateKind": "lifecycle",
+      "hosted": true,
+      "platform": "linux",
+      "backend": "vulkan",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "authority": "hosted-native-machine-only",
+      "requiredPresentationRetirementMode": "AcquireHistory",
+      "requiredAdditionalCycles": {
+        "resize": 1,
+        "uiToggle": 1,
+        "focusRecovery": 1,
+        "minimizeRestore": 1,
+        "fontScaleReplacement": 1
+      }
+    },
+    {
+      "caseId": "hosted-macos-lantern",
+      "gateKind": "smoke",
+      "hosted": true,
+      "platform": "macos",
+      "backend": "metal",
+      "workloadId": "lantern",
+      "workloadRevision": "production-content-lantern-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "authority": "hosted-native-machine-only"
+    },
+    {
+      "caseId": "hosted-linux-sponza",
+      "gateKind": "smoke",
+      "hosted": true,
+      "platform": "linux",
+      "backend": "vulkan",
+      "workloadId": "sponza",
+      "workloadRevision": "production-content-sponza-v3",
+      "outputProfileId": "Sdr.sRGB.v1",
+      "frames": {
+        "warmupPresented": 0,
+        "measuredPresented": 120,
+        "totalPresented": 120
+      },
+      "authority": "hosted-native-machine-only"
+    }
+  ]
+}

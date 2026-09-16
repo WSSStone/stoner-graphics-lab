@@ -19,7 +19,7 @@ or relax their limits.
 | Record | Required checks |
 | --- | --- |
 | `Config/Validation/InteractiveLab/Limits-v1.json` | JSON parsing; two frame slots; one window/workload; drawable 4096 x 4096 and 7,864,320-pixel cap; 1 GiB slot-target budget; camera speed/FOV/near/far/time bounds; 1e-4 and 5e-4 camera tolerances; 4096 events; UI packet/texture/upload/generation budgets; capture, preset, diagnostic, retry, transition, drain, and watchdog deadlines. |
-| `Config/Validation/InteractiveLab/Coverage-v1.json` | Four endurance cases at 120 warmup + 1,000 measured presented frames; eight remaining smoke cases at 120 presented frames; seven lifecycle/integration rows; 12 required workload/profile combinations; four formal SDR gates; four current navigation gates; eight current M4 HDR human gates. |
+| `Config/Validation/InteractiveLab/Coverage-v2.json` | Four endurance cases at 120 warmup + 1,000 measured presented frames; eight remaining smoke cases at 120 presented frames; seven lifecycle/integration rows; 12 required workload/profile combinations; four formal SDR gates; four current navigation gates; eight current M4 HDR human gates. |
 | `Config/Validation/OutputTransform/Profiles.json` | The seven existing profile IDs and exact tolerance policies referenced by the limits record. |
 | `Config/Validation/OutputTransform/Workloads/Lantern-v3.json` / `Sponza-v3.json` | The exact revisions `production-content-lantern-v3` and `production-content-sponza-v3`; no guessed workload identity. |
 
@@ -57,14 +57,14 @@ plugin layer, or duplicate 028/029 policy engine.
 
 | Command | Bounded checks and failure-first cases |
 | --- | --- |
-| `run` | Parse an argv-only command file with no shell expansion; require a unique Coverage-v1 case ID, gate kind, workload revision, backend, and profile; enforce the positive frame budget; guard the software revision before and after; apply the 10-second hung-child watchdog and retain residual-owner failure context. |
+| `run` | Parse an argv-only command file with no shell expansion; require a unique Coverage-v2 case ID, gate kind, workload revision, backend, and profile; enforce the positive frame budget; guard the software revision before and after; apply the 10-second hung-child watchdog and retain residual-owner failure context. |
 | `verify` | Parse a fresh report process; reject stale/wrong case identity, false smoke-as-endurance claims, missing submitted/presented/completed counters, limit overflow, nonzero capture-disabled readbacks or per-frame queue/device-idle calls, unsafe paths, reports over 1 MiB, more than 64 artifacts, artifacts over 64 MiB, or aggregate artifacts over 256 MiB. |
-| `closeout` | Close only the finite Coverage-v1 table; require the four endurance, eight smoke, lifecycle, four formal SDR, and current human links; keep machine and human status separate; reject missing/rejected current human decisions, historical carry-forward, or unavailable required cases presented as pass. |
+| `closeout` | Close only the finite Coverage-v2 table; require the four endurance, eight smoke, lifecycle, four formal SDR, and current human links; keep machine and human status separate; reject missing/rejected current human decisions, historical carry-forward, or unavailable required cases presented as pass. |
 | `test_interactive_lab_validation.py` | Mutation cases for argv/frozen revision, stale case/digest/path/size, unsupported result, false smoke endurance, missing human decision, and shared-helper integration. These tests must fail against the unimplemented behavior before passing assertions are accepted. |
 
 ## Coverage case closure
 
-Coverage-v1 currently defines these execution rows. Case IDs are unique across
+Coverage-v2 currently defines these execution rows. Case IDs are unique across
 the four endurance, eight smoke, and seven lifecycle rows.
 
 | Kind | Case IDs and required execution |
@@ -108,7 +108,7 @@ where the planned assertion belongs.
 | FR-009 | `application-ui-input/input-escape-cancel`, `interactive-lab-lifecycle/lifecycle-resize-scale-focus-minimize` | T035, T039, T040, T042, T043, T054, T057, T074 |
 | FR-010 | `application-ui-input/input-scale-100-150-200`, `renderer-ui-draw/ui-scissor-negative-scale` | T035, T039, T040, T042, T043, T054, T057, T074 |
 | FR-011 | `interactive-lab-lifecycle/lifecycle-coherent-settings-revision`, `lifecycle-diagnostic-ring` | T058, T060, T061, T062, T063, T064, T065, T068 |
-| FR-012 | `interactive-lab-lifecycle/lifecycle-latest-valid-pending-request`, Coverage-v1 matrix | T058, T060, T061, T062, T063, T064, T065, T068 |
+| FR-012 | `interactive-lab-lifecycle/lifecycle-latest-valid-pending-request`, Coverage-v2 matrix | T058, T060, T061, T062, T063, T064, T065, T068 |
 | FR-013 | `interactive-lab-lifecycle/lifecycle-coherent-settings-revision`, `lifecycle-latest-valid-pending-request` | T058, T060, T061, T062, T063, T064, T065, T068 |
 | FR-014 | `interactive-lab-lifecycle/lifecycle-latest-valid-pending-request`, `application-lab-preset/preset-unsupported-profile-no-mutation` | T058, T060, T061, T062, T063, T064, T065, T068 |
 | FR-015 | `interactive-lab-lifecycle/lifecycle-coherent-settings-revision`, `renderer-ui-color/ui-no-double-transfer` | T058, T060, T061, T062, T063, T064, T065, T068 |
@@ -119,10 +119,10 @@ where the planned assertion belongs.
 | FR-020 | `application-lab-preset/preset-wrong-workload`, `preset-changed-aspect`, `preset-zero-extent-pending`, `preset-unsupported-profile-no-mutation` | T078, T079, T080, T081, T082, T083, T084, T085, T086, T087, T088, T089, T090, T091, T092 |
 | FR-021 | `rhi-deferred-submission/deferred-accepted-vs-completed`, `deferred-unsignaled-render-fence`, `verify` | T007, T017, T019, T020, T021, T022, T023, T026, T027, T028, T033, T066, T098, T099 |
 | FR-022 | `interactive-lab-lifecycle/lifecycle-ui-texture-retry`, `lifecycle-capture-queue-staging`, `renderer-ui-draw/ui-budget-retirement` | T002, T015, T093, T095, T096, T097, T094, T101, T102, T103, T104 |
-| FR-023 | `interactive-lab-lifecycle/lifecycle-resize-scale-focus-minimize`, Coverage-v1 lifecycle rows | T002, T015, T093, T095, T096, T097, T094, T101, T102, T103, T104 |
+| FR-023 | `interactive-lab-lifecycle/lifecycle-resize-scale-focus-minimize`, Coverage-v2 lifecycle rows | T002, T015, T093, T095, T096, T097, T094, T101, T102, T103, T104 |
 | FR-024 | `interactive-lab-lifecycle/lifecycle-diagnostic-ring`, `verify` | T002, T015, T093, T095, T096, T097, T094, T101, T102, T103, T104 |
 | FR-025 | Formal SDR gate linkage, `run` frozen guard, `verify` authority separation | T012, T031, T091, T100, T105, T108, T113, T119, T120 |
-| FR-026 | `verify` bounded report/artifact checks, Coverage-v1 authority separation | T012, T031, T091, T100, T105, T108, T113, T119, T120 |
+| FR-026 | `verify` bounded report/artifact checks, Coverage-v2 authority separation | T012, T031, T091, T100, T105, T108, T113, T119, T120 |
 | FR-027 | `verify` stale software/Candidate mutation, formal SDR linkage | T012, T031, T091, T100, T105, T108, T113, T119, T120 |
 | FR-028 | M4 current human HDR gate linkage, `closeout` human/machine separation | T004, T105, T106, T109, T110, T114, T115, T116, T117, T118, T121, T122, T123 |
 | FR-029 | All focused suites, native evidence rows, `closeout`, current human gates | T004, T105, T106, T109, T110, T114, T115, T116, T117, T118, T121, T122, T123 |
@@ -131,7 +131,7 @@ where the planned assertion belongs.
 
 | Criterion | Planned fixture/script coverage | Tasks |
 | --- | --- | --- |
-| SC-001 | Full Coverage-v1 functional matrix, current navigation gates, `application-free-camera`, lifecycle settings/output fixtures | T034, T068, T121 |
+| SC-001 | Full Coverage-v2 functional matrix, current navigation gates, `application-free-camera`, lifecycle settings/output fixtures | T034, T068, T121 |
 | SC-002 | `application-free-camera` cadence plus all `application-ui-input` ownership/text/focus fixtures | T014, T035, T034, T057 |
 | SC-003 | `interactive-lab-lifecycle/lifecycle-coherent-settings-revision`, `lifecycle-latest-valid-pending-request`, `verify` | T058, T068, T093, T104 |
 | SC-004 | `application-ui-input/input-scale-100-150-200`, `renderer-ui-color`, all eight M4 current HDR human gates | T069, T074, T077, T121, T122 |
