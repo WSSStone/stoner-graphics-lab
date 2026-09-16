@@ -343,7 +343,7 @@
     }
   ],
   "intelMacos": "skipped-by-maintainer-2026-09-08",
-  "hostedStatus": "pending-github-actions-write-or-browser-login",
+  "hostedStatus": "in-progress-run-35078558137",
   "physicalStatus": "windows-five-passed-m4-fourteen-pending",
   "humanStatus": "pending-new-sha-machine-requests",
   "invalidation": "Any implementation or validation-policy change requires a new freeze and repetition of affected runs.",

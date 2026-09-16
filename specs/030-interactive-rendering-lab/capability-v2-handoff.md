@@ -2,7 +2,7 @@
 
 Frozen software: `74e1c435ecd79056ef3d72c563ab4cd865a6ca19`.
 Source branch: `codex/030-sdr-capability-validation`.
-This exact commit is pushed to origin with maintainer approval. Hosted dispatch awaits Actions write permission on the current token. Do not fetch a different SHA or treat the old `9154e421` evidence as current.
+This exact commit is pushed to origin with maintainer approval. Hosted run [35078558137](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35078558137) is in progress at this exact SHA. The maintainer will execute the M4 lane and return evidence. Do not fetch a different SHA or treat the old `9154e421` evidence as current.
 
 ## M4 operator
 

@@ -2,8 +2,9 @@
   "schema": "stoner.interactive-lab-hosted-matrix-evidence",
   "schemaVersion": 1,
   "softwareRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
-  "conclusion": "pending",
+  "conclusion": "in_progress",
   "independentHostedValidation": "pending",
   "jobs": [],
-  "blocker": "Source branch pushed with approval. GitHub dispatch returned HTTP 403 because current token lacks Actions write; browser login requested."
+  "blocker": "",
+  "runUrl": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35078558137"
 }
