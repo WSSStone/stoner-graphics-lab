@@ -3984,7 +3984,11 @@ Stoner::RHI::ERHIResult FVulkanNativeContext::ReleaseLabBorrowedTarget(
                 Candidate.FrameToken == Target.Frame.FrameToken &&
                 Candidate.FrameSlotIndex == Target.FrameSlotIndex;
         });
-    if (Bridge == Impl->LabTokens.end() || Bridge->bPresentAttempted)
+    // A failed present (for example OUT_OF_DATE after a window resize) has
+    // no published presentation lease. It may still have queued native wait
+    // work, which the runtime retains with this generation. Permit logical
+    // cancellation without retrying present or claiming native retirement.
+    if (Bridge == Impl->LabTokens.end() || Bridge->bPresentQueued)
     {
         return ERHIResult::InvalidState;
     }

@@ -80,7 +80,7 @@ class ValidationTests(unittest.TestCase):
                                      ('Source/Renderer/Private/FRenderer.cpp',False)]:
                 path=root/relative;path.parent.mkdir(parents=True,exist_ok=True);path.write_text('#include "yyjson/yyjson.h"\n')
                 findings=[];architecture._feature_030_checks(root,findings)
-                self.assertEqual(any(relative in f and 'yyjson' in f for f in findings),not allowed)
+                self.assertEqual(any(relative in f.replace('\\','/') and 'yyjson' in f for f in findings),not allowed)
                 path.unlink()
 
     def test_hosted_strict_workflow_executes_checks(self):

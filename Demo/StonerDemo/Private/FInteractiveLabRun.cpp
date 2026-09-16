@@ -658,7 +658,7 @@ public:
                 Slot = {};
             }
             else if (Retired.NativeResult != ERHIResult::Success && !Pending(Retired.NativeResult))
-                Fail("lab preview retirement failed");
+                FailOperation("preview-retirement", Retired.NativeResult, {});
         }
     }
 

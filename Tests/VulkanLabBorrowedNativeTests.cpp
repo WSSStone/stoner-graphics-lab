@@ -325,6 +325,9 @@ ERHIResult PollBounded(Application::FWindow& Window, Operation&& Poll)
             Check(Failed, DuplicatePresent == ERHIResult::InvalidState &&
                 !DuplicateLease.IsValid(),
                 "duplicate typed render lease is rejected without a retryable pending result");
+            Check(Failed, Swapchain.Object->ReleaseBorrowedTarget(Target, RenderFence.Object) ==
+                ERHIResult::InvalidState,
+                "successfully queued presentation cannot be cancelled as an unpresented frame");
         }
         if (!UseTypedRenderLease && Index == 1)
         {
