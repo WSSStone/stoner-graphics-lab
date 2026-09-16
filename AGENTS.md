@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (104/127 reviewed tasks); native closeout remains pending.
+Feature 030 implementation is partial (116/127 reviewed tasks); hosted and M4 machine checks pass, Windows/formal/human closeout remains pending.
 The maintainer explicitly skips Intel x86_64 macOS validation for Feature 030
 on 2026-09-08; record it as skipped, not passed, and do not block implementation
 on Intel cooking/derivation/native checks. Existing Intel support and historical
@@ -164,7 +164,7 @@ packages on local NTFS and transfer bounded evidence only after validation.
 - Process-local session/input/UI/frame state; explicit bounded local JSON preset exports; immutable strict-cooked scene/UI-shader generations; bounded PNG/JSON evidence; no database, autosave, ImGui ini store or runtime source fallback (030-interactive-rendering-lab)
 
 ## Recent Changes
-- 030 T113 frozen (113/127) at `31519b15`: clean local checkout and policy digests recorded. T114 hosted run is blocked on explicit GitHub push authorization after automatic approval rejection. No final hosted/physical/human pass; Intel macOS skipped.
+- 030 T114/T116/T117 complete (116/127) at frozen `9154e421`: hosted run 35051927132 passes 13/13, including independent shader/native consumers; M4 Metal passes all 14 fixed SDR/HDR/lifecycle machine cases with zero readbacks/live idles/final native owners. T118 remains partial pending Windows. Five Windows machine cases, four formal SDR gates and twelve current human decisions remain open; Intel macOS skipped. Bounded original evidence and digests are in `Validation/030/CI/hosted-matrix.json`, `Validation/030/SDR/macos-metal.json`, `Validation/030/HDR/macos-metal-matrix.json`, `Validation/030/UI/physical-lifecycle.json` and the incomplete `Validation/030/CI/aggregate.json`.
 - 030 T105–T112 reviewed (112/127): bounded run/verify/closeout, fixed CI matrix and hardware handoff implemented. Strict Debug/Release focused regressions, 11 lab-tool mutations, 12 shader mutations and Metal/Vulkan native UI checks pass. Xcode 27 cooking and strict consumer pass after toolchain installation. Final source freeze, hosted and current physical/human closeout remain pending; Intel macOS skipped.
 - 030 US6 checkpoint complete (104/127): bounded ordered CLI scripts/reports and full ten-second watchdog are reviewed. Debug/Release each pass 320 focused assertions; Metal Debug/Vulkan Release each pass 229 native assertions. Eight 120-frame Lantern/Sponza settings/lifecycle runs have zero implicit readbacks/live idles and final attachment/capture ownership. Evidence: Build/Validation/030/us6.json. US7 final hosted/physical/human authority remains pending; Intel macOS skipped.
 - 030 T101 reviewed (101/127): single CPU-only export worker removes PNG encoding/publication from event servicing; staging/queue charge remains retained until completion and terminal watchdog guards pending work. Strict Debug/Release each pass 338 focused assertions plus watchdog fixture; Metal Debug/Vulkan Release pass 86/69. T102 scripts/reports and remaining final authority are pending; Intel macOS skipped.

@@ -1,0 +1,144 @@
+{
+  "schema": "stoner.interactive-lab-physical-lifecycle-evidence",
+  "schemaVersion": 1,
+  "softwareRevision": "9154e421eaaf5a01755d80736af322a1caab9215",
+  "status": "partial",
+  "completedCases": [
+    {
+      "caseId": "macos-metal-lantern-lifecycle-integration",
+      "status": "passed",
+      "adapter": "Apple M4 Pro",
+      "completedScriptSteps": 9,
+      "scriptSteps": 9,
+      "presentQueuedFrames": 120,
+      "imageReadbackCopies": 0,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "liveQueueIdles": 0,
+      "liveDeviceIdles": 0,
+      "finalNativeOwners": 0,
+      "shutdownAssurance": "Proven",
+      "peakAttachmentBytes": 52428800,
+      "peakUIDrawBytes": 320
+    },
+    {
+      "caseId": "macos-metal-lantern-mode-transition-stress",
+      "status": "passed",
+      "adapter": "Apple M4 Pro",
+      "completedScriptSteps": 100,
+      "scriptSteps": 100,
+      "presentQueuedFrames": 1120,
+      "imageReadbackCopies": 0,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "liveQueueIdles": 0,
+      "liveDeviceIdles": 0,
+      "finalNativeOwners": 0,
+      "shutdownAssurance": "Proven",
+      "peakAttachmentBytes": 29491200,
+      "peakUIDrawBytes": 320
+    },
+    {
+      "caseId": "macos-metal-sponza-lifecycle-integration",
+      "status": "passed",
+      "adapter": "Apple M4 Pro",
+      "completedScriptSteps": 5,
+      "scriptSteps": 5,
+      "presentQueuedFrames": 120,
+      "imageReadbackCopies": 0,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "liveQueueIdles": 0,
+      "liveDeviceIdles": 0,
+      "finalNativeOwners": 0,
+      "shutdownAssurance": "Proven",
+      "peakAttachmentBytes": 29491200,
+      "peakUIDrawBytes": 320
+    },
+    {
+      "caseId": "macos-metal-sponza-sdr-lifecycle-stress",
+      "status": "passed",
+      "adapter": "Apple M4 Pro",
+      "completedScriptSteps": 180,
+      "scriptSteps": 180,
+      "presentQueuedFrames": 1120,
+      "imageReadbackCopies": 0,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "liveQueueIdles": 0,
+      "liveDeviceIdles": 0,
+      "finalNativeOwners": 0,
+      "shutdownAssurance": "Proven",
+      "peakAttachmentBytes": 117964800,
+      "peakUIDrawBytes": 320
+    }
+  ],
+  "pendingCases": [
+    "windows-vulkan-sponza-sdr-lifecycle-stress",
+    "windows-vulkan-sponza-mode-transition-stress",
+    "windows-vulkan-lantern-lifecycle-integration"
+  ],
+  "artifacts": [
+    {
+      "path": "Validation/030/UI/M4-Metal/9154e421/macos-metal-lantern-lifecycle-integration-report.json",
+      "sha256": "5f2b377712e8f1d32f7699c4afcbd0e1148b75b635a00a87bad040e245e42060",
+      "originalPath": "Build/Validation/030/physical/macos-metal-lantern-lifecycle-integration-report.json"
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/9154e421/macos-metal-lantern-lifecycle-integration-native.json",
+      "sha256": "d20999cfcc8c899032676c54f630786bc10f40da03d716634bbc7083020847cd",
+      "originalPath": "Build/Validation/030/physical/macos-metal-lantern-lifecycle-integration-native.json"
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/9154e421/macos-metal-lantern-lifecycle-integration-script.json",
+      "sha256": "76c3f40ec241c35b2c341cdba9766f390842b833ed5b9e0adeccd514a8cf030e",
+      "originalPath": "Build/Validation/030/physical/macos-metal-lantern-lifecycle-integration-script.json"
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/9154e421/macos-metal-lantern-mode-transition-stress-report.json",
+      "sha256": "48ed48fe2f1a39ca20ffe03a04571016648093d5199e0ce32d0e6a8900410e11",
+      "originalPath": "Build/Validation/030/physical/macos-metal-lantern-mode-transition-stress-report.json"
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/9154e421/macos-metal-lantern-mode-transition-stress-native.json",
+      "sha256": "103b3be69cd188792a305b1afd01a75b8200ca6f03f3d0eff5a8e78579d0b705",
+      "originalPath": "Build/Validation/030/physical/macos-metal-lantern-mode-transition-stress-native.json"
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/9154e421/macos-metal-lantern-mode-transition-stress-script.json",
+      "sha256": "be3a237ff3a7803575f71bfba68ca16b75bef2fd58000406706e76354e0f043f",
+      "originalPath": "Build/Validation/030/physical/macos-metal-lantern-mode-transition-stress-script.json"
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/9154e421/macos-metal-sponza-lifecycle-integration-report.json",
+      "sha256": "a6f576f938a618576a1f0692a40933cef8a3398bb5f1da5e2e5b898306819b1d",
+      "originalPath": "Build/Validation/030/physical/macos-metal-sponza-lifecycle-integration-report.json"
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/9154e421/macos-metal-sponza-lifecycle-integration-native.json",
+      "sha256": "27ada953dac4f1c84cd2c23927e1a4cf8f5577f8ba1914694e19a32362e794e0",
+      "originalPath": "Build/Validation/030/physical/macos-metal-sponza-lifecycle-integration-native.json"
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/9154e421/macos-metal-sponza-lifecycle-integration-script.json",
+      "sha256": "a19a86ef574b3aa5cfcab48b503f704f3ff60bfa5c4e882daba1e9ca6eb4f27d",
+      "originalPath": "Build/Validation/030/physical/macos-metal-sponza-lifecycle-integration-script.json"
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/9154e421/macos-metal-sponza-sdr-lifecycle-stress-report.json",
+      "sha256": "4cc1d22b113c3a6ea1b3da2885e341adbc5710585216671d60b5fdcab9d0bc73",
+      "originalPath": "Build/Validation/030/physical/macos-metal-sponza-sdr-lifecycle-stress-report.json"
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/9154e421/macos-metal-sponza-sdr-lifecycle-stress-native.json",
+      "sha256": "3960ade9bae1476074e5949330adc32419cbcd0161e3a1770ed7786fd1716173",
+      "originalPath": "Build/Validation/030/physical/macos-metal-sponza-sdr-lifecycle-stress-native.json"
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/9154e421/macos-metal-sponza-sdr-lifecycle-stress-script.json",
+      "sha256": "1fca1b97d7edf61551b6ed90afb1ba865e217e90094ad55a6cf2049e7841b808",
+      "originalPath": "Build/Validation/030/physical/macos-metal-sponza-sdr-lifecycle-stress-script.json"
+    }
+  ],
+  "humanAuthority": false
+}

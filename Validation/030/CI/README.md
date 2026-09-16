@@ -8,7 +8,7 @@ Follow `specs/030-interactive-rendering-lab/hardware-validation.md` for exact co
 
 ## Current frozen software
 
-Software `8eb5c5453bed20753f0e88726985a0cf6c62da3d` is frozen in the clean checkout `Build/Worktrees/030-frozen-97c09338`. Run [35049316427](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35049316427) failed in the final consumer build. Earlier attempts retain their actual outcomes below; no final hosted aggregate or physical/human authority is claimed. Push and rerun authorization is already granted.
+Software `9154e421eaaf5a01755d80736af322a1caab9215` is frozen in the clean checkout `Build/Worktrees/030-frozen-97c09338`. Run [35051927132](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132) passed all 13 required jobs, including the independent consumer. Earlier attempts retain their actual outcomes below; physical/human authority remains pending. Push and rerun authorization is already granted.
 
 ## Hosted attempt 1
 
@@ -47,3 +47,15 @@ Local correction checks: strict Debug/Release builds, 13 Python validator tests,
 ## Hosted attempt 9
 
 Run [35049316427](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35049316427) tests `8eb5c5453bed20753f0e88726985a0cf6c62da3d`. Linux/macOS Debug/Release, ASan/UBSan, TSan, both native jobs, medium integration and shader producer have passed; Both Windows configurations subsequently passed; all twelve initial jobs succeeded. The dependent shader consumer failed strict compilation because a GLFW-only Metal test variable was declared outside its feature guard. The declaration now belongs to the guarded branch; all 168 test translation units pass strict no-GLFW/no-Vulkan syntax compilation using their SCons-defined private include paths and macros, and the full local Release build passes. A new freeze and hosted run are required. Downloaded Linux automatic/fallback, macOS Lantern and Linux Sponza wrappers pass the independent local consumer with original artifact bytes. Linux automatic and fallback each present 120 frames with zero live queue/device idles and zero final native owners; fallback completes all nine lifecycle steps and retains the explicit `IdleAssumed` terminal limitation. The frozen clean Release build and all 82 policy identities are verified. T114 remains open until every required job passes.
+
+## Hosted attempt 10 — passed
+
+Run [35051927132](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132) at `9154e421eaaf5a01755d80736af322a1caab9215` passed 13/13 jobs. All downloaded hosted records pass the independent closeout consumer with no missing hosted gate; physical/formal/human gates remain open. [hosted-matrix.json](hosted-matrix.json) records actual job URLs and SHA-256 digests of original bounded JSON artifacts under `35051927132/`. To reverify, reconstruct each artifact at its `originalPath` under a verification root containing the frozen Coverage/Limits files, then run the existing verify/closeout consumer. No report bytes were edited. T114 is complete (114/127 reviewed).
+
+## Current physical checkpoint and remaining gates
+
+At frozen `9154e421`, the guarded producer and independent consumer passed all 14 fixed M4 Metal machine cases: [SDR](../SDR/macos-metal.json), [HDR](../HDR/macos-metal-matrix.json) and the M4 portion of [lifecycle](../UI/physical-lifecycle.json). All report zero image readback copies/maps/waits, zero live queue/device idles and zero final native owners, with `Proven` terminal assurance. T116/T117 are complete; T118 remains partial for Windows. Intel macOS remains skipped.
+
+The existing closeout consumer ran against [partial-bundle.json](partial-bundle.json) and produced the deliberately incomplete [aggregate.json](aggregate.json): five Windows machine cases, four formal SDR gates and twelve current human decisions remain missing. Windows hardware access has been requested; no substitute hardware or historical authority is used. Formal SDR follows completion of the full lifecycle gate. Ten M4 [human requests](../UI/human-requests.json) are prepared, with no decisions authored. Follow the [hardware handoff](../../../specs/030-interactive-rendering-lab/hardware-validation.md) after Windows access is available.
+
+All tracked machine evidence retains original producer bytes. Reconstruct their `originalPath` values from the artifact inventories in the hosted/SDR/HDR/lifecycle/request indexes under a verification root containing the frozen Coverage/Limits files; the partial bundle then uses the existing closeout consumer unchanged. Absolute machine-local command files and raw logs remain under ignored `Build/Validation/030/` or the clean checkout’s corresponding directory. No private command paths are promoted. Later evidence-only commits retain tested software `9154e421eaaf5a01755d80736af322a1caab9215`.

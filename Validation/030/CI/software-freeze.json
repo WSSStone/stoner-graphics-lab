@@ -1,8 +1,8 @@
 {
   "schema": "stoner.interactive-lab-software-freeze",
   "schemaVersion": 1,
-  "softwareRevision": "783d135b1a8ed43cb7c56cd07a09ba804b1ada28",
-  "status": "invalidated",
+  "softwareRevision": "9154e421eaaf5a01755d80736af322a1caab9215",
+  "status": "frozen",
   "cleanCheckout": "Build/Worktrees/030-frozen-97c09338",
   "policyIdentities": [
     {
@@ -31,7 +31,7 @@
     },
     {
       "path": ".github/scripts/interactive_lab_validation.py",
-      "sha256": "a97e3b1e241581bf1fd8e02b935d239ee47bc3e4e6c694f551fc11de27e373af"
+      "sha256": "24e26aad05ae3d3bddf64e270762ca3dad5b248b4806d68d8790c3bc67db8dfa"
     },
     {
       "path": ".github/scripts/output_transform_common.py",
@@ -119,7 +119,7 @@
     },
     {
       "path": ".github/scripts/test_interactive_lab_validation.py",
-      "sha256": "6b440c820ad2972ae0d77e3998e29e0d5b9d047c87cb0b9107002b2e3276d6ca"
+      "sha256": "c550a2fee2023a45aa903f8eb2731d845b26aa9161f31a883d3bdb063a3c4bec"
     },
     {
       "path": ".github/scripts/test_output_transform_workflows.py",
@@ -223,7 +223,7 @@
     },
     {
       "path": ".github/workflows/feature-030-interactive-lab.yml",
-      "sha256": "984207b0f388695555f935c726967fabff9e9af5b5c5bf6ea01f6859c688e410"
+      "sha256": "c0dfe959ef164b1d360fe3848e291921f880f4c02becc05397e97f8036121932"
     },
     {
       "path": "Config/AssetCooker/Profiles/Production/Linux-Vulkan.json",
@@ -335,13 +335,12 @@
     }
   ],
   "intelMacos": "skipped-by-maintainer-2026-09-08",
-  "hostedStatus": "running",
-  "physicalStatus": "pending",
+  "hostedStatus": "passed",
+  "physicalStatus": "m4-14-machine-cases-passed-windows-and-formal-pending",
   "humanStatus": "pending-current-review",
   "invalidation": "Any implementation or validation-policy change requires a new freeze and repetition of affected runs.",
   "evidenceOnlyCommits": "Later evidence/documentation commits retain this tested software revision; run producers from the exact frozen checkout.",
   "preflight": "Validation/030/CI/preflight.json",
-  "hostedRunUrl": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/34966098179",
-  "supersedes": "c3e5742bbbaeea6134000d9123ac865cdc955f55",
-  "invalidationReason": "Linux Metal-test guards and bounded runner output/schema/failure-classification fixes require a new freeze."
+  "hostedRunUrl": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132",
+  "supersedes": "8eb5c5453bed20753f0e88726985a0cf6c62da3d"
 }

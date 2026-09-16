@@ -1,0 +1,29 @@
+{
+  "schema": "stoner.interactive-lab-aggregate",
+  "schemaVersion": 1,
+  "gitRevision": "9154e421eaaf5a01755d80736af322a1caab9215",
+  "complete": false,
+  "missing": [
+    "machine: windows-vulkan-sponza-sdr-endurance",
+    "machine: windows-vulkan-lantern-sdr-smoke",
+    "machine: windows-vulkan-sponza-sdr-lifecycle-stress",
+    "machine: windows-vulkan-sponza-mode-transition-stress",
+    "machine: windows-vulkan-lantern-lifecycle-integration",
+    "formal: windows-vulkan-lantern-formal-sdr-parity",
+    "formal: windows-vulkan-sponza-formal-sdr-parity",
+    "formal: macos-metal-lantern-formal-sdr-parity",
+    "formal: macos-metal-sponza-formal-sdr-parity",
+    "human: windows-vulkan-lantern-current-human-navigation",
+    "human: windows-vulkan-sponza-current-human-navigation",
+    "human: macos-metal-lantern-current-human-navigation",
+    "human: macos-metal-sponza-current-human-navigation",
+    "human: macos-metal-lantern-pq1000-current-human-hdr",
+    "human: macos-metal-lantern-pq2000-current-human-hdr",
+    "human: macos-metal-lantern-edr1000-current-human-hdr",
+    "human: macos-metal-lantern-edr2000-current-human-hdr",
+    "human: macos-metal-sponza-pq1000-current-human-hdr",
+    "human: macos-metal-sponza-pq2000-current-human-hdr",
+    "human: macos-metal-sponza-edr1000-current-human-hdr",
+    "human: macos-metal-sponza-edr2000-current-human-hdr"
+  ]
+}
