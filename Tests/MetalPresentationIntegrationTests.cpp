@@ -215,10 +215,9 @@ RunMetalPresentationIntegrationTests(bool bRequireVisible)
         : ERHIResult::InvalidState;
     const bool Presented = Acquired && InitialPresent == ERHIResult::Success;
 
-    bool bBorrowedCancellation = false;
-
     bool bLifecycle = false;
 #if defined(STONER_GLFW_AVAILABLE) && STONER_GLFW_AVAILABLE
+    bool bBorrowedCancellation = false;
     auto* NativeWindow = static_cast<GLFWwindow*>(
         Window.GetPlatformWindow().GetNativeHandle());
     glfwSetWindowSize(NativeWindow, 800, 450);
