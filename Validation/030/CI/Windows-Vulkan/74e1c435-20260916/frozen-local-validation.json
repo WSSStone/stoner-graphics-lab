@@ -1,0 +1,69 @@
+{
+  "schema": "stoner.interactive-lab-local-validation",
+  "schemaVersion": 1,
+  "softwareRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "checks": [
+    {
+      "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+      "startedUtc": "2026-09-16T08:34:34.764112+00:00",
+      "finishedUtc": "2026-09-16T08:34:57.350871+00:00",
+      "exitCode": 0,
+      "logSha256": "41df735a9ce08c52d3ce79e937491049ada919f904bcf1a48bfc65c4747ef7f3",
+      "name": "frozen-release-build-2"
+    },
+    {
+      "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+      "startedUtc": "2026-09-16T08:37:53.739405+00:00",
+      "finishedUtc": "2026-09-16T08:37:55.335379+00:00",
+      "exitCode": 0,
+      "logSha256": "4f5cd247e1f2e8431952ffc8be0f3b70af54513e22825dc292a3dca221477a48",
+      "name": "frozen-release-regression"
+    },
+    {
+      "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+      "startedUtc": "2026-09-16T08:35:16.857197+00:00",
+      "finishedUtc": "2026-09-16T08:35:39.924674+00:00",
+      "exitCode": 0,
+      "logSha256": "87b64d10ccb3e3c9dd20eae564afb077f568044690532d8491c86ed1735912bb",
+      "name": "lantern-cook"
+    },
+    {
+      "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+      "startedUtc": "2026-09-16T08:35:40.036266+00:00",
+      "finishedUtc": "2026-09-16T08:35:41.965716+00:00",
+      "exitCode": 0,
+      "logSha256": "e41174b5d4c219b40bef1bb87fd99c623aff5203a0f86fcbd41527fbf3228879",
+      "name": "lantern-strict-validate"
+    },
+    {
+      "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+      "startedUtc": "2026-09-16T08:35:42.086770+00:00",
+      "finishedUtc": "2026-09-16T08:37:58.689245+00:00",
+      "exitCode": 0,
+      "logSha256": "5519131e537a06acd6089dcc9beca42dc0e829834dc72f62d4e9be5b0c2e92e5",
+      "name": "sponza-cook"
+    },
+    {
+      "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+      "startedUtc": "2026-09-16T08:37:58.794360+00:00",
+      "finishedUtc": "2026-09-16T08:38:05.654301+00:00",
+      "exitCode": 0,
+      "logSha256": "e2456c2f9b46e245a4871628b95c755b0f7cd80bab39dc0e09e22e086e620404",
+      "name": "sponza-strict-validate"
+    }
+  ],
+  "releaseAssertions": 619,
+  "debugImplementationAssertions": 619,
+  "pythonTests": 44,
+  "note": "Current-SHA Release rebuild, regression, fresh cook and strict-files validation passed. Debug implementation tests preceded freeze. No current physical machine case ran.",
+  "binaries": [
+    {
+      "path": "Build/Win64/Release/Demo/StonerDemo/StonerDemo.exe",
+      "sha256": "37b8cee46695baa10df099cf66560fad2fb39e44f1328fb94a7838bcec4c9f6e"
+    },
+    {
+      "path": "Build/Win64/Release/Tools/AssetCooker/StonerAssetCooker.exe",
+      "sha256": "b882a883ecd6544bd0f391716bc4965b1c1d43c74c09d41a1ab2a0dad511d148"
+    }
+  ]
+}

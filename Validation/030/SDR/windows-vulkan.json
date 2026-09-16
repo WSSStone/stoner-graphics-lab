@@ -1,119 +1,12 @@
 {
-  "schema": "stoner.interactive-lab-physical-sdr-evidence",
+  "schema": "stoner.interactive-lab-physical-evidence",
   "schemaVersion": 1,
-  "softwareRevision": "9154e421eaaf5a01755d80736af322a1caab9215",
-  "status": "passed",
-  "session": "Console",
-  "cases": [
-    {
-      "caseId": "windows-vulkan-sponza-sdr-endurance",
-      "status": "passed",
-      "adapter": "NVIDIA GeForce RTX 3080",
-      "submittedFrames": 1120,
-      "presentQueuedFrames": 1120,
-      "completedRenderSubmissions": 1120,
-      "provenPresentationReleases": 1120,
-      "completedScriptSteps": 0,
-      "scriptSteps": 0,
-      "imageReadbackCopies": 0,
-      "readbackMaps": 0,
-      "readbackWaits": 0,
-      "liveQueueIdles": 0,
-      "liveDeviceIdles": 0,
-      "finalNativeOwners": 0,
-      "finalPresentationOwners": 0,
-      "shutdownAssurance": "Proven",
-      "retirementMode": "PresentationFence",
-      "optionalFenceAdvertised": true,
-      "optionalFenceEnabled": true,
-      "preCleanupPresentationOwners": 0,
-      "terminalIdleCalls": 1,
-      "terminalIdleCompleted": true,
-      "terminalIdleResult": 0,
-      "peakAttachmentBytes": 7372800,
-      "peakUIDrawBytes": 320,
-      "peakPresentationBytes": 691200,
-      "firstFailure": "",
-      "warmupPresented": 120,
-      "measuredPresented": 1000,
-      "compatibilityLimitation": ""
-    },
-    {
-      "caseId": "windows-vulkan-lantern-sdr-smoke",
-      "status": "passed",
-      "adapter": "NVIDIA GeForce RTX 3080",
-      "submittedFrames": 120,
-      "presentQueuedFrames": 120,
-      "completedRenderSubmissions": 120,
-      "provenPresentationReleases": 117,
-      "completedScriptSteps": 0,
-      "scriptSteps": 0,
-      "imageReadbackCopies": 0,
-      "readbackMaps": 0,
-      "readbackWaits": 0,
-      "liveQueueIdles": 0,
-      "liveDeviceIdles": 0,
-      "finalNativeOwners": 0,
-      "finalPresentationOwners": 0,
-      "shutdownAssurance": "IdleAssumed",
-      "retirementMode": "AcquireHistory",
-      "optionalFenceAdvertised": true,
-      "optionalFenceEnabled": false,
-      "preCleanupPresentationOwners": 3,
-      "terminalIdleCalls": 1,
-      "terminalIdleCompleted": true,
-      "terminalIdleResult": 0,
-      "peakAttachmentBytes": 7372800,
-      "peakUIDrawBytes": 320,
-      "peakPresentationBytes": 691200,
-      "firstFailure": "",
-      "warmupPresented": 0,
-      "measuredPresented": 120,
-      "compatibilityLimitation": "Terminal idle permits compatibility cleanup only; presentation release and physical scanout are not proven."
-    }
+  "softwareRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "status": "pending",
+  "completedCases": [],
+  "pendingCases": [
+    "windows-vulkan-sponza-sdr-endurance",
+    "windows-vulkan-lantern-sdr-smoke"
   ],
-  "artifacts": [
-    {
-      "path": "Validation/030/SDR/Windows-Vulkan/9154e421-20260916/windows-vulkan-sponza-sdr-endurance-native.json",
-      "sha256": "cf20e5b1d7728d8562b769bf7e3465c32c075667215a5395666ec995fe39502f",
-      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-sponza-sdr-endurance-native.json"
-    },
-    {
-      "path": "Validation/030/SDR/Windows-Vulkan/9154e421-20260916/windows-vulkan-sponza-sdr-endurance-report.json",
-      "sha256": "1f4f06e85a480785ccbc56d91202d831c410f5ec70af75ff3bd3185536d5faa8",
-      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-sponza-sdr-endurance-report.json"
-    },
-    {
-      "path": "Validation/030/SDR/Windows-Vulkan/9154e421-20260916/windows-vulkan-sponza-sdr-endurance-session-before.json",
-      "sha256": "6100e1d40a68ef205c5c4d0f2408523fccb8e6d9c80b3c46859654a42ea9a8f2",
-      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-sponza-sdr-endurance-session-before.json"
-    },
-    {
-      "path": "Validation/030/SDR/Windows-Vulkan/9154e421-20260916/windows-vulkan-sponza-sdr-endurance-session-after.json",
-      "sha256": "306cd16c02a7b88ecf8e001ae23b9391719a8c4b94dc5b9dcef0ad5c0f69c4ab",
-      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-sponza-sdr-endurance-session-after.json"
-    },
-    {
-      "path": "Validation/030/SDR/Windows-Vulkan/9154e421-20260916/windows-vulkan-lantern-sdr-smoke-native.json",
-      "sha256": "d94a005dc4e0bb612afe69de1c3cf0ca5cf55ee6157b47997245ef17d860190a",
-      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-lantern-sdr-smoke-native.json"
-    },
-    {
-      "path": "Validation/030/SDR/Windows-Vulkan/9154e421-20260916/windows-vulkan-lantern-sdr-smoke-report.json",
-      "sha256": "6d03a1ec8f8a639e53eed1d8d209d12e2fe15b9919e96a5827a94367892b70e9",
-      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-lantern-sdr-smoke-report.json"
-    },
-    {
-      "path": "Validation/030/SDR/Windows-Vulkan/9154e421-20260916/windows-vulkan-lantern-sdr-smoke-session-before.json",
-      "sha256": "6f75a79a9b023f824f5011df094a63785580efa2ea55952c3444552ed2b67294",
-      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-lantern-sdr-smoke-session-before.json"
-    },
-    {
-      "path": "Validation/030/SDR/Windows-Vulkan/9154e421-20260916/windows-vulkan-lantern-sdr-smoke-session-after.json",
-      "sha256": "55070ea45458a7d80c1b4b255035b6346c90b62e2fb49f28bcd140fb9479645e",
-      "originalPath": "Build/Validation/030/local-20260916/windows-vulkan-lantern-sdr-smoke-session-after.json"
-    }
-  ],
-  "humanAuthority": false,
-  "scanoutAuthority": false
+  "artifacts": []
 }

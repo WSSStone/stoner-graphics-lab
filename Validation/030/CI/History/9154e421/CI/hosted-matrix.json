@@ -1,0 +1,237 @@
+{
+  "schema": "stoner.interactive-lab-hosted-matrix-evidence",
+  "schemaVersion": 1,
+  "softwareRevision": "9154e421eaaf5a01755d80736af322a1caab9215",
+  "runUrl": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132",
+  "conclusion": "success",
+  "independentHostedValidation": "passed",
+  "jobs": [
+    {
+      "jobId": "linux-debug",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132/job/104653970213",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35051927132/linux-debug/hosted.json",
+      "sha256": "64fc55d95d84cc507b39c6b1bcdc0762a1bc19556a1a18b6205cd071d863d344"
+    },
+    {
+      "jobId": "linux-native",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132/job/104653970319",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35051927132/linux-native/hosted.json",
+      "sha256": "e1eab65e368d6c2831fb79979318edfe0839ef76624ad6fb83c1d92db0061003"
+    },
+    {
+      "jobId": "windows-debug",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132/job/104653970349",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35051927132/windows-debug/hosted.json",
+      "sha256": "1e1a9a6ad518694bd04aa8a6f7f3279c18d457f6177c5678aca5ef5c9e2b68c1"
+    },
+    {
+      "jobId": "macos-native",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132/job/104653970360",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35051927132/macos-native/hosted.json",
+      "sha256": "77fcbaa666e04d82fd372d42ab94fc6a99217f060f4652d0061be273556908df"
+    },
+    {
+      "jobId": "linux-tsan",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132/job/104653970376",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35051927132/linux-tsan/hosted.json",
+      "sha256": "6d9b7d7331818518ea6b2d9468f3ba2eafa9751ae6dc59c3a43d2ac814046c38"
+    },
+    {
+      "jobId": "linux-asan-ubsan",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132/job/104653970387",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35051927132/linux-asan-ubsan/hosted.json",
+      "sha256": "f3c6a77223fbed7fdf0f1bdbf598fefd560c7556a8f862fde91e290dca1e8018"
+    },
+    {
+      "jobId": "linux-release",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132/job/104653970403",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35051927132/linux-release/hosted.json",
+      "sha256": "b764430c8a34755739a06aa8cb9929d74a0676db4a95567d83ab71ad62c0f514"
+    },
+    {
+      "jobId": "macos-debug",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132/job/104653970413",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35051927132/macos-debug/hosted.json",
+      "sha256": "afca56e7fba6bfb1a3559e53d11933b178fcca153aeeeb912d8aa6b657f3fdc0"
+    },
+    {
+      "jobId": "shader-producer",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132/job/104653970420",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35051927132/shader-producer/hosted.json",
+      "sha256": "76e37d8cf13961309af6e1b7675e9a7972225fa021021e6df4724a1fe5d549b6"
+    },
+    {
+      "jobId": "windows-release",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132/job/104653970439",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35051927132/windows-release/hosted.json",
+      "sha256": "b57bedf01dbb35b2a9424ba7c14876eaf125bdf2721cea0ff5083bfb3c6636b1"
+    },
+    {
+      "jobId": "macos-release",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132/job/104653970441",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35051927132/macos-release/hosted.json",
+      "sha256": "ea6fd6d2480a794955d4ab72d6b0816a2844b8e0301190291545cb3097824fca"
+    },
+    {
+      "jobId": "medium-integration",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132/job/104653970468",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35051927132/medium-integration/hosted.json",
+      "sha256": "9532dd04196dc5a53b3c9094301c06cdccd0c12c682a4f2d8a82fdec0034a156"
+    },
+    {
+      "jobId": "shader-consumer",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132/job/104659322679",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35051927132/shader-consumer/hosted.json",
+      "sha256": "a1d077bf0c13a6ad33b3c67cc736e47b439dd3b02781c37900007982298dd255"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "Validation/030/CI/35051927132/linux-debug/hosted.json",
+      "sha256": "64fc55d95d84cc507b39c6b1bcdc0762a1bc19556a1a18b6205cd071d863d344",
+      "bytes": 855,
+      "originalPath": "Build/Validation/030/hosted/linux-debug/hosted.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/linux-native/fallback-script.json",
+      "sha256": "1fcfc5be66af5a7a8cc90898db86a0c25e70bc5100c651a54218546af354583a",
+      "bytes": 492,
+      "originalPath": "Build/Validation/030/hosted/linux-native/fallback-script.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/linux-native/hosted-linux-lantern-auto-native.json",
+      "sha256": "6845cf25358e6cb5cd5d69e277635a047d60443c8255903be5058c5b7839503d",
+      "bytes": 2264,
+      "originalPath": "Build/Validation/030/hosted/linux-native/hosted-linux-lantern-auto-native.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/linux-native/hosted-linux-lantern-auto.json",
+      "sha256": "7e443a34e3a4dfb19208bc52452767ec5da09a5f5e94196f25685d37711210df",
+      "bytes": 949,
+      "originalPath": "Build/Validation/030/hosted/linux-native/hosted-linux-lantern-auto.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/linux-native/hosted-linux-lantern-fallback-native.json",
+      "sha256": "06011b57ec727e7736a0dc4363035ff4e64d3e281317236236627f6136a86b1f",
+      "bytes": 2333,
+      "originalPath": "Build/Validation/030/hosted/linux-native/hosted-linux-lantern-fallback-native.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/linux-native/hosted-linux-lantern-fallback.json",
+      "sha256": "855973b65845c233033e23317da84b9226c065ff886f78911da3e327efbbaba0",
+      "bytes": 1311,
+      "originalPath": "Build/Validation/030/hosted/linux-native/hosted-linux-lantern-fallback.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/linux-native/hosted.json",
+      "sha256": "e1eab65e368d6c2831fb79979318edfe0839ef76624ad6fb83c1d92db0061003",
+      "bytes": 1591,
+      "originalPath": "Build/Validation/030/hosted/linux-native/hosted.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/windows-debug/hosted.json",
+      "sha256": "1e1a9a6ad518694bd04aa8a6f7f3279c18d457f6177c5678aca5ef5c9e2b68c1",
+      "bytes": 857,
+      "originalPath": "Build/Validation/030/hosted/windows-debug/hosted.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/macos-native/hosted-macos-lantern-native.json",
+      "sha256": "19bec2b8945ff81ec0401fc086290ae1330c88ad2dc8fd74aae2cf83825d3b71",
+      "bytes": 2253,
+      "originalPath": "Build/Validation/030/hosted/macos-native/hosted-macos-lantern-native.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/macos-native/hosted-macos-lantern.json",
+      "sha256": "04d7cfd40a749d34188d421be72807e52bf7e14901cc6f720755da8bd51b0dbe",
+      "bytes": 942,
+      "originalPath": "Build/Validation/030/hosted/macos-native/hosted-macos-lantern.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/macos-native/hosted.json",
+      "sha256": "77fcbaa666e04d82fd372d42ab94fc6a99217f060f4652d0061be273556908df",
+      "bytes": 1087,
+      "originalPath": "Build/Validation/030/hosted/macos-native/hosted.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/linux-tsan/hosted.json",
+      "sha256": "6d9b7d7331818518ea6b2d9468f3ba2eafa9751ae6dc59c3a43d2ac814046c38",
+      "bytes": 502,
+      "originalPath": "Build/Validation/030/hosted/linux-tsan/hosted.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/linux-asan-ubsan/hosted.json",
+      "sha256": "f3c6a77223fbed7fdf0f1bdbf598fefd560c7556a8f862fde91e290dca1e8018",
+      "bytes": 508,
+      "originalPath": "Build/Validation/030/hosted/linux-asan-ubsan/hosted.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/linux-release/hosted.json",
+      "sha256": "b764430c8a34755739a06aa8cb9929d74a0676db4a95567d83ab71ad62c0f514",
+      "bytes": 857,
+      "originalPath": "Build/Validation/030/hosted/linux-release/hosted.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/macos-debug/hosted.json",
+      "sha256": "afca56e7fba6bfb1a3559e53d11933b178fcca153aeeeb912d8aa6b657f3fdc0",
+      "bytes": 855,
+      "originalPath": "Build/Validation/030/hosted/macos-debug/hosted.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/shader-producer/hosted.json",
+      "sha256": "76e37d8cf13961309af6e1b7675e9a7972225fa021021e6df4724a1fe5d549b6",
+      "bytes": 731,
+      "originalPath": "Build/Validation/030/hosted/shader-producer/hosted.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/windows-release/hosted.json",
+      "sha256": "b57bedf01dbb35b2a9424ba7c14876eaf125bdf2721cea0ff5083bfb3c6636b1",
+      "bytes": 859,
+      "originalPath": "Build/Validation/030/hosted/windows-release/hosted.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/macos-release/hosted.json",
+      "sha256": "ea6fd6d2480a794955d4ab72d6b0816a2844b8e0301190291545cb3097824fca",
+      "bytes": 857,
+      "originalPath": "Build/Validation/030/hosted/macos-release/hosted.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/medium-integration/hosted-linux-sponza-native.json",
+      "sha256": "e52601c8521e62b0258bacc5445bcfc19641edad50608d77d3c3f94550009ec6",
+      "bytes": 2263,
+      "originalPath": "Build/Validation/030/hosted/medium-integration/hosted-linux-sponza-native.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/medium-integration/hosted-linux-sponza.json",
+      "sha256": "06175e46cc5fbd65c733718591b420d9cf31236605dc952fe7c527a798979f8d",
+      "bytes": 943,
+      "originalPath": "Build/Validation/030/hosted/medium-integration/hosted-linux-sponza.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/medium-integration/hosted.json",
+      "sha256": "9532dd04196dc5a53b3c9094301c06cdccd0c12c682a4f2d8a82fdec0034a156",
+      "bytes": 990,
+      "originalPath": "Build/Validation/030/hosted/medium-integration/hosted.json"
+    },
+    {
+      "path": "Validation/030/CI/35051927132/shader-consumer/hosted.json",
+      "sha256": "a1d077bf0c13a6ad33b3c67cc736e47b439dd3b02781c37900007982298dd255",
+      "bytes": 883,
+      "originalPath": "Build/Validation/030/hosted/shader-consumer/hosted.json"
+    }
+  ],
+  "intelMacos": "skipped-by-maintainer-2026-09-08",
+  "physicalAndHumanAuthority": false
+}

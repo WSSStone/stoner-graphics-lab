@@ -1,0 +1,53 @@
+{
+  "schema": "stoner.interactive-lab-history",
+  "schemaVersion": 1,
+  "softwareRevision": "9154e421eaaf5a01755d80736af322a1caab9215",
+  "evidenceCommit": "adca970a14636c2ba8f886ba3c7614ef22d545c8",
+  "artifacts": [
+    {
+      "path": "Validation/030/CI/History/9154e421/CI/software-freeze.json",
+      "sha256": "31f6c4c6597d9195cdb42eaebf6e77edde733c24850a61cfa1e968c4e3710bff"
+    },
+    {
+      "path": "Validation/030/CI/History/9154e421/CI/hosted-matrix.json",
+      "sha256": "3fdef7a80e372db69fadf13ce4ddd4c64b8298731ea8440bd8a276842f57a15d"
+    },
+    {
+      "path": "Validation/030/CI/History/9154e421/CI/aggregate.json",
+      "sha256": "96907ca8e6aa4c257fb68e535cc29802e7243ccef4f9523182e2fae1e9301913"
+    },
+    {
+      "path": "Validation/030/CI/History/9154e421/CI/partial-bundle.json",
+      "sha256": "5c75d307777d4158ec43fc42b5c7c26100a93c1080840d8c06d59a3d460d4e26"
+    },
+    {
+      "path": "Validation/030/CI/History/9154e421/CI/preflight.json",
+      "sha256": "a651559cc9e15bb9f450ca9fce871ad04d89a7545e5c1aae672b43bbc2631648"
+    },
+    {
+      "path": "Validation/030/CI/History/9154e421/CI/windows-attempt-bundle.json",
+      "sha256": "92ea6fcd8a75bf0ac741e32daa9fce7fc0ae133299e01bf18aab9511c1323e30"
+    },
+    {
+      "path": "Validation/030/CI/History/9154e421/SDR/windows-vulkan.json",
+      "sha256": "fbc23174f704928dc2b2ef391fb965dec73398ef20aa1772fa14756640369b26"
+    },
+    {
+      "path": "Validation/030/CI/History/9154e421/SDR/macos-metal.json",
+      "sha256": "1bb716620a75b484bb99d7ed132ba8e40de422a3e9d0d5c9276a48858b3e0b56"
+    },
+    {
+      "path": "Validation/030/CI/History/9154e421/HDR/macos-metal-matrix.json",
+      "sha256": "7fd7cb5007743fc6d7e079127f7d44c8667995c573cb6b17b8f42a4c169c2763"
+    },
+    {
+      "path": "Validation/030/CI/History/9154e421/UI/physical-lifecycle.json",
+      "sha256": "bb14390269a03afeedf86f6ea5f375d16c0b90762db0043bac5ff36f8c6bbdde"
+    },
+    {
+      "path": "Validation/030/CI/History/9154e421/UI/human-requests.json",
+      "sha256": "f8235996a6066b26b5cebbc660602f12d88c6f3179d229244eaeb8419a5b2f0c"
+    }
+  ],
+  "note": "Original record bytes preserved; not current software evidence."
+}

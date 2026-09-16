@@ -1,0 +1,69 @@
+{
+  "schema": "stoner.interactive-lab-human-requests-index",
+  "schemaVersion": 1,
+  "softwareRevision": "9154e421eaaf5a01755d80736af322a1caab9215",
+  "status": "pending-current-maintainer-review",
+  "requests": [
+    {
+      "path": "Validation/030/UI/Requests/9154e421/macos-metal-lantern-current-human-navigation-request.json",
+      "sha256": "5cd0e96f5d3df8230a79806418a3c6def5087c103bd411b2f71ea425404209e6",
+      "originalPath": "Build/Validation/030/physical/macos-metal-lantern-current-human-navigation-request.json"
+    },
+    {
+      "path": "Validation/030/UI/Requests/9154e421/macos-metal-lantern-edr1000-current-human-hdr-request.json",
+      "sha256": "a1d9c7769a9bab1dc56ebbb37ee75e88221f020cf88166aea1fe640ded8b138f",
+      "originalPath": "Build/Validation/030/physical/macos-metal-lantern-edr1000-current-human-hdr-request.json"
+    },
+    {
+      "path": "Validation/030/UI/Requests/9154e421/macos-metal-lantern-edr2000-current-human-hdr-request.json",
+      "sha256": "4a5a34aa547337cd06e6a94249a27e3f92f25a9725684947a0131704eb28c01c",
+      "originalPath": "Build/Validation/030/physical/macos-metal-lantern-edr2000-current-human-hdr-request.json"
+    },
+    {
+      "path": "Validation/030/UI/Requests/9154e421/macos-metal-lantern-pq1000-current-human-hdr-request.json",
+      "sha256": "a02cc54cf7cfe636d091348dac7353abb4289b008bc9ffd3fbcffcc5a0c8b331",
+      "originalPath": "Build/Validation/030/physical/macos-metal-lantern-pq1000-current-human-hdr-request.json"
+    },
+    {
+      "path": "Validation/030/UI/Requests/9154e421/macos-metal-lantern-pq2000-current-human-hdr-request.json",
+      "sha256": "c0f06b23e116c90c4215a3402dc3cf17ab28c0a303fc2257f1fbe1c1353467a0",
+      "originalPath": "Build/Validation/030/physical/macos-metal-lantern-pq2000-current-human-hdr-request.json"
+    },
+    {
+      "path": "Validation/030/UI/Requests/9154e421/macos-metal-sponza-current-human-navigation-request.json",
+      "sha256": "78203e3d04502faaa0a163ae0b3fc7a105c97bbe76a16d3c440c083e150e062a",
+      "originalPath": "Build/Validation/030/physical/macos-metal-sponza-current-human-navigation-request.json"
+    },
+    {
+      "path": "Validation/030/UI/Requests/9154e421/macos-metal-sponza-edr1000-current-human-hdr-request.json",
+      "sha256": "125f3d55459da6de7f0ddc408078ddf4695535bfeaba3c085d841e4128d74435",
+      "originalPath": "Build/Validation/030/physical/macos-metal-sponza-edr1000-current-human-hdr-request.json"
+    },
+    {
+      "path": "Validation/030/UI/Requests/9154e421/macos-metal-sponza-edr2000-current-human-hdr-request.json",
+      "sha256": "c0d040c20ec69cb9e6b2eebb1c9e9903c05e94631979da4c0e00f3c57a107358",
+      "originalPath": "Build/Validation/030/physical/macos-metal-sponza-edr2000-current-human-hdr-request.json"
+    },
+    {
+      "path": "Validation/030/UI/Requests/9154e421/macos-metal-sponza-pq1000-current-human-hdr-request.json",
+      "sha256": "fd87110d360a94e35a613670c53aecb0dc9b0341d10330b22560f459466207d0",
+      "originalPath": "Build/Validation/030/physical/macos-metal-sponza-pq1000-current-human-hdr-request.json"
+    },
+    {
+      "path": "Validation/030/UI/Requests/9154e421/macos-metal-sponza-pq2000-current-human-hdr-request.json",
+      "sha256": "9e3fa8dfa9472811ecc71bfb5cd2d6d3a0e15aa241b563e97547007b9b56d9a8",
+      "originalPath": "Build/Validation/030/physical/macos-metal-sponza-pq2000-current-human-hdr-request.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/lantern-human-request.json",
+      "sha256": "d57e4d77829d86ca69928638c1bc694752a2d0c8056f24f9dec466f81dd26eff",
+      "originalPath": "Build/Validation/030/local-20260916/lantern-human-request.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/9154e421-20260916/sponza-human-request.json",
+      "sha256": "dfc8af633c1d9405a50edb31b41e3263709f528ce52f91012c87a413ae4598da",
+      "originalPath": "Build/Validation/030/local-20260916/sponza-human-request.json"
+    }
+  ],
+  "decisions": []
+}

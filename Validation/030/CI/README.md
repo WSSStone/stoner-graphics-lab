@@ -1,3 +1,21 @@
+# Current capability-v2 freeze — 2026-09-16
+
+Current tested software: `74e1c435ecd79056ef3d72c563ab4cd865a6ca19` on `codex/030-sdr-capability-validation` (local, not pushed).
+
+The Vulkan mapping now preserves sRGB/BT709/PassThrough identities. Windows lifecycle requests use actual native capabilities and prove successful presentation or unsupported rejection without settings/native-output mutation. Coverage-v2/native Report-v2 distinguish actual switches, retained-current requests and expected rejections; the fixed matrix and budgets remain unchanged.
+
+Debug and strict Release implementation checks each passed 619 assertions; four Python suites passed 44 tests and both architecture checks passed. The clean frozen SHA was rebuilt in Release and passed the 619-assertion regression. Fresh Lantern and Sponza packages passed strict-files validation. Five Windows command files are prepared, including unchanged 180/61/12-step scripts.
+
+**Acceptance remains incomplete (113/127 tasks).** Windows Console session 1 is locked (confirmed outside the sandbox); no new-SHA physical case ran. Hosted publication was rejected by automatic approval review pending explicit permission to push to `WSSStone/stoner-graphics-lab`; the 13 jobs have not started. M4 requires fourteen new-SHA cases and a physical operator/remote handoff. Formal SDR and current human acceptance remain pending. No scanout or human pass is claimed.
+
+See [checkpoint](Windows-Vulkan/74e1c435-20260916/checkpoint.json), [local verification](Windows-Vulkan/74e1c435-20260916/frozen-local-validation.json), [prepared cases](Windows-Vulkan/74e1c435-20260916/prepared-cases.json), [aggregate](aggregate.json), and [M4/acceptance handoff](../../../specs/030-interactive-rendering-lab/capability-v2-handoff.md). The independent new-SHA closeout returns incomplete with 48 missing gates.
+
+Old summary bytes are preserved in [the 9154e421 history index](History/9154e421/index.json). Original hosted/M4/Windows reports, including both failed Windows cases, remain in their original artifact directories. They do not satisfy this freeze.
+
+---
+
+# Historical checkpoints below
+
 # Feature 030 closeout evidence
 
 T105–T112 implementation/preflight is complete; hosted, frozen physical and current human acceptance remain pending. `preflight.json` records working-tree checks, not final authority. Raw logs and preliminary native reports remain under ignored `Build/Validation/030`.

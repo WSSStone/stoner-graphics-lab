@@ -1,0 +1,51 @@
+[
+  {
+    "name": "release-regression",
+    "exitCode": 0,
+    "logSha256": "4f5cd247e1f2e8431952ffc8be0f3b70af54513e22825dc292a3dca221477a48",
+    "passedAssertions": 619,
+    "failedAssertions": 0
+  },
+  {
+    "name": "test_interactive_lab_validation.py",
+    "exitCode": 0,
+    "logSha256": "36039acdaabfb230f7c0c75ca3b23945bd2b37a9c62d2d80e34ba39a3da5cfc3",
+    "passedAssertions": 0,
+    "failedAssertions": 0
+  },
+  {
+    "name": "test_run_output_transform_validation.py",
+    "exitCode": 0,
+    "logSha256": "17376278093d96592d1e0c8efcfe16bb901ef78252b16fcbdb299c7e42fff347",
+    "passedAssertions": 0,
+    "failedAssertions": 0
+  },
+  {
+    "name": "test_run_production_image_calibration.py",
+    "exitCode": 0,
+    "logSha256": "718d4d8c28eb868d332e92f343a99755b6b416b161de19d50bf676ddd732e09b",
+    "passedAssertions": 0,
+    "failedAssertions": 0
+  },
+  {
+    "name": "test_verify_output_transform_evidence.py",
+    "exitCode": 0,
+    "logSha256": "6ba5859ae26e0254e052a12847ca201c0f98761f37b0291971d69ec0c060adcd",
+    "passedAssertions": 0,
+    "failedAssertions": 0
+  },
+  {
+    "name": "verify_output_transform_architecture.py",
+    "exitCode": 0,
+    "logSha256": "f0b6ebdc5dedb9eca241aaab9041bb856c1d977d5e074d9eb608e9097a3db58c",
+    "passedAssertions": 0,
+    "failedAssertions": 0
+  },
+  {
+    "name": "architecture",
+    "exitCode": 0,
+    "logSha256": "bdd3d2b91fcaca2dd46a2e140ab04bef17e28564add69d58d6707de436a5570b",
+    "passedAssertions": 0,
+    "failedAssertions": 0
+  }
+]

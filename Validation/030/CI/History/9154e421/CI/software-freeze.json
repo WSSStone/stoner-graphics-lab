@@ -1,9 +1,9 @@
 {
   "schema": "stoner.interactive-lab-software-freeze",
   "schemaVersion": 1,
-  "softwareRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "softwareRevision": "9154e421eaaf5a01755d80736af322a1caab9215",
   "status": "frozen",
-  "cleanCheckout": "Build/Validation/030/sdr-capability-fix",
+  "cleanCheckout": "Build/Worktrees/030-frozen-97c09338",
   "policyIdentities": [
     {
       "path": ".github/scripts/acquire_production_corpus.py",
@@ -31,7 +31,7 @@
     },
     {
       "path": ".github/scripts/interactive_lab_validation.py",
-      "sha256": "9be7d0c1fcd1c3f5759db0109f548490b7bbb3a453f40d02bd3e2bf3ff7f612e"
+      "sha256": "24e26aad05ae3d3bddf64e270762ca3dad5b248b4806d68d8790c3bc67db8dfa"
     },
     {
       "path": ".github/scripts/output_transform_common.py",
@@ -119,7 +119,7 @@
     },
     {
       "path": ".github/scripts/test_interactive_lab_validation.py",
-      "sha256": "fcea117245d252c24c624c78fce2224456d3103963ba97c723d20f80335eafaf"
+      "sha256": "c550a2fee2023a45aa903f8eb2731d845b26aa9161f31a883d3bdb063a3c4bec"
     },
     {
       "path": ".github/scripts/test_output_transform_workflows.py",
@@ -332,22 +332,15 @@
     {
       "path": "Tests/SConscript",
       "sha256": "bef2b65b943eaf3a61b198bfdae4af708d298867040015757cb9fcbdf3656249"
-    },
-    {
-      "path": "Config/Validation/InteractiveLab/Coverage-v2.json",
-      "sha256": "03449bcd52b465abcd100fc40502871e1a57f77dde5228d32a0e59a21cca9f67"
-    },
-    {
-      "path": "Config/Validation/InteractiveLab/Report-v2.schema.json",
-      "sha256": "e20dde0f2a09bbd369dd91d96c2af7cb0bdbf7dba25e105732c18762cc0fee3c"
     }
   ],
   "intelMacos": "skipped-by-maintainer-2026-09-08",
-  "hostedStatus": "pending-explicit-remote-push-approval",
-  "physicalStatus": "pending-new-sha-windows-desktop-locked-m4-handoff-required",
-  "humanStatus": "pending-new-sha-machine-requests",
+  "hostedStatus": "passed",
+  "physicalStatus": "m4-14-windows-3-machine-cases-passed-windows-2-lifecycle-failed-formal-pending",
+  "humanStatus": "pending-current-review",
   "invalidation": "Any implementation or validation-policy change requires a new freeze and repetition of affected runs.",
   "evidenceOnlyCommits": "Later evidence/documentation commits retain this tested software revision; run producers from the exact frozen checkout.",
-  "preflight": "Validation/030/CI/Windows-Vulkan/74e1c435-20260916/checkpoint.json",
-  "supersedes": "9154e421eaaf5a01755d80736af322a1caab9215"
+  "preflight": "Validation/030/CI/preflight.json",
+  "hostedRunUrl": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35051927132",
+  "supersedes": "8eb5c5453bed20753f0e88726985a0cf6c62da3d"
 }

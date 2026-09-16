@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "softwareRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "cases": [
+    {
+      "caseId": "windows-vulkan-lantern-lifecycle-integration",
+      "gateKind": "lifecycle",
+      "timeoutSeconds": 600,
+      "frames": 120,
+      "status": "prepared-not-run",
+      "script": {
+        "path": "Validation/030/CI/Windows-Vulkan/74e1c435-20260916/windows-vulkan-lantern-lifecycle-integration-script.json",
+        "sha256": "fcde919f05401d69ca0d54707da58465aebca1f5bb4f961f3ad9e90fc633ff40"
+      },
+      "steps": 12
+    },
+    {
+      "caseId": "windows-vulkan-lantern-sdr-smoke",
+      "gateKind": "smoke",
+      "timeoutSeconds": 600,
+      "frames": 120,
+      "status": "prepared-not-run"
+    },
+    {
+      "caseId": "windows-vulkan-sponza-mode-transition-stress",
+      "gateKind": "lifecycle",
+      "timeoutSeconds": 600,
+      "frames": 1120,
+      "status": "prepared-not-run",
+      "script": {
+        "path": "Validation/030/CI/Windows-Vulkan/74e1c435-20260916/windows-vulkan-sponza-mode-transition-stress-script.json",
+        "sha256": "ec9fd3edc00da9295a77110a9ad11b5ad97cce4448f7b99b92f4f197350d96e0"
+      },
+      "steps": 61
+    },
+    {
+      "caseId": "windows-vulkan-sponza-sdr-endurance",
+      "gateKind": "endurance",
+      "timeoutSeconds": 600,
+      "frames": 1120,
+      "status": "prepared-not-run"
+    },
+    {
+      "caseId": "windows-vulkan-sponza-sdr-lifecycle-stress",
+      "gateKind": "lifecycle",
+      "timeoutSeconds": 600,
+      "frames": 1120,
+      "status": "prepared-not-run",
+      "script": {
+        "path": "Validation/030/CI/Windows-Vulkan/74e1c435-20260916/windows-vulkan-sponza-sdr-lifecycle-stress-script.json",
+        "sha256": "1fca1b97d7edf61551b6ed90afb1ba865e217e90094ad55a6cf2049e7841b808"
+      },
+      "steps": 180
+    }
+  ]
+}

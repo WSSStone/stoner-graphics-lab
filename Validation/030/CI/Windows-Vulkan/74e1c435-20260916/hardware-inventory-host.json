@@ -1,0 +1,34 @@
+{
+  "checkedUtc": "2026-09-16T08:28:49.5301271Z",
+  "computer": [
+    {
+      "Manufacturer": "LENOVO",
+      "Model": "30FNSDL000",
+      "HypervisorPresent": true
+    }
+  ],
+  "adapters": [
+    {
+      "Name": "NVIDIA GeForce RTX 3080",
+      "PNPDeviceID": "PCI\\VEN_10DE&DEV_2216&SUBSYS_C89117AA&REV_A1\\4&1273707C&0&0008",
+      "DriverVersion": "32.0.15.8132"
+    },
+    {
+      "Name": "Intel(R) UHD Graphics 770",
+      "PNPDeviceID": "PCI\\VEN_8086&DEV_4680&SUBSYS_105717AA&REV_0C\\3&11583659&0&10",
+      "DriverVersion": "32.0.101.7079"
+    }
+  ],
+  "disks": [
+    {
+      "DriveLetter": "D",
+      "FileSystemType": "NTFS",
+      "DriveType": "Fixed"
+    },
+    {
+      "DriveLetter": "C",
+      "FileSystemType": "NTFS",
+      "DriveType": "Fixed"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "schema": "stoner.interactive-lab-physical-sdr-evidence",
+  "schemaVersion": 1,
+  "softwareRevision": "9154e421eaaf5a01755d80736af322a1caab9215",
+  "status": "passed",
+  "cases": [
+    {
+      "caseId": "macos-metal-sponza-sdr-endurance",
+      "status": "passed",
+      "adapter": "Apple M4 Pro",
+      "warmupPresented": 120,
+      "measuredPresented": 1000,
+      "presentQueuedFrames": 1120,
+      "liveQueueIdles": 0,
+      "liveDeviceIdles": 0,
+      "finalNativeOwners": 0,
+      "shutdownAssurance": "Proven",
+      "imageReadbackCopies": 0,
+      "readbackMaps": 0,
+      "readbackWaits": 0
+    },
+    {
+      "caseId": "macos-metal-lantern-sdr-smoke",
+      "status": "passed",
+      "adapter": "Apple M4 Pro",
+      "warmupPresented": 0,
+      "measuredPresented": 120,
+      "presentQueuedFrames": 120,
+      "liveQueueIdles": 0,
+      "liveDeviceIdles": 0,
+      "finalNativeOwners": 0,
+      "shutdownAssurance": "Proven",
+      "imageReadbackCopies": 0,
+      "readbackMaps": 0,
+      "readbackWaits": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "Validation/030/SDR/M4-Metal/9154e421/macos-metal-sponza-sdr-endurance-native.json",
+      "sha256": "5898045b9d05e082dd7d673b139cbb136fdb13bb98fef8d3c84453d76a4d019c",
+      "originalPath": "Build/Validation/030/physical/macos-metal-sponza-sdr-endurance-native.json"
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/9154e421/macos-metal-sponza-sdr-endurance-report.json",
+      "sha256": "eaccf73917b7e0d0917d33edf4dc2db34e990db9ebcdda4668bde7d519f7bedb",
+      "originalPath": "Build/Validation/030/physical/macos-metal-sponza-sdr-endurance-report.json"
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/9154e421/macos-metal-lantern-sdr-smoke-native.json",
+      "sha256": "97249599d34c9bc9c356970bd4d87c214ca3d49c88c6b60ccf04d924cb277415",
+      "originalPath": "Build/Validation/030/physical/macos-metal-lantern-sdr-smoke-native.json"
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/9154e421/macos-metal-lantern-sdr-smoke-report.json",
+      "sha256": "691f8104df8c0b8726cfd97c8a2fee55e5fcb931446f5dbd14f2e25bbb307d9b",
+      "originalPath": "Build/Validation/030/physical/macos-metal-lantern-sdr-smoke-report.json"
+    }
+  ],
+  "humanAuthority": false
+}

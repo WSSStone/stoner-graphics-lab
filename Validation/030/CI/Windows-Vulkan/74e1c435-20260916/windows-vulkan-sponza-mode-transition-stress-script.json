@@ -1,0 +1,310 @@
+{
+  "schemaVersion": 1,
+  "steps": [
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.BT709.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.ExplicitGamma22.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Sdr.sRGB.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profileByCapability",
+      "value": "Hdr.PQ.Rec2020.1000.v1"
+    }
+  ]
+}

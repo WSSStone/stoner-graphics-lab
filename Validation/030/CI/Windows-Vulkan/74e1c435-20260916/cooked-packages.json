@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "softwareRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "packages": [
+    {
+      "workload": "lantern",
+      "current": {
+        "schema": "stoner.asset-current-generation",
+        "schemaVersion": 1,
+        "generationId": "d070931078115d8884e7c850e4df4d9763e12a107417f8dba28be13b833e0b83",
+        "manifestLocator": "Generations/d070931078115d8884e7c850e4df4d9763e12a107417f8dba28be13b833e0b83/Manifest.json",
+        "manifestDigest": "27a05100d1733c188166545899a47ee4625008e40a30f0560165c8eabce6d938"
+      },
+      "targetSha256": "c157918a460ea086d8089753ad6f04c46484bed2d653d07193310a2397064058",
+      "cookerSha256": "b882a883ecd6544bd0f391716bc4965b1c1d43c74c09d41a1ab2a0dad511d148",
+      "demoSha256": "37b8cee46695baa10df099cf66560fad2fb39e44f1328fb94a7838bcec4c9f6e",
+      "freshCook": true,
+      "strictFilesPassed": true
+    },
+    {
+      "workload": "sponza",
+      "current": {
+        "schema": "stoner.asset-current-generation",
+        "schemaVersion": 1,
+        "generationId": "3983c62435f9c7ed2288721a0fb9548b1147ac7f721651052d0bd08c11928508",
+        "manifestLocator": "Generations/3983c62435f9c7ed2288721a0fb9548b1147ac7f721651052d0bd08c11928508/Manifest.json",
+        "manifestDigest": "7ceab2eed887f43bb68e9564f1d509c62e006a0d31c124c6037758c46ec0954c"
+      },
+      "targetSha256": "c157918a460ea086d8089753ad6f04c46484bed2d653d07193310a2397064058",
+      "cookerSha256": "b882a883ecd6544bd0f391716bc4965b1c1d43c74c09d41a1ab2a0dad511d148",
+      "demoSha256": "37b8cee46695baa10df099cf66560fad2fb39e44f1328fb94a7838bcec4c9f6e",
+      "freshCook": true,
+      "strictFilesPassed": true
+    }
+  ]
+}

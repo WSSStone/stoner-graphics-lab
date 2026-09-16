@@ -1,0 +1,16 @@
+[
+  {
+    "configuration": "Debug",
+    "exitCode": 0,
+    "passedAssertions": 619,
+    "failedAssertions": 0,
+    "logSha256": "4f5cd247e1f2e8431952ffc8be0f3b70af54513e22825dc292a3dca221477a48"
+  },
+  {
+    "configuration": "Release",
+    "exitCode": 0,
+    "passedAssertions": 619,
+    "failedAssertions": 0,
+    "logSha256": "4f5cd247e1f2e8431952ffc8be0f3b70af54513e22825dc292a3dca221477a48"
+  }
+]

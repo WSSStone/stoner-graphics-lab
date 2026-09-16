@@ -1,0 +1,18 @@
+{
+  "schema": "stoner.interactive-lab-capability-fix-checkpoint",
+  "schemaVersion": 1,
+  "softwareRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "status": "implementation-verified-physical-hosted-pending",
+  "nativeEvidenceVersion": 2,
+  "coverage": "Config/Validation/InteractiveLab/Coverage-v2.json",
+  "implementationTests": "Debug and strict Release each passed 619 assertions; implementation tests ran before freeze and are not physical acceptance.",
+  "windows": "Console session 1 locked; no current-SHA machine case launched",
+  "m4": "Requires 14 new-SHA runs; no remote access supplied",
+  "hosted": "Pending explicit remote push approval",
+  "formalSdr": "Blocked on current-SHA lifecycle gates",
+  "human": "No current-SHA acceptance authored",
+  "historicalEvidence": "Validation/030/CI/History/9154e421/index.json",
+  "frozenLocalValidation": "Validation/030/CI/Windows-Vulkan/74e1c435-20260916/frozen-local-validation.json",
+  "cookedPackages": "Validation/030/CI/Windows-Vulkan/74e1c435-20260916/cooked-packages.json",
+  "preparedCases": "Validation/030/CI/Windows-Vulkan/74e1c435-20260916/prepared-cases.json"
+}
