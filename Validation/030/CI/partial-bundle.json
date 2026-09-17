@@ -27,6 +27,71 @@
       "path": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-lantern-lifecycle-integration-report.json",
       "sha256": "b30a53d9d4d6ca248d1b7c4d0b274df280a5154f3e9303a258f6b8ef56a3785a",
       "sizeBytes": 1356
+    },
+    {
+      "path": "Build/Validation/030/hosted/linux-asan-ubsan/hosted.json",
+      "sha256": "89fe57bb3fb327c355746bb8cea835d49cb30f6329df423037aad8d33cc9023b",
+      "sizeBytes": 508
+    },
+    {
+      "path": "Build/Validation/030/hosted/linux-debug/hosted.json",
+      "sha256": "c1a5e97dc56fad5f54788229b797b8422e97d407fdc75e961fc21a1ffdab226b",
+      "sizeBytes": 855
+    },
+    {
+      "path": "Build/Validation/030/hosted/linux-native/hosted.json",
+      "sha256": "fd2bf245faa534410d9d44fbfbe61274a9f98f17c5c41b48ed0c76580c758f0d",
+      "sizeBytes": 1591
+    },
+    {
+      "path": "Build/Validation/030/hosted/linux-release/hosted.json",
+      "sha256": "d2c69a30df2342e935fa54a99cf66edc60b284a602e8c5700546db1edf86f10d",
+      "sizeBytes": 857
+    },
+    {
+      "path": "Build/Validation/030/hosted/linux-tsan/hosted.json",
+      "sha256": "01b97f1c455728d68686eb53b49d5e81d996915c5567213a8074b9be2fedc770",
+      "sizeBytes": 502
+    },
+    {
+      "path": "Build/Validation/030/hosted/macos-debug/hosted.json",
+      "sha256": "e8425a5f62d17f86ec8f64a4a07c01d2e086e8d7f66c60c2d71ef08fabd0f1a4",
+      "sizeBytes": 855
+    },
+    {
+      "path": "Build/Validation/030/hosted/macos-native/hosted.json",
+      "sha256": "910366311351341a0ec507af9a9b7761dc7a778e6c0983f227294782a1502166",
+      "sizeBytes": 1087
+    },
+    {
+      "path": "Build/Validation/030/hosted/macos-release/hosted.json",
+      "sha256": "978abbd610df5c527b6efcee855818eee5eacfacbb13cdaeced76758ae107bef",
+      "sizeBytes": 857
+    },
+    {
+      "path": "Build/Validation/030/hosted/medium-integration/hosted.json",
+      "sha256": "e446dfa1398d2c2db0e23a25f2a29fdcab2dd8563e1d0dc1f2b92fc48ac704b7",
+      "sizeBytes": 990
+    },
+    {
+      "path": "Build/Validation/030/hosted/shader-consumer/hosted.json",
+      "sha256": "553484a610774677ad7859af629bccb74dec46e1fb89224dc42ca07c4956e038",
+      "sizeBytes": 883
+    },
+    {
+      "path": "Build/Validation/030/hosted/shader-producer/hosted.json",
+      "sha256": "000f712883499ba8567423cdab4889a39b3308108e93a6476049d628537edf24",
+      "sizeBytes": 731
+    },
+    {
+      "path": "Build/Validation/030/hosted/windows-debug/hosted.json",
+      "sha256": "50f04deca274c8b7f17f42bfa6454cb8b7b299527779f1787d8ee45be331709c",
+      "sizeBytes": 857
+    },
+    {
+      "path": "Build/Validation/030/hosted/windows-release/hosted.json",
+      "sha256": "767d82e08c3a668a681b687f96564911b213e74eafd470fd4de40922f0dd6f4a",
+      "sizeBytes": 859
     }
   ],
   "reports": [
@@ -38,5 +103,19 @@
   ],
   "formalSdr": [],
   "humanDecisions": [],
-  "hosted": []
+  "hosted": [
+    "Build/Validation/030/hosted/linux-asan-ubsan/hosted.json",
+    "Build/Validation/030/hosted/linux-debug/hosted.json",
+    "Build/Validation/030/hosted/linux-native/hosted.json",
+    "Build/Validation/030/hosted/linux-release/hosted.json",
+    "Build/Validation/030/hosted/linux-tsan/hosted.json",
+    "Build/Validation/030/hosted/macos-debug/hosted.json",
+    "Build/Validation/030/hosted/macos-native/hosted.json",
+    "Build/Validation/030/hosted/macos-release/hosted.json",
+    "Build/Validation/030/hosted/medium-integration/hosted.json",
+    "Build/Validation/030/hosted/shader-consumer/hosted.json",
+    "Build/Validation/030/hosted/shader-producer/hosted.json",
+    "Build/Validation/030/hosted/windows-debug/hosted.json",
+    "Build/Validation/030/hosted/windows-release/hosted.json"
+  ]
 }

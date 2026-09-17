@@ -33,19 +33,6 @@
     "human: macos-metal-sponza-pq1000-current-human-hdr",
     "human: macos-metal-sponza-pq2000-current-human-hdr",
     "human: macos-metal-sponza-edr1000-current-human-hdr",
-    "human: macos-metal-sponza-edr2000-current-human-hdr",
-    "hosted: linux-asan-ubsan",
-    "hosted: linux-debug",
-    "hosted: linux-native",
-    "hosted: linux-release",
-    "hosted: linux-tsan",
-    "hosted: macos-debug",
-    "hosted: macos-native",
-    "hosted: macos-release",
-    "hosted: medium-integration",
-    "hosted: shader-consumer",
-    "hosted: shader-producer",
-    "hosted: windows-debug",
-    "hosted: windows-release"
+    "human: macos-metal-sponza-edr2000-current-human-hdr"
   ]
 }

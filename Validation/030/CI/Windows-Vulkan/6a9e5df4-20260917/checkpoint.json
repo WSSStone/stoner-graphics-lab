@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "gitRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
-  "status": "windows-five-passed-hosted-m4-pending",
+  "status": "hosted-and-windows-passed-m4-pending",
   "cases": [
     {
       "caseId": "windows-vulkan-sponza-sdr-endurance",
@@ -346,6 +346,30 @@
       "exitCode": 0,
       "commandSha256": "9cac165d0446ee853dbd2f9007c74149dcf2f4be214ec09c9c6d288dd75973ef",
       "logSha256": "4f991ec40691f274bdbc0dc8cc3e05b0191658a1d2e2e892797386c665fa2501"
+    },
+    {
+      "name": "lantern-cook",
+      "exitCode": 0,
+      "commandSha256": "65834b69a0856552b4bd78bba843ba05f69a13af9e0344f8d83697debe74d50e",
+      "logSha256": "87b64d10ccb3e3c9dd20eae564afb077f568044690532d8491c86ed1735912bb"
+    },
+    {
+      "name": "lantern-strict-validate",
+      "exitCode": 0,
+      "commandSha256": "8763a45217f58b0b6664e6c47ea020fb5103cf1ce3c33c570feecffdeb519b17",
+      "logSha256": "e41174b5d4c219b40bef1bb87fd99c623aff5203a0f86fcbd41527fbf3228879"
+    },
+    {
+      "name": "sponza-cook",
+      "exitCode": 0,
+      "commandSha256": "132c7d35778c9eae23a7466053da3cf16189638014d0b992d0932a2fde5675d3",
+      "logSha256": "5519131e537a06acd6089dcc9beca42dc0e829834dc72f62d4e9be5b0c2e92e5"
+    },
+    {
+      "name": "sponza-strict-validate",
+      "exitCode": 0,
+      "commandSha256": "3a1c3ff438dd49486c10771a313fd428e33db024ee2b72ff304279a2ac040225",
+      "logSha256": "e2456c2f9b46e245a4871628b95c755b0f7cd80bab39dc0e09e22e086e620404"
     }
   ],
   "initialAttempt": {
@@ -403,5 +427,33 @@
     ]
   },
   "softwareBefore": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
-  "softwareAfter": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838"
+  "softwareAfter": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+  "physicalMachine": {
+    "path": "Validation/030/CI/Windows-Vulkan/6a9e5df4-20260917/computer-system.json",
+    "sha256": "dcccaba2a78d621e59518d7d046eeac1026bd46a51740d323d03e1a7f0c982c5",
+    "sizeBytes": 60
+  },
+  "binaries": [
+    {
+      "name": "Build/Win64/Release/Demo/StonerDemo/StonerDemo.exe",
+      "sha256": "b918297419815c8802f602c99e6e195098159d9c4d0273bb003fd0e0f1046d99"
+    },
+    {
+      "name": "Build/Win64/Release/Tests/StonerTest.exe",
+      "sha256": "1aba7d6c64bbb99fbf89e194c8afbd0c487ae0ce598bc472790f46c103818c0d"
+    },
+    {
+      "name": "Build/Win64/Release/Tools/AssetCooker/StonerAssetCooker.exe",
+      "sha256": "e1d59fdc0dcdccec86c7ba78aef6dd3a9362e2a0c85b3ca1f0131c709962fa76"
+    }
+  ],
+  "hosted": {
+    "runId": 35193398574,
+    "jobsPassed": 13,
+    "independentConsumption": "passed"
+  },
+  "completedTasks": [
+    "T114",
+    "T115"
+  ]
 }

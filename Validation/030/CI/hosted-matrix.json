@@ -3,7 +3,99 @@
   "schemaVersion": 1,
   "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
   "runUrl": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574",
-  "conclusion": "in_progress",
-  "independentHostedValidation": "pending",
-  "jobs": []
+  "conclusion": "success",
+  "independentHostedValidation": "passed",
+  "jobs": [
+    {
+      "jobId": "linux-asan-ubsan",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574/job/105110884131",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35193398574/linux-asan-ubsan/hosted.json",
+      "sha256": "89fe57bb3fb327c355746bb8cea835d49cb30f6329df423037aad8d33cc9023b"
+    },
+    {
+      "jobId": "linux-debug",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574/job/105110884098",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35193398574/linux-debug/hosted.json",
+      "sha256": "c1a5e97dc56fad5f54788229b797b8422e97d407fdc75e961fc21a1ffdab226b"
+    },
+    {
+      "jobId": "linux-native",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574/job/105110884033",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35193398574/linux-native/hosted.json",
+      "sha256": "fd2bf245faa534410d9d44fbfbe61274a9f98f17c5c41b48ed0c76580c758f0d"
+    },
+    {
+      "jobId": "linux-release",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574/job/105110883897",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35193398574/linux-release/hosted.json",
+      "sha256": "d2c69a30df2342e935fa54a99cf66edc60b284a602e8c5700546db1edf86f10d"
+    },
+    {
+      "jobId": "linux-tsan",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574/job/105110884259",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35193398574/linux-tsan/hosted.json",
+      "sha256": "01b97f1c455728d68686eb53b49d5e81d996915c5567213a8074b9be2fedc770"
+    },
+    {
+      "jobId": "macos-debug",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574/job/105110884148",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35193398574/macos-debug/hosted.json",
+      "sha256": "e8425a5f62d17f86ec8f64a4a07c01d2e086e8d7f66c60c2d71ef08fabd0f1a4"
+    },
+    {
+      "jobId": "macos-native",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574/job/105110884100",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35193398574/macos-native/hosted.json",
+      "sha256": "910366311351341a0ec507af9a9b7761dc7a778e6c0983f227294782a1502166"
+    },
+    {
+      "jobId": "macos-release",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574/job/105110884039",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35193398574/macos-release/hosted.json",
+      "sha256": "978abbd610df5c527b6efcee855818eee5eacfacbb13cdaeced76758ae107bef"
+    },
+    {
+      "jobId": "medium-integration",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574/job/105110884092",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35193398574/medium-integration/hosted.json",
+      "sha256": "e446dfa1398d2c2db0e23a25f2a29fdcab2dd8563e1d0dc1f2b92fc48ac704b7"
+    },
+    {
+      "jobId": "shader-consumer",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574/job/105116570361",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35193398574/shader-consumer/hosted.json",
+      "sha256": "553484a610774677ad7859af629bccb74dec46e1fb89224dc42ca07c4956e038"
+    },
+    {
+      "jobId": "shader-producer",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574/job/105110884068",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35193398574/shader-producer/hosted.json",
+      "sha256": "000f712883499ba8567423cdab4889a39b3308108e93a6476049d628537edf24"
+    },
+    {
+      "jobId": "windows-debug",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574/job/105110884070",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35193398574/windows-debug/hosted.json",
+      "sha256": "50f04deca274c8b7f17f42bfa6454cb8b7b299527779f1787d8ee45be331709c"
+    },
+    {
+      "jobId": "windows-release",
+      "url": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574/job/105110884020",
+      "conclusion": "success",
+      "report": "Validation/030/CI/35193398574/windows-release/hosted.json",
+      "sha256": "767d82e08c3a668a681b687f96564911b213e74eafd470fd4de40922f0dd6f4a"
+    }
+  ]
 }

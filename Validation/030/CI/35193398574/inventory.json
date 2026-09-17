@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "gitRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+  "runUrl": "https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574",
+  "artifacts": [
+    {
+      "path": "Validation/030/CI/35193398574/linux-asan-ubsan/hosted.json",
+      "originalPath": "Build/Validation/030/hosted/linux-asan-ubsan/hosted.json",
+      "sha256": "89fe57bb3fb327c355746bb8cea835d49cb30f6329df423037aad8d33cc9023b",
+      "sizeBytes": 508
+    },
+    {
+      "path": "Validation/030/CI/35193398574/linux-debug/hosted.json",
+      "originalPath": "Build/Validation/030/hosted/linux-debug/hosted.json",
+      "sha256": "c1a5e97dc56fad5f54788229b797b8422e97d407fdc75e961fc21a1ffdab226b",
+      "sizeBytes": 855
+    },
+    {
+      "path": "Validation/030/CI/35193398574/linux-native/hosted.json",
+      "originalPath": "Build/Validation/030/hosted/linux-native/hosted.json",
+      "sha256": "fd2bf245faa534410d9d44fbfbe61274a9f98f17c5c41b48ed0c76580c758f0d",
+      "sizeBytes": 1591
+    },
+    {
+      "path": "Validation/030/CI/35193398574/linux-native/hosted-linux-lantern-fallback.json",
+      "originalPath": "Build/Validation/030/hosted/linux-native/hosted-linux-lantern-fallback.json",
+      "sha256": "7012290a50301254376b78b172dd109368e119b8836640ef74ec3a9bb6ebc743",
+      "sizeBytes": 1311
+    },
+    {
+      "path": "Validation/030/CI/35193398574/linux-native/fallback-script.json",
+      "originalPath": "Build/Validation/030/hosted/linux-native/fallback-script.json",
+      "sha256": "1fcfc5be66af5a7a8cc90898db86a0c25e70bc5100c651a54218546af354583a",
+      "sizeBytes": 492
+    },
+    {
+      "path": "Validation/030/CI/35193398574/linux-native/hosted-linux-lantern-fallback-native.json",
+      "originalPath": "Build/Validation/030/hosted/linux-native/hosted-linux-lantern-fallback-native.json",
+      "sha256": "d9559633b30f23c6d722f00444eb210caa734afd1e213068a55511193e937bfa",
+      "sizeBytes": 2429
+    },
+    {
+      "path": "Validation/030/CI/35193398574/linux-native/hosted-linux-lantern-auto.json",
+      "originalPath": "Build/Validation/030/hosted/linux-native/hosted-linux-lantern-auto.json",
+      "sha256": "135fb19d03f2470690b7c09835932c611ee1e10c2cdd1ea8022bb20ee944a5ae",
+      "sizeBytes": 949
+    },
+    {
+      "path": "Validation/030/CI/35193398574/linux-native/hosted-linux-lantern-auto-native.json",
+      "originalPath": "Build/Validation/030/hosted/linux-native/hosted-linux-lantern-auto-native.json",
+      "sha256": "add6f3192f77164e80bfd36afeb7f4958bc94b01b1218647141dc06ce0d9a15e",
+      "sizeBytes": 2360
+    },
+    {
+      "path": "Validation/030/CI/35193398574/linux-release/hosted.json",
+      "originalPath": "Build/Validation/030/hosted/linux-release/hosted.json",
+      "sha256": "d2c69a30df2342e935fa54a99cf66edc60b284a602e8c5700546db1edf86f10d",
+      "sizeBytes": 857
+    },
+    {
+      "path": "Validation/030/CI/35193398574/linux-tsan/hosted.json",
+      "originalPath": "Build/Validation/030/hosted/linux-tsan/hosted.json",
+      "sha256": "01b97f1c455728d68686eb53b49d5e81d996915c5567213a8074b9be2fedc770",
+      "sizeBytes": 502
+    },
+    {
+      "path": "Validation/030/CI/35193398574/macos-debug/hosted.json",
+      "originalPath": "Build/Validation/030/hosted/macos-debug/hosted.json",
+      "sha256": "e8425a5f62d17f86ec8f64a4a07c01d2e086e8d7f66c60c2d71ef08fabd0f1a4",
+      "sizeBytes": 855
+    },
+    {
+      "path": "Validation/030/CI/35193398574/macos-native/hosted.json",
+      "originalPath": "Build/Validation/030/hosted/macos-native/hosted.json",
+      "sha256": "910366311351341a0ec507af9a9b7761dc7a778e6c0983f227294782a1502166",
+      "sizeBytes": 1087
+    },
+    {
+      "path": "Validation/030/CI/35193398574/macos-native/hosted-macos-lantern.json",
+      "originalPath": "Build/Validation/030/hosted/macos-native/hosted-macos-lantern.json",
+      "sha256": "a0e64c89bdd2cbd41c0351e7aacec1b34e4b23b1295922bee8fc8cced92a6a27",
+      "sizeBytes": 942
+    },
+    {
+      "path": "Validation/030/CI/35193398574/macos-native/hosted-macos-lantern-native.json",
+      "originalPath": "Build/Validation/030/hosted/macos-native/hosted-macos-lantern-native.json",
+      "sha256": "37e2f9539cfd86e6856b7fcb043b271801a515815663ae71b1078069dc0edcf3",
+      "sizeBytes": 2349
+    },
+    {
+      "path": "Validation/030/CI/35193398574/macos-release/hosted.json",
+      "originalPath": "Build/Validation/030/hosted/macos-release/hosted.json",
+      "sha256": "978abbd610df5c527b6efcee855818eee5eacfacbb13cdaeced76758ae107bef",
+      "sizeBytes": 857
+    },
+    {
+      "path": "Validation/030/CI/35193398574/medium-integration/hosted.json",
+      "originalPath": "Build/Validation/030/hosted/medium-integration/hosted.json",
+      "sha256": "e446dfa1398d2c2db0e23a25f2a29fdcab2dd8563e1d0dc1f2b92fc48ac704b7",
+      "sizeBytes": 990
+    },
+    {
+      "path": "Validation/030/CI/35193398574/medium-integration/hosted-linux-sponza.json",
+      "originalPath": "Build/Validation/030/hosted/medium-integration/hosted-linux-sponza.json",
+      "sha256": "80bf3b2c4ea1c141b7f57e4a83010ccc216f0ef61f421dbb21022469547dd41d",
+      "sizeBytes": 943
+    },
+    {
+      "path": "Validation/030/CI/35193398574/medium-integration/hosted-linux-sponza-native.json",
+      "originalPath": "Build/Validation/030/hosted/medium-integration/hosted-linux-sponza-native.json",
+      "sha256": "9154a6b78ef519c046b0223cf2820ab9694dc9687a8c206ea032949455a95958",
+      "sizeBytes": 2359
+    },
+    {
+      "path": "Validation/030/CI/35193398574/shader-consumer/hosted.json",
+      "originalPath": "Build/Validation/030/hosted/shader-consumer/hosted.json",
+      "sha256": "553484a610774677ad7859af629bccb74dec46e1fb89224dc42ca07c4956e038",
+      "sizeBytes": 883
+    },
+    {
+      "path": "Validation/030/CI/35193398574/shader-producer/hosted.json",
+      "originalPath": "Build/Validation/030/hosted/shader-producer/hosted.json",
+      "sha256": "000f712883499ba8567423cdab4889a39b3308108e93a6476049d628537edf24",
+      "sizeBytes": 731
+    },
+    {
+      "path": "Validation/030/CI/35193398574/windows-debug/hosted.json",
+      "originalPath": "Build/Validation/030/hosted/windows-debug/hosted.json",
+      "sha256": "50f04deca274c8b7f17f42bfa6454cb8b7b299527779f1787d8ee45be331709c",
+      "sizeBytes": 857
+    },
+    {
+      "path": "Validation/030/CI/35193398574/windows-release/hosted.json",
+      "originalPath": "Build/Validation/030/hosted/windows-release/hosted.json",
+      "sha256": "767d82e08c3a668a681b687f96564911b213e74eafd470fd4de40922f0dd6f4a",
+      "sizeBytes": 859
+    }
+  ]
+}

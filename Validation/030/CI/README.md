@@ -1,6 +1,6 @@
 # Current reference-provenance freeze
 
-Current software: `6a9e5df4be780b31a8e3a9ec3ee18b35f0512838`; hosted run 35193398574 in progress. New physical/formal/human evidence is pending. Previous freeze summaries are retained under `History/74e1c435-before-reference-fix`; earlier sections below describe historical results.
+Current software: `6a9e5df4be780b31a8e3a9ec3ee18b35f0512838`; hosted run [35193398574](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574) passed 13/13 and all five physical Windows RDP cases passed independent consumption. T114/T115 are complete. M4, formal SDR and current human evidence remain pending. Previous freeze summaries are retained under `History/74e1c435-before-reference-fix`; earlier sections below describe historical results.
 
 # Latest Windows formal / human follow-up
 
