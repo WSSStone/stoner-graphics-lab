@@ -1,9 +1,9 @@
 {
   "schema": "stoner.interactive-lab-software-freeze",
   "schemaVersion": 1,
-  "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+  "softwareRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
   "status": "frozen",
-  "cleanCheckout": "Build/Validation/030/sdr-reference-fix",
+  "cleanCheckout": "Build/Validation/030/sdr-capability-fix",
   "policyIdentities": [
     {
       "path": ".github/scripts/acquire_production_corpus.py",
@@ -39,7 +39,7 @@
     },
     {
       "path": ".github/scripts/output_transform_provenance.py",
-      "sha256": "d0a30e52077553c9bec70c1083d1d4bc31b36a407747bc23d382f72d856cd8d7"
+      "sha256": "a7ab39e9769ffa00a38659fe3ef124c3d41b2646b8874e6afd2aa6e8d308c292"
     },
     {
       "path": ".github/scripts/production_acceptance_report.py",
@@ -103,7 +103,7 @@
     },
     {
       "path": ".github/scripts/test_aggregate_output_transform_validation.py",
-      "sha256": "dbf3ac0c228ecd24b53e48ebcc2a2f09c9094c9fb929a962a290da62c1d1d3bc"
+      "sha256": "279f1c2e27ab7d5a0004de2610c38e2e504811d47c777c011f9086cd960f0fd1"
     },
     {
       "path": ".github/scripts/test_aggregate_production_medium.py",
@@ -343,10 +343,11 @@
     }
   ],
   "intelMacos": "skipped-by-maintainer-2026-09-08",
-  "hostedStatus": "in-progress-run-35193398574",
-  "physicalStatus": "windows-building-m4-pending",
+  "hostedStatus": "passed-run-35078558137",
+  "physicalStatus": "windows-five-passed-m4-fourteen-pending",
   "humanStatus": "pending-new-sha-machine-requests",
   "invalidation": "Any implementation or validation-policy change requires a new freeze and repetition of affected runs.",
   "evidenceOnlyCommits": "Later evidence/documentation commits retain this tested software revision; run producers from the exact frozen checkout.",
-  "supersedes": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19"
+  "preflight": "Validation/030/CI/Windows-Vulkan/74e1c435-20260916/checkpoint.json",
+  "supersedes": "9154e421eaaf5a01755d80736af322a1caab9215"
 }

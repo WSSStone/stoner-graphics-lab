@@ -1,3 +1,7 @@
+# Current reference-provenance freeze
+
+Current software: `6a9e5df4be780b31a8e3a9ec3ee18b35f0512838`; hosted run 35193398574 in progress. New physical/formal/human evidence is pending. Previous freeze summaries are retained under `History/74e1c435-before-reference-fix`; earlier sections below describe historical results.
+
 # Latest Windows formal / human follow-up
 
 Both Windows v3 formal captures and comparisons passed with identical existing Accepted pixels; both current Windows hands-on decisions were supplied by the maintainer. [Original evidence and limitations](../SDR/Windows-Vulkan/74e1c435-formal-20260916/README.md) preserve SHA-256, Console/RTX 3080, calibration/probe, and exact replies. Full closeout remains blocked by the frozen consumer's Accepted-path binding and retrieval of the newly reported M4 originals. No Accepted or frozen software change was made.
