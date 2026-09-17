@@ -34,3 +34,7 @@ Run every command through `interactive_lab_validation.py run --git-revision 74e1
 3. Generate current human requests from successful new-SHA machine runs. Maintainer review covers WASD/QE/Shift/RMB navigation, Escape cursor release, typing/drag/scroll isolation, readability, exposure/output controls, preset restore after aspect change, UI toggle, real focus/minimize recovery and exit. M4 also requires all four HDR profiles for both scenes. Record the maintainer's own decision; automation supplies no acceptance.
 
 If the new software or policy must change, freeze again and repeat affected validation. PassThrough capability is not a monitor Gamma2.2 calibration claim. Windows AcquireHistory retains its IdleAssumed limitation.
+
+## Windows formal and human follow-up
+
+Both Windows exact SDR v3 comparisons now match the unchanged Accepted PNGs byte-for-byte. Current maintainer hands-on replies are recorded for both scenes. Completed clean interactive exits: lantern. Full closeout remains pending: the frozen consumer rejects the differing fresh/Accepted PNG paths despite identical content; its failure is retained without changing Accepted, paths or policy. M4 completion has been reported by the maintainer, but the new original artifacts still need synchronization into this evidence checkout. See `Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/README.md`.

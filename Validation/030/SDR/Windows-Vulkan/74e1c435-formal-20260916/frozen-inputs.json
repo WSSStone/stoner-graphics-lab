@@ -1,0 +1,25 @@
+{
+  "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "head": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "status": "",
+  "binaries": [
+    {
+      "path": "Build\\Win64\\Release\\Tests\\StonerTest.exe",
+      "sha256": "98f612cc622838382a327cbe6f309fe15580a19e362fbf00d8be088c2ffcfd8b"
+    },
+    {
+      "path": "Build\\Win64\\Release\\Demo\\StonerDemo\\StonerDemo.exe",
+      "sha256": "37b8cee46695baa10df099cf66560fad2fb39e44f1328fb94a7838bcec4c9f6e"
+    }
+  ],
+  "policies": [
+    {
+      "path": "Config\\Validation\\OutputTransform\\SDR\\Baselines-v3.json",
+      "sha256": "9e13dfc7d51658a8940f80a9109e27981d739fe6d5b378125b7fc03ac605d7ab"
+    },
+    {
+      "path": "Config\\AssetCooker\\Profiles\\Production\\Windows-Vulkan.json",
+      "sha256": "c157918a460ea086d8089753ad6f04c46484bed2d653d07193310a2397064058"
+    }
+  ]
+}

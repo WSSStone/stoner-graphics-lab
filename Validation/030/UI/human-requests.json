@@ -2,7 +2,7 @@
   "schema": "stoner.interactive-lab-human-requests-index",
   "schemaVersion": 1,
   "softwareRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
-  "status": "pending-current-machine-evidence",
+  "status": "windows-decisions-received-other-human-gates-pending",
   "requests": [
     {
       "path": "Validation/030/UI/Windows-Vulkan/74e1c435-20260916/lantern-human-request.json",
@@ -15,5 +15,16 @@
       "originalPath": "Build/Validation/030/capability-v2-20260916/sponza-human-request.json"
     }
   ],
-  "decisions": []
+  "decisions": [
+    {
+      "request": "Validation/030/UI/Windows-Vulkan/74e1c435-20260916/lantern-human-request.json",
+      "decision": "Validation/030/UI/Windows-Vulkan/74e1c435-formal-20260916/lantern-human-decision.json",
+      "sha256": "60d168c65b1583946caab74a8288491397c5204b8a301586d2eea203a88996dc"
+    },
+    {
+      "request": "Validation/030/UI/Windows-Vulkan/74e1c435-20260916/sponza-human-request.json",
+      "decision": "Validation/030/UI/Windows-Vulkan/74e1c435-formal-20260916/sponza-human-decision.json",
+      "sha256": "c1fb563261f29d69f709fbb07f5cc12c8ff6ade52aa8b92ec625d3f79a44c9e8"
+    }
+  ]
 }

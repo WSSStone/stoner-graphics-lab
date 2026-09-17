@@ -1,0 +1,12 @@
+{
+  "candidateDecodedSha256": "23ac57adaf34d8ae059d3ae03400e4d351d72cd8b6dfdfdd78727e4473740fa6",
+  "differingChannelCount": 0,
+  "dimensionCheckPrecedesFlip": true,
+  "height": 512,
+  "pixelExact": true,
+  "referenceDecodedSha256": "23ac57adaf34d8ae059d3ae03400e4d351d72cd8b6dfdfdd78727e4473740fa6",
+  "schema": "stoner.output-transform-exact-image-comparison",
+  "schemaVersion": 1,
+  "spatialNormalization": "forbidden",
+  "width": 512
+}

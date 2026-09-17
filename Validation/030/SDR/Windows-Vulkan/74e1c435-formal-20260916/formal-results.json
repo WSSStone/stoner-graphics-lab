@@ -1,0 +1,24 @@
+{
+  "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "workloads": [
+    {
+      "workload": "lantern",
+      "report": "Validation/030/SDR/Windows-Vulkan/Lantern/74e1c435-formal-20260916/sdr-report.json",
+      "candidate": "Validation/030/SDR/Windows-Vulkan/Lantern/74e1c435-formal-20260916/candidate.json",
+      "comparison": "Validation/030/SDR/Windows-Vulkan/Lantern/74e1c435-formal-20260916/comparison.json",
+      "pixelExact": true,
+      "differingChannelCount": 0,
+      "referencePath": "Validation/029/SDR/Windows-Vulkan/Lantern/1f46352-20260904-09/production-content-lantern-v3-vulkan-windows.discrete-vulkan.rgba8-candidate.png"
+    },
+    {
+      "workload": "sponza",
+      "report": "Validation/030/SDR/Windows-Vulkan/Sponza/74e1c435-formal-20260916/sdr-report.json",
+      "candidate": "Validation/030/SDR/Windows-Vulkan/Sponza/74e1c435-formal-20260916/candidate.json",
+      "comparison": "Validation/030/SDR/Windows-Vulkan/Sponza/74e1c435-formal-20260916/comparison.json",
+      "pixelExact": true,
+      "differingChannelCount": 0,
+      "referencePath": "Validation/029/SDR/Windows-Vulkan/Sponza/1f46352-20260904-09/production-content-sponza-v3-vulkan-windows.discrete-vulkan.rgba8-candidate.png"
+    }
+  ],
+  "acceptedRegistryChanged": false
+}

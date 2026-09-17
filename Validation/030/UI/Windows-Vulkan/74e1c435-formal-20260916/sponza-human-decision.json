@@ -1,0 +1,11 @@
+{
+  "schema": "stoner.interactive-lab-human-decision",
+  "schemaVersion": 1,
+  "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "gateId": "windows-vulkan-sponza-current-human-navigation",
+  "requestSha256": "14e4f11fc735480f92b71ef90c4f68bd6423035b2b4a9d55962f506b07cb8418",
+  "decision": "accepted",
+  "reviewer": "conversation-maintainer",
+  "observedAt": "2026-09-17T03:34:37.463778+00:00",
+  "observations": "sponza\u6ca1\u95ee\u9898"
+}

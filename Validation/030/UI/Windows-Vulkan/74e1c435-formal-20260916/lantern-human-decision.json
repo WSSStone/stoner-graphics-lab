@@ -1,0 +1,11 @@
+{
+  "schema": "stoner.interactive-lab-human-decision",
+  "schemaVersion": 1,
+  "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "gateId": "windows-vulkan-lantern-current-human-navigation",
+  "requestSha256": "54187d462c840687a9994273fa6e0f92037036ceda80baaa2c0b1781234b0af1",
+  "decision": "accepted",
+  "reviewer": "conversation-maintainer",
+  "observedAt": "2026-09-16T12:16:42.194440+00:00",
+  "observations": "\u901a\u8fc7"
+}

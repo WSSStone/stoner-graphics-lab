@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "workload": "sponza",
+  "source": "maintainer reply in the current conversation",
+  "originalReply": "sponza\u6ca1\u95ee\u9898",
+  "reviewerIdentity": "Role attribution only: conversation maintainer; no personal signature was supplied.",
+  "observationDetail": "No per-item observations were supplied or inferred.",
+  "decision": "Validation/030/UI/Windows-Vulkan/74e1c435-formal-20260916/sponza-human-decision.json",
+  "decisionSha256": "c1fb563261f29d69f709fbb07f5cc12c8ff6ade52aa8b92ec625d3f79a44c9e8"
+}

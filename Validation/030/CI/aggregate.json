@@ -22,8 +22,6 @@
     "formal: windows-vulkan-sponza-formal-sdr-parity",
     "formal: macos-metal-lantern-formal-sdr-parity",
     "formal: macos-metal-sponza-formal-sdr-parity",
-    "human: windows-vulkan-lantern-current-human-navigation",
-    "human: windows-vulkan-sponza-current-human-navigation",
     "human: macos-metal-lantern-current-human-navigation",
     "human: macos-metal-sponza-current-human-navigation",
     "human: macos-metal-lantern-pq1000-current-human-hdr",

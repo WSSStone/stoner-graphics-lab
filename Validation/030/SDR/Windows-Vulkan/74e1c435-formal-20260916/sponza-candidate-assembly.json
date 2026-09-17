@@ -1,0 +1,15 @@
+{
+  "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "sourcePpmSha256": "85d2dc45609ad379b0e32c87e4ed08afa58853da4081eae44508d0a7f10443ce",
+  "decodedPixelSha256": "d85636cd7b43846ec60290379456b5258a811570b162ee6b0d2b0a49b37ddbe5",
+  "calibrationMode": "mode-1",
+  "policyAssignedBeforeFirstCandidateWrite": true,
+  "copiedExactCalibratedPolicy": {
+    "badPixelFractionMax": 0.001,
+    "badPixelThreshold": 0.05,
+    "maximumMax": 0.01,
+    "meanMax": 0.0005,
+    "p95Max": 0.001
+  },
+  "spatialOperations": []
+}

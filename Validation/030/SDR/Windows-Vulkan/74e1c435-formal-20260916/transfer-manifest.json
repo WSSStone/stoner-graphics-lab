@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 1,
+  "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "artifacts": [
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/closeout-binding-diagnostic.json",
+      "sha256": "4d4694b5c65da09f1923cd1b262ca6fd9d92c82e3695620b30e3454e9ba50ab7",
+      "sizeBytes": 2252
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/formal-results.json",
+      "sha256": "11b0c721ecbb8f713cd28d2dc0d86c332cc38bf4487f3620e173c76bef4c9953",
+      "sizeBytes": 1279
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/frozen-after.json",
+      "sha256": "51af849f45a746d8e96772d70be807e9b727340b0da1686d14fed4a5665ec2e2",
+      "sizeBytes": 260
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/frozen-inputs.json",
+      "sha256": "789fd76ad7ffddf848129c9b6faaab60d63f219f7540db2ded97948e4b35a875",
+      "sizeBytes": 850
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/hardware-inventory.json",
+      "sha256": "2dd5a5d0afa89de494b09b209d519abc3853792334d7b3306137af87227062c8",
+      "sizeBytes": 703
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/inventory.json",
+      "sha256": "6d581c7bc9e7fab790158db7e14d645911845e0bc0cb0ea6ba3ea51e40865f75",
+      "sizeBytes": 17893
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/lantern-candidate-assembly.json",
+      "sha256": "f95760676a7804065bd94e8911e4c0b988dd51ab54d344d9472864c4ffbc5f40",
+      "sizeBytes": 526
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/lantern-existing-accepted-record.json",
+      "sha256": "7b3fa2f9c71ac8e77400f3d3854cb126d79aad22a92365b6f25ce4efa912f99b",
+      "sizeBytes": 1462
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/lantern-formal-session-after.json",
+      "sha256": "641ca5d0b8850be311d1baa90e1e9b1891331264c72140e1f2434eb960720c55",
+      "sizeBytes": 325
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/lantern-formal-session-before.json",
+      "sha256": "8d69a5f333d441a621cab6a6b1188205b2c5435ffe30726c16b5dbc52bb69aec",
+      "sizeBytes": 325
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/post-capture-checks.json",
+      "sha256": "d5376e18fc66a01a62c93a70e10f2904683732255a26b81bb8387d5ce1216134",
+      "sizeBytes": 1351
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/session-after-preparation.json",
+      "sha256": "f3734061ac3ad8b996bf4d873ead452e4f62bb2a3826d54d4c1377233bc351df",
+      "sizeBytes": 371
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/session-before.json",
+      "sha256": "f3622e5a149138ec2ca16c1f2773fe4c4743a763a0d160508e3538724c20799f",
+      "sizeBytes": 371
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/session-resume.json",
+      "sha256": "3beb23bfe570c15797aa3277975446e1e4ce4081c1d4fb177c78db187ae39170",
+      "sizeBytes": 325
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/sponza-candidate-assembly.json",
+      "sha256": "096daa18d5e117dc8b810deac7f699571f64347dbcd74d90985c0f62d1c34675",
+      "sizeBytes": 526
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/sponza-existing-accepted-record.json",
+      "sha256": "5c1e2b61a535b44b76588ff0a3ef0c909902231aa27f402f8ad7be4a4ab5866a",
+      "sizeBytes": 1458
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/sponza-formal-session-after.json",
+      "sha256": "ec06acf24985407567c7e3bd4fb8ac961ce15d6514eb729fff7a30731efe4858",
+      "sizeBytes": 325
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/74e1c435-formal-20260916/sponza-formal-session-before.json",
+      "sha256": "7a5e1b0db9789d6119cd1cf725bf07b1af13756c911fcfcdc30afef91112d7b4",
+      "sizeBytes": 325
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Lantern/74e1c435-formal-20260916/calibration.json",
+      "sha256": "f5f19ffed87d1707536e408b08cc6c2dd76546aebf38b64bb044c17c9e4b9966",
+      "sizeBytes": 2379
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Lantern/74e1c435-formal-20260916/candidate-mode-1.png",
+      "sha256": "f67c022b9aa01cd3986610a235efe62d04699f595d24ec53a64d0e06d2767ac5",
+      "sizeBytes": 40891
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Lantern/74e1c435-formal-20260916/candidate.json",
+      "sha256": "a09f184a7426a007e141bb57089e944d6025e1a083f6d45b78f144b200786525",
+      "sizeBytes": 1087
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Lantern/74e1c435-formal-20260916/comparison.json",
+      "sha256": "ac0483245120627c8b33acae0905cba287132e5844cf1ba9bb17eafa0a80d634",
+      "sizeBytes": 453
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Lantern/74e1c435-formal-20260916/native-probe.json",
+      "sha256": "cf579d147010a1daafd7ebbc922c1a5f06ae4dbff3c7ec6dc79a4b5adfe52db4",
+      "sizeBytes": 983
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Lantern/74e1c435-formal-20260916/native-report.json",
+      "sha256": "24d794bd1556edb3a241c0551e36d3a9842dcd27e3048aa6aefcccb59bc7344e",
+      "sizeBytes": 1519
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Lantern/74e1c435-formal-20260916/production-content-lantern-v3-vulkan-windows.discrete-vulkan.rgba8-candidate.png",
+      "sha256": "f67c022b9aa01cd3986610a235efe62d04699f595d24ec53a64d0e06d2767ac5",
+      "sizeBytes": 40891
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Lantern/74e1c435-formal-20260916/sdr-report.json",
+      "sha256": "2d821855b453035a8a929608b71cb2627254fa9956b88d3fe8510e8a3c73bc74",
+      "sizeBytes": 2148
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Sponza/74e1c435-formal-20260916/calibration.json",
+      "sha256": "076efbe007193f73819d1c70f4ab7d95b421028041c40b7e1b6d811f3b325d1f",
+      "sizeBytes": 2378
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Sponza/74e1c435-formal-20260916/candidate-mode-1.png",
+      "sha256": "6d93309e0bd939a85e6c8bcf6d4251de6e1e6b54b0ce25699f1867648a982950",
+      "sizeBytes": 546635
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Sponza/74e1c435-formal-20260916/candidate.json",
+      "sha256": "802c41c760a0e2ceeec0a5de94bf7ca7b34946560fb446d235d47f430f85fe05",
+      "sizeBytes": 1084
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Sponza/74e1c435-formal-20260916/comparison.json",
+      "sha256": "520fad7b10bd11343f07757d1e8fa5924d46badadbb7e2b6116fafe4d171cbf8",
+      "sizeBytes": 453
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Sponza/74e1c435-formal-20260916/native-probe.json",
+      "sha256": "3a057ea069b60de68b81af246cfc93708a483a9d02a5963ea87c102045297eb0",
+      "sizeBytes": 982
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Sponza/74e1c435-formal-20260916/native-report.json",
+      "sha256": "9fc935a650f867e76cfa429298d7a059b74c8c819155ce151859dced5dc6f2d3",
+      "sizeBytes": 1517
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Sponza/74e1c435-formal-20260916/production-content-sponza-v3-vulkan-windows.discrete-vulkan.rgba8-candidate.png",
+      "sha256": "6d93309e0bd939a85e6c8bcf6d4251de6e1e6b54b0ce25699f1867648a982950",
+      "sizeBytes": 546635
+    },
+    {
+      "path": "Validation/030/SDR/Windows-Vulkan/Sponza/74e1c435-formal-20260916/sdr-report.json",
+      "sha256": "59a6e69f5e4aef51524c7e212aa078173c0ba345fceff11c9a96cff39bcd85ed",
+      "sizeBytes": 2143
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/74e1c435-20260916/lantern-human-request.json",
+      "sha256": "54187d462c840687a9994273fa6e0f92037036ceda80baaa2c0b1781234b0af1",
+      "sizeBytes": 502
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/74e1c435-20260916/sponza-human-request.json",
+      "sha256": "14e4f11fc735480f92b71ef90c4f68bd6423035b2b4a9d55962f506b07cb8418",
+      "sizeBytes": 501
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/74e1c435-formal-20260916/interactive-sessions.json",
+      "sha256": "8aab84376730f9e2af9205fd0c3d19a050eff0df2641a1ba0d946498fd9b118f",
+      "sizeBytes": 1581
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/74e1c435-formal-20260916/lantern-human-decision.json",
+      "sha256": "60d168c65b1583946caab74a8288491397c5204b8a301586d2eea203a88996dc",
+      "sizeBytes": 442
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/74e1c435-formal-20260916/lantern-human-reply.json",
+      "sha256": "1fc56693d023213b4c2ea93f7433ee6f1c84db5b11f95e836440bde5b0b49d64",
+      "sizeBytes": 584
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/74e1c435-formal-20260916/lantern-human-session-after.json",
+      "sha256": "9f2bbf7ee92635e3fa75b2f1e3bb956d4996299cacccd6a732b610fe082922b4",
+      "sizeBytes": 325
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/74e1c435-formal-20260916/lantern-human-session-before.json",
+      "sha256": "38b6b308b94559b0b6fe05c3cb97ad3817cfd534a2a0bbca24265115f9fc1ff3",
+      "sizeBytes": 325
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/74e1c435-formal-20260916/lantern-interactive-native.json",
+      "sha256": "57c36ae5474bf12174d0e004db02a68e836d00fd78071ce0bf9a92cd630041b4",
+      "sizeBytes": 2369
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/74e1c435-formal-20260916/sponza-human-decision.json",
+      "sha256": "c1fb563261f29d69f709fbb07f5cc12c8ff6ade52aa8b92ec625d3f79a44c9e8",
+      "sizeBytes": 453
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/74e1c435-formal-20260916/sponza-human-reply.json",
+      "sha256": "cc5002d89106819e69b72178220308f3fed3f7b8c3d1bb3300ad84c7a0d19ffb",
+      "sizeBytes": 594
+    }
+  ]
+}

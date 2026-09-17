@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "closeoutExitCode": 1,
+  "logSha256": "ebbadde3d25eceb5657f09ca31b6aaba204237861d475e2a86ebe853cc81e1da",
+  "workloads": [
+    {
+      "workload": "lantern",
+      "existingAcceptedRecordUnchanged": true,
+      "sourceRegistrySha256": "9e13dfc7d51658a8940f80a9109e27981d739fe6d5b378125b7fc03ac605d7ab",
+      "candidatePixelExact": true,
+      "candidateRecordFieldsMatch": true,
+      "currentReportPng": "Validation/030/SDR/Windows-Vulkan/Lantern/74e1c435-formal-20260916/production-content-lantern-v3-vulkan-windows.discrete-vulkan.rgba8-candidate.png",
+      "existingAcceptedPng": "Validation/029/SDR/Windows-Vulkan/Lantern/1f46352-20260904-09/production-content-lantern-v3-vulkan-windows.discrete-vulkan.rgba8-candidate.png",
+      "currentPngSha256": "f67c022b9aa01cd3986610a235efe62d04699f595d24ec53a64d0e06d2767ac5",
+      "acceptedPngSha256": "f67c022b9aa01cd3986610a235efe62d04699f595d24ec53a64d0e06d2767ac5",
+      "errors": [
+        "SDR provenance: Accepted referencePath does not identify the verified PNG"
+      ]
+    },
+    {
+      "workload": "sponza",
+      "existingAcceptedRecordUnchanged": true,
+      "sourceRegistrySha256": "9e13dfc7d51658a8940f80a9109e27981d739fe6d5b378125b7fc03ac605d7ab",
+      "candidatePixelExact": true,
+      "candidateRecordFieldsMatch": true,
+      "currentReportPng": "Validation/030/SDR/Windows-Vulkan/Sponza/74e1c435-formal-20260916/production-content-sponza-v3-vulkan-windows.discrete-vulkan.rgba8-candidate.png",
+      "existingAcceptedPng": "Validation/029/SDR/Windows-Vulkan/Sponza/1f46352-20260904-09/production-content-sponza-v3-vulkan-windows.discrete-vulkan.rgba8-candidate.png",
+      "currentPngSha256": "6d93309e0bd939a85e6c8bcf6d4251de6e1e6b54b0ce25699f1867648a982950",
+      "acceptedPngSha256": "6d93309e0bd939a85e6c8bcf6d4251de6e1e6b54b0ce25699f1867648a982950",
+      "errors": [
+        "SDR provenance: Accepted referencePath does not identify the verified PNG"
+      ]
+    }
+  ],
+  "sourceAndPolicyChanged": false,
+  "acceptedRegistryChanged": false,
+  "disposition": "Preserve new original evidence and old Accepted paths; do not relocate or promote records to bypass the binding failure."
+}

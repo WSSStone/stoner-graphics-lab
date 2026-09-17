@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "workload": "lantern",
+  "source": "maintainer reply in the current conversation",
+  "originalReply": "\u901a\u8fc7",
+  "reviewerIdentity": "Role attribution only: conversation maintainer; no personal signature was supplied.",
+  "observationDetail": "No per-item observations were supplied or inferred.",
+  "decision": "Validation/030/UI/Windows-Vulkan/74e1c435-formal-20260916/lantern-human-decision.json",
+  "decisionSha256": "60d168c65b1583946caab74a8288491397c5204b8a301586d2eea203a88996dc"
+}

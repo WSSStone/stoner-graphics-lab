@@ -1,3 +1,9 @@
+# Latest Windows formal / human follow-up
+
+Both Windows v3 formal captures and comparisons passed with identical existing Accepted pixels; both current Windows hands-on decisions were supplied by the maintainer. [Original evidence and limitations](../SDR/Windows-Vulkan/74e1c435-formal-20260916/README.md) preserve SHA-256, Console/RTX 3080, calibration/probe, and exact replies. Full closeout remains blocked by the frozen consumer's Accepted-path binding and retrieval of the newly reported M4 originals. No Accepted or frozen software change was made.
+
+---
+
 # Current capability-v2 freeze — 2026-09-16
 
 Current tested software: `74e1c435ecd79056ef3d72c563ab4cd865a6ca19` on `codex/030-sdr-capability-validation` (pushed to origin with maintainer approval).
