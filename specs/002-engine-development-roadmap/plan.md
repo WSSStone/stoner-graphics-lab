@@ -17,7 +17,7 @@ profiling; they retain debug outputs, resource/sample counters and bounded execu
 Only unstarted former 030-052 migrate to 031-053; extra backends
 are optional independent tracks. Each phase retains a responsibility boundary.
 Feature 029 is now complete by the explicit revision-scoped maintainer
-exception in `specs/029-hdr-output-transform/closeout.md`; Feature 030 is next.
+exception in `specs/029-hdr-output-transform/closeout.md`; Feature 030 subsequently closed by the explicit 2026-09-17 maintainer decision in `specs/030-interactive-rendering-lab/closeout.md`; Feature 031 is next.
 This records a governance disposition, not a strict same-SHA authority pass.
 
 ## Technical Context

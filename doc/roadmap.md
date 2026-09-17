@@ -1,3 +1,5 @@
+> Current acceptance update (2026-09-17): Feature 030 is complete by [maintainer exception](../specs/030-interactive-rendering-lab/closeout.md); Feature 031 is next. Strict 030 rejection records remain unchanged.
+
 # Stoner Graphics Lab - Engine Development Roadmap
 
 > **Version**: 3.1.0 | **Created**: 2026-04-21 | **Last Updated**: 2026-09-06 | **Status**: Active
@@ -91,7 +93,7 @@ hosted x86_64 native acceptance. Feature 028 has closed the remaining content-
 realism gap with selected production assets and an end-to-end source-to-visible-
 render acceptance path. Feature 029 HDR Post-Processing & Output Transform is
 complete at `2ee7116` by an explicit maintainer exception; Feature 030
-Interactive Rendering Lab & ImGui Integration is next, followed by 031
+Interactive Rendering Lab & ImGui Integration is complete by the 2026-09-17 maintainer exception at `6a9e5df4`; next is 031
 Anti-Aliasing & Temporal Reconstruction. The exception preserves older
 Windows SDR and +3 EV HDR visual provenance and is not a strict all-gates pass.
 

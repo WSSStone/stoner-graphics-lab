@@ -2,10 +2,10 @@
   "schema": "stoner.roadmap-phase-index",
   "schemaVersion": 1,
   "roadmapVersion": "3.1.0",
-  "amendedAt": "2026-09-06",
+  "amendedAt": "2026-09-17",
   "activeRuntimeRange": "003-053",
-  "completedRuntimeRange": "003-029",
-  "nextPhase": "030",
+  "completedRuntimeRange": "003-030",
+  "nextPhase": "031",
   "sourceRoadmapVersion": "2.3.2",
   "oldToNew": {
     "030": "031",

@@ -1,5 +1,6 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (118/127 reviewed tasks); new frozen 6a9e5df4 hosted 13/13 and Windows/M4 machine 19/19 checks pass; M4 human 10/10 accepted, formal capability binding and Windows formal/human closeout remain pending.
+Current status (2026-09-17): Feature 030 is complete by explicit maintainer acceptance at 6a9e5df4. Strict closeout is waived for this feature only; original failed/incomplete records remain unchanged. Windows formal SDR is maintainer-approved without a new current-SHA capture claim. Feature 031 is next. See specs/030-interactive-rendering-lab/closeout.md; dated historical checkpoints below remain historical.
+Feature 030 evidence: frozen 6a9e5df4 hosted 13/13 and Windows/M4 machine 19/19 pass; M4 human 10/10 accepted. Remaining strict formal/Windows decision obligations are resolved by the explicit current maintainer exception. Documentation follow-up remains tracked separately.
 The maintainer explicitly skips Intel x86_64 macOS validation for Feature 030
 on 2026-09-08; record it as skipped, not passed, and do not block implementation
 on Intel cooking/derivation/native checks. Existing Intel support and historical

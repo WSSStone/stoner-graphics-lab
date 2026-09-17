@@ -1,0 +1,20 @@
+{
+  "schema": "stoner.maintainer-closeout-decision",
+  "schemaVersion": 1,
+  "date": "2026-09-17",
+  "feature": "030",
+  "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+  "evidenceCommit": "e7a6233ee2550629e3f0cf033c96ce2c4b1eee26",
+  "reviewer": "maintainer (current conversation)",
+  "verbatim": "不要严格closeout；通过；windows正式SDR我都给通过了。\n进入下一个阶段",
+  "status": "accepted-by-maintainer-exception",
+  "strictAggregatePassed": false,
+  "dispositions": {
+    "m4Formal": "Accepted; capabilityDigest strict binding waived for this closeout.",
+    "windowsFormal": "Maintainer explicitly states both formal SDR workloads already approved; no new current-SHA capture is inferred.",
+    "windowsHuman": "Remaining separate decision collection waived by overall approval to advance; no synthetic per-request observation.",
+    "intelMac": "skipped",
+    "nextPhase": "031"
+  },
+  "scope": "Feature 030 only; no future validation waiver; no Accepted, tolerance, validator or raw-evidence changes."
+}
