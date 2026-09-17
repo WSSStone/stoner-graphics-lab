@@ -1,6 +1,21 @@
 {
+  "schema": "stoner.interactive-lab-human-requests-index",
   "schemaVersion": 1,
-  "gitRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
-  "status": "pending-new-freeze-validation",
-  "historicalEvidence": "Validation/030/CI/History/74e1c435-before-reference-fix"
+  "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+  "status": "requests-prepared-no-decisions",
+  "requests": [
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/lantern-human-request.json",
+      "sha256": "50f92aabfb8cb58b69fe706cd294351d407f43cf85b4481bc875a617e6e7c91f",
+      "sizeBytes": 502,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/lantern-human-request.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/sponza-human-request.json",
+      "sha256": "bbeaa157fb7cde6712504228ad7cba7dbf4699cb5ad1bde6367e4428535b5ef3",
+      "sizeBytes": 501,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/sponza-human-request.json"
+    }
+  ],
+  "decisions": []
 }

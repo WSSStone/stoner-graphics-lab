@@ -1,6 +1,211 @@
 {
+  "schema": "stoner.interactive-lab-physical-lifecycle-evidence",
   "schemaVersion": 1,
   "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
-  "status": "pending-new-freeze-validation",
-  "historicalEvidence": "Validation/030/CI/History/74e1c435-before-reference-fix"
+  "session": "RDP-Tcp#0",
+  "humanAuthority": false,
+  "scanoutAuthority": false,
+  "status": "partial",
+  "completedCases": [
+    {
+      "caseId": "windows-vulkan-sponza-sdr-lifecycle-stress",
+      "warmupPresented": 0,
+      "measuredPresented": 1120,
+      "compatibilityLimitation": "",
+      "adapter": "NVIDIA GeForce RTX 3080",
+      "presentQueuedFrames": 1120,
+      "submittedFrames": 1158,
+      "completedRenderSubmissions": 1158,
+      "provenPresentationReleases": 1120,
+      "completedScriptSteps": 180,
+      "scriptSteps": 180,
+      "imageReadbackCopies": 0,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "liveQueueIdles": 0,
+      "liveDeviceIdles": 0,
+      "finalNativeOwners": 0,
+      "finalPresentationOwners": 0,
+      "shutdownAssurance": "Proven",
+      "retirementMode": "PresentationFence",
+      "optionalFenceAdvertised": true,
+      "optionalFenceEnabled": true,
+      "preCleanupPresentationOwners": 0,
+      "terminalIdleCalls": 1,
+      "profileRequestCounts": {
+        "switched": 0,
+        "retained": 0,
+        "rejectedUnsupported": 0
+      },
+      "captureRequests": 0,
+      "residualOwners": 0,
+      "abandonedOwners": 0
+    },
+    {
+      "caseId": "windows-vulkan-sponza-mode-transition-stress",
+      "warmupPresented": 0,
+      "measuredPresented": 1120,
+      "compatibilityLimitation": "",
+      "adapter": "NVIDIA GeForce RTX 3080",
+      "presentQueuedFrames": 1120,
+      "submittedFrames": 1120,
+      "completedRenderSubmissions": 1120,
+      "provenPresentationReleases": 1120,
+      "completedScriptSteps": 61,
+      "scriptSteps": 61,
+      "imageReadbackCopies": 0,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "liveQueueIdles": 0,
+      "liveDeviceIdles": 0,
+      "finalNativeOwners": 0,
+      "finalPresentationOwners": 0,
+      "shutdownAssurance": "Proven",
+      "retirementMode": "PresentationFence",
+      "optionalFenceAdvertised": true,
+      "optionalFenceEnabled": true,
+      "preCleanupPresentationOwners": 0,
+      "terminalIdleCalls": 1,
+      "profileRequestCounts": {
+        "switched": 0,
+        "retained": 20,
+        "rejectedUnsupported": 41
+      },
+      "captureRequests": 0,
+      "residualOwners": 0,
+      "abandonedOwners": 0
+    },
+    {
+      "caseId": "windows-vulkan-lantern-lifecycle-integration",
+      "warmupPresented": 0,
+      "measuredPresented": 120,
+      "compatibilityLimitation": "",
+      "adapter": "NVIDIA GeForce RTX 3080",
+      "presentQueuedFrames": 120,
+      "submittedFrames": 120,
+      "completedRenderSubmissions": 120,
+      "provenPresentationReleases": 120,
+      "completedScriptSteps": 12,
+      "scriptSteps": 12,
+      "imageReadbackCopies": 0,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "liveQueueIdles": 0,
+      "liveDeviceIdles": 0,
+      "finalNativeOwners": 0,
+      "finalPresentationOwners": 0,
+      "shutdownAssurance": "Proven",
+      "retirementMode": "PresentationFence",
+      "optionalFenceAdvertised": true,
+      "optionalFenceEnabled": true,
+      "preCleanupPresentationOwners": 0,
+      "terminalIdleCalls": 1,
+      "profileRequestCounts": {
+        "switched": 0,
+        "retained": 1,
+        "rejectedUnsupported": 2
+      },
+      "captureRequests": 0,
+      "residualOwners": 0,
+      "abandonedOwners": 0
+    }
+  ],
+  "pendingCases": [
+    "macos-metal-sponza-sdr-lifecycle-stress",
+    "macos-metal-lantern-mode-transition-stress",
+    "macos-metal-lantern-lifecycle-integration",
+    "macos-metal-sponza-lifecycle-integration"
+  ],
+  "artifacts": [
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/windows-vulkan-sponza-sdr-lifecycle-stress-report.json",
+      "sha256": "2af32a08273166c81643da98fbdddb7c588e5d3e08a94ec165625a5372bb0e28",
+      "sizeBytes": 1348,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-sdr-lifecycle-stress-report.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/windows-vulkan-sponza-sdr-lifecycle-stress-native.json",
+      "sha256": "cebc46ed1143bd15a313a3c7eb5bbac3dd444763e6a6daf6e314f26a74890ca0",
+      "sizeBytes": 2435,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-sdr-lifecycle-stress-native.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/windows-vulkan-sponza-sdr-lifecycle-stress-script.json",
+      "sha256": "1fca1b97d7edf61551b6ed90afb1ba865e217e90094ad55a6cf2049e7841b808",
+      "sizeBytes": 15722,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-sdr-lifecycle-stress-script.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/windows-vulkan-sponza-sdr-lifecycle-stress-session-before.json",
+      "sha256": "cbc5829f71ce83809f628b6b5cc68eee7e6e43c6adf804daea6c3f829949b2bc",
+      "sizeBytes": 326,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-sdr-lifecycle-stress-session-before.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/windows-vulkan-sponza-sdr-lifecycle-stress-session-after.json",
+      "sha256": "2df93104345aac5c4168b1467bcfab11a0a698e944f59bfeb80f2f62e19cdb53",
+      "sizeBytes": 326,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-sdr-lifecycle-stress-session-after.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/windows-vulkan-sponza-mode-transition-stress-report.json",
+      "sha256": "a4a301a320be182769db0c796edd82d948bf8ef525dc8217321189a79e341c45",
+      "sizeBytes": 1357,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-mode-transition-stress-report.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/windows-vulkan-sponza-mode-transition-stress-native.json",
+      "sha256": "4bfd605052fd4be89b716f8c17d013df12e4b2de340f8430bb1a0aeda1a93185",
+      "sizeBytes": 70605,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-mode-transition-stress-native.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/windows-vulkan-sponza-mode-transition-stress-script.json",
+      "sha256": "ec9fd3edc00da9295a77110a9ad11b5ad97cce4448f7b99b92f4f197350d96e0",
+      "sizeBytes": 6881,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-mode-transition-stress-script.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/windows-vulkan-sponza-mode-transition-stress-session-before.json",
+      "sha256": "0311576930c7adfd40ca775e35d9a2b9c555ef58da6dc295e7184cf8f358b4eb",
+      "sizeBytes": 326,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-mode-transition-stress-session-before.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/windows-vulkan-sponza-mode-transition-stress-session-after.json",
+      "sha256": "6bb2ca9fe52a2f7d04cdcf71af06972ac49b756d235034b56db4d83e5d7e9849",
+      "sizeBytes": 326,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-mode-transition-stress-session-after.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/windows-vulkan-lantern-lifecycle-integration-report.json",
+      "sha256": "b30a53d9d4d6ca248d1b7c4d0b274df280a5154f3e9303a258f6b8ef56a3785a",
+      "sizeBytes": 1356,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-lantern-lifecycle-integration-report.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/windows-vulkan-lantern-lifecycle-integration-native.json",
+      "sha256": "456879d36f4267fedd7482403a863ed6c2bf26af453acfcff4c142985fd19de7",
+      "sizeBytes": 5771,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-lantern-lifecycle-integration-native.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/windows-vulkan-lantern-lifecycle-integration-script.json",
+      "sha256": "fcde919f05401d69ca0d54707da58465aebca1f5bb4f961f3ad9e90fc633ff40",
+      "sizeBytes": 1162,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-lantern-lifecycle-integration-script.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/windows-vulkan-lantern-lifecycle-integration-session-before.json",
+      "sha256": "e1bbbde263d9b5a5031701672b71c53ee3ea448c7cdfea6e0997f15d795cdb67",
+      "sizeBytes": 326,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-lantern-lifecycle-integration-session-before.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/6a9e5df4-20260917/windows-vulkan-lantern-lifecycle-integration-session-after.json",
+      "sha256": "4c525336417aaa5f2858bab7e2c43d0c84a541f428bed011df70ce89bcc55d0a",
+      "sizeBytes": 326,
+      "originalPath": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-lantern-lifecycle-integration-session-after.json"
+    }
+  ]
 }

@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+  "scope": "Accepted path/content validation only; no renderer, Config, thresholds or Accepted changes",
+  "tests": {
+    "outputTransformPython": 49,
+    "interactiveLabPython": 14,
+    "result": "passed"
+  },
+  "historicalReproduction": {
+    "softwareRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+    "workloads": [
+      "Lantern",
+      "Sponza"
+    ],
+    "originalFailurePreserved": true,
+    "correctedConsumerResult": "passed",
+    "countsAsCurrentAcceptance": false
+  },
+  "negativeCases": [
+    "missing reference",
+    "corrupt reference",
+    "changed reference bytes",
+    "outside-root reference",
+    "stale calibration",
+    "altered same-frame readback"
+  ],
+  "commands": [
+    {
+      "name": "output-python-tests",
+      "exitCode": 0,
+      "commandSha256": "fdf0a76c78aedd9202680aedfe3e195197fa4d5c4883fbf1dab4ae229939bf5c",
+      "logSha256": "8496e90b272e6f44cb24b7d68648f16c241c6ec302e188305cea1019cce98bb0"
+    },
+    {
+      "name": "lab-python-tests",
+      "exitCode": 0,
+      "commandSha256": "9e42dd4bee22bcce6e23d7adbb5339c38ed7df3dfd9f050a82cf195632332a25",
+      "logSha256": "2b3264417e87d6c319901d9466cf3f20d6299de340b2215b5eab10876809d1e6"
+    },
+    {
+      "name": "output-architecture",
+      "exitCode": 0,
+      "commandSha256": "f68acf207d7e49a8ae024cec819eb965545c6ab00f967a2704fc4ad410443d2a",
+      "logSha256": "f0b6ebdc5dedb9eca241aaab9041bb856c1d977d5e074d9eb608e9097a3db58c"
+    },
+    {
+      "name": "strict-release-focused",
+      "exitCode": 0,
+      "commandSha256": "9cac165d0446ee853dbd2f9007c74149dcf2f4be214ec09c9c6d288dd75973ef",
+      "logSha256": "4f991ec40691f274bdbc0dc8cc3e05b0191658a1d2e2e892797386c665fa2501"
+    }
+  ]
+}

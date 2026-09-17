@@ -1,0 +1,16 @@
+{
+  "activeConsoleSessionId": 4,
+  "checkedUtc": "2026-09-17T07:13:50.722292+00:00",
+  "desktopMonitorCount": 1,
+  "findings": [
+    "process is not in the active console session",
+    "session is not active local console transport"
+  ],
+  "inputDesktop": "Default",
+  "processSessionId": 1,
+  "remoteSessionMetric": true,
+  "status": "blocked",
+  "wtsClientProtocolType": 2,
+  "wtsConnectState": 0,
+  "wtsSessionName": "RDP-Tcp#0"
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "Name": "Microsoft Remote Display Adapter",
+    "DriverVersion": "10.0.26100.9278"
+  },
+  {
+    "Name": "NVIDIA GeForce RTX 3080",
+    "DriverVersion": "32.0.15.8132"
+  },
+  {
+    "Name": "Intel(R) UHD Graphics 770",
+    "DriverVersion": "32.0.101.7079"
+  }
+]

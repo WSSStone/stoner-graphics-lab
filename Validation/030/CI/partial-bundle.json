@@ -2,8 +2,40 @@
   "schema": "stoner.interactive-lab-bundle",
   "schemaVersion": 1,
   "gitRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
-  "artifacts": [],
-  "reports": [],
+  "artifacts": [
+    {
+      "path": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-sdr-endurance-report.json",
+      "sha256": "c2deac92a74056d682f65982ebaf43aa466b1f2aedb15d2595152ff986a8dce7",
+      "sizeBytes": 1006
+    },
+    {
+      "path": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-lantern-sdr-smoke-report.json",
+      "sha256": "ae9e382eb00937c25db1a10857c0160673722a19d286c3240dc7a31f915fb054",
+      "sizeBytes": 1097
+    },
+    {
+      "path": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-sdr-lifecycle-stress-report.json",
+      "sha256": "2af32a08273166c81643da98fbdddb7c588e5d3e08a94ec165625a5372bb0e28",
+      "sizeBytes": 1348
+    },
+    {
+      "path": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-mode-transition-stress-report.json",
+      "sha256": "a4a301a320be182769db0c796edd82d948bf8ef525dc8217321189a79e341c45",
+      "sizeBytes": 1357
+    },
+    {
+      "path": "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-lantern-lifecycle-integration-report.json",
+      "sha256": "b30a53d9d4d6ca248d1b7c4d0b274df280a5154f3e9303a258f6b8ef56a3785a",
+      "sizeBytes": 1356
+    }
+  ],
+  "reports": [
+    "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-sdr-endurance-report.json",
+    "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-lantern-sdr-smoke-report.json",
+    "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-sdr-lifecycle-stress-report.json",
+    "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-sponza-mode-transition-stress-report.json",
+    "Build/Validation/030/reference-fix-rdp-20260917/windows-vulkan-lantern-lifecycle-integration-report.json"
+  ],
   "formalSdr": [],
   "humanDecisions": [],
   "hosted": []

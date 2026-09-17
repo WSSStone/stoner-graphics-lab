@@ -1,0 +1,13 @@
+{
+  "checkedUtc": "2026-09-17T07:31:42.150221+00:00",
+  "processSessionId": 1,
+  "activeConsoleSessionId": 4,
+  "wtsSessionName": "RDP-Tcp#0",
+  "wtsClientProtocolType": 2,
+  "wtsConnectState": 0,
+  "remoteSessionMetric": true,
+  "inputDesktop": "Default",
+  "desktopMonitorCount": 1,
+  "status": "passed",
+  "findings": []
+}

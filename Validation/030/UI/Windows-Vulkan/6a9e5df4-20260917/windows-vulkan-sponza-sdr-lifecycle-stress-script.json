@@ -1,0 +1,945 @@
+{
+  "schemaVersion": 1,
+  "steps": [
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 320,
+      "value2": 320
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "resize",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "ui",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "focus",
+      "value": 1
+    },
+    {
+      "afterPresented": 0,
+      "action": "minimize",
+      "value": 0
+    },
+    {
+      "afterPresented": 0,
+      "action": "restore",
+      "value": 640,
+      "value2": 360
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 2
+    },
+    {
+      "afterPresented": 0,
+      "action": "scale",
+      "value": 1
+    }
+  ]
+}
