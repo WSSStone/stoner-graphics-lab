@@ -1,0 +1,23 @@
+{
+  "schema": "stoner.interactive-lab-maintainer-review-index",
+  "schemaVersion": 1,
+  "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+  "kind": "navigation",
+  "m4Status": "accepted-current-maintainer-words",
+  "decisions": [
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/decisions/macos-metal-lantern-current-human-navigation-decision.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/decisions/macos-metal-lantern-current-human-navigation-decision.json",
+      "sha256": "76d766aab56f2e1af99b429d541c66c9d4db1dcea4fdbdcad4c06653223eaedc",
+      "sizeBytes": 435
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/decisions/macos-metal-sponza-current-human-navigation-decision.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/decisions/macos-metal-sponza-current-human-navigation-decision.json",
+      "sha256": "cc647a4904ca9fd52bc734821850771dc606efa9802d7de6b2c641c7e05d876f",
+      "sizeBytes": 423
+    }
+  ],
+  "windowsStatus": "pending",
+  "formalCloseoutAuthority": false
+}

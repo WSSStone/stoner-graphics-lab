@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-Feature 030 implementation is partial (116/127 reviewed tasks); hosted and M4 machine checks pass, Windows/formal/human closeout remains pending.
+Feature 030 implementation is partial (118/127 reviewed tasks); new frozen 6a9e5df4 hosted 13/13 and Windows/M4 machine 19/19 checks pass; M4 human 10/10 accepted, formal capability binding and Windows formal/human closeout remain pending.
 The maintainer explicitly skips Intel x86_64 macOS validation for Feature 030
 on 2026-09-08; record it as skipped, not passed, and do not block implementation
 on Intel cooking/derivation/native checks. Existing Intel support and historical

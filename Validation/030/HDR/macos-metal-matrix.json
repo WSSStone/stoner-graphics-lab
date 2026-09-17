@@ -1,18 +1,244 @@
 {
   "schema": "stoner.interactive-lab-physical-evidence",
   "schemaVersion": 1,
-  "softwareRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
-  "status": "pending",
-  "completedCases": [],
-  "pendingCases": [
-    "macos-metal-lantern-pq2000-endurance",
-    "macos-metal-lantern-edr2000-endurance",
-    "macos-metal-lantern-pq1000-smoke",
-    "macos-metal-lantern-edr1000-smoke",
-    "macos-metal-sponza-pq1000-smoke",
-    "macos-metal-sponza-pq2000-smoke",
-    "macos-metal-sponza-edr1000-smoke",
-    "macos-metal-sponza-edr2000-smoke"
+  "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+  "status": "passed",
+  "humanAuthority": false,
+  "completedCases": [
+    {
+      "adapter": "Apple M4 Pro",
+      "caseId": "macos-metal-lantern-edr1000-smoke",
+      "completedScriptSteps": 0,
+      "finalNativeOwners": 0,
+      "finalPresentationOwners": 0,
+      "imageReadbackCopies": 0,
+      "liveDeviceIdles": 0,
+      "liveQueueIdles": 0,
+      "presentQueuedFrames": 120,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "report": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-edr1000-smoke-report.json",
+      "scriptSteps": 0,
+      "shutdownAssurance": "Proven",
+      "submittedFrames": 120
+    },
+    {
+      "adapter": "Apple M4 Pro",
+      "caseId": "macos-metal-lantern-edr2000-endurance",
+      "completedScriptSteps": 0,
+      "finalNativeOwners": 0,
+      "finalPresentationOwners": 0,
+      "imageReadbackCopies": 0,
+      "liveDeviceIdles": 0,
+      "liveQueueIdles": 0,
+      "presentQueuedFrames": 1120,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "report": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-edr2000-endurance-report.json",
+      "scriptSteps": 0,
+      "shutdownAssurance": "Proven",
+      "submittedFrames": 1120
+    },
+    {
+      "adapter": "Apple M4 Pro",
+      "caseId": "macos-metal-lantern-pq1000-smoke",
+      "completedScriptSteps": 0,
+      "finalNativeOwners": 0,
+      "finalPresentationOwners": 0,
+      "imageReadbackCopies": 0,
+      "liveDeviceIdles": 0,
+      "liveQueueIdles": 0,
+      "presentQueuedFrames": 120,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "report": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-pq1000-smoke-report.json",
+      "scriptSteps": 0,
+      "shutdownAssurance": "Proven",
+      "submittedFrames": 120
+    },
+    {
+      "adapter": "Apple M4 Pro",
+      "caseId": "macos-metal-lantern-pq2000-endurance",
+      "completedScriptSteps": 0,
+      "finalNativeOwners": 0,
+      "finalPresentationOwners": 0,
+      "imageReadbackCopies": 0,
+      "liveDeviceIdles": 0,
+      "liveQueueIdles": 0,
+      "presentQueuedFrames": 1120,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "report": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-pq2000-endurance-report.json",
+      "scriptSteps": 0,
+      "shutdownAssurance": "Proven",
+      "submittedFrames": 1120
+    },
+    {
+      "adapter": "Apple M4 Pro",
+      "caseId": "macos-metal-sponza-edr1000-smoke",
+      "completedScriptSteps": 0,
+      "finalNativeOwners": 0,
+      "finalPresentationOwners": 0,
+      "imageReadbackCopies": 0,
+      "liveDeviceIdles": 0,
+      "liveQueueIdles": 0,
+      "presentQueuedFrames": 120,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "report": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-edr1000-smoke-report.json",
+      "scriptSteps": 0,
+      "shutdownAssurance": "Proven",
+      "submittedFrames": 121
+    },
+    {
+      "adapter": "Apple M4 Pro",
+      "caseId": "macos-metal-sponza-edr2000-smoke",
+      "completedScriptSteps": 0,
+      "finalNativeOwners": 0,
+      "finalPresentationOwners": 0,
+      "imageReadbackCopies": 0,
+      "liveDeviceIdles": 0,
+      "liveQueueIdles": 0,
+      "presentQueuedFrames": 120,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "report": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-edr2000-smoke-report.json",
+      "scriptSteps": 0,
+      "shutdownAssurance": "Proven",
+      "submittedFrames": 120
+    },
+    {
+      "adapter": "Apple M4 Pro",
+      "caseId": "macos-metal-sponza-pq1000-smoke",
+      "completedScriptSteps": 0,
+      "finalNativeOwners": 0,
+      "finalPresentationOwners": 0,
+      "imageReadbackCopies": 0,
+      "liveDeviceIdles": 0,
+      "liveQueueIdles": 0,
+      "presentQueuedFrames": 120,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "report": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-pq1000-smoke-report.json",
+      "scriptSteps": 0,
+      "shutdownAssurance": "Proven",
+      "submittedFrames": 120
+    },
+    {
+      "adapter": "Apple M4 Pro",
+      "caseId": "macos-metal-sponza-pq2000-smoke",
+      "completedScriptSteps": 0,
+      "finalNativeOwners": 0,
+      "finalPresentationOwners": 0,
+      "imageReadbackCopies": 0,
+      "liveDeviceIdles": 0,
+      "liveQueueIdles": 0,
+      "presentQueuedFrames": 120,
+      "readbackMaps": 0,
+      "readbackWaits": 0,
+      "report": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-pq2000-smoke-report.json",
+      "scriptSteps": 0,
+      "shutdownAssurance": "Proven",
+      "submittedFrames": 120
+    }
   ],
-  "artifacts": []
+  "pendingCases": [],
+  "artifacts": [
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-edr1000-smoke-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-edr1000-smoke-native.json",
+      "sha256": "47400fdb8139deb9593784226496177aa245cce37eec621e897cb4fb53107b4b",
+      "sizeBytes": 2346
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-edr1000-smoke-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-edr1000-smoke-report.json",
+      "sha256": "3f945fd51068e365a6b63957f67d711a2f68f5594bfa8dc1d9dbbf32b986fd3a",
+      "sizeBytes": 983
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-edr2000-endurance-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-edr2000-endurance-native.json",
+      "sha256": "46d60035a7abf28c4ed333ed188d699435b18c053331d33c76d94867698d6a0a",
+      "sizeBytes": 2353
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-edr2000-endurance-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-edr2000-endurance-report.json",
+      "sha256": "2774e0bfdd78df12b361bb5e8bcf99d8065528b9ce2a76ae21b705f1b9c8f0fe",
+      "sizeBytes": 1002
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-pq1000-smoke-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-pq1000-smoke-native.json",
+      "sha256": "2f3cde0122fe016ecf14275c2701fed821a56d01087bcafd71f00c23a8e935e4",
+      "sizeBytes": 2350
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-pq1000-smoke-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-pq1000-smoke-report.json",
+      "sha256": "10c005718e18d200a7bc747b2eba4c130145de96696984bdb01dbd07739917c2",
+      "sizeBytes": 980
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-pq2000-endurance-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-pq2000-endurance-native.json",
+      "sha256": "307baab5ed2129f0506c060ed7b488101be0cd109112f745f7169139450ec12b",
+      "sizeBytes": 2361
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-pq2000-endurance-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-pq2000-endurance-report.json",
+      "sha256": "58be5fcc79382ba11211ce2aaa2fcf069b6fc850f68a681703827bedebc273db",
+      "sizeBytes": 999
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-edr1000-smoke-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-edr1000-smoke-native.json",
+      "sha256": "e92f159f4de4300754455c1f5f00fef29615df8b19ef3d06090754f6ad810631",
+      "sizeBytes": 2351
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-edr1000-smoke-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-edr1000-smoke-report.json",
+      "sha256": "9b97db4409cdaaa43a57df60cac15290abc5b9273ac1f93501547ffe006f5e03",
+      "sizeBytes": 980
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-edr2000-smoke-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-edr2000-smoke-native.json",
+      "sha256": "8d3001b999ba54fea143c54e08bd4e9f2a9445061250d7e130738fd7542bff18",
+      "sizeBytes": 2346
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-edr2000-smoke-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-edr2000-smoke-report.json",
+      "sha256": "47b96b9df472b19c4bd152a2b8e91f7b828c05bbad3e5dcd4edd3cf2fbe57d73",
+      "sizeBytes": 980
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-pq1000-smoke-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-pq1000-smoke-native.json",
+      "sha256": "a11be706a19501e77323427ca9d4ccb06ffda1f8a16fc61b88c3130d41fbf26b",
+      "sizeBytes": 2350
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-pq1000-smoke-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-pq1000-smoke-report.json",
+      "sha256": "c0ad2a9c45c151d76f989db8f9e06aa525467b389c03f3872212e3bd47a3c0af",
+      "sizeBytes": 977
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-pq2000-smoke-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-pq2000-smoke-native.json",
+      "sha256": "a5420cefa833d6ef79d76dce08527d6442f145c375776ac692034ac064b7b004",
+      "sizeBytes": 2350
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-pq2000-smoke-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-pq2000-smoke-report.json",
+      "sha256": "79213dd769aac8cd4fe0315ca8a6da0dcb48c462aa38914e21d727a03fbcf6d6",
+      "sizeBytes": 977
+    }
+  ]
 }

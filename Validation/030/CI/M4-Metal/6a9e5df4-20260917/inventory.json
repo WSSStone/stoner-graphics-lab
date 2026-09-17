@@ -1,0 +1,29 @@
+{
+  "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+  "inventories": [
+    {
+      "path": "Validation/030/CI/M4-Metal/6a9e5df4-20260917/inventory-machine.json",
+      "sha256": "500c134ddeeaf0da376ab5e7ef8db69528c329bea4d7524ee86c87ce7cd540ec",
+      "sizeBytes": 15993,
+      "artifactCount": 46
+    },
+    {
+      "path": "Validation/030/CI/M4-Metal/6a9e5df4-20260917/inventory-human.json",
+      "sha256": "fafa8967d86d13851b13e42f2a4d1a533a88e36e33a07f52d1b6eeed10097ebe",
+      "sizeBytes": 6483,
+      "artifactCount": 18
+    },
+    {
+      "path": "Validation/030/CI/M4-Metal/6a9e5df4-20260917/inventory-formal.json",
+      "sha256": "e8537140b8a8bd114dadcc11afa5fc0e0f4d545641f8d3f9938eea16fbaf327d",
+      "sizeBytes": 6642,
+      "artifactCount": 20
+    },
+    {
+      "path": "Validation/030/CI/M4-Metal/6a9e5df4-20260917/inventory-external.json",
+      "sha256": "72cb151a11324203641918732f71d813dd9370306626f72bfe1ac1f240ae8b4b",
+      "sizeBytes": 11455,
+      "artifactCount": 35
+    }
+  ]
+}

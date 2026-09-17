@@ -1,0 +1,113 @@
+{
+  "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+  "artifacts": [
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/decisions/macos-metal-lantern-current-human-navigation-decision.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/decisions/macos-metal-lantern-current-human-navigation-decision.json",
+      "sha256": "76d766aab56f2e1af99b429d541c66c9d4db1dcea4fdbdcad4c06653223eaedc",
+      "sizeBytes": 435
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/decisions/macos-metal-lantern-edr1000-current-human-hdr-decision.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/decisions/macos-metal-lantern-edr1000-current-human-hdr-decision.json",
+      "sha256": "4239527fa34040f6fd36ccfc5dd501b8c2480890729a7db18495a81dd89acb4f",
+      "sizeBytes": 436
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/decisions/macos-metal-lantern-edr2000-current-human-hdr-decision.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/decisions/macos-metal-lantern-edr2000-current-human-hdr-decision.json",
+      "sha256": "a5c9cbd8e0bf6723e51a801d47a6f1b36c53708e4234f6989f31f8f6802ecd9a",
+      "sizeBytes": 436
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/decisions/macos-metal-lantern-pq1000-current-human-hdr-decision.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/decisions/macos-metal-lantern-pq1000-current-human-hdr-decision.json",
+      "sha256": "601366d09df39e10a477d45c9084f3f6919c052ffb3871a431d97a4dbe9eb12f",
+      "sizeBytes": 435
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/decisions/macos-metal-lantern-pq2000-current-human-hdr-decision.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/decisions/macos-metal-lantern-pq2000-current-human-hdr-decision.json",
+      "sha256": "fface7acb9334d9a834261c806f47b64ca70f69795e2d1bec46a263b978579ed",
+      "sizeBytes": 435
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/lantern-conversation.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/lantern-conversation.json",
+      "sha256": "b40d4006a32d9c81cc8149885c883b7bb3a10e6593dff00b977c8698365ddd8d",
+      "sizeBytes": 493
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/lantern-interactive-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/lantern-interactive-native.json",
+      "sha256": "3f58291b5243d2a1675ccd0981c43dd89125e2e4fac32260f19d680de2eaa8fc",
+      "sizeBytes": 2377
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/lantern-review2-interactive-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/lantern-review2-interactive-native.json",
+      "sha256": "8051eb5e6d436ed9ffa89a3dba7c1cfa279628341ee9135402e9e09ddd2eccf5",
+      "sizeBytes": 2386
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/lantern-review2-session.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/lantern-review2-session.json",
+      "sha256": "6f9dbde1e8dd196d3de2ad7219890af99d0b4cf31ebf301bf115e18101af1a89",
+      "sizeBytes": 287
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/lantern-session.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/lantern-session.json",
+      "sha256": "7feb2955bd10c590d2c5c19eb692fefd1a0e7bae0e815d77615387e1cca3bf0d",
+      "sizeBytes": 287
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/decisions/macos-metal-sponza-current-human-navigation-decision.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/decisions/macos-metal-sponza-current-human-navigation-decision.json",
+      "sha256": "cc647a4904ca9fd52bc734821850771dc606efa9802d7de6b2c641c7e05d876f",
+      "sizeBytes": 423
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/decisions/macos-metal-sponza-edr1000-current-human-hdr-decision.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/decisions/macos-metal-sponza-edr1000-current-human-hdr-decision.json",
+      "sha256": "be5a519c7c0acda65599e59c3e452d6d5bd8af2b168d7d63927d7ebeaddb9b4f",
+      "sizeBytes": 424
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/decisions/macos-metal-sponza-edr2000-current-human-hdr-decision.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/decisions/macos-metal-sponza-edr2000-current-human-hdr-decision.json",
+      "sha256": "fa632bba2682a54e91298ba3c7d14e8b1a32a1342d0f01a7de15935d42a65ea1",
+      "sizeBytes": 424
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/decisions/macos-metal-sponza-pq1000-current-human-hdr-decision.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/decisions/macos-metal-sponza-pq1000-current-human-hdr-decision.json",
+      "sha256": "76a8e712445243e0c9cb349b316ae9f80cd44be3add935003f607767cbdc5924",
+      "sizeBytes": 423
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/decisions/macos-metal-sponza-pq2000-current-human-hdr-decision.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/decisions/macos-metal-sponza-pq2000-current-human-hdr-decision.json",
+      "sha256": "5a5a18f2cdecadf610a5a65e68641d2a74663a71da8fd6896db4a921a68961de",
+      "sizeBytes": 423
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/sponza-conversation.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/sponza-conversation.json",
+      "sha256": "4c6e531a06d9c0228f2d78dddfd2f25c5514e1a8f0106e9b0641cee691fad0f4",
+      "sizeBytes": 605
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/sponza-review-interactive-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/sponza-review-interactive-native.json",
+      "sha256": "6de09ce525364e2a51dd99e4ec692608e4e13bbff11276e11fad0f70166c5e47",
+      "sizeBytes": 2380
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/Human/sponza-review-session.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/human/sponza-review-session.json",
+      "sha256": "4a8727d5efe6dcf741cd7f4981d48f26fd9b29ab5dfab8e64a1bfe6879d92979",
+      "sizeBytes": 286
+    }
+  ]
+}

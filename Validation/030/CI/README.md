@@ -1,6 +1,6 @@
 # Current reference-provenance freeze
 
-Current software: `6a9e5df4be780b31a8e3a9ec3ee18b35f0512838`; hosted run [35193398574](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574) passed 13/13 and all five physical Windows RDP cases passed independent consumption. T114/T115 are complete. M4, formal SDR and current human evidence remain pending. Previous freeze summaries are retained under `History/74e1c435-before-reference-fix`; earlier sections below describe historical results.
+Current software: `6a9e5df4be780b31a8e3a9ec3ee18b35f0512838`; hosted run [35193398574](https://github.com/WSSStone/stoner-graphics-lab/actions/runs/35193398574) and all nineteen Windows/M4 machine cases passed independent consumption. T114–T118 are complete (118/127 reviewed tasks). M4 formal Lantern/Sponza calibration, native probe/Candidate and exact 512×512 comparisons pass with zero pixel differences; strict Accepted binding still rejects the changed current capability digests. Ten current M4 maintainer decisions are accepted and digest-linked. Windows formal/current human evidence remains pending. [M4 originals, failures, human words and replay instructions](M4-Metal/6a9e5df4-20260917/README.md) and [strict formal rejection](M4-Metal/6a9e5df4-20260917/formal-closeout-result.json) preserve these separate outcomes. No source, validation policy, tolerance or Accepted record changed. Earlier sections below describe historical results.
 
 # Latest Windows formal / human follow-up
 

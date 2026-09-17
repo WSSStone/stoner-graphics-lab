@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "steps": [
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Hdr.PQ.Rec2020.1000.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Hdr.PQ.Rec2020.2000.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Hdr.Linear.1000.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Hdr.Linear.2000.v1"
+    },
+    {
+      "afterPresented": 0,
+      "action": "profile",
+      "value": "Sdr.sRGB.v1"
+    }
+  ]
+}

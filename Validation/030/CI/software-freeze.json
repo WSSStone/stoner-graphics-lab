@@ -344,10 +344,11 @@
   ],
   "intelMacos": "skipped-by-maintainer-2026-09-08",
   "hostedStatus": "passed-run-35193398574",
-  "physicalStatus": "windows-five-passed-m4-fourteen-pending",
-  "humanStatus": "pending-new-sha-machine-requests",
+  "physicalStatus": "windows-5-m4-14-machine-passed-m4-formal-pixel-exact-strict-capability-binding-blocked",
+  "humanStatus": "m4-10-current-decisions-accepted-windows-2-pending",
   "invalidation": "Any implementation or validation-policy change requires a new freeze and repetition of affected runs.",
   "evidenceOnlyCommits": "Later evidence/documentation commits retain this tested software revision; run producers from the exact frozen checkout.",
   "supersedes": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
-  "preflight": "Validation/030/CI/Windows-Vulkan/6a9e5df4-20260917/checkpoint.json"
+  "preflight": "Validation/030/CI/Windows-Vulkan/6a9e5df4-20260917/checkpoint.json",
+  "m4CleanCheckout": "Build/Worktrees/030-sdr-fix-6a9e5df4"
 }

@@ -1,0 +1,75 @@
+{
+  "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+  "records": [
+    {
+      "label": "Lantern-calibration",
+      "attempt": "initial",
+      "commandSha256": "f58818926db383ab50b36b7abcc99e20f5ce89765a9196543c03fab6ec40a1e9",
+      "gitRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+      "exitCode": 0,
+      "elapsedSeconds": 28.137,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "softwareGuards": "passed-before-and-after"
+    },
+    {
+      "label": "Lantern-native-sdr",
+      "attempt": "initial",
+      "commandSha256": "7e370d7b5893f562affa6b84b836359f36c5512fc0fa18fd189a911500b95b10",
+      "gitRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+      "exitCode": 0,
+      "elapsedSeconds": 8.76,
+      "logSha256": "43439bc79aa4c82fa5cbff484cb6c5d1d0427632e371a2752d9a9518b44e44bf",
+      "softwareGuards": "passed-before-and-after"
+    },
+    {
+      "label": "Lantern-sdr-report",
+      "attempt": "initial",
+      "commandSha256": "7fde0e149a89f7a35be4395a72328ece28a7666e1f891fecf99f8f7ea35114bd",
+      "gitRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+      "exitCode": 0,
+      "elapsedSeconds": 0.085,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "softwareGuards": "passed-before-and-after"
+    },
+    {
+      "label": "Sponza-calibration",
+      "attempt": "initial",
+      "commandSha256": "f27ae730c8c2af2d1285e43d1ba6db26fda925f99419e2db92b5e202951ea127",
+      "gitRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+      "exitCode": 1,
+      "elapsedSeconds": 67.604,
+      "logSha256": "c1ae8407c7972984f64f61f6931524489e78a34e2e20ee2ca2d530cf55ce7398",
+      "softwareGuards": "passed-before-and-after"
+    },
+    {
+      "label": "Sponza-calibration",
+      "attempt": "retry",
+      "commandSha256": "3acce8bef5a08cf36f7ea01ef317b24dca9988125a0fe1ed14471c7289c5609d",
+      "gitRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+      "exitCode": 0,
+      "elapsedSeconds": 91.184,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "softwareGuards": "passed-before-and-after"
+    },
+    {
+      "label": "Sponza-native-sdr",
+      "attempt": "retry",
+      "commandSha256": "9411ced330cb6524c99c5399d29eafd90e6b05bc5de3d383427f89577c9b0653",
+      "gitRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+      "exitCode": 0,
+      "elapsedSeconds": 28.945,
+      "logSha256": "43439bc79aa4c82fa5cbff484cb6c5d1d0427632e371a2752d9a9518b44e44bf",
+      "softwareGuards": "passed-before-and-after"
+    },
+    {
+      "label": "Sponza-sdr-report",
+      "attempt": "retry",
+      "commandSha256": "a0763fc327ecd44a3e82d5502a3e9925d60be164415f23a3d0002e6f40906fa6",
+      "gitRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+      "exitCode": 0,
+      "elapsedSeconds": 0.086,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "softwareGuards": "passed-before-and-after"
+    }
+  ]
+}

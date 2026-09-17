@@ -1,0 +1,125 @@
+{
+  "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+  "artifacts": [
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Lantern/accepted-binding.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/formal/Lantern/accepted-binding.json",
+      "sha256": "19781590983bf03ce32ba412aee45dea8d755fb5687fe240292b4127fe8ba30a",
+      "sizeBytes": 231
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Lantern/accepted-comparison.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/formal/Lantern/accepted-comparison.json",
+      "sha256": "29cf8f38c39c67edc931e9969dce5f2d2309964e36ef29b452838ea4420a274d",
+      "sizeBytes": 400
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Lantern/calibration.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/formal/Lantern/calibration.json",
+      "sha256": "4c49ba1fe0e1a8c7ed56a3ffddea0e645fe730f0013a2ac7ed472014fb629c94",
+      "sizeBytes": 2295
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Lantern/candidate-mode-1.png",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/formal/Lantern/candidate-mode-1.png",
+      "sha256": "7a3c6aaac225471a408a27b1457df0848818ec03b587091e19279e8a25afb49b",
+      "sizeBytes": 40750
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Lantern/candidate.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/formal/Lantern/candidate.json",
+      "sha256": "53d0e7c1237ec56c57644845abcbaad2ea72f43dc6c5e7a9aaee75074d36505d",
+      "sizeBytes": 1069
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Lantern/existing-accepted.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/formal/Lantern/existing-accepted.json",
+      "sha256": "e32df8864d037dbdc2d0896aa28c409100d4f312f06ab824b82a4d330bedf721",
+      "sizeBytes": 1293
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Lantern/native-probe.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/formal/Lantern/native-probe.json",
+      "sha256": "83bc958aeb50508462f75fea27a6cd88f8f606fc8c180df2d37e9896ca58bf83",
+      "sizeBytes": 975
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Lantern/native-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/formal/Lantern/native-report.json",
+      "sha256": "0725ebc8633dbf6b5841b492ee9cff4e109b7eb00c0614d9feffc633785023ab",
+      "sizeBytes": 1492
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Lantern/production-content-lantern-v3-metal-macos.apple8.metal.rgba8-candidate.png",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/formal/Lantern/production-content-lantern-v3-metal-macos.apple8.metal.rgba8-candidate.png",
+      "sha256": "7a3c6aaac225471a408a27b1457df0848818ec03b587091e19279e8a25afb49b",
+      "sizeBytes": 40750
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Lantern/sdr-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/formal/Lantern/sdr-report.json",
+      "sha256": "1de98bb62f86d80e6ac8d6e61cd518175af2d87049223818706d50ff210e8911",
+      "sizeBytes": 2058
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Sponza/accepted-binding.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/sponza-retry/formal/Sponza/accepted-binding.json",
+      "sha256": "19781590983bf03ce32ba412aee45dea8d755fb5687fe240292b4127fe8ba30a",
+      "sizeBytes": 231
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Sponza/accepted-comparison.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/sponza-retry/formal/Sponza/accepted-comparison.json",
+      "sha256": "25cf4a5f5566b26b3f2003c3c09466ad26d4e1d80b70aea12eff34dc8cc5f5a7",
+      "sizeBytes": 400
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Sponza/calibration.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/sponza-retry/formal/Sponza/calibration.json",
+      "sha256": "7bc636eab005c3436d43dd9f32ba11f3202f0bd6918f8bfe46d6a3531a0cf7d2",
+      "sizeBytes": 2294
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Sponza/candidate-mode-1.png",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/sponza-retry/formal/Sponza/candidate-mode-1.png",
+      "sha256": "4f72c4871fe51280f7db47f026059ca31150b2130d9f53f0d65eb9281eb249e7",
+      "sizeBytes": 546865
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Sponza/candidate.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/sponza-retry/formal/Sponza/candidate.json",
+      "sha256": "dde487f3a819b3d893f99fc27385c836d507dc1949ba9e8be3d19d1c33b9d184",
+      "sizeBytes": 1066
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Sponza/existing-accepted.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/sponza-retry/formal/Sponza/existing-accepted.json",
+      "sha256": "90179a7372dc77365ee4c05ae386cdeb8e1dcde250345f7053721f175d5d6095",
+      "sizeBytes": 1289
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Sponza/native-probe.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/sponza-retry/formal/Sponza/native-probe.json",
+      "sha256": "b0750f5dbc2e044d52e93b7d224f0c7776461dbf46ff77da19deacb71cf8a9c3",
+      "sizeBytes": 974
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Sponza/native-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/sponza-retry/formal/Sponza/native-report.json",
+      "sha256": "cbbe8d3a6ba6b6e964a60b044f3d30bd3b8ef18f457646e45f2aacfb0a88d0e2",
+      "sizeBytes": 1503
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Sponza/production-content-sponza-v3-metal-macos.apple8.metal.rgba8-candidate.png",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/sponza-retry/formal/Sponza/production-content-sponza-v3-metal-macos.apple8.metal.rgba8-candidate.png",
+      "sha256": "4f72c4871fe51280f7db47f026059ca31150b2130d9f53f0d65eb9281eb249e7",
+      "sizeBytes": 546865
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/Formal/Sponza/sdr-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/sponza-retry/formal/Sponza/sdr-report.json",
+      "sha256": "34783ab18bc8d1e999cd0e62015a164f5424cd09d9215a78c34b69d4bb9b778a",
+      "sizeBytes": 2105
+    }
+  ]
+}

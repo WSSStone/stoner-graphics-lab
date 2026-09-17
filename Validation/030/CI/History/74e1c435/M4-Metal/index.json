@@ -1,0 +1,39 @@
+{
+  "softwareRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+  "authority": "historical-only-not-current-closeout",
+  "firstAttempt": "failed-after-26-of-100-steps-and-78-frames",
+  "unchangedRetry": "passed-100-steps-1120-frames",
+  "cause": "unresolved",
+  "artifacts": [
+    {
+      "originalPath": "Build/Validation/030/capability-v2/physical/macos-metal-lantern-mode-transition-stress-native.json",
+      "storedPath": "Validation/030/CI/History/74e1c435/M4-Metal/macos-metal-lantern-mode-transition-stress-native.json",
+      "sha256": "fe7238a241e85f67f2cf021adc8f7ac1c626c96540db2280cc79ee6543f4a2a3",
+      "sizeBytes": 2452
+    },
+    {
+      "originalPath": "Build/Validation/030/capability-v2/physical/macos-metal-lantern-mode-transition-stress-report.json",
+      "storedPath": "Validation/030/CI/History/74e1c435/M4-Metal/macos-metal-lantern-mode-transition-stress-report.json",
+      "sha256": "f121d91b44e4e234c440144a7884cc82d3460fe02449aba7f7e3e63f88df3a81",
+      "sizeBytes": 1374
+    },
+    {
+      "originalPath": "Build/Validation/030/capability-v2/physical/macos-metal-lantern-mode-transition-stress-script.json",
+      "storedPath": "Validation/030/CI/History/74e1c435/M4-Metal/macos-metal-lantern-mode-transition-stress-script.json",
+      "sha256": "be3a237ff3a7803575f71bfba68ca16b75bef2fd58000406706e76354e0f043f",
+      "sizeBytes": 10362
+    },
+    {
+      "originalPath": "Build/Validation/030/capability-v2/physical/macos-metal-lantern-mode-transition-stress-retry-native.json",
+      "storedPath": "Validation/030/CI/History/74e1c435/M4-Metal/macos-metal-lantern-mode-transition-stress-retry-native.json",
+      "sha256": "a88cfbc5cd5bd510ee23b665dc55aa9feaa48d584379443cb166917d6e98f517",
+      "sizeBytes": 2421
+    },
+    {
+      "originalPath": "Build/Validation/030/capability-v2/physical/macos-metal-lantern-mode-transition-stress-retry-report.json",
+      "storedPath": "Validation/030/CI/History/74e1c435/M4-Metal/macos-metal-lantern-mode-transition-stress-retry-report.json",
+      "sha256": "4fe6fed729f59fd42e317af03e217c08547a9862a1f8beb6e10f4106441ae6f2",
+      "sizeBytes": 1345
+    }
+  ]
+}

@@ -1,0 +1,281 @@
+{
+  "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+  "artifacts": [
+    {
+      "path": "Validation/030/UI/Requests/6a9e5df4-20260917/macos-metal-lantern-current-human-navigation-request.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-current-human-navigation-request.json",
+      "sha256": "42b7a78649a9eacff6a54c0a4bc04bc4f51af7422c32c658e460b2a49dc64c7a",
+      "sizeBytes": 488
+    },
+    {
+      "path": "Validation/030/UI/Requests/6a9e5df4-20260917/macos-metal-lantern-edr1000-current-human-hdr-request.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-edr1000-current-human-hdr-request.json",
+      "sha256": "4661254b0874ef959320281fc7bf85542baf56b21b712b7c563c504fad2d766d",
+      "sizeBytes": 496
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-edr1000-smoke-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-edr1000-smoke-native.json",
+      "sha256": "47400fdb8139deb9593784226496177aa245cce37eec621e897cb4fb53107b4b",
+      "sizeBytes": 2346
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-edr1000-smoke-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-edr1000-smoke-report.json",
+      "sha256": "3f945fd51068e365a6b63957f67d711a2f68f5594bfa8dc1d9dbbf32b986fd3a",
+      "sizeBytes": 983
+    },
+    {
+      "path": "Validation/030/UI/Requests/6a9e5df4-20260917/macos-metal-lantern-edr2000-current-human-hdr-request.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-edr2000-current-human-hdr-request.json",
+      "sha256": "638ff8f28a94a38b6d5a7fd6312f62786ec753aec8820e5bc7fa414e1cec05e2",
+      "sizeBytes": 497
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-edr2000-endurance-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-edr2000-endurance-native.json",
+      "sha256": "46d60035a7abf28c4ed333ed188d699435b18c053331d33c76d94867698d6a0a",
+      "sizeBytes": 2353
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-edr2000-endurance-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-edr2000-endurance-report.json",
+      "sha256": "2774e0bfdd78df12b361bb5e8bcf99d8065528b9ce2a76ae21b705f1b9c8f0fe",
+      "sizeBytes": 1002
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-lifecycle-integration-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-lifecycle-integration-native.json",
+      "sha256": "ce4f06f65a894f43d7c38628c7311a401dc2945bb53f3a6d6b82da95050b8aef",
+      "sizeBytes": 2404
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-lifecycle-integration-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-lifecycle-integration-report.json",
+      "sha256": "3ff6379f26ce4c2c83d12166f117e5f9fde8f7835dbbbcb0eb9545ae95efee0a",
+      "sizeBytes": 1317
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-lifecycle-integration-script.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-lifecycle-integration-script.json",
+      "sha256": "76c3f40ec241c35b2c341cdba9766f390842b833ed5b9e0adeccd514a8cf030e",
+      "sizeBytes": 826
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-mode-transition-stress-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-mode-transition-stress-native.json",
+      "sha256": "4576d65200079ca2837ad6d93175dad6738b57b6f166e6e744b1190a765158db",
+      "sizeBytes": 2421
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-mode-transition-stress-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-mode-transition-stress-report.json",
+      "sha256": "85d291a1bfd2142026ebb1359dda8eb93e9ab4f89a6f92ace6bb5a8b207d666f",
+      "sizeBytes": 1325
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-mode-transition-stress-script.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-mode-transition-stress-script.json",
+      "sha256": "be3a237ff3a7803575f71bfba68ca16b75bef2fd58000406706e76354e0f043f",
+      "sizeBytes": 10362
+    },
+    {
+      "path": "Validation/030/UI/Requests/6a9e5df4-20260917/macos-metal-lantern-pq1000-current-human-hdr-request.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-pq1000-current-human-hdr-request.json",
+      "sha256": "31b41e9e769d7b2f3962708deef079ef558f86768a2f74465f083e601ca4f23f",
+      "sizeBytes": 499
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-pq1000-smoke-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-pq1000-smoke-native.json",
+      "sha256": "2f3cde0122fe016ecf14275c2701fed821a56d01087bcafd71f00c23a8e935e4",
+      "sizeBytes": 2350
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-pq1000-smoke-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-pq1000-smoke-report.json",
+      "sha256": "10c005718e18d200a7bc747b2eba4c130145de96696984bdb01dbd07739917c2",
+      "sizeBytes": 980
+    },
+    {
+      "path": "Validation/030/UI/Requests/6a9e5df4-20260917/macos-metal-lantern-pq2000-current-human-hdr-request.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-pq2000-current-human-hdr-request.json",
+      "sha256": "fc44afdbd0655cae5af3a91d450b5cf078aa30d3d9f283e3480c30fcd4450b7f",
+      "sizeBytes": 500
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-pq2000-endurance-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-pq2000-endurance-native.json",
+      "sha256": "307baab5ed2129f0506c060ed7b488101be0cd109112f745f7169139450ec12b",
+      "sizeBytes": 2361
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-pq2000-endurance-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-pq2000-endurance-report.json",
+      "sha256": "58be5fcc79382ba11211ce2aaa2fcf069b6fc850f68a681703827bedebc273db",
+      "sizeBytes": 999
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-sdr-smoke-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-sdr-smoke-native.json",
+      "sha256": "12eb03571cd490748b6131dde01a811bd458e677530340b97906939b695379e0",
+      "sizeBytes": 2339
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/macos-metal-lantern-sdr-smoke-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-lantern-sdr-smoke-report.json",
+      "sha256": "0a98d40d51cf8b9beefb3f1196c5304ab2f8a418732afe1d73f293e0ebc6d880",
+      "sizeBytes": 971
+    },
+    {
+      "path": "Validation/030/UI/Requests/6a9e5df4-20260917/macos-metal-sponza-current-human-navigation-request.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-current-human-navigation-request.json",
+      "sha256": "4a6f87bd7f3c56b2a4ec3fe28ef2493fdfa269857792ab7a99ea73d20877d9a8",
+      "sizeBytes": 487
+    },
+    {
+      "path": "Validation/030/UI/Requests/6a9e5df4-20260917/macos-metal-sponza-edr1000-current-human-hdr-request.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-edr1000-current-human-hdr-request.json",
+      "sha256": "f3f18872d90bd957fdaeb83acec506707a6969c51607d12349dd2f26b8c56a81",
+      "sizeBytes": 494
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-edr1000-smoke-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-edr1000-smoke-native.json",
+      "sha256": "e92f159f4de4300754455c1f5f00fef29615df8b19ef3d06090754f6ad810631",
+      "sizeBytes": 2351
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-edr1000-smoke-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-edr1000-smoke-report.json",
+      "sha256": "9b97db4409cdaaa43a57df60cac15290abc5b9273ac1f93501547ffe006f5e03",
+      "sizeBytes": 980
+    },
+    {
+      "path": "Validation/030/UI/Requests/6a9e5df4-20260917/macos-metal-sponza-edr2000-current-human-hdr-request.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-edr2000-current-human-hdr-request.json",
+      "sha256": "8625fa1ce26ce2a35c86453afba09579e28f9fc91f3b2e6da2fa6722f1b3c43e",
+      "sizeBytes": 494
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-edr2000-smoke-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-edr2000-smoke-native.json",
+      "sha256": "8d3001b999ba54fea143c54e08bd4e9f2a9445061250d7e130738fd7542bff18",
+      "sizeBytes": 2346
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-edr2000-smoke-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-edr2000-smoke-report.json",
+      "sha256": "47b96b9df472b19c4bd152a2b8e91f7b828c05bbad3e5dcd4edd3cf2fbe57d73",
+      "sizeBytes": 980
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-lifecycle-integration-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-lifecycle-integration-native.json",
+      "sha256": "5c263bffe5a55385a2560ef536084fa7620d0c2952bbe7006dca664c30966869",
+      "sizeBytes": 2403
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-lifecycle-integration-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-lifecycle-integration-report.json",
+      "sha256": "2b0643e0f70bfe0a4023699fc30bfb794e725129fdf6c518e91c9b3c8e31f00d",
+      "sizeBytes": 1312
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-lifecycle-integration-script.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-lifecycle-integration-script.json",
+      "sha256": "a19a86ef574b3aa5cfcab48b503f704f3ff60bfa5c4e882daba1e9ca6eb4f27d",
+      "sizeBytes": 558
+    },
+    {
+      "path": "Validation/030/UI/Requests/6a9e5df4-20260917/macos-metal-sponza-pq1000-current-human-hdr-request.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-pq1000-current-human-hdr-request.json",
+      "sha256": "033b2efb0ef5e996c7d5a77ed644d5f3fa29ec8abacd2c4e7371c5efc2cb3314",
+      "sizeBytes": 497
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-pq1000-smoke-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-pq1000-smoke-native.json",
+      "sha256": "a11be706a19501e77323427ca9d4ccb06ffda1f8a16fc61b88c3130d41fbf26b",
+      "sizeBytes": 2350
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-pq1000-smoke-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-pq1000-smoke-report.json",
+      "sha256": "c0ad2a9c45c151d76f989db8f9e06aa525467b389c03f3872212e3bd47a3c0af",
+      "sizeBytes": 977
+    },
+    {
+      "path": "Validation/030/UI/Requests/6a9e5df4-20260917/macos-metal-sponza-pq2000-current-human-hdr-request.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-pq2000-current-human-hdr-request.json",
+      "sha256": "cf95521b49ed255a37df835c5cc2ed179e856aebea258b160bae0c7675e2cde2",
+      "sizeBytes": 497
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-pq2000-smoke-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-pq2000-smoke-native.json",
+      "sha256": "a5420cefa833d6ef79d76dce08527d6442f145c375776ac692034ac064b7b004",
+      "sizeBytes": 2350
+    },
+    {
+      "path": "Validation/030/HDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-pq2000-smoke-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-pq2000-smoke-report.json",
+      "sha256": "79213dd769aac8cd4fe0315ca8a6da0dcb48c462aa38914e21d727a03fbcf6d6",
+      "sizeBytes": 977
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-sdr-endurance-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-sdr-endurance-native.json",
+      "sha256": "3a96bc98e1dec06b71e625be6061e2b69b7e73c82a79b277797e2ff1ee3288b5",
+      "sizeBytes": 2351
+    },
+    {
+      "path": "Validation/030/SDR/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-sdr-endurance-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-sdr-endurance-report.json",
+      "sha256": "4cfe18dc46de850cf8830bb5b36c106af1bbcc0bc68200f6c8f94ed2bc8552df",
+      "sizeBytes": 987
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-sdr-lifecycle-stress-native.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-sdr-lifecycle-stress-native.json",
+      "sha256": "946f837e4669e94e1a883f380a696e3960e9300f9f3560d9348f65743ac14287",
+      "sizeBytes": 2421
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-sdr-lifecycle-stress-report.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-sdr-lifecycle-stress-report.json",
+      "sha256": "34292c3f08ca38188f717ab897e5f8b91222dc2b6de7b041d38dff177aea02a7",
+      "sizeBytes": 1311
+    },
+    {
+      "path": "Validation/030/UI/M4-Metal/6a9e5df4-20260917/macos-metal-sponza-sdr-lifecycle-stress-script.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/physical/macos-metal-sponza-sdr-lifecycle-stress-script.json",
+      "sha256": "1fca1b97d7edf61551b6ed90afb1ba865e217e90094ad55a6cf2049e7841b808",
+      "sizeBytes": 15722
+    },
+    {
+      "path": "Validation/030/CI/M4-Metal/6a9e5df4-20260917/machine-summary.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/machine-summary.json",
+      "sha256": "424852eabcf3c5ef31bbb9e41a6338c832caa7ef997c8603d32fe6ea76a33044",
+      "sizeBytes": 6443
+    },
+    {
+      "path": "Validation/030/CI/M4-Metal/6a9e5df4-20260917/preflight.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/preflight.json",
+      "sha256": "40690082747c0a63e65afe00249fd5895ec132ba912c079cd16e4207b146e3dc",
+      "sizeBytes": 2060
+    },
+    {
+      "path": "Validation/030/CI/M4-Metal/6a9e5df4-20260917/machine-aggregate.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/machine-aggregate.json",
+      "sha256": "ca21af29f47d7a23a5e50600bbf6bddd12ee5dc0362510e83889a0dd13957c36",
+      "sizeBytes": 998
+    },
+    {
+      "path": "Validation/030/CI/M4-Metal/6a9e5df4-20260917/accepted-registry-before.json",
+      "originalPath": "Build/Validation/030/m4-6a9e5df4/accepted-registry-before.json",
+      "sha256": "0bae9a228668caf9bd6a64f4fcd72d3e017653dd6239154c3d7e0936700f9575",
+      "sizeBytes": 152
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+  "m4MachinePassed": 14,
+  "m4MachineFailedAttempts": 0,
+  "hostedVerified": 13,
+  "windowsMachineVerified": 5,
+  "m4FormalCandidateValid": 2,
+  "m4PixelExact": 2,
+  "m4StrictAcceptedBinding": false,
+  "m4Formal": [
+    {
+      "gateId": "macos-metal-lantern-formal-sdr-parity",
+      "report": "Build/Validation/030/m4-6a9e5df4/formal/Lantern/sdr-report.json",
+      "baseline": "Build/Validation/030/m4-6a9e5df4/formal/Lantern/existing-accepted.json",
+      "binding": {
+        "acceptedUnchanged": true,
+        "candidateValid": true,
+        "errors": [
+          "SDR provenance: Accepted/Candidate capabilityDigest mismatch"
+        ],
+        "gitRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+        "pixelExact": true,
+        "strictAcceptedCompatible": false
+      },
+      "calibrationProcesses": 3,
+      "capturesPerProcess": 20,
+      "currentCapabilityDigest": "dc03fcfefa2978d89b4f863fb05f38025484bb9e0a3f5f1c84151d1fce8ca7a6",
+      "acceptedCapabilityDigest": "5c5e4fb5221d323eb844742d55762ad4fcadfc2e72f75720c2d2a24b3ef76d91"
+    },
+    {
+      "gateId": "macos-metal-sponza-formal-sdr-parity",
+      "report": "Build/Validation/030/m4-6a9e5df4/sponza-retry/formal/Sponza/sdr-report.json",
+      "baseline": "Build/Validation/030/m4-6a9e5df4/sponza-retry/formal/Sponza/existing-accepted.json",
+      "binding": {
+        "acceptedUnchanged": true,
+        "candidateValid": true,
+        "errors": [
+          "SDR provenance: Accepted/Candidate capabilityDigest mismatch"
+        ],
+        "gitRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+        "pixelExact": true,
+        "strictAcceptedCompatible": false
+      },
+      "calibrationProcesses": 3,
+      "capturesPerProcess": 20,
+      "currentCapabilityDigest": "713bf9b13f2ca6189997a1fed867b1c481e3622478e7842586e035570f2eacb5",
+      "acceptedCapabilityDigest": "9c1b89b085618b275f60166e5069aa1650f8f904d4b976500c93445bbfd43ec6"
+    }
+  ],
+  "humanStatus": "m4-accepted-windows-pending",
+  "m4HumanDecisions": 10,
+  "m4FormalFailedAttempts": 1,
+  "formalCloseout": {
+    "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+    "complete": false,
+    "status": "rejected",
+    "errors": [
+      "invalid current formal SDR authority: SDR provenance: Accepted/Candidate capabilityDigest mismatch"
+    ]
+  },
+  "policyAcceptedUnchanged": true,
+  "intelMacos": "skipped"
+}

@@ -1,0 +1,9 @@
+{
+  "softwareRevision": "6a9e5df4be780b31a8e3a9ec3ee18b35f0512838",
+  "workload": "lantern",
+  "startedAt": "2026-09-17T08:07:52.395583+00:00",
+  "endedAt": "2026-09-17T08:07:52.864104+00:00",
+  "exitCode": 4,
+  "authority": "live-session-execution-only",
+  "humanDecision": "pending"
+}
