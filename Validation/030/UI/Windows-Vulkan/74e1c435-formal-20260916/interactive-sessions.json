@@ -13,6 +13,18 @@
       "finalNativeOwners": 0,
       "finalPresentationOwners": 0,
       "firstFailure": ""
+    },
+    {
+      "workload": "sponza",
+      "exitCode": 0,
+      "commandSha256": "2bb197d1bd6e445de582a2975556802ae9429b3e2142803b858bbfc2e860c4dc",
+      "logSha256": "ef424a6c797af3c35167947f8a2845d5ba1a34011a2c168db61548e07e7c86a7",
+      "gitRevision": "74e1c435ecd79056ef3d72c563ab4cd865a6ca19",
+      "presentQueuedFrames": 62196,
+      "shutdownAssurance": "Proven",
+      "finalNativeOwners": 0,
+      "finalPresentationOwners": 0,
+      "firstFailure": ""
     }
   ],
   "artifacts": [
@@ -33,6 +45,24 @@
       "sha256": "9f2bbf7ee92635e3fa75b2f1e3bb956d4996299cacccd6a732b610fe082922b4",
       "sizeBytes": 325,
       "originalPath": "Build/Validation/030/formal-v2-20260916/lantern-human-session-after.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/74e1c435-formal-20260916/sponza-interactive-native.json",
+      "sha256": "e373db42ee3d71bb10f0889a5c3678dcde2bcdf095110fce03f539473002f375",
+      "sizeBytes": 2405,
+      "originalPath": "Build/Validation/030/formal-v2-20260916/sponza/human-interactive-native.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/74e1c435-formal-20260916/sponza-human-session-before.json",
+      "sha256": "eab16097ef6abee0c7333e70e82b5396626e4632b1e1291eb46777af1afc5add",
+      "sizeBytes": 325,
+      "originalPath": "Build/Validation/030/formal-v2-20260916/sponza-human-session-before.json"
+    },
+    {
+      "path": "Validation/030/UI/Windows-Vulkan/74e1c435-formal-20260916/sponza-human-session-after.json",
+      "sha256": "c6c4e323807587f3c9a3232d75c1a7a452d9332ee9eec2726fb39324b4f66c4e",
+      "sizeBytes": 325,
+      "originalPath": "Build/Validation/030/formal-v2-20260916/sponza-human-session-after.json"
     }
   ]
 }

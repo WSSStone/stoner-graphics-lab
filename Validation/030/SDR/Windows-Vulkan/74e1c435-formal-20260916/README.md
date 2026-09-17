@@ -17,9 +17,11 @@ The existing frozen closeout consumer rejects both new report bundles with `Acce
 
 ## Current hands-on review
 
-After formal captures finished, the maintainer operated separate Lantern and Sponza interactive windows. Lantern exited with code 0, `Proven` shutdown and zero final native/presentation owners. Sponza has an explicit acceptance reply but its interactive process has not yet exited; final cleanup evidence remains pending. The replies are preserved verbatim in the human evidence directory:
+After formal captures finished, the maintainer operated separate Lantern and Sponza interactive windows. Both Lantern and Sponza exited with code 0, `Proven` shutdown and zero final native/presentation owners. Their presentation counts were 9,684 and 62,196 respectively. The maintainer also confirmed Sponza closed normally: “正常关闭。继续下一步”. The replies are preserved verbatim in the human evidence directory:
 
 - Lantern: “通过”
 - Sponza: “sponza没问题”
 
-These are maintainer acceptance decisions, not automation-authored observations. No per-item narrative or personal signature was supplied; reviewer attribution is the conversation maintainer role. Current interactive native reports and before/after sessions accompany the original machine-linked requests. M4 human decisions are not inferred. T121 retains pending Sponza exit evidence and other-platform review; full feature completion is not claimed.
+These are maintainer acceptance decisions, not automation-authored observations. No per-item narrative or personal signature was supplied; reviewer attribution is the conversation maintainer role. Current interactive native reports and before/after sessions accompany the original machine-linked requests. M4 human decisions are not inferred. Windows current human review and exit evidence are complete; T121 retains other-platform review; full feature completion is not claimed.
+
+The complete transfer snapshot is indexed by `transfer-manifest-complete.json` and `transfer-package-complete.json`, including both interactive exits. The earlier transfer manifest/package describe only the preserved earlier ZIP snapshot, not the current working-tree files.
