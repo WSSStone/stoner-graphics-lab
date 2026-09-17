@@ -247,6 +247,38 @@ class OutputTransformAggregateTests(unittest.TestCase):
                         self.assertEqual("blocked", result["status"])
                         self.assertTrue(findings)
 
+    def test_sdr_reference_content_is_independent_of_capture_location(self) -> None:
+        for mutation in (None, "missing", "corrupt", "wrong-pixels", "outside-root",
+                         "stale-calibration", "wrong-readback"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                data = complete_fixture(root)
+                report, record = data[0][0], data[1]["records"][0]
+                original = root / record["referencePath"]
+                accepted = root / "historical-accepted.png"
+                accepted.write_bytes(original.read_bytes())
+                record["referencePath"] = accepted.name
+                if mutation == "missing":
+                    accepted.unlink()
+                elif mutation == "corrupt":
+                    accepted.write_bytes(b"not a PNG")
+                elif mutation == "wrong-pixels":
+                    accepted.write_bytes(original.read_bytes() + b"altered")
+                elif mutation == "outside-root":
+                    record["referencePath"] = "../historical-accepted.png"
+                elif mutation in {"stale-calibration", "wrong-readback"}:
+                    role = "calibration" if mutation == "stale-calibration" else "probe"
+                    entry = next(a for a in report["artifacts"] if a["path"].endswith(f"/{role}.json"))
+                    path = root / entry["path"]
+                    value = json.loads(path.read_bytes())
+                    value["gitRevision" if role == "calibration" else "readbackDigest"] = (
+                        "b" * 40 if role == "calibration" else "f" * 64)
+                    path.write_bytes(RUNNER.canonical_bytes(value))
+                    entry.update(AGGREGATE.PROVENANCE.artifact(path, root))
+                result, findings = AGGREGATE.aggregate(*data, "a" * 40, root)
+                self.assertEqual("passed" if mutation is None else "blocked", result["status"], findings)
+                self.assertEqual(mutation is None, not findings)
+
     def test_sdr_linkage_rejects_rehashed_artifact_mutations(self) -> None:
         for role, field, replacement in (
                 ("calibration", "gitRevision", "b" * 40),

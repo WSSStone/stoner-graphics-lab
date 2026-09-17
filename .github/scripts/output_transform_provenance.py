@@ -151,8 +151,18 @@ def validate_sdr_bundle(report: dict, record: dict, root: Path,
                 raise ValueError(f"Accepted/Candidate {key} mismatch")
         if (candidate_path.parent / candidate["referencePath"]).resolve() != png_path:
             raise ValueError("Candidate referencePath does not identify its PNG artifact")
-        if record.get("state") == "accepted" and (root / record["referencePath"]).resolve() != png_path:
-            raise ValueError("Accepted referencePath does not identify the verified PNG")
+        if record.get("state") == "accepted":
+            # Accepted references retain their historical location. Independently
+            # verify their bounded bytes; fresh captures must not overwrite them.
+            accepted_path = (root / record["referencePath"]).resolve(strict=True)
+            accepted_artifact = artifact(accepted_path, root)
+            if (accepted_path.suffix != ".png" or
+                    accepted_artifact["sha256"] != record["compressedSha256"]):
+                raise ValueError("Accepted reference PNG compressed digest mismatch")
+            accepted_width, accepted_height, accepted_rgb = PNG.decode_png(accepted_path)
+            if ((accepted_width, accepted_height) != (512, 512) or
+                    hashlib.sha256(accepted_rgb).hexdigest() != record["decodedSha256"]):
+                raise ValueError("Accepted reference PNG dimensions/decoded digest mismatch")
         for key in ("workloadRevision", "backend", "deviceClass", "capabilityDigest",
                     "outputDeviceProfileId", "transformVersion", "exposureStops"):
             if report.get(key) != record.get(key):
